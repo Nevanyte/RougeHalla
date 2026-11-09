@@ -23,7 +23,7 @@ def command(profile, database_url, run_id):
               '--client-ip-header', 'x-forwarded-for', '--trusted-proxies', '127.0.0.1',
               '--instance-id', 'calgary-' + run_id + '-' + profile]
     if profile == 'source':
-        # Exact a0 source-arena defaults, explicit so a new binary cannot silently change them.
+        # Reviewed native candidate defaults; explicit so a new binary cannot silently change them.
         return ['/opt/rougehalla/bin/rh-server', '--runtime', 'source-arena',
                 '--bind', '127.0.0.1:7777', '--map', '/opt/rougehalla/maps/source.map.json',
                 '--min-players', '2', '--fill-bots', '0', '--max-rooms', '16',

@@ -9,7 +9,8 @@ from pathlib import Path, PurePosixPath
 import re
 
 HERE = Path(__file__).resolve().parent
-BASE = 'a0c4818ce9df8ad0f4124db31e65ba1244bddc3b'
+# Explicitly reviewed native candidate; advancing this also invalidates older artifact receipts.
+BASE = '76d170a16158a9709178a741f12bd4abb357201f'
 ACCOUNT = '048226733033'
 REGION = 'ca-west-1'
 UTC = dt.timezone.utc
