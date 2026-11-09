@@ -1,6 +1,10 @@
-name: Staging native component (manual, no deployment)
+name: Staging native component (temporary push/manual, no deployment)
 
 on:
+  # TEMPORARY: Root removes this after the one actual result. No tools/source glob.
+  push:
+    branches: [optimization_port]
+    paths: [".github/workflows/staging-native-artifact.yml"]
   workflow_dispatch:
     inputs:
       source_commit:
@@ -13,7 +17,7 @@ permissions:
 
 jobs:
   native-component:
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/optimization_port'
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/optimization_port'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     services:
@@ -29,7 +33,7 @@ jobs:
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       PYTHONDONTWRITEBYTECODE: "1"
-      SELECTED_COMMIT: ${{ inputs.source_commit }}
+      SELECTED_COMMIT: ${{ github.event_name == 'push' && github.sha || inputs.source_commit }}
     steps:
       - name: Reviewed harness, complete ancestry, no persisted credentials
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -45,7 +49,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           path: source
-          ref: ${{ inputs.source_commit }}
+          ref: ${{ env.SELECTED_COMMIT }}
           fetch-depth: 1
           persist-credentials: false
       - name: Build locked RELEASE + actual bounded PostgreSQL loopback readiness
@@ -58,7 +62,7 @@ jobs:
       - name: Retain only component archive in GitHub Actions (not AWS or a public bundle)
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: native-component-${{ inputs.source_commit }}-${{ github.run_id }}-${{ github.run_attempt }}
+          name: native-component-${{ env.SELECTED_COMMIT }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/native-component.tar
           if-no-files-found: error
           retention-days: 3

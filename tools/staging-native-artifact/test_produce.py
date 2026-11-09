@@ -1,5 +1,6 @@
 """Local synthetic Git/HTTP boundary checks only; never builds Rust or starts PostgreSQL/server."""
 import io
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -51,6 +52,59 @@ class Selection(unittest.TestCase):
         with self.assertRaises(c.Refused): p.clean_source(self.repo, self.first)
         (self.repo / 'untracked').write_text('NOT SOURCE')
         with self.assertRaises(c.Refused): p.clean_source(self.repo, self.tip)
+
+    def push_context(self):
+        # Explicit synthetic GitHub payload, private inside this synthetic repository's metadata.
+        event = self.repo / '.git' / 'synthetic-push.json'
+        event.write_text(json.dumps({'ref': 'refs/heads/optimization_port', 'after': self.tip,
+                                     'deleted': False, 'head_commit': {'id': self.tip}}))
+        return {'GITHUB_ACTIONS': 'true', 'GITHUB_REF': 'refs/heads/optimization_port',
+                'GITHUB_EVENT_NAME': 'push', 'GITHUB_SHA': self.tip, 'GITHUB_EVENT_PATH': str(event)}
+
+    def test_accepted_push_reaches_real_ancestry_and_clean_source_then_stops_before_build(self):
+        class ReachedPreparation(Exception): pass
+        clean = p.clean_source
+        def checked_source(*args):
+            clean(*args)
+            raise ReachedPreparation()
+        with patch.dict(os.environ, self.push_context()), patch.object(p.sys, 'platform', 'linux'), \
+                patch.object(p.platform, 'machine', return_value='x86_64'), \
+                patch.object(p, 'selection', wraps=p.selection) as selected, \
+                patch.object(p, 'clean_source', side_effect=checked_source) as source, \
+                patch.object(p.shutil, 'which') as tools, patch.object(p, 'probe') as probe:
+            self.assertEqual(p.authorize_event(self.tip), 'push')
+            with self.assertRaises(ReachedPreparation): p.produce(self.repo, self.repo, self.tip, Path('/unused.tar'))
+            selected.assert_called_once_with(self.repo, self.tip)
+            source.assert_called_once_with(self.repo, self.tip)
+            tools.assert_not_called(); probe.assert_not_called()
+
+    def test_push_wrong_sha_ref_actions_or_event_refuses_before_source_or_native_work(self):
+        baseline = self.push_context()
+        for changed in ({'GITHUB_SHA': self.first}, {'GITHUB_SHA': self.tip[:7]}, {'GITHUB_REF': 'refs/heads/main'},
+                        {'GITHUB_ACTIONS': 'false'}, {'GITHUB_EVENT_NAME': 'pull_request'},
+                        {'GITHUB_EVENT_NAME': 'workflow_run'}):
+            with self.subTest(changed=changed), patch.dict(os.environ, {**baseline, **changed}), \
+                    patch.object(p.sys, 'platform', 'linux'), patch.object(p.platform, 'machine', return_value='x86_64'), \
+                    patch.object(p, 'selection') as source, patch.object(p.shutil, 'which') as tools:
+                with self.assertRaises(c.Refused): p.produce(self.repo, self.repo, self.tip, Path('/unused.tar'))
+                source.assert_not_called(); tools.assert_not_called()
+
+    def test_manual_or_mismatched_payload_cannot_masquerade_as_push(self):
+        baseline = self.push_context()
+        original = json.loads(Path(baseline['GITHUB_EVENT_PATH']).read_text())
+        for change in ({'after': self.first}, {'ref': 'refs/heads/main'}, {'deleted': True},
+                       {'head_commit': {'id': self.first}}, {'inputs': {'source_commit': self.tip}},
+                       {'ref': 'optimization_port', 'inputs': {'source_commit': self.tip}}):
+            with self.subTest(change=change), patch.dict(os.environ, baseline):
+                Path(baseline['GITHUB_EVENT_PATH']).write_text(json.dumps({**original, **change}))
+                with self.assertRaisesRegex(c.Refused, 'push payload mismatch'): p.authorize_event(self.tip)
+        with patch.dict(os.environ, baseline), self.assertRaises(c.Refused): p.authorize_event(self.first)
+
+    def test_manual_mode_retains_exact_older_selected_commit_semantics(self):
+        baseline = self.push_context()
+        with patch.dict(os.environ, {**baseline, 'GITHUB_EVENT_NAME': 'workflow_dispatch'}):
+            self.assertEqual(p.authorize_event(self.first), 'workflow_dispatch')
+            self.assertEqual(p.selection(self.repo, self.first)['commit'], self.first)
 
 
 class Boundaries(unittest.TestCase):

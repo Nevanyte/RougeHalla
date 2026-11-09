@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Manual GitHub Linux-only producer. Never imports an expected runtime receipt or a server --version flag."""
+"""Canonical GitHub Linux producer. Never imports an expected runtime receipt or a server --version flag."""
 import argparse
 import json
 import os
@@ -129,11 +129,28 @@ def probe(binary, psql, env, scratch):
             'db_rows': rows, 'postgres_version': postgres, 'elapsed_ms': elapsed, 'exit_code': exit_code}
 
 
-def produce(harness, source, commit, output):
-    require(sys.platform == 'linux' and platform.machine() == 'x86_64'
-            and os.environ.get('GITHUB_ACTIONS') == 'true' and os.environ.get('GITHUB_EVENT_NAME') == 'workflow_dispatch',
-            'producer is restricted to manually dispatched Linux x86_64 GitHub jobs')
+def authorize_event(commit):
+    hex_string(commit, 40)
+    require(os.environ.get('GITHUB_ACTIONS') == 'true', 'actual GitHub Actions context required')
     require(os.environ.get('GITHUB_REF') == 'refs/heads/optimization_port', 'reviewed canonical workflow ref required')
+    event_name = os.environ.get('GITHUB_EVENT_NAME')
+    require(event_name in ('workflow_dispatch', 'push'), 'only actual manual or push events are allowed')
+    if event_name == 'push':
+        require(os.environ.get('GITHUB_SHA') == commit, 'push must build the actual full GitHub SHA')
+        event_path = os.environ.get('GITHUB_EVENT_PATH')
+        require(type(event_path) is str and event_path, 'actual push event payload required')
+        event = strict_json(read_regular(event_path, 1024 * 1024))
+        require(type(event) is dict and event.get('ref') == 'refs/heads/optimization_port'
+                and event.get('after') == commit and event.get('deleted') is False
+                and type(event.get('head_commit')) is dict and event['head_commit'].get('id') == commit
+                and 'inputs' not in event, 'push payload mismatch; manual event spoof refused')
+    return event_name
+
+
+def produce(harness, source, commit, output):
+    require(sys.platform == 'linux' and platform.machine() == 'x86_64',
+            'producer is restricted to Linux x86_64 GitHub jobs')
+    authorize_event(commit)
     selected = selection(harness, commit)
     clean_source(source, commit)
     cargo_lock = read_regular(source / 'Cargo.lock', 1024 * 1024)
