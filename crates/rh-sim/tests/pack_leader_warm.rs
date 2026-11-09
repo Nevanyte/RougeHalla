@@ -92,7 +92,8 @@ fn camps_snapshot_warm_original_clone_restore_allocates_nothing() {
     let clone_allocs = allocations_over_window(&mut cloned, &mut out);
     // The real produced state restores (construction outside the measured window); all three windows start at the SAME
     // warmed checkpoint and run the SAME 40-step input-free window, so the restore result is measured even if clone is red.
-    let mut restored = Sim::restore(serde_json::to_value(&sim).unwrap()).expect("real produced state restores");
+    let mut restored =
+        Sim::restore(serde_json::to_value(&sim).unwrap()).expect("real produced state restores");
     let restore_allocs = allocations_over_window(&mut restored, &mut out);
     println!("warm windows: original={original_allocs} clone={clone_allocs} restore={restore_allocs} actors={}", sim.players().len() + sim.mobs().len());
     assert_eq!(original_allocs, 0, "original warm window allocations");

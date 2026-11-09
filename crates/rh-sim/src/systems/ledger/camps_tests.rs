@@ -4,7 +4,10 @@ use super::*;
 use crate::cards::CardId;
 use crate::mob_runtime::MobMode;
 use crate::state::Packet;
-use crate::{Arena, FactionId, PlayerId, Secrets, Sim, SimConfig, Vec2};
+use crate::{
+    validate, Arena, FactionId, Placement, PlayerId, RawCommand, Secrets, Sim, SimConfig, Vec2,
+    WeaponId,
+};
 
 fn arena() -> Arena {
     let data: crate::mapdata::GameMapData = serde_json::from_str(include_str!(concat!(
@@ -236,4 +239,153 @@ fn a_same_pass_camp_clear_uses_the_pass_start_count_and_the_next_pass_the_new_co
         (d_next - d1).abs() < 1e-12,
         "the next pass must use the new count 1: {d_next} != {d1}"
     );
+}
+
+/// Declared producer setup mirroring the admitted Sentenced tier fixtures: the second player is the Sentenced Mark
+/// owner/victim and the first is the PackLeader+Coup de Grace attacker it marks; tier4 is earned by validated ordinary
+/// targets/attacks/swap, never installed.
+fn h1_duel() -> Sim {
+    let mut sim = Sim::reset_active(
+        SimConfig {
+            quests: false,
+            consumables: false,
+            pvp_rules: false,
+            faction_mode: crate::FactionMode::EngagementHolyPlagueFireFrostSentenced,
+            min_players: 2,
+            ..Default::default()
+        },
+        crate::arenas::practice_arena(),
+        Secrets::from_seed(12),
+        &[
+            Placement {
+                profile: "att".into(),
+                faction: FactionId::Frost,
+                at: Vec2::new(400., 320.),
+                bot: false,
+                hp: None,
+                weapon0: Some(WeaponId::Sword),
+                weapon1: Some(WeaponId::Wand),
+            },
+            Placement {
+                profile: "mark".into(),
+                faction: FactionId::Sentenced,
+                at: Vec2::new(430., 320.),
+                bot: false,
+                hp: None,
+                weapon0: Some(WeaponId::Sword),
+                weapon1: Some(WeaponId::Wand),
+            },
+        ],
+    );
+    // Placement has no weapon field in this view: set the admitted weapons explicitly (declared setup).
+    sim.w.players[0].weapon.weapon0 = Some(WeaponId::Sword);
+    sim.w.players[0].weapon.weapon1 = Some(WeaponId::Wand);
+    sim.w.players[1].weapon.weapon0 = Some(WeaponId::Sword);
+    sim.w.players[1].weapon.weapon1 = Some(WeaponId::Wand);
+    for (id, cards) in [
+        (PlayerId(1), &[CardId::PackLeader, CardId::CoupDeGrace][..]),
+        (
+            PlayerId(2),
+            &[
+                CardId::Haste1,
+                CardId::SwiftJudgment,
+                CardId::NoCommutation,
+                CardId::SlowBurn,
+            ][..],
+        ),
+    ] {
+        for c in cards {
+            assert!(crate::cards::grant(&sim.k, &mut sim.w, id, *c));
+        }
+    }
+    for (by, target, aim) in [(1u32, 2u32, 0.), (2, 1, crate::math::PI)] {
+        sim.submit(
+            PlayerId(by),
+            validate(RawCommand::Target {
+                id: PlayerId(target),
+            })
+            .unwrap(),
+        )
+        .unwrap();
+        sim.submit(
+            PlayerId(by),
+            validate(RawCommand::Attack { a: aim, t: None }).unwrap(),
+        )
+        .unwrap();
+    }
+    sim
+}
+
+#[test]
+fn h1_outcome_sensitive_execute_callsite_with_genuine_mark_denial() {
+    let mut sim = h1_duel();
+    // Earn the real Mark: the second player (owner/victim) earns hits through the validated ordinary duel producer.
+    let mut earned = false;
+    for _ in 0..240 {
+        let before = sim.w.players[1].signature.mark.hits;
+        let _ = sim.step();
+        if sim.w.players[1].signature.mark.hits > before {
+            earned = true;
+            break;
+        }
+    }
+    assert!(earned, "the genuine producer earns a Mark hit");
+    // Victim swaps advance the tier through the validated command path.
+    let mut tier = 0;
+    for (n, slot) in [Some(1u8), Some(0u8), Some(1u8)].into_iter().enumerate() {
+        if let Some(slot) = slot {
+            sim.submit(
+                PlayerId(1),
+                validate(RawCommand::Swap { slot: Some(slot) }).unwrap(),
+            )
+            .unwrap();
+        }
+        let _ = sim.step();
+        tier = sim.w.players[1].signature.mark.tier;
+        println!(
+            "H-1 earn: swap #{n} tier {tier} hits {} swaps {}",
+            sim.w.players[1].signature.mark.hits, sim.w.players[1].signature.mark.swaps
+        );
+        if tier == 4 {
+            break;
+        }
+    }
+    assert_eq!(tier, 4, "earned tier4 (not installed)");
+    // Real freeze_denials at the declared ledger boundary produces the nonempty (victim/mark owner, attacker) pair.
+    crate::systems::sentenced::freeze_denials(&sim.k, &sim.w, &mut sim.s.mark_denials);
+    assert!(
+        sim.s.mark_denials.contains(&(PlayerId(2), PlayerId(1))),
+        "the genuine freeze produces (mark owner/victim p1, attacker p0), got {:?}",
+        sim.s.mark_denials
+    );
+
+    // Declared arithmetic diagnostic: B raw true damage, H-1 = 1.027*B, victim below Coup de Grace's hpBelow threshold.
+    // Count 1 full/without are 1.33/1.03 (PackLeader 1.03 * Coup 1.30); wrong count0 share would leave 1.023076923B.
+    let b = 100.0_f64;
+    let max_hp = sim.w.players[1].vitals.max_hp;
+    let h = 1.0 + 1.027 * b;
+    assert!(
+        h / max_hp < 0.3,
+        "the declared victim hp fraction holds the Coup de Grace row"
+    );
+    sim.w.players[1].vitals.hp = h;
+    sim.w.players[1].vitals.hp_frac_at_tick_start = h / max_hp;
+    sim.w.players[0].camps_cleared = 1;
+    let mut ev = Vec::new();
+    sim.s.ledger.push(entry(PlayerId(2), PlayerId(1), b, true));
+    super::apply(&mut cx(&mut sim, &mut ev));
+    let loss = h - sim.w.players[1].vitals.hp;
+    println!(
+        "H-1: max_hp {max_hp:.3} H {h:.6} loss {loss:.9} denial {:?}",
+        sim.s.mark_denials
+    );
+    // Correct count1 leaves 1.03*B applied (the wrong count0 share would leave 1.023076923*B).
+    assert!((loss - 1.03 * b).abs() < 1e-9,
+        "correct pass-start count1 leaves 1.03B (wrong count0 would leave 1.023076923B): loss {loss}");
+    assert!(
+        (loss - 1.0230769230769231 * b).abs() > 1e-6,
+        "the count0 share is excluded"
+    );
+
+    // The same-pass old-count/new-pass-new-count control remains covered by the existing camps test.
 }
