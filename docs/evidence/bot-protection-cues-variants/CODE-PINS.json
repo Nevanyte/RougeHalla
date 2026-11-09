@@ -1,0 +1,34 @@
+{
+  "format": "rh-protection-cues-variants-preparation-pins/1",
+  "status": "CODE_PREPARATION_ONLY_UNPARSED_UNRUN",
+  "sourceBase": "bb564d3b53728cbd205af375b5342eca466f3656",
+  "pristineProducer": "4fe7aa8285ad65f2c9a1123297426cd48b03bdef",
+  "files": [
+    {
+      "path": "tools/bot-protection-cues-fixtures/variants-build.mjs",
+      "bytes": 33156,
+      "sha256": "b18ba67c65f4c9c5efbbb24671199d4097f0f2ead5e9a5b1922c71321adb0e7e"
+    },
+    {
+      "path": "tools/bot-protection-cues-fixtures/variants-runtime.mjs",
+      "bytes": 37508,
+      "sha256": "e98352bfb7fa39b62e1ddbc3725179c5d890f634e55bab960f6811765a3bbde7"
+    },
+    {
+      "path": "docs/evidence/bot-protection-cues-variants/README.md",
+      "bytes": 13406,
+      "sha256": "5ac8bf179a7cf8d3973111991279e066f586ff876e538b940905036240e625d1"
+    },
+    {
+      "path": "docs/evidence/bot-protection-cues-variants/PROPOSED-ENVELOPES.json",
+      "bytes": 123719,
+      "sha256": "98b26323d8d3b09517683aa4bf1a42ac76236bb9f42d5a627eac9da2f2259082"
+    },
+    {
+      "path": "docs/evidence/bot-protection-cues-variants/ASSERTION-BINDING-REPAIR.md",
+      "bytes": 1517,
+      "sha256": "670641d4090d56a14f9d86309f8a6d87ddd5b3155c03f364d13abe789253fc4f"
+    }
+  ],
+  "performed": "Static text/Git/hash/JSON metadata checks only; no Node/import/compiler/World/Docker/control execution."
+}
