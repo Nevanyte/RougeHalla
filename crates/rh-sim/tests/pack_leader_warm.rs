@@ -88,16 +88,15 @@ fn camps_snapshot_warm_original_clone_restore_allocates_nothing() {
     let mut out = Vec::with_capacity(128);
 
     let original_allocs = allocations_over_window(&mut sim, &mut out);
-    assert_eq!(original_allocs, 0, "original warm window allocations");
-
     let mut cloned = sim.clone();
     let clone_allocs = allocations_over_window(&mut cloned, &mut out);
-    assert_eq!(clone_allocs, 0, "clone warm window allocations");
-
-    // The real produced state restores (construction outside the measured window).
-    let mut restored =
-        Sim::restore(serde_json::to_value(&sim).unwrap()).expect("real produced state restores");
+    // The real produced state restores (construction outside the measured window); all three windows start at the SAME
+    // warmed checkpoint and run the SAME 40-step input-free window, so the restore result is measured even if clone is red.
+    let mut restored = Sim::restore(serde_json::to_value(&sim).unwrap()).expect("real produced state restores");
     let restore_allocs = allocations_over_window(&mut restored, &mut out);
+    println!("warm windows: original={original_allocs} clone={clone_allocs} restore={restore_allocs} actors={}", sim.players().len() + sim.mobs().len());
+    assert_eq!(original_allocs, 0, "original warm window allocations");
+    assert_eq!(clone_allocs, 0, "clone warm window allocations");
     assert_eq!(restore_allocs, 0, "restore warm window allocations");
 
     assert_eq!(sim.state_hash(), cloned.state_hash());
