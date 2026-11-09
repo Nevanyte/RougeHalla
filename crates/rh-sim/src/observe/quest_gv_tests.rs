@@ -126,3 +126,6 @@ fn identical_player_labels_never_grant_the_foreign_quest_payment_notice() {
         }]
     ));
 }
+
+#[path = "quest_gv_tests/source_room.rs"]
+mod source_room;
