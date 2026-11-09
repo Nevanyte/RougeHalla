@@ -424,8 +424,7 @@ namespace Roguehalla.Client
         {
             var r = Rect(parent, name, x0, y0, x1, y1);
             var image = r.gameObject.AddComponent<UnityEngine.UI.Image>(); image.color = MythicUi.Backdrop(ShowcasePalette.Panel); image.raycastTarget = true;
-            var outline = r.gameObject.AddComponent<UnityEngine.UI.Outline>();
-            outline.effectColor = new Color32(126, 96, 51, 220); outline.effectDistance = new Vector2(1f, -1f); outline.useGraphicAlpha = false;
+            MythicUi.Border(r, new Color32(126, 96, 51, 220));
             if (name == "JoinMenu" || name == "PlayerHUD" || name == "Rewards" || name == "Results" || name == "SettingsPanel")
                 AddCornerOrnaments(r);
             return r;

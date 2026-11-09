@@ -44,8 +44,7 @@ namespace Roguehalla.Client
             if (canvasRoot == null) throw new ArgumentNullException(nameof(canvasRoot));
             _onClose = onClose;
             _root = MythicUi.Panel(canvasRoot, "BuildDrawer", new Vector2(.57f, .025f), new Vector2(.985f, .975f), ShowcasePalette.Panel);
-            var stroke = _root.gameObject.AddComponent<Outline>();
-            stroke.effectColor = ShowcasePalette.PanelStroke; stroke.effectDistance = new Vector2(1, 1);
+            MythicUi.Border(_root, ShowcasePalette.PanelStroke);
 
             MythicUi.Text(_root, "DrawerTitle", "FIELD LEDGER", new Vector2(.035f, .92f), new Vector2(.72f, .995f), 25, ShowcasePalette.Gold);
             _countLabel = MythicUi.Text(_root, "CardCount", "80 cards · awaiting build", new Vector2(.73f, .92f), new Vector2(.87f, .995f), 15,
@@ -213,7 +212,7 @@ namespace Roguehalla.Client
             if (_cardBorders == null) return;
             for (int i = 0; i < _cardBorders.Length; i++)
             {
-                if (_cardBorders[i] != null) _cardBorders[i].color = i == _selectedIndex ? ShowcasePalette.GoldDim : ShowcasePalette.PanelRaised;
+                if (_cardBorders[i] != null) _cardBorders[i].color = MythicUi.Backdrop(i == _selectedIndex ? ShowcasePalette.GoldDim : ShowcasePalette.PanelRaised);
             }
             if (_detail != null)
             {

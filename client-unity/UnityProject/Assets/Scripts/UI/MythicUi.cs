@@ -16,6 +16,20 @@ namespace Roguehalla.Client
         // UI backing only: shared world-art colors and child text/icons keep their own opacity.
         public static Color Backdrop(Color color) { color.a = Mathf.Min(color.a, BackdropOpacity); return color; }
 
+        public static void Border(Transform parent, Color color, float width = 1)
+        {
+            // Outline duplicates the filled quad beneath translucent panels. Edge-only geometry leaves the center clear.
+            BorderEdge(parent, "FrameTop", new Vector2(0, 1), Vector2.one, new Vector2(0, -width), Vector2.zero, color);
+            BorderEdge(parent, "FrameBottom", Vector2.zero, new Vector2(1, 0), Vector2.zero, new Vector2(0, width), color);
+            BorderEdge(parent, "FrameLeft", Vector2.zero, new Vector2(0, 1), Vector2.zero, new Vector2(width, 0), color);
+            BorderEdge(parent, "FrameRight", new Vector2(1, 0), Vector2.one, new Vector2(-width, 0), Vector2.zero, color);
+        }
+        static void BorderEdge(Transform parent, string name, Vector2 min, Vector2 max, Vector2 insetMin, Vector2 insetMax, Color color)
+        {
+            var edge = Rect(parent, name, min, max, insetMin, insetMax).gameObject.AddComponent<Image>();
+            edge.color = color; edge.raycastTarget = false;
+        }
+
         static TMP_FontAsset _font, _headingFont;
         static readonly Sprite[] GlyphSprites = new Sprite[12];
 
@@ -88,8 +102,7 @@ namespace Roguehalla.Client
             var minimum = rect.gameObject.AddComponent<LayoutElement>(); minimum.minWidth = 44; minimum.minHeight = 44;
             if (Mathf.Approximately(anchorMin.x, anchorMax.x) && Mathf.Approximately(rect.sizeDelta.x, 0)) rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, 44);
             if (Mathf.Approximately(anchorMin.y, anchorMax.y) && Mathf.Approximately(rect.sizeDelta.y, 0)) rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, 44);
-            var edge = rect.gameObject.AddComponent<UnityEngine.UI.Outline>();
-            edge.effectColor = ShowcasePalette.GoldDim; edge.effectDistance = new Vector2(2, -2); edge.useGraphicAlpha = false;
+            Border(rect, ShowcasePalette.GoldDim, 2);
             image.color = Backdrop(Color.white);
             var colors = button.colors;
             colors.normalColor = ShowcasePalette.PanelRaised;
