@@ -1,0 +1,22 @@
+{
+ "command": "git diff --cached --check",
+ "exitCode": 2,
+ "sourceScopedCheckExitCode": 0,
+ "findings": [
+  {
+   "path": "logs/protocol-regression-01.log",
+   "kind": "new blank line at EOF",
+   "disposition": "Original Cargo log bytes deliberately preserved; not Rust/source whitespace."
+  },
+  {
+   "path": "logs/queue-regression-01.log",
+   "kind": "new blank line at EOF",
+   "disposition": "Original Cargo log bytes deliberately preserved; not Rust/source whitespace."
+  },
+  {
+   "path": "logs/socket-attempt-02.log",
+   "kind": "new blank line at EOF",
+   "disposition": "Original Cargo log bytes deliberately preserved; not Rust/source whitespace."
+  }
+ ]
+}

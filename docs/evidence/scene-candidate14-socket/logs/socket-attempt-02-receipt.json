@@ -1,0 +1,39 @@
+{
+ "command": [
+  "cargo",
+  "test",
+  "--locked",
+  "-p",
+  "rh-server",
+  "scene_candidate::socket",
+  "--lib"
+ ],
+ "cwd": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14-socket/repo",
+ "head": "c4738ed08c71cd43d42488df3f9c200450178b23",
+ "sourceSha256": {
+  "crates/rh-server/src/outbox/scene_candidate.rs": "119ebab4ac95dc7bce9f2709c1376ea025de8b205c75ba0f22a076631198d54d",
+  "crates/rh-server/src/outbox/scene_candidate/socket.rs": "ae273e6a46658629c17a1b7e7dca87b9c159612f9acc6443ace9657335cc1402",
+  "crates/rh-server/src/outbox/scene_candidate/socket/tests.rs": "7c7b9f180f417f74a7c910cf7b444599cb9d013a255b8bd59df5eab6c2e4b2ca",
+  "crates/rh-server/src/outbox/scene_candidate/socket/tests/ownership.rs": "27b75f7811b91c9c02af257ff78f8a1ddaa5f5283f6a630cbd8ed07c2762f63a",
+  "crates/rh-server/src/outbox/scene_candidate/socket/tests/poll_faults.rs": "4cdc97477955ccc9cdef0d4dd698e3f407e91f1cbb8a08e957b23e9343d98f6b"
+ },
+ "sourceDiffFromHead": "diff --git a/crates/rh-server/src/outbox/scene_candidate/socket/tests.rs b/crates/rh-server/src/outbox/scene_candidate/socket/tests.rs\nindex beff7824..860d7e70 100644\n--- a/crates/rh-server/src/outbox/scene_candidate/socket/tests.rs\n+++ b/crates/rh-server/src/outbox/scene_candidate/socket/tests.rs\n@@ -224,5 +224,3 @@ where\n-    let config = WebSocketConfig {\n-        max_message_size: Some(256),\n-        max_frame_size: Some(256),\n-        ..Default::default()\n-    };\n+    let config = WebSocketConfig::default()\n+        .max_message_size(Some(256))\n+        .max_frame_size(Some(256));\n",
+ "lockSha256": "b14507716b80f1c0b85f7298b380b3c9146917134d9361c1bb408062782c0b22",
+ "environment": {
+  "CARGO_HOME": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/cargo",
+  "RUSTUP_HOME": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/rustup",
+  "CARGO_TARGET_DIR": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target",
+  "CARGO_BUILD_JOBS": "1",
+  "CARGO_INCREMENTAL": "0",
+  "CARGO_PROFILE_DEV_DEBUG": "0",
+  "CARGO_PROFILE_TEST_DEBUG": "0"
+ },
+ "initialFreeBytes": 2643628032,
+ "minimumFreeBytes": 2643410944,
+ "stopBelowFreeBytes": 1610612736,
+ "status": "completed",
+ "exitCode": 0,
+ "elapsedSeconds": 13.844,
+ "finalFreeBytes": 4781953024,
+ "logSha256": "5e1c3663fa14ee7a4e227f589f5fd6926cef8546a2f5c22197df1d5daa5d770e"
+}

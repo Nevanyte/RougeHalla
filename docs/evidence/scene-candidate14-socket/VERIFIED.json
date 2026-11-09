@@ -1,0 +1,286 @@
+{
+ "format": {
+  "command": "rustfmt --edition 2021 --check <four socket source files>",
+  "environment": "Root final-env.sh",
+  "exitCode": 0,
+  "log": "logs/final-format.log"
+ },
+ "status": "SCOPED PRIVATE ADAPTER CHECKS PASS; ROOT INDEPENDENT REVIEW REQUIRED; NO MAIN/LIVE/P15/CAPACITY ADMISSION",
+ "base": "2397aeab294717b8ec6e6495e985c63186028352",
+ "sourceReady": {
+  "head": "c4738ed08c71cd43d42488df3f9c200450178b23",
+  "manifestSha256": "8fc3f471f65e7456e158d5484a9fe44d9f54684cbc93b61c05b584ae54b60499",
+  "originalReadmeCopy": "SOURCE_READY.md",
+  "boundary": "historical uncompiled snapshot; final source is pinned below"
+ },
+ "sourceSha256": {
+  "crates/rh-server/src/outbox/scene_candidate.rs": "119ebab4ac95dc7bce9f2709c1376ea025de8b205c75ba0f22a076631198d54d",
+  "crates/rh-server/src/outbox/scene_candidate/socket.rs": "ae273e6a46658629c17a1b7e7dca87b9c159612f9acc6443ace9657335cc1402",
+  "crates/rh-server/src/outbox/scene_candidate/socket/tests.rs": "7c7b9f180f417f74a7c910cf7b444599cb9d013a255b8bd59df5eab6c2e4b2ca",
+  "crates/rh-server/src/outbox/scene_candidate/socket/tests/ownership.rs": "27b75f7811b91c9c02af257ff78f8a1ddaa5f5283f6a630cbd8ed07c2762f63a",
+  "crates/rh-server/src/outbox/scene_candidate/socket/tests/poll_faults.rs": "4cdc97477955ccc9cdef0d4dd698e3f407e91f1cbb8a08e957b23e9343d98f6b"
+ },
+ "protectedBaseSha256": {
+  "Cargo.toml": "324339553924942eb5c8f034e73b8269735a07a4223a783f3cc3805beb220855",
+  "Cargo.lock": "b14507716b80f1c0b85f7298b380b3c9146917134d9361c1bb408062782c0b22",
+  "crates/rh-server/Cargo.toml": "445564e74182eeb37b231046ec762b35b7cd3a3bea2850e0829ea131f4b806cb",
+  "crates/rh-server/src/conn.rs": "1729bd99cb30feaebaea80a9e2a5137145dbfa2cbb6a7aa236ecde4245a5b9eb",
+  "crates/rh-server/src/lib.rs": "99c418d44a860ee2640fe2d9c972c2c555f0692bd5cd8a7b372f62f9c0276975",
+  "crates/rh-server/src/outbox.rs": "4d0c697258a8a63b7ab69ad61ea8ec365840a8ab075430c5673d3386b91cdfdd",
+  "crates/rh-server/src/room.rs": "5745183f9560f0388233e97f25fc897b6df3e37c11e0ce186ab80e8392c34fea",
+  "crates/rh-server/src/wire.rs": "6ac0cefe792fa4a2f3490379973921a8a701d08b9b534c67757a95397f23a003",
+  "crates/rh-server/src/wire_state.rs": "09129ee7363bce3d87faee6e79e6b00345bdd910880102c67ac70a291baf0023",
+  "crates/rh-protocol/src/lib.rs": "d1258e9c3bd9911a32d0cbdce375c2a0a9ca8f3d792a8b368e382833cc3e896c",
+  "crates/rh-protocol/src/scene_candidate/mod.rs": "ef49e09665008dce37b6d75f071aef31db1e16fbbc776041e385ec88eba825f9",
+  "crates/rh-protocol/src/scene_candidate/tests.rs": "3d6d4f400bf040cc8ae352439f862f822a7e6ba530d749d090410470862e8676",
+  "crates/rh-server/src/outbox/scene_candidate/tests.rs": "c6ee9abdeefd6b011242ad163fd6644a1e3d6750e9efc92bfd6b758435d19f8c",
+  "crates/rh-server/src/outbox/scene_candidate/fixture.rs": "5045e3960027e04503317c365115e1e76d7245073360d1abeb61b93a7f580270",
+  "protocol/fixtures/v14.json": "9012167a320419d04d62aa340276d7fbc5181a60ea818554f278a62d26b1b336",
+  "protocol/fixtures/scene-candidate/full14.json": "1cc549e75815b5942d5cdfc86b51176d6d14bf43023da2cbf028b5347e6bc2b5",
+  "client-unity/RoguehallaNet/Protocol/SceneCandidate.cs": "17cdfb057bc3628b0367e07dbd1caffc64e33742b50234f9a2946a85b1a329d0",
+  "docs/MIGRATION.md": "6823d61307e02a938ac57cb158f54311a6075eee792fb82b83017fa70de440df",
+  "docs/CONTRACTS.md": "2c9e0b9b562752ec907fe8ffa0e67986e6f6005a11c744f657fd67863de6e7cd",
+  "docs/REQUIREMENTS.md": "45f4a590c36bae776ed213297b2468cdbda0edc788946c670c04335923fb51c4"
+ },
+ "onlyCodeFixAfterSourceReady": "test client WebSocketConfig builder API, same256-byte limits; no production/deadline/quota/expectation/coverage changes",
+ "outcomes": {
+  "socket-attempt-02": {
+   "passed": 24,
+   "failed": 0,
+   "ignored": 0,
+   "filteredOut": 191,
+   "names": [
+    "outbox::scene_candidate::socket::tests::ownership::checked_configuration_precedes_endpoint_construction",
+    "outbox::scene_candidate::socket::tests::ownership::final_producer_arc_drop_closes_even_while_driver_owns_shared",
+    "outbox::scene_candidate::socket::tests::ownership::unused_endpoint_drop_closes_and_wakes_without_socket_construction",
+    "outbox::scene_candidate::socket::tests::ownership::pending_reservation_failure_is_terminal_without_discarding_existing_owner",
+    "outbox::scene_candidate::socket::tests::ownership::nonfull_prepare_and_publication_errors_close_and_wake",
+    "outbox::scene_candidate::socket::tests::ownership::full_preserves_the_exact_pending_and_wait_admit_closes_without_lost_wake",
+    "outbox::scene_candidate::socket::tests::ownership::wait_admit_checks_a_close_that_precedes_its_first_notification_registration",
+    "outbox::scene_candidate::socket::tests::dropping_unpolled_driver_closes_its_queue_owner",
+    "outbox::scene_candidate::socket::tests::ownership::admitted_pending_drop_is_disarmed_but_repeat_admission_is_terminal",
+    "outbox::scene_candidate::socket::tests::ownership::cancelling_a_waiting_pending_closes_and_signals_its_captured_context",
+    "outbox::scene_candidate::socket::tests::ownership::model_only_writer_release_really_wakes_the_same_waiting_pending",
+    "outbox::scene_candidate::socket::tests::poll_faults::injected_pending_flush_obeys_one_fixed_scene_deadline_despite_control_progress",
+    "outbox::scene_candidate::socket::tests::poll_faults::injected_success_token_waits_for_stream_pending_and_queued_close_wins",
+    "outbox::scene_candidate::socket::tests::poll_faults::injected_duplicate_ack_and_controls_never_renew_ack_deadline_invalid_ack_closes",
+    "outbox::scene_candidate::socket::tests::oversized_inbound_message_is_rejected_at_websocket_limit",
+    "outbox::scene_candidate::socket::tests::real_loopback_full_records_apply_atomically_then_ack",
+    "outbox::scene_candidate::socket::tests::actual_socket_duplicate_ack_is_idempotent_then_stale_tuple_closes_epoch",
+    "outbox::scene_candidate::socket::tests::capacity_refusal_retries_the_same_pending_scene_after_ack_and_writer_release",
+    "outbox::scene_candidate::socket::tests::real_loopback_replacement_keeps_old_application_until_commit_apply",
+    "outbox::scene_candidate::socket::tests::close_or_generation_change_before_borrowed_complete_keeps_credit_until_drop",
+    "outbox::scene_candidate::socket::tests::close_at_each_record_flush_fence_drops_socket_before_credit",
+    "outbox::scene_candidate::socket::tests::poll_faults::injected_error_matrix_retains_leases_until_socket_and_owned_error_drop",
+    "outbox::scene_candidate::socket::tests::actual_flush_ack_race_defers_exact_ack_until_flush_observation",
+    "outbox::scene_candidate::socket::tests::actual_socket_rejects_wrong_epoch_future_and_wrong_cue_acks"
+   ],
+   "command": [
+    "cargo",
+    "test",
+    "--locked",
+    "-p",
+    "rh-server",
+    "scene_candidate::socket",
+    "--lib"
+   ]
+  },
+  "queue-regression-01": {
+   "passed": 9,
+   "failed": 0,
+   "ignored": 0,
+   "filteredOut": 206,
+   "names": [
+    "outbox::scene_candidate::tests::early_ack_full_refusal_exact_retry_and_lease_lifetime",
+    "outbox::scene_candidate::tests::fifo_no_second_writer_and_partial_commit_claim_never_credits",
+    "outbox::scene_candidate::tests::failed_source_retention_or_dropped_pending_closes_without_publication",
+    "outbox::scene_candidate::tests::stale_closed_writer_callbacks_cannot_mutate_a_new_context",
+    "outbox::scene_candidate::tests::exact_ack_tuple_generation_and_both_completion_orders",
+    "outbox::scene_candidate::tests::every_write_cancellation_closes_and_prevents_next_scene",
+    "outbox::scene_candidate::tests::ack_and_successful_completion_cross_threads_in_both_orders",
+    "outbox::scene_candidate::tests::real_observer_offer_and_collection_stage_survive_refused_admission",
+    "outbox::scene_candidate::tests::native_fixture_roundtrip_and_explicit_export"
+   ],
+   "command": [
+    "cargo",
+    "test",
+    "--locked",
+    "-p",
+    "rh-server",
+    "outbox::scene_candidate::tests",
+    "--lib"
+   ]
+  },
+  "protocol-regression-01": {
+   "passed": 6,
+   "failed": 0,
+   "ignored": 0,
+   "filteredOut": 8,
+   "names": [
+    "scene_candidate::tests::full_atomic_copy_owned_and_not_live_wire",
+    "scene_candidate::tests::original_event_ticks_empty_distinctions_and_occurrences",
+    "scene_candidate::tests::retained_views_have_a_finite_conservative_epoch_budget",
+    "scene_candidate::tests::exact_caps_missing_group_wrong_tuple_and_exhaustion",
+    "scene_candidate::tests::missing_repeated_reordered_wrong_commit_close_without_exposure",
+    "scene_candidate::tests::every_record_prefix_refuses_and_preserves_prior_view"
+   ],
+   "command": [
+    "cargo",
+    "test",
+    "--locked",
+    "-p",
+    "rh-protocol",
+    "scene_candidate",
+    "--lib"
+   ]
+  },
+  "clippy-attempt-01": {
+   "exitCode": 0,
+   "strictWarnings": true,
+   "command": [
+    "cargo",
+    "clippy",
+    "--locked",
+    "-p",
+    "rh-server",
+    "--lib",
+    "--tests",
+    "--",
+    "-D",
+    "warnings"
+   ]
+  }
+ },
+ "totalScopedTestsPassed": 39,
+ "socketFunctionsPassed": 24,
+ "parent": {
+  "addedLines": 5,
+  "onlyExactAuthorizedAdditions": true,
+  "completionBodyByteIdentical": true,
+  "completionBodySha256": "3caf52882aa4390287768912011d9143710ee8c36ea1cc9f10fe19f27ff6e278"
+ },
+ "firstFailure": {
+  "file": "FIRST_FAILURE.json",
+  "exitCode": 101,
+  "classification": "compile E0639, no tests ran"
+ },
+ "lease": {
+  "target": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target",
+  "environment": {
+   "CARGO_HOME": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/cargo",
+   "RUSTUP_HOME": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/rustup",
+   "CARGO_TARGET_DIR": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target",
+   "CARGO_BUILD_JOBS": "1",
+   "CARGO_INCREMENTAL": "0",
+   "CARGO_PROFILE_DEV_DEBUG": "0",
+   "CARGO_PROFILE_TEST_DEBUG": "0"
+  },
+  "commandsSequentialLocked": true,
+  "minimumMonitoredFreeBytes": 2643410944,
+  "stopBelowFreeBytes": 1610612736,
+  "cleanupByWorker": false,
+  "newTarget": false,
+  "newDependenciesLockDefaultsStatus": false,
+  "finalObservedFreeBytes": 4783501312
+ },
+ "boundaries": [
+  "actual loopback on test-only bare Axum route, not conn/Room/production acceptor/TLS/clients",
+  "9 actual loopback functions plus1 unpolled,10 ownership,4 clearly injected Pump controls",
+  "synthetic unchanged golden four-Fx tail, no source gameplay/nonzero Events claim",
+  "cumulative receiver body budget is not resident history/lifetime/RSS",
+  "native Room/client/policy/history/reconnect/application-error/raw-fault-peer/operational/browser gates remain open"
+ ],
+ "evidence": {
+  "docs/evidence/scene-candidate14-socket/FIRST_FAILURE.json": {
+   "bytes": 630,
+   "sha256": "a01a442219a359c482e5745ec61800f9662e32547e052757cf95315c15f37240"
+  },
+  "docs/evidence/scene-candidate14-socket/MANIFEST.json": {
+   "bytes": 5760,
+   "sha256": "8fc3f471f65e7456e158d5484a9fe44d9f54684cbc93b61c05b584ae54b60499"
+  },
+  "docs/evidence/scene-candidate14-socket/README.md": {
+   "bytes": 5291,
+   "sha256": "fe7c596985981c5683df7b655584a985a6cad396f2b5d21333a4a6bed886767e"
+  },
+  "docs/evidence/scene-candidate14-socket/SOURCE_READY.md": {
+   "bytes": 8875,
+   "sha256": "b644dc9f45c75c43ecbc17e48e47825c19ec14284f63bdd2171df946a52772ca"
+  },
+  "docs/evidence/scene-candidate14-socket/logs/clippy-attempt-01-receipt.json": {
+   "bytes": 2384,
+   "sha256": "15c68a4bab5a5c1ca1e50435e115d3a690777dd8b3930ea9800e74115feee394"
+  },
+  "docs/evidence/scene-candidate14-socket/logs/clippy-attempt-01.log": {
+   "bytes": 976,
+   "sha256": "ac0dd2ef46d6d47f2bd9389e2b56289b109112668fa3c11e341d3db8ab59fb17"
+  },
+  "docs/evidence/scene-candidate14-socket/logs/final-format.log": {
+   "bytes": 0,
+   "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "docs/evidence/scene-candidate14-socket/logs/final-whitespace.json": {
+   "bytes": 667,
+   "sha256": "6a080a1d8ddf9b1b299055ae2944859e931f26aa66b130a3a2b8eb83993e9050"
+  },
+  "docs/evidence/scene-candidate14-socket/logs/format-check.log": {
+   "bytes": 324,
+   "sha256": "57949fdf62d37a759acfadf8eb08aca3881cc6f92d71234d9f7037691302abf3"
+  },
+  "docs/evidence/scene-candidate14-socket/logs/format-path-attempt.log": {
+   "bytes": 184,
+   "sha256": "dd6daa6ced90b51d0687bb14b3941ddcd6a460a5afd511c62e4b236d632e19b1"
+  },
+  "docs/evidence/scene-candidate14-socket/logs/protocol-regression-01-receipt.json": {
+   "bytes": 2361,
+   "sha256": "7fd4b2c417a6c538ad24cca6eafd4b0c442108aec503076e1f22bbb85e84c1ff"
+  },
+  "docs/evidence/scene-candidate14-socket/logs/protocol-regression-01.log": {
+   "bytes": 1012,
+   "sha256": "2eda8524da821e97dda1b7cb6fb972f56367acbe00395db662f2cc03460a482c"
+  },
+  "docs/evidence/scene-candidate14-socket/logs/queue-regression-01-receipt.json": {
+   "bytes": 2374,
+   "sha256": "e57394a1e767fdeeda724fe353504ecd9b6a502dad108988e2de04fc77f2f85b"
+  },
+  "docs/evidence/scene-candidate14-socket/logs/queue-regression-01.log": {
+   "bytes": 1261,
+   "sha256": "ad0a1bead29ce59bb5542e0c682f61d84d6b2e78b8d992696668bb825b0f9056"
+  },
+  "docs/evidence/scene-candidate14-socket/logs/socket-attempt-01-env.json": {
+   "bytes": 930,
+   "sha256": "3ff3f250929c6d18bad18f9d78527523188e168abcdfdffa6090b62aa9a0ce0a"
+  },
+  "docs/evidence/scene-candidate14-socket/logs/socket-attempt-01.log": {
+   "bytes": 1176,
+   "sha256": "dec035f9111ef6db5d1fcf277e480a5f85b69877369ae058d9054f78d03fa904"
+  },
+  "docs/evidence/scene-candidate14-socket/logs/socket-attempt-02-receipt.json": {
+   "bytes": 2368,
+   "sha256": "73baa022e94f94a71d2a28811b902587efb65e6db2a7b512901edcae619899fb"
+  },
+  "docs/evidence/scene-candidate14-socket/logs/socket-attempt-02.log": {
+   "bytes": 3733,
+   "sha256": "5e1c3663fa14ee7a4e227f589f5fd6926cef8546a2f5c22197df1d5daa5d770e"
+  },
+  "docs/evidence/scene-candidate14-socket/logs/static-check-attempt.json": {
+   "bytes": 343,
+   "sha256": "8935408eac2b6be3a4f7d25fedf08c544b49ab900ae2fd35de9f937a8fa8ad6e"
+  },
+  "docs/evidence/scene-candidate14-socket/parent.diff": {
+   "bytes": 456,
+   "sha256": "bd37402f5e73a58c29721c9531d8cdb1e4b6defb0bedb9439dfe21e97c60cbf9"
+  },
+  "docs/evidence/scene-candidate14-socket/run-leased.py": {
+   "bytes": 3671,
+   "sha256": "aea2c8a5fb600b77bf1fbd6177b3d23b8a83c5091b9586ea95d208472ff243a0"
+  }
+ },
+ "selfHash": "excluded; final commit seals this receipt",
+ "whitespace": {
+  "sourceScopedExitCode": 0,
+  "globalExitCode": 2,
+  "onlyRawCargoLogEof": true,
+  "receipt": "logs/final-whitespace.json"
+ }
+}

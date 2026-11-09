@@ -221,11 +221,9 @@ where
         axum::serve(listener, app).await.unwrap();
     });
     let url = format!("ws://{address}/scene");
-    let config = WebSocketConfig {
-        max_message_size: Some(256),
-        max_frame_size: Some(256),
-        ..Default::default()
-    };
+    let config = WebSocketConfig::default()
+        .max_message_size(Some(256))
+        .max_frame_size(Some(256));
     let connected = tokio::time::timeout(
         Duration::from_secs(2),
         connect_async_with_config(url, Some(config), false),
