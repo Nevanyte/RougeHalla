@@ -30,3 +30,6 @@ visual failures. The complete browser/HTTP/performance/hosting and final identit
 
 Giver 14 historical source attribution is corrected additively in ../giver14/ROOT_RECONCILIATION, without rewriting
 its original manifest or source fixture. Root remains the sole owner of shared status/identity/Cargo.lock admission.
+
+Copied text logs remove only redundant blank lines at EOF. The manifest retains the original byte counts and hashes
+for those two copies; source corpora, fixtures and test output content are unchanged.

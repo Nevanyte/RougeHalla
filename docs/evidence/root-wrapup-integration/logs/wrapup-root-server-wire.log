@@ -41,4 +41,3 @@ test wire::tests::the_published_snapshot_is_the_one_built_from_the_observation_o
 test wire::tests::remote_actors_decode_within_the_documented_bound_over_a_match ... ok
 
 test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 165 filtered out; finished in 0.75s
-

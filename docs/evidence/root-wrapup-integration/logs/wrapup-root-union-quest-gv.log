@@ -10,4 +10,3 @@ test observe::quest_gv_tests::identical_player_labels_never_grant_the_foreign_qu
 test observe::quest_gv_tests::source_room::actual_room_completion_calls_match_native_owner_and_foreign_text_order ... ok
 
 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 776 filtered out; finished in 0.03s
-
