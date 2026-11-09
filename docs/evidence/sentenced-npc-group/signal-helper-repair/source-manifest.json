@@ -1,0 +1,58 @@
+{
+  "base": "3902ce2ff0a67dc96b24b18dc6b9a670e9ab4965",
+  "excludes": [
+    "this manifest itself"
+  ],
+  "files": [
+    {
+      "path": "docs/evidence/sentenced-npc-group/README.md",
+      "bytes": 8845,
+      "sha256": "d052f2a856e040dcfb984a97255086d9a5cb6e9c7cb43e68e5b945c00b393d00"
+    },
+    {
+      "path": "docs/evidence/sentenced-npc-group/holy-components.md",
+      "bytes": 4257,
+      "sha256": "1e00f18297650e77238be1be5a63a9c474571288b16a2c1c5259891a70ba5f73"
+    },
+    {
+      "path": "docs/evidence/sentenced-npc-group/signal-helper-repair.md",
+      "bytes": 3850,
+      "sha256": "390aa30fd8a5d96376cd5bb0c6c6f5cc0552b800ee713f84a7d12d1774588f0c"
+    },
+    {
+      "path": "docs/evidence/sentenced-npc-group/signal-helper-repair/checks.json",
+      "bytes": 4242,
+      "sha256": "7729bc4cb2602dd5e6e03977f173ce4a27c65389d14f8df9cc2c590f6012472d"
+    },
+    {
+      "path": "docs/evidence/sentenced-npc-group/signal-helper-repair/signal-proof.log",
+      "bytes": 1126,
+      "sha256": "efaea3c8adb18b0dc89f35e412526bcb94d0163b8787923bd6f147bab5aa8299"
+    },
+    {
+      "path": "docs/evidence/sentenced-npc-group/supplement.md",
+      "bytes": 4663,
+      "sha256": "e6c0d7faf92d1e87c177fa6db4eca21e35d3f476c5244e99c4f551b0c2e64f09"
+    },
+    {
+      "path": "parity/sentenced-npc-group/README-holy.md",
+      "bytes": 1328,
+      "sha256": "d4a901ce9b8005bd80f25ebf1c52ba1e388a98fc91055aeec1782cf74c9ca272"
+    },
+    {
+      "path": "tools/sentenced-npc-group-fixtures/README-holy.md",
+      "bytes": 1986,
+      "sha256": "e6b178a168f0ae5f9d3c7a50e90f2fac3cb0871c6265a87cf3d8c57d3bd9428c"
+    },
+    {
+      "path": "tools/sentenced-npc-group-fixtures/README.md",
+      "bytes": 1977,
+      "sha256": "4c587e596b6d787f9a42a105597e9c43d18f3ae510f76ad7d7f7b84758774b36"
+    },
+    {
+      "path": "tools/sentenced-npc-group-fixtures/tests/signal-path.sh",
+      "bytes": 7736,
+      "sha256": "2ea90630555d5129d3fdf4ae4f284d3fda5a787f517463ad655a94e9307aa4be"
+    }
+  ]
+}

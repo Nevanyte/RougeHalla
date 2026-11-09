@@ -1,0 +1,11 @@
+--- a/packages/server/src/sim/factions.ts
++++ b/packages/server/src/sim/factions.ts
+@@ -647,7 +647,7 @@
+  */
+ function markPool(t: Combatant): number {
+   const f = isFactionId(t.s.faction) ? FACTIONS[t.s.faction] : null;
+-  return t.kind === "mob" && isRegionalKind(t.s.kind) && f ? f.hp : t.s.maxHp;
++  return f ? f.hp : t.s.maxHp;
+ }
+ 
+ /** Camp members share a mark; camp-less mobs and players remain singleton groups. */

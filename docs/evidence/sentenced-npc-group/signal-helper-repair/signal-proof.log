@@ -1,0 +1,11 @@
+PASS: fail initial backup copy: exit=1, zero restore copies, sandbox+host source SHA unchanged
+PASS: partial-success initial backup copy: exit=1, zero restore copies, sandbox+host source SHA unchanged
+[1]+  Terminated: 15          ( cd "$CASE/repo"; if [ "$mode" = before-arm ]; then
+    exec env PATH="$WORK/shims:$PATH" TMPDIR="$CASE/tmp" SNG_COPY_FAULT= SNG_TEST_PAUSE_BEFORE_ARM=30 SNG_TEST_PAUSE_AFTER_MUTATION= SNG_TEST_READY_FILE="$CASE/ready" bash "$RUNNER";
+else
+    exec env PATH="$WORK/shims:$PATH" TMPDIR="$CASE/tmp" SNG_COPY_FAULT= SNG_TEST_PAUSE_BEFORE_ARM= SNG_TEST_PAUSE_AFTER_MUTATION=30 SNG_TEST_READY_FILE="$CASE/ready" bash "$RUNNER";
+fi ) > "$CASE/runner.log" 2>&1
+PASS: actualTERM before-arm: exit143, restore-copies=0, sandbox+host source SHA unchanged
+PASS: actualTERM mutation: exit143, restore-copies=1, sandbox+host source SHA unchanged
+PASS: host source SHA256=9ea65429b48b9aa43578922642534d82a1369778fbcec502e62cc9e21dacbf1c; no host restoration destination or capture/container execution
+signal-path: all four isolated controls passed; SIGINT/HUP delivery and SIGKILL restoration are not claimed
