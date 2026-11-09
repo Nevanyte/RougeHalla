@@ -1,0 +1,7 @@
+aa1131dbcb6cd6378e6bc4cf8a0c987a72526728ef5aff50c06dab3fb25d4da3  tools/npc-witness-context/run.py
+b40b34ee4e3b4246df6b296696aa268ca24bf4a18dd9c9985862acdb505050a0  tools/npc-witness-context/tests.py
+a73a342d4e0096d71fff596bdc2785427702f8bbf08db8a5542a363688e7945f  docs/evidence/ci-cdec-npc-caller-uid/PROTECTED.json
+88fc9ea41d75e38aa4a0e9bd1708a2d7434ff761e163623668db548b3f5801e0  docs/evidence/ci-cdec-npc-caller-uid/README.md
+eab4281419f49474c6773f172eab4705e82da9e9196e5418e92a366609bcb99e  docs/evidence/ci-cdec-npc-caller-uid/final-lstat-synthetic.txt
+fbd3a1f168232624dd9e11522893a959e4886abea621114db5523e5314836080  docs/evidence/ci-cdec-npc-caller-uid/final-synthetic.txt
+f89e802d94514f7449886f19a2bbffbd4c0ace51396f03657460a9ca64ede44f  docs/evidence/ci-cdec-npc-caller-uid/old-default-controls.txt
