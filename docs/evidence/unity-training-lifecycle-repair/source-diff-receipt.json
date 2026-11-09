@@ -1,0 +1,7 @@
+{
+  "base": "e2b2671107506f5cb892cfb74cba7374c7a52a6d",
+  "source": "d90dd0a12b898dceae6715e26c1aec71a68d8d3a",
+  "rawUnifiedDiffBytes": 17723,
+  "rawUnifiedDiffSHA256": "8c41aa43a617c2953287fdc6b83ad5ad94e2d6fc1bba7f3eaca34e40db6e9386",
+  "packaging": "Exact unified diff stored losslessly as source-change.patch.gz, avoiding whitespace normalization. Original assertions/attributes remain; only approved clock precondition is added inside test bodies."
+}

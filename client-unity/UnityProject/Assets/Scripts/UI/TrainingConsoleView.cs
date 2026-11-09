@@ -30,17 +30,18 @@ namespace Roguehalla.Client
         bool _initialized, _confirmed, _opened, _destroyed, _listening;
         string _feedback = "";
 
-        public RectTransform Root => _root;
-        public RectTransform Panel => _panel;
+        public RectTransform Root => OwnerAlive() ? _root : null;
+        public RectTransform Panel => OwnerAlive() ? _panel : null;
         /// <summary>The owning HUD can retain input ownership through a same-update open/close.</summary>
         public event Action OpenStateChanged;
-        public bool IsOpen => _opened && _panel != null && _panel.gameObject.activeSelf;
-        public bool ActionsAvailable => _initialized && !_destroyed && _root != null && _panel != null &&
+        public bool IsOpen => OwnerAlive() && _opened && _panel != null && _panel.gameObject.activeSelf;
+        public bool ActionsAvailable => OwnerAlive() && _initialized && _root != null && _panel != null &&
             _container != null && _container.gameObject.activeInHierarchy && isActiveAndEnabled && _confirmed && AcceptedTraining(_session, _epoch);
         public bool ContainsFocus
         {
             get
             {
+                if (!OwnerAlive()) return false;
                 var selected = EventSystem.current != null ? EventSystem.current.currentSelectedGameObject : null;
                 return _root != null && selected != null && selected.activeInHierarchy && selected.transform.IsChildOf(_root);
             }
@@ -125,7 +126,7 @@ namespace Roguehalla.Client
 
         public void Bind(Session session)
         {
-            if (_destroyed) return;
+            if (!OwnerAlive()) return;
             if (!_initialized) throw new InvalidOperationException("Initialize the view before binding a Session.");
             if (ReferenceEquals(_session, session)) { Refresh(); return; }
             Detach(); _session = session; _epoch = session == null ? 0 : session.TimelineEpoch;
@@ -137,7 +138,7 @@ namespace Roguehalla.Client
         /// <summary>Called by the launch owner after matching accepted facts, never inferred from URL/default flags.</summary>
         public bool SetLaunchContext(Session session, uint epoch, MatchLaunchMode? confirmedMode)
         {
-            if (_destroyed || !ReferenceEquals(session, _session) || session == null || epoch != session.TimelineEpoch || epoch != _epoch)
+            if (!OwnerAlive() || !ReferenceEquals(session, _session) || session == null || epoch != session.TimelineEpoch || epoch != _epoch)
                 return false;
             if (confirmedMode != MatchLaunchMode.Training || !AcceptedTraining(session, epoch))
             { Revoke(); Refresh(); return false; }
@@ -147,6 +148,7 @@ namespace Roguehalla.Client
 
         public bool SetOpen(bool open)
         {
+            if (!OwnerAlive()) return false;
             Refresh();
             if (open && !ActionsAvailable) return false;
             if (_opened == open) return true;
@@ -161,7 +163,7 @@ namespace Roguehalla.Client
 
         public void Refresh()
         {
-            if (!_initialized || _destroyed || _root == null) return;
+            if (!OwnerAlive() || !_initialized || _root == null) return;
             if (_session != null && _epoch != _session.TimelineEpoch) { _epoch = _session.TimelineEpoch; Revoke(); }
             if (_confirmed && !AcceptedTraining(_session, _epoch)) Revoke();
             bool allowed = ActionsAvailable;
@@ -224,14 +226,14 @@ namespace Roguehalla.Client
         bool AcceptedTraining(Session session, uint epoch) => session != null && ReferenceEquals(session, _session) &&
             session.TimelineEpoch == epoch && session.State == SessionState.InMatch && session.Phase.HasValue && session.Training && session.LastResult == null;
         bool CurrentAction(Session session, uint epoch, int generation, bool requireOpen) =>
-            !_destroyed && generation == _actionGeneration && epoch == _epoch && ReferenceEquals(session, _session) &&
+            OwnerAlive() && generation == _actionGeneration && epoch == _epoch && ReferenceEquals(session, _session) &&
             ActionsAvailable && AcceptedTraining(session, epoch) && (!requireOpen || IsOpen);
 
         void Attach()
         {
-            if (_session == null || _listening) return;
+            if (!OwnerAlive() || _session == null || _listening) return;
             var session = _session; int generation = ++_subscriptionGeneration;
-            Func<bool> current = () => !_destroyed && generation == _subscriptionGeneration && ReferenceEquals(session, _session);
+            Func<bool> current = () => OwnerAlive() && generation == _subscriptionGeneration && ReferenceEquals(session, _session);
             _stateListener = state => { if (!current()) return; if (state != SessionState.InMatch) Revoke(); Refresh(); };
             _snapshotListener = snap => { if (current()) Refresh(); };
             _timelineListener = () => { if (!current()) return; _epoch = session.TimelineEpoch; Revoke(); Refresh(); };
@@ -264,7 +266,7 @@ namespace Roguehalla.Client
 
         void WireControls()
         {
-            if (!_initialized || _destroyed) return;
+            if (!OwnerAlive() || !_initialized) return;
             var session = _session; uint epoch = _epoch; int generation = _actionGeneration;
             void Wire(UnityEngine.UI.Button button, Action action, bool requireOpen = true)
             {
@@ -288,7 +290,7 @@ namespace Roguehalla.Client
         }
         void UpdateControls()
         {
-            if (!_initialized || _root == null) return;
+            if (!OwnerAlive() || !_initialized || _root == null) return;
             _toggle.interactable = ActionsAvailable;
             foreach (var button in _interactiveButtons)
                 button.interactable = ActionsAvailable && _opened;
@@ -301,30 +303,56 @@ namespace Roguehalla.Client
             _status.text = String.IsNullOrEmpty(_feedback) ? "Choose a server intent. The server decides." : _feedback;
         }
         void SetFeedback(string text) { _feedback = text; if (_status != null) _status.text = text; }
-        void ReleaseFocus()
+        void ReleaseFocus() => ReleaseFocus(_root);
+        static void ReleaseFocus(Transform root)
         {
-            if (_root == null || EventSystem.current == null) return;
+            if (root == null || EventSystem.current == null) return;
             var selected = EventSystem.current.currentSelectedGameObject;
-            if (selected == null || !selected.transform.IsChildOf(_root)) return;
+            if (selected == null || !selected.transform.IsChildOf(root)) return;
             selected.GetComponent<TMP_InputField>()?.DeactivateInputField();
             EventSystem.current.SetSelectedGameObject(null);
         }
         void OnEnable() { if (_initialized) { Attach(); Refresh(); } }
-        void OnDisable() { if (_initialized && !_destroyed) { Detach(); Revoke(); Refresh(); } }
-        void OnDestroy()
+        void OnDisable() { if (_initialized && OwnerAlive()) { Detach(); Revoke(); Refresh(); } }
+        void OnDestroy() => DisposeOwned();
+
+        bool OwnerAlive()
         {
-            Detach(); ReleaseFocus(); _destroyed = true; _actionGeneration++;
-            if (_stacks != null)
+            if (_destroyed) return false;
+            if (this != null) return true;
+            // Managed delegates can outlive the native object, including an EditMode
+            // host that never received lifecycle messages. Detach only our listeners
+            // and retire only our separate Canvas child before touching native state.
+            DisposeOwned();
+            return false;
+        }
+        void DisposeOwned()
+        {
+            if (_destroyed) return;
+            _destroyed = true; _confirmed = _opened = false; _actionGeneration++;
+            Detach(); _session = null; OpenStateChanged = null;
+            var root = _root; _root = _panel = null; _container = null;
+            try
             {
-                _stacks.onValueChanged = new TMP_InputField.OnChangeEvent();
-                _stacks.onEndEdit = new TMP_InputField.SubmitEvent();
+                if (_stacks != null)
+                {
+                    _stacks.onValueChanged = new TMP_InputField.OnChangeEvent();
+                    _stacks.onEndEdit = new TMP_InputField.SubmitEvent();
+                }
+                ReleaseFocus(root);
             }
-            if (_root != null)
-            {
-                _root.gameObject.SetActive(false);
-                if (Application.isPlaying) Destroy(_root.gameObject); else DestroyImmediate(_root.gameObject);
-            }
-            _session = null;
+            finally { RetireRoot(root); }
+        }
+        static void RetireRoot(RectTransform root)
+        {
+            if (root == null) return;
+            var owned = root.gameObject;
+            owned.SetActive(false);
+            if (owned == null) return;
+#if UNITY_EDITOR
+            if (!Application.isPlaying) { UnityEngine.Object.DestroyImmediate(owned); return; }
+#endif
+            UnityEngine.Object.Destroy(owned);
         }
 
         static RectTransform Row(Transform content, string name, float height)

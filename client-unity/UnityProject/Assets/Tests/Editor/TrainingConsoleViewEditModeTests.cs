@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.ExceptionServices;
 using NUnit.Framework;
 using Roguehalla.Client;
 using Roguehalla.Net;
@@ -52,47 +53,112 @@ namespace Roguehalla.Client.Tests
         {
             _previousEvents = EventSystem.current;
             _previousSelection = _previousEvents != null ? _previousEvents.currentSelectedGameObject : null;
-            _eventsObject = new GameObject("Training console test EventSystem", typeof(UiInputRoutingEventSystem));
-            var eventSystem = _eventsObject.GetComponent<UiInputRoutingEventSystem>();
-            eventSystem.enabled = false;
-            eventSystem.enabled = true;
-            EventSystem.current = eventSystem;
-            Assert.AreSame(eventSystem, EventSystem.current, "the fixture must register its current EventSystem before UI setup");
+            try
+            {
+                _eventsObject = new GameObject("Training console test EventSystem", typeof(UiInputRoutingEventSystem));
+                var eventSystem = _eventsObject.GetComponent<UiInputRoutingEventSystem>();
+                eventSystem.enabled = false;
+                eventSystem.enabled = true;
+                EventSystem.current = eventSystem;
+                Assert.AreSame(eventSystem, EventSystem.current, "the fixture must register its current EventSystem before UI setup");
 
-            _canvasObject = new GameObject("Training console test canvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
-            _hostObject = new GameObject("Training console view host");
-            _view = _hostObject.AddComponent<TrainingConsoleView>();
-            _view.Initialize(_canvasObject.transform);
-            _active = CreateSession(training: false, deliverSnapshot: true);
-            _view.Bind(_active.Session);
+                _canvasObject = new GameObject("Training console test canvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+                _hostObject = new GameObject("Training console view host");
+                _view = _hostObject.AddComponent<TrainingConsoleView>();
+                _view.Initialize(_canvasObject.transform);
+                _active = CreateSession(training: false, deliverSnapshot: true);
+                _view.Bind(_active.Session);
+            }
+            catch (Exception setupFailure)
+            {
+                try { CleanupFixture(); }
+                catch (Exception cleanupFailure) { throw new AggregateException("Training console fixture setup and cleanup both failed.", setupFailure, cleanupFailure); }
+                ExceptionDispatchInfo.Capture(setupFailure).Throw();
+                throw;
+            }
         }
 
         [TearDown]
         public void TearDown()
         {
-            foreach (var fixture in _sessions)
+            CleanupFixture();
+        }
+
+        void CleanupFixture()
+        {
+            var failures = new List<Exception>();
+            CaptureFailure(failures, () => { if (_view != null) _view.Bind(null); });
+            for (int i = 0; i < _sessions.Count; i++)
             {
-                if (fixture.Session != null && fixture.Session.State != SessionState.Ended)
-                    fixture.Session.Leave();
+                var fixture = _sessions[i];
+                if (fixture?.Session == null || fixture.Session.State == SessionState.Ended) continue;
+                CaptureFailure(failures, fixture.Session.Leave);
             }
 
-            if (_hostObject != null) UnityEngine.Object.DestroyImmediate(_hostObject);
-            if (_canvasObject != null) UnityEngine.Object.DestroyImmediate(_canvasObject);
-
-            if (_eventsObject != null)
-            {
-                var ownedSystem = _eventsObject.GetComponent<EventSystem>();
-                if (ownedSystem != null && EventSystem.current == ownedSystem)
-                    EventSystem.current = _previousEvents;
-                UnityEngine.Object.DestroyImmediate(_eventsObject);
-            }
-            if (_previousEvents != null && _previousEvents.gameObject.activeInHierarchy)
-            {
-                if (EventSystem.current != _previousEvents) EventSystem.current = _previousEvents;
-                if (_previousSelection != null && _previousSelection.activeInHierarchy)
-                    _previousEvents.SetSelectedGameObject(_previousSelection);
-            }
+            CaptureFailure(failures, () => DestroyOwned(ref _hostObject));
+            CaptureFailure(failures, () => DestroyOwned(ref _canvasObject));
+            CaptureFailure(failures, RetireOwnedEventSystem);
+            CaptureFailure(failures, RestorePriorSelectionIfCurrent);
             _sessions.Clear();
+            _view = null;
+            _active = null;
+            _previousEvents = null;
+            _previousSelection = null;
+            ThrowCleanupFailures(failures);
+        }
+
+        static void CaptureFailure(List<Exception> failures, Action cleanup)
+        {
+            try { cleanup(); }
+            catch (Exception error) { failures.Add(error); }
+        }
+
+        static void ThrowCleanupFailures(List<Exception> failures)
+        {
+            if (failures.Count == 1) ExceptionDispatchInfo.Capture(failures[0]).Throw();
+            if (failures.Count > 1) throw new AggregateException("Multiple training console fixture cleanup steps failed.", failures);
+        }
+
+        static void DestroyOwned(ref GameObject owned)
+        {
+            var target = owned;
+            owned = null;
+            if (target != null) UnityEngine.Object.DestroyImmediate(target);
+        }
+
+        void RetireOwnedEventSystem()
+        {
+            var target = _eventsObject;
+            _eventsObject = null;
+            if (target == null) return;
+            var failures = new List<Exception>();
+            EventSystem ownedSystem = null;
+            CaptureFailure(failures, () => ownedSystem = target.GetComponent<EventSystem>());
+            try
+            {
+                if (ownedSystem != null && EventSystem.current == ownedSystem)
+                    CaptureFailure(failures, () => ownedSystem.SetSelectedGameObject(null));
+            }
+            finally
+            {
+                try
+                {
+                    if (ownedSystem != null) CaptureFailure(failures, () => ownedSystem.enabled = false);
+                }
+                finally
+                {
+                    CaptureFailure(failures, () => UnityEngine.Object.DestroyImmediate(target));
+                }
+            }
+            ThrowCleanupFailures(failures);
+        }
+
+        void RestorePriorSelectionIfCurrent()
+        {
+            var prior = _previousEvents;
+            if (prior == null || !prior.isActiveAndEnabled || EventSystem.current != prior) return;
+            var selection = _previousSelection;
+            if (selection != null && selection.activeInHierarchy) prior.SetSelectedGameObject(selection);
         }
 
         [Test]
@@ -259,6 +325,7 @@ namespace Roguehalla.Client.Tests
             Assert.IsFalse(_view.ActionsAvailable, "the source-clock cut revokes the old confirmation");
             Assert.IsTrue(_view.SetLaunchContext(training.Session, training.Session.TimelineEpoch, MatchLaunchMode.Training));
             Assert.IsTrue(_view.ActionsAvailable, "the new epoch is explicitly reconfirmed before invoking the stale event");
+            Assert.IsTrue(_view.SetOpen(true));
 
             oldEvent.Invoke();
             Assert.AreEqual(0, TrainCommands(training.Transport).Count, "the captured old event remains invalid after same-session reconfirmation");

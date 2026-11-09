@@ -1,0 +1,21 @@
+{
+  "source": "d90dd0a12b898dceae6715e26c1aec71a68d8d3a",
+  "base": "e2b2671107506f5cb892cfb74cba7374c7a52a6d",
+  "changedFiles": [
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/TrainingConsoleView.cs",
+      "sha256": "80684fa47f32b7f1af1c336921bdb57e779764c87de599bd7044ec96e19c26c6"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/TrainingConsoleViewEditModeTests.cs",
+      "sha256": "5f53aca82a3ed6a9706c64d477573f3d1ad3825bb6cb0344f8fd2523145223b1"
+    }
+  ],
+  "otherEditorPathsUnchanged": 69,
+  "existingMetaFilesUnchanged": 616,
+  "allNetLibraryAndNetTestSourcesUnchanged": true,
+  "old90SelectorCount": 90,
+  "old90SelectorSHA256": "a7210a4c56509d707923c67a62082c8374465e039d5e58473726960ce3df3b43",
+  "newNativeStatus": "UNRUN",
+  "original99172Status": "FAILED;73PASS/4FAIL/13UNRUN, no reinterpretation or retry"
+}

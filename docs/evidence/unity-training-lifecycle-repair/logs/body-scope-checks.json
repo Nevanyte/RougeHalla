@@ -1,0 +1,12 @@
+{
+  "base": "e2b2671107506f5cb892cfb74cba7374c7a52a6d",
+  "authorizedScopeFiles": [
+    "client-unity/UnityProject/Assets/Scripts/UI/TrainingConsoleView.cs",
+    "client-unity/UnityProject/Assets/Tests/Editor/TrainingConsoleViewEditModeTests.cs"
+  ],
+  "allEightTestBodiesAndAttributesUnchangedExceptApprovedClockPrecondition": true,
+  "oldTestBodyTailSHA256": "90fb2cecbaacbf5326ea6693deaf7f71649de3f3a1fbe69d4a1a42aa24c5dfb5",
+  "newTestBodyTailSHA256": "a373cc3ced9966f3c2678a721121369947e57806ecc20c212c3d3f605bdd8ab8",
+  "approvedInsertion": "Assert.IsTrue(_view.SetOpen(true)); after new-epoch ActionsAvailable and before oldEvent.Invoke()",
+  "RootApproval": "Coordinator explicit reply approving exactly that precondition correction; no production auto-reopen or expectation change."
+}
