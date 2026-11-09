@@ -1,0 +1,27 @@
+{
+  "initialEvidenceDiffCheck": {
+    "exitCode": 2,
+    "stdout": "docs/evidence/unity-training-99172-editor-first/evidence/ShaderGraphSettings.asset.observed.txt:13: trailing whitespace.\n+  m_Name: \ndocs/evidence/unity-training-99172-editor-first/evidence/ShaderGraphSettings.asset.observed.txt:14: trailing whitespace.\n+  m_EditorClassIdentifier: \ndocs/evidence/unity-training-99172-editor-first/evidence/import-source-drift.patch:11: trailing whitespace.\n++  m_Name: \ndocs/evidence/unity-training-99172-editor-first/evidence/import-source-drift.patch:12: trailing whitespace.\n++  m_EditorClassIdentifier: \n",
+    "stderr": ""
+  },
+  "reason": "Retain exact known observed ShaderGraph bytes and raw import diff, including two trailing spaces. No product source change.",
+  "rawPathsExcluded": [
+    "docs/evidence/unity-training-99172-editor-first/evidence/ShaderGraphSettings.asset.observed.txt",
+    "docs/evidence/unity-training-99172-editor-first/evidence/import-source-drift.patch"
+  ],
+  "scopedDiffCheck": {
+    "argv": [
+      "git",
+      "diff",
+      "--cached",
+      "--check",
+      "--",
+      ".",
+      ":(exclude)docs/evidence/unity-training-99172-editor-first/evidence/ShaderGraphSettings.asset.observed.txt",
+      ":(exclude)docs/evidence/unity-training-99172-editor-first/evidence/import-source-drift.patch"
+    ],
+    "exitCode": 0,
+    "stdout": "",
+    "stderr": ""
+  }
+}

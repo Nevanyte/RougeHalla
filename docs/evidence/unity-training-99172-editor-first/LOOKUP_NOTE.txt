@@ -1,0 +1,1 @@
+Before any native gate operation, an initial read attempted LAYOUT_CHECKS.md under unity-training-native-gate and found no file. Read-only discovery located the actual frozen document at docs/evidence/unity-training-integration/LAYOUT_CHECKS.md. No native action/test occurred in this lookup.

@@ -1,0 +1,147 @@
+{
+  "source": "99172b65a317fc489b2290caa43c1735f26f2e26",
+  "status": "FAILED_FIRST_NATIVE_GATE",
+  "expectedCases": 90,
+  "executedOnce": 77,
+  "passed": 73,
+  "failed": 4,
+  "skipped": 0,
+  "inconclusive": 0,
+  "missingOrExtraWithinExecutedFilters": 0,
+  "unrun": 13,
+  "fixtureInvocations": 7,
+  "retryInvocations": 0,
+  "fixtures": [
+    {
+      "fixtureType": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+      "summary": {
+        "Total": 8,
+        "Passed": 8,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "resultFullNamesExact": true,
+      "invocations": 1
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+      "summary": {
+        "Total": 6,
+        "Passed": 6,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "resultFullNamesExact": true,
+      "invocations": 1
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+      "summary": {
+        "Total": 11,
+        "Passed": 11,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "resultFullNamesExact": true,
+      "invocations": 1
+    },
+    {
+      "fixtureType": "MatchLaunchEditModeTests",
+      "summary": {
+        "Total": 17,
+        "Passed": 17,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "resultFullNamesExact": true,
+      "invocations": 1
+    },
+    {
+      "fixtureType": "MatchSettlementEditModeTests",
+      "summary": {
+        "Total": 22,
+        "Passed": 22,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "resultFullNamesExact": true,
+      "invocations": 1
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests",
+      "summary": {
+        "Total": 5,
+        "Passed": 5,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "resultFullNamesExact": true,
+      "invocations": 1
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests",
+      "summary": {
+        "Total": 8,
+        "Passed": 4,
+        "Failed": 4,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "resultFullNamesExact": true,
+      "invocations": 1
+    }
+  ],
+  "failures": [
+    {
+      "FullName": "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.CapturedActionCallbackCannotTargetAReboundSession",
+      "Status": "Failed",
+      "Duration": 0.0280169,
+      "Message": "TearDown : Unhandled log message: '[Error] Failed setting EventSystem.current to unknown EventSystem '. Use UnityEngine.TestTools.LogAssert.Expect",
+      "StackTrace": "UnityEngine.EventSystems.EventSystem:set_current (UnityEngine.EventSystems.EventSystem)\nRoguehalla.Client.Tests.TrainingConsoleViewEditModeTests:TearDown () (at Assets/Tests/Editor/TrainingConsoleViewEditModeTests.cs:86)\nSystem.Reflection.MethodBase:Invoke (object,object[])\nNUnit.Framework.Internal.Reflect:InvokeMethod (System.Reflection.MethodInfo,object,object[])\nNUnit.Framework.Internal.Reflect:InvokeMethod (System.Reflection.MethodInfo,object)\nUnityEditor.EditorApplication:Internal_CallUpdateFunctions () (at /Users/bokken/build/output/unity/unity/Editor/Mono/EditorApplication.cs:384)\n\n"
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.CapturedActionCannotCrossSameSessionSourceClockCutEvenAfterEpochReconfirmation",
+      "Status": "Failed",
+      "Duration": 0.0204328,
+      "Message": "  Expected: True\n  But was:  False\n\nTearDown : Unhandled log message: '[Error] Failed setting EventSystem.current to unknown EventSystem '. Use UnityEngine.TestTools.LogAssert.Expect",
+      "StackTrace": "UnityEngine.EventSystems.EventSystem:set_current (UnityEngine.EventSystems.EventSystem)\nRoguehalla.Client.Tests.TrainingConsoleViewEditModeTests:TearDown () (at Assets/Tests/Editor/TrainingConsoleViewEditModeTests.cs:86)\nSystem.Reflection.MethodBase:Invoke (object,object[])\nNUnit.Framework.Internal.Reflect:InvokeMethod (System.Reflection.MethodInfo,object,object[])\nNUnit.Framework.Internal.Reflect:InvokeMethod (System.Reflection.MethodInfo,object)\nUnityEditor.EditorApplication:Internal_CallUpdateFunctions () (at /Users/bokken/build/output/unity/unity/Editor/Mono/EditorApplication.cs:384)\n\n"
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.EachTrainingActionQueuesOneExactTrainWireIntentInExistingSessionOrder",
+      "Status": "Failed",
+      "Duration": 0.0112051,
+      "Message": "TearDown : Unhandled log message: '[Error] Failed setting EventSystem.current to unknown EventSystem '. Use UnityEngine.TestTools.LogAssert.Expect",
+      "StackTrace": "UnityEngine.EventSystems.EventSystem:set_current (UnityEngine.EventSystems.EventSystem)\nRoguehalla.Client.Tests.TrainingConsoleViewEditModeTests:TearDown () (at Assets/Tests/Editor/TrainingConsoleViewEditModeTests.cs:86)\nSystem.Reflection.MethodBase:Invoke (object,object[])\nNUnit.Framework.Internal.Reflect:InvokeMethod (System.Reflection.MethodInfo,object,object[])\nNUnit.Framework.Internal.Reflect:InvokeMethod (System.Reflection.MethodInfo,object)\nUnityEditor.EditorApplication:Internal_CallUpdateFunctions () (at /Users/bokken/build/output/unity/unity/Editor/Mono/EditorApplication.cs:384)\n\n"
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.EscapeClosesFocusedConsoleOnceAndDestroyedViewRemovesCapturedListener",
+      "Status": "Failed",
+      "Duration": 0.01104,
+      "Message": "UnityEngine.MissingReferenceException : The object of type 'Roguehalla.Client.TrainingConsoleView' has been destroyed but you are still trying to access it.\nYour script should either check if it is null or you should not destroy the object.\nTearDown : UnityEngine.MissingReferenceException : The object of type 'Roguehalla.Client.TrainingConsoleView' has been destroyed but you are still trying to access it.\nYour script should either check if it is null or you should not destroy the object.",
+      "StackTrace": "  at UnityEngine.Object+MarshalledUnityObject.TryThrowEditorNullExceptionObject (UnityEngine.Object unityObj, System.String parameterName) [0x00064] in /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/UnityEngineObject.bindings.cs:870 \n  at UnityEngine.Bindings.ThrowHelper.ThrowNullReferenceException (System.Object obj) [0x00010] in /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/BindingsHelpers.cs:61 \n  at UnityEngine.Behaviour.get_isActiveAndEnabled () [0x00006] in <21db74ab35394c0695d804afc0974160>:0 \n  at Roguehalla.Client.TrainingConsoleView.get_ActionsAvailable () [0x00000] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Scripts/UI/TrainingConsoleView.cs:38 \n  at Roguehalla.Client.TrainingConsoleView.CurrentAction (Roguehalla.Net.Session session, System.UInt32 epoch, System.Int32 generation, System.Boolean requireOpen) [0x00000] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Scripts/UI/TrainingConsoleView.cs:227 \n  at Roguehalla.Client.TrainingConsoleView+<>c__DisplayClass80_1.<WireControls>b__17 () [0x00000] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Scripts/UI/TrainingConsoleView.cs:273 \n  at UnityEngine.Events.InvokableCall.Invoke () [0x00010] in /Users/bokken/build/output/unity/unity/Runtime/Export/UnityEvent/UnityEvent.cs:178 \n  at UnityEngine.Events.UnityEvent.Invoke () [0x00022] in /Users/bokken/build/output/unity/unity/artifacts/generated/UnityEvent/UnityEvent_0.cs:57 \n  at Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.EscapeClosesFocusedConsoleOnceAndDestroyedViewRemovesCapturedListener () [0x00159] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/TrainingConsoleViewEditModeTests.cs:344 \n  at (wrapper managed-to-native) System.Reflection.RuntimeMethodInfo.InternalInvoke(System.Reflection.RuntimeMethodInfo,object,object[],System.Exception&)\n  at System.Reflection.RuntimeMethodInfo.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x0006a] in <a5b04fdd22cd4a3e97368c21b1fd2d9d>:0 \n--TearDown\n  at UnityEngine.Object+MarshalledUnityObject.TryThrowEditorNullExceptionObject (UnityEngine.Object unityObj, System.String parameterName) [0x00064] in /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/UnityEngineObject.bindings.cs:870 \n  at UnityEngine.Bindings.ThrowHelper.ThrowNullReferenceException (System.Object obj) [0x00010] in /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/BindingsHelpers.cs:61 \n  at UnityEngine.Behaviour.get_isActiveAndEnabled () [0x00006] in <21db74ab35394c0695d804afc0974160>:0 \n  at Roguehalla.Client.TrainingConsoleView.get_ActionsAvailable () [0x00000] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Scripts/UI/TrainingConsoleView.cs:38 \n  at Roguehalla.Client.TrainingConsoleView.Refresh () [0x00073] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Scripts/UI/TrainingConsoleView.cs:167 \n  at Roguehalla.Client.TrainingConsoleView+<>c__DisplayClass73_0.<Attach>b__1 (Roguehalla.Net.SessionState state) [0x0001d] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Scripts/UI/TrainingConsoleView.cs:235 \n  at Roguehalla.Net.Session.Set (Roguehalla.Net.SessionState s) [0x00019] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/RoguehallaNet/Net/Session.cs:137 \n  at Roguehalla.Net.Session.Leave () [0x00034] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/RoguehallaNet/Net/Session.cs:192 \n  at Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.TearDown () [0x0002c] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/TrainingConsoleViewEditModeTests.cs:76 \n  at (wrapper managed-to-native) System.Reflection.RuntimeMethodInfo.InternalInvoke(System.Reflection.RuntimeMethodInfo,object,object[],System.Exception&)\n  at System.Reflection.RuntimeMethodInfo.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x0006a] in <a5b04fdd22cd4a3e97368c21b1fd2d9d>:0 "
+    }
+  ],
+  "unrunFullNames": [
+    "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.ArenaAndPendingLaunchNeverExposeTrainingConsoleAndArenaTabStillOpensMap",
+    "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.CapturedConsoleCallbackCannotQueueIntoARetiredOrReplacementSession",
+    "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.ClosedTrainingTabEntersConsoleFocusAndFocusedTextOwnsWorldKeys",
+    "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.DropdownEscapeRequestsPopupHideBeforeConsoleCloseAndTrainingLeave",
+    "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.EscapeClosesTrainingConsoleAndOnlyTheNextPhysicalEscapeLeavesTraining",
+    "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.HigherSettingsModalUnbindsConsoleUntilANewAcceptedSnapshot",
+    "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.OpeningHigherPanelOnTheSameReadCannotAlsoFocusOrChooseAReward",
+    "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.PointerCloseConsumesItsInputUpdateButWorldInputReturnsOnTheNextUpdate",
+    "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.ReconnectWelcomeAndSourceClockCutRevokeConsoleUntilAcceptedTrainingFact",
+    "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.TrainingConsoleFlushesEarlierOrdinaryCommandsBeforeItsExactTrainIntent",
+    "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.TrainingRequiresTheExactSessionAndAcceptedSnapshotBeforeOpening",
+    "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.WindowFocusLossClosesTrainingConsoleAndFreshFactCanRestoreIt",
+    "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.WrongServerModeNeverLeavesAnArenaTrainingConsoleBound"
+  ],
+  "layout": "NOT_ATTEMPTED:90PASS condition not achieved",
+  "serializationException": "Root approved exact two-space empty-string overlay only; initial STOP preserved; final product pins exact"
+}

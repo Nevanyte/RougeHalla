@@ -1,0 +1,11 @@
+{
+  "argv": [
+    "git",
+    "switch",
+    "--detach",
+    "99172b65a317fc489b2290caa43c1735f26f2e26"
+  ],
+  "exitCode": 0,
+  "stdout": "",
+  "stderr": "HEAD is now at 99172b65 docs: freeze reviewed 90-case Training Editor gate\n"
+}

@@ -1,0 +1,28 @@
+{
+  "status": "PASS_BEFORE_EXECUTION",
+  "contractSchema": "roguehalla-unity-editmode-typed-fixture-contract/2",
+  "source": "99172b65a317fc489b2290caa43c1735f26f2e26",
+  "proposedSourceSnapshot": {
+    "worktree": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-training-integration",
+    "gitHead": "e0da2de0b5100d979901aa5e20cc3d8f964e0626",
+    "sourceInputsSha256": "2b463c793b99bcedb1f7776ecbe59b8f33fdfb23b86546a07f65ae7919709b5e"
+  },
+  "cases": 90,
+  "fullNamesExact": true,
+  "typedArgumentsExact": true,
+  "loadedIdentityExact": true,
+  "executedTests": false,
+  "fixtureCounts": {
+    "Roguehalla.Client.Tests.QuestJournalViewEditModeTests": 8,
+    "Roguehalla.Client.Tests.TraderDialogViewEditModeTests": 6,
+    "Roguehalla.Client.Tests.PlayerFlowsEditModeTests": 11,
+    "MatchLaunchEditModeTests": 17,
+    "MatchSettlementEditModeTests": 22,
+    "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests": 5,
+    "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests": 8,
+    "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests": 13
+  },
+  "loadedTestAssemblyMvid": "139e4ef9-8b31-4bd9-9591-0e64f0b7a703",
+  "identityReceipt": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-99172b65-2026-11-09/evidence/loaded-identity.json",
+  "discoveryReceipt": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-99172b65-2026-11-09/discovered-cases.json"
+}

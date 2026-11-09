@@ -1,0 +1,20 @@
+{
+  "source": "99172b65a317fc489b2290caa43c1735f26f2e26",
+  "stage": "First import, before public discovery or any test invocation",
+  "status": "STOP_SOURCE_PIN_MISMATCH",
+  "expectedPins": 1176,
+  "exactPins": 1175,
+  "mismatches": [
+    {
+      "path": "client-unity/UnityProject/ProjectSettings/ShaderGraphSettings.asset",
+      "expectedSha256": "d9285133fee72ad8257e0b2c2d904b487757ebcef4862e3b10bef073bf218894",
+      "expectedBytes": 555,
+      "actualSha256": "83556175c6dccd540f2cac05e5c0f9fbb36c3c8d7a56bed2c7cf4d29e4c2ee2e",
+      "actualBytes": 557
+    }
+  ],
+  "nativeCasesExecuted": 0,
+  "unrunCases": 90,
+  "contractSha256": "cf38da76450bbcc01bb2f6c15d73c44d119152959733ef3037dcc04960f1cc7e",
+  "noSourceCorrectionOrRetry": true
+}
