@@ -1,7 +1,0 @@
-{
-  "kind": "evidence-packaging-only correction",
-  "initial_evidence_commit": "40a071d0612a4a86f158890ec73054477bd0d883",
-  "initial_manifest_sha256": "3cee35774e3fb1e205dc6530e4f37f5482301dd97fb711b85da208ad80f8099e",
-  "finding": "Post-commit frozen-Git verification refused: root *.log ignore prevented raw logs from being tracked by normal directory add. All original raw log bytes remained on disk. This was not a test/compiler failure.",
-  "repair": "Explicitly track the eight exact dedicated raw log paths; preserve initial evidence commit; final Git-object hash verification must pass. No source or check result changed; no rebuild/rerun."
-}
