@@ -1,0 +1,43 @@
+SYNTHETIC ONLY: old7401 helper loaded from immutable Git, __main__ not called; no Docker/npm/Source subprocess. Adapter only discards new uid/gid arguments. Second control injects solely --user to show unchanged root-owned tmpfs also fails.
+
+unchanged7401defaults
+test_nonroot_caller_owns_actual_container_and_all_private_tmpfs (<run_path>.ContextControls) ... FAIL
+
+======================================================================
+FAIL: test_nonroot_caller_owns_actual_container_and_all_private_tmpfs (<run_path>.ContextControls)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/tools/npc-witness-context/tests.py", line 116, in test_nonroot_caller_owns_actual_container_and_all_private_tmpfs
+    self.assertEqual(users, ["1001:1002"], "default root cannot write caller0700 output with no capabilities")
+AssertionError: Lists differ: [] != ['1001:1002']
+
+Second list contains 1 additional elements.
+First extra element 0:
+'1001:1002'
+
+- []
++ ['1001:1002'] : default root cannot write caller0700 output with no capabilities
+
+----------------------------------------------------------------------
+Ran 1 test in 0.001s
+
+FAILED (failures=1)
+
+incomplete-user-only-fix
+test_nonroot_caller_owns_actual_container_and_all_private_tmpfs (<run_path>.ContextControls) ... FAIL
+
+======================================================================
+FAIL: test_nonroot_caller_owns_actual_container_and_all_private_tmpfs (<run_path>.ContextControls)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/tools/npc-witness-context/tests.py", line 127, in test_nonroot_caller_owns_actual_container_and_all_private_tmpfs
+    self.assertEqual(set(pieces), {"rw", "exec", "size=" + expected[target], "mode=0700", "uid=1001", "gid=1002"})
+AssertionError: Items in the second set but not the first:
+'mode=0700'
+'uid=1001'
+'gid=1002'
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+FAILED (failures=1)

@@ -57,14 +57,30 @@ def capture_script(script):
             "test \"$(node -p 'process.version+\"/\"+process.platform+\"/\"+process.arch')\" = v22.23.4/linux/x64\n"
             f"/usr/bin/prlimit --fsize=134217728:134217728 -- /bin/sh -eu -c 'printf source-started > /out/source-started; exec node --import tsx {script} --write /out/actual.json'\n")
 
-def docker_args(repo, out, snapshot, image, name, script):
-    args = ["run", "--rm", "--pull=never", "--platform", "linux/amd64", "--name", name, "--label", f"rh.npc-context.owner={name}", "--cidfile", str(out / "container.cid"), "--read-only", "--cap-drop=ALL", "--security-opt=no-new-privileges:true", "--pids-limit=256", "--memory=2g", "--cpus=2"]  # File ceiling applies only to Source below; npm remains under the other bounds.
+def user_ids(uid, gid):
+    require(type(uid) is int and type(gid) is int and 0 < uid < 2**32 - 1 and 0 < gid < 2**32 - 1,
+            "finite nonroot numeric caller UID:GID required")
+    return uid, gid
+
+def caller_ids():
+    uid, gid = user_ids(os.getuid(), os.getgid())
+    require((os.geteuid(), os.getegid()) == (uid, gid), "real/effective caller identity must match")
+    return uid, gid
+
+def check_output_owner(info, uid, gid):
+    require(stat.S_ISDIR(info.st_mode) and stat.S_IMODE(info.st_mode) == 0o700
+            and (info.st_uid, info.st_gid) == (uid, gid), "fresh output must already be caller-owned private0700")
+
+def docker_args(repo, out, snapshot, image, name, script, uid, gid):
+    user_ids(uid, gid)
+    args = ["run", "--user", f"{uid}:{gid}", "--rm", "--pull=never", "--platform", "linux/amd64", "--name", name, "--label", f"rh.npc-context.owner={name}", "--cidfile", str(out / "container.cid"), "--read-only", "--cap-drop=ALL", "--security-opt=no-new-privileges:true", "--pids-limit=256", "--memory=2g", "--cpus=2"]  # File ceiling applies only to Source below; npm remains under the other bounds.
     for src, dst, readonly in [(repo, "/repo", True), (snapshot, "/repo/docs/CONTRACTS.md", True), (out, "/out", False)]:
         require("," not in str(src), "mount path contains comma")
         args += ["--mount", f"type=bind,src={src},dst={dst}" + (",readonly" if readonly else "")]
-    args += ["--tmpfs", "/tmp:rw,exec,size=1500m", "--tmpfs", "/repo/node_modules:rw,exec,size=1500m"]
+    private = f",mode=0700,uid={uid},gid={gid}"
+    args += ["--tmpfs", "/tmp:rw,exec,size=1500m" + private, "--tmpfs", "/repo/node_modules:rw,exec,size=1500m" + private]
     for p in MODULES[1:]:
-        args += ["--tmpfs", f"/repo/{p}:rw,exec,size=256m"]
+        args += ["--tmpfs", f"/repo/{p}:rw,exec,size=256m" + private]
     for value in ["npm_config_cache=/tmp/npm-cache", "NPM_CONFIG_USERCONFIG=/tmp/empty-user-npmrc", "NPM_CONFIG_GLOBALCONFIG=/tmp/empty-global-npmrc"]:
         args += ["--env", value]
     return args + ["--workdir", "/repo", image, "sh", "-eu", "-c", capture_script(script)]
@@ -121,12 +137,14 @@ def main():
     socket = Path(a.docker_socket)
     plain(socket.parent, True)
     require(not socket.is_symlink() and stat.S_ISSOCK(socket.stat().st_mode), "literal local Docker socket required")
+    uid, gid = caller_ids()
     out.mkdir(mode=0o700)
+    check_output_owner(out.lstat(), uid, gid)
     os.umask(0o077)
     (out / "empty-docker-config").mkdir(mode=0o700)
     docker = [str(executable), "--config", str(out / "empty-docker-config"), "--host", f"unix://{socket}"]
     name = "rh-npc-context-" + uuid.uuid4().hex
-    argv = docker + docker_args(repo, out, snapshot, m["image"], name, w["script"])
+    argv = docker + docker_args(repo, out, snapshot, m["image"], name, w["script"], uid, gid)
     receipt = dict(format="npc-historical-context-run/1", status="ERROR", witness=a.witness, code=a.expected_code_sha, contextSha256=sha((HERE / "context.json").read_bytes()), historicalDoc=m["historicalDoc"], currentNormativeDoc=m["currentDoc"], argv=argv, timeoutSeconds=a.timeout, network="default Docker network for locked npm only; no host credentials/config/cache", started=time.time())
     child = None
     try:

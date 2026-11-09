@@ -5,6 +5,8 @@ import runpy
 import shlex
 import tempfile
 import unittest
+from unittest.mock import patch
+from types import SimpleNamespace
 
 HERE = Path(__file__).absolute().parent
 API = runpy.run_path(str(HERE / "run.py"))
@@ -62,7 +64,7 @@ class ContextControls(unittest.TestCase):
     def test_one_write_original_script_and_mount_envelope(self):
         m = json.loads((HERE / "context.json").read_text())
         for w in m["witnesses"].values():
-            args = API["docker_args"](Path("/repo-source"), Path("/fresh"), Path("/historical.md"), m["image"], "owned", w["script"])
+            args = API["docker_args"](Path("/repo-source"), Path("/fresh"), Path("/historical.md"), m["image"], "owned", w["script"], 1001, 1002)
             command = args[-1]
             self.assertEqual(command.count("--write /out/actual.json"), 1)
             self.assertNotIn("--check", command)
@@ -84,7 +86,7 @@ class ContextControls(unittest.TestCase):
             with self.subTest(witness=name):
                 oracle_bytes = (repo / w["oracle"]["path"]).stat().st_size
                 self.assertEqual(oracle_bytes, w["oracle"]["bytes"])
-                args = API["docker_args"](Path("/repo-source"), Path("/fresh"), Path("/historical.md"), m["image"], "owned", w["script"])
+                args = API["docker_args"](Path("/repo-source"), Path("/fresh"), Path("/historical.md"), m["image"], "owned", w["script"], 1001, 1002)
                 self.assertNotIn("--ulimit", args, "npm must not inherit the Source file ceiling")
                 lines = args[-1].splitlines()
                 limit_lines = [line for line in lines if line.startswith("/usr/bin/prlimit ")]
@@ -105,6 +107,45 @@ class ContextControls(unittest.TestCase):
                 self.assertLess(2, lines.index(limit_lines[0]), "locked npm must finish before prlimit")
                 self.assertEqual(args[-1].count("printf source-started"), 1)
                 self.assertEqual(args[-1].count("--write /out/actual.json"), 1)
+
+    def test_nonroot_caller_owns_actual_container_and_all_private_tmpfs(self):
+        m = json.loads((HERE / "context.json").read_text())
+        for w in m["witnesses"].values():
+            args = API["docker_args"](Path("/repo-source"), Path("/fresh"), Path("/historical.md"), m["image"], "owned", w["script"], 1001, 1002)
+            users = [value for option, value in zip(args, args[1:]) if option == "--user"]
+            self.assertEqual(users, ["1001:1002"], "default root cannot write caller0700 output with no capabilities")
+            mounts = [value for option, value in zip(args, args[1:]) if option == "--tmpfs"]
+            expected = {"/tmp": "1500m", "/repo/node_modules": "1500m",
+                        **{f"/repo/{p}": "256m" for p in API["MODULES"][1:]}}
+            self.assertEqual(len(mounts), 5)
+            seen = set()
+            for mount in mounts:
+                target, options = mount.split(":", 1)
+                seen.add(target)
+                self.assertIn(target, expected)
+                pieces = options.split(",")
+                self.assertEqual(set(pieces), {"rw", "exec", "size=" + expected[target], "mode=0700", "uid=1001", "gid=1002"})
+                self.assertEqual(len(pieces), 6)
+            self.assertEqual(seen, set(expected))
+            self.assertIn("--cap-drop=ALL", args)
+            self.assertIn("--read-only", args)
+            self.assertNotIn("--cap-add", args)
+            self.assertFalse(any(x in args[-1] for x in ("chmod", "chown")))
+
+    def test_invalid_or_ambiguous_caller_and_wrong_fresh_output_owner_refuse(self):
+        for uid, gid in ((0, 1002), (1001, 0), (-1, 1002), (1001, 2**32 - 1), (True, 1002), ("1001", 1002)):
+            with self.subTest(uid=uid, gid=gid), self.assertRaisesRegex(ValueError, "nonroot"):
+                API["user_ids"](uid, gid)
+        with patch.object(API["os"], "getuid", return_value=1001), patch.object(API["os"], "getgid", return_value=1002), \
+                patch.object(API["os"], "geteuid", return_value=1001), patch.object(API["os"], "getegid", return_value=1002):
+            self.assertEqual(API["caller_ids"](), (1001, 1002))
+            with patch.object(API["os"], "geteuid", return_value=0), self.assertRaisesRegex(ValueError, "real/effective"):
+                API["caller_ids"]()
+        valid = dict(st_mode=0o40700, st_uid=1001, st_gid=1002)
+        API["check_output_owner"](SimpleNamespace(**valid), 1001, 1002)
+        for changed in ({"st_mode": 0o40777}, {"st_uid": 0}, {"st_gid": 0}, {"st_mode": 0o100700}):
+            with self.subTest(changed=changed), self.assertRaisesRegex(ValueError, "caller-owned"):
+                API["check_output_owner"](SimpleNamespace(**{**valid, **changed}), 1001, 1002)
 
     def test_cleanup_never_stops_unowned_container(self):
         class Result:
