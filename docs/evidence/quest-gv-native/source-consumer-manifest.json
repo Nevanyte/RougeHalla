@@ -1,0 +1,142 @@
+{
+  "format": "rh-quest-gv-source-consumer/1",
+  "historical_native_head": "4cbddd5339f6e0f14eecd29674cbad42c443340f",
+  "historical_held_evidence": "e86e689aa61c8011b0050cc52bed52987a6a8e2c",
+  "source_base": "d2ca1376a28e5836056fc9c52ebd9d866f461d82",
+  "source_witness": "33d0f64369964f509f5ec499d835d6628c6b7e94",
+  "import_merge": "4a96bea255cc6dba8c5533a8cd2ae32aea4510b6",
+  "consumer_head": "f383ca2f19586ccf2f12b01da6c0fb1a82708195",
+  "new_consumer_files": [
+    {
+      "path": "crates/rh-sim/src/observe/quest_gv_tests.rs",
+      "bytes": 3883,
+      "sha256": "4e66b3066c6c122d7844e215123296d5cca019d22199796e3e4f8b8fef72e33a"
+    },
+    {
+      "path": "crates/rh-sim/src/observe/quest_gv_tests/source_room.rs",
+      "bytes": 6231,
+      "sha256": "d7b916d85ee8277f3054d954f55f312b4360d8972db78b186e65e4c86c8ba383"
+    }
+  ],
+  "frozen_source_files": [
+    {
+      "path": "docs/evidence/quest-room-feedback/README.md",
+      "bytes": 8744,
+      "sha256": "ce15fd25ad86d052403769b26628b8a4912d9de59943d615ff9065d799205823"
+    },
+    {
+      "path": "docs/evidence/quest-room-feedback/SHA256SUMS",
+      "bytes": 1802,
+      "sha256": "85f75747226c3cf6730caaea445b960720564431be933ceba1cbf854a69a345f"
+    },
+    {
+      "path": "docs/evidence/quest-room-feedback/bounded.txt",
+      "bytes": 1658,
+      "sha256": "df561850216e99ff9af2a6cbe922abd1e74553e5706c457924530de66bc5dccd"
+    },
+    {
+      "path": "docs/evidence/quest-room-feedback/external-check.txt",
+      "bytes": 173,
+      "sha256": "8dc6c63a7dcfc4c1932d23f883d4355f23a1c45b5e7544ff88676117c655570b"
+    },
+    {
+      "path": "docs/evidence/quest-room-feedback/external-reproduction.json",
+      "bytes": 1253,
+      "sha256": "7cb81aa9a21997a1f6fd40a09c989662943591035abedd70430ee3e4b58b0018"
+    },
+    {
+      "path": "docs/evidence/quest-room-feedback/receipt.json",
+      "bytes": 3663,
+      "sha256": "dc1ff6ce6b59d988c1c1d1a9de569492644d438024b6ef4696d759ad6b694976"
+    },
+    {
+      "path": "parity/quest-room-feedback/README.md",
+      "bytes": 981,
+      "sha256": "7ad941c644be0e1f8accb2547accc3bdffbcb3f5c844c4e7dc04846e3d2e949c"
+    },
+    {
+      "path": "parity/quest-room-feedback/source.json",
+      "bytes": 34572,
+      "sha256": "977450a6e0e1a1fcc3bd135edf7ebe6291f10d4da7aef98a44fc76b5886bd978"
+    },
+    {
+      "path": "tools/quest-room-feedback-fixtures/README.md",
+      "bytes": 3765,
+      "sha256": "c48d5c422b7b2c19ffb1d0ec6ec2b372e1c859f234e420ce26e9b8b11445ba69"
+    },
+    {
+      "path": "tools/quest-room-feedback-fixtures/capture.mts",
+      "bytes": 9892,
+      "sha256": "c1893da3df51feff785cd2237db3ec1d20f25a402d7a14599c96b15e1d3d5fa6"
+    },
+    {
+      "path": "tools/quest-room-feedback-fixtures/capture.sh",
+      "bytes": 1258,
+      "sha256": "07b76ba4dc29d34bc754cf5b6b32439a053a546fac92a7b2f0d8b760af33b50e"
+    },
+    {
+      "path": "tools/quest-room-feedback-fixtures/compare.mjs",
+      "bytes": 1979,
+      "sha256": "61aeea0bf9fada26e2309fe6eb4a100db172a48f2b3c21936e08d91a609c4f7f"
+    },
+    {
+      "path": "tools/quest-room-feedback-fixtures/inner.sh",
+      "bytes": 2971,
+      "sha256": "116fb324d0c27e90349c264d9c18ce5fa54e187e369bf49c9ac25c3c339f4021"
+    },
+    {
+      "path": "tools/quest-room-feedback-fixtures/mutants.json",
+      "bytes": 473,
+      "sha256": "d8617bbd53eb52cb48e02ff1319e75dd10ed7ef1046cd75572fdf1129ff09087"
+    },
+    {
+      "path": "tools/quest-room-feedback-fixtures/mutants.mjs",
+      "bytes": 931,
+      "sha256": "beabdc5e7e9223b5d3b5e93b0e98994a06b46c6f72f55c9931ad136e27cb6471"
+    },
+    {
+      "path": "tools/quest-room-feedback-fixtures/pins.json",
+      "bytes": 504,
+      "sha256": "35f8013796974aaee850eb7bfcea85045798fd1ac9843958e1410f5ab31eed52"
+    },
+    {
+      "path": "tools/quest-room-feedback-fixtures/run-mutants.sh",
+      "bytes": 112,
+      "sha256": "ba2c6dacb7f3039dbe4bd1cb8ee166232d2d147d3e54de83c298b23a7915999e"
+    }
+  ],
+  "receipt_files": [
+    {
+      "path": "docs/evidence/quest-gv-native/SOURCE_CONSUMER.md",
+      "bytes": 4508,
+      "sha256": "3268f87a4e7160090c1e3df5529f71ee9052e1275a359386960c774bcae1a409"
+    },
+    {
+      "path": "docs/evidence/quest-gv-native/room-source-review.json",
+      "bytes": 2001,
+      "sha256": "a6d38a2ce550108e6d889af426c60c39443f5efcf46ad4a988ee19f18e8cbca8"
+    },
+    {
+      "path": "docs/evidence/quest-gv-native/room-comparator-review.json",
+      "bytes": 250,
+      "sha256": "4cd536555acccfb7667e31d2580f727440ae94ac60689b77c9f49832275f19fc"
+    },
+    {
+      "path": "docs/evidence/quest-gv-native/room-consumer-tests.txt",
+      "bytes": 741,
+      "sha256": "62b5f467d91f0ec9a942958d6015077380931b716b026b54027ceac22b3ce72f"
+    },
+    {
+      "path": "docs/evidence/quest-gv-native/room-consumer-clippy.txt",
+      "bytes": 214,
+      "sha256": "0d0e9ba97d4aa99643c790e7869b02f652db5d9032079ddaf9355e479192c88f"
+    },
+    {
+      "path": "docs/evidence/quest-gv-native/room-consumer-fmt.txt",
+      "bytes": 40,
+      "sha256": "f8585fe9ef465b465e8501be55a43a72060940fc952de9612cce2ba28ff7f23e"
+    }
+  ],
+  "status": "bounded source-method/native projection PASS; public/client activation remains root-owned",
+  "limits": "one genuine raw completion batch; source public broadcast calls not fabricated session fanout; missing-owner/bot controls are dispatch-only; no new gameplay/Room/session/client-rendering/Docker replay claim"
+}

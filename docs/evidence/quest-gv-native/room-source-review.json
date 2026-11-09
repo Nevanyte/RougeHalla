@@ -1,0 +1,36 @@
+{
+  "status": "PASS",
+  "kind": "independent offline Git/blob/source-receipt review, not Docker recapture",
+  "fixture_sha256": "977450a6e0e1a1fcc3bd135edf7ebe6291f10d4da7aef98a44fc76b5886bd978",
+  "fixture_bytes": 34572,
+  "base": "d2ca1376a28e5836056fc9c52ebd9d866f461d82",
+  "sealed_source_head": "33d0f64369964f509f5ec499d835d6628c6b7e94",
+  "verified_base_source_pins": 209,
+  "verified_base_config_pins": 10,
+  "verified_sealed_harness_pins": 8,
+  "verified_portable_receipt_hashes": 16,
+  "verified_raw_author_logs": [
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-room-feedback/logs/capture-sealed.log",
+      "sha256": "14510833d6c90ed5b47b6dcc48fe91470ae5c2721d64bbebdf08cd17695505fd",
+      "verified": true
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-room-feedback/logs/check-sealed.log",
+      "sha256": "8dc6c63a7dcfc4c1932d23f883d4355f23a1c45b5e7544ff88676117c655570b",
+      "verified": true
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-room-feedback/logs/mutants-sealed.log",
+      "sha256": "567e6d9ebdaebe090c123588f9d1312065cec94ee35f7880cb7d2825363edffc",
+      "verified": true
+    }
+  ],
+  "raw_input_sha256": "6e40908a3cf563b1d5778b185129c829218af6fd80c903a8a1605552563e7a26",
+  "producer_batches": 1,
+  "actual_room_receiver_invocations": 4,
+  "dispatch_controls": 3,
+  "semantic_receipt_review": "Actual source mutation capture must exit0; comparator excludes provenance. Logs attest text/recipient kills and provenance-only nonkill; scripts confirm pristine controls. No independent source mutation execution claimed.",
+  "external_reproduction": "author-run independently hash/pin reviewed only; not promoted to independent replay",
+  "limits": "one unchanged captured raw completion batch; no live sessions, sockets, banking, native bot quest eligibility or client rendering"
+}

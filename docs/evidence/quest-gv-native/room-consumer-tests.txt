@@ -1,0 +1,9 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-gv-native-projection/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 33.57s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-gv-native-projection/target/debug/deps/rh_sim-0ad75f2b040c28b6)
+
+running 2 tests
+test observe::quest_gv_tests::source_room::missing_owner_and_bot_receipts_are_dispatch_controls_only ... ok
+test observe::quest_gv_tests::source_room::actual_room_completion_calls_match_native_owner_and_foreign_text_order ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 786 filtered out; finished in 0.03s
