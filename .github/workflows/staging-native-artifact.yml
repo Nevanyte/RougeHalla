@@ -1,10 +1,6 @@
-name: Staging native component (one reviewed retry, no deployment)
+name: Staging native component (manual, no deployment)
 
 on:
-  # Temporary one-push activation: remove after the authorized retry reaches a terminal result.
-  push:
-    branches: [optimization_port]
-    paths: [".github/workflows/staging-native-artifact.yml"]
   workflow_dispatch:
     inputs:
       source_commit:

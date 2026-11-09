@@ -117,7 +117,7 @@ namespace Roguehalla.Client.Tests
             Assert.That(hint.IsVisible, Is.True);
             HudIconHint.CloseAll();
             Assert.That(hint.IsVisible, Is.False, "modal/focus cleanup dismisses the hint");
-            _hud.gameObject.SetActive(false);
+            ((RectTransform)GetField("_hud")).gameObject.SetActive(false);
             hint.OnSelect(eventData);
             Assert.That(hint.IsVisible, Is.False, "a hidden HUD owner cannot reveal its stale hint");
         }
