@@ -1,0 +1,31 @@
+{
+  "decision": "RELEASE_BOUNDED_HARNESS_AND_EVIDENCE",
+  "seal": "e3f88a818451084790dc9d500d298ef1258a2c4b",
+  "harness": "4a185be20ef8d2bed0f9d927c6e576f46b58b54c",
+  "frontend": "a3d4b3ce575442c9a06916888035ca849a6cd05a",
+  "manifest_sha256": "8ae686789d7e67ee995ee7d4a5bfa9785021997dab17d95377c00da68a0ea411",
+  "verified_payloads": 46,
+  "verified_payload_bytes": 63132204,
+  "verified_pngs": 28,
+  "verified_retained_artifact_files": 14,
+  "verified_retained_artifact_bytes": 106765469,
+  "verified_retained_server_binary": true,
+  "raw_attempts": [
+    "FAIL",
+    "FAIL",
+    "PARTIAL"
+  ],
+  "final_automated_pass": 7,
+  "final_open": [
+    "hud",
+    "help",
+    "journalActive",
+    "drawer",
+    "planning"
+  ],
+  "synthetic_contract_tests_passed": 10,
+  "reviewer_started_services": false,
+  "root_visual_admission_pending": true,
+  "nonblocking_caveat": "mixed provenance clock chronology not reconciled",
+  "report_sha256": "5f623c3cbb93343797646c19ae5a5f4f73392c72e2ce4a38f3138a1e5b93fe8e"
+}

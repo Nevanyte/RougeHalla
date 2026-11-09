@@ -1,0 +1,21 @@
+{
+  "sourceSeal": "e3f88a818451084790dc9d500d298ef1258a2c4b",
+  "scope": "additive Root review; original47source evidence paths unchanged",
+  "files": [
+    {
+      "path": "ROOT_ADMISSION.md",
+      "bytes": 2653,
+      "sha256": "f80b26ead8a1271a2384f7529adb88f8b16fab099978925642c7794dd15e653d"
+    },
+    {
+      "path": "unity-web14-e3f88a81-independent-review.md",
+      "bytes": 5865,
+      "sha256": "5f623c3cbb93343797646c19ae5a5f4f73392c72e2ce4a38f3138a1e5b93fe8e"
+    },
+    {
+      "path": "unity-web14-e3f88a81-independent-review.json",
+      "bytes": 1008,
+      "sha256": "fc0e62f96022aaddf148e489bed6b8d8304818e4b606ff0d60090522da64cec3"
+    }
+  ]
+}
