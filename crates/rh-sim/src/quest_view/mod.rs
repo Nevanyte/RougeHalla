@@ -2,6 +2,7 @@
 //! Preparation never grants authority; callers commit only after all related output has been accepted for delivery.
 use std::collections::{BTreeMap, BTreeSet};
 use std::num::NonZeroU32;
+mod presentation;
 
 use crate::quests::{catalog, live::Status};
 use crate::{validate, Command, PlayerId, RawCommand, Sim, Vec2};
@@ -52,6 +53,11 @@ pub struct Participant {
 pub struct QuestRow {
     pub handle: QuestHandle,
     pub def: String,
+    pub name: String,
+    pub giver_label: String,
+    pub brief: String,
+    pub objective: String,
+    pub reward: String,
     pub giver: Vec2,
     pub state: RowState,
     pub expires_at: f64,
@@ -356,9 +362,15 @@ impl QuestObserver {
             } else {
                 None
             };
+            let text = presentation::for_row(def, state, &me.farm)?;
             view.rows.push(QuestRow {
                 handle: h,
                 def: catalog::DEFINITION[o.def as usize].id.to_owned(),
+                name: text.name,
+                giver_label: text.giver_label,
+                brief: text.brief,
+                objective: text.objective,
+                reward: text.reward,
                 giver: o.at,
                 state,
                 expires_at: o.expires_at,

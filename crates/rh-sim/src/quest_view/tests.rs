@@ -1501,3 +1501,6 @@ fn hidden_owner_records_cannot_allocate_roster_or_leak_through_preview_facts() {
     drop(pb);
     assert!(oa.state.roster.is_empty() && ob.state.roster.is_empty());
 }
+
+#[path = "presentation_view_tests.rs"]
+mod presentation_checks;

@@ -1,0 +1,67 @@
+{
+  "status": "SOURCE_PASS",
+  "scope": "declared pure formatter contexts, not gameplay",
+  "base": "7588edc8ab9d3545b31760dc74074bbc6f438792",
+  "fixture_sha256": "4a021c349a6cc085c6994550fc4415ffadedc2cd22690cd803e56cc4eda8e19e",
+  "fixture_bytes": 210563,
+  "definitions": 20,
+  "declared_contexts": 180,
+  "actual_source_functions": [
+    "questObjective",
+    "questReward",
+    "questRows",
+    "questFromReveal",
+    "questRewardStats",
+    "questRewardText"
+  ],
+  "measured": {
+    "definitions": 20,
+    "formatterContextsPerDefinition": 9,
+    "actualRowCalls": 180,
+    "utf8FieldMaxima": {
+      "name": 25,
+      "giver_label": 22,
+      "brief": 96,
+      "objective": 61,
+      "reward": 91
+    },
+    "all20LargestPerDefinitionMetadataUtf8": 4620,
+    "fiveU8StringPrefixesForAll20": 100
+  },
+  "base_git_source_pins_verified": 76,
+  "base_git_config_pins_verified": 9,
+  "harness_pins": 8,
+  "semantic_mutants": {
+    "objective-label": "actual compiled objective output mismatch",
+    "contextual-total": "actual compiled contextual total output mismatch",
+    "closed-context": "actual compiled closed-row reward output mismatch"
+  },
+  "provenance_only": "nonkill; changed source hashes, identical cases",
+  "pristine_controls": 2,
+  "commands": [
+    {
+      "command": "capture.sh",
+      "exit_code": 0
+    },
+    {
+      "command": "capture.sh --check",
+      "exit_code": 0
+    },
+    {
+      "command": "run-mutants.sh",
+      "exit_code": 0
+    }
+  ],
+  "raw_logs": {
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-presentation-metadata/logs/capture.log": "20348cca082c353535465804f4b80be99c60bf31051607b212d11ef60605e358",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-presentation-metadata/logs/check.log": "fed66cd4b68c5a070fbab3ce444b4fcf1de0c54b64948de50b87231c157672e7",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-presentation-metadata/logs/mutants.log": "6b2b1b0dc0d629cd805586cf2c57f8badcf5fdc7b631b9d7aeab8933572c555c"
+  },
+  "limits": "no World/DOM/app/ordinary acquisition/grants/gameplay outcomes, historical card payout, session, UI render or public activation",
+  "external_reproduction": {
+    "status": "PASS",
+    "receipt": "external-reproduction.json",
+    "candidate": "4c5e564e95182559e956630a07e12e3ccd52ee84",
+    "scope": "author-run external source capsule, not independent reviewer admission"
+  }
+}
