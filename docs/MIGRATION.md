@@ -15,7 +15,12 @@ jobs; Rust stops at a demonstrated private-output Docker UID permission failure.
 both unchanged historical NPC outputs exactly (13,952,630 and30,636,484 bytes). The reviewed native packaging repair
 passes25 offline tests; its first Linux run compiled successfully but failed postbuild for an unknown reason, retained
 as a failure. One diagnostic retry is authorized. These are preparation results, not completed demo/hosting/performance
-claims. Both AWS Core connections currently require renewal; local build/browser work continues meanwhile.
+claims. The actual optimized Linux retry42720842809 at8e3afa69 now passes build, PostgreSQL readiness, clean stop and
+strict archive validation; the temporary trigger is removed/pushed at4b423b41. Root independently verifies the same
+archive without executing it. Combined Settings/HUD14 focused cases pass after two retained fixture hierarchy failures
+and literal-only test repairs; the single optimized Web build is in preparation. AWS CLI profile rougehalla-staging is
+renewed through the in-app browser and STS confirms048226733033; the still-expired plugin connections no longer block
+CLI-based staging preparation. An actual M5 release server build uses the existing render-trace cache at jobs1.
 
 ## Latest integration update (2026-11-09 21:45 UTC; before demo scope change)
 

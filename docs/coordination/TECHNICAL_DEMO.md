@@ -13,8 +13,9 @@ to complete every original gameplay/content/production feature before delivering
    exercise the existing Trophy path. Training remains available for repeatable local checks.
 3. Serve the same reviewed Rust and Unity build on practice **rougehalla.com**, using the approved staging account
    **048226733033 / ca-west-1**, within **CAD20 total gross spend**. Keep production play.roguehalla.com unchanged.
-   Use existing staging resources where practical, TLS, a bounded lifetime and reliable cleanup. Account renewal is
-   an external prerequisite; both AWS Core connections rejected authentication on the current check.
+   Use existing staging resources where practical, TLS, a bounded lifetime and reliable cleanup. Both AWS Core
+   connections rejected authentication, but Root has now renewed the local `rougehalla-staging` CLI profile through
+   the in-app browser and verified STS account3033. The CLI can support the staging work.
 4. Measure the actual M5 Pro client and server: frame time/FPS, Rust tick time/deadline misses, round-trip latency,
    memory and bandwidth. Record build identities, resolution, quality, renderer, browser/display limits, scenario and
    active player/mob count. Separate local from Calgary results, server tick rate from compute capacity, and displayed
@@ -51,4 +52,6 @@ The existing Claude prompts are optional backlog work. A Claude security/netcode
 review and affected verification; unfinished Claude vision/installer/performance preparation does not block first play.
 
 The demo is not yet complete: combined Web execution, real core-match acceptance, Calgary deployment and measurements
-remain open. Historical passing runs keep their recorded revisions and scopes.
+remain open. The real Linux optimized artifact retry42720842809 passes; the temporary trigger is removed at4b423b41.
+The combined Settings/HUD focused14 cases pass across their retained runs after two fixture hierarchy corrections;
+one optimized Web build is next. Historical passing runs keep their recorded revisions and scopes.
