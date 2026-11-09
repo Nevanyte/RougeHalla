@@ -1030,6 +1030,7 @@ fn candidates(leaf: &Value, strings: &[String]) -> Vec<Value> {
 
 /// Patterns whose perturbation the restore may refuse, and why. Any other refusal fails the test.
 const VALIDATED: &[(&str, &str)] = &[
+    ("world.players.*.core.modifiers.holds", "changing a used while-row hold bit alone changes the exact re-folded sums and invalidates their cached mirrors; inert bits remain restore-valid and must change the hash"),
     // Exact coupled restore constraints, not unhashed-field exceptions. The tax-only
     // seed separately permits independent taxed.victim edits; accepted edits here
     // still always have to change the hash. Public victim identity/order is also
@@ -1799,6 +1800,7 @@ fn every_serialized_leaf_of_a_match_changes_the_state_hash() {
         );
     }
     for path in [
+        "world.players.*.core.modifiers.holds",
         "statics.config.walk_hints",
         "world.players.*.card_runtime.fight.start",
         "world.players.*.card_runtime.fight.last",
@@ -1888,6 +1890,7 @@ fn every_serialized_leaf_of_a_match_changes_the_state_hash() {
     // Accepted edits are always checked, even for patterns listed in VALIDATED.
     let perturbed: BTreeSet<&String> = all.perturbed.iter().collect();
     for path in [
+        "world.players.*.core.modifiers.holds",
         "statics.config.walk_hints",
         "world.players.*.card_runtime.fight.start",
         "world.players.*.card_runtime.fight.last",
@@ -2335,6 +2338,52 @@ fn native29_declared_seeds_roundtrip_and_ordered_tax_vectors_change_hash() {
         );
     }
     // Produced hints and all three optional config tags have their separate ordinary-input control.
+}
+
+/// Cached while bits are coupled inputs, not unhashed leaves. This uses the
+/// declared chest/real grant seed; it is not evidence of earned fight history.
+#[test]
+fn native29_used_hold_bit_requires_its_fold_but_inert_bit_is_hashed() {
+    let wish = wish_states();
+    let states = declared_native29_states(
+        &wish
+            .iter()
+            .find(|(label, _)| *label == "Freeze pending")
+            .unwrap()
+            .1,
+    );
+    let (_, sim) = states
+        .iter()
+        .find(|(label, _)| *label == "DECLARED fight-only serialization")
+        .unwrap();
+    let cp = serde_json::to_value(sim).unwrap();
+    let p = &cp["world"]["players"][0];
+    assert_eq!(
+        p["build"]["counts"][rh_sim::cards::CardId::SlowStarter.index()],
+        1
+    );
+    assert_eq!(p["core"]["modifiers"]["holds"], 0);
+    assert!(p["card_runtime"]["fight"].is_object());
+    // SlowStarter is the only card: its sole while row receives bit zero.
+    // Activating its +0.65 row without changing the real grant's cached fold
+    // must fail validation, not be silently omitted from identity coverage.
+    let mut active = cp.clone();
+    active["world"]["players"][0]["core"]["modifiers"]["holds"] = 1.into();
+    let err = Sim::restore(active)
+        .err()
+        .expect("used while bit requires matching cached fold");
+    assert!(err.to_string().contains("invalid armor mirror"), "{err}");
+    // Bit one is beyond this build's sole while row. It buys no stat, so the
+    // validator admits it; serialized inert bits must still affect identity.
+    let mut inert = cp;
+    inert["world"]["players"][0]["core"]["modifiers"]["holds"] = 2.into();
+    let restored = Sim::restore(inert).expect("inert hold bit is a valid state");
+    assert_ne!(sim.state_hash(), restored.state_hash());
+    assert_eq!(
+        serde_json::to_value(restored).unwrap()["world"]["players"][0]["core"]["modifiers"]
+            ["holds"],
+        2
+    );
 }
 
 #[test]
