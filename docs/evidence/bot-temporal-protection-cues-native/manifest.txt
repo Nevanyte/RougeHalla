@@ -7,3 +7,4 @@ b750d1331cb6791181f933a38f1838f58de67dfc9e60ab7e34a53ef3fb29d4ef  909  docs/evid
 1f68ff76fa659419989be820512315541c73d8c146fa8269a4367fdb94c621d6  2589  docs/evidence/bot-temporal-protection-cues-native/regression.log
 5e54dc19891bfdbcc2ac9c8f71a122ab16b3cfb69f5e14bb4df1f690db982351  21  docs/evidence/bot-temporal-protection-cues-native/fmt.log
 62f03aa7c20bfb205be2e9c9b089aa07c7e9a99b0384ffc32b0010e3ff679bfd  204  docs/evidence/bot-temporal-protection-cues-native/clippy.log
+b2a72f148d1c6942cb2469b411a2cb1a051da8664e08b53865e11087019e936a  1132  docs/evidence/bot-temporal-protection-cues-native/verify.log
