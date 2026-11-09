@@ -1,0 +1,4 @@
+== restored control (unmutated /repo, read-only baseline)
+{"checked":"/baseline/source.json","bytes":1154217,"sha256":"a20d751e88cb16765cf2aa3ef856765a0d3321d8e25eb6e41c6722cdf9a99244","captureSha256":"c066a4d976396a095c9e45162448ee89382921a7b77f6e0763d7bf912e018daa","cases":6}
+{"verified":"/baseline/source.json","bytes":1154217,"sha256":"a20d751e88cb16765cf2aa3ef856765a0d3321d8e25eb6e41c6722cdf9a99244","captureSha256":"c066a4d976396a095c9e45162448ee89382921a7b77f6e0763d7bf912e018daa","cases":6,"events":181,"frames":41,"sourceFiles":127,"toolFiles":12,"anchors":26}
+RESTORED CONTROL PASS

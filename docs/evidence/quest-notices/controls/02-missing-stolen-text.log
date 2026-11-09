@@ -1,0 +1,8 @@
+CONTROL 02-missing-stolen-text
+applied 1 hunk(s) to packages/server/src/sim/quests.ts
+{"written":"/tmp/out/02-missing-stolen-text/source.json","bytes":1154183,"sha256":"91991308dbfe4631697debf442ecdf10ef71f42bc236dd003530c18f49a8802e","captureSha256":"8e63c9a1bbf4c34dc254e969b57687ea21d100c5ed0fce464c7ad7039232d161","cases":6,"events":180,"frames":41,"sourceFiles":127,"toolFiles":12}
+FIRST_MISMATCH /cases/0/events/16/to expected=null mutant="p2"
+MISMATCH_CASE parcel-feedback
+TOTAL_MISMATCHES 31
+OUTPUT_SHA256 91991308dbfe4631697debf442ecdf10ef71f42bc236dd003530c18f49a8802e
+KILL 02-missing-stolen-text: actual recorded-output mismatch in parcel-feedback

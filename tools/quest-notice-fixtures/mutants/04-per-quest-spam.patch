@@ -1,0 +1,8 @@
+--- a/packages/server/src/sim/quests.ts
++++ b/packages/server/src/sim/quests.ts
+@@ -339,4 +339,3 @@
+ function announceExpired(world: World, expired: readonly QuestRuntime[]): void {
+-  if (expired.length === 1) announce(world, `Quest expired: ${expired[0]!.def.name}`);
+-  else if (expired.length > 1) announce(world, `${expired.length} quests expired`);
++  for (const qt of expired) announce(world, `Quest expired: ${qt.def.name}`);
+ }

@@ -1,0 +1,7 @@
+--- a/packages/server/src/sim/quests.ts
++++ b/packages/server/src/sim/quests.ts
+@@ -493,3 +493,3 @@
+   chainHook(world, "campCleared", onCampCleared);
+   chainHook(world, "teleported", (w) => closeAll(w, true));
+-  chainHook(world, "runEnded", (w) => closeAll(w, false));
++  chainHook(world, "runEnded", (w) => closeAll(w, true));

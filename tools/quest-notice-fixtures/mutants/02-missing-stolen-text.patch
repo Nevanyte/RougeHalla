@@ -1,0 +1,13 @@
+--- a/packages/server/src/sim/quests.ts
++++ b/packages/server/src/sim/quests.ts
+@@ -157,9 +157,9 @@
+     if (qt.s.carrier !== "") return true;
+     const stolen = qt.lastCarrier !== "" && qt.lastCarrier !== c.id;
+     qt.s.carrier = c.id;
+     qt.lastCarrier = c.id;
+     q.carried.set(c.id, qt.id);
+     removeBox(world, qt, box);
+-    if (stolen) announce(world, `${c.s.name} stole parcel: ${qt.def.name}`);
++    if (stolen) { /* control: stolen announcement removed */ }
+     toast(world, c.id, `Picked up: ${qt.def.name} — carry it to ${qt.def.giver}`);
+     return true;

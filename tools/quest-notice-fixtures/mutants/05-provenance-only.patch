@@ -1,0 +1,5 @@
+--- a/packages/server/src/sim/quests.ts
++++ b/packages/server/src/sim/quests.ts
+@@ -15,1 +15,2 @@
++// provenance-only control: comment text changes no behavior
+ export { QUEST_REVEAL_HEAD_START_MS } from "@raid/shared";
