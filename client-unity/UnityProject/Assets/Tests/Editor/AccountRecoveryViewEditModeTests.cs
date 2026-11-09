@@ -143,8 +143,16 @@ namespace Roguehalla.Client.Tests
             Assert.IsTrue(select.interactable);
             select.onClick.Invoke();
             Assert.AreSame(field.gameObject, EventSystem.current.currentSelectedGameObject);
-            Assert.AreEqual(0, field.selectionAnchorPosition);
-            Assert.AreEqual(AliceKey.Length, field.selectionFocusPosition);
+            Assert.AreEqual(0, field.selectionStringAnchorPosition);
+            Assert.AreEqual(AliceKey.Length, field.selectionStringFocusPosition);
+            // TMP activation is deferred to LateUpdate. Its normal select-all may reverse the
+            // endpoints; either direction must still select the entire unchanged private key.
+            typeof(TMP_InputField).GetMethod("LateUpdate", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).Invoke(field, null);
+            Assert.IsTrue(field.isFocused);
+            Assert.IsTrue(field.readOnly);
+            Assert.AreEqual(AliceKey, field.text);
+            Assert.AreEqual(0, Math.Min(field.selectionStringAnchorPosition, field.selectionStringFocusPosition));
+            Assert.AreEqual(AliceKey.Length, Math.Max(field.selectionStringAnchorPosition, field.selectionStringFocusPosition));
             if (canReadClipboard) Assert.AreEqual(clipboard, GUIUtility.systemCopyBuffer, "revealing/selecting never copies to clipboard");
 
             Button("CloseRecovery").onClick.Invoke();

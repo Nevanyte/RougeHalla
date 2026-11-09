@@ -74,7 +74,20 @@ public sealed class MatchClientAccountBindingEditModeTests
             typeof(MatchClient).GetField("<AccountOwner>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)
                 .SetValue(Client, Owner);
             typeof(MatchClient).GetField("_transportFactory", BindingFlags.Instance | BindingFlags.NonPublic)
-                .SetValue(Client, new Func<ITransport>(() => { var t = new MatchTransport(); Matches.Add(t); return t; }));
+                .SetValue(Client, new Func<ITransport>(() =>
+                {
+                    // JoinCore has created the real view here. EditMode does not supply the
+                    // normal Play Awake lifecycle; initialize it exactly as the arena fixtures do.
+                    var arena = Client.Arena;
+                    Assert.That(arena != null, Is.True, "JoinCore creates its ArenaView before the transport");
+                    var actors = typeof(Roguehalla.Client.ArenaView).GetField("_actors", BindingFlags.Instance | BindingFlags.NonPublic);
+                    var wishes = typeof(Roguehalla.Client.ArenaView).GetField("_wishes", BindingFlags.Instance | BindingFlags.NonPublic);
+                    if (actors.GetValue(arena) == null && wishes.GetValue(arena) == null)
+                        typeof(Roguehalla.Client.ArenaView).GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(arena, null);
+                    Assert.That(actors.GetValue(arena), Is.Not.Null);
+                    Assert.That(wishes.GetValue(arena), Is.Not.Null);
+                    var t = new MatchTransport(); Matches.Add(t); return t;
+                }));
         }
 
         public void InitializeHud()
@@ -175,11 +188,20 @@ public sealed class MatchClientAccountBindingEditModeTests
         using (var f = new Fixture())
         {
             f.InitializeHud();
+            // Advance the existing menu visibility policy before binding. The combat controls
+            // legitimately stay inactive until a later HUD tick, but their labels still exist.
+            typeof(MatchHud).GetMethod("RefreshWorldHudVisibility", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(f.Hud, null);
+            var pickup = (UnityEngine.UI.Button)typeof(MatchHud).GetField("_pickup", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(f.Hud);
+            Assert.That(pickup.gameObject.activeInHierarchy, Is.False);
+            Assert.That(pickup.GetComponentInChildren<TMPro.TMP_Text>() == null, Is.True);
+            Assert.That(pickup.GetComponentInChildren<TMPro.TMP_Text>(true), Is.Not.Null);
             f.Client.Url = "wss://game.example/arena/ws";
             f.Accounts.Immediate = Owned("Alice");
             Assert.That(f.Client.IsDiagnostic, Is.False);
             f.Client.Join("alice", 2);
-            await WaitUntil(() => f.Matches.Count == 1);
+            await WaitUntil(() => f.Matches.Count == 1 && f.Matches[0].Url != null || !string.IsNullOrEmpty(f.Client.AccountUiError));
+            Assert.That(f.Client.AccountUiError, Is.Empty, "ordinary Join must finish HUD binding and reach transport.Connect");
+            Assert.That(f.Matches.Count, Is.EqualTo(1));
             Assert.That(f.Client.Session, Is.Not.Null);
             Assert.That(f.Matches[0].Url, Is.EqualTo("wss://game.example/arena/ws"));
             f.Matches[0].Open();
