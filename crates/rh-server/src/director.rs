@@ -118,10 +118,10 @@ impl RoomEntry {
 
 /// The lobby the next admission joins: among lobbies with a free seat (counting reservations), the fullest, so matches fill
 /// before another opens; ties go to the lowest id. Deterministic (no HashMap order).
-fn open_lobby(rooms: &HashMap<MatchId, RoomEntry>) -> Option<MatchId> {
+fn open_lobby(rooms: &HashMap<MatchId, RoomEntry>, capacity: usize) -> Option<MatchId> {
     rooms
         .iter()
-        .filter(|(_, r)| r.phase == Phase::Lobby && r.committed() < rh_sim::constants::MAX_PLAYERS)
+        .filter(|(_, r)| r.phase == Phase::Lobby && r.committed() < capacity)
         .min_by_key(|(id, r)| (std::cmp::Reverse(r.committed()), **id))
         .map(|(id, _)| *id)
 }
@@ -331,14 +331,27 @@ pub struct Hello {
     pub resume: Option<[u8; 16]>,
 }
 
-/// A training room is not publicly admissible yet: the practice room has no client creation route (deferred to
-/// P-HOST-1/P-NET), so the matchmaking director refuses a training profile outright. Tests construct a Room directly with a
-/// training config; nothing in the hosted path can start one.
-fn refuse_training_profile(sim: &rh_sim::SimConfig) {
-    assert!(
-        !sim.training,
-        "training rooms have no public admission route (deferred to P-HOST-1/P-NET); construct a Room directly in tests"
-    );
+/// Training has a public endpoint, with a dedicated solo room per admission. Refuse incompatible library configs too.
+fn validate_runtime(cfg: &DirectorConfig) -> Result<(), &'static str> {
+    if cfg.sim.quests && cfg.arena.map.layers().is_none() {
+        return Err("quests require a validated rh-map/2 arena");
+    }
+    if cfg.sim.training
+        && (!cfg.sim.dummies
+            || cfg.sim.quests
+            || cfg.sim.lifecycle != rh_sim::ArenaMode::Off
+            || cfg.sim.initial_loot
+            || cfg.sim.mob_mode != rh_sim::mob_runtime::MobMode::Off
+            || cfg.sim.min_players != 1
+            || cfg.sim.lobby_seconds != 0.
+            || cfg.sim.fill_seconds != 0.
+            || cfg.fill_bots_to != 0
+            || cfg.bot_fill.as_ref().is_some_and(|f| f.fill_to != 0)
+            || cfg.record)
+    {
+        return Err("training requires dummies, one human, immediate start, no quests, arena lifecycle, PvE, initial loot, bots or replay");
+    }
+    Ok(())
 }
 
 fn profile_ok(p: &str) -> bool {
@@ -388,7 +401,7 @@ impl Director {
         lifecycle: Arc<Lifecycle>,
         #[cfg(feature = "postgres")] spool: Option<Arc<crate::spool::ResultSpool>>,
     ) -> Arc<Self> {
-        refuse_training_profile(&cfg.sim);
+        validate_runtime(&cfg).expect("invalid runtime admission configuration");
         crate::wire::profile_supported(&cfg.sim)
             .expect("refusing to host unsupported simulation profile");
         cfg.leases.validate().expect("invalid lease policy");
@@ -568,8 +581,15 @@ impl Director {
                     }
                 }
             } else {
-                let open = open_lobby(&inner.rooms)
-                    .and_then(|id| inner.rooms.get(&id).map(|r| (id, r.tx.clone())));
+                let open = open_lobby(
+                    &inner.rooms,
+                    if self.cfg.sim.training {
+                        1
+                    } else {
+                        rh_sim::constants::MAX_PLAYERS
+                    },
+                )
+                .and_then(|id| inner.rooms.get(&id).map(|r| (id, r.tx.clone())));
                 match open {
                     Some(x) => x,
                     None => {
@@ -1322,7 +1342,17 @@ impl Director {
         max_players: Option<usize>,
         fill_bots_to: Option<usize>,
     ) -> Result<serde_json::Value, CtlError> {
-        let max_players = max_players.unwrap_or(rh_sim::constants::MAX_PLAYERS);
+        let capacity = if self.cfg.sim.training {
+            1
+        } else {
+            rh_sim::constants::MAX_PLAYERS
+        };
+        let max_players = max_players.unwrap_or(capacity);
+        if self.cfg.sim.training && (max_players != 1 || fill_bots_to.is_some_and(|n| n != 0)) {
+            return Err(CtlError::bad_request(
+                "training requires maxPlayers 1 and fillBotsTo 0",
+            ));
+        }
         if !(1..=rh_sim::constants::MAX_PLAYERS).contains(&max_players) {
             return Err(CtlError::bad_request(format!(
                 "maxPlayers must be 1..={}",
@@ -1962,13 +1992,16 @@ mod tests {
             (1, Phase::Lobby, 1, 0),
         ]);
         assert_eq!(
-            open_lobby(&m),
+            open_lobby(&m, rh_sim::constants::MAX_PLAYERS),
             Some(id(4)),
             "fullest first, tie to the lowest id"
         );
         let m = rooms(&[(3, Phase::Lobby, 0, 0), (2, Phase::Lobby, 0, 0)]);
-        assert_eq!(open_lobby(&m), Some(id(2)));
-        assert_eq!(open_lobby(&HashMap::new()), None);
+        assert_eq!(open_lobby(&m, rh_sim::constants::MAX_PLAYERS), Some(id(2)));
+        assert_eq!(
+            open_lobby(&HashMap::new(), rh_sim::constants::MAX_PLAYERS),
+            None
+        );
     }
 
     #[test]
@@ -1986,7 +2019,10 @@ mod tests {
             let mut s = spec.to_vec();
             s.rotate_left(rot);
             for _ in 0..8 {
-                assert_eq!(open_lobby(&rooms(&s)), Some(id(2)));
+                assert_eq!(
+                    open_lobby(&rooms(&s), rh_sim::constants::MAX_PLAYERS),
+                    Some(id(2))
+                );
             }
         }
     }
@@ -1995,13 +2031,13 @@ mod tests {
     fn a_lobby_counts_its_reservations_and_runs_and_full_lobbies_are_not_offered() {
         // 6 seated + 2 reserved = full: not offered although only 6 are seated; the emptier lobby is.
         let m = rooms(&[(1, Phase::Lobby, 6, 2), (2, Phase::Lobby, 1, 0)]);
-        assert_eq!(open_lobby(&m), Some(id(2)));
+        assert_eq!(open_lobby(&m, rh_sim::constants::MAX_PLAYERS), Some(id(2)));
         // A lobby that closed into its run never is, however empty.
         let m = rooms(&[(1, Phase::Active, 0, 0), (2, Phase::Ended, 0, 0)]);
-        assert_eq!(open_lobby(&m), None);
+        assert_eq!(open_lobby(&m, rh_sim::constants::MAX_PLAYERS), None);
         // Reservations alone make a lobby fuller than its rival.
         let m = rooms(&[(1, Phase::Lobby, 1, 0), (2, Phase::Lobby, 0, 3)]);
-        assert_eq!(open_lobby(&m), Some(id(2)));
+        assert_eq!(open_lobby(&m, rh_sim::constants::MAX_PLAYERS), Some(id(2)));
     }
 
     /// Protocol 8 admits the source lifecycle transport, so the director may be built for it; the full Wish profile is
@@ -3061,9 +3097,16 @@ mod tests {
         assert_eq!(committed(&d), 7);
         // So an eighth admission still fits and the ninth is not offered this lobby.
         let mut inner = d.inner.lock().unwrap();
-        assert_eq!(open_lobby(&inner.rooms), Some(m));
+        assert_eq!(
+            open_lobby(&inner.rooms, rh_sim::constants::MAX_PLAYERS),
+            Some(m)
+        );
         inner.rooms.get_mut(&m).unwrap().reserved += 1;
-        assert_eq!(open_lobby(&inner.rooms), None, "never over-offered");
+        assert_eq!(
+            open_lobby(&inner.rooms, rh_sim::constants::MAX_PLAYERS),
+            None,
+            "never over-offered"
+        );
     }
 
     #[tokio::test(start_paused = true)]
@@ -3092,12 +3135,19 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "no public admission route")]
-    fn matchmaking_refuses_a_training_profile() {
-        refuse_training_profile(&rh_sim::SimConfig {
-            training: true,
-            ..Default::default()
-        });
+    fn training_admission_rejects_incompatible_host_configuration() {
+        let args = vec!["--runtime".into(), "training".into()];
+        let settings = crate::runtime::Settings::from_args(&args).unwrap().unwrap();
+        let mut cfg = DirectorConfig::new(settings.sim(), settings.arena().unwrap());
+        assert!(validate_runtime(&cfg).is_ok());
+        cfg.fill_bots_to = 1;
+        assert!(validate_runtime(&cfg).is_err());
+        cfg.fill_bots_to = 0;
+        cfg.record = true;
+        assert!(validate_runtime(&cfg).is_err());
+        cfg.record = false;
+        cfg.sim.lifecycle = rh_sim::ArenaMode::Source(Default::default());
+        assert!(validate_runtime(&cfg).is_err());
     }
 
     /// P-BOTS-5 remainder: the director is the record caller (BotManager.onResult), reads the live store's bias once

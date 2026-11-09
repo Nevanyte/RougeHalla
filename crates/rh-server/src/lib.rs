@@ -14,6 +14,7 @@ pub mod pacer;
 pub mod persist;
 pub mod public_ground;
 pub mod room;
+pub mod runtime;
 #[cfg(feature = "postgres")]
 pub mod spool;
 pub mod wire;

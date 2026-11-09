@@ -104,13 +104,12 @@ pub fn command(c: WireCommand) -> rh_sim::PublicCommand {
     }
 }
 
-/// Full Wish mode has protocol 12 input, owner, and event transport. The binary keeps it disabled unless explicitly
-/// selected; library callers that set `Mode::Full` are already making that opt-in. Quest bridge
-/// codecs are private component support; hosting remains gated on the neutral giver actor slice.
+/// Protocol 14 carries neutral quest givers, private quest/trade/plan state and the training bit. Configuration
+/// admission still refuses a training/arena combination: training has no quests, planning or arena lifecycle.
 pub fn profile_supported(config: &rh_sim::SimConfig) -> Result<(), rh_protocol::EncodeError> {
-    if config.quests {
+    if config.training && (config.quests || config.lifecycle != rh_sim::ArenaMode::Off) {
         return Err(rh_protocol::EncodeError::BadValue(
-            "quest giver actor hosting unsupported",
+            "training cannot host quests or arena lifecycle",
         ));
     }
     Ok(())
@@ -1926,12 +1925,17 @@ mod tests {
     }
 
     #[test]
-    fn quest_hosting_stays_gated_while_native_bridge_facts_are_supported() {
+    fn quest_hosting_is_supported_and_incompatible_training_is_refused() {
         let config = rh_sim::SimConfig {
             quests: true,
             ..Default::default()
         };
-        assert!(profile_supported(&config).is_err());
+        assert!(profile_supported(&config).is_ok());
+        assert!(profile_supported(&rh_sim::SimConfig {
+            training: true,
+            ..config
+        })
+        .is_err());
         let obs = Observation {
             quests: Some(rh_sim::quest_view::QuestView::default()),
             ..Default::default()
