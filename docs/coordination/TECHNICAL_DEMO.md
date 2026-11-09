@@ -51,6 +51,17 @@ combined build. Do not add repeated unchanged campaigns or require approval for 
 The existing Claude prompts are optional backlog work. A Claude security/netcode change enters the demo only after
 review and affected verification; unfinished Claude vision/installer/performance preparation does not block first play.
 
+### Competitive netcode direction
+
+The owner explicitly confirmed that Claude's intentional departures from earlier constraints for speed are wanted.
+Review these as design changes on correctness, gameplay fairness, security and measured benefit; an old-rule conflict
+alone is not grounds for rejection. Claude's completed Wave1 candidate is `aef6da2c` on
+`claude/peaceful-babbage-rtsgq6` (base76d170a1), including its earlier security commit. It still uses authoritative Rust
+and20Hz; changes include rewind allowances, server timing metrics, movement reconciliation/speed prediction, render
+timing, input coalescing and Unity feedback. Its claimed tests do not establish Unity compilation or real-link gains.
+Root is reviewing the server/client halves in parallel while the current demo baseline remains available. Proposed
+later waves in `NETCODE_COMPETITIVE_PLAN.md` are separate implementation work, not already merged features.
+
 The demo is not yet complete: combined Web execution, real core-match acceptance, Calgary deployment and measurements
 remain open. The real Linux optimized artifact retry42720842809 passes; the temporary trigger is removed at4b423b41.
 The combined Settings/HUD focused14 cases pass across their retained runs after two fixture hierarchy corrections;
