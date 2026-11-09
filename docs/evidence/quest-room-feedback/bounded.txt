@@ -1,0 +1,21 @@
+[capture-sealed.log]
+{"status":"CAPTURE_PASS","receivers":4,"genuineProducerBatches":1,"sourceFiles":209,"bytes":34572,"sha256":"977450a6e0e1a1fcc3bd135edf7ebe6291f10d4da7aef98a44fc76b5886bd978"}
+
+[check-sealed.log]
+{"status":"CHECK_PASS","receivers":4,"genuineProducerBatches":1,"sourceFiles":209,"bytes":34572,"sha256":"977450a6e0e1a1fcc3bd135edf7ebe6291f10d4da7aef98a44fc76b5886bd978"}
+
+[mutants-sealed.log]
+{"status":"CHECK_PASS","receivers":4,"genuineProducerBatches":1,"sourceFiles":209,"bytes":34572,"sha256":"977450a6e0e1a1fcc3bd135edf7ebe6291f10d4da7aef98a44fc76b5886bd978"}
+{"applied":"quest-label","kind":"semantic","path":"packages/server/src/rooms/RaidRoom.ts"}
+ROOM_OUTPUT_SEMANTIC_MISMATCH: actual recipient/text/order differs; provenance excluded
+{"path":"$.receivers[0].rows[0].payload.text","expected":"+10 GV (quest)","actual":"+10 GV (QUEST_LABEL_MUTANT)"}
+SEMANTIC_KILL_PASS quest-label
+{"applied":"private-route","kind":"semantic","path":"packages/server/src/rooms/RaidRoom.ts"}
+ROOM_OUTPUT_SEMANTIC_MISMATCH: actual recipient/text/order differs; provenance excluded
+{"path":"$.receivers[0].rows[0].recipient","expected":"p0","actual":"p1"}
+SEMANTIC_KILL_PASS private-route
+{"applied":"provenance-only","kind":"provenance-only","path":"packages/server/src/rooms/RaidRoom.ts"}
+{"status":"IDENTICAL_SEMANTICS","provenanceCompared":false,"provenanceChanged":true}
+PROVENANCE_ONLY_NONKILL_PASS
+{"status":"CHECK_PASS","receivers":4,"genuineProducerBatches":1,"sourceFiles":209,"bytes":34572,"sha256":"977450a6e0e1a1fcc3bd135edf7ebe6291f10d4da7aef98a44fc76b5886bd978"}
+MUTANTS_PASS semantic2/2 provenance-only-nonkill1/1 pristine-controls2/2

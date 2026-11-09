@@ -1,0 +1,1 @@
+{"status":"CHECK_PASS","receivers":4,"genuineProducerBatches":1,"sourceFiles":209,"bytes":34572,"sha256":"977450a6e0e1a1fcc3bd135edf7ebe6291f10d4da7aef98a44fc76b5886bd978"}

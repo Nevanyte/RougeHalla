@@ -1,0 +1,15 @@
+{
+  "sourceBaseRevision": "d2ca1376a28e5836056fc9c52ebd9d866f461d82",
+  "image": "node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292",
+  "node": "v22.23.4",
+  "platform": "linux",
+  "arch": "x64",
+  "input": {
+    "path": "parity/quest-giver/source.json",
+    "sha256": "039d4e058fa914f42080f1c55d8640cc508c5b4745504930ca3db49579adc8b4",
+    "caseIndex": 7,
+    "caseName": "completion-retirement",
+    "frameIndex": 8,
+    "frameLabel": "turned-in"
+  }
+}

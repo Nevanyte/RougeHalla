@@ -1,0 +1,5 @@
+[
+  {"name":"quest-label","kind":"semantic","before":"quest: \"quest\"","after":"quest: \"QUEST_LABEL_MUTANT\""},
+  {"name":"private-route","kind":"semantic","before":"else this.sendTo(id, \"toast\", { text });","after":"else this.sendTo(\"p1\", \"toast\", { text });"},
+  {"name":"provenance-only","kind":"provenance-only","before":"// Thin Colyseus adapter around the headless sim:","after":"// Provenance-only control. Thin Colyseus adapter around the headless sim:"}
+]

@@ -1,0 +1,96 @@
+{
+  "status": "PASS",
+  "scope": "source room-method projection only",
+  "source_base": "d2ca1376a28e5836056fc9c52ebd9d866f461d82",
+  "source_corpus_sha256": "039d4e058fa914f42080f1c55d8640cc508c5b4745504930ca3db49579adc8b4",
+  "input": {
+    "path": "parity/quest-giver/source.json",
+    "sha256": "039d4e058fa914f42080f1c55d8640cc508c5b4745504930ca3db49579adc8b4",
+    "caseIndex": 7,
+    "caseName": "completion-retirement",
+    "frameIndex": 8,
+    "frameLabel": "turned-in",
+    "tick": 8,
+    "time": 400,
+    "rawEventsSha256": "6e40908a3cf563b1d5778b185129c829218af6fd80c903a8a1605552563e7a26",
+    "events": [
+      {
+        "type": "gv",
+        "id": "p0",
+        "amount": 10,
+        "reason": "quest"
+      },
+      {
+        "type": "toast",
+        "to": "p0",
+        "text": "Rime Stalker: +10 kill stacks · +12.5 Defense total"
+      },
+      {
+        "type": "toast",
+        "to": "p0",
+        "text": "Quest complete: Shards of the Watch"
+      },
+      {
+        "type": "toast",
+        "to": null,
+        "text": "name0 completed quest: Shards of the Watch"
+      }
+    ],
+    "captureScope": "one original step between picked-4 and turned-in; no gameplay recapture"
+  },
+  "output_sha256": "977450a6e0e1a1fcc3bd135edf7ebe6291f10d4da7aef98a44fc76b5886bd978",
+  "output_bytes": 34572,
+  "genuine_producer_batches": 1,
+  "declared_dispatch_controls": 3,
+  "actual_receiver_invocations": 4,
+  "source_pins": 209,
+  "config_pins": 10,
+  "harness_pins": 8,
+  "toolchain": {
+    "image": "node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292",
+    "platform": "linux/amd64",
+    "node": "v22.23.4",
+    "npm": "10.9.9",
+    "v8": "12.4.254.21-node.57",
+    "dependencyVersions": {
+      "tsx": "4.23.15",
+      "typescript": "7.0.2",
+      "esbuild": "0.28.2",
+      "@colyseus/core": "0.18.23",
+      "@colyseus/schema": "5.0.42"
+    }
+  },
+  "commands": [
+    {
+      "command": "bash tools/quest-room-feedback-fixtures/capture.sh",
+      "exit_code": 0
+    },
+    {
+      "command": "bash tools/quest-room-feedback-fixtures/capture.sh --check",
+      "exit_code": 0
+    },
+    {
+      "command": "bash tools/quest-room-feedback-fixtures/run-mutants.sh",
+      "exit_code": 0
+    }
+  ],
+  "semantic_mutants": {
+    "quest-label": "killed by actual row0 text mismatch",
+    "private-route": "killed by actual row0 recipient p0→p1 mismatch",
+    "provenance-only": "actual semantics identical; provenance changed; nonkill"
+  },
+  "pristine_controls": 2,
+  "protected_source_and_old_corpus_bytes": "identical to d2ca1376; host RO mounts",
+  "external_reproduction": {
+    "status": "PASS",
+    "receipt": "external-reproduction.json",
+    "candidate_commit": "850a22626382303d2e8f7f34273843e7d3882c31",
+    "scope": "author-run external source-capsule reproduction; not independent reviewer admission"
+  },
+  "raw_log_sha256": {
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-room-feedback/logs/capture-sealed.log": "14510833d6c90ed5b47b6dcc48fe91470ae5c2721d64bbebdf08cd17695505fd",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-room-feedback/logs/check-sealed.log": "8dc6c63a7dcfc4c1932d23f883d4355f23a1c45b5e7544ff88676117c655570b",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-room-feedback/logs/mutants-sealed.log": "567e6d9ebdaebe090c123588f9d1312065cec94ee35f7880cb7d2825363edffc"
+  },
+  "limits": "no gameplay recapture, Room lifecycle, sockets, auth, live sessions, telemetry, banking, client presentation, other GV reason/amount or public admission"
+}

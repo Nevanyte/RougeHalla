@@ -1,0 +1,24 @@
+{
+  "status": "PASS",
+  "scope": "author-run external source-capsule reproduction; not independent reviewer admission",
+  "exported_commit": "850a22626382303d2e8f7f34273843e7d3882c31",
+  "archive_sha256": "d98ccffd84f6a77b0aaf10d0c97ce5079d05778db569eb5d8007d4cf0c39948e",
+  "export_path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-room-feedback/external-reproduction/repo",
+  "command": "bash tools/quest-room-feedback-fixtures/capture.sh --check",
+  "exit_code": 0,
+  "result": {
+    "status": "CHECK_PASS",
+    "receivers": 4,
+    "genuineProducerBatches": 1,
+    "sourceFiles": 209,
+    "bytes": 34572,
+    "sha256": "977450a6e0e1a1fcc3bd135edf7ebe6291f10d4da7aef98a44fc76b5886bd978"
+  },
+  "external_log_sha256": "8dc6c63a7dcfc4c1932d23f883d4355f23a1c45b5e7544ff88676117c655570b",
+  "compared_pinned_files": 227,
+  "source_and_config_files_identical_to_base": 219,
+  "source_corpus_sha256": "039d4e058fa914f42080f1c55d8640cc508c5b4745504930ca3db49579adc8b4",
+  "source_and_fixture_changes_after_export": "none; follow-up commit contains evidence only",
+  "remaining_task_containers": [],
+  "limits": "fresh directory and pinned Docker process; same author and machine; no gameplay recapture or sockets"
+}
