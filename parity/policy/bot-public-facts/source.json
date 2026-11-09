@@ -399,7 +399,7 @@
    "tools/bot-public-facts-fixtures/capture.sh": "998ac0ab3013c68316a03e2635b155b17ee24720035c2098f0e66eecad4827cc",
    "tools/bot-public-facts-fixtures/controls.mjs": "ac981469cbca926d4f70178540e72398631a9ecb0281904803d1696c0505359d",
    "tools/bot-public-facts-fixtures/controls.sh": "a2aeee9c47f495bcd297fb5a34a6c0162f74381b70eac84534e587e04ae70b8c",
-   "tools/bot-public-facts-fixtures/flight.mts": "47f2ed801c0da8234ec4053febb9ef33b3d6797947ffd51dc8f5d21f945ceb94",
+   "tools/bot-public-facts-fixtures/flight.mts": "1d5b203fdc68b3eb8342701a37eda338eda4c3f004e629352e36888818a2e6c4",
    "tools/bot-public-facts-fixtures/npc.mts": "c9639993458826e32d777bced3bcd307fb99b210a6c06ef97db7ea89b98479e6",
    "tools/bot-public-facts-fixtures/verify.mjs": "b7f9b4cf2def6b7057cae5b0f6930ced7e7340d0d4c29b417f1c360035367e64"
   },
@@ -4015,7 +4015,8 @@
       "bow"
      ],
      "watcher": [
-      "bow"
+      "",
+      ""
      ]
     },
     "seed": 7

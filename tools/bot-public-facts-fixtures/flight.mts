@@ -86,6 +86,10 @@ function capturePreReleaseSwapCueWitness(map: any, features: Features): any {
   const watcher = addPlayer(world, WATCHER, "Declared pre-release observer", { faction: "fire" });
   shooter.weapon0 = "wand";
   shooter.weapon1 = "bow";
+  const declaredLoadout = {
+    shooter: [shooter.weapon0, shooter.weapon1],
+    watcher: [watcher.weapon0, watcher.weapon1],
+  };
 
   const channel = new FxChannel();
   const ring = createFrameRing();
@@ -165,7 +169,7 @@ function capturePreReleaseSwapCueWitness(map: any, features: Features): any {
   assert.ok(deliveredAfterSwap, "the delayed real windup should be observed after the source swap with the current remote hand set to Bow");
   return {
     label: "declared two-seat queued-input case; not ordinary loot or full-world bot proof",
-    setup: { spawns: swapMap.spawns, declaredLoadout: { shooter: ["wand", "bow"], watcher: ["bow"] }, seed: 7 },
+    setup: { spawns: swapMap.spawns, declaredLoadout, seed: 7 },
     attackTime, swapTime, sourceHandAfterSwap: shooter.slot === 1 ? shooter.weapon1 : shooter.weapon0,
     inputReceipts: accepted, sourceSteps, delayedChecks,
     claim: "a source windup batch survives delayed delivery after an actual queued swap; the same Reflexes check receives the delayed percept with the remote shooter currently shown holding Bow",
