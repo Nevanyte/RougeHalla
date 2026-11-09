@@ -179,7 +179,7 @@ namespace Roguehalla.Client
             ApplyDisplayPreferences();
             _help = Panel(_root, "ControlsHelp", .18f, .28f, .82f, .90f);
             Text(_help, "HelpTitle", "CONTROLS & FIELD GUIDE", .04f, .87f, .96f, .99f, 26).color = ShowcasePalette.Gold;
-            Text(_help, "HelpText", "WASD / arrows   Move\nLeft click / hold   Attack; wand selects a target\nRight click   Move to a point\nQ / 1 / 2   Swap / select weapon\nE   Drink potion       R   Cast Wish at cursor\nF   Interact / pick up\nJ   Quest journal, traders and notices\nHold Tab   Tactical map and personal route\nB   Full build details\nC   Give the chest keyboard focus; 1–3 choose, 0 skip\nMinimap RMB   Move       Minimap hold LMB   Camera peek\nEscape   Close the focused panel\n\nPlanning: 1 / 2 select spawn. Select an offered boon, then Ready.\nA planned route is a personal guide. It never moves your character.\nThe run continues while panels are open.", .04f, .12f, .96f, .86f, 17);
+            Text(_help, "HelpText", "WASD / arrows   Move\nLeft click / hold   Attack; wand selects a target\nRight click   Move to a point\nQ / 1 / 2   Swap / select weapon\nE   Drink potion       R   Cast Wish at cursor\nF   Interact / pick up\nJ   Quest journal, traders and notices (planning: quests only)\nHold Tab   Tactical map and personal route\nB   Full build details\nC   Give the chest keyboard focus; 1–3 choose, 0 skip\nMinimap RMB   Move       Minimap hold LMB   Camera peek\nEscape   Close the focused panel\n\nPlanning: 1 / 2 select spawn. Select an offered boon, then Ready.\nA planned route is a personal guide. It never moves your character.\nThe run continues while panels are open.", .04f, .12f, .96f, .86f, 17);
             Button(_help, "HelpClose", "CLOSE · H / ESC", .30f, .02f, .70f, .11f, ToggleHelp);
             _help.gameObject.SetActive(false);
             InitializePlayerFlows();
@@ -223,6 +223,9 @@ namespace Roguehalla.Client
         }
         public void ReadUiInput()
         {
+            // Text entry owns this whole read; generic navigation must not remove its
+            // focus and reclassify the same keys as planning or world input.
+            bool typing = Typing;
             RememberWorldHudFocus();
             _chestConsumedDigits = false;
             var kb = Keyboard.current;
@@ -239,7 +242,7 @@ namespace Roguehalla.Client
                 _drawer != null && _drawer.IsVisible || _help != null && _help.gameObject.activeSelf || PlayerFlowVisible;
             bool unrelatedModal = _settings.gameObject.activeSelf || _results.gameObject.activeSelf || _menu.gameObject.activeSelf ||
                 (_signIn != null && _signIn.gameObject.activeSelf) || AnyHubPanelVisible || PlayerFlowVisible;
-            if (kb != null && !Typing)
+            if (kb != null && !typing)
             {
                 bool modified = kb.ctrlKey.isPressed || kb.altKey.isPressed || kb.leftMetaKey.isPressed || kb.rightMetaKey.isPressed || kb.shiftKey.isPressed;
                 if (!modified)
@@ -247,7 +250,7 @@ namespace Roguehalla.Client
                     if (kb.jKey.wasPressedThisFrame && (PlayerFlowVisible || PlayerFlowLauncherAllowed))
                     {
                         if (PlayerFlowVisible) ClosePlayerFlows();
-                        else ShowPlayerFlow(_session?.State == SessionState.InMatch ? 0 : 2);
+                        else ShowPlayerFlow(DefaultPlayerFlowPage);
                     }
                     if (kb.escapeKey.wasPressedThisFrame && PlayerFlowVisible) ClosePlayerFlows();
                     // Build and Help can switch between each other, but neither may steal keys from
@@ -279,9 +282,9 @@ namespace Roguehalla.Client
                 }
             }
             var focusRoot = FocusRoot;
-            if (kb != null && focusRoot != null && kb.tabKey.wasPressedThisFrame && !kb.ctrlKey.isPressed && !kb.altKey.isPressed && !kb.leftMetaKey.isPressed && !kb.rightMetaKey.isPressed)
+            if (kb != null && !typing && focusRoot != null && kb.tabKey.wasPressedThisFrame && !kb.ctrlKey.isPressed && !kb.altKey.isPressed && !kb.leftMetaKey.isPressed && !kb.rightMetaKey.isPressed)
                 UiFocusNavigation.Cycle(focusRoot, kb.shiftKey.isPressed);
-            _map?.ReadUiInput(Typing, dialog || PlayerFlowVisible || _chestFocus);
+            _map?.ReadUiInput(typing, dialog || PlayerFlowVisible || _chestFocus);
             if (focusRoot != null) UiBrowserStorage.CaptureTab(true, true);
         }
         public void ReleaseUiFocusForWindowLoss()

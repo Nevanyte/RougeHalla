@@ -246,6 +246,155 @@ namespace Roguehalla.Client.Tests
             });
         }
 
+        [Test]
+        public void PlanningQuestReviewPreservesMapChoicesAndFocusWhileBlockingOtherPagesAndWorldKeys()
+        {
+            _hud.ShowPlayerFlow(1); Assert.IsTrue(_hud.TraderDialog.IsVisible);
+            DeliverPlanning(new QuestHandle(71));
+            Assert.IsFalse(_hud.TraderDialog.IsVisible, "entering planning closes a previously open trader");
+            var plan = _session.Collections.Plan;
+            var map = _hud.transform.Find("MatchUI/TacticalMap");
+            var ready = map.Find("PlanningDecisions/Ready").GetComponent<UnityEngine.UI.Button>();
+            string readyText = ready.GetComponentInChildren<TMP_Text>().text;
+            Assert.IsTrue(ready.IsInteractable());
+            EventSystem.current.SetSelectedGameObject(ready.gameObject);
+            WithKeyboard(keyboard =>
+            {
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.J, Key.Tab, Key.Digit1, Key.W, Key.F)); InputSystem.Update();
+                _hud.ReadUiInput(); Invoke(_client, "ReadInput"); _session.FlushInput();
+                Assert.IsTrue(_hud.QuestJournal.IsVisible); Assert.IsTrue(_hud.TacticalMap.IsOpen);
+                Assert.IsTrue(map.Find("PlanningDecisions").gameObject.activeSelf);
+                Assert.IsTrue(_hud.BlocksKeyboardInput); Assert.IsTrue(_hud.BlocksPointerInput);
+                var group = map.GetComponent<UnityEngine.CanvasGroup>();
+                Assert.IsFalse(group.interactable); Assert.IsFalse(group.blocksRaycasts); Assert.AreEqual(1f, group.alpha);
+                Assert.IsFalse(ready.IsInteractable(), "the exposed edge of the planning rail must not accept pointer/submit input behind the journal");
+                Assert.AreSame(plan, _session.Collections.Plan);
+                Assert.AreEqual((byte)1, plan.Pick); Assert.AreEqual((byte)0, plan.Boon); Assert.IsFalse(plan.Ready);
+                Assert.AreEqual(readyText, ready.GetComponentInChildren<TMP_Text>().text);
+                Assert.AreEqual(0, _transport.Inputs().Count, "reviewing must not choose a spawn, ready, accept or send a world action");
+                foreach (string tab in new[] { "TradersTab", "NoticesTab" })
+                    Assert.IsFalse(_hud.QuestJournal.Root.Find(tab).GetComponent<UnityEngine.UI.Button>().interactable);
+                _hud.ShowPlayerFlow(1); _hud.ShowPlayerFlow(2);
+                Assert.IsTrue(_hud.QuestJournal.IsVisible); Assert.IsFalse(_hud.TraderDialog.IsVisible); Assert.IsFalse(_hud.ServerNotices.IsVisible);
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState()); InputSystem.Update();
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.J)); InputSystem.Update(); _hud.ReadUiInput();
+                Assert.IsFalse(_hud.QuestJournal.IsVisible); Assert.IsTrue(_hud.TacticalMap.IsOpen);
+                Assert.IsTrue(group.interactable); Assert.IsTrue(group.blocksRaycasts); Assert.AreEqual(1f, group.alpha);
+                Assert.AreSame(ready.gameObject, EventSystem.current.currentSelectedGameObject);
+                Assert.AreSame(plan, _session.Collections.Plan); _session.FlushInput(); Assert.AreEqual(0, _transport.Inputs().Count);
+            });
+            DeliverPlanning(new QuestHandle(71), ready: true);
+            var confirmed = _session.Collections.Plan;
+            _hud.ShowPlayerFlow(0);
+            _hud.QuestJournal.Root.Find("CloseJournal").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            Assert.AreSame(confirmed, _session.Collections.Plan); Assert.IsTrue(confirmed.Ready);
+            _session.FlushInput(); Assert.AreEqual(0, _transport.Inputs().Count, "review never changes or resubmits a confirmed Ready");
+        }
+
+        [Test]
+        public void PlanningPreviewRetiresDeferredAcceptAndWaitsForFreshNativePermission()
+        {
+            var handle = new QuestHandle(71);
+            _transport.Deliver(new ServerMsg.State { Tick = 1, Items = new StateItem[] { QuestState(handle) } });
+            _hud.ShowPlayerFlow(0); _hud.QuestJournal.SelectQuest(handle);
+            var priorView = _session.Collections.Quests; uint epoch = _session.TimelineEpoch;
+            DeliverPlanning(handle);
+            Assert.IsTrue(_hud.QuestJournal.IsVisible);
+            Assert.IsFalse(_session.Collections.Quests.Rows[0].CanAccept);
+            Assert.IsFalse((bool)Invoke(_hud.QuestJournal, "TryAcceptFrom", _session, epoch, priorView, handle),
+                "a deferred previously-enabled callback cannot act against a new planning preview");
+            Assert.IsFalse(_hud.QuestJournal.TryAccept(handle));
+            _session.FlushInput(); Assert.AreEqual(0, _transport.Inputs().Count);
+
+            var active = QuestState(handle); active.View.Rows[0].State = QuestRowState.Open;
+            _transport.Deliver(new ServerMsg.Snapshot { Tick = 3, ServerTimeOverrideMs = 150, Phase = (byte)MatchPhase.Active });
+            _transport.Deliver(new ServerMsg.State { Tick = 3, Items = new StateItem[] { new PlanState(), active } });
+            Assert.IsFalse(_hud.TacticalMap.IsPlanning);
+            Assert.IsTrue(_hud.QuestJournal.TryAccept(handle), "only the new delivered CanAccept enables acceptance");
+            Assert.IsFalse(_session.Collections.Quests.Rows[0].OwnerAccepted, "local pending feedback is not server acceptance");
+            StringAssert.Contains("Acceptance queued", _hud.QuestJournal.Root.Find("QuestDetail/QuestStatus").GetComponent<TMP_Text>().text);
+            _session.FlushInput();
+            var command = _transport.Inputs().SelectMany(x => x.Commands).Single();
+            Assert.AreEqual(CommandKind.QuestAccept, command.Kind); Assert.AreEqual(handle, command.QuestRef);
+            Assert.IsTrue(_hud.QuestJournal.Root.Find("TradersTab").GetComponent<UnityEngine.UI.Button>().interactable,
+                "nonplanning pages recover when the delivered planning state ends");
+        }
+
+        [Test]
+        public void PlanningJournalDropAndResumedWelcomeClearRowsAndRestoreMapInput()
+        {
+            var handle = new QuestHandle(71); DeliverPlanning(handle);
+            _hud.ShowPlayerFlow(0); _hud.QuestJournal.SelectQuest(handle);
+            var view = _session.Collections.Quests; uint epoch = _session.TimelineEpoch;
+            var group = _hud.transform.Find("MatchUI/TacticalMap").GetComponent<UnityEngine.CanvasGroup>();
+            _transport.Drop();
+            Assert.AreEqual(SessionState.Reconnecting, _session.State);
+            Assert.IsFalse(_hud.QuestJournal.TryAccept(handle));
+            StringAssert.Contains("Reconnecting", _hud.QuestJournal.Root.Find("JournalState").GetComponent<TMP_Text>().text);
+            WithKeyboard(keyboard =>
+            {
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.J)); InputSystem.Update(); _hud.ReadUiInput();
+                Assert.IsFalse(_hud.QuestJournal.IsVisible); Assert.IsTrue(group.interactable);
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState()); InputSystem.Update();
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.J)); InputSystem.Update(); _hud.ReadUiInput();
+                Assert.IsTrue(_hud.QuestJournal.IsVisible, "reconnecting planning defaults to quests, never a forbidden notices page");
+            });
+            _transport.Open(); Welcome();
+            Assert.Greater(_session.TimelineEpoch, epoch);
+            Assert.IsNull(_session.Collections.Plan); Assert.IsNull(_session.Collections.Quests);
+            Assert.IsFalse(_hud.QuestJournal.IsVisible); Assert.IsTrue(group.interactable); Assert.IsTrue(group.blocksRaycasts);
+            Assert.IsFalse((bool)Invoke(_hud.QuestJournal, "TryAcceptFrom", _session, epoch, view, handle));
+            Assert.IsFalse(_hud.QuestJournal.Root.Find("QuestRows/Viewport/Content/QuestRow0").gameObject.activeSelf);
+            _session.FlushInput(); Assert.AreEqual(0, _transport.Inputs().Count);
+            DeliverPlanning(new QuestHandle(72)); _hud.ShowPlayerFlow(0);
+            _hud.QuestJournal.SelectQuest(new QuestHandle(72));
+            var title = _hud.QuestJournal.Root.Find("QuestDetail/QuestTextScroll/Viewport/Content/QuestName/Value").GetComponent<TMP_Text>();
+            Assert.AreEqual("Planning quest 72", title.text);
+            _hud.QuestJournal.SelectQuest(handle);
+            Assert.AreEqual("Planning quest 72", title.text, "a stale removed handle cannot replace the selected current quest");
+            Assert.IsFalse(_hud.QuestJournal.TryAccept(handle));
+        }
+
+        [Test]
+        public void PlanningJournalRespectsSettingsAndFocusedTextEntry()
+        {
+            DeliverPlanning(new QuestHandle(71));
+            Invoke(_hud, "ToggleSettings"); _hud.ShowPlayerFlow(0);
+            Assert.IsFalse(_hud.QuestJournal.IsVisible);
+            Invoke(_hud, "ToggleSettings");
+            var field = _hud.transform.Find("MatchUI/JoinMenu/Nickname").GetComponent<TMP_InputField>();
+            var parent = field.transform.parent;
+            try
+            {
+                field.transform.SetParent(_root.transform, false);
+                EventSystem.current.SetSelectedGameObject(field.gameObject); field.ActivateInputField(); Invoke(field, "LateUpdate");
+                Assert.IsTrue(field.isFocused);
+                WithKeyboard(keyboard =>
+                {
+                    InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.J, Key.Tab, Key.Digit1, Key.W)); InputSystem.Update();
+                    _hud.ShowPlayerFlow(0); _hud.ReadUiInput(); Invoke(_client, "ReadInput"); _session.FlushInput();
+                    Assert.IsFalse(_hud.QuestJournal.IsVisible); Assert.IsTrue(field.isFocused);
+                    Assert.AreEqual(0, _transport.Inputs().Count, "text entry owns planning digits and world keys");
+                });
+            }
+            finally { field.DeactivateInputField(); field.transform.SetParent(parent, false); EventSystem.current.SetSelectedGameObject(null); }
+            _hud.ShowPlayerFlow(0); Assert.IsTrue(_hud.QuestJournal.IsVisible, "journal access recovers when text focus ends");
+        }
+
+        void DeliverPlanning(QuestHandle handle, bool ready = false)
+        {
+            var quests = QuestState(handle); quests.View.Rows[0].CanAccept = false;
+            quests.View.Rows[0].Name = "Planning quest " + handle.Value;
+            _transport.Deliver(new ServerMsg.Snapshot { Tick = 2, ServerTimeOverrideMs = 100, Phase = (byte)MatchPhase.Planning,
+                Me = new WireSelf { Id = 1, X = 64, Y = 64, Hp = 100, MaxHp = 100, Status = 1, Weapon = 0 } });
+            _transport.Deliver(new ServerMsg.State { Tick = 2, Items = new StateItem[] { new PlanState { Value = new WirePlan {
+                EndsAt = 10000, Spawn0 = 5, Spawn1 = 8, Pick = 1, Boon = 0, Ready = ready, Boons = new[] { "First native boon", "Second native boon" },
+                Option0 = new WirePlanOption { Index = 5, X = 64, Y = 64, Zone = 1 },
+                Option1 = new WirePlanOption { Index = 8, X = 96, Y = 96, Zone = 2 } } }, quests } });
+            _hud.TacticalMap.Tick();
+            Assert.AreEqual(MatchPhase.Planning, _session.Phase); Assert.IsTrue(_hud.TacticalMap.IsPlanning);
+        }
+
         static QuestsState QuestState(QuestHandle handle) => new QuestsState { Available = true, View = new WireQuestView {
             Rows = new[] { new WireQuestRow { Handle = handle, Def = "fixture", GiverX = 64, GiverY = 80,
                 State = QuestRowState.Preview, ExpiresAt = 10000, CanAccept = true, Name = "same", GiverLabel = "same",

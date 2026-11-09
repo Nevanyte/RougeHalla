@@ -22,13 +22,16 @@ namespace Roguehalla.Client
         RectTransform _root, _card, _content;
         UnityEngine.UI.ScrollRect _scroll, _detailScroll;
         RectTransform _detailContent;
-        TMP_Text _state, _detailName, _giver, _brief, _objective, _reward, _status;
+        TMP_Text _state, _detailName, _giver, _brief, _objective, _reward, _participants, _status;
         UnityEngine.UI.Button _close, _accept, _track;
         readonly List<Row> _rows = new List<Row>();
         Session _session;
         Action _onClose;
         Action<QuestHandle?> _onTracked;
         QuestView _view;
+        QuestView _participantCacheView;
+        QuestRowView _participantCacheRow;
+        string _participantCacheText;
         QuestHandle? _selected;
         QuestHandle? _tracked, _acceptPendingFor;
         uint _boundEpoch, _acceptBoundEpoch;
@@ -61,6 +64,7 @@ namespace Roguehalla.Client
             _brief = CreateQuestField(_detailContent, "QuestBrief", "BRIEF", 17, ShowcasePalette.Text);
             _objective = CreateQuestField(_detailContent, "QuestObjective", "OBJECTIVE", 17, ShowcasePalette.MutedText);
             _reward = CreateQuestField(_detailContent, "QuestReward", "REWARD", 16, ShowcasePalette.Text);
+            _participants = CreateQuestField(_detailContent, "QuestParticipants", "PARTICIPANTS", 15, ShowcasePalette.Text);
             _status = MythicUi.Text(detail, "QuestStatus", "", new Vector2(.025f, .115f), new Vector2(.975f, .20f), 13, ShowcasePalette.MutedText);
             _track = MythicUi.Button(detail, "TrackQuest", "TRACK OBJECTIVE", new Vector2(.035f, .025f), new Vector2(.48f, .12f), ToggleTrack, MythicUi.ButtonStyle.Secondary);
             _accept = MythicUi.Button(detail, "AcceptQuest", "ACCEPT QUEST", new Vector2(.52f, .025f), new Vector2(.965f, .12f), () => { }, MythicUi.ButtonStyle.Primary);
@@ -258,6 +262,11 @@ namespace Roguehalla.Client
             _brief.text = has ? q.Brief : "";
             _objective.text = has ? q.Objective : "";
             _reward.text = has ? q.Reward : "";
+            _participants.text = has ? ParticipantCopyCached(_view, q) : "";
+            if (!has)
+            {
+                _participantCacheView = null; _participantCacheRow = null; _participantCacheText = null;
+            }
             if (has)
             {
                 string deadline = DeadlineCopy(q);
@@ -287,6 +296,41 @@ namespace Roguehalla.Client
                 _acceptBoundSession = capturedSession; _acceptBoundEpoch = capturedEpoch; _acceptBoundView = capturedView;
                 _acceptBoundHandle = capturedHandle; _acceptBindingValid = true;
             }
+        }
+
+        static string ParticipantCopy(QuestView view, QuestRowView quest)
+        {
+            if (view == null || quest == null || quest.Participants == null || quest.Participants.Count == 0) return "";
+            var lines = new List<string>(quest.Participants.Count);
+            for (int i = 0; i < quest.Participants.Count; i++)
+            {
+                QuestParticipantView participant = quest.Participants[i];
+                string label = "Participant";
+                for (int r = 0; r < view.Roster.Count; r++)
+                {
+                    QuestRosterEntryView entry = view.Roster[r];
+                    if (entry.Id.Equals(participant.Id))
+                    {
+                        label = entry.Label ?? string.Empty;
+                        break;
+                    }
+                }
+
+                bool isOwner = view.OwnerRoster.HasValue && view.OwnerRoster.Value.Equals(participant.Id);
+                string accepted = participant.Accepted ? "Accepted" : "Not accepted";
+                lines.Add(label + (isOwner ? " · You" : "") + " · " + accepted + " · Progress " + participant.Progress.ToString(CultureInfo.InvariantCulture));
+            }
+            return string.Join("\n", lines);
+        }
+
+        string ParticipantCopyCached(QuestView view, QuestRowView quest)
+        {
+            if (!ReferenceEquals(_participantCacheView, view) || !ReferenceEquals(_participantCacheRow, quest))
+            {
+                _participantCacheView = view; _participantCacheRow = quest;
+                _participantCacheText = ParticipantCopy(view, quest);
+            }
+            return _participantCacheText ?? string.Empty;
         }
 
 
