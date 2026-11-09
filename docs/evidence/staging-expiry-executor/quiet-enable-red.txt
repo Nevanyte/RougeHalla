@@ -1,0 +1,46 @@
+test_fsync_error_closes_gate_and_existing_enable_link_is_not_overwritten (test_expiry_executor.Expiry) ... ok
+test_quiet_enable_native_argv_and_strict_query_warning_policy (test_expiry_executor.Expiry) ... ERROR
+test_v255_cli_model_emits_first_enable_info_and_retains_manager_effects (test_expiry_executor.Expiry) ... ok
+test_v255_first_enable_native_boundary_and_loaded_manager_return_gate (test_expiry_executor.Expiry) ... ERROR
+
+======================================================================
+ERROR: test_quiet_enable_native_argv_and_strict_query_warning_policy (test_expiry_executor.Expiry)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owned-seat-checkpoint/repo/tools/staging-full-runtime/installer/test_expiry_executor.py", line 429, in test_quiet_enable_native_argv_and_strict_query_warning_policy
+    self.assertEqual(runner.run(QUIET_ENABLE), '')
+  File "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owned-seat-checkpoint/repo/tools/staging-full-runtime/installer/expiry_executor.py", line 219, in run
+    require(argv in COMMANDS, 'command not allowlisted')
+  File "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owned-seat-checkpoint/repo/tools/staging-full-runtime/installer/expiry_executor.py", line 49, in require
+    raise Refused(message)
+expiry_executor.Refused: command not allowlisted
+
+======================================================================
+ERROR: test_v255_first_enable_native_boundary_and_loaded_manager_return_gate (test_expiry_executor.Expiry)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owned-seat-checkpoint/repo/tools/staging-full-runtime/installer/expiry_executor.py", line 339, in execute
+    runner.run((*SC, 'enable', '--now', TIMER))
+  File "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owned-seat-checkpoint/repo/tools/staging-full-runtime/installer/test_expiry_executor.py", line 168, in run
+    return e.LinuxRunner().run(argv)
+  File "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owned-seat-checkpoint/repo/tools/staging-full-runtime/installer/expiry_executor.py", line 224, in run
+    require(len(result.stdout) <= 65536 and not result.stderr, 'systemd command output refused')
+  File "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owned-seat-checkpoint/repo/tools/staging-full-runtime/installer/expiry_executor.py", line 49, in require
+    raise Refused(message)
+expiry_executor.Refused: systemd command output refused
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owned-seat-checkpoint/repo/tools/staging-full-runtime/installer/test_expiry_executor.py", line 418, in test_v255_first_enable_native_boundary_and_loaded_manager_return_gate
+    result = e.execute(REQUEST, runner)
+  File "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owned-seat-checkpoint/repo/tools/staging-full-runtime/installer/expiry_executor.py", line 354, in execute
+    shutdown(runner)
+  File "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owned-seat-checkpoint/repo/tools/staging-full-runtime/installer/expiry_executor.py", line 297, in shutdown
+    raise ShutdownRequested('PID1 accepted independent shutdown; no downstream gate')
+expiry_executor.ShutdownRequested: PID1 accepted independent shutdown; no downstream gate
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.013s
+
+FAILED (errors=2)

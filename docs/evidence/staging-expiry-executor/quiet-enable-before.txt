@@ -1,0 +1,51 @@
+test_fsync_error_closes_gate_and_existing_enable_link_is_not_overwritten (test_expiry_executor.Expiry) ... ok
+test_quiet_enable_native_argv_and_strict_query_warning_policy (test_expiry_executor.Expiry) ... ERROR
+test_v255_cli_model_emits_first_enable_info_and_retains_manager_effects (test_expiry_executor.Expiry) ... ERROR
+test_v255_first_enable_native_boundary_and_loaded_manager_return_gate (test_expiry_executor.Expiry) ... ERROR
+
+======================================================================
+ERROR: test_quiet_enable_native_argv_and_strict_query_warning_policy (test_expiry_executor.Expiry)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owned-seat-checkpoint/repo/tools/staging-full-runtime/installer/test_expiry_executor.py", line 429, in test_quiet_enable_native_argv_and_strict_query_warning_policy
+    self.assertEqual(runner.run(QUIET_ENABLE), '')
+  File "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owned-seat-checkpoint/repo/tools/staging-full-runtime/installer/expiry_executor.py", line 219, in run
+    require(argv in COMMANDS, 'command not allowlisted')
+  File "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owned-seat-checkpoint/repo/tools/staging-full-runtime/installer/expiry_executor.py", line 49, in require
+    raise Refused(message)
+expiry_executor.Refused: command not allowlisted
+
+======================================================================
+ERROR: test_v255_cli_model_emits_first_enable_info_and_retains_manager_effects (test_expiry_executor.Expiry)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owned-seat-checkpoint/repo/tools/staging-full-runtime/installer/test_expiry_executor.py", line 445, in test_v255_cli_model_emits_first_enable_info_and_retains_manager_effects
+    runner.process((*e.SC, 'daemon-reload'))
+TypeError: 'int' object is not callable
+
+======================================================================
+ERROR: test_v255_first_enable_native_boundary_and_loaded_manager_return_gate (test_expiry_executor.Expiry)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owned-seat-checkpoint/repo/tools/staging-full-runtime/installer/test_expiry_executor.py", line 418, in test_v255_first_enable_native_boundary_and_loaded_manager_return_gate
+    result = e.execute(REQUEST, runner)
+  File "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owned-seat-checkpoint/repo/tools/staging-full-runtime/installer/expiry_executor.py", line 311, in execute
+    verify_guard(runner)
+  File "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owned-seat-checkpoint/repo/tools/staging-full-runtime/installer/expiry_executor.py", line 255, in verify_guard
+    version = runner.run((*SC, '--version')).splitlines()[0]
+  File "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owned-seat-checkpoint/repo/tools/staging-full-runtime/installer/test_expiry_executor.py", line 168, in run
+    return e.LinuxRunner().run(argv)
+  File "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owned-seat-checkpoint/repo/tools/staging-full-runtime/installer/expiry_executor.py", line 221, in run
+    result = subprocess.run(argv, shell=False, check=True, stdin=subprocess.DEVNULL,
+  File "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/mock.py", line 1093, in __call__
+    return self._mock_call(*args, **kwargs)
+  File "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/mock.py", line 1097, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+  File "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/mock.py", line 1154, in _execute_mock_call
+    result = next(effect)
+TypeError: 'int' object is not an iterator
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.010s
+
+FAILED (errors=3)
