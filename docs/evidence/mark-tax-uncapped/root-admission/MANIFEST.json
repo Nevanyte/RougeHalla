@@ -1,0 +1,15 @@
+{
+  "format": "rh-root-finite-admission/1",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 1018,
+      "sha256": "923e013b84447ac59cf2836e2674308dbc139b8211517ff3cec571baa3d22897"
+    },
+    {
+      "path": "independent-review.md",
+      "bytes": 6157,
+      "sha256": "b8ddb129ee400bc62cd22e41016b3eb862f11ad8fb4be4ff9d7322503905921d"
+    }
+  ]
+}

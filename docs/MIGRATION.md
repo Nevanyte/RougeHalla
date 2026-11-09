@@ -25,16 +25,16 @@ strict all-target workspace lint with all features and with defaults, fmt,109 co
 path queries MATCH (13 additional cases are capture-only), and a bounded eight-player full-map headless smoke. Both test PostgreSQL clusters used durable settings
 and were stopped. The original red run remains explicit; this is not a claim that a second complete workspace run was
 performed. [CI42585284401](https://github.com/Nevanyte/RougeHalla/actions/runs/42585284401) at exacta0c4818c passes all five jobs,
-including complete simulation, Rust/backend/source witnesses and C#. Later proof-only additions retain their own
+including complete simulation, Rust/backend/source witnesses and C#. [CI42597461815](https://github.com/Nevanyte/RougeHalla/actions/runs/42597461815) at exactdb5ed80b also passes all five jobs, including the owned settlement read contract and private-proof guards. Later additions retain their own
 revision-scoped receipts. C# net752/752 and JS49,311 checks pass; the protected provenance
 chain is admitted and the new source witnesses are wired into CI without changing captured expected gameplay.
 
 Live bot reset streams0/1/2 now match source with independent Knowledge3. The exact135-frame farm/mirror consumer and
 native quest cases0/4 (including reached end closure and foreign-row privacy) are reviewed and integrated. The new
 [normal-fight/orb source witness](evidence/bot-fight/README.md) is source-only:16 tactics sequences/47 frames,6 orb
-sequences/20 frames and90 timing probes. The separately reviewed ownTimings helper now matches90 timing rows and6 nulls in three focused tests; it does not activate live fight. The reviewed normal-fight/Orb and sudden-death retreat components now match their captured methods (including the additional8sequences/46SDframes); they do not activate live fight. Full reflexes require reviewed remote
+sequences/20 frames and90 timing probes. The separately reviewed ownTimings helper now matches90 timing rows and6 nulls in three focused tests; it does not activate live fight. The reviewed normal-fight/Orb and sudden-death retreat components now match their captured methods (including the additional8sequences/46SDframes); they do not activate live fight. The [standalone Reflex component](evidence/bot-reflex-native/root-admission/README.md) is now reviewed and passes8focused composed tests over the actual49-sequence oracle and corrected37-row geometry. It remains inactive: live reflexes still require reviewed remote
 Bow/Wand cues, projectile course/identity and own immunity facts; stable NPC hunt memory needs an explicit public
-continuity contract. Root chose complete required fact publication, not a restricted bot subset as completion. Full
+continuity contract. The [uncapped MarkTax witness](evidence/mark-tax-uncapped/root-admission/README.md) genuinely reaches nonzero tax through accepted Training inputs; its native source remains pending. No fixture-only neutral-cap assumption closes that gap. Root chose complete required fact publication, not a restricted bot subset as completion. Full
 strategy/reflex/perception/hunter/loot/learning/tournament-outcome acceptance remains open.
 
 The quest journal, trader dialog, ordered duplicate notice feed and delivered-only map markers passed all20 actual
