@@ -1,0 +1,103 @@
+{
+  "source": "719cc2b7e78415226246c0273ae9c78f7385fc04",
+  "note": "Raw loaded identity and source manifest predate execution. This comparison report was generated after halt; the initial report parser used the older manifest schema and failed. No source/test change or retry.",
+  "verified": [
+    {
+      "group": "BuildDrawerEditModeTests",
+      "sourceSha256": "1a21b74b0f66e4ae777e663c778c517186e3e634c4581486693ce6d5df1797eb",
+      "guid": "6995df0d410c4d188dda9c8ab9ecbabb",
+      "methods": [
+        "CatalogDrawerHasEightyFocusableCardsAndReadOnlyServerFactsSurviveRefresh",
+        "DisplayCatalogExactlyMirrorsRustCardIdsTitlesDescriptionsAndTags",
+        "DrawerGeometryMaskFiltersAndCallbacksPreserveScrollAndSelection",
+        "FactoryButtonsHaveAccessibleMinimumSizeAndGeneratedIcons",
+        "HighestCardStackChangeRefreshesWithoutResettingInspectionOrScroll"
+      ],
+      "mvid": "e2bc6b64-8713-45bf-8789-1457bb8a9a75",
+      "frozenSourceAndLoadedIdentityMatch": true
+    },
+    {
+      "group": "UiInputRoutingEditModeTests",
+      "sourceSha256": "231bf1918895c181a871e325c663010429808dd3c1ab93556bcc33d94f6aac45",
+      "guid": "f828a23cec084275bbe2f4d7bb93f185",
+      "methods": [
+        "BuildAndHelpShortcutsStillToggleAndSwitchBetweenTheirPanels",
+        "BuildDrawerHidesGlobalHeaderActionsAndRestoresTheirCallbacksOnClose",
+        "ChestChoiceConsumesDigitEvenAsItReleasesChestFocus",
+        "ClosingSettingsRestoresThePreviouslyFocusedWorldHudControl",
+        "FocusedTextInputPreventsTabFromOpeningMap",
+        "MenuAndResultsPreventTabFromOpeningMap",
+        "PlainDigitOneQueuesWeaponSwap",
+        "SettingsOwnsKeyboardAndBlocksBuildHelpShortcutsWithoutWorldCommands",
+        "TabOpensMapAndBlocksPointerWhileWasdStillQueuesMove",
+        "WindowBlurReleasesChestAndHeldMapFocus"
+      ],
+      "mvid": "e2bc6b64-8713-45bf-8789-1457bb8a9a75",
+      "frozenSourceAndLoadedIdentityMatch": true
+    },
+    {
+      "group": "MatchHudWishBarrierEditModeTests",
+      "sourceSha256": "680a6a2e66c17c97d3cee761246ab697f3e47820eee5de65ea481bf0f07c581d",
+      "guid": "42ed7398690c426f8885769e5faed8ad",
+      "methods": [
+        "OwnerFactsRenderAndClearAcrossWishAndSessionResetTransitions",
+        "OwnerVitalPercentagesPreserveDeliveredSharesAndHandleInvalidInput",
+        "WeaponIconsRetainSemanticTintAcrossSlotChangesAndClearMissingInventory"
+      ],
+      "mvid": "e2bc6b64-8713-45bf-8789-1457bb8a9a75",
+      "frozenSourceAndLoadedIdentityMatch": true
+    },
+    {
+      "group": "HubCosmeticsViewEditModeTests",
+      "sourceSha256": "b9497df9dd5824934ece7c7ce85ea54ee91e314c10e746dff63393e320083b95",
+      "guid": "f87f72a74f9d4be69e495c1b16a0541e",
+      "methods": [
+        "EquipGuardAllowsNullOnlyForAnEquippedSlotAndRequiresOwnershipOtherwise",
+        "ExistingOwnedFullProfileCanPurchaseWithoutExtraReadAndShowsPendingBeforeReply",
+        "FocusRestoresTheNewActionWhileTheRetiredSameNamedCardStillExists",
+        "NullOwnerCanInitializeAndShowUnavailableCatalog",
+        "SameNameCredentialReplacementHidesAndRejectsOldUnknownRetryWithoutLosingHistory",
+        "ShowingAndChangingCallsSignDoNotIssueProfileReadsAndRefreshRequiresOwnedProfile",
+        "UnusableSameNameOwnerClearsWalletAndStatusWithoutDiscardingUnknownPurchase"
+      ],
+      "mvid": "e2bc6b64-8713-45bf-8789-1457bb8a9a75",
+      "frozenSourceAndLoadedIdentityMatch": true
+    },
+    {
+      "group": "HubProgressViewEditModeTests",
+      "sourceSha256": "76a26ae4efd15d65da91eec5c15954fbec850f828d378dbd10a48c9d3b9e7d7f",
+      "guid": "9ed2e7b4dd5241d58ea4ab7a1e0a0af3",
+      "methods": [
+        "AchievementRowsShowServerFactsAndPreserveUnknownFutureIds",
+        "FormatsInt64WithoutFloatingPointLoss",
+        "OwnerRankIsClearedOnCancelAndSelectionChangeAndLatePrivateBoardCannotRestoreIt"
+      ],
+      "mvid": "e2bc6b64-8713-45bf-8789-1457bb8a9a75",
+      "frozenSourceAndLoadedIdentityMatch": true
+    },
+    {
+      "group": "AccountRecoveryViewEditModeTests",
+      "sourceSha256": "dc171e87ebd395a4b59bf5b59c4d41d3c9f1355e3759d05e1e385b8970e25b53",
+      "guid": "3d27b1c5c0524949b029e33fb04aa312",
+      "methods": [
+        "OwnedKeyNeedsRevealAndManualSelectionAndClearsOnCloseSwitchCancelAndBlur",
+        "UnownedAndFailedProfilesCannotRevealARecoveryKey"
+      ],
+      "mvid": "e2bc6b64-8713-45bf-8789-1457bb8a9a75",
+      "frozenSourceAndLoadedIdentityMatch": true
+    },
+    {
+      "group": "MatchClientAccountBindingEditModeTests",
+      "sourceSha256": "9d6b5778c92c3a47467a90adc4e471eac283920fb4ff8a362ad303fae77afcea",
+      "guid": "fac78127a58b4044bec5d3a102c8fec7",
+      "methods": [
+        "MutatingMatchUrlWhileOwnershipRequestIsPendingCannotUseCapturedIntentOrConnect",
+        "SelectingFactionDuringDeferredJoinInvalidatesIntentAndCreatesNoSocket",
+        "StaleJoinFailureCannotOverwriteProfileSelectedBySynchronousFlowCallback",
+        "SuccessfulOrdinaryJoinUsesOwnedCanonicalIdentityTokenAndValidatedUrl"
+      ],
+      "mvid": "e2bc6b64-8713-45bf-8789-1457bb8a9a75",
+      "frozenSourceAndLoadedIdentityMatch": true
+    }
+  ]
+}

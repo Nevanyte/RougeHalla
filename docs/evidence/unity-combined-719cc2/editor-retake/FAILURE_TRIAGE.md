@@ -1,0 +1,16 @@
+# 719cc2 retake: focused failure triage
+
+Scope: read-only review of the saved `tests-HubCosmeticsViewEditModeTests.json` and exact test/runtime source lines. The retake stopped after its first failing group sequence. Observed results before stop: BuildDrawer 5/5 pass, UI input 10/10 pass, Match HUD owner facts 3/3 pass, Hub cosmetics 5/7 pass — **23 passed, 2 failed, 9 selectors unrun**. No Play-mode run or screenshots began. This report does not infer outcomes for the unrun groups.
+
+## Failures
+
+| Test | Recorded failure | Classification | Evidence |
+|---|---|---|---|
+| `SameNameCredentialReplacementHidesAndRejectsOldUnknownRetryWithoutLosingHistory` | NUnit throws `ArgumentException: The actual value must be an IEnumerable` at `HubCosmeticsViewEditModeTests.cs:247`. | **Test assertion type/constraint mismatch; intended behavior assertion was not evaluated.** | The test obtains `MutationSummary(...)` as a `string`, then uses `Assert.That(sameOwnerSummary, Does.Contain("Retry resubmits this change"), ...)` at line 247. In this Unity NUnit version, `Does.Contain` resolves to a collection constraint that requires an enumerable, matching the saved exception. The neighboring assertion in the other test uses `StringAssert.Contains` for the same string-valued status (`HubCosmeticsViewEditModeTests.cs:316`). The failure occurs in the assertion machinery; it is not evidence that same-credential retry history is missing. Keep the same semantic check with a string-specific constraint. |
+| `UnusableSameNameOwnerClearsWalletAndStatusWithoutDiscardingUnknownPurchase` | At line 327, expected status to contain `"Retry resubmits"`; actual status was `"Choose a cosmetic to buy or equip."` | **Observed runtime presentation/state mismatch after same-name owner reopens; cause not isolated.** | The test first confirms the purchase reached `Unknown`, status showed retry text, cancellation cleared wallet/status while preserving the operation, then reopening the same callsign restored the wallet before the retry-status assertion (`HubCosmeticsViewEditModeTests.cs:311–327`). The actual string is the fallback assigned by `RebuildCards` when `MutationSummary(profile)` returns null (`HubCosmeticsView.cs:329–340`). The summary scans retained mutation entries and returns the retry cue only for a same-owner, current `Unknown` operation (`HubCosmeticsView.cs:694–705`). Thus this run shows the retry cue was not present after reopening, despite the assertions that the wallet and operation owner were restored. The saved failure does not identify whether the entry list/result/current-owner filtering or event ordering caused the missing cue. Do not weaken the expectation; isolate why the existing Unknown operation is absent from the rendered summary. |
+
+## Gate boundary
+
+The first failure is a test precondition for evaluating its intended string-content behavior; the second is a real observed status mismatch whose underlying state path remains unresolved. The gate stopped with two failures in this group. Nine further selectors were not run, and no Play/screenshots were captured. The earlier expected-tests manifest now matches the switched 719cc2 source hashes; its during-switch predecessor remains preserved separately.
+
+Evidence: `tests-HubCosmeticsViewEditModeTests.json`, `EXPECTED_TESTS.json`, and `EXPECTED_TESTS.md` in this directory.
