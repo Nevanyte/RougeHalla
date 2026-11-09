@@ -80,9 +80,11 @@ pub(crate) struct TickScratch {
     pub(crate) entry_next: Vec<u32>,
     /// Each entry's attacker's action-order rank (`u32::MAX` when it is not in the order), by entry.
     pub(crate) entry_rank: Vec<u32>,
-    /// One victim's pass: its entries' indices, mitigated amounts, the (rank, entry) order they land in and the hits.
+    /// One victim's pass: its entries' indices, mitigated amounts, the source pre-mitigation raw for each entry (same
+    /// order as idxs), the (rank, entry) order they land in and the hits.
     pub(crate) idxs: Vec<usize>,
     pub(crate) amounts: Vec<f64>,
+    pub(crate) ledger_raws: Vec<f64>,
     pub(crate) order: Vec<(usize, usize)>,
     pub(crate) hits: Vec<crate::systems::ledger::Hit>,
     /// Who still stands, collected only when the settle needs the ids (the end of a run).
@@ -137,6 +139,7 @@ impl Default for TickScratch {
             entry_rank: Vec::with_capacity(hits),
             idxs: Vec::with_capacity(p),
             amounts: Vec::with_capacity(p),
+            ledger_raws: Vec::with_capacity(p),
             order: Vec::with_capacity(p),
             hits: Vec::with_capacity(p),
             alive: Vec::with_capacity(p),
@@ -181,7 +184,7 @@ impl TickScratch {
     /// passes (a stale link would corrupt the next pass). Not checked, because each is cleared by its own system before
     /// it is filled and never read by another, so what it holds after a step is dead: `action_order`, `rank` and
     /// `bounty_at_tick_start` (rewritten at the start of every active tick), `bodies`, `victims`, `ledger_mults`,
-    /// `entry_next`, `entry_rank`, `idxs`, `amounts`, `order`, `hits`, `alive`, `path` and `drained`.
+    /// `entry_next`, `entry_rank`, `idxs`, `amounts`, `ledger_raws`, `order`, `hits`, `alive`, `path` and `drained`.
     pub(crate) fn is_settled(&self) -> bool {
         self.cast_landings.is_empty()
             && self.melee.is_empty()

@@ -1,0 +1,8 @@
+--- a/packages/server/src/sim/ledger.ts
++++ b/packages/server/src/sim/ledger.ts
+@@ -406,3 +406,5 @@
+     }
+   }
+ }
++
++// provenance-only comment mutation (no behavior)

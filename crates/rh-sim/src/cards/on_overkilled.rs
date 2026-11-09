@@ -149,7 +149,11 @@ mod tests {
             &mut hx,
             &crate::hooks::HookArgs::Overkilled {
                 victim: PlayerId(2),
-                hits: vec![OverkillHit { entry, raw: 100. }],
+                hits: vec![OverkillHit {
+                    entry,
+                    amount: 100.,
+                    raw: 100.,
+                }],
                 overkill: 100.,
                 total: 100.,
             },
