@@ -1,0 +1,10 @@
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/fair-percept14/repo/crates/rh-policy)
+    Finished `test` profile [unoptimized] target(s) in 0.97s
+   Doc-tests rh_policy
+
+running 2 tests
+test crates/rh-policy/src/delivery/frame.rs - delivery::frame::AcceptedFrame14 (line 449) - compile fail ... ok
+test crates/rh-policy/src/bots/fair_percept14.rs - bots::fair_percept14::FairPercept14 (line 70) - compile fail ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+

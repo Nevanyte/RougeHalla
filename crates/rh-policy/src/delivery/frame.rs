@@ -277,6 +277,11 @@ impl PartialEq for Frame14 {
     }
 }
 impl Frame14 {
+    /// Internal acceptance preflight only; opaque affinity never becomes a public fact.
+    pub(crate) fn same_local_session(&self, session: &SessionId) -> bool {
+        &self.affinity == session
+    }
+
     pub fn from_reconstructed(
         context: FrameContext14,
         snapshot: ServerMsg,

@@ -1,0 +1,17 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/fair-percept14/repo/crates/rh-sim)
+   Compiling rh-protocol v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/fair-percept14/repo/crates/rh-protocol)
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/fair-percept14/repo/crates/rh-policy)
+error[E0616]: field `affinity` of struct `delivery::frame::Frame14` is private
+   --> crates/rh-policy/src/bots/fair_percept14.rs:243:63
+    |
+243 |         if self.affinity.as_ref().is_some_and(|v| v != &frame.affinity) {
+    |                                                               ^^^^^^^^ private field
+
+error[E0616]: field `affinity` of struct `delivery::frame::Frame14` is private
+   --> crates/rh-policy/src/bots/fair_percept14.rs:300:38
+    |
+300 |         if accepted.session != frame.affinity {
+    |                                      ^^^^^^^^ private field
+
+For more information about this error, try `rustc --explain E0616`.
+error: could not compile `rh-policy` (lib test) due to 2 previous errors

@@ -1,0 +1,18 @@
+{
+  "head": "f7aa10ac21ab1e067d8fa8399a5280582bc33795",
+  "free_bytes": 3165777920,
+  "environment": {
+    "CARGO_HOME": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/cargo",
+    "RUSTUP_HOME": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/rustup",
+    "CARGO_TARGET_DIR": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target",
+    "CARGO_BUILD_JOBS": "1",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0"
+  },
+  "versions": {
+    "cargo": "cargo 1.97.0 (c980f4866 2026-06-30)",
+    "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+    "rustfmt": "rustfmt 1.9.0-stable (2d8144b788 2026-07-07)"
+  }
+}

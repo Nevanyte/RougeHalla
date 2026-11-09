@@ -11,6 +11,7 @@ pub mod build_route;
 pub mod clicks;
 pub mod delay;
 pub mod delivered;
+pub mod fair_percept14;
 pub mod fight;
 pub mod hazards;
 pub mod humanizer;
