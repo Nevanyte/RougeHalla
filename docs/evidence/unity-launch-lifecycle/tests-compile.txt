@@ -1,0 +1,12 @@
+  Determining projects to restore...
+  Restored /tmp/roguehalla-launch-lifecycle-compile/Tests.csproj (in 24 ms).
+/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-launch-lifecycle/client-unity/UnityProject/Assets/Tests/Editor/MatchHudTrophyEditModeTests.cs(116,41): warning CS0067: The event 'MatchHudTrophyEditModeTests.TestTransport.Closed' is never used [/tmp/roguehalla-launch-lifecycle-compile/Tests.csproj]
+  Tests -> /tmp/roguehalla-launch-lifecycle-compile/bin/Debug/netstandard2.1/Roguehalla.Client.EditModeTests.dll
+
+Build succeeded.
+
+/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-launch-lifecycle/client-unity/UnityProject/Assets/Tests/Editor/MatchHudTrophyEditModeTests.cs(116,41): warning CS0067: The event 'MatchHudTrophyEditModeTests.TestTransport.Closed' is never used [/tmp/roguehalla-launch-lifecycle-compile/Tests.csproj]
+    1 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:00.61

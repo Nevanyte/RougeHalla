@@ -1,0 +1,35 @@
+{
+  "scope": "Read-only installed-package source inspection; no package edits or Editor execution",
+  "files": [
+    {
+      "path": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Library/PackageCache/com.unity.render-pipelines.universal@947f725e83ac/Runtime/2D/Light2DManager.cs",
+      "bytes": 4386,
+      "sha256": "493c9a59824e1d8570222034cddae9f4ec12bb61219307886482872aafb8becb",
+      "readOnlySourceAnchors": {
+        "RegisterLight": "25\u201331",
+        "DeregisterLight": "33\u201338",
+        "ErrorIfDuplicateGlobalLight": "40\u201351",
+        "ContainsDuplicateGlobalLight": "91\u2013120"
+      }
+    },
+    {
+      "path": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Library/PackageCache/com.unity.render-pipelines.universal@947f725e83ac/Runtime/2D/Light2D.cs",
+      "bytes": 25216,
+      "sha256": "bcb2ac0c486e9ebb1a16a93d852f24b275e31ed3474501aebab3b11a0ff31d06",
+      "readOnlySourceAnchors": {
+        "OnEnable": "587\u2013597",
+        "OnDisable": "599\u2013608"
+      }
+    },
+    {
+      "path": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Library/PackageCache/com.unity.ugui@cd4936b8279f/Runtime/UGUI/EventSystem/EventSystem.cs",
+      "bytes": 21085,
+      "sha256": "ea30343edcffd30f9cf3b8828a209cb5b2bc5eea07775394cb316f1d372847cb",
+      "readOnlySourceAnchors": {
+        "current": "31\u201347",
+        "OnEnable": "440\u2013455",
+        "OnDisable": "457\u2013473"
+      }
+    }
+  ]
+}

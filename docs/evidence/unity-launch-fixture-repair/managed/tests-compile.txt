@@ -1,0 +1,10 @@
+/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-launch-modes/client-unity/UnityProject/Assets/Tests/Editor/MatchHudTrophyEditModeTests.cs(116,41): warning CS0067: The event 'MatchHudTrophyEditModeTests.TestTransport.Closed' is never used [/tmp/roguehalla-launch-modes-compile/Tests.csproj]
+  Tests -> /tmp/roguehalla-launch-modes-compile/bin/Debug/netstandard2.1/Roguehalla.Client.EditModeTests.dll
+
+Build succeeded.
+
+/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-launch-modes/client-unity/UnityProject/Assets/Tests/Editor/MatchHudTrophyEditModeTests.cs(116,41): warning CS0067: The event 'MatchHudTrophyEditModeTests.TestTransport.Closed' is never used [/tmp/roguehalla-launch-modes-compile/Tests.csproj]
+    1 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:00.77

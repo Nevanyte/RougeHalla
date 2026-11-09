@@ -1,0 +1,139 @@
+{
+  "schema": "rh-owned-arena-editor-disposal-v1",
+  "code": "8ef97af964e598e970f1c04e058a99de63449543",
+  "baseFailedSource": "8cdbd77d4f3e1e002956b2f5c352eea53b12a42d",
+  "failedMvid": "b78f3c03-15d1-4924-b90a-9fe89d2737f4",
+  "actualFailedGate": {
+    "total": 42,
+    "passed": 26,
+    "failed": 16,
+    "old25Passed": 25,
+    "launch17Passed": 1,
+    "launch17Failed": 16,
+    "failure": "UnityError Destroy may not be called from edit mode at MatchClient.CloseCurrentSession158",
+    "status": "FAIL"
+  },
+  "rawFailedFiles": [
+    {
+      "path": "raw-failed-8c/tests-QuestJournalViewEditModeTests.json",
+      "sha256": "52b997b0e76a667c64edd0b23fbe424b0e021d4e2a923de313323e4fcdf58453",
+      "bytes": 1976,
+      "rawOriginalUnchanged": true
+    },
+    {
+      "path": "raw-failed-8c/tests-TraderDialogViewEditModeTests.json",
+      "sha256": "1e413d36c0dfd39aa5c824a965a49047c67a8f93630cb2ff1f35fff55da55b16",
+      "bytes": 1531,
+      "rawOriginalUnchanged": true
+    },
+    {
+      "path": "raw-failed-8c/tests-PlayerFlowsEditModeTests.json",
+      "sha256": "3722d4d2f3056a7d5bcbc18465ecaab6b192ce2dee836e8469d36ce9993d1ff9",
+      "bytes": 2510,
+      "rawOriginalUnchanged": true
+    },
+    {
+      "path": "raw-failed-8c/tests-MatchLaunchEditModeTests.json",
+      "sha256": "2b34f80744bcf0d92b9e0df2fe3efe566edbbcb64e32e69ceec85ec895443732",
+      "bytes": 24240,
+      "rawOriginalUnchanged": true
+    },
+    {
+      "path": "raw-failed-8c/imported-loaded-identity.json",
+      "sha256": "8d9837cc9192846a3a938099e6f579d5c73e63a80c04b1ea6f327df4229d8b36",
+      "bytes": 4632,
+      "rawOriginalUnchanged": true
+    },
+    {
+      "path": "raw-failed-8c/as-tested-source.json",
+      "sha256": "1097cf68a734d8ed4df2a496108d6aac4425afd4c65c0490dd29388ad7d13f38",
+      "bytes": 316566,
+      "rawOriginalUnchanged": true
+    }
+  ],
+  "changedCodeFile": {
+    "path": "client-unity/UnityProject/Assets/Scripts/Net/MatchClient.cs",
+    "beforeSha256": "c31b74999497a830402c3eec84f3e246cd3a3ffad0e4144a92f5db90f54c52f3",
+    "afterSha256": "7066c76deb34a22c6fe4b89214cd9e55b19e1e84b41240b0765ce5d4d42b3fec"
+  },
+  "destroyCallsitesAudited": [
+    "JoinCore stale-generation abort (base line87)",
+    "CloseCurrentSession captured old Arena (base line158)"
+  ],
+  "helperGuard": "UNITY_EDITOR && !Application.isPlaying",
+  "playerAndEditorPlay": "Original deactivate then deferred Object.Destroy; captured target only, ownership/old.Leave ordering retained",
+  "unchangedNativeFixtures": [
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/MatchLaunchEditModeTests.cs",
+      "sha256": "1df70730e10dd3a3ea82365cd88db15a2fa631f313d4b168cbdbfe47e5c3323a",
+      "unchangedFrom8c": true
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/QuestJournalViewEditModeTests.cs",
+      "sha256": "a227e72035a95c76998a8e715eea197e54bf28de37ade69998404830186a9508",
+      "unchangedFrom8c": true
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/TraderDialogViewEditModeTests.cs",
+      "sha256": "74f08af89ac872699567c2fe7ecc5451bdc3ffa94f6df48ec60abda813bb66cb",
+      "unchangedFrom8c": true
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/PlayerFlowsEditModeTests.cs",
+      "sha256": "d3b75829d5fb35708b328eeaa95d3975c0369cc287195db330dfbe2a7bb11c26",
+      "unchangedFrom8c": true
+    }
+  ],
+  "compiledProfiles": {
+    "editorScripts": {
+      "errors": 0,
+      "warnings": 0
+    },
+    "editorTestSources": {
+      "errors": 0,
+      "warnings": 1,
+      "existingWarning": "CS0067 unused MatchHudTrophyEditModeTests.TestTransport.Closed"
+    },
+    "playerScripts": {
+      "errors": 0,
+      "warnings": 0
+    },
+    "metadataInspector": "Mono.Cecil AssemblyDefinition.ReadAssembly only; Unity methods never invoked",
+    "editorHelperCalls": [
+      "SetActive",
+      "Application.get_isPlaying",
+      "Object.DestroyImmediate",
+      "Object.Destroy"
+    ],
+    "playerHelperCalls": [
+      "SetActive",
+      "Object.Destroy"
+    ],
+    "assemblies": [
+      {
+        "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-editmode-disposal-2026-11-09/profiles/editor/bin/Debug/netstandard2.1/Roguehalla.Client.dll",
+        "bytes": 467968,
+        "sha256": "1727046efed382856bdd1a9837d240aa071779d788a1b6a21d1a05049922a34e"
+      },
+      {
+        "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-editmode-disposal-2026-11-09/profiles/editor/bin/Debug/netstandard2.1/Roguehalla.Client.EditModeTests.dll",
+        "bytes": 275968,
+        "sha256": "d991ceba05406e249cd00df6c3d0ae6be56b5c012dc642ccb3a50d8aef5faafe"
+      },
+      {
+        "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-editmode-disposal-2026-11-09/profiles/player/bin/Debug/netstandard2.1/Roguehalla.Client.dll",
+        "bytes": 459776,
+        "sha256": "ab77279eb2e8aaeef766d632097f79141596516fdff2b98bdab0c4581ac6a848"
+      }
+    ]
+  },
+  "correctedNative42": "UNRUN",
+  "nativeExecutionsByAuthor": 0,
+  "editorAccessByAuthor": false,
+  "play": false,
+  "webBuild": false,
+  "browser": false,
+  "gameServer": false,
+  "cloud": false,
+  "banking": "PAUSED; no implementation"
+}

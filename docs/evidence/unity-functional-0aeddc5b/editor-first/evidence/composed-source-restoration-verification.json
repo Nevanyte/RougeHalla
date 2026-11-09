@@ -1,0 +1,37 @@
+{
+  "source": "0aeddc5b4ce0feb5fc0060f2cf2d56c05dff8944",
+  "trackedUnityInputsVerified": 1140,
+  "projectAndNetPinsVerified": 1153,
+  "allHashesMatch": true,
+  "noTestOrAssertionChanges": true,
+  "state": {
+    "playing": false,
+    "willChangePlay": false,
+    "paused": false,
+    "compiling": false,
+    "compileFailed": false,
+    "background": false,
+    "runtimeBackground": false,
+    "activeScene": {
+      "handle": -4551492,
+      "name": "Main",
+      "path": "Assets/Scenes/Main.unity",
+      "loaded": true,
+      "dirty": false,
+      "roots": []
+    },
+    "sceneCount": 1,
+    "previewSceneCount": 1,
+    "inputId": -1029656,
+    "inputFlags": "HideAndDontSave",
+    "inputMode": "ProcessEventsInDynamicUpdate",
+    "inputBehavior": "ResetAndDisableNonBackgroundDevices",
+    "textKey": false,
+    "textScale": 1.0,
+    "minimapKey": false,
+    "minimapIndex": 1,
+    "previewQuery": ""
+  },
+  "autoTickDisabledReceipt": "autotick-after-tests-off.json",
+  "guardReleasedReceipt": "refresh-after-source-restoration.json"
+}

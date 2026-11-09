@@ -1,0 +1,92 @@
+{
+  "schema": "rh-launch-net-validation-v1",
+  "sourceCommit": "4ec547312dc9b7214bbf6a8e20a6ff7ed3f3ba3b",
+  "runs": [
+    {
+      "rawFile": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-launch-modes-2026-11-09/net-tests/net-tests.trx",
+      "bytes": 1048501,
+      "sha256": "579e021e3f4ac005e01f80148fc158436bb5b0dd108e2cc1a1186af1e8c34de3",
+      "counters": {
+        "total": "768",
+        "executed": "768",
+        "passed": "768",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      },
+      "failures": [],
+      "rawRetainedOutsideGit": true
+    },
+    {
+      "rawFile": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-launch-modes-2026-11-09/net-tests/net-tests-final.trx",
+      "bytes": 1049380,
+      "sha256": "e4de6cf62b1cf7765afa842175f9bd9d1a04ef238feaddb1043cd36d23cd50c5",
+      "counters": {
+        "total": "768",
+        "executed": "768",
+        "passed": "767",
+        "failed": "1",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      },
+      "failures": [
+        {
+          "test": "ExistingArenaTargetRemainsAvailableWhenTrainingIsNotConfigured",
+          "message": "  Assert.That(training.UnavailableReason, Does.Contain(\"operator's launch configuration\"))\n  Expected: String containing \"operator's launch configuration\"\n  But was:  \"Training is unavailable for this connection.\"\n"
+        }
+      ],
+      "rawRetainedOutsideGit": true
+    },
+    {
+      "rawFile": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-launch-modes-2026-11-09/net-tests/net-tests-sealed.trx",
+      "bytes": 1048492,
+      "sha256": "607cbc4ff2452f0d9066c29f2325465d8980f559cdbe0242a95bd04fac126f93",
+      "counters": {
+        "total": "768",
+        "executed": "768",
+        "passed": "768",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      },
+      "failures": [],
+      "rawRetainedOutsideGit": true
+    }
+  ],
+  "finalStatus": "PASS",
+  "finalTests": 768,
+  "newPureConfigTests": 16,
+  "unityExecution": false,
+  "browserExecution": false,
+  "intermediateFailureExplanation": "After replacing an administrative hint with concise player-facing unavailable copy, one new test still asserted the removed hint. The redundant hint assertion was removed; availability, mode-specific reason, origin and no-fallback checks remain. The final complete rebuilt suite passes. Earlier raw outcomes retained."
+}

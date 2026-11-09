@@ -1,0 +1,8 @@
+method=System.Void Roguehalla.Client.MatchClient::DestroyOwnedArena(UnityEngine.GameObject) instructions=39
+call System.Boolean UnityEngine.Object::op_Equality(UnityEngine.Object,UnityEngine.Object)
+callvirt System.Void UnityEngine.GameObject::SetActive(System.Boolean)
+call System.Boolean UnityEngine.Application::get_isPlaying()
+call System.Boolean UnityEngine.Object::op_Inequality(UnityEngine.Object,UnityEngine.Object)
+call System.Void UnityEngine.Object::DestroyImmediate(UnityEngine.Object)
+call System.Boolean UnityEngine.Object::op_Inequality(UnityEngine.Object,UnityEngine.Object)
+call System.Void UnityEngine.Object::Destroy(UnityEngine.Object)

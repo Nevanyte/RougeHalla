@@ -1,0 +1,67 @@
+{
+  "source": "0aeddc5b4ce0feb5fc0060f2cf2d56c05dff8944",
+  "testMvid": "b78f3c03-15d1-4924-b90a-9fe89d2737f4",
+  "productionMvid": "17da474b-9a95-4b98-8af9-13124aff40e9",
+  "productionAssemblySha256": "812b702a3c995d9f0daa838e023279adba2c811f3483e98ae40aff7b57de52dd",
+  "discovery": {
+    "cases": 42,
+    "uniqueNames": 42,
+    "executedTests": false,
+    "mvid": "b78f3c03-15d1-4924-b90a-9fe89d2737f4",
+    "status": "PASS_BEFORE_TEST_EXECUTION",
+    "oldSelectors": 25,
+    "newTypedCases": 17,
+    "newTypedMethods": 14
+  },
+  "groups": {
+    "QuestJournalViewEditModeTests": {
+      "Total": 8,
+      "Passed": 8,
+      "Failed": 0,
+      "Skipped": 0,
+      "Inconclusive": 0
+    },
+    "TraderDialogViewEditModeTests": {
+      "Total": 6,
+      "Passed": 6,
+      "Failed": 0,
+      "Skipped": 0,
+      "Inconclusive": 0
+    },
+    "PlayerFlowsEditModeTests": {
+      "Total": 11,
+      "Passed": 11,
+      "Failed": 0,
+      "Skipped": 0,
+      "Inconclusive": 0
+    },
+    "MatchLaunchEditModeTests": {
+      "Total": 17,
+      "Passed": 17,
+      "Failed": 0,
+      "Skipped": 0,
+      "Inconclusive": 0
+    }
+  },
+  "total": {
+    "executed": 42,
+    "passed": 42,
+    "failed": 0,
+    "skipped": 0,
+    "inconclusive": 0,
+    "unrun": 0
+  },
+  "restoration": {
+    "trackedUnityInputsVerified": 1140,
+    "projectAndNetPinsVerified": 1153,
+    "allHashesMatch": true,
+    "playing": false,
+    "sceneCount": 1,
+    "mainRoots": 0,
+    "textKey": false,
+    "textScale": 1.0,
+    "inputId": -1029656,
+    "background": false
+  },
+  "scope": "EditMode test identity/results and post-run source/editor restoration receipts only; no Play/native capture or visual/gameplay acceptance."
+}

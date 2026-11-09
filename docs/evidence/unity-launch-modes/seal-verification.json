@@ -1,0 +1,30 @@
+{
+  "schema": "rh-launch-seal-verification-v1",
+  "generatedUtc": "2026-11-09T09:05:44.216917+00:00",
+  "sourceCommit": "4ec547312dc9b7214bbf6a8e20a6ff7ed3f3ba3b",
+  "sourceFilesVerifiedAgainstGitObjects": 12,
+  "publicKnownSecretScan": {
+    "matches": 0,
+    "includesSourceAndEvidence": true,
+    "method": "Exact known retained local proof secrets/access codes/database URLs only; source tests intentionally contain synthetic invalid URLs and synthetic credential literals"
+  },
+  "privateStateCopied": false,
+  "fullNetTests": {
+    "passed": 768,
+    "failed": 0,
+    "newPureCases": 16
+  },
+  "nativeSelectors": {
+    "expected": 17,
+    "executed": 0,
+    "status": "UNRUN"
+  },
+  "existingNativeTestsChanged": false,
+  "editorExecution": false,
+  "webBuild": false,
+  "browserExecution": false,
+  "serverExecution": false,
+  "cloudOperations": false,
+  "newScreenshot": false,
+  "overall": "SOURCE READY; ENGINE/BROWSER UNRUN"
+}

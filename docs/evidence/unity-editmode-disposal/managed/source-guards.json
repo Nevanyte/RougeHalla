@@ -1,0 +1,18 @@
+{
+  "scope": "Source/preprocessor and ordering assertions only; no Unity API invocation",
+  "editorImmediateGuard": "UNITY_EDITOR && !Application.isPlaying",
+  "playerHelperHasOnlyDeferredDestroy": true,
+  "ownedObjectDeactivatedBeforeEitherDestroy": true,
+  "helperDoesNotReadMutableSessionOrArena": true,
+  "staleReferenceIdentityGuardRetained": true,
+  "closeSessionOrder": [
+    "Session = null",
+    "old.StateChanged -=",
+    "Arena = null",
+    "DestroyOwnedArena(oldArena.gameObject)",
+    "Hud?.ShowMenu()",
+    "old?.Leave()"
+  ],
+  "directDestroyCallsExistOnlyInsideHelper": true,
+  "testExecution": false
+}

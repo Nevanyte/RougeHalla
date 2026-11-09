@@ -1,0 +1,136 @@
+{
+  "schema": "rh-launch-native-expected-v1",
+  "sourceCommit": "4ec547312dc9b7214bbf6a8e20a6ff7ed3f3ba3b",
+  "fixture": "MatchLaunchEditModeTests",
+  "methodCount": 14,
+  "expectedSelectors": 17,
+  "discoveredInUnity": false,
+  "executedInUnity": false,
+  "selectors": [
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "method": "MissingTrainingNeverFallsBackOrStartsAnOwnershipRequest",
+      "argumentsSource": null,
+      "status": "UNRUN"
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "method": "CrossOriginTrainingCannotSendOwnerCredentialsOrStartAClaim",
+      "argumentsSource": null,
+      "status": "UNRUN"
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "method": "SwitchingModeWhileOwnerReplyIsDeferredInvalidatesTheOldIntent",
+      "argumentsSource": null,
+      "status": "UNRUN"
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "method": "RapidModeChangesOnlyConnectTheCurrentOwnerIntentToItsCapturedTarget",
+      "argumentsSource": null,
+      "status": "UNRUN"
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "method": "EditingTrainingTargetDuringOwnerRequestCannotUseItsCapturedToken",
+      "argumentsSource": null,
+      "status": "UNRUN"
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "method": "SynchronousFactionCancellationCannotOverwriteOrRelaunchANewerMode",
+      "argumentsSource": null,
+      "status": "UNRUN"
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "method": "LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation",
+      "argumentsSource": "false",
+      "status": "UNRUN"
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "method": "LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation",
+      "argumentsSource": "true",
+      "status": "UNRUN"
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "method": "OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot",
+      "argumentsSource": "MatchLaunchMode.Arena, false",
+      "status": "UNRUN"
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "method": "OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot",
+      "argumentsSource": "MatchLaunchMode.Training, true",
+      "status": "UNRUN"
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "method": "WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput",
+      "argumentsSource": "MatchLaunchMode.Arena, true",
+      "status": "UNRUN"
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "method": "WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput",
+      "argumentsSource": "MatchLaunchMode.Training, false",
+      "status": "UNRUN"
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "method": "ReconnectWelcomeRevokesConfirmationAndRequiresANewMatchingFact",
+      "argumentsSource": null,
+      "status": "UNRUN"
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "method": "RetiredCallbacksCannotResetOrRefuseANewerSession",
+      "argumentsSource": null,
+      "status": "UNRUN"
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "method": "ReentrantLeaveCallbackCannotHaveItsReplacementCancelledOrArenaDestroyed",
+      "argumentsSource": null,
+      "status": "UNRUN"
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "method": "PendingMenuAndPracticeCopyFollowDeliveredFactAndPlayAgainPreservesTraining",
+      "argumentsSource": null,
+      "status": "UNRUN"
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "method": "EndingBeforeTheFirstModeFactUnlocksRecoveryAndLeavePermitsAnotherDestination",
+      "argumentsSource": null,
+      "status": "UNRUN"
+    }
+  ],
+  "originalNativeTestFiles": [
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/QuestJournalViewEditModeTests.cs",
+      "sha256": "a227e72035a95c76998a8e715eea197e54bf28de37ade69998404830186a9508",
+      "unchangedFromBase": true
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/TraderDialogViewEditModeTests.cs",
+      "sha256": "74f08af89ac872699567c2fe7ecc5451bdc3ffa94f6df48ec60abda813bb66cb",
+      "unchangedFromBase": true
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/PlayerFlowsEditModeTests.cs",
+      "sha256": "d3b75829d5fb35708b328eeaa95d3975c0369cc287195db330dfbe2a7bb11c26",
+      "unchangedFromBase": true
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/MatchClientAccountBindingEditModeTests.cs",
+      "sha256": "ecde6696a981499a3a206cd333d3dfeb7a4061c5e1e345f2b4911ef4022b45f2",
+      "unchangedFromBase": true
+    }
+  ],
+  "limits": "Source-derived expected cases only. Deferred cancellation cases await the actual private JoinOwned worker for deterministic completion; separate cases exercise public Join dispatch, owner Hello, menu and decoded Session. No Unity engine or actual backend/browser proof follows from source compile."
+}

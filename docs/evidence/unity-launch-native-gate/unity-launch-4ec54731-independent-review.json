@@ -1,0 +1,20 @@
+{
+  "decision": "SOURCE_RELEASE",
+  "purpose": "Root composition before separately required native42 gate",
+  "source": "4ec547312dc9b7214bbf6a8e20a6ff7ed3f3ba3b",
+  "evidence": "554ca4f59ecf75e5ad2d2761ce1ff5b5408d7dfb",
+  "base": "a0c4818ce9df8ad0f4124db31e65ba1244bddc3b",
+  "manifest_sha256": "322b6d5d2feb46db6c7f7e0e461465953ef6db2f3045b959f2b8cfecba01989b",
+  "verified_source_paths": 12,
+  "verified_payloads": 10,
+  "verified_payload_bytes": 100611,
+  "verified_protected_paths": 12,
+  "verified_unchanged_native_test_files": 4,
+  "final_recorded_pure_tests": 768,
+  "new_pure_cases": 16,
+  "new_native_methods": 14,
+  "new_native_selectors": 17,
+  "native_execution": "UNRUN",
+  "reviewer_engine_build_or_tests_ran": false,
+  "report_sha256": "efcfbd7610caf07773389290a58d3a957df5d1f9983283ba02fda4fd0a3fd999"
+}

@@ -1,0 +1,22 @@
+{
+  "schema": "rh-launch-fixture-repair-seal-v1",
+  "generatedUtc": "2026-11-09T09:52:39.887077+00:00",
+  "correctiveCode": "9398ce232fcf8774ebd84a60cb7abefafd9e9a77",
+  "onlyFixtureCodeChanged": true,
+  "old25ByteIdenticalToFailed9c": true,
+  "same17SourceSelectors": true,
+  "nativeTestGuidUnchanged": true,
+  "oldActual42Status": "FAIL 30passed/12failed",
+  "correctedActual42": "UNRUN",
+  "rawFailedNativeFixtureSha256": "abcb7c26ffb1c078a7b83b61b22937b8f6c82ab01a23a07f62fa2261afc7d818",
+  "rawFailedSource1140Count": 1140,
+  "knownPublicSecretMatches": 0,
+  "privateFilesCopied": false,
+  "authorEditorRuns": 0,
+  "authorNativeReruns": 0,
+  "authorPlaySessions": 0,
+  "authorBrowserRuns": 0,
+  "authorWebRebuilds": 0,
+  "authorGameServers": 0,
+  "requiredNextStep": "Root review then one independently assigned fresh42engine gate"
+}

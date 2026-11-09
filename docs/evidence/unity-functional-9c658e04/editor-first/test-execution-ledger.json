@@ -1,0 +1,361 @@
+{
+  "source": "9c658e049d4b4e77118004d481349d1523e2ded4",
+  "status": "FAIL",
+  "executed": 42,
+  "passed": 30,
+  "failed": 12,
+  "skipped": 0,
+  "unrun": 0,
+  "extra": 0,
+  "mvid": "5060c178-6253-4a15-a153-f5615131d3c5",
+  "groups": [
+    {
+      "fixture": "QuestJournalViewEditModeTests",
+      "raw": "tests-QuestJournalViewEditModeTests.json",
+      "sha256": "30775ac6822b41875c52b72d25fb6937adf4929b6036749066b759478d723e2b",
+      "summary": {
+        "Total": 8,
+        "Passed": 8,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      }
+    },
+    {
+      "fixture": "TraderDialogViewEditModeTests",
+      "raw": "tests-TraderDialogViewEditModeTests.json",
+      "sha256": "aa0232743e555d1344c10d18e9425fcd72700d2dea22a24cd080a94e9f46ef3e",
+      "summary": {
+        "Total": 6,
+        "Passed": 6,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      }
+    },
+    {
+      "fixture": "PlayerFlowsEditModeTests",
+      "raw": "tests-PlayerFlowsEditModeTests.json",
+      "sha256": "5e6dc96184de8ca71604ea5ec986b8f347305f41e2b0393a2e63f1233a9617e6",
+      "summary": {
+        "Total": 11,
+        "Passed": 11,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      }
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "raw": "tests-MatchLaunchEditModeTests.json",
+      "sha256": "abcb7c26ffb1c078a7b83b61b22937b8f6c82ab01a23a07f62fa2261afc7d818",
+      "summary": {
+        "Total": 17,
+        "Passed": 5,
+        "Failed": 12,
+        "Skipped": 0,
+        "Inconclusive": 0
+      }
+    }
+  ],
+  "new17BindingsPreserved": true,
+  "retries": 0,
+  "playSessions": 0,
+  "failureObservedAfterLastGroupCompleted": true,
+  "results": [
+    {
+      "FullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.AcceptUsesCurrentHandleAndFreshCanAcceptThenSessionBatchesOnlyThatIntent",
+      "Status": "Passed",
+      "Duration": 0.2639431,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.MaximumLengthServerStringsRemainVerbatimInScrollableFixedSizeTextFields",
+      "Status": "Passed",
+      "Duration": 0.0161922,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.MetadataReplacementPreservesScrollPositionWhenRowsOverflowViewport",
+      "Status": "Passed",
+      "Duration": 0.0113693,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.OldAcceptTrackAndRowCallbacksCannotActAfterReplacementBeforeRefresh",
+      "Status": "Passed",
+      "Duration": 0.0075404,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.OldSessionCallbacksAndRemovedRowsCannotAcceptAfterRebindWelcomeOrDisconnect",
+      "Status": "Passed",
+      "Duration": 0.0070278,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.ReplacementPreservesSelectedHandleAndScrollButClearsRemovedSelectionAndTracking",
+      "Status": "Passed",
+      "Duration": 0.0068204,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.SelectedParticipantsUseTypedRosterIdsKeepDuplicateLabelsAndClearOnReplacementOrRebind",
+      "Status": "Passed",
+      "Duration": 0.0074736,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.UnseenUnavailableAndAvailableEmptyAreDistinctAndRowsPreserveExactServerText",
+      "Status": "Passed",
+      "Duration": 0.0066832,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.CurrentOptionsQueueEveryOrdinaryStatPickAndMetadataReplacementInvalidatesOldCallbacks",
+      "Status": "Passed",
+      "Duration": 0.0326193,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.DisconnectAndResumedWelcomeInvalidateOldRowsAndDropQueuedTradeInput",
+      "Status": "Passed",
+      "Duration": 0.0056952,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.DuplicateMerchantRowsLabelsAndSignedStatDeltasRenderInSourceOrder",
+      "Status": "Passed",
+      "Duration": 0.0289124,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.MissingUnavailableAndAvailableEmptyTradeViewsStayDistinctAndOpeningIsReadOnly",
+      "Status": "Passed",
+      "Duration": 0.0023963,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.RebindingAnUnseenSessionClearsMerchantChoicesAndPendingCopyImmediately",
+      "Status": "Passed",
+      "Duration": 0.005636,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.StatUsedBlocksOnlyStatTradeWhileBarterPicksAreSentAsOrdinaryInput",
+      "Status": "Passed",
+      "Duration": 0.0062905,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.DeliveredMapPointsReplaceWithoutActorFabricationOrNameDeduplication",
+      "Status": "Passed",
+      "Duration": 0.2453193,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.InFlightOldSessionNoticeCallbackCannotAppendAfterRebind",
+      "Status": "Passed",
+      "Duration": 0.1192138,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.InFlightSameSessionNoticeCallbackCannotCrossSourceClockCutAndNewEpochKeepsDuplicates",
+      "Status": "Passed",
+      "Duration": 0.118038,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.JournalKeyboardOwnsSimultaneousMapAndWorldKeysAndRespectsExistingModals",
+      "Status": "Passed",
+      "Duration": 0.13203,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.MalformedFrameRetainsCanonicalViewButInvalidQuestItemReferenceFailsAndDisablesActions",
+      "Status": "Passed",
+      "Duration": 0.1187725,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.OrdinaryMixedQuestTradeQueueSplitsAtSixteenWithoutUiGeneratedCommands",
+      "Status": "Passed",
+      "Duration": 0.1203676,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningJournalDropAndResumedWelcomeClearRowsAndRestoreMapInput",
+      "Status": "Passed",
+      "Duration": 0.1382981,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningJournalRespectsSettingsAndFocusedTextEntry",
+      "Status": "Passed",
+      "Duration": 0.1280312,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningPreviewRetiresDeferredAcceptAndWaitsForFreshNativePermission",
+      "Status": "Passed",
+      "Duration": 0.1290621,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningQuestReviewPreservesMapChoicesAndFocusWhileBlockingOtherPagesAndWorldKeys",
+      "Status": "Passed",
+      "Duration": 0.1376104,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.ReceivedNoticeOrderIncludesDuplicatesAndResumeClearsBeforeNewBatch",
+      "Status": "Passed",
+      "Duration": 0.1305318,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "MatchLaunchEditModeTests.CrossOriginTrainingCannotSendOwnerCredentialsOrStartAClaim",
+      "Status": "Passed",
+      "Duration": 0.0039607,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "MatchLaunchEditModeTests.EditingTrainingTargetDuringOwnerRequestCannotUseItsCapturedToken",
+      "Status": "Failed",
+      "Duration": 0.2965783,
+      "Message": "  Expected: String containing \"connection changed\"\n  But was:  <string.Empty>\n",
+      "StackTrace": "at MatchLaunchEditModeTests.EditingTrainingTargetDuringOwnerRequestCannotUseItsCapturedToken () [0x000ca] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/MatchLaunchEditModeTests.cs:176\nat UnityEngine.TestTools.TestRunner.TestTaskWrapper+<Execute>d__2.MoveNext () [0x00063] in ./Library/PackageCache/com.unity.test-framework@082c24152fd4/UnityEngine.TestRunner/TestRunner/TestTaskWrapper.cs:31\nat UnityEngine.TestTools.TestEnumerator+<Execute>d__7.MoveNext () [0x0003a] in ./Library/PackageCache/com.unity.test-framework@082c24152fd4/UnityEngine.TestRunner/NUnitExtensions/Attributes/TestEnumerator.cs:44\n"
+    },
+    {
+      "FullName": "MatchLaunchEditModeTests.EndingBeforeTheFirstModeFactUnlocksRecoveryAndLeavePermitsAnotherDestination",
+      "Status": "Failed",
+      "Duration": 0.1106158,
+      "Message": "System.InvalidOperationException : Sequence contains no elements",
+      "StackTrace": "  at System.Linq.Enumerable.Last[TSource] (System.Collections.Generic.IEnumerable`1[T] source) [0x00010] in <aad5a7aee883439687a1dfee88f757ca>:0 \n  at MatchLaunchEditModeTests+Fixture.Welcome () [0x00000] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/MatchLaunchEditModeTests.cs:100 \n  at MatchLaunchEditModeTests.EndingBeforeTheFirstModeFactUnlocksRecoveryAndLeavePermitsAnotherDestination () [0x00014] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/MatchLaunchEditModeTests.cs:315 \n  at (wrapper managed-to-native) System.Reflection.RuntimeMethodInfo.InternalInvoke(System.Reflection.RuntimeMethodInfo,object,object[],System.Exception&)\n  at System.Reflection.RuntimeMethodInfo.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x0006a] in <a5b04fdd22cd4a3e97368c21b1fd2d9d>:0 "
+    },
+    {
+      "FullName": "MatchLaunchEditModeTests.LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation(False)",
+      "Status": "Passed",
+      "Duration": 0.300721,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "MatchLaunchEditModeTests.LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation(True)",
+      "Status": "Passed",
+      "Duration": 0.2998754,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "MatchLaunchEditModeTests.MissingTrainingNeverFallsBackOrStartsAnOwnershipRequest",
+      "Status": "Passed",
+      "Duration": 0.0006994,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "MatchLaunchEditModeTests.OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot(Arena,False)",
+      "Status": "Failed",
+      "Duration": 0.0021694,
+      "Message": "  Expected: property Count equal to 1\n  But was:  0\n",
+      "StackTrace": "at MatchLaunchEditModeTests.OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot (Roguehalla.Net.MatchLaunchMode mode, System.Boolean training) [0x0000e] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/MatchLaunchEditModeTests.cs:216\n"
+    },
+    {
+      "FullName": "MatchLaunchEditModeTests.OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot(Training,True)",
+      "Status": "Failed",
+      "Duration": 0.0003518,
+      "Message": "  Expected: property Count equal to 1\n  But was:  0\n",
+      "StackTrace": "at MatchLaunchEditModeTests.OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot (Roguehalla.Net.MatchLaunchMode mode, System.Boolean training) [0x0000e] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/MatchLaunchEditModeTests.cs:216\n"
+    },
+    {
+      "FullName": "MatchLaunchEditModeTests.PendingMenuAndPracticeCopyFollowDeliveredFactAndPlayAgainPreservesTraining",
+      "Status": "Failed",
+      "Duration": 0.1112233,
+      "Message": "System.InvalidOperationException : Sequence contains no elements",
+      "StackTrace": "  at System.Linq.Enumerable.Last[TSource] (System.Collections.Generic.IEnumerable`1[T] source) [0x00010] in <aad5a7aee883439687a1dfee88f757ca>:0 \n  at MatchLaunchEditModeTests+Fixture.Welcome () [0x00000] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/MatchLaunchEditModeTests.cs:100 \n  at MatchLaunchEditModeTests.PendingMenuAndPracticeCopyFollowDeliveredFactAndPlayAgainPreservesTraining () [0x00014] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/MatchLaunchEditModeTests.cs:293 \n  at (wrapper managed-to-native) System.Reflection.RuntimeMethodInfo.InternalInvoke(System.Reflection.RuntimeMethodInfo,object,object[],System.Exception&)\n  at System.Reflection.RuntimeMethodInfo.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x0006a] in <a5b04fdd22cd4a3e97368c21b1fd2d9d>:0 "
+    },
+    {
+      "FullName": "MatchLaunchEditModeTests.RapidModeChangesOnlyConnectTheCurrentOwnerIntentToItsCapturedTarget",
+      "Status": "Failed",
+      "Duration": 0.2865123,
+      "Message": "System.ArgumentOutOfRangeException : Index was out of range. Must be non-negative and less than the size of the collection.\nParameter name: index",
+      "StackTrace": "  at System.Collections.Generic.List`1[T].get_Item (System.Int32 index) [0x00009] in <a5b04fdd22cd4a3e97368c21b1fd2d9d>:0 \n  at MatchLaunchEditModeTests.RapidModeChangesOnlyConnectTheCurrentOwnerIntentToItsCapturedTarget () [0x000f6] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/MatchLaunchEditModeTests.cs:165 \n  at UnityEngine.TestTools.TestRunner.TestTaskWrapper+<Execute>d__2.MoveNext () [0x00063] in ./Library/PackageCache/com.unity.test-framework@082c24152fd4/UnityEngine.TestRunner/TestRunner/TestTaskWrapper.cs:31 \n  at UnityEngine.TestTools.TestEnumerator+<Execute>d__7.MoveNext () [0x0003a] in ./Library/PackageCache/com.unity.test-framework@082c24152fd4/UnityEngine.TestRunner/NUnitExtensions/Attributes/TestEnumerator.cs:44 "
+    },
+    {
+      "FullName": "MatchLaunchEditModeTests.ReconnectWelcomeRevokesConfirmationAndRequiresANewMatchingFact",
+      "Status": "Failed",
+      "Duration": 0.0004687,
+      "Message": "System.InvalidOperationException : Sequence contains no elements",
+      "StackTrace": "  at System.Linq.Enumerable.Last[TSource] (System.Collections.Generic.IEnumerable`1[T] source) [0x00010] in <aad5a7aee883439687a1dfee88f757ca>:0 \n  at MatchLaunchEditModeTests+Fixture.Welcome () [0x00000] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/MatchLaunchEditModeTests.cs:100 \n  at MatchLaunchEditModeTests.ReconnectWelcomeRevokesConfirmationAndRequiresANewMatchingFact () [0x0000e] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/MatchLaunchEditModeTests.cs:248 \n  at (wrapper managed-to-native) System.Reflection.RuntimeMethodInfo.InternalInvoke(System.Reflection.RuntimeMethodInfo,object,object[],System.Exception&)\n  at System.Reflection.RuntimeMethodInfo.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x0006a] in <a5b04fdd22cd4a3e97368c21b1fd2d9d>:0 "
+    },
+    {
+      "FullName": "MatchLaunchEditModeTests.ReentrantLeaveCallbackCannotHaveItsReplacementCancelledOrArenaDestroyed",
+      "Status": "Failed",
+      "Duration": 0.000336,
+      "Message": "System.InvalidOperationException : Sequence contains no elements",
+      "StackTrace": "  at System.Linq.Enumerable.Last[TSource] (System.Collections.Generic.IEnumerable`1[T] source) [0x00010] in <aad5a7aee883439687a1dfee88f757ca>:0 \n  at MatchLaunchEditModeTests+Fixture.Welcome () [0x00000] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/MatchLaunchEditModeTests.cs:100 \n  at MatchLaunchEditModeTests.ReentrantLeaveCallbackCannotHaveItsReplacementCancelledOrArenaDestroyed () [0x0001e] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/MatchLaunchEditModeTests.cs:279 \n  at (wrapper managed-to-native) System.Reflection.RuntimeMethodInfo.InternalInvoke(System.Reflection.RuntimeMethodInfo,object,object[],System.Exception&)\n  at System.Reflection.RuntimeMethodInfo.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x0006a] in <a5b04fdd22cd4a3e97368c21b1fd2d9d>:0 "
+    },
+    {
+      "FullName": "MatchLaunchEditModeTests.RetiredCallbacksCannotResetOrRefuseANewerSession",
+      "Status": "Failed",
+      "Duration": 0.0002338,
+      "Message": "System.InvalidOperationException : Sequence contains no elements",
+      "StackTrace": "  at System.Linq.Enumerable.Last[TSource] (System.Collections.Generic.IEnumerable`1[T] source) [0x00010] in <aad5a7aee883439687a1dfee88f757ca>:0 \n  at MatchLaunchEditModeTests+Fixture.Welcome () [0x00000] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/MatchLaunchEditModeTests.cs:100 \n  at MatchLaunchEditModeTests.RetiredCallbacksCannotResetOrRefuseANewerSession () [0x0000e] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/MatchLaunchEditModeTests.cs:262 \n  at (wrapper managed-to-native) System.Reflection.RuntimeMethodInfo.InternalInvoke(System.Reflection.RuntimeMethodInfo,object,object[],System.Exception&)\n  at System.Reflection.RuntimeMethodInfo.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x0006a] in <a5b04fdd22cd4a3e97368c21b1fd2d9d>:0 "
+    },
+    {
+      "FullName": "MatchLaunchEditModeTests.SwitchingModeWhileOwnerReplyIsDeferredInvalidatesTheOldIntent",
+      "Status": "Passed",
+      "Duration": 0.2971542,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "MatchLaunchEditModeTests.SynchronousFactionCancellationCannotOverwriteOrRelaunchANewerMode",
+      "Status": "Failed",
+      "Duration": 0.3009353,
+      "Message": "  Expected: property Count equal to 1\n  But was:  0\n",
+      "StackTrace": "at MatchLaunchEditModeTests.SynchronousFactionCancellationCannotOverwriteOrRelaunchANewerMode () [0x0013a] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/MatchLaunchEditModeTests.cs:193\nat UnityEngine.TestTools.TestRunner.TestTaskWrapper+<Execute>d__2.MoveNext () [0x00063] in ./Library/PackageCache/com.unity.test-framework@082c24152fd4/UnityEngine.TestRunner/TestRunner/TestTaskWrapper.cs:31\nat UnityEngine.TestTools.TestEnumerator+<Execute>d__7.MoveNext () [0x0003a] in ./Library/PackageCache/com.unity.test-framework@082c24152fd4/UnityEngine.TestRunner/NUnitExtensions/Attributes/TestEnumerator.cs:44\n"
+    },
+    {
+      "FullName": "MatchLaunchEditModeTests.WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput(Arena,True)",
+      "Status": "Failed",
+      "Duration": 0.0007583,
+      "Message": "System.InvalidOperationException : Sequence contains no elements",
+      "StackTrace": "  at System.Linq.Enumerable.Last[TSource] (System.Collections.Generic.IEnumerable`1[T] source) [0x00010] in <aad5a7aee883439687a1dfee88f757ca>:0 \n  at MatchLaunchEditModeTests+Fixture.Welcome () [0x00000] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/MatchLaunchEditModeTests.cs:100 \n  at MatchLaunchEditModeTests.WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput (Roguehalla.Net.MatchLaunchMode mode, System.Boolean deliveredTraining) [0x0000e] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/MatchLaunchEditModeTests.cs:236 \n  at (wrapper managed-to-native) System.Reflection.RuntimeMethodInfo.InternalInvoke(System.Reflection.RuntimeMethodInfo,object,object[],System.Exception&)\n  at System.Reflection.RuntimeMethodInfo.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x0006a] in <a5b04fdd22cd4a3e97368c21b1fd2d9d>:0 "
+    },
+    {
+      "FullName": "MatchLaunchEditModeTests.WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput(Training,False)",
+      "Status": "Failed",
+      "Duration": 0.0002045,
+      "Message": "System.InvalidOperationException : Sequence contains no elements",
+      "StackTrace": "  at System.Linq.Enumerable.Last[TSource] (System.Collections.Generic.IEnumerable`1[T] source) [0x00010] in <aad5a7aee883439687a1dfee88f757ca>:0 \n  at MatchLaunchEditModeTests+Fixture.Welcome () [0x00000] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/MatchLaunchEditModeTests.cs:100 \n  at MatchLaunchEditModeTests.WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput (Roguehalla.Net.MatchLaunchMode mode, System.Boolean deliveredTraining) [0x0000e] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/MatchLaunchEditModeTests.cs:236 \n  at (wrapper managed-to-native) System.Reflection.RuntimeMethodInfo.InternalInvoke(System.Reflection.RuntimeMethodInfo,object,object[],System.Exception&)\n  at System.Reflection.RuntimeMethodInfo.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x0006a] in <a5b04fdd22cd4a3e97368c21b1fd2d9d>:0 "
+    }
+  ]
+}

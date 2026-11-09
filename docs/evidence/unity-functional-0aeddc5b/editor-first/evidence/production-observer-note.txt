@@ -1,0 +1,2 @@
+First read-only own-method IL observer failed formatting a zero-length operand at final ret (BitConverter startIndex at byte-array end). Failed source/result retained, formatter corrected to empty text for zero-length operands. Second observation succeeded. No method invocation, source/test edit, discovery rerun or test execution occurred.
+Coordinator clarified retained test MVID is allowed for byte-identical fixtures; the prior orchestration-only uniqueness assumption was removed with old verifier source retained.
