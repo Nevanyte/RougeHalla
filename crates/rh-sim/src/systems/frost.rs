@@ -2810,6 +2810,14 @@ mod tests {
         sim.step();
         let frost = sim.w.players[0].core.id;
         let plague = sim.w.players[1].core.id;
+        // Trusted native fixture grant, not an ordinary reward-acquisition or source-parity claim.
+        // The fresh 76-HP zombie dies to this Bow hit; the real max-HP fold lets it survive and be chilled.
+        assert!(crate::cards::grant(
+            &sim.k,
+            &mut sim.w,
+            plague,
+            crate::cards::CardId::Vitality1,
+        ));
         crate::systems::plague_zombies::raise_or_grow(&sim.k, &mut sim.w, plague);
         let zombie =
             crate::systems::plague_zombies::zombie_of(&sim.w, plague).expect("owned zombie");
