@@ -4,36 +4,50 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
-## November 8 accepted-frame candidate (private integration)
+## Reviewed protocol14 wrap-up checkpoint (2026-11-09 UTC)
 
-The lead's reviewed private integration now uses **protocol 14 / checkpoint 28 / replay 22 / observation 21 / policy 15 /
-content `643d294869db55a4`**. Public `optimization_port` remains at `d2ca1376` until its integration gate and provenance
-chain pass. The private combined branch is `codex/protocol14-client-union`; do not infer deployment from its code.
+This checkpoint supersedes the versions and pending descriptions below. The composed code identifies **protocol14 /
+checkpoint28 / replay22 / observation21 / policy15 / content `643d294869db55a4`**. The lead owns integration into
+`optimization_port`; a development checkpoint is not a hosted release. Exact source cuts, raw outcomes and independent
+reviews are retained in the [composition receipt](evidence/root-final14-composition/README.md).
 
-Typed neutral quest givers, ordered NPC Frost sources, Sentenced NPC/group combat and all 63 strict source cases are
-composed. The actual Overkill threshold is registered without changing its behavior; checkpoint/replay and observation/
-policy predecessor refusals pass. The [native identity receipt](evidence/native28-admission/README.md) records21 content,
-6 checkpoint,6 replay,136 policy and the source 63/derived-tape checks with separate scopes. The old 58-case native tape is
-now regenerated only after genuine source comparison; captured legacy outputs remain unchanged.
+Typed neutral quest givers, ordered NPC Frost sources, Sentenced NPC/group combat and all63 strict source cases are
+composed. The actual Overkill threshold is registered without changing its arithmetic; strict predecessor refusals and
+source-derived native tape checks pass. [Native identity admission](evidence/native28-admission/README.md) retains the
+original checks. Owner combat and complete quest/trader metadata use the reviewed eleven-key Rust/C#/JS transport.
+HumanBot consumes accepted decoded public frames; pre-accept failures preserve staged publication and panicked/refused
+fallback proposals are discarded. Session affinity prevents cross-session NPC-reference equality, not NPC continuity.
 
-Owner combat and complete quest/trader metadata have reviewed Rust/C#/JS transport. The [Trade/Quest receipt](evidence/trade-quest14/README.md)
-binds the exact candidate,113 protocol,747 C# and49,311 JS checks. HumanBot now consumes accepted reconstructed public
-frames in both sync and actual async intake; refused/panicked fallback outputs are discarded and NPC references carry
-opaque local session affinity. Raw compatibility policies are explicitly separate. Normal fight/orbwalk/source RNG,
-reflexes, stable NPC hunt continuity, loot executors and tournament outcome parity remain incomplete.
+The frozen e2 workspace run completed1928 passes/1 failure/11 ignored. The sole failure was an obsolete raw-callback
+headless test. Its independently reviewed accepted-history replacement passes the full3-test target at43e6d08d; the
+new two-case quest consumer passes there too. The remaining gates pass: postgres-feature server349passed/3ignored and placement236passed/0ignored,
+strict all-target workspace lint with all features and with defaults, fmt,109 compared slice scenarios and300
+path queries MATCH (13 additional cases are capture-only), and a bounded eight-player full-map headless smoke. Both test PostgreSQL clusters used durable settings
+and were stopped. The original red run remains explicit; this is not a claim that a second complete workspace run was
+performed. Branch CI is the final composed-tree gate. C# net752/752 and JS49,311 checks pass; the protected provenance
+chain is admitted and the new source witnesses are wired into CI without changing captured expected gameplay.
 
-Unity wrap-up caught genuine hidden-control Join, cosmetics retirement/retry and recovery-selection faults. Fixes are
-reviewed, but the [719 retake](evidence/unity-combined-719cc2/editor-retake/README.md) stopped at 23/25 executed with 2 cosmetics
-failures and 9 remaining cases unrun; the latest retry repair is not yet a native pass. Rendered drawer routing and the
-original cyan failure remain held under [their explicit proof contract](ui/DRAWER_PROOF_CONTEXT.md). New journal/trader/
-ordered-notice UI is an isolated active task. Prepared assets are separate from live/render/audio acceptance.
+Live bot reset streams0/1/2 now match source with independent Knowledge3. The exact135-frame farm/mirror consumer and
+native quest cases0/4 (including reached end closure and foreign-row privacy) are reviewed and integrated. The new
+[normal-fight/orb source witness](evidence/bot-fight/README.md) is source-only:16 tactics sequences/47 frames,6 orb
+sequences/20 frames and90 timing probes. The separately reviewed ownTimings helper now matches90 timing rows and6 nulls in three focused tests; it does not activate live fight. Native fight/Orb components are active work. Full reflexes require reviewed remote
+Bow/Wand cues, projectile course/identity and own immunity facts; stable NPC hunt memory needs an explicit public
+continuity contract. Root chose complete required fact publication, not a restricted bot subset as completion. Full
+strategy/reflex/perception/hunter/loot/learning/tournament-outcome acceptance remains open.
 
-The final protected browser provenance overlay and full integration/PG gates are active. BakedContent and a matching
-Web build, real player/account flows, bank receipts, durable Calgary hosting under the total CAD20 cap, regional and
-matched legacy performance remain open. Production play.roguehalla.com remains outside the staging scope; practice
-rougehalla.com is the authorized domain. No 60 FPS goal or cap is introduced. Older counts/versions below remain historical.
+The quest journal, trader dialog, ordered duplicate notice feed and delivered-only map markers passed all20 actual
+engine selectors at43e6d08d ([receipt](evidence/unity-player-flows-43e6d08d/editor-retake/README.md)). Earlier recovery2
+and binding4 passes keep their own exact scopes. Opening views does not spend or invent server rules. Same-session
+clock cuts and rebinds fence stale callbacks. BakedContent is generated from a real loopback server /info and now
+matches643d294869db55a4; a matching new Web build and actual browser/account/banking flows remain required.
 
-## Consolidated working checkpoint (2026-11-08)
+Visual acceptance is held: b4's player loop did not advance past frame1 and produced no PNG; that does not explain or
+clear f5's earlier real cyan drawer capture. See the [rendered proof contract](ui/DRAWER_PROOF_CONTEXT.md) and the retained
+readiness diagnosis. Prepared assets remain separate; audio sample-rate acceptance is unresolved. Durable Calgary
+hosting within the TOTAL CAD20 cap, regional tests and the matched legacy performance comparison remain open.
+Production play.roguehalla.com is unchanged; practice rougehalla.com is authorized. No60FPS goal/cap is introduced.
+
+## Previous consolidated checkpoint (2026-11-08; historical)
 
 This checkpoint supersedes the older implementation identities and status descriptions below. **The full port is still
 in progress.** The owner requested repository consolidation after parallel DeepSeek, Kimi and Cursor work, appointed

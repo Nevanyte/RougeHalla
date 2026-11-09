@@ -1,0 +1,128 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/crates/rh-sim)
+   Compiling rh-parity v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/crates/rh-parity)
+    Finished `dev` profile [unoptimized] target(s) in 9.85s
+     Running `/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/parity-report`
+axe_duel               capture-only (100 ticks): not in the Rust slice yet
+axe_shred_stack        legacy 50bb06a79b14 | ticks  475 events   126 results 2 | max pos err 0.00e0 hp err 5.00e-7 | MATCH
+ball_vs_arrow          legacy 120ecd9377cb | ticks   96 events    28 results 0 | max pos err 0.00e0 hp err 4.27e-7 | MATCH
+bow_duel               legacy 120ecd9377cb | ticks   96 events    32 results 0 | max pos err 0.00e0 hp err 4.29e-7 | MATCH
+bow_wand_capture       capture-only (727 ticks): not in the Rust slice yet
+bow_wand_lock_combat   legacy fcfb4d09f077 | ticks  727 events   240 results 2 | max pos err 0.00e0 hp err 4.54e-7 | MATCH
+coliseum_sudden_death  capture-only (198 ticks): not in the Rust slice yet
+corpse_death_auto_raise legacy unknown | ticks   90 events    40 results 1 | max pos err 0.00e0 hp err 0.00e0 | MATCH
+corpse_marker_persists_and_explicit_consume legacy unknown | ticks   60 events    29 results 1 | max pos err 0.00e0 hp err 4.94e-7 | MATCH
+corpse_zombie_assists_owner_target legacy unknown | ticks  110 events    95 results 1 | max pos err 0.00e0 hp err 4.98e-7 | MATCH
+crowded_8              legacy 50bb06a79b14 | ticks  901 events  1991 results 8 | max pos err 4.99e-7 hp err 4.94e-7 | MATCH
+drop_releases_trigger  legacy 50bb06a79b14 | ticks   60 events    21 results 0 | max pos err 0.00e0 hp err 4.44e-7 | MATCH
+duel_chase             legacy 50bb06a79b14 | ticks  716 events   521 results 2 | max pos err 5.00e-7 hp err 4.92e-7 | MATCH
+emblem_during_melee    capture-only (457 ticks): not in the Rust slice yet
+fire_plague_holy_windows legacy unknown | ticks   90 events   125 results 4 | max pos err 0.00e0 hp err 4.98e-7 | MATCH
+fire_projectile_requests legacy unknown | ticks  150 events    61 results 0 | max pos err 0.00e0 hp err 4.97e-7 | MATCH
+fire_roam_charge_burst legacy unknown | ticks  480 events    15 results 0 | max pos err 5.68e-14 hp err 4.95e-7 | MATCH
+fire_roam_ranged_arm   legacy unknown | ticks  470 events    12 results 0 | max pos err 0.00e0 hp err 4.98e-7 | MATCH
+fire_wand_pause        legacy unknown | ticks  150 events   100 results 0 | max pos err 0.00e0 hp err 4.97e-7 | MATCH
+fire_whiff_thirdparty  legacy unknown | ticks  150 events    83 results 0 | max pos err 0.00e0 hp err 4.99e-7 | MATCH
+fists_duel             legacy 50bb06a79b14 | ticks  280 events   168 results 2 | max pos err 0.00e0 hp err 4.94e-7 | MATCH
+frost_mixed_pause      legacy unknown | ticks  125 events   187 results 4 | max pos err 0.00e0 hp err 4.91e-7 | MATCH
+frost_multisource_thaw legacy unknown | ticks  340 events    49 results 0 | max pos err 4.98e-7 hp err 4.41e-7 | MATCH
+frost_ranged_splash    legacy unknown | ticks  170 events    12 results 1 | max pos err 6.82e-13 hp err 4.87e-7 | MATCH
+frost_reverse_asymmetric legacy unknown | ticks  190 events    22 results 0 | max pos err 0.00e0 hp err 4.92e-7 | MATCH
+frost_weapon_axe       legacy unknown | ticks  240 events    52 results 0 | max pos err 0.00e0 hp err 4.06e-7 | MATCH
+frost_weapon_bow       legacy unknown | ticks  240 events    50 results 0 | max pos err 0.00e0 hp err 4.92e-7 | MATCH
+frost_weapon_fists     legacy unknown | ticks  240 events    68 results 0 | max pos err 0.00e0 hp err 4.44e-7 | MATCH
+frost_weapon_shield    legacy unknown | ticks  240 events    74 results 0 | max pos err 0.00e0 hp err 4.79e-7 | MATCH
+frost_weapon_sword     legacy unknown | ticks  240 events    62 results 0 | max pos err 0.00e0 hp err 4.47e-7 | MATCH
+frost_weapon_wand      legacy unknown | ticks  240 events    51 results 0 | max pos err 0.00e0 hp err 3.83e-7 | MATCH
+holy_arrow_reflection  legacy e42f5d975e7e | ticks  150 events    91 results 0 | max pos err 0.00e0 hp err 4.84e-7 | MATCH
+holy_barrier_20        legacy e42f5d975e7e | ticks   85 events    74 results 0 | max pos err 0.00e0 hp err 4.90e-7 | MATCH
+holy_barrier_400       legacy e42f5d975e7e | ticks   85 events    56 results 0 | max pos err 0.00e0 hp err 4.94e-7 | MATCH
+holy_block_without_damage legacy e42f5d975e7e | ticks   60 events    22 results 0 | max pos err 0.00e0 hp err 4.32e-7 | MATCH
+holy_contact_forget    legacy e42f5d975e7e | ticks  240 events   121 results 0 | max pos err 0.00e0 hp err 3.74e-7 | MATCH
+holy_contact_tie_12    legacy e42f5d975e7e | ticks   65 events    35 results 0 | max pos err 0.00e0 hp err 4.70e-7 | MATCH
+holy_contact_tie_91    legacy e42f5d975e7e | ticks   65 events    35 results 0 | max pos err 0.00e0 hp err 4.70e-7 | MATCH
+holy_lethal_no_revive  legacy e42f5d975e7e | ticks    2 events    10 results 2 | max pos err 0.00e0 hp err 0.00e0 | MATCH
+holy_lifesteal_low_hp  legacy e42f5d975e7e | ticks  160 events   152 results 0 | max pos err 0.00e0 hp err 4.84e-7 | MATCH
+holy_overkill_clamp    legacy e42f5d975e7e | ticks    2 events     7 results 2 | max pos err 0.00e0 hp err 0.00e0 | MATCH
+holy_passive_then_active_retarget legacy e42f5d975e7e | ticks  120 events    64 results 0 | max pos err 0.00e0 hp err 4.63e-7 | MATCH
+holy_reach_low         legacy e42f5d975e7e | ticks  100 events    18 results 0 | max pos err 0.00e0 hp err 4.99e-7 | MATCH
+holy_sword_shield      legacy e42f5d975e7e | ticks  160 events   168 results 0 | max pos err 0.00e0 hp err 4.93e-7 | MATCH
+holy_wand_splash       legacy e42f5d975e7e | ticks  160 events    61 results 0 | max pos err 0.00e0 hp err 4.83e-7 | MATCH
+leave_mia              legacy 50bb06a79b14 | ticks  518 events   453 results 3 | max pos err 0.00e0 hp err 4.92e-7 | MATCH
+locked_cast_preserves_attackMove legacy fcfb4d09f077 | ticks   70 events     2 results 0 | max pos err 4.98e-7 hp err 0.00e0 | MATCH
+locked_cast_preserves_move legacy fcfb4d09f077 | ticks   70 events     3 results 0 | max pos err 4.99e-7 hp err 4.31e-7 | MATCH
+locked_cast_preserves_stop legacy fcfb4d09f077 | ticks   70 events     3 results 0 | max pos err 0.00e0 hp err 4.31e-7 | MATCH
+mob_camp               capture-only (4 ticks): not in the Rust slice yet
+movement_walls         legacy 50bb06a79b14 | ticks  220 events     0 results 0 | max pos err 4.99e-7 hp err 0.00e0 | MATCH
+nonwand_attack_move    legacy fcfb4d09f077 | ticks   70 events     0 results 0 | max pos err 0.00e0 hp err 0.00e0 | MATCH
+order_budget           legacy 50bb06a79b14 | ticks    4 events     0 results 0 | max pos err 0.00e0 hp err 0.00e0 | MATCH
+pickup_replace_drop    legacy 50bb06a79b14 | ticks  462 events   220 results 2 | max pos err 0.00e0 hp err 4.44e-7 | MATCH
+plague_departure_early_end legacy f4f387556969 | ticks    9 events     6 results 3 | max pos err 0.00e0 hp err 4.94e-7 | MATCH
+plague_multisource_lethal legacy f4f387556969 | ticks  140 events   293 results 4 | max pos err 0.00e0 hp err 4.98e-7 | MATCH
+plague_thresholds_swap legacy f4f387556969 | ticks  150 events   168 results 0 | max pos err 0.00e0 hp err 4.99e-7 | MATCH
+plague_wand_pause      legacy f4f387556969 | ticks  150 events    93 results 0 | max pos err 0.00e0 hp err 4.94e-7 | MATCH
+planning               capture-only (25 ticks): not in the Rust slice yet
+projectile_outlives_owner legacy 120ecd9377cb | ticks   18 events     5 results 3 | max pos err 0.00e0 hp err 0.00e0 | MATCH
+regen_clock            legacy unknown | ticks  200 events     3 results 0 | max pos err 0.00e0 hp err 4.47e-7 | MATCH
+rewind                 legacy 50bb06a79b14 | ticks   40 events     5 results 0 | max pos err 0.00e0 hp err 1.11e-7 | MATCH
+sentenced_block_reflection legacy unknown | ticks  240 events   202 results 0 | max pos err 0.00e0 hp err 4.98e-7 | MATCH
+sentenced_crowded_eight legacy unknown | ticks  260 events   792 results 0 | max pos err 0.00e0 hp err 4.98e-7 | MATCH
+sentenced_execute_barrier_no_pvp legacy unknown | ticks  220 events    54 results 1 | max pos err 0.00e0 hp err 4.90e-7 | MATCH
+sentenced_execute_denial legacy unknown | ticks  220 events    56 results 1 | max pos err 0.00e0 hp err 4.82e-7 | MATCH
+sentenced_frost_pause  legacy unknown | ticks  230 events   290 results 2 | max pos err 0.00e0 hp err 4.99e-7 | MATCH
+sentenced_hunt_hunter_death_clears legacy unknown | ticks   90 events    11 results 1 | max pos err 0.00e0 hp err 4.55e-7 | MATCH
+sentenced_hunt_mia_clears legacy unknown | ticks   70 events     2 results 1 | max pos err 0.00e0 hp err 0.00e0 | MATCH
+sentenced_hunt_run_end_clears legacy unknown | ticks   46 events    25 results 3 | max pos err 0.00e0 hp err 4.95e-7 | MATCH
+sentenced_hunt_select_and_death legacy unknown | ticks  170 events    58 results 1 | max pos err 0.00e0 hp err 4.95e-7 | MATCH
+sentenced_hunt_toward_move legacy unknown | ticks  150 events     1 results 0 | max pos err 1.02e-12 hp err 0.00e0 | MATCH
+sentenced_hunt_vision_exception legacy unknown | ticks    8 events     1 results 0 | max pos err 0.00e0 hp err 0.00e0 | MATCH
+sentenced_kill_stack_cap legacy unknown | ticks  310 events    59 results 6 | max pos err 2.27e-7 hp err 0.00e0 | MATCH
+sentenced_kills        legacy unknown | ticks  230 events    34 results 2 | max pos err 0.00e0 hp err 3.94e-7 | MATCH
+sentenced_leash_forget legacy unknown | ticks  510 events   118 results 0 | max pos err 0.00e0 hp err 4.80e-7 | MATCH
+sentenced_multisource  legacy unknown | ticks  180 events    89 results 1 | max pos err 0.00e0 hp err 4.87e-7 | MATCH
+sentenced_old_flights_multihit legacy unknown | ticks  140 events    35 results 0 | max pos err 0.00e0 hp err 3.62e-7 | MATCH
+sentenced_privacy_one_owner legacy unknown | ticks   41 events     8 results 0 | max pos err 4.77e-7 hp err 6.91e-9 | MATCH
+sentenced_privacy_two_owners legacy unknown | ticks   41 events     9 results 0 | max pos err 0.00e0 hp err 6.91e-9 | MATCH
+sentenced_privacy_two_reversed legacy unknown | ticks   41 events     9 results 0 | max pos err 0.00e0 hp err 6.91e-9 | MATCH
+sentenced_splash_contacts legacy unknown | ticks  260 events   126 results 0 | max pos err 0.00e0 hp err 4.79e-7 | MATCH
+sentenced_swaps_pickup legacy unknown | ticks  180 events    50 results 0 | max pos err 0.00e0 hp err 4.89e-7 | MATCH
+sentenced_terminal_mia legacy unknown | ticks   19 events     8 results 3 | max pos err 0.00e0 hp err 4.85e-7 | MATCH
+sentenced_weapon_axe   legacy unknown | ticks  320 events    90 results 0 | max pos err 0.00e0 hp err 4.94e-7 | MATCH
+sentenced_weapon_bow   legacy unknown | ticks  320 events    89 results 0 | max pos err 0.00e0 hp err 4.92e-7 | MATCH
+sentenced_weapon_fists legacy unknown | ticks  320 events   126 results 0 | max pos err 0.00e0 hp err 4.94e-7 | MATCH
+sentenced_weapon_shield legacy unknown | ticks  320 events    94 results 0 | max pos err 0.00e0 hp err 4.93e-7 | MATCH
+sentenced_weapon_sword legacy unknown | ticks  320 events   114 results 0 | max pos err 0.00e0 hp err 4.83e-7 | MATCH
+sentenced_weapon_wand  legacy unknown | ticks  320 events    98 results 0 | max pos err 0.00e0 hp err 4.87e-7 | MATCH
+shield_arrow_reflect   legacy 120ecd9377cb | ticks   96 events    38 results 0 | max pos err 0.00e0 hp err 4.36e-7 | MATCH
+shield_block_riposte   legacy 50bb06a79b14 | ticks  437 events   211 results 2 | max pos err 0.00e0 hp err 4.95e-7 | MATCH
+shield_duel            capture-only (100 ticks): not in the Rust slice yet
+signature_fire         capture-only (160 ticks): not in the Rust slice yet
+signature_frost        capture-only (160 ticks): not in the Rust slice yet
+signature_holy         legacy e42f5d975e7e | ticks  160 events   152 results 0 | max pos err 0.00e0 hp err 4.72e-7 | MATCH
+signature_plague       capture-only (160 ticks): not in the Rust slice yet
+signature_sentenced    capture-only (160 ticks): not in the Rust slice yet
+simultaneous_draw      legacy 50bb06a79b14 | ticks    2 events    10 results 2 | max pos err 0.00e0 hp err 0.00e0 | MATCH
+simultaneous_lethal    legacy 50bb06a79b14 | ticks    2 events    10 results 2 | max pos err 0.00e0 hp err 0.00e0 | MATCH
+swap_cooldown          legacy 50bb06a79b14 | ticks  410 events   138 results 2 | max pos err 0.00e0 hp err 5.00e-7 | MATCH
+swap_pickup            capture-only (100 ticks): not in the Rust slice yet
+sword_duel             capture-only (100 ticks): not in the Rust slice yet
+sword_stagger_cancel   legacy 50bb06a79b14 | ticks  457 events   230 results 2 | max pos err 0.00e0 hp err 4.80e-7 | MATCH
+sword_swing_ball       legacy 120ecd9377cb | ticks   96 events    35 results 0 | max pos err 0.00e0 hp err 4.38e-7 | MATCH
+sword_vs_fists         legacy 50bb06a79b14 | ticks  457 events   237 results 2 | max pos err 0.00e0 hp err 4.80e-7 | MATCH
+tie_kill_credit_17     legacy 50bb06a79b14 | ticks    8 events     9 results 1 | max pos err 0.00e0 hp err 5.15e-8 | MATCH
+tie_kill_credit_3      legacy 50bb06a79b14 | ticks    8 events     9 results 1 | max pos err 0.00e0 hp err 5.15e-8 | MATCH
+tie_kill_credit_41     legacy 50bb06a79b14 | ticks    8 events     9 results 1 | max pos err 0.00e0 hp err 5.15e-8 | MATCH
+tie_kill_credit_77     legacy 50bb06a79b14 | ticks    8 events     9 results 1 | max pos err 0.00e0 hp err 5.15e-8 | MATCH
+vision_bush_coliseum   legacy d8c4af9f01f6 | ticks   50 events     2 results 0 | max pos err 0.00e0 hp err 0.00e0 | MATCH
+vision_trail_wall      legacy d8c4af9f01f6 | ticks  670 events     0 results 0 | max pos err 4.94e-7 hp err 0.00e0 | MATCH
+wand_attack_move_acquire legacy fcfb4d09f077 | ticks   70 events     5 results 2 | max pos err 0.00e0 hp err 4.31e-7 | MATCH
+wand_attack_move_id_tie legacy fcfb4d09f077 | ticks   70 events    16 results 0 | max pos err 0.00e0 hp err 4.31e-7 | MATCH
+wand_duel              legacy 120ecd9377cb | ticks   96 events    40 results 0 | max pos err 0.00e0 hp err 4.31e-7 | MATCH
+wand_lock              legacy fcfb4d09f077 | ticks  100 events    12 results 0 | max pos err 4.54e-7 hp err 4.72e-7 | MATCH
+wand_lock_chase_wall   legacy fcfb4d09f077 | ticks  125 events    19 results 0 | max pos err 4.76e-7 hp err 4.31e-7 | MATCH
+wand_lock_los_grace    legacy fcfb4d09f077 | ticks  100 events     2 results 0 | max pos err 4.98e-7 hp err 0.00e0 | MATCH
+wand_lock_range_and_swap legacy fcfb4d09f077 | ticks   70 events    11 results 0 | max pos err 0.00e0 hp err 4.31e-7 | MATCH
+wand_lock_retarget     legacy fcfb4d09f077 | ticks   70 events    16 results 0 | max pos err 0.00e0 hp err 4.31e-7 | MATCH
+wand_path_search_throttle legacy fcfb4d09f077 | ticks   70 events     2 results 0 | max pos err 4.76e-7 hp err 0.00e0 | MATCH
+wand_splash_group      legacy 120ecd9377cb | ticks   96 events    26 results 0 | max pos err 0.00e0 hp err 4.83e-7 | MATCH
+pathfinding_seed1      300 queries | MATCH
+109 slice scenarios + 13 capture-only, 300 pathfinding queries: all MATCH

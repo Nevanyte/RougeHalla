@@ -1,0 +1,27 @@
+   Compiling tokio v1.54.1
+   Compiling ring v0.17.14
+   Compiling rustls v0.23.46
+   Compiling rustls-webpki v0.103.16
+   Compiling tokio-util v0.7.20
+   Compiling h2 v0.4.20
+   Compiling sqlx-core v0.8.6
+   Compiling tokio-stream v0.1.19
+   Compiling hyper v1.12.0
+   Compiling sqlx-postgres v0.8.6
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/protocol14-client-union/repo/crates/rh-sim)
+   Compiling sqlx-macros-core v0.8.6
+   Compiling sqlx-macros v0.8.6
+   Compiling hyper-util v0.1.21
+   Compiling sqlx v0.8.6
+   Compiling fs-err v3.3.2
+   Compiling tokio-tungstenite v0.29.0
+   Compiling tower v0.5.3
+   Compiling tokio-rustls v0.26.6
+   Compiling axum v0.8.9
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/protocol14-client-union/repo/crates/rh-policy)
+   Compiling rh-headless v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/protocol14-client-union/repo/crates/rh-headless)
+   Compiling axum-server v0.7.3
+   Compiling rcgen v0.13.2
+   Compiling rh-persist v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/protocol14-client-union/repo/crates/rh-persist)
+   Compiling rh-server v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/protocol14-client-union/repo/crates/rh-server)
+    Finished `dev` profile [unoptimized] target(s) in 19.00s

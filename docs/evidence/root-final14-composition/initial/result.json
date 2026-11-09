@@ -1,0 +1,39 @@
+{
+  "source": "e2baadae03dd25cf74979bdfeb3bf35fd696393d",
+  "started_utc": "2026-11-09T05:10:08.353978+00:00",
+  "scope": "Immutable native implementation gate; no later UI/Editor/Web/cloud/performance admission.",
+  "target": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target",
+  "cargo_jobs": "2",
+  "lock_sha256": "b14507716b80f1c0b85f7298b380b3c9146917134d9361c1bb408062782c0b22",
+  "commands": [
+    {
+      "label": "workspace",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--workspace",
+        "--no-fail-fast"
+      ],
+      "started_utc": "2026-11-09T05:10:09.120878+00:00",
+      "exit_code": 101,
+      "elapsed_seconds": 1248.613,
+      "log_sha256": "a62793f7f2374f188b8b1a9bd6909d35467c773196cf9ddb69d427351a6c737f",
+      "log_bytes": 223364
+    }
+  ],
+  "owned_cluster_stopped": true,
+  "postgres": {
+    "port": 52240,
+    "fsync": "on",
+    "address": "127.0.0.1",
+    "database": "rh_backup",
+    "data_directory": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/pg-state/final-native-pg/data",
+    "full_page_writes": "on",
+    "system_identifier": "7706034653644192679",
+    "synchronous_commit": "on"
+  },
+  "postgres_max_connections": "300",
+  "elapsed_seconds": 1249.51,
+  "complete": false
+}

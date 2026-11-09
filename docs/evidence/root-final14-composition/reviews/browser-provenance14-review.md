@@ -1,0 +1,31 @@
+# Browser provenance14 independent admission review
+
+**RELEASE — bounded source/provenance handoff only.** No blocking defect found in exact sealed `14cf9e3adbf76b408a1c1c558d0fb0d1b9ac7a37`, source `8d13c297b125fb395e6894cf228424e29b119d04`, base `58f476763128a84b2acb28d2d7e41cb60a1c20e5`. Reviewed checkout: `/Users/nevinmckinnon/Documents/Projects/RogueHalla-browser-provenance14`; it remained clean at that head.
+
+## Independent sealed-byte and field audit
+
+- `MANIFEST.json` SHA256 is exactly `c951de89acc66abfb73f8533176b009478ca5c03d75a51eb4951307af28f3026`. All129 distinct payload lengths/SHA256s independently match their sealed Git blobs. All30 tracked packet-evidence files are covered (29 payloads plus self-sealed manifest). The complete38-file base diff consists only of eight named source artifacts and those30 evidence files. All18 guard files and all74 prior receipt files are byte-identical to base; no unlisted tracked source changed.
+- Independently parsed the five before/after JSON artifacts with duplicate-key rejection, Decimal number parsing and strict recursive type/key/list/value comparison. Exact differences are catalog2 scalar leaves, runtime source11/INPUT11 and witness source22/INPUT22; the actual paths and before/after values also equal the retained metadata-diff report. Every other field is equal, **including complete cases/gameplay frames, privateOracleRecords, runtime profiles/roles/noninterference, witness controlCorrection/cleanControls/witnessDefinition/comparison and all source inventories**. This conclusion does not rely on reported semantic digests.
+- Catalog keeps409 cases, exactly325 protected entries, all78 source and5 harness pins and the other323 protected values. Its only changed protected leaves admit `tools/protocol-js/check-vectors.mjs` SHA256 `1173a06fa8b2d0017367795f4a07c82bfe87285cbcc300df197aa5ee80aa47b3` and `tools/browser-proof/proof.mjs` SHA256 `9d9a5f64a59ecc048653975f5b60fa9a74e71edffc983037c64aea96ac74d8a7`. Both actual JS files remain byte-identical to base.
+- Each runtime/witness capture tool changes exactly one existing acceptedProvenanceOverlay literal. Independently compared the full prefixes/suffixes: every byte outside each literal is identical to base. No execution, case, inspection or output-comparison code changed.
+- Independently checked immediate priors equal the previous effective hashes and actual base blobs; current effective hashes and actualPinnedInputs byte lengths/SHA256s equal the final named files. Original hashes remain fixed. Original FROZEN_PINS SHA256 remains `7ed1086915fafd5fa129669270d6d53090f4b81052660a18318df60cab8b3023`, with15 files/11 runtime tools. Historical receipt directories and the accepted documentation overlay are unchanged.
+
+## Guard and receipt review
+
+`tools/provenance/check-card-chain.mjs` retains fixed current whole-corpus/input/tool hashes (lines20–46,52,86,117–132), required78/5 source/harness inventory counts and per-entry shape/actual hashes (62–79), exact two runtime overlay leaves/from/to plus unknown/missing refusal (93–113), immutable FROZEN15/11 inventory and exact three witness overlays with unknown/missing refusal (133–169). The new protected325 count, required checker, exact evidence and full lineage checks strengthen those constraints. There is no arbitrary-hash set or generic new overlay path. Changing priors does not make prior hashes acceptable current values.
+
+Read all three final pinned `--check` receipts and the unchanged wrappers: Linuxamd64 Node22.23.4 image `sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292`; repository and expected output are read-only, npm dependencies use container tmpfs, `--check` actually compares complete generated source/INPUT bytes and does not write expected results. Receipt exits are0 and hashes match sealed artifacts:
+
+| Check | Recorded scope | Final corpus SHA256 |
+| --- | --- | --- |
+| Catalog | 409 cases | `e2de5226d31fc7fe4f23d8cd0552ad73be44855bb3109ebed8042b2fd899b9c3` |
+| Runtime | 65 cases /6236 ordinary steps /3179 private records | `f67417ff219039296852886e61aa9661ac535d2f5ce0126fa3f76f6a3a740337` |
+| Witness | 2 cases /6 ordinary steps /33 retained private records | `744dbf747d13a32a13c1b7e2bfc992cfbe0c530c5a25fa3e6e7350cfdde2a569` |
+
+The retained15 isolated **provenance guard** negatives each exit1 and contain their specifically required failure kinds/paths; both initial/final pristine records exit0 with zero failures. Their recorded auditor/helper hashes equal the exact sealed code. The helper copies488 enumerated regular files into a private temp directory, rejects symlinks/hardlink reuse, mutates/restores only disposable copies, requires a pristine recovery after every negative and removes its temp tree. These are not gameplay producer-mutant claims. The five offline changed-case/private-record controls separately exercise the finite recursive field allowlist.
+
+Retained attempts are honest: initial auditor failure has exactly the two stale JS protected pins; Docker launch exit125 is a separate pre-producer read-only mountpoint failure. Initial compact catalog SHA `2a8685e0…`/489319 bytes failed canonical comparison; final pretty catalog `e2de5226…`/1045681 bytes preserves the original serializer. Original compact plan/diff/refusal and labelled intermediate auditor positive remain tracked. Final reproduction receipts bind the corrected pretty catalog and downstream final hashes. This represents two actual catalog producer runs, one runtime and one witness run, plus the separate failed launch—not three uninterrupted first-attempt successes or fresh expected-gameplay capture.
+
+## Admission boundary
+
+No candidate helper, auditor, producer, Docker, build, test suite, Editor, browser or cloud action was executed during this review; only read-only Git/byte/hash/JSON comparisons and this outside-Git report were made. No candidate/shared/main/status/lock file was edited. Root owns merge and final admission. This release admits these exact provenance bytes only; it does **not** prove a new hosted/browser run, public activation, final clean-build identities or performance. Earlier browser receipts remain revision-scoped historical evidence.

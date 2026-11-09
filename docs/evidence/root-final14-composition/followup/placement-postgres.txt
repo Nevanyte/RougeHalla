@@ -1,0 +1,328 @@
+   Compiling tokio v1.54.1
+   Compiling serde_json v1.0.154
+   Compiling tokio-stream v0.1.19
+   Compiling sqlx-core v0.8.6
+   Compiling sqlx-postgres v0.8.6
+   Compiling sqlx v0.8.6
+   Compiling rh-placement v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/crates/rh-placement)
+    Finished `test` profile [unoptimized] target(s) in 10.72s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_placement-946acee6a430f87e)
+
+running 46 tests
+test hostname::tests::rejects_unsafe_inputs ... ok
+test hostname::tests::deterministic_and_distinct ... ok
+test hostname::tests::shared_vectors_match_the_node_mirror ... ok
+test score::tests::region_list_limits ... ok
+test ledger::tests::scope_deserialization_validates ... ok
+test score::tests::attempts_widen_monotonically_without_repeats ... ok
+test score::tests::default_order_demotes_regions_known_to_be_empty ... ok
+test score::tests::identical_preferred_and_acceptable_sets_collapse_to_one_attempt ... ok
+test score::tests::party_minimises_the_maximum_not_the_mean ... ok
+test score::tests::no_common_region_degrades_with_a_warning ... ok
+test score::tests::members_without_data_or_with_stale_data_do_not_influence_the_choice ... ok
+test score::tests::single_player_picks_the_lowest_rtt ... ok
+test score::tests::ranking_is_deterministic_and_ignores_input_order ... ok
+test score::tests::every_member_counts_including_the_slowest ... ok
+test score::tests::a_region_a_member_cannot_reach_is_ineligible ... ok
+test score::tests::everyone_unreachable_is_a_refusal_everyone_unmeasured_is_the_default_order ... ok
+test ledger::tests::debug_output_never_contains_bindings_or_player_session_ids ... ok
+test score::tests::all_over_the_limit_places_with_a_warning_by_default_and_refuses_by_policy ... ok
+test score::tests::manual_override_is_strict_single_and_never_forbidden ... ok
+test score::tests::unknown_capacity_is_never_penalised ... ok
+test score::tests::unreachable_members_are_flagged_but_do_not_block_the_party ... ok
+test score::tests::validation ... ok
+test score::tests::zero_capacity_adds_a_penalty_and_buckets_make_ties ... ok
+test service::tests::completed_requests_leave_nothing_for_the_reaper ... ok
+test service::tests::fulfilled_placement_missing_its_port_terminates_the_session ... ok
+test service::tests::hostname_error_after_fulfilment_terminates_the_session ... ok
+test service::tests::capacity_outage_does_not_block_placement ... ok
+test service::tests::dropping_place_mid_attempt_queues_the_placement_and_the_reaper_stops_it ... ok
+test service::tests::dns_failure_releases_the_host_and_reports_not_ready ... ok
+test service::tests::refusals_and_validation_never_touch_gamelift ... ok
+test service::tests::happy_path_publishes_a_verified_hostname_and_never_sends_latencies ... ok
+test service::tests::dns_publication_is_verified_before_the_client_gets_the_name ... ok
+test service::tests::a_finished_failed_request_id_is_not_reused ... ok
+test service::tests::queue_timeout_is_handled_like_no_host ... ok
+test service::tests::placement_in_an_over_limit_region_carries_a_warning ... ok
+test service::tests::persistent_describe_errors_cancel_the_placement_and_surface ... ok
+test service::tests::reaper_terminates_a_placement_that_fulfilled_after_the_drop ... ok
+test service::tests::release_session_deletes_the_record ... ok
+test service::tests::zero_capacity_steers_the_first_attempt_to_another_region ... ok
+test service::tests::retried_request_attaches_to_the_existing_placement ... ok
+test service::tests::transient_start_errors_are_retried_and_persistent_ones_surface ... ok
+test service::tests::cancel_that_races_a_fulfilment_uses_the_session_instead_of_orphaning_it ... ok
+test service::tests::widens_when_the_preferred_region_has_no_host_then_uses_the_next ... ok
+test service::tests::dns_that_never_propagates_is_cleaned_up_too ... ok
+test service::tests::no_host_anywhere_ends_within_the_total_budget_with_no_capacity ... ok
+test service::tests::manual_region_is_strict_and_reports_that_region_unavailable ... ok
+
+test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests src/bin/placement-crash-child.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/placement_crash_child-2baab6ac66de3725)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/rh-placement.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_placement-bdc8216ddf7c868c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/cancellation_identity.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/cancellation_identity-4eb8a3245c56fdd7)
+
+running 16 tests
+test stop_valid_cancelled ... ok
+test describe_wrong_id_fulfilled ... ok
+test stop_foreign_cancelled ... ok
+test stop_missing_fulfilled ... ok
+test stop_missing_cancelled ... ok
+test describe_foreign_fulfilled ... ok
+test describe_valid_cancelled ... ok
+test describe_missing_fulfilled ... ok
+test stop_wrong_id_fulfilled ... ok
+test describe_wrong_id_cancelled ... ok
+test describe_missing_cancelled ... ok
+test stop_foreign_fulfilled ... ok
+test stop_wrong_id_cancelled ... ok
+test stop_valid_fulfilled ... ok
+test describe_valid_fulfilled ... ok
+test describe_foreign_cancelled ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/crash_restart.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/crash_restart-8a9aa20f59168b5d)
+
+running 11 tests
+test the_only_public_release_path_is_the_ledger_bound_release_session ... ok
+test a_foreign_placement_under_our_id_is_never_adopted_stopped_or_offered ... ok
+test release_deletes_in_the_zone_the_request_was_placed_under ... ok
+test release_is_bound_to_scope_request_and_placement_and_is_idempotent ... ok
+test an_offer_committed_before_the_response_survives_and_is_replayed_to_the_same_request_only ... ok
+test a_start_accepted_with_a_lost_receipt_is_found_by_its_binding_and_cleaned ... ok
+test dns_written_and_verified_but_not_yet_offered_is_cleaned_after_a_crash ... ok
+test a_fulfilled_placement_whose_dns_receipt_was_lost_is_cleaned_not_offered ... ok
+test a_release_that_died_midway_is_resumed_by_the_reaper_and_never_by_age ... ok
+test a_committed_start_intent_survives_a_crash_before_the_start_is_sent ... ok
+test a_cleanup_effect_accepted_before_local_completion_is_repeated_idempotently_after_a_crash ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.15s
+
+     Running tests/delayed_effects.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/delayed_effects-29beb6d01eb06d0b)
+
+running 9 tests
+test held_start_survives_a_century_of_age_restarts_repeated_absence_and_purge ... ok
+test a_stale_worker_whose_dns_check_succeeds_late_cannot_publish_an_offer ... ok
+test late_dns_upsert_keeps_recovery_discoverable_until_the_name_is_cleaned ... ok
+test late_start_intent_stays_reapable_until_definitive_provider_evidence ... ok
+test an_ambiguous_start_accepted_late_is_reconciled_and_never_offered ... ok
+test a_stop_applied_after_takeover_changes_nothing_and_the_stale_worker_cannot_finish ... ok
+test ambiguous_dns_retries_survive_restarts_age_and_purge_in_the_original_zone ... ok
+test a_dns_delete_applied_after_takeover_is_idempotent_and_the_stale_worker_cannot_finish ... ok
+test a_terminate_applied_after_takeover_is_idempotent_and_the_stale_worker_cannot_finish ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.26s
+
+     Running tests/fault_hooks.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/fault_hooks-965fddc569f29e70)
+
+running 4 tests
+test failing_after_the_start_call_is_a_lost_receipt_recovered_through_the_stored_binding ... ok
+test failing_before_a_write_sends_nothing_and_stops_without_cleanup ... ok
+test failing_after_the_offer_write_is_an_uncertain_commit_the_service_reconciles ... ok
+test points_fire_around_every_write_and_effect_in_write_ahead_order ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/independent_review.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/independent_review-eaeb189eb3f3abf1)
+
+running 11 tests
+test foreign_backend_collision_returns_no_credentials_and_is_never_reaped ... ok
+test canceled_owned_start_ack_still_reaps_the_created_host ... ok
+test lost_start_response_reconciles_only_our_binding ... ok
+test retry_success_revokes_stale_abandoned_reaper ... ok
+test describe_failure_fulfilment_race_retains_cleanup ... ok
+test new_service_cannot_attach_to_identical_request_with_old_owner ... ok
+test cancellation_of_reaper_preserves_current_and_unvisited_requests ... ok
+test canceled_start_ack_cannot_reap_another_services_accepted_offer ... ok
+test failed_stop_and_termination_remain_retryable ... ok
+test concurrent_retry_cannot_take_ownership_and_successful_retry_is_bound ... ok
+test ledger_is_bounded_and_full_or_invalid_requests_make_no_external_call ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.50s
+
+     Running tests/ledger_conformance_memory.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/ledger_conformance_memory-9d17357f072248eb)
+
+running 23 tests
+test memory::relinquish_frees_only_the_holders_claim ... ok
+test memory::epoch_open_returns_the_stored_nonce ... ok
+test memory::illegal_phase_moves_are_refused ... ok
+test memory::begin_identical_is_in_progress_then_reused ... ok
+test memory::stale_write_under_the_same_claim_is_refused ... ok
+test memory::begin_conflicting_request_or_config_fails ... ok
+test memory::counts_follow_the_phases ... ok
+test memory::epoch_is_created_once_and_never_over_old_records ... ok
+test memory::claim_expiry_and_takeover ... ok
+test memory::begin_different_scope_same_id_conflicts ... ok
+test memory::offered_replays_only_to_the_identical_identity ... ok
+test memory::stale_worker_cannot_commit_offer_or_finish ... ok
+test memory::store_refuses_offered_with_cleanup_intent ... ok
+test memory::release_claims ... ok
+test memory::concurrent_epoch_open_agrees ... ok
+test memory::purge_makes_tombstones_that_never_replay ... ok
+test memory::offered_released_and_finished_rows_are_never_reapable ... ok
+test memory::concurrent_claim_reapable_is_exclusive ... ok
+test memory::unresolved_dns_sends_forbid_offers_completion_and_purge ... ok
+test memory::versions_follow_every_write_and_claim ... ok
+test memory_relinquish_blocking_is_synchronous_and_fenced ... ok
+test memory::write_is_fenced_after_takeover ... ok
+test memory_store_is_bounded_fails_closed_and_never_evicts ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/ledger_conformance_postgres.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/ledger_conformance_postgres-a3154e03dbeaaa84)
+
+running 29 tests
+test postgres::begin_identical_is_in_progress_then_reused ... ok
+test an_already_open_v2_writer_is_rejected_by_the_database_after_upgrade ... ok
+test postgres::begin_different_scope_same_id_conflicts ... ok
+test postgres::illegal_phase_moves_are_refused ... ok
+test postgres::offered_replays_only_to_the_identical_identity ... ok
+test postgres::concurrent_epoch_open_agrees ... ok
+test postgres::relinquish_frees_only_the_holders_claim ... ok
+test postgres::release_claims ... ok
+test postgres::begin_conflicting_request_or_config_fails ... ok
+test postgres::counts_follow_the_phases ... ok
+test postgres::purge_makes_tombstones_that_never_replay ... ok
+test postgres::epoch_is_created_once_and_never_over_old_records ... ok
+test postgres::epoch_open_returns_the_stored_nonce ... ok
+test postgres::concurrent_claim_reapable_is_exclusive ... ok
+test postgres::offered_released_and_finished_rows_are_never_reapable ... ok
+test postgres::claim_expiry_and_takeover ... ok
+test postgres_server_gives_up_before_the_client_and_the_service_waits_for_both ... ok
+test nonempty_old_ledgers_refuse_upgrade_without_changing_any_data ... ok
+test postgres::store_refuses_offered_with_cleanup_intent ... ok
+test postgres::stale_write_under_the_same_claim_is_refused ... ok
+test postgres_schema_version_is_recorded_and_a_newer_database_is_refused ... ok
+test postgres::unresolved_dns_sends_forbid_offers_completion_and_purge ... ok
+test postgres_rejects_a_malformed_row_instead_of_guessing ... ok
+test upgrade_serializes_with_a_legacy_insert_before_deciding_the_ledger_is_empty ... ok
+test concurrent_empty_old_upgrades_preserve_the_epoch ... ok
+test postgres_errors_never_carry_the_database_url ... ok
+test postgres::stale_worker_cannot_commit_offer_or_finish ... ok
+test postgres::versions_follow_every_write_and_claim ... ok
+test postgres::write_is_fenced_after_takeover ... ok
+
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.68s
+
+     Running tests/placement_durable.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/placement_durable-42b87d40cf157f39)
+
+running 74 tests
+test memory::contradictory_evidence_on_the_live_path_after_acceptance_resolves_nothing ... ok
+test memory::foreign_receipts_never_authorize_cleanup ... ok
+test memory::dropped_place_is_immediately_reapable_in_memory ... ok
+test memory::every_effect_is_preceded_by_its_committed_intent ... ok
+test memory::invalid_on_a_start_retry_after_an_ambiguous_try_is_not_definitive ... ok
+test memory::a_delayed_write_under_the_same_claim_cannot_roll_state_back ... ok
+test memory::conflicting_retry_while_another_worker_is_in_progress_fails_before_effects ... ok
+test memory::a_lost_claim_during_the_best_effort_stop_is_propagated ... ok
+test memory::a_fenced_retry_after_the_delayed_original_landed_is_recognised_as_committed ... ok
+test memory::failed_offer_commit_is_not_turned_into_cleanup ... ok
+test memory::contradictory_evidence_for_an_attempt_we_proved_ours_is_not_resolved_foreign ... ok
+test memory::cleanup_effect_failure_keeps_the_attempt_unresolved ... ok
+test memory::a_tombstoned_release_still_requires_the_matching_placement ... ok
+test memory::outage_before_the_first_write_makes_no_external_call ... ok
+test memory::a_half_done_release_is_resumed_by_retry_and_by_the_reaper ... ok
+test memory::cancelled_reaper_keeps_current_and_unvisited_work_reclaimable ... ok
+test memory::conflicting_retries_fail_before_any_backend_call ... ok
+test memory::lost_receipt_is_recovered_by_the_reaper_with_the_stored_binding ... ok
+test memory::release_of_a_request_without_an_offer_is_refused ... ok
+test memory::open_cleanup_is_finished_from_stored_data_when_the_provider_forgets_the_placement ... ok
+test memory::release_uses_the_original_zone ... ok
+test memory::original_zone_is_used_after_the_configured_zone_changes ... ok
+test memory::repeated_absence_never_settles_a_sent_start ... ok
+test memory::with_ledger_refuses_records_without_an_epoch ... ok
+test memory::stale_worker_cannot_complete_after_takeover ... ok
+test memory::stale_worker_cannot_overwrite_a_takeover_that_left_work_unresolved ... ok
+test memory::release_session_is_bound_to_scope_request_and_placement ... ok
+test memory::start_that_was_never_seen_is_not_settled_by_one_not_found ... ok
+test memory::uncertain_commit_that_landed_returns_the_offer_and_is_protected ... ok
+test memory::restart_recovers_a_committed_offer_and_keeps_the_epoch ... ok
+test memory::a_slow_row_does_not_run_out_the_claims_of_the_rows_queued_behind_it ... ok
+test memory::missing_and_foreign_receipts_stay_unresolved_or_untouched ... ok
+test memory::scope_is_part_of_identity ... ok
+test memory::uncertain_commit_with_an_unreadable_database_stops_without_cleanup ... ok
+test memory::retention_purge_keeps_tombstones_that_never_replay ... ok
+test memory::lease_renewal_keeps_a_slow_attempt_claimed ... ok
+test memory::uncertain_dns_acknowledgement_keeps_the_persisted_obligation ... ok
+test memory::a_stop_is_preceded_by_its_committed_intent ... ok
+test postgres::contradictory_evidence_on_the_live_path_after_acceptance_resolves_nothing ... ok
+test postgres::conflicting_retry_while_another_worker_is_in_progress_fails_before_effects ... ok
+test postgres::conflicting_retries_fail_before_any_backend_call ... ok
+test postgres::a_fenced_retry_after_the_delayed_original_landed_is_recognised_as_committed ... ok
+test postgres::invalid_on_a_start_retry_after_an_ambiguous_try_is_not_definitive ... ok
+test postgres::contradictory_evidence_for_an_attempt_we_proved_ours_is_not_resolved_foreign ... ok
+test postgres::cleanup_effect_failure_keeps_the_attempt_unresolved ... ok
+test postgres::a_delayed_write_under_the_same_claim_cannot_roll_state_back ... ok
+test postgres::a_half_done_release_is_resumed_by_retry_and_by_the_reaper ... ok
+test postgres::failed_offer_commit_is_not_turned_into_cleanup ... ok
+test postgres::a_tombstoned_release_still_requires_the_matching_placement ... ok
+test postgres::cancelled_reaper_keeps_current_and_unvisited_work_reclaimable ... ok
+test postgres::scope_is_part_of_identity ... ok
+test postgres::outage_before_the_first_write_makes_no_external_call ... ok
+test postgres::original_zone_is_used_after_the_configured_zone_changes ... ok
+test postgres::release_uses_the_original_zone ... ok
+test postgres::release_session_is_bound_to_scope_request_and_placement ... ok
+test postgres::a_lost_claim_during_the_best_effort_stop_is_propagated ... ok
+test postgres::retention_purge_keeps_tombstones_that_never_replay ... ok
+test postgres::every_effect_is_preceded_by_its_committed_intent ... ok
+test postgres::with_ledger_refuses_records_without_an_epoch ... ok
+test postgres::uncertain_commit_that_landed_returns_the_offer_and_is_protected ... ok
+test postgres::a_stop_is_preceded_by_its_committed_intent ... ok
+test postgres::uncertain_commit_with_an_unreadable_database_stops_without_cleanup ... ok
+test postgres::a_slow_row_does_not_run_out_the_claims_of_the_rows_queued_behind_it ... ok
+test postgres::lost_receipt_is_recovered_by_the_reaper_with_the_stored_binding ... ok
+test postgres::foreign_receipts_never_authorize_cleanup ... ok
+test postgres::uncertain_dns_acknowledgement_keeps_the_persisted_obligation ... ok
+test postgres::open_cleanup_is_finished_from_stored_data_when_the_provider_forgets_the_placement ... ok
+test postgres::repeated_absence_never_settles_a_sent_start ... ok
+test postgres::release_of_a_request_without_an_offer_is_refused ... ok
+test postgres::start_that_was_never_seen_is_not_settled_by_one_not_found ... ok
+test postgres::restart_recovers_a_committed_offer_and_keeps_the_epoch ... ok
+test postgres::stale_worker_cannot_complete_after_takeover ... ok
+test postgres::stale_worker_cannot_overwrite_a_takeover_that_left_work_unresolved ... ok
+test postgres::missing_and_foreign_receipts_stay_unresolved_or_untouched ... ok
+
+test result: ok. 74 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.08s
+
+     Running tests/remote_fake_selftest.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/remote_fake_selftest-8cbb689913d10292)
+
+running 10 tests
+test child_entry ... ok
+test dead_server_is_unavailable_not_a_panic ... ok
+test hold_reply_after_apply_records_held_then_delivered ... ok
+test server_survives_client_task_drop_mid_request_and_garbage ... ok
+test identity_fields_survive_every_receipt ... ok
+test barrier_fires_on_arrival_and_after_apply_and_errors_inject ... ok
+test server_survives_sigkilled_client_process ... ok
+test not_found_then_late_start ... ok
+test drop_receipt_applies_effect_and_client_errors_on_timeout ... ok
+test hold_effect_applies_only_on_release_after_connection_gone ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+
+     Running tests/review_boundaries.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/review_boundaries-109f23a823f6d8a3)
+
+running 3 tests
+test missing_dns_metadata_is_an_obligation_even_on_an_apparently_resolved_attempt ... ok
+test schema_three_rejects_every_attempt_missing_or_malformed_obligation_atomically ... ok
+test late_success_receipt_after_takeover_does_not_clear_the_obligation_or_poison_clean_work ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.84s
+
+   Doc-tests rh_placement
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

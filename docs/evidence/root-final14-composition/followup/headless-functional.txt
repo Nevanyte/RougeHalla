@@ -1,0 +1,5 @@
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/crates/rh-policy)
+   Compiling rh-headless v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/crates/rh-headless)
+    Finished `dev` profile [unoptimized] target(s) in 1.80s
+     Running `/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/rh-headless --matches 1 --players 8 --map crates/rh-sim/src/mapdata/fixtures/seed1.map.json --max-ticks 4000`
+{"matches":1,"players":8,"ticks":4000,"terminated":0,"truncated":1,"stateHashFold":"5a500784e767e529","wallSec":0.651,"ticksPerSec":6141,"meanTickUsPerMatchP50":162.82,"realTimeFactor":307}

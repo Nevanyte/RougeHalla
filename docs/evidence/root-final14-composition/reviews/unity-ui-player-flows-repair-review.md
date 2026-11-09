@@ -1,0 +1,33 @@
+# UI player-flow corrective reseal independent review
+
+**RELEASE for bounded source integration only.** Reviewed immutable corrective source `de86e15952d0d94ef1dfc992d2207c8494285234`, direct parent evidence seal `8c21f0e5faf13cc35f8f15c5a23a811d6b4827ab`, new evidence seal `b27c14e21da1a3e9e4b7d5d75505e42f9f54e626`. Both original findings in `unity-ui-player-flows-review.md` are closed in source. This is not native test or public/browser acceptance. All 20 compiled selectors remain engine UNRUN and require the sole Editor owner's integrated finite gate. No source, branch, shared record, build, Editor, browser, capture or runtime mutation was made for this review.
+
+## Exact corrective scope
+
+The source commit changes exactly four files: MatchHud.cs, MatchHud.PlayerFlows.cs, PlayerFlowsEditModeTests.cs and QuestJournalViewEditModeTests.cs (71 additions,4 deletions). The new seal adds seven scoped evidence files only. All original metas remain unchanged; no Net/Rust/protocol/identity/lock/shared status or assets are changed by this correction. Review used immutable Git blobs rather than potentially moving worktree code.
+
+## Findings closed
+
+1. **Reconnect wording:** the test now asserts the existing runtime `Reconnecting · quest actions paused` message after independently asserting Reconnecting. It retains the failed TryAccept and inactive-row checks, and additionally requires the existing accept button disabled plus zero encoded input after FlushInput. Resumed Welcome, removed old handles and prior stale callbacks remain tested. Production eligibility/text is unchanged; this corrects the contradictory expected string without relaxing authority guards.
+
+2. **In-flight notice timeline boundary:** Bind no longer captures only Session identity. RotateNoticeEvents captures the actual Session, its originating TimelineEpoch, and the exact newly created delegate. The callback requires all three still current. Bind rotates after initializing/clearing the new bound view; real TimelineReset rotates before clearing/rebinding UI. Unbind copies the prior delegate, nulls the current binding identity before UI cleanup, detaches it and later clears Session. A multicast invocation already holding the old delegate therefore cannot append after a cross-Session rebind, same-Session source cut, or same-Session/same-epoch rebind. The last case is source-proved by delegate identity, not falsely claimed as a separately engine-run test. No hash, label-based identity or deduplication is used.
+
+The new focused method uses ordinary encoded fake-transport delivery through the real Session, not installed epoch/state: its prior subscriber injects Tick2/ServerTime50 while the previous accepted snapshot was Tick1/ServerTime50. Session's actual sourceCut predicate increments TimelineEpoch and emits TimelineReset synchronously. The resumed old invocation must leave history empty. Subsequent two batches must preserve `fresh`, the PickupRefused message, and both repeated `fresh` entries in exact order after TickPlayerFlows. The test asserts the real epoch increment and InMatch state, so a missing/invalid nested cut cannot trivially satisfy it. Existing resumed-Welcome and cross-Session controls remain unchanged. These are meaningful source/compiled assertions, not measured native red/green evidence yet.
+
+Normal current callbacks still append the complete ordered batch through unchanged Events/OrderedNoticeFeed. Reset rotates once per changed epoch, and the new handler accepts valid future batches; a new listener is not stranded at the old epoch. The helper only changes subscription/lifecycle handling, not input/gameplay or Session's timeline semantics.
+
+## Independent seal verification
+
+- All18 entries in new source.sha256 verified against both exact source de86 and evidence seal b27. SHA256 of that manifest: `4cc32fe24d0e5c762998a6d344df28c102e80f3c968ccc24da21daecde54139a`.
+- All4 correction.sha256 entries verified against both objects, and their path set is exactly the source diff from8c21 tode86. Manifest SHA256: `ee98048a05995558b09821259f416841b9493dcba0f7aaa6e4d5558abc1158ba`.
+- New selector list exactly matches actual [Test] public methods in source, including order and unique identities: PlayerFlows7, QuestJournal7, Trader6 =20. Only the same-Session cut method is added. The former19 identities keep their historical engine-unrun status.
+- Both retained /tmp managed-project templates currently exist, match recorded SHA256s and reference the actual runtime/test source globs and Net project. Those local command/assembly paths describe this managed compile environment; the receipt is not a turnkey clean-checkout Unity execution proof.
+- Exact seal tree object: `9bbc8270eb86df1fb761b691edc1661692576675`. Evidence additions are the seven declared epoch-fence files, and git diff --check passes.
+
+## Validation limits that must remain explicit
+
+The retained corrective managed compile output says Build succeeded,0 errors and1 CS0067 unused-event warning. It compiles against installed Unity/package assemblies and does not execute native engine callbacks, TMP/UI layout or Editor tests. It cannot substitute for the20-selector native gate.
+
+The separate unchanged pure source-clock tests actually report2 passed,0 failed/skipped. Their retained log also reports AD0001: CSharpDetectPreviewFeatureAnalyzer threw MissingMethodException in CodeAnalysis HashSetExtensions while building RoguehallaNet.Probe. The missing analyzer method is a tooling/analyzer-host compatibility warning; the compilation/test process continued and the two selected runtime tests ran. It does **not** turn those passes into skips or establish a runtime failure in the reviewed UI source. It **does** mean that analyzer did not complete, so this is not clean/full-analyzer validation; preserve the warning and resolve/pin the tooling mismatch before any such claim. No suppressions or analyzer configuration changes were introduced. The prior14 pure quest/trade passes are historical and were not repeated here; neither those nor the two clock controls execute this new Unity regression.
+
+No remaining source blocker found in the finite corrective diff. Keep actual rendered hit/layout/720p/1440p/text scaling/focus, native lifecycle, authoritative browser quest/trade/reconnect, privacy/recovery and full-inventory acceptance gates open exactly as before. Do not conflate this release with Full hosting, new public facts, gameplay authority or new UI feature scope. Preserve both failed and corrected receipts and run the full20 native methods on the composed revision before engine acceptance.

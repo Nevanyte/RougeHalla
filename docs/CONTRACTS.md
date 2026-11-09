@@ -12,25 +12,25 @@ revision; [sweep/README.md](sweep/README.md) says which (H-sim and H-server-2 ha
 
 ## Status table
 
-### November 8 private native28/accepted-frame candidate
+### November9 protocol14 composition (supersedes older identity/status addenda)
 
-Runtime code now identifies protocol 14/checkpoint 28/replay 22/observation 21/policy 15/content `643d294869db55a4`.
-This private candidate supersedes the code identity descriptions below; public/hosted admission is still pending.
-C-TICK and C-INPUT retain Rust authority,20 Hz order and validate+submit. C-OBS/C-RNG retain checked recipient filtering,
-neutral noncombat givers, complete staged aliases/collections, redacted owner locks and exact public clock/mirror facts.
+Current code identifies14/28/22/21/15/content643d294869db55a4. The [composition receipt](evidence/root-final14-composition/README.md)
+records a complete1928-pass/1-obsolete-test-failure/11-ignored workspace run and the green repaired target/new quest test/
+remaining native PG/lint/parity/headless gates at their exact cuts. It does not relabel the original red run or imply a
+hosted release. All20 new quest/trader/notice engine selectors pass at43e6d08d; Web, visual and cloud gates remain open.
 
-The reviewed policy ABI delivers immutable decoded human-format frames only after local acceptance. Preflight is data
-validation, not a delivery receipt; failure before acceptance preserves staged aliases/baselines/events/cadence. A
-post-accept callback failure cannot undo arbitrary policy memory, but refused or panicked output proposals are removed.
-Opaque local affinity prevents equal-looking references from different sessions comparing as the same NPC; data equality
-never exposes an address/global counter. Actual HumanBot async→ordinary intake is verified; full fight/reflex/hunter and
-source outcome parity are not implied. Explicit native compatibility callbacks do not claim human-codec equivalence.
+C-TICK/C-INPUT retain pure Rust authority,20Hz order and validate+submit. C-OBS/C-RNG retain typed neutral givers, staged
+alias/collection acceptance, redacted locks and exact owner clocks/mirrors. Preflight is validation, not a receipt;
+pre-accept refusal preserves delivery state. Post-accept callback memory cannot be rolled back, but refused/panicked
+proposals are discarded. Local session affinity does not authorize stitching NPC aliases across samples. Complete bot
+reflex/hunter facts and public continuity require a reviewed new contract; no hidden reads or fabricated defaults are
+approved. The admitted fight/orb corpus proves declared source components, not full live bot behavior.
 
-The coordinator's [identity receipt](evidence/native28-admission/README.md) records independent Overkill registration
-review and strict predecessor/source 63/native-tape gates. [Trade/Quest14](evidence/trade-quest14/README.md) records the
-complete 11-key transport, opaque five-string quest rows and native-owned trader values. UI/HTTP/Web/cloud/performance
-acceptance and final provenance/integration gates remain pending. This addendum is the evidence-backed contract change
-log; historical cells keep their original revision-specific results.
+C-PARITY includes genuine strict source63/native-tape checks, the exact farm consumer and bounded quest cases0/4 with
+reached closure/privacy controls. Source six-case quest evidence has explicit direct-producer/diagnostic limits; no181-
+record Rust stream equality is claimed. The protected card provenance update preserves expected source semantics and
+original frozen pins. New fight/quest notice bytechecks are CI-wired. Content preparation from real /info matches the
+native hash but is not Web/runtime admission. Historical table cells retain their original revision-specific results.
 
 ### November 8 Wish/Trophy admission (takes precedence over older addenda)
 

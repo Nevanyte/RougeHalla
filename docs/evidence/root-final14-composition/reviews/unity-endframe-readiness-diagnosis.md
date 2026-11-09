@@ -1,0 +1,56 @@
+# Unity native end-frame readiness diagnosis
+
+**Confirmed failure category: the Play-mode player loop did not advance; precise native window/scheduler cause remains unproved.** Do not classify b4 as an isolated WaitForEndOfFrame freeze or change masks/shaders. The next minimum action is a single instrumented, no-image readiness cut under Root's control after Art releases the Editor lease—not another capture retry.
+
+## Exact retained evidence
+
+Source `b4bf621d7ed285bb6af4eb737073e197450415df`; raw receipts/helpers under `/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/combined-b4bf62-2026-11-08`. Binding4 passes on this revision. Initial and failure public evals both report Playtrue, pausedfalse, backgroundtrue, frame1, fixture newestMs5050, IsReadytrue and focusedWindownull. Realtime changes from34.835043 to191.713164 seconds while those player facts stay fixed. The retained ready status explicitly says `playerLoopTicking:false`. The nominal readiness wait is10 seconds; the two public eval timestamps span additional command/setup time, so they are not a measurement of exactly10 seconds.
+
+The observer source starts its coroutine and returns `{requested:true, frame:1}` immediately. Its first yield is `yield return null`, then WaitForSecondsRealtime(.2), then WaitForEndOfFrame; the output receipt is written only after all three. With the global frame count unchanged, the evidence does not establish that it reached the EOF yield. No per-yield stage telemetry exists. A blocked EOF alone would not explain a stopped global frame counter and fixture Update clock.
+
+`UiLayoutReview.IsReady` is only the `_initialized` flag set by Initialize. Its Update publishes advancing snapshots and presents the arena. One initial player update can produce5050ms, then the flag remains true during a stalled player loop. Therefore readyfixture + playing + background are insufficient render-readiness preconditions. The reported752×252 Screen size also does not match the requested2560×1440 capture: native Game-view viewport configuration has not been demonstrated.
+
+No PNG/readiness receipt was produced, and cleanup receipts show stopped/unpaused Editor, no review/client instances and restored preferences/background flags. Root subsequently performed a read-only native-window inspection: the explicit `/Applications/Unity/Hub/Editor/6000.0.85f2/Unity.app` resolves the correct Art Web/Metal project and its selected QHD2560×1440 Game tab. The stopped empty NoCamerasRendering screen is expected after cleanup, not new failure evidence. The generic Unity bundle identifier is ambiguous because6000.6.8f1 is also installed (not running). No modal/lock error or focus action was observed in that post-stop read. This establishes that the window is available now; it does not establish active Game-view rendering/focus during b4. The console sample contains historical CanvasGroup/recovery-test entries, while its current ground-truth counts are zero; it does not show a new b4 coroutine/render exception. It cannot justify a shader/mask repair.
+
+## Harness and tool lifecycle
+
+Read the installed Pipeline package `com.unity.pipeline@303cb578aa66`, Unity6000.0.85f2, without issuing Unity commands:
+
+- AutoTickCommand schedules **EditorApplication.SignalTick** through EditorApplication.update. Its success string attests editor-tick pumping, not actual player Update/render/EOF progress. b4 re-enabled it after Play and still recorded no player progress; historical595a40c did the same.
+- The actual readiness eval starts a MonoBehaviour coroutine and immediately returns; it contains no synchronous waiting loop, Thread.Sleep, Task.Result or GetResult. Other public eval/stop commands continued returning. This weighs against a persistent global main-thread deadlock; transient stalls are not disproven.
+- Pipeline's WaitForCommands runs waits off the main thread and marshals reads. A synchronous wait holds the command queue and can prevent another command needed by its condition; async avoids that dependency. The current b4 helper is not itself that synchronous wait. DefaultCommandQueue also documents a main-thread blocking GetResult for nested composite dispatch; no retained b4 script invokes that composite path.
+- Read-only `ps` inspection of the retained Editor PID9075 found the same Art project process with neither `-batchmode` nor `-nographics` present. This was a process-argument inspection, not a new Editor query or proof of historical GUI visibility. Application.isBatchMode and selected/visible Game-view telemetry were not retained at the failure boundary.
+
+Unity documents that [WaitForEndOfFrame resumes after camera/GUI rendering, can suspend when the Editor switches away from Game view, and does not run in Editor batch mode](https://docs.unity.com/en-us/engine/6000.0/script-reference/unityengine/waitforendofframe). This makes actual Game-view/GUI availability a required diagnostic branch; it does **not** prove that Game view caused this b4 stall. A null focusedWindow does not identify which tab is visible, nor prove the Mac is locked. `runInBackground=true` is already recorded and is not a new proposed fix.
+
+[QueuePlayerLoopUpdate](https://docs.unity.com/en-us/engine/6000.0/script-reference/unityeditor/editorapplication/queueplayerloopupdate) requests a player-loop update; it does not attest a displayed frame or overlay render. Merely asking for editor ticks/repaints, forcing Canvas layout, or obtaining an on-demand screenshot cannot replace observed advancing native frames. The applicable Unity CLI skill's playmode verification loop makes the same distinction. No package update/Editor restart/source change is justified by this read audit.
+
+## Keep historical failures separate
+
+The sealed595a40c no-image renderer diagnosis (f5 source) records frame2 throughout, Playtrue/pausedfalse/focused/backgroundtrue, failed auto-tick and an unconfirmed Game-tab selection; focusedWindow remained null and all direct renderer depths were−1. Its watcher had its timeout check **after** WaitForEndOfFrame, so that check could not bound a suspended EOF; it was explicitly cancelled. Those are unrendered state facts.
+
+In contrast, the preserved original f5 `evidence/layouts/1440-drawer-text100.json` records initialFrame159→167, source5300→5450 and matching native dimensions at ScreenCapture/EOF. Therefore current player-loop nonadvancement does not retroactively explain or clear the earlier cyan/Loading drawer image. That visual result remains held separately. No additional image was taken or inspected here, and no masks/materials/shaders were changed or newly blamed.
+
+## Minimum next authorized action
+
+After Root accepts Art's seal and owns the next Editor lease, conduct **one bounded readiness-only attempt**, before any PNG or interaction proof:
+
+1. Use the explicit6000.0.85f2 application path and exact Art project (avoid the ambiguous generic Unity bundle), then verify the correct nonbatch GUI Editor/project, unpaused Play state and an actually shown/selected native Game view (not only the process focus flag). Confirm the real expected Game-view backbuffer dimensions. If the UI surface cannot be made available, stop and report that concrete GUI prerequisite; do not infer user lock/login state from null focus.
+2. Use an external or Editor-update watchdog that returns immediately to the player loop. Record a small stage receipt **before the first yield**, after `yield null`, after the realtime wait, immediately before EOF and after the actual EOF continuation. Record native Time.frameCount and fixture newestMs at each stage. The wall-time watchdog must remain independent of the coroutine/EOF so it can report which stage failed and cancel/clean up within the agreed bound. Any observational counters must be labelled as callback observations, never substituted for native Time.frameCount.
+3. Capture readiness requires multiple genuinely advancing native frames and fixture snapshots, an actual EOF continuation, matching Screen/backbuffer dimensions, the current root Canvas/display and active Graphic depth/CanvasRenderer state, plus current EventSystem/GraphicRaycaster presence and a real sorted pointer hit on the intended control. No manual Update/Tick invocation, EditorApplication.Step sequence, Camera.Render, reflection-driven frame counter or on-demand render may be called live player/render proof. UI layout rebuilding alone is not rendering.
+4. If editor/watchdog observations progress but native frames remain fixed, the remaining blocker is player-loop/window scheduling; preserve the one telemetry cut and stop. If frames advance but EOF alone stalls, inspect the actual selected/visible Game view and rendering stage. If EOF runs but depths/raycast/dimensions fail, retain that concrete render/setup failure before any mask/shader hypothesis. Only after these readiness conditions pass should Root authorize the existing single original ScreenCapture-at-EOF native image and rendered interaction checks.
+
+This is a finite mechanism diagnosis, not a request for a new visual campaign, broader feature work or fabricated acceptance. Exact native window/GUI visibility, per-yield progress and independent editor/player/render heartbeat are the bounded missing telemetry. No proof can honestly identify the deeper scheduler cause from the current receipts alone.
+
+## Read-only audit boundary and byte bindings
+
+No Unity command, Editor API eval, CUA, Play/capture retry, build, source edit or preference change was performed. Inspected retained source/receipts, installed package code, official Unity documentation and limited process launch flags; this outside-Git report is the sole write. Root remains sole controller and decides the next action. Raw b4 byte bindings inspected:
+
+- `/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/combined-b4bf62-2026-11-08/observe-rendered-readiness.cs`: `532855f531d1a8ddf11c5c6e927b86c3749db9823c55903413796a2888cb1d89`.
+- `/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/combined-b4bf62-2026-11-08/capture-template.cs.txt`: `6848c88bab103ecb896c03125f4a5a7307dd337d24b0198b95294ec78d271464`.
+- `/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/combined-b4bf62-2026-11-08/evidence/initial-play-state.json`: `59be5a83372c61719907cb30627588cdddee84b5fe746b2cef6a2435071d105e`.
+- `/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/combined-b4bf62-2026-11-08/evidence/ready-1440-hud.json`: `4b4fb5203001e0b28d32e6c08665a2f539f396c4a42671f6985e6b2cae079ea7`.
+- `/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/combined-b4bf62-2026-11-08/evidence/rendered-readiness-request.json`: `71a0db514a911897e5579c6e38a4cfae86939d720900ef8ed6327e8bacf9d244`.
+- `/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/combined-b4bf62-2026-11-08/evidence/rendered-readiness-timeout.json`: `9cb9456295adc9f54259eddd02106ed06a1fc0f3093a23cd85ee3496bba00201`.
+- `/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/combined-b4bf62-2026-11-08/evidence/play-state-on-readiness-failure.json`: `ba59535350961ea307c819309dffa15dbd6140e425775d5afbbc618d4a7867da`.
+- `/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/combined-b4bf62-2026-11-08/evidence/final-idle-state.json`: `4eb7936d123d3f03698b11aa5eed988f91ea1cc1cd7ab43023cb7b57ea72554e`.

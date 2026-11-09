@@ -1,0 +1,6 @@
+{
+  "build_source": "256db69d8a20347185f67d1b00fff6a5f7254fea",
+  "binary_sha256": "dc184a3a0646c0eb4a86ae6545307cc771bfa44004b4b109b6c6912141aaefb9",
+  "info_sha256": "4efe24df30ba242d4fb4617999883f37230e93237b70663fe8ad23e96eefe6f5",
+  "purpose": "Loopback debug server /info for exact content preparation only; no Web/host/performance admission."
+}

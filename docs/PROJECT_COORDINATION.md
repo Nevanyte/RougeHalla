@@ -1,12 +1,32 @@
 # Project coordination
 
 Owner direction, November 8, 2026: the **OPTimization_port Codex chat is project lead** and owns integration into
-`optimization_port`. The other two Codex chats and both DeepSeek sessions report completed SHAs, checks, active write
+`optimization_port`. The delegated Codex chats and both DeepSeek sessions report completed SHAs, checks, active write
 scopes, blockers and their next bounded packet to the lead. Reports are evidence for review, not automatic admission.
 The owner asked to keep workers running and leave active branches until last during consolidation.
 
 The primary project checkout is the write location for `optimization_port`. The earlier managed checkout is a clean
 detached review snapshot; use `git worktree list` to resolve the authoritative path and keep future edits on the branch.
+
+## Current wrap-up (2026-11-09 UTC)
+
+The latest [migration checkpoint](MIGRATION.md#reviewed-protocol14-wrap-up-checkpoint-2026-11-09-utc) and
+[composition receipt](evidence/root-final14-composition/README.md) supersede the older private lease table below.
+Reviewed protocol14/checkpoint28/replay22/OBS21/policy15/content643d294869db55a4 is composed. Native integration followup
+and all20 functional quest/trader/notice engine selectors pass; the original workspace red run and native visual failure
+remain explicit. Workers finish bounded code/evidence packets and stop; source-only releases are not runtime releases.
+
+| Current owner | Required next boundary |
+|---|---|
+| Lead | Publish reviewed checkpoint/observe exact CI; matching Web build/browser/account/bank/cloud/regional/performance admission |
+| Unity owner |20-selector receipt sealed; future browser build/target proof requires an exact release; no uncontrolled Play/shader loops |
+| Native bot expert | Source-proved normal fight/Orb components; live dispatch held for complete public cue facts |
+| DeepSeek Post Rust | Mechanical ownTimings90+6 consumer with fixed API/source oracle; no fight activation or sim/schema edits |
+| Network expert | Design-only full bot public Bow/Wand/projectile/immunity/NPC-continuity contract before any protocol15 implementation |
+
+Complete required bot facts are the chosen direction; Easy-only or reduced behavior will not satisfy the full port.
+DeepSeek remains scoped to mechanical Rust/source consumers. Prepared visual/audio imports stay isolated from live
+acceptance. No production deployment, new security/account scope or increased staging budget is authorized.
 
 ## Ownership
 
@@ -30,7 +50,7 @@ semantic mutant kill, and changing expected fixtures is not a parity repair. Dee
 token-heavy mechanical work; the lead keeps cross-cutting design and security decisions. Use focused affected checks,
 then one integration gate; do not repeat unchanged expensive map campaigns after every small patch.
 
-## Active private write leases
+## Earlier private write leases (historical)
 
 The reviewed protocol13/Observation19 Wish/barrier/Trophy union is admitted under [ADR0023](adr/0023-protocol13-wish-trophy-admission.md),
 with checkpoint25/replay19/policy13/content67183626db240b6a. Earlier12/18 reservations and omission-guard phases below

@@ -1,0 +1,544 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/crates/rh-sim)
+   Compiling rh-persist v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/crates/rh-persist)
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/crates/rh-policy)
+   Compiling rh-headless v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/crates/rh-headless)
+   Compiling rh-server v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/crates/rh-server)
+    Finished `test` profile [unoptimized] target(s) in 24.31s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_server-032ccb22d3e293df)
+
+running 190 tests
+test api::tests::month_key_is_utc_calendar_month ... ok
+test api::limits::tests::ct_eq_matches_normal_equality ... ok
+test api::profile::tests::limit_follows_the_legacy_rules ... ok
+test api::limits::tests::a_zero_cap_records_nothing ... ok
+test api::limits::tests::bucket_map_is_swept ... ok
+test api::limits::tests::bucket_bursts_then_refills ... ok
+test api::limits::tests::ipv6_counts_by_slash_64_and_mapped_ipv4_as_ipv4 ... ok
+test api::tests::forwarded_header_is_ignored_unless_configured_and_trusted ... ok
+test api::limits::tests::window_caps_total_and_per_address_and_refunds ... ok
+test bot_fill::tests::the_manager_seed_is_the_room_fill_seed_when_set ... ok
+test api::limits::tests::a_right_or_absent_passcode_does_not_spend_a_failure_slot ... ok
+test api::limits::tests::passcode_gate_throttles_before_comparing ... ok
+test api::profile::tests::only_the_length_limit_error_type_means_payload_too_large ... ok
+test bot_fill::tests::the_old_number_pipeline_fails_the_repaired_classes ... ok
+test bot_learning::tests::a_clock_that_went_backwards_does_not_hold_the_next_write_off ... ok
+test bot_fill::tests::each_actual_arrival_refreshes_only_managed_faction_bias_like_the_source ... ok
+test bot_fill::tests::a_full_lobby_explicit_seat_returns_none_without_consuming_a_draw_or_an_id ... ok
+test bot_learning::tests::a_closed_store_writes_nothing_more ... ok
+test bot_learning::tests::a_closed_live_sink_refuses_further_records ... ok
+test bot_fill::tests::the_bots_number_oracle_matches_the_actual_source ... ok
+test bot_learning::tests::a_store_snapshot_is_the_fill_policy_read_path ... ok
+test bot_learning::tests::a_read_path_builds_the_bias_view_from_the_rows ... ok
+test bot_learning::tests::a_failed_batch_keeps_every_dirty_row_for_the_next_write ... ok
+test bot_fill::tests::the_bots_config_env_surface_matches_the_actual_source ... ok
+test bot_learning::tests::an_empty_store_is_learning_on_with_no_bias ... ok
+test bot_learning::tests::a_failed_live_write_keeps_the_rows_and_the_next_flush_writes_them ... ok
+test bot_learning::tests::failed_final_flush_is_observable_and_never_claimed_durable ... ok
+test bot_learning::tests::a_live_sink_updates_the_snapshot_and_persists_the_batch ... ok
+test bot_learning::tests::damaged_rows_are_dropped_on_their_own ... ok
+test bot_learning::tests::postgres_alone_never_enables_learning_and_mode_is_explicit ... ok
+test bot_learning::tests::void_and_too_small_runs_never_touch_the_backend ... ok
+test bot_learning::tests::an_inflight_old_batch_cannot_clear_a_new_runs_dirty_cells ... ok
+test bot_learning::tests::the_write_window_holds_writes_but_flush_does_not ... ok
+test bot_fill::tests::the_explicit_add_bot_still_makes_every_draw ... ok
+test conn::tests::a_flood_of_ready_frames_cannot_hide_a_finished_writer ... ok
+test bot_learning::tests::total_close_budget_aborts_joins_and_allows_http_shutdown_to_proceed ... ok
+test conn::tests::a_long_reason_is_clipped_on_a_char_boundary_and_still_encodes ... ok
+test conn::tests::a_close_shares_the_flush_of_the_frames_before_it ... ok
+test conn::tests::a_lawful_60hz_stream_with_compulsory_pongs_survives_65_seconds ... ok
+test conn::tests::an_evicted_server_ping_payload_is_not_a_sample ... ok
+test bot_learning::tests::closing_linearizes_with_a_record_delayed_before_core_lock ... ok
+test conn::tests::only_an_unanswered_server_ping_payload_is_an_rtt_sample ... ok
+test conn::tests::the_frame_bucket_allows_exactly_its_burst_at_one_instant ... ok
+test conn::tests::one_wake_is_one_flush_with_every_frame_in_the_old_order ... ok
+test conn::tests::the_welcome_and_reject_sends_give_up_after_send_timeout ... ok
+test conn::tests::unmatched_pongs_are_charged_but_a_matched_pong_is_free_under_a_flood ... ok
+test control::arena_phase_tests::arena_planning_control_phase_is_named_truthfully ... ok
+test control::tests::a_kick_never_expires_an_admit_whose_hello_is_being_seated ... ok
+test control::tests::a_taken_admit_is_restored_with_its_original_deadline_and_never_taken_twice ... ok
+test control::tests::an_admit_is_idempotent_does_not_extend_and_expires_for_good ... ok
+test control::tests::a_long_error_message_with_multibyte_characters_is_truncated_by_chars_not_bytes ... ok
+test control::tests::callsign_and_id_rules ... ok
+test bot_fill::tests::the_explicit_add_bot_seam_matches_the_actual_source ... ok
+test control::tests::on_seat_reports_admit_to_seat_time_for_the_first_seat_only ... ok
+test bot_fill::tests::the_softmax_draw_matches_the_actual_source ... ok
+test director::tests::a_duplicate_result_report_still_gives_its_live_lease_back ... ok
+test bot_fill::tests::the_source_constants_and_defaults_are_the_ported_ones ... ok
+test director::tests::a_give_back_never_frees_an_entry_with_a_write_in_flight ... ok
+test director::tests::a_full_room_mailbox_is_a_503_and_a_closed_one_means_nobody_to_tell ... ok
+test director::tests::a_lobby_counts_its_reservations_and_runs_and_full_lobbies_are_not_offered ... ok
+test director::tests::a_late_renewal_completion_cannot_change_a_replacement_generation ... ok
+test director::tests::a_report_of_the_seated_count_never_erases_admissions_still_acquiring_their_lease ... ok
+test bot_fill::tests::the_arrival_schedule_and_yield_seat_match_the_actual_source ... ok
+test bot_fill::tests::callsigns_and_ids_match_the_actual_source ... ok
+test director::tests::a_result_the_store_refuses_for_good_is_not_retried ... ok
+test director::tests::a_seat_with_a_result_in_flight_keeps_its_lease_until_the_write_lands ... ok
+test director::tests::a_join_reply_after_the_rooms_close_registers_no_session ... ok
+test bot_learning::tests::a_full_table_keeps_the_smallest_n_and_deletes_the_victims ... ok
+test director::tests::arena_profile_director_construction_is_admitted_transport ... ok
+test director::tests::an_admission_waits_for_a_leaving_profile_but_not_for_a_seated_one ... ok
+test director::tests::bot_results_reach_the_record_caller_and_a_new_lobby_reads_the_refreshed_bias ... ok
+test director::tests::ending_metadata_is_retained_for_humans_and_never_banks_a_bot ... ok
+test director::tests::explicitly_configured_full_wish_profile_is_admitted_by_director ... ok
+test director::tests::lease_policy_reserves_time_for_a_renewal ... ok
+test api::limits::tests::concurrent_wrong_guesses_cannot_all_pass_the_throttle ... ok
+test director::tests::matchmaking_refuses_a_training_profile - should panic ... ok
+test director::tests::info_and_closed_room_keys_are_exactly_these_camel_case_names ... ok
+test director::tests::the_configured_fill_policy_reaches_a_spawned_room_with_the_room_s_fill_count ... ok
+test director::tests::an_admission_that_picks_a_room_that_just_closed_lands_in_another ... ok
+test director::tests::the_fullest_open_lobby_is_picked_and_ties_go_to_the_lowest_id ... ok
+test conn::tests::a_batch_never_feeds_more_than_the_write_buffer_cap_between_flushes ... ok
+test director::tests::a_seat_that_left_keeps_renewing_until_a_slow_result_commits ... ok
+test metrics::tests::a_histogram_is_small_and_recording_never_allocates ... ok
+test metrics::tests::admit_to_seat_is_a_millisecond_histogram_on_the_health_json ... ok
+test director::tests::the_pick_does_not_depend_on_hash_map_order ... ok
+test metrics::tests::hot_counters_have_a_cache_line_each ... ok
+test metrics::tests::late_steps_count_only_wakes_later_than_the_budget_and_lateness_is_always_recorded ... ok
+test metrics::tests::the_atomic_max_only_moves_up_and_count_sums_the_buckets ... ok
+test director::tests::profile_entries_are_changed_only_by_their_owner ... ok
+test metrics::tests::the_atomic_histogram_agrees_with_the_plain_one ... ok
+test outbox::tests::a_closed_outbox_drains_its_important_frames_then_the_close_and_drops_disposables ... ok
+test outbox::tests::a_tick_push_is_one_notify_however_many_frames_and_an_empty_one_is_none ... ok
+test outbox::tests::a_slow_client_loses_fx_and_stale_snapshots_but_never_important_frames ... ok
+test outbox::tests::an_important_overflow_inside_push_tick_closes_and_ignores_the_rest_of_the_tick ... ok
+test outbox::tests::collection_and_events_enqueue_atomically_before_disposable_frames ... ok
+test outbox::tests::counters_total_every_accepted_frame_and_ignore_a_closed_outbox ... ok
+test outbox::tests::falling_too_far_behind_on_important_frames_closes_the_client ... ok
+test pacer::tests::one_step_per_slot_bounded_catch_up_and_backlog_dropped ... ok
+test outbox::tests::coalescing_a_renewed_npc_snapshot_still_replaces_the_whole_owner_group ... ok
+test outbox::tests::push_tick_equals_the_three_single_pushes_and_drain_equals_repeated_next ... ok
+test director::tests::a_room_that_panics_frees_its_seats_and_leases ... ok
+test director::tests::a_dead_lobby_retry_waits_for_its_own_lease_give_back ... ok
+test control::tests::player_records_per_room_are_bounded ... ok
+test director::tests::leaving_wait_is_one_deadline_for_the_whole_admission ... ok
+test metrics::tests::buckets_partition_the_range_and_upper_bounds_are_tight ... ok
+test metrics::tests::quantiles_never_undershoot_and_the_max_is_exact ... ok
+test room::public_ground_tests::public_ground_rejects_stale_native_layer_dimensions_even_with_equal_cell_count ... ok
+test room::public_ground_tests::public_ground_rejects_dimension_narrowing_before_encoding ... ok
+test room::quest_bridge_tests::quest_bridge_wire_bounds_cover_the_native_domain ... ok
+test director::tests::cancelling_after_join_was_seated_retires_the_exact_seat_and_reservation ... ok
+test room::rtt::tests::a_new_estimate_is_the_default_and_its_first_sample_is_the_estimate ... ok
+test room::rtt::tests::a_render_time_is_clamped_into_the_window_ending_at_now_apply ... ok
+test room::rtt::tests::attack_and_release_render_times_are_clamped_and_counted ... ok
+test room::rtt::tests::smoothing_moves_a_quarter_of_the_way_to_each_new_sample ... ok
+test room::rtt::tests::the_ceiling_bounds_an_absurd_sample ... ok
+test room::rtt::tests::the_floor_stops_a_lucky_sample_from_collapsing_the_window ... ok
+test room::rtt::tests::the_window_by_rtt_floor_and_ceiling ... ok
+test room::rtt::tests::wish_render_time_uses_the_same_admission_window_without_adding_rewind ... ok
+test room::tests::a_bot_result_report_carries_its_fill_spec_once ... ok
+test room::public_ground_tests::public_ground_absence_differs_from_present_zero_surface ... ok
+test room::public_ground_tests::public_ground_room_refuses_mismatched_cache_binding - should panic ... ok
+test bot_fill::tests::the_old_whitespace_property_is_the_trim_negative_control ... ok
+test control::tests::closed_rooms_are_kept_newest_sixteen_and_the_young_up_to_a_hard_cap ... ok
+test room::public_ground_tests::public_ground_equal_collision_does_not_reuse_different_surface ... ok
+test room::tests::a_training_room_closes_on_idle_and_banks_nothing ... ok
+test room::tests::a_fill_bot_never_draws_a_profile_owned_callsign ... ok
+test room::tests::a_training_room_leave_never_banks_a_mia_result ... ok
+test room::tests::a_training_room_idle_clock_counts_accepted_inputs_only ... ok
+test room::tests::arena_profile_direct_room_construction_is_admitted_transport ... ok
+test room::tests::a_renewal_that_observes_the_result_release_preserves_reliable_resume ... ok
+test room::tests::a_training_room_starts_active_with_one_human_and_a_training_stream ... ok
+test room::tests::explicitly_configured_full_wish_room_construction_is_admitted ... ok
+test room::public_ground_tests::public_ground_room_mode_is_actual_and_outside_static_cache ... ok
+test room::tests::bot_refused_is_delivery_intake_only_and_line_drops_are_separate ... ok
+test room::tests::catch_up_carries_a_real_wish_start_from_its_visible_step ... ok
+test room::tests::a_human_joining_a_full_lobby_takes_the_newest_bot_seat ... ok
+test room::tests::a_fill_bots_command_arrives_after_the_configured_latency ... ok
+test room::tests::live_pickup_resolves_delivered_handles_and_resume_replaces_the_offer ... ok
+test room::tests::failed_publish_holds_wish_barrier_owner_combat_and_new_pickup_handles ... ok
+test room::tests::live_fire_feed_matches_core ... ok
+test spool::tests::a_record_round_trips_and_preserves_original_metadata ... ok
+test bot_fill::tests::a_learned_faction_bias_feeds_the_faction_softmax ... ok
+test room::tests::the_fill_policy_schedules_arrivals_over_the_countdown ... ok
+test room::public_ground_tests::public_ground_projects_both_real_maps_without_inference ... ok
+test conn::tests::a_silent_client_is_idle_and_a_finished_writer_or_stream_ends_the_wait ... ok
+test spool::tests::crc32_matches_the_standard_check_value ... ok
+test spool::tests::damage_is_detected ... ok
+test room::tests::real_trophy_room_enqueue_rejection_does_not_issue_or_spend_handles ... ok
+test wire::owner_combat_tests::invalid_owner_group_refuses_before_publisher_memo_work ... ok
+test wire::owner_combat_tests::ordinary_native_target_uses_the_same_prepared_npc_reference_in_the_wire_group ... ok
+test wire::owner_combat_tests::prepared_owner_group_survives_failed_encoding_and_reliable_enqueue_without_issuing_aliases ... ok
+test spool::tests::a_dead_letter_for_a_record_that_is_already_gone_is_success_and_leaves_no_reason_file ... ok
+test wire::tests::a_prerequisite_refusal_uses_the_existing_owner_toast_without_poisoning_frames ... ok
+test bot_fill::tests::bot_stats_file_off_keeps_the_used_configuration_learning_free ... ok
+test wire::tests::an_arena_larger_than_the_position_grid_is_refused ... ok
+test wire::tests::an_fx_frame_off_the_grid_is_refused_not_clamped ... ok
+test wire::tests::arena_events_map_to_transport_and_off_profiles_still_encode ... ok
+test wire::tests::combat_mapping_preserves_privacy_passive_and_channels ... ok
+test wire::tests::content_codes_fit_the_wire_bit_widths ... ok
+test wire::tests::giver_actor_mapping_preserves_source_fields_and_memo ... ok
+test wire::tests::full_wish_owner_and_barrier_snapshot_encode_with_arena_off ... ok
+test wire::tests::invalid_giver_and_unarmed_views_refuse_before_publisher_work ... ok
+test wire::tests::hp_pct_matches_the_f64_round_reference ... ok
+test wire::tests::protocol_8_training_frames_carry_the_training_set ... ok
+test wire::tests::omitted_effect_announcements_leave_frames_and_redaction_unchanged ... ok
+test bot_fill::tests::the_js_trim_membership_is_exact_over_every_unicode_scalar ... ok
+test wire::tests::pve_commands_and_notices_keep_normal_public_semantics ... ok
+test wire::tests::quest_hosting_stays_gated_while_native_bridge_facts_are_supported ... ok
+test wire::tests::target_conversion_never_bypasses_observer_delivery ... ok
+test spool::tests::corrupt_files_go_to_dead_with_a_reason_and_are_not_deleted ... ok
+test wire::tests::the_actor_memo_is_always_a_fresh_conversion ... ok
+test wire::tests::wish_points_check_source_f64_before_narrowing ... ok
+test spool::tests::append_is_idempotent_bounded_and_removable ... ok
+test wire::tests::wish_start_and_landing_encode_as_checked_fx ... ok
+test spool::tests::dead_letters_do_not_consume_the_pending_bound_and_have_their_own ... ok
+test conn::tests::the_fairness_look_keeps_a_ready_frame_ahead_of_an_overdue_tick ... ok
+test room::tests::an_overloaded_room_still_applies_queued_commands ... ok
+test spool::tests::concurrent_appends_of_one_record_count_it_once ... ok
+test wire::tests::server_time_is_tick_times_50 ... ok
+test room::tests::source_planning_transport_delivers_each_owner_plan_and_starts_the_run ... ok
+test wire::tests::arena_profile_transports_lobby_planning_and_active_with_owner_plan_state ... ok
+test wire::tests::giver_native_alias_prepare_drop_renewal_and_target_resolution ... ok
+test conn::tests::a_ready_frame_beats_an_overdue_liveness_tick ... ok
+test wire::tests::the_published_snapshot_is_the_one_built_from_the_observation_over_a_match ... ok
+test wire::tests::remote_actors_decode_within_the_documented_bound_over_a_match ... ok
+test room::quest_bridge_tests::quest_bridge_room_failed_enqueue_accept_resync_and_resume ... ok
+test room::quest_bridge_tests::quest_bridge_preview_hidden_and_closed_refs_never_accept ... ok
+test room::trade_bridge_tests::native_trade_input_and_owner_state_keep_first_contact_privacy_and_source_order ... ok
+test room::quest_bridge_tests::quest_bridge_native_token_and_parcel_keep_the_existing_pickup_door ... ok
+test room::trade_bridge_tests::trade_failed_encode_capacity_closed_resync_and_resume_preserve_delivery_baselines ... ok
+
+test result: ok. 190 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.52s
+
+     Running unittests src/main.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_server-2184b4878e5979ba)
+
+running 9 tests
+test tests::lease_cli_refuses_invalid_values_and_expiry_without_renewal_headroom ... ok
+test tests::spool_dead_bound_is_a_flag_and_retry_secs_is_only_an_alert_threshold ... ok
+test tests::spool_cli_is_optional_validated_and_bounded ... ok
+test tests::hosted_flags_parse_and_a_misspelt_one_is_refused ... ok
+test tests::first_playable_profile_is_opt_in_and_limits_seat_overrides ... ok
+test tests::full_wish_mode_is_a_single_explicit_flag_and_defaults_off ... ok
+test tests::lease_cli_accepts_defaults_and_a_valid_override ... ok
+test tests::service_deadlines_are_absolute_and_disabled_has_no_timer ... ok
+test tests::embedded_map_is_admitted_and_fits_the_process_budget ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/wirebench.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/wirebench-2bd6c3cc32abc78e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/account_api.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/account_api-ff55885f24e9aa6e)
+
+running 19 tests
+test forwarded_address_is_ignored_unless_configured ... ok
+test lookups_are_limited_per_address_before_any_database_query ... ok
+test equip_validates_slot_item_and_ownership ... ok
+test empty_month_leaderboards_are_cached_too ... ok
+test passcode_gates_claims_only_and_throttles_wrong_guesses ... ok
+test equip_invalidates_the_cached_leaderboard_titles ... ok
+test storage_outage_is_503_and_readiness_fails ... ok
+test claim_open_and_token_rules ... ok
+test a_claim_answers_from_its_insert_with_the_same_profile_a_later_open_returns ... ok
+test leaderboard_validation_clamps_private_you_and_invalidation ... ok
+test concurrent_purchases_cannot_double_spend ... ok
+test one_idempotency_key_from_two_profiles_at_once_is_a_clean_409_never_a_500 ... ok
+test new_profile_caps_total_and_per_address_count_claims_only ... ok
+test purchase_rules_idempotency_and_strict_input ... ok
+test a_claim_cancelled_by_the_request_timeout_is_undone_and_its_reservation_returned ... ok
+test health_readiness_cors_and_errors ... ok
+test the_account_api_has_its_own_bounded_database_concurrency ... ok
+test authenticated_account_requests_keep_their_principal_through_name_reassignment ... ok
+test shop_bucket_limits_the_owner_only ... ok
+
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.78s
+
+     Running tests/account_api_memory.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/account_api_memory-724dcfafb56356cb)
+
+running 1 test
+test without_a_database_profile_routes_answer_503_and_health_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/account_backup_restore_flow.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/account_backup_restore_flow-415695eb797d293c)
+
+running 1 test
+test cold_backup_restore_phase ... ignored, requires the two durable disposable clusters and private artifacts from tools/backup-restore-proof/proof.py
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/account_client_preflight.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/account_client_preflight-f4a9cfad8d36daf9)
+
+running 1 test
+test account_get_preflight_allows_owner_and_passcode_but_does_not_require_cache_control ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/account_durability_flow.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/account_durability_flow-0474e6c75066017e)
+
+running 1 test
+test http_claim_hosted_resume_match_spool_and_reopened_owner_profile_agree ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.39s
+
+     Running tests/barrier_observation.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/barrier_observation-ab83fe394a04eb69)
+
+running 3 tests
+test preview_numeric_refusal_emits_no_partial_frames_or_catchup_consumption ... ok
+test hidden_bad_vitals_keep_successful_published_frames_identical ... ok
+test prepared_refusal_keeps_carry_handles_and_connection_baseline_uncommitted ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/bot_names.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/bot_names-ef9a91dbca123314)
+
+running 2 tests
+test the_profile_name_set_is_read_only_and_lower_cased ... ok
+test an_unreadable_profile_registry_is_a_startup_error_not_an_empty_set ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+     Running tests/bridge_e2e.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/bridge_e2e-ff31cc13500384f2)
+
+running 1 test
+test the_real_bridge_drives_the_real_server_through_a_whole_game_session ... ignored, needs RH_GLBRIDGE_FAKE (a fakesdk glbridge for this host); run hosting/scripts/e2e-bridge.sh
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/control.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/control-7e0a2f6908371add)
+
+running 24 tests
+test health_reports_the_capability_the_bridge_checks_and_no_secret ... ok
+test health_reports_the_build_id_and_the_new_tick_and_admit_metrics_and_info_is_unchanged ... ok
+test require_admit_routes_by_the_admit_and_never_opens_a_room_itself ... ok
+test require_admit_needs_both_the_profile_credential_and_an_admit_and_keeps_the_earlier_refusals_first ... ok
+test session_properties_are_validated_and_a_starting_server_is_503 ... ok
+test the_bearer_token_guards_every_control_route_when_configured ... ok
+test session_create_is_idempotent_and_every_conflict_is_a_409 ... ok
+test unknown_fields_versions_malformed_and_oversized_bodies_are_refused ... ok
+test kick_and_ack_are_idempotent_and_a_kick_frees_the_seat_through_the_leave_path ... ok
+test the_public_listener_404s_every_control_path_and_the_control_listener_serves_no_public_route ... ok
+test a_graceful_end_closes_the_one_room_and_keeps_the_server_ready ... ok
+test admit_refusals_unknown_room_room_full_draining_and_ended ... ok
+test drain_closes_a_room_nobody_joined_at_once_instead_of_waiting_for_the_unclaimed_timeout ... ok
+test a_refused_admission_restores_the_admit_instead_of_burning_it ... ok
+test no_token_or_secret_appears_in_any_control_response ... ok
+test leaving_a_running_match_is_the_normal_mia_path_and_does_write_a_result ... ok
+test abort_closes_a_running_match_at_once_and_invents_no_result ... ok
+test drain_refuses_new_work_lets_the_match_run_and_terminates_when_the_last_room_closes ... ok
+test binary::a_non_loopback_control_address_is_refused ... ok
+test binary::require_admit_is_really_parsed_a_typo_or_a_missing_control_listener_is_an_error ... ok
+test binary::the_real_binary_reports_require_admit_and_gates_a_hello_on_an_admit ... ok
+test admit_is_idempotent_never_extends_never_rearms_and_expires_for_good ... ok
+test a_resume_inside_the_grace_keeps_the_seat_consumes_no_admit_and_left_comes_only_after_the_grace ... ok
+test a_session_created_while_draining_is_refused_or_drained_never_left_live_after_terminated ... ok
+
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.07s
+
+     Running tests/density.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/density-3256d9196f7a35e7)
+
+running 7 tests
+test control_health_serves_live_process_metrics ... ok
+test refused_snapshots_are_counted_per_room_not_logged_per_tick ... ok
+test the_pinned_sleep_steps_once_per_slot ... ok
+test a_due_step_runs_before_a_queued_command ... ok
+test the_density_engine_with_bots_is_deterministic_and_bots_cost_no_egress ... ok
+test the_density_engine_is_deterministic ... ok
+test step_telemetry_is_bounded_and_counts_every_step ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.95s
+
+     Running tests/durable_ids.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/durable_ids-ed98659d96ba54e4)
+
+running 3 tests
+test the_stores_win_counter_lists_are_subsets_of_the_sims_ids ... ok
+test faction_and_weapon_id_strings_never_change_silently ... ok
+test stored_result_spellings_are_pinned ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/ending_metadata.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/ending_metadata-a26bfaf54f1915bd)
+
+running 3 tests
+test metadata_has_no_effect_on_current_protocol_result_bytes ... ok
+test pg::actual_legacy_metadata_and_progress_commit_once_with_the_result ... ok
+test pg::metadata_obeys_captured_identity_fences_and_transaction_rollback ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+
+     Running tests/equivalence.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/equivalence-546226b61c1bb331)
+
+running 1 test
+test a_live_match_replays_and_its_bots_decide_identically_headless ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.63s
+
+     Running tests/learning_live.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/learning_live-d3a5592437647a5d)
+
+running 3 tests
+test the_live_store_records_snapshots_and_reloads_against_postgres ... ok
+test independent_live_writers_contend_and_lost_ownership_cannot_reconnect_stale_cells ... ok
+test a_real_postgres_lock_wait_cannot_hold_shutdown_past_the_total_learning_budget ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+
+     Running tests/lease_conformance.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/lease_conformance-beec9f301dd0a927)
+
+running 7 tests
+test strict_memory_store_follows_the_lease_table ... ok
+test admission_identity::renewal_probe_waits_for_contenders_but_never_revives_an_expired_lease ... ok
+test a_rename_after_admission_banks_once_and_frees_the_lease ... ok
+test rh_persist_follows_the_lease_table ... ok
+test admission_identity::aliases_share_ownership_but_reused_names_bank_two_distinct_results ... ok
+test admission_identity::credential_waiters_keep_the_verified_id_and_blocked_acquires_leave_no_lease ... ok
+test director_renews_live_seats_by_id_and_expires_only_the_stalled_seat ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.09s
+
+     Running tests/lifecycle.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/lifecycle-4f9caeda9edf21c5)
+
+running 10 tests
+test room_heap_probe ... ignored, measurement, run under valgrind --tool=dhat
+test rooms_of_one_map_share_one_arena_and_one_encoded_welcome_blob ... ok
+test a_room_nobody_has_joined_yet_waits_for_its_first_player ... ok
+test stats_carry_every_connections_outbox_counters ... ok
+test the_welcome_is_byte_identical_to_encoding_the_map_per_message_on_join_and_resume ... ok
+test a_room_closes_at_the_first_wake_after_its_last_human_leaves ... ok
+test a_dropped_human_keeps_the_room_open_until_its_grace_lapses ... ok
+test the_director_sends_the_same_welcome_bytes_as_a_per_message_encode ... ok
+test an_abandoned_lobby_closes_when_its_last_human_leaves_not_half_a_minute_later ... ok
+test a_stalled_clients_skipped_snapshots_reach_the_closed_rooms_stats ... ok
+
+test result: ok. 9 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/live.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/live-90b425794327b66b)
+
+running 17 tests
+test a_server_refuses_to_host_an_arena_beyond_the_position_range - should panic ... ok
+test a_flooding_client_is_rate_limited ... ok
+test a_new_player_gets_a_new_lobby_while_a_run_is_in_progress ... ok
+test wish_default_is_off_and_full_qe_slots_remain_noops_over_sockets ... ok
+test refusals_happen_before_a_seat_is_taken ... ok
+test the_last_humans_mia_result_is_banked_although_the_room_closes ... ok
+test a_replaced_connection_can_neither_steer_nor_detach_the_resumed_seat ... ok
+test leaving_mid_run_is_mia_with_a_result ... ok
+test a_silent_connection_is_dropped_and_its_seat_lapses ... ok
+test a_dropped_client_resumes_its_seat_and_a_lapsed_one_is_mia ... ok
+test a_stalled_client_does_not_stall_the_match ... ok
+test a_player_who_reconnects_after_the_match_resolved_still_receives_their_result ... ok
+test draining_refuses_new_players_and_lets_the_match_finish ... ok
+test a_full_match_over_websockets_ends_in_authoritative_results_and_durable_writes ... ok
+test a_resync_is_answered_with_a_full_snapshot_and_never_dropped ... ok
+test full_wish_hidden_player_reference_becomes_a_normal_targetless_miss ... ok
+test full_wish_casts_from_sockets_publish_owner_facts_and_all_five_landings ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.62s
+
+     Running tests/native_reward_transport_regression.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/native_reward_transport_regression-bd357498fee38c43)
+
+running 3 tests
+test a_missing_card_prerequisite_is_an_owner_toast_and_never_blocks_later_frames ... ok
+test real_trophy_wire_choose_rejects_far_and_dead_owner_without_grant ... ok
+test real_pvp_trophy_is_published_owner_only_and_granted_by_original_wire_index ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/percept_witness.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/percept_witness-ae53df9e8669b0c2)
+
+running 4 tests
+test the_real_producer_emits_windup_and_current_native_carries_it_nowhere ... ok
+test delivered_swing_and_hit_reach_the_human_wire_without_the_windup ... ok
+test observation_has_no_legacy_run_summary_aggregates_but_keeps_started_with ... ok
+test a_hidden_player_identity_or_position_never_leaks_into_the_human_frames ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/pg_e2e.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/pg_e2e-240d453083f4bfa6)
+
+running 9 tests
+test lease_conformance::strict_memory_store_follows_the_lease_table ... ok
+test lease_conformance::admission_identity::renewal_probe_waits_for_contenders_but_never_revives_an_expired_lease ... ok
+test lease_conformance::a_rename_after_admission_banks_once_and_frees_the_lease ... ok
+test lease_conformance::rh_persist_follows_the_lease_table ... ok
+test an_mia_leave_is_banked_under_its_fence ... ok
+test lease_conformance::admission_identity::aliases_share_ownership_but_reused_names_bank_two_distinct_results ... ok
+test lease_conformance::admission_identity::credential_waiters_keep_the_verified_id_and_blocked_acquires_leave_no_lease ... ok
+test a_match_over_websockets_banks_results_once_in_postgres ... ok
+test lease_conformance::director_renews_live_seats_by_id_and_expires_only_the_stalled_seat ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.16s
+
+     Running tests/publish.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/publish-bdf1cce8d5220bf6)
+
+running 5 tests
+test the_publisher_tells_a_swing_by_the_sight_of_the_step_it_happened_in ... ok
+test a_slow_seat_is_told_every_event_a_fast_seat_is_told ... ok
+test one_publisher_serving_many_viewers_in_any_order_matches_a_fresh_one ... ok
+test a_three_step_wake_tells_what_three_single_step_wakes_tell ... ok
+test single_step_frames_are_byte_identical_to_the_message_encoding_on_every_viewer_tick ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.47s
+
+     Running tests/result_recovery.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/result_recovery-32d6037219c4f8ff)
+
+running 10 tests
+test a_permanent_store_error_is_dead_lettered_not_retried_forever ... ok
+test a_record_already_committed_before_the_crash_is_cleared_without_double_credit ... ok
+test a_stale_fence_is_dead_lettered_and_the_new_owners_lease_is_untouched ... ok
+test a_result_is_spooled_before_it_is_committed_and_removed_only_after ... ok
+test a_full_spool_falls_back_to_memory_retry_loudly_and_loses_nothing ... ok
+test recovery_commits_once_with_the_original_fence_and_metadata ... ok
+test corrupt_and_truncated_records_are_dead_lettered_and_do_not_block_valid_ones ... ok
+test process_kill_between_spool_and_commit_recovers_exactly_once ... ok
+test a_long_outage_never_dead_letters_a_result_and_the_record_commits_when_the_database_returns ... ok
+test database_stopped_during_a_match_ticks_continue_and_the_result_lands_after_restart ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.15s
+
+     Running tests/rewind.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rewind-5109b81c75dab97f)
+
+running 4 tests
+test a_resume_resets_the_rtt_estimator_and_ignores_the_old_connections_samples ... ok
+test a_locked_attack_without_a_render_time_keeps_the_tick_ms_lag ... ok
+test a_forged_old_render_time_at_20ms_rtt_is_clamped_and_counted ... ok
+test a_150ms_connection_hits_a_moving_target_at_the_225ms_bound ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/sigterm.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/sigterm-61dcc2f8370c4210)
+
+running 1 test
+test sigterm_drains_and_exits ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests/snapshot_delta.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/snapshot_delta-50b54470d8cc0c3d)
+
+running 4 tests
+test a_resumed_connection_starts_with_a_full_snapshot_and_a_resync_makes_the_next_one_full ... ok
+test a_connections_snapshot_state_is_bounded_and_a_skipped_snapshot_costs_the_writer_nothing ... ok
+test snapshot_blocks_are_recycled_between_the_room_and_the_writer ... ok
+test applying_the_writers_frames_equals_the_full_frame_of_every_tick_for_every_viewer ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.84s
+
+     Running tests/transport.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/transport-29d73ae6cc0ee3cc)
+
+running 7 tests
+test a_bare_accepted_socket_has_no_nodelay ... ok
+test a_burst_larger_than_the_read_buffer_is_read_whole_and_in_order ... ok
+test a_websocket_ping_flood_is_rate_limited ... ok
+test the_websocket_layer_cuts_client_frames_exactly_past_the_limit ... ok
+test plain_sockets_have_nodelay_and_a_client_completes ... ok
+test tls_sockets_have_nodelay_and_a_client_completes ... ok
+test a_real_clients_pongs_produce_a_moving_server_measured_rtt ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s
+
+     Running tests/trophy_status_los_transport.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/trophy_status_los_transport-11e153a3a241f53c)
+
+running 2 tests
+test real_trophy_choose_behind_static_sight_wall_refuses_blocked_without_grant ... ok
+test real_trophy_choose_while_frozen_refuses_busy_without_grant ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+   Doc-tests rh_server
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

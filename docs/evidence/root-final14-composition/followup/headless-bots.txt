@@ -1,0 +1,13 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/crates/rh-sim)
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/crates/rh-policy)
+   Compiling rh-headless v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/crates/rh-headless)
+    Finished `test` profile [unoptimized] target(s) in 11.47s
+     Running tests/bots.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/bots-8bbd2a5bd6fc631b)
+
+running 3 tests
+test seat_assignment_is_deterministic_and_mixed ... ok
+test identical_accepted_delivered_histories_produce_identical_commands ... ok
+test human_bots_play_deterministically_on_the_policy_seats ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.54s
+

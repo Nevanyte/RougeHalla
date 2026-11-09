@@ -1,0 +1,188 @@
+{
+  "source": "43e6d08d90e8ee63e3a16ef002bba3e971c9e30f",
+  "started_utc": "2026-11-09T05:32:59.440354+00:00",
+  "scope": "Followup of frozen e2 workspace1928PASS/1obsolete-raw-testFAIL/11ignored: changed headless test and added native quest test, remaining PG/lint/parity/headless gates. No repeated broad simulation or UI/Editor/Web/cloud/performance admission.",
+  "target": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target",
+  "cargo_jobs": "2",
+  "lock_sha256": "b14507716b80f1c0b85f7298b380b3c9146917134d9361c1bb408062782c0b22",
+  "commands": [
+    {
+      "label": "headless-bots",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-headless",
+        "--test",
+        "bots"
+      ],
+      "started_utc": "2026-11-09T05:33:00.104053+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 12.442,
+      "log_sha256": "a74aa9ef4f80a56cd43cba3c55687926f962dc55be976e68577854b18b684e48",
+      "log_bytes": 981
+    },
+    {
+      "label": "quest-notices",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-sim",
+        "--all-features",
+        "--lib",
+        "quests::notices_source_tests::selected_parcel_and_run_end_cases_match_ordered_toast_gv_notices",
+        "--",
+        "--exact"
+      ],
+      "started_utc": "2026-11-09T05:33:12.546843+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 29.355,
+      "log_sha256": "6d3661933f6702ba40d95ef031461815ba9df98e327368dee3ce43c1b50219c1",
+      "log_bytes": 591
+    },
+    {
+      "label": "server-postgres",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-server",
+        "--features",
+        "postgres"
+      ],
+      "started_utc": "2026-11-09T05:33:41.902452+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 83.043,
+      "log_sha256": "b7706e490d204cfe4f762c9c3abe630a88d55daf63941ed71f345b3d71e4d131",
+      "log_bytes": 38191
+    },
+    {
+      "label": "placement-postgres",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-placement",
+        "--features",
+        "postgres,fault-injection"
+      ],
+      "started_utc": "2026-11-09T05:35:04.946544+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 41.109,
+      "log_sha256": "f614ac77de66ba383317cb3b8e64fd1b5cf92e3a34aac87553cf6f96b8707f05",
+      "log_bytes": 21119
+    },
+    {
+      "label": "clippy-all-features",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--workspace",
+        "--all-targets",
+        "--all-features",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "started_utc": "2026-11-09T05:35:46.061682+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 35.807,
+      "log_sha256": "ee639c1cba655bf3cc571142e225be6dc6ce70a1e4b494c4470d00070c2b6f74",
+      "log_bytes": 1629
+    },
+    {
+      "label": "clippy-default",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--workspace",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "started_utc": "2026-11-09T05:36:21.869935+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 22.192,
+      "log_sha256": "ec42a464b1588209c3836b7205298e8a390268f7ac1b80f06944aa493560514a",
+      "log_bytes": 1125
+    },
+    {
+      "label": "fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "started_utc": "2026-11-09T05:36:44.062947+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 1.589,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "log_bytes": 0
+    },
+    {
+      "label": "parity",
+      "command": [
+        "cargo",
+        "run",
+        "--locked",
+        "-p",
+        "rh-parity",
+        "--bin",
+        "parity-report"
+      ],
+      "started_utc": "2026-11-09T05:36:45.653063+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 14.951,
+      "log_sha256": "b45285712298594c46ddb8884d144b202c84fb77ef9601a81ce7bccab0788b8b",
+      "log_bytes": 14925
+    },
+    {
+      "label": "headless-functional",
+      "command": [
+        "cargo",
+        "run",
+        "--locked",
+        "-p",
+        "rh-headless",
+        "--",
+        "--matches",
+        "1",
+        "--players",
+        "8",
+        "--map",
+        "crates/rh-sim/src/mapdata/fixtures/seed1.map.json",
+        "--max-ticks",
+        "4000"
+      ],
+      "started_utc": "2026-11-09T05:37:00.604720+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 2.902,
+      "log_sha256": "46da88a0a3d7d1fcf604166beaeb6d7423f4702915b12b2fb6da9bc790190097",
+      "log_bytes": 779
+    }
+  ],
+  "owned_cluster_stopped": true,
+  "postgres": {
+    "port": 55466,
+    "fsync": "on",
+    "address": "127.0.0.1",
+    "database": "rh_backup",
+    "data_directory": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native-followup/pg-state/final-native-pg/data",
+    "full_page_writes": "on",
+    "system_identifier": "7706040542356883356",
+    "synchronous_commit": "on"
+  },
+  "postgres_max_connections": "300",
+  "elapsed_seconds": 244.203,
+  "complete": true
+}
