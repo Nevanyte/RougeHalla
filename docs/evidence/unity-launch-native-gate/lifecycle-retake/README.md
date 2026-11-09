@@ -1,0 +1,7 @@
+# Corrected owned scene lifetime: one fresh42 engine gate
+
+Root releases exactly68931e06/evidence09aaed35 after attached independent fixture-only review. Original9c run remains30PASS/12FAIL; corrected035run remains27PASS/15FAIL, including13duplicate-global-light and2EventSystem ownership errors. Both raw outcomes/identities stay immutable. No production code changed.
+
+All17 launch method bodies/attributes and old25 remain byte-identical to035; only fixture-owned Arena/light teardown and real registered ExecuteAlways EventSystem setup changed. Actual public launches, real ArenaView.Awake, positive controls and assertions remain. No log suppression/global registry mutation/unrelated scene cleanup. SOURCE_IDENTITY.json reuses the1153pinned inputs, with an immutable Git diff proving the fixture is the only changed project/net path. The final receipt commit adds documentation only.
+
+Perform ONE fresh actual42 EditMode run after one-to-one actual discovery binding to the unchanged selector contract. Record new loaded assembly identity/MVID, all actual outcomes/missing/extra names and source hashes. Stop on actual failure; do not change assertions/source or rerun silently. No pass is predicted. The sole Editor owner restores its known cleanFrozen4source, settings/preferences/emptyMain and hold. This gate is separate from V3contact-sheet/art, Play, actual Web/native servers, account banking or cloud release.
