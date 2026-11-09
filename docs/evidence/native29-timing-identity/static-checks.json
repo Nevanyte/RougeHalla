@@ -1,0 +1,66 @@
+{
+  "status": "CODE_ONLY_UNCOMPILED_UNTESTED",
+  "base": "3e5a1fafa6a610e8802edd8503463771fa517764",
+  "builds_run": false,
+  "tests_run": false,
+  "cache_used": false,
+  "checks": {
+    "player_timings": {
+      "unchanged": true,
+      "sha256": "331566afcb77336f6da07fbfbf504ee28add7048238443e458ea902b1df5777d"
+    },
+    "npc_timings": {
+      "unchanged": true,
+      "sha256": "fb2935ee55b9b5707acee0389865feb5650c56633790e02f174d99f822094bfb"
+    },
+    "scale_windup": {
+      "unchanged": true,
+      "sha256": "f2af941680aca09dd57380d26b5b13f2e33e55c73f99bfcdad423dd22d10c0e5"
+    },
+    "mirror_timings": {
+      "unchanged": true,
+      "sha256": "ed6035090d52446490726f625607fc6bb2f54033f93adb6937f57a1ed3d15f85"
+    },
+    "old_formula_probes": {
+      "unchanged": true,
+      "sha256": "1bd9b208a2f1d485a7e9c1a319c21f8d8e21584cfab433c5ccbdbc781da16f9d"
+    },
+    "production_visitor": {
+      "static_no_heap_construction": true,
+      "actual_calls": "mirror_timings(&spec, weapon, as_mult, windup_mult, npc)",
+      "rows": 240,
+      "pairs": [
+        [
+          1,
+          1
+        ],
+        [
+          1.5,
+          0.5
+        ],
+        [
+          0.5,
+          1.5
+        ],
+        [
+          1,
+          1.5
+        ]
+      ],
+      "runtime_build_verification": "UNRUN"
+    },
+    "aggregate": {
+      "runtime_words_timings_optional": true,
+      "actual_fold_label": "mirror-timings/1",
+      "private_stream_domain": "mirror-timing-probes/1",
+      "supplied_seam": "content_hash_of_mirror_timing_words",
+      "old_probes_unchanged": true
+    },
+    "source18": {
+      "unchanged_sha256": "a7b8feda1aca08fe20f5a46ee11f57959a2a186619caf73611a67cb086eaae06",
+      "bytes": 40317,
+      "test_associations": "written, UNRUN"
+    }
+  },
+  "code_head": "5d4d3c116d809d931abbef2c8e915d5e8d37ba57"
+}
