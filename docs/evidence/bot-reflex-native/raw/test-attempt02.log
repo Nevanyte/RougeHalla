@@ -1,0 +1,25 @@
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-reflex-component/repo/crates/rh-policy)
+    Finished `test` profile [unoptimized] target(s) in 5.88s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fight-native/target/debug/deps/rh_policy-c3fa0ee46865b1ea)
+
+running 5 tests
+test bots::reflex::tests::controls::source_string_keys_preserve_timestamp_spelling_and_shared_cross_kind_equality ... ok
+test bots::reflex::tests::controls::session_epoch_owner_refusal_and_reset_clear_real_choices_hold_and_counters ... ok
+test bots::reflex::tests::controls::nonfinite_and_late_unknown_facts_are_atomic_from_reached_state ... ok
+test bots::reflex::tests::controls::missing_complete_facts_refuse_before_reached_state_rng_paths_then_retry ... ok
+
+thread 'bots::reflex::tests::all_actual_source_49_sequences_68_frames_complete_outputs_paths_and_streams' (67170917) panicked at crates/rh-policy/src/bots/reflex/tests.rs:244:14:
+assertion `left == right` failed: discrete aim-lateral60-nominal-binary64-outside[0]
+  left: Object {"holdUntil": Number(1830.0), "intent": Object {"kind": String("move"), "priority": Number(0), "timing": Object {"due": Number(1380.0), "kind": String("timed")}, "to": Object {"x": Number(612.6433069649192), "y": Number(325.8556434502693)}, "why": String("juke the shot as it leaves")}, "kind": String("juke")}
+ right: Null
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test bots::reflex::tests::all_actual_source_49_sequences_68_frames_complete_outputs_paths_and_streams ... FAILED
+
+failures:
+
+failures:
+    bots::reflex::tests::all_actual_source_49_sequences_68_frames_complete_outputs_paths_and_streams
+
+test result: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 154 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p rh-policy --lib`

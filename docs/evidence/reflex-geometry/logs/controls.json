@@ -1,0 +1,71 @@
+{
+  "format": "rh-reflex-geometry-controls/1",
+  "required": 8,
+  "kills": 8,
+  "restoredEqual": true,
+  "rows": [
+    {
+      "id": "own-id-equality",
+      "status": "KILL",
+      "firstDiff": "/course/cases/0/result value",
+      "changed": true,
+      "sourceSha256": "95766ee811d25c99ceb31913be438f99ca19357192127a13592638fc2171b8a2"
+    },
+    {
+      "id": "origin-boundary",
+      "status": "KILL",
+      "firstDiff": "/course/cases/2/result value",
+      "changed": true,
+      "sourceSha256": "dd06abb2c350e380765ee059740cd9ddb6ac8bfe7546a0293230c2316922f87a"
+    },
+    {
+      "id": "speed-one-boundary",
+      "status": "KILL",
+      "firstDiff": "/course/cases/2/result value",
+      "changed": true,
+      "sourceSha256": "7fca8fb2a55c8d0d754596778928d7486dd09f52ee1d85b42c6728e9a1cb4e37"
+    },
+    {
+      "id": "lateral-boundary",
+      "status": "KILL",
+      "firstDiff": "/course/cases/7/result value",
+      "changed": true,
+      "sourceSha256": "faabf21a2e4bffc55d845a20268f74e1de5f0b5c043a54c1000fdd8c823235f9"
+    },
+    {
+      "id": "behind-zero-boundary",
+      "status": "KILL",
+      "firstDiff": "/course/cases/12/result value",
+      "changed": true,
+      "sourceSha256": "f4a37b9b8dfd5f8cbe61ec73a27030ac712f2925ce1d1c5ad1a0eaefbd0f2bf2"
+    },
+    {
+      "id": "range-hit-reach-boundary",
+      "status": "KILL",
+      "firstDiff": "/course/cases/14/result value",
+      "changed": true,
+      "sourceSha256": "e18f8432adb3e7c507aadf6bd7e6733bb521005ff3d98182d5a36f05a54556f5"
+    },
+    {
+      "id": "impact-zero-boundary",
+      "status": "KILL",
+      "firstDiff": "/course/cases/17/result value",
+      "changed": true,
+      "sourceSha256": "03d73f86e76b4a8b12793ddbf3993027665631fb899b2aee382efd8748c52984"
+    },
+    {
+      "id": "angle-wrap",
+      "status": "KILL",
+      "firstDiff": "/angle/cases/4/result",
+      "changed": true,
+      "sourceSha256": "500d2407f3b071f641cd225c0923e4e6d41d7d3d9ddd54a964ded74bce568cf9"
+    },
+    {
+      "id": "provenance-only-comment",
+      "status": "NON-KILL",
+      "firstDiff": null,
+      "changed": false,
+      "sourceSha256": "f6184b32a750fc98d14c35c2c3e6be98867bafd4c157a9f8bb83c5f6e086ed98"
+    }
+  ]
+}

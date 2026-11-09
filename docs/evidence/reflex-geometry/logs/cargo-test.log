@@ -1,0 +1,11 @@
+    Finished `test` profile [unoptimized] target(s) in 0.14s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fight-native/target/debug/deps/rh_policy-c3fa0ee46865b1ea)
+
+running 3 tests
+test bots::kite::reflex_geometry::tests::from_self_exclusion_is_an_explicit_declared_fact ... ok
+test bots::kite::reflex_geometry::tests::nonfinite_facts_are_refused_before_computation ... ok
+reflex geometry: 10 angle + 25 course rows; max C-PARITY abs diff 0.0
+test bots::kite::reflex_geometry::tests::actual_source_90_plus_6_geometry_rows_match ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 151 filtered out; finished in 0.00s
+

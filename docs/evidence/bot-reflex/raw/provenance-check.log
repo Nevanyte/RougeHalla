@@ -1,0 +1,5 @@
+sourceSha256: 113 exact frozen Git blobs PASS at a0c4818ce9df8ad0f4124db31e65ba1244bddc3b
+configSha256: 8 exact frozen Git blobs PASS at a0c4818ce9df8ad0f4124db31e65ba1244bddc3b
+toolSha256: 9 exact frozen Git blobs PASS at 072290b7b09c4415818dc4c55a4e4d0b21699abd
+Final20 semantic kills +1 provenance nonkill; all23 raw logs pinned including pristine/restored PASS
+Clean export code072290b7 reproduction byte-exact PASS

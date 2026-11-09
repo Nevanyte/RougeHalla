@@ -1,0 +1,10 @@
+exit=1 signal=null
+file:///work/tools/bot-reflex-fixtures/verify.mjs:25
+ const hold=rows('dodge-precedes-hold-and-juke-exact-public-hold-boundary');assert.equal(hold[2].result.kind,'dodge');assert(hold[2].input.percept.now<hold[1].state.holdUntil);assert.equal(hold[3].result,null);assert.equal(hold[3].drawDelta.decide,0);assert.equal(hold[4].input.percept.now,hold[3].state.holdUntil);assert.equal(hold[4].result.kind,'juke');
+                                                                                                        ^
+
+TypeError: Cannot read properties of null (reading 'kind')
+    at verify (file:///work/tools/bot-reflex-fixtures/verify.mjs:25:105)
+    at <anonymous> (/work/tools/bot-reflex-fixtures/capture.mts:81:45)
+
+Node.js v22.23.4
