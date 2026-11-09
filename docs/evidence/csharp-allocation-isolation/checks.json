@@ -1,0 +1,19 @@
+{
+  "format": "rh-allocation-candidate-checks/1",
+  "originalDecoderGitTree": "5df6ac67e78f251689081e2ee34501114513f7b8",
+  "currentDecoderGitTree": "5df6ac67e78f251689081e2ee34501114513f7b8",
+  "originalGarbageTestsOutsidePerCallIdentical": true,
+  "originalSelectors": 18,
+  "newControls": 5,
+  "focusedPassed": 23,
+  "probeAggregates": 30,
+  "probeTraces": 30,
+  "callsPerAggregate": 20200,
+  "rawDeltasPerTrace": 20000,
+  "linuxExecuted": false,
+  "pushed": false,
+  "dispatched": false,
+  "merged": false,
+  "originalCiRedCleared": false,
+  "workflow": "dispatch-only diagnostic replacement NEVER MERGE"
+}

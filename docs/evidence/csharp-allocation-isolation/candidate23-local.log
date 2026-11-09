@@ -1,0 +1,55 @@
+  RoguehallaNet -> /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/full-game-runtime/repo/client-unity/RoguehallaNet/bin/Debug/netstandard2.1/RoguehallaNet.dll
+  RoguehallaNet.Probe -> /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/full-game-runtime/repo/client-unity/RoguehallaNet.Probe/bin/Debug/net8.0/RoguehallaNet.Probe.dll
+  RoguehallaNet.Tests -> /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/full-game-runtime/repo/client-unity/RoguehallaNet.Tests/bin/Debug/net8.0/RoguehallaNet.Tests.dll
+Test run for /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/full-game-runtime/repo/client-unity/RoguehallaNet.Tests/bin/Debug/net8.0/RoguehallaNet.Tests.dll (.NETCoreApp,Version=v8.0)
+VSTest version 17.11.1 (arm64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+NUnit Adapter 4.6.0.0: Test execution started
+Running selected tests in /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/full-game-runtime/repo/client-unity/RoguehallaNet.Tests/bin/Debug/net8.0/RoguehallaNet.Tests.dll
+   NUnit3TestExecutor discovered 23 of 23 NUnit test cases using Current Discovery mode, Non-Explicit run
+session delta receive + sample, 1 actors: 0 B per snapshot
+session delta receive + sample, 14 actors: 0 B per snapshot
+session delta receive + sample, 68 actors: 0 B per snapshot
+session receive + sample, 1 actors: 0 B per snapshot
+  Passed EmptyMeasuredBodyAllocatesExactlyZero [4 ms]
+  Passed MeasuredBodyExceptionReachesTheCallerUnchanged [2 ms]
+  Passed OneObjectAtTheFirstMeasuredIndexIsNotDiscarded [< 1 ms]
+  Passed OneObjectEveryCallExceedsTheUnchangedZeroBudget [< 1 ms]
+  Passed WarmupAndMeasurementUseOneDedicatedWorkerWithoutCallerContext [1 ms]
+  Passed ASessionReceivingDeltasMakesNoGarbage(1) [71 ms]
+  Passed ASessionReceivingDeltasMakesNoGarbage(14) [78 ms]
+  Passed ASessionReceivingDeltasMakesNoGarbage(68) [172 ms]
+  Passed ASessionReceivingSnapshotsMakesNoGarbage(1) [57 ms]
+session receive + sample, 14 actors: 0 B per snapshot
+session receive + sample, 68 actors: 0 B per snapshot
+decode into spare, 1 actors: 0 B steady, 72 B when the count changes every snapshot
+decode into spare, 14 actors: 0 B steady, 488 B when the count changes every snapshot
+decode into spare, 68 actors: 0 B steady, 2216.0344 B when the count changes every snapshot
+plain decode, 1 actors: 200 B with a self, 120 B without
+plain decode, 14 actors: 616 B with a self, 536 B without
+plain decode, 68 actors: 2344 B with a self, 2264 B without
+  Passed ASessionReceivingSnapshotsMakesNoGarbage(14) [91 ms]
+  Passed ASessionReceivingSnapshotsMakesNoGarbage(68) [198 ms]
+  Passed DecodeIntoTheSpareMeetsTheBudgetAndIsFreeInSteadyState(1) [16 ms]
+  Passed DecodeIntoTheSpareMeetsTheBudgetAndIsFreeInSteadyState(14) [64 ms]
+  Passed DecodeIntoTheSpareMeetsTheBudgetAndIsFreeInSteadyState(68) [257 ms]
+  Passed DecodeIntoTheSpareReusesPresentWishOwnerAndCastWithoutSteadyAllocations [10 ms]
+  Passed PlainDecodeAllocatesOnlyTheSnapshotItsSelfAndOneActorArray(1) [11 ms]
+  Passed PlainDecodeAllocatesOnlyTheSnapshotItsSelfAndOneActorArray(14) [58 ms]
+  Passed PlainDecodeAllocatesOnlyTheSnapshotItsSelfAndOneActorArray(68) [251 ms]
+sample 1 actors: 0 B
+sample 14 actors: 0 B
+sample 68 actors: 0 B
+NUnit Adapter 4.6.0.0: Test execution complete
+  Passed SampleMakesNoGarbage(1) [3 ms]
+  Passed SampleMakesNoGarbage(14) [10 ms]
+  Passed SampleMakesNoGarbage(68) [43 ms]
+  Passed SessionMeMakesNoGarbageOnTheSteadyPath [4 ms]
+  Passed SnapshotTrackerCopiesUnchangedWishOwnerAndCastWithoutSteadyAllocations [4 ms]
+
+Test Run Successful.
+Total tests: 23
+     Passed: 23
+ Total time: 1.7461 Seconds

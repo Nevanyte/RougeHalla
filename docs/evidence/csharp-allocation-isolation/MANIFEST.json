@@ -1,0 +1,182 @@
+{
+  "format": "rh-csharp-allocation-isolation/1",
+  "base": "986f44dfd9a61eb769700adc476fc8b9e9aa8011",
+  "candidateCommit": "c9b51529063f98d5d3667f964fb78eecee67797a",
+  "diagnosticOnlyCommit": "4757316a9895da5d414223d0da830fb8f48964f3",
+  "productionDecoderGitTree": "5df6ac67e78f251689081e2ee34501114513f7b8",
+  "status": "CANDIDATE_ONLY_ORIGINAL_CI_RED_OPEN_LINUX_UNRUN",
+  "files": {
+    ".github/workflows/rust.yml": {
+      "bytes": 2759,
+      "sha256": "e8656fc6c3a31bc350bf7383358ec25bd25416b4dd39891beade9d4c2bf459f3"
+    },
+    "client-unity/RoguehallaNet.Tests/AllocationMeasurementTests.cs": {
+      "bytes": 3204,
+      "sha256": "5256d805542276b235de5786359c4a48f6c9690cbdcfb494cfc743bbc347341b"
+    },
+    "client-unity/RoguehallaNet.Tests/GarbageTests.cs": {
+      "bytes": 22892,
+      "sha256": "d0d4bf07de370f5dd598e6819561dc6bed4636e27b1b5f9a2cc2bf7268939150"
+    },
+    "docs/evidence/csharp-allocation-isolation/README.md": {
+      "bytes": 3057,
+      "sha256": "fac49b00634b2e502e5797a46fbcf52773af65524f4f525a0e127bcb7ef2d055"
+    },
+    "docs/evidence/csharp-allocation-isolation/candidate23-local.log": {
+      "bytes": 3768,
+      "sha256": "62338dfe413cc7162e6c8fae23b769fe6410104cba4d65fa30a37f167841fd63"
+    },
+    "docs/evidence/csharp-allocation-isolation/checks.json": {
+      "bytes": 611,
+      "sha256": "dc32deedeb7c521c7e4903581c234c608fdaa4d12f5c54e22080a25641715e89"
+    },
+    "docs/evidence/csharp-allocation-isolation/ci-42601100872-csharp.raw.log": {
+      "bytes": 19393,
+      "sha256": "04bac1fd28df1cc4545b802bec2b84447e0b86fd08afdf3c898ee773f4b95bbf"
+    },
+    "docs/evidence/csharp-allocation-isolation/original18-local.log": {
+      "bytes": 3437,
+      "sha256": "cd309d5e336eadc6b78e0a4c2444971d682e264469e4ba57e736d2f2e0e95dca"
+    },
+    "docs/evidence/csharp-allocation-isolation/probe-local.log": {
+      "bytes": 20434,
+      "sha256": "c79173b233de6acd2090beb968af5785b22fd995c81bca98d708d92725d043db"
+    },
+    "docs/evidence/csharp-allocation-isolation/probe-local/decode-1-self-candidate-trace.json": {
+      "bytes": 320119,
+      "sha256": "a0b6865d99c9d80ae3aaeeec0c35eb13ac3b0092f82fd554f7e885bd75a8a1d7"
+    },
+    "docs/evidence/csharp-allocation-isolation/probe-local/decode-1-self-extra-object-candidate-trace.json": {
+      "bytes": 320132,
+      "sha256": "1bf7dc0e974f109b7c9444acbd51cac6fc07e2409a86da2d0e217d5720746cc7"
+    },
+    "docs/evidence/csharp-allocation-isolation/probe-local/decode-1-self-extra-object-original-trace.json": {
+      "bytes": 320131,
+      "sha256": "11f85978e72b2323e55d603f93cc5e07ab4beb7fb28ad140a9d341f751a52d15"
+    },
+    "docs/evidence/csharp-allocation-isolation/probe-local/decode-1-self-original-trace.json": {
+      "bytes": 320118,
+      "sha256": "b74e60ab3ee9db832503f7126276f0ee72dbed35b77306deb4aaceba21dbc67d"
+    },
+    "docs/evidence/csharp-allocation-isolation/probe-local/decode-1-spectator-candidate-trace.json": {
+      "bytes": 320124,
+      "sha256": "f4d3be95b2481280af10cef065681d6f5ed6e0029933a1aa0d6313d4c0c944fa"
+    },
+    "docs/evidence/csharp-allocation-isolation/probe-local/decode-1-spectator-extra-object-candidate-trace.json": {
+      "bytes": 320137,
+      "sha256": "4331b0e4d5e3d1fd0ec757f593111a466df304aee89ad1c3b44a3f02a43c81cf"
+    },
+    "docs/evidence/csharp-allocation-isolation/probe-local/decode-1-spectator-extra-object-original-trace.json": {
+      "bytes": 320136,
+      "sha256": "a02b35b8f8d10c500cd8d0fe1e409825f0ccb67f9baabe501823c91fc0c3febd"
+    },
+    "docs/evidence/csharp-allocation-isolation/probe-local/decode-1-spectator-original-trace.json": {
+      "bytes": 320123,
+      "sha256": "819de975c2c037635f9b236eccfafe33ea28d391de55e93c027e830face8cc6a"
+    },
+    "docs/evidence/csharp-allocation-isolation/probe-local/decode-14-self-candidate-trace.json": {
+      "bytes": 320120,
+      "sha256": "94cc200e48b258f164cc18739023390c2afd52702c8b0085c7bf2e52ea91d787"
+    },
+    "docs/evidence/csharp-allocation-isolation/probe-local/decode-14-self-extra-object-candidate-trace.json": {
+      "bytes": 320133,
+      "sha256": "81635b4b0837fa3810bf53bc891ed84bfaf005ad1108f6097a8727c6794337c3"
+    },
+    "docs/evidence/csharp-allocation-isolation/probe-local/decode-14-self-extra-object-original-trace.json": {
+      "bytes": 320132,
+      "sha256": "aed8ef43fc026195d997270762f5cda8f8beb21b63651a34b74f1428ac34ff76"
+    },
+    "docs/evidence/csharp-allocation-isolation/probe-local/decode-14-self-original-trace.json": {
+      "bytes": 320119,
+      "sha256": "ff404245bae702359dfb8559abb51a2da61c4dcc2da52ee07d7ab61332f9233f"
+    },
+    "docs/evidence/csharp-allocation-isolation/probe-local/decode-14-spectator-candidate-trace.json": {
+      "bytes": 320125,
+      "sha256": "59439a90d8c1767b376f45fd35517e949b4123aa39071b41acba0c79ef3df39c"
+    },
+    "docs/evidence/csharp-allocation-isolation/probe-local/decode-14-spectator-extra-object-candidate-trace.json": {
+      "bytes": 320138,
+      "sha256": "83624284fdb66a8c8345a821905a90cf40ed560423ca681213c4098bd1cd54ce"
+    },
+    "docs/evidence/csharp-allocation-isolation/probe-local/decode-14-spectator-extra-object-original-trace.json": {
+      "bytes": 320137,
+      "sha256": "f9e034bd11e66a7ec90a07eada75e75a76a44f3b93fdb20ea7db900d96488a64"
+    },
+    "docs/evidence/csharp-allocation-isolation/probe-local/decode-14-spectator-original-trace.json": {
+      "bytes": 320124,
+      "sha256": "2194703f101442bdfad4be93f778d22d45ead3b1339bcf874b070237ea06d716"
+    },
+    "docs/evidence/csharp-allocation-isolation/probe-local/decode-68-self-candidate-trace.json": {
+      "bytes": 340120,
+      "sha256": "34941723bb07ba4dcf546c6998b5f6ef4de9b0c499525273d289277dd003d99c"
+    },
+    "docs/evidence/csharp-allocation-isolation/probe-local/decode-68-self-extra-object-candidate-trace.json": {
+      "bytes": 340133,
+      "sha256": "708fa2e15029f30047cf091e516ea62fdd3a95fd626d60ac43bc7f674c0e2069"
+    },
+    "docs/evidence/csharp-allocation-isolation/probe-local/decode-68-self-extra-object-original-trace.json": {
+      "bytes": 340132,
+      "sha256": "cba2ac47425453fd8b5a408f0a87b4087ab803e46718aa29bcdc65b5640b6454"
+    },
+    "docs/evidence/csharp-allocation-isolation/probe-local/decode-68-self-original-trace.json": {
+      "bytes": 340119,
+      "sha256": "ae6a0193032ea539944d3394945e8e3b8645eb64da34ec3729f4ab0bf3c318c5"
+    },
+    "docs/evidence/csharp-allocation-isolation/probe-local/decode-68-spectator-candidate-trace.json": {
+      "bytes": 340125,
+      "sha256": "275d72941906439b6c50a9594eb6637a4433c05b95cc57346f00373ce7c959d4"
+    },
+    "docs/evidence/csharp-allocation-isolation/probe-local/decode-68-spectator-extra-object-candidate-trace.json": {
+      "bytes": 340138,
+      "sha256": "bfc834d9cc9772233f5345ff4cf3b1574623ce594ab57ae5faa3564b11b45aec"
+    },
+    "docs/evidence/csharp-allocation-isolation/probe-local/decode-68-spectator-extra-object-original-trace.json": {
+      "bytes": 340137,
+      "sha256": "c849934174d44f23816240f899b397e079231f60ff3e28191f50296b0c169e67"
+    },
+    "docs/evidence/csharp-allocation-isolation/probe-local/decode-68-spectator-original-trace.json": {
+      "bytes": 340124,
+      "sha256": "1a4f9235cbbdf7f5dcf3f2611b58bc73aef2a423bba19fcb87cee7412caca4f9"
+    },
+    "docs/evidence/csharp-allocation-isolation/probe-local/empty-candidate-trace.json": {
+      "bytes": 280111,
+      "sha256": "b3e884e366e6cbd197dd064a78f7db052b641279eeb9efd33ce7713a3015b5cf"
+    },
+    "docs/evidence/csharp-allocation-isolation/probe-local/empty-original-trace.json": {
+      "bytes": 280110,
+      "sha256": "b4c5a7f690b7201a1754a4b3f5517893b6d0723a4d017522124c7cae48dfd597"
+    },
+    "docs/evidence/csharp-allocation-isolation/probe-local/object-every-call-candidate-trace.json": {
+      "bytes": 300123,
+      "sha256": "1a43b06e85acad9ab7eb861d3caacf0bc895c5abadc8b3252d4aa3ed1cd1a80c"
+    },
+    "docs/evidence/csharp-allocation-isolation/probe-local/object-every-call-original-trace.json": {
+      "bytes": 300122,
+      "sha256": "8610b4c508b86663ae36bde58b66cdb03449c420704216662d5bcb5289b5e5a7"
+    },
+    "docs/evidence/csharp-allocation-isolation/probe-local/object-only-measured-index200-candidate-trace.json": {
+      "bytes": 300136,
+      "sha256": "740f5a4cdf89dee09ea00b352e630ea03c8f0eba81bce5768679ce8ced777da2"
+    },
+    "docs/evidence/csharp-allocation-isolation/probe-local/object-only-measured-index200-original-trace.json": {
+      "bytes": 280135,
+      "sha256": "0e9dfef355fec881eb3dbbed8d5dc2c54aec2654c401bae904c1ecd4de4dfa57"
+    },
+    "docs/evidence/csharp-allocation-isolation/probe-local/summary.json": {
+      "bytes": 31058,
+      "sha256": "ebf209fa8930861e250fbef7e9741ef2d1c9d7657e0e1c73df605c9693b955d9"
+    },
+    "tools/csharp-allocation-diagnostic/AllocationProbe.csproj": {
+      "bytes": 306,
+      "sha256": "3f72c7fb2cd6d092803ba0d0ef96e0fa6656ac75af8706bceffb5352b486d8b7"
+    },
+    "tools/csharp-allocation-diagnostic/Program.cs": {
+      "bytes": 8495,
+      "sha256": "9e92272a8cbe0f8c80dfaa2eeaf1aa4f11ae62dc9956a5b472034a0986bcb02a"
+    },
+    "tools/csharp-allocation-diagnostic/README.md": {
+      "bytes": 2511,
+      "sha256": "a628e0ebca3a83d556c4987474465222af40f90cd1d4bb7044e15955059e61ab"
+    }
+  }
+}
