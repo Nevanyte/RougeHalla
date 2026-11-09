@@ -1,0 +1,81 @@
+{
+  "source": "e0da2de0b5100d979901aa5e20cc3d8f964e0626",
+  "parent": "6a61b069f7928c4dc4f571f13c0d994270a8fdd1",
+  "actualSettlementProofBase": "1a7774e4b23b5f10a0ab3a1b687a2dec5bbf21f4",
+  "reviewedTrainingLeaf": "70d176c3d29a5e13749ed536905130042d613eb0",
+  "sourceFilesChanged": [
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/MatchClient.cs",
+      "sha256": "6c72f095cd3e89568b78ee1e6eac2b3efffb9f5e2ae0c548d5707980d6e013a8"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.Features.cs",
+      "sha256": "e89d93509f98f56b42178e21350bfa43e1ec8bbb50a454a4a8cb852edc72f82b"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.PlayerFlows.cs",
+      "sha256": "1cbc16e9698b959db3ec3b39602828ee293b9225b1dfe2582631c58bce7070fe"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.Training.cs",
+      "sha256": "45e9043779d3e9e081bd733e42e1be5429a64cdb3f2e32a078ddc84a733da92f"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.Training.cs.meta",
+      "sha256": "addf37db471e824cd2ee6a26c35f6d94169679e3246d3fb4fb48d5b1b75a691c"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.cs",
+      "sha256": "da47dacd25662cfd3a05c6da5995b07a3ca18b28a330e8baac19ec0016b3e0f9"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/TrainingConsolePointerRelease.cs.meta",
+      "sha256": "3ae9706a16655136083cd3ad4051c7423758a1b3b4f30ed2df07fea285c3c7a7"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/TrainingConsoleSelectors.cs.meta",
+      "sha256": "9e87c197a065c4f149932fb9cdb17121a3d920dd4145a61105e814281f45acde"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/TrainingConsoleView.cs",
+      "sha256": "825b400c627d957f47ceaf424cfc3fcc5d6497402f7a3be6e963dd5f1fe52449"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/TrainingConsoleView.cs.meta",
+      "sha256": "2b381ef88708cb785a721ab5705e7b65de5a20a245fe5622381db06321f463d0"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/TrainingConsoleIntegrationEditModeTests.cs",
+      "sha256": "024f7ba9705963f77e4d90b71eb27289778668e1d19d2681bc7ca86a3add8ed0"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/TrainingConsoleIntegrationEditModeTests.cs.meta",
+      "sha256": "29a4cd6768735b57d79594c53d9327201198f9fda234da09f6519ad81ab95fea"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/TrainingConsoleSelectorsEditModeTests.cs.meta",
+      "sha256": "e2a816f2d458db792331864a4a8f2762bd8f64b48e45dbdf47cc6aace71e9a27"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/TrainingConsoleViewEditModeTests.cs.meta",
+      "sha256": "51ca8c3104d7f3f46d0ab54b8fb79ea806ce6886c9bee5353b00c62476de612b"
+    }
+  ],
+  "prior64EditorSourceMetaPathsUnchanged": 64,
+  "leaf13EditorBodiesUnchanged": true,
+  "leafEvidenceUnchanged": true,
+  "protectedUnchanged": [
+    "client-unity/UnityProject/Assets/Scripts/Net/MatchClient.Settlement.cs",
+    "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.Settlement.cs",
+    "client-unity/UnityProject/Assets/Scripts/Net/AccountFullJson.cs",
+    "client-unity/UnityProject/Assets/Scripts/Net/UnityAccountTransport.cs",
+    "client-unity/RoguehallaNet/Net/Session.cs",
+    "client-unity/RoguehallaNet/Net/InputSender.cs",
+    "client-unity/UnityProject/Assets/RoguehallaNet/Net/InputSender.cs",
+    "Cargo.lock",
+    "docs/MIGRATION.md",
+    "docs/CONTRACTS.md"
+  ],
+  "allNetMirrorsExact": 24,
+  "RuntimeValidationHere": "No Unity Editor/PlayMode/browser/Web/server/cloud invoked; managed checks only."
+}

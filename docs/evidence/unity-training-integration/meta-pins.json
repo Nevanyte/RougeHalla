@@ -1,0 +1,58 @@
+{
+  "source": "e0da2de0b5100d979901aa5e20cc3d8f964e0626",
+  "newMetaCount": 7,
+  "existingMetasUnchanged": 609,
+  "uniqueAssetGuids": 616,
+  "guidComparison": "case-insensitive valid32hex; original metadata bytes preserved",
+  "newMetas": [
+    {
+      "source": "client-unity/UnityProject/Assets/Tests/Editor/TrainingConsoleViewEditModeTests.cs",
+      "sourceSHA256": "b7c190585813a1d4ffb564c0a747dd43fc878029844b95850e0ca5de506144f3",
+      "meta": "client-unity/UnityProject/Assets/Tests/Editor/TrainingConsoleViewEditModeTests.cs.meta",
+      "metaSHA256": "51ca8c3104d7f3f46d0ab54b8fb79ea806ce6886c9bee5353b00c62476de612b",
+      "guid": "5a969452231445798af516800137f354"
+    },
+    {
+      "source": "client-unity/UnityProject/Assets/Tests/Editor/TrainingConsoleSelectorsEditModeTests.cs",
+      "sourceSHA256": "0dbb264aa1f0f00dda1b00e048578719fd11a3475be951e20e3d4884715bccbc",
+      "meta": "client-unity/UnityProject/Assets/Tests/Editor/TrainingConsoleSelectorsEditModeTests.cs.meta",
+      "metaSHA256": "e2a816f2d458db792331864a4a8f2762bd8f64b48e45dbdf47cc6aace71e9a27",
+      "guid": "1990e91c7892488ca41c9b6c7ddf48d5"
+    },
+    {
+      "source": "client-unity/UnityProject/Assets/Tests/Editor/TrainingConsoleIntegrationEditModeTests.cs",
+      "sourceSHA256": "024f7ba9705963f77e4d90b71eb27289778668e1d19d2681bc7ca86a3add8ed0",
+      "meta": "client-unity/UnityProject/Assets/Tests/Editor/TrainingConsoleIntegrationEditModeTests.cs.meta",
+      "metaSHA256": "29a4cd6768735b57d79594c53d9327201198f9fda234da09f6519ad81ab95fea",
+      "guid": "37a43674d2454878b81ca310a4347f64"
+    },
+    {
+      "source": "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.Training.cs",
+      "sourceSHA256": "45e9043779d3e9e081bd733e42e1be5429a64cdb3f2e32a078ddc84a733da92f",
+      "meta": "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.Training.cs.meta",
+      "metaSHA256": "addf37db471e824cd2ee6a26c35f6d94169679e3246d3fb4fb48d5b1b75a691c",
+      "guid": "27ed34e69641476798e1b122c65aeca4"
+    },
+    {
+      "source": "client-unity/UnityProject/Assets/Scripts/UI/TrainingConsoleView.cs",
+      "sourceSHA256": "825b400c627d957f47ceaf424cfc3fcc5d6497402f7a3be6e963dd5f1fe52449",
+      "meta": "client-unity/UnityProject/Assets/Scripts/UI/TrainingConsoleView.cs.meta",
+      "metaSHA256": "2b381ef88708cb785a721ab5705e7b65de5a20a245fe5622381db06321f463d0",
+      "guid": "64e29ec38d5b498b9698b526a14e3f4f"
+    },
+    {
+      "source": "client-unity/UnityProject/Assets/Scripts/UI/TrainingConsoleSelectors.cs",
+      "sourceSHA256": "2465324187791db68a23226724ace81f91193bd2b3a500b9da7148f997a3a124",
+      "meta": "client-unity/UnityProject/Assets/Scripts/UI/TrainingConsoleSelectors.cs.meta",
+      "metaSHA256": "9e87c197a065c4f149932fb9cdb17121a3d920dd4145a61105e814281f45acde",
+      "guid": "0a9b8de27c20438286ade512b934dc20"
+    },
+    {
+      "source": "client-unity/UnityProject/Assets/Scripts/UI/TrainingConsolePointerRelease.cs",
+      "sourceSHA256": "acd5a3ac0d1ee5873c44ff0d24b0c984bf8b460283f01c868477000f90bc8f9a",
+      "meta": "client-unity/UnityProject/Assets/Scripts/UI/TrainingConsolePointerRelease.cs.meta",
+      "metaSHA256": "3ae9706a16655136083cd3ad4051c7423758a1b3b4f30ed2df07fea285c3c7a7",
+      "guid": "84b3d02665e64be18dc330bf6c43bf71"
+    }
+  ]
+}

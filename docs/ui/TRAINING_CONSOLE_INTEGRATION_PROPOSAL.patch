@@ -1,0 +1,97 @@
+--- a/client-unity/UnityProject/Assets/Scripts/UI/MatchHud.cs
++++ b/client-unity/UnityProject/Assets/Scripts/UI/MatchHud.cs
+@@ -14,6 +14,7 @@
+     public sealed partial class MatchHud : MonoBehaviour
+     {
+         MatchClient _client;
++        TrainingConsoleView _trainingConsole;
+         Session _session;
+         Action<ServerMsg.Events> _boundNoticeEvents;
+         RectTransform _root, _menu, _hud, _rewards, _results, _settings;
+@@ -74,6 +75,8 @@
+             var scaler = go.GetComponent<UnityEngine.UI.CanvasScaler>();
+             scaler.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
+             scaler.referenceResolution = new Vector2(1920, 1080); scaler.matchWidthOrHeight = .5f;
++            _trainingConsole = gameObject.AddComponent<TrainingConsoleView>();
++            _trainingConsole.Initialize(_root);
+             _banner = Text(_root, "Connection", "Choose a faction and join", .02f, .925f, .30f, .99f, 15);
+             _headerActions[0] = Button(_root, "Help", "H · HELP", .615f, .93f, .725f, .99f, ToggleHelp);
+             _headerActions[1] = Button(_root, "Settings", "SETTINGS", .735f, .93f, .85f, .99f, ToggleSettings);
+@@ -154,6 +157,7 @@
+         public void Bind(Session session)
+         {
+             Unbind(); _session = session;
++            _trainingConsole?.Bind(session);
+             session.StateChanged += Changed; session.SnapshotReceived += Snapshot;
+             session.CollectionsChanged += Collections;
+             session.TimelineReset += ResetPlayerFlowTimeline;
+@@ -194,6 +198,7 @@
+         }
+         void Unbind()
+         {
++            _trainingConsole?.Bind(null);
+             if (_session == null) return;
+             _session.StateChanged -= Changed; _session.SnapshotReceived -= Snapshot;
+             _session.CollectionsChanged -= Collections;
+--- a/client-unity/UnityProject/Assets/Scripts/UI/MatchHud.Accounts.cs
++++ b/client-unity/UnityProject/Assets/Scripts/UI/MatchHud.Accounts.cs
+@@ -72,6 +72,9 @@
+         public void RefreshLaunchConfirmation(Session session)
+         {
+             if (!ReferenceEquals(_session, session)) return;
++            if (session != null) _trainingConsole?.SetLaunchContext(session, session.TimelineEpoch,
++                _client != null && ReferenceEquals(_client.Session, session) && _client.ConfirmedPractice
++                    ? (MatchLaunchMode?)MatchLaunchMode.Training : null);
+             bool pending = _client != null && _client.LaunchPending;
+             bool confirmed = _client == null || _client.LaunchVerified;
+             _menu.gameObject.SetActive(!confirmed);
+--- a/client-unity/UnityProject/Assets/Scripts/UI/MatchHud.Features.cs
++++ b/client-unity/UnityProject/Assets/Scripts/UI/MatchHud.Features.cs
+@@ -14,6 +14,7 @@
+         TacticalMapController _map;
+         RectTransform _help;
+         bool _chestFocus, _chestConsumedDigits;
++        bool _trainingEscapeConsumed;
+         PointerEventData _pointerQuery;
+         readonly List<RaycastResult> _pointerHits = new List<RaycastResult>(32);
+         ModernSettingsView _modernSettings;
+@@ -40,7 +41,7 @@
+         bool ReadingPaneSelected => EventSystem.current != null && EventSystem.current.currentSelectedGameObject != null &&
+             EventSystem.current.currentSelectedGameObject.activeInHierarchy &&
+             EventSystem.current.currentSelectedGameObject.GetComponent<KeyboardScrollPane>() != null;
+-        public bool BlocksKeyboardInput => (_client != null && _client.LaunchPending) || _menu != null && (_menu.gameObject.activeSelf || _results.gameObject.activeSelf ||
++        public bool BlocksKeyboardInput => _trainingEscapeConsumed || (_trainingConsole?.ContainsFocus ?? false) || (_client != null && _client.LaunchPending) || _menu != null && (_menu.gameObject.activeSelf || _results.gameObject.activeSelf ||
+             _settings.gameObject.activeSelf || (_signIn != null && _signIn.gameObject.activeSelf) || AnyHubPanelVisible || PlayerFlowVisible || Typing || (_drawer != null && _drawer.IsVisible) || (_help != null && _help.gameObject.activeSelf) || (_map != null && _map.IsPlanning));
+         public bool BlocksPointerInput => BlocksKeyboardInput || (_map != null && _map.PointerBlocked) ||
+             PointerHitsUi();
+@@ -67,6 +68,7 @@
+                 if (_drawer != null && _drawer.IsVisible) return _root.Find("BuildDrawer");
+                 if (_results.gameObject.activeSelf) return _results;
+                 if (_menu.gameObject.activeSelf) return _root;
++                if (_trainingConsole?.ContainsFocus == true) return _trainingConsole.IsOpen ? _trainingConsole.Panel : _trainingConsole.Root;
+                 if (_chestFocus) return _rewards;
+                 if (_map != null && _map.IsPlanning) return _root.Find("TacticalMap/PlanningDecisions");
+                 return null;
+@@ -231,6 +233,14 @@
+             RememberWorldHudFocus();
+             _chestConsumedDigits = false;
+             var kb = Keyboard.current;
++            _trainingEscapeConsumed = false;
++            if (kb != null && kb.escapeKey.wasPressedThisFrame && !kb.ctrlKey.isPressed && !kb.altKey.isPressed &&
++                !kb.leftMetaKey.isPressed && !kb.rightMetaKey.isPressed && !kb.shiftKey.isPressed &&
++                !AnyHubPanelVisible && !_settings.gameObject.activeSelf && !_menu.gameObject.activeSelf &&
++                !_results.gameObject.activeSelf && !PlayerFlowVisible && !(_drawer?.IsVisible ?? false) &&
++                !(_help?.gameObject.activeSelf ?? false) && !(_signIn?.gameObject.activeSelf ?? false) &&
++                _trainingConsole?.HandleEscape() == true)
++            { _trainingEscapeConsumed = true; return; }
+             // Recovery's read-only selectable key is still a focused input field. Escape must
+             // clear it and close the Hub panel before the ordinary typing gate runs.
+             if (kb != null && AnyHubPanelVisible && kb.escapeKey.wasPressedThisFrame && !kb.ctrlKey.isPressed && !kb.altKey.isPressed && !kb.leftMetaKey.isPressed && !kb.rightMetaKey.isPressed)
+@@ -305,6 +315,7 @@
+             TickHubAtrium();
+             TickMetrics();
+             TickPlayerFlows();
++            _trainingConsole?.Refresh();
+             _map?.Tick();
+             RefreshWorldHudVisibility();
+             if (_session != null) _drawer?.Refresh(_session.Collections, _session.Me, _showcaseSettings.TextScale);

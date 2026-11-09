@@ -1,0 +1,6 @@
+{
+  "productTestFailures": 0,
+  "metadataCheckCorrection": "An initial global GUID check accepted lowercase only and stopped at an existing valid uppercase GUID. Corrected to case-insensitive32hex comparison. No source or existing metadata was changed for this correction.",
+  "nativeTestsExecuted": false,
+  "initialSourceCheckCountNote": "logs/initial-source-checks.json was prepared with a lowercase-only GUID regex and reports613 matched GUIDs. It skipped three existing valid uppercase GUIDs. The final case-insensitive meta-pins.json verifies616 unique valid GUIDs (609 unchanged existing +7 new). Raw initial check remains preserved."
+}

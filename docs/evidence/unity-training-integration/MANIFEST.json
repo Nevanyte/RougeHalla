@@ -1,0 +1,188 @@
+{
+  "sourceCommit": "e0da2de0b5100d979901aa5e20cc3d8f964e0626",
+  "algorithm": "SHA-256",
+  "manifestExcludesItself": true,
+  "runtimeStatus": "UNRUN; managed source/metadata evidence only",
+  "files": [
+    {
+      "path": "LAYOUT_CHECKS.md",
+      "bytes": 6503,
+      "sha256": "439aa4d1f8f1e03f1dbbda99363850b857532cd278e44e204c5e58d3600a7349"
+    },
+    {
+      "path": "README.md",
+      "bytes": 7231,
+      "sha256": "d1c61d9c427a09c81ebba881f9b0f620fe905fd2c91e895ac2bbd9923ce22e3e"
+    },
+    {
+      "path": "compile-profiles/editor/Client.csproj",
+      "bytes": 37885,
+      "sha256": "b074a5e65865b6f06ed20e78c3fd6878e4285da1e4bbe112dd90e8e7cbc2bc44"
+    },
+    {
+      "path": "compile-profiles/editor/Tests.csproj",
+      "bytes": 38410,
+      "sha256": "cb93782c5414408bddb1dcd795b222b26accfebe714588f14ee4c0b12b3e234e"
+    },
+    {
+      "path": "compile-profiles/player/Client.csproj",
+      "bytes": 37872,
+      "sha256": "d10e831d37f815da2586ee87a4cdd3764b693a64d09459ce88add0a5fd677f5a"
+    },
+    {
+      "path": "contract-summary.json",
+      "bytes": 1631,
+      "sha256": "b8f840a769335602adbf7156db1008691c6f8f28b6ee22b838406a8a79bda4e7"
+    },
+    {
+      "path": "dotnet-info.txt",
+      "bytes": 1008,
+      "sha256": "2f39313b332681c4a3c966d90a56e300c52545735c4212a325b3ce69eb8e7861"
+    },
+    {
+      "path": "logs/editor-client-final.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/editor-client-final.stdout.log",
+      "bytes": 401,
+      "sha256": "8d5810edfdc5bf474d628e29597c9eadb5b40186df5e5e1bbe70a55589dce4bd"
+    },
+    {
+      "path": "logs/editor-client.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/editor-client.stdout.log",
+      "bytes": 401,
+      "sha256": "2f11994a1474a95fa0ef51574db634bd075fff7a463445bbcc10104d35619a92"
+    },
+    {
+      "path": "logs/editor-tests-final.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/editor-tests-final.stdout.log",
+      "bytes": 1146,
+      "sha256": "ca2807da46b8c067e8bd1c06ef7d4d8e7f1b91fbb90c7e0c5ece3ef1264959f1"
+    },
+    {
+      "path": "logs/editor-tests.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/editor-tests.stdout.log",
+      "bytes": 1146,
+      "sha256": "6886f3b39693d2daf50f591d42ed274990041a33da265a30110abd057da64b13"
+    },
+    {
+      "path": "logs/initial-source-checks.json",
+      "bytes": 220,
+      "sha256": "9e776a128f004c8f928561d767fa0ca826bb41c18bac1d9a41769d5cfe35fbc9"
+    },
+    {
+      "path": "logs/managed-tests.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/managed-tests.stdout.log",
+      "bytes": 1602,
+      "sha256": "ab773b9c871bf628349939d7cf06663ae99a5d57caac63db6e281a728a70be32"
+    },
+    {
+      "path": "logs/player-client-final.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/player-client-final.stdout.log",
+      "bytes": 311,
+      "sha256": "470c12b712fdba1ecf4174808756a1189c152667b52f950a09bf8b7a63e9b0ce"
+    },
+    {
+      "path": "logs/player-client.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/player-client.stdout.log",
+      "bytes": 401,
+      "sha256": "a03a834f5c3524ed5ca9b2c74451ac6bc387934f87f6d57220e970433f700f8c"
+    },
+    {
+      "path": "logs/training-integration-managed.trx",
+      "bytes": 1154493,
+      "sha256": "823adf65d2b10bd7b50729efcb59a5ad86a97fd575e3e8f51b1e44bbf72ae712"
+    },
+    {
+      "path": "managed-summary.json",
+      "bytes": 1368,
+      "sha256": "8956f8bcfd8875caec1199bbcdcf4e460e54718d0c6e1094831bebceee3a2b65"
+    },
+    {
+      "path": "meta-pins.json",
+      "bytes": 3291,
+      "sha256": "ebeb6d2df685367dd186f7ae57a89b458c339d5c7dbfa63db5c302f7d7412356"
+    },
+    {
+      "path": "metadata-tools/MetadataExtractor.csproj",
+      "bytes": 401,
+      "sha256": "61361d5d9a1c625bc2431506bf93754ab0547db0bb66806c59ede6685b006014"
+    },
+    {
+      "path": "metadata-tools/Program.cs",
+      "bytes": 17388,
+      "sha256": "7fc34cebc083383ae44c137c871c50b2b730db56a6c6ea6d66812615ad6c4c3f"
+    },
+    {
+      "path": "native-selectors.txt",
+      "bytes": 10118,
+      "sha256": "a7210a4c56509d707923c67a62082c8374465e039d5e58473726960ce3df3b43"
+    },
+    {
+      "path": "new26-selectors.txt",
+      "bytes": 3277,
+      "sha256": "b855d2a5b3bfd9ecec19920ddefc7a6b1f1ca338140a2a0bc828826916fe823b"
+    },
+    {
+      "path": "preparation-notes.json",
+      "bytes": 644,
+      "sha256": "4d6cc10d1c32ed0d2289bd2ec2b80485d8a78c50e79776c41ec8048083f00a88"
+    },
+    {
+      "path": "proposed-contract.json",
+      "bytes": 71799,
+      "sha256": "437c9803661d33799e4023b2bf0504647df2ff903583cfd4e9addc4047ae5a09"
+    },
+    {
+      "path": "receipt.json",
+      "bytes": 3496,
+      "sha256": "9d700cefd8cbb6068d4dbf4ee93e96dfa7f32f1cb06b5a20a79dad9c992a91c2"
+    },
+    {
+      "path": "source-checks.json",
+      "bytes": 3746,
+      "sha256": "762e49c5b8f1a47ce7552690a76f4bacf7e113372980cb6532c3ca30999a5c59"
+    },
+    {
+      "path": "source-inputs.json",
+      "bytes": 35974,
+      "sha256": "2b463c793b99bcedb1f7776ecbe59b8f33fdfb23b86546a07f65ae7919709b5e"
+    },
+    {
+      "path": "typed-fixture-contract.json",
+      "bytes": 71554,
+      "sha256": "cf38da76450bbcc01bb2f6c15d73c44d119152959733ef3037dcc04960f1cc7e"
+    },
+    {
+      "path": "unity-mirror-pins.json",
+      "bytes": 7448,
+      "sha256": "0af06b7a9b5ff408da7cd69ff008ee566e5bc689f6e770b0912b387503a5f3f1"
+    }
+  ]
+}

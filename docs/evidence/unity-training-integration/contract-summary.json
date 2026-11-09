@@ -1,0 +1,37 @@
+{
+  "source": "e0da2de0b5100d979901aa5e20cc3d8f964e0626",
+  "counts": {
+    "old64": 64,
+    "newByFixture": {
+      "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests": 5,
+      "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests": 8,
+      "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests": 13
+    },
+    "total": 90,
+    "currentCompiledMetadataTotalForEightFixtures": 90
+  },
+  "currentEngineStatus": "UNRUN",
+  "eightFixtureNames": [
+    "MatchLaunchEditModeTests",
+    "MatchSettlementEditModeTests",
+    "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+    "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+    "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+    "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests",
+    "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests",
+    "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests"
+  ],
+  "selectorFileSHA256": "a7210a4c56509d707923c67a62082c8374465e039d5e58473726960ce3df3b43",
+  "typedContractSHA256": "cf38da76450bbcc01bb2f6c15d73c44d119152959733ef3037dcc04960f1cc7e",
+  "proposedContractSHA256": "437c9803661d33799e4023b2bf0504647df2ff903583cfd4e9addc4047ae5a09",
+  "sourceInputsSHA256": "2b463c793b99bcedb1f7776ecbe59b8f33fdfb23b86546a07f65ae7919709b5e",
+  "inputCountByRoot": {
+    "clientScripts": 78,
+    "protocolNet": 29,
+    "editorTests": 34,
+    "netTests": 42
+  },
+  "managedMvidScope": "Compile metadata only; actual native loaded identity must be observed after coordinator import.",
+  "supplementalUnityMirrorPins": "unity-mirror-pins.json",
+  "exactUnityMirrorCount": 29
+}
