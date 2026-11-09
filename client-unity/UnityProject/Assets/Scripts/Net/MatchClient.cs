@@ -160,6 +160,7 @@ namespace Roguehalla.Client
         {
             var old = Session;
             var oldArena = Arena;
+            long retirementGeneration = _joinGeneration;
             var oldCheckpoint = TakeSeatBinding(keepCheckpoint);
             Hud?.UnbindTrainingSession();
             UnbindSettlementSession();
@@ -179,7 +180,7 @@ namespace Roguehalla.Client
             // Retired-session callbacks may synchronously start another launch. All old
             // binding/arena mutations must finish before invoking the old session's Leave.
             if (!keepCheckpoint) ClearSeatRecord(oldCheckpoint);
-            if (detach) old?.Detach();
+            if (detach || this == null || _destroying || retirementGeneration != _joinGeneration) old?.Detach();
             else old?.Leave();
         }
 

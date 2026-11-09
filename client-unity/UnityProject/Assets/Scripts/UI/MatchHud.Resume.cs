@@ -101,7 +101,8 @@ namespace Roguehalla.Client
 
         void StartResume(MatchLaunchMode mode)
         {
-            if (_client == null || !_client.CanResumeCurrentRun || _client.ResumeBusy || _client.IsDiagnostic) return;
+            if (_client == null || !_client.CanResumeCurrentRun || _client.ResumeBusy || _client.IsDiagnostic ||
+                !SameResumeName(_client.AccountFlow?.Snapshot?.SelectedName, _nickname?.text)) return;
             CloseResumeChooser();
             _showcaseAudio?.UnlockFromUserGesture();
             _client.ResumeCurrentRun(_nickname != null ? _nickname.text : "", _faction, mode);
@@ -147,7 +148,8 @@ namespace Roguehalla.Client
             if (ResumeChooserVisible && _launchMenuInput != null) _launchMenuInput.interactable = false;
             bool canOpen = _menu != null && _menu.gameObject.activeSelf && !busy && !_client.LaunchPending && !_client.IsDiagnostic;
             _resumeButton.interactable = canOpen;
-            bool canResume = _client.CanResumeCurrentRun && !_client.ResumeBusy && !busy && !_client.LaunchPending && !_client.IsDiagnostic;
+            bool canResume = _client.CanResumeCurrentRun && SameResumeName(state?.SelectedName, _nickname?.text) &&
+                !_client.ResumeBusy && !busy && !_client.LaunchPending && !_client.IsDiagnostic;
             _resumeArena.interactable = canResume && arena.Available;
             _resumeTraining.interactable = canResume && training.Available;
             _forgetRun.interactable = _client.CanForgetSavedRun && !_client.ResumeBusy && !_client.LaunchPending && !_client.IsDiagnostic;

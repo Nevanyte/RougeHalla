@@ -9,8 +9,11 @@ using NUnit.Framework;
 using Roguehalla.Client;
 using Roguehalla.Net;
 using Roguehalla.Net.Protocol;
+using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.LowLevel;
 using UnityEngine.Rendering.Universal;
 
 namespace Roguehalla.Client.Tests
@@ -90,6 +93,7 @@ namespace Roguehalla.Client.Tests
         {
             readonly StorageBox _box;
             public int Writes, Clears;
+            public Action<string> AfterCompareAndClear;
             public MemoryStorage(StorageBox box) { _box = box; }
             public SeatCheckpointReadStatus Read(out string canonicalRecord)
             {
@@ -102,7 +106,9 @@ namespace Roguehalla.Client.Tests
             {
                 Clears++;
                 if (!string.Equals(_box.Record, expectedCanonicalRecord, StringComparison.Ordinal)) return SeatCheckpointClearStatus.Changed;
-                _box.Record = null; return SeatCheckpointClearStatus.Cleared;
+                _box.Record = null;
+                AfterCompareAndClear?.Invoke(expectedCanonicalRecord);
+                return SeatCheckpointClearStatus.Cleared;
             }
         }
 
@@ -625,6 +631,149 @@ namespace Roguehalla.Client.Tests
                 f.Client.Leave();
                 Assert.That(f.Transports[0].LeaveCount, Is.EqualTo(1), "explicit user Leave uses the normal wire Leave path");
                 Assert.That(box.Record, Is.EqualTo(newer), "compare-clear of the active captured revision preserves a newer record");
+            }
+        }
+
+        [Test]
+        public async Task ReentrantCheckpointClearCannotLeaveOrReplaceANewerResumedSession()
+        {
+            var box = new StorageBox();
+            using (var f = new Fixture(box))
+            {
+                await f.StartFreshOwnedRun(MatchLaunchMode.Arena);
+                f.Snapshot(training: false);
+                var oldSession = f.Client.Session;
+                var oldTransport = f.Transports[0];
+                string oldRecord = box.Record;
+                string newerRecord = null;
+                bool reenteredResume = false;
+                f.Storage.AfterCompareAndClear = expected =>
+                {
+                    if (!string.Equals(expected, oldRecord, StringComparison.Ordinal)) return;
+                    WriteNewerRevision(f, box).GetAwaiter().GetResult();
+                    newerRecord = box.Record;
+                    f.Client.ResumeCurrentRun("alice", 4, MatchLaunchMode.Arena);
+                    reenteredResume = true;
+                };
+
+                f.Client.Leave();
+                f.Storage.AfterCompareAndClear = null;
+                Assert.That(reenteredResume, Is.True, "the fake storage reenters after its atomic comparison");
+                Assert.That(oldSession.State, Is.EqualTo(SessionState.Detached), "the superseded local session is detached after reentry");
+                Assert.That(oldTransport.LeaveCount, Is.Zero, "the old close path must not leave the seat now being resumed");
+                await WaitFor(() => f.Transports.Count == 2 || !f.Client.ResumeBusy);
+                Assert.That(f.Transports, Has.Count.EqualTo(2));
+                Assert.That(f.Client.Session, Is.Not.Null);
+                Assert.That(box.Record, Is.EqualTo(newerRecord), "the new revision remains the active checkpoint");
+
+                var newTransport = f.Transports[1];
+                newTransport.Open();
+                CollectionAssert.AreEqual(Enumerable.Repeat((byte)0x72, 16), newTransport.Hellos().Single().Resume,
+                    "the replacement session resumes the exact reentrant revision");
+            }
+        }
+
+        [Test]
+        public async Task ResumeChooserDisablesActionsForTypedCallsignThatDiffersFromLoadedOwner()
+        {
+            InputSettings priorSettings = InputSystem.settings;
+            Keyboard priorKeyboard = Keyboard.current;
+            InputSettings fixtureSettings = null;
+            Keyboard keyboard = null;
+            HideFlags priorSettingsFlags = HideFlags.None;
+            bool capturedSettingsFlags = false;
+            try
+            {
+                Assert.That(priorSettings, Is.Not.Null, "InputSystem settings must exist before the scoped keyboard fixture");
+                priorSettingsFlags = priorSettings.hideFlags;
+                capturedSettingsFlags = true;
+                fixtureSettings = ScriptableObject.Instantiate(priorSettings);
+                fixtureSettings.updateMode = InputSettings.UpdateMode.ProcessEventsInDynamicUpdate;
+                fixtureSettings.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus;
+                fixtureSettings.SetInternalFeatureFlag("RUN_PLAYER_UPDATES_IN_EDIT_MODE", true);
+                if (priorSettingsFlags == HideFlags.HideAndDontSave) priorSettings.hideFlags = HideFlags.DontSave;
+                InputSystem.settings = fixtureSettings;
+                Assert.That(ReferenceEquals(InputSystem.settings, fixtureSettings), Is.True);
+                keyboard = InputSystem.AddDevice<Keyboard>();
+                keyboard.MakeCurrent();
+                Assert.That(Keyboard.current, Is.SameAs(keyboard));
+
+                using (var f = new Fixture())
+                {
+                    await f.LoadOwnedProfile();
+                    Assert.That(f.Client.CanResumeCurrentRun, Is.True, "Alice is the currently verified owner");
+                    Call(f.Hud, "OpenResumeChooser");
+                    var overlay = (RectTransform)Get(f.Hud, "_resumeOverlay");
+                    var selected = EventSystem.current.currentSelectedGameObject;
+                    Assert.That(selected, Is.Not.Null);
+                    Assert.That(selected.transform.IsChildOf(overlay), Is.True, "opening the chooser focuses one of its own controls");
+
+                    InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Tab));
+                    InputSystem.Update();
+                    Assert.That(InputState.currentUpdateType, Is.EqualTo(InputUpdateType.Dynamic));
+                    Assert.That(keyboard.wasUpdatedThisFrame, Is.True);
+                    Assert.That(keyboard.tabKey.isPressed, Is.True);
+                    Assert.That(keyboard.tabKey.wasPressedThisFrame, Is.True);
+                    f.Hud.ReadUiInput();
+                    var afterTab = EventSystem.current.currentSelectedGameObject;
+                    Assert.That(afterTab, Is.Not.Null);
+                    Assert.That(afterTab.transform.IsChildOf(overlay), Is.True, "Tab navigation remains inside the modal");
+                    Assert.That(afterTab, Is.Not.SameAs(selected), "Tab advances modal focus");
+                    f.Hud.ReadUiInput();
+                    Assert.That(EventSystem.current.currentSelectedGameObject, Is.SameAs(afterTab), "the same input update cannot cycle focus twice");
+
+                    InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Escape));
+                    InputSystem.Update();
+                    Assert.That(InputState.currentUpdateType, Is.EqualTo(InputUpdateType.Dynamic));
+                    Assert.That(keyboard.escapeKey.isPressed, Is.True);
+                    Assert.That(keyboard.escapeKey.wasPressedThisFrame, Is.True);
+                    f.Hud.ReadUiInput();
+                    Assert.That(overlay.gameObject.activeSelf, Is.False, "Escape closes the resume chooser");
+                    f.Hud.ReadUiInput();
+                    Assert.That(f.Client.Session, Is.Null, "the Escape edge cannot fall through to world actions");
+                    Assert.That(f.Accounts.Profiles, Has.Count.EqualTo(1), "modal keyboard input does not make another profile request");
+                    Assert.That(f.Transports, Is.Empty, "modal keyboard input does not connect a match transport");
+
+                    InputSystem.QueueStateEvent(keyboard, new KeyboardState());
+                    InputSystem.Update();
+                    Assert.That(keyboard.tabKey.isPressed, Is.False);
+                    Assert.That(keyboard.escapeKey.isPressed, Is.False);
+
+                    var nickname = (TMP_InputField)Get(f.Hud, "_nickname");
+                    nickname.SetTextWithoutNotify("Bob");
+                    Call(f.Hud, "OpenResumeChooser");
+                    var arena = (UnityEngine.UI.Button)Get(f.Hud, "_resumeArena");
+                    var training = (UnityEngine.UI.Button)Get(f.Hud, "_resumeTraining");
+                    Assert.That(arena.interactable, Is.False, "a loaded owner does not authorize the different typed callsign");
+                    Assert.That(training.interactable, Is.False);
+                    Assert.That(((TMP_Text)Get(f.Hud, "_resumeHint")).text, Does.Contain("Load or sign in"));
+                    Assert.That(f.Transports, Is.Empty, "opening the chooser does not start a session");
+                }
+            }
+            finally
+            {
+                try { if (keyboard != null && keyboard.added) InputSystem.RemoveDevice(keyboard); }
+                finally
+                {
+                    try { if (priorKeyboard != null && priorKeyboard.added) priorKeyboard.MakeCurrent(); }
+                    finally
+                    {
+                        try
+                        {
+                            if (priorSettings != null && fixtureSettings != null && ReferenceEquals(InputSystem.settings, fixtureSettings))
+                                InputSystem.settings = priorSettings;
+                        }
+                        finally
+                        {
+                            try { if (capturedSettingsFlags) priorSettings.hideFlags = priorSettingsFlags; }
+                            finally
+                            {
+                                if (fixtureSettings != null && !ReferenceEquals(InputSystem.settings, fixtureSettings))
+                                    UnityEngine.Object.DestroyImmediate(fixtureSettings);
+                            }
+                        }
+                    }
+                }
             }
         }
 
