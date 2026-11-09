@@ -1,0 +1,8 @@
+{
+  "startedUtc": "2026-11-09T22:07:35.958259+00:00",
+  "kind": "ONE actual comment-provenance",
+  "status": "PROCESS_COMPLETED",
+  "exit": 0,
+  "containerCleanup": "verified-not-present",
+  "finishedUtc": "2026-11-09T22:07:41.337222+00:00"
+}

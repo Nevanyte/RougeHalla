@@ -1,0 +1,18 @@
+{
+  "format": "rh-root-variant-generated-review/1",
+  "reviewedUtc": "2026-11-09T22:05:09.835158+00:00",
+  "status": "PASS",
+  "controlId": "different-target-cancel",
+  "code": "02d77c341548846bd719608b665f7cbddd652f42",
+  "manifestSha256": "84f58c06842889729d2e9c9ae1b07b3b36487a7f090e22858ede8d91210bb90e",
+  "bundleSha256": "ac2776a10b95d313bc3c08244a52c7f08b93d9b3e7829f145350907b6f516432",
+  "runtimeSha256": "e98352bfb7fa39b62e1ddbc3725179c5d890f634e55bab960f6811765a3bbde7",
+  "verifySha256": "10188528d712c8000000db548caa2388c74c56c03d5bb7f9af4a6b996853e935",
+  "originalClosure": 133,
+  "changedExecutedSource": [
+    "packages/server/src/sim/targeting.ts"
+  ],
+  "wholeBundle": "exact single declared literal replacement, or identical comment nonkill",
+  "sourceExecuted": false,
+  "phaseB": "NOT_RELEASED"
+}

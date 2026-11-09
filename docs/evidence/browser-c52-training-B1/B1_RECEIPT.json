@@ -1,0 +1,97 @@
+{
+  "format": "rh-c52-training-browser-B1/1",
+  "status": "PASS_BOUNDED_NORMAL_UI_BASELINE",
+  "recordedUtc": "2026-11-09T22:15:10.097781+00:00",
+  "authority": "Root explicit finite CUA in-app Training B1 release; no broader browser fallback/instrumentation/settings",
+  "control": "mcp__cua_repl; new visible IAB tab1",
+  "browserTabId": "1",
+  "browserOrigin": "http://localhost:8888",
+  "initialAccountCheck": {
+    "callsignFieldBlank": true,
+    "ownedProfileSummaryVisible": false,
+    "status": "Enter a callsign to load or claim it",
+    "storageOrCredentialsInspected": false
+  },
+  "callSign": "rhc52a1109",
+  "actionSequence": [
+    {
+      "action": "Open exact released local URL",
+      "observed": "Normal Atrium menu with blank callsign and no owned account shown"
+    },
+    {
+      "action": "Click visible callsign field and type rhc52a1109",
+      "observed": "Exact public callsign visible"
+    },
+    {
+      "action": "Click ordinary LOAD",
+      "observed": "Profile loaded. Choose a faction and start your run.; owned callsign and zero totals visible"
+    },
+    {
+      "action": "Click ordinary TRAINING",
+      "observed": "PRACTICE - NO RUN REWARDS and Practice/no banking HUD, ordinary player/world rendered"
+    },
+    {
+      "action": "Native Right key press for requested400ms with automatic release",
+      "observed": "Rendered character/camera movement relative to training wall and dummies; practice HUD remained confirmed"
+    },
+    {
+      "action": "Preserve live tab as handoff and save final screenshot",
+      "observed": "Practice remains rendered after key release"
+    }
+  ],
+  "screenshot": {
+    "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/browser-c52-training-B1-01/training-after-movement.jpg",
+    "sha256": "5e47441a6dc5fda8c6d26c2e3a91442b7c91666fa4b10efc07c8e85e1db36e96",
+    "bytes": 118385,
+    "format": "JPEG",
+    "width": 1280,
+    "height": 720,
+    "capturedUtc": "2026-11-09T22:13:37.415Z"
+  },
+  "earlierKeyMomentImages": "Observed inline CUA screenshot results; only final after-movement image saved as local artifact; no recreated earlier capture claimed",
+  "publicInfoAfter": {
+    "source": {
+      "protocol": 14,
+      "contentHash": "7c6a633f68c2cc72",
+      "rooms": 0,
+      "lobbies": 0,
+      "players": 0,
+      "state": "ready",
+      "resultsOk": 0,
+      "resultsFailed": 0,
+      "resultsRefused": 0
+    },
+    "training": {
+      "protocol": 14,
+      "contentHash": "7c6a633f68c2cc72",
+      "rooms": 1,
+      "lobbies": 0,
+      "players": 1,
+      "state": "ready",
+      "resultsOk": 0,
+      "resultsFailed": 0,
+      "resultsRefused": 0
+    }
+  },
+  "identityPins": {
+    "nativeSource": "c52e41a633c91f8402e3f68724e9202351d1cdb3",
+    "webSource": "57e166f46b35fb703e5f3c76914fcc4e8bf3191c",
+    "acceptedWebManifestSha256": "a224cc6cc378604e4f9407f1c540f3ceae364d9cf0c97004fcd21df816c83824",
+    "phaseAReceiptSha256": "71fc780f3e4dfdaa1a0f4e35af931fd4e5fdb8941833e1ad5dafab767744e632"
+  },
+  "boundaries": {
+    "existingChromeAndAwsTabsUntouched": true,
+    "settingsChanged": false,
+    "preloadOrInjection": false,
+    "storageOrAppGlobalsRead": false,
+    "tokensRecoveryOrRawFramesCaptured": false,
+    "directClaimApiUsed": false,
+    "debugConsoleUsed": false,
+    "arenaCompanionStarted": false,
+    "reloadResumeAttempted": false,
+    "resultBankingOrCombatProven": false,
+    "inputLatencyMeasured": false,
+    "viewportSettingChanged": false
+  },
+  "continuation": "Live IAB tab marked handoff; four known services stay alive. Await separate Root next-case release."
+}

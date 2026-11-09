@@ -1,0 +1,51 @@
+{
+  "format": "rh-p15-protection-cues-variant-classification/1",
+  "status": "KILL",
+  "controlId": "bow-stagger-exclusion",
+  "code": "02d77c341548846bd719608b665f7cbddd652f42",
+  "sourceBase": "bb564d3b53728cbd205af375b5342eca466f3656",
+  "pristineCode": "4fe7aa8285ad65f2c9a1123297426cd48b03bdef",
+  "transform": {
+    "control": {
+      "id": "bow-stagger-exclusion",
+      "kind": "semantic",
+      "file": "packages/server/src/sim/weapons.ts",
+      "expectedMatches": 1,
+      "find": "if (w.action && w.action.kind !== \"draw\") {",
+      "replace": "if (w.action) {",
+      "firstFailureCase": "B2"
+    },
+    "controlsSha256": "a27967aef45638c64d2873063d66669f5724abf869d51e328c511a15b4ef837c",
+    "original": {
+      "path": "packages/server/src/sim/weapons.ts",
+      "bytes": 17776,
+      "sha256": "581ba4cf9ae93af5d3753cbb3cdf6b823bfaf730448edab7669e6c6d84c86f26"
+    },
+    "executed": {
+      "bytes": 17748,
+      "sha256": "8184f62afe15b8a9c45be090242fe8cca94dd87f565ef71d0d39f04dfcce2cdd"
+    },
+    "instrumentation": {
+      "kind": "exact-once-replacement",
+      "controlId": "bow-stagger-exclusion",
+      "file": "packages/server/src/sim/weapons.ts",
+      "controlsSha256": "a27967aef45638c64d2873063d66669f5724abf869d51e328c511a15b4ef837c",
+      "find": "if (w.action && w.action.kind !== \"draw\") {",
+      "replace": "if (w.action) {",
+      "expectedMatches": 1
+    }
+  },
+  "firstFailure": {
+    "caseId": "B2",
+    "assertion": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- 'draw'\n",
+    "positiveDrawTime": 2600,
+    "paidHitTime": 2650,
+    "paidHitAmount": 25.71361379670761,
+    "observedStagger": true,
+    "observedArrowBirths": 0,
+    "baselineArrowBirths": 1
+  },
+  "canonicalRefused": true,
+  "compileEnvelopeProvenanceTimeoutMissingRawCountAsKill": false,
+  "independentSourceReproduction": false
+}

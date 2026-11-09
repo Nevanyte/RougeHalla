@@ -1,0 +1,7 @@
+{
+  "status": "STATIC_REVIEW_HOLD_NO_SOURCE",
+  "reason": "Initial whole-bundle check used literal source t, while fixed esbuild uses t2 and removes replacement comment. Readonly diff is exactly one cancellation statement to empty block; no other bundle bytes differ.",
+  "oldRootHelperSha256": "12dfc743641b6e26d6085ae5f3cd9db8eb6c5c35c4351a5acbb98e2b075b597b",
+  "sourceOrPreparedChanged": false,
+  "sourceExecuted": false
+}

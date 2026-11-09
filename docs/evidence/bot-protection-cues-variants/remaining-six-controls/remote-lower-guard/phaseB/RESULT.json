@@ -1,0 +1,8 @@
+{
+  "startedUtc": "2026-11-09T22:03:39.940165+00:00",
+  "kind": "ONE actual remote-lower-guard",
+  "status": "PROCESS_COMPLETED",
+  "exit": 0,
+  "containerCleanup": "verified-not-present",
+  "finishedUtc": "2026-11-09T22:03:41.787758+00:00"
+}

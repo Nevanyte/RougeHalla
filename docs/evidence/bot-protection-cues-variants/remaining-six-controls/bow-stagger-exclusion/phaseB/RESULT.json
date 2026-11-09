@@ -1,0 +1,8 @@
+{
+  "startedUtc": "2026-11-09T22:05:28.697040+00:00",
+  "kind": "ONE actual bow-stagger-exclusion",
+  "status": "PROCESS_COMPLETED",
+  "exit": 0,
+  "containerCleanup": "verified-not-present",
+  "finishedUtc": "2026-11-09T22:05:32.481668+00:00"
+}

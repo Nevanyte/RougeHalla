@@ -135,6 +135,28 @@ jobs:
           PYTHONDONTWRITEBYTECODE=1 python3 tools/npc-witness-context/run.py runner --repo "$GITHUB_WORKSPACE" --output "$RUNNER_TEMP/npc-runner-historical-context" --expected-code-sha "$GITHUB_SHA" --docker "$docker_executable" --docker-socket "$docker_socket"
           bash tools/percept-witness-fixtures/capture.sh --check
           bash tools/barrier-view-fixtures/capture.sh --check
+      - name: NPC context diagnostic receipts (bounded, no raw fixture or environment dump)
+        if: always()
+        run: |
+          python3 - <<'PYDIAG'
+          import json, os
+          from pathlib import Path
+          for leaf in ('npc-continuity-historical-context', 'npc-runner-historical-context'):
+              root = Path(os.environ['RUNNER_TEMP']) / leaf
+              receipt = root / 'receipt.json'
+              if not receipt.is_file():
+                  continue
+              data = json.loads(receipt.read_text())
+              keys = ('status', 'witness', 'exit', 'error', 'sourceStarted', 'containerCleanup', 'cleanupError', 'clientCleanupError', 'actual')
+              print(leaf, json.dumps({key: data[key] for key in keys if key in data}, sort_keys=True))
+              for name in ('stderr.log', 'npm.log'):
+                  path = root / name
+                  if path.is_file():
+                      with path.open('rb') as stream:
+                          stream.seek(max(0, path.stat().st_size - 2048))
+                          tail = stream.read(2048).decode('utf-8', errors='replace')
+                      print(leaf, name, tail)
+          PYDIAG
       - name: Heal-barrier callers and victim Frost resistance remain source exact
         run: |
           bash tools/heal-barrier-fixtures/capture.sh --check

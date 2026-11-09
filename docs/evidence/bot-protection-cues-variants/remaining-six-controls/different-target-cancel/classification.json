@@ -1,0 +1,54 @@
+{
+  "format": "rh-p15-protection-cues-variant-classification/1",
+  "status": "KILL",
+  "controlId": "different-target-cancel",
+  "code": "02d77c341548846bd719608b665f7cbddd652f42",
+  "sourceBase": "bb564d3b53728cbd205af375b5342eca466f3656",
+  "pristineCode": "4fe7aa8285ad65f2c9a1123297426cd48b03bdef",
+  "transform": {
+    "control": {
+      "id": "different-target-cancel",
+      "kind": "semantic",
+      "file": "packages/server/src/sim/targeting.ts",
+      "expectedMatches": 1,
+      "find": "if (w.action?.target !== t.id) cancelLockedWindup(world, c);",
+      "replace": "if (w.action?.target !== t.id) { /* control: cancellation removed */ }",
+      "firstFailureCase": "W0"
+    },
+    "controlsSha256": "a27967aef45638c64d2873063d66669f5724abf869d51e328c511a15b4ef837c",
+    "original": {
+      "path": "packages/server/src/sim/targeting.ts",
+      "bytes": 10392,
+      "sha256": "13125287cec7cd39f550af50e1d18c15d3146357f249cfe3beeb9e00a334f0fd"
+    },
+    "executed": {
+      "bytes": 10402,
+      "sha256": "e52d9db6138b39dc07b590fff4517a3a49577401adff7c8e8a34bc6525979a6c"
+    },
+    "instrumentation": {
+      "kind": "exact-once-replacement",
+      "controlId": "different-target-cancel",
+      "file": "packages/server/src/sim/targeting.ts",
+      "controlsSha256": "a27967aef45638c64d2873063d66669f5724abf869d51e328c511a15b4ef837c",
+      "find": "if (w.action?.target !== t.id) cancelLockedWindup(world, c);",
+      "replace": "if (w.action?.target !== t.id) { /* control: cancellation removed */ }",
+      "expectedMatches": 1
+    }
+  },
+  "firstFailure": {
+    "caseId": "W0",
+    "assertion": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n0 !== 1\n",
+    "realTargetApplyTime": 2650,
+    "publicLock": "cue-other",
+    "retainedActionTarget": "cue-observer",
+    "observedCancelCount": 0,
+    "baselineCancelCount": 1,
+    "observedFeints": 0,
+    "observedLastFeintAt": null,
+    "baselineFeints": 1,
+    "baselineLastFeintAt": 2650
+  },
+  "canonicalRefused": true,
+  "compileEnvelopeProvenanceTimeoutMissingRawCountAsKill": false,
+  "independentSourceReproduction": false
+}

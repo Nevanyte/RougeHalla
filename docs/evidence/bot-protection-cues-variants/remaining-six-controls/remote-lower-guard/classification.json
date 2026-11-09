@@ -1,0 +1,49 @@
+{
+  "format": "rh-p15-protection-cues-variant-classification/1",
+  "status": "KILL",
+  "controlId": "remote-lower-guard",
+  "code": "02d77c341548846bd719608b665f7cbddd652f42",
+  "sourceBase": "bb564d3b53728cbd205af375b5342eca466f3656",
+  "pristineCode": "4fe7aa8285ad65f2c9a1123297426cd48b03bdef",
+  "transform": {
+    "control": {
+      "id": "remote-lower-guard",
+      "kind": "semantic",
+      "file": "packages/server/src/bots/brain/perception.ts",
+      "expectedMatches": 1,
+      "find": "immune: until > 0 && left > 0 && left <= TELEPORT_IMMUNITY_MS,",
+      "replace": "immune: until > 0 && left >= 0 && left <= TELEPORT_IMMUNITY_MS,",
+      "firstFailureCase": "P0"
+    },
+    "controlsSha256": "a27967aef45638c64d2873063d66669f5724abf869d51e328c511a15b4ef837c",
+    "original": {
+      "path": "packages/server/src/bots/brain/perception.ts",
+      "bytes": 36755,
+      "sha256": "059dba28d67a588be8b9f491cd69a242e841545a3b1863ce798da2e3f085390a"
+    },
+    "executed": {
+      "bytes": 36756,
+      "sha256": "7b01620322393d8f3baa8330b89e8157c011a9dcc01c5aa19635186e54463e57"
+    },
+    "instrumentation": {
+      "kind": "exact-once-replacement",
+      "controlId": "remote-lower-guard",
+      "file": "packages/server/src/bots/brain/perception.ts",
+      "controlsSha256": "a27967aef45638c64d2873063d66669f5724abf869d51e328c511a15b4ef837c",
+      "find": "immune: until > 0 && left > 0 && left <= TELEPORT_IMMUNITY_MS,",
+      "replace": "immune: until > 0 && left >= 0 && left <= TELEPORT_IMMUNITY_MS,",
+      "expectedMatches": 1
+    }
+  },
+  "firstFailure": {
+    "caseId": "P0",
+    "assertion": "AssertionError [ERR_ASSERTION]: exact remote lower/upper guard\n\ntrue !== false\n",
+    "sampleTime": 2650,
+    "baselineRemoteImmune": false,
+    "observedRemoteImmune": true,
+    "positiveOwnerDeadline": 2550
+  },
+  "canonicalRefused": true,
+  "compileEnvelopeProvenanceTimeoutMissingRawCountAsKill": false,
+  "independentSourceReproduction": false
+}

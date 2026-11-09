@@ -1,0 +1,8 @@
+{
+  "startedUtc": "2026-11-09T22:03:57.390227+00:00",
+  "kind": "ONE actual remote-upper-guard",
+  "status": "PROCESS_COMPLETED",
+  "exit": 0,
+  "containerCleanup": "verified-not-present",
+  "finishedUtc": "2026-11-09T22:03:59.322222+00:00"
+}
