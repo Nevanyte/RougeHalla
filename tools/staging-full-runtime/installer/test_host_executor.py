@@ -484,9 +484,10 @@ class World:
             members['config/' + name] = (STAGING / name).read_bytes()
         for unit in x.APP_UNITS:
             text = (STAGING / (unit + '.in')).read_text().replace('@RUNTIME_SECONDS@', str(RUNTIME_SECONDS))
-            if unit == x.POSTGRES_UNIT and patch_postgres:  # The proposed activation patch, never applied to the repo.
-                text = text.replace('/etc/rougehalla/postgresql.conf', x.PG_ETC + '/postgresql.conf')
-                text = text.replace('/etc/rougehalla/pg_hba.conf', x.PG_ETC + '/pg_hba.conf')
+            if unit == x.POSTGRES_UNIT:  # Legacy vs proposed config location, independent of which one the repo holds.
+                for name in ('postgresql.conf', 'pg_hba.conf'):
+                    legacy, proposed = '/etc/rougehalla/' + name, x.PG_ETC + '/' + name
+                    text = text.replace(legacy, proposed) if patch_postgres else text.replace(proposed, legacy)
             members['units/' + unit] = text.encode()
         members['bin/rh-server'] = b'SYNTHETIC SERVER FIXTURE, NOT AN ELF OR VALIDATED NATIVE BUILD\n'
         members['bin/caddy'] = b'SYNTHETIC CADDY FIXTURE\n'
