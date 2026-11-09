@@ -223,6 +223,9 @@ namespace Roguehalla.Client
         }
         public void ReadUiInput()
         {
+            // Text entry owns this whole read; generic navigation must not remove its
+            // focus and reclassify the same keys as planning or world input.
+            bool typing = Typing;
             RememberWorldHudFocus();
             _chestConsumedDigits = false;
             var kb = Keyboard.current;
@@ -239,7 +242,7 @@ namespace Roguehalla.Client
                 _drawer != null && _drawer.IsVisible || _help != null && _help.gameObject.activeSelf || PlayerFlowVisible;
             bool unrelatedModal = _settings.gameObject.activeSelf || _results.gameObject.activeSelf || _menu.gameObject.activeSelf ||
                 (_signIn != null && _signIn.gameObject.activeSelf) || AnyHubPanelVisible || PlayerFlowVisible;
-            if (kb != null && !Typing)
+            if (kb != null && !typing)
             {
                 bool modified = kb.ctrlKey.isPressed || kb.altKey.isPressed || kb.leftMetaKey.isPressed || kb.rightMetaKey.isPressed || kb.shiftKey.isPressed;
                 if (!modified)
@@ -279,9 +282,9 @@ namespace Roguehalla.Client
                 }
             }
             var focusRoot = FocusRoot;
-            if (kb != null && focusRoot != null && kb.tabKey.wasPressedThisFrame && !kb.ctrlKey.isPressed && !kb.altKey.isPressed && !kb.leftMetaKey.isPressed && !kb.rightMetaKey.isPressed)
+            if (kb != null && !typing && focusRoot != null && kb.tabKey.wasPressedThisFrame && !kb.ctrlKey.isPressed && !kb.altKey.isPressed && !kb.leftMetaKey.isPressed && !kb.rightMetaKey.isPressed)
                 UiFocusNavigation.Cycle(focusRoot, kb.shiftKey.isPressed);
-            _map?.ReadUiInput(Typing, dialog || PlayerFlowVisible || _chestFocus);
+            _map?.ReadUiInput(typing, dialog || PlayerFlowVisible || _chestFocus);
             if (focusRoot != null) UiBrowserStorage.CaptureTab(true, true);
         }
         public void ReleaseUiFocusForWindowLoss()
