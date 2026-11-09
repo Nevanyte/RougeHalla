@@ -1,0 +1,18 @@
+[
+  {
+    "name": "training-corpse-guard-omitted",
+    "selector": "ordinary_training_npc_death_revives_without_a_plague_corpse_and_restores",
+    "base_sha256": "1086908b71348a4879b86908d6331c748a45ff52ac27710ae32e24aee38d1496",
+    "semantic_assertion_kill": true,
+    "exit": 101,
+    "log": "docs/evidence/mark-tax-native29/logs/mutant-training-corpse-guard-omitted.log"
+  },
+  {
+    "name": "corpse-action-order-clone",
+    "selector": "corpse_auto_warm_alloc",
+    "base_sha256": "1086908b71348a4879b86908d6331c748a45ff52ac27710ae32e24aee38d1496",
+    "semantic_assertion_kill": true,
+    "exit": 101,
+    "log": "docs/evidence/mark-tax-native29/logs/mutant-corpse-action-order-clone.log"
+  }
+]

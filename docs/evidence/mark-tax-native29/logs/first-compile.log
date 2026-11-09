@@ -1,0 +1,98 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/mark-tax-uncapped-source/repo/crates/rh-sim)
+error: couldn't read `crates/rh-sim/src/abilities/source_tests/../../../../../tools/ability-fixtures/born-input.json`: No such file or directory (os error 2)
+   --> crates/rh-sim/src/abilities/source_tests/setup.rs:300:43
+    |
+300 |       let mut map: V = serde_json::from_str(include_str!(
+    |  ___________________________________________^
+301 | |         "../../../../../tools/ability-fixtures/born-input.json"
+302 | |     ))
+    | |_____^
+
+error: couldn't read `crates/rh-sim/src/abilities/source_tests/../../../../../tools/ability-fixtures/seed1-input.json`: No such file or directory (os error 2)
+   --> crates/rh-sim/src/abilities/source_tests/setup.rs:379:70
+    |
+379 |           let export: crate::mapdata::MapExport = serde_json::from_str(include_str!(
+    |  ______________________________________________________________________^
+380 | |             "../../../../../tools/ability-fixtures/seed1-input.json"
+381 | |         ))
+    | |_________^
+
+error: couldn't read `crates/rh-sim/src/abilities/source_tests/../../../../../tools/ability-fixtures/seed1-input.json`: No such file or directory (os error 2)
+   --> crates/rh-sim/src/abilities/source_tests/mod.rs:139:66
+    |
+139 |       let export: crate::mapdata::MapExport = serde_json::from_str(include_str!(
+    |  __________________________________________________________________^
+140 | |         "../../../../../tools/ability-fixtures/seed1-input.json"
+141 | |     ))
+    | |_____^
+
+error: couldn't read `crates/rh-sim/src/systems/frost/../../../../../tools/frost-source-fixtures/declared-map-input.json`: No such file or directory (os error 2)
+  --> crates/rh-sim/src/systems/frost/source_tests.rs:44:48
+   |
+44 |       let mut data: Value = serde_json::from_str(include_str!(
+   |  ________________________________________________^
+45 | |         "../../../../../tools/frost-source-fixtures/declared-map-input.json"
+46 | |     ))
+   | |_____^
+
+error: couldn't read `crates/rh-sim/src/systems/ledger/../../../../../tools/ability-fixtures/seed1-input.json`: No such file or directory (os error 2)
+  --> crates/rh-sim/src/systems/ledger/overkill_source_tests.rs:16:66
+   |
+16 |       let export: crate::mapdata::MapExport = serde_json::from_str(include_str!(
+   |  __________________________________________________________________^
+17 | |         "../../../../../tools/ability-fixtures/seed1-input.json"
+18 | |     ))
+   | |_____^
+
+error: couldn't read `/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/mark-tax-uncapped-source/repo/crates/rh-sim/../../docs/evidence/slow-starter-assessment/source.json`: No such file or directory (os error 2)
+  --> crates/rh-sim/src/cards/fight_clock_tests.rs:8:26
+   |
+ 8 |       serde_json::from_str(include_str!(concat!(
+   |  __________________________^
+ 9 | |         env!("CARGO_MANIFEST_DIR"),
+10 | |         "/../../docs/evidence/slow-starter-assessment/source.json"
+11 | |     )))
+   | |______^
+
+error[E0425]: cannot find value `MARK_NEAR_RANGE` in this scope
+  --> crates/rh-sim/src/systems/sentenced/mark_tax/tests.rs:61:30
+   |
+61 |     s.w.players[1].body.x += MARK_NEAR_RANGE + 1.;
+   |                              ^^^^^^^^^^^^^^^ not found in this scope
+   |
+help: consider importing this constant through its public re-export
+   |
+ 2 + use crate::systems::sentenced::MARK_NEAR_RANGE;
+   |
+
+error[E0425]: cannot find value `MARK_NEAR_RANGE` in this scope
+  --> crates/rh-sim/src/systems/sentenced/mark_tax/tests.rs:93:30
+   |
+93 |     s.w.players[0].body.x += MARK_NEAR_RANGE + 1.;
+   |                              ^^^^^^^^^^^^^^^ not found in this scope
+   |
+help: consider importing this constant through its public re-export
+   |
+ 2 + use crate::systems::sentenced::MARK_NEAR_RANGE;
+   |
+
+error[E0425]: cannot find value `MARK_NEAR_RANGE` in this scope
+  --> crates/rh-sim/src/systems/sentenced/mark_tax/tests.rs:94:30
+   |
+94 |     s.w.players[1].body.x += MARK_NEAR_RANGE + 1.;
+   |                              ^^^^^^^^^^^^^^^ not found in this scope
+   |
+help: consider importing this constant through its public re-export
+   |
+ 2 + use crate::systems::sentenced::MARK_NEAR_RANGE;
+   |
+
+error[E0614]: type `status_runtime::stats::Inputs<'_>` cannot be dereferenced
+   --> crates/rh-sim/src/systems/signatures.rs:360:73
+    |
+360 |         super::sentenced::mark_tax::rebuild(k, w, &mut s.mark_tax_next, *cx.stats);
+    |                                                                         ^^^^^^^^^ can't be dereferenced
+
+Some errors have detailed explanations: E0425, E0614.
+For more information about an error, try `rustc --explain E0425`.
+error: could not compile `rh-sim` (lib test) due to 10 previous errors

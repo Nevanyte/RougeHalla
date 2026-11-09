@@ -1,0 +1,33 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/mark-tax-uncapped-source/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 31.73s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_sim-0ad75f2b040c28b6)
+
+running 12 tests
+test systems::sentenced::mark_tax::source_tests::mark_tax_warm_alloc ... ignored, dhat must run alone: cargo test -p rh-sim --lib mark_tax_warm_alloc -- --ignored --test-threads=1
+test systems::sentenced::mark_tax::tests::efficiency_applies_only_to_positive_rows_and_never_includes_as_post ... ok
+test systems::sentenced::mark_tax::tests::tax_factor_and_public_cut_keep_farm_outside_regular_cap ... ok
+test systems::sentenced::mark_tax::tests::selected_owner_is_eligible_before_tier_and_lexical_tie ... ok
+test systems::sentenced::mark_tax::tests::membership_replacement_does_not_refold_but_removal_does ... ok
+test systems::sentenced::mark_tax::tests::near_boundary_own_trial_expiry_and_reset_keep_prepared_banks ... ok
+test systems::sentenced::mark_tax::tests::neutral_cut_membership_is_real_and_historical_validation_does_not_reconstruct_nearness ... ok
+test systems::sentenced::mark_tax::tests::sparse_public_cache_and_sig_bit_are_strict ... ok
+test systems::sentenced::mark_tax::source_tests::genuine_walk_away_retains_late_return_cache_for_restore ... ok
+test systems::sentenced::mark_tax::source_tests::earned_training_two_cases_every_frame_phase_event_and_rng ... ok
+test systems::sentenced::mark_tax::source_tests::genuine_live_tax_restore_clone_projection_and_hash_leaves ... ok
+test systems::sentenced::mark_tax::source_tests::genuine_card_grant_and_hp_conditional_query_distinguish_fold_stages ... FAILED
+
+failures:
+
+---- systems::sentenced::mark_tax::source_tests::genuine_card_grant_and_hp_conditional_query_distinguish_fold_stages stdout ----
+
+thread 'systems::sentenced::mark_tax::source_tests::genuine_card_grant_and_hp_conditional_query_distinguish_fold_stages' (67476682) panicked at crates/rh-sim/src/systems/sentenced/mark_tax/source_tests.rs:291:5:
+genuine accepted card and landed NPC hits must reach the HP condition flip: minHP=19.29213483146185, player=Vitals { faction: Faction(Holy), hp: 1145.0, max_hp: 1145.0, barrier: 0.0, immune_until: 0.0, hp_frac_at_tick_start: 1.0 }, rows=OwnAsRows { regular: 0.0, farm: 200.0 }, card=0 NPC=[(Some(Brain { mode: Idle, target: None, threat: [], last_combat_at: 23000.0, last_move_at: 0.0, goal: None, moving: false, holding: false, died_at: 0.0, last_aim: Some(1.5707963267948966) }), Mark { group: None, group_size: 1, tier: 0, hits: 0, progress: 0.0, swaps: 0, denied: false, far_since: None, amp_until: 0.0 }, 1456.0, 912.0), (Some(Brain { mode: Idle, target: None, threat: [], last_combat_at: 23000.0, last_move_at: 0.0, goal: None, moving: false, holding: false, died_at: 0.0, last_aim: Some(1.5707963267948966) }), Mark { group: None, group_size: 1, tier: 0, hits: 0, progress: 0.0, swaps: 0, denied: false, far_since: None, amp_until: 0.0 }, 1456.0, 880.0), (Some(Brain { mode: Idle, target: None, threat: [], last_combat_at: 23000.0, last_move_at: 0.0, goal: None, moving: false, holding: false, died_at: 0.0, last_aim: Some(1.4288992721907328) }), Mark { group: None, group_size: 1, tier: 0, hits: 0, progress: 0.0, swaps: 0, denied: false, far_since: None, amp_until: 0.0 }, 1424.0, 912.0)]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    systems::sentenced::mark_tax::source_tests::genuine_card_grant_and_hp_conditional_query_distinguish_fold_stages
+
+test result: FAILED. 10 passed; 1 failed; 1 ignored; 0 measured; 810 filtered out; finished in 6.19s
+
+error: test failed, to rerun pass `-p rh-sim --lib`

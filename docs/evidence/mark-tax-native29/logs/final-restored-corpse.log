@@ -1,0 +1,12 @@
+    Finished `test` profile [unoptimized] target(s) in 0.04s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_sim-0ad75f2b040c28b6)
+
+running 5 tests
+test systems::plague_corpses::tests::corpse_auto_warm_alloc ... ignored, dhat must run alone: cargo test -p rh-sim --lib corpse_auto_warm_alloc -- --ignored --test-threads=1
+test systems::plague_corpses::tests::consume_grants_a_stack_and_changes_max_hp ... ok
+test systems::plague_corpses::tests::a_real_death_leaves_one_corpse_and_mia_leaves_none ... ok
+test systems::plague_corpses::tests::stable_auto_order_matches_snapshot_for_multiple_owners_corpses_and_refusals ... ok
+test systems::plague_corpses::tests::a_consumed_corpse_raises_one_owned_zombie_and_friendly_fire_is_off ... ok
+
+test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 822 filtered out; finished in 0.01s
+

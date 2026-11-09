@@ -1,0 +1,28 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/mark-tax-uncapped-source/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 31.54s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_sim-0ad75f2b040c28b6)
+
+running 7 tests
+test systems::sentenced::mark_tax::tests::tax_factor_and_public_cut_keep_farm_outside_regular_cap ... ok
+test systems::sentenced::mark_tax::tests::efficiency_applies_only_to_positive_rows_and_never_includes_as_post ... ok
+test systems::sentenced::mark_tax::tests::selected_owner_is_eligible_before_tier_and_lexical_tie ... ok
+test systems::sentenced::mark_tax::tests::membership_replacement_does_not_refold_but_removal_does ... ok
+test systems::sentenced::mark_tax::tests::sparse_public_cache_and_sig_bit_are_strict ... ok
+test systems::sentenced::mark_tax::tests::neutral_cut_membership_is_real_and_historical_validation_does_not_reconstruct_nearness ... ok
+test systems::sentenced::mark_tax::source_tests::earned_training_two_cases_every_frame_phase_event_and_rng ... FAILED
+
+failures:
+
+---- systems::sentenced::mark_tax::source_tests::earned_training_two_cases_every_frame_phase_event_and_rng stdout ----
+
+thread 'systems::sentenced::mark_tax::source_tests::earned_training_two_cases_every_frame_phase_event_and_rng' (67458132) panicked at crates/rh-sim/src/systems/sentenced/mark_tax/source_tests.rs:126:19:
+case"ordinary-holy-high-farm-selected-tax-and-count-reduction"/frame1/"before-factions-after-weapons"/value/player/roamCharge: 2.0 != 0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    systems::sentenced::mark_tax::source_tests::earned_training_two_cases_every_frame_phase_event_and_rng
+
+test result: FAILED. 6 passed; 1 failed; 0 ignored; 0 measured; 810 filtered out; finished in 0.63s
+
+error: test failed, to rerun pass `-p rh-sim --lib`

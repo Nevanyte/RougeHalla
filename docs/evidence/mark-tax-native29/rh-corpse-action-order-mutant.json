@@ -1,0 +1,48 @@
+{
+"dhatFileVersion": 2,
+"mode": "rust-heap",
+"verb": "Allocated",
+"bklt": true,
+"bkacc": false,
+"tu": "µs",
+"Mtu": "s",
+"tuth": 10,
+"cmd": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_sim-0ad75f2b040c28b6 corpse_auto_warm_alloc --test-threads=1 --ignored",
+"pid": 31384,
+"tg": 330,
+"te": 351,
+"pps": [
+{
+"tb": 12,
+"tbk": 1,
+"tl": 19,
+"mb": 12,
+"mbk": 1,
+"gb": 12,
+"gbk": 1,
+"eb": 0,
+"ebk": 0,
+"fs": [
+1,
+2,
+3,
+4,
+5,
+6,
+7,
+8
+]
+}
+],
+"ftbl": [
+"[root]",
+"0x106105a1c: <dhat::Alloc as core::alloc::global::GlobalAlloc>::alloc (???:0:0)",
+"0x10598b440: __rustc::__rust_alloc (???:0:0)",
+"0x10623aa90: <alloc::raw_vec::RawVecInner>::try_allocate_in (???:0:0)",
+"0x10617856c: <alloc::raw_vec::RawVecInner>::with_capacity_in (???:0:0)",
+"0x10494a448: <u32 as <[_]>::to_vec_in::ConvertVec>::to_vec::<alloc::alloc::Global> (???:0:0)",
+"0x105b72bb0: <alloc::vec::Vec<u32> as core::clone::Clone>::clone (???:0:0)",
+"0x1050e5120: rh_sim::systems::plague_corpses::system (???:0:0)",
+"0x105cb65b8: rh_sim::systems::plague_corpses::tests::corpse_auto_warm_alloc (???:0:0)"
+]
+}

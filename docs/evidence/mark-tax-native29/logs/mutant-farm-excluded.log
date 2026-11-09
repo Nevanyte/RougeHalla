@@ -1,0 +1,23 @@
+COMMAND cargo test -p rh-sim --lib earned_training_two_cases_every_frame_phase_event_and_rng --features trusted-status-probes --locked -- --test-threads=1
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/mark-tax-uncapped-source/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 31.96s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_sim-0ad75f2b040c28b6)
+
+running 1 test
+test systems::sentenced::mark_tax::source_tests::earned_training_two_cases_every_frame_phase_event_and_rng ... FAILED
+
+failures:
+
+---- systems::sentenced::mark_tax::source_tests::earned_training_two_cases_every_frame_phase_event_and_rng stdout ----
+
+thread 'systems::sentenced::mark_tax::source_tests::earned_training_two_cases_every_frame_phase_event_and_rng' (67484334) panicked at crates/rh-sim/src/systems/sentenced/mark_tax/source_tests.rs:249:17:
+case"ordinary-holy-high-farm-selected-tax-and-count-reduction"/frame1/"before-factions-after-weapons"/value/rawSheetRate: 0.95 != 0.9594999999999999
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    systems::sentenced::mark_tax::source_tests::earned_training_two_cases_every_frame_phase_event_and_rng
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 822 filtered out; finished in 0.65s
+
+error: test failed, to rerun pass `-p rh-sim --lib`
