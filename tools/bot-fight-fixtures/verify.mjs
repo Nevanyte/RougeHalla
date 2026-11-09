@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 export function verify(c) {
  assert.equal(c.format,'rh-bot-fight-source/1');
- assert.equal(c.cases.length,15);assert.equal(c.orbs.length,6);assert.equal(c.timings.length,90);
+ assert.equal(c.cases.length,16);assert.equal(c.orbs.length,6);assert.equal(c.timings.length,90);
  for(const group of [...c.cases,...c.orbs]) {
   let last=-Infinity;
   for(const r of group.rows) {
@@ -32,6 +32,9 @@ export function verify(c) {
  assert.deepEqual(rows('wand-windup-swap-guard').map(r=>intents(r).includes('swap')),[false,true]);
  assert.equal(rows('target-down-and-unknown').at(-1).result.status.state,'done');
  assert.equal(rows('unknown-target-is-source-done')[0].result.status.state,'done');
+ const lost=rows('remembered-position-before-expiry-and-lost');
+ assert.equal(lost[1].result.intents[0].why,'go to where it was last seen');
+ assert.deepEqual(lost[2].result.status,{state:'failed',why:'lost track of the target'});
  assert.deepEqual(rows('world-to-fight-one-time-knowledge').map(r=>r.drawDelta.decide),[1,1,0]);
  const fightOrb=rows('fight-orb-engagement-chance-jitter-and-gap');
  assert.deepEqual(fightOrb.map(r=>r.drawDelta.decide),[2,0,0,1,0,0,1]);

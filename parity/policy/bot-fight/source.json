@@ -15,6 +15,12 @@
    "lapse: mulberry32(derive(cfg.seed, 2)),",
    "const knowledgeRng: Rng = mulberry32(derive(cfg.seed, 3));"
   ],
+  "tags": {
+   "decide": 0,
+   "motor": 1,
+   "lapse": 2,
+   "knowledge": 3
+  },
   "sourceSha256": {
    "packages/server/src/bots/BotClient.ts": "5f1f7b533c74b53c29adb2e586811a31de68f3dd858255c3c3e1a4c471aadd0c",
    "packages/server/src/bots/BotManager.ts": "06f2e2957c1528a838777c54d505ce4a7fc402ee6bb11b38e171761a205e3fae",
@@ -141,13 +147,13 @@
    "tsconfig.base.json": "017575ec3101f44df43b5a7cc850779582650d9e01a2090b7e311b213b98ef88"
   },
   "toolSha256": {
-   "tools/bot-fight-fixtures/README.md": "ae292c7b44ac102823d7e231a28f8c670a402a1af53f933a0b30c33fb97e73e1",
-   "tools/bot-fight-fixtures/capture.mts": "e7c4f37f8de49095c010990cf578cea8471450bf0333cd0450510c20bb505d74",
+   "tools/bot-fight-fixtures/README.md": "20b4f792ba495e6666427c26ec6a70c646f30bce7c7b3e0b75b920f6f0325533",
+   "tools/bot-fight-fixtures/capture.mts": "164acfc9400448f9998631f41e74fc28676708d7064e83a827823ab4f8d27e84",
    "tools/bot-fight-fixtures/capture.sh": "d8736daaa8b01d25c601dbd970211abf7774fa2af57d24ccac27bcc14c31933e",
-   "tools/bot-fight-fixtures/cases.mts": "b9e7b937285c30084844cc390ae82abb2d1fc4a39328ac9d27c105b5941852b8",
-   "tools/bot-fight-fixtures/controls.mjs": "0bd8edbba60b6afb337bde8e1fafff9d14d2dbe9cb0300979ec9522994a23109",
+   "tools/bot-fight-fixtures/cases.mts": "50cf296e3a66edcae6daa91f08e088a6102cf6606aa203068de5db2608eef724",
+   "tools/bot-fight-fixtures/controls.mjs": "76908e31a76f7a3c7e58430cedeb05a5f17af59f6c3927837bc91ae05eb63437",
    "tools/bot-fight-fixtures/controls.sh": "0d3e3f8ade22edf20eea1921327f82118a02442454e945fb79e1bba456f068f9",
-   "tools/bot-fight-fixtures/verify.mjs": "223d85f94d080a96e5a47576d8705f92c116cc6409b293c39b09c44e3ed36d50"
+   "tools/bot-fight-fixtures/verify.mjs": "45a1893c80166740042603c50708f84f78a533e877ff03f151772f1de5604bb6"
   }
  },
  "maps": {
@@ -14396,6 +14402,784 @@
      },
      "drawDelta": {
       "decide": 1,
+      "motor": 0,
+      "lapse": 0,
+      "knowledge": 0
+     }
+    }
+   ]
+  },
+  {
+   "name": "remembered-position-before-expiry-and-lost",
+   "recipe": {
+    "name": "remembered-position-before-expiry-and-lost",
+    "kind": "tactics",
+    "map": "open",
+    "seed": 7,
+    "tier": "normal",
+    "persona": "cautious"
+   },
+   "rows": [
+    {
+     "input": {
+      "percept": {
+       "now": 100,
+       "viewT": 100,
+       "self": {
+        "id": "p0",
+        "name": "declared owner",
+        "x": 400,
+        "y": 360,
+        "facing": 0,
+        "status": "alive",
+        "hp": 950,
+        "maxHp": 950,
+        "barrier": 0,
+        "faction": "fire",
+        "weapons": [
+         "sword",
+         null
+        ],
+        "slot": 0,
+        "attackTarget": null,
+        "drawStartedAt": 0,
+        "readyAt": 0,
+        "immuneUntil": 0,
+        "sig": 0,
+        "brand": 0,
+        "power": 0,
+        "asMult": 1,
+        "windupMult": 1,
+        "speedMult": 1,
+        "kills": 0,
+        "mobKills": 0,
+        "gv": 0,
+        "bounty": 0,
+        "moveSeq": 0
+       },
+       "hud": {
+        "phase": "active",
+        "training": false,
+        "lobbyEndsAt": 0,
+        "raidStartedAt": 0,
+        "patienceEndsAt": 0,
+        "suddenDeathAt": 0,
+        "inColiseum": false,
+        "gatesLocked": false,
+        "startedWith": 2,
+        "alive": 2,
+        "playerCount": 2,
+        "minPlayers": 2,
+        "winner": ""
+       },
+       "fighters": [
+        {
+         "id": "p1",
+         "name": "declared foe",
+         "bot": false,
+         "x": 440,
+         "y": 360,
+         "facing": 3.141592653589793,
+         "status": "alive",
+         "hpFrac": 1,
+         "barrierFrac": 0,
+         "faction": "holy",
+         "inHand": "sword",
+         "drawStartedAt": 0,
+         "bounty": 0,
+         "immune": false,
+         "sig": 0,
+         "brand": 0,
+         "targetable": true,
+         "vx": 0,
+         "vy": 0,
+         "dist": 40,
+         "los": true,
+         "tint": 0,
+         "central": true
+        }
+       ],
+       "mobs": [],
+       "containers": [],
+       "projectiles": [],
+       "minimap": {
+        "t": 0,
+        "mobs": [],
+        "gatesLocked": false
+       },
+       "events": [],
+       "extras": {},
+       "features": {
+        "wishes": false,
+        "statusEffects": true,
+        "fields": false,
+        "planning": false,
+        "chests": false,
+        "skills": false,
+        "relics": false,
+        "camps": false,
+        "hazards": false,
+        "messageTypes": []
+       }
+      },
+      "goal": {
+       "kind": "fight",
+       "target": "p1"
+      }
+     },
+     "normalReflex": {
+      "result": null,
+      "holdUntil": 0,
+      "decideDraws": 0
+     },
+     "result": {
+      "intents": [
+       {
+        "kind": "lock",
+        "target": "p1",
+        "at": {
+         "x": 440,
+         "y": 360
+        },
+        "priority": 1,
+        "timing": {
+         "kind": "react",
+         "stimulus": {
+          "kind": "newThreat",
+          "at": 100,
+          "subject": "p1",
+          "central": true,
+          "value": 40
+         }
+        },
+        "why": "click an aimed attack"
+       }
+      ],
+      "status": {
+       "state": "running",
+       "why": "attacking"
+      },
+      "attacking": true
+     },
+     "stats": {
+      "dodges": 0,
+      "jukes": 0,
+      "kiteCycles": 0,
+      "retreats": 0,
+      "mobTargets": 0
+     },
+     "paths": [
+      {
+       "method": "collisionMap",
+       "args": [],
+       "result": {
+        "declaredMap": "open"
+       }
+      },
+      {
+       "method": "collisionMap",
+       "args": [],
+       "result": {
+        "declaredMap": "open"
+       }
+      }
+     ],
+     "pathStats": {
+      "searches": 0,
+      "hits": 0,
+      "fallbacks": 0
+     },
+     "budgetLeft": 3,
+     "rngAfter": {
+      "decide": {
+       "seed": 2000300536,
+       "count": 2,
+       "draws": [
+        0.890012247255072,
+        0.8843999071978033
+       ],
+       "nextFromIndependentReplay": 0.4762176154181361
+      },
+      "motor": {
+       "seed": 4106939371,
+       "count": 0,
+       "draws": [],
+       "nextFromIndependentReplay": 0.8830441504251212
+      },
+      "lapse": {
+       "seed": 3750188617,
+       "count": 0,
+       "draws": [],
+       "nextFromIndependentReplay": 0.34087040391750634
+      },
+      "knowledge": {
+       "seed": 2057029952,
+       "count": 70,
+       "draws": [
+        0.9701626852620393,
+        0.016678885091096163,
+        0.42593536362983286,
+        0.7781172243412584,
+        0.5141697484068573,
+        0.1381722134537995,
+        0.23386778496205807,
+        0.4523263415321708,
+        0.09853848768398166,
+        0.31669308501295745,
+        0.7182861666660756,
+        0.930669451598078,
+        0.2706366360653192,
+        0.939011043170467,
+        0.1549671154934913,
+        0.26199270272627473,
+        0.3043088298290968,
+        0.6782156731933355,
+        0.8027521118056029,
+        0.8479510038159788,
+        0.14505247818306088,
+        0.31259248103015125,
+        0.8485767070669681,
+        0.18157054390758276,
+        0.09143899753689766,
+        0.23673614556901157,
+        0.8439722962211818,
+        0.47635552240535617,
+        0.2970250726211816,
+        0.6938146282918751,
+        0.7917451777029783,
+        0.8088671003933996,
+        0.6415767918806523,
+        0.9132008079905063,
+        0.4531234165187925,
+        0.3675506089348346,
+        0.9630439695902169,
+        0.6059582368470728,
+        0.2496328365523368,
+        0.9816000785212964,
+        0.4568901057355106,
+        0.4879669880028814,
+        0.49673312716186047,
+        0.8929442709777504,
+        0.0028021030593663454,
+        0.3304440036881715,
+        0.9539972327183932,
+        0.46835191221907735,
+        0.5892974103335291,
+        0.05190321267582476,
+        0.729868320049718,
+        0.814901934703812,
+        0.3225669439416379,
+        0.2897921062540263,
+        0.5603025418240577,
+        0.333941814256832,
+        0.35279504815116525,
+        0.46359558939002454,
+        0.22426038468256593,
+        0.07202223525382578,
+        0.21697221137583256,
+        0.8911847148556262,
+        0.7369647570885718,
+        0.6736043037381023,
+        0.9804025471676141,
+        0.10433488292619586,
+        0.05186912603676319,
+        0.4159934832714498,
+        0.0651990205515176,
+        0.8843801594339311
+       ],
+       "nextFromIndependentReplay": 0.09401206788606942
+      }
+     },
+     "drawDelta": {
+      "decide": 2,
+      "motor": 0,
+      "lapse": 0,
+      "knowledge": 0
+     }
+    },
+    {
+     "input": {
+      "percept": {
+       "now": 35100,
+       "viewT": 35100,
+       "self": {
+        "id": "p0",
+        "name": "declared owner",
+        "x": 400,
+        "y": 360,
+        "facing": 0,
+        "status": "alive",
+        "hp": 950,
+        "maxHp": 950,
+        "barrier": 0,
+        "faction": "fire",
+        "weapons": [
+         "sword",
+         null
+        ],
+        "slot": 0,
+        "attackTarget": null,
+        "drawStartedAt": 0,
+        "readyAt": 0,
+        "immuneUntil": 0,
+        "sig": 0,
+        "brand": 0,
+        "power": 0,
+        "asMult": 1,
+        "windupMult": 1,
+        "speedMult": 1,
+        "kills": 0,
+        "mobKills": 0,
+        "gv": 0,
+        "bounty": 0,
+        "moveSeq": 0
+       },
+       "hud": {
+        "phase": "active",
+        "training": false,
+        "lobbyEndsAt": 0,
+        "raidStartedAt": 0,
+        "patienceEndsAt": 0,
+        "suddenDeathAt": 0,
+        "inColiseum": false,
+        "gatesLocked": false,
+        "startedWith": 2,
+        "alive": 2,
+        "playerCount": 2,
+        "minPlayers": 2,
+        "winner": ""
+       },
+       "fighters": [],
+       "mobs": [],
+       "containers": [],
+       "projectiles": [],
+       "minimap": {
+        "t": 0,
+        "mobs": [],
+        "gatesLocked": false
+       },
+       "events": [],
+       "extras": {},
+       "features": {
+        "wishes": false,
+        "statusEffects": true,
+        "fields": false,
+        "planning": false,
+        "chests": false,
+        "skills": false,
+        "relics": false,
+        "camps": false,
+        "hazards": false,
+        "messageTypes": []
+       }
+      },
+      "goal": {
+       "kind": "fight",
+       "target": "p1"
+      }
+     },
+     "normalReflex": {
+      "result": null,
+      "holdUntil": 0,
+      "decideDraws": 0
+     },
+     "result": {
+      "intents": [
+       {
+        "kind": "move",
+        "to": {
+         "x": 440,
+         "y": 360
+        },
+        "priority": 2,
+        "timing": {
+         "kind": "step"
+        },
+        "why": "go to where it was last seen"
+       }
+      ],
+      "status": {
+       "state": "running",
+       "why": "approaching"
+      },
+      "attacking": false
+     },
+     "stats": {
+      "dodges": 0,
+      "jukes": 0,
+      "kiteCycles": 0,
+      "retreats": 0,
+      "mobTargets": 0
+     },
+     "paths": [
+      {
+       "method": "los",
+       "args": [
+        {
+         "id": "p0",
+         "name": "declared owner",
+         "x": 400,
+         "y": 360,
+         "facing": 0,
+         "status": "alive",
+         "hp": 950,
+         "maxHp": 950,
+         "barrier": 0,
+         "faction": "fire",
+         "weapons": [
+          "sword",
+          null
+         ],
+         "slot": 0,
+         "attackTarget": null,
+         "drawStartedAt": 0,
+         "readyAt": 0,
+         "immuneUntil": 0,
+         "sig": 0,
+         "brand": 0,
+         "power": 0,
+         "asMult": 1,
+         "windupMult": 1,
+         "speedMult": 1,
+         "kills": 0,
+         "mobKills": 0,
+         "gv": 0,
+         "bounty": 0,
+         "moveSeq": 0
+        },
+        {
+         "x": 440,
+         "y": 360
+        }
+       ],
+       "result": true
+      }
+     ],
+     "pathStats": {
+      "searches": 0,
+      "hits": 0,
+      "fallbacks": 0
+     },
+     "budgetLeft": 3,
+     "rngAfter": {
+      "decide": {
+       "seed": 2000300536,
+       "count": 3,
+       "draws": [
+        0.890012247255072,
+        0.8843999071978033,
+        0.4762176154181361
+       ],
+       "nextFromIndependentReplay": 0.9157360186800361
+      },
+      "motor": {
+       "seed": 4106939371,
+       "count": 0,
+       "draws": [],
+       "nextFromIndependentReplay": 0.8830441504251212
+      },
+      "lapse": {
+       "seed": 3750188617,
+       "count": 0,
+       "draws": [],
+       "nextFromIndependentReplay": 0.34087040391750634
+      },
+      "knowledge": {
+       "seed": 2057029952,
+       "count": 70,
+       "draws": [
+        0.9701626852620393,
+        0.016678885091096163,
+        0.42593536362983286,
+        0.7781172243412584,
+        0.5141697484068573,
+        0.1381722134537995,
+        0.23386778496205807,
+        0.4523263415321708,
+        0.09853848768398166,
+        0.31669308501295745,
+        0.7182861666660756,
+        0.930669451598078,
+        0.2706366360653192,
+        0.939011043170467,
+        0.1549671154934913,
+        0.26199270272627473,
+        0.3043088298290968,
+        0.6782156731933355,
+        0.8027521118056029,
+        0.8479510038159788,
+        0.14505247818306088,
+        0.31259248103015125,
+        0.8485767070669681,
+        0.18157054390758276,
+        0.09143899753689766,
+        0.23673614556901157,
+        0.8439722962211818,
+        0.47635552240535617,
+        0.2970250726211816,
+        0.6938146282918751,
+        0.7917451777029783,
+        0.8088671003933996,
+        0.6415767918806523,
+        0.9132008079905063,
+        0.4531234165187925,
+        0.3675506089348346,
+        0.9630439695902169,
+        0.6059582368470728,
+        0.2496328365523368,
+        0.9816000785212964,
+        0.4568901057355106,
+        0.4879669880028814,
+        0.49673312716186047,
+        0.8929442709777504,
+        0.0028021030593663454,
+        0.3304440036881715,
+        0.9539972327183932,
+        0.46835191221907735,
+        0.5892974103335291,
+        0.05190321267582476,
+        0.729868320049718,
+        0.814901934703812,
+        0.3225669439416379,
+        0.2897921062540263,
+        0.5603025418240577,
+        0.333941814256832,
+        0.35279504815116525,
+        0.46359558939002454,
+        0.22426038468256593,
+        0.07202223525382578,
+        0.21697221137583256,
+        0.8911847148556262,
+        0.7369647570885718,
+        0.6736043037381023,
+        0.9804025471676141,
+        0.10433488292619586,
+        0.05186912603676319,
+        0.4159934832714498,
+        0.0651990205515176,
+        0.8843801594339311
+       ],
+       "nextFromIndependentReplay": 0.09401206788606942
+      }
+     },
+     "drawDelta": {
+      "decide": 1,
+      "motor": 0,
+      "lapse": 0,
+      "knowledge": 0
+     }
+    },
+    {
+     "input": {
+      "percept": {
+       "now": 35101,
+       "viewT": 35101,
+       "self": {
+        "id": "p0",
+        "name": "declared owner",
+        "x": 400,
+        "y": 360,
+        "facing": 0,
+        "status": "alive",
+        "hp": 950,
+        "maxHp": 950,
+        "barrier": 0,
+        "faction": "fire",
+        "weapons": [
+         "sword",
+         null
+        ],
+        "slot": 0,
+        "attackTarget": null,
+        "drawStartedAt": 0,
+        "readyAt": 0,
+        "immuneUntil": 0,
+        "sig": 0,
+        "brand": 0,
+        "power": 0,
+        "asMult": 1,
+        "windupMult": 1,
+        "speedMult": 1,
+        "kills": 0,
+        "mobKills": 0,
+        "gv": 0,
+        "bounty": 0,
+        "moveSeq": 0
+       },
+       "hud": {
+        "phase": "active",
+        "training": false,
+        "lobbyEndsAt": 0,
+        "raidStartedAt": 0,
+        "patienceEndsAt": 0,
+        "suddenDeathAt": 0,
+        "inColiseum": false,
+        "gatesLocked": false,
+        "startedWith": 2,
+        "alive": 2,
+        "playerCount": 2,
+        "minPlayers": 2,
+        "winner": ""
+       },
+       "fighters": [],
+       "mobs": [],
+       "containers": [],
+       "projectiles": [],
+       "minimap": {
+        "t": 0,
+        "mobs": [],
+        "gatesLocked": false
+       },
+       "events": [],
+       "extras": {},
+       "features": {
+        "wishes": false,
+        "statusEffects": true,
+        "fields": false,
+        "planning": false,
+        "chests": false,
+        "skills": false,
+        "relics": false,
+        "camps": false,
+        "hazards": false,
+        "messageTypes": []
+       }
+      },
+      "goal": {
+       "kind": "fight",
+       "target": "p1"
+      }
+     },
+     "normalReflex": {
+      "result": null,
+      "holdUntil": 0,
+      "decideDraws": 0
+     },
+     "result": {
+      "intents": [],
+      "status": {
+       "state": "failed",
+       "why": "lost track of the target"
+      },
+      "attacking": false
+     },
+     "stats": {
+      "dodges": 0,
+      "jukes": 0,
+      "kiteCycles": 0,
+      "retreats": 0,
+      "mobTargets": 0
+     },
+     "paths": [],
+     "pathStats": {
+      "searches": 0,
+      "hits": 0,
+      "fallbacks": 0
+     },
+     "budgetLeft": 3,
+     "rngAfter": {
+      "decide": {
+       "seed": 2000300536,
+       "count": 3,
+       "draws": [
+        0.890012247255072,
+        0.8843999071978033,
+        0.4762176154181361
+       ],
+       "nextFromIndependentReplay": 0.9157360186800361
+      },
+      "motor": {
+       "seed": 4106939371,
+       "count": 0,
+       "draws": [],
+       "nextFromIndependentReplay": 0.8830441504251212
+      },
+      "lapse": {
+       "seed": 3750188617,
+       "count": 0,
+       "draws": [],
+       "nextFromIndependentReplay": 0.34087040391750634
+      },
+      "knowledge": {
+       "seed": 2057029952,
+       "count": 70,
+       "draws": [
+        0.9701626852620393,
+        0.016678885091096163,
+        0.42593536362983286,
+        0.7781172243412584,
+        0.5141697484068573,
+        0.1381722134537995,
+        0.23386778496205807,
+        0.4523263415321708,
+        0.09853848768398166,
+        0.31669308501295745,
+        0.7182861666660756,
+        0.930669451598078,
+        0.2706366360653192,
+        0.939011043170467,
+        0.1549671154934913,
+        0.26199270272627473,
+        0.3043088298290968,
+        0.6782156731933355,
+        0.8027521118056029,
+        0.8479510038159788,
+        0.14505247818306088,
+        0.31259248103015125,
+        0.8485767070669681,
+        0.18157054390758276,
+        0.09143899753689766,
+        0.23673614556901157,
+        0.8439722962211818,
+        0.47635552240535617,
+        0.2970250726211816,
+        0.6938146282918751,
+        0.7917451777029783,
+        0.8088671003933996,
+        0.6415767918806523,
+        0.9132008079905063,
+        0.4531234165187925,
+        0.3675506089348346,
+        0.9630439695902169,
+        0.6059582368470728,
+        0.2496328365523368,
+        0.9816000785212964,
+        0.4568901057355106,
+        0.4879669880028814,
+        0.49673312716186047,
+        0.8929442709777504,
+        0.0028021030593663454,
+        0.3304440036881715,
+        0.9539972327183932,
+        0.46835191221907735,
+        0.5892974103335291,
+        0.05190321267582476,
+        0.729868320049718,
+        0.814901934703812,
+        0.3225669439416379,
+        0.2897921062540263,
+        0.5603025418240577,
+        0.333941814256832,
+        0.35279504815116525,
+        0.46359558939002454,
+        0.22426038468256593,
+        0.07202223525382578,
+        0.21697221137583256,
+        0.8911847148556262,
+        0.7369647570885718,
+        0.6736043037381023,
+        0.9804025471676141,
+        0.10433488292619586,
+        0.05186912603676319,
+        0.4159934832714498,
+        0.0651990205515176,
+        0.8843801594339311
+       ],
+       "nextFromIndependentReplay": 0.09401206788606942
+      }
+     },
+     "drawDelta": {
+      "decide": 0,
       "motor": 0,
       "lapse": 0,
       "knowledge": 0

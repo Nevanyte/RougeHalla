@@ -39,6 +39,7 @@ export function fightCases(timing:any) {
     normal('swap-cooldown-and-draw-guard',[frame(100,{self:{weapons:['bow','wand'],drawStartedAt:20},fighters:[fighter({inHand:'shield'})]}),frame(150,{self:{weapons:['bow','wand']},fighters:[fighter({inHand:'shield'})]}),frame(500,{self:{weapons:['bow','wand']},fighters:[fighter({inHand:'shield'})]}),frame(5000,{self:{weapons:['bow','wand']},fighters:[fighter({inHand:'shield'})]})],{tier:'hard',seed:0}),
     normal('target-down-and-unknown',[frame(100,{fighters:[fighter()]}),frame(150,{fighters:[fighter({status:'dead',hpFrac:0})]})]),
     normal('unknown-target-is-source-done',[frame(100)],{rows:[{percept:frame(100),goal:{kind:'fight',target:'never-seen'}}]}),
+    normal('remembered-position-before-expiry-and-lost',[frame(100,{fighters:[fighter()]}),frame(35100),frame(35101)]),
     normal('world-to-fight-one-time-knowledge',[frame(100),frame(150,{fighters:[fighter()]}),frame(200,{fighters:[fighter()]})],{rows:[{percept:frame(100),goal:{kind:'idle'}},{percept:frame(150,{fighters:[fighter()]}),goal},{percept:frame(200,{fighters:[fighter()]}),goal}]}),
     normal('fight-orb-engagement-chance-jitter-and-gap',[
       frame(start,{self:{weapons:['bow',null],attackTarget:'p1'},fighters:[fighter()]}),

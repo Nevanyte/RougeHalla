@@ -29,6 +29,8 @@ function extract(source:string,signature:string) {
 const deriveText=extract(brain,'function derive(seed: number, tag: number): number {');
 const derive=new Function(deriveText.replace(/: number/g,'')+';return derive;')();
 const wiring=brain.split('\n').filter((line:string)=>line.includes('mulberry32(derive(cfg.seed,')).map((s:string)=>s.trim());
+const tagOf=(prefix:string)=>{const line=wiring.find((s:string)=>s.startsWith(prefix));assert(line,'actual stream wiring');const match=line.match(/derive\(cfg.seed, (\d+)\)/);assert(match);return Number(match[1]);};
+const tags={decide:tagOf('decide:'),motor:tagOf('motor:'),lapse:tagOf('lapse:'),knowledge:tagOf('const knowledgeRng:')};
 function plain(v:any):any {
  if(v===null||typeof v==='string'||typeof v==='boolean')return v;
  if(typeof v==='number'){assert(Number.isFinite(v),'nonfinite result');return v;}
@@ -44,7 +46,7 @@ function stream(seed:number,tag:number) {
 const mapDefs=maps();
 function context(c:any) {
  const def=mapDefs[c.map],map=S.mapFromTiles(def.w,def.h,Uint8Array.from(def.tiles),1);
- const streams={decide:stream(c.seed,0),motor:stream(c.seed,1),lapse:stream(c.seed,2),knowledge:stream(c.seed,3)};
+ const streams={decide:stream(c.seed,tags.decide),motor:stream(c.seed,tags.motor),lapse:stream(c.seed,tags.lapse),knowledge:stream(c.seed,tags.knowledge)};
  const rng={decide:streams.decide.rng,motor:streams.motor.rng,lapse:streams.lapse.rng};
  const budget=createPathBudget(3),real=createPathService(map,budget),calls:any[]=[];
  const paths=new Proxy(real,{get(target,key){const value=Reflect.get(target,key);if(typeof value!=='function')return value;
@@ -52,7 +54,7 @@ function context(c:any) {
  const mem=createMemory({tier:TIERS[c.tier],map,selfId:'p0',features});
  const know=createKnowledge(TIERS[c.tier],streams.knowledge.rng);
  // Independent real reflex instance verifies there is no opportunity. Its zero draws are NOT part of the actual stream.
- const noReflex=createReflexes(),reflexStream=stream(c.seed,0);
+ const noReflex=createReflexes(),reflexStream=stream(c.seed,tags.decide);
  return {streams,calls,real,budget,paths,mem,know,rng,map,
   row(p:any){budget.startTick();real.setFrame(p.now,p.hud.gatesLocked);mem.observe(p);
    const ctx={p,mem:mem.view,rng,cfg:{tier:TIERS[c.tier],persona:PERSONAS[c.persona],seed:c.seed,map,features},know,engaged:p.self.attackTarget!==null,svc:{paths,log(){}}};
@@ -102,7 +104,7 @@ const result={format:'rh-bot-fight-source/1',profile:{base:'e2baadae03dd25cf7497
  image:'node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292',
  boundary:'Declared chronological public method contexts, actual Tactics/Fight/Orb/Timings/Memory/Knowledge/PathService. NOT earned World outcomes, full brain, reflex or native/live activation.',
  rng:'Actual source mulberry32(derive(seed,tag0/1/2)); actual Knowledge tag3. Forwarded draws unchanged; next values use fresh independent source replay, never extra actual draws.',
- deriveSourceSha256:sha(deriveText),wiring,sourceSha256,configSha256,toolSha256},maps:mapDefs,timings:timingRows,unavailableTiming,missingInventory,directFight,cases,orbs};
+ deriveSourceSha256:sha(deriveText),wiring,tags,sourceSha256,configSha256,toolSha256},maps:mapDefs,timings:timingRows,unavailableTiming,missingInventory,directFight,cases,orbs};
 const {verify}=await import('./verify.mjs');verify(result);
 const bytes=JSON.stringify(result,null,1)+'\n';
 if(mode==='--write')writeFileSync(path,bytes);else assert.equal(readFileSync(path,'utf8'),bytes,'byte-exact source witness');

@@ -23,10 +23,12 @@ function run(name) {
   semanticSha256:observed===null?null:sha(semantic(observed)),profileEqual:observed!==null&&JSON.stringify(observed.profile)===JSON.stringify(expected.profile)};
 }
 const cases=[
+ {name:'decide-stream-tag',file:'brain.ts',before:'decide: mulberry32(derive(cfg.seed, 0)),',after:'decide: mulberry32(derive(cfg.seed, 1)),'},
  {name:'knowledge-once',file:'tactics.ts',before:'knowsSuddenDeath ??= ctx.rng.decide() < ctx.cfg.tier.knowledge;',after:'knowsSuddenDeath ??= false;'},
  {name:'wand-lock',file:'tactics/fight.ts',before:'if (locked && weapon === "wand") return finish',after:'if (false && locked && weapon === "wand") return finish'},
  {name:'replan',file:'tactics/fight.ts',before:'const REPLAN_MS = 400;',after:'const REPLAN_MS = 4000;'},
  {name:'progress',file:'tactics/fight.ts',before:'const NO_PROGRESS_MS = 10_000;',after:'const NO_PROGRESS_MS = 20_000;'},
+ {name:'move-resend',file:'tactics/fight.ts',before:'const STILL_RESEND_MS = 700;',after:'const STILL_RESEND_MS = 1000;'},
  {name:'launch',file:'tactics/kite.ts',before:'if (now < launchAt || (weapon === "bow" && self.drawStartedAt > 0)) return null;',after:'if (weapon === "bow" && self.drawStartedAt > 0) return null;'},
  {name:'bow-draw',file:'tactics/kite.ts',before:'if (now < launchAt || (weapon === "bow" && self.drawStartedAt > 0)) return null;',after:'if (now < launchAt) return null;'},
  {name:'relock-lead',file:'tactics/kite.ts',before:'const RELOCK_LEAD_MS = 100;',after:'const RELOCK_LEAD_MS = 0;'},
