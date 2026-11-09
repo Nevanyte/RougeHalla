@@ -68,7 +68,9 @@ namespace Roguehalla.Client
             if (!_revealed || !IsVisible) return;
             // Re-check the current owner at the explicit action boundary. Do not retain an old key across identity changes.
             if (_readKey == null || !_readKey(out _, out var key) || !string.Equals(_field.text, key, StringComparison.Ordinal)) { HideKey(); return; }
-            _field.Select(); _field.ActivateInputField(); _field.selectionAnchorPosition = 0; _field.selectionFocusPosition = _field.text.Length;
+            _field.Select(); _field.ActivateInputField();
+            // Raw string positions do not depend on a text mesh having been generated this frame.
+            _field.selectionStringAnchorPosition = 0; _field.selectionStringFocusPosition = key.Length;
         }
         void HideKey()
         {

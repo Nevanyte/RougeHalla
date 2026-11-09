@@ -175,11 +175,20 @@ public sealed class MatchClientAccountBindingEditModeTests
         using (var f = new Fixture())
         {
             f.InitializeHud();
+            // Advance the existing menu visibility policy before binding. The combat controls
+            // legitimately stay inactive until a later HUD tick, but their labels still exist.
+            typeof(MatchHud).GetMethod("RefreshWorldHudVisibility", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(f.Hud, null);
+            var pickup = (UnityEngine.UI.Button)typeof(MatchHud).GetField("_pickup", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(f.Hud);
+            Assert.That(pickup.gameObject.activeInHierarchy, Is.False);
+            Assert.That(pickup.GetComponentInChildren<TMPro.TMP_Text>() == null, Is.True);
+            Assert.That(pickup.GetComponentInChildren<TMPro.TMP_Text>(true), Is.Not.Null);
             f.Client.Url = "wss://game.example/arena/ws";
             f.Accounts.Immediate = Owned("Alice");
             Assert.That(f.Client.IsDiagnostic, Is.False);
             f.Client.Join("alice", 2);
-            await WaitUntil(() => f.Matches.Count == 1);
+            await WaitUntil(() => f.Matches.Count == 1 && f.Matches[0].Url != null || !string.IsNullOrEmpty(f.Client.AccountUiError));
+            Assert.That(f.Client.AccountUiError, Is.Empty, "ordinary Join must finish HUD binding and reach transport.Connect");
+            Assert.That(f.Matches.Count, Is.EqualTo(1));
             Assert.That(f.Client.Session, Is.Not.Null);
             Assert.That(f.Matches[0].Url, Is.EqualTo("wss://game.example/arena/ws"));
             f.Matches[0].Open();

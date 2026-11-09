@@ -163,10 +163,11 @@ namespace Roguehalla.Client
             _inventoryShown = null; _focusShown = null; _buildShown = false; _rewardSignature = ulong.MaxValue;
             _dirty = _rewardsDirty = true; _bannerState = (SessionState)(-1); _bannerPhase = -1;
             ClearOwnerPresentation("Awaiting server");
-            _pickup.interactable = false; _pickup.GetComponentInChildren<TMP_Text>().text = "F · No pickup";
+            // Menu/modal visibility can keep these controls inactive until the next HUD tick.
+            _pickup.interactable = false; _pickup.GetComponentInChildren<TMP_Text>(true).text = "F · No pickup";
             _focusLabel.text = "Potions: awaiting server";
-            _slots[0].GetComponentInChildren<TMP_Text>().text = "1 · —";
-            _slots[1].GetComponentInChildren<TMP_Text>().text = "2 · —";
+            _slots[0].GetComponentInChildren<TMP_Text>(true).text = "1 · —";
+            _slots[1].GetComponentInChildren<TMP_Text>(true).text = "2 · —";
             RefreshCollections(session.Collections);
             _map?.Bind(session);
         }

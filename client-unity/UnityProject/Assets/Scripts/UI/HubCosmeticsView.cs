@@ -610,9 +610,11 @@ namespace Roguehalla.Client
         {
             // Destroy is deferred in players. Exclude old rows from rendering, input and layout immediately,
             // while leaving the object active so an in-progress Button.OnSubmit can finish safely.
-            var layout = card.GetComponent<LayoutElement>() ?? card.AddComponent<LayoutElement>();
+            var layout = card.GetComponent<UnityEngine.UI.LayoutElement>();
+            if (layout == null) layout = card.AddComponent<UnityEngine.UI.LayoutElement>();
             layout.ignoreLayout = true;
-            var group = card.GetComponent<CanvasGroup>() ?? card.AddComponent<CanvasGroup>();
+            var group = card.GetComponent<UnityEngine.CanvasGroup>();
+            if (group == null) group = card.AddComponent<UnityEngine.CanvasGroup>();
             group.alpha = 0; group.interactable = false; group.blocksRaycasts = false;
         }
 
