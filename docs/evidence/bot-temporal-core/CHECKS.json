@@ -1,0 +1,263 @@
+{
+  "format": "rh-bot-temporal-core-checks/1",
+  "base": "7a13b88aaa104cf2fd18dc2de7eada6c02060485",
+  "source_ready": "1b3666cee5647a1c95908ebc5527656914bf121d",
+  "final_code": "d61c6e0127b41714a0e5c84101a75e4825b80de5",
+  "old_ref_preserved": {
+    "branch": "codex/fair-percept14",
+    "head": "4d2c4b2afd39f1d878121fa7f51f0f4692dee891"
+  },
+  "code": [
+    {
+      "path": "crates/rh-policy/src/bots/mod.rs",
+      "bytes": 2946,
+      "sha256": "f9e1a6faf42d738c3174bdd4125e2c341adf4377c91cfab8fb35adb69751be43"
+    },
+    {
+      "path": "crates/rh-policy/src/bots/temporal_percept.rs",
+      "bytes": 27201,
+      "sha256": "6bab5abd28b2d7f71f4979b58afe9c34e611ab9eee50b64e3782fd8ff948349b"
+    },
+    {
+      "path": "crates/rh-policy/src/bots/temporal_percept/data.rs",
+      "bytes": 4389,
+      "sha256": "5498b9d83e65f045074f0ec873356d0af8057eb9d550c40ab1fa287b41132043"
+    },
+    {
+      "path": "crates/rh-policy/src/bots/temporal_percept/input.rs",
+      "bytes": 10460,
+      "sha256": "7c0fd1b30c94406179fd128e3617faec000cc3463068daf694306abc694eb310"
+    },
+    {
+      "path": "crates/rh-policy/src/bots/temporal_percept/tests.rs",
+      "bytes": 19290,
+      "sha256": "fdcc6506c302df433fcb042a3923c8a6dedd5e20dc74dd01087a6b802408e9b4"
+    }
+  ],
+  "sources": [
+    {
+      "path": "packages/server/src/bots/brain/frames.ts",
+      "bytes": 20904,
+      "sha256": "aa8fcb62e8039d37d3c9f6cb000687fbfea61e12ab50805dfe45dae06119d6c6",
+      "read_at": "7a13b88aaa104cf2fd18dc2de7eada6c02060485"
+    },
+    {
+      "path": "packages/server/src/bots/brain/types.ts",
+      "bytes": 57792,
+      "sha256": "12b3cae05bcde760cd642b9c5eb9919bfc47189882c81258994c9f1122d3d361",
+      "read_at": "7a13b88aaa104cf2fd18dc2de7eada6c02060485"
+    },
+    {
+      "path": "packages/shared/src/signatures.ts",
+      "bytes": 9370,
+      "sha256": "0a6befbb5a6fe9870b13a540d72235085c491668c8cae3674fa8faf89816e191",
+      "read_at": "7a13b88aaa104cf2fd18dc2de7eada6c02060485"
+    },
+    {
+      "path": "packages/server/src/bots/brain/perception.ts",
+      "bytes": 36755,
+      "sha256": "059dba28d67a588be8b9f491cd69a242e841545a3b1863ce798da2e3f085390a",
+      "read_at": "7a13b88aaa104cf2fd18dc2de7eada6c02060485"
+    },
+    {
+      "path": "tools/npc-continuity-fixtures/world.mts",
+      "bytes": 15841,
+      "sha256": "359f556eb4c4af616401ce3094b388c04c996bd964081f72d43b4a2e941a0e89",
+      "read_at": "7a13b88aaa104cf2fd18dc2de7eada6c02060485"
+    },
+    {
+      "path": "tools/npc-runner-callsite-fixtures/runner.mts",
+      "bytes": 23088,
+      "sha256": "2539814f2a1b8b3c13ae9242af3a384aebabeecbb0a5d58060dff121fe943f7b",
+      "read_at": "7a13b88aaa104cf2fd18dc2de7eada6c02060485"
+    }
+  ],
+  "oracles": [
+    {
+      "path": "parity/policy/npc-runner-callsite/source.json",
+      "bytes": 30636484,
+      "sha256": "0c9344109283d2cf848c83892924071e9277f163d79e69e3c634c3d19c7f4a58",
+      "changed": false
+    },
+    {
+      "path": "parity/policy/bot-public-facts/source.json",
+      "bytes": 119213,
+      "sha256": "0819c53f1eabbf875849cdc0d2be7479bde7013527d980fd38e0c4b20072f260",
+      "changed": false
+    }
+  ],
+  "environment": {
+    "source": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-env.sh",
+    "CARGO_TARGET_DIR": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fight-native/target",
+    "CARGO_BUILD_JOBS": "1",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "dependency_flags": [
+      "--locked",
+      "--offline"
+    ],
+    "exclusive_cache_released": true,
+    "lsof_before_exit": 1,
+    "lsof_after_exit": 1,
+    "lsof_before_stdout_bytes": 0,
+    "lsof_after_stdout_bytes": 0,
+    "free_disk_before_after": "12GiB",
+    "root_final_target_used": false
+  },
+  "receipts": [
+    {
+      "log": "logs/focused-01.log",
+      "command": "cargo test --locked --offline -p rh-policy --lib temporal_percept -- --nocapture --test-threads=1",
+      "exit": 101,
+      "source_cut": "1b3666cee5647a1c95908ebc5527656914bf121d",
+      "bytes": 2824,
+      "sha256": "f4417b37529c00697ec33b96b78e44e72cd0424f0b8991240f4d2ecbf457c0ae",
+      "passed": 10,
+      "failed": 1,
+      "names": [
+        "bots::temporal_percept::tests::declared_attribution_is_strict_nearest_public_drawn_actor_and_persists_null",
+        "bots::temporal_percept::tests::declared_death_pending_body_fade_and_extras_are_windowed_without_dropping_chests",
+        "bots::temporal_percept::tests::declared_flight_course_retains_hidden_map_order_once_credit_end_and_done",
+        "bots::temporal_percept::tests::declared_flight_tombstones_have_source_insertion_lifetime_and_reflected_vanish",
+        "bots::temporal_percept::tests::declared_source_overflow_is_reported_not_claimed_as_safe_public_admission",
+        "bots::temporal_percept::tests::declared_teleport_camera_scene_cut_and_strict_distance_guard",
+        "bots::temporal_percept::tests::declared_timestamp_replacement_late_ignore_and_velocity_use_exact_hundred_ms",
+        "bots::temporal_percept::tests::declared_tint_nearest_foe_strict_mob_tie_and_unknown_faction_are_distinct",
+        "bots::temporal_percept::tests::declared_world_then_immediate_order_redaction_and_announcement_subject_lifetime",
+        "bots::temporal_percept::tests::earned_runner_actual_frames_replay_all_five_prefilter_schedules",
+        "bots::temporal_percept::tests::unavailable_nonfinite_and_failed_composition_leave_reached_state_unchanged"
+      ]
+    },
+    {
+      "log": "logs/native-extras-02.log",
+      "command": "cargo test --locked --offline -p rh-policy --lib bots::temporal_percept::tests::declared_death_pending_body_fade_and_extras_are_windowed_without_dropping_chests -- --exact --nocapture",
+      "exit": 0,
+      "source_cut": "1b3666cee5647a1c95908ebc5527656914bf121d + exactly tests.rs integer-to-f64 expected JSON literal",
+      "bytes": 622,
+      "sha256": "b1d898a9e183456f2e5155faae120ffcbdc2c0d52cceb2836b1be67ca3fd534e",
+      "passed": 1,
+      "failed": 0,
+      "names": [
+        "bots::temporal_percept::tests::declared_death_pending_body_fade_and_extras_are_windowed_without_dropping_chests"
+      ]
+    },
+    {
+      "log": "logs/current-fifo-01.log",
+      "command": "cargo test --locked --offline -p rh-policy --lib fair_percept14 -- --nocapture",
+      "exit": 0,
+      "source_cut": "1b3666cee5647a1c95908ebc5527656914bf121d + same test-only literal",
+      "bytes": 1427,
+      "sha256": "21bd0f587d7ac71f29065c0c47ec8e4e4ee60d23defcd594bad72a3da49e0a62",
+      "passed": 9,
+      "failed": 0,
+      "names": [
+        "bots::fair_percept14::tests::real_hidden_world_pair_has_equal_public_samples_and_player_memory",
+        "bots::fair_percept14::tests::complete_owned_current14_sample_keeps_all_leaves_and_feeds_real_player_memory",
+        "bots::fair_percept14::tests::declared_neutral_actor_keeps_unarmed_current_row_without_joining_player_memory",
+        "bots::fair_percept14::tests::explicit_new_session_reset_is_atomic_and_old_receipts_cannot_rejoin",
+        "bots::fair_percept14::tests::unpublished_requirements_and_memory_limit_refuse_atomically_from_reached_state",
+        "bots::fair_percept14::tests::omitted_update_retention_present_empty_and_authoritative_clears_stay_distinct",
+        "bots::fair_percept14::tests::stale_cross_session_full_and_bad_projection_refuse_without_partial_commit",
+        "bots::fair_percept14::tests::connected::real_sync_accepted_intake_runs_memory_humanizer_and_normal_submit_without_fallback",
+        "bots::fair_percept14::tests::connected::real_async_accepted_intake_keeps_original_sample_clocks_and_validated_commands"
+      ]
+    },
+    {
+      "log": "logs/player-memory-01.log",
+      "command": "cargo test --locked --offline -p rh-policy --lib memory_prefix -- --nocapture",
+      "exit": 0,
+      "source_cut": "1b3666cee5647a1c95908ebc5527656914bf121d + same test-only literal",
+      "bytes": 1025,
+      "sha256": "413d66dbc1294b205a32c4a8379b54449a52fa8edd8ea64d1f76fc787b9a9877",
+      "passed": 6,
+      "failed": 0,
+      "names": [
+        "bots::memory_prefix::tests::unseen_disappearance_retains_prior_facts_and_npc_refs_never_enter_player_memory",
+        "bots::memory_prefix::tests::hidden_and_off_camera_rows_cannot_change_memory_or_consume_record_capacity",
+        "bots::memory_prefix::tests::lifecycle_and_capacity_refusals_are_atomic_and_explicit_reset_clears_memory",
+        "bots::memory_prefix::tests::actual_source_memory_subset_reproduces_all_48_declared_frames",
+        "bots::memory_prefix::tests::actual_source_note_sent_records_only_emitted_orders_and_casts_and_reset_clears_them",
+        "bots::memory_prefix::tests::actual_source_memory_stimuli_and_world_motion_sequences"
+      ]
+    },
+    {
+      "log": "logs/clippy-01.log",
+      "command": "cargo clippy --locked --offline -p rh-policy --lib --tests --all-features -- -D warnings",
+      "exit": 101,
+      "source_cut": "1b3666cee5647a1c95908ebc5527656914bf121d + same test-only literal",
+      "bytes": 1275,
+      "sha256": "83ba54035058cd76b9d116ba0b14195bc13c52902cd8b76b90d96be79d8b1771"
+    },
+    {
+      "log": "logs/clippy-02.log",
+      "command": "cargo clippy --locked --offline -p rh-policy --lib --tests --all-features -- -D warnings",
+      "exit": 0,
+      "source_cut": "d61c6e0127b41714a0e5c84101a75e4825b80de5 exact source bytes before commit",
+      "bytes": 207,
+      "sha256": "91618b00275af07e6fbbeb8f4221eb9e11dbc14577c093a4ad45bbb62cc95bdd"
+    },
+    {
+      "log": "logs/focused-final.log",
+      "command": "cargo test --locked --offline -p rh-policy --lib temporal_percept -- --nocapture --test-threads=1",
+      "exit": 0,
+      "source_cut": "d61c6e0127b41714a0e5c84101a75e4825b80de5",
+      "bytes": 1910,
+      "sha256": "3906bd7db012001dd6360106338e9b3d89f7b544d8b4a206c5f93ad06e3f1306",
+      "passed": 11,
+      "failed": 0,
+      "names": [
+        "bots::temporal_percept::tests::declared_attribution_is_strict_nearest_public_drawn_actor_and_persists_null",
+        "bots::temporal_percept::tests::declared_death_pending_body_fade_and_extras_are_windowed_without_dropping_chests",
+        "bots::temporal_percept::tests::declared_flight_course_retains_hidden_map_order_once_credit_end_and_done",
+        "bots::temporal_percept::tests::declared_flight_tombstones_have_source_insertion_lifetime_and_reflected_vanish",
+        "bots::temporal_percept::tests::declared_source_overflow_is_reported_not_claimed_as_safe_public_admission",
+        "bots::temporal_percept::tests::declared_teleport_camera_scene_cut_and_strict_distance_guard",
+        "bots::temporal_percept::tests::declared_timestamp_replacement_late_ignore_and_velocity_use_exact_hundred_ms",
+        "bots::temporal_percept::tests::declared_tint_nearest_foe_strict_mob_tie_and_unknown_faction_are_distinct",
+        "bots::temporal_percept::tests::declared_world_then_immediate_order_redaction_and_announcement_subject_lifetime",
+        "bots::temporal_percept::tests::earned_runner_actual_frames_replay_all_five_prefilter_schedules",
+        "bots::temporal_percept::tests::unavailable_nonfinite_and_failed_composition_leave_reached_state_unchanged"
+      ]
+    },
+    {
+      "log": "logs/fmt-01.log",
+      "command": "rustfmt --check --edition 2021 --config skip_children=true crates/rh-policy/src/bots/mod.rs crates/rh-policy/src/bots/temporal_percept.rs crates/rh-policy/src/bots/temporal_percept/data.rs crates/rh-policy/src/bots/temporal_percept/input.rs crates/rh-policy/src/bots/temporal_percept/tests.rs",
+      "exit": 0,
+      "source_cut": "d61c6e0127b41714a0e5c84101a75e4825b80de5",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "coverage": {
+    "actual_source_frames": 1549,
+    "actual_source_percepts": 1541,
+    "actual_source_startup_nulls": 8,
+    "source_schedules": 5,
+    "actual_source_mob_rows": 309,
+    "actual_source_container_rows": 66,
+    "source_fighter_rows": 0,
+    "source_projectile_rows": 0,
+    "source_world_events": 0,
+    "source_immediate_events": 0,
+    "max_raw_absolute_error": 0.0,
+    "numeric_prerounding": false,
+    "geometry_abs_tolerance": 2e-06,
+    "discrete_clocks_pass_through": "exact",
+    "source_expected_percepts_used_as_inputs": false,
+    "full_source_parity_claim": false,
+    "new_unique_tests": 11,
+    "native_only_controls": 10,
+    "existing_unique_regressions": 15,
+    "total_distinct_test_functions": 26
+  },
+  "held": [
+    "unwitnessed fighter/flight/event/cut/tint source parity",
+    "accepted-scene or public CourseKnown producer",
+    "first-visible/hidden-replacement flight entitlement",
+    "live full Brain, full Memory, BotVision filtering",
+    "NPC cross-gap identity and living-return behavior",
+    "source overflow safe-public-admission capacities",
+    "source capture and whole-game outcomes/performance"
+  ]
+}

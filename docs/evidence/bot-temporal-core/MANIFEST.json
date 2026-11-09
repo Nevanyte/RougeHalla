@@ -1,0 +1,60 @@
+{
+  "format": "rh-bot-temporal-core-evidence-manifest/1",
+  "source_cut": "d61c6e0127b41714a0e5c84101a75e4825b80de5",
+  "payloads": [
+    {
+      "path": "README.md",
+      "bytes": 8082,
+      "sha256": "3dd4076e44248d0e4534ff426f8de0e38d066bb8a621bf63021949672f71e8c5"
+    },
+    {
+      "path": "CHECKS.json",
+      "bytes": 12959,
+      "sha256": "189fb6931daef4c4f353bfef70adbbcc5fd943834ca12750c4746cf52c135229"
+    },
+    {
+      "path": "logs/focused-01.log",
+      "bytes": 2824,
+      "sha256": "f4417b37529c00697ec33b96b78e44e72cd0424f0b8991240f4d2ecbf457c0ae"
+    },
+    {
+      "path": "logs/native-extras-02.log",
+      "bytes": 622,
+      "sha256": "b1d898a9e183456f2e5155faae120ffcbdc2c0d52cceb2836b1be67ca3fd534e"
+    },
+    {
+      "path": "logs/current-fifo-01.log",
+      "bytes": 1427,
+      "sha256": "21bd0f587d7ac71f29065c0c47ec8e4e4ee60d23defcd594bad72a3da49e0a62"
+    },
+    {
+      "path": "logs/player-memory-01.log",
+      "bytes": 1025,
+      "sha256": "413d66dbc1294b205a32c4a8379b54449a52fa8edd8ea64d1f76fc787b9a9877"
+    },
+    {
+      "path": "logs/clippy-01.log",
+      "bytes": 1275,
+      "sha256": "83ba54035058cd76b9d116ba0b14195bc13c52902cd8b76b90d96be79d8b1771"
+    },
+    {
+      "path": "logs/clippy-02.log",
+      "bytes": 207,
+      "sha256": "91618b00275af07e6fbbeb8f4221eb9e11dbc14577c093a4ad45bbb62cc95bdd"
+    },
+    {
+      "path": "logs/focused-final.log",
+      "bytes": 1910,
+      "sha256": "3906bd7db012001dd6360106338e9b3d89f7b544d8b4a206c5f93ad06e3f1306"
+    },
+    {
+      "path": "logs/fmt-01.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "count": 10,
+  "bytes": 30331,
+  "raw_log_bytes_preserved": true,
+  "global_whitespace_clean_claim": false
+}

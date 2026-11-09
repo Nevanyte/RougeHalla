@@ -1,0 +1,14 @@
+    Checking rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/fair-percept14/repo/crates/rh-sim)
+    Checking rh-protocol v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/fair-percept14/repo/crates/rh-protocol)
+    Checking rh-policy v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/fair-percept14/repo/crates/rh-policy)
+error: the use of negated comparison operators on partially ordered types produces code that is hard to read and refactor, please consider using the `partial_cmp` method instead, to make it clear that the two values could be incomparable
+   --> crates/rh-policy/src/bots/temporal_percept.rs:189:33
+    |
+189 |             .retain(|(_, time)| !(*time + MOB_FADE_MS < cutoff - 2000.));
+    |                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.97.0/index.html#neg_cmp_op_on_partial_ord
+    = note: `-D clippy::neg-cmp-op-on-partial-ord` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::neg_cmp_op_on_partial_ord)]`
+
+error: could not compile `rh-policy` (lib test) due to 1 previous error

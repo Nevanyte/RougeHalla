@@ -1,0 +1,13 @@
+    Finished `test` profile [unoptimized] target(s) in 0.03s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fight-native/target/debug/deps/rh_policy-c3fa0ee46865b1ea)
+
+running 6 tests
+test bots::memory_prefix::tests::unseen_disappearance_retains_prior_facts_and_npc_refs_never_enter_player_memory ... ok
+test bots::memory_prefix::tests::hidden_and_off_camera_rows_cannot_change_memory_or_consume_record_capacity ... ok
+test bots::memory_prefix::tests::lifecycle_and_capacity_refusals_are_atomic_and_explicit_reset_clears_memory ... ok
+test bots::memory_prefix::tests::actual_source_memory_subset_reproduces_all_48_declared_frames ... ok
+test bots::memory_prefix::tests::actual_source_note_sent_records_only_emitted_orders_and_casts_and_reset_clears_them ... ok
+test bots::memory_prefix::tests::actual_source_memory_stimuli_and_world_motion_sequences ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 173 filtered out; finished in 0.00s
+
