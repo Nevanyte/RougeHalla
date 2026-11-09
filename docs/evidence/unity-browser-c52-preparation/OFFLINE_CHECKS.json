@@ -1,0 +1,86 @@
+[
+  {
+    "name": "collector-affected",
+    "argv": [
+      "node",
+      "--test",
+      "--test-name-pattern=Readiness template|Checker |Case documents|Unknown credential|Automatic connection|A resumed mode",
+      "tools/unity-browser-reload-proof/check.test.mjs"
+    ],
+    "sourceCommit": "4cf33c4a5545378650db1111146576c89e20ceda",
+    "startedUtc": "2026-11-09T20:41:44.856829+00:00",
+    "elapsedSeconds": 0.127,
+    "exitCode": 0,
+    "expectedExitCode": 0,
+    "pass": true,
+    "outputSha256": "def2e8cf42ca5fa468bc04aea1c3cd2be4f15146dba10e6384374c86e5464121",
+    "scope": "OFFLINE_SYNTHETIC_OR_SOURCE_CHECK_ONLY_NO_LISTENERS_RUNTIME_BROWSER_DATABASE_OR_NETWORK"
+  },
+  {
+    "name": "router-offline",
+    "argv": [
+      "node",
+      "--test",
+      "tools/unity-browser-reload-proof/local-router.test.mjs"
+    ],
+    "sourceCommit": "4cf33c4a5545378650db1111146576c89e20ceda",
+    "startedUtc": "2026-11-09T20:41:44.984475+00:00",
+    "elapsedSeconds": 0.135,
+    "exitCode": 0,
+    "expectedExitCode": 0,
+    "pass": true,
+    "outputSha256": "bb8512627f140a33d6c38be461a3e989d3b8b098c5c61795d45fdb90b0839185",
+    "scope": "OFFLINE_SYNTHETIC_OR_SOURCE_CHECK_ONLY_NO_LISTENERS_RUNTIME_BROWSER_DATABASE_OR_NETWORK"
+  },
+  {
+    "name": "template-create",
+    "argv": [
+      "node",
+      "tools/unity-browser-reload-proof/check.mjs",
+      "template",
+      "docs/evidence/unity-browser-c52-preparation/COLLECTOR_TEMPLATE.json"
+    ],
+    "sourceCommit": "4cf33c4a5545378650db1111146576c89e20ceda",
+    "startedUtc": "2026-11-09T20:41:45.119749+00:00",
+    "elapsedSeconds": 0.046,
+    "exitCode": 0,
+    "expectedExitCode": 0,
+    "pass": true,
+    "outputSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "scope": "OFFLINE_SYNTHETIC_OR_SOURCE_CHECK_ONLY_NO_LISTENERS_RUNTIME_BROWSER_DATABASE_OR_NETWORK"
+  },
+  {
+    "name": "template-open",
+    "argv": [
+      "node",
+      "tools/unity-browser-reload-proof/check.mjs",
+      "check",
+      "docs/evidence/unity-browser-c52-preparation/COLLECTOR_TEMPLATE.json",
+      "docs/evidence/unity-browser-c52-preparation/TEMPLATE_OPEN_REPORT.json"
+    ],
+    "sourceCommit": "4cf33c4a5545378650db1111146576c89e20ceda",
+    "startedUtc": "2026-11-09T20:41:45.165650+00:00",
+    "elapsedSeconds": 0.047,
+    "exitCode": 2,
+    "expectedExitCode": 2,
+    "pass": true,
+    "outputSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "scope": "OFFLINE_SYNTHETIC_OR_SOURCE_CHECK_ONLY_NO_LISTENERS_RUNTIME_BROWSER_DATABASE_OR_NETWORK"
+  },
+  {
+    "name": "whitespace",
+    "argv": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "sourceCommit": "4cf33c4a5545378650db1111146576c89e20ceda",
+    "startedUtc": "2026-11-09T20:41:45.212828+00:00",
+    "elapsedSeconds": 0.013,
+    "exitCode": 0,
+    "expectedExitCode": 0,
+    "pass": true,
+    "outputSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "scope": "OFFLINE_SYNTHETIC_OR_SOURCE_CHECK_ONLY_NO_LISTENERS_RUNTIME_BROWSER_DATABASE_OR_NETWORK"
+  }
+]
