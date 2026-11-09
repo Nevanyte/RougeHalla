@@ -1,0 +1,3 @@
+NEW Python AST and rendered embedded expiry AST PASS; rendered bash-n was syntax-only in focused tests.
+Draft7 plan schema PASS for explicitly synthetic fixture; blank plan REFUSED.
+No host material, AWS operation, DB or old14-test suite executed.

@@ -1,0 +1,52 @@
+{
+  "scope": "NEW offline source/ordering/byte/schema checks only; NOT actual host/cloud/PG/encryption/transfer/restore success",
+  "base": "7a13b88aaa104cf2fd18dc2de7eada6c02060485",
+  "primary_readonly_review": "3c577a97c2f170913a1a6418fa7e7d4efeb1fdec",
+  "code_head": "2d68e8b90f1d98e4a1993482a26dc76bcf5bd3ef",
+  "checks": {
+    "new_unit": {
+      "passed": 12,
+      "exit": 0,
+      "first_run": true
+    },
+    "old14_tests_run": false,
+    "python_and_embedded_expiry_ast": true,
+    "rendered_shell_syntax_only": true,
+    "new_plan_draft7_schema": true,
+    "blank_plan_cli": {
+      "exit": 2,
+      "expected": "REFUSED; no output directory"
+    },
+    "new_cfn_lint": {
+      "version": "1.46.0",
+      "exit": 0,
+      "offline_cached_only": true
+    },
+    "new_cfn_guard": {
+      "version": "3.2.1",
+      "exit": 0,
+      "groups": 2
+    },
+    "broad_resource_negative": {
+      "exit": 19,
+      "expected": "REFUSED"
+    }
+  },
+  "host_installed": false,
+  "deployable": false,
+  "operational_executor_implemented": false,
+  "installation_marker_created": false,
+  "role_semantic_service_and_account_validation": "NOT PERFORMED; mandatory Root gate",
+  "old_preparer_template_and_all_adjacent_staging_files_unchanged": true,
+  "all9_new_source_payloads_frozen": true,
+  "no_AWS_API_CLI_login_network_deploy_install_host_DB_Cargo_or_new_cache_operation": true,
+  "budget": "CAD20 TOTAL GROSS unchanged; no current prices/FX/cost/capacity/AMI assertion",
+  "remaining": [
+    "Root-owned current identity/cost/inventory/IAM semantics and exact attachment/PassRole",
+    "expiry-first bootstrap delivery/trusted Linux volume collector/mount/exclusive lock executor",
+    "pinned private PG/age/AWS CLI/OS tools and runtime secret-role provisioning",
+    "real egress enforcement, guarded native account/TLS/Source+Training service proofs and marker release",
+    "real encrypted producer completion, offhost receipt/checksum and independent cold restore/fencing/idempotence proof",
+    "funded finite current+noncurrent retention, explicit owned-volume/bucket/object-version cleanup"
+  ]
+}
