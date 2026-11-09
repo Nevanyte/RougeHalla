@@ -1,0 +1,49 @@
+{
+  "format": "rh-walk-hint-source-repair/1",
+  "status": "ENV_BLOCKED_WIP_NOT_SEALED",
+  "baseSealed": "627ba6c461167b54dd3f51ac0e6d221a6aafba0a",
+  "originalCode": "563eb298a0f8537c8f0af9e783a21a6750641b26",
+  "publicBase": "db5ed80b2b89a156eae09cd0bd3f4c9e77e9e6de",
+  "branch": "deepseek/walk-hint-source-repair",
+  "worktree": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings",
+  "wipCodeHead": "450079d1337555e605a5f22a5a9b885ee7b12310",
+  "wipEvidenceHead": "the branch head containing this receipt; reported to Root",
+  "oldSealUntouched": {
+    "fixture": "parity/walk-hint/source.json",
+    "sha256": "8cb8b2c24fe0be184e660a4670b0981b946c35782d9e7a47ae1ba3eff567ab77",
+    "bytes": 44372,
+    "oldEvidenceChanged": false
+  },
+  "firstBlocker": {
+    "command": "bash tools/walk-hint-fixtures/capture.sh",
+    "exit": 125,
+    "stage": "docker run before container creation",
+    "containerId": null,
+    "liveCaptureProcess": false,
+    "error": "containerd blob sha256:aaa4b5ba... blob path open: input/output error",
+    "rawLog": "docs/evidence/walk-hint-repair/logs/env-blocked-capture.log",
+    "dockerRetriesAfterFirstResult": 0,
+    "dockerRestartsPrunesDeletions": 0
+  },
+  "repairsImplemented": {
+    "outputSafety": "fresh /tmp default; refuse existing caller paths; refuse old+new canonical trees; no recursive removal; fake-repo sentinel guard PASS",
+    "executedProvenance": "onLoad path/original/transformed bytes+hashes, one intended load, bundle hash/path, unique pristine/restored imports, baseline-labelled disk pins, comment semantics+provenance separation, ERROR distinct from KILL",
+    "seq5Input": "actual accepted seq5 Move retained on waypoint-0; assertFacts/verify require it",
+    "runtimeAssertion": "runProbe asserts Node v22.23.4 linux x64"
+  },
+  "staticChecks": {
+    "log": "docs/evidence/walk-hint-repair/logs/static-checks.log",
+    "node": "v25.8.1 host syntax only (not pinned execution)",
+    "tsAndShellSyntax": "PASS",
+    "outputGuard": "PASS",
+    "oldSealDiff": 0
+  },
+  "notRun": [
+    "pinned actual-source recapture",
+    "readonly byte check",
+    "compiled controls execution/provenance run",
+    "fresh frozen Git export",
+    "old/new fixture semantic comparison"
+  ],
+  "limits": "WIP only; no new fixture or source/behaviour claim; old 627/8cb remains historical; no native/public/lifecycle scope; Root owns environment recovery/admission"
+}
