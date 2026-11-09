@@ -1,0 +1,4 @@
+   Compiling rh-protocol v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/crates/rh-protocol)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.73s
+     Running `/Users/nevinmckinnon/.codex/targets/rougehalla-owner-combat14/debug/protocol-fixtures`
+wrote /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/crates/rh-protocol/../../protocol/fixtures/v14.json

@@ -76,6 +76,33 @@ namespace Roguehalla.Net
         }
     }
 
+    public enum OwnerLockKind : byte { Clear = 0, Held = 1 }
+
+    public readonly struct OwnerLockView
+    {
+        public OwnerLockKind Kind { get; }
+        public uint? Target { get; }
+        internal OwnerLockView(OwnerLockKind kind, uint? target) { Kind = kind; Target = target; }
+    }
+
+    /// <summary>Owned exact server facts. Values are copied from the wire; consumers must not derive readiness or timing.</summary>
+    public readonly struct OwnerCombatView
+    {
+        public OwnerLockView Lock { get; }
+        public uint DrawStartedAt { get; }
+        public uint ReadyAt { get; }
+        public double AsMilli { get; }
+        public double WindupMilli { get; }
+        public double SpeedMilli { get; }
+
+        internal OwnerCombatView(Protocol.WireOwnerCombat w)
+        {
+            Lock = new OwnerLockView((OwnerLockKind)w.Lock.Kind, w.Lock.Target);
+            DrawStartedAt = w.DrawStartedAt; ReadyAt = w.ReadyAt;
+            AsMilli = w.AsMilli; WindupMilli = w.WindupMilli; SpeedMilli = w.SpeedMilli;
+        }
+    }
+
     /// <summary>
     /// The local player's state as of the newest applied snapshot: an OWNED copy (<see cref="Session.Me"/> returns the one instance
     /// the session keeps and overwrites per snapshot), never one of the recycled snapshot objects. Copy a value out to keep it past
@@ -96,6 +123,7 @@ namespace Roguehalla.Net
         public float Barrier;
         public byte BarrierRingStep;
         public WishView? Wish;
+        public OwnerCombatView? OwnerCombat;
 
         /// <summary>Health as a whole percent, 100 when the maximum is unknown (0).</summary>
         public int HpPct
@@ -109,7 +137,7 @@ namespace Roguehalla.Net
             }
         }
 
-        internal void CopyFrom(Protocol.WireSelf w)
+        internal void CopyFrom(Protocol.WireSelf w, Protocol.WireOwnerCombat ownerCombat = null)
         {
             Id = w.Id; Faction = (FactionId)w.Faction; X = w.X; Y = w.Y; Facing = w.Facing; Hp = w.Hp; MaxHp = w.MaxHp;
             Status = (ActorStatus)w.Status; Weapon = (WeaponId)w.Weapon; ReadyInMs = w.ReadyInMs; Kills = w.Kills; Bounty = w.Bounty;
@@ -117,6 +145,7 @@ namespace Roguehalla.Net
             Gv = w.Gv; MoveSeq = w.MoveSeq; Effects = w.Effects; DisplaceSeq = w.DisplaceSeq; SelfSig=w.Sig;
             Barrier = w.Barrier; BarrierRingStep = w.BarrierRingStep;
             Wish = w.Wish == null ? (WishView?)null : WishView.From(w.Wish);
+            OwnerCombat = ownerCombat == null ? (OwnerCombatView?)null : new OwnerCombatView(ownerCombat);
         }
     }
 }

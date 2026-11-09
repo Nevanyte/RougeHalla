@@ -1,0 +1,13 @@
+$ /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/dotnet/dotnet test client-unity/RoguehallaNet.Tests/RoguehallaNet.Tests.csproj --no-restore --verbosity minimal
+  RoguehallaNet -> /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/client-unity/RoguehallaNet/bin/Debug/netstandard2.1/RoguehallaNet.dll
+  RoguehallaNet.Probe -> /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/client-unity/RoguehallaNet.Probe/bin/Debug/net8.0/RoguehallaNet.Probe.dll
+  RoguehallaNet.Tests -> /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/client-unity/RoguehallaNet.Tests/bin/Debug/net8.0/RoguehallaNet.Tests.dll
+Test run for /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/client-unity/RoguehallaNet.Tests/bin/Debug/net8.0/RoguehallaNet.Tests.dll (.NETCoreApp,Version=v8.0)
+VSTest version 17.11.1 (arm64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:   703, Skipped:     0, Total:   703, Duration: 4 s - RoguehallaNet.Tests.dll (net8.0)
+Fixture: protocol/fixtures/v14.json
+Fixture SHA256: 6412fc8086b15fa6090f3aa1b939bd45b3d29f9ebf08a757f79cc159363d7534

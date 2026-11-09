@@ -1,0 +1,2 @@
+$ env PATH=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/cargo/bin:$PATH CARGO_HOME=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/cargo RUSTUP_HOME=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/rustup cargo +1.97.0 fmt -p rh-protocol -- --check
+exit0; no formatting diff

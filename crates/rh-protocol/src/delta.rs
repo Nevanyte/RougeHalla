@@ -16,8 +16,9 @@
 //! tick (quantized as always), and the self block is exact (bitwise, so -0.0 and NaN payloads survive).
 
 use super::{
-    actor_looks_bad, giver_actor_fault, head_len, head_word, id_field, kit, list, self_len,
-    snapshot_fault, write_snapshot_head, Fixed, SnapshotHeader, MAX_ACTOR_LEN,
+    actor_looks_bad, giver_actor_fault, head_len, head_word, id_field, kit, list, owner_combat_len,
+    self_len, snapshot_fault, write_owner_combat, write_snapshot_head, Fixed, SnapshotHeader,
+    MAX_ACTOR_LEN,
 };
 use crate::codec::{varint_len, DecodeError, EncodeError, Reader, Writer};
 use crate::*;
@@ -57,6 +58,8 @@ pub const DH_HUNT_STACKS: u32 = 1 << 19;
 pub const DH_WISH: u32 = 1 << 21;
 pub const DH_BARRIER: u32 = 1 << 22;
 pub const DH_SERVER_TIME: u32 = 1 << 23;
+/// Owner-combat state changed; the field has a strict 0/1 availability tag.
+pub const DH_OWNER_COMBAT: u32 = 1 << 24;
 pub const DH_FIELDS: u32 = 0x7e7e
     | DH_EFFECTS
     | DH_DISPLACE
@@ -65,8 +68,13 @@ pub const DH_FIELDS: u32 = 0x7e7e
     | DH_HUNT_STACKS
     | DH_WISH
     | DH_BARRIER;
-pub const DH_KNOWN: u32 =
-    DH_PRESENT | DH_FIELDS | DH_PHASE | DH_DEPARTED | DH_TRAINING | DH_SERVER_TIME;
+pub const DH_KNOWN: u32 = DH_PRESENT
+    | DH_FIELDS
+    | DH_PHASE
+    | DH_DEPARTED
+    | DH_TRAINING
+    | DH_SERVER_TIME
+    | DH_OWNER_COMBAT;
 /// Public training fact, independent of the self; present on every training delta.
 pub const DH_TRAINING: u32 = 1 << 20;
 
@@ -99,7 +107,8 @@ const MIN_ACTOR: usize = 1 + 1 + 6;
 /// move_seq, status, phase, effects (2), displacement, sig.
 const MAX_SELF_DELTA: usize = 20 + 1 + 2 + 9 + 1 + 1 + 1 + 2 + 1 + 1 + 5 + 3 + 56 + 5;
 /// Largest delta head: tag, tick (5), age, ack (5), head (1 placeholder), the self delta, the changed count (3).
-const MAX_DELTA_HEAD: usize = 1 + 5 + 1 + 5 + 4 + MAX_SELF_DELTA + 8 + 3;
+const MAX_DELTA_HEAD: usize =
+    1 + 5 + 1 + 5 + 5 + MAX_SELF_DELTA + 8 + 3 + 1 + 1 + 5 + 8 + 8 + 8 + 8;
 /// Largest changed-actor record: id 5, mask 2, x/y/facing 6, kit/hp, bounty 3, status/kind, effects 2, displacement/mob type/sig.
 const MAX_ACTOR_DELTA: usize = 5 + 2 + 6 + 1 + 1 + 3 + 1 + 1 + 2 + 1 + 1 + 1 + 2;
 
@@ -361,6 +370,7 @@ pub struct SnapshotInner {
     actors: Vec<QActor>,
     /// Protocol 11: the source's public training fact (head bit 16 on a Full frame, bit 18 on a delta).
     training: bool,
+    owner_combat: Option<WireOwnerCombat>,
     /// [`SnapshotData::min_len`], worked out once.
     min_len: u32,
 }
@@ -512,7 +522,14 @@ impl SnapshotData {
         b.min_len = (1
             + varint_len(tick)
             + varint_len(ack_input)
-            + head_len(head_word(phase, tick, server_time, me.as_ref(), false))
+            + head_len(head_word(
+                phase,
+                tick,
+                server_time,
+                me.as_ref(),
+                false,
+                false,
+            ))
             + (server_time.to_bits() != snapshot_server_ms(tick).to_bits()) as usize * 8
             + varint_len(declared as u32)
             + me.as_ref().map_or(0, |_| MIN_SELF)
@@ -523,7 +540,49 @@ impl SnapshotData {
         b.ack_input = ack_input;
         b.me = me;
         b.training = false;
+        b.owner_combat = None;
         Ok(SnapshotData(b))
+    }
+
+    /// Sets the Full-frame owner-combat group after actor construction, validating references against this exact actor list.
+    pub fn set_owner_combat(
+        &mut self,
+        owner_combat: Option<WireOwnerCombat>,
+    ) -> Result<(), EncodeError> {
+        if owner_combat_fault(owner_combat.as_ref(), self.me.is_some(), |id| {
+            self.actors.binary_search_by_key(&id, |a| a.id).is_ok()
+        })
+        .is_some()
+        {
+            return Err(EncodeError::BadValue("owner combat"));
+        }
+        self.0.owner_combat = owner_combat;
+        self.refresh_min_len();
+        Ok(())
+    }
+
+    fn refresh_min_len(&mut self) {
+        let head = head_word(
+            self.phase,
+            self.tick,
+            self.server_time,
+            self.me.as_ref(),
+            self.training,
+            self.owner_combat.is_some(),
+        );
+        self.0.min_len =
+            (1 + varint_len(self.tick)
+                + varint_len(self.ack_input)
+                + head_len(head)
+                + (head & HM_SERVER_TIME != 0) as usize * 8
+                + varint_len(self.actors.len() as u32)
+                + self.me.as_ref().map_or(0, |_| MIN_SELF)
+                + MIN_ACTOR * self.actors.len()
+                + self.owner_combat.as_ref().map_or(0, owner_combat_len)) as u32;
+    }
+
+    pub fn owner_combat(&self) -> Option<WireOwnerCombat> {
+        self.owner_combat
     }
 
     pub fn tick(&self) -> u32 {
@@ -550,20 +609,7 @@ impl SnapshotData {
             return;
         }
         self.0.training = training;
-        self.0.min_len = (1
-            + varint_len(self.tick)
-            + varint_len(self.ack_input)
-            + head_len(head_word(
-                self.phase,
-                self.tick,
-                self.server_time,
-                self.me.as_ref(),
-                training,
-            ))
-            + (self.server_time.to_bits() != snapshot_server_ms(self.tick).to_bits()) as usize * 8
-            + varint_len(self.actors.len() as u32)
-            + self.me.as_ref().map_or(0, |_| MIN_SELF)
-            + MIN_ACTOR * self.actors.len()) as u32;
+        self.refresh_min_len();
     }
     pub fn me(&self) -> Option<&WireSelf> {
         self.me.as_ref()
@@ -580,6 +626,7 @@ impl SnapshotData {
             self.server_time,
             self.me.as_ref(),
             self.training,
+            self.owner_combat.is_some(),
         );
         let mut n = 1
             + varint_len(self.tick)
@@ -593,6 +640,7 @@ impl SnapshotData {
             n += q.full_len(prev);
             prev = Some(q.id);
         }
+        n += self.owner_combat.as_ref().map_or(0, owner_combat_len);
         n
     }
 
@@ -624,12 +672,16 @@ impl SnapshotData {
                 me: self.me.as_ref(),
                 training: self.training,
                 actors: self.actors.len(),
+                owner_combat: self.owner_combat.is_some(),
             },
         );
         let mut prev = None;
         for q in &self.actors {
             write_full_actor(&mut w, q, prev);
             prev = Some(q.id);
+        }
+        if let Some(owner) = &self.owner_combat {
+            write_owner_combat(&mut w, owner);
         }
         *out = w.finish();
         debug_assert_eq!(out.len() - start, self.full_len());
@@ -646,6 +698,7 @@ impl SnapshotData {
             me: self.me,
             actors: self.actors.iter().map(QActor::to_wire).collect(),
             training: self.training,
+            owner_combat: self.owner_combat,
         }
     }
 
@@ -856,6 +909,10 @@ fn write_delta(
         head |= DH_SERVER_TIME;
         f.bytes(cur.server_time.to_le_bytes());
     }
+    let owner_combat = owner_combat_delta(base, cur);
+    if owner_combat.is_some() {
+        head |= DH_OWNER_COMBAT;
+    }
     let count_at = f.n;
     f.u8(0);
     put(out, &f);
@@ -931,6 +988,17 @@ fn write_delta(
         write_departed(&mut w, departed);
         *out = w.finish();
     }
+    if let Some(owner) = owner_combat {
+        let mut w = Writer::from_vec(std::mem::take(out));
+        match owner {
+            None => w.u8(0),
+            Some(owner) => {
+                w.u8(1);
+                write_owner_combat(&mut w, &owner);
+            }
+        }
+        *out = w.finish();
+    }
     // The count sits after the head, so it is patched first (a widening there does not move the head).
     if changed < 0x80 {
         out[start + count_at] = changed as u8;
@@ -942,7 +1010,7 @@ fn write_delta(
     if head < 0x80 {
         out[start + head_at] = head as u8;
     } else {
-        // Protocol 12 adds head bits 21..=23, so the canonical head can be four bytes.
+        // Protocol 14 adds head bits through 24, so the canonical head can be four bytes.
         let mut v = [0u8; 4];
         let n = varint_len(head);
         for (k, b) in v[..n].iter_mut().enumerate() {
@@ -1275,6 +1343,8 @@ pub struct SnapshotDelta {
     pub changed: Vec<ActorDelta>,
     /// Ascending ids that were in the base and are gone.
     pub departed: Vec<u32>,
+    /// `None` retains the group for a continuing owner; `Some(None)` explicitly marks it unavailable.
+    pub owner_combat: Option<Option<WireOwnerCombat>>,
 }
 
 /// The delta that turns `base` into `cur`, as a message (a reference implementation: [`ConnEncoder`] writes the same bytes
@@ -1316,6 +1386,7 @@ pub fn diff(base: &SnapshotData, cur: &SnapshotData) -> Option<SnapshotDelta> {
         .filter(|p| c.binary_search_by_key(&p.id, |q| q.id).is_err())
         .map(|p| p.id)
         .collect();
+    let owner_combat = owner_combat_delta(base, cur);
     Some(SnapshotDelta {
         tick: cur.tick,
         server_time: cur.server_time,
@@ -1326,7 +1397,42 @@ pub fn diff(base: &SnapshotData, cur: &SnapshotData) -> Option<SnapshotDelta> {
         me,
         changed,
         departed,
+        owner_combat,
     })
+}
+
+fn owner_combat_bits_equal(a: Option<WireOwnerCombat>, b: Option<WireOwnerCombat>) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(a), Some(b)) => {
+            a.lock == b.lock
+                && a.draw_started_at == b.draw_started_at
+                && a.ready_at == b.ready_at
+                && a.as_milli.to_bits() == b.as_milli.to_bits()
+                && a.windup_milli.to_bits() == b.windup_milli.to_bits()
+                && a.speed_milli.to_bits() == b.speed_milli.to_bits()
+        }
+        _ => false,
+    }
+}
+
+fn owner_combat_delta(base: &SnapshotData, cur: &SnapshotData) -> Option<Option<WireOwnerCombat>> {
+    // Owner loss clears retained owner-only state without spending a redundant option byte.
+    cur.me.as_ref()?;
+    if !owner_combat_bits_equal(base.owner_combat, cur.owner_combat) {
+        return Some(cur.owner_combat);
+    }
+    let npc_refs_changed = base
+        .actors
+        .iter()
+        .filter(|actor| actor.kind != 0)
+        .map(|actor| actor.id)
+        .ne(cur
+            .actors
+            .iter()
+            .filter(|actor| actor.kind != 0)
+            .map(|actor| actor.id));
+    (npc_refs_changed && cur.owner_combat.is_some()).then_some(cur.owner_combat)
 }
 
 /// `q` with the fields outside `mask` zeroed (what a decoder reads back).
@@ -1384,6 +1490,9 @@ pub(crate) fn write_message(w: &mut Writer, d: &SnapshotDelta) {
     }
     if !d.departed.is_empty() {
         head |= DH_DEPARTED;
+    }
+    if d.owner_combat.is_some() {
+        head |= DH_OWNER_COMBAT;
     }
     if d.server_time.to_bits() != snapshot_server_ms(d.tick).to_bits() {
         head |= DH_SERVER_TIME;
@@ -1513,6 +1622,15 @@ pub(crate) fn write_message(w: &mut Writer, d: &SnapshotDelta) {
     if !d.departed.is_empty() {
         write_departed(w, &d.departed);
     }
+    if let Some(owner) = d.owner_combat {
+        match owner {
+            None => w.u8(0),
+            Some(owner) => {
+                w.u8(1);
+                write_owner_combat(w, &owner);
+            }
+        }
+    }
 }
 
 pub(crate) fn message_len(d: &SnapshotDelta) -> usize {
@@ -1559,6 +1677,11 @@ pub(crate) fn message_check(d: &SnapshotDelta) -> Result<(), EncodeError> {
             && (!s.barrier.is_finite() || s.barrier < 0.0 || s.barrier_ring_step > 8)
         {
             return bad("barrier");
+        }
+    }
+    if let Some(Some(owner)) = d.owner_combat {
+        if d.me.is_none() || !owner.valid() {
+            return bad("owner combat");
         }
     }
     let mut prev: Option<u32> = None;
@@ -1785,6 +1908,18 @@ pub(crate) fn read_snapshot_delta(r: &mut Reader) -> Result<SnapshotDelta, Decod
             departed.push(id);
         }
     }
+    let owner_combat = if head & DH_OWNER_COMBAT != 0 {
+        Some(match r.u8()? {
+            0 => None,
+            1 => Some(read_owner_combat(r)?),
+            _ => return Err(DecodeError::BadField("owner combat")),
+        })
+    } else {
+        None
+    };
+    if matches!(owner_combat, Some(Some(_))) && me.is_none() {
+        return Err(DecodeError::BadField("owner combat"));
+    }
     Ok(SnapshotDelta {
         tick,
         server_time,
@@ -1795,6 +1930,7 @@ pub(crate) fn read_snapshot_delta(r: &mut Reader) -> Result<SnapshotDelta, Decod
         me,
         changed,
         departed,
+        owner_combat,
     })
 }
 
@@ -1804,7 +1940,10 @@ pub enum DeltaError {
     /// No snapshot held yet (the connection's first snapshot must be Full, and so must the first after a Welcome).
     NoBase,
     /// The delta's base is not the snapshot held.
-    BaseMismatch { have: u32, want: u32 },
+    BaseMismatch {
+        have: u32,
+        want: u32,
+    },
     /// The delta has a self but the held snapshot has none.
     SelfWithoutBase,
     /// A departed id the held snapshot does not list.
@@ -1817,6 +1956,7 @@ pub enum DeltaError {
     TooManyActors(usize),
     /// A reconstructed kind-4 actor does not carry the contextual Neutral/None tuple.
     InvalidGiverActor(u32),
+    InvalidOwnerCombat,
 }
 
 impl DeltaError {
@@ -1831,6 +1971,7 @@ impl DeltaError {
             DeltaError::IncompleteNewActor(_) => "incomplete_new_actor",
             DeltaError::TooManyActors(_) => "too_many_actors",
             DeltaError::InvalidGiverActor(_) => "giver_actor",
+            DeltaError::InvalidOwnerCombat => "owner_combat",
         }
     }
 }
@@ -1868,6 +2009,7 @@ pub struct SnapshotTracker {
     me: Option<WireSelf>,
     actors: Vec<WireActor>,
     scratch: Vec<WireActor>,
+    owner_combat: Option<WireOwnerCombat>,
 }
 
 impl SnapshotTracker {
@@ -1882,6 +2024,7 @@ impl SnapshotTracker {
         self.training = false;
         self.me = None;
         self.actors.clear();
+        self.owner_combat = None;
     }
 
     /// The tick of the snapshot held.
@@ -1908,6 +2051,7 @@ impl SnapshotTracker {
             ack_input: self.ack_input,
             me: self.me,
             actors: self.actors.clone(),
+            owner_combat: self.owner_combat,
         })
     }
 
@@ -1933,6 +2077,7 @@ impl SnapshotTracker {
                 me,
                 actors,
                 training,
+                owner_combat,
             } => {
                 if let Some(id) = actors
                     .iter()
@@ -1940,6 +2085,13 @@ impl SnapshotTracker {
                     .map(|actor| actor.id)
                 {
                     return Err(DeltaError::InvalidGiverActor(id));
+                }
+                if owner_combat_fault(owner_combat.as_ref(), me.is_some(), |id| {
+                    actors.binary_search_by_key(&id, |a| a.id).is_ok()
+                })
+                .is_some()
+                {
+                    return Err(DeltaError::InvalidOwnerCombat);
                 }
                 self.tick = Some(tick);
                 self.server_time = server_time;
@@ -1949,6 +2101,7 @@ impl SnapshotTracker {
                 self.me = me;
                 self.actors.clear();
                 self.actors.extend_from_slice(&actors);
+                self.owner_combat = owner_combat;
                 Ok(ServerMsg::Snapshot {
                     tick,
                     server_time,
@@ -1957,6 +2110,7 @@ impl SnapshotTracker {
                     me,
                     actors,
                     training,
+                    owner_combat,
                 })
             }
             ServerMsg::SnapshotDelta(d) => {
@@ -1998,6 +2152,19 @@ impl SnapshotTracker {
             self.scratch = out;
             return Err(DeltaError::InvalidGiverActor(id));
         }
+        let owner_combat = match d.owner_combat {
+            Some(owner) => owner,
+            None if me.is_none() => None,
+            None => self.owner_combat,
+        };
+        if owner_combat_fault(owner_combat.as_ref(), me.is_some(), |id| {
+            out.binary_search_by_key(&id, |a| a.id).is_ok()
+        })
+        .is_some()
+        {
+            self.scratch = out;
+            return Err(DeltaError::InvalidOwnerCombat);
+        }
         std::mem::swap(&mut self.actors, &mut out);
         self.scratch = out;
         self.tick = Some(d.tick);
@@ -2008,6 +2175,7 @@ impl SnapshotTracker {
         }
         self.ack_input = d.ack_input;
         self.me = me;
+        self.owner_combat = owner_combat;
         Ok(())
     }
 

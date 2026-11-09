@@ -484,10 +484,20 @@ fn kit(faction: u8, weapon: u8) -> u8 {
 
 /// The head of a Snapshot: for a self its present bit and the bits of every field that differs from its default, and the phase
 /// bit when the phase is not the default.
-fn head_word(phase: u8, tick: u32, server_time: f64, me: Option<&WireSelf>, training: bool) -> u32 {
+fn head_word(
+    phase: u8,
+    tick: u32,
+    server_time: f64,
+    me: Option<&WireSelf>,
+    training: bool,
+    owner_combat: bool,
+) -> u32 {
     let mut m = if phase != DEFAULT_PHASE { HM_PHASE } else { 0 };
     if training {
         m |= HM_TRAINING;
+    }
+    if owner_combat {
+        m |= HM_OWNER_COMBAT;
     }
     if server_time.to_bits() != snapshot_server_ms(tick).to_bits() {
         m |= HM_SERVER_TIME;
@@ -1007,6 +1017,7 @@ fn write_actor(out: &mut Writer, a: &WireActor, prev: Option<u32>) {
 }
 
 /// Exact size of a Snapshot frame.
+#[allow(clippy::too_many_arguments)] // Mirrors the complete snapshot wire header and body inputs.
 fn snapshot_len(
     tick: u32,
     server_time: f64,
@@ -1015,8 +1026,16 @@ fn snapshot_len(
     me: Option<&WireSelf>,
     training: bool,
     actors: &[WireActor],
+    owner_combat: Option<&WireOwnerCombat>,
 ) -> usize {
-    let head = head_word(phase, tick, server_time, me, training);
+    let head = head_word(
+        phase,
+        tick,
+        server_time,
+        me,
+        training,
+        owner_combat.is_some(),
+    );
     1 + varint_len(tick)
         + varint_len(ack_input)
         + head_len(head)
@@ -1028,6 +1047,31 @@ fn snapshot_len(
             .enumerate()
             .map(|(i, a)| actor_len(a, i.checked_sub(1).map(|j| actors[j].id)))
             .sum::<usize>()
+        + owner_combat.map_or(0, owner_combat_len)
+}
+
+pub(crate) fn owner_combat_len(owner: &WireOwnerCombat) -> usize {
+    let lock_len = match owner.lock {
+        WireOwnerLock::Clear | WireOwnerLock::Held { target: None } => 1,
+        WireOwnerLock::Held { target: Some(id) } => 1 + varint_len(id),
+    };
+    lock_len + 4 + 4 + 8 + 8 + 8
+}
+
+pub(crate) fn write_owner_combat(w: &mut Writer, owner: &WireOwnerCombat) {
+    match owner.lock {
+        WireOwnerLock::Clear => w.u8(0),
+        WireOwnerLock::Held { target: None } => w.u8(1),
+        WireOwnerLock::Held { target: Some(id) } => {
+            w.u8(2);
+            w.varint(id);
+        }
+    }
+    w.u32(owner.draw_started_at);
+    w.u32(owner.ready_at);
+    w.f64(owner.as_milli);
+    w.f64(owner.windup_milli);
+    w.f64(owner.speed_milli);
 }
 
 struct SnapshotHeader<'a> {
@@ -1038,6 +1082,7 @@ struct SnapshotHeader<'a> {
     me: Option<&'a WireSelf>,
     training: bool,
     actors: usize,
+    owner_combat: bool,
 }
 
 /// Everything of a Snapshot before the actors: header, self and the actor count.
@@ -1050,12 +1095,13 @@ fn write_snapshot_head(w: &mut Writer, header: SnapshotHeader<'_>) {
         me,
         training,
         actors,
+        owner_combat,
     } = header;
     let mut f = Fixed::<MAX_HEAD_LEN>::new();
     f.u8(T_SNAPSHOT);
     f.varint(tick);
     f.varint(ack_input);
-    let head = head_word(phase, tick, server_time, me, training);
+    let head = head_word(phase, tick, server_time, me, training, owner_combat);
     f.varint(head);
     if let Some(s) = me {
         write_self(&mut f, head, s);
@@ -1085,6 +1131,7 @@ impl Frame for ServerMsg {
                 me,
                 training,
                 actors,
+                owner_combat,
             } => snapshot_len(
                 *tick,
                 *server_time,
@@ -1093,6 +1140,7 @@ impl Frame for ServerMsg {
                 me.as_ref(),
                 *training,
                 actors,
+                owner_combat.as_ref(),
             ),
             ServerMsg::SnapshotDelta(d) => delta::message_len(d),
             ServerMsg::Events { events, .. } => {
@@ -1120,6 +1168,7 @@ impl Frame for ServerMsg {
                 phase,
                 me,
                 actors,
+                owner_combat,
                 ..
             } => {
                 if !server_time.is_finite() || *server_time < 0.0 {
@@ -1128,6 +1177,13 @@ impl Frame for ServerMsg {
                 list("actors", actors.len(), MAX_ACTORS)?;
                 if let Some(why) = snapshot_fault(*phase, me.as_ref(), actors) {
                     return Err(EncodeError::BadValue(why));
+                }
+                if owner_combat_fault(owner_combat.as_ref(), me.is_some(), |id| {
+                    actors.binary_search_by_key(&id, |a| a.id).is_ok()
+                })
+                .is_some()
+                {
+                    return Err(EncodeError::BadValue("owner combat"));
                 }
             }
             ServerMsg::SnapshotDelta(d) => delta::message_check(d)?,
@@ -1317,6 +1373,7 @@ impl Frame for ServerMsg {
                 me,
                 training,
                 actors,
+                owner_combat,
             } => {
                 write_snapshot_head(
                     w,
@@ -1328,12 +1385,16 @@ impl Frame for ServerMsg {
                         me: me.as_ref(),
                         training: *training,
                         actors: actors.len(),
+                        owner_combat: owner_combat.is_some(),
                     },
                 );
                 let mut prev = None;
                 for a in actors {
                     write_actor(w, a, prev);
                     prev = Some(a.id);
+                }
+                if let Some(owner) = owner_combat {
+                    write_owner_combat(w, owner);
                 }
             }
             ServerMsg::SnapshotDelta(d) => delta::write_message(w, d),

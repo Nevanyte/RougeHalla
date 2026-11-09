@@ -313,6 +313,7 @@ pub fn checked_snapshot(
         phase: checked_phase(obs.phase)?,
         ack_input,
         me: obs.me.as_ref().map(wire_self),
+        owner_combat: None,
         actors: obs
             .visible
             .iter()

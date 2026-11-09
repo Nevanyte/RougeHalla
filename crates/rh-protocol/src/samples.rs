@@ -5,7 +5,7 @@
 
 use crate::delta::{
     AD_ALL, AD_BOUNTY, AD_HP, AD_KIND, AD_KIT, AD_NEW, AD_STATUS, AD_X, DH_DEPARTED, DH_GV, DH_HP,
-    DH_KILLS, DH_MOVE_SEQ, DH_PHASE, DH_PRESENT, DH_STATUS, DH_X, DH_Y,
+    DH_KILLS, DH_MOVE_SEQ, DH_OWNER_COMBAT, DH_PHASE, DH_PRESENT, DH_STATUS, DH_X, DH_Y,
 };
 use crate::map::MapBlob;
 use crate::*;
@@ -708,6 +708,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
             "snapshot_training",
             ServerMsg::Snapshot {
                 training: true,
+                owner_combat: None,
                 tick: 8,
                 server_time: snapshot_server_ms(8),
                 phase: 2,
@@ -736,6 +737,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
             "snapshot_quest_giver_actor",
             ServerMsg::Snapshot {
                 training: false,
+                owner_combat: None,
                 tick: 14,
                 server_time: snapshot_server_ms(14),
                 phase: 1,
@@ -765,6 +767,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
             "snapshot_unknown_kind_max_kit",
             ServerMsg::Snapshot {
                 training: false,
+                owner_combat: None,
                 tick: 15,
                 server_time: snapshot_server_ms(15),
                 phase: 1,
@@ -788,11 +791,142 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                 }],
             },
         ),
+        (
+            "owner_combat_clear",
+            ServerMsg::Snapshot {
+                tick: 20,
+                server_time: snapshot_server_ms(20),
+                phase: 1,
+                ack_input: 4,
+                me: Some(WireSelf {
+                    id: 3,
+                    ..WireSelf::default()
+                }),
+                actors: vec![],
+                training: false,
+                owner_combat: Some(WireOwnerCombat {
+                    lock: WireOwnerLock::Clear,
+                    draw_started_at: 0,
+                    ready_at: 0,
+                    as_milli: 1000.0,
+                    windup_milli: 1000.0,
+                    speed_milli: 1000.0,
+                }),
+            },
+        ),
+        (
+            "owner_combat_held_none",
+            ServerMsg::Snapshot {
+                tick: 21,
+                server_time: snapshot_server_ms(21),
+                phase: 1,
+                ack_input: 4,
+                me: Some(WireSelf {
+                    id: 3,
+                    ..WireSelf::default()
+                }),
+                actors: vec![],
+                training: false,
+                owner_combat: Some(WireOwnerCombat {
+                    lock: WireOwnerLock::Held { target: None },
+                    draw_started_at: 255,
+                    ready_at: 510,
+                    as_milli: 50.0,
+                    windup_milli: 1500.0,
+                    speed_milli: 2000.0,
+                }),
+            },
+        ),
+        (
+            "owner_combat_held_player",
+            ServerMsg::Snapshot {
+                tick: 22,
+                server_time: snapshot_server_ms(22),
+                phase: 1,
+                ack_input: 4,
+                me: Some(WireSelf {
+                    id: 3,
+                    ..WireSelf::default()
+                }),
+                actors: vec![wa(9, 100.0, 100.0, 100, 1)],
+                training: false,
+                owner_combat: Some(WireOwnerCombat {
+                    lock: WireOwnerLock::Held { target: Some(9) },
+                    draw_started_at: 3_000,
+                    ready_at: 15_000,
+                    as_milli: 650.0,
+                    windup_milli: 1500.0,
+                    speed_milli: 50.0,
+                }),
+            },
+        ),
+        (
+            "owner_combat_mirror_min",
+            ServerMsg::Snapshot {
+                tick: 23,
+                server_time: snapshot_server_ms(23),
+                phase: 1,
+                ack_input: 4,
+                me: Some(WireSelf {
+                    id: 3,
+                    ..WireSelf::default()
+                }),
+                actors: vec![],
+                training: false,
+                owner_combat: Some(WireOwnerCombat {
+                    lock: WireOwnerLock::Clear,
+                    draw_started_at: u32::MAX,
+                    ready_at: u32::MAX,
+                    as_milli: 50.0,
+                    windup_milli: 50.0,
+                    speed_milli: 50.0,
+                }),
+            },
+        ),
+        (
+            "owner_combat_mirror_max_finite",
+            ServerMsg::Snapshot {
+                tick: 24,
+                server_time: snapshot_server_ms(24),
+                phase: 1,
+                ack_input: 4,
+                me: Some(WireSelf {
+                    id: 3,
+                    ..WireSelf::default()
+                }),
+                actors: vec![],
+                training: false,
+                owner_combat: Some(WireOwnerCombat {
+                    lock: WireOwnerLock::Clear,
+                    draw_started_at: u32::MAX,
+                    ready_at: 0,
+                    as_milli: f64::MAX,
+                    windup_milli: f64::MAX,
+                    speed_milli: f64::MAX,
+                }),
+            },
+        ),
+        (
+            "delta_owner_combat_redundant_clear_owner_loss",
+            ServerMsg::SnapshotDelta(SnapshotDelta {
+                tick: 25,
+                server_time: snapshot_server_ms(25),
+                training: false,
+                base_tick: 24,
+                phase: None,
+                ack_input: 4,
+                me: None,
+                changed: vec![],
+                departed: vec![],
+                owner_combat: Some(None),
+            }),
+        ),
         // Protocol 11: a delta carrying the training bit (head bit 20).
         (
             "snapshot_delta_training",
             ServerMsg::SnapshotDelta(SnapshotDelta {
                 training: true,
+                owner_combat: None,
                 tick: 12,
                 server_time: snapshot_server_ms(12),
                 base_tick: 10,
@@ -1064,6 +1198,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
             "snapshot",
             ServerMsg::Snapshot {
                 training: false,
+                owner_combat: None,
                 tick: 101,
                 server_time: snapshot_server_ms(101),
                 phase: 1,
@@ -1113,6 +1248,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
             "snapshot_planning",
             ServerMsg::Snapshot {
                 training: false,
+                owner_combat: None,
                 tick: 7,
                 server_time: snapshot_server_ms(7),
                 phase: 3,
@@ -1125,6 +1261,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
             "snapshot_spectator",
             ServerMsg::Snapshot {
                 training: false,
+                owner_combat: None,
                 tick: 1,
                 server_time: snapshot_server_ms(1),
                 phase: 0,
@@ -1138,6 +1275,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
             "snapshot_defaults",
             ServerMsg::Snapshot {
                 training: false,
+                owner_combat: None,
                 tick: 127,
                 server_time: snapshot_server_ms(127),
                 phase: 1,
@@ -1189,6 +1327,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
             "snapshot_full",
             ServerMsg::Snapshot {
                 training: false,
+                owner_combat: None,
                 tick: 1_000_000,
                 server_time: snapshot_server_ms(1_000_000),
                 phase: 2,
@@ -1292,6 +1431,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
             "snapshot_zero_hp",
             ServerMsg::Snapshot {
                 training: false,
+                owner_combat: None,
                 tick: 16384,
                 server_time: snapshot_server_ms(16384),
                 phase: 3,
@@ -1326,6 +1466,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
             "snapshot_delta_empty",
             ServerMsg::SnapshotDelta(SnapshotDelta {
                 training: false,
+                owner_combat: None,
                 tick: 102,
                 server_time: snapshot_server_ms(102),
                 base_tick: 101,
@@ -1341,6 +1482,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
             "snapshot_delta",
             ServerMsg::SnapshotDelta(SnapshotDelta {
                 training: false,
+                owner_combat: None,
                 tick: 1_000_000,
                 server_time: snapshot_server_ms(1_000_000),
                 base_tick: 999_990,
@@ -1839,6 +1981,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
     };
     let good = ServerMsg::Snapshot {
         training: false,
+        owner_combat: None,
         tick: 5,
         server_time: snapshot_server_ms(5),
         phase: 1,
@@ -1901,6 +2044,37 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         w.varint(1);
         w.u8(tag);
         w.bytes(payload);
+        w.finish()
+    };
+    let owner_record = |lock: u8, target: Option<u32>, mirrors: [f64; 3]| {
+        let mut w = Writer::default();
+        w.u8(lock);
+        if let Some(target) = target {
+            w.varint(target);
+        }
+        w.u32(4_000);
+        w.u32(20_000);
+        for value in mirrors {
+            w.f64(value);
+        }
+        w.finish()
+    };
+    let full_owner_frame = |record: &[u8], self_present: bool, actors: &[u8], count: u32| {
+        let mut w = Writer::default();
+        w.u8(T_SNAPSHOT);
+        w.varint(10);
+        w.varint(3);
+        w.varint(HM_OWNER_COMBAT | if self_present { HM_PRESENT } else { 0 });
+        if self_present {
+            w.varint(3);
+            w.f32(0.0);
+            w.f32(0.0);
+            w.f32(0.0);
+            w.varint(1145);
+        }
+        w.varint(count);
+        w.bytes(actors);
+        w.bytes(record);
         w.finish()
     };
     #[allow(clippy::too_many_arguments)]
@@ -2350,6 +2524,44 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         &many_objectives,
     ));
     vec![
+        (
+            "owner_combat_bad_lock",
+            full_owner_frame(&owner_record(3, None, [1000.0; 3]), true, &[], 0),
+        ),
+        (
+            "owner_combat_zero_target",
+            full_owner_frame(&owner_record(2, Some(0), [1000.0; 3]), true, &[], 0),
+        ),
+        (
+            "owner_combat_missing_self",
+            full_owner_frame(&owner_record(0, None, [1000.0; 3]), false, &[], 0),
+        ),
+        (
+            "owner_combat_dangling_target",
+            full_owner_frame(&owner_record(2, Some(9), [1000.0; 3]), true, &[], 0),
+        ),
+        (
+            "owner_combat_nonfinite_mirror",
+            full_owner_frame(
+                &owner_record(0, None, [f64::NAN, 1000.0, 1000.0]),
+                true,
+                &[],
+                0,
+            ),
+        ),
+        (
+            "owner_combat_fractional_mirror",
+            full_owner_frame(
+                &owner_record(0, None, [1000.5, 1000.0, 1000.0]),
+                true,
+                &[],
+                0,
+            ),
+        ),
+        (
+            "owner_combat_below_min_mirror",
+            full_owner_frame(&owner_record(0, None, [49.0, 1000.0, 1000.0]), true, &[], 0),
+        ),
         ("potion_notice_zero", vec![0x84, 0, 0, 0, 0, 1, 0, 7, 0]),
         ("cannon_notice_zero", vec![0x84, 0, 0, 0, 0, 1, 0, 9, 0]),
         ("cannon_notice_unknown", vec![0x84, 0, 0, 0, 0, 1, 0, 9, 5]),
@@ -2430,7 +2642,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
             snapshot_bytes(0x0002, &[], 0, &[]),
         ),
         // Bit 13 is not a field of this version: a mask bit a decoder does not know is refused, never skipped.
-        ("head_unknown_bit", snapshot_bytes(1 << 20, &[], 0, &[])),
+        ("head_unknown_bit", snapshot_bytes(1 << 21, &[], 0, &[])),
         ("wish_ability_over_4", {
             let mut w = valid_wish();
             w[0] = 5;
@@ -2871,6 +3083,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
 }
 
 /// What one frame of a chain does to a client's [`SnapshotTracker`].
+#[allow(clippy::large_enum_variant)] // Golden chains retain the decoded message for exact assertions.
 pub enum ChainOutcome {
     /// The frame applies; a snapshot (Full or resolved from a delta) is the client's state afterwards.
     Applied(ServerMsg),
@@ -2974,6 +3187,7 @@ fn delta_message(d: SnapshotDelta) -> Vec<u8> {
 fn empty_delta() -> SnapshotDelta {
     SnapshotDelta {
         training: false,
+        owner_combat: None,
         tick: 11,
         server_time: snapshot_server_ms(11),
         base_tick: 10,
@@ -3355,6 +3569,7 @@ pub fn chain_samples() -> Vec<(&'static str, Vec<ChainStep>)> {
     };
     let actor_delta = |tick, base_tick, changed| SnapshotDelta {
         training: false,
+        owner_combat: None,
         tick,
         server_time: snapshot_server_ms(tick),
         base_tick,
@@ -3626,6 +3841,7 @@ pub fn chain_samples() -> Vec<(&'static str, Vec<ChainStep>)> {
         "delta_base_mismatch",
         SnapshotDelta {
             training: false,
+            owner_combat: None,
             base_tick: 9,
             tick: 11,
             server_time: snapshot_server_ms(11),
@@ -3731,6 +3947,161 @@ pub fn chain_samples() -> Vec<(&'static str, Vec<ChainStep>)> {
         let bad = refused(&mut t, delta_message(empty_delta()), "self_without_base");
         chains.push(("delta_self_without_base", vec![s0, bad]));
     }
+    {
+        let mut tracker = SnapshotTracker::new();
+        let mut encoder = ConnEncoder::new();
+        let lock = WireOwnerCombat {
+            lock: WireOwnerLock::Held { target: Some(9) },
+            draw_started_at: 4_000,
+            ready_at: 20_000,
+            as_milli: 650.0,
+            windup_milli: 1_500.0,
+            speed_milli: 1_000.0,
+        };
+        let mut first = snap(
+            10,
+            1,
+            4,
+            Some(chain_self(500.0)),
+            &[wa(9, 100., 100., 100, 1)],
+        );
+        first.set_owner_combat(Some(lock)).unwrap();
+        let (frame, kind) = encoder.encode_frame(first.clone());
+        assert_eq!(kind, FrameKind::Full);
+        let mut steps = vec![ChainStep {
+            frame: frame.clone(),
+            outcome: ChainOutcome::Applied(tracker.decode(&frame).unwrap()),
+        }];
+        let mut next = snap(
+            11,
+            1,
+            5,
+            Some(chain_self(500.0)),
+            &[wa(9, 100., 100., 100, 1)],
+        );
+        next.set_owner_combat(Some(lock)).unwrap();
+        let (retained, kind) = encoder.encode_frame(next.clone());
+        assert_eq!(kind, FrameKind::Delta);
+        let got = tracker.decode(&retained).unwrap();
+        assert_eq!(got, next.decoded());
+        steps.push(ChainStep {
+            frame: retained,
+            outcome: ChainOutcome::Applied(got),
+        });
+
+        let mut cleared = snap(
+            12,
+            1,
+            6,
+            Some(chain_self(500.0)),
+            &[wa(9, 100., 100., 100, 1)],
+        );
+        cleared.set_owner_combat(None).unwrap();
+        let (clear, kind) = encoder.encode_frame(cleared.clone());
+        assert_eq!(kind, FrameKind::Delta);
+        let got = tracker.decode(&clear).unwrap();
+        assert_eq!(got, cleared.decoded());
+        steps.push(ChainStep {
+            frame: clear,
+            outcome: ChainOutcome::Applied(got),
+        });
+        chains.push(("owner_combat_retain_and_clear", steps));
+    }
+    {
+        let mut tracker = SnapshotTracker::new();
+        let mut base = snap(20, 1, 1, Some(chain_self(500.0)), &[]);
+        base.set_owner_combat(Some(WireOwnerCombat {
+            lock: WireOwnerLock::Held { target: None },
+            draw_started_at: 10,
+            ready_at: 500,
+            as_milli: 1000.0,
+            windup_milli: 1000.0,
+            speed_milli: 1000.0,
+        }))
+        .unwrap();
+        let s0 = applied(&mut tracker, full_frame(&base));
+        let owner_lost = snap(21, 1, 2, None, &[]);
+        let delta = delta::diff(&base, &owner_lost).expect("owner loss is a delta");
+        assert!(
+            delta.owner_combat.is_none(),
+            "loss clears without redundant group bytes"
+        );
+        let s1 = applied(&mut tracker, delta_message(delta));
+        assert!(matches!(
+            s1.outcome,
+            ChainOutcome::Applied(ServerMsg::Snapshot {
+                owner_combat: None,
+                ..
+            })
+        ));
+        chains.push(("owner_combat_owner_loss_clears", vec![s0, s1]));
+    }
+    {
+        let mut tracker = SnapshotTracker::new();
+        let mut base = snap(
+            30,
+            1,
+            1,
+            Some(chain_self(500.0)),
+            &[wa(9, 100., 100., 100, 1)],
+        );
+        base.set_owner_combat(Some(WireOwnerCombat {
+            lock: WireOwnerLock::Held { target: Some(9) },
+            draw_started_at: 10,
+            ready_at: 500,
+            as_milli: 1000.0,
+            windup_milli: 1000.0,
+            speed_milli: 1000.0,
+        }))
+        .unwrap();
+        let s0 = applied(&mut tracker, full_frame(&base));
+        let before = tracker.snapshot();
+        let dangling = SnapshotDelta {
+            tick: 31,
+            server_time: snapshot_server_ms(31),
+            base_tick: 30,
+            ack_input: 2,
+            me: Some(SelfDelta::default()),
+            changed: vec![],
+            departed: vec![9],
+            phase: None,
+            training: false,
+            owner_combat: None,
+        };
+        let bad = refused(&mut tracker, delta_message(dangling), "owner_combat");
+        assert_eq!(tracker.snapshot(), before, "dangling ref refusal is atomic");
+        chains.push(("owner_combat_dangling_delta_refused", vec![s0, bad]));
+    }
+    {
+        let mut tracker = SnapshotTracker::new();
+        let base = snap(40, 1, 1, None, &[]);
+        let s0 = applied(&mut tracker, full_frame(&base));
+        let redundant_clear = SnapshotDelta {
+            tick: 41,
+            server_time: snapshot_server_ms(41),
+            training: false,
+            base_tick: 40,
+            phase: None,
+            ack_input: 2,
+            me: None,
+            changed: vec![],
+            departed: vec![],
+            owner_combat: Some(None),
+        };
+        let s1 = applied(&mut tracker, delta_message(redundant_clear));
+        assert!(matches!(
+            s1.outcome,
+            ChainOutcome::Applied(ServerMsg::Snapshot {
+                owner_combat: None,
+                me: None,
+                ..
+            })
+        ));
+        chains.push((
+            "owner_combat_redundant_unavailable_without_self",
+            vec![s0, s1],
+        ));
+    }
     chains
 }
 
@@ -3768,6 +4139,26 @@ pub fn malformed_deltas() -> Vec<(&'static str, Vec<u8>)> {
         v.extend_from_slice(extra);
         v
     };
+    let owner_record = |lock: u8, target: Option<u32>, mirrors: [f64; 3]| {
+        let mut w = Writer::default();
+        w.u8(lock);
+        if let Some(target) = target {
+            w.varint(target);
+        }
+        w.u32(4_000);
+        w.u32(20_000);
+        for value in mirrors {
+            w.f64(value);
+        }
+        w.finish()
+    };
+    let delta_owner = |avail: u8, owner: &[u8], present: bool| {
+        let head = DH_OWNER_COMBAT | if present { DH_PRESENT } else { 0 };
+        let mut rest = vec![0]; // changed-actor count; self mask is carried in the head varint
+        rest.push(avail);
+        rest.extend_from_slice(owner);
+        delta_bytes(11, 1, head, &rest)
+    };
     vec![
         ("delta_age_zero", delta_bytes(10, 0, 0, &[0])),
         ("delta_age_over_max", delta_bytes(100, 65, 0, &[0])),
@@ -3776,8 +4167,32 @@ pub fn malformed_deltas() -> Vec<(&'static str, Vec<u8>)> {
             "delta_head_field_without_present_bit",
             delta_bytes(10, 1, DH_X, &[0]),
         ),
-        // Bit 24 is not a field of this version.
-        ("delta_head_unknown_bit", delta_bytes(10, 1, 1 << 24, &[0])),
+        // Bit 25 is not a field of this version; bit 24 carries owner combat.
+        ("delta_head_unknown_bit", delta_bytes(10, 1, 1 << 25, &[0])),
+        (
+            "delta_owner_combat_option_unknown",
+            delta_owner(2, &[], false),
+        ),
+        (
+            "delta_owner_combat_available_without_self",
+            delta_owner(1, &owner_record(0, None, [1000.0; 3]), false),
+        ),
+        (
+            "delta_owner_combat_bad_lock",
+            delta_owner(1, &owner_record(3, None, [1000.0; 3]), true),
+        ),
+        (
+            "delta_owner_combat_zero_target",
+            delta_owner(1, &owner_record(2, Some(0), [1000.0; 3]), true),
+        ),
+        (
+            "delta_owner_combat_nonfinite_mirror",
+            delta_owner(
+                1,
+                &owner_record(0, None, [f64::INFINITY, 1000.0, 1000.0]),
+                true,
+            ),
+        ),
         (
             "delta_head_overlong_varint",
             vec![0x87, 10, 1, 0, 0x80, 0x00, 0],
@@ -3865,6 +4280,27 @@ fn json_wish(v: Option<WireWishOwner>) -> String {
     ))
 }
 
+fn json_owner_combat(v: Option<WireOwnerCombat>) -> String {
+    let Some(owner) = v else {
+        return "null".into();
+    };
+    let lock = match owner.lock {
+        WireOwnerLock::Clear => "{\"clear\":true}".into(),
+        WireOwnerLock::Held { target: None } => "{\"held\":true,\"target\":null}".into(),
+        WireOwnerLock::Held { target: Some(id) } => {
+            format!("{{\"held\":true,\"target\":{id}}}")
+        }
+    };
+    format!(
+        "{{\"lock\":{lock},\"drawStartedAt\":{},\"readyAt\":{},\"asMilli\":{},\"windupMilli\":{},\"speedMilli\":{}}}",
+        owner.draw_started_at,
+        owner.ready_at,
+        owner.as_milli,
+        owner.windup_milli,
+        owner.speed_milli
+    )
+}
+
 fn decoded_client_json(m: &ClientMsg) -> Option<String> {
     let ClientMsg::Input { commands, .. } = m else {
         return None;
@@ -3898,6 +4334,7 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
         actors,
         training,
         server_time,
+        owner_combat,
     } = m
     else {
         unreachable!("only snapshots carry a decoded form")
@@ -3949,9 +4386,10 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
         })
         .collect();
     format!(
-        "{{\"tick\": {tick}, \"serverMs\": {}, \"phase\": {phase}, \"ack\": {ack_input}, \"training\": {training}, \"me\": {me}, \"actors\": [{}]}}",
+        "{{\"tick\": {tick}, \"serverMs\": {}, \"phase\": {phase}, \"ack\": {ack_input}, \"training\": {training}, \"me\": {me}, \"actors\": [{}], \"ownerCombat\": {}}}",
         server_time,
-        actors.join(", ")
+        actors.join(", "),
+        json_owner_combat(*owner_combat),
     )
 }
 

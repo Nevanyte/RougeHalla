@@ -65,6 +65,7 @@ fn full_head(m: &ServerMsg) -> u32 {
 fn full(me: Option<WireSelf>, phase: u8) -> ServerMsg {
     ServerMsg::Snapshot {
         training: false,
+        owner_combat: None,
         tick: 1,
         server_time: snapshot_server_ms(1),
         phase,
@@ -123,6 +124,7 @@ fn defaults_cost_nothing_and_other_values_are_explicit() {
     let mut a = actor(7);
     let base = ServerMsg::Snapshot {
         training: false,
+        owner_combat: None,
         tick: 1,
         server_time: snapshot_server_ms(1),
         phase: DEFAULT_PHASE,
@@ -134,6 +136,7 @@ fn defaults_cost_nothing_and_other_values_are_explicit() {
     a.status = 0;
     let odd = ServerMsg::Snapshot {
         training: false,
+        owner_combat: None,
         tick: 1,
         server_time: snapshot_server_ms(1),
         phase: DEFAULT_PHASE,
@@ -146,6 +149,7 @@ fn defaults_cost_nothing_and_other_values_are_explicit() {
         ServerMsg::decode(&odd.encode()).unwrap(),
         ServerMsg::Snapshot {
             training: false,
+            owner_combat: None,
             tick: 1,
             server_time: snapshot_server_ms(1),
             phase: DEFAULT_PHASE,
@@ -282,8 +286,8 @@ fn an_empty_state_retains_the_snapshot_and_unknown_keys_are_refused() {
 /// A mask bit the version does not define is refused in every mask, never skipped, and a non-canonical varint head is too.
 #[test]
 fn undefined_mask_bits_are_refused_never_skipped() {
-    // A Full head with bit 20, a Full actor mask with bit 10, a delta head with bit 24, a delta actor mask with bit 13.
-    let full_head_bit = [0x83, 1, 0, 0x80, 0x80, 0x40, 0];
+    // A Full head with bit 21, a Full actor mask with bit 10, a delta head with bit 28, a delta actor mask with bit 13.
+    let full_head_bit = [0x83, 1, 0, 0x80, 0x80, 0x80, 0x01, 0];
     assert_eq!(
         ServerMsg::decode(&full_head_bit),
         Err(DecodeError::BadField("head"))
@@ -341,7 +345,7 @@ fn delta_head_and_actor_delta_bit_numbers_are_pinned() {
     for (c, bit) in head {
         assert_eq!(c, 1u32 << bit, "delta head bit {bit}");
     }
-    assert_eq!(DH_KNOWN, (1 << 24) - 1);
+    assert_eq!(DH_KNOWN, (1 << 25) - 1);
     let ad = [
         (AD_X, 0),
         (AD_Y, 1),

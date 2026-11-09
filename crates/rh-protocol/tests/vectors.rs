@@ -32,8 +32,10 @@ fn every_sample_round_trips() {
                 actors,
                 training,
                 server_time,
+                owner_combat,
             } => ServerMsg::Snapshot {
                 training: *training,
+                owner_combat: *owner_combat,
                 tick: *tick,
                 server_time: *server_time,
                 phase: *phase,
@@ -86,6 +88,19 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
             | "wish_fx_anonymous_landed_target"
             | "wish_fx_anonymous_landed_no_target" => BadField("wish fx"),
             "wish_fx_end_reason_over_2" => BadField("wish reason"),
+            "owner_combat_bad_lock"
+            | "owner_combat_zero_target"
+            | "owner_combat_missing_self"
+            | "owner_combat_dangling_target"
+            | "owner_combat_nonfinite_mirror"
+            | "owner_combat_fractional_mirror"
+            | "owner_combat_below_min_mirror"
+            | "delta_owner_combat_option_unknown"
+            | "delta_owner_combat_redundant_clear_owner_loss"
+            | "delta_owner_combat_available_without_self"
+            | "delta_owner_combat_bad_lock"
+            | "delta_owner_combat_zero_target"
+            | "delta_owner_combat_nonfinite_mirror" => BadField("owner combat"),
             "actor_mob_type_over_30" | "delta_actor_mob_type_over_30" => BadField("mob type"),
             "empty" | "truncated_snapshot" | "self_truncated" | "actor_count_without_actors" => {
                 Truncated

@@ -47,6 +47,7 @@ fn hunt_command_round_trips_and_zero_is_refused() {
 fn full_self_hunt_fields_round_trip_and_zero_target_is_refused() {
     let msg = ServerMsg::Snapshot {
         training: false,
+        owner_combat: None,
         tick: 1,
         server_time: snapshot_server_ms(1),
         phase: 1,
@@ -70,6 +71,7 @@ fn full_self_hunt_fields_round_trip_and_zero_target_is_refused() {
     bad.hunt_target = Some(0);
     let msg = ServerMsg::Snapshot {
         training: false,
+        owner_combat: None,
         tick: 1,
         server_time: snapshot_server_ms(1),
         phase: 1,
@@ -84,6 +86,7 @@ fn full_self_hunt_fields_round_trip_and_zero_target_is_refused() {
 fn a_delta_carries_hunt_target_and_stacks() {
     let full = ServerMsg::Snapshot {
         training: false,
+        owner_combat: None,
         tick: 1,
         server_time: snapshot_server_ms(1),
         phase: 1,
@@ -98,6 +101,7 @@ fn a_delta_carries_hunt_target_and_stacks() {
     tracker.decode(&full.encode()).unwrap();
     let delta = ServerMsg::SnapshotDelta(SnapshotDelta {
         training: false,
+        owner_combat: None,
         tick: 2,
         server_time: snapshot_server_ms(2),
         base_tick: 1,

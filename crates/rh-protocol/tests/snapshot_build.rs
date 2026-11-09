@@ -54,6 +54,7 @@ fn me() -> WireSelf {
 fn message(phase: u8, me: Option<WireSelf>, actors: Vec<WireActor>) -> ServerMsg {
     ServerMsg::Snapshot {
         training: false,
+        owner_combat: None,
         tick: 101,
         server_time: snapshot_server_ms(101),
         phase,
@@ -73,6 +74,7 @@ fn build(m: &ServerMsg) -> Result<SnapshotData, EncodeError> {
 
         training: _,
         server_time,
+        ..
     } = m
     else {
         panic!("not a snapshot")

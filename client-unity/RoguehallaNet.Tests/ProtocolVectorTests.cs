@@ -575,6 +575,30 @@ namespace Roguehalla.Net.Tests
             Assert.AreEqual(d.GetProperty("phase").GetByte(), s.Phase);
             Assert.AreEqual(d.GetProperty("ack").GetUInt32(), s.AckInput);
             Assert.AreEqual(d.GetProperty("training").GetBoolean(), s.Training);
+            var ownerCombat = d.GetProperty("ownerCombat");
+            if (ownerCombat.ValueKind == JsonValueKind.Null) Assert.IsNull(s.OwnerCombat);
+            else
+            {
+                Assert.IsNotNull(s.OwnerCombat);
+                var lockState = ownerCombat.GetProperty("lock");
+                if (lockState.TryGetProperty("clear", out var clear) && clear.GetBoolean())
+                {
+                    Assert.AreEqual(WireOwnerLockKind.Clear, s.OwnerCombat.Lock.Kind);
+                    Assert.IsNull(s.OwnerCombat.Lock.Target);
+                }
+                else
+                {
+                    Assert.IsTrue(lockState.GetProperty("held").GetBoolean());
+                    Assert.AreEqual(WireOwnerLockKind.Held, s.OwnerCombat.Lock.Kind);
+                    var target = lockState.GetProperty("target");
+                    Assert.AreEqual(target.ValueKind == JsonValueKind.Null ? (uint?)null : target.GetUInt32(), s.OwnerCombat.Lock.Target);
+                }
+                Assert.AreEqual(ownerCombat.GetProperty("drawStartedAt").GetUInt32(), s.OwnerCombat.DrawStartedAt);
+                Assert.AreEqual(ownerCombat.GetProperty("readyAt").GetUInt32(), s.OwnerCombat.ReadyAt);
+                Assert.AreEqual(BitConverter.DoubleToInt64Bits(ownerCombat.GetProperty("asMilli").GetDouble()), BitConverter.DoubleToInt64Bits(s.OwnerCombat.AsMilli));
+                Assert.AreEqual(BitConverter.DoubleToInt64Bits(ownerCombat.GetProperty("windupMilli").GetDouble()), BitConverter.DoubleToInt64Bits(s.OwnerCombat.WindupMilli));
+                Assert.AreEqual(BitConverter.DoubleToInt64Bits(ownerCombat.GetProperty("speedMilli").GetDouble()), BitConverter.DoubleToInt64Bits(s.OwnerCombat.SpeedMilli));
+            }
             var me = d.GetProperty("me");
             if (me.ValueKind == JsonValueKind.Null) Assert.IsNull(s.Me);
             else
@@ -660,6 +684,9 @@ namespace Roguehalla.Net.Tests
                 case "wish_ability_over_4": case "wish_charge_count_invalid": case "wish_time_nonfinite": case "wish_cast_time_order":
                 case "wish_fx_caster_zero": case "wish_fx_ability_over_4": case "wish_fx_time_nonfinite": case "wish_fx_blaze_one_point":
                 case "wish_fx_nonblaze_destination": case "wish_fx_anonymous_landed_target": case "wish_fx_anonymous_landed_no_target": case "wish_fx_end_reason_over_2":
+                case "owner_combat_bad_lock": case "owner_combat_zero_target": case "owner_combat_missing_self": case "owner_combat_dangling_target":
+                case "owner_combat_nonfinite_mirror": case "owner_combat_fractional_mirror": case "owner_combat_below_min_mirror":
+                case "delta_owner_combat_option_unknown": case "delta_owner_combat_bad_lock": case "delta_owner_combat_zero_target": case "delta_owner_combat_nonfinite_mirror": case "delta_owner_combat_available_without_self":
                 case "actor_mob_type_over_30": case "delta_actor_mob_type_over_30":
                 case "snapshot_giver_kit_default": case "snapshot_giver_kit_half": case "snapshot_giver_kit_half_weapon": case "snapshot_giver_mob_type": want = DecodeError.BadField; break;
                 case "chest_bad_reason_zero": case "chest_bad_reason_unknown":

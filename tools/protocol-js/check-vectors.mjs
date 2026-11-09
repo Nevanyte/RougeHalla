@@ -235,6 +235,7 @@ function checkSnapshot(m, d, n) {
       eq(bits(s.barrierBits), e.barrierBits, `${n} me.barrierBits`);
       eq(s.barrierRingStep, e.barrierRingStep, `${n} me.barrierRingStep`);
     }
+    eqJson(m.ownerCombat ?? null, d.ownerCombat ?? null, `${n} ownerCombat`);
     eq(m.actors.length, d.actors.length, `${n} actors`);
     d.actors.forEach((e, i) => {
       const s = m.actors[i];
@@ -245,11 +246,58 @@ function checkSnapshot(m, d, n) {
     });
 }
 
+if (version >= 14) {
+  // The public apply API is also used by in-page callers that already hold decoded objects.
+  // Keep its validation transactional, independent of the raw-frame decoder's checks.
+  const baselineVector = fx.server.find(v => v.decoded && Array.isArray(v.decoded.actors) && v.decoded.me != null);
+  if (!baselineVector) throw new Error("missing owner-combat direct-apply baseline snapshot");
+  const directTracker = new Tracker();
+  const directBaseline = decode(bytes(baselineVector.hex));
+  directTracker.apply(directBaseline);
+  const heldBase = directTracker.base;
+  const invalidDirectFull = { ...directBaseline, tick: directBaseline.tick + 1,
+    ownerCombat: { lock: { held: true, target: null }, drawStartedAt: 0, readyAt: 0,
+      asMilli: 49, windupMilli: 100, speedMilli: 100 } };
+  let directError = null;
+  try { directTracker.apply(invalidDirectFull); } catch (error) { directError = error; }
+  eq(directError?.code, "owner_combat", "direct apply rejects invalid Full owner combat");
+  eq(directTracker.base, heldBase, "direct apply invalid Full preserves exact baseline");
+  const callerGroup = { lock: { clear: true }, drawStartedAt: 1, readyAt: 2,
+    asMilli: 50, windupMilli: 50, speedMilli: 50 };
+  directTracker.apply({ ...directBaseline, tick: directBaseline.tick + 1, ownerCombat: callerGroup });
+  eq(directTracker.base.ownerCombat === callerGroup, false, "direct apply copies owner-combat group");
+  eq(directTracker.base.ownerCombat.lock === callerGroup.lock, false, "direct apply copies nested owner lock");
+  callerGroup.readyAt = 999;
+  eq(directTracker.base.ownerCombat.readyAt, 2, "caller mutation cannot change held owner-combat group");
+  const ownerBaseline = directTracker.base;
+  let directDeltaError = null;
+  try {
+    directTracker.apply({ t: "delta", tick: ownerBaseline.tick + 1, baseTick: ownerBaseline.tick,
+      serverMs: (ownerBaseline.tick + 1) * 50, phase: null, ack: 0, training: false,
+      me: { mask: 0 }, changed: [], departed: [],
+      ownerCombat: { lock: { unknown: true }, drawStartedAt: 1, readyAt: 2, asMilli: 50, windupMilli: 50, speedMilli: 50 } });
+  } catch (error) { directDeltaError = error; }
+  eq(directDeltaError?.code, "owner_combat", "direct apply rejects malformed Delta group");
+  eq(directTracker.base, ownerBaseline, "direct apply invalid Delta preserves exact baseline");
+  directTracker.apply({ t: "delta", tick: ownerBaseline.tick + 1, baseTick: ownerBaseline.tick,
+    serverMs: (ownerBaseline.tick + 1) * 50, phase: null, ack: 0, training: false,
+    me: null, changed: [], departed: [], ownerCombat: null });
+  eq(directTracker.base.ownerCombat, null, "explicit unavailable Delta is accepted with owner loss");
+  directTracker.apply({ ...directBaseline, tick: ownerBaseline.tick + 2, ownerCombat: callerGroup });
+  directTracker.apply({ t: "welcome" });
+  eq(directTracker.base, null, "Welcome reset clears owner-combat group baseline");
+}
+
 const wishFxCoverage = new Set();
 const groundMapCoverage = { modes: new Set(), presence: new Set(), names: new Set(), presentZero: false };
 const wishBarrierCoverage = {
   fullDefault: false, fullReset: false, deltaWishClear: false, deltaSelfBarrierClear: false,
   deltaActorBarrierClear: false, newActorBarrierDefault: false, sourceOverride: false, sourceDefaultAfterOverride: false,
+};
+const ownerCombatCoverage = {
+  clear: false, heldNone: false, heldActor: false, mirrorMin: false, mirrorMaxFinite: false,
+  retainedOmitted: false, explicitUnavailable: false, ownerLossClears: false,
+  redundantUnavailableWithoutSelf: false, danglingDeltaRefused: false,
 };
 
 for (const v of fx.server) {
@@ -259,6 +307,11 @@ for (const v of fx.server) {
   const d = v.decoded, n = v.name;
   if (m.t === "snapshot") {
     checkSnapshot(m, d, n);
+    if (n === "owner_combat_clear") ownerCombatCoverage.clear = m.ownerCombat?.lock?.clear === true;
+    if (n === "owner_combat_held_none") ownerCombatCoverage.heldNone = m.ownerCombat?.lock?.held === true && m.ownerCombat.lock.target === null;
+    if (n === "owner_combat_held_player") ownerCombatCoverage.heldActor = m.ownerCombat?.lock?.held === true && Number.isInteger(m.ownerCombat.lock.target);
+    if (n === "owner_combat_mirror_min") ownerCombatCoverage.mirrorMin = [m.ownerCombat?.asMilli, m.ownerCombat?.windupMilli, m.ownerCombat?.speedMilli].every(v => v === 50);
+    if (n === "owner_combat_mirror_max_finite") ownerCombatCoverage.mirrorMaxFinite = [m.ownerCombat?.asMilli, m.ownerCombat?.windupMilli, m.ownerCombat?.speedMilli].some(v => v === Number.MAX_VALUE);
   } else if (m.t === "fx") {
     eq(m.tick, d.tick, `${n} tick`); eq(m.fx.length, d.fx.length, `${n} fx`);
     d.fx.forEach((e, i) => {
@@ -371,6 +424,12 @@ const reason = {
   state_quest_participants_over_limit: /too many quest participants/,
   state_quest_objectives_over_limit: /too many quest objectives/,
   state_quest_objectives_per_row_over_limit: /too many objectives per quest/,
+  owner_combat_bad_lock: /owner combat/, owner_combat_zero_target: /owner combat/,
+  owner_combat_missing_self: /owner combat/, owner_combat_dangling_target: /owner combat/,
+  owner_combat_nonfinite_mirror: /owner combat/, owner_combat_fractional_mirror: /owner combat/,
+  owner_combat_below_min_mirror: /owner combat/, delta_owner_combat_option_unknown: /owner combat/,
+  delta_owner_combat_bad_lock: /owner combat/, delta_owner_combat_zero_target: /owner combat/,
+  delta_owner_combat_nonfinite_mirror: /owner combat/, delta_owner_combat_available_without_self: /owner combat/,
   state_plan_negative_deadline: /plan/, state_unknown_key: /state key/, state_trailing_byte: /trailing/, state_truncated: /./,
   delta_head_unknown_bit: /head/, delta_head_overlong_varint: /varint/, delta_phase_over_3: /phase/, delta_actor_mask_unknown_bit: /actor mask/,
   delta_actor_status_over_3: /status/,
@@ -413,6 +472,19 @@ for (const name of ["state_quest_status_unknown", "state_quest_flags_unknown", "
 if (version >= 14) {
   for (const name of ["snapshot_quest_giver_actor", "snapshot_unknown_kind_max_kit", "snapshot_zero_hp"]) {
     if (!fx.server.some(v => v.name === name)) throw new Error(`missing Rust-generated ${name} control`);
+  }
+  for (const name of ["owner_combat_clear", "owner_combat_held_none", "owner_combat_held_player",
+    "owner_combat_mirror_min", "owner_combat_mirror_max_finite"]) {
+    if (!fx.server.some(v => v.name === name)) throw new Error(`missing Rust-generated ${name} control`);
+  }
+  if (!fx.server.some(v => v.name === "delta_owner_combat_redundant_clear_owner_loss")) {
+    throw new Error("missing Rust-generated delta_owner_combat_redundant_clear_owner_loss control");
+  }
+  for (const name of ["owner_combat_bad_lock", "owner_combat_zero_target", "owner_combat_missing_self",
+    "owner_combat_dangling_target", "owner_combat_nonfinite_mirror", "owner_combat_fractional_mirror",
+    "owner_combat_below_min_mirror", "delta_owner_combat_option_unknown", "delta_owner_combat_bad_lock",
+    "delta_owner_combat_zero_target", "delta_owner_combat_nonfinite_mirror", "delta_owner_combat_available_without_self"]) {
+    if (!fx.malformedServer.some(v => v.name === name)) throw new Error(`missing Rust-generated ${name} control`);
   }
   const giver = decode(bytes(fx.server.find(v => v.name === "snapshot_quest_giver_actor").hex)).actors[0];
   eq(giver.kind, 4, "QuestGiver raw kind"); eq(giver.faction, 15, "QuestGiver raw faction sentinel");
@@ -485,11 +557,12 @@ for (const c of fx.chains) {
       if (!err) throw new Error(`${at}: the delta was applied, want refused ${st.refused}`);
       eq(err.code, st.refused, `${at} reason`);
       eq(JSON.stringify(t.base && { tick: t.base.tick, n: t.base.actors.length }), JSON.stringify(held), `${at} state kept`);
-      if (c.name.startsWith("quest_giver_")) eq(t.base, previousBase, `${at} exact snapshot baseline kept`);
+      if (c.name.startsWith("quest_giver_") || c.name.startsWith("owner_combat_")) eq(t.base, previousBase, `${at} exact snapshot baseline kept`);
+      if (c.name === "owner_combat_dangling_delta_refused" && st.refused === "owner_combat") ownerCombatCoverage.danglingDeltaRefused = true;
       return;
     }
     const frame = bytes(st.hex), tag = new Uint8Array(frame)[0], previous = t.base;
-    const m = t.decode(frame);
+    const raw = decode(frame), m = t.apply(raw);
     if (st.reset) { eq(m.t, "welcome", `${at} welcome`); eq(t.base, null, `${at} reset`); }
     else if (st.held) { eq(t.base.tick, st.held.tick, `${at} held tick`); eq(t.base.actors.length, st.held.actors, `${at} held actors`); }
     else {
@@ -517,6 +590,20 @@ for (const c of fx.chains) {
       }
       if (c.name === "wish_source_time_per_frame" && tag === 0x87 && previous
         && previous.serverMs !== previous.tick * 50 && m.serverMs === m.tick * 50) wishBarrierCoverage.sourceDefaultAfterOverride = true;
+      if (c.name === "owner_combat_retain_and_clear" && raw.t === "delta" && previous?.ownerCombat
+        && !Object.prototype.hasOwnProperty.call(raw, "ownerCombat") && JSON.stringify(m.ownerCombat) === JSON.stringify(previous.ownerCombat)) {
+        ownerCombatCoverage.retainedOmitted = true;
+      }
+      if (c.name === "owner_combat_retain_and_clear" && raw.t === "delta"
+        && Object.prototype.hasOwnProperty.call(raw, "ownerCombat") && raw.ownerCombat === null && m.ownerCombat === null) {
+        ownerCombatCoverage.explicitUnavailable = true;
+      }
+      if (c.name === "owner_combat_owner_loss_clears" && previous?.ownerCombat && m.me === null && m.ownerCombat === null) {
+        ownerCombatCoverage.ownerLossClears = true;
+      }
+      if (c.name === "owner_combat_redundant_unavailable_without_self" && raw.t === "delta"
+        && Object.prototype.hasOwnProperty.call(raw, "ownerCombat") && raw.ownerCombat === null && raw.me === null
+        && m.me === null && m.ownerCombat === null) ownerCombatCoverage.redundantUnavailableWithoutSelf = true;
     }
     if (c.name === "wish_source_time_per_frame" && m.t === "snapshot" && m.serverMs !== m.tick * 50) wishBarrierCoverage.sourceOverride = true;
   });
@@ -539,5 +626,12 @@ for (const name of ["wish_barrier_lifecycle", "wish_source_time_per_frame"]) {
 }
 for (const [name, ok] of Object.entries(wishBarrierCoverage)) if (!ok) throw new Error(`missing protocol12 tracker coverage: ${name}`);
 for (const kind of ["castStarted", "castLanded", "castEnded"]) if (!wishFxCoverage.has(kind)) throw new Error(`missing Rust-generated Wish Fx ${kind}`);
+if (version >= 14) {
+  for (const [name, ok] of Object.entries(ownerCombatCoverage)) if (!ok) throw new Error(`missing owner-combat Tracker coverage: ${name}`);
+  for (const name of ["owner_combat_retain_and_clear", "owner_combat_owner_loss_clears",
+    "owner_combat_redundant_unavailable_without_self", "owner_combat_dangling_delta_refused"]) {
+    if (!fx.chains.some(c => c.name === name)) throw new Error(`missing Rust-generated ${name} chain`);
+  }
+}
 
 console.log(`JS decoder agrees with protocol/fixtures/v${version}.json: ${fx.server.length} server vectors, ${fx.malformedServer.length} malformed, ${fx.chains.length} chains, ${checks} checks`);

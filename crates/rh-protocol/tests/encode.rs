@@ -56,6 +56,7 @@ fn me() -> WireSelf {
 fn snapshot(me: Option<WireSelf>, n: u32) -> ServerMsg {
     ServerMsg::Snapshot {
         training: false,
+        owner_combat: None,
         tick: 101,
         server_time: snapshot_server_ms(101),
         phase: 1,
@@ -77,8 +78,10 @@ fn decoded_form(m: &ServerMsg) -> ServerMsg {
             actors,
 
             training: _,
+            owner_combat,
         } => ServerMsg::Snapshot {
             training: false,
+            owner_combat: *owner_combat,
             tick: *tick,
             phase: *phase,
             ack_input: *ack_input,
@@ -101,6 +104,7 @@ fn full_frame(out: &mut Vec<u8>, m: &ServerMsg) -> Result<usize, EncodeError> {
         actors,
         training,
         server_time,
+        owner_combat,
     } = m
     else {
         panic!("not a snapshot")
@@ -114,6 +118,7 @@ fn full_frame(out: &mut Vec<u8>, m: &ServerMsg) -> Result<usize, EncodeError> {
         actors.iter().copied(),
     )?;
     snap.set_training(*training);
+    snap.set_owner_combat(*owner_combat)?;
     Ok(snap.encode_full_into(out))
 }
 
@@ -506,6 +511,7 @@ fn positions_outside_the_quantizable_range_are_refused_not_clamped() {
     let at = |x: f32, y: f32| WireActor { x, y, ..actor(0) };
     let snap = |a: WireActor| ServerMsg::Snapshot {
         training: false,
+        owner_combat: None,
         tick: 1,
         server_time: snapshot_server_ms(1),
         phase: 1,

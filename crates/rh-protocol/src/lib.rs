@@ -391,6 +391,55 @@ pub struct WireSelf {
     pub barrier_ring_step: u8,
 }
 
+/// Owner-only action lock state. This is display data, not a capability to target or act.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum WireOwnerLock {
+    Clear,
+    Held { target: Option<u32> },
+}
+
+/// Owner-only canonical combat clock and modifier mirrors.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct WireOwnerCombat {
+    pub lock: WireOwnerLock,
+    pub draw_started_at: u32,
+    pub ready_at: u32,
+    pub as_milli: f64,
+    pub windup_milli: f64,
+    pub speed_milli: f64,
+}
+
+impl WireOwnerCombat {
+    fn valid(&self) -> bool {
+        [self.as_milli, self.windup_milli, self.speed_milli]
+            .into_iter()
+            .all(|v| v.is_finite() && v >= 50.0 && v.fract() == 0.0)
+            && match self.lock {
+                WireOwnerLock::Clear | WireOwnerLock::Held { target: None } => true,
+                WireOwnerLock::Held { target: Some(id) } => id != 0,
+            }
+    }
+}
+
+/// Shared owner-combat structural check for snapshot builders and connection adapters.
+/// `target_present` is consulted only for a known lock target.
+pub fn owner_combat_fault(
+    owner: Option<&WireOwnerCombat>,
+    owner_present: bool,
+    target_present: impl FnOnce(u32) -> bool,
+) -> Option<&'static str> {
+    let owner = owner?;
+    if !owner_present || !owner.valid() {
+        return Some("owner combat");
+    }
+    if let WireOwnerLock::Held { target: Some(id) } = owner.lock {
+        if !target_present(id) {
+            return Some("owner combat");
+        }
+    }
+    None
+}
+
 /// Owner-only, already-authoritative Wish display facts (ADR0022). This carries no target, cursor, rank, or outcome.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct WireWishOwner {
@@ -671,6 +720,8 @@ pub enum ServerMsg {
         /// Protocol 11: the source's public training fact (head bit 16; absent means false, so a non-training frame is
         /// byte-identical to v7 apart from the version number).
         training: bool,
+        /// Owner-only source lock/timing and mirror group. `None` is explicitly unavailable in a Full frame.
+        owner_combat: Option<WireOwnerCombat>,
     },
     /// A snapshot as a delta against the last one the connection received (v3); see [`delta`].
     SnapshotDelta(SnapshotDelta),
@@ -938,6 +989,8 @@ pub(crate) const HM_HUNT_STACKS: u32 = 1 << 15;
 pub(crate) const HM_WISH: u32 = 1 << 17;
 pub(crate) const HM_BARRIER: u32 = 1 << 18;
 pub(crate) const HM_SERVER_TIME: u32 = 1 << 19;
+/// Available owner-combat record follows the actor section of a Full snapshot.
+pub(crate) const HM_OWNER_COMBAT: u32 = 1 << 20;
 pub(crate) const HM_SELF_BITS: u32 = 0x03ff
     | HM_EFFECTS
     | HM_DISPLACE
@@ -946,7 +999,8 @@ pub(crate) const HM_SELF_BITS: u32 = 0x03ff
     | HM_HUNT_STACKS
     | HM_WISH
     | HM_BARRIER;
-pub(crate) const HM_KNOWN: u32 = HM_SELF_BITS | HM_PHASE | HM_TRAINING | HM_SERVER_TIME;
+pub(crate) const HM_KNOWN: u32 =
+    HM_SELF_BITS | HM_PHASE | HM_TRAINING | HM_SERVER_TIME | HM_OWNER_COMBAT;
 pub(crate) const HM_TRAINING: u32 = 1 << 16;
 /// Full actor mask bits (append only): 0 kit, 1 hp, 2 status, 3 bounty, 4 kind.
 pub(crate) const AM_KIT: u32 = 1 << 0;
@@ -1119,6 +1173,35 @@ pub(crate) fn read_wish_owner(r: &mut Reader) -> Result<WireWishOwner, DecodeErr
     Ok(wish)
 }
 
+pub(crate) fn read_owner_combat(r: &mut Reader) -> Result<WireOwnerCombat, DecodeError> {
+    let lock = match r.u8()? {
+        0 => WireOwnerLock::Clear,
+        1 => WireOwnerLock::Held { target: None },
+        2 => {
+            let target = r.varint()?;
+            if target == 0 {
+                return Err(DecodeError::BadField("owner combat"));
+            }
+            WireOwnerLock::Held {
+                target: Some(target),
+            }
+        }
+        _ => return Err(DecodeError::BadField("owner combat")),
+    };
+    let owner = WireOwnerCombat {
+        lock,
+        draw_started_at: r.u32()?,
+        ready_at: r.u32()?,
+        as_milli: r.f64()?,
+        windup_milli: r.f64()?,
+        speed_milli: r.f64()?,
+    };
+    if !owner.valid() {
+        return Err(DecodeError::BadField("owner combat"));
+    }
+    Ok(owner)
+}
+
 /// A byte that must be at most `max`.
 pub(crate) fn code(r: &mut Reader, max: u8, what: &'static str) -> Result<u8, DecodeError> {
     match r.u8()? {
@@ -1277,6 +1360,19 @@ impl ServerMsg {
                     prev = Some(a.id);
                     actors.push(a);
                 }
+                let owner_combat = if head & HM_OWNER_COMBAT != 0 {
+                    let owner = read_owner_combat(&mut r)?;
+                    if owner_combat_fault(Some(&owner), me.is_some(), |id| {
+                        actors.binary_search_by_key(&id, |a| a.id).is_ok()
+                    })
+                    .is_some()
+                    {
+                        return Err(DecodeError::BadField("owner combat"));
+                    }
+                    Some(owner)
+                } else {
+                    None
+                };
                 if actors
                     .iter()
                     .any(|actor| encode::giver_actor_fault(actor).is_some())
@@ -1291,6 +1387,7 @@ impl ServerMsg {
                     me,
                     actors,
                     training,
+                    owner_combat,
                 }
             }
             T_SNAPSHOT_DELTA => ServerMsg::SnapshotDelta(delta::read_snapshot_delta(&mut r)?),

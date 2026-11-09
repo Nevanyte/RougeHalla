@@ -140,6 +140,7 @@ fn maximum_full_records_and_reference_delta_preserve_new_scalars() {
     assert!(SnapshotData::build(1, 1, 0, None, [invalid].into_iter()).is_err());
     assert!(ServerMsg::Snapshot {
         training: false,
+        owner_combat: None,
         tick: 1,
         server_time: snapshot_server_ms(1),
         phase: 1,
@@ -151,6 +152,7 @@ fn maximum_full_records_and_reference_delta_preserve_new_scalars() {
     .is_err());
     let bad_delta = SnapshotDelta {
         training: false,
+        owner_combat: None,
         tick: 2,
         server_time: snapshot_server_ms(2),
         base_tick: 1,

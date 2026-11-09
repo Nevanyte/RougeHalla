@@ -623,6 +623,7 @@ fn deltas_that_do_not_apply_are_refused_and_change_nothing() {
     t.decode(&first_full(&a)).unwrap();
     let d = SnapshotDelta {
         training: false,
+        owner_combat: None,
         tick: 11,
         server_time: 550.0,
         base_tick: 10,
@@ -643,6 +644,7 @@ fn deltas_that_do_not_apply_are_refused_and_change_nothing() {
     // Before any snapshot, and after a Welcome.
     let d = ServerMsg::SnapshotDelta(SnapshotDelta {
         training: false,
+        owner_combat: None,
         tick: 11,
         server_time: 550.0,
         base_tick: 10,
@@ -684,6 +686,7 @@ fn a_delta_cannot_grow_the_actor_list_past_max_actors() {
     t.decode(&first_full(&a)).unwrap();
     let d = SnapshotDelta {
         training: false,
+        owner_combat: None,
         tick: 2,
         server_time: 100.0,
         base_tick: 1,

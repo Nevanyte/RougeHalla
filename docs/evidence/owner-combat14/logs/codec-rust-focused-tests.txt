@@ -1,0 +1,73 @@
+   Compiling rh-protocol v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/crates/rh-protocol)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.86s
+     Running tests/delta.rs (/Users/nevinmckinnon/.codex/targets/rougehalla-owner-combat14/debug/deps/delta-2d7457deebf73a61)
+
+running 18 tests
+test a_delta_that_is_not_smaller_than_the_full_frame_is_sent_as_the_full_frame ... ok
+test the_resync_message_round_trips_and_has_no_body ... ok
+test snapshot_data_refuses_positions_off_the_grid_so_no_delta_can_carry_one ... ok
+test a_delta_cannot_grow_the_actor_list_past_max_actors ... ok
+test deltas_that_do_not_apply_are_refused_and_change_nothing ... ok
+test the_first_snapshot_a_resync_a_stale_base_and_a_new_self_are_full_frames ... ok
+test a_resumed_connection_starts_with_a_full_frame_whatever_the_old_one_held ... ok
+test two_refusals_inside_the_interval_still_end_with_a_full_frame ... ok
+test a_delta_of_hundreds_of_changed_actors_has_a_two_byte_count_and_applies ... ok
+test fuzzed_delta_frames_never_panic_and_a_refused_one_changes_nothing ... ok
+test a_resync_inside_the_interval_is_deferred_not_dropped ... ok
+test a_resync_flood_costs_one_forced_full_frame_per_interval ... ok
+test a_full_frame_from_snapshot_data_is_the_v2_frame_byte_for_byte ... ok
+test skipped_snapshots_never_reach_the_encoder_and_the_next_delta_applies ... ok
+test a_delta_reveals_nothing_the_full_frame_does_not ... ok
+test the_encoders_delta_bytes_are_the_reference_messages_bytes ... ok
+test a_chain_of_full_and_delta_frames_equals_the_full_frame_of_every_tick ... ok
+test per_connection_state_is_bounded_by_max_actors ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/giver_actor.rs (/Users/nevinmckinnon/.codex/targets/rougehalla-owner-combat14/debug/deps/giver_actor-c3bb1329db0766bf)
+
+running 3 tests
+test direct_apply_rejects_invalid_full_before_replacing_held_state ... ok
+test retained_delta_fields_are_checked_after_reconstruction_and_refusal_is_atomic ... ok
+test giver_tuple_is_contextual_and_unknown_kinds_keep_their_full_domains ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/owner_combat.rs (/Users/nevinmckinnon/.codex/targets/rougehalla-owner-combat14/debug/deps/owner_combat-11077070b9603bc7)
+
+running 6 tests
+test full_decode_and_direct_apply_refuse_dangling_target_before_held_state_changes ... ok
+test rejected_builder_update_preserves_prior_group_and_checked_sizes ... ok
+test delta_retains_explicitly_clears_and_replaces_on_current_npc_sequence_change ... ok
+test full_group_round_trips_and_uses_all_closed_lock_shapes ... ok
+test tracker_owner_loss_clears_and_dangling_retained_target_refuses_atomically ... ok
+test conn_encoder_emits_reference_wire_and_omits_unchanged_group ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/vectors.rs (/Users/nevinmckinnon/.codex/targets/rougehalla-owner-combat14/debug/deps/vectors-6635db2e551fe0eb)
+
+running 11 tests
+test varints_round_trip_and_have_one_encoding ... ok
+test map_blob_rejects_a_wrong_hash_and_bad_runs ... ok
+test malformed_client_frames_are_rejected ... ok
+test decoding_then_encoding_a_valid_snapshot_is_byte_identical ... ok
+test every_sample_round_trips ... ok
+test the_delta_chain_uses_both_frame_kinds_and_every_field_class ... ok
+test malformed_server_frames_are_rejected_for_the_documented_reason ... ok
+test every_chain_replays_to_its_recorded_outcome ... ok
+test committed_vectors_match_the_encoder ... ok
+test fuzzed_client_frames_never_panic ... ok
+test fuzzed_server_frames_never_panic ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests/wish_barrier.rs (/Users/nevinmckinnon/.codex/targets/rougehalla-owner-combat14/debug/deps/wish_barrier-e5c9feacfa961557)
+
+running 4 tests
+test self_delta_wish_payload_is_ignored_without_its_mask_bit ... ok
+test landed_fx_rejects_open_or_mismatched_geometry ... ok
+test wish_barrier_clear_and_per_frame_time_are_lossless_through_tracker ... ok
+test cast_slot_and_option_matrix_round_trips_and_bad_closed_values_are_refused ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

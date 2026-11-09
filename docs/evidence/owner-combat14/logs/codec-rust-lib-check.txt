@@ -1,0 +1,2 @@
+    Checking rh-protocol v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/crates/rh-protocol)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.09s

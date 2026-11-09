@@ -1,0 +1,57 @@
+$ /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/dotnet/dotnet test client-unity/RoguehallaNet.Tests/RoguehallaNet.Tests.csproj --no-restore --verbosity minimal
+  RoguehallaNet -> /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/client-unity/RoguehallaNet/bin/Debug/netstandard2.1/RoguehallaNet.dll
+  RoguehallaNet.Probe -> /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/client-unity/RoguehallaNet.Probe/bin/Debug/net8.0/RoguehallaNet.Probe.dll
+  RoguehallaNet.Tests -> /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/client-unity/RoguehallaNet.Tests/bin/Debug/net8.0/RoguehallaNet.Tests.dll
+Test run for /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/client-unity/RoguehallaNet.Tests/bin/Debug/net8.0/RoguehallaNet.Tests.dll (.NETCoreApp,Version=v8.0)
+VSTest version 17.11.1 (arm64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+  Failed PlainDecodeAllocatesOnlyTheSnapshotItsSelfAndOneActorArray(1) [22 ms]
+  Error Message:
+     Assert.That(arg1, Is.LessThanOrEqualTo(arg2))
+  Expected: less than or equal to 120.0d
+  But was:  128.0d
+
+  Stack Trace:
+     at NUnit.Framework.Legacy.ClassicAssert.LessOrEqual(Double arg1, Double arg2)
+   at Roguehalla.Net.Tests.GarbageTests.PlainDecodeAllocatesOnlyTheSnapshotItsSelfAndOneActorArray(Int32 actors) in /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/client-unity/RoguehallaNet.Tests/GarbageTests.cs:line 91
+
+1)    at NUnit.Framework.Legacy.ClassicAssert.LessOrEqual(Double arg1, Double arg2)
+   at Roguehalla.Net.Tests.GarbageTests.PlainDecodeAllocatesOnlyTheSnapshotItsSelfAndOneActorArray(Int32 actors) in /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/client-unity/RoguehallaNet.Tests/GarbageTests.cs:line 91
+
+
+  Failed PlainDecodeAllocatesOnlyTheSnapshotItsSelfAndOneActorArray(14) [61 ms]
+  Error Message:
+     Assert.That(arg1, Is.LessThanOrEqualTo(arg2))
+  Expected: less than or equal to 536.0d
+  But was:  544.0d
+
+  Stack Trace:
+     at NUnit.Framework.Legacy.ClassicAssert.LessOrEqual(Double arg1, Double arg2)
+   at Roguehalla.Net.Tests.GarbageTests.PlainDecodeAllocatesOnlyTheSnapshotItsSelfAndOneActorArray(Int32 actors) in /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/client-unity/RoguehallaNet.Tests/GarbageTests.cs:line 91
+   at InvokeStub_GarbageTests.PlainDecodeAllocatesOnlyTheSnapshotItsSelfAndOneActorArray(Object, Span`1)
+
+1)    at NUnit.Framework.Legacy.ClassicAssert.LessOrEqual(Double arg1, Double arg2)
+   at Roguehalla.Net.Tests.GarbageTests.PlainDecodeAllocatesOnlyTheSnapshotItsSelfAndOneActorArray(Int32 actors) in /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/client-unity/RoguehallaNet.Tests/GarbageTests.cs:line 91
+   at InvokeStub_GarbageTests.PlainDecodeAllocatesOnlyTheSnapshotItsSelfAndOneActorArray(Object, Span`1)
+
+
+  Failed PlainDecodeAllocatesOnlyTheSnapshotItsSelfAndOneActorArray(68) [262 ms]
+  Error Message:
+     Assert.That(arg1, Is.LessThanOrEqualTo(arg2))
+  Expected: less than or equal to 2264.0d
+  But was:  2272.0d
+
+  Stack Trace:
+     at NUnit.Framework.Legacy.ClassicAssert.LessOrEqual(Double arg1, Double arg2)
+   at Roguehalla.Net.Tests.GarbageTests.PlainDecodeAllocatesOnlyTheSnapshotItsSelfAndOneActorArray(Int32 actors) in /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/client-unity/RoguehallaNet.Tests/GarbageTests.cs:line 91
+   at InvokeStub_GarbageTests.PlainDecodeAllocatesOnlyTheSnapshotItsSelfAndOneActorArray(Object, Span`1)
+
+1)    at NUnit.Framework.Legacy.ClassicAssert.LessOrEqual(Double arg1, Double arg2)
+   at Roguehalla.Net.Tests.GarbageTests.PlainDecodeAllocatesOnlyTheSnapshotItsSelfAndOneActorArray(Int32 actors) in /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/client-unity/RoguehallaNet.Tests/GarbageTests.cs:line 91
+   at InvokeStub_GarbageTests.PlainDecodeAllocatesOnlyTheSnapshotItsSelfAndOneActorArray(Object, Span`1)
+
+
+
+Failed!  - Failed:     3, Passed:   700, Skipped:     0, Total:   703, Duration: 4 s - RoguehallaNet.Tests.dll (net8.0)
