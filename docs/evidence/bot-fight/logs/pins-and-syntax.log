@@ -1,0 +1,9 @@
+sourceSha256 113 exact Git and current bytes PASS
+configSha256 8 exact Git and current bytes PASS
+toolSha256 7 exact Git and current bytes PASS
+14 raw control logs exactly match controls.json SHA pins PASS
+node --check tools/bot-fight-fixtures/verify.mjs PASS
+node --check tools/bot-fight-fixtures/controls.mjs PASS
+bash -n tools/bot-fight-fixtures/capture.sh tools/bot-fight-fixtures/controls.sh PASS
+git diff --check PASS
+Fixture bytes 467672 sha256 197fe5d24b6b34822a3ef76e2999d422e6127bbda1e8dfda0ba0af3ee5e2785e
