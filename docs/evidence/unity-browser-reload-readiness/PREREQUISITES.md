@@ -3,8 +3,9 @@
 ## Source/artifact gate
 
 Root first accepts the actual frozen98-case Editor run and rendered-layout check,
-then builds a coherent Unity Web artifact from6d (or an explicitly reviewed
-successor with an input-equivalence receipt). Record the actual Editor/version,
+then builds a coherent Unity Web artifact from6d. A successor requires an explicit
+Root-reviewed contract/input-equivalence amendment; do not label a later build6d
+to satisfy the current checker's exact source field. Record the actual Editor/version,
 source-before/as-built serialization overlay, BakedContent generator input,
 resource names/lengths/SHA256, build logs and actual served/downloaded resource
 hashes. Generate BakedContent from the **real matching native server `/info`**;

@@ -1,0 +1,21 @@
+{
+  "scope": "synthetic offline readers, fake socket objects and VM only; no browser/Unity/NodeWorld/network/storage/credentials",
+  "command": [
+    "node",
+    "--test",
+    "tools/unity-browser-reload-proof/check.test.mjs"
+  ],
+  "startedUtc": "2026-11-09T19:09:04.404145+00:00",
+  "exitCode": 0,
+  "sourceSha256": {
+    "tools/unity-browser-reload-proof/Caddyfile.local.proposal": "14073a2d20b62517d74ec22f54be59ffe2ae6d754ad2a4556c83d6480d106798",
+    "tools/unity-browser-reload-proof/check.mjs": "7b7cdd6d31e3b2f5c53b165bfb0dffb05c8b4175726d7ea415ee7bbce3207f42",
+    "tools/unity-browser-reload-proof/check.test.mjs": "a0f63e640e8533bdbcc7b43e84dc0007345715f2235b7753294e8a9b3e27c93d",
+    "tools/unity-browser-reload-proof/make-preload-proposal.mjs": "472a8976560bd24adb67120cee42d16af2a3bd1d7927a2236e489882caa81716",
+    "tools/unity-browser-reload-proof/observer.js": "85c27556d0e51c23c50edc06809010442e8513272d3d3cde88f8426850a630e3",
+    "tools/unity-browser-reload-proof/pin-sources.mjs": "6559edc6ffe6c623e65d4ae12c7bc374b37b84b39536dc71c2e3e7e4059f79df",
+    "tools/unity-browser-reload-proof/wire-metadata.js": "1347008ce2d4da0a0b8d1a9cf1b897a0404b87ecd7e4e74f066265d39f093e00",
+    "tools/unity-browser-reload-proof/wire-tap-proposal.js": "50d70d91b60352033aede576b8ee2d154eecf3be7a32567a762338674cfacb35"
+  },
+  "logSha256": "acb40204bc710fb66e5fcfca6a2d346306fd3f270720e47efcd0f4f0e35e3fe9"
+}

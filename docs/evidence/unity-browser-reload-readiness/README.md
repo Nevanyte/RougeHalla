@@ -65,3 +65,35 @@ The proposed packet has no actual Web artifact or runtime outcome. The historica
 a3d/643d partial browser artifact, older accelerated a0 native bridge, managed923
 and finite Editor gates retain their original scopes. None is relabeled as a
 coherent native29 full-page reload, durable banking or browser performance proof.
+
+## Bounded readiness checks
+
+Source-ready cut`07bdb2bef143635ffd1e73f2f81b40c942dd6327` passes15 built-in Node
+**offline synthetic** tests: guarded-reader forbidden-range checks; structural
+truncation/version/size refusal; original argument/buffer forwarding on fake
+objects; native-error propagation; own-document idempotence; generated-script
+syntax and reversible installation in a synthetic VM; and checker privacy,
+fresh-document/identity/fallback/timing contradictions. These are not browser,
+socket I/O, auth, map semantic validation or performance measurements.
+
+[The final receipt](offline-synthetic-final.json) pins all eight tool inputs and
+its raw log. The earlier12-test pass is retained separately. Independent source
+review found two causality gaps: a screenshot tolerance could admit connection
+before the actual trusted Resume click, and resumed mode evidence could precede
+Welcome. Both were corrected and get dedicated final synthetic regressions; the
+bounded recheck found no remaining blocker. Screenshot correlation retains its
+tolerance, while connection/Hello use the actual pointer's monotonic lower bound.
+
+[Expanded source pins](source-pins-expanded-manifest.json) contain34 immutable
+reference files and five identical reviewed UI/store sources. The first30-file
+hashing receipt remains retained. No mutable Root worktree was edited.
+[CLI readiness](cli-readiness.json) confirms template/proposal generation only:
+the NOT_RUN template checks OPEN with expected exit2. The emitted
+[preload proposal](preload-proposal.js), SHA256
+`ae7589ce21a58a3baa9022eae40b236baf0e29fcd3cf75bc6adc3ff7b098688f`,
+was never executed in a browser. Root reviews its exact source before release.
+
+Actual native98/layout/coherent Web build, serving/routing, same-tab reload,
+default-grace timing, current-owner behavior, real Result/receipt and all browser
+acceptance remain **NOT RUN/OPEN**. This packet is ready for Root review and stops
+here; it does not authorize its own next execution phase.
