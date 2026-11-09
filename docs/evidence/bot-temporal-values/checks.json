@@ -1,0 +1,97 @@
+{
+  "format": "rh-private-temporal-values-checks/1",
+  "base": "c52e41a633c91f8402e3f68724e9202351d1cdb3",
+  "source": "73fc5d52b411a8868aefd9a767c6fd15e5139df1",
+  "target": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fight-native/target",
+  "environment": {
+    "CARGO_BUILD_JOBS": "1",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "after_sourcing": "final-env.sh then explicit CARGO_TARGET_DIR override"
+  },
+  "commands": [
+    {
+      "command": "cargo test -p rh-policy --lib temporal_percept --locked --offline -- --nocapture",
+      "exit": 0,
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/01-temporal-tests.log"
+    },
+    {
+      "command": "cargo clippy -p rh-policy --lib --tests --all-features --locked --offline -- -D warnings",
+      "exit": 0,
+      "log": "logs/02-policy-clippy.log"
+    },
+    {
+      "command": "rustfmt --check --edition 2021 --config skip_children=true <exact four leased files>",
+      "exit": 0,
+      "log": "logs/03-format.log"
+    },
+    {
+      "command": "git diff --check",
+      "exit": 0,
+      "log": "logs/04-diff-check.log"
+    }
+  ],
+  "old_test_names_retained": [
+    "earned_runner_actual_frames_replay_all_five_prefilter_schedules",
+    "declared_timestamp_replacement_late_ignore_and_velocity_use_exact_hundred_ms",
+    "declared_teleport_camera_scene_cut_and_strict_distance_guard",
+    "declared_flight_course_retains_hidden_map_order_once_credit_end_and_done",
+    "declared_attribution_is_strict_nearest_public_drawn_actor_and_persists_null",
+    "declared_world_then_immediate_order_redaction_and_announcement_subject_lifetime",
+    "declared_death_pending_body_fade_and_extras_are_windowed_without_dropping_chests",
+    "declared_source_overflow_is_reported_not_claimed_as_safe_public_admission",
+    "unavailable_nonfinite_and_failed_composition_leave_reached_state_unchanged",
+    "declared_tint_nearest_foe_strict_mob_tie_and_unknown_faction_are_distinct",
+    "declared_flight_tombstones_have_source_insertion_lifetime_and_reflected_vanish"
+  ],
+  "new_test_names": [
+    "declared_undefined_is_distinct_from_null_absence_and_a_tag_object",
+    "declared_undefined_body_payload_survives_reached_composition_without_null_or_omission",
+    "declared_undefined_required_input_refuses_without_mutating_reached_ring"
+  ],
+  "actual_old_source_result": {
+    "frames": 1549,
+    "prefilter": 1541,
+    "null": 8,
+    "maxRawAbs": 0.0
+  },
+  "first_compilation_or_test_failure": "none: first affected run passed",
+  "protected_blob_equality_base_to_source": {
+    "crates/rh-policy/src/bots/view.rs": {
+      "bytes": 7516,
+      "sha256": "58ae906b6d9fd61d79f72e7e60d5a6b7abf5859ade3a0b22cbc7a7c890d7343e"
+    },
+    "Cargo.lock": {
+      "bytes": 66555,
+      "sha256": "b14507716b80f1c0b85f7298b380b3c9146917134d9361c1bb408062782c0b22"
+    },
+    "crates/rh-sim/src/observe.rs": {
+      "bytes": 43747,
+      "sha256": "1df957af68ffa0072db244a74661ec479062b8dc0a62b5efd3668bd6cd2ba653"
+    },
+    "crates/rh-protocol/src/lib.rs": {
+      "bytes": 66060,
+      "sha256": "d1258e9c3bd9911a32d0cbdce375c2a0a9ca8f3d792a8b368e382833cc3e896c"
+    },
+    "parity/policy/npc-runner-callsite/source.json": {
+      "bytes": 30636484,
+      "sha256": "0c9344109283d2cf848c83892924071e9277f163d79e69e3c634c3d19c7f4a58"
+    }
+  },
+  "cache_release": {
+    "owned_cargo": "none",
+    "lsof_exit": 1,
+    "lsof_output_bytes": 0,
+    "disk_free_bytes": 9114628096,
+    "log": "logs/05-cache-release.log"
+  },
+  "held": [
+    "new45MB actual source consumer UNRUN",
+    "full BotVision/Memory/Brain parity",
+    "P15 public disclosure/intake/live activation"
+  ]
+}

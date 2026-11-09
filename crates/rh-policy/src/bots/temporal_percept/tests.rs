@@ -2,28 +2,43 @@
 //! Remaining controls are explicitly declared native method contexts, NOT source parity.
 use super::*;
 use crate::bots::temporal_percept::input::Maps;
-use crate::bots::view::{detect_features, FeatureProbe, Features};
+use crate::bots::view::{detect_features, FeatureProbe, Features, MessageData};
 use rh_sim::TileMap;
 use serde_json::{json, Value};
 
-fn data(value: &Value) -> MessageData {
+fn data(value: &Value) -> MethodValue {
+    match value {
+        Value::Null => MethodValue::Null,
+        Value::Bool(v) => MethodValue::Bool(*v),
+        Value::Number(v) => num(v.as_f64().expect("source binary64")),
+        Value::String(v) => text(v),
+        Value::Array(v) => MethodValue::Arr(v.iter().map(data).collect()),
+        Value::Object(v) => MethodValue::Obj(v.iter().map(|(k, v)| (k.clone(), data(v))).collect()),
+    }
+}
+// Feature detection retains its public JSON-like input; it does not consume
+// private temporal values or gain an Undefined/public-message extension.
+fn public_data(value: &Value) -> MessageData {
     match value {
         Value::Null => MessageData::Null,
         Value::Bool(v) => MessageData::Bool(*v),
-        Value::Number(v) => num(v.as_f64().expect("source binary64")),
-        Value::String(v) => text(v),
-        Value::Array(v) => MessageData::Arr(v.iter().map(data).collect()),
-        Value::Object(v) => MessageData::Obj(v.iter().map(|(k, v)| (k.clone(), data(v))).collect()),
+        Value::Number(v) => MessageData::Num(v.as_f64().expect("source binary64")),
+        Value::String(v) => MessageData::Str(v.clone()),
+        Value::Array(v) => MessageData::Arr(v.iter().map(public_data).collect()),
+        Value::Object(v) => {
+            MessageData::Obj(v.iter().map(|(k, v)| (k.clone(), public_data(v))).collect())
+        }
     }
 }
-fn json_data(value: MessageData) -> Value {
+fn json_data(value: MethodValue) -> Value {
     match value {
-        MessageData::Null => Value::Null,
-        MessageData::Bool(v) => Value::Bool(v),
-        MessageData::Num(v) => json!(v),
-        MessageData::Str(v) => Value::String(v),
-        MessageData::Arr(v) => Value::Array(v.into_iter().map(json_data).collect()),
-        MessageData::Obj(v) => {
+        MethodValue::Undefined => json!({"$rh":"undefined"}),
+        MethodValue::Null => Value::Null,
+        MethodValue::Bool(v) => Value::Bool(v),
+        MethodValue::Num(v) => json!(v),
+        MethodValue::Str(v) => Value::String(v),
+        MethodValue::Arr(v) => Value::Array(v.into_iter().map(json_data).collect()),
+        MethodValue::Obj(v) => {
             Value::Object(v.into_iter().map(|(k, v)| (k, json_data(v))).collect())
         }
     }
@@ -99,8 +114,10 @@ fn earned_runner_actual_frames_replay_all_five_prefilter_schedules() {
                              // INPUT context from actual source detectFeatures/new schema declarations, not
                              // expected Percept.features. runner.mts uses default CLIENT_MESSAGE_TYPES.
     let features = detect_features(&FeatureProbe {
-        state: data(&json!({"fields":{},"camps":[]})),
-        player: Some(data(&json!({"wishReadyAt":0,"effects":0,"build":{}}))),
+        state: public_data(&json!({"fields":{},"camps":[]})),
+        player: Some(public_data(
+            &json!({"wishReadyAt":0,"effects":0,"build":{}}),
+        )),
         map_terrain: Some(vec![0; 96 * 48]),
         map_hazards: false,
         message_types: None,
@@ -170,6 +187,101 @@ fn earned_runner_actual_frames_replay_all_five_prefilter_schedules() {
 }
 
 // All following recipes are native-only controls, never installed source outcomes.
+#[test]
+fn declared_undefined_is_distinct_from_null_absence_and_a_tag_object() {
+    let record = Object::read(object([
+        ("undefined", MethodValue::Undefined),
+        ("null", MethodValue::Null),
+        ("object", object([("$rh", text("undefined"))])),
+    ]))
+    .unwrap();
+    assert_eq!(record.get("undefined"), Ok(&MethodValue::Undefined));
+    assert_eq!(record.get("null"), Ok(&MethodValue::Null));
+    assert_eq!(record.optional("absent"), None);
+    assert_eq!(record.get("absent"), Err(Error::Missing("absent")));
+    assert_ne!(record.get("undefined"), record.get("null"));
+    assert_ne!(record.get("undefined"), record.get("object"));
+    assert_eq!(record.nullable_string("null"), Ok(None));
+    assert_eq!(
+        record.nullable_string("undefined"),
+        Err(Error::Shape("undefined"))
+    );
+    assert_eq!(record.number("undefined"), Err(Error::Shape("undefined")));
+    assert_eq!(record.string("undefined"), Err(Error::Shape("undefined")));
+    assert_eq!(record.boolean("undefined"), Err(Error::Shape("undefined")));
+    assert_eq!(
+        data::weapon(&MethodValue::Undefined),
+        Err(Error::Shape("weapon"))
+    );
+    assert_eq!(
+        data::faction(&MethodValue::Undefined),
+        Err(Error::Shape("faction"))
+    );
+    assert_eq!(data::finite(&record.data()), Ok(()));
+    assert_eq!(
+        data::finite(&MethodValue::Arr(vec![
+            MethodValue::Undefined,
+            num(f64::NAN)
+        ])),
+        Err(Error::Nonfinite)
+    );
+}
+
+#[test]
+fn declared_undefined_body_payload_survives_reached_composition_without_null_or_omission() {
+    let maps = maps(96, 48);
+    let features = Features::default();
+    let cfg = config(&maps, &features, 0.);
+    let mut ring = Ring::default();
+    let mut input = declared(0., 320.);
+    input["containers"] =
+        json!([{"kind":"body","id":"body","x":400.,"y":320.,"weapon":null,"null":null}]);
+    let mut input = frame(&input);
+    // Declared source-method input value, not an installed gameplay outcome.
+    input.containers[0]
+        .record
+        .put("weapon", MethodValue::Undefined);
+    input.containers[0].record.put(
+        "nested",
+        MethodValue::Arr(vec![MethodValue::Undefined, MethodValue::Null]),
+    );
+    ring.push(input);
+    let got = ring.compose(&cfg).unwrap().unwrap();
+    let out = Object::read(got.data()).unwrap();
+    let body = Object::read(out.array("containers").unwrap()[0].clone()).unwrap();
+    assert_eq!(body.get("weapon"), Ok(&MethodValue::Undefined));
+    assert_eq!(body.get("null"), Ok(&MethodValue::Null));
+    assert_eq!(body.optional("absent"), None);
+    assert_eq!(body.number("dist"), Ok(80.));
+    assert_eq!(
+        body.array("nested"),
+        Ok([MethodValue::Undefined, MethodValue::Null].as_slice())
+    );
+    assert_eq!(
+        json_data(body.get("weapon").unwrap().clone()),
+        json!({"$rh":"undefined"})
+    );
+    assert_eq!(ring.clone(), ring);
+}
+
+#[test]
+fn declared_undefined_required_input_refuses_without_mutating_reached_ring() {
+    let maps = maps(96, 48);
+    let features = Features::default();
+    let cfg = config(&maps, &features, 0.);
+    let mut ring = Ring::default();
+    ring.push(frame(&declared(0., 320.)));
+    ring.compose(&cfg).unwrap().unwrap();
+    let before = ring.clone();
+    let mut bad = Object::read(data(&declared(50., 320.))).unwrap();
+    let mut owner = bad.object("self").unwrap();
+    owner.put("x", MethodValue::Undefined);
+    bad.put("self", owner.data());
+    assert_eq!(Frame::read(bad.data()), Err(Error::Shape("x")));
+    assert_eq!(ring, before);
+    assert_eq!(ring.compose(&cfg).unwrap().unwrap().now, 0.);
+}
+
 fn declared(time: f64, x: f64) -> Value {
     json!({"t":time,"self":{"id":"self","x":x,"y":320,"status":"alive","faction":"fire","weapons":["sword",null],"slot":0},
         "hud":{"phase":"active","gatesLocked":false},"fighters":[],"mobs":[],"containers":[],"projectiles":[],
@@ -414,7 +526,7 @@ fn unavailable_nonfinite_and_failed_composition_leave_reached_state_unchanged() 
     );
     assert_eq!(ring, before);
     let mut bad = data(&declared(100., 320.));
-    if let MessageData::Obj(rows) = &mut bad {
+    if let MethodValue::Obj(rows) = &mut bad {
         rows.iter_mut().find(|(k, _)| k == "t").unwrap().1 = num(f64::NAN);
     }
     assert_eq!(Frame::read(bad), Err(Error::Nonfinite));
