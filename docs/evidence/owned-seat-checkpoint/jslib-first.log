@@ -1,0 +1,12 @@
+PASS missing differs from empty/corrupt record
+PASS one key replaces rather than accumulating records
+PASS old captured revision cannot clear newer payload
+PASS unavailable storage never falls back
+PASS throwing reads never report Ready or Cleared
+PASS failed quota write is Unsaved and old record remains
+PASS readback failure after write is not Saved
+PASS silent write/removal failure is unconfirmed
+PASS bound enforced before record copying or mutation
+PASS allocation/copy failures cannot masquerade as Missing
+PASS input copy failure never reports successful mutation
+{"scope":"Offline actual-jslib VM controls only, not browser/AOT/reload proof","passed":11}

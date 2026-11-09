@@ -1,0 +1,71 @@
+{
+  "base": "5b8e0423c26d5078585d2a9f8565b0862606ad7c",
+  "codeHead": "c0e46e31210d8a4f32c5ede61e301344366413c6",
+  "files": [
+    {
+      "path": "client-unity/RoguehallaNet.Tests/OwnedSeatCheckpointAdapterTests.cjs",
+      "bytes": 5582,
+      "sha256": "b37a4d322054670fcb4a5378b43095a1abf29d91788aa27d8cddc2793848f87f"
+    },
+    {
+      "path": "client-unity/RoguehallaNet.Tests/OwnedSeatCheckpointTests.cs",
+      "bytes": 18773,
+      "sha256": "8f0f7d71a191c2cabe7aa0199117103fcafe5767934d6733afca789f2d01b69c"
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Net/OwnedSeatCheckpoint.cs",
+      "bytes": 8739,
+      "sha256": "bae379d55aecefe5da17b4a8313ecd11494fdd814d7e8269dd5116edcdca4bcb"
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Net/OwnedSeatCheckpointCodec.cs",
+      "bytes": 5792,
+      "sha256": "d319f4f8f16415258bff826654e07b095270410cc3393232b320685afd790afd"
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Net/WebGlSeatCheckpointStorage.cs",
+      "bytes": 2987,
+      "sha256": "43fcb9f9cf32cc95f996a5dadb3f462ec8a0d57635e2034ecd87223135c8d48b"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Plugins/WebGL/RhSeatCheckpoint.jslib",
+      "bytes": 1899,
+      "sha256": "e1b26c05a93e55ac8ee298287550746dc33fb865b75cbc60bd7823a33a824923"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Plugins/WebGL/RhSeatCheckpoint.jslib.meta",
+      "bytes": 60,
+      "sha256": "dfbe779de2ce3ecd201911fc01c02b962233d5a8d92cb5dab727e20aa1bd9104"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/OwnedSeatCheckpoint.cs",
+      "bytes": 8739,
+      "sha256": "bae379d55aecefe5da17b4a8313ecd11494fdd814d7e8269dd5116edcdca4bcb"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/OwnedSeatCheckpoint.cs.meta",
+      "bytes": 60,
+      "sha256": "5d612bd5c60b5d11ffc2029bd20b796a8b79ff9445b54d098050239b51d9b2d2"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/OwnedSeatCheckpointCodec.cs",
+      "bytes": 5792,
+      "sha256": "d319f4f8f16415258bff826654e07b095270410cc3393232b320685afd790afd"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/OwnedSeatCheckpointCodec.cs.meta",
+      "bytes": 60,
+      "sha256": "a42a60879a65aeb8ae1d5fe6a9bdf1371c193297e129ac37513ac29519578563"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/WebGlSeatCheckpointStorage.cs",
+      "bytes": 2987,
+      "sha256": "43fcb9f9cf32cc95f996a5dadb3f462ec8a0d57635e2034ecd87223135c8d48b"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/WebGlSeatCheckpointStorage.cs.meta",
+      "bytes": 60,
+      "sha256": "053a2a89ec175f3666a1cbf3a7c7770a7680fa4da75b79260cdd96941fbcd6c6"
+    }
+  ]
+}

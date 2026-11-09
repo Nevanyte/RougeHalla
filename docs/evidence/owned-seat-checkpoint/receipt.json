@@ -1,0 +1,44 @@
+{
+  "base": "5b8e0423c26d5078585d2a9f8565b0862606ad7c",
+  "codeHead": "c0e46e31210d8a4f32c5ede61e301344366413c6",
+  "branch": "codex/owned-seat-checkpoint",
+  "newCodeFilesOnly": 13,
+  "validation": {
+    "focused": {
+      "passed": 97,
+      "failed": 0,
+      "skipped": 0,
+      "exit": 0,
+      "attempts": 1
+    },
+    "full": {
+      "passed": 919,
+      "failed": 0,
+      "skipped": 0,
+      "exit": 0,
+      "attempts": 1
+    },
+    "offlineJslibVm": {
+      "passed": 11,
+      "exit": 0,
+      "attempts": 1,
+      "actualBrowser": false
+    },
+    "webglConditionalSourceCompile": {
+      "exit": 0,
+      "editorOrAotRuntime": false
+    },
+    "exactMirrors": true,
+    "baseWhitespaceCheck": true,
+    "frozenFilesUnchanged": true
+  },
+  "cases": {
+    "newCheckpoint": 56,
+    "seedAndDetach": 41
+  },
+  "firstReds": [],
+  "securityBoundary": "Caller rechecks current proof/generation/configured target and mode; no cryptographic ownership/durability from metadata or sessionStorage",
+  "noExistingSourceDependencyUiSessionServerWorkflowChanges": true,
+  "noRustPgEditorBrowserCloudOrAllocationCampaign": true,
+  "secretHandling": "All unit accounts/protocol values synthetic; no actual credential or raw capability/key payload in evidence logs/receipts"
+}
