@@ -454,7 +454,7 @@ namespace Roguehalla.Client.Tests
                 Assert.That(box.Record, Is.EqualTo(captured), "generic protocol failure does not erase a retryable checkpoint");
                 Assert.That(f.Transports, Has.Count.EqualTo(1));
                 Assert.That(f.Client.CanForgetSavedRun, Is.True, "retained record is forgettable after failed session retirement");
-                Assert.That(f.Client.ResumeStatus, Does.Contain("checkpoint was kept"));
+                Assert.That(f.Client.ResumeStatus, Does.Contain("saved run details were kept"));
                 f.Client.OpenProfile("alice", null, null);
                 await WaitFor(() => f.Owner.Flow.Snapshot.State == AccountHubState.Owned || f.Owner.Flow.Snapshot.State == AccountHubState.Failed);
                 Assert.That(f.Owner.Flow.Snapshot.State, Is.EqualTo(AccountHubState.Owned));
@@ -478,7 +478,7 @@ namespace Roguehalla.Client.Tests
                 await WaitFor(() => f.Client.Session == null);
                 Assert.That(box.Record, Is.EqualTo(captured), "wrong-identity Welcome failure retains the retryable checkpoint");
                 Assert.That(f.Transports, Has.Count.EqualTo(1), "identity failure does not fall back to admission");
-                Assert.That(f.Client.ResumeStatus, Does.Contain("checkpoint was kept"));
+                Assert.That(f.Client.ResumeStatus, Does.Contain("saved run details were kept"));
             }
 
             box = await CreateSavedRun(MatchLaunchMode.Arena);
