@@ -4,6 +4,8 @@ use rh_protocol::scene_candidate::{Ack, Error, Limits, Meta, PreparedScene, Resu
 use std::collections::{BTreeMap, VecDeque};
 use std::sync::{Arc, Mutex, MutexGuard};
 
+pub mod socket;
+
 #[derive(Clone, Copy, Debug)]
 pub struct QueueLimits {
     pub outstanding_bytes: usize,
@@ -415,6 +417,9 @@ impl WriteRecord {
     /// Trusted writer MODEL completion, never called by ACK parsing. Live integration is
     /// absent: a future adapter must call only after the actual successful socket flush.
     pub fn complete(mut self) -> Result<()> {
+        self.complete_borrowed()
+    }
+    fn complete_borrowed(&mut self) -> Result<()> {
         let mut s = lock(&self.queue.0);
         if s.meter.closed || s.generation != self.generation || !self.started {
             return Err(Error("write incomplete"));

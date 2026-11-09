@@ -1,0 +1,11 @@
+diff --git a/crates/rh-server/src/outbox/scene_candidate.rs b/crates/rh-server/src/outbox/scene_candidate.rs
+index 0a75e930..4e0f134e 100644
+--- a/crates/rh-server/src/outbox/scene_candidate.rs
++++ b/crates/rh-server/src/outbox/scene_candidate.rs
+@@ -6,0 +7,2 @@ use std::sync::{Arc, Mutex, MutexGuard};
++pub mod socket;
++
+@@ -417,0 +420,3 @@ impl WriteRecord {
++        self.complete_borrowed()
++    }
++    fn complete_borrowed(&mut self) -> Result<()> {

@@ -1,0 +1,6 @@
+{
+ "command": "git diff --cached --check",
+ "exit": 2,
+ "output": "docs/evidence/scene-candidate14-socket/parent.diff:8: trailing whitespace.\n+ \n",
+ "classification": "Unified diff context has a blank context line containing one space. Saved exact parent diff with --unified=0; production Rust source unchanged. Not a build/test failure."
+}
