@@ -381,7 +381,9 @@ namespace Roguehalla.Client.Tests
         public void SettingsOwnsKeyboardAndBlocksBuildHelpShortcutsWithoutWorldCommands()
         {
             Invoke(_hud, "ToggleSettings");
-            var settings = _hud.transform.Find("MatchUI/SettingsPanel").gameObject;
+            var settingsRoot = _hud.transform.Find("MatchUI/ModernSettings");
+            Assert.That(settingsRoot, Is.Not.Null, "the real settings view must exist");
+            var settings = settingsRoot.gameObject;
             Assert.That(settings.activeSelf, Is.True);
 
             Press(Key.B);
