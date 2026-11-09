@@ -1,0 +1,41 @@
+{
+  "format": "rh-private-temporal-values-manifest/1",
+  "source": "73fc5d52b411a8868aefd9a767c6fd15e5139df1",
+  "payloads": [
+    {
+      "path": "README.md",
+      "bytes": 3526,
+      "sha256": "e214e8121bce934e733fbe064bafbc09417fd999cc56af3c75b8fda955334d1c"
+    },
+    {
+      "path": "checks.json",
+      "bytes": 3743,
+      "sha256": "cda65365ce10a48c848f7788eea6edc0a7f3856c933b92f5985e691e0149ac3f"
+    },
+    {
+      "path": "logs/01-temporal-tests.log",
+      "bytes": 2262,
+      "sha256": "37a12bd11d82fe13519a438fac4dd56f638050ca36e3d154bdc53355843b152a"
+    },
+    {
+      "path": "logs/02-policy-clippy.log",
+      "bytes": 207,
+      "sha256": "720799d5b880411351cbc2444db2c4388cf5445d82e3fca5c1c678282fb74531"
+    },
+    {
+      "path": "logs/03-format.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/04-diff-check.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/05-cache-release.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}
