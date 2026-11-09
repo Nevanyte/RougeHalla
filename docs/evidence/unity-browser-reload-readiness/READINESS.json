@@ -1,0 +1,83 @@
+{
+  "state": "BOUNDED_READINESS_SOURCE_READY_ACTUAL_BROWSER_NOT_RUN",
+  "createdUtc": "2026-11-09T19:26:31.682480+00:00",
+  "base": "e56b17692c12386aa138f9ae9a42f7fd0132c58d",
+  "branch": "codex/unity-browser-reload-readiness",
+  "sourceReady": "07bdb2bef143635ffd1e73f2f81b40c942dd6327",
+  "clientReference": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+  "nativeReference": "7a13b88aaa104cf2fd18dc2de7eada6c02060485",
+  "uiReference": "8b48053bd591c3d94c65f21b201bf519d359fc49",
+  "tools": {
+    "tools/unity-browser-reload-proof/Caddyfile.local.proposal": "14073a2d20b62517d74ec22f54be59ffe2ae6d754ad2a4556c83d6480d106798",
+    "tools/unity-browser-reload-proof/check.mjs": "0bca7f08ad1b79e9e0dabc113971229867ea2fa8ddb9166a04a7fc1c8a711a28",
+    "tools/unity-browser-reload-proof/check.test.mjs": "2d46ea730f44a7b6b2d9cb77d64f7ada928e1cdbc88dd09d80d4af031a46a6e7",
+    "tools/unity-browser-reload-proof/make-preload-proposal.mjs": "6a5ca491989f3cb42359ecdf6806a8b1702df3ac9006a016a1bc5808ebde9e0f",
+    "tools/unity-browser-reload-proof/observer.js": "7f8171d234d14ba0cd87582704dc50cea0b4aedf022ae194e3b5786382594e1b",
+    "tools/unity-browser-reload-proof/pin-sources.mjs": "3767209cb4c7d5c861e1fc87458521df4aa5b4f2a8d29680057c6df9aad9d452",
+    "tools/unity-browser-reload-proof/wire-metadata.js": "1347008ce2d4da0a0b8d1a9cf1b897a0404b87ecd7e4e74f066265d39f093e00",
+    "tools/unity-browser-reload-proof/wire-tap-proposal.js": "50d70d91b60352033aede576b8ee2d154eecf3be7a32567a762338674cfacb35"
+  },
+  "evidence": {
+    "docs/evidence/unity-browser-reload-readiness/ACTIONS.md": "bccbd8206653494287e25ad7ce4456e1b2f7978202c3e75e72d7ee1da0936362",
+    "docs/evidence/unity-browser-reload-readiness/OBSERVABILITY.md": "3e0cfe9afd25a3d48a4502d1e61184f5d65ed0821ad0158c46b0ce8a0ef6b1f8",
+    "docs/evidence/unity-browser-reload-readiness/PREREQUISITES.md": "5e8b2c1babd5f66f8d40ecac0c4a153bb7ab32bd47fd13f98344664a3f1ccfee",
+    "docs/evidence/unity-browser-reload-readiness/README.md": "b7a7b5bb181c8290146b0833a0e66d32aff5031273458eeca1e1ecba4a3e310b",
+    "docs/evidence/unity-browser-reload-readiness/REVIEW.md": "c3dd55b9db2fb102a59290698022ce1a4b4fdd33ba58652f4328c8482a059828",
+    "docs/evidence/unity-browser-reload-readiness/cli-readiness.json": "3aed511f70bb90f4d1128d303c4c6a221ae93bfe4e1c9441b6cc5f8619b68669",
+    "docs/evidence/unity-browser-reload-readiness/not-run-check.json": "470295682f0321865dbb48c8ddf35c2f74a84b9ea0385ea7794148534e887707",
+    "docs/evidence/unity-browser-reload-readiness/not-run-template.json": "d8c7bffc2b678007891977dbaf00843d7ce4d3dac6ec6653dc49bf4457d933e7",
+    "docs/evidence/unity-browser-reload-readiness/offline-synthetic-final.json": "6a326f28fbadb79c21e2b38e70d93ba1e2d1bfd00797e5e98c104fd6d1da748d",
+    "docs/evidence/unity-browser-reload-readiness/offline-synthetic-final.log": "802b164847da5feddfa118a42264879a88f0acd3f2296adc3192f1cd5a8f1b9b",
+    "docs/evidence/unity-browser-reload-readiness/offline-synthetic-first.json": "ea8c1e251ec07754b8cd76ed5e382684a8ed592a62e1eb98f1975b6d17985441",
+    "docs/evidence/unity-browser-reload-readiness/offline-synthetic-first.log": "acb40204bc710fb66e5fcfca6a2d346306fd3f270720e47efcd0f4f0e35e3fe9",
+    "docs/evidence/unity-browser-reload-readiness/preload-proposal.js": "ae7589ce21a58a3baa9022eae40b236baf0e29fcd3cf75bc6adc3ff7b098688f",
+    "docs/evidence/unity-browser-reload-readiness/source-pins-expanded-manifest.json": "0770816ce6e4b846168aed0f1c70e6f4e32b081a7904105e5c3b3bfb2dd62553",
+    "docs/evidence/unity-browser-reload-readiness/source-pins-expanded.json": "16aa7328ab5685c2615823f7c92410b7ea6cbed047e3fbd2bca72c96d954140d",
+    "docs/evidence/unity-browser-reload-readiness/source-pins-expanded.log": "5ba855a5c69919306f5785ec27929432889f863a4186dad3da8c062c1fcc7740",
+    "docs/evidence/unity-browser-reload-readiness/source-pins-first.json": "9c031590476a245a46b23979c77bd896db90e4c0e6db2fac5745cf5902f45f13",
+    "docs/evidence/unity-browser-reload-readiness/source-pins-first.log": "aa9bd12c3784d6f8ac3bf580c01b4156a40153dff3ee9bfcf43417871213491c",
+    "docs/evidence/unity-browser-reload-readiness/source-pins.json": "9c28ee3ac42ffcb98b88d46037436badf36f4ec6a25a3f1aec74cf14a73ae157"
+  },
+  "referencePins": 34,
+  "sameUiPins": 5,
+  "offlineValidation": {
+    "scope": "synthetic guarded readers, fake sockets and VM only",
+    "firstTests": 12,
+    "finalTests": 15,
+    "finalExitCode": 0,
+    "sourceInputsMatch": true,
+    "notRunTemplateStatus": "OPEN",
+    "actualBrowserAcceptance": "NOT_RUN"
+  },
+  "proposal": {
+    "path": "docs/evidence/unity-browser-reload-readiness/preload-proposal.js",
+    "sha256": "ae7589ce21a58a3baa9022eae40b236baf0e29fcd3cf75bc6adc3ff7b098688f",
+    "executedInActualBrowser": false,
+    "installationRequiresLaterRootRelease": true,
+    "wholeFrameValidation": false
+  },
+  "scope": {
+    "onlyNewLeasedFiles": true,
+    "productNativeWorkflowLockStatusEdits": false,
+    "actualGuiBrowserPlayBuildCargoNodeWorldServerDatabaseCloudNetworkActions": false,
+    "newDependenciesOrCaches": false,
+    "rootEditorTouched": false
+  },
+  "pending": [
+    "Root observer and actual GUI execution release",
+    "native98 and rendered layout acceptance",
+    "coherent built and served Web/native29/map identities",
+    "real same-tab Arena and Training reload with current-owner LOAD and explicit Resume",
+    "real default-grace timing and optional server Away corroboration",
+    "genuine physical20Hz Source Result/fsynced spool/Postgres/authenticated receipt",
+    "actual browser authenticity and screenshot review"
+  ],
+  "stop": "Author stops at this bounded readiness packet; no runtime permission is inferred from source readiness.",
+  "scopeCheck": {
+    "allChangesAreNewLeasedFiles": true,
+    "newPaths": 28,
+    "sourceAndAuthoredEvidenceWhitespaceExitCode": 0,
+    "preservedRawLogWhitespaceExitCode": 0,
+    "rawLogWarnings": []
+  }
+}

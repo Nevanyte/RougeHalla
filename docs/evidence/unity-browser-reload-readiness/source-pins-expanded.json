@@ -1,0 +1,11 @@
+{
+  "scope": "immutable source hashing only, expanded actual version declarations",
+  "command": [
+    "node",
+    "tools/unity-browser-reload-proof/pin-sources.mjs",
+    "docs/evidence/unity-browser-reload-readiness/source-pins-expanded-manifest.json"
+  ],
+  "sourceHead": "07bdb2bef143635ffd1e73f2f81b40c942dd6327",
+  "exitCode": 0,
+  "logSha256": "5ba855a5c69919306f5785ec27929432889f863a4186dad3da8c062c1fcc7740"
+}

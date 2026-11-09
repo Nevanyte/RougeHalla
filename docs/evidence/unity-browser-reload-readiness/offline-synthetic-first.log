@@ -1,0 +1,20 @@
+✔ Hello skips every private/string/content byte and reports presence only (1.176666ms)
+✔ Welcome reads exact public identity/structural headers and skips session plus map payload (0.157167ms)
+✔ All structural prefixes refuse; unknown versions do not inspect later fields (9.660125ms)
+✔ Original-buffer adapter parser neither converts text/Blob nor confuses ignored tags (0.281167ms)
+✔ Inert proposal forwards genuine constructor/send args and original received buffer exactly once (23.323541ms)
+✔ Native throws remain native; diagnostic failure and stop never send/close or change game buffers (0.211458ms)
+✔ Unknown wire shapes disable only metadata and cannot replace native delivery (0.080625ms)
+✔ Document observer is idempotent, ignores text keys, and touches no storage/URL values (1.00525ms)
+✔ Generated preload proposal is classic-script syntax only; it is NOT installed by this test (0.430625ms)
+✔ Readiness template and synthetic consistency never grant browser acceptance (0.656584ms)
+✔ Checker rejects same-document, replacement tab, changed identity, fresh fallback and late reload (0.357416ms)
+✔ Unknown credential/raw payload fields are refused without echoing rejected values (0.169583ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 103.987167

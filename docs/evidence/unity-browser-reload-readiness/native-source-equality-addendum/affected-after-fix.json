@@ -1,0 +1,18 @@
+{
+  "scope": "two affected offline synthetic cases only; no actual browser/runtime/network",
+  "command": [
+    "node",
+    "--test",
+    "--test-name-pattern=^(Readiness template and synthetic consistency never grant browser acceptance|Checker requires the exact reviewed native source)$",
+    "tools/unity-browser-reload-proof/check.test.mjs"
+  ],
+  "codeHead": "a180f47b7492b3e444671d54d3f3b63657c0d420",
+  "exitCode": 0,
+  "sourceSha256": {
+    "tools/unity-browser-reload-proof/check.mjs": "73ef8e6b7927a9f461d19fb3da018de71ad4ea2a52fd909378b068a6069b146a",
+    "tools/unity-browser-reload-proof/check.test.mjs": "9fb38be5e92474cfdd9768b915c4421f95f4edbc63b05f3f912706d256a8e9f9"
+  },
+  "sourceUnchanged": true,
+  "logSha256": "870587c030e2f429a661c923bf54043f648adc2a5e2e6da2ffbacac0bd5b98c6",
+  "recordedUtc": "2026-11-09T19:43:55.445533+00:00"
+}

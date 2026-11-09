@@ -1,0 +1,19 @@
+{
+  "schema": "unity-browser-reload-check/1",
+  "status": "OPEN",
+  "browserAcceptance": "NOT_GRANTED_BY_COLLECTOR",
+  "classification": "not-run",
+  "failures": [],
+  "open": [
+    "no actual released browser execution",
+    "Root execution release receipt absent",
+    "coherent build/runtime prerequisite receipts absent",
+    "case not recorded: arena-reload",
+    "case not recorded: training-reload",
+    "case not recorded: stale-owner",
+    "case not recorded: stale-mode-config",
+    "case not recorded: expired-seat"
+  ],
+  "cases": [],
+  "limits": "input receipts/claims still need Root authenticity and rendered-UI review; no raw wire or storage accepted"
+}

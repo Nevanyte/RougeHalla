@@ -1,0 +1,10 @@
+✔ Readiness template and synthetic consistency never grant browser acceptance (1.434459ms)
+✔ Checker requires the exact reviewed native source (0.145167ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 58.777083

@@ -1,0 +1,10 @@
+{
+  "schema": "unity-browser-reload-bundle/1",
+  "classification": "not-run",
+  "clientSource": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+  "nativeSource": "7a13b88aaa104cf2fd18dc2de7eada6c02060485",
+  "artifacts": null,
+  "executionReleaseSha256": null,
+  "cases": [],
+  "boundary": "metadata consistency only; actual browser acceptance is reserved to Root review"
+}

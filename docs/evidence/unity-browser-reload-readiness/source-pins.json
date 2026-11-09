@@ -1,0 +1,160 @@
+{
+  "schema": "unity-browser-reload-readiness-source/1",
+  "state": "SOURCE_ONLY_NO_RUNTIME_EXECUTION",
+  "worktreeBase": "e56b17692c12386aa138f9ae9a42f7fd0132c58d",
+  "clientReference": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+  "uiReference": "8b48053bd591c3d94c65f21b201bf519d359fc49",
+  "uiSourceReference": "1bf48a8109249ec36497eab5b1ffc5548a384dd5",
+  "nativeReference": "7a13b88aaa104cf2fd18dc2de7eada6c02060485",
+  "expectedIdentity": {
+    "protocol": 14,
+    "checkpoint": 29,
+    "replay": 23,
+    "observation": 21,
+    "policy": 15,
+    "content": "7c6a633f68c2cc72",
+    "tickHz": 20,
+    "reconnectGraceMs": 10000
+  },
+  "pins": {
+    "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1:client-unity/UnityProject/Assets/Scripts/Net/MatchClient.Resume.cs": {
+      "sha256": "db7f2daf9acf031a1d8addbe722dda8417ea62e938fd7d9ef6f89f2438190912",
+      "bytes": 15475
+    },
+    "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1:client-unity/UnityProject/Assets/Scripts/Net/MatchClient.cs": {
+      "sha256": "1449fcd431d37fced802da4d63bd46a8c00e0ae7b275f17ee9f27e06f2585553",
+      "bytes": 21411
+    },
+    "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1:client-unity/UnityProject/Assets/Scripts/Net/MatchClient.Accounts.cs": {
+      "sha256": "5f10e9f85d522e530a0dff9679beed07cfda53a8662018231202c51a02b9e90f",
+      "bytes": 9880
+    },
+    "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1:client-unity/UnityProject/Assets/Scripts/Net/MatchClient.Settlement.cs": {
+      "sha256": "19a4f05790c0d3602f39bd682d0aae84e59471309ce5d6bda0ad80c6dc306017",
+      "bytes": 12757
+    },
+    "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1:client-unity/UnityProject/Assets/Scripts/Net/MatchLaunchConfig.cs": {
+      "sha256": "642eecb69d69583a1f8c0a24f3f404bbbac9cde35de9f64f2c7dd170edcbff39",
+      "bytes": 2813
+    },
+    "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1:client-unity/UnityProject/Assets/Scripts/UI/MatchHud.Resume.cs": {
+      "sha256": "10d0f1b0a89e3b44fc445164597366b960f6b5848152269c16d921191fdd918d",
+      "bytes": 10404
+    },
+    "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1:client-unity/UnityProject/Assets/Scripts/UI/MatchHud.Accounts.cs": {
+      "sha256": "c66573eddb58ecaa2157dcabfe35213e76fa8cb324b73152944486bf8314696b",
+      "bytes": 13872
+    },
+    "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1:client-unity/UnityProject/Assets/Scripts/Bootstrap.cs": {
+      "sha256": "bf207b06c2abf3ba0cb6b0cd0f814911db469427f360575ef01f7c4d400c143f",
+      "bytes": 4643
+    },
+    "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1:client-unity/UnityProject/Assets/Scripts/BakedContent.cs": {
+      "sha256": "8413908cace2df6eb8b8fe5025c0914991397f95271e985656929b335186101e",
+      "bytes": 212
+    },
+    "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1:client-unity/UnityProject/Assets/Plugins/WebGL/RhSeatCheckpoint.jslib": {
+      "sha256": "e1b26c05a93e55ac8ee298287550746dc33fb865b75cbc60bd7823a33a824923",
+      "bytes": 1899
+    },
+    "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1:client-unity/UnityProject/Assets/Plugins/WebGL/RhWebSocket.jslib": {
+      "sha256": "c9bab15987c5640ad83b8643a984ced01e2944c1bee4793aa9f30d8d1858da94",
+      "bytes": 2578
+    },
+    "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1:client-unity/RoguehallaNet/Net/OwnedSeatCheckpoint.cs": {
+      "sha256": "bae379d55aecefe5da17b4a8313ecd11494fdd814d7e8269dd5116edcdca4bcb",
+      "bytes": 8739
+    },
+    "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1:client-unity/RoguehallaNet/Net/OwnedSeatCheckpointCodec.cs": {
+      "sha256": "d319f4f8f16415258bff826654e07b095270410cc3393232b320685afd790afd",
+      "bytes": 5792
+    },
+    "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1:client-unity/RoguehallaNet/Net/WebGlSeatCheckpointStorage.cs": {
+      "sha256": "43fcb9f9cf32cc95f996a5dadb3f462ec8a0d57635e2034ecd87223135c8d48b",
+      "bytes": 2987
+    },
+    "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1:client-unity/RoguehallaNet/Net/Session.cs": {
+      "sha256": "4ce6326df240d08b4877bb026d425221fa87f778d9188365c62206bda275965a",
+      "bytes": 27061
+    },
+    "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1:client-unity/RoguehallaNet/Protocol/Messages.cs": {
+      "sha256": "ad35b76a1e22a31d1388f412d00d2097b4cf789aa130d63b20749d0def4a68ad",
+      "bytes": 97060
+    },
+    "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1:client-unity/RoguehallaNet/Protocol/Codec.cs": {
+      "sha256": "d6977f013d6ebd97d775ae0ffd386f59cfc5eaa6e1cf069ebaaf54109c814370",
+      "bytes": 13034
+    },
+    "7a13b88aaa104cf2fd18dc2de7eada6c02060485:crates/rh-protocol/src/lib.rs": {
+      "sha256": "d1258e9c3bd9911a32d0cbdce375c2a0a9ca8f3d792a8b368e382833cc3e896c",
+      "bytes": 66060
+    },
+    "7a13b88aaa104cf2fd18dc2de7eada6c02060485:crates/rh-protocol/src/map.rs": {
+      "sha256": "3610dea813c3df460ce93741cdcb9c49ea20c42db31ab522c873ce17f8a4c03d",
+      "bytes": 26087
+    },
+    "7a13b88aaa104cf2fd18dc2de7eada6c02060485:crates/rh-server/src/main.rs": {
+      "sha256": "4e46669ed9ec8c2be21e7da4d88cd912c359114acadf9943fc0a6b4760ad7d4f",
+      "bytes": 43718
+    },
+    "7a13b88aaa104cf2fd18dc2de7eada6c02060485:crates/rh-server/src/room.rs": {
+      "sha256": "dec9fdcb5f491cce503e5865667ba577f733b216f44f2772f039b157af21f886",
+      "bytes": 147371
+    },
+    "7a13b88aaa104cf2fd18dc2de7eada6c02060485:crates/rh-server/src/director.rs": {
+      "sha256": "a70452ca1273e1784b166a29b5ad372429fa07eeb3df3304111c060fd5514e26",
+      "bytes": 130537
+    },
+    "7a13b88aaa104cf2fd18dc2de7eada6c02060485:crates/rh-server/src/control.rs": {
+      "sha256": "e6f43f97c8d5ab14ae52e3159e7c4b04464c70a6f28e4317be370aeac231e025",
+      "bytes": 48566
+    },
+    "7a13b88aaa104cf2fd18dc2de7eada6c02060485:crates/rh-server/src/api.rs": {
+      "sha256": "fe03e0d7304ced9b32a38231ea47c512ad2419890ee28a47a64aa7d2bfc5654c",
+      "bytes": 19068
+    },
+    "7a13b88aaa104cf2fd18dc2de7eada6c02060485:crates/rh-server/src/api/profile.rs": {
+      "sha256": "245eee98f14c943eaa16823f4f37d6769b597a73137aff3b6e4b869a9f9f7cef",
+      "bytes": 31212
+    },
+    "7a13b88aaa104cf2fd18dc2de7eada6c02060485:crates/rh-server/src/persist.rs": {
+      "sha256": "3cea39cbcf0f2f19d63361c1adc70a2dd35c4c0a1b6deab96d8fb6d4b56db74e",
+      "bytes": 31438
+    },
+    "7a13b88aaa104cf2fd18dc2de7eada6c02060485:crates/rh-server/tests/full_runtime_account_flow.rs": {
+      "sha256": "4da792cabfbca9dd932b89fc8d4e3aa2f2df26b55b23f5bca610bb4744466518",
+      "bytes": 29532
+    },
+    "7a13b88aaa104cf2fd18dc2de7eada6c02060485:tools/staging-full-runtime/run-runtime.py": {
+      "sha256": "5641c380207fd91021abc2d51c8bbbfe45f7500ef50c63e85c2653f2a1884830",
+      "bytes": 3586
+    },
+    "7a13b88aaa104cf2fd18dc2de7eada6c02060485:tools/staging-full-runtime/Caddyfile": {
+      "sha256": "d3d4367265173952f656941e2d013e7076fcf62f02316cb8f3d53abb292b7de1",
+      "bytes": 1498
+    },
+    "7a13b88aaa104cf2fd18dc2de7eada6c02060485:tools/staging-full-runtime/postgresql.conf": {
+      "sha256": "7d827e4d20f090268d50f65d349ef356db3849d83fff88bd56eb5ca587025189",
+      "bytes": 372
+    }
+  },
+  "sameUi": {
+    "client-unity/UnityProject/Assets/Scripts/Net/MatchClient.Resume.cs": "db7f2daf9acf031a1d8addbe722dda8417ea62e938fd7d9ef6f89f2438190912",
+    "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.Resume.cs": "10d0f1b0a89e3b44fc445164597366b960f6b5848152269c16d921191fdd918d",
+    "client-unity/RoguehallaNet/Net/OwnedSeatCheckpoint.cs": "bae379d55aecefe5da17b4a8313ecd11494fdd814d7e8269dd5116edcdca4bcb",
+    "client-unity/RoguehallaNet/Net/OwnedSeatCheckpointCodec.cs": "d319f4f8f16415258bff826654e07b095270410cc3393232b320685afd790afd",
+    "client-unity/RoguehallaNet/Net/WebGlSeatCheckpointStorage.cs": "43fcb9f9cf32cc95f996a5dadb3f462ec8a0d57635e2034ecd87223135c8d48b"
+  },
+  "command": [
+    "node",
+    "tools/unity-browser-reload-proof/pin-sources.mjs",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14-clients/repo/docs/evidence/unity-browser-reload-readiness/source-pins.json"
+  ],
+  "pending": [
+    "native98/layout/build actual receipts",
+    "coherent Web and native artifacts",
+    "Root-approved observer installation and real browser execution",
+    "durable PG/spool and real Result/receipt flow"
+  ],
+  "limits": "Git source blobs hashed only; no runtime secrets, browser storage, worlds, databases or network read"
+}

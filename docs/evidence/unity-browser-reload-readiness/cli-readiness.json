@@ -1,0 +1,40 @@
+{
+  "scope": "source/template generation and NOT_RUN checker only; preload source NEVER EXECUTED",
+  "sourceHead": "07bdb2bef143635ffd1e73f2f81b40c942dd6327",
+  "commands": [
+    {
+      "command": [
+        "node",
+        "tools/unity-browser-reload-proof/check.mjs",
+        "template",
+        "docs/evidence/unity-browser-reload-readiness/not-run-template.json"
+      ],
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "command": [
+        "node",
+        "tools/unity-browser-reload-proof/make-preload-proposal.mjs",
+        "docs/evidence/unity-browser-reload-readiness/preload-proposal.js"
+      ],
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "command": [
+        "node",
+        "tools/unity-browser-reload-proof/check.mjs",
+        "check",
+        "docs/evidence/unity-browser-reload-readiness/not-run-template.json",
+        "docs/evidence/unity-browser-reload-readiness/not-run-check.json"
+      ],
+      "exitCode": 2,
+      "expectedExitCode": 2
+    }
+  ],
+  "templateSha256": "d8c7bffc2b678007891977dbaf00843d7ce4d3dac6ec6653dc49bf4457d933e7",
+  "proposalSha256": "ae7589ce21a58a3baa9022eae40b236baf0e29fcd3cf75bc6adc3ff7b098688f",
+  "notRunReportSha256": "470295682f0321865dbb48c8ddf35c2f74a84b9ea0385ea7794148534e887707",
+  "actualBrowser": "NOT_RUN"
+}

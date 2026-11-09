@@ -1,0 +1,22 @@
+{
+  "scope": "SYNTHETIC OFFLINE ONLY: guarded readers/fake socket objects/VM/checker, no real browser, network, World, account or storage",
+  "command": [
+    "node",
+    "--test",
+    "tools/unity-browser-reload-proof/check.test.mjs"
+  ],
+  "sourceHead": "07bdb2bef143635ffd1e73f2f81b40c942dd6327",
+  "exitCode": 0,
+  "sourceSha256": {
+    "tools/unity-browser-reload-proof/Caddyfile.local.proposal": "14073a2d20b62517d74ec22f54be59ffe2ae6d754ad2a4556c83d6480d106798",
+    "tools/unity-browser-reload-proof/check.mjs": "0bca7f08ad1b79e9e0dabc113971229867ea2fa8ddb9166a04a7fc1c8a711a28",
+    "tools/unity-browser-reload-proof/check.test.mjs": "2d46ea730f44a7b6b2d9cb77d64f7ada928e1cdbc88dd09d80d4af031a46a6e7",
+    "tools/unity-browser-reload-proof/make-preload-proposal.mjs": "6a5ca491989f3cb42359ecdf6806a8b1702df3ac9006a016a1bc5808ebde9e0f",
+    "tools/unity-browser-reload-proof/observer.js": "7f8171d234d14ba0cd87582704dc50cea0b4aedf022ae194e3b5786382594e1b",
+    "tools/unity-browser-reload-proof/pin-sources.mjs": "3767209cb4c7d5c861e1fc87458521df4aa5b4f2a8d29680057c6df9aad9d452",
+    "tools/unity-browser-reload-proof/wire-metadata.js": "1347008ce2d4da0a0b8d1a9cf1b897a0404b87ecd7e4e74f066265d39f093e00",
+    "tools/unity-browser-reload-proof/wire-tap-proposal.js": "50d70d91b60352033aede576b8ee2d154eecf3be7a32567a762338674cfacb35"
+  },
+  "sourceUnchanged": true,
+  "logSha256": "802b164847da5feddfa118a42264879a88f0acd3f2296adc3192f1cd5a8f1b9b"
+}
