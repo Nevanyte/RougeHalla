@@ -1,0 +1,8 @@
+{
+  "source": "99172b65a317fc489b2290caa43c1735f26f2e26",
+  "all1176PinsExact": true,
+  "gitClean": true,
+  "approvedOverlayRestoredBeforeTests": true,
+  "postTestOverlay": false,
+  "refreshGuardHeldForExactReturn": true
+}

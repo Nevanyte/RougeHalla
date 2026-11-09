@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "unity",
+    "command",
+    "--detail",
+    "full",
+    "--project-path",
+    "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject",
+    "--caller",
+    "plugin",
+    "--skill",
+    "unity-cli",
+    "--format",
+    "json"
+  ],
+  "exitCode": 0,
+  "stderr": ""
+}
