@@ -118,6 +118,10 @@ impl OutcomeDigest {
                 self.s("public_barrier");
                 self.f(p.barrier);
             }
+            if p.mark_tax != 0 {
+                self.s("public_mark_tax");
+                self.w(p.mark_tax.into());
+            }
             self.s(status(p.status));
             self.w(p.kills as u64);
             self.w(p.bounty as u64);
@@ -148,6 +152,10 @@ impl OutcomeDigest {
                 self.s(m.weapon.map_or("unarmed", |w| w.as_str()));
                 self.w(m.effects.into());
                 self.w(m.displace_seq.into());
+                if m.mark_tax != 0 {
+                    self.s("public_mark_tax");
+                    self.w(m.mark_tax.into());
+                }
             }
             self.w(snap.camps.len() as u64);
             for c in &snap.camps {
