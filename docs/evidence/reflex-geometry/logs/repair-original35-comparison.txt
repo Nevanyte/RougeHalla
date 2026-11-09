@@ -1,0 +1,4 @@
+angle original_rows 10 preserved_prefix_equal True new_rows 0
+course original_rows 25 preserved_prefix_equal True new_rows 2
+added_course_ids ['general-positive-nonpythagorean', 'general-positive-negative-direction']
+added_results [{'tti_ms': 1729.411764705882, 'offset': -9.356972863937921, 'nx': -0.8436614877321075, 'ny': 0.5368754921931592}, {'tti_ms': 767.1232876712329, 'offset': -11.001867836436274, 'nx': -0.9363291775690445, 'ny': -0.3511234415883917}]

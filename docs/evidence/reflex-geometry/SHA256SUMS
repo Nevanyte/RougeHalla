@@ -1,4 +1,4 @@
-7d20c5f3c0491595fa0c184ea82978a2d07822c7078da417bacd1dbade0538dd  ./README.md
+2d792e819ed1d71c84c0a8c4de4073c96d00e67c9d9eb059e339d20b6b60e8a6  ./README.md
 8dc2d895427bed95c4b1e957fe60d142ce8a28798ba3e70b1e6911ece703da2a  ./hashes.txt
 80b0157e3a6674d6feec3c83a52168ebda445a7c4b90dca3502c7135fca9325a  ./logs/cargo-test.log
 81ea2a0fe7f8e07ba703ec7164760ffcd9f4283f92c3e078d0745d96d268d7ca  ./logs/check-1.log
@@ -9,4 +9,13 @@ e8fe9a979835aee351b8579a64e9143dbfb15f26bb8575c44dbd207a58ada7d6  ./logs/control
 6c5b6bbdbebf42c43cd93753c05904a33cee2820cf4df582715caa77f4269b96  ./logs/external-write.log
 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./logs/fmt-check.log
 81ea2a0fe7f8e07ba703ec7164760ffcd9f4283f92c3e078d0745d96d268d7ca  ./logs/frozen-export-check.log
+ee65df44b0404bb4e45f308ad0393a9fd354ec271d6c8e148054b1cd5053aa72  ./logs/repair-capture.log
+26948c58063f5ad79e74e79068b510e1014ff7eb9a4dcd6b7bd8d58d4ec611c5  ./logs/repair-cargo-test.log
+1f922ce5e3c79fe29f6ebbd91831158b51ae763806df2e5d9f21f4c9da99ce0e  ./logs/repair-check-1.log
+b3c32f39dff86e6ba05dd3487b53d9b66178c73bc06e303544fed120757022df  ./logs/repair-clippy.log
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./logs/repair-fmt-check.log
+1f922ce5e3c79fe29f6ebbd91831158b51ae763806df2e5d9f21f4c9da99ce0e  ./logs/repair-frozen-export-check.log
+a1c6cd7081f04edc7b48b3d1e7b10aacaa20d9b2585e3ee0bdc2c28b97bb435b  ./logs/repair-original35-comparison.txt
 cf219247d0ef45c2f836805656e926a0cdc5a243731e3bef80c3afcb6fb82b31  ./receipt.json
+9e14e0d84b08672481fc7e978c36894cf919fd57986f5c6d9009104e6c1ac41a  ./repair-hashes.txt
+0ba19423b2520fbc6cf3f0b8cccb0f4e98c6f631de2e8f8f7f5082ea41351579  ./repair-receipt.json
