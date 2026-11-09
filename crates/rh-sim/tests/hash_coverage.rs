@@ -698,19 +698,83 @@ fn produced_walk_hint_states() -> Vec<(&'static str, Sim)> {
 /// generic serde audit reach private fields without a new gameplay/testing input door.
 fn declared_native29_states(wish_seed: &Sim) -> Vec<(&'static str, Sim)> {
     fn fight_seed(sim: &Sim) -> Sim {
-        let mut cp = serde_json::to_value(sim).unwrap();
-        let now = sim.server_time();
+        let mut chosen = sim.clone();
+        // The supplied Wish checkpoint may still be casting. Let that real cast
+        // finish before Choose; its public action door correctly refuses Busy.
+        let initial = serde_json::to_value(&chosen).unwrap();
+        if let Some(lands_at) =
+            initial["world"]["players"][0]["core"]["statuses"]["cast"]["lands_at"].as_f64()
+        {
+            let steps = ((lands_at - chosen.server_time()).max(0.) / rh_sim::constants::TICK_MS)
+                .ceil() as usize
+                + 1;
+            for _ in 0..steps {
+                if serde_json::to_value(&chosen).unwrap()["world"]["players"][0]["core"]["statuses"]
+                    ["cast"]
+                    .is_null()
+                {
+                    break;
+                }
+                chosen.step();
+            }
+        }
+        let mut cp = serde_json::to_value(&chosen).unwrap();
+        assert!(cp["world"]["players"][0]["core"]["statuses"]["cast"].is_null());
+        let retained_wish = cp["world"]["players"][0]["card_runtime"]["wish_cast"].clone();
+        let card = rh_sim::cards::CardId::SlowStarter;
+        assert_eq!(
+            cp["world"]["players"][0]["build"]["counts"][card.index()],
+            0
+        );
+        let chest_id = u32::try_from(cp["world"]["entity_counter"].as_u64().unwrap())
+            .unwrap()
+            .checked_add(1)
+            .unwrap();
+        let owner = chosen.player(PlayerId(1)).unwrap();
+        // Declared already-available chest, as in card_choices(); not an earned
+        // reward or a widened Training whitelist. The real grant owns ALL folds,
+        // including SlowStarter's unconditional -30% damage before its while row.
+        let chest = serde_json::json!({
+            "id": chest_id, "at": {"x": owner.body.x, "y": owner.body.y},
+            "expires_at": chosen.server_time() + rh_sim::reward_chests::DEFINITION.lifetime_ms,
+            "held_until_tick": 0, "options": [{"Card": card.as_str()}, null, null],
+            "taken": [null, null, null], "pickers": [], "camp": null, "owner": null
+        });
+        cp["world"]["reward_chests"]
+            .as_array_mut()
+            .unwrap()
+            .push(chest);
+        cp["world"]["entity_counter"] = chest_id.into();
+        chosen = Sim::restore(cp).expect("declared available chest with unchanged valid sheet");
+        chosen
+            .submit(
+                PlayerId(1),
+                cmd(RawCommand::Choose {
+                    chest_id: Some(chest_id),
+                    pick: 0,
+                }),
+            )
+            .unwrap();
+        let events = chosen.step();
+        assert!(
+            events.iter().any(|event| matches!(event,
+            rh_sim::Event::ChestTaken { chest, by: PlayerId(1), pick: 0 }
+                if *chest == chest_id)),
+            "real Choose must grant the declared card"
+        );
+        let mut cp = serde_json::to_value(&chosen).unwrap();
+        let now = chosen.server_time();
         assert!(now >= rh_sim::constants::TICK_MS);
         let p = &mut cp["world"]["players"][0];
-        // An inactive watched row preserves the existing folded sheet. Retain any
-        // genuine Wish spend so fight=None has a valid nonempty-runtime counterpart.
-        p["build"]["counts"][rh_sim::cards::CardId::SlowStarter.index()] = 1.into();
-        let wish_cast = p["card_runtime"]["wish_cast"].clone();
+        assert_eq!(p["build"]["counts"][card.index()], 1);
+        assert_eq!(p["card_runtime"]["wish_cast"], retained_wish);
+        // Only the historical fight tuple is a serialization seed. Keep it below
+        // the real three-second condition; do not edit a cached sum or wire mirror.
         p["card_runtime"] = serde_json::json!({
-            "wish_cast": wish_cast,
-            "fight": {"start": 0.0, "last": now}
+            "wish_cast": retained_wish,
+            "fight": {"start": now - rh_sim::constants::TICK_MS, "last": now}
         });
-        Sim::restore(cp).expect("declared watched fight clock and retained Wish tuple")
+        Sim::restore(cp).expect("declared watched fight clock after genuine grant/refold")
     }
 
     fn tax_seed(public: bool) -> Sim {
@@ -768,7 +832,13 @@ fn scenarios() -> Vec<(&'static str, Sim)> {
     let mut fuse = short_fuse();
     drive(&mut fuse, 400);
     let mut states = wish_states();
-    let declared = declared_native29_states(&states[0].1);
+    let declared = declared_native29_states(
+        &states
+            .iter()
+            .find(|(label, _)| *label == "Freeze pending")
+            .unwrap()
+            .1,
+    );
     states.extend(declared);
     states.extend(produced_walk_hint_states());
     states.extend([
@@ -2205,7 +2275,13 @@ fn derived_blink_ring_clone_and_restore_preserve_actual_locked_casts() {
 #[test]
 fn native29_declared_seeds_roundtrip_and_ordered_tax_vectors_change_hash() {
     let wish = wish_states();
-    let declared = declared_native29_states(&wish[0].1);
+    let declared = declared_native29_states(
+        &wish
+            .iter()
+            .find(|(label, _)| *label == "Freeze pending")
+            .unwrap()
+            .1,
+    );
     for (label, sim) in &declared {
         let cp = serde_json::to_value(sim).unwrap();
         assert_eq!(
