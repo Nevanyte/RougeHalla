@@ -69,6 +69,21 @@ namespace Roguehalla.Net.Tests
         }
 
         [Test]
+        public void FreshWelcomeCancelsQueuedTrainFromThePreviousTimelineBeforeFlush()
+        {
+            var transport = new QueuedTransport();
+            var session = Connected(transport);
+            session.Input.Train(3, uint.MaxValue, ulong.MaxValue);
+
+            session.Poll(); // Applies the queued Welcome, which resets the old input timeline.
+            Assert.AreEqual(SessionState.InMatch, session.State);
+            session.FlushInput();
+
+            Assert.IsFalse(transport.Sent.Exists(m => m is ClientMsg.Input),
+                "a Train queued before the accepted Welcome must not leak into the new timeline");
+        }
+
+        [Test]
         public void ExistingUpdateCallersStillPollAndSendTheirQueuedControls()
         {
             var transport = new QueuedTransport();

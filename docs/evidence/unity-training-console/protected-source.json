@@ -1,0 +1,88 @@
+{
+  "base": "3126e5c3209334c637d1f067f3f0b8209dbf06f4",
+  "previous42SourceAndMetaUnchanged": true,
+  "sharedOwnerFilesUnchanged": true,
+  "editorWorktreeCleanExactFrozen4": true,
+  "files": [
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/QuestJournalViewEditModeTests.cs",
+      "sha256": "a227e72035a95c76998a8e715eea197e54bf28de37ade69998404830186a9508"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/QuestJournalViewEditModeTests.cs.meta",
+      "sha256": "fbf0d2abab7d153e486a3ebe28f86196f290df10a6c0d3da03e5fab70a2110a5"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/TraderDialogViewEditModeTests.cs",
+      "sha256": "74f08af89ac872699567c2fe7ecc5451bdc3ffa94f6df48ec60abda813bb66cb"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/TraderDialogViewEditModeTests.cs.meta",
+      "sha256": "5dbe763a1b42575f08e6837a4e35ff5bfde5735ce102d50757e90e5a32c9f5c8"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/PlayerFlowsEditModeTests.cs",
+      "sha256": "d3b75829d5fb35708b328eeaa95d3975c0369cc287195db330dfbe2a7bb11c26"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/PlayerFlowsEditModeTests.cs.meta",
+      "sha256": "04c5f186600e28ada6ea8cecdd2f7be79b5cb21f1abeec8a8dce0242e642123e"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/MatchLaunchEditModeTests.cs",
+      "sha256": "1df70730e10dd3a3ea82365cd88db15a2fa631f313d4b168cbdbfe47e5c3323a"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/MatchLaunchEditModeTests.cs.meta",
+      "sha256": "8acab4f6bfac7f69d1d75a36eb4013e2202fe3567749fa49fca9ede4abeed365"
+    },
+    {
+      "path": "docs/MIGRATION.md",
+      "sha256": "18cbbc23698966d5a46fe61336168d2ee16700579c4ffdaadc7e6b92049a0edc"
+    },
+    {
+      "path": "docs/CONTRACTS.md",
+      "sha256": "2c9e0b9b562752ec907fe8ffa0e67986e6f6005a11c744f657fd67863de6e7cd"
+    },
+    {
+      "path": "Cargo.lock",
+      "sha256": "b14507716b80f1c0b85f7298b380b3c9146917134d9361c1bb408062782c0b22"
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Net/AccountApiService.cs",
+      "sha256": "5f043418e17c5b47017753baddeefeb9e38759094405e607a330b5e02c271be5"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountApiService.cs",
+      "sha256": "5f043418e17c5b47017753baddeefeb9e38759094405e607a330b5e02c271be5"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/MatchClient.cs",
+      "sha256": "7066c76deb34a22c6fe4b89214cd9e55b19e1e84b41240b0765ce5d4d42b3fec"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/MatchClient.Accounts.cs",
+      "sha256": "56e03a2057cb333245071d0d76288e391856c284630e5dceeba8e349cbfbd8f3"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.Accounts.cs",
+      "sha256": "78fed8f37e318d5d7eb22d1b215137a8947fb53401161e7da5fa7dbf235f9f08"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.PlayerFlows.cs",
+      "sha256": "1ab0455f21831d7bbb9e5f6514a01b89adf599c91140840526d47e2fa7094e3e"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.Features.cs",
+      "sha256": "45463480f94ca4882931871bb1405d391364281a67d4546d8c7667f2405203f8"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.cs",
+      "sha256": "8fce1dbccd6c8b1499134a8b1643e3068906f1170b1dca5c2c737c01fd5836c4"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Bootstrap.cs",
+      "sha256": "bf207b06c2abf3ba0cb6b0cd0f814911db469427f360575ef01f7c4d400c143f"
+    }
+  ]
+}

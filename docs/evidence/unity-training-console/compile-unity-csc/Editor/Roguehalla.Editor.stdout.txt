@@ -1,0 +1,3 @@
+client-unity/UnityProject/Assets/Editor/WishProof/WishProof.cs(10,19): error CS0234: The type or namespace name 'InputSystem' does not exist in the namespace 'UnityEngine' (are you missing an assembly reference?)
+client-unity/UnityProject/Assets/Editor/WishProof/WishProof.cs(31,16): error CS0246: The type or namespace name 'Mouse' could not be found (are you missing a using directive or an assembly reference?)
+client-unity/UnityProject/Assets/Editor/WishProof/WishProof.cs(32,16): error CS0246: The type or namespace name 'Keyboard' could not be found (are you missing a using directive or an assembly reference?)

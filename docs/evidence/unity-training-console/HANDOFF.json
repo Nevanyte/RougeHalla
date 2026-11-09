@@ -1,0 +1,95 @@
+{
+  "schema": 1,
+  "packet": "P-UNITY-TRAINING-CONSOLE",
+  "sourceCommit": "8a92e14a61e39948582f3d2c77b88cf9831bc5e6",
+  "base": "3126e5c3209334c637d1f067f3f0b8209dbf06f4",
+  "scope": "Source-only functional leaf; shared integration proposal unapplied. No new asset/audio work.",
+  "managedTestRun": {
+    "invocations": 2,
+    "invocation1": {
+      "exitCode": 127,
+      "testsExecuted": 0,
+      "reason": "dotnet absent from PATH"
+    },
+    "invocation2": {
+      "exitCode": 0,
+      "dotnet": "/Users/nevinmckinnon/.dotnet/dotnet",
+      "counts": {
+        "total": "777",
+        "executed": "777",
+        "passed": "777",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      },
+      "trx": "net-tests/net-tests-first.trx"
+    }
+  },
+  "standaloneCompile": {
+    "runtime": "Unity6000.0.85f2 bundled dotnet/Roslyn used outside Editor",
+    "editorExecuted": false,
+    "testsExecuted": false,
+    "finalAffectedScope": "final-focus-compile/COMPILE_RECEIPT.json",
+    "unchangedScope": "compile-asmdef-scoped/COMPILE_RECEIPT.json",
+    "priorFailures": [
+      "compile/COMPILE_RECEIPT.json",
+      "compile-unity-csc/COMPILE_RECEIPT.json"
+    ],
+    "warningsRetained": true
+  },
+  "newEditorTests": [
+    {
+      "file": "TrainingConsoleSelectorsEditModeTests.cs",
+      "methods": [
+        "MobChoicesMatchThePinnedCatalogOrderAndDisplayNames",
+        "InteractiveChoicesUseOnlyThePinnedWhitelistAndExistingCardTitles",
+        "CardCopyChoicesMirrorTheSharedConsoleIncludingRemove",
+        "SafeIntegerParserAcceptsZeroLeadingZerosAndTheExactMaximum",
+        "SafeIntegerParserRejectsBlankSignsFractionsJunkAndOverflowWithoutClamping"
+      ],
+      "execution": "UNRUN; source compiled only"
+    },
+    {
+      "file": "TrainingConsoleViewEditModeTests.cs",
+      "methods": [
+        "StartsClosedAndRequiresAcceptedTrainingFactAndMatchingExplicitLaunchContext",
+        "EachTrainingActionQueuesOneExactTrainWireIntentInExistingSessionOrder",
+        "InvalidStatTextAndDisconnectedSessionCannotQueueTrainingCommands",
+        "CapturedActionCallbackCannotTargetAReboundSession",
+        "CapturedActionCannotCrossSameSessionSourceClockCutEvenAfterEpochReconfirmation",
+        "TrainingActionFlushPreservesEarlierOrdinaryPendingInputOrder",
+        "ReentrantSendRebindDoesNotSendToOrPoisonTheNewSession",
+        "EscapeClosesFocusedConsoleOnceAndDestroyedViewRemovesCapturedListener"
+      ],
+      "execution": "UNRUN; source compiled only"
+    }
+  ],
+  "protectedFiles": {
+    "count": 20,
+    "currentSourceMatchesBase": true,
+    "oldFrozen4CleanObservationHistorical": true
+  },
+  "unityMetas": "New source metadata not imported/generated; later native lease required.",
+  "notVerified": [
+    "shared-HUD integration",
+    "actual Editor import/compile/test discovery",
+    "new Editor test execution",
+    "Play interaction/layout/focus",
+    "server Training application",
+    "browser/Web build/proof",
+    "asset or audio integration",
+    "gameplay screenshots",
+    "performance"
+  ],
+  "coordinatorLease": "Sole Editor is owned by coordinator settlement worker at5457b9c03149333ed3b2bcebdfb10b224364fc25; source packet made no Editor/Library/artcheckout operations during that lease."
+}

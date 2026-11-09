@@ -195,6 +195,74 @@ namespace Roguehalla.Net.Tests
             Assert.AreEqual(3, s.Dropped);
             foreach (var f in s.Flush(0)) Assert.DoesNotThrow(() => ClientMsg.Decode(f.Encode()));
         }
+
+        [Test]
+        public void TrainPreservesWireFieldsForAllFiveCommandsWithoutSemanticClamps()
+        {
+            var sender = new InputSender();
+            // These intentionally unvalidated catalog/count fields are wire-shape examples, not server-valid actions.
+            for (byte command = 1; command <= 5; command++)
+                sender.Train(command, uint.MaxValue, ulong.MaxValue);
+
+            var frames = sender.Flush(0);
+            Assert.AreEqual(1, frames.Count);
+            Assert.AreEqual(5, frames[0].Commands.Count);
+            var decoded = (ClientMsg.Input)ClientMsg.Decode(frames[0].Encode());
+            Assert.AreEqual(5, decoded.Commands.Count);
+            for (int i = 0; i < 5; i++)
+            {
+                var command = decoded.Commands[i];
+                Assert.AreEqual(CommandKind.Train, command.Kind);
+                Assert.AreEqual((byte)(i + 1), command.TrainCommand);
+                Assert.AreEqual(uint.MaxValue, command.TrainId);
+                Assert.AreEqual(ulong.MaxValue, command.TrainCount);
+                Assert.AreEqual(0, command.TrainOptions.Length);
+            }
+            Assert.AreEqual(0, sender.Dropped);
+        }
+
+        [Test]
+        public void TrainCopiesThreeOptionsAndKeepsItsPositionAcrossFlushFrames()
+        {
+            var sender = new InputSender();
+            for (int i = 0; i < 15; i++) sender.Attack(0, null);
+            // Duplicate indices are forwarded for the server validator to refuse; this API only bounds wire shape.
+            var options = new byte[] { 2, 2, 2 };
+            sender.Train(4, 0, ulong.MaxValue, options);
+            options[0] = 99;
+            options[1] = 99;
+            options[2] = 99;
+            sender.Stop();
+
+            var frames = sender.Flush(0);
+            CollectionAssert.AreEqual(new[] { 16, 1 }, frames.Select(f => f.Commands.Count).ToArray());
+            var decodedFirst = (ClientMsg.Input)ClientMsg.Decode(frames[0].Encode());
+            var train = decodedFirst.Commands[15];
+            Assert.AreEqual(CommandKind.Train, train.Kind);
+            Assert.AreEqual((byte)4, train.TrainCommand);
+            CollectionAssert.AreEqual(new byte[] { 2, 2, 2 }, train.TrainOptions);
+            Assert.AreEqual(CommandKind.Stop, frames[1].Commands[0].Kind);
+            Assert.DoesNotThrow(() => ClientMsg.Decode(frames[1].Encode()));
+        }
+
+        [Test]
+        public void TrainRefusesOnlyInvalidCommandBytesOrMoreThanThreeOptions()
+        {
+            var sender = new InputSender();
+            sender.Train(0, 0, 0);
+            sender.Train(6, 0, 0);
+            sender.Train(4, 0, 0, new byte[] { 0, 1, 2, 3 });
+
+            Assert.AreEqual(3, sender.Dropped);
+            Assert.AreEqual(0, sender.Flush(0).Count);
+
+            sender.Train(4, 0, 0, new byte[] { 0, 1, 2 });
+            var frames = sender.Flush(1);
+            Assert.AreEqual(1, frames.Count);
+            Assert.AreEqual((byte)4, frames[0].Commands[0].TrainCommand);
+            CollectionAssert.AreEqual(new byte[] { 0, 1, 2 }, frames[0].Commands[0].TrainOptions);
+            Assert.AreEqual(3, sender.Dropped);
+        }
     }
 
     static class Ext { public static T Also<T>(this T t, Action<T> a) { a(t); return t; } }
