@@ -379,9 +379,14 @@ namespace Roguehalla.Client.Tests
             Press(Key.C);
             _hud.ReadUiInput();
             Assert.That(_hud.ChestOwnsDigits, Is.True);
+
+            // Chest focus owns modal keyboard input, so first verify its independent blur release.
+            _hud.ReleaseUiFocusForWindowLoss();
+            Assert.That(_hud.ChestOwnsDigits, Is.False);
             ReleaseKeys();
             _hud.ReadUiInput();
 
+            // With the chest modal released, Tab can open the map; blur must release this held state too.
             Press(Key.Tab);
             _hud.ReadUiInput();
             Assert.That(_hud.TacticalMap.IsOpen, Is.True);
