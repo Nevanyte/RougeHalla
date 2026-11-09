@@ -1,0 +1,22 @@
+{
+  "source": "b4bf621d7ed285bb6af4eb737073e197450415df",
+  "method": "CUA native Editor-window observation, not a native Game capture",
+  "baselinePreset": "QHD (2560x1440)",
+  "baselineScale": 0.28,
+  "actionsBeforePlay": [
+    "Raise Unity window",
+    "Click Game tab",
+    "Click Game surface"
+  ],
+  "windowSize": [
+    1352,
+    789
+  ],
+  "observedInPlay": "Game pane displayed offline review world; this is not frame-advance proof",
+  "observedAfterStop": "Play button inactive; No cameras rendering",
+  "finalPreset": "QHD (2560x1440)",
+  "finalScale": 0.28,
+  "presetChanged": false,
+  "cuaCompletionSummarySent": true,
+  "nativeGamePngs": 0
+}

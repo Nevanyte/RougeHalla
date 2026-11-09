@@ -1,0 +1,17 @@
+{
+  "source": "b4bf621d7ed285bb6af4eb737073e197450415df",
+  "expected": 4,
+  "class": "MatchClientAccountBindingEditModeTests",
+  "loadedType": "MatchClientAccountBindingEditModeTests",
+  "methods": [
+    "MutatingMatchUrlWhileOwnershipRequestIsPendingCannotUseCapturedIntentOrConnect",
+    "SelectingFactionDuringDeferredJoinInvalidatesIntentAndCreatesNoSocket",
+    "StaleJoinFailureCannotOverwriteProfileSelectedBySynchronousFlowCallback",
+    "SuccessfulOrdinaryJoinUsesOwnedCanonicalIdentityTokenAndValidatedUrl"
+  ],
+  "sourceSha256": "ecde6696a981499a3a206cd333d3dfeb7a4061c5e1e345f2b4911ef4022b45f2",
+  "metaSha256": "995ff5d51834ee1c063d477bad98a65b67bbcb4a43a4a4f65f1ded641bc03723",
+  "guid": "fac78127a58b4044bec5d3a102c8fec7",
+  "mvid": "60a7fa0d-77ee-42fe-b18e-fe2439f20ad3",
+  "allMatch": true
+}

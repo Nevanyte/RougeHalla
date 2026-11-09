@@ -1,0 +1,86 @@
+{
+  "targetRootCommit": "b4bf621d7ed285bb6af4eb737073e197450415df",
+  "manifestPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/combined-b4bf62-2026-11-08/evidence/EXPECTED_TESTS.json",
+  "manifestSha256": "74278ecaf31e82ab3666ee2cf7180dba27a6cfcb74d7f2be8b611127d03c696e",
+  "overallGateStatus": "FAIL_STOPPED at first native rendered-readiness phase; tests pass independently.",
+  "testGate": {
+    "expected": 4,
+    "ran": 4,
+    "passed": 4,
+    "failed": 0,
+    "skipped": 0,
+    "inconclusive": 0,
+    "allExecutedNamesMatchManifest": true,
+    "rawResultFile": "tests-MatchClientAccountBindingEditModeTests.json",
+    "fourCaseGateReceipt": "four-case-gate.json",
+    "results": [
+      {
+        "fullName": "MatchClientAccountBindingEditModeTests.MutatingMatchUrlWhileOwnershipRequestIsPendingCannotUseCapturedIntentOrConnect",
+        "class": "MatchClientAccountBindingEditModeTests",
+        "method": "MutatingMatchUrlWhileOwnershipRequestIsPendingCannotUseCapturedIntentOrConnect",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-MatchClientAccountBindingEditModeTests.json"
+      },
+      {
+        "fullName": "MatchClientAccountBindingEditModeTests.SelectingFactionDuringDeferredJoinInvalidatesIntentAndCreatesNoSocket",
+        "class": "MatchClientAccountBindingEditModeTests",
+        "method": "SelectingFactionDuringDeferredJoinInvalidatesIntentAndCreatesNoSocket",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-MatchClientAccountBindingEditModeTests.json"
+      },
+      {
+        "fullName": "MatchClientAccountBindingEditModeTests.StaleJoinFailureCannotOverwriteProfileSelectedBySynchronousFlowCallback",
+        "class": "MatchClientAccountBindingEditModeTests",
+        "method": "StaleJoinFailureCannotOverwriteProfileSelectedBySynchronousFlowCallback",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-MatchClientAccountBindingEditModeTests.json"
+      },
+      {
+        "fullName": "MatchClientAccountBindingEditModeTests.SuccessfulOrdinaryJoinUsesOwnedCanonicalIdentityTokenAndValidatedUrl",
+        "class": "MatchClientAccountBindingEditModeTests",
+        "method": "SuccessfulOrdinaryJoinUsesOwnedCanonicalIdentityTokenAndValidatedUrl",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-MatchClientAccountBindingEditModeTests.json"
+      }
+    ]
+  },
+  "nativeReadinessGate": {
+    "status": "FAIL_STOPPED",
+    "coroutineRequested": "rendered-readiness-request.json",
+    "requestedSteps": [
+      "yield null",
+      "wait 0.2 seconds realtime",
+      "WaitForEndOfFrame"
+    ],
+    "timeoutReceipt": "rendered-readiness-timeout.json",
+    "waitSeconds": 10,
+    "receiptProduced": false,
+    "screenCaptureCalls": 0,
+    "acceptedPngCount": 0,
+    "pngFiles": [],
+    "screenCaptureAcceptance": false,
+    "observedStateBeforePlay": "viewport-before-play.json",
+    "playStateBeforeAttempt": "initial-play-state.json",
+    "playStateAtTimeout": "play-state-on-readiness-failure.json",
+    "screen752x252": "Editor-eval context only; explicitly not accepted as native backbuffer.",
+    "selectedGameView": "QHD 2560x1440 at 0.28 scale observed via CUA; no ScreenCapture call occurred.",
+    "editorFocusedWindow": null,
+    "autoTick": "Auto-tick enabled at 16ms after entering Play; no tick/readiness advance within recorded timeout.",
+    "retry": false,
+    "stopReceipt": "play-stop-on-failure.json"
+  },
+  "priorRevisionReceipts": {
+    "e2baad": "Recovery2 is a separate revision receipt; not included in this test count.",
+    "95bd9c": "Cosmetics7/progress3 remain separate; not included.",
+    "719cc2": "18 prior drawer/input/owner selectors remain separate; not included."
+  },
+  "noSourceProjectOrGitEdits": true
+}
