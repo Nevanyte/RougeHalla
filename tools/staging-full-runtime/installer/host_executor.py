@@ -272,7 +272,8 @@ def backup_material(plan, python):
     trigger = end - dt.timedelta(seconds=plan['backup_seconds'] + DRAIN_SECONDS)
     service = ('[Unit]\nDescription=Quiesced encrypted backup and conditional upload ' + plan['run_id'] + '\n'
                '[Service]\nType=oneshot\nUser=root\nTimeoutStartSec=' + str(plan['backup_seconds']) + 's\n'
-               'ExecStart=' + python + ' -I /opt/rougehalla/installer/host_executor.py backup --run-id ' + plan['run_id'] + '\n')
+               # -E -s, not -I: isolated mode drops the trusted installer directory from sys.path.
+               'ExecStart=' + python + ' -E -s /opt/rougehalla/installer/host_executor.py backup --run-id ' + plan['run_id'] + '\n')
     timer = ('[Unit]\nDescription=Backup before fixed expiry ' + plan['run_id'] + '\n[Timer]\nOnCalendar=' +
              trigger.strftime('%Y-%m-%d %H:%M:%S UTC') + '\nPersistent=false\nAccuracySec=1s\nRandomizedDelaySec=0\n'
              'Unit=' + BACKUP_SERVICE + '\n')

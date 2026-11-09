@@ -16,6 +16,8 @@ import os
 from pathlib import Path
 import re
 import stat
+import subprocess
+import sys
 import tarfile
 import tempfile
 from types import SimpleNamespace
@@ -1208,6 +1210,19 @@ class HostExecutor(unittest.TestCase):
         self.assertEqual(trigger, e.epoch_us(e.stamp('2026-11-09T15:52:00Z')))
         self.assertNotIn(b'[Install]', bodies[x.BACKUP_TIMER])
         self.assertIn(b'Persistent=false', bodies[x.BACKUP_TIMER])
+
+    def test_rendered_backup_execstart_imports_the_installer_modules(self):
+        plan = json.loads(self.w.seal()[0])
+        service = x.backup_material(plan, '/usr/bin/python3.12')[0][x.BACKUP_SERVICE].decode()
+        argv = unit_text_fields(service)['ExecStart'].split()
+        self.assertEqual(argv[0], '/usr/bin/python3.12')
+        argv[0] = sys.executable
+        argv[argv.index('/opt/rougehalla/installer/host_executor.py')] = str(Path(x.__file__).resolve())
+        # --help exits inside argparse before any boundary is built: proves the interpreter flags can import siblings.
+        result = subprocess.run(argv + ['--help'], capture_output=True, text=True, cwd='/', timeout=60,
+                                env={'PATH': '/usr/bin:/bin', 'PYTHONDONTWRITEBYTECODE': '1'})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('--run-id', result.stdout)
 
 
 if __name__ == '__main__':
