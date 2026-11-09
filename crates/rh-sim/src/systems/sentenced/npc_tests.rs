@@ -1,3 +1,4 @@
+#![cfg(test)]
 //! Native production/ownership regressions. No synthetic setup below is called source parity.
 use super::*;
 use crate::{
