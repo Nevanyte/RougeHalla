@@ -1,0 +1,58 @@
+{
+  "reviewed_local_date": "2026-11-09",
+  "base_evidence": "ac584b2dba9ffa7a560936f54055fcb6bb6be597",
+  "source": "ecb06b97189d14c236aba3bf7d64288c0fffc451",
+  "changed_runtime_files": [
+    "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.Features.cs"
+  ],
+  "corrective_scope_check": "PASS",
+  "all_prior25_tests_unchanged": true,
+  "test_file_hashes": [
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/QuestJournalViewEditModeTests.cs",
+      "sha256": "a227e72035a95c76998a8e715eea197e54bf28de37ade69998404830186a9508",
+      "unchanged_from_prior_seal": true
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/TraderDialogViewEditModeTests.cs",
+      "sha256": "74f08af89ac872699567c2fe7ecc5451bdc3ffa94f6df48ec60abda813bb66cb",
+      "unchanged_from_prior_seal": true
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/PlayerFlowsEditModeTests.cs",
+      "sha256": "d3b75829d5fb35708b328eeaa95d3975c0369cc287195db330dfbe2a7bb11c26",
+      "unchanged_from_prior_seal": true
+    }
+  ],
+  "native_selector_count": 25,
+  "native_fixture_counts": {
+    "QuestJournalViewEditModeTests": 8,
+    "TraderDialogViewEditModeTests": 6,
+    "PlayerFlowsEditModeTests": 11
+  },
+  "current_source_engine_executed": 0,
+  "typing_snapshot_once_before_focus_changes": true,
+  "ordinary_hotkeys_and_generic_tab_and_map_share_captured_typing": true,
+  "recovery_escape_and_native_text_submit_unchanged": true,
+  "persistent_latch_added": false,
+  "managed_compile_invocations": 1,
+  "managed_compile_errors": 0,
+  "managed_compile_warnings": 1,
+  "pure_control_invocations": 1,
+  "pure_control_counts": {
+    "UiInputGateTests": 5,
+    "PlanningSelectionsTests": 5
+  },
+  "pure_controls_passed": 10,
+  "pure_controls_failed": 0,
+  "pure_controls_skipped": 0,
+  "metas_unchanged": true,
+  "managed_project_hashes_unchanged": true,
+  "editor_runs": 0,
+  "play_runs": 0,
+  "captures": 0,
+  "browser_runs": 0,
+  "rust_runs": 0,
+  "wire_changes": false,
+  "root_review_required": true
+}
