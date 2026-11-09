@@ -192,6 +192,57 @@ namespace Roguehalla.Client.Tests
         }
 
         [Test]
+        public void SelectedParticipantsUseTypedRosterIdsKeepDuplicateLabelsAndClearOnReplacementOrRebind()
+        {
+            var firstParticipant = new RosterId(11);
+            var ownerParticipant = new RosterId(12);
+            var row = Row(_first, "Shared quest", "brief", "objective", "reward", false);
+            row.State = QuestRowState.Open;
+            row.Participants = new[]
+            {
+                new WireQuestParticipant { Id = firstParticipant, Accepted = true, Progress = 3 },
+                new WireQuestParticipant { Id = ownerParticipant, Accepted = false, Progress = 0 },
+            };
+            var roster = new[]
+            {
+                new WireQuestRosterEntry { Id = firstParticipant, Label = "Same name" },
+                new WireQuestRosterEntry { Id = ownerParticipant, Label = "Same name" },
+            };
+            DeliverQuestState(_session, _transport, new QuestsState
+            {
+                Available = true,
+                View = new WireQuestView { OwnerRoster = ownerParticipant, Roster = roster, Rows = new[] { row } },
+            });
+            _view.Refresh(); _view.SelectQuest(_first);
+            Assert.AreEqual("Same name · Accepted · Progress 3\nSame name · You · Not accepted · Progress 0", Text("QuestParticipants"));
+
+            var withoutParticipants = Row(_first, "Shared quest", "brief", "objective", "reward", false);
+            withoutParticipants.State = QuestRowState.Open;
+            DeliverQuestState(_session, _transport, new QuestsState
+            {
+                Available = true,
+                View = new WireQuestView { OwnerRoster = ownerParticipant, Roster = roster, Rows = new[] { withoutParticipants } },
+            });
+            _view.Refresh();
+            Assert.AreEqual("", Text("QuestParticipants"), "a replacement with no participants clears the old participant text");
+
+            row.Participants = new[] { new WireQuestParticipant { Id = ownerParticipant, Accepted = true, Progress = 4 } };
+            row.OwnerAccepted = true; row.OwnerProgress = 4;
+            DeliverQuestState(_session, _transport, new QuestsState
+            {
+                Available = true,
+                View = new WireQuestView { OwnerRoster = ownerParticipant, Roster = roster, Rows = new[] { row } },
+            });
+            _view.Refresh(); _view.SelectQuest(_first);
+            Assert.AreEqual("Same name · You · Accepted · Progress 4", Text("QuestParticipants"));
+
+            _otherTransport = new TestTransport(); _other = NewSession(_otherTransport, 2);
+            _view.Bind(_other);
+            Assert.AreEqual("", Text("QuestParticipants"), "rebind clears the previous session's participant text immediately");
+            Assert.AreEqual("Select a quest", Text("QuestName"));
+        }
+
+        [Test]
         public void AcceptUsesCurrentHandleAndFreshCanAcceptThenSessionBatchesOnlyThatIntent()
         {
             _transport.Deliver(new ServerMsg.Snapshot { Tick = 20, Phase = 1 });

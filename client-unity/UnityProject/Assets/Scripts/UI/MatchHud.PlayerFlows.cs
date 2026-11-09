@@ -2,6 +2,7 @@ using Roguehalla.Net;
 using Roguehalla.Net.Protocol;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 namespace Roguehalla.Client
 {
@@ -13,6 +14,12 @@ namespace Roguehalla.Client
         UnityEngine.UI.Button _journalButton;
         uint _playerFlowEpoch;
         bool _returnToResults;
+        readonly System.Collections.Generic.List<UnityEngine.UI.Button> _planningBlockedTabs = new System.Collections.Generic.List<UnityEngine.UI.Button>();
+        UnityEngine.CanvasGroup _planningMapInput;
+        bool _planningMapBlocked, _mapWasInteractable, _mapBlockedRaycasts;
+        GameObject _planningReturnFocus;
+        Session _planningReviewSession;
+        uint _planningReviewEpoch;
         public QuestJournalView QuestJournal => _questJournal;
         public TraderDialogView TraderDialog => _traderDialog;
         public OrderedNoticeFeed ServerNotices => _orderedNotices;
@@ -30,7 +37,7 @@ namespace Roguehalla.Client
             _orderedNotices.Initialize(_root, ClosePlayerFlows);
             AddPlayerFlowTabs(_questJournal.Root); AddPlayerFlowTabs(_traderDialog.Root); AddPlayerFlowTabs(_orderedNotices.Root);
             _journalButton = MythicUi.Button(_root, "Journal", "J · JOURNAL", new Vector2(.315f, .855f), new Vector2(.395f, .915f),
-                () => ShowPlayerFlow(_session?.State == SessionState.InMatch ? 0 : 2), fontSize: 14);
+                () => ShowPlayerFlow(DefaultPlayerFlowPage), fontSize: 14);
             _journalButton.gameObject.SetActive(false);
         }
         void AddPlayerFlowTabs(Transform root)
@@ -39,21 +46,28 @@ namespace Roguehalla.Client
             for (int i = 0; i < names.Length; i++)
             {
                 int page = i;
-                MythicUi.Button(root, names[i] + "Tab", names[i].ToUpperInvariant(), new Vector2(.025f + i * .32f, .825f),
+                var button = MythicUi.Button(root, names[i] + "Tab", names[i].ToUpperInvariant(), new Vector2(.025f + i * .32f, .825f),
                     new Vector2(.335f + i * .32f, .90f), () => ShowPlayerFlow(page));
+                if (page != 0) _planningBlockedTabs.Add(button);
             }
         }
+        int DefaultPlayerFlowPage => (_map?.IsPlanning ?? false) || _session?.State == SessionState.InMatch ? 0 : 2;
         bool PlayerFlowLauncherAllowed => _session?.Welcome != null && _menu != null && !_menu.gameObject.activeSelf &&
             !_settings.gameObject.activeSelf && !AnyHubPanelVisible && !(_signIn?.gameObject.activeSelf ?? false) &&
-            !(_drawer?.IsVisible ?? false) && !(_help?.gameObject.activeSelf ?? false) && !(_map?.IsPlanning ?? false);
+            !(_drawer?.IsVisible ?? false) && !(_help?.gameObject.activeSelf ?? false) && !Typing;
+        bool PlayerFlowPageAllowed(int page) => page >= 0 && page <= 2 && PlayerFlowLauncherAllowed &&
+            (!(_map?.IsPlanning ?? false) || page == 0);
         public void ShowPlayerFlow(int page)
         {
-            if (page < 0 || page > 2 || !PlayerFlowLauncherAllowed) return;
+            if (!PlayerFlowPageAllowed(page)) return;
             _returnToResults |= _results.gameObject.activeSelf;
             _results.gameObject.SetActive(false);
-            CloseHubPanels(); _map?.SetOpen(false); ReleaseChestFocus();
+            CloseHubPanels();
+            if (_map?.IsPlanning == true) BlockPlanningMapInput(); else _map?.SetOpen(false);
+            ReleaseChestFocus();
             _orderedNotices.SetRecentVisible(false);
             _questJournal.SetVisible(page == 0); _traderDialog.SetVisible(page == 1); _orderedNotices.SetVisible(page == 2);
+            RefreshPlanningJournalAccess();
             RefreshWorldHudVisibility();
             var root = PlayerFlowFocus;
             if (root != null) UiFocusNavigation.Cycle(root, false);
@@ -61,6 +75,7 @@ namespace Roguehalla.Client
         void ClosePlayerFlows()
         {
             _questJournal?.SetVisible(false); _traderDialog?.SetVisible(false); _orderedNotices?.SetVisible(false);
+            RestorePlanningMapInput();
             if (_returnToResults && _session != null) _results.gameObject.SetActive(true);
             _returnToResults = false;
             RefreshWorldHudVisibility();
@@ -75,9 +90,50 @@ namespace Roguehalla.Client
         }
         void RefreshPlayerFlows()
         {
+            RefreshPlanningJournalAccess();
             _questJournal?.Refresh(); _traderDialog?.Refresh();
             _map?.SetTrackedQuest(_questJournal?.TrackedQuest);
             RefreshJournalLauncher();
+        }
+        void RefreshPlanningJournalAccess()
+        {
+            bool planning = _map?.IsPlanning == true;
+            foreach (var button in _planningBlockedTabs) button.interactable = !planning;
+            if (!planning) return;
+            if (_traderDialog?.IsVisible == true || _orderedNotices?.IsVisible == true) ClosePlayerFlows();
+            if (_questJournal?.IsVisible == true) BlockPlanningMapInput();
+        }
+        void BlockPlanningMapInput()
+        {
+            if (_planningMapBlocked) return;
+            var map = _root.Find("TacticalMap");
+            if (map == null) return;
+            _planningMapInput = map.GetComponent<UnityEngine.CanvasGroup>();
+            if (_planningMapInput == null) _planningMapInput = map.gameObject.AddComponent<UnityEngine.CanvasGroup>();
+            _mapWasInteractable = _planningMapInput.interactable;
+            _mapBlockedRaycasts = _planningMapInput.blocksRaycasts;
+            _planningReviewSession = _session; _planningReviewEpoch = _session.TimelineEpoch;
+            var selected = EventSystem.current?.currentSelectedGameObject;
+            _planningReturnFocus = selected != null && selected.transform.IsChildOf(map) ? selected : null;
+            _planningMapInput.interactable = false; _planningMapInput.blocksRaycasts = false;
+            _planningMapBlocked = true;
+        }
+        void RestorePlanningMapInput()
+        {
+            if (!_planningMapBlocked) return;
+            if (_planningMapInput != null)
+            {
+                _planningMapInput.interactable = _mapWasInteractable;
+                _planningMapInput.blocksRaycasts = _mapBlockedRaycasts;
+            }
+            var focus = _planningReturnFocus;
+            bool current = ReferenceEquals(_session, _planningReviewSession) && _session != null &&
+                _session.TimelineEpoch == _planningReviewEpoch && _map?.IsPlanning == true;
+            _planningMapBlocked = false; _planningReturnFocus = null; _planningReviewSession = null;
+            if (!current || EventSystem.current == null) return;
+            var control = focus != null ? focus.GetComponent<UnityEngine.UI.Selectable>() : null;
+            if (focus != null && focus.activeInHierarchy && control != null && control.IsInteractable())
+                EventSystem.current.SetSelectedGameObject(focus);
         }
         void ResetPlayerFlowTimeline()
         {
@@ -102,7 +158,7 @@ namespace Roguehalla.Client
             if (_journalButton == null) return;
             _journalButton.gameObject.SetActive(PlayerFlowLauncherAllowed && !PlayerFlowVisible);
             var label = _journalButton.GetComponentInChildren<TMP_Text>(true);
-            string value = "J · JOURNAL";
+            string value = _map?.IsPlanning == true ? "J · QUESTS" : "J · JOURNAL";
             if (label.text != value) label.text = value;
         }
     }
