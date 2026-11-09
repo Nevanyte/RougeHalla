@@ -6,3 +6,4 @@ a85c405a0dfe08a033e67f47c4aeda3f67bee6aee25667a61f72f2dcebaf3b60  52505  crates/
 83335260006487f6f3c9ad38216968f87e008fc57e8d87590b24d735c921d5c1  2455  docs/evidence/walk-hint-native24/regressions.log
 5445d851f45c3f83801f689a2135a6b7cf94ff342659d5b537bde5c8aba4b4d6  15  docs/evidence/walk-hint-native24/fmt.log
 503753b5057c0a66a9fe187acc0a667bb8dc6119e7d4578493f46c76c69f5587  206  docs/evidence/walk-hint-native24/clippy.log
+d207d3143e0544ba4ff4927a91514d31ae6bdffa0a5728c838aee743102495f9  898  docs/evidence/walk-hint-native24/verify.log
