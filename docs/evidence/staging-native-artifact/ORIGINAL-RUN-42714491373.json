@@ -1,0 +1,21 @@
+{
+  "format": "rh-native-original-run-safe-extract/1",
+  "run_id": 42714491373,
+  "job_id": 129492372135,
+  "source_commit": "7401e2908a080799937a6f074dbc142d74320cc1",
+  "run_url": "https://github.com/Nevanyte/RougeHalla/actions/runs/42714491373",
+  "verification": "Independently fetched decoded job logs and artifact listing through the read-only GitHub connector.",
+  "release_compile": {
+    "status": "PASS",
+    "duration_seconds": 160,
+    "finished_at_utc": "2026-11-09T22:47:38.9804486Z"
+  },
+  "postbuild": {
+    "status": "FAIL",
+    "generic_refusal_at_utc": "2026-11-09T22:47:40.3036794Z",
+    "underlying_cause": "UNKNOWN",
+    "failure_stage": "NOT RECORDED"
+  },
+  "artifact_count": 0,
+  "preservation": "Existing source/evidence and original CI run remain unchanged; this extracts only safe fixed facts, not raw environment/arguments/logs."
+}
