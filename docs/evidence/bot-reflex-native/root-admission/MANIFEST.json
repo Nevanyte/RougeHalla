@@ -1,0 +1,30 @@
+{
+  "format": "rh-root-finite-admission/1",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 1788,
+      "sha256": "edf5e34ad2a4e9c9649b4909bedbd58655d1cc695f4b67d6a70fb1c69d8e675b"
+    },
+    {
+      "path": "bot-reflex-d204825e-independent-review.md",
+      "bytes": 7100,
+      "sha256": "dce33c94207eef880506f6151f119a837cfec289c21a08c442066ae87bf80fa4"
+    },
+    {
+      "path": "bot-reflex-native-c182026d-independent-review.md",
+      "bytes": 4850,
+      "sha256": "341d85a99666c6dfe076de4bd714e2e3dd1342acaea939b30295950cf0d35c8f"
+    },
+    {
+      "path": "reflex-geometry-review.md",
+      "bytes": 6623,
+      "sha256": "16d4288952a60774706c8fd4942df161bf91a5dc5907d50f7879cb59dce67c54"
+    },
+    {
+      "path": "reflex-root-composition-tests.log",
+      "bytes": 1502,
+      "sha256": "0409bdda8c8453742fec6a50ede7eb2e8496c90436065d1347df47ebdb8ba4a1"
+    }
+  ]
+}

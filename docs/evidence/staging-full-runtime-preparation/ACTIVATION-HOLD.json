@@ -1,0 +1,13 @@
+{
+  "preparation_only": true,
+  "deployable": false,
+  "blocked": [
+    "fresh account/inventory/gross CAD cost and reviewed capacity",
+    "verified AMI/AZ/pinned PostgreSQL+age toolchain",
+    "reviewed runtime secret/role initialization and retained-volume mount installer",
+    "absolute host expiry+egress guard installed before public serving",
+    "root-approved artifact delivery and bounded offhost backup capability",
+    "actual dual-runtime routing/account/results/restore proof",
+    "separate Root deployment authorization"
+  ]
+}

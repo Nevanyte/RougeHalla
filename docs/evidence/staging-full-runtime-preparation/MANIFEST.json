@@ -1,0 +1,160 @@
+{
+  "format": "rh-staging-full-runtime-preparation/1",
+  "base": "a0c4818ce9df8ad0f4124db31e65ba1244bddc3b",
+  "branch": "codex/calgary-dual-runtime-staging",
+  "status": "LOCAL_PREPARATION_ONLY_ACTIVATION_HOLD",
+  "aws_calls": 0,
+  "new_targets": 0,
+  "package_or_image_installs": 0,
+  "cfn_lint": "1.46.0",
+  "cfn_guard": "3.2.1",
+  "python_tests": 10,
+  "actual_caddy_http_routes": 6,
+  "actual_private_refusals": 5,
+  "runtime_native_proof_executed": false,
+  "backup_restore_executed": false,
+  "caddy_sha256": "762d7763ed8e303d50bf11fb0274627266907ea8c170720d7d9a6fd0b9bf5c65",
+  "cached_node_image_id": "sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d",
+  "commands": [
+    "python3 tools/staging-full-runtime/prepare.py render-review --out <NEW private path>",
+    "cfn-lint --regions ca-west-1 --template docs/evidence/staging-full-runtime-preparation/template.review-only.json",
+    "cfn-guard validate --rules tools/staging-full-runtime/security.guard --data docs/evidence/staging-full-runtime-preparation/template.review-only.json --output-format json",
+    "python3 -m unittest discover -s tools/staging-full-runtime -p 'test_*.py' -v",
+    "bash -n tools/staging-full-runtime/backup.sh tools/staging-full-runtime/restore.sh",
+    "docker run --rm --pull=never --network none --platform linux/amd64 --cap-drop ALL --read-only --tmpfs /tmp:rw,noexec,nosuid,size=32m <read-only existing Caddy and repo mounts> node:22.23.4-bookworm-slim node /repo/tools/staging-full-runtime/route-probe.mjs /caddy /repo/docs/evidence/staging-full-runtime-preparation/caddy-adapt.json"
+  ],
+  "files": {
+    "tools/staging-full-runtime/Caddyfile": {
+      "bytes": 1498,
+      "sha256": "d3d4367265173952f656941e2d013e7076fcf62f02316cb8f3d53abb292b7de1"
+    },
+    "tools/staging-full-runtime/README.md": {
+      "bytes": 12143,
+      "sha256": "3258b75d99eb964bfeb37a39a57a97fbdd464e52e28eb98579f2a2af9d94a915"
+    },
+    "tools/staging-full-runtime/backup.sh": {
+      "bytes": 3810,
+      "sha256": "55d431fe5af0564a5b234f360fb662695ad47dd8fe5cb0d50a23e0e69f86accd"
+    },
+    "tools/staging-full-runtime/backup_archive.py": {
+      "bytes": 2632,
+      "sha256": "14e310666576555bb78125a242889aff2808a4717872f6e4d64c5c42fdfa521a"
+    },
+    "tools/staging-full-runtime/init-runtime-secrets.py": {
+      "bytes": 1220,
+      "sha256": "4c4d253dbd2dfce3e42769c08196c664451781d05b4f58ecd65ba1e0fb081f23"
+    },
+    "tools/staging-full-runtime/native-pins.json": {
+      "bytes": 609,
+      "sha256": "cc7031cf26c1d57bc149a5347a3691b81c0c23b0149f1cd494c7c84a59654e9c"
+    },
+    "tools/staging-full-runtime/pg_hba.conf": {
+      "bytes": 226,
+      "sha256": "ffc8cd0acdedfe16c9cf4d616296e268ba21e56818e9c9c8e173b8d36a4b57da"
+    },
+    "tools/staging-full-runtime/plan.unverified.json": {
+      "bytes": 1972,
+      "sha256": "4fd0558938bc41ef14d59c42fed86976fea5aa58654962352dfee322c979f81e"
+    },
+    "tools/staging-full-runtime/postgresql.conf": {
+      "bytes": 372,
+      "sha256": "7d827e4d20f090268d50f65d349ef356db3849d83fff88bd56eb5ca587025189"
+    },
+    "tools/staging-full-runtime/prepare.py": {
+      "bytes": 17865,
+      "sha256": "5ecd04d58e09acdbb8c76563f7e59877e574c2d146ad196fd6ac81a3f7ea4a11"
+    },
+    "tools/staging-full-runtime/restore.sh": {
+      "bytes": 2113,
+      "sha256": "807e18304dc8102621f69930aabf512dbb89f33786805cde735bdd8b6fd76083"
+    },
+    "tools/staging-full-runtime/rougehalla-caddy.service.in": {
+      "bytes": 854,
+      "sha256": "856e2642fd99c58a4957fd0da98d32c4cdcb11be9ee507a76598e693c649ebf5"
+    },
+    "tools/staging-full-runtime/rougehalla-postgres.service.in": {
+      "bytes": 686,
+      "sha256": "5ffc53bbe55f9634897342391af28912b8cf124d19d1260cf939d1fec4c822e7"
+    },
+    "tools/staging-full-runtime/rougehalla-source.service.in": {
+      "bytes": 652,
+      "sha256": "040186c74c5c026d010412a3101a200f1dbc82a1d04df9105fdf3b2701b65070"
+    },
+    "tools/staging-full-runtime/rougehalla-training.service.in": {
+      "bytes": 653,
+      "sha256": "6ff90741ae06251b6a28dd943f943193ed856420b3b5843b0b18e7cf77b10ce1"
+    },
+    "tools/staging-full-runtime/route-probe.mjs": {
+      "bytes": 4851,
+      "sha256": "ff3d8ab716bb8be6b1a0cba3cccdf12485cb5d8aa07357f89667ab39a5b39cbb"
+    },
+    "tools/staging-full-runtime/run-runtime.py": {
+      "bytes": 3586,
+      "sha256": "5641c380207fd91021abc2d51c8bbbfe45f7500ef50c63e85c2653f2a1884830"
+    },
+    "tools/staging-full-runtime/security.guard": {
+      "bytes": 1852,
+      "sha256": "2c66c588a1f5c27cbe9395df6cc13e8f5c5be22e706870f39dc657462000c417"
+    },
+    "tools/staging-full-runtime/test_preparation.py": {
+      "bytes": 13193,
+      "sha256": "64c736620762dd8e2fca3b169652020d5fce5c06e204ab5f2b25943c78dcb483"
+    },
+    "docs/evidence/staging-full-runtime-preparation/ACTIVATION-HOLD.json": {
+      "bytes": 544,
+      "sha256": "7549bd063edc3e2af32a90bc54cee03a7ae3cf5421ee2ae041ecfc02fe48ad31"
+    },
+    "docs/evidence/staging-full-runtime-preparation/README.md": {
+      "bytes": 5672,
+      "sha256": "3c247f43347dfe89677f827e21b90cc2ce912c793b9ce504f44bac968053b411"
+    },
+    "docs/evidence/staging-full-runtime-preparation/caddy-adapt.json": {
+      "bytes": 2020,
+      "sha256": "38e970c08ab978a898bf394c3578f80a326b64e01f8c76ba8c114d251c4dc793"
+    },
+    "docs/evidence/staging-full-runtime-preparation/caddy-adapt.log": {
+      "bytes": 546,
+      "sha256": "d66ee72d8d2f633425c37b74e3743401bb3c46299f68477de09180f3c02c978d"
+    },
+    "docs/evidence/staging-full-runtime-preparation/caddy-initial-platform-refusal.log": {
+      "bytes": 198,
+      "sha256": "fd8b4613ff30155d701a404d7b3c842176185e464ca4580cc38daf846a275901"
+    },
+    "docs/evidence/staging-full-runtime-preparation/caddy-route-probe.log": {
+      "bytes": 174,
+      "sha256": "403e129890c28c06150b963c20dfc90056426fbdfbef01c4231047fe697a89bb"
+    },
+    "docs/evidence/staging-full-runtime-preparation/cfn-guard.log": {
+      "bytes": 440,
+      "sha256": "7683126afc44847b4f5f44619515d4cf45e99bd1fbd0701d6a82ff0137c06544"
+    },
+    "docs/evidence/staging-full-runtime-preparation/cfn-lint.log": {
+      "bytes": 7,
+      "sha256": "19eaf43821a7660ec323a87c8457bf74823beb296c39f5e01aa8a683aa50f061"
+    },
+    "docs/evidence/staging-full-runtime-preparation/diff-check.log": {
+      "bytes": 7,
+      "sha256": "19eaf43821a7660ec323a87c8457bf74823beb296c39f5e01aa8a683aa50f061"
+    },
+    "docs/evidence/staging-full-runtime-preparation/render.log": {
+      "bytes": 53,
+      "sha256": "2808f30612e0ef9b1e74ceb8e18c85d679b373d095e69fc8664046ebd0b9b04e"
+    },
+    "docs/evidence/staging-full-runtime-preparation/syntax.log": {
+      "bytes": 360,
+      "sha256": "07267d8e1641c0a699c4135f6876029e38037eb1f30d9c01a86a29d78bd6b9fe"
+    },
+    "docs/evidence/staging-full-runtime-preparation/template.review-only.json": {
+      "bytes": 10039,
+      "sha256": "10241ebcc9fc916eb8d604448e67520a7ddb5ba72b0ce5eebb10bddd5b6cd293"
+    },
+    "docs/evidence/staging-full-runtime-preparation/unit-tests.log": {
+      "bytes": 1056,
+      "sha256": "19868f240ebcd9c5269d98fe99dbf03c759649ee489faf36ae7b3169fd36a069"
+    },
+    "docs/evidence/staging-full-runtime-preparation/unverified-plan-refusal.log": {
+      "bytes": 103,
+      "sha256": "e89a4e94a8d4d8864a914f6ee4a8ffeebf299be998c6c1f2d8454c6989c5d638"
+    }
+  }
+}

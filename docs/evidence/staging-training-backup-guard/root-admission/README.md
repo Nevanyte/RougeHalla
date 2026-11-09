@@ -1,0 +1,9 @@
+# Root preparation admission after Training spool guard correction
+
+PREPARATION RELEASE for inert local source0042dc68 plus focused correction1306c7b9/seal2bc955e3. Root inspected all three corrected paths and reran all14offline tests successfully. lstat rejects a symlink/non-directory root, and non-following scandir rejects every non-directory descendant; absent and genuine directory-only trees remain allowed. Root/descendant regular files, FIFOs and valid/dangling links plus actual CLI refusal are covered. The documented quiesced/exclusive-writer boundary remains required; no concurrent hostile filesystem guarantee is claimed.
+
+The original independent HOLD and original0042 evidence remain unchanged. Their original source hashes are historical, not assertions that the three corrected files retain old bytes. The additive correction manifest binds the new code. This is a source-quality correction, not an executed PostgreSQL backup/restore or host admission.
+
+No AWS/login/network/deploy/apply/cost operation was performed. Preparation stays deployable:false even with valid local inputs, and review-template userdata powers off/refuses. Root has NOT released an installer, private transfer channel, active retained-volume lifecycle or these host scripts for operational use. Local Caddy probes used labelled stub upstreams, not real TLS or native WS gameplay. Actual dual-runtime/account/browser and offhost durable restoration remain required.
+
+Owner deferred AWS sign-in. Future hosting remains restricted to048226733033/ca-west-1/practice rougehalla.com and CAD20TOTAL, counting gross prior staging cost with conservative verified FX/lag/tax/retention reserve. No current cost/access/resource attestation, spent amount, sizing,200-match capacity or release status follows from offline preparation. Credentials remain outside source and evidence.

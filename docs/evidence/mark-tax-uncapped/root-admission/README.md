@@ -1,0 +1,5 @@
+# Root source admission: uncapped MarkTax
+
+Source-only seal50a76a1f/codeef06b6f4 is composed unchanged after independent review. This genuine accepted Training/camp/wake/high-stat witness corrects the earlier assumption that the source cap remains neutral throughout reachable builds. At2400ms/tick48 it reaches publicmarkTax48 and mirror104211 with three actual tier2NPC Marks. Training grants are not ordinary raid earnings. All original exploratory failures and the final bytechecks/semantic controls remain intact.
+
+Immediate recomputation is a taxed-membership presence transition: this witness proves null→owner, not arbitrary replacement of one already-selected owner. It precedes the later public-tax sync/final mods phase. Native markTaxSource remains unimplemented; no public field, ABI, gameplay rule, content identity or derived tape is admitted here. The six source controls and exact limited source release are described in the attached review. No post-tax paid attack/socket/native parity is claimed.

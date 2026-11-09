@@ -1,0 +1,33 @@
+{
+ "format": "rh-bot-reflex-native-checks/1",
+ "code": "01ee1de7ef235525fc9ec1ec96d8605b5139df68",
+ "test": {
+  "command": "cargo test --offline --locked -p rh-policy --lib bots::reflex -- --nocapture",
+  "exit": 0,
+  "passed": 5,
+  "failed": 0,
+  "sourceSequences": 49,
+  "sourceFrames": 68,
+  "realChecks": 67,
+  "continuousMaxAbsDifference": 0.0,
+  "discrete": "exact",
+  "rng": "exact draw prefix/state/next"
+ },
+ "lint": {
+  "command": "cargo clippy --offline --locked -p rh-policy --all-targets --all-features -- -D warnings",
+  "exit": 0
+ },
+ "fmt": {
+  "command": "cargo fmt -p rh-policy -- --check",
+  "exit": 0
+ },
+ "build": {
+  "env": "final-env.sh then explicit target override",
+  "target": "bot-fight-native/target",
+  "jobs": 1,
+  "devDebug": 0,
+  "testDebug": 0,
+  "incremental": 0,
+  "finalTargetTouched": false
+ }
+}

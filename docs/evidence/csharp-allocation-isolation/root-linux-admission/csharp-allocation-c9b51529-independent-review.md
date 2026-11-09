@@ -1,0 +1,25 @@
+# C# allocation isolation candidate — independent review
+
+**SOURCE RELEASE for Root's narrow Linux diagnostic**, candidatec9b51529063f98d5d3667f964fb78eecee67797a only. **Production-test merge remains HOLD pending actual reviewed Linux results.** Original CI42601100872/job129105672355 remains RED/OPEN; no cause or distribution of its1128 aggregate excess bytes is established. Static source/artifact review only; no builds/test executions/dispatch/push/merge by reviewer. Root separately owns dispatch-workflow review.
+
+Exact history986f44df→c9b51529→diagnostic-only4757316a→evidence9b219fb5243c10da99c25e07941b0d3ce57e5626 verified. Candidate changes exactly GarbageTests.cs PerCall and new AllocationMeasurementTests.cs. Entire GarbageTests source outside PerCall is byte-identical, preserving all original18 selectors/callers/setup/budgets. Complete production RoguehallaNet tree5df6ac67e78f251689081e2ee34501114513f7b8 and Unity mirror are unchanged; candidate does not touch workflow. All43 final-manifest payload lengths/hashes match immutable Git; manifest SHAfd4137b7be1884dc3d25b51497d2067009f7a395bff9b188f6a8c5099d69d26b.
+
+## Measurement contract
+
+PerCall creates closure/delegate/thread/result/error state on the caller before starting measured work. One dedicated worker primes GetAllocatedBytesForCurrentThread, invokes body exactly200 times at0..199, then takes a single before counter, invokes exactly20000 calls at200..20199, takes the after counter and divides by20000. Counter priming adds no body warmup or excluded measured sample. Successful measurement has no state/thread construction, logging, reflection, collection forcing, subtraction, tolerance, minimum selection, retry or budget increase inside the window.
+
+Worker start suppresses caller ExecutionContext flow, including an already-suppressed caller branch without mismatched Undo. Suppression is disposed on the initiating thread before synchronous Join. Join establishes completion/publication before reading result/error. Body errors from warmup or measured work are captured and rethrown through ExceptionDispatchInfo after Join; a failed body cannot silently return the default0 result. The source is a deliberate measurement-isolation change, not a decoder or allocation-rate fix.
+
+Five controls are meaningful: one noncaller worker for all20200 ordered indices and no inherited AsyncLocal marker while caller context survives; empty body exactly0; one retained object per call must exceed the unchanged zero ceiling; a single retained object at first measured index200 remains positive; an actual measured exception reaches the caller as the same object after exactly201 calls. Reflection/argument arrays in the control wrapper occur outside PerCall's window. The object sinks/KeepAlive prevent the tested allocations from becoming unused values. These controls do not prove Linux behavior or identify the original CI surplus.
+
+## Diagnostic evidence
+
+The portable probe reflects the actual unchanged Snap factory at setup and binds the actual candidate PerCall once. Its original aggregate loop matches986's200/20000 body/counter sequence; it does not substitute a new decoder. Independent trace windows use preallocated arrays and record all deltas/thread IDs. They are explicitly instrumented observations, not a replacement budget gate; total window overhead is reported and remains included, never subtracted.
+
+Statically reconciled all30 aggregate records and all30 raw20000-delta/thread arrays. Counts/threads/histograms/sums/total-overhead relations match. Empty arrays total0; per-call-object arrays are all24; single-index arrays have first delta24 and all19999 later deltas0, total24/mean0.0012. All extra-object/decode scenarios breach the same unchanged budget, while normal1/14/68 self/spectator scenarios fit locally. Original/candidate aggregates and traces run in a declared sequential single process; later paths are warmer. This is not a cold-process causal comparison or evidence that NUnit/context/tiering caused CI failure.
+
+Local original18 pass and candidate23 pass receipts are retained; actual platform ARM64 .NET8.0.33, not Linux. The original raw CI log remains byte-exact SHA04bac1fd28df1cc4545b802bec2b84447e0b86fd08afdf3c898ee773f4b95bbf and still records751/752 with spectator14 threshold536 versus536.05640000000005. No local result clears it.
+
+## Integration boundary
+
+Diagnostic-only4757316a replaces rust.yml and **MUST NEVER MERGE to main**. Evidence9b includes that diagnostic ancestry; do not merge the entire diagnostic branch as a candidate shortcut. Only separatec9b51529 is eligible for a later candidate-only cherry-pick after Root reviews actual Linux focused-test and raw diagnostic outcomes. Probe exit0 means its diagnostic contracts completed, not that all real decoder budgets passed. Any Linux surplus/failure must stay visible; no retry/minimum/subtraction or causal assertion follows from this source release. The original full CI red and eventual integration gate remain Root-owned open work.

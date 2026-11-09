@@ -1,0 +1,45 @@
+{
+  "format": "rh-npc-continuity-static-audit/1",
+  "baseRevision": "197926e27747545934fb801e3df61ae7070905a2",
+  "profilePins": [
+    {
+      "group": "sourceSha256",
+      "count": 333,
+      "currentMatches": true,
+      "baseMatches": true
+    },
+    {
+      "group": "configSha256",
+      "count": 9,
+      "currentMatches": true,
+      "baseMatches": true
+    },
+    {
+      "group": "contractInputs",
+      "count": 2,
+      "currentMatches": true,
+      "baseMatches": true
+    },
+    {
+      "group": "toolSha256",
+      "count": 6,
+      "currentMatches": true,
+      "baseMatches": false
+    }
+  ],
+  "baselineTrackedFilesUnchanged": true,
+  "steps": 773,
+  "sourceTicks": "1..773",
+  "serverTimesMs": "50..38650 in exact50mssteps",
+  "decodedTick": "all0; actual noSync default, never overwritten with private tick",
+  "allThreeMobsAliveAllSteps": true,
+  "campFactsUnchanged": true,
+  "queuedMovesAccepted": 3,
+  "fxBatchesObserved": 0,
+  "firstMemoryFalse": {
+    "sourceTick": 635,
+    "time": 31750
+  },
+  "priorAndFinalSourceMethodOutputsExactlyEqualAfterOnlyDeclaredMetadataRepair": true,
+  "comparisonNormalization": "Remove top-level profile; old decoded timeline.tick0 versus explicitly labelled new decoded0, private actual World tick diagnostic, schema kind wording; old derived tick0 versus new private sourceTick labels. Profile differences independently limited to actual client tsconfig pin and capture/world tool hashes. This normalization is only an old-candidate comparison; final bytecheck compares everything exactly."
+}

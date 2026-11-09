@@ -89,6 +89,8 @@ jobs:
         run: cargo run -p rh-parity --bin parity-report
       - name: Private durable-proof state stays outside Git
         run: python3 tools/full-runtime-account-proof/test_state_guard.py
+      - name: Offline staging preparation refuses invalid costs, artifacts and Training spool entries
+        run: python3 -m unittest discover -s tools/staging-full-runtime -p 'test_*.py' -v
       - name: Headless smoke (real 160x160 map, 8 bots)
         run: cargo run --release -p rh-headless -- --matches 4 --players 8 --map parity/maps/seed1.map.json --max-ticks 4000
       - name: Headless smoke (full gameplay map layers, 8 bots)
@@ -111,6 +113,11 @@ jobs:
           bash tools/bot-telemetry-fixtures/capture.sh --check
           bash tools/bot-fight-fixtures/capture.sh --check
           bash tools/bot-sd-fixtures/capture.sh --check
+          bash tools/reflex-geometry-fixtures/capture.sh --check
+          bash tools/bot-reflex-fixtures/capture.sh --check
+          bash tools/mark-tax-uncapped-fixtures/capture.sh --check
+          bash tools/npc-continuity-fixtures/capture.sh --check
+          bash tools/npc-runner-callsite-fixtures/capture.sh --check
           bash tools/percept-witness-fixtures/capture.sh --check
           bash tools/barrier-view-fixtures/capture.sh --check
       - name: Heal-barrier callers and victim Frost resistance remain source exact

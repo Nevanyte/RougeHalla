@@ -1,0 +1,360 @@
+{
+ "format": "rh-bot-reflex-controls/1",
+ "fixtureSha256": "af347b767a11a12613a7bfe66dbcc4964e30d419e6fed7b007103a56015f7411",
+ "expectedSemanticSha256": "917ee30a30ed42bf9efd0f93c269d646377b1c9e8417c26852dda456e989de16",
+ "pristine": {
+  "exit": 0,
+  "signal": null,
+  "logSha256": "268c5fa10e5bab11b2923a0a80bf13b4434ef92e967a9aa9e847d7338d747d78",
+  "semanticEqual": true,
+  "semanticSha256": "917ee30a30ed42bf9efd0f93c269d646377b1c9e8417c26852dda456e989de16",
+  "profileEqual": true
+ },
+ "results": [
+  {
+   "name": "dodge-before-hold",
+   "before": "const found = dodge(ctx) ?? (ctx.p.now < r.holdUntil ? null : juke(ctx));",
+   "after": "const found = ctx.p.now < r.holdUntil ? null : (dodge(ctx) ?? juke(ctx));",
+   "beforeFileSha256": "b7ceff483d51fe1d58d79ef34562e28a079027623527f11264c21439c2b6e2be",
+   "afterFileSha256": "0cd27a2c242ec86da43511c5d76f651bc85209d4e6bad3cc92b066a427f2dba1",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "28f335fb49ed8f17ff5758140464242db3fbc0a6f141dc1788f03704a33d52eb",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "hold-strict-boundary",
+   "before": "ctx.p.now < r.holdUntil ? null : juke(ctx)",
+   "after": "ctx.p.now <= r.holdUntil ? null : juke(ctx)",
+   "beforeFileSha256": "b7ceff483d51fe1d58d79ef34562e28a079027623527f11264c21439c2b6e2be",
+   "afterFileSha256": "57e12441710f8cdae0626595691b1eeadd1dee8e2bf43b6b3278ebcff7e6d4ed",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "53a5f9d3f379b336337c3a893b7443c431473e30d704533d4c6dc5f0c0f840ca",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "shared-remember-47",
+   "before": "const REMEMBER = 48;",
+   "after": "const REMEMBER = 47;",
+   "beforeFileSha256": "b7ceff483d51fe1d58d79ef34562e28a079027623527f11264c21439c2b6e2be",
+   "afterFileSha256": "2284ecb98b563e839b528343517162abb7acd3e190695bb82345f56544cce6d7",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "f54ee227081738df99cc3ee59bdbd88765c28b8eb6a4f2c430b984d9fc56c8d2",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "shared-remember-49",
+   "before": "const REMEMBER = 48;",
+   "after": "const REMEMBER = 49;",
+   "beforeFileSha256": "b7ceff483d51fe1d58d79ef34562e28a079027623527f11264c21439c2b6e2be",
+   "afterFileSha256": "de70a0c26f562a6ffceb6feef0cf916fedfed98e12dad8b726e8c29f88eeccd4",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "5f731e62d61d795e80e5f93165532a7cd727ebd011ec72cc407a2e0493dc7d66",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "incoming-versus-step",
+   "before": "exGaussianMean(stim ? tier.reaction : tier.step)",
+   "after": "exGaussianMean(tier.step)",
+   "beforeFileSha256": "b7ceff483d51fe1d58d79ef34562e28a079027623527f11264c21439c2b6e2be",
+   "afterFileSha256": "069378b49177cf5ea3050d11c0df3dc1436797cc3d734dc751cb94f9f45c44d4",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "33c029ff30cba008e8db9df9697b49778849b70783096e5e4c946718714a6f5f",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "lead-strict-boundary",
+   "before": "if (c.ttiMs < lead + APPLY_LAG_MS + walkMs)",
+   "after": "if (c.ttiMs <= lead + APPLY_LAG_MS + walkMs)",
+   "beforeFileSha256": "b7ceff483d51fe1d58d79ef34562e28a079027623527f11264c21439c2b6e2be",
+   "afterFileSha256": "ff1f5f0a04687729a9dcab70d98fcc78793f99f11ffe30f0c3706a8022cf8a2e",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "3dbcf4655a1e1a27c3d08d0b50ca58602005e0b5c31324e64c953ee7c87c48e5",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "negative-lag-clamp",
+   "before": "const lagMs = Math.max(0, p.now - p.viewT);",
+   "after": "const lagMs = p.now - p.viewT;",
+   "beforeFileSha256": "b7ceff483d51fe1d58d79ef34562e28a079027623527f11264c21439c2b6e2be",
+   "afterFileSha256": "cb2a4ff163da747979794d0d22fbc2f7c91c479961965ff8e6fd7fbce3fe7410",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "97ff3c5837d53925ed7898922aebc7cdda030dc4c72815ce6cbcb29f9d6a3226",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "speed-floor",
+   "before": "Math.max(0.3, p.self.speedMult)",
+   "after": "Math.max(0.1, p.self.speedMult)",
+   "beforeFileSha256": "b7ceff483d51fe1d58d79ef34562e28a079027623527f11264c21439c2b6e2be",
+   "afterFileSha256": "f64889538d165f29447c9bd3e6515b108ef3c476ec5c282ec1664be7f5ebe628",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "485cb7325b7cc915ba19afdca2c1dc3077785ca8a835770f83568d68edfd84e5",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "negative-decision-retention",
+   "before": "decided.set(key, yes);",
+   "after": "if (yes) decided.set(key, yes);",
+   "beforeFileSha256": "b7ceff483d51fe1d58d79ef34562e28a079027623527f11264c21439c2b6e2be",
+   "afterFileSha256": "2ed337ff7ce997b73e159a0ba4cf6fbc8510a4d59eb5ae087ab5d3c979922310",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "72115e94a44662cab7aafc7499bc854422967144d785a7f18b77f444abe222e7",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "side-fallback",
+   "before": "for (const s of [side, -side])",
+   "after": "for (const s of [side])",
+   "beforeFileSha256": "b7ceff483d51fe1d58d79ef34562e28a079027623527f11264c21439c2b6e2be",
+   "afterFileSha256": "5d1d9e1a094fc8fab82cbf665453c9858badc66fd25367e71bb1045bfbdc293e",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "ea4178d1616b238d3e07676b8e1d371c8fa2673a47288ca6dafe87c9418673cd",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "juke-1500-window",
+   "before": "due - p.now > JUKE_WINDOW_MS",
+   "after": "due - p.now >= JUKE_WINDOW_MS",
+   "beforeFileSha256": "b7ceff483d51fe1d58d79ef34562e28a079027623527f11264c21439c2b6e2be",
+   "afterFileSha256": "03b3ee5c1adf402386de424bbbe90eef9c6b4a58b15390077fe69e5a685efa7f",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "7584100c9984a3a98e405698beec0a8addac00b19e6497fde1412cf6ee79aa07",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "juke-release-boundary",
+   "before": "due <= p.now",
+   "after": "due < p.now",
+   "beforeFileSha256": "b7ceff483d51fe1d58d79ef34562e28a079027623527f11264c21439c2b6e2be",
+   "afterFileSha256": "c41458f35a9760f4586152944971ed3c6088aa1dcca37e719523c06584658d06",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "d621fccf1f2309bff7104476076995dda0f0ae2700f544aa13f1b3926fd5593d",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "feint-read",
+   "before": "known.feints > 0",
+   "after": "known.feints < 0",
+   "beforeFileSha256": "b7ceff483d51fe1d58d79ef34562e28a079027623527f11264c21439c2b6e2be",
+   "afterFileSha256": "0af6147115d5bf089383fa6d8c3efe1e497be8229892692695c6f6bae2e3fe12",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "fe0b5c7acc65948fd866146162c6d5fdcbea0fabd07b2222c08fd7ce9cf1b689",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "shot-player-mob-order",
+   "before": "[...p.fighters, ...p.mobs]",
+   "after": "[...p.mobs, ...p.fighters]",
+   "beforeFileSha256": "b7ceff483d51fe1d58d79ef34562e28a079027623527f11264c21439c2b6e2be",
+   "afterFileSha256": "0fc5896ca20a3e84f5c89b0cf45545bae55ad3029f1d114f734fb1de4a86f637",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 0,
+    "signal": null,
+    "logSha256": "4b65656a1adbb7c139d3eb359b89159f95d613c290c9037b0ad59c20a5f6206b",
+    "semanticEqual": false,
+    "semanticSha256": "6524dc91872814430de487b85288d855b6ff7fe7b3c2d9e57faff11a70b06c58",
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "wand-cue-retains-sword",
+   "before": "if (who) out.push",
+   "after": "if (who && who.inHand === \"wand\") out.push",
+   "beforeFileSha256": "b7ceff483d51fe1d58d79ef34562e28a079027623527f11264c21439c2b6e2be",
+   "afterFileSha256": "5fde0c1d222ec157e9ece5d3dae7e3210822d6f01faff9ae8142bca012b22aa4",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "ab21475d6e564d9e3e0a7b35c40f0423b6d545d8f6fe1f89f6ecde778134b00b",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "shot-dead-exclusion",
+   "before": "f.status !== \"alive\" || f.inHand",
+   "after": "f.inHand",
+   "beforeFileSha256": "b7ceff483d51fe1d58d79ef34562e28a079027623527f11264c21439c2b6e2be",
+   "afterFileSha256": "3f06bd2a90be2d47dd79609dd357bdf054ed9c23aa65dd977637063b6457422e",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 0,
+    "signal": null,
+    "logSha256": "011dcf7f6a4ea0746bb67f4eb1651166354105cc5679437a728153714d51ae65",
+    "semanticEqual": false,
+    "semanticSha256": "4fc85ca2337bad1cb01f8dcab8a565bc01a3092e2dba2f9933a7d86cb80d7022",
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "aim-range-boundary",
+   "before": "if (d > JUKE_RANGE)",
+   "after": "if (d >= JUKE_RANGE)",
+   "beforeFileSha256": "b7ceff483d51fe1d58d79ef34562e28a079027623527f11264c21439c2b6e2be",
+   "afterFileSha256": "d67bee476b52e747856068dbaf75fa3371850c8b0081fb4a542fd3091bda81ef",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "6a3c8ebb4cc4c16cbbe7756c64e00d1e2d398c47e0cfeeb06d9e89d84a4aa097",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "aim-right-angle",
+   "before": "diff < Math.PI / 2 && d * Math.sin(diff)",
+   "after": "diff <= Math.PI / 2 && d * Math.sin(diff)",
+   "beforeFileSha256": "b7ceff483d51fe1d58d79ef34562e28a079027623527f11264c21439c2b6e2be",
+   "afterFileSha256": "4c7948950ccf227431ddace45f7503b0fbb3d23ecd086699ada464d4ef3c597a",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "bcf18eaec421e2afd66ccb875e9b2d7b03f7b542a2714c397975c5e3c2f09264",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "aim-lateral-boundary",
+   "before": "d * Math.sin(diff) <= JUKE_LATERAL",
+   "after": "d * Math.sin(diff) < JUKE_LATERAL",
+   "beforeFileSha256": "b7ceff483d51fe1d58d79ef34562e28a079027623527f11264c21439c2b6e2be",
+   "afterFileSha256": "23fc2b3903fca8b078efeec6f2ff1d3feb3cc88e3098efc73b08545ae01c6d1c",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "39db938e81c0337b0090965c50623d86965a135d52c0fe04aa239e9c8fc39080",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "aim-under-one",
+   "before": "return d < 1 || (diff",
+   "after": "return (diff",
+   "beforeFileSha256": "b7ceff483d51fe1d58d79ef34562e28a079027623527f11264c21439c2b6e2be",
+   "afterFileSha256": "2109c529bfbe4d58c025e89ceab1ded4c816eb7127fd7bd66a7d85c8349ca7d8",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "bde60fd8de0d95a6f05b5cc6b89f51471499722e117d7a030fe8477167091404",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "provenance-nonkill",
+   "before": "const REMEMBER = 48;",
+   "after": "const REMEMBER = 48; // unchanged behavior",
+   "beforeFileSha256": "b7ceff483d51fe1d58d79ef34562e28a079027623527f11264c21439c2b6e2be",
+   "afterFileSha256": "af20521f3590042fc02cb3aad0fd19ff28c6d23bb20f36172e89fe1820a200df",
+   "expected": "semantic nonkill, provenance changes",
+   "observed": {
+    "exit": 0,
+    "signal": null,
+    "logSha256": "37b372720a41ba8d5c2fde29d0b5460f9cce86c9a23da876d5617fce64e84af1",
+    "semanticEqual": true,
+    "semanticSha256": "917ee30a30ed42bf9efd0f93c269d646377b1c9e8417c26852dda456e989de16",
+    "profileEqual": false
+   }
+  }
+ ],
+ "restored": {
+  "exit": 0,
+  "signal": null,
+  "logSha256": "268c5fa10e5bab11b2923a0a80bf13b4434ef92e967a9aa9e847d7338d747d78",
+  "semanticEqual": true,
+  "semanticSha256": "917ee30a30ed42bf9efd0f93c269d646377b1c9e8417c26852dda456e989de16",
+  "profileEqual": true
+ },
+ "boundary": "One compiled actual-source edit at a time in tmpfs; semantic projection excludes only profile. Compiler/tool failures cannot count as kills. No fixture/source checkout writes."
+}

@@ -1,0 +1,11 @@
+CONTROL own-id-equality: KILL /course/cases/0/result value
+CONTROL origin-boundary: KILL /course/cases/2/result value
+CONTROL speed-one-boundary: KILL /course/cases/2/result value
+CONTROL lateral-boundary: KILL /course/cases/7/result value
+CONTROL behind-zero-boundary: KILL /course/cases/12/result value
+CONTROL range-hit-reach-boundary: KILL /course/cases/14/result value
+CONTROL impact-zero-boundary: KILL /course/cases/17/result value
+CONTROL angle-wrap: KILL /angle/cases/4/result
+CONTROL provenance-only-comment: NON-KILL
+{"mode":"controls","required":8,"kills":8,"restoredEqual":true,"ok":true}
+Wrote reflex geometry controls: /tmp/reflex-geometry-controls-final/controls.json

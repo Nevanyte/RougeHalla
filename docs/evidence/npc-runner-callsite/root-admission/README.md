@@ -1,0 +1,9 @@
+# Root source admission: earned living return and true Runner
+
+The earned773-step World history76ea6b99 and true actual Runner/Brain extension8a098568 are composed with doc-only correction89b0e3d. Attached independent reviews bind all467corrected manifest entries and the unchanged earned history. The old94c90 candidate remains historical; canonical actual Runner bytes are30,636,484B/SHA0c9344109283d2cf848c83892924071e9277f163d79e69e3c634c3d19c7f4a58. No recapture or expected gameplay rewrite accompanies composition.
+
+The same genuinely born living mob leaves and returns to sight. Actual vision:true Runner, real Brain, FrameRing/filter and source stream/order run on the immutable Schema history in five declared delivery schedules. All five observer-ON/OFF complete public traces match. Passive private Memory inspection begins only after the whole actual tick returns and disconnects before reads; no extra observe or private state write is injected. Manager phases model its schedule; they do not instantiate full manager/socket lifecycle. Actual attempted commands are refused and never applied to the World.
+
+The source path retains a dead Memory belief for the still-living mob after legitimate visible return. This is a reproducible source observation, not automatic intended-behavior approval or authorization to leak a private ID/lifetime. Native behavior remains unchanged while the owner's product choice is pending. No hidden-death/replacement equivalence, opaque continuity design, wire budget, ABI/tag/version or full closed-loop outcome is admitted. P15 architecture remains separately owned.
+
+Both source bytechecks now join the normal CI source job. A declared observer experiment and open-loop source consumer do not establish human rendering, actual BotManager lifecycle/contention/jitter, survival, humanizer acceptance or full native Brain readiness.

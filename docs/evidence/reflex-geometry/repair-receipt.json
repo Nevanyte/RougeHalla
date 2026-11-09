@@ -1,0 +1,123 @@
+{
+  "format": "rh-reflex-geometry/2",
+  "status": "PASS_CORRECTION",
+  "correctionOf": "a59e2602a59b3905aa4687a85ff2fac620ec2ada",
+  "originalCodeHead": "c9bfb6f1ac803cd2b538a1dafe12fa3656686459",
+  "base": "a0c4818ce9df8ad0f4124db31e65ba1244bddc3b",
+  "branch": "deepseek/reflex-pure-geometry-repair",
+  "worktree": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings",
+  "codeHead": "7bddcc304f7a3eb6d155e1d39ae55f17c5ea1c1d",
+  "evidenceCommit": "final branch head containing this repair receipt; reported to Root",
+  "sourceFile": {
+    "path": "packages/server/src/bots/brain/tactics/kite.ts",
+    "bytes": 17088,
+    "sha256": "b7ceff483d51fe1d58d79ef34562e28a079027623527f11264c21439c2b6e2be"
+  },
+  "corpus": {
+    "path": "parity/policy/reflex-geometry/source.json",
+    "bytes": 17502,
+    "sha256": "e54c4dd38bde3de17672f5bb563d49365f65ed6892cd09169898fd8b0426ecba",
+    "angleRows": 10,
+    "courseRows": 27,
+    "originalRowsPreserved": {
+      "angle": "10/10 prefix-equal",
+      "course": "25/25 prefix-equal",
+      "originalTotal": 35
+    },
+    "addedCourseIds": [
+      "general-positive-nonpythagorean",
+      "general-positive-negative-direction"
+    ]
+  },
+  "addedProbes": [
+    {
+      "id": "general-positive-nonpythagorean",
+      "actualSourceSome": true,
+      "velocity": [
+        7,
+        11
+      ],
+      "nonPythagoreanSpeed": true,
+      "origin": [
+        5,
+        7
+      ],
+      "travelledNonzero": true,
+      "result": {
+        "tti_ms": 1729.411764705882,
+        "offset": -9.356972863937921,
+        "nx": -0.8436614877321075,
+        "ny": 0.5368754921931592
+      }
+    },
+    {
+      "id": "general-positive-negative-direction",
+      "actualSourceSome": true,
+      "velocity": [
+        -3,
+        8
+      ],
+      "nonPythagoreanSpeed": true,
+      "origin": [
+        10,
+        -4
+      ],
+      "travelledNonzero": true,
+      "result": {
+        "tti_ms": 767.1232876712329,
+        "offset": -11.001867836436274,
+        "nx": -0.9363291775690445,
+        "ny": -0.3511234415883917
+      }
+    }
+  ],
+  "tests": {
+    "command": "cargo test -p rh-policy --lib bots::kite::reflex_geometry -- --nocapture",
+    "exit": 0,
+    "passed": 3,
+    "failed": 0,
+    "courseRowsConsumed": 27,
+    "angleRowsConsumed": 10,
+    "tolerance": "existing C-PARITY 2e-6 absolute continuous; unchanged",
+    "preRounding": false,
+    "rawMaxAbsDifference": 0,
+    "bitwiseClaim": false,
+    "nonfiniteControls": true
+  },
+  "controls": {
+    "originalEightSemanticControls": "immutable a59 evidence for original35; not rerun",
+    "provenanceOnlyNonKill": true,
+    "changedPredicates": false
+  },
+  "reproduction": {
+    "canonicalCheck": "exit 0 sha e54c4dd38...",
+    "frozenGitExportCheck": "exit 0 sha e54c4dd38...",
+    "fmt": "cargo fmt --check exit 0",
+    "clippy": "cargo clippy -p rh-policy --all-targets --all-features -- -D warnings exit 0"
+  },
+  "build": {
+    "toolchain": "final-env.sh Rust 1.97.0",
+    "target": "bot-fight-native/target",
+    "jobs": 1,
+    "debug": 0,
+    "incremental": 0,
+    "finalTargetUntouched": true
+  },
+  "logs": {
+    "tracked": true,
+    "forceAddedDespiteLogIgnore": true,
+    "repair": [
+      "logs/repair-cargo-test.log",
+      "logs/repair-clippy.log",
+      "logs/repair-fmt-check.log",
+      "logs/repair-check-1.log",
+      "logs/repair-frozen-export-check.log",
+      "logs/repair-original35-comparison.txt"
+    ]
+  },
+  "historical": {
+    "a59Receipt": "docs/evidence/reflex-geometry/receipt.json remains the original a59 receipt",
+    "a59Evidence": "preserved in Git history; not silently current"
+  },
+  "limits": "stateless pure geometry only; no live fight/OrbWalk/reflex/brain/perception/public facts/Room/protocol/Unity; extreme overflow unclaimed; Root owns admission"
+}

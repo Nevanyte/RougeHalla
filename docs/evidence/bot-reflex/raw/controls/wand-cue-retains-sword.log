@@ -1,0 +1,21 @@
+exit=1 signal=null
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: wand-cue-positive-while-current-hand-is-sword
+
+null !== 'juke'
+
+    at kind (file:///work/tools/bot-reflex-fixtures/verify.mjs:12:33)
+    at verify (file:///work/tools/bot-reflex-fixtures/verify.mjs:14:301)
+    at <anonymous> (/work/tools/bot-reflex-fixtures/capture.mts:81:45) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: null,
+  expected: 'juke',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v22.23.4

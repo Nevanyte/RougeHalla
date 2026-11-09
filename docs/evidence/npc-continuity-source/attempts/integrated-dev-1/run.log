@@ -1,0 +1,14 @@
+$ bash tools/npc-continuity-fixtures/capture.sh
+/repo/tools/npc-continuity-fixtures/capture.mts:68
+const hidden=targetRows.filter(t=>t.sourceDiagnostic.canSeeTarget===false&&!hasHumanContact(t)&&!t.bot?.frame.minimap.dots.some((m:any)=>m.id===targetId));
+                                                                                                                      ^
+
+TypeError: Cannot read properties of undefined (reading 'some')
+    at <anonymous> (/repo/tools/npc-continuity-fixtures/capture.mts:68:119)
+    at Array.filter (<anonymous>)
+    at <anonymous> (/repo/tools/npc-continuity-fixtures/capture.mts:68:25)
+
+Node.js v22.23.4
+
+exit=1
+elapsed_seconds=8.972

@@ -1,0 +1,372 @@
+{
+  "format": "rh-npc-continuity-result/1",
+  "sourceCommit": "7edb98c89a2017bf9f47e3f92a6a4a79149b53b2",
+  "classification": "derived from captured rows; private and human/method facts distinguished",
+  "targetId": "mob1",
+  "rows": [
+    {
+      "sourceTick": 13,
+      "serverTimeMs": 650,
+      "worldTarget": {
+        "id": "mob1",
+        "x": 1584,
+        "y": 624,
+        "hp": 355.3,
+        "status": "alive"
+      },
+      "sourceCanSee": true,
+      "humanAdmission": true,
+      "humanMinimap": true,
+      "botActor": true,
+      "botMinimap": true,
+      "memory": {
+        "id": "mob1",
+        "kind": "mob",
+        "faction": "fire",
+        "home": {
+          "x": 1584,
+          "y": 624
+        },
+        "campId": "fire-1",
+        "pos": {
+          "x": 1584,
+          "y": 624
+        },
+        "dotAt": 650,
+        "seenAt": 650,
+        "hpFrac": 1,
+        "inHand": "axe",
+        "awake": false,
+        "returning": false,
+        "alive": true,
+        "name": "Cinder Hound",
+        "type": "cinderHound"
+      },
+      "camp": [
+        {
+          "alive": 3,
+          "state": 0,
+          "clearedAt": 0,
+          "respawnAt": 0,
+          "wardOwner": "",
+          "wardExpiresAt": 0
+        }
+      ]
+    },
+    {
+      "sourceTick": 635,
+      "serverTimeMs": 31750,
+      "worldTarget": {
+        "id": "mob1",
+        "x": 1584,
+        "y": 624,
+        "hp": 355.3,
+        "status": "alive"
+      },
+      "sourceCanSee": false,
+      "humanAdmission": false,
+      "humanMinimap": false,
+      "botActor": false,
+      "botMinimap": false,
+      "memory": {
+        "id": "mob1",
+        "kind": "mob",
+        "faction": "fire",
+        "home": {
+          "x": 1584,
+          "y": 624
+        },
+        "campId": "fire-1",
+        "pos": {
+          "x": 1584,
+          "y": 624
+        },
+        "dotAt": 31650,
+        "seenAt": 1200,
+        "hpFrac": 1,
+        "inHand": "axe",
+        "awake": false,
+        "returning": false,
+        "alive": false,
+        "name": "Cinder Hound",
+        "type": "cinderHound"
+      },
+      "camp": [
+        {
+          "alive": 3,
+          "state": 0,
+          "clearedAt": 0,
+          "respawnAt": 0,
+          "wardOwner": "",
+          "wardExpiresAt": 0
+        }
+      ]
+    },
+    {
+      "sourceTick": 705,
+      "serverTimeMs": 35250,
+      "worldTarget": {
+        "id": "mob1",
+        "x": 1584,
+        "y": 624,
+        "hp": 355.3,
+        "status": "alive"
+      },
+      "sourceCanSee": false,
+      "humanAdmission": false,
+      "humanMinimap": false,
+      "botActor": false,
+      "botMinimap": false,
+      "memory": {
+        "id": "mob1",
+        "kind": "mob",
+        "faction": "fire",
+        "home": {
+          "x": 1584,
+          "y": 624
+        },
+        "campId": "fire-1",
+        "pos": {
+          "x": 1584,
+          "y": 624
+        },
+        "dotAt": 31650,
+        "seenAt": 1200,
+        "hpFrac": 1,
+        "inHand": "axe",
+        "awake": false,
+        "returning": false,
+        "alive": false,
+        "name": "Cinder Hound",
+        "type": "cinderHound"
+      },
+      "camp": [
+        {
+          "alive": 3,
+          "state": 0,
+          "clearedAt": 0,
+          "respawnAt": 0,
+          "wardOwner": "",
+          "wardExpiresAt": 0
+        }
+      ]
+    },
+    {
+      "sourceTick": 752,
+      "serverTimeMs": 37600,
+      "worldTarget": {
+        "id": "mob1",
+        "x": 1584,
+        "y": 624,
+        "hp": 355.3,
+        "status": "alive"
+      },
+      "sourceCanSee": false,
+      "humanAdmission": false,
+      "humanMinimap": false,
+      "botActor": false,
+      "botMinimap": false,
+      "memory": {
+        "id": "mob1",
+        "kind": "mob",
+        "faction": "fire",
+        "home": {
+          "x": 1584,
+          "y": 624
+        },
+        "campId": "fire-1",
+        "pos": {
+          "x": 1584,
+          "y": 624
+        },
+        "dotAt": 31650,
+        "seenAt": 1200,
+        "hpFrac": 1,
+        "inHand": "axe",
+        "awake": false,
+        "returning": false,
+        "alive": false,
+        "name": "Cinder Hound",
+        "type": "cinderHound"
+      },
+      "camp": [
+        {
+          "alive": 3,
+          "state": 0,
+          "clearedAt": 0,
+          "respawnAt": 0,
+          "wardOwner": "",
+          "wardExpiresAt": 0
+        }
+      ]
+    },
+    {
+      "sourceTick": 773,
+      "serverTimeMs": 38650,
+      "worldTarget": {
+        "id": "mob1",
+        "x": 1584,
+        "y": 624,
+        "hp": 355.3,
+        "status": "alive"
+      },
+      "sourceCanSee": true,
+      "humanAdmission": true,
+      "humanMinimap": true,
+      "botActor": true,
+      "botMinimap": true,
+      "memory": {
+        "id": "mob1",
+        "kind": "mob",
+        "faction": "fire",
+        "home": {
+          "x": 1584,
+          "y": 624
+        },
+        "campId": "fire-1",
+        "pos": {
+          "x": 1584,
+          "y": 624
+        },
+        "dotAt": 31650,
+        "seenAt": 1200,
+        "hpFrac": 1,
+        "inHand": "axe",
+        "awake": false,
+        "returning": false,
+        "alive": false,
+        "name": "Cinder Hound",
+        "type": "cinderHound"
+      },
+      "camp": [
+        {
+          "alive": 3,
+          "state": 0,
+          "clearedAt": 0,
+          "respawnAt": 0,
+          "wardOwner": "",
+          "wardExpiresAt": 0
+        }
+      ]
+    }
+  ],
+  "onReturnHunt": {
+    "decision": {
+      "kind": "player",
+      "why": "no mob in reach"
+    },
+    "target": null,
+    "stats": {
+      "targets": 1,
+      "drops": 1,
+      "retreats": 0,
+      "focusMs": 12000
+    },
+    "config": {
+      "playerThreat": 140,
+      "playerRelease": 450,
+      "underFireRange": 520,
+      "underFireMs": 1500,
+      "reach": 700,
+      "firstReach": 1120,
+      "walkSlack": 1.25,
+      "maxCandidates": 6,
+      "startMinHp": 0.45,
+      "eliteMinPower": 4,
+      "eliteFullHp": 0.9,
+      "mobMinShare": 0.6,
+      "eliteMinShare": 0.8,
+      "eliteSureShare": 0.2,
+      "eliteSurePower": 6,
+      "retreatHp": 0.4,
+      "retreatClear": 320,
+      "retreatMinMs": 1500,
+      "retreatMaxMs": 5000,
+      "retreatBanMs": 15000,
+      "killGoal": 999,
+      "focusBudgetMs": 900000,
+      "targetBudgetMs": 60000,
+      "stallAttackMs": 3000,
+      "approachMs": 12000,
+      "returnBanMs": 8000,
+      "stallBanMs": 30000,
+      "awakeMoved": 40,
+      "skipRanged": true,
+      "repickMs": 400
+    },
+    "diagnosticsOnly": {
+      "engagement": null,
+      "bans": [
+        {
+          "id": "mob3",
+          "until": 42150
+        }
+      ]
+    },
+    "tracker": [
+      {
+        "id": "mob1",
+        "home": {
+          "x": 1584,
+          "y": 624
+        },
+        "mob": {
+          "kind": "mob",
+          "type": "cinderHound",
+          "status": "dead",
+          "x": 1584,
+          "y": 624,
+          "hp": 355.3,
+          "maxHp": 355.3,
+          "faction": "fire",
+          "weapon0": "axe"
+        },
+        "returning": false,
+        "awake": false
+      },
+      {
+        "id": "mob2",
+        "home": {
+          "x": 1616,
+          "y": 624
+        },
+        "mob": {
+          "kind": "mob",
+          "type": "cinderHound",
+          "status": "dead",
+          "x": 1616,
+          "y": 624,
+          "hp": 355.3,
+          "maxHp": 355.3,
+          "faction": "fire",
+          "weapon0": "axe"
+        },
+        "returning": false,
+        "awake": false
+      },
+      {
+        "id": "mob3",
+        "home": {
+          "x": 1552,
+          "y": 624
+        },
+        "mob": {
+          "kind": "mob",
+          "type": "cinderHound",
+          "status": "dead",
+          "x": 1552,
+          "y": 624,
+          "hp": 355.3,
+          "maxHp": 355.3,
+          "faction": "fire",
+          "weapon0": "axe"
+        },
+        "returning": false,
+        "awake": false
+      }
+    ]
+  },
+  "sameVersusReplacement": "replacement not produced; ID-only equivalence not established",
+  "authoritativeDeathFromOmissionCounterexample": true,
+  "rendering": "full Scene/MobView/Minimap.setMobs/canvas unrun; exact extracted callback invocation only"
+}

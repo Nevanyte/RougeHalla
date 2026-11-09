@@ -1,0 +1,21 @@
+[Unit]
+Description=Private retained-data PostgreSQL (PREPARATION ONLY)
+RequiresMountsFor=/srv/rougehalla-data
+ConditionPathExists=/srv/rougehalla-data/installation-verified.json
+[Service]
+Type=simple
+User=postgres
+Group=postgres
+RuntimeDirectory=rougehalla-postgres
+RuntimeDirectoryMode=0750
+ExecStart=/opt/rougehalla/postgres/bin/postgres -D /srv/rougehalla-data/pgdata -c config_file=/etc/rougehalla/postgresql.conf -c hba_file=/etc/rougehalla/pg_hba.conf
+Restart=no
+KillSignal=SIGINT
+TimeoutStopSec=120
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/rougehalla-data/pgdata /run/rougehalla-postgres
+[Install]
+WantedBy=multi-user.target

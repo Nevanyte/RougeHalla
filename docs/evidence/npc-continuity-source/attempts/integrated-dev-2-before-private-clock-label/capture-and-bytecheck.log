@@ -1,0 +1,6 @@
+$ bash tools/npc-continuity-fixtures/capture.sh
+{"mode":"--write","format":"rh-npc-continuity-source/1","bytes":13886133,"sha256":"43ad781d5ff65364f12ad3f4a70f3de6394afecc4e529487f1c6b62aa71e47ec","steps":773,"sourcePins":333,"toolPins":6}
+{"mode":"--check","format":"rh-npc-continuity-source/1","bytes":13886133,"sha256":"43ad781d5ff65364f12ad3f4a70f3de6394afecc4e529487f1c6b62aa71e47ec","steps":773,"sourcePins":333,"toolPins":6}
+
+exit=0
+elapsed_seconds=11.075

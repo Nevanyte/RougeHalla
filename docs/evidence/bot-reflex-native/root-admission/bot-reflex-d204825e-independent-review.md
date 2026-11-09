@@ -1,0 +1,35 @@
+# Full Reflex component oracle — independent source review
+
+Decision: SOURCE RELEASE for standalone native Reflex consumer work against this finite seam. Seal d204825ed9d2289b45008d9f689a44546a5a5e54; code072290b7b09c4415818dc4c55a4e4d0b21699abd; basea0c4818ce9df8ad0f4124db31e65ba1244bddc3b. Full live/delivered bot pipeline and its public-fact/continuity contract remain HELD. No Easy-only substitute is admitted.
+
+Verified exactly43 additions and no modified/deleted baseline path. Manifest SHA2563654640d8bfbde73eb32763909aa5970c937721f33002267296e2581f1fe41de pins42 artifacts; all match immutable Git bytes. Corpus401512bytes/SHA256af347b767a11a12613a7bfe66dbcc4964e30d419e6fed7b007103a56015f7411. All113source+8config pins match exactbase and finalseal;9tool pins match exactcode and finalseal. Checkout clean. Reviewer performed static source/hash/data/control-log inspection only: no capture/mutant execution/build/target/Editor/Rust/live run.
+
+## Actual component and recipe boundary
+
+Capture imports unchanged source createReflexes, actual Memory.observe, real map/PathService/tier data and actual shared mulberry32. Path proxy forwards identical arguments/results/receiver and records calls; it does not install clear outcomes. Geometry/body/LOS guards check declared actors against the real map. Source derive function and actual Decide/Motor/Lapse tag wiring0/1/2 are extracted from pinned brain.ts without replacing arithmetic. Knowledge is deliberately absent in this direct component. Math.random throws; actual RNG histories/counts and independent replay-next probes are retained without extra actual-stream draws.
+
+Inputs are declared chronological Percept component contexts, not World-earned launches or actual delayed/delivered FrameRing samples. This distinction includes tiny binary64 boundary offsets and declared known-null facts. A native method oracle can test these declared finite contexts; it does not establish all of them as reachable wire/World histories. No HP/launch/dodge outcome or hidden-state producer is manufactured and called earned.
+
+Adaptive exact hold/lead cases read actual prior public Reflex holdUntil/results, record their dependency and choose subsequent method inputs. They never read/replace private course/cache/clock fields. The source200ms tail and55ms apply lag are explicit recipe arithmetic; they are not an installed expected success. Every row is strictly chronological.49sequences/68rows comprise67real check calls plus1observeOnly Memory frame with no result field. Independently checked per-row stream count/delta consistency and that Motor/Lapse remain undrawn; all logged path calls are real clear calls.
+
+## Meaningful behavior coverage
+
+Seeded hard/normal Dodge and Juke positives exist; Easy performs its real dodge dice and has no Juke draw, rather than replacing broader behavior with an Easy-only implementation. False chance outcomes and negative geometry/timing decisions are retained; subsequent duplicates do not draw again. Actual Memory creates incoming/reentry stimuli, while the single observeOnly frame distinguishes already-seen Step timing from first-seen React timing.
+
+Real Memory Windup→Cancel(atMe/timing guard) produces remembered feint counts; seeded read/no-read decisions consume the real stream in source order. No feint count is installed. Bow shot order is players then mobs, followed by visible Wand cues; retained Wand cue remains relevant after the current hand is Sword. Known-null Bow faction executes the actual base BOW_WINDUP fallback; unavailable faction is a different future input state and may not be defaulted to null.
+
+Source order is Dodge first, then hold gate, then Juke. Dodge may preempt an existing hold. Hold and lead comparisons, due<=now,1500ms window, speed floor/lag clamp, preferred/opposite/both-blocked side paths, range300/right-angle/lateral60/under1 aim rules have explicit positive/negative/boundary probes. General-angle nominal lateral60 actually falls outside in binary64 and is honestly retained next to an attained3-4-5 equality. A single shared48 insertion-ordered Map holds projectile keys and actor@time shot keys, including negative decisions and false draws; duplicate/reentry/capacity cases exercise cross-kind pressure. Native code must preserve that shared equality/order rather than invent separate caches or a TTL.
+
+## Controls and provenance
+
+Final controls mutate exactly one pinned kite.ts site per temporary copy. All20 semantic mutants are killed: executed capture either returns a semantic difference or fails an actual semantic AssertionError. Independently checked each raw log hash/result and ensured counted failing cases are not TypeError/SyntaxError/tool failures. Some controls exit0 with changed semantic output, correctly counted by excluding only provenance.profile from comparison.
+
+Pristine and restored source match both semantics and profile. Comment-only nonkill preserves semantics while changing provenance, demonstrating that source hash differences alone are not kills. Initial strengthened-verifier null-dereference TypeError is preserved under controls-attempt01 and explicitly rejected as a kill; only final compiled controls count. Final raw capture/check and clean Git-export bytecheck record exact401512bytes/hash. Reviewer verified log/provenance consistency without repeating captures. Prior fight/SD oracles/source/lockfiles remain unchanged.
+
+## Native seam and held prerequisites
+
+API.md is an admissible finite component contract proposal: fully available finite owner clocks/position/speed; ordered complete projectile origin/current/velocity/range/ownership/equality facts; actual incoming and feint producer outputs; ordered alive player/mob Bow clocks/facing/known faction-or-null; retained visible Wand events; actual collision service; accepted tier and Decide stream. Proposed owned state is shared48 decisions(positive AND negative), holdUntil and counters, reset on new lifecycle. Memory remains a genuine separate producer, not a fabricated incoming/feint cache.
+
+Opaque equality tokens do not authorize raw private IDs, a new public namespace or NPC lifetime stitching. Preserve source shared key equality/collisions and timestamp string semantics across supported inputs; do not silently split projectile versus actor namespaces. Missing clocks/origins/ranges/ownership/faction/memory-event completeness must refuse before component state/RNG advance, not turn into0/1/empty lists/known-null. Accepted-frame transaction and session/epoch commit semantics remain required for eventual live integration.
+
+This SOURCE RELEASE authorizes a standalone native consumer and vector/parity validation of the declared component under Root's bounded write scope. It does not activate full Reflex/Brain/Hunt/strategy, prove actual human-readable/delivered reflex facts or stable NPC/projectile continuity, or admit any protocol/OBS/policy bump. The full bot public pipeline contract, complete normal/hard facts and native live authority remain held. Independent geometry review is separate and is not superseded here.

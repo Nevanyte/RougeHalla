@@ -1,0 +1,25 @@
+{
+  "format": "rh-root-staging-preparation-admission/1",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 1863,
+      "sha256": "7a0b50ff5d61d5d549fda132487d456d9592f13f9c96977cfd95175826fc8e21"
+    },
+    {
+      "path": "staging-guard-root-unit-tests.log",
+      "bytes": 1424,
+      "sha256": "93ba5f1589ac9443cd5a9834f7f25a90e6ca9b114f091764cc7ffcf719aed692"
+    },
+    {
+      "path": "staging-prep-0042-independent-review.md",
+      "bytes": 7628,
+      "sha256": "f626318a3a26bfd019a9a441c19dda70543812630f097cbc05e4b67ff2680021"
+    },
+    {
+      "path": "staging-training-backup-guard-2bc955e3-handoff.md",
+      "bytes": 2059,
+      "sha256": "d127a358026d8d7f9abcbe7d33656da57850c7a600a7a6381329dfcd279a72a4"
+    }
+  ]
+}

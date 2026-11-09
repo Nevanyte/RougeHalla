@@ -1,0 +1,48 @@
+{
+    admin off
+    servers {
+        protocols h1 h2
+    }
+}
+
+rougehalla.com {
+    encode gzip
+    # Ordered handles are mutually exclusive. No control/probe listener is public.
+    route {
+        @source path /ws /info /ping /healthz /api /api/* /readyz
+        handle @source {
+            reverse_proxy 127.0.0.1:7777 {
+                # Discard any client-supplied forwarding chain. Only this loopback proxy is trusted.
+                header_up X-Forwarded-For {remote_host}
+            }
+        }
+        @training path /training/ws
+        handle @training {
+            rewrite * /ws
+            reverse_proxy 127.0.0.1:7779 {
+                header_up X-Forwarded-For {remote_host}
+            }
+        }
+        @trainingHealth path /training/info /training/ping /training/healthz
+        handle @trainingHealth {
+            uri strip_prefix /training
+            reverse_proxy 127.0.0.1:7779
+        }
+        @private path /control /control/* /probe /training/api /training/api/* /training/readyz /training/control /training/control/* /training/probe
+        handle @private {
+            respond 404
+        }
+        handle {
+            root * /opt/rougehalla/web
+            header {
+                X-Content-Type-Options nosniff
+                Cache-Control no-cache
+            }
+            @data path /Build/*.data
+            header @data Content-Type application/octet-stream
+            file_server {
+                precompressed gzip
+            }
+        }
+    }
+}

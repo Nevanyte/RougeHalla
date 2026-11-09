@@ -24,6 +24,7 @@ pub mod paths;
 pub mod perception;
 pub mod planning;
 pub mod random;
+pub mod reflex;
 pub mod types;
 pub mod view;
 pub mod wish;

@@ -1,0 +1,3 @@
+# Preserve exact raw Cargo transcript bytes, including final blank lines.
+raw/*.log whitespace=-blank-at-eof
+root-admission/*.log whitespace=-blank-at-eof

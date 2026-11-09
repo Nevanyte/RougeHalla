@@ -1,0 +1,16 @@
+{
+  "decision": "RELEASE_BOUNDED_API_READ_CONTRACT",
+  "code": "72a5cd8ac40d202348865cfc6e0331842c6e4c13",
+  "base": "ad219c5e1a4bd4a27fc8379efcc63f9f1bfd46b5",
+  "seal": "1f40b679c8a989544c674cd6eb6b107480de99b3",
+  "manifest_sha256": "79c7253f014d4f8c9d28dc3835de0083d76c3bec683093401c16b53629be6219",
+  "verified_source_files": 7,
+  "verified_payloads": 11,
+  "verified_checksums": 12,
+  "verified_code_tree": "16f9495fdd0bf231016a5003a42f629473a7c8a4",
+  "logged_passing_test_executions": 30,
+  "independent_build_or_cluster_run": false,
+  "genuine_producer_proof": "separate/not repeated",
+  "client_adoption": "HELD/Root-owned",
+  "report_sha256": "cc65a7702f88c29db8a6d696ca126516e982fefc752b31bf676f94c6cdaed26d"
+}

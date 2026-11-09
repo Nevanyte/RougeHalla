@@ -1,0 +1,5 @@
+Native code Git blobs exactly match tested working files:4 paths PASS
+Released source49/68 fixture unchanged at native code and source d204 PASS
+Geometry corrected fixture exactly matches3e9 PASS
+Actual source diagnostic script/source-fixture pins and false/true outcomes PASS
+Final5/5 +raw max0 test receipt and scoped formatting receipt verified PASS

@@ -1,0 +1,22 @@
+{
+  "format": "rh-root-owned-settlement-admission/1",
+  "code": "72a5cd8ac40d202348865cfc6e0331842c6e4c13",
+  "evidence": "1f40b679c8a989544c674cd6eb6b107480de99b3",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 1718,
+      "sha256": "48a6545a65b8c5bd77e8aff9d68fc9ee0ac0af14302a562735134cbd1f13936b"
+    },
+    {
+      "path": "owned-bank-receipt-72a5cd8a-independent-review.json",
+      "bytes": 723,
+      "sha256": "714f065022f2633c2ad99d6453c1cfac3601a42570fae235c1dbe233d7b32402"
+    },
+    {
+      "path": "owned-bank-receipt-72a5cd8a-independent-review.md",
+      "bytes": 5923,
+      "sha256": "cc65a7702f88c29db8a6d696ca126516e982fefc752b31bf676f94c6cdaed26d"
+    }
+  ]
+}

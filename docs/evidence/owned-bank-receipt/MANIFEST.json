@@ -1,0 +1,130 @@
+{
+  "schema": "rh-owned-settlement-evidence/1",
+  "base_sha": "ad219c5e1a4bd4a27fc8379efcc63f9f1bfd46b5",
+  "code_sha": "72a5cd8ac40d202348865cfc6e0331842c6e4c13",
+  "code_tree": "16f9495fdd0bf231016a5003a42f629473a7c8a4",
+  "source_files": [
+    {
+      "path": "crates/rh-persist/src/lib.rs",
+      "bytes": 47473,
+      "sha256": "91a319ec334fce2497f0f99fc89fba670b6a91b1420fcfe43defa0dc42971e87",
+      "git_blob": "7e5f867403322eb35bdb4bc9980be051ddc3a675"
+    },
+    {
+      "path": "crates/rh-persist/src/settlement.rs",
+      "bytes": 3199,
+      "sha256": "d0a7b9a5305ab535bc209272fd70ec6c9be90a3bd10bb4cbd2a86301d39396a6",
+      "git_blob": "cee273ebf4a0f50242f06e0b7834f5d6b793d96d"
+    },
+    {
+      "path": "crates/rh-persist/tests/settlement.rs",
+      "bytes": 6418,
+      "sha256": "371b7d08933fa6de3f1a58ea53179eeac748300dba1c46ab9df03ff54b932258",
+      "git_blob": "302f9cb47b33887e7945ed5ad60cc89a62994a85"
+    },
+    {
+      "path": "crates/rh-server/src/api.rs",
+      "bytes": 19068,
+      "sha256": "fe03e0d7304ced9b32a38231ea47c512ad2419890ee28a47a64aa7d2bfc5654c",
+      "git_blob": "1b9da45f970d9271ec869e1aa1651aaf5f46aac1"
+    },
+    {
+      "path": "crates/rh-server/src/api/profile.rs",
+      "bytes": 31212,
+      "sha256": "245eee98f14c943eaa16823f4f37d6769b597a73137aff3b6e4b869a9f9f7cef",
+      "git_blob": "98180ac05e3a0fecb19708d43ba085e8111362e8"
+    },
+    {
+      "path": "crates/rh-server/tests/account_settlement.rs",
+      "bytes": 16727,
+      "sha256": "52e8a5a5f8ce4029031789da38a962bf35a7ace8d12f17a332f4ca470e6151ae",
+      "git_blob": "47a1d8f06651dfadcca48a07b4a43697dc2d412c"
+    },
+    {
+      "path": "crates/rh-server/tests/account_settlement_memory.rs",
+      "bytes": 1534,
+      "sha256": "436509d2d0cfee17e92f274879682b4d637fced39b5d88985bc1ea7cacf3d887",
+      "git_blob": "7a55740df5c8b1a0305fb24e0148b78e49683d5d"
+    }
+  ],
+  "payloads": [
+    {
+      "path": "CLEANUP.json",
+      "bytes": 570,
+      "sha256": "c379d22dbcb3ea5b123310c17e0213b42d4df80bd52e7b7b967158a8e88a60c5",
+      "git_blob": "796f8bb883202e874c86a8f5140afab355822a90"
+    },
+    {
+      "path": "README.md",
+      "bytes": 9865,
+      "sha256": "9569174817cee72bcd8e832de5bce677c4dbe30a5aecd1c93a1e07af744fcc27",
+      "git_blob": "230d58735cf2fe03cc0d998ac53eb9830ae02220"
+    },
+    {
+      "path": "RUN.json",
+      "bytes": 3054,
+      "sha256": "765343ec0080bca30551dde2bbc6776e924af16c3db5d4348c08a91c8b698282",
+      "git_blob": "faf35d55fac5f72b3f692dbfbdf5c5ce72a6f473"
+    },
+    {
+      "path": "cluster-identity.json",
+      "bytes": 345,
+      "sha256": "b5b7deabe8f61da23f819d2f01975d5f9f5a2e6d290c8767e785bfcd0228599c",
+      "git_blob": "941ab8b2e7a96c80e80258e2ec87fed5ba68bb7b"
+    },
+    {
+      "path": "logs/api-regression.txt",
+      "bytes": 2191,
+      "sha256": "eb177f46559b3bc988a6167b00e909e68f7b83d90171f02fb63390ec665ab080",
+      "git_blob": "f9b1c4901b62fe8fe3eddfd0798d090097e7e7b9"
+    },
+    {
+      "path": "logs/api.txt",
+      "bytes": 1812,
+      "sha256": "ead0322cb84cf7567a9fc77826241691600ef51c7aed2a4b9364927d3d87a9cf",
+      "git_blob": "de1b85610c8c795ce8ed6907f254e3ad717b00a3"
+    },
+    {
+      "path": "logs/clippy-persist.txt",
+      "bytes": 486,
+      "sha256": "60a95667b99851a3d052df61e3d23f9cdb40689802b561e726aaf706f2c6a47f",
+      "git_blob": "c61afd20ae9a26fc789bca0ea58d85c1e5b1ad7a"
+    },
+    {
+      "path": "logs/clippy-server.txt",
+      "bytes": 770,
+      "sha256": "e7f02fe6bbe34f150414710515f177acaae9ebf47ac80fd76ed83dcb0cb765c0",
+      "git_blob": "f49d219abcde6926a3822324e38feea1d8aa0d84"
+    },
+    {
+      "path": "logs/fmt.txt",
+      "bytes": 63,
+      "sha256": "590662d944b118e98eba33e40011dc783eac3fe81b8ea7680d09c7b430ba96b9",
+      "git_blob": "a85bad85e48bc65903e34e8b55c4b09e809a5e35"
+    },
+    {
+      "path": "logs/memory-default.txt",
+      "bytes": 700,
+      "sha256": "2fe21bda7dc49e17ad40319cd04311af452c35a4c20cb3d21e0b0a1dcb312a3f",
+      "git_blob": "50d0975200dc946806b07fad56cad7be585738ab"
+    },
+    {
+      "path": "logs/persist.txt",
+      "bytes": 1040,
+      "sha256": "36f3e4d76459e48bfa730e015cde7829129c76087bbad3ff6c9ca447e8a810f6",
+      "git_blob": "2fb00b1815ec454ba227b213ddb2321418bd6e46"
+    }
+  ],
+  "verification": {
+    "new_store_tests": 3,
+    "new_postgres_api_tests": 5,
+    "new_memory_test_postgres": 1,
+    "new_memory_test_default": 1,
+    "existing_account_api_regressions": 19,
+    "existing_account_memory_regression": 1,
+    "strict_scoped_persist_clippy": "PASS",
+    "strict_scoped_server_clippy": "PASS",
+    "fmt": "PASS"
+  },
+  "scope": "read-only owned receipt, real PostgreSQL/HTTP contract fixtures; no new producer/game/backup/restore/workspace/Unity/cloud campaign"
+}

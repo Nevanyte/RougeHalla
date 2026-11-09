@@ -1,0 +1,19 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-reflex-component/repo/crates/rh-sim)
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-reflex-component/repo/crates/rh-policy)
+    Finished `test` profile [unoptimized] target(s) in 16.32s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fight-native/target/debug/deps/rh_policy-c3fa0ee46865b1ea)
+
+running 5 tests
+native aim diagnostic aim-lateral60-nominal-binary64-outside: d=208.80613017821102/406a19cbd183f785 bearing=0.2914567944778671/3fd2a73a661eaf06 diff=0.2914567944778671/3fd2a73a661eaf06 sin=0.28734788556634544/3fd263e862c542d5 lateral=60.00000000000001/404e000000000001
+native aim diagnostic aim-lateral60-exact-3-4-5: d=100.0/4059000000000000 bearing=0.6435011087932844/3fe4978fa3269ee1 diff=0.6435011087932844/3fe4978fa3269ee1 sin=0.6/3fe3333333333333 lateral=60.0/404e000000000000
+native aim diagnostic aim-lateral-below60: d=208.80612140905149/406a19cbbf200f69 bearing=0.29145665448897073/3fd2a739cfced430 diff=0.29145665448897073/3fd2a739cfced430 sin=0.28734775148129804/3fd263e7d2cc3e6f lateral=59.999969482421875/404dffff00000000
+native aim diagnostic aim-lateral-over60: d=208.8061389473746/406a19cbe3e7e02f bearing=0.2914569344667517/3fd2a73afc6e8908 diff=0.2914569344667517/3fd2a73afc6e8908 sin=0.2873480196513759/3fd263e8f2be460a lateral=60.000030517578125/404e000100000000
+test bots::reflex::tests::controls::source_string_keys_preserve_timestamp_spelling_and_shared_cross_kind_equality ... ok
+test bots::reflex::tests::controls::nonfinite_and_late_unknown_facts_are_atomic_from_reached_state ... ok
+test bots::reflex::tests::controls::session_epoch_owner_refusal_and_reset_clear_real_choices_hold_and_counters ... ok
+test bots::reflex::tests::controls::missing_complete_facts_refuse_before_reached_state_rng_paths_then_retry ... ok
+actual source Reflexes: 49 sequences /68 frames /67 checks; exact discrete results, paths and RNG; maximum continuous abs difference 0.0
+test bots::reflex::tests::all_actual_source_49_sequences_68_frames_complete_outputs_paths_and_streams ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 154 filtered out; finished in 0.02s
+

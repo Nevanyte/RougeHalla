@@ -1,0 +1,6 @@
+tools/staging-full-runtime/backup_archive.py: AST syntax PASS
+tools/staging-full-runtime/init-runtime-secrets.py: AST syntax PASS
+tools/staging-full-runtime/prepare.py: AST syntax PASS
+tools/staging-full-runtime/run-runtime.py: AST syntax PASS
+tools/staging-full-runtime/test_preparation.py: AST syntax PASS
+bash -n backup.sh restore.sh: PASS (run separately)

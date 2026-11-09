@@ -1,0 +1,22 @@
+# Proposed standalone native component seam (review required)
+
+This is an API assessment, not native code or permission to widen delivered facts. Source base is a0c4818ce9df8ad0f4124db31e65ba1244bddc3b. The oracle imports actual createReflexes (kite.ts208–286), sideStep/aimedAt/shots (289–324), actual Memory.observe including onWindup/onCancel (memory.ts421/464) and foldProjectiles (714), actual tiers, actual PathService and reset streams. Direct geometry extraction/native math belongs to the independent DeepSeek packet.
+
+A later `Reflexes::check(fully_available_input, tier, paths, decide) -> Result<Option<Reflex>, MissingOrInvalidFacts>` can preserve the source component without any World reference. Proposed owned component state is only insertion-ordered48 decisions (positive AND negative), hold_until, dodge_count and juke_count; reset/new lifecycle clears all. Memory remains a separate genuine producer, never a second invented feint/incoming cache.
+
+| Required input | Exact source use and availability rule |
+| --- | --- |
+| Finite now/viewT, owner position and speed multiplier | Source lag=max(0,now−viewT); movement floor=max(.3,speed). Do not turn absent clocks/speed into0/1. |
+| Ordered complete visible projectile facts | Method-local equality key, kind, actual ownership equality predicate, original position, current position, velocity, range. Call reviewed projectile_course with these facts. Known unowned/null is distinct from unavailable ownership; no inferred range/origin or empty-list fallback. |
+| Ordered incoming stimuli from actual Memory | Source searches this frame's first incoming matching projectile key; keeps the actual stimulus in React timing. Already-seen projectiles use Step lead. Availability is explicit; do not invent absence if memory/event coverage is incomplete. |
+| Ordered current players, then current mobs | Equality key, position, alive status, facing, hand, bow drawStartedAt and known faction-or-known-null. Source reads Bow only when alive, held Bow, draw>0. Known-null faction uses actual BOW_WINDUP; unavailable faction refuses before state/RNG. No enemy private attack-speed mirror or fabricated kit. |
+| Ordered visible Wand windups | Actual actor equality, t, duration and aim; source resolves current actor players-first then mobs and ignores own/unseen cues. Current hand may now be Sword: the retained Wand cue still counts. Do not filter it by current kit. |
+| Actual remembered player feint counts | Source Memory's actual Windup→Cancel producer with atMe/time guard; positive count enables feintRead draw. Mob-only actors have no player FighterMemory entry. Unavailable counts/events cannot silently become0. |
+| Path clear service | Forward actual preferred then opposite sides. Positive chance is remembered even if both paths fail. Native consumer must use the existing actual collision service, not an installed success. |
+| Existing actual Tier and Decide stream | Same tier thresholds/means and source evaluation order. No motor/lapse/Knowledge draws in this direct component. Native stream/cadence commits later require the existing accepted-frame transaction. |
+
+Decision keys are opaque component-input equality tokens, not raw private actor IDs, capabilities or new delivery continuity. One shared source Map holds projectile keys and actor@time shot keys; no new public namespace is approved. A later typed key design must preserve supported source equality, including repeated identical shot timestamps; stringification/−0 semantics require care if widening beyond these finite nonnegative timestamp probes. Session/epoch reset must clear state. Public NPC renewal/continuity remains a separate reviewed transport prerequisite.
+
+Returned Reflex contains Dodge/Juke, actual Move destination, priority0, full React/Step/Timed timing, why text and holdUntil. The public getters are outputs only. This oracle's adaptive recipes read them to select subsequent declared method inputs and record that dependency; no state is assigned.
+
+Required live prerequisites remain unavailable/unproved in this packet: complete decoded projectile origin/course/ownership/equality facts, retained Bow/Wand clocks and aims across swap/hold, memory input event coverage and stable NPC lifetime. Protocol15 design/publication is separately owned by Net/Root. This source component does not justify an Easy-only fallback, restricted normal/hard dispatch, fabricated absence, full Reflex/brain/hunt strategy, or World outcome parity.

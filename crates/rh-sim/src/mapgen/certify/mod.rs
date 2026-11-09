@@ -11,6 +11,16 @@ mod features;
 mod inventory;
 mod labels;
 mod numeric;
+
+/// Source-order two-argument `Math.hypot` for finite coordinate pairs.
+///
+/// Reuses certification's existing scaled compensated sum. Source-sensitive policy predicates may
+/// need its final bit rather than the platform-independent libm approximation; global sim math and
+/// certification callers keep their existing behavior. This is not a nonfinite-input JS shim.
+#[inline]
+pub fn source_hypot(a: f64, b: f64) -> f64 {
+    numeric::hypot(a, b)
+}
 #[cfg(test)]
 mod review_expected;
 pub mod rules;

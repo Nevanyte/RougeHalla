@@ -1,0 +1,21 @@
+born [{"id":"mob15","type":"","camp":0,"x":1456,"y":1040},{"id":"mob16","type":"","camp":0,"x":1552,"y":1136},{"id":"mob1c","type":"bailiff","camp":101,"x":1456,"y":912},{"id":"mob1d","type":"bailiff","camp":101,"x":1456,"y":880},{"id":"mob1e","type":"bailiff","camp":101,"x":1424,"y":912}] {"x":1456,"y":1136}
+frame {"tick":3,"now":150,"hp":1020,"as":101000,"raw":186.85000000000002,"selected":null,"mod":null,"tax":0,"tier":0,"candidates":[]}
+frame {"tick":23,"now":1150,"hp":1020,"as":101000,"raw":186.85000000000002,"selected":null,"mod":null,"tax":0,"tier":0,"candidates":[]}
+frame {"tick":43,"now":2150,"hp":1020,"as":101000,"raw":186.85000000000002,"selected":null,"mod":null,"tax":0,"tier":0,"candidates":[]}
+frame {"tick":63,"now":3150,"hp":1020,"as":101000,"raw":186.85000000000002,"selected":null,"mod":null,"tax":0,"tier":0,"candidates":[]}
+frame {"tick":83,"now":4150,"hp":1020,"as":101000,"raw":186.85000000000002,"selected":null,"mod":null,"tax":0,"tier":0,"candidates":[]}
+frame {"tick":103,"now":5150,"hp":1020,"as":101000,"raw":186.85000000000002,"selected":null,"mod":null,"tax":0,"tier":0,"candidates":[]}
+frame {"tick":123,"now":6150,"hp":1020,"as":101000,"raw":186.85000000000002,"selected":null,"mod":null,"tax":0,"tier":0,"candidates":[]}
+frame {"tick":143,"now":7150,"hp":1020,"as":101000,"raw":186.85000000000002,"selected":null,"mod":null,"tax":0,"tier":0,"candidates":[]}
+frame {"tick":163,"now":8150,"hp":1020,"as":101000,"raw":186.85000000000002,"selected":null,"mod":null,"tax":0,"tier":0,"candidates":[]}
+frame {"tick":183,"now":9150,"hp":1020,"as":101000,"raw":186.85000000000002,"selected":null,"mod":null,"tax":0,"tier":0,"candidates":[]}
+frame {"tick":203,"now":10150,"hp":1020,"as":101000,"raw":186.85000000000002,"selected":null,"mod":null,"tax":0,"tier":0,"candidates":[]}
+frame {"tick":223,"now":11150,"hp":1020,"as":101000,"raw":186.85000000000002,"selected":null,"mod":null,"tax":0,"tier":0,"candidates":[]}
+frame {"tick":243,"now":12150,"hp":1020,"as":101000,"raw":186.85000000000002,"selected":null,"mod":null,"tax":0,"tier":0,"candidates":[]}
+frame {"tick":263,"now":13150,"hp":1020,"as":101000,"raw":186.85000000000002,"selected":null,"mod":null,"tax":0,"tier":0,"candidates":[]}
+frame {"tick":283,"now":14150,"hp":1020,"as":101000,"raw":186.85000000000002,"selected":null,"mod":null,"tax":0,"tier":0,"candidates":[]}
+frame {"tick":303,"now":15150,"hp":1020,"as":101000,"raw":186.85000000000002,"selected":null,"mod":null,"tax":0,"tier":0,"candidates":[]}
+frame {"tick":323,"now":16150,"hp":1020,"as":101000,"raw":186.85000000000002,"selected":null,"mod":null,"tax":0,"tier":0,"candidates":[]}
+frame {"tick":343,"now":17150,"hp":1020,"as":101000,"raw":186.85000000000002,"selected":null,"mod":null,"tax":0,"tier":0,"candidates":[]}
+frame {"tick":363,"now":18150,"hp":1020,"as":101000,"raw":186.85000000000002,"selected":null,"mod":null,"tax":0,"tier":0,"candidates":[]}
+frame {"tick":383,"now":19150,"hp":1020,"as":101000,"raw":186.85000000000002,"selected":null,"mod":null,"tax":0,"tier":0,"candidates":[]}
