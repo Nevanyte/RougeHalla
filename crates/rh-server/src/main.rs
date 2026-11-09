@@ -554,6 +554,13 @@ async fn main() {
         None => (Persistence::memory(), auth),
         Some(url) => durable(&url, &args).await,
     };
+    if hosted.require_admit && matches!(auth, Auth::Dev) {
+        // An admit names a callsign and authenticates nobody; with dev auth any client may claim an admitted seat.
+        eprintln!(
+            "warning: --require-admit with dev auth accepts ANY ticket for an admitted callsign; \
+             pass --database-url or --auth static:<file> on a public host"
+        );
+    }
     // Parse the source gate before any learning I/O; Off overrides an otherwise valid explicit activation.
     let env_lookup = |key: &str| std::env::var(key).ok();
     let startup_fill = rh_server::bot_fill::BotFillConfig::from_env(env_lookup);

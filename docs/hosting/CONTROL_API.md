@@ -21,7 +21,7 @@ also serves a self-hosted multi-room process. Nothing here mentions GameLift typ
   A missing `v` is `400 bad_request`. (GET requests have no body; their responses carry `v`.) Unknown request fields are
   `400 bad_request` (fail closed: a typo must not silently drop a restriction).
 - Errors: `{"v":1,"error":{"code":"<snake_case>","message":"<human text, no secrets>"}}`. **(as built)** Codes outside the
-  endpoint tables: 400 `bad_request` | `unsupported_version` | `unsupported_property`, 401 `unauthorized`, 413
+  endpoint tables: 400 `bad_request` | `unsupported_version` | `unsupported_property`, 401 `unauthorized`, 403 `forbidden` (any request carrying an `Origin` header: no control client is a browser), 413
   `payload_too_large`, 503 `not_ready`, and 409 `not_final` (ack of a record that has not ended) and `too_many_admits` (the room
   holds 256 player records, live and final).
 - Optional defense in depth: when the server is started with `--control-token-file <path>`, every request must carry

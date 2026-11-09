@@ -740,6 +740,31 @@ async fn the_bearer_token_guards_every_control_route_when_configured() {
     assert_eq!(ok.status, 200, "{}", ok.body);
 }
 
+#[tokio::test]
+async fn a_request_carrying_an_origin_is_refused_with_or_without_a_token() {
+    for token in [None, Some("s3cret-control-token")] {
+        let r = rig(Opts {
+            token,
+            ..Opts::default()
+        })
+        .await;
+        let auth = ("Authorization", "Bearer s3cret-control-token");
+        for (m, p) in [("GET", "/control/rooms"), ("POST", "/control/drain")] {
+            let cross = request(
+                r.control,
+                m,
+                p,
+                &[auth, ("Origin", "http://evil.example")],
+                Some(b"{\"v\":1}"),
+            )
+            .await;
+            wants(&cross, 403, "forbidden");
+        }
+        let plain = get(r.control, "/control/health", &[auth]).await;
+        assert_eq!(plain.status, 200, "{}", plain.body);
+    }
+}
+
 // --- --require-admit -----------------------------------------------------------------------------------------------------
 
 #[tokio::test]
