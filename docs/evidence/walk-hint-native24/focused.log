@@ -1,0 +1,11 @@
+=== focused native24
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/worktrees/deepseek-rust-completion/p-pack-leader/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 35.75s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fight-native/target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 1 test
+test systems::walk_hint::helper_tests::boundary24::native24_boundary_methods_are_consumed_exactly ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 839 filtered out; finished in 0.07s
+
+EXIT=0

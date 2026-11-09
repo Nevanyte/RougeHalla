@@ -1,0 +1,8 @@
+PASS crates/rh-sim/src/systems/walk_hint/helper_tests.rs a85c405a0dfe08a033e67f47c4aeda3f67bee6aee25667a61f72f2dcebaf3b60 52505
+PASS parity/walk-hint/helper-boundaries/source.json 1702ce0a44940709d229161211cbd6ceaf8b0f4ef55c147d3321b3e3ab78e774 150406
+PASS docs/evidence/walk-hint-native24/README.md 80eaf2d442de6c6893e1109c64870b5f962684a8ec5faa40f0cf051ea5b0aa3f 6137
+PASS docs/evidence/walk-hint-native24/focused.log 642aad54751f612847bda638ff964a630bd417b12bec552f8559704ed2dfe98d 602
+PASS docs/evidence/walk-hint-native24/regressions.log 83335260006487f6f3c9ad38216968f87e008fc57e8d87590b24d735c921d5c1 2455
+PASS docs/evidence/walk-hint-native24/fmt.log 5445d851f45c3f83801f689a2135a6b7cf94ff342659d5b537bde5c8aba4b4d6 15
+PASS docs/evidence/walk-hint-native24/clippy.log 503753b5057c0a66a9fe187acc0a667bb8dc6119e7d4578493f46c76c69f5587 206
+VERIFIED 7/7 payloads against HEAD blobs; failures=0
