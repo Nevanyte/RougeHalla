@@ -1,0 +1,15 @@
+{
+  "recorded_utc": "2026-11-09T08:14:37.418830+00:00",
+  "task_children": "real-binary guards stop/reap each task-owned child; router handles stop listeners on drop; test runtime drops room tasks",
+  "postgres_clusters_created": 0,
+  "new_cloud_resources": 0,
+  "cargo_rustc_server_process_scan": [],
+  "retained_a3d_binary": {
+    "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/cold-restore-a3d4b3ce-2026-11-09/bin/rh-server-a3d4b3ce",
+    "sha256": "0b08727ba9cc7a5850e10f09e0737042937b865ee47dd29f1afc67abbbc242eb",
+    "bytes": 41799488,
+    "matches_prior_cold_proof": true
+  },
+  "target_loan": "finished all task Cargo commands; final-target ready to release to project lead",
+  "scope": "new server runtime config + director/main/wire adapter, focused public/control/real-binary tests, new evidence only"
+}

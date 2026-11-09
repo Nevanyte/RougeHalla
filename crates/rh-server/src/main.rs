@@ -1,6 +1,7 @@
 //! rh-server: the live authoritative match server.
 //!
 //!   cargo run --release -p rh-server -- --bind 127.0.0.1:7777 [--self-signed | --tls-cert cert.pem --tls-key key.pem]
+//!       [--runtime core|source-arena|training] (one configured profile per endpoint; source-arena requires --map)
 //!       [--first-playable] (embedded small PvE/loot map; drain at4h, forced process stop by4h+180s)
 //!       [--control 127.0.0.1:7778] [--map parity/maps/seed1.map.json] [--max-rooms 16] [--fill-bots 8]
 //!       [--min-players 1] [--lobby-seconds 10] [--fill-seconds 3] [--auth dev|static:<file>]
@@ -410,6 +411,13 @@ async fn main() {
     // One explicit TLS crypto provider (ring): with none selected rustls panics at the first handshake.
     let _ = rustls::crypto::ring::default_provider().install_default();
     let args: Vec<String> = std::env::args().collect();
+    let runtime = rh_server::runtime::Settings::from_args(&args).unwrap_or_else(|e| {
+        eprintln!("[server] invalid runtime settings: {e}");
+        std::process::exit(2);
+    });
+    let training = runtime
+        .as_ref()
+        .is_some_and(|p| p.profile == rh_server::runtime::Profile::Training);
     let first_playable = first_playable_settings(&args).unwrap_or_else(|e| {
         eprintln!("[server] invalid first-playable settings: {e}");
         std::process::exit(2);
@@ -434,7 +442,12 @@ async fn main() {
         .unwrap_or_else(|| "127.0.0.1:7777".into())
         .parse()
         .expect("--bind");
-    let arena = if profile_enabled {
+    let arena = if let Some(runtime) = &runtime {
+        runtime.arena().unwrap_or_else(|e| {
+            eprintln!("[server] invalid runtime map: {e}");
+            std::process::exit(2);
+        })
+    } else if profile_enabled {
         first_playable_arena().unwrap_or_else(|e| panic!("embedded first-playable map: {e}"))
     } else {
         match arg(&args, "--map") {
@@ -451,43 +464,46 @@ async fn main() {
             .and_then(|v| v.parse::<f64>().ok())
             .unwrap_or(d)
     };
-    let sim = rh_sim::SimConfig {
-        regen: false,
-        quests: false,
-        training: false,
-        dummies: false,
-        hazards: rh_sim::terrain::Mode::Off,
-        abilities: if wish_full {
-            rh_sim::abilities::Mode::Full
-        } else {
-            rh_sim::abilities::Mode::Off
+    let sim = runtime.as_ref().map_or_else(
+        || rh_sim::SimConfig {
+            regen: false,
+            quests: false,
+            training: false,
+            dummies: false,
+            hazards: rh_sim::terrain::Mode::Off,
+            abilities: if wish_full {
+                rh_sim::abilities::Mode::Full
+            } else {
+                rh_sim::abilities::Mode::Off
+            },
+            wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
+            lifecycle: rh_sim::ArenaMode::Off,
+            mob_mode: if profile_enabled {
+                rh_sim::mob_runtime::MobMode::Pve
+            } else {
+                rh_sim::mob_runtime::MobMode::Off
+            },
+            initial_loot: profile_enabled,
+            consumables: profile_enabled,
+            min_players: first_playable
+                .as_ref()
+                .map_or_else(|| num("--min-players", 2.0) as usize, |p| p.min_players),
+            lobby_seconds: first_playable
+                .as_ref()
+                .map_or_else(|| num("--lobby-seconds", 30.), |p| p.lobby_seconds),
+            fill_seconds: first_playable
+                .as_ref()
+                .map_or_else(|| num("--fill-seconds", 5.), |p| p.fill_seconds),
+            pvp_rules: true,
+            weapon_specials: true,
+            faction_mode: if profile_enabled {
+                rh_sim::FactionMode::EngagementHolyPlagueFire
+            } else {
+                rh_sim::FactionMode::Off
+            },
         },
-        wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
-        lifecycle: rh_sim::ArenaMode::Off,
-        mob_mode: if profile_enabled {
-            rh_sim::mob_runtime::MobMode::Pve
-        } else {
-            rh_sim::mob_runtime::MobMode::Off
-        },
-        initial_loot: profile_enabled,
-        consumables: profile_enabled,
-        min_players: first_playable
-            .as_ref()
-            .map_or_else(|| num("--min-players", 2.0) as usize, |p| p.min_players),
-        lobby_seconds: first_playable
-            .as_ref()
-            .map_or_else(|| num("--lobby-seconds", 30.), |p| p.lobby_seconds),
-        fill_seconds: first_playable
-            .as_ref()
-            .map_or_else(|| num("--fill-seconds", 5.), |p| p.fill_seconds),
-        pvp_rules: true,
-        weapon_specials: true,
-        faction_mode: if profile_enabled {
-            rh_sim::FactionMode::EngagementHolyPlagueFire
-        } else {
-            rh_sim::FactionMode::Off
-        },
-    };
+        |runtime| runtime.sim(),
+    );
     if let Err(e) = rh_server::wire::profile_supported(&sim) {
         eprintln!("[server] refusing to host this simulation profile: {e}");
         std::process::exit(2);
@@ -501,10 +517,17 @@ async fn main() {
             eprintln!("[server] invalid lease settings: {e}");
             std::process::exit(2);
         }),
-        max_rooms: num("--max-rooms", 16.0) as usize,
-        fill_bots_to: first_playable
+        max_rooms: runtime
             .as_ref()
-            .map_or_else(|| num("--fill-bots", 0.) as usize, |p| p.fill_bots),
+            .map_or_else(|| num("--max-rooms", 16.0) as usize, |p| p.max_rooms),
+        fill_bots_to: runtime.as_ref().map_or_else(
+            || {
+                first_playable
+                    .as_ref()
+                    .map_or_else(|| num("--fill-bots", 0.) as usize, |p| p.fill_bots)
+            },
+            |p| p.fill_bots,
+        ),
         ..DirectorConfig::new(sim, arena)
     };
     cfg.require_admit = hosted.require_admit;
@@ -540,6 +563,10 @@ async fn main() {
             eprintln!("[server] {error}");
             std::process::exit(2);
         });
+    if training && requested_learning_mode != rh_server::bot_learning::LearningMode::Off {
+        eprintln!("[server] training does not run bot learning");
+        std::process::exit(2);
+    }
     let learning_mode = if learning_allowed {
         requested_learning_mode
     } else {
@@ -604,7 +631,8 @@ async fn main() {
     // The BOTS_* environment supplies the fill policy and --fill-bots (or first-playable) overrides only the count; fill
     // stays off unless one of them asks for it (the Rust server's historical default; the source distribution defaults to
     // 8). The learning snapshot participates under the same BOT_STATS_FILE gate handled inside this composition.
-    let cli_fill = first_playable.is_some() || arg(&args, "--fill-bots").is_some();
+    let cli_fill =
+        runtime.is_some() || first_playable.is_some() || arg(&args, "--fill-bots").is_some();
     let bot_fill = rh_server::bot_fill::server_fill_config(
         env_lookup,
         cli_fill.then_some(cfg.fill_bots_to),
@@ -623,7 +651,7 @@ async fn main() {
         Default::default()
     };
     cfg.fill_bots_to = bot_fill.fill_to;
-    cfg.bot_fill = Some(bot_fill);
+    cfg.bot_fill = (!training).then_some(bot_fill);
     let api_cfg = api_config(&args).unwrap_or_else(|e| {
         eprintln!("[server] invalid account API settings: {e}");
         std::process::exit(2);

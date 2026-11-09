@@ -1,0 +1,292 @@
+$ cargo test --locked -p rh-server --lib --bin rh-server --test runtime_admission --test control --test live --test transport
+   Compiling ring v0.17.14
+   Compiling rustls v0.23.46
+   Compiling rustls-webpki v0.103.16
+   Compiling tokio-rustls v0.26.6
+   Compiling axum-server v0.7.3
+   Compiling rcgen v0.13.2
+   Compiling tungstenite v0.26.2
+   Compiling rh-server v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/crates/rh-server)
+   Compiling tokio-tungstenite v0.26.2
+    Finished `test` profile [unoptimized] target(s) in 16.51s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_server-825e280ee950b412)
+
+running 182 tests
+test api::limits::tests::ct_eq_matches_normal_equality ... ok
+test api::tests::month_key_is_utc_calendar_month ... ok
+test api::limits::tests::a_zero_cap_records_nothing ... ok
+test api::limits::tests::bucket_map_is_swept ... ok
+test api::limits::tests::bucket_bursts_then_refills ... ok
+test api::limits::tests::ipv6_counts_by_slash_64_and_mapped_ipv4_as_ipv4 ... ok
+test api::tests::forwarded_header_is_ignored_unless_configured_and_trusted ... ok
+test api::limits::tests::passcode_gate_throttles_before_comparing ... ok
+test api::limits::tests::a_right_or_absent_passcode_does_not_spend_a_failure_slot ... ok
+test api::limits::tests::window_caps_total_and_per_address_and_refunds ... ok
+test bot_fill::tests::the_manager_seed_is_the_room_fill_seed_when_set ... ok
+test bot_fill::tests::the_old_number_pipeline_fails_the_repaired_classes ... ok
+test bot_fill::tests::the_bots_number_oracle_matches_the_actual_source ... ok
+test bot_fill::tests::a_full_lobby_explicit_seat_returns_none_without_consuming_a_draw_or_an_id ... ok
+test bot_fill::tests::each_actual_arrival_refreshes_only_managed_faction_bias_like_the_source ... ok
+test bot_learning::tests::a_closed_store_writes_nothing_more ... ok
+test bot_learning::tests::a_failed_batch_keeps_every_dirty_row_for_the_next_write ... ok
+test bot_learning::tests::a_clock_that_went_backwards_does_not_hold_the_next_write_off ... ok
+test bot_learning::tests::a_closed_live_sink_refuses_further_records ... ok
+test bot_learning::tests::a_failed_live_write_keeps_the_rows_and_the_next_flush_writes_them ... ok
+test bot_learning::tests::a_store_snapshot_is_the_fill_policy_read_path ... ok
+test bot_learning::tests::an_empty_store_is_learning_on_with_no_bias ... ok
+test bot_learning::tests::a_read_path_builds_the_bias_view_from_the_rows ... ok
+test bot_learning::tests::an_inflight_old_batch_cannot_clear_a_new_runs_dirty_cells ... ok
+test bot_learning::tests::damaged_rows_are_dropped_on_their_own ... ok
+test bot_learning::tests::failed_final_flush_is_observable_and_never_claimed_durable ... ok
+test bot_learning::tests::a_live_sink_updates_the_snapshot_and_persists_the_batch ... ok
+test bot_learning::tests::postgres_alone_never_enables_learning_and_mode_is_explicit ... ok
+test bot_learning::tests::the_write_window_holds_writes_but_flush_does_not ... ok
+test bot_learning::tests::total_close_budget_aborts_joins_and_allows_http_shutdown_to_proceed ... ok
+test bot_learning::tests::void_and_too_small_runs_never_touch_the_backend ... ok
+test bot_learning::tests::closing_linearizes_with_a_record_delayed_before_core_lock ... ok
+test bot_fill::tests::the_bots_config_env_surface_matches_the_actual_source ... ok
+test conn::tests::a_flood_of_ready_frames_cannot_hide_a_finished_writer ... ok
+test bot_fill::tests::the_explicit_add_bot_still_makes_every_draw ... ok
+test conn::tests::an_evicted_server_ping_payload_is_not_a_sample ... ok
+test conn::tests::a_close_shares_the_flush_of_the_frames_before_it ... ok
+test conn::tests::a_long_reason_is_clipped_on_a_char_boundary_and_still_encodes ... ok
+test conn::tests::a_lawful_60hz_stream_with_compulsory_pongs_survives_65_seconds ... ok
+test conn::tests::only_an_unanswered_server_ping_payload_is_an_rtt_sample ... ok
+test conn::tests::the_frame_bucket_allows_exactly_its_burst_at_one_instant ... ok
+test conn::tests::one_wake_is_one_flush_with_every_frame_in_the_old_order ... ok
+test conn::tests::unmatched_pongs_are_charged_but_a_matched_pong_is_free_under_a_flood ... ok
+test control::arena_phase_tests::arena_planning_control_phase_is_named_truthfully ... ok
+test conn::tests::the_welcome_and_reject_sends_give_up_after_send_timeout ... ok
+test control::tests::a_kick_never_expires_an_admit_whose_hello_is_being_seated ... ok
+test control::tests::an_admit_is_idempotent_does_not_extend_and_expires_for_good ... ok
+test control::tests::a_taken_admit_is_restored_with_its_original_deadline_and_never_taken_twice ... ok
+test control::tests::callsign_and_id_rules ... ok
+test control::tests::a_long_error_message_with_multibyte_characters_is_truncated_by_chars_not_bytes ... ok
+test control::tests::on_seat_reports_admit_to_seat_time_for_the_first_seat_only ... ok
+test bot_fill::tests::the_explicit_add_bot_seam_matches_the_actual_source ... ok
+test director::tests::a_duplicate_result_report_still_gives_its_live_lease_back ... ok
+test director::tests::a_full_room_mailbox_is_a_503_and_a_closed_one_means_nobody_to_tell ... ok
+test director::tests::a_give_back_never_frees_an_entry_with_a_write_in_flight ... ok
+test bot_fill::tests::the_softmax_draw_matches_the_actual_source ... ok
+test bot_fill::tests::the_source_constants_and_defaults_are_the_ported_ones ... ok
+test director::tests::a_lobby_counts_its_reservations_and_runs_and_full_lobbies_are_not_offered ... ok
+test director::tests::a_report_of_the_seated_count_never_erases_admissions_still_acquiring_their_lease ... ok
+test director::tests::a_late_renewal_completion_cannot_change_a_replacement_generation ... ok
+test director::tests::a_result_the_store_refuses_for_good_is_not_retried ... ok
+test bot_fill::tests::callsigns_and_ids_match_the_actual_source ... ok
+test director::tests::a_join_reply_after_the_rooms_close_registers_no_session ... ok
+test bot_learning::tests::a_full_table_keeps_the_smallest_n_and_deletes_the_victims ... ok
+test director::tests::a_seat_with_a_result_in_flight_keeps_its_lease_until_the_write_lands ... ok
+test director::tests::an_admission_waits_for_a_leaving_profile_but_not_for_a_seated_one ... ok
+test api::limits::tests::concurrent_wrong_guesses_cannot_all_pass_the_throttle ... ok
+test bot_fill::tests::the_arrival_schedule_and_yield_seat_match_the_actual_source ... ok
+test director::tests::arena_profile_director_construction_is_admitted_transport ... ok
+test director::tests::bot_results_reach_the_record_caller_and_a_new_lobby_reads_the_refreshed_bias ... ok
+test director::tests::explicitly_configured_full_wish_profile_is_admitted_by_director ... ok
+test director::tests::lease_policy_reserves_time_for_a_renewal ... ok
+test director::tests::ending_metadata_is_retained_for_humans_and_never_banks_a_bot ... ok
+test director::tests::info_and_closed_room_keys_are_exactly_these_camel_case_names ... ok
+test director::tests::profile_entries_are_changed_only_by_their_owner ... ok
+test director::tests::the_fullest_open_lobby_is_picked_and_ties_go_to_the_lowest_id ... ok
+test director::tests::a_seat_that_left_keeps_renewing_until_a_slow_result_commits ... ok
+test director::tests::the_pick_does_not_depend_on_hash_map_order ... ok
+test director::tests::the_configured_fill_policy_reaches_a_spawned_room_with_the_room_s_fill_count ... ok
+test metrics::tests::a_histogram_is_small_and_recording_never_allocates ... ok
+test director::tests::training_admission_rejects_incompatible_host_configuration ... ok
+test metrics::tests::admit_to_seat_is_a_millisecond_histogram_on_the_health_json ... ok
+test metrics::tests::hot_counters_have_a_cache_line_each ... ok
+test metrics::tests::late_steps_count_only_wakes_later_than_the_budget_and_lateness_is_always_recorded ... ok
+test conn::tests::a_batch_never_feeds_more_than_the_write_buffer_cap_between_flushes ... ok
+test metrics::tests::the_atomic_max_only_moves_up_and_count_sums_the_buckets ... ok
+test director::tests::an_admission_that_picks_a_room_that_just_closed_lands_in_another ... ok
+test outbox::tests::a_closed_outbox_drains_its_important_frames_then_the_close_and_drops_disposables ... ok
+test metrics::tests::the_atomic_histogram_agrees_with_the_plain_one ... ok
+test outbox::tests::a_slow_client_loses_fx_and_stale_snapshots_but_never_important_frames ... ok
+test outbox::tests::a_tick_push_is_one_notify_however_many_frames_and_an_empty_one_is_none ... ok
+test outbox::tests::an_important_overflow_inside_push_tick_closes_and_ignores_the_rest_of_the_tick ... ok
+test control::tests::player_records_per_room_are_bounded ... ok
+test outbox::tests::counters_total_every_accepted_frame_and_ignore_a_closed_outbox ... ok
+test outbox::tests::collection_and_events_enqueue_atomically_before_disposable_frames ... ok
+test outbox::tests::falling_too_far_behind_on_important_frames_closes_the_client ... ok
+test pacer::tests::one_step_per_slot_bounded_catch_up_and_backlog_dropped ... ok
+test outbox::tests::push_tick_equals_the_three_single_pushes_and_drain_equals_repeated_next ... ok
+test outbox::tests::coalescing_a_renewed_npc_snapshot_still_replaces_the_whole_owner_group ... ok
+test director::tests::a_room_that_panics_frees_its_seats_and_leases ... ok
+test director::tests::leaving_wait_is_one_deadline_for_the_whole_admission ... ok
+test metrics::tests::buckets_partition_the_range_and_upper_bounds_are_tight ... ok
+test metrics::tests::quantiles_never_undershoot_and_the_max_is_exact ... ok
+test control::tests::closed_rooms_are_kept_newest_sixteen_and_the_young_up_to_a_hard_cap ... ok
+test room::public_ground_tests::public_ground_rejects_stale_native_layer_dimensions_even_with_equal_cell_count ... ok
+test room::public_ground_tests::public_ground_rejects_dimension_narrowing_before_encoding ... ok
+test room::quest_bridge_tests::quest_bridge_wire_bounds_cover_the_native_domain ... ok
+test director::tests::a_dead_lobby_retry_waits_for_its_own_lease_give_back ... ok
+test room::rtt::tests::a_new_estimate_is_the_default_and_its_first_sample_is_the_estimate ... ok
+test room::rtt::tests::a_render_time_is_clamped_into_the_window_ending_at_now_apply ... ok
+test room::rtt::tests::attack_and_release_render_times_are_clamped_and_counted ... ok
+test room::rtt::tests::smoothing_moves_a_quarter_of_the_way_to_each_new_sample ... ok
+test room::rtt::tests::the_ceiling_bounds_an_absurd_sample ... ok
+test room::rtt::tests::the_floor_stops_a_lucky_sample_from_collapsing_the_window ... ok
+test room::rtt::tests::the_window_by_rtt_floor_and_ceiling ... ok
+test room::rtt::tests::wish_render_time_uses_the_same_admission_window_without_adding_rewind ... ok
+test room::tests::a_bot_result_report_carries_its_fill_spec_once ... ok
+test director::tests::cancelling_after_join_was_seated_retires_the_exact_seat_and_reservation ... ok
+test room::public_ground_tests::public_ground_absence_differs_from_present_zero_surface ... ok
+test room::public_ground_tests::public_ground_room_refuses_mismatched_cache_binding - should panic ... ok
+test room::tests::a_training_room_closes_on_idle_and_banks_nothing ... ok
+test bot_fill::tests::the_old_whitespace_property_is_the_trim_negative_control ... ok
+test room::public_ground_tests::public_ground_equal_collision_does_not_reuse_different_surface ... ok
+test room::tests::a_renewal_that_observes_the_result_release_preserves_reliable_resume ... ok
+test room::tests::a_fill_bot_never_draws_a_profile_owned_callsign ... ok
+test room::public_ground_tests::public_ground_room_mode_is_actual_and_outside_static_cache ... ok
+test room::tests::a_training_room_idle_clock_counts_accepted_inputs_only ... ok
+test room::tests::arena_profile_direct_room_construction_is_admitted_transport ... ok
+test room::tests::explicitly_configured_full_wish_room_construction_is_admitted ... ok
+test room::tests::a_training_room_leave_never_banks_a_mia_result ... ok
+test room::tests::a_training_room_starts_active_with_one_human_and_a_training_stream ... ok
+test room::tests::bot_refused_is_delivery_intake_only_and_line_drops_are_separate ... ok
+test room::tests::catch_up_carries_a_real_wish_start_from_its_visible_step ... ok
+test room::tests::a_human_joining_a_full_lobby_takes_the_newest_bot_seat ... ok
+test room::tests::a_fill_bots_command_arrives_after_the_configured_latency ... ok
+test room::tests::live_pickup_resolves_delivered_handles_and_resume_replaces_the_offer ... ok
+test room::tests::failed_publish_holds_wish_barrier_owner_combat_and_new_pickup_handles ... ok
+test runtime::tests::explicit_profiles_and_invalid_combinations ... ok
+test room::tests::live_fire_feed_matches_core ... ok
+test wire::owner_combat_tests::invalid_owner_group_refuses_before_publisher_memo_work ... ok
+test wire::owner_combat_tests::ordinary_native_target_uses_the_same_prepared_npc_reference_in_the_wire_group ... ok
+test wire::owner_combat_tests::prepared_owner_group_survives_failed_encoding_and_reliable_enqueue_without_issuing_aliases ... ok
+test bot_fill::tests::a_learned_faction_bias_feeds_the_faction_softmax ... ok
+test room::tests::the_fill_policy_schedules_arrivals_over_the_countdown ... ok
+test wire::tests::an_fx_frame_off_the_grid_is_refused_not_clamped ... ok
+test wire::tests::a_prerequisite_refusal_uses_the_existing_owner_toast_without_poisoning_frames ... ok
+test conn::tests::a_silent_client_is_idle_and_a_finished_writer_or_stream_ends_the_wait ... ok
+test wire::tests::combat_mapping_preserves_privacy_passive_and_channels ... ok
+test wire::tests::content_codes_fit_the_wire_bit_widths ... ok
+test wire::tests::full_wish_owner_and_barrier_snapshot_encode_with_arena_off ... ok
+test wire::tests::giver_actor_mapping_preserves_source_fields_and_memo ... ok
+test wire::tests::arena_events_map_to_transport_and_off_profiles_still_encode ... ok
+test room::public_ground_tests::public_ground_projects_both_real_maps_without_inference ... ok
+test wire::tests::invalid_giver_and_unarmed_views_refuse_before_publisher_work ... ok
+test wire::tests::hp_pct_matches_the_f64_round_reference ... ok
+test wire::tests::omitted_effect_announcements_leave_frames_and_redaction_unchanged ... ok
+test wire::tests::protocol_8_training_frames_carry_the_training_set ... ok
+test wire::tests::quest_hosting_is_supported_and_incompatible_training_is_refused ... ok
+test wire::tests::an_arena_larger_than_the_position_grid_is_refused ... ok
+test room::tests::real_trophy_room_enqueue_rejection_does_not_issue_or_spend_handles ... ok
+test wire::tests::target_conversion_never_bypasses_observer_delivery ... ok
+test wire::tests::the_actor_memo_is_always_a_fresh_conversion ... ok
+test wire::tests::pve_commands_and_notices_keep_normal_public_semantics ... ok
+test wire::tests::wish_points_check_source_f64_before_narrowing ... ok
+test wire::tests::wish_start_and_landing_encode_as_checked_fx ... ok
+test bot_fill::tests::bot_stats_file_off_keeps_the_used_configuration_learning_free ... ok
+test bot_fill::tests::the_js_trim_membership_is_exact_over_every_unicode_scalar ... ok
+test conn::tests::the_fairness_look_keeps_a_ready_frame_ahead_of_an_overdue_tick ... ok
+test room::tests::an_overloaded_room_still_applies_queued_commands ... ok
+test wire::tests::server_time_is_tick_times_50 ... ok
+test room::tests::source_planning_transport_delivers_each_owner_plan_and_starts_the_run ... ok
+test wire::tests::arena_profile_transports_lobby_planning_and_active_with_owner_plan_state ... ok
+test runtime::tests::source_maps_require_complete_valid_metadata ... ok
+test wire::tests::giver_native_alias_prepare_drop_renewal_and_target_resolution ... ok
+test wire::tests::the_published_snapshot_is_the_one_built_from_the_observation_over_a_match ... ok
+test conn::tests::a_ready_frame_beats_an_overdue_liveness_tick ... ok
+test wire::tests::remote_actors_decode_within_the_documented_bound_over_a_match ... ok
+test room::quest_bridge_tests::quest_bridge_room_failed_enqueue_accept_resync_and_resume ... ok
+test room::trade_bridge_tests::native_trade_input_and_owner_state_keep_first_contact_privacy_and_source_order ... ok
+test room::quest_bridge_tests::quest_bridge_preview_hidden_and_closed_refs_never_accept ... ok
+test room::quest_bridge_tests::quest_bridge_native_token_and_parcel_keep_the_existing_pickup_door ... ok
+test room::trade_bridge_tests::trade_failed_encode_capacity_closed_resync_and_resume_preserve_delivery_baselines ... ok
+
+test result: ok. 182 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.40s
+
+     Running unittests src/main.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_server-0d46c7ad2d7fa587)
+
+running 7 tests
+test tests::lease_cli_refuses_invalid_values_and_expiry_without_renewal_headroom ... ok
+test tests::hosted_flags_parse_and_a_misspelt_one_is_refused ... ok
+test tests::full_wish_mode_is_a_single_explicit_flag_and_defaults_off ... ok
+test tests::lease_cli_accepts_defaults_and_a_valid_override ... ok
+test tests::first_playable_profile_is_opt_in_and_limits_seat_overrides ... ok
+test tests::service_deadlines_are_absolute_and_disabled_has_no_timer ... ok
+test tests::embedded_map_is_admitted_and_fits_the_process_budget ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/control.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/control-2242e4e34526f474)
+
+running 24 tests
+test health_reports_the_capability_the_bridge_checks_and_no_secret ... ok
+test health_reports_the_build_id_and_the_new_tick_and_admit_metrics_and_info_is_unchanged ... ok
+test require_admit_routes_by_the_admit_and_never_opens_a_room_itself ... ok
+test require_admit_needs_both_the_profile_credential_and_an_admit_and_keeps_the_earlier_refusals_first ... ok
+test session_properties_are_validated_and_a_starting_server_is_503 ... ok
+test session_create_is_idempotent_and_every_conflict_is_a_409 ... ok
+test the_bearer_token_guards_every_control_route_when_configured ... ok
+test unknown_fields_versions_malformed_and_oversized_bodies_are_refused ... ok
+test kick_and_ack_are_idempotent_and_a_kick_frees_the_seat_through_the_leave_path ... ok
+test the_public_listener_404s_every_control_path_and_the_control_listener_serves_no_public_route ... ok
+test a_graceful_end_closes_the_one_room_and_keeps_the_server_ready ... ok
+test admit_refusals_unknown_room_room_full_draining_and_ended ... ok
+test a_refused_admission_restores_the_admit_instead_of_burning_it ... ok
+test drain_closes_a_room_nobody_joined_at_once_instead_of_waiting_for_the_unclaimed_timeout ... ok
+test no_token_or_secret_appears_in_any_control_response ... ok
+test leaving_a_running_match_is_the_normal_mia_path_and_does_write_a_result ... ok
+test binary::a_non_loopback_control_address_is_refused ... ok
+test binary::require_admit_is_really_parsed_a_typo_or_a_missing_control_listener_is_an_error ... ok
+test abort_closes_a_running_match_at_once_and_invents_no_result ... ok
+test binary::the_real_binary_reports_require_admit_and_gates_a_hello_on_an_admit ... ok
+test drain_refuses_new_work_lets_the_match_run_and_terminates_when_the_last_room_closes ... ok
+test admit_is_idempotent_never_extends_never_rearms_and_expires_for_good ... ok
+test a_resume_inside_the_grace_keeps_the_seat_consumes_no_admit_and_left_comes_only_after_the_grace ... ok
+test a_session_created_while_draining_is_refused_or_drained_never_left_live_after_terminated ... ok
+
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.41s
+
+     Running tests/live.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/live-abeba9640213dd47)
+
+running 17 tests
+test a_server_refuses_to_host_an_arena_beyond_the_position_range - should panic ... ok
+test a_flooding_client_is_rate_limited ... ok
+test a_new_player_gets_a_new_lobby_while_a_run_is_in_progress ... ok
+test refusals_happen_before_a_seat_is_taken ... ok
+test wish_default_is_off_and_full_qe_slots_remain_noops_over_sockets ... ok
+test the_last_humans_mia_result_is_banked_although_the_room_closes ... ok
+test a_replaced_connection_can_neither_steer_nor_detach_the_resumed_seat ... ok
+test leaving_mid_run_is_mia_with_a_result ... ok
+test a_silent_connection_is_dropped_and_its_seat_lapses ... ok
+test a_dropped_client_resumes_its_seat_and_a_lapsed_one_is_mia ... ok
+test a_stalled_client_does_not_stall_the_match ... ok
+test a_player_who_reconnects_after_the_match_resolved_still_receives_their_result ... ok
+test draining_refuses_new_players_and_lets_the_match_finish ... ok
+test a_full_match_over_websockets_ends_in_authoritative_results_and_durable_writes ... ok
+test a_resync_is_answered_with_a_full_snapshot_and_never_dropped ... ok
+test full_wish_hidden_player_reference_becomes_a_normal_targetless_miss ... ok
+test full_wish_casts_from_sockets_publish_owner_facts_and_all_five_landings ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.61s
+
+     Running tests/runtime_admission.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/runtime_admission-ee4ccf0d738ebeb5)
+
+running 6 tests
+test hosted_training_validates_capacity_and_admits_only_first_solo_seat ... ok
+test training_endpoint_concurrent_hellos_get_solo_rooms_and_real_console ... ok
+test real_binary_refuses_unknown_runtime_and_incompatible_configuration ... ok
+test source_endpoint_hello_planning_ready_and_live_quest_trade_state ... ok
+test captured_full_source_map_admits_encoded_planning_and_live_public_state ... ok
+test real_binary_composes_core_source_and_training_without_a_hello_mode ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.27s
+
+     Running tests/transport.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/transport-47e40afc7ea7b1fd)
+
+running 7 tests
+test a_bare_accepted_socket_has_no_nodelay ... ok
+test a_burst_larger_than_the_read_buffer_is_read_whole_and_in_order ... ok
+test a_websocket_ping_flood_is_rate_limited ... ok
+test the_websocket_layer_cuts_client_frames_exactly_past_the_limit ... ok
+test plain_sockets_have_nodelay_and_a_client_completes ... ok
+test tls_sockets_have_nodelay_and_a_client_completes ... ok
+test a_real_clients_pongs_produce_a_moving_server_measured_rtt ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s
+
+
+exit_code=0

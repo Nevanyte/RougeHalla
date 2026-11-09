@@ -1,0 +1,164 @@
+{
+  "schema": "rh-full-runtime-admission-evidence/1",
+  "base_sha": "a3d4b3ce575442c9a06916888035ca849a6cd05a",
+  "implementation_sha": "bc5399809eb2d5d53c3682e8bdb40de168f1cc2b",
+  "code_sha": "5ae618e600db489f7703399830ed0434320b4dd6",
+  "code_tree": "f2e106ffaec6d38b62933ec6317c201a2c1367df",
+  "code_files": [
+    {
+      "path": "crates/rh-server/src/director.rs",
+      "bytes": 130507,
+      "sha256": "4e8bec19da4a101f5ab0e0f62c2204a42204fb3c903e34112b37c655c7133392",
+      "git_blob": "45fbccf8b847278889dc1f3c87094982b065507b"
+    },
+    {
+      "path": "crates/rh-server/src/lib.rs",
+      "bytes": 7430,
+      "sha256": "99c418d44a860ee2640fe2d9c972c2c555f0692bd5cd8a7b372f62f9c0276975",
+      "git_blob": "6934f6c196928b01c6f77d74b49748730df578aa"
+    },
+    {
+      "path": "crates/rh-server/src/main.rs",
+      "bytes": 43688,
+      "sha256": "a5236d652b34baa2ee7f5e229fda8ddf1af25ed5cd62dbd21a444e6ddb78ce55",
+      "git_blob": "71a86f69d2eb388a51469bbfdc687dd28fb91a64"
+    },
+    {
+      "path": "crates/rh-server/src/runtime.rs",
+      "bytes": 8658,
+      "sha256": "a3d52a5595b4e2c489784aa8e4e8bcc8a7b1f3c7cfca6685bb20a7bedaa6d7bf",
+      "git_blob": "b642cf88fe7ac67f0b3a83608fb7398f5b04983b"
+    },
+    {
+      "path": "crates/rh-server/src/wire.rs",
+      "bytes": 75120,
+      "sha256": "6ac0cefe792fa4a2f3490379973921a8a701d08b9b534c67757a95397f23a003",
+      "git_blob": "747c8b56134dc11ecbccfa841189e4ff31b98070"
+    },
+    {
+      "path": "crates/rh-server/tests/runtime_admission.rs",
+      "bytes": 26747,
+      "sha256": "dfc8bb2b060fda8409c0529088bb93d72d6b71d578781e68a2504674755114a8",
+      "git_blob": "727ee068ff04a5e0d169bbf99c4b12dc7e47ea1d"
+    }
+  ],
+  "public_map_inputs": [
+    {
+      "path": "maps/first-playable.json",
+      "bytes": 23635,
+      "sha256": "90bc4c8e82b7d4ba4819843001ae59da35c20ee870b5591b20192082b5bd16aa",
+      "git_blob": "b2e3635a5cc4c9c3bbb969f9c6e67cbb4e70c6f0"
+    },
+    {
+      "path": "parity/arena/source.json",
+      "bytes": 12927730,
+      "sha256": "6ff324e134127d9c84a4f4383965f11e08a108fbe306424b1547795265adf6f5",
+      "git_blob": "7e9113652e7141fd8d45b75a51628e4cf7dcc7c4"
+    },
+    {
+      "path": "parity/maps/duel.map.json",
+      "bytes": 266,
+      "sha256": "f824d887443832f13208d7eb5ef7eb3317e44924f7972a63236b0c41ff344511",
+      "git_blob": "051fd0a7caa59310784968284b8affeb0bd468f0"
+    }
+  ],
+  "payloads": [
+    {
+      "path": "CLEANUP.json",
+      "bytes": 856,
+      "sha256": "9a6941f6de5effd52ed05fea57c74e5ed5bebcf4c10ed37f60808436303589b0",
+      "git_blob": "90683231312ec05c74dfc3e96d251a7f81c339b8"
+    },
+    {
+      "path": "README.md",
+      "bytes": 10113,
+      "sha256": "6aa65da1e6b8f678231313fca33f2e857dfc976c222e6ee290021d18a8a4d92a",
+      "git_blob": "d15c5b36dc1b8fe346badc07d692c15f306d8c1f"
+    },
+    {
+      "path": "RUN-final.json",
+      "bytes": 2352,
+      "sha256": "9ec5e00b812311ecf43d5ae946e67694c8a31b476489a4fb2e1581522e5dc331",
+      "git_blob": "e88d1f3f9f7597c891626926f4b0088c9dc021e6"
+    },
+    {
+      "path": "RUN.json",
+      "bytes": 2298,
+      "sha256": "6df5e18cee181adb932dce4351717948346cc8aeea123f24905373d3f071183f",
+      "git_blob": "db8f336e14ab82aabe62dc9925565f9c8119ce41"
+    },
+    {
+      "path": "logs/clippy-default.txt",
+      "bytes": 549,
+      "sha256": "4ff67862f88a8c7e5a04d95d4edcaa957d7f365762747a107439fff856a09209",
+      "git_blob": "95952e23d5a379573c3dae98526938ea047cac5e"
+    },
+    {
+      "path": "logs/clippy-postgres.txt",
+      "bytes": 586,
+      "sha256": "646434feed3122989c6283fef3717fbd2546b38be250228b66e95431e4b2d44e",
+      "git_blob": "ff0d3a299a5487eab8624c581d7b1856277b6e22"
+    },
+    {
+      "path": "logs/final-clippy-default.txt",
+      "bytes": 549,
+      "sha256": "75948bed7faf5f14bbb582a9472107557b1c0d45025774861b0adac2802094c6",
+      "git_blob": "59a3c0d060a616b71444375e22265900629a91cd"
+    },
+    {
+      "path": "logs/final-clippy-postgres.txt",
+      "bytes": 586,
+      "sha256": "c2fe5a60a5067ef59c95cc51e61e67cf489922651f2177d7982a4a66cb5a045e",
+      "git_blob": "4e6a667e016adb1681e6c5d8b669da8fbf561c64"
+    },
+    {
+      "path": "logs/final-fmt.txt",
+      "bytes": 49,
+      "sha256": "3fefd9b0ba65b286a30a9d4cd88c5f3c324a9b5d24d9b44e0dcb9f23ee5e4d7e",
+      "git_blob": "3beba79ccd56cff7892182d3a4537340c3edbb71"
+    },
+    {
+      "path": "logs/final-postgres-runtime.txt",
+      "bytes": 1419,
+      "sha256": "2c92022f380f801ab842da098e4b9ad6b28af5c3e9e7479b6f6736cdd10aed05",
+      "git_blob": "405ddf8731bb32925a484884fca23b4e646fdada"
+    },
+    {
+      "path": "logs/final-server-focused.txt",
+      "bytes": 22533,
+      "sha256": "25ed42ef09ffcb9a2efc2398879a4359ceebbbcf5b1b9eaed48bc56acc588d46",
+      "git_blob": "260ff5529b6af27052454da9eb3848842cf58ea9"
+    },
+    {
+      "path": "logs/fmt.txt",
+      "bytes": 49,
+      "sha256": "3fefd9b0ba65b286a30a9d4cd88c5f3c324a9b5d24d9b44e0dcb9f23ee5e4d7e",
+      "git_blob": "3beba79ccd56cff7892182d3a4537340c3edbb71"
+    },
+    {
+      "path": "logs/postgres-runtime.txt",
+      "bytes": 1336,
+      "sha256": "b8c2a8c62bfa0e5fc377fad1fa18127d94ba4b34c983c4e2d0dcb47e2c74f61c",
+      "git_blob": "f7fc2a59e43923f104b807cd99e1f653c0682430"
+    },
+    {
+      "path": "logs/server-focused.txt",
+      "bytes": 22450,
+      "sha256": "9c3d1209362e9baa76ccc49971526fb5743b8288a72bac44135cc1c701a94730",
+      "git_blob": "28db76f8b4b9b2381dbb0b8b6ac09247861792cf"
+    }
+  ],
+  "final_results": {
+    "focused_tests_passed": 243,
+    "postgres_feature_runtime_tests_passed": 6,
+    "fmt": "PASS",
+    "strict_clippy_default": "PASS",
+    "strict_clippy_postgres": "PASS"
+  },
+  "remaining_limits": [
+    "local runtime admission only",
+    "one frozen full-map startup/Planning/Active case, no generator or long-match/load campaign",
+    "separate configured Arena and Training endpoints required; mixed listener/placement/browser integration remains external",
+    "no new database durability, cloud, Unity or browser claims"
+  ]
+}

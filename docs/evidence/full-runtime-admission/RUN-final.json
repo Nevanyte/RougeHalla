@@ -1,0 +1,107 @@
+{
+  "recorded_utc": "2026-11-09T08:11:41.417098+00:00",
+  "base_sha": "a3d4b3ce575442c9a06916888035ca849a6cd05a",
+  "code_sha": "5ae618e600db489f7703399830ed0434320b4dd6",
+  "implementation_sha": "bc5399809eb2d5d53c3682e8bdb40de168f1cc2b",
+  "code_tree": "f2e106ffaec6d38b62933ec6317c201a2c1367df",
+  "platform": "macOS-26.6.1-arm64-arm-64bit",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "cargo": "cargo 1.97.0 (c980f4866 2026-06-30)",
+  "environment": {
+    "CARGO_BUILD_JOBS": "1",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "RH_BUILD": null
+  },
+  "database_used": false,
+  "network": "disposable loopback sockets only",
+  "commands": [
+    {
+      "command": [
+        "cargo",
+        "fmt",
+        "-p",
+        "rh-server",
+        "--",
+        "--check"
+      ],
+      "log": "logs/final-fmt.txt",
+      "exit_code": 0,
+      "elapsed_seconds": 0.273
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-server",
+        "--lib",
+        "--bin",
+        "rh-server",
+        "--test",
+        "runtime_admission",
+        "--test",
+        "control",
+        "--test",
+        "live",
+        "--test",
+        "transport"
+      ],
+      "log": "logs/final-server-focused.txt",
+      "exit_code": 0,
+      "elapsed_seconds": 45.695
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-server",
+        "--features",
+        "postgres",
+        "--test",
+        "runtime_admission"
+      ],
+      "log": "logs/final-postgres-runtime.txt",
+      "exit_code": 0,
+      "elapsed_seconds": 14.524
+    },
+    {
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "-p",
+        "rh-server",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "log": "logs/final-clippy-default.txt",
+      "exit_code": 0,
+      "elapsed_seconds": 6.362
+    },
+    {
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "-p",
+        "rh-server",
+        "--all-targets",
+        "--features",
+        "postgres",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "log": "logs/final-clippy-postgres.txt",
+      "exit_code": 0,
+      "elapsed_seconds": 8.337
+    }
+  ]
+}

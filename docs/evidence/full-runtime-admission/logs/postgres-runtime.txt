@@ -1,0 +1,23 @@
+$ cargo test --locked -p rh-server --features postgres --test runtime_admission
+   Compiling sqlx-core v0.8.6
+   Compiling sqlx-postgres v0.8.6
+   Compiling sqlx-macros-core v0.8.6
+   Compiling sqlx-macros v0.8.6
+   Compiling sqlx v0.8.6
+   Compiling axum-server v0.7.3
+   Compiling rh-persist v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/crates/rh-persist)
+   Compiling rh-server v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/crates/rh-server)
+    Finished `test` profile [unoptimized] target(s) in 12.80s
+     Running tests/runtime_admission.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/runtime_admission-4adff2bd7a71a912)
+
+running 5 tests
+test hosted_training_validates_capacity_and_admits_only_first_solo_seat ... ok
+test training_endpoint_concurrent_hellos_get_solo_rooms_and_real_console ... ok
+test source_endpoint_hello_planning_ready_and_live_quest_trade_state ... ok
+test real_binary_refuses_unknown_runtime_and_incompatible_configuration ... ok
+test real_binary_composes_core_source_and_training_without_a_hello_mode ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.98s
+
+
+exit_code=0
