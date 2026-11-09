@@ -1,0 +1,13 @@
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fight-native/repo/crates/rh-policy)
+    Finished `test` profile [unoptimized] target(s) in 5.60s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fight-native/target/debug/deps/rh_policy-c3fa0ee46865b1ea)
+
+running 4 tests
+test bots::fight::source_tests::unavailable_facts_and_epoch_refuse_before_memory_or_rng_then_reset_drops_identity ... ok
+test bots::fight::source_tests::actual_source_direct_exported_fight_uses_no_tactics_knowledge_draw ... ok
+test bots::fight::source_tests::actual_source_orb_all_six_sequences_and_20_frames ... ok
+test bots::fight::source_tests::actual_source_tactics_all_sixteen_sequences_and_47_frames ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 143 filtered out; finished in 0.02s
+
+exit=0

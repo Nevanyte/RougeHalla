@@ -1,0 +1,43 @@
+    Finished `test` profile [unoptimized] target(s) in 0.05s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fight-native/target/debug/deps/rh_policy-c3fa0ee46865b1ea)
+
+running 22 tests
+test delivery_tests::frame14_requires_all_eleven_keys_including_explicit_trade_unavailable ... ok
+test delivery_tests::data_constructor_is_not_acceptance_and_keeps_owner_unavailable_clear_held_distinct ... ok
+test delivery_tests::identical_public_frames_do_not_make_fresh_session_npc_references_equal ... ok
+test delivery_tests::malformed_public_event_or_owner_clock_refuses_entire_candidate_without_advancing_baseline ... ok
+test delivery_tests::actual_prepared_target_has_same_quantized_scene_and_only_accepted_aliases_resolve ... ok
+
+thread 'delivery_tests::fallback_append_then_panic_is_contained_and_never_reaches_either_driver' (66677388) panicked at crates/rh-policy/src/delivery_tests.rs:1281:40:
+fallback failed after appending a valid stop
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test delivery_tests::renewed_observer_drop_preserves_old_aliases_and_the_next_delivery_reuses_the_same_new_scene ... ok
+test delivery_tests::async_failed_send_and_failed_fallback_do_not_accept_anything_but_successful_fallback_does_once ... ok
+test delivery_tests::actual_async_receiver_and_same_public_fallback_use_typed_sample_and_session_reply_tokens ... ok
+test delivery_tests::sync_preflight_refusal_keeps_events_cadence_and_aliases_until_a_receiver_accepts ... ok
+test delivery_tests::owner_loss_is_a_real_cleared_delivery_and_new_local_sessions_have_distinct_receipts ... ok
+test delivery_tests::full_async_queue_and_refused_fallback_preserve_next_alias_sample_and_carried_events ... ok
+test delivery_tests::actual_human_bot_async_handshake_delivers_frame14_and_submits_real_nonempty_commands_without_fallback ... ok
+test delivery_tests::genuine_landed_attack_owner_result_survives_cadence_and_never_includes_another_seats_result ... ok
+test delivery_tests::successful_fallback_stop_is_valid_and_reaches_real_intake_in_both_drivers ... ok
+
+thread 'delivery_tests::fallback_append_then_panic_is_contained_and_never_reaches_either_driver' (66677388) panicked at crates/rh-policy/src/delivery_tests.rs:1281:40:
+fallback failed after appending a valid stop
+
+thread 'delivery_tests::fallback_append_then_panic_is_contained_and_never_reaches_either_driver' (66677388) panicked at crates/rh-policy/src/delivery_tests.rs:1281:40:
+fallback failed after appending a valid stop
+test delivery_tests::fallback_append_then_refusal_never_reaches_sync_submit_or_queued_delivery ... ok
+
+thread 'delivery_tests::fallback_append_then_panic_is_contained_and_never_reaches_either_driver' (66677388) panicked at crates/rh-policy/src/delivery_tests.rs:1281:40:
+fallback failed after appending a valid stop
+test delivery_tests::fallback_append_then_panic_is_contained_and_never_reaches_either_driver ... ok
+test delivery_tests::hidden_a_b_produce_equal_delivered_frames_and_human_commands_without_raw_fallback ... ok
+test delivery_tests::owner14_shared_goldens_and_reconstructed_delta_chains_keep_every_clock_and_mirror_bit ... ok
+test delivery_tests::frame14_keeps_all_five_final_quest_strings_owned_retained_and_replaced ... ok
+test delivery_tests::frame14_refuses_malformed_trade_update_without_mutating_retained_facts_or_tick ... ok
+test delivery_tests::reconstructed_collections_keep_none_empty_retained_rows_and_refuse_dangling_or_unknown_updates_atomically ... ok
+test delivery_tests::frame14_retains_exact_trade_order_bits_and_explicit_empty_or_unavailable_replacements ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 127 filtered out; finished in 0.04s
+
+exit=0

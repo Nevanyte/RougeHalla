@@ -1,0 +1,26 @@
+Filesystem      Size    Used   Avail Capacity iused ifree %iused  Mounted on
+/dev/disk3s5   926Gi   896Gi   4.6Gi   100%    5.5M   49M   10%   /System/Volumes/Data
+rustc 1.97.0 (2d8144b78 2026-07-07)
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.27
+   Compiling serde_core v1.0.229
+   Compiling syn v3.0.9
+   Compiling libm v0.2.16
+   Compiling zmij v1.0.23
+   Compiling serde v1.0.229
+   Compiling serde_derive v1.0.229
+   Compiling serde_json v1.0.154
+   Compiling itoa v1.0.18
+   Compiling memchr v2.8.3
+   Compiling ryu-js v1.0.3
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fight-native/repo/crates/rh-sim)
+   Compiling rh-protocol v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fight-native/repo/crates/rh-protocol)
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fight-native/repo/crates/rh-policy)
+error: couldn't read `crates/rh-policy/src/../../../protocol/fixtures/v14.json`: No such file or directory (os error 2)
+   --> crates/rh-policy/src/delivery_tests.rs:288:26
+    |
+288 |     serde_json::from_str(include_str!("../../../protocol/fixtures/v14.json")).unwrap()
+    |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: could not compile `rh-policy` (lib test) due to 1 previous error

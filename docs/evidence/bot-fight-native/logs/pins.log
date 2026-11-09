@@ -1,0 +1,15 @@
+Immutable actual-source fixture exact base/current: 467672 197fe5d24b6b34822a3ef76e2999d422e6127bbda1e8dfda0ba0af3ee5e2785e PASS
+Reviewed dependency byte-preserved: crates/rh-policy/src/bots/kite.rs 9b6efadcb66e3d20039127426399e456819e39770862b8f2cda9571016ddc4a5 PASS
+Reviewed dependency byte-preserved: crates/rh-policy/src/bots/kite/own_timings.rs 18d0981c621644db6d88939103c6d5a08dc4c5d8ba06bde7dc7e70089035db21 PASS
+Live/ABI/shared file unchanged: crates/rh-policy/src/bots/bot.rs PASS
+Live/ABI/shared file unchanged: crates/rh-policy/src/bots/perception.rs PASS
+Live/ABI/shared file unchanged: crates/rh-policy/src/bots/types.rs PASS
+Live/ABI/shared file unchanged: crates/rh-policy/src/delivery/frame.rs PASS
+Live/ABI/shared file unchanged: Cargo.lock PASS
+Live/ABI/shared file unchanged: crates/rh-sim/src/observe.rs PASS
+Live/ABI/shared file unchanged: crates/rh-protocol/src/lib.rs PASS
+Frozen code: crates/rh-policy/src/bots/fight.rs 26568 c753c9f175cd4a44bdd0f48125b333de41a7c4677027a7ed8e38626e6a277cec PASS
+Frozen code: crates/rh-policy/src/bots/fight/source_tests.rs 22327 1bb0e557bd05de312ed60f985fdfdb5b9210f9bca9854f7485c08a13308bd209 PASS
+Frozen code: crates/rh-policy/src/bots/mod.rs 2884 0f7c4b40b8551ffab92703023127243366858b66a35a61ef9adcef65d19c60f4 PASS
+Frozen code: crates/rh-policy/src/bots/orbwalk.rs 3981 9140a9ba528f3def8ab3e50f6afaa3b8bb18c6e41f58ab0f7e494853adfa2d12 PASS
+git diff --check PASS
