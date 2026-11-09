@@ -614,7 +614,7 @@ async fn account_flow() {
         assert_eq!(profile["gv"], result.gv_total);
         assert_eq!(profile["gvLifetime"], result.gv_total);
     }
-    let (earner, earner_token) = if alice_result.gv_total > 0 {
+    let (earner, earner_token) = if alice_result.gv_total >= bob_result.gv_total {
         ("alice", &alice_token)
     } else {
         ("bob", &bob_token)
