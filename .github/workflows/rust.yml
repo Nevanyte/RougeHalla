@@ -107,6 +107,7 @@ jobs:
           bash tools/bot-tournament-fixtures/capture.sh --check
           bash tools/bot-telemetry-fixtures/capture.sh --check
           bash tools/bot-fight-fixtures/capture.sh --check
+          bash tools/bot-sd-fixtures/capture.sh --check
           bash tools/percept-witness-fixtures/capture.sh --check
           bash tools/barrier-view-fixtures/capture.sh --check
       - name: Heal-barrier callers and victim Frost resistance remain source exact
