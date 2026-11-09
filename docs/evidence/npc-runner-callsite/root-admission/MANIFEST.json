@@ -1,0 +1,20 @@
+{
+  "format": "rh-root-npc-source-admission/1",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 1879,
+      "sha256": "47b4e6db976f42d41c5abf5be268a1fd55487bafcd535640762ea13e0a62d6fe"
+    },
+    {
+      "path": "npc-continuity-76ea6b99-independent-review.md",
+      "bytes": 6356,
+      "sha256": "f0d79167c3fb524bfc4591253328996d8a41d547818a025581e6caec8fc802a2"
+    },
+    {
+      "path": "npc-runner-8a098568-independent-review.md",
+      "bytes": 7439,
+      "sha256": "e59c7b722fa1dc7ed7775626cb5864644fd42d4d8f370cdd3efa3318b16b841e"
+    }
+  ]
+}

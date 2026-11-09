@@ -1,0 +1,31 @@
+# Earned living NPC return — independent source review
+
+Decision: SOURCE RELEASE for exact76ea6b995d3f2d7f844c1ff65f9a0750094a68c7, source7edb98c89a2017bf9f47e3f92a6a4a79149b53b2, base197926e27747545934fb801e3df61ae7070905a2. HOLD full live-BotRunner/Brain inference, hidden death/replacement equivalence and any continuity/privacy/native policy decision. No sourcebug/intended-behavior classification is made.
+
+Verified manifest SHA25627544d334420dd5ee975772585742c4f90c60b05cd3c376c870632c2f30e24a6: all447 entries(7source/416unchanged baseline guards/24evidence) match byte lengths/hashes, with all416guards also identical to base. All350 canonical profile pins match;344 existing inputs match exactbase. Canonical13952630bytes/SHA25615c3dbc1f5d718859413e8dbb9891602dd49870f10dae4f12dc3152e2c57de96. Exactly32 additions in three new packet directories; no modified/deleted baseline paths. Checkout clean. Reviewer performed read-only source/hash/data inspection, no capture/build/engine/target run.
+
+## Admitted witness
+
+Actual createGameWorld/raidStarted produces three normal Cinder Hounds under declared96x48all-floor geometry, one natural three-spot camp, two ordinary Fire seats/default empty hands and explicit capture config(no planning/long settle timers/PvPoff). Post-shuffle observer selection is declared source setup. Only three accepted queued Moves approach/leave/return; no actor, HP, loadout, phase, outcome, remembered state or post-birth position is installed. Return destination is the retained earlier visible camp vicinity, not a hidden new target coordinate.
+
+Independently checked773rows: private source ticks1..773, exact50ms increments50..38650, decoded noSync tick remains0 throughout, all three mobs alive every step, unchanged public camp facts and no FX batches. At650ms actual callbacks and composed Percept admit mob1 and Memory.alive=true;31750ms firstfalse while World target remains alive/out of sight;37600msstillfalse/out of sight;38650ms actual callback and method Percept resight living mob1 while Memory.alive remainsfalse. Method Hunt tracker consumes that false belief; final Hunt return is not attributed solely to it because a real mob3stall ban also exists. These are actual method returns, not World-submitted actions or full policy outcomes.
+
+Actual FxChannel batch→extendRoster→full Schema encode/decode→rosterSent order is retained. Source/private raw Schema diagnostics stay outside consumer arguments. Full snapshot is not Room/socket/delta evidence. World opts.random has exactlytwoinstrumented draws; reward/quest salts and separate method streams are declared, not claimed to have exhaustive cross-branch draw equivalence.
+
+## Human extraction validity
+
+Independently reconstructed and hash-matched exact unchanged RaidScene drawRemote930–936, regional-mob admission prefix640–642 and inline minimap argument763–771. AST selection requires unique class/method/call shapes, exact parsed source bytes and fail-closed normalized source guards; esbuild only transpiles selected exact bodies. The sole wrapper addition records admission after the actual prefix. Real EntityInterpolator/RemoteDraw/RaidVision/shouldRenderActor run. The provided callback context is declared identity/maps/positions with zero-jitter clock and drawAheadoff. No handwritten replacement visibility implementation appears. Full RaidScene.update/MobView/Minimap.setMobs/Phaser/canvas/local prediction remain unrun; parameter IDs are not asserted to be labels visible to people. Ordinary regional mobs only; no zombie/quest generalization.
+
+Pinned Linuxamd64Node22.23.4 capture+one byte-exactcheck raw log passes. Original integrated-dev-1 dots-versus-mobs field-name failure remains failed; earlier metadata-label candidate and focused development/smoke limits are retained. Final exact bytecheck excludes nothing; the separately documented metadata normalization is only an old-candidate comparison. No prior expected corpus was rewritten or installed as gameplay input.
+
+## Missing live callsite is material
+
+Both live BotManager347–348 and BotClient321 enable vision:true. Actual runner51–59 performs BotVision.update→perceive(canSee:vision.canSee)→FrameRing.compose→BotVision.filter→brain.tick; Brain291then calls Memory.observe. This packet instead passes actual World canPlayerSee into perceive and omits post-compose filter, uses method-only seeds/cadence and engaged=false.
+
+BotVision65–83 filters delayed actors, cached/quantized minimap dots, events and extras using current local trail/ward visibility. In particular it can remove minimap entries without changing minimap.t; Memory563–585 reacts to t changes and then treats absent formerly dotted IDs as dead. It cannot itself revive an alreadyfalseMemory entry(Memory580/601skip dead entries), but that does not establish identical earlier admission/firstfalse/resight on the actual runner path. Full live life-belief/Hunt inference therefore remains unproved, not merely a missing label. The earned living World/human-callback return and actual Memory-method observation remain admissible within their explicit input boundary.
+
+## Finite next proof
+
+Reuse only this earned773-step World/publication history unchanged. Add one separately sealed actual vision:true runner path with production BotVision.update prefilter and post-compose filter. Record the Percept entering brain.tick(and minimap.t/content/current visibility at initial sight, firstomission, settledreturn), plus actual Memory observations. Keep source clock/Schema defaults/IDs/order/camp/FX/RNG unchanged; no manual visibility callback, no synthetic life label and no replacement actor.
+
+A narrow runner+Memory/Hunt consumer proves only that missing callsite; if claiming full live Brain, additionally use actual production Brain reset streams/modules/cadence and observe its memory via a clearly read-only trace seam, retaining returned actions without feeding them into this fixed-history World. Do not silently promote a custom method adapter to full autonomous bot proof. One comparison of prefilter/frame/composed/postfilter/memory is sufficient next work; no broad corpus needed. Root has separately assigned that extension. Hidden death/replacement pairs, complete human cues, sourcebug/intent, public continuity/privacy contracts and native design remain held.
