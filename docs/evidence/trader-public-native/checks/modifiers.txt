@@ -1,0 +1,13 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/trader-public-native/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 30.01s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/trader-public-native/target/debug/deps/rh_sim-0ad75f2b040c28b6)
+
+running 6 tests
+test modifiers::guard_tests::the_pvp_hit_and_dot_caps_clamp_each_source ... ok
+test modifiers::race_tests::the_race_multiplier_is_the_inverse_hp_fraction_capped ... ok
+test modifiers::plague_tests::plague_turns_dot_crit_chance_into_steady_dot_damage ... ok
+test modifiers::guard_tests::the_outgoing_row_cap_holds_against_boom_and_glass_cannon ... ok
+test modifiers::plague_tests::a_non_plague_keeps_its_dot_crit ... ok
+test modifiers::guard_tests::a_cached_while_hold_is_validated_against_its_bits ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 768 filtered out; finished in 0.00s
