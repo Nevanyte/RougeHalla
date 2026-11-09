@@ -8,7 +8,7 @@ use crate::input::Command;
 use crate::sim::{Arena, Event, Placement, PlayerId, Secrets, Sim, SimConfig};
 
 /// Version 22 identifies the composed typed actor, giver, Frost and Sentenced state. Other formats are refused.
-pub const REPLAY_FORMAT: &str = "rh-replay/22";
+pub const REPLAY_FORMAT: &str = "rh-replay/23";
 
 /// Identity of the code this binary was built from: the `RH_BUILD` environment variable at compile time (a release build is meant to set
 /// it to the commit id; nothing in the repo does yet, so every dev build reads the same), else `dev-<crate version>`. It is a compile-time constant, so reading it keeps

@@ -460,7 +460,7 @@ fn real_npc_mark_has_required_typed_group_and_checked_restore_controls() {
         .unwrap();
     let field = format!("/world/mobs/{index}/core/signature/mark");
     let value = serde_json::to_value(&s).unwrap();
-    assert_eq!(value["format"], "rh-checkpoint/28");
+    assert_eq!(value["format"], "rh-checkpoint/29");
     Sim::restore(value.clone()).unwrap();
     for key in ["group", "group_size"] {
         let mut bad = value.clone();
