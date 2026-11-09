@@ -1,0 +1,24 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/sentenced-holy-source-consumer/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 34.82s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/sentenced-holy-source-consumer/target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 1 test
+test systems::sentenced::group_source_tests::corrected_source_sentenced_npc_to_holy_human_melee_and_ranged ... FAILED
+
+failures:
+
+---- systems::sentenced::group_source_tests::corrected_source_sentenced_npc_to_holy_human_melee_and_ranged stdout ----
+
+thread 'systems::sentenced::group_source_tests::corrected_source_sentenced_npc_to_holy_human_melee_and_ranged' (65773069) panicked at crates/rh-sim/src/systems/sentenced/group_source_tests.rs:175:17:
+assertion `left == right` failed: mob3i signature/tier: discrete count/code
+  left: Some(0)
+ right: Some(3)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    systems::sentenced::group_source_tests::corrected_source_sentenced_npc_to_holy_human_melee_and_ranged
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 735 filtered out; finished in 1.40s
+
+error: test failed, to rerun pass `-p rh-sim --lib`

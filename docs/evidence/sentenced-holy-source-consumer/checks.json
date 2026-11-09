@@ -1,0 +1,109 @@
+{
+  "base": "dd1b19d158a2360313a908c6900a4f004f3622d1",
+  "scope": "cfg(test) existing Sentenced group source adapter and new evidence only",
+  "focused": {
+    "passed": 8,
+    "failed": 0,
+    "ignored": 0,
+    "source_cases": 12,
+    "source_sparse_snapshots": 43,
+    "new_cases": 4,
+    "new_sparse_snapshots": 12,
+    "new_simulated_steps": 400,
+    "precision_rejection_tests": 2
+  },
+  "strict_clippy": {
+    "command": "cargo clippy -p rh-sim --lib --tests -- -D warnings",
+    "passed": true
+  },
+  "fmt": {
+    "command": "cargo fmt --all --check",
+    "passed": true
+  },
+  "sources": [
+    {
+      "path": "parity/sentenced-npc-group/source.json",
+      "bytes": 555087,
+      "sha256": "3808dac248d5fd01286ceb2abe4d2a179a1702e3b8c4bd863a02250654a3d5a3",
+      "format": "rh-sentenced-npc-group-source/1",
+      "cases": [
+        "npc-sentenced-melee",
+        "npc-sentenced-ranged",
+        "player-vs-camp",
+        "camp-sibling-death",
+        "storm-vs-camp",
+        "dummy-singleton"
+      ],
+      "snapshots": 16
+    },
+    {
+      "path": "parity/sentenced-npc-group/source-supplement.json",
+      "bytes": 530381,
+      "sha256": "292496f06ddc3edb8ccb142df76e2661fd257b0679a2132809ad9e4560e75183",
+      "format": "rh-sentenced-npc-group-supplement/1",
+      "cases": [
+        "sibling-death-shrink-handoff",
+        "trial-unfocused-member"
+      ],
+      "snapshots": 15
+    },
+    {
+      "path": "parity/sentenced-npc-group/source-seam-a-holy.json",
+      "bytes": 140255,
+      "sha256": "88dc9f5d8a54df280d05be0f19390019a3bae6161edc5754b2523c699f133375",
+      "format": "rh-sentenced-seam-a-holy/1",
+      "cases": [
+        "sentenced-npc-melee-marks-holy-human",
+        "sentenced-npc-ranged-marks-holy-human"
+      ],
+      "snapshots": 6
+    },
+    {
+      "path": "parity/sentenced-npc-group/source-holy-components.json",
+      "bytes": 156324,
+      "sha256": "d1129f2d862da97d17dd90ea84105f04206a8728fd03c6be376fa5f461d1bd40",
+      "format": "rh-sentenced-npc-group-holy-components/1",
+      "cases": [
+        "holy-npc-melee-component",
+        "holy-npc-ranged-component"
+      ],
+      "snapshots": 6
+    }
+  ],
+  "logs": {
+    "focused.log": {
+      "bytes": 1561,
+      "sha256": "7a031d884b79a041e8c583eef8160fb2bedc3783456c9c48550697dac2aeca7c"
+    },
+    "consumer-mutant.log": {
+      "bytes": 1330,
+      "sha256": "7a65366244d26cc8aa36969d951424a801d2dc7b39c136d876893c6a545070eb"
+    },
+    "clippy.log": {
+      "bytes": 1017,
+      "sha256": "18fb83a94eccc97658559e12382ef405080ac2c7c846203fc8e3fbc080b01198"
+    },
+    "fmt.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "consumer_output_mutant": {
+    "kind": "consumer projection sensitivity, not a kernel/source producer mutant",
+    "path": "crates/rh-sim/src/systems/sentenced/group_source_tests.rs",
+    "before": "\"tier\":f.mark.tier",
+    "after": "\"tier\":if s.w.players.get(id).is_some() { f.mark.tier } else { 0 }",
+    "control_sha256": "b527d05334ae2650f4b8b3428089dd55742b74d339ba09c5051045b5826d1d9e",
+    "mutant_sha256": "b313e99223b55493b93dca6e3a836b773ef61f9486dc53aa8412206c48e0c9b8",
+    "exit": 101,
+    "compiled_semantic_failure": true,
+    "executed_tests": 1,
+    "failure": "mob3i signature/tier: native projection0 versus source3",
+    "restored_control_passed": true
+  },
+  "not_run": [
+    "source recapture/mutant campaigns",
+    "broad maps/workspace/simulation suite",
+    "new restore/Full/public/headless/wire/UI/browser/Editor/cloud admission"
+  ]
+}

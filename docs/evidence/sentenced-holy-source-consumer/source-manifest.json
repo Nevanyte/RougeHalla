@@ -1,0 +1,43 @@
+{
+  "base": "dd1b19d158a2360313a908c6900a4f004f3622d1",
+  "excludes": [
+    "this manifest itself"
+  ],
+  "files": [
+    {
+      "path": "crates/rh-sim/src/systems/sentenced/group_source_tests.rs",
+      "bytes": 26642,
+      "sha256": "b527d05334ae2650f4b8b3428089dd55742b74d339ba09c5051045b5826d1d9e"
+    },
+    {
+      "path": "docs/evidence/sentenced-holy-source-consumer/README.md",
+      "bytes": 4420,
+      "sha256": "8c6dae85d609b6559092e8cbaca948532e19935587395566a3e69d416c8487df"
+    },
+    {
+      "path": "docs/evidence/sentenced-holy-source-consumer/checks.json",
+      "bytes": 3573,
+      "sha256": "0e415d89a8d6fe87d8313169c12af9bc5305cd2f3a7247921d631d6f20c9c90a"
+    },
+    {
+      "path": "docs/evidence/sentenced-holy-source-consumer/clippy.log",
+      "bytes": 1017,
+      "sha256": "18fb83a94eccc97658559e12382ef405080ac2c7c846203fc8e3fbc080b01198"
+    },
+    {
+      "path": "docs/evidence/sentenced-holy-source-consumer/consumer-mutant.log",
+      "bytes": 1330,
+      "sha256": "7a65366244d26cc8aa36969d951424a801d2dc7b39c136d876893c6a545070eb"
+    },
+    {
+      "path": "docs/evidence/sentenced-holy-source-consumer/fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/evidence/sentenced-holy-source-consumer/focused.log",
+      "bytes": 1561,
+      "sha256": "7a031d884b79a041e8c583eef8160fb2bedc3783456c9c48550697dac2aeca7c"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/sentenced-holy-source-consumer/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 39.09s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/sentenced-holy-source-consumer/target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 8 tests
+test systems::sentenced::group_source_tests::admitted_training_initial_constructor_matches_source_births_and_replays_all_stat_crates ... ok
+test systems::sentenced::group_source_tests::closed_profile_kernel_source_six_cases_sparse_snapshots_and_complete_mark_pulse_tapes ... ok
+test systems::sentenced::group_source_tests::closed_profile_kernel_source_supplement_death_shrink_handoff_and_trial ... ok
+test systems::sentenced::group_source_tests::corrected_source_sentenced_npc_to_holy_human_melee_and_ranged ... ok
+test systems::sentenced::group_source_tests::full_constructor_and_sentenced_pve_join_require_completed_capability ... ok
+test systems::sentenced::group_source_tests::optional_source_holy_npc_recipient_components_melee_and_ranged ... ok
+test systems::sentenced::group_source_tests::source_comparator_rejects_adjacent_large_discrete_counts_without_f64_aliasing - should panic ... ok
+test systems::sentenced::group_source_tests::source_comparator_rejects_fractional_discrete_counts_inside_float_tolerance - should panic ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 728 filtered out; finished in 31.14s
+

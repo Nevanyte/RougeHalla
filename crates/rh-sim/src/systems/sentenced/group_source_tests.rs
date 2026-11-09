@@ -164,10 +164,22 @@ fn fighter(s: &Sim, name: &str) -> Value {
 }
 fn check_numbers(got: &Value, want: &Value, path: &str) {
     match (got, want) {
-        (Value::Number(a), Value::Number(b)) => assert!(
-            (a.as_f64().unwrap() - b.as_f64().unwrap()).abs() <= 1e-6,
-            "{path}: {a} != {b}"
-        ),
+        (Value::Number(a), Value::Number(b)) => {
+            let field = path.rsplit('/').next().unwrap();
+            let discrete = matches!(field, "groupSize" | "tier" | "hits" | "swaps" | "camp");
+            if discrete {
+                assert!(
+                    a.is_u64() && b.is_u64(),
+                    "{path}: discrete count/code must be nonnegative integers"
+                );
+                assert_eq!(a.as_u64(), b.as_u64(), "{path}: discrete count/code");
+            } else {
+                assert!(
+                    (a.as_f64().unwrap() - b.as_f64().unwrap()).abs() <= 1e-6,
+                    "{path}: {a} != {b}"
+                );
+            }
+        }
         (Value::Array(a), Value::Array(b)) => {
             assert_eq!(a.len(), b.len(), "{path}");
             for (i, (a, b)) in a.iter().zip(b).enumerate() {
@@ -356,7 +368,158 @@ fn closed_profile_kernel_source_supplement_death_shrink_handoff_and_trial() {
         2,
     );
 }
+/// Corrected seam A: a real Sentenced catalog NPC owns Mark on the Holy human, not vice versa.
+#[test]
+fn corrected_source_sentenced_npc_to_holy_human_melee_and_ranged() {
+    run_corpus_with_checks(
+        include_str!("../../../../../parity/sentenced-npc-group/source-seam-a-holy.json"),
+        "rh-sentenced-seam-a-holy/1",
+        2,
+        |s, case| {
+            let (role, weapon) = match case["input"]["name"].as_str().unwrap() {
+                "sentenced-npc-melee-marks-holy-human" => ("melee", WeaponId::Sword),
+                "sentenced-npc-ranged-marks-holy-human" => ("ranged", WeaponId::Bow),
+                other => panic!("unadmitted corrected-A case {other}"),
+            };
+            let name = case["script"]["npc"].as_str().unwrap();
+            let npc_id = actor(s, name);
+            assert!(matches!(
+                s.w.actor_origin(npc_id),
+                Some(crate::mob_runtime::ActorOrigin::Mob { .. })
+            ));
+            let npc = s.w.mobs.get(npc_id).unwrap();
+            let human = s.w.players.get(actor(s, "p1")).unwrap();
+            assert_eq!(npc.kind, crate::mob_runtime::MobKind::Regional);
+            assert_eq!(
+                u64::from(npc.camp + 1),
+                case["script"]["camp"].as_u64().unwrap()
+            );
+            assert_eq!(npc.core.vitals.faction, FactionId::Sentenced);
+            assert_eq!(npc.core.active_weapon(), weapon);
+            assert_eq!(human.vitals.faction, FactionId::Holy);
+            let mark = &npc.core.signature.mark;
+            assert_eq!(npc.core.signature.target, Some(human.id));
+            assert_eq!(
+                mark.group,
+                Some(crate::fighter::MarkGroup::Fighter(human.id))
+            );
+            assert_eq!(mark.group_size, 1);
+            assert!(mark.tier > 0 && mark.hits > 0 && mark.progress > 0.);
+            assert_eq!(human.signature.mark.group, None);
+            assert_eq!(
+                (
+                    human.signature.mark.tier,
+                    human.signature.mark.hits,
+                    human.signature.mark.progress
+                ),
+                (0, 0, 0.)
+            );
+            // Shared combat focus may be nonempty on Holy; it must not be mistaken for Mark ownership.
+            let npc_view = fighter(s, name);
+            let human_view = fighter(s, "p1");
+            let subset = |v: &Value| json!({"target":v["target"],"group":v["group"],"tier":v["tier"],"hits":v["hits"],"progress":v["progress"]});
+            let direction = json!({"sourceActor":name,"sourceFaction":"sentenced","recipientActor":"p1","recipientFaction":"holy",
+                "npcMark":subset(&npc_view),"humanMark":subset(&human_view),"npcWeapon":weapon.as_str(),"role":role});
+            check_numbers(
+                &direction,
+                &case["script"]["direction"],
+                "corrected-A direction",
+            );
+            let tape = case["frames"].as_array().unwrap().last().unwrap()["pulses"]
+                .as_array()
+                .unwrap();
+            assert!(tape.iter().any(|e| e["by"] == name && e["victim"] == "p1"));
+        },
+    );
+}
+
+/// Orthogonal seam B: Holy catalog NPC recipients do not become Sentenced Mark owners.
+#[test]
+fn optional_source_holy_npc_recipient_components_melee_and_ranged() {
+    run_corpus_with_checks(
+        include_str!("../../../../../parity/sentenced-npc-group/source-holy-components.json"),
+        "rh-sentenced-npc-group-holy-components/1",
+        2,
+        |s, case| {
+            let (role, weapon) = match case["input"]["name"].as_str().unwrap() {
+                "holy-npc-melee-component" => ("melee", WeaponId::Sword),
+                "holy-npc-ranged-component" => ("ranged", WeaponId::Wand),
+                other => panic!("unadmitted Holy-recipient case {other}"),
+            };
+            let name = case["script"]["npc"].as_str().unwrap();
+            let npc_id = actor(s, name);
+            assert!(matches!(
+                s.w.actor_origin(npc_id),
+                Some(crate::mob_runtime::ActorOrigin::Mob { .. })
+            ));
+            let npc = s.w.mobs.get(npc_id).unwrap();
+            let player = s.w.players.get(actor(s, "p0")).unwrap();
+            assert_eq!(npc.kind, crate::mob_runtime::MobKind::Regional);
+            assert_eq!(npc.core.vitals.faction, FactionId::Holy);
+            assert_eq!(npc.core.active_weapon(), weapon);
+            assert_eq!(
+                u64::from(npc.camp + 1),
+                case["script"]["camp"].as_u64().unwrap()
+            );
+            assert_eq!(case["script"]["role"], role);
+            assert_eq!(case["script"]["npcWeapon"], weapon.as_str());
+            assert_eq!(case["script"]["npcFaction"], "holy");
+            assert_eq!(player.vitals.faction, FactionId::Sentenced);
+            assert_eq!(
+                player.signature.mark.group,
+                Some(crate::fighter::MarkGroup::Camp(npc.camp))
+            );
+            assert!(
+                player.signature.mark.tier > 0
+                    && player.signature.mark.hits > 0
+                    && player.signature.mark.progress > 0.
+            );
+            assert_eq!(npc.core.signature.mark.group, None);
+            assert_eq!(
+                (
+                    npc.core.signature.mark.tier,
+                    npc.core.signature.mark.hits,
+                    npc.core.signature.mark.progress
+                ),
+                (0, 0, 0.)
+            );
+            check_numbers(
+                &fighter(s, "p0"),
+                &case["script"]["playerMarkOwner"],
+                "Holy recipient player owner",
+            );
+            check_numbers(
+                &fighter(s, name),
+                &case["script"]["npcMarkOwner"],
+                "Holy recipient non-owner",
+            );
+        },
+    );
+}
+
+#[test]
+#[should_panic(expected = "discrete count/code")]
+fn source_comparator_rejects_adjacent_large_discrete_counts_without_f64_aliasing() {
+    check_numbers(
+        &json!({"hits":9_007_199_254_740_992_u64}),
+        &json!({"hits":9_007_199_254_740_993_u64}),
+        "precision probe",
+    );
+}
+#[test]
+#[should_panic(expected = "discrete count/code")]
+fn source_comparator_rejects_fractional_discrete_counts_inside_float_tolerance() {
+    check_numbers(
+        &json!({"hits":7.0000001}),
+        &json!({"hits":7}),
+        "precision probe",
+    );
+}
+
 fn run_corpus(text: &str, format: &str, count: usize) {
+    run_corpus_with_checks(text, format, count, |_, _| {});
+}
+fn run_corpus_with_checks(text: &str, format: &str, count: usize, check: impl Fn(&Sim, &Value)) {
     let doc: Value = serde_json::from_str(text).unwrap();
     assert_eq!(doc["format"], format);
     assert_eq!(doc["cases"].as_array().unwrap().len(), count);
@@ -411,6 +574,7 @@ fn run_corpus(text: &str, format: &str, count: usize) {
             hits.clear();
         }
         assert_eq!(n, actions.len());
+        check(&s, case);
     }
 }
 
