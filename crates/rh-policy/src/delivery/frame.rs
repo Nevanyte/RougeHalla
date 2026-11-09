@@ -3,7 +3,7 @@ use crate::bots::delivered::{Epoch, Fact, PlayerRef};
 use rh_protocol::{
     ServerMsg, StateItem, WireActor, WireArena, WireBuild, WireCamp, WireEvent, WireField, WireFx,
     WireInventory, WireOwnerCombat, WirePlan, WireProjectile, WireProps, WireQuestView,
-    WireRewardChest, WireSelf,
+    WireRewardChest, WireSelf, WireTradeView,
 };
 use rh_sim::{FactionId, Status, WeaponId};
 
@@ -46,7 +46,7 @@ impl From<rh_protocol::DecodeError> for DeliveryError {
 /// is a third state: no complete Frame14 may be handed off until every known key has arrived.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct CollectionView {
-    seen: [bool; 10],
+    seen: [bool; rh_protocol::state::MAX_STATE_KEYS],
     pub(crate) inventory: Option<WireInventory>,
     pub(crate) props: WireProps,
     pub(crate) fields: Vec<WireField>,
@@ -57,6 +57,7 @@ pub struct CollectionView {
     pub(crate) plan: Option<WirePlan>,
     pub(crate) arena: Option<WireArena>,
     pub(crate) quests: Option<WireQuestView>,
+    pub(crate) trade: Option<WireTradeView>,
     pub(crate) tick: u32,
 }
 impl CollectionView {
@@ -90,6 +91,10 @@ impl CollectionView {
     pub fn quests(&self) -> Option<&WireQuestView> {
         self.quests.as_ref()
     }
+    /// Unavailable is `None`; an available view may have empty saved rows.
+    pub fn trade(&self) -> Option<&WireTradeView> {
+        self.trade.as_ref()
+    }
     pub fn tick(&self) -> u32 {
         self.tick
     }
@@ -117,6 +122,7 @@ impl CollectionView {
                 StateItem::Plan(v) => next.plan = v.clone(),
                 StateItem::Arena(v) => next.arena = *v,
                 StateItem::Quests(v) => next.quests = v.clone(),
+                StateItem::Trade(v) => next.trade = v.clone(),
             }
         }
         rh_protocol::validate_quest_props(&next.props, next.quests.as_ref())?;
@@ -386,6 +392,10 @@ impl Frame14 {
     }
     pub fn inventory(&self) -> Fact<Option<&WireInventory>> {
         Fact::Delivered(self.collections.inventory.as_ref())
+    }
+    /// Exact delivered owner replacement, without deriving offers or merchant readiness.
+    pub fn trade(&self) -> Fact<Option<&WireTradeView>> {
+        Fact::Delivered(self.collections.trade.as_ref())
     }
     pub fn owner_combat(&self) -> Fact<&WireOwnerCombat> {
         self.owner_combat

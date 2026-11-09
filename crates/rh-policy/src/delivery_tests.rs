@@ -446,6 +446,248 @@ fn reconstructed_collections_keep_none_empty_retained_rows_and_refuse_dangling_o
     );
 }
 
+fn golden_state(name: &str) -> ServerMsg {
+    let g = golden();
+    let sample = g["server"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["name"] == name)
+        .unwrap();
+    ServerMsg::decode(&unhex(sample["hex"].as_str().unwrap())).unwrap()
+}
+fn trade_bytes(view: Option<&rh_protocol::WireTradeView>) -> Vec<u8> {
+    ServerMsg::State {
+        tick: 0,
+        items: vec![StateItem::Trade(view.cloned())],
+    }
+    .try_encode()
+    .unwrap()
+}
+
+#[test]
+fn frame14_requires_all_eleven_keys_including_explicit_trade_unavailable() {
+    let original = data(&scene(1600.));
+    let c = &original.collections;
+    let mut state = CollectionView::default();
+    state
+        .apply(&ServerMsg::State {
+            tick: 1,
+            items: vec![
+                StateItem::Inventory(c.inventory),
+                StateItem::Props(c.props.clone()),
+                StateItem::Fields(c.fields.clone()),
+                StateItem::RewardChests(c.reward_chests.clone()),
+                StateItem::Build(c.build),
+                StateItem::Camps(c.camps.clone()),
+                StateItem::Projectiles(c.projectiles.clone()),
+                StateItem::Plan(c.plan.clone()),
+                StateItem::Arena(c.arena),
+                StateItem::Quests(c.quests.clone()),
+            ],
+        })
+        .unwrap();
+    assert!(
+        !state.complete(),
+        "keys 1..10 cannot imply receipt of key 11"
+    );
+    assert!(matches!(
+        Frame14::from_reconstructed(
+            context(1, 1),
+            snapshot(&original),
+            state.clone(),
+            vec![],
+            vec![]
+        ),
+        Err(DeliveryError::Incomplete)
+    ));
+    state
+        .apply(&ServerMsg::State {
+            tick: 2,
+            items: vec![StateItem::Trade(None)],
+        })
+        .unwrap();
+    assert!(state.complete());
+    let f = Frame14::from_reconstructed(context(1, 1), snapshot(&original), state, vec![], vec![])
+        .unwrap();
+    assert!(matches!(f.trade(), Fact::Delivered(None)));
+    assert!(
+        ServerMsg::decode(&[0x88, 0x01, 0x01, 12, 0]).is_err(),
+        "State 12 is still unknown"
+    );
+}
+
+#[test]
+fn frame14_retains_exact_trade_order_bits_and_explicit_empty_or_unavailable_replacements() {
+    let original = data(&scene(1600.));
+    let mut state = original.collections.clone();
+    // These are decoded public-contract diagnostics, not invented native merchant transactions.
+    for name in [
+        "state_trade_available",
+        "state_trade_duplicate_delta_stats",
+        "state_trade_max_2213",
+    ] {
+        let msg = golden_state(name);
+        let ServerMsg::State { items, .. } = &msg else {
+            panic!()
+        };
+        let Some(StateItem::Trade(expected)) =
+            items.iter().find(|v| matches!(v, StateItem::Trade(_)))
+        else {
+            panic!()
+        };
+        state.apply(&msg).unwrap();
+        let f = Frame14::from_reconstructed(
+            context(1, 1),
+            snapshot(&original),
+            state.clone(),
+            vec![],
+            vec![],
+        )
+        .unwrap();
+        let Fact::Delivered(actual) = f.trade() else {
+            panic!()
+        };
+        assert_eq!(
+            trade_bytes(actual),
+            trade_bytes(expected.as_ref()),
+            "{name}"
+        );
+    }
+    state
+        .apply(&golden_state("state_trade_duplicate_delta_stats"))
+        .unwrap();
+    let mut view = state.trade().unwrap().clone();
+    view.stats[0].value = -0.0;
+    view.stats[1].value = 0.0;
+    view.merchants[0].x = -0.0;
+    for deadline in [None, Some(0.0), Some(1.000_000_000_000_000_2)] {
+        view.barter_ready_at = deadline;
+        let bytes = trade_bytes(Some(&view));
+        state.apply(&ServerMsg::decode(&bytes).unwrap()).unwrap();
+        assert_eq!(trade_bytes(state.trade()), bytes);
+        assert_eq!(
+            state.trade().unwrap().stats[0].value.to_bits(),
+            (-0.0f64).to_bits()
+        );
+        assert_eq!(
+            state.trade().unwrap().stats[1].value.to_bits(),
+            0.0f64.to_bits()
+        );
+        let retained = trade_bytes(state.trade());
+        state
+            .apply(&ServerMsg::State {
+                tick: 999,
+                items: vec![StateItem::Inventory(None)],
+            })
+            .unwrap();
+        assert_eq!(
+            trade_bytes(state.trade()),
+            retained,
+            "omitted key retains all exact ordered facts"
+        );
+    }
+    state.apply(&golden_state("state_trade_empty")).unwrap();
+    assert!(state
+        .trade()
+        .is_some_and(|v| v.offers.is_empty() && v.stats.is_empty() && v.merchants.is_empty()));
+    state
+        .apply(&golden_state("state_trade_unavailable"))
+        .unwrap();
+    assert!(
+        state.trade().is_none(),
+        "explicit unavailable is distinct from available-empty"
+    );
+}
+
+#[test]
+fn frame14_refuses_malformed_trade_update_without_mutating_retained_facts_or_tick() {
+    let mut state = data(&scene(1600.)).collections;
+    state.apply(&golden_state("state_trade_available")).unwrap();
+    let before = state.clone();
+    let bytes = trade_bytes(state.trade());
+    let mut malformed = state.trade().unwrap().clone();
+    malformed.offers[0].gain_value = f64::NAN;
+    assert!(state
+        .apply(&ServerMsg::State {
+            tick: 999,
+            items: vec![
+                StateItem::Inventory(None),
+                StateItem::Trade(Some(malformed))
+            ]
+        })
+        .is_err());
+    assert_eq!(state, before);
+    assert_eq!(trade_bytes(state.trade()), bytes);
+}
+
+#[test]
+fn frame14_keeps_all_five_final_quest_strings_owned_retained_and_replaced() {
+    let original = data(&scene(1600.));
+    let mut state = original.collections.clone();
+    let msg = golden_state("state_quests_available");
+    state.apply(&msg).unwrap();
+    let expected = state.quests().unwrap().clone();
+    let expected_props = state.props().clone();
+    assert!(!expected.rows.is_empty());
+    let row = &expected.rows[0];
+    assert!([
+        &row.name,
+        &row.giver_label,
+        &row.brief,
+        &row.objective,
+        &row.reward
+    ]
+    .iter()
+    .all(|s| !s.is_empty()));
+    state
+        .apply(&ServerMsg::State {
+            tick: 900,
+            items: vec![StateItem::Inventory(None)],
+        })
+        .unwrap();
+    let frame = Frame14::from_reconstructed(
+        context(1, 1),
+        snapshot(&original),
+        state.clone(),
+        vec![],
+        vec![],
+    )
+    .unwrap();
+    assert_eq!(frame.collections().quests(), Some(&expected));
+    let mut replacement = expected.clone();
+    let row = &mut replacement.rows[0];
+    row.name = "name replacement".into();
+    row.giver_label = "".into();
+    row.brief = "brief α".into();
+    row.objective = "objective replacement".into();
+    row.reward = "reward replacement".into();
+    let msg = ServerMsg::State {
+        tick: 901,
+        items: vec![StateItem::Quests(Some(replacement.clone()))],
+    };
+    state
+        .apply(&ServerMsg::decode(&msg.try_encode().unwrap()).unwrap())
+        .unwrap();
+    let frame =
+        Frame14::from_reconstructed(context(1, 2), snapshot(&original), state, vec![], vec![])
+            .unwrap();
+    assert_eq!(frame.collections().quests(), Some(&replacement));
+    assert_eq!(
+        frame.collections().quests().unwrap().rows[0].owner_ready,
+        expected.rows[0].owner_ready
+    );
+    assert_eq!(
+        frame.collections().quests().unwrap().rows[0].owner_progress,
+        expected.rows[0].owner_progress
+    );
+    assert_eq!(
+        frame.collections().props(),
+        &expected_props,
+        "retained same-view quest props remain intact"
+    );
+}
+
 struct Capture {
     seen: Arc<Mutex<Vec<Frame14>>>,
     reject: bool,
@@ -1269,6 +1511,7 @@ impl Policy for AckHumanBot {
     }
 }
 #[test]
+#[allow(clippy::disallowed_methods)] // Harness-only real-worker timeout; never read by the policy.
 fn actual_human_bot_async_handshake_delivers_frame14_and_submits_real_nonempty_commands_without_fallback(
 ) {
     let mut sim = npc_scene();
