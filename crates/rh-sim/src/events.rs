@@ -263,6 +263,11 @@ impl Event {
             | Event::CannonNotice { id, .. }
             | Event::WindEmblem { id } => Visibility::Owner(id),
             Event::Toast { to, .. } => to.map_or(Visibility::Everyone, Visibility::Owner),
+            Event::Gv {
+                id,
+                reason: GvReason::Quest,
+                ..
+            } => Visibility::Owner(id),
             Event::Bounty { .. } | Event::Victory { .. } => Visibility::Everyone,
             Event::AbilityHit { .. }
             | Event::MarkNotice { .. }
@@ -288,6 +293,10 @@ impl Event {
             Event::MobArmed { .. } | Event::CampCleared { .. } => Class::Important,
             Event::ChestRefused { .. } => Class::Important,
             Event::ChestTaken { .. } => Class::ServerOnly,
+            Event::Gv {
+                reason: GvReason::Quest,
+                ..
+            } => Class::Important,
             Event::Death { .. }
             | Event::Bounty { .. }
             | Event::Victory { .. }

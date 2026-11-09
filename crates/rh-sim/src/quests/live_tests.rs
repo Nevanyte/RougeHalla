@@ -238,7 +238,7 @@ fn collect_tokens_and_the_turn_in_pay_the_two_reward_channels() {
     let (stat, stacks) = super::rules::reward_stats(def);
     let stacks_before = sim.w.players[0].farm.count(stat);
     teleport(&mut sim, id, at);
-    sim.step();
+    let events = sim.step();
     let o = &sim.w.quests.as_ref().unwrap().offers[oi];
     assert_eq!(o.status, Status::Done);
     assert_eq!(o.done_by, Some(id));
@@ -248,6 +248,61 @@ fn collect_tokens_and_the_turn_in_pay_the_two_reward_channels() {
         gv_before + u32::from(def.reward_gv)
     );
     assert_eq!(sim.w.players[0].farm.count(stat), stacks_before + stacks);
+    // Real completion producer + native projection control. Actual Room-derived wording parity is held separately.
+    let gv_text = format!("+{} GV (quest)", def.reward_gv);
+    let gv_at = events
+        .iter()
+        .position(|event| {
+            matches!(event, crate::Event::Gv {
+        id: who, amount, reason: crate::results::GvReason::Quest
+    } if *who == id && *amount == u32::from(def.reward_gv))
+        })
+        .unwrap();
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| matches!(
+                event,
+                crate::Event::Gv {
+                    reason: crate::results::GvReason::Quest,
+                    ..
+                }
+            ))
+            .count(),
+        1
+    );
+    assert!(
+        events
+            .iter()
+            .all(|event| !matches!(event, crate::Event::Toast { text, .. } if *text == gv_text)),
+        "projection never creates a duplicate world toast"
+    );
+    let expected_position = events[..gv_at]
+        .iter()
+        .filter(|event| {
+            matches!(event,
+        crate::Event::Toast { to, .. } if to.is_none() || *to == Some(id))
+        })
+        .count();
+    let own = crate::observe(&sim, id, &events);
+    let own_texts = own
+        .events
+        .iter()
+        .filter_map(|event| match event {
+            crate::SeenEvent::Toast { text } => Some(text.as_str()),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(own_texts.iter().filter(|text| **text == gv_text).count(), 1);
+    assert_eq!(own_texts[expected_position], gv_text);
+    assert!(own_texts[expected_position + 1..]
+        .iter()
+        .any(|text| text.starts_with("Quest complete: ")));
+    let foreign = crate::observe(&sim, PlayerId(2), &events);
+    assert!(foreign
+        .events
+        .iter()
+        .all(|event| !matches!(event, crate::SeenEvent::Toast { text } if *text == gv_text)));
 }
 
 #[test]
