@@ -460,11 +460,19 @@ public sealed class MatchSettlementEditModeTests
             var oldResult = f.Client.Session.LastResult;
             f.Client.Leave(); Assert.That(f.Client.Session, Is.Null); Assert.That(f.Client.SettlementText, Is.Empty);
             Assert.That(f.Accounts.Reads[0].Cancellation.IsCancellationRequested, Is.True);
-            f.Complete(0); await WaitFor(() => !(bool)Get(f.Client, "_settlementInFlight"));
+            Assert.That(f.Accounts.Reads[0].Reply.Task.IsCompleted, Is.False, "this transport deliberately ignores cancellation");
             await f.JoinReady(MatchLaunchMode.Arena); f.Welcome(); f.Snapshot(false);
             retired(new ServerMsg.Events { List = new List<WireEvent> { new WireEvent { Kind = EventKind.Result, Result = oldResult } } });
             Assert.That(f.Accounts.Reads, Has.Count.EqualTo(1)); Assert.That(f.Client.SettlementText, Is.Empty);
-            f.Result(); f.Complete(1, credit: 4); await WaitFor(() => f.Client.SettlementText.Contains("confirmed: +4"));
+            f.Result();
+            Assert.That(f.Client.SettlementText, Does.Contain("paused"));
+            Assert.That(f.Client.CanCheckSettlement, Is.False, "new session must not overlap the retired HTTP await");
+            f.Client.CheckSettlementAgain(); Assert.That(f.Accounts.Reads, Has.Count.EqualTo(1));
+            f.Complete(0); await WaitFor(() => !(bool)Get(f.Client, "_settlementInFlight"));
+            Assert.That(f.Client.SettlementText, Does.Contain("paused"), "retired credit must not publish or silently start the new result's read");
+            Assert.That(f.Accounts.Reads, Has.Count.EqualTo(1)); Assert.That(f.Client.CanCheckSettlement, Is.True);
+            f.Client.CheckSettlementAgain(); Assert.That(f.Accounts.Reads, Has.Count.EqualTo(2));
+            f.Complete(1, credit: 4); await WaitFor(() => f.Client.SettlementText.Contains("confirmed: +4"));
         }
     }
 
