@@ -1,0 +1,25 @@
+[capture.log]
+{"status":"CAPTURE_PASS","definitions":20,"contexts":180,"bytes":210563,"sha256":"4a021c349a6cc085c6994550fc4415ffadedc2cd22690cd803e56cc4eda8e19e","measured":{"definitions":20,"formatterContextsPerDefinition":9,"actualRowCalls":180,"utf8FieldMaxima":{"name":25,"giver_label":22,"brief":96,"objective":61,"reward":91},"all20LargestPerDefinitionMetadataUtf8":4620,"fiveU8StringPrefixesForAll20":100}}
+
+[check.log]
+{"status":"CHECK_PASS","definitions":20,"contexts":180,"bytes":210563,"sha256":"4a021c349a6cc085c6994550fc4415ffadedc2cd22690cd803e56cc4eda8e19e","measured":{"definitions":20,"formatterContextsPerDefinition":9,"actualRowCalls":180,"utf8FieldMaxima":{"name":25,"giver_label":22,"brief":96,"objective":61,"reward":91},"all20LargestPerDefinitionMetadataUtf8":4620,"fiveU8StringPrefixesForAll20":100}}
+
+[mutants.log]
+{"status":"CHECK_PASS","definitions":20,"contexts":180,"bytes":210563,"sha256":"4a021c349a6cc085c6994550fc4415ffadedc2cd22690cd803e56cc4eda8e19e","measured":{"definitions":20,"formatterContextsPerDefinition":9,"actualRowCalls":180,"utf8FieldMaxima":{"name":25,"giver_label":22,"brief":96,"objective":61,"reward":91},"all20LargestPerDefinitionMetadataUtf8":4620,"fiveU8StringPrefixesForAll20":100}}
+{"applied":"objective-label","kind":"semantic","path":"packages/client/src/ui/questModel.ts"}
+PRESENTATION_OUTPUT_SEMANTIC_MISMATCH: actual compiled helper output differs; provenance excluded
+{"path":"$.cases[14].actualHelpers.objective","expected":"Find the parcel and return it to Herald Kest","actual":"Find the parcel MUTANT_LABEL and return it to Herald Kest"}
+SEMANTIC_KILL_PASS objective-label
+{"applied":"contextual-total","kind":"semantic","path":"packages/client/src/ui/questModel.ts"}
+PRESENTATION_OUTPUT_SEMANTIC_MISMATCH: actual compiled helper output differs; provenance excluded
+{"path":"$.cases[0].probes[0].observed.reward","expected":"13 Ember Imp stacks (+13% damage; 150 total after this quest) and 13 GV","actual":"13 Ember Imp stacks (+13% damage; 151 total after this quest) and 13 GV"}
+SEMANTIC_KILL_PASS contextual-total
+{"applied":"closed-context","kind":"semantic","path":"packages/client/src/ui/questModel.ts"}
+PRESENTATION_OUTPUT_SEMANTIC_MISMATCH: actual compiled helper output differs; provenance excluded
+{"path":"$.cases[0].probes[7].observed.reward","expected":"13 Ember Imp stacks (+13% damage) and 13 GV","actual":"13 Ember Imp stacks (+13% damage; 150 total after this quest) and 13 GV"}
+SEMANTIC_KILL_PASS closed-context
+{"applied":"provenance-only","kind":"provenance-only","path":"packages/client/src/ui/questModel.ts"}
+{"status":"IDENTICAL_SEMANTICS","provenanceCompared":false,"provenanceChanged":true}
+PROVENANCE_ONLY_NONKILL_PASS
+{"status":"CHECK_PASS","definitions":20,"contexts":180,"bytes":210563,"sha256":"4a021c349a6cc085c6994550fc4415ffadedc2cd22690cd803e56cc4eda8e19e","measured":{"definitions":20,"formatterContextsPerDefinition":9,"actualRowCalls":180,"utf8FieldMaxima":{"name":25,"giver_label":22,"brief":96,"objective":61,"reward":91},"all20LargestPerDefinitionMetadataUtf8":4620,"fiveU8StringPrefixesForAll20":100}}
+MUTANTS_PASS semantic3/3 provenance-only-nonkill1/1 pristine-controls2/2
