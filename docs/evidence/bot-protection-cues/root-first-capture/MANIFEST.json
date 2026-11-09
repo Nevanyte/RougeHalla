@@ -120,6 +120,11 @@
       "path": "parity/policy/bot-protection-cues/source.json",
       "bytes": 45079140,
       "sha256": "0a8af4c8dee518e5e6bc6b31c3445dc2e5ab61e889810a830642381d9cf92e6e"
+    },
+    {
+      "path": "docs/evidence/bot-protection-cues/root-first-capture/colyseus-schema-MIT-LICENSE.txt",
+      "bytes": 1070,
+      "sha256": "38de086c59d8290eb7fc74642a1492bb3610ba39a74b991f2cb4685eb42464ec"
     }
   ],
   "manifestExcludesItself": true

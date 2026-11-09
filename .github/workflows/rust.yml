@@ -89,8 +89,10 @@ jobs:
         run: cargo run -p rh-parity --bin parity-report
       - name: Private durable-proof state stays outside Git
         run: python3 tools/full-runtime-account-proof/test_state_guard.py
-      - name: Offline staging preparation refuses invalid costs, artifacts and Training spool entries
-        run: python3 -m unittest discover -s tools/staging-full-runtime -p 'test_*.py' -v
+      - name: Offline staging preparation, transfer contracts and readonly device ancestry
+        run: |
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tools/staging-full-runtime -p 'test_*.py' -v
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tools/staging-full-runtime/installer -p 'test_*.py' -v
       - name: Headless smoke (real 160x160 map, 8 bots)
         run: cargo run --release -p rh-headless -- --matches 4 --players 8 --map parity/maps/seed1.map.json --max-ticks 4000
       - name: Headless smoke (full gameplay map layers, 8 bots)
@@ -103,6 +105,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22.23.4"
+      - name: Browser readiness and loopback router contracts
+        run: |
+          node --test tools/unity-browser-reload-proof/check.test.mjs tools/unity-browser-reload-proof/local-router.test.mjs
       - run: npm ci
       - name: Composed bot, quest, trade, telemetry and fair-view witnesses remain byte exact
         run: |
@@ -116,8 +121,18 @@ jobs:
           bash tools/reflex-geometry-fixtures/capture.sh --check
           bash tools/bot-reflex-fixtures/capture.sh --check
           bash tools/mark-tax-uncapped-fixtures/capture.sh --check
-          bash tools/npc-continuity-fixtures/capture.sh --check
-          bash tools/npc-runner-callsite-fixtures/capture.sh --check
+          # The unchanged NPC witnesses pin historical CONTRACTS metadata. Check that explicit input context,
+          # all current source/config/tool bytes and whole original outputs; never normalize or refresh the oracle.
+          for modules in node_modules packages/client/node_modules packages/server/node_modules packages/shared/node_modules; do
+            if [ ! -e "$GITHUB_WORKSPACE/$modules" ] && [ ! -L "$GITHUB_WORKSPACE/$modules" ]; then
+              mkdir -- "$GITHUB_WORKSPACE/$modules"
+            fi
+          done
+          docker_executable="$(readlink -f "$(command -v docker)")"
+          docker_socket="$(readlink -f /var/run/docker.sock)"
+          PYTHONDONTWRITEBYTECODE=1 python3 tools/npc-witness-context/tests.py
+          PYTHONDONTWRITEBYTECODE=1 python3 tools/npc-witness-context/run.py continuity --repo "$GITHUB_WORKSPACE" --output "$RUNNER_TEMP/npc-continuity-historical-context" --expected-code-sha "$GITHUB_SHA" --docker "$docker_executable" --docker-socket "$docker_socket"
+          PYTHONDONTWRITEBYTECODE=1 python3 tools/npc-witness-context/run.py runner --repo "$GITHUB_WORKSPACE" --output "$RUNNER_TEMP/npc-runner-historical-context" --expected-code-sha "$GITHUB_SHA" --docker "$docker_executable" --docker-socket "$docker_socket"
           bash tools/percept-witness-fixtures/capture.sh --check
           bash tools/barrier-view-fixtures/capture.sh --check
       - name: Heal-barrier callers and victim Frost resistance remain source exact

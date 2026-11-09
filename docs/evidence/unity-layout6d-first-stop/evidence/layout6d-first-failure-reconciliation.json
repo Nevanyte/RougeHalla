@@ -1,0 +1,21 @@
+{
+  "status": "FIRST_NATIVE_LAYOUT_SOURCE_GUARD_FAILURE_BEFORE_SCENE_CREATION",
+  "utc": "2026-11-09T19:51:52.183240+00:00",
+  "source": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+  "editorPid": 46583,
+  "error": "FileNotFoundException: Could not resolve the frozen worktree HEAD ref.",
+  "casesConfigured": 0,
+  "pngsCaptured": 0,
+  "firstRawPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/evidence/layout6d-host-start",
+  "firstRawSha256": "91490318063d7cb471979401f91ae09434639c765d1c400a7073dc71c1413fe7",
+  "finalReceiptSha256": "407ab88dbd1e3e99044606482b0f9d681ed00a8c6bb108518fae09f99f460380",
+  "hostCloseSuccess": true,
+  "cleanupErrors": [],
+  "prefsRestoredVerified3": true,
+  "snapshotPresentAfter": false,
+  "sourceFinal": "PASS",
+  "native98StillPASS": "PASS",
+  "native98Rerun": false,
+  "newAttemptAuthorized": false,
+  "action": "Stopped first actual failure; preserve rawresponse and successful finally cleanup; no source or helper fix/rerun after failure"
+}

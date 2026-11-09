@@ -1,0 +1,174 @@
+--- first-native-fc304/RunLayout6d.py
++++ attempt2-c1e58/RunLayout6dAttempt2.py
+@@ -37,7 +37,7 @@
+ OVERLAY_SHA256 = "a2cb53758656a32e072c1e33d985a3f73b8374b2acb3365750d31070d60a67b5"
+ OVERLAY_BYTES = 1044
+ R = SCOPED_UNITY.parent
+-COMBINED_PATH = R / "TrainingLayoutNativeFinal.cs"
++COMBINED_PATH = R / "TrainingLayoutNativeAttempt2.cs"
+ EVIDENCE = R / "evidence"
+ PRIVATE = R / "private"
+ SNAPSHOT = PRIVATE / "resume98-playerprefs.snapshot.bin"
+@@ -108,7 +108,7 @@
+             and args.startup_overlay == OVERLAY_PATH and args.startup_overlay_sha256 == OVERLAY_SHA256,
+             "frozen source or startup overlay pins differ")
+     require(not SNAPSHOT.exists() and not SNAPSHOT.is_symlink(), "private preference snapshot already exists")
+-    require(not (args.evidence / "layout6d-final.json").exists(), "layout output is not create-new")
++    require(not (args.evidence / "layout6d-r2-final.json").exists(), "layout output is not create-new")
+ 
+     # Run the already reviewed 1,284-pin source verifier as definitions only; do not run its Main.
+     guard = runpy.run_path(str(PREFS_CONTROLLER), run_name="layout_source_guard_only")
+@@ -120,8 +120,8 @@
+ 
+ 
+ def scoped(args, name, parts):
+-    require(name.startswith("layout6d-") and re.fullmatch(r"[A-Za-z0-9_.-]+", name),
+-            "scoped evidence stem must be layout6d-prefixed")
++    require(name.startswith("layout6d-r2-") and re.fullmatch(r"[A-Za-z0-9_.-]+", name),
++            "scoped evidence stem must be layout6d-r2-prefixed")
+     raw_path = EVIDENCE / name
+     require(not raw_path.exists() and not raw_path.with_name(name + ".invocation.json").exists(),
+             "ScopedUnity create-only evidence collision: " + name)
+@@ -130,6 +130,23 @@
+     require(proc.returncode == 0, "ScopedUnity stopped: " + name)
+     require(raw_path.is_file(), "ScopedUnity raw stdout missing: " + name)
+     return json.loads(raw_path.read_bytes())
++
++
++def scoped_start_capture(args, name, parts):
++    """Capture the start command's frozen raw receipt even when it reports failure."""
++    require(name.startswith("layout6d-r2-") and re.fullmatch(r"[A-Za-z0-9_.-]+", name),
++            "start evidence stem must be layout6d-r2-prefixed")
++    raw_path = EVIDENCE / name
++    invocation_path = raw_path.with_name(name + ".invocation.json")
++    require(not raw_path.exists() and not invocation_path.exists(),
++            "ScopedUnity create-only evidence collision: " + name)
++    command = [sys.executable, str(SCOPED_UNITY), name] + list(parts)
++    proc = subprocess.run(command, cwd=R, capture_output=True)
++    require(raw_path.is_file() and invocation_path.is_file(),
++            "ScopedUnity did not preserve start stdout and invocation metadata")
++    # Parse the preserved stdout regardless of ScopedUnity's nonzero exit. Its
++    # invocation receipt records the actual command exit code and stdout hash.
++    return json.loads(raw_path.read_bytes()), json.loads(invocation_path.read_text())
+ 
+ 
+ def extract_cli_result(payload):
+@@ -173,7 +190,7 @@
+ 
+ 
+ def eval_pref_wrapper(args, operation, wrapper):
+-    payload = scoped(args, "layout6d-prefs-" + operation,
++    payload = scoped(args, "layout6d-r2-prefs-" + operation,
+         ["script", "eval", "--", "--file", str(wrapper)])
+     result = extract_cli_result(payload)
+     expected = "CAPTURE_OK;keys=3" if operation == "capture" else "RESTORE_OK;keys=3;verified=3;snapshotDeleted=true"
+@@ -212,14 +229,14 @@
+   throw new InvalidOperationException("Public host method returned an unexpected type.");
+  }}
+ }}'''
+-    wrapper = PRIVATE / ("layout6d-host-" + tag + ("-cleanup" if cleanup_fallback else "") + ".cs")
++    wrapper = PRIVATE / ("layout6d-r2-host-" + tag + ("-cleanup" if cleanup_fallback else "") + ".cs")
+     write_new(wrapper, code)
+     return wrapper
+ 
+ 
+ def host_call(args, method, assembly_name, tag, invocation_args=(), cleanup_fallback=False):
+     wrapper = make_host_wrapper(args, method, assembly_name, tag, invocation_args, cleanup_fallback)
+-    stem = "layout6d-host-" + tag + ("-cleanup" if cleanup_fallback else "")
++    stem = "layout6d-r2-host-" + tag + ("-cleanup" if cleanup_fallback else "")
+     payload = scoped(args, stem, ["script", "run", "--", "--file", str(wrapper), "--entry", "Layout6dHostInvoker.Invoke"])
+     result = extract_cli_result(payload)
+     return result
+@@ -231,6 +248,26 @@
+     if isinstance(data, dict): candidates.append(data.get("hostAssemblyName"))
+     names = [x for x in candidates if isinstance(x, str) and x]
+     require(len(set(names)) == 1, "Start output did not expose one exact hostAssemblyName")
++    return names[0]
++
++
++def extract_start_assembly_name(payload):
++    """Accept only exact compiled assembly identifiers from known CLI envelopes."""
++    candidates = []
++    if isinstance(payload, dict):
++        candidates.append(payload.get("assemblyName"))
++        candidates.append(payload.get("hostAssemblyName"))
++        result = payload.get("result")
++        if isinstance(result, dict):
++            candidates.append(result.get("hostAssemblyName"))
++            candidates.append(result.get("assemblyName"))
++        data = payload.get("data")
++        if isinstance(data, dict):
++            candidates.append(data.get("hostAssemblyName"))
++            candidates.append(data.get("assemblyName"))
++    names = [value for value in candidates if isinstance(value, str) and value]
++    require(bool(names) and len(set(names)) == 1,
++            "start receipt does not identify exactly one compiled host assembly")
+     return names[0]
+ 
+ 
+@@ -298,7 +335,7 @@
+     capture_wrapper = None
+     restore_wrapper = None
+     try:
+-        capture_wrapper = make_pref_wrapper(args, "capture", "capture-layout6d-prefs.cs")
++        capture_wrapper = make_pref_wrapper(args, "capture", "capture-layout6d-r2-prefs.cs")
+         eval_pref_wrapper(args, "capture", capture_wrapper)
+         captured = True
+         snapshot_stat = SNAPSHOT.lstat()
+@@ -311,9 +348,18 @@
+                 source_freeze_sha256=FREEZE_SHA256, startup_overlay=OVERLAY_PATH,
+                 startup_overlay_sha256=OVERLAY_SHA256, editor_pid=EDITOR_PID))
+         host_started = True
+-        start_payload = scoped(args, "layout6d-host-start", ["script", "run", "--", "--file", str(args.combined_source), "--entry", "LayoutProofHost6d.Start"])
++        start_payload, start_invocation = scoped_start_capture(args, "layout6d-r2-host-start",
++            ["script", "run", "--", "--file", str(args.combined_source), "--entry", "LayoutProofHost6d.Start"])
++        assembly_name = extract_start_assembly_name(start_payload)
++        summary["startInvocation"] = {"exitCode": start_invocation.get("exitCode"),
++            "stdoutSha256": start_invocation.get("stdoutSha256"),
++            "compiledAssemblyName": assembly_name}
++        require(start_invocation.get("exitCode") == 0 and start_payload.get("success") is True,
++                "LayoutProofHost6d.Start invocation failed; raw start receipt preserved")
+         start_result = extract_cli_result(start_payload)
+-        assembly_name = extract_assembly_name(start_payload, start_result)
++        host_assembly_name = extract_assembly_name(start_payload, start_result)
++        require(host_assembly_name == assembly_name,
++                "Start host type does not belong to the exact newly compiled assembly")
+         require(start_result.get("stageReady") is True and start_result.get("backendApplied") is False,
+                 "LayoutProofHost6d.Start did not report ready/offline state")
+         # Game View/Screen facts are useful context, but this task captures the
+@@ -335,7 +381,7 @@
+                 SimpleNamespace(project=PROJECT, source=SOURCE, source_freeze=FREEZE,
+                     source_freeze_sha256=FREEZE_SHA256, startup_overlay=OVERLAY_PATH,
+                     startup_overlay_sha256=OVERLAY_SHA256, editor_pid=EDITOR_PID))
+-            output = args.evidence / ("layout6d-case-%02d-%dx%d-scale%s-bottom%s.png" %
++            output = args.evidence / ("layout6d-r2-case-%02d-%dx%d-scale%s-bottom%s.png" %
+                 (index, width, height, str(scale).replace(".", ""), "1" if bottom else "0"))
+             capture_error = None
+             begin = None
+@@ -346,7 +392,7 @@
+                 require(begin.get("success") is True and begin.get("cameraName"),
+                         "camera capture observation did not begin")
+                 require(not output.exists(), "capture PNG path already exists")
+-                capture_payload = scoped(args, "layout6d-capture-%02d" % index,
++                capture_payload = scoped(args, "layout6d-r2-capture-%02d" % index,
+                     ["capture", "game_view", "--", "--source", "camera", "--camera", begin["cameraName"],
+                      "--overlay", "false", "--width", str(width), "--height", str(height),
+                      "--output-path", str(output)])
+@@ -397,7 +443,7 @@
+             summary["hostClose"] = {"success": False, "errorType": type(error).__name__}
+         try:
+             if SNAPSHOT.exists():
+-                restore_wrapper = make_pref_wrapper(args, "restore", "restore-layout6d-prefs.cs")
++                restore_wrapper = make_pref_wrapper(args, "restore", "restore-layout6d-r2-prefs.cs")
+                 summary["prefsRestore"] = eval_pref_wrapper(args, "restore", restore_wrapper)
+             else:
+                 summary["prefsRestore"] = {"success": not captured, "attempted": False,
+@@ -429,7 +475,7 @@
+         summary["native98TestsReusedNotRerun"] = True
+         summary["liveGameViewPointerAcceptance"] = False
+         summary["gameplayBackendAcceptance"] = False
+-        write_receipt(args.evidence / "layout6d-final.json", summary)
++        write_receipt(args.evidence / "layout6d-r2-final.json", summary)
+     return summary
+ 
+ 

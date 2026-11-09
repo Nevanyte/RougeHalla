@@ -10,29 +10,24 @@ detached review snapshot; use `git worktree list` to resolve the authoritative p
 
 ## Current wrap-up (2026-11-09 UTC)
 
-The latest [migration checkpoint](MIGRATION.md#reviewed-protocol14-wrap-up-checkpoint-2026-11-09-utc),
-[original composition receipt](evidence/root-final14-composition/README.md) and
-[full-runtime/component batch](evidence/root-runtime14-composition/README.md) supersede the historical tables below.
-Current identity is protocol14/checkpoint29/replay23/OBS21/policy15/content7c6a633f68c2cc72. The four native producer rows are integrated with reviewed source/canonical/transient fixes;63 strict source cases,21 content checks, the63-case derived tape/checker and four digest cases pass. BakedContent is generated from actual canonical /info. The older8e467beb normal CI42631043999 passes all five jobs; a new normal CI must bind this composition. The private allocation diagnostic remains historical and supplies no changed byte budget.
+Use the [latest migration update](MIGRATION.md#latest-integration-update-2026-11-09-2145-utc) for exact evidence and limits. Identity remains protocol14/checkpoint29/replay23/OBS21/policy15/content7c6a633f68c2cc72. Full Rust faction/NPC/Wish/core gameplay prefixes are composed; Sentenced, Frost, WalkHint, MarkTax, SlowStarter and PackLeader are no longer missing implementation tasks. Full port acceptance remains open.
 
-Actual [Unity98/98](evidence/unity-resume98-admission/README.md) passes once at frozen6d5d9340, now composed: the prior90 plus eight explicit Resume cases. The fresh isolated Editor leaves the original dirty Editor untouched; exact source/loaded identities, the single generated settings overlay and three-key preference restoration are bound by the portable312-payload proof. Dirty RAM/assets and all pre-test tooling failures remain explicit. Four-case raster/layout, coherent Web build and actual new-page browser/dual-runtime/bank acceptance remain separate. Normal76d CI passes four jobs, including complete simulation, and the Rust native/lint/parity steps, then fails one stale offline preparation fingerprint. The account lane owns the bounded repair, not a weakened check or cloud activation.
-
-| Current owner | Current work / next boundary |
+| Owner | Active work and remaining boundary |
 |---|---|
-| Lead: OPTimization_port | Canonical reviewed merges, coherent native/client identity, combined checks and normal CI; original full-port acceptance |
-| Prepare Unity 2D Demo | Functional98 proof independently accepted and composed; four finite720p/1440p default/150% text raster views next, then Root-reviewed coherent Web build; no asset/audio expansion |
-| Modernize Unity game UI | Explicit owned-seat page-reload Resume and fences composed after actual98 proof; frozen source stays unchanged while browser acceptance is prepared |
-| Prove PostgreSQL cold recovery | Installer foundation/hardened upload response and consistent76d preparation refreeze composed; Root14 offline checks pass, actual host executor/physical collection still open |
-| Check Git access | Private socket/full-scene components and browser reload readiness composed after original15 +two affected source-equality checks; eventual artifact references and actual browser run still required |
-| DeepSeek Rust Port Worker | Corrected finite24 WalkHint method consumers reviewed and composed; Root16 regression passes/two existing ignores, no production/schema change |
-| DeepSeek Post Rust | Code-only9cf handed off; Codex experts repair producer/verifier and safe offline envelope on isolated child, no source execution or publication yet |
-| Internal Rust specialist | Private temporal core composed: Root11PASS/actual1549→1541+8null exact numeric match; remaining source player/cue/flight and public/full Brain admission held |
+| Lead: OPTimization_port | Reviewed integration, exact normal CI repair, fair fact/privacy/continuity design, final gameplay and release acceptance |
+| Check Git access | Current native c52 + Web57 local two-runtime/browser run. Same owned PG cluster, restricted app role and all durability checks pass; actual server/router startup reaches a public-metadata probe bug, then owned cleanup passes. Repair probe, then actual menu/account/Arena/Training/new-page Resume/quest/trade/result/bank proof |
+| Prepare Unity 2D Demo | Actual Web57 source/artifact accepted. Original preview failures preserved; next four720p/1440p default/150% text browser raster views and concrete product findings. No new art expansion |
+| Modernize Unity game UI | Owned-seat Resume plus all98 actual Editor cases accepted; source frozen and on call for actual browser findings, not speculative redesign |
+| Prove PostgreSQL cold recovery | Readonly physical device collector accepted. Implement executable expired-first-boot/immutable absolute-expiry boundary with meaningful offline OS-runner tests. Actual host provisioning/expiry/egress/backup/restore/cloud gates remain |
+| DeepSeek Rust Port Worker | Active finite2,112-frame source protection/cue replay through the unchanged private Ring, strict tagged-value decoding and full field comparisons. No algorithm/publication/schema changes |
+| DeepSeek Post Rust | Stopped after bounded producer handoff; expert repair produced actual11-case Source witness. No broad old goal rearmed |
+| Internal experts | NPC historical-input CI wrapper/resource correction; Source cue variant controls preparation; source/card bleed feedback closure audit; full fair public fact and live Brain admission still Root-owned |
 
-The full WalkHint and PackLeader producers, SlowStarter and complete MarkTax are now in native29. The readonly WalkHint is not Unity authority. The generic hash audit123446 leaves/85214 accepted perturbations/0unhashed and source14/helper69/other component receipts keep their actual prior revisions. Private scene/retained-frame components prepare the full facts contract; they do not certify full Brain/public delivery/outcome parity.
+The actual protection/cue corpus is composed (1,056 World steps/2,112 Frames/2,046 Percepts/66 startup nulls); native replay and source semantic controls/reproduction remain separate. Private temporal values preserve source undefined without changing public MessageData. Source/compiler/Editor evidence does not establish full live Brain, browser, cloud or performance acceptance. Living-NPC return Memory behavior still awaits the owner's intended-behavior choice.
 
-Complete required bot facts are the chosen direction; a reduced behavior subset does not satisfy the full port. P15/OBS22/policy16, draft byte budgets and opaque continuity remain proposals. The living-NPC return discrepancy still requires the owner’s intended-behavior choice before native semantics change. Prepared visual/audio work remains separate from runtime acceptance. Original failed runs remain failed; source compilation and Editor tests do not establish browser or hosting acceptance.
+Normal c52 CI passes provenance, simulation, C# and card-source; Rust passes the native/PG/parity/smoke prefix then fails historical NPC documentation provenance. Root's corrected continuity and runner/nested-continuity byte checks both pass; fresh all-five CI remains open. Captured gameplay expectations are unchanged.
 
-AWS login is deferred at the owner's request; useful local work continues. Offline dual-runtime staging preparation remains nondeployable. Practice rougehalla.com, Calgary account048226733033 and CAD20 TOTAL remain the authorized staging scope; production play.roguehalla.com stays unchanged. Original regional/scale and matched M5 Pro legacy-performance gates remain required within measured and budgeted limits. No60FPS goal/cap is introduced.
+AWS login remains owner-deferred. Account048226733033/ca-west-1, practice rougehalla.com and CAD20 TOTAL remain the staging scope; production play.roguehalla.com stays unchanged. Hosting implementation can continue locally. Matched full-game M5 Pro performance, browser acceptance, durable cloud lifecycle and final release/rollback remain required, with no60FPS goal or cap.
 
 ## Ownership
 

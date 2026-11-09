@@ -1,0 +1,266 @@
+{
+  "comparison": {
+    "currentEntriesMatchedByHistoricalGroups": 17,
+    "newGroups": 0,
+    "sameFileMessageGroups": 12,
+    "sameMessageCountDifferenceByGroup": {
+      "Assets/Scripts/Presentation/AssetReadinessPreview.cs": 1,
+      "Assets/Scripts/Presentation/ShowcaseEnvironmentStudy.cs": 0,
+      "Assets/Scripts/Presentation/ShowcasePreview.cs": 2,
+      "Assets/Scripts/UI/AccountRecoveryView.cs": 1,
+      "Assets/Scripts/UI/HubAtriumView.cs": 1,
+      "Assets/Scripts/UI/HubGuideView.cs": 2,
+      "Assets/Scripts/UI/HubProgressView.cs": 1,
+      "Assets/Scripts/UI/MythicUi.cs": 1,
+      "Assets/Scripts/UI/QuestJournalView.cs": 2,
+      "Assets/Scripts/UI/TraderDialogView.cs": 2,
+      "Assets/Scripts/UI/WeaponCounterGuide.cs": 1,
+      "Assets/Scripts/View/ArenaView.cs": 1
+    }
+  },
+  "current": {
+    "buildId": "build_bf4d3ece70b3",
+    "buildTimeMs": 175349,
+    "outputPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/web-build-6d-2026-11-09/Web",
+    "platform": "WebGL",
+    "reportEndedAt": "2026-11-10T02:21:07.7437132Z",
+    "reportIntervalMs": 175349.707,
+    "reportSha256": "d4f41a5ade6b590a7998a87a486d967eb800faf9912b7ec50cd95eb91fda26ce",
+    "reportStartedAt": "2026-11-10T02:18:12.3940060Z",
+    "result": "Succeeded",
+    "totalErrors": 0,
+    "totalWarnings": 17
+  },
+  "historicalA3d": {
+    "buildId": "build_c9711b3ad936",
+    "errors": 0,
+    "groups": [
+      {
+        "count": 3,
+        "file": "Assets/Scripts/Presentation/AssetReadinessPreview.cs",
+        "message": "warning CS0618: 'TMP_Text.enableWordWrapping' is obsolete: 'The enabledWordWrapping property is now obsolete. Please use the textWrappingMode property instead.'"
+      },
+      {
+        "count": 1,
+        "file": "Assets/Scripts/Presentation/ShowcaseEnvironmentStudy.cs",
+        "message": "warning CS0618: 'TMP_Text.enableWordWrapping' is obsolete: 'The enabledWordWrapping property is now obsolete. Please use the textWrappingMode property instead.'"
+      },
+      {
+        "count": 4,
+        "file": "Assets/Scripts/Presentation/ShowcasePreview.cs",
+        "message": "warning CS0618: 'TMP_Text.enableWordWrapping' is obsolete: 'The enabledWordWrapping property is now obsolete. Please use the textWrappingMode property instead.'"
+      },
+      {
+        "count": 2,
+        "file": "Assets/Scripts/UI/AccountRecoveryView.cs",
+        "message": "warning CS0618: 'TMP_Text.enableWordWrapping' is obsolete: 'The enabledWordWrapping property is now obsolete. Please use the textWrappingMode property instead.'"
+      },
+      {
+        "count": 2,
+        "file": "Assets/Scripts/UI/HubAtriumView.cs",
+        "message": "warning CS0618: 'TMP_Text.enableWordWrapping' is obsolete: 'The enabledWordWrapping property is now obsolete. Please use the textWrappingMode property instead.'"
+      },
+      {
+        "count": 4,
+        "file": "Assets/Scripts/UI/HubGuideView.cs",
+        "message": "warning CS0618: 'TMP_Text.enableWordWrapping' is obsolete: 'The enabledWordWrapping property is now obsolete. Please use the textWrappingMode property instead.'"
+      },
+      {
+        "count": 2,
+        "file": "Assets/Scripts/UI/HubProgressView.cs",
+        "message": "warning CS0618: 'TMP_Text.enableWordWrapping' is obsolete: 'The enabledWordWrapping property is now obsolete. Please use the textWrappingMode property instead.'"
+      },
+      {
+        "count": 2,
+        "file": "Assets/Scripts/UI/MythicUi.cs",
+        "message": "warning CS0618: 'TMP_Text.enableWordWrapping' is obsolete: 'The enabledWordWrapping property is now obsolete. Please use the textWrappingMode property instead.'"
+      },
+      {
+        "count": 4,
+        "file": "Assets/Scripts/UI/QuestJournalView.cs",
+        "message": "warning CS0618: 'TMP_Text.enableWordWrapping' is obsolete: 'The enabledWordWrapping property is now obsolete. Please use the textWrappingMode property instead.'"
+      },
+      {
+        "count": 4,
+        "file": "Assets/Scripts/UI/TraderDialogView.cs",
+        "message": "warning CS0618: 'TMP_Text.enableWordWrapping' is obsolete: 'The enabledWordWrapping property is now obsolete. Please use the textWrappingMode property instead.'"
+      },
+      {
+        "count": 2,
+        "file": "Assets/Scripts/UI/WeaponCounterGuide.cs",
+        "message": "warning CS0618: 'TMP_Text.enableWordWrapping' is obsolete: 'The enabledWordWrapping property is now obsolete. Please use the textWrappingMode property instead.'"
+      },
+      {
+        "count": 2,
+        "file": "Assets/Scripts/View/ArenaView.cs",
+        "message": "warning CS0618: 'ShadowCaster2D.useRendererSilhouette' is obsolete: 'useRendererSilhoutte is deprecated. Use selfShadows instead'"
+      }
+    ],
+    "sourceCommit": "a3d4b3ce575442c9a06916888035ca849a6cd05a",
+    "warningReviewSha256": "9af5adc0df6cba59e2b8d472c132fd5d976b84d1489a54b15efa05f5d4d12019",
+    "warnings": 32
+  },
+  "limits": [
+    "BuildReport warning objects contain file and message but no source line; sourceLineCandidates were independently found by read-only scan of the exact current source tree.",
+    "Warnings alone do not establish runtime or visual behavior.",
+    "No build, polling, output copy, browser, or native runtime action was performed."
+  ],
+  "scope": "read-only warning comparison; no build or output mutation",
+  "timestampNote": {
+    "buildReportStartUtc": "2026-11-10T02:18:12.3940060Z",
+    "coordinatorPersistedQueuedStartUtc": "2026-11-09T20:18:00Z (approximate recorded value)",
+    "differenceHours": 6,
+    "note": "BuildReport start/end are six hours later than the separately recorded queued/persisted start. BuildReport interval is approximately 175349.7 ms and agrees with buildTimeMs 175349 ms; this internal agreement does not establish which timestamp basis is authoritative."
+  },
+  "warningEntries": [
+    {
+      "buildReportLine": null,
+      "classification": "same-deprecation-as-historical",
+      "currentCount": 2,
+      "file": "Assets/Scripts/Presentation/AssetReadinessPreview.cs",
+      "historicalA3dCount": 3,
+      "id": "CS0618",
+      "message": "warning CS0618: 'TMP_Text.enableWordWrapping' is obsolete: 'The enabledWordWrapping property is now obsolete. Please use the textWrappingMode property instead.'",
+      "sourceLineCandidates": [
+        129,
+        155
+      ]
+    },
+    {
+      "buildReportLine": null,
+      "classification": "same-deprecation-as-historical",
+      "currentCount": 1,
+      "file": "Assets/Scripts/Presentation/ShowcaseEnvironmentStudy.cs",
+      "historicalA3dCount": 1,
+      "id": "CS0618",
+      "message": "warning CS0618: 'TMP_Text.enableWordWrapping' is obsolete: 'The enabledWordWrapping property is now obsolete. Please use the textWrappingMode property instead.'",
+      "sourceLineCandidates": [
+        243
+      ]
+    },
+    {
+      "buildReportLine": null,
+      "classification": "same-deprecation-as-historical",
+      "currentCount": 2,
+      "file": "Assets/Scripts/Presentation/ShowcasePreview.cs",
+      "historicalA3dCount": 4,
+      "id": "CS0618",
+      "message": "warning CS0618: 'TMP_Text.enableWordWrapping' is obsolete: 'The enabledWordWrapping property is now obsolete. Please use the textWrappingMode property instead.'",
+      "sourceLineCandidates": [
+        244,
+        394
+      ]
+    },
+    {
+      "buildReportLine": null,
+      "classification": "same-deprecation-as-historical",
+      "currentCount": 1,
+      "file": "Assets/Scripts/UI/AccountRecoveryView.cs",
+      "historicalA3dCount": 2,
+      "id": "CS0618",
+      "message": "warning CS0618: 'TMP_Text.enableWordWrapping' is obsolete: 'The enabledWordWrapping property is now obsolete. Please use the textWrappingMode property instead.'",
+      "sourceLineCandidates": [
+        38
+      ]
+    },
+    {
+      "buildReportLine": null,
+      "classification": "same-deprecation-as-historical",
+      "currentCount": 1,
+      "file": "Assets/Scripts/UI/HubAtriumView.cs",
+      "historicalA3dCount": 2,
+      "id": "CS0618",
+      "message": "warning CS0618: 'TMP_Text.enableWordWrapping' is obsolete: 'The enabledWordWrapping property is now obsolete. Please use the textWrappingMode property instead.'",
+      "sourceLineCandidates": [
+        257
+      ]
+    },
+    {
+      "buildReportLine": null,
+      "classification": "same-deprecation-as-historical",
+      "currentCount": 2,
+      "file": "Assets/Scripts/UI/HubGuideView.cs",
+      "historicalA3dCount": 4,
+      "id": "CS0618",
+      "message": "warning CS0618: 'TMP_Text.enableWordWrapping' is obsolete: 'The enabledWordWrapping property is now obsolete. Please use the textWrappingMode property instead.'",
+      "sourceLineCandidates": [
+        294,
+        311
+      ]
+    },
+    {
+      "buildReportLine": null,
+      "classification": "same-deprecation-as-historical",
+      "currentCount": 1,
+      "file": "Assets/Scripts/UI/HubProgressView.cs",
+      "historicalA3dCount": 2,
+      "id": "CS0618",
+      "message": "warning CS0618: 'TMP_Text.enableWordWrapping' is obsolete: 'The enabledWordWrapping property is now obsolete. Please use the textWrappingMode property instead.'",
+      "sourceLineCandidates": [
+        48
+      ]
+    },
+    {
+      "buildReportLine": null,
+      "classification": "same-deprecation-as-historical",
+      "currentCount": 1,
+      "file": "Assets/Scripts/UI/MythicUi.cs",
+      "historicalA3dCount": 2,
+      "id": "CS0618",
+      "message": "warning CS0618: 'TMP_Text.enableWordWrapping' is obsolete: 'The enabledWordWrapping property is now obsolete. Please use the textWrappingMode property instead.'",
+      "sourceLineCandidates": [
+        97
+      ]
+    },
+    {
+      "buildReportLine": null,
+      "classification": "same-deprecation-as-historical",
+      "currentCount": 2,
+      "file": "Assets/Scripts/UI/QuestJournalView.cs",
+      "historicalA3dCount": 4,
+      "id": "CS0618",
+      "message": "warning CS0618: 'TMP_Text.enableWordWrapping' is obsolete: 'The enabledWordWrapping property is now obsolete. Please use the textWrappingMode property instead.'",
+      "sourceLineCandidates": [
+        126,
+        131
+      ]
+    },
+    {
+      "buildReportLine": null,
+      "classification": "same-deprecation-as-historical",
+      "currentCount": 2,
+      "file": "Assets/Scripts/UI/TraderDialogView.cs",
+      "historicalA3dCount": 4,
+      "id": "CS0618",
+      "message": "warning CS0618: 'TMP_Text.enableWordWrapping' is obsolete: 'The enabledWordWrapping property is now obsolete. Please use the textWrappingMode property instead.'",
+      "sourceLineCandidates": [
+        238,
+        336
+      ]
+    },
+    {
+      "buildReportLine": null,
+      "classification": "same-deprecation-as-historical",
+      "currentCount": 1,
+      "file": "Assets/Scripts/UI/WeaponCounterGuide.cs",
+      "historicalA3dCount": 2,
+      "id": "CS0618",
+      "message": "warning CS0618: 'TMP_Text.enableWordWrapping' is obsolete: 'The enabledWordWrapping property is now obsolete. Please use the textWrappingMode property instead.'",
+      "sourceLineCandidates": [
+        107
+      ]
+    },
+    {
+      "buildReportLine": null,
+      "classification": "same-deprecation-as-historical",
+      "currentCount": 1,
+      "file": "Assets/Scripts/View/ArenaView.cs",
+      "historicalA3dCount": 2,
+      "id": "CS0618",
+      "message": "warning CS0618: 'ShadowCaster2D.useRendererSilhouette' is obsolete: 'useRendererSilhoutte is deprecated. Use selfShadows instead'",
+      "sourceLineCandidates": [
+        95
+      ]
+    }
+  ]
+}

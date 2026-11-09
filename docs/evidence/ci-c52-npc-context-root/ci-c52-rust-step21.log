@@ -1,0 +1,314 @@
+2026-11-09T20:08:56.8202768Z ##[group]Run bash tools/bot-addbot-fixtures/capture.sh --check
+2026-11-09T20:08:56.8203169Z [36;1mbash tools/bot-addbot-fixtures/capture.sh --check[0m
+2026-11-09T20:08:56.8203474Z [36;1mbash tools/trade-fixtures/capture.sh --check[0m
+2026-11-09T20:08:56.8203759Z [36;1mbash tools/quest-fixtures/capture.sh --check[0m
+2026-11-09T20:08:56.8204064Z [36;1mbash tools/bot-tournament-fixtures/capture.sh --check[0m
+2026-11-09T20:08:56.8204390Z [36;1mbash tools/bot-telemetry-fixtures/capture.sh --check[0m
+2026-11-09T20:08:56.8204705Z [36;1mbash tools/bot-fight-fixtures/capture.sh --check[0m
+2026-11-09T20:08:56.8205007Z [36;1mbash tools/bot-sd-fixtures/capture.sh --check[0m
+2026-11-09T20:08:56.8205348Z [36;1mbash tools/reflex-geometry-fixtures/capture.sh --check[0m
+2026-11-09T20:08:56.8205672Z [36;1mbash tools/bot-reflex-fixtures/capture.sh --check[0m
+2026-11-09T20:08:56.8206000Z [36;1mbash tools/mark-tax-uncapped-fixtures/capture.sh --check[0m
+2026-11-09T20:08:56.8206373Z [36;1mbash tools/npc-continuity-fixtures/capture.sh --check[0m
+2026-11-09T20:08:56.8206716Z [36;1mbash tools/npc-runner-callsite-fixtures/capture.sh --check[0m
+2026-11-09T20:08:56.8207060Z [36;1mbash tools/percept-witness-fixtures/capture.sh --check[0m
+2026-11-09T20:08:56.8207387Z [36;1mbash tools/barrier-view-fixtures/capture.sh --check[0m
+2026-11-09T20:08:56.8256331Z shell: /usr/bin/bash -e {0}
+2026-11-09T20:08:56.8256551Z env:
+2026-11-09T20:08:56.8256967Z   DATABASE_URL: ***127.0.0.1:5432/postgres
+2026-11-09T20:08:56.8257230Z   CARGO_TERM_COLOR: always
+2026-11-09T20:08:56.8257444Z   CARGO_PROFILE_DEV_DEBUG: 0
+2026-11-09T20:08:56.8257665Z   CARGO_PROFILE_TEST_DEBUG: 0
+2026-11-09T20:08:56.8257876Z   CACHE_ON_FAILURE: false
+2026-11-09T20:08:56.8258063Z   CARGO_INCREMENTAL: 0
+2026-11-09T20:08:56.8258250Z ##[endgroup]
+2026-11-09T20:08:56.8505685Z Unable to find image 'node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292' locally
+2026-11-09T20:08:57.0000284Z docker.io/library/node@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292: Pulling from library/node
+2026-11-09T20:08:57.1535987Z ff2c4258f9cf: Pulling fs layer
+2026-11-09T20:08:57.1536669Z 3c5f479ca65a: Pulling fs layer
+2026-11-09T20:08:57.1537282Z dd051e1b8c92: Pulling fs layer
+2026-11-09T20:08:57.1537722Z 5d0c6c5710f1: Pulling fs layer
+2026-11-09T20:08:57.1538066Z 1b7992cf5ea8: Pulling fs layer
+2026-11-09T20:08:57.2542414Z 1b7992cf5ea8: Download complete
+2026-11-09T20:08:57.2543039Z ff2c4258f9cf: Download complete
+2026-11-09T20:08:57.2543308Z 3c5f479ca65a: Download complete
+2026-11-09T20:08:57.6533434Z 5d0c6c5710f1: Download complete
+2026-11-09T20:08:57.6541300Z dd051e1b8c92: Download complete
+2026-11-09T20:08:58.2573950Z 3c5f479ca65a: Pull complete
+2026-11-09T20:08:58.2590899Z dd051e1b8c92: Pull complete
+2026-11-09T20:08:59.0369656Z 1b7992cf5ea8: Pull complete
+2026-11-09T20:08:59.0376806Z ff2c4258f9cf: Pull complete
+2026-11-09T20:08:59.0386094Z 5d0c6c5710f1: Pull complete
+2026-11-09T20:08:59.0386773Z Digest: sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292
+2026-11-09T20:08:59.0387843Z Status: Downloaded newer image for node@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292
+2026-11-09T20:09:11.0686520Z checked 5 addBot scenarios
+2026-11-09T20:09:19.5882875Z {"checked":"/out/runtime.json","bytes":64709,"sha256":"a03bfd021997c99e60a1cf1307c34dabef1bd1dd6c1c75d78ecd0818ad0805e1","cases":6}
+2026-11-09T20:09:28.2808562Z {"checked":"/out/data.json","bytes":79403,"sha256":"c01c045f9ddac21cbe95244c21d9b8d9332db7b2d793ac85df8767b2a6297e03","placements":6}
+2026-11-09T20:09:31.2426001Z {"checked":"/out/lifecycle.json","bytes":633814,"sha256":"c292c637c8a76ea3a524465b44ec0b2d66dcdaeee1316e44aeeebdcef2b4b1de","cases":10}
+2026-11-09T20:09:37.8563661Z tournament corpus matches: /out/bot-tournament.json
+2026-11-09T20:09:44.4941947Z telemetry corpus matches: /out/run-record.json
+2026-11-09T20:09:46.2074429Z telemetry matrix corpus matches: /out/run-record-matrix.json (11 records)
+2026-11-09T20:09:52.5834582Z {"mode":"--check","cases":16,"frames":47,"orbs":6,"orbFrames":20,"timings":90,"bytes":467672,"sha256":"197fe5d24b6b34822a3ef76e2999d422e6127bbda1e8dfda0ba0af3ee5e2785e"}
+2026-11-09T20:09:58.2257781Z {"mode":"--check","sequences":8,"frames":46,"bytes":418550,"sha256":"55e8565e6a896b91deb49cdd8e290f568dec8013a1af4ac3eb72aec56bb65f7c"}
+2026-11-09T20:10:03.6925632Z {"mode":"check","bytes":17502,"sha256":"e54c4dd38bde3de17672f5bb563d49365f65ed6892cd09169898fd8b0426ecba","cases":27,"angleCases":10}
+2026-11-09T20:10:09.9334800Z {"mode":"--check","cases":49,"frames":68,"bytes":401512,"sha256":"af347b767a11a12613a7bfe66dbcc4964e30d419e6fed7b007103a56015f7411"}
+2026-11-09T20:10:21.8349905Z {"mode":"--check","cases":2,"frames":124,"bytes":6276683,"sha256":"dbfafa19ecbfadd98bf74078685ea436e70f25b8e1d6331043ac55067838afbc"}
+2026-11-09T20:10:29.3077476Z node:internal/modules/run_main:123
+2026-11-09T20:10:29.3077931Z     triggerUncaughtException(
+2026-11-09T20:10:29.3078295Z     ^
+2026-11-09T20:10:29.3078552Z 
+2026-11-09T20:10:29.3078938Z AssertionError [ERR_ASSERTION]: byte-exact new actual NPC continuity witness
+2026-11-09T20:10:29.3079345Z 
+2026-11-09T20:10:29.3079456Z ... Skipped lines
+2026-11-09T20:10:29.3079734Z '{\n' +
+2026-11-09T20:10:29.3080081Z   ' "format": "rh-npc-continuity-source/1",\n' +
+2026-11-09T20:10:29.3080489Z   ' "profile": {\n' +
+2026-11-09T20:10:29.3081159Z   '  "baseRevision": "197926e27747545934fb801e3df61ae7070905a2",\n' +
+2026-11-09T20:10:29.3083966Z   '  "node": "v22.23.4",\n' +
+2026-11-09T20:10:29.3084477Z   '  "platform": "linux",\n' +
+2026-11-09T20:10:29.3084799Z   '  "arch": "x64",\n' +
+2026-11-09T20:10:29.3085531Z   '  "image": "node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292",\n' +
+2026-11-09T20:10:29.3086482Z   '  "sourceInventory": "Explicit source superset, not every pinned file executed.",\n' +
+2026-11-09T20:10:29.3087045Z   '  "sourceSha256": {\n' +
+2026-11-09T20:10:29.3087734Z   '   "packages/client/src/fullscreen.ts": "5f9ec6314e3967f0b31113d21a4f1912494f255576620102cda99e662ceb7153",\n' +
+2026-11-09T20:10:29.3088754Z   '   "packages/client/src/hub/hubArt.ts": "2754bc5c0f015205244df5855a718cc74e07f3fc819e0d40b7f7895987b8adbe",\n' +
+2026-11-09T20:10:29.3089835Z   '   "packages/client/src/hub/hubAvatar.ts": "7d30d19d63a5f9efb069c12de013333ea1f728e000ac7cc5a7ba3b717c30cf67",\n' +
+2026-11-09T20:10:29.3091044Z   '   "packages/client/src/hub/hubLayout.ts": "8fb428e5c0d284ede9e9ccee55007a617052008c1d12f65519a1698974e01392",\n' +
+2026-11-09T20:10:29.3092094Z   '   "packages/client/src/main.ts": "bbc1a9dab57d86294bb03497d25d63394517cc6d74625a745951764067f32487",\n' +
+2026-11-09T20:10:29.3093180Z   '   "packages/client/src/net/confirmedDamage.ts": "cab95e041c3e2f05f4e59e0c35e25abc88ff76ebf00ebe223f68a1c78b61a956",\n' +
+2026-11-09T20:10:29.3094388Z   '   "packages/client/src/net/connection.ts": "614cc48f3af9b310e9b56a26f3070acf822c5939b84111fc790252a069feb11d",\n' +
+2026-11-09T20:10:29.3095493Z   '   "packages/client/src/net/errors.ts": "471b323be1351ee6c977dac2254ebe804e87e9936925666d45b314d06c00e3a1",\n' +
+2026-11-09T20:10:29.3096555Z   '   "packages/client/src/net/fxInbox.ts": "0fa35e56087b18d7cfb3e55d049cf32aa9431ca3a1a7485f68f14266a2a57b85",\n' +
+2026-11-09T20:10:29.3097674Z   '   "packages/client/src/net/interpolation.ts": "c4f4b08eadae07f89d7bfd3309ac25c20b94e1cb35ba8fc7a732bee38aa2dac3",\n' +
+2026-11-09T20:10:29.3098852Z   '   "packages/client/src/net/keyboardMovement.ts": "a82ee380057785f50061aef6214f9afe2c297b7baf362a58fd11c941d1c8ed47",\n' +
+2026-11-09T20:10:29.3100049Z   '   "packages/client/src/net/linkWatch.ts": "8f09596f7f17d9b71abb651ec419d6af0461b8172a6b5c095e8943c9c7853f61",\n' +
+2026-11-09T20:10:29.3101240Z   '   "packages/client/src/net/lobby.ts": "9ff31f33d050ee2505bcb0ad6947590144a995991637af4ef2f85aaea8875c03",\n' +
+2026-11-09T20:10:29.3102196Z   '   "packages/client/src/net/localAutos.ts": "afa8ba722455e85f5e0e7d94c8ea090323e708b0d2ea27c1b1434340d758e0ee",\n' +
+2026-11-09T20:10:29.3103821Z   '   "packages/client/src/net/localHand.ts": "bd3aad1bfffe4ca791c8f5ba4f515df0ab502085d2fc36e74bc7ad8493a59065",\n' +
+2026-11-09T20:10:29.3104828Z   '   "packages/client/src/net/localMotion.ts": "412a1dff00289845a72b0958b104b08b4e9ee3556034f2a736815bfc3e9d0d0a",\n' +
+2026-11-09T20:10:29.3105864Z   '   "packages/client/src/net/localPrediction.ts": "811cf4f38e1d97e6977e1412b0a64ed5f9f4c59017f0b9f47abdcea7d1259571",\n' +
+2026-11-09T20:10:29.3106901Z   '   "packages/client/src/net/mapWorker.ts": "6ebaa8a14bb3d05c86df20896e5b6b09d845d03d8dcf0d62d33eb145480fe487",\n' +
+2026-11-09T20:10:29.3107944Z   '   "packages/client/src/net/mapWorkerEntry.ts": "fc1248c9b105708476c11317c1015dd4754a65f6187fe73bd3ea5962ab63c74d",\n' +
+2026-11-09T20:10:29.3109024Z   '   "packages/client/src/net/mapWorkerProtocol.ts": "089e47b7db09a0d8c54ac6f000a08e45e00c04ee2b72f46f85037c649c1d8e23",\n' +
+2026-11-09T20:10:29.3110073Z   '   "packages/client/src/net/passcode.ts": "7616e241b3fef071004aa2816dc1a663d05cc547cee786cd8db06442ed014302",\n' +
+2026-11-09T20:10:29.3111596Z   '   "packages/client/src/net/perfSample.ts": "1089391afdd40460909b1bd35aaf5d08a6d031a03087b9df9462eda4badb0f81",\n' +
+2026-11-09T20:10:29.3112702Z   '   "packages/client/src/net/planInbox.ts": "3a43d982394d1fe5b305764a0b4995f1bbe8a073a1eabd61f3330fcf7f5954c8",\n' +
+2026-11-09T20:10:29.3113737Z   '   "packages/client/src/net/potionCue.ts": "c657de14610b0bef3cb16977df4e0ece650a2b5243c20eee6e79923e088acb53",\n' +
+2026-11-09T20:10:29.3114739Z   '   "packages/client/src/net/profile.ts": "8b6ad0262c61d0b3464068e8421e1449429dd00e5cc9fecbc85fd74f7ee9e2b1",\n' +
+2026-11-09T20:10:29.3115804Z   '   "packages/client/src/net/rejoin.ts": "7931b2f0fd903bd7f5d7830a8baf3f5cb6e8397fb5f5f57b7ffb8b7ed423f9c2",\n' +
+2026-11-09T20:10:29.3116810Z   '   "packages/client/src/net/remoteDraw.ts": "d4772e01e156a7e6812817fbba53bafdee137d75a72f328dbe8fda0326bec1a9",\n' +
+2026-11-09T20:10:29.3117840Z   '   "packages/client/src/net/roomMap.ts": "07cda80a7cd9d952c7e5d7f622a111242002c80236c26b83a2dcb06006d2465b",\n' +
+2026-11-09T20:10:29.3118817Z   '   "packages/client/src/net/signin.ts": "8e95b1522df9fe844f81ba863df5c4862b5124bd267250b8c48117ba5424e227",\n' +
+2026-11-09T20:10:29.3119830Z   '   "packages/client/src/net/tickPhase.ts": "107d62feb9ad413e8d7e95abe0856a64b4a0db7ebfbbceaebc8861464cb30718",\n' +
+2026-11-09T20:10:29.3121107Z   '   "packages/client/src/net/uplinkPace.ts": "ca82d2776735b64b16d5d60a65d7bc1767e87d01e873921e5f0dac295df1a77d",\n' +
+2026-11-09T20:10:29.3122233Z   '   "packages/client/src/net/visionInbox.ts": "d51f54e22f2dc37b4a4fadad142eaa0427bf32914540b848ce6cbd5f28534d25",\n' +
+2026-11-09T20:10:29.3123480Z   '   "packages/client/src/render/CameraFollow.ts": "7326080cd83ad1fa2a8aaa0919baf4d669481a43cd9fc8cae40e6e22630cbd1e",\n' +
+2026-11-09T20:10:29.3124577Z   '   "packages/client/src/render/CampBuffs.ts": "d2dd2b8869e7de046a1fb4611f2a767e1d3e1fbcc7211fe341e7b16db1dd5df9",\n' +
+2026-11-09T20:10:29.3125706Z   '   "packages/client/src/render/CampPatience.ts": "e49b038a1844016772493d90db15835761b7d504eac1a05b8445f47cf67538a9",\n' +
+2026-11-09T20:10:29.3126795Z   '   "packages/client/src/render/CampWards.ts": "dc9b3be1e61916b7544116768899ccdde9ecd9d30c3e3227d40a48f5dbb679be",\n' +
+2026-11-09T20:10:29.3127778Z   '   "packages/client/src/render/ContainerHighlight.ts": "046565769b14b37c69385e582afa734c995adafc19dedbdd7eed28bd24fb2e69",\n' +
+2026-11-09T20:10:29.3128567Z   '   "packages/client/src/render/ContainerView.ts": "972fd7110d100b885c4b07b8533918dbc257cfd2f66ecc1061cb984e305654eb",\n' +
+2026-11-09T20:10:29.3129281Z   '   "packages/client/src/render/FieldView.ts": "40846345b50efc144212bd1cb6139b83850708aae56cc99c1a83c2f575eca12c",\n' +
+2026-11-09T20:10:29.3129930Z   '   "packages/client/src/render/FighterArt.ts": "85edf193742b2118ba0a6e139e0c07a9dcc78f076a16fc1eb77f5e78d811814f",\n' +
+2026-11-09T20:10:29.3130347Z ...}
+2026-11-09T20:10:29.3130439Z 
+2026-11-09T20:10:29.3130815Z     at <anonymous> (/repo/tools/npc-continuity-fixtures/capture.mts:93:58) {
+2026-11-09T20:10:29.3131519Z   generatedMessage: false,
+2026-11-09T20:10:29.3131945Z   code: 'ERR_ASSERTION',
+2026-11-09T20:10:29.3132139Z   actual: '{\n' +
+2026-11-09T20:10:29.3132373Z     ' "format": "rh-npc-continuity-source/1",\n' +
+2026-11-09T20:10:29.3132641Z     ' "profile": {\n' +
+2026-11-09T20:10:29.3132932Z     '  "baseRevision": "197926e27747545934fb801e3df61ae7070905a2",\n' +
+2026-11-09T20:10:29.3133231Z     '  "node": "v22.23.4",\n' +
+2026-11-09T20:10:29.3133456Z     '  "platform": "linux",\n' +
+2026-11-09T20:10:29.3133666Z     '  "arch": "x64",\n' +
+2026-11-09T20:10:29.3134107Z     '  "image": "node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292",\n' +
+2026-11-09T20:10:29.3134680Z     '  "sourceInventory": "Explicit source superset, not every pinned file executed.",\n' +
+2026-11-09T20:10:29.3135027Z     '  "sourceSha256": {\n' +
+2026-11-09T20:10:29.3135520Z     '   "packages/client/src/fullscreen.ts": "5f9ec6314e3967f0b31113d21a4f1912494f255576620102cda99e662ceb7153",\n' +
+2026-11-09T20:10:29.3136493Z     '   "packages/client/src/hub/hubArt.ts": "2754bc5c0f015205244df5855a718cc74e07f3fc819e0d40b7f7895987b8adbe",\n' +
+2026-11-09T20:10:29.3137488Z     '   "packages/client/src/hub/hubAvatar.ts": "7d30d19d63a5f9efb069c12de013333ea1f728e000ac7cc5a7ba3b717c30cf67",\n' +
+2026-11-09T20:10:29.3138517Z     '   "packages/client/src/hub/hubLayout.ts": "8fb428e5c0d284ede9e9ccee55007a617052008c1d12f65519a1698974e01392",\n' +
+2026-11-09T20:10:29.3139466Z     '   "packages/client/src/main.ts": "bbc1a9dab57d86294bb03497d25d63394517cc6d74625a745951764067f32487",\n' +
+2026-11-09T20:10:29.3140470Z     '   "packages/client/src/net/confirmedDamage.ts": "cab95e041c3e2f05f4e59e0c35e25abc88ff76ebf00ebe223f68a1c78b61a956",\n' +
+2026-11-09T20:10:29.3141682Z     '   "packages/client/src/net/connection.ts": "614cc48f3af9b310e9b56a26f3070acf822c5939b84111fc790252a069feb11d",\n' +
+2026-11-09T20:10:29.3142711Z     '   "packages/client/src/net/errors.ts": "471b323be1351ee6c977dac2254ebe804e87e9936925666d45b314d06c00e3a1",\n' +
+2026-11-09T20:10:29.3143710Z     '   "packages/client/src/net/fxInbox.ts": "0fa35e56087b18d7cfb3e55d049cf32aa9431ca3a1a7485f68f14266a2a57b85",\n' +
+2026-11-09T20:10:29.3144812Z     '   "packages/client/src/net/interpolation.ts": "c4f4b08eadae07f89d7bfd3309ac25c20b94e1cb35ba8fc7a732bee38aa2dac3",\n' +
+2026-11-09T20:10:29.3145905Z     '   "packages/client/src/net/keyboardMovement.ts": "a82ee380057785f50061aef6214f9afe2c297b7baf362a58fd11c941d1c8ed47",\n' +
+2026-11-09T20:10:29.3146967Z     '   "packages/client/src/net/linkWatch.ts": "8f09596f7f17d9b71abb651ec419d6af0461b8172a6b5c095e8943c9c7853f61",\n' +
+2026-11-09T20:10:29.3147965Z     '   "packages/client/src/net/lobby.ts": "9ff31f33d050ee2505bcb0ad6947590144a995991637af4ef2f85aaea8875c03",\n' +
+2026-11-09T20:10:29.3148968Z     '   "packages/client/src/net/localAutos.ts": "afa8ba722455e85f5e0e7d94c8ea090323e708b0d2ea27c1b1434340d758e0ee",\n' +
+2026-11-09T20:10:29.3150033Z     '   "packages/client/src/net/localHand.ts": "bd3aad1bfffe4ca791c8f5ba4f515df0ab502085d2fc36e74bc7ad8493a59065",\n' +
+2026-11-09T20:10:29.3151196Z     '   "packages/client/src/net/localMotion.ts": "412a1dff00289845a72b0958b104b08b4e9ee3556034f2a736815bfc3e9d0d0a",\n' +
+2026-11-09T20:10:29.3152282Z     '   "packages/client/src/net/localPrediction.ts": "811cf4f38e1d97e6977e1412b0a64ed5f9f4c59017f0b9f47abdcea7d1259571",\n' +
+2026-11-09T20:10:29.3153453Z     '   "packages/client/src/net/mapWorker.ts": "6ebaa8a14bb3d05c86df20896e5b6b09d845d03d8dcf0d62d33eb145480fe487",\n' +
+2026-11-09T20:10:29.3154562Z     '   "packages/client/src/net/mapWorkerEntry.ts": "fc1248c9b105708476c11317c1015dd4754a65f6187fe73bd3ea5962ab63c74d",\n' +
+2026-11-09T20:10:29.3155662Z     '   "packages/client/src/net/mapWorkerProtocol.ts": "089e47b7db09a0d8c54ac6f000a08e45e00c04ee2b72f46f85037c649c1d8e23",\n' +
+2026-11-09T20:10:29.3156722Z     '   "packages/client/src/net/passcode.ts": "7616e241b3fef071004aa2816dc1a663d05cc547cee786cd8db06442ed014302",\n' +
+2026-11-09T20:10:29.3157903Z     '   "packages/client/src/net/perfSample.ts": "1089391afdd40460909b1bd35aaf5d08a6d031a03087b9df9462eda4badb0f81",\n' +
+2026-11-09T20:10:29.3159064Z     '   "packages/client/src/net/planInbox.ts": "3a43d982394d1fe5b305764a0b4995f1bbe8a073a1eabd61f3330fcf7f5954c8",\n' +
+2026-11-09T20:10:29.3160088Z     '   "packages/client/src/net/potionCue.ts": "c657de14610b0bef3cb16977df4e0ece650a2b5243c20eee6e79923e088acb53",\n' +
+2026-11-09T20:10:29.3161214Z     '   "packages/client/src/net/profile.ts": "8b6ad0262c61d0b3464068e8421e1449429dd00e5cc9fecbc85fd74f7ee9e2b1",\n' +
+2026-11-09T20:10:29.3162234Z     '   "packages/client/src/net/rejoin.ts": "7931b2f0fd903bd7f5d7830a8baf3f5cb6e8397fb5f5f57b7ffb8b7ed423f9c2",\n' +
+2026-11-09T20:10:29.3163259Z     '   "packages/client/src/net/remoteDraw.ts": "d4772e01e156a7e6812817fbba53bafdee137d75a72f328dbe8fda0326bec1a9",\n' +
+2026-11-09T20:10:29.3164287Z     '   "packages/client/src/net/roomMap.ts": "07cda80a7cd9d952c7e5d7f622a111242002c80236c26b83a2dcb06006d2465b",\n' +
+2026-11-09T20:10:29.3165300Z     '   "packages/client/src/net/signin.ts": "8e95b1522df9fe844f81ba863df5c4862b5124bd267250b8c48117ba5424e227",\n' +
+2026-11-09T20:10:29.3166330Z     '   "packages/client/src/net/tickPhase.ts": "107d62feb9ad413e8d7e95abe0856a64b4a0db7ebfbbceaebc8861464cb30718",\n' +
+2026-11-09T20:10:29.3167380Z     '   "packages/client/src/net/uplinkPace.ts": "ca82d2776735b64b16d5d60a65d7bc1767e87d01e873921e5f0dac295df1a77d",\n' +
+2026-11-09T20:10:29.3168441Z     '   "packages/client/src/net/visionInbox.ts": "d51f54e22f2dc37b4a4fadad142eaa0427bf32914540b848ce6cbd5f28534d25",\n' +
+2026-11-09T20:10:29.3169526Z     '   "packages/client/src/render/CameraFollow.ts": "7326080cd83ad1fa2a8aaa0919baf4d669481a43cd9fc8cae40e6e22630cbd1e",\n' +
+2026-11-09T20:10:29.3170612Z     '   "packages/client/src/render/CampBuffs.ts": "d2dd2b8869e7de046a1fb4611f2a767e1d3e1fbcc7211fe341e7b16db1dd5df9",\n' +
+2026-11-09T20:10:29.3171795Z     '   "packages/client/src/render/CampPatience.ts": "e49b038a1844016772493d90db15835761b7d504eac1a05b8445f47cf67538a9",\n' +
+2026-11-09T20:10:29.3172882Z     '   "packages/client/src/render/CampWards.ts": "dc9b3be1e61916b7544116768899ccdde9ecd9d30c3e3227d40a48f5dbb679be",\n' +
+2026-11-09T20:10:29.3174027Z     '   "packages/client/src/render/ContainerHighlight.ts": "046565769b14b37c69385e582afa734c995adafc19dedbdd7eed28bd24fb2e69",\n' +
+2026-11-09T20:10:29.3175279Z     '   "packages/client/src/render/ContainerView.ts": "972fd7110d100b885c4b07b8533918dbc257cfd2f66ecc1061cb984e305654eb",\n' +
+2026-11-09T20:10:29.3176424Z     '   "packages/client/src/render/FieldView.ts": "40846345b50efc144212bd1cb6139b83850708aae56cc99c1a83c2f575eca12c",\n' +
+2026-11-09T20:10:29.3177524Z     '   "packages/client/src/render/FighterArt.ts": "85edf193742b2118ba0a6e139e0c07a9dcc78f076a16fc1eb77f5e78d811814f",\n' +
+2026-11-09T20:10:29.3178671Z     '   "packages/client/src/render/FigureJuice.ts": "bd1870a45a724a9cdf1c071faf40aab27456742cc88b47285986d399b84f7aa1",\n' +
+2026-11-09T20:10:29.3179774Z     '   "packages/client/src/render/FxView.ts": "3e7b867a7fb6414854fa29dc82ec1904a6263f722f8580835d116f9ff8cc91c1",\n' +
+2026-11-09T20:10:29.3180983Z     '   "packages/client/src/render/GroundRoute.ts": "823007e9ae321f3c3787f61aa4de03d0574a5229a8446842e7a6d6e47dee33a9",\n' +
+2026-11-09T20:10:29.3182128Z     '   "packages/client/src/render/MapView.ts": "4b65c49dc36f6c0275cdf3de625e88a451ef6c8615a1a88f6afb0fdf135bb8c3",\n' +
+2026-11-09T20:10:29.3183276Z     '   "packages/client/src/render/MarkPlate.ts": "49863a19e627aee8873cef9480cf8120f626ea73e8a010027ca5c99c6f4e69f7",\n' +
+2026-11-09T20:10:29.3184390Z     '   "packages/client/src/render/MobView.ts": "69dbc4092de3929f789d016af579401d4633ccd5258ae1bc04a4138a50fb2870",\n' +
+2026-11-09T20:10:29.3185511Z     '   "packages/client/src/render/PlagueCorpseView.ts": "bc233e41e077ad912dd474c316cdbb29c2d5988af3b567063b9844ebf42c2549",\n' +
+2026-11-09T20:10:29.3186678Z     '   "packages/client/src/render/PlayerView.ts": "13b877cae96d050d9a2977e2ce918e58e67f52c5a5b182e961cd884e25ff4853",\n' +
+2026-11-09T20:10:29.3188037Z     '   "packages/client/src/render/ProjectileView.ts": "16303d301a64c978604fc27abf4ecf6cf3ad64204170004a4e02d88b11d1036f",\n' +
+2026-11-09T20:10:29.3189331Z     '   "packages/client/src/render/QuestView.ts": "4385acc8d21b3d7a33428fb72a84920a5f661b56650715c4bd4947f1bd6e20f3",\n' +
+2026-11-09T20:10:29.3190396Z     '   "packages/client/src/render/RaidVision.ts": "7c1584f1752f0372d3713a042f90e59e9900fde5b2d8d84ab7f4168245971898",\n' +
+2026-11-09T20:10:29.3191603Z     '   "packages/client/src/render/SignatureArt.ts": "fa00c0ecc2f7a31d6976fb8671783a6fc4f57d20be9ad0119d6ea57e08cdc5f4",\n' +
+2026-11-09T20:10:29.3192773Z     '   "packages/client/src/render/StatusArt.ts": "974dc70b5ebdb083a23628636b10a68074ece797d0eef7076934b0331f611850",\n' +
+2026-11-09T20:10:29.3193920Z     '   "packages/client/src/render/TargetRings.ts": "466aef56e6b328e2408477c57d01910e35dfb5e4ed3519381b2ee27249e2c9c7",\n' +
+2026-11-09T20:10:29.3195030Z     '   "packages/client/src/render/TraderView.ts": "d37315446a385307b1d0c4cb0b896a4080116d6d7cd62a3de00d72511b85270b",\n' +
+2026-11-09T20:10:29.3196038Z     '   "packages/client/src/render/TrailView.ts": "33aef2ef2713009f7cea6d6282140c0b07f795598350d486286736594df624b7",\n' +
+2026-11-09T20:10:29.3197151Z     '   "packages/client/src/render/WeaponRangeView.ts": "168d3dc0c67bbe5bff7692f2c06cfbcfc17a333c051958913c2f8216f50d50df",\n' +
+2026-11-09T20:10:29.3198335Z     '   "packages/client/src/render/WishFx.ts": "7ad9665f0fceb2afabb9f9fd0ef5fe6eed57d6b09df6de13007d03de5f0b8a04",\n' +
+2026-11-09T20:10:29.3199484Z     '   "packages/client/src/render/ZombieView.ts": "0cf8a7a9846b3756239a475e2ae3586beb55fc69b4deb673e1b01eb2dd7ce8b8",\n' +
+2026-11-09T20:10:29.3200563Z     '   "packages/client/src/render/bake.ts": "0e1f151bf716a22a198b3f4b04388d5a1cda3a05a4f75d88bb485baec41a8bba",\n' +
+2026-11-09T20:10:29.3201725Z     '   "packages/client/src/render/displayName.ts": "dc96f7bffc45a31fdee5f1e209104d744bf674ff5f9f40a5e3d42d49fa66f5b3",\n' +
+2026-11-09T20:10:29.3202812Z     '   "packages/client/src/render/eliteArt.ts": "9ffcbc3e45f2c101bdd6d9eb620d9072b39925505ce2b6831ef7462f9497c1f4",\n' +
+2026-11-09T20:10:29.3203887Z     '   "packages/client/src/render/figurePose.ts": "67574cdc3d77ff3e3d5e6cf82563ee10944576702b1b1c38d806285f4f59b35f",\n' +
+2026-11-09T20:10:29.3204981Z     '   "packages/client/src/render/groundRouteModel.ts": "0288c4821d5694d3e47b8f0d110a4369df3135105d20f7bdccf88ffaeaba7698",\n' +
+2026-11-09T20:10:29.3206098Z     '   "packages/client/src/render/groundShapes.ts": "bb7fc03939fb9ef8012ae5b9cabdb7719502d338eb20631ad291d400b17deaeb",\n' +
+2026-11-09T20:10:29.3207173Z     '   "packages/client/src/render/interact.ts": "4dc5ec8ac511eccaa5367113a6aa864fa45e76d3d16526c848a9471454ad5553",\n' +
+2026-11-09T20:10:29.3208212Z     '   "packages/client/src/render/juice.ts": "582254cf7ce1c29baa69b7fc7ff1cbf057d5adc55636b80b2c70d09ce5c526cb",\n' +
+2026-11-09T20:10:29.3209235Z     '   "packages/client/src/render/mapCull.ts": "7f00429017077fe6661d4d67758d19a631a6736b68952d8a0fa7f377dd7735f8",\n' +
+2026-11-09T20:10:29.3210321Z     '   "packages/client/src/render/markPresentation.ts": "6628eca4902e2def083de72565fbbaa3f5fdf8f6ae887de590aa203447225e6b",\n' +
+2026-11-09T20:10:29.3211539Z     '   "packages/client/src/render/mobRole.ts": "a518a45275525048b144640d596ffdcc7ccefbfc495a0211326163a2e2b8de31",\n' +
+2026-11-09T20:10:29.3212665Z     '   "packages/client/src/render/phaserFixes.ts": "3cfc3d3383aa5209db0ef094d0d4b932c1f6e7f90bf3fe11f4b60d9f1e22e75c",\n' +
+2026-11-09T20:10:29.3213803Z     '   "packages/client/src/render/projection.ts": "a50d134c529d3d5c92035368af324ab4c7ae43af337539d3c924dd92331d518d",\n' +
+2026-11-09T20:10:29.3214903Z     '   "packages/client/src/render/screenJuice.ts": "c29e6c3a50de3b511e45c28d620870275f6edba66f3683ead5389879445dbce0",\n' +
+2026-11-09T20:10:29.3216021Z     '   "packages/client/src/render/signatureLook.ts": "0ecfa099622393cc9fe827e5995bf59dcf880a6d8bba30fba6d94ac392be0893",\n' +
+2026-11-09T20:10:29.3217281Z     '   "packages/client/src/render/targeting.ts": "aeeed3aa1ab06ed4ae2ccdafbaa5452e8e8ecd2f8a47f1cbd656c7606aacf603",\n' +
+2026-11-09T20:10:29.3218482Z     '   "packages/client/src/render/visibility.ts": "2651e45dc5193a2237ce82a3f0af3fadbf9e56e5ed070a0f2a9ed6a4107ef443",\n' +
+2026-11-09T20:10:29.3219604Z     '   "packages/client/src/render/wishArt.ts": "656eca2976ba8e822538c848b75da7fb4c714114fb68bc868dd2a10dc3914b39",\n' +
+2026-11-09T20:10:29.3220755Z     '   "packages/client/src/render/zoneArt/TerrainFx.ts": "c28b8e037f220e9a3ed86832c322975b99df95153354782172416ef7fa6e3303",\n' +
+2026-11-09T20:10:29.3221918Z     '   "packages/client/src/render/zoneArt/artBase.ts": "86dc00b13fcedd51637a34b9c318f530b4668d38b67538003fde84835429e7b9",\n' +
+2026-11-09T20:10:29.3223067Z     '   "packages/client/src/render/zoneArt/bake.ts": "4c4a98175202a61c8b32378dcf44348495191a38bdf7d98a953c0678abeb4153",\n' +
+2026-11-09T20:10:29.3224258Z     '   "packages/client/src/render/zoneArt/featureArt.ts": "8ee180e4aead297d04d6acf4cb5c844dcff112c61bca25dc00669b12d9eac664",\n' +
+2026-11-09T20:10:29.3225420Z     '   "packages/client/src/render/zoneArt/featureStyle.ts": "a2c6670d550beca6f9f3bbc45433a20c8f5c625135115a92d20e0ef27927f3e9",\n' +
+2026-11-09T20:10:29.3226536Z     '   "packages/client/src/render/zoneArt/palette.ts": "34bfb0ebe262589d4f249d44266627e0cd85e6f47ac487b6c006b107fba7f306",\n' +
+2026-11-09T20:10:29.3227707Z     '   "packages/client/src/render/zoneArt/propsView.ts": "56a46d3d22666f5e40651a2be1820ca6719c2d1370dd7bd22a2d7dcac2ec45ea",\n' +
+2026-11-09T20:10:29.3228482Z     '   "packa'... 13942630 more characters,
+2026-11-09T20:10:29.3228838Z   expected: '{\n' +
+2026-11-09T20:10:29.3229199Z     ' "format": "rh-npc-continuity-source/1",\n' +
+2026-11-09T20:10:29.3229571Z     ' "profile": {\n' +
+2026-11-09T20:10:29.3230000Z     '  "baseRevision": "197926e27747545934fb801e3df61ae7070905a2",\n' +
+2026-11-09T20:10:29.3230469Z     '  "node": "v22.23.4",\n' +
+2026-11-09T20:10:29.3230903Z     '  "platform": "linux",\n' +
+2026-11-09T20:10:29.3231211Z     '  "arch": "x64",\n' +
+2026-11-09T20:10:29.3231869Z     '  "image": "node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292",\n' +
+2026-11-09T20:10:29.3232779Z     '  "sourceInventory": "Explicit source superset, not every pinned file executed.",\n' +
+2026-11-09T20:10:29.3233332Z     '  "sourceSha256": {\n' +
+2026-11-09T20:10:29.3234060Z     '   "packages/client/src/fullscreen.ts": "5f9ec6314e3967f0b31113d21a4f1912494f255576620102cda99e662ceb7153",\n' +
+2026-11-09T20:10:29.3235125Z     '   "packages/client/src/hub/hubArt.ts": "2754bc5c0f015205244df5855a718cc74e07f3fc819e0d40b7f7895987b8adbe",\n' +
+2026-11-09T20:10:29.3236200Z     '   "packages/client/src/hub/hubAvatar.ts": "7d30d19d63a5f9efb069c12de013333ea1f728e000ac7cc5a7ba3b717c30cf67",\n' +
+2026-11-09T20:10:29.3237192Z     '   "packages/client/src/hub/hubLayout.ts": "8fb428e5c0d284ede9e9ccee55007a617052008c1d12f65519a1698974e01392",\n' +
+2026-11-09T20:10:29.3238139Z     '   "packages/client/src/main.ts": "bbc1a9dab57d86294bb03497d25d63394517cc6d74625a745951764067f32487",\n' +
+2026-11-09T20:10:29.3239275Z     '   "packages/client/src/net/confirmedDamage.ts": "cab95e041c3e2f05f4e59e0c35e25abc88ff76ebf00ebe223f68a1c78b61a956",\n' +
+2026-11-09T20:10:29.3240439Z     '   "packages/client/src/net/connection.ts": "614cc48f3af9b310e9b56a26f3070acf822c5939b84111fc790252a069feb11d",\n' +
+2026-11-09T20:10:29.3241613Z     '   "packages/client/src/net/errors.ts": "471b323be1351ee6c977dac2254ebe804e87e9936925666d45b314d06c00e3a1",\n' +
+2026-11-09T20:10:29.3242596Z     '   "packages/client/src/net/fxInbox.ts": "0fa35e56087b18d7cfb3e55d049cf32aa9431ca3a1a7485f68f14266a2a57b85",\n' +
+2026-11-09T20:10:29.3243681Z     '   "packages/client/src/net/interpolation.ts": "c4f4b08eadae07f89d7bfd3309ac25c20b94e1cb35ba8fc7a732bee38aa2dac3",\n' +
+2026-11-09T20:10:29.3244929Z     '   "packages/client/src/net/keyboardMovement.ts": "a82ee380057785f50061aef6214f9afe2c297b7baf362a58fd11c941d1c8ed47",\n' +
+2026-11-09T20:10:29.3246181Z     '   "packages/client/src/net/linkWatch.ts": "8f09596f7f17d9b71abb651ec419d6af0461b8172a6b5c095e8943c9c7853f61",\n' +
+2026-11-09T20:10:29.3247330Z     '   "packages/client/src/net/lobby.ts": "9ff31f33d050ee2505bcb0ad6947590144a995991637af4ef2f85aaea8875c03",\n' +
+2026-11-09T20:10:29.3248361Z     '   "packages/client/src/net/localAutos.ts": "afa8ba722455e85f5e0e7d94c8ea090323e708b0d2ea27c1b1434340d758e0ee",\n' +
+2026-11-09T20:10:29.3249420Z     '   "packages/client/src/net/localHand.ts": "bd3aad1bfffe4ca791c8f5ba4f515df0ab502085d2fc36e74bc7ad8493a59065",\n' +
+2026-11-09T20:10:29.3250468Z     '   "packages/client/src/net/localMotion.ts": "412a1dff00289845a72b0958b104b08b4e9ee3556034f2a736815bfc3e9d0d0a",\n' +
+2026-11-09T20:10:29.3251652Z     '   "packages/client/src/net/localPrediction.ts": "811cf4f38e1d97e6977e1412b0a64ed5f9f4c59017f0b9f47abdcea7d1259571",\n' +
+2026-11-09T20:10:29.3252713Z     '   "packages/client/src/net/mapWorker.ts": "6ebaa8a14bb3d05c86df20896e5b6b09d845d03d8dcf0d62d33eb145480fe487",\n' +
+2026-11-09T20:10:29.3253776Z     '   "packages/client/src/net/mapWorkerEntry.ts": "fc1248c9b105708476c11317c1015dd4754a65f6187fe73bd3ea5962ab63c74d",\n' +
+2026-11-09T20:10:29.3254880Z     '   "packages/client/src/net/mapWorkerProtocol.ts": "089e47b7db09a0d8c54ac6f000a08e45e00c04ee2b72f46f85037c649c1d8e23",\n' +
+2026-11-09T20:10:29.3255938Z     '   "packages/client/src/net/passcode.ts": "7616e241b3fef071004aa2816dc1a663d05cc547cee786cd8db06442ed014302",\n' +
+2026-11-09T20:10:29.3256971Z     '   "packages/client/src/net/perfSample.ts": "1089391afdd40460909b1bd35aaf5d08a6d031a03087b9df9462eda4badb0f81",\n' +
+2026-11-09T20:10:29.3257995Z     '   "packages/client/src/net/planInbox.ts": "3a43d982394d1fe5b305764a0b4995f1bbe8a073a1eabd61f3330fcf7f5954c8",\n' +
+2026-11-09T20:10:29.3259018Z     '   "packages/client/src/net/potionCue.ts": "c657de14610b0bef3cb16977df4e0ece650a2b5243c20eee6e79923e088acb53",\n' +
+2026-11-09T20:10:29.3260028Z     '   "packages/client/src/net/profile.ts": "8b6ad0262c61d0b3464068e8421e1449429dd00e5cc9fecbc85fd74f7ee9e2b1",\n' +
+2026-11-09T20:10:29.3261149Z     '   "packages/client/src/net/rejoin.ts": "7931b2f0fd903bd7f5d7830a8baf3f5cb6e8397fb5f5f57b7ffb8b7ed423f9c2",\n' +
+2026-11-09T20:10:29.3262181Z     '   "packages/client/src/net/remoteDraw.ts": "d4772e01e156a7e6812817fbba53bafdee137d75a72f328dbe8fda0326bec1a9",\n' +
+2026-11-09T20:10:29.3263210Z     '   "packages/client/src/net/roomMap.ts": "07cda80a7cd9d952c7e5d7f622a111242002c80236c26b83a2dcb06006d2465b",\n' +
+2026-11-09T20:10:29.3264208Z     '   "packages/client/src/net/signin.ts": "8e95b1522df9fe844f81ba863df5c4862b5124bd267250b8c48117ba5424e227",\n' +
+2026-11-09T20:10:29.3265219Z     '   "packages/client/src/net/tickPhase.ts": "107d62feb9ad413e8d7e95abe0856a64b4a0db7ebfbbceaebc8861464cb30718",\n' +
+2026-11-09T20:10:29.3266372Z     '   "packages/client/src/net/uplinkPace.ts": "ca82d2776735b64b16d5d60a65d7bc1767e87d01e873921e5f0dac295df1a77d",\n' +
+2026-11-09T20:10:29.3267499Z     '   "packages/client/src/net/visionInbox.ts": "d51f54e22f2dc37b4a4fadad142eaa0427bf32914540b848ce6cbd5f28534d25",\n' +
+2026-11-09T20:10:29.3268581Z     '   "packages/client/src/render/CameraFollow.ts": "7326080cd83ad1fa2a8aaa0919baf4d669481a43cd9fc8cae40e6e22630cbd1e",\n' +
+2026-11-09T20:10:29.3269763Z     '   "packages/client/src/render/CampBuffs.ts": "d2dd2b8869e7de046a1fb4611f2a767e1d3e1fbcc7211fe341e7b16db1dd5df9",\n' +
+2026-11-09T20:10:29.3271037Z     '   "packages/client/src/render/CampPatience.ts": "e49b038a1844016772493d90db15835761b7d504eac1a05b8445f47cf67538a9",\n' +
+2026-11-09T20:10:29.3272173Z     '   "packages/client/src/render/CampWards.ts": "dc9b3be1e61916b7544116768899ccdde9ecd9d30c3e3227d40a48f5dbb679be",\n' +
+2026-11-09T20:10:29.3273274Z     '   "packages/client/src/render/ContainerHighlight.ts": "046565769b14b37c69385e582afa734c995adafc19dedbdd7eed28bd24fb2e69",\n' +
+2026-11-09T20:10:29.3274409Z     '   "packages/client/src/render/ContainerView.ts": "972fd7110d100b885c4b07b8533918dbc257cfd2f66ecc1061cb984e305654eb",\n' +
+2026-11-09T20:10:29.3275701Z     '   "packages/client/src/render/FieldView.ts": "40846345b50efc144212bd1cb6139b83850708aae56cc99c1a83c2f575eca12c",\n' +
+2026-11-09T20:10:29.3277024Z     '   "packages/client/src/render/FighterArt.ts": "85edf193742b2118ba0a6e139e0c07a9dcc78f076a16fc1eb77f5e78d811814f",\n' +
+2026-11-09T20:10:29.3278122Z     '   "packages/client/src/render/FigureJuice.ts": "bd1870a45a724a9cdf1c071faf40aab27456742cc88b47285986d399b84f7aa1",\n' +
+2026-11-09T20:10:29.3279170Z     '   "packages/client/src/render/FxView.ts": "3e7b867a7fb6414854fa29dc82ec1904a6263f722f8580835d116f9ff8cc91c1",\n' +
+2026-11-09T20:10:29.3280271Z     '   "packages/client/src/render/GroundRoute.ts": "823007e9ae321f3c3787f61aa4de03d0574a5229a8446842e7a6d6e47dee33a9",\n' +
+2026-11-09T20:10:29.3281530Z     '   "packages/client/src/render/MapView.ts": "4b65c49dc36f6c0275cdf3de625e88a451ef6c8615a1a88f6afb0fdf135bb8c3",\n' +
+2026-11-09T20:10:29.3282651Z     '   "packages/client/src/render/MarkPlate.ts": "49863a19e627aee8873cef9480cf8120f626ea73e8a010027ca5c99c6f4e69f7",\n' +
+2026-11-09T20:10:29.3283722Z     '   "packages/client/src/render/MobView.ts": "69dbc4092de3929f789d016af579401d4633ccd5258ae1bc04a4138a50fb2870",\n' +
+2026-11-09T20:10:29.3284830Z     '   "packages/client/src/render/PlagueCorpseView.ts": "bc233e41e077ad912dd474c316cdbb29c2d5988af3b567063b9844ebf42c2549",\n' +
+2026-11-09T20:10:29.3286021Z     '   "packages/client/src/render/PlayerView.ts": "13b877cae96d050d9a2977e2ce918e58e67f52c5a5b182e961cd884e25ff4853",\n' +
+2026-11-09T20:10:29.3287188Z     '   "packages/client/src/render/ProjectileView.ts": "16303d301a64c978604fc27abf4ecf6cf3ad64204170004a4e02d88b11d1036f",\n' +
+2026-11-09T20:10:29.3288330Z     '   "packages/client/src/render/QuestView.ts": "4385acc8d21b3d7a33428fb72a84920a5f661b56650715c4bd4947f1bd6e20f3",\n' +
+2026-11-09T20:10:29.3289369Z     '   "packages/client/src/render/RaidVision.ts": "7c1584f1752f0372d3713a042f90e59e9900fde5b2d8d84ab7f4168245971898",\n' +
+2026-11-09T20:10:29.3290494Z     '   "packages/client/src/render/SignatureArt.ts": "fa00c0ecc2f7a31d6976fb8671783a6fc4f57d20be9ad0119d6ea57e08cdc5f4",\n' +
+2026-11-09T20:10:29.3291787Z     '   "packages/client/src/render/StatusArt.ts": "974dc70b5ebdb083a23628636b10a68074ece797d0eef7076934b0331f611850",\n' +
+2026-11-09T20:10:29.3292891Z     '   "packages/client/src/render/TargetRings.ts": "466aef56e6b328e2408477c57d01910e35dfb5e4ed3519381b2ee27249e2c9c7",\n' +
+2026-11-09T20:10:29.3293976Z     '   "packages/client/src/render/TraderView.ts": "d37315446a385307b1d0c4cb0b896a4080116d6d7cd62a3de00d72511b85270b",\n' +
+2026-11-09T20:10:29.3295045Z     '   "packages/client/src/render/TrailView.ts": "33aef2ef2713009f7cea6d6282140c0b07f795598350d486286736594df624b7",\n' +
+2026-11-09T20:10:29.3296182Z     '   "packages/client/src/render/WeaponRangeView.ts": "168d3dc0c67bbe5bff7692f2c06cfbcfc17a333c051958913c2f8216f50d50df",\n' +
+2026-11-09T20:10:29.3297295Z     '   "packages/client/src/render/WishFx.ts": "7ad9665f0fceb2afabb9f9fd0ef5fe6eed57d6b09df6de13007d03de5f0b8a04",\n' +
+2026-11-09T20:10:29.3298371Z     '   "packages/client/src/render/ZombieView.ts": "0cf8a7a9846b3756239a475e2ae3586beb55fc69b4deb673e1b01eb2dd7ce8b8",\n' +
+2026-11-09T20:10:29.3299418Z     '   "packages/client/src/render/bake.ts": "0e1f151bf716a22a198b3f4b04388d5a1cda3a05a4f75d88bb485baec41a8bba",\n' +
+2026-11-09T20:10:29.3300471Z     '   "packages/client/src/render/displayName.ts": "dc96f7bffc45a31fdee5f1e209104d744bf674ff5f9f40a5e3d42d49fa66f5b3",\n' +
+2026-11-09T20:10:29.3301723Z     '   "packages/client/src/render/eliteArt.ts": "9ffcbc3e45f2c101bdd6d9eb620d9072b39925505ce2b6831ef7462f9497c1f4",\n' +
+2026-11-09T20:10:29.3302807Z     '   "packages/client/src/render/figurePose.ts": "67574cdc3d77ff3e3d5e6cf82563ee10944576702b1b1c38d806285f4f59b35f",\n' +
+2026-11-09T20:10:29.3303930Z     '   "packages/client/src/render/groundRouteModel.ts": "0288c4821d5694d3e47b8f0d110a4369df3135105d20f7bdccf88ffaeaba7698",\n' +
+2026-11-09T20:10:29.3305072Z     '   "packages/client/src/render/groundShapes.ts": "bb7fc03939fb9ef8012ae5b9cabdb7719502d338eb20631ad291d400b17deaeb",\n' +
+2026-11-09T20:10:29.3306314Z     '   "packages/client/src/render/interact.ts": "4dc5ec8ac511eccaa5367113a6aa864fa45e76d3d16526c848a9471454ad5553",\n' +
+2026-11-09T20:10:29.3307501Z     '   "packages/client/src/render/juice.ts": "582254cf7ce1c29baa69b7fc7ff1cbf057d5adc55636b80b2c70d09ce5c526cb",\n' +
+2026-11-09T20:10:29.3308535Z     '   "packages/client/src/render/mapCull.ts": "7f00429017077fe6661d4d67758d19a631a6736b68952d8a0fa7f377dd7735f8",\n' +
+2026-11-09T20:10:29.3309728Z     '   "packages/client/src/render/markPresentation.ts": "6628eca4902e2def083de72565fbbaa3f5fdf8f6ae887de590aa203447225e6b",\n' +
+2026-11-09T20:10:29.3310984Z     '   "packages/client/src/render/mobRole.ts": "a518a45275525048b144640d596ffdcc7ccefbfc495a0211326163a2e2b8de31",\n' +
+2026-11-09T20:10:29.3312108Z     '   "packages/client/src/render/phaserFixes.ts": "3cfc3d3383aa5209db0ef094d0d4b932c1f6e7f90bf3fe11f4b60d9f1e22e75c",\n' +
+2026-11-09T20:10:29.3313267Z     '   "packages/client/src/render/projection.ts": "a50d134c529d3d5c92035368af324ab4c7ae43af337539d3c924dd92331d518d",\n' +
+2026-11-09T20:10:29.3314434Z     '   "packages/client/src/render/screenJuice.ts": "c29e6c3a50de3b511e45c28d620870275f6edba66f3683ead5389879445dbce0",\n' +
+2026-11-09T20:10:29.3315626Z     '   "packages/client/src/render/signatureLook.ts": "0ecfa099622393cc9fe827e5995bf59dcf880a6d8bba30fba6d94ac392be0893",\n' +
+2026-11-09T20:10:29.3316785Z     '   "packages/client/src/render/targeting.ts": "aeeed3aa1ab06ed4ae2ccdafbaa5452e8e8ecd2f8a47f1cbd656c7606aacf603",\n' +
+2026-11-09T20:10:29.3317949Z     '   "packages/client/src/render/visibility.ts": "2651e45dc5193a2237ce82a3f0af3fadbf9e56e5ed070a0f2a9ed6a4107ef443",\n' +
+2026-11-09T20:10:29.3319090Z     '   "packages/client/src/render/wishArt.ts": "656eca2976ba8e822538c848b75da7fb4c714114fb68bc868dd2a10dc3914b39",\n' +
+2026-11-09T20:10:29.3320257Z     '   "packages/client/src/render/zoneArt/TerrainFx.ts": "c28b8e037f220e9a3ed86832c322975b99df95153354782172416ef7fa6e3303",\n' +
+2026-11-09T20:10:29.3321600Z     '   "packages/client/src/render/zoneArt/artBase.ts": "86dc00b13fcedd51637a34b9c318f530b4668d38b67538003fde84835429e7b9",\n' +
+2026-11-09T20:10:29.3322653Z     '   "packages/client/src/render/zoneArt/bake.ts": "4c4a98175202a61c8b32378dcf44348495191a38bdf7d98a953c0678abeb4153",\n' +
+2026-11-09T20:10:29.3323827Z     '   "packages/client/src/render/zoneArt/featureArt.ts": "8ee180e4aead297d04d6acf4cb5c844dcff112c61bca25dc00669b12d9eac664",\n' +
+2026-11-09T20:10:29.3325105Z     '   "packages/client/src/render/zoneArt/featureStyle.ts": "a2c6670d550beca6f9f3bbc45433a20c8f5c625135115a92d20e0ef27927f3e9",\n' +
+2026-11-09T20:10:29.3326308Z     '   "packages/client/src/render/zoneArt/palette.ts": "34bfb0ebe262589d4f249d44266627e0cd85e6f47ac487b6c006b107fba7f306",\n' +
+2026-11-09T20:10:29.3327335Z     '   "packages/client/src/render/zoneArt/propsView.ts": "56a46d3d22666f5e40651a2be1820ca6719c2d1370dd7bd22a2d7dcac2ec45ea",\n' +
+2026-11-09T20:10:29.3327989Z     '   "packa'... 13942630 more characters,
+2026-11-09T20:10:29.3328304Z   operator: 'strictEqual',
+2026-11-09T20:10:29.3328567Z   diff: 'simple'
+2026-11-09T20:10:29.3328793Z }
+2026-11-09T20:10:29.3328910Z 
+2026-11-09T20:10:29.3329018Z Node.js v22.23.4
+2026-11-09T20:10:29.5321922Z ##[error]Process completed with exit code 1.
+2026-11-09T20:10:29.5569916Z Post job cleanup.

@@ -1,0 +1,29 @@
+{
+  "argv": [
+    "unity",
+    "command",
+    "console",
+    "get",
+    "--project-path",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+    "--caller",
+    "plugin",
+    "--skill",
+    "unity-cli",
+    "--format",
+    "json",
+    "--",
+    "--level",
+    "error",
+    "--tail",
+    "100",
+    "--since",
+    "333",
+    "--since-session",
+    "654be9d86c404632a326a1b305299a34"
+  ],
+  "exitCode": 0,
+  "stderr": "",
+  "utc": "2026-11-09T20:02:17.390256+00:00",
+  "stdoutSha256": "d41f4a841638184dab5554c7f21d48881f6c9b0b1f8f7373707452388b1f4d69"
+}

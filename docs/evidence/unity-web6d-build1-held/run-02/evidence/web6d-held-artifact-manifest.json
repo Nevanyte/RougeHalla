@@ -1,0 +1,40 @@
+{
+  "status": "HELD_SOURCE_DRIFT_NOT_RELEASED_NO_NOTICES_YET",
+  "buildId": "build_bf4d3ece70b3",
+  "result": "Succeeded",
+  "source": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+  "output": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/web-build-6d-2026-11-09/Web",
+  "files": [
+    {
+      "path": "Build/Web.data",
+      "bytes": 47866159,
+      "sha256": "d63fdfe81e4fb170417caddc2190bb8bf59645d474a73136ee273dc11f1bd32e"
+    },
+    {
+      "path": "Build/Web.framework.js",
+      "bytes": 497713,
+      "sha256": "7195592217940abcc95ccf839c2a2d297aab7214909e234b7e6f374a79c39d42"
+    },
+    {
+      "path": "Build/Web.loader.js",
+      "bytes": 26455,
+      "sha256": "c92c2f28f1fe8f67e904567d01f4c560596b1caecf663e5d3db36f33dc3b690b"
+    },
+    {
+      "path": "Build/Web.wasm",
+      "bytes": 58548399,
+      "sha256": "d77af9b676296c77aed3f82c2fa295fd8be8cd3ce638191b6726820b226deafc"
+    },
+    {
+      "path": "index.html",
+      "bytes": 7920,
+      "sha256": "3d122f461a72433123a98732aeaf6602377874fabf7e321f1f2740c1ea1b62f5"
+    }
+  ],
+  "fileCount": 5,
+  "totalBytes": 106946646,
+  "buildReportBytes": 106946646,
+  "warnings": 17,
+  "errors": 0,
+  "sourceDriftReceipt": "web6d-postbuild-drift-inventory.json"
+}

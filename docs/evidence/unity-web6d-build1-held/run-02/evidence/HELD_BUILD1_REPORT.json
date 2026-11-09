@@ -1,0 +1,425 @@
+{
+  "build": {
+    "actualBuildOrdinal": 1,
+    "buildId": "build_bf4d3ece70b3",
+    "buildTimeMs": 175349,
+    "development": false,
+    "editorPid": 46583,
+    "options": [
+      "DetailedBuildReport"
+    ],
+    "outputPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/web-build-6d-2026-11-09/Web",
+    "planSha256": "26dca77f57ffa70b8d809e975dc294cbb68b6f068abc44a5eadfba6dc6c2e419",
+    "platform": "WebGL",
+    "releaseSha256": "b3f04e42211573806d52a2af45333083486f8b013c37e817754f54e4362052c3",
+    "reportBytes": 1095386,
+    "reportEndedAt": "2026-11-10T02:21:07.7437132Z",
+    "reportSha256": "d4f41a5ade6b590a7998a87a486d967eb800faf9912b7ec50cd95eb91fda26ce",
+    "reportStartedAt": "2026-11-10T02:18:12.3940060Z",
+    "reportedOutputFiles": [
+      {
+        "basename": "Web.framework.js",
+        "role": "js",
+        "sizeBytes": 497713
+      },
+      {
+        "basename": "Web.wasm",
+        "role": "wasm",
+        "sizeBytes": 58548399
+      },
+      {
+        "basename": "Web.data",
+        "role": "data",
+        "sizeBytes": 47866159
+      },
+      {
+        "basename": "Web.loader.js",
+        "role": "js",
+        "sizeBytes": 26455
+      },
+      {
+        "basename": "index.html",
+        "role": "html",
+        "sizeBytes": 7920
+      }
+    ],
+    "reportedSizeBytes": 106946646,
+    "result": "Succeeded",
+    "scenes": [
+      "Assets/Scenes/Main.unity"
+    ],
+    "sourceCommit": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+    "totalErrors": 0,
+    "totalWarnings": 17
+  },
+  "buildStatus": {
+    "initialLiveStatusPoll": {
+      "errorCode": "STATUS_ALL_UNREACHABLE",
+      "state": "unreachable",
+      "success": false,
+      "utc": "2026-11-09T20:18:24.593029+00:00"
+    },
+    "initialPersistedStatus": {
+      "buildId": "build_bf4d3ece70b3",
+      "buildStartedAt": "2026-11-09T20:18:12.3643800Z",
+      "outputPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/web-build-6d-2026-11-09/Web",
+      "platform": "WebGL",
+      "status": "building"
+    },
+    "queuedReceipt": {
+      "buildId": "build_bf4d3ece70b3",
+      "status": "queued"
+    },
+    "terminalLiveStatus": {
+      "state": "ready",
+      "success": true
+    }
+  },
+  "evidenceFiles": [
+    {
+      "bytes": 2544,
+      "path": "run-02/WEB6D_BUILD_PLAN.md",
+      "sha256": "fa8978562952d3473e4fae7be46876f56195cea62e2fccd54543dfc00162f0a1"
+    },
+    {
+      "bytes": 5444,
+      "path": "run-02/WEB6D_BUILD_PLAN.json",
+      "sha256": "26dca77f57ffa70b8d809e975dc294cbb68b6f068abc44a5eadfba6dc6c2e419"
+    },
+    {
+      "bytes": 3725,
+      "path": "run-02/ROOT_WEB6D_BUILD_RELEASE.json",
+      "sha256": "b3f04e42211573806d52a2af45333083486f8b013c37e817754f54e4362052c3"
+    },
+    {
+      "bytes": 3708,
+      "path": "run-02/evidence/web6d-plan-file-preflight.json",
+      "sha256": "33613ca509a81549db2c4afd9f4f9483fcc79a3e3aee0878d4b2860be5d8c414"
+    },
+    {
+      "bytes": 56,
+      "path": "run-02/evidence/web6d-build-dry-run.json",
+      "sha256": "741f5dafba6ab0a2059959ac5dbf2539948c245d096686c9831ded05b1409a72"
+    },
+    {
+      "bytes": 671,
+      "path": "run-02/evidence/web6d-build-submission.json",
+      "sha256": "b3b77f6cad45e62ef2bed5fee283f76e8462da055d9ba3a1fe9eea1c8e0c5c91"
+    },
+    {
+      "bytes": 51,
+      "path": "run-02/evidence/web6d-build-queued.json",
+      "sha256": "ce2a02421384027a3a14ba43ca87d7857d4e01f702ba8a76d25e0a279befa862"
+    },
+    {
+      "bytes": 264,
+      "path": "run-02/evidence/web6d-build-persisted-status-001.json",
+      "sha256": "4ec6e6e8e30f1e8bfbccd5279f2f18a30aedd1241777fa7030e54ec6661595dd"
+    },
+    {
+      "bytes": 445,
+      "path": "run-02/evidence/web6d-build-persisted-status-001.observation.json",
+      "sha256": "73a2fea833be002a9bb225a62911d84cf4447e5fcfeb95e5eba954d638ef3d73"
+    },
+    {
+      "bytes": 1490,
+      "path": "run-02/evidence/web6d-build-status-001.json.target.json",
+      "sha256": "f1c4c6ab4a162e81e70c911e145317847e65dc16d52c5aa82f65b9a219b5ce89"
+    },
+    {
+      "bytes": 401,
+      "path": "run-02/evidence/web6d-build-status-001.json.target.json.invocation.json",
+      "sha256": "e6862097845c75a03ee8c925ea4087f9da609fe5694c88e68853e3828fa31af8"
+    },
+    {
+      "bytes": 1095387,
+      "path": "run-02/evidence/web6d-build-status-terminal.json",
+      "sha256": "b3347314b53afd53108d58e68b059ef50a001ab67bb5e1fbb2335250cb51d7f0"
+    },
+    {
+      "bytes": 1095386,
+      "path": "run-02/evidence/web6d-build-persisted-status-002.json",
+      "sha256": "d4f41a5ade6b590a7998a87a486d967eb800faf9912b7ec50cd95eb91fda26ce"
+    },
+    {
+      "bytes": 488,
+      "path": "run-02/evidence/web6d-prebuild-source-guard.json",
+      "sha256": "0cf08e8e13772ede4c5b0d060294ab00d48d89fb0ac9b1b65e2083503d97188f"
+    },
+    {
+      "bytes": 4138,
+      "path": "run-02/evidence/web6d-prebuild-effective-settings.json",
+      "sha256": "8611129d109dc21e4c251cc296b5a5f6a5043634752b7c078b8146496665fce6"
+    },
+    {
+      "bytes": 188,
+      "path": "run-02/evidence/web6d-postbuild-source-guard.json",
+      "sha256": "8d1ca8af3ac518053b654ecdad3d5ce52645d9007ffa9a4783d026c7c6ad784e"
+    },
+    {
+      "bytes": 2056,
+      "path": "run-02/evidence/web6d-postbuild-drift-inventory.json",
+      "sha256": "508c8441331f532bafdc9cdf65465d24afeae5cd88e71480cb3647395c811584"
+    },
+    {
+      "bytes": 4138,
+      "path": "run-02/evidence/web6d-postbuild-effective-settings.json",
+      "sha256": "f36d1a1490dab5cd957f978b05c24275cdf58baf9e7f2840a85c5805e85f25a3"
+    },
+    {
+      "bytes": 4523,
+      "path": "run-02/evidence/native98-raw-reconciliation.json",
+      "sha256": "b4c31681312d8787258fd432835ecdd6fb937c6629d24f6a6482f6351685ff9e"
+    },
+    {
+      "bytes": 4654,
+      "path": "run-02/evidence/layout6d-final.json",
+      "sha256": "407ab88dbd1e3e99044606482b0f9d681ed00a8c6bb108518fae09f99f460380"
+    },
+    {
+      "bytes": 6304,
+      "path": "run-02/evidence/layout6d-r2-final.json",
+      "sha256": "1bd73303a74dc9f77fdd09f5b445523fdf351f6108b8b6cdce275e28186b586d"
+    },
+    {
+      "bytes": 11564,
+      "path": "layout6d-preparation/web6d-warning-review.json",
+      "sha256": "9a9c74e05fe08305d4782a568218eaaf538374e7e518647eee7d56c3c9cc110c"
+    },
+    {
+      "bytes": 2982,
+      "path": "layout6d-preparation/web6d-warning-review.md",
+      "sha256": "62972a9e76ba704ba647b67cd2c94b299a1855f3a336257053258a1b98d4a9db"
+    }
+  ],
+  "exclusions": [
+    "private snapshots and bytes",
+    "raw Editor logs",
+    "compiled binaries and build artifact binaries",
+    "no browser/runtime/performance/visual acceptance is claimed"
+  ],
+  "hold": {
+    "artifactReleased": false,
+    "mismatches": [
+      {
+        "actualBytes": 4413,
+        "actualSha256": "ea26d6362d84b96ab37fdbbe03b92f7a723f35e05a5a306b586fc05730e5641c",
+        "expectedBytes": 4411,
+        "expectedSha256": "35aab2e06292637cc288ffd981862f9abc9dc7647b3e14cde418588e97363e65",
+        "path": "client-unity/UnityProject/Assets/Settings/RoguehallaPipeline.asset"
+      },
+      {
+        "actualBytes": 9748,
+        "actualSha256": "6792385c280302fc148141e7248f57fdab55b01366c31275e035a8fed3a4d850",
+        "expectedBytes": 9359,
+        "expectedSha256": "1ed305335acc00607b80aaf22d1232f189b8aed773fa1d8bc66e96989aa751a9",
+        "path": "client-unity/UnityProject/Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF - Fallback.asset"
+      },
+      {
+        "actualBytes": 21730,
+        "actualSha256": "2458dd20ad332a72f08ff4620754d339a4a7bf814f73476332377852479fb014",
+        "expectedBytes": 21719,
+        "expectedSha256": "725624bcda3488d242383ef9e31befde45cb8eacc7001135da6e1a152258df00",
+        "path": "client-unity/UnityProject/Assets/UniversalRenderPipelineGlobalSettings.asset"
+      }
+    ],
+    "noticesCopied": false,
+    "noticesPlanned": 9,
+    "reason": "Three post-build serialized asset pins differ; Root allowance is NONE. No bytes restored or accepted, no requeue/second build, and no 98-test rerun.",
+    "settingsSceneAndBakedExact": {
+      "bakedContent": true,
+      "effectivePlayerSettings": true,
+      "mainScene": true
+    },
+    "sourcePins": {
+      "matching": 1281,
+      "total": 1284
+    },
+    "status": "HOLD_EXACT_THREE_POSTBUILD_ASSET_SERIALIZATIONS"
+  },
+  "layoutAttemptsSeparate": {
+    "attempt1": {
+      "configuredCases": 0,
+      "pngCount": 0,
+      "status": "STOP_FIRST_LAYOUT_ERROR"
+    },
+    "attempt2": {
+      "configuredCases": 0,
+      "pngCount": 0,
+      "status": "STOP_FIRST_LAYOUT_ERROR"
+    },
+    "note": "Both stopped before any PNG capture; unrelated to the WebGL build result."
+  },
+  "prePostPublicSettings": {
+    "exactlyEqual": true,
+    "postbuildObserverSha256": "f36d1a1490dab5cd957f978b05c24275cdf58baf9e7f2840a85c5805e85f25a3",
+    "prebuildObserverSha256": "8611129d109dc21e4c251cc296b5a5f6a5043634752b7c078b8146496665fce6",
+    "settings": {
+      "apiCompatibility": "NET_Standard_2_0",
+      "backend": "IL2CPP",
+      "buildScenes": [
+        {
+          "enabled": true,
+          "guid": "9c04049dddca140819d485dcc0d87eef",
+          "path": "Assets/Scenes/Main.unity"
+        }
+      ],
+      "defaultGraphicsAPIs": true,
+      "graphicsAPIs": [
+        11
+      ],
+      "il2CppCompilerConfiguration": "Release",
+      "managedStripping": "Minimal",
+      "player": {
+        "bundleVersion": {
+          "available": true,
+          "declaredType": "System.String",
+          "text": "1.0"
+        },
+        "colorSpace": {
+          "available": true,
+          "declaredType": "UnityEngine.ColorSpace",
+          "enumNumeric": 1,
+          "text": "Linear"
+        },
+        "companyName": {
+          "available": true,
+          "declaredType": "System.String",
+          "text": "Roguehalla"
+        },
+        "defaultScreenHeight": {
+          "available": true,
+          "declaredType": "System.Int32",
+          "text": "1080"
+        },
+        "defaultScreenWidth": {
+          "available": true,
+          "declaredType": "System.Int32",
+          "text": "1920"
+        },
+        "fullScreenMode": {
+          "available": true,
+          "declaredType": "UnityEngine.FullScreenMode",
+          "enumNumeric": 1,
+          "text": "FullScreenWindow"
+        },
+        "productName": {
+          "available": true,
+          "declaredType": "System.String",
+          "text": "Roguehalla"
+        },
+        "resizableWindow": {
+          "available": true,
+          "declaredType": "System.Boolean",
+          "text": "False"
+        },
+        "runInBackground": {
+          "available": true,
+          "declaredType": "System.Boolean",
+          "text": "False"
+        },
+        "stripEngineCode": {
+          "available": true,
+          "declaredType": "System.Boolean",
+          "text": "True"
+        }
+      },
+      "webgl": {
+        "compressionFormat": {
+          "available": true,
+          "declaredType": "UnityEditor.WebGLCompressionFormat",
+          "enumNumeric": 2,
+          "text": "Disabled"
+        },
+        "dataCaching": {
+          "available": true,
+          "declaredType": "System.Boolean",
+          "text": "True"
+        },
+        "decompressionFallback": {
+          "available": true,
+          "declaredType": "System.Boolean",
+          "text": "False"
+        },
+        "exceptionSupport": {
+          "available": true,
+          "declaredType": "UnityEditor.WebGLExceptionSupport",
+          "enumNumeric": 1,
+          "text": "ExplicitlyThrownExceptionsOnly"
+        },
+        "initialMemorySize": {
+          "available": true,
+          "declaredType": "System.Int32",
+          "text": "32"
+        },
+        "maximumMemorySize": {
+          "available": true,
+          "declaredType": "System.Int32",
+          "text": "2048"
+        },
+        "memoryGeometricGrowthCap": {
+          "available": true,
+          "declaredType": "System.Int32",
+          "text": "96"
+        },
+        "memoryGeometricGrowthStep": {
+          "available": false
+        },
+        "memoryGrowthMode": {
+          "available": true,
+          "declaredType": "UnityEditor.WebGLMemoryGrowthMode",
+          "enumNumeric": 2,
+          "text": "Geometric"
+        },
+        "memoryLinearGrowthStep": {
+          "available": false
+        },
+        "nameFilesAsHashes": {
+          "available": true,
+          "declaredType": "System.Boolean",
+          "text": "False"
+        },
+        "powerPreference": {
+          "available": true,
+          "declaredType": "UnityEditor.WebGLPowerPreference",
+          "enumNumeric": 2,
+          "text": "HighPerformance"
+        },
+        "showDiagnostics": {
+          "available": true,
+          "declaredType": "System.Boolean",
+          "text": "False"
+        },
+        "template": {
+          "available": true,
+          "declaredType": "System.String",
+          "text": "PROJECT:Roguehalla"
+        },
+        "threadsSupport": {
+          "available": true,
+          "declaredType": "System.Boolean",
+          "text": "False"
+        }
+      }
+    }
+  },
+  "status": "HELD_BUILD1_REPORT",
+  "timestampCaveat": {
+    "initialPersistedBuildingUtc": "2026-11-09T20:18:12.3643800Z",
+    "note": "BuildReport timestamps are about six hours later than the recorded queue/building timestamps. Report interval is about 175349.7 ms, matching the reported 175349 ms; this does not establish which clock basis is authoritative.",
+    "submissionRequestedUtc": "2026-11-09T20:18:11.869084+00:00",
+    "terminalBuildReportEndUtc": "2026-11-10T02:21:07.7437132Z",
+    "terminalBuildReportStartUtc": "2026-11-10T02:18:12.3940060Z"
+  },
+  "warningReview": {
+    "currentErrors": 0,
+    "currentJsonPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/layout6d-preparation/web6d-warning-review.json",
+    "currentJsonSha256": "9a9c74e05fe08305d4782a568218eaaf538374e7e518647eee7d56c3c9cc110c",
+    "currentMarkdownPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/layout6d-preparation/web6d-warning-review.md",
+    "currentMarkdownSha256": "62972a9e76ba704ba647b67cd2c94b299a1855f3a336257053258a1b98d4a9db",
+    "currentWarnings": 17,
+    "historicalBuildId": "build_c9711b3ad936",
+    "historicalWarnings": 32,
+    "newGroups": 0
+  }
+}

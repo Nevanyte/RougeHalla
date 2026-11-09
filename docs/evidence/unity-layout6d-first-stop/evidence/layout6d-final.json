@@ -1,0 +1,136 @@
+{
+  "backendApplied": false,
+  "caseResults": [],
+  "casesExpected": [
+    [
+      1280,
+      720,
+      1.0,
+      false
+    ],
+    [
+      1280,
+      720,
+      1.5,
+      true
+    ],
+    [
+      2560,
+      1440,
+      1.0,
+      false
+    ],
+    [
+      2560,
+      1440,
+      1.5,
+      true
+    ]
+  ],
+  "combinedSourceSha256": "27c0ca8166c1a1c0b0c55a456878285fc9012ff76a3a50ef50d3609484a06294",
+  "editorPid": 46583,
+  "errorType": "ValueError",
+  "gameplayBackendAcceptance": false,
+  "hostClose": {
+    "cleanupErrors": [],
+    "final": {
+      "backendApplied": false,
+      "camera": {},
+      "canvas": {},
+      "configuredCase": {
+        "bottom": false,
+        "height": 0,
+        "scale": 0.0,
+        "width": 0
+      },
+      "consoleRootProjectedBounds": null,
+      "firstFailure": "FileNotFoundException: Could not resolve the frozen worktree HEAD ref.",
+      "gameViewBaseline": {
+        "fullScreenMode": "Windowed",
+        "renderHeight": 1440,
+        "renderWidth": 2560,
+        "screenHeight": 453,
+        "screenWidth": 752,
+        "viewType": "GameView"
+      },
+      "gameViewBaselineError": null,
+      "gameViewCurrent": {
+        "playModeRenderingHeight": 1440,
+        "playModeRenderingWidth": 2560,
+        "playModeViewType": "GameView",
+        "screenFullScreenMode": "Windowed",
+        "screenHeight": 453,
+        "screenWidth": 752
+      },
+      "gameViewFinalObservation": null,
+      "hostAssemblyName": "PipelineRunScript_TrainingLayoutNativeFinal_8ac8fe70c98a43438481ce475c93111f",
+      "panelProjectedBounds": null,
+      "pointerClaims": "open; off-screen RT capture is not live Game View pointer evidence",
+      "presentationEvidence": "staged offline facts only; no backend/gameplay application",
+      "sourceCutExpected": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+      "stageActive": false,
+      "stageError": null,
+      "stageReady": false,
+      "textScale": -1.0,
+      "textSizes": null
+    },
+    "firstFailure": "FileNotFoundException: Could not resolve the frozen worktree HEAD ref.",
+    "success": true
+  },
+  "liveGameViewPointerAcceptance": false,
+  "native98LedgerSha256": "c9fa74f0d2cb6d94d7fc9b86bf0686597eb93d4bc5f069b5f2210f7ba884c6d2",
+  "native98RecheckFinal": {
+    "ledgerSha256": "c9fa74f0d2cb6d94d7fc9b86bf0686597eb93d4bc5f069b5f2210f7ba884c6d2",
+    "rootReceiptSha256": "96cb7f9591cf326df3cc0d8200bf7e414ae38ef14a9db2e557dac0021dda8d14",
+    "status": "PASS"
+  },
+  "native98RootReceiptSha256": "96cb7f9591cf326df3cc0d8200bf7e414ae38ef14a9db2e557dac0021dda8d14",
+  "native98TestsReusedNotRerun": true,
+  "pointerAcceptance": "OPEN_OFFSCREEN_CAPTURE_ONLY",
+  "prefsRestore": {
+    "result": "RESTORE_OK;keys=3;verified=3;snapshotDeleted=true"
+  },
+  "project": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+  "snapshotPresentAfter": false,
+  "source": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+  "sourcePreflightBeforeCapture": {
+    "commit": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+    "sourcePins": 1284,
+    "startupOverlay": {
+      "bytes": 1044,
+      "gitStatus": "?? client-unity/UnityProject/ProjectSettings/PackageManagerSettings.asset",
+      "path": "client-unity/UnityProject/ProjectSettings/PackageManagerSettings.asset",
+      "sha256": "a2cb53758656a32e072c1e33d985a3f73b8374b2acb3365750d31070d60a67b5"
+    },
+    "status": "PASS",
+    "tree": "caac77176dcb2fb33dc491b9a7990751a1f534d7",
+    "uniqueMetaGuids": 626
+  },
+  "sourcePreflightBeforeHost": {
+    "commit": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+    "sourcePins": 1284,
+    "startupOverlay": {
+      "bytes": 1044,
+      "gitStatus": "?? client-unity/UnityProject/ProjectSettings/PackageManagerSettings.asset",
+      "path": "client-unity/UnityProject/ProjectSettings/PackageManagerSettings.asset",
+      "sha256": "a2cb53758656a32e072c1e33d985a3f73b8374b2acb3365750d31070d60a67b5"
+    },
+    "status": "PASS",
+    "tree": "caac77176dcb2fb33dc491b9a7990751a1f534d7",
+    "uniqueMetaGuids": 626
+  },
+  "sourcePreflightFinal": {
+    "commit": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+    "sourcePins": 1284,
+    "startupOverlay": {
+      "bytes": 1044,
+      "gitStatus": "?? client-unity/UnityProject/ProjectSettings/PackageManagerSettings.asset",
+      "path": "client-unity/UnityProject/ProjectSettings/PackageManagerSettings.asset",
+      "sha256": "a2cb53758656a32e072c1e33d985a3f73b8374b2acb3365750d31070d60a67b5"
+    },
+    "status": "PASS",
+    "tree": "caac77176dcb2fb33dc491b9a7990751a1f534d7",
+    "uniqueMetaGuids": 626
+  },
+  "status": "STOP_FIRST_LAYOUT_ERROR"
+}

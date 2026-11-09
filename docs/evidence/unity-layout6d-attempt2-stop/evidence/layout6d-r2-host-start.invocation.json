@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "unity",
+    "command",
+    "script",
+    "run",
+    "--project-path",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+    "--caller",
+    "plugin",
+    "--skill",
+    "unity-cli",
+    "--format",
+    "json",
+    "--",
+    "--file",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/TrainingLayoutNativeAttempt2.cs",
+    "--entry",
+    "LayoutProofHost6d.Start"
+  ],
+  "exitCode": 6,
+  "stderr": "",
+  "utc": "2026-11-09T20:00:53.478628+00:00",
+  "stdoutSha256": "3a62c3cac2f6c4d3039c979205872c50618eb1b2f8af93b8be62de8da8062183"
+}

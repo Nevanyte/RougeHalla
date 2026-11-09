@@ -1,0 +1,15 @@
+{
+  "source": "57e166f46b35fb703e5f3c76914fcc4e8bf3191c",
+  "canonicalClientProtocolEquivalent": "5e19ef1b801ef363a83217ddecd768c5aba71cac",
+  "buildId": "build_4421a3763bf9",
+  "artifactManifestSha256": "a224cc6cc378604e4f9407f1c540f3ceae364d9cf0c97004fcd21df816c83824",
+  "portableManifestSha256": "139d1b2b8b7d328f252f83cb4a1516fb6c840be93121d40db98898e90750a8b7",
+  "rootVerifiedArtifactFiles": 14,
+  "rootVerifiedArtifactBytes": 106987680,
+  "rootVerifiedEvidencePayloads": 37,
+  "artifactSourceAcceptance": "RELEASE exactfrozen57/bothsourceguards/settings/notices, no furtherdrift",
+  "firstBuild": "HELD/postsourceguardFAIL retained",
+  "native98": "historical6d98PASS; no rerun/relabel",
+  "browser": "NOT_RUN",
+  "performance": "NOT_RUN"
+}

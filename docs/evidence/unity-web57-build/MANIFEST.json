@@ -1,0 +1,207 @@
+{
+  "format": "rh-web57-verified-build-proof/1",
+  "createdUtc": "2026-11-09T20:50:52.580908+00:00",
+  "source": "57e166f46b35fb703e5f3c76914fcc4e8bf3191c",
+  "canonicalClientProtocolEquivalent": "5e19ef1b801ef363a83217ddecd768c5aba71cac",
+  "buildId": "build_4421a3763bf9",
+  "result": "Succeeded",
+  "postSourceGuard": "PASS_1284_626_39_SOLE_OVERLAY",
+  "settingsExact": true,
+  "artifactFiles": 14,
+  "artifactBytes": 106987680,
+  "warnings": 0,
+  "errors": 0,
+  "payloadCount": 37,
+  "payloadBytes": 361110,
+  "artifactBinariesPrivateDataAndRawEditorLogsIncluded": false,
+  "artifactAdmission": "PENDING_COORDINATOR",
+  "browserAcceptance": false,
+  "performanceAcceptance": false,
+  "payloads": [
+    {
+      "path": "BOOTSTRAP_OVERLAY_01.json",
+      "bytes": 1250,
+      "sha256": "aff1b08079e75b22b8a0f8c1132bf24ccbec8d36a8d14967c41526f9d89cbe3e"
+    },
+    {
+      "path": "WEB57_SOURCE_FREEZE.json",
+      "bytes": 286443,
+      "sha256": "ba2c65e9b206c368414941231e27db9ab33ca704c73dbbf6fc66dba57742620c"
+    },
+    {
+      "path": "run-02/BuildPlanSettings57.cs",
+      "bytes": 10153,
+      "sha256": "47c64176efa1ad843c44cbc710b766075f0110805e302295643561759c143e7f"
+    },
+    {
+      "path": "run-02/ROOT_WEB57_BUILD_RELEASE.json",
+      "bytes": 2866,
+      "sha256": "37bd893c6e2305c85912c1407c53e02c8d9ab8a1381523c7f51b74bf9d218170"
+    },
+    {
+      "path": "run-02/Web57SourceGuard.direct.py",
+      "bytes": 4791,
+      "sha256": "573e5e81964a0858d22db71412dab11b70b3035a81ffd92f740c350a86f34f72"
+    },
+    {
+      "path": "run-02/evidence/WEB57_BUILD_REPORT.json",
+      "bytes": 9869,
+      "sha256": "44afbabd4e94188394fe83e6933c1ce2ea25bc2d2f7bd2d65b03b5b34f088f7e"
+    },
+    {
+      "path": "run-02/evidence/WEB57_BUILD_REPORT.md",
+      "bytes": 5285,
+      "sha256": "38d02a1ae8f55041e14ffadbbee6e94b8b73500a9d06c2f9bb76593df7cee621"
+    },
+    {
+      "path": "run-02/evidence/web57-artifact-manifest.json",
+      "bytes": 3189,
+      "sha256": "a224cc6cc378604e4f9407f1c540f3ceae364d9cf0c97004fcd21df816c83824"
+    },
+    {
+      "path": "run-02/evidence/web57-build-dry-run.json",
+      "bytes": 56,
+      "sha256": "741f5dafba6ab0a2059959ac5dbf2539948c245d096686c9831ded05b1409a72"
+    },
+    {
+      "path": "run-02/evidence/web57-build-dry-run.json.invocation.json",
+      "bytes": 821,
+      "sha256": "0eb2cb73c1e56603af096f30331a0a6836d7f4020c6ce90d6d65ea2292be7add"
+    },
+    {
+      "path": "run-02/evidence/web57-build-dry-run.json.target.json",
+      "bytes": 1291,
+      "sha256": "7582e095c8da9d689537dbc0c574ea2ff9d28d7843b2142f687bb037dfdf2c7f"
+    },
+    {
+      "path": "run-02/evidence/web57-build-dry-run.json.target.json.invocation.json",
+      "bytes": 400,
+      "sha256": "12f7be5b55a4bec344feec96209989ecb1a4c06ff39782ef85edc434ff975e9a"
+    },
+    {
+      "path": "run-02/evidence/web57-build-persisted-status-001.json",
+      "bytes": 4055,
+      "sha256": "ee19ecd2918dbb7aed183c4e4b36ab2b379421aa5697e671a49d03e4c55baf94"
+    },
+    {
+      "path": "run-02/evidence/web57-build-queued.json",
+      "bytes": 51,
+      "sha256": "48ffeddc94c1550f23280a18f79bd2812307773f6d67b699fcc2ea9ed5dc5c9b"
+    },
+    {
+      "path": "run-02/evidence/web57-build-queued.json.invocation.json",
+      "bytes": 821,
+      "sha256": "4f2a4f8a677a36f37fbe68c1de2d107c595f076fc6f1d7b7d41dcbf56754bdbe"
+    },
+    {
+      "path": "run-02/evidence/web57-build-queued.json.target.json",
+      "bytes": 1291,
+      "sha256": "7582e095c8da9d689537dbc0c574ea2ff9d28d7843b2142f687bb037dfdf2c7f"
+    },
+    {
+      "path": "run-02/evidence/web57-build-queued.json.target.json.invocation.json",
+      "bytes": 400,
+      "sha256": "bcc2a82f890bada7a9a6fec11e1e2ada833d9582e2e0b8d89874c48fbf804e17"
+    },
+    {
+      "path": "run-02/evidence/web57-build-status-terminal.json",
+      "bytes": 4056,
+      "sha256": "faee6ea63f2e1dce091afbd252fadbf76f7093ce0c7b3b0d7bb390377787c183"
+    },
+    {
+      "path": "run-02/evidence/web57-build-status-terminal.json.invocation.json",
+      "bytes": 490,
+      "sha256": "9187232fce344e5d2cbfdc94331ba7855b8e7650b56e2dac564a085836140c90"
+    },
+    {
+      "path": "run-02/evidence/web57-build-status-terminal.json.target.json",
+      "bytes": 1291,
+      "sha256": "7582e095c8da9d689537dbc0c574ea2ff9d28d7843b2142f687bb037dfdf2c7f"
+    },
+    {
+      "path": "run-02/evidence/web57-build-status-terminal.json.target.json.invocation.json",
+      "bytes": 400,
+      "sha256": "2f104cab41bf133ffbcbca27148889c8f6a96409deac3c3b3ff407d141a57d8a"
+    },
+    {
+      "path": "run-02/evidence/web57-build-submission.json",
+      "bytes": 1798,
+      "sha256": "6ff3650ebb025840a6e8e83285f858b34b39743cfec8da10146147ab9ae4e676"
+    },
+    {
+      "path": "run-02/evidence/web57-final-reconciliation.json",
+      "bytes": 1471,
+      "sha256": "9153dfe28acb41af270e130ba5ea606e34c93490a4f3856aef2446a2a02a96b2"
+    },
+    {
+      "path": "run-02/evidence/web57-final-source-guard.json",
+      "bytes": 769,
+      "sha256": "7381108f2cb2bf8f9c6d2220dbfd8604cd2b94c33bc183c3fc5332ad8dc6b07e"
+    },
+    {
+      "path": "run-02/evidence/web57-notice-copies.json",
+      "bytes": 2404,
+      "sha256": "131d997d5a42877dbc005c7aa1e52fc62d2870c9cb8caee0a1a6f31a37b555ee"
+    },
+    {
+      "path": "run-02/evidence/web57-postbuild-effective-settings.json",
+      "bytes": 4138,
+      "sha256": "3f693cb70d60727285e0922a04a66acc823863a3a079456aaa188bd14188c5db"
+    },
+    {
+      "path": "run-02/evidence/web57-postbuild-effective-settings.json.invocation.json",
+      "bytes": 697,
+      "sha256": "79102e57dfeab3a46f76c8d9194dd3dc17789b480e7866803e9b02477964f340"
+    },
+    {
+      "path": "run-02/evidence/web57-postbuild-effective-settings.json.target.json",
+      "bytes": 1291,
+      "sha256": "7582e095c8da9d689537dbc0c574ea2ff9d28d7843b2142f687bb037dfdf2c7f"
+    },
+    {
+      "path": "run-02/evidence/web57-postbuild-effective-settings.json.target.json.invocation.json",
+      "bytes": 400,
+      "sha256": "b0c1d6772b4153c659b7e80025cc661e9809d3f9601ed28de1300b40b860848a"
+    },
+    {
+      "path": "run-02/evidence/web57-postbuild-settings-comparison.json",
+      "bytes": 502,
+      "sha256": "9aeffcc6d5c708b743c5f50c81758e40d077c64a11660de0a98f27ca1bf4041d"
+    },
+    {
+      "path": "run-02/evidence/web57-postbuild-source-guard.json",
+      "bytes": 769,
+      "sha256": "7381108f2cb2bf8f9c6d2220dbfd8604cd2b94c33bc183c3fc5332ad8dc6b07e"
+    },
+    {
+      "path": "run-02/evidence/web57-prebuild-effective-settings.json",
+      "bytes": 4138,
+      "sha256": "72d6449a3c6d88ada29bbb0387d131ffd24b94b4505da54d8135a6c5ab4af63b"
+    },
+    {
+      "path": "run-02/evidence/web57-prebuild-effective-settings.json.invocation.json",
+      "bytes": 697,
+      "sha256": "892a8912644f4d7ad538a631a0dcba2855673f70c4cf164d2de6a857cf8f9d18"
+    },
+    {
+      "path": "run-02/evidence/web57-prebuild-effective-settings.json.target.json",
+      "bytes": 1291,
+      "sha256": "7582e095c8da9d689537dbc0c574ea2ff9d28d7843b2142f687bb037dfdf2c7f"
+    },
+    {
+      "path": "run-02/evidence/web57-prebuild-effective-settings.json.target.json.invocation.json",
+      "bytes": 400,
+      "sha256": "de1f1015b687004e5cbf56bddfaa1e7e26a8ad64ac4ec536de31d71cb17a5af6"
+    },
+    {
+      "path": "run-02/evidence/web57-prebuild-settings-comparison.json",
+      "bytes": 307,
+      "sha256": "d395d643967988cad3074a8c4fa2703dad78159764384f240eeb012baffdf1d1"
+    },
+    {
+      "path": "run-02/evidence/web57-prebuild-source-guard.json",
+      "bytes": 769,
+      "sha256": "7381108f2cb2bf8f9c6d2220dbfd8604cd2b94c33bc183c3fc5332ad8dc6b07e"
+    }
+  ]
+}

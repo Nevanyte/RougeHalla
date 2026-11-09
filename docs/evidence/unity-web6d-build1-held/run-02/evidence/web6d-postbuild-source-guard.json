@@ -1,0 +1,5 @@
+{
+  "status": "STOP_POSTBUILD_SOURCE_DRIFT",
+  "errorType": "ValueError",
+  "message": "source pin bytes/hash differ: client-unity/UnityProject/Assets/Settings/RoguehallaPipeline.asset"
+}

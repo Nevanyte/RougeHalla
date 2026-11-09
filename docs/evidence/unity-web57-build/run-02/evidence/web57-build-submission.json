@@ -1,0 +1,41 @@
+{
+  "source": "57e166f46b35fb703e5f3c76914fcc4e8bf3191c",
+  "editorPid": 46583,
+  "canonicalClientProtocolEquivalent": "5e19ef1b801ef363a83217ddecd768c5aba71cac",
+  "sourceFreezeSha256": "ba2c65e9b206c368414941231e27db9ab33ca704c73dbbf6fc66dba57742620c",
+  "releaseSha256": "37bd893c6e2305c85912c1407c53e02c8d9ab8a1381523c7f51b74bf9d218170",
+  "options": [
+    "DetailedBuildReport"
+  ],
+  "development": false,
+  "actualBuildOrdinalForThisSource": 1,
+  "priorSourceBuild": "build_bf4d3ece70b3 remains held",
+  "output": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/web-build-57e166-2026-11-09/Web",
+  "scenes": [
+    "Assets/Scenes/Main.unity"
+  ],
+  "requestedUtc": "2026-11-09T20:43:46.070377+00:00",
+  "availableBytes": 6863650816,
+  "prequeueSourceGuard": {
+    "status": "PASS_WEB57_EXACT_FROZEN_SOURCE",
+    "source": "57e166f46b35fb703e5f3c76914fcc4e8bf3191c",
+    "tree": "fb73018fb0ba8acb81af08320c3d671b4e6fd5ee",
+    "sourceFreezeSha256": "ba2c65e9b206c368414941231e27db9ab33ca704c73dbbf6fc66dba57742620c",
+    "releaseSha256": "37bd893c6e2305c85912c1407c53e02c8d9ab8a1381523c7f51b74bf9d218170",
+    "sourcePins": 1284,
+    "uniqueAssetGuids": 626,
+    "packages": 39,
+    "packageSources": {
+      "registry": 9,
+      "builtin": 30
+    },
+    "soleStartupOverlay": {
+      "path": "client-unity/UnityProject/ProjectSettings/PackageManagerSettings.asset",
+      "bytes": 1044,
+      "sha256": "a2cb53758656a32e072c1e33d985a3f73b8374b2acb3365750d31070d60a67b5"
+    },
+    "canonicalClientProtocolEquivalent": "5e19ef1b801ef363a83217ddecd768c5aba71cac"
+  },
+  "sceneSha256": "ac5f980d3515e5d2d8870c51a7d76fb61c554ec772f65cf429f2486b190a307e",
+  "bakedSha256": "8413908cace2df6eb8b8fe5025c0914991397f95271e985656929b335186101e"
+}

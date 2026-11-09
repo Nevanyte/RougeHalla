@@ -1,0 +1,38 @@
+{
+  "success": true,
+  "command": "status",
+  "data": {
+    "count": 1,
+    "instances": [
+      {
+        "port": 7801,
+        "project": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+        "projectPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+        "version": "6000.0.85f2",
+        "editorVersion": "6000.0.85f2",
+        "pid": 46583,
+        "state": "ready",
+        "role": "main",
+        "instanceName": "Main Editor"
+      }
+    ],
+    "items": [
+      {
+        "port": 7801,
+        "project": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+        "projectPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+        "version": "6000.0.85f2",
+        "editorVersion": "6000.0.85f2",
+        "pid": 46583,
+        "state": "ready",
+        "role": "main",
+        "instanceName": "Main Editor"
+      }
+    ],
+    "total": 1,
+    "nextPage": null,
+    "partial": false
+  },
+  "errors": [],
+  "warnings": []
+}
