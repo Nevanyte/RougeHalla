@@ -10,23 +10,28 @@ detached review snapshot; use `git worktree list` to resolve the authoritative p
 
 ## Current wrap-up (2026-11-09 UTC)
 
-The latest [migration checkpoint](MIGRATION.md#reviewed-protocol14-wrap-up-checkpoint-2026-11-09-utc) and
-[composition receipt](evidence/root-final14-composition/README.md) supersede the older private lease table below.
-Reviewed protocol14/checkpoint28/replay22/OBS21/policy15/content643d294869db55a4 is composed. Native integration followup
-and all20 functional quest/trader/notice engine selectors pass; the original workspace red run and native visual failure
-remain explicit. Workers finish bounded code/evidence packets and stop; source-only releases are not runtime releases.
+The latest [migration checkpoint](MIGRATION.md#reviewed-protocol14-wrap-up-checkpoint-2026-11-09-utc),
+[original composition receipt](evidence/root-final14-composition/README.md) and
+[full-runtime/component batch](evidence/root-runtime14-composition/README.md) supersede the historical tables below.
+Protocol14/checkpoint28/replay22/OBS21/policy15/content643d294869db55a4 is retained. The exacta3d4b3ce five-job CI is green;
+this subsequent composed batch awaits its own CI. All25 actual engine functional selectors pass at exactfa0c0891.
+Explicit full Source/solo Training endpoint admission and normal/SD fight components are reviewed. Component/method
+acceptance does not activate the remaining full bot brain or establish a hosted release.
 
 | Current owner | Required next boundary |
 |---|---|
-| Lead | Publish reviewed checkpoint/observe exact CI; matching Web build/browser/account/bank/cloud/regional/performance admission |
-| Unity owner |20-selector receipt sealed; future browser build/target proof requires an exact release; no uncontrolled Play/shader loops |
-| Native bot expert | Source-proved normal fight/Orb components; live dispatch held for complete public cue facts |
-| DeepSeek Post Rust | Mechanical ownTimings90+6 consumer with fixed API/source oracle; no fight activation or sim/schema edits |
-| Network expert | Design-only full bot public Bow/Wand/projectile/immunity/NPC-continuity contract before any protocol15 implementation |
+| Lead | Reviewed main merges and exact composed CI; full client/account/results/banking, fair bot facts, cloud/regional/performance admission |
+| Unity/art chat |25-selector gate sealed; three static first-four asset contact sheets, source-inspected Editor helper; noPlay/fifth/audio/live binding |
+| UI chat | Actual baselinea3d Web14 profile/join/input/reconnect/HUD/drawer proof; retain failed attempts and correct only the scoped harness |
+| Server/durability chat | Full Arena/solo Training runtime packet sealed and independently released; next exact-base packet assigned by lead |
+| Network chat | Corrected public-facts source packet released; actual producer-consistent NPC visibility/continuity witness before P15 decisions |
+| DeepSeek lanes | Prior fixed-oracle quest/ownTimings packets sealed; next work stays bounded mechanical Rust/source consumers |
 
 Complete required bot facts are the chosen direction; Easy-only or reduced behavior will not satisfy the full port.
-DeepSeek remains scoped to mechanical Rust/source consumers. Prepared visual/audio imports stay isolated from live
-acceptance. No production deployment, new security/account scope or increased staging budget is authorized.
+P15/OBS22/policy16, draft byte budgets and opaque continuity are proposals only. Prepared visual/audio imports stay
+isolated from live acceptance. The old native frame1 failure remains explicit; baseline actual browser drawer screenshots
+now rasterize without cyan in inspected views, while attempt02 remains FAIL for harness issues. No production deployment,
+new security/account scope or increased staging budget is authorized.
 
 ## Ownership
 

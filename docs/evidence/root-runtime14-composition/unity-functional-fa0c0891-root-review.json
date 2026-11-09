@@ -1,0 +1,12 @@
+{
+  "reviewed_utc": "2026-11-09T08:11:44.934890+00:00",
+  "source": "fa0c0891f78e2fd4a65fb08d71d226d8a426e724",
+  "evidence_commit": "a10f81259207be1612577cb3eb7c680be80ea958",
+  "manifest_sha256": "d32666c933af1890695652a0456e4392a0a6f1849f5b32fc9713fad3f04298ea",
+  "payloads_verified": 29,
+  "frozen_project_git_blobs_verified": 1136,
+  "exact_unique_selectors": 25,
+  "all_actual_raw_results": "Passed",
+  "restoration_receipt": "all documented guards/states true, stopped; noPlay/noPNG",
+  "decision": "RELEASE exact25engine functional scope, not browser/rendered/fullgame acceptance"
+}

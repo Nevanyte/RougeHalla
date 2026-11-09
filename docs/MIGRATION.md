@@ -30,20 +30,34 @@ chain is admitted and the new source witnesses are wired into CI without changin
 Live bot reset streams0/1/2 now match source with independent Knowledge3. The exact135-frame farm/mirror consumer and
 native quest cases0/4 (including reached end closure and foreign-row privacy) are reviewed and integrated. The new
 [normal-fight/orb source witness](evidence/bot-fight/README.md) is source-only:16 tactics sequences/47 frames,6 orb
-sequences/20 frames and90 timing probes. The separately reviewed ownTimings helper now matches90 timing rows and6 nulls in three focused tests; it does not activate live fight. Native fight/Orb components are active work. Full reflexes require reviewed remote
+sequences/20 frames and90 timing probes. The separately reviewed ownTimings helper now matches90 timing rows and6 nulls in three focused tests; it does not activate live fight. The reviewed normal-fight/Orb and sudden-death retreat components now match their captured methods (including the additional8sequences/46SDframes); they do not activate live fight. Full reflexes require reviewed remote
 Bow/Wand cues, projectile course/identity and own immunity facts; stable NPC hunt memory needs an explicit public
 continuity contract. Root chose complete required fact publication, not a restricted bot subset as completion. Full
 strategy/reflex/perception/hunter/loot/learning/tournament-outcome acceptance remains open.
 
 The quest journal, trader dialog, ordered duplicate notice feed and delivered-only map markers passed all20 actual
-engine selectors at43e6d08d ([receipt](evidence/unity-player-flows-43e6d08d/editor-retake/README.md)). Earlier recovery2
+engine selectors at43e6d08d ([receipt](evidence/unity-player-flows-43e6d08d/editor-retake/README.md)). Planning quest review,
+current typed participant lookup and consistent focused-text hotkey guards now pass all25 exact engine selectors atfa0c0891
+([receipt](evidence/unity-functional-fa0c0891/editor-retake/README.md)). Earlier recovery2
 and binding4 passes keep their own exact scopes. Opening views does not spend or invent server rules. Same-session
 clock cuts and rebinds fence stale callbacks. BakedContent is generated from a real loopback server /info and now
-matches643d294869db55a4; a matching new Web build and actual browser/account/banking flows remain required.
+matches643d294869db55a4. An actual matchinga3d4b3ce baseline Web build succeeds (14files/106,765,469bytes); its later
+Unity changes are outside that artifact. The actual browser run reaches ordinary profile claim, join, movement, active
+HUD and same-seat resume with a rendered scrolling drawer. Its attempt02 remains failed for two harness observer/check
+issues; the correction/retry is separate. Complete browser/account/banking acceptance remains required.
 
-Visual acceptance is held: b4's player loop did not advance past frame1 and produced no PNG; that does not explain or
-clear f5's earlier real cyan drawer capture. See the [rendered proof contract](ui/DRAWER_PROOF_CONTEXT.md) and the retained
-readiness diagnosis. Prepared assets remain separate; audio sample-rate acceptance is unresolved. Durable Calgary
+Explicit protocol14 full-game endpoint admission is now reviewed: `--runtime source-arena --map <rh-map/2-export>`
+requires the validated source map and enables Source planning, all factions/Wish, quests, PvE, loot and terrain;
+`--runtime training` selects a separate solo/immediate practice endpoint without normal results/replay. No flag retains
+the previous core endpoint. The actual encoded-router tests include the captured160x160map reaching Active, quest
+acceptance and stat trade through public-coordinate navigation, and isolated Training/resume. See the
+[batch receipt](evidence/root-runtime14-composition/README.md) for exact source, scoped243passes and six overlapping
+postgres-feature memory-backed runtime passes. No database restart, hosted, long-match or browser full-game claim follows.
+
+The earlier native b4 player-loop frame1/noPNG failure remains held separately. The actuala3d browser screenshots now
+show the drawer rasterized without cyan in the inspected views; this does not turn its failed harness run into a pass.
+See the [rendered proof contract](ui/DRAWER_PROOF_CONTEXT.md). Prepared assets remain separate; audio sample-rate acceptance
+is unresolved. Durable Calgary
 hosting within the TOTAL CAD20 cap, regional tests and the matched legacy performance comparison remain open.
 Production play.roguehalla.com is unchanged; practice rougehalla.com is authorized. No60FPS goal/cap is introduced.
 

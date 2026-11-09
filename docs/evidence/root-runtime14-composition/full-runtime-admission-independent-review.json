@@ -1,0 +1,28 @@
+{
+  "decision": "RELEASE",
+  "scope": "bounded explicit server-runtime admission; coordinator integration only",
+  "base_sha": "a3d4b3ce575442c9a06916888035ca849a6cd05a",
+  "implementation_sha": "bc5399809eb2d5d53c3682e8bdb40de168f1cc2b",
+  "code_sha": "5ae618e600db489f7703399830ed0434320b4dd6",
+  "evidence_sha": "c030b7e0d269c1f551daf4f9a8af173e82caa50f",
+  "manifest_sha256": "7c00f01f9c22e1d0286cfec12a4bb04cce5eaa038658029b3f4d1d504d9cb73a",
+  "verified": {
+    "source_entries": 6,
+    "map_entries": 3,
+    "payload_entries": 14,
+    "checksum_entries": 15,
+    "raw_logs": 10,
+    "test_only_delta": true,
+    "evidence_only_delta": true,
+    "clean_author_checkout": true
+  },
+  "final_log_results": {
+    "default_focused_passed": 243,
+    "postgres_feature_memory_runtime_passed": 6,
+    "fmt": "PASS",
+    "strict_clippy_default": "PASS",
+    "strict_clippy_postgres": "PASS"
+  },
+  "reviewer_ran_builds": false,
+  "report_sha256": "8f9153a00059123a915c6689f8bf7271f9da3ba02a6a5e564f8cb1cae0b45126"
+}

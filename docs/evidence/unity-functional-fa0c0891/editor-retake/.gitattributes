@@ -1,0 +1,3 @@
+# Preserve the exact observed Unity YAML bytes and their raw patch.
+ShaderGraphSettings-as-tested.asset.txt whitespace=-blank-at-eol
+ShaderGraphSettings-overlay.patch whitespace=-blank-at-eol

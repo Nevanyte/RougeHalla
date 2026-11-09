@@ -1,0 +1,56 @@
+{
+  "format": "rh-root-runtime14-composition/1",
+  "status": "reviewed local composition; next exact CI pending",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 3408,
+      "sha256": "58730f631ccd0aae778aa02b0aba93b9392be7732a698d90dd6e5e17388ad9f3"
+    },
+    {
+      "path": "bot-fight-native-review.md",
+      "bytes": 9551,
+      "sha256": "2d2a3c30de9331a9f0f7f152b65041b086980cda1a831991f46fe8b3178c07a5"
+    },
+    {
+      "path": "bot-public-facts-source-correction-root-review.json",
+      "bytes": 954,
+      "sha256": "28c409b5b7526736fc3cc57c8f2884fb31e91e5e69997979e50fd0751527ef7d"
+    },
+    {
+      "path": "bot-public-facts-source-review.md",
+      "bytes": 10624,
+      "sha256": "41bfcad2e0d0106351b908f8a551fe5efa72cb2a6f75b36106cbffc095f0802d"
+    },
+    {
+      "path": "bot-sd-component-review.md",
+      "bytes": 5990,
+      "sha256": "d6bfc195c4f73147430f10e2f63dd44b1994ade30e7686b997b661ba5f8a78c5"
+    },
+    {
+      "path": "full-runtime-admission-independent-review.json",
+      "bytes": 1014,
+      "sha256": "4243666b8d980bbf245454c6b942a5606204634830603fbeb881aaa4cdeabd7e"
+    },
+    {
+      "path": "full-runtime-admission-independent-review.md",
+      "bytes": 6253,
+      "sha256": "8f9153a00059123a915c6689f8bf7271f9da3ba02a6a5e564f8cb1cae0b45126"
+    },
+    {
+      "path": "root-provenance-check.json",
+      "bytes": 2081,
+      "sha256": "eaa1e1e9209bcbc2a96f02f64df456760c4500fb895d3b5d4325fc2b3cff2a7d"
+    },
+    {
+      "path": "unity-functional-fa0c0891-root-review.json",
+      "bytes": 592,
+      "sha256": "3867a554e9600081049b8819db69d63a248fab2112c9656301dae38448115c01"
+    },
+    {
+      "path": "unity-ui-planning-quests-repair-review.md",
+      "bytes": 5667,
+      "sha256": "d820a8a7772973b080bb07c5a734067640c2013762dc504275cfe50c3ba0bca9"
+    }
+  ]
+}

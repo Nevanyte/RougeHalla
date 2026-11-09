@@ -1,0 +1,31 @@
+{
+  "reviewedUtc": "2026-11-09T08:12:41.615128+00:00",
+  "head": "197926e27747545934fb801e3df61ae7070905a2",
+  "fixtureBytes": 119213,
+  "fixtureSha": "0819c53f1eabbf875849cdc0d2be7479bde7013527d980fd38e0c4b20072f260",
+  "changedLeaves": [
+    [
+      "/profile/toolSha256/tools/bot-public-facts-fixtures/flight.mts",
+      "47f2ed801c0da8234ec4053febb9ef33b3d6797947ffd51dc8f5d21f945ceb94",
+      "1d5b203fdc68b3eb8342701a37eda338eda4c3f004e629352e36888818a2e6c4"
+    ],
+    [
+      "/flight/preReleaseSwapCueWitness/setup/declaredLoadout/watcher",
+      [
+        "bow"
+      ],
+      [
+        "",
+        ""
+      ]
+    ]
+  ],
+  "manifestSha": "0013ff2d96b02fdc92df147a45b2005e400304d251edba5663d59d8e742128f5",
+  "verifiedGroups": {
+    "sourceFiles": 2,
+    "profileFiles": 351,
+    "evidenceFiles": 7
+  },
+  "originalEvidenceUnchanged": 53,
+  "decision": "RELEASE corrected source/evidence only; no P15/privacy/bounds/identity or live approval"
+}
