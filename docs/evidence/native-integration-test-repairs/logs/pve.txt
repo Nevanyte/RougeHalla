@@ -1,0 +1,41 @@
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.27
+   Compiling libc v0.2.191
+   Compiling serde_core v1.0.229
+   Compiling cfg-if v1.0.5
+   Compiling parking_lot_core v0.9.12
+   Compiling zmij v1.0.23
+   Compiling memchr v2.8.3
+   Compiling syn v3.0.9
+   Compiling serde_json v1.0.154
+   Compiling adler2 v2.0.1
+   Compiling scopeguard v1.2.0
+   Compiling gimli v0.34.0
+   Compiling serde v1.0.229
+   Compiling smallvec v1.16.4
+   Compiling serde_derive v1.0.229
+   Compiling addr2line v0.27.1
+   Compiling lock_api v0.4.14
+   Compiling miniz_oxide v0.9.1
+   Compiling object v0.40.0
+   Compiling itoa v1.0.18
+   Compiling rustc-demangle v0.1.28
+   Compiling libm v0.2.16
+   Compiling parking_lot v0.12.5
+   Compiling rustc-hash v1.1.0
+   Compiling backtrace v0.3.77
+   Compiling thousands v0.2.0
+   Compiling mintex v0.1.4
+   Compiling lazy_static v1.5.1
+   Compiling dhat v0.3.3
+   Compiling ryu-js v1.0.3
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/native-integration-test-repairs/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 30.82s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/native-integration-test-repairs/target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 1 test
+test systems::signatures::pve_tests::basic_pve_mode_content_and_join_are_closed_before_mutation ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 759 filtered out; finished in 0.01s
+
