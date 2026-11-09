@@ -1,0 +1,17 @@
+{
+  "schema": "rh-owned-arena-disposal-seal-v1",
+  "generatedUtc": "2026-11-09T11:13:01.271620+00:00",
+  "code": "8ef97af964e598e970f1c04e058a99de63449543",
+  "sourceBaseActualFailure": "8cdbd77d4f3e1e002956b2f5c352eea53b12a42d",
+  "onePresentationLifecycleFileChanged": true,
+  "allMatchClientPartialDestroySitesAudited": 2,
+  "allLaunch17AndOld25SourceIdentical": true,
+  "compiledEditorGuardAndPlayerDeferredILVerified": true,
+  "knownSecretMatches": 0,
+  "privateFilesCopied": false,
+  "nativeRunsByAuthor": 0,
+  "editorAccessByAuthor": false,
+  "actual8cStatus": "FAIL 26passed/16failed",
+  "actualCorrective42": "UNRUN",
+  "requiredNextStep": "Root independent source review before any new actual engine gate"
+}
