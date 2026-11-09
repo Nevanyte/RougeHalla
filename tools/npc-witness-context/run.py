@@ -55,11 +55,10 @@ def capture_script(script):
     return (": >/tmp/empty-user-npmrc\n: >/tmp/empty-global-npmrc\n"
             "npm ci --ignore-scripts --no-audit --no-fund >/out/npm.log 2>&1 || exit 71\n"
             "test \"$(node -p 'process.version+\"/\"+process.platform+\"/\"+process.arch')\" = v22.23.4/linux/x64\n"
-            "printf source-started > /out/source-started\n"
-            f"node --import tsx {script} --write /out/actual.json\n")
+            f"/usr/bin/prlimit --fsize=134217728:134217728 -- /bin/sh -eu -c 'printf source-started > /out/source-started; exec node --import tsx {script} --write /out/actual.json'\n")
 
 def docker_args(repo, out, snapshot, image, name, script):
-    args = ["run", "--rm", "--pull=never", "--platform", "linux/amd64", "--name", name, "--label", f"rh.npc-context.owner={name}", "--cidfile", str(out / "container.cid"), "--read-only", "--cap-drop=ALL", "--security-opt=no-new-privileges:true", "--pids-limit=256", "--memory=2g", "--cpus=2", "--ulimit", "fsize=134217728:134217728"]  # Docker uses bytes: 128 * 1024 * 1024.
+    args = ["run", "--rm", "--pull=never", "--platform", "linux/amd64", "--name", name, "--label", f"rh.npc-context.owner={name}", "--cidfile", str(out / "container.cid"), "--read-only", "--cap-drop=ALL", "--security-opt=no-new-privileges:true", "--pids-limit=256", "--memory=2g", "--cpus=2"]  # File ceiling applies only to Source below; npm remains under the other bounds.
     for src, dst, readonly in [(repo, "/repo", True), (snapshot, "/repo/docs/CONTRACTS.md", True), (out, "/out", False)]:
         require("," not in str(src), "mount path contains comma")
         args += ["--mount", f"type=bind,src={src},dst={dst}" + (",readonly" if readonly else "")]

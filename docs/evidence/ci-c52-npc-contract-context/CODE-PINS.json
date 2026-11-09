@@ -19,19 +19,19 @@
     },
     {
       "path": "tools/npc-witness-context/run.py",
-      "bytes": 10463,
-      "sha256": "baa65858cd7dce87ab8d0d55768ce05a1da0af082f338a0c917c0129b7edc351"
+      "bytes": 10518,
+      "sha256": "5043164d4d60bf1ab54329afeb35648e0637606c9dc85fe056d381b03942141a"
     },
     {
       "path": "tools/npc-witness-context/tests.py",
-      "bytes": 6439,
-      "sha256": "b7ba8d975e95fad5b9e8ae9ad1b5614454e66bfa29b5e4725000cd9b96a22adc"
+      "bytes": 7277,
+      "sha256": "a051cbaaf8f9fcfc43c9e2e41d9004eacacadbfd400567664a179a9a2dfd284b"
     },
     {
       "path": "docs/evidence/ci-c52-npc-contract-context/FSIZE-BYTE-UNIT-REPAIR.md",
-      "bytes": 2144,
-      "sha256": "b3558d24ff1a85b815f726aef2bc39b0fd2a0f88b658c0b1d7638db9e5426592"
+      "bytes": 4737,
+      "sha256": "4d4204e38270d56130da0c2ee688ffc517013ca69850d4091aff69ce808977b7"
     }
   ],
-  "performed": "Static text/Git/hash/inventory checks plus one offline synthetic Python unittest run: 7 PASS; no Docker/npm/Node/Source/World execution in this repair."
+  "performed": "Static checks plus two sequential offline synthetic unittest invocations, 7 PASS each; first proves byte-unit repair, second proves Source-only prlimit ordering; no actual Docker/npm/Node/Source/World execution by this author."
 }

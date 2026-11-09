@@ -2,6 +2,7 @@
 import json
 from pathlib import Path
 import runpy
+import shlex
 import tempfile
 import unittest
 
@@ -76,7 +77,7 @@ class ContextControls(unittest.TestCase):
             self.assertIn("--ignore-scripts", command)
             self.assertIn("/out/npm.log", command)
 
-    def test_byte_unit_file_limit_fits_both_unchanged_actual_oracles(self):
+    def test_source_only_file_limit_fits_oracles_after_npm(self):
         m = json.loads((HERE / "context.json").read_text())
         repo = HERE.parent.parent
         for name, w in m["witnesses"].items():
@@ -84,15 +85,26 @@ class ContextControls(unittest.TestCase):
                 oracle_bytes = (repo / w["oracle"]["path"]).stat().st_size
                 self.assertEqual(oracle_bytes, w["oracle"]["bytes"])
                 args = API["docker_args"](Path("/repo-source"), Path("/fresh"), Path("/historical.md"), m["image"], "owned", w["script"])
-                limits = [value for option, value in zip(args, args[1:]) if option == "--ulimit"]
-                self.assertEqual(len(limits), 1)
-                resource, values = limits[0].split("=", 1)
-                self.assertEqual(resource, "fsize")
+                self.assertNotIn("--ulimit", args, "npm must not inherit the Source file ceiling")
+                lines = args[-1].splitlines()
+                limit_lines = [line for line in lines if line.startswith("/usr/bin/prlimit ")]
+                self.assertEqual(len(limit_lines), 1)
+                limited = shlex.split(limit_lines[0])
+                self.assertEqual(limited[:1], ["/usr/bin/prlimit"])
+                resource, values = limited[1].split("=", 1)
+                self.assertEqual(resource, "--fsize")
                 soft_bytes, hard_bytes = map(int, values.split(":"))
                 self.assertEqual((soft_bytes, hard_bytes), (128 * 1024 * 1024,) * 2)
                 self.assertGreaterEqual(soft_bytes, oracle_bytes)
                 self.assertGreaterEqual(hard_bytes, oracle_bytes)
-                self.assertLess(131072, oracle_bytes, "old 128 KiB defect must fail this real-size control")
+                self.assertLess(131072, oracle_bytes)
+                self.assertEqual(limited[2:6], ["--", "/bin/sh", "-eu", "-c"])
+                self.assertEqual(limited[6:], [f"printf source-started > /out/source-started; exec node --import tsx {w['script']} --write /out/actual.json"])
+                self.assertTrue(lines[2].startswith("npm ci "))
+                self.assertIn("|| exit 71", lines[2])
+                self.assertLess(2, lines.index(limit_lines[0]), "locked npm must finish before prlimit")
+                self.assertEqual(args[-1].count("printf source-started"), 1)
+                self.assertEqual(args[-1].count("--write /out/actual.json"), 1)
 
     def test_cleanup_never_stops_unowned_container(self):
         class Result:
