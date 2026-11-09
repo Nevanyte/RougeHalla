@@ -1,8 +1,7 @@
 //! Source `server/src/sim/traders.ts`: the trader world actors (spawn at the raid start, wander between the installation
 //! destinations), the stat-offer roll on a nearby broker, and the trade action with the source's check order and effects.
 //!
-//! The source toast lines are presentation (coordinator-owned transport), so a refusal is observably a no-op state change
-//! here; the capture corpus compares the state effects, not the wording.
+//! Source feedback is emitted owner-only; public transport admission remains coordinator-owned.
 use super::{barter_weapons, roll_stat_trades, Kind, Trader, Traders};
 use crate::constants::*;
 use crate::input::ActionCmd;
@@ -13,7 +12,7 @@ use crate::systems::Cx;
 
 /// The live-content switch the traders ride on (the same family as the quests/live modules): the source installs traders
 /// for every non-training world, which matches the capture worlds; pure combat corpora keep their recorded reward streams.
-fn enabled(k: &MatchStatic) -> bool {
+pub(super) fn enabled(k: &MatchStatic) -> bool {
     crate::schedule::Gates::of(k).quests && !crate::schedule::Gates::of(k).training
 }
 
@@ -215,7 +214,7 @@ fn slot_item(p: &crate::state::Player, slot: u8) -> Option<crate::content::Weapo
     }
 }
 
-/// Source `handleTrade`: the action's check order and effects; the presentation toasts are transport-owned.
+/// Source `handleTrade`: the action's check order, effects and owner-only feedback.
 pub(crate) fn handle_trade(cx: &mut Cx, ix: crate::fighter::FighterIx, cmd: &ActionCmd) {
     let ActionCmd::Trade { trader, pick } = *cmd else {
         return;
@@ -248,6 +247,7 @@ pub(crate) fn handle_trade(cx: &mut Cx, ix: crate::fighter::FighterIx, cmd: &Act
             crate::map::MASK_MOVE,
         )
     {
+        super::notices::notify(cx.ev, id, "Move closer to the trader");
         return;
     }
     if !(0..=2).contains(&pick) {
@@ -257,6 +257,7 @@ pub(crate) fn handle_trade(cx: &mut Cx, ix: crate::fighter::FighterIx, cmd: &Act
     let now = cx.w.server_time;
     if kind == Kind::Stats {
         if cx.w.players[ix.slot()].trade_used {
+            super::notices::notify(cx.ev, id, "You already made your stat trade this run");
             return;
         }
         let Some(offer) = cx.w.players[ix.slot()]
@@ -264,6 +265,7 @@ pub(crate) fn handle_trade(cx: &mut Cx, ix: crate::fighter::FighterIx, cmd: &Act
             .get(pick as usize)
             .cloned()
         else {
+            super::notices::notify(cx.ev, id, "Wait for the trader's offers");
             return;
         };
         let p = &mut cx.w.players[ix.slot()];
@@ -275,6 +277,7 @@ pub(crate) fn handle_trade(cx: &mut Cx, ix: crate::fighter::FighterIx, cmd: &Act
         crate::modifiers::sync_max_hp(&mut cx.w.players[ix.slot()]);
         let p = &mut cx.w.players[ix.slot()];
         p.vitals.hp = hp_before.min(p.vitals.max_hp);
+        super::notices::notify(cx.ev, id, format!("Stat trade: {}", offer.label));
         return;
     }
     // The barter villager.
@@ -289,6 +292,7 @@ pub(crate) fn handle_trade(cx: &mut Cx, ix: crate::fighter::FighterIx, cmd: &Act
             })
             .unwrap_or(0.);
     if now < ready_at {
+        super::notices::notify(cx.ev, id, "The villager is packing your last trade");
         return;
     }
     let held = slot_item(
@@ -299,9 +303,11 @@ pub(crate) fn handle_trade(cx: &mut Cx, ix: crate::fighter::FighterIx, cmd: &Act
     if pick == 2 {
         let p = &mut cx.w.players[ix.slot()];
         if p.potion_small < 1 {
+            super::notices::notify(cx.ev, id, "Bring a small healing potion");
             return;
         }
         if held == Some(second) {
+            super::notices::notify(cx.ev, id, "You already hold that weapon");
             return;
         }
         // Source traders.ts:87: the second slot is only a target while the folded `lockSecondSlot` flag is off. The
@@ -321,6 +327,7 @@ pub(crate) fn handle_trade(cx: &mut Cx, ix: crate::fighter::FighterIx, cmd: &Act
             None
         };
         let Some(empty) = empty else {
+            super::notices::notify(cx.ev, id, "Make an empty weapon slot first");
             return;
         };
         p.potion_small -= 1;
@@ -334,14 +341,17 @@ pub(crate) fn handle_trade(cx: &mut Cx, ix: crate::fighter::FighterIx, cmd: &Act
         }
     } else {
         let Some(held) = held else {
+            super::notices::notify(cx.ev, id, "Hold a weapon to trade");
             return;
         };
         if held == crate::content::WeaponId::Fists {
+            super::notices::notify(cx.ev, id, "Hold a weapon to trade");
             return;
         }
         if pick == 1
             && !crate::systems::potions::grant(cx.w, cx.ev, id, crate::potions::Size::Small)
         {
+            super::notices::notify(cx.ev, id, "Your small potion pouch is full");
             return;
         }
         let p = &mut cx.w.players[ix.slot()];
@@ -360,6 +370,18 @@ pub(crate) fn handle_trade(cx: &mut Cx, ix: crate::fighter::FighterIx, cmd: &Act
         }
     }
     let _ = at;
+    super::notices::notify(
+        cx.ev,
+        id,
+        if pick == 1 {
+            "Traded weapon for a small healing potion".to_owned()
+        } else {
+            format!(
+                "Traded for {}",
+                super::weapon_name(if pick == 0 { first } else { second })
+            )
+        },
+    );
 }
 
 fn add_trade_stat(p: &mut crate::state::Player, stat: super::Stat, delta: f64) {

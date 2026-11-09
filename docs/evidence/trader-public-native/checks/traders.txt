@@ -1,0 +1,15 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/trader-public-native/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 25.26s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/trader-public-native/target/debug/deps/rh_sim-0ad75f2b040c28b6)
+
+running 8 tests
+test traders::tests::the_trade_message_round_trips_and_rejects_out_of_range_picks ... ok
+test traders::tests::the_barter_cycle_follows_the_held_weapon_counter_cycle ... ok
+test traders::tests::a_rolled_stat_trade_costs_one_positive_rolled_stat ... ok
+test traders::view_tests::owner_quotes_are_read_only_private_stable_and_not_rolled_by_observation ... ok
+test traders::tests::the_committed_flag_refuses_the_second_weapon_barter ... ok
+test traders::view_tests::trade_permits_owning_bot_and_rejects_committed_barter_without_spend ... ok
+test traders::tests::the_captured_trader_lifecycle_replays_through_the_input_door ... ok
+test traders::view_tests::source_public::all_seventeen_captured_trade_actions_keep_exact_feedback_and_owner_outcomes ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 766 filtered out; finished in 9.70s

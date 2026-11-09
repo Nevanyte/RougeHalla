@@ -88,6 +88,7 @@ pub enum OfferError {
     TooManyActors,
     Rewards(crate::reward_chests::OfferError),
     Quests(crate::quest_view::Error),
+    Trades(crate::traders::ViewError),
     FxProjection(crate::FxError),
     TooManyProps,
     PositionOutOfRange,
@@ -527,6 +528,10 @@ impl ItemObserver {
     /// Return exactly the command to submit and record, including a normal budgeted miss for an absent,
     /// expired or now-invisible target. A handle cannot resolve outside this viewer's bindings.
     pub fn resolve(&self, sim: &Sim, proposal: PublicCommand) -> Result<Command, Reject> {
+        // Fixed catalog merchants do not mint or consume actor/item/quest handles.
+        if matches!(proposal, PublicCommand::Trade { .. }) {
+            return proposal.resolve(|_| None, |_| false);
+        }
         if let PublicCommand::QuestAccept { handle } = proposal {
             return Ok(self.quests.resolve_accept(sim, handle));
         }
