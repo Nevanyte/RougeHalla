@@ -1,0 +1,7 @@
+{
+  "path": "Program-candidate01.cs.gz",
+  "format": "lossless gzip",
+  "rawBytes": 20118,
+  "rawSha256": "bb6d44dec0e797b3c33289a35b078bc8d895274f753cc278245471ce4c2fdebf",
+  "reason": "Keep archived top-level statements outside current SDK default Compile glob; decompress separately to reproduce candidate1."
+}

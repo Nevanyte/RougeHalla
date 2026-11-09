@@ -1,0 +1,23 @@
+{
+  "schema": "roguehalla-owned-seat-resume-metadata-audit/1",
+  "sourceSha": "fe698d21f65d4e835018044f4f5a221555ceab7e",
+  "compiledArtifactsOnly": true,
+  "testBodiesInvoked": false,
+  "unityApisInvoked": false,
+  "prior90TypedSelectorsPreserved": true,
+  "newResumeSelectorCount": 6,
+  "unionCount": 96,
+  "ilAuditPassed": true,
+  "union": {
+    "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-owned-seat-resume-2026-11-09/metadata/output/final/typed-fixture-contract.json",
+    "sha256": "1f89b3ed14a6c9786d104aa19c5f812da46f2509d8a55321d77a9b7e512778cf"
+  },
+  "il": {
+    "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-owned-seat-resume-2026-11-09/metadata/output/final/resume-il-audit.json",
+    "sha256": "efaece80c5a62bfe52a43c6eb2231f641360a463b556e0e9896c9cc4d4be6fae"
+  },
+  "sourcePins": {
+    "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-owned-seat-resume-2026-11-09/metadata/output/final/source-input-pins.json",
+    "sha256": "be44a85bb396d74fc1e60a02826d69208bcac77850f83eb3a168c3a7445ed9eb"
+  }
+}

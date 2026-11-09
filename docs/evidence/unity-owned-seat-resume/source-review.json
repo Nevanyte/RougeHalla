@@ -1,0 +1,22 @@
+{
+  "candidate1": "fe698d21f65d4e835018044f4f5a221555ceab7e",
+  "finalSource": "4dd410d3c33812653c8ebfbdd754f699f75cc72f",
+  "findings": [
+    {
+      "finding": "Chooser displayed enabled actions for a typed callsign different from the loaded owner; runtime already refused before HTTP.",
+      "fix": "Both action callback and eligibility now require normalized-name equality; new native chooser/input case covers the UI."
+    },
+    {
+      "finding": "After callback-capable storage clear, an old unconditional Leave could race a replacement resume of the same seat.",
+      "fix": "Capture retirement generation; after storage returns detach the captured old session when generation changed/native owner retired. Real reentrant-clear test verifies newer record and replacement Hello without old Leave."
+    }
+  ],
+  "followup": "Read-only review confirmed both fixed at56523c6f. Keyboard cleanup is in scoped nested finally; its post-cleanup equality is not asserted inside the test. Actual baseline/Frozen4 restoration remains a required external native check.",
+  "nativeTestsExecuted": 0,
+  "productionSourceFrozenAt": "56523c6f4aa372eb5aa2b0850911c2ae0a8295f0",
+  "rootWordingFinding": {
+    "sourceReviewed": "56523c6f4aa372eb5aa2b0850911c2ae0a8295f0",
+    "correction": "4dd410d3c33812653c8ebfbdd754f699f75cc72f",
+    "details": "Two newly added string assertions still expected older checkpoint wording. Root authorized matching actual saved-run-details copy; every other assertion and production byte remained. No native test had run."
+  }
+}
