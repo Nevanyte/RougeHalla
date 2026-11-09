@@ -1,4 +1,4 @@
-"""Offline synthetic controls only; no Source, Docker, npm or subprocess invocation. UNRUN."""
+"""Offline synthetic controls only; no Source, Docker, npm or subprocess invocation."""
 import json
 from pathlib import Path
 import runpy
@@ -75,6 +75,24 @@ class ContextControls(unittest.TestCase):
             self.assertNotIn("/dev/null", command)
             self.assertIn("--ignore-scripts", command)
             self.assertIn("/out/npm.log", command)
+
+    def test_byte_unit_file_limit_fits_both_unchanged_actual_oracles(self):
+        m = json.loads((HERE / "context.json").read_text())
+        repo = HERE.parent.parent
+        for name, w in m["witnesses"].items():
+            with self.subTest(witness=name):
+                oracle_bytes = (repo / w["oracle"]["path"]).stat().st_size
+                self.assertEqual(oracle_bytes, w["oracle"]["bytes"])
+                args = API["docker_args"](Path("/repo-source"), Path("/fresh"), Path("/historical.md"), m["image"], "owned", w["script"])
+                limits = [value for option, value in zip(args, args[1:]) if option == "--ulimit"]
+                self.assertEqual(len(limits), 1)
+                resource, values = limits[0].split("=", 1)
+                self.assertEqual(resource, "fsize")
+                soft_bytes, hard_bytes = map(int, values.split(":"))
+                self.assertEqual((soft_bytes, hard_bytes), (128 * 1024 * 1024,) * 2)
+                self.assertGreaterEqual(soft_bytes, oracle_bytes)
+                self.assertGreaterEqual(hard_bytes, oracle_bytes)
+                self.assertLess(131072, oracle_bytes, "old 128 KiB defect must fail this real-size control")
 
     def test_cleanup_never_stops_unowned_container(self):
         class Result:

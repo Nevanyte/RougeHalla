@@ -1,6 +1,6 @@
 {
   "format": "npc-historical-context-preparation-pins/1",
-  "status": "CODE_ONLY_UNPARSED_UNRUN",
+  "status": "CODE_PREPARATION_ONLY_SYNTHETIC_7_PASS_SOURCE_UNRUN",
   "files": [
     {
       "path": "docs/evidence/ci-c52-npc-contract-context/README.md",
@@ -19,14 +19,19 @@
     },
     {
       "path": "tools/npc-witness-context/run.py",
-      "bytes": 10416,
-      "sha256": "6109cdf476024a37cf2b464a663398d6aa54b5122b797c46822aeae55ef797ae"
+      "bytes": 10463,
+      "sha256": "baa65858cd7dce87ab8d0d55768ce05a1da0af082f338a0c917c0129b7edc351"
     },
     {
       "path": "tools/npc-witness-context/tests.py",
-      "bytes": 5248,
-      "sha256": "417dbf3e52bec5d677708e6c5f7b9d2b7ea2fa9e9c9b86f645e28fe38a10f5e0"
+      "bytes": 6439,
+      "sha256": "b7ba8d975e95fad5b9e8ae9ad1b5614454e66bfa29b5e4725000cd9b96a22adc"
+    },
+    {
+      "path": "docs/evidence/ci-c52-npc-contract-context/FSIZE-BYTE-UNIT-REPAIR.md",
+      "bytes": 2144,
+      "sha256": "b3558d24ff1a85b815f726aef2bc39b0fd2a0f88b658c0b1d7638db9e5426592"
     }
   ],
-  "performed": "Read-only source/Git/hash/inventory and static text checks; no new wrapper/test/Node/import/compiler/npm/Docker/Source execution."
+  "performed": "Static text/Git/hash/inventory checks plus one offline synthetic Python unittest run: 7 PASS; no Docker/npm/Node/Source/World execution in this repair."
 }
