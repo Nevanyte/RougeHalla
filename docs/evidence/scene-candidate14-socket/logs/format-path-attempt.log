@@ -1,0 +1,4 @@
+Command: rustfmt --edition 2021 <four new Rust source files>
+Exit: 127
+zsh:1: command not found: rustfmt
+Classification: formatter PATH failure; no Cargo/build/test/socket invocation.

@@ -1,0 +1,267 @@
+{
+  "format": "rh-scene-candidate14-manifest/1",
+  "base": "986f44dfd9a61eb769700adc476fc8b9e9aa8011",
+  "sourceCommit": "1b7bd441abdb883db104d10dbed97a377f955d9a",
+  "sourceTree": "9f915760520cfd3676a17bdd3061579830a3b680",
+  "sourceAndProtectedFiles": [
+    {
+      "path": "client-unity/RoguehallaNet.Tests/SceneCandidateTests.cs",
+      "bytes": 7890,
+      "sha256": "eed0fc4796f59c404b31ad4a5e64f5eceebb88e4a11d927c66466e4aecdf964a"
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Protocol/SceneCandidate.cs",
+      "bytes": 10690,
+      "sha256": "17cdfb057bc3628b0367e07dbd1caffc64e33742b50234f9a2946a85b1a329d0"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/SceneCandidate.cs",
+      "bytes": 10690,
+      "sha256": "17cdfb057bc3628b0367e07dbd1caffc64e33742b50234f9a2946a85b1a329d0"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/SceneCandidate.cs.meta",
+      "bytes": 60,
+      "sha256": "38f2cb773938e3c1ddc3a9a50e57e544f7819437e97aee76de2001393dd96421"
+    },
+    {
+      "path": "crates/rh-protocol/src/lib.rs",
+      "bytes": 66060,
+      "sha256": "d1258e9c3bd9911a32d0cbdce375c2a0a9ca8f3d792a8b368e382833cc3e896c"
+    },
+    {
+      "path": "crates/rh-protocol/src/scene_candidate/mod.rs",
+      "bytes": 18814,
+      "sha256": "ef49e09665008dce37b6d75f071aef31db1e16fbbc776041e385ec88eba825f9"
+    },
+    {
+      "path": "crates/rh-protocol/src/scene_candidate/tests.rs",
+      "bytes": 8317,
+      "sha256": "3d6d4f400bf040cc8ae352439f862f822a7e6ba530d749d090410470862e8676"
+    },
+    {
+      "path": "crates/rh-server/src/outbox.rs",
+      "bytes": 26913,
+      "sha256": "4d0c697258a8a63b7ab69ad61ea8ec365840a8ab075430c5673d3386b91cdfdd"
+    },
+    {
+      "path": "crates/rh-server/src/outbox/scene_candidate.rs",
+      "bytes": 17654,
+      "sha256": "afaf6f9a7fe8a71ad76a2d604462b0b7208c485b256970e5921848e7e8db16cd"
+    },
+    {
+      "path": "crates/rh-server/src/outbox/scene_candidate/fixture.rs",
+      "bytes": 14488,
+      "sha256": "5045e3960027e04503317c365115e1e76d7245073360d1abeb61b93a7f580270"
+    },
+    {
+      "path": "crates/rh-server/src/outbox/scene_candidate/tests.rs",
+      "bytes": 16838,
+      "sha256": "c6ee9abdeefd6b011242ad163fd6644a1e3d6750e9efc92bfd6b758435d19f8c"
+    },
+    {
+      "path": "protocol/fixtures/scene-candidate/full14.json",
+      "bytes": 22728,
+      "sha256": "1cc549e75815b5942d5cdfc86b51176d6d14bf43023da2cbf028b5347e6bc2b5"
+    },
+    {
+      "path": "tools/scene-candidate/check.mjs",
+      "bytes": 5254,
+      "sha256": "9a0dd186c47e811819ccfea68d49a31f441c7a7b4a19c323e1467b8effa6bcdf"
+    },
+    {
+      "path": "tools/scene-candidate/scene-candidate.mjs",
+      "bytes": 8256,
+      "sha256": "e9c0700398fdd20eb565980267975dad39d98a4fa388e4c577db69b5082f69de"
+    },
+    {
+      "path": "protocol/fixtures/v14.json",
+      "bytes": 1647863,
+      "sha256": "9012167a320419d04d62aa340276d7fbc5181a60ea818554f278a62d26b1b336",
+      "unchangedFromBase": true
+    },
+    {
+      "path": "crates/rh-server/web/probe.html",
+      "bytes": 67301,
+      "sha256": "b6ef4b4b12aa2e1844c823a11ee18ef1cdd7f062942cd207e5207cd356d38dd7",
+      "unchangedFromBase": true
+    },
+    {
+      "path": "crates/rh-server/src/room.rs",
+      "bytes": 147303,
+      "sha256": "5745183f9560f0388233e97f25fc897b6df3e37c11e0ce186ab80e8392c34fea",
+      "unchangedFromBase": true
+    },
+    {
+      "path": "crates/rh-server/src/conn.rs",
+      "bytes": 45618,
+      "sha256": "1729bd99cb30feaebaea80a9e2a5137145dbfa2cbb6a7aa236ecde4245a5b9eb",
+      "unchangedFromBase": true
+    },
+    {
+      "path": "Cargo.lock",
+      "bytes": 66555,
+      "sha256": "b14507716b80f1c0b85f7298b380b3c9146917134d9361c1bb408062782c0b22",
+      "unchangedFromBase": true
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Protocol/Codec.cs",
+      "bytes": 13034,
+      "sha256": "d6977f013d6ebd97d775ae0ffd386f59cfc5eaa6e1cf069ebaaf54109c814370",
+      "unchangedFromBase": true
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Protocol/Messages.cs",
+      "bytes": 97060,
+      "sha256": "ad35b76a1e22a31d1388f412d00d2097b4cf789aa130d63b20749d0def4a68ad",
+      "unchangedFromBase": true
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Protocol/State.cs",
+      "bytes": 52759,
+      "sha256": "440ee19df31c8fd30d4bfe963f8c2f10aebed10f8498de456dbaff0a590828f3",
+      "unchangedFromBase": true
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Protocol/SnapshotTracker.cs",
+      "bytes": 12455,
+      "sha256": "c1079909aba35def0451f2afd5020652f257620f1ab1d2bc39c874d606be2c00",
+      "unchangedFromBase": true
+    },
+    {
+      "path": "docs/MIGRATION.md",
+      "bytes": 141690,
+      "sha256": "6823d61307e02a938ac57cb158f54311a6075eee792fb82b83017fa70de440df",
+      "unchangedFromBase": true
+    },
+    {
+      "path": "docs/CONTRACTS.md",
+      "bytes": 87296,
+      "sha256": "2c9e0b9b562752ec907fe8ffa0e67986e6f6005a11c744f657fd67863de6e7cd",
+      "unchangedFromBase": true
+    }
+  ],
+  "evidenceFiles": [
+    {
+      "path": "docs/evidence/scene-candidate14/README.md",
+      "bytes": 8022,
+      "sha256": "7db4e7cf86c46c250bf6f7c0f0eebe15ccda36e8d9dd01f0abc4153197b02d22"
+    },
+    {
+      "path": "docs/evidence/scene-candidate14/logs/clippy-attempt01.log",
+      "bytes": 3455,
+      "sha256": "9d0ae29e72034a882a10c415cb9c854631b31c1cb8c3e13b25695433863c5a68"
+    },
+    {
+      "path": "docs/evidence/scene-candidate14/logs/clippy-final.log",
+      "bytes": 184,
+      "sha256": "9f728ac6be403d30785d42692f7cb07f835593afb2f7265fe93c01a9c5801585"
+    },
+    {
+      "path": "docs/evidence/scene-candidate14/logs/clippy-tests-attempt01.log",
+      "bytes": 3705,
+      "sha256": "dd8252040a8bac22bf047187cd99893c2a0bdf3bde70f9c75cbe3c88045962b5"
+    },
+    {
+      "path": "docs/evidence/scene-candidate14/logs/clippy-tests-attempt02.log",
+      "bytes": 312,
+      "sha256": "07ef7ca7ecb7568481e635975645224b481367725c412dce1ea9d593c0e5df99"
+    },
+    {
+      "path": "docs/evidence/scene-candidate14/logs/csharp-attempt01.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/evidence/scene-candidate14/logs/csharp-attempt02.log",
+      "bytes": 2714,
+      "sha256": "df81def62b08c461d60ab55662bf92b7d7091703d61e898e6fbd148c72517d6e"
+    },
+    {
+      "path": "docs/evidence/scene-candidate14/logs/csharp-attempt03.log",
+      "bytes": 952,
+      "sha256": "96674f767ae7d6fdb307ad046f49ef80975fe84875702ef95dddc8940b6ddebd"
+    },
+    {
+      "path": "docs/evidence/scene-candidate14/logs/csharp-final.log",
+      "bytes": 952,
+      "sha256": "e067e8f7ea36f919d5aa6263f69d2302b648bffb4b9a8e0f00136aee42e184a5"
+    },
+    {
+      "path": "docs/evidence/scene-candidate14/logs/fixture-attempt01.log",
+      "bytes": 979,
+      "sha256": "b21f3ce226c26bd4215ae5775cc56295d072f7529a4a207dba6b6125baace376"
+    },
+    {
+      "path": "docs/evidence/scene-candidate14/logs/fixture-attempt02.log",
+      "bytes": 1189,
+      "sha256": "5b978505f4a2e414e2fd0f3bdd0b2b30a7f0a09d49933bf89557627180f4f1d0"
+    },
+    {
+      "path": "docs/evidence/scene-candidate14/logs/fixture-attempt03.log",
+      "bytes": 440,
+      "sha256": "2ec4ad4e3571c1822f853d173af2bc74927a14c37037e63bdbb8c453810341b1"
+    },
+    {
+      "path": "docs/evidence/scene-candidate14/logs/fixture-bytecheck.log",
+      "bytes": 539,
+      "sha256": "fd62fdda032194989faa26635a20198956791e2be84b55bfc0e5794505474b29"
+    },
+    {
+      "path": "docs/evidence/scene-candidate14/logs/fmt-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/evidence/scene-candidate14/logs/js-attempt01.log",
+      "bytes": 232,
+      "sha256": "3372b945958075ce2f919f92f02401224991ff4eff30ceb22bbb1837e8e7a5a8"
+    },
+    {
+      "path": "docs/evidence/scene-candidate14/logs/js-attempt02.log",
+      "bytes": 232,
+      "sha256": "6eb4f8f2c05656fb9aae7d6033f84c8736ee4f63ff49d7bbadb1c3c38b589b16"
+    },
+    {
+      "path": "docs/evidence/scene-candidate14/logs/js-final.log",
+      "bytes": 239,
+      "sha256": "11f2dcd1c72835f9539ee7ad0c0c854283436519fe711131e20dd2ac8d8a23f8"
+    },
+    {
+      "path": "docs/evidence/scene-candidate14/logs/protocol-attempt02.log",
+      "bytes": 925,
+      "sha256": "dd939e045bc6dddd2d26742f620a5aea5eaaaf3830cd1e878f08f58258896955"
+    },
+    {
+      "path": "docs/evidence/scene-candidate14/logs/protocol-final.log",
+      "bytes": 1016,
+      "sha256": "0dff33d561217f631c785922d0445aa815d7076000d367b6bd0f5e3771a4fc2a"
+    },
+    {
+      "path": "docs/evidence/scene-candidate14/logs/server-attempt01.log",
+      "bytes": 10582,
+      "sha256": "79ec654c8535c7c5b2c6f8d5aa35600d8e21efafcf353d976ff79d4289a6e611"
+    },
+    {
+      "path": "docs/evidence/scene-candidate14/logs/server-attempt02.log",
+      "bytes": 1372,
+      "sha256": "d4c8e9635b7a98840b6af800fc1bbd6040fbfe12e0e5e1c43128b9ef72fda340"
+    },
+    {
+      "path": "docs/evidence/scene-candidate14/logs/server-attempt03.log",
+      "bytes": 1665,
+      "sha256": "0d816ae32988f5e6fb06f2d8a25ac039d6965ee9f9cf981f88a39d81f70444f2"
+    },
+    {
+      "path": "docs/evidence/scene-candidate14/logs/server-final.log",
+      "bytes": 1396,
+      "sha256": "b5311a08fad6322fbee6ffd9e2651f980d1c8a7992457b358044e57476252649"
+    },
+    {
+      "path": "docs/evidence/scene-candidate14/receipt.json",
+      "bytes": 4513,
+      "sha256": "9526f0a5f1dead49b10685da86504d24633cdb4d726d8ec257cb9aeb1419d0f1"
+    }
+  ],
+  "boundary": "Private unactivated Full current14 cut only; Root reviews before merge/activation. Manifest excludes itself; evidence child commit seals it."
+}

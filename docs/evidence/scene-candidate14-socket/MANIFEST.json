@@ -1,0 +1,98 @@
+{
+ "format": "rh-scene-candidate14-socket-source-ready/1",
+ "status": "UNCOMPILED; TESTS WRITTEN NOT RUN; NOT COMPONENT/MAIN/LIVE ADMISSION",
+ "base": "2397aeab294717b8ec6e6495e985c63186028352",
+ "branch": "codex/scene-candidate14-socket",
+ "designManifestSha256": "2d8995d3a2f3d2655cd8c012684f8d99e902059133223d0ef6d64f4432fa95c4",
+ "authorization": "Root authorized new socket leaf/focused tests/module declaration; separately authorized exact private borrowed-completion extraction. Builds/new target/socket runs remain prohibited until an existing cache is leased.",
+ "parent": {
+  "path": "crates/rh-server/src/outbox/scene_candidate.rs",
+  "baseSha256": "afaf6f9a7fe8a71ad76a2d604462b0b7208c485b256970e5921848e7e8db16cd",
+  "sourceReadySha256": "119ebab4ac95dc7bce9f2709c1376ea025de8b205c75ba0f22a076631198d54d",
+  "addedLines": 5,
+  "oldCompletionBodyEqualsBorrowedBody": true,
+  "completionBodySha256": "3caf52882aa4390287768912011d9143710ee8c36ea1cc9f10fe19f27ff6e278",
+  "onlyExactAuthorizedAdditions": true
+ },
+ "source": {
+  "crates/rh-server/src/outbox/scene_candidate/socket.rs": {
+   "bytes": 25836,
+   "sha256": "ae273e6a46658629c17a1b7e7dca87b9c159612f9acc6443ace9657335cc1402"
+  },
+  "crates/rh-server/src/outbox/scene_candidate/socket/tests.rs": {
+   "bytes": 42353,
+   "sha256": "173ab6a9f1907850a969ece8e6e6b6271f0eba08befe103619d21aa934f5120d"
+  },
+  "crates/rh-server/src/outbox/scene_candidate/socket/tests/ownership.rs": {
+   "bytes": 16006,
+   "sha256": "27b75f7811b91c9c02af257ff78f8a1ddaa5f5283f6a630cbd8ed07c2762f63a"
+  },
+  "crates/rh-server/src/outbox/scene_candidate/socket/tests/poll_faults.rs": {
+   "bytes": 13958,
+   "sha256": "4cdc97477955ccc9cdef0d4dd698e3f407e91f1cbb8a08e957b23e9343d98f6b"
+  }
+ },
+ "protectedBaseSha256": {
+  "Cargo.toml": "324339553924942eb5c8f034e73b8269735a07a4223a783f3cc3805beb220855",
+  "Cargo.lock": "b14507716b80f1c0b85f7298b380b3c9146917134d9361c1bb408062782c0b22",
+  "crates/rh-server/Cargo.toml": "445564e74182eeb37b231046ec762b35b7cd3a3bea2850e0829ea131f4b806cb",
+  "crates/rh-server/src/conn.rs": "1729bd99cb30feaebaea80a9e2a5137145dbfa2cbb6a7aa236ecde4245a5b9eb",
+  "crates/rh-server/src/lib.rs": "99c418d44a860ee2640fe2d9c972c2c555f0692bd5cd8a7b372f62f9c0276975",
+  "crates/rh-server/src/outbox.rs": "4d0c697258a8a63b7ab69ad61ea8ec365840a8ab075430c5673d3386b91cdfdd",
+  "crates/rh-server/src/room.rs": "5745183f9560f0388233e97f25fc897b6df3e37c11e0ce186ab80e8392c34fea",
+  "crates/rh-server/src/wire.rs": "6ac0cefe792fa4a2f3490379973921a8a701d08b9b534c67757a95397f23a003",
+  "crates/rh-server/src/wire_state.rs": "09129ee7363bce3d87faee6e79e6b00345bdd910880102c67ac70a291baf0023",
+  "crates/rh-protocol/src/lib.rs": "d1258e9c3bd9911a32d0cbdce375c2a0a9ca8f3d792a8b368e382833cc3e896c",
+  "crates/rh-protocol/src/scene_candidate/mod.rs": "ef49e09665008dce37b6d75f071aef31db1e16fbbc776041e385ec88eba825f9",
+  "crates/rh-protocol/src/scene_candidate/tests.rs": "3d6d4f400bf040cc8ae352439f862f822a7e6ba530d749d090410470862e8676",
+  "crates/rh-server/src/outbox/scene_candidate/tests.rs": "c6ee9abdeefd6b011242ad163fd6644a1e3d6750e9efc92bfd6b758435d19f8c",
+  "crates/rh-server/src/outbox/scene_candidate/fixture.rs": "5045e3960027e04503317c365115e1e76d7245073360d1abeb61b93a7f580270",
+  "protocol/fixtures/v14.json": "9012167a320419d04d62aa340276d7fbc5181a60ea818554f278a62d26b1b336",
+  "protocol/fixtures/scene-candidate/full14.json": "1cc549e75815b5942d5cdfc86b51176d6d14bf43023da2cbf028b5347e6bc2b5",
+  "client-unity/RoguehallaNet/Protocol/SceneCandidate.cs": "17cdfb057bc3628b0367e07dbd1caffc64e33742b50234f9a2946a85b1a329d0",
+  "docs/MIGRATION.md": "6823d61307e02a938ac57cb158f54311a6075eee792fb82b83017fa70de440df",
+  "docs/CONTRACTS.md": "2c9e0b9b562752ec907fe8ffa0e67986e6f6005a11c744f657fd67863de6e7cd",
+  "docs/REQUIREMENTS.md": "45f4a590c36bae776ed213297b2468cdbda0edc788946c670c04335923fb51c4"
+ },
+ "declaredTestFunctions": {
+  "crates/rh-server/src/outbox/scene_candidate/socket/tests.rs": 10,
+  "crates/rh-server/src/outbox/scene_candidate/socket/tests/ownership.rs": 10,
+  "crates/rh-server/src/outbox/scene_candidate/socket/tests/poll_faults.rs": 4
+ },
+ "executedTestFunctions": 0,
+ "checks": {
+  "directRustfmtParseAndCheck": "PASS; not a compiler/typecheck",
+  "gitDiffCheck": "PASS",
+  "parentExactBodyAndFootprint": "PASS; static byte comparison",
+  "newTargetDirectoryExists": false,
+  "cargoInvocations": 0,
+  "socketRuns": 0,
+  "dockerInvocations": 0,
+  "newRustTargetOrCache": false,
+  "initialCachedDiffCheck": "evidence parent.diff context whitespace only; corrected by exact --unified=0 diff; raw error stored as JSON"
+ },
+ "remaining": "Root existing-cache lease, compile/runtime/fault tests and strict lint, then independent review; native Room/client/policy/history/reconnect/operational/live/browser gates remain held.",
+ "evidence": {
+  "docs/evidence/scene-candidate14-socket/README.md": {
+   "bytes": 8875,
+   "sha256": "b644dc9f45c75c43ecbc17e48e47825c19ec14284f63bdd2171df946a52772ca"
+  },
+  "docs/evidence/scene-candidate14-socket/logs/format-check.log": {
+   "bytes": 324,
+   "sha256": "57949fdf62d37a759acfadf8eb08aca3881cc6f92d71234d9f7037691302abf3"
+  },
+  "docs/evidence/scene-candidate14-socket/logs/format-path-attempt.log": {
+   "bytes": 184,
+   "sha256": "dd6daa6ced90b51d0687bb14b3941ddcd6a460a5afd511c62e4b236d632e19b1"
+  },
+  "docs/evidence/scene-candidate14-socket/logs/static-check-attempt.json": {
+   "bytes": 343,
+   "sha256": "8935408eac2b6be3a4f7d25fedf08c544b49ab900ae2fd35de9f937a8fa8ad6e"
+  },
+  "docs/evidence/scene-candidate14-socket/parent.diff": {
+   "bytes": 456,
+   "sha256": "bd37402f5e73a58c29721c9531d8cdb1e4b6defb0bedb9439dfe21e97c60cbf9"
+  }
+ },
+ "selfHash": "excluded; source-ready commit seals manifest; no self-reference"
+}

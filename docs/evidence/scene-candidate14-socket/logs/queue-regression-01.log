@@ -1,0 +1,16 @@
+    Finished `test` profile [unoptimized] target(s) in 0.07s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_server-825e280ee950b412)
+
+running 9 tests
+test outbox::scene_candidate::tests::early_ack_full_refusal_exact_retry_and_lease_lifetime ... ok
+test outbox::scene_candidate::tests::fifo_no_second_writer_and_partial_commit_claim_never_credits ... ok
+test outbox::scene_candidate::tests::failed_source_retention_or_dropped_pending_closes_without_publication ... ok
+test outbox::scene_candidate::tests::stale_closed_writer_callbacks_cannot_mutate_a_new_context ... ok
+test outbox::scene_candidate::tests::exact_ack_tuple_generation_and_both_completion_orders ... ok
+test outbox::scene_candidate::tests::every_write_cancellation_closes_and_prevents_next_scene ... ok
+test outbox::scene_candidate::tests::ack_and_successful_completion_cross_threads_in_both_orders ... ok
+test outbox::scene_candidate::tests::real_observer_offer_and_collection_stage_survive_refused_admission ... ok
+test outbox::scene_candidate::tests::native_fixture_roundtrip_and_explicit_export ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 206 filtered out; finished in 0.01s
+

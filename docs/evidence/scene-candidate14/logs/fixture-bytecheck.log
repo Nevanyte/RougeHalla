@@ -1,0 +1,9 @@
+    Finished `test` profile [unoptimized] target(s) in 0.19s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fight-native/target/debug/deps/rh_server-825e280ee950b412)
+
+running 1 test
+test outbox::scene_candidate::tests::native_fixture_roundtrip_and_explicit_export ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 190 filtered out; finished in 0.03s
+
+BYTE-IDENTICAL 22728 bytes SHA256 1cc549e75815b5942d5cdfc86b51176d6d14bf43023da2cbf028b5347e6bc2b5

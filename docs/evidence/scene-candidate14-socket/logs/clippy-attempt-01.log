@@ -1,0 +1,14 @@
+    Checking ring v0.17.14
+    Checking rustls-webpki v0.103.16
+    Checking rustls v0.23.46
+    Checking rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14-socket/repo/crates/rh-sim)
+    Checking tokio-rustls v0.26.6
+    Checking rh-protocol v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14-socket/repo/crates/rh-protocol)
+    Checking rh-policy v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14-socket/repo/crates/rh-policy)
+    Checking tungstenite v0.26.2
+    Checking axum-server v0.7.3
+    Checking rcgen v0.13.2
+    Checking rh-headless v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14-socket/repo/crates/rh-headless)
+    Checking tokio-tungstenite v0.26.2
+    Checking rh-server v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14-socket/repo/crates/rh-server)
+    Finished `dev` profile [unoptimized] target(s) in 16.58s

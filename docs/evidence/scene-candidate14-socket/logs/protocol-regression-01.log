@@ -1,0 +1,14 @@
+   Compiling rh-protocol v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14-socket/repo/crates/rh-protocol)
+    Finished `test` profile [unoptimized] target(s) in 0.83s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_protocol-5f36d585de28e787)
+
+running 6 tests
+test scene_candidate::tests::full_atomic_copy_owned_and_not_live_wire ... ok
+test scene_candidate::tests::original_event_ticks_empty_distinctions_and_occurrences ... ok
+test scene_candidate::tests::retained_views_have_a_finite_conservative_epoch_budget ... ok
+test scene_candidate::tests::exact_caps_missing_group_wrong_tuple_and_exhaustion ... ok
+test scene_candidate::tests::missing_repeated_reordered_wrong_commit_close_without_exposure ... ok
+test scene_candidate::tests::every_record_prefix_refuses_and_preserves_prior_view ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.01s
+

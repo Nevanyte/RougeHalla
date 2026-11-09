@@ -1,0 +1,20 @@
+{
+ "format": "rh-scene-socket-first-failure/1",
+ "head": "c4738ed08c71cd43d42488df3f9c200450178b23",
+ "sourceWasCleanAtStart": true,
+ "exitCode": 101,
+ "stage": "compile; tests not run",
+ "command": [
+  "cargo",
+  "test",
+  "--locked",
+  "-p",
+  "rh-server",
+  "scene_candidate::socket",
+  "--lib"
+ ],
+ "error": "E0639: WebSocketConfig is non-exhaustive; struct expression forbidden",
+ "fix": "tests.rs uses existing default().max_message_size(Some(256)).max_frame_size(Some(256)) builder; same limits, no timing/quota/expectation change",
+ "log": "logs/socket-attempt-01.log",
+ "environment": "logs/socket-attempt-01-env.json"
+}

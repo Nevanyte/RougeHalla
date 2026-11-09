@@ -1,0 +1,16 @@
+   Compiling rh-protocol v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14/repo/crates/rh-protocol)
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14/repo/crates/rh-policy)
+   Compiling rh-headless v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14/repo/crates/rh-headless)
+   Compiling rh-server v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14/repo/crates/rh-server)
+    Finished `test` profile [unoptimized] target(s) in 11.09s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fight-native/target/debug/deps/rh_server-825e280ee950b412)
+
+running 5 tests
+test outbox::scene_candidate::tests::exact_ack_tuple_generation_and_both_completion_orders ... ok
+test outbox::scene_candidate::tests::early_ack_full_refusal_exact_retry_and_lease_lifetime ... ok
+test outbox::scene_candidate::tests::failed_source_retention_or_dropped_pending_closes_without_publication ... ok
+test outbox::scene_candidate::tests::fifo_no_second_writer_and_partial_commit_claim_never_credits ... ok
+test outbox::scene_candidate::tests::every_write_cancellation_closes_and_prevents_next_scene ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 182 filtered out; finished in 0.00s
+

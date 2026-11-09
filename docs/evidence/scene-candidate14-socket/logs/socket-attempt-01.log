@@ -1,0 +1,18 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14-socket/repo/crates/rh-sim)
+   Compiling rh-protocol v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14-socket/repo/crates/rh-protocol)
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14-socket/repo/crates/rh-policy)
+   Compiling rh-headless v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14-socket/repo/crates/rh-headless)
+   Compiling rh-server v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14-socket/repo/crates/rh-server)
+error[E0639]: cannot create non-exhaustive struct using struct expression
+   --> crates/rh-server/src/outbox/scene_candidate/socket/tests.rs:224:18
+    |
+224 |       let config = WebSocketConfig {
+    |  __________________^
+225 | |         max_message_size: Some(256),
+226 | |         max_frame_size: Some(256),
+227 | |         ..Default::default()
+228 | |     };
+    | |_____^
+
+For more information about this error, try `rustc --explain E0639`.
+error: could not compile `rh-server` (lib test) due to 1 previous error
