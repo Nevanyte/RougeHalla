@@ -1,0 +1,35 @@
+{
+  "schema": "roguehalla-owned-seat-resume-candidate-audit-receipt/1",
+  "sourceSha": "56523c6f4aa372eb5aa2b0850911c2ae0a8295f0",
+  "compiledArtifactsOnly": true,
+  "testBodiesInvoked": false,
+  "unityApisInvoked": false,
+  "nativeDiscoveryPending": true,
+  "counts": { "preservedPriorCases": 90, "compiledNewResumeCases": 8, "union": 98 },
+  "checks": {
+    "prior90TypedTupleAndDeclaredSignatureMatch": true,
+    "prior90ExpectedCaseObjectsPreservedVerbatim": true,
+    "newCaseSource": "Cecil NUnit attribute metadata; not native discovery",
+    "initialResumeSeedAssigned": true,
+    "connectGatePrecedesSessionConnect": true,
+    "captureFollowsMatchingModePredicateAndConfirmation": true,
+    "retireGenerationPrecedesCleanup": true,
+    "closeCapturesOldSessionAndCheckpoint": true,
+    "closeHasDetachAndLeaveRoutes": true,
+    "closeUsesPostClearGenerationGuardToDetach": true,
+    "noErrorStringParsing": true
+  },
+  "files": {
+    "metadataAudit": { "path": "metadata-audit.json", "sha256": "a16bceb34180b34c2943a9639e48e34c9eeffd9799c8b1ab8ae51aabcf49b3af" },
+    "typedContract": { "path": "typed-fixture-contract.json", "sha256": "6ed4bd6f766c9094b620bef8a2dbdcc907d61b70534b13b765fb864274021333" },
+    "ilAudit": { "path": "resume-il-audit.json", "sha256": "15f462671cacb15208c04ef50aac64ac70635960b0168342ac6664e3846468b2" },
+    "sourcePins": { "path": "source-input-pins.json", "sha256": "5381a42e5798d0e8b0c2536c417bb7a7165fb42aafd82d2ab247a1d545f09ef4" },
+    "toolSource": { "path": "../../Program.cs", "sha256": "d1d75635bee01b3ac41b265e777a866518707db38c79bd01719f766840a7a6fa" },
+    "toolProject": { "path": "../../MetadataAudit.csproj", "sha256": "89ae0d7b13572f13628e084c1481f3a06ada5531415a4c74ac600f2e2907cc62" }
+  },
+  "logs": {
+    "stdout": "../../../logs/metadata-audit-candidate02.stdout.log",
+    "stderr": "../../../logs/metadata-audit-candidate02.stderr.log",
+    "command": "../../../logs/metadata-audit-candidate02.command.txt"
+  }
+}

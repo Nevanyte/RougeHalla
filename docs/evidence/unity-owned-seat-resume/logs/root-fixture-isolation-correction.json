@@ -1,0 +1,17 @@
+{
+  "parent": "4dd410d3c33812653c8ebfbdd754f699f75cc72f",
+  "authorizedBy": "Coordinator explicit generic-failure terminal fixture correction and exact rh.ui.profile finally restoration",
+  "changedPath": "client-unity/UnityProject/Assets/Tests/Editor/MatchResumeEditModeTests.cs",
+  "productionAndAllOtherSourcesUnchanged": true,
+  "testAttributesAndTypedCasesUnchanged": true,
+  "nativeCaseCount": 98,
+  "realPreferenceKeysReadOrRestored": [
+    "rh.ui.profile"
+  ],
+  "preferenceValuesLogged": false,
+  "defaultCredentialStoreUsed": false,
+  "defaultBootstrapCalled": false,
+  "nativeTestsExecuted": 0,
+  "scopeCounterNote": "Initial checker expected six PlayerPrefs source calls; actual seven includes both presence and string post-restore checks. Source was not changed for this checker correction.",
+  "finalTestSourceSha256": "e4619b124d858c54efa4f0006004100b683eca6ba35ca3649c5b7c0efbf0eb8c"
+}

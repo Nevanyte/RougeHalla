@@ -156,6 +156,7 @@ namespace Roguehalla.Client
         }
         public void Bind(Session session)
         {
+            CloseResumeChooser();
             Unbind(); _session = session;
             session.StateChanged += Changed; session.SnapshotReceived += Snapshot;
             session.CollectionsChanged += Collections;
@@ -197,6 +198,7 @@ namespace Roguehalla.Client
         }
         void Unbind()
         {
+            CloseResumeChooser();
             UnbindTrainingSession();
             if (_session == null) return;
             _session.StateChanged -= Changed; _session.SnapshotReceived -= Snapshot;
@@ -210,6 +212,7 @@ namespace Roguehalla.Client
         }
         public void ShowMenu()
         {
+            CloseResumeChooser();
             Unbind(); CloseHubPanels(); _menu.gameObject.SetActive(true); _hud.gameObject.SetActive(false);
             if (_launchMenuInput != null) _launchMenuInput.interactable = true;
             _rewards.gameObject.SetActive(false); _results.gameObject.SetActive(false); _settings.gameObject.SetActive(false);
@@ -230,7 +233,7 @@ namespace Roguehalla.Client
             _dirty = true;
         }
 
-        void OnDisable() { UnbindTrainingSession(); }
+        void OnDisable() { CloseResumeChooser(); UnbindTrainingSession(); }
         void OnDestroy() { Unbind(); if (_trainingConsole != null) _trainingConsole.OpenStateChanged -= ConsumeTrainingUiUpdate; if (_showcaseSettings != null) _showcaseSettings.Changed -= ApplyTextScale; if (_uiPrefs != null) _uiPrefs.Changed -= ApplyDisplayPreferences; UiBrowserStorage.CaptureTab(false); }
         void Changed(SessionState state) { if (_session != null) RefreshCollections(_session.Collections); RefreshPlayerFlows(); _dirty = _rewardsDirty = true; }
         void Snapshot(ServerMsg.Snapshot snapshot) { RefreshTrainingConsole(_session, snapshot); _dirty = true; }
