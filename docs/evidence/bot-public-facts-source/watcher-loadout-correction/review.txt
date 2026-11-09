@@ -1,0 +1,6 @@
+Focused read-only follow-up review.
+The earlier evidence-only RELEASE missed the swap-only watcher metadata mismatch and is superseded by Root's HOLD and this correction.
+
+Source addPlayer (sim/step.ts:34,45-47) initializes watcher weapon0 and weapon1 to empty and slot0; schema defaults agree. startRaid/resetWeapons do not equip it. The separate swap-only World assigns shooter Wand/Bow only. Other setup fields in this function (spawns, seed7, actual attack/swap times, actual current hand, queued input receipts and recorded null Reflex calls) match their producers. detectFeatures tests the same schema/API capabilities, not the watcher's kit. No additional copied setup mismatch was found in the bounded function.
+
+Correction reads both actual initial weapon slots without equipping watcher. The pinned canonical capture/check and complete JSON comparison establish exactly one corrected metadata value plus the flight.mts tool hash; every other recorded value remains unchanged. This closes the specific metadata mismatch only. Original unsupported-scene and public-fact/native admission limits remain held. Review did not rerun tests or captures.

@@ -1,0 +1,22 @@
+{
+  "format": "rh-public-facts-watcher-correction/1",
+  "sourceCommit": "77bc42ec54fd9003925efcde808e83f0878cf426",
+  "priorHead": "29a265148899f23f2ae7dfd14a6bc39ab9509c66",
+  "baseRevision": "a3d4b3ce575442c9a06916888035ca849a6cd05a",
+  "fixture": {
+    "path": "parity/policy/bot-public-facts/source.json",
+    "bytes": 119213,
+    "sha256": "0819c53f1eabbf875849cdc0d2be7479bde7013527d980fd38e0c4b20072f260"
+  },
+  "capture": {
+    "command": "bash tools/bot-public-facts-fixtures/capture.sh",
+    "exit": 0,
+    "write": 1,
+    "byteCheck": 1,
+    "log": "docs/evidence/bot-public-facts-source/watcher-loadout-correction/logs/capture-and-bytecheck.log"
+  },
+  "change": "metadata derived from actual initial weapon0/weapon1; watcher remains two empty slots",
+  "allOtherFixtureValuesExactlyEqual": true,
+  "originalControls": "historical at29a26514; not rerun",
+  "status": "specific metadata HOLD corrected; Root review/main merge pending; source evidence only"
+}
