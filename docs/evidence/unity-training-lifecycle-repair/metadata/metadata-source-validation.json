@@ -1,0 +1,2041 @@
+{
+  "schema": "roguehalla-training-lifecycle-metadata-audit/1",
+  "sourceHead": "d90dd0a12b898dceae6715e26c1aec71a68d8d3a",
+  "metadataTool": {
+    "source": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-training-lifecycle-repair-2026-11-09/metadata/Program.cs",
+    "project": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-training-lifecycle-repair-2026-11-09/metadata/MetadataAudit.csproj",
+    "sourceSha256": "91494601686bc123d1e0ee7e5312b64ea2840ce857000d62535d5b7120a1c8b6",
+    "projectSha256": "61361d5d9a1c625bc2431506bf93754ab0547db0bb66806c59ede6685b006014",
+    "testBodiesInvoked": false,
+    "unityApisInvoked": false
+  },
+  "prior": {
+    "path": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-training-lifecycle-repair/docs/evidence/unity-training-integration/typed-fixture-contract.json",
+    "sha256": "cf38da76450bbcc01bb2f6c15d73c44d119152959733ef3037dcc04960f1cc7e",
+    "nativeSelectorsPath": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-training-lifecycle-repair/docs/evidence/unity-training-integration/native-selectors.txt",
+    "nativeSelectorsSha256": "a7210a4c56509d707923c67a62082c8374465e039d5e58473726960ce3df3b43",
+    "count": 90
+  },
+  "compiled": {
+    "editorTests": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-training-lifecycle-repair-2026-11-09/profiles/editor/bin/Debug/netstandard2.1/Roguehalla.Client.EditModeTests.dll",
+    "sha256": "082c91287e6883394a148f766f2dcc223725af4db70ad8ce6648b1227160d9d3",
+    "mvid": "40a5a35d-534a-4741-a81e-63f55ccaa40f",
+    "extractedSelectorCount": 90,
+    "comparedWithPriorSelectorsAndTypedTuples": true,
+    "comparedWithNativeSelectors": true,
+    "testBodiesInvoked": false,
+    "unityApisInvoked": false
+  },
+  "retireRoot": {
+    "editor": {
+      "name": "System.Void Roguehalla.Client.TrainingConsoleView::RetireRoot(UnityEngine.RectTransform)",
+      "instructions": [
+        {
+          "offset": 0,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 1,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 2,
+          "opcode": "ldnull",
+          "operand": null
+        },
+        {
+          "offset": 3,
+          "opcode": "call",
+          "operand": "System.Boolean UnityEngine.Object::op_Equality(UnityEngine.Object,UnityEngine.Object)"
+        },
+        {
+          "offset": 8,
+          "opcode": "stloc.1",
+          "operand": null
+        },
+        {
+          "offset": 9,
+          "opcode": "ldloc.1",
+          "operand": null
+        },
+        {
+          "offset": 10,
+          "opcode": "brfalse.s",
+          "operand": "IL_000E"
+        },
+        {
+          "offset": 12,
+          "opcode": "br.s",
+          "operand": "IL_0047"
+        },
+        {
+          "offset": 14,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 15,
+          "opcode": "callvirt",
+          "operand": "UnityEngine.GameObject UnityEngine.Component::get_gameObject()"
+        },
+        {
+          "offset": 20,
+          "opcode": "stloc.0",
+          "operand": null
+        },
+        {
+          "offset": 21,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 22,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 23,
+          "opcode": "callvirt",
+          "operand": "System.Void UnityEngine.GameObject::SetActive(System.Boolean)"
+        },
+        {
+          "offset": 28,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 29,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 30,
+          "opcode": "ldnull",
+          "operand": null
+        },
+        {
+          "offset": 31,
+          "opcode": "call",
+          "operand": "System.Boolean UnityEngine.Object::op_Equality(UnityEngine.Object,UnityEngine.Object)"
+        },
+        {
+          "offset": 36,
+          "opcode": "stloc.2",
+          "operand": null
+        },
+        {
+          "offset": 37,
+          "opcode": "ldloc.2",
+          "operand": null
+        },
+        {
+          "offset": 38,
+          "opcode": "brfalse.s",
+          "operand": "IL_002A"
+        },
+        {
+          "offset": 40,
+          "opcode": "br.s",
+          "operand": "IL_0047"
+        },
+        {
+          "offset": 42,
+          "opcode": "call",
+          "operand": "System.Boolean UnityEngine.Application::get_isPlaying()"
+        },
+        {
+          "offset": 47,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 48,
+          "opcode": "ceq",
+          "operand": null
+        },
+        {
+          "offset": 50,
+          "opcode": "stloc.3",
+          "operand": null
+        },
+        {
+          "offset": 51,
+          "opcode": "ldloc.3",
+          "operand": null
+        },
+        {
+          "offset": 52,
+          "opcode": "brfalse.s",
+          "operand": "IL_0040"
+        },
+        {
+          "offset": 54,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 55,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 56,
+          "opcode": "call",
+          "operand": "System.Void UnityEngine.Object::DestroyImmediate(UnityEngine.Object)"
+        },
+        {
+          "offset": 61,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 62,
+          "opcode": "br.s",
+          "operand": "IL_0047"
+        },
+        {
+          "offset": 64,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 65,
+          "opcode": "call",
+          "operand": "System.Void UnityEngine.Object::Destroy(UnityEngine.Object)"
+        },
+        {
+          "offset": 70,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 71,
+          "opcode": "ret",
+          "operand": null
+        }
+      ]
+    },
+    "editorCalls": [
+      "System.Boolean UnityEngine.Object::op_Equality(UnityEngine.Object,UnityEngine.Object)",
+      "UnityEngine.GameObject UnityEngine.Component::get_gameObject()",
+      "System.Void UnityEngine.GameObject::SetActive(System.Boolean)",
+      "System.Boolean UnityEngine.Object::op_Equality(UnityEngine.Object,UnityEngine.Object)",
+      "System.Boolean UnityEngine.Application::get_isPlaying()",
+      "System.Void UnityEngine.Object::DestroyImmediate(UnityEngine.Object)",
+      "System.Void UnityEngine.Object::Destroy(UnityEngine.Object)"
+    ],
+    "editorHasGuardedImmediate": true,
+    "player": {
+      "name": "System.Void Roguehalla.Client.TrainingConsoleView::RetireRoot(UnityEngine.RectTransform)",
+      "instructions": [
+        {
+          "offset": 0,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 1,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 2,
+          "opcode": "ldnull",
+          "operand": null
+        },
+        {
+          "offset": 3,
+          "opcode": "call",
+          "operand": "System.Boolean UnityEngine.Object::op_Equality(UnityEngine.Object,UnityEngine.Object)"
+        },
+        {
+          "offset": 8,
+          "opcode": "stloc.1",
+          "operand": null
+        },
+        {
+          "offset": 9,
+          "opcode": "ldloc.1",
+          "operand": null
+        },
+        {
+          "offset": 10,
+          "opcode": "brfalse.s",
+          "operand": "IL_000E"
+        },
+        {
+          "offset": 12,
+          "opcode": "br.s",
+          "operand": "IL_0031"
+        },
+        {
+          "offset": 14,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 15,
+          "opcode": "callvirt",
+          "operand": "UnityEngine.GameObject UnityEngine.Component::get_gameObject()"
+        },
+        {
+          "offset": 20,
+          "opcode": "stloc.0",
+          "operand": null
+        },
+        {
+          "offset": 21,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 22,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 23,
+          "opcode": "callvirt",
+          "operand": "System.Void UnityEngine.GameObject::SetActive(System.Boolean)"
+        },
+        {
+          "offset": 28,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 29,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 30,
+          "opcode": "ldnull",
+          "operand": null
+        },
+        {
+          "offset": 31,
+          "opcode": "call",
+          "operand": "System.Boolean UnityEngine.Object::op_Equality(UnityEngine.Object,UnityEngine.Object)"
+        },
+        {
+          "offset": 36,
+          "opcode": "stloc.2",
+          "operand": null
+        },
+        {
+          "offset": 37,
+          "opcode": "ldloc.2",
+          "operand": null
+        },
+        {
+          "offset": 38,
+          "opcode": "brfalse.s",
+          "operand": "IL_002A"
+        },
+        {
+          "offset": 40,
+          "opcode": "br.s",
+          "operand": "IL_0031"
+        },
+        {
+          "offset": 42,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 43,
+          "opcode": "call",
+          "operand": "System.Void UnityEngine.Object::Destroy(UnityEngine.Object)"
+        },
+        {
+          "offset": 48,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 49,
+          "opcode": "ret",
+          "operand": null
+        }
+      ]
+    },
+    "playerCalls": [
+      "System.Boolean UnityEngine.Object::op_Equality(UnityEngine.Object,UnityEngine.Object)",
+      "UnityEngine.GameObject UnityEngine.Component::get_gameObject()",
+      "System.Void UnityEngine.GameObject::SetActive(System.Boolean)",
+      "System.Boolean UnityEngine.Object::op_Equality(UnityEngine.Object,UnityEngine.Object)",
+      "System.Void UnityEngine.Object::Destroy(UnityEngine.Object)"
+    ],
+    "playerOnlyDeferred": true
+  },
+  "ownerGuardIl": [
+    {
+      "name": "System.Boolean Roguehalla.Client.TrainingConsoleView::OwnerAlive()",
+      "instructions": [
+        {
+          "offset": 0,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 1,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 2,
+          "opcode": "ldfld",
+          "operand": "System.Boolean Roguehalla.Client.TrainingConsoleView::_destroyed"
+        },
+        {
+          "offset": 7,
+          "opcode": "stloc.0",
+          "operand": null
+        },
+        {
+          "offset": 8,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 9,
+          "opcode": "brfalse.s",
+          "operand": "IL_000F"
+        },
+        {
+          "offset": 11,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 12,
+          "opcode": "stloc.1",
+          "operand": null
+        },
+        {
+          "offset": 13,
+          "opcode": "br.s",
+          "operand": "IL_0029"
+        },
+        {
+          "offset": 15,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 16,
+          "opcode": "ldnull",
+          "operand": null
+        },
+        {
+          "offset": 17,
+          "opcode": "call",
+          "operand": "System.Boolean UnityEngine.Object::op_Inequality(UnityEngine.Object,UnityEngine.Object)"
+        },
+        {
+          "offset": 22,
+          "opcode": "stloc.2",
+          "operand": null
+        },
+        {
+          "offset": 23,
+          "opcode": "ldloc.2",
+          "operand": null
+        },
+        {
+          "offset": 24,
+          "opcode": "brfalse.s",
+          "operand": "IL_001E"
+        },
+        {
+          "offset": 26,
+          "opcode": "ldc.i4.1",
+          "operand": null
+        },
+        {
+          "offset": 27,
+          "opcode": "stloc.1",
+          "operand": null
+        },
+        {
+          "offset": 28,
+          "opcode": "br.s",
+          "operand": "IL_0029"
+        },
+        {
+          "offset": 30,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 31,
+          "opcode": "call",
+          "operand": "System.Void Roguehalla.Client.TrainingConsoleView::DisposeOwned()"
+        },
+        {
+          "offset": 36,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 37,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 38,
+          "opcode": "stloc.1",
+          "operand": null
+        },
+        {
+          "offset": 39,
+          "opcode": "br.s",
+          "operand": "IL_0029"
+        },
+        {
+          "offset": 41,
+          "opcode": "ldloc.1",
+          "operand": null
+        },
+        {
+          "offset": 42,
+          "opcode": "ret",
+          "operand": null
+        }
+      ]
+    },
+    {
+      "name": "System.Boolean Roguehalla.Client.TrainingConsoleView::get_ActionsAvailable()",
+      "instructions": [
+        {
+          "offset": 0,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 1,
+          "opcode": "call",
+          "operand": "System.Boolean Roguehalla.Client.TrainingConsoleView::OwnerAlive()"
+        },
+        {
+          "offset": 6,
+          "opcode": "brfalse.s",
+          "operand": "IL_0070"
+        },
+        {
+          "offset": 8,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 9,
+          "opcode": "ldfld",
+          "operand": "System.Boolean Roguehalla.Client.TrainingConsoleView::_initialized"
+        },
+        {
+          "offset": 14,
+          "opcode": "brfalse.s",
+          "operand": "IL_0070"
+        },
+        {
+          "offset": 16,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 17,
+          "opcode": "ldfld",
+          "operand": "UnityEngine.RectTransform Roguehalla.Client.TrainingConsoleView::_root"
+        },
+        {
+          "offset": 22,
+          "opcode": "ldnull",
+          "operand": null
+        },
+        {
+          "offset": 23,
+          "opcode": "call",
+          "operand": "System.Boolean UnityEngine.Object::op_Inequality(UnityEngine.Object,UnityEngine.Object)"
+        },
+        {
+          "offset": 28,
+          "opcode": "brfalse.s",
+          "operand": "IL_0070"
+        },
+        {
+          "offset": 30,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 31,
+          "opcode": "ldfld",
+          "operand": "UnityEngine.RectTransform Roguehalla.Client.TrainingConsoleView::_panel"
+        },
+        {
+          "offset": 36,
+          "opcode": "ldnull",
+          "operand": null
+        },
+        {
+          "offset": 37,
+          "opcode": "call",
+          "operand": "System.Boolean UnityEngine.Object::op_Inequality(UnityEngine.Object,UnityEngine.Object)"
+        },
+        {
+          "offset": 42,
+          "opcode": "brfalse.s",
+          "operand": "IL_0070"
+        },
+        {
+          "offset": 44,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 45,
+          "opcode": "ldfld",
+          "operand": "UnityEngine.Transform Roguehalla.Client.TrainingConsoleView::_container"
+        },
+        {
+          "offset": 50,
+          "opcode": "ldnull",
+          "operand": null
+        },
+        {
+          "offset": 51,
+          "opcode": "call",
+          "operand": "System.Boolean UnityEngine.Object::op_Inequality(UnityEngine.Object,UnityEngine.Object)"
+        },
+        {
+          "offset": 56,
+          "opcode": "brfalse.s",
+          "operand": "IL_0070"
+        },
+        {
+          "offset": 58,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 59,
+          "opcode": "ldfld",
+          "operand": "UnityEngine.Transform Roguehalla.Client.TrainingConsoleView::_container"
+        },
+        {
+          "offset": 64,
+          "opcode": "callvirt",
+          "operand": "UnityEngine.GameObject UnityEngine.Component::get_gameObject()"
+        },
+        {
+          "offset": 69,
+          "opcode": "callvirt",
+          "operand": "System.Boolean UnityEngine.GameObject::get_activeInHierarchy()"
+        },
+        {
+          "offset": 74,
+          "opcode": "brfalse.s",
+          "operand": "IL_0070"
+        },
+        {
+          "offset": 76,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 77,
+          "opcode": "call",
+          "operand": "System.Boolean UnityEngine.Behaviour::get_isActiveAndEnabled()"
+        },
+        {
+          "offset": 82,
+          "opcode": "brfalse.s",
+          "operand": "IL_0070"
+        },
+        {
+          "offset": 84,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 85,
+          "opcode": "ldfld",
+          "operand": "System.Boolean Roguehalla.Client.TrainingConsoleView::_confirmed"
+        },
+        {
+          "offset": 90,
+          "opcode": "brfalse.s",
+          "operand": "IL_0070"
+        },
+        {
+          "offset": 92,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 93,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 94,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Net.Session Roguehalla.Client.TrainingConsoleView::_session"
+        },
+        {
+          "offset": 99,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 100,
+          "opcode": "ldfld",
+          "operand": "System.UInt32 Roguehalla.Client.TrainingConsoleView::_epoch"
+        },
+        {
+          "offset": 105,
+          "opcode": "call",
+          "operand": "System.Boolean Roguehalla.Client.TrainingConsoleView::AcceptedTraining(Roguehalla.Net.Session,System.UInt32)"
+        },
+        {
+          "offset": 110,
+          "opcode": "br.s",
+          "operand": "IL_0071"
+        },
+        {
+          "offset": 112,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 113,
+          "opcode": "ret",
+          "operand": null
+        }
+      ]
+    },
+    {
+      "name": "System.Boolean Roguehalla.Client.TrainingConsoleView::CurrentAction(Roguehalla.Net.Session,System.UInt32,System.Int32,System.Boolean)",
+      "instructions": [
+        {
+          "offset": 0,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 1,
+          "opcode": "call",
+          "operand": "System.Boolean Roguehalla.Client.TrainingConsoleView::OwnerAlive()"
+        },
+        {
+          "offset": 6,
+          "opcode": "brfalse.s",
+          "operand": "IL_0044"
+        },
+        {
+          "offset": 8,
+          "opcode": "ldarg.3",
+          "operand": null
+        },
+        {
+          "offset": 9,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 10,
+          "opcode": "ldfld",
+          "operand": "System.Int32 Roguehalla.Client.TrainingConsoleView::_actionGeneration"
+        },
+        {
+          "offset": 15,
+          "opcode": "bne.un.s",
+          "operand": "IL_0044"
+        },
+        {
+          "offset": 17,
+          "opcode": "ldarg.2",
+          "operand": null
+        },
+        {
+          "offset": 18,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 19,
+          "opcode": "ldfld",
+          "operand": "System.UInt32 Roguehalla.Client.TrainingConsoleView::_epoch"
+        },
+        {
+          "offset": 24,
+          "opcode": "bne.un.s",
+          "operand": "IL_0044"
+        },
+        {
+          "offset": 26,
+          "opcode": "ldarg.1",
+          "operand": null
+        },
+        {
+          "offset": 27,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 28,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Net.Session Roguehalla.Client.TrainingConsoleView::_session"
+        },
+        {
+          "offset": 33,
+          "opcode": "bne.un.s",
+          "operand": "IL_0044"
+        },
+        {
+          "offset": 35,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 36,
+          "opcode": "call",
+          "operand": "System.Boolean Roguehalla.Client.TrainingConsoleView::get_ActionsAvailable()"
+        },
+        {
+          "offset": 41,
+          "opcode": "brfalse.s",
+          "operand": "IL_0044"
+        },
+        {
+          "offset": 43,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 44,
+          "opcode": "ldarg.1",
+          "operand": null
+        },
+        {
+          "offset": 45,
+          "opcode": "ldarg.2",
+          "operand": null
+        },
+        {
+          "offset": 46,
+          "opcode": "call",
+          "operand": "System.Boolean Roguehalla.Client.TrainingConsoleView::AcceptedTraining(Roguehalla.Net.Session,System.UInt32)"
+        },
+        {
+          "offset": 51,
+          "opcode": "brfalse.s",
+          "operand": "IL_0044"
+        },
+        {
+          "offset": 53,
+          "opcode": "ldarg.s",
+          "operand": "requireOpen"
+        },
+        {
+          "offset": 55,
+          "opcode": "brfalse.s",
+          "operand": "IL_0041"
+        },
+        {
+          "offset": 57,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 58,
+          "opcode": "call",
+          "operand": "System.Boolean Roguehalla.Client.TrainingConsoleView::get_IsOpen()"
+        },
+        {
+          "offset": 63,
+          "opcode": "br.s",
+          "operand": "IL_0042"
+        },
+        {
+          "offset": 65,
+          "opcode": "ldc.i4.1",
+          "operand": null
+        },
+        {
+          "offset": 66,
+          "opcode": "br.s",
+          "operand": "IL_0045"
+        },
+        {
+          "offset": 68,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 69,
+          "opcode": "ret",
+          "operand": null
+        }
+      ]
+    },
+    {
+      "name": "System.Void Roguehalla.Client.TrainingConsoleView::DisposeOwned()",
+      "instructions": [
+        {
+          "offset": 0,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 1,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 2,
+          "opcode": "ldfld",
+          "operand": "System.Boolean Roguehalla.Client.TrainingConsoleView::_destroyed"
+        },
+        {
+          "offset": 7,
+          "opcode": "stloc.1",
+          "operand": null
+        },
+        {
+          "offset": 8,
+          "opcode": "ldloc.1",
+          "operand": null
+        },
+        {
+          "offset": 9,
+          "opcode": "brfalse.s",
+          "operand": "IL_0010"
+        },
+        {
+          "offset": 11,
+          "opcode": "br",
+          "operand": "IL_00B3"
+        },
+        {
+          "offset": 16,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 17,
+          "opcode": "ldc.i4.1",
+          "operand": null
+        },
+        {
+          "offset": 18,
+          "opcode": "stfld",
+          "operand": "System.Boolean Roguehalla.Client.TrainingConsoleView::_destroyed"
+        },
+        {
+          "offset": 23,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 24,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 25,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 26,
+          "opcode": "dup",
+          "operand": null
+        },
+        {
+          "offset": 27,
+          "opcode": "stloc.2",
+          "operand": null
+        },
+        {
+          "offset": 28,
+          "opcode": "stfld",
+          "operand": "System.Boolean Roguehalla.Client.TrainingConsoleView::_opened"
+        },
+        {
+          "offset": 33,
+          "opcode": "ldloc.2",
+          "operand": null
+        },
+        {
+          "offset": 34,
+          "opcode": "stfld",
+          "operand": "System.Boolean Roguehalla.Client.TrainingConsoleView::_confirmed"
+        },
+        {
+          "offset": 39,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 40,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 41,
+          "opcode": "ldfld",
+          "operand": "System.Int32 Roguehalla.Client.TrainingConsoleView::_actionGeneration"
+        },
+        {
+          "offset": 46,
+          "opcode": "ldc.i4.1",
+          "operand": null
+        },
+        {
+          "offset": 47,
+          "opcode": "add",
+          "operand": null
+        },
+        {
+          "offset": 48,
+          "opcode": "stfld",
+          "operand": "System.Int32 Roguehalla.Client.TrainingConsoleView::_actionGeneration"
+        },
+        {
+          "offset": 53,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 54,
+          "opcode": "call",
+          "operand": "System.Void Roguehalla.Client.TrainingConsoleView::Detach()"
+        },
+        {
+          "offset": 59,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 60,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 61,
+          "opcode": "ldnull",
+          "operand": null
+        },
+        {
+          "offset": 62,
+          "opcode": "stfld",
+          "operand": "Roguehalla.Net.Session Roguehalla.Client.TrainingConsoleView::_session"
+        },
+        {
+          "offset": 67,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 68,
+          "opcode": "ldnull",
+          "operand": null
+        },
+        {
+          "offset": 69,
+          "opcode": "stfld",
+          "operand": "System.Action Roguehalla.Client.TrainingConsoleView::OpenStateChanged"
+        },
+        {
+          "offset": 74,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 75,
+          "opcode": "ldfld",
+          "operand": "UnityEngine.RectTransform Roguehalla.Client.TrainingConsoleView::_root"
+        },
+        {
+          "offset": 80,
+          "opcode": "stloc.0",
+          "operand": null
+        },
+        {
+          "offset": 81,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 82,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 83,
+          "opcode": "ldnull",
+          "operand": null
+        },
+        {
+          "offset": 84,
+          "opcode": "dup",
+          "operand": null
+        },
+        {
+          "offset": 85,
+          "opcode": "stloc.3",
+          "operand": null
+        },
+        {
+          "offset": 86,
+          "opcode": "stfld",
+          "operand": "UnityEngine.RectTransform Roguehalla.Client.TrainingConsoleView::_panel"
+        },
+        {
+          "offset": 91,
+          "opcode": "ldloc.3",
+          "operand": null
+        },
+        {
+          "offset": 92,
+          "opcode": "stfld",
+          "operand": "UnityEngine.RectTransform Roguehalla.Client.TrainingConsoleView::_root"
+        },
+        {
+          "offset": 97,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 98,
+          "opcode": "ldnull",
+          "operand": null
+        },
+        {
+          "offset": 99,
+          "opcode": "stfld",
+          "operand": "UnityEngine.Transform Roguehalla.Client.TrainingConsoleView::_container"
+        },
+        {
+          "offset": 104,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 105,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 106,
+          "opcode": "ldfld",
+          "operand": "TMPro.TMP_InputField Roguehalla.Client.TrainingConsoleView::_stacks"
+        },
+        {
+          "offset": 111,
+          "opcode": "ldnull",
+          "operand": null
+        },
+        {
+          "offset": 112,
+          "opcode": "call",
+          "operand": "System.Boolean UnityEngine.Object::op_Inequality(UnityEngine.Object,UnityEngine.Object)"
+        },
+        {
+          "offset": 117,
+          "opcode": "stloc.s",
+          "operand": "V_4"
+        },
+        {
+          "offset": 119,
+          "opcode": "ldloc.s",
+          "operand": "V_4"
+        },
+        {
+          "offset": 121,
+          "opcode": "brfalse.s",
+          "operand": "IL_009F"
+        },
+        {
+          "offset": 123,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 124,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 125,
+          "opcode": "ldfld",
+          "operand": "TMPro.TMP_InputField Roguehalla.Client.TrainingConsoleView::_stacks"
+        },
+        {
+          "offset": 130,
+          "opcode": "newobj",
+          "operand": "System.Void TMPro.TMP_InputField/OnChangeEvent::.ctor()"
+        },
+        {
+          "offset": 135,
+          "opcode": "callvirt",
+          "operand": "System.Void TMPro.TMP_InputField::set_onValueChanged(TMPro.TMP_InputField/OnChangeEvent)"
+        },
+        {
+          "offset": 140,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 141,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 142,
+          "opcode": "ldfld",
+          "operand": "TMPro.TMP_InputField Roguehalla.Client.TrainingConsoleView::_stacks"
+        },
+        {
+          "offset": 147,
+          "opcode": "newobj",
+          "operand": "System.Void TMPro.TMP_InputField/SubmitEvent::.ctor()"
+        },
+        {
+          "offset": 152,
+          "opcode": "callvirt",
+          "operand": "System.Void TMPro.TMP_InputField::set_onEndEdit(TMPro.TMP_InputField/SubmitEvent)"
+        },
+        {
+          "offset": 157,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 158,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 159,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 160,
+          "opcode": "call",
+          "operand": "System.Void Roguehalla.Client.TrainingConsoleView::ReleaseFocus(UnityEngine.Transform)"
+        },
+        {
+          "offset": 165,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 166,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 167,
+          "opcode": "leave.s",
+          "operand": "IL_00B3"
+        },
+        {
+          "offset": 169,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 170,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 171,
+          "opcode": "call",
+          "operand": "System.Void Roguehalla.Client.TrainingConsoleView::RetireRoot(UnityEngine.RectTransform)"
+        },
+        {
+          "offset": 176,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 177,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 178,
+          "opcode": "endfinally",
+          "operand": null
+        },
+        {
+          "offset": 179,
+          "opcode": "ret",
+          "operand": null
+        }
+      ]
+    },
+    {
+      "name": "System.Void Roguehalla.Client.TrainingConsoleView::Detach()",
+      "instructions": [
+        {
+          "offset": 0,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 1,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 2,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 3,
+          "opcode": "ldfld",
+          "operand": "System.Int32 Roguehalla.Client.TrainingConsoleView::_subscriptionGeneration"
+        },
+        {
+          "offset": 8,
+          "opcode": "ldc.i4.1",
+          "operand": null
+        },
+        {
+          "offset": 9,
+          "opcode": "add",
+          "operand": null
+        },
+        {
+          "offset": 10,
+          "opcode": "stfld",
+          "operand": "System.Int32 Roguehalla.Client.TrainingConsoleView::_subscriptionGeneration"
+        },
+        {
+          "offset": 15,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 16,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Net.Session Roguehalla.Client.TrainingConsoleView::_session"
+        },
+        {
+          "offset": 21,
+          "opcode": "brfalse.s",
+          "operand": "IL_001F"
+        },
+        {
+          "offset": 23,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 24,
+          "opcode": "ldfld",
+          "operand": "System.Boolean Roguehalla.Client.TrainingConsoleView::_listening"
+        },
+        {
+          "offset": 29,
+          "opcode": "br.s",
+          "operand": "IL_0020"
+        },
+        {
+          "offset": 31,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 32,
+          "opcode": "stloc.0",
+          "operand": null
+        },
+        {
+          "offset": 33,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 34,
+          "opcode": "brfalse.s",
+          "operand": "IL_005C"
+        },
+        {
+          "offset": 36,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 37,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 38,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Net.Session Roguehalla.Client.TrainingConsoleView::_session"
+        },
+        {
+          "offset": 43,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 44,
+          "opcode": "ldfld",
+          "operand": "System.Action\u00601\u003CRoguehalla.Net.SessionState\u003E Roguehalla.Client.TrainingConsoleView::_stateListener"
+        },
+        {
+          "offset": 49,
+          "opcode": "callvirt",
+          "operand": "System.Void Roguehalla.Net.Session::remove_StateChanged(System.Action\u00601\u003CRoguehalla.Net.SessionState\u003E)"
+        },
+        {
+          "offset": 54,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 55,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 56,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Net.Session Roguehalla.Client.TrainingConsoleView::_session"
+        },
+        {
+          "offset": 61,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 62,
+          "opcode": "ldfld",
+          "operand": "System.Action\u00601\u003CRoguehalla.Net.Protocol.ServerMsg/Snapshot\u003E Roguehalla.Client.TrainingConsoleView::_snapshotListener"
+        },
+        {
+          "offset": 67,
+          "opcode": "callvirt",
+          "operand": "System.Void Roguehalla.Net.Session::remove_SnapshotReceived(System.Action\u00601\u003CRoguehalla.Net.Protocol.ServerMsg/Snapshot\u003E)"
+        },
+        {
+          "offset": 72,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 73,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 74,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Net.Session Roguehalla.Client.TrainingConsoleView::_session"
+        },
+        {
+          "offset": 79,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 80,
+          "opcode": "ldfld",
+          "operand": "System.Action Roguehalla.Client.TrainingConsoleView::_timelineListener"
+        },
+        {
+          "offset": 85,
+          "opcode": "callvirt",
+          "operand": "System.Void Roguehalla.Net.Session::remove_TimelineReset(System.Action)"
+        },
+        {
+          "offset": 90,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 91,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 92,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 93,
+          "opcode": "ldnull",
+          "operand": null
+        },
+        {
+          "offset": 94,
+          "opcode": "stfld",
+          "operand": "System.Action\u00601\u003CRoguehalla.Net.SessionState\u003E Roguehalla.Client.TrainingConsoleView::_stateListener"
+        },
+        {
+          "offset": 99,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 100,
+          "opcode": "ldnull",
+          "operand": null
+        },
+        {
+          "offset": 101,
+          "opcode": "stfld",
+          "operand": "System.Action\u00601\u003CRoguehalla.Net.Protocol.ServerMsg/Snapshot\u003E Roguehalla.Client.TrainingConsoleView::_snapshotListener"
+        },
+        {
+          "offset": 106,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 107,
+          "opcode": "ldnull",
+          "operand": null
+        },
+        {
+          "offset": 108,
+          "opcode": "stfld",
+          "operand": "System.Action Roguehalla.Client.TrainingConsoleView::_timelineListener"
+        },
+        {
+          "offset": 113,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 114,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 115,
+          "opcode": "stfld",
+          "operand": "System.Boolean Roguehalla.Client.TrainingConsoleView::_listening"
+        },
+        {
+          "offset": 120,
+          "opcode": "ret",
+          "operand": null
+        }
+      ]
+    },
+    {
+      "name": "System.Void Roguehalla.Client.TrainingConsoleView::RetireRoot(UnityEngine.RectTransform)",
+      "instructions": [
+        {
+          "offset": 0,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 1,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 2,
+          "opcode": "ldnull",
+          "operand": null
+        },
+        {
+          "offset": 3,
+          "opcode": "call",
+          "operand": "System.Boolean UnityEngine.Object::op_Equality(UnityEngine.Object,UnityEngine.Object)"
+        },
+        {
+          "offset": 8,
+          "opcode": "stloc.1",
+          "operand": null
+        },
+        {
+          "offset": 9,
+          "opcode": "ldloc.1",
+          "operand": null
+        },
+        {
+          "offset": 10,
+          "opcode": "brfalse.s",
+          "operand": "IL_000E"
+        },
+        {
+          "offset": 12,
+          "opcode": "br.s",
+          "operand": "IL_0047"
+        },
+        {
+          "offset": 14,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 15,
+          "opcode": "callvirt",
+          "operand": "UnityEngine.GameObject UnityEngine.Component::get_gameObject()"
+        },
+        {
+          "offset": 20,
+          "opcode": "stloc.0",
+          "operand": null
+        },
+        {
+          "offset": 21,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 22,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 23,
+          "opcode": "callvirt",
+          "operand": "System.Void UnityEngine.GameObject::SetActive(System.Boolean)"
+        },
+        {
+          "offset": 28,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 29,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 30,
+          "opcode": "ldnull",
+          "operand": null
+        },
+        {
+          "offset": 31,
+          "opcode": "call",
+          "operand": "System.Boolean UnityEngine.Object::op_Equality(UnityEngine.Object,UnityEngine.Object)"
+        },
+        {
+          "offset": 36,
+          "opcode": "stloc.2",
+          "operand": null
+        },
+        {
+          "offset": 37,
+          "opcode": "ldloc.2",
+          "operand": null
+        },
+        {
+          "offset": 38,
+          "opcode": "brfalse.s",
+          "operand": "IL_002A"
+        },
+        {
+          "offset": 40,
+          "opcode": "br.s",
+          "operand": "IL_0047"
+        },
+        {
+          "offset": 42,
+          "opcode": "call",
+          "operand": "System.Boolean UnityEngine.Application::get_isPlaying()"
+        },
+        {
+          "offset": 47,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 48,
+          "opcode": "ceq",
+          "operand": null
+        },
+        {
+          "offset": 50,
+          "opcode": "stloc.3",
+          "operand": null
+        },
+        {
+          "offset": 51,
+          "opcode": "ldloc.3",
+          "operand": null
+        },
+        {
+          "offset": 52,
+          "opcode": "brfalse.s",
+          "operand": "IL_0040"
+        },
+        {
+          "offset": 54,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 55,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 56,
+          "opcode": "call",
+          "operand": "System.Void UnityEngine.Object::DestroyImmediate(UnityEngine.Object)"
+        },
+        {
+          "offset": 61,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 62,
+          "opcode": "br.s",
+          "operand": "IL_0047"
+        },
+        {
+          "offset": 64,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 65,
+          "opcode": "call",
+          "operand": "System.Void UnityEngine.Object::Destroy(UnityEngine.Object)"
+        },
+        {
+          "offset": 70,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 71,
+          "opcode": "ret",
+          "operand": null
+        }
+      ]
+    },
+    {
+      "name": "UnityEngine.RectTransform Roguehalla.Client.TrainingConsoleView::get_Root()",
+      "instructions": [
+        {
+          "offset": 0,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 1,
+          "opcode": "call",
+          "operand": "System.Boolean Roguehalla.Client.TrainingConsoleView::OwnerAlive()"
+        },
+        {
+          "offset": 6,
+          "opcode": "brtrue.s",
+          "operand": "IL_000B"
+        },
+        {
+          "offset": 8,
+          "opcode": "ldnull",
+          "operand": null
+        },
+        {
+          "offset": 9,
+          "opcode": "br.s",
+          "operand": "IL_0011"
+        },
+        {
+          "offset": 11,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 12,
+          "opcode": "ldfld",
+          "operand": "UnityEngine.RectTransform Roguehalla.Client.TrainingConsoleView::_root"
+        },
+        {
+          "offset": 17,
+          "opcode": "ret",
+          "operand": null
+        }
+      ]
+    },
+    {
+      "name": "UnityEngine.RectTransform Roguehalla.Client.TrainingConsoleView::get_Panel()",
+      "instructions": [
+        {
+          "offset": 0,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 1,
+          "opcode": "call",
+          "operand": "System.Boolean Roguehalla.Client.TrainingConsoleView::OwnerAlive()"
+        },
+        {
+          "offset": 6,
+          "opcode": "brtrue.s",
+          "operand": "IL_000B"
+        },
+        {
+          "offset": 8,
+          "opcode": "ldnull",
+          "operand": null
+        },
+        {
+          "offset": 9,
+          "opcode": "br.s",
+          "operand": "IL_0011"
+        },
+        {
+          "offset": 11,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 12,
+          "opcode": "ldfld",
+          "operand": "UnityEngine.RectTransform Roguehalla.Client.TrainingConsoleView::_panel"
+        },
+        {
+          "offset": 17,
+          "opcode": "ret",
+          "operand": null
+        }
+      ]
+    }
+  ],
+  "sessionCurrentPredicateIl": [
+    {
+      "name": "System.Boolean Roguehalla.Client.TrainingConsoleView/\u003C\u003Ec__DisplayClass73_0::\u003CAttach\u003Eb__0()",
+      "instructions": [
+        {
+          "offset": 0,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 1,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Client.TrainingConsoleView Roguehalla.Client.TrainingConsoleView/\u003C\u003Ec__DisplayClass73_0::\u003C\u003E4__this"
+        },
+        {
+          "offset": 6,
+          "opcode": "call",
+          "operand": "System.Boolean Roguehalla.Client.TrainingConsoleView::OwnerAlive()"
+        },
+        {
+          "offset": 11,
+          "opcode": "brfalse.s",
+          "operand": "IL_0035"
+        },
+        {
+          "offset": 13,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 14,
+          "opcode": "ldfld",
+          "operand": "System.Int32 Roguehalla.Client.TrainingConsoleView/\u003C\u003Ec__DisplayClass73_0::generation"
+        },
+        {
+          "offset": 19,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 20,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Client.TrainingConsoleView Roguehalla.Client.TrainingConsoleView/\u003C\u003Ec__DisplayClass73_0::\u003C\u003E4__this"
+        },
+        {
+          "offset": 25,
+          "opcode": "ldfld",
+          "operand": "System.Int32 Roguehalla.Client.TrainingConsoleView::_subscriptionGeneration"
+        },
+        {
+          "offset": 30,
+          "opcode": "bne.un.s",
+          "operand": "IL_0035"
+        },
+        {
+          "offset": 32,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 33,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Net.Session Roguehalla.Client.TrainingConsoleView/\u003C\u003Ec__DisplayClass73_0::session"
+        },
+        {
+          "offset": 38,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 39,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Client.TrainingConsoleView Roguehalla.Client.TrainingConsoleView/\u003C\u003Ec__DisplayClass73_0::\u003C\u003E4__this"
+        },
+        {
+          "offset": 44,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Net.Session Roguehalla.Client.TrainingConsoleView::_session"
+        },
+        {
+          "offset": 49,
+          "opcode": "ceq",
+          "operand": null
+        },
+        {
+          "offset": 51,
+          "opcode": "br.s",
+          "operand": "IL_0036"
+        },
+        {
+          "offset": 53,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 54,
+          "opcode": "ret",
+          "operand": null
+        }
+      ]
+    }
+  ],
+  "guardOrdering": {
+    "ownerAliveCallsUnityFakeNullEqualityBeforeDispose": true,
+    "actionsAvailableCallsOwnerAliveBeforeNativeEnabledCheck": true,
+    "currentActionCallsOwnerAliveFirst": true,
+    "disposeMarksInvalidBeforeDetach": true,
+    "sessionCurrentPredicateCallsOwnerAliveFirst": true,
+    "detachRemovesOnlyOwnedSessionEvents": true,
+    "rootPanelGettersCallOwnerAlive": true
+  },
+  "sourceChecks": {
+    "fakeNullBranchPrecedesDispose": true,
+    "invalidationBeforeDetach": true,
+    "captureAndClearBeforeRelease": true,
+    "retireInFinally": true
+  },
+  "fixtureSources": [
+    {
+      "fixtureType": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+      "source": {
+        "path": "client-unity/UnityProject/Assets/Tests/Editor/QuestJournalViewEditModeTests.cs",
+        "sha256": "a227e72035a95c76998a8e715eea197e54bf28de37ade69998404830186a9508"
+      },
+      "meta": {
+        "path": "client-unity/UnityProject/Assets/Tests/Editor/QuestJournalViewEditModeTests.cs.meta",
+        "sha256": "fbf0d2abab7d153e486a3ebe28f86196f290df10a6c0d3da03e5fab70a2110a5",
+        "guid": "629434afa706419fbb9172e17b76ce43"
+      }
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+      "source": {
+        "path": "client-unity/UnityProject/Assets/Tests/Editor/TraderDialogViewEditModeTests.cs",
+        "sha256": "74f08af89ac872699567c2fe7ecc5451bdc3ffa94f6df48ec60abda813bb66cb"
+      },
+      "meta": {
+        "path": "client-unity/UnityProject/Assets/Tests/Editor/TraderDialogViewEditModeTests.cs.meta",
+        "sha256": "5dbe763a1b42575f08e6837a4e35ff5bfde5735ce102d50757e90e5a32c9f5c8",
+        "guid": "fbeed4975d944443b6c6f34fe85c6d32"
+      }
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+      "source": {
+        "path": "client-unity/UnityProject/Assets/Tests/Editor/PlayerFlowsEditModeTests.cs",
+        "sha256": "d3b75829d5fb35708b328eeaa95d3975c0369cc287195db330dfbe2a7bb11c26"
+      },
+      "meta": {
+        "path": "client-unity/UnityProject/Assets/Tests/Editor/PlayerFlowsEditModeTests.cs.meta",
+        "sha256": "04c5f186600e28ada6ea8cecdd2f7be79b5cb21f1abeec8a8dce0242e642123e",
+        "guid": "2695dbaec0cf4aa3b68c217e1e45dd55"
+      }
+    },
+    {
+      "fixtureType": "MatchLaunchEditModeTests",
+      "source": {
+        "path": "client-unity/UnityProject/Assets/Tests/Editor/MatchLaunchEditModeTests.cs",
+        "sha256": "1df70730e10dd3a3ea82365cd88db15a2fa631f313d4b168cbdbfe47e5c3323a"
+      },
+      "meta": {
+        "path": "client-unity/UnityProject/Assets/Tests/Editor/MatchLaunchEditModeTests.cs.meta",
+        "sha256": "8acab4f6bfac7f69d1d75a36eb4013e2202fe3567749fa49fca9ede4abeed365",
+        "guid": "fcfb3901a322446bbd5299b1e19524d6"
+      }
+    },
+    {
+      "fixtureType": "MatchSettlementEditModeTests",
+      "source": {
+        "path": "client-unity/UnityProject/Assets/Tests/Editor/MatchSettlementEditModeTests.cs",
+        "sha256": "14687029f4673d872ad7bb4e089abcf8cd519c95375f432e145db0948d53824a"
+      },
+      "meta": {
+        "path": "client-unity/UnityProject/Assets/Tests/Editor/MatchSettlementEditModeTests.cs.meta",
+        "sha256": "37bb54f6e6eebe078359fc9b3cc4533942ff9fc8525fe0c9bf1958dab2b26745",
+        "guid": "974cc763730f4c7daa0ad5e2a62a01a6"
+      }
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests",
+      "source": {
+        "path": "client-unity/UnityProject/Assets/Tests/Editor/TrainingConsoleSelectorsEditModeTests.cs",
+        "sha256": "0dbb264aa1f0f00dda1b00e048578719fd11a3475be951e20e3d4884715bccbc"
+      },
+      "meta": {
+        "path": "client-unity/UnityProject/Assets/Tests/Editor/TrainingConsoleSelectorsEditModeTests.cs.meta",
+        "sha256": "e2a816f2d458db792331864a4a8f2762bd8f64b48e45dbdf47cc6aace71e9a27",
+        "guid": "1990e91c7892488ca41c9b6c7ddf48d5"
+      }
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests",
+      "source": {
+        "path": "client-unity/UnityProject/Assets/Tests/Editor/TrainingConsoleViewEditModeTests.cs",
+        "sha256": "5f53aca82a3ed6a9706c64d477573f3d1ad3825bb6cb0344f8fd2523145223b1"
+      },
+      "meta": {
+        "path": "client-unity/UnityProject/Assets/Tests/Editor/TrainingConsoleViewEditModeTests.cs.meta",
+        "sha256": "51ca8c3104d7f3f46d0ab54b8fb79ea806ce6886c9bee5353b00c62476de612b",
+        "guid": "5a969452231445798af516800137f354"
+      }
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests",
+      "source": {
+        "path": "client-unity/UnityProject/Assets/Tests/Editor/TrainingConsoleIntegrationEditModeTests.cs",
+        "sha256": "024f7ba9705963f77e4d90b71eb27289778668e1d19d2681bc7ca86a3add8ed0"
+      },
+      "meta": {
+        "path": "client-unity/UnityProject/Assets/Tests/Editor/TrainingConsoleIntegrationEditModeTests.cs.meta",
+        "sha256": "29a4cd6768735b57d79594c53d9327201198f9fda234da09f6519ad81ab95fea",
+        "guid": "37a43674d2454878b81ca310a4347f64"
+      }
+    }
+  ],
+  "sourcePinsPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-training-lifecycle-repair-2026-11-09/metadata/output/source-input-pins.json",
+  "sourcePinsSha256": "bb6d9c3688ec2b77d2eded53e0c2d3468bcecf77385cbac7e5fd8c036743df9b",
+  "currentSelectorsPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-training-lifecycle-repair-2026-11-09/metadata/output/current-selectors.json",
+  "currentSelectorsSha256": "c220dfe0827e1bb63fb54689244de905265dc355ce2580a277acfd11c6e4d203",
+  "allAssertionsPass": true
+}
