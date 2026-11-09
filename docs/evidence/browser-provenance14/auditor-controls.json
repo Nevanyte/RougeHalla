@@ -1,0 +1,1249 @@
+{
+  "format": "rh-browser-provenance14-auditor-controls/1",
+  "executed": true,
+  "baseRevision": "58f476763128a84b2acb28d2d7e41cb60a1c20e5",
+  "auditorSha256": "99cf8f1ff2c692f2f03f6b78acc79fb41d27331b56b843491e0daf6f54b79eba",
+  "helperSha256": "ee24dbd273340c598951b99467c8e716a51aeff3ba68f803ca406e10dff42fbd",
+  "isolatedCopyFiles": 488,
+  "status": "PASS",
+  "fatal": null,
+  "runs": [
+    {
+      "name": "pristine",
+      "exitCode": 0,
+      "stderr": "",
+      "report": {
+        "ok": true,
+        "root": "<isolated-copy>",
+        "acceptedOverlays": [
+          {
+            "kind": "runtime catalog provenance chain",
+            "path": "parity/card-catalog/source.json",
+            "original": "d50c03e471f9d11ff790cac0f31d4ab82b5bb45f1b963b41725d58814cc6f74e",
+            "prior": "2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792",
+            "effective": "e2de5226d31fc7fe4f23d8cd0552ad73be44855bb3109ebed8042b2fd899b9c3",
+            "leaves": [
+              "/protectedSha256/tools/protocol-js/check-vectors.mjs",
+              "/protectedSha256/tools/browser-proof/proof.mjs"
+            ]
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "parity/card-runtime/INPUT_SHA256.json",
+            "original": "2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a",
+            "prior": "4dd8dff0f8474e7cc312b1a9588560fe06984e42bb878ee0dd40182bd32a968e",
+            "effective": "b13c5605bdfc08b5264440ed03376cbb50c620ac6432afa1280cd777f2ddd931"
+          },
+          {
+            "kind": "documentation overlay",
+            "path": "parity/card-runtime/README.md",
+            "original": "d5d3c30632494c98fb96ce4ddad76da2e716322609ccca767e52b868ec16742d",
+            "effective": "d0fa1b753a7016e07c9bb3b3db4ae55ef483df176c343296c80e2c8756ba5ed8"
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "parity/card-runtime/source.json",
+            "original": "c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019",
+            "prior": "9e357ed421c876de39c004236a83563116b390fc9d75043af24047dc952fe049",
+            "effective": "f67417ff219039296852886e61aa9661ac535d2f5ce0126fa3f76f6a3a740337"
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "tools/card-runtime-fixtures/capture.mts",
+            "original": "24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e",
+            "prior": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794",
+            "effective": "3c6c419263018b9710f419e31708148b83f32af748b68fb856d2b794aef8359c"
+          }
+        ],
+        "failureCount": 0,
+        "failures": []
+      },
+      "expected": []
+    },
+    {
+      "name": "protected-checker",
+      "exitCode": 1,
+      "stderr": "",
+      "report": {
+        "ok": false,
+        "root": "<isolated-copy>",
+        "acceptedOverlays": [
+          {
+            "kind": "runtime catalog provenance chain",
+            "path": "parity/card-catalog/source.json",
+            "original": "d50c03e471f9d11ff790cac0f31d4ab82b5bb45f1b963b41725d58814cc6f74e",
+            "prior": "2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792",
+            "effective": "e2de5226d31fc7fe4f23d8cd0552ad73be44855bb3109ebed8042b2fd899b9c3",
+            "leaves": [
+              "/protectedSha256/tools/protocol-js/check-vectors.mjs",
+              "/protectedSha256/tools/browser-proof/proof.mjs"
+            ]
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "parity/card-runtime/INPUT_SHA256.json",
+            "original": "2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a",
+            "prior": "4dd8dff0f8474e7cc312b1a9588560fe06984e42bb878ee0dd40182bd32a968e",
+            "effective": "b13c5605bdfc08b5264440ed03376cbb50c620ac6432afa1280cd777f2ddd931"
+          },
+          {
+            "kind": "documentation overlay",
+            "path": "parity/card-runtime/README.md",
+            "original": "d5d3c30632494c98fb96ce4ddad76da2e716322609ccca767e52b868ec16742d",
+            "effective": "d0fa1b753a7016e07c9bb3b3db4ae55ef483df176c343296c80e2c8756ba5ed8"
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "parity/card-runtime/source.json",
+            "original": "c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019",
+            "prior": "9e357ed421c876de39c004236a83563116b390fc9d75043af24047dc952fe049",
+            "effective": "f67417ff219039296852886e61aa9661ac535d2f5ce0126fa3f76f6a3a740337"
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "tools/card-runtime-fixtures/capture.mts",
+            "original": "24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e",
+            "prior": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794",
+            "effective": "3c6c419263018b9710f419e31708148b83f32af748b68fb856d2b794aef8359c"
+          }
+        ],
+        "failureCount": 1,
+        "failures": [
+          {
+            "kind": "catalog-protected-sha",
+            "path": "tools/protocol-js/check-vectors.mjs",
+            "expected": "1173a06fa8b2d0017367795f4a07c82bfe87285cbcc300df197aa5ee80aa47b3",
+            "actual": "d4906bfd88c2be2c6f89318b027963bda8add24f484cfd2273a09f948051e4e5",
+            "detail": "catalog protectedSha256 map is stale vs current file"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "kind": "catalog-protected-sha",
+          "path": "tools/protocol-js/check-vectors.mjs"
+        }
+      ]
+    },
+    {
+      "name": "protected-browser-proof",
+      "exitCode": 1,
+      "stderr": "",
+      "report": {
+        "ok": false,
+        "root": "<isolated-copy>",
+        "acceptedOverlays": [
+          {
+            "kind": "runtime catalog provenance chain",
+            "path": "parity/card-catalog/source.json",
+            "original": "d50c03e471f9d11ff790cac0f31d4ab82b5bb45f1b963b41725d58814cc6f74e",
+            "prior": "2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792",
+            "effective": "e2de5226d31fc7fe4f23d8cd0552ad73be44855bb3109ebed8042b2fd899b9c3",
+            "leaves": [
+              "/protectedSha256/tools/protocol-js/check-vectors.mjs",
+              "/protectedSha256/tools/browser-proof/proof.mjs"
+            ]
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "parity/card-runtime/INPUT_SHA256.json",
+            "original": "2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a",
+            "prior": "4dd8dff0f8474e7cc312b1a9588560fe06984e42bb878ee0dd40182bd32a968e",
+            "effective": "b13c5605bdfc08b5264440ed03376cbb50c620ac6432afa1280cd777f2ddd931"
+          },
+          {
+            "kind": "documentation overlay",
+            "path": "parity/card-runtime/README.md",
+            "original": "d5d3c30632494c98fb96ce4ddad76da2e716322609ccca767e52b868ec16742d",
+            "effective": "d0fa1b753a7016e07c9bb3b3db4ae55ef483df176c343296c80e2c8756ba5ed8"
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "parity/card-runtime/source.json",
+            "original": "c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019",
+            "prior": "9e357ed421c876de39c004236a83563116b390fc9d75043af24047dc952fe049",
+            "effective": "f67417ff219039296852886e61aa9661ac535d2f5ce0126fa3f76f6a3a740337"
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "tools/card-runtime-fixtures/capture.mts",
+            "original": "24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e",
+            "prior": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794",
+            "effective": "3c6c419263018b9710f419e31708148b83f32af748b68fb856d2b794aef8359c"
+          }
+        ],
+        "failureCount": 1,
+        "failures": [
+          {
+            "kind": "catalog-protected-sha",
+            "path": "tools/browser-proof/proof.mjs",
+            "expected": "9d9a5f64a59ecc048653975f5b60fa9a74e71edffc983037c64aea96ac74d8a7",
+            "actual": "6860764336810d031cc8695fee1c5042ba1f104de89ab1e8e00720ae83d31995",
+            "detail": "catalog protectedSha256 map is stale vs current file"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "kind": "catalog-protected-sha",
+          "path": "tools/browser-proof/proof.mjs"
+        }
+      ]
+    },
+    {
+      "name": "protected-map-extra-leaf",
+      "exitCode": 1,
+      "stderr": "",
+      "report": {
+        "ok": false,
+        "root": "<isolated-copy>",
+        "acceptedOverlays": [
+          {
+            "kind": "runtime catalog provenance chain",
+            "path": "parity/card-catalog/source.json",
+            "original": "d50c03e471f9d11ff790cac0f31d4ab82b5bb45f1b963b41725d58814cc6f74e",
+            "prior": "2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792",
+            "effective": "e2de5226d31fc7fe4f23d8cd0552ad73be44855bb3109ebed8042b2fd899b9c3",
+            "leaves": [
+              "/protectedSha256/tools/protocol-js/check-vectors.mjs",
+              "/protectedSha256/tools/browser-proof/proof.mjs"
+            ]
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "parity/card-runtime/INPUT_SHA256.json",
+            "original": "2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a",
+            "prior": "4dd8dff0f8474e7cc312b1a9588560fe06984e42bb878ee0dd40182bd32a968e",
+            "effective": "b13c5605bdfc08b5264440ed03376cbb50c620ac6432afa1280cd777f2ddd931"
+          },
+          {
+            "kind": "documentation overlay",
+            "path": "parity/card-runtime/README.md",
+            "original": "d5d3c30632494c98fb96ce4ddad76da2e716322609ccca767e52b868ec16742d",
+            "effective": "d0fa1b753a7016e07c9bb3b3db4ae55ef483df176c343296c80e2c8756ba5ed8"
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "parity/card-runtime/source.json",
+            "original": "c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019",
+            "prior": "9e357ed421c876de39c004236a83563116b390fc9d75043af24047dc952fe049",
+            "effective": "f67417ff219039296852886e61aa9661ac535d2f5ce0126fa3f76f6a3a740337"
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "tools/card-runtime-fixtures/capture.mts",
+            "original": "24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e",
+            "prior": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794",
+            "effective": "3c6c419263018b9710f419e31708148b83f32af748b68fb856d2b794aef8359c"
+          }
+        ],
+        "failureCount": 3,
+        "failures": [
+          {
+            "kind": "catalog-source-hash",
+            "path": "parity/card-catalog/source.json",
+            "expected": "e2de5226d31fc7fe4f23d8cd0552ad73be44855bb3109ebed8042b2fd899b9c3",
+            "actual": "295249adf3eee5885b34000047c5e42a2b57a82ae5a09ce873c3d882eb071926"
+          },
+          {
+            "kind": "catalog-protected-count",
+            "path": "parity/card-catalog/source.json protectedSha256",
+            "expected": 325,
+            "actual": 326,
+            "detail": "protected pin inventory must not shrink or silently grow"
+          },
+          {
+            "kind": "missing-file",
+            "path": "tools/provenance/isolated-extra.mjs",
+            "expected": "exists",
+            "actual": "missing"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "kind": "catalog-protected-count",
+          "path": "parity/card-catalog/source.json protectedSha256"
+        }
+      ]
+    },
+    {
+      "name": "required-checker-omitted",
+      "exitCode": 1,
+      "stderr": "",
+      "report": {
+        "ok": false,
+        "root": "<isolated-copy>",
+        "acceptedOverlays": [
+          {
+            "kind": "runtime catalog provenance chain",
+            "path": "parity/card-catalog/source.json",
+            "original": "d50c03e471f9d11ff790cac0f31d4ab82b5bb45f1b963b41725d58814cc6f74e",
+            "prior": "2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792",
+            "effective": "e2de5226d31fc7fe4f23d8cd0552ad73be44855bb3109ebed8042b2fd899b9c3",
+            "leaves": [
+              "/protectedSha256/tools/protocol-js/check-vectors.mjs",
+              "/protectedSha256/tools/browser-proof/proof.mjs"
+            ]
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "parity/card-runtime/INPUT_SHA256.json",
+            "original": "2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a",
+            "prior": "4dd8dff0f8474e7cc312b1a9588560fe06984e42bb878ee0dd40182bd32a968e",
+            "effective": "b13c5605bdfc08b5264440ed03376cbb50c620ac6432afa1280cd777f2ddd931"
+          },
+          {
+            "kind": "documentation overlay",
+            "path": "parity/card-runtime/README.md",
+            "original": "d5d3c30632494c98fb96ce4ddad76da2e716322609ccca767e52b868ec16742d",
+            "effective": "d0fa1b753a7016e07c9bb3b3db4ae55ef483df176c343296c80e2c8756ba5ed8"
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "parity/card-runtime/source.json",
+            "original": "c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019",
+            "prior": "9e357ed421c876de39c004236a83563116b390fc9d75043af24047dc952fe049",
+            "effective": "f67417ff219039296852886e61aa9661ac535d2f5ce0126fa3f76f6a3a740337"
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "tools/card-runtime-fixtures/capture.mts",
+            "original": "24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e",
+            "prior": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794",
+            "effective": "3c6c419263018b9710f419e31708148b83f32af748b68fb856d2b794aef8359c"
+          }
+        ],
+        "failureCount": 3,
+        "failures": [
+          {
+            "kind": "catalog-source-hash",
+            "path": "parity/card-catalog/source.json",
+            "expected": "e2de5226d31fc7fe4f23d8cd0552ad73be44855bb3109ebed8042b2fd899b9c3",
+            "actual": "74a760beb90e02e3c19693f57dc1f36c77868b06ee55d791e3cce558f58dacd7"
+          },
+          {
+            "kind": "catalog-protected-count",
+            "path": "parity/card-catalog/source.json protectedSha256",
+            "expected": 325,
+            "actual": 324,
+            "detail": "protected pin inventory must not shrink or silently grow"
+          },
+          {
+            "kind": "catalog-protected-field",
+            "path": "parity/card-catalog/source.json protectedSha256/tools/protocol-js/check-vectors.mjs",
+            "expected": "1173a06fa8b2d0017367795f4a07c82bfe87285cbcc300df197aa5ee80aa47b3"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "kind": "catalog-protected-field",
+          "path": "parity/card-catalog/source.json protectedSha256/tools/protocol-js/check-vectors.mjs"
+        }
+      ]
+    },
+    {
+      "name": "runtime-overlay-unknown-leaf",
+      "exitCode": 1,
+      "stderr": "",
+      "report": {
+        "ok": false,
+        "root": "<isolated-copy>",
+        "acceptedOverlays": [
+          {
+            "kind": "runtime catalog provenance chain",
+            "path": "parity/card-catalog/source.json",
+            "original": "d50c03e471f9d11ff790cac0f31d4ab82b5bb45f1b963b41725d58814cc6f74e",
+            "prior": "2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792",
+            "effective": "e2de5226d31fc7fe4f23d8cd0552ad73be44855bb3109ebed8042b2fd899b9c3",
+            "leaves": [
+              "/protectedSha256/tools/protocol-js/check-vectors.mjs",
+              "/protectedSha256/tools/browser-proof/proof.mjs",
+              "/protectedSha256/tools/forbidden-extra.mjs"
+            ]
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "parity/card-runtime/INPUT_SHA256.json",
+            "original": "2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a",
+            "prior": "4dd8dff0f8474e7cc312b1a9588560fe06984e42bb878ee0dd40182bd32a968e",
+            "effective": "b13c5605bdfc08b5264440ed03376cbb50c620ac6432afa1280cd777f2ddd931"
+          },
+          {
+            "kind": "documentation overlay",
+            "path": "parity/card-runtime/README.md",
+            "original": "d5d3c30632494c98fb96ce4ddad76da2e716322609ccca767e52b868ec16742d",
+            "effective": "d0fa1b753a7016e07c9bb3b3db4ae55ef483df176c343296c80e2c8756ba5ed8"
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "parity/card-runtime/source.json",
+            "original": "c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019",
+            "prior": "9e357ed421c876de39c004236a83563116b390fc9d75043af24047dc952fe049",
+            "effective": "5347d276e3912facb838508157abaa9ab6df17ab911b6b76cc24dbaa9b7bf4cf"
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "tools/card-runtime-fixtures/capture.mts",
+            "original": "24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e",
+            "prior": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794",
+            "effective": "3c6c419263018b9710f419e31708148b83f32af748b68fb856d2b794aef8359c"
+          }
+        ],
+        "failureCount": 4,
+        "failures": [
+          {
+            "kind": "runtime-source-hash",
+            "path": "parity/card-runtime/source.json",
+            "expected": "f67417ff219039296852886e61aa9661ac535d2f5ce0126fa3f76f6a3a740337",
+            "actual": "5347d276e3912facb838508157abaa9ab6df17ab911b6b76cc24dbaa9b7bf4cf"
+          },
+          {
+            "kind": "runtime-overlay-leaf-count",
+            "path": "provenance.acceptedProvenanceOverlay.acceptedChanges",
+            "expected": 2,
+            "actual": 3
+          },
+          {
+            "kind": "runtime-overlay-unknown-leaf",
+            "path": "provenance.acceptedProvenanceOverlay.acceptedChanges",
+            "expected": [
+              "/protectedSha256/tools/protocol-js/check-vectors.mjs",
+              "/protectedSha256/tools/browser-proof/proof.mjs"
+            ],
+            "actual": "/protectedSha256/tools/forbidden-extra.mjs",
+            "detail": "unexpected accepted metadata leaf"
+          },
+          {
+            "kind": "witness-overlay-effective",
+            "path": "parity/card-runtime/source.json current effective",
+            "expected": "f67417ff219039296852886e61aa9661ac535d2f5ce0126fa3f76f6a3a740337",
+            "actual": "5347d276e3912facb838508157abaa9ab6df17ab911b6b76cc24dbaa9b7bf4cf"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "kind": "runtime-overlay-unknown-leaf",
+          "path": "provenance.acceptedProvenanceOverlay.acceptedChanges"
+        }
+      ]
+    },
+    {
+      "name": "runtime-overlay-missing-leaf",
+      "exitCode": 1,
+      "stderr": "",
+      "report": {
+        "ok": false,
+        "root": "<isolated-copy>",
+        "acceptedOverlays": [
+          {
+            "kind": "runtime catalog provenance chain",
+            "path": "parity/card-catalog/source.json",
+            "original": "d50c03e471f9d11ff790cac0f31d4ab82b5bb45f1b963b41725d58814cc6f74e",
+            "prior": "2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792",
+            "effective": "e2de5226d31fc7fe4f23d8cd0552ad73be44855bb3109ebed8042b2fd899b9c3",
+            "leaves": [
+              "/protectedSha256/tools/protocol-js/check-vectors.mjs"
+            ]
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "parity/card-runtime/INPUT_SHA256.json",
+            "original": "2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a",
+            "prior": "4dd8dff0f8474e7cc312b1a9588560fe06984e42bb878ee0dd40182bd32a968e",
+            "effective": "b13c5605bdfc08b5264440ed03376cbb50c620ac6432afa1280cd777f2ddd931"
+          },
+          {
+            "kind": "documentation overlay",
+            "path": "parity/card-runtime/README.md",
+            "original": "d5d3c30632494c98fb96ce4ddad76da2e716322609ccca767e52b868ec16742d",
+            "effective": "d0fa1b753a7016e07c9bb3b3db4ae55ef483df176c343296c80e2c8756ba5ed8"
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "parity/card-runtime/source.json",
+            "original": "c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019",
+            "prior": "9e357ed421c876de39c004236a83563116b390fc9d75043af24047dc952fe049",
+            "effective": "34b5dbb601eb3ff82fd13084d0e910f8636d850e79471c826f9f27c922b24bd4"
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "tools/card-runtime-fixtures/capture.mts",
+            "original": "24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e",
+            "prior": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794",
+            "effective": "3c6c419263018b9710f419e31708148b83f32af748b68fb856d2b794aef8359c"
+          }
+        ],
+        "failureCount": 4,
+        "failures": [
+          {
+            "kind": "runtime-source-hash",
+            "path": "parity/card-runtime/source.json",
+            "expected": "f67417ff219039296852886e61aa9661ac535d2f5ce0126fa3f76f6a3a740337",
+            "actual": "34b5dbb601eb3ff82fd13084d0e910f8636d850e79471c826f9f27c922b24bd4"
+          },
+          {
+            "kind": "runtime-overlay-leaf-count",
+            "path": "provenance.acceptedProvenanceOverlay.acceptedChanges",
+            "expected": 2,
+            "actual": 1
+          },
+          {
+            "kind": "runtime-overlay-leaf-missing",
+            "path": "provenance.acceptedProvenanceOverlay.acceptedChanges",
+            "expected": [
+              "/protectedSha256/tools/browser-proof/proof.mjs"
+            ],
+            "actual": "missing",
+            "detail": "recorded accepted leaves incomplete"
+          },
+          {
+            "kind": "witness-overlay-effective",
+            "path": "parity/card-runtime/source.json current effective",
+            "expected": "f67417ff219039296852886e61aa9661ac535d2f5ce0126fa3f76f6a3a740337",
+            "actual": "34b5dbb601eb3ff82fd13084d0e910f8636d850e79471c826f9f27c922b24bd4"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "kind": "runtime-overlay-leaf-count",
+          "path": "provenance.acceptedProvenanceOverlay.acceptedChanges"
+        },
+        {
+          "kind": "runtime-overlay-leaf-missing",
+          "path": "provenance.acceptedProvenanceOverlay.acceptedChanges"
+        }
+      ]
+    },
+    {
+      "name": "runtime-overlay-extra-leaf",
+      "exitCode": 1,
+      "stderr": "",
+      "report": {
+        "ok": false,
+        "root": "<isolated-copy>",
+        "acceptedOverlays": [
+          {
+            "kind": "runtime catalog provenance chain",
+            "path": "parity/card-catalog/source.json",
+            "original": "d50c03e471f9d11ff790cac0f31d4ab82b5bb45f1b963b41725d58814cc6f74e",
+            "prior": "2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792",
+            "effective": "e2de5226d31fc7fe4f23d8cd0552ad73be44855bb3109ebed8042b2fd899b9c3",
+            "leaves": [
+              "/protectedSha256/tools/protocol-js/check-vectors.mjs",
+              "/protectedSha256/tools/browser-proof/proof.mjs",
+              "/protectedSha256/tools/protocol-js/check-vectors.mjs"
+            ]
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "parity/card-runtime/INPUT_SHA256.json",
+            "original": "2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a",
+            "prior": "4dd8dff0f8474e7cc312b1a9588560fe06984e42bb878ee0dd40182bd32a968e",
+            "effective": "b13c5605bdfc08b5264440ed03376cbb50c620ac6432afa1280cd777f2ddd931"
+          },
+          {
+            "kind": "documentation overlay",
+            "path": "parity/card-runtime/README.md",
+            "original": "d5d3c30632494c98fb96ce4ddad76da2e716322609ccca767e52b868ec16742d",
+            "effective": "d0fa1b753a7016e07c9bb3b3db4ae55ef483df176c343296c80e2c8756ba5ed8"
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "parity/card-runtime/source.json",
+            "original": "c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019",
+            "prior": "9e357ed421c876de39c004236a83563116b390fc9d75043af24047dc952fe049",
+            "effective": "aa4f2416d503a5d471c88b71a48a164c7af8968fc320ef2ecc2b84e773106117"
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "tools/card-runtime-fixtures/capture.mts",
+            "original": "24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e",
+            "prior": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794",
+            "effective": "3c6c419263018b9710f419e31708148b83f32af748b68fb856d2b794aef8359c"
+          }
+        ],
+        "failureCount": 3,
+        "failures": [
+          {
+            "kind": "runtime-source-hash",
+            "path": "parity/card-runtime/source.json",
+            "expected": "f67417ff219039296852886e61aa9661ac535d2f5ce0126fa3f76f6a3a740337",
+            "actual": "aa4f2416d503a5d471c88b71a48a164c7af8968fc320ef2ecc2b84e773106117"
+          },
+          {
+            "kind": "runtime-overlay-leaf-count",
+            "path": "provenance.acceptedProvenanceOverlay.acceptedChanges",
+            "expected": 2,
+            "actual": 3
+          },
+          {
+            "kind": "witness-overlay-effective",
+            "path": "parity/card-runtime/source.json current effective",
+            "expected": "f67417ff219039296852886e61aa9661ac535d2f5ce0126fa3f76f6a3a740337",
+            "actual": "aa4f2416d503a5d471c88b71a48a164c7af8968fc320ef2ecc2b84e773106117"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "kind": "runtime-overlay-leaf-count",
+          "path": "provenance.acceptedProvenanceOverlay.acceptedChanges"
+        }
+      ]
+    },
+    {
+      "name": "witness-overlay-unknown-path",
+      "exitCode": 1,
+      "stderr": "",
+      "report": {
+        "ok": false,
+        "root": "<isolated-copy>",
+        "acceptedOverlays": [
+          {
+            "kind": "runtime catalog provenance chain",
+            "path": "parity/card-catalog/source.json",
+            "original": "d50c03e471f9d11ff790cac0f31d4ab82b5bb45f1b963b41725d58814cc6f74e",
+            "prior": "2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792",
+            "effective": "e2de5226d31fc7fe4f23d8cd0552ad73be44855bb3109ebed8042b2fd899b9c3",
+            "leaves": [
+              "/protectedSha256/tools/protocol-js/check-vectors.mjs",
+              "/protectedSha256/tools/browser-proof/proof.mjs"
+            ]
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "parity/card-runtime/INPUT_SHA256.json",
+            "original": "2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a",
+            "prior": "4dd8dff0f8474e7cc312b1a9588560fe06984e42bb878ee0dd40182bd32a968e",
+            "effective": "b13c5605bdfc08b5264440ed03376cbb50c620ac6432afa1280cd777f2ddd931"
+          },
+          {
+            "kind": "documentation overlay",
+            "path": "parity/card-runtime/README.md",
+            "original": "d5d3c30632494c98fb96ce4ddad76da2e716322609ccca767e52b868ec16742d",
+            "effective": "d0fa1b753a7016e07c9bb3b3db4ae55ef483df176c343296c80e2c8756ba5ed8"
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "parity/card-runtime/source.json",
+            "original": "c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019",
+            "prior": "9e357ed421c876de39c004236a83563116b390fc9d75043af24047dc952fe049",
+            "effective": "f67417ff219039296852886e61aa9661ac535d2f5ce0126fa3f76f6a3a740337"
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "tools/card-runtime-fixtures/capture.mts",
+            "original": "24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e",
+            "prior": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794",
+            "effective": "3c6c419263018b9710f419e31708148b83f32af748b68fb856d2b794aef8359c"
+          }
+        ],
+        "failureCount": 3,
+        "failures": [
+          {
+            "kind": "witness-source-hash",
+            "path": "parity/card-runtime-witness/source.json",
+            "expected": "744dbf747d13a32a13c1b7e2bfc992cfbe0c530c5a25fa3e6e7350cfdde2a569",
+            "actual": "99e8ce8d299b076f45a898e20efd302bc022a87bf31289e01adcb5e864a509d1"
+          },
+          {
+            "kind": "witness-overlay-count",
+            "path": "witness acceptedProvenanceOverlay",
+            "expected": 3,
+            "actual": 4
+          },
+          {
+            "kind": "witness-overlay-unknown-path",
+            "path": "witness acceptedProvenanceOverlay.path",
+            "expected": [],
+            "actual": "tools/forbidden/extra.mjs",
+            "detail": "unknown overlay path"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "kind": "witness-overlay-count",
+          "path": "witness acceptedProvenanceOverlay"
+        },
+        {
+          "kind": "witness-overlay-unknown-path",
+          "path": "witness acceptedProvenanceOverlay.path"
+        }
+      ]
+    },
+    {
+      "name": "runtime-overlay-stale-effective",
+      "exitCode": 1,
+      "stderr": "",
+      "report": {
+        "ok": false,
+        "root": "<isolated-copy>",
+        "acceptedOverlays": [
+          {
+            "kind": "runtime catalog provenance chain",
+            "path": "parity/card-catalog/source.json",
+            "original": "d50c03e471f9d11ff790cac0f31d4ab82b5bb45f1b963b41725d58814cc6f74e",
+            "prior": "2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792",
+            "effective": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "leaves": [
+              "/protectedSha256/tools/protocol-js/check-vectors.mjs",
+              "/protectedSha256/tools/browser-proof/proof.mjs"
+            ]
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "parity/card-runtime/INPUT_SHA256.json",
+            "original": "2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a",
+            "prior": "4dd8dff0f8474e7cc312b1a9588560fe06984e42bb878ee0dd40182bd32a968e",
+            "effective": "b13c5605bdfc08b5264440ed03376cbb50c620ac6432afa1280cd777f2ddd931"
+          },
+          {
+            "kind": "documentation overlay",
+            "path": "parity/card-runtime/README.md",
+            "original": "d5d3c30632494c98fb96ce4ddad76da2e716322609ccca767e52b868ec16742d",
+            "effective": "d0fa1b753a7016e07c9bb3b3db4ae55ef483df176c343296c80e2c8756ba5ed8"
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "parity/card-runtime/source.json",
+            "original": "c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019",
+            "prior": "9e357ed421c876de39c004236a83563116b390fc9d75043af24047dc952fe049",
+            "effective": "dfeb17cf7cf1c50e05d2f9a69dd166c39e7d6cd5a68f7e550dbb1150f3398a18"
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "tools/card-runtime-fixtures/capture.mts",
+            "original": "24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e",
+            "prior": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794",
+            "effective": "3c6c419263018b9710f419e31708148b83f32af748b68fb856d2b794aef8359c"
+          }
+        ],
+        "failureCount": 3,
+        "failures": [
+          {
+            "kind": "runtime-source-hash",
+            "path": "parity/card-runtime/source.json",
+            "expected": "f67417ff219039296852886e61aa9661ac535d2f5ce0126fa3f76f6a3a740337",
+            "actual": "dfeb17cf7cf1c50e05d2f9a69dd166c39e7d6cd5a68f7e550dbb1150f3398a18"
+          },
+          {
+            "kind": "runtime-overlay-effective",
+            "path": "provenance.acceptedProvenanceOverlay.effectiveSha256",
+            "expected": "e2de5226d31fc7fe4f23d8cd0552ad73be44855bb3109ebed8042b2fd899b9c3",
+            "actual": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "kind": "witness-overlay-effective",
+            "path": "parity/card-runtime/source.json current effective",
+            "expected": "f67417ff219039296852886e61aa9661ac535d2f5ce0126fa3f76f6a3a740337",
+            "actual": "dfeb17cf7cf1c50e05d2f9a69dd166c39e7d6cd5a68f7e550dbb1150f3398a18"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "kind": "runtime-overlay-effective",
+          "path": "provenance.acceptedProvenanceOverlay.effectiveSha256"
+        }
+      ]
+    },
+    {
+      "name": "catalog-source-inventory-missing",
+      "exitCode": 1,
+      "stderr": "",
+      "report": {
+        "ok": false,
+        "root": "<isolated-copy>",
+        "acceptedOverlays": [
+          {
+            "kind": "runtime catalog provenance chain",
+            "path": "parity/card-catalog/source.json",
+            "original": "d50c03e471f9d11ff790cac0f31d4ab82b5bb45f1b963b41725d58814cc6f74e",
+            "prior": "2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792",
+            "effective": "e2de5226d31fc7fe4f23d8cd0552ad73be44855bb3109ebed8042b2fd899b9c3",
+            "leaves": [
+              "/protectedSha256/tools/protocol-js/check-vectors.mjs",
+              "/protectedSha256/tools/browser-proof/proof.mjs"
+            ]
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "parity/card-runtime/INPUT_SHA256.json",
+            "original": "2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a",
+            "prior": "4dd8dff0f8474e7cc312b1a9588560fe06984e42bb878ee0dd40182bd32a968e",
+            "effective": "b13c5605bdfc08b5264440ed03376cbb50c620ac6432afa1280cd777f2ddd931"
+          },
+          {
+            "kind": "documentation overlay",
+            "path": "parity/card-runtime/README.md",
+            "original": "d5d3c30632494c98fb96ce4ddad76da2e716322609ccca767e52b868ec16742d",
+            "effective": "d0fa1b753a7016e07c9bb3b3db4ae55ef483df176c343296c80e2c8756ba5ed8"
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "parity/card-runtime/source.json",
+            "original": "c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019",
+            "prior": "9e357ed421c876de39c004236a83563116b390fc9d75043af24047dc952fe049",
+            "effective": "f67417ff219039296852886e61aa9661ac535d2f5ce0126fa3f76f6a3a740337"
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "tools/card-runtime-fixtures/capture.mts",
+            "original": "24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e",
+            "prior": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794",
+            "effective": "3c6c419263018b9710f419e31708148b83f32af748b68fb856d2b794aef8359c"
+          }
+        ],
+        "failureCount": 2,
+        "failures": [
+          {
+            "kind": "catalog-source-hash",
+            "path": "parity/card-catalog/source.json",
+            "expected": "e2de5226d31fc7fe4f23d8cd0552ad73be44855bb3109ebed8042b2fd899b9c3",
+            "actual": "7090022f0c7bd7cdf91dbf1830415300491208ea87f92ccf03f12d496af89006"
+          },
+          {
+            "kind": "catalog-sourceSha256-missing",
+            "path": "parity/card-catalog/source.json sourceSha256",
+            "expected": "non-empty object of path->sha256",
+            "actual": "missing"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "kind": "catalog-sourceSha256-missing",
+          "path": "parity/card-catalog/source.json sourceSha256"
+        }
+      ]
+    },
+    {
+      "name": "catalog-harness-inventory-empty",
+      "exitCode": 1,
+      "stderr": "",
+      "report": {
+        "ok": false,
+        "root": "<isolated-copy>",
+        "acceptedOverlays": [
+          {
+            "kind": "runtime catalog provenance chain",
+            "path": "parity/card-catalog/source.json",
+            "original": "d50c03e471f9d11ff790cac0f31d4ab82b5bb45f1b963b41725d58814cc6f74e",
+            "prior": "2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792",
+            "effective": "e2de5226d31fc7fe4f23d8cd0552ad73be44855bb3109ebed8042b2fd899b9c3",
+            "leaves": [
+              "/protectedSha256/tools/protocol-js/check-vectors.mjs",
+              "/protectedSha256/tools/browser-proof/proof.mjs"
+            ]
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "parity/card-runtime/INPUT_SHA256.json",
+            "original": "2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a",
+            "prior": "4dd8dff0f8474e7cc312b1a9588560fe06984e42bb878ee0dd40182bd32a968e",
+            "effective": "b13c5605bdfc08b5264440ed03376cbb50c620ac6432afa1280cd777f2ddd931"
+          },
+          {
+            "kind": "documentation overlay",
+            "path": "parity/card-runtime/README.md",
+            "original": "d5d3c30632494c98fb96ce4ddad76da2e716322609ccca767e52b868ec16742d",
+            "effective": "d0fa1b753a7016e07c9bb3b3db4ae55ef483df176c343296c80e2c8756ba5ed8"
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "parity/card-runtime/source.json",
+            "original": "c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019",
+            "prior": "9e357ed421c876de39c004236a83563116b390fc9d75043af24047dc952fe049",
+            "effective": "f67417ff219039296852886e61aa9661ac535d2f5ce0126fa3f76f6a3a740337"
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "tools/card-runtime-fixtures/capture.mts",
+            "original": "24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e",
+            "prior": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794",
+            "effective": "3c6c419263018b9710f419e31708148b83f32af748b68fb856d2b794aef8359c"
+          }
+        ],
+        "failureCount": 2,
+        "failures": [
+          {
+            "kind": "catalog-source-hash",
+            "path": "parity/card-catalog/source.json",
+            "expected": "e2de5226d31fc7fe4f23d8cd0552ad73be44855bb3109ebed8042b2fd899b9c3",
+            "actual": "e2be344a4bf1e05ffd6b859c6b4b1e842e324389cbc4db2bddfef18672c3cce2"
+          },
+          {
+            "kind": "catalog-harnessSha256-count",
+            "path": "parity/card-catalog/source.json harnessSha256",
+            "expected": 5,
+            "actual": 0,
+            "detail": "inventory must not be empty or silently shrink"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "kind": "catalog-harnessSha256-count",
+          "path": "parity/card-catalog/source.json harnessSha256"
+        }
+      ]
+    },
+    {
+      "name": "catalog-source-actual-pin",
+      "exitCode": 1,
+      "stderr": "",
+      "report": {
+        "ok": false,
+        "root": "<isolated-copy>",
+        "acceptedOverlays": [
+          {
+            "kind": "runtime catalog provenance chain",
+            "path": "parity/card-catalog/source.json",
+            "original": "d50c03e471f9d11ff790cac0f31d4ab82b5bb45f1b963b41725d58814cc6f74e",
+            "prior": "2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792",
+            "effective": "e2de5226d31fc7fe4f23d8cd0552ad73be44855bb3109ebed8042b2fd899b9c3",
+            "leaves": [
+              "/protectedSha256/tools/protocol-js/check-vectors.mjs",
+              "/protectedSha256/tools/browser-proof/proof.mjs"
+            ]
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "parity/card-runtime/INPUT_SHA256.json",
+            "original": "2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a",
+            "prior": "4dd8dff0f8474e7cc312b1a9588560fe06984e42bb878ee0dd40182bd32a968e",
+            "effective": "b13c5605bdfc08b5264440ed03376cbb50c620ac6432afa1280cd777f2ddd931"
+          },
+          {
+            "kind": "documentation overlay",
+            "path": "parity/card-runtime/README.md",
+            "original": "d5d3c30632494c98fb96ce4ddad76da2e716322609ccca767e52b868ec16742d",
+            "effective": "d0fa1b753a7016e07c9bb3b3db4ae55ef483df176c343296c80e2c8756ba5ed8"
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "parity/card-runtime/source.json",
+            "original": "c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019",
+            "prior": "9e357ed421c876de39c004236a83563116b390fc9d75043af24047dc952fe049",
+            "effective": "f67417ff219039296852886e61aa9661ac535d2f5ce0126fa3f76f6a3a740337"
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "tools/card-runtime-fixtures/capture.mts",
+            "original": "24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e",
+            "prior": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794",
+            "effective": "3c6c419263018b9710f419e31708148b83f32af748b68fb856d2b794aef8359c"
+          }
+        ],
+        "failureCount": 3,
+        "failures": [
+          {
+            "kind": "catalog-source-sha",
+            "path": "package-lock.json",
+            "expected": "991869bdfbbefb6874220500197c61db302a4d2b2603dfc2288fd7032ce1d481",
+            "actual": "841ed4558531c7953cd721b915a88c97ef6076833803137cf3bd46f250208438",
+            "detail": "catalog sourceSha256 inventory is stale vs current file"
+          },
+          {
+            "kind": "runtime-sourceInputs-sha",
+            "path": "package-lock.json",
+            "expected": "991869bdfbbefb6874220500197c61db302a4d2b2603dfc2288fd7032ce1d481",
+            "actual": "841ed4558531c7953cd721b915a88c97ef6076833803137cf3bd46f250208438"
+          },
+          {
+            "kind": "witness-source-input-sha",
+            "path": "package-lock.json",
+            "expected": "991869bdfbbefb6874220500197c61db302a4d2b2603dfc2288fd7032ce1d481",
+            "actual": "841ed4558531c7953cd721b915a88c97ef6076833803137cf3bd46f250208438"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "kind": "catalog-source-sha",
+          "path": "package-lock.json"
+        }
+      ]
+    },
+    {
+      "name": "catalog-harness-actual-pin",
+      "exitCode": 1,
+      "stderr": "",
+      "report": {
+        "ok": false,
+        "root": "<isolated-copy>",
+        "acceptedOverlays": [
+          {
+            "kind": "runtime catalog provenance chain",
+            "path": "parity/card-catalog/source.json",
+            "original": "d50c03e471f9d11ff790cac0f31d4ab82b5bb45f1b963b41725d58814cc6f74e",
+            "prior": "2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792",
+            "effective": "e2de5226d31fc7fe4f23d8cd0552ad73be44855bb3109ebed8042b2fd899b9c3",
+            "leaves": [
+              "/protectedSha256/tools/protocol-js/check-vectors.mjs",
+              "/protectedSha256/tools/browser-proof/proof.mjs"
+            ]
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "parity/card-runtime/INPUT_SHA256.json",
+            "original": "2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a",
+            "prior": "4dd8dff0f8474e7cc312b1a9588560fe06984e42bb878ee0dd40182bd32a968e",
+            "effective": "b13c5605bdfc08b5264440ed03376cbb50c620ac6432afa1280cd777f2ddd931"
+          },
+          {
+            "kind": "documentation overlay",
+            "path": "parity/card-runtime/README.md",
+            "original": "d5d3c30632494c98fb96ce4ddad76da2e716322609ccca767e52b868ec16742d",
+            "effective": "d0fa1b753a7016e07c9bb3b3db4ae55ef483df176c343296c80e2c8756ba5ed8"
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "parity/card-runtime/source.json",
+            "original": "c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019",
+            "prior": "9e357ed421c876de39c004236a83563116b390fc9d75043af24047dc952fe049",
+            "effective": "f67417ff219039296852886e61aa9661ac535d2f5ce0126fa3f76f6a3a740337"
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "tools/card-runtime-fixtures/capture.mts",
+            "original": "24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e",
+            "prior": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794",
+            "effective": "3c6c419263018b9710f419e31708148b83f32af748b68fb856d2b794aef8359c"
+          }
+        ],
+        "failureCount": 1,
+        "failures": [
+          {
+            "kind": "catalog-harness-sha",
+            "path": "tools/card-catalog-fixtures/README.md",
+            "expected": "6e1d9afbce340bdacbb48853d32bdef047a1306085850f07ed1b1b5c7d30b624",
+            "actual": "0a95a5cdfe15fe783a774d1f373693ee72e3333eb44903d38cefdcb458895c77",
+            "detail": "catalog harnessSha256 inventory is stale vs current file"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "kind": "catalog-harness-sha",
+          "path": "tools/card-catalog-fixtures/README.md"
+        }
+      ]
+    },
+    {
+      "name": "frozen-pins-byte-mutation",
+      "exitCode": 1,
+      "stderr": "",
+      "report": {
+        "ok": false,
+        "root": "<isolated-copy>",
+        "acceptedOverlays": [
+          {
+            "kind": "runtime catalog provenance chain",
+            "path": "parity/card-catalog/source.json",
+            "original": "d50c03e471f9d11ff790cac0f31d4ab82b5bb45f1b963b41725d58814cc6f74e",
+            "prior": "2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792",
+            "effective": "e2de5226d31fc7fe4f23d8cd0552ad73be44855bb3109ebed8042b2fd899b9c3",
+            "leaves": [
+              "/protectedSha256/tools/protocol-js/check-vectors.mjs",
+              "/protectedSha256/tools/browser-proof/proof.mjs"
+            ]
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "parity/card-runtime/INPUT_SHA256.json",
+            "original": "2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a",
+            "prior": "4dd8dff0f8474e7cc312b1a9588560fe06984e42bb878ee0dd40182bd32a968e",
+            "effective": "b13c5605bdfc08b5264440ed03376cbb50c620ac6432afa1280cd777f2ddd931"
+          },
+          {
+            "kind": "documentation overlay",
+            "path": "parity/card-runtime/README.md",
+            "original": "d5d3c30632494c98fb96ce4ddad76da2e716322609ccca767e52b868ec16742d",
+            "effective": "d0fa1b753a7016e07c9bb3b3db4ae55ef483df176c343296c80e2c8756ba5ed8"
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "parity/card-runtime/source.json",
+            "original": "c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019",
+            "prior": "9e357ed421c876de39c004236a83563116b390fc9d75043af24047dc952fe049",
+            "effective": "f67417ff219039296852886e61aa9661ac535d2f5ce0126fa3f76f6a3a740337"
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "tools/card-runtime-fixtures/capture.mts",
+            "original": "24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e",
+            "prior": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794",
+            "effective": "3c6c419263018b9710f419e31708148b83f32af748b68fb856d2b794aef8359c"
+          }
+        ],
+        "failureCount": 2,
+        "failures": [
+          {
+            "kind": "frozen-pins-hash",
+            "path": "tools/card-runtime-witness-fixtures/FROZEN_PINS.json",
+            "expected": "7ed1086915fafd5fa129669270d6d53090f4b81052660a18318df60cab8b3023",
+            "actual": "d17f6234ea559dd81dcf1ae55b538a44531a5fef6d7fa44fcf701d7ea91befa2"
+          },
+          {
+            "kind": "witness-harness-input-sha",
+            "path": "tools/card-runtime-witness-fixtures/FROZEN_PINS.json",
+            "expected": "7ed1086915fafd5fa129669270d6d53090f4b81052660a18318df60cab8b3023",
+            "actual": "d17f6234ea559dd81dcf1ae55b538a44531a5fef6d7fa44fcf701d7ea91befa2"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "kind": "frozen-pins-hash",
+          "path": "tools/card-runtime-witness-fixtures/FROZEN_PINS.json"
+        }
+      ]
+    },
+    {
+      "name": "frozen-pins-count-mutation",
+      "exitCode": 1,
+      "stderr": "",
+      "report": {
+        "ok": false,
+        "root": "<isolated-copy>",
+        "acceptedOverlays": [
+          {
+            "kind": "runtime catalog provenance chain",
+            "path": "parity/card-catalog/source.json",
+            "original": "d50c03e471f9d11ff790cac0f31d4ab82b5bb45f1b963b41725d58814cc6f74e",
+            "prior": "2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792",
+            "effective": "e2de5226d31fc7fe4f23d8cd0552ad73be44855bb3109ebed8042b2fd899b9c3",
+            "leaves": [
+              "/protectedSha256/tools/protocol-js/check-vectors.mjs",
+              "/protectedSha256/tools/browser-proof/proof.mjs"
+            ]
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "parity/card-runtime/INPUT_SHA256.json",
+            "original": "2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a",
+            "prior": "4dd8dff0f8474e7cc312b1a9588560fe06984e42bb878ee0dd40182bd32a968e",
+            "effective": "b13c5605bdfc08b5264440ed03376cbb50c620ac6432afa1280cd777f2ddd931"
+          },
+          {
+            "kind": "documentation overlay",
+            "path": "parity/card-runtime/README.md",
+            "original": "d5d3c30632494c98fb96ce4ddad76da2e716322609ccca767e52b868ec16742d",
+            "effective": "d0fa1b753a7016e07c9bb3b3db4ae55ef483df176c343296c80e2c8756ba5ed8"
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "parity/card-runtime/source.json",
+            "original": "c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019",
+            "prior": "9e357ed421c876de39c004236a83563116b390fc9d75043af24047dc952fe049",
+            "effective": "f67417ff219039296852886e61aa9661ac535d2f5ce0126fa3f76f6a3a740337"
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "tools/card-runtime-fixtures/capture.mts",
+            "original": "24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e",
+            "prior": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794",
+            "effective": "3c6c419263018b9710f419e31708148b83f32af748b68fb856d2b794aef8359c"
+          }
+        ],
+        "failureCount": 5,
+        "failures": [
+          {
+            "kind": "frozen-pins-hash",
+            "path": "tools/card-runtime-witness-fixtures/FROZEN_PINS.json",
+            "expected": "7ed1086915fafd5fa129669270d6d53090f4b81052660a18318df60cab8b3023",
+            "actual": "875b0794ef8d23a401b67873405d240b309ce28f1e71f0cb8b2f6f704c77f396"
+          },
+          {
+            "kind": "frozen-file-count",
+            "path": "FROZEN_PINS.files",
+            "expected": 15,
+            "actual": 14
+          },
+          {
+            "kind": "frozen-tool-count",
+            "path": "FROZEN_PINS tools files",
+            "expected": 11,
+            "actual": 10
+          },
+          {
+            "kind": "witness-harness-input-sha",
+            "path": "tools/card-runtime-witness-fixtures/FROZEN_PINS.json",
+            "expected": "7ed1086915fafd5fa129669270d6d53090f4b81052660a18318df60cab8b3023",
+            "actual": "875b0794ef8d23a401b67873405d240b309ce28f1e71f0cb8b2f6f704c77f396"
+          },
+          {
+            "kind": "witness-input-frozen-pins",
+            "path": "witness INPUT frozenPins (deep-equal to FROZEN_PINS)",
+            "expected": "{\"format\":\"rh-card-runtime-witness-pins/1\",\"baseRevision\":\"64052f09212ea857b2aa6327cf996b1860deb91b\",\"frozenSourceSha256\":\"c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019\",\"files\":[{\"path\":\"parity/card-runtime/ATTEMPTS.json\",\"bytes\":4582,\"mode\":\"100644\",\"sha256\":\"5f87eacf42eabe372f554255faee0109d2f61789f6a5c67857ff2b1eb7f3083d\"},{\"path\":\"parity/card-runtime/INPUT_SHA256.json\",\"bytes\":23376,\"mode\":\"100644\",\"sha256\":\"2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a\"},{\"path\":\"parity/card-runtime/README.md\",\"bytes\":22956,\"mode\":\"100644\",\"sha256\":\"d5d3c30632494c98fb96ce4ddad76da2e716322609ccca767e52b868ec16742d\"},{\"path\":\"parity/card-runtime/source.json\",\"bytes\":53033468,\"mode\":\"100644\",\"sha256\":\"c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019\"},{\"path\":\"tools/card-runtime-fixtures/assertions.mts\",\"bytes\":8145,\"mode\":\"100644\",\"sha256\":\"b5eebed03b8e3819dea4b2847d3db34534e1ad44272f22b901f5d959e859c6c1\"},{\"path\":\"tools/card-runtime-fixtures/born-input.json\",\"bytes\":7510,\"mode\":\"100644\",\"sha256\":\"5ee388ca61234bae0e7dc04adca00702fbc6199f048487490fcbca25b2cffb16\"},{\"path\":\"tools/card-runtime-fixtures/capture.mts\",\"bytes\":6091,\"mode\":\"100644\",\"sha256\":\"24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e\"},{\"path\":\"tools/card-runtime-fixtures/capture.sh\",\"bytes\":1543,\"mode\":\"100755\",\"sha256\":\"c10676de58f36d84693aabc335c7a00074737b97e983173ff241cec3123c5db3\"},{\"path\":\"tools/card-runtime-fixtures/cases.mts\",\"bytes\":15613,\"mode\":\"100644\",\"sha256\":\"473b7160a8abf7014d511156ee08ca43b371f94b89f80c24b9211504986d3dd0\"},{\"path\":\"tools/card-runtime-fixtures/control.mts\",\"bytes\":568,\"mode\":\"100644\",\"sha256\":\"e0178eb9734d0b362d636f49f4b4d9c3cf598b32978de6912f7eac73b6277338\"},{\"path\":\"tools/card-runtime-fixtures/engine.mts\",\"bytes\":18327,\"mode\":\"100644\",\"sha256\":\"7cf3b22c05af7395b5d83b33ae77e437e903b2111690872f28a9e1b311b5bddb\"},{\"path\":\"tools/card-runtime-fixtures/inspection.mts\",\"bytes\":1597,\"mode\":\"100644\",\"sha256\":\"3cf7a5a8a9ab0dd24771099cd28df8f83c05008991b35d3c901751e2ccf23b36\"},{\"path\":\"tools/card-runtime-fixtures/noninterference.mts\",\"bytes\":2906,\"mode\":\"100644\",\"sha256\":\"099459e3b445fae074e732c0a9094971d2d0974298de9ce2b10cdf5c841d76bd\"},{\"path\":\"tools/card-runtime-fixtures/private-inspection.mts\",\"bytes\":1537,\"mode\":\"100644\",\"sha256\":\"92c2bb4cb99b4702da608d148c4f044e99192e87c416fec6a07c88e9c60e0880\"}]}",
+            "actual": "{\"format\":\"rh-card-runtime-witness-pins/1\",\"baseRevision\":\"64052f09212ea857b2aa6327cf996b1860deb91b\",\"frozenSourceSha256\":\"c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019\",\"files\":[{\"path\":\"parity/card-runtime/ATTEMPTS.json\",\"bytes\":4582,\"mode\":\"100644\",\"sha256\":\"5f87eacf42eabe372f554255faee0109d2f61789f6a5c67857ff2b1eb7f3083d\"},{\"path\":\"parity/card-runtime/INPUT_SHA256.json\",\"bytes\":23376,\"mode\":\"100644\",\"sha256\":\"2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a\"},{\"path\":\"parity/card-runtime/README.md\",\"bytes\":22956,\"mode\":\"100644\",\"sha256\":\"d5d3c30632494c98fb96ce4ddad76da2e716322609ccca767e52b868ec16742d\"},{\"path\":\"parity/card-runtime/source.json\",\"bytes\":53033468,\"mode\":\"100644\",\"sha256\":\"c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019\"},{\"path\":\"tools/card-runtime-fixtures/assertions.mts\",\"bytes\":8145,\"mode\":\"100644\",\"sha256\":\"b5eebed03b8e3819dea4b2847d3db34534e1ad44272f22b901f5d959e859c6c1\"},{\"path\":\"tools/card-runtime-fixtures/born-input.json\",\"bytes\":7510,\"mode\":\"100644\",\"sha256\":\"5ee388ca61234bae0e7dc04adca00702fbc6199f048487490fcbca25b2cffb16\"},{\"path\":\"tools/card-runtime-fixtures/capture.mts\",\"bytes\":6091,\"mode\":\"100644\",\"sha256\":\"24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e\"},{\"path\":\"tools/card-runtime-fixtures/capture.sh\",\"bytes\":1543,\"mode\":\"100755\",\"sha256\":\"c10676de58f36d84693aabc335c7a00074737b97e983173ff241cec3123c5db3\"},{\"path\":\"tools/card-runtime-fixtures/cases.mts\",\"bytes\":15613,\"mode\":\"100644\",\"sha256\":\"473b7160a8abf7014d511156ee08ca43b371f94b89f80c24b9211504986d3dd0\"},{\"path\":\"tools/card-runtime-fixtures/control.mts\",\"bytes\":568,\"mode\":\"100644\",\"sha256\":\"e0178eb9734d0b362d636f49f4b4d9c3cf598b32978de6912f7eac73b6277338\"},{\"path\":\"tools/card-runtime-fixtures/engine.mts\",\"bytes\":18327,\"mode\":\"100644\",\"sha256\":\"7cf3b22c05af7395b5d83b33ae77e437e903b2111690872f28a9e1b311b5bddb\"},{\"path\":\"tools/card-runtime-fixtures/inspection.mts\",\"bytes\":1597,\"mode\":\"100644\",\"sha256\":\"3cf7a5a8a9ab0dd24771099cd28df8f83c05008991b35d3c901751e2ccf23b36\"},{\"path\":\"tools/card-runtime-fixtures/noninterference.mts\",\"bytes\":2906,\"mode\":\"100644\",\"sha256\":\"099459e3b445fae074e732c0a9094971d2d0974298de9ce2b10cdf5c841d76bd\"},{\"path\":\"tools/card-runtime-fixtures/private-inspection.mts\",\"bytes\":1537,\"mode\":\"100644\",\"sha256\":\"92c2bb4cb99b4702da608d148c4f044e99192e87c416fec6a07c88e9c60e0880\"},{\"path\":\"tools/card-runtime-fixtures/seed1-input.json\",\"bytes\":319166,\"mode\":\"100644\",\"sha256\":\"7c95efad61f47942d10921d7f1bc16acb43306f370cf368e0693a69d456441e7\"}]}"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "kind": "frozen-file-count",
+          "path": "FROZEN_PINS.files"
+        }
+      ]
+    },
+    {
+      "name": "final-pristine",
+      "exitCode": 0,
+      "stderr": "",
+      "report": {
+        "ok": true,
+        "root": "<isolated-copy>",
+        "acceptedOverlays": [
+          {
+            "kind": "runtime catalog provenance chain",
+            "path": "parity/card-catalog/source.json",
+            "original": "d50c03e471f9d11ff790cac0f31d4ab82b5bb45f1b963b41725d58814cc6f74e",
+            "prior": "2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792",
+            "effective": "e2de5226d31fc7fe4f23d8cd0552ad73be44855bb3109ebed8042b2fd899b9c3",
+            "leaves": [
+              "/protectedSha256/tools/protocol-js/check-vectors.mjs",
+              "/protectedSha256/tools/browser-proof/proof.mjs"
+            ]
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "parity/card-runtime/INPUT_SHA256.json",
+            "original": "2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a",
+            "prior": "4dd8dff0f8474e7cc312b1a9588560fe06984e42bb878ee0dd40182bd32a968e",
+            "effective": "b13c5605bdfc08b5264440ed03376cbb50c620ac6432afa1280cd777f2ddd931"
+          },
+          {
+            "kind": "documentation overlay",
+            "path": "parity/card-runtime/README.md",
+            "original": "d5d3c30632494c98fb96ce4ddad76da2e716322609ccca767e52b868ec16742d",
+            "effective": "d0fa1b753a7016e07c9bb3b3db4ae55ef483df176c343296c80e2c8756ba5ed8"
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "parity/card-runtime/source.json",
+            "original": "c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019",
+            "prior": "9e357ed421c876de39c004236a83563116b390fc9d75043af24047dc952fe049",
+            "effective": "f67417ff219039296852886e61aa9661ac535d2f5ce0126fa3f76f6a3a740337"
+          },
+          {
+            "kind": "witness provenance chain",
+            "path": "tools/card-runtime-fixtures/capture.mts",
+            "original": "24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e",
+            "prior": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794",
+            "effective": "3c6c419263018b9710f419e31708148b83f32af748b68fb856d2b794aef8359c"
+          }
+        ],
+        "failureCount": 0,
+        "failures": []
+      },
+      "expected": []
+    }
+  ]
+}

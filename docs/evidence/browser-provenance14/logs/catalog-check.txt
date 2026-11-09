@@ -1,0 +1,5 @@
+$ bash tools/card-catalog-fixtures/capture.sh --check
+{"mode":"check","cases":409,"families":{"catalog":80,"eligibility":80,"count-boundary":28,"unknown":6,"membership":1,"pool":30,"roll":181,"pool-representation":3},"sha256":"e2de5226d31fc7fe4f23d8cd0552ad73be44855bb3109ebed8042b2fd899b9c3"}
+
+exit 0
+elapsed_seconds 7.831

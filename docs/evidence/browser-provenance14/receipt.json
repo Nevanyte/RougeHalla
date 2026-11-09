@@ -1,0 +1,199 @@
+{
+  "format": "rh-final-browser-provenance14-admission/1",
+  "branch": "codex/browser-provenance14",
+  "base": "58f476763128a84b2acb28d2d7e41cb60a1c20e5",
+  "sourceCommit": "8d13c297b125fb395e6894cf228424e29b119d04",
+  "protectedLeaves": [
+    {
+      "path": "tools/protocol-js/check-vectors.mjs",
+      "from": "3c96f5b013d7ee647b4d4b67c762e5db5b38dc8fd7e669c7a4b139c9a0778a90",
+      "to": "1173a06fa8b2d0017367795f4a07c82bfe87285cbcc300df197aa5ee80aa47b3",
+      "toolBytesUnchangedFromBase": true
+    },
+    {
+      "path": "tools/browser-proof/proof.mjs",
+      "from": "6aea66795ed18edd941a4bc65c62070d6a6e2fce1b57cd98d0238db134fcfd66",
+      "to": "9d9a5f64a59ecc048653975f5b60fa9a74e71edffc983037c64aea96ac74d8a7",
+      "toolBytesUnchangedFromBase": true
+    }
+  ],
+  "semanticDiffs": [
+    {
+      "path": "parity/card-catalog/source.json",
+      "changedFields": 2,
+      "semanticDigestBefore": "a6dea59a42669c8b2aa88a642c17dda7b630de3b51cbd447badc4da5712a80f7",
+      "semanticDigestAfter": "a6dea59a42669c8b2aa88a642c17dda7b630de3b51cbd447badc4da5712a80f7",
+      "allOtherFieldsEqual": true
+    },
+    {
+      "path": "parity/card-runtime/source.json",
+      "changedFields": 11,
+      "semanticDigestBefore": "a086c168baa3e0844a5524662e9fc68675b7335e95248db5ced95bc863878fe7",
+      "semanticDigestAfter": "a086c168baa3e0844a5524662e9fc68675b7335e95248db5ced95bc863878fe7",
+      "allOtherFieldsEqual": true
+    },
+    {
+      "path": "parity/card-runtime/INPUT_SHA256.json",
+      "changedFields": 11,
+      "semanticDigestBefore": null,
+      "semanticDigestAfter": null,
+      "allOtherFieldsEqual": true
+    },
+    {
+      "path": "parity/card-runtime-witness/source.json",
+      "changedFields": 22,
+      "semanticDigestBefore": "0ef72417008fab778bd68dc05aed90134415eb3411db6406d12b697bc921c9c4",
+      "semanticDigestAfter": "0ef72417008fab778bd68dc05aed90134415eb3411db6406d12b697bc921c9c4",
+      "allOtherFieldsEqual": true
+    },
+    {
+      "path": "parity/card-runtime-witness/INPUT_SHA256.json",
+      "changedFields": 22,
+      "semanticDigestBefore": null,
+      "semanticDigestAfter": null,
+      "allOtherFieldsEqual": true
+    }
+  ],
+  "sourceChecks": [
+    {
+      "gate": "catalog",
+      "command": [
+        "bash",
+        "tools/card-catalog-fixtures/capture.sh",
+        "--check"
+      ],
+      "exit": 0,
+      "elapsed_seconds": 7.831,
+      "log": "docs/evidence/browser-provenance14/logs/catalog-check.txt"
+    },
+    {
+      "gate": "runtime",
+      "command": [
+        "bash",
+        "tools/card-runtime-fixtures/capture.sh",
+        "--check"
+      ],
+      "exit": 0,
+      "elapsed_seconds": 40.719,
+      "log": "docs/evidence/browser-provenance14/logs/runtime-check.txt"
+    },
+    {
+      "gate": "witness",
+      "command": [
+        "bash",
+        "tools/card-runtime-witness-fixtures/capture.sh",
+        "--check"
+      ],
+      "exit": 0,
+      "elapsed_seconds": 32.865,
+      "log": "docs/evidence/browser-provenance14/logs/witness-check.txt"
+    }
+  ],
+  "image": "node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292",
+  "sourceMount": "read-only",
+  "expectedOutputMount": "read-only",
+  "captureModeInvocations": 0,
+  "actualProducerExecutions": {
+    "catalog": 2,
+    "runtime": 1,
+    "witness": 1,
+    "catalogExplanation": "One compact-format refusal, then final canonical success. Separate initial mount failure did not launch a producer."
+  },
+  "fastAuditor": {
+    "ok": true,
+    "failureCount": 0,
+    "sha256": "99cf8f1ff2c692f2f03f6b78acc79fb41d27331b56b843491e0daf6f54b79eba",
+    "log": "logs/check-card-chain-positive-final.txt",
+    "guardAdditions": [
+      "protected count325",
+      "explicit required checker field",
+      "exact new evidence refs",
+      "exact full preserved prior lineage"
+    ],
+    "existingGuardsRetained": true
+  },
+  "isolatedControls": {
+    "report": "auditor-controls.json",
+    "log": "logs/auditor-controls.log",
+    "copyFiles": 488,
+    "negativeCount": 15,
+    "pristineCount": 2,
+    "allNegativesRefused": true,
+    "pristineFailureCount": 0,
+    "temporaryCopyRemoved": true,
+    "additionalProducerRuns": 0,
+    "sourceCommitNote": "Controls ran before source commit against exact auditor/content hashes; committed source artifacts match those bytes."
+  },
+  "offlineSemanticControls": [
+    {
+      "path": "parity/card-catalog/source.json",
+      "control": "changed case id",
+      "refused": true
+    },
+    {
+      "path": "parity/card-runtime/source.json",
+      "control": "changed case id",
+      "refused": true
+    },
+    {
+      "path": "parity/card-runtime-witness/source.json",
+      "control": "changed case id",
+      "refused": true
+    },
+    {
+      "path": "parity/card-runtime/source.json",
+      "control": "changed private record",
+      "refused": true
+    },
+    {
+      "path": "parity/card-runtime-witness/source.json",
+      "control": "changed private record",
+      "refused": true
+    }
+  ],
+  "scope": {
+    "changedSourceFiles": [
+      "parity/card-catalog/source.json",
+      "parity/card-runtime-witness/INPUT_SHA256.json",
+      "parity/card-runtime-witness/source.json",
+      "parity/card-runtime/INPUT_SHA256.json",
+      "parity/card-runtime/source.json",
+      "tools/card-runtime-fixtures/capture.mts",
+      "tools/card-runtime-witness-fixtures/capture.mts",
+      "tools/provenance/check-card-chain.mjs"
+    ],
+    "captureToolsOutsideOverlayLiteralsUnchanged": true,
+    "allOtherTrackedSourceUnchanged": true,
+    "nativeIdentityContentTapeLockStatusBrowserProbeClientServerWorkflowEdits": false,
+    "frozenPinsChanged": false,
+    "priorReceiptDirectories": [
+      "docs/evidence/ci-card-catalog-protocol13",
+      "docs/evidence/ci-card-runtime-provenance",
+      "docs/evidence/ci-browser-provenance-chain"
+    ],
+    "priorReceiptFilesVerifiedUnchanged": 74,
+    "independentReview": "logs/scope-review.txt"
+  },
+  "retainedAttempts": {
+    "initialOldPinRefusal": "logs/initial-old-pin-refusal.txt",
+    "launchRefusal": "launch-refusal.json",
+    "formatRefusal": "format-refusal.json",
+    "originalCompactPlan": "PLAN-initial-compact.json",
+    "originalCompactDiff": "initial-compact-metadata-diff.json",
+    "intermediateCompactAudit": "logs/check-card-chain-positive-compact-intermediate.txt",
+    "finalMap": "APPROACH.md"
+  },
+  "remainingHolds": [
+    "Coordinator review/merge/final admission.",
+    "Actual final hosted/browser proof has not run; tool hashes are admitted bytes only.",
+    "No public activation or new-build acceptance inferred from historical browser receipts."
+  ],
+  "excludedCampaigns": [
+    "Editor",
+    "cloud/deployment",
+    "full workspace/native tests",
+    "World-wide/source recapture campaign",
+    "performance"
+  ],
+  "manifestSelfSeal": "Final evidence commit seals MANIFEST.json; manifest excludes itself."
+}

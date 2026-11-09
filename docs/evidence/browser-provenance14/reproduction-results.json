@@ -1,0 +1,35 @@
+[
+  {
+    "gate": "catalog",
+    "command": [
+      "bash",
+      "tools/card-catalog-fixtures/capture.sh",
+      "--check"
+    ],
+    "exit": 0,
+    "elapsed_seconds": 7.831,
+    "log": "docs/evidence/browser-provenance14/logs/catalog-check.txt"
+  },
+  {
+    "gate": "runtime",
+    "command": [
+      "bash",
+      "tools/card-runtime-fixtures/capture.sh",
+      "--check"
+    ],
+    "exit": 0,
+    "elapsed_seconds": 40.719,
+    "log": "docs/evidence/browser-provenance14/logs/runtime-check.txt"
+  },
+  {
+    "gate": "witness",
+    "command": [
+      "bash",
+      "tools/card-runtime-witness-fixtures/capture.sh",
+      "--check"
+    ],
+    "exit": 0,
+    "elapsed_seconds": 32.865,
+    "log": "docs/evidence/browser-provenance14/logs/witness-check.txt"
+  }
+]

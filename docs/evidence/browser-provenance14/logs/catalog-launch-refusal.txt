@@ -1,0 +1,7 @@
+$ bash tools/card-catalog-fixtures/capture.sh --check
+docker: Error response from daemon: failed to create task for container: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: error mounting "tmpfs" to rootfs at "/repo/node_modules": create mountpoint for /repo/node_modules mount: make mountpoint "/repo/node_modules": mkdirat /var/lib/docker/rootfs/overlayfs/222026bf18f768f421b1a5e7061cc7b0314a613ba857fd531349c40c51fcd81b/repo/node_modules: read-only file system
+
+Run 'docker run --help' for more information
+
+exit 125
+elapsed_seconds 0.206

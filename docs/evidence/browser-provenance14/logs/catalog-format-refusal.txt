@@ -1,0 +1,231 @@
+$ bash tools/card-catalog-fixtures/capture.sh --check
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: canonical bytes differ
++ actual - expected
+
++ '{"format":"rh-card-catalog-source/1","baseRevision":"3619339a1c03469be837aa9b42a280d7940044d0","environment":{"node":"v22.23.4","os":"linux","arch":"x64","image":"node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292"},"sourceSha256":{"packages/shared/src/abilities.ts":"95ef39376a9d9f40cc529a0f7300700a97427050628941e801aaa1e299862518","packages/shared/src/achievements.ts":"c80dbded6e1ea5eb79dc0f25378d9a45fbe41865a8298bf9fc5f2eeafdd46a34","packages/shared/src/blink.ts":"e5582562556f530fd99ec9bf8e506fa144805f666c09f4359aefb98ee9171f15","packages/shared/src/bushes.ts":"ac64ce414134376d27b7b4819d59096e66edd01d82958e873d57348a79d85910","packages/shared/src/cards.ts":"4a51376a1ce3a79f417e32ce7ae8d7eb37142da5e49f59c3a2c89d48b11ae1e3","packages/shared/src/championPassives.ts":"d7e0ecdc8b9cbffc8463f40b9c564019431b14744f5948bf89eefb2505fbf6df","packages/shared/src/chestBoosts.ts":"60b50c685dacdfdbc2861fdc9f80a900845c5cc0af0b77741527cfb8da51fa81","packages/shared/src/coliseum.ts":"48fc2fa156e70ff6520019605017939298144960d8871a748ef18aadbbf0c0e1","packages/shared/src/combatReadability.ts":"206f707658ee37f22d9aae403449003487e474220442e1cb178c8af85bfe8833","packages/shared/src/constants.ts":"51ce4dd800ec868abee525fb1ae375688066f336972a7da878644df1235924e7","packages/shared/src/consumables.ts":"1ffd882c4b44fed9c20743e671050fc4044706c17e2c36c365952eafc3bd3606","packages/shared/src/cosmetics.ts":"7513ea6b3cbc51072863ccb6ef568d96797f9239c8073f99d2a33ef3aab7b873","packages/shared/src/detMath.ts":"a806636428155920a0c1c8675cd84d896057993d4d6ff7b9b4623daa5a312b15","packages/shared/src/effectText.ts":"da22ddb275748104b8f7e11888c1c52c569463bcf165c8efc943cd42f7f0050f","packages/shared/src/effects.ts":"859ac817f16a8334865abf103b783fae76b5525d0e90dc407bddf921810f415b","packages/shared/src/factions.ts":"aa0cebf1c17af17b64bc1e020c4613ab10788ec66d82a72232aef8915d5403f3","packages/shared/src/fireRoam.ts":"ddf7a5372e3d223b86eb7f0408960908f2c4d4f7c6172fc5e65284ab1c4b8edb","packages/shared/src/fxCodec.ts":"db2080230ad1b3702e37d3e339384e4a071ef899a8203026e20038a3a2b0f0ba","packages/shared/src/geometry.ts":"b1a91a65281f8642b1779b81764768569311966ab493941101a2f988cfdc1f5d","packages/shared/src/glossary.ts":"0c8871be2726d6a63700e2f6ba39a454992258189f276ad1ed87b8601150a5fb","packages/shared/src/gridOps.ts":"76587ddd597a2a6ecc05561427dd89b986b6f86026ffedc56848e1b03bb52493","packages/shared/src/gridTopology.ts":"deb2710d114cd669854a082c06bafe518f5ef750249722f89ede83a27d42d328","packages/shared/src/hpView.ts":"40ec081fdb8adb245dca088a21f1aef18fa8dbf9d991581f16baf99606508cc3","packages/shared/src/index.ts":"2a78a73307372ea1a5ffe753f2f16fb11386c124100455f45339fe985b01dfcb","packages/shared/src/interactions.ts":"72aa41c26f8254e00d4956ba57d804471e80b924b55529d016efa6e7d4ecef11","packages/shared/src/interp.ts":"83cf2ac2359058b1e0497e636f83e36b1d60c97e13f81e15e6edf39d8f231eb4","packages/shared/src/killAugments.ts":"82641061ad98878f7fb209e72f490447034f5ddf36d149990e206fa83a548244","packages/shared/src/map.ts":"35caac04108a3bd0e1d880a9502f14bdccb3a9a17d262cba335c3d6436995eed","packages/shared/src/mapWire.ts":"b52863f757b829ab9a36582cc11e95aea4c0902fd979df5d40bcb5889bba04eb","packages/shared/src/mapgen.ts":"975591aed836a345c4efd957ced95a478638e6e870fe8ea9bb8740526ef06d10","packages/shared/src/mark.ts":"44870381fa48b9c8f65f180ff74995725644d7264df5b069a3c43c2291540661","packages/shared/src/messages.ts":"f7f3b4eb6bb32c54bb97a7d3a8e2ba613b0aff0495a0f20c09fd6d36c797fe80","packages/shared/src/mobStats.ts":"94034887302346dcd070ff2fa774ae0e4f71933b549964f53be13389be087d5b","packages/shared/src/mobs.ts":"3b567c08363d8d4f1e9a897240b3d99d5b8ded7757b6809a4b534b63d72b5522","packages/shared/src/mods.ts":"10e9dcd3d7417c4fe85d1c36ef33afe5abf7a5703a59b42a3a825a66aa4efaff","packages/shared/src/pathfind.ts":"300caa48788f84bdc780befe8c50db41c2c0b2be520d3fb43a7f91e16de424d9","packages/shared/src/plagueCorpses.ts":"cd85318857ba38853385c3ce9560b8674266b71b0b1555017953c7a41080378d","packages/shared/src/planning.ts":"8d52b212f6fec391359787cf9d81b8fa31a067ea839a2b9ccadc58c059027cb2","packages/shared/src/policies.ts":"3a08aef58ae780bb2417781e735ff75c310de08db43b47a742714bcf94619fbd","packages/shared/src/propKinds.ts":"431d70881377a8059960f053dc9452946cc0e942d212c92765bacb8a063027ee","packages/shared/src/quests.ts":"99c4fdfeae5e2a9eb3e0894f56ae1cd3db7eea760c5c09df695685e250800bba","packages/shared/src/rewards.ts":"cc19d6d0a7be390a9574a1f88b6b5241ac0885c3720b4ca3fe17d1d450f3a601","packages/shared/src/rng.ts":"412bdcee4a5adcb6163bff3561cb4a07eff423dc7e30e9ba0694cb41b05b1bec","packages/shared/src/rosters.ts":"0f544537f1ea1517345efd44bc3d4a4ee7d5bffd52a13cb084cc9693ec6f297d","packages/shared/src/rules.ts":"c5822091cdc711e53086a6f2f8649c53c1d709009649a0a65c005096774893b7","packages/shared/src/schema.ts":"245486da649ea5bc5d8b9b0d5d75f3e860fc8f153574fa2b9ee091dcb52e99cb","packages/shared/src/sentencedHunt.ts":"a606dd94905114562d14d13c09f6c59586a60a70e9a02da49285d886305ce561","packages/shared/src/signatureShares.ts":"e6996931487dde9d4e3f71481a9da996f7500fbcd2148f7924ed730a78eba1a4","packages/shared/src/signatures.ts":"0a6befbb5a6fe9870b13a540d72235085c491668c8cae3674fa8faf89816e191","packages/shared/src/status.ts":"98a0570d7620e424d9d522356fe378a6af049109d8af0342be0ecff970310df7","packages/shared/src/styler.ts":"314805a5a6cd9074763c9e555e48e7145c7ed7c87f265876c3712e4837abc51c","packages/shared/src/telemetry.ts":"3310df401408a2a4a893a40febe40dda72afe20a13898e6f63620a127d2ba8e2","packages/shared/src/terrain.ts":"5ee4fe11e793f83f3d095720ba1156a186c5c7704e864f2cad74503ab13a07d6","packages/shared/src/traders.ts":"6b0fb339c3988c253a4162bdd70ae0d3be13f2d066cbdf10168c5b6d1345d1d3","packages/shared/src/training.ts":"8cf8332e7083fa801407bb2bfd911f2ca008029c1a7ad16cf6bd9bc6935ccc58","packages/shared/src/vision.ts":"f9d026e5c3e8932502f147d6f2ce5d11625845faf07a9dec734b595db76521db","packages/shared/src/walk.ts":"0d33c95623a6d11fa21a9e58b308eed8cb0150b24d65b592877c5f9e2b5a0020","packages/shared/src/weapons.ts":"2f22f037502fe63fae6b47f20408cfd35ebc72bfea081194ae8d18cfc21df99b","packages/shared/src/wheel.ts":"e16388b4aa07cb1ab60c4ac5859879eaad0eb686f50e625a7917cad34e275466","packages/shared/src/zoneStyle/context.ts":"8a87c8c930a11c2f1c83b3afe9384586a24f41690dd77a78f1c35b0f69a19dfb","packages/shared/src/zoneStyle/features.ts":"f0d987fc114394e514c0b9e194b219aa1f8f3429a0fa141c7b6181e6d87ee983","packages/shared/src/zoneStyle/gallows.ts":"0edb95a89d06fc6b0f60a6dc85da41613177362679c03e2073f2be24bbe186e4","packages/shared/src/zoneStyle/hook.ts":"56eeba0fb5019dc5dd02e8fd76059c6f82ede6cfa2aa46c763ecf63b619bc668","packages/shared/src/zoneStyle/index.ts":"6ada1628cfd571cfda3616155e0dc0a047976d9056e467b521c68a6a44f6d673","packages/shared/src/zoneStyle/kit.ts":"dc69161c080b9474a873d12ac194d876b78285a1ae2cdb7eb24cb86b30337e16","packages/shared/src/zoneStyle/landmarks.ts":"ad18e32099ceafc1b88fa33a2225ef2c02508ac6fa4a58c1a91473f0be4c6587","packages/shared/src/zoneStyle/propKinds.ts":"6a139d0727ab392512d427507ee3b027f67860734d56eea7db8085add24003b9","packages/shared/src/zoneStyle/rime.ts":"d25714c3b647392a03662b33082b48de2c7ec2933755501fe55260c2a1daa19a","packages/shared/src/zoneStyle/sanctum.ts":"dd2da40c09a1a5dc5fdbd6e45b568d2b4ada831a0e195e86fd0ab64f49b7babd","packages/shared/src/zoneStyle/scale.ts":"b8e055707f98dfa104233c1ceebd99358b9b3b5ae8e9fe001d9174806ca6a07e","packages/shared/src/zoneStyle/scorch.ts":"52b324dd4dfc9a77986a9ffdcb9704041a2d3608e6e61e9af98b0f697fd2f02a","packages/shared/src/zoneStyle/styleZones.ts":"9c328903541ae1e15ca473b288c788b5a2ebb55e8974a639c6215c7c804cbc36","packages/shared/src/zoneStyle/types.ts":"193b6f57c1e76ea6f8249a316fc8898191682937493fbbce7beb3a0ffb26c33e","packages/shared/src/zoneStyle/warren.ts":"bdb057ebaf226fbe803403cc338d38f50c154c276a30fcb652b5229741a9ddcc","packages/shared/src/zones.ts":"aa91d0c2b8d7b1957d6e28e29289c9dfa58ac6d4c8475b647445370fbcaeb814","packages/shared/test/cards.test.ts":"ea8941402d785cb13c9da769bfc97665ee02e4b5d7817ebcf9d2e5312bd3fc94","package.json":"9da8ab00050db3ec14c083365ab0c3a5b8986e38fd13c086b2913249d531422c","package-lock.json":"991869bdfbbefb6874220500197c61db302a4d2b2603dfc2288fd7032ce1d481"},"harnessSha256":{"tools/card-catalog-fixtures/README.md":"6e1d9afbce340bdacbb48853d32bdef047a1306085850f07ed1b1b5c7d30b624","tools/card-catalog-fixtures/capture.mts":"8202a5404f96c698f9979d88f9aa5a9b8fbce17e6e42fd0be14b1485ad9f1cdc","tools/card-catalog-fixtures/capture.sh":"dda0f1ae023e01113d558697b13c82955c2f1ee0bbc912698f6c7cac74a147c2","tools/card-catalog-fixtures/emit_cards.py":"3ec09237c4074fbd84e28f7d479fc7e6ea05d279d15cf4a699236d5acd08d4ae","tools/card-catalog-fixtures/protected-inputs.json":"e037e836ee11c27c50517eceaa258fd95a543064ed60a8c11426e519cfc08842"},"protectedSha256":{"parity/README.md":"d283a3ed4185e49a7a852eeb96bc8b97c3f890bf79e7538b36b64c03edd6f2c9","parity/abilities/INPUT_SHA256.json":"75b3772c7590a5156a78dcabe000d2504b7fa60a0cc10440eb0ddff0d3fcca6e","parity/abilities/README.md":"136dbef1aa587bc3d926321493c172f84020dad95ecaec4cca0feba93bed3c55","parity/abilities/source.json":"8629c08fa42ac9fb15b21c52416658997c7d8969a6962cf59b71cebedd571330","parity/ability-void/INPUT_SHA256.json":"501b493f42e183bb984728e891f251c9d8730641098483158087946c9eedfe6d","parity/ability-void/README.md":"d63b194d10e71129cb6c4df80eb072898c8870044e93136fe762f72cb2e74cb2","parity/ability-void/source.json":"cb8bec8f8a8e1e72db22ff86c6f6e4eecb9cf449a1a5e0636c1c4939b7f7eef5","parity/arena/README.md":"cedfdfb690c5c39525d86471c42366bcc3c109b170fedbb1c73b6a21e1d3fd84","parity/arena/source.json":"6ff324e134127d9c84a4f4383965f11e08a108fbe306424b1547795265adf6f5","parity/cards/cards.json":"80f29b28be4db2b8af44d57f6a03abafc33659bc090e0b9baea828403b3a9c52","parity/fire/hidden-instant.json":"65fbfd688e387c33219a2ca5e51450afa23669fd33c05287dce76b08159dd7f4","parity/fire/ledger-matrix.json":"d8ffe1349ab9ab1811a06dfd1a40803f66318cfc2861b954d8bd87283'... 479319 more characters
+- '{\n' +
+-   '  "format": "rh-card-catalog-source/1",\n' +
+-   '  "baseRevision": "3619339a1c03469be837aa9b42a280d7940044d0",\n' +
+-   '  "environment": {\n' +
+-   '    "node": "v22.23.4",\n' +
+-   '    "os": "linux",\n' +
+-   '    "arch": "x64",\n' +
+-   '    "image": "node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292"\n' +
+-   '  },\n' +
+-   '  "sourceSha256": {\n' +
+-   '    "packages/shared/src/abilities.ts": "95ef39376a9d9f40cc529a0f7300700a97427050628941e801aaa1e299862518",\n' +
+-   '    "packages/shared/src/achievements.ts": "c80dbded6e1ea5eb79dc0f25378d9a45fbe41865a8298bf9fc5f2eeafdd46a34",\n' +
+-   '    "packages/shared/src/blink.ts": "e5582562556f530fd99ec9bf8e506fa144805f666c09f4359aefb98ee9171f15",\n' +
+-   '    "packages/shared/src/bushes.ts": "ac64ce414134376d27b7b4819d59096e66edd01d82958e873d57348a79d85910",\n' +
+-   '    "packages/shared/src/cards.ts": "4a51376a1ce3a79f417e32ce7ae8d7eb37142da5e49f59c3a2c89d48b11ae1e3",\n' +
+-   '    "packages/shared/src/championPassives.ts": "d7e0ecdc8b9cbffc8463f40b9c564019431b14744f5948bf89eefb2505fbf6df",\n' +
+-   '    "packages/shared/src/chestBoosts.ts": "60b50c685dacdfdbc2861fdc9f80a900845c5cc0af0b77741527cfb8da51fa81",\n' +
+-   '    "packages/shared/src/coliseum.ts": "48fc2fa156e70ff6520019605017939298144960d8871a748ef18aadbbf0c0e1",\n' +
+-   '    "packages/shared/src/combatReadability.ts": "206f707658ee37f22d9aae403449003487e474220442e1cb178c8af85bfe8833",\n' +
+-   '    "packages/shared/src/constants.ts": "51ce4dd800ec868abee525fb1ae375688066f336972a7da878644df1235924e7",\n' +
+-   '    "packages/shared/src/consumables.ts": "1ffd882c4b44fed9c20743e671050fc4044706c17e2c36c365952eafc3bd3606",\n' +
+-   '    "packages/shared/src/cosmetics.ts": "7513ea6b3cbc51072863ccb6ef568d96797f9239c8073f99d2a33ef3aab7b873",\n' +
+-   '    "packages/shared/src/detMath.ts": "a806636428155920a0c1c8675cd84d896057993d4d6ff7b9b4623daa5a312b15",\n' +
+-   '    "packages/shared/src/effectText.ts": "da22ddb275748104b8f7e11888c1c52c569463bcf165c8efc943cd42f7f0050f",\n' +
+-   '    "packages/shared/src/effects.ts": "859ac817f16a8334865abf103b783fae76b5525d0e90dc407bddf921810f415b",\n' +
+-   '    "packages/shared/src/factions.ts": "aa0cebf1c17af17b64bc1e020c4613ab10788ec66d82a72232aef8915d5403f3",\n' +
+-   '    "packages/shared/src/fireRoam.ts": "ddf7a5372e3d223b86eb7f0408960908f2c4d4f7c6172fc5e65284ab1c4b8edb",\n' +
+-   '    "packages/shared/src/fxCodec.ts": "db2080230ad1b3702e37d3e339384e4a071ef899a8203026e20038a3a2b0f0ba",\n' +
+-   '    "packages/shared/src/geometry.ts": "b1a91a65281f8642b1779b81764768569311966ab493941101a2f988cfdc1f5d",\n' +
+-   '    "packages/shared/src/glossary.ts": "0c8871be2726d6a63700e2f6ba39a454992258189f276ad1ed87b8601150a5fb",\n' +
+-   '    "packages/shared/src/gridOps.ts": "76587ddd597a2a6ecc05561427dd89b986b6f86026ffedc56848e1b03bb52493",\n' +
+-   '    "packages/shared/src/gridTopology.ts": "deb2710d114cd669854a082c06bafe518f5ef750249722f89ede83a27d42d328",\n' +
+-   '    "packages/shared/src/hpView.ts": "40ec081fdb8adb245dca088a21f1aef18fa8dbf9d991581f16baf99606508cc3",\n' +
+-   '    "packages/shared/src/index.ts": "2a78a73307372ea1a5ffe753f2f16fb11386c124100455f45339fe985b01dfcb",\n' +
+-   '    "packages/shared/src/interactions.ts": "72aa41c26f8254e00d4956ba57d804471e80b924b55529d016efa6e7d4ecef11",\n' +
+-   '    "packages/shared/src/interp.ts": "83cf2ac2359058b1e0497e636f83e36b1d60c97e13f81e15e6edf39d8f231eb4",\n' +
+-   '    "packages/shared/src/killAugments.ts": "82641061ad98878f7fb209e72f490447034f5ddf36d149990e206fa83a548244",\n' +
+-   '    "packages/shared/src/map.ts": "35caac04108a3bd0e1d880a9502f14bdccb3a9a17d262cba335c3d6436995eed",\n' +
+-   '    "packages/shared/src/mapWire.ts": "b52863f757b829ab9a36582cc11e95aea4c0902fd979df5d40bcb5889bba04eb",\n' +
+-   '    "packages/shared/src/mapgen.ts": "975591aed836a345c4efd957ced95a478638e6e870fe8ea9bb8740526ef06d10",\n' +
+-   '    "packages/shared/src/mark.ts": "44870381fa48b9c8f65f180ff74995725644d7264df5b069a3c43c2291540661",\n' +
+-   '    "packages/shared/src/messages.ts": "f7f3b4eb6bb32c54bb97a7d3a8e2ba613b0aff0495a0f20c09fd6d36c797fe80",\n' +
+-   '    "packages/shared/src/mobStats.ts": "94034887302346dcd070ff2fa774ae0e4f71933b549964f53be13389be087d5b",\n' +
+-   '    "packages/shared/src/mobs.ts": "3b567c08363d8d4f1e9a897240b3d99d5b8ded7757b6809a4b534b63d72b5522",\n' +
+-   '    "packages/shared/src/mods.ts": "10e9dcd3d7417c4fe85d1c36ef33afe5abf7a5703a59b42a3a825a66aa4efaff",\n' +
+-   '    "packages/shared/src/pathfind.ts": "300caa48788f84bdc780befe8c50db41c2c0b2be520d3fb43a7f91e16de424d9",\n' +
+-   '    "packages/shared/src/plagueCorpses.ts": "cd85318857ba38853385c3ce9560b8674266b71b0b1555017953c7a41080378d",\n' +
+-   '    "packages/shared/src/planning.ts": "8d52b212f6fec391359787cf9d81b8fa31a067ea839a2b9ccadc58c059027cb2",\n' +
+-   '    "packages/shared/src/policies.ts": "3a08aef58ae780bb2417781e735ff75c310de08db43b47a742714bcf94619fbd",\n' +
+-   '    "packages/shared/src/propKinds.ts": "431d70881377a8059960f053dc9452946cc0e942d212c92765bacb8a063027ee",\n' +
+-   '    "packages/shared/src/quests.ts": "99c4fdfeae5e2a9eb3e0894f56ae1cd3db7eea760c5c09df695685e250800bba",\n' +
+-   '    "packages/shared/src/rewards.ts": "cc19d6d0a7be390a9574a1f88b6b5241ac0885c3720b4ca3fe17d1d450f3a601",\n' +
+-   '    "packages/shared/src/rng.ts": "412bdcee4a5adcb6163bff3561cb4a07eff423dc7e30e9ba0694cb41b05b1bec",\n' +
+-   '    "packages/shared/src/rosters.ts": "0f544537f1ea1517345efd44bc3d4a4ee7d5bffd52a13cb084cc9693ec6f297d",\n' +
+-   '    "packages/shared/src/rules.ts": "c5822091cdc711e53086a6f2f8649c53c1d709009649a0a65c005096774893b7",\n' +
+-   '    "packages/shared/src/schema.ts": "245486da649ea5bc5d8b9b0d5d75f3e860fc8f153574fa2b9ee091dcb52e99cb",\n' +
+-   '    "packages/shared/src/sentencedHunt.ts": "a606dd94905114562d14d13c09f6c59586a60a70e9a02da49285d886305ce561",\n' +
+-   '    "packages/shared/src/signatureShares.ts": "e6996931487dde9d4e3f71481a9da996f7500fbcd2148f7924ed730a78eba1a4",\n' +
+-   '    "packages/shared/src/signatures.ts": "0a6befbb5a6fe9870b13a540d72235085c491668c8cae3674fa8faf89816e191",\n' +
+-   '    "packages/shared/src/status.ts": "98a0570d7620e424d9d522356fe378a6af049109d8af0342be0ecff970310df7",\n' +
+-   '    "packages/shared/src/styler.ts": "314805a5a6cd9074763c9e555e48e7145c7ed7c87f265876c3712e4837abc51c",\n' +
+-   '    "packages/shared/src/telemetry.ts": "3310df401408a2a4a893a40febe40dda72afe20a13898e6f63620a127d2ba8e2",\n' +
+-   '    "packages/shared/src/terrain.ts": "5ee4fe11e793f83f3d095720ba1156a186c5c7704e864f2cad74503ab13a07d6",\n' +
+-   '    "packages/shared/src/traders.ts": "6b0fb339c3988c253a4162bdd70ae0d3be13f2d066cbdf10168c5b6d1345d1d3",\n' +
+-   '    "packages/shared/src/training.ts": "8cf8332e7083fa801407bb2bfd911f2ca008029c1a7ad16cf6bd9bc6935ccc58",\n' +
+-   '    "packages/shared/src/vision.ts": "f9d026e5c3e8932502f147d6f2ce5d11625845faf07a9dec734b595db76521db",\n' +
+-   '    "packages/shared/src/walk.ts": "0d33c95623a6d11fa21a9e58b308eed8cb0150b24d65b592877c5f9e2b5a0020",\n' +
+-   '    "packages/shared/src/weapons.ts": "2f22f037502fe63fae6b47f20408cfd35ebc72bfea081194ae8d18cfc21df99b",\n' +
+-   '    "packages/shared/src/wheel.ts": "e16388b4aa07cb1ab60c4ac5859879eaad0eb686f50e625a7917cad34e275466",\n' +
+-   '    "packages/shared/src/zoneStyle/context.ts": "8a87c8c930a11c2f1c83b3afe9384586a24f41690dd77a78f1c35b0f69a19dfb",\n' +
+-   '    "packages/shared/src/zoneStyle/features.ts": "f0d987fc114394e514c0b9e194b219aa1f8f3429a0fa141c7b6181e6d87ee983",\n' +
+-   '    "packages/shared/src/zoneStyle/gallows.ts": "0edb95a89d06fc6b0f60a6dc85da41613177362679c03e2073f2be24bbe186e4",\n' +
+-   '    "packages/shared/src/zoneStyle/hook.ts": "56eeba0fb5019dc5dd02e8fd76059c6f82ede6cfa2aa46c763ecf63b619bc668",\n' +
+-   '    "packages/shared/src/zoneStyle/index.ts": "6ada1628cfd571cfda3616155e0dc0a047976d9056e467b521c68a6a44f6d673",\n' +
+-   '    "packages/shared/src/zoneStyle/kit.ts": "dc69161c080b9474a873d12ac194d876b78285a1ae2cdb7eb24cb86b30337e16",\n' +
+-   '    "packages/shared/src/zoneStyle/landmarks.ts": "ad18e32099ceafc1b88fa33a2225ef2c02508ac6fa4a58c1a91473f0be4c6587",\n' +
+-   '    "packages/shared/src/zoneStyle/propKinds.ts": "6a139d0727ab392512d427507ee3b027f67860734d56eea7db8085add24003b9",\n' +
+-   '    "packages/shared/src/zoneStyle/rime.ts": "d25714c3b647392a03662b33082b48de2c7ec2933755501fe55260c2a1daa19a",\n' +
+-   '    "packages/shared/src/zoneStyle/sanctum.ts": "dd2da40c09a1a5dc5fdbd6e45b568d2b4ada831a0e195e86fd0ab64f49b7babd",\n' +
+-   '    "packages/shared/src/zoneStyle/scale.ts": "b8e055707f98dfa104233c1ceebd99358b9b3b5ae8e9fe001d9174806ca6a07e",\n' +
+-   '    "packages/shared/src/zoneStyle/scorch.ts": "52b324dd4dfc9a77986a9ffdcb9704041a2d3608e6e61e9af98b0f697fd2f02a",\n' +
+-   '    "packages/shared/src/zoneStyle/styleZones.ts": "9c328903541ae1e15ca473b288c788b5a2ebb55e8974a639c6215c7c804cbc36",\n' +
+-   '    "packages/shared/src/zoneStyle/types.ts": "193b6f57c1e76ea6f8249a316fc8898191682937493fbbce7beb3a0ffb26c33e",\n' +
+-   '    "packages/shared/src/zoneStyle/warren.ts": "bdb057ebaf226fbe803403cc338d38f50c154c276a30fcb652b5229741a9ddcc",\n' +
+-   '    "packages/shared/src/zones.ts": "aa91d0c2b8d7b1957d6e28e29289c9dfa58ac6d4c8475b647445370fbcaeb814",\n' +
+-   '    "packages/shared/test/cards.test.ts": "ea8941402d785cb13c9da769bfc97665ee02e4b5d7817ebcf9d2e5312bd3fc94",\n' +
+-   '    "package.json": "9da8ab00050db3ec14c083365ab0c3a5b8986e38fd13c086b2913249d531422c",\n' +
+-   '    "package-lock.json": "991869bdfbbefb6874220500197c61db302a4d2b2603dfc2288fd7032ce1d481"\n' +
+-   '  },\n' +
+-   '  "harnessSha256": {\n' +
+-   '    "tools/card-catalog-fixtures/README.md": "6e1d9afbce340bdacbb48853d32bdef047a1306085850f07ed1b1b5c7d30b624",\n' +
+-   '    "tools/card-catalog-fixtures/capture.mts": "8202a5404f96c698f9979d88f9aa5a9b8fbce17e6e42fd0be14b1485ad9f1cdc",\n' +
+-   '    "tools/card-catalog-fixtures/capture.sh": "dda0f1ae023e01113d558697b13c82955c2f1ee0bbc912698f6c7cac74a147c2",\n' +
+-   '    "tools/card-catalog-fixtures/emit_cards.py": "3ec09237c4074fbd84e28f7d479fc7e6ea05d279d15cf4a699236d5acd08d4ae",\n' +
+-   '    "tools/card-catalog-fixtures/protected-inputs.json": "e037e836ee11c27c50517eceaa258fd95a543064ed60a8c11426e519cfc08842"\n' +
+-   '  },\n' +
+-   '  "protectedSha256": {\n' +
+-   '    "parity/README.md": "d283a3ed4185e49a7a852eeb96bc8b97c3f890bf79e7538b36b64c03edd6f2c9",\n' +
+-   '    "parity/abilities/INPUT_SHA256.json": "75b3772c7590a5156a78dcabe000d2504b7fa60a0cc10440eb0ddff0d3fcca6e",\n' +
+-   '    "parity/abilities/README.md": "136dbef1aa587bc3d926321493c172f84020dad95ecaec4cca0feba93bed3c55",\n' +
+-   '    "parity/abilities/source.json": "8629c08fa42ac9fb15b21c52416658997c7d8969a6962cf59b71cebedd571330",\n' +
+-   '    "parity/ability-void/INPUT_SHA256.json": "501b493f42e183bb984728e891f251c9d8730641098483158087946c9eedfe6d",\n' +
+-   '    "parity/ability-void/README.md": "d63b194d10e71129cb6c4df80eb072898c8870044e93136'... 1035681 more characters
+
+    at <anonymous> (/repo/tools/card-catalog-fixtures/capture.mts:133:45)
+    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:681:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: '{"format":"rh-card-catalog-source/1","baseRevision":"3619339a1c03469be837aa9b42a280d7940044d0","environment":{"node":"v22.23.4","os":"linux","arch":"x64","image":"node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292"},"sourceSha256":{"packages/shared/src/abilities.ts":"95ef39376a9d9f40cc529a0f7300700a97427050628941e801aaa1e299862518","packages/shared/src/achievements.ts":"c80dbded6e1ea5eb79dc0f25378d9a45fbe41865a8298bf9fc5f2eeafdd46a34","packages/shared/src/blink.ts":"e5582562556f530fd99ec9bf8e506fa144805f666c09f4359aefb98ee9171f15","packages/shared/src/bushes.ts":"ac64ce414134376d27b7b4819d59096e66edd01d82958e873d57348a79d85910","packages/shared/src/cards.ts":"4a51376a1ce3a79f417e32ce7ae8d7eb37142da5e49f59c3a2c89d48b11ae1e3","packages/shared/src/championPassives.ts":"d7e0ecdc8b9cbffc8463f40b9c564019431b14744f5948bf89eefb2505fbf6df","packages/shared/src/chestBoosts.ts":"60b50c685dacdfdbc2861fdc9f80a900845c5cc0af0b77741527cfb8da51fa81","packages/shared/src/coliseum.ts":"48fc2fa156e70ff6520019605017939298144960d8871a748ef18aadbbf0c0e1","packages/shared/src/combatReadability.ts":"206f707658ee37f22d9aae403449003487e474220442e1cb178c8af85bfe8833","packages/shared/src/constants.ts":"51ce4dd800ec868abee525fb1ae375688066f336972a7da878644df1235924e7","packages/shared/src/consumables.ts":"1ffd882c4b44fed9c20743e671050fc4044706c17e2c36c365952eafc3bd3606","packages/shared/src/cosmetics.ts":"7513ea6b3cbc51072863ccb6ef568d96797f9239c8073f99d2a33ef3aab7b873","packages/shared/src/detMath.ts":"a806636428155920a0c1c8675cd84d896057993d4d6ff7b9b4623daa5a312b15","packages/shared/src/effectText.ts":"da22ddb275748104b8f7e11888c1c52c569463bcf165c8efc943cd42f7f0050f","packages/shared/src/effects.ts":"859ac817f16a8334865abf103b783fae76b5525d0e90dc407bddf921810f415b","packages/shared/src/factions.ts":"aa0cebf1c17af17b64bc1e020c4613ab10788ec66d82a72232aef8915d5403f3","packages/shared/src/fireRoam.ts":"ddf7a5372e3d223b86eb7f0408960908f2c4d4f7c6172fc5e65284ab1c4b8edb","packages/shared/src/fxCodec.ts":"db2080230ad1b3702e37d3e339384e4a071ef899a8203026e20038a3a2b0f0ba","packages/shared/src/geometry.ts":"b1a91a65281f8642b1779b81764768569311966ab493941101a2f988cfdc1f5d","packages/shared/src/glossary.ts":"0c8871be2726d6a63700e2f6ba39a454992258189f276ad1ed87b8601150a5fb","packages/shared/src/gridOps.ts":"76587ddd597a2a6ecc05561427dd89b986b6f86026ffedc56848e1b03bb52493","packages/shared/src/gridTopology.ts":"deb2710d114cd669854a082c06bafe518f5ef750249722f89ede83a27d42d328","packages/shared/src/hpView.ts":"40ec081fdb8adb245dca088a21f1aef18fa8dbf9d991581f16baf99606508cc3","packages/shared/src/index.ts":"2a78a73307372ea1a5ffe753f2f16fb11386c124100455f45339fe985b01dfcb","packages/shared/src/interactions.ts":"72aa41c26f8254e00d4956ba57d804471e80b924b55529d016efa6e7d4ecef11","packages/shared/src/interp.ts":"83cf2ac2359058b1e0497e636f83e36b1d60c97e13f81e15e6edf39d8f231eb4","packages/shared/src/killAugments.ts":"82641061ad98878f7fb209e72f490447034f5ddf36d149990e206fa83a548244","packages/shared/src/map.ts":"35caac04108a3bd0e1d880a9502f14bdccb3a9a17d262cba335c3d6436995eed","packages/shared/src/mapWire.ts":"b52863f757b829ab9a36582cc11e95aea4c0902fd979df5d40bcb5889bba04eb","packages/shared/src/mapgen.ts":"975591aed836a345c4efd957ced95a478638e6e870fe8ea9bb8740526ef06d10","packages/shared/src/mark.ts":"44870381fa48b9c8f65f180ff74995725644d7264df5b069a3c43c2291540661","packages/shared/src/messages.ts":"f7f3b4eb6bb32c54bb97a7d3a8e2ba613b0aff0495a0f20c09fd6d36c797fe80","packages/shared/src/mobStats.ts":"94034887302346dcd070ff2fa774ae0e4f71933b549964f53be13389be087d5b","packages/shared/src/mobs.ts":"3b567c08363d8d4f1e9a897240b3d99d5b8ded7757b6809a4b534b63d72b5522","packages/shared/src/mods.ts":"10e9dcd3d7417c4fe85d1c36ef33afe5abf7a5703a59b42a3a825a66aa4efaff","packages/shared/src/pathfind.ts":"300caa48788f84bdc780befe8c50db41c2c0b2be520d3fb43a7f91e16de424d9","packages/shared/src/plagueCorpses.ts":"cd85318857ba38853385c3ce9560b8674266b71b0b1555017953c7a41080378d","packages/shared/src/planning.ts":"8d52b212f6fec391359787cf9d81b8fa31a067ea839a2b9ccadc58c059027cb2","packages/shared/src/policies.ts":"3a08aef58ae780bb2417781e735ff75c310de08db43b47a742714bcf94619fbd","packages/shared/src/propKinds.ts":"431d70881377a8059960f053dc9452946cc0e942d212c92765bacb8a063027ee","packages/shared/src/quests.ts":"99c4fdfeae5e2a9eb3e0894f56ae1cd3db7eea760c5c09df695685e250800bba","packages/shared/src/rewards.ts":"cc19d6d0a7be390a9574a1f88b6b5241ac0885c3720b4ca3fe17d1d450f3a601","packages/shared/src/rng.ts":"412bdcee4a5adcb6163bff3561cb4a07eff423dc7e30e9ba0694cb41b05b1bec","packages/shared/src/rosters.ts":"0f544537f1ea1517345efd44bc3d4a4ee7d5bffd52a13cb084cc9693ec6f297d","packages/shared/src/rules.ts":"c5822091cdc711e53086a6f2f8649c53c1d709009649a0a65c005096774893b7","packages/shared/src/schema.ts":"245486da649ea5bc5d8b9b0d5d75f3e860fc8f153574fa2b9ee091dcb52e99cb","packages/shared/src/sentencedHunt.ts":"a606dd94905114562d14d13c09f6c59586a60a70e9a02da49285d886305ce561","packages/shared/src/signatureShares.ts":"e6996931487dde9d4e3f71481a9da996f7500fbcd2148f7924ed730a78eba1a4","packages/shared/src/signatures.ts":"0a6befbb5a6fe9870b13a540d72235085c491668c8cae3674fa8faf89816e191","packages/shared/src/status.ts":"98a0570d7620e424d9d522356fe378a6af049109d8af0342be0ecff970310df7","packages/shared/src/styler.ts":"314805a5a6cd9074763c9e555e48e7145c7ed7c87f265876c3712e4837abc51c","packages/shared/src/telemetry.ts":"3310df401408a2a4a893a40febe40dda72afe20a13898e6f63620a127d2ba8e2","packages/shared/src/terrain.ts":"5ee4fe11e793f83f3d095720ba1156a186c5c7704e864f2cad74503ab13a07d6","packages/shared/src/traders.ts":"6b0fb339c3988c253a4162bdd70ae0d3be13f2d066cbdf10168c5b6d1345d1d3","packages/shared/src/training.ts":"8cf8332e7083fa801407bb2bfd911f2ca008029c1a7ad16cf6bd9bc6935ccc58","packages/shared/src/vision.ts":"f9d026e5c3e8932502f147d6f2ce5d11625845faf07a9dec734b595db76521db","packages/shared/src/walk.ts":"0d33c95623a6d11fa21a9e58b308eed8cb0150b24d65b592877c5f9e2b5a0020","packages/shared/src/weapons.ts":"2f22f037502fe63fae6b47f20408cfd35ebc72bfea081194ae8d18cfc21df99b","packages/shared/src/wheel.ts":"e16388b4aa07cb1ab60c4ac5859879eaad0eb686f50e625a7917cad34e275466","packages/shared/src/zoneStyle/context.ts":"8a87c8c930a11c2f1c83b3afe9384586a24f41690dd77a78f1c35b0f69a19dfb","packages/shared/src/zoneStyle/features.ts":"f0d987fc114394e514c0b9e194b219aa1f8f3429a0fa141c7b6181e6d87ee983","packages/shared/src/zoneStyle/gallows.ts":"0edb95a89d06fc6b0f60a6dc85da41613177362679c03e2073f2be24bbe186e4","packages/shared/src/zoneStyle/hook.ts":"56eeba0fb5019dc5dd02e8fd76059c6f82ede6cfa2aa46c763ecf63b619bc668","packages/shared/src/zoneStyle/index.ts":"6ada1628cfd571cfda3616155e0dc0a047976d9056e467b521c68a6a44f6d673","packages/shared/src/zoneStyle/kit.ts":"dc69161c080b9474a873d12ac194d876b78285a1ae2cdb7eb24cb86b30337e16","packages/shared/src/zoneStyle/landmarks.ts":"ad18e32099ceafc1b88fa33a2225ef2c02508ac6fa4a58c1a91473f0be4c6587","packages/shared/src/zoneStyle/propKinds.ts":"6a139d0727ab392512d427507ee3b027f67860734d56eea7db8085add24003b9","packages/shared/src/zoneStyle/rime.ts":"d25714c3b647392a03662b33082b48de2c7ec2933755501fe55260c2a1daa19a","packages/shared/src/zoneStyle/sanctum.ts":"dd2da40c09a1a5dc5fdbd6e45b568d2b4ada831a0e195e86fd0ab64f49b7babd","packages/shared/src/zoneStyle/scale.ts":"b8e055707f98dfa104233c1ceebd99358b9b3b5ae8e9fe001d9174806ca6a07e","packages/shared/src/zoneStyle/scorch.ts":"52b324dd4dfc9a77986a9ffdcb9704041a2d3608e6e61e9af98b0f697fd2f02a","packages/shared/src/zoneStyle/styleZones.ts":"9c328903541ae1e15ca473b288c788b5a2ebb55e8974a639c6215c7c804cbc36","packages/shared/src/zoneStyle/types.ts":"193b6f57c1e76ea6f8249a316fc8898191682937493fbbce7beb3a0ffb26c33e","packages/shared/src/zoneStyle/warren.ts":"bdb057ebaf226fbe803403cc338d38f50c154c276a30fcb652b5229741a9ddcc","packages/shared/src/zones.ts":"aa91d0c2b8d7b1957d6e28e29289c9dfa58ac6d4c8475b647445370fbcaeb814","packages/shared/test/cards.test.ts":"ea8941402d785cb13c9da769bfc97665ee02e4b5d7817ebcf9d2e5312bd3fc94","package.json":"9da8ab00050db3ec14c083365ab0c3a5b8986e38fd13c086b2913249d531422c","package-lock.json":"991869bdfbbefb6874220500197c61db302a4d2b2603dfc2288fd7032ce1d481"},"harnessSha256":{"tools/card-catalog-fixtures/README.md":"6e1d9afbce340bdacbb48853d32bdef047a1306085850f07ed1b1b5c7d30b624","tools/card-catalog-fixtures/capture.mts":"8202a5404f96c698f9979d88f9aa5a9b8fbce17e6e42fd0be14b1485ad9f1cdc","tools/card-catalog-fixtures/capture.sh":"dda0f1ae023e01113d558697b13c82955c2f1ee0bbc912698f6c7cac74a147c2","tools/card-catalog-fixtures/emit_cards.py":"3ec09237c4074fbd84e28f7d479fc7e6ea05d279d15cf4a699236d5acd08d4ae","tools/card-catalog-fixtures/protected-inputs.json":"e037e836ee11c27c50517eceaa258fd95a543064ed60a8c11426e519cfc08842"},"protectedSha256":{"parity/README.md":"d283a3ed4185e49a7a852eeb96bc8b97c3f890bf79e7538b36b64c03edd6f2c9","parity/abilities/INPUT_SHA256.json":"75b3772c7590a5156a78dcabe000d2504b7fa60a0cc10440eb0ddff0d3fcca6e","parity/abilities/README.md":"136dbef1aa587bc3d926321493c172f84020dad95ecaec4cca0feba93bed3c55","parity/abilities/source.json":"8629c08fa42ac9fb15b21c52416658997c7d8969a6962cf59b71cebedd571330","parity/ability-void/INPUT_SHA256.json":"501b493f42e183bb984728e891f251c9d8730641098483158087946c9eedfe6d","parity/ability-void/README.md":"d63b194d10e71129cb6c4df80eb072898c8870044e93136fe762f72cb2e74cb2","parity/ability-void/source.json":"cb8bec8f8a8e1e72db22ff86c6f6e4eecb9cf449a1a5e0636c1c4939b7f7eef5","parity/arena/README.md":"cedfdfb690c5c39525d86471c42366bcc3c109b170fedbb1c73b6a21e1d3fd84","parity/arena/source.json":"6ff324e134127d9c84a4f4383965f11e08a108fbe306424b1547795265adf6f5","parity/cards/cards.json":"80f29b28be4db2b8af44d57f6a03abafc33659bc090e0b9baea828403b3a9c52","parity/fire/hidden-instant.json":"65fbfd688e387c33219a2ca5e51450afa23669fd33c05287dce76b08159dd7f4","parity/fire/ledger-matrix.json":"d8ffe1349ab9ab1811a06dfd1a40803f66318cfc2861b954d8bd87283'... 479319 more characters,
+  expected: '{\n' +
+    '  "format": "rh-card-catalog-source/1",\n' +
+    '  "baseRevision": "3619339a1c03469be837aa9b42a280d7940044d0",\n' +
+    '  "environment": {\n' +
+    '    "node": "v22.23.4",\n' +
+    '    "os": "linux",\n' +
+    '    "arch": "x64",\n' +
+    '    "image": "node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292"\n' +
+    '  },\n' +
+    '  "sourceSha256": {\n' +
+    '    "packages/shared/src/abilities.ts": "95ef39376a9d9f40cc529a0f7300700a97427050628941e801aaa1e299862518",\n' +
+    '    "packages/shared/src/achievements.ts": "c80dbded6e1ea5eb79dc0f25378d9a45fbe41865a8298bf9fc5f2eeafdd46a34",\n' +
+    '    "packages/shared/src/blink.ts": "e5582562556f530fd99ec9bf8e506fa144805f666c09f4359aefb98ee9171f15",\n' +
+    '    "packages/shared/src/bushes.ts": "ac64ce414134376d27b7b4819d59096e66edd01d82958e873d57348a79d85910",\n' +
+    '    "packages/shared/src/cards.ts": "4a51376a1ce3a79f417e32ce7ae8d7eb37142da5e49f59c3a2c89d48b11ae1e3",\n' +
+    '    "packages/shared/src/championPassives.ts": "d7e0ecdc8b9cbffc8463f40b9c564019431b14744f5948bf89eefb2505fbf6df",\n' +
+    '    "packages/shared/src/chestBoosts.ts": "60b50c685dacdfdbc2861fdc9f80a900845c5cc0af0b77741527cfb8da51fa81",\n' +
+    '    "packages/shared/src/coliseum.ts": "48fc2fa156e70ff6520019605017939298144960d8871a748ef18aadbbf0c0e1",\n' +
+    '    "packages/shared/src/combatReadability.ts": "206f707658ee37f22d9aae403449003487e474220442e1cb178c8af85bfe8833",\n' +
+    '    "packages/shared/src/constants.ts": "51ce4dd800ec868abee525fb1ae375688066f336972a7da878644df1235924e7",\n' +
+    '    "packages/shared/src/consumables.ts": "1ffd882c4b44fed9c20743e671050fc4044706c17e2c36c365952eafc3bd3606",\n' +
+    '    "packages/shared/src/cosmetics.ts": "7513ea6b3cbc51072863ccb6ef568d96797f9239c8073f99d2a33ef3aab7b873",\n' +
+    '    "packages/shared/src/detMath.ts": "a806636428155920a0c1c8675cd84d896057993d4d6ff7b9b4623daa5a312b15",\n' +
+    '    "packages/shared/src/effectText.ts": "da22ddb275748104b8f7e11888c1c52c569463bcf165c8efc943cd42f7f0050f",\n' +
+    '    "packages/shared/src/effects.ts": "859ac817f16a8334865abf103b783fae76b5525d0e90dc407bddf921810f415b",\n' +
+    '    "packages/shared/src/factions.ts": "aa0cebf1c17af17b64bc1e020c4613ab10788ec66d82a72232aef8915d5403f3",\n' +
+    '    "packages/shared/src/fireRoam.ts": "ddf7a5372e3d223b86eb7f0408960908f2c4d4f7c6172fc5e65284ab1c4b8edb",\n' +
+    '    "packages/shared/src/fxCodec.ts": "db2080230ad1b3702e37d3e339384e4a071ef899a8203026e20038a3a2b0f0ba",\n' +
+    '    "packages/shared/src/geometry.ts": "b1a91a65281f8642b1779b81764768569311966ab493941101a2f988cfdc1f5d",\n' +
+    '    "packages/shared/src/glossary.ts": "0c8871be2726d6a63700e2f6ba39a454992258189f276ad1ed87b8601150a5fb",\n' +
+    '    "packages/shared/src/gridOps.ts": "76587ddd597a2a6ecc05561427dd89b986b6f86026ffedc56848e1b03bb52493",\n' +
+    '    "packages/shared/src/gridTopology.ts": "deb2710d114cd669854a082c06bafe518f5ef750249722f89ede83a27d42d328",\n' +
+    '    "packages/shared/src/hpView.ts": "40ec081fdb8adb245dca088a21f1aef18fa8dbf9d991581f16baf99606508cc3",\n' +
+    '    "packages/shared/src/index.ts": "2a78a73307372ea1a5ffe753f2f16fb11386c124100455f45339fe985b01dfcb",\n' +
+    '    "packages/shared/src/interactions.ts": "72aa41c26f8254e00d4956ba57d804471e80b924b55529d016efa6e7d4ecef11",\n' +
+    '    "packages/shared/src/interp.ts": "83cf2ac2359058b1e0497e636f83e36b1d60c97e13f81e15e6edf39d8f231eb4",\n' +
+    '    "packages/shared/src/killAugments.ts": "82641061ad98878f7fb209e72f490447034f5ddf36d149990e206fa83a548244",\n' +
+    '    "packages/shared/src/map.ts": "35caac04108a3bd0e1d880a9502f14bdccb3a9a17d262cba335c3d6436995eed",\n' +
+    '    "packages/shared/src/mapWire.ts": "b52863f757b829ab9a36582cc11e95aea4c0902fd979df5d40bcb5889bba04eb",\n' +
+    '    "packages/shared/src/mapgen.ts": "975591aed836a345c4efd957ced95a478638e6e870fe8ea9bb8740526ef06d10",\n' +
+    '    "packages/shared/src/mark.ts": "44870381fa48b9c8f65f180ff74995725644d7264df5b069a3c43c2291540661",\n' +
+    '    "packages/shared/src/messages.ts": "f7f3b4eb6bb32c54bb97a7d3a8e2ba613b0aff0495a0f20c09fd6d36c797fe80",\n' +
+    '    "packages/shared/src/mobStats.ts": "94034887302346dcd070ff2fa774ae0e4f71933b549964f53be13389be087d5b",\n' +
+    '    "packages/shared/src/mobs.ts": "3b567c08363d8d4f1e9a897240b3d99d5b8ded7757b6809a4b534b63d72b5522",\n' +
+    '    "packages/shared/src/mods.ts": "10e9dcd3d7417c4fe85d1c36ef33afe5abf7a5703a59b42a3a825a66aa4efaff",\n' +
+    '    "packages/shared/src/pathfind.ts": "300caa48788f84bdc780befe8c50db41c2c0b2be520d3fb43a7f91e16de424d9",\n' +
+    '    "packages/shared/src/plagueCorpses.ts": "cd85318857ba38853385c3ce9560b8674266b71b0b1555017953c7a41080378d",\n' +
+    '    "packages/shared/src/planning.ts": "8d52b212f6fec391359787cf9d81b8fa31a067ea839a2b9ccadc58c059027cb2",\n' +
+    '    "packages/shared/src/policies.ts": "3a08aef58ae780bb2417781e735ff75c310de08db43b47a742714bcf94619fbd",\n' +
+    '    "packages/shared/src/propKinds.ts": "431d70881377a8059960f053dc9452946cc0e942d212c92765bacb8a063027ee",\n' +
+    '    "packages/shared/src/quests.ts": "99c4fdfeae5e2a9eb3e0894f56ae1cd3db7eea760c5c09df695685e250800bba",\n' +
+    '    "packages/shared/src/rewards.ts": "cc19d6d0a7be390a9574a1f88b6b5241ac0885c3720b4ca3fe17d1d450f3a601",\n' +
+    '    "packages/shared/src/rng.ts": "412bdcee4a5adcb6163bff3561cb4a07eff423dc7e30e9ba0694cb41b05b1bec",\n' +
+    '    "packages/shared/src/rosters.ts": "0f544537f1ea1517345efd44bc3d4a4ee7d5bffd52a13cb084cc9693ec6f297d",\n' +
+    '    "packages/shared/src/rules.ts": "c5822091cdc711e53086a6f2f8649c53c1d709009649a0a65c005096774893b7",\n' +
+    '    "packages/shared/src/schema.ts": "245486da649ea5bc5d8b9b0d5d75f3e860fc8f153574fa2b9ee091dcb52e99cb",\n' +
+    '    "packages/shared/src/sentencedHunt.ts": "a606dd94905114562d14d13c09f6c59586a60a70e9a02da49285d886305ce561",\n' +
+    '    "packages/shared/src/signatureShares.ts": "e6996931487dde9d4e3f71481a9da996f7500fbcd2148f7924ed730a78eba1a4",\n' +
+    '    "packages/shared/src/signatures.ts": "0a6befbb5a6fe9870b13a540d72235085c491668c8cae3674fa8faf89816e191",\n' +
+    '    "packages/shared/src/status.ts": "98a0570d7620e424d9d522356fe378a6af049109d8af0342be0ecff970310df7",\n' +
+    '    "packages/shared/src/styler.ts": "314805a5a6cd9074763c9e555e48e7145c7ed7c87f265876c3712e4837abc51c",\n' +
+    '    "packages/shared/src/telemetry.ts": "3310df401408a2a4a893a40febe40dda72afe20a13898e6f63620a127d2ba8e2",\n' +
+    '    "packages/shared/src/terrain.ts": "5ee4fe11e793f83f3d095720ba1156a186c5c7704e864f2cad74503ab13a07d6",\n' +
+    '    "packages/shared/src/traders.ts": "6b0fb339c3988c253a4162bdd70ae0d3be13f2d066cbdf10168c5b6d1345d1d3",\n' +
+    '    "packages/shared/src/training.ts": "8cf8332e7083fa801407bb2bfd911f2ca008029c1a7ad16cf6bd9bc6935ccc58",\n' +
+    '    "packages/shared/src/vision.ts": "f9d026e5c3e8932502f147d6f2ce5d11625845faf07a9dec734b595db76521db",\n' +
+    '    "packages/shared/src/walk.ts": "0d33c95623a6d11fa21a9e58b308eed8cb0150b24d65b592877c5f9e2b5a0020",\n' +
+    '    "packages/shared/src/weapons.ts": "2f22f037502fe63fae6b47f20408cfd35ebc72bfea081194ae8d18cfc21df99b",\n' +
+    '    "packages/shared/src/wheel.ts": "e16388b4aa07cb1ab60c4ac5859879eaad0eb686f50e625a7917cad34e275466",\n' +
+    '    "packages/shared/src/zoneStyle/context.ts": "8a87c8c930a11c2f1c83b3afe9384586a24f41690dd77a78f1c35b0f69a19dfb",\n' +
+    '    "packages/shared/src/zoneStyle/features.ts": "f0d987fc114394e514c0b9e194b219aa1f8f3429a0fa141c7b6181e6d87ee983",\n' +
+    '    "packages/shared/src/zoneStyle/gallows.ts": "0edb95a89d06fc6b0f60a6dc85da41613177362679c03e2073f2be24bbe186e4",\n' +
+    '    "packages/shared/src/zoneStyle/hook.ts": "56eeba0fb5019dc5dd02e8fd76059c6f82ede6cfa2aa46c763ecf63b619bc668",\n' +
+    '    "packages/shared/src/zoneStyle/index.ts": "6ada1628cfd571cfda3616155e0dc0a047976d9056e467b521c68a6a44f6d673",\n' +
+    '    "packages/shared/src/zoneStyle/kit.ts": "dc69161c080b9474a873d12ac194d876b78285a1ae2cdb7eb24cb86b30337e16",\n' +
+    '    "packages/shared/src/zoneStyle/landmarks.ts": "ad18e32099ceafc1b88fa33a2225ef2c02508ac6fa4a58c1a91473f0be4c6587",\n' +
+    '    "packages/shared/src/zoneStyle/propKinds.ts": "6a139d0727ab392512d427507ee3b027f67860734d56eea7db8085add24003b9",\n' +
+    '    "packages/shared/src/zoneStyle/rime.ts": "d25714c3b647392a03662b33082b48de2c7ec2933755501fe55260c2a1daa19a",\n' +
+    '    "packages/shared/src/zoneStyle/sanctum.ts": "dd2da40c09a1a5dc5fdbd6e45b568d2b4ada831a0e195e86fd0ab64f49b7babd",\n' +
+    '    "packages/shared/src/zoneStyle/scale.ts": "b8e055707f98dfa104233c1ceebd99358b9b3b5ae8e9fe001d9174806ca6a07e",\n' +
+    '    "packages/shared/src/zoneStyle/scorch.ts": "52b324dd4dfc9a77986a9ffdcb9704041a2d3608e6e61e9af98b0f697fd2f02a",\n' +
+    '    "packages/shared/src/zoneStyle/styleZones.ts": "9c328903541ae1e15ca473b288c788b5a2ebb55e8974a639c6215c7c804cbc36",\n' +
+    '    "packages/shared/src/zoneStyle/types.ts": "193b6f57c1e76ea6f8249a316fc8898191682937493fbbce7beb3a0ffb26c33e",\n' +
+    '    "packages/shared/src/zoneStyle/warren.ts": "bdb057ebaf226fbe803403cc338d38f50c154c276a30fcb652b5229741a9ddcc",\n' +
+    '    "packages/shared/src/zones.ts": "aa91d0c2b8d7b1957d6e28e29289c9dfa58ac6d4c8475b647445370fbcaeb814",\n' +
+    '    "packages/shared/test/cards.test.ts": "ea8941402d785cb13c9da769bfc97665ee02e4b5d7817ebcf9d2e5312bd3fc94",\n' +
+    '    "package.json": "9da8ab00050db3ec14c083365ab0c3a5b8986e38fd13c086b2913249d531422c",\n' +
+    '    "package-lock.json": "991869bdfbbefb6874220500197c61db302a4d2b2603dfc2288fd7032ce1d481"\n' +
+    '  },\n' +
+    '  "harnessSha256": {\n' +
+    '    "tools/card-catalog-fixtures/README.md": "6e1d9afbce340bdacbb48853d32bdef047a1306085850f07ed1b1b5c7d30b624",\n' +
+    '    "tools/card-catalog-fixtures/capture.mts": "8202a5404f96c698f9979d88f9aa5a9b8fbce17e6e42fd0be14b1485ad9f1cdc",\n' +
+    '    "tools/card-catalog-fixtures/capture.sh": "dda0f1ae023e01113d558697b13c82955c2f1ee0bbc912698f6c7cac74a147c2",\n' +
+    '    "tools/card-catalog-fixtures/emit_cards.py": "3ec09237c4074fbd84e28f7d479fc7e6ea05d279d15cf4a699236d5acd08d4ae",\n' +
+    '    "tools/card-catalog-fixtures/protected-inputs.json": "e037e836ee11c27c50517eceaa258fd95a543064ed60a8c11426e519cfc08842"\n' +
+    '  },\n' +
+    '  "protectedSha256": {\n' +
+    '    "parity/README.md": "d283a3ed4185e49a7a852eeb96bc8b97c3f890bf79e7538b36b64c03edd6f2c9",\n' +
+    '    "parity/abilities/INPUT_SHA256.json": "75b3772c7590a5156a78dcabe000d2504b7fa60a0cc10440eb0ddff0d3fcca6e",\n' +
+    '    "parity/abilities/README.md": "136dbef1aa587bc3d926321493c172f84020dad95ecaec4cca0feba93bed3c55",\n' +
+    '    "parity/abilities/source.json": "8629c08fa42ac9fb15b21c52416658997c7d8969a6962cf59b71cebedd571330",\n' +
+    '    "parity/ability-void/INPUT_SHA256.json": "501b493f42e183bb984728e891f251c9d8730641098483158087946c9eedfe6d",\n' +
+    '    "parity/ability-void/README.md": "d63b194d10e71129cb6c4df80eb072898c8870044e93136'... 1035681 more characters,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v22.23.4
+
+exit 1
+elapsed_seconds 8.231
