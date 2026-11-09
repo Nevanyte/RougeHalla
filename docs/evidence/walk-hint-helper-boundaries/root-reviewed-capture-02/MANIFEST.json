@@ -1,0 +1,133 @@
+{
+  "format": "rh-walk-hint-boundary-capture-manifest/1",
+  "generated_utc": "2026-11-09T16:37:31Z",
+  "branch": "deepseek/walk-hint-boundaries-reviewed",
+  "reviewedCaptureCode": "8151b96d177baad5a40fb2fa5854aeb35237040d",
+  "captureParent": "a4ece57e4f7e5c233e6c80a8663f43ca99be74b7",
+  "sourceBase": "70433a9834ccf082b5ca449dca0fd4319cd072ca",
+  "corpus": {
+    "path": "parity/walk-hint/helper-boundaries/source.json",
+    "bytes": 150406,
+    "sha256": "1702ce0a44940709d229161211cbd6ceaf8b0f4ef55c147d3321b3e3ab78e774",
+    "cases": 24,
+    "uniqueIds": 24,
+    "decisions": {
+      "goal8": 3,
+      "repath250": 3,
+      "losGrace": 2,
+      "futureVisibility": 4,
+      "amoveOrder": 3,
+      "weaponTie": 3,
+      "waypoint1e-6": 3,
+      "directionRounding": 3
+    }
+  },
+  "includedEvidenceFiles": [
+    {
+      "path": "MECHANICAL-VERIFICATION.txt",
+      "bytes": 1357,
+      "sha256": "b0d0737c9fe34274fa9b131ee8c8d4b6992079982a6576d63710502e9e7039a8"
+    },
+    {
+      "path": "README.md",
+      "bytes": 3109,
+      "sha256": "844bdd0ac9a76680a0768cd25e4b151e5a9442e9e27467304cebc42f5ff27df2"
+    },
+    {
+      "path": "RECEIPT.json",
+      "bytes": 2562,
+      "sha256": "ea033360ed44ff0cd3ff6f246b6c23de021b16a26cee6dd74ef7d42468352976"
+    },
+    {
+      "path": "first-failed-observation.sha256",
+      "bytes": 117,
+      "sha256": "e4ea093153f72f8d2de745680c82df9c1b0c6593bb7a6d34f7b6a21f649a296c"
+    },
+    {
+      "path": "first-failed-observations-before-verification.json",
+      "bytes": 145577,
+      "sha256": "3ad4fa1e7040c524026f0aab2bd5a816fffbb1effc6421fad7e8fe7774db0daa"
+    },
+    {
+      "path": "raw-phase/walkhint-a4ece-first-capture-diagnosis.md",
+      "bytes": 10586,
+      "sha256": "61888923065d6d54ba8929ecbc28e244e817ae9a82f7609b2097e49237d35257"
+    },
+    {
+      "path": "raw-phase/walkhint-a4ece-host-build-first.json",
+      "bytes": 1877,
+      "sha256": "40514c68f15f6bfa9493c542ef59d933303e5f8d722a2436c817d2eb0927d27a"
+    },
+    {
+      "path": "raw-phase/walkhint-a4ece-phase-b-first.json",
+      "bytes": 5509,
+      "sha256": "7c7ac83233468e97532b959e8aa48e7fedacc6e29b19bbdb9e811aff130024c6"
+    },
+    {
+      "path": "raw-phase/walkhint8151-generated02-review.md",
+      "bytes": 3315,
+      "sha256": "f3aff286dca364d6ad80c1ba63c7ee4cf5a8952f68699cd6b3882d0c1c48c46f"
+    },
+    {
+      "path": "raw-phase/walkhint8151-host-build-first.json",
+      "bytes": 1887,
+      "sha256": "867443c452e7b2e8836b456cf6b5f49767b4ea8537b767effb34fa73fc92d293"
+    },
+    {
+      "path": "raw-phase/walkhint8151-los-elapsed-correction-handoff.md",
+      "bytes": 3720,
+      "sha256": "8e98bbb2c79013eef9293d4c2aabeff9c69e7d44afe6d7f09adfcb065894e243"
+    },
+    {
+      "path": "raw-phase/walkhint8151-phase-b02-first.json",
+      "bytes": 5506,
+      "sha256": "ec3bef2c268a1c6c833f10d245331cfe99d006f1713afef2c89e58b7b81c7c91"
+    },
+    {
+      "path": "raw-phase/walkhint8151-phase-check02-first.json",
+      "bytes": 6884,
+      "sha256": "325fcd9e85ac9214602a9bbc9b61912cdd52c8e150f437f3f2b4d3b028c532ce"
+    },
+    {
+      "path": "verification.json",
+      "bytes": 289,
+      "sha256": "3eb09901ad7c5855b556a6f6f12512cf644612d91e704e368851f2a8e816e7d9"
+    }
+  ],
+  "firstFailed": {
+    "path": "first-failed-observations-before-verification.json",
+    "bytes": 145577,
+    "sha256": "3ad4fa1e7040c524026f0aab2bd5a816fffbb1effc6421fad7e8fe7774db0daa"
+  },
+  "priorReleases": {
+    "original14": {
+      "bytes": 44372,
+      "sha256": "8cb8b2c24fe0be184e660a4670b0981b946c35782d9e7a47ae1ba3eff567ab77"
+    },
+    "repaired14": {
+      "bytes": 44520,
+      "sha256": "2c95328cc86136f55eda8f3fec641a9db081e77721d936ed614294f9aa4e0c4a"
+    },
+    "helpers69": {
+      "bytes": 40317,
+      "sha256": "a7b8feda1aca08fe20f5a46ee11f57959a2a186619caf73611a67cb086eaae06"
+    }
+  },
+  "historicalHelper69Corrections": {
+    "sourceFileCount": 17,
+    "player90Bytes": 467672
+  },
+  "notCommitted": [
+    "offline-790-corrected-review-01/**",
+    "offline-790-corrected-review-02/**",
+    "prepared/scenario.mjs",
+    "caches"
+  ],
+  "open": [
+    "controls UNRUN",
+    "frozen-export bytecheck UNRUN",
+    "native24 UNRUN",
+    "path/Cartesian direction transition OPEN",
+    "full native/public/lifecycle admission OPEN"
+  ]
+}

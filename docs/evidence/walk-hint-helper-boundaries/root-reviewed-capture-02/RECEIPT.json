@@ -1,0 +1,75 @@
+{
+  "format": "rh-walk-hint-boundary-capture-receipt/1",
+  "status": "FINITE_SOURCE_ONLY_RELEASE_NOT_NATIVE_ADMISSION",
+  "branch": "deepseek/walk-hint-boundaries-reviewed",
+  "reviewedCaptureCode": "8151b96d177baad5a40fb2fa5854aeb35237040d",
+  "captureParent": "a4ece57e4f7e5c233e6c80a8663f43ca99be74b7",
+  "sourceBase": "70433a9834ccf082b5ca449dca0fd4319cd072ca",
+  "includedCorpus": {
+    "path": "parity/walk-hint/helper-boundaries/source.json",
+    "bytes": 150406,
+    "sha256": "1702ce0a44940709d229161211cbd6ceaf8b0f4ef55c147d3321b3e3ab78e774",
+    "profileCode": "8151b96d177baad5a40fb2fa5854aeb35237040d",
+    "profileBase": "70433a9834ccf082b5ca449dca0fd4319cd072ca",
+    "profileSourceFileCount": 16,
+    "loadedInputCount": 127,
+    "cases": 24,
+    "uniqueIds": 24,
+    "duplicates": 0,
+    "decisionCounts": {
+      "goal8": 3,
+      "repath250": 3,
+      "losGrace": 2,
+      "futureVisibility": 4,
+      "amoveOrder": 3,
+      "waypoint1e-6": 3,
+      "directionRounding": 3,
+      "weaponTie": 3
+    }
+  },
+  "failedFirstCapture": {
+    "path": "first-failed-observations-before-verification.json",
+    "bytes": 145577,
+    "sha256": "3ad4fa1e7040c524026f0aab2bd5a816fffbb1effc6421fad7e8fe7774db0daa"
+  },
+  "copyVerification": {
+    "sourceCopyExact": true,
+    "verificationCopyExact": true,
+    "failedObservationCopyExact": true,
+    "readonlyCheckSameBytes": true,
+    "all02RunFilesUnchangedByCheck": true
+  },
+  "priorReleasesUntouched": {
+    "original14": {
+      "bytes": 44372,
+      "sha256": "8cb8b2c24fe0be184e660a4670b0981b946c35782d9e7a47ae1ba3eff567ab77"
+    },
+    "repaired14": {
+      "bytes": 44520,
+      "sha256": "2c95328cc86136f55eda8f3fec641a9db081e77721d936ed614294f9aa4e0c4a"
+    },
+    "helpers69": {
+      "bytes": 40317,
+      "sha256": "a7b8feda1aca08fe20f5a46ee11f57959a2a186619caf73611a67cb086eaae06"
+    }
+  },
+  "open": [
+    "semantic controls UNRUN",
+    "frozen-export bytecheck UNRUN",
+    "new native 24-row consumption UNRUN",
+    "path/Cartesian direction transition OPEN",
+    "full native/public/lifecycle admission OPEN"
+  ],
+  "notCommitted": [
+    "offline-790-corrected-review-01/**",
+    "offline-790-corrected-review-02/**",
+    "prepared/scenario.mjs",
+    "caches"
+  ],
+  "limits": "finite source-only release; source14+helpers69 retain own scope; no native/full producer/public admission",
+  "historicalHelper69Corrections": {
+    "sourceFileCount": 17,
+    "player90Bytes": 467672,
+    "note": "prior helper69 README/receipt said14 and README typo 46672; historical files unchanged"
+  }
+}

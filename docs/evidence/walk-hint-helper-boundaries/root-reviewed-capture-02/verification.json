@@ -1,0 +1,7 @@
+{
+  "cases": 24,
+  "directDirectionTransition": true,
+  "pathDirectionTransition": false,
+  "actualPathAngleCount": 1,
+  "directionPathCoverage": "OPEN until independent capture review: direct adjacent-input kernel and Cartesian path observations are separate; no fabricated transition"
+}
