@@ -1,0 +1,240 @@
+{
+  "format": "giver14-root-pin-reconciliation/1",
+  "original_manifest_unchanged": true,
+  "author": "9998a95e",
+  "original_pin_source": "06bf041a",
+  "manifest_sha256": "0aa60b4a0d4b956d4f0cc0c52c4b7e694b5884d83072db2320518c172cd09aee",
+  "source_checks": [
+    {
+      "path": "client-unity/RoguehallaNet.Tests/GiverActorProtocolTests.cs",
+      "recorded": "cf43dfd0e369e614fe42bc7a9d863c6e666177bc40e4e5ade0d90e8151f95e09",
+      "at_06bf041a": "cf43dfd0e369e614fe42bc7a9d863c6e666177bc40e4e5ade0d90e8151f95e09",
+      "at_9998a95e": "cf43dfd0e369e614fe42bc7a9d863c6e666177bc40e4e5ade0d90e8151f95e09",
+      "size_06bf": 7959,
+      "size_9998": 7959
+    },
+    {
+      "path": "client-unity/RoguehallaNet.Tests/ProtocolVectorTests.cs",
+      "recorded": "5fd2202f353500bfdf4ff99c413166258f37269851c7726b65139ccfdc1d856e",
+      "at_06bf041a": "5fd2202f353500bfdf4ff99c413166258f37269851c7726b65139ccfdc1d856e",
+      "at_9998a95e": "5fd2202f353500bfdf4ff99c413166258f37269851c7726b65139ccfdc1d856e",
+      "size_06bf": 61154,
+      "size_9998": 61154
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Net/SnapshotBuffer.cs",
+      "recorded": "f70ae37dbf15116f97757708c30405d27c510b1bd2ed7abeeccd3dcf89c9ee76",
+      "at_06bf041a": "f70ae37dbf15116f97757708c30405d27c510b1bd2ed7abeeccd3dcf89c9ee76",
+      "at_9998a95e": "f70ae37dbf15116f97757708c30405d27c510b1bd2ed7abeeccd3dcf89c9ee76",
+      "size_06bf": 7921,
+      "size_9998": 7921
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Net/Views.cs",
+      "recorded": "f95c63fac919280d966d9048747660f8ee55e1f4fc7dd619494e75c623c9ffce",
+      "at_06bf041a": "f95c63fac919280d966d9048747660f8ee55e1f4fc7dd619494e75c623c9ffce",
+      "at_9998a95e": "f95c63fac919280d966d9048747660f8ee55e1f4fc7dd619494e75c623c9ffce",
+      "size_06bf": 5095,
+      "size_9998": 5095
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Protocol/Messages.cs",
+      "recorded": "25ce9437b9cfd1d6886463f9f2efe15643afce961cd9723ebf38ce561f32e4fd",
+      "at_06bf041a": "25ce9437b9cfd1d6886463f9f2efe15643afce961cd9723ebf38ce561f32e4fd",
+      "at_9998a95e": "25ce9437b9cfd1d6886463f9f2efe15643afce961cd9723ebf38ce561f32e4fd",
+      "size_06bf": 88700,
+      "size_9998": 88700
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Protocol/SnapshotTracker.cs",
+      "recorded": "fc0f7f3299f2ac0731ff00dc9c741fab3c2bc7ae913d0a6914b2b549fb77470f",
+      "at_06bf041a": "fc0f7f3299f2ac0731ff00dc9c741fab3c2bc7ae913d0a6914b2b549fb77470f",
+      "at_9998a95e": "fc0f7f3299f2ac0731ff00dc9c741fab3c2bc7ae913d0a6914b2b549fb77470f",
+      "size_06bf": 9957,
+      "size_9998": 9957
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/SnapshotBuffer.cs",
+      "recorded": "f70ae37dbf15116f97757708c30405d27c510b1bd2ed7abeeccd3dcf89c9ee76",
+      "at_06bf041a": "f70ae37dbf15116f97757708c30405d27c510b1bd2ed7abeeccd3dcf89c9ee76",
+      "at_9998a95e": "f70ae37dbf15116f97757708c30405d27c510b1bd2ed7abeeccd3dcf89c9ee76",
+      "size_06bf": 7921,
+      "size_9998": 7921
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/Views.cs",
+      "recorded": "f95c63fac919280d966d9048747660f8ee55e1f4fc7dd619494e75c623c9ffce",
+      "at_06bf041a": "f95c63fac919280d966d9048747660f8ee55e1f4fc7dd619494e75c623c9ffce",
+      "at_9998a95e": "f95c63fac919280d966d9048747660f8ee55e1f4fc7dd619494e75c623c9ffce",
+      "size_06bf": 5095,
+      "size_9998": 5095
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/Messages.cs",
+      "recorded": "25ce9437b9cfd1d6886463f9f2efe15643afce961cd9723ebf38ce561f32e4fd",
+      "at_06bf041a": "25ce9437b9cfd1d6886463f9f2efe15643afce961cd9723ebf38ce561f32e4fd",
+      "at_9998a95e": "25ce9437b9cfd1d6886463f9f2efe15643afce961cd9723ebf38ce561f32e4fd",
+      "size_06bf": 88700,
+      "size_9998": 88700
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/SnapshotTracker.cs",
+      "recorded": "fc0f7f3299f2ac0731ff00dc9c741fab3c2bc7ae913d0a6914b2b549fb77470f",
+      "at_06bf041a": "fc0f7f3299f2ac0731ff00dc9c741fab3c2bc7ae913d0a6914b2b549fb77470f",
+      "at_9998a95e": "fc0f7f3299f2ac0731ff00dc9c741fab3c2bc7ae913d0a6914b2b549fb77470f",
+      "size_06bf": 9957,
+      "size_9998": 9957
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcaseActorLook.cs",
+      "recorded": "9cd8f8957f504b75a25259b155f9573cd5c8b81e0850242d902f27a63d52f3cc",
+      "at_06bf041a": "9cd8f8957f504b75a25259b155f9573cd5c8b81e0850242d902f27a63d52f3cc",
+      "at_9998a95e": "9cd8f8957f504b75a25259b155f9573cd5c8b81e0850242d902f27a63d52f3cc",
+      "size_06bf": 2006,
+      "size_9998": 2006
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/SpriteActorPresenter.cs",
+      "recorded": "79a0ef297f971ad1e7038b7d11b2e19335188584d5cef6c4deb20efee753b874",
+      "at_06bf041a": "79a0ef297f971ad1e7038b7d11b2e19335188584d5cef6c4deb20efee753b874",
+      "at_9998a95e": "153792ddf55a6f7cf7373ddd58b49756d748b9ccaa8aae6c663def99a4079795",
+      "size_06bf": 22231,
+      "size_9998": 22463
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/TacticalMapController.cs",
+      "recorded": "96dd2b3a5a791878c0c5a805d69d2a72431d14417e43a4faa9684a3bbfc95891",
+      "at_06bf041a": "96dd2b3a5a791878c0c5a805d69d2a72431d14417e43a4faa9684a3bbfc95891",
+      "at_9998a95e": "aeba6c9cf7087f695514c47b18150745a339d4a4c65054f91d3736a49c94ac38",
+      "size_06bf": 22989,
+      "size_9998": 23013
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/TacticalMapMarks.cs",
+      "recorded": "1a4ef4fcb10a60ba98956d7c5625717c10e66ce8bce6ca56f5391121f9ac2536",
+      "at_06bf041a": "1a4ef4fcb10a60ba98956d7c5625717c10e66ce8bce6ca56f5391121f9ac2536",
+      "at_9998a95e": "1a4ef4fcb10a60ba98956d7c5625717c10e66ce8bce6ca56f5391121f9ac2536",
+      "size_06bf": 5698,
+      "size_9998": 5698
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/View/ArenaView.cs",
+      "recorded": "03f235679d431dd9d2f9053505dc6fa715b907d2c89ce34a87dbe9318aaf2214",
+      "at_06bf041a": "03f235679d431dd9d2f9053505dc6fa715b907d2c89ce34a87dbe9318aaf2214",
+      "at_9998a95e": "03f235679d431dd9d2f9053505dc6fa715b907d2c89ce34a87dbe9318aaf2214",
+      "size_06bf": 25140,
+      "size_9998": 25140
+    },
+    {
+      "path": "crates/rh-protocol/src/delta.rs",
+      "recorded": "20ca8dca646fa8055d24377658ec927d3739428b59561d83438389b6d2af5096",
+      "at_06bf041a": "20ca8dca646fa8055d24377658ec927d3739428b59561d83438389b6d2af5096",
+      "at_9998a95e": "20ca8dca646fa8055d24377658ec927d3739428b59561d83438389b6d2af5096",
+      "size_06bf": 70491,
+      "size_9998": 70491
+    },
+    {
+      "path": "crates/rh-protocol/src/encode.rs",
+      "recorded": "d316b27a76a9e05738eb65c5bfb2bbed1a8be187beba9c8ad45c4604b781f03d",
+      "at_06bf041a": "d316b27a76a9e05738eb65c5bfb2bbed1a8be187beba9c8ad45c4604b781f03d",
+      "at_9998a95e": "d316b27a76a9e05738eb65c5bfb2bbed1a8be187beba9c8ad45c4604b781f03d",
+      "size_06bf": 56577,
+      "size_9998": 56577
+    },
+    {
+      "path": "crates/rh-protocol/src/lib.rs",
+      "recorded": "d45e1adf98cfd346875c332c0ea90532aec49e4072da77cbb8b42375b94db4b2",
+      "at_06bf041a": "d45e1adf98cfd346875c332c0ea90532aec49e4072da77cbb8b42375b94db4b2",
+      "at_9998a95e": "83ef2256b54ad6073478591f6c7c3b59dc369275bfbf3598c90aa977c7fa71df",
+      "size_06bf": 61735,
+      "size_9998": 61806
+    },
+    {
+      "path": "crates/rh-protocol/src/samples.rs",
+      "recorded": "a88e162ab89e5070ffd279ba340d5543568530a88557d75476f298784e58dfc8",
+      "at_06bf041a": "a88e162ab89e5070ffd279ba340d5543568530a88557d75476f298784e58dfc8",
+      "at_9998a95e": "a88e162ab89e5070ffd279ba340d5543568530a88557d75476f298784e58dfc8",
+      "size_06bf": 137550,
+      "size_9998": 137550
+    },
+    {
+      "path": "crates/rh-protocol/tests/giver_actor.rs",
+      "recorded": "ecb6c383a5f80c6d230ad29f92ac8fa1c406d84bde9adc9a45f375e9b6a60359",
+      "at_06bf041a": "ecb6c383a5f80c6d230ad29f92ac8fa1c406d84bde9adc9a45f375e9b6a60359",
+      "at_9998a95e": "ecb6c383a5f80c6d230ad29f92ac8fa1c406d84bde9adc9a45f375e9b6a60359",
+      "size_06bf": 4285,
+      "size_9998": 4285
+    },
+    {
+      "path": "crates/rh-protocol/tests/vectors.rs",
+      "recorded": "b55bf4440c31e7137d1970be3350f65a4a41a4fca22e9401d82c4845c695adbf",
+      "at_06bf041a": "b55bf4440c31e7137d1970be3350f65a4a41a4fca22e9401d82c4845c695adbf",
+      "at_9998a95e": "b55bf4440c31e7137d1970be3350f65a4a41a4fca22e9401d82c4845c695adbf",
+      "size_06bf": 15923,
+      "size_9998": 15923
+    },
+    {
+      "path": "crates/rh-server/src/wire.rs",
+      "recorded": "db3a72bd3d5984dfd726e17e48f32cbda6ad4d9efd088ebf6bb980298452c599",
+      "at_06bf041a": "db3a72bd3d5984dfd726e17e48f32cbda6ad4d9efd088ebf6bb980298452c599",
+      "at_9998a95e": "db3a72bd3d5984dfd726e17e48f32cbda6ad4d9efd088ebf6bb980298452c599",
+      "size_06bf": 87600,
+      "size_9998": 87600
+    },
+    {
+      "path": "crates/rh-server/web/probe.html",
+      "recorded": "630721ef1e32c6020fd960f3aa8ab6b05b8c2591c54f2263aad6a804e8dadd19",
+      "at_06bf041a": "630721ef1e32c6020fd960f3aa8ab6b05b8c2591c54f2263aad6a804e8dadd19",
+      "at_9998a95e": "630721ef1e32c6020fd960f3aa8ab6b05b8c2591c54f2263aad6a804e8dadd19",
+      "size_06bf": 57418,
+      "size_9998": 57418
+    },
+    {
+      "path": "protocol/fixtures/v14.json",
+      "recorded": "70b4408422d889e64816f6cb7afb9cf642fe755a5a1b60ac59fab5cb80037a9c",
+      "at_06bf041a": "70b4408422d889e64816f6cb7afb9cf642fe755a5a1b60ac59fab5cb80037a9c",
+      "at_9998a95e": "70b4408422d889e64816f6cb7afb9cf642fe755a5a1b60ac59fab5cb80037a9c",
+      "size_06bf": 220899,
+      "size_9998": 220899
+    },
+    {
+      "path": "tools/protocol-js/check-vectors.mjs",
+      "recorded": "b09905e004f5571659a5fb8f60c63812cd87e891752e5c55e0a3acd6b67ba70c",
+      "at_06bf041a": "b09905e004f5571659a5fb8f60c63812cd87e891752e5c55e0a3acd6b67ba70c",
+      "at_9998a95e": "b09905e004f5571659a5fb8f60c63812cd87e891752e5c55e0a3acd6b67ba70c",
+      "size_06bf": 42208,
+      "size_9998": 42208
+    }
+  ],
+  "mismatches": [
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/SpriteActorPresenter.cs",
+      "recorded": "79a0ef297f971ad1e7038b7d11b2e19335188584d5cef6c4deb20efee753b874",
+      "at_06bf041a": "79a0ef297f971ad1e7038b7d11b2e19335188584d5cef6c4deb20efee753b874",
+      "at_9998a95e": "153792ddf55a6f7cf7373ddd58b49756d748b9ccaa8aae6c663def99a4079795",
+      "size_06bf": 22231,
+      "size_9998": 22463
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/TacticalMapController.cs",
+      "recorded": "96dd2b3a5a791878c0c5a805d69d2a72431d14417e43a4faa9684a3bbfc95891",
+      "at_06bf041a": "96dd2b3a5a791878c0c5a805d69d2a72431d14417e43a4faa9684a3bbfc95891",
+      "at_9998a95e": "aeba6c9cf7087f695514c47b18150745a339d4a4c65054f91d3736a49c94ac38",
+      "size_06bf": 22989,
+      "size_9998": 23013
+    },
+    {
+      "path": "crates/rh-protocol/src/lib.rs",
+      "recorded": "d45e1adf98cfd346875c332c0ea90532aec49e4072da77cbb8b42375b94db4b2",
+      "at_06bf041a": "d45e1adf98cfd346875c332c0ea90532aec49e4072da77cbb8b42375b94db4b2",
+      "at_9998a95e": "83ef2256b54ad6073478591f6c7c3b59dc369275bfbf3598c90aa977c7fa71df",
+      "size_06bf": 61735,
+      "size_9998": 61806
+    }
+  ],
+  "changed_scope": {
+    "SpriteActorPresenter.cs": "approved 1.2 grounded presentation scale",
+    "TacticalMapController.cs": "later font/layout corrections retained and actually reviewed at cf2383",
+    "lib.rs": "documentation-only key10 description; no codec behavior change"
+  }
+}

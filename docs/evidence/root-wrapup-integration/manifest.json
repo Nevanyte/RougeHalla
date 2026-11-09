@@ -1,0 +1,71 @@
+{
+  "format": "rh-root-wrapup-integration/1",
+  "cuts": [
+    "248252654b582ec8ea45603ff24a38016642e4a2",
+    "1ddad5d63f7016e65d3eddaa5bd47082c3a3710f",
+    "43d822bf3bdaeda441e77a3b877d7466b48d8ffc"
+  ],
+  "payloads": [
+    {
+      "path": "docs/evidence/root-wrapup-integration/README.md",
+      "bytes": 2837,
+      "sha256": "70c09e30737a5554a7c79740c50a7030f34c4daa93ac59770d3cde9a91afef52"
+    },
+    {
+      "path": "docs/evidence/root-wrapup-integration/logs/wrapup-root-metadata-union-check.log",
+      "bytes": 1257,
+      "sha256": "7c56c8283ac2963b304b64d4f6398c1aa9498e2625a02eda5ff212d1a33e3cf9"
+    },
+    {
+      "path": "docs/evidence/root-wrapup-integration/logs/wrapup-root-server-wire.log",
+      "bytes": 3374,
+      "sha256": "a5297df826f9c1f9addccd7e2ab2e49993d866c72544d31815cebc4594cf4754"
+    },
+    {
+      "path": "docs/evidence/root-wrapup-integration/logs/wrapup-root-shared-delivery-check-fixed.log",
+      "bytes": 216,
+      "sha256": "430d0f3e6367891719328eb1e64893179b57b4dffdced25eb8818a49f7204885"
+    },
+    {
+      "path": "docs/evidence/root-wrapup-integration/logs/wrapup-root-shared-delivery-check.log",
+      "bytes": 1967,
+      "sha256": "32d4b4bdab4d8778c3383b065732b9b46600d2260cddcffaeaece4453b4f8ef5"
+    },
+    {
+      "path": "docs/evidence/root-wrapup-integration/logs/wrapup-root-sim-lib.log",
+      "bytes": 81089,
+      "sha256": "80fbbaab425bc45d8d3e4735a166eaebff1e7892e493b93c7c55e2e2d66d049b"
+    },
+    {
+      "path": "docs/evidence/root-wrapup-integration/logs/wrapup-root-union-dotnet.log",
+      "bytes": 469,
+      "sha256": "ea5d16a2dfc0545e6b21979c55c205b0e836774499fd8a90f7c5aac2e3478ca0"
+    },
+    {
+      "path": "docs/evidence/root-wrapup-integration/logs/wrapup-root-union-fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/evidence/root-wrapup-integration/logs/wrapup-root-union-js.log",
+      "bytes": 109,
+      "sha256": "58827b17cbcda9204526c5556a5472b75f0588300bf589bfe338183ad9139dcd"
+    },
+    {
+      "path": "docs/evidence/root-wrapup-integration/logs/wrapup-root-union-quest-gv.log",
+      "bytes": 1022,
+      "sha256": "5087b09f984537cbc22e25d9190ec2df9592abbfc17dc995c1570899edee15a3"
+    },
+    {
+      "path": "docs/evidence/giver14/ROOT_RECONCILIATION.json",
+      "bytes": 11649,
+      "sha256": "89bd145b49aac886ca100d8026826d8f7c27fc5e27196aab20f349cf46636dab"
+    },
+    {
+      "path": "docs/evidence/giver14/ROOT_RECONCILIATION.md",
+      "bytes": 1588,
+      "sha256": "e1b0faba2f2bf007abb4283731ccb0e40250986ae4187a73cc01d5fcaa530190"
+    }
+  ],
+  "status": "PRIVATE_INTEGRATION; old hash tape and later visual/full-release gates HELD"
+}

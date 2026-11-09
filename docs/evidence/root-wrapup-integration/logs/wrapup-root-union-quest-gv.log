@@ -1,0 +1,13 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/protocol14-client-union/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 23.53s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 5 tests
+test observe::quest_gv_tests::every_other_gv_reason_remains_server_only_for_every_observer ... ok
+test observe::quest_gv_tests::quest_gv_preserves_integer_text_owner_class_and_event_position ... ok
+test observe::quest_gv_tests::source_room::missing_owner_and_bot_receipts_are_dispatch_controls_only ... ok
+test observe::quest_gv_tests::identical_player_labels_never_grant_the_foreign_quest_payment_notice ... ok
+test observe::quest_gv_tests::source_room::actual_room_completion_calls_match_native_owner_and_foreign_text_order ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 776 filtered out; finished in 0.03s
+

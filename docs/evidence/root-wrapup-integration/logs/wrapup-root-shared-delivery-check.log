@@ -1,0 +1,33 @@
+    Checking rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/protocol14-client-union/repo/crates/rh-sim)
+    Checking rh-protocol v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/protocol14-client-union/repo/crates/rh-protocol)
+    Checking rh-persist v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/protocol14-client-union/repo/crates/rh-persist)
+    Checking rh-policy v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/protocol14-client-union/repo/crates/rh-policy)
+    Checking rh-headless v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/protocol14-client-union/repo/crates/rh-headless)
+    Checking rh-server v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/protocol14-client-union/repo/crates/rh-server)
+error[E0422]: cannot find struct, variant or union type `WirePoint` in this scope
+   --> crates/rh-server/src/wire.rs:760:21
+    |
+760 |             Ok(Some(WirePoint {
+    |                     ^^^^^^^^^
+    |
+   ::: crates/rh-protocol/src/state.rs:322:1
+    |
+322 | pub struct WirePlan {
+    | ------------------- similarly named struct `WirePlan` defined here
+    |
+help: a struct with a similar name exists
+    |
+760 -             Ok(Some(WirePoint {
+760 +             Ok(Some(WirePlan {
+    |
+
+error[E0425]: cannot find function `ability_code` in this scope
+    --> crates/rh-server/src/wire.rs:1495:34
+     |
+1495 |         assert_eq!(wish.ability, ability_code(own.wish.unwrap().ability));
+     |                                  ^^^^^^^^^^^^ not found in this scope
+
+Some errors have detailed explanations: E0422, E0425.
+For more information about an error, try `rustc --explain E0422`.
+error: could not compile `rh-server` (lib test) due to 2 previous errors
+warning: build failed, waiting for other jobs to finish...
