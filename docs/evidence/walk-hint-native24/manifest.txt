@@ -12,3 +12,4 @@ a757e1489f8d1954fff2e37c0c730c905248b4f5891bc3359fe6b98d39f2f2d2  3424  docs/evi
 48c071b6ba73ac854147acf7d2952584e77165510c6e42a075bb1ed89fd995b0  2426  docs/evidence/walk-hint-native24/repair/regressions.log
 d556d7b62f9e865e64c2a2171e2cd4583aba5617ce0ccc59d708827b66972492  22  docs/evidence/walk-hint-native24/repair/fmt.log
 01599008d2c6bb51c82c3ab7e44a9f8f0608e90a604b460169693bbe85b5708c  213  docs/evidence/walk-hint-native24/repair/clippy.log
+489314c7f51c5779b32e483e8c1bc9de3743ef9e2ef14bb8b09964adbe220e0d  1644  docs/evidence/walk-hint-native24/repair/verify.log
