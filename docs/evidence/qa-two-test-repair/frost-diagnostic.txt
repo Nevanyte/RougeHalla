@@ -1,0 +1,4 @@
+Temporary test-helper read-only logging, removed from final code. Excerpt of actual unchanged-driver run:
+free aim initial tick=2 from=Vec2 { x: 80.0, y: 112.0 } target_id=PlayerId(6) target=Vec2 { x: 112.0, y: 160.0 } angle=0.982793723247329
+free aim tick=37 event=Hit { victim: PlayerId(6), by: Some(PlayerId(1)), amount: 138.0102564102564, weapon: Some(Bow), passive: false }
+tuple tick=37 frost faction=Faction(Frost) target=Some(PlayerId(6)) engaged=true reach=true contact=Some(1850.0); zombie id=PlayerId(6) status=Dead at=Vec2 { x: 112.0, y: 160.0 } target=Some(PlayerId(1)) engaged=true chill=1 chillers=[] ranged=None move=1

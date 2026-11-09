@@ -1,0 +1,55 @@
+{
+  "format": "rh-qa-two-test-repair/1",
+  "base": "3c2efb7b35e2772bbbaa779185a4000ae82cd73e",
+  "group_fix": "49f2d99fd620796213bd67abc9f46d9d177bdad8",
+  "frost_fix": "d09848b20b9d9ea04e6f56dd68a06b10f5668c07",
+  "changed_test_files": [
+    {
+      "path": "crates/rh-sim/src/systems/sentenced/group_source_tests.rs",
+      "bytes": 26857,
+      "sha256": "20cfd16bc933e3658287e53fdcc898d636055b14bcc7224e581fe0eb14a26343"
+    },
+    {
+      "path": "crates/rh-sim/src/systems/frost.rs",
+      "bytes": 124881,
+      "sha256": "c33f8db152bd32ca0573174cbee3934bbd25adbc104934428e6511091a0558b6"
+    }
+  ],
+  "unchanged_source": {
+    "path": "parity/sentenced-npc-group/source.json",
+    "bytes": 555087,
+    "sha256": "3808dac248d5fd01286ceb2abe4d2a179a1702e3b8c4bd863a02250654a3d5a3"
+  },
+  "receipts": [
+    {
+      "path": "docs/evidence/qa-two-test-repair/README.md",
+      "bytes": 2974,
+      "sha256": "5bae43c4468a391de967d1c04c9958cd69d2fde7b80ae03ad7e64a3f552095e9"
+    },
+    {
+      "path": "docs/evidence/qa-two-test-repair/frost-after.txt",
+      "bytes": 203,
+      "sha256": "d806f7feebc5dea2dba762b32563dd7f47c41b20d23ff3b3d75e60f9d19f9ab3"
+    },
+    {
+      "path": "docs/evidence/qa-two-test-repair/frost-before.txt",
+      "bytes": 741,
+      "sha256": "f5a140ac66ac585d1d00dd4acc03908eb2379629bdbe4936ce238d53710795ae"
+    },
+    {
+      "path": "docs/evidence/qa-two-test-repair/frost-diagnostic.txt",
+      "bytes": 635,
+      "sha256": "58e8b46c874a7885ae217a9e88df675bb7818ede0bbc6d5f4a33c47af9bf47a0"
+    },
+    {
+      "path": "docs/evidence/qa-two-test-repair/group-after.txt",
+      "bytes": 250,
+      "sha256": "b153fc48c9db78c1cb5e380d563cbad67b410003fdb9dbe0b1deab654e86996b"
+    },
+    {
+      "path": "docs/evidence/qa-two-test-repair/group-before.txt",
+      "bytes": 911,
+      "sha256": "0a3860d3faa0dfc02eddb883e300f786f0bc0d97f13c34b312df1a7a2d7e61d1"
+    }
+  ]
+}
