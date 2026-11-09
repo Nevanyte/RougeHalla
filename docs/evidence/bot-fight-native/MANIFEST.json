@@ -1,0 +1,154 @@
+{
+ "format": "rh-bot-fight-native-evidence/1",
+ "requestedBase": "11d04034c18a6cf2764dafa82553ab4b49b3c8de",
+ "reviewedDependency": "b960c1a657d49dcfa7b3049f8892bbf2b77c0cd6",
+ "rootDependencyAdmission": "62ff2584f0e5bb43d9cfe74bffdf69bc7d1d3401",
+ "codeHead": "20ddd879ae27669e04df5415ae60f05b6810d6d3",
+ "codeFiles": [
+  "crates/rh-policy/src/bots/fight.rs",
+  "crates/rh-policy/src/bots/fight/source_tests.rs",
+  "crates/rh-policy/src/bots/mod.rs",
+  "crates/rh-policy/src/bots/orbwalk.rs"
+ ],
+ "sourceWitness": {
+  "head": "97e27cccfa008fbf2878c0ea9457d30345495c4b",
+  "path": "parity/policy/bot-fight/source.json",
+  "bytes": 467672,
+  "sha256": "197fe5d24b6b34822a3ef76e2999d422e6127bbda1e8dfda0ba0af3ee5e2785e",
+  "tacticsSequences": 16,
+  "tacticsFrames": 47,
+  "orbSequences": 6,
+  "orbFrames": 20,
+  "directFight": 1,
+  "captureRerun": false
+ },
+ "environment": {
+  "rustc": "1.97.0 (2d8144b78 2026-07-07)",
+  "host": "Apple silicon macOS",
+  "setup": "source coordinator final-env.sh, then override CARGO_TARGET_DIR before any cargo command",
+  "CARGO_TARGET_DIR": "return-cleanup-2026-11-08/bot-fight-native/target (exclusive private target; not final-target)",
+  "CARGO_BUILD_JOBS": "1",
+  "CARGO_PROFILE_TEST_DEBUG": "0",
+  "CARGO_PROFILE_DEV_DEBUG": "0",
+  "CARGO_INCREMENTAL": "0"
+ },
+ "commands": [
+  {
+   "command": "cargo test -p rh-policy --lib bots::fight::source_tests -- --nocapture",
+   "log": "logs/source-consumer-final.log",
+   "exit": 0,
+   "passed": 6
+  },
+  {
+   "command": "cargo test -p rh-policy --lib delivery_tests:: -- --nocapture",
+   "log": "logs/delivery-controls.log",
+   "exit": 0,
+   "passed": 22
+  },
+  {
+   "command": "cargo test -p rh-policy --lib bots::bot::connected_tests:: -- --nocapture",
+   "log": "logs/connected-controls.log",
+   "exit": 0,
+   "passed": 10
+  },
+  {
+   "command": "cargo clippy -p rh-policy --all-targets --all-features -- -D warnings",
+   "log": "logs/clippy.log",
+   "exit": 0
+  },
+  {
+   "command": "cargo fmt --all -- --check",
+   "log": "logs/fmt.log",
+   "exit": 0
+  }
+ ],
+ "overlappingEarlierRuns": [
+  {
+   "log": "logs/source-consumer-first.log",
+   "exit": 101,
+   "scope": "compile setup failure: existing protocol fixture excluded by sparse checkout; no new tests ran"
+  },
+  {
+   "log": "logs/source-consumer.log",
+   "exit": 0,
+   "passed": 4,
+   "scope": "initial source/atomic cases overlap final six"
+  }
+ ],
+ "comparison": {
+  "discreteShapeOrderTextStatus": "exact",
+  "clocksAndRngBits": "exact",
+  "tacticsStreams": "decide0 motor1 lapse2 independentKnowledge3 state/consumed-values/next",
+  "orbStream": "actual decide state/next",
+  "coordinates": "round6 exact, existing path/away convention; no timing/RNG tolerance",
+  "pathCountersBudget": true,
+  "fullDiagnosticCallArrayClaim": false
+ },
+ "liveActivation": "HELD; no HumanBot/Perception/Frame14/wire dispatch changes; full fact publication and reflex/FrameRing integration required",
+ "additionalHeld": [
+  "active sudden-death retreat source capture/consumer",
+  "full pending-order/event memory",
+  "source strategy and full hunters/loot",
+  "NPC continuity",
+  "tournament outcomes and matched performance"
+ ],
+ "recoveryStash": "d63c7839c3a86f7d4bec512828bcc0a0107c6804 (pre-dependency WIP retained; not an admitted code head)",
+ "artifacts": {
+  "crates/rh-policy/src/bots/fight/source_tests.rs": {
+   "bytes": 22327,
+   "sha256": "1bb0e557bd05de312ed60f985fdfdb5b9210f9bca9854f7485c08a13308bd209"
+  },
+  "crates/rh-policy/src/bots/fight.rs": {
+   "bytes": 26568,
+   "sha256": "c753c9f175cd4a44bdd0f48125b333de41a7c4677027a7ed8e38626e6a277cec"
+  },
+  "crates/rh-policy/src/bots/mod.rs": {
+   "bytes": 2884,
+   "sha256": "0f7c4b40b8551ffab92703023127243366858b66a35a61ef9adcef65d19c60f4"
+  },
+  "crates/rh-policy/src/bots/orbwalk.rs": {
+   "bytes": 3981,
+   "sha256": "9140a9ba528f3def8ab3e50f6afaa3b8bb18c6e41f58ab0f7e494853adfa2d12"
+  },
+  "docs/evidence/bot-fight-native/LIVE_FACT_GAP.md": {
+   "bytes": 5101,
+   "sha256": "4aab948fc72f6dc975fc4e5fc78e68a06ef177a850fdf5b0b3afb4d644b6f374"
+  },
+  "docs/evidence/bot-fight-native/README.md": {
+   "bytes": 7175,
+   "sha256": "965b62f4e1561b6179b862896d17b4b185deac04967d4afe04e258310a5c3211"
+  },
+  "docs/evidence/bot-fight-native/logs/clippy.log": {
+   "bytes": 739,
+   "sha256": "225ce337f1b939fdbfbe2792720b4e44e70345676ff159f805b40aefea1a5107"
+  },
+  "docs/evidence/bot-fight-native/logs/connected-controls.log": {
+   "bytes": 1509,
+   "sha256": "a63de9acb26c4af50b9909e764127dffb9b11bece554fe18a5e080b947010b02"
+  },
+  "docs/evidence/bot-fight-native/logs/delivery-controls.log": {
+   "bytes": 3756,
+   "sha256": "e186cc1c9ea6a0858ed388b4254c46157180bfbb04363e1efb979e216bc0ddd7"
+  },
+  "docs/evidence/bot-fight-native/logs/fmt.log": {
+   "bytes": 7,
+   "sha256": "19eaf43821a7660ec323a87c8457bf74823beb296c39f5e01aa8a683aa50f061"
+  },
+  "docs/evidence/bot-fight-native/logs/pins.log": {
+   "bytes": 1426,
+   "sha256": "9fc069f895efc2f47fbf163b046ba1c149f15ac2ae0368eb85acb21945c65f90"
+  },
+  "docs/evidence/bot-fight-native/logs/source-consumer-final.log": {
+   "bytes": 1159,
+   "sha256": "edc34dacb6fda37a19a7989f6a88e987753acf66d9ccabbc9406235c34a46056"
+  },
+  "docs/evidence/bot-fight-native/logs/source-consumer-first.log": {
+   "bytes": 1454,
+   "sha256": "a19bb1e8ef3d18809f60f0f6848692956d52427f2fcaa1de08b64e4195d814a6"
+  },
+  "docs/evidence/bot-fight-native/logs/source-consumer.log": {
+   "bytes": 921,
+   "sha256": "b69a22c95cefc1f14da29f4f36f82122d61c8a6e0496be04134fd488dc642cfa"
+  }
+ }
+}

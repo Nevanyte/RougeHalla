@@ -1,0 +1,18 @@
+    Finished `test` profile [unoptimized] target(s) in 0.06s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fight-native/target/debug/deps/rh_policy-c3fa0ee46865b1ea)
+
+running 10 tests
+test bots::bot::connected_tests::an_entitled_noncombat_lock_keeps_its_reference_without_creating_a_target_candidate ... ok
+test bots::bot::connected_tests::delivered_perception_keeps_source_absolute_ready_redacted_held_and_targetability_without_immunity ... ok
+test bots::bot::connected_tests::a_cleared_owner_from_another_viewer_is_not_this_bots_owner_loss ... ok
+test bots::bot::connected_tests::raw_or_unavailable_owner_inputs_refuse_before_any_memory_brain_or_rng_advance ... ok
+test bots::bot::connected_tests::an_expired_cached_wish_goal_finishes_before_the_next_strategy_deadline ... ok
+test bots::bot::connected_tests::neutral_dummy_zombie_rows_never_become_enemy_or_regional_farm_goals ... ok
+test bots::bot::connected_tests::rejected_duplicate_scene_does_not_advance_the_live_brain_memory_or_random_streams ... ok
+test bots::bot::connected_tests::live_roam_uses_world_executor_and_never_exceeds_path_budget ... ok
+test bots::bot::connected_tests::same_observations_reset_cross_seat_and_hidden_rows_cannot_perturb_commands ... ok
+test bots::bot::connected_tests::real_seat_validates_submits_and_repeats_identically_without_fallback ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 139 filtered out; finished in 0.02s
+
+exit=0
