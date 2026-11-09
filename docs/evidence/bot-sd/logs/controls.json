@@ -1,0 +1,245 @@
+{
+ "format": "rh-bot-sd-controls/1",
+ "fixtureSha256": "55e8565e6a896b91deb49cdd8e290f568dec8013a1af4ac3eb72aec56bb65f7c",
+ "expectedSemanticSha256": "0bb0d5942fcfd2cafba89ab033e24d04da54f8be75e5001946c9ec24449bec4e",
+ "pristine": {
+  "exit": 0,
+  "signal": null,
+  "logSha256": "8a323c81e24e59d445d33603cd1bb4bda8b4d0ae7bba6133b3972579098448f0",
+  "semanticEqual": true,
+  "semanticSha256": "0bb0d5942fcfd2cafba89ab033e24d04da54f8be75e5001946c9ec24449bec4e",
+  "profileEqual": true
+ },
+ "results": [
+  {
+   "name": "knowledge-gate",
+   "file": "tactics/fight.ts",
+   "before": "const sdOn = knowsSd &&",
+   "after": "const sdOn =",
+   "beforeFileSha256": "10a9aeb45b69c9635072213fefbcfe7aa40fd113773f7cf2b254594ae8204a50",
+   "afterFileSha256": "21f09d05f8bad415552bc581afbc7a12c793fb6867390572c05b7f396d661c67",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "1ce8cb0cf96ad93d002ed7fb6254ec0c9cd771df5c2e3b062238a2ad5abbf612",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "start-clock",
+   "file": "tactics/fight.ts",
+   "before": "now >= p.hud.suddenDeathAt",
+   "after": "now > p.hud.suddenDeathAt",
+   "beforeFileSha256": "10a9aeb45b69c9635072213fefbcfe7aa40fd113773f7cf2b254594ae8204a50",
+   "afterFileSha256": "7d28911a98fe4361fb51a9d659531a435a5c954c07d6333a4fe60fe0e91ad53d",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "a90dc7b3a737bd3622299cba5dc4f780ba53bb8f2d0d0c3fd09ec6070a02de2f",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "hp-band",
+   "file": "tactics/fight.ts",
+   "before": "const SD_BAND = 0.02;",
+   "after": "const SD_BAND = 0.03;",
+   "beforeFileSha256": "10a9aeb45b69c9635072213fefbcfe7aa40fd113773f7cf2b254594ae8204a50",
+   "afterFileSha256": "3fb870f0831a899c8598515d3bfc9a44e795e6b17e29a4aed65c2ea5bc245b0d",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "a52bc8393ccbf942f4ff2859e1b3ed9517db1f0bb670db34f2edda39588ae01c",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "hysteresis",
+   "file": "tactics/fight.ts",
+   "before": "sdHold ? lead > -SD_BAND : lead > SD_BAND",
+   "after": "lead > SD_BAND",
+   "beforeFileSha256": "10a9aeb45b69c9635072213fefbcfe7aa40fd113773f7cf2b254594ae8204a50",
+   "afterFileSha256": "cc463105b5faf2f34985ad09f3f1b61de0923caf48a9d8546f8ce0221b9ea80c",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "a5a0458d8a86d21c09b3da3d40b4672d6823b924166c4d449864f962153fc17d",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "distance340",
+   "file": "tactics/fight.ts",
+   "before": "if (foe.dist < SD_KEEP)",
+   "after": "if (foe.dist <= SD_KEEP)",
+   "beforeFileSha256": "10a9aeb45b69c9635072213fefbcfe7aa40fd113773f7cf2b254594ae8204a50",
+   "afterFileSha256": "64db4bcfeaf095ee04024c996f4efb32d549e55141dd289d27ed71a30de1259d",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "ff59bc4341c47bc6fec35136f6b6b16562e2d895f0e4b22e1c90ad56df942899",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "held-order",
+   "file": "tactics/fight.ts",
+   "before": "if (held) return finish(null, running(\"sudden death: keeping distance\"), false);",
+   "after": "if (false && held) return finish(null, running(\"sudden death: keeping distance\"), false);",
+   "beforeFileSha256": "10a9aeb45b69c9635072213fefbcfe7aa40fd113773f7cf2b254594ae8204a50",
+   "afterFileSha256": "b9537d717b65f42f3506467fca7e81a9e782147004009eb4ff86398624ebb839",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "ab4c97a7645f205dbc7564d083b249d0403c3581abe2428e6b7715bc946099e4",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "cache1200",
+   "file": "tactics/kite.ts",
+   "before": "now - at < RETREAT_KEEP_MS",
+   "after": "now - at <= RETREAT_KEEP_MS",
+   "beforeFileSha256": "b7ceff483d51fe1d58d79ef34562e28a079027623527f11264c21439c2b6e2be",
+   "afterFileSha256": "94f1fc74b314e2d5eaa0dce49714c8be6b1e6013b15555e4b7de5e00a6bf70da",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "7b50c800b6d1e3d9493e65868b9194fe65ca9f96fe4c9cc50800f8d9e11dae52",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "arrived48",
+   "file": "tactics/kite.ts",
+   "before": "dist(self, dest) > RETREAT_ARRIVED",
+   "after": "dist(self, dest) >= RETREAT_ARRIVED",
+   "beforeFileSha256": "b7ceff483d51fe1d58d79ef34562e28a079027623527f11264c21439c2b6e2be",
+   "afterFileSha256": "8764704c4f9a94c1cc7000c93e5c367efa410df9dbc0d546ae775bbd26e3622f",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "0608071842ba6666429aa39b6fa4126f1e37d999d8f5ebfed9942f04583d34e2",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "threat-distance",
+   "file": "tactics/kite.ts",
+   "before": "if (nearDest >= nearMe) return dest;",
+   "after": "return dest;",
+   "beforeFileSha256": "b7ceff483d51fe1d58d79ef34562e28a079027623527f11264c21439c2b6e2be",
+   "afterFileSha256": "055d9dd6d02bfce2fa097dd866c81334217ae65caaa55d31b54e8cd4c8e6655e",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "97407b19032e61b6e84df26952423529bffd125a6d618da7081260054c8dc7c1",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "progress-touch",
+   "file": "tactics/fight.ts",
+   "before": "if (sdHold) {\n      touch();",
+   "after": "if (sdHold) {",
+   "beforeFileSha256": "10a9aeb45b69c9635072213fefbcfe7aa40fd113773f7cf2b254594ae8204a50",
+   "afterFileSha256": "735dc4ad6e88a82bc336adbf452f405cd0866d980f03d16d8a4a68fb8cbd3ee1",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "dfdf67bf0f55d0cff4ac7bb5d229110959964d783e52daaf0133481c95d95656",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "seen-gate",
+   "file": "tactics/fight.ts",
+   "before": "&& !foe.mob && foe.seen;",
+   "after": "&& !foe.mob;",
+   "beforeFileSha256": "10a9aeb45b69c9635072213fefbcfe7aa40fd113773f7cf2b254594ae8204a50",
+   "afterFileSha256": "1723d98f7e2a2d4663b8386b736f4363905e432ddfcab17cdf7aafba6e2ef794",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "b0246183ff6197fb6f17ed34aaa65d0e651f063eada41e4821d6880230985ebc",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "leave-held",
+   "file": "tactics/fight.ts",
+   "before": "leave() { lastMove = null; held = false; plan = null; }",
+   "after": "leave() { lastMove = null; plan = null; }",
+   "beforeFileSha256": "10a9aeb45b69c9635072213fefbcfe7aa40fd113773f7cf2b254594ae8204a50",
+   "afterFileSha256": "86cce0f62c8b9e2508795423ac7db1859c0e8a72c299110e60ccff0f379850d1",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "4aab60fa19c7193d58ed4a79161e1958eed9ae3dc8a375d02568420a4e523c57",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "provenance-nonkill",
+   "file": "tactics/fight.ts",
+   "before": "const LOCK_MARGIN = 40;",
+   "after": "const LOCK_MARGIN = 40; // provenance-only control",
+   "beforeFileSha256": "10a9aeb45b69c9635072213fefbcfe7aa40fd113773f7cf2b254594ae8204a50",
+   "afterFileSha256": "e1da070117a31b0c043c6037562423bcca1759196cad0668301f4ee710f2c326",
+   "expected": "semantic nonkill, provenance changes",
+   "observed": {
+    "exit": 0,
+    "signal": null,
+    "logSha256": "d81da0dceaca899eb441d738a93a3f3d72342f579db0a69812973e3bf1529242",
+    "semanticEqual": true,
+    "semanticSha256": "0bb0d5942fcfd2cafba89ab033e24d04da54f8be75e5001946c9ec24449bec4e",
+    "profileEqual": false
+   }
+  }
+ ],
+ "restored": {
+  "exit": 0,
+  "signal": null,
+  "logSha256": "8a323c81e24e59d445d33603cd1bb4bda8b4d0ae7bba6133b3972579098448f0",
+  "semanticEqual": true,
+  "semanticSha256": "0bb0d5942fcfd2cafba89ab033e24d04da54f8be75e5001946c9ec24449bec4e",
+  "profileEqual": true
+ },
+ "boundary": "Actual TS imports are compiled by tsx after one unique source edit in tmpfs. No fixture mutation. Semantic comparison excludes only profile/provenance; declared inputs, outputs, streams, timing and path records remain included."
+}

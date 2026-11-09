@@ -1,0 +1,61 @@
+exit=1 signal=null
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
+  [
+    [
++     'move'
+-     'stop'
+    ],
+-   [],
+    [
+      'move'
+    ],
+    [
++     'move'
+-     'stop'
+    ],
+-   [],
+    [
++     'move'
+-     'stop'
+    ],
+    [
++     'move'
++   ],
++   [
+      'stop'
+    ],
++   [
++     'move'
++   ]
+  ]
+
+    at verify (file:///work/tools/bot-sd-fixtures/verify.mjs:11:9)
+    at <anonymous> (/work/tools/bot-sd-fixtures/capture.mts:61:45) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: [
+    [ 'move' ],
+    [ 'move' ],
+    [ 'move' ],
+    [ 'move' ],
+    [ 'move' ],
+    [ 'stop' ],
+    [ 'move' ]
+  ],
+  expected: [
+    [ 'stop' ], [],
+    [ 'move' ], [ 'stop' ],
+    [],         [ 'stop' ],
+    [ 'stop' ]
+  ],
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}
+
+Node.js v22.23.4

@@ -1,0 +1,246 @@
+{
+ "format": "rh-bot-sd-evidence/1",
+ "base": "0489fa9f2e2168857588d0e3bd9548fbcdfe5f52",
+ "sourceHead": "01e480c19c8c5072d1cdab3078602b6053d89a0b",
+ "nativeHead": "024c052aad702adb756a99181edf6b7ea5e9942a",
+ "sourceFixture": {
+  "path": "parity/policy/bot-sd/source.json",
+  "bytes": 418550,
+  "sha256": "55e8565e6a896b91deb49cdd8e290f568dec8013a1af4ac3eb72aec56bb65f7c",
+  "sequences": 8,
+  "frames": 46
+ },
+ "sourceProof": {
+  "captureAndByteCheck": true,
+  "externalFrozenGitArchiveByteCheck": true,
+  "semanticKills": 12,
+  "provenanceOnlyNonkill": 1,
+  "pristineAndRestored": true,
+  "rawControlLogs": 15,
+  "sourceTsPins": 113,
+  "configPins": 8,
+  "toolPins": 8,
+  "allPinsAgainstFrozenGit": true,
+  "runtime": "Node22.23.4 Linuxamd64",
+  "image": "node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292"
+ },
+ "nativeProof": {
+  "testsPassed": 8,
+  "newTests": 2,
+  "retainedNormalTests": 6,
+  "newSourceFrames": 46,
+  "retainedSourceTacticsFrames": 47,
+  "retainedOrbFrames": 20,
+  "directFight": 1,
+  "strictPolicyClippy": true,
+  "fmt": true,
+  "clockAndRngBits": "exact",
+  "coordinateComparison": "round6 only",
+  "fullMemoryStimuliAndPathCallArrayParityClaim": false
+ },
+ "commands": [
+  {
+   "command": "bash tools/bot-sd-fixtures/capture.sh",
+   "log": "logs/capture.log",
+   "exit": 0
+  },
+  {
+   "command": "bash tools/bot-sd-fixtures/controls.sh docs/evidence/bot-sd/logs",
+   "log": "logs/controls-run.log",
+   "exit": 0
+  },
+  {
+   "command": "fresh git archive of sourceHead; bash tools/bot-sd-fixtures/capture.sh --check",
+   "log": "logs/external-source.log",
+   "exit": 0
+  },
+  {
+   "command": "cargo test -p rh-policy --lib bots::fight::source_tests -- --nocapture",
+   "log": "logs/native-source.log",
+   "exit": 0
+  },
+  {
+   "command": "cargo clippy -p rh-policy --all-targets --all-features -- -D warnings",
+   "log": "logs/clippy.log",
+   "exit": 0
+  },
+  {
+   "command": "cargo fmt --all -- --check",
+   "log": "logs/fmt.log",
+   "exit": 0
+  }
+ ],
+ "nativeEnvironment": {
+  "rustc": "1.97.0 (2d8144b78 2026-07-07)",
+  "setup": "source coordinator final-env.sh then override owned target; jobs1 dev/test debug0 incremental0",
+  "CARGO_TARGET_DIR": "return-cleanup-2026-11-08/bot-fight-native/target (same owned target as0489; no final-target access)",
+  "CARGO_BUILD_JOBS": "1",
+  "CARGO_PROFILE_TEST_DEBUG": "0",
+  "CARGO_PROFILE_DEV_DEBUG": "0",
+  "CARGO_INCREMENTAL": "0"
+ },
+ "boundary": "Declared actual-source normal visible-player SD method contexts, component only; not earned World/physics, full memory/FrameRing/reflex, strategy, full hunters/flee/loot, delivered live intake or performance proof. Existing corpora/oracles/live/ABI/shared files unchanged.",
+ "live": "HELD as before. Future adapter must supply explicit available ownerHP/maxHP/arena clock/visible bar; full published cues and actual reflex/FrameRing/accepted-frame intake remain required.",
+ "sourceFiles": [
+  "parity/policy/bot-sd/source.json",
+  "tools/bot-sd-fixtures/capture.sh",
+  "tools/bot-sd-fixtures/controls.mjs",
+  "tools/bot-sd-fixtures/verify.mjs",
+  "tools/bot-sd-fixtures/README.md",
+  "tools/bot-sd-fixtures/controls.sh",
+  "tools/bot-sd-fixtures/cases.mts",
+  "tools/bot-sd-fixtures/capture.mts"
+ ],
+ "nativeFiles": [
+  "crates/rh-policy/src/bots/fight.rs",
+  "crates/rh-policy/src/bots/fight/source_tests.rs",
+  "crates/rh-policy/src/bots/fight/retreat.rs",
+  "crates/rh-policy/src/bots/fight/sd_source_tests.rs"
+ ],
+ "artifacts": {
+  "crates/rh-policy/src/bots/fight/retreat.rs": {
+   "bytes": 1023,
+   "sha256": "1c293e36240413a718086f19b6f7806a4e042d6b7a797a41493279e6af056a30"
+  },
+  "crates/rh-policy/src/bots/fight/sd_source_tests.rs": {
+   "bytes": 6084,
+   "sha256": "bfbe52ed4a2178ff042c0d530f1b019f3d63700435813177bc603c374d92a8bb"
+  },
+  "crates/rh-policy/src/bots/fight/source_tests.rs": {
+   "bytes": 22522,
+   "sha256": "f7eaa459e77a0c601eb4c28b2cc0ed75ce4fafdb8e4f25a32f32e00aa5026698"
+  },
+  "crates/rh-policy/src/bots/fight.rs": {
+   "bytes": 29480,
+   "sha256": "ada90f5c7b6ba390edb8f9a4d39bf6092eee8f5c0936aa004f55673d966b5661"
+  },
+  "docs/evidence/bot-sd/README.md": {
+   "bytes": 7112,
+   "sha256": "93b6764dfd256935bb74f32f568cec1c11b69bfbd5beba31503bcf37e53bdccc"
+  },
+  "docs/evidence/bot-sd/logs/arrived48.log": {
+   "bytes": 603,
+   "sha256": "0608071842ba6666429aa39b6fa4126f1e37d999d8f5ebfed9942f04583d34e2"
+  },
+  "docs/evidence/bot-sd/logs/cache1200.log": {
+   "bytes": 602,
+   "sha256": "7b50c800b6d1e3d9493e65868b9194fe65ca9f96fe4c9cc50800f8d9e11dae52"
+  },
+  "docs/evidence/bot-sd/logs/capture.log": {
+   "bytes": 272,
+   "sha256": "06db1f1e6984c75a31aa3effddf83f468de03768900a9dc57f8611a0a0c31167"
+  },
+  "docs/evidence/bot-sd/logs/clippy.log": {
+   "bytes": 513,
+   "sha256": "71cc1b1919362cc2aea53c0107d401b55a67d0b608543d1c9d29e53d4fb3cfd5"
+  },
+  "docs/evidence/bot-sd/logs/controls-run.log": {
+   "bytes": 1093,
+   "sha256": "23e98251a4d793bf7e427075939f586c36ae07fbd4297708ab9b4f74ead4925f"
+  },
+  "docs/evidence/bot-sd/logs/controls.json": {
+   "bytes": 8891,
+   "sha256": "cf99372a9e4f903654b9c044898f1914e2b73d410e819e3ae73c47d708c099cd"
+  },
+  "docs/evidence/bot-sd/logs/distance340.log": {
+   "bytes": 925,
+   "sha256": "ff59bc4341c47bc6fec35136f6b6b16562e2d895f0e4b22e1c90ad56df942899"
+  },
+  "docs/evidence/bot-sd/logs/external-source.log": {
+   "bytes": 136,
+   "sha256": "78ea38dec5bfd0efe7992f1c6eb973a12761e595e06b063f850ee9b070ac0847"
+  },
+  "docs/evidence/bot-sd/logs/fmt.log": {
+   "bytes": 7,
+   "sha256": "19eaf43821a7660ec323a87c8457bf74823beb296c39f5e01aa8a683aa50f061"
+  },
+  "docs/evidence/bot-sd/logs/held-order.log": {
+   "bytes": 886,
+   "sha256": "ab4c97a7645f205dbc7564d083b249d0403c3581abe2428e6b7715bc946099e4"
+  },
+  "docs/evidence/bot-sd/logs/hp-band.log": {
+   "bytes": 1081,
+   "sha256": "a52bc8393ccbf942f4ff2859e1b3ed9517db1f0bb670db34f2edda39588ae01c"
+  },
+  "docs/evidence/bot-sd/logs/hysteresis.log": {
+   "bytes": 1085,
+   "sha256": "a5a0458d8a86d21c09b3da3d40b4672d6823b924166c4d449864f962153fc17d"
+  },
+  "docs/evidence/bot-sd/logs/knowledge-gate.log": {
+   "bytes": 605,
+   "sha256": "1ce8cb0cf96ad93d002ed7fb6254ec0c9cd771df5c2e3b062238a2ad5abbf612"
+  },
+  "docs/evidence/bot-sd/logs/leave-held.log": {
+   "bytes": 730,
+   "sha256": "4aab60fa19c7193d58ed4a79161e1958eed9ae3dc8a375d02568420a4e523c57"
+  },
+  "docs/evidence/bot-sd/logs/native-source.log": {
+   "bytes": 1914,
+   "sha256": "1d461247841d4c2895ee19e4f1e04d29ecfb8c3a6ba5900bb003723b73a24112"
+  },
+  "docs/evidence/bot-sd/logs/pins.log": {
+   "bytes": 1696,
+   "sha256": "12ae06c333cd47cdb388df447c3d0d5d408aa5dee837a114923f445d1cfa5077"
+  },
+  "docs/evidence/bot-sd/logs/pristine.log": {
+   "bytes": 155,
+   "sha256": "8a323c81e24e59d445d33603cd1bb4bda8b4d0ae7bba6133b3972579098448f0"
+  },
+  "docs/evidence/bot-sd/logs/progress-touch.log": {
+   "bytes": 414,
+   "sha256": "dfdf67bf0f55d0cff4ac7bb5d229110959964d783e52daaf0133481c95d95656"
+  },
+  "docs/evidence/bot-sd/logs/provenance-nonkill.log": {
+   "bytes": 155,
+   "sha256": "d81da0dceaca899eb441d738a93a3f3d72342f579db0a69812973e3bf1529242"
+  },
+  "docs/evidence/bot-sd/logs/restored.log": {
+   "bytes": 155,
+   "sha256": "8a323c81e24e59d445d33603cd1bb4bda8b4d0ae7bba6133b3972579098448f0"
+  },
+  "docs/evidence/bot-sd/logs/seen-gate.log": {
+   "bytes": 979,
+   "sha256": "b0246183ff6197fb6f17ed34aaa65d0e651f063eada41e4821d6880230985ebc"
+  },
+  "docs/evidence/bot-sd/logs/start-clock.log": {
+   "bytes": 860,
+   "sha256": "a90dc7b3a737bd3622299cba5dc4f780ba53bb8f2d0d0c3fd09ec6070a02de2f"
+  },
+  "docs/evidence/bot-sd/logs/threat-distance.log": {
+   "bytes": 612,
+   "sha256": "97407b19032e61b6e84df26952423529bffd125a6d618da7081260054c8dc7c1"
+  },
+  "parity/policy/bot-sd/source.json": {
+   "bytes": 418550,
+   "sha256": "55e8565e6a896b91deb49cdd8e290f568dec8013a1af4ac3eb72aec56bb65f7c"
+  },
+  "tools/bot-sd-fixtures/README.md": {
+   "bytes": 2643,
+   "sha256": "9c6ce1b9f5853900de3c6247d0d4f8fcb84b1062e2a3ad90905bbf2d8fb90748"
+  },
+  "tools/bot-sd-fixtures/capture.mts": {
+   "bytes": 7389,
+   "sha256": "93761706d837fda76ba5c94215a46d0a4f5c38cada89c13985d205d57d6ed722"
+  },
+  "tools/bot-sd-fixtures/capture.sh": {
+   "bytes": 1072,
+   "sha256": "c455cfefc9ae4024de21f40945c59e7283027261cb768fffdf8b92fe21bd6531"
+  },
+  "tools/bot-sd-fixtures/cases.mts": {
+   "bytes": 2748,
+   "sha256": "97eadfad9df02bbf4b5a21e0b7dfbc7ef07bf6d161352f511ee8d317e5c4d993"
+  },
+  "tools/bot-sd-fixtures/controls.mjs": {
+   "bytes": 5052,
+   "sha256": "f11105d4a73bb6d9018e60a7ad2520b627b0364879a1ea2e8628d510b9e0df0d"
+  },
+  "tools/bot-sd-fixtures/controls.sh": {
+   "bytes": 725,
+   "sha256": "ee3bf3453d7f488c3afbec2c746814b9c5dd7dc37cff63465e70fc97fccb8e5b"
+  },
+  "tools/bot-sd-fixtures/verify.mjs": {
+   "bytes": 2136,
+   "sha256": "a19144c5cfa8bb4d4e7511e0bb5425a6fdc1f4883c90a87adc07a217e7242fd1"
+  }
+ }
+}
