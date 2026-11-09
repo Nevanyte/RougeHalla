@@ -1,0 +1,15 @@
+{
+  "scope": "Root syntax-only, no import/compiler/World/control execution",
+  "results": [
+    {
+      "path": "tools/bot-protection-cues-fixtures/variants-build.mjs",
+      "sha256": "b18ba67c65f4c9c5efbbb24671199d4097f0f2ead5e9a5b1922c71321adb0e7e",
+      "syntaxExitCode": 0
+    },
+    {
+      "path": "tools/bot-protection-cues-fixtures/variants-runtime.mjs",
+      "sha256": "e98352bfb7fa39b62e1ddbc3725179c5d890f634e55bab960f6811765a3bbde7",
+      "syntaxExitCode": 0
+    }
+  ]
+}

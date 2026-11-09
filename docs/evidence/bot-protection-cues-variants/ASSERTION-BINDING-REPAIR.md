@@ -1,0 +1,7 @@
+# Exact first-assertion binding (code only)
+
+The retarget and Bow classifiers now require exact String(error) equality to the intended first pristine assertion, retaining the existing target-case/completed-stage and positive/effect-row guards. Retarget binds verify.mjs line 326 (cancel count 0 versus 1); Bow binds line 308 (actual undefined versus expected draw). No pristine producer, verifier, control or expected output changed.
+
+Formatting was determined by reading, without executing, the embedded internal/assert/assertion_error builtin source in the already pinned Node 22.23.4 binary (SHA256 2cc28a1880d0774616959f2210ee739bffa6ac695c887e8988a496a21271f6c0). Its kMaxShortStringLength is 12: 0/1 uses the simple diff, while inspected undefined and quoted draw have adjusted length 13 and use stacked diff. getStackedDiff at byte 79924124 has no indicator when the first characters differ. createErrDiff at byte 79926143 appends a terminal LF; toString adds the AssertionError/code prefix. Both exact predicates include that LF. Colors are disabled in the existing non-TTY runtime envelope. An unexpected runtime formatting or different first assertion safely remains ERROR with raw retained; it is never a semantic KILL.
+
+These strings are static expected diagnostics, NOT observed mutant failures. No Node execution, imports, compilation, source capture, container/control run or parser check occurred for this correction. Actual intended failures remain UNRUN. Only the two classifier conditions changed.
