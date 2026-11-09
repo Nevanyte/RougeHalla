@@ -114,7 +114,9 @@ CARGO_INCREMENTAL=0, CARGO_PROFILE_DEV_DEBUG=0, jobs1) and exit code plus raw ou
 - logs/fmt-first-failure.log and logs/fmt-final.log: first check failure preserved, final fmt --check exit 0.
 - logs/clippy-first-failure.log and logs/clippy-final.log: first scoped strict clippy failure preserved (collapsible_if),
   final rh-sim --all-targets --all-features clippy -D warnings exit 0.
-- logs/sealed-git-manifest.log: sealed-Git per-file sizes/SHA256 for code, source corpus, this evidence and logs.
+- logs/sealed-git-manifest.txt: sealed-Git per-file sizes/SHA256 for code, source corpus, the sealed evidence revision and logs.
 
 No inherited source-control log is substituted. The focused output reports the same matched/excluded counts above and
 the run-end/privacy assertions are inside that test.
+
+Root admission note: the filename above is corrected after the sealed `4bc1ddec` receipt. Its manifest hashes the original sealed evidence blob; that historical blob and all raw command logs remain unchanged in Git. The preserved first-failure fmt output contains three whitespace-only diff lines; these are raw diagnostics, not source formatting changes. Native coverage remains cases0/4 only.
