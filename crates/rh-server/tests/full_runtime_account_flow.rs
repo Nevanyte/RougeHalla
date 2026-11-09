@@ -347,11 +347,6 @@ async fn play_with_map(name: &str, mut peer: Peer, map: rh_protocol::map::MapBlo
                                     });
                                     moved = false;
                                 }
-                                commands.push(WireCommand::Attack {
-                                    a: (enemy.y - me.y).atan2(enemy.x - me.x),
-                                    t: None,
-                                });
-                                audit.attacks += 1;
                             } else {
                                 move_seq = move_seq.wrapping_add(1);
                                 commands.push(WireCommand::Move {
@@ -361,6 +356,13 @@ async fn play_with_map(name: &str, mut peer: Peer, map: rh_protocol::map::MapBlo
                                 });
                                 moved = true;
                             }
+                            // Holding a manual attack while approaching is an ordinary public input. Do not wait for
+                            // a sparse navigation sample to fall inside melee reach before pressing the trigger.
+                            commands.push(WireCommand::Attack {
+                                a: (enemy.y - me.y).atan2(enemy.x - me.x),
+                                t: None,
+                            });
+                            audit.attacks += 1;
                         } else {
                             let (x, y) = rendezvous.expect("public coliseum floor");
                             move_seq = move_seq.wrapping_add(1);
