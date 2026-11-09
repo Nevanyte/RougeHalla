@@ -1,0 +1,36 @@
+{
+  "format": "rh-native29-baked-info/1",
+  "source": "582c0c69ddf74d2744b519bc47d012736bcb043a",
+  "files": [
+    {
+      "path": "docs/evidence/native29-baked-info/README.md",
+      "bytes": 1079,
+      "sha256": "0cc20d031e2ede6b85119baa2adfb9d95ef09eeed4011e7b4cf8eab8981fd252"
+    },
+    {
+      "path": "docs/evidence/native29-baked-info/canonical-server-build-first.json",
+      "bytes": 577,
+      "sha256": "bd84ceac14921e2ad7f5643280e734ee364eb3e6ef61eb087c40336502b7847d"
+    },
+    {
+      "path": "docs/evidence/native29-baked-info/canonical-server-build-first.log",
+      "bytes": 1024,
+      "sha256": "f3ca394d96ef0a17df07e40a7f1177ec6e273eb6356ca32162d7f0f9f22a3273"
+    },
+    {
+      "path": "docs/evidence/native29-baked-info/info.json",
+      "bytes": 180,
+      "sha256": "189604383291e33aee4cc7010b081551d0ba28a5b9a2e2f3dcca9c1cb4a22fec"
+    },
+    {
+      "path": "docs/evidence/native29-baked-info/receipt.json",
+      "bytes": 1547,
+      "sha256": "c2b85adfe6a6efbc3ac1fedf08a1eee9acc6ca9343035a9888564565b3df0ffe"
+    },
+    {
+      "path": "docs/evidence/native29-baked-info/server.log",
+      "bytes": 166,
+      "sha256": "8861ad23747367ba8c766c03e0a5a4fb0560cc185ab9f92679c9863885251e9b"
+    }
+  ]
+}

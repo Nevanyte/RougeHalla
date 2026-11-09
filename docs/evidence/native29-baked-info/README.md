@@ -1,0 +1,5 @@
+# Native29 content baked from actual canonical server
+
+Canonical Rust build582c0c69ddf74d2744b519bc47d012736bcb043a succeeds with locked offline dependencies. The exact binary SHA d731551864f21d732e40a040077412cbfede7d54ff31987500a5e88b558c596b was copied to an owned local proof path and launched on loopback with a clean noncredential environment. Actual HTTP /info returns protocol14/content7c6a633f68c2cc72, zero players/rooms; listener ownership is verified for the recorded PID. Existing Tools/build-web.sh --prepare-only reads that endpoint and generates BakedContent.cs. The owned server exits gracefully0 after the probe. No Unity import/build, game admission, account/DB, browser, TLS, cloud or performance proof occurs.
+
+The new hash intentionally identifies the native29 rules union. The actual90-case Training engine pass remains bound to its earlier cdb0 source/content cut; new unused checkpoint library code has separate managed/source compile evidence. The new coherent Web/browser and resumeUI gates are still required. The public production site is unchanged.

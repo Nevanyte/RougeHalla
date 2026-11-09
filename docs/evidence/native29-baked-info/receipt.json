@@ -1,0 +1,42 @@
+{
+  "head": "582c0c69ddf74d2744b519bc47d012736bcb043a",
+  "binary_sha256": "d731551864f21d732e40a040077412cbfede7d54ff31987500a5e88b558c596b",
+  "command": [
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/native29-canonical-info-582c0c69/rh-server-582c0c69",
+    "--bind",
+    "127.0.0.1:59986",
+    "--runtime",
+    "core"
+  ],
+  "scope": "loopback-only actual/info identityprobe, no joined game/DB/cloud/Web",
+  "started_utc": "2026-11-09T17:04:25.500962+00:00",
+  "pid": 16860,
+  "info_url": "http://127.0.0.1:59986/info",
+  "info": {
+    "closedRooms": [],
+    "contentHash": "7c6a633f68c2cc72",
+    "lobbies": 0,
+    "maxRooms": 16,
+    "players": 0,
+    "protocol": 14,
+    "resultsFailed": 0,
+    "resultsOk": 0,
+    "resultsRefused": 0,
+    "rooms": 0,
+    "state": "ready"
+  },
+  "listener_owner": "COMMAND     PID          USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME\nrh-server 16860 nevinmckinnon    9u  IPv4 0x6edd84275dfafe5e      0t0  TCP 127.0.0.1:59986 (LISTEN)\n",
+  "prepare_command": [
+    "/bin/bash",
+    "client-unity/UnityProject/Tools/build-web.sh",
+    "--prepare-only"
+  ],
+  "prepare_exit": 0,
+  "prepare_stdout": "Baked authoritative content hash 7c6a633f68c2cc72\n",
+  "prepare_stderr": "",
+  "old_baked_sha256": "63ed36dcb21e2c366049f204e74f823eebd988d62953510f3af5e85676f0740c",
+  "new_baked_sha256": "8413908cace2df6eb8b8fe5025c0914991397f95271e985656929b335186101e",
+  "server_exit": 0,
+  "owned_server_running": false,
+  "ended_utc": "2026-11-09T17:04:26.302891+00:00"
+}
