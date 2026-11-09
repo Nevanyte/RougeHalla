@@ -418,7 +418,8 @@ namespace Roguehalla.Net
                     Training = snap.Training;
                     if (!replaceCurrentTick || sourceChanged) Clock.OnSnapshot(now, snap.ServerMs);
                     _hasMe = snap.Me != null;
-                    if (_hasMe) _me.CopyFrom(snap.Me);
+                    if (_hasMe) _me.CopyFrom(snap.Me, snap.OwnerCombat);
+                    else _me.OwnerCombat = null;
                     if (Motion != null)
                     {
                         if (sourceCut) Motion.RebasePresentationClock(now);
@@ -485,6 +486,7 @@ namespace Roguehalla.Net
             Latest = null;
             Training = false;
             _hasMe = false;
+            _me.OwnerCombat = null;
             _needFull = false;
             Clock.Reset();
             Sync.Reset();

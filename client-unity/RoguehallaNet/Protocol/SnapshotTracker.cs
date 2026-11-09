@@ -30,6 +30,8 @@ namespace Roguehalla.Net.Protocol
         bool _hasMe;
         /// <summary>Protocol 8: the held snapshot's public training fact (static per connection).</summary>
         bool _training;
+        WireOwnerCombat _ownerCombat;
+        WireOwnerCombat _nextOwnerCombat;
         WireActor[] _actors = new WireActor[16];
         WireActor[] _next = new WireActor[16];
         int _count;
@@ -42,7 +44,7 @@ namespace Roguehalla.Net.Protocol
         public int HeldActors { get { return _count; } }
 
         /// <summary>Forgets the held snapshot (a new connection or a Welcome).</summary>
-        public void Reset() { _has = false; _hasMe = false; _count = 0; }
+        public void Reset() { _has = false; _hasMe = false; _ownerCombat = null; _nextOwnerCombat = null; _count = 0; }
 
         /// <summary>
         /// Decodes the first <paramref name="length"/> bytes of a server frame. A Full snapshot is held and returned; a delta is
@@ -76,6 +78,12 @@ namespace Roguehalla.Net.Protocol
             if (!_has) throw new DeltaException("no_base");
             if (_tick != d.BaseTick) throw new DeltaException("base_mismatch", "have " + _tick + ", want " + d.BaseTick);
             if (d.HasSelf && !_hasMe) throw new DeltaException("self_without_base");
+            if (d.HasOwnerCombat && d.OwnerCombat != null && !d.HasSelf) throw new DeltaException("owner_combat", "without owner");
+            if (d.HasOwnerCombat && d.OwnerCombat != null)
+            {
+                try { OwnerCombatWire.Validate(d.OwnerCombat); }
+                catch (ArgumentException e) { throw new DeltaException("owner_combat", e.Message); }
+            }
             int need = _count + d.ChangedCount;
             if (_next.Length < need) _next = new WireActor[Math.Max(need, _next.Length * 2)];
 
@@ -107,13 +115,37 @@ namespace Roguehalla.Net.Protocol
                 if (!_next[i].HasValidGiverIdentity)
                     throw new DeltaException("giver_actor", _next[i].Id.ToString());
 
+            bool hasNextOwnerCombat = d.HasSelf && (d.HasOwnerCombat ? d.OwnerCombat != null : _ownerCombat != null);
+            if (hasNextOwnerCombat)
+            {
+                if (_nextOwnerCombat == null) _nextOwnerCombat = new WireOwnerCombat();
+                _nextOwnerCombat.CopyFrom(d.HasOwnerCombat ? d.OwnerCombat : _ownerCombat);
+            }
+            if (hasNextOwnerCombat)
+            {
+                try { OwnerCombatWire.Validate(_nextOwnerCombat); }
+                catch (ArgumentException e) { throw new DeltaException("owner_combat", e.Message); }
+            }
+            if (hasNextOwnerCombat && _nextOwnerCombat.Lock.Target.HasValue && !ContainsActor(_next, o, _nextOwnerCombat.Lock.Target.Value))
+                throw new DeltaException("owner_combat", _nextOwnerCombat.Lock.Target.Value.ToString());
+
             // Everything checked: commit.
             var swap = _actors; _actors = _next; _next = swap; _count = o;
+            if (hasNextOwnerCombat)
+            {
+                var oldOwnerCombat = _ownerCombat; _ownerCombat = _nextOwnerCombat; _nextOwnerCombat = oldOwnerCombat;
+            }
+            else if (_ownerCombat != null)
+            {
+                _nextOwnerCombat = _ownerCombat; _ownerCombat = null;
+            }
             _tick = d.Tick;
             if (d.HasPhase) _phase = d.Phase;
             s.Tick = d.Tick; s.Phase = _phase; s.AckInput = d.AckInput; s.Training = d.Training; _training = d.Training;
             // Source time is per-frame: an absent override means this delta's tick clock, never the base snapshot's value.
             s.ServerTimeOverrideMs = d.ServerTimeOverrideMs;
+            if (_ownerCombat == null) s.OwnerCombat = null;
+            else { if (s.OwnerCombat == null) s.OwnerCombat = new WireOwnerCombat(); s.OwnerCombat.CopyFrom(_ownerCombat); }
             if (d.HasSelf)
             {
                 var me = s.Me ?? new WireSelf();
@@ -173,10 +205,28 @@ namespace Roguehalla.Net.Protocol
             _training = s.Training;
             _hasMe = s.Me != null;
             if (_hasMe) _me.CopyFrom(s.Me);
+            if (_hasMe && s.OwnerCombat != null)
+            {
+                if (_ownerCombat == null) _ownerCombat = new WireOwnerCombat();
+                _ownerCombat.CopyFrom(s.OwnerCombat);
+            }
+            else _ownerCombat = null;
             int n = s.Actors.Length;
             if (_actors.Length < n) _actors = new WireActor[Math.Max(n, _actors.Length * 2)];
             Array.Copy(s.Actors, 0, _actors, 0, n);
             _count = n;
+        }
+
+        static bool ContainsActor(WireActor[] actors, int count, uint id)
+        {
+            int lo = 0, hi = count;
+            while (lo < hi)
+            {
+                int mid = lo + ((hi - lo) >> 1);
+                if (actors[mid].Id == id) return true;
+                if (actors[mid].Id < id) lo = mid + 1; else hi = mid;
+            }
+            return false;
         }
 
         void CopyActorsTo(ServerMsg.Snapshot s)

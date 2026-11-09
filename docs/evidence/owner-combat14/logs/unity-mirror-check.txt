@@ -1,0 +1,17 @@
+$ diff -q client-unity/RoguehallaNet/Protocol/Messages.cs client-unity/UnityProject/Assets/RoguehallaNet/Protocol/Messages.cs
+identical
+$ diff -q client-unity/RoguehallaNet/Protocol/SnapshotTracker.cs client-unity/UnityProject/Assets/RoguehallaNet/Protocol/SnapshotTracker.cs
+identical
+$ diff -q client-unity/RoguehallaNet/Net/Views.cs client-unity/UnityProject/Assets/RoguehallaNet/Net/Views.cs
+identical
+$ diff -q client-unity/RoguehallaNet/Net/Session.cs client-unity/UnityProject/Assets/RoguehallaNet/Net/Session.cs
+identical
+$ sha256sum canonical and Unity mirror files
+ac67a2e2d25189ebe855c47c4e9b12c49822ea90066b9e9a14dcc570e3150328  client-unity/RoguehallaNet/Protocol/Messages.cs
+ac67a2e2d25189ebe855c47c4e9b12c49822ea90066b9e9a14dcc570e3150328  client-unity/UnityProject/Assets/RoguehallaNet/Protocol/Messages.cs
+c1079909aba35def0451f2afd5020652f257620f1ab1d2bc39c874d606be2c00  client-unity/RoguehallaNet/Protocol/SnapshotTracker.cs
+c1079909aba35def0451f2afd5020652f257620f1ab1d2bc39c874d606be2c00  client-unity/UnityProject/Assets/RoguehallaNet/Protocol/SnapshotTracker.cs
+f023dfbb38d0b71bbcb5c664edf12ba8b33f1c3db30d4dee8b1c00fa0776ee37  client-unity/RoguehallaNet/Net/Views.cs
+f023dfbb38d0b71bbcb5c664edf12ba8b33f1c3db30d4dee8b1c00fa0776ee37  client-unity/UnityProject/Assets/RoguehallaNet/Net/Views.cs
+542d39bd04c640f50ab9422eb6cb97e121168a56b57c9a223a16e7273b4d8081  client-unity/RoguehallaNet/Net/Session.cs
+542d39bd04c640f50ab9422eb6cb97e121168a56b57c9a223a16e7273b4d8081  client-unity/UnityProject/Assets/RoguehallaNet/Net/Session.cs

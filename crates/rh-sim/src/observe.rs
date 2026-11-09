@@ -233,6 +233,8 @@ pub struct Observation {
     pub phase: Phase,
     pub me: Option<SelfView>,
     pub inventory: Option<crate::Inventory>,
+    /// Checked owner combat facts, available only through a prepared ItemObserver scene.
+    pub owner_combat: Option<crate::OwnerCombatView>,
     pub props: Vec<crate::VisibleProp>,
     pub fields: Vec<crate::status_runtime::FieldView>,
     pub visible: Vec<ActorView>,
@@ -438,6 +440,7 @@ impl Default for Observation {
             phase: Phase::Lobby,
             me: None,
             inventory: None,
+            owner_combat: None,
             reward_chests: Vec::new(),
             build: None,
             props: Vec::new(),
@@ -672,6 +675,8 @@ pub(crate) fn observe_with(
     out: &mut Observation,
     mut cache: Option<&mut SightCache>,
 ) -> Result<(), crate::OfferError> {
+    // Raw observations never retain a previously prepared owner group, even on failure.
+    out.owner_combat = None;
     begin(sim, &mut cache);
     let me = sim.player(viewer);
     let now = sim.server_time();

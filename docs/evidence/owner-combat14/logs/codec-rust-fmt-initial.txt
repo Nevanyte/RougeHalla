@@ -1,0 +1,451 @@
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/crates/rh-protocol/src/delta.rs:16:
+ //! tick (quantized as always), and the self block is exact (bitwise, so -0.0 and NaN payloads survive).
+
+ use super::{
+-    actor_looks_bad, giver_actor_fault, head_len, head_word, id_field, kit, list,
+-    owner_combat_len, self_len, snapshot_fault, write_owner_combat, write_snapshot_head, Fixed,
+-    SnapshotHeader, MAX_ACTOR_LEN,
++    actor_looks_bad, giver_actor_fault, head_len, head_word, id_field, kit, list, owner_combat_len,
++    self_len, snapshot_fault, write_owner_combat, write_snapshot_head, Fixed, SnapshotHeader,
++    MAX_ACTOR_LEN,
+ };
+ use crate::codec::{varint_len, DecodeError, EncodeError, Reader, Writer};
+ use crate::*;
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/crates/rh-protocol/src/delta.rs:68:
+     | DH_HUNT_STACKS
+     | DH_WISH
+     | DH_BARRIER;
+-pub const DH_KNOWN: u32 =
+-    DH_PRESENT | DH_FIELDS | DH_PHASE | DH_DEPARTED | DH_TRAINING | DH_SERVER_TIME | DH_OWNER_COMBAT;
++pub const DH_KNOWN: u32 = DH_PRESENT
++    | DH_FIELDS
++    | DH_PHASE
++    | DH_DEPARTED
++    | DH_TRAINING
++    | DH_SERVER_TIME
++    | DH_OWNER_COMBAT;
+ /// Public training fact, independent of the self; present on every training delta.
+ pub const DH_TRAINING: u32 = 1 << 20;
+
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/crates/rh-protocol/src/delta.rs:517:
+         b.min_len = (1
+             + varint_len(tick)
+             + varint_len(ack_input)
+-            + head_len(head_word(phase, tick, server_time, me.as_ref(), false, false))
++            + head_len(head_word(
++                phase,
++                tick,
++                server_time,
++                me.as_ref(),
++                false,
++                false,
++            ))
+             + (server_time.to_bits() != snapshot_server_ms(tick).to_bits()) as usize * 8
+             + varint_len(declared as u32)
+             + me.as_ref().map_or(0, |_| MIN_SELF)
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/crates/rh-protocol/src/delta.rs:558:
+             self.training,
+             self.owner_combat.is_some(),
+         );
+-        self.0.min_len = (1
+-            + varint_len(self.tick)
+-            + varint_len(self.ack_input)
+-            + head_len(head)
+-            + (head & HM_SERVER_TIME != 0) as usize * 8
+-            + varint_len(self.actors.len() as u32)
+-            + self.me.as_ref().map_or(0, |_| MIN_SELF)
+-            + MIN_ACTOR * self.actors.len()
+-            + self.owner_combat.as_ref().map_or(0, owner_combat_len)) as u32;
++        self.0.min_len =
++            (1 + varint_len(self.tick)
++                + varint_len(self.ack_input)
++                + head_len(head)
++                + (head & HM_SERVER_TIME != 0) as usize * 8
++                + varint_len(self.actors.len() as u32)
++                + self.me.as_ref().map_or(0, |_| MIN_SELF)
++                + MIN_ACTOR * self.actors.len()
++                + self.owner_combat.as_ref().map_or(0, owner_combat_len)) as u32;
+     }
+
+     pub fn owner_combat(&self) -> Option<WireOwnerCombat> {
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/crates/rh-protocol/src/delta.rs:1417:
+         .iter()
+         .filter(|actor| actor.kind != 0)
+         .map(|actor| actor.id)
+-        .ne(cur.actors.iter().filter(|actor| actor.kind != 0).map(|actor| actor.id));
++        .ne(cur
++            .actors
++            .iter()
++            .filter(|actor| actor.kind != 0)
++            .map(|actor| actor.id));
+     (npc_refs_changed && cur.owner_combat.is_some()).then_some(cur.owner_combat)
+ }
+
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/crates/rh-protocol/src/delta.rs:1928:
+     /// No snapshot held yet (the connection's first snapshot must be Full, and so must the first after a Welcome).
+     NoBase,
+     /// The delta's base is not the snapshot held.
+-    BaseMismatch { have: u32, want: u32 },
++    BaseMismatch {
++        have: u32,
++        want: u32,
++    },
+     /// The delta has a self but the held snapshot has none.
+     SelfWithoutBase,
+     /// A departed id the held snapshot does not list.
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/crates/rh-protocol/src/encode.rs:1027:
+     actors: &[WireActor],
+     owner_combat: Option<&WireOwnerCombat>,
+ ) -> usize {
+-    let head = head_word(phase, tick, server_time, me, training, owner_combat.is_some());
++    let head = head_word(
++        phase,
++        tick,
++        server_time,
++        me,
++        training,
++        owner_combat.is_some(),
++    );
+     1 + varint_len(tick)
+         + varint_len(ack_input)
+         + head_len(head)
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/crates/rh-protocol/src/samples.rs:798:
+                 server_time: snapshot_server_ms(20),
+                 phase: 1,
+                 ack_input: 4,
+-                me: Some(WireSelf { id: 3, ..WireSelf::default() }),
++                me: Some(WireSelf {
++                    id: 3,
++                    ..WireSelf::default()
++                }),
+                 actors: vec![],
+                 training: false,
+                 owner_combat: Some(WireOwnerCombat {
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/crates/rh-protocol/src/samples.rs:818:
+                 server_time: snapshot_server_ms(21),
+                 phase: 1,
+                 ack_input: 4,
+-                me: Some(WireSelf { id: 3, ..WireSelf::default() }),
++                me: Some(WireSelf {
++                    id: 3,
++                    ..WireSelf::default()
++                }),
+                 actors: vec![],
+                 training: false,
+                 owner_combat: Some(WireOwnerCombat {
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/crates/rh-protocol/src/samples.rs:838:
+                 server_time: snapshot_server_ms(22),
+                 phase: 1,
+                 ack_input: 4,
+-                me: Some(WireSelf { id: 3, ..WireSelf::default() }),
++                me: Some(WireSelf {
++                    id: 3,
++                    ..WireSelf::default()
++                }),
+                 actors: vec![wa(9, 100.0, 100.0, 100, 1)],
+                 training: false,
+                 owner_combat: Some(WireOwnerCombat {
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/crates/rh-protocol/src/samples.rs:858:
+                 server_time: snapshot_server_ms(23),
+                 phase: 1,
+                 ack_input: 4,
+-                me: Some(WireSelf { id: 3, ..WireSelf::default() }),
++                me: Some(WireSelf {
++                    id: 3,
++                    ..WireSelf::default()
++                }),
+                 actors: vec![],
+                 training: false,
+                 owner_combat: Some(WireOwnerCombat {
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/crates/rh-protocol/src/samples.rs:878:
+                 server_time: snapshot_server_ms(24),
+                 phase: 1,
+                 ack_input: 4,
+-                me: Some(WireSelf { id: 3, ..WireSelf::default() }),
++                me: Some(WireSelf {
++                    id: 3,
++                    ..WireSelf::default()
++                }),
+                 actors: vec![],
+                 training: false,
+                 owner_combat: Some(WireOwnerCombat {
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/crates/rh-protocol/src/samples.rs:2509:
+         &many_objectives,
+     ));
+     vec![
+-        ("owner_combat_bad_lock", full_owner_frame(&owner_record(3, None, [1000.0; 3]), true, &[], 0)),
+-        ("owner_combat_zero_target", full_owner_frame(&owner_record(2, Some(0), [1000.0; 3]), true, &[], 0)),
+-        ("owner_combat_missing_self", full_owner_frame(&owner_record(0, None, [1000.0; 3]), false, &[], 0)),
+-        ("owner_combat_dangling_target", full_owner_frame(&owner_record(2, Some(9), [1000.0; 3]), true, &[], 0)),
+-        ("owner_combat_nonfinite_mirror", full_owner_frame(&owner_record(0, None, [f64::NAN, 1000.0, 1000.0]), true, &[], 0)),
+-        ("owner_combat_fractional_mirror", full_owner_frame(&owner_record(0, None, [1000.5, 1000.0, 1000.0]), true, &[], 0)),
+-        ("owner_combat_below_min_mirror", full_owner_frame(&owner_record(0, None, [49.0, 1000.0, 1000.0]), true, &[], 0)),
++        (
++            "owner_combat_bad_lock",
++            full_owner_frame(&owner_record(3, None, [1000.0; 3]), true, &[], 0),
++        ),
++        (
++            "owner_combat_zero_target",
++            full_owner_frame(&owner_record(2, Some(0), [1000.0; 3]), true, &[], 0),
++        ),
++        (
++            "owner_combat_missing_self",
++            full_owner_frame(&owner_record(0, None, [1000.0; 3]), false, &[], 0),
++        ),
++        (
++            "owner_combat_dangling_target",
++            full_owner_frame(&owner_record(2, Some(9), [1000.0; 3]), true, &[], 0),
++        ),
++        (
++            "owner_combat_nonfinite_mirror",
++            full_owner_frame(
++                &owner_record(0, None, [f64::NAN, 1000.0, 1000.0]),
++                true,
++                &[],
++                0,
++            ),
++        ),
++        (
++            "owner_combat_fractional_mirror",
++            full_owner_frame(
++                &owner_record(0, None, [1000.5, 1000.0, 1000.0]),
++                true,
++                &[],
++                0,
++            ),
++        ),
++        (
++            "owner_combat_below_min_mirror",
++            full_owner_frame(&owner_record(0, None, [49.0, 1000.0, 1000.0]), true, &[], 0),
++        ),
+         ("potion_notice_zero", vec![0x84, 0, 0, 0, 0, 1, 0, 7, 0]),
+         ("cannon_notice_zero", vec![0x84, 0, 0, 0, 0, 1, 0, 9, 0]),
+         ("cannon_notice_unknown", vec![0x84, 0, 0, 0, 0, 1, 0, 9, 5]),
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/crates/rh-protocol/src/samples.rs:3911:
+             windup_milli: 1_500.0,
+             speed_milli: 1_000.0,
+         };
+-        let mut first = snap(10, 1, 4, Some(chain_self(500.0)), &[wa(9, 100., 100., 100, 1)]);
++        let mut first = snap(
++            10,
++            1,
++            4,
++            Some(chain_self(500.0)),
++            &[wa(9, 100., 100., 100, 1)],
++        );
+         first.set_owner_combat(Some(lock)).unwrap();
+         let (frame, kind) = encoder.encode_frame(first.clone());
+         assert_eq!(kind, FrameKind::Full);
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/crates/rh-protocol/src/samples.rs:3919:
+             frame: frame.clone(),
+             outcome: ChainOutcome::Applied(tracker.decode(&frame).unwrap()),
+         }];
+-        let mut next = snap(11, 1, 5, Some(chain_self(500.0)), &[wa(9, 100., 100., 100, 1)]);
++        let mut next = snap(
++            11,
++            1,
++            5,
++            Some(chain_self(500.0)),
++            &[wa(9, 100., 100., 100, 1)],
++        );
+         next.set_owner_combat(Some(lock)).unwrap();
+         let (retained, kind) = encoder.encode_frame(next.clone());
+         assert_eq!(kind, FrameKind::Delta);
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/crates/rh-protocol/src/samples.rs:3926:
+         let got = tracker.decode(&retained).unwrap();
+         assert_eq!(got, next.decoded());
+-        steps.push(ChainStep { frame: retained, outcome: ChainOutcome::Applied(got) });
++        steps.push(ChainStep {
++            frame: retained,
++            outcome: ChainOutcome::Applied(got),
++        });
+
+-        let mut cleared = snap(12, 1, 6, Some(chain_self(500.0)), &[wa(9, 100., 100., 100, 1)]);
++        let mut cleared = snap(
++            12,
++            1,
++            6,
++            Some(chain_self(500.0)),
++            &[wa(9, 100., 100., 100, 1)],
++        );
+         cleared.set_owner_combat(None).unwrap();
+         let (clear, kind) = encoder.encode_frame(cleared.clone());
+         assert_eq!(kind, FrameKind::Delta);
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/crates/rh-protocol/src/samples.rs:3934:
+         let got = tracker.decode(&clear).unwrap();
+         assert_eq!(got, cleared.decoded());
+-        steps.push(ChainStep { frame: clear, outcome: ChainOutcome::Applied(got) });
++        steps.push(ChainStep {
++            frame: clear,
++            outcome: ChainOutcome::Applied(got),
++        });
+         chains.push(("owner_combat_retain_and_clear", steps));
+     }
+     {
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/crates/rh-protocol/src/samples.rs:3946:
+             as_milli: 1000.0,
+             windup_milli: 1000.0,
+             speed_milli: 1000.0,
+-        })).unwrap();
++        }))
++        .unwrap();
+         let s0 = applied(&mut tracker, full_frame(&base));
+         let owner_lost = snap(21, 1, 2, None, &[]);
+         let delta = delta::diff(&base, &owner_lost).expect("owner loss is a delta");
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/crates/rh-protocol/src/samples.rs:3953:
+-        assert!(delta.owner_combat.is_none(), "loss clears without redundant group bytes");
++        assert!(
++            delta.owner_combat.is_none(),
++            "loss clears without redundant group bytes"
++        );
+         let s1 = applied(&mut tracker, delta_message(delta));
+-        assert!(matches!(s1.outcome, ChainOutcome::Applied(ServerMsg::Snapshot { owner_combat: None, .. })));
++        assert!(matches!(
++            s1.outcome,
++            ChainOutcome::Applied(ServerMsg::Snapshot {
++                owner_combat: None,
++                ..
++            })
++        ));
+         chains.push(("owner_combat_owner_loss_clears", vec![s0, s1]));
+     }
+     {
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/crates/rh-protocol/src/samples.rs:3959:
+         let mut tracker = SnapshotTracker::new();
+-        let mut base = snap(30, 1, 1, Some(chain_self(500.0)), &[wa(9, 100., 100., 100, 1)]);
++        let mut base = snap(
++            30,
++            1,
++            1,
++            Some(chain_self(500.0)),
++            &[wa(9, 100., 100., 100, 1)],
++        );
+         base.set_owner_combat(Some(WireOwnerCombat {
+             lock: WireOwnerLock::Held { target: Some(9) },
+             draw_started_at: 10,
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/crates/rh-protocol/src/samples.rs:3965:
+             as_milli: 1000.0,
+             windup_milli: 1000.0,
+             speed_milli: 1000.0,
+-        })).unwrap();
++        }))
++        .unwrap();
+         let s0 = applied(&mut tracker, full_frame(&base));
+         let before = tracker.snapshot();
+         let dangling = SnapshotDelta {
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/crates/rh-protocol/src/samples.rs:4001:
+             owner_combat: Some(None),
+         };
+         let s1 = applied(&mut tracker, delta_message(redundant_clear));
+-        assert!(matches!(s1.outcome, ChainOutcome::Applied(ServerMsg::Snapshot { owner_combat: None, me: None, .. })));
+-        chains.push(("owner_combat_redundant_unavailable_without_self", vec![s0, s1]));
++        assert!(matches!(
++            s1.outcome,
++            ChainOutcome::Applied(ServerMsg::Snapshot {
++                owner_combat: None,
++                me: None,
++                ..
++            })
++        ));
++        chains.push((
++            "owner_combat_redundant_unavailable_without_self",
++            vec![s0, s1],
++        ));
+     }
+     chains
+ }
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/crates/rh-protocol/src/samples.rs:4071:
+         ),
+         // Bit 25 is not a field of this version; bit 24 carries owner combat.
+         ("delta_head_unknown_bit", delta_bytes(10, 1, 1 << 25, &[0])),
+-        ("delta_owner_combat_option_unknown", delta_owner(2, &[], false)),
+-        ("delta_owner_combat_available_without_self", delta_owner(1, &owner_record(0, None, [1000.0; 3]), false)),
+-        ("delta_owner_combat_bad_lock", delta_owner(1, &owner_record(3, None, [1000.0; 3]), true)),
+-        ("delta_owner_combat_zero_target", delta_owner(1, &owner_record(2, Some(0), [1000.0; 3]), true)),
+-        ("delta_owner_combat_nonfinite_mirror", delta_owner(1, &owner_record(0, None, [f64::INFINITY, 1000.0, 1000.0]), true)),
++        (
++            "delta_owner_combat_option_unknown",
++            delta_owner(2, &[], false),
++        ),
++        (
++            "delta_owner_combat_available_without_self",
++            delta_owner(1, &owner_record(0, None, [1000.0; 3]), false),
++        ),
++        (
++            "delta_owner_combat_bad_lock",
++            delta_owner(1, &owner_record(3, None, [1000.0; 3]), true),
++        ),
++        (
++            "delta_owner_combat_zero_target",
++            delta_owner(1, &owner_record(2, Some(0), [1000.0; 3]), true),
++        ),
++        (
++            "delta_owner_combat_nonfinite_mirror",
++            delta_owner(
++                1,
++                &owner_record(0, None, [f64::INFINITY, 1000.0, 1000.0]),
++                true,
++            ),
++        ),
+         (
+             "delta_head_overlong_varint",
+             vec![0x87, 10, 1, 0, 0x80, 0x00, 0],
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/crates/rh-protocol/tests/owner_combat.rs:1:
+ use rh_protocol::{
+-    delta::{diff, FrameKind, SnapshotDelta, SnapshotTracker},
+     codec::Writer,
+-    EncodeError, ServerMsg, TrackError, WireActor, WireOwnerCombat, WireOwnerLock, WireSelf,
+-    snapshot_server_ms,
++    delta::{diff, FrameKind, SnapshotDelta, SnapshotTracker},
++    snapshot_server_ms, EncodeError, ServerMsg, TrackError, WireActor, WireOwnerCombat,
++    WireOwnerLock, WireSelf,
+ };
+
+ fn actor(id: u32, kind: u8) -> WireActor {
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/crates/rh-protocol/tests/owner_combat.rs:30:
+ }
+
+ fn snapshot(tick: u32, me: Option<WireSelf>, actors: &[WireActor]) -> rh_protocol::SnapshotData {
+-    rh_protocol::SnapshotData::build(
+-        tick,
+-        1,
+-        tick,
+-        me,
+-        actors.iter().copied(),
+-    )
+-    .unwrap()
++    rh_protocol::SnapshotData::build(tick, 1, tick, me, actors.iter().copied()).unwrap()
+ }
+
+ fn full(data: &rh_protocol::SnapshotData) -> Vec<u8> {
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/crates/rh-protocol/tests/owner_combat.rs:122:
+     );
+     let mut unavailable = snapshot(21, me, &[npc_b]);
+     unavailable.set_owner_combat(None).unwrap();
+-    assert_eq!(diff(&snapshot(20, me, &[]), &unavailable).unwrap().owner_combat, None);
+     assert_eq!(
++        diff(&snapshot(20, me, &[]), &unavailable)
++            .unwrap()
++            .owner_combat,
++        None
++    );
++    assert_eq!(
+         diff(&snapshot(20, me, &[]), &snapshot(21, me, &[]))
+             .unwrap()
+             .owner_combat,
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/crates/rh-protocol/tests/owner_combat.rs:179:
+     let resolved = tracker
+         .decode(&ServerMsg::SnapshotDelta(owner_lost).encode())
+         .unwrap();
+-    assert!(matches!(resolved, ServerMsg::Snapshot { owner_combat: None, me: None, .. }));
++    assert!(matches!(
++        resolved,
++        ServerMsg::Snapshot {
++            owner_combat: None,
++            me: None,
++            ..
++        }
++    ));
+ }
+
+ #[test]

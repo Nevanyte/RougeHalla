@@ -34,6 +34,7 @@ fn full(actor: WireActor) -> ServerMsg {
         me: None,
         actors: vec![actor],
         training: false,
+        owner_combat: None,
     }
 }
 
@@ -84,6 +85,7 @@ fn retained_delta_fields_are_checked_after_reconstruction_and_refusal_is_atomic(
         server_time: snapshot_server_ms(11),
         base_tick: 10,
         training: false,
+        owner_combat: None,
         phase: None,
         ack_input: 1,
         me: None,
@@ -107,6 +109,7 @@ fn retained_delta_fields_are_checked_after_reconstruction_and_refusal_is_atomic(
         server_time: snapshot_server_ms(11),
         base_tick: 10,
         training: false,
+        owner_combat: None,
         phase: None,
         ack_input: 1,
         me: None,

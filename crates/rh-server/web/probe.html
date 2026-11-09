@@ -250,7 +250,10 @@ function decode(buf) {
   const r = new R(buf);
   const m = decodeBody(r);
   if (r.p !== buf.byteLength) throw new Error("trailing bytes");
-  if (m.t === "snapshot") validateGiverActors(m.actors, false);
+  if (m.t === "snapshot") {
+    validateGiverActors(m.actors, false);
+    validateOwnerCombatGroup(m.ownerCombat, m.me, m.actors, false);
+  }
   return m;
 }
 // Protocol-12 and later options are explicitly strict without changing the v1..v11 option rules.
@@ -290,6 +293,52 @@ function readActorBarrier(r) {
   const pct = r.u8(), ring = r.u8();
   if (pct > 100 || ring > 8) throw new Error("bad actor barrier");
   return { pct, ring };
+}
+function readOwnerCombatMirror(r) {
+  const value = r.f64();
+  if (!Number.isFinite(value) || !Number.isInteger(value) || value < 50) throw new Error("bad owner combat mirror");
+  return value;
+}
+function readOwnerCombat(r) {
+  const state = r.u8();
+  let lock;
+  if (state === 0) lock = { clear: true };
+  else if (state === 1) lock = { held: true, target: null };
+  else if (state === 2) {
+    const target = r.varint();
+    if (target === 0) throw new Error("bad owner combat reference");
+    lock = { held: true, target };
+  } else throw new Error("bad owner combat lock");
+  return {
+    lock, drawStartedAt: r.u32(), readyAt: r.u32(),
+    asMilli: readOwnerCombatMirror(r), windupMilli: readOwnerCombatMirror(r), speedMilli: readOwnerCombatMirror(r),
+  };
+}
+function copyOwnerCombat(group) {
+  if (group == null) return null;
+  const lock = group.lock?.clear === true ? { clear: true } : { held: true, target: group.lock?.target ?? null };
+  return { lock, drawStartedAt: group.drawStartedAt, readyAt: group.readyAt,
+    asMilli: group.asMilli, windupMilli: group.windupMilli, speedMilli: group.speedMilli };
+}
+function validOwnerCombatShape(group) {
+  if (group == null || !Number.isInteger(group.drawStartedAt) || group.drawStartedAt < 0 || group.drawStartedAt > 0xffffffff
+    || !Number.isInteger(group.readyAt) || group.readyAt < 0 || group.readyAt > 0xffffffff) return false;
+  for (const value of [group.asMilli, group.windupMilli, group.speedMilli])
+    if (!Number.isFinite(value) || !Number.isInteger(value) || value < 50) return false;
+  const lock = group.lock;
+  if (lock?.clear === true && lock.held !== true && !Object.prototype.hasOwnProperty.call(lock, "target")) return true;
+  return lock?.held === true && lock.clear !== true
+    && (lock.target === null || (Number.isInteger(lock.target) && lock.target > 0 && lock.target <= 0xffffffff));
+}
+function validateOwnerCombatGroup(group, me, actors, trackerCandidate) {
+  if (group == null) return;
+  const fail = (code) => {
+    if (trackerCandidate) throw refused("owner_combat");
+    throw new Error("bad owner combat " + code.replace("owner_combat_", ""));
+  };
+  if (!me) fail("owner_combat_owner");
+  if (!validOwnerCombatShape(group)) fail("owner_combat_fields");
+  if (group.lock.held && group.lock.target !== null && !actors.some(a => a.id === group.lock.target)) fail("owner_combat_reference");
 }
 function readWishPoint(r) { return strictOpt(r, () => ({ x: dqPos(r.u16()), y: dqPos(r.u16()) })); }
 function readWishActor(r) { return strictOpt(r, () => { const id = r.varint(); if (!id) throw new Error("bad actor reference"); return id; }); }
@@ -356,9 +405,9 @@ function decodeBody(r) {
   }
   if (tag === 0x83) {
     const tick = r.varint(), ack = r.varint(), head = r.varint();
-    // Append-only varint head: bits 17/18 are the Wish and barrier self groups; bit 19 overrides tick*50 for this frame.
-    if ((head & ~0xfffff) !== 0 || ((head & 1) === 0 && (head & (0xfbff | 0x60000)) !== 0)) throw new Error("bad head");
-    const s = { t: "snapshot", tick, serverMs: tick * 50, phase: 1, ack, training: (head & 0x10000) !== 0, me: null, actors: [] };
+    // Append-only varint head: bits 17/18 are Wish/barrier, bit 19 overrides tick*50, bit 20 is owner combat.
+    if ((head & ~0x1fffff) !== 0 || ((head & 1) === 0 && (head & (0xfbff | 0x60000)) !== 0)) throw new Error("bad head");
+    const s = { t: "snapshot", tick, serverMs: tick * 50, phase: 1, ack, training: (head & 0x10000) !== 0, me: null, actors: [], ownerCombat: null };
     if (head & 1) {
       const id = r.varint(), x = r.f32(), y = r.f32(), facing = r.f32();
       const maxHp = (head & 0x100) ? r.f32() : r.varintU16("max_hp");
@@ -402,6 +451,7 @@ function decodeBody(r) {
       const barrier = (mask & 0x200) ? readActorBarrier(r) : { pct: 0, ring: 0 };
       s.actors.push({ id, faction, x, y, facing, hpPct, status, weapon, bounty, kind, effects, displaceSeq, mobTypeCode, sig, barrierPct: barrier.pct, barrierRingStep: barrier.ring });
     }
+    if (head & 0x100000) s.ownerCombat = readOwnerCombat(r);
     return s;
   }
   if (tag === 0x87) {
@@ -409,8 +459,8 @@ function decodeBody(r) {
     const tick = r.varint(), age = r.varint();
     if (age < 1 || age > 64 || age > tick) throw new Error("bad base age");
     const ack = r.varint(), head = r.varint();
-    // Append-only varint head: bits 21/22 are self Wish/barrier groups; bit 23 overrides tick*50 per frame.
-    if ((head & ~0xffffff) !== 0 || ((head & 1) === 0 && (head & (0xffe7e | 0x600000)) !== 0)) throw new Error("bad head");
+    // Append-only varint head: bits 21/22 are self Wish/barrier, bit 23 overrides time, bit 24 replaces owner combat.
+    if ((head & ~0x1ffffff) !== 0 || ((head & 1) === 0 && (head & (0xffe7e | 0x600000)) !== 0)) throw new Error("bad head");
     const d = { t: "delta", tick, baseTick: tick - age, serverMs: tick * 50, phase: null, ack, training: (head & 0x100000) !== 0, me: null, changed: [], departed: [] };
     if (head & 1) {
       const m = head & 0xffe7e, s = { mask: m };
@@ -475,6 +525,12 @@ function decodeBody(r) {
         last = id;
         d.departed.push(id);
       }
+    }
+    if (head & 0x1000000) {
+      const available = r.u8();
+      if (available > 1) throw new Error("bad owner combat availability");
+      d.ownerCombat = available === 0 ? null : readOwnerCombat(r);
+      if (d.ownerCombat !== null && !d.me) throw new Error("bad owner combat owner");
     }
     return d;
   }
@@ -760,7 +816,13 @@ class Tracker {
       this.collections = candidate;
       return m;
     }
-    if (m.t === "snapshot") { validateGiverActors(m.actors, false); this.base = { tick: m.tick, serverMs: m.serverMs, phase: m.phase, training: m.training, me: m.me, actors: m.actors }; return m; }
+    if (m.t === "snapshot") {
+      validateGiverActors(m.actors, false);
+      validateOwnerCombatGroup(m.ownerCombat, m.me, m.actors, true);
+      const ownerCombat = copyOwnerCombat(m.ownerCombat);
+      this.base = { tick: m.tick, serverMs: m.serverMs, phase: m.phase, training: m.training, me: m.me, actors: m.actors, ownerCombat };
+      return m;
+    }
     if (m.t !== "delta") return m;
     const b = this.base;
     if (!b) throw refused("no_base");
@@ -836,8 +898,17 @@ class Tracker {
       if (Object.prototype.hasOwnProperty.call(d, "barrierBits")) { s.barrierBits = d.barrierBits; s.barrierRingStep = d.barrierRingStep; }
       me = s;
     }
-    const s = { t: "snapshot", tick: m.tick, serverMs: m.serverMs, phase: m.phase === null ? b.phase : m.phase, ack: m.ack, training: m.training, me, actors: out };
-    this.base = { tick: s.tick, serverMs: s.serverMs, phase: s.phase, training: s.training, me: s.me, actors: s.actors };
+    // Replacement is transactional with the reconstructed owner and actor scene.
+    // If the delta omitted this group, retain it only while that same owner exists.
+    if (Object.prototype.hasOwnProperty.call(m, "ownerCombat")) {
+      validateOwnerCombatGroup(m.ownerCombat, me, out, true);
+    }
+    const ownerCombat = Object.prototype.hasOwnProperty.call(m, "ownerCombat")
+      ? copyOwnerCombat(m.ownerCombat)
+      : (me === null ? null : copyOwnerCombat(b.ownerCombat));
+    validateOwnerCombatGroup(ownerCombat, me, out, true);
+    const s = { t: "snapshot", tick: m.tick, serverMs: m.serverMs, phase: m.phase === null ? b.phase : m.phase, ack: m.ack, training: m.training, me, actors: out, ownerCombat };
+    this.base = { tick: s.tick, serverMs: s.serverMs, phase: s.phase, training: s.training, me: s.me, actors: s.actors, ownerCombat: copyOwnerCombat(ownerCombat) };
     return s;
   }
 }

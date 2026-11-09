@@ -312,6 +312,7 @@ fn scalar_status_changes_and_clears_survive_full_and_fast_delta_paths() {
         decoded,
         ServerMsg::Snapshot {
             training: false,
+            owner_combat: None,
             tick: 11,
             server_time: snapshot_server_ms(11),
             phase: 1,

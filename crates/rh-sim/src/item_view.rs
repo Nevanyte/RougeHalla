@@ -81,6 +81,8 @@ pub struct VisibleProp {
 pub enum OfferError {
     /// A selected public vital is not in the declared source-f32 publication domain.
     UnrepresentablePublicVitals,
+    /// Canonical owner clocks or encoded multiplier mirrors cannot be published.
+    UnrepresentableOwnerCombat,
     TooManyProjectiles,
     ProjectileGeometryOutOfRange,
     ActorReferenceCollision,
@@ -500,7 +502,13 @@ impl ItemObserver {
             out.events.splice(0..0, earlier.iter().cloned());
         }
         crate::projectile_view::project(sim, self.viewer, out)?;
+        let raw_combat = crate::owner_combat::public_bridge::prepare(sim, self.viewer, out)?;
         let actors = self.actor_refs.stage(sim, out)?;
+        out.owner_combat = raw_combat.map(|group| {
+            crate::owner_combat::public_bridge::map_current(group, |id| {
+                crate::actor_refs::current_presented(sim, &actors, out, id)
+            })
+        });
         crate::actor_refs::project(out, |id| self.actor_refs.map(sim, &actors, id));
         Ok(PreparedOffer {
             actors,

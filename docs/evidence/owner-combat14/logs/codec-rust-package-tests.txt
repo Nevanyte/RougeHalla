@@ -1,0 +1,223 @@
+   Compiling rh-protocol v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/crates/rh-protocol)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.14s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/targets/rougehalla-owner-combat14/debug/deps/rh_protocol-e7b28263fa8bc753)
+
+running 8 tests
+test mask_numbers::full_actor_mask_bit_numbers_are_pinned ... ok
+test encode::fixed_tests::fixed_varint_matches_writer_varint ... ok
+test quant::tests::range_is_zero_to_pos_max_and_refuses_nan ... ok
+test quant::tests::the_step_is_the_finest_power_of_two_that_fits_the_world ... ok
+test quant::tests::quantizing_is_idempotent ... ok
+test quant::tests::facing_round_trips_within_half_a_step_modulo_a_turn ... ok
+test quant::tests::positions_round_trip_within_half_a_step_and_saturate ... ok
+test quant::tests::quantizers_match_the_f64_round_reference ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running unittests src/bin/fixtures.rs (/Users/nevinmckinnon/.codex/targets/rougehalla-owner-combat14/debug/deps/protocol_fixtures-6d5b2815f297d3ea)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/delta.rs (/Users/nevinmckinnon/.codex/targets/rougehalla-owner-combat14/debug/deps/delta-2d7457deebf73a61)
+
+running 18 tests
+test a_delta_that_is_not_smaller_than_the_full_frame_is_sent_as_the_full_frame ... ok
+test the_resync_message_round_trips_and_has_no_body ... ok
+test a_delta_cannot_grow_the_actor_list_past_max_actors ... ok
+test snapshot_data_refuses_positions_off_the_grid_so_no_delta_can_carry_one ... ok
+test a_resumed_connection_starts_with_a_full_frame_whatever_the_old_one_held ... ok
+test two_refusals_inside_the_interval_still_end_with_a_full_frame ... ok
+test the_first_snapshot_a_resync_a_stale_base_and_a_new_self_are_full_frames ... ok
+test deltas_that_do_not_apply_are_refused_and_change_nothing ... ok
+test a_delta_of_hundreds_of_changed_actors_has_a_two_byte_count_and_applies ... ok
+test a_resync_inside_the_interval_is_deferred_not_dropped ... ok
+test fuzzed_delta_frames_never_panic_and_a_refused_one_changes_nothing ... ok
+test a_resync_flood_costs_one_forced_full_frame_per_interval ... ok
+test a_full_frame_from_snapshot_data_is_the_v2_frame_byte_for_byte ... ok
+test skipped_snapshots_never_reach_the_encoder_and_the_next_delta_applies ... ok
+test a_delta_reveals_nothing_the_full_frame_does_not ... ok
+test the_encoders_delta_bytes_are_the_reference_messages_bytes ... ok
+test a_chain_of_full_and_delta_frames_equals_the_full_frame_of_every_tick ... ok
+test per_connection_state_is_bounded_by_max_actors ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/encode.rs (/Users/nevinmckinnon/.codex/targets/rougehalla-owner-combat14/debug/deps/encode-f57b8b939e5bb09d)
+
+running 11 tests
+test cached_static_map_is_content_bound_while_mode_is_per_welcome ... ok
+test encode_debug_asserts_on_too_many_actors - should panic ... ok
+test positions_outside_the_quantizable_range_are_refused_not_clamped ... ok
+test max_actors_encodes_and_one_more_is_refused_not_clamped ... ok
+test a_reused_buffer_stops_allocating ... ok
+test every_path_writes_the_same_bytes ... ok
+test encoded_len_is_exact_and_encode_allocates_exactly_that ... ok
+test other_lists_and_sizes_decoders_reject_are_refused ... ok
+test a_pre_encoded_map_gives_the_same_welcome ... ok
+test maps_decoders_reject_are_refused_for_the_same_reason ... ok
+test maximum_three_plane_decode_stays_within_the_documented_budget ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+
+     Running tests/envelope.rs (/Users/nevinmckinnon/.codex/targets/rougehalla-owner-combat14/debug/deps/envelope-c863e854993f6da3)
+
+running 8 tests
+test every_named_reject_code_round_trips ... ok
+test hello_prefix_is_read_without_decoding_the_rest ... ok
+test an_events_frame_with_an_overlong_killer_name_is_refused ... ok
+test strings_over_255_bytes_are_refused_not_truncated ... ok
+test reject_code_zero_and_misnamed_unknowns_are_refused_by_the_encoder ... ok
+test the_largest_legal_hello_fits_the_client_frame_limit ... ok
+test the_writer_itself_never_truncates - should panic ... ok
+test unknown_reject_codes_decode_and_keep_their_value ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/giver_actor.rs (/Users/nevinmckinnon/.codex/targets/rougehalla-owner-combat14/debug/deps/giver_actor-c3bb1329db0766bf)
+
+running 3 tests
+test direct_apply_rejects_invalid_full_before_replacing_held_state ... ok
+test giver_tuple_is_contextual_and_unknown_kinds_keep_their_full_domains ... ok
+test retained_delta_fields_are_checked_after_reconstruction_and_refusal_is_atomic ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/owner_combat.rs (/Users/nevinmckinnon/.codex/targets/rougehalla-owner-combat14/debug/deps/owner_combat-11077070b9603bc7)
+
+running 6 tests
+test delta_retains_explicitly_clears_and_replaces_on_current_npc_sequence_change ... ok
+test full_decode_and_direct_apply_refuse_dangling_target_before_held_state_changes ... ok
+test full_group_round_trips_and_uses_all_closed_lock_shapes ... ok
+test conn_encoder_emits_reference_wire_and_omits_unchanged_group ... ok
+test rejected_builder_update_preserves_prior_group_and_checked_sizes ... ok
+test tracker_owner_loss_clears_and_dangling_retained_target_refuses_atomically ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/quest_bridge.rs (/Users/nevinmckinnon/.codex/targets/rougehalla-owner-combat14/debug/deps/quest_bridge-667781992632839f)
+
+running 4 tests
+test quest_accept_has_a_distinct_nonzero_handle_and_round_trips ... ok
+test overlong_done_by_is_refused_by_encoder ... ok
+test quest_prop_validation_checks_any_supplied_view_and_cross_references ... ok
+test quest_rows_and_explicit_unavailable_empty_views_round_trip ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/size.rs (/Users/nevinmckinnon/.codex/targets/rougehalla-owner-combat14/debug/deps/size-2ad781a6b1651dea)
+
+running 2 tests
+test the_most_the_wire_allows_still_decodes_and_every_actor_is_at_least_8_bytes ... ok
+test v2_costs_at_most_half_of_v1_with_204_remote_actors ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/snapshot_build.rs (/Users/nevinmckinnon/.codex/targets/rougehalla-owner-combat14/debug/deps/snapshot_build-bf39d394b935977d)
+
+running 6 tests
+test a_lying_exact_size_iterator_is_a_count_mismatch ... ok
+test build_checked_is_build_with_from_actors_checked_one_by_one ... ok
+test the_top_of_the_position_range_builds_and_decodes_exactly ... ok
+test faulty_content_is_refused_with_the_message_encoders_reason ... ok
+test more_than_max_actors_is_refused_not_clamped ... ok
+test the_full_frame_of_a_built_snapshot_is_the_message_frame_for_every_size ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/state.rs (/Users/nevinmckinnon/.codex/targets/rougehalla-owner-combat14/debug/deps/state-6cd713b1d6dd2ee5)
+
+running 5 tests
+test trophy_rewards_reject_nonpositive_and_nonfinite_gains_on_encode ... ok
+test scalar_status_changes_and_clears_survive_full_and_fast_delta_paths ... ok
+test unsafe_key_handle_kind_and_count_combinations_are_refused ... ok
+test trophy_rewards_roundtrip_all_keys_preserve_f64_and_include_exact_size ... ok
+test complete_replacement_keys_roundtrip_exactly_and_refuse_every_truncation ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/v11_union.rs (/Users/nevinmckinnon/.codex/targets/rougehalla-owner-combat14/debug/deps/v11_union-6c86d3698ca22edb)
+
+running 4 tests
+test delta_zero_explicitly_clears_hunt_and_never_looks_like_a_zero_actor_reference ... ok
+test independent_branch_tags_are_distinct_and_keep_their_payloads ... ok
+test reward_card_positions_cover_the_catalog_and_refuse_the_next_position_atomically ... ok
+test actual_writer_and_reference_chains_retain_training_and_clear_targets ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/v4.rs (/Users/nevinmckinnon/.codex/targets/rougehalla-owner-combat14/debug/deps/v4-235e934b1b57033a)
+
+running 8 tests
+test delta_head_and_actor_delta_bit_numbers_are_pinned ... ok
+test undefined_mask_bits_are_refused_never_skipped ... ok
+test full_head_bit_numbers_are_pinned ... ok
+test defaults_cost_nothing_and_other_values_are_explicit ... ok
+test an_empty_state_retains_the_snapshot_and_unknown_keys_are_refused ... ok
+test the_common_delta_masks_are_one_byte ... ok
+test new_actors_start_from_defaults_and_kind_and_status_changes_are_deltas ... ok
+test a_delta_carries_the_phase_only_when_it_changed ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/v5.rs (/Users/nevinmckinnon/.codex/targets/rougehalla-owner-combat14/debug/deps/v5-55e1e3b87784b50a)
+
+running 3 tests
+test hit_passive_is_a_strict_flag_and_a_v4_hit_is_incomplete ... ok
+test v5_encoders_refuse_invalid_combat_values ... ok
+test combat_frames_obey_the_exact_server_byte_boundary ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/v6_pve.rs (/Users/nevinmckinnon/.codex/targets/rougehalla-owner-combat14/debug/deps/v6_pve-3f41ba79c23054a1)
+
+running 4 tests
+test new_command_and_notice_refusals_are_atomic ... ok
+test maximum_full_records_and_reference_delta_preserve_new_scalars ... ok
+test camp_bounds_are_symmetric_and_refusals_do_not_append ... ok
+test projectile_rows_preserve_duplicates_and_strict_owner_bounds ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/v7_hunt.rs (/Users/nevinmckinnon/.codex/targets/rougehalla-owner-combat14/debug/deps/v7_hunt-cedba8f268e57441)
+
+running 3 tests
+test hunt_command_round_trips_and_zero_is_refused ... ok
+test full_self_hunt_fields_round_trip_and_zero_target_is_refused ... ok
+test a_delta_carries_hunt_target_and_stacks ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/vectors.rs (/Users/nevinmckinnon/.codex/targets/rougehalla-owner-combat14/debug/deps/vectors-6635db2e551fe0eb)
+
+running 11 tests
+test varints_round_trip_and_have_one_encoding ... ok
+test map_blob_rejects_a_wrong_hash_and_bad_runs ... ok
+test malformed_client_frames_are_rejected ... ok
+test decoding_then_encoding_a_valid_snapshot_is_byte_identical ... ok
+test every_sample_round_trips ... ok
+test malformed_server_frames_are_rejected_for_the_documented_reason ... ok
+test the_delta_chain_uses_both_frame_kinds_and_every_field_class ... ok
+test every_chain_replays_to_its_recorded_outcome ... ok
+test committed_vectors_match_the_encoder ... ok
+test fuzzed_client_frames_never_panic ... ok
+test fuzzed_server_frames_never_panic ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests/wish_barrier.rs (/Users/nevinmckinnon/.codex/targets/rougehalla-owner-combat14/debug/deps/wish_barrier-e5c9feacfa961557)
+
+running 4 tests
+test self_delta_wish_payload_is_ignored_without_its_mask_bit ... ok
+test cast_slot_and_option_matrix_round_trips_and_bad_closed_values_are_refused ... ok
+test landed_fx_rejects_open_or_mismatched_geometry ... ok
+test wish_barrier_clear_and_per_frame_time_are_lossless_through_tracker ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests rh_protocol
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

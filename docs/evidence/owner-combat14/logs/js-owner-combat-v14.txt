@@ -1,0 +1,19 @@
+Owner-combat embedded JS checker receipt
+
+Command (worktree root):
+  node tools/protocol-js/check-vectors.mjs
+
+Node:
+  v25.8.1
+
+Result:
+  JS decoder agrees with protocol/fixtures/v14.json: 57 server vectors, 183 malformed, 23 chains, 20400 checks
+
+Fixture SHA-256:
+  6412fc8086b15fa6090f3aa1b939bd45b3d29f9ebf08a757f79cc159363d7534  protocol/fixtures/v14.json
+
+Inputs at run:
+  d741b8284a0e55d6cbbbeff6670e5a2ef6c0c9103863fafe48cd915cd940a6ce  crates/rh-server/web/probe.html
+  600e75ae5f20cd84b6d0dbfecdcf96a5afc820b44829c9b9e63549cb66963256  tools/protocol-js/check-vectors.mjs
+
+The checker passed fixture decoding, malformed-frame reason controls, full-frame truncation checks, lifecycle chains, direct Tracker.apply atomicity, and owner-combat deep-copy checks. No browser or gameplay run was performed for this JS protocol lane.

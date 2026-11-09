@@ -1,0 +1,15 @@
+$ cargo +1.97.0 test --locked -p rh-server --lib owner_combat --no-default-features
+Server gate: jobs1, incremental0, dev/test debug0.
+   Compiling rh-server v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/crates/rh-server)
+    Finished `test` profile [unoptimized] target(s) in 5.87s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/targets/rougehalla-owner-combat14/debug/deps/rh_server-08fff1a44b871c89)
+
+running 4 tests
+test wire::owner_combat_tests::invalid_owner_group_refuses_before_publisher_memo_work ... ok
+test wire::owner_combat_tests::ordinary_native_target_uses_the_same_prepared_npc_reference_in_the_wire_group ... ok
+test wire::owner_combat_tests::prepared_owner_group_survives_failed_encoding_and_reliable_enqueue_without_issuing_aliases ... ok
+test room::tests::failed_publish_holds_wish_barrier_owner_combat_and_new_pickup_handles ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 182 filtered out; finished in 0.01s
+
+exit0
