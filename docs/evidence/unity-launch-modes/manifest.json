@@ -1,0 +1,58 @@
+{
+  "schema": "rh-evidence-manifest-v1",
+  "excludes": "manifest.json itself",
+  "fileCount": 10,
+  "bytes": 100611,
+  "files": [
+    {
+      "path": "Client.csproj.txt",
+      "bytes": 37869,
+      "sha256": "38edde76233b04ff2be3dba17533133f7d6d6281053f1254bbe07f5570886487"
+    },
+    {
+      "path": "README.md",
+      "bytes": 7357,
+      "sha256": "90d8aa5eadb64d42db171bf07d146af506e0f67bd22d14d1c3397b3dd3fddf12"
+    },
+    {
+      "path": "Tests.csproj.txt",
+      "bytes": 38335,
+      "sha256": "24facd86af2071768a479d93a991de17c139f57388188e35e4b0cb2b2b56d316"
+    },
+    {
+      "path": "client-compile.txt",
+      "bytes": 172,
+      "sha256": "95e895b985ebfe3d4f3aa370c9d1afbcdd8e4d19feb45f57e4f5d5c156d048bc"
+    },
+    {
+      "path": "expected-native-cases.json",
+      "bytes": 5014,
+      "sha256": "160f16431671daa01b8463a44a51d47075b5bfcae84445b04c36c40b6d8da1b5"
+    },
+    {
+      "path": "net-test-sealed.txt",
+      "bytes": 1126,
+      "sha256": "f65748b7b130660faef4c4cc4f6a0f64124ed83c537b88fed05896f53295e9a3"
+    },
+    {
+      "path": "net-validation.json",
+      "bytes": 3211,
+      "sha256": "566389bd8db5726f18b53e99ae70aa2c1964d2bb1574973bdd1fd0855c2e6b6b"
+    },
+    {
+      "path": "seal-verification.json",
+      "bytes": 938,
+      "sha256": "a3dc3e730b171f45e344da2a622933f8a4afdd3109498a2d5663592a35d40595"
+    },
+    {
+      "path": "source-receipt.json",
+      "bytes": 5805,
+      "sha256": "53919addc6ebe0a2254eed352ee06f62071a263e0aaf64e8d3a8c85c20ae651c"
+    },
+    {
+      "path": "tests-compile.txt",
+      "bytes": 784,
+      "sha256": "d8c3fccaeb639254796e5b7ef1393a63253a07ffbc8741c8481ea1d914577111"
+    }
+  ]
+}
