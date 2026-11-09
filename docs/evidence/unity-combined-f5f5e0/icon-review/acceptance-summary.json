@@ -1,0 +1,1009 @@
+{
+  "source": "f5f5e016555755fb3e11b77026234148c107ca6b",
+  "gateResult": "FAIL; stopped on native drawer visual failure",
+  "captured": [
+    {
+      "case": "1440-drawer-text100",
+      "pngBytes": 4183008,
+      "pngSha256": "ee1dcb02bcbc6bbe19572bfc9182a6eb8c264d93af6cd0e41e7621a5eaef5e87",
+      "nativeDimensions": [
+        2560,
+        1440
+      ],
+      "tmpFlags": 0,
+      "iconColors": [
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/OwnerSummary/HealthGlyph",
+          "color": [
+            0.549019635,
+            0.8784314,
+            0.698039234,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/BoostStrip/BoostGlyph0",
+          "color": [
+            0.9411765,
+            0.5411765,
+            0.3882353,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/BoostStrip/BoostGlyph1",
+          "color": [
+            0.7254902,
+            0.6039216,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/BoostStrip/BoostGlyph2",
+          "color": [
+            0.470588237,
+            0.7372549,
+            0.921568632,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/BoostStrip/BoostGlyph3",
+          "color": [
+            0.349019617,
+            0.7764706,
+            0.6901961,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/BoostStrip/BoostGlyph4",
+          "color": [
+            0.549019635,
+            0.8784314,
+            0.698039234,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/BoostStrip/BoostGlyph5",
+          "color": [
+            0.9098039,
+            0.721568644,
+            0.3647059,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/BoostStrip/BoostGlyph6",
+          "color": [
+            0.4392157,
+            0.831372559,
+            0.9019608,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/BoostStrip/BoostGlyph7",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card00/CardGlyph",
+          "color": [
+            0.9411765,
+            0.5411765,
+            0.3882353,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card01/CardGlyph",
+          "color": [
+            0.9411765,
+            0.5411765,
+            0.3882353,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card02/CardGlyph",
+          "color": [
+            0.9411765,
+            0.5411765,
+            0.3882353,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card03/CardGlyph",
+          "color": [
+            0.7254902,
+            0.6039216,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card04/CardGlyph",
+          "color": [
+            0.7254902,
+            0.6039216,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card05/CardGlyph",
+          "color": [
+            0.7254902,
+            0.6039216,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card06/CardGlyph",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card07/CardGlyph",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card08/CardGlyph",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card09/CardGlyph",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card10/CardGlyph",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card11/CardGlyph",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card12/CardGlyph",
+          "color": [
+            0.9411765,
+            0.5411765,
+            0.3882353,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card13/CardGlyph",
+          "color": [
+            0.9411765,
+            0.5411765,
+            0.3882353,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card14/CardGlyph",
+          "color": [
+            0.9411765,
+            0.5411765,
+            0.3882353,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card15/CardGlyph",
+          "color": [
+            0.7254902,
+            0.6039216,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card16/CardGlyph",
+          "color": [
+            0.7254902,
+            0.6039216,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card17/CardGlyph",
+          "color": [
+            0.7254902,
+            0.6039216,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card18/CardGlyph",
+          "color": [
+            0.549019635,
+            0.8784314,
+            0.698039234,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card19/CardGlyph",
+          "color": [
+            0.549019635,
+            0.8784314,
+            0.698039234,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card20/CardGlyph",
+          "color": [
+            0.549019635,
+            0.8784314,
+            0.698039234,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card21/CardGlyph",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card22/CardGlyph",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card23/CardGlyph",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card24/CardGlyph",
+          "color": [
+            0.549019635,
+            0.8784314,
+            0.698039234,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card25/CardGlyph",
+          "color": [
+            0.549019635,
+            0.8784314,
+            0.698039234,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card26/CardGlyph",
+          "color": [
+            0.9411765,
+            0.5411765,
+            0.3882353,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card27/CardGlyph",
+          "color": [
+            0.7254902,
+            0.6039216,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card28/CardGlyph",
+          "color": [
+            0.7254902,
+            0.6039216,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card29/CardGlyph",
+          "color": [
+            0.7254902,
+            0.6039216,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card30/CardGlyph",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card31/CardGlyph",
+          "color": [
+            0.9411765,
+            0.5411765,
+            0.3882353,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card32/CardGlyph",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card33/CardGlyph",
+          "color": [
+            0.7254902,
+            0.6039216,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card34/CardGlyph",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card35/CardGlyph",
+          "color": [
+            1.0,
+            0.4745098,
+            0.533333361,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card36/CardGlyph",
+          "color": [
+            0.4392157,
+            0.831372559,
+            0.9019608,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card37/CardGlyph",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card38/CardGlyph",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card39/CardGlyph",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card40/CardGlyph",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card41/CardGlyph",
+          "color": [
+            0.549019635,
+            0.8784314,
+            0.698039234,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card42/CardGlyph",
+          "color": [
+            0.7254902,
+            0.6039216,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card43/CardGlyph",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card44/CardGlyph",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card45/CardGlyph",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card46/CardGlyph",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card47/CardGlyph",
+          "color": [
+            0.349019617,
+            0.7764706,
+            0.6901961,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card48/CardGlyph",
+          "color": [
+            0.349019617,
+            0.7764706,
+            0.6901961,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card49/CardGlyph",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card50/CardGlyph",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card51/CardGlyph",
+          "color": [
+            1.0,
+            0.4745098,
+            0.533333361,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card52/CardGlyph",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card53/CardGlyph",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card54/CardGlyph",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card55/CardGlyph",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card56/CardGlyph",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card57/CardGlyph",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card58/CardGlyph",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card59/CardGlyph",
+          "color": [
+            0.349019617,
+            0.7764706,
+            0.6901961,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card60/CardGlyph",
+          "color": [
+            0.4392157,
+            0.831372559,
+            0.9019608,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card61/CardGlyph",
+          "color": [
+            0.4392157,
+            0.831372559,
+            0.9019608,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card62/CardGlyph",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card63/CardGlyph",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card64/CardGlyph",
+          "color": [
+            0.929411769,
+            0.78039217,
+            0.482352942,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card65/CardGlyph",
+          "color": [
+            0.9411765,
+            0.5411765,
+            0.3882353,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card66/CardGlyph",
+          "color": [
+            0.4392157,
+            0.831372559,
+            0.9019608,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card67/CardGlyph",
+          "color": [
+            0.9411765,
+            0.5411765,
+            0.3882353,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card68/CardGlyph",
+          "color": [
+            0.4392157,
+            0.831372559,
+            0.9019608,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card69/CardGlyph",
+          "color": [
+            0.549019635,
+            0.8784314,
+            0.698039234,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card70/CardGlyph",
+          "color": [
+            0.549019635,
+            0.8784314,
+            0.698039234,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card71/CardGlyph",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card72/CardGlyph",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card73/CardGlyph",
+          "color": [
+            0.549019635,
+            0.8784314,
+            0.698039234,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card74/CardGlyph",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card75/CardGlyph",
+          "color": [
+            1.0,
+            0.4745098,
+            0.533333361,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card76/CardGlyph",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card77/CardGlyph",
+          "color": [
+            0.929411769,
+            0.78039217,
+            0.482352942,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card78/CardGlyph",
+          "color": [
+            0.4392157,
+            0.831372559,
+            0.9019608,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card79/CardGlyph",
+          "color": [
+            1.0,
+            0.4745098,
+            0.533333361,
+            1.0
+          ]
+        }
+      ],
+      "activeWeaponBars": [
+        {
+          "path": "Offline UI layout review/MatchUI/PlayerHUD/CombatActions/Slot1/ActiveWeapon",
+          "active": false,
+          "color": [
+            0.929411769,
+            0.78039217,
+            0.482352942,
+            1.0
+          ],
+          "raycastTarget": false
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/PlayerHUD/CombatActions/Slot2/ActiveWeapon",
+          "active": false,
+          "color": [
+            0.929411769,
+            0.78039217,
+            0.482352942,
+            1.0
+          ],
+          "raycastTarget": false
+        }
+      ],
+      "actors": 8,
+      "allActors120Anchored": true,
+      "camera": {
+        "orthographic": true,
+        "orthographicSize": 9.0,
+        "position": [
+          21.875,
+          -14.343749,
+          -30.0
+        ],
+        "aspect": 1.77777779
+      },
+      "visualResult": "FAIL - opaque cyan viewport obscures card catalog"
+    },
+    {
+      "case": "1440-hud-text100",
+      "pngBytes": 4802696,
+      "pngSha256": "295e2f44e86356c249af7f6c41ef1b4c09bead75ca9a9968d7a0079a69cc6302",
+      "nativeDimensions": [
+        2560,
+        1440
+      ],
+      "tmpFlags": 0,
+      "iconColors": [
+        {
+          "path": "Offline UI layout review/MatchUI/PlayerHUD/CombatActions/Slot1/WeaponIcon",
+          "color": [
+            0.9411765,
+            0.5411765,
+            0.3882353,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/PlayerHUD/CombatActions/Slot2/WeaponIcon",
+          "color": [
+            0.9098039,
+            0.721568644,
+            0.3647059,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/PlayerHUD/CombatActions/Potion/PotionIcon",
+          "color": [
+            0.443137258,
+            0.9019608,
+            0.607843161,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/PlayerHUD/BuildStrip/BuildOFF/StatIcon",
+          "color": [
+            0.9411765,
+            0.5411765,
+            0.3882353,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/PlayerHUD/BuildStrip/BuildSOUL/StatIcon",
+          "color": [
+            0.7254902,
+            0.6039216,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/PlayerHUD/BuildStrip/BuildDEF/StatIcon",
+          "color": [
+            0.470588237,
+            0.7372549,
+            0.921568632,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/PlayerHUD/BuildStrip/BuildS.DEF/StatIcon",
+          "color": [
+            0.349019617,
+            0.7764706,
+            0.6901961,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/PlayerHUD/BuildStrip/BuildHP/StatIcon",
+          "color": [
+            0.549019635,
+            0.8784314,
+            0.698039234,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/PlayerHUD/BuildStrip/BuildATK/StatIcon",
+          "color": [
+            0.9098039,
+            0.721568644,
+            0.3647059,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/PlayerHUD/BuildStrip/BuildMOVE/StatIcon",
+          "color": [
+            0.4392157,
+            0.831372559,
+            0.9019608,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/PlayerHUD/BuildStrip/BuildLEECH/StatIcon",
+          "color": [
+            0.8392157,
+            0.549019635,
+            0.796078444,
+            1.0
+          ]
+        }
+      ],
+      "activeWeaponBars": [
+        {
+          "path": "Offline UI layout review/MatchUI/PlayerHUD/CombatActions/Slot1/ActiveWeapon",
+          "active": true,
+          "color": [
+            0.929411769,
+            0.78039217,
+            0.482352942,
+            1.0
+          ],
+          "raycastTarget": false
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/PlayerHUD/CombatActions/Slot2/ActiveWeapon",
+          "active": false,
+          "color": [
+            0.929411769,
+            0.78039217,
+            0.482352942,
+            1.0
+          ],
+          "raycastTarget": false
+        }
+      ],
+      "actors": 8,
+      "allActors120Anchored": true,
+      "camera": {
+        "orthographic": true,
+        "orthographicSize": 9.0,
+        "position": [
+          21.875,
+          -14.343749,
+          -30.0
+        ],
+        "aspect": 1.77777779
+      },
+      "visualResult": "PASS for sampled HUD icon colors and existing layout"
+    }
+  ],
+  "totalPngBytes": 8985704,
+  "unrun": [
+    "720-hud-text150-mini125 - stopped per release instruction"
+  ],
+  "assetImportStarted": false
+}

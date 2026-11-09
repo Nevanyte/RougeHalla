@@ -1,0 +1,17 @@
+{
+  "source": "f5f5e016555755fb3e11b77026234148c107ca6b",
+  "path": "client-unity/UnityProject/Assets/Tests/Editor/MatchHudWishBarrierEditModeTests.cs",
+  "diskEqualsFrozenSource": true,
+  "sourceSha256": "680a6a2e66c17c97d3cee761246ab697f3e47820eee5de65ea481bf0f07c581d",
+  "expectedMetaGuid": "42ed7398690c426f8885769e5faed8ad",
+  "importedIdentity": {
+    "path": "Assets/Tests/Editor/MatchHudWishBarrierEditModeTests.cs",
+    "importedPath": "Assets/Tests/Editor/MatchHudWishBarrierEditModeTests.cs",
+    "guid": "42ed7398690c426f8885769e5faed8ad",
+    "className": "Roguehalla.Client.Tests.MatchHudWishBarrierEditModeTests",
+    "assembly": "Roguehalla.Client.EditModeTests, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null",
+    "moduleVersionId": "fa936f39-a78d-4c96-a40e-058ea20bae71",
+    "compiling": false,
+    "updating": false
+  }
+}
