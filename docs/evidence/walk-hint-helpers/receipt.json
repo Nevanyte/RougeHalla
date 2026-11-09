@@ -1,0 +1,134 @@
+{
+  "format": "rh-walk-hint-helpers/1",
+  "status": "PASS_FINITE_HELPER_SOURCE_RELEASE",
+  "publicBase": "db5ed80b2b89a156eae09cd0bd3f4c9e77e9e6de",
+  "priorSealedSource": {
+    "head": "2547a1c5766a8046aa725f5f3b3b38d244c38371",
+    "code": "440fb5676d7a2127a90304862174af5666a32d64"
+  },
+  "branch": "deepseek/walk-hint-full-source-helpers",
+  "worktree": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings",
+  "codeHead": "24832dac68bc00035572a3f68c909342d4e95ba0",
+  "evidenceCommit": "final branch head containing this receipt; reported to Root",
+  "reviewLease": {
+    "summary": "Root clarified explicit helper-file lease after automatic review refused an otherwise in-scope helper edit; edit resubmitted under the exact lease",
+    "files": [
+      "helper-scenario.mts",
+      "helper-capture.mts",
+      "helper-verify.mjs",
+      "helper-controls.mts",
+      "parity/walk-hint/helpers/**",
+      "docs/evidence/walk-hint-helpers/**"
+    ],
+    "accessModeChanged": false,
+    "reviewBypassed": false
+  },
+  "fixture": {
+    "path": "parity/walk-hint/helpers/source.json",
+    "bytes": 40317,
+    "sha256": "a7b8feda1aca08fe20f5a46ee11f57959a2a186619caf73611a67cb086eaae06",
+    "cases": 69,
+    "errors": 0,
+    "preserved51HelperContexts": true,
+    "npcMirrorTimingRows": 18
+  },
+  "familyCounts": {
+    "gates": 9,
+    "positive": 1,
+    "factors": 6,
+    "weapon": 6,
+    "weaponHoldsAt": 5,
+    "lock": 5,
+    "amove": 3,
+    "ice": 5,
+    "hysteresis": 5,
+    "direction": 2,
+    "waypoint": 2,
+    "hook": 2,
+    "mirrorTimings": 18
+  },
+  "oldFixturesUntouched": {
+    "original": {
+      "path": "parity/walk-hint/source.json",
+      "sha256": "8cb8b2c24fe0be184e660a4670b0981b946c35782d9e7a47ae1ba3eff567ab77",
+      "bytes": 44372
+    },
+    "repaired": {
+      "path": "parity/walk-hint/repair/source.json",
+      "sha256": "2c95328cc86136f55eda8f3fec641a9db081e77721d936ed614294f9aa4e0c4a",
+      "bytes": 44520
+    }
+  },
+  "executedProvenance": {
+    "bundleBytes": 1074409,
+    "bundleSha256": "2488d9de64b304dccb323418255ca194da5f5ce06b7571b41efa4b00145c5e54",
+    "sourceFilesPinned": 14,
+    "baselineWalkHintSha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16",
+    "relatedPlayerCorpus": {
+      "path": "parity/policy/bot-fight/source.json",
+      "bytes": 467672,
+      "sha256": "197fe5d24b6b34822a3ef76e2999d422e6127bbda1e8dfda0ba0af3ee5e2785e"
+    }
+  },
+  "npcMirrorTimings": {
+    "weapons": [
+      "sword",
+      "bow",
+      "wand",
+      "shield",
+      "axe",
+      "fists"
+    ],
+    "pairs": [
+      {
+        "id": "baseline",
+        "asMult": 1,
+        "windupMult": 1
+      },
+      {
+        "id": "fast-as-reduced-windup",
+        "asMult": 1.5,
+        "windupMult": 0.5
+      },
+      {
+        "id": "slow-as-increased-windup",
+        "asMult": 0.5,
+        "windupMult": 1.5
+      }
+    ],
+    "profile": "npc",
+    "actualSharedFunction": true
+  },
+  "controls": {
+    "required": 6,
+    "kills": 6,
+    "provenanceOnly": "NON-KILL",
+    "restoredEqual": true,
+    "restoredProvenanceEqual": true,
+    "verifier": "PASS",
+    "errorsDistinct": true,
+    "outputSafety": "fresh explicit outside-Git directory; existing/canonical refused; no recursive deletion"
+  },
+  "reproduction": {
+    "pinnedCapture": "exit0",
+    "readonlyCheck": "exit0",
+    "cleanFrozenGitExportCheck": "exit0",
+    "image": "node@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d",
+    "node": "v22.23.4",
+    "platform": "linux/amd64"
+  },
+  "firstFailure": {
+    "retained": "logs/first-controls-failure.log",
+    "note": "only retained raw first failure; earlier exploratory setup failures were not preserved after temp cleanup",
+    "envBlockerFromPriorPacket": "preserved separately in docs/evidence/walk-hint-repair/logs/env-blocked-capture.log"
+  },
+  "unproved": [
+    "exact goal-moved8/repath equality",
+    "LoS grace expiry",
+    "future reveal/untargetable endpoint isolation",
+    "hide-to-acquire ordered fallbacks",
+    "exact 1e-6 waypoint boundary",
+    "full native producer/public/lifecycle/roots/ice/lock/amove/full-brain/map campaign"
+  ],
+  "limits": "bounded declared-helper source oracle; no native/Cargo/target/Unity/wire/public claim; Root owns admission"
+}
