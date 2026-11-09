@@ -60,6 +60,8 @@ fn owner(p: &Value) -> Owner {
         id: player(s["id"].as_str().unwrap()),
         at: point(s),
         status: status(&s["status"]),
+        hp: num(&s["hp"]),
+        max_hp: num(&s["maxHp"]),
         faction: faction(&s["faction"]),
         inventory: Some(std::array::from_fn(|i| {
             s["weapons"][i]
@@ -392,6 +394,7 @@ fn actual_source_direct_exported_fight_uses_no_tactics_knowledge_draw() {
             memory: &memory,
             stimuli: memory.stimuli(),
             still_since: memory.own_motion().unwrap().still_since,
+            knows_sudden_death: c["knowsSuddenDeath"].as_bool().unwrap(),
         },
         Context {
             tier,
@@ -602,7 +605,7 @@ fn reset_after_source_orb_cycle_drops_engagement_beliefs_lock_and_timers_without
 }
 
 #[test]
-fn missing_owner_lock_bad_slot_clock_duplicate_rows_and_sd_are_atomic_refusals() {
+fn missing_owner_lock_bad_slot_clock_duplicate_rows_and_nonfinite_arena_are_atomic_refusals() {
     let f = fixture();
     let p = &f["cases"][1]["rows"][0]["input"]["percept"];
     let tier = TierParams::by_id(TierId::Normal);
@@ -631,7 +634,7 @@ fn missing_owner_lock_bad_slot_clock_duplicate_rows_and_sd_are_atomic_refusals()
             input.owner = None;
         }
         if bad == 5 {
-            input.sudden_death_at = 100.;
+            input.sudden_death_at = f64::NAN;
         }
         let selected_tier = if bad == 6 {
             TierParams::by_id(TierId::Hard)
@@ -647,7 +650,7 @@ fn missing_owner_lock_bad_slot_clock_duplicate_rows_and_sd_are_atomic_refusals()
             0 => Refusal::OwnerUnavailable,
             1 => Refusal::LockUnavailable,
             4 => Refusal::Memory,
-            5 => Refusal::UnsupportedSuddenDeath,
+            5 => Refusal::InvalidFacts,
             _ => Refusal::InvalidFacts,
         };
         assert_eq!(
@@ -678,3 +681,6 @@ fn missing_owner_lock_bad_slot_clock_duplicate_rows_and_sd_are_atomic_refusals()
         assert_eq!(tactics.previous_coliseum, None);
     }
 }
+
+#[path = "sd_source_tests.rs"]
+mod sd_source_tests;

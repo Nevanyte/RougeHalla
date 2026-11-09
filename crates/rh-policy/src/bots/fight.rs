@@ -29,6 +29,9 @@ pub struct Owner {
     pub id: PlayerRef,
     pub at: Vec2,
     pub status: Status,
+    /// Exact owner HUD facts supplied by the caller; never inferred from a missing owner row.
+    pub hp: f64,
+    pub max_hp: f64,
     pub faction: Option<FactionId>,
     /// None is unavailable, not an available empty hand.
     pub inventory: Option<[Option<BotWeapon>; 2]>,
@@ -70,7 +73,6 @@ pub enum Refusal {
     LockUnavailable,
     InvalidFacts,
     Memory,
-    UnsupportedSuddenDeath,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Goal {
@@ -108,6 +110,9 @@ pub struct Fight {
     no_path: f64,
     last_move: Option<(Vec2, f64)>,
     next_swap_at: f64,
+    sd_hold: bool,
+    held: bool,
+    retreat: retreat::Retreat,
 }
 impl Default for Fight {
     fn default() -> Self {
@@ -120,6 +125,9 @@ impl Default for Fight {
             no_path: 0.,
             last_move: None,
             next_swap_at: 0.,
+            sd_hold: false,
+            held: false,
+            retreat: retreat::Retreat::default(),
         }
     }
 }
@@ -194,22 +202,19 @@ impl NormalTactics {
                 me.ready_at,
                 me.draw_started_at,
                 me.as_mult,
+                me.hp,
+                me.max_hp,
             ]
             .iter()
             .all(|n| n.is_finite())
             || me.windup_mult.is_some_and(|n| !n.is_finite())
+            || !frame.sudden_death_at.is_finite()
             || frame
                 .players
                 .iter()
                 .any(|p| ![p.velocity.x, p.velocity.y].iter().all(|v| v.is_finite()))
         {
             return Err(Refusal::InvalidFacts);
-        }
-        // Source SD retreat is not captured by the bounded normal witness; never silently apply it as ordinary fighting.
-        if !frame.sudden_death_at.is_finite()
-            || frame.sudden_death_at > 0. && frame.now >= frame.sudden_death_at
-        {
-            return Err(Refusal::UnsupportedSuddenDeath);
         }
         let players: Vec<_> = frame
             .players
@@ -276,6 +281,7 @@ impl NormalTactics {
                     memory: &self.memory,
                     stimuli: &stimuli,
                     still_since,
+                    knows_sudden_death: self.knows_sudden_death.expect("source one-time draw"),
                 },
                 Context {
                     tier,
@@ -415,10 +421,12 @@ struct FightInput<'a, 'b> {
     memory: &'a Memory,
     stimuli: &'a [Stimulus],
     still_since: f64,
+    knows_sudden_death: bool,
 }
 impl Fight {
     pub fn leave(&mut self) {
         self.last_move = None;
+        self.held = false;
         self.plan = None;
     }
     fn act(&mut self, input: FightInput<'_, '_>, ctx: Context<'_>) -> Output {
@@ -430,6 +438,7 @@ impl Fight {
             memory,
             stimuli,
             still_since,
+            knows_sudden_death,
         } = input;
         let mut ctx = ctx;
         let tier = ctx.tier;
@@ -507,6 +516,8 @@ impl Fight {
             self.plan = None;
             self.no_path = 0.;
             self.last_move = None;
+            self.held = false;
+            self.sd_hold = false;
             self.orb.reset(me.ready_at);
         }
         self.last_fight_at = now;
@@ -545,6 +556,71 @@ impl Fight {
             }
             out
         };
+        // Source fight.ts: actual public HP shares and clock; no inferred hidden enemy stats.
+        let sd_on = knows_sudden_death
+            && frame.sudden_death_at > 0.
+            && now >= frame.sudden_death_at
+            && foe.seen;
+        if sd_on {
+            let mine = if me.max_hp > 0. {
+                me.hp / me.max_hp
+            } else {
+                1.
+            };
+            let lead = mine - foe.hp;
+            self.sd_hold = if self.sd_hold {
+                lead > -0.02
+            } else {
+                lead > 0.02
+            };
+        } else {
+            self.sd_hold = false;
+        }
+        if self.sd_hold {
+            if let Some(progress) = self.progress.as_mut() {
+                progress.since = now;
+            }
+            if foe.dist < 340. {
+                if let Some(to) = self.retreat.point(now, me.at, foe.at, paths) {
+                    self.last_move = None;
+                    self.held = false;
+                    return finish(output(
+                        Some(Intent {
+                            body: IntentBody::Move { to },
+                            priority: PRIORITY_COMBAT,
+                            timing: react_or(stimuli, &[StimulusKind::NewThreat], id),
+                            why: "sudden death: ahead, keeping distance".into(),
+                        }),
+                        GoalStatus::Running,
+                        "sudden death: keeping distance",
+                        false,
+                    ));
+                }
+                // A real failed retreat falls through to the ordinary fight, just as source does.
+            } else {
+                if self.held {
+                    return finish(output(
+                        None,
+                        GoalStatus::Running,
+                        "sudden death: keeping distance",
+                        false,
+                    ));
+                }
+                self.held = true;
+                self.last_move = None;
+                return finish(output(
+                    Some(Intent {
+                        body: IntentBody::Stop {},
+                        priority: PRIORITY_COMBAT,
+                        timing: IntentTiming::Step {},
+                        why: "sudden death: ahead, standing off".into(),
+                    }),
+                    GoalStatus::Running,
+                    "sudden death: keeping distance",
+                    false,
+                ));
+            }
+        }
         if self.progress.as_ref().is_some_and(|p| p.id != id) {
             self.progress = None;
         }
@@ -598,6 +674,7 @@ impl Fight {
                 }
                 Step::Order(i) => {
                     self.last_move = None;
+                    self.held = false;
                     return finish(output(Some(i), GoalStatus::Running, "orb-walk", false));
                 }
                 Step::Ordinary => {}
@@ -689,6 +766,7 @@ impl Fight {
                     && !(now - still_since > 700. && now - at > 700.)
             }) {
                 self.last_move = Some((to, now));
+                self.held = false;
                 intent = Some(Intent {
                     body: IntentBody::Move { to },
                     priority: PRIORITY_GOAL,
@@ -704,6 +782,7 @@ impl Fight {
             return finish(output(intent, GoalStatus::Running, "approaching", false));
         }
         self.last_move = None;
+        self.held = false;
         let wand = weapon == BotWeapon::Wand;
         finish(output(
             Some(Intent {
@@ -800,5 +879,6 @@ fn melee_chaser(me: &Owner, foe: &Foe) -> bool {
     closing > 40. || foe.dist < 260. || source_chasing
 }
 
+mod retreat;
 #[cfg(test)]
 mod source_tests;
