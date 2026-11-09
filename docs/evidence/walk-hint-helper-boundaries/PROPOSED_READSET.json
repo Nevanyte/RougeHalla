@@ -1,0 +1,68 @@
+{
+  "format": "rh-walk-hint-boundary-readset/1",
+  "base": "70433a9834ccf082b5ca449dca0fd4319cd072ca",
+  "selectedSource": {
+    "packages/server/src/sim/walkHint.ts": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16",
+    "packages/server/src/sim/gameplay.ts": "70f6f2b67571783f3042309bef01dc75aabd2656c59a184d0f97c9c0a8b8cf78",
+    "packages/server/src/sim/step.ts": "5ff90451b4b27b12ddfe8175745cf38892eaf07a851282c904076edc46896634",
+    "packages/server/src/sim/status.ts": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642",
+    "packages/server/src/sim/targeting.ts": "13125287cec7cd39f550af50e1d18c15d3146357f249cfe3beeb9e00a334f0fd",
+    "packages/server/src/sim/combatant.ts": "3c2fac6ed6fbee82802c5bea86b0131d36e8ebf86eceb2c1a99ce58664fa7e60",
+    "packages/server/src/sim/movement.ts": "86ebd2205a0af4608ed484317bea3723bb378b3e138954a44140e340adab1f93",
+    "packages/server/src/sim/world.ts": "b98376a7f022ec6f9b681e368d62c18fbe524d95408b2d4eec93909934454d54",
+    "packages/shared/src/constants.ts": "51ce4dd800ec868abee525fb1ae375688066f336972a7da878644df1235924e7",
+    "packages/shared/src/mods.ts": "10e9dcd3d7417c4fe85d1c36ef33afe5abf7a5703a59b42a3a825a66aa4efaff",
+    "packages/shared/src/weapons.ts": "2f22f037502fe63fae6b47f20408cfd35ebc72bfea081194ae8d18cfc21df99b",
+    "packages/shared/src/policies.ts": "3a08aef58ae780bb2417781e735ff75c310de08db43b47a742714bcf94619fbd",
+    "packages/shared/src/terrain.ts": "5ee4fe11e793f83f3d095720ba1156a186c5c7704e864f2cad74503ab13a07d6"
+  },
+  "related": {
+    "helper69": {
+      "path": "parity/walk-hint/helpers/source.json",
+      "bytes": 40317,
+      "sha256": "a7b8feda1aca08fe20f5a46ee11f57959a2a186619caf73611a67cb086eaae06"
+    },
+    "player90": {
+      "path": "parity/policy/bot-fight/source.json",
+      "bytes": 467672,
+      "sha256": "197fe5d24b6b34822a3ef76e2999d422e6127bbda1e8dfda0ba0af3ee5e2785e"
+    }
+  },
+  "toolPins": {
+    "hostNode": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/map-styled-bench/npm-cache/_npx/361c55be1121897e/node_modules/node/bin/node",
+      "bytes": 113002944,
+      "sha256": "2cc28a1880d0774616959f2210ee739bffa6ac695c887e8988a496a21271f6c0",
+      "version": "22.23.4"
+    },
+    "esbuildMain": {
+      "path": "/Users/nevinmckinnon/Documents/Projects/RogueHalla/node_modules/esbuild/lib/main.js",
+      "bytes": 97463,
+      "sha256": "61ec0ba144ff93f4bf0e96ad6fab6f430ede0aa13e27ace8063ed63ba416b3cd",
+      "version": "0.28.2"
+    },
+    "esbuildBinary": {
+      "path": "/Users/nevinmckinnon/Documents/Projects/RogueHalla/node_modules/@esbuild/darwin-arm64/bin/esbuild",
+      "bytes": 10590882,
+      "sha256": "10b6243df618d374bb2d5c9cfbe7052e1405f6aa4e53a6164f11a91b9f2e1384"
+    },
+    "schema": {
+      "path": "/Users/nevinmckinnon/Documents/Projects/RogueHalla/node_modules/@colyseus/schema/build/index.mjs",
+      "bytes": 489807,
+      "sha256": "c5d2c222121377565fda9799c7e1b852c70a21877136498add79795f2055face",
+      "version": "5.0.42"
+    },
+    "image": {
+      "reference": "node@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292",
+      "platform": "linux/amd64",
+      "node": "22.23.4"
+    }
+  },
+  "corrections": {
+    "priorSourceFileCount": 14,
+    "correctedSourceFileCount": 17,
+    "priorPlayerCorpusBytesTypo": 46672,
+    "correctedPlayerCorpusBytes": 467672
+  },
+  "note": "selectedSource is the frozen runtime-read subset; the build driver's generated manifest/metafile supplies the actual compiled closure. No boundary corpus exists at this code-ready head."
+}

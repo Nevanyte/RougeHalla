@@ -1,0 +1,25 @@
+// Static boundary consumer: checks the captured source relations only.
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+const out = process.argv[2] || "/out";
+const c = JSON.parse(readFileSync(join(out, "source.json"), "utf8"));
+const fail = (m) => { throw new Error(m); };
+if (c.format !== "rh-walk-hint-helper-boundaries/1") fail("wrong format");
+if (!Array.isArray(c.cases) || c.cases.length !== 24) fail("boundary case count " + c.cases.length + " != 24");
+const by = Object.fromEntries(c.cases.map((x) => [x.id, x]));
+const get = (id) => { const x = by[id]; if (!x) fail("missing " + id); if (x.error) fail(id + " errored: " + x.error); return x; };
+const h = (id) => { const o = get(id).observed; if (!o || !o.hint) fail("no hint " + id); return o.hint; };
+const b = [h("goal-below8").ticks, h("goal-equal8").ticks, h("goal-above8").ticks];
+if (b[0] !== 1 || b[1] !== 1 || b[2] !== 0) fail("goal8 " + b);
+const r = [h("repath-just-before").ticks, h("repath-equal").ticks, h("repath-just-after").ticks, h("repath-fresh-infinity").ticks];
+if (r[0] !== 1 || r[1] !== 0 || r[2] !== 0 || r[3] !== 1) fail("repath " + r);
+const l = [h("los-just-before").ticks, h("los-equal").ticks, h("los-just-after").ticks];
+if (l[0] !== 1 || l[1] !== 0 || l[2] !== 0) fail("los " + l);
+if (get("future-hidden-active").observed.observed !== true || get("future-hidden-revealed").observed.observed !== false) fail("future hidden");
+if (get("future-untargetable-before").observed.observed !== true || get("future-untargetable-equal").observed.observed !== false) fail("future untargetable");
+if (h("amove-hidden-first").ticks !== 0 || h("amove-first-out-of-range-second-near").ticks !== 0) fail("amove fallback");
+const w = [h("waypoint-below-1e-6").ticks, h("waypoint-equal").ticks, h("waypoint-above-1e-6").ticks];
+if (w[0] !== 2 || w[1] !== 3 || w[2] !== 3) fail("waypoint " + w);
+const d = [h("direction-below-half-byte").dir, h("direction-at-half-byte").dir, h("direction-above-half-byte").dir];
+if (!(d[0] !== d[1] || d[1] !== d[2])) fail("direction transition");
+console.log(JSON.stringify({ mode: "verify", cases: c.cases.length, errors: c.cases.filter((x) => x.error).length, sourceFiles: c.profile.sourceFileCount, corrections: c.profile.corrections, decisions: [...new Set(c.cases.map((x) => x.decision))] }));
