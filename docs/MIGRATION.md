@@ -70,7 +70,7 @@ pass; client receipt adoption and genuine game-to-receipt browser acceptance are
 The earlier native b4 player-loop frame1/noPNG failure remains held separately. The actuala3d browser screenshots now
 show the drawer rasterized without cyan in the inspected views; this does not turn its failed harness run into a pass.
 See the [rendered proof contract](ui/DRAWER_PROOF_CONTEXT.md). Prepared assets remain separate; audio sample-rate acceptance
-is unresolved. Durable Calgary
+is unresolved. The [offline Calgary preparation](evidence/staging-training-backup-guard/root-admission/README.md) is reviewed with14fast tests, but remains explicitly nondeployable; no host installer/actual backup/cloud run is admitted. The owner deferred AWS login renewal. Durable Calgary
 hosting within the TOTAL CAD20 cap, regional tests and the matched legacy performance comparison remain open.
 Production play.roguehalla.com is unchanged; practice rougehalla.com is authorized. No60FPS goal/cap is introduced.
 

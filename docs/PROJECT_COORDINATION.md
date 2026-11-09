@@ -13,25 +13,24 @@ detached review snapshot; use `git worktree list` to resolve the authoritative p
 The latest [migration checkpoint](MIGRATION.md#reviewed-protocol14-wrap-up-checkpoint-2026-11-09-utc),
 [original composition receipt](evidence/root-final14-composition/README.md) and
 [full-runtime/component batch](evidence/root-runtime14-composition/README.md) supersede the historical tables below.
-Protocol14/checkpoint28/replay22/OBS21/policy15/content643d294869db55a4 is retained. The exacta3d4b3ce five-job CI is green;
-this subsequent composed batch awaits its own CI. All25 actual engine functional selectors pass at exactfa0c0891.
-Explicit full Source/solo Training endpoint admission and normal/SD fight components are reviewed. Component/method
-acceptance does not activate the remaining full bot brain or establish a hosted release.
+Protocol14/checkpoint28/replay22/OBS21/policy15/content643d294869db55a4 is retained. Published exactdb5ed80b passes all five CI jobs at42597461815; later composed work requires its own CI. The genuine fullSource→durable account bridge and owned settlement HTTP read contract are reviewed. Baseline actual Web14 proof retains rawPARTIAL with finite Root-rendered admission. Full browser and hosted acceptance remain open.
 
-| Current owner | Required next boundary |
+| Current owner | Current work / next boundary |
 |---|---|
-| Lead | Reviewed main merges and exact composed CI; full client/account/results/banking, fair bot facts, cloud/regional/performance admission |
-| Unity/art chat |25-selector gate sealed; three static first-four asset contact sheets, source-inspected Editor helper; noPlay/fifth/audio/live binding |
-| UI chat | Actual baselinea3d Web14 profile/join/input/reconnect/HUD/drawer proof; retain failed attempts and correct only the scoped harness |
-| Server/durability chat | Full Arena/solo Training runtime packet sealed and independently released; next exact-base packet assigned by lead |
-| Network chat | Corrected public-facts source packet released; actual producer-consistent NPC visibility/continuity witness before P15 decisions |
-| DeepSeek lanes | Prior fixed-oracle quest/ownTimings packets sealed; next work stays bounded mechanical Rust/source consumers |
+| Lead: OPTimization_port | Reviewed main integration/CI; complete required bot facts and native state identities; original full-port browser/durable cloud/performance release gates |
+| Prepare Unity 2D Demo | Sole Editor: corrected035b42case run fails27PASS/15FAIL (old25allPASS); preserving exact receipt/restoring Frozen4. Next bounded3-sheet artV2 render requires separate release; noPlay/audio/live binding |
+| Modernize Unity game UI | Diagnose actual launch duplicate-global-light/EventSystem ownership errors; preserve17selectors and valid ownership controls. Match-correlated settlement UI design follows this repair; no receipt/banking claim yet |
+| Prove PostgreSQL cold recovery | Slow Starter fight-clock source/lifecycle assessment before minimal private native clock; owned committed-settlement read contract already merged |
+| Check Git access | Actual NPC living-return/Runner evidence and complete P15 facts/privacy/bounds proposal; no tag/version allocation or native memory behavior decision yet |
+| DeepSeek Rust Port Worker | Source-first Pack Leader: genuine earned camp clear→later damage, then fixed-interface native outgoing/execute consumer after Root lease |
+| DeepSeek Post Rust | Source-only walk-hint producer: genuine Move/Stop/final-system outputs and bounded fixture/control/bytechecks; no native layout/publication lease |
+| Internal Rust specialist | Earned nonzero high-farm MarkTax witness released; exact native source/index/fold/public projection integration design before overlapping modifier edits |
 
-Complete required bot facts are the chosen direction; Easy-only or reduced behavior will not satisfy the full port.
-P15/OBS22/policy16, draft byte budgets and opaque continuity are proposals only. Prepared visual/audio imports stay
-isolated from live acceptance. The old native frame1 failure remains explicit; baseline actual browser drawer screenshots
-now rasterize without cyan in inspected views, while attempt02 remains FAIL for harness issues. No production deployment,
-new security/account scope or increased staging budget is authorized.
+The explicit native completion audit retains four open rows: WalkHint, MarkTaxSource, Pack Leader CampsCleared and Slow Starter FightTime. Their source/native boundaries are separately assigned above; a row inventory or neutral low-stat fixture never certifies the missing consumer. This finite audit is not a whole-port certification. The standalone Reflex/normal-fight/Orb/SD components are reviewed; full Brain/public delivery/outcome acceptance remains open.
+
+Complete required bot facts are the chosen direction; Easy-only or reduced behavior will not satisfy the full port. P15/OBS22/policy16, draft byte budgets and opaque continuity remain proposals only. The source living-return memory discrepancy requires an explicit intended-behavior decision before changing native semantics. Prepared visual/audio work stays separate from runtime acceptance. All prior failed runs stay failed; source compile and Editor selectors are not browser or hosting proof.
+
+AWS login is deferred at the owner's request; useful local work continues. Offline dual-runtime staging preparation remains nondeployable. Practice rougehalla.com, Calgary account048226733033 and CAD20TOTAL remain the only authorized staging scope; production play.roguehalla.com stays unchanged. Original regional/scale and matched M5Pro legacy-performance gates remain required within measured/budgeted validation limits. No60FPS goal/cap is introduced.
 
 ## Ownership
 

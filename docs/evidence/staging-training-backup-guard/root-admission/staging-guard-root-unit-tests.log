@@ -1,0 +1,19 @@
+test_real_extractor_preserves_required_pending_and_dump (test_preparation.Backup) ... ok
+test_training_spool_absent_and_real_empty_directories_are_allowed (test_preparation.Backup) ... ok
+test_training_spool_cli_refuses_without_running_restore (test_preparation.Backup) ... ok
+test_training_spool_descendant_symlink_file_and_fifo_refuse (test_preparation.Backup) ... ok
+test_training_spool_root_symlink_file_and_fifo_refuse (test_preparation.Backup) ... ok
+test_traversal_link_duplicate_unmanifested_are_refused_before_extract (test_preparation.Backup) ... ok
+test_actual_frozen_native_configuration_is_pinned (test_preparation.Preparation) ... ok
+test_artifact_replacement_path_and_incomplete_map_refuse (test_preparation.Preparation) ... ok
+test_cfn_scope_and_retention_are_explicit (test_preparation.Preparation) ... ok
+test_complete_local_input_math_is_not_deployment_authorization (test_preparation.Preparation) ... ok
+test_deadlines_data_backup_sizes_and_old_binary_refuse (test_preparation.Preparation) ... ok
+test_hash_bound_collision_map_and_wrong_web_origin_are_not_accepted (test_preparation.Preparation) ... ok
+test_missing_wrong_stale_cost_credit_and_over_total_refuse (test_preparation.Preparation) ... ok
+test_runtime_commands_use_actual_profiles_and_shared_postgres_only (test_preparation.Preparation) ... ok
+
+----------------------------------------------------------------------
+Ran 14 tests in 0.086s
+
+OK
