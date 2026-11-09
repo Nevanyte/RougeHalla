@@ -1,0 +1,765 @@
+{
+  "source": "d28df076bf98d10bfe6cb5fbc88b8d30a3fbe712",
+  "cases": [
+    {
+      "case": "1440-hud-text100",
+      "pngSha256": "9c997afb387372083abe1fcdae6769f445e3855a68a6fc3b4977c1e337424eae",
+      "pngBytes": 3753034,
+      "nativeWidth": 2560,
+      "nativeHeight": 1440,
+      "nativeDimensionsMatch": true,
+      "ready": true,
+      "framesAdvanced": true,
+      "ticksAdvanced": true,
+      "watermark": true,
+      "tmpFlags": 0,
+      "activeControls": 14,
+      "centerHitsSelf": 14,
+      "foregroundBlockedControls": [],
+      "activeTextCount": 39,
+      "allTextColorOpaque": true,
+      "activeIconCount": 11,
+      "allIconColorOpaque": true,
+      "activeCanvasGroups": [],
+      "activeMarkRendererMissing": [
+        "Offline UI layout review/MatchUI/Minimap/TerrainFrame/Delivered contacts and personal route"
+      ],
+      "uiRootVisibility": {
+        "VitalsPanel": true,
+        "BuildStrip": true,
+        "CombatActions": true,
+        "WishPanel": false,
+        "Rewards": true,
+        "Minimap": true
+      },
+      "miniScale": 1.0,
+      "savedMiniScaleIndex": 1,
+      "miniBounds": [
+        1804.80017,
+        25.9199963,
+        2521.60034,
+        544.32
+      ],
+      "rewardBounds": [
+        1792.0,
+        612.0,
+        2521.6,
+        1317.6001
+      ],
+      "rewardMinimapVerticalGap": 67.67999999999995,
+      "actorChecks": {
+        "roots": 8,
+        "allScales120": true,
+        "allUniqueDeliveredAnchors": true,
+        "cameraOrthographic": true,
+        "cameraSize": 9.0
+      }
+    },
+    {
+      "case": "1440-hud-text150",
+      "pngSha256": "e09851911c7ff67771e7a6b17512b07deb0abdd645216ffe4eede49ba3d6f61a",
+      "pngBytes": 3833896,
+      "nativeWidth": 2560,
+      "nativeHeight": 1440,
+      "nativeDimensionsMatch": true,
+      "ready": true,
+      "framesAdvanced": true,
+      "ticksAdvanced": true,
+      "watermark": true,
+      "tmpFlags": 0,
+      "activeControls": 14,
+      "centerHitsSelf": 14,
+      "foregroundBlockedControls": [],
+      "activeTextCount": 39,
+      "allTextColorOpaque": true,
+      "activeIconCount": 11,
+      "allIconColorOpaque": true,
+      "activeCanvasGroups": [],
+      "activeMarkRendererMissing": [
+        "Offline UI layout review/MatchUI/Minimap/TerrainFrame/Delivered contacts and personal route"
+      ],
+      "uiRootVisibility": {
+        "VitalsPanel": true,
+        "BuildStrip": true,
+        "CombatActions": true,
+        "WishPanel": false,
+        "Rewards": true,
+        "Minimap": true
+      },
+      "miniScale": 1.0,
+      "savedMiniScaleIndex": 1,
+      "miniBounds": [
+        1804.80017,
+        25.9199963,
+        2521.60034,
+        544.32
+      ],
+      "rewardBounds": [
+        1792.0,
+        612.0,
+        2521.6,
+        1317.6001
+      ],
+      "rewardMinimapVerticalGap": 67.67999999999995,
+      "actorChecks": {
+        "roots": 8,
+        "allScales120": true,
+        "allUniqueDeliveredAnchors": true,
+        "cameraOrthographic": true,
+        "cameraSize": 9.0
+      }
+    },
+    {
+      "case": "1440-map-text100",
+      "pngSha256": "24f2d8fe99ebe123dd3933059e8f601397bb447d995d12fd27b29ef643f26bad",
+      "pngBytes": 4062267,
+      "nativeWidth": 2560,
+      "nativeHeight": 1440,
+      "nativeDimensionsMatch": true,
+      "ready": true,
+      "framesAdvanced": true,
+      "ticksAdvanced": true,
+      "watermark": true,
+      "tmpFlags": 0,
+      "activeControls": 8,
+      "centerHitsSelf": 8,
+      "foregroundBlockedControls": [],
+      "activeTextCount": 15,
+      "allTextColorOpaque": true,
+      "activeIconCount": 0,
+      "allIconColorOpaque": true,
+      "activeCanvasGroups": [],
+      "activeMarkRendererMissing": [
+        "Offline UI layout review/MatchUI/TacticalMap/MapFrame/PublicMap/Delivered contacts and personal route"
+      ],
+      "uiRootVisibility": {
+        "VitalsPanel": false,
+        "BuildStrip": false,
+        "CombatActions": false,
+        "WishPanel": false,
+        "Rewards": false,
+        "Minimap": false
+      },
+      "miniScale": 1.0,
+      "savedMiniScaleIndex": 1,
+      "miniBounds": [
+        1804.80017,
+        25.9199963,
+        2521.60034,
+        544.32
+      ],
+      "rewardBounds": [
+        1792.0,
+        612.0,
+        2521.6,
+        1317.6001
+      ],
+      "rewardMinimapVerticalGap": null,
+      "actorChecks": {
+        "roots": 8,
+        "allScales120": true,
+        "allUniqueDeliveredAnchors": true,
+        "cameraOrthographic": true,
+        "cameraSize": 9.0
+      }
+    },
+    {
+      "case": "1440-map-text150",
+      "pngSha256": "33ae0722f8676baac7e064e75ebd8bf840a3756922c62c9a2c632d5b79e9681a",
+      "pngBytes": 4116745,
+      "nativeWidth": 2560,
+      "nativeHeight": 1440,
+      "nativeDimensionsMatch": true,
+      "ready": true,
+      "framesAdvanced": true,
+      "ticksAdvanced": true,
+      "watermark": true,
+      "tmpFlags": 0,
+      "activeControls": 8,
+      "centerHitsSelf": 8,
+      "foregroundBlockedControls": [],
+      "activeTextCount": 15,
+      "allTextColorOpaque": true,
+      "activeIconCount": 0,
+      "allIconColorOpaque": true,
+      "activeCanvasGroups": [],
+      "activeMarkRendererMissing": [
+        "Offline UI layout review/MatchUI/TacticalMap/MapFrame/PublicMap/Delivered contacts and personal route"
+      ],
+      "uiRootVisibility": {
+        "VitalsPanel": false,
+        "BuildStrip": false,
+        "CombatActions": false,
+        "WishPanel": false,
+        "Rewards": false,
+        "Minimap": false
+      },
+      "miniScale": 1.0,
+      "savedMiniScaleIndex": 1,
+      "miniBounds": [
+        1804.80017,
+        25.9199963,
+        2521.60034,
+        544.32
+      ],
+      "rewardBounds": [
+        1792.0,
+        612.0,
+        2521.6,
+        1317.6001
+      ],
+      "rewardMinimapVerticalGap": null,
+      "actorChecks": {
+        "roots": 8,
+        "allScales120": true,
+        "allUniqueDeliveredAnchors": true,
+        "cameraOrthographic": true,
+        "cameraSize": 9.0
+      }
+    },
+    {
+      "case": "1440-planning-text100",
+      "pngSha256": "650f82b879c0ceb26d96aa92a6e7edf9c6c5bdfa4053a73e205e9f2204261dd2",
+      "pngBytes": 3667506,
+      "nativeWidth": 2560,
+      "nativeHeight": 1440,
+      "nativeDimensionsMatch": true,
+      "ready": true,
+      "framesAdvanced": true,
+      "ticksAdvanced": true,
+      "watermark": true,
+      "tmpFlags": 0,
+      "activeControls": 13,
+      "centerHitsSelf": 13,
+      "foregroundBlockedControls": [],
+      "activeTextCount": 19,
+      "allTextColorOpaque": true,
+      "activeIconCount": 0,
+      "allIconColorOpaque": true,
+      "activeCanvasGroups": [],
+      "activeMarkRendererMissing": [
+        "Offline UI layout review/MatchUI/TacticalMap/MapFrame/PublicMap/Delivered contacts and personal route"
+      ],
+      "uiRootVisibility": {
+        "VitalsPanel": false,
+        "BuildStrip": false,
+        "CombatActions": false,
+        "WishPanel": false,
+        "Rewards": false,
+        "Minimap": false
+      },
+      "miniScale": 1.0,
+      "savedMiniScaleIndex": 1,
+      "miniBounds": [
+        1804.80017,
+        25.9199963,
+        2521.60034,
+        544.32
+      ],
+      "rewardBounds": [
+        1792.0,
+        612.0,
+        2521.6,
+        1317.6001
+      ],
+      "rewardMinimapVerticalGap": null,
+      "actorChecks": {
+        "roots": 8,
+        "allScales120": true,
+        "allUniqueDeliveredAnchors": true,
+        "cameraOrthographic": true,
+        "cameraSize": 9.0
+      }
+    },
+    {
+      "case": "1440-planning-text150",
+      "pngSha256": "a2f9de2fecd5626bf4a2271b2669ed6bc82f1176e81da629b8f1519effb9d620",
+      "pngBytes": 3722834,
+      "nativeWidth": 2560,
+      "nativeHeight": 1440,
+      "nativeDimensionsMatch": true,
+      "ready": true,
+      "framesAdvanced": true,
+      "ticksAdvanced": true,
+      "watermark": true,
+      "tmpFlags": 0,
+      "activeControls": 13,
+      "centerHitsSelf": 13,
+      "foregroundBlockedControls": [],
+      "activeTextCount": 19,
+      "allTextColorOpaque": true,
+      "activeIconCount": 0,
+      "allIconColorOpaque": true,
+      "activeCanvasGroups": [],
+      "activeMarkRendererMissing": [
+        "Offline UI layout review/MatchUI/TacticalMap/MapFrame/PublicMap/Delivered contacts and personal route"
+      ],
+      "uiRootVisibility": {
+        "VitalsPanel": false,
+        "BuildStrip": false,
+        "CombatActions": false,
+        "WishPanel": false,
+        "Rewards": false,
+        "Minimap": false
+      },
+      "miniScale": 1.0,
+      "savedMiniScaleIndex": 1,
+      "miniBounds": [
+        1804.80017,
+        25.9199963,
+        2521.60034,
+        544.32
+      ],
+      "rewardBounds": [
+        1792.0,
+        612.0,
+        2521.6,
+        1317.6001
+      ],
+      "rewardMinimapVerticalGap": null,
+      "actorChecks": {
+        "roots": 8,
+        "allScales120": true,
+        "allUniqueDeliveredAnchors": true,
+        "cameraOrthographic": true,
+        "cameraSize": 9.0
+      }
+    },
+    {
+      "case": "720-hud-text100",
+      "pngSha256": "51b7f6efb670230b89fc2ef68d22f271b0696c4bff59b73891298ed825a681ee",
+      "pngBytes": 1026191,
+      "nativeWidth": 1280,
+      "nativeHeight": 720,
+      "nativeDimensionsMatch": true,
+      "ready": true,
+      "framesAdvanced": true,
+      "ticksAdvanced": true,
+      "watermark": true,
+      "tmpFlags": 0,
+      "activeControls": 14,
+      "centerHitsSelf": 14,
+      "foregroundBlockedControls": [],
+      "activeTextCount": 39,
+      "allTextColorOpaque": true,
+      "activeIconCount": 11,
+      "allIconColorOpaque": true,
+      "activeCanvasGroups": [],
+      "activeMarkRendererMissing": [
+        "Offline UI layout review/MatchUI/Minimap/TerrainFrame/Delivered contacts and personal route"
+      ],
+      "uiRootVisibility": {
+        "VitalsPanel": true,
+        "BuildStrip": true,
+        "CombatActions": true,
+        "WishPanel": false,
+        "Rewards": true,
+        "Minimap": true
+      },
+      "miniScale": 1.0,
+      "savedMiniScaleIndex": 1,
+      "miniBounds": [
+        902.4001,
+        12.9599981,
+        1260.80017,
+        272.16
+      ],
+      "rewardBounds": [
+        896.0,
+        306.0,
+        1260.8,
+        658.800049
+      ],
+      "rewardMinimapVerticalGap": 33.839999999999975,
+      "actorChecks": {
+        "roots": 8,
+        "allScales120": true,
+        "allUniqueDeliveredAnchors": true,
+        "cameraOrthographic": true,
+        "cameraSize": 9.0
+      }
+    },
+    {
+      "case": "720-hud-text150-mini085",
+      "pngSha256": "09590122b3b5c50f3c02cf5c7edc07110b55b90496d52ad920951d2ef29ed5ed",
+      "pngBytes": 1078208,
+      "nativeWidth": 1280,
+      "nativeHeight": 720,
+      "nativeDimensionsMatch": true,
+      "ready": true,
+      "framesAdvanced": true,
+      "ticksAdvanced": true,
+      "watermark": true,
+      "tmpFlags": 0,
+      "activeControls": 14,
+      "centerHitsSelf": 14,
+      "foregroundBlockedControls": [],
+      "activeTextCount": 39,
+      "allTextColorOpaque": true,
+      "activeIconCount": 11,
+      "allIconColorOpaque": true,
+      "activeCanvasGroups": [],
+      "activeMarkRendererMissing": [
+        "Offline UI layout review/MatchUI/Minimap/TerrainFrame/Delivered contacts and personal route"
+      ],
+      "uiRootVisibility": {
+        "VitalsPanel": true,
+        "BuildStrip": true,
+        "CombatActions": true,
+        "WishPanel": false,
+        "Rewards": true,
+        "Minimap": true
+      },
+      "miniScale": 0.85,
+      "savedMiniScaleIndex": 0,
+      "miniBounds": [
+        956.16,
+        12.9599934,
+        1260.8,
+        233.280029
+      ],
+      "rewardBounds": [
+        896.0,
+        306.0,
+        1260.8,
+        658.800049
+      ],
+      "rewardMinimapVerticalGap": 72.71997099999999,
+      "actorChecks": {
+        "roots": 8,
+        "allScales120": true,
+        "allUniqueDeliveredAnchors": true,
+        "cameraOrthographic": true,
+        "cameraSize": 9.0
+      }
+    },
+    {
+      "case": "720-hud-text150-mini125",
+      "pngSha256": "5ef05a23fcae9e16ddfe0e891bb19ea7847132f1b8794d2a62ca4ca26f43e15f",
+      "pngBytes": 1068336,
+      "nativeWidth": 1280,
+      "nativeHeight": 720,
+      "nativeDimensionsMatch": true,
+      "ready": true,
+      "framesAdvanced": true,
+      "ticksAdvanced": true,
+      "watermark": true,
+      "tmpFlags": 0,
+      "activeControls": 14,
+      "centerHitsSelf": 14,
+      "foregroundBlockedControls": [],
+      "activeTextCount": 39,
+      "allTextColorOpaque": true,
+      "activeIconCount": 11,
+      "allIconColorOpaque": true,
+      "activeCanvasGroups": [],
+      "activeMarkRendererMissing": [
+        "Offline UI layout review/MatchUI/Minimap/TerrainFrame/Delivered contacts and personal route"
+      ],
+      "uiRootVisibility": {
+        "VitalsPanel": true,
+        "BuildStrip": true,
+        "CombatActions": true,
+        "WishPanel": false,
+        "Rewards": true,
+        "Minimap": true
+      },
+      "miniScale": 1.25,
+      "savedMiniScaleIndex": 2,
+      "miniBounds": [
+        812.8,
+        12.9599762,
+        1260.8,
+        336.96
+      ],
+      "rewardBounds": [
+        896.0,
+        347.76004,
+        1260.8,
+        658.800049
+      ],
+      "rewardMinimapVerticalGap": 10.800040000000024,
+      "actorChecks": {
+        "roots": 8,
+        "allScales120": true,
+        "allUniqueDeliveredAnchors": true,
+        "cameraOrthographic": true,
+        "cameraSize": 9.0
+      }
+    },
+    {
+      "case": "720-hud-text150",
+      "pngSha256": "ad93d0f110111c7f534e55a2983931292d424c19d1c28b118203daab325b93fe",
+      "pngBytes": 1068522,
+      "nativeWidth": 1280,
+      "nativeHeight": 720,
+      "nativeDimensionsMatch": true,
+      "ready": true,
+      "framesAdvanced": true,
+      "ticksAdvanced": true,
+      "watermark": true,
+      "tmpFlags": 0,
+      "activeControls": 14,
+      "centerHitsSelf": 14,
+      "foregroundBlockedControls": [],
+      "activeTextCount": 39,
+      "allTextColorOpaque": true,
+      "activeIconCount": 11,
+      "allIconColorOpaque": true,
+      "activeCanvasGroups": [],
+      "activeMarkRendererMissing": [
+        "Offline UI layout review/MatchUI/Minimap/TerrainFrame/Delivered contacts and personal route"
+      ],
+      "uiRootVisibility": {
+        "VitalsPanel": true,
+        "BuildStrip": true,
+        "CombatActions": true,
+        "WishPanel": false,
+        "Rewards": true,
+        "Minimap": true
+      },
+      "miniScale": 1.0,
+      "savedMiniScaleIndex": 1,
+      "miniBounds": [
+        902.4001,
+        12.9599981,
+        1260.80017,
+        272.16
+      ],
+      "rewardBounds": [
+        896.0,
+        306.0,
+        1260.8,
+        658.800049
+      ],
+      "rewardMinimapVerticalGap": 33.839999999999975,
+      "actorChecks": {
+        "roots": 8,
+        "allScales120": true,
+        "allUniqueDeliveredAnchors": true,
+        "cameraOrthographic": true,
+        "cameraSize": 9.0
+      }
+    },
+    {
+      "case": "720-map-text100",
+      "pngSha256": "4d24ad7c9936bdb006384c8ea51c30504980237159288ea3bb8ff79f5f364638",
+      "pngBytes": 1106504,
+      "nativeWidth": 1280,
+      "nativeHeight": 720,
+      "nativeDimensionsMatch": true,
+      "ready": true,
+      "framesAdvanced": true,
+      "ticksAdvanced": true,
+      "watermark": true,
+      "tmpFlags": 0,
+      "activeControls": 8,
+      "centerHitsSelf": 8,
+      "foregroundBlockedControls": [],
+      "activeTextCount": 15,
+      "allTextColorOpaque": true,
+      "activeIconCount": 0,
+      "allIconColorOpaque": true,
+      "activeCanvasGroups": [],
+      "activeMarkRendererMissing": [
+        "Offline UI layout review/MatchUI/TacticalMap/MapFrame/PublicMap/Delivered contacts and personal route"
+      ],
+      "uiRootVisibility": {
+        "VitalsPanel": false,
+        "BuildStrip": false,
+        "CombatActions": false,
+        "WishPanel": false,
+        "Rewards": false,
+        "Minimap": false
+      },
+      "miniScale": 1.0,
+      "savedMiniScaleIndex": 1,
+      "miniBounds": [
+        902.4001,
+        12.9599981,
+        1260.80017,
+        272.16
+      ],
+      "rewardBounds": [
+        896.0,
+        306.0,
+        1260.8,
+        658.800049
+      ],
+      "rewardMinimapVerticalGap": null,
+      "actorChecks": {
+        "roots": 8,
+        "allScales120": true,
+        "allUniqueDeliveredAnchors": true,
+        "cameraOrthographic": true,
+        "cameraSize": 9.0
+      }
+    },
+    {
+      "case": "720-map-text150",
+      "pngSha256": "55a0a395bf19dcbe926a4447d12892daf0a37234c1acce3f5b1ce380ac85bf9e",
+      "pngBytes": 1144617,
+      "nativeWidth": 1280,
+      "nativeHeight": 720,
+      "nativeDimensionsMatch": true,
+      "ready": true,
+      "framesAdvanced": true,
+      "ticksAdvanced": true,
+      "watermark": true,
+      "tmpFlags": 0,
+      "activeControls": 8,
+      "centerHitsSelf": 8,
+      "foregroundBlockedControls": [],
+      "activeTextCount": 15,
+      "allTextColorOpaque": true,
+      "activeIconCount": 0,
+      "allIconColorOpaque": true,
+      "activeCanvasGroups": [],
+      "activeMarkRendererMissing": [
+        "Offline UI layout review/MatchUI/TacticalMap/MapFrame/PublicMap/Delivered contacts and personal route"
+      ],
+      "uiRootVisibility": {
+        "VitalsPanel": false,
+        "BuildStrip": false,
+        "CombatActions": false,
+        "WishPanel": false,
+        "Rewards": false,
+        "Minimap": false
+      },
+      "miniScale": 1.0,
+      "savedMiniScaleIndex": 1,
+      "miniBounds": [
+        902.4001,
+        12.9599981,
+        1260.80017,
+        272.16
+      ],
+      "rewardBounds": [
+        896.0,
+        306.0,
+        1260.8,
+        658.800049
+      ],
+      "rewardMinimapVerticalGap": null,
+      "actorChecks": {
+        "roots": 8,
+        "allScales120": true,
+        "allUniqueDeliveredAnchors": true,
+        "cameraOrthographic": true,
+        "cameraSize": 9.0
+      }
+    },
+    {
+      "case": "720-planning-text100",
+      "pngSha256": "6aaf3f6ca75b6a29cc54ef3972c0a81fa0dab9744a0c990b5691534b7fa09314",
+      "pngBytes": 1002857,
+      "nativeWidth": 1280,
+      "nativeHeight": 720,
+      "nativeDimensionsMatch": true,
+      "ready": true,
+      "framesAdvanced": true,
+      "ticksAdvanced": true,
+      "watermark": true,
+      "tmpFlags": 0,
+      "activeControls": 13,
+      "centerHitsSelf": 13,
+      "foregroundBlockedControls": [],
+      "activeTextCount": 19,
+      "allTextColorOpaque": true,
+      "activeIconCount": 0,
+      "allIconColorOpaque": true,
+      "activeCanvasGroups": [],
+      "activeMarkRendererMissing": [
+        "Offline UI layout review/MatchUI/TacticalMap/MapFrame/PublicMap/Delivered contacts and personal route"
+      ],
+      "uiRootVisibility": {
+        "VitalsPanel": false,
+        "BuildStrip": false,
+        "CombatActions": false,
+        "WishPanel": false,
+        "Rewards": false,
+        "Minimap": false
+      },
+      "miniScale": 1.0,
+      "savedMiniScaleIndex": 1,
+      "miniBounds": [
+        902.4001,
+        12.9599981,
+        1260.80017,
+        272.16
+      ],
+      "rewardBounds": [
+        896.0,
+        306.0,
+        1260.8,
+        658.800049
+      ],
+      "rewardMinimapVerticalGap": null,
+      "actorChecks": {
+        "roots": 8,
+        "allScales120": true,
+        "allUniqueDeliveredAnchors": true,
+        "cameraOrthographic": true,
+        "cameraSize": 9.0
+      }
+    },
+    {
+      "case": "720-planning-text150",
+      "pngSha256": "9885dee69829c5c4657275e19d0b763abfc236174b1302173aff5f3cc9b42650",
+      "pngBytes": 1038775,
+      "nativeWidth": 1280,
+      "nativeHeight": 720,
+      "nativeDimensionsMatch": true,
+      "ready": true,
+      "framesAdvanced": true,
+      "ticksAdvanced": true,
+      "watermark": true,
+      "tmpFlags": 0,
+      "activeControls": 13,
+      "centerHitsSelf": 13,
+      "foregroundBlockedControls": [],
+      "activeTextCount": 19,
+      "allTextColorOpaque": true,
+      "activeIconCount": 0,
+      "allIconColorOpaque": true,
+      "activeCanvasGroups": [],
+      "activeMarkRendererMissing": [
+        "Offline UI layout review/MatchUI/TacticalMap/MapFrame/PublicMap/Delivered contacts and personal route"
+      ],
+      "uiRootVisibility": {
+        "VitalsPanel": false,
+        "BuildStrip": false,
+        "CombatActions": false,
+        "WishPanel": false,
+        "Rewards": false,
+        "Minimap": false
+      },
+      "miniScale": 1.0,
+      "savedMiniScaleIndex": 1,
+      "miniBounds": [
+        902.4001,
+        12.9599981,
+        1260.80017,
+        272.16
+      ],
+      "rewardBounds": [
+        896.0,
+        306.0,
+        1260.8,
+        658.800049
+      ],
+      "rewardMinimapVerticalGap": null,
+      "actorChecks": {
+        "roots": 8,
+        "allScales120": true,
+        "allUniqueDeliveredAnchors": true,
+        "cameraOrthographic": true,
+        "cameraSize": 9.0
+      }
+    }
+  ],
+  "totalNativePngBytes": 31690292,
+  "actorRootObservations": 112,
+  "allNativeReadyAdvancingWatermarked": true,
+  "totalTmpFlags": 0
+}

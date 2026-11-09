@@ -1,0 +1,482 @@
+# Native layout capture metadata summary
+
+Input: `/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/combined-d28df0-2026-11-08/evidence/layouts`. JSON fields are reported as captured; missing fields remain unknown. TMP flags and raycast records are metadata, not rendered-layout acceptance. Alpha values describe component tint; they are not an assertion that the final raster is opaque/transparent.
+
+Capture JSONs found: 14. No pass criteria are synthesized by this script.
+
+## 1440-hud-text100
+
+- Mode/text scale: `hud` / `1`; JSON source SHA: `d28df076bf98d10bfe6cb5fbc88b8d30a3fbe712`.
+- Image/screen/expected dimensions: `(2560, 1440)` / `(2560, 1440)` / `(2560, 1440)`; JSON flags: ready=yes, nativeMatch=yes, advanced=yes, ticksAdvanced=yes, watermark=yes.
+- Initial/current frame: `55463` / `55522`; newest time `82350` → `82500` ms; ticks advanced `yes`.
+- Screenshot pair: PNG `present` (3,753,034 bytes).
+- TMP rows: 37; captured overflow/truncated flags true: 0; one or both flags absent: 0.
+- Graphics rows (active and inactive components): 848; component-color alpha distribution: Image a=0 ×7, Image a=0.015 ×1, Image a=0.784 ×88, Image a=0.863 ×2, Image a=0.882 ×24, Image a=0.973 ×10, Image a=1 ×216, RawImage a=1 ×3, TMP_SubMeshUI a=1 ×1, TacticalMapMarks a=1 ×2, TextMeshProUGUI a=1 ×494; CanvasGroup arrays absent on 0 rows, present-empty on 848 rows.
+- Non-opaque component-alpha exceptions (tints, not automatically defects):
+  - Image color alpha `0` / renderer alpha `1`: 7; examples `Offline UI layout review/MatchUI/PlayerHUD/WishPanel/WishDetails/Viewport`, `Offline UI layout review/MatchUI/Results/ResultFacts/Viewport`, `Offline UI layout review/MatchUI/HubGuideOverlay/HubGuidePanel/GuideScroll/Viewport` (+4 more).
+  - Image color alpha `0.015` / renderer alpha `1`: 1; examples `Offline UI layout review/MatchUI/ModernSettings/SettingsScroll/Viewport`.
+  - Image color alpha `0.784` / renderer alpha `1`: 88; examples `Offline UI layout review/MatchUI/Help`, `Offline UI layout review/MatchUI/Settings`, `Offline UI layout review/MatchUI/Leave` (+85 more).
+  - Image color alpha `0.863` / renderer alpha `1`: 2; examples `Offline UI layout review/MatchUI/SignInModal`, `Offline UI layout review/MatchUI/HubGuideOverlay/Backdrop`.
+  - Image color alpha `0.882` / renderer alpha `1`: 24; examples `Offline UI layout review/MatchUI/JoinMenu/OrnamentTLH`, `Offline UI layout review/MatchUI/JoinMenu/OrnamentTLV`, `Offline UI layout review/MatchUI/JoinMenu/OrnamentTRH` (+21 more).
+  - Image color alpha `0.973` / renderer alpha `1`: 10; examples `Offline UI layout review/MatchUI/HubAtrium/Direct_Shop`, `Offline UI layout review/MatchUI/HubAtrium/Direct_Wardrobe`, `Offline UI layout review/MatchUI/HubAtrium/Direct_Titles` (+7 more).
+- Captured CanvasGroup arrays contain no non-default group values.
+- Control centers: 14 sampled; self-hit `14/14`; top-hit differs from self `0`; exposed in-screen interactable controls `13`; independent min width/height `126.72×67.392 px; smallest-area exposed target: Offline UI layout review/MatchUI/PlayerHUD/CombatActions/Slot2 `126.72×160.704 px`.
+- HUD/map root records (active state is reported, including intentionally hidden roots):
+  - `PlayerHUD` activeSelf=yes, activeInHierarchy=yes, bounds=[-0, -0, 2560, 1440], anchors=(0, 0)→(1, 1).
+  - `VitalsPanel` activeSelf=yes, activeInHierarchy=yes, bounds=[38.4, 25.92, 729.6, 198.72], anchors=(0.015, 0.018)→(0.285, 0.138).
+  - `CombatActions` activeSelf=yes, activeInHierarchy=yes, bounds=[806.4, 21.6, 1574.4, 194.4], anchors=(0.315, 0.015)→(0.615, 0.135).
+  - `WishPanel` activeSelf=no, activeInHierarchy=no, bounds=[1984, 1008, 2521.6, 1317.6], anchors=(0.775, 0.7)→(0.985, 0.915).
+  - `BuildStrip` activeSelf=yes, activeInHierarchy=yes, bounds=[38.4, 928.8, 729.6, 1317.6], anchors=(0.015, 0.645)→(0.285, 0.915).
+  - `Rewards` activeSelf=yes, activeInHierarchy=yes, bounds=[1792, 612, 2521.6, 1317.6], anchors=(0.7, 0.425)→(0.985, 0.915).
+  - `BuildDrawer` activeSelf=no, activeInHierarchy=no, bounds=[1459.2, 36, 2521.6, 1404], anchors=(0.57, 0.025)→(0.985, 0.975).
+  - `TacticalMap` activeSelf=no, activeInHierarchy=no, bounds=[64, 223.2, 2496, 1317.6], anchors=(0.025, 0.155)→(0.975, 0.915).
+  - `Minimap` activeSelf=yes, activeInHierarchy=yes, bounds=[1804.8, 25.92, 2521.6, 544.32], anchors=(0.705, 0.018)→(0.985, 0.378).
+- Map state: open=no, planning=no, blocksKeyboard=no, blocksPointer=no; minimap saved key present=no, saved index=1, loaded scale=1.
+- Captured map surfaces:
+  - `Offline UI layout review/MatchUI/TacticalMap/MapFrame/PublicMap` 48×36, raw alpha=1, CPU-readable=no; alpha histogram: 200×1524, 255×204.
+  - `Offline UI layout review/MatchUI/Minimap/TerrainFrame` 48×36, raw alpha=1, CPU-readable=no; alpha histogram: 200×1524, 255×204.
+- Camera: orthographic=yes, size=9, aspect=1.778, position=(21.875, -14.344, -30).
+- Actor 1 anchor sample: delivered anchor matches `1`, root world anchor `(21.875, -15.844, 0)`, delivered `(21.875, -15.844, 0)`, local scale `(1.2, 1.2, 1)`, lossy scale `(1.2, 1.2, 1).
+
+## 1440-hud-text150
+
+- Mode/text scale: `hud` / `1.5`; JSON source SHA: `d28df076bf98d10bfe6cb5fbc88b8d30a3fbe712`.
+- Image/screen/expected dimensions: `(2560, 1440)` / `(2560, 1440)` / `(2560, 1440)`; JSON flags: ready=yes, nativeMatch=yes, advanced=yes, ticksAdvanced=yes, watermark=yes.
+- Initial/current frame: `55522` / `55620`; newest time `82500` → `82650` ms; ticks advanced `yes`.
+- Screenshot pair: PNG `present` (3,833,896 bytes).
+- TMP rows: 37; captured overflow/truncated flags true: 0; one or both flags absent: 0.
+- Graphics rows (active and inactive components): 848; component-color alpha distribution: Image a=0 ×7, Image a=0.015 ×1, Image a=0.784 ×88, Image a=0.863 ×2, Image a=0.882 ×24, Image a=0.973 ×10, Image a=1 ×216, RawImage a=1 ×3, TMP_SubMeshUI a=1 ×1, TacticalMapMarks a=1 ×2, TextMeshProUGUI a=1 ×494; CanvasGroup arrays absent on 0 rows, present-empty on 848 rows.
+- Non-opaque component-alpha exceptions (tints, not automatically defects):
+  - Image color alpha `0` / renderer alpha `1`: 7; examples `Offline UI layout review/MatchUI/PlayerHUD/WishPanel/WishDetails/Viewport`, `Offline UI layout review/MatchUI/Results/ResultFacts/Viewport`, `Offline UI layout review/MatchUI/HubGuideOverlay/HubGuidePanel/GuideScroll/Viewport` (+4 more).
+  - Image color alpha `0.015` / renderer alpha `1`: 1; examples `Offline UI layout review/MatchUI/ModernSettings/SettingsScroll/Viewport`.
+  - Image color alpha `0.784` / renderer alpha `1`: 88; examples `Offline UI layout review/MatchUI/Help`, `Offline UI layout review/MatchUI/Settings`, `Offline UI layout review/MatchUI/Leave` (+85 more).
+  - Image color alpha `0.863` / renderer alpha `1`: 2; examples `Offline UI layout review/MatchUI/SignInModal`, `Offline UI layout review/MatchUI/HubGuideOverlay/Backdrop`.
+  - Image color alpha `0.882` / renderer alpha `1`: 24; examples `Offline UI layout review/MatchUI/JoinMenu/OrnamentTLH`, `Offline UI layout review/MatchUI/JoinMenu/OrnamentTLV`, `Offline UI layout review/MatchUI/JoinMenu/OrnamentTRH` (+21 more).
+  - Image color alpha `0.973` / renderer alpha `1`: 10; examples `Offline UI layout review/MatchUI/HubAtrium/Direct_Shop`, `Offline UI layout review/MatchUI/HubAtrium/Direct_Wardrobe`, `Offline UI layout review/MatchUI/HubAtrium/Direct_Titles` (+7 more).
+- Captured CanvasGroup arrays contain no non-default group values.
+- Control centers: 14 sampled; self-hit `14/14`; top-hit differs from self `0`; exposed in-screen interactable controls `13`; independent min width/height `126.72×67.392 px; smallest-area exposed target: Offline UI layout review/MatchUI/PlayerHUD/CombatActions/Slot2 `126.72×160.704 px`.
+- HUD/map root records (active state is reported, including intentionally hidden roots):
+  - `PlayerHUD` activeSelf=yes, activeInHierarchy=yes, bounds=[-0, -0, 2560, 1440], anchors=(0, 0)→(1, 1).
+  - `VitalsPanel` activeSelf=yes, activeInHierarchy=yes, bounds=[38.4, 25.92, 729.6, 198.72], anchors=(0.015, 0.018)→(0.285, 0.138).
+  - `CombatActions` activeSelf=yes, activeInHierarchy=yes, bounds=[806.4, 21.6, 1574.4, 194.4], anchors=(0.315, 0.015)→(0.615, 0.135).
+  - `WishPanel` activeSelf=no, activeInHierarchy=no, bounds=[1984, 1008, 2521.6, 1317.6], anchors=(0.775, 0.7)→(0.985, 0.915).
+  - `BuildStrip` activeSelf=yes, activeInHierarchy=yes, bounds=[38.4, 928.8, 729.6, 1317.6], anchors=(0.015, 0.645)→(0.285, 0.915).
+  - `Rewards` activeSelf=yes, activeInHierarchy=yes, bounds=[1792, 612, 2521.6, 1317.6], anchors=(0.7, 0.425)→(0.985, 0.915).
+  - `BuildDrawer` activeSelf=no, activeInHierarchy=no, bounds=[1459.2, 36, 2521.6, 1404], anchors=(0.57, 0.025)→(0.985, 0.975).
+  - `TacticalMap` activeSelf=no, activeInHierarchy=no, bounds=[64, 223.2, 2496, 1317.6], anchors=(0.025, 0.155)→(0.975, 0.915).
+  - `Minimap` activeSelf=yes, activeInHierarchy=yes, bounds=[1804.8, 25.92, 2521.6, 544.32], anchors=(0.705, 0.018)→(0.985, 0.378).
+- Map state: open=no, planning=no, blocksKeyboard=no, blocksPointer=no; minimap saved key present=no, saved index=1, loaded scale=1.
+- Captured map surfaces:
+  - `Offline UI layout review/MatchUI/TacticalMap/MapFrame/PublicMap` 48×36, raw alpha=1, CPU-readable=no; alpha histogram: 200×1524, 255×204.
+  - `Offline UI layout review/MatchUI/Minimap/TerrainFrame` 48×36, raw alpha=1, CPU-readable=no; alpha histogram: 200×1524, 255×204.
+- Camera: orthographic=yes, size=9, aspect=1.778, position=(21.875, -14.344, -30).
+- Actor 1 anchor sample: delivered anchor matches `1`, root world anchor `(21.875, -15.844, 0)`, delivered `(21.875, -15.844, 0)`, local scale `(1.2, 1.2, 1)`, lossy scale `(1.2, 1.2, 1).
+
+## 1440-map-text100
+
+- Mode/text scale: `map` / `1`; JSON source SHA: `d28df076bf98d10bfe6cb5fbc88b8d30a3fbe712`.
+- Image/screen/expected dimensions: `(2560, 1440)` / `(2560, 1440)` / `(2560, 1440)`; JSON flags: ready=yes, nativeMatch=yes, advanced=yes, ticksAdvanced=yes, watermark=yes.
+- Initial/current frame: `113` / `208`; newest time `5250` → `5400` ms; ticks advanced `yes`.
+- Screenshot pair: PNG `present` (4,062,267 bytes).
+- TMP rows: 14; captured overflow/truncated flags true: 0; one or both flags absent: 0.
+- Graphics rows (active and inactive components): 847; component-color alpha distribution: Image a=0 ×7, Image a=0.015 ×1, Image a=0.784 ×88, Image a=0.863 ×2, Image a=0.882 ×24, Image a=0.973 ×10, Image a=1 ×216, RawImage a=1 ×3, TacticalMapMarks a=1 ×2, TextMeshProUGUI a=1 ×494; CanvasGroup arrays absent on 0 rows, present-empty on 847 rows.
+- Non-opaque component-alpha exceptions (tints, not automatically defects):
+  - Image color alpha `0` / renderer alpha `1`: 7; examples `Offline UI layout review/MatchUI/PlayerHUD/WishPanel/WishDetails/Viewport`, `Offline UI layout review/MatchUI/Results/ResultFacts/Viewport`, `Offline UI layout review/MatchUI/HubGuideOverlay/HubGuidePanel/GuideScroll/Viewport` (+4 more).
+  - Image color alpha `0.015` / renderer alpha `1`: 1; examples `Offline UI layout review/MatchUI/ModernSettings/SettingsScroll/Viewport`.
+  - Image color alpha `0.784` / renderer alpha `1`: 88; examples `Offline UI layout review/MatchUI/Help`, `Offline UI layout review/MatchUI/Settings`, `Offline UI layout review/MatchUI/Leave` (+85 more).
+  - Image color alpha `0.863` / renderer alpha `1`: 2; examples `Offline UI layout review/MatchUI/SignInModal`, `Offline UI layout review/MatchUI/HubGuideOverlay/Backdrop`.
+  - Image color alpha `0.882` / renderer alpha `1`: 24; examples `Offline UI layout review/MatchUI/JoinMenu/OrnamentTLH`, `Offline UI layout review/MatchUI/JoinMenu/OrnamentTLV`, `Offline UI layout review/MatchUI/JoinMenu/OrnamentTRH` (+21 more).
+  - Image color alpha `0.973` / renderer alpha `1`: 10; examples `Offline UI layout review/MatchUI/HubAtrium/Direct_Shop`, `Offline UI layout review/MatchUI/HubAtrium/Direct_Wardrobe`, `Offline UI layout review/MatchUI/HubAtrium/Direct_Titles` (+7 more).
+- Captured CanvasGroup arrays contain no non-default group values.
+- Control centers: 8 sampled; self-hit `8/8`; top-hit differs from self `0`; exposed in-screen interactable controls `8`; independent min width/height `279.68×82.08 px; smallest-area exposed target: Offline UI layout review/MatchUI/TacticalMap/CloseMap `279.68×82.08 px`.
+- HUD/map root records (active state is reported, including intentionally hidden roots):
+  - `PlayerHUD` activeSelf=yes, activeInHierarchy=yes, bounds=[-0, -0, 2560, 1440], anchors=(0, 0)→(1, 1).
+  - `VitalsPanel` activeSelf=no, activeInHierarchy=no, bounds=[38.4, 25.92, 729.6, 198.72], anchors=(0.015, 0.018)→(0.285, 0.138).
+  - `CombatActions` activeSelf=no, activeInHierarchy=no, bounds=[806.4, 21.6, 1574.4, 194.4], anchors=(0.315, 0.015)→(0.615, 0.135).
+  - `WishPanel` activeSelf=no, activeInHierarchy=no, bounds=[1984, 1008, 2521.6, 1317.6], anchors=(0.775, 0.7)→(0.985, 0.915).
+  - `BuildStrip` activeSelf=no, activeInHierarchy=no, bounds=[38.4, 928.8, 729.6, 1317.6], anchors=(0.015, 0.645)→(0.285, 0.915).
+  - `Rewards` activeSelf=no, activeInHierarchy=no, bounds=[1792, 612, 2521.6, 1317.6], anchors=(0.7, 0.425)→(0.985, 0.915).
+  - `BuildDrawer` activeSelf=no, activeInHierarchy=no, bounds=[1459.2, 36, 2521.6, 1404], anchors=(0.57, 0.025)→(0.985, 0.975).
+  - `TacticalMap` activeSelf=yes, activeInHierarchy=yes, bounds=[64, 223.2, 2496, 1317.6], anchors=(0.025, 0.155)→(0.975, 0.915).
+  - `Minimap` activeSelf=no, activeInHierarchy=no, bounds=[1804.8, 25.92, 2521.6, 544.32], anchors=(0.705, 0.018)→(0.985, 0.378).
+- Map state: open=yes, planning=no, blocksKeyboard=no, blocksPointer=yes; minimap saved key present=no, saved index=1, loaded scale=1.
+- Captured map surfaces:
+  - `Offline UI layout review/MatchUI/TacticalMap/MapFrame/PublicMap` 48×36, raw alpha=1, CPU-readable=no; alpha histogram: 200×1524, 255×204.
+  - `Offline UI layout review/MatchUI/Minimap/TerrainFrame` 48×36, raw alpha=1, CPU-readable=no; alpha histogram: 200×1524, 255×204.
+- Camera: orthographic=yes, size=9, aspect=1.778, position=(21.875, -14.344, -30).
+- Actor 1 anchor sample: delivered anchor matches `1`, root world anchor `(21.875, -15.844, 0)`, delivered `(21.875, -15.844, 0)`, local scale `(1.2, 1.2, 1)`, lossy scale `(1.2, 1.2, 1).
+
+## 1440-map-text150
+
+- Mode/text scale: `map` / `1.5`; JSON source SHA: `d28df076bf98d10bfe6cb5fbc88b8d30a3fbe712`.
+- Image/screen/expected dimensions: `(2560, 1440)` / `(2560, 1440)` / `(2560, 1440)`; JSON flags: ready=yes, nativeMatch=yes, advanced=yes, ticksAdvanced=yes, watermark=yes.
+- Initial/current frame: `208` / `314`; newest time `5400` → `5550` ms; ticks advanced `yes`.
+- Screenshot pair: PNG `present` (4,116,745 bytes).
+- TMP rows: 14; captured overflow/truncated flags true: 0; one or both flags absent: 0.
+- Graphics rows (active and inactive components): 847; component-color alpha distribution: Image a=0 ×7, Image a=0.015 ×1, Image a=0.784 ×88, Image a=0.863 ×2, Image a=0.882 ×24, Image a=0.973 ×10, Image a=1 ×216, RawImage a=1 ×3, TacticalMapMarks a=1 ×2, TextMeshProUGUI a=1 ×494; CanvasGroup arrays absent on 0 rows, present-empty on 847 rows.
+- Non-opaque component-alpha exceptions (tints, not automatically defects):
+  - Image color alpha `0` / renderer alpha `1`: 7; examples `Offline UI layout review/MatchUI/PlayerHUD/WishPanel/WishDetails/Viewport`, `Offline UI layout review/MatchUI/Results/ResultFacts/Viewport`, `Offline UI layout review/MatchUI/HubGuideOverlay/HubGuidePanel/GuideScroll/Viewport` (+4 more).
+  - Image color alpha `0.015` / renderer alpha `1`: 1; examples `Offline UI layout review/MatchUI/ModernSettings/SettingsScroll/Viewport`.
+  - Image color alpha `0.784` / renderer alpha `1`: 88; examples `Offline UI layout review/MatchUI/Help`, `Offline UI layout review/MatchUI/Settings`, `Offline UI layout review/MatchUI/Leave` (+85 more).
+  - Image color alpha `0.863` / renderer alpha `1`: 2; examples `Offline UI layout review/MatchUI/SignInModal`, `Offline UI layout review/MatchUI/HubGuideOverlay/Backdrop`.
+  - Image color alpha `0.882` / renderer alpha `1`: 24; examples `Offline UI layout review/MatchUI/JoinMenu/OrnamentTLH`, `Offline UI layout review/MatchUI/JoinMenu/OrnamentTLV`, `Offline UI layout review/MatchUI/JoinMenu/OrnamentTRH` (+21 more).
+  - Image color alpha `0.973` / renderer alpha `1`: 10; examples `Offline UI layout review/MatchUI/HubAtrium/Direct_Shop`, `Offline UI layout review/MatchUI/HubAtrium/Direct_Wardrobe`, `Offline UI layout review/MatchUI/HubAtrium/Direct_Titles` (+7 more).
+- Captured CanvasGroup arrays contain no non-default group values.
+- Control centers: 8 sampled; self-hit `8/8`; top-hit differs from self `0`; exposed in-screen interactable controls `8`; independent min width/height `279.68×82.08 px; smallest-area exposed target: Offline UI layout review/MatchUI/TacticalMap/CloseMap `279.68×82.08 px`.
+- HUD/map root records (active state is reported, including intentionally hidden roots):
+  - `PlayerHUD` activeSelf=yes, activeInHierarchy=yes, bounds=[-0, -0, 2560, 1440], anchors=(0, 0)→(1, 1).
+  - `VitalsPanel` activeSelf=no, activeInHierarchy=no, bounds=[38.4, 25.92, 729.6, 198.72], anchors=(0.015, 0.018)→(0.285, 0.138).
+  - `CombatActions` activeSelf=no, activeInHierarchy=no, bounds=[806.4, 21.6, 1574.4, 194.4], anchors=(0.315, 0.015)→(0.615, 0.135).
+  - `WishPanel` activeSelf=no, activeInHierarchy=no, bounds=[1984, 1008, 2521.6, 1317.6], anchors=(0.775, 0.7)→(0.985, 0.915).
+  - `BuildStrip` activeSelf=no, activeInHierarchy=no, bounds=[38.4, 928.8, 729.6, 1317.6], anchors=(0.015, 0.645)→(0.285, 0.915).
+  - `Rewards` activeSelf=no, activeInHierarchy=no, bounds=[1792, 612, 2521.6, 1317.6], anchors=(0.7, 0.425)→(0.985, 0.915).
+  - `BuildDrawer` activeSelf=no, activeInHierarchy=no, bounds=[1459.2, 36, 2521.6, 1404], anchors=(0.57, 0.025)→(0.985, 0.975).
+  - `TacticalMap` activeSelf=yes, activeInHierarchy=yes, bounds=[64, 223.2, 2496, 1317.6], anchors=(0.025, 0.155)→(0.975, 0.915).
+  - `Minimap` activeSelf=no, activeInHierarchy=no, bounds=[1804.8, 25.92, 2521.6, 544.32], anchors=(0.705, 0.018)→(0.985, 0.378).
+- Map state: open=yes, planning=no, blocksKeyboard=no, blocksPointer=yes; minimap saved key present=no, saved index=1, loaded scale=1.
+- Captured map surfaces:
+  - `Offline UI layout review/MatchUI/TacticalMap/MapFrame/PublicMap` 48×36, raw alpha=1, CPU-readable=no; alpha histogram: 200×1524, 255×204.
+  - `Offline UI layout review/MatchUI/Minimap/TerrainFrame` 48×36, raw alpha=1, CPU-readable=no; alpha histogram: 200×1524, 255×204.
+- Camera: orthographic=yes, size=9, aspect=1.778, position=(21.875, -14.344, -30).
+- Actor 1 anchor sample: delivered anchor matches `1`, root world anchor `(21.875, -15.844, 0)`, delivered `(21.875, -15.844, 0)`, local scale `(1.2, 1.2, 1)`, lossy scale `(1.2, 1.2, 1).
+
+## 1440-planning-text100
+
+- Mode/text scale: `planning` / `1`; JSON source SHA: `d28df076bf98d10bfe6cb5fbc88b8d30a3fbe712`.
+- Image/screen/expected dimensions: `(2560, 1440)` / `(2560, 1440)` / `(2560, 1440)`; JSON flags: ready=yes, nativeMatch=yes, advanced=yes, ticksAdvanced=yes, watermark=yes.
+- Initial/current frame: `112` / `205`; newest time `5250` → `5400` ms; ticks advanced `yes`.
+- Screenshot pair: PNG `present` (3,667,506 bytes).
+- TMP rows: 18; captured overflow/truncated flags true: 0; one or both flags absent: 0.
+- Graphics rows (active and inactive components): 848; component-color alpha distribution: Image a=0 ×7, Image a=0.015 ×1, Image a=0.784 ×88, Image a=0.863 ×2, Image a=0.882 ×24, Image a=0.973 ×10, Image a=1 ×216, RawImage a=1 ×3, TMP_SubMeshUI a=1 ×1, TacticalMapMarks a=1 ×2, TextMeshProUGUI a=1 ×494; CanvasGroup arrays absent on 0 rows, present-empty on 848 rows.
+- Non-opaque component-alpha exceptions (tints, not automatically defects):
+  - Image color alpha `0` / renderer alpha `1`: 7; examples `Offline UI layout review/MatchUI/PlayerHUD/WishPanel/WishDetails/Viewport`, `Offline UI layout review/MatchUI/Results/ResultFacts/Viewport`, `Offline UI layout review/MatchUI/HubGuideOverlay/HubGuidePanel/GuideScroll/Viewport` (+4 more).
+  - Image color alpha `0.015` / renderer alpha `1`: 1; examples `Offline UI layout review/MatchUI/ModernSettings/SettingsScroll/Viewport`.
+  - Image color alpha `0.784` / renderer alpha `1`: 88; examples `Offline UI layout review/MatchUI/Help`, `Offline UI layout review/MatchUI/Settings`, `Offline UI layout review/MatchUI/Leave` (+85 more).
+  - Image color alpha `0.863` / renderer alpha `1`: 2; examples `Offline UI layout review/MatchUI/SignInModal`, `Offline UI layout review/MatchUI/HubGuideOverlay/Backdrop`.
+  - Image color alpha `0.882` / renderer alpha `1`: 24; examples `Offline UI layout review/MatchUI/JoinMenu/OrnamentTLH`, `Offline UI layout review/MatchUI/JoinMenu/OrnamentTLV`, `Offline UI layout review/MatchUI/JoinMenu/OrnamentTRH` (+21 more).
+  - Image color alpha `0.973` / renderer alpha `1`: 10; examples `Offline UI layout review/MatchUI/HubAtrium/Direct_Shop`, `Offline UI layout review/MatchUI/HubAtrium/Direct_Wardrobe`, `Offline UI layout review/MatchUI/HubAtrium/Direct_Titles` (+7 more).
+- Captured CanvasGroup arrays contain no non-default group values.
+- Control centers: 13 sampled; self-hit `13/13`; top-hit differs from self `0`; exposed in-screen interactable controls `10`; independent min width/height `106.667×82.08 px; smallest-area exposed target: Offline UI layout review/MatchUI/TacticalMap/MapFrame/PublicMap/SpawnMarker1 `106.667×85.333 px`.
+- HUD/map root records (active state is reported, including intentionally hidden roots):
+  - `PlayerHUD` activeSelf=yes, activeInHierarchy=yes, bounds=[-0, -0, 2560, 1440], anchors=(0, 0)→(1, 1).
+  - `VitalsPanel` activeSelf=no, activeInHierarchy=no, bounds=[38.4, 25.92, 729.6, 198.72], anchors=(0.015, 0.018)→(0.285, 0.138).
+  - `CombatActions` activeSelf=no, activeInHierarchy=no, bounds=[806.4, 21.6, 1574.4, 194.4], anchors=(0.315, 0.015)→(0.615, 0.135).
+  - `WishPanel` activeSelf=no, activeInHierarchy=no, bounds=[1984, 1008, 2521.6, 1317.6], anchors=(0.775, 0.7)→(0.985, 0.915).
+  - `BuildStrip` activeSelf=no, activeInHierarchy=no, bounds=[38.4, 928.8, 729.6, 1317.6], anchors=(0.015, 0.645)→(0.285, 0.915).
+  - `Rewards` activeSelf=no, activeInHierarchy=no, bounds=[1792, 612, 2521.6, 1317.6], anchors=(0.7, 0.425)→(0.985, 0.915).
+  - `BuildDrawer` activeSelf=no, activeInHierarchy=no, bounds=[1459.2, 36, 2521.6, 1404], anchors=(0.57, 0.025)→(0.985, 0.975).
+  - `TacticalMap` activeSelf=yes, activeInHierarchy=yes, bounds=[64, 223.2, 2496, 1317.6], anchors=(0.025, 0.155)→(0.975, 0.915).
+  - `Minimap` activeSelf=no, activeInHierarchy=no, bounds=[1804.8, 25.92, 2521.6, 544.32], anchors=(0.705, 0.018)→(0.985, 0.378).
+- Map state: open=yes, planning=yes, blocksKeyboard=yes, blocksPointer=yes; minimap saved key present=no, saved index=1, loaded scale=1.
+- Captured map surfaces:
+  - `Offline UI layout review/MatchUI/TacticalMap/MapFrame/PublicMap` 48×36, raw alpha=1, CPU-readable=no; alpha histogram: 200×1524, 255×204.
+  - `Offline UI layout review/MatchUI/Minimap/TerrainFrame` 48×36, raw alpha=1, CPU-readable=no; alpha histogram: 200×1524, 255×204.
+- Camera: orthographic=yes, size=9, aspect=1.778, position=(21.875, -14.344, -30).
+- Actor 1 anchor sample: delivered anchor matches `1`, root world anchor `(21.875, -15.844, 0)`, delivered `(21.875, -15.844, 0)`, local scale `(1.2, 1.2, 1)`, lossy scale `(1.2, 1.2, 1).
+
+## 1440-planning-text150
+
+- Mode/text scale: `planning` / `1.5`; JSON source SHA: `d28df076bf98d10bfe6cb5fbc88b8d30a3fbe712`.
+- Image/screen/expected dimensions: `(2560, 1440)` / `(2560, 1440)` / `(2560, 1440)`; JSON flags: ready=yes, nativeMatch=yes, advanced=yes, ticksAdvanced=yes, watermark=yes.
+- Initial/current frame: `205` / `284`; newest time `5400` → `5600` ms; ticks advanced `yes`.
+- Screenshot pair: PNG `present` (3,722,834 bytes).
+- TMP rows: 18; captured overflow/truncated flags true: 0; one or both flags absent: 0.
+- Graphics rows (active and inactive components): 848; component-color alpha distribution: Image a=0 ×7, Image a=0.015 ×1, Image a=0.784 ×88, Image a=0.863 ×2, Image a=0.882 ×24, Image a=0.973 ×10, Image a=1 ×216, RawImage a=1 ×3, TMP_SubMeshUI a=1 ×1, TacticalMapMarks a=1 ×2, TextMeshProUGUI a=1 ×494; CanvasGroup arrays absent on 0 rows, present-empty on 848 rows.
+- Non-opaque component-alpha exceptions (tints, not automatically defects):
+  - Image color alpha `0` / renderer alpha `1`: 7; examples `Offline UI layout review/MatchUI/PlayerHUD/WishPanel/WishDetails/Viewport`, `Offline UI layout review/MatchUI/Results/ResultFacts/Viewport`, `Offline UI layout review/MatchUI/HubGuideOverlay/HubGuidePanel/GuideScroll/Viewport` (+4 more).
+  - Image color alpha `0.015` / renderer alpha `1`: 1; examples `Offline UI layout review/MatchUI/ModernSettings/SettingsScroll/Viewport`.
+  - Image color alpha `0.784` / renderer alpha `1`: 88; examples `Offline UI layout review/MatchUI/Help`, `Offline UI layout review/MatchUI/Settings`, `Offline UI layout review/MatchUI/Leave` (+85 more).
+  - Image color alpha `0.863` / renderer alpha `1`: 2; examples `Offline UI layout review/MatchUI/SignInModal`, `Offline UI layout review/MatchUI/HubGuideOverlay/Backdrop`.
+  - Image color alpha `0.882` / renderer alpha `1`: 24; examples `Offline UI layout review/MatchUI/JoinMenu/OrnamentTLH`, `Offline UI layout review/MatchUI/JoinMenu/OrnamentTLV`, `Offline UI layout review/MatchUI/JoinMenu/OrnamentTRH` (+21 more).
+  - Image color alpha `0.973` / renderer alpha `1`: 10; examples `Offline UI layout review/MatchUI/HubAtrium/Direct_Shop`, `Offline UI layout review/MatchUI/HubAtrium/Direct_Wardrobe`, `Offline UI layout review/MatchUI/HubAtrium/Direct_Titles` (+7 more).
+- Captured CanvasGroup arrays contain no non-default group values.
+- Control centers: 13 sampled; self-hit `13/13`; top-hit differs from self `0`; exposed in-screen interactable controls `10`; independent min width/height `106.667×82.08 px; smallest-area exposed target: Offline UI layout review/MatchUI/TacticalMap/MapFrame/PublicMap/SpawnMarker1 `106.667×85.333 px`.
+- HUD/map root records (active state is reported, including intentionally hidden roots):
+  - `PlayerHUD` activeSelf=yes, activeInHierarchy=yes, bounds=[-0, -0, 2560, 1440], anchors=(0, 0)→(1, 1).
+  - `VitalsPanel` activeSelf=no, activeInHierarchy=no, bounds=[38.4, 25.92, 729.6, 198.72], anchors=(0.015, 0.018)→(0.285, 0.138).
+  - `CombatActions` activeSelf=no, activeInHierarchy=no, bounds=[806.4, 21.6, 1574.4, 194.4], anchors=(0.315, 0.015)→(0.615, 0.135).
+  - `WishPanel` activeSelf=no, activeInHierarchy=no, bounds=[1984, 1008, 2521.6, 1317.6], anchors=(0.775, 0.7)→(0.985, 0.915).
+  - `BuildStrip` activeSelf=no, activeInHierarchy=no, bounds=[38.4, 928.8, 729.6, 1317.6], anchors=(0.015, 0.645)→(0.285, 0.915).
+  - `Rewards` activeSelf=no, activeInHierarchy=no, bounds=[1792, 612, 2521.6, 1317.6], anchors=(0.7, 0.425)→(0.985, 0.915).
+  - `BuildDrawer` activeSelf=no, activeInHierarchy=no, bounds=[1459.2, 36, 2521.6, 1404], anchors=(0.57, 0.025)→(0.985, 0.975).
+  - `TacticalMap` activeSelf=yes, activeInHierarchy=yes, bounds=[64, 223.2, 2496, 1317.6], anchors=(0.025, 0.155)→(0.975, 0.915).
+  - `Minimap` activeSelf=no, activeInHierarchy=no, bounds=[1804.8, 25.92, 2521.6, 544.32], anchors=(0.705, 0.018)→(0.985, 0.378).
+- Map state: open=yes, planning=yes, blocksKeyboard=yes, blocksPointer=yes; minimap saved key present=no, saved index=1, loaded scale=1.
+- Captured map surfaces:
+  - `Offline UI layout review/MatchUI/TacticalMap/MapFrame/PublicMap` 48×36, raw alpha=1, CPU-readable=no; alpha histogram: 200×1524, 255×204.
+  - `Offline UI layout review/MatchUI/Minimap/TerrainFrame` 48×36, raw alpha=1, CPU-readable=no; alpha histogram: 200×1524, 255×204.
+- Camera: orthographic=yes, size=9, aspect=1.778, position=(21.875, -14.344, -30).
+- Actor 1 anchor sample: delivered anchor matches `1`, root world anchor `(21.875, -15.844, 0)`, delivered `(21.875, -15.844, 0)`, local scale `(1.2, 1.2, 1)`, lossy scale `(1.2, 1.2, 1).
+
+## 720-hud-text100
+
+- Mode/text scale: `hud` / `1`; JSON source SHA: `d28df076bf98d10bfe6cb5fbc88b8d30a3fbe712`.
+- Image/screen/expected dimensions: `(1280, 720)` / `(1280, 720)` / `(1280, 720)`; JSON flags: ready=yes, nativeMatch=yes, advanced=yes, ticksAdvanced=yes, watermark=yes.
+- Initial/current frame: `110` / `194`; newest time `5250` → `5400` ms; ticks advanced `yes`.
+- Screenshot pair: PNG `present` (1,026,191 bytes).
+- TMP rows: 37; captured overflow/truncated flags true: 0; one or both flags absent: 0.
+- Graphics rows (active and inactive components): 848; component-color alpha distribution: Image a=0 ×7, Image a=0.015 ×1, Image a=0.784 ×88, Image a=0.863 ×2, Image a=0.882 ×24, Image a=0.973 ×10, Image a=1 ×216, RawImage a=1 ×3, TMP_SubMeshUI a=1 ×1, TacticalMapMarks a=1 ×2, TextMeshProUGUI a=1 ×494; CanvasGroup arrays absent on 0 rows, present-empty on 848 rows.
+- Non-opaque component-alpha exceptions (tints, not automatically defects):
+  - Image color alpha `0` / renderer alpha `1`: 7; examples `Offline UI layout review/MatchUI/PlayerHUD/WishPanel/WishDetails/Viewport`, `Offline UI layout review/MatchUI/Results/ResultFacts/Viewport`, `Offline UI layout review/MatchUI/HubGuideOverlay/HubGuidePanel/GuideScroll/Viewport` (+4 more).
+  - Image color alpha `0.015` / renderer alpha `1`: 1; examples `Offline UI layout review/MatchUI/ModernSettings/SettingsScroll/Viewport`.
+  - Image color alpha `0.784` / renderer alpha `1`: 88; examples `Offline UI layout review/MatchUI/Help`, `Offline UI layout review/MatchUI/Settings`, `Offline UI layout review/MatchUI/Leave` (+85 more).
+  - Image color alpha `0.863` / renderer alpha `1`: 2; examples `Offline UI layout review/MatchUI/SignInModal`, `Offline UI layout review/MatchUI/HubGuideOverlay/Backdrop`.
+  - Image color alpha `0.882` / renderer alpha `1`: 24; examples `Offline UI layout review/MatchUI/JoinMenu/OrnamentTLH`, `Offline UI layout review/MatchUI/JoinMenu/OrnamentTLV`, `Offline UI layout review/MatchUI/JoinMenu/OrnamentTRH` (+21 more).
+  - Image color alpha `0.973` / renderer alpha `1`: 10; examples `Offline UI layout review/MatchUI/HubAtrium/Direct_Shop`, `Offline UI layout review/MatchUI/HubAtrium/Direct_Wardrobe`, `Offline UI layout review/MatchUI/HubAtrium/Direct_Titles` (+7 more).
+- Captured CanvasGroup arrays contain no non-default group values.
+- Control centers: 14 sampled; self-hit `14/14`; top-hit differs from self `0`; exposed in-screen interactable controls `13`; independent min width/height `63.36×33.696 px; smallest-area exposed target: Offline UI layout review/MatchUI/PlayerHUD/CombatActions/Potion `63.36×80.352 px`.
+- HUD/map root records (active state is reported, including intentionally hidden roots):
+  - `PlayerHUD` activeSelf=yes, activeInHierarchy=yes, bounds=[-0, -0, 1280, 720], anchors=(0, 0)→(1, 1).
+  - `VitalsPanel` activeSelf=yes, activeInHierarchy=yes, bounds=[19.2, 12.96, 364.8, 99.36], anchors=(0.015, 0.018)→(0.285, 0.138).
+  - `CombatActions` activeSelf=yes, activeInHierarchy=yes, bounds=[403.2, 10.8, 787.2, 97.2], anchors=(0.315, 0.015)→(0.615, 0.135).
+  - `WishPanel` activeSelf=no, activeInHierarchy=no, bounds=[992, 504, 1260.8, 658.8], anchors=(0.775, 0.7)→(0.985, 0.915).
+  - `BuildStrip` activeSelf=yes, activeInHierarchy=yes, bounds=[19.2, 464.4, 364.8, 658.8], anchors=(0.015, 0.645)→(0.285, 0.915).
+  - `Rewards` activeSelf=yes, activeInHierarchy=yes, bounds=[896, 306, 1260.8, 658.8], anchors=(0.7, 0.425)→(0.985, 0.915).
+  - `BuildDrawer` activeSelf=no, activeInHierarchy=no, bounds=[729.6, 18, 1260.8, 702], anchors=(0.57, 0.025)→(0.985, 0.975).
+  - `TacticalMap` activeSelf=no, activeInHierarchy=no, bounds=[32, 111.6, 1248, 658.8], anchors=(0.025, 0.155)→(0.975, 0.915).
+  - `Minimap` activeSelf=yes, activeInHierarchy=yes, bounds=[902.4, 12.96, 1260.8, 272.16], anchors=(0.705, 0.018)→(0.985, 0.378).
+- Map state: open=no, planning=no, blocksKeyboard=no, blocksPointer=no; minimap saved key present=no, saved index=1, loaded scale=1.
+- Captured map surfaces:
+  - `Offline UI layout review/MatchUI/TacticalMap/MapFrame/PublicMap` 48×36, raw alpha=1, CPU-readable=no; alpha histogram: 200×1524, 255×204.
+  - `Offline UI layout review/MatchUI/Minimap/TerrainFrame` 48×36, raw alpha=1, CPU-readable=no; alpha histogram: 200×1524, 255×204.
+- Camera: orthographic=yes, size=9, aspect=1.778, position=(21.875, -14.344, -30).
+- Actor 1 anchor sample: delivered anchor matches `1`, root world anchor `(21.875, -15.844, 0)`, delivered `(21.875, -15.844, 0)`, local scale `(1.2, 1.2, 1)`, lossy scale `(1.2, 1.2, 1).
+
+## 720-hud-text150-mini085
+
+- Mode/text scale: `hud` / `1.5`; JSON source SHA: `d28df076bf98d10bfe6cb5fbc88b8d30a3fbe712`.
+- Image/screen/expected dimensions: `(1280, 720)` / `(1280, 720)` / `(1280, 720)`; JSON flags: ready=yes, nativeMatch=yes, advanced=yes, ticksAdvanced=yes, watermark=yes.
+- Initial/current frame: `116` / `200`; newest time `5300` → `5450` ms; ticks advanced `yes`.
+- Screenshot pair: PNG `present` (1,078,208 bytes).
+- TMP rows: 37; captured overflow/truncated flags true: 0; one or both flags absent: 0.
+- Graphics rows (active and inactive components): 848; component-color alpha distribution: Image a=0 ×7, Image a=0.015 ×1, Image a=0.784 ×88, Image a=0.863 ×2, Image a=0.882 ×24, Image a=0.973 ×10, Image a=1 ×216, RawImage a=1 ×3, TMP_SubMeshUI a=1 ×1, TacticalMapMarks a=1 ×2, TextMeshProUGUI a=1 ×494; CanvasGroup arrays absent on 0 rows, present-empty on 848 rows.
+- Non-opaque component-alpha exceptions (tints, not automatically defects):
+  - Image color alpha `0` / renderer alpha `1`: 7; examples `Offline UI layout review/MatchUI/PlayerHUD/WishPanel/WishDetails/Viewport`, `Offline UI layout review/MatchUI/Results/ResultFacts/Viewport`, `Offline UI layout review/MatchUI/HubGuideOverlay/HubGuidePanel/GuideScroll/Viewport` (+4 more).
+  - Image color alpha `0.015` / renderer alpha `1`: 1; examples `Offline UI layout review/MatchUI/ModernSettings/SettingsScroll/Viewport`.
+  - Image color alpha `0.784` / renderer alpha `1`: 88; examples `Offline UI layout review/MatchUI/Help`, `Offline UI layout review/MatchUI/Settings`, `Offline UI layout review/MatchUI/Leave` (+85 more).
+  - Image color alpha `0.863` / renderer alpha `1`: 2; examples `Offline UI layout review/MatchUI/SignInModal`, `Offline UI layout review/MatchUI/HubGuideOverlay/Backdrop`.
+  - Image color alpha `0.882` / renderer alpha `1`: 24; examples `Offline UI layout review/MatchUI/JoinMenu/OrnamentTLH`, `Offline UI layout review/MatchUI/JoinMenu/OrnamentTLV`, `Offline UI layout review/MatchUI/JoinMenu/OrnamentTRH` (+21 more).
+  - Image color alpha `0.973` / renderer alpha `1`: 10; examples `Offline UI layout review/MatchUI/HubAtrium/Direct_Shop`, `Offline UI layout review/MatchUI/HubAtrium/Direct_Wardrobe`, `Offline UI layout review/MatchUI/HubAtrium/Direct_Titles` (+7 more).
+- Captured CanvasGroup arrays contain no non-default group values.
+- Control centers: 14 sampled; self-hit `14/14`; top-hit differs from self `0`; exposed in-screen interactable controls `13`; independent min width/height `63.36×28.642 px; smallest-area exposed target: Offline UI layout review/MatchUI/PlayerHUD/CombatActions/Slot2 `63.36×80.352 px`.
+- HUD/map root records (active state is reported, including intentionally hidden roots):
+  - `PlayerHUD` activeSelf=yes, activeInHierarchy=yes, bounds=[-0, -0, 1280, 720], anchors=(0, 0)→(1, 1).
+  - `VitalsPanel` activeSelf=yes, activeInHierarchy=yes, bounds=[19.2, 12.96, 364.8, 99.36], anchors=(0.015, 0.018)→(0.285, 0.138).
+  - `CombatActions` activeSelf=yes, activeInHierarchy=yes, bounds=[403.2, 10.8, 787.2, 97.2], anchors=(0.315, 0.015)→(0.615, 0.135).
+  - `WishPanel` activeSelf=no, activeInHierarchy=no, bounds=[992, 504, 1260.8, 658.8], anchors=(0.775, 0.7)→(0.985, 0.915).
+  - `BuildStrip` activeSelf=yes, activeInHierarchy=yes, bounds=[19.2, 464.4, 364.8, 658.8], anchors=(0.015, 0.645)→(0.285, 0.915).
+  - `Rewards` activeSelf=yes, activeInHierarchy=yes, bounds=[896, 306, 1260.8, 658.8], anchors=(0.7, 0.425)→(0.985, 0.915).
+  - `BuildDrawer` activeSelf=no, activeInHierarchy=no, bounds=[729.6, 18, 1260.8, 702], anchors=(0.57, 0.025)→(0.985, 0.975).
+  - `TacticalMap` activeSelf=no, activeInHierarchy=no, bounds=[32, 111.6, 1248, 658.8], anchors=(0.025, 0.155)→(0.975, 0.915).
+  - `Minimap` activeSelf=yes, activeInHierarchy=yes, bounds=[956.16, 12.96, 1260.8, 233.28], anchors=(0.747, 0.018)→(0.985, 0.324).
+- Map state: open=no, planning=no, blocksKeyboard=no, blocksPointer=no; minimap saved key present=yes, saved index=0, loaded scale=0.85.
+- Captured map surfaces:
+  - `Offline UI layout review/MatchUI/TacticalMap/MapFrame/PublicMap` 48×36, raw alpha=1, CPU-readable=no; alpha histogram: 200×1524, 255×204.
+  - `Offline UI layout review/MatchUI/Minimap/TerrainFrame` 48×36, raw alpha=1, CPU-readable=no; alpha histogram: 200×1524, 255×204.
+- Camera: orthographic=yes, size=9, aspect=1.778, position=(21.875, -14.344, -30).
+- Actor 1 anchor sample: delivered anchor matches `1`, root world anchor `(21.875, -15.844, 0)`, delivered `(21.875, -15.844, 0)`, local scale `(1.2, 1.2, 1)`, lossy scale `(1.2, 1.2, 1).
+
+## 720-hud-text150-mini125
+
+- Mode/text scale: `hud` / `1.5`; JSON source SHA: `d28df076bf98d10bfe6cb5fbc88b8d30a3fbe712`.
+- Image/screen/expected dimensions: `(1280, 720)` / `(1280, 720)` / `(1280, 720)`; JSON flags: ready=yes, nativeMatch=yes, advanced=yes, ticksAdvanced=yes, watermark=yes.
+- Initial/current frame: `92` / `180`; newest time `5300` → `5450` ms; ticks advanced `yes`.
+- Screenshot pair: PNG `present` (1,068,336 bytes).
+- TMP rows: 37; captured overflow/truncated flags true: 0; one or both flags absent: 0.
+- Graphics rows (active and inactive components): 848; component-color alpha distribution: Image a=0 ×7, Image a=0.015 ×1, Image a=0.784 ×88, Image a=0.863 ×2, Image a=0.882 ×24, Image a=0.973 ×10, Image a=1 ×216, RawImage a=1 ×3, TMP_SubMeshUI a=1 ×1, TacticalMapMarks a=1 ×2, TextMeshProUGUI a=1 ×494; CanvasGroup arrays absent on 0 rows, present-empty on 848 rows.
+- Non-opaque component-alpha exceptions (tints, not automatically defects):
+  - Image color alpha `0` / renderer alpha `1`: 7; examples `Offline UI layout review/MatchUI/PlayerHUD/WishPanel/WishDetails/Viewport`, `Offline UI layout review/MatchUI/Results/ResultFacts/Viewport`, `Offline UI layout review/MatchUI/HubGuideOverlay/HubGuidePanel/GuideScroll/Viewport` (+4 more).
+  - Image color alpha `0.015` / renderer alpha `1`: 1; examples `Offline UI layout review/MatchUI/ModernSettings/SettingsScroll/Viewport`.
+  - Image color alpha `0.784` / renderer alpha `1`: 88; examples `Offline UI layout review/MatchUI/Help`, `Offline UI layout review/MatchUI/Settings`, `Offline UI layout review/MatchUI/Leave` (+85 more).
+  - Image color alpha `0.863` / renderer alpha `1`: 2; examples `Offline UI layout review/MatchUI/SignInModal`, `Offline UI layout review/MatchUI/HubGuideOverlay/Backdrop`.
+  - Image color alpha `0.882` / renderer alpha `1`: 24; examples `Offline UI layout review/MatchUI/JoinMenu/OrnamentTLH`, `Offline UI layout review/MatchUI/JoinMenu/OrnamentTLV`, `Offline UI layout review/MatchUI/JoinMenu/OrnamentTRH` (+21 more).
+  - Image color alpha `0.973` / renderer alpha `1`: 10; examples `Offline UI layout review/MatchUI/HubAtrium/Direct_Shop`, `Offline UI layout review/MatchUI/HubAtrium/Direct_Wardrobe`, `Offline UI layout review/MatchUI/HubAtrium/Direct_Titles` (+7 more).
+- Captured CanvasGroup arrays contain no non-default group values.
+- Control centers: 14 sampled; self-hit `14/14`; top-hit differs from self `0`; exposed in-screen interactable controls `13`; independent min width/height `63.36×42.12 px; smallest-area exposed target: Offline UI layout review/MatchUI/PlayerHUD/CombatActions/Slot2 `63.36×80.352 px`.
+- HUD/map root records (active state is reported, including intentionally hidden roots):
+  - `PlayerHUD` activeSelf=yes, activeInHierarchy=yes, bounds=[-0, -0, 1280, 720], anchors=(0, 0)→(1, 1).
+  - `VitalsPanel` activeSelf=yes, activeInHierarchy=yes, bounds=[19.2, 12.96, 364.8, 99.36], anchors=(0.015, 0.018)→(0.285, 0.138).
+  - `CombatActions` activeSelf=yes, activeInHierarchy=yes, bounds=[403.2, 10.8, 787.2, 97.2], anchors=(0.315, 0.015)→(0.615, 0.135).
+  - `WishPanel` activeSelf=no, activeInHierarchy=no, bounds=[992, 504, 1260.8, 658.8], anchors=(0.775, 0.7)→(0.985, 0.915).
+  - `BuildStrip` activeSelf=yes, activeInHierarchy=yes, bounds=[19.2, 464.4, 364.8, 658.8], anchors=(0.015, 0.645)→(0.285, 0.915).
+  - `Rewards` activeSelf=yes, activeInHierarchy=yes, bounds=[896, 347.76, 1260.8, 658.8], anchors=(0.7, 0.483)→(0.985, 0.915).
+  - `BuildDrawer` activeSelf=no, activeInHierarchy=no, bounds=[729.6, 18, 1260.8, 702], anchors=(0.57, 0.025)→(0.985, 0.975).
+  - `TacticalMap` activeSelf=no, activeInHierarchy=no, bounds=[32, 111.6, 1248, 658.8], anchors=(0.025, 0.155)→(0.975, 0.915).
+  - `Minimap` activeSelf=yes, activeInHierarchy=yes, bounds=[812.8, 12.96, 1260.8, 336.96], anchors=(0.635, 0.018)→(0.985, 0.468).
+- Map state: open=no, planning=no, blocksKeyboard=no, blocksPointer=no; minimap saved key present=yes, saved index=2, loaded scale=1.25.
+- Captured map surfaces:
+  - `Offline UI layout review/MatchUI/TacticalMap/MapFrame/PublicMap` 48×36, raw alpha=1, CPU-readable=no; alpha histogram: 200×1524, 255×204.
+  - `Offline UI layout review/MatchUI/Minimap/TerrainFrame` 48×36, raw alpha=1, CPU-readable=no; alpha histogram: 200×1524, 255×204.
+- Camera: orthographic=yes, size=9, aspect=1.778, position=(21.875, -14.344, -30).
+- Actor 1 anchor sample: delivered anchor matches `1`, root world anchor `(21.875, -15.844, 0)`, delivered `(21.875, -15.844, 0)`, local scale `(1.2, 1.2, 1)`, lossy scale `(1.2, 1.2, 1).
+
+## 720-hud-text150
+
+- Mode/text scale: `hud` / `1.5`; JSON source SHA: `d28df076bf98d10bfe6cb5fbc88b8d30a3fbe712`.
+- Image/screen/expected dimensions: `(1280, 720)` / `(1280, 720)` / `(1280, 720)`; JSON flags: ready=yes, nativeMatch=yes, advanced=yes, ticksAdvanced=yes, watermark=yes.
+- Initial/current frame: `194` / `281`; newest time `5400` → `5550` ms; ticks advanced `yes`.
+- Screenshot pair: PNG `present` (1,068,522 bytes).
+- TMP rows: 37; captured overflow/truncated flags true: 0; one or both flags absent: 0.
+- Graphics rows (active and inactive components): 848; component-color alpha distribution: Image a=0 ×7, Image a=0.015 ×1, Image a=0.784 ×88, Image a=0.863 ×2, Image a=0.882 ×24, Image a=0.973 ×10, Image a=1 ×216, RawImage a=1 ×3, TMP_SubMeshUI a=1 ×1, TacticalMapMarks a=1 ×2, TextMeshProUGUI a=1 ×494; CanvasGroup arrays absent on 0 rows, present-empty on 848 rows.
+- Non-opaque component-alpha exceptions (tints, not automatically defects):
+  - Image color alpha `0` / renderer alpha `1`: 7; examples `Offline UI layout review/MatchUI/PlayerHUD/WishPanel/WishDetails/Viewport`, `Offline UI layout review/MatchUI/Results/ResultFacts/Viewport`, `Offline UI layout review/MatchUI/HubGuideOverlay/HubGuidePanel/GuideScroll/Viewport` (+4 more).
+  - Image color alpha `0.015` / renderer alpha `1`: 1; examples `Offline UI layout review/MatchUI/ModernSettings/SettingsScroll/Viewport`.
+  - Image color alpha `0.784` / renderer alpha `1`: 88; examples `Offline UI layout review/MatchUI/Help`, `Offline UI layout review/MatchUI/Settings`, `Offline UI layout review/MatchUI/Leave` (+85 more).
+  - Image color alpha `0.863` / renderer alpha `1`: 2; examples `Offline UI layout review/MatchUI/SignInModal`, `Offline UI layout review/MatchUI/HubGuideOverlay/Backdrop`.
+  - Image color alpha `0.882` / renderer alpha `1`: 24; examples `Offline UI layout review/MatchUI/JoinMenu/OrnamentTLH`, `Offline UI layout review/MatchUI/JoinMenu/OrnamentTLV`, `Offline UI layout review/MatchUI/JoinMenu/OrnamentTRH` (+21 more).
+  - Image color alpha `0.973` / renderer alpha `1`: 10; examples `Offline UI layout review/MatchUI/HubAtrium/Direct_Shop`, `Offline UI layout review/MatchUI/HubAtrium/Direct_Wardrobe`, `Offline UI layout review/MatchUI/HubAtrium/Direct_Titles` (+7 more).
+- Captured CanvasGroup arrays contain no non-default group values.
+- Control centers: 14 sampled; self-hit `14/14`; top-hit differs from self `0`; exposed in-screen interactable controls `13`; independent min width/height `63.36×33.696 px; smallest-area exposed target: Offline UI layout review/MatchUI/PlayerHUD/CombatActions/Potion `63.36×80.352 px`.
+- HUD/map root records (active state is reported, including intentionally hidden roots):
+  - `PlayerHUD` activeSelf=yes, activeInHierarchy=yes, bounds=[-0, -0, 1280, 720], anchors=(0, 0)→(1, 1).
+  - `VitalsPanel` activeSelf=yes, activeInHierarchy=yes, bounds=[19.2, 12.96, 364.8, 99.36], anchors=(0.015, 0.018)→(0.285, 0.138).
+  - `CombatActions` activeSelf=yes, activeInHierarchy=yes, bounds=[403.2, 10.8, 787.2, 97.2], anchors=(0.315, 0.015)→(0.615, 0.135).
+  - `WishPanel` activeSelf=no, activeInHierarchy=no, bounds=[992, 504, 1260.8, 658.8], anchors=(0.775, 0.7)→(0.985, 0.915).
+  - `BuildStrip` activeSelf=yes, activeInHierarchy=yes, bounds=[19.2, 464.4, 364.8, 658.8], anchors=(0.015, 0.645)→(0.285, 0.915).
+  - `Rewards` activeSelf=yes, activeInHierarchy=yes, bounds=[896, 306, 1260.8, 658.8], anchors=(0.7, 0.425)→(0.985, 0.915).
+  - `BuildDrawer` activeSelf=no, activeInHierarchy=no, bounds=[729.6, 18, 1260.8, 702], anchors=(0.57, 0.025)→(0.985, 0.975).
+  - `TacticalMap` activeSelf=no, activeInHierarchy=no, bounds=[32, 111.6, 1248, 658.8], anchors=(0.025, 0.155)→(0.975, 0.915).
+  - `Minimap` activeSelf=yes, activeInHierarchy=yes, bounds=[902.4, 12.96, 1260.8, 272.16], anchors=(0.705, 0.018)→(0.985, 0.378).
+- Map state: open=no, planning=no, blocksKeyboard=no, blocksPointer=no; minimap saved key present=no, saved index=1, loaded scale=1.
+- Captured map surfaces:
+  - `Offline UI layout review/MatchUI/TacticalMap/MapFrame/PublicMap` 48×36, raw alpha=1, CPU-readable=no; alpha histogram: 200×1524, 255×204.
+  - `Offline UI layout review/MatchUI/Minimap/TerrainFrame` 48×36, raw alpha=1, CPU-readable=no; alpha histogram: 200×1524, 255×204.
+- Camera: orthographic=yes, size=9, aspect=1.778, position=(21.875, -14.344, -30).
+- Actor 1 anchor sample: delivered anchor matches `1`, root world anchor `(21.875, -15.844, 0)`, delivered `(21.875, -15.844, 0)`, local scale `(1.2, 1.2, 1)`, lossy scale `(1.2, 1.2, 1).
+
+## 720-map-text100
+
+- Mode/text scale: `map` / `1`; JSON source SHA: `d28df076bf98d10bfe6cb5fbc88b8d30a3fbe712`.
+- Image/screen/expected dimensions: `(1280, 720)` / `(1280, 720)` / `(1280, 720)`; JSON flags: ready=yes, nativeMatch=yes, advanced=yes, ticksAdvanced=yes, watermark=yes.
+- Initial/current frame: `116` / `200`; newest time `5300` → `5450` ms; ticks advanced `yes`.
+- Screenshot pair: PNG `present` (1,106,504 bytes).
+- TMP rows: 14; captured overflow/truncated flags true: 0; one or both flags absent: 0.
+- Graphics rows (active and inactive components): 847; component-color alpha distribution: Image a=0 ×7, Image a=0.015 ×1, Image a=0.784 ×88, Image a=0.863 ×2, Image a=0.882 ×24, Image a=0.973 ×10, Image a=1 ×216, RawImage a=1 ×3, TacticalMapMarks a=1 ×2, TextMeshProUGUI a=1 ×494; CanvasGroup arrays absent on 0 rows, present-empty on 847 rows.
+- Non-opaque component-alpha exceptions (tints, not automatically defects):
+  - Image color alpha `0` / renderer alpha `1`: 7; examples `Offline UI layout review/MatchUI/PlayerHUD/WishPanel/WishDetails/Viewport`, `Offline UI layout review/MatchUI/Results/ResultFacts/Viewport`, `Offline UI layout review/MatchUI/HubGuideOverlay/HubGuidePanel/GuideScroll/Viewport` (+4 more).
+  - Image color alpha `0.015` / renderer alpha `1`: 1; examples `Offline UI layout review/MatchUI/ModernSettings/SettingsScroll/Viewport`.
+  - Image color alpha `0.784` / renderer alpha `1`: 88; examples `Offline UI layout review/MatchUI/Help`, `Offline UI layout review/MatchUI/Settings`, `Offline UI layout review/MatchUI/Leave` (+85 more).
+  - Image color alpha `0.863` / renderer alpha `1`: 2; examples `Offline UI layout review/MatchUI/SignInModal`, `Offline UI layout review/MatchUI/HubGuideOverlay/Backdrop`.
+  - Image color alpha `0.882` / renderer alpha `1`: 24; examples `Offline UI layout review/MatchUI/JoinMenu/OrnamentTLH`, `Offline UI layout review/MatchUI/JoinMenu/OrnamentTLV`, `Offline UI layout review/MatchUI/JoinMenu/OrnamentTRH` (+21 more).
+  - Image color alpha `0.973` / renderer alpha `1`: 10; examples `Offline UI layout review/MatchUI/HubAtrium/Direct_Shop`, `Offline UI layout review/MatchUI/HubAtrium/Direct_Wardrobe`, `Offline UI layout review/MatchUI/HubAtrium/Direct_Titles` (+7 more).
+- Captured CanvasGroup arrays contain no non-default group values.
+- Control centers: 8 sampled; self-hit `8/8`; top-hit differs from self `0`; exposed in-screen interactable controls `8`; independent min width/height `139.84×41.04 px; smallest-area exposed target: Offline UI layout review/MatchUI/TacticalMap/CloseMap `139.84×41.04 px`.
+- HUD/map root records (active state is reported, including intentionally hidden roots):
+  - `PlayerHUD` activeSelf=yes, activeInHierarchy=yes, bounds=[-0, -0, 1280, 720], anchors=(0, 0)→(1, 1).
+  - `VitalsPanel` activeSelf=no, activeInHierarchy=no, bounds=[19.2, 12.96, 364.8, 99.36], anchors=(0.015, 0.018)→(0.285, 0.138).
+  - `CombatActions` activeSelf=no, activeInHierarchy=no, bounds=[403.2, 10.8, 787.2, 97.2], anchors=(0.315, 0.015)→(0.615, 0.135).
+  - `WishPanel` activeSelf=no, activeInHierarchy=no, bounds=[992, 504, 1260.8, 658.8], anchors=(0.775, 0.7)→(0.985, 0.915).
+  - `BuildStrip` activeSelf=no, activeInHierarchy=no, bounds=[19.2, 464.4, 364.8, 658.8], anchors=(0.015, 0.645)→(0.285, 0.915).
+  - `Rewards` activeSelf=no, activeInHierarchy=no, bounds=[896, 306, 1260.8, 658.8], anchors=(0.7, 0.425)→(0.985, 0.915).
+  - `BuildDrawer` activeSelf=no, activeInHierarchy=no, bounds=[729.6, 18, 1260.8, 702], anchors=(0.57, 0.025)→(0.985, 0.975).
+  - `TacticalMap` activeSelf=yes, activeInHierarchy=yes, bounds=[32, 111.6, 1248, 658.8], anchors=(0.025, 0.155)→(0.975, 0.915).
+  - `Minimap` activeSelf=no, activeInHierarchy=no, bounds=[902.4, 12.96, 1260.8, 272.16], anchors=(0.705, 0.018)→(0.985, 0.378).
+- Map state: open=yes, planning=no, blocksKeyboard=no, blocksPointer=yes; minimap saved key present=no, saved index=1, loaded scale=1.
+- Captured map surfaces:
+  - `Offline UI layout review/MatchUI/TacticalMap/MapFrame/PublicMap` 48×36, raw alpha=1, CPU-readable=no; alpha histogram: 200×1524, 255×204.
+  - `Offline UI layout review/MatchUI/Minimap/TerrainFrame` 48×36, raw alpha=1, CPU-readable=no; alpha histogram: 200×1524, 255×204.
+- Camera: orthographic=yes, size=9, aspect=1.778, position=(21.875, -14.344, -30).
+- Actor 1 anchor sample: delivered anchor matches `1`, root world anchor `(21.875, -15.844, 0)`, delivered `(21.875, -15.844, 0)`, local scale `(1.2, 1.2, 1)`, lossy scale `(1.2, 1.2, 1).
+
+## 720-map-text150
+
+- Mode/text scale: `map` / `1.5`; JSON source SHA: `d28df076bf98d10bfe6cb5fbc88b8d30a3fbe712`.
+- Image/screen/expected dimensions: `(1280, 720)` / `(1280, 720)` / `(1280, 720)`; JSON flags: ready=yes, nativeMatch=yes, advanced=yes, ticksAdvanced=yes, watermark=yes.
+- Initial/current frame: `200` / `286`; newest time `5450` → `5600` ms; ticks advanced `yes`.
+- Screenshot pair: PNG `present` (1,144,617 bytes).
+- TMP rows: 14; captured overflow/truncated flags true: 0; one or both flags absent: 0.
+- Graphics rows (active and inactive components): 847; component-color alpha distribution: Image a=0 ×7, Image a=0.015 ×1, Image a=0.784 ×88, Image a=0.863 ×2, Image a=0.882 ×24, Image a=0.973 ×10, Image a=1 ×216, RawImage a=1 ×3, TacticalMapMarks a=1 ×2, TextMeshProUGUI a=1 ×494; CanvasGroup arrays absent on 0 rows, present-empty on 847 rows.
+- Non-opaque component-alpha exceptions (tints, not automatically defects):
+  - Image color alpha `0` / renderer alpha `1`: 7; examples `Offline UI layout review/MatchUI/PlayerHUD/WishPanel/WishDetails/Viewport`, `Offline UI layout review/MatchUI/Results/ResultFacts/Viewport`, `Offline UI layout review/MatchUI/HubGuideOverlay/HubGuidePanel/GuideScroll/Viewport` (+4 more).
+  - Image color alpha `0.015` / renderer alpha `1`: 1; examples `Offline UI layout review/MatchUI/ModernSettings/SettingsScroll/Viewport`.
+  - Image color alpha `0.784` / renderer alpha `1`: 88; examples `Offline UI layout review/MatchUI/Help`, `Offline UI layout review/MatchUI/Settings`, `Offline UI layout review/MatchUI/Leave` (+85 more).
+  - Image color alpha `0.863` / renderer alpha `1`: 2; examples `Offline UI layout review/MatchUI/SignInModal`, `Offline UI layout review/MatchUI/HubGuideOverlay/Backdrop`.
+  - Image color alpha `0.882` / renderer alpha `1`: 24; examples `Offline UI layout review/MatchUI/JoinMenu/OrnamentTLH`, `Offline UI layout review/MatchUI/JoinMenu/OrnamentTLV`, `Offline UI layout review/MatchUI/JoinMenu/OrnamentTRH` (+21 more).
+  - Image color alpha `0.973` / renderer alpha `1`: 10; examples `Offline UI layout review/MatchUI/HubAtrium/Direct_Shop`, `Offline UI layout review/MatchUI/HubAtrium/Direct_Wardrobe`, `Offline UI layout review/MatchUI/HubAtrium/Direct_Titles` (+7 more).
+- Captured CanvasGroup arrays contain no non-default group values.
+- Control centers: 8 sampled; self-hit `8/8`; top-hit differs from self `0`; exposed in-screen interactable controls `8`; independent min width/height `139.84×41.04 px; smallest-area exposed target: Offline UI layout review/MatchUI/TacticalMap/CloseMap `139.84×41.04 px`.
+- HUD/map root records (active state is reported, including intentionally hidden roots):
+  - `PlayerHUD` activeSelf=yes, activeInHierarchy=yes, bounds=[-0, -0, 1280, 720], anchors=(0, 0)→(1, 1).
+  - `VitalsPanel` activeSelf=no, activeInHierarchy=no, bounds=[19.2, 12.96, 364.8, 99.36], anchors=(0.015, 0.018)→(0.285, 0.138).
+  - `CombatActions` activeSelf=no, activeInHierarchy=no, bounds=[403.2, 10.8, 787.2, 97.2], anchors=(0.315, 0.015)→(0.615, 0.135).
+  - `WishPanel` activeSelf=no, activeInHierarchy=no, bounds=[992, 504, 1260.8, 658.8], anchors=(0.775, 0.7)→(0.985, 0.915).
+  - `BuildStrip` activeSelf=no, activeInHierarchy=no, bounds=[19.2, 464.4, 364.8, 658.8], anchors=(0.015, 0.645)→(0.285, 0.915).
+  - `Rewards` activeSelf=no, activeInHierarchy=no, bounds=[896, 306, 1260.8, 658.8], anchors=(0.7, 0.425)→(0.985, 0.915).
+  - `BuildDrawer` activeSelf=no, activeInHierarchy=no, bounds=[729.6, 18, 1260.8, 702], anchors=(0.57, 0.025)→(0.985, 0.975).
+  - `TacticalMap` activeSelf=yes, activeInHierarchy=yes, bounds=[32, 111.6, 1248, 658.8], anchors=(0.025, 0.155)→(0.975, 0.915).
+  - `Minimap` activeSelf=no, activeInHierarchy=no, bounds=[902.4, 12.96, 1260.8, 272.16], anchors=(0.705, 0.018)→(0.985, 0.378).
+- Map state: open=yes, planning=no, blocksKeyboard=no, blocksPointer=yes; minimap saved key present=no, saved index=1, loaded scale=1.
+- Captured map surfaces:
+  - `Offline UI layout review/MatchUI/TacticalMap/MapFrame/PublicMap` 48×36, raw alpha=1, CPU-readable=no; alpha histogram: 200×1524, 255×204.
+  - `Offline UI layout review/MatchUI/Minimap/TerrainFrame` 48×36, raw alpha=1, CPU-readable=no; alpha histogram: 200×1524, 255×204.
+- Camera: orthographic=yes, size=9, aspect=1.778, position=(21.875, -14.344, -30).
+- Actor 1 anchor sample: delivered anchor matches `1`, root world anchor `(21.875, -15.844, 0)`, delivered `(21.875, -15.844, 0)`, local scale `(1.2, 1.2, 1)`, lossy scale `(1.2, 1.2, 1).
+
+## 720-planning-text100
+
+- Mode/text scale: `planning` / `1`; JSON source SHA: `d28df076bf98d10bfe6cb5fbc88b8d30a3fbe712`.
+- Image/screen/expected dimensions: `(1280, 720)` / `(1280, 720)` / `(1280, 720)`; JSON flags: ready=yes, nativeMatch=yes, advanced=yes, ticksAdvanced=yes, watermark=yes.
+- Initial/current frame: `98` / `185`; newest time `5250` → `5400` ms; ticks advanced `yes`.
+- Screenshot pair: PNG `present` (1,002,857 bytes).
+- TMP rows: 18; captured overflow/truncated flags true: 0; one or both flags absent: 0.
+- Graphics rows (active and inactive components): 848; component-color alpha distribution: Image a=0 ×7, Image a=0.015 ×1, Image a=0.784 ×88, Image a=0.863 ×2, Image a=0.882 ×24, Image a=0.973 ×10, Image a=1 ×216, RawImage a=1 ×3, TMP_SubMeshUI a=1 ×1, TacticalMapMarks a=1 ×2, TextMeshProUGUI a=1 ×494; CanvasGroup arrays absent on 0 rows, present-empty on 848 rows.
+- Non-opaque component-alpha exceptions (tints, not automatically defects):
+  - Image color alpha `0` / renderer alpha `1`: 7; examples `Offline UI layout review/MatchUI/PlayerHUD/WishPanel/WishDetails/Viewport`, `Offline UI layout review/MatchUI/Results/ResultFacts/Viewport`, `Offline UI layout review/MatchUI/HubGuideOverlay/HubGuidePanel/GuideScroll/Viewport` (+4 more).
+  - Image color alpha `0.015` / renderer alpha `1`: 1; examples `Offline UI layout review/MatchUI/ModernSettings/SettingsScroll/Viewport`.
+  - Image color alpha `0.784` / renderer alpha `1`: 88; examples `Offline UI layout review/MatchUI/Help`, `Offline UI layout review/MatchUI/Settings`, `Offline UI layout review/MatchUI/Leave` (+85 more).
+  - Image color alpha `0.863` / renderer alpha `1`: 2; examples `Offline UI layout review/MatchUI/SignInModal`, `Offline UI layout review/MatchUI/HubGuideOverlay/Backdrop`.
+  - Image color alpha `0.882` / renderer alpha `1`: 24; examples `Offline UI layout review/MatchUI/JoinMenu/OrnamentTLH`, `Offline UI layout review/MatchUI/JoinMenu/OrnamentTLV`, `Offline UI layout review/MatchUI/JoinMenu/OrnamentTRH` (+21 more).
+  - Image color alpha `0.973` / renderer alpha `1`: 10; examples `Offline UI layout review/MatchUI/HubAtrium/Direct_Shop`, `Offline UI layout review/MatchUI/HubAtrium/Direct_Wardrobe`, `Offline UI layout review/MatchUI/HubAtrium/Direct_Titles` (+7 more).
+- Captured CanvasGroup arrays contain no non-default group values.
+- Control centers: 13 sampled; self-hit `13/13`; top-hit differs from self `0`; exposed in-screen interactable controls `10`; independent min width/height `53.333×41.04 px; smallest-area exposed target: Offline UI layout review/MatchUI/TacticalMap/MapFrame/PublicMap/SpawnMarker1 `53.333×42.667 px`.
+- HUD/map root records (active state is reported, including intentionally hidden roots):
+  - `PlayerHUD` activeSelf=yes, activeInHierarchy=yes, bounds=[-0, -0, 1280, 720], anchors=(0, 0)→(1, 1).
+  - `VitalsPanel` activeSelf=no, activeInHierarchy=no, bounds=[19.2, 12.96, 364.8, 99.36], anchors=(0.015, 0.018)→(0.285, 0.138).
+  - `CombatActions` activeSelf=no, activeInHierarchy=no, bounds=[403.2, 10.8, 787.2, 97.2], anchors=(0.315, 0.015)→(0.615, 0.135).
+  - `WishPanel` activeSelf=no, activeInHierarchy=no, bounds=[992, 504, 1260.8, 658.8], anchors=(0.775, 0.7)→(0.985, 0.915).
+  - `BuildStrip` activeSelf=no, activeInHierarchy=no, bounds=[19.2, 464.4, 364.8, 658.8], anchors=(0.015, 0.645)→(0.285, 0.915).
+  - `Rewards` activeSelf=no, activeInHierarchy=no, bounds=[896, 306, 1260.8, 658.8], anchors=(0.7, 0.425)→(0.985, 0.915).
+  - `BuildDrawer` activeSelf=no, activeInHierarchy=no, bounds=[729.6, 18, 1260.8, 702], anchors=(0.57, 0.025)→(0.985, 0.975).
+  - `TacticalMap` activeSelf=yes, activeInHierarchy=yes, bounds=[32, 111.6, 1248, 658.8], anchors=(0.025, 0.155)→(0.975, 0.915).
+  - `Minimap` activeSelf=no, activeInHierarchy=no, bounds=[902.4, 12.96, 1260.8, 272.16], anchors=(0.705, 0.018)→(0.985, 0.378).
+- Map state: open=yes, planning=yes, blocksKeyboard=yes, blocksPointer=yes; minimap saved key present=no, saved index=1, loaded scale=1.
+- Captured map surfaces:
+  - `Offline UI layout review/MatchUI/TacticalMap/MapFrame/PublicMap` 48×36, raw alpha=1, CPU-readable=no; alpha histogram: 200×1524, 255×204.
+  - `Offline UI layout review/MatchUI/Minimap/TerrainFrame` 48×36, raw alpha=1, CPU-readable=no; alpha histogram: 200×1524, 255×204.
+- Camera: orthographic=yes, size=9, aspect=1.778, position=(21.875, -14.344, -30).
+- Actor 1 anchor sample: delivered anchor matches `1`, root world anchor `(21.875, -15.844, 0)`, delivered `(21.875, -15.844, 0)`, local scale `(1.2, 1.2, 1)`, lossy scale `(1.2, 1.2, 1).
+
+## 720-planning-text150
+
+- Mode/text scale: `planning` / `1.5`; JSON source SHA: `d28df076bf98d10bfe6cb5fbc88b8d30a3fbe712`.
+- Image/screen/expected dimensions: `(1280, 720)` / `(1280, 720)` / `(1280, 720)`; JSON flags: ready=yes, nativeMatch=yes, advanced=yes, ticksAdvanced=yes, watermark=yes.
+- Initial/current frame: `185` / `274`; newest time `5400` → `5550` ms; ticks advanced `yes`.
+- Screenshot pair: PNG `present` (1,038,775 bytes).
+- TMP rows: 18; captured overflow/truncated flags true: 0; one or both flags absent: 0.
+- Graphics rows (active and inactive components): 848; component-color alpha distribution: Image a=0 ×7, Image a=0.015 ×1, Image a=0.784 ×88, Image a=0.863 ×2, Image a=0.882 ×24, Image a=0.973 ×10, Image a=1 ×216, RawImage a=1 ×3, TMP_SubMeshUI a=1 ×1, TacticalMapMarks a=1 ×2, TextMeshProUGUI a=1 ×494; CanvasGroup arrays absent on 0 rows, present-empty on 848 rows.
+- Non-opaque component-alpha exceptions (tints, not automatically defects):
+  - Image color alpha `0` / renderer alpha `1`: 7; examples `Offline UI layout review/MatchUI/PlayerHUD/WishPanel/WishDetails/Viewport`, `Offline UI layout review/MatchUI/Results/ResultFacts/Viewport`, `Offline UI layout review/MatchUI/HubGuideOverlay/HubGuidePanel/GuideScroll/Viewport` (+4 more).
+  - Image color alpha `0.015` / renderer alpha `1`: 1; examples `Offline UI layout review/MatchUI/ModernSettings/SettingsScroll/Viewport`.
+  - Image color alpha `0.784` / renderer alpha `1`: 88; examples `Offline UI layout review/MatchUI/Help`, `Offline UI layout review/MatchUI/Settings`, `Offline UI layout review/MatchUI/Leave` (+85 more).
+  - Image color alpha `0.863` / renderer alpha `1`: 2; examples `Offline UI layout review/MatchUI/SignInModal`, `Offline UI layout review/MatchUI/HubGuideOverlay/Backdrop`.
+  - Image color alpha `0.882` / renderer alpha `1`: 24; examples `Offline UI layout review/MatchUI/JoinMenu/OrnamentTLH`, `Offline UI layout review/MatchUI/JoinMenu/OrnamentTLV`, `Offline UI layout review/MatchUI/JoinMenu/OrnamentTRH` (+21 more).
+  - Image color alpha `0.973` / renderer alpha `1`: 10; examples `Offline UI layout review/MatchUI/HubAtrium/Direct_Shop`, `Offline UI layout review/MatchUI/HubAtrium/Direct_Wardrobe`, `Offline UI layout review/MatchUI/HubAtrium/Direct_Titles` (+7 more).
+- Captured CanvasGroup arrays contain no non-default group values.
+- Control centers: 13 sampled; self-hit `13/13`; top-hit differs from self `0`; exposed in-screen interactable controls `10`; independent min width/height `53.333×41.04 px; smallest-area exposed target: Offline UI layout review/MatchUI/TacticalMap/MapFrame/PublicMap/SpawnMarker1 `53.333×42.667 px`.
+- HUD/map root records (active state is reported, including intentionally hidden roots):
+  - `PlayerHUD` activeSelf=yes, activeInHierarchy=yes, bounds=[-0, -0, 1280, 720], anchors=(0, 0)→(1, 1).
+  - `VitalsPanel` activeSelf=no, activeInHierarchy=no, bounds=[19.2, 12.96, 364.8, 99.36], anchors=(0.015, 0.018)→(0.285, 0.138).
+  - `CombatActions` activeSelf=no, activeInHierarchy=no, bounds=[403.2, 10.8, 787.2, 97.2], anchors=(0.315, 0.015)→(0.615, 0.135).
+  - `WishPanel` activeSelf=no, activeInHierarchy=no, bounds=[992, 504, 1260.8, 658.8], anchors=(0.775, 0.7)→(0.985, 0.915).
+  - `BuildStrip` activeSelf=no, activeInHierarchy=no, bounds=[19.2, 464.4, 364.8, 658.8], anchors=(0.015, 0.645)→(0.285, 0.915).
+  - `Rewards` activeSelf=no, activeInHierarchy=no, bounds=[896, 306, 1260.8, 658.8], anchors=(0.7, 0.425)→(0.985, 0.915).
+  - `BuildDrawer` activeSelf=no, activeInHierarchy=no, bounds=[729.6, 18, 1260.8, 702], anchors=(0.57, 0.025)→(0.985, 0.975).
+  - `TacticalMap` activeSelf=yes, activeInHierarchy=yes, bounds=[32, 111.6, 1248, 658.8], anchors=(0.025, 0.155)→(0.975, 0.915).
+  - `Minimap` activeSelf=no, activeInHierarchy=no, bounds=[902.4, 12.96, 1260.8, 272.16], anchors=(0.705, 0.018)→(0.985, 0.378).
+- Map state: open=yes, planning=yes, blocksKeyboard=yes, blocksPointer=yes; minimap saved key present=no, saved index=1, loaded scale=1.
+- Captured map surfaces:
+  - `Offline UI layout review/MatchUI/TacticalMap/MapFrame/PublicMap` 48×36, raw alpha=1, CPU-readable=no; alpha histogram: 200×1524, 255×204.
+  - `Offline UI layout review/MatchUI/Minimap/TerrainFrame` 48×36, raw alpha=1, CPU-readable=no; alpha histogram: 200×1524, 255×204.
+- Camera: orthographic=yes, size=9, aspect=1.778, position=(21.875, -14.344, -30).
+- Actor 1 anchor sample: delivered anchor matches `1`, root world anchor `(21.875, -15.844, 0)`, delivered `(21.875, -15.844, 0)`, local scale `(1.2, 1.2, 1)`, lossy scale `(1.2, 1.2, 1).
+

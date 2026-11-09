@@ -1,0 +1,54 @@
+client-unity/UnityProject/Assets/Scripts/UI/MatchHud.cs at exact d28df0
+417:         static RectTransform Rect(Transform parent, string name, float x0, float y0, float x1, float y1)
+418:         {
+419:             var rect = (RectTransform)new GameObject(name, typeof(RectTransform)).transform;
+420:             rect.SetParent(parent, false); rect.anchorMin = new Vector2(x0, y0); rect.anchorMax = new Vector2(x1, y1);
+421:             rect.offsetMin = rect.offsetMax = Vector2.zero; return rect;
+422:         }
+423:         static RectTransform Panel(Transform parent, string name, float x0, float y0, float x1, float y1)
+424:         {
+425:             var r = Rect(parent, name, x0, y0, x1, y1);
+426:             var image = r.gameObject.AddComponent<UnityEngine.UI.Image>(); image.color = MythicUi.Backdrop(ShowcasePalette.Panel); image.raycastTarget = true;
+427:             var outline = r.gameObject.AddComponent<UnityEngine.UI.Outline>();
+428:             outline.effectColor = new Color32(126, 96, 51, 220); outline.effectDistance = new Vector2(1f, -1f); outline.useGraphicAlpha = false;
+429:             if (name == "JoinMenu" || name == "PlayerHUD" || name == "Rewards" || name == "Results" || name == "SettingsPanel")
+430:                 AddCornerOrnaments(r);
+431:             return r;
+432:         }
+
+client-unity/UnityProject/Assets/Scripts/UI/MythicUi.cs at exact d28df0
+80:             UnityAction onClick, ButtonStyle style = ButtonStyle.Secondary, float fontSize = 16)
+81:         {
+82:             var rect = Rect(parent, name, anchorMin, anchorMax);
+83:             var image = rect.gameObject.AddComponent<Image>();
+84:             image.color = style == ButtonStyle.Primary ? ShowcasePalette.GoldDim :
+85:                 style == ButtonStyle.Quiet ? ShowcasePalette.Panel : ShowcasePalette.PanelRaised;
+86:             image.raycastTarget = true;
+87:             var button = rect.gameObject.AddComponent<Button>(); button.targetGraphic = image;
+88:             var minimum = rect.gameObject.AddComponent<LayoutElement>(); minimum.minWidth = 44; minimum.minHeight = 44;
+89:             if (Mathf.Approximately(anchorMin.x, anchorMax.x) && Mathf.Approximately(rect.sizeDelta.x, 0)) rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, 44);
+90:             if (Mathf.Approximately(anchorMin.y, anchorMax.y) && Mathf.Approximately(rect.sizeDelta.y, 0)) rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, 44);
+91:             var edge = rect.gameObject.AddComponent<UnityEngine.UI.Outline>();
+92:             edge.effectColor = ShowcasePalette.GoldDim; edge.effectDistance = new Vector2(2, -2); edge.useGraphicAlpha = false;
+93:             image.color = Backdrop(Color.white);
+94:             var colors = button.colors;
+95:             colors.normalColor = ShowcasePalette.PanelRaised;
+96:             colors.highlightedColor = ShowcasePalette.PanelStroke;
+97:             colors.pressedColor = new Color32(96, 69, 31, 255);
+98:             colors.selectedColor = ShowcasePalette.PanelStroke;
+99:             colors.disabledColor = new Color32(37, 43, 51, 255); colors.fadeDuration = .08f;
+100:             button.colors = colors;
+101:             button.onClick.AddListener(onClick);
+
+client-unity/UnityProject/Assets/Scripts/UI/BuildDrawer.cs at exact d28df0
+40:         public RectTransform Content { get; private set; }
+41: 
+42:         public void Initialize(Transform canvasRoot, Action onClose = null)
+43:         {
+44:             if (canvasRoot == null) throw new ArgumentNullException(nameof(canvasRoot));
+45:             _onClose = onClose;
+46:             _root = MythicUi.Panel(canvasRoot, "BuildDrawer", new Vector2(.57f, .025f), new Vector2(.985f, .975f), ShowcasePalette.Panel);
+47:             var stroke = _root.gameObject.AddComponent<Outline>();
+48:             stroke.effectColor = ShowcasePalette.PanelStroke; stroke.effectDistance = new Vector2(1, 1);
+49: 
+50:             MythicUi.Text(_root, "DrawerTitle", "FIELD LEDGER", new Vector2(.035f, .92f), new Vector2(.72f, .995f), 25, ShowcasePalette.Gold);
