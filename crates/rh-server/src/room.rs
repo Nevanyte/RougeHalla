@@ -2198,7 +2198,7 @@ mod tests {
     }
 
     #[tokio::test(start_paused = true)]
-    async fn failed_publish_holds_wish_barrier_baseline_and_new_pickup_handles() {
+    async fn failed_publish_holds_wish_barrier_owner_combat_and_new_pickup_handles() {
         use rh_protocol::{ServerMsg, StateItem, WirePropKind};
         use rh_sim::{ContainerKind, FactionId, Placement, Vec2, WeaponId};
 
@@ -2283,7 +2283,7 @@ mod tests {
             seat.items = rh_sim::ItemObserver::new(seat.player);
         }
 
-        // The first reliable offer commits normal public handles and the Full Wish owner/zero-barrier fields.
+        // The first reliable offer commits normal handles and the complete Wish, barrier and combat owner fields.
         room.publish(&[]);
         let initial = decode(&stale);
         let initial_props = initial
@@ -2296,7 +2296,19 @@ mod tests {
                 _ => None,
             })
             .expect("initial public props");
-        assert!(initial.iter().any(|m| matches!(m, ServerMsg::Snapshot { me: Some(me), .. } if me.wish.is_some() && me.barrier == 30. && me.barrier_ring_step > 0)));
+        let initial_combat = initial
+            .iter()
+            .find_map(|m| match m {
+                ServerMsg::Snapshot {
+                    me: Some(me),
+                    owner_combat: Some(group),
+                    ..
+                } if me.wish.is_some() && me.barrier == 30. && me.barrier_ring_step > 0 => {
+                    Some(*group)
+                }
+                _ => None,
+            })
+            .expect("the actual prepared owner group accompanies Wish and barrier");
         let max_initial = initial_props
             .rows
             .iter()
@@ -2340,7 +2352,7 @@ mod tests {
         assert_eq!(resumed.await.unwrap().unwrap().player, joined.player);
         room.publish(&[]);
         let accepted = decode(&fresh);
-        assert!(accepted.iter().any(|m| matches!(m, ServerMsg::Snapshot { me: Some(me), .. } if me.wish.is_some() && me.barrier == 30. && me.barrier_ring_step > 0)));
+        assert!(accepted.iter().any(|m| matches!(m, ServerMsg::Snapshot { me: Some(me), owner_combat: Some(group), .. } if me.wish.is_some() && me.barrier == 30. && me.barrier_ring_step > 0 && *group == initial_combat)));
         let delivered = accepted
             .iter()
             .find_map(|m| match m {

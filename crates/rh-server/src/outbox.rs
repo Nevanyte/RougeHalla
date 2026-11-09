@@ -425,6 +425,107 @@ mod tests {
         SnapshotData::build(tick, 1, 0, None, std::iter::empty()).expect("valid")
     }
 
+    /// The group can stay value-identical while an unrelated displayed NPC gets a new alias.
+    /// Enough stable rows keep the writer on its Delta path instead of masking this with a Full.
+    fn owner_snap(tick: u32, npc: u32, lock: rh_protocol::WireOwnerLock) -> SnapshotData {
+        use rh_protocol::{WireActor, WireOwnerCombat, WireSelf};
+        let actors = (2..80)
+            .map(|id| WireActor {
+                id,
+                x: 16.,
+                y: 16.,
+                hp_pct: 100,
+                status: 1,
+                ..WireActor::default()
+            })
+            .chain(std::iter::once(WireActor {
+                id: npc,
+                kind: 1,
+                x: 32.,
+                y: 32.,
+                hp_pct: 100,
+                status: 1,
+                ..WireActor::default()
+            }))
+            .chain(std::iter::once(WireActor {
+                id: u32::MAX,
+                x: 48.,
+                y: 48.,
+                hp_pct: 100,
+                status: 1,
+                ..WireActor::default()
+            }))
+            .collect::<Vec<_>>()
+            .into_iter();
+        let mut snapshot = SnapshotData::build(
+            tick,
+            1,
+            tick,
+            Some(WireSelf {
+                id: 1,
+                hp: 100.,
+                max_hp: 100.,
+                status: 1,
+                ..WireSelf::default()
+            }),
+            actors,
+        )
+        .unwrap();
+        snapshot
+            .set_owner_combat(Some(WireOwnerCombat {
+                lock,
+                draw_started_at: u32::MAX,
+                ready_at: 0,
+                as_milli: 1000.,
+                windup_milli: 65_536.,
+                speed_milli: 1e303,
+            }))
+            .unwrap();
+        snapshot
+    }
+
+    #[test]
+    fn coalescing_a_renewed_npc_snapshot_still_replaces_the_whole_owner_group() {
+        use rh_protocol::{ServerMsg, SnapshotTracker, WireOwnerLock};
+        for lock in [
+            WireOwnerLock::Clear,
+            WireOwnerLock::Held { target: None },
+            WireOwnerLock::Held { target: Some(2) },
+            WireOwnerLock::Held {
+                target: Some(u32::MAX),
+            },
+        ] {
+            let out = Outbox::default();
+            let mut tracker = SnapshotTracker::new();
+            let mut frames = Vec::new();
+            out.snapshot(owner_snap(1, 100, lock));
+            assert_eq!(out.drain_into(&mut frames).frames, 1);
+            tracker.decode(&frames[0]).unwrap();
+            frames.clear();
+
+            // Both new snapshots are accepted, but only tick3 reaches the encoder. A transient
+            // "renewed this preparation" bit on tick2 would have disappeared here.
+            out.snapshot(owner_snap(2, 101, lock));
+            let latest = owner_snap(3, 101, lock);
+            out.snapshot(latest.clone());
+            assert_eq!(out.counters().snapshots_skipped, 1);
+            assert_eq!(out.drain_into(&mut frames).frames, 1);
+            let ServerMsg::SnapshotDelta(delta) = ServerMsg::decode(&frames[0]).unwrap() else {
+                panic!("the stable crowd must exercise the actual Delta writer");
+            };
+            assert_eq!(delta.owner_combat, Some(latest.owner_combat()));
+            assert_eq!(tracker.decode(&frames[0]).unwrap(), latest.decoded());
+
+            frames.clear();
+            out.snapshot(owner_snap(4, 101, lock));
+            out.drain_into(&mut frames);
+            let ServerMsg::SnapshotDelta(delta) = ServerMsg::decode(&frames[0]).unwrap() else {
+                panic!("an unchanged scene remains a Delta");
+            };
+            assert_eq!(delta.owner_combat, None, "no spurious repeated renewal");
+        }
+    }
+
     #[test]
     fn collection_and_events_enqueue_atomically_before_disposable_frames() {
         let o = Outbox::default();

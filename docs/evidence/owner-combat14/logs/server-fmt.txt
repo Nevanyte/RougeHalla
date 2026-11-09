@@ -1,0 +1,3 @@
+$ cargo +1.97.0 fmt -p rh-protocol -p rh-server -- --check
+Server gate: jobs1, incremental0, dev/test debug0.
+exit0

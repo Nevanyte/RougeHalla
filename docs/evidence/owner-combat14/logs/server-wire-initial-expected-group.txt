@@ -1,0 +1,48 @@
+$ cargo +1.97.0 test --locked -p rh-server --lib wire::tests --no-default-features
+Server gate: jobs1, incremental0, dev/test debug0.
+    Finished `test` profile [unoptimized] target(s) in 0.06s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/targets/rougehalla-owner-combat14/debug/deps/rh_server-08fff1a44b871c89)
+
+running 23 tests
+test wire::tests::content_codes_fit_the_wire_bit_widths ... ok
+test wire::tests::an_fx_frame_off_the_grid_is_refused_not_clamped ... ok
+test wire::tests::combat_mapping_preserves_privacy_passive_and_channels ... ok
+test wire::tests::quest_hosting_stays_gated_while_native_bridge_facts_are_supported ... ok
+test wire::tests::invalid_giver_and_unarmed_views_refuse_before_publisher_work ... ok
+test wire::tests::giver_actor_mapping_preserves_source_fields_and_memo ... ok
+test wire::tests::the_actor_memo_is_always_a_fresh_conversion ... ok
+test wire::tests::wish_points_check_source_f64_before_narrowing ... ok
+test wire::tests::target_conversion_never_bypasses_observer_delivery ... ok
+test wire::tests::full_wish_owner_and_barrier_snapshot_encode_with_arena_off ... ok
+test wire::tests::protocol_8_training_frames_carry_the_training_set ... ok
+test wire::tests::hp_pct_matches_the_f64_round_reference ... ok
+test wire::tests::pve_commands_and_notices_keep_normal_public_semantics ... ok
+test wire::tests::wish_start_and_landing_encode_as_checked_fx ... ok
+test wire::tests::a_prerequisite_refusal_uses_the_existing_owner_toast_without_poisoning_frames ... ok
+test wire::tests::arena_events_map_to_transport_and_off_profiles_still_encode ... ok
+test wire::tests::omitted_effect_announcements_leave_frames_and_redaction_unchanged ... ok
+test wire::tests::the_published_snapshot_is_the_one_built_from_the_observation_over_a_match ... FAILED
+test wire::tests::an_arena_larger_than_the_position_grid_is_refused ... ok
+test wire::tests::server_time_is_tick_times_50 ... ok
+test wire::tests::arena_profile_transports_lobby_planning_and_active_with_owner_plan_state ... ok
+test wire::tests::giver_native_alias_prepare_drop_renewal_and_target_resolution ... ok
+test wire::tests::remote_actors_decode_within_the_documented_bound_over_a_match ... ok
+
+failures:
+
+---- wire::tests::the_published_snapshot_is_the_one_built_from_the_observation_over_a_match stdout ----
+
+thread 'wire::tests::the_published_snapshot_is_the_one_built_from_the_observation_over_a_match' (66150028) panicked at crates/rh-server/src/wire.rs:1360:17:
+assertion `left == right` failed
+  left: SnapshotData(SnapshotInner { tick: 2, server_time: 100.0, phase: 1, ack_input: 0, me: Some(WireSelf { id: 1, faction: 0, x: 3783.6157, y: 1134.6027, facing: -2.976444, hp: 950.0, max_hp: 950.0, status: 1, weapon: 5, ready_in_ms: 0, kills: 0, bounty: 0, gv: 0, move_seq: 0, effects: 0, displace_seq: 0, sig: 0, hunt_target: None, hunt_stacks: 0, wish: None, barrier: 0.0, barrier_ring_step: 0 }), actors: [QActor { id: 3, x: 9139, y: 11347, facing: 57892, kit: 82, hp_pct: 100, status: 1, bounty: 0, kind: 0, effects: 0, displace_seq: 0, sig: 0, mob_type_code: 0, barrier_pct: 0, barrier_ring_step: 0 }, QActor { id: 6, x: 11597, y: 9133, facing: 25124, kit: 80, hp_pct: 100, status: 1, bounty: 0, kind: 0, effects: 0, displace_seq: 0, sig: 0, mob_type_code: 0, barrier_pct: 0, barrier_ring_step: 0 }, QActor { id: 8, x: 27331, y: 8587, facing: 1723, kit: 82, hp_pct: 100, status: 1, bounty: 0, kind: 0, effects: 0, displace_seq: 0, sig: 0, mob_type_code: 0, barrier_pct: 0, barrier_ring_step: 0 }], training: false, owner_combat: Some(WireOwnerCombat { lock: Clear, draw_started_at: 0, ready_at: 0, as_milli: 1000.0, windup_milli: 1000.0, speed_milli: 1000.0 }), min_len: 78 })
+ right: SnapshotData(SnapshotInner { tick: 2, server_time: 100.0, phase: 1, ack_input: 0, me: Some(WireSelf { id: 1, faction: 0, x: 3783.6157, y: 1134.6027, facing: -2.976444, hp: 950.0, max_hp: 950.0, status: 1, weapon: 5, ready_in_ms: 0, kills: 0, bounty: 0, gv: 0, move_seq: 0, effects: 0, displace_seq: 0, sig: 0, hunt_target: None, hunt_stacks: 0, wish: None, barrier: 0.0, barrier_ring_step: 0 }), actors: [QActor { id: 3, x: 9139, y: 11347, facing: 57892, kit: 82, hp_pct: 100, status: 1, bounty: 0, kind: 0, effects: 0, displace_seq: 0, sig: 0, mob_type_code: 0, barrier_pct: 0, barrier_ring_step: 0 }, QActor { id: 6, x: 11597, y: 9133, facing: 25124, kit: 80, hp_pct: 100, status: 1, bounty: 0, kind: 0, effects: 0, displace_seq: 0, sig: 0, mob_type_code: 0, barrier_pct: 0, barrier_ring_step: 0 }, QActor { id: 8, x: 27331, y: 8587, facing: 1723, kit: 82, hp_pct: 100, status: 1, bounty: 0, kind: 0, effects: 0, displace_seq: 0, sig: 0, mob_type_code: 0, barrier_pct: 0, barrier_ring_step: 0 }], training: false, owner_combat: None, min_len: 43 })
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    wire::tests::the_published_snapshot_is_the_one_built_from_the_observation_over_a_match
+
+test result: FAILED. 22 passed; 1 failed; 0 ignored; 0 measured; 163 filtered out; finished in 0.72s
+
+error: test failed, to rerun pass `-p rh-server --lib`
+exit101

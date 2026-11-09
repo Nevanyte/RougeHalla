@@ -1,0 +1,34 @@
+$ cargo +1.97.0 test --locked -p rh-server --lib wire::tests --no-default-features
+Server gate: jobs1, incremental0, dev/test debug0.
+   Compiling rh-server v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-owner-combat14/crates/rh-server)
+    Finished `test` profile [unoptimized] target(s) in 5.84s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/targets/rougehalla-owner-combat14/debug/deps/rh_server-08fff1a44b871c89)
+
+running 23 tests
+test wire::tests::content_codes_fit_the_wire_bit_widths ... ok
+test wire::tests::quest_hosting_stays_gated_while_native_bridge_facts_are_supported ... ok
+test wire::tests::an_fx_frame_off_the_grid_is_refused_not_clamped ... ok
+test wire::tests::combat_mapping_preserves_privacy_passive_and_channels ... ok
+test wire::tests::invalid_giver_and_unarmed_views_refuse_before_publisher_work ... ok
+test wire::tests::wish_points_check_source_f64_before_narrowing ... ok
+test wire::tests::giver_actor_mapping_preserves_source_fields_and_memo ... ok
+test wire::tests::the_actor_memo_is_always_a_fresh_conversion ... ok
+test wire::tests::target_conversion_never_bypasses_observer_delivery ... ok
+test wire::tests::full_wish_owner_and_barrier_snapshot_encode_with_arena_off ... ok
+test wire::tests::protocol_8_training_frames_carry_the_training_set ... ok
+test wire::tests::hp_pct_matches_the_f64_round_reference ... ok
+test wire::tests::pve_commands_and_notices_keep_normal_public_semantics ... ok
+test wire::tests::wish_start_and_landing_encode_as_checked_fx ... ok
+test wire::tests::a_prerequisite_refusal_uses_the_existing_owner_toast_without_poisoning_frames ... ok
+test wire::tests::arena_events_map_to_transport_and_off_profiles_still_encode ... ok
+test wire::tests::omitted_effect_announcements_leave_frames_and_redaction_unchanged ... ok
+test wire::tests::an_arena_larger_than_the_position_grid_is_refused ... ok
+test wire::tests::server_time_is_tick_times_50 ... ok
+test wire::tests::arena_profile_transports_lobby_planning_and_active_with_owner_plan_state ... ok
+test wire::tests::giver_native_alias_prepare_drop_renewal_and_target_resolution ... ok
+test wire::tests::the_published_snapshot_is_the_one_built_from_the_observation_over_a_match ... ok
+test wire::tests::remote_actors_decode_within_the_documented_bound_over_a_match ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 163 filtered out; finished in 0.72s
+
+exit0

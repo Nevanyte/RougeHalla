@@ -4,8 +4,8 @@
 
 use rh_protocol::quant::POS_MAX;
 use rh_protocol::{
-    QActor, ServerMsg, SnapshotData, WireActor, WireCommand, WireEvent, WireFx, WirePoint,
-    WireResult, WireSelf, WireWishCast, WireWishOwner,
+    QActor, ServerMsg, SnapshotData, WireActor, WireCommand, WireEvent, WireFx, WireOwnerCombat,
+    WireOwnerLock, WirePoint, WireResult, WireSelf, WireWishCast, WireWishOwner,
 };
 use rh_sim::observe::{ActorView, Observation, SeenEvent};
 use rh_sim::sim::{Outcome, Phase, Status};
@@ -132,6 +132,14 @@ fn observation_supported(obs: &Observation) -> Result<(), rh_protocol::EncodeErr
     checked_phase(obs.phase)?;
     for actor in &obs.visible {
         actor_supported(actor).map_err(rh_protocol::EncodeError::BadValue)?;
+    }
+    let owner_combat = obs.owner_combat.map(wire_owner_combat);
+    if let Some(reason) =
+        rh_protocol::owner_combat_fault(owner_combat.as_ref(), obs.me.is_some(), |id| {
+            obs.visible.iter().any(|actor| actor.id.0 == id)
+        })
+    {
+        return Err(rh_protocol::EncodeError::BadValue(reason));
     }
     Ok(())
 }
@@ -277,6 +285,24 @@ fn wire_wish_owner(value: rh_sim::abilities::OwnerView) -> WireWishOwner {
     }
 }
 
+/// The native prepared bridge already resolved this reference against its current staged actor
+/// scene. Copy its source-normalized clocks and binary64 mirrors without another identity lookup.
+fn wire_owner_combat(value: rh_sim::OwnerCombatView) -> WireOwnerCombat {
+    WireOwnerCombat {
+        lock: match value.lock {
+            rh_sim::OwnerLockView::Clear => WireOwnerLock::Clear,
+            rh_sim::OwnerLockView::Held { target } => WireOwnerLock::Held {
+                target: target.map(|id| id.0),
+            },
+        },
+        draw_started_at: value.draw_started_at,
+        ready_at: value.ready_at,
+        as_milli: value.as_milli,
+        windup_milli: value.windup_milli,
+        speed_milli: value.speed_milli,
+    }
+}
+
 fn wire_point(point: Option<rh_sim::Vec2>) -> Result<Option<WirePoint>, &'static str> {
     let Some(point) = point else {
         return Ok(None);
@@ -313,7 +339,7 @@ pub fn checked_snapshot(
         phase: checked_phase(obs.phase)?,
         ack_input,
         me: obs.me.as_ref().map(wire_self),
-        owner_combat: None,
+        owner_combat: obs.owner_combat.map(wire_owner_combat),
         actors: obs
             .visible
             .iter()
@@ -680,6 +706,7 @@ impl Publisher {
         {
             let reason = match error {
                 rh_sim::OfferError::UnrepresentablePublicVitals => "public vitals",
+                rh_sim::OfferError::UnrepresentableOwnerCombat => "owner combat",
                 _ => "observation bounds",
             };
             return ViewFrames::unsupported(rh_protocol::EncodeError::BadValue(reason));
@@ -798,9 +825,10 @@ impl Publisher {
             self.obs.me.as_ref().map(wire_self),
             self.obs.visible.iter().map(|a| memo.get(a)),
         )
-        .map(|mut snapshot| {
+        .and_then(|mut snapshot| {
             snapshot.set_training(training);
-            snapshot
+            snapshot.set_owner_combat(self.obs.owner_combat.map(wire_owner_combat))?;
+            Ok(snapshot)
         });
         ViewFrames {
             important,
@@ -810,6 +838,10 @@ impl Publisher {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "wire_owner_combat_tests.rs"]
+mod owner_combat_tests;
 
 /// The frame of `msg`, or `None` with the reason kept in `refused` (the first one wins) when a decoder would reject it:
 /// never a clamped frame (release) and never a panic (debug).
@@ -1317,7 +1349,7 @@ mod tests {
                 );
                 let got = f.snapshot.expect("builds");
                 let obs = publisher.observation();
-                let want = SnapshotData::build(
+                let mut want = SnapshotData::build(
                     obs.tick,
                     phase(obs.phase),
                     t,
@@ -1325,6 +1357,8 @@ mod tests {
                     obs.visible.iter().map(|a| wire_actor(a).unwrap()),
                 )
                 .expect("builds");
+                want.set_owner_combat(obs.owner_combat.map(wire_owner_combat))
+                    .expect("the same checked current-scene owner group");
                 assert_eq!(got, want);
                 let mut full = Vec::new();
                 got.encode_full_into(&mut full);
@@ -1460,6 +1494,7 @@ mod tests {
                     phase: p,
                     ack_input,
                     training: _,
+                    owner_combat: _,
                 } = ServerMsg::decode(&snapshot(&obs, 9).encode()).expect("decodes")
                 else {
                     panic!("a snapshot")
