@@ -1382,6 +1382,7 @@ dependencies = [
 name = "rh-policy"
 version = "0.1.0"
 dependencies = [
+ "rh-protocol",
  "rh-sim",
  "serde_json",
 ]
