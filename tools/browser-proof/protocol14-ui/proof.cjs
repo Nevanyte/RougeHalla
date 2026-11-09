@@ -85,7 +85,7 @@ const { Tracker, decode, decodeClient } = new Function(decoder + ';return {Track
 report.identities.passiveDecoder = { source: PIN.source, path: 'crates/rh-server/web/probe.html', blockSha256: sha(Buffer.from(decoder)), applicationFramesSentByObserver: 0 };
 const playwrightPath = option('--playwright', path.join(os.homedir(), '.codex/tools/rougehalla-stage2/browser/node_modules/playwright'));
 const { chromium } = require(playwrightPath);
-let runtime, runtimeProcess, browser, context, page, latest, collections = new Map(), currentStep = 'runtime';
+let runtime, runtimeProcess, browser, context, page, latest, inputProbe = null, collections = new Map(), currentStep = 'runtime';
 const responses = [];
 const check = (name, passed, evidence) => { report.checks[name] = { status: passed ? 'PASS' : 'FAIL', ...evidence }; checkpoint(name); };
 const checkpoint = step => { write('progress.json', { step, at: new Date().toISOString(), checks: report.checks, frames: report.frames }); console.log(JSON.stringify({ step, at: new Date().toISOString() })); };
@@ -128,7 +128,9 @@ function observeBrowser() {
       }
       if (target.origin === runtime.pageOrigin && target.pathname.startsWith('/Build/') && response.status() === 200) {
         const name = target.pathname.slice(1); const expected = manifest.files.find(item => item.path === name);
-        if (expected) { const data = await response.body(); report.loadedArtifactResponses.push({ path: name, status: 200, bytes: data.length, sha256: sha(data), matchesManifest: data.length === expected.bytes && sha(data) === expected.sha256, contentType: response.headers()['content-type'] }); }
+        // Large Unity bodies may be evicted from the inspector cache. Join the actual
+        // browser request identity to the owned host's hashed byte-stream audit instead.
+        if (expected) report.loadedArtifactResponses.push({ path: name, status: 200, method: response.request().method(), contentType: response.headers()['content-type'] });
       }
     })().catch(error => report.errors.observerErrors.push(redact(error)));
     responses.push(task);
@@ -156,7 +158,10 @@ function observeBrowser() {
         }
         const applied = tracker.apply(message);
         if (message.t === 'state') { collections = tracker.collections; report.collectionsKeys = [...collections.keys()].sort((a, b) => a - b); }
-        if (applied?.t === 'snapshot') { latest = applied; report.frames.snapshots++; if (!report.phases.includes(latest.phase)) report.phases.push(latest.phase); }
+        if (applied?.t === 'snapshot') {
+          latest = applied; report.frames.snapshots++; if (!report.phases.includes(latest.phase)) report.phases.push(latest.phase);
+          if (inputProbe && latest.me && inputProbe.length < 200) inputProbe.push({ tick: latest.tick, serverMs: latest.serverMs, x: latest.me.x, y: latest.me.y, moveSeq: latest.me.moveSeq, status: latest.me.status });
+        }
         if (message.t === 'reject') report.errors.unityErrors.push('Server rejection: ' + redact(message.reason));
       } catch (error) { report.errors.observerErrors.push('server: ' + redact(error)); }
     });
@@ -236,11 +241,15 @@ function observeBrowser() {
     requireTrue(await wait(() => latest?.phase === 1 && latest?.me?.status === 1, 30000), 'No live active owner before input/UI checks');
     currentStep = 'authoritativeInput';
     const beforeMove = { ...latest.me }, commandStart = report.commands.length;
+    const inputStartTick = latest.tick; inputProbe = [];
     await page.mouse.move(point(.4, .5).x, point(.4, .5).y); await key('d', 650);
     await wait(() => latest.me && (latest.me.x !== beforeMove.x || latest.me.y !== beforeMove.y), 3000);
     if (latest.me && latest.me.x === beforeMove.x && latest.me.y === beforeMove.y) { await key('w', 650); await sleep(400); }
     const afterMove = { ...latest.me }, sentMoves = report.commands.slice(commandStart).filter(command => command.k === 'move');
-    check('authoritativeInput', sentMoves.length > 0 && sentMoves.some(command => command.seq === afterMove.moveSeq) && (afterMove.x !== beforeMove.x || afterMove.y !== beforeMove.y), { method: 'Real canvas keyboard; actual Unity WebSocket Input and Rust self echo', before: beforeMove, after: afterMove, sentMoves });
+    const sourceEchoes = inputProbe; inputProbe = null;
+    const matchedMoveSamples = sourceEchoes.filter(sample => sample.tick > inputStartTick && sentMoves.some(command => command.seq === sample.moveSeq) && (sample.x !== beforeMove.x || sample.y !== beforeMove.y));
+    const sentStops = report.commands.slice(commandStart).filter(command => command.k === 'stop');
+    check('authoritativeInput', sentMoves.length > 0 && matchedMoveSamples.length > 0, { method: 'Real canvas keyboard; changed-pose intermediate Rust self sample must echo a transmitted move sequence', before: beforeMove, after: afterMove, sentMoves, sentStops, sourceEchoes, matchedMoveSamples, finalStopEcho: sentStops.some(command => command.seq === afterMove.moveSeq) });
     await screenshot('03-active-hud');
     report.checks.hud = { status: 'OPEN', reason: 'Actual screenshot produced; visual inspection required', screenshot: '03-active-hud.png', actualOwner: { hp: latest.me.hp, maxHp: latest.me.maxHp, moveSeq: latest.me.moveSeq } };
     currentStep = 'reconnect';
@@ -294,6 +303,14 @@ function observeBrowser() {
       report.cleanup.postgresStopped = cleanup.postgres_stopped;
       report.cleanup.noOwnedListeners = cleanup.server_port_closed && cleanup.static_port_closed && cleanup.postgres_port_closed && cleanup.static_stopped;
     }
+    const hostAudit = path.join(privateState, 'static-responses.jsonl');
+    const hostResponses = fs.existsSync(hostAudit) ? fs.readFileSync(hostAudit, 'utf8').trim().split('\n').filter(Boolean).map(line => JSON.parse(line)) : [];
+    const requiredBuildAssets = manifest.files.filter(item => item.path.startsWith('Build/'));
+    const servedChecks = requiredBuildAssets.map(item => ({ path: item.path,
+      browserRequested: report.loadedArtifactResponses.some(response => response.path === item.path && response.status === 200),
+      exactBytesServed: hostResponses.some(response => response.path === item.path && response.complete === true && response.status === 200 && response.bytes === item.bytes && response.sha256 === item.sha256) }));
+    report.identities.servedArtifact = { method: 'Unchanged owned static-host hashed stream joined to actual browser request URLs/statuses', checks: servedChecks, hostResponses };
+    if (page && servedChecks.some(item => !item.browserRequested || !item.exactBytesServed)) report.errors.observerErrors.push('Actual loaded Build request/static-host byte identity was not fully verified');
     try { verifyArtifact(); report.identities.artifact.unchangedAfter = true; } catch (error) { report.artifactPostcheckFailure = redact(error); }
     for (const shot of report.screenshots) { const data = fs.readFileSync(path.join(output, shot.path)); requireTrue(sha(data) === shot.sha256 && data.length === shot.bytes, 'Screenshot changed after capture'); }
     // Scan serialized public text against only this proof's synthetic secrets before publication.

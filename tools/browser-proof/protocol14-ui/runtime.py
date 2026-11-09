@@ -16,6 +16,7 @@ import subprocess
 import threading
 import time
 import urllib.error
+from urllib.parse import unquote, urlsplit
 import urllib.request
 
 
@@ -142,8 +143,107 @@ class FrozenArtifactHandler(http.server.SimpleHTTPRequestHandler):
         ".symbols.json": "application/json",
     }
 
-    def __init__(self, *args, directory: str, **kwargs):
+    def __init__(self, *args, directory: str, manifest: dict[str, dict], audit_path: str,
+                 audit_lock: threading.Lock, **kwargs):
+        self._artifact_manifest = manifest
+        self._audit_path_file = audit_path
+        self._audit_lock = audit_lock
+        self._audit_recorded = False
+        self._audit_status = None
+        self._audit_content_type = None
+        self._audit_started_ms = int(time.time() * 1000)
         super().__init__(*args, directory=directory, **kwargs)
+
+    def _manifest_path(self) -> str:
+        return unquote(urlsplit(self.path).path).lstrip("/")
+
+    def _audit_allowed(self) -> bool:
+        return self._manifest_path() in self._artifact_manifest
+
+    def send_response(self, code, message=None):
+        self._audit_status = int(code)
+        super().send_response(code, message)
+
+    def send_header(self, keyword, value):
+        if keyword.lower() == "content-type":
+            self._audit_content_type = value
+        super().send_header(keyword, value)
+
+    def _record_response(self, complete: bool, byte_count: int, digest: str) -> None:
+        if self._audit_recorded or not self._audit_allowed():
+            return
+        self._audit_recorded = True
+        record = {
+            "path": self._manifest_path(),
+            "status": self._audit_status,
+            "complete": bool(complete),
+            "bytes": int(byte_count),
+            "sha256": digest,
+            "contentType": self._audit_content_type,
+            "time": self._audit_started_ms,
+        }
+        encoded = (json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
+        with self._audit_lock:
+            fd = os.open(self._audit_path_file, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+            try:
+                view = memoryview(encoded)
+                while view:
+                    written = os.write(fd, view)
+                    view = view[written:]
+                os.fsync(fd)
+            finally:
+                os.close(fd)
+            os.chmod(self._audit_path_file, 0o600)
+
+    def do_GET(self):
+        self._audit_recorded = False
+        try:
+            super().do_GET()
+        finally:
+            if self._audit_allowed() and not self._audit_recorded:
+                self._record_response(self._audit_status == 304, 0, hashlib.sha256(b"").hexdigest())
+
+    def do_HEAD(self):
+        self._audit_recorded = False
+        try:
+            super().do_HEAD()
+        finally:
+            if self._audit_allowed() and not self._audit_recorded:
+                self._record_response(self._audit_status in (200, 304), 0, hashlib.sha256(b"").hexdigest())
+
+    def send_error(self, code, message=None, explain=None):
+        super().send_error(code, message, explain)
+        if self._audit_allowed():
+            self._record_response(False, 0, hashlib.sha256(b"").hexdigest())
+
+    def copyfile(self, source, outputfile):
+        if not self._audit_allowed():
+            return super().copyfile(source, outputfile)
+        digest = hashlib.sha256()
+        byte_count = 0
+        expected = self._artifact_manifest[self._manifest_path()]["bytes"]
+        complete = False
+        try:
+            while True:
+                chunk = source.read(65536)
+                if not chunk:
+                    complete = True
+                    break
+                remaining = memoryview(chunk)
+                while remaining:
+                    written = self.connection.send(remaining)
+                    if written <= 0:
+                        raise OSError("short static response write")
+                    sent = remaining[:written]
+                    digest.update(sent)
+                    byte_count += written
+                    remaining = remaining[written:]
+            complete = complete and byte_count == expected
+        except OSError:
+            self.close_connection = True
+            complete = False
+        finally:
+            self._record_response(complete, byte_count, digest.hexdigest())
 
     def list_directory(self, path):
         self.send_error(403, "Directory listing disabled")
@@ -154,8 +254,28 @@ class FrozenArtifactHandler(http.server.SimpleHTTPRequestHandler):
         return
 
 
-def serve_artifact(root: Path) -> http.server.ThreadingHTTPServer:
-    handler = lambda *args, **kwargs: FrozenArtifactHandler(*args, directory=str(root), **kwargs)
+def serve_artifact(root: Path, private: Path) -> http.server.ThreadingHTTPServer:
+    manifest_path = root.parent / "artifact-manifest.json"
+    manifest_doc = json.loads(manifest_path.read_text(encoding="utf-8"))
+    entries = manifest_doc.get("files")
+    if not isinstance(entries, list):
+        raise RuntimeError("frozen artifact manifest has no files array")
+    manifest: dict[str, dict] = {}
+    for entry in entries:
+        name = entry.get("path")
+        if not isinstance(name, str) or Path(name).is_absolute() or ".." in Path(name).parts or name in manifest:
+            raise RuntimeError("frozen artifact manifest contains an unsafe or duplicate path")
+        if not isinstance(entry.get("bytes"), int) or entry["bytes"] < 0:
+            raise RuntimeError("frozen artifact manifest contains an invalid file length")
+        if not isinstance(entry.get("sha256"), str) or len(entry["sha256"]) != 64:
+            raise RuntimeError("frozen artifact manifest contains an invalid file hash")
+        manifest[name] = {"bytes": entry["bytes"], "sha256": entry["sha256"]}
+    audit_path = private / "static-responses.jsonl"
+    if audit_path.exists():
+        raise RuntimeError("private static response audit already exists; use a fresh directory")
+    audit_lock = threading.Lock()
+    handler = lambda *args, **kwargs: FrozenArtifactHandler(*args, directory=str(root), manifest=manifest,
+                                                             audit_path=str(audit_path), audit_lock=audit_lock, **kwargs)
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
     server.daemon_threads = True
     server.allow_reuse_address = False
@@ -196,7 +316,7 @@ def run(args: argparse.Namespace) -> int:
     signal.signal(signal.SIGTERM, lambda _signum, _frame: (_ for _ in ()).throw(KeyboardInterrupt()))
     spool = private / "result-spool"
     logs = private / "logs"
-    static = serve_artifact(artifact)
+    static = serve_artifact(artifact, private)
     static_port = int(static.server_address[1])
     pg_port = free_port_excluding({static_port})
     server_port = free_port_excluding({static_port, pg_port})
