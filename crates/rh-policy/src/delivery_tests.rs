@@ -1002,3 +1002,175 @@ fn renewed_observer_drop_preserves_old_aliases_and_the_next_delivery_reuses_the_
         rh_sim::validate(rh_sim::RawCommand::MissingTarget).unwrap()
     );
 }
+
+#[derive(Clone, Copy, Debug)]
+enum AppendedDecision {
+    Success,
+    Refuse,
+    Panic,
+}
+struct AppendThenFinish {
+    finish: AppendedDecision,
+    seen: Arc<Mutex<Vec<Frame14>>>,
+}
+impl Policy for AppendThenFinish {
+    fn input_kind(&self) -> InputKind {
+        InputKind::Delivered14
+    }
+    fn check_input(&self, input: InputPreview<'_>) -> Result<(), InputRefusal> {
+        match input {
+            InputPreview::Delivered14(_) => Ok(()),
+            _ => Err(InputRefusal::RequiresDelivered14),
+        }
+    }
+    fn decide_input_into(
+        &mut self,
+        input: PolicyInput<'_>,
+        out: &mut Vec<PublicCommand>,
+    ) -> Result<(), InputRefusal> {
+        let PolicyInput::Delivered14(receipt) = input else {
+            panic!("raw fallback shortcut")
+        };
+        self.seen.lock().unwrap().push(receipt.frame().clone());
+        out.push(PublicCommand::Stop { seq: None });
+        match self.finish {
+            AppendedDecision::Success => Ok(()),
+            AppendedDecision::Refuse => Err(InputRefusal::InvalidOwner),
+            AppendedDecision::Panic => panic!("fallback failed after appending a valid stop"),
+        }
+    }
+    fn spec(&self) -> PolicySpec {
+        Capture::new().0.spec()
+    }
+    fn reset(&mut self, _: &MatchStart) {}
+    fn decide(&mut self, _: &Observation) -> Vec<PublicCommand> {
+        panic!("raw fallback shortcut")
+    }
+}
+fn assert_append_failure_is_discarded(finish: AppendedDecision) {
+    for queued in [false, true] {
+        for primary_refuses_preflight in [true, false] {
+            let mut sim = npc_scene();
+            let start = MatchStart::of(&sim, PlayerId(1), 7);
+            let primary: Box<dyn Policy> = if primary_refuses_preflight {
+                let (mut p, _) = Capture::new();
+                p.reject = true;
+                Box::new(p)
+            } else {
+                Box::new(AppendThenFinish {
+                    finish: AppendedDecision::Refuse,
+                    seen: Arc::new(Mutex::new(vec![])),
+                })
+            };
+            let seen = Arc::new(Mutex::new(vec![]));
+            let fallback = AppendThenFinish {
+                finish,
+                seen: seen.clone(),
+            };
+            let mut seats = [Seat::new(&start, primary, Box::new(fallback))];
+            let mut sight = SightCache::new();
+            let mut proposals = vec![];
+            let mut submitted = vec![];
+            let ran = catch_unwind(AssertUnwindSafe(|| {
+                if queued {
+                    drive_seats_queued(&mut sim, &mut seats, &[], &mut sight, |_, p| {
+                        proposals.push(p)
+                    });
+                } else {
+                    drive_seats_with(&mut sim, &mut seats, &[], &mut sight, |_, c| {
+                        submitted.push(c)
+                    });
+                }
+            }));
+            assert!(ran.is_ok(),"fallback panic must stay inside the policy fault seam: queued={queued}, preflight={primary_refuses_preflight}");
+            assert!(
+                proposals.is_empty() && submitted.is_empty(),
+                "refused fallback leaked valid proposals: {proposals:?}/{submitted:?}"
+            );
+            assert_eq!(seats[0].stats.proposed, 0);
+            assert_eq!(seats[0].stats.accepted, 0);
+            assert_eq!(seats[0].stats.rejected, 0);
+            assert_eq!(seats[0].stats.decisions, 1);
+            assert_eq!(seats[0].stats.fallback_decisions, 1);
+            assert_eq!(
+                seen.lock().unwrap().len(),
+                1,
+                "failure occurs during decision after real frame acceptance"
+            );
+            let frame = seen.lock().unwrap()[0].clone();
+            let npc = frame.actors().find_map(|a| a.npc()).unwrap().wire_id();
+            assert_ne!(
+                seats[0]
+                    .observer
+                    .resolve(
+                        &sim,
+                        PublicCommand::Target {
+                            actor: PlayerId(npc)
+                        }
+                    )
+                    .unwrap(),
+                rh_sim::validate(rh_sim::RawCommand::MissingTarget).unwrap(),
+                "accepted frame remains committed; no arbitrary policy-memory rollback is promised"
+            );
+            assert_eq!(
+                seats[0].fault,
+                Some(match finish {
+                    AppendedDecision::Refuse => Fault::Input(InputRefusal::InvalidOwner),
+                    AppendedDecision::Panic => Fault::Panicked,
+                    AppendedDecision::Success => unreachable!(),
+                })
+            );
+        }
+    }
+}
+#[test]
+fn fallback_append_then_refusal_never_reaches_sync_submit_or_queued_delivery() {
+    assert_append_failure_is_discarded(AppendedDecision::Refuse);
+}
+#[test]
+fn fallback_append_then_panic_is_contained_and_never_reaches_either_driver() {
+    assert_append_failure_is_discarded(AppendedDecision::Panic);
+}
+#[test]
+fn successful_fallback_stop_is_valid_and_reaches_real_intake_in_both_drivers() {
+    for queued in [false, true] {
+        let mut sim = npc_scene();
+        let start = MatchStart::of(&sim, PlayerId(1), 7);
+        let (mut p, _) = Capture::new();
+        p.reject = true;
+        let mut seats = [Seat::new(
+            &start,
+            Box::new(p),
+            Box::new(AppendThenFinish {
+                finish: AppendedDecision::Success,
+                seen: Arc::new(Mutex::new(vec![])),
+            }),
+        )];
+        let mut sight = SightCache::new();
+        let mut submitted = vec![];
+        let mut proposals = vec![];
+        if queued {
+            drive_seats_queued(&mut sim, &mut seats, &[], &mut sight, |_, p| {
+                proposals.push(p)
+            });
+            assert_eq!(proposals, vec![PublicCommand::Stop { seq: None }]);
+            for p in proposals {
+                let c = seats[0].resolve(&sim, p).unwrap();
+                submitted.push(c);
+                let accepted = sim.submit(PlayerId(1), c).is_ok();
+                seats[0].note_delivery(accepted);
+            }
+        } else {
+            drive_seats_with(&mut sim, &mut seats, &[], &mut sight, |_, c| {
+                submitted.push(c)
+            });
+        }
+        assert_eq!(
+            submitted,
+            vec![rh_sim::validate(rh_sim::RawCommand::Stop { seq: None }).unwrap()]
+        );
+        assert_eq!(seats[0].stats.proposed, 1);
+        assert_eq!(seats[0].stats.accepted, 1);
+        assert_eq!(seats[0].stats.rejected, 0);
+    }
+}

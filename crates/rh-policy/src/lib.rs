@@ -437,9 +437,7 @@ impl Seat {
         self.stats.decisions += 1;
         if self.fault.is_some() {
             self.stats.fallback_decisions += 1;
-            if let Err(e) = self.fallback.decide_input_into(input, out) {
-                self.fault = Some(Fault::Input(e));
-            }
+            self.decide_delivered_fallback_into(input, out);
             return;
         }
         let base = out.len();
@@ -466,10 +464,30 @@ impl Seat {
                     _ => Fault::Panicked,
                 });
                 self.stats.fallback_decisions += 1;
-                if let Err(e) = self.fallback.decide_input_into(input, out) {
-                    out.truncate(base);
-                    self.fault = Some(Fault::Input(e));
-                }
+                self.decide_delivered_fallback_into(input, out);
+            }
+        }
+    }
+    /// The frame was already accepted. Refusal/panic discards this decision's proposals, not
+    /// arbitrary policy memory/RNG, observer bindings or a caller's pre-existing output prefix.
+    fn decide_delivered_fallback_into(
+        &mut self,
+        input: PolicyInput<'_>,
+        out: &mut Vec<PublicCommand>,
+    ) {
+        let base = out.len();
+        let ran = catch_unwind(AssertUnwindSafe(|| {
+            self.fallback.decide_input_into(input, out)
+        }));
+        match ran {
+            Ok(Ok(())) => {}
+            Ok(Err(error)) => {
+                out.truncate(base);
+                self.fault = Some(Fault::Input(error));
+            }
+            Err(_) => {
+                out.truncate(base);
+                self.fault = Some(Fault::Panicked);
             }
         }
     }
