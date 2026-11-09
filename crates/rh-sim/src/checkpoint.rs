@@ -237,8 +237,10 @@ impl<'de> Visitor<'de> for CheckpointVisitor<'_> {
         if let Err(why) = crate::systems::sentenced::prepare(&k, &mut w, &mut scratch) {
             return Err(self.refuse(CheckpointError::Malformed(why.into())));
         }
+        let mut projection = crate::fx_report::Projection::empty_at(w.tick);
+        projection.prepare_mobs(w.mobs.len());
         Ok(Sim {
-            projection: crate::fx_report::Projection::empty_at(w.tick),
+            projection,
             k,
             w,
             s: scratch,

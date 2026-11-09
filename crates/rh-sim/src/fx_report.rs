@@ -27,6 +27,15 @@ impl Projection {
         report.tick = tick;
         Self { report, identity }
     }
+    /// Cold Clone/restore preparation for the actual NPC domain. Keep the
+    /// fresh report empty/incomplete; no visibility or ownership facts are copied.
+    pub(crate) fn prepare_mobs(&mut self, count: usize) {
+        if self.report.mob_seen.capacity() < count {
+            self.report
+                .mob_seen
+                .reserve_exact(count.saturating_sub(self.report.mob_seen.len()));
+        }
+    }
 }
 impl Default for Projection {
     fn default() -> Self {

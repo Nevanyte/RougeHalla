@@ -53,8 +53,10 @@ impl Clone for Sim {
         let mut s = self.s.clone();
         s.reserve_actors(w.fighter_count());
         crate::systems::sentenced::prepare(&k, &mut w, &mut s).expect("validated Mark edge budget");
+        let mut projection = self.projection.clone();
+        projection.prepare_mobs(w.mobs.len());
         Self {
-            projection: self.projection.clone(),
+            projection,
             k,
             w,
             s,

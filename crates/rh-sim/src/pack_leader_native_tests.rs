@@ -702,3 +702,51 @@ fn the_genuine_source_tape_produces_the_native_camp_count_and_later_player_damag
         restored.players()[0].camps_cleared
     );
 }
+
+#[test]
+fn cold_clone_restore_prepare_actual_npc_report_capacity_without_copying_visibility() {
+    let (mut sim, _) = build();
+    sim.step();
+    assert!(sim.fx_report().complete);
+    assert!(!sim.fx_report().mob_seen.is_empty());
+    assert!(!sim.fx_report().viewers.is_empty());
+    let mut cloned = sim.clone();
+    let mut restored = Sim::restore(serde_json::to_value(&sim).unwrap()).unwrap();
+    assert!(!std::sync::Arc::ptr_eq(
+        &sim.projection.identity,
+        &cloned.projection.identity
+    ));
+    assert!(!std::sync::Arc::ptr_eq(
+        &sim.projection.identity,
+        &restored.projection.identity
+    ));
+    assert!(!std::sync::Arc::ptr_eq(
+        &cloned.projection.identity,
+        &restored.projection.identity
+    ));
+    for state in [&cloned, &restored] {
+        let r = state.fx_report();
+        assert!(!r.complete);
+        assert_eq!(r.tick, sim.tick());
+        assert!(r.mob_seen.capacity() >= state.mobs().len());
+        assert!(r.mob_seen.is_empty() && r.viewers.is_empty() && r.seen.is_empty());
+        assert!(r.ops.is_empty() && r.events.is_empty() && r.wish_points.is_empty());
+        assert!(std::sync::Arc::ptr_eq(
+            &r.identity,
+            &state.projection.identity
+        ));
+        assert_eq!(state.state_hash(), sim.state_hash());
+        println!(
+            "cold NPC report: mobs={} element_bytes={} capacity={} payload_bytes={}",
+            state.mobs().len(),
+            std::mem::size_of::<(PlayerId, u8)>(),
+            r.mob_seen.capacity(),
+            r.mob_seen.capacity() * std::mem::size_of::<(PlayerId, u8)>()
+        );
+    }
+    let events = sim.step();
+    assert_eq!(events, cloned.step());
+    assert_eq!(events, restored.step());
+    assert_eq!(sim.state_hash(), cloned.state_hash());
+    assert_eq!(sim.state_hash(), restored.state_hash());
+}
