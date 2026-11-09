@@ -1,0 +1,16 @@
+{
+  "framework": ".NET 8.0.33",
+  "runtime": "8.0.33",
+  "os": "Ubuntu 26.04.1 LTS",
+  "arch": "X64",
+  "serverGC": false,
+  "warmup": 200,
+  "iterations": 20000,
+  "environment": {
+    "DOTNET_TieredCompilation": null,
+    "DOTNET_TieredPGO": null,
+    "DOTNET_TC_QuickJitForLoops": null
+  },
+  "role": "DIAGNOSTIC ONLY; original CI red remains open; no result is selected, subtracted or retried",
+  "originalSource": "986f44dfd9a61eb769700adc476fc8b9e9aa8011:GarbageTests.PerCall"
+}

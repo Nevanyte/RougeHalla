@@ -20,7 +20,7 @@ Protocol14/checkpoint28/replay22/OBS21/policy15/content643d294869db55a4 is retai
 | Lead: OPTimization_port | Reviewed main integration/CI; complete required bot facts and native state identities; original full-port browser/durable cloud/performance release gates |
 | Prepare Unity 2D Demo | Sole Editor: corrected035b42case run fails27PASS/15FAIL (old25allPASS); preserving exact receipt/restoring Frozen4. Next bounded3-sheet artV2 render requires separate release; noPlay/audio/live binding |
 | Modernize Unity game UI | Diagnose actual launch duplicate-global-light/EventSystem ownership errors; preserve17selectors and valid ownership controls. Match-correlated settlement UI design follows this repair; no receipt/banking claim yet |
-| Prove PostgreSQL cold recovery | Slow Starter fight-clock source/lifecycle assessment before minimal private native clock; owned committed-settlement read contract already merged |
+| Prove PostgreSQL cold recovery | Slow Starter private native29 component reviewed:7source cases/21focused tests/0warm allocations; final native union remains with Root. Owned settlement contract already merged |
 | Check Git access | Actual NPC living-return/Runner evidence and complete P15 facts/privacy/bounds proposal; no tag/version allocation or native memory behavior decision yet |
 | DeepSeek Rust Port Worker | Source-first Pack Leader: genuine earned camp clear→later damage, then fixed-interface native outgoing/execute consumer after Root lease |
 | DeepSeek Post Rust | Source-only walk-hint producer: genuine Move/Stop/final-system outputs and bounded fixture/control/bytechecks; no native layout/publication lease |

@@ -1,0 +1,2 @@
+# Preserve exact original raw CI transcript bytes.
+ci-42601100872-csharp.raw.log whitespace=-blank-at-eof,-blank-at-eol

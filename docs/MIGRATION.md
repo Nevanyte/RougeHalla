@@ -63,7 +63,7 @@ profile/leaderboard, genuine duplicate/foreign-owner refusals and private replay
 [Root's fresh durable retake](evidence/full-runtime-account-bridge/root-retake/README.md) pass separately with durable
 settingsON and both ownedclusters stopped. Native50ms steps use accelerated3ms wall wakes on the unchanged smallmap;
 this is no physical20Hz/browser/full-map population/cloud proof. Client match-correlated bank confirmation remains open.
-The [owned settlement API](evidence/owned-bank-receipt/root-admission/README.md) now supplies a minimal authenticated
+The [allocation measurement isolation](evidence/csharp-allocation-isolation/root-linux-admission/README.md) is reviewed after an actual23case Linux diagnostic, preserving all existing byte budgets. Original986CI has a retained751/752 C#allocation failure with1128unattributed window bytes; narrow diagnostic success does not relabel it or replace normal integrationCI. The [owned settlement API](evidence/owned-bank-receipt/root-admission/README.md) now supplies a minimal authenticated
 unknown/committed read of the actual same-snapshot result/ledger credit. Its30fixture/API checks and security review
 pass; client receipt adoption and genuine game-to-receipt browser acceptance are still open.
 

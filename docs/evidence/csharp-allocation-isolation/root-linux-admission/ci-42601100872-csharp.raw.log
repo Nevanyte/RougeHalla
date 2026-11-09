@@ -1,0 +1,247 @@
+﻿2026-11-09T10:28:51.2507608Z Current runner version: '2.338.2'
+2026-11-09T10:28:51.2529618Z ##[group]Runner Image Provisioner
+2026-11-09T10:28:51.2530353Z Hosted Compute Agent
+2026-11-09T10:28:51.2530896Z Version: 20261028.624
+2026-11-09T10:28:51.2531463Z Commit: 54898b74c23fde5556c9b3c3a2290865feef0dfe
+2026-11-09T10:28:51.2532310Z Build Date: 2026-10-28T21:51:42Z
+2026-11-09T10:28:51.2532933Z Worker ID: {94e93f27-c41d-48dc-839d-1fd16efd62db}
+2026-11-09T10:28:51.2533510Z Region: westus3
+2026-11-09T10:28:51.2533955Z Cloud: Azure
+2026-11-09T10:28:51.2534489Z ##[endgroup]
+2026-11-09T10:28:51.2535691Z ##[group]Operating System
+2026-11-09T10:28:51.2536302Z Ubuntu
+2026-11-09T10:28:51.2536743Z 26.04.1
+2026-11-09T10:28:51.2537182Z LTS
+2026-11-09T10:28:51.2537713Z ##[endgroup]
+2026-11-09T10:28:51.2538174Z ##[group]Runner Image
+2026-11-09T10:28:51.2538700Z Image: ubuntu-26.04
+2026-11-09T10:28:51.2539181Z Version: 20261101.186.1
+2026-11-09T10:28:51.2540296Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261101.186/images/ubuntu/Ubuntu2604-Readme.md
+2026-11-09T10:28:51.2541541Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261101.186
+2026-11-09T10:28:51.2542607Z ##[endgroup]
+2026-11-09T10:28:51.2543541Z ##[group]GITHUB_TOKEN Permissions
+2026-11-09T10:28:51.2545224Z Contents: read
+2026-11-09T10:28:51.2545739Z Metadata: read
+2026-11-09T10:28:51.2546221Z ##[endgroup]
+2026-11-09T10:28:51.2548026Z Secret source: Actions
+2026-11-09T10:28:51.2548867Z Cache mode: write
+2026-11-09T10:28:51.2549523Z Prepare workflow directory
+2026-11-09T10:28:51.2860298Z Prepare all required actions
+2026-11-09T10:28:51.2912609Z Getting action download info
+2026-11-09T10:28:51.5817345Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-11-09T10:28:51.7570472Z Download action repository 'actions/setup-dotnet@v4' (SHA:67a3573c9a986a3f9c594539f4ab511d57bb3ce9)
+2026-11-09T10:28:52.4314226Z Complete job name: csharp
+2026-11-09T10:28:52.5067483Z ##[group]Run actions/checkout@v4
+2026-11-09T10:28:52.5068350Z with:
+2026-11-09T10:28:52.5068804Z   repository: Nevanyte/RougeHalla
+2026-11-09T10:28:52.5072325Z   token: ***
+2026-11-09T10:28:52.5072768Z   ssh-strict: true
+2026-11-09T10:28:52.5073210Z   ssh-user: git
+2026-11-09T10:28:52.5073648Z   persist-credentials: true
+2026-11-09T10:28:52.5074121Z   clean: true
+2026-11-09T10:28:52.5074558Z   sparse-checkout-cone-mode: true
+2026-11-09T10:28:52.5075062Z   fetch-depth: 1
+2026-11-09T10:28:52.5075491Z   fetch-tags: false
+2026-11-09T10:28:52.5075941Z   show-progress: true
+2026-11-09T10:28:52.5076380Z   lfs: false
+2026-11-09T10:28:52.5076806Z   submodules: false
+2026-11-09T10:28:52.5077260Z   set-safe-directory: true
+2026-11-09T10:28:52.5077756Z   allow-unsafe-pr-checkout: false
+2026-11-09T10:28:52.5078422Z ##[endgroup]
+2026-11-09T10:28:52.7812638Z Syncing repository: Nevanyte/RougeHalla
+2026-11-09T10:28:52.7814138Z ##[group]Getting Git version info
+2026-11-09T10:28:52.7814814Z Working directory is '/home/runner/work/RougeHalla/RougeHalla'
+2026-11-09T10:28:52.8295404Z [command]/usr/bin/git version
+2026-11-09T10:28:52.8339037Z git version 2.56.0
+2026-11-09T10:28:52.8355189Z ##[endgroup]
+2026-11-09T10:28:52.8367548Z Temporarily overriding HOME='/home/runner/work/_temp/7d1326ad-fe21-4c83-aa8f-bf5b6464a0ba' before making global git config changes
+2026-11-09T10:28:52.8369317Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-09T10:28:52.8372569Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/RougeHalla/RougeHalla
+2026-11-09T10:28:52.8440892Z Deleting the contents of '/home/runner/work/RougeHalla/RougeHalla'
+2026-11-09T10:28:52.8449384Z ##[group]Initializing the repository
+2026-11-09T10:28:52.8450404Z [command]/usr/bin/git init /home/runner/work/RougeHalla/RougeHalla
+2026-11-09T10:28:52.8544688Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-09T10:28:52.8545627Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-09T10:28:52.8546610Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-09T10:28:52.8547222Z hint: call:
+2026-11-09T10:28:52.8547561Z hint:
+2026-11-09T10:28:52.8547998Z hint: 	git config --global init.defaultBranch <name>
+2026-11-09T10:28:52.8548492Z hint:
+2026-11-09T10:28:52.8548953Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-09T10:28:52.8549672Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-09T10:28:52.8550246Z hint:
+2026-11-09T10:28:52.8550663Z hint: 	git branch -m <name>
+2026-11-09T10:28:52.8551037Z hint:
+2026-11-09T10:28:52.8551524Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-09T10:28:52.8563326Z Initialized empty Git repository in /home/runner/work/RougeHalla/RougeHalla/.git/
+2026-11-09T10:28:52.8573256Z [command]/usr/bin/git remote add origin https://github.com/Nevanyte/RougeHalla
+2026-11-09T10:28:52.8621462Z ##[endgroup]
+2026-11-09T10:28:52.8622376Z ##[group]Disabling automatic garbage collection
+2026-11-09T10:28:52.8624737Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-09T10:28:52.8656768Z ##[endgroup]
+2026-11-09T10:28:52.8657491Z ##[group]Setting up auth
+2026-11-09T10:28:52.8663539Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-09T10:28:52.8693945Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-09T10:28:52.9109982Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-09T10:28:52.9140721Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-09T10:28:52.9378164Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-09T10:28:52.9408722Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-09T10:28:52.9648498Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-09T10:28:52.9685175Z ##[endgroup]
+2026-11-09T10:28:52.9685934Z ##[group]Fetching the repository
+2026-11-09T10:28:52.9692718Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +986f44dfd9a61eb769700adc476fc8b9e9aa8011:refs/remotes/origin/optimization_port
+2026-11-09T10:29:11.0378515Z From https://github.com/Nevanyte/RougeHalla
+2026-11-09T10:29:11.0379171Z  * [new ref]         986f44dfd9a61eb769700adc476fc8b9e9aa8011 -> origin/optimization_port
+2026-11-09T10:29:11.0382255Z ##[endgroup]
+2026-11-09T10:29:11.0382732Z ##[group]Determining the checkout info
+2026-11-09T10:29:11.0384800Z ##[endgroup]
+2026-11-09T10:29:11.0389637Z [command]/usr/bin/git sparse-checkout disable
+2026-11-09T10:29:11.0433896Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-09T10:29:11.0460409Z ##[group]Checking out the ref
+2026-11-09T10:29:11.0463625Z [command]/usr/bin/git checkout --progress --force -B optimization_port refs/remotes/origin/optimization_port
+2026-11-09T10:29:12.4588924Z Updating files:  24% (1667/6884)
+2026-11-09T10:29:12.4631541Z Updating files:  25% (1721/6884)
+2026-11-09T10:29:12.4681421Z Updating files:  26% (1790/6884)
+2026-11-09T10:29:12.4732651Z Updating files:  27% (1859/6884)
+2026-11-09T10:29:12.4784784Z Updating files:  28% (1928/6884)
+2026-11-09T10:29:12.4856340Z Updating files:  29% (1997/6884)
+2026-11-09T10:29:12.4932210Z Updating files:  30% (2066/6884)
+2026-11-09T10:29:12.5102449Z Updating files:  31% (2135/6884)
+2026-11-09T10:29:12.5427018Z Updating files:  32% (2203/6884)
+2026-11-09T10:29:12.5466548Z Updating files:  33% (2272/6884)
+2026-11-09T10:29:12.5492813Z Updating files:  34% (2341/6884)
+2026-11-09T10:29:12.5521095Z Updating files:  35% (2410/6884)
+2026-11-09T10:29:12.5553952Z Updating files:  36% (2479/6884)
+2026-11-09T10:29:12.5576180Z Updating files:  37% (2548/6884)
+2026-11-09T10:29:12.5602470Z Updating files:  38% (2616/6884)
+2026-11-09T10:29:12.5635163Z Updating files:  39% (2685/6884)
+2026-11-09T10:29:12.5823303Z Updating files:  40% (2754/6884)
+2026-11-09T10:29:12.5929794Z Updating files:  41% (2823/6884)
+2026-11-09T10:29:12.5963620Z Updating files:  42% (2892/6884)
+2026-11-09T10:29:12.5991934Z Updating files:  43% (2961/6884)
+2026-11-09T10:29:12.6254339Z Updating files:  44% (3029/6884)
+2026-11-09T10:29:12.6276036Z Updating files:  45% (3098/6884)
+2026-11-09T10:29:12.6311810Z Updating files:  46% (3167/6884)
+2026-11-09T10:29:12.6337064Z Updating files:  47% (3236/6884)
+2026-11-09T10:29:12.6363069Z Updating files:  48% (3305/6884)
+2026-11-09T10:29:12.6395813Z Updating files:  49% (3374/6884)
+2026-11-09T10:29:12.6433750Z Updating files:  50% (3442/6884)
+2026-11-09T10:29:12.6480090Z Updating files:  51% (3511/6884)
+2026-11-09T10:29:12.6514372Z Updating files:  52% (3580/6884)
+2026-11-09T10:29:12.6556646Z Updating files:  53% (3649/6884)
+2026-11-09T10:29:12.6593589Z Updating files:  54% (3718/6884)
+2026-11-09T10:29:12.6622081Z Updating files:  55% (3787/6884)
+2026-11-09T10:29:12.6770866Z Updating files:  56% (3856/6884)
+2026-11-09T10:29:12.7126812Z Updating files:  57% (3924/6884)
+2026-11-09T10:29:12.7342673Z Updating files:  58% (3993/6884)
+2026-11-09T10:29:12.7697526Z Updating files:  59% (4062/6884)
+2026-11-09T10:29:12.7836830Z Updating files:  60% (4131/6884)
+2026-11-09T10:29:12.8622081Z Updating files:  61% (4200/6884)
+2026-11-09T10:29:12.8660950Z Updating files:  62% (4269/6884)
+2026-11-09T10:29:12.8909969Z Updating files:  63% (4337/6884)
+2026-11-09T10:29:12.8935853Z Updating files:  64% (4406/6884)
+2026-11-09T10:29:12.9778799Z Updating files:  65% (4475/6884)
+2026-11-09T10:29:12.9958262Z Updating files:  66% (4544/6884)
+2026-11-09T10:29:13.0022566Z Updating files:  67% (4613/6884)
+2026-11-09T10:29:13.0079286Z Updating files:  68% (4682/6884)
+2026-11-09T10:29:13.0138238Z Updating files:  69% (4750/6884)
+2026-11-09T10:29:13.0183184Z Updating files:  70% (4819/6884)
+2026-11-09T10:29:13.0227892Z Updating files:  71% (4888/6884)
+2026-11-09T10:29:13.0266114Z Updating files:  72% (4957/6884)
+2026-11-09T10:29:13.0311978Z Updating files:  73% (5026/6884)
+2026-11-09T10:29:13.0363389Z Updating files:  74% (5095/6884)
+2026-11-09T10:29:13.0417529Z Updating files:  75% (5163/6884)
+2026-11-09T10:29:13.0470212Z Updating files:  76% (5232/6884)
+2026-11-09T10:29:13.0540864Z Updating files:  77% (5301/6884)
+2026-11-09T10:29:13.0549522Z Updating files:  78% (5370/6884)
+2026-11-09T10:29:13.0610671Z Updating files:  78% (5379/6884)
+2026-11-09T10:29:13.0667307Z Updating files:  79% (5439/6884)
+2026-11-09T10:29:13.0720384Z Updating files:  80% (5508/6884)
+2026-11-09T10:29:13.0774309Z Updating files:  81% (5577/6884)
+2026-11-09T10:29:13.2183272Z Updating files:  82% (5645/6884)
+2026-11-09T10:29:13.2436918Z Updating files:  83% (5714/6884)
+2026-11-09T10:29:13.2817803Z Updating files:  84% (5783/6884)
+2026-11-09T10:29:13.3909349Z Updating files:  85% (5852/6884)
+2026-11-09T10:29:13.4432946Z Updating files:  86% (5921/6884)
+2026-11-09T10:29:13.4553499Z Updating files:  87% (5990/6884)
+2026-11-09T10:29:13.4624577Z Updating files:  88% (6058/6884)
+2026-11-09T10:29:13.4654719Z Updating files:  89% (6127/6884)
+2026-11-09T10:29:13.4696141Z Updating files:  90% (6196/6884)
+2026-11-09T10:29:13.4726234Z Updating files:  91% (6265/6884)
+2026-11-09T10:29:13.4753921Z Updating files:  92% (6334/6884)
+2026-11-09T10:29:13.4794370Z Updating files:  93% (6403/6884)
+2026-11-09T10:29:13.4826551Z Updating files:  94% (6471/6884)
+2026-11-09T10:29:13.4861428Z Updating files:  95% (6540/6884)
+2026-11-09T10:29:13.4891722Z Updating files:  96% (6609/6884)
+2026-11-09T10:29:13.4919158Z Updating files:  97% (6678/6884)
+2026-11-09T10:29:13.4956731Z Updating files:  98% (6747/6884)
+2026-11-09T10:29:13.4986663Z Updating files:  99% (6816/6884)
+2026-11-09T10:29:13.4987421Z Updating files: 100% (6884/6884)
+2026-11-09T10:29:13.4987760Z Updating files: 100% (6884/6884), done.
+2026-11-09T10:29:13.5053484Z Switched to a new branch 'optimization_port'
+2026-11-09T10:29:13.5059093Z branch 'optimization_port' set up to track 'origin/optimization_port'.
+2026-11-09T10:29:13.5200580Z ##[endgroup]
+2026-11-09T10:29:13.5243313Z [command]/usr/bin/git log -1 --format=%H
+2026-11-09T10:29:13.5271143Z 986f44dfd9a61eb769700adc476fc8b9e9aa8011
+2026-11-09T10:29:13.5570584Z ##[group]Run actions/setup-dotnet@v4
+2026-11-09T10:29:13.5570874Z with:
+2026-11-09T10:29:13.5571052Z   dotnet-version: 8.0.x
+2026-11-09T10:29:13.5571252Z   cache: false
+2026-11-09T10:29:13.5571419Z ##[endgroup]
+2026-11-09T10:29:13.6796350Z (node:2199) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-09T10:29:13.6796952Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-09T10:29:13.6817520Z [command]/home/runner/work/_actions/actions/setup-dotnet/v4/externals/install-dotnet.sh --skip-non-versioned-files --runtime dotnet --channel LTS
+2026-11-09T10:29:14.0424139Z dotnet-install: .NET Core Runtime with version '10.0.14' is already installed.
+2026-11-09T10:29:14.0444899Z [command]/home/runner/work/_actions/actions/setup-dotnet/v4/externals/install-dotnet.sh --skip-non-versioned-files --channel 8.0
+2026-11-09T10:29:14.3373122Z dotnet-install: .NET Core SDK with version '8.0.427' is already installed.
+2026-11-09T10:29:14.3526621Z ##[group]Run dotnet test client-unity/RoguehallaNet.Tests
+2026-11-09T10:29:14.3527028Z [36;1mdotnet test client-unity/RoguehallaNet.Tests[0m
+2026-11-09T10:29:14.3578487Z shell: /usr/bin/bash -e {0}
+2026-11-09T10:29:14.3578708Z env:
+2026-11-09T10:29:14.3578879Z   DOTNET_ROOT: /usr/share/dotnet
+2026-11-09T10:29:14.3579087Z ##[endgroup]
+2026-11-09T10:29:15.5024016Z   Determining projects to restore...
+2026-11-09T10:29:16.3835312Z   Restored /home/runner/work/RougeHalla/RougeHalla/client-unity/RoguehallaNet/RoguehallaNet.csproj (in 71 ms).
+2026-11-09T10:29:16.3836734Z   Restored /home/runner/work/RougeHalla/RougeHalla/client-unity/RoguehallaNet.Probe/RoguehallaNet.Probe.csproj (in 78 ms).
+2026-11-09T10:29:17.1960791Z   Restored /home/runner/work/RougeHalla/RougeHalla/client-unity/RoguehallaNet.Tests/RoguehallaNet.Tests.csproj (in 898 ms).
+2026-11-09T10:29:19.5861827Z   RoguehallaNet -> /home/runner/work/RougeHalla/RougeHalla/client-unity/RoguehallaNet/bin/Debug/netstandard2.1/RoguehallaNet.dll
+2026-11-09T10:29:20.7673058Z   RoguehallaNet.Probe -> /home/runner/work/RougeHalla/RougeHalla/client-unity/RoguehallaNet.Probe/bin/Debug/net8.0/RoguehallaNet.Probe.dll
+2026-11-09T10:29:22.2243309Z   RoguehallaNet.Tests -> /home/runner/work/RougeHalla/RougeHalla/client-unity/RoguehallaNet.Tests/bin/Debug/net8.0/RoguehallaNet.Tests.dll
+2026-11-09T10:29:22.2308166Z Test run for /home/runner/work/RougeHalla/RougeHalla/client-unity/RoguehallaNet.Tests/bin/Debug/net8.0/RoguehallaNet.Tests.dll (.NETCoreApp,Version=v8.0)
+2026-11-09T10:29:22.4306706Z A total of 1 test files matched the specified pattern.
+2026-11-09T10:29:25.8331552Z   Failed PlainDecodeAllocatesOnlyTheSnapshotItsSelfAndOneActorArray(14) [125 ms]
+2026-11-09T10:29:25.8332569Z   Error Message:
+2026-11-09T10:29:25.8333301Z      Assert.That(arg1, Is.LessThanOrEqualTo(arg2))
+2026-11-09T10:29:25.8333999Z   Expected: less than or equal to 536.0d
+2026-11-09T10:29:25.8334398Z   But was:  536.05640000000005d
+2026-11-09T10:29:25.8334622Z 
+2026-11-09T10:29:25.8334765Z   Stack Trace:
+2026-11-09T10:29:25.8335238Z      at NUnit.Framework.Legacy.ClassicAssert.LessOrEqual(Double arg1, Double arg2)
+2026-11-09T10:29:25.8336684Z    at Roguehalla.Net.Tests.GarbageTests.PlainDecodeAllocatesOnlyTheSnapshotItsSelfAndOneActorArray(Int32 actors) in /home/runner/work/RougeHalla/RougeHalla/client-unity/RoguehallaNet.Tests/GarbageTests.cs:line 91
+2026-11-09T10:29:25.8338322Z    at InvokeStub_GarbageTests.PlainDecodeAllocatesOnlyTheSnapshotItsSelfAndOneActorArray(Object, Span`1)
+2026-11-09T10:29:25.8339350Z 
+2026-11-09T10:29:25.8339932Z 1)    at NUnit.Framework.Legacy.ClassicAssert.LessOrEqual(Double arg1, Double arg2)
+2026-11-09T10:29:25.8341363Z    at Roguehalla.Net.Tests.GarbageTests.PlainDecodeAllocatesOnlyTheSnapshotItsSelfAndOneActorArray(Int32 actors) in /home/runner/work/RougeHalla/RougeHalla/client-unity/RoguehallaNet.Tests/GarbageTests.cs:line 91
+2026-11-09T10:29:25.8343113Z    at InvokeStub_GarbageTests.PlainDecodeAllocatesOnlyTheSnapshotItsSelfAndOneActorArray(Object, Span`1)
+2026-11-09T10:29:25.8343712Z 
+2026-11-09T10:29:25.8343717Z 
+2026-11-09T10:29:31.8158566Z 
+2026-11-09T10:29:31.8195018Z Failed!  - Failed:     1, Passed:   751, Skipped:     0, Total:   752, Duration: 8 s - RoguehallaNet.Tests.dll (net8.0)
+2026-11-09T10:29:31.8629535Z ##[error]Process completed with exit code 1.
+2026-11-09T10:29:31.8755190Z Post job cleanup.
+2026-11-09T10:29:31.9459629Z [command]/usr/bin/git version
+2026-11-09T10:29:31.9498190Z git version 2.56.0
+2026-11-09T10:29:31.9532340Z Temporarily overriding HOME='/home/runner/work/_temp/773fe780-43a4-47e2-81aa-7a194d41a8f4' before making global git config changes
+2026-11-09T10:29:31.9533599Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-09T10:29:31.9536510Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/RougeHalla/RougeHalla
+2026-11-09T10:29:31.9571109Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-09T10:29:31.9604412Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-09T10:29:31.9870129Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-09T10:29:31.9895762Z http.https://github.com/.extraheader
+2026-11-09T10:29:31.9905865Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-11-09T10:29:31.9937011Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-09T10:29:32.0239544Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-09T10:29:32.0271032Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-09T10:29:32.0661328Z Cleaning up orphan processes
+2026-11-09T10:29:32.0929787Z Terminate orphan process: pid (2456) (VBCSCompiler)
+2026-11-09T10:29:32.1015341Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-dotnet@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
