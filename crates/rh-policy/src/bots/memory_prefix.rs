@@ -25,6 +25,7 @@ pub struct PlayerSight {
     pub status: Status,
     pub hidden: bool,
 }
+#[derive(Clone, Copy)]
 pub struct Scene<'a> {
     pub epoch: Epoch,
     pub viewer: PlayerRef,
@@ -180,9 +181,9 @@ impl Memory {
             players: &players,
         })
     }
-    /// Same field-fold kernel for an Observation-only policy adapter. All refusals precede mutation.
+    /// Same field-fold kernel for decoded public scenes. All refusals precede mutation.
     /// The source FrameRing/delay, minimap and full event memory remain separate work.
-    pub fn observe_scene(&mut self, scene: Scene<'_>) -> Result<(), Error> {
+    pub fn check_scene(&self, scene: Scene<'_>) -> Result<(), Error> {
         if scene.epoch != self.epoch || scene.viewer != self.viewer {
             return Err(Error::Epoch);
         }
@@ -218,6 +219,15 @@ impl Memory {
         if self.records.len() + incoming > self.limit {
             return Err(Error::Limit);
         }
+        Ok(())
+    }
+    pub fn observe_scene(&mut self, scene: Scene<'_>) -> Result<(), Error> {
+        self.check_scene(scene)?;
+        let now = scene.now;
+        let owner = scene.owner.ok_or(Error::OwnerAbsent)?;
+        let eligible = |a: &&PlayerSight| {
+            !a.hidden && super::view::in_view(owner.at.x, owner.at.y, a.at.x, a.at.y, 0.)
+        };
         self.stimuli.clear();
         // Source foldSelf's anchor changes only after >1u, not after every subpixel sample.
         let pos = owner.at;

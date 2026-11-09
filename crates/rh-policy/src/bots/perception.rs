@@ -1,5 +1,5 @@
 //! Fair perception for a human-like seat: the percept the hand reads, built ONLY from the per-player
-//! Observation (C-OBS) and the match's public static map. No World, no hidden field, no secret: a bot sees exactly what a
+//! reconstructed Frame14 (C-OBS) and the match's public static map. No World, no hidden field, no secret: a bot sees exactly what a
 //! human client is sent (docs/BOTS.md 3, narrowed here to what the human-likeness core reads).
 //!
 //! This is not yet the full legacy perception.ts (camera window at a render time, minimap dot ring, fx decoding,
@@ -10,8 +10,11 @@ use crate::bots::types::{
     BotWeapon, ContainerView, FighterView, HudView, MobView, Percept, PerceptExtras,
     RewardChestView, SelfView, Stimulus, StimulusKind, WishView,
 };
-use rh_sim::observe::{ActorView, SeenEvent};
-use rh_sim::{Observation, Phase, Status};
+use crate::delivery::frame::{status as decoded_status, weapon as decoded_weapon};
+use crate::delivery::Frame14;
+use rh_protocol::{WireActor, WireFx, WireOwnerLock};
+use rh_sim::observe::ActorView;
+use rh_sim::{FactionId, Status};
 
 /// Single adaptation point for typed actor kinds. Companion/dummy/neutral
 /// actors never enter this slice's player-threat or regional-farm candidates.
@@ -21,43 +24,49 @@ enum ActorClass {
     Regional,
     NonCombat,
 }
-fn actor_class(actor: &ActorView) -> ActorClass {
-    if actor.faction.faction_id().is_none() {
+fn actor_class(actor: &WireActor) -> ActorClass {
+    if actor.faction == 15 {
         return ActorClass::NonCombat;
     }
     match actor.kind {
-        rh_sim::observe::ActorKind::Player => ActorClass::Player,
-        rh_sim::observe::ActorKind::Regional => ActorClass::Regional,
+        0 => ActorClass::Player,
+        1 => ActorClass::Regional,
         _ => ActorClass::NonCombat,
     }
 }
-/// Copies only observed player facts. No raw-world access and no decoded-delivery attestation.
+/// Copies only decoded public player facts. No raw-world access; a data frame alone is not delivery.
 pub(super) fn memory_players(
-    obs: &Observation,
+    obs: &Frame14,
 ) -> Result<Vec<super::memory_prefix::PlayerSight>, super::memory_prefix::Error> {
-    obs.visible
+    obs.actors
         .iter()
         .filter(|a| actor_class(a) == ActorClass::Player)
         .filter(|a| {
-            obs.me.as_ref().is_some_and(|me| {
+            obs.owner.as_ref().is_some_and(|me| {
                 a.id != me.id
                     && a.effects & super::wish::EFFECT_HIDDEN == 0
-                    && super::view::in_view(me.x, me.y, a.x, a.y, 0.)
+                    && super::view::in_view(
+                        f64::from(me.x),
+                        f64::from(me.y),
+                        f64::from(a.x),
+                        f64::from(a.y),
+                        0.,
+                    )
             })
         })
         .map(|a| {
             Ok(super::memory_prefix::PlayerSight {
-                id: super::delivered::PlayerRef::new(a.id.0)
+                id: super::delivered::PlayerRef::new(a.id)
                     .map_err(|_| super::memory_prefix::Error::InvalidScene)?,
-                at: rh_sim::Vec2::new(a.x, a.y),
-                faction: a
-                    .faction
-                    .faction_id()
+                at: rh_sim::Vec2::new(f64::from(a.x), f64::from(a.y)),
+                faction: FactionId::ALL
+                    .get(a.faction as usize)
+                    .copied()
                     .ok_or(super::memory_prefix::Error::InvalidScene)?,
-                in_hand: a.weapon.filter(|w| *w != rh_sim::WeaponId::Fists),
-                hp_share: a.hp_frac,
-                bounty: a.bounty,
-                status: a.status,
+                in_hand: decoded_weapon(a.weapon).filter(|w| *w != rh_sim::WeaponId::Fists),
+                hp_share: f64::from(a.hp_pct) / 100.,
+                bounty: u32::from(a.bounty),
+                status: decoded_status(a.status),
                 hidden: a.effects & super::wish::EFFECT_HIDDEN != 0,
             })
         })
@@ -116,10 +125,10 @@ impl Perception {
         *self = Self::default();
     }
 
-    pub fn build(&mut self, obs: &Observation, central_share: f64) -> Option<Frame> {
-        let me = obs.me.as_ref()?;
-        let now = obs.server_time;
-        let self_at = rh_sim::Vec2::new(me.x, me.y);
+    pub fn build(&mut self, obs: &Frame14, central_share: f64) -> Option<Frame> {
+        let me = obs.owner.as_ref()?;
+        let now = obs.source_time;
+        let self_at = rh_sim::Vec2::new(f64::from(me.x), f64::from(me.y));
         let dt = if self.prev_time > 0. && now > self.prev_time {
             (now - self.prev_time) / 1000.
         } else {
@@ -129,18 +138,24 @@ impl Perception {
         let mut fighters = Vec::new();
         let mut mobs = Vec::new();
         let mut seen_now: Vec<String> = Vec::new();
-        for a in &obs.visible {
+        for a in &obs.actors {
             let class = actor_class(a);
             if class == ActorClass::NonCombat
                 || a.effects & super::wish::EFFECT_HIDDEN != 0
-                || !super::view::in_view(me.x, me.y, a.x, a.y, 0.)
+                || !super::view::in_view(
+                    f64::from(me.x),
+                    f64::from(me.y),
+                    f64::from(a.x),
+                    f64::from(a.y),
+                    0.,
+                )
             {
                 continue;
             }
             let rendered = if class == ActorClass::Player {
-                player_key(a.id)
+                player_key(rh_sim::PlayerId(a.id))
             } else {
-                npc_key(a.id)
+                npc_key(rh_sim::PlayerId(a.id))
             };
             if a.id == me.id {
                 continue;
@@ -148,106 +163,138 @@ impl Perception {
             if rendered.is_empty() {
                 continue;
             }
-            let (vx, vy) = self.velocity(a.id, a.x, a.y, dt);
+            let (vx, vy) =
+                self.velocity(rh_sim::PlayerId(a.id), f64::from(a.x), f64::from(a.y), dt);
             if class == ActorClass::Player {
                 fighters.push(FighterView {
                     id: rendered.clone(),
-                    x: a.x,
-                    y: a.y,
+                    x: f64::from(a.x),
+                    y: f64::from(a.y),
                     vx,
                     vy,
-                    status: status_str(a.status).into(),
+                    status: status_str(decoded_status(a.status)).into(),
                     // Untargetable/public effect filtering of the full fair view remains the full perception port.
-                    targetable: a.status == Status::Alive,
+                    targetable: a.status == 1 && a.effects & 128 == 0,
                 });
             } else {
                 let kind = a
-                    .mob_type
+                    .mob_type_code
+                    .checked_sub(1)
+                    .and_then(|n| rh_sim::mob_catalog::MobTypeId::ALL.get(n as usize))
                     .and_then(|t| rh_sim::mob_catalog::mob_type_by_id(t.as_str()))
                     .map_or("mob", |t| if t.elite { "elite" } else { "mob" });
                 mobs.push(MobView {
                     id: rendered.clone(),
-                    x: a.x,
-                    y: a.y,
+                    x: f64::from(a.x),
+                    y: f64::from(a.y),
                     vx,
                     vy,
-                    status: status_str(a.status).into(),
+                    status: status_str(decoded_status(a.status)).into(),
                     kind: kind.into(),
                 });
             }
-            ids.push((rendered.clone(), a.id));
+            ids.push((rendered.clone(), rh_sim::PlayerId(a.id)));
             seen_now.push(rendered);
         }
         let mut containers = Vec::new();
-        for (i, prop) in obs.props.iter().enumerate() {
-            let (kind, _) = match &prop.cue.kind {
-                rh_sim::item_view::PropKind::Ground(w) => ("ground", Some(*w)),
-                rh_sim::item_view::PropKind::Chest { .. } => ("chest", None),
-                rh_sim::item_view::PropKind::Body { .. } => ("body", None),
-                rh_sim::item_view::PropKind::Cannon { .. } => ("cannon", None),
-                rh_sim::item_view::PropKind::Corpse { .. } => ("corpse", None),
-                rh_sim::item_view::PropKind::WindEmblem => ("consumable", None),
-                rh_sim::item_view::PropKind::QuestItem { .. } => continue,
+        for (i, prop) in obs.collections.props.rows.iter().enumerate() {
+            let kind = match prop.kind {
+                rh_protocol::WirePropKind::Ground(_) => "ground",
+                rh_protocol::WirePropKind::Chest { .. } => "chest",
+                rh_protocol::WirePropKind::Body { .. } => "body",
+                rh_protocol::WirePropKind::Cannon { .. } => "cannon",
+                rh_protocol::WirePropKind::Corpse { .. } => "corpse",
+                rh_protocol::WirePropKind::WindEmblem => "consumable",
+                rh_protocol::WirePropKind::QuestItem { .. } => continue,
             };
             containers.push(ContainerView {
-                id: format!("c{}", i),
+                id: format!("c{i}"),
                 kind: kind.into(),
-                x: f64::from(prop.cue.x) / 8.,
-                y: f64::from(prop.cue.y) / 8.,
-                interactable: prop.cue.focused,
+                x: f64::from(prop.x) / 8.,
+                y: f64::from(prop.y) / 8.,
+                interactable: obs
+                    .collections
+                    .props
+                    .focus
+                    .as_ref()
+                    .is_some_and(|f| f.handle == prop.handle),
             });
         }
-        let chests: Vec<RewardChestView> = obs
+        let chests = obs
+            .collections
             .reward_chests
             .iter()
             .enumerate()
             .map(|(i, c)| RewardChestView {
-                id: format!("r{}", i),
-                x: c.at.x,
-                y: c.at.y,
+                id: format!("r{i}"),
+                x: f64::from(c.x) / 8.,
+                y: f64::from(c.y) / 8.,
                 expires_at: c.expires_at,
                 options: c
                     .can_choose
                     .then(|| c.options.iter().map(|o| format!("{:?}", o.id)).collect()),
             })
             .collect();
-        let weapons = obs.inventory.as_ref().map(|inv| {
-            [
-                inv.slots[0].and_then(|w| BotWeapon::parse(w.as_str())),
-                inv.slots[1].and_then(|w| BotWeapon::parse(w.as_str())),
-            ]
+        // Missing inventory/group is unavailable, never inferred fists, clear lock or now+remaining.
+        let inventory = obs.collections.inventory.as_ref()?;
+        let combat = obs.owner_combat.as_ref()?;
+        let weapons = inventory.slots.map(|w| {
+            w.and_then(decoded_weapon)
+                .and_then(|w| BotWeapon::parse(w.as_str()))
         });
-        let attack_target = me.attack_target.and_then(|id| {
-            ids.iter()
-                .find(|(_, real)| *real == id)
-                .map(|(rendered, _)| rendered.clone())
+        let visible_target = match combat.lock {
+            WireOwnerLock::Clear => None,
+            WireOwnerLock::Held { target } => target,
+        };
+        // Preserve an entitled lock even when its row is not an AI threat/farm candidate (for
+        // example a dummy), or is outside this narrower camera. That does not authorize targeting it.
+        let attack_target = visible_target.and_then(|id| {
+            obs.actors.iter().find(|a| a.id == id).map(|a| {
+                if a.kind == 0 {
+                    player_key(rh_sim::PlayerId(id))
+                } else {
+                    npc_key(rh_sim::PlayerId(id))
+                }
+            })
         });
+        let owner_lock = match combat.lock {
+            WireOwnerLock::Clear => super::types::OwnerLock::Clear,
+            WireOwnerLock::Held { .. } => super::types::OwnerLock::Held {
+                target: attack_target.clone(),
+            },
+        };
         let percept = Percept {
             now,
             self_view: SelfView {
                 id: "me".into(),
-                faction: Some(me.faction),
-                x: me.x,
-                y: me.y,
-                facing: me.facing,
-                status: status_str(me.status).into(),
-                hp: me.hp,
-                max_hp: me.max_hp,
+                faction: FactionId::ALL.get(me.faction as usize).copied(),
+                x: f64::from(me.x),
+                y: f64::from(me.y),
+                facing: f64::from(me.facing),
+                status: status_str(decoded_status(me.status)).into(),
+                hp: f64::from(me.hp),
+                max_hp: f64::from(me.max_hp),
                 effects: me.effects,
-                weapons: weapons.unwrap_or([None, None]),
-                slot: obs.inventory.as_ref().map_or(0, |i| i.active_slot),
+                weapons,
+                slot: inventory.active_slot,
                 attack_target,
-                ready_at: now + me.ready_in_ms.max(0.),
+                ready_at: f64::from(combat.ready_at),
+                owner_lock: Some(owner_lock),
             },
             hud: HudView {
                 phase: match obs.phase {
-                    Phase::Lobby => "lobby",
-                    Phase::Planning => "planning",
-                    Phase::Active => "active",
-                    Phase::Ended => "ended",
+                    0 => "lobby",
+                    3 => "planning",
+                    1 => "active",
+                    2 => "ended",
+                    _ => unreachable!("checked phase"),
                 }
                 .into(),
-                gates_locked: obs.arena.as_ref().is_some_and(|a| a.gates_locked),
+                gates_locked: obs
+                    .collections
+                    .arena
+                    .as_ref()
+                    .is_some_and(|a| a.gates_locked),
             },
             fighters,
             mobs,
@@ -257,7 +304,13 @@ impl Perception {
                 // The Wish slot is the owner's own Observation field: the ability, its ready time and a cast under way. Wishes
                 // have one rank.
                 wish: me.wish.as_ref().map(|w| WishView {
-                    ability: w.ability,
+                    ability: [
+                        rh_sim::status_runtime::AbilityId::Freeze,
+                        rh_sim::status_runtime::AbilityId::Swarm,
+                        rh_sim::status_runtime::AbilityId::Trial,
+                        rh_sim::status_runtime::AbilityId::Blaze,
+                        rh_sim::status_runtime::AbilityId::LastStand,
+                    ][w.ability as usize],
                     ready_at: w.ready_at,
                     full_at: w.full_at,
                     max_charges: w.max_charges,
@@ -271,16 +324,19 @@ impl Perception {
         // memory the legacy brain kept (only what this observation shows).
         let mut hit_at = None;
         let mut fighter_hits = Vec::new();
-        for event in &obs.events {
-            if let SeenEvent::Hit { victim, by, .. } = event {
+        for event in obs.fx.iter().flat_map(|batch| &batch.fx) {
+            if let WireFx::Hit { victim, by, .. } = event {
                 if *victim != me.id {
                     continue;
                 }
                 hit_at = Some(now);
-                if let Some(by) = by {
-                    if percept.fighters.iter().any(|f| f.id == player_key(*by)) {
-                        fighter_hits.push((player_key(*by), now));
-                    }
+                if *by != u32::MAX
+                    && percept
+                        .fighters
+                        .iter()
+                        .any(|f| f.id == player_key(rh_sim::PlayerId(*by)))
+                {
+                    fighter_hits.push((player_key(rh_sim::PlayerId(*by)), now));
                 }
             }
         }
@@ -298,10 +354,10 @@ impl Perception {
         }
         self.known = seen_now;
         self.prev = obs
-            .visible
+            .actors
             .iter()
-            .filter(|a| ids.iter().any(|(_, id)| *id == a.id))
-            .map(|a| (a.id, a.x, a.y))
+            .filter(|a| ids.iter().any(|(_, id)| id.0 == a.id))
+            .map(|a| (rh_sim::PlayerId(a.id), f64::from(a.x), f64::from(a.y)))
             .collect();
         self.prev_time = now;
         Some(Frame {
@@ -326,5 +382,5 @@ impl Perception {
 
 /// The per-observation state a fair-view constructor may keep: only what earlier observations showed.
 pub type PerceptionMap = BotMap;
-/// ActorView is re-exported for tests that build an observation-like view directly.
+/// Native projection diagnostic type retained for component tests; not a live policy input.
 pub type SeenActor = ActorView;

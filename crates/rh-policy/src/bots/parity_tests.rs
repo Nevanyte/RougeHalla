@@ -187,6 +187,10 @@ fn parse_percept(v: &Value) -> Percept {
             weapons: [weapon(&weapons[0]), weapon(&weapons[1])],
             slot: int(obj(me, "slot")) as u8,
             attack_target: opt_text(obj(me, "attackTarget")),
+            owner_lock: Some(
+                opt_text(obj(me, "attackTarget"))
+                    .map_or(OwnerLock::Clear, |id| OwnerLock::Held { target: Some(id) }),
+            ),
             ready_at: num(obj(me, "readyAt")),
         },
         hud: HudView {
