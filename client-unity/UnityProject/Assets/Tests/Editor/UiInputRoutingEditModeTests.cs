@@ -55,15 +55,31 @@ namespace Roguehalla.Client.Tests
         InputSettings _originalInputSettings, _fixtureInputSettings;
         HideFlags _originalInputSettingsHideFlags;
         TMP_InputField _typingField;
-        bool _oldToggleMode;
+        bool _oldToggleMode, _cleanupFinished;
 
         [SetUp]
         public void SetUp()
         {
+            _cleanupFinished = false;
             _previousEvents = EventSystem.current;
             _originalInputSettings = InputSystem.settings;
-            _originalInputSettingsHideFlags = _originalInputSettings.hideFlags;
             _previousKeyboard = Keyboard.current;
+            try
+            {
+                Assert.That(_originalInputSettings != null, Is.True, "the manager must start with live InputSettings");
+                _originalInputSettingsHideFlags = _originalInputSettings.hideFlags;
+                SetUpFixture();
+            }
+            catch (Exception setupError)
+            {
+                try { TearDown(); }
+                catch (Exception cleanupError) { throw new AggregateException(setupError, cleanupError); }
+                throw;
+            }
+        }
+
+        void SetUpFixture()
+        {
             // ExecuteAlways ensures EventSystem.OnEnable registers this test instance in EditMode.
             // Keep the project EventSystem active and move this known-registered instance to the front.
             _ownedEvents = new GameObject("UI input routing test EventSystem", typeof(UiInputRoutingEventSystem));
@@ -86,6 +102,8 @@ namespace Roguehalla.Client.Tests
             if (_originalInputSettingsHideFlags == HideFlags.HideAndDontSave)
                 _originalInputSettings.hideFlags = HideFlags.DontSave;
             InputSystem.settings = _fixtureInputSettings;
+            Assert.That(_originalInputSettings != null, Is.True, "replacing settings must not destroy the leased original");
+            Assert.That(ReferenceEquals(InputSystem.settings, _fixtureInputSettings), Is.True);
             _keyboard = InputSystem.AddDevice<Keyboard>();
             _keyboard.MakeCurrent();
             Assert.That(_keyboard.enabled, Is.True, "injected test keyboard must be enabled");
@@ -138,6 +156,8 @@ namespace Roguehalla.Client.Tests
         [TearDown]
         public void TearDown()
         {
+            if (_cleanupFinished) return;
+            _cleanupFinished = true;
             try
             {
                 CleanupUi();
@@ -229,7 +249,10 @@ namespace Roguehalla.Client.Tests
         {
             try
             {
-                if (_originalInputSettings != null) InputSystem.settings = _originalInputSettings;
+                // Only replace the settings object installed by this fixture. A foreign replacement is a failure,
+                // not permission to destroy another owner's settings object.
+                if (_originalInputSettings != null && ReferenceEquals(InputSystem.settings, _fixtureInputSettings))
+                    InputSystem.settings = _originalInputSettings;
             }
             finally
             {
