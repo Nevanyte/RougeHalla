@@ -4,6 +4,10 @@ use rh_sim::Vec2;
 
 use crate::bots::paths::RoomPathService;
 
+#[path = "kite/own_timings.rs"]
+mod own_timings;
+pub use own_timings::{own_timings, OwnTimings};
+
 pub const TURNS: [f64; 5] = [0., 0.5, -0.5, 1.05, -1.05];
 pub const LENGTHS: [f64; 2] = [1., 0.6];
 
