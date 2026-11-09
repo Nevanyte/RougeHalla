@@ -133,6 +133,7 @@ namespace Roguehalla.Client.Tests
 
         sealed class Fixture : IDisposable
         {
+            const string ProfilePreferenceKey = "rh.ui.profile";
             public readonly GameObject Root;
             public readonly MatchClient Client;
             public readonly MatchHud Hud;
@@ -148,6 +149,8 @@ namespace Roguehalla.Client.Tests
             readonly GameObject _priorSelection = EventSystem.current != null ? EventSystem.current.currentSelectedGameObject : null;
             GameObject _events;
             bool _runtimeRetired, _disposed;
+            bool _profilePreferenceCaptured, _hadProfilePreference;
+            string _priorProfilePreference;
 
             public Fixture(StorageBox box = null, bool deferProfiles = false, string credentialToken = OwnerToken)
             {
@@ -156,6 +159,10 @@ namespace Roguehalla.Client.Tests
                 Accounts = new Accounts { DeferProfiles = deferProfiles };
                 try
                 {
+                    // JoinOwned writes this non-secret callsign preference. Never inspect credential keys.
+                    _hadProfilePreference = PlayerPrefs.HasKey(ProfilePreferenceKey);
+                    if (_hadProfilePreference) _priorProfilePreference = PlayerPrefs.GetString(ProfilePreferenceKey);
+                    _profilePreferenceCaptured = true;
                     Root = new GameObject("Owned seat resume test client");
                     Client = Root.AddComponent<MatchClient>(); Client.enabled = false;
                     Client.PageUrl = "https://resume.example/play";
@@ -261,60 +268,87 @@ namespace Roguehalla.Client.Tests
             {
                 if (_disposed) return; _disposed = true;
                 var failures = new List<Exception>();
-                Attempt(failures, () => { if (!_runtimeRetired && Client != null) Client.Leave(); });
-                if (Accounts != null)
+                try
                 {
-                    foreach (var read in Accounts.Reads) Attempt(failures, () => read.Reply.TrySetCanceled());
-                    foreach (var profile in Accounts.Profiles) Attempt(failures, () => profile.Reply.TrySetCanceled());
-                }
-
-                for (int i = Arenas.Count - 1; i >= 0; i--)
-                {
-                    var arena = Arenas[i];
-                    Attempt(failures, () =>
+                    Attempt(failures, () => { if (!_runtimeRetired && Client != null) Client.Leave(); });
+                    if (Accounts != null)
                     {
-                        if (arena == null) return;
-                        arena.SetActive(false);
-                        UnityEngine.Object.DestroyImmediate(arena);
-                    });
-                }
-                Attempt(failures, () => { if (Root != null) UnityEngine.Object.DestroyImmediate(Root); });
-
-                var ownedEvents = _events != null ? _events.GetComponent<EventSystem>() : null;
-                if (ownedEvents != null)
-                {
-                    try
-                    {
-                        if (EventSystem.current == ownedEvents) Attempt(failures, () => ownedEvents.SetSelectedGameObject(null));
+                        foreach (var read in Accounts.Reads) Attempt(failures, () => read.Reply.TrySetCanceled());
+                        foreach (var profile in Accounts.Profiles) Attempt(failures, () => profile.Reply.TrySetCanceled());
                     }
-                    finally
+
+                    for (int i = Arenas.Count - 1; i >= 0; i--)
                     {
-                        Attempt(failures, () => { if (ownedEvents != null) ownedEvents.enabled = false; });
-                        Attempt(failures, () => { if (_events != null) UnityEngine.Object.DestroyImmediate(_events); });
+                        var arena = Arenas[i];
+                        Attempt(failures, () =>
+                        {
+                            if (arena == null) return;
+                            arena.SetActive(false);
+                            UnityEngine.Object.DestroyImmediate(arena);
+                        });
+                    }
+                    Attempt(failures, () => { if (Root != null) UnityEngine.Object.DestroyImmediate(Root); });
+
+                    var ownedEvents = _events != null ? _events.GetComponent<EventSystem>() : null;
+                    if (ownedEvents != null)
+                    {
+                        try
+                        {
+                            if (EventSystem.current == ownedEvents) Attempt(failures, () => ownedEvents.SetSelectedGameObject(null));
+                        }
+                        finally
+                        {
+                            Attempt(failures, () => { if (ownedEvents != null) ownedEvents.enabled = false; });
+                            Attempt(failures, () => { if (_events != null) UnityEngine.Object.DestroyImmediate(_events); });
+                            _events = null;
+                        }
+                    }
+                    else if (_events != null)
+                    {
+                        Attempt(failures, () => UnityEngine.Object.DestroyImmediate(_events));
                         _events = null;
                     }
-                }
-                else if (_events != null)
-                {
-                    Attempt(failures, () => UnityEngine.Object.DestroyImmediate(_events));
-                    _events = null;
-                }
 
-                if (_priorEvents != null && _priorEvents.isActiveAndEnabled)
-                {
-                    Attempt(failures, () => EventSystem.current = _priorEvents);
-                    if (_priorSelection != null && _priorSelection.activeInHierarchy)
-                        Attempt(failures, () => _priorEvents.SetSelectedGameObject(_priorSelection));
-                }
+                    if (_priorEvents != null && _priorEvents.isActiveAndEnabled)
+                    {
+                        Attempt(failures, () => EventSystem.current = _priorEvents);
+                        if (_priorSelection != null && _priorSelection.activeInHierarchy)
+                            Attempt(failures, () => _priorEvents.SetSelectedGameObject(_priorSelection));
+                    }
 
-                Attempt(failures, () => Assert.That(Arenas.All(x => x == null), Is.True));
-                Attempt(failures, () => Assert.That(Lights.All(x => x == null), Is.True));
-                Attempt(failures, () => CollectionAssert.AreEquivalent(_priorLights, RegisteredLights()));
-                Attempt(failures, () => Assert.That(EventSystem.current,
-                    Is.SameAs(_priorEvents != null && _priorEvents.isActiveAndEnabled ? _priorEvents : null)));
+                    Attempt(failures, () => Assert.That(Arenas.All(x => x == null), Is.True));
+                    Attempt(failures, () => Assert.That(Lights.All(x => x == null), Is.True));
+                    Attempt(failures, () => CollectionAssert.AreEquivalent(_priorLights, RegisteredLights()));
+                    Attempt(failures, () => Assert.That(EventSystem.current,
+                        Is.SameAs(_priorEvents != null && _priorEvents.isActiveAndEnabled ? _priorEvents : null)));
+                }
+                finally { RestoreProfilePreference(failures); }
 
                 if (failures.Count == 1) ExceptionDispatchInfo.Capture(failures[0]).Throw();
                 if (failures.Count > 1) throw new AggregateException("Fixture cleanup had multiple failures.", failures);
+            }
+
+            void RestoreProfilePreference(List<Exception> failures)
+            {
+                if (_profilePreferenceCaptured)
+                {
+                    Attempt(failures, () =>
+                    {
+                        try
+                        {
+                            if (_hadProfilePreference) PlayerPrefs.SetString(ProfilePreferenceKey, _priorProfilePreference);
+                            else PlayerPrefs.DeleteKey(ProfilePreferenceKey);
+                            PlayerPrefs.Save();
+                            Assert.That(PlayerPrefs.HasKey(ProfilePreferenceKey), Is.EqualTo(_hadProfilePreference),
+                                "the fixture restores last-callsign preference presence");
+                            if (_hadProfilePreference)
+                                Assert.That(string.Equals(PlayerPrefs.GetString(ProfilePreferenceKey), _priorProfilePreference, StringComparison.Ordinal),
+                                    Is.True, "the fixture restores the exact last-callsign value without logging it");
+                        }
+                        finally { _priorProfilePreference = null; _profilePreferenceCaptured = false; }
+                    });
+                }
+
             }
 
             static void Attempt(List<Exception> failures, Action action)
@@ -444,13 +478,15 @@ namespace Roguehalla.Client.Tests
                 f.Client.ResumeCurrentRun("alice", 4, MatchLaunchMode.Arena);
                 await WaitFor(() => f.Transports.Count == 1 || !f.Client.ResumeBusy);
                 f.Transports[0].Open();
+                var failedSession = f.Client.Session;
+                Assert.That(failedSession, Is.Not.Null);
                 f.Transports[0].Deliver(new ServerMsg.Welcome { Protocol = (ushort)(Wire.ProtocolVersion + 1),
                     MatchId = Enumerable.Repeat((byte)0x31, 16).ToArray(), Session = new byte[16], PlayerId = 7,
                     TickRate = 20, Map = new MapBlob(8, 8, new byte[64]) });
-                var failedSession = f.Client.Session;
-                Assert.That(failedSession, Is.Not.Null);
-                Assert.That(failedSession.State, Is.EqualTo(SessionState.Failed));
+                Assert.That(failedSession.State, Is.EqualTo(SessionState.Detached), "the failed imported session retires synchronously");
+                Assert.That(string.IsNullOrEmpty(failedSession.Error), Is.False, "failure evidence remains on the captured retired session");
                 await WaitFor(() => f.Client.Session == null);
+                Assert.That(f.Client.Session, Is.Null);
                 Assert.That(box.Record, Is.EqualTo(captured), "generic protocol failure does not erase a retryable checkpoint");
                 Assert.That(f.Transports, Has.Count.EqualTo(1));
                 Assert.That(f.Client.CanForgetSavedRun, Is.True, "retained record is forgettable after failed session retirement");
