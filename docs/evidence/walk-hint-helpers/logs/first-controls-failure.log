@@ -1,0 +1,9 @@
+/repo/tools/walk-hint-fixtures/helper-controls.mts:86
+if (!pristineEqual) throw new Error("pristine bundle differs semantically from canonical");
+                          ^
+
+Error: pristine bundle differs semantically from canonical
+    at <anonymous> (/repo/tools/walk-hint-fixtures/helper-controls.mts:86:27)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+
+Node.js v22.23.4

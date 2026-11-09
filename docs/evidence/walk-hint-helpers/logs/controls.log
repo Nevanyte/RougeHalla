@@ -1,0 +1,9 @@
+HELPER CONTROL lock-always-free: KILL /cases/28/observed/hint/ticks
+HELPER CONTROL amove-never-acquires: KILL /cases/33/observed/hint/ticks
+HELPER CONTROL ice-never-holds: KILL /cases/36/observed/hint/ticks
+HELPER CONTROL held-never-held: KILL /cases/17/observed/hint/ticks
+HELPER CONTROL hook-no-zero: KILL /cases/49/observed/players/0/ticks
+HELPER CONTROL hysteresis-always: KILL /cases/41/observed/observed/dir
+HELPER CONTROL provenance-only-comment: NON-KILL
+{"mode":"helper-controls","required":6,"kills":6,"restoredEqual":true,"restoredProvenanceEqual":true,"restoredVerifier":"PASS","ok":true}
+Wrote helper controls: /private/tmp/walk-hint-helper-controls.fg3WJN/controls/controls.json

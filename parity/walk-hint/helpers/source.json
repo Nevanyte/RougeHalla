@@ -1,0 +1,1902 @@
+{
+  "format": "rh-walk-hint-helpers/1",
+  "profile": {
+    "base": "2547a1c5766a8046aa725f5f3b3b38d244c38371",
+    "node": "v22.23.4",
+    "platform": "linux",
+    "arch": "x64",
+    "image": "node@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d",
+    "entry": "/repo/tools/walk-hint-fixtures/helper-scenario.mts",
+    "bundle": {
+      "bytes": 1074409,
+      "sha256": "2488d9de64b304dccb323418255ca194da5f5ce06b7571b41efa4b00145c5e54",
+      "path": "/tmp/walk-hint-helpers-20-2488d9de.mjs"
+    },
+    "source": {
+      "packages/server/src/sim/walkHint.ts": {
+        "bytes": 10241,
+        "sha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16"
+      },
+      "packages/server/src/sim/gameplay.ts": {
+        "bytes": 5104,
+        "sha256": "70f6f2b67571783f3042309bef01dc75aabd2656c59a184d0f97c9c0a8b8cf78"
+      },
+      "packages/server/src/sim/step.ts": {
+        "bytes": 14822,
+        "sha256": "5ff90451b4b27b12ddfe8175745cf38892eaf07a851282c904076edc46896634"
+      },
+      "packages/server/src/sim/inputs.ts": {
+        "bytes": 15914,
+        "sha256": "47bda82b978e67922c9d2361bfcd51be4555a55691453a4e0393deb917be4cde"
+      },
+      "packages/server/src/sim/status.ts": {
+        "bytes": 17222,
+        "sha256": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642"
+      },
+      "packages/server/src/sim/terrainEffects.ts": {
+        "bytes": 9684,
+        "sha256": "5b95ad7178862b11e64ab0d91b39adbc04846ec987aac7ca74ececfdc3dab4b5"
+      },
+      "packages/server/src/sim/combatant.ts": {
+        "bytes": 9454,
+        "sha256": "3c2fac6ed6fbee82802c5bea86b0131d36e8ebf86eceb2c1a99ce58664fa7e60"
+      },
+      "packages/server/src/sim/targeting.ts": {
+        "bytes": 10392,
+        "sha256": "13125287cec7cd39f550af50e1d18c15d3146357f249cfe3beeb9e00a334f0fd"
+      },
+      "packages/server/src/sim/movement.ts": {
+        "bytes": 5986,
+        "sha256": "86ebd2205a0af4608ed484317bea3723bb378b3e138954a44140e340adab1f93"
+      },
+      "packages/server/src/sim/world.ts": {
+        "bytes": 58199,
+        "sha256": "b98376a7f022ec6f9b681e368d62c18fbe524d95408b2d4eec93909934454d54"
+      },
+      "packages/shared/src/constants.ts": {
+        "bytes": 46007,
+        "sha256": "51ce4dd800ec868abee525fb1ae375688066f336972a7da878644df1235924e7"
+      },
+      "packages/shared/src/mods.ts": {
+        "bytes": 23134,
+        "sha256": "10e9dcd3d7417c4fe85d1c36ef33afe5abf7a5703a59b42a3a825a66aa4efaff"
+      },
+      "packages/shared/src/weapons.ts": {
+        "bytes": 15391,
+        "sha256": "2f22f037502fe63fae6b47f20408cfd35ebc72bfea081194ae8d18cfc21df99b"
+      },
+      "packages/shared/src/factions.ts": {
+        "bytes": 14039,
+        "sha256": "aa0cebf1c17af17b64bc1e020c4613ab10788ec66d82a72232aef8915d5403f3"
+      },
+      "packages/shared/src/walk.ts": {
+        "bytes": 15362,
+        "sha256": "0d33c95623a6d11fa21a9e58b308eed8cb0150b24d65b592877c5f9e2b5a0020"
+      },
+      "packages/shared/src/status.ts": {
+        "bytes": 4682,
+        "sha256": "98a0570d7620e424d9d522356fe378a6af049109d8af0342be0ecff970310df7"
+      },
+      "packages/shared/src/terrain.ts": {
+        "bytes": 21947,
+        "sha256": "5ee4fe11e793f83f3d095720ba1156a186c5c7704e864f2cad74503ab13a07d6"
+      }
+    },
+    "relatedPlayerTimingCorpus": {
+      "path": "parity/policy/bot-fight/source.json",
+      "bytes": 467672,
+      "sha256": "197fe5d24b6b34822a3ef76e2999d422e6127bbda1e8dfda0ba0af3ee5e2785e",
+      "note": "existing accepted 90 player timing rows; pure-kernel helper rows are separate and do not overwrite it"
+    },
+    "contextPolicy": "declared HELPER inputs; actual imported source outputs only; no earned World history or installed expected hint",
+    "sourceFunctions": "walkHintOf/weaponHoldsAt/updateWalkHints exported; installed teleported/runEnded hooks invoked directly; all other branches through walkHintOf"
+  },
+  "cases": [
+    {
+      "id": "gate-phase-lobby",
+      "family": "gates",
+      "helper": true,
+      "input": {
+        "phase": "lobby",
+        "path": [
+          {
+            "x": 300,
+            "y": 200
+          }
+        ],
+        "extra": {
+          "walkTicks": 0,
+          "walkDir": 0
+        }
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "gate-phase-ended",
+      "family": "gates",
+      "helper": true,
+      "input": {
+        "phase": "ended",
+        "path": [
+          {
+            "x": 300,
+            "y": 200
+          }
+        ]
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "gate-standing-dead",
+      "family": "gates",
+      "helper": true,
+      "input": {
+        "status": "dead",
+        "path": [
+          {
+            "x": 300,
+            "y": 200
+          }
+        ]
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "gate-hidden",
+      "family": "gates",
+      "helper": true,
+      "input": {
+        "status": "hidden",
+        "path": [
+          {
+            "x": 300,
+            "y": 200
+          }
+        ]
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "gate-stun",
+      "family": "gates",
+      "helper": true,
+      "input": {
+        "status": "stun",
+        "path": [
+          {
+            "x": 300,
+            "y": 200
+          }
+        ]
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "gate-root",
+      "family": "gates",
+      "helper": true,
+      "input": {
+        "status": "root",
+        "path": [
+          {
+            "x": 300,
+            "y": 200
+          }
+        ]
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "gate-slip-center",
+      "family": "gates",
+      "helper": true,
+      "input": {
+        "onIce": true,
+        "path": [
+          {
+            "x": 400,
+            "y": 208
+          }
+        ]
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "gate-path-empty",
+      "family": "gates",
+      "helper": true,
+      "input": {
+        "path": []
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "gate-tiny-segment",
+      "family": "gates",
+      "helper": true,
+      "input": {
+        "path": [
+          {
+            "x": 200.0005,
+            "y": 200
+          }
+        ]
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "positive-baseline",
+      "family": "positive",
+      "helper": true,
+      "input": {
+        "path": [
+          {
+            "x": 300,
+            "y": 200
+          }
+        ]
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 3
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "factor-dt0",
+      "family": "factors",
+      "helper": true,
+      "input": {
+        "moveModifier": "returns1",
+        "recordDt": true,
+        "seen": [
+          0,
+          0
+        ]
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 3
+        },
+        "dtSeen": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ]
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "factor-zero",
+      "family": "factors",
+      "helper": true,
+      "input": {
+        "moveModifier": "returns0"
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "factor-floor",
+      "family": "factors",
+      "helper": true,
+      "input": {
+        "moveModifier": "returns0.1",
+        "floor": 0.35
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 3
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "factor-hazard-noninterference",
+      "family": "factors",
+      "helper": true,
+      "input": {
+        "beforeHazards": {
+          "damage": {},
+          "seconds": {
+            "ember": 0,
+            "bog": 0,
+            "ice": 0,
+            "light": 0
+          },
+          "heal": {}
+        },
+        "beforeSlip": null
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 3
+        },
+        "afterHazards": {
+          "damage": {},
+          "seconds": {
+            "ember": 0,
+            "bog": 0,
+            "ice": 0,
+            "light": 0
+          },
+          "heal": {}
+        },
+        "afterSlip": null
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "speed-mirror-boost",
+      "family": "factors",
+      "helper": true,
+      "input": {
+        "speedMult": 1500
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 3
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "sentenced-hunt",
+      "family": "factors",
+      "helper": true,
+      "input": {
+        "faction": "sentenced",
+        "huntTarget": "p-helper"
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 3
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "weapon-root-active",
+      "family": "weapon",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "rootUntil": "now+1000"
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "weapon-root-expired",
+      "family": "weapon",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "rootUntil": "now+1"
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 2
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "weapon-action-swing",
+      "family": "weapon",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "action": {
+          "kind": "swing",
+          "landsAt": "now+500"
+        }
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "weapon-action-draw",
+      "family": "weapon",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "action": {
+          "kind": "draw",
+          "landsAt": "now+500"
+        }
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 3
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "weapon-held-ready",
+      "family": "weapon",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "held": true,
+        "ready": "now",
+        "bufferedUntil": "now+100"
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 2
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "weapon-buffered-not-ready",
+      "family": "weapon",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "held": false,
+        "ready": "now+1000",
+        "bufferedUntil": "now-1"
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 3
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "weaponHoldsAt-root-before",
+      "family": "weaponHoldsAt",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "at": "now+50",
+        "rootUntil": "now+51",
+        "action": null
+      },
+      "observed": {
+        "kind": "weaponHoldsAt",
+        "at": "now+50",
+        "observed": true
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "weaponHoldsAt-root-at",
+      "family": "weaponHoldsAt",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "at": "now+50",
+        "rootUntil": "now+50",
+        "action": null
+      },
+      "observed": {
+        "kind": "weaponHoldsAt",
+        "at": "now+50",
+        "observed": false
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "weaponHoldsAt-swing-before",
+      "family": "weaponHoldsAt",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "at": "now+50",
+        "rootUntil": 0,
+        "action": {
+          "kind": "swing",
+          "landsAt": "now+500"
+        }
+      },
+      "observed": {
+        "kind": "weaponHoldsAt",
+        "at": "now+50",
+        "observed": true
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "weaponHoldsAt-swing-tie",
+      "family": "weaponHoldsAt",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "at": "now+50",
+        "rootUntil": 0,
+        "action": {
+          "kind": "swing",
+          "landsAt": "now+51.000001"
+        }
+      },
+      "observed": {
+        "kind": "weaponHoldsAt",
+        "at": "now+50",
+        "observed": true
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "weaponHoldsAt-draw-before",
+      "family": "weaponHoldsAt",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "at": "now+50",
+        "rootUntil": 0,
+        "action": {
+          "kind": "draw",
+          "landsAt": "now+500"
+        }
+      },
+      "observed": {
+        "kind": "weaponHoldsAt",
+        "at": "now+50",
+        "observed": false
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "lock-free",
+      "family": "lock",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "lock": "p1",
+        "targetX": 820,
+        "planAt": "now",
+        "lockGoal": null,
+        "lockSeen": true
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 1
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "lock-stop",
+      "family": "lock",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "lock": "p1",
+        "targetX": 220,
+        "planAt": "now",
+        "lockGoal": null,
+        "lockSeen": true
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "lock-missing",
+      "family": "lock",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "lock": "missing",
+        "targetX": 820,
+        "planAt": "now",
+        "lockGoal": null,
+        "lockSeen": true
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "lock-replan",
+      "family": "lock",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "lock": "p1",
+        "targetX": 820,
+        "planAt": -250,
+        "lockGoal": {
+          "x": 0,
+          "y": 0
+        },
+        "lockSeen": true
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "lock-future-hidden",
+      "family": "lock",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "lock": "p1",
+        "targetX": 820,
+        "planAt": "now",
+        "lockGoal": null,
+        "lockSeen": true,
+        "targetStatus": "hidden"
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "amove-no-target",
+      "family": "amove",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "attackMoveGoal": {
+          "x": 300,
+          "y": 200
+        },
+        "targets": 0
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 1
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "amove-acquire",
+      "family": "amove",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "attackMoveGoal": {
+          "x": 250,
+          "y": 200
+        },
+        "targetX": 400
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "amove-current-hidden",
+      "family": "amove",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "attackMoveGoal": {
+          "x": 250,
+          "y": 200
+        },
+        "targetStatus": "hidden"
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 1
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "ice-center",
+      "family": "ice",
+      "helper": true,
+      "input": {
+        "onIceCenter": true,
+        "path": [
+          {
+            "x": 400,
+            "y": 208
+          }
+        ]
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "ice-thin-strip",
+      "family": "ice",
+      "helper": true,
+      "input": {
+        "iceCell": [
+          7,
+          6
+        ],
+        "path": [
+          {
+            "x": 400,
+            "y": 208
+          }
+        ],
+        "terrainAtProbe": 6,
+        "terrainAtCenter": 0,
+        "probes": [
+          {
+            "x": 220,
+            "accel": 0
+          },
+          {
+            "x": 228.5,
+            "accel": 425
+          },
+          {
+            "x": 237,
+            "accel": 425
+          },
+          {
+            "x": 250,
+            "accel": 425
+          },
+          {
+            "x": 400,
+            "accel": 0
+          }
+        ]
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "ice-clear",
+      "family": "ice",
+      "helper": true,
+      "input": {
+        "ice": false,
+        "path": [
+          {
+            "x": 400,
+            "y": 208
+          }
+        ]
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 3
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "ice-home-frost",
+      "family": "ice",
+      "helper": true,
+      "input": {
+        "onIceCenter": true,
+        "faction": "frost"
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 3
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "ice-all-hazards",
+      "family": "ice",
+      "helper": true,
+      "input": {
+        "onIceCenter": true,
+        "faction": "frost",
+        "hazards": "all"
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "hysteresis-old-zero",
+      "family": "hysteresis",
+      "helper": true,
+      "input": {
+        "path": [
+          {
+            "x": 300,
+            "y": 200
+          }
+        ],
+        "oldTicks": 0,
+        "oldDir": 77,
+        "newDirObservedBefore": 0
+      },
+      "observed": {
+        "kind": "updateWalkHints",
+        "observed": {
+          "dir": 0,
+          "ticks": 3
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "hysteresis-delta2",
+      "family": "hysteresis",
+      "helper": true,
+      "input": {
+        "path": [
+          {
+            "x": 300,
+            "y": 200
+          }
+        ],
+        "oldTicks": 3,
+        "oldDir": 254,
+        "newDirObservedBefore": 0
+      },
+      "observed": {
+        "kind": "updateWalkHints",
+        "observed": {
+          "dir": 254,
+          "ticks": 3
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "hysteresis-delta3",
+      "family": "hysteresis",
+      "helper": true,
+      "input": {
+        "path": [
+          {
+            "x": 300,
+            "y": 200
+          }
+        ],
+        "oldTicks": 3,
+        "oldDir": 253,
+        "newDirObservedBefore": 0
+      },
+      "observed": {
+        "kind": "updateWalkHints",
+        "observed": {
+          "dir": 0,
+          "ticks": 3
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "hysteresis-wrap-255",
+      "family": "hysteresis",
+      "helper": true,
+      "input": {
+        "path": [
+          {
+            "x": 300,
+            "y": 200
+          }
+        ],
+        "oldTicks": 3,
+        "oldDir": 255,
+        "newDirObservedBefore": 0
+      },
+      "observed": {
+        "kind": "updateWalkHints",
+        "observed": {
+          "dir": 255,
+          "ticks": 3
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "hysteresis-wrap-253",
+      "family": "hysteresis",
+      "helper": true,
+      "input": {
+        "path": [
+          {
+            "x": 300,
+            "y": 200
+          }
+        ],
+        "oldTicks": 3,
+        "oldDir": 253,
+        "newDirObservedBefore": 0
+      },
+      "observed": {
+        "kind": "updateWalkHints",
+        "observed": {
+          "dir": 0,
+          "ticks": 3
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "negative-rounding-a",
+      "family": "direction",
+      "helper": true,
+      "input": {
+        "angle": -1.5707963267948966,
+        "path": "negative-y"
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 192,
+          "ticks": 3
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "negative-rounding-b",
+      "family": "direction",
+      "helper": true,
+      "input": {
+        "angle": -1.5830681730979816,
+        "path": "adjacent-negative"
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 192,
+          "ticks": 3
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "waypoint-cap3",
+      "family": "waypoint",
+      "helper": true,
+      "input": {
+        "segment": 50
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 3
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "waypoint-cap2",
+      "family": "waypoint",
+      "helper": true,
+      "input": {
+        "segment": 20
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 2
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "hook-teleported",
+      "family": "hook",
+      "helper": true,
+      "input": {
+        "hook": "teleported",
+        "before": {
+          "dir": 22,
+          "ticks": 3,
+          "path": [
+            {
+              "x": 300,
+              "y": 260
+            }
+          ]
+        },
+        "action": "ordinary accepted Move before synthetic hook invocation"
+      },
+      "observed": {
+        "kind": "installedHook",
+        "hook": "teleported",
+        "players": [
+          {
+            "dir": 22,
+            "ticks": 0
+          }
+        ],
+        "events": []
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "hook-runEnded",
+      "family": "hook",
+      "helper": true,
+      "input": {
+        "hook": "runEnded",
+        "before": {
+          "dir": 22,
+          "ticks": 3,
+          "path": [
+            {
+              "x": 300,
+              "y": 260
+            }
+          ]
+        },
+        "action": "ordinary accepted Move before synthetic hook invocation"
+      },
+      "observed": {
+        "kind": "installedHook",
+        "hook": "runEnded",
+        "players": [
+          {
+            "dir": 22,
+            "ticks": 0
+          }
+        ],
+        "events": []
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "mirrorTimings-sword-baseline",
+      "family": "mirrorTimings",
+      "helper": true,
+      "input": {
+        "profile": "npc",
+        "faction": "fire",
+        "weapon": "sword",
+        "asMult": 1,
+        "windupMult": 1,
+        "pair": "baseline",
+        "source": "actual shared mirrorTimings"
+      },
+      "observed": {
+        "interval": 0.7751937984496126,
+        "windup": 0.1,
+        "root": 0,
+        "ranged": false,
+        "intervalMs": 775.1937984496126,
+        "windupMs": 100
+      }
+    },
+    {
+      "id": "mirrorTimings-bow-baseline",
+      "family": "mirrorTimings",
+      "helper": true,
+      "input": {
+        "profile": "npc",
+        "faction": "fire",
+        "weapon": "bow",
+        "asMult": 1,
+        "windupMult": 1,
+        "pair": "baseline",
+        "source": "actual shared mirrorTimings"
+      },
+      "observed": {
+        "interval": 0.8547008547008548,
+        "windup": 0.6,
+        "root": 0,
+        "ranged": true,
+        "intervalMs": 854.7008547008547,
+        "windupMs": 600
+      }
+    },
+    {
+      "id": "mirrorTimings-wand-baseline",
+      "family": "mirrorTimings",
+      "helper": true,
+      "input": {
+        "profile": "npc",
+        "faction": "fire",
+        "weapon": "wand",
+        "asMult": 1,
+        "windupMult": 1,
+        "pair": "baseline",
+        "source": "actual shared mirrorTimings"
+      },
+      "observed": {
+        "interval": 1.0101010101010102,
+        "windup": 0.4,
+        "root": 0,
+        "ranged": true,
+        "intervalMs": 1010.1010101010102,
+        "windupMs": 400
+      }
+    },
+    {
+      "id": "mirrorTimings-shield-baseline",
+      "family": "mirrorTimings",
+      "helper": true,
+      "input": {
+        "profile": "npc",
+        "faction": "fire",
+        "weapon": "shield",
+        "asMult": 1,
+        "windupMult": 1,
+        "pair": "baseline",
+        "source": "actual shared mirrorTimings"
+      },
+      "observed": {
+        "interval": 1.0416666666666667,
+        "windup": 0.1,
+        "root": 0,
+        "ranged": false,
+        "intervalMs": 1041.6666666666667,
+        "windupMs": 100
+      }
+    },
+    {
+      "id": "mirrorTimings-axe-baseline",
+      "family": "mirrorTimings",
+      "helper": true,
+      "input": {
+        "profile": "npc",
+        "faction": "fire",
+        "weapon": "axe",
+        "asMult": 1,
+        "windupMult": 1,
+        "pair": "baseline",
+        "source": "actual shared mirrorTimings"
+      },
+      "observed": {
+        "interval": 1.1904761904761905,
+        "windup": 0.25,
+        "root": 0,
+        "ranged": false,
+        "intervalMs": 1190.4761904761904,
+        "windupMs": 250
+      }
+    },
+    {
+      "id": "mirrorTimings-fists-baseline",
+      "family": "mirrorTimings",
+      "helper": true,
+      "input": {
+        "profile": "npc",
+        "faction": "fire",
+        "weapon": "fists",
+        "asMult": 1,
+        "windupMult": 1,
+        "pair": "baseline",
+        "source": "actual shared mirrorTimings"
+      },
+      "observed": {
+        "interval": 0.6666666666666666,
+        "windup": 0.1,
+        "root": 0,
+        "ranged": false,
+        "intervalMs": 666.6666666666666,
+        "windupMs": 100
+      }
+    },
+    {
+      "id": "mirrorTimings-sword-fast-as-reduced-windup",
+      "family": "mirrorTimings",
+      "helper": true,
+      "input": {
+        "profile": "npc",
+        "faction": "fire",
+        "weapon": "sword",
+        "asMult": 1.5,
+        "windupMult": 0.5,
+        "pair": "fast-as-reduced-windup",
+        "source": "actual shared mirrorTimings"
+      },
+      "observed": {
+        "interval": 0.516795865633075,
+        "windup": 0.05,
+        "root": 0,
+        "ranged": false,
+        "intervalMs": 516.795865633075,
+        "windupMs": 50
+      }
+    },
+    {
+      "id": "mirrorTimings-bow-fast-as-reduced-windup",
+      "family": "mirrorTimings",
+      "helper": true,
+      "input": {
+        "profile": "npc",
+        "faction": "fire",
+        "weapon": "bow",
+        "asMult": 1.5,
+        "windupMult": 0.5,
+        "pair": "fast-as-reduced-windup",
+        "source": "actual shared mirrorTimings"
+      },
+      "observed": {
+        "interval": 0.5698005698005698,
+        "windup": 0.6,
+        "root": 0,
+        "ranged": true,
+        "intervalMs": 569.8005698005699,
+        "windupMs": 600
+      }
+    },
+    {
+      "id": "mirrorTimings-wand-fast-as-reduced-windup",
+      "family": "mirrorTimings",
+      "helper": true,
+      "input": {
+        "profile": "npc",
+        "faction": "fire",
+        "weapon": "wand",
+        "asMult": 1.5,
+        "windupMult": 0.5,
+        "pair": "fast-as-reduced-windup",
+        "source": "actual shared mirrorTimings"
+      },
+      "observed": {
+        "interval": 0.6734006734006734,
+        "windup": 0.4,
+        "root": 0,
+        "ranged": true,
+        "intervalMs": 673.4006734006734,
+        "windupMs": 400
+      }
+    },
+    {
+      "id": "mirrorTimings-shield-fast-as-reduced-windup",
+      "family": "mirrorTimings",
+      "helper": true,
+      "input": {
+        "profile": "npc",
+        "faction": "fire",
+        "weapon": "shield",
+        "asMult": 1.5,
+        "windupMult": 0.5,
+        "pair": "fast-as-reduced-windup",
+        "source": "actual shared mirrorTimings"
+      },
+      "observed": {
+        "interval": 0.6944444444444444,
+        "windup": 0.05,
+        "root": 0,
+        "ranged": false,
+        "intervalMs": 694.4444444444445,
+        "windupMs": 50
+      }
+    },
+    {
+      "id": "mirrorTimings-axe-fast-as-reduced-windup",
+      "family": "mirrorTimings",
+      "helper": true,
+      "input": {
+        "profile": "npc",
+        "faction": "fire",
+        "weapon": "axe",
+        "asMult": 1.5,
+        "windupMult": 0.5,
+        "pair": "fast-as-reduced-windup",
+        "source": "actual shared mirrorTimings"
+      },
+      "observed": {
+        "interval": 0.7936507936507936,
+        "windup": 0.0992063492063492,
+        "root": 0,
+        "ranged": false,
+        "intervalMs": 793.6507936507936,
+        "windupMs": 99.2063492063492
+      }
+    },
+    {
+      "id": "mirrorTimings-fists-fast-as-reduced-windup",
+      "family": "mirrorTimings",
+      "helper": true,
+      "input": {
+        "profile": "npc",
+        "faction": "fire",
+        "weapon": "fists",
+        "asMult": 1.5,
+        "windupMult": 0.5,
+        "pair": "fast-as-reduced-windup",
+        "source": "actual shared mirrorTimings"
+      },
+      "observed": {
+        "interval": 0.4444444444444444,
+        "windup": 0.05,
+        "root": 0,
+        "ranged": false,
+        "intervalMs": 444.4444444444444,
+        "windupMs": 50
+      }
+    },
+    {
+      "id": "mirrorTimings-sword-slow-as-increased-windup",
+      "family": "mirrorTimings",
+      "helper": true,
+      "input": {
+        "profile": "npc",
+        "faction": "fire",
+        "weapon": "sword",
+        "asMult": 0.5,
+        "windupMult": 1.5,
+        "pair": "slow-as-increased-windup",
+        "source": "actual shared mirrorTimings"
+      },
+      "observed": {
+        "interval": 1.5503875968992251,
+        "windup": 0.15000000000000002,
+        "root": 0,
+        "ranged": false,
+        "intervalMs": 1550.3875968992252,
+        "windupMs": 150.00000000000003
+      }
+    },
+    {
+      "id": "mirrorTimings-bow-slow-as-increased-windup",
+      "family": "mirrorTimings",
+      "helper": true,
+      "input": {
+        "profile": "npc",
+        "faction": "fire",
+        "weapon": "bow",
+        "asMult": 0.5,
+        "windupMult": 1.5,
+        "pair": "slow-as-increased-windup",
+        "source": "actual shared mirrorTimings"
+      },
+      "observed": {
+        "interval": 1.7094017094017095,
+        "windup": 0.8999999999999999,
+        "root": 0,
+        "ranged": true,
+        "intervalMs": 1709.4017094017095,
+        "windupMs": 899.9999999999999
+      }
+    },
+    {
+      "id": "mirrorTimings-wand-slow-as-increased-windup",
+      "family": "mirrorTimings",
+      "helper": true,
+      "input": {
+        "profile": "npc",
+        "faction": "fire",
+        "weapon": "wand",
+        "asMult": 0.5,
+        "windupMult": 1.5,
+        "pair": "slow-as-increased-windup",
+        "source": "actual shared mirrorTimings"
+      },
+      "observed": {
+        "interval": 2.0202020202020203,
+        "windup": 0.6000000000000001,
+        "root": 0,
+        "ranged": true,
+        "intervalMs": 2020.2020202020203,
+        "windupMs": 600.0000000000001
+      }
+    },
+    {
+      "id": "mirrorTimings-shield-slow-as-increased-windup",
+      "family": "mirrorTimings",
+      "helper": true,
+      "input": {
+        "profile": "npc",
+        "faction": "fire",
+        "weapon": "shield",
+        "asMult": 0.5,
+        "windupMult": 1.5,
+        "pair": "slow-as-increased-windup",
+        "source": "actual shared mirrorTimings"
+      },
+      "observed": {
+        "interval": 2.0833333333333335,
+        "windup": 0.15000000000000002,
+        "root": 0,
+        "ranged": false,
+        "intervalMs": 2083.3333333333335,
+        "windupMs": 150.00000000000003
+      }
+    },
+    {
+      "id": "mirrorTimings-axe-slow-as-increased-windup",
+      "family": "mirrorTimings",
+      "helper": true,
+      "input": {
+        "profile": "npc",
+        "faction": "fire",
+        "weapon": "axe",
+        "asMult": 0.5,
+        "windupMult": 1.5,
+        "pair": "slow-as-increased-windup",
+        "source": "actual shared mirrorTimings"
+      },
+      "observed": {
+        "interval": 2.380952380952381,
+        "windup": 0.375,
+        "root": 0,
+        "ranged": false,
+        "intervalMs": 2380.9523809523807,
+        "windupMs": 375
+      }
+    },
+    {
+      "id": "mirrorTimings-fists-slow-as-increased-windup",
+      "family": "mirrorTimings",
+      "helper": true,
+      "input": {
+        "profile": "npc",
+        "faction": "fire",
+        "weapon": "fists",
+        "asMult": 0.5,
+        "windupMult": 1.5,
+        "pair": "slow-as-increased-windup",
+        "source": "actual shared mirrorTimings"
+      },
+      "observed": {
+        "interval": 1.3333333333333333,
+        "windup": 0.15000000000000002,
+        "root": 0,
+        "ranged": false,
+        "intervalMs": 1333.3333333333333,
+        "windupMs": 150.00000000000003
+      }
+    }
+  ]
+}
