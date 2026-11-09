@@ -16,6 +16,8 @@ mod live_tests;
 #[cfg(test)]
 mod notice_tests;
 mod notices;
+#[cfg(test)]
+mod notices_source_tests;
 pub(crate) use notices::quest_gv_text;
 pub mod placement;
 pub mod roster;
