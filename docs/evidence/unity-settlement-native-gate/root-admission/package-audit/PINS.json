@@ -1,0 +1,237 @@
+{
+  "scope": "Read-only audit. New external report files only; source, historical evidence, Editor and Library unchanged. No Editor or unity CLI commands invoked.",
+  "revisions": [
+    {
+      "label": "Frozen4",
+      "commit": "5b7877f99805d6ef980577eda86a779ee4614d9f",
+      "files": [
+        {
+          "path": "client-unity/UnityProject/Packages/manifest.json",
+          "sha256": "48db1aa7682891877ae10e3bf60c2fca07604439dcdd002c1644b501ede54fc9",
+          "bytes": 1224,
+          "jsonPath": "$.dependencies[\"com.unity.test-framework\"]",
+          "line": 7,
+          "direct": "1.6.0"
+        },
+        {
+          "path": "client-unity/UnityProject/Packages/packages-lock.json",
+          "sha256": "0bf5d9c3a47cad85f431635db3ac7e33c4508e398143f4519d5b9504b36c4769",
+          "bytes": 8759,
+          "jsonPath": "$.dependencies[\"com.unity.test-framework\"]",
+          "line": 135,
+          "resolved": {
+            "version": "1.6.0",
+            "depth": 0,
+            "source": "builtin",
+            "dependencies": {
+              "com.unity.ext.nunit": "2.0.3",
+              "com.unity.modules.imgui": "1.0.0",
+              "com.unity.modules.jsonserialize": "1.0.0"
+            }
+          },
+          "requests": [
+            {
+              "parent": "com.unity.collections",
+              "requested": "1.4.6"
+            },
+            {
+              "parent": "com.unity.pipeline",
+              "requested": "1.1.33"
+            },
+            {
+              "parent": "com.unity.test-framework.performance",
+              "requested": "1.1.33"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "label": "Functional",
+      "commit": "0aeddc5b4ce0feb5fc0060f2cf2d56c05dff8944",
+      "files": [
+        {
+          "path": "client-unity/UnityProject/Packages/manifest.json",
+          "sha256": "48db1aa7682891877ae10e3bf60c2fca07604439dcdd002c1644b501ede54fc9",
+          "bytes": 1224,
+          "jsonPath": "$.dependencies[\"com.unity.test-framework\"]",
+          "line": 7,
+          "direct": "1.6.0"
+        },
+        {
+          "path": "client-unity/UnityProject/Packages/packages-lock.json",
+          "sha256": "0bf5d9c3a47cad85f431635db3ac7e33c4508e398143f4519d5b9504b36c4769",
+          "bytes": 8759,
+          "jsonPath": "$.dependencies[\"com.unity.test-framework\"]",
+          "line": 135,
+          "resolved": {
+            "version": "1.6.0",
+            "depth": 0,
+            "source": "builtin",
+            "dependencies": {
+              "com.unity.ext.nunit": "2.0.3",
+              "com.unity.modules.imgui": "1.0.0",
+              "com.unity.modules.jsonserialize": "1.0.0"
+            }
+          },
+          "requests": [
+            {
+              "parent": "com.unity.collections",
+              "requested": "1.4.6"
+            },
+            {
+              "parent": "com.unity.pipeline",
+              "requested": "1.1.33"
+            },
+            {
+              "parent": "com.unity.test-framework.performance",
+              "requested": "1.1.33"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "label": "Settlement",
+      "commit": "5457b9c03149333ed3b2bcebdfb10b224364fc25",
+      "files": [
+        {
+          "path": "client-unity/UnityProject/Packages/manifest.json",
+          "sha256": "48db1aa7682891877ae10e3bf60c2fca07604439dcdd002c1644b501ede54fc9",
+          "bytes": 1224,
+          "jsonPath": "$.dependencies[\"com.unity.test-framework\"]",
+          "line": 7,
+          "direct": "1.6.0"
+        },
+        {
+          "path": "client-unity/UnityProject/Packages/packages-lock.json",
+          "sha256": "0bf5d9c3a47cad85f431635db3ac7e33c4508e398143f4519d5b9504b36c4769",
+          "bytes": 8759,
+          "jsonPath": "$.dependencies[\"com.unity.test-framework\"]",
+          "line": 135,
+          "resolved": {
+            "version": "1.6.0",
+            "depth": 0,
+            "source": "builtin",
+            "dependencies": {
+              "com.unity.ext.nunit": "2.0.3",
+              "com.unity.modules.imgui": "1.0.0",
+              "com.unity.modules.jsonserialize": "1.0.0"
+            }
+          },
+          "requests": [
+            {
+              "parent": "com.unity.collections",
+              "requested": "1.4.6"
+            },
+            {
+              "parent": "com.unity.pipeline",
+              "requested": "1.1.33"
+            },
+            {
+              "parent": "com.unity.test-framework.performance",
+              "requested": "1.1.33"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "filePins": [
+    {
+      "path": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Packages/manifest.json",
+      "sha256": "48db1aa7682891877ae10e3bf60c2fca07604439dcdd002c1644b501ede54fc9",
+      "bytes": 1224
+    },
+    {
+      "path": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Packages/packages-lock.json",
+      "sha256": "0bf5d9c3a47cad85f431635db3ac7e33c4508e398143f4519d5b9504b36c4769",
+      "bytes": 8759
+    },
+    {
+      "path": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/ProjectSettings/ProjectVersion.txt",
+      "sha256": "b69d970773b64cd47f5e15302a3f56bd4b4d6f27596e63242c41666cd9df9dec",
+      "bytes": 85
+    },
+    {
+      "path": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Library/PackageManager/projectResolution.json",
+      "sha256": "51dfeaf2e688e7478ef1b7f33284f86d37ed55950dc926c82ed28bb949ae40b1",
+      "bytes": 17307
+    },
+    {
+      "path": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Library/PackageCache/com.unity.test-framework@082c24152fd4/package.json",
+      "sha256": "c71d7096402097ffa44ecdec03a99e68b37d40bd259b6e17840ac869ca3356c2",
+      "bytes": 9937
+    },
+    {
+      "path": "/Applications/Unity/Hub/Editor/6000.0.85f2/Unity.app/Contents/Resources/PackageManager/BuiltInPackages/com.unity.test-framework/package.json",
+      "sha256": "3fb2cc0cf7c8e97c67ac8ba69aff049e314ee6ab99828582a74927b1bf3a39d5",
+      "bytes": 9865
+    },
+    {
+      "path": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Library/PackageCache/com.unity.pipeline@303cb578aa66/package.json",
+      "sha256": "f4d55582aaf2347206d33c7595f03c35a7e54f0bebe559999d1159ed73c9459a",
+      "bytes": 5322
+    },
+    {
+      "path": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Library/PackageCache/com.unity.pipeline@303cb578aa66/Editor/Commands/TestCommands.cs",
+      "sha256": "6534836ff31221c0720409c6dad69b437e0cd902aa12178f69c0270e3851d0fd",
+      "bytes": 9038
+    },
+    {
+      "path": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Library/PackageCache/com.unity.pipeline@303cb578aa66/Editor/Testing/PipelineTestRunner.cs",
+      "sha256": "fbff557dae8014e86661bd8ccf26342903f1c0b781b33b7b602a3a0fd50afa6c",
+      "bytes": 36559
+    },
+    {
+      "path": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Library/PackageCache/com.unity.test-framework@082c24152fd4/UnityEditor.TestRunner/AssemblyInfo.cs",
+      "sha256": "9bb88a640171e52a1455cb9372605f3bdd33a143628cdf49d87026f61c3e8a3c",
+      "bytes": 699
+    },
+    {
+      "path": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Library/PackageCache/com.unity.test-framework@082c24152fd4/UnityEditor.TestRunner/UnityEditor.TestRunner.asmdef",
+      "sha256": "559eb71dddb30a373c513a5b48170eb1d259336d0d99cd5bc4677bee3e3a5c53",
+      "bytes": 729
+    }
+  ],
+  "historicalLoadedObservations": [
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/functional-0aeddc5b-2026-11-09/evidence/actual-test-framework.json",
+      "sha256": "a01a38c323426bb0f867fa67b884a77f3d97c4c854a2faec7677e6e94fd7c709",
+      "result": {
+        "assembly": "UnityEditor.TestRunner, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null",
+        "packageName": "com.unity.test-framework",
+        "version": "1.6.0",
+        "resolvedPath": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Library/PackageCache/com.unity.test-framework@082c24152fd4"
+      },
+      "observerPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/functional-0aeddc5b-2026-11-09/ObserveTestFramework.cs",
+      "observerSha256": "22ba2e536ffbc0441da52c3166f41b1850c7a4b9c4827a042e28d6a57ba9d40c"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/settlement64-5457b9c0-2026-11-09/evidence/actual-test-framework.json",
+      "sha256": "a01a38c323426bb0f867fa67b884a77f3d97c4c854a2faec7677e6e94fd7c709",
+      "result": {
+        "assembly": "UnityEditor.TestRunner, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null",
+        "packageName": "com.unity.test-framework",
+        "version": "1.6.0",
+        "resolvedPath": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Library/PackageCache/com.unity.test-framework@082c24152fd4"
+      },
+      "observerPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/settlement64-5457b9c0-2026-11-09/ObserveTestFramework.cs",
+      "observerSha256": "22ba2e536ffbc0441da52c3166f41b1850c7a4b9c4827a042e28d6a57ba9d40c"
+    }
+  ],
+  "resolvedSummary": {
+    "name": "com.unity.test-framework",
+    "version": "1.6.0",
+    "source": "builtin",
+    "resolvedPath": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Library/PackageCache/com.unity.test-framework@082c24152fd4",
+    "editorCompatibility": "6000.0.44f1",
+    "fingerprint": "082c24152fd4906ea828826ae9d9773b8a56b3ff"
+  },
+  "cacheVsBundleParsedManifestDifference": {
+    "_fingerprint": [
+      null,
+      "082c24152fd4906ea828826ae9d9773b8a56b3ff"
+    ]
+  }
+}

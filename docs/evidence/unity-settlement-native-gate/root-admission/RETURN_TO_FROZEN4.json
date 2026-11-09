@@ -1,0 +1,16 @@
+{
+  "source": "5457b9c03149333ed3b2bcebdfb10b224364fc25",
+  "proof": "1a7774e4b23b5f10a0ab3a1b687a2dec5bbf21f4",
+  "proofPayloads": 81,
+  "proofPayloadBytes": 863205,
+  "proofManifestSha256": "c1b84a7e846dff9989b5c07173a137b8133bb4d515ff8493a5fcbc9c02305c1d",
+  "allProofPayloadsVerifiedFromGit": true,
+  "returnedSource": "5b7877f99805d6ef980577eda86a779ee4614d9f",
+  "returnedBranch": "codex/unity-frozen4-editor-idle",
+  "cleanGit": true,
+  "initialStatePreservedExceptTransientSceneHandle": true,
+  "autoTickDisabled": true,
+  "refreshGuardReleased": true,
+  "editorLeaseReleased": true,
+  "scope": "Separate post-seal return receipt; not part of gate seal payloads"
+}

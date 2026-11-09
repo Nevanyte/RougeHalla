@@ -1,0 +1,3 @@
+# Preserve exact observed Unity serialization and overlay bytes.
+return-evidence/ShaderGraphSettings.observed.asset.txt whitespace=-blank-at-eol
+return-evidence/source-overlay.patch whitespace=-blank-at-eol
