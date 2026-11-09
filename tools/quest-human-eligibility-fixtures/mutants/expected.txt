@@ -1,0 +1,6 @@
+01-reveal-bot-finder|ordinary.json|FIRST_MISMATCH /ordinary/0/frames/1/target/private/publishAt expected=0 mutant=4100
+02-accept-bot|ordinary.json|FIRST_MISMATCH /ordinary/1/frames/0/target/public/expiresAt expected=0 mutant=180100
+03-pickup-bot|ordinary.json|FIRST_MISMATCH /ordinary/2/events/0/text expected="Nothing to take" mutant="Accept Ashcaps at Cook Farrell first"
+04-camp-clear-bot|ordinary.json|FIRST_MISMATCH /ordinary/4/frames/2/publicStatuses/7/1 expected="open" mutant="expired"
+05-turn-in-bot|diagnostic.json|FIRST_MISMATCH /cases/1/frames/0/publicStatuses/0/1 expected="done" mutant="open"
+99-provenance-only|IDENTICAL

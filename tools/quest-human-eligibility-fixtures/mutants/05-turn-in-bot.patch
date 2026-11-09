@@ -1,0 +1,11 @@
+--- a/packages/server/src/sim/quests.ts
++++ b/packages/server/src/sim/quests.ts
+@@ -466,7 +466,7 @@
+     let best: string | null = null;
+     for (const [pid, p] of world.state.players) {
+       const rt = world.players.get(pid);
+-      if (!standing(p, rt) || !ready(qt, pid)) continue;
++      if (!(p.status === "alive" && rt && !rt.down && !rt.resolved) || !ready(qt, pid)) continue;
+       if (Math.hypot(p.x - qt.s.x, p.y - qt.s.y) > QUEST_TURN_IN_RANGE) continue;
+       if (!hasLineOfSight(map, p, qt.s)) continue;
+       if (best !== null && tieRank(world, pid) > tieRank(world, best)) continue;

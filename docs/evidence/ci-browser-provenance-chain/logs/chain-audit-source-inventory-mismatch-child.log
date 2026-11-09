@@ -1,0 +1,66 @@
+{
+  "ok": false,
+  "root": "/tmp/ci-browser-inventory-neg-child",
+  "acceptedOverlays": [
+    {
+      "kind": "runtime catalog provenance chain",
+      "path": "parity/card-catalog/source.json",
+      "original": "d50c03e471f9d11ff790cac0f31d4ab82b5bb45f1b963b41725d58814cc6f74e",
+      "prior": "9e76292b7ae74d305da2729a2ceba63965e64aa9fd670ab85568ae7909270507",
+      "effective": "2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792",
+      "leaves": [
+        "/protectedSha256/tools/protocol-js/check-vectors.mjs",
+        "/protectedSha256/tools/browser-proof/proof.mjs"
+      ]
+    },
+    {
+      "kind": "witness provenance chain",
+      "path": "parity/card-runtime/INPUT_SHA256.json",
+      "original": "2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a",
+      "prior": "84ffcc7ff49536cc0d1d542a25f42994b68c049f28877d9375da08aa73186e79",
+      "effective": "4dd8dff0f8474e7cc312b1a9588560fe06984e42bb878ee0dd40182bd32a968e"
+    },
+    {
+      "kind": "documentation overlay",
+      "path": "parity/card-runtime/README.md",
+      "original": "d5d3c30632494c98fb96ce4ddad76da2e716322609ccca767e52b868ec16742d",
+      "effective": "d0fa1b753a7016e07c9bb3b3db4ae55ef483df176c343296c80e2c8756ba5ed8"
+    },
+    {
+      "kind": "witness provenance chain",
+      "path": "parity/card-runtime/source.json",
+      "original": "c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019",
+      "prior": "80516466ca231b88d16cd0d187f90260f141042ba59b37322b99016ebcae33e1",
+      "effective": "9e357ed421c876de39c004236a83563116b390fc9d75043af24047dc952fe049"
+    },
+    {
+      "kind": "witness provenance chain",
+      "path": "tools/card-runtime-fixtures/capture.mts",
+      "original": "24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e",
+      "prior": "5ca446a1934846ffa14e561a10b06230b55a73f924d7853c5c9ecec79b13857d",
+      "effective": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794"
+    }
+  ],
+  "failureCount": 3,
+  "failures": [
+    {
+      "kind": "catalog-source-sha",
+      "path": "packages/shared/src/abilities.ts",
+      "expected": "95ef39376a9d9f40cc529a0f7300700a97427050628941e801aaa1e299862518",
+      "actual": "f64fdf819a3ecd9b5ddd4fe1d2af927ab61f543a5951f3174208d4e511dabd4a",
+      "detail": "catalog sourceSha256 inventory is stale vs current file"
+    },
+    {
+      "kind": "runtime-sourceInputs-sha",
+      "path": "packages/shared/src/abilities.ts",
+      "expected": "95ef39376a9d9f40cc529a0f7300700a97427050628941e801aaa1e299862518",
+      "actual": "f64fdf819a3ecd9b5ddd4fe1d2af927ab61f543a5951f3174208d4e511dabd4a"
+    },
+    {
+      "kind": "witness-source-input-sha",
+      "path": "packages/shared/src/abilities.ts",
+      "expected": "95ef39376a9d9f40cc529a0f7300700a97427050628941e801aaa1e299862518",
+      "actual": "f64fdf819a3ecd9b5ddd4fe1d2af927ab61f543a5951f3174208d4e511dabd4a"
+    }
+  ]
+}

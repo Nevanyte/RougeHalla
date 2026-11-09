@@ -542,7 +542,7 @@
     },
     {
       "path": "tools/card-runtime-fixtures/capture.mts",
-      "sha256": "24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e"
+      "sha256": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794"
     },
     {
       "path": "tools/card-runtime-fixtures/capture.sh",
@@ -580,14 +580,14 @@
   "immutableReferences": [
     {
       "path": "parity/card-catalog/source.json",
-      "sha256": "d50c03e471f9d11ff790cac0f31d4ab82b5bb45f1b963b41725d58814cc6f74e",
+      "sha256": "2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792",
       "reuse": [
         "catalog/*",
         "eligibility/*",
         "pools/*",
         "roll/*"
       ],
-      "scope": "accepted409 pure definitions/selection cases; no runtime claim"
+      "scope": "accepted409 pure definitions/selection cases; no runtime claim; effect accepted by explicit provenance overlay (original d50c03e471f9d11ff790cac0f31d4ab82b5bb45f1b963b41725d58814cc6f74e)"
     },
     {
       "path": "parity/stat-fold/canonical.json",
@@ -631,5 +631,27 @@
       ],
       "scope": "fold cases remain byte-identical; the option rows were recaptured from the legacy source without the old three-card restriction (full interactive pool)"
     }
-  ]
+  ],
+  "acceptedProvenanceOverlay": {
+    "path": "parity/card-catalog/source.json",
+    "originalSha256": "d50c03e471f9d11ff790cac0f31d4ab82b5bb45f1b963b41725d58814cc6f74e",
+    "priorAcceptedEffectiveSha256": "9e76292b7ae74d305da2729a2ceba63965e64aa9fd670ab85568ae7909270507",
+    "effectiveSha256": "2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792",
+    "acceptedChanges": [
+      {
+        "leaf": "/protectedSha256/tools/protocol-js/check-vectors.mjs",
+        "from": "775ab7cf7738c421a9b858850153a2ca1008e3f7f726520d940be20698314f27",
+        "to": "3c96f5b013d7ee647b4d4b67c762e5db5b38dc8fd7e669c7a4b139c9a0778a90",
+        "evidence": "docs/evidence/ci-card-catalog-protocol13/{README.md,receipt.json}"
+      },
+      {
+        "leaf": "/protectedSha256/tools/browser-proof/proof.mjs",
+        "from": "a49aa61cdb1adeef60031b3e87407233c85f3203b7a6c464c4b5119c8bd1850f",
+        "to": "6aea66795ed18edd941a4bc65c62070d6a6e2fce1b57cd98d0238db134fcfd66",
+        "evidence": "docs/evidence/ci-browser-provenance-chain/{README.md,receipt.json,logs}"
+      }
+    ],
+    "preservedPriorLineage": "original d50c03e4 was accepted as 9e76292b for the protocol-js check-vector leaf; this chain preserves that prior accepted effective hash and adds only the browser-proof proof.mjs leaf",
+    "rejects": "any catalog hash other than effectiveSha256"
+  }
 }

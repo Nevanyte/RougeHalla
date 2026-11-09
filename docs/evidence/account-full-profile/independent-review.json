@@ -1,0 +1,25 @@
+{
+  "candidate": "d8255a49415aa9e3f8f6337aa62c25d86bce1dbb",
+  "parent": "37bfbb7ffbe79d1981986a05d271e783cca1bbb5",
+  "verdict": "RELEASE for root-managed API/UI adoption gates",
+  "manifest_files_verified": 36,
+  "focused_independent_probe": {
+    "current_error_bindings": 6,
+    "late_stale_errors": 3,
+    "actual409": "BadRequest/Refused",
+    "uuid_profile_stable": true,
+    "automatic_retries": 0,
+    "build_warnings": 0,
+    "build_errors": 0
+  },
+  "probe_program_sha256": "80446244b5fdce128d582051ffe17da10eab2f17a10d4a3e2028f37d1474e272",
+  "probe_dll_sha256": "42f76a56fc3eda6542b1d135a0ea2c815b0bc53d3e9d12e0e0b9220a78209d92",
+  "not_run": [
+    "Editor",
+    "UPM",
+    "UI",
+    "server",
+    "cloud",
+    "broad suites"
+  ]
+}

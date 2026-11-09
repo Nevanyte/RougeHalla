@@ -1,0 +1,16 @@
+{
+  "kind": "runtime-input",
+  "semanticFields": [
+    "format",
+    "baseRevision",
+    "sourceInputs",
+    "harnessInputs (minus the runtime capture tool)",
+    "immutableReferences[1..] (catalog overlay entry excluded)"
+  ],
+  "semanticDigestOld": "152a077b02f33af5a535546f49b3751da3ab897df60b84dbe43877b06095e8ec",
+  "semanticDigestNew": "152a077b02f33af5a535546f49b3751da3ab897df60b84dbe43877b06095e8ec",
+  "semanticEqual": true,
+  "note": "The earlier f9153222/44136fa3 values were format-only placeholders; these digests cover the stable input inventory and frozen pins.",
+  "formatOnlyDigestOld": "f915322254bf26c2e46a8f5783de73d70bbf08830b535b61ee9b3932c818860e",
+  "formatOnlyDigestNew": "f915322254bf26c2e46a8f5783de73d70bbf08830b535b61ee9b3932c818860e"
+}

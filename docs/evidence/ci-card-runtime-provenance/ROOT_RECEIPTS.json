@@ -1,0 +1,43 @@
+{
+  "reviewedHead": "031853a3444e25f0fa63efb3f8746755ca4e870a",
+  "base": "df0d7bb82bd681747d94a985df6cf5083a8e577f",
+  "recursiveComparisons": [
+    {
+      "path": "parity/card-runtime/source.json",
+      "allowedDifferences": 4,
+      "forbidden": 0,
+      "sha256": "80516466ca231b88d16cd0d187f90260f141042ba59b37322b99016ebcae33e1",
+      "bytes": 53034288
+    },
+    {
+      "path": "parity/card-runtime/INPUT_SHA256.json",
+      "allowedDifferences": 4,
+      "forbidden": 0,
+      "sha256": "84ffcc7ff49536cc0d1d542a25f42994b68c049f28877d9375da08aa73186e79",
+      "bytes": 24239
+    },
+    {
+      "path": "parity/card-runtime-witness/source.json",
+      "allowedDifferences": 14,
+      "forbidden": 0,
+      "sha256": "5df81afe05fa6bd22711ff9dfa80bff68a06a5d1824577c823380f332597c197",
+      "bytes": 174278
+    },
+    {
+      "path": "parity/card-runtime-witness/INPUT_SHA256.json",
+      "allowedDifferences": 14,
+      "forbidden": 0,
+      "sha256": "b8aab2f85670e9f45049640abb3090f839d7033a6de0708ad2e7a496328b8c98",
+      "bytes": 31787
+    }
+  ],
+  "allNonprovenanceRuntimeAndWitnessSubtreesIdentical": true,
+  "sourceAndHarnessPinsMatchActualCommit": true,
+  "frozenPinsByteIdentical": true,
+  "frozen65EmittedUnchanged": true,
+  "acceptedOverlaysBoundToOriginalFrozenPinsAndExactNewBytes": 3,
+  "finalEvidenceHead": "c14fd95920cb5d321a5586af81533aa142bca77d",
+  "finalCommitChangesOnlyEvidence": true,
+  "portableEvidenceManifestEntriesVerified": 27,
+  "separateChecker": "Positive pinned recaptures, same allowed differences, original FROZEN pins and both negative controls independently reproduced; evidence-only discrepancies corrected in final commit"
+}

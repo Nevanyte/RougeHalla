@@ -1,0 +1,11 @@
+--- a/packages/server/src/sim/quests.ts
++++ b/packages/server/src/sim/quests.ts
+@@ -147,7 +147,7 @@
+ function onQuestPickup(world: World, c: Extract<Combatant, { kind: "player" }>, box: ContainerState): boolean {
+   const q = world.quests;
+   const item = box.items.at(0);
+-  if (!q || !item || !item.def.startsWith(QUEST_ITEM_PREFIX) || !takesPart(c.rt)) return false;
++  if (!q || !item || !item.def.startsWith(QUEST_ITEM_PREFIX)) return false;
+   const qt = q.quests.get(item.def.slice(QUEST_ITEM_PREFIX.length));
+   if (!qt || !qt.published || qt.s.status !== "open") { toast(world, c.id, QUEST_REFUSAL.over); return true; }
+   // The item stays where it lies: the refusal uses nothing up.

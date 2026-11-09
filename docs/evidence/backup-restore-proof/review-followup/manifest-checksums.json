@@ -1,0 +1,16 @@
+{
+  "boundary_unix_seconds": 1794175235.2011719,
+  "committed_results": 2,
+  "format": 1,
+  "pending_results": 2,
+  "sha256": {
+    "boundary.json": "25eefaeeabbb7617137db35fa65e2176e7ba597ee031176b0dd2c7fb98247f02",
+    "database.dump": "31ba273ea55365061f395064382dad2340cf0095920f745d49352e6a880a957f",
+    "private-state.json": "50f583fe51738afd8c0b563c2a31f97978f4cc7aafeba72c8b5c3611c4746ede",
+    "producer.json": "4dd7968484201ad2b467b22f8fff146dc218d3ae67b872d34b4d3c6f2ea8864c",
+    "quiescent.json": "1e76b6b71e6f8c18e260f559106519b5bec4f85a0bb430d11c36db209576fa44",
+    "source-identity.json": "62e02646acc438b38e6f6806c0e7f66995750da048d0ccdd2d5e192fed1db5e2",
+    "spool/21f77fff-12ad-ba47-278a-1655c7a82e99-3.rec": "4d7cbadc5eace6e877109788a738888fac038bb82bf5d47bcf8ea4c51ebae6d2",
+    "spool/21f77fff-12ad-ba47-278a-1655c7a82e99-4.rec": "fc28df7899974dafdf4e3888b9305a1169547f65843046d1cbb08a5f747b7e78"
+  }
+}

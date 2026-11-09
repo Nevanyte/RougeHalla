@@ -1,0 +1,18 @@
+{
+  "format": "rh-account-presentation/1",
+  "authority": "server-only",
+  "cosmetics": 57,
+  "achievements": 26,
+  "sources": {
+    "crates/rh-persist/data/cosmetics.json": "bb136e1aec5e3d7744a84068c4935ad0dbd0aa17d395ab00bce0e049c7b398ce",
+    "packages/shared/src/cosmetics.ts": "7513ea6b3cbc51072863ccb6ef568d96797f9239c8073f99d2a33ef3aab7b873",
+    "packages/shared/src/achievements.ts": "c80dbded6e1ea5eb79dc0f25378d9a45fbe41865a8298bf9fc5f2eeafdd46a34",
+    "packages/shared/src/constants.ts": "51ce4dd800ec868abee525fb1ae375688066f336972a7da878644df1235924e7",
+    "crates/rh-persist/src/achievements.rs": "613f5c83726bfee103b4048e69c66ab18e500d9a04edf59b93a20a5e3b407f55",
+    "crates/rh-persist/tests/fixtures/achievements.json": "4cba6907bc6d0e28f5429610928922e846d203f055849f4f2b37e0d589e0be4d"
+  },
+  "outputs": {
+    "cosmetics.json": "bb136e1aec5e3d7744a84068c4935ad0dbd0aa17d395ab00bce0e049c7b398ce",
+    "achievements.json": "5ecb6c9cba3c52f6c5bb8c282c67abda40bb29ae6245818a4ca495b20c258f47"
+  }
+}

@@ -9,6 +9,7 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="NUnit" Version="4.2.2" />
     <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="NUnit.Framework.Legacy.ClassicAssert" Alias="Assert" />
@@ -19,5 +20,9 @@
     <ProjectReference Include="..\RoguehallaNet\RoguehallaNet.csproj" />
     <ProjectReference Include="..\RoguehallaNet.Probe\RoguehallaNet.Probe.csproj" />
     <Compile Include="..\UnityProject\Assets\Scripts\UI\TrophyText.cs" Link="TrophyText.cs" />
+    <Compile Include="..\UnityProject\Assets\Scripts\Net\AccountFullJson.cs" Link="AccountFullJson.cs" />
+    <EmbeddedResource Include="..\..\crates\rh-persist\data\cosmetics.json" LogicalName="Account.Cosmetics.json" />
+    <EmbeddedResource Include="..\UnityProject\Assets\Resources\Account\cosmetics.json" LogicalName="Account.PresentationCosmetics.json" />
+    <EmbeddedResource Include="..\UnityProject\Assets\Resources\Account\achievements.json" LogicalName="Account.PresentationAchievements.json" />
   </ItemGroup>
 </Project>

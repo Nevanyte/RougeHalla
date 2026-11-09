@@ -1,0 +1,15 @@
+{"kind":"witness-input","diffCount":14,"semanticEqual":true,"counts":{},"semanticDigestOld":"44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a","semanticDigestNew":"44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"}
+/acceptedProvenanceOverlay | "<missing>" => [{"path":"parity/card-runtime/source.json","originalSha256":"c2e5d1a071f3f7a05a6c3e8bf46fb
+/harnessInputs/1/sha256 | "09796001fc5033499ff481402db5b1e3a5ff1b7b1d2fccc13e46f6efbcc576a2" => "a67e3c151af164e7a1dd44ae6162bd998f67fbcc265a36c461e21a08bd391d24"
+/actualPinnedInputs/1/acceptedProvenanceOverlayApplied | "<missing>" => true
+/actualPinnedInputs/1/acceptedProvenanceOverlay | "<missing>" => {"originalSha256":"2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a","effe
+/actualPinnedInputs/1/bytes | 23376 => 24239
+/actualPinnedInputs/1/sha256 | "2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a" => "84ffcc7ff49536cc0d1d542a25f42994b68c049f28877d9375da08aa73186e79"
+/actualPinnedInputs/3/acceptedProvenanceOverlayApplied | "<missing>" => true
+/actualPinnedInputs/3/acceptedProvenanceOverlay | "<missing>" => {"originalSha256":"c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019","effe
+/actualPinnedInputs/3/bytes | 53033468 => 53034288
+/actualPinnedInputs/3/sha256 | "c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019" => "80516466ca231b88d16cd0d187f90260f141042ba59b37322b99016ebcae33e1"
+/actualPinnedInputs/6/acceptedProvenanceOverlayApplied | "<missing>" => true
+/actualPinnedInputs/6/acceptedProvenanceOverlay | "<missing>" => {"originalSha256":"24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e","effe
+/actualPinnedInputs/6/bytes | 6091 => 6927
+/actualPinnedInputs/6/sha256 | "24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e" => "5ca446a1934846ffa14e561a10b06230b55a73f924d7853c5c9ecec79b13857d"

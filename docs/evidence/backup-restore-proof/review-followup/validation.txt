@@ -1,0 +1,9 @@
+PASS exactly one fresh whole executable proof: postgres-cold-restore/run-09
+PASS two complete pending result envelopes/version/match/profile/fence/callsign/body
+PASS two complete pending metadata records, including region/placement and absent replay reference
+PASS one grouped original end timestamp; maximum delta0.0ms <=0.01ms
+PASS existing five negative controls, both fresh live pending-lease probes, duplicate/successor protections
+PASS cargo clippy -p rh-server --features postgres --test account_backup_restore_flow --locked -- -D warnings
+PASS rustfmt --check --edition 2021 crates/rh-server/tests/account_backup_restore_flow.rs
+PASS original runner bytes unchanged from a2091bc6
+PASS both fresh task-owned PostgreSQL clusters stopped; private dump/credentials kept outside Git

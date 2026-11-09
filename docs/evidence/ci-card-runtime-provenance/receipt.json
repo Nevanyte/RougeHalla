@@ -1,0 +1,214 @@
+{
+  "base": "df0d7bb82bd681747d94a985df6cf5083a8e577f",
+  "branch": "deepseek/ci-card-runtime-provenance",
+  "approach": "docs/evidence/ci-card-runtime-provenance/APPROACH.md",
+  "catalogEvidence": "docs/evidence/ci-card-catalog-protocol13/{README.md,receipt.json}",
+  "image": "node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292",
+  "old": {
+    "runtimeSource": {
+      "sha256": "c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019",
+      "bytes": 53033468
+    },
+    "runtimeInput": {
+      "sha256": "2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a",
+      "bytes": 23376
+    },
+    "witnessSource": {
+      "sha256": "c6ca8218b6958c41a3a17908066c007984646d94ec01f904f4f79a22721fc111",
+      "bytes": 171853
+    },
+    "witnessInput": {
+      "sha256": "36abc9240ed5cc863ef4c87520ae92b25ad84a90623ad199cc4fa6b98daed68f",
+      "bytes": 29046
+    },
+    "runtimeCaptureTool": {
+      "sha256": "24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e",
+      "bytes": 6091
+    },
+    "witnessCaptureTool": {
+      "sha256": "09796001fc5033499ff481402db5b1e3a5ff1b7b1d2fccc13e46f6efbcc576a2",
+      "bytes": 8516
+    },
+    "catalogReference": "d50c03e471f9d11ff790cac0f31d4ab82b5bb45f1b963b41725d58814cc6f74e"
+  },
+  "new": {
+    "runtimeSource": {
+      "sha256": "80516466ca231b88d16cd0d187f90260f141042ba59b37322b99016ebcae33e1",
+      "bytes": 53034288
+    },
+    "runtimeInput": {
+      "sha256": "84ffcc7ff49536cc0d1d542a25f42994b68c049f28877d9375da08aa73186e79",
+      "bytes": 24239
+    },
+    "witnessSource": {
+      "sha256": "5df81afe05fa6bd22711ff9dfa80bff68a06a5d1824577c823380f332597c197",
+      "bytes": 174278
+    },
+    "witnessInput": {
+      "sha256": "b8aab2f85670e9f45049640abb3090f839d7033a6de0708ad2e7a496328b8c98",
+      "bytes": 31787
+    },
+    "runtimeCaptureTool": {
+      "sha256": "5ca446a1934846ffa14e561a10b06230b55a73f924d7853c5c9ecec79b13857d",
+      "bytes": 6927
+    },
+    "witnessCaptureTool": {
+      "sha256": "a67e3c151af164e7a1dd44ae6162bd998f67fbcc265a36c461e21a08bd391d24",
+      "bytes": 10614
+    },
+    "catalogReference": "9e76292b7ae74d305da2729a2ceba63965e64aa9fd670ab85568ae7909270507"
+  },
+  "frozenPins": {
+    "sha256": "7ed1086915fafd5fa129669270d6d53090f4b81052660a18318df60cab8b3023",
+    "frozenSourceSha256": "c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019",
+    "baseRevision": "64052f09212ea857b2aa6327cf996b1860deb91b",
+    "files": 15,
+    "toolPins": 11,
+    "changed": false
+  },
+  "recursiveDifferences": {
+    "runtimeSource": {
+      "allowed": 4,
+      "forbidden": 0,
+      "paths": [
+        "/provenance/acceptedProvenanceOverlay",
+        "/provenance/harnessInputs/2/sha256",
+        "/provenance/immutableReferences/0/sha256",
+        "/provenance/immutableReferences/0/scope"
+      ],
+      "semanticDigestOld": "a086c168baa3e0844a5524662e9fc68675b7335e95248db5ced95bc863878fe7",
+      "semanticDigestNew": "a086c168baa3e0844a5524662e9fc68675b7335e95248db5ced95bc863878fe7",
+      "equal": true
+    },
+    "runtimeInput": {
+      "semanticFields": [
+        "format",
+        "baseRevision",
+        "sourceInputs",
+        "harnessInputs (minus the runtime capture tool)",
+        "immutableReferences[1..] (catalog overlay entry excluded)"
+      ],
+      "semanticDigestOld": "152a077b02f33af5a535546f49b3751da3ab897df60b84dbe43877b06095e8ec",
+      "semanticDigestNew": "152a077b02f33af5a535546f49b3751da3ab897df60b84dbe43877b06095e8ec",
+      "formatOnlyDigestOld": "f915322254bf26c2e46a8f5783de73d70bbf08830b535b61ee9b3932c818860e",
+      "formatOnlyDigestNew": "f915322254bf26c2e46a8f5783de73d70bbf08830b535b61ee9b3932c818860e",
+      "equal": true,
+      "note": "Corrected semantic digest; the previous f9153222 value was format-only (sha256 of the format tag object)."
+    },
+    "witnessSource": {
+      "allowed": 14,
+      "forbidden": 0,
+      "paths": [
+        "/provenance/acceptedProvenanceOverlay",
+        "/provenance/harnessInputs/1/sha256",
+        "/provenance/actualPinnedInputs/1/{sha256,bytes,acceptedProvenanceOverlayApplied,acceptedProvenanceOverlay}",
+        "/provenance/actualPinnedInputs/3/{sha256,bytes,acceptedProvenanceOverlayApplied,acceptedProvenanceOverlay}",
+        "/provenance/actualPinnedInputs/6/{sha256,bytes,acceptedProvenanceOverlayApplied,acceptedProvenanceOverlay}"
+      ],
+      "semanticDigestOld": "0ef72417008fab778bd68dc05aed90134415eb3411db6406d12b697bc921c9c4",
+      "semanticDigestNew": "0ef72417008fab778bd68dc05aed90134415eb3411db6406d12b697bc921c9c4",
+      "equal": true
+    },
+    "witnessInput": {
+      "semanticFields": [
+        "sourceInputs",
+        "harnessInputs (minus the witness capture tool)",
+        "frozenPins",
+        "actualPinnedInputs frozenOriginalSha256/docOverlayApplied"
+      ],
+      "semanticDigestOld": "a7d1b19f9c55bae7e7a67739cdb4a34d4049b7d803485edb01a1110cf8232a1f",
+      "semanticDigestNew": "a7d1b19f9c55bae7e7a67739cdb4a34d4049b7d803485edb01a1110cf8232a1f",
+      "formatOnlyDigestOld": "25cd62c343f1e92ffe69dddb133619350494240b4d6e4eff3564a152cd682825",
+      "formatOnlyDigestNew": "25cd62c343f1e92ffe69dddb133619350494240b4d6e4eff3564a152cd682825",
+      "equal": true,
+      "note": "Corrected semantic digest; the previous 44136fa3 value was format-only (sha256 of {})."
+    }
+  },
+  "counts": {
+    "runtimeCases": 65,
+    "runtimeOrdinarySteps": 6236,
+    "runtimePrivateRecords": 3179,
+    "witnessCases": 2,
+    "witnessPrivateRecords": 33
+  },
+  "controls": {
+    "pristineBaseCiReproduction": {
+      "exit": 1,
+      "assertion": "AssertionError: parity/card-catalog/source.json immutable reference",
+      "log": "logs/pristine-ci-failure.log"
+    },
+    "runtimeNegative": {
+      "mutatedPath": "/cases/0/final/label",
+      "mutatedSha256": "fece907526118721e28fe318a85cb62d2d40e5010a1a3fc687f1953a7edca84d",
+      "exit": 1,
+      "assertion": "one canonical source runtime recapture",
+      "log": "logs/negative-runtime-check.log"
+    },
+    "witnessNegative": {
+      "mutatedPath": "/cases/0/expected/name",
+      "mutatedSha256": "378839e2028bc126aff45287797c6b09a3c0c488b3fc567b9ac19a0d37504d7b",
+      "exit": 1,
+      "log": "logs/negative-witness-check.log"
+    }
+  },
+  "positiveChecks": {
+    "runtime": "bash tools/card-runtime-fixtures/capture.sh --check exit 0; logs/runtime-check-pass.log",
+    "witness": "bash tools/card-runtime-witness-fixtures/capture.sh --check exit 0; logs/witness-check-pass.log"
+  },
+  "externalWorkspace": "/tmp/ci-card-runtime-provenance/{old,fresh-runtime,fresh-witness,logs,diffs}",
+  "logs": [
+    "logs/pristine-ci-failure.log",
+    "logs/fresh-runtime-capture.log",
+    "logs/runtime-check-pass.log",
+    "logs/fresh-witness-capture.log",
+    "logs/witness-check-pass.log",
+    "logs/negative-runtime-check.log",
+    "logs/negative-witness-check.log",
+    "logs/negative-runtime-mutation.log",
+    "logs/negative-witness-mutation.log",
+    "logs/precanonical-runtime-check-mismatch.log"
+  ],
+  "diffs": [
+    "diffs/runtime-source.json",
+    "diffs/runtime-input.json",
+    "diffs/witness-source.json",
+    "diffs/witness-input.json"
+  ],
+  "methodLimits": [
+    "no TS/native/protocol/browser/cloud/ML edits",
+    "no expected gameplay/poststate/private tuple installation",
+    "no comparison relaxation",
+    "no map/full-workspace/unchanged-Web campaign",
+    "root owns merge/status/lock/identities"
+  ],
+  "checker": {
+    "verdict": "PASS WITH DISCREPANCIES (evidence quality only; no fixture/semantic discrepancy)",
+    "independentlyReproduced": "scope/FROZEN hashes; both positive pinned bytechecks; recursive equality with its own script (runtime 4/4, witness 14/14, zero forbidden); own sorted-key semantic digests old==new; source/harness inventory equality; counts 65/6236/3179 and 2/33; overlay narrowness; both negative controls; pristine base CI failure",
+    "discrepanciesFixedInFinalEvidenceCommit": [
+      "input semantic digests now cover the stable source/harness/frozen-pin inventory; the old format-only values are retained as formatOnlyDigest fields",
+      "diff classifier narrowed to allow a harness sha leaf only for the actual capture tool (4/4 and 14/14 allowed, zero forbidden unchanged)",
+      "the ten bounded secret-free logs are force-added portable paths with accurate SHA256SUMS",
+      "witness overlay 'all 65 witness cases' wording clarified as the frozen 65-case seal vs the 2-case witness corpus (doc-only, no recapture)"
+    ]
+  },
+  "diffClassifier": "A harnessInputs/<n>/sha256 leaf is allowed only when its sibling path is the actual capture tool (runtime or witness); all other input leaves are forbidden.",
+  "portableLogs": {
+    "forceAddedExactPaths": true,
+    "reason": "repository global *.log ignore; the ten bounded evidence logs are explicitly force-added so README/SHA256SUMS links are portable",
+    "files": [
+      "logs/precanonical-runtime-check-mismatch.log",
+      "logs/pristine-ci-failure.log",
+      "logs/fresh-runtime-capture.log",
+      "logs/fresh-witness-capture.log",
+      "logs/runtime-check-pass.log",
+      "logs/witness-check-pass.log",
+      "logs/negative-runtime-mutation.log",
+      "logs/negative-witness-mutation.log",
+      "logs/negative-runtime-check.log",
+      "logs/negative-witness-check.log"
+    ],
+    "secretScan": "no token/secret/password/api-key/authorization/bearer/account/cloud/private-key matches",
+    "sizes": "97 B - 43 KB each; no corpora or capture outputs added"
+  },
+  "witnessScopeClarification": "The witness overlay scope string says 'all 65 witness cases' (the frozen 65-case seal); the emitted witness corpus itself is 2 positive-witness cases. Documentation clarification only; no recapture."
+}

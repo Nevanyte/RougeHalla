@@ -1,0 +1,127 @@
+{
+  "kind": "witness",
+  "diffCount": 14,
+  "diffs": [
+    {
+      "path": "/provenance/acceptedProvenanceOverlay",
+      "old": "<missing>",
+      "new": [
+        {
+          "path": "parity/card-runtime/source.json",
+          "originalSha256": "c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019",
+          "effectiveSha256": "80516466ca231b88d16cd0d187f90260f141042ba59b37322b99016ebcae33e1",
+          "scope": "metadata-only runtime provenance overlay: custom catalog immutable reference hash and runtime capture harness pin changed, plus the acceptedProvenanceOverlay record; all 65 witness cases/cleanControls/comparison/privateOracleRecords/controlCorrection unchanged",
+          "evidence": "docs/evidence/ci-card-runtime-provenance/README.md"
+        },
+        {
+          "path": "parity/card-runtime/INPUT_SHA256.json",
+          "originalSha256": "2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a",
+          "effectiveSha256": "84ffcc7ff49536cc0d1d542a25f42994b68c049f28877d9375da08aa73186e79",
+          "scope": "metadata-only runtime input inventory overlay: the same accepted catalog reference/harness/overlay metadata; sourceInputs and inventory semantics unchanged",
+          "evidence": "docs/evidence/ci-card-runtime-provenance/README.md"
+        },
+        {
+          "path": "tools/card-runtime-fixtures/capture.mts",
+          "originalSha256": "24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e",
+          "effectiveSha256": "5ca446a1934846ffa14e561a10b06230b55a73f924d7853c5c9ecec79b13857d",
+          "scope": "narrow accepted-provenance overlay implementation in the pinned runtime capture tool only (catalog reference check + overlay metadata record); executable engine/cases/inspection/controls unchanged",
+          "evidence": "docs/evidence/ci-card-runtime-provenance/README.md"
+        }
+      ]
+    },
+    {
+      "path": "/provenance/harnessInputs/1/sha256",
+      "old": "09796001fc5033499ff481402db5b1e3a5ff1b7b1d2fccc13e46f6efbcc576a2",
+      "new": "a67e3c151af164e7a1dd44ae6162bd998f67fbcc265a36c461e21a08bd391d24"
+    },
+    {
+      "path": "/provenance/actualPinnedInputs/1/acceptedProvenanceOverlayApplied",
+      "old": "<missing>",
+      "new": true
+    },
+    {
+      "path": "/provenance/actualPinnedInputs/1/acceptedProvenanceOverlay",
+      "old": "<missing>",
+      "new": {
+        "originalSha256": "2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a",
+        "effectiveSha256": "84ffcc7ff49536cc0d1d542a25f42994b68c049f28877d9375da08aa73186e79",
+        "evidence": "docs/evidence/ci-card-runtime-provenance/README.md"
+      }
+    },
+    {
+      "path": "/provenance/actualPinnedInputs/1/bytes",
+      "old": 23376,
+      "new": 24239
+    },
+    {
+      "path": "/provenance/actualPinnedInputs/1/sha256",
+      "old": "2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a",
+      "new": "84ffcc7ff49536cc0d1d542a25f42994b68c049f28877d9375da08aa73186e79"
+    },
+    {
+      "path": "/provenance/actualPinnedInputs/3/acceptedProvenanceOverlayApplied",
+      "old": "<missing>",
+      "new": true
+    },
+    {
+      "path": "/provenance/actualPinnedInputs/3/acceptedProvenanceOverlay",
+      "old": "<missing>",
+      "new": {
+        "originalSha256": "c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019",
+        "effectiveSha256": "80516466ca231b88d16cd0d187f90260f141042ba59b37322b99016ebcae33e1",
+        "evidence": "docs/evidence/ci-card-runtime-provenance/README.md"
+      }
+    },
+    {
+      "path": "/provenance/actualPinnedInputs/3/bytes",
+      "old": 53033468,
+      "new": 53034288
+    },
+    {
+      "path": "/provenance/actualPinnedInputs/3/sha256",
+      "old": "c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019",
+      "new": "80516466ca231b88d16cd0d187f90260f141042ba59b37322b99016ebcae33e1"
+    },
+    {
+      "path": "/provenance/actualPinnedInputs/6/acceptedProvenanceOverlayApplied",
+      "old": "<missing>",
+      "new": true
+    },
+    {
+      "path": "/provenance/actualPinnedInputs/6/acceptedProvenanceOverlay",
+      "old": "<missing>",
+      "new": {
+        "originalSha256": "24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e",
+        "effectiveSha256": "5ca446a1934846ffa14e561a10b06230b55a73f924d7853c5c9ecec79b13857d",
+        "evidence": "docs/evidence/ci-card-runtime-provenance/README.md"
+      }
+    },
+    {
+      "path": "/provenance/actualPinnedInputs/6/bytes",
+      "old": 6091,
+      "new": 6927
+    },
+    {
+      "path": "/provenance/actualPinnedInputs/6/sha256",
+      "old": "24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e",
+      "new": "5ca446a1934846ffa14e561a10b06230b55a73f924d7853c5c9ecec79b13857d"
+    }
+  ],
+  "semanticFields": [
+    "format",
+    "roles",
+    "controlCorrection",
+    "cleanControls",
+    "witnessDefinition",
+    "cases",
+    "comparison",
+    "privateOracleRecords"
+  ],
+  "semanticDigestOld": "0ef72417008fab778bd68dc05aed90134415eb3411db6406d12b697bc921c9c4",
+  "semanticDigestNew": "0ef72417008fab778bd68dc05aed90134415eb3411db6406d12b697bc921c9c4",
+  "semanticEqual": true,
+  "counts": {
+    "cases": 2,
+    "privateRecords": 33
+  }
+}
