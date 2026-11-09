@@ -1,0 +1,63 @@
+{
+  "source": "95bd9c1efcde9b71cb07f23f24aef8ff4fb17013",
+  "methodCount": 16,
+  "allSourceMetaAndLoadedMethodsMatch": true,
+  "classes": [
+    {
+      "class": "HubCosmeticsViewEditModeTests",
+      "guid": "f87f72a74f9d4be69e495c1b16a0541e",
+      "sourceSha256": "d78c64231d6a2b4d24eed743bfb45950751fb3d88b35dc00aca5c3178aa9fea4",
+      "metaSha256": "6a4231ed2835dbfc121980c03c7657b2d1af2ea4f586c455fb05f832baccf20a",
+      "methods": [
+        "EquipGuardAllowsNullOnlyForAnEquippedSlotAndRequiresOwnershipOtherwise",
+        "ExistingOwnedFullProfileCanPurchaseWithoutExtraReadAndShowsPendingBeforeReply",
+        "FocusRestoresTheNewActionWhileTheRetiredSameNamedCardStillExists",
+        "NullOwnerCanInitializeAndShowUnavailableCatalog",
+        "SameNameCredentialReplacementHidesAndRejectsOldUnknownRetryWithoutLosingHistory",
+        "ShowingAndChangingCallsSignDoNotIssueProfileReadsAndRefreshRequiresOwnedProfile",
+        "UnusableSameNameOwnerClearsWalletAndStatusWithoutDiscardingUnknownPurchase"
+      ],
+      "mvid": "347fc0ee-ba5f-48e0-89ed-badd4f96d719",
+      "match": true
+    },
+    {
+      "class": "HubProgressViewEditModeTests",
+      "guid": "9ed2e7b4dd5241d58ea4ab7a1e0a0af3",
+      "sourceSha256": "76a26ae4efd15d65da91eec5c15954fbec850f828d378dbd10a48c9d3b9e7d7f",
+      "metaSha256": "84370b5e647a7b18b16e787065882443fde47e471d8b5c65416c539f967ba694",
+      "methods": [
+        "AchievementRowsShowServerFactsAndPreserveUnknownFutureIds",
+        "FormatsInt64WithoutFloatingPointLoss",
+        "OwnerRankIsClearedOnCancelAndSelectionChangeAndLatePrivateBoardCannotRestoreIt"
+      ],
+      "mvid": "347fc0ee-ba5f-48e0-89ed-badd4f96d719",
+      "match": true
+    },
+    {
+      "class": "AccountRecoveryViewEditModeTests",
+      "guid": "3d27b1c5c0524949b029e33fb04aa312",
+      "sourceSha256": "dc171e87ebd395a4b59bf5b59c4d41d3c9f1355e3759d05e1e385b8970e25b53",
+      "metaSha256": "cea2fd37d637112f3ef67fd629eaf72da74762174baa5de901e7b6d5b25a4ba4",
+      "methods": [
+        "OwnedKeyNeedsRevealAndManualSelectionAndClearsOnCloseSwitchCancelAndBlur",
+        "UnownedAndFailedProfilesCannotRevealARecoveryKey"
+      ],
+      "mvid": "347fc0ee-ba5f-48e0-89ed-badd4f96d719",
+      "match": true
+    },
+    {
+      "class": "MatchClientAccountBindingEditModeTests",
+      "guid": "fac78127a58b4044bec5d3a102c8fec7",
+      "sourceSha256": "9d6b5778c92c3a47467a90adc4e471eac283920fb4ff8a362ad303fae77afcea",
+      "metaSha256": "995ff5d51834ee1c063d477bad98a65b67bbcb4a43a4a4f65f1ded641bc03723",
+      "methods": [
+        "MutatingMatchUrlWhileOwnershipRequestIsPendingCannotUseCapturedIntentOrConnect",
+        "SelectingFactionDuringDeferredJoinInvalidatesIntentAndCreatesNoSocket",
+        "StaleJoinFailureCannotOverwriteProfileSelectedBySynchronousFlowCallback",
+        "SuccessfulOrdinaryJoinUsesOwnedCanonicalIdentityTokenAndValidatedUrl"
+      ],
+      "mvid": "347fc0ee-ba5f-48e0-89ed-badd4f96d719",
+      "match": true
+    }
+  ]
+}

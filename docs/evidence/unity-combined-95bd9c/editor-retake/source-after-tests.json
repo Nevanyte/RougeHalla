@@ -1,0 +1,25 @@
+{
+  "baselineSource": "95bd9c1efcde9b71cb07f23f24aef8ff4fb17013",
+  "baselineBranch": "codex/unity-95bd9c-native-proof",
+  "baselineManifest": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/combined-95bd9c-2026-11-08/evidence/as-tested-source.json",
+  "baselineManifestSha256": "cbdf7cdda05167e67f36bc976c5e018035d0a75d39eebe8eca8b607e09cccf43",
+  "scope": "client-unity/UnityProject tracked files listed by as-tested-source.json",
+  "baselineFileCount": 1122,
+  "currentProjectTrackedFileCount": 1122,
+  "currentHead": "95bd9c1efcde9b71cb07f23f24aef8ff4fb17013",
+  "currentBranch": "codex/unity-95bd9c-native-proof",
+  "changedFiles": [
+    {
+      "path": "client-unity/UnityProject/ProjectSettings/ShaderGraphSettings.asset",
+      "baselineBytes": 555,
+      "currentBytes": 557,
+      "baselineSha256": "d9285133fee72ad8257e0b2c2d904b487757ebcef4862e3b10bef073bf218894",
+      "currentSha256": "83556175c6dccd540f2cac05e5c0f9fbb36c3c8d7a56bed2c7cf4d29e4c2ee2e"
+    }
+  ],
+  "missingBaselineFiles": [],
+  "untrackedProjectFiles": [],
+  "projectStatus": [
+    " M client-unity/UnityProject/ProjectSettings/ShaderGraphSettings.asset"
+  ]
+}

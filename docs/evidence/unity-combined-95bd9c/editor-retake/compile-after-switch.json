@@ -1,0 +1,12 @@
+{
+  "success": false,
+  "command": "command",
+  "data": null,
+  "errors": [
+    {
+      "code": "EDITOR_NOT_RUNNING",
+      "message": "No Pipeline instance found for project: /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject. Make sure Unity Editor is running with the Pipeline package installed."
+    }
+  ],
+  "warnings": []
+}
