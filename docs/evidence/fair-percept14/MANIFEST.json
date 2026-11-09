@@ -3,8 +3,8 @@
   "base": "8e467beb3ec76d8178927998b62a23cdf7b77a06",
   "code": "6b75ab2d1307580f4544a5ac0b27c6de2bad3ebd",
   "status": "Verified bounded current14 retained-data component; Root review/composition and full fair activation separate",
-  "payload_count": 19,
-  "payload_bytes": 86551,
+  "payload_count": 20,
+  "payload_bytes": 87313,
   "files": [
     {
       "path": "crates/rh-policy/src/bots/fair_percept14.rs",
@@ -87,6 +87,11 @@
       "sha256": "514adc3b37ddeca52badf2840a7d9f789cf9570362de19078b43c43933b5b0d3"
     },
     {
+      "path": "docs/evidence/fair-percept14/packaging.json",
+      "bytes": 652,
+      "sha256": "df2994a26c4592b660ce9bfb08e3d0da07efd0cd53b558410f680add156a7264"
+    },
+    {
       "path": "docs/evidence/fair-percept14/protected-inputs.json",
       "bytes": 4179,
       "sha256": "4a73c4afd26519b8c6e207b10c5a6a6376bf8360eb673688f3f4227ae6688af2"
@@ -98,8 +103,8 @@
     },
     {
       "path": "docs/evidence/fair-percept14/SHA256SUMS",
-      "bytes": 2110,
-      "sha256": "4fa5860d644e9d086b4777420d6ba66fa1c7af3b79f2c3bbc6c7ad25047f4ab4"
+      "bytes": 2220,
+      "sha256": "aed1b27984559e56bde13d6447a49d729649b2b9f79ad4a6c87995d98a91b48f"
     }
   ]
 }
