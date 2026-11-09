@@ -1,0 +1,41 @@
+{
+  "format": "rh-public-facts-watcher-static-audit/1",
+  "sourceCommit": "77bc42ec54fd9003925efcde808e83f0878cf426",
+  "priorHead": "29a265148899f23f2ae7dfd14a6bc39ab9509c66",
+  "baseRevision": "a3d4b3ce575442c9a06916888035ca849a6cd05a",
+  "pins": [
+    {
+      "group": "sourceSha256",
+      "pins": 333,
+      "allMatchCurrentBytes": true,
+      "matchExactBase": true
+    },
+    {
+      "group": "configSha256",
+      "pins": 8,
+      "allMatchCurrentBytes": true,
+      "matchExactBase": true
+    },
+    {
+      "group": "contractInputs",
+      "pins": 2,
+      "allMatchCurrentBytes": true,
+      "matchExactBase": true
+    },
+    {
+      "group": "toolSha256",
+      "pins": 8,
+      "allMatchCurrentBytes": true,
+      "matchExactBase": false
+    }
+  ],
+  "sourceCommitPaths": [
+    "tools/bot-public-facts-fixtures/flight.mts",
+    "parity/policy/bot-public-facts/source.json"
+  ],
+  "original52EvidencePayloadsAndManifestByteIdentical": true,
+  "otherSourceFixtureValuesExactlyEqual": true,
+  "newCaptures": 1,
+  "newByteChecks": 1,
+  "newMutantOrRuntimeCampaigns": 0
+}

@@ -1,0 +1,1384 @@
+{
+  "schema": "bot-public-facts-flight/1",
+  "claimScope": "declared map, seats, factions and initial loadouts; actual queued inputs, fixed-step weapons, projectile spawn, FxChannel encoding, shared unpacking, source perception, FrameRing, memory and real Reflexes; not ordinary loot-acquisition or full-world bot proof",
+  "setup": {
+    "map": {
+      "seed": 20261109,
+      "widthTiles": 64,
+      "heightTiles": 48,
+      "boundaryWalls": true,
+      "spawns": [
+        {
+          "x": 320,
+          "y": 640
+        },
+        {
+          "x": 832,
+          "y": 640
+        }
+      ]
+    },
+    "config": {
+      "minPlayers": 2,
+      "lobbySeconds": 0,
+      "tickMs": 50,
+      "worldRenderDelayMs": 125,
+      "sourceRenderDelayMs": 100,
+      "maxSteps": 180
+    },
+    "initialPositions": {
+      "shooter": {
+        "x": 832,
+        "y": 640,
+        "faction": "holy",
+        "slots": [
+          "wand",
+          "bow"
+        ]
+      },
+      "watcher": {
+        "x": 320,
+        "y": 640,
+        "faction": "fire",
+        "slots": [
+          "bow",
+          ""
+        ]
+      }
+    }
+  },
+  "inputs": [
+    {
+      "actor": "flight-shooter",
+      "type": "attack",
+      "accepted": true,
+      "tick": 2
+    },
+    {
+      "actor": "flight-shooter",
+      "type": "release",
+      "accepted": true,
+      "tick": 3
+    },
+    {
+      "actor": "flight-shooter",
+      "type": "swap",
+      "accepted": true,
+      "tick": 12
+    },
+    {
+      "actor": "flight-shooter",
+      "type": "attack",
+      "accepted": true,
+      "tick": 21
+    },
+    {
+      "actor": "flight-shooter",
+      "type": "release",
+      "accepted": true,
+      "tick": 21
+    }
+  ],
+  "firstSourceFlight": {
+    "id": "p1",
+    "kind": "ball",
+    "x": 832,
+    "y": 640,
+    "vx": -380,
+    "vy": 0,
+    "t": 450,
+    "range": 640,
+    "ownerId": "flight-shooter"
+  },
+  "bowSourceFlight": {
+    "id": "p2",
+    "kind": "arrow",
+    "x": 832,
+    "y": 640,
+    "vx": -900,
+    "vy": 0,
+    "t": 1350,
+    "range": 520,
+    "ownerId": "flight-shooter"
+  },
+  "joinDisclosureProbe": {
+    "label": "declared copied-state disclosure probe; not an earned hidden attack or live status transition",
+    "now": 800,
+    "currentStateProjection": "declared copied StateLike view; source createWorld state is plain GameState, not RaidState Schema",
+    "input": "actual FxChannel.inFlight(world.projectiles, now) batch, decoded by shared unpackLaunches",
+    "onlyProjectionMutation": {
+      "actor": "flight-shooter",
+      "field": "effects",
+      "before": 0,
+      "after": 256,
+      "hiddenBit": 256
+    },
+    "liveWorldEffectsAfter": 0,
+    "rawPublicBatch": {
+      "time": 800,
+      "ownerIdForFlight": "flight-shooter",
+      "launch": {
+        "id": "p1",
+        "kind": "ball",
+        "x": 832,
+        "y": 640,
+        "vx": -380,
+        "vy": 0,
+        "range": 640
+      }
+    },
+    "visibleCurrentState": {
+      "shooterDrawn": true,
+      "launch": {
+        "id": "p1",
+        "kind": "ball",
+        "from": "flight-shooter",
+        "x": 699,
+        "y": 640,
+        "vx": -380,
+        "vy": 0,
+        "x0": 832,
+        "y0": 640,
+        "t0": 450,
+        "range": 640
+      },
+      "attributedFrom": "flight-shooter"
+    },
+    "hiddenDeclaredProjection": {
+      "shooterDrawn": false,
+      "launch": {
+        "id": "p1",
+        "kind": "ball",
+        "from": null,
+        "x": 699,
+        "y": 640,
+        "vx": -380,
+        "vy": 0,
+        "x0": 832,
+        "y0": 640,
+        "t0": 450,
+        "range": 640
+      },
+      "attributedFrom": null
+    },
+    "interpretation": "the copied projection removes the caster row while the same public reconnect launch retains origin/time/velocity/range; frame attribution is null when no visible fighter is near that origin, while the raw public Fx side table still names its owner"
+  },
+  "sourceSteps": [
+    {
+      "tick": 1,
+      "time": 50,
+      "phase": "active",
+      "events": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "fxBatch": null,
+      "launches": []
+    },
+    {
+      "tick": 2,
+      "time": 100,
+      "phase": "active",
+      "events": [
+        {
+          "type": "fx",
+          "fx": {
+            "kind": "windup",
+            "by": "flight-shooter",
+            "weapon": "wand",
+            "a": 3.141592653589793,
+            "ms": 318.9792663476874
+          }
+        }
+      ],
+      "fxBatch": {
+        "t": 100,
+        "l": [
+          [
+            0,
+            0,
+            2,
+            314,
+            319
+          ]
+        ]
+      },
+      "launches": []
+    },
+    {
+      "tick": 3,
+      "time": 150,
+      "phase": "active",
+      "events": [],
+      "fxBatch": null,
+      "launches": []
+    },
+    {
+      "tick": 4,
+      "time": 200,
+      "phase": "active",
+      "events": [],
+      "fxBatch": null,
+      "launches": []
+    },
+    {
+      "tick": 5,
+      "time": 250,
+      "phase": "active",
+      "events": [],
+      "fxBatch": null,
+      "launches": []
+    },
+    {
+      "tick": 6,
+      "time": 300,
+      "phase": "active",
+      "events": [],
+      "fxBatch": null,
+      "launches": []
+    },
+    {
+      "tick": 7,
+      "time": 350,
+      "phase": "active",
+      "events": [],
+      "fxBatch": null,
+      "launches": []
+    },
+    {
+      "tick": 8,
+      "time": 400,
+      "phase": "active",
+      "events": [],
+      "fxBatch": null,
+      "launches": []
+    },
+    {
+      "tick": 9,
+      "time": 450,
+      "phase": "active",
+      "events": [],
+      "fxBatch": {
+        "t": 450,
+        "l": [],
+        "p": [
+          [
+            "p1",
+            1,
+            8320,
+            6400,
+            -3800,
+            0
+          ]
+        ],
+        "o": [
+          [
+            "p1",
+            "flight-shooter"
+          ]
+        ]
+      },
+      "launches": [
+        {
+          "id": "p1",
+          "kind": "ball",
+          "x": 832,
+          "y": 640,
+          "vx": -380,
+          "vy": 0,
+          "t": 450,
+          "range": 640,
+          "ownerId": "flight-shooter"
+        }
+      ]
+    },
+    {
+      "tick": 10,
+      "time": 500,
+      "phase": "active",
+      "events": [],
+      "fxBatch": null,
+      "launches": []
+    },
+    {
+      "tick": 11,
+      "time": 550,
+      "phase": "active",
+      "events": [],
+      "fxBatch": null,
+      "launches": []
+    },
+    {
+      "tick": 12,
+      "time": 600,
+      "phase": "active",
+      "events": [],
+      "fxBatch": null,
+      "launches": []
+    },
+    {
+      "tick": 13,
+      "time": 650,
+      "phase": "active",
+      "events": [],
+      "fxBatch": null,
+      "launches": []
+    },
+    {
+      "tick": 14,
+      "time": 700,
+      "phase": "active",
+      "events": [],
+      "fxBatch": null,
+      "launches": []
+    },
+    {
+      "tick": 15,
+      "time": 750,
+      "phase": "active",
+      "events": [],
+      "fxBatch": null,
+      "launches": []
+    },
+    {
+      "tick": 16,
+      "time": 800,
+      "phase": "active",
+      "events": [],
+      "fxBatch": null,
+      "launches": []
+    },
+    {
+      "tick": 17,
+      "time": 850,
+      "phase": "active",
+      "events": [],
+      "fxBatch": null,
+      "launches": []
+    },
+    {
+      "tick": 18,
+      "time": 900,
+      "phase": "active",
+      "events": [],
+      "fxBatch": null,
+      "launches": []
+    },
+    {
+      "tick": 19,
+      "time": 950,
+      "phase": "active",
+      "events": [],
+      "fxBatch": null,
+      "launches": []
+    },
+    {
+      "tick": 20,
+      "time": 1000,
+      "phase": "active",
+      "events": [],
+      "fxBatch": null,
+      "launches": []
+    },
+    {
+      "tick": 21,
+      "time": 1050,
+      "phase": "active",
+      "events": [],
+      "fxBatch": null,
+      "launches": []
+    },
+    {
+      "tick": 22,
+      "time": 1100,
+      "phase": "active",
+      "events": [],
+      "fxBatch": null,
+      "launches": []
+    },
+    {
+      "tick": 23,
+      "time": 1150,
+      "phase": "active",
+      "events": [],
+      "fxBatch": null,
+      "launches": []
+    },
+    {
+      "tick": 24,
+      "time": 1200,
+      "phase": "active",
+      "events": [],
+      "fxBatch": null,
+      "launches": []
+    },
+    {
+      "tick": 25,
+      "time": 1250,
+      "phase": "active",
+      "events": [],
+      "fxBatch": null,
+      "launches": []
+    },
+    {
+      "tick": 26,
+      "time": 1300,
+      "phase": "active",
+      "events": [],
+      "fxBatch": null,
+      "launches": []
+    },
+    {
+      "tick": 27,
+      "time": 1350,
+      "phase": "active",
+      "events": [],
+      "fxBatch": {
+        "t": 1350,
+        "l": [],
+        "p": [
+          [
+            "p2",
+            0,
+            8320,
+            6400,
+            -9000,
+            0
+          ]
+        ],
+        "o": [
+          [
+            "p2",
+            "flight-shooter"
+          ]
+        ]
+      },
+      "launches": [
+        {
+          "id": "p2",
+          "kind": "arrow",
+          "x": 832,
+          "y": 640,
+          "vx": -900,
+          "vy": 0,
+          "t": 1350,
+          "range": 520,
+          "ownerId": "flight-shooter"
+        }
+      ]
+    },
+    {
+      "tick": 28,
+      "time": 1400,
+      "phase": "active",
+      "events": [],
+      "fxBatch": null,
+      "launches": []
+    },
+    {
+      "tick": 29,
+      "time": 1450,
+      "phase": "active",
+      "events": [],
+      "fxBatch": null,
+      "launches": []
+    },
+    {
+      "tick": 30,
+      "time": 1500,
+      "phase": "active",
+      "events": [],
+      "fxBatch": null,
+      "launches": []
+    }
+  ],
+  "firstSeenIncoming": [
+    {
+      "tier": "normal",
+      "now": 600,
+      "viewT": 475,
+      "stimuli": [
+        {
+          "kind": "incoming",
+          "at": 600,
+          "subject": "p1",
+          "central": true,
+          "value": 1253.9473684210527
+        }
+      ],
+      "flight": {
+        "id": "p1",
+        "kind": "ball",
+        "from": "flight-shooter",
+        "x": 822.5,
+        "y": 640,
+        "vx": -380,
+        "vy": 0,
+        "x0": 832,
+        "y0": 640,
+        "t0": 450,
+        "range": 640
+      }
+    },
+    {
+      "tier": "hard",
+      "now": 600,
+      "viewT": 475,
+      "stimuli": [
+        {
+          "kind": "incoming",
+          "at": 600,
+          "subject": "p1",
+          "central": true,
+          "value": 1253.9473684210527
+        }
+      ],
+      "flight": {
+        "id": "p1",
+        "kind": "ball",
+        "from": "flight-shooter",
+        "x": 822.5,
+        "y": 640,
+        "vx": -380,
+        "vy": 0,
+        "x0": 832,
+        "y0": 640,
+        "t0": 450,
+        "range": 640
+      }
+    }
+  ],
+  "reflexDecisions": [
+    {
+      "tier": "normal",
+      "now": 600,
+      "viewT": 475,
+      "reflex": {
+        "kind": "dodge",
+        "holdUntil": 1232.9411764705883,
+        "intent": {
+          "kind": "move",
+          "to": {
+            "x": 320,
+            "y": 608
+          },
+          "priority": 0,
+          "timing": {
+            "kind": "react",
+            "stimulus": {
+              "kind": "incoming",
+              "at": 600,
+              "subject": "p1",
+              "central": true,
+              "value": 1253.9473684210527
+            }
+          },
+          "why": "sidestep an incoming ball"
+        }
+      }
+    },
+    {
+      "tier": "hard",
+      "now": 1500,
+      "viewT": 1375,
+      "reflex": {
+        "kind": "dodge",
+        "holdUntil": 2052.9411764705883,
+        "intent": {
+          "kind": "move",
+          "to": {
+            "x": 320,
+            "y": 608
+          },
+          "priority": 0,
+          "timing": {
+            "kind": "react",
+            "stimulus": {
+              "kind": "incoming",
+              "at": 1500,
+              "subject": "p2",
+              "central": true,
+              "value": 515
+            }
+          },
+          "why": "sidestep an incoming arrow"
+        }
+      }
+    }
+  ],
+  "reflexEvaluations": [
+    {
+      "tier": "normal",
+      "now": 600,
+      "viewT": 475,
+      "incoming": [
+        {
+          "subject": "p1",
+          "value": 1253.9473684210527
+        }
+      ],
+      "bowDraw": null,
+      "reflex": {
+        "kind": "dodge",
+        "holdUntil": 1232.9411764705883,
+        "intent": {
+          "kind": "move",
+          "to": {
+            "x": 320,
+            "y": 608
+          },
+          "priority": 0,
+          "timing": {
+            "kind": "react",
+            "stimulus": {
+              "kind": "incoming",
+              "at": 600,
+              "subject": "p1",
+              "central": true,
+              "value": 1253.9473684210527
+            }
+          },
+          "why": "sidestep an incoming ball"
+        }
+      }
+    },
+    {
+      "tier": "hard",
+      "now": 600,
+      "viewT": 475,
+      "incoming": [
+        {
+          "subject": "p1",
+          "value": 1253.9473684210527
+        }
+      ],
+      "bowDraw": null,
+      "reflex": null
+    },
+    {
+      "tier": "normal",
+      "now": 1050,
+      "viewT": 925,
+      "incoming": [],
+      "bowDraw": {
+        "id": "flight-shooter",
+        "drawStartedAt": 1050,
+        "facing": 3.1415927410125732
+      },
+      "reflex": null
+    },
+    {
+      "tier": "hard",
+      "now": 1050,
+      "viewT": 925,
+      "incoming": [],
+      "bowDraw": {
+        "id": "flight-shooter",
+        "drawStartedAt": 1050,
+        "facing": 3.1415927410125732
+      },
+      "reflex": null
+    },
+    {
+      "tier": "normal",
+      "now": 1100,
+      "viewT": 975,
+      "incoming": [],
+      "bowDraw": {
+        "id": "flight-shooter",
+        "drawStartedAt": 1050,
+        "facing": 3.1415927410125732
+      },
+      "reflex": null
+    },
+    {
+      "tier": "hard",
+      "now": 1100,
+      "viewT": 975,
+      "incoming": [],
+      "bowDraw": {
+        "id": "flight-shooter",
+        "drawStartedAt": 1050,
+        "facing": 3.1415927410125732
+      },
+      "reflex": null
+    },
+    {
+      "tier": "normal",
+      "now": 1150,
+      "viewT": 1025,
+      "incoming": [],
+      "bowDraw": {
+        "id": "flight-shooter",
+        "drawStartedAt": 1050,
+        "facing": 3.1415927410125732
+      },
+      "reflex": null
+    },
+    {
+      "tier": "hard",
+      "now": 1150,
+      "viewT": 1025,
+      "incoming": [],
+      "bowDraw": {
+        "id": "flight-shooter",
+        "drawStartedAt": 1050,
+        "facing": 3.1415927410125732
+      },
+      "reflex": null
+    },
+    {
+      "tier": "normal",
+      "now": 1200,
+      "viewT": 1075,
+      "incoming": [],
+      "bowDraw": {
+        "id": "flight-shooter",
+        "drawStartedAt": 1050,
+        "facing": 3.1415927410125732
+      },
+      "reflex": null
+    },
+    {
+      "tier": "hard",
+      "now": 1200,
+      "viewT": 1075,
+      "incoming": [],
+      "bowDraw": {
+        "id": "flight-shooter",
+        "drawStartedAt": 1050,
+        "facing": 3.1415927410125732
+      },
+      "reflex": null
+    },
+    {
+      "tier": "normal",
+      "now": 1250,
+      "viewT": 1125,
+      "incoming": [],
+      "bowDraw": {
+        "id": "flight-shooter",
+        "drawStartedAt": 1050,
+        "facing": 3.1415927410125732
+      },
+      "reflex": null
+    },
+    {
+      "tier": "hard",
+      "now": 1250,
+      "viewT": 1125,
+      "incoming": [],
+      "bowDraw": {
+        "id": "flight-shooter",
+        "drawStartedAt": 1050,
+        "facing": 3.1415927410125732
+      },
+      "reflex": null
+    },
+    {
+      "tier": "normal",
+      "now": 1300,
+      "viewT": 1175,
+      "incoming": [],
+      "bowDraw": {
+        "id": "flight-shooter",
+        "drawStartedAt": 1050,
+        "facing": 3.1415927410125732
+      },
+      "reflex": null
+    },
+    {
+      "tier": "hard",
+      "now": 1300,
+      "viewT": 1175,
+      "incoming": [],
+      "bowDraw": {
+        "id": "flight-shooter",
+        "drawStartedAt": 1050,
+        "facing": 3.1415927410125732
+      },
+      "reflex": null
+    },
+    {
+      "tier": "normal",
+      "now": 1500,
+      "viewT": 1375,
+      "incoming": [
+        {
+          "subject": "p2",
+          "value": 515
+        }
+      ],
+      "bowDraw": null,
+      "reflex": null
+    },
+    {
+      "tier": "hard",
+      "now": 1500,
+      "viewT": 1375,
+      "incoming": [
+        {
+          "subject": "p2",
+          "value": 515
+        }
+      ],
+      "bowDraw": null,
+      "reflex": {
+        "kind": "dodge",
+        "holdUntil": 2052.9411764705883,
+        "intent": {
+          "kind": "move",
+          "to": {
+            "x": 320,
+            "y": 608
+          },
+          "priority": 0,
+          "timing": {
+            "kind": "react",
+            "stimulus": {
+              "kind": "incoming",
+              "at": 1500,
+              "subject": "p2",
+              "central": true,
+              "value": 515
+            }
+          },
+          "why": "sidestep an incoming arrow"
+        }
+      }
+    }
+  ],
+  "rebaseProbe": {
+    "label": "derived candidate only; not source output",
+    "scope": "one actual first-visible Percept with isolated Reflexes calls; this sample does not claim multi-frame history or dedupe equivalence",
+    "actual": {
+      "id": "p1",
+      "kind": "ball",
+      "from": "flight-shooter",
+      "x": 822.5,
+      "y": 640,
+      "vx": -380,
+      "vy": 0,
+      "x0": 832,
+      "y0": 640,
+      "t0": 450,
+      "range": 640
+    },
+    "candidate": {
+      "id": "p1",
+      "kind": "ball",
+      "from": "flight-shooter",
+      "x": 822.5,
+      "y": 640,
+      "vx": -380,
+      "vy": 0,
+      "x0": 822.5,
+      "y0": 640,
+      "t0": 475,
+      "range": 630.5,
+      "remainingRangeDerivedFromActualFlight": true
+    },
+    "actualFirstVisibleTravelled": 9.5,
+    "comparisons": [
+      {
+        "tier": "normal",
+        "actualReflex": {
+          "kind": "dodge",
+          "holdUntil": 1232.9411764705883,
+          "intent": {
+            "kind": "move",
+            "to": {
+              "x": 320,
+              "y": 608
+            },
+            "priority": 0,
+            "timing": {
+              "kind": "react",
+              "stimulus": {
+                "kind": "incoming",
+                "at": 600,
+                "subject": "p1",
+                "central": true,
+                "value": 1253.9473684210527
+              }
+            },
+            "why": "sidestep an incoming ball"
+          }
+        },
+        "rebasedReflex": {
+          "kind": "dodge",
+          "holdUntil": 1232.9411764705883,
+          "intent": {
+            "kind": "move",
+            "to": {
+              "x": 320,
+              "y": 608
+            },
+            "priority": 0,
+            "timing": {
+              "kind": "react",
+              "stimulus": {
+                "kind": "incoming",
+                "at": 600,
+                "subject": "p1",
+                "central": true,
+                "value": 1253.9473684210527
+              }
+            },
+            "why": "sidestep an incoming ball"
+          }
+        }
+      },
+      {
+        "tier": "hard",
+        "actualReflex": null,
+        "rebasedReflex": null
+      }
+    ]
+  },
+  "retainedBallAfterSwap": {
+    "now": 650,
+    "viewT": 525,
+    "shooterHand": "bow",
+    "flight": {
+      "id": "p1",
+      "kind": "ball",
+      "from": "flight-shooter",
+      "x": 803.5,
+      "y": 640,
+      "vx": -380,
+      "vy": 0,
+      "x0": 832,
+      "y0": 640,
+      "t0": 450,
+      "range": 640
+    }
+  },
+  "bowDrawObservations": [
+    {
+      "now": 1050,
+      "viewT": 925,
+      "id": "flight-shooter",
+      "inHand": "bow",
+      "drawStartedAt": 1050,
+      "facing": 3.1415927410125732
+    },
+    {
+      "now": 1100,
+      "viewT": 975,
+      "id": "flight-shooter",
+      "inHand": "bow",
+      "drawStartedAt": 1050,
+      "facing": 3.1415927410125732
+    },
+    {
+      "now": 1150,
+      "viewT": 1025,
+      "id": "flight-shooter",
+      "inHand": "bow",
+      "drawStartedAt": 1050,
+      "facing": 3.1415927410125732
+    },
+    {
+      "now": 1200,
+      "viewT": 1075,
+      "id": "flight-shooter",
+      "inHand": "bow",
+      "drawStartedAt": 1050,
+      "facing": 3.1415927410125732
+    },
+    {
+      "now": 1250,
+      "viewT": 1125,
+      "id": "flight-shooter",
+      "inHand": "bow",
+      "drawStartedAt": 1050,
+      "facing": 3.1415927410125732
+    },
+    {
+      "now": 1300,
+      "viewT": 1175,
+      "id": "flight-shooter",
+      "inHand": "bow",
+      "drawStartedAt": 1050,
+      "facing": 3.1415927410125732
+    }
+  ],
+  "bowPublicDrawObserved": true,
+  "ownerSelfImmunityClock": [
+    {
+      "now": 200,
+      "viewT": 75,
+      "ownerSelfImmuneUntil": 0,
+      "ownerAsSeenByWatcherImmune": false
+    },
+    {
+      "now": 250,
+      "viewT": 125,
+      "ownerSelfImmuneUntil": 0,
+      "ownerAsSeenByWatcherImmune": false
+    },
+    {
+      "now": 300,
+      "viewT": 175,
+      "ownerSelfImmuneUntil": 0,
+      "ownerAsSeenByWatcherImmune": false
+    },
+    {
+      "now": 350,
+      "viewT": 225,
+      "ownerSelfImmuneUntil": 0,
+      "ownerAsSeenByWatcherImmune": false
+    },
+    {
+      "now": 400,
+      "viewT": 275,
+      "ownerSelfImmuneUntil": 0,
+      "ownerAsSeenByWatcherImmune": false
+    },
+    {
+      "now": 450,
+      "viewT": 325,
+      "ownerSelfImmuneUntil": 0,
+      "ownerAsSeenByWatcherImmune": false
+    },
+    {
+      "now": 500,
+      "viewT": 375,
+      "ownerSelfImmuneUntil": 0,
+      "ownerAsSeenByWatcherImmune": false
+    },
+    {
+      "now": 550,
+      "viewT": 425,
+      "ownerSelfImmuneUntil": 0,
+      "ownerAsSeenByWatcherImmune": false
+    },
+    {
+      "now": 600,
+      "viewT": 475,
+      "ownerSelfImmuneUntil": 0,
+      "ownerAsSeenByWatcherImmune": false
+    },
+    {
+      "now": 650,
+      "viewT": 525,
+      "ownerSelfImmuneUntil": 0,
+      "ownerAsSeenByWatcherImmune": false
+    },
+    {
+      "now": 700,
+      "viewT": 575,
+      "ownerSelfImmuneUntil": 0,
+      "ownerAsSeenByWatcherImmune": false
+    },
+    {
+      "now": 750,
+      "viewT": 625,
+      "ownerSelfImmuneUntil": 0,
+      "ownerAsSeenByWatcherImmune": false
+    },
+    {
+      "now": 800,
+      "viewT": 675,
+      "ownerSelfImmuneUntil": 0,
+      "ownerAsSeenByWatcherImmune": false
+    },
+    {
+      "now": 850,
+      "viewT": 725,
+      "ownerSelfImmuneUntil": 0,
+      "ownerAsSeenByWatcherImmune": false
+    },
+    {
+      "now": 900,
+      "viewT": 775,
+      "ownerSelfImmuneUntil": 0,
+      "ownerAsSeenByWatcherImmune": false
+    },
+    {
+      "now": 950,
+      "viewT": 825,
+      "ownerSelfImmuneUntil": 0,
+      "ownerAsSeenByWatcherImmune": false
+    },
+    {
+      "now": 1000,
+      "viewT": 875,
+      "ownerSelfImmuneUntil": 0,
+      "ownerAsSeenByWatcherImmune": false
+    },
+    {
+      "now": 1050,
+      "viewT": 925,
+      "ownerSelfImmuneUntil": 0,
+      "ownerAsSeenByWatcherImmune": false
+    },
+    {
+      "now": 1100,
+      "viewT": 975,
+      "ownerSelfImmuneUntil": 0,
+      "ownerAsSeenByWatcherImmune": false
+    },
+    {
+      "now": 1150,
+      "viewT": 1025,
+      "ownerSelfImmuneUntil": 0,
+      "ownerAsSeenByWatcherImmune": false
+    },
+    {
+      "now": 1200,
+      "viewT": 1075,
+      "ownerSelfImmuneUntil": 0,
+      "ownerAsSeenByWatcherImmune": false
+    },
+    {
+      "now": 1250,
+      "viewT": 1125,
+      "ownerSelfImmuneUntil": 0,
+      "ownerAsSeenByWatcherImmune": false
+    },
+    {
+      "now": 1300,
+      "viewT": 1175,
+      "ownerSelfImmuneUntil": 0,
+      "ownerAsSeenByWatcherImmune": false
+    },
+    {
+      "now": 1350,
+      "viewT": 1225,
+      "ownerSelfImmuneUntil": 0,
+      "ownerAsSeenByWatcherImmune": false
+    },
+    {
+      "now": 1400,
+      "viewT": 1275,
+      "ownerSelfImmuneUntil": 0,
+      "ownerAsSeenByWatcherImmune": false
+    },
+    {
+      "now": 1450,
+      "viewT": 1325,
+      "ownerSelfImmuneUntil": 0,
+      "ownerAsSeenByWatcherImmune": false
+    },
+    {
+      "now": 1500,
+      "viewT": 1375,
+      "ownerSelfImmuneUntil": 0,
+      "ownerAsSeenByWatcherImmune": false
+    }
+  ],
+  "preReleaseSwapCueWitness": {
+    "label": "declared two-seat queued-input case; not ordinary loot or full-world bot proof",
+    "setup": {
+      "spawns": [
+        {
+          "x": 320,
+          "y": 640
+        },
+        {
+          "x": 576,
+          "y": 640
+        }
+      ],
+      "declaredLoadout": {
+        "shooter": [
+          "wand",
+          "bow"
+        ],
+        "watcher": [
+          "bow"
+        ]
+      },
+      "seed": 7
+    },
+    "attackTime": 100,
+    "swapTime": 150,
+    "sourceHandAfterSwap": "bow",
+    "inputReceipts": [
+      {
+        "actor": "flight-shooter",
+        "type": "attack",
+        "accepted": true,
+        "applyTick": 2
+      },
+      {
+        "actor": "flight-shooter",
+        "type": "swap",
+        "accepted": true,
+        "applyTick": 3
+      }
+    ],
+    "sourceSteps": [
+      {
+        "tick": 1,
+        "time": 50,
+        "currentShooterHand": "wand",
+        "events": [],
+        "fxBatch": null
+      },
+      {
+        "tick": 2,
+        "time": 100,
+        "currentShooterHand": "wand",
+        "events": [
+          {
+            "kind": "windup",
+            "by": "flight-shooter",
+            "weapon": "wand",
+            "a": 3.141592653589793,
+            "ms": 318.9792663476874
+          }
+        ],
+        "fxBatch": {
+          "t": 100,
+          "l": [
+            [
+              0,
+              0,
+              2,
+              314,
+              319
+            ]
+          ]
+        }
+      },
+      {
+        "tick": 3,
+        "time": 150,
+        "currentShooterHand": "bow",
+        "events": [],
+        "fxBatch": null
+      },
+      {
+        "tick": 4,
+        "time": 200,
+        "currentShooterHand": "bow",
+        "events": [],
+        "fxBatch": null
+      },
+      {
+        "tick": 5,
+        "time": 250,
+        "currentShooterHand": "bow",
+        "events": [],
+        "fxBatch": null
+      }
+    ],
+    "delayedChecks": [
+      {
+        "tier": "normal",
+        "now": 200,
+        "viewT": 75,
+        "currentRemoteHand": "bow",
+        "deliveredWindup": null,
+        "deliveredCancel": null,
+        "stimuli": [
+          {
+            "kind": "newThreat",
+            "at": 200,
+            "subject": "flight-shooter",
+            "central": true,
+            "value": 256
+          }
+        ],
+        "reflex": null
+      },
+      {
+        "tier": "hard",
+        "now": 200,
+        "viewT": 75,
+        "currentRemoteHand": "bow",
+        "deliveredWindup": null,
+        "deliveredCancel": null,
+        "stimuli": [
+          {
+            "kind": "newThreat",
+            "at": 200,
+            "subject": "flight-shooter",
+            "central": true,
+            "value": 256
+          }
+        ],
+        "reflex": null
+      },
+      {
+        "tier": "normal",
+        "now": 250,
+        "viewT": 125,
+        "currentRemoteHand": "bow",
+        "deliveredWindup": {
+          "t": 100,
+          "weapon": "wand",
+          "ms": 319,
+          "by": "flight-shooter"
+        },
+        "deliveredCancel": null,
+        "stimuli": [
+          {
+            "kind": "windupAtMe",
+            "at": 250,
+            "subject": "flight-shooter",
+            "central": true,
+            "value": 169
+          }
+        ],
+        "reflex": null
+      },
+      {
+        "tier": "hard",
+        "now": 250,
+        "viewT": 125,
+        "currentRemoteHand": "bow",
+        "deliveredWindup": {
+          "t": 100,
+          "weapon": "wand",
+          "ms": 319,
+          "by": "flight-shooter"
+        },
+        "deliveredCancel": null,
+        "stimuli": [
+          {
+            "kind": "windupAtMe",
+            "at": 250,
+            "subject": "flight-shooter",
+            "central": true,
+            "value": 169
+          }
+        ],
+        "reflex": null
+      }
+    ],
+    "claim": "a source windup batch survives delayed delivery after an actual queued swap; the same Reflexes check receives the delayed percept with the remote shooter currently shown holding Bow"
+  },
+  "ownProjectileExclusion": {
+    "launchOwnerId": "flight-shooter",
+    "shooterHpAtLaunch": 1145,
+    "shooterHpAfterRun": 1145,
+    "hitEventsNamingShooter": [],
+    "trackedProjectilesAtEnd": [
+      "p1",
+      "p2"
+    ]
+  },
+  "final": {
+    "time": 1500,
+    "tick": 30,
+    "phase": "active",
+    "shooter": {
+      "x": 832,
+      "y": 640,
+      "hp": 1145,
+      "status": "alive",
+      "hand": "bow"
+    },
+    "watcher": {
+      "x": 320,
+      "y": 640,
+      "hp": 950,
+      "status": "alive"
+    }
+  }
+}

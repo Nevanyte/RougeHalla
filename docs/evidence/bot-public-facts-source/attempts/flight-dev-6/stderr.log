@@ -1,0 +1,11 @@
+/repo/tools/bot-public-facts-fixtures/flight.mts:290
+    const projectedShooter = projectedState.players.get(SHOOTER);
+                                                    ^
+
+TypeError: Cannot read properties of undefined (reading 'get')
+    at captureJoinDisclosure (/repo/tools/bot-public-facts-fixtures/flight.mts:290:53)
+    at runStep (/repo/tools/bot-public-facts-fixtures/flight.mts:411:29)
+    at captureFlightWitness (/repo/tools/bot-public-facts-fixtures/flight.mts:440:5)
+    at <anonymous> (/capture-runner.mjs:3:21)
+
+Node.js v22.23.4

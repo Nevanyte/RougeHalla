@@ -1,0 +1,10 @@
+Read-only consistency review at exact base a3d4b3ce575442c9a06916888035ca849a6cd05a.
+No additional capture, gameplay test, or source mutation was run for this review.
+
+Human presentation: RaidScene.ts:639-642 reads decoded state.mobs, then culls remote draw/positions through shouldRenderActor. RaidScene.ts:763-770 supplies current rendered positions that pass current vision to Minimap.setMobs. ui/minimap.ts:206-226 rebuilds the dot buffer/hash; :373-405 paints at 33 ms with live actors/player or 100 ms otherwise. Previous canvas pixels may persist until repaint, but this does not establish a remembered human fog contact or live Room reachability of the declared position jump.
+
+Bot path: bots/brain/perception.ts:618-640 uses its separate MINIMAP_REFRESH_MS cadence and sight-filters prior dots between refreshes. memory.ts:561-585 marks a previously dotted mob dead on omission at a changed minimap tick; :588-622 skips updates to already-dead memory. The recorded persistent dead belief is a source bot helper diagnostic, not an authoritative death or proved source bug. Actual living/fog/return publication consistency remains unsupported.
+
+Human windups: RaidScene.ts:1323-1342 calls fx.cancelWindups on a weapon change; render/FxView.ts:286-304 drops queued windups at render time or immediately for local order. The source witness proves delayed bot FrameRing/Reflex delivery of an earlier windup with a remote hand now Bow, not a retained human telegraph.
+
+Privacy: the human render gate acts over state already decoded. Filtered Percept rows and a successful occlusion helper do not prove network secrecy. Raw publication alone cannot redefine legitimate policy inputs under R-ML-4/C-OBS.

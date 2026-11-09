@@ -1,0 +1,1954 @@
+{
+  "format": "rh-bot-public-facts-npc/1",
+  "provenance": {
+    "repoHead": "a3d4b3ce575442c9a06916888035ca849a6cd05a",
+    "node": "v22.23.4",
+    "platform": "linux",
+    "arch": "x64",
+    "classification": "declared RaidState snapshots round-tripped by actual @colyseus/schema Encoder/Decoder and passed to actual source visibility/perception/FrameRing/Memory helpers; no earned Sim NPC death/return/respawn",
+    "sourceFiles": {
+      "packages/shared/src/schema.ts": "245486da649ea5bc5d8b9b0d5d75f3e860fc8f153574fa2b9ee091dcb52e99cb",
+      "packages/shared/src/map.ts": "35caac04108a3bd0e1d880a9502f14bdccb3a9a17d262cba335c3d6436995eed",
+      "packages/shared/src/constants.ts": "51ce4dd800ec868abee525fb1ae375688066f336972a7da878644df1235924e7",
+      "packages/shared/src/messages.ts": "f7f3b4eb6bb32c54bb97a7d3a8e2ba613b0aff0495a0f20c09fd6d36c797fe80",
+      "packages/shared/src/vision.ts": "f9d026e5c3e8932502f147d6f2ce5d11625845faf07a9dec734b595db76521db",
+      "packages/shared/src/factions.ts": "aa0cebf1c17af17b64bc1e020c4613ab10788ec66d82a72232aef8915d5403f3",
+      "packages/shared/src/mobs.ts": "3b567c08363d8d4f1e9a897240b3d99d5b8ded7757b6809a4b534b63d72b5522",
+      "packages/shared/src/weapons.ts": "2f22f037502fe63fae6b47f20408cfd35ebc72bfea081194ae8d18cfc21df99b",
+      "packages/server/src/bots/brain/perception.ts": "059dba28d67a588be8b9f491cd69a242e841545a3b1863ce798da2e3f085390a",
+      "packages/server/src/bots/brain/frames.ts": "aa8fcb62e8039d37d3c9f6cb000687fbfea61e12ab50805dfe45dae06119d6c6",
+      "packages/server/src/bots/brain/memory.ts": "29c2086be936ec867ddec97c2e4442b86acdbf1255e55de001e73892f7b128a8",
+      "packages/server/src/bots/brain/types.ts": "12b3cae05bcde760cd642b9c5eb9919bfc47189882c81258994c9f1122d3d361",
+      "packages/server/src/bots/mobHunt.ts": "88fc22040e62b1bc5226c37c16095032533df1e104dee0b27fdcb671c33fe6ff",
+      "packages/client/src/render/RaidVision.ts": "7c1584f1752f0372d3713a042f90e59e9900fde5b2d8d84ab7f4168245971898",
+      "packages/client/src/render/visibility.ts": "2651e45dc5193a2237ce82a3f0af3fadbf9e56e5ed070a0f2a9ed6a4107ef443",
+      "package-lock.json": "991869bdfbbefb6874220500197c61db302a4d2b2603dfc2288fd7032ce1d481",
+      "packages/shared/package.json": "6e9c040348c50e0ad5043ec4cb9b4206f68f29cf4eeb4dec5f635f37a6f87f35",
+      "packages/server/package.json": "d4965c850237876a64a02cd1c7c554f1a64d97392344cae3b63d4bd688e2f7b8",
+      "packages/client/package.json": "05f2c477239869cf8879ea6b94ca490aa9717ba28e58712bb6bbe8cb0313b3e3",
+      "tsconfig.base.json": "017575ec3101f44df43b5a7cc850779582650d9e01a2090b7e311b213b98ef88"
+    },
+    "sourceAnchors": {
+      "schema": "packages/shared/src/schema.ts:162-200 (MobState), :364-378 (mobs map and append-only roster)",
+      "humanVisibility": "packages/client/src/render/visibility.ts:8; RaidVision.canSee/canSeeActor in packages/client/src/render/RaidVision.ts:53-80",
+      "perception": "packages/server/src/bots/brain/perception.ts:578-639 (public NPC list and minimap), :622-637 (NPC row/dot filtering)",
+      "delayRing": "packages/server/src/bots/brain/frames.ts:124-218 (delayed public view), :175-188 (mob window)",
+      "memory": "packages/server/src/bots/brain/memory.ts:561-623 (minimap/visible NPC identity and HP memory), :625-642 (awake/returning inference)",
+      "equalCue": "packages/server/src/bots/mobHunt.ts:429-476 (distance sort; strict lower-score replacement preserves first equal-score candidate)",
+      "clientRenderBoundary": "packages/client/src/scenes/RaidScene.ts:639-660 applies actor visibility then calls MobView; no Phaser pixels are sampled by this witness"
+    }
+  },
+  "sourceMap": {
+    "width": 64,
+    "height": 40,
+    "construction": "mapFromTiles floor arena with source-generated border; no visibility callback stub"
+  },
+  "sameEntity": {
+    "provenance": "declared schema timeline; returning/healing fields are observations of source Memory behavior, not earned sim outcomes",
+    "wireBytes": 2216,
+    "ticks": [
+      {
+        "t": 1000,
+        "publication": {
+          "bytes": 554,
+          "actorMapKeys": [
+            "npc-runtime-A"
+          ],
+          "rosterIds": [
+            "viewer-human",
+            "npc-runtime-A"
+          ],
+          "decodedActors": [
+            {
+              "id": "npc-runtime-A",
+              "kind": "mob",
+              "name": "Ember Imp",
+              "type": "emberImp",
+              "status": "alive",
+              "x": 650,
+              "y": 528,
+              "hp": 60,
+              "maxHp": 100,
+              "effects": 0
+            }
+          ]
+        },
+        "humanWorldVisibility": [
+          {
+            "id": "npc-runtime-A",
+            "x": 650,
+            "y": 528,
+            "kind": "mob",
+            "effects": 0,
+            "currentVision": true,
+            "shouldRenderActorGate": true,
+            "cameraPixels": "not evaluated; this source helper is the world-visibility gate, not a Phaser screenshot"
+          }
+        ],
+        "frame": {
+          "actorIds": [
+            "npc-runtime-A"
+          ],
+          "minimapDots": [
+            {
+              "id": "npc-runtime-A",
+              "x": 656,
+              "y": 528
+            }
+          ]
+        },
+        "delayedPercept": {
+          "actorIds": [
+            "npc-runtime-A"
+          ],
+          "minimapIds": [
+            "npc-runtime-A"
+          ],
+          "viewT": 1000
+        },
+        "memory": [
+          {
+            "id": "npc-runtime-A",
+            "kind": "mob",
+            "name": "Ember Imp",
+            "type": "emberImp",
+            "pos": {
+              "x": 650,
+              "y": 528
+            },
+            "home": {
+              "x": 656,
+              "y": 528
+            },
+            "alive": true,
+            "hpFrac": 0.6,
+            "seenAt": 1000,
+            "dotAt": 1000,
+            "returning": false,
+            "awake": false
+          },
+          {
+            "id": "npc-runtime-B",
+            "absentFromMemory": true
+          }
+        ]
+      },
+      {
+        "t": 1050,
+        "publication": {
+          "bytes": 554,
+          "actorMapKeys": [
+            "npc-runtime-A"
+          ],
+          "rosterIds": [
+            "viewer-human",
+            "npc-runtime-A"
+          ],
+          "decodedActors": [
+            {
+              "id": "npc-runtime-A",
+              "kind": "mob",
+              "name": "Ember Imp",
+              "type": "emberImp",
+              "status": "alive",
+              "x": 1370,
+              "y": 528,
+              "hp": 60,
+              "maxHp": 100,
+              "effects": 0
+            }
+          ]
+        },
+        "humanWorldVisibility": [
+          {
+            "id": "npc-runtime-A",
+            "x": 1370,
+            "y": 528,
+            "kind": "mob",
+            "effects": 0,
+            "currentVision": true,
+            "shouldRenderActorGate": true,
+            "cameraPixels": "not evaluated; this source helper is the world-visibility gate, not a Phaser screenshot"
+          }
+        ],
+        "frame": {
+          "actorIds": [
+            "npc-runtime-A"
+          ],
+          "minimapDots": [
+            {
+              "id": "npc-runtime-A",
+              "x": 656,
+              "y": 528
+            }
+          ]
+        },
+        "delayedPercept": {
+          "actorIds": [],
+          "minimapIds": [
+            "npc-runtime-A"
+          ],
+          "viewT": 1050
+        },
+        "memory": [
+          {
+            "id": "npc-runtime-A",
+            "kind": "mob",
+            "name": "Ember Imp",
+            "type": "emberImp",
+            "pos": {
+              "x": 650,
+              "y": 528
+            },
+            "home": {
+              "x": 656,
+              "y": 528
+            },
+            "alive": true,
+            "hpFrac": 0.6,
+            "seenAt": 1000,
+            "dotAt": 1000,
+            "returning": false,
+            "awake": false
+          },
+          {
+            "id": "npc-runtime-B",
+            "absentFromMemory": true
+          }
+        ]
+      },
+      {
+        "t": 1100,
+        "publication": {
+          "bytes": 554,
+          "actorMapKeys": [
+            "npc-runtime-A"
+          ],
+          "rosterIds": [
+            "viewer-human",
+            "npc-runtime-A"
+          ],
+          "decodedActors": [
+            {
+              "id": "npc-runtime-A",
+              "kind": "mob",
+              "name": "Ember Imp",
+              "type": "emberImp",
+              "status": "alive",
+              "x": 1370,
+              "y": 528,
+              "hp": 100,
+              "maxHp": 100,
+              "effects": 0
+            }
+          ]
+        },
+        "humanWorldVisibility": [
+          {
+            "id": "npc-runtime-A",
+            "x": 1370,
+            "y": 528,
+            "kind": "mob",
+            "effects": 0,
+            "currentVision": true,
+            "shouldRenderActorGate": true,
+            "cameraPixels": "not evaluated; this source helper is the world-visibility gate, not a Phaser screenshot"
+          }
+        ],
+        "frame": {
+          "actorIds": [
+            "npc-runtime-A"
+          ],
+          "minimapDots": [
+            {
+              "id": "npc-runtime-A",
+              "x": 1376,
+              "y": 528
+            }
+          ]
+        },
+        "delayedPercept": {
+          "actorIds": [],
+          "minimapIds": [
+            "npc-runtime-A"
+          ],
+          "viewT": 1100
+        },
+        "memory": [
+          {
+            "id": "npc-runtime-A",
+            "kind": "mob",
+            "name": "Ember Imp",
+            "type": "emberImp",
+            "pos": {
+              "x": 1376,
+              "y": 528
+            },
+            "home": {
+              "x": 656,
+              "y": 528
+            },
+            "alive": true,
+            "hpFrac": 0.6,
+            "seenAt": 1000,
+            "dotAt": 1100,
+            "returning": false,
+            "awake": true
+          },
+          {
+            "id": "npc-runtime-B",
+            "absentFromMemory": true
+          }
+        ]
+      },
+      {
+        "t": 1150,
+        "publication": {
+          "bytes": 554,
+          "actorMapKeys": [
+            "npc-runtime-A"
+          ],
+          "rosterIds": [
+            "viewer-human",
+            "npc-runtime-A"
+          ],
+          "decodedActors": [
+            {
+              "id": "npc-runtime-A",
+              "kind": "mob",
+              "name": "Ember Imp",
+              "type": "emberImp",
+              "status": "alive",
+              "x": 650,
+              "y": 528,
+              "hp": 100,
+              "maxHp": 100,
+              "effects": 0
+            }
+          ]
+        },
+        "humanWorldVisibility": [
+          {
+            "id": "npc-runtime-A",
+            "x": 650,
+            "y": 528,
+            "kind": "mob",
+            "effects": 0,
+            "currentVision": true,
+            "shouldRenderActorGate": true,
+            "cameraPixels": "not evaluated; this source helper is the world-visibility gate, not a Phaser screenshot"
+          }
+        ],
+        "frame": {
+          "actorIds": [
+            "npc-runtime-A"
+          ],
+          "minimapDots": [
+            {
+              "id": "npc-runtime-A",
+              "x": 1376,
+              "y": 528
+            }
+          ]
+        },
+        "delayedPercept": {
+          "actorIds": [
+            "npc-runtime-A"
+          ],
+          "minimapIds": [
+            "npc-runtime-A"
+          ],
+          "viewT": 1150
+        },
+        "memory": [
+          {
+            "id": "npc-runtime-A",
+            "kind": "mob",
+            "name": "Ember Imp",
+            "type": "emberImp",
+            "pos": {
+              "x": 650,
+              "y": 528
+            },
+            "home": {
+              "x": 656,
+              "y": 528
+            },
+            "alive": true,
+            "hpFrac": 1,
+            "seenAt": 1150,
+            "dotAt": 1100,
+            "returning": false,
+            "awake": false
+          },
+          {
+            "id": "npc-runtime-B",
+            "absentFromMemory": true
+          }
+        ]
+      }
+    ]
+  },
+  "memoryReturnHeuristic": {
+    "provenance": "declared schema timeline that exercises the actual memory return heuristic; not an earned simulation return/heal",
+    "wireBytes": 2216,
+    "ticks": [
+      {
+        "t": 3000,
+        "publication": {
+          "bytes": 554,
+          "actorMapKeys": [
+            "npc-runtime-A"
+          ],
+          "rosterIds": [
+            "viewer-human",
+            "npc-runtime-A"
+          ],
+          "decodedActors": [
+            {
+              "id": "npc-runtime-A",
+              "kind": "mob",
+              "name": "Ember Imp",
+              "type": "emberImp",
+              "status": "alive",
+              "x": 650,
+              "y": 528,
+              "hp": 60,
+              "maxHp": 100,
+              "effects": 0
+            }
+          ]
+        },
+        "humanWorldVisibility": [
+          {
+            "id": "npc-runtime-A",
+            "x": 650,
+            "y": 528,
+            "kind": "mob",
+            "effects": 0,
+            "currentVision": true,
+            "shouldRenderActorGate": true,
+            "cameraPixels": "not evaluated; this source helper is the world-visibility gate, not a Phaser screenshot"
+          }
+        ],
+        "frame": {
+          "actorIds": [
+            "npc-runtime-A"
+          ],
+          "minimapDots": [
+            {
+              "id": "npc-runtime-A",
+              "x": 656,
+              "y": 528
+            }
+          ]
+        },
+        "delayedPercept": {
+          "actorIds": [
+            "npc-runtime-A"
+          ],
+          "minimapIds": [
+            "npc-runtime-A"
+          ],
+          "viewT": 3000
+        },
+        "memory": [
+          {
+            "id": "npc-runtime-A",
+            "kind": "mob",
+            "name": "Ember Imp",
+            "type": "emberImp",
+            "pos": {
+              "x": 650,
+              "y": 528
+            },
+            "home": {
+              "x": 656,
+              "y": 528
+            },
+            "alive": true,
+            "hpFrac": 0.6,
+            "seenAt": 3000,
+            "dotAt": 3000,
+            "returning": false,
+            "awake": false
+          },
+          {
+            "id": "npc-runtime-B",
+            "absentFromMemory": true
+          }
+        ]
+      },
+      {
+        "t": 3050,
+        "publication": {
+          "bytes": 554,
+          "actorMapKeys": [
+            "npc-runtime-A"
+          ],
+          "rosterIds": [
+            "viewer-human",
+            "npc-runtime-A"
+          ],
+          "decodedActors": [
+            {
+              "id": "npc-runtime-A",
+              "kind": "mob",
+              "name": "Ember Imp",
+              "type": "emberImp",
+              "status": "alive",
+              "x": 750,
+              "y": 528,
+              "hp": 60,
+              "maxHp": 100,
+              "effects": 0
+            }
+          ]
+        },
+        "humanWorldVisibility": [
+          {
+            "id": "npc-runtime-A",
+            "x": 750,
+            "y": 528,
+            "kind": "mob",
+            "effects": 0,
+            "currentVision": true,
+            "shouldRenderActorGate": true,
+            "cameraPixels": "not evaluated; this source helper is the world-visibility gate, not a Phaser screenshot"
+          }
+        ],
+        "frame": {
+          "actorIds": [
+            "npc-runtime-A"
+          ],
+          "minimapDots": [
+            {
+              "id": "npc-runtime-A",
+              "x": 656,
+              "y": 528
+            }
+          ]
+        },
+        "delayedPercept": {
+          "actorIds": [
+            "npc-runtime-A"
+          ],
+          "minimapIds": [
+            "npc-runtime-A"
+          ],
+          "viewT": 3050
+        },
+        "memory": [
+          {
+            "id": "npc-runtime-A",
+            "kind": "mob",
+            "name": "Ember Imp",
+            "type": "emberImp",
+            "pos": {
+              "x": 750,
+              "y": 528
+            },
+            "home": {
+              "x": 656,
+              "y": 528
+            },
+            "alive": true,
+            "hpFrac": 0.6,
+            "seenAt": 3050,
+            "dotAt": 3000,
+            "returning": false,
+            "awake": true
+          },
+          {
+            "id": "npc-runtime-B",
+            "absentFromMemory": true
+          }
+        ]
+      },
+      {
+        "t": 3100,
+        "publication": {
+          "bytes": 554,
+          "actorMapKeys": [
+            "npc-runtime-A"
+          ],
+          "rosterIds": [
+            "viewer-human",
+            "npc-runtime-A"
+          ],
+          "decodedActors": [
+            {
+              "id": "npc-runtime-A",
+              "kind": "mob",
+              "name": "Ember Imp",
+              "type": "emberImp",
+              "status": "alive",
+              "x": 750,
+              "y": 528,
+              "hp": 100,
+              "maxHp": 100,
+              "effects": 0
+            }
+          ]
+        },
+        "humanWorldVisibility": [
+          {
+            "id": "npc-runtime-A",
+            "x": 750,
+            "y": 528,
+            "kind": "mob",
+            "effects": 0,
+            "currentVision": true,
+            "shouldRenderActorGate": true,
+            "cameraPixels": "not evaluated; this source helper is the world-visibility gate, not a Phaser screenshot"
+          }
+        ],
+        "frame": {
+          "actorIds": [
+            "npc-runtime-A"
+          ],
+          "minimapDots": [
+            {
+              "id": "npc-runtime-A",
+              "x": 752,
+              "y": 528
+            }
+          ]
+        },
+        "delayedPercept": {
+          "actorIds": [
+            "npc-runtime-A"
+          ],
+          "minimapIds": [
+            "npc-runtime-A"
+          ],
+          "viewT": 3100
+        },
+        "memory": [
+          {
+            "id": "npc-runtime-A",
+            "kind": "mob",
+            "name": "Ember Imp",
+            "type": "emberImp",
+            "pos": {
+              "x": 750,
+              "y": 528
+            },
+            "home": {
+              "x": 656,
+              "y": 528
+            },
+            "alive": true,
+            "hpFrac": 1,
+            "seenAt": 3100,
+            "dotAt": 3100,
+            "returning": true,
+            "awake": false
+          },
+          {
+            "id": "npc-runtime-B",
+            "absentFromMemory": true
+          }
+        ]
+      },
+      {
+        "t": 3150,
+        "publication": {
+          "bytes": 554,
+          "actorMapKeys": [
+            "npc-runtime-A"
+          ],
+          "rosterIds": [
+            "viewer-human",
+            "npc-runtime-A"
+          ],
+          "decodedActors": [
+            {
+              "id": "npc-runtime-A",
+              "kind": "mob",
+              "name": "Ember Imp",
+              "type": "emberImp",
+              "status": "alive",
+              "x": 650,
+              "y": 528,
+              "hp": 100,
+              "maxHp": 100,
+              "effects": 0
+            }
+          ]
+        },
+        "humanWorldVisibility": [
+          {
+            "id": "npc-runtime-A",
+            "x": 650,
+            "y": 528,
+            "kind": "mob",
+            "effects": 0,
+            "currentVision": true,
+            "shouldRenderActorGate": true,
+            "cameraPixels": "not evaluated; this source helper is the world-visibility gate, not a Phaser screenshot"
+          }
+        ],
+        "frame": {
+          "actorIds": [
+            "npc-runtime-A"
+          ],
+          "minimapDots": [
+            {
+              "id": "npc-runtime-A",
+              "x": 752,
+              "y": 528
+            }
+          ]
+        },
+        "delayedPercept": {
+          "actorIds": [
+            "npc-runtime-A"
+          ],
+          "minimapIds": [
+            "npc-runtime-A"
+          ],
+          "viewT": 3150
+        },
+        "memory": [
+          {
+            "id": "npc-runtime-A",
+            "kind": "mob",
+            "name": "Ember Imp",
+            "type": "emberImp",
+            "pos": {
+              "x": 650,
+              "y": 528
+            },
+            "home": {
+              "x": 656,
+              "y": 528
+            },
+            "alive": true,
+            "hpFrac": 1,
+            "seenAt": 3150,
+            "dotAt": 3100,
+            "returning": false,
+            "awake": false
+          },
+          {
+            "id": "npc-runtime-B",
+            "absentFromMemory": true
+          }
+        ]
+      }
+    ]
+  },
+  "replacement": {
+    "provenance": "declared identity replacement control at equal name/location; not a death/respawn simulation",
+    "wireBytes": 1124,
+    "ticks": [
+      {
+        "t": 2000,
+        "publication": {
+          "bytes": 554,
+          "actorMapKeys": [
+            "npc-runtime-A"
+          ],
+          "rosterIds": [
+            "viewer-human",
+            "npc-runtime-A"
+          ],
+          "decodedActors": [
+            {
+              "id": "npc-runtime-A",
+              "kind": "mob",
+              "name": "Ember Imp",
+              "type": "emberImp",
+              "status": "alive",
+              "x": 650,
+              "y": 528,
+              "hp": 60,
+              "maxHp": 100,
+              "effects": 0
+            }
+          ]
+        },
+        "humanWorldVisibility": [
+          {
+            "id": "npc-runtime-A",
+            "x": 650,
+            "y": 528,
+            "kind": "mob",
+            "effects": 0,
+            "currentVision": true,
+            "shouldRenderActorGate": true,
+            "cameraPixels": "not evaluated; this source helper is the world-visibility gate, not a Phaser screenshot"
+          }
+        ],
+        "frame": {
+          "actorIds": [
+            "npc-runtime-A"
+          ],
+          "minimapDots": [
+            {
+              "id": "npc-runtime-A",
+              "x": 656,
+              "y": 528
+            }
+          ]
+        },
+        "delayedPercept": {
+          "actorIds": [
+            "npc-runtime-A"
+          ],
+          "minimapIds": [
+            "npc-runtime-A"
+          ],
+          "viewT": 2000
+        },
+        "memory": [
+          {
+            "id": "npc-runtime-A",
+            "kind": "mob",
+            "name": "Ember Imp",
+            "type": "emberImp",
+            "pos": {
+              "x": 650,
+              "y": 528
+            },
+            "home": {
+              "x": 656,
+              "y": 528
+            },
+            "alive": true,
+            "hpFrac": 0.6,
+            "seenAt": 2000,
+            "dotAt": 2000,
+            "returning": false,
+            "awake": false
+          },
+          {
+            "id": "npc-runtime-B",
+            "absentFromMemory": true
+          }
+        ]
+      },
+      {
+        "t": 2150,
+        "publication": {
+          "bytes": 570,
+          "actorMapKeys": [
+            "npc-runtime-B"
+          ],
+          "rosterIds": [
+            "viewer-human",
+            "npc-runtime-A",
+            "npc-runtime-B"
+          ],
+          "decodedActors": [
+            {
+              "id": "npc-runtime-B",
+              "kind": "mob",
+              "name": "Ember Imp",
+              "type": "emberImp",
+              "status": "alive",
+              "x": 650,
+              "y": 528,
+              "hp": 60,
+              "maxHp": 100,
+              "effects": 0
+            }
+          ]
+        },
+        "humanWorldVisibility": [
+          {
+            "id": "npc-runtime-B",
+            "x": 650,
+            "y": 528,
+            "kind": "mob",
+            "effects": 0,
+            "currentVision": true,
+            "shouldRenderActorGate": true,
+            "cameraPixels": "not evaluated; this source helper is the world-visibility gate, not a Phaser screenshot"
+          }
+        ],
+        "frame": {
+          "actorIds": [
+            "npc-runtime-B"
+          ],
+          "minimapDots": [
+            {
+              "id": "npc-runtime-B",
+              "x": 656,
+              "y": 528
+            }
+          ]
+        },
+        "delayedPercept": {
+          "actorIds": [
+            "npc-runtime-B"
+          ],
+          "minimapIds": [
+            "npc-runtime-B"
+          ],
+          "viewT": 2150
+        },
+        "memory": [
+          {
+            "id": "npc-runtime-A",
+            "kind": "mob",
+            "name": "Ember Imp",
+            "type": "emberImp",
+            "pos": {
+              "x": 650,
+              "y": 528
+            },
+            "home": {
+              "x": 656,
+              "y": 528
+            },
+            "alive": false,
+            "hpFrac": 0.6,
+            "seenAt": 2000,
+            "dotAt": 2000,
+            "returning": false,
+            "awake": false
+          },
+          {
+            "id": "npc-runtime-B",
+            "kind": "mob",
+            "name": "Ember Imp",
+            "type": "emberImp",
+            "pos": {
+              "x": 650,
+              "y": 528
+            },
+            "home": {
+              "x": 656,
+              "y": 528
+            },
+            "alive": true,
+            "hpFrac": 0.6,
+            "seenAt": 2150,
+            "dotAt": 2150,
+            "returning": false,
+            "awake": false
+          }
+        ]
+      }
+    ]
+  },
+  "wallLos": {
+    "sourceMap": {
+      "width": 64,
+      "height": 40,
+      "wallTile": {
+        "x": 18,
+        "yFrom": 1,
+        "yTo": 38
+      }
+    },
+    "actor": {
+      "id": "npc-wall-probe",
+      "at": {
+        "x": 720,
+        "y": 528
+      },
+      "effects": 0
+    },
+    "canSee": false,
+    "shouldRenderActorGate": false
+  },
+  "wallFogHistory": {
+    "sameIdentity": {
+      "provenance": "declared same-id snapshots cross actual wall LOS; includes source Memory's minimap-disappearance dead marking and later visible row, without repairing or interpreting it as an earned death",
+      "wireBytes": 2730,
+      "ticks": [
+        {
+          "t": 5000,
+          "publication": {
+            "bytes": 546,
+            "actorMapKeys": [
+              "npc-fog-A"
+            ],
+            "rosterIds": [
+              "viewer-human",
+              "npc-fog-A"
+            ],
+            "decodedActors": [
+              {
+                "id": "npc-fog-A",
+                "kind": "mob",
+                "name": "Ember Imp",
+                "type": "emberImp",
+                "status": "alive",
+                "x": 550,
+                "y": 528,
+                "hp": 60,
+                "maxHp": 100,
+                "effects": 0
+              }
+            ]
+          },
+          "humanWorldVisibility": [
+            {
+              "id": "npc-fog-A",
+              "x": 550,
+              "y": 528,
+              "kind": "mob",
+              "effects": 0,
+              "currentVision": true,
+              "shouldRenderActorGate": true,
+              "cameraPixels": "not evaluated; this source helper is the world-visibility gate, not a Phaser screenshot"
+            }
+          ],
+          "frame": {
+            "actorIds": [
+              "npc-fog-A"
+            ],
+            "minimapDots": [
+              {
+                "id": "npc-fog-A",
+                "x": 544,
+                "y": 528
+              }
+            ]
+          },
+          "delayedPercept": {
+            "actorIds": [
+              "npc-fog-A"
+            ],
+            "minimapIds": [
+              "npc-fog-A"
+            ],
+            "viewT": 5000
+          },
+          "memory": [
+            {
+              "id": "npc-runtime-A",
+              "absentFromMemory": true
+            },
+            {
+              "id": "npc-runtime-B",
+              "absentFromMemory": true
+            },
+            {
+              "id": "npc-fog-A",
+              "kind": "mob",
+              "name": "Ember Imp",
+              "type": "emberImp",
+              "pos": {
+                "x": 550,
+                "y": 528
+              },
+              "home": {
+                "x": 544,
+                "y": 528
+              },
+              "alive": true,
+              "hpFrac": 0.6,
+              "seenAt": 5000,
+              "dotAt": 5000,
+              "returning": false,
+              "awake": false
+            }
+          ]
+        },
+        {
+          "t": 5050,
+          "publication": {
+            "bytes": 546,
+            "actorMapKeys": [
+              "npc-fog-A"
+            ],
+            "rosterIds": [
+              "viewer-human",
+              "npc-fog-A"
+            ],
+            "decodedActors": [
+              {
+                "id": "npc-fog-A",
+                "kind": "mob",
+                "name": "Ember Imp",
+                "type": "emberImp",
+                "status": "alive",
+                "x": 720,
+                "y": 528,
+                "hp": 60,
+                "maxHp": 100,
+                "effects": 0
+              }
+            ]
+          },
+          "humanWorldVisibility": [
+            {
+              "id": "npc-fog-A",
+              "x": 720,
+              "y": 528,
+              "kind": "mob",
+              "effects": 0,
+              "currentVision": false,
+              "shouldRenderActorGate": false,
+              "cameraPixels": "not evaluated; this source helper is the world-visibility gate, not a Phaser screenshot"
+            }
+          ],
+          "frame": {
+            "actorIds": [],
+            "minimapDots": [
+              {
+                "id": "npc-fog-A",
+                "x": 544,
+                "y": 528
+              }
+            ]
+          },
+          "delayedPercept": {
+            "actorIds": [],
+            "minimapIds": [
+              "npc-fog-A"
+            ],
+            "viewT": 5050
+          },
+          "memory": [
+            {
+              "id": "npc-runtime-A",
+              "absentFromMemory": true
+            },
+            {
+              "id": "npc-runtime-B",
+              "absentFromMemory": true
+            },
+            {
+              "id": "npc-fog-A",
+              "kind": "mob",
+              "name": "Ember Imp",
+              "type": "emberImp",
+              "pos": {
+                "x": 550,
+                "y": 528
+              },
+              "home": {
+                "x": 544,
+                "y": 528
+              },
+              "alive": true,
+              "hpFrac": 0.6,
+              "seenAt": 5000,
+              "dotAt": 5000,
+              "returning": false,
+              "awake": false
+            }
+          ]
+        },
+        {
+          "t": 5100,
+          "publication": {
+            "bytes": 546,
+            "actorMapKeys": [
+              "npc-fog-A"
+            ],
+            "rosterIds": [
+              "viewer-human",
+              "npc-fog-A"
+            ],
+            "decodedActors": [
+              {
+                "id": "npc-fog-A",
+                "kind": "mob",
+                "name": "Ember Imp",
+                "type": "emberImp",
+                "status": "alive",
+                "x": 720,
+                "y": 528,
+                "hp": 60,
+                "maxHp": 100,
+                "effects": 0
+              }
+            ]
+          },
+          "humanWorldVisibility": [
+            {
+              "id": "npc-fog-A",
+              "x": 720,
+              "y": 528,
+              "kind": "mob",
+              "effects": 0,
+              "currentVision": false,
+              "shouldRenderActorGate": false,
+              "cameraPixels": "not evaluated; this source helper is the world-visibility gate, not a Phaser screenshot"
+            }
+          ],
+          "frame": {
+            "actorIds": [],
+            "minimapDots": []
+          },
+          "delayedPercept": {
+            "actorIds": [],
+            "minimapIds": [],
+            "viewT": 5100
+          },
+          "memory": [
+            {
+              "id": "npc-runtime-A",
+              "absentFromMemory": true
+            },
+            {
+              "id": "npc-runtime-B",
+              "absentFromMemory": true
+            },
+            {
+              "id": "npc-fog-A",
+              "kind": "mob",
+              "name": "Ember Imp",
+              "type": "emberImp",
+              "pos": {
+                "x": 550,
+                "y": 528
+              },
+              "home": {
+                "x": 544,
+                "y": 528
+              },
+              "alive": false,
+              "hpFrac": 0.6,
+              "seenAt": 5000,
+              "dotAt": 5000,
+              "returning": false,
+              "awake": false
+            }
+          ]
+        },
+        {
+          "t": 5150,
+          "publication": {
+            "bytes": 546,
+            "actorMapKeys": [
+              "npc-fog-A"
+            ],
+            "rosterIds": [
+              "viewer-human",
+              "npc-fog-A"
+            ],
+            "decodedActors": [
+              {
+                "id": "npc-fog-A",
+                "kind": "mob",
+                "name": "Ember Imp",
+                "type": "emberImp",
+                "status": "alive",
+                "x": 550,
+                "y": 528,
+                "hp": 60,
+                "maxHp": 100,
+                "effects": 0
+              }
+            ]
+          },
+          "humanWorldVisibility": [
+            {
+              "id": "npc-fog-A",
+              "x": 550,
+              "y": 528,
+              "kind": "mob",
+              "effects": 0,
+              "currentVision": true,
+              "shouldRenderActorGate": true,
+              "cameraPixels": "not evaluated; this source helper is the world-visibility gate, not a Phaser screenshot"
+            }
+          ],
+          "frame": {
+            "actorIds": [
+              "npc-fog-A"
+            ],
+            "minimapDots": []
+          },
+          "delayedPercept": {
+            "actorIds": [
+              "npc-fog-A"
+            ],
+            "minimapIds": [],
+            "viewT": 5150
+          },
+          "memory": [
+            {
+              "id": "npc-runtime-A",
+              "absentFromMemory": true
+            },
+            {
+              "id": "npc-runtime-B",
+              "absentFromMemory": true
+            },
+            {
+              "id": "npc-fog-A",
+              "kind": "mob",
+              "name": "Ember Imp",
+              "type": "emberImp",
+              "pos": {
+                "x": 550,
+                "y": 528
+              },
+              "home": {
+                "x": 544,
+                "y": 528
+              },
+              "alive": false,
+              "hpFrac": 0.6,
+              "seenAt": 5000,
+              "dotAt": 5000,
+              "returning": false,
+              "awake": false
+            }
+          ]
+        },
+        {
+          "t": 5200,
+          "publication": {
+            "bytes": 546,
+            "actorMapKeys": [
+              "npc-fog-A"
+            ],
+            "rosterIds": [
+              "viewer-human",
+              "npc-fog-A"
+            ],
+            "decodedActors": [
+              {
+                "id": "npc-fog-A",
+                "kind": "mob",
+                "name": "Ember Imp",
+                "type": "emberImp",
+                "status": "alive",
+                "x": 550,
+                "y": 528,
+                "hp": 60,
+                "maxHp": 100,
+                "effects": 0
+              }
+            ]
+          },
+          "humanWorldVisibility": [
+            {
+              "id": "npc-fog-A",
+              "x": 550,
+              "y": 528,
+              "kind": "mob",
+              "effects": 0,
+              "currentVision": true,
+              "shouldRenderActorGate": true,
+              "cameraPixels": "not evaluated; this source helper is the world-visibility gate, not a Phaser screenshot"
+            }
+          ],
+          "frame": {
+            "actorIds": [
+              "npc-fog-A"
+            ],
+            "minimapDots": [
+              {
+                "id": "npc-fog-A",
+                "x": 544,
+                "y": 528
+              }
+            ]
+          },
+          "delayedPercept": {
+            "actorIds": [
+              "npc-fog-A"
+            ],
+            "minimapIds": [
+              "npc-fog-A"
+            ],
+            "viewT": 5200
+          },
+          "memory": [
+            {
+              "id": "npc-runtime-A",
+              "absentFromMemory": true
+            },
+            {
+              "id": "npc-runtime-B",
+              "absentFromMemory": true
+            },
+            {
+              "id": "npc-fog-A",
+              "kind": "mob",
+              "name": "Ember Imp",
+              "type": "emberImp",
+              "pos": {
+                "x": 550,
+                "y": 528
+              },
+              "home": {
+                "x": 544,
+                "y": 528
+              },
+              "alive": false,
+              "hpFrac": 0.6,
+              "seenAt": 5000,
+              "dotAt": 5000,
+              "returning": false,
+              "awake": false
+            }
+          ]
+        }
+      ]
+    },
+    "hiddenReplacement": {
+      "provenance": "declared replacement id while behind actual wall; same row attributes, old id and new id remain distinct in actual source memory",
+      "wireBytes": 2766,
+      "ticks": [
+        {
+          "t": 6000,
+          "publication": {
+            "bytes": 546,
+            "actorMapKeys": [
+              "npc-fog-A"
+            ],
+            "rosterIds": [
+              "viewer-human",
+              "npc-fog-A"
+            ],
+            "decodedActors": [
+              {
+                "id": "npc-fog-A",
+                "kind": "mob",
+                "name": "Ember Imp",
+                "type": "emberImp",
+                "status": "alive",
+                "x": 550,
+                "y": 528,
+                "hp": 60,
+                "maxHp": 100,
+                "effects": 0
+              }
+            ]
+          },
+          "humanWorldVisibility": [
+            {
+              "id": "npc-fog-A",
+              "x": 550,
+              "y": 528,
+              "kind": "mob",
+              "effects": 0,
+              "currentVision": true,
+              "shouldRenderActorGate": true,
+              "cameraPixels": "not evaluated; this source helper is the world-visibility gate, not a Phaser screenshot"
+            }
+          ],
+          "frame": {
+            "actorIds": [
+              "npc-fog-A"
+            ],
+            "minimapDots": [
+              {
+                "id": "npc-fog-A",
+                "x": 544,
+                "y": 528
+              }
+            ]
+          },
+          "delayedPercept": {
+            "actorIds": [
+              "npc-fog-A"
+            ],
+            "minimapIds": [
+              "npc-fog-A"
+            ],
+            "viewT": 6000
+          },
+          "memory": [
+            {
+              "id": "npc-runtime-A",
+              "absentFromMemory": true
+            },
+            {
+              "id": "npc-runtime-B",
+              "absentFromMemory": true
+            },
+            {
+              "id": "npc-fog-A",
+              "kind": "mob",
+              "name": "Ember Imp",
+              "type": "emberImp",
+              "pos": {
+                "x": 550,
+                "y": 528
+              },
+              "home": {
+                "x": 544,
+                "y": 528
+              },
+              "alive": true,
+              "hpFrac": 0.6,
+              "seenAt": 6000,
+              "dotAt": 6000,
+              "returning": false,
+              "awake": false
+            },
+            {
+              "id": "npc-fog-B",
+              "absentFromMemory": true
+            }
+          ]
+        },
+        {
+          "t": 6050,
+          "publication": {
+            "bytes": 546,
+            "actorMapKeys": [
+              "npc-fog-A"
+            ],
+            "rosterIds": [
+              "viewer-human",
+              "npc-fog-A"
+            ],
+            "decodedActors": [
+              {
+                "id": "npc-fog-A",
+                "kind": "mob",
+                "name": "Ember Imp",
+                "type": "emberImp",
+                "status": "alive",
+                "x": 720,
+                "y": 528,
+                "hp": 60,
+                "maxHp": 100,
+                "effects": 0
+              }
+            ]
+          },
+          "humanWorldVisibility": [
+            {
+              "id": "npc-fog-A",
+              "x": 720,
+              "y": 528,
+              "kind": "mob",
+              "effects": 0,
+              "currentVision": false,
+              "shouldRenderActorGate": false,
+              "cameraPixels": "not evaluated; this source helper is the world-visibility gate, not a Phaser screenshot"
+            }
+          ],
+          "frame": {
+            "actorIds": [],
+            "minimapDots": [
+              {
+                "id": "npc-fog-A",
+                "x": 544,
+                "y": 528
+              }
+            ]
+          },
+          "delayedPercept": {
+            "actorIds": [],
+            "minimapIds": [
+              "npc-fog-A"
+            ],
+            "viewT": 6050
+          },
+          "memory": [
+            {
+              "id": "npc-runtime-A",
+              "absentFromMemory": true
+            },
+            {
+              "id": "npc-runtime-B",
+              "absentFromMemory": true
+            },
+            {
+              "id": "npc-fog-A",
+              "kind": "mob",
+              "name": "Ember Imp",
+              "type": "emberImp",
+              "pos": {
+                "x": 550,
+                "y": 528
+              },
+              "home": {
+                "x": 544,
+                "y": 528
+              },
+              "alive": true,
+              "hpFrac": 0.6,
+              "seenAt": 6000,
+              "dotAt": 6000,
+              "returning": false,
+              "awake": false
+            },
+            {
+              "id": "npc-fog-B",
+              "absentFromMemory": true
+            }
+          ]
+        },
+        {
+          "t": 6100,
+          "publication": {
+            "bytes": 558,
+            "actorMapKeys": [
+              "npc-fog-B"
+            ],
+            "rosterIds": [
+              "viewer-human",
+              "npc-fog-A",
+              "npc-fog-B"
+            ],
+            "decodedActors": [
+              {
+                "id": "npc-fog-B",
+                "kind": "mob",
+                "name": "Ember Imp",
+                "type": "emberImp",
+                "status": "alive",
+                "x": 720,
+                "y": 528,
+                "hp": 60,
+                "maxHp": 100,
+                "effects": 0
+              }
+            ]
+          },
+          "humanWorldVisibility": [
+            {
+              "id": "npc-fog-B",
+              "x": 720,
+              "y": 528,
+              "kind": "mob",
+              "effects": 0,
+              "currentVision": false,
+              "shouldRenderActorGate": false,
+              "cameraPixels": "not evaluated; this source helper is the world-visibility gate, not a Phaser screenshot"
+            }
+          ],
+          "frame": {
+            "actorIds": [],
+            "minimapDots": []
+          },
+          "delayedPercept": {
+            "actorIds": [],
+            "minimapIds": [],
+            "viewT": 6100
+          },
+          "memory": [
+            {
+              "id": "npc-runtime-A",
+              "absentFromMemory": true
+            },
+            {
+              "id": "npc-runtime-B",
+              "absentFromMemory": true
+            },
+            {
+              "id": "npc-fog-A",
+              "kind": "mob",
+              "name": "Ember Imp",
+              "type": "emberImp",
+              "pos": {
+                "x": 550,
+                "y": 528
+              },
+              "home": {
+                "x": 544,
+                "y": 528
+              },
+              "alive": false,
+              "hpFrac": 0.6,
+              "seenAt": 6000,
+              "dotAt": 6000,
+              "returning": false,
+              "awake": false
+            },
+            {
+              "id": "npc-fog-B",
+              "absentFromMemory": true
+            }
+          ]
+        },
+        {
+          "t": 6150,
+          "publication": {
+            "bytes": 558,
+            "actorMapKeys": [
+              "npc-fog-B"
+            ],
+            "rosterIds": [
+              "viewer-human",
+              "npc-fog-A",
+              "npc-fog-B"
+            ],
+            "decodedActors": [
+              {
+                "id": "npc-fog-B",
+                "kind": "mob",
+                "name": "Ember Imp",
+                "type": "emberImp",
+                "status": "alive",
+                "x": 550,
+                "y": 528,
+                "hp": 60,
+                "maxHp": 100,
+                "effects": 0
+              }
+            ]
+          },
+          "humanWorldVisibility": [
+            {
+              "id": "npc-fog-B",
+              "x": 550,
+              "y": 528,
+              "kind": "mob",
+              "effects": 0,
+              "currentVision": true,
+              "shouldRenderActorGate": true,
+              "cameraPixels": "not evaluated; this source helper is the world-visibility gate, not a Phaser screenshot"
+            }
+          ],
+          "frame": {
+            "actorIds": [
+              "npc-fog-B"
+            ],
+            "minimapDots": []
+          },
+          "delayedPercept": {
+            "actorIds": [
+              "npc-fog-B"
+            ],
+            "minimapIds": [],
+            "viewT": 6150
+          },
+          "memory": [
+            {
+              "id": "npc-runtime-A",
+              "absentFromMemory": true
+            },
+            {
+              "id": "npc-runtime-B",
+              "absentFromMemory": true
+            },
+            {
+              "id": "npc-fog-A",
+              "kind": "mob",
+              "name": "Ember Imp",
+              "type": "emberImp",
+              "pos": {
+                "x": 550,
+                "y": 528
+              },
+              "home": {
+                "x": 544,
+                "y": 528
+              },
+              "alive": false,
+              "hpFrac": 0.6,
+              "seenAt": 6000,
+              "dotAt": 6000,
+              "returning": false,
+              "awake": false
+            },
+            {
+              "id": "npc-fog-B",
+              "kind": "mob",
+              "name": "Ember Imp",
+              "type": "emberImp",
+              "pos": {
+                "x": 550,
+                "y": 528
+              },
+              "home": {
+                "x": 550,
+                "y": 528
+              },
+              "alive": true,
+              "hpFrac": 0.6,
+              "seenAt": 6150,
+              "dotAt": 6150,
+              "returning": false,
+              "awake": false
+            }
+          ]
+        },
+        {
+          "t": 6200,
+          "publication": {
+            "bytes": 558,
+            "actorMapKeys": [
+              "npc-fog-B"
+            ],
+            "rosterIds": [
+              "viewer-human",
+              "npc-fog-A",
+              "npc-fog-B"
+            ],
+            "decodedActors": [
+              {
+                "id": "npc-fog-B",
+                "kind": "mob",
+                "name": "Ember Imp",
+                "type": "emberImp",
+                "status": "alive",
+                "x": 550,
+                "y": 528,
+                "hp": 60,
+                "maxHp": 100,
+                "effects": 0
+              }
+            ]
+          },
+          "humanWorldVisibility": [
+            {
+              "id": "npc-fog-B",
+              "x": 550,
+              "y": 528,
+              "kind": "mob",
+              "effects": 0,
+              "currentVision": true,
+              "shouldRenderActorGate": true,
+              "cameraPixels": "not evaluated; this source helper is the world-visibility gate, not a Phaser screenshot"
+            }
+          ],
+          "frame": {
+            "actorIds": [
+              "npc-fog-B"
+            ],
+            "minimapDots": [
+              {
+                "id": "npc-fog-B",
+                "x": 544,
+                "y": 528
+              }
+            ]
+          },
+          "delayedPercept": {
+            "actorIds": [
+              "npc-fog-B"
+            ],
+            "minimapIds": [
+              "npc-fog-B"
+            ],
+            "viewT": 6200
+          },
+          "memory": [
+            {
+              "id": "npc-runtime-A",
+              "absentFromMemory": true
+            },
+            {
+              "id": "npc-runtime-B",
+              "absentFromMemory": true
+            },
+            {
+              "id": "npc-fog-A",
+              "kind": "mob",
+              "name": "Ember Imp",
+              "type": "emberImp",
+              "pos": {
+                "x": 550,
+                "y": 528
+              },
+              "home": {
+                "x": 544,
+                "y": 528
+              },
+              "alive": false,
+              "hpFrac": 0.6,
+              "seenAt": 6000,
+              "dotAt": 6000,
+              "returning": false,
+              "awake": false
+            },
+            {
+              "id": "npc-fog-B",
+              "kind": "mob",
+              "name": "Ember Imp",
+              "type": "emberImp",
+              "pos": {
+                "x": 550,
+                "y": 528
+              },
+              "home": {
+                "x": 550,
+                "y": 528
+              },
+              "alive": true,
+              "hpFrac": 0.6,
+              "seenAt": 6200,
+              "dotAt": 6200,
+              "returning": false,
+              "awake": false
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "occludedIdRename": {
+    "provenance": "declared two-state occlusion control behind an actual opaque wall; raw map key changes, actual human visibility and source Percept should not publish the actor",
+    "a": {
+      "schemaReceipt": {
+        "bytes": 556,
+        "actorCount": 1
+      },
+      "humanShouldRenderActorGate": false,
+      "perceivedActorIds": [],
+      "minimapIds": []
+    },
+    "b": {
+      "schemaReceipt": {
+        "bytes": 556,
+        "actorCount": 1
+      },
+      "humanShouldRenderActorGate": false,
+      "perceivedActorIds": [],
+      "minimapIds": []
+    }
+  },
+  "alphaRename": {
+    "provenance": "declared map-key rename with all NPC row fields unchanged; actor IDs are included in actual public projection",
+    "a": {
+      "encodedBytes": 550,
+      "projection": {
+        "id": "npc-alpha-A",
+        "kind": "mob",
+        "name": "Ember Imp",
+        "x": 650,
+        "y": 528,
+        "hpFrac": 0.6
+      }
+    },
+    "b": {
+      "encodedBytes": 550,
+      "projection": {
+        "id": "npc-alpha-B",
+        "kind": "mob",
+        "name": "Ember Imp",
+        "x": 650,
+        "y": 528,
+        "hpFrac": 0.6
+      }
+    }
+  },
+  "equalCueOrder": {
+    "provenance": "declared equal-score MobHunter input; this is a tie/order probe, not a simulated hunt",
+    "runs": [
+      {
+        "idOrder": [
+          "npc-runtime-A",
+          "npc-runtime-B"
+        ],
+        "decision": {
+          "kind": "mob",
+          "id": "npc-runtime-A",
+          "why": "fire mob with sword"
+        },
+        "target": "npc-runtime-A"
+      },
+      {
+        "idOrder": [
+          "npc-runtime-B",
+          "npc-runtime-A"
+        ],
+        "decision": {
+          "kind": "mob",
+          "id": "npc-runtime-B",
+          "why": "fire mob with sword"
+        },
+        "target": "npc-runtime-B"
+      }
+    ]
+  }
+}

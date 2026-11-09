@@ -1,0 +1,13 @@
+/repo/packages/server/src/bots/brain/perception.ts:622
+  for (const [id, m] of mobs) {
+                        ^
+
+TypeError: mobs is not iterable
+    at perceive (/repo/packages/server/src/bots/brain/perception.ts:622:25)
+    at perceiveJoin (/repo/tools/bot-public-facts-fixtures/flight.mts:265:21)
+    at captureJoinDisclosure (/repo/tools/bot-public-facts-fixtures/flight.mts:286:30)
+    at runStep (/repo/tools/bot-public-facts-fixtures/flight.mts:403:29)
+    at captureFlightWitness (/repo/tools/bot-public-facts-fixtures/flight.mts:432:5)
+    at <anonymous> (/capture-runner.mjs:3:21)
+
+Node.js v22.23.4

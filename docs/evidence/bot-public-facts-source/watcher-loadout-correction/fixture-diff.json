@@ -1,0 +1,22 @@
+{
+  "format": "rh-public-facts-metadata-correction-diff/1",
+  "priorHead": "29a265148899f23f2ae7dfd14a6bc39ab9509c66",
+  "changes": [
+    {
+      "path": "/flight/preReleaseSwapCueWitness/setup/declaredLoadout/watcher",
+      "before": [
+        "bow"
+      ],
+      "after": [
+        "",
+        ""
+      ]
+    },
+    {
+      "path": "/profile/toolSha256/tools/bot-public-facts-fixtures/flight.mts",
+      "before": "47f2ed801c0da8234ec4053febb9ef33b3d6797947ffd51dc8f5d21f945ceb94",
+      "after": "1d5b203fdc68b3eb8342701a37eda338eda4c3f004e629352e36888818a2e6c4"
+    }
+  ],
+  "allOtherFixtureValuesExactlyEqual": true
+}

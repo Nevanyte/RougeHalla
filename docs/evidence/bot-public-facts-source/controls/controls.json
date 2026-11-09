@@ -1,0 +1,95 @@
+{
+ "format": "rh-bot-public-facts-controls/1",
+ "fixtureSha256": "80fe51a44d91e30e617308464bde3137bdeae6bc52f801c30d03e4bec1030850",
+ "expectedSemanticSha256": "0bac1f2cf841bf631bf4c942f76d2c4b7cf0b163f734f95a97d4c4a1394edb76",
+ "pristine": {
+  "exit": 0,
+  "signal": null,
+  "stdoutSha256": "41a494927451835fdcd32daee378ae2eb3b45da533e2fb453700d88a862a78c6",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "logSha256": "0088b36ab0ef1f7917be9889fa6adb41f804088cdb1ee43bb55f51d794fff1eb",
+  "semanticEqual": true,
+  "semanticSha256": "0bac1f2cf841bf631bf4c942f76d2c4b7cf0b163f734f95a97d4c4a1394edb76",
+  "profileEqual": true,
+  "assertionFailure": false,
+  "toolFailure": false
+ },
+ "results": [
+  {
+   "name": "human-visibility-gate",
+   "file": "packages/client/src/render/visibility.ts",
+   "before": "return local || (((effects | 0) & EFFECT_HIDDEN) === 0 && canSee(at));",
+   "after": "return local || (((effects | 0) & EFFECT_HIDDEN) === 0);",
+   "beforeFileSha256": "2651e45dc5193a2237ce82a3f0af3fadbf9e56e5ed070a0f2a9ed6a4107ef443",
+   "afterFileSha256": "b12f3c073b86457a80f8eb3dc0761330728c0b2e1a91ddc63874894a642b30ea",
+   "expected": "semantic kill: changed source witness or reached source-witness assertion",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderrSha256": "8252ea2f7653ec5e3803b9de36be5985bcbdda070e660768172960b4875aec1d",
+    "logSha256": "c510a5f25786c87ea8f2f1dd36aa1739de0a0d75490b774b44698300bc3aa9f0",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false,
+    "assertionFailure": true,
+    "toolFailure": false
+   }
+  },
+  {
+   "name": "projectile-public-velocity",
+   "file": "packages/shared/src/fxCodec.ts",
+   "before": "enc(p.vx, FLIGHT)",
+   "after": "enc(p.vx * 0.5, FLIGHT)",
+   "beforeFileSha256": "db2080230ad1b3702e37d3e339384e4a071ef899a8203026e20038a3a2b0f0ba",
+   "afterFileSha256": "e7e20a03a01d35c4190b9bc893789cdadcc50acb73c358bf7049dfda227824b0",
+   "expected": "semantic kill: changed source witness or reached source-witness assertion",
+   "observed": {
+    "exit": 0,
+    "signal": null,
+    "stdoutSha256": "55d67854d9cbbc404cc68dc60e4df53bcb5a70691d8fba4647cde5c74e430325",
+    "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logSha256": "6a426060f9d7484501dd14691693836b98b4817835edcc60591ad649b3990d6b",
+    "semanticEqual": false,
+    "semanticSha256": "c57a0ac742e5809c3efd1fe1d88952d1015a2b9ae54d79b26811f8c0a9c2533a",
+    "profileEqual": false,
+    "assertionFailure": false,
+    "toolFailure": false
+   }
+  },
+  {
+   "name": "provenance-comment-nonkill",
+   "file": "packages/client/src/render/visibility.ts",
+   "before": "return local || (((effects | 0) & EFFECT_HIDDEN) === 0 && canSee(at));",
+   "after": "return local || (((effects | 0) & EFFECT_HIDDEN) === 0 && canSee(at)); // provenance-only control",
+   "beforeFileSha256": "2651e45dc5193a2237ce82a3f0af3fadbf9e56e5ed070a0f2a9ed6a4107ef443",
+   "afterFileSha256": "9a9f152b6c0b8acc26549d967421c8bb509ae75f69dfe91c5150ff4e30d83bf6",
+   "expected": "semantic nonkill with provenance change",
+   "observed": {
+    "exit": 0,
+    "signal": null,
+    "stdoutSha256": "7cb83d0643306f4ca45662d72a71d5fe0836b171f42f5ac806c4cf97c2eb3e24",
+    "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logSha256": "23d92749971130f1e03eba82ec7bdaf7d8ee6ae4a3ded6f1dd7d9eb627e066dc",
+    "semanticEqual": true,
+    "semanticSha256": "0bac1f2cf841bf631bf4c942f76d2c4b7cf0b163f734f95a97d4c4a1394edb76",
+    "profileEqual": false,
+    "assertionFailure": false,
+    "toolFailure": false
+   }
+  }
+ ],
+ "restored": {
+  "exit": 0,
+  "signal": null,
+  "stdoutSha256": "41a494927451835fdcd32daee378ae2eb3b45da533e2fb453700d88a862a78c6",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "logSha256": "0088b36ab0ef1f7917be9889fa6adb41f804088cdb1ee43bb55f51d794fff1eb",
+  "semanticEqual": true,
+  "semanticSha256": "0bac1f2cf841bf631bf4c942f76d2c4b7cf0b163f734f95a97d4c4a1394edb76",
+  "profileEqual": true,
+  "assertionFailure": false,
+  "toolFailure": false
+ },
+ "boundary": "Actual source imports run in an isolated tmpfs copy with pinned Node and installed workspace dependencies. The only semantic normalization removes top-level profile/provenance; every declared input and source output remains compared. A semantic kill is accepted only when a successful capture differs semantically or the actual witness reaches an AssertionError; compile, import and other tool failures are rejected."
+}

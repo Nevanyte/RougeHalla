@@ -1,0 +1,9 @@
+/repo/tools/bot-public-facts-fixtures/flight.mts:313
+  assert.ok(firstSeenIncoming.length > 0, "the real delayed percept and memory must expose the first-seen flight");
+            ^
+
+ReferenceError: firstSeenIncoming is not defined
+    at captureFlightWitness (/repo/tools/bot-public-facts-fixtures/flight.mts:313:13)
+    at <anonymous> (/capture-runner.mjs:3:21)
+
+Node.js v22.23.4
