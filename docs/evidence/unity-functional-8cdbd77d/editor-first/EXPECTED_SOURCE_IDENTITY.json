@@ -1,0 +1,804 @@
+{
+  "schema": "rh-functional-42-source-identity/1",
+  "gateSourceCommit": "8cdbd77d4f3e1e002956b2f5c352eea53b12a42d",
+  "sourceTreeCommit": "09aaed359a1a2697dc5f58907d255dd4e11c60b1",
+  "sourceApproval": "4ec547312dc9b7214bbf6a8e20a6ff7ed3f3ba3b",
+  "fixtureCorrection": "9398ce232fcf8774ebd84a60cb7abefafd9e9a77",
+  "fixtureEvidence": "76066bff65f3be8cf4ae7b45af9be830d8ce41cd",
+  "expectedTotal": 42,
+  "groups": [
+    {
+      "fixture": "QuestJournalViewEditModeTests",
+      "expectedCases": 8
+    },
+    {
+      "fixture": "TraderDialogViewEditModeTests",
+      "expectedCases": 6
+    },
+    {
+      "fixture": "PlayerFlowsEditModeTests",
+      "expectedCases": 11
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "expectedCases": 17,
+      "sourceMethods": 14
+    }
+  ],
+  "fixtureSourcePin": {
+    "path": "docs/evidence/unity-launch-native-gate/lifecycle-retake/SOURCE_IDENTITY.json",
+    "sha256": "a9599f3a59a35ae75260e16ec81b738c6015cd558d50909c9806977410c777a3",
+    "bytes": 250363,
+    "expectedSha256": "a9599f3a59a35ae75260e16ec81b738c6015cd558d50909c9806977410c777a3",
+    "fileCount": 1153
+  },
+  "fixtures": [
+    {
+      "fixture": "QuestJournalViewEditModeTests",
+      "namespace": "Roguehalla.Client.Tests",
+      "class": "QuestJournalViewEditModeTests",
+      "typeFullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+      "source": {
+        "path": "client-unity/UnityProject/Assets/Tests/Editor/QuestJournalViewEditModeTests.cs",
+        "sha256": "a227e72035a95c76998a8e715eea197e54bf28de37ade69998404830186a9508",
+        "bytes": 21813
+      },
+      "meta": {
+        "path": "client-unity/UnityProject/Assets/Tests/Editor/QuestJournalViewEditModeTests.cs.meta",
+        "sha256": "fbf0d2abab7d153e486a3ebe28f86196f290df10a6c0d3da03e5fab70a2110a5",
+        "bytes": 60,
+        "guid": "629434afa706419fbb9172e17b76ce43"
+      },
+      "expectedCases": 8,
+      "sourceMethods": 8,
+      "methods": [
+        {
+          "method": "UnseenUnavailableAndAvailableEmptyAreDistinctAndRowsPreserveExactServerText",
+          "parameters": "",
+          "nunitAttributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "method": "MaximumLengthServerStringsRemainVerbatimInScrollableFixedSizeTextFields",
+          "parameters": "",
+          "nunitAttributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "method": "ReplacementPreservesSelectedHandleAndScrollButClearsRemovedSelectionAndTracking",
+          "parameters": "",
+          "nunitAttributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "method": "OldAcceptTrackAndRowCallbacksCannotActAfterReplacementBeforeRefresh",
+          "parameters": "",
+          "nunitAttributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "method": "MetadataReplacementPreservesScrollPositionWhenRowsOverflowViewport",
+          "parameters": "",
+          "nunitAttributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "method": "SelectedParticipantsUseTypedRosterIdsKeepDuplicateLabelsAndClearOnReplacementOrRebind",
+          "parameters": "",
+          "nunitAttributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "method": "AcceptUsesCurrentHandleAndFreshCanAcceptThenSessionBatchesOnlyThatIntent",
+          "parameters": "",
+          "nunitAttributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "method": "OldSessionCallbacksAndRemovedRowsCannotAcceptAfterRebindWelcomeOrDisconnect",
+          "parameters": "",
+          "nunitAttributes": [
+            "[Test]"
+          ]
+        }
+      ]
+    },
+    {
+      "fixture": "TraderDialogViewEditModeTests",
+      "namespace": "Roguehalla.Client.Tests",
+      "class": "TraderDialogViewEditModeTests",
+      "typeFullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+      "source": {
+        "path": "client-unity/UnityProject/Assets/Tests/Editor/TraderDialogViewEditModeTests.cs",
+        "sha256": "74f08af89ac872699567c2fe7ecc5451bdc3ffa94f6df48ec60abda813bb66cb",
+        "bytes": 15392
+      },
+      "meta": {
+        "path": "client-unity/UnityProject/Assets/Tests/Editor/TraderDialogViewEditModeTests.cs.meta",
+        "sha256": "5dbe763a1b42575f08e6837a4e35ff5bfde5735ce102d50757e90e5a32c9f5c8",
+        "bytes": 60,
+        "guid": "fbeed4975d944443b6c6f34fe85c6d32"
+      },
+      "expectedCases": 6,
+      "sourceMethods": 6,
+      "methods": [
+        {
+          "method": "MissingUnavailableAndAvailableEmptyTradeViewsStayDistinctAndOpeningIsReadOnly",
+          "parameters": "",
+          "nunitAttributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "method": "DuplicateMerchantRowsLabelsAndSignedStatDeltasRenderInSourceOrder",
+          "parameters": "",
+          "nunitAttributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "method": "StatUsedBlocksOnlyStatTradeWhileBarterPicksAreSentAsOrdinaryInput",
+          "parameters": "",
+          "nunitAttributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "method": "CurrentOptionsQueueEveryOrdinaryStatPickAndMetadataReplacementInvalidatesOldCallbacks",
+          "parameters": "",
+          "nunitAttributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "method": "DisconnectAndResumedWelcomeInvalidateOldRowsAndDropQueuedTradeInput",
+          "parameters": "",
+          "nunitAttributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "method": "RebindingAnUnseenSessionClearsMerchantChoicesAndPendingCopyImmediately",
+          "parameters": "",
+          "nunitAttributes": [
+            "[Test]"
+          ]
+        }
+      ]
+    },
+    {
+      "fixture": "PlayerFlowsEditModeTests",
+      "namespace": "Roguehalla.Client.Tests",
+      "class": "PlayerFlowsEditModeTests",
+      "typeFullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+      "source": {
+        "path": "client-unity/UnityProject/Assets/Tests/Editor/PlayerFlowsEditModeTests.cs",
+        "sha256": "d3b75829d5fb35708b328eeaa95d3975c0369cc287195db330dfbe2a7bb11c26",
+        "bytes": 28854
+      },
+      "meta": {
+        "path": "client-unity/UnityProject/Assets/Tests/Editor/PlayerFlowsEditModeTests.cs.meta",
+        "sha256": "04c5f186600e28ada6ea8cecdd2f7be79b5cb21f1abeec8a8dce0242e642123e",
+        "bytes": 60,
+        "guid": "2695dbaec0cf4aa3b68c217e1e45dd55"
+      },
+      "expectedCases": 11,
+      "sourceMethods": 11,
+      "methods": [
+        {
+          "method": "ReceivedNoticeOrderIncludesDuplicatesAndResumeClearsBeforeNewBatch",
+          "parameters": "",
+          "nunitAttributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "method": "InFlightOldSessionNoticeCallbackCannotAppendAfterRebind",
+          "parameters": "",
+          "nunitAttributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "method": "InFlightSameSessionNoticeCallbackCannotCrossSourceClockCutAndNewEpochKeepsDuplicates",
+          "parameters": "",
+          "nunitAttributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "method": "OrdinaryMixedQuestTradeQueueSplitsAtSixteenWithoutUiGeneratedCommands",
+          "parameters": "",
+          "nunitAttributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "method": "DeliveredMapPointsReplaceWithoutActorFabricationOrNameDeduplication",
+          "parameters": "",
+          "nunitAttributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "method": "MalformedFrameRetainsCanonicalViewButInvalidQuestItemReferenceFailsAndDisablesActions",
+          "parameters": "",
+          "nunitAttributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "method": "JournalKeyboardOwnsSimultaneousMapAndWorldKeysAndRespectsExistingModals",
+          "parameters": "",
+          "nunitAttributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "method": "PlanningQuestReviewPreservesMapChoicesAndFocusWhileBlockingOtherPagesAndWorldKeys",
+          "parameters": "",
+          "nunitAttributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "method": "PlanningPreviewRetiresDeferredAcceptAndWaitsForFreshNativePermission",
+          "parameters": "",
+          "nunitAttributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "method": "PlanningJournalDropAndResumedWelcomeClearRowsAndRestoreMapInput",
+          "parameters": "",
+          "nunitAttributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "method": "PlanningJournalRespectsSettingsAndFocusedTextEntry",
+          "parameters": "",
+          "nunitAttributes": [
+            "[Test]"
+          ]
+        }
+      ]
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "namespace": "<global>",
+      "class": "MatchLaunchEditModeTests",
+      "typeFullName": "MatchLaunchEditModeTests",
+      "source": {
+        "path": "client-unity/UnityProject/Assets/Tests/Editor/MatchLaunchEditModeTests.cs",
+        "sha256": "1df70730e10dd3a3ea82365cd88db15a2fa631f313d4b168cbdbfe47e5c3323a",
+        "bytes": 26833
+      },
+      "meta": {
+        "path": "client-unity/UnityProject/Assets/Tests/Editor/MatchLaunchEditModeTests.cs.meta",
+        "sha256": "8acab4f6bfac7f69d1d75a36eb4013e2202fe3567749fa49fca9ede4abeed365",
+        "bytes": 60,
+        "guid": "fcfb3901a322446bbd5299b1e19524d6"
+      },
+      "expectedCases": 17,
+      "sourceMethods": 14,
+      "methods": [
+        {
+          "method": "MissingTrainingNeverFallsBackOrStartsAnOwnershipRequest",
+          "parameters": "",
+          "nunitAttributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "method": "CrossOriginTrainingCannotSendOwnerCredentialsOrStartAClaim",
+          "parameters": "",
+          "nunitAttributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "method": "SwitchingModeWhileOwnerReplyIsDeferredInvalidatesTheOldIntent",
+          "parameters": "",
+          "nunitAttributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "method": "RapidModeChangesOnlyConnectTheCurrentOwnerIntentToItsCapturedTarget",
+          "parameters": "",
+          "nunitAttributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "method": "EditingTrainingTargetDuringOwnerRequestCannotUseItsCapturedToken",
+          "parameters": "",
+          "nunitAttributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "method": "SynchronousFactionCancellationCannotOverwriteOrRelaunchANewerMode",
+          "parameters": "",
+          "nunitAttributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "method": "LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation",
+          "parameters": "bool destroy",
+          "nunitAttributes": [
+            "[TestCase(false)]",
+            "[TestCase(true)]"
+          ]
+        },
+        {
+          "method": "OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot",
+          "parameters": "MatchLaunchMode mode, bool training",
+          "nunitAttributes": [
+            "[TestCase(MatchLaunchMode.Arena, false)]",
+            "[TestCase(MatchLaunchMode.Training, true)]"
+          ]
+        },
+        {
+          "method": "WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput",
+          "parameters": "MatchLaunchMode mode, bool deliveredTraining",
+          "nunitAttributes": [
+            "[TestCase(MatchLaunchMode.Arena, true)]",
+            "[TestCase(MatchLaunchMode.Training, false)]"
+          ]
+        },
+        {
+          "method": "ReconnectWelcomeRevokesConfirmationAndRequiresANewMatchingFact",
+          "parameters": "",
+          "nunitAttributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "method": "RetiredCallbacksCannotResetOrRefuseANewerSession",
+          "parameters": "",
+          "nunitAttributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "method": "ReentrantLeaveCallbackCannotHaveItsReplacementCancelledOrArenaDestroyed",
+          "parameters": "",
+          "nunitAttributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "method": "PendingMenuAndPracticeCopyFollowDeliveredFactAndPlayAgainPreservesTraining",
+          "parameters": "",
+          "nunitAttributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "method": "EndingBeforeTheFirstModeFactUnlocksRecoveryAndLeavePermitsAnotherDestination",
+          "parameters": "",
+          "nunitAttributes": [
+            "[Test]"
+          ]
+        }
+      ]
+    }
+  ],
+  "unchanged25": {
+    "selectorPath": "docs/evidence/unity-ui-planning-quests/typing-guard/native-selectors.txt",
+    "selectorSha256": "2d619f2f0c69c3770c685f4e1403b68213dde6320257a09350de44d0c1b16c2b",
+    "fullNames": [
+      "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.UnseenUnavailableAndAvailableEmptyAreDistinctAndRowsPreserveExactServerText",
+      "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.MaximumLengthServerStringsRemainVerbatimInScrollableFixedSizeTextFields",
+      "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.ReplacementPreservesSelectedHandleAndScrollButClearsRemovedSelectionAndTracking",
+      "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.OldAcceptTrackAndRowCallbacksCannotActAfterReplacementBeforeRefresh",
+      "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.MetadataReplacementPreservesScrollPositionWhenRowsOverflowViewport",
+      "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.SelectedParticipantsUseTypedRosterIdsKeepDuplicateLabelsAndClearOnReplacementOrRebind",
+      "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.AcceptUsesCurrentHandleAndFreshCanAcceptThenSessionBatchesOnlyThatIntent",
+      "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.OldSessionCallbacksAndRemovedRowsCannotAcceptAfterRebindWelcomeOrDisconnect",
+      "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.MissingUnavailableAndAvailableEmptyTradeViewsStayDistinctAndOpeningIsReadOnly",
+      "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.DuplicateMerchantRowsLabelsAndSignedStatDeltasRenderInSourceOrder",
+      "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.StatUsedBlocksOnlyStatTradeWhileBarterPicksAreSentAsOrdinaryInput",
+      "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.CurrentOptionsQueueEveryOrdinaryStatPickAndMetadataReplacementInvalidatesOldCallbacks",
+      "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.DisconnectAndResumedWelcomeInvalidateOldRowsAndDropQueuedTradeInput",
+      "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.RebindingAnUnseenSessionClearsMerchantChoicesAndPendingCopyImmediately",
+      "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.ReceivedNoticeOrderIncludesDuplicatesAndResumeClearsBeforeNewBatch",
+      "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.InFlightOldSessionNoticeCallbackCannotAppendAfterRebind",
+      "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.InFlightSameSessionNoticeCallbackCannotCrossSourceClockCutAndNewEpochKeepsDuplicates",
+      "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.OrdinaryMixedQuestTradeQueueSplitsAtSixteenWithoutUiGeneratedCommands",
+      "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.DeliveredMapPointsReplaceWithoutActorFabricationOrNameDeduplication",
+      "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.MalformedFrameRetainsCanonicalViewButInvalidQuestItemReferenceFailsAndDisablesActions",
+      "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.JournalKeyboardOwnsSimultaneousMapAndWorldKeysAndRespectsExistingModals",
+      "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningQuestReviewPreservesMapChoicesAndFocusWhileBlockingOtherPagesAndWorldKeys",
+      "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningPreviewRetiresDeferredAcceptAndWaitsForFreshNativePermission",
+      "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningJournalDropAndResumedWelcomeClearRowsAndRestoreMapInput",
+      "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningJournalRespectsSettingsAndFocusedTextEntry"
+    ],
+    "sourceComparisonsToFa0": [
+      {
+        "path": "client-unity/UnityProject/Assets/Tests/Editor/QuestJournalViewEditModeTests.cs",
+        "shaCurrent": "a227e72035a95c76998a8e715eea197e54bf28de37ade69998404830186a9508",
+        "shaFa0": "a227e72035a95c76998a8e715eea197e54bf28de37ade69998404830186a9508",
+        "sha9c": "a227e72035a95c76998a8e715eea197e54bf28de37ade69998404830186a9508",
+        "matchesFa0": true,
+        "matches9c": true
+      },
+      {
+        "path": "client-unity/UnityProject/Assets/Tests/Editor/TraderDialogViewEditModeTests.cs",
+        "shaCurrent": "74f08af89ac872699567c2fe7ecc5451bdc3ffa94f6df48ec60abda813bb66cb",
+        "shaFa0": "74f08af89ac872699567c2fe7ecc5451bdc3ffa94f6df48ec60abda813bb66cb",
+        "sha9c": "74f08af89ac872699567c2fe7ecc5451bdc3ffa94f6df48ec60abda813bb66cb",
+        "matchesFa0": true,
+        "matches9c": true
+      },
+      {
+        "path": "client-unity/UnityProject/Assets/Tests/Editor/PlayerFlowsEditModeTests.cs",
+        "shaCurrent": "d3b75829d5fb35708b328eeaa95d3975c0369cc287195db330dfbe2a7bb11c26",
+        "shaFa0": "d3b75829d5fb35708b328eeaa95d3975c0369cc287195db330dfbe2a7bb11c26",
+        "sha9c": "d3b75829d5fb35708b328eeaa95d3975c0369cc287195db330dfbe2a7bb11c26",
+        "matchesFa0": true,
+        "matches9c": true
+      }
+    ]
+  },
+  "new17": {
+    "path": "docs/evidence/unity-launch-modes/expected-native-cases.json",
+    "sha256": "160f16431671daa01b8463a44a51d47075b5bfcae84445b04c36c40b6d8da1b5",
+    "sourceCommit": "4ec547312dc9b7214bbf6a8e20a6ff7ed3f3ba3b",
+    "methodCount": 14,
+    "caseCount": 17,
+    "methods": [
+      {
+        "method": "MissingTrainingNeverFallsBackOrStartsAnOwnershipRequest",
+        "parameters": "",
+        "nunitAttributes": [
+          "[Test]"
+        ]
+      },
+      {
+        "method": "CrossOriginTrainingCannotSendOwnerCredentialsOrStartAClaim",
+        "parameters": "",
+        "nunitAttributes": [
+          "[Test]"
+        ]
+      },
+      {
+        "method": "SwitchingModeWhileOwnerReplyIsDeferredInvalidatesTheOldIntent",
+        "parameters": "",
+        "nunitAttributes": [
+          "[Test]"
+        ]
+      },
+      {
+        "method": "RapidModeChangesOnlyConnectTheCurrentOwnerIntentToItsCapturedTarget",
+        "parameters": "",
+        "nunitAttributes": [
+          "[Test]"
+        ]
+      },
+      {
+        "method": "EditingTrainingTargetDuringOwnerRequestCannotUseItsCapturedToken",
+        "parameters": "",
+        "nunitAttributes": [
+          "[Test]"
+        ]
+      },
+      {
+        "method": "SynchronousFactionCancellationCannotOverwriteOrRelaunchANewerMode",
+        "parameters": "",
+        "nunitAttributes": [
+          "[Test]"
+        ]
+      },
+      {
+        "method": "LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation",
+        "parameters": "bool destroy",
+        "nunitAttributes": [
+          "[TestCase(false)]",
+          "[TestCase(true)]"
+        ]
+      },
+      {
+        "method": "OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot",
+        "parameters": "MatchLaunchMode mode, bool training",
+        "nunitAttributes": [
+          "[TestCase(MatchLaunchMode.Arena, false)]",
+          "[TestCase(MatchLaunchMode.Training, true)]"
+        ]
+      },
+      {
+        "method": "WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput",
+        "parameters": "MatchLaunchMode mode, bool deliveredTraining",
+        "nunitAttributes": [
+          "[TestCase(MatchLaunchMode.Arena, true)]",
+          "[TestCase(MatchLaunchMode.Training, false)]"
+        ]
+      },
+      {
+        "method": "ReconnectWelcomeRevokesConfirmationAndRequiresANewMatchingFact",
+        "parameters": "",
+        "nunitAttributes": [
+          "[Test]"
+        ]
+      },
+      {
+        "method": "RetiredCallbacksCannotResetOrRefuseANewerSession",
+        "parameters": "",
+        "nunitAttributes": [
+          "[Test]"
+        ]
+      },
+      {
+        "method": "ReentrantLeaveCallbackCannotHaveItsReplacementCancelledOrArenaDestroyed",
+        "parameters": "",
+        "nunitAttributes": [
+          "[Test]"
+        ]
+      },
+      {
+        "method": "PendingMenuAndPracticeCopyFollowDeliveredFactAndPlayAgainPreservesTraining",
+        "parameters": "",
+        "nunitAttributes": [
+          "[Test]"
+        ]
+      },
+      {
+        "method": "EndingBeforeTheFirstModeFactUnlocksRecoveryAndLeavePermitsAnotherDestination",
+        "parameters": "",
+        "nunitAttributes": [
+          "[Test]"
+        ]
+      }
+    ],
+    "cases": [
+      {
+        "fixture": "MatchLaunchEditModeTests",
+        "method": "MissingTrainingNeverFallsBackOrStartsAnOwnershipRequest",
+        "argumentsSource": null,
+        "status": "UNRUN",
+        "typeFullName": "MatchLaunchEditModeTests.MissingTrainingNeverFallsBackOrStartsAnOwnershipRequest"
+      },
+      {
+        "fixture": "MatchLaunchEditModeTests",
+        "method": "CrossOriginTrainingCannotSendOwnerCredentialsOrStartAClaim",
+        "argumentsSource": null,
+        "status": "UNRUN",
+        "typeFullName": "MatchLaunchEditModeTests.CrossOriginTrainingCannotSendOwnerCredentialsOrStartAClaim"
+      },
+      {
+        "fixture": "MatchLaunchEditModeTests",
+        "method": "SwitchingModeWhileOwnerReplyIsDeferredInvalidatesTheOldIntent",
+        "argumentsSource": null,
+        "status": "UNRUN",
+        "typeFullName": "MatchLaunchEditModeTests.SwitchingModeWhileOwnerReplyIsDeferredInvalidatesTheOldIntent"
+      },
+      {
+        "fixture": "MatchLaunchEditModeTests",
+        "method": "RapidModeChangesOnlyConnectTheCurrentOwnerIntentToItsCapturedTarget",
+        "argumentsSource": null,
+        "status": "UNRUN",
+        "typeFullName": "MatchLaunchEditModeTests.RapidModeChangesOnlyConnectTheCurrentOwnerIntentToItsCapturedTarget"
+      },
+      {
+        "fixture": "MatchLaunchEditModeTests",
+        "method": "EditingTrainingTargetDuringOwnerRequestCannotUseItsCapturedToken",
+        "argumentsSource": null,
+        "status": "UNRUN",
+        "typeFullName": "MatchLaunchEditModeTests.EditingTrainingTargetDuringOwnerRequestCannotUseItsCapturedToken"
+      },
+      {
+        "fixture": "MatchLaunchEditModeTests",
+        "method": "SynchronousFactionCancellationCannotOverwriteOrRelaunchANewerMode",
+        "argumentsSource": null,
+        "status": "UNRUN",
+        "typeFullName": "MatchLaunchEditModeTests.SynchronousFactionCancellationCannotOverwriteOrRelaunchANewerMode"
+      },
+      {
+        "fixture": "MatchLaunchEditModeTests",
+        "method": "LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation",
+        "argumentsSource": "false",
+        "status": "UNRUN",
+        "typeFullName": "MatchLaunchEditModeTests.LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation"
+      },
+      {
+        "fixture": "MatchLaunchEditModeTests",
+        "method": "LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation",
+        "argumentsSource": "true",
+        "status": "UNRUN",
+        "typeFullName": "MatchLaunchEditModeTests.LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation"
+      },
+      {
+        "fixture": "MatchLaunchEditModeTests",
+        "method": "OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot",
+        "argumentsSource": "MatchLaunchMode.Arena, false",
+        "status": "UNRUN",
+        "typeFullName": "MatchLaunchEditModeTests.OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot"
+      },
+      {
+        "fixture": "MatchLaunchEditModeTests",
+        "method": "OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot",
+        "argumentsSource": "MatchLaunchMode.Training, true",
+        "status": "UNRUN",
+        "typeFullName": "MatchLaunchEditModeTests.OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot"
+      },
+      {
+        "fixture": "MatchLaunchEditModeTests",
+        "method": "WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput",
+        "argumentsSource": "MatchLaunchMode.Arena, true",
+        "status": "UNRUN",
+        "typeFullName": "MatchLaunchEditModeTests.WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput"
+      },
+      {
+        "fixture": "MatchLaunchEditModeTests",
+        "method": "WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput",
+        "argumentsSource": "MatchLaunchMode.Training, false",
+        "status": "UNRUN",
+        "typeFullName": "MatchLaunchEditModeTests.WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput"
+      },
+      {
+        "fixture": "MatchLaunchEditModeTests",
+        "method": "ReconnectWelcomeRevokesConfirmationAndRequiresANewMatchingFact",
+        "argumentsSource": null,
+        "status": "UNRUN",
+        "typeFullName": "MatchLaunchEditModeTests.ReconnectWelcomeRevokesConfirmationAndRequiresANewMatchingFact"
+      },
+      {
+        "fixture": "MatchLaunchEditModeTests",
+        "method": "RetiredCallbacksCannotResetOrRefuseANewerSession",
+        "argumentsSource": null,
+        "status": "UNRUN",
+        "typeFullName": "MatchLaunchEditModeTests.RetiredCallbacksCannotResetOrRefuseANewerSession"
+      },
+      {
+        "fixture": "MatchLaunchEditModeTests",
+        "method": "ReentrantLeaveCallbackCannotHaveItsReplacementCancelledOrArenaDestroyed",
+        "argumentsSource": null,
+        "status": "UNRUN",
+        "typeFullName": "MatchLaunchEditModeTests.ReentrantLeaveCallbackCannotHaveItsReplacementCancelledOrArenaDestroyed"
+      },
+      {
+        "fixture": "MatchLaunchEditModeTests",
+        "method": "PendingMenuAndPracticeCopyFollowDeliveredFactAndPlayAgainPreservesTraining",
+        "argumentsSource": null,
+        "status": "UNRUN",
+        "typeFullName": "MatchLaunchEditModeTests.PendingMenuAndPracticeCopyFollowDeliveredFactAndPlayAgainPreservesTraining"
+      },
+      {
+        "fixture": "MatchLaunchEditModeTests",
+        "method": "EndingBeforeTheFirstModeFactUnlocksRecoveryAndLeavePermitsAnotherDestination",
+        "argumentsSource": null,
+        "status": "UNRUN",
+        "typeFullName": "MatchLaunchEditModeTests.EndingBeforeTheFirstModeFactUnlocksRecoveryAndLeavePermitsAnotherDestination"
+      }
+    ],
+    "bindRequirement": "Bind each source method+argument tuple to one actual NUnit discovered leaf by type/method/Arguments; require exactly 17 unique leaves, with no missing, extra, or substitute case."
+  },
+  "selectorContract": {
+    "path": "docs/evidence/unity-launch-native-gate/EXPECTED_SELECTORS.json",
+    "sha256": "32d8c1612e3c0c7672802f31859057e4b1a97678e4a9445081922045e7c220c9",
+    "expectedTotal": 42,
+    "unchanged25Sha256": "2d619f2f0c69c3770c685f4e1403b68213dde6320257a09350de44d0c1b16c2b",
+    "new17SourceCaseSha256": "160f16431671daa01b8463a44a51d47075b5bfcae84445b04c36c40b6d8da1b5"
+  },
+  "sourceComparison": {
+    "baselineCommit": "035b22c8b0773d6637da4e0d4906c31d5b3af01e",
+    "currentCommit": "8cdbd77d4f3e1e002956b2f5c352eea53b12a42d",
+    "changedUnityProjectInputs": [
+      "client-unity/UnityProject/Assets/Tests/Editor/MatchLaunchEditModeTests.cs"
+    ],
+    "fixtureOnlyLifecycleChange": true,
+    "matchLaunchMethodComparison": {
+      "MissingTrainingNeverFallsBackOrStartsAnOwnershipRequest": {
+        "sameSignature": true,
+        "sameAttributes": true,
+        "sameBody": true
+      },
+      "CrossOriginTrainingCannotSendOwnerCredentialsOrStartAClaim": {
+        "sameSignature": true,
+        "sameAttributes": true,
+        "sameBody": true
+      },
+      "SwitchingModeWhileOwnerReplyIsDeferredInvalidatesTheOldIntent": {
+        "sameSignature": true,
+        "sameAttributes": true,
+        "sameBody": true
+      },
+      "RapidModeChangesOnlyConnectTheCurrentOwnerIntentToItsCapturedTarget": {
+        "sameSignature": true,
+        "sameAttributes": true,
+        "sameBody": true
+      },
+      "EditingTrainingTargetDuringOwnerRequestCannotUseItsCapturedToken": {
+        "sameSignature": true,
+        "sameAttributes": true,
+        "sameBody": true
+      },
+      "SynchronousFactionCancellationCannotOverwriteOrRelaunchANewerMode": {
+        "sameSignature": true,
+        "sameAttributes": true,
+        "sameBody": true
+      },
+      "LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation": {
+        "sameSignature": true,
+        "sameAttributes": true,
+        "sameBody": true
+      },
+      "OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot": {
+        "sameSignature": true,
+        "sameAttributes": true,
+        "sameBody": true
+      },
+      "WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput": {
+        "sameSignature": true,
+        "sameAttributes": true,
+        "sameBody": true
+      },
+      "ReconnectWelcomeRevokesConfirmationAndRequiresANewMatchingFact": {
+        "sameSignature": true,
+        "sameAttributes": true,
+        "sameBody": true
+      },
+      "RetiredCallbacksCannotResetOrRefuseANewerSession": {
+        "sameSignature": true,
+        "sameAttributes": true,
+        "sameBody": true
+      },
+      "ReentrantLeaveCallbackCannotHaveItsReplacementCancelledOrArenaDestroyed": {
+        "sameSignature": true,
+        "sameAttributes": true,
+        "sameBody": true
+      },
+      "PendingMenuAndPracticeCopyFollowDeliveredFactAndPlayAgainPreservesTraining": {
+        "sameSignature": true,
+        "sameAttributes": true,
+        "sameBody": true
+      },
+      "EndingBeforeTheFirstModeFactUnlocksRecoveryAndLeavePermitsAnotherDestination": {
+        "sameSignature": true,
+        "sameAttributes": true,
+        "sameBody": true
+      }
+    },
+    "all14MethodBodiesAndAttributesUnchanged": true,
+    "all17CaseTuplesUnchanged": true,
+    "old25FullNamesUnchanged": true,
+    "old25SourcesMatchFa0And9c": true,
+    "finding": "The only changed client Unity project input since 035 is MatchLaunchEditModeTests.cs, and its changes are confined to fixture lifecycle setup/teardown. All 14 test method signatures, attributes, and bodies are identical; the 17 source tuples match the frozen selector data. No production code path changed."
+  },
+  "testRunnerDiscovery": {
+    "manifestVersion": "1.6.0",
+    "cachedPackageVersion": "1.6.0",
+    "packagesLockVersion": "1.6.0",
+    "versionNote": "The manifest, lock, and current PackageCache report 1.6.0, 1.4.6, and 1.6.0 respectively; root should verify the actually loaded Editor package before binding selectors.",
+    "apiSourceFiles": {
+      "Library/PackageCache/com.unity.test-framework@082c24152fd4/UnityEditor.TestRunner/Api/ITestAdaptor.cs": {
+        "sha256": "f57a2e4a505c08713aa3976b06c1a9c08961e54b9d008f1828a5907467fadfe4",
+        "bytes": 4201
+      },
+      "Library/PackageCache/com.unity.test-framework@082c24152fd4/UnityEditor.TestRunner/Api/Filter.cs": {
+        "sha256": "60452eacdb557b3cd247ea6928fbc71d3cf8b9593ff899e3ecea05456855f35d",
+        "bytes": 4609
+      },
+      "Library/PackageCache/com.unity.test-framework@082c24152fd4/UnityEditor.TestRunner/Api/TestRunnerApi.cs": {
+        "sha256": "010c0755decca8de18c1356c1067b0e0ba8a2e1896524af18e1c82022b7089fd",
+        "bytes": 10702
+      }
+    },
+    "publicApiRecommendation": "Use TestRunnerApi.RetrieveTestList(TestMode.EditMode, callback) to retrieve the ITestAdaptor tree (marked obsolete in package source; its comment points at RetrieveTestTree). Flatten leaves and bind using ITestAdaptor.TypeInfo.FullName, Method.Name, Arguments, and FullName. Filter.testNames documentation says parameterized full names include arguments in parentheses; use discovered FullName values for execution, never hand-format an argument selector. Confirm the loaded package exposes RetrieveTestTree before preferring it."
+  },
+  "status": "Fresh lifecycle-retake identity packet only; Unity compilation, fresh NUnit discovery/binding, and execution remain coordinator work.",
+  "fixtureLifecycleCorrection": "68931e0634959035d14039ea445186398d888bd3",
+  "fixtureLifecycleEvidence": "09aaed359a1a2697dc5f58907d255dd4e11c60b1",
+  "retainedSecondFailure": "338d9237dc867b9f17b351b82e480940e5adbfff",
+  "previousSourceIdentitySha256": "0e8642a4abab996fe66e7ecf2355098f5c527f9df4d7aa9d3bf9f9f6ba5cc384"
+}

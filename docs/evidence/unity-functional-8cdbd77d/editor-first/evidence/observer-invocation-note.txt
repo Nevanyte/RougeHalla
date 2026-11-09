@@ -1,0 +1,2 @@
+First cleanup observer command had global flags after --, produced empty stdout and failed JSON parsing before any dependent cleanup operation. Corrected CLI placement below; no tests or source operations repeated.
+Corrected calls restored text preference and disabled auto-tick successfully. Orchestrator then rejected the successful string-shaped auto-tick receipt; no dependent source operation ran before correction.
