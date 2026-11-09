@@ -1,0 +1,138 @@
+{
+  "base_sha": "ad219c5e1a4bd4a27fc8379efcc63f9f1bfd46b5",
+  "verified_index_tree": "16f9495fdd0bf231016a5003a42f629473a7c8a4",
+  "commands": [
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-persist",
+        "--test",
+        "settlement"
+      ],
+      "log": "logs/persist.txt",
+      "exit_code": 0,
+      "elapsed_seconds": 13.242
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-server",
+        "--features",
+        "postgres",
+        "--test",
+        "account_settlement",
+        "--test",
+        "account_settlement_memory"
+      ],
+      "log": "logs/api.txt",
+      "exit_code": 0,
+      "elapsed_seconds": 10.925
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-server",
+        "--features",
+        "postgres",
+        "--test",
+        "account_api",
+        "--test",
+        "account_api_memory"
+      ],
+      "log": "logs/api-regression.txt",
+      "exit_code": 0,
+      "elapsed_seconds": 4.325
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-server",
+        "--test",
+        "account_settlement_memory"
+      ],
+      "log": "logs/memory-default.txt",
+      "exit_code": 0,
+      "elapsed_seconds": 4.273
+    },
+    {
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "-p",
+        "rh-persist",
+        "--lib",
+        "--test",
+        "settlement",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "log": "logs/clippy-persist.txt",
+      "exit_code": 0,
+      "elapsed_seconds": 4.026
+    },
+    {
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "-p",
+        "rh-server",
+        "--features",
+        "postgres",
+        "--lib",
+        "--test",
+        "account_settlement",
+        "--test",
+        "account_settlement_memory",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "log": "logs/clippy-server.txt",
+      "exit_code": 0,
+      "elapsed_seconds": 4.078
+    },
+    {
+      "command": [
+        "cargo",
+        "fmt",
+        "-p",
+        "rh-persist",
+        "-p",
+        "rh-server",
+        "--",
+        "--check"
+      ],
+      "log": "logs/fmt.txt",
+      "exit_code": 0,
+      "elapsed_seconds": 0.308
+    }
+  ],
+  "purpose": "real-PG fixture Store/API receipt contracts; no game/cold-restore/workspace run",
+  "cluster": {
+    "port": 64840,
+    "fsync": "on",
+    "address": "127.0.0.1",
+    "database": "rh_backup",
+    "data_directory": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owned-bank-receipt-ad219-2026-11-09/postgres/data",
+    "full_page_writes": "on",
+    "system_identifier": "7706099656439344966",
+    "synchronous_commit": "on"
+  },
+  "code_sha": "72a5cd8ac40d202348865cfc6e0331842c6e4c13",
+  "verification_binding": "commands ran on the staged tree; code commit tree equals verified_index_tree exactly"
+}

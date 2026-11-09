@@ -17,6 +17,8 @@ pub mod bot_stats_db;
 pub mod cosmetics;
 pub mod legacy;
 pub mod model;
+mod settlement;
+pub use settlement::CommittedSettlement;
 
 use std::collections::BTreeMap;
 use std::time::Duration;

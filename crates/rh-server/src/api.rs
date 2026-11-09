@@ -4,6 +4,7 @@
 //! * `POST /api/profile/:name/purchase` buy a cosmetic (token; idempotent; race-safe)
 //! * `POST /api/profile/:name/equip`    equip/unequip an owned cosmetic (token)
 //! * `GET  /api/leaderboard`            monthly GV ranking (`you` only for the profile's own token)
+//! * `GET  /api/profile/:name/matches/:matchId/settlement` own committed receipt, or no known own commit
 //! * `GET  /api/health`, `GET /readyz`  liveness and readiness
 //!
 //! Placement (ADR 0006 addendum): served on the PUBLIC listener beside `/ws`, never on the control listener. The
@@ -226,6 +227,10 @@ fn unavailable_routes() -> Router<St> {
         .route("/api/profile/{name}", any(unavailable))
         .route("/api/profile/{name}/purchase", any(unavailable))
         .route("/api/profile/{name}/equip", any(unavailable))
+        .route(
+            "/api/profile/{name}/matches/{match_id}/settlement",
+            any(unavailable),
+        )
         .route("/api/leaderboard", any(unavailable))
 }
 

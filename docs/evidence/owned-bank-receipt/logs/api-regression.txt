@@ -1,0 +1,37 @@
+$ cargo test --locked -p rh-server --features postgres --test account_api --test account_api_memory
+   Compiling rh-server v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/crates/rh-server)
+    Finished `test` profile [unoptimized] target(s) in 1.40s
+     Running tests/account_api.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/account_api-ff55885f24e9aa6e)
+
+running 19 tests
+test lookups_are_limited_per_address_before_any_database_query ... ok
+test forwarded_address_is_ignored_unless_configured ... ok
+test passcode_gates_claims_only_and_throttles_wrong_guesses ... ok
+test storage_outage_is_503_and_readiness_fails ... ok
+test a_claim_answers_from_its_insert_with_the_same_profile_a_later_open_returns ... ok
+test empty_month_leaderboards_are_cached_too ... ok
+test new_profile_caps_total_and_per_address_count_claims_only ... ok
+test leaderboard_validation_clamps_private_you_and_invalidation ... ok
+test claim_open_and_token_rules ... ok
+test purchase_rules_idempotency_and_strict_input ... ok
+test equip_invalidates_the_cached_leaderboard_titles ... ok
+test equip_validates_slot_item_and_ownership ... ok
+test concurrent_purchases_cannot_double_spend ... ok
+test one_idempotency_key_from_two_profiles_at_once_is_a_clean_409_never_a_500 ... ok
+test a_claim_cancelled_by_the_request_timeout_is_undone_and_its_reservation_returned ... ok
+test health_readiness_cors_and_errors ... ok
+test the_account_api_has_its_own_bounded_database_concurrency ... ok
+test shop_bucket_limits_the_owner_only ... ok
+test authenticated_account_requests_keep_their_principal_through_name_reassignment ... ok
+
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.93s
+
+     Running tests/account_api_memory.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/account_api_memory-724dcfafb56356cb)
+
+running 1 test
+test without_a_database_profile_routes_answer_503_and_health_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+exit_code=0

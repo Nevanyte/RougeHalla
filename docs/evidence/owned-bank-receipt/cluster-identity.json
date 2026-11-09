@@ -1,0 +1,10 @@
+{
+  "address": "127.0.0.1",
+  "data_directory": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owned-bank-receipt-ad219-2026-11-09/postgres/data",
+  "database": "rh_backup",
+  "fsync": "on",
+  "full_page_writes": "on",
+  "port": 64840,
+  "synchronous_commit": "on",
+  "system_identifier": "7706099656439344966"
+}
