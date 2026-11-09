@@ -1,0 +1,27 @@
+{
+  "source": "96a3462eb6f774891e80c6b2e6dde2700eb8fed6",
+  "editorTests": {
+    "Total": 85,
+    "Passed": 85,
+    "Failed": 0,
+    "Skipped": 0,
+    "Inconclusive": 0
+  },
+  "nativeCaptureCases": 12,
+  "pngBytes": 16852316,
+  "tmpOverflowOrTruncationFlags": 0,
+  "priorVisibleDefectsResolvedInTheseCases": true,
+  "actorRootsPerCase": 8,
+  "actorRootScale": [
+    1.2,
+    1.2,
+    1
+  ],
+  "cameraOrthographicSize": 9,
+  "localLightOuterRadius": 2.4,
+  "transformDerivedLightWorldOuterRadius": 2.88,
+  "actualPointerActions": false,
+  "liveNetworkOrBrowserProof": false,
+  "assetQueueImported": false,
+  "performanceAcceptance": false
+}

@@ -1,0 +1,2701 @@
+{
+  "sourceSha": "96a3462eb6f774891e80c6b2e6dde2700eb8fed6",
+  "mode": "hud",
+  "textScale": 1.0,
+  "expectedWidth": 2560,
+  "expectedHeight": 1440,
+  "screenWidth": 2560,
+  "screenHeight": 1440,
+  "imageWidth": 2560,
+  "imageHeight": 1440,
+  "initialFrame": 23628,
+  "frame": 23665,
+  "advanced": true,
+  "initialNewestMs": 47200.0,
+  "newestMs": 47350.0,
+  "ticksAdvanced": true,
+  "isReady": true,
+  "stagedWatermark": true,
+  "nativeDimensionsMatch": true,
+  "background": true,
+  "quality": "High",
+  "reducedMotion": false,
+  "method": "Public ScreenCapture.CaptureScreenshotAsTexture at WaitForEndOfFrame; original native PNG, no resizing",
+  "canvases": [
+    {
+      "name": "MatchUI",
+      "mode": "ScreenSpaceOverlay",
+      "pixelRect": [
+        0.0,
+        0.0,
+        2560.0,
+        1440.0
+      ],
+      "scale": 1.33333337
+    }
+  ],
+  "controls": [
+    {
+      "path": "Offline UI layout review/MatchUI/PlayerHUD/CombatActions/Slot1",
+      "centerRaycastAvailable": true,
+      "topHit": "Offline UI layout review/MatchUI/PlayerHUD/CombatActions/Slot1",
+      "topSelectable": "Offline UI layout review/MatchUI/PlayerHUD/CombatActions/Slot1",
+      "centerHitsSelf": true,
+      "bounds": [
+        911.36,
+        27.6480179,
+        1038.08,
+        188.351974
+      ],
+      "width": 126.719971,
+      "height": 160.703949,
+      "interactable": true,
+      "inScroll": false,
+      "insideScreen": true
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/PlayerHUD/BuildStrip/BuildDetails",
+      "centerRaycastAvailable": true,
+      "topHit": "Offline UI layout review/MatchUI/PlayerHUD/BuildStrip/BuildDetails",
+      "topSelectable": "Offline UI layout review/MatchUI/PlayerHUD/BuildStrip/BuildDetails",
+      "centerHitsSelf": true,
+      "bounds": [
+        55.6799622,
+        810.828,
+        712.32,
+        900.864
+      ],
+      "width": 656.64,
+      "height": 90.03601,
+      "interactable": true,
+      "inScroll": false,
+      "insideScreen": true
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/Rewards/Skip",
+      "centerRaycastAvailable": true,
+      "topHit": "Offline UI layout review/MatchUI/Rewards/Skip",
+      "topSelectable": "Offline UI layout review/MatchUI/Rewards/Skip",
+      "centerHitsSelf": true,
+      "bounds": [
+        1835.776,
+        647.279968,
+        2134.912,
+        746.064
+      ],
+      "width": 299.1361,
+      "height": 98.78406,
+      "interactable": true,
+      "inScroll": false,
+      "insideScreen": true
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/Rewards/Next",
+      "centerRaycastAvailable": true,
+      "topHit": "Offline UI layout review/MatchUI/Rewards/Next",
+      "topSelectable": "Offline UI layout review/MatchUI/Rewards/Next",
+      "centerHitsSelf": true,
+      "bounds": [
+        2164.096,
+        647.279968,
+        2477.824,
+        746.064
+      ],
+      "width": 313.728027,
+      "height": 98.78406,
+      "interactable": true,
+      "inScroll": false,
+      "insideScreen": true
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/Rewards/Option2",
+      "centerRaycastAvailable": true,
+      "topHit": "Offline UI layout review/MatchUI/Rewards/Option2",
+      "topSelectable": "Offline UI layout review/MatchUI/Rewards/Option2",
+      "centerHitsSelf": true,
+      "bounds": [
+        1835.776,
+        774.287964,
+        2477.824,
+        887.18396
+      ],
+      "width": 642.048,
+      "height": 112.895996,
+      "interactable": true,
+      "inScroll": false,
+      "insideScreen": true
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/Help",
+      "centerRaycastAvailable": true,
+      "topHit": "Offline UI layout review/MatchUI/Help",
+      "topSelectable": "Offline UI layout review/MatchUI/Help",
+      "centerHitsSelf": true,
+      "bounds": [
+        1574.40015,
+        1339.20007,
+        1856.0,
+        1425.6
+      ],
+      "width": 281.599854,
+      "height": 86.3999,
+      "interactable": true,
+      "inScroll": false,
+      "insideScreen": true
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/Settings",
+      "centerRaycastAvailable": true,
+      "topHit": "Offline UI layout review/MatchUI/Settings",
+      "topSelectable": "Offline UI layout review/MatchUI/Settings",
+      "centerHitsSelf": true,
+      "bounds": [
+        1881.6001,
+        1339.20007,
+        2176.0,
+        1425.6
+      ],
+      "width": 294.3999,
+      "height": 86.3999,
+      "interactable": true,
+      "inScroll": false,
+      "insideScreen": true
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/PlayerHUD/CombatActions/Slot2",
+      "centerRaycastAvailable": true,
+      "topHit": "Offline UI layout review/MatchUI/PlayerHUD/CombatActions/Slot2",
+      "topSelectable": "Offline UI layout review/MatchUI/PlayerHUD/CombatActions/Slot2",
+      "centerHitsSelf": true,
+      "bounds": [
+        1049.6,
+        27.6480179,
+        1176.32,
+        188.351974
+      ],
+      "width": 126.719971,
+      "height": 160.703949,
+      "interactable": true,
+      "inScroll": false,
+      "insideScreen": true
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/Rewards/Option0",
+      "centerRaycastAvailable": true,
+      "topHit": "Offline UI layout review/MatchUI/Rewards/Option0",
+      "topSelectable": "Offline UI layout review/MatchUI/Rewards/Option0",
+      "centerHitsSelf": true,
+      "bounds": [
+        1835.776,
+        1028.30408,
+        2477.824,
+        1141.20007
+      ],
+      "width": 642.048,
+      "height": 112.895996,
+      "interactable": true,
+      "inScroll": false,
+      "insideScreen": true
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/Minimap/OpenMap",
+      "centerRaycastAvailable": true,
+      "topHit": "Offline UI layout review/MatchUI/Minimap/OpenMap",
+      "topSelectable": "Offline UI layout review/MatchUI/Minimap/OpenMap",
+      "centerHitsSelf": true,
+      "bounds": [
+        2177.53613,
+        31.1040287,
+        2507.26416,
+        88.12803
+      ],
+      "width": 329.728027,
+      "height": 57.0240021,
+      "interactable": true,
+      "inScroll": false,
+      "insideScreen": true
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/Rewards/Option1",
+      "centerRaycastAvailable": true,
+      "topHit": "Offline UI layout review/MatchUI/Rewards/Option1",
+      "topSelectable": "Offline UI layout review/MatchUI/Rewards/Option1",
+      "centerHitsSelf": true,
+      "bounds": [
+        1835.776,
+        901.296,
+        2477.824,
+        1014.192
+      ],
+      "width": 642.048,
+      "height": 112.895996,
+      "interactable": true,
+      "inScroll": false,
+      "insideScreen": true
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/PlayerHUD/CombatActions/Potion",
+      "centerRaycastAvailable": true,
+      "topHit": "Offline UI layout review/MatchUI/PlayerHUD/CombatActions/Potion",
+      "topSelectable": "Offline UI layout review/MatchUI/PlayerHUD/CombatActions/Potion",
+      "centerHitsSelf": true,
+      "bounds": [
+        1187.84,
+        27.6480179,
+        1314.55994,
+        188.351974
+      ],
+      "width": 126.719971,
+      "height": 160.703949,
+      "interactable": true,
+      "inScroll": false,
+      "insideScreen": true
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/PlayerHUD/CombatActions/Pickup",
+      "centerRaycastAvailable": true,
+      "topHit": "Offline UI layout review/MatchUI/PlayerHUD/CombatActions/Pickup",
+      "topSelectable": "Offline UI layout review/MatchUI/PlayerHUD/CombatActions/Pickup",
+      "centerHitsSelf": true,
+      "bounds": [
+        1329.92,
+        27.64799,
+        1648.64,
+        116.639977
+      ],
+      "width": 318.719971,
+      "height": 88.99199,
+      "interactable": false,
+      "inScroll": false,
+      "insideScreen": true
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/Leave",
+      "centerRaycastAvailable": true,
+      "topHit": "Offline UI layout review/MatchUI/Leave",
+      "topSelectable": "Offline UI layout review/MatchUI/Leave",
+      "centerHitsSelf": true,
+      "bounds": [
+        2201.6,
+        1339.20007,
+        2521.6,
+        1425.6
+      ],
+      "width": 320.0,
+      "height": 86.3999,
+      "interactable": true,
+      "inScroll": false,
+      "insideScreen": true
+    }
+  ],
+  "texts": [
+    {
+      "path": "Offline UI layout review/MatchUI/PlayerHUD/BuildStrip/BuildOFF/StatLabel",
+      "text": "OFF",
+      "font": "LiberationSans SDF",
+      "fontSize": 18.0,
+      "autoSize": true,
+      "overflow": false,
+      "truncated": false,
+      "overflowMode": "Overflow",
+      "bounds": [
+        57.09687,
+        1004.184,
+        211.407272,
+        1043.85889
+      ],
+      "inScroll": false,
+      "rect": [
+        115.7328,
+        29.7561626
+      ],
+      "preferred": [
+        36.21,
+        20.11
+      ]
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/PlayerHUD/BuildStrip/BuildMOVE/Count",
+      "text": "×255",
+      "font": "LiberationSans SDF",
+      "fontSize": 20.0,
+      "autoSize": true,
+      "overflow": false,
+      "truncated": false,
+      "overflowMode": "Overflow",
+      "bounds": [
+        455.884766,
+        944.9669,
+        550.095337,
+        998.8114
+      ],
+      "inScroll": false,
+      "rect": [
+        70.65793,
+        40.38336
+      ],
+      "preferred": [
+        45.12,
+        22.35
+      ]
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/Rewards/Skip/Label",
+      "text": "Skip",
+      "font": "LiberationSans SDF",
+      "fontSize": 30.0,
+      "autoSize": true,
+      "overflow": false,
+      "truncated": false,
+      "overflowMode": "Overflow",
+      "bounds": [
+        1847.74146,
+        652.2192,
+        2122.94653,
+        741.1248
+      ],
+      "inScroll": false,
+      "rect": [
+        206.403839,
+        66.6792
+      ],
+      "preferred": [
+        58.61,
+        33.52
+      ]
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/PlayerHUD/BuildStrip/BuildDEF/StatLabel",
+      "text": "DEF",
+      "font": "LiberationSans SDF",
+      "fontSize": 18.0,
+      "autoSize": true,
+      "overflow": false,
+      "truncated": false,
+      "overflowMode": "Overflow",
+      "bounds": [
+        395.784851,
+        1004.184,
+        550.0953,
+        1043.85889
+      ],
+      "inScroll": false,
+      "rect": [
+        115.7328,
+        29.7561626
+      ],
+      "preferred": [
+        36.01,
+        20.11
+      ]
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/Help/Label",
+      "text": "H · HELP",
+      "font": "LiberationSans SDF",
+      "fontSize": 30.0,
+      "autoSize": true,
+      "overflow": false,
+      "truncated": false,
+      "overflowMode": "Overflow",
+      "bounds": [
+        1585.66406,
+        1343.52,
+        1844.73608,
+        1421.28
+      ],
+      "inScroll": false,
+      "rect": [
+        194.303955,
+        58.31993
+      ],
+      "preferred": [
+        126.63,
+        33.52
+      ]
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/PlayerHUD/BuildStrip/BuildS.DEF/Count",
+      "text": "×255",
+      "font": "LiberationSans SDF",
+      "fontSize": 20.0,
+      "autoSize": true,
+      "overflow": false,
+      "truncated": false,
+      "overflowMode": "Overflow",
+      "bounds": [
+        625.22876,
+        1043.85889,
+        719.439331,
+        1097.70337
+      ],
+      "inScroll": false,
+      "rect": [
+        70.6579056,
+        40.38336
+      ],
+      "preferred": [
+        45.12,
+        22.35
+      ]
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/PlayerHUD/CombatActions/Potion/Label",
+      "text": "E · POTION",
+      "font": "LiberationSans SDF",
+      "fontSize": 20.0,
+      "autoSize": true,
+      "overflow": false,
+      "truncated": false,
+      "overflowMode": "Overflow",
+      "bounds": [
+        1190.37451,
+        30.862072,
+        1312.02563,
+        106.392929
+      ],
+      "inScroll": false,
+      "rect": [
+        91.23842,
+        56.6481438
+      ],
+      "preferred": [
+        107.68,
+        45.35
+      ]
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/PlayerHUD/BuildStrip/BuildMOVE/StatLabel",
+      "text": "MOVE",
+      "font": "LiberationSans SDF",
+      "fontSize": 18.0,
+      "autoSize": true,
+      "overflow": false,
+      "truncated": false,
+      "overflowMode": "Overflow",
+      "bounds": [
+        395.784851,
+        905.292,
+        550.0953,
+        944.9669
+      ],
+      "inScroll": false,
+      "rect": [
+        115.7328,
+        29.7561626
+      ],
+      "preferred": [
+        52.75,
+        20.11
+      ]
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/Settings/Label",
+      "text": "SETTINGS",
+      "font": "LiberationSans SDF",
+      "fontSize": 30.0,
+      "autoSize": true,
+      "overflow": false,
+      "truncated": false,
+      "overflowMode": "Overflow",
+      "bounds": [
+        1893.3761,
+        1343.52,
+        2164.224,
+        1421.28
+      ],
+      "inScroll": false,
+      "rect": [
+        203.135925,
+        58.31993
+      ],
+      "preferred": [
+        149.31,
+        33.52
+      ]
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/PlayerHUD/VitalsPanel/Focus",
+      "text": "Potions 5 small / 5 camp / 3 healing",
+      "font": "LiberationSans SDF",
+      "fontSize": 18.0,
+      "autoSize": true,
+      "overflow": false,
+      "truncated": false,
+      "overflowMode": "Overflow",
+      "bounds": [
+        66.04798,
+        1121.04,
+        701.952,
+        1178.49609
+      ],
+      "inScroll": false,
+      "rect": [
+        476.928,
+        43.0920067
+      ],
+      "preferred": [
+        285.7,
+        20.11
+      ]
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/Rewards/Option2/Label",
+      "text": "Lifesteal",
+      "font": "LiberationSans SDF",
+      "fontSize": 30.0,
+      "autoSize": true,
+      "overflow": false,
+      "truncated": false,
+      "overflowMode": "Overflow",
+      "bounds": [
+        1861.45789,
+        779.932739,
+        2452.142,
+        881.5392
+      ],
+      "inScroll": false,
+      "rect": [
+        443.013153,
+        76.20482
+      ],
+      "preferred": [
+        112.33,
+        33.52
+      ]
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/PlayerHUD/BuildStrip/BuildDetails/Label",
+      "text": "B · BUILD DETAILS · 80 card stacks",
+      "font": "LiberationSans SDF",
+      "fontSize": 20.0,
+      "autoSize": true,
+      "overflow": false,
+      "truncated": false,
+      "overflowMode": "Overflow",
+      "bounds": [
+        81.94559,
+        815.3298,
+        686.0544,
+        896.362244
+      ],
+      "inScroll": false,
+      "rect": [
+        453.0816,
+        60.7743073
+      ],
+      "preferred": [
+        324.57,
+        22.35
+      ]
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/PlayerHUD/BuildStrip/BuildATK/StatLabel",
+      "text": "ATK",
+      "font": "LiberationSans SDF",
+      "fontSize": 18.0,
+      "autoSize": true,
+      "overflow": false,
+      "truncated": false,
+      "overflowMode": "Overflow",
+      "bounds": [
+        226.441,
+        905.292,
+        380.7514,
+        944.9669
+      ],
+      "inScroll": false,
+      "rect": [
+        115.7328,
+        29.7561626
+      ],
+      "preferred": [
+        33.41,
+        20.11
+      ]
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/Minimap/OpenMap/Label",
+      "text": "TAB · MAP",
+      "font": "LiberationSans SDF",
+      "fontSize": 21.0,
+      "autoSize": true,
+      "overflow": false,
+      "truncated": false,
+      "overflowMode": "Overflow",
+      "bounds": [
+        2185.53613,
+        35.1040268,
+        2499.26416,
+        84.12803
+      ],
+      "inScroll": false,
+      "rect": [
+        235.296036,
+        36.7679977
+      ],
+      "preferred": [
+        102.96,
+        23.47
+      ]
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/Rewards/Option1/Label",
+      "text": "Final Verdict",
+      "font": "LiberationSans SDF",
+      "fontSize": 30.0,
+      "autoSize": true,
+      "overflow": false,
+      "truncated": false,
+      "overflowMode": "Overflow",
+      "bounds": [
+        1861.45789,
+        906.9408,
+        2452.142,
+        1008.54724
+      ],
+      "inScroll": false,
+      "rect": [
+        443.013153,
+        76.20482
+      ],
+      "preferred": [
+        165.44,
+        33.52
+      ]
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/PlayerHUD/CombatActions/Slot1/Label",
+      "text": "1 · Sword",
+      "font": "LiberationSans SDF",
+      "fontSize": 20.0,
+      "autoSize": true,
+      "overflow": false,
+      "truncated": false,
+      "overflowMode": "Overflow",
+      "bounds": [
+        913.894348,
+        30.862072,
+        1035.54553,
+        106.392929
+      ],
+      "inScroll": false,
+      "rect": [
+        91.23842,
+        56.6481438
+      ],
+      "preferred": [
+        85.59,
+        22.35
+      ]
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/PlayerHUD/BuildStrip/BuildDEF/Count",
+      "text": "×255",
+      "font": "LiberationSans SDF",
+      "fontSize": 20.0,
+      "autoSize": true,
+      "overflow": false,
+      "truncated": false,
+      "overflowMode": "Overflow",
+      "bounds": [
+        455.884766,
+        1043.85889,
+        550.095337,
+        1097.70337
+      ],
+      "inScroll": false,
+      "rect": [
+        70.65793,
+        40.38336
+      ],
+      "preferred": [
+        45.12,
+        22.35
+      ]
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/PlayerHUD/VitalsPanel/Vitals",
+      "text": "HP 99999 / 99999 · Barrier 99999\nKills 65535 · GV 65535 · Alive",
+      "font": "LiberationSans SDF",
+      "fontSize": 22.0,
+      "autoSize": true,
+      "overflow": false,
+      "truncated": false,
+      "overflowMode": "Overflow",
+      "bounds": [
+        66.04798,
+        1204.704,
+        701.952,
+        1313.568
+      ],
+      "inScroll": false,
+      "rect": [
+        476.928,
+        81.648
+      ],
+      "preferred": [
+        330.89,
+        49.88
+      ]
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/PlayerHUD/BuildStrip/BuildSOUL/Count",
+      "text": "×255",
+      "font": "LiberationSans SDF",
+      "fontSize": 20.0,
+      "autoSize": true,
+      "overflow": false,
+      "truncated": false,
+      "overflowMode": "Overflow",
+      "bounds": [
+        286.540771,
+        1043.85889,
+        380.751343,
+        1097.70337
+      ],
+      "inScroll": false,
+      "rect": [
+        70.65793,
+        40.38336
+      ],
+      "preferred": [
+        45.12,
+        22.35
+      ]
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/Rewards/Next/Label",
+      "text": "Next chest",
+      "font": "LiberationSans SDF",
+      "fontSize": 30.0,
+      "autoSize": true,
+      "overflow": false,
+      "truncated": false,
+      "overflowMode": "Overflow",
+      "bounds": [
+        2176.645,
+        652.2192,
+        2465.275,
+        741.1248
+      ],
+      "inScroll": false,
+      "rect": [
+        216.472321,
+        66.6792
+      ],
+      "preferred": [
+        141.98,
+        33.52
+      ]
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/PhaseTimer",
+      "text": "RAID · 00:42",
+      "font": "LiberationSans SDF",
+      "fontSize": 30.0,
+      "autoSize": true,
+      "overflow": false,
+      "truncated": false,
+      "overflowMode": "Overflow",
+      "bounds": [
+        793.600037,
+        1332.00012,
+        1536.0,
+        1425.6
+      ],
+      "inScroll": false,
+      "rect": [
+        556.8,
+        70.19995
+      ],
+      "preferred": [
+        173.73,
+        33.52
+      ]
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/PlayerHUD/BuildStrip/BuildLEECH/Count",
+      "text": "×255",
+      "font": "LiberationSans SDF",
+      "fontSize": 20.0,
+      "autoSize": true,
+      "overflow": false,
+      "truncated": false,
+      "overflowMode": "Overflow",
+      "bounds": [
+        625.22876,
+        944.9669,
+        719.439331,
+        998.8114
+      ],
+      "inScroll": false,
+      "rect": [
+        70.6579056,
+        40.38336
+      ],
+      "preferred": [
+        45.12,
+        22.35
+      ]
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/PlayerHUD/BuildStrip/BuildS.DEF/StatLabel",
+      "text": "S.DEF",
+      "font": "LiberationSans SDF",
+      "fontSize": 18.0,
+      "autoSize": true,
+      "overflow": false,
+      "truncated": false,
+      "overflowMode": "Overflow",
+      "bounds": [
+        565.128967,
+        1004.184,
+        719.4394,
+        1043.85889
+      ],
+      "inScroll": false,
+      "rect": [
+        115.732773,
+        29.7561626
+      ],
+      "preferred": [
+        52.96,
+        20.11
+      ]
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/PlayerHUD/BuildStrip/BuildOFF/Count",
+      "text": "×255",
+      "font": "LiberationSans SDF",
+      "fontSize": 20.0,
+      "autoSize": true,
+      "overflow": false,
+      "truncated": false,
+      "overflowMode": "Overflow",
+      "bounds": [
+        117.196716,
+        1043.85889,
+        211.407288,
+        1097.70337
+      ],
+      "inScroll": false,
+      "rect": [
+        70.65793,
+        40.38336
+      ],
+      "preferred": [
+        45.12,
+        22.35
+      ]
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/PlayerHUD/CombatActions/Slot2/Label",
+      "text": "2 · Bow",
+      "font": "LiberationSans SDF",
+      "fontSize": 20.0,
+      "autoSize": true,
+      "overflow": false,
+      "truncated": false,
+      "overflowMode": "Overflow",
+      "bounds": [
+        1052.1344,
+        30.862072,
+        1173.78552,
+        106.392929
+      ],
+      "inScroll": false,
+      "rect": [
+        91.2384,
+        56.6481438
+      ],
+      "preferred": [
+        67.68,
+        22.35
+      ]
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/OfflineReviewLabel",
+      "text": "STAGED UI REVIEW\nNO NETWORK",
+      "font": "LiberationSans SDF",
+      "fontSize": 21.0,
+      "autoSize": true,
+      "overflow": false,
+      "truncated": false,
+      "overflowMode": "Overflow",
+      "bounds": [
+        59.19998,
+        1328.8,
+        760.0,
+        1428.8
+      ],
+      "inScroll": false,
+      "rect": [
+        525.6,
+        74.99997
+      ],
+      "preferred": [
+        200.63,
+        47.61
+      ]
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/PlayerHUD/BuildStrip/BuildSOUL/StatLabel",
+      "text": "SOUL",
+      "font": "LiberationSans SDF",
+      "fontSize": 18.0,
+      "autoSize": true,
+      "overflow": false,
+      "truncated": false,
+      "overflowMode": "Overflow",
+      "bounds": [
+        226.441,
+        1004.184,
+        380.7514,
+        1043.85889
+      ],
+      "inScroll": false,
+      "rect": [
+        115.7328,
+        29.7561626
+      ],
+      "preferred": [
+        48.98,
+        20.11
+      ]
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/PlayerHUD/BuildStrip/BuildLEECH/StatLabel",
+      "text": "LEECH",
+      "font": "LiberationSans SDF",
+      "fontSize": 18.0,
+      "autoSize": true,
+      "overflow": false,
+      "truncated": false,
+      "overflowMode": "Overflow",
+      "bounds": [
+        565.128967,
+        905.292,
+        719.4394,
+        944.9669
+      ],
+      "inScroll": false,
+      "rect": [
+        115.732773,
+        29.7561626
+      ],
+      "preferred": [
+        59.87,
+        20.11
+      ]
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/Leave/Label",
+      "text": "Leave / menu",
+      "font": "LiberationSans SDF",
+      "fontSize": 30.0,
+      "autoSize": true,
+      "overflow": false,
+      "truncated": false,
+      "overflowMode": "Overflow",
+      "bounds": [
+        2214.40015,
+        1343.52,
+        2508.8,
+        1421.28
+      ],
+      "inScroll": false,
+      "rect": [
+        220.799988,
+        58.31993
+      ],
+      "preferred": [
+        183.14,
+        33.52
+      ]
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/PlayerHUD/BuildStrip/BuildHP/Count",
+      "text": "×255",
+      "font": "LiberationSans SDF",
+      "fontSize": 20.0,
+      "autoSize": true,
+      "overflow": false,
+      "truncated": false,
+      "overflowMode": "Overflow",
+      "bounds": [
+        117.196716,
+        944.9669,
+        211.407288,
+        998.8114
+      ],
+      "inScroll": false,
+      "rect": [
+        70.65793,
+        40.38336
+      ],
+      "preferred": [
+        45.12,
+        22.35
+      ]
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/PlayerHUD/CombatActions/WishSummary",
+      "text": "R · WISH · 1/2",
+      "font": "LiberationSans SDF",
+      "fontSize": 21.0,
+      "autoSize": true,
+      "overflow": false,
+      "truncated": false,
+      "overflowMode": "Overflow",
+      "bounds": [
+        1329.92,
+        121.823975,
+        1648.64,
+        190.94397
+      ],
+      "inScroll": false,
+      "rect": [
+        239.039978,
+        51.8399963
+      ],
+      "preferred": [
+        137.73,
+        23.47
+      ]
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/PlayerHUD/BuildStrip/BuildHP/StatLabel",
+      "text": "HP",
+      "font": "LiberationSans SDF",
+      "fontSize": 18.0,
+      "autoSize": true,
+      "overflow": false,
+      "truncated": false,
+      "overflowMode": "Overflow",
+      "bounds": [
+        57.09687,
+        905.292,
+        211.407272,
+        944.9669
+      ],
+      "inScroll": false,
+      "rect": [
+        115.7328,
+        29.7561626
+      ],
+      "preferred": [
+        24.91,
+        20.11
+      ]
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/PlayerHUD/CombatActions/Pickup/Label",
+      "text": "F · No pickup",
+      "font": "LiberationSans SDF",
+      "fontSize": 20.0,
+      "autoSize": true,
+      "overflow": false,
+      "truncated": false,
+      "overflowMode": "Overflow",
+      "bounds": [
+        1342.66882,
+        32.0975876,
+        1635.89124,
+        112.190376
+      ],
+      "inScroll": false,
+      "rect": [
+        219.916779,
+        60.0695877
+      ],
+      "preferred": [
+        119.54,
+        22.35
+      ]
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/Rewards/Option0/Label",
+      "text": "Offense I",
+      "font": "LiberationSans SDF",
+      "fontSize": 30.0,
+      "autoSize": true,
+      "overflow": false,
+      "truncated": false,
+      "overflowMode": "Overflow",
+      "bounds": [
+        1861.45789,
+        1033.94885,
+        2452.142,
+        1135.5553
+      ],
+      "inScroll": false,
+      "rect": [
+        443.013153,
+        76.20482
+      ],
+      "preferred": [
+        122.26,
+        33.52
+      ]
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/PlayerHUD/BuildStrip/BuildATK/Count",
+      "text": "×255",
+      "font": "LiberationSans SDF",
+      "fontSize": 20.0,
+      "autoSize": true,
+      "overflow": false,
+      "truncated": false,
+      "overflowMode": "Overflow",
+      "bounds": [
+        286.540771,
+        944.9669,
+        380.751343,
+        998.8114
+      ],
+      "inScroll": false,
+      "rect": [
+        70.65793,
+        40.38336
+      ],
+      "preferred": [
+        45.12,
+        22.35
+      ]
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/Rewards/RewardTitle",
+      "text": "Chest 1 / 1 · choose reward",
+      "font": "CinzelDecorative",
+      "fontSize": 28.0,
+      "autoSize": true,
+      "overflow": false,
+      "truncated": false,
+      "overflowMode": "Overflow",
+      "bounds": [
+        1835.776,
+        1148.256,
+        2477.824,
+        1310.54407
+      ],
+      "inScroll": false,
+      "rect": [
+        481.536041,
+        121.716
+      ],
+      "preferred": [
+        434.3,
+        37.75
+      ]
+    }
+  ],
+  "cameraInfo": {
+    "orthographic": true,
+    "orthographicSize": 9.0,
+    "position": [
+      21.875,
+      -14.343749,
+      -30.0
+    ],
+    "aspect": 1.77777779
+  },
+  "actors": [
+    {
+      "rootWorldAnchor": [
+        18.75,
+        -18.76875,
+        0.0
+      ],
+      "rootLocalScale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "rootLossyScale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "matchingDeliveredAnchorCount": 1,
+      "uniqueObservedId": 7,
+      "deliveredAnchor": [
+        18.75,
+        -18.76875,
+        0.0
+      ],
+      "body": [
+        {
+          "name": "Authored character",
+          "sprite": "__ShowcaseLive_hero_Idle_0020",
+          "localPosition": [
+            0.0,
+            0.08,
+            0.0
+          ],
+          "localScale": [
+            1.15,
+            1.15,
+            1.15
+          ],
+          "worldMin": [
+            18.1354675,
+            -18.8129044,
+            -0.115
+          ],
+          "worldMax": [
+            19.418438,
+            -17.1849365,
+            0.115
+          ]
+        }
+      ],
+      "overhead": [
+        {
+          "name": "Faction insignia backplate",
+          "sprite": "bar",
+          "localPosition": [
+            -0.72,
+            1.55,
+            0.0
+          ],
+          "localScale": [
+            0.46,
+            0.46,
+            1.0
+          ],
+          "worldMin": [
+            17.61,
+            -17.18475,
+            -0.1
+          ],
+          "worldMax": [
+            18.1619987,
+            -16.6327477,
+            0.1
+          ]
+        },
+        {
+          "name": "Faction insignia",
+          "sprite": "sigil0",
+          "localPosition": [
+            -0.72,
+            1.55,
+            0.0
+          ],
+          "localScale": [
+            0.4,
+            0.4,
+            1.0
+          ],
+          "worldMin": [
+            17.646,
+            -17.1487484,
+            -0.1
+          ],
+          "worldMax": [
+            18.126,
+            -16.6687489,
+            0.1
+          ]
+        },
+        {
+          "name": "Health and barrier track",
+          "sprite": "bar",
+          "localPosition": [
+            0.0,
+            1.8,
+            0.0
+          ],
+          "localScale": [
+            0.98,
+            0.11,
+            1.0
+          ],
+          "worldMin": [
+            18.162,
+            -16.67475,
+            -0.1
+          ],
+          "worldMax": [
+            19.338,
+            -16.54275,
+            0.1
+          ]
+        },
+        {
+          "name": "Confirmed health",
+          "sprite": "bar",
+          "localPosition": [
+            -0.065,
+            1.8,
+            0.0
+          ],
+          "localScale": [
+            0.85,
+            0.055,
+            1.0
+          ],
+          "worldMin": [
+            18.162,
+            -16.64175,
+            -0.1
+          ],
+          "worldMax": [
+            19.1820011,
+            -16.5757484,
+            0.1
+          ]
+        }
+      ],
+      "lights": [
+        {
+          "name": "Torch(Clone)",
+          "enabled": false,
+          "innerRadius": 0.3,
+          "outerRadius": 2.4,
+          "worldPosition": [
+            18.75,
+            -18.04875,
+            -1.0
+          ],
+          "lossyScale": [
+            1.2,
+            1.2,
+            1.0
+          ],
+          "transformDerivedWorldOuterRadius": 2.88
+        },
+        {
+          "name": "TorchAccurate(Clone)",
+          "enabled": false,
+          "innerRadius": 0.3,
+          "outerRadius": 2.4,
+          "worldPosition": [
+            18.75,
+            -18.04875,
+            -1.0
+          ],
+          "lossyScale": [
+            1.2,
+            1.2,
+            1.0
+          ],
+          "transformDerivedWorldOuterRadius": 2.88
+        }
+      ]
+    },
+    {
+      "rootWorldAnchor": [
+        28.125,
+        -12.6749992,
+        0.0
+      ],
+      "rootLocalScale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "rootLossyScale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "matchingDeliveredAnchorCount": 1,
+      "uniqueObservedId": 5,
+      "deliveredAnchor": [
+        28.125,
+        -12.6749992,
+        0.0
+      ],
+      "body": [
+        {
+          "name": "Authored character",
+          "sprite": "__ShowcaseLive_hero-female_Idle_0020",
+          "localPosition": [
+            0.0,
+            0.08,
+            0.0
+          ],
+          "localScale": [
+            1.15,
+            1.15,
+            1.15
+          ],
+          "worldMin": [
+            27.6614075,
+            -12.6975927,
+            -0.115
+          ],
+          "worldMax": [
+            28.8042183,
+            -11.0480623,
+            0.115
+          ]
+        }
+      ],
+      "overhead": [
+        {
+          "name": "Faction insignia backplate",
+          "sprite": "bar",
+          "localPosition": [
+            -0.72,
+            1.55,
+            0.0
+          ],
+          "localScale": [
+            0.46,
+            0.46,
+            1.0
+          ],
+          "worldMin": [
+            26.985,
+            -11.091,
+            -0.1
+          ],
+          "worldMax": [
+            27.5369987,
+            -10.539,
+            0.1
+          ]
+        },
+        {
+          "name": "Faction insignia",
+          "sprite": "sigil3",
+          "localPosition": [
+            -0.72,
+            1.55,
+            0.0
+          ],
+          "localScale": [
+            0.4,
+            0.4,
+            1.0
+          ],
+          "worldMin": [
+            27.021,
+            -11.0549994,
+            -0.1
+          ],
+          "worldMax": [
+            27.501,
+            -10.575,
+            0.1
+          ]
+        },
+        {
+          "name": "Health and barrier track",
+          "sprite": "bar",
+          "localPosition": [
+            0.0,
+            1.8,
+            0.0
+          ],
+          "localScale": [
+            0.98,
+            0.11,
+            1.0
+          ],
+          "worldMin": [
+            27.537,
+            -10.5809994,
+            -0.1
+          ],
+          "worldMax": [
+            28.713,
+            -10.4489994,
+            0.1
+          ]
+        },
+        {
+          "name": "Confirmed health",
+          "sprite": "bar",
+          "localPosition": [
+            -0.065,
+            1.8,
+            0.0
+          ],
+          "localScale": [
+            0.85,
+            0.055,
+            1.0
+          ],
+          "worldMin": [
+            27.537,
+            -10.5479994,
+            -0.1
+          ],
+          "worldMax": [
+            28.5570011,
+            -10.4819994,
+            0.1
+          ]
+        }
+      ],
+      "lights": [
+        {
+          "name": "Torch(Clone)",
+          "enabled": false,
+          "innerRadius": 0.3,
+          "outerRadius": 2.4,
+          "worldPosition": [
+            28.125,
+            -11.954999,
+            -1.0
+          ],
+          "lossyScale": [
+            1.2,
+            1.2,
+            1.0
+          ],
+          "transformDerivedWorldOuterRadius": 2.88
+        },
+        {
+          "name": "TorchAccurate(Clone)",
+          "enabled": false,
+          "innerRadius": 0.3,
+          "outerRadius": 2.4,
+          "worldPosition": [
+            28.125,
+            -11.954999,
+            -1.0
+          ],
+          "lossyScale": [
+            1.2,
+            1.2,
+            1.0
+          ],
+          "transformDerivedWorldOuterRadius": 2.88
+        }
+      ]
+    },
+    {
+      "rootWorldAnchor": [
+        23.4375,
+        -18.76875,
+        0.0
+      ],
+      "rootLocalScale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "rootLossyScale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "matchingDeliveredAnchorCount": 1,
+      "uniqueObservedId": 8,
+      "deliveredAnchor": [
+        23.4375,
+        -18.76875,
+        0.0
+      ],
+      "body": [
+        {
+          "name": "Authored character",
+          "sprite": "__ShowcaseLive_hero_Idle_0020",
+          "localPosition": [
+            0.0,
+            0.08,
+            0.0
+          ],
+          "localScale": [
+            1.15,
+            1.15,
+            1.15
+          ],
+          "worldMin": [
+            22.8229675,
+            -18.8129044,
+            -0.115
+          ],
+          "worldMax": [
+            24.105938,
+            -17.1849365,
+            0.115
+          ]
+        }
+      ],
+      "overhead": [
+        {
+          "name": "Faction insignia backplate",
+          "sprite": "bar",
+          "localPosition": [
+            -0.72,
+            1.55,
+            0.0
+          ],
+          "localScale": [
+            0.46,
+            0.46,
+            1.0
+          ],
+          "worldMin": [
+            22.2975,
+            -17.18475,
+            -0.1
+          ],
+          "worldMax": [
+            22.8494987,
+            -16.6327477,
+            0.1
+          ]
+        },
+        {
+          "name": "Faction insignia",
+          "sprite": "sigil1",
+          "localPosition": [
+            -0.72,
+            1.55,
+            0.0
+          ],
+          "localScale": [
+            0.4,
+            0.4,
+            1.0
+          ],
+          "worldMin": [
+            22.3335,
+            -17.1487484,
+            -0.1
+          ],
+          "worldMax": [
+            22.8135,
+            -16.6687489,
+            0.1
+          ]
+        },
+        {
+          "name": "Health and barrier track",
+          "sprite": "bar",
+          "localPosition": [
+            0.0,
+            1.8,
+            0.0
+          ],
+          "localScale": [
+            0.98,
+            0.11,
+            1.0
+          ],
+          "worldMin": [
+            22.8495,
+            -16.67475,
+            -0.1
+          ],
+          "worldMax": [
+            24.0255,
+            -16.54275,
+            0.1
+          ]
+        },
+        {
+          "name": "Confirmed health",
+          "sprite": "bar",
+          "localPosition": [
+            -0.065,
+            1.8,
+            0.0
+          ],
+          "localScale": [
+            0.85,
+            0.055,
+            1.0
+          ],
+          "worldMin": [
+            22.8495,
+            -16.64175,
+            -0.1
+          ],
+          "worldMax": [
+            23.8695011,
+            -16.5757484,
+            0.1
+          ]
+        }
+      ],
+      "lights": [
+        {
+          "name": "Torch(Clone)",
+          "enabled": false,
+          "innerRadius": 0.3,
+          "outerRadius": 2.4,
+          "worldPosition": [
+            23.4375,
+            -18.04875,
+            -1.0
+          ],
+          "lossyScale": [
+            1.2,
+            1.2,
+            1.0
+          ],
+          "transformDerivedWorldOuterRadius": 2.88
+        },
+        {
+          "name": "TorchAccurate(Clone)",
+          "enabled": false,
+          "innerRadius": 0.3,
+          "outerRadius": 2.4,
+          "worldPosition": [
+            23.4375,
+            -18.04875,
+            -1.0
+          ],
+          "lossyScale": [
+            1.2,
+            1.2,
+            1.0
+          ],
+          "transformDerivedWorldOuterRadius": 2.88
+        }
+      ]
+    },
+    {
+      "rootWorldAnchor": [
+        18.75,
+        -12.6749992,
+        0.0
+      ],
+      "rootLocalScale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "rootLossyScale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "matchingDeliveredAnchorCount": 1,
+      "uniqueObservedId": 3,
+      "deliveredAnchor": [
+        18.75,
+        -12.6749992,
+        0.0
+      ],
+      "body": [
+        {
+          "name": "Authored character",
+          "sprite": "__ShowcaseLive_hero_Idle_0020",
+          "localPosition": [
+            0.0,
+            0.08,
+            0.0
+          ],
+          "localScale": [
+            1.15,
+            1.15,
+            1.15
+          ],
+          "worldMin": [
+            18.1354675,
+            -12.7191563,
+            -0.115
+          ],
+          "worldMax": [
+            19.418438,
+            -11.0911865,
+            0.115
+          ]
+        }
+      ],
+      "overhead": [
+        {
+          "name": "Faction insignia backplate",
+          "sprite": "bar",
+          "localPosition": [
+            -0.72,
+            1.55,
+            0.0
+          ],
+          "localScale": [
+            0.46,
+            0.46,
+            1.0
+          ],
+          "worldMin": [
+            17.61,
+            -11.091,
+            -0.1
+          ],
+          "worldMax": [
+            18.1619987,
+            -10.539,
+            0.1
+          ]
+        },
+        {
+          "name": "Faction insignia",
+          "sprite": "sigil1",
+          "localPosition": [
+            -0.72,
+            1.55,
+            0.0
+          ],
+          "localScale": [
+            0.4,
+            0.4,
+            1.0
+          ],
+          "worldMin": [
+            17.646,
+            -11.0549994,
+            -0.1
+          ],
+          "worldMax": [
+            18.126,
+            -10.575,
+            0.1
+          ]
+        },
+        {
+          "name": "Health and barrier track",
+          "sprite": "bar",
+          "localPosition": [
+            0.0,
+            1.8,
+            0.0
+          ],
+          "localScale": [
+            0.98,
+            0.11,
+            1.0
+          ],
+          "worldMin": [
+            18.162,
+            -10.5809994,
+            -0.1
+          ],
+          "worldMax": [
+            19.338,
+            -10.4489994,
+            0.1
+          ]
+        },
+        {
+          "name": "Confirmed health",
+          "sprite": "bar",
+          "localPosition": [
+            -0.065,
+            1.8,
+            0.0
+          ],
+          "localScale": [
+            0.85,
+            0.055,
+            1.0
+          ],
+          "worldMin": [
+            18.162,
+            -10.5479994,
+            -0.1
+          ],
+          "worldMax": [
+            19.1820011,
+            -10.4819994,
+            0.1
+          ]
+        }
+      ],
+      "lights": [
+        {
+          "name": "Torch(Clone)",
+          "enabled": false,
+          "innerRadius": 0.3,
+          "outerRadius": 2.4,
+          "worldPosition": [
+            18.75,
+            -11.954999,
+            -1.0
+          ],
+          "lossyScale": [
+            1.2,
+            1.2,
+            1.0
+          ],
+          "transformDerivedWorldOuterRadius": 2.88
+        },
+        {
+          "name": "TorchAccurate(Clone)",
+          "enabled": false,
+          "innerRadius": 0.3,
+          "outerRadius": 2.4,
+          "worldPosition": [
+            18.75,
+            -11.954999,
+            -1.0
+          ],
+          "lossyScale": [
+            1.2,
+            1.2,
+            1.0
+          ],
+          "transformDerivedWorldOuterRadius": 2.88
+        }
+      ]
+    },
+    {
+      "rootWorldAnchor": [
+        21.875,
+        -15.843749,
+        0.0
+      ],
+      "rootLocalScale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "rootLossyScale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "matchingDeliveredAnchorCount": 1,
+      "uniqueObservedId": 1,
+      "deliveredAnchor": [
+        21.875,
+        -15.843749,
+        0.0
+      ],
+      "body": [
+        {
+          "name": "Authored character",
+          "sprite": "__ShowcaseLive_mage-female_Idle_0020",
+          "localPosition": [
+            0.0,
+            0.08,
+            0.0
+          ],
+          "localScale": [
+            0.894444466,
+            0.894444466,
+            0.894444466
+          ],
+          "worldMin": [
+            21.3886471,
+            -15.8399887,
+            -0.08944445
+          ],
+          "worldMax": [
+            22.3948956,
+            -14.4983215,
+            0.08944445
+          ]
+        }
+      ],
+      "overhead": [
+        {
+          "name": "Faction insignia backplate",
+          "sprite": "bar",
+          "localPosition": [
+            -0.72,
+            1.55,
+            0.0
+          ],
+          "localScale": [
+            0.46,
+            0.46,
+            1.0
+          ],
+          "worldMin": [
+            20.735,
+            -14.2597494,
+            -0.1
+          ],
+          "worldMax": [
+            21.2869987,
+            -13.7077494,
+            0.1
+          ]
+        },
+        {
+          "name": "Faction insignia",
+          "sprite": "sigil4",
+          "localPosition": [
+            -0.72,
+            1.55,
+            0.0
+          ],
+          "localScale": [
+            0.4,
+            0.4,
+            1.0
+          ],
+          "worldMin": [
+            20.771,
+            -14.2237492,
+            -0.1
+          ],
+          "worldMax": [
+            21.251,
+            -13.74375,
+            0.1
+          ]
+        },
+        {
+          "name": "Health and barrier track",
+          "sprite": "bar",
+          "localPosition": [
+            0.0,
+            1.8,
+            0.0
+          ],
+          "localScale": [
+            0.98,
+            0.11,
+            1.0
+          ],
+          "worldMin": [
+            21.287,
+            -13.7497492,
+            -0.1
+          ],
+          "worldMax": [
+            22.463,
+            -13.6177492,
+            0.1
+          ]
+        },
+        {
+          "name": "Confirmed health",
+          "sprite": "bar",
+          "localPosition": [
+            -0.2775,
+            1.8,
+            0.0
+          ],
+          "localScale": [
+            0.425,
+            0.055,
+            1.0
+          ],
+          "worldMin": [
+            21.287,
+            -13.7167492,
+            -0.1
+          ],
+          "worldMax": [
+            21.796999,
+            -13.6507492,
+            0.1
+          ]
+        },
+        {
+          "name": "Confirmed barrier",
+          "sprite": "bar",
+          "localPosition": [
+            0.147500008,
+            1.8,
+            0.0
+          ],
+          "localScale": [
+            0.425,
+            0.095,
+            1.0
+          ],
+          "worldMin": [
+            21.797,
+            -13.7407494,
+            -0.1
+          ],
+          "worldMax": [
+            22.307,
+            -13.626749,
+            0.1
+          ]
+        }
+      ],
+      "lights": [
+        {
+          "name": "Torch(Clone)",
+          "enabled": false,
+          "innerRadius": 0.3,
+          "outerRadius": 2.4,
+          "worldPosition": [
+            21.875,
+            -15.1237488,
+            -1.0
+          ],
+          "lossyScale": [
+            1.2,
+            1.2,
+            1.0
+          ],
+          "transformDerivedWorldOuterRadius": 2.88
+        },
+        {
+          "name": "TorchAccurate(Clone)",
+          "enabled": true,
+          "innerRadius": 0.3,
+          "outerRadius": 2.4,
+          "worldPosition": [
+            21.875,
+            -15.1237488,
+            -1.0
+          ],
+          "lossyScale": [
+            1.2,
+            1.2,
+            1.0
+          ],
+          "transformDerivedWorldOuterRadius": 2.88
+        }
+      ]
+    },
+    {
+      "rootWorldAnchor": [
+        23.4375,
+        -12.6749992,
+        0.0
+      ],
+      "rootLocalScale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "rootLossyScale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "matchingDeliveredAnchorCount": 1,
+      "uniqueObservedId": 4,
+      "deliveredAnchor": [
+        23.4375,
+        -12.6749992,
+        0.0
+      ],
+      "body": [
+        {
+          "name": "Authored character",
+          "sprite": "__ShowcaseLive_mage_Idle_0020",
+          "localPosition": [
+            0.0,
+            0.08,
+            0.0
+          ],
+          "localScale": [
+            0.894444466,
+            0.894444466,
+            0.894444466
+          ],
+          "worldMin": [
+            22.72474,
+            -12.6796246,
+            -0.08944445
+          ],
+          "worldMax": [
+            23.9657822,
+            -11.3631134,
+            0.08944445
+          ]
+        }
+      ],
+      "overhead": [
+        {
+          "name": "Faction insignia backplate",
+          "sprite": "bar",
+          "localPosition": [
+            -0.72,
+            1.55,
+            0.0
+          ],
+          "localScale": [
+            0.46,
+            0.46,
+            1.0
+          ],
+          "worldMin": [
+            22.2975,
+            -11.091,
+            -0.1
+          ],
+          "worldMax": [
+            22.8494987,
+            -10.539,
+            0.1
+          ]
+        },
+        {
+          "name": "Faction insignia",
+          "sprite": "sigil2",
+          "localPosition": [
+            -0.72,
+            1.55,
+            0.0
+          ],
+          "localScale": [
+            0.4,
+            0.4,
+            1.0
+          ],
+          "worldMin": [
+            22.3335,
+            -11.0549994,
+            -0.1
+          ],
+          "worldMax": [
+            22.8135,
+            -10.575,
+            0.1
+          ]
+        },
+        {
+          "name": "Health and barrier track",
+          "sprite": "bar",
+          "localPosition": [
+            0.0,
+            1.8,
+            0.0
+          ],
+          "localScale": [
+            0.98,
+            0.11,
+            1.0
+          ],
+          "worldMin": [
+            22.8495,
+            -10.5809994,
+            -0.1
+          ],
+          "worldMax": [
+            24.0255,
+            -10.4489994,
+            0.1
+          ]
+        },
+        {
+          "name": "Confirmed health",
+          "sprite": "bar",
+          "localPosition": [
+            -0.065,
+            1.8,
+            0.0
+          ],
+          "localScale": [
+            0.85,
+            0.055,
+            1.0
+          ],
+          "worldMin": [
+            22.8495,
+            -10.5479994,
+            -0.1
+          ],
+          "worldMax": [
+            23.8695011,
+            -10.4819994,
+            0.1
+          ]
+        }
+      ],
+      "lights": [
+        {
+          "name": "Torch(Clone)",
+          "enabled": false,
+          "innerRadius": 0.3,
+          "outerRadius": 2.4,
+          "worldPosition": [
+            23.4375,
+            -11.954999,
+            -1.0
+          ],
+          "lossyScale": [
+            1.2,
+            1.2,
+            1.0
+          ],
+          "transformDerivedWorldOuterRadius": 2.88
+        },
+        {
+          "name": "TorchAccurate(Clone)",
+          "enabled": false,
+          "innerRadius": 0.3,
+          "outerRadius": 2.4,
+          "worldPosition": [
+            23.4375,
+            -11.954999,
+            -1.0
+          ],
+          "lossyScale": [
+            1.2,
+            1.2,
+            1.0
+          ],
+          "transformDerivedWorldOuterRadius": 2.88
+        }
+      ]
+    },
+    {
+      "rootWorldAnchor": [
+        14.0625,
+        -12.6749992,
+        0.0
+      ],
+      "rootLocalScale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "rootLossyScale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "matchingDeliveredAnchorCount": 1,
+      "uniqueObservedId": 2,
+      "deliveredAnchor": [
+        14.0625,
+        -12.6749992,
+        0.0
+      ],
+      "body": [
+        {
+          "name": "Authored character",
+          "sprite": "__ShowcaseLive_hero_Idle_0020",
+          "localPosition": [
+            0.0,
+            0.08,
+            0.0
+          ],
+          "localScale": [
+            1.15,
+            1.15,
+            1.15
+          ],
+          "worldMin": [
+            13.4479685,
+            -12.7191563,
+            -0.115
+          ],
+          "worldMax": [
+            14.730937,
+            -11.0911865,
+            0.115
+          ]
+        }
+      ],
+      "overhead": [
+        {
+          "name": "Faction insignia backplate",
+          "sprite": "bar",
+          "localPosition": [
+            -0.72,
+            1.55,
+            0.0
+          ],
+          "localScale": [
+            0.46,
+            0.46,
+            1.0
+          ],
+          "worldMin": [
+            12.9225,
+            -11.091,
+            -0.1
+          ],
+          "worldMax": [
+            13.4745,
+            -10.539,
+            0.1
+          ]
+        },
+        {
+          "name": "Faction insignia",
+          "sprite": "sigil0",
+          "localPosition": [
+            -0.72,
+            1.55,
+            0.0
+          ],
+          "localScale": [
+            0.4,
+            0.4,
+            1.0
+          ],
+          "worldMin": [
+            12.9585,
+            -11.0549994,
+            -0.1
+          ],
+          "worldMax": [
+            13.4384995,
+            -10.575,
+            0.1
+          ]
+        },
+        {
+          "name": "Health and barrier track",
+          "sprite": "bar",
+          "localPosition": [
+            0.0,
+            1.8,
+            0.0
+          ],
+          "localScale": [
+            0.98,
+            0.11,
+            1.0
+          ],
+          "worldMin": [
+            13.4745,
+            -10.5809994,
+            -0.1
+          ],
+          "worldMax": [
+            14.6505,
+            -10.4489994,
+            0.1
+          ]
+        },
+        {
+          "name": "Confirmed health",
+          "sprite": "bar",
+          "localPosition": [
+            -0.065,
+            1.8,
+            0.0
+          ],
+          "localScale": [
+            0.85,
+            0.055,
+            1.0
+          ],
+          "worldMin": [
+            13.4745,
+            -10.5479994,
+            -0.1
+          ],
+          "worldMax": [
+            14.4945,
+            -10.4819994,
+            0.1
+          ]
+        }
+      ],
+      "lights": [
+        {
+          "name": "Torch(Clone)",
+          "enabled": false,
+          "innerRadius": 0.3,
+          "outerRadius": 2.4,
+          "worldPosition": [
+            14.0625,
+            -11.954999,
+            -1.0
+          ],
+          "lossyScale": [
+            1.2,
+            1.2,
+            1.0
+          ],
+          "transformDerivedWorldOuterRadius": 2.88
+        },
+        {
+          "name": "TorchAccurate(Clone)",
+          "enabled": false,
+          "innerRadius": 0.3,
+          "outerRadius": 2.4,
+          "worldPosition": [
+            14.0625,
+            -11.954999,
+            -1.0
+          ],
+          "lossyScale": [
+            1.2,
+            1.2,
+            1.0
+          ],
+          "transformDerivedWorldOuterRadius": 2.88
+        }
+      ]
+    },
+    {
+      "rootWorldAnchor": [
+        14.0625,
+        -18.76875,
+        0.0
+      ],
+      "rootLocalScale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "rootLossyScale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "matchingDeliveredAnchorCount": 1,
+      "uniqueObservedId": 6,
+      "deliveredAnchor": [
+        14.0625,
+        -18.76875,
+        0.0
+      ],
+      "body": [
+        {
+          "name": "Authored character",
+          "sprite": "__ShowcaseLive_mage-female_Idle_0020",
+          "localPosition": [
+            0.0,
+            0.08,
+            0.0
+          ],
+          "localScale": [
+            0.894444466,
+            0.894444466,
+            0.894444466
+          ],
+          "worldMin": [
+            13.5761452,
+            -18.7649879,
+            -0.08944445
+          ],
+          "worldMax": [
+            14.5823956,
+            -17.42332,
+            0.08944445
+          ]
+        }
+      ],
+      "overhead": [
+        {
+          "name": "Faction insignia backplate",
+          "sprite": "bar",
+          "localPosition": [
+            -0.72,
+            1.55,
+            0.0
+          ],
+          "localScale": [
+            0.46,
+            0.46,
+            1.0
+          ],
+          "worldMin": [
+            12.9225,
+            -17.18475,
+            -0.1
+          ],
+          "worldMax": [
+            13.4745,
+            -16.6327477,
+            0.1
+          ]
+        },
+        {
+          "name": "Faction insignia",
+          "sprite": "sigil4",
+          "localPosition": [
+            -0.72,
+            1.55,
+            0.0
+          ],
+          "localScale": [
+            0.4,
+            0.4,
+            1.0
+          ],
+          "worldMin": [
+            12.9585,
+            -17.1487484,
+            -0.1
+          ],
+          "worldMax": [
+            13.4384995,
+            -16.6687489,
+            0.1
+          ]
+        },
+        {
+          "name": "Health and barrier track",
+          "sprite": "bar",
+          "localPosition": [
+            0.0,
+            1.8,
+            0.0
+          ],
+          "localScale": [
+            0.98,
+            0.11,
+            1.0
+          ],
+          "worldMin": [
+            13.4745,
+            -16.67475,
+            -0.1
+          ],
+          "worldMax": [
+            14.6505,
+            -16.54275,
+            0.1
+          ]
+        },
+        {
+          "name": "Confirmed health",
+          "sprite": "bar",
+          "localPosition": [
+            -0.065,
+            1.8,
+            0.0
+          ],
+          "localScale": [
+            0.85,
+            0.055,
+            1.0
+          ],
+          "worldMin": [
+            13.4745,
+            -16.64175,
+            -0.1
+          ],
+          "worldMax": [
+            14.4945,
+            -16.5757484,
+            0.1
+          ]
+        }
+      ],
+      "lights": [
+        {
+          "name": "Torch(Clone)",
+          "enabled": false,
+          "innerRadius": 0.3,
+          "outerRadius": 2.4,
+          "worldPosition": [
+            14.0625,
+            -18.04875,
+            -1.0
+          ],
+          "lossyScale": [
+            1.2,
+            1.2,
+            1.0
+          ],
+          "transformDerivedWorldOuterRadius": 2.88
+        },
+        {
+          "name": "TorchAccurate(Clone)",
+          "enabled": false,
+          "innerRadius": 0.3,
+          "outerRadius": 2.4,
+          "worldPosition": [
+            14.0625,
+            -18.04875,
+            -1.0
+          ],
+          "lossyScale": [
+            1.2,
+            1.2,
+            1.0
+          ],
+          "transformDerivedWorldOuterRadius": 2.88
+        }
+      ]
+    }
+  ]
+}

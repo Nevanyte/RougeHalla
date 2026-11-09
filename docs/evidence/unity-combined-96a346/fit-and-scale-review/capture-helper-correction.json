@@ -1,0 +1,1 @@
+{"scope":"External read-only capture helper only; no project source edit","beforeAnyPngSaved":true,"error":"CS0104 ArenaView namespace ambiguity after adding Roguehalla.Net using for InterpActor","correction":"Fully qualify Roguehalla.Client.ArenaView.WorldPoint"}

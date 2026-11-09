@@ -1,0 +1,50 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine.EventSystems;
+using UnityEngine.Rendering.Universal;
+using Roguehalla.Net;
+using System.IO;
+using System.Linq;
+using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
+using Newtonsoft.Json;
+using Roguehalla.Client;
+const string sourceSha="96a3462eb6f774891e80c6b2e6dde2700eb8fed6";
+const string mode="planning";
+const int expectedWidth=2560, expectedHeight=1440;
+const string outputFolder="/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/combined-96a346-2026-11-08/evidence/layouts";
+var review=UnityEngine.Object.FindFirstObjectByType<UiLayoutReview>();
+var client=UnityEngine.Object.FindFirstObjectByType<MatchClient>();
+if(!Application.isPlaying||review==null||!review.IsReady||client?.Session==null)throw new InvalidOperationException("Ready offline fixture required");
+string PathOf(Transform t){string p=t.name;while(t.parent!=null){t=t.parent;p=t.name+"/"+p;}return p;}
+float[] BoundsOf(RectTransform r){var c=new Vector3[4];r.GetWorldCorners(c);var p=c.Select(v=>RectTransformUtility.WorldToScreenPoint(null,v)).ToArray();return new[]{p.Min(v=>v.x),p.Min(v=>v.y),p.Max(v=>v.x),p.Max(v=>v.y)};}
+float[] V3(Vector3 v){return new[]{v.x,v.y,v.z};}
+object RendererInfo(SpriteRenderer r){return new{name=r.name,sprite=r.sprite!=null?r.sprite.name:null,localPosition=V3(r.transform.localPosition),localScale=V3(r.transform.localScale),worldMin=V3(r.bounds.min),worldMax=V3(r.bounds.max)};}
+IEnumerator CapturePair(){
+ foreach(float textScale in new[]{1f,1.5f}){
+  review.SetTextScale(textScale);int initialFrame=Time.frameCount;double initialNewestMs=client.Session.Snapshots.NewestMs;
+  yield return null;yield return new WaitForSecondsRealtime(.15f);Canvas.ForceUpdateCanvases();
+  foreach(var t in UnityEngine.Object.FindObjectsByType<TMP_Text>(FindObjectsSortMode.None))if(t.isActiveAndEnabled)t.ForceMeshUpdate();
+  yield return new WaitForEndOfFrame();
+  Texture2D shot=null;
+  try{
+   int screenWidth=Screen.width,screenHeight=Screen.height;shot=ScreenCapture.CaptureScreenshotAsTexture();
+   bool watermark=UnityEngine.Object.FindObjectsByType<TMP_Text>(FindObjectsSortMode.None).Any(t=>t.isActiveAndEnabled&&t.text!=null&&t.text.Contains("STAGED UI REVIEW")&&t.text.Contains("NO NETWORK"));
+   var canvases=UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None).Where(c=>c.isActiveAndEnabled&&c.isRootCanvas).Select(c=>new{name=c.name,mode=c.renderMode.ToString(),pixelRect=new[]{c.pixelRect.x,c.pixelRect.y,c.pixelRect.width,c.pixelRect.height},scale=c.scaleFactor}).ToArray();
+   var controls=UnityEngine.Object.FindObjectsByType<Selectable>(FindObjectsSortMode.None).Where(t=>t.isActiveAndEnabled).Select(t=>{var b=BoundsOf((RectTransform)t.transform);var scroll=t.GetComponentInParent<ScrollRect>();var hits=new List<RaycastResult>();if(EventSystem.current!=null)EventSystem.current.RaycastAll(new PointerEventData(EventSystem.current){position=new Vector2((b[0]+b[2])*.5f,(b[1]+b[3])*.5f)},hits);var top=hits.Count>0?hits[0].gameObject:null;var target=top!=null?top.GetComponentInParent<Selectable>():null;return new{path=PathOf(t.transform),centerRaycastAvailable=EventSystem.current!=null,topHit=top!=null?PathOf(top.transform):null,topSelectable=target!=null?PathOf(target.transform):null,centerHitsSelf=target==t,bounds=b,width=b[2]-b[0],height=b[3]-b[1],interactable=t.IsInteractable(),inScroll=scroll!=null,insideScreen=b[0]>=-.5f&&b[1]>=-.5f&&b[2]<=screenWidth+.5f&&b[3]<=screenHeight+.5f};}).ToArray();
+   var texts=UnityEngine.Object.FindObjectsByType<TMP_Text>(FindObjectsSortMode.None).Where(t=>t.isActiveAndEnabled&&t.GetComponentInParent<Canvas>()!=null&&!string.IsNullOrWhiteSpace(t.text)).Select(t=>new{path=PathOf(t.transform),text=t.text,font=t.font!=null?t.font.name:null,fontSize=t.fontSize,autoSize=t.enableAutoSizing,overflow=t.isTextOverflowing,truncated=t.isTextTruncated,overflowMode=t.overflowMode.ToString(),bounds=BoundsOf(t.rectTransform),inScroll=t.GetComponentInParent<ScrollRect>()!=null,rect=new[]{t.rectTransform.rect.width,t.rectTransform.rect.height},preferred=new[]{t.preferredWidth,t.preferredHeight}}).ToArray();
+   var observed=new List<InterpActor>();client.Session.Snapshots.Sample(client.Session.Snapshots.NewestMs,observed);var me=client.Session.Me;
+   var anchors=observed.Where(a=>me==null||a.Id!=me.Id).Select(a=>new KeyValuePair<uint,Vector3>(a.Id,Roguehalla.Client.ArenaView.WorldPoint(a.X,a.Y))).ToList();if(me!=null)anchors.Add(new KeyValuePair<uint,Vector3>(me.Id,Roguehalla.Client.ArenaView.WorldPoint(me.X,me.Y)));
+   var camera=Camera.main;var cameraInfo=new{orthographic=camera.orthographic,orthographicSize=camera.orthographicSize,position=V3(camera.transform.position),aspect=camera.aspect};
+   var actors=UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsSortMode.None).Where(t=>t.name=="Observed actor"&&t.gameObject.activeInHierarchy).Select(t=>{var matches=anchors.Where(a=>(a.Value-t.position).sqrMagnitude<.000001f).ToArray();var sprites=t.GetComponentsInChildren<SpriteRenderer>().Where(r=>r.enabled&&r.gameObject.activeInHierarchy).ToArray();return new{rootWorldAnchor=V3(t.position),rootLocalScale=V3(t.localScale),rootLossyScale=V3(t.lossyScale),matchingDeliveredAnchorCount=matches.Length,uniqueObservedId=matches.Length==1?matches[0].Key:0,deliveredAnchor=matches.Length==1?V3(matches[0].Value):null,body=sprites.Where(r=>r.name=="Authored character").Select(RendererInfo).ToArray(),overhead=sprites.Where(r=>r.name.Contains("health")||r.name.Contains("Health")||r.name.Contains("barrier")||r.name.Contains("Barrier")||r.name.Contains("insignia")||r.name.Contains("status")||r.name.Contains("Signature")||r.name.Contains("badge")||r.name.Contains("emblem")).Select(RendererInfo).ToArray(),lights=t.GetComponentsInChildren<Light2D>(true).Select(l=>new{name=l.name,enabled=l.enabled,innerRadius=l.pointLightInnerRadius,outerRadius=l.pointLightOuterRadius,worldPosition=V3(l.transform.position),lossyScale=V3(l.transform.lossyScale),transformDerivedWorldOuterRadius=l.pointLightOuterRadius*Mathf.Max(Mathf.Abs(l.transform.lossyScale.x),Mathf.Abs(l.transform.lossyScale.y))}).ToArray()};}).ToArray();
+   string key=expectedHeight+"-"+mode+"-text"+(textScale>1.1f?"150":"100");Directory.CreateDirectory(outputFolder);File.WriteAllBytes(outputFolder+"/"+key+".png",shot.EncodeToPNG());
+   var data=new{sourceSha,mode,textScale,expectedWidth,expectedHeight,screenWidth,screenHeight,imageWidth=shot.width,imageHeight=shot.height,initialFrame,frame=Time.frameCount,advanced=Time.frameCount>initialFrame,initialNewestMs,newestMs=client.Session.Snapshots.NewestMs,ticksAdvanced=client.Session.Snapshots.NewestMs>initialNewestMs,isReady=review.IsReady,stagedWatermark=watermark,nativeDimensionsMatch=screenWidth==expectedWidth&&screenHeight==expectedHeight&&shot.width==expectedWidth&&shot.height==expectedHeight,background=Application.runInBackground,quality=ShowcaseSettings.Current.EffectiveQuality.ToString(),reducedMotion=ShowcaseSettings.Current.ReducedMotion,method="Public ScreenCapture.CaptureScreenshotAsTexture at WaitForEndOfFrame; original native PNG, no resizing",canvases,controls,texts,cameraInfo,actors};
+   File.WriteAllText(outputFolder+"/"+key+".json",JsonConvert.SerializeObject(data,Formatting.Indented));
+   if(!data.nativeDimensionsMatch||!data.isReady||!data.advanced||!data.ticksAdvanced||!watermark)throw new InvalidOperationException("Capture readiness/dimension precondition failed: "+key);
+   Debug.Log("[compact-layout-capture] "+key+" native "+shot.width+"x"+shot.height);
+  }finally{if(shot!=null)UnityEngine.Object.Destroy(shot);}
+ }
+}
+review.StartCoroutine(CapturePair());return new{requested=true,mode,expectedWidth,expectedHeight};
