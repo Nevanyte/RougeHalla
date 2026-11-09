@@ -1,0 +1,9 @@
+# sha256  bytes  path
+cb75c3fa55efc2a4a7ac917a2c6c3c46b74810423a8e7eb3004a35d0ecd32ce1  27242  crates/rh-policy/src/bots/temporal_percept.rs
+09a1bf021c1ac3dd2f72054ce38ef5cfef70447ccc3497a1554abaa5e62c8f0a  28593  crates/rh-policy/src/bots/temporal_percept/protection_cues_tests.rs
+0a8af4c8dee518e5e6bc6b31c3445dc2e5ab61e889810a830642381d9cf92e6e  45079140  parity/policy/bot-protection-cues/source.json
+9605a07568095f0377d9add0316c8fed581e1b9a725372904cedcd93ac6be3fe  5736  docs/evidence/bot-temporal-protection-cues-native/README.md
+b750d1331cb6791181f933a38f1838f58de67dfc9e60ab7e34a53ef3fb29d4ef  909  docs/evidence/bot-temporal-protection-cues-native/focused.log
+1f68ff76fa659419989be820512315541c73d8c146fa8269a4367fdb94c621d6  2589  docs/evidence/bot-temporal-protection-cues-native/regression.log
+5e54dc19891bfdbcc2ac9c8f71a122ab16b3cfb69f5e14bb4df1f690db982351  21  docs/evidence/bot-temporal-protection-cues-native/fmt.log
+62f03aa7c20bfb205be2e9c9b089aa07c7e9a99b0384ffc32b0010e3ff679bfd  204  docs/evidence/bot-temporal-protection-cues-native/clippy.log
