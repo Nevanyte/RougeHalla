@@ -129,7 +129,8 @@ namespace Roguehalla.Client
                 if (this == null || _destroying || generation != _joinGeneration || intent == null) return;
                 if (!CurrentLaunchTarget(target, faction) || !string.Equals(target.Url, intent.MatchUrl, StringComparison.Ordinal)) { AccountUiError = "The connection changed. Start your run again."; return; }
                 if (!AccountFlow.CanJoin(intent)) return;
-                JoinCore(intent.Account.CanonicalName, faction, target, intent.Account.Token, generation);
+                var settlementAccess = target.Mode == MatchLaunchMode.Arena ? AccountOwner.Api?.CaptureSettlementAccess(intent) : null;
+                JoinCore(intent.Account.CanonicalName, faction, target, intent.Account.Token, generation, settlementAccess);
                 if (this == null || generation != _joinGeneration) return;
                 try { PlayerPrefs.SetString("rh.ui.profile", intent.Account.CanonicalName); PlayerPrefs.Save(); } catch { }
             }

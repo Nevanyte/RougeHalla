@@ -1,0 +1,47 @@
+{
+  "gateSource": "305a45ced95b091e9b920b14251542788b91189c",
+  "productionSource": "17b0f6401d730012f5e3580d2a59ed805e369fdc",
+  "status": "Source pins only. Import/load/MVID must be observed at the coordinator-selected frozen Editor source.",
+  "fixtures": [
+    {
+      "fixture": "QuestJournalViewEditModeTests",
+      "sourcePath": "client-unity/UnityProject/Assets/Tests/Editor/QuestJournalViewEditModeTests.cs",
+      "sourceSHA256": "a227e72035a95c76998a8e715eea197e54bf28de37ade69998404830186a9508",
+      "metaPath": "client-unity/UnityProject/Assets/Tests/Editor/QuestJournalViewEditModeTests.cs.meta",
+      "metaSHA256": "fbf0d2abab7d153e486a3ebe28f86196f290df10a6c0d3da03e5fab70a2110a5",
+      "guid": "629434afa706419fbb9172e17b76ce43"
+    },
+    {
+      "fixture": "TraderDialogViewEditModeTests",
+      "sourcePath": "client-unity/UnityProject/Assets/Tests/Editor/TraderDialogViewEditModeTests.cs",
+      "sourceSHA256": "74f08af89ac872699567c2fe7ecc5451bdc3ffa94f6df48ec60abda813bb66cb",
+      "metaPath": "client-unity/UnityProject/Assets/Tests/Editor/TraderDialogViewEditModeTests.cs.meta",
+      "metaSHA256": "5dbe763a1b42575f08e6837a4e35ff5bfde5735ce102d50757e90e5a32c9f5c8",
+      "guid": "fbeed4975d944443b6c6f34fe85c6d32"
+    },
+    {
+      "fixture": "PlayerFlowsEditModeTests",
+      "sourcePath": "client-unity/UnityProject/Assets/Tests/Editor/PlayerFlowsEditModeTests.cs",
+      "sourceSHA256": "d3b75829d5fb35708b328eeaa95d3975c0369cc287195db330dfbe2a7bb11c26",
+      "metaPath": "client-unity/UnityProject/Assets/Tests/Editor/PlayerFlowsEditModeTests.cs.meta",
+      "metaSHA256": "04c5f186600e28ada6ea8cecdd2f7be79b5cb21f1abeec8a8dce0242e642123e",
+      "guid": "2695dbaec0cf4aa3b68c217e1e45dd55"
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "sourcePath": "client-unity/UnityProject/Assets/Tests/Editor/MatchLaunchEditModeTests.cs",
+      "sourceSHA256": "1df70730e10dd3a3ea82365cd88db15a2fa631f313d4b168cbdbfe47e5c3323a",
+      "metaPath": "client-unity/UnityProject/Assets/Tests/Editor/MatchLaunchEditModeTests.cs.meta",
+      "metaSHA256": "8acab4f6bfac7f69d1d75a36eb4013e2202fe3567749fa49fca9ede4abeed365",
+      "guid": "fcfb3901a322446bbd5299b1e19524d6"
+    },
+    {
+      "fixture": "MatchSettlementEditModeTests",
+      "sourcePath": "client-unity/UnityProject/Assets/Tests/Editor/MatchSettlementEditModeTests.cs",
+      "sourceSHA256": "14687029f4673d872ad7bb4e089abcf8cd519c95375f432e145db0948d53824a",
+      "metaPath": "client-unity/UnityProject/Assets/Tests/Editor/MatchSettlementEditModeTests.cs.meta",
+      "metaSHA256": "37bb54f6e6eebe078359fc9b3cc4533942ff9fc8525fe0c9bf1958dab2b26745",
+      "guid": "974cc763730f4c7daa0ad5e2a62a01a6"
+    }
+  ]
+}

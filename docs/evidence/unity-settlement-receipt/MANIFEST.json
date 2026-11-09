@@ -1,0 +1,152 @@
+{
+  "sourceCommit": "17b0f6401d730012f5e3580d2a59ed805e369fdc",
+  "algorithm": "SHA-256",
+  "manifestExcludesItself": true,
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 7483,
+      "sha256": "f7f8e778f9e43dc29663a76b97165c81f5f986d3d9d2eff06192b8955318ff1a"
+    },
+    {
+      "path": "compile-profiles/editor/Client.csproj",
+      "bytes": 37881,
+      "sha256": "7e28a00b7df8cb63b3cfac23387fcc99fbdbf98294b0cf6d5a33c09c151718a4"
+    },
+    {
+      "path": "compile-profiles/editor/Tests.csproj",
+      "bytes": 38404,
+      "sha256": "3d530e13ca0845a37c642eca6bf1bac8727bcebe6430802f43d2a426af71d3ee"
+    },
+    {
+      "path": "compile-profiles/player/Client.csproj",
+      "bytes": 37868,
+      "sha256": "a5819552374337a2899bfa13a6ce602b281dcf1f5744da2e7f230a79b0707743"
+    },
+    {
+      "path": "logs/editor-client-build.stdout.log",
+      "bytes": 420,
+      "sha256": "546ea91b5d6b512a04cc112c35102b8c214167775c6ab93c5d79b7e1c0e169c9"
+    },
+    {
+      "path": "logs/editor-client-final.stdout.log",
+      "bytes": 569,
+      "sha256": "c2bdc3b26a48f2cfc10469a3cbba5ace843c2cd6c86765523e4fa826bbfd4759"
+    },
+    {
+      "path": "logs/editor-fixture-metadata.json",
+      "bytes": 8210,
+      "sha256": "418a24de7bc5d39b0283df61c5afa5c43e1f2f4f621e1d68381da0bc6349d3ad"
+    },
+    {
+      "path": "logs/editor-fixture-metadata.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/editor-tests-build.stdout.log",
+      "bytes": 1161,
+      "sha256": "492d7d6c4f1aef1d9b66f111e61fbe79b905b92cc75afa9264c47c102d629e56"
+    },
+    {
+      "path": "logs/editor-tests-final.stdout.log",
+      "bytes": 1305,
+      "sha256": "05827c2e3d08457470267c308e4dbe16d969bdbf885381dda0b6e4532bfb2292"
+    },
+    {
+      "path": "logs/evidence-preparation-notes.json",
+      "bytes": 683,
+      "sha256": "003f93dcf2ddf8a8cc0901a9f2bd081325e403689e5c8b2338ee576f2f096c3f"
+    },
+    {
+      "path": "logs/full-suite-final.stdout.log",
+      "bytes": 1156,
+      "sha256": "eb0731bde79fed3623b77e507fde3e20a02a379c97433f0b4f81b7d9a30fc4d5"
+    },
+    {
+      "path": "logs/full-suite-sealed.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/full-suite-sealed.stdout.log",
+      "bytes": 1157,
+      "sha256": "42d8532065c35d5a5b51e843bcf1282a402adecee18675ba4969a754dc503fde"
+    },
+    {
+      "path": "logs/full-suite.stdout.log",
+      "bytes": 1150,
+      "sha256": "59e723a4871245805a66ea26c9505712152aca6c0ea7c8a6f2abab589c1f8dae"
+    },
+    {
+      "path": "logs/player-client-build.stdout.log",
+      "bytes": 420,
+      "sha256": "8da736b634a1f04c49be348df6e046660eec89f753fd63f273841bf577ad2ee4"
+    },
+    {
+      "path": "logs/player-client-final.stdout.log",
+      "bytes": 481,
+      "sha256": "b451e0f37f06c4984e31330f11247c564cda3f3dfc3bb3dfef3dd74cc9bf7413"
+    },
+    {
+      "path": "logs/settlement-focused-final.stdout.log",
+      "bytes": 1161,
+      "sha256": "8bbf5c18624140dbec5617408bd77b7b95daa97179be24596cfaeddff821e21b"
+    },
+    {
+      "path": "logs/settlement-focused-final.trx",
+      "bytes": 67142,
+      "sha256": "43144a22fac4b2e57ad8a9064a13c38f570d8c5374a75452afa95509e434dafb"
+    },
+    {
+      "path": "logs/settlement-full-final.trx",
+      "bytes": 1130135,
+      "sha256": "dfc1aede99683a46b65a563e8db215dfe51bebee7b96ca304574e86fb4d495da"
+    },
+    {
+      "path": "logs/settlement-full-sealed.trx",
+      "bytes": 1145561,
+      "sha256": "2e0c18e7ba3c26cd42b6dfe15f0b4aa5b873737cbb55e8be06f42979c221a721"
+    },
+    {
+      "path": "logs/settlement-full.trx",
+      "bytes": 1123201,
+      "sha256": "a8e3d9efc6390d4dac9dfe6b21a825317cf85404140cf0fae4998dcff18af210"
+    },
+    {
+      "path": "logs/source-checks.json",
+      "bytes": 10664,
+      "sha256": "f80981ac668252be65f159942ff45f81961bdb5260f93feeb5df28903256eedc"
+    },
+    {
+      "path": "logs/source-inputs-final.json",
+      "bytes": 34826,
+      "sha256": "ceada300615ee0425583b78691c9310dff7b90b84a47bfe0a45569dbe0ae11b3"
+    },
+    {
+      "path": "logs/source-inputs-sealed.json",
+      "bytes": 34904,
+      "sha256": "1e9f5977f6c5b8909bc48d0fd9f0a41e8d4bd18927dad81051189130b67e1806"
+    },
+    {
+      "path": "metadata-inspector/Inspect.csproj",
+      "bytes": 401,
+      "sha256": "61361d5d9a1c625bc2431506bf93754ab0547db0bb66806c59ede6685b006014"
+    },
+    {
+      "path": "metadata-inspector/Program.cs",
+      "bytes": 1469,
+      "sha256": "25ebae77dc33e4cc70e8303744a5e723024f98e53dcbfe9ac9ec8161c322b1bb"
+    },
+    {
+      "path": "receipt.json",
+      "bytes": 3008,
+      "sha256": "a51d7ae5a133253a0af027ef369aa3d1cf893b22d4f1a6c25f49762958ceecc4"
+    },
+    {
+      "path": "validation-summary.json",
+      "bytes": 13303,
+      "sha256": "30b39d2851cfadc6d3948ae06fea12080c00b729ff7d562524345a45c0c434a9"
+    }
+  ]
+}

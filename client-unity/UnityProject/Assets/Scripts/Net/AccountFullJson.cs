@@ -82,6 +82,73 @@ namespace Roguehalla.Client
             return result;
         }
 
+        static void ExactFields(JObject value, params string[] names)
+        {
+            if (value.Count != names.Length) throw new FormatException();
+            foreach (JProperty property in value.Properties())
+            {
+                bool found = false;
+                for (int i = 0; i < names.Length; i++)
+                    if (string.Equals(property.Name, names[i], StringComparison.Ordinal)) { found = true; break; }
+                if (!found) throw new FormatException();
+            }
+        }
+
+        const long MaxSafeJsonInteger = 9007199254740991L;
+
+        /// <summary>Strict parser for the versioned, read-only match settlement receipt.</summary>
+        public static bool TrySettlement(string json, string expectedMatchId, out AccountSettlement settlement)
+        {
+            settlement = null;
+            try
+            {
+                if (!AccountSettlementId.IsCanonicalLower(expectedMatchId)) throw new FormatException();
+                JObject root = Object(Load(json));
+                string status = String(Required(root, "status"));
+                ExactFields(root, status == "unknown" ? new[] { "v", "matchId", "status" } :
+                    status == "committed" ? new[] { "v", "matchId", "status", "settlement" } : System.Array.Empty<string>());
+                if (root.Count == 0 || Integer(Required(root, "v")) != 1) throw new FormatException();
+                string matchId = String(Required(root, "matchId"));
+                if (!AccountSettlementId.IsCanonicalLower(matchId) || !string.Equals(matchId, expectedMatchId, StringComparison.Ordinal)) throw new FormatException();
+
+                if (status == "unknown")
+                {
+                    settlement = new AccountSettlement(1, matchId, AccountSettlementStatus.Unknown);
+                    return true;
+                }
+
+                JObject receipt = Object(Required(root, "settlement"));
+                ExactFields(receipt, "outcome", "gvCredited");
+                JToken outcomeToken = Required(receipt, "outcome");
+                AccountSettlementOutcome? outcome = null;
+                if (outcomeToken.Type != JTokenType.Null)
+                {
+                    string outcomeName = String(outcomeToken);
+                    outcome = outcomeName == "won" ? AccountSettlementOutcome.Won :
+                        outcomeName == "draw" ? AccountSettlementOutcome.Draw :
+                        outcomeName == "died" ? AccountSettlementOutcome.Died :
+                        outcomeName == "mia" ? AccountSettlementOutcome.Mia :
+                        throw new FormatException();
+                }
+                long gvCredited = Integer(Required(receipt, "gvCredited"));
+                if (gvCredited > MaxSafeJsonInteger) throw new FormatException();
+                settlement = new AccountSettlement(1, matchId, AccountSettlementStatus.Committed, outcome, gvCredited);
+                return true;
+            }
+            catch (Exception error) when (Malformed(error)) { settlement = null; return false; }
+        }
+
+        /// <summary>Dispatch a GET body by its explicit API read kind; payload shape never selects the decoder.</summary>
+        public static bool TryApiRead(AccountApiReadKind kind, string json, string expectedMatchId,
+            out AccountLeaderboard leaderboard, out AccountSettlement settlement)
+        {
+            leaderboard = null;
+            settlement = null;
+            if (kind == AccountApiReadKind.Leaderboard) return TryLeaderboard(json, out leaderboard);
+            if (kind == AccountApiReadKind.Settlement) return TrySettlement(json, expectedMatchId, out settlement);
+            return false;
+        }
+
         static AccountFullProfile Profile(JToken token)
         {
             JObject p = Object(token), stats = Object(Required(p, "stats")), cosmetics = Object(Required(p, "cosmetics")), progress = Object(Required(p, "progress"));

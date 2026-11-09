@@ -1,0 +1,225 @@
+{
+  "sourceCommit": "17b0f6401d730012f5e3580d2a59ed805e369fdc",
+  "sourceParent": "68749a80cde1704326e65e4cb8982d7475b42302",
+  "frozenLaunchGate": "854a08f1d622e931eff40eba40ba3820cbe040da",
+  "publicMainMerged": "1a1ac8d70b323ac7159d60dea336e89e7b56389e",
+  "sourceFilesChanged": 19,
+  "changedFiles": [
+    {
+      "path": "client-unity/RoguehallaNet.Tests/AccountSettlementApiTests.cs",
+      "sha256": "e783f0ad976efb978edf231718bd78fec29a668cfd50d71de59839fcae95466f"
+    },
+    {
+      "path": "client-unity/RoguehallaNet.Tests/AccountSettlementJsonTests.cs",
+      "sha256": "deca625cad4e0ebe6d3ff3499115f1b47f9686506e997a83fe86a4eb9e8764e8"
+    },
+    {
+      "path": "client-unity/RoguehallaNet.Tests/AccountSettlementTests.cs",
+      "sha256": "b607677deed3d4303ecd4c3396f43b7d21120ded4a97a5dc6b27039904bcce30"
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Net/AccountApiService.cs",
+      "sha256": "19c87d88b4dcefc8c00f38be7965fbabaaa8d3020af4d11770ee74871f262963"
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Net/AccountSettlement.cs",
+      "sha256": "c05a9c126f64c6712ffcfc0b9e062003fa7dd0d76a96ac5f39aae58591ac0ca7"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountApiService.cs",
+      "sha256": "19c87d88b4dcefc8c00f38be7965fbabaaa8d3020af4d11770ee74871f262963"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountSettlement.cs",
+      "sha256": "c05a9c126f64c6712ffcfc0b9e062003fa7dd0d76a96ac5f39aae58591ac0ca7"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountSettlement.cs.meta",
+      "sha256": "104e431888be5bd49458dbb64bec1011a568e79a4e6158a01eb3ddb9e2b33dc9"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/AccountFullJson.cs",
+      "sha256": "6f6ff0e91a4c61e9dcbf489fa37a6f0a7e963cd3a9d47fb454fec455bed437b8"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/MatchClient.Accounts.cs",
+      "sha256": "245a3b4c6b69ceb6c184a07d9026b25d6fad16a04000cf97b91e3fd3e570f145"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/MatchClient.Settlement.cs",
+      "sha256": "19a4f05790c0d3602f39bd682d0aae84e59471309ce5d6bda0ad80c6dc306017"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/MatchClient.Settlement.cs.meta",
+      "sha256": "0d4beedfa7a54ba0f542d3a98ba8312ceea5c1ba1ef73d6f9d429d1059411cfe"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/MatchClient.cs",
+      "sha256": "2d25f5068c1e0c11987e0275f6c34240fe116349c40b338e5ad5aacf4c21b4f0"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/UnityAccountTransport.cs",
+      "sha256": "25d33357fee851778b1e71b85bc810c0ee8b25175e6e98f0e794e36de7aac662"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.Settlement.cs",
+      "sha256": "5da8db09ecaf8d4831cfa86c654ad33c0aefc513af7d8ff1cdca4ce18ad507fc"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.Settlement.cs.meta",
+      "sha256": "7a6ddd31c98950e3a036b3c75ac7eeeff23b0b3b94f21f1f09f2c80d0564a2c2"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.cs",
+      "sha256": "72e8765d5b9962cff90dba2d463a9937c24ed5ac7b02df2cba1bebc6c3c9705a"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/MatchSettlementEditModeTests.cs",
+      "sha256": "69e1209ae73d87fa2aa6f971f9ab191758f35939878c14d0b91865b59071d128"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/MatchSettlementEditModeTests.cs.meta",
+      "sha256": "37bb54f6e6eebe078359fc9b3cc4533942ff9fc8525fe0c9bf1958dab2b26745"
+    }
+  ],
+  "preexistingEditorSourceFilesUnchanged": 30,
+  "oldEngineCasesPreserved": 42,
+  "newEngineCasesSourceDeclared": 22,
+  "newEngineStatus": "UNRUN",
+  "allEngineStatusAtNewSource": "UNRUN",
+  "protectedFilesUnchanged": [
+    "client-unity/RoguehallaNet/Net/Session.cs",
+    "client-unity/UnityProject/Assets/RoguehallaNet/Net/Session.cs",
+    "client-unity/RoguehallaNet.Tests/AllocationMeasurementTests.cs",
+    "client-unity/RoguehallaNet.Tests/GarbageTests.cs",
+    "Cargo.lock",
+    "docs/MIGRATION.md",
+    "docs/CONTRACTS.md"
+  ],
+  "mirrors": [
+    {
+      "source": "client-unity/RoguehallaNet/Net/AccountHubFlow.cs",
+      "mirror": "client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountHubFlow.cs",
+      "sha256": "1e8b7376d97f1117c90b6924e9ed632ab984fee6cfe60d9a14996a981614294f"
+    },
+    {
+      "source": "client-unity/RoguehallaNet/Net/InputSender.cs",
+      "mirror": "client-unity/UnityProject/Assets/RoguehallaNet/Net/InputSender.cs",
+      "sha256": "4ce61f207cc84a11c0ccf38af3de1a1ffc7f2f8c2263833372c384f406803a3e"
+    },
+    {
+      "source": "client-unity/RoguehallaNet/Net/SnapshotBuffer.cs",
+      "mirror": "client-unity/UnityProject/Assets/RoguehallaNet/Net/SnapshotBuffer.cs",
+      "sha256": "f70ae37dbf15116f97757708c30405d27c510b1bd2ed7abeeccd3dcf89c9ee76"
+    },
+    {
+      "source": "client-unity/RoguehallaNet/Net/Session.cs",
+      "mirror": "client-unity/UnityProject/Assets/RoguehallaNet/Net/Session.cs",
+      "sha256": "542d39bd04c640f50ab9422eb6cb97e121168a56b57c9a223a16e7273b4d8081"
+    },
+    {
+      "source": "client-unity/RoguehallaNet/Net/Pathfinder.cs",
+      "mirror": "client-unity/UnityProject/Assets/RoguehallaNet/Net/Pathfinder.cs",
+      "sha256": "841a12fe5fef246778470ee33b44221d38833593f53c1c68c333a99290ad63f8"
+    },
+    {
+      "source": "client-unity/RoguehallaNet/Net/AccountConnectionPolicy.cs",
+      "mirror": "client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountConnectionPolicy.cs",
+      "sha256": "01926dd46698587c72a1ed8a58efca88f915a77dcc6bccb33d85c8ac3666addf"
+    },
+    {
+      "source": "client-unity/RoguehallaNet/Net/AccountApiService.cs",
+      "mirror": "client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountApiService.cs",
+      "sha256": "19c87d88b4dcefc8c00f38be7965fbabaaa8d3020af4d11770ee74871f262963"
+    },
+    {
+      "source": "client-unity/RoguehallaNet/Net/RenderClock.cs",
+      "mirror": "client-unity/UnityProject/Assets/RoguehallaNet/Net/RenderClock.cs",
+      "sha256": "b80eb3874050c27e5e1593c19f590000c61ab92b51f88808e0db6900bd22eafe"
+    },
+    {
+      "source": "client-unity/RoguehallaNet/Net/AccountSettlement.cs",
+      "mirror": "client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountSettlement.cs",
+      "sha256": "c05a9c126f64c6712ffcfc0b9e062003fa7dd0d76a96ac5f39aae58591ac0ca7"
+    },
+    {
+      "source": "client-unity/RoguehallaNet/Net/MatchPhase.cs",
+      "mirror": "client-unity/UnityProject/Assets/RoguehallaNet/Net/MatchPhase.cs",
+      "sha256": "6e7592981ef5af18d21bf4457ae7bf47c6fc9fba86d498d81c63f64bc3da4631"
+    },
+    {
+      "source": "client-unity/RoguehallaNet/Net/AccountContracts.cs",
+      "mirror": "client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountContracts.cs",
+      "sha256": "18bec6531adbffa52e1940ae51df64c02ac8d02cc54878fbf4796767976dcc73"
+    },
+    {
+      "source": "client-unity/RoguehallaNet/Net/AccountSession.cs",
+      "mirror": "client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountSession.cs",
+      "sha256": "07967e10b4c9e0f06ddde6b81cb8a1fb874be287554e837d164e8521ba45555b"
+    },
+    {
+      "source": "client-unity/RoguehallaNet/Net/AccountEndpoint.cs",
+      "mirror": "client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountEndpoint.cs",
+      "sha256": "42caa0a8bb22fe674370f045324bd5faf2393b22d3b0ccc4246c91af859c7d58"
+    },
+    {
+      "source": "client-unity/RoguehallaNet/Net/AccountFullProfile.cs",
+      "mirror": "client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountFullProfile.cs",
+      "sha256": "5f2427cd74f7dc3076fed74d0b2abbfe4f741ad5f623369776e2b3af384909a8"
+    },
+    {
+      "source": "client-unity/RoguehallaNet/Net/Views.cs",
+      "mirror": "client-unity/UnityProject/Assets/RoguehallaNet/Net/Views.cs",
+      "sha256": "f023dfbb38d0b71bbcb5c664edf12ba8b33f1c3db30d4dee8b1c00fa0776ee37"
+    },
+    {
+      "source": "client-unity/RoguehallaNet/Net/LocalMotion.cs",
+      "mirror": "client-unity/UnityProject/Assets/RoguehallaNet/Net/LocalMotion.cs",
+      "sha256": "85b1e2e31584b1909a2e175af53d5914009257645ce7f7f31d815327f9157516"
+    },
+    {
+      "source": "client-unity/RoguehallaNet/Net/ClockSync.cs",
+      "mirror": "client-unity/UnityProject/Assets/RoguehallaNet/Net/ClockSync.cs",
+      "sha256": "46e6e707b2264831b8ea60c059a6fd8049dab23c7f08557fc204eb737325befd"
+    },
+    {
+      "source": "client-unity/RoguehallaNet/Net/Collections.cs",
+      "mirror": "client-unity/UnityProject/Assets/RoguehallaNet/Net/Collections.cs",
+      "sha256": "3cc99026504414f6581ebff1ba4d6cc32b185bacb2fe8731fe9363050f6c7ce3"
+    },
+    {
+      "source": "client-unity/RoguehallaNet/Net/AccountRequestHeaders.cs",
+      "mirror": "client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountRequestHeaders.cs",
+      "sha256": "ee3870bd8c5e1727905ee1c03f52037b529951ec67a55fef0c17e1d652d3bfff"
+    },
+    {
+      "source": "client-unity/RoguehallaNet/Net/Ui/HubAtriumMotion.cs",
+      "mirror": "client-unity/UnityProject/Assets/RoguehallaNet/Net/Ui/HubAtriumMotion.cs",
+      "sha256": "3887149029c8275fd3f4e3db2ed9f4d35e4cf9697a21a86b41744c8a56b125de"
+    },
+    {
+      "source": "client-unity/RoguehallaNet/Net/Ui/UiInputGate.cs",
+      "mirror": "client-unity/UnityProject/Assets/RoguehallaNet/Net/Ui/UiInputGate.cs",
+      "sha256": "77cca9c584bfd6558983e316aa54b84a0636885ab4962eea1e6ca136da0fb70c"
+    },
+    {
+      "source": "client-unity/RoguehallaNet/Net/Ui/RouteState.cs",
+      "mirror": "client-unity/UnityProject/Assets/RoguehallaNet/Net/Ui/RouteState.cs",
+      "sha256": "daa9eeba0adc1bfe18e5df5975eb350ca4faae5c2990f602788533c85d883b00"
+    },
+    {
+      "source": "client-unity/RoguehallaNet/Net/Ui/MinimapGesture.cs",
+      "mirror": "client-unity/UnityProject/Assets/RoguehallaNet/Net/Ui/MinimapGesture.cs",
+      "sha256": "36f064cb153d3ed988cc482651e797fe9e5a69d69a7189d8b96886bc70e68e24"
+    },
+    {
+      "source": "client-unity/RoguehallaNet/Net/Ui/PlanningSelections.cs",
+      "mirror": "client-unity/UnityProject/Assets/RoguehallaNet/Net/Ui/PlanningSelections.cs",
+      "sha256": "6c3c7488df69d0f3c92f2a54d000a15c3d20a3a9d687911114a14f7622664273"
+    }
+  ],
+  "profileInputDifferenceAfterFinalCompile": [
+    "client-unity/RoguehallaNet.Tests/AccountSettlementJsonTests.cs"
+  ],
+  "differenceReason": "Only eight additional malformed JSON test attributes; the final full 822-case run compiled and executed that test source. Net/Scripts/Editor test compilation inputs are unchanged."
+}

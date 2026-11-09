@@ -1,0 +1,99 @@
+{
+  "gateSource": "305a45ced95b091e9b920b14251542788b91189c",
+  "productionImplementationSource": "17b0f6401d730012f5e3580d2a59ed805e369fdc",
+  "algorithm": "SHA-256",
+  "manifestExcludesItself": true,
+  "engineStatus": "UNRUN",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 7241,
+      "sha256": "87c7076f839c86563b7765252042bf0d298f64a1e4f11d17075d94d5011569c6"
+    },
+    {
+      "path": "all-fixture-metadata.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "editor-tests-build.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "editor-tests-build.stdout.log",
+      "bytes": 1047,
+      "sha256": "a5ccaa6fbedebf28d1b8ac9aa668adfaf74e0be0d5d2483f3140c407b44b3597"
+    },
+    {
+      "path": "fixture-source-identities.json",
+      "bytes": 2718,
+      "sha256": "d3a536f8f535722dd12018f05421113533a992d55459d1e921afed3d056e7481"
+    },
+    {
+      "path": "metadata-extractor/MetadataExtractor.csproj",
+      "bytes": 401,
+      "sha256": "61361d5d9a1c625bc2431506bf93754ab0547db0bb66806c59ede6685b006014"
+    },
+    {
+      "path": "metadata-extractor/Program.cs",
+      "bytes": 4296,
+      "sha256": "4d47ff9ddf851b82743fb56e3059bb5caa09d337ce1440d4b9769a757fca9d31"
+    },
+    {
+      "path": "name-format-proof.json",
+      "bytes": 4525,
+      "sha256": "72dfe9d5b2aa733a36571dcef7939dc72e1b7af50bf1a0ba1f0c63c3eab72ccf"
+    },
+    {
+      "path": "name-formatter/NameFormatter.csproj",
+      "bytes": 423,
+      "sha256": "9d36622d1fbd8716167c4beab8cf271010a4ce14ffd26c77560caaf5d7e14043"
+    },
+    {
+      "path": "name-formatter/Program.cs.gz",
+      "bytes": 1129,
+      "sha256": "b1a370f1fcfb643025c2eaf21948bc47180e7dda6745e2cc0565906a42606f99"
+    },
+    {
+      "path": "native-selectors.txt",
+      "bytes": 6841,
+      "sha256": "ce382110be4e549c9a626400c5fb024cc02756dbba31755f657ac2407e60f32d"
+    },
+    {
+      "path": "new22-metadata.json",
+      "bytes": 14632,
+      "sha256": "b12cf8690f4dd0cf08433fbaebc73f6aebcf4ef49bab00b288cd6471a3d60882"
+    },
+    {
+      "path": "new22-selectors.txt",
+      "bytes": 2121,
+      "sha256": "77aaa7ce07e566fffde0519fb31b8e4db597954020b55dea8586574578a65650"
+    },
+    {
+      "path": "proposed-contract.json",
+      "bytes": 57479,
+      "sha256": "ef9a90520b94bfa438a7c2279d12c2a329215daf54e140532ec11171810c7acf"
+    },
+    {
+      "path": "source-checks.json",
+      "bytes": 1245,
+      "sha256": "9ae60e9aefcaf247e25b70e5bc0fb47d7a84d75418f72d6d4f2f91f5caf1bef7"
+    },
+    {
+      "path": "source-inputs.json",
+      "bytes": 34834,
+      "sha256": "5ad602db3b04e912f74369cf8ec56c0b62a2e9dc621de81916ea80e1e24f75c3"
+    },
+    {
+      "path": "typed-fixture-contract.json",
+      "bytes": 56808,
+      "sha256": "7acc8bcae6f20aff335ed202198ea08a1eff106314a07300aaf06fbbfc645390"
+    },
+    {
+      "path": "unchanged-old42-selectors.json",
+      "bytes": 5736,
+      "sha256": "e2cb54e10f47923f9b4532e406df07b771f09748a2b038533f4681feb7b8ca3c"
+    }
+  ]
+}

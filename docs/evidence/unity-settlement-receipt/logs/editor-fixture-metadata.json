@@ -1,0 +1,254 @@
+{
+  "purpose": "Metadata-only inspection. No test or Unity API invocation.",
+  "assembly": "Roguehalla.Client.EditModeTests",
+  "mvid": "12f0707c-4748-4849-aa36-74c7f93279ac",
+  "fixtures": [
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "sourceDeclaredCasesInCompiledMetadata": 17,
+      "status": "UNRUN",
+      "methods": [
+        {
+          "name": "MissingTrainingNeverFallsBackOrStartsAnOwnershipRequest",
+          "caseCount": 1
+        },
+        {
+          "name": "CrossOriginTrainingCannotSendOwnerCredentialsOrStartAClaim",
+          "caseCount": 1
+        },
+        {
+          "name": "SwitchingModeWhileOwnerReplyIsDeferredInvalidatesTheOldIntent",
+          "caseCount": 1
+        },
+        {
+          "name": "RapidModeChangesOnlyConnectTheCurrentOwnerIntentToItsCapturedTarget",
+          "caseCount": 1
+        },
+        {
+          "name": "EditingTrainingTargetDuringOwnerRequestCannotUseItsCapturedToken",
+          "caseCount": 1
+        },
+        {
+          "name": "SynchronousFactionCancellationCannotOverwriteOrRelaunchANewerMode",
+          "caseCount": 1
+        },
+        {
+          "name": "LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation",
+          "caseCount": 2
+        },
+        {
+          "name": "OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot",
+          "caseCount": 2
+        },
+        {
+          "name": "WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput",
+          "caseCount": 2
+        },
+        {
+          "name": "ReconnectWelcomeRevokesConfirmationAndRequiresANewMatchingFact",
+          "caseCount": 1
+        },
+        {
+          "name": "RetiredCallbacksCannotResetOrRefuseANewerSession",
+          "caseCount": 1
+        },
+        {
+          "name": "ReentrantLeaveCallbackCannotHaveItsReplacementCancelledOrArenaDestroyed",
+          "caseCount": 1
+        },
+        {
+          "name": "PendingMenuAndPracticeCopyFollowDeliveredFactAndPlayAgainPreservesTraining",
+          "caseCount": 1
+        },
+        {
+          "name": "EndingBeforeTheFirstModeFactUnlocksRecoveryAndLeavePermitsAnotherDestination",
+          "caseCount": 1
+        }
+      ]
+    },
+    {
+      "fixture": "MatchSettlementEditModeTests",
+      "sourceDeclaredCasesInCompiledMetadata": 22,
+      "status": "UNRUN",
+      "methods": [
+        {
+          "name": "GenuineResultBeforeModeConfirmationNeedsAnAcceptedOwnedArenaFactAndExplicitCheck",
+          "caseCount": 1
+        },
+        {
+          "name": "AcceptedArenaWithoutAGenuineResultNeverSendsAReceiptRead",
+          "caseCount": 1
+        },
+        {
+          "name": "AcceptedTrainingWithAGenuineResultNeverQueriesOrClaimsSavedCredit",
+          "caseCount": 1
+        },
+        {
+          "name": "CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference",
+          "caseCount": 3
+        },
+        {
+          "name": "UnknownOnlyBurstHasThreeSequentialReadsAtTwoAndFiveSecondsAndManualCooldown",
+          "caseCount": 1
+        },
+        {
+          "name": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved",
+          "caseCount": 5
+        },
+        {
+          "name": "TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst",
+          "caseCount": 2
+        },
+        {
+          "name": "ReconnectCannotRestartOrClaimUntilAFreshSameMatchArenaFactAndManualAction",
+          "caseCount": 1
+        },
+        {
+          "name": "DifferentWelcomeCannotPairRetainedLastResultWithANewMatchUuid",
+          "caseCount": 1
+        },
+        {
+          "name": "DuplicateDecodedResultFencesTheOldIdentityWithoutReplenishingAutomaticBudget",
+          "caseCount": 1
+        },
+        {
+          "name": "OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError",
+          "caseCount": 2
+        },
+        {
+          "name": "LeaveIsImmediateAndRetiredCallbacksCannotTouchTheReplacementResults",
+          "caseCount": 1
+        },
+        {
+          "name": "LeavingDuringUnknownDelayCancelsTheTimerAndDoesNotSendAnotherRequest",
+          "caseCount": 1
+        },
+        {
+          "name": "ResultsRowUsesActualReceiptStateAndNeverBlocksReturnToMenu",
+          "caseCount": 1
+        }
+      ]
+    },
+    {
+      "fixture": "PlayerFlowsEditModeTests",
+      "sourceDeclaredCasesInCompiledMetadata": 11,
+      "status": "UNRUN",
+      "methods": [
+        {
+          "name": "ReceivedNoticeOrderIncludesDuplicatesAndResumeClearsBeforeNewBatch",
+          "caseCount": 1
+        },
+        {
+          "name": "InFlightOldSessionNoticeCallbackCannotAppendAfterRebind",
+          "caseCount": 1
+        },
+        {
+          "name": "InFlightSameSessionNoticeCallbackCannotCrossSourceClockCutAndNewEpochKeepsDuplicates",
+          "caseCount": 1
+        },
+        {
+          "name": "OrdinaryMixedQuestTradeQueueSplitsAtSixteenWithoutUiGeneratedCommands",
+          "caseCount": 1
+        },
+        {
+          "name": "DeliveredMapPointsReplaceWithoutActorFabricationOrNameDeduplication",
+          "caseCount": 1
+        },
+        {
+          "name": "MalformedFrameRetainsCanonicalViewButInvalidQuestItemReferenceFailsAndDisablesActions",
+          "caseCount": 1
+        },
+        {
+          "name": "JournalKeyboardOwnsSimultaneousMapAndWorldKeysAndRespectsExistingModals",
+          "caseCount": 1
+        },
+        {
+          "name": "PlanningQuestReviewPreservesMapChoicesAndFocusWhileBlockingOtherPagesAndWorldKeys",
+          "caseCount": 1
+        },
+        {
+          "name": "PlanningPreviewRetiresDeferredAcceptAndWaitsForFreshNativePermission",
+          "caseCount": 1
+        },
+        {
+          "name": "PlanningJournalDropAndResumedWelcomeClearRowsAndRestoreMapInput",
+          "caseCount": 1
+        },
+        {
+          "name": "PlanningJournalRespectsSettingsAndFocusedTextEntry",
+          "caseCount": 1
+        }
+      ]
+    },
+    {
+      "fixture": "QuestJournalViewEditModeTests",
+      "sourceDeclaredCasesInCompiledMetadata": 8,
+      "status": "UNRUN",
+      "methods": [
+        {
+          "name": "UnseenUnavailableAndAvailableEmptyAreDistinctAndRowsPreserveExactServerText",
+          "caseCount": 1
+        },
+        {
+          "name": "MaximumLengthServerStringsRemainVerbatimInScrollableFixedSizeTextFields",
+          "caseCount": 1
+        },
+        {
+          "name": "ReplacementPreservesSelectedHandleAndScrollButClearsRemovedSelectionAndTracking",
+          "caseCount": 1
+        },
+        {
+          "name": "OldAcceptTrackAndRowCallbacksCannotActAfterReplacementBeforeRefresh",
+          "caseCount": 1
+        },
+        {
+          "name": "MetadataReplacementPreservesScrollPositionWhenRowsOverflowViewport",
+          "caseCount": 1
+        },
+        {
+          "name": "SelectedParticipantsUseTypedRosterIdsKeepDuplicateLabelsAndClearOnReplacementOrRebind",
+          "caseCount": 1
+        },
+        {
+          "name": "AcceptUsesCurrentHandleAndFreshCanAcceptThenSessionBatchesOnlyThatIntent",
+          "caseCount": 1
+        },
+        {
+          "name": "OldSessionCallbacksAndRemovedRowsCannotAcceptAfterRebindWelcomeOrDisconnect",
+          "caseCount": 1
+        }
+      ]
+    },
+    {
+      "fixture": "TraderDialogViewEditModeTests",
+      "sourceDeclaredCasesInCompiledMetadata": 6,
+      "status": "UNRUN",
+      "methods": [
+        {
+          "name": "MissingUnavailableAndAvailableEmptyTradeViewsStayDistinctAndOpeningIsReadOnly",
+          "caseCount": 1
+        },
+        {
+          "name": "DuplicateMerchantRowsLabelsAndSignedStatDeltasRenderInSourceOrder",
+          "caseCount": 1
+        },
+        {
+          "name": "StatUsedBlocksOnlyStatTradeWhileBarterPicksAreSentAsOrdinaryInput",
+          "caseCount": 1
+        },
+        {
+          "name": "CurrentOptionsQueueEveryOrdinaryStatPickAndMetadataReplacementInvalidatesOldCallbacks",
+          "caseCount": 1
+        },
+        {
+          "name": "DisconnectAndResumedWelcomeInvalidateOldRowsAndDropQueuedTradeInput",
+          "caseCount": 1
+        },
+        {
+          "name": "RebindingAnUnseenSessionClearsMerchantChoicesAndPendingCopyImmediately",
+          "caseCount": 1
+        }
+      ]
+    }
+  ]
+}

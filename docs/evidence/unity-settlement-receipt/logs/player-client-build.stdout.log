@@ -1,0 +1,10 @@
+--- Player Scripts ---
+  Determining projects to restore...
+  Restored /Users/nevinmckinnon/.codex/tools/rougehalla-ui-settlement-receipt-2026-11-09/profiles/player/Client.csproj (in 23 ms).
+  Client -> /Users/nevinmckinnon/.codex/tools/rougehalla-ui-settlement-receipt-2026-11-09/profiles/player/bin/Debug/netstandard2.1/Roguehalla.Client.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:00.86

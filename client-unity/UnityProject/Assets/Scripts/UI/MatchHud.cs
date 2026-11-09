@@ -96,7 +96,8 @@ namespace Roguehalla.Client
             _results = Panel(_root, "Results", .22f, .28f, .78f, .85f);
             _resultTitle = Text(_results, "ResultsTitle", "RUN RESULTS", .08f, .80f, .92f, .97f, 30);
             _resultTitle.color = ShowcasePalette.Gold;
-            _resultText = MythicUi.ScrollText(_results, "ResultFacts", "", new Vector2(.08f, .25f), new Vector2(.92f, .79f), 23);
+            _resultText = MythicUi.ScrollText(_results, "ResultFacts", "", new Vector2(.08f, .44f), new Vector2(.92f, .79f), 23);
+            CreateSettlementRow();
             Button(_results, "Rejoin", "Play again", .08f, .05f, .48f, .20f, JoinAgain);
             Button(_results, "Menu", "Return to menu", .52f, .05f, .92f, .20f, () => _client.Leave());
             InitializeFeatures();
@@ -242,6 +243,7 @@ namespace Roguehalla.Client
         void LateUpdate()
         {
             TickFeatures();
+            RefreshSettlementRow();
             if (_session != null && _session.ReconnectAttempt != _bannerAttempt) _dirty = true;
             if (!_dirty || _session == null) return;
             _dirty = false;
@@ -279,7 +281,6 @@ namespace Roguehalla.Client
             if (_session.LastResult != null && !ReferenceEquals(_lastResult, _session.LastResult))
             {
                 _lastResult = _session.LastResult; var r = _lastResult;
-                _client?.RefreshAccountAfterResult();
                 _resultTitle.color = r.Outcome == 0 ? ShowcasePalette.Gold : r.Outcome == 2 ? ShowcasePalette.Warning : ShowcasePalette.Text;
                 _resultText.text = (r.Outcome < Outcomes.Length ? Outcomes[r.Outcome] : "Outcome " + r.Outcome) + "\nPlace " + r.Place + " / " + r.Players + " · " + r.Kills + " kills\nGV " + r.GvTotal + " (win " + r.GvWin + ")\nDuration " + r.DurationSec + "s" + (string.IsNullOrEmpty(r.KilledBy) ? "" : "\nKilled by " + r.KilledBy) + (r.WinBonusWithheld ? "\nWin bonus withheld by server" : "");
                 ClosePlayerFlows();
