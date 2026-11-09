@@ -83,7 +83,20 @@ recipient/text/order with provenance excluded, and `--check` runs this assertion
 
 All variants are disposable container-only copies of RaidRoom.ts; no host source restoration or global cleanup is needed.
 Changing source hashes alone is explicitly not a semantic kill. [Bounded logs](bounded.txt) and [receipt](receipt.json)
-record exit statuses and corpus/hash checks. External source-capsule reproduction is recorded separately after export.
+record exit statuses and corpus/hash checks. The [external reproduction receipt](external-reproduction.json) and
+[check output](external-check.txt) record an author-run reproduction from a fresh `git archive` source capsule of candidate
+`850a22626382303d2e8f7f34273843e7d3882c31`, extracted outside the worktree and run in a fresh pinned Docker process.
+It passed the full byte check with fixture SHA-256 `977450a6e0e1a1fcc3bd135edf7ebe6291f10d4da7aef98a44fc76b5886bd978`.
+All227 pinned source/config/harness files matched the candidate, and all219 source/config pins matched the base Git
+blobs. The original input corpus remained unchanged. No task containers remained. The follow-up commit changes only
+this evidence directory; executable harness and fixture bytes remain those externally checked. This is the same author
+and machine, not an independent reviewer/admission or live-session test.
+
+The capsule contains `packages/`, root package.json/package-lock.json/tsconfig.base.json, the new harness, original
+`tools/quest-giver-fixtures/capture.mts`, original `parity/quest-giver/source.json`, and the new output directory. Export
+these paths with `git archive --format=tar -o source-capsule.tar 850a22626382303d2e8f7f34273843e7d3882c31 -- PATHS`,
+extract into a fresh directory, and run the unchanged `capture.sh --check` there. The capsule and raw private logs remain
+outside Git under the task-owned external-reproduction/logs directories.
 
 ## Limits and initial harness correction
 

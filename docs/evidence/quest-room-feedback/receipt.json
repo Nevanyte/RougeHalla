@@ -81,7 +81,12 @@
   },
   "pristine_controls": 2,
   "protected_source_and_old_corpus_bytes": "identical to d2ca1376; host RO mounts",
-  "external_reproduction": "pending clean commit export; recorded separately",
+  "external_reproduction": {
+    "status": "PASS",
+    "receipt": "external-reproduction.json",
+    "candidate_commit": "850a22626382303d2e8f7f34273843e7d3882c31",
+    "scope": "author-run external source-capsule reproduction; not independent reviewer admission"
+  },
   "raw_log_sha256": {
     "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-room-feedback/logs/capture-sealed.log": "14510833d6c90ed5b47b6dcc48fe91470ae5c2721d64bbebdf08cd17695505fd",
     "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-room-feedback/logs/check-sealed.log": "8dc6c63a7dcfc4c1932d23f883d4355f23a1c45b5e7544ff88676117c655570b",
