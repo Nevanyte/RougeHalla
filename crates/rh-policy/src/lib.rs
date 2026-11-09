@@ -1,7 +1,8 @@
 //! The policy contract (docs/CONTRACTS.md C-POLICY; docs/adr/0005-policy-seam.md).
 //!
-//! A policy sees ONLY the immutable per-player [`Observation`] (what a human client is sent: no hidden state, no RNG, no
-//! privileged diagnostics) and proposes [`PublicCommand`]s. Proposals go through the same validation, order budget and input
+//! Live HumanBot sees only an accepted, reconstructed protocol14 frame and proposes [`PublicCommand`]s.
+//! Explicit native compatibility policies retain the older [`Observation`] callback; they do not claim human-codec
+//! equivalence. Neither input contains world/secret RNG or privileged diagnostics. Proposals go through the same validation, order budget and input
 //! queue as a human's ([`drive_seats`] calls `rh_sim::validate` and `Sim::submit`), so no policy gets extra actions per
 //! simulated second. Each policy declares its decision cadence in ticks; the cadence is identical live and headless.
 //!
@@ -119,7 +120,108 @@ pub struct PolicyStats {
     pub apm_peak: u64,
 }
 
+/// NativeCompatibility is an explicit legacy scripted-policy lane, not human-codec equivalence.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum InputKind {
+    NativeCompatibility,
+    Delivered14,
+}
+#[derive(Clone, Copy)]
+pub enum PolicyInput<'a> {
+    NativeCompatibility(&'a Observation),
+    Delivered14(&'a delivery::AcceptedFrame14),
+}
+#[derive(Clone, Copy)]
+pub enum InputPreview<'a> {
+    NativeCompatibility(&'a Observation),
+    Delivered14(&'a delivery::Frame14),
+}
+impl<'a> PolicyInput<'a> {
+    fn preview(self) -> InputPreview<'a> {
+        match self {
+            Self::NativeCompatibility(v) => InputPreview::NativeCompatibility(v),
+            Self::Delivered14(v) => InputPreview::Delivered14(v.frame()),
+        }
+    }
+    fn tick(self) -> u32 {
+        match self {
+            Self::NativeCompatibility(v) => v.tick,
+            Self::Delivered14(v) => v.frame().tick(),
+        }
+    }
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum InputRefusal {
+    RequiresDelivered14,
+    RequiresNativeCompatibility,
+    InventoryUnavailable,
+    OwnerCombatUnavailable,
+    InvalidOwner,
+    ClockResetRequired,
+    MemoryUnavailable,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct InputRequirements {
+    pub inventory: bool,
+    pub owner_combat: bool,
+}
+impl InputRequirements {
+    fn check(self, frame: &delivery::Frame14) -> Result<(), InputRefusal> {
+        if frame.owner.is_some() && frame.phase != 3 {
+            if self.inventory && frame.collections.inventory.is_none() {
+                return Err(InputRefusal::InventoryUnavailable);
+            }
+            if self.owner_combat && frame.owner_combat.is_none() {
+                return Err(InputRefusal::OwnerCombatUnavailable);
+            }
+        }
+        Ok(())
+    }
+}
+fn check_receiver<P: Policy + ?Sized>(
+    policy: &P,
+    input: InputPreview<'_>,
+) -> Result<(), InputRefusal> {
+    if let InputPreview::Delivered14(frame) = input {
+        policy.input_requirements().check(frame)?;
+    }
+    policy.check_input(input)
+}
+
 pub trait Policy: Send {
+    fn input_requirements(&self) -> InputRequirements {
+        InputRequirements::default()
+    }
+    fn input_kind(&self) -> InputKind {
+        InputKind::NativeCompatibility
+    }
+    /// Immutable acceptance preflight. A refusal here must not mutate policy state or RNG.
+    fn check_input(&self, input: InputPreview<'_>) -> Result<(), InputRefusal> {
+        match input {
+            InputPreview::NativeCompatibility(_)
+                if self.input_kind() == InputKind::NativeCompatibility =>
+            {
+                Ok(())
+            }
+            _ => Err(InputRefusal::RequiresNativeCompatibility),
+        }
+    }
+    /// Connected typed path. Old raw callbacks remain only for explicitly native compatibility policies.
+    fn decide_input_into(
+        &mut self,
+        input: PolicyInput<'_>,
+        out: &mut Vec<PublicCommand>,
+    ) -> Result<(), InputRefusal> {
+        check_receiver(self, input.preview())?;
+        match input {
+            PolicyInput::NativeCompatibility(v) => {
+                self.decide_into(v, out);
+                Ok(())
+            }
+            PolicyInput::Delivered14(_) => Err(InputRefusal::RequiresNativeCompatibility),
+        }
+    }
     fn spec(&self) -> PolicySpec;
     /// The policy's telemetry counters for a tournament summary (None: a policy that reports none).
     fn stats(&self) -> Option<PolicyStats> {
@@ -140,6 +242,8 @@ pub trait Policy: Send {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Fault {
+    Input(InputRefusal),
+    Delivery(delivery::DeliveryError),
     FxProjection(rh_sim::FxError),
     ItemObservation(OfferError),
     WorkerStopped,
@@ -173,6 +277,8 @@ pub struct SeatStats {
 /// One policy-driven player. Holds the policy, its fallback and the cadence.
 pub struct Seat {
     policy: Box<dyn Policy>,
+    input_kind: InputKind,
+    delivery: delivery::DeliverySession,
     fallback: Box<dyn Policy>,
     pub fault: Option<Fault>,
     next_tick: u32,
@@ -188,6 +294,8 @@ pub struct Seat {
     /// What this seat could perceive of the steps since its last decision, each step judged against that step's own line of
     /// sight; at most [`MAX_PENDING_EVENTS`] (the newest). Prepended to the next observation's events, then emptied.
     pending: Vec<SeenEvent>,
+    results: Vec<rh_protocol::WireEvent>,
+    results_tick: Option<u32>,
 }
 
 /// The most events a seat holds between two decisions; past it the OLDEST are dropped (a policy that decides every few
@@ -211,6 +319,8 @@ impl Seat {
         }
         fallback.reset(&m.with_seed(m.seed ^ 0x9e37_79b9_7f4a_7c15));
         Self {
+            input_kind: policy.input_kind(),
+            delivery: delivery::DeliverySession::new(m.me),
             policy,
             fallback,
             fault,
@@ -223,6 +333,8 @@ impl Seat {
             obs: Observation::default(),
             cmds: Vec::new(),
             pending: Vec::new(),
+            results: Vec::new(),
+            results_tick: None,
         }
     }
 
@@ -270,6 +382,9 @@ impl Seat {
 
     /// [`Seat::decide`] appending to `out`.
     pub fn decide_into(&mut self, obs: &Observation, out: &mut Vec<PublicCommand>) {
+        if self.input_kind != InputKind::NativeCompatibility {
+            return;
+        }
         if matches!(self.fault, Some(Fault::FxProjection(_))) {
             return;
         }
@@ -304,6 +419,56 @@ impl Seat {
                             ms: el.as_secs_f64() * 1000.0,
                         });
                     }
+                }
+            }
+        }
+    }
+    fn decide_delivered_into(
+        &mut self,
+        frame: &delivery::AcceptedFrame14,
+        out: &mut Vec<PublicCommand>,
+    ) {
+        let input = PolicyInput::Delivered14(frame);
+        let tick = input.tick();
+        if !self.wants(tick) {
+            return;
+        }
+        self.next_tick = tick.saturating_add(self.interval);
+        self.stats.decisions += 1;
+        if self.fault.is_some() {
+            self.stats.fallback_decisions += 1;
+            if let Err(e) = self.fallback.decide_input_into(input, out) {
+                self.fault = Some(Fault::Input(e));
+            }
+            return;
+        }
+        let base = out.len();
+        #[allow(clippy::disallowed_methods)]
+        let started = Instant::now();
+        let ran = catch_unwind(AssertUnwindSafe(|| {
+            self.policy.decide_input_into(input, out)
+        }));
+        match ran {
+            Ok(Ok(())) => {
+                if let Some(b) = self.budget {
+                    let elapsed = started.elapsed();
+                    if elapsed > b {
+                        self.fault = Some(Fault::OverBudget {
+                            ms: elapsed.as_secs_f64() * 1000.,
+                        });
+                    }
+                }
+            }
+            result => {
+                out.truncate(base);
+                self.fault = Some(match result {
+                    Ok(Err(e)) => Fault::Input(e),
+                    _ => Fault::Panicked,
+                });
+                self.stats.fallback_decisions += 1;
+                if let Err(e) = self.fallback.decide_input_into(input, out) {
+                    out.truncate(base);
+                    self.fault = Some(Fault::Input(e));
                 }
             }
         }
@@ -353,15 +518,24 @@ pub fn drive_seats_queued(
 ) {
     feed_seats(sim, seats);
     for seat in seats.iter_mut() {
+        collect_results(
+            sim.tick(),
+            seat.player(),
+            _last_events,
+            &mut seat.results_tick,
+            &mut seat.results,
+        );
         if matches!(seat.fault, Some(Fault::FxProjection(_))) {
             continue;
         }
-        if !sim.player(seat.player()).is_some_and(|p| {
-            p.standing()
-                || (sim.phase() == rh_sim::Phase::Planning
-                    && p.status == rh_sim::Status::Lobby
-                    && !p.resolved)
-        }) {
+        if seat.input_kind == InputKind::NativeCompatibility
+            && !sim.player(seat.player()).is_some_and(|p| {
+                p.standing()
+                    || (sim.phase() == rh_sim::Phase::Planning
+                        && p.status == rh_sim::Status::Lobby
+                        && !p.resolved)
+            })
+        {
             continue;
         }
         if !seat.wants(sim.tick()) {
@@ -369,21 +543,72 @@ pub fn drive_seats_queued(
         }
         let mut obs = std::mem::take(&mut seat.obs);
         let mut cmds = std::mem::take(&mut seat.cmds);
-        if let Err(err) = seat
-            .observer
-            .prepare_with_seen(sim, &[], &seat.pending, &mut obs, Some(sight))
-            .map(|offer| offer.commit())
-        {
-            seat.fault = Some(Fault::ItemObservation(err));
-            seat.obs = obs;
-            seat.cmds = cmds;
-            continue;
-        }
+        let offer =
+            match seat
+                .observer
+                .prepare_with_seen(sim, &[], &seat.pending, &mut obs, Some(sight))
+            {
+                Ok(v) => v,
+                Err(error) => {
+                    seat.fault = Some(Fault::ItemObservation(error));
+                    seat.obs = obs;
+                    seat.cmds = cmds;
+                    continue;
+                }
+            };
+        let accepted = if seat.input_kind == InputKind::Delivered14 {
+            let pending = match seat.delivery.prepare(
+                &obs,
+                offer.props_changed(),
+                offer.rewards_changed(),
+                &seat.results,
+            ) {
+                Ok(v) => v,
+                Err(e) => {
+                    seat.fault = Some(Fault::Delivery(e));
+                    drop(offer);
+                    seat.obs = obs;
+                    seat.cmds = cmds;
+                    continue;
+                }
+            };
+            // Disjoint borrows: preflight policy/fallback before commit, with data only.
+            let preview = InputPreview::Delivered14(&pending.frame);
+            let preflight = if seat.fault.is_some() {
+                check_receiver(&*seat.fallback, preview).map(|_| None)
+            } else {
+                match check_receiver(&*seat.policy, preview) {
+                    Ok(()) => Ok(None),
+                    Err(e) => check_receiver(&*seat.fallback, preview).map(|_| Some(e)),
+                }
+            };
+            match preflight {
+                Ok(Some(e)) => seat.fault = Some(Fault::Input(e)),
+                Ok(None) => {}
+                Err(e) => {
+                    seat.fault = Some(Fault::Input(e));
+                    drop(offer);
+                    seat.obs = obs;
+                    seat.cmds = cmds;
+                    continue;
+                }
+            }
+            offer.commit();
+            Some(seat.delivery.commit(pending))
+        } else {
+            offer.commit();
+            None
+        };
         seat.pending.clear();
+        seat.results.clear();
         let over = obs.events.len().saturating_sub(MAX_PENDING_EVENTS);
         obs.events.drain(..over);
         cmds.clear();
-        seat.decide_into(&obs, &mut cmds);
+        if let Some(frame) = &accepted {
+            seat.decide_delivered_into(frame, &mut cmds)
+        } else {
+            seat.decide_into(&obs, &mut cmds)
+        }
         for &proposal in &cmds {
             seat.stats.proposed += 1;
             queued(seat.player(), proposal);
@@ -434,16 +659,25 @@ fn drive_inner(
 ) {
     feed_seats(sim, seats);
     for seat in seats.iter_mut() {
+        collect_results(
+            sim.tick(),
+            seat.player(),
+            _last_events,
+            &mut seat.results_tick,
+            &mut seat.results,
+        );
         // A failed presentation session cannot commit actor eligibility or authorize commands.
         if matches!(seat.fault, Some(Fault::FxProjection(_))) {
             continue;
         }
-        if !sim.player(seat.player()).is_some_and(|p| {
-            p.standing()
-                || (sim.phase() == rh_sim::Phase::Planning
-                    && p.status == rh_sim::Status::Lobby
-                    && !p.resolved)
-        }) {
+        if seat.input_kind == InputKind::NativeCompatibility
+            && !sim.player(seat.player()).is_some_and(|p| {
+                p.standing()
+                    || (sim.phase() == rh_sim::Phase::Planning
+                        && p.status == rh_sim::Status::Lobby
+                        && !p.resolved)
+            })
+        {
             continue;
         }
         if !seat.wants(sim.tick()) {
@@ -452,21 +686,74 @@ fn drive_inner(
         // The seat's own buffers, moved out for the call (a move of a few words, no allocation).
         let mut obs = std::mem::take(&mut seat.obs);
         let mut cmds = std::mem::take(&mut seat.cmds);
-        if let Err(err) = seat
-            .observer
-            .prepare_with_seen(sim, &[], &seat.pending, &mut obs, sight.as_deref_mut())
-            .map(|offer| offer.commit())
-        {
-            seat.fault = Some(Fault::ItemObservation(err));
-            seat.obs = obs;
-            seat.cmds = cmds;
-            continue;
-        }
+        let offer = match seat.observer.prepare_with_seen(
+            sim,
+            &[],
+            &seat.pending,
+            &mut obs,
+            sight.as_deref_mut(),
+        ) {
+            Ok(v) => v,
+            Err(error) => {
+                seat.fault = Some(Fault::ItemObservation(error));
+                seat.obs = obs;
+                seat.cmds = cmds;
+                continue;
+            }
+        };
+        let accepted = if seat.input_kind == InputKind::Delivered14 {
+            let pending = match seat.delivery.prepare(
+                &obs,
+                offer.props_changed(),
+                offer.rewards_changed(),
+                &seat.results,
+            ) {
+                Ok(v) => v,
+                Err(e) => {
+                    seat.fault = Some(Fault::Delivery(e));
+                    drop(offer);
+                    seat.obs = obs;
+                    seat.cmds = cmds;
+                    continue;
+                }
+            };
+            // Disjoint borrows: preflight policy/fallback before commit, with data only.
+            let preview = InputPreview::Delivered14(&pending.frame);
+            let preflight = if seat.fault.is_some() {
+                check_receiver(&*seat.fallback, preview).map(|_| None)
+            } else {
+                match check_receiver(&*seat.policy, preview) {
+                    Ok(()) => Ok(None),
+                    Err(e) => check_receiver(&*seat.fallback, preview).map(|_| Some(e)),
+                }
+            };
+            match preflight {
+                Ok(Some(e)) => seat.fault = Some(Fault::Input(e)),
+                Ok(None) => {}
+                Err(e) => {
+                    seat.fault = Some(Fault::Input(e));
+                    drop(offer);
+                    seat.obs = obs;
+                    seat.cmds = cmds;
+                    continue;
+                }
+            }
+            offer.commit();
+            Some(seat.delivery.commit(pending))
+        } else {
+            offer.commit();
+            None
+        };
         seat.pending.clear();
+        seat.results.clear();
         let over = obs.events.len().saturating_sub(MAX_PENDING_EVENTS);
         obs.events.drain(..over);
         cmds.clear();
-        seat.decide_into(&obs, &mut cmds);
+        if let Some(frame) = &accepted {
+            seat.decide_delivered_into(frame, &mut cmds)
+        } else {
+            seat.decide_into(&obs, &mut cmds)
+        }
         submit_all(sim, &seat.observer, &cmds, &mut seat.stats, &mut submitted);
         seat.obs = obs;
         seat.cmds = cmds;
@@ -500,15 +787,63 @@ pub fn submit_all(
 /// batched inference lives behind this). A decision requested at tick T must arrive by tick T + `deadline_ticks`;
 /// otherwise the fallback decides that turn and the late answer is discarded. Not deterministic by nature (it depends on
 /// wall time): live use only; the replay records the commands actually applied, so a recorded match still replays exactly.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct RequestToken {
+    session: delivery::frame::SessionId,
+    epoch: crate::bots::delivered::Epoch,
+    sample: delivery::SampleId,
+    tick: u32,
+}
+enum WorkerInput {
+    Native(Box<Observation>),
+    Delivered(delivery::AcceptedFrame14),
+}
+impl WorkerInput {
+    fn input(&self) -> PolicyInput<'_> {
+        match self {
+            Self::Native(v) => PolicyInput::NativeCompatibility(v),
+            Self::Delivered(v) => PolicyInput::Delivered14(v),
+        }
+    }
+}
+#[derive(Debug)]
+enum WorkerFailure {
+    Panicked,
+    Input(InputRefusal),
+}
+fn collect_results(
+    tick: u32,
+    viewer: PlayerId,
+    events: &[Event],
+    last: &mut Option<u32>,
+    out: &mut Vec<rh_protocol::WireEvent>,
+) {
+    if *last == Some(tick) {
+        return;
+    }
+    *last = Some(tick);
+    out.extend(events.iter().filter_map(|event| match event {
+        Event::Resolved { id, result, .. } if *id == viewer => Some(
+            rh_protocol::WireEvent::Result(delivery::projection::result(result)),
+        ),
+        _ => None,
+    }));
+}
 pub struct AsyncSeat {
+    input_kind: InputKind,
+    requirements: InputRequirements,
+    delivery: delivery::DeliverySession,
+    next_request: u64,
+    results: Vec<rh_protocol::WireEvent>,
+    results_tick: Option<u32>,
     observer: ItemObserver,
     fx: Option<rh_sim::FxProjector>,
     obs: Observation,
     seen: Vec<SeenEvent>,
-    tx: mpsc::Sender<(u32, Observation)>,
-    rx: mpsc::Receiver<(u32, Option<Vec<PublicCommand>>)>,
+    tx: mpsc::SyncSender<(RequestToken, WorkerInput)>,
+    rx: mpsc::Receiver<(RequestToken, Result<Vec<PublicCommand>, WorkerFailure>)>,
     fallback: Box<dyn Policy>,
-    pending: Option<u32>,
+    pending: Option<RequestToken>,
     deadline_ticks: u32,
     interval: u32,
     next_tick: u32,
@@ -533,19 +868,35 @@ impl AsyncSeat {
             policy.reset(m);
         }
         fallback.reset(&m.with_seed(m.seed ^ 1));
-        let (tx, req_rx) = mpsc::channel::<(u32, Observation)>();
-        let (res_tx, rx) = mpsc::channel::<(u32, Option<Vec<PublicCommand>>)>();
+        let input_kind = policy.input_kind();
+        let requirements = policy.input_requirements();
+        let (tx, req_rx) = mpsc::sync_channel::<(RequestToken, WorkerInput)>(1);
+        let (res_tx, rx) =
+            mpsc::channel::<(RequestToken, Result<Vec<PublicCommand>, WorkerFailure>)>();
         if fault.is_none() {
             std::thread::spawn(move || {
-                while let Ok((tick, obs)) = req_rx.recv() {
-                    let cmds = catch_unwind(AssertUnwindSafe(|| policy.decide(&obs))).ok();
-                    if res_tx.send((tick, cmds)).is_err() {
+                while let Ok((token, input)) = req_rx.recv() {
+                    let cmds = catch_unwind(AssertUnwindSafe(|| {
+                        let mut out = Vec::new();
+                        policy
+                            .decide_input_into(input.input(), &mut out)
+                            .map(|_| out)
+                    }))
+                    .map_err(|_| WorkerFailure::Panicked)
+                    .and_then(|v| v.map_err(WorkerFailure::Input));
+                    if res_tx.send((token, cmds)).is_err() {
                         break;
                     }
                 }
             });
         }
         Self {
+            input_kind,
+            requirements,
+            delivery: delivery::DeliverySession::new(m.me),
+            next_request: 1,
+            results: Vec::new(),
+            results_tick: None,
             observer: ItemObserver::new(m.me),
             fx: None,
             obs: Observation::default(),
@@ -616,8 +967,13 @@ impl AsyncSeat {
         submitted: impl FnMut(PlayerId, rh_sim::Command),
     ) -> Result<(), OfferError> {
         self.feed_fx(sim);
-        // A presentation-session failure also invalidates the worker's command authority.
-        // It cannot recover by waiting for the next decision tick; a new session needs a new seat.
+        collect_results(
+            sim.tick(),
+            self.player(),
+            _events,
+            &mut self.results_tick,
+            &mut self.results,
+        );
         if let Some(Fault::FxProjection(error)) = self.fault {
             self.pending = None;
             while self.rx.try_recv().is_ok() {
@@ -629,50 +985,146 @@ impl AsyncSeat {
         let mut cmds = Vec::new();
         let expired = self
             .pending
-            .filter(|asked| tick > asked.saturating_add(self.deadline_ticks));
+            .clone()
+            .filter(|asked| tick > asked.tick.saturating_add(self.deadline_ticks));
         if expired.is_some() {
             self.pending = None;
             self.late += 1;
         }
-        let mut panicked = false;
-        while let Ok((asked, answer)) = self.rx.try_recv() {
-            if self.fault.is_none() && Some(asked) == self.pending {
+        let mut failed = false;
+        while let Ok((token, answer)) = self.rx.try_recv() {
+            if self.fault.is_none() && Some(&token) == self.pending.as_ref() {
                 self.pending = None;
-                if let Some(proposals) = answer {
-                    cmds = proposals;
-                } else {
-                    self.fault = Some(Fault::Panicked);
-                    panicked = true;
+                match answer {
+                    Ok(proposals) => cmds = proposals,
+                    Err(error) => {
+                        self.fault = Some(match error {
+                            WorkerFailure::Panicked => Fault::Panicked,
+                            WorkerFailure::Input(e) => Fault::Input(e),
+                        });
+                        failed = true;
+                    }
                 }
-            } else if Some(asked) != expired {
+            } else if Some(&token) != expired.as_ref() {
                 self.late += 1;
             }
         }
-        let fallback = expired.is_some() || panicked;
+        let fallback_due = expired.is_some() || failed;
         let due = tick >= self.next_tick && self.pending.is_none();
-        if due || fallback {
+        if due || fallback_due {
+            if self.next_request == u64::MAX {
+                self.fault = Some(Fault::Delivery(delivery::DeliveryError::SampleExhausted));
+                return Ok(());
+            }
             let offer =
                 self.observer
                     .prepare_with_seen(sim, &[], &self.seen, &mut self.obs, None)?;
-            self.seen.clear();
-            let over = self.obs.events.len().saturating_sub(MAX_PENDING_EVENTS);
-            self.obs.events.drain(..over);
-            if due {
-                self.stats.decisions += 1;
-                self.next_tick = tick.saturating_add(self.interval);
+            let prepared = if self.input_kind == InputKind::Delivered14 {
+                match self.delivery.prepare(
+                    &self.obs,
+                    offer.props_changed(),
+                    offer.rewards_changed(),
+                    &self.results,
+                ) {
+                    Ok(v) => Some(v),
+                    Err(e) => {
+                        self.fault = Some(Fault::Delivery(e));
+                        return Ok(());
+                    }
+                }
+            } else {
+                None
+            };
+            if let Some(frame) = &prepared {
                 if self.fault.is_none() {
-                    if self.tx.send((tick, self.obs.clone())).is_ok() {
-                        self.pending = Some(tick);
-                    } else {
-                        self.fault = Some(Fault::WorkerStopped);
+                    if let Err(e) = self.requirements.check(&frame.frame) {
+                        self.fault = Some(Fault::Input(e));
                     }
                 }
             }
-            if fallback || self.fault.is_some() {
-                self.stats.fallback_decisions += 1;
-                cmds = self.fallback.decide(&self.obs);
+            let token = match &prepared {
+                Some(v) => {
+                    let c = v.frame.context();
+                    RequestToken {
+                        session: self.delivery.identity(),
+                        epoch: c.epoch,
+                        sample: c.sample,
+                        tick,
+                    }
+                }
+                None => RequestToken {
+                    session: self.delivery.identity(),
+                    epoch: crate::bots::delivered::Epoch(1),
+                    sample: delivery::SampleId(self.next_request),
+                    tick,
+                },
+            };
+            let mut sent = false;
+            if due && self.fault.is_none() {
+                let input = match &prepared {
+                    Some(v) => WorkerInput::Delivered(v.envelope()),
+                    None => WorkerInput::Native(Box::new(self.obs.clone())),
+                };
+                match self.tx.try_send((token.clone(), input)) {
+                    Ok(()) => sent = true,
+                    Err(mpsc::TrySendError::Disconnected(_)) => {
+                        self.fault = Some(Fault::WorkerStopped)
+                    }
+                    Err(mpsc::TrySendError::Full(_)) => {}
+                }
             }
-            offer.commit(); // Delivered to the worker, fallback, or both.
+            let mut use_fallback = fallback_due || self.fault.is_some() || (due && !sent);
+            if use_fallback {
+                let preview = match &prepared {
+                    Some(v) => InputPreview::Delivered14(&v.frame),
+                    None => InputPreview::NativeCompatibility(&self.obs),
+                };
+                if let Err(e) = check_receiver(&*self.fallback, preview) {
+                    // An already accepted worker request cannot be revoked; fallback refusal alone
+                    // cannot undo it. Without a receiver nothing commits or consumes the carry.
+                    self.fault = Some(Fault::Input(e));
+                    if !sent {
+                        return Ok(());
+                    }
+                    use_fallback = false;
+                }
+            }
+            if sent || use_fallback {
+                offer.commit();
+                let accepted = prepared.map(|v| self.delivery.commit(v));
+                self.seen.clear();
+                self.results.clear();
+                if due {
+                    self.stats.decisions += 1;
+                    self.next_tick = tick.saturating_add(self.interval);
+                }
+                if sent {
+                    self.next_request += 1;
+                    self.pending = Some(token);
+                }
+                if use_fallback {
+                    self.stats.fallback_decisions += 1;
+                    let input = match &accepted {
+                        Some(v) => PolicyInput::Delivered14(v),
+                        None => PolicyInput::NativeCompatibility(&self.obs),
+                    };
+                    cmds.clear();
+                    let result = catch_unwind(AssertUnwindSafe(|| {
+                        self.fallback.decide_input_into(input, &mut cmds)
+                    }));
+                    match result {
+                        Ok(Ok(())) => {}
+                        Ok(Err(e)) => {
+                            cmds.clear();
+                            self.fault = Some(Fault::Input(e));
+                        }
+                        Err(_) => {
+                            cmds.clear();
+                            self.fault = Some(Fault::Panicked);
+                        }
+                    }
+                }
+            }
         }
         submit_all(sim, &self.observer, &cmds, &mut self.stats, submitted);
         Ok(())
@@ -925,15 +1377,20 @@ mod tests {
             // Feed a controlled completion; no scheduling race in the deadline/panic assertions.
             let (tx, rx) = mpsc::channel();
             seat.rx = rx;
-            let asked = sim.tick();
-            seat.pending = Some(asked);
-            seat.next_tick = asked + 100;
+            let asked = RequestToken {
+                session: seat.delivery.identity(),
+                epoch: crate::bots::delivered::Epoch(1),
+                sample: delivery::SampleId(1),
+                tick: sim.tick(),
+            };
+            seat.pending = Some(asked.clone());
+            seat.next_tick = asked.tick + 100;
             if late {
-                tx.send((asked, Some(vec![PublicCommand::Stop { seq: None }])))
+                tx.send((asked, Ok(vec![PublicCommand::Stop { seq: None }])))
                     .unwrap();
                 sim.step();
             } else {
-                tx.send((asked, None)).unwrap();
+                tx.send((asked, Err(WorkerFailure::Panicked))).unwrap();
             }
             seat.poll(&mut sim, &[], |_, _| panic!("bad worker answer submitted"))
                 .unwrap();
@@ -1218,7 +1675,7 @@ mod async_session_tests {
         old.poll(&mut original, &[], |_, _| panic!("worker is held"))
             .unwrap();
         assert_eq!(received.recv_timeout(Duration::from_secs(5)).unwrap(), 1);
-        assert_eq!(old.pending, Some(1));
+        assert_eq!(old.pending.as_ref().unwrap().tick, 1);
         assert_eq!(old.next_tick, 101);
         let mut foreign = original.clone();
         foreign.step();
@@ -1480,3 +1937,6 @@ mod sentenced_temporal_tests {
 
 #[cfg(test)]
 mod sentenced_projection_fault_tests;
+
+#[cfg(test)]
+mod delivery_tests;

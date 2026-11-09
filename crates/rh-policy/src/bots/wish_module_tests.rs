@@ -69,6 +69,23 @@ fn observation(
         phase: Phase::Active,
         ..Observation::default()
     };
+    // Declared component input: empty known inventory, clear lock and source absolute clocks.
+    // These are fixture inputs, not facts inferred from a missing native/public field.
+    o.inventory = Some(rh_sim::Inventory {
+        active_slot: 0,
+        potion_small: 0,
+        potion_large: 0,
+        potions_healing: 0,
+        slots: [None, None],
+    });
+    o.owner_combat = Some(rh_sim::OwnerCombatView {
+        lock: rh_sim::OwnerLockView::Clear,
+        draw_started_at: 0,
+        ready_at: 0,
+        as_milli: 1000.,
+        windup_milli: 1000.,
+        speed_milli: 1000.,
+    });
     o.me = Some(SelfView {
         wish,
         effects,
@@ -154,7 +171,7 @@ fn bot(tier: TierId) -> HumanBot {
 fn drives_to_cast(mut seat: HumanBot, obs_at: impl Fn(f64) -> Observation) -> Vec<PublicCommand> {
     let mut out = Vec::new();
     for tick in 0..60 {
-        out.extend(seat.decide(&obs_at(1_000. + f64::from(tick) * 50.)));
+        out.extend(seat.component_commands(&obs_at(1_000. + f64::from(tick) * 50.)));
     }
     out
 }
@@ -184,7 +201,11 @@ fn the_same_staged_observation_decides_the_same_commands() {
     let obs = observation(1_000., wish(AbilityId::Swarm, 0.), 0, 300., true, None);
     let mut a = bot(TierId::Normal);
     let mut b = bot(TierId::Normal);
-    assert_eq!(a.decide(&obs), b.decide(&obs), "two seats, one observation");
+    assert_eq!(
+        a.component_commands(&obs),
+        b.component_commands(&obs),
+        "two seats, one observation"
+    );
 }
 
 #[test]
@@ -240,7 +261,7 @@ fn blocked_casting_late_and_absent_wishes_stay_uncast() {
         observation(1_000., None, 0, 300., true, None),
     ] {
         let mut bot = bot(TierId::Normal);
-        let commands = bot.decide(&obs);
+        let commands = bot.component_commands(&obs);
         assert!(
             !commands
                 .iter()
@@ -260,7 +281,9 @@ fn the_module_retries_only_after_the_rule_gap_and_forgets_an_old_hit() {
     let mut decide = crate::bots::random::Rng::new(3);
     // Last Stand sustains at low hp while being hit: a hit 1000 ms ago counts, one older than the rule does not.
     let fresh = observation(1_000., wish(AbilityId::LastStand, 0.), 0, 340., true, None);
-    let frame = perception.build(&fresh, 1.).expect("a frame");
+    let frame = perception
+        .build(&crate::delivery::test_support::frame(&fresh), 1.)
+        .expect("a frame");
     module.absorb_hits(frame.hit_at, &frame.fighter_hits);
     module.observe(&frame.percept, TierId::Normal, &mut decide);
     let intents = module.intents(
@@ -274,7 +297,9 @@ fn the_module_retries_only_after_the_rule_gap_and_forgets_an_old_hit() {
     assert_eq!(intents.len(), 1, "the fresh hit sustains");
     // Within the retry gap nothing is asked again.
     let again = observation(1_500., wish(AbilityId::LastStand, 0.), 0, 340., true, None);
-    let frame = perception.build(&again, 1.).expect("a frame");
+    let frame = perception
+        .build(&crate::delivery::test_support::frame(&again), 1.)
+        .expect("a frame");
     module.absorb_hits(frame.hit_at, &frame.fighter_hits);
     module.observe(&frame.percept, TierId::Normal, &mut decide);
     assert!(
@@ -299,7 +324,9 @@ fn the_module_retries_only_after_the_rule_gap_and_forgets_an_old_hit() {
         false,
         None,
     );
-    let frame = perception.build(&old, 1.).expect("a frame");
+    let frame = perception
+        .build(&crate::delivery::test_support::frame(&old), 1.)
+        .expect("a frame");
     module.observe(&frame.percept, TierId::Normal, &mut decide);
     assert!(
         module
@@ -369,14 +396,24 @@ fn a_hidden_bot_slips_away_and_locks_nobody() {
 fn the_wish_view_is_a_fair_copy_of_the_observation_slot() {
     let mut slot = wish(AbilityId::Trial, 250.).expect("a slot");
     slot.full_at = Some(1_250.);
-    slot.max_charges = 3;
+    // The former raw-observation-only copy test used max=3, outside the actual human
+    // protocol domain. Keep that malformed control, then compare the lawful max=2 input.
+    let mut malformed = slot;
+    malformed.max_charges = 3;
+    let invalid = observation(1_000., Some(malformed), 0, 900., false, None);
+    assert!(crate::delivery::DeliverySession::new(ME)
+        .prepare(&invalid, true, true, &[])
+        .is_err());
+    slot.max_charges = 2;
     let obs = observation(1_000., Some(slot), 0, 900., false, None);
-    let frame = Perception::default().build(&obs, 1.).expect("a frame");
+    let frame = Perception::default()
+        .build(&crate::delivery::test_support::frame(&obs), 1.)
+        .expect("a frame");
     let view: &WishView = frame.percept.extras.wish.as_ref().expect("the slot");
     assert_eq!(view.ability, AbilityId::Trial);
     assert_eq!(view.ready_at, 250.);
     assert_eq!(view.full_at, Some(1_250.));
-    assert_eq!(view.max_charges, 3);
+    assert_eq!(view.max_charges, 2);
     assert_eq!(view.rank, 1);
     assert!(!view.casting);
     assert_eq!(frame.percept.self_view.effects, 0);

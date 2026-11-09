@@ -1,7 +1,10 @@
 //! Scripted policies: a simple brawler (the reference bot of the slice), an idle fallback, and fault-injection policies for
 //! tests. The legacy human-like bot brain (packages/server/src/bots) is NOT ported yet (docs/backlog P-BOTS-1).
 
-use crate::{MatchStart, Policy, PolicySpec, POLICY_CONTRACT_VERSION};
+use crate::{
+    InputPreview, InputRefusal, MatchStart, Policy, PolicyInput, PolicySpec,
+    POLICY_CONTRACT_VERSION,
+};
 use rh_sim::observe::Observation;
 use rh_sim::{PlayerId, PublicCommand, OBSERVATION_VERSION};
 
@@ -19,6 +22,16 @@ fn spec(name: &str, interval: u32) -> PolicySpec {
 #[derive(Default)]
 pub struct Idle;
 impl Policy for Idle {
+    fn check_input(&self, _: InputPreview<'_>) -> Result<(), InputRefusal> {
+        Ok(())
+    }
+    fn decide_input_into(
+        &mut self,
+        _: PolicyInput<'_>,
+        _: &mut Vec<PublicCommand>,
+    ) -> Result<(), InputRefusal> {
+        Ok(())
+    }
     fn spec(&self) -> PolicySpec {
         spec("idle", 1)
     }
@@ -56,6 +69,89 @@ impl Brawler {
 }
 
 impl Policy for Brawler {
+    fn check_input(&self, _: InputPreview<'_>) -> Result<(), InputRefusal> {
+        Ok(())
+    }
+    fn decide_input_into(
+        &mut self,
+        input: PolicyInput<'_>,
+        out: &mut Vec<PublicCommand>,
+    ) -> Result<(), InputRefusal> {
+        let PolicyInput::Delivered14(accepted) = input else {
+            let PolicyInput::NativeCompatibility(obs) = input else {
+                unreachable!()
+            };
+            self.decide_into(obs, out);
+            return Ok(());
+        };
+        let frame = accepted.frame();
+        if frame.phase() == 3 {
+            if let Some(plan) = &frame.collections().plan {
+                if !plan.ready {
+                    let spawn = (0..2)
+                        .find(|&i| !plan.taken[i] && plan.options[i].is_some())
+                        .map(|i| i as u8);
+                    out.push(PublicCommand::Plan {
+                        spawn,
+                        boon: None,
+                        ready: Some(true),
+                    });
+                }
+            }
+            return Ok(());
+        }
+        if frame.phase() != 1 {
+            return Ok(());
+        }
+        let crate::bots::delivered::Fact::Delivered(Some(me)) = frame.owner() else {
+            return Ok(());
+        };
+        if me.status != 1 {
+            return Ok(());
+        }
+        let x = f64::from(me.x);
+        let y = f64::from(me.y);
+        let target = frame
+            .actors()
+            .filter(|a| a.faction().is_some() && a.wire().status == 1)
+            .min_by(|a, b| {
+                let a = a.wire();
+                let b = b.wire();
+                let (ax, ay) = (f64::from(a.x) - x, f64::from(a.y) - y);
+                let (bx, by) = (f64::from(b.x) - x, f64::from(b.y) - y);
+                let da = ax * ax + ay * ay;
+                let db = bx * bx + by * by;
+                da.total_cmp(&db).then(a.id.cmp(&b.id))
+            });
+        if let Some(target) = target {
+            let t = target.wire();
+            let dx = f64::from(t.x) - x;
+            let dy = f64::from(t.y) - y;
+            if rh_sim::math::sqrt(dx * dx + dy * dy) < 80. {
+                out.push(PublicCommand::Attack {
+                    a: rh_sim::math::atan2(dy, dx),
+                    t: Some(frame.source_time() - 100.),
+                });
+            } else {
+                out.push(PublicCommand::Move {
+                    x: f64::from(t.x),
+                    y: f64::from(t.y),
+                    seq: None,
+                });
+            }
+        } else {
+            let reached = self
+                .wander
+                .is_none_or(|(wx, wy)| (x - wx).abs() < 16. && (y - wy).abs() < 16.);
+            if reached {
+                let (rx, ry) = (self.next(), self.next());
+                self.wander = Some((x + (rx - 0.5) * 600., y + (ry - 0.5) * 600.));
+                let (x, y) = self.wander.unwrap();
+                out.push(PublicCommand::Move { x, y, seq: None });
+            }
+        }
+        Ok(())
+    }
     fn spec(&self) -> PolicySpec {
         spec("brawler", self.interval)
     }

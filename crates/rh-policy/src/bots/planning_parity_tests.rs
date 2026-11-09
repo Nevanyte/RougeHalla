@@ -462,7 +462,7 @@ fn a_seat_presses_ready_without_a_deal() {
     let mut ready = None;
     for step in 0..=30 {
         let now = f64::from(step) * 100.;
-        for command in bot.decide(&observation(now, None)) {
+        for command in bot.component_commands(&observation(now, None)) {
             if let PublicCommand::Plan {
                 ready: Some(true), ..
             } = command
@@ -482,7 +482,7 @@ fn a_seat_answers_a_deal_then_presses_ready() {
     let mut pick = -1i8;
     for step in 0..=140 {
         let now = f64::from(step) * 100.;
-        for command in bot.decide(&observation(now, Some(planning_view(now, pick)))) {
+        for command in bot.component_commands(&observation(now, Some(planning_view(now, pick)))) {
             if let PublicCommand::Plan {
                 spawn: Some(k),
                 boon,

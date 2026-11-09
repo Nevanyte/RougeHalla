@@ -1,4 +1,4 @@
-//! The human-like seat: a Policy that reads only Observation (C-OBS), decides through the ported hand, and proposes
+//! The human-like seat: a Policy that reads only accepted Frame14 (C-OBS), decides through the ported hand, and proposes
 //! through the one validated input path (C-INPUT). docs/BOTS.md 4 describes the legacy layers; this is the bounded core
 //! slice: observed-player memory -> source scheduling/world goals -> the ported humanizer -> PublicCommands.
 //! Candidate selection and combat remain the bounded compatibility front end. Full source memory,
@@ -19,7 +19,11 @@ use crate::bots::types::{
 };
 use crate::bots::wish::{WishFoe, WishModule};
 use crate::bots::world_tactics::{Context as WorldContext, WorldTactics};
-use crate::{MatchStart, Policy, PolicySpec, POLICY_CONTRACT_VERSION};
+use crate::delivery::Frame14;
+use crate::{
+    InputKind, InputPreview, InputRefusal, MatchStart, Policy, PolicyInput, PolicySpec,
+    POLICY_CONTRACT_VERSION,
+};
 use rh_sim::{Observation, PlayerId, PublicCommand, OBSERVATION_VERSION};
 
 /// The declared default mixes (docs/BOTS.md 5: tiers 30/45/25, personas uniform).
@@ -306,6 +310,12 @@ impl HumanBot {
 }
 
 impl Policy for HumanBot {
+    fn input_requirements(&self) -> crate::InputRequirements {
+        crate::InputRequirements {
+            inventory: true,
+            owner_combat: true,
+        }
+    }
     fn spec(&self) -> PolicySpec {
         PolicySpec {
             name: format!("human-{}-{}", self.tier.as_str(), self.persona.as_str()),
@@ -375,8 +385,85 @@ impl Policy for HumanBot {
         self.decide_into(obs, &mut out);
         out
     }
-    fn decide_into(&mut self, obs: &Observation, out: &mut Vec<PublicCommand>) {
-        let Some(owner) = obs.me.as_ref() else {
+    // Legacy Vec callbacks cannot carry a typed refusal. They deliberately do nothing; live
+    // dispatch uses decide_input_into, which explicitly refuses a raw Observation before mutation.
+    fn decide_into(&mut self, _: &Observation, _: &mut Vec<PublicCommand>) {}
+    fn input_kind(&self) -> InputKind {
+        InputKind::Delivered14
+    }
+    fn check_input(&self, input: InputPreview<'_>) -> Result<(), InputRefusal> {
+        let InputPreview::Delivered14(frame) = input else {
+            return Err(InputRefusal::RequiresDelivered14);
+        };
+        self.check_frame(frame)
+    }
+    fn decide_input_into(
+        &mut self,
+        input: PolicyInput<'_>,
+        out: &mut Vec<PublicCommand>,
+    ) -> Result<(), InputRefusal> {
+        self.check_input(input.preview())?;
+        let PolicyInput::Delivered14(accepted) = input else {
+            unreachable!()
+        };
+        self.decide_frame_into(accepted.frame(), out);
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+impl HumanBot {
+    /// Component comparison only: consumes checked public data, not a live handoff receipt.
+    pub(crate) fn component_commands(&mut self, obs: &Observation) -> Vec<PublicCommand> {
+        let frame = crate::delivery::test_support::frame(obs);
+        if self.check_frame(&frame).is_err() {
+            return Vec::new();
+        }
+        let mut out = Vec::new();
+        self.decide_frame_into(&frame, &mut out);
+        out
+    }
+}
+
+impl HumanBot {
+    fn check_frame(&self, obs: &Frame14) -> Result<(), InputRefusal> {
+        if Some(PlayerId(obs.context().viewer.get())) != self.me {
+            return Err(InputRefusal::InvalidOwner);
+        }
+        let Some(owner) = obs.owner.as_ref() else {
+            return Ok(());
+        };
+        if Some(PlayerId(owner.id)) != self.me {
+            return Err(InputRefusal::InvalidOwner);
+        }
+        if obs.phase != 3 {
+            if obs.collections.inventory.is_none() {
+                return Err(InputRefusal::InventoryUnavailable);
+            }
+            if obs.owner_combat.is_none() {
+                return Err(InputRefusal::OwnerCombatUnavailable);
+            }
+        }
+        let players = crate::bots::perception::memory_players(obs)
+            .map_err(|_| InputRefusal::MemoryUnavailable)?;
+        let viewer = PlayerRef::new(owner.id).map_err(|_| InputRefusal::InvalidOwner)?;
+        self.memory
+            .as_ref()
+            .ok_or(InputRefusal::MemoryUnavailable)?
+            .check_scene(Scene {
+                epoch: obs.context().epoch,
+                viewer,
+                now: obs.source_time,
+                owner: Some(OwnerSight {
+                    at: rh_sim::Vec2::new(f64::from(owner.x), f64::from(owner.y)),
+                    status: crate::delivery::frame::status(owner.status),
+                }),
+                players: &players,
+            })
+            .map_err(|_| InputRefusal::ClockResetRequired)
+    }
+    fn decide_frame_into(&mut self, obs: &Frame14, out: &mut Vec<PublicCommand>) {
+        let Some(owner) = obs.owner.as_ref() else {
             return;
         };
         let Ok(players) = crate::bots::perception::memory_players(obs) else {
@@ -385,17 +472,17 @@ impl Policy for HumanBot {
         let Some(memory) = self.memory.as_mut() else {
             return;
         };
-        let Ok(viewer) = PlayerRef::new(owner.id.0) else {
+        let Ok(viewer) = PlayerRef::new(owner.id) else {
             return;
         };
         if memory
             .observe_scene(Scene {
-                epoch: Epoch(1),
+                epoch: obs.context().epoch,
                 viewer,
-                now: obs.server_time,
+                now: obs.source_time,
                 owner: Some(OwnerSight {
-                    at: rh_sim::Vec2::new(owner.x, owner.y),
-                    status: owner.status,
+                    at: rh_sim::Vec2::new(f64::from(owner.x), f64::from(owner.y)),
+                    status: crate::delivery::frame::status(owner.status),
                 }),
                 players: &players,
             })
@@ -408,12 +495,22 @@ impl Policy for HumanBot {
             .own_motion()
             .expect("accepted owner scene")
             .still_since;
-        if obs.phase == rh_sim::Phase::Planning {
+        if obs.phase == 3 {
             // The planning screen has no goal and no tactics: the module reads the private deal and answers it, exactly as
             // the source brain's planning branch does. Its intents are menu commands, converted 1:1 here.
-            let now = obs.server_time;
-            let deal = obs.plan.as_ref().map(PlanDeal::from_view);
-            let faction = obs.me.as_ref().map(|me| me.faction);
+            let now = obs.source_time;
+            let deal = obs.collections.plan.as_ref().map(|view| PlanDeal {
+                ends_at: view.ends_at,
+                spawns: view.spawns.map(|v| v.map_or(-1, |n| n as i32)),
+                taken: view.taken,
+                pick: view.pick.map_or(-1, |n| n as i8),
+                boons: view.boons.clone(),
+                boon: view.boon.map_or(-1, |n| n as i8),
+            });
+            let faction = obs
+                .owner
+                .as_ref()
+                .and_then(|me| rh_sim::FactionId::ALL.get(me.faction as usize).copied());
             let tier = self.tier;
             let Self {
                 planning,
@@ -501,7 +598,8 @@ impl Policy for HumanBot {
             let toast = obs
                 .events
                 .iter()
-                .any(|e| matches!(e, rh_sim::observe::SeenEvent::Toast { .. }));
+                .flat_map(|b| &b.events)
+                .any(|e| matches!(e, rh_protocol::WireEvent::Toast { .. }));
             if self.brain.tactics_due(p.now, changed, toast, &stimuli) {
                 let foe = self.front_foe(&p);
                 let Some(paths) = self.paths.as_mut() else {
@@ -565,7 +663,10 @@ impl Policy for HumanBot {
         {
             let mut ctx = Context {
                 p: &p,
-                engaged: p.self_view.attack_target.is_some(),
+                engaged: matches!(
+                    p.self_view.owner_lock,
+                    Some(crate::bots::types::OwnerLock::Held { .. })
+                ),
                 motor: &mut self.motor,
                 lapse: &mut self.lapse,
             };
@@ -574,7 +675,10 @@ impl Policy for HumanBot {
         let cmds = {
             let mut ctx = Context {
                 p: &p,
-                engaged: p.self_view.attack_target.is_some(),
+                engaged: matches!(
+                    p.self_view.owner_lock,
+                    Some(crate::bots::types::OwnerLock::Held { .. })
+                ),
                 motor: &mut self.motor,
                 lapse: &mut self.lapse,
             };
@@ -632,7 +736,8 @@ impl HumanBot {
                 });
             }
             C::Plan { spawn, boon, ready } => out.push(PublicCommand::Plan { spawn, boon, ready }),
-            // Pickup and Choose need the delivered item/chest handle, which this bounded fair view does not carry yet.
+            // Frame14 retains item/chest handles. Connecting their source loot executors is still
+            // pending; the compatibility front end never invents a handle from a row index.
             C::Pickup { .. } | C::Choose { .. } => {}
         }
     }

@@ -88,21 +88,21 @@ fn same_observations_reset_cross_seat_and_hidden_rows_cannot_perturb_commands() 
             actor.weapon = Some(rh_sim::WeaponId::Wand);
             let mut clean = obs.clone();
             clean.visible.clear();
-            let a_cmd = a.decide(&clean);
-            let b_cmd = b.decide(&perturbed);
+            let a_cmd = a.component_commands(&clean);
+            let b_cmd = b.component_commands(&perturbed);
             assert_eq!(a_cmd, b_cmd);
             old_hidden = Some(perturbed.visible[0].clone());
         } else {
-            assert_eq!(a.decide(&obs), b.decide(&obs));
+            assert_eq!(a.component_commands(&obs), b.component_commands(&obs));
         }
-        let _ = other.decide(&obs);
+        let _ = other.component_commands(&obs);
         sim.step();
     }
     assert!(old_hidden.is_some());
     a.reset(&start);
     b.reset(&start);
     let obs = rh_sim::observe(&sim, PlayerId(1), &[]);
-    assert_eq!(a.decide(&obs), b.decide(&obs));
+    assert_eq!(a.component_commands(&obs), b.component_commands(&obs));
     assert_eq!(a.memory.as_ref().unwrap().records().len(), 1);
     assert_eq!(
         a.paths.as_ref().unwrap().budget().left(),
@@ -118,7 +118,7 @@ fn live_roam_uses_world_executor_and_never_exceeds_path_budget() {
     for _ in 0..100 {
         let obs = rh_sim::observe(&sim, PlayerId(1), &[]);
         let searches = b.paths.as_ref().unwrap().stats().searches;
-        let cmds = b.decide(&obs);
+        let cmds = b.component_commands(&obs);
         assert!(
             b.paths.as_ref().unwrap().stats().searches - searches
                 <= u64::from(crate::bots::paths::BOT_PATH_BUDGET_PER_TICK)
@@ -161,7 +161,7 @@ fn neutral_dummy_zombie_rows_never_become_enemy_or_regional_farm_goals() {
             row.faction = rh_sim::fighter::FighterAffiliation::Neutral;
             row.weapon = None;
         }
-        b.decide(&obs);
+        b.component_commands(&obs);
         assert!(matches!(b.brain.goal, Goal::Roam { .. }));
         assert!(b.memory.as_ref().unwrap().records().is_empty());
         assert!(b.ids.is_empty());
@@ -174,8 +174,12 @@ fn neutral_dummy_zombie_rows_never_become_enemy_or_regional_farm_goals() {
         row.kind = kind;
         row.faction = rh_sim::fighter::FighterAffiliation::Neutral;
         row.weapon = None;
-        b.decide(&obs);
-        assert!(matches!(b.brain.goal, Goal::Roam { .. }));
+        // Contradictory neutral combat actors are refused by the human codec, not silently
+        // converted to Fire/Fists or filtered after advancing this brain.
+        let session = crate::delivery::DeliverySession::new(PlayerId(1));
+        assert!(session.prepare(&obs, true, true, &[]).is_err());
+        assert!(b.decide(&obs).is_empty());
+        assert!(matches!(b.brain.goal, Goal::Idle));
         assert!(b.memory.as_ref().unwrap().records().is_empty());
         assert!(b.ids.is_empty());
     }
@@ -187,13 +191,13 @@ fn rejected_duplicate_scene_does_not_advance_the_live_brain_memory_or_random_str
     let start = MatchStart::of(&sim, PlayerId(1), 7);
     let mut b = bot(&start);
     let obs = rh_sim::observe(&sim, PlayerId(1), &[]);
-    b.decide(&obs);
+    b.component_commands(&obs);
     let brain = b.brain.clone();
     let memory = b.memory.clone();
     let decide = b.decide.clone();
     let motor = b.motor.clone();
     let lapse = b.lapse.clone();
-    assert!(b.decide(&obs).is_empty());
+    assert!(b.component_commands(&obs).is_empty());
     assert_eq!(b.brain, brain);
     assert_eq!(b.memory, memory);
     assert_eq!(b.decide, decide);
@@ -201,7 +205,7 @@ fn rejected_duplicate_scene_does_not_advance_the_live_brain_memory_or_random_str
     assert_eq!(b.lapse, lapse);
     sim.step();
     let obs = rh_sim::observe(&sim, PlayerId(1), &[]);
-    b.decide(&obs);
+    b.component_commands(&obs);
     assert!(b.memory.as_ref().unwrap().own_motion().unwrap().source_time > 0.);
 }
 
@@ -213,9 +217,170 @@ fn an_expired_cached_wish_goal_finishes_before_the_next_strategy_deadline() {
     b.brain
         .adopt(Goal::WishSlip, 0., b.tier_params(), &mut b.decide);
     let obs = rh_sim::observe(&sim, PlayerId(1), &[]);
-    b.decide(&obs);
+    b.component_commands(&obs);
     assert_eq!(b.brain.status, GoalStatus::Done);
     sim.step();
-    b.decide(&rh_sim::observe(&sim, PlayerId(1), &[]));
+    b.component_commands(&rh_sim::observe(&sim, PlayerId(1), &[]));
     assert!(matches!(b.brain.goal, Goal::Roam { .. }));
+}
+
+#[test]
+fn raw_or_unavailable_owner_inputs_refuse_before_any_memory_brain_or_rng_advance() {
+    let sim = scene(true);
+    let start = MatchStart::of(&sim, PlayerId(1), 7);
+    let mut b = bot(&start);
+    let before = (
+        b.memory.clone(),
+        b.brain.clone(),
+        b.decide.clone(),
+        b.motor.clone(),
+        b.lapse.clone(),
+    );
+    let obs = rh_sim::observe(&sim, PlayerId(1), &[]);
+    assert_eq!(
+        b.check_input(crate::InputPreview::NativeCompatibility(&obs)),
+        Err(crate::InputRefusal::RequiresDelivered14)
+    );
+    assert!(
+        b.decide(&obs).is_empty(),
+        "legacy raw callback is not a live data shortcut"
+    );
+    for inventory_missing in [false, true] {
+        let mut unavailable = obs.clone();
+        let expected = if inventory_missing {
+            unavailable.inventory = None;
+            crate::InputRefusal::InventoryUnavailable
+        } else {
+            unavailable.owner_combat = None;
+            crate::InputRefusal::OwnerCombatUnavailable
+        };
+        let frame = crate::delivery::test_support::frame(&unavailable);
+        assert_eq!(
+            b.check_input(crate::InputPreview::Delivered14(&frame)),
+            Err(expected)
+        );
+        assert_eq!(
+            (
+                b.memory.clone(),
+                b.brain.clone(),
+                b.decide.clone(),
+                b.motor.clone(),
+                b.lapse.clone()
+            ),
+            before
+        );
+    }
+}
+
+#[test]
+fn delivered_perception_keeps_source_absolute_ready_redacted_held_and_targetability_without_immunity(
+) {
+    let sim = scene(true);
+    let mut obs = rh_sim::observe(&sim, PlayerId(1), &[]);
+    let group = obs.owner_combat.as_mut().unwrap();
+    group.lock = rh_sim::OwnerLockView::Held { target: None };
+    group.ready_at = 4_294_967_200;
+    group.draw_started_at = 4_294_967_190;
+    group.as_milli = 1e303;
+    obs.me.as_mut().unwrap().ready_in_ms = 0.;
+    obs.visible[0].effects |= 128;
+    let frame = crate::delivery::test_support::frame(&obs);
+    assert!(matches!(
+        frame.owner_immunity_until(),
+        crate::bots::delivered::Fact::Unavailable
+    ));
+    let actor = frame.actors().next().unwrap();
+    assert!(!actor.targetable());
+    assert!(matches!(
+        actor.immunity_until(),
+        crate::bots::delivered::Fact::Unavailable
+    ));
+    let out = Perception::default().build(&frame, 1.).unwrap();
+    assert_eq!(out.percept.self_view.ready_at, 4_294_967_200.);
+    assert_ne!(out.percept.self_view.ready_at, frame.source_time());
+    assert_eq!(
+        out.percept.self_view.owner_lock,
+        Some(crate::bots::types::OwnerLock::Held { target: None })
+    );
+    assert!(out.percept.self_view.attack_target.is_none());
+    assert!(!out.percept.fighters[0].targetable);
+    obs.owner_combat.as_mut().unwrap().lock = rh_sim::OwnerLockView::Clear;
+    let cleared = crate::delivery::test_support::frame(&obs);
+    let clear = Perception::default().build(&cleared, 1.).unwrap();
+    assert_ne!(
+        clear.percept.self_view.owner_lock,
+        out.percept.self_view.owner_lock
+    );
+    assert_eq!(
+        clear.percept.self_view.attack_target,
+        out.percept.self_view.attack_target
+    );
+}
+
+#[test]
+fn an_entitled_noncombat_lock_keeps_its_reference_without_creating_a_target_candidate() {
+    let sim = scene(true);
+    let mut obs = rh_sim::observe(&sim, PlayerId(1), &[]);
+    let alias = PlayerId(1 << 31);
+    obs.visible[0].id = alias;
+    obs.visible[0].kind = rh_sim::observe::ActorKind::Dummy;
+    obs.owner_combat.as_mut().unwrap().lock = rh_sim::OwnerLockView::Held {
+        target: Some(alias),
+    };
+    let frame = crate::delivery::test_support::frame(&obs);
+    let view = Perception::default().build(&frame, 1.).unwrap();
+    assert_eq!(
+        view.percept.self_view.owner_lock,
+        Some(crate::bots::types::OwnerLock::Held {
+            target: Some(format!("n{}", alias.0))
+        })
+    );
+    assert!(
+        view.ids.is_empty() && view.percept.fighters.is_empty() && view.percept.mobs.is_empty()
+    );
+}
+
+#[test]
+fn a_cleared_owner_from_another_viewer_is_not_this_bots_owner_loss() {
+    let sim = scene(false);
+    let start = MatchStart::of(&sim, PlayerId(1), 7);
+    let b = bot(&start);
+    let obs = rh_sim::observe(&sim, PlayerId(1), &[]);
+    let frame = crate::delivery::test_support::frame(&obs);
+    let message = || rh_protocol::ServerMsg::Snapshot {
+        tick: frame.tick(),
+        server_time: frame.source_time(),
+        phase: frame.phase(),
+        ack_input: 0,
+        me: None,
+        owner_combat: None,
+        actors: vec![],
+        training: frame.training(),
+    };
+    let mut context = frame.context();
+    context.viewer = PlayerRef::new(2).unwrap();
+    let foreign = crate::delivery::Frame14::from_reconstructed(
+        context,
+        message(),
+        frame.collections().clone(),
+        vec![],
+        vec![],
+    )
+    .unwrap();
+    assert_eq!(
+        b.check_input(crate::InputPreview::Delivered14(&foreign)),
+        Err(crate::InputRefusal::InvalidOwner)
+    );
+    let own = crate::delivery::Frame14::from_reconstructed(
+        frame.context(),
+        message(),
+        frame.collections().clone(),
+        vec![],
+        vec![],
+    )
+    .unwrap();
+    assert_eq!(
+        b.check_input(crate::InputPreview::Delivered14(&own)),
+        Ok(())
+    );
 }

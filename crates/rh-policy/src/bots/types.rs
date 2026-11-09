@@ -1014,6 +1014,13 @@ pub struct ClickMiss {
     pub at: ServerMs,
 }
 
+/// None on SelfView means unavailable; a held redacted lock is never Clear.
+#[derive(Clone, Debug, PartialEq)]
+pub enum OwnerLock {
+    Clear,
+    Held { target: Option<FighterId> },
+}
+
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct SelfView {
     pub id: FighterId,
@@ -1030,6 +1037,7 @@ pub struct SelfView {
     pub weapons: [Option<BotWeapon>; 2],
     pub slot: u8,
     pub attack_target: Option<FighterId>,
+    pub owner_lock: Option<OwnerLock>,
     pub ready_at: ServerMs,
 }
 

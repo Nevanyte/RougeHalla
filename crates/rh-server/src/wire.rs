@@ -1494,16 +1494,7 @@ mod tests {
             (12.5, 4)
         );
         let wish = owner_wire.wish.unwrap();
-        assert_eq!(
-            wish.ability,
-            match own.wish.unwrap().ability {
-                rh_sim::status_runtime::AbilityId::Freeze => 0,
-                rh_sim::status_runtime::AbilityId::Swarm => 1,
-                rh_sim::status_runtime::AbilityId::Trial => 2,
-                rh_sim::status_runtime::AbilityId::Blaze => 3,
-                rh_sim::status_runtime::AbilityId::LastStand => 4,
-            }
-        );
+        assert_eq!(wish.ability, 0, "Freeze keeps its protocol ability code");
         assert_eq!(
             (
                 wish.ready_at,
