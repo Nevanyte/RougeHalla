@@ -735,7 +735,6 @@ mod boundary24 {
     use crate::systems::targeting;
     use crate::systems::Cx;
     use crate::vision::WardSight;
-    use crate::{validate, RawCommand};
     use std::collections::BTreeMap;
 
     fn doc() -> Value {
@@ -1004,21 +1003,11 @@ mod boundary24 {
         }
     }
     fn prime_los(sim: &mut Sim, fighters: &[Value]) {
-        // Declared method context: the target stands at its declared position while the viewer's real vision trail is
-        // produced by two ordinary steps close to it, then the declared put restores the captured positions.
+        // Exact pinned source priming: p0 at target.x-24,y200 and two ordinary source steps with NO Move; the captured
+        // final context is put back after them and native visibility/lockability are genuinely produced.
         let target = Vec2::new(btext(&fighters[1]["x"]), btext(&fighters[1]["y"]));
         put(sim, 1, target);
-        put(sim, 0, Vec2::new(target.x - 200., target.y));
-        sim.submit(
-            PlayerId(1),
-            validate(RawCommand::Move {
-                x: target.x - 220.,
-                y: target.y,
-                seq: Some(1),
-            })
-            .unwrap(),
-        )
-        .unwrap();
+        put(sim, 0, Vec2::new(target.x - 24., target.y));
         for _ in 0..2 {
             sim.step();
         }
@@ -1201,24 +1190,30 @@ mod boundary24 {
         let rec = &c["input"]["recipe"];
         let hide = rec["variant"].as_str().unwrap() == "hide-to-acquire";
         let now = sim.server_time();
-        let pre_candidates = readonly(&mut sim, id, |s| candidates(s, now));
+        // Pinned source candidateFacts queries future untargetability at world.serverTime + TICK_MS.
+        let at = now + crate::constants::TICK_MS;
+        let pre_candidates = readonly(&mut sim, id, |s| candidates(s, at));
         numeric_values_equal(&json!(pre_candidates), &rec["orderedCandidates"], id);
         let before = readonly_hint(&mut sim, id);
+        // Source sequence: hint -> updateTargets -> selectedBefore -> removeStatuses -> hint -> update -> selectedAfter.
+        let mut events = vec![];
+        update_targets(&mut sim, &mut events);
+        assert!(
+            events.is_empty(),
+            "{id}: first actual targeting update emits no events"
+        );
+        let selected_before = pid_name(sim.w.players[0].weapon.targeting.target);
         if !hide {
+            assert_eq!(
+                selected_before, c["observed"]["selected"],
+                "{id}: actual selected target"
+            );
             assert_eq!(
                 hint_json(before),
                 c["observed"]["hint"],
                 "{id}: before update"
             );
-            let mut events = vec![];
-            update_targets(&mut sim, &mut events);
-            let selected = pid_name(sim.w.players[0].weapon.targeting.target);
-            assert_eq!(
-                selected, c["observed"]["selected"],
-                "{id}: actual selected target"
-            );
-            assert!(events.is_empty(), "{id}: targeting update emits no events");
-            let post = readonly(&mut sim, id, |s| candidates(s, now));
+            let post = readonly(&mut sim, id, |s| candidates(s, at));
             numeric_values_equal(&json!(post), &c["observed"]["orderedCandidates"], id);
         } else {
             assert_eq!(
@@ -1227,10 +1222,11 @@ mod boundary24 {
                 "{id}: before removal hint"
             );
             assert_eq!(
-                pid_name(sim.w.players[0].weapon.targeting.target),
-                c["observed"]["selectedBefore"]
+                selected_before, c["observed"]["selectedBefore"],
+                "{id}: selectedBefore after the first actual update"
             );
             let mut events = vec![];
+            events.clear();
             let mut removed: Vec<StatusInstance> = Vec::new();
             operations::remove_into(
                 &sim.k,
@@ -1270,7 +1266,7 @@ mod boundary24 {
                 "{id}: selectedAfter"
             );
             assert!(events.is_empty());
-            let post = readonly(&mut sim, id, |s| candidates(s, now));
+            let post = readonly(&mut sim, id, |s| candidates(s, at));
             numeric_values_equal(&json!(post), &c["observed"]["orderedCandidates"], id);
         }
     }
