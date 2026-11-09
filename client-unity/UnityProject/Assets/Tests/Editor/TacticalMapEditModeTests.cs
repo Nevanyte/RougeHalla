@@ -119,6 +119,25 @@ namespace Roguehalla.Client.Tests
             Assert.IsFalse(MinimapRoot().activeSelf, "unbinding the session hides the minimap");
         }
 
+        [Test]
+        public void DeliveredMapContactHasCanvasRendererAndNonemptyRenderedGeometry()
+        {
+            CreateController(_session);
+            _transport.Deliver(Snapshot(1, new WireActor { Id = 2, X = 48, Y = 48, HpPct = 100, Status = 1 }));
+            _controller.SetOpen(true);
+            _controller.Tick();
+
+            var marks = LargeMarks();
+            Assert.IsTrue(marks.isActiveAndEnabled);
+            Assert.AreEqual(1, marks.ContactCount, "the session delivered one observable contact");
+            var canvasRenderer = marks.GetComponent<CanvasRenderer>();
+            Assert.IsNotNull(canvasRenderer, "the actual map marks graphic must have a CanvasRenderer");
+            Canvas.ForceUpdateCanvases();
+            var mesh = canvasRenderer.GetMesh();
+            Assert.IsNotNull(mesh);
+            Assert.Greater(mesh.vertexCount, 0, "the delivered contact must produce renderable vertices");
+        }
+
         void CreateController(Session session)
         {
             _uiRoot = new GameObject("Tactical map controller canvas", typeof(RectTransform), typeof(Canvas), typeof(GraphicRaycaster));

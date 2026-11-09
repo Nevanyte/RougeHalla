@@ -8,6 +8,7 @@ using UnityEngine.UI;
 namespace Roguehalla.Client
 {
     /// <summary>Draws copied, currently delivered contacts. Membership is replaced on every presentation.</summary>
+    [RequireComponent(typeof(CanvasRenderer))]
     public sealed class TacticalMapMarks : MaskableGraphic
     {
         readonly List<InterpActor> _actors = new List<InterpActor>();
