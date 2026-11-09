@@ -12,6 +12,8 @@ pub struct SampleId(pub u64);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FrameContext14 {
     pub protocol: u16,
+    /// Session-local ordinal, not a globally unique identity. NPC reference equality also
+    /// retains private opaque affinity; this numeric value alone must never establish continuity.
     pub epoch: Epoch,
     pub sample: SampleId,
     pub viewer: PlayerRef,
@@ -134,16 +136,17 @@ pub struct FxBatch {
     pub fx: Vec<WireFx>,
 }
 /// NPC references are scoped to an accepted scene, not canonical identities or continuity claims.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NpcRef14 {
+    affinity: SessionId,
     context: FrameContext14,
     wire_id: u32,
 }
 impl NpcRef14 {
-    pub fn wire_id(self) -> u32 {
+    pub fn wire_id(&self) -> u32 {
         self.wire_id
     }
-    pub fn context(self) -> FrameContext14 {
+    pub fn context(&self) -> FrameContext14 {
         self.context
     }
 }
@@ -158,6 +161,7 @@ pub enum ActorKind14 {
 #[derive(Clone, Copy, Debug)]
 pub struct Actor14<'a> {
     wire: &'a WireActor,
+    affinity: &'a SessionId,
     context: FrameContext14,
 }
 impl Actor14<'_> {
@@ -178,7 +182,8 @@ impl Actor14<'_> {
         (self.wire.kind == 0).then(|| PlayerRef::new(self.wire.id).expect("checked player ref"))
     }
     pub fn npc(&self) -> Option<NpcRef14> {
-        (self.wire.kind != 0).then_some(NpcRef14 {
+        (self.wire.kind != 0).then(|| NpcRef14 {
+            affinity: self.affinity.clone(),
             context: self.context,
             wire_id: self.wire.id,
         })
@@ -216,8 +221,11 @@ pub(crate) fn status(code: u8) -> Status {
         _ => unreachable!("checked status"),
     }
 }
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct Frame14 {
+    // Numeric Epoch is session-local, not globally unique. References retain this opaque
+    // affinity as well; frame data equality below deliberately excludes it.
+    pub(super) affinity: SessionId,
     context: FrameContext14,
     pub(crate) tick: u32,
     pub(crate) source_time: f64,
@@ -230,6 +238,37 @@ pub struct Frame14 {
     pub(crate) collections: CollectionView,
     pub(crate) events: Vec<EventBatch>,
     pub(crate) fx: Vec<FxBatch>,
+}
+impl PartialEq for Frame14 {
+    fn eq(&self, other: &Self) -> bool {
+        (
+            self.context,
+            self.tick,
+            self.source_time,
+            self.phase,
+            self.training,
+            self.ack_input,
+            &self.owner,
+            &self.owner_combat,
+            &self.actors,
+            &self.collections,
+            &self.events,
+            &self.fx,
+        ) == (
+            other.context,
+            other.tick,
+            other.source_time,
+            other.phase,
+            other.training,
+            other.ack_input,
+            &other.owner,
+            &other.owner_combat,
+            &other.actors,
+            &other.collections,
+            &other.events,
+            &other.fx,
+        )
+    }
 }
 impl Frame14 {
     pub fn from_reconstructed(
@@ -306,6 +345,7 @@ impl Frame14 {
             .try_encode()?;
         }
         Ok(Self {
+            affinity: SessionId::new(),
             context,
             tick,
             source_time: server_time,
@@ -355,6 +395,7 @@ impl Frame14 {
     pub fn actors(&self) -> impl ExactSizeIterator<Item = Actor14<'_>> {
         self.actors.iter().map(|wire| Actor14 {
             wire,
+            affinity: &self.affinity,
             context: self.context,
         })
     }

@@ -1174,3 +1174,167 @@ fn successful_fallback_stop_is_valid_and_reaches_real_intake_in_both_drivers() {
         assert_eq!(seats[0].stats.rejected, 0);
     }
 }
+
+#[test]
+fn identical_public_frames_do_not_make_fresh_session_npc_references_equal() {
+    let sim = npc_scene();
+    let mut a = DeliverySession::new(PlayerId(1));
+    let mut b = DeliverySession::new(PlayerId(1));
+    let left = prepared(&sim, &mut ItemObserver::new(PlayerId(1)), &mut a);
+    let right = prepared(&sim, &mut ItemObserver::new(PlayerId(1)), &mut b);
+    assert_eq!(
+        left.frame(),
+        right.frame(),
+        "opaque affinity is not a public decoded fact"
+    );
+    let l = left.frame().actors().find_map(|a| a.npc()).unwrap();
+    let r = right.frame().actors().find_map(|a| a.npc()).unwrap();
+    assert_eq!(l.wire_id(), r.wire_id());
+    assert_eq!(
+        l.context(),
+        r.context(),
+        "numeric epoch/sample alone collide across fresh sessions"
+    );
+    assert_eq!(l, l.clone());
+    assert_eq!(
+        l,
+        left.frame().clone().actors().find_map(|a| a.npc()).unwrap()
+    );
+    assert_ne!(
+        l, r,
+        "reference equality must also carry private local session affinity"
+    );
+    let f = left.frame();
+    let independent = Frame14::from_reconstructed(
+        f.context(),
+        snapshot(f),
+        f.collections().clone(),
+        f.events().to_vec(),
+        f.fx().to_vec(),
+    )
+    .unwrap();
+    assert_eq!(
+        &independent, f,
+        "independently reconstructed equal data remains equal"
+    );
+    assert_ne!(
+        l,
+        independent.actors().find_map(|a| a.npc()).unwrap(),
+        "data construction creates its own local reference scope"
+    );
+}
+
+struct AckHumanBot {
+    inner: bots::bot::HumanBot,
+    ack: mpsc::Sender<(FrameContext14, Vec<PublicCommand>)>,
+}
+impl Policy for AckHumanBot {
+    fn input_kind(&self) -> InputKind {
+        self.inner.input_kind()
+    }
+    fn input_requirements(&self) -> InputRequirements {
+        self.inner.input_requirements()
+    }
+    fn check_input(&self, input: InputPreview<'_>) -> Result<(), InputRefusal> {
+        self.inner.check_input(input)
+    }
+    fn decide_input_into(
+        &mut self,
+        input: PolicyInput<'_>,
+        out: &mut Vec<PublicCommand>,
+    ) -> Result<(), InputRefusal> {
+        let PolicyInput::Delivered14(frame) = input else {
+            panic!("actual HumanBot worker received raw input")
+        };
+        let base = out.len();
+        self.inner.decide_input_into(input, out)?;
+        // Observe only real delegated output. This wrapper never creates, changes or installs a command.
+        let emitted = out[base..].to_vec();
+        for proposal in &emitted {
+            if let PublicCommand::Target { actor } = proposal {
+                assert!(frame.frame().actors().any(|row| row.wire().id == actor.0));
+            }
+        }
+        self.ack.send((frame.frame().context(), emitted)).unwrap();
+        Ok(())
+    }
+    fn spec(&self) -> PolicySpec {
+        self.inner.spec()
+    }
+    fn reset(&mut self, start: &MatchStart) {
+        self.inner.reset(start)
+    }
+    fn decide(&mut self, _: &Observation) -> Vec<PublicCommand> {
+        panic!("actual HumanBot async raw shortcut")
+    }
+}
+#[test]
+fn actual_human_bot_async_handshake_delivers_frame14_and_submits_real_nonempty_commands_without_fallback(
+) {
+    let mut sim = npc_scene();
+    let start = MatchStart::of(&sim, PlayerId(1), 7);
+    let (ack, received) = mpsc::channel();
+    let bot = AckHumanBot {
+        inner: bots::bot::HumanBot::new(
+            bots::types::TierId::Normal,
+            bots::types::PersonaId::Hunter,
+        ),
+        ack,
+    };
+    let mut seat = AsyncSeat::spawn(&start, Box::new(bot), Box::new(scripted::Idle), 4);
+    seat.bind_fx(&sim).unwrap();
+    let mut submitted = vec![];
+    let mut real_output = vec![];
+    let mut events = vec![];
+    let mut samples = 0;
+    for _ in 0..200 {
+        seat.poll(&mut sim, &events, |_, c| submitted.push(c))
+            .unwrap();
+        let token = seat
+            .pending
+            .clone()
+            .expect("real HumanBot request is queued");
+        let (context, commands) = received
+            .recv_timeout(Duration::from_secs(5))
+            .expect("real delegated HumanBot callback ack");
+        assert_eq!((context.sample, context.epoch), (token.sample, token.epoch));
+        assert_eq!(context.viewer, PlayerRef::new(1).unwrap());
+        assert_eq!(context.protocol, 14);
+        real_output.extend(commands);
+        samples += 1;
+        // Ack is issued before the worker posts its reply. Yield to that real sender until poll
+        // consumes it; no fabricated reply, sleep, source-clock override or installed outcome.
+        let limit = Instant::now() + Duration::from_secs(5);
+        while seat.pending.is_some() {
+            assert!(Instant::now() < limit, "actual worker reply did not arrive");
+            seat.poll(&mut sim, &events, |_, c| submitted.push(c))
+                .unwrap();
+            std::thread::yield_now();
+        }
+        assert!(seat.fault.is_none(), "{:?}", seat.fault);
+        assert_eq!(seat.stats.fallback_decisions, 0);
+        events = sim.step();
+        if seat.stats.accepted > 0 {
+            break;
+        }
+    }
+    assert!(
+        samples > 1,
+        "exercise actual HumanBot scheduling across real native steps"
+    );
+    assert!(!real_output.is_empty() && !submitted.is_empty());
+    assert!(seat.stats.proposed > 0 && seat.stats.accepted > 0);
+    assert_eq!(seat.stats.fallback_decisions, 0);
+    assert!(
+        real_output.iter().all(|c| matches!(
+            c,
+            PublicCommand::Move { .. }
+                | PublicCommand::Stop { .. }
+                | PublicCommand::Target { .. }
+                | PublicCommand::Aim { .. }
+                | PublicCommand::Attack { .. }
+                | PublicCommand::Release { .. }
+        )),
+        "this is compatibility-front-end input-door proof, not full fight/RNG parity"
+    );
+}

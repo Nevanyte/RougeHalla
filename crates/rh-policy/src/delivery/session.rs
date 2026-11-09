@@ -110,13 +110,16 @@ impl DeliverySession {
             sample: SampleId(self.next),
             viewer,
         };
-        let frame = Arc::new(Frame14::from_reconstructed(
+        let mut frame = Frame14::from_reconstructed(
             context,
             snapshot.decoded(),
             received,
             event_batches,
             fx_batches,
-        )?);
+        )?;
+        // Only the local scope is shared. It is neither a decoded fact nor an ActorRefs epoch.
+        frame.affinity = self.session.clone();
+        let frame = Arc::new(frame);
         Ok(PreparedDelivery {
             session: self.session.clone(),
             state,
