@@ -1,0 +1,17 @@
+exit=1 signal=null
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: false == true
+    at verify (file:///work/tools/bot-sd-fixtures/verify.mjs:19:2)
+    at <anonymous> (/work/tools/bot-sd-fixtures/capture.mts:61:45) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v22.23.4

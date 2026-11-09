@@ -1,0 +1,27 @@
+sourceSha256 113 immutable Git/current exact PASS
+configSha256 8 immutable Git/current exact PASS
+toolSha256 8 immutable Git/current exact PASS
+15 raw source-control logs match sealed result pins PASS
+Unchanged parity/policy/bot-fight/source.json PASS
+Unchanged parity/policy/bot-brain-prefix/source.json PASS
+Unchanged parity/policy/bot-core.json PASS
+Unchanged parity/policy/bot-mob-hunt.json PASS
+Unchanged tools/bot-fight-fixtures/cases.mts PASS
+Unchanged Cargo.lock PASS
+Unchanged crates/rh-policy/src/bots/bot.rs PASS
+Unchanged crates/rh-policy/src/bots/perception.rs PASS
+Unchanged crates/rh-policy/src/delivery/frame.rs PASS
+Unchanged crates/rh-protocol/src/lib.rs PASS
+Unchanged crates/rh-sim/src/observe.rs PASS
+Unchanged crates/rh-policy/src/bots/mob_hunt.rs PASS
+Unchanged crates/rh-policy/src/bots/kite/own_timings.rs PASS
+Unchanged crates/rh-policy/src/bots/orbwalk.rs PASS
+Frozen Native crates/rh-policy/src/bots/fight.rs ada90f5c7b6ba390edb8f9a4d39bf6092eee8f5c0936aa004f55673d966b5661 PASS
+Frozen Native crates/rh-policy/src/bots/fight/retreat.rs 1c293e36240413a718086f19b6f7806a4e042d6b7a797a41493279e6af056a30 PASS
+Frozen Native crates/rh-policy/src/bots/fight/source_tests.rs f7eaa459e77a0c601eb4c28b2cc0ed75ce4fafdb8e4f25a32f32e00aa5026698 PASS
+Frozen Native crates/rh-policy/src/bots/fight/sd_source_tests.rs bfbe52ed4a2178ff042c0d530f1b019f3d63700435813177bc603c374d92a8bb PASS
+node --check tools/bot-sd-fixtures/controls.mjs PASS
+node --check tools/bot-sd-fixtures/verify.mjs PASS
+bash -n tools/bot-sd-fixtures/capture.sh tools/bot-sd-fixtures/controls.sh PASS
+git diff --check PASS
+Source fixture SHA 55e8565e6a896b91deb49cdd8e290f568dec8013a1af4ac3eb72aec56bb65f7c PASS

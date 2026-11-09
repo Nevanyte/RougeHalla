@@ -1,0 +1,40 @@
+exit=1 signal=null
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
+  [
+    'attacking',
+    'attacking',
+-   'sudden death: keeping distance',
+    'attacking',
++   'attacking',
+    'sudden death: keeping distance'
+  ]
+
+    at verify (file:///work/tools/bot-sd-fixtures/verify.mjs:8:9)
+    at <anonymous> (/work/tools/bot-sd-fixtures/capture.mts:61:45) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: [
+    'attacking',
+    'attacking',
+    'attacking',
+    'attacking',
+    'sudden death: keeping distance'
+  ],
+  expected: [
+    'attacking',
+    'attacking',
+    'sudden death: keeping distance',
+    'attacking',
+    'sudden death: keeping distance'
+  ],
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}
+
+Node.js v22.23.4

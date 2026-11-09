@@ -1,0 +1,14 @@
+{"control":"knowledge-gate","exit":1,"semanticEqual":false,"profileEqual":false}
+{"control":"start-clock","exit":1,"semanticEqual":false,"profileEqual":false}
+{"control":"hp-band","exit":1,"semanticEqual":false,"profileEqual":false}
+{"control":"hysteresis","exit":1,"semanticEqual":false,"profileEqual":false}
+{"control":"distance340","exit":1,"semanticEqual":false,"profileEqual":false}
+{"control":"held-order","exit":1,"semanticEqual":false,"profileEqual":false}
+{"control":"cache1200","exit":1,"semanticEqual":false,"profileEqual":false}
+{"control":"arrived48","exit":1,"semanticEqual":false,"profileEqual":false}
+{"control":"threat-distance","exit":1,"semanticEqual":false,"profileEqual":false}
+{"control":"progress-touch","exit":1,"semanticEqual":false,"profileEqual":false}
+{"control":"seen-gate","exit":1,"semanticEqual":false,"profileEqual":false}
+{"control":"leave-held","exit":1,"semanticEqual":false,"profileEqual":false}
+{"control":"provenance-nonkill","exit":0,"semanticEqual":true,"profileEqual":false}
+{"semanticKills":12,"provenanceNonkills":1,"pristine":true,"restored":true}
