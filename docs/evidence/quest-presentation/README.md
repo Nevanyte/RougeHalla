@@ -13,3 +13,9 @@ Arithmetic diagnostics are declared Number probes; actual helper-rendered text i
 The source-only candidate will be exported with git archive and checked in a fresh external directory/pinned process.
 That is an author-run external reproduction, not an independent reviewer claim. Native/API/wire admission is separate;
 no native parity or public/client completeness is claimed by source capture alone.
+
+External reproduction now PASS from exact source-only candidate4c5e564e: git archive of packages/root package manifests/
+lock/tsconfig + new harness/fixture + immutable old catalog, fresh directory and pinned Docker process. All94 pinned
+source/config/harness/catalog files match; exact full-byte output matches SHA4a021c34. Receipt remains author-run,
+not independent review. Legacy source and old corpus bytes remain unchanged. Native phase begins only after the root's
+five-field API approval; this source receipt alone makes no Native or transport claim.
