@@ -181,6 +181,12 @@ test('Readiness template and synthetic consistency never grant browser acceptanc
   assert.equal(evaluate(template()).status,'OPEN');const r=evaluate(bundle());assert.equal(r.status,'OPEN');
   assert.equal(r.cases[0].status,'CONSISTENT_FOR_REVIEW');assert.equal(r.browserAcceptance,'NOT_GRANTED_BY_COLLECTOR');
 });
+test('Checker requires the exact reviewed native source',()=>{
+  const b=bundle();b.nativeSource='1'.repeat(40);const r=evaluate(b);
+  assert.equal(r.status,'FAIL');
+  assert(r.failures.includes('native source differs from the reviewed reference'));
+  assert.equal(r.browserAcceptance,'NOT_GRANTED_BY_COLLECTOR');
+});
 test('Checker rejects same-document, replacement tab, changed identity, fresh fallback and late reload',()=>{
   const edits=[b=>b.cases[0].documents[1].executionContextWitness='exec-1',
     b=>b.cases[0].documents[1].tabWitness='different-tab',

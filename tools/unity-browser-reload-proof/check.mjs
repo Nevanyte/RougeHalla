@@ -87,6 +87,7 @@ export function evaluate(bundle) {
     if (bundle.boundary !== 'metadata consistency only; actual browser acceptance is reserved to Root review')
       requireValue(false);
     if (bundle.clientSource !== CLIENT_SOURCE) failures.push('client source differs from the reviewed composition');
+    if (bundle.nativeSource !== NATIVE_REFERENCE) failures.push('native source differs from the reviewed reference');
     if (!HEX64.test(bundle.executionReleaseSha256 ?? '')) open.push('Root execution release receipt absent');
     if (bundle.artifacts === null) open.push('coherent build/runtime prerequisite receipts absent');
     else {
