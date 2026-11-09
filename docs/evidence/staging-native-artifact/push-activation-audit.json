@@ -1,0 +1,80 @@
+{
+  "format": "rh-native-push-activation-audit/1",
+  "base": "2703ee7ae36908cded696cf5d62a425efd56034a",
+  "code_commit": "cc7b158a52e4d54c8e1f1a16f99909deb299c1d6",
+  "changed_code_paths": [
+    ".github/workflows/staging-native-artifact.yml",
+    "tools/staging-native-artifact/produce.py",
+    "tools/staging-native-artifact/test_produce.py"
+  ],
+  "preserved_original_evidence": [
+    "docs/evidence/staging-native-artifact/README.md",
+    "docs/evidence/staging-native-artifact/SHA256SUMS",
+    "docs/evidence/staging-native-artifact/final-offline.txt",
+    "docs/evidence/staging-native-artifact/first-offline.txt",
+    "docs/evidence/staging-native-artifact/source-audit.json",
+    "docs/evidence/staging-native-artifact/verify.sh"
+  ],
+  "historical_manifest_sha256": "afb69b810f813cd1820ac42752621c29d7fa601db73d57daca3852b7f31b54d2",
+  "historical_payloads_rehashed_from_git": [
+    {
+      "path": ".github/workflows/staging-native-artifact.yml",
+      "sha256": "70bc3e7f72e3ff7e3f0f1f0115301e6bfe53d64ba02e27a6bc9ddb2352bbbf5d"
+    },
+    {
+      "path": "docs/evidence/staging-native-artifact/README.md",
+      "sha256": "b486449e27fb47d08006bf155325ac433226c6067e0e832500573a7697081c65"
+    },
+    {
+      "path": "docs/evidence/staging-native-artifact/final-offline.txt",
+      "sha256": "860de796e3ae48e0c803e14ccffbac15d86354a36f04e6199064fbf272c3919e"
+    },
+    {
+      "path": "docs/evidence/staging-native-artifact/first-offline.txt",
+      "sha256": "f9c80152b45cad60b06b0efd1fade2ce05ee64b64fd7a14d102ce2a827465f30"
+    },
+    {
+      "path": "docs/evidence/staging-native-artifact/source-audit.json",
+      "sha256": "9b7626712c5f1bec1489bf5b75557d4fb465ddc8d14c2b7617cd9c79808de3be"
+    },
+    {
+      "path": "docs/evidence/staging-native-artifact/verify.sh",
+      "sha256": "89199e9886229d6b6c6b4e73a9467dae7be34563cec3776dd7788849d66243e9"
+    },
+    {
+      "path": "tools/staging-native-artifact/README.md",
+      "sha256": "344e77ca42e4acd15502bea45365a223ab112963c857d13c5394b168b7597ed4"
+    },
+    {
+      "path": "tools/staging-native-artifact/component.py",
+      "sha256": "d7fc7770978cfa9f3f094323372bcb06e4bae55204df980953663af93b0d35bd"
+    },
+    {
+      "path": "tools/staging-native-artifact/produce.py",
+      "sha256": "68f77366bb92a14ae1b8ec646e973fa763934f9b6b5732f414944f2a87f4d34f"
+    },
+    {
+      "path": "tools/staging-native-artifact/test_component.py",
+      "sha256": "8209947a14d8a368b51bc18408187b7a283cf81585651e4d4ca93b551658f4be"
+    },
+    {
+      "path": "tools/staging-native-artifact/test_produce.py",
+      "sha256": "2d84275e517fc124606c50a286075c32c0c254fb07dc0af2d9a163bc73966c9d"
+    }
+  ],
+  "checks": {
+    "offline_tests": 19,
+    "failures": 0,
+    "AST_files": 2,
+    "YAML_exact_push_filter_and_event_selection": "PASS",
+    "shell_payloads_bash_n": 3,
+    "whitespace": "PASS",
+    "workflow_dispatches_or_pushes": 0,
+    "local_native_PG_or_build_runs": 0,
+    "AWS_actions": 0
+  },
+  "push_binding": "actual GITHUB_SHA plus canonical ref/actions event and push payload ref/after/head_commit.id/deleted=false/no inputs",
+  "manual_semantics": "original exact reachable older commit allowed unchanged",
+  "temporary_trigger_removal_owner": "Root after the one actual result",
+  "deployable": false
+}
