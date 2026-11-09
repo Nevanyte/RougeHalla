@@ -44,7 +44,7 @@ namespace Roguehalla.Client
         Action _boundLaunchTimeline;
 
         // Welcome has no mode. Its default Training=false is never confirmation, including on resume.
-        public bool LaunchVerified => Session != null && (_sessionTarget == null || _modeConfirmed &&
+        public bool LaunchVerified => this != null && !_destroying && Session != null && (_sessionTarget == null || _modeConfirmed &&
             _sessionGeneration == _joinGeneration && Session.Latest != null &&
             Session.TimelineEpoch == _confirmedModeEpoch && _sessionTarget.MatchesServer(Session.Training));
         public bool LaunchPending => _sessionTarget != null && Session != null && !LaunchVerified &&
@@ -66,15 +66,17 @@ namespace Roguehalla.Client
         void Start()
         {
             InitializeAccounts();
+            InitializeSeatResume();
             Hud = gameObject.AddComponent<MatchHud>();
             Hud.Initialize(this);
             if (AutoJoin) Join(Profile, Faction);
         }
 
-        void JoinCore(string nickname, int faction, MatchLaunchTarget target, string ownerToken, long generation, AccountSettlementAccess settlementAccess = null)
+        void JoinCore(string nickname, int faction, MatchLaunchTarget target, string ownerToken, long generation,
+            AccountSettlementAccess settlementAccess = null, AccountJoinIntent ownerIntent = null, OwnedSeatCheckpoint resumeRecord = null)
         {
             if (_destroying || generation != _joinGeneration) return;
-            CloseCurrentSession();
+            CloseCurrentSession(keepCheckpoint: resumeRecord != null);
             if (_destroying || generation != _joinGeneration) return;
             Profile = string.IsNullOrWhiteSpace(nickname) ? Profile : nickname.Trim();
             Faction = faction;
@@ -91,19 +93,23 @@ namespace Roguehalla.Client
             {
                 Url = target.Url, Profile = Profile, Ticket = System.Text.Encoding.UTF8.GetBytes(ownerToken ?? ""), ContentHash = ContentHash, Build = "unity-web-0.1.0",
                 Faction = Faction >= 0 ? (byte)Faction : (byte?)null, Now = NowMs,
+                InitialResume = resumeRecord?.CreateSeed(),
             });
             Session = session; _sessionTarget = target; _sessionFaction = faction;
             _sessionGeneration = generation; _modeConfirmed = false;
+            BindOwnedSeatSession(session, ownerIntent, target, faction, generation, resumeRecord);
             _boundLaunchState = state =>
             {
                 if (!CurrentLaunchSession(session, generation)) return;
                 if (state != SessionState.InMatch) { Hud?.UnbindTrainingSession(); _steering = false; _attackHeld = false; }
                 if (state == SessionState.Failed || state == SessionState.Rejected || state == SessionState.Ended) Hud?.RefreshLaunchConfirmation(session);
+                SeatSessionStateChanged(session, generation, state);
                 Debug.Log("[net] " + state + (session.RejectCode.HasValue ? " " + session.RejectCode + ": " + session.RejectReason : "") + (session.Error != null ? " " + session.Error : ""));
             };
             _boundLaunchSnapshot = snapshot =>
             {
                 if (!CurrentLaunchSession(session, generation) || !ReferenceEquals(session.Latest, snapshot)) return;
+                if (!SeatResumeModeAllowed(session)) { RefuseLaunch("The profile changed. Load it again before resuming."); return; }
                 if (!CurrentLaunchTarget(target, faction)) { RefuseLaunch("The connection changed. Start your run again."); return; }
                 if (!target.MatchesServer(session.Training))
                 {
@@ -113,6 +119,8 @@ namespace Roguehalla.Client
                 }
                 bool wasVerified = LaunchVerified;
                 _confirmedModeEpoch = session.TimelineEpoch; _modeConfirmed = true;
+                CaptureConfirmedSeat(session);
+                if (!CurrentLaunchSession(session, generation)) return;
                 if (!wasVerified) Hud?.RefreshLaunchConfirmation(session);
             };
             _boundLaunchTimeline = () =>
@@ -130,10 +138,16 @@ namespace Roguehalla.Client
             Hud?.Bind(session);
             if (!CurrentLaunchSession(session, generation)) return;
             BindPresentationSession(session);
+            if (!SeatResumeConnectAllowed(session))
+            {
+                if (CurrentLaunchSession(session, generation)) CloseCurrentSession(detach: true, keepCheckpoint: true);
+                return;
+            }
+            if (!CurrentLaunchSession(session, generation)) return;
             session.Connect();
         }
 
-        bool CurrentLaunchSession(Session session, long generation) => !_destroying &&
+        bool CurrentLaunchSession(Session session, long generation) => this != null && !_destroying &&
             generation == _joinGeneration && ReferenceEquals(Session, session);
 
         void RefuseLaunch(string reason)
@@ -142,10 +156,11 @@ namespace Roguehalla.Client
             CancelOwnedJoin();
         }
 
-        void CloseCurrentSession()
+        void CloseCurrentSession(bool detach = false, bool keepCheckpoint = false)
         {
             var old = Session;
             var oldArena = Arena;
+            var oldCheckpoint = TakeSeatBinding(keepCheckpoint);
             Hud?.UnbindTrainingSession();
             UnbindSettlementSession();
             Session = null; _sessionTarget = null; _modeConfirmed = false;
@@ -163,7 +178,9 @@ namespace Roguehalla.Client
             if (!_destroying) Hud?.ShowMenu();
             // Retired-session callbacks may synchronously start another launch. All old
             // binding/arena mutations must finish before invoking the old session's Leave.
-            old?.Leave();
+            if (!keepCheckpoint) ClearSeatRecord(oldCheckpoint);
+            if (detach) old?.Detach();
+            else old?.Leave();
         }
 
         // The caller has already detached ownership. Never look up a mutable Arena
@@ -184,6 +201,7 @@ namespace Roguehalla.Client
 
         public void Leave()
         {
+            if (this == null || _destroying) return;
             CancelOwnedJoin();
         }
 
@@ -200,9 +218,10 @@ namespace Roguehalla.Client
 
         void OnDestroy()
         {
-            _destroying = true;
-            CancelOwnedJoin();
+            RetireRuntime();
         }
+
+        void OnApplicationQuit() { RetireRuntime(); }
 
         void BindPresentationSession(Session session)
         {
@@ -352,7 +371,7 @@ namespace Roguehalla.Client
 
         public void PickupFocus()
         {
-            if (Session != null && Session.State == SessionState.InMatch && Session.Collections.Focus.HasValue)
+            if (LaunchVerified && Session.State == SessionState.InMatch && Session.Collections.Focus.HasValue)
                 Session.Input.Pickup(Session.Collections.Focus.Value.Handle);
         }
 
