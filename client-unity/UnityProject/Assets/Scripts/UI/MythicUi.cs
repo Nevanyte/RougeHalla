@@ -12,7 +12,7 @@ namespace Roguehalla.Client
     {
         public enum ButtonStyle { Primary, Secondary, Quiet }
 
-        static TMP_FontAsset _font;
+        static TMP_FontAsset _font, _headingFont;
         static readonly Sprite[] GlyphSprites = new Sprite[12];
 
         public static RectTransform Rect(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax,
@@ -37,11 +37,11 @@ namespace Roguehalla.Client
         }
 
         public static TMP_Text Text(Transform parent, string name, string value, Vector2 anchorMin, Vector2 anchorMax,
-            float fontSize, Color? color = null, TextAlignmentOptions alignment = TextAlignmentOptions.MidlineLeft)
+            float fontSize, Color? color = null, TextAlignmentOptions alignment = TextAlignmentOptions.MidlineLeft, bool heading = false)
         {
             var rect = Rect(parent, name, anchorMin, anchorMax, new Vector2(6, 3), new Vector2(-6, -3));
             var text = rect.gameObject.AddComponent<TextMeshProUGUI>();
-            text.font = Font;
+            text.font = heading ? HeadingFont : Font;
             text.text = value ?? "";
             text.fontSize = fontSize; text.fontSizeMin = Mathf.Max(9, fontSize * .72f); text.fontSizeMax = fontSize;
             text.enableAutoSizing = true; text.color = color ?? ShowcasePalette.Text;
@@ -73,7 +73,7 @@ namespace Roguehalla.Client
         }
 
         public static Button Button(Transform parent, string name, string label, Vector2 anchorMin, Vector2 anchorMax,
-            UnityAction onClick, ButtonStyle style = ButtonStyle.Secondary)
+            UnityAction onClick, ButtonStyle style = ButtonStyle.Secondary, float fontSize = 16)
         {
             var rect = Rect(parent, name, anchorMin, anchorMax);
             var image = rect.gameObject.AddComponent<Image>();
@@ -95,7 +95,7 @@ namespace Roguehalla.Client
             colors.disabledColor = new Color32(37, 43, 51, 255); colors.fadeDuration = .08f;
             button.colors = colors;
             button.onClick.AddListener(onClick);
-            Text(rect, "Label", label, Vector2.zero, Vector2.one, 16,
+            Text(rect, "Label", label, Vector2.zero, Vector2.one, fontSize,
                 style == ButtonStyle.Primary ? ShowcasePalette.Text : ShowcasePalette.MutedText,
                 TextAlignmentOptions.Center);
             return button;
@@ -146,8 +146,17 @@ namespace Roguehalla.Client
         {
             get
             {
-                if (_font == null) _font = Resources.Load<TMP_FontAsset>("Showcase/CinzelDecorative") ?? TMP_Settings.defaultFontAsset;
+                if (_font == null) _font = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF") ?? TMP_Settings.defaultFontAsset;
                 return _font;
+            }
+        }
+
+        static TMP_FontAsset HeadingFont
+        {
+            get
+            {
+                if (_headingFont == null) _headingFont = Resources.Load<TMP_FontAsset>("Showcase/CinzelDecorative") ?? Font;
+                return _headingFont;
             }
         }
 

@@ -37,6 +37,7 @@ namespace Roguehalla.Client
         readonly List<uint> _remove = new List<uint>();
         readonly ShowcaseCatalog _catalog;
         int _stamp;
+        const float ActorVisualScale = 1.2f;
         const byte KnownSignatureMask = 1 | 2 | 4 | 8 | 64;
         static readonly byte[] SignatureBits = { 1, 2, 4, 8, 64 };
         static readonly string[] SignatureSpriteKeys = { "sigil3", "spark", "sigil2", "weapon0", "sigil4" };
@@ -291,6 +292,8 @@ namespace Roguehalla.Client
             var a = new Art { Root = new GameObject("Observed actor") };
             a.Root.transform.SetParent(_parent, false);
             var t = a.Root.transform;
+            // Scale character art and its overhead indicators together about the grounded actor position.
+            t.localScale = new Vector3(ActorVisualScale, ActorVisualScale, 1f);
             a.Shadow = ShowcaseSprites.Create(t, "Contact shadow", "shadow", 0, Color.white, new Vector2(1.2f, .45f), new Vector3(.13f, -.04f), false);
             a.Halo = ShowcaseSprites.Create(t, "Faction footprint", "ring", 1, Color.white, Vector2.one, Vector3.zero, false);
             a.Body = ShowcaseSprites.Create(t, "Authored character", "rune", 2, Color.white, Vector2.one, Vector3.zero);
