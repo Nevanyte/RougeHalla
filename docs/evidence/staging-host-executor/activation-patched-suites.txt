@@ -1,0 +1,9 @@
+# Suites run on a scratch copy of tools/staging-full-runtime with activation.proposed.diff applied (never applied to the repo); test file at b06c0e5
+## preparation (tools/staging-full-runtime test_*.py)
+Ran 14 tests in 0.099s
+
+OK
+## installer (tools/staging-full-runtime/installer test_*.py)
+Ran 97 tests in 5.466s
+
+OK

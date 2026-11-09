@@ -1,0 +1,215 @@
+{
+  "format": "rh-staging-host-executor-source-audit/1",
+  "base": "cdec00efa6d56661264271ebc3437f7b7f5349c2",
+  "required_ancestor": "6a251045a05e3abd2ed63eb2df4d080930a22a64",
+  "code_commits": [
+    "905ceb1",
+    "a744c01",
+    "842b467",
+    "b06c0e5"
+  ],
+  "branch": "claude/linux-host-installer",
+  "new_files": {
+    "tools/staging-full-runtime/installer/host_executor.py": "79cbe3af6810b01d0050178f07a80e0db02e6f7f153fe5d3c2e51e88db76c586",
+    "tools/staging-full-runtime/installer/host_executor/layout.json": "4c5364e6d3f5b1dc66f521d65c622fbafdda4eefa076b9ad8afe96725b3efe34",
+    "tools/staging-full-runtime/installer/test_host_executor.py": "191f545ab4f3c9aeb80e3199b92a02f3205d99b240fc9550b536719e4dca33a4"
+  },
+  "unchanged_existing_staging_files": [
+    {
+      "path": "tools/staging-full-runtime/Caddyfile",
+      "sha256": "d3d4367265173952f656941e2d013e7076fcf62f02316cb8f3d53abb292b7de1",
+      "unchanged": true
+    },
+    {
+      "path": "tools/staging-full-runtime/README.md",
+      "sha256": "6c0dfef7eface6da8ab16ebdf705308de8a81a300549518d7641d97c91a51a60",
+      "unchanged": true
+    },
+    {
+      "path": "tools/staging-full-runtime/backup.sh",
+      "sha256": "5ef8f58b26ee6d2e6d15fd88308c25257e1f8b37672e4cf31e590bfa43baf55e",
+      "unchanged": true
+    },
+    {
+      "path": "tools/staging-full-runtime/backup_archive.py",
+      "sha256": "afca4a3fde3b3c2db177991b4dfe9a683af7d1e145de42f1610db4124345b500",
+      "unchanged": true
+    },
+    {
+      "path": "tools/staging-full-runtime/init-runtime-secrets.py",
+      "sha256": "4c4d253dbd2dfce3e42769c08196c664451781d05b4f58ecd65ba1e0fb081f23",
+      "unchanged": true
+    },
+    {
+      "path": "tools/staging-full-runtime/installer/README.md",
+      "sha256": "af4c8c33cf0027d961ac63d8d4c9a1334f92bef6066d9d6f5c345b2c9cc25273",
+      "unchanged": true
+    },
+    {
+      "path": "tools/staging-full-runtime/installer/contract.py",
+      "sha256": "6dab4b7f4c29ddf947d11fa18460e5549e2d0976c39aff74a47f23be23421280",
+      "unchanged": true
+    },
+    {
+      "path": "tools/staging-full-runtime/installer/expiry_executor.py",
+      "sha256": "31a5f560fcae7ee1c2abe2299a3957c062bf013e9cae353f8c73484eea0ff9d1",
+      "unchanged": true
+    },
+    {
+      "path": "tools/staging-full-runtime/installer/foundation.py",
+      "sha256": "541df0f2b3e7887ed6c40b286a38d9398604e27618f59e43772fdcb69d4f3000",
+      "unchanged": true
+    },
+    {
+      "path": "tools/staging-full-runtime/installer/host_device.py",
+      "sha256": "f5d63a201aae7549a51f7952ca3916595fac846ce2ca83fcdafbb3d952a87ade",
+      "unchanged": true
+    },
+    {
+      "path": "tools/staging-full-runtime/installer/host_material.py",
+      "sha256": "7849a4afd0b96f08980936076bec52872b96f7ea08083c607babcf219cdd87ef",
+      "unchanged": true
+    },
+    {
+      "path": "tools/staging-full-runtime/installer/plan.schema.json",
+      "sha256": "5ceb1fcd950b78f5b31c99eb5c08b8f63156ecef2a5f68db6dcdab3fc42f9e60",
+      "unchanged": true
+    },
+    {
+      "path": "tools/staging-full-runtime/installer/plan.unverified.json",
+      "sha256": "509a8b1243dff630175f3472d8a825b0a3a44b93f3aa2e7e066fb80c2c71fcbf",
+      "unchanged": true
+    },
+    {
+      "path": "tools/staging-full-runtime/installer/security.guard",
+      "sha256": "7eceb7fa4c38f8b18385dbd6ab6269f3be38eb19a6530b7478ecd9d969cc7858",
+      "unchanged": true
+    },
+    {
+      "path": "tools/staging-full-runtime/installer/test_expiry_executor.py",
+      "sha256": "d1a101dc6ec9b1aa1133cb5f879633a612402003687b05ea771ec67ff8d8d40f",
+      "unchanged": true
+    },
+    {
+      "path": "tools/staging-full-runtime/installer/test_host_device.py",
+      "sha256": "e345f582c9929835e04d536f8606c42850149175eb6dff7c7c0e16f45811e94a",
+      "unchanged": true
+    },
+    {
+      "path": "tools/staging-full-runtime/installer/test_installer.py",
+      "sha256": "841de45296941bc307983f83c6bf75328416134fce5fd8f2d61c70ac5770a62b",
+      "unchanged": true
+    },
+    {
+      "path": "tools/staging-full-runtime/installer/transfer.py",
+      "sha256": "73fd9a1c08123e98d3d48dd09221ce5748b095d94895e73b643521ad0cfdf764",
+      "unchanged": true
+    },
+    {
+      "path": "tools/staging-full-runtime/native-pins.json",
+      "sha256": "a99a58591430e85da016a16fcc62f41363001c784bcb99c0e16ea0a64b7d4d90",
+      "unchanged": true
+    },
+    {
+      "path": "tools/staging-full-runtime/pg_hba.conf",
+      "sha256": "ffc8cd0acdedfe16c9cf4d616296e268ba21e56818e9c9c8e173b8d36a4b57da",
+      "unchanged": true
+    },
+    {
+      "path": "tools/staging-full-runtime/plan.unverified.json",
+      "sha256": "4a0898e74f3dd11d2804ff62dceae2ebadd58a6a747ce620d08ff25be87557fe",
+      "unchanged": true
+    },
+    {
+      "path": "tools/staging-full-runtime/postgresql.conf",
+      "sha256": "7d827e4d20f090268d50f65d349ef356db3849d83fff88bd56eb5ca587025189",
+      "unchanged": true
+    },
+    {
+      "path": "tools/staging-full-runtime/prepare.py",
+      "sha256": "4905a19c724d2154e179d88d67d257e8d4b6b9a082477fcb32fc6f82fe54153a",
+      "unchanged": true
+    },
+    {
+      "path": "tools/staging-full-runtime/restore.sh",
+      "sha256": "807e18304dc8102621f69930aabf512dbb89f33786805cde735bdd8b6fd76083",
+      "unchanged": true
+    },
+    {
+      "path": "tools/staging-full-runtime/rougehalla-caddy.service.in",
+      "sha256": "856e2642fd99c58a4957fd0da98d32c4cdcb11be9ee507a76598e693c649ebf5",
+      "unchanged": true
+    },
+    {
+      "path": "tools/staging-full-runtime/rougehalla-postgres.service.in",
+      "sha256": "5ffc53bbe55f9634897342391af28912b8cf124d19d1260cf939d1fec4c822e7",
+      "unchanged": true
+    },
+    {
+      "path": "tools/staging-full-runtime/rougehalla-source.service.in",
+      "sha256": "040186c74c5c026d010412a3101a200f1dbc82a1d04df9105fdf3b2701b65070",
+      "unchanged": true
+    },
+    {
+      "path": "tools/staging-full-runtime/rougehalla-training.service.in",
+      "sha256": "6ff90741ae06251b6a28dd943f943193ed856420b3b5843b0b18e7cf77b10ce1",
+      "unchanged": true
+    },
+    {
+      "path": "tools/staging-full-runtime/route-probe.mjs",
+      "sha256": "ff3d8ab716bb8be6b1a0cba3cccdf12485cb5d8aa07357f89667ab39a5b39cbb",
+      "unchanged": true
+    },
+    {
+      "path": "tools/staging-full-runtime/run-runtime.py",
+      "sha256": "c9e4cd5d22004d672df3ab95c3d938857d122f07d7fafdadd2643cfcd181a102",
+      "unchanged": true
+    },
+    {
+      "path": "tools/staging-full-runtime/security.guard",
+      "sha256": "2c66c588a1f5c27cbe9395df6cc13e8f5c5be22e706870f39dc657462000c417",
+      "unchanged": true
+    },
+    {
+      "path": "tools/staging-full-runtime/test_preparation.py",
+      "sha256": "bb576f561fc81bca9942748c9452b6d01e143838f1e64bc560b62ac5c7e61056",
+      "unchanged": true
+    }
+  ],
+  "unchanged_shared_records": [
+    {
+      "path": "Cargo.lock",
+      "sha256": "b14507716b80f1c0b85f7298b380b3c9146917134d9361c1bb408062782c0b22",
+      "unchanged": true
+    },
+    {
+      "path": "docs/MIGRATION.md",
+      "sha256": "17e27b559dc62d77daeeb5f406e583fa6541036d8c30094c8e51df4c975f4ee9",
+      "unchanged": true
+    },
+    {
+      "path": "docs/CONTRACTS.md",
+      "sha256": "456652ccc0b8441f39464513fdf31843b9882e0bcece44958e7d620a987d359a",
+      "unchanged": true
+    },
+    {
+      "path": "docs/PROJECT_COORDINATION.md",
+      "sha256": "e70f6ff5f9467dcb4caf0e809510a8ce1433b848a748ec4435225167d882b6b4",
+      "unchanged": true
+    },
+    {
+      "path": "docs/REQUIREMENTS.md",
+      "sha256": "45f4a590c36bae776ed213297b2468cdbda0edc788946c670c04335923fb51c4",
+      "unchanged": true
+    }
+  ],
+  "absent_at_base_and_untouched": [
+    ".github/workflows/staging-native-artifact.yml",
+    "tools/staging-native-artifact/"
+  ],
+  "checks": {
+    "ast_parse": "host_executor.py, test_host_executor.py",
+    "git_diff_check": "clean for each code commit",
+    "repo_python_lint": "none configured for this area"
+  }
+}

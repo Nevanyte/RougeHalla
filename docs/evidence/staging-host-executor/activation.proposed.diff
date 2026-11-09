@@ -1,0 +1,124 @@
+diff -ruN a/tools/staging-full-runtime/installer/rougehalla-expiry-bootstrap.service b/tools/staging-full-runtime/installer/rougehalla-expiry-bootstrap.service
+--- a/tools/staging-full-runtime/installer/rougehalla-expiry-bootstrap.service	1970-01-01 00:00:00.000000000 +0000
++++ b/tools/staging-full-runtime/installer/rougehalla-expiry-bootstrap.service	2026-11-09 23:07:42.048139114 +0000
+@@ -0,0 +1,21 @@
++# Root-pinned image material. Userdata copies it to /etc/systemd/system, enables and starts it.
++# The host executor is this unit's MAIN process and runs the expiry executor in-process.
++[Unit]
++Description=Independent fail-safe guard for absolute expiry and host installation
++FailureAction=poweroff
++RefuseManualStop=yes
++Wants=network-online.target time-sync.target
++After=network-online.target time-sync.target
++
++[Service]
++Type=oneshot
++User=root
++TimeoutStartSec=120s
++TimeoutStartFailureMode=kill
++KillMode=control-group
++Restart=no
++SuccessExitStatus=
++ExecStart=/usr/bin/python3.12 -E -s /opt/rougehalla/installer/host_executor.py install --plan /etc/rougehalla-bootstrap/plan.json --toolchain-receipt /etc/rougehalla-bootstrap/toolchain.json --boundary-receipt /etc/rougehalla-bootstrap/boundary.json
++
++[Install]
++WantedBy=multi-user.target
+diff -ruN a/tools/staging-full-runtime/prepare.py b/tools/staging-full-runtime/prepare.py
+--- a/tools/staging-full-runtime/prepare.py	2026-11-09 23:07:42.007088297 +0000
++++ b/tools/staging-full-runtime/prepare.py	2026-11-09 23:07:42.047045219 +0000
+@@ -14,6 +14,24 @@
+ ACCOUNT = '048226733033'
+ REGION = 'ca-west-1'
+ UTC = dt.timezone.utc
++# Nonsecret run inputs only. The installer comes from the Root-pinned image, never from the network here.
++BOOTSTRAP = """#!/bin/bash
++set +x
++set -euo pipefail
++trap 'systemctl poweroff' ERR
++umask 077
++test "$(id -u)" = 0
++test -f /opt/rougehalla/installer/host_executor.py
++test -f /opt/rougehalla/installer/rougehalla-expiry-bootstrap.service
++install -d -m 0700 -o root -g root /etc/rougehalla-bootstrap
++printf '%s' '${BootstrapPlanB64}' | base64 -d > /etc/rougehalla-bootstrap/plan.json
++printf '%s' '${ToolchainReceiptB64}' | base64 -d > /etc/rougehalla-bootstrap/toolchain.json
++printf '%s' '${BoundaryReceiptB64}' | base64 -d > /etc/rougehalla-bootstrap/boundary.json
++install -m 0644 -o root -g root /opt/rougehalla/installer/rougehalla-expiry-bootstrap.service /etc/systemd/system/
++systemctl daemon-reload
++systemctl enable rougehalla-expiry-bootstrap.service
++systemctl start --no-block rougehalla-expiry-bootstrap.service
++"""
+ 
+ 
+ class Refused(ValueError):
+@@ -161,7 +179,11 @@
+              'RootGiB': {'Type': 'Number', 'MinValue': 1}, 'DataGiB': {'Type': 'Number', 'MinValue': 1},
+              'BackupRetentionDays': {'Type': 'Number', 'MinValue': 1, 'MaxValue': 7},
+              'DataDeleteBy': {'Type': 'String', 'AllowedPattern': '[0-9TZ:+.\\-]+'},
+-             'RunId': {'Type': 'String', 'AllowedPattern': '[0-9]{8}t[0-9]{6}z-[0-9a-f]{6}'}},
++             'RunId': {'Type': 'String', 'AllowedPattern': '[0-9]{8}t[0-9]{6}z-[0-9a-f]{6}'},
++             'InstanceProfileName': {'Type': 'String', 'AllowedPattern': '[A-Za-z0-9+=,.@_-]{1,128}'},
++             'BootstrapPlanB64': {'Type': 'String', 'AllowedPattern': '[A-Za-z0-9+/=]{1,4096}'},
++             'ToolchainReceiptB64': {'Type': 'String', 'AllowedPattern': '[A-Za-z0-9+/=]{1,4096}'},
++             'BoundaryReceiptB64': {'Type': 'String', 'AllowedPattern': '[A-Za-z0-9+/=]{1,4096}'}},
+          'Rules': {'CorrectScope': {'Assertions': [{'Assert': {'Fn::Equals': [ref('AWS::AccountId'), ACCOUNT]}, 'AssertDescription': 'Dedicated staging account only'},
+                                                  {'Assert': {'Fn::Equals': [ref('AWS::Region'), REGION]}, 'AssertDescription': 'Calgary only'}]}}, 'Resources': {}, 'Outputs': {}}
+     r = t['Resources']
+@@ -181,7 +203,8 @@
+         'MetadataOptions': {'HttpEndpoint': 'enabled', 'HttpTokens': 'required', 'HttpPutResponseHopLimit': 1},
+         'InstanceInitiatedShutdownBehavior': 'terminate', 'Tags': tags,
+         'BlockDeviceMappings': [{'DeviceName': '/dev/sda1', 'Ebs': {'VolumeType': 'gp3', 'VolumeSize': ref('RootGiB'), 'Encrypted': True, 'DeleteOnTermination': True}}],
+-        'UserData': {'Fn::Base64': '#!/bin/bash\n# Review-only refusal, NOT a full-runtime installer. No credentials or artifact capabilities.\nsystemctl poweroff\nexit 78\n'}}}
++        'IamInstanceProfile': ref('InstanceProfileName'),
++        'UserData': {'Fn::Base64': {'Fn::Sub': BOOTSTRAP}}}}
+     r['DataVolume'] = {'Type': 'AWS::EC2::Volume', 'DeletionPolicy': 'Retain', 'UpdateReplacePolicy': 'Retain',
+         'Properties': {'AvailabilityZone': ref('AvailabilityZone'), 'Size': ref('DataGiB'), 'VolumeType': 'gp3', 'Encrypted': True,
+                        'Tags': tags + [{'Key': 'DeleteBy', 'Value': ref('DataDeleteBy')}]}}
+diff -ruN a/tools/staging-full-runtime/rougehalla-postgres.service.in b/tools/staging-full-runtime/rougehalla-postgres.service.in
+--- a/tools/staging-full-runtime/rougehalla-postgres.service.in	2026-11-09 23:07:42.011553886 +0000
++++ b/tools/staging-full-runtime/rougehalla-postgres.service.in	2026-11-09 23:07:42.044303212 +0000
+@@ -8,7 +8,7 @@
+ Group=postgres
+ RuntimeDirectory=rougehalla-postgres
+ RuntimeDirectoryMode=0750
+-ExecStart=/opt/rougehalla/postgres/bin/postgres -D /srv/rougehalla-data/pgdata -c config_file=/etc/rougehalla/postgresql.conf -c hba_file=/etc/rougehalla/pg_hba.conf
++ExecStart=/opt/rougehalla/postgres/bin/postgres -D /srv/rougehalla-data/pgdata -c config_file=/etc/rougehalla-postgres/postgresql.conf -c hba_file=/etc/rougehalla-postgres/pg_hba.conf
+ Restart=no
+ KillSignal=SIGINT
+ TimeoutStopSec=120
+diff -ruN a/tools/staging-full-runtime/security.guard b/tools/staging-full-runtime/security.guard
+--- a/tools/staging-full-runtime/security.guard	2026-11-09 23:07:42.010115693 +0000
++++ b/tools/staging-full-runtime/security.guard	2026-11-09 23:07:42.047980038 +0000
+@@ -5,7 +5,7 @@
+         InstanceInitiatedShutdownBehavior == "terminate"
+         MetadataOptions.HttpTokens == "required"
+         MetadataOptions.HttpPutResponseHopLimit == 1
+-        IamInstanceProfile !exists
++        IamInstanceProfile.Ref == "InstanceProfileName"
+         KeyName !exists
+         BlockDeviceMappings[0].Ebs.Encrypted == true
+         BlockDeviceMappings[0].Ebs.DeleteOnTermination == true
+diff -ruN a/tools/staging-full-runtime/test_preparation.py b/tools/staging-full-runtime/test_preparation.py
+--- a/tools/staging-full-runtime/test_preparation.py	2026-11-09 23:07:42.008620810 +0000
++++ b/tools/staging-full-runtime/test_preparation.py	2026-11-09 23:07:42.047793261 +0000
+@@ -76,7 +76,10 @@
+         dest = self.root / 'review'
+         p.render(dest, 3600)
+         self.assertFalse(json.loads((dest / 'ACTIVATION-HOLD.json').read_text())['deployable'])
+-        self.assertIn('poweroff', p.template()['Resources']['Host']['Properties']['UserData']['Fn::Base64'])
++        userdata = p.template()['Resources']['Host']['Properties']['UserData']['Fn::Base64']['Fn::Sub']
++        self.assertIn("trap 'systemctl poweroff' ERR", userdata)
++        for forbidden in ('curl', 'wget', 'aws ', 'secret', 'password'):
++            self.assertNotIn(forbidden, userdata)
+         self.assertIn('RuntimeMaxSec=3600', (dest / 'rougehalla-source.service').read_text())
+         with self.assertRaises(FileExistsError):
+             p.render(dest)
+@@ -186,7 +189,7 @@
+         t = p.template(); resources = t['Resources']
+         self.assertEqual(sum(x['Type'] == 'AWS::EC2::Instance' for x in resources.values()), 1)
+         self.assertFalse(any(x['Type'].startswith('AWS::IAM::') for x in resources.values()))
+-        self.assertNotIn('IamInstanceProfile', resources['Host']['Properties'])
++        self.assertEqual(resources['Host']['Properties']['IamInstanceProfile'], {'Ref': 'InstanceProfileName'})
+         ingress = resources['WebSecurityGroup']['Properties']['SecurityGroupIngress']
+         self.assertEqual([x['FromPort'] for x in ingress], [80, 443])
+         for key in ('DataVolume', 'BackupBucket'):

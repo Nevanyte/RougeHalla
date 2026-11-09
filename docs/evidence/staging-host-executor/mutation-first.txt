@@ -1,0 +1,24 @@
+M01-no-nft-verify KILL FAILED (failures=5)
+M02-any-volume-owner KILL FAILED (failures=2)
+M03-no-marker-restart-hold SURVIVE OK
+M04-create-exact-adopts-different SURVIVE OK
+M05-member-adopts-different KILL FAILED (errors=1)
+M06-no-settings-before-password KILL FAILED (failures=3)
+M07-no-runtime-separation KILL FAILED (failures=1)
+M08-gate-skips-timer SURVIVE OK
+M09-gate-skips-budget KILL FAILED (failures=1)
+M10-gate-skips-guard KILL FAILED (failures=1)
+M11-no-foreign-scan KILL FAILED (failures=1)
+M12-no-device-binding KILL FAILED (failures=1)
+M13-no-role-observation KILL FAILED (failures=1)
+M14-no-download-verify KILL FAILED (failures=2)
+M15-no-put-verify KILL FAILED (failures=1)
+M16-no-tool-pins KILL FAILED (errors=1)
+M17-no-tree-pins KILL FAILED (failures=1)
+M18-no-pg-journal-check KILL FAILED (failures=2)
+M19-no-nologin-shell SURVIVE OK
+M20-cleanup-removes-ciphertext-too SURVIVE OK
+M21-no-unit-binding KILL FAILED (failures=5)
+M22-no-secret-shape SURVIVE OK
+M23-no-quiescence-check SURVIVE OK
+M24-no-lock KILL FAILED (failures=1)

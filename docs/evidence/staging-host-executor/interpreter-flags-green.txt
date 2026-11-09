@@ -1,0 +1,7 @@
+# same test after -E -s fix
+test_rendered_backup_execstart_imports_the_installer_modules (test_host_executor.HostExecutor.test_rendered_backup_execstart_imports_the_installer_modules) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.091s
+
+OK

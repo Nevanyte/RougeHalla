@@ -1,0 +1,20 @@
+# new test against committed 905ceb1 host_executor.py (python -I rendering)
+test_rendered_backup_execstart_imports_the_installer_modules (test_host_executor.HostExecutor.test_rendered_backup_execstart_imports_the_installer_modules) ... FAIL
+
+======================================================================
+FAIL: test_rendered_backup_execstart_imports_the_installer_modules (test_host_executor.HostExecutor.test_rendered_backup_execstart_imports_the_installer_modules)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/user/rh-host-installer/tools/staging-full-runtime/installer/test_host_executor.py", line 1224, in test_rendered_backup_execstart_imports_the_installer_modules
+    self.assertEqual(result.returncode, 0, result.stderr)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : Traceback (most recent call last):
+  File "/home/user/rh-host-installer/tools/staging-full-runtime/installer/host_executor.py", line 35, in <module>
+    import contract
+ModuleNotFoundError: No module named 'contract'
+
+
+----------------------------------------------------------------------
+Ran 1 test in 0.095s
+
+FAILED (failures=1)

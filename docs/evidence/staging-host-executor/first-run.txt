@@ -1,0 +1,70 @@
+test_active_owned_service_blocks_install (test_host_executor.HostExecutor.test_active_owned_service_blocks_install) ... ok
+test_backup_after_expiry_or_for_another_run_refuses (test_host_executor.HostExecutor.test_backup_after_expiry_or_for_another_run_refuses) ... ok
+test_backup_runs_existing_producer_uploads_exact_ciphertext_and_never_claims_restore (test_host_executor.HostExecutor.test_backup_runs_existing_producer_uploads_exact_ciphertext_and_never_claims_restore) ... ok
+test_cancellation_during_install_requests_shutdown_and_keeps_timer_armed (test_host_executor.HostExecutor.test_cancellation_during_install_requests_shutdown_and_keeps_timer_armed) ... ok
+test_cleanup_touches_only_owned_download_and_preserves_restore_material (test_host_executor.HostExecutor.test_cleanup_touches_only_owned_download_and_preserves_restore_material) ... ok
+test_cli_refuses_off_linux_or_unprivileged_without_io_or_success_output (test_host_executor.HostExecutor.test_cli_refuses_off_linux_or_unprivileged_without_io_or_success_output) ... ok
+test_command_table_has_no_shell_no_secret_and_isolated_cloud_environment (test_host_executor.HostExecutor.test_command_table_has_no_shell_no_secret_and_isolated_cloud_environment) ... ok
+test_complete_install_observes_files_owners_pg_services_and_never_claims_acceptance (test_host_executor.HostExecutor.test_complete_install_observes_files_owners_pg_services_and_never_claims_acceptance) ... ok
+test_crash_after_initdb_or_role_before_journal_refuses_restart_instead_of_reinitializing (test_host_executor.HostExecutor.test_crash_after_initdb_or_role_before_journal_refuses_restart_instead_of_reinitializing) ... ok
+test_crash_mid_install_then_restart_completes_without_replacing_or_extending (test_host_executor.HostExecutor.test_crash_mid_install_then_restart_completes_without_replacing_or_extending) ... FAIL
+test_device_identity_not_bound_to_held_directory_refuses (test_host_executor.HostExecutor.test_device_identity_not_bound_to_held_directory_refuses) ... 
+  test_device_identity_not_bound_to_held_directory_refuses (test_host_executor.HostExecutor.test_device_identity_not_bound_to_held_directory_refuses) (change='serial') ... FAIL
+test_existing_postgres_unit_config_path_is_refused_as_named_seam (test_host_executor.HostExecutor.test_existing_postgres_unit_config_path_is_refused_as_named_seam) ... ok
+test_expired_first_boot_requests_shutdown_with_no_installer_effect (test_host_executor.HostExecutor.test_expired_first_boot_requests_shutdown_with_no_installer_effect) ... ok
+test_expiry_reached_during_download_never_installs_valid_bytes (test_host_executor.HostExecutor.test_expiry_reached_during_download_never_installs_valid_bytes) ... ok
+test_failed_producer_or_bad_upload_acknowledgement_produces_no_receipt (test_host_executor.HostExecutor.test_failed_producer_or_bad_upload_acknowledgement_produces_no_receipt) ... ok
+test_foreign_destination_bytes_symlinks_and_symlinked_parent_are_never_replaced (test_host_executor.HostExecutor.test_foreign_destination_bytes_symlinks_and_symlinked_parent_are_never_replaced) ... ok
+test_foreign_entries_and_pending_bytes_are_preserved_and_refused (test_host_executor.HostExecutor.test_foreign_entries_and_pending_bytes_are_preserved_and_refused) ... ok
+test_foreign_volume_owner_or_volume_identity_refuses_without_touching_volume (test_host_executor.HostExecutor.test_foreign_volume_owner_or_volume_identity_refuses_without_touching_volume) ... ok
+test_guard_replaced_mid_install_stops_work (test_host_executor.HostExecutor.test_guard_replaced_mid_install_stops_work) ... FAIL
+test_layout_is_strict_and_rendered_material_is_bounded (test_host_executor.HostExecutor.test_layout_is_strict_and_rendered_material_is_bounded) ... ok
+test_linux_process_boundary_is_allowlisted_no_shell_exact_env_and_drops_identity (test_host_executor.HostExecutor.test_linux_process_boundary_is_allowlisted_no_shell_exact_env_and_drops_identity) ... ok
+test_live_writer_holding_shared_lock_blocks_install (test_host_executor.HostExecutor.test_live_writer_holding_shared_lock_blocks_install) ... ok
+test_missing_guard_refuses_before_any_state_or_command (test_host_executor.HostExecutor.test_missing_guard_refuses_before_any_state_or_command) ... ok
+test_missing_imds_or_egress_rule_refuses_before_instance_role_use (test_host_executor.HostExecutor.test_missing_imds_or_egress_rule_refuses_before_instance_role_use) ... ok
+test_nondurable_or_logging_postgres_config_refuses_before_password_is_sent (test_host_executor.HostExecutor.test_nondurable_or_logging_postgres_config_refuses_before_password_is_sent) ... ok
+test_order_expiry_isolation_fence_download_install_secret_db_marker_then_services (test_host_executor.HostExecutor.test_order_expiry_isolation_fence_download_install_secret_db_marker_then_services) ... ok
+test_partial_secret_is_never_regenerated (test_host_executor.HostExecutor.test_partial_secret_is_never_regenerated) ... ok
+test_restart_after_marker_never_revives_writers (test_host_executor.HostExecutor.test_restart_after_marker_never_revives_writers) ... ok
+test_restore_mode_refuses_with_named_fencing_seam (test_host_executor.HostExecutor.test_restore_mode_refuses_with_named_fencing_seam) ... ok
+test_startup_guard_budget_too_short_refuses_before_download (test_host_executor.HostExecutor.test_startup_guard_budget_too_short_refuses_before_download) ... ok
+test_superuser_role_observation_refuses_and_never_writes_marker (test_host_executor.HostExecutor.test_superuser_role_observation_refuses_and_never_writes_marker) ... ok
+test_tool_substitution_tree_change_or_unpinned_receipt_refuses_before_download (test_host_executor.HostExecutor.test_tool_substitution_tree_change_or_unpinned_receipt_refuses_before_download) ... ok
+test_training_result_spool_or_shared_instance_refuses (test_host_executor.HostExecutor.test_training_result_spool_or_shared_instance_refuses) ... ok
+test_traversal_unknown_member_and_artifact_mismatch_refuse_before_any_install_write (test_host_executor.HostExecutor.test_traversal_unknown_member_and_artifact_mismatch_refuse_before_any_install_write) ... ok
+test_unit_lifetime_placeholder_or_environment_injection_refuses (test_host_executor.HostExecutor.test_unit_lifetime_placeholder_or_environment_injection_refuses) ... ok
+test_unready_service_or_identity_mismatch_or_missing_tls_refuses (test_host_executor.HostExecutor.test_unready_service_or_identity_mismatch_or_missing_tls_refuses) ... ok
+test_wrong_owner_or_mode_on_existing_directory_refuses (test_host_executor.HostExecutor.test_wrong_owner_or_mode_on_existing_directory_refuses) ... ok
+
+======================================================================
+FAIL: test_crash_mid_install_then_restart_completes_without_replacing_or_extending (test_host_executor.HostExecutor.test_crash_mid_install_then_restart_completes_without_replacing_or_extending)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/user/rh-host-installer/tools/staging-full-runtime/installer/test_host_executor.py", line 718, in test_crash_mid_install_then_restart_completes_without_replacing_or_extending
+    self.assertEqual(len(partial), 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1
+
+======================================================================
+FAIL: test_device_identity_not_bound_to_held_directory_refuses (test_host_executor.HostExecutor.test_device_identity_not_bound_to_held_directory_refuses) (change='serial')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/user/rh-host-installer/tools/staging-full-runtime/installer/test_host_executor.py", line 891, in test_device_identity_not_bound_to_held_directory_refuses
+    with self.assertRaises(e.ShutdownRequested):
+         ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ShutdownRequested not raised
+
+======================================================================
+FAIL: test_guard_replaced_mid_install_stops_work (test_host_executor.HostExecutor.test_guard_replaced_mid_install_stops_work)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/user/rh-host-installer/tools/staging-full-runtime/installer/test_host_executor.py", line 700, in test_guard_replaced_mid_install_stops_work
+    self.assertFalse(w.ran('pg_ctl'))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+AssertionError: True is not false
+
+----------------------------------------------------------------------
+Ran 37 tests in 2.503s
+
+FAILED (failures=3)

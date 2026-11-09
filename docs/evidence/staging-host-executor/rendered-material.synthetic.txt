@@ -1,0 +1,61 @@
+# SYNTHETIC example of executor-rendered material (synthetic uids 998/997 and run id; no real resource). Not host output.
+
+## nft -f - (stdin)
+table inet rougehalla_guard {
+	chain output {
+		type filter hook output priority 0; policy accept;
+		ip daddr 169.254.169.254 meta skuid != 0 drop
+		ip6 daddr fd00:ec2::254 meta skuid != 0 drop
+		meta skuid 997 oifname != "lo" drop
+		meta skuid 998 oifname != "lo" quota over 8589934592 bytes drop
+		meta skuid 998 oifname != "lo" limit rate over 3000000 bytes/second drop
+	}
+}
+
+## rougehalla-egress-limit.service
+[Unit]
+Description=Run-scoped IMDS and egress guard presence 20261109t120000z-abcdef
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=root
+ExecStart=/usr/sbin/nft list table inet rougehalla_guard
+
+## rougehalla-backup.service
+[Unit]
+Description=Quiesced encrypted backup and conditional upload 20261109t120000z-abcdef
+[Service]
+Type=oneshot
+User=root
+TimeoutStartSec=300s
+ExecStart=/usr/bin/python3.12 -E -s /opt/rougehalla/installer/host_executor.py backup --run-id 20261109t120000z-abcdef
+
+## rougehalla-backup.timer
+[Unit]
+Description=Backup before fixed expiry 20261109t120000z-abcdef
+[Timer]
+OnCalendar=2026-11-09 15:52:00 UTC
+Persistent=false
+AccuracySec=1s
+RandomizedDelaySec=0
+Unit=rougehalla-backup.service
+
+## fixed PostgreSQL verification queries
+SELECT name || '=' || setting FROM pg_settings WHERE name IN ('fsync','full_page_writes','listen_addresses','log_min_error_statement','log_statement','password_encryption','synchronous_commit') ORDER BY name
+SELECT concat_ws('|', rolsuper, rolcreatedb, rolcreaterole, rolreplication, rolbypassrls, rolcanlogin) FROM pg_roles WHERE rolname = 'rougehalla'
+SELECT pg_get_userbyid(datdba) || '|' || coalesce(array_to_string(datacl, ','), '') FROM pg_database WHERE datname = 'rougehalla'
+SELECT count(*) FROM pg_auth_members m JOIN pg_roles r ON r.oid = m.member WHERE r.rolname = 'rougehalla'
+SELECT string_agg(rolname, ',' ORDER BY rolname) FROM pg_roles WHERE rolcanlogin
+SELECT left(rolpassword, 14) FROM pg_authid WHERE rolname = 'rougehalla'
+SELECT coalesce(max(version), 0) FROM _sqlx_migrations WHERE success
+SELECT count(*) FROM pg_tables WHERE schemaname = 'public' AND tableowner <> 'rougehalla'
+SELECT count(*) FROM profiles
+
+## expected restricted-role observations
+{
+ "role": "f|f|f|f|f|t",
+ "database": "rougehalla|rougehalla=CTc/rougehalla",
+ "members": "0",
+ "login": "postgres,rougehalla",
+ "scram": "SCRAM-SHA-256$"
+}
