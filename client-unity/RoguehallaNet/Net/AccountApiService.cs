@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 namespace Roguehalla.Net
 {
     public enum AccountApiFailure { None, NoOwner, Stale, Cancelled, BadRequest, Forbidden, PasscodeRequired, UnknownCosmetic, UnknownSlot, NotForSale, AlreadyOwned, InsufficientGv, NotOwned, SlotMismatch, RateLimited, Unavailable, Unreadable }
+    public enum AccountApiReadKind { Leaderboard, Settlement }
     public enum AccountMutationKind { Purchase, Equip }
     public enum AccountMutationState { Ready, InFlight, Confirmed, Refused, Unknown }
     public sealed class AccountApiError
@@ -24,6 +25,8 @@ namespace Roguehalla.Net
         public string ItemId { get; }
         public string Slot { get; }
         public Guid? PurchaseId { get; }
+        public AccountApiReadKind ReadKind { get; }
+        public string MatchId { get; }
         public IEnumerable<KeyValuePair<string, string>> Headers
         {
             get
@@ -34,8 +37,9 @@ namespace Roguehalla.Net
                 if (PurchaseId.HasValue) yield return new KeyValuePair<string, string>("Idempotency-Key", PurchaseId.Value.ToString("D"));
             }
         }
-        internal AccountApiRequest(AccountEndpoint endpoint, string url, string method, string token, string item = null, string slot = null, Guid? purchaseId = null)
-        { Endpoint = endpoint; Url = url; Method = method; OwnerToken = token; ItemId = item; Slot = slot; PurchaseId = purchaseId; }
+        internal AccountApiRequest(AccountEndpoint endpoint, string url, string method, string token, string item = null, string slot = null,
+            Guid? purchaseId = null, AccountApiReadKind readKind = AccountApiReadKind.Leaderboard, string matchId = null)
+        { Endpoint = endpoint; Url = url; Method = method; OwnerToken = token; ItemId = item; Slot = slot; PurchaseId = purchaseId; ReadKind = readKind; MatchId = matchId; }
         public bool HasAllowedTarget()
         {
             if (!Uri.TryCreate(Url, UriKind.Absolute, out var uri)) return false;
@@ -50,8 +54,10 @@ namespace Roguehalla.Net
         public AccountFullProfile Profile { get; }
         public AccountLeaderboard Leaderboard { get; }
         public AccountApiError Error { get; }
-        public AccountApiResponse(int status, AccountFullProfile profile = null, AccountLeaderboard leaderboard = null, AccountApiError error = null)
-        { Status = status; Profile = profile; Leaderboard = leaderboard; Error = error; }
+        public AccountSettlement Settlement { get; }
+        public AccountApiResponse(int status, AccountFullProfile profile = null, AccountLeaderboard leaderboard = null,
+            AccountApiError error = null, AccountSettlement settlement = null)
+        { Status = status; Profile = profile; Leaderboard = leaderboard; Error = error; Settlement = settlement; }
     }
     public interface IAccountApiTransport { Task<AccountApiResponse> SendAsync(AccountApiRequest request, CancellationToken cancellation); }
     public sealed class AccountMutation
@@ -81,21 +87,33 @@ namespace Roguehalla.Net
         internal AccountMutationInfo(AccountMutation operation)
         { Id = operation.Id; Name = operation.Name; Kind = operation.Kind; ItemId = operation.ItemId; Slot = operation.Slot; State = operation.State; Error = operation.Error; }
     }
+
+    /// <summary>Opaque access to receipts for one successfully accepted owned join intent.</summary>
+    public sealed class AccountSettlementAccess
+    {
+        internal AccountApiService Service { get; }
+        internal AccountHubFlow.ApiOwner Owner { get; }
+        internal AccountSettlementAccess(AccountApiService service, AccountHubFlow.ApiOwner owner)
+        { Service = service; Owner = owner; }
+    }
+
     public sealed class AccountApiResult
     {
         public AccountApiFailure Failure { get; }
         public bool PublishedCurrent { get; }
         public AccountLeaderboard Leaderboard { get; }
+        public AccountSettlement Settlement { get; }
         internal AccountApiService Service;
         internal AccountHubFlow.ApiOwner Owner;
+        internal AccountSettlementAccess SettlementAccess;
         internal long BoardGeneration;
         internal long? OwnerGeneration;
         internal bool RequiresNoOwner;
-        internal AccountApiResult(AccountApiFailure failure, bool published = false, AccountLeaderboard leaderboard = null)
-        { Failure = failure; PublishedCurrent = published; Leaderboard = leaderboard; }
+        internal AccountApiResult(AccountApiFailure failure, bool published = false, AccountLeaderboard leaderboard = null, AccountSettlement settlement = null)
+        { Failure = failure; PublishedCurrent = published; Leaderboard = leaderboard; Settlement = settlement; }
     }
 
-    /// <summary>Off-tick account reads/mutations. No speculative money, item grants, bank receipts or automatic retries.</summary>
+    /// <summary>Off-tick account reads/mutations. No speculative money, item grants, settlement claims or automatic retries.</summary>
     public sealed class AccountApiService
     {
         readonly AccountHubFlow _flow;
@@ -139,8 +157,72 @@ namespace Roguehalla.Net
         { result.Service = this; result.Owner = owner; result.BoardGeneration = board; result.OwnerGeneration = ownerGeneration; result.RequiresNoOwner = requiresNoOwner; return result; }
         /// <summary>Check immediately before applying a returned owner/month-specific view; stale results are never current.</summary>
         public bool IsCurrent(AccountApiResult result) => result != null && ReferenceEquals(result.Service, this) &&
+            (result.SettlementAccess == null || IsCurrent(result.SettlementAccess)) &&
             (result.Owner == null || _flow.CurrentApiOwner(result.Owner)) && (result.BoardGeneration == 0 || result.BoardGeneration == _boardGeneration) &&
             (!result.OwnerGeneration.HasValue || result.OwnerGeneration.Value == _flow.ApiGeneration) && (!result.RequiresNoOwner || _flow.CaptureApiOwner() == null);
+
+        /// <summary>Captures access only for a current owned intent. The handle exposes no name, token or API request.</summary>
+        public AccountSettlementAccess CaptureSettlementAccess(AccountJoinIntent intent)
+        {
+            if (intent == null || !_flow.CanJoin(intent)) return null;
+            var owner = _flow.CaptureApiOwner();
+            return owner != null && ReferenceEquals(owner.Account, intent.Account)
+                ? new AccountSettlementAccess(this, owner) : null;
+        }
+
+        /// <summary>Read only the authenticated owner's committed receipt for these exact Welcome network bytes.</summary>
+        public Task<AccountApiResult> ReadSettlementAsync(AccountSettlementAccess access, byte[] networkMatchId,
+            CancellationToken cancellation = default)
+        {
+            if (!AccountSettlementId.TryFormatNetworkBytes(networkMatchId, out var canonical))
+            {
+                if (access != null && !IsCurrent(access)) return Task.FromResult(BoundSettlement(AccountApiFailure.Stale, access));
+                return Task.FromResult(access == null ? BoundNoOwner(AccountApiFailure.BadRequest) : BoundSettlement(AccountApiFailure.BadRequest, access));
+            }
+            return ReadSettlementAsync(access, canonical, cancellation);
+        }
+
+        /// <summary>Read only the authenticated owner's committed receipt for a canonical lowercase UUID.</summary>
+        public async Task<AccountApiResult> ReadSettlementAsync(AccountSettlementAccess access, string canonicalMatchId,
+            CancellationToken cancellation = default)
+        {
+            if (access == null) return BoundNoOwner(AccountApiFailure.NoOwner);
+            if (!IsCurrent(access)) return BoundSettlement(AccountApiFailure.Stale, access);
+            if (!AccountSettlementId.IsCanonicalLower(canonicalMatchId)) return BoundSettlement(AccountApiFailure.BadRequest, access);
+            if (cancellation.IsCancellationRequested) return BoundSettlement(AccountApiFailure.Cancelled, access);
+
+            string url = _flow.ApiEndpoint.ProfileUrl(access.Owner.Account.CanonicalName) + "/matches/" + canonicalMatchId + "/settlement";
+            var request = new AccountApiRequest(_flow.ApiEndpoint, url, "GET", access.Owner.Account.Token,
+                readKind: AccountApiReadKind.Settlement, matchId: canonicalMatchId);
+            if (!request.HasAllowedTarget()) return BoundSettlement(AccountApiFailure.BadRequest, access);
+
+            AccountApiResponse response;
+            AccountApiFailure transportFailure = AccountApiFailure.None;
+            try { response = await _transport.SendAsync(request, cancellation); }
+            catch (OperationCanceledException) { response = null; transportFailure = AccountApiFailure.Cancelled; }
+            catch { response = null; transportFailure = AccountApiFailure.Unavailable; }
+            if (!IsCurrent(access)) return BoundSettlement(AccountApiFailure.Stale, access);
+            if (cancellation.IsCancellationRequested) return BoundSettlement(AccountApiFailure.Cancelled, access);
+            if (transportFailure != AccountApiFailure.None) return BoundSettlement(transportFailure, access);
+            if (response?.Status != 200) return BoundSettlement(response?.Error?.Failure ?? AccountApiFailure.Unavailable, access);
+            if (response.Settlement == null || !string.Equals(response.Settlement.MatchId, canonicalMatchId, StringComparison.Ordinal))
+                return BoundSettlement(AccountApiFailure.Unreadable, access);
+            return BoundSettlement(AccountApiFailure.None, access, response.Settlement);
+        }
+
+        public bool IsCurrent(AccountSettlementAccess access) => access != null && ReferenceEquals(access.Service, this) &&
+            _flow.CurrentApiOwner(access.Owner);
+
+        AccountApiResult BoundSettlement(AccountApiFailure failure, AccountSettlementAccess access, AccountSettlement settlement = null)
+        {
+            var result = new AccountApiResult(failure, settlement: settlement) { Service = this, SettlementAccess = access };
+            if (access != null) result.Owner = access.Owner;
+            else { result.OwnerGeneration = _flow.ApiGeneration; result.RequiresNoOwner = true; }
+            return result;
+        }
+
+        AccountApiResult BoundNoOwner(AccountApiFailure failure) =>
+            new AccountApiResult(failure) { Service = this, OwnerGeneration = _flow.ApiGeneration, RequiresNoOwner = true };
 
         public AccountMutation CreatePurchase(string itemId) => Create(AccountMutationKind.Purchase, itemId, null);
         public AccountMutation CreateEquip(string slot, string itemId) => Create(AccountMutationKind.Equip, itemId, slot);

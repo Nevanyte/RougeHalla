@@ -71,7 +71,7 @@ namespace Roguehalla.Client
             if (AutoJoin) Join(Profile, Faction);
         }
 
-        void JoinCore(string nickname, int faction, MatchLaunchTarget target, string ownerToken, long generation)
+        void JoinCore(string nickname, int faction, MatchLaunchTarget target, string ownerToken, long generation, AccountSettlementAccess settlementAccess = null)
         {
             if (_destroying || generation != _joinGeneration) return;
             CloseCurrentSession();
@@ -125,6 +125,7 @@ namespace Roguehalla.Client
             // Validate before HUD subscribers see any accepted owner snapshot.
             session.SnapshotReceived += _boundLaunchSnapshot;
             session.TimelineReset += _boundLaunchTimeline;
+            BindSettlementSession(session, settlementAccess, generation);
             Hud?.Bind(session);
             if (!CurrentLaunchSession(session, generation)) return;
             BindPresentationSession(session);
@@ -144,6 +145,7 @@ namespace Roguehalla.Client
         {
             var old = Session;
             var oldArena = Arena;
+            UnbindSettlementSession();
             Session = null; _sessionTarget = null; _modeConfirmed = false;
             if (old != null)
             {
@@ -180,9 +182,7 @@ namespace Roguehalla.Client
 
         public void Leave()
         {
-            bool hadResult = Session != null && Session.LastResult != null;
-            long generation = CancelOwnedJoin();
-            if (!_destroying && generation == _joinGeneration && hadResult) RefreshAccountAfterResult();
+            CancelOwnedJoin();
         }
 
         void OnApplicationFocus(bool focused)

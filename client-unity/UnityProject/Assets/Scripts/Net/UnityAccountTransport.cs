@@ -110,15 +110,21 @@ namespace Roguehalla.Client
             }
             _apiPending.Remove(request);
             int status = (int)request.responseCode; string json = request.downloadHandler.text;
-            AccountFullProfile profile = null; AccountLeaderboard board = null;
+            AccountFullProfile profile = null; AccountLeaderboard board = null; AccountSettlement settlement = null;
             if (status == 200 && request.result == UnityWebRequest.Result.Success)
             {
-                if (operation.Method == "GET") AccountFullJson.TryLeaderboard(json, out board);
-                else AccountFullJson.TryProfile(json, out profile);
+                if (operation.Method == "GET" && operation.ReadKind == AccountApiReadKind.Settlement)
+                {
+                    AccountFullJson.TryApiRead(operation.ReadKind, json, operation.MatchId, out board, out settlement);
+                }
+                else if (operation.Method == "GET" && operation.ReadKind == AccountApiReadKind.Leaderboard)
+                    AccountFullJson.TryApiRead(operation.ReadKind, json, null, out board, out settlement);
+                else if (operation.Method == "POST") AccountFullJson.TryProfile(json, out profile);
             }
             AccountApiError error = status == 200 ? null : AccountFullJson.DecodeError(status, json);
-            request.Dispose(); completion.TrySetResult(new AccountApiResponse(status, profile, board, error));
+            request.Dispose(); completion.TrySetResult(new AccountApiResponse(status, profile, board, error, settlement));
         }
+
         void OnDisable()
         {
             var pending = new List<KeyValuePair<UnityWebRequest, TaskCompletionSource<AccountHttpResponse>>>(_pending);
