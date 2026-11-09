@@ -616,7 +616,11 @@ pub(crate) fn respawn(cx: &mut Cx) {
         let ids: Vec<_> =
             cx.w.mobs
                 .iter()
-                .filter(|m| m.camp == ci as u32)
+                .filter(|m| {
+                    m.camp == ci as u32
+                        && m.kind == crate::mob_runtime::MobKind::Regional
+                        && m.zombie.is_none()
+                })
                 .map(|m| m.core.id)
                 .collect();
         for id in ids {

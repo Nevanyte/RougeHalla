@@ -441,7 +441,8 @@ pub(crate) fn after_damage(cx: &mut Cx) {
             || w.mobs
                 .get(p.id)
                 .is_some_and(|m| m.mob_type.is_some() && m.zombie.is_none());
-        let deals_dot = has_spec && matches!(p.faction_id(), Some(FactionId::Fire | FactionId::Plague));
+        let deals_dot =
+            has_spec && matches!(p.faction_id(), Some(FactionId::Fire | FactionId::Plague));
         let engaged = p.signature.engaged;
         let current = if deals_dot && engaged {
             p.signature.target

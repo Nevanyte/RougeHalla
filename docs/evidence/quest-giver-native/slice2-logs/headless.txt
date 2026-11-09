@@ -1,0 +1,15 @@
+   Compiling rh-headless v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-giver-native/repo/crates/rh-headless)
+    Finished `test` profile [unoptimized] target(s) in 5.78s
+     Running tests/full_faction_pve.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-giver-native/target/debug/deps/full_faction_pve-4e191c69c2e5f82e)
+
+running 1 test
+test full_and_fire_roam_pve_use_real_env_input_restore_clone_and_continuation ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s
+
+     Running tests/quest_givers.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-giver-native/target/debug/deps/quest_givers-33c0c29ae806d419)
+
+running 1 test
+test native_quest_giver_external_acceptance_and_neutral_target_survive_a_fresh_session ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.67s

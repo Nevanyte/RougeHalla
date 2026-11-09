@@ -1,0 +1,8 @@
+canonicalization: json.dumps({'format': corpus['format'], 'cases': corpus['cases']},
+  sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
+  no trailing newline; recursively sorted object keys; array order preserved
+old corpus (git 00f9767755414ce3dbf3e7857965ad287fb334d1:parity/quest-giver/source.json): sha256 51c074b4c41b28147de7a2d215a581e617363ed5552a45aac4e46025b612d4fa bytes 1229693
+new corpus (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-giver-native/repo/parity/quest-giver/source.json): sha256 039d4e058fa914f42080f1c55d8640cc508c5b4745504930ca3db49579adc8b4 bytes 1229693
+canonical payload bytes: 670203
+canonical payload sha256: ad6e10ddd7f2de02530b8ae037101315941aef4da815cdfd279773f32b215b8d (identical old/new)
+PASS

@@ -1,0 +1,9 @@
+    Finished `test` profile [unoptimized] target(s) in 0.09s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-giver-native/target/debug/deps/rh_sim-0ad75f2b040c28b6)
+
+running 3 tests
+test abilities::source_tests::full_profile::full_pve_mark_frost_warm_alloc_uses_real_constructor_restore_and_both_modes ... ignored, dhat runs alone: full_pve_mark_frost_warm_alloc --ignored --test-threads=1
+test abilities::source_tests::full_profile::full_pve_capability_does_not_relax_canonical_or_numeric_restore_checks ... ok
+test abilities::source_tests::full_profile::full_pve_real_replay_and_live_mark_frost_restore_clone_continue ... ok
+
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 746 filtered out; finished in 0.26s

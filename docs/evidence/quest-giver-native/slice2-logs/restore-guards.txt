@@ -1,0 +1,18 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-giver-native/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 33.82s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-giver-native/target/debug/deps/rh_sim-0ad75f2b040c28b6)
+
+running 11 tests
+test quests::giver_tests::source::neutral_giver_warm_alloc_uses_real_full_quest_constructor_and_restore ... ignored, dhat runs alone: neutral_giver_warm_alloc --ignored --test-threads=1
+test mob_runtime::neutral_tests::neutral_giver_constructor_has_no_combat_kit_or_regional_brain ... ok
+test observe::tests::neutral_giver_native_view_carries_no_invented_faction_or_weapon ... ok
+test quests::giver_tests::neutral_giver_source_plans_select_existing_rows_for_valid_modes_and_keep_opt_outs ... ok
+test quests::giver_tests::neutral_giver_input_guard_preserves_a_real_regional_actor_with_a_borrowed_brain ... ok
+test quests::giver_tests::neutral_giver_live_birth_and_inputs_have_real_identity_without_action_authority ... ok
+test quests::giver_tests::neutral_giver_retirement_preserves_provenance_after_the_offer_is_swept ... ok
+test quests::giver_tests::neutral_giver_hidden_birth_restores_before_and_after_its_real_head_start ... ok
+test quests::giver_tests::neutral_giver_rejects_forged_identity_links_body_and_brain_without_restore_panics ... ok
+test quests::giver_tests::neutral_giver_missing_runtime_rejects_only_a_world_that_really_spawned_quests ... ok
+test quests::giver_tests::neutral_giver_known_and_hidden_births_preserve_fractional_clock_offsets ... ok
+
+test result: ok. 10 passed; 0 failed; 1 ignored; 0 measured; 741 filtered out; finished in 4.46s

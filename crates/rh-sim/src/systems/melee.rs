@@ -52,7 +52,7 @@ fn resolve_swings(cx: &mut Cx) {
     bodies.extend(
         (0..w.fighter_count())
             .map(FighterIx::of_slot)
-            .filter(|&ix| w.standing(ix)),
+            .filter(|&ix| w.standing(ix) && !crate::quests::giver::is_giver(w, w.core(ix).id)),
     );
     // When two swings share a rewind time (every bot swing in a tick does) the bodies' rewound positions are computed once per
     // run of equal times (exact bits) and the swings read them. `position_at` is a pure function of a world this system does

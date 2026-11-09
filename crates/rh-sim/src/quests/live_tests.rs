@@ -6,7 +6,7 @@ use super::live::Status;
 use crate::input::{validate, RawCommand};
 use crate::{Phase, Placement, PlayerId, Secrets, Sim, SimConfig, Vec2};
 
-fn arena() -> crate::Arena {
+pub(super) fn arena() -> crate::Arena {
     use crate::mapgen::{coliseum, map_hash, pipeline};
     let fixed = coliseum::fixed_layout();
     let generator = pipeline::Pipeline::new(&fixed);
@@ -32,7 +32,7 @@ fn arena() -> crate::Arena {
     .expect("arena")
 }
 
-fn sim() -> Sim {
+pub(super) fn sim() -> Sim {
     sim_with_bots([false; 3])
 }
 
@@ -107,7 +107,7 @@ fn the_raid_start_spawns_the_source_roster_and_publishes_the_known_half() {
     assert_eq!(q.offers.len(), 20);
     assert_eq!(q.offers.iter().filter(|o| o.known).count(), 10);
     assert_eq!(q.offers.iter().filter(|o| o.published).count(), 10);
-    assert_eq!(q.offers.iter().filter(|o| o.npc_alive).count(), 10);
+    assert_eq!(q.offers.iter().filter(|o| o.giver.is_some()).count(), 10);
     // The published offers have their giver's pieces: collect tokens and fetch parcels.
     let mut tokens = 0;
     let mut parcels = 0;
@@ -345,7 +345,7 @@ fn hidden_offers_reveal_with_the_head_start_and_publish_their_pieces() {
     }
     let o = &sim.w.quests.as_ref().unwrap().offers[oi];
     assert!(o.published);
-    assert!(o.npc_alive);
+    assert!(o.giver.is_some());
     match catalog::DEFINITION[o.def as usize].kind {
         Kind::Kill => {}
         _ => assert!(!o.containers.is_empty()),
@@ -376,7 +376,7 @@ fn an_accepted_offer_expires_after_its_deadline_and_lingers_then_sweeps() {
     sim.step();
     let o = &sim.w.quests.as_ref().unwrap().offers[oi];
     assert_eq!(o.status, Status::Expired);
-    assert!(!o.npc_alive);
+    assert!(!o.giver.is_some());
     // The closed row lingers for the log, then is swept.
     assert_eq!(sim.w.quests.as_ref().unwrap().offers.len(), 20);
     for _ in 0..(crate::constants::CLOSED_QUEST_LINGER_MS / 50. + 2.).ceil() as usize {

@@ -36,6 +36,8 @@ pub(crate) fn apply_with(
         &a,
         if w.is_player(i) {
             Recipient::Player
+        } else if crate::quests::giver::is_giver(w, id) {
+            Recipient::QuestGiver
         } else {
             Recipient::Mob
         },

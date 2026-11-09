@@ -2,10 +2,7 @@
 //! the accept action, kill/player/camp progress, collect-token and fetch-parcel pickups, carriers, automatic turn-ins,
 //! expiry and the closed linger, the camp-clear supply recheck, and the close-all for teleports and the run's end.
 //!
-//! Deliberate native-shape choices for this slice (all recorded in `docs/evidence/stage2-quest-1/README.md`): giver
-//! presence is quest-owned state (`npc_alive`) instead of a spellable mob actor body, quest items are hidden from the public
-//! item observation (transported quests are coordinator-owned), and no toast/reveal events are emitted until the transport
-//! packet owns them.
+//! Givers are real neutral actors linked by typed identity; public quest transport and notices remain coordinator-owned.
 use super::catalog::{self, Kind};
 use super::{placement, roster, rules};
 use crate::constants::*;
@@ -46,8 +43,8 @@ pub struct Offer {
     pub visits: Vec<(PlayerId, u8)>,
     pub carrier: Option<PlayerId>,
     pub last_carrier: Option<PlayerId>,
-    /// Source `npcId !== "" && state.mobs.has(npcId)`: the giver stands (quest-owned presence, no actor body yet).
-    pub npc_alive: bool,
+    /// The live neutral actor, cleared on retirement; immutable birth provenance is retained separately.
+    pub giver: Option<PlayerId>,
     pub published: bool,
     pub publish_at: f64,
     pub finder: Option<PlayerId>,
@@ -152,10 +149,6 @@ fn remove_containers(w: &mut World, containers: &[u32]) {
     w.containers.retain(|c| !containers.contains(&c.id));
 }
 
-fn remove_giver(offer: &mut Offer) {
-    offer.npc_alive = false;
-}
-
 fn retire(w: &mut World, oi: usize) {
     let containers = w.quests.as_ref().map(|q| q.offers[oi].containers.clone());
     let Some(containers) = containers else { return };
@@ -173,9 +166,9 @@ fn retire(w: &mut World, oi: usize) {
             closed
         };
         offer.containers.clear();
-        remove_giver(offer);
     }
     remove_containers(w, &containers);
+    super::giver::retire(w, oi);
 }
 
 fn expire(w: &mut World, oi: usize) -> bool {
@@ -212,17 +205,14 @@ fn publish(k: &MatchStatic, w: &mut World, oi: usize) {
 fn place_published(k: &MatchStatic, w: &mut World, oi: usize) {
     let Some(q) = quests(w) else { return };
     let offer = &q.offers[oi];
-    if offer.npc_alive {
+    if offer.giver.is_some() {
         return;
     }
     let def = &catalog::DEFINITION[offer.def as usize];
     let tokens = offer.tokens.clone();
     let parcel = offer.parcel;
     let id = offer.id;
-    let _ = k;
-    if let Some(q) = quests_mut(w) {
-        q.offers[oi].npc_alive = true;
-    }
+    super::giver::birth(k, w, oi);
     let mut added = Vec::new();
     match def.kind {
         Kind::Collect => {
@@ -259,7 +249,7 @@ fn offer(k: &MatchStatic, w: &mut World, placement: &placement::Placement) {
         visits: Vec::new(),
         carrier: None,
         last_carrier: None,
-        npc_alive: false,
+        giver: None,
         published: false,
         publish_at: 0.,
         finder: None,
@@ -581,7 +571,10 @@ pub(crate) fn accept_eligibility(
         .offers
         .iter()
         .position(|o| {
-            Some(o.id) == quest_id && o.published && o.status == Status::Open && o.npc_alive
+            Some(o.id) == quest_id
+                && o.published
+                && o.status == Status::Open
+                && o.giver.is_some_and(|id| super::giver::is_giver(w, id))
         })
         .ok_or(AcceptRefusal::Over)?;
     let offer = &offers.offers[oi];
@@ -729,6 +722,8 @@ pub(crate) fn system(cx: &mut Cx) {
         if offer.publish_at > 0. {
             if now >= offer.publish_at {
                 publish(k, w, oi);
+                cx.s.reserve_actors(w.fighter_count());
+                crate::systems::sentenced::prepare(k, w, cx.s).expect("validated Mark edge budget");
                 close_impossible(w, Some(oi));
             }
             continue;

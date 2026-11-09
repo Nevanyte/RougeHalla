@@ -223,6 +223,7 @@ pub(crate) fn validate(
     }
     let mut players = 0usize;
     let mut serial = w.initial_birth_serial;
+    let initial_serial_base = crate::quests::giver::initial_camp_serial_base(k, w);
     let births: Vec<_> = k
         .arena
         .map
@@ -249,9 +250,8 @@ pub(crate) fn validate(
                 }
                 players += 1;
             }
-            ActorOrigin::Practice { .. }
-            | ActorOrigin::Dummy { .. }
-            | ActorOrigin::QuestGiver { .. } => {
+            ActorOrigin::QuestGiver { .. } => {}
+            ActorOrigin::Practice { .. } | ActorOrigin::Dummy { .. } => {
                 return Err("non-regional actor in a regional world".into());
             }
             ActorOrigin::Zombie { owner } => {
@@ -300,7 +300,7 @@ pub(crate) fn validate(
                     return Err("invalid mob birth provenance".into());
                 }
                 if births.get(born) != Some(&(camp, spot))
-                    || birth_serial != w.initial_birth_serial + born as u32 + 1
+                    || u64::from(birth_serial) != initial_serial_base + born as u64 + 1
                 {
                     return Err("unsupported regional birth sequence".into());
                 }
@@ -348,8 +348,9 @@ pub(crate) fn validate(
     }
     match (&w.mob_runtime, k.config.mob_mode) {
         (None, MobMode::Off)
-            if w.mobs.as_slice().iter().all(|m| m.zombie.is_some())
-                && serial == w.initial_birth_serial =>
+            if w.mobs.as_slice().iter().all(|m| {
+                m.zombie.is_some() || m.kind == crate::mob_runtime::MobKind::QuestGiver
+            }) && serial == w.initial_birth_serial =>
         {
             return Ok(())
         }
@@ -406,6 +407,9 @@ pub(crate) fn validate(
         }
     }
     for m in &w.mobs {
+        if m.kind == crate::mob_runtime::MobKind::QuestGiver {
+            continue;
+        }
         let Some(ActorOrigin::Mob {
             birth_serial: _,
             born_tick,

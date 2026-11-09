@@ -15,6 +15,10 @@ use crate::schedule::{self, ActionId};
 use crate::state::{PlayerId, World};
 use crate::systems::{weapons, Cx};
 
+fn actor_accepts_input(w: &World, id: PlayerId) -> bool {
+    !crate::quests::giver::is_giver(w, id)
+}
+
 /// Queues a validated command for the next tick through the seat's order budget (sim time): what `Sim::submit` and
 /// `Cx::submit` both run, the only way a command reaches a queue (C-INPUT). A seat that is not present drops it.
 pub(crate) fn submit(w: &mut World, id: PlayerId, cmd: Command) -> Result<(), Reject> {
@@ -22,6 +26,9 @@ pub(crate) fn submit(w: &mut World, id: PlayerId, cmd: Command) -> Result<(), Re
     let Some(ix) = w.fighter_idx(id) else {
         return Ok(());
     };
+    if !actor_accepts_input(w, id) {
+        return Err(Reject::UnsupportedActorAction);
+    }
     let zombie = w.mobs.get(id).is_some_and(|m| m.zombie.is_some());
     if !w.is_player(ix)
         && !zombie
@@ -40,6 +47,9 @@ pub(crate) fn submit_unbudgeted(w: &mut World, id: PlayerId, cmd: Command) -> Re
     let Some(ix) = w.fighter_idx(id) else {
         return Ok(());
     };
+    if !actor_accepts_input(w, id) {
+        return Err(Reject::UnsupportedActorAction);
+    }
     let zombie = w.mobs.get(id).is_some_and(|m| m.zombie.is_some());
     if !w.is_player(ix)
         && !zombie

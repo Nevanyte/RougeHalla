@@ -115,6 +115,12 @@ impl Gates {
         ..Self::MOB_BASIC_FACTIONS
     };
 
+    /// The existing explicit Fire roam mode also applies when real camp actors are installed.
+    pub const MOB_FROST_FIRE_ROAM_FOUNDATION: Gates = Gates {
+        fire_roam: true,
+        ..Self::MOB_FROST_FOUNDATION
+    };
+
     /// The training/ability source profile installs dummies and training but no faction signatures.
     pub const TRAINING_NO_SIGNATURES: Gates = Gates {
         signatures: false,
@@ -149,6 +155,8 @@ impl Gates {
         } else {
             Gates::CAPTURE
         };
+        // Honor the explicit auxiliary installer even when the mob branch selected the base plan.
+        g.fire_roam = k.config.faction_mode.fire_roam();
         // The quest module's install guard is config.quests && !config.training; every other slot stays as the plan had it.
         g.quests = k.config.quests;
         g
@@ -663,12 +671,32 @@ impl Plan {
             }) {
                 return &QUESTS_MOB_BASIC_FACTIONS_PLAN;
             }
+            if g == (Gates {
+                quests: true,
+                ..Gates::MOB_FROST_FOUNDATION
+            }) {
+                return &QUESTS_MOB_FROST_FOUNDATION_PLAN;
+            }
+            if g == (Gates {
+                quests: true,
+                ..Gates::MOB_FROST_FIRE_ROAM_FOUNDATION
+            }) {
+                return &QUESTS_MOB_FROST_FIRE_ROAM_FOUNDATION_PLAN;
+            }
+            if g == (Gates {
+                quests: true,
+                ..Gates::FIRE_ROAM_FOUNDATION
+            }) {
+                return &QUESTS_FIRE_ROAM_FOUNDATION_PLAN;
+            }
             panic!("no compiled quest plan for gate set {g:?}: add one with the config switch that made it");
         }
         if g == Gates::PRODUCTION {
             &PRODUCTION_PLAN
         } else if g == Gates::FIRE_ROAM_FOUNDATION {
             &FIRE_ROAM_FOUNDATION_PLAN
+        } else if g == Gates::MOB_FROST_FIRE_ROAM_FOUNDATION {
+            &MOB_FROST_FIRE_ROAM_FOUNDATION_PLAN
         } else if g == Gates::MOB_FROST_FOUNDATION {
             &MOB_FROST_FOUNDATION_PLAN
         } else if g == Gates::HOLY_FOUNDATION {
@@ -701,6 +729,20 @@ static HOLY_FOUNDATION_PLAN: Plan = Plan::compile(&Gates::HOLY_FOUNDATION);
 static FIRE_ROAM_FOUNDATION_PLAN: Plan = Plan::compile(&Gates::FIRE_ROAM_FOUNDATION);
 static MOB_FROST_FOUNDATION_PLAN: Plan = Plan::compile(&Gates::MOB_FROST_FOUNDATION);
 static TRAINING_PLAN: Plan = Plan::compile(&Gates::TRAINING);
+static MOB_FROST_FIRE_ROAM_FOUNDATION_PLAN: Plan =
+    Plan::compile(&Gates::MOB_FROST_FIRE_ROAM_FOUNDATION);
+static QUESTS_MOB_FROST_FOUNDATION_PLAN: Plan = Plan::compile(&Gates {
+    quests: true,
+    ..Gates::MOB_FROST_FOUNDATION
+});
+static QUESTS_MOB_FROST_FIRE_ROAM_FOUNDATION_PLAN: Plan = Plan::compile(&Gates {
+    quests: true,
+    ..Gates::MOB_FROST_FIRE_ROAM_FOUNDATION
+});
+static QUESTS_FIRE_ROAM_FOUNDATION_PLAN: Plan = Plan::compile(&Gates {
+    quests: true,
+    ..Gates::FIRE_ROAM_FOUNDATION
+});
 static QUESTS_CAPTURE_PLAN: Plan = Plan::compile(&Gates {
     quests: true,
     ..Gates::CAPTURE

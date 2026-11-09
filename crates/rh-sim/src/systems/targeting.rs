@@ -36,7 +36,7 @@ fn lockable(cx: &mut Cx, i: usize, j: usize) -> bool {
     let viewer = &cx.w.players[i];
     let other_ix = FighterIx::of_slot(j);
     let other = cx.w.core(other_ix);
-    if viewer.id == other.id
+    if !super::plague_zombies::hostile(cx.w, viewer.id, other.id)
         || !cx.w.standing(other_ix)
         || crate::status_runtime::untargetable(&other.statuses.instances, cx.w.server_time)
     {

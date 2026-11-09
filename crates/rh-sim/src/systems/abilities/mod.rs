@@ -22,7 +22,7 @@ fn unit_valid(cx: &Cx, ix: FighterIx, target: PlayerId, range: f64) -> bool {
     let c = cx.w.core(ix);
     let t = cx.w.core(j);
     let now = cx.w.server_time;
-    if c.id == target
+    if !super::plague_zombies::hostile(cx.w, c.id, target)
         || !cx.w.standing(j)
         || rt::untargetable(&t.statuses.instances, now)
         || (cx.w.is_player(j) && now < t.vitals.immune_until)

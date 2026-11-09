@@ -269,14 +269,11 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
     if w.players.iter().any(|p| p.core.faction_id().is_none()) {
         return Err("neutral player affiliation".into());
     }
-    if w.actor_history
-        .iter()
-        .any(|a| matches!(a.origin, crate::mob_runtime::ActorOrigin::QuestGiver { .. }))
-    {
-        return Err("quest giver birth not yet enabled".into());
-    }
     for m in &w.mobs {
-        if m.kind == crate::mob_runtime::MobKind::QuestGiver || m.core.faction_id().is_none() {
+        if m.kind == crate::mob_runtime::MobKind::QuestGiver {
+            continue;
+        }
+        if m.core.faction_id().is_none() {
             return Err("unsupported neutral actor class".into());
         }
         if (m.kind == crate::mob_runtime::MobKind::Dummy
@@ -294,6 +291,7 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
             return Err("actor brain capability mismatch".into());
         }
     }
+    crate::quests::giver::validate(k, w)?;
     crate::systems::arena_validation::validate(k, w)?;
     crate::systems::planning::validate(k, w)?;
     crate::quests::live::validate(k, w)?;
@@ -369,18 +367,24 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
     // A raid transition or a respawn can create an entire camp batch before the next
     // validation. Reserve every admitted camp spot conservatively, plus the next join.
     // Current corpses/camp state are not a bound on future births.
-    let potential_births = if k.config.mob_mode == crate::mob_runtime::MobMode::Off {
-        0
+    let quest_births = if k.config.quests {
+        u64::from(crate::constants::QUEST_COUNT)
     } else {
-        k.arena.map.layers().map_or(0, |layers| {
-            layers
-                .data()
-                .camps
-                .iter()
-                .map(|c| c.spots.len() as u64)
-                .sum::<u64>()
-        })
+        0
     };
+    let potential_births = quest_births
+        + if k.config.mob_mode == crate::mob_runtime::MobMode::Off {
+            0
+        } else {
+            k.arena.map.layers().map_or(0, |layers| {
+                layers
+                    .data()
+                    .camps
+                    .iter()
+                    .map(|c| c.spots.len() as u64)
+                    .sum::<u64>()
+            })
+        };
     if u64::from(w.next_id) + potential_births + 1 > u64::from(u32::MAX) {
         return Err("next_id lacks headroom for camp births and the next join".into());
     }
@@ -421,16 +425,28 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
     // Seeded rack props can be numerous. Each consumed ground prop needed one action; each
     // launched shot and its entire reflection chain needed an attack. These account for all
     // entity ids no longer represented by current containers in this build.
-    let max_allocated = ((w.containers.len() + w.reward_chests.len()) as u64
-        + w.actor_history
-            .iter()
-            .filter(|a| matches!(a.origin, crate::mob_runtime::ActorOrigin::Mob { .. }))
-            .count() as u64)
-        .saturating_add(
-            u64::from(w.tick)
-                .saturating_mul(w.actor_history.len() as u64)
-                .saturating_mul(per_seat),
-        );
+    let quest_allocations = if k.config.quests {
+        u64::from(crate::constants::QUEST_COUNT) * 2
+            + crate::quests::catalog::DEFINITION
+                .iter()
+                .map(|d| {
+                    u64::from(d.token_spawns) + u64::from(d.kind == crate::quests::Kind::Fetch)
+                })
+                .sum::<u64>()
+    } else {
+        0
+    };
+    let max_allocated = quest_allocations
+        + ((w.containers.len() + w.reward_chests.len()) as u64
+            + w.actor_history
+                .iter()
+                .filter(|a| matches!(a.origin, crate::mob_runtime::ActorOrigin::Mob { .. }))
+                .count() as u64)
+            .saturating_add(
+                u64::from(w.tick)
+                    .saturating_mul(w.actor_history.len() as u64)
+                    .saturating_mul(per_seat),
+            );
     if u64::from(w.entity_counter) > max_allocated
         || w.item_counter
             > u64::from(w.entity_counter) * (2 + u64::from(crate::potions::DEFINITION.cap))
