@@ -1,0 +1,28 @@
+{
+  "format": "rh-native29-hash-admission-preparation/1",
+  "base": "2f1c4758e0db84515551f483c6df0d23879f4a99",
+  "code": "0eca8958e1b86a46fca9a0ad60c94ec58a1aed93",
+  "execution": "NOT_RUN",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 3702,
+      "sha256": "a88e726cf30cee821df20e3b3cccf521a7be5aac6cdb42c9a9ef0fee75e61d83"
+    },
+    {
+      "path": "code.patch",
+      "bytes": 17558,
+      "sha256": "75dbe5930ac136583ed40651226dc7974de56c561b8db7964dfa71ea36cefe8b"
+    },
+    {
+      "path": "source.json",
+      "bytes": 1377,
+      "sha256": "854dbe53f057e7453e4d0c0204674be36b4bfd54794e59b6f2e429a333a005e1"
+    },
+    {
+      "path": "static-checks.json",
+      "bytes": 904,
+      "sha256": "41ea8981652893a592a17dbc678673888014a426062cece5ddbfc363a26ef412"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "checks": [
+    {
+      "argv": [
+        "zsh",
+        "-c",
+        "source /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-env.sh\nrustfmt --edition 2021 --check crates/rh-sim/tests/hash_coverage.rs crates/rh-sim/tests/checkpoint.rs crates/rh-sim/tests/replay.rs"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "diff",
+        "--check",
+        "2f1c4758e0db84515551f483c6df0d23879f4a99",
+        "0eca8958e1b86a46fca9a0ad60c94ec58a1aed93"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "note": "Formatting/syntax parsing and diff whitespace only. No cargo, compilation, test execution or target/cache access. final-env.sh sourced solely to locate existing rustfmt. Earlier PATH lookup found no rustfmt/rustup; corrected existing prefix per Root."
+}

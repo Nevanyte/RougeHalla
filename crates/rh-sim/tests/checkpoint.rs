@@ -148,9 +148,14 @@ fn the_format_tag_is_refused_before_the_payload_whatever_the_key_order() {
             .unwrap_or_else(|e| panic!("{order:?}: {e}"));
         assert_eq!(b.state_hash(), a.state_hash(), "{order:?}");
     }
-    // The reserved 25 layout's immediate predecessor is refused by its tag: the two new defaulted fields must not
-    // grant checkpoint-24 compatibility.
-    for found in ["rh-checkpoint/27", "rh-checkpoint/26", "rh-checkpoint/25"] {
+    // The reserved native29 layout must refuse its immediate predecessor28 before
+    // decoding payload or accepting any defaults from an older canonical shape.
+    for found in [
+        "rh-checkpoint/28",
+        "rh-checkpoint/27",
+        "rh-checkpoint/26",
+        "rh-checkpoint/25",
+    ] {
         let mut predecessor = good.clone();
         predecessor["format"] = found.into();
         assert_eq!(
@@ -176,6 +181,30 @@ fn the_format_tag_is_refused_before_the_payload_whatever_the_key_order() {
             found: "rh-checkpoint/8".into()
         })
     );
+    // The immediate predecessor wins over malformed payload and mismatched content,
+    // even when the format key follows those payload keys.
+    let mut prior28 = good.clone();
+    prior28["format"] = "rh-checkpoint/28".into();
+    prior28["world"] = serde_json::json!({"tick": "not a checkpoint"});
+    prior28["statics"] = serde_json::json!([1, 2, 3]);
+    prior28["content_hash"] = (good["content_hash"].as_u64().unwrap() ^ 1).into();
+    for order in [
+        ["format", "statics", "world"],
+        ["world", "statics", "format"],
+    ] {
+        // Include content_hash explicitly; reordered() otherwise lists only its supplied keys.
+        let payload = format!(
+            "{{\"content_hash\":{},{}",
+            prior28["content_hash"],
+            &reordered(&prior28, order)[1..]
+        );
+        assert_eq!(
+            Sim::restore(&mut serde_json::Deserializer::from_str(&payload)).err(),
+            Some(CheckpointError::UnsupportedFormat {
+                found: "rh-checkpoint/28".into()
+            })
+        );
+    }
     // A stale layout under a stale tag is refused by its tag, wherever the tag is, even though its payload would not parse.
     let mut stale = good.clone();
     stale["format"] = "rh-checkpoint/2".into();
