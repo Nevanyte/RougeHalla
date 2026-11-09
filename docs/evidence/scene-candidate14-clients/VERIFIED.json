@@ -209,5 +209,21 @@
     "no default Session/Room/connection/UI/public14/P15/disclosure/version/golden/Cargo.lock/status activation",
     "no new Clippy/full workspace/Editor/browser/actual client socket/cloud gate",
     "passing checks retain their actual heads; final input equivalence is explicit rather than a relabelled same-head run"
-  ]
+  ],
+  "whitespace": {
+    "sourceAndNonRawEvidenceExitCode": 0,
+    "rawDiagnosticDiffCheckExitCode": 2,
+    "rawDiagnosticWarnings": [
+      "docs/evidence/scene-candidate14-clients/fmt-first.log:4: trailing whitespace.",
+      "docs/evidence/scene-candidate14-clients/fmt-first.log:9: trailing whitespace.",
+      "docs/evidence/scene-candidate14-clients/rust-check-first.log:8: new blank line at EOF.",
+      "docs/evidence/scene-candidate14-clients/rust-export-after-space.log:9: new blank line at EOF."
+    ],
+    "rawDiagnosticContext": [
+      "+ ",
+      "+ "
+    ],
+    "classification": "four warnings confined to unmodified raw command output; authored source and other evidence pass",
+    "firstSealAudit": "initial classification rejected two +space diagnostic context lines; no source/nonraw whitespace failure; this final classification preserves all raw output"
+  }
 }
