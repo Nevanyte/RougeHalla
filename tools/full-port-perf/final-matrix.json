@@ -1,0 +1,1239 @@
+{
+  "admission": {
+    "loadAbsoluteSlack": {
+      "actorsVisible": 1,
+      "aliveHumans": 0,
+      "commandsAccepted": 5,
+      "mobsAlive": 5,
+      "projectiles": 2,
+      "seatedPlayers": 0
+    },
+    "loadTolerance": 0.1,
+    "loadToleranceRule": "per load count: |median legacy - median port| <= max(loadTolerance x the larger median, loadAbsoluteSlack[count]); small integer counts get an absolute slack instead of a meaningless 10% of 4",
+    "maxRecorderOverheadDelta": 0.02,
+    "maxRecorderShare": 0.01,
+    "minOverheadControlSamples": 600,
+    "overheadControl": "each side runs one extra trial per cell with the minimal recorder (overheadMetric only) next to its full-recorder trials; raw samples of both are kept; a difference above the bound refuses the cell; nothing is subtracted",
+    "trialOrder": [
+      "legacy",
+      "port",
+      "port",
+      "legacy",
+      "legacy",
+      "port",
+      "port",
+      "legacy",
+      "legacy",
+      "port"
+    ],
+    "trialsPerSide": 5
+  },
+  "bounds": {
+    "maxCells": 15,
+    "maxTotalHours": 8.0,
+    "maxTrialsPerSide": 5
+  },
+  "cells": [
+    {
+      "browser": true,
+      "cacheState": "warm",
+      "class": "realtime-e2e",
+      "deterministicPerStack": false,
+      "diagnostic": false,
+      "endPhases": [
+        "active"
+      ],
+      "estimateSetupSeconds": 60,
+      "id": "C01",
+      "impairment": null,
+      "initialPhase": "active",
+      "instrumentStatus": "ready",
+      "measuredHumanMustSurvive": true,
+      "networkThrottle": null,
+      "optional": [
+        "client.gc_pause_ms",
+        "client.js_heap_bytes",
+        "client.managed_alloc_bytes",
+        "client.wasm_heap_bytes",
+        "frame.presented_interval_ms",
+        "gpu.elapsed_ms",
+        "gpu.timer_disjoint"
+      ],
+      "overheadMetric": "frame.callback_interval_ms",
+      "prerequisites": [
+        "shared page-level recorder (rAF timestamps, wrapped-callback CPU, WebGL timer query, game-socket byte tap) built once and injected identically into both stacks' pages",
+        "legacy live server map-seed seam: today MapPool certifies crypto-random seeds, so the pinned map cannot be selected without a reviewed legacy test seam",
+        "server-side load counters per window (seated, alive humans, mobs, projectiles, accepted commands) on both stacks without leaking to clients (C-OBS)",
+        "per-window raw server step times: rh-server exports cumulative log-histogram quantiles only; legacy live rooms export none",
+        "OS process sampler for browser process tree and server RSS/CPU (rh-server rssBytes is Linux-only)"
+      ],
+      "purpose": "Full-game real-time end-to-end at the reference canvas (960x600, DPR 1), normal vsync",
+      "required": [
+        "client.browser_rss_bytes",
+        "cpu.browser_process_s",
+        "cpu.server_process_s",
+        "frame.callback_cpu_ms",
+        "frame.callback_interval_ms",
+        "net.down_bytes",
+        "net.socket_rtt_ms",
+        "net.up_bytes",
+        "recorder.self_ms",
+        "server.rss_bytes",
+        "server.tick_budget_misses",
+        "server.tick_ms",
+        "server.ticks"
+      ],
+      "sameRecorder": true,
+      "tickCountTolerance": 1,
+      "viewport": {
+        "canvas": [
+          960,
+          600
+        ],
+        "dpr": 1
+      },
+      "warmupSeconds": 30,
+      "windowDurationTolerance": 0.02,
+      "windowSeconds": 1,
+      "windowsPerTrial": 60,
+      "workload": "WL-ARENA8"
+    },
+    {
+      "browser": true,
+      "cacheState": "warm",
+      "class": "realtime-e2e",
+      "deterministicPerStack": false,
+      "diagnostic": false,
+      "endPhases": [
+        "active"
+      ],
+      "estimateSetupSeconds": 60,
+      "id": "C02",
+      "impairment": null,
+      "initialPhase": "active",
+      "instrumentStatus": "ready",
+      "measuredHumanMustSurvive": true,
+      "networkThrottle": null,
+      "optional": [
+        "client.gc_pause_ms",
+        "client.js_heap_bytes",
+        "client.managed_alloc_bytes",
+        "client.wasm_heap_bytes",
+        "frame.presented_interval_ms",
+        "gpu.elapsed_ms",
+        "gpu.timer_disjoint"
+      ],
+      "overheadMetric": "frame.callback_interval_ms",
+      "prerequisites": [
+        "shared page-level recorder (rAF timestamps, wrapped-callback CPU, WebGL timer query, game-socket byte tap) built once and injected identically into both stacks' pages",
+        "legacy live server map-seed seam: today MapPool certifies crypto-random seeds, so the pinned map cannot be selected without a reviewed legacy test seam",
+        "server-side load counters per window (seated, alive humans, mobs, projectiles, accepted commands) on both stacks without leaking to clients (C-OBS)",
+        "per-window raw server step times: rh-server exports cumulative log-histogram quantiles only; legacy live rooms export none",
+        "OS process sampler for browser process tree and server RSS/CPU (rh-server rssBytes is Linux-only)"
+      ],
+      "purpose": "Same workload at native Retina density (backbuffer 1920x1200, DPR 2): fill-rate and resolution sensitivity",
+      "required": [
+        "client.browser_rss_bytes",
+        "cpu.browser_process_s",
+        "cpu.server_process_s",
+        "frame.callback_cpu_ms",
+        "frame.callback_interval_ms",
+        "net.down_bytes",
+        "net.socket_rtt_ms",
+        "net.up_bytes",
+        "recorder.self_ms",
+        "server.rss_bytes",
+        "server.tick_budget_misses",
+        "server.tick_ms",
+        "server.ticks"
+      ],
+      "sameRecorder": true,
+      "tickCountTolerance": 1,
+      "viewport": {
+        "canvas": [
+          1920,
+          1200
+        ],
+        "dpr": 2
+      },
+      "warmupSeconds": 30,
+      "windowDurationTolerance": 0.02,
+      "windowSeconds": 1,
+      "windowsPerTrial": 60,
+      "workload": "WL-ARENA8"
+    },
+    {
+      "browser": true,
+      "cacheState": "warm",
+      "class": "realtime-e2e",
+      "deterministicPerStack": false,
+      "diagnostic": false,
+      "endPhases": [
+        "coliseum",
+        "sudden-death"
+      ],
+      "estimateSetupSeconds": 60,
+      "id": "C03",
+      "impairment": null,
+      "initialPhase": "coliseum",
+      "instrumentStatus": "ready",
+      "measuredHumanMustSurvive": true,
+      "networkThrottle": null,
+      "optional": [
+        "client.gc_pause_ms",
+        "client.js_heap_bytes",
+        "client.managed_alloc_bytes",
+        "client.wasm_heap_bytes",
+        "frame.presented_interval_ms",
+        "gpu.elapsed_ms",
+        "gpu.timer_disjoint"
+      ],
+      "overheadMetric": "frame.callback_interval_ms",
+      "prerequisites": [
+        "shared page-level recorder (rAF timestamps, wrapped-callback CPU, WebGL timer query, game-socket byte tap) built once and injected identically into both stacks' pages",
+        "legacy live server map-seed seam: today MapPool certifies crypto-random seeds, so the pinned map cannot be selected without a reviewed legacy test seam",
+        "server-side load counters per window (seated, alive humans, mobs, projectiles, accepted commands) on both stacks without leaking to clients (C-OBS)",
+        "per-window raw server step times: rh-server exports cumulative log-histogram quantiles only; legacy live rooms export none",
+        "OS process sampler for browser process tree and server RSS/CPU (rh-server rssBytes is Linux-only)"
+      ],
+      "purpose": "Dense endgame combat after the first coliseum teleport",
+      "required": [
+        "client.browser_rss_bytes",
+        "cpu.browser_process_s",
+        "cpu.server_process_s",
+        "frame.callback_cpu_ms",
+        "frame.callback_interval_ms",
+        "net.down_bytes",
+        "net.socket_rtt_ms",
+        "net.up_bytes",
+        "recorder.self_ms",
+        "server.rss_bytes",
+        "server.tick_budget_misses",
+        "server.tick_ms",
+        "server.ticks"
+      ],
+      "sameRecorder": true,
+      "tickCountTolerance": 1,
+      "viewport": {
+        "canvas": [
+          960,
+          600
+        ],
+        "dpr": 1
+      },
+      "warmupSeconds": 30,
+      "windowDurationTolerance": 0.02,
+      "windowSeconds": 1,
+      "windowsPerTrial": 60,
+      "workload": "WL-COLISEUM8"
+    },
+    {
+      "browser": true,
+      "cacheState": "warm",
+      "class": "diagnostic-uncapped",
+      "deterministicPerStack": false,
+      "diagnostic": true,
+      "endPhases": [
+        "active"
+      ],
+      "estimateSetupSeconds": 60,
+      "id": "C04",
+      "impairment": null,
+      "initialPhase": "active",
+      "instrumentStatus": "ready",
+      "measuredHumanMustSurvive": true,
+      "networkThrottle": null,
+      "optional": [
+        "cpu.browser_process_s",
+        "frame.presented_interval_ms",
+        "gpu.elapsed_ms",
+        "gpu.timer_disjoint",
+        "server.tick_budget_misses",
+        "server.tick_ms"
+      ],
+      "overheadMetric": "frame.callback_interval_ms",
+      "prerequisites": [
+        "shared page-level recorder (rAF timestamps, wrapped-callback CPU, WebGL timer query, game-socket byte tap) built once and injected identically into both stacks' pages",
+        "legacy live server map-seed seam: today MapPool certifies crypto-random seeds, so the pinned map cannot be selected without a reviewed legacy test seam",
+        "server-side load counters per window (seated, alive humans, mobs, projectiles, accepted commands) on both stacks without leaking to clients (C-OBS)",
+        "per-window raw server step times: rh-server exports cumulative log-histogram quantiles only; legacy live rooms export none",
+        "OS process sampler for browser process tree and server RSS/CPU (rh-server rssBytes is Linux-only)"
+      ],
+      "purpose": "Headroom probe: both stacks with --disable-frame-rate-limit --disable-gpu-vsync. Reports a DIAGNOSTIC callback rate, never displayed or shipping FPS",
+      "required": [
+        "frame.callback_cpu_ms",
+        "frame.callback_interval_ms",
+        "recorder.self_ms",
+        "server.ticks"
+      ],
+      "sameRecorder": true,
+      "tickCountTolerance": 1,
+      "viewport": {
+        "canvas": [
+          960,
+          600
+        ],
+        "dpr": 1
+      },
+      "warmupSeconds": 30,
+      "windowDurationTolerance": 0.02,
+      "windowSeconds": 1,
+      "windowsPerTrial": 60,
+      "workload": "WL-ARENA8"
+    },
+    {
+      "browser": false,
+      "cacheState": "warm",
+      "class": "sim-throughput",
+      "deterministicPerStack": true,
+      "diagnostic": false,
+      "endPhases": [
+        "active",
+        "ended"
+      ],
+      "estimateSetupSeconds": 30,
+      "estimateTrialSeconds": 60,
+      "id": "C05",
+      "impairment": null,
+      "initialPhase": "active",
+      "instrumentStatus": "ready",
+      "measuredHumanMustSurvive": false,
+      "networkThrottle": null,
+      "optional": [
+        "server.rss_bytes"
+      ],
+      "overheadMetric": "sim.step_wall_us",
+      "prerequisites": [
+        "legacy: a raw per-tick export from the existing headless room (packages/server/bench/stepBench.ts prints summaries only) and proof that it is deterministic for a seed",
+        "port: the same workload through rh-headless with per-step wall timing (the first-playable native bench is a private harness)",
+        "both: identical map pin, bot seed/tier and mechanics; outcome digest repeated per stack"
+      ],
+      "purpose": "Unpaced simulation throughput (steps per wall second). Never compared with or presented as real-time performance",
+      "required": [
+        "recorder.self_ms",
+        "sim.step_wall_us",
+        "sim.steps"
+      ],
+      "sameRecorder": true,
+      "tickCountTolerance": 1,
+      "viewport": null,
+      "warmupSeconds": null,
+      "warmupTicks": 200,
+      "windowDurationTolerance": 0.02,
+      "windowSeconds": null,
+      "windowTicks": 20,
+      "windowsPerTrial": 300,
+      "workload": "WL-ARENA8-HEADLESS"
+    },
+    {
+      "browser": false,
+      "cacheState": "warm",
+      "class": "server-density-realtime",
+      "deterministicPerStack": false,
+      "diagnostic": false,
+      "endPhases": [
+        "active"
+      ],
+      "estimateSetupSeconds": 60,
+      "id": "C06",
+      "impairment": null,
+      "initialPhase": "active",
+      "instrumentStatus": "ready",
+      "measuredHumanMustSurvive": false,
+      "networkThrottle": null,
+      "optional": [],
+      "overheadMetric": "server.tick_ms",
+      "prerequisites": [
+        "server-side bot-only rooms started identically on both stacks (legacy: BOTS_FILL_TO with no human; port: --fill-bots) on the pinned map",
+        "per-window raw step times and budget-miss counters on both stacks",
+        "OS process sampler for server CPU/RSS"
+      ],
+      "purpose": "1 concurrent room(s) at the real 20 Hz pacer: maximum sustainable server density is the largest room count with zero budget misses",
+      "required": [
+        "cpu.server_process_s",
+        "recorder.self_ms",
+        "server.rss_bytes",
+        "server.tick_budget_misses",
+        "server.tick_ms",
+        "server.ticks"
+      ],
+      "sameRecorder": true,
+      "tickCountTolerance": 1,
+      "viewport": null,
+      "warmupSeconds": 30,
+      "windowDurationTolerance": 0.02,
+      "windowSeconds": 1,
+      "windowsPerTrial": 60,
+      "workload": "WL-DENSITY1"
+    },
+    {
+      "browser": false,
+      "cacheState": "warm",
+      "class": "server-density-realtime",
+      "deterministicPerStack": false,
+      "diagnostic": false,
+      "endPhases": [
+        "active"
+      ],
+      "estimateSetupSeconds": 60,
+      "id": "C07",
+      "impairment": null,
+      "initialPhase": "active",
+      "instrumentStatus": "ready",
+      "measuredHumanMustSurvive": false,
+      "networkThrottle": null,
+      "optional": [],
+      "overheadMetric": "server.tick_ms",
+      "prerequisites": [
+        "server-side bot-only rooms started identically on both stacks (legacy: BOTS_FILL_TO with no human; port: --fill-bots) on the pinned map",
+        "per-window raw step times and budget-miss counters on both stacks",
+        "OS process sampler for server CPU/RSS"
+      ],
+      "purpose": "4 concurrent room(s) at the real 20 Hz pacer: maximum sustainable server density is the largest room count with zero budget misses",
+      "required": [
+        "cpu.server_process_s",
+        "recorder.self_ms",
+        "server.rss_bytes",
+        "server.tick_budget_misses",
+        "server.tick_ms",
+        "server.ticks"
+      ],
+      "sameRecorder": true,
+      "tickCountTolerance": 1,
+      "viewport": null,
+      "warmupSeconds": 30,
+      "windowDurationTolerance": 0.02,
+      "windowSeconds": 1,
+      "windowsPerTrial": 60,
+      "workload": "WL-DENSITY4"
+    },
+    {
+      "browser": false,
+      "cacheState": "warm",
+      "class": "server-density-realtime",
+      "deterministicPerStack": false,
+      "diagnostic": false,
+      "endPhases": [
+        "active"
+      ],
+      "estimateSetupSeconds": 60,
+      "id": "C08",
+      "impairment": null,
+      "initialPhase": "active",
+      "instrumentStatus": "ready",
+      "measuredHumanMustSurvive": false,
+      "networkThrottle": null,
+      "optional": [],
+      "overheadMetric": "server.tick_ms",
+      "prerequisites": [
+        "server-side bot-only rooms started identically on both stacks (legacy: BOTS_FILL_TO with no human; port: --fill-bots) on the pinned map",
+        "per-window raw step times and budget-miss counters on both stacks",
+        "OS process sampler for server CPU/RSS"
+      ],
+      "purpose": "8 concurrent room(s) at the real 20 Hz pacer: maximum sustainable server density is the largest room count with zero budget misses",
+      "required": [
+        "cpu.server_process_s",
+        "recorder.self_ms",
+        "server.rss_bytes",
+        "server.tick_budget_misses",
+        "server.tick_ms",
+        "server.ticks"
+      ],
+      "sameRecorder": true,
+      "tickCountTolerance": 1,
+      "viewport": null,
+      "warmupSeconds": 30,
+      "windowDurationTolerance": 0.02,
+      "windowSeconds": 1,
+      "windowsPerTrial": 60,
+      "workload": "WL-DENSITY8"
+    },
+    {
+      "browser": false,
+      "cacheState": "warm",
+      "class": "server-density-realtime",
+      "deterministicPerStack": false,
+      "diagnostic": false,
+      "endPhases": [
+        "active"
+      ],
+      "estimateSetupSeconds": 60,
+      "id": "C09",
+      "impairment": null,
+      "initialPhase": "active",
+      "instrumentStatus": "ready",
+      "measuredHumanMustSurvive": false,
+      "networkThrottle": null,
+      "optional": [],
+      "overheadMetric": "server.tick_ms",
+      "prerequisites": [
+        "server-side bot-only rooms started identically on both stacks (legacy: BOTS_FILL_TO with no human; port: --fill-bots) on the pinned map",
+        "per-window raw step times and budget-miss counters on both stacks",
+        "OS process sampler for server CPU/RSS"
+      ],
+      "purpose": "16 concurrent room(s) at the real 20 Hz pacer: maximum sustainable server density is the largest room count with zero budget misses",
+      "required": [
+        "cpu.server_process_s",
+        "recorder.self_ms",
+        "server.rss_bytes",
+        "server.tick_budget_misses",
+        "server.tick_ms",
+        "server.ticks"
+      ],
+      "sameRecorder": true,
+      "tickCountTolerance": 1,
+      "viewport": null,
+      "warmupSeconds": 30,
+      "windowDurationTolerance": 0.02,
+      "windowSeconds": 1,
+      "windowsPerTrial": 60,
+      "workload": "WL-DENSITY16"
+    },
+    {
+      "browser": true,
+      "cacheState": "warm",
+      "class": "input-latency",
+      "deterministicPerStack": false,
+      "diagnostic": false,
+      "endPhases": [
+        "active"
+      ],
+      "estimateSetupSeconds": 60,
+      "id": "C10",
+      "impairment": {
+        "addedRttMs": 0,
+        "jitterMs": 10,
+        "seed": 72617,
+        "semantics": "tools/latency/ws-proxy.cjs: reliable ordered TCP delay/jitter, no packet loss"
+      },
+      "initialPhase": "active",
+      "instrumentStatus": "ready",
+      "measuredHumanMustSurvive": true,
+      "minEventsPerTrial": 30,
+      "networkThrottle": null,
+      "optional": [
+        "frame.callback_interval_ms",
+        "net.down_bytes",
+        "net.loss_fraction",
+        "net.up_bytes",
+        "server.tick_budget_misses",
+        "server.tick_ms"
+      ],
+      "overheadMetric": "frame.callback_interval_ms",
+      "prerequisites": [
+        "a stack-neutral visible-change endpoint (pixel-change-probe) on both stacks: the existing tools/latency post-Present trace exists for Unity only",
+        "legacy run behind the same tools/latency/ws-proxy.cjs build",
+        "legacy map-seed seam (as C01)"
+      ],
+      "purpose": "Input-to-visible response separated from socket RTT, 0 ms added RTT (+-5 ms jitter each way)",
+      "required": [
+        "latency.input_to_opponent_visible_ms",
+        "latency.input_to_self_visible_ms",
+        "net.socket_rtt_ms",
+        "recorder.self_ms",
+        "server.ticks"
+      ],
+      "sameRecorder": true,
+      "tickCountTolerance": 1,
+      "viewport": {
+        "canvas": [
+          960,
+          600
+        ],
+        "dpr": 1
+      },
+      "warmupSeconds": 10,
+      "windowDurationTolerance": 0.02,
+      "windowSeconds": 1,
+      "windowsPerTrial": 60,
+      "workload": "WL-DUEL2"
+    },
+    {
+      "browser": true,
+      "cacheState": "warm",
+      "class": "input-latency",
+      "deterministicPerStack": false,
+      "diagnostic": false,
+      "endPhases": [
+        "active"
+      ],
+      "estimateSetupSeconds": 60,
+      "id": "C11",
+      "impairment": {
+        "addedRttMs": 50,
+        "jitterMs": 10,
+        "seed": 72667,
+        "semantics": "tools/latency/ws-proxy.cjs: reliable ordered TCP delay/jitter, no packet loss"
+      },
+      "initialPhase": "active",
+      "instrumentStatus": "ready",
+      "measuredHumanMustSurvive": true,
+      "minEventsPerTrial": 30,
+      "networkThrottle": null,
+      "optional": [
+        "frame.callback_interval_ms",
+        "net.down_bytes",
+        "net.loss_fraction",
+        "net.up_bytes",
+        "server.tick_budget_misses",
+        "server.tick_ms"
+      ],
+      "overheadMetric": "frame.callback_interval_ms",
+      "prerequisites": [
+        "a stack-neutral visible-change endpoint (pixel-change-probe) on both stacks: the existing tools/latency post-Present trace exists for Unity only",
+        "legacy run behind the same tools/latency/ws-proxy.cjs build",
+        "legacy map-seed seam (as C01)"
+      ],
+      "purpose": "Input-to-visible response separated from socket RTT, 50 ms added RTT (+-5 ms jitter each way)",
+      "required": [
+        "latency.input_to_opponent_visible_ms",
+        "latency.input_to_self_visible_ms",
+        "net.socket_rtt_ms",
+        "recorder.self_ms",
+        "server.ticks"
+      ],
+      "sameRecorder": true,
+      "tickCountTolerance": 1,
+      "viewport": {
+        "canvas": [
+          960,
+          600
+        ],
+        "dpr": 1
+      },
+      "warmupSeconds": 10,
+      "windowDurationTolerance": 0.02,
+      "windowSeconds": 1,
+      "windowsPerTrial": 60,
+      "workload": "WL-DUEL2"
+    },
+    {
+      "browser": true,
+      "cacheState": "warm",
+      "class": "input-latency",
+      "deterministicPerStack": false,
+      "diagnostic": false,
+      "endPhases": [
+        "active"
+      ],
+      "estimateSetupSeconds": 60,
+      "id": "C12",
+      "impairment": {
+        "addedRttMs": 100,
+        "jitterMs": 10,
+        "seed": 72717,
+        "semantics": "tools/latency/ws-proxy.cjs: reliable ordered TCP delay/jitter, no packet loss"
+      },
+      "initialPhase": "active",
+      "instrumentStatus": "ready",
+      "measuredHumanMustSurvive": true,
+      "minEventsPerTrial": 30,
+      "networkThrottle": null,
+      "optional": [
+        "frame.callback_interval_ms",
+        "net.down_bytes",
+        "net.loss_fraction",
+        "net.up_bytes",
+        "server.tick_budget_misses",
+        "server.tick_ms"
+      ],
+      "overheadMetric": "frame.callback_interval_ms",
+      "prerequisites": [
+        "a stack-neutral visible-change endpoint (pixel-change-probe) on both stacks: the existing tools/latency post-Present trace exists for Unity only",
+        "legacy run behind the same tools/latency/ws-proxy.cjs build",
+        "legacy map-seed seam (as C01)"
+      ],
+      "purpose": "Input-to-visible response separated from socket RTT, 100 ms added RTT (+-5 ms jitter each way)",
+      "required": [
+        "latency.input_to_opponent_visible_ms",
+        "latency.input_to_self_visible_ms",
+        "net.socket_rtt_ms",
+        "recorder.self_ms",
+        "server.ticks"
+      ],
+      "sameRecorder": true,
+      "tickCountTolerance": 1,
+      "viewport": {
+        "canvas": [
+          960,
+          600
+        ],
+        "dpr": 1
+      },
+      "warmupSeconds": 10,
+      "windowDurationTolerance": 0.02,
+      "windowSeconds": 1,
+      "windowsPerTrial": 60,
+      "workload": "WL-DUEL2"
+    },
+    {
+      "browser": true,
+      "cacheState": "cold",
+      "class": "startup",
+      "deterministicPerStack": false,
+      "diagnostic": false,
+      "endPhases": [
+        "active"
+      ],
+      "estimateSetupSeconds": 30,
+      "estimateTrialSeconds": 90,
+      "id": "C13",
+      "impairment": null,
+      "initialPhase": "navigation",
+      "instrumentStatus": "ready",
+      "measuredHumanMustSurvive": true,
+      "networkThrottle": null,
+      "optional": [],
+      "overheadMetric": "startup.payload_complete_ms",
+      "overheadMinSamples": 5,
+      "prerequisites": [
+        "the same local static HTTP server (exact binary hash) and compression headers policy for both client bundles",
+        "lifecycle marks (engine ready, first snapshot, active) exposed identically on both stacks without game-code changes, or recorded as absent",
+        "a fresh browser profile per cold trial; the warm trial reuses the profile of an immediately preceding unmeasured load"
+      ],
+      "purpose": "Cold start, empty cache, unthrottled loopback HTTP",
+      "required": [
+        "startup.decoded_bytes",
+        "startup.encoded_bytes",
+        "startup.engine_ready_ms",
+        "startup.first_snapshot_ms",
+        "startup.join_to_active_ms",
+        "startup.payload_complete_ms"
+      ],
+      "sameRecorder": true,
+      "tickCountTolerance": 1,
+      "viewport": {
+        "canvas": [
+          960,
+          600
+        ],
+        "dpr": 1
+      },
+      "warmupSeconds": null,
+      "windowDurationTolerance": 0.02,
+      "windowSeconds": null,
+      "windowsPerTrial": 0,
+      "workload": "WL-STARTUP"
+    },
+    {
+      "browser": true,
+      "cacheState": "cold",
+      "class": "startup",
+      "deterministicPerStack": false,
+      "diagnostic": false,
+      "endPhases": [
+        "active"
+      ],
+      "estimateSetupSeconds": 30,
+      "estimateTrialSeconds": 90,
+      "id": "C14",
+      "impairment": null,
+      "initialPhase": "navigation",
+      "instrumentStatus": "ready",
+      "measuredHumanMustSurvive": true,
+      "networkThrottle": {
+        "downKbps": 20000,
+        "latencyMs": 20,
+        "method": "CDP Network.emulateNetworkConditions (page-level)",
+        "upKbps": 5000
+      },
+      "optional": [],
+      "overheadMetric": "startup.payload_complete_ms",
+      "overheadMinSamples": 5,
+      "prerequisites": [
+        "the same local static HTTP server (exact binary hash) and compression headers policy for both client bundles",
+        "lifecycle marks (engine ready, first snapshot, active) exposed identically on both stacks without game-code changes, or recorded as absent",
+        "a fresh browser profile per cold trial; the warm trial reuses the profile of an immediately preceding unmeasured load"
+      ],
+      "purpose": "Cold start at the D7 20 Mbit/s link (time-to-playable reference)",
+      "required": [
+        "startup.decoded_bytes",
+        "startup.encoded_bytes",
+        "startup.engine_ready_ms",
+        "startup.first_snapshot_ms",
+        "startup.join_to_active_ms",
+        "startup.payload_complete_ms"
+      ],
+      "sameRecorder": true,
+      "tickCountTolerance": 1,
+      "viewport": {
+        "canvas": [
+          960,
+          600
+        ],
+        "dpr": 1
+      },
+      "warmupSeconds": null,
+      "windowDurationTolerance": 0.02,
+      "windowSeconds": null,
+      "windowsPerTrial": 0,
+      "workload": "WL-STARTUP"
+    },
+    {
+      "browser": true,
+      "cacheState": "warm",
+      "class": "startup",
+      "deterministicPerStack": false,
+      "diagnostic": false,
+      "endPhases": [
+        "active"
+      ],
+      "estimateSetupSeconds": 30,
+      "estimateTrialSeconds": 90,
+      "id": "C15",
+      "impairment": null,
+      "initialPhase": "navigation",
+      "instrumentStatus": "ready",
+      "measuredHumanMustSurvive": true,
+      "networkThrottle": null,
+      "optional": [],
+      "overheadMetric": "startup.payload_complete_ms",
+      "overheadMinSamples": 5,
+      "prerequisites": [
+        "the same local static HTTP server (exact binary hash) and compression headers policy for both client bundles",
+        "lifecycle marks (engine ready, first snapshot, active) exposed identically on both stacks without game-code changes, or recorded as absent",
+        "a fresh browser profile per cold trial; the warm trial reuses the profile of an immediately preceding unmeasured load"
+      ],
+      "purpose": "Warm start, populated HTTP cache, unthrottled",
+      "required": [
+        "startup.decoded_bytes",
+        "startup.encoded_bytes",
+        "startup.engine_ready_ms",
+        "startup.first_snapshot_ms",
+        "startup.join_to_active_ms",
+        "startup.payload_complete_ms"
+      ],
+      "sameRecorder": true,
+      "tickCountTolerance": 1,
+      "viewport": {
+        "canvas": [
+          960,
+          600
+        ],
+        "dpr": 1
+      },
+      "warmupSeconds": null,
+      "windowDurationTolerance": 0.02,
+      "windowSeconds": null,
+      "windowsPerTrial": 0,
+      "workload": "WL-STARTUP"
+    }
+  ],
+  "fixed": {
+    "browser": {
+      "forbiddenFlags": [
+        "--disable-gpu",
+        "--disable-gpu-compositing",
+        "--enable-unsafe-swiftshader",
+        "--headless",
+        "--js-flags",
+        "--use-angle=swiftshader",
+        "--use-gl=swiftshader"
+      ],
+      "policy": "one browser executable (same hash) for both stacks; headed, visible, focused; ordinary vsync except in the diagnostic cell; no extension, no personal profile data"
+    },
+    "frameRateLimit": {
+      "legacy": {
+        "phaserForceSetTimeOut": false,
+        "phaserFpsLimit": 0
+      },
+      "port": {
+        "unityTargetFrameRate": -1
+      }
+    },
+    "noFrameRateGoal": "No 60 FPS goal or cap (R-WEB-3). The display refresh is recorded as a measured limit, not a target.",
+    "tickHz": 20,
+    "tickSchedule": "C-TICK: legacy tick order, executable schedule in crates/rh-parity/tests/schedule.rs (never reordered)"
+  },
+  "format": "rh-full-port-perf-matrix/1",
+  "inputScripts": {
+    "arena-human-v1": "scripts/arena-human-v1.json",
+    "duel-latency-v1": "scripts/duel-latency-v1.json"
+  },
+  "reference": {
+    "cpu": "Apple M5 Pro",
+    "machine": "Apple M5 Pro, owner-selected reference (2026-11-05), native arm64, AC power",
+    "requirements": [
+      "R-WEB-3",
+      "R-OPT-3",
+      "R-OPT-4",
+      "P-LOAD-3"
+    ]
+  },
+  "stacks": {
+    "legacy": {
+      "components": {
+        "client": {
+          "forbiddenTrue": [
+            "devServer",
+            "sourceMapsLoaded"
+          ],
+          "kind": "legacy-vite-production-bundle"
+        },
+        "server": {
+          "forbiddenTrue": [
+            "inspectorAttached",
+            "sourceTransformAtRuntime"
+          ],
+          "kind": "legacy-node-colyseus-server"
+        }
+      },
+      "stack": "legacy-ts-colyseus-phaser"
+    },
+    "port": {
+      "components": {
+        "client": {
+          "forbiddenTrue": [
+            "developmentBuild",
+            "autoconnectProfiler",
+            "deepProfiling"
+          ],
+          "kind": "unity-web-release"
+        },
+        "server": {
+          "forbiddenTrue": [
+            "debugAssertions"
+          ],
+          "kind": "rust-native-release"
+        }
+      },
+      "stack": "rust-native-unity-web"
+    }
+  },
+  "status": "PREPARED: no cell has been executed. Thresholds are proposals that Root/the owner ratify before the first run; they are never tuned after seeing data. A changed matrix has a new hash and needs a new plan.",
+  "workloads": {
+    "WL-ARENA8": {
+      "botSeed": 7001,
+      "botTier": "normal",
+      "bots": 7,
+      "description": "Full Source arena on the pinned styled map: 1 scripted browser human + 7 normal fill bots, all mechanics on; windows open after warm-up inside the active run",
+      "factions": {
+        "bots": "derived from botSeed",
+        "human": 4
+      },
+      "features": [
+        "all-factions",
+        "bots-full",
+        "camps",
+        "cards",
+        "chests",
+        "coliseum-schedule",
+        "mobs",
+        "planning",
+        "quests",
+        "terrain",
+        "traders",
+        "wish"
+      ],
+      "humans": 1,
+      "id": "WL-ARENA8",
+      "inputScript": "arena-human-v1",
+      "loadFloors": {
+        "actorsVisible": 2,
+        "aliveHumans": 1,
+        "mobsAlive": 120,
+        "seatedPlayers": 8
+      },
+      "mapPin": "7:0:6255dbbe",
+      "mode": "full-arena",
+      "rooms": 1,
+      "seatedPlayers": 8,
+      "tickHz": 20,
+      "tickSchedule": "C-TICK: legacy tick order, executable schedule in crates/rh-parity/tests/schedule.rs (never reordered)"
+    },
+    "WL-ARENA8-HEADLESS": {
+      "botSeed": 7001,
+      "botTier": "normal",
+      "bots": 8,
+      "description": "Unpaced headless room on the pinned map with 8 seeded normal bots and every mechanic on; no browser, no sockets; simulation throughput only",
+      "factions": {
+        "bots": "derived from botSeed",
+        "human": 4
+      },
+      "features": [
+        "all-factions",
+        "bots-full",
+        "camps",
+        "cards",
+        "chests",
+        "coliseum-schedule",
+        "mobs",
+        "planning",
+        "quests",
+        "terrain",
+        "traders",
+        "wish"
+      ],
+      "humans": 0,
+      "id": "WL-ARENA8-HEADLESS",
+      "inputScriptSha256": null,
+      "loadFloors": {
+        "mobsAlive": 120,
+        "seatedPlayers": 8
+      },
+      "mapPin": "7:0:6255dbbe",
+      "mode": "headless-arena",
+      "rooms": 1,
+      "seatedPlayers": 8,
+      "tickHz": 20,
+      "tickSchedule": "C-TICK: legacy tick order, executable schedule in crates/rh-parity/tests/schedule.rs (never reordered)"
+    },
+    "WL-COLISEUM8": {
+      "botSeed": 7001,
+      "botTier": "normal",
+      "bots": 7,
+      "description": "Same match as WL-ARENA8, windows open only after the first coliseum teleport of the default schedule (dense endgame combat)",
+      "factions": {
+        "bots": "derived from botSeed",
+        "human": 4
+      },
+      "features": [
+        "all-factions",
+        "bots-full",
+        "camps",
+        "cards",
+        "chests",
+        "coliseum-schedule",
+        "mobs",
+        "planning",
+        "quests",
+        "terrain",
+        "traders",
+        "wish"
+      ],
+      "humans": 1,
+      "id": "WL-COLISEUM8",
+      "inputScript": "arena-human-v1",
+      "loadFloors": {
+        "actorsVisible": 4,
+        "aliveHumans": 1,
+        "seatedPlayers": 8
+      },
+      "mapPin": "7:0:6255dbbe",
+      "mode": "full-arena-coliseum",
+      "rooms": 1,
+      "seatedPlayers": 8,
+      "tickHz": 20,
+      "tickSchedule": "C-TICK: legacy tick order, executable schedule in crates/rh-parity/tests/schedule.rs (never reordered)"
+    },
+    "WL-DENSITY1": {
+      "botSeed": 7001,
+      "botTier": "normal",
+      "bots": 8,
+      "description": "1 concurrent full arena room(s) of 8 seeded bots in ONE server process at the real 20 Hz pacer; no browser; finds the largest sustained room count",
+      "factions": {
+        "bots": "derived from botSeed",
+        "human": 4
+      },
+      "features": [
+        "all-factions",
+        "bots-full",
+        "camps",
+        "cards",
+        "chests",
+        "coliseum-schedule",
+        "mobs",
+        "planning",
+        "quests",
+        "terrain",
+        "traders",
+        "wish"
+      ],
+      "humans": 0,
+      "id": "WL-DENSITY1",
+      "inputScriptSha256": null,
+      "loadFloors": {
+        "mobsAlive": 120,
+        "seatedPlayers": 8
+      },
+      "mapPin": "7:0:6255dbbe",
+      "mode": "bots-only-rooms",
+      "rooms": 1,
+      "seatedPlayers": 8,
+      "tickHz": 20,
+      "tickSchedule": "C-TICK: legacy tick order, executable schedule in crates/rh-parity/tests/schedule.rs (never reordered)"
+    },
+    "WL-DENSITY16": {
+      "botSeed": 7001,
+      "botTier": "normal",
+      "bots": 128,
+      "description": "16 concurrent full arena room(s) of 8 seeded bots in ONE server process at the real 20 Hz pacer; no browser; finds the largest sustained room count",
+      "factions": {
+        "bots": "derived from botSeed",
+        "human": 4
+      },
+      "features": [
+        "all-factions",
+        "bots-full",
+        "camps",
+        "cards",
+        "chests",
+        "coliseum-schedule",
+        "mobs",
+        "planning",
+        "quests",
+        "terrain",
+        "traders",
+        "wish"
+      ],
+      "humans": 0,
+      "id": "WL-DENSITY16",
+      "inputScriptSha256": null,
+      "loadFloors": {
+        "mobsAlive": 1920,
+        "seatedPlayers": 128
+      },
+      "mapPin": "7:0:6255dbbe",
+      "mode": "bots-only-rooms",
+      "rooms": 16,
+      "seatedPlayers": 128,
+      "tickHz": 20,
+      "tickSchedule": "C-TICK: legacy tick order, executable schedule in crates/rh-parity/tests/schedule.rs (never reordered)"
+    },
+    "WL-DENSITY4": {
+      "botSeed": 7001,
+      "botTier": "normal",
+      "bots": 32,
+      "description": "4 concurrent full arena room(s) of 8 seeded bots in ONE server process at the real 20 Hz pacer; no browser; finds the largest sustained room count",
+      "factions": {
+        "bots": "derived from botSeed",
+        "human": 4
+      },
+      "features": [
+        "all-factions",
+        "bots-full",
+        "camps",
+        "cards",
+        "chests",
+        "coliseum-schedule",
+        "mobs",
+        "planning",
+        "quests",
+        "terrain",
+        "traders",
+        "wish"
+      ],
+      "humans": 0,
+      "id": "WL-DENSITY4",
+      "inputScriptSha256": null,
+      "loadFloors": {
+        "mobsAlive": 480,
+        "seatedPlayers": 32
+      },
+      "mapPin": "7:0:6255dbbe",
+      "mode": "bots-only-rooms",
+      "rooms": 4,
+      "seatedPlayers": 32,
+      "tickHz": 20,
+      "tickSchedule": "C-TICK: legacy tick order, executable schedule in crates/rh-parity/tests/schedule.rs (never reordered)"
+    },
+    "WL-DENSITY8": {
+      "botSeed": 7001,
+      "botTier": "normal",
+      "bots": 64,
+      "description": "8 concurrent full arena room(s) of 8 seeded bots in ONE server process at the real 20 Hz pacer; no browser; finds the largest sustained room count",
+      "factions": {
+        "bots": "derived from botSeed",
+        "human": 4
+      },
+      "features": [
+        "all-factions",
+        "bots-full",
+        "camps",
+        "cards",
+        "chests",
+        "coliseum-schedule",
+        "mobs",
+        "planning",
+        "quests",
+        "terrain",
+        "traders",
+        "wish"
+      ],
+      "humans": 0,
+      "id": "WL-DENSITY8",
+      "inputScriptSha256": null,
+      "loadFloors": {
+        "mobsAlive": 960,
+        "seatedPlayers": 64
+      },
+      "mapPin": "7:0:6255dbbe",
+      "mode": "bots-only-rooms",
+      "rooms": 8,
+      "seatedPlayers": 64,
+      "tickHz": 20,
+      "tickSchedule": "C-TICK: legacy tick order, executable schedule in crates/rh-parity/tests/schedule.rs (never reordered)"
+    },
+    "WL-DUEL2": {
+      "botSeed": 7001,
+      "botTier": "normal",
+      "bots": 0,
+      "description": "Two real browser humans (driver + observer) on the pinned map with bot fill off; the driver runs duel-latency-v1",
+      "factions": {
+        "bots": "derived from botSeed",
+        "human": 4
+      },
+      "features": [
+        "all-factions",
+        "bots-full",
+        "camps",
+        "cards",
+        "chests",
+        "coliseum-schedule",
+        "mobs",
+        "planning",
+        "quests",
+        "terrain",
+        "traders",
+        "wish"
+      ],
+      "humans": 2,
+      "id": "WL-DUEL2",
+      "inputScript": "duel-latency-v1",
+      "loadFloors": {
+        "aliveHumans": 2,
+        "seatedPlayers": 2
+      },
+      "mapPin": "7:0:6255dbbe",
+      "mode": "two-human-latency",
+      "rooms": 1,
+      "seatedPlayers": 2,
+      "tickHz": 20,
+      "tickSchedule": "C-TICK: legacy tick order, executable schedule in crates/rh-parity/tests/schedule.rs (never reordered)"
+    },
+    "WL-STARTUP": {
+      "botSeed": 7001,
+      "botTier": "normal",
+      "bots": 7,
+      "description": "Navigation to the first active/alive authoritative frame through each stack's ordinary menu and join flow (stack-specific join automation, hashed per side)",
+      "factions": {
+        "bots": "derived from botSeed",
+        "human": 4
+      },
+      "features": [
+        "all-factions",
+        "bots-full",
+        "camps",
+        "cards",
+        "chests",
+        "coliseum-schedule",
+        "mobs",
+        "planning",
+        "quests",
+        "terrain",
+        "traders",
+        "wish"
+      ],
+      "humans": 1,
+      "id": "WL-STARTUP",
+      "inputScriptSha256": null,
+      "loadFloors": {},
+      "mapPin": "7:0:6255dbbe",
+      "mode": "startup-to-active",
+      "rooms": 1,
+      "seatedPlayers": 8,
+      "tickHz": 20,
+      "tickSchedule": "C-TICK: legacy tick order, executable schedule in crates/rh-parity/tests/schedule.rs (never reordered)"
+    }
+  }
+}

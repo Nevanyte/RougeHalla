@@ -1,0 +1,32 @@
+{
+  "controls": "R-GAME-2 keyboard controls only, sent as ordinary browser input by the test browser",
+  "cycleMs": 4000,
+  "events": [
+    {
+      "atMs": 0,
+      "code": "KeyD",
+      "type": "keydown"
+    },
+    {
+      "atMs": 400,
+      "code": "KeyD",
+      "type": "keyup"
+    },
+    {
+      "atMs": 2000,
+      "code": "KeyA",
+      "type": "keydown"
+    },
+    {
+      "atMs": 2400,
+      "code": "KeyA",
+      "type": "keyup"
+    }
+  ],
+  "format": "rh-full-port-perf-input-script/1",
+  "id": "duel-latency-v1",
+  "measuredEvents": "keydown",
+  "pointerSpace": "fraction of the canvas size, measured from the canvas centre (x right, y down)",
+  "purpose": "Driver input for input-latency cells: one short right step and one short left step per 4 s cycle, so the driver stays near its spawn; every keydown is a measured input event.",
+  "startAfter": "both humans pass the initialCheck and the observed opponent pose is settled (350 ms, as tools/latency)"
+}

@@ -1,0 +1,339 @@
+{
+  "controls": "R-GAME-2 keyboard and pointer controls only, sent as ordinary browser input by the test browser; no protocol frames, no game globals",
+  "cycleMs": 5600,
+  "events": [
+    {
+      "atMs": 0,
+      "type": "pointermove",
+      "x": 0.0,
+      "y": -0.25
+    },
+    {
+      "atMs": 0,
+      "code": "KeyW",
+      "type": "keydown"
+    },
+    {
+      "atMs": 50,
+      "button": 0,
+      "type": "pointerdown"
+    },
+    {
+      "atMs": 200,
+      "button": 0,
+      "type": "pointerup"
+    },
+    {
+      "atMs": 400,
+      "button": 0,
+      "type": "pointerdown"
+    },
+    {
+      "atMs": 550,
+      "button": 0,
+      "type": "pointerup"
+    },
+    {
+      "atMs": 690,
+      "code": "KeyW",
+      "type": "keyup"
+    },
+    {
+      "atMs": 700,
+      "type": "pointermove",
+      "x": 0.1768,
+      "y": -0.1768
+    },
+    {
+      "atMs": 700,
+      "code": "KeyW",
+      "type": "keydown"
+    },
+    {
+      "atMs": 700,
+      "code": "KeyD",
+      "type": "keydown"
+    },
+    {
+      "atMs": 750,
+      "button": 0,
+      "type": "pointerdown"
+    },
+    {
+      "atMs": 900,
+      "button": 0,
+      "type": "pointerup"
+    },
+    {
+      "atMs": 1100,
+      "button": 0,
+      "type": "pointerdown"
+    },
+    {
+      "atMs": 1250,
+      "button": 0,
+      "type": "pointerup"
+    },
+    {
+      "atMs": 1390,
+      "code": "KeyW",
+      "type": "keyup"
+    },
+    {
+      "atMs": 1390,
+      "code": "KeyD",
+      "type": "keyup"
+    },
+    {
+      "atMs": 1400,
+      "type": "pointermove",
+      "x": 0.25,
+      "y": 0.0
+    },
+    {
+      "atMs": 1400,
+      "code": "KeyD",
+      "type": "keydown"
+    },
+    {
+      "atMs": 1450,
+      "button": 0,
+      "type": "pointerdown"
+    },
+    {
+      "atMs": 1600,
+      "button": 0,
+      "type": "pointerup"
+    },
+    {
+      "atMs": 1800,
+      "button": 0,
+      "type": "pointerdown"
+    },
+    {
+      "atMs": 1950,
+      "button": 0,
+      "type": "pointerup"
+    },
+    {
+      "atMs": 2090,
+      "code": "KeyD",
+      "type": "keyup"
+    },
+    {
+      "atMs": 2100,
+      "type": "pointermove",
+      "x": 0.1768,
+      "y": 0.1768
+    },
+    {
+      "atMs": 2100,
+      "code": "KeyS",
+      "type": "keydown"
+    },
+    {
+      "atMs": 2100,
+      "code": "KeyD",
+      "type": "keydown"
+    },
+    {
+      "atMs": 2150,
+      "button": 0,
+      "type": "pointerdown"
+    },
+    {
+      "atMs": 2300,
+      "button": 0,
+      "type": "pointerup"
+    },
+    {
+      "atMs": 2500,
+      "button": 0,
+      "type": "pointerdown"
+    },
+    {
+      "atMs": 2650,
+      "button": 0,
+      "type": "pointerup"
+    },
+    {
+      "atMs": 2790,
+      "code": "KeyS",
+      "type": "keyup"
+    },
+    {
+      "atMs": 2790,
+      "code": "KeyD",
+      "type": "keyup"
+    },
+    {
+      "atMs": 2800,
+      "type": "pointermove",
+      "x": 0.0,
+      "y": 0.25
+    },
+    {
+      "atMs": 2800,
+      "code": "KeyS",
+      "type": "keydown"
+    },
+    {
+      "atMs": 2850,
+      "button": 0,
+      "type": "pointerdown"
+    },
+    {
+      "atMs": 3000,
+      "button": 0,
+      "type": "pointerup"
+    },
+    {
+      "atMs": 3200,
+      "button": 0,
+      "type": "pointerdown"
+    },
+    {
+      "atMs": 3350,
+      "button": 0,
+      "type": "pointerup"
+    },
+    {
+      "atMs": 3490,
+      "code": "KeyS",
+      "type": "keyup"
+    },
+    {
+      "atMs": 3500,
+      "type": "pointermove",
+      "x": -0.1768,
+      "y": 0.1768
+    },
+    {
+      "atMs": 3500,
+      "code": "KeyS",
+      "type": "keydown"
+    },
+    {
+      "atMs": 3500,
+      "code": "KeyA",
+      "type": "keydown"
+    },
+    {
+      "atMs": 3550,
+      "button": 0,
+      "type": "pointerdown"
+    },
+    {
+      "atMs": 3700,
+      "button": 0,
+      "type": "pointerup"
+    },
+    {
+      "atMs": 3900,
+      "button": 0,
+      "type": "pointerdown"
+    },
+    {
+      "atMs": 4050,
+      "button": 0,
+      "type": "pointerup"
+    },
+    {
+      "atMs": 4190,
+      "code": "KeyS",
+      "type": "keyup"
+    },
+    {
+      "atMs": 4190,
+      "code": "KeyA",
+      "type": "keyup"
+    },
+    {
+      "atMs": 4200,
+      "type": "pointermove",
+      "x": -0.25,
+      "y": 0.0
+    },
+    {
+      "atMs": 4200,
+      "code": "KeyA",
+      "type": "keydown"
+    },
+    {
+      "atMs": 4250,
+      "button": 0,
+      "type": "pointerdown"
+    },
+    {
+      "atMs": 4400,
+      "button": 0,
+      "type": "pointerup"
+    },
+    {
+      "atMs": 4600,
+      "button": 0,
+      "type": "pointerdown"
+    },
+    {
+      "atMs": 4750,
+      "button": 0,
+      "type": "pointerup"
+    },
+    {
+      "atMs": 4890,
+      "code": "KeyA",
+      "type": "keyup"
+    },
+    {
+      "atMs": 4900,
+      "type": "pointermove",
+      "x": -0.1768,
+      "y": -0.1768
+    },
+    {
+      "atMs": 4900,
+      "code": "KeyW",
+      "type": "keydown"
+    },
+    {
+      "atMs": 4900,
+      "code": "KeyA",
+      "type": "keydown"
+    },
+    {
+      "atMs": 4950,
+      "button": 0,
+      "type": "pointerdown"
+    },
+    {
+      "atMs": 5100,
+      "button": 0,
+      "type": "pointerup"
+    },
+    {
+      "atMs": 5300,
+      "button": 0,
+      "type": "pointerdown"
+    },
+    {
+      "atMs": 5450,
+      "button": 0,
+      "type": "pointerup"
+    },
+    {
+      "atMs": 5590,
+      "code": "KeyW",
+      "type": "keyup"
+    },
+    {
+      "atMs": 5590,
+      "code": "KeyA",
+      "type": "keyup"
+    }
+  ],
+  "format": "rh-full-port-perf-input-script/1",
+  "id": "arena-human-v1",
+  "pointerSpace": "fraction of the canvas size, measured from the canvas centre (x right, y down)",
+  "purpose": "Stack-neutral scripted human for full-game realtime cells: walk the eight WASD headings and attack (left click) toward the walking direction, identically on both stacks.",
+  "startAfter": "the trial's initialCheck passes (authoritative active phase)"
+}
