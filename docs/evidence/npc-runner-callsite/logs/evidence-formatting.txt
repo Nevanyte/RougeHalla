@@ -1,0 +1,4 @@
+Evidence-only formatting receipt (transcribed initial tool diagnostic).
+Initial git diff --cached --check exit2:
+docs/evidence/npc-runner-callsite/CALLSITE.md:44: new blank line at EOF.
+Removed extra final blank line in new Markdown, without source/tool/fixture changes. Final git diff --cached --check exit0 is verified by sealing command. This is not a source or runtime failure.

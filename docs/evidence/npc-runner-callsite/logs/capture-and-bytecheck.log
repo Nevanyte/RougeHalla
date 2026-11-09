@@ -1,0 +1,8 @@
+$ bash tools/npc-runner-callsite-fixtures/capture.sh
+{"mode":"--write","format":"rh-npc-continuity-source/1","bytes":13952630,"sha256":"15c3dbc1f5d718859413e8dbb9891602dd49870f10dae4f12dc3152e2c57de96","steps":773,"sourcePins":333,"toolPins":6}
+{"mode":"--write","format":"rh-npc-runner-callsite/1","bytes":30636484,"sha256":"0c9344109283d2cf848c83892924071e9277f163d79e69e3c634c3d19c7f4a58","snapshots":773,"profiles":5,"observerControls":5,"sourcePins":333,"toolPins":5}
+{"mode":"--write","format":"rh-npc-continuity-source/1","bytes":13952630,"sha256":"15c3dbc1f5d718859413e8dbb9891602dd49870f10dae4f12dc3152e2c57de96","steps":773,"sourcePins":333,"toolPins":6}
+{"mode":"--check","format":"rh-npc-runner-callsite/1","bytes":30636484,"sha256":"0c9344109283d2cf848c83892924071e9277f163d79e69e3c634c3d19c7f4a58","snapshots":773,"profiles":5,"observerControls":5,"sourcePins":333,"toolPins":5}
+
+exit=0
+elapsed_seconds=23.543

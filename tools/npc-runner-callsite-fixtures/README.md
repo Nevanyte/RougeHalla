@@ -1,0 +1,11 @@
+# Actual NPC runner callsite extension
+
+This new additive witness starts at `76ea6b995d3f2d7f844c1ff65f9a0750094a68c7` and keeps that source/corpus/evidence immutable. Run `bash tools/npc-runner-callsite-fixtures/capture.sh` for a pinned Linux amd64 Node 22.23.4 capture and one byte-exact check; `--check` compares only. `RH_NPC_RUNNER_OUTPUT` may select an external directory. Host source is read-only in the container; npm dependencies/cache are tmpfs.
+
+`source-history.mts` re-executes the unchanged earned-history source capture, passively copies its actual Schema decoder byte inputs and reads its actual map argument through the retained inspector helper. It requires the entire regenerated source result to remain byte-identical to the old canonical artifact and restores all temporary instrumentation. No expected actor state or fixture outcome is installed into the World or decoder.
+
+`runner.mts` uses actual `createBotRunner(vision:true)`, actual `createBrain`, its enabled modules, normal/farmer configuration, source derive streams and real path services. The real ring and original tick return are forwarded unchanged. Network every-patch 0/100 ms and four default-manager phase schedules at 30/130 ms are declared public-input replay models, not live driver/socket/startup-contention proof. Commands are recorded/refused and never applied; this is an open-loop caller experiment, not a match outcome or humanizer acceptance campaign.
+
+Memory inspection captures the existing private view at the first original tick entry, disconnects the debugger, and reads it only after original ticks complete. It never replaces Memory or calls observe separately. Each profile runs observer OFF and ON with identical actual configuration and recording wrappers; the capture compares every public trace field exactly. Private Memory and instrumentation lifetimes are separate audit data, never proposed public facts. Measured cleanup and source/helper/config pins are retained.
+
+The source timestamps and declared replay delays are not physical latency measurements. The result does not decide intended behavior, source bugs, hidden replacement equivalence, public ID/lifetime correlation, native/P15/ABI/budget/tag allocation or main integration. Evidence states the finite supported outcome and remaining owner/coordinator decisions.

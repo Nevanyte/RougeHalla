@@ -1,0 +1,43 @@
+{
+  "format": "rh-npc-runner-static-audit/1",
+  "baseRevision": "76ea6b995d3f2d7f844c1ff65f9a0750094a68c7",
+  "pins": [
+    {
+      "group": "sourceSha256",
+      "count": 333,
+      "currentMatches": true,
+      "exactBaseMatches": true
+    },
+    {
+      "group": "configSha256",
+      "count": 9,
+      "currentMatches": true,
+      "exactBaseMatches": true
+    },
+    {
+      "group": "supportSha256",
+      "count": 8,
+      "currentMatches": true,
+      "exactBaseMatches": true
+    },
+    {
+      "group": "contractInputs",
+      "count": 2,
+      "currentMatches": true,
+      "exactBaseMatches": true
+    },
+    {
+      "group": "toolSha256",
+      "count": 5,
+      "currentMatches": true,
+      "exactBaseMatches": false
+    }
+  ],
+  "baselineTrackedPathsUnchanged": true,
+  "existing773CorpusSha256": "15c3dbc1f5d718859413e8dbb9891602dd49870f10dae4f12dc3152e2c57de96",
+  "newRuntimeTestsRunByAudit": 0,
+  "allFivePublicTraceControlsRehashed": true,
+  "all773SnapshotReferencesMatch": true,
+  "onOffCleanupAndRefusedCommandsVerified": true,
+  "priorPassingCandidateComparison": "only new OFF lifetime receipt objects and capture.mts tool hash differ; all source/Percept/cue/output/Memory/lifetime data otherwise exactly equal"
+}
