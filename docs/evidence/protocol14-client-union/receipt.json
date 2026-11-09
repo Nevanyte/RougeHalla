@@ -1,0 +1,90 @@
+{
+  "base": "3a1c8fc443e1ef922c3b72c264a70c8f36fa0cb1",
+  "files": [
+    {
+      "path": "client-unity/RoguehallaNet.Tests/LocalMotionTests.cs",
+      "bytes": 26068,
+      "sha256": "a354e63a91597a0324ac17cb60744d054862d685429751ad123b99683911100d"
+    },
+    {
+      "path": "client-unity/RoguehallaNet.Tests/PathfindingTests.cs",
+      "bytes": 10908,
+      "sha256": "d65361afb813a77cc8e0fbc0ef147892cd0d4e08d9c8e8787444158ac9272994"
+    },
+    {
+      "path": "client-unity/RoguehallaNet.Tests/PredictionPollTests.cs",
+      "bytes": 6960,
+      "sha256": "ccae2bf14f0a347859b2c8a5c62f5a4efbe7f458f00b4d9b3d1a2cea9ce23e02"
+    },
+    {
+      "path": "client-unity/RoguehallaNet.Tests/UiLayoutReviewFrameTests.cs",
+      "bytes": 3214,
+      "sha256": "c59f36f76598f03478ae20ef4a40be763fbcd88a7b5f56ff0b0abcc398cd0fa5"
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Protocol/MapBlob.cs",
+      "bytes": 21709,
+      "sha256": "483a8bdff64b17aad00f4fb88e44d2af1cb245fce7aebe17159eac2e3384598c"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/MapBlob.cs",
+      "bytes": 21709,
+      "sha256": "483a8bdff64b17aad00f4fb88e44d2af1cb245fce7aebe17159eac2e3384598c"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/UiLayoutReviewFrames.cs",
+      "bytes": 3598,
+      "sha256": "bb16e30e672b7978da0cd404e0b3d89945dced53ccb2bf907f88056314bcd6f6"
+    },
+    {
+      "path": "crates/rh-parity/tests/pnet1_goldens.rs",
+      "bytes": 25691,
+      "sha256": "9204c97ff0e098eea2f9f89043724c4581a491b36ecc6f529d2e652dd0245fb6"
+    },
+    {
+      "path": "crates/rh-protocol/src/lib.rs",
+      "bytes": 61444,
+      "sha256": "805c45b1163d8609c1a187cf38def3a25df879412aff5a6854b0d293c3fed821"
+    },
+    {
+      "path": "client-unity/RoguehallaNet.Tests/CollisionFixtureTests.cs",
+      "bytes": 2347,
+      "sha256": "dbfe55be61fa19de89a32cc36c5ec59c9625a37db8a8fcf27c89aabc972e89b7"
+    },
+    {
+      "path": "docs/evidence/protocol14-client-union/README.md",
+      "bytes": 1796,
+      "sha256": "ac24ab2f80ffbc92739fbc333d5f42c43058107fae5c2258ecc5c6281367d0ea"
+    }
+  ],
+  "external_logs": [
+    {
+      "path": "root-initial-dotnet.log",
+      "bytes": 13617,
+      "sha256": "edf5edfd5fff1f804d9e248c82932549ac5a98826f1e17e0108e8e197efeb990"
+    },
+    {
+      "path": "root-fixture-adapter-dotnet.log",
+      "bytes": 1157,
+      "sha256": "4845632e43cfc2ff226424273151bfcbceec4402145dcebbddbdaba2ec076324"
+    },
+    {
+      "path": "root-layout-frame14.log",
+      "bytes": 1159,
+      "sha256": "497a8ab964ae8a932081710f25e6163e5bc2d2e002f4ba4e69b06bde49c4ac09"
+    }
+  ],
+  "historical_fixture_payloads_changed": false,
+  "initial_dotnet": {
+    "passed": 641,
+    "failed": 8
+  },
+  "repaired_dotnet": {
+    "passed": 651,
+    "failed": 0
+  },
+  "subsequent_full_key10_offline_frames": {
+    "passed": 3,
+    "failed": 0
+  }
+}

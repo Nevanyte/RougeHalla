@@ -13,9 +13,9 @@ namespace Roguehalla.Net.Tests
         public void ActualOfflineReviewFramesRoundtripAndAdvanceWithoutPresentationClockCuts(string mode)
         {
             var state = UiLayoutReviewFrames.State(mode, 100);
-            CollectionAssert.AreEqual(Enumerable.Range(1, 9).Select(x => (uint)x), state.Items.Select(x => x.Key));
+            CollectionAssert.AreEqual(Enumerable.Range(1, 10).Select(x => (uint)x), state.Items.Select(x => x.Key));
             var decoded = (ServerMsg.State)ServerMsg.Decode(state.Encode());
-            Assert.AreEqual(9, decoded.Items.Length);
+            Assert.AreEqual(10, decoded.Items.Length);
 
             var transport = new FakeTransport();
             var session = new Session(transport, new SessionOptions { Url = "ws://127.0.0.1/layout-review", Profile = "Layout review", Now = () => 0 });
@@ -25,6 +25,9 @@ namespace Roguehalla.Net.Tests
             transport.Deliver(state);
             transport.Deliver(UiLayoutReviewFrames.Snapshot(mode, 100));
             Assert.AreEqual(SessionState.InMatch, session.State);
+            Assert.IsTrue(session.Collections.HasFullState);
+            Assert.IsNotNull(session.Collections.Quests);
+            Assert.IsFalse(session.Collections.Quests.Available);
             Assert.AreEqual(mode == "planning" ? MatchPhase.Planning : MatchPhase.Active, session.Phase);
             Assert.AreEqual(mode == "planning", session.Collections.Plan != null);
             var inventory = session.Collections.Inventory.Value;

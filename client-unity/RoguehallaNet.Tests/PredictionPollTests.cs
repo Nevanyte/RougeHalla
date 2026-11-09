@@ -53,7 +53,7 @@ namespace Roguehalla.Net.Tests
             foreach (var one in walk.RootElement.GetProperty("cases").EnumerateArray())
             {
                 var reader = new Reader(Util.FromHex(paths.RootElement.GetProperty("mapBlob").GetProperty("hex").GetString()));
-                var map = MapBlob.Read(ref reader); reader.End();
+                var map = MapBlob.ReadCollisionFixture(ref reader); reader.End();
                 double now = 0;
                 var t = new QueuedTransport();
                 var ticks = one.GetProperty("ticks");

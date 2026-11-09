@@ -1,7 +1,7 @@
 //! P-NET-1 source-fixture integrity: the two committed client goldens under protocol/fixtures/ must be exactly what
 //! the current integrated Rust core produces.
 //!
-//! pathfinding_v1.json (the C# pathfinder oracle) holds the seed-1 map as canonical MapBlob wire bytes plus the 300
+//! pathfinding_v1.json (the C# pathfinder oracle) retains the seed-1 collision-only MapBlob bytes plus the 300
 //! legacy findPath queries; server_walk_v1.json (the C# LocalMotion oracle) holds three corner walks of 241 per-tick
 //! rows from rh-sim. This test decodes and re-encodes the MapBlob straight from the wire spec (rh-parity does not
 //! depend on rh-protocol, and this packet adds no dependency), replays every pathfinding query through
@@ -262,7 +262,7 @@ fn push_runs(out: &mut Vec<u8>, tiles: &[u8]) -> u32 {
     runs
 }
 
-/// The bytes MapBlob::write produces, rebuilt from the decoded tiles.
+/// The retained collision-prefix bytes, rebuilt from the decoded tiles. Protocol14 appends its separate ground section.
 fn encode_map_blob(w: u16, h: u16, layer_hash: u32, tiles: &[u8]) -> (u32, Vec<u8>) {
     let mut out = Vec::new();
     out.extend_from_slice(&w.to_le_bytes());
@@ -279,7 +279,7 @@ fn encode_map_blob(w: u16, h: u16, layer_hash: u32, tiles: &[u8]) -> (u32, Vec<u
 // Tests
 
 #[test]
-fn pathfinding_v1_map_blob_is_the_current_encoding() {
+fn pathfinding_v1_map_blob_retains_the_collision_prefix_encoding() {
     let golden: PathGolden = load_json(&protocol_fixture("pathfinding_v1.json"));
     assert_eq!(golden.format, PATH_GOLDEN_FORMAT);
     assert_eq!(golden.source_format, PATHFINDING_FORMAT);

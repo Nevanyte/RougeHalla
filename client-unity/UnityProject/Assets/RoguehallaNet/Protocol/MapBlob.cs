@@ -168,6 +168,25 @@ namespace Roguehalla.Net.Protocol
             }
         }
 
+        /// <summary>Reads the retained collision-only parity-fixture format. Never used for network Welcome decoding.</summary>
+        public static MapBlob ReadCollisionFixture(ref Reader r)
+        {
+            Reader scan = r;
+            ushort w = scan.U16(), h = scan.U16();
+            uint expectedHash = scan.U32(), runs = scan.U32();
+            int total = CheckedTileCount(w, h);
+            Reader plane = scan;
+            uint countedRuns = 0;
+            if (ValidateCollisionPlane(ref scan, w, h, total, runs, ref countedRuns) != expectedHash)
+                throw BadMap("hash");
+            scan.End();
+            byte[] tiles = DecodePlane(ref plane, runs, total, 2);
+            plane.End();
+            r = plane;
+            return new MapBlob(w, h, tiles);
+        }
+
+        /// <summary>Strict current network map, including its mandatory protocol-14 ground section.</summary>
         public static MapBlob Read(ref Reader r)
         {
             ushort w = r.U16(), h = r.U16();

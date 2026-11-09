@@ -29,7 +29,7 @@ namespace Roguehalla.Net.Tests
             var blob = pathfindingGolden.GetProperty("mapBlob");
             byte[] bytes = Util.FromHex(blob.GetProperty("hex").GetString());
             var reader = new Reader(bytes);
-            var map = MapBlob.Read(ref reader);
+            var map = MapBlob.ReadCollisionFixture(ref reader);
             reader.End();
             Assert.AreEqual(160, (int)map.W);
             Assert.AreEqual(160, (int)map.H);

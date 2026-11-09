@@ -39,7 +39,7 @@ namespace Roguehalla.Net.Tests
             byte[] bytes = Util.FromHex(blob.GetProperty("hex").GetString());
             Assert.AreEqual(blob.GetProperty("wireBytes").GetInt32(), bytes.Length, "hex length");
             var reader = new Reader(bytes);
-            var map = MapBlob.Read(ref reader);
+            var map = MapBlob.ReadCollisionFixture(ref reader);
             reader.End();
             Assert.AreEqual((int)blob.GetProperty("w").GetInt32(), (int)map.W, "decoded width");
             Assert.AreEqual((int)blob.GetProperty("h").GetInt32(), (int)map.H, "decoded height");

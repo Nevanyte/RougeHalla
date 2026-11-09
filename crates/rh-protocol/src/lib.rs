@@ -120,7 +120,8 @@
 //! `State 0x88, tick varint, count varint, then per item [key varint][record]`, the latest value per key, the record layout
 //! defined by the key. Keys are unique and ascending: 1 self inventory, 2 props/focus, 3 visible fields,
 //! 4 reward offers, 5 self build, 6 camp summaries, 7 visible projectiles, 8 the viewer's own plan, 9 the public arena
-//! lifecycle. Each is a complete replacement; missing keys retain their last value. Module [`state`]
+//! lifecycle, 10 the viewer's quest view (explicitly unavailable when disabled).
+//! Each is a complete replacement; missing keys retain their last value. Module [`state`]
 //! defines strict bounds and record layouts. Welcome (join and resume) is followed by all ten keys, even empty,
 //! so a resumed or recovered client never depends on an
 //! event it may have missed; events stay for one-shot announcements. The player's own `Result` is the one event the server

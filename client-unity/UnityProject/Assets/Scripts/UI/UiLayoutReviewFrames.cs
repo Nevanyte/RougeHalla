@@ -20,7 +20,8 @@ namespace Roguehalla.Client
                 new ArenaState { Value = new WireArena { PlanEndsAt = mode == "planning" ? 95000 : 0, RaidStartedAt = mode == "planning" ? 0 : 5000, SuddenDeathAt = mode == "planning" ? 0 : 90000, StartedWith = 8 } },
                 new PlanState { Value = mode == "planning" ? new WirePlan { EndsAt = 95000, Spawn0 = 5, Spawn1 = 8, Pick = 0, Boon = 1,
                     Boons = new [] { "Guardian's resolve", "Wanderer's fortune" }, Option0 = new WirePlanOption { Index = 5, X = Quant.QuantizePos(176), Y = Quant.QuantizePos(176), Zone = 1 },
-                    Option1 = new WirePlanOption { Index = 8, X = Quant.QuantizePos(1152), Y = Quant.QuantizePos(800), Zone = 4 } } : null }
+                    Option1 = new WirePlanOption { Index = 8, X = Quant.QuantizePos(1152), Y = Quant.QuantizePos(800), Zone = 4 } } : null },
+                new QuestsState() // This synthetic review explicitly has no quest publication.
             } };
             // State is a canonical ordered keyed record. The wire encoder intentionally rejects unordered keys.
             Array.Sort(state.Items, (left, right) => left.Key.CompareTo(right.Key));
