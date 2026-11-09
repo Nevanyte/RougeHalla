@@ -80,6 +80,7 @@ fn another_replay_format_is_refused_before_anything_runs() {
         "rh-replay/19",
         "rh-replay/20",
         "rh-replay/21",
+        "rh-replay/22",
         "",
         "something else",
     ] {
@@ -92,6 +93,18 @@ fn another_replay_format_is_refused_before_anything_runs() {
             })
         );
     }
+    // The immediate predecessor is a typed format refusal even if both the rules
+    // identity and the first expected step hash are wrong. Nothing is simulated.
+    let mut prior22 = r.clone();
+    prior22.format = "rh-replay/22".into();
+    prior22.content_hash ^= 1;
+    prior22.hashes[0] ^= 1;
+    assert_eq!(
+        run_replay(&prior22).err(),
+        Some(ReplayError::Format {
+            found: "rh-replay/22".into()
+        })
+    );
     // The format is checked before the content hash and before any step is run.
     let mut both = r.clone();
     both.format = "rh-replay/1".into();
