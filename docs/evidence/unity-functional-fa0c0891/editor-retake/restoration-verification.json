@@ -1,0 +1,30 @@
+{
+  "source": "fa0c0891f78e2fd4a65fb08d71d226d8a426e724",
+  "projectFilesChecked": 1136,
+  "allFrozenProjectBytesMatch": true,
+  "inputAndPrefsMatchBaseline": true,
+  "inputAndPrefsFields": [
+    "inputLive",
+    "inputId",
+    "flags",
+    "mode",
+    "behavior",
+    "playing",
+    "paused",
+    "background",
+    "runtimeBackground",
+    "textKey",
+    "text",
+    "miniKey",
+    "miniIndex"
+  ],
+  "temporaryTextScaleKeyRestored": true,
+  "shaderWhitespaceOverlayPreservedAndRestored": true,
+  "sceneEmptyAndClean": true,
+  "previewQueryAbsentAsBefore": true,
+  "autoRefreshGuardReleased": true,
+  "autoTickDisabled": true,
+  "stopped": true,
+  "playSessions": 0,
+  "nativePngs": 0
+}

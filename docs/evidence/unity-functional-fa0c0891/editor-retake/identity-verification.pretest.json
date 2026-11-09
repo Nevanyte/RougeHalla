@@ -1,0 +1,97 @@
+{
+  "source": "fa0c0891f78e2fd4a65fb08d71d226d8a426e724",
+  "selectorCount": 25,
+  "allMatch": true,
+  "selectorContract": {
+    "path": "docs/evidence/unity-ui-planning-quests/typing-guard/native-selectors.txt",
+    "gitBlob": "d2fca4c8e4f16f2fad958cbb263bec27f40eb8a7",
+    "sha256": "2d619f2f0c69c3770c685f4e1403b68213dde6320257a09350de44d0c1b16c2b",
+    "bytes": 3098,
+    "selectorCount": 25
+  },
+  "classes": [
+    {
+      "class": "PlayerFlowsEditModeTests",
+      "loadedType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+      "guid": "2695dbaec0cf4aa3b68c217e1e45dd55",
+      "mvid": "b0a93aa2-8de4-4fff-b948-2298a92b30b0",
+      "methods": [
+        "DeliveredMapPointsReplaceWithoutActorFabricationOrNameDeduplication",
+        "InFlightOldSessionNoticeCallbackCannotAppendAfterRebind",
+        "InFlightSameSessionNoticeCallbackCannotCrossSourceClockCutAndNewEpochKeepsDuplicates",
+        "JournalKeyboardOwnsSimultaneousMapAndWorldKeysAndRespectsExistingModals",
+        "MalformedFrameRetainsCanonicalViewButInvalidQuestItemReferenceFailsAndDisablesActions",
+        "OrdinaryMixedQuestTradeQueueSplitsAtSixteenWithoutUiGeneratedCommands",
+        "PlanningJournalDropAndResumedWelcomeClearRowsAndRestoreMapInput",
+        "PlanningJournalRespectsSettingsAndFocusedTextEntry",
+        "PlanningPreviewRetiresDeferredAcceptAndWaitsForFreshNativePermission",
+        "PlanningQuestReviewPreservesMapChoicesAndFocusWhileBlockingOtherPagesAndWorldKeys",
+        "ReceivedNoticeOrderIncludesDuplicatesAndResumeClearsBeforeNewBatch"
+      ],
+      "fullSelectors": [
+        "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.DeliveredMapPointsReplaceWithoutActorFabricationOrNameDeduplication",
+        "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.InFlightOldSessionNoticeCallbackCannotAppendAfterRebind",
+        "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.InFlightSameSessionNoticeCallbackCannotCrossSourceClockCutAndNewEpochKeepsDuplicates",
+        "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.JournalKeyboardOwnsSimultaneousMapAndWorldKeysAndRespectsExistingModals",
+        "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.MalformedFrameRetainsCanonicalViewButInvalidQuestItemReferenceFailsAndDisablesActions",
+        "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.OrdinaryMixedQuestTradeQueueSplitsAtSixteenWithoutUiGeneratedCommands",
+        "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningJournalDropAndResumedWelcomeClearRowsAndRestoreMapInput",
+        "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningJournalRespectsSettingsAndFocusedTextEntry",
+        "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningPreviewRetiresDeferredAcceptAndWaitsForFreshNativePermission",
+        "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningQuestReviewPreservesMapChoicesAndFocusWhileBlockingOtherPagesAndWorldKeys",
+        "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.ReceivedNoticeOrderIncludesDuplicatesAndResumeClearsBeforeNewBatch"
+      ],
+      "match": true
+    },
+    {
+      "class": "QuestJournalViewEditModeTests",
+      "loadedType": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+      "guid": "629434afa706419fbb9172e17b76ce43",
+      "mvid": "b0a93aa2-8de4-4fff-b948-2298a92b30b0",
+      "methods": [
+        "AcceptUsesCurrentHandleAndFreshCanAcceptThenSessionBatchesOnlyThatIntent",
+        "MaximumLengthServerStringsRemainVerbatimInScrollableFixedSizeTextFields",
+        "MetadataReplacementPreservesScrollPositionWhenRowsOverflowViewport",
+        "OldAcceptTrackAndRowCallbacksCannotActAfterReplacementBeforeRefresh",
+        "OldSessionCallbacksAndRemovedRowsCannotAcceptAfterRebindWelcomeOrDisconnect",
+        "ReplacementPreservesSelectedHandleAndScrollButClearsRemovedSelectionAndTracking",
+        "SelectedParticipantsUseTypedRosterIdsKeepDuplicateLabelsAndClearOnReplacementOrRebind",
+        "UnseenUnavailableAndAvailableEmptyAreDistinctAndRowsPreserveExactServerText"
+      ],
+      "fullSelectors": [
+        "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.AcceptUsesCurrentHandleAndFreshCanAcceptThenSessionBatchesOnlyThatIntent",
+        "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.MaximumLengthServerStringsRemainVerbatimInScrollableFixedSizeTextFields",
+        "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.MetadataReplacementPreservesScrollPositionWhenRowsOverflowViewport",
+        "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.OldAcceptTrackAndRowCallbacksCannotActAfterReplacementBeforeRefresh",
+        "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.OldSessionCallbacksAndRemovedRowsCannotAcceptAfterRebindWelcomeOrDisconnect",
+        "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.ReplacementPreservesSelectedHandleAndScrollButClearsRemovedSelectionAndTracking",
+        "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.SelectedParticipantsUseTypedRosterIdsKeepDuplicateLabelsAndClearOnReplacementOrRebind",
+        "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.UnseenUnavailableAndAvailableEmptyAreDistinctAndRowsPreserveExactServerText"
+      ],
+      "match": true
+    },
+    {
+      "class": "TraderDialogViewEditModeTests",
+      "loadedType": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+      "guid": "fbeed4975d944443b6c6f34fe85c6d32",
+      "mvid": "b0a93aa2-8de4-4fff-b948-2298a92b30b0",
+      "methods": [
+        "CurrentOptionsQueueEveryOrdinaryStatPickAndMetadataReplacementInvalidatesOldCallbacks",
+        "DisconnectAndResumedWelcomeInvalidateOldRowsAndDropQueuedTradeInput",
+        "DuplicateMerchantRowsLabelsAndSignedStatDeltasRenderInSourceOrder",
+        "MissingUnavailableAndAvailableEmptyTradeViewsStayDistinctAndOpeningIsReadOnly",
+        "RebindingAnUnseenSessionClearsMerchantChoicesAndPendingCopyImmediately",
+        "StatUsedBlocksOnlyStatTradeWhileBarterPicksAreSentAsOrdinaryInput"
+      ],
+      "fullSelectors": [
+        "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.CurrentOptionsQueueEveryOrdinaryStatPickAndMetadataReplacementInvalidatesOldCallbacks",
+        "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.DisconnectAndResumedWelcomeInvalidateOldRowsAndDropQueuedTradeInput",
+        "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.DuplicateMerchantRowsLabelsAndSignedStatDeltasRenderInSourceOrder",
+        "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.MissingUnavailableAndAvailableEmptyTradeViewsStayDistinctAndOpeningIsReadOnly",
+        "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.RebindingAnUnseenSessionClearsMerchantChoicesAndPendingCopyImmediately",
+        "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.StatUsedBlocksOnlyStatTradeWhileBarterPicksAreSentAsOrdinaryInput"
+      ],
+      "match": true
+    }
+  ]
+}

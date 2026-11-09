@@ -1,0 +1,11 @@
+{
+  "observedAfterTests": {
+    "textKey": true,
+    "textScale": 0.85
+  },
+  "baseline": {
+    "textKey": false,
+    "textScale": 1.0
+  },
+  "cleanup": "Delete only the temporary text-scale key through public API; no test retry/change"
+}
