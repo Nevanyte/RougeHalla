@@ -1,0 +1,38 @@
+{
+  "format": "rh-host-executor-layout/1",
+  "directories": [
+    {"path": "/opt/rougehalla", "owner": "root", "group": "root", "mode": "0755"},
+    {"path": "/opt/rougehalla/bin", "owner": "root", "group": "root", "mode": "0755"},
+    {"path": "/opt/rougehalla/maps", "owner": "root", "group": "root", "mode": "0755"},
+    {"path": "/opt/rougehalla/preparation", "owner": "root", "group": "root", "mode": "0755"},
+    {"path": "/opt/rougehalla/web", "owner": "root", "group": "root", "mode": "0755"},
+    {"path": "/etc/rougehalla-postgres", "owner": "root", "group": "postgres", "mode": "0750"}
+  ],
+  "files": [
+    {"member": "bin/rh-server", "path": "/opt/rougehalla/bin/rh-server", "owner": "root", "group": "root", "mode": "0755"},
+    {"member": "bin/caddy", "path": "/opt/rougehalla/bin/caddy", "owner": "root", "group": "root", "mode": "0755"},
+    {"member": "maps/source.map.json", "path": "/opt/rougehalla/maps/source.map.json", "owner": "root", "group": "root", "mode": "0644"},
+    {"member": "runtime-identity.json", "path": "/opt/rougehalla/runtime-identity.json", "owner": "root", "group": "root", "mode": "0644"},
+    {"member": "preparation/run-runtime.py", "path": "/opt/rougehalla/preparation/run-runtime.py", "owner": "root", "group": "root", "mode": "0644"},
+    {"member": "preparation/init-runtime-secrets.py", "path": "/opt/rougehalla/preparation/init-runtime-secrets.py", "owner": "root", "group": "root", "mode": "0644"},
+    {"member": "preparation/backup.sh", "path": "/opt/rougehalla/preparation/backup.sh", "owner": "root", "group": "root", "mode": "0755"},
+    {"member": "preparation/backup_archive.py", "path": "/opt/rougehalla/preparation/backup_archive.py", "owner": "root", "group": "root", "mode": "0644"},
+    {"member": "preparation/restore.sh", "path": "/opt/rougehalla/preparation/restore.sh", "owner": "root", "group": "root", "mode": "0755"},
+    {"member": "config/Caddyfile", "path": "/etc/rougehalla/Caddyfile", "owner": "root", "group": "rougehalla", "mode": "0640"},
+    {"member": "config/postgresql.conf", "path": "/etc/rougehalla-postgres/postgresql.conf", "owner": "root", "group": "postgres", "mode": "0640"},
+    {"member": "config/pg_hba.conf", "path": "/etc/rougehalla-postgres/pg_hba.conf", "owner": "root", "group": "postgres", "mode": "0640"},
+    {"member": "units/rougehalla-postgres.service", "path": "/etc/systemd/system/rougehalla-postgres.service", "owner": "root", "group": "root", "mode": "0644"},
+    {"member": "units/rougehalla-source.service", "path": "/etc/systemd/system/rougehalla-source.service", "owner": "root", "group": "root", "mode": "0644"},
+    {"member": "units/rougehalla-training.service", "path": "/etc/systemd/system/rougehalla-training.service", "owner": "root", "group": "root", "mode": "0644"},
+    {"member": "units/rougehalla-caddy.service", "path": "/etc/systemd/system/rougehalla-caddy.service", "owner": "root", "group": "root", "mode": "0644"}
+  ],
+  "trees": [
+    {"prefix": "web/", "path": "/opt/rougehalla/web", "owner": "root", "group": "root", "file_mode": "0644", "dir_mode": "0755"}
+  ],
+  "volume": [
+    {"name": "pgdata", "owner": "postgres", "group": "postgres", "mode": "0700"},
+    {"name": "spool-source", "owner": "rougehalla", "group": "rougehalla", "mode": "0700"},
+    {"name": "spool-training", "owner": "rougehalla", "group": "rougehalla", "mode": "0700"},
+    {"name": "caddy", "owner": "rougehalla", "group": "rougehalla", "mode": "0700"}
+  ]
+}
