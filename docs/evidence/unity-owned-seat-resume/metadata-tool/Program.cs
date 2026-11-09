@@ -134,7 +134,16 @@ var resumeProof = new {
     directIL = new { joinCore = CallReport(joinCore), resumeCurrent = CallReport(resumeCurrent), captureConfirmedSeat = CallReport(capture), connectGate = CallReport(connectGate), modeGate = CallReport(modeGate), retireRuntime = CallReport(retire), closeCurrentSession = CallReport(close) }
 };
 if (!resumeProof.initialResumeAssignedInJoinCore || !resumeProof.connectGateBeforeConnect || !resumeProof.gateMethodsPresent || !resumeProof.retireGenerationBeforeClose || !captureSites.Pass || !closeCapturesSession || !closeCalls.Contains("TakeSeatBinding") || !closeCallsBothRetirementRoutes || !postClearGenerationGuard || !noErrorStringParsing) throw new Exception($"Resume core IL check: initial={resumeProof.initialResumeAssignedInJoinCore}; gateOrder={resumeProof.connectGateBeforeConnect}; gates={resumeProof.gateMethodsPresent}; capture={captureSites.Pass}; retireOrder={resumeProof.retireGenerationBeforeClose}; closeCapture={resumeProof.closeCapturesOldSessionAndRecord}; closeRoutes={resumeProof.closeHasDetachAndLeaveRoutes}; postClearRetireGuard={postClearGenerationGuard}; noErrorParse={resumeProof.noErrorStringParsing}; captureSites={JsonSerializer.Serialize(captureSites.Report)}");
-var ilPath = Path.Combine(output, "resume-il-audit.json"); File.WriteAllText(ilPath, JsonSerializer.Serialize(resumeProof, new JsonSerializerOptions { WriteIndented = true }));
+var fixtureType = types.Values.Single(t => t.FullName.EndsWith("MatchResumeEditModeTests/Fixture", StringComparison.Ordinal));
+var fixtureLifecycle = new {
+    type = fixtureType.FullName,
+    metadataOnly = true,
+    constructor = CallReport(fixtureType.Methods.Single(m => m.IsConstructor && !m.IsStatic)),
+    dispose = CallReport(fixtureType.Methods.Single(m => m.Name == "Dispose")),
+    profilePreferenceRestore = CallReport(fixtureType.Methods.Single(m => m.Name == "RestoreProfilePreference"))
+};
+var completeResumeProof = new { runtime = resumeProof, fixtureLifecycle };
+var ilPath = Path.Combine(output, "resume-il-audit.json"); File.WriteAllText(ilPath, JsonSerializer.Serialize(completeResumeProof, new JsonSerializerOptions { WriteIndented = true }));
 
 var fixtureRecords = new List<object>();
 foreach (var fn in fixtureNames) {

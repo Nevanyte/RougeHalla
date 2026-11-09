@@ -22,5 +22,13 @@
     "rawBytes": 1865,
     "rawSha256": "ed104f08337f07430e3012dec0c348a65540492e4c743874ad81559d740620bc",
     "format": "lossless gzip of exact Git unified diff"
+  },
+  {
+    "path": "root-fixture-isolation.patch.gz",
+    "base": "4dd410d3c33812653c8ebfbdd754f699f75cc72f",
+    "source": "1bf48a8109249ec36497eab5b1ffc5548a384dd5",
+    "rawBytes": 10986,
+    "rawSha256": "7cc2dd25258f6a6f6acd75cb4bae3465b2dece17a90ff32c3f91a50ed9c4d27e",
+    "format": "lossless gzip of exact Git unified diff"
   }
 ]

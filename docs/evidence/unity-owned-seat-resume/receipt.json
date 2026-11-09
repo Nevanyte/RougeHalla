@@ -1,6 +1,6 @@
 {
   "schema": "roguehalla-unity-owned-seat-resume/1",
-  "source": "4dd410d3c33812653c8ebfbdd754f699f75cc72f",
+  "source": "1bf48a8109249ec36497eab5b1ffc5548a384dd5",
   "candidate1": "fe698d21f65d4e835018044f4f5a221555ceab7e",
   "base": "dcee822dffa893bf14bb3817eb10f1180410b72d",
   "branch": "codex/unity-owned-seat-resume",
@@ -22,7 +22,9 @@
     "correctionSource": "56523c6f4aa372eb5aa2b0850911c2ae0a8295f0",
     "nativeFailuresReclassified": false,
     "finalWordingCorrection": "4dd410d3c33812653c8ebfbdd754f699f75cc72f",
-    "wordingApproval": "Coordinator authorized exactly two new fixture wording literals; no production or other assertion/selector/outcome byte changed."
+    "wordingApproval": "Coordinator authorized exactly two new fixture wording literals; no production or other assertion/selector/outcome byte changed.",
+    "fixtureIsolationAndPostCallbackCorrection": "1bf48a8109249ec36497eab5b1ffc5548a384dd5",
+    "fixtureApproval": "Coordinator approved capture-before-Deliver plus actual Detached/Error/null postconditions, and exact rh.ui.profile presence/value finally restoration. No production source or old90/new8 selectors changed."
   },
   "compilation": {
     "editorClient": {
@@ -36,12 +38,12 @@
       "warnings": 0
     },
     "editorTests": {
-      "log": "logs/editor-tests-04.stdout.log",
+      "log": "logs/editor-tests-05.stdout.log",
       "errors": 0,
       "warnings": 1,
       "preexistingWarning": "CS0067 MatchHudTrophyEditModeTests.cs:116 unused Closed event"
     },
-    "runtimeArtifacts": "Editor06 and Player03 compiled56523c6f runtime source, byte-identical at final4dd410d3; only two Editor assertion strings changed."
+    "runtimeArtifacts": "Editor06 and Player03 compiled56523c6f runtime source, byte-identical at final1bf48a81; only new Editor fixture changed."
   },
   "managedExecutions": {
     "initialFocused01": {
@@ -72,16 +74,16 @@
     "union": 98,
     "publicNativeDiscovery": "UNRUN",
     "nativeExecution": "UNRUN",
-    "typedContract": "metadata/candidate03-4dd410d3/typed-fixture-contract.json",
-    "typedContractSha256": "35fd85e0e483fb4a445fc00d735464b54fe6401e546e26463c06409afbf5d2bc",
+    "typedContract": "metadata/candidate04-1bf48a81/typed-fixture-contract.json",
+    "typedContractSha256": "6bfa787e4f63be11fc8a1d51879f30cfc7617f4d7d51883afc60a28a7ef8870e",
     "selectorTextSha256": "e692189bbe04ec22d400b2988e2ef74ee7e983dfe5773f34a7e3d732aa628804",
     "prior90ContractSha256": "2a6290fd1ded1c4b97eae92d87f5e55f63a8b3f7f9a0b453a8bef6088ab5e2b8"
   },
   "metadata": {
-    "summarySha256": "93714a037b5c3fa28365259e4015aa767320fb05b19571ff8138d6deef036d82",
-    "ilSha256": "15f462671cacb15208c04ef50aac64ac70635960b0168342ac6664e3846468b2",
-    "sourcePinsSha256": "c1193dc2a60dcc342f51a07ce7739b48f28ebb49ae5c649035c6b1c85db5207c",
-    "finalToolSourceSha256": "d1d75635bee01b3ac41b265e777a866518707db38c79bd01719f766840a7a6fa",
+    "summarySha256": "ffa16470ae609cb95f1bfc14d59891a912de78063e77ffca6ac3ee6dfe061f73",
+    "ilSha256": "faa6b8d50055c2c62fc6620990cecb6d3d6170aabae4ffebc6fea3707e738c8d",
+    "sourcePinsSha256": "72ab2814479574ed1c159a1a6af077f86b8c6870eaccb86c20ab97ea49312a1c",
+    "finalToolSourceSha256": "8150deae4a81155fb7bd02bf5f312256e3071165891f6d3009b8224ee8c16832",
     "candidate1ToolSourceSha256": "bb6d44dec0e797b3c33289a35b078bc8d895274f753cc278245471ce4c2fdebf",
     "testBodiesInvoked": false,
     "unityApisInvoked": false,
@@ -90,12 +92,14 @@
     "packagedToolSourceCompile": {
       "errors": 0,
       "warnings": 0,
-      "logs": "logs/metadata-packaged-tool-build.*",
-      "execution": "Build only; no candidate audit/test/Unity API invoked."
-    }
+      "logs": "logs/metadata-packaged-tool-candidate04-build.*",
+      "execution": "Current tool build only; no candidate/test/Unity invocation."
+    },
+    "finalToolProjectSha256": "ed8f041d982e6c49e5a0ea93f864e73891a3cfae57be16cbf58def27ec3577f2",
+    "fixtureLifecycleIlDump": "Ctor, Dispose and RestoreProfilePreference captured as metadata only; runtime method IL identical to candidate3."
   },
   "behaviorLimits": {
-    "profileReopenMayClaimNowFreeName": "Existing GET API can create; resume requires prior owned proof and refuses Created=true replies without losing legitimately confirmed credentials.",
+    "profileReopenMayClaimNowFreeName": "Resume enforces an already-current, nonbusy Owned profile matching the selected/loaded callsign, normally established by explicit LOAD/sign-in; no LOAD-reason flag is enforced and a current owner retained from another prior account operation also qualifies. Without this current proof the resume path sends no profile HTTP. Created=true never authorizes that resume attempt. If the backend no longer has the previously owned profile and the name is free, the existing re-verification GET may create it and retain/persist the newly returned credential (possibly replacing prior stored credentials) before Resume refuses to connect. No existing-only/side-effect-free/no-credential-mutation or joint account-seat auth guarantee; no rollback.",
     "savedUrlUsedAsDestination": false,
     "onlyNoSuchSessionProvesExpiredCheckpoint": true,
     "genericFailedIdentityMismatch": "No typed mismatch API, no Error parsing; checkpoint retained, honest failed UI, explicit retry/forget/fresh action only.",
@@ -120,11 +124,50 @@
     "cloud": false
   },
   "openEvidence": [
-    "independent coordinator review",
     "fresh native discovery and exact98 gate",
     "new menu layout/readability/text150/focus/reduced-motion checks",
     "native baseline and Frozen4 return verification",
     "coherent Root BakedContent regeneration and actual new-document Web reload proof for both modes"
   ],
-  "candidate2": "56523c6f4aa372eb5aa2b0850911c2ae0a8295f0"
+  "candidate2": "56523c6f4aa372eb5aa2b0850911c2ae0a8295f0",
+  "candidate3": "4dd410d3c33812653c8ebfbdd754f699f75cc72f",
+  "fixtureIsolation": {
+    "sourceAudit": "fixture-isolation.md",
+    "httpAndApi": "in-memory Accounts fake",
+    "credentials": "in-memory Credentials fake; no PlayerPrefsAccountCredentials",
+    "transport": "in-memory frame-recording fake; no socket",
+    "checkpoint": "MemoryStorage injected before InitializeSeatResume",
+    "bootstrapOrPlayInvoked": false,
+    "stagingScriptsInPacket": 0,
+    "realUiPreferenceWritten": [
+      "rh.ui.profile"
+    ],
+    "restoration": "capture known key presence/string privately before setup; exact finally restore and boolean postchecks including constructor rollback",
+    "preferenceValuesLogged": false,
+    "credentialKeysReadEnumeratedOrCleared": false,
+    "readOnlyPresentationPreferenceKeys": [
+      "roguehalla.showcase.qualityMode",
+      "roguehalla.showcase.manualQuality",
+      "roguehalla.showcase.reducedMotion",
+      "roguehalla.showcase.textScale",
+      "roguehalla.showcase.music",
+      "roguehalla.showcase.ambience",
+      "roguehalla.showcase.sfx",
+      "rh.ui.map.toggle",
+      "rh.ui.route.visible",
+      "rh.ui.showFps",
+      "rh.ui.showPing",
+      "rh.ui.minimapScale"
+    ],
+    "presentationPreferenceSettersInvoked": false,
+    "freshProjectDoesNotIsolateGlobalPrefs": true
+  },
+  "independentSourceReview": {
+    "source": "1bf48a8109249ec36497eab5b1ffc5548a384dd5",
+    "decision": "RELEASED for coordinator composition; native98 remains UNRUN",
+    "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/unity-owned-seat-resume1bf-source-review.md",
+    "report": "independent-source-review.md",
+    "sha256": "4dd0173194149ca0abad55c1f9c6d00eecc138386596eed3dffc618cf5adf39c",
+    "reportBytes": 3523
+  }
 }

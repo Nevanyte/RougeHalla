@@ -1,27 +1,34 @@
 # Explicit owned-seat resume UI — source ready
 
-Final source **`4dd410d3c33812653c8ebfbdd754f699f75cc72f`**, branch
+Final source **`1bf48a8109249ec36497eab5b1ffc5548a384dd5`**, branch
 `codex/unity-owned-seat-resume`, derives from coordinator cut
 `dcee822dffa893bf14bb3817eb10f1180410b72d`. Candidate 1
 `fe698d21f65d4e835018044f4f5a221555ceab7e` and its compiler/metadata evidence remain
 distinct. Runtime corrections are frozen at `56523c6f4aa372eb5aa2b0850911c2ae0a8295f0`;
-the final child changes exactly two new fixture wording assertions, explicitly authorized
-by coordinator review. Production bytes and every other assertion are unchanged.
+subsequent children only correct the new fixture, explicitly authorized by coordinator
+review: two status-wording assertions, capture-before-delivery and the actual synchronous
+Detached/Error/null postcondition, plus exact last-callsign preference isolation.
+Production bytes and all prior 90 cases / new eight typed names and arguments are unchanged.
 No new native tests or browser reload proof were run here.
 
 ## Implemented behavior
 
 - The menu adds an explicit Resume chooser with separate configured Arena and Training
   actions. Fresh Start Run / Training remain separate. A callsign/checkpoint alone opens
-  no HTTP request or socket. Resume first requires an explicitly loaded, currently owned
-  profile; its re-verification must return `Created == false` and a current join intent.
+  no HTTP request or socket. Resume requires an already-current, nonbusy Owned profile
+  matching the selected callsign (normally established by explicit LOAD/sign-in); the code
+  checks that state, not a LOAD-reason flag. Re-verification must return `Created == false`
+  and a current join intent.
 - Before storage and Connect, verify the same live owner/flow, callsign, generation,
   faction, selected mode, diagnostic request, full account scope/page/API configuration,
   exact configured target and content hash. The saved URL is compared, never a destination.
   Missing Training, mismatched/corrupt data and storage failures have explicit states.
-  There is no accountless claim, automatic fresh admission or Arena fallback from resume
-  failure. The existing profile API can create a now-free name; a created reply is never
-  used to authorize resume, and legitimately confirmed credentials remain retained.
+  There is no automatic fresh admission or Arena fallback from resume failure.
+  A created reply is never used to authorize that resume. The existing profile
+  GET can create a now-free name under backend loss and retain/persist the newly returned
+  credential, potentially replacing a previously saved credential, before resume refuses
+  to connect. This is not a side-effect-free or existing-only endpoint; resume does not
+  roll back profile or credential changes. See `fixture-isolation.md` for the exact boundary.
 - The existing Session validates expected raw MatchId/player before publishing Welcome.
   Existing launch logic then waits for a fresh accepted matching mode snapshot before
   gameplay, map/player flows, Training or settlement access. Welcome's default mode is
@@ -64,7 +71,7 @@ packages, art, server, Cargo.lock and shared status sources are unchanged.
 |---|---|
 | Final Editor Client source | 0 errors / 0 warnings; `editor-client-06` |
 | Final Player Client source | 0 errors / 0 warnings; `player-client-03` |
-| Final all-Editor-test source | 0 errors; the preexisting Trophy CS0067 warning; `editor-tests-04` |
+| Final all-Editor-test source | 0 errors; the preexisting Trophy CS0067 warning; `editor-tests-05` |
 | Focused managed execution | **97/97 PASS**, 0 skipped; `focused-managed-02` |
 | Single full managed execution | **923/923 PASS**, 0 skipped; `full-managed-01` |
 | Compiled union | Prior **90** typed case objects preserved + **8** new = **98** |
@@ -92,7 +99,7 @@ HTTP ownership/created replies, encoded Welcome/Snapshot/Result callbacks, mode 
 retained receipts, terminal/ambiguous failures, stale owner/config completions, revision
 protection, explicit Leave versus detach and modal focus. They are compiled, **not run**.
 
-`metadata/candidate03-4dd410d3/` contains the final typed contract, complete relevant IL,
+`metadata/candidate04-1bf48a81/` contains the final typed contract, complete relevant IL,
 source/reference/GUID pins and audit receipt. It verifies initial seed assignment,
 connect gate, matching mode before save, generation-first retirement, captured cleanup,
 post-clear generation decision and no Error-string parsing. The tool invokes no Unity
@@ -112,11 +119,23 @@ Candidate 3's first metadata invocation had the wrong final SHA character. The s
 guard stopped it before metadata was read; its command/error and corrected second
 invocation are retained separately. No guard was weakened and no native failure was
 reclassified. The final 98 case objects are identical to candidate 2; only source/test
-provenance changed for the two literal corrections.
+provenance changed for the two literal corrections. Candidate 4 further records the
+new fixture constructor/disposal/preference-restore IL as metadata only; runtime method
+IL and all 98 selector/attribute objects remain identical.
+
+The fixture uses injected in-memory HTTP/API, credential, transport and checkpoint
+stores. Its fresh Join path touches only the known non-secret `rh.ui.profile` preference,
+captured privately and restored with exact presence/value in `finally`, including setup
+rollback. Twelve named presentation prefs are read-only in these tests. No default
+Bootstrap/Play, real auth-key access, key enumeration, DeleteAll or browser storage read
+is invoked by the fixture. The packet contains no native staging scripts. The detailed
+dependency/key/method inventory is in `fixture-isolation.md`; a fresh project still shares
+Company/product PlayerPrefs, so native staging must preserve any UI keys it changes.
 
 ## Remaining release evidence
 
-Coordinator independent review, a fresh source-bound **98-case native gate**, actual
+Independent source review released this source (`independent-source-review.md`). A fresh
+source-bound **98-case native gate**, actual
 menu/layout/text-scale/keyboard review and frozen Editor baseline return remain open.
 The keyboard test restores owned device/settings in nested finally; baseline restoration
 must also be observed by the native worker. Root owns coherent content regeneration;
