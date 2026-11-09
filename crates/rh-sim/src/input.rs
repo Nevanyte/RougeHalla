@@ -112,6 +112,11 @@ pub enum PublicCommand {
         ready: Option<bool>,
     },
     UseConsumable,
+    /// The two fixed public merchant kinds; a pick always addresses this seat's own saved offer.
+    Trade {
+        merchant: crate::traders::Kind,
+        pick: i8,
+    },
     QuestAccept {
         handle: crate::quest_view::QuestHandle,
     },
@@ -370,6 +375,10 @@ impl PublicCommand {
             }
             Self::Plan { spawn, boon, ready } => RawCommand::Plan { spawn, boon, ready },
             Self::UseConsumable => RawCommand::UseConsumable,
+            Self::Trade { merchant, pick } => RawCommand::Trade {
+                trader: Some(merchant.index() as u8),
+                pick,
+            },
             Self::QuestAccept { .. } => RawCommand::QuestAccept { quest_id: None },
             Self::Choose { pick, .. } => RawCommand::Choose {
                 chest_id: None,
