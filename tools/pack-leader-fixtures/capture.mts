@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
 assert.equal(process.version, 'v22.23.4');
 assert.equal(process.platform, 'linux');
 assert.equal(process.arch, 'x64');
@@ -99,8 +100,24 @@ for (const snap of [initial, ...r.timeline.flatMap((a: any) => a.frames ?? []), 
   const s = sourceState(snap);
   if (s.cachedBuildCamps !== null || s.campsCleared === 1) sourceStates.push(s);
 }
-if (!control) assert.ok(sourceStates.some((s: any) => s.cachedBuildCamps === 0 && !(s.campsCleared > 0)), 'source cache read 0 during the clear pass');
-if (!control) assert.ok(sourceStates.some((s: any) => s.cachedBuildCamps === 1 && s.campsCleared === 1), 'source cache read 1 after the refresh');
+// Narrowed claim: only the retained POST-STEP samples are evidence. tick168 is the last retained pre-clear step
+// (count not yet positive, cached camps 0); tick169 is the clear step's post-step sample (count 1 and the real mods
+// refresh has already run, cached camps 1). Hook snapshots at the clear step keep $oracle refs this capture does not
+// serialize, so this is NOT an independently readable intra-pass cache proof.
+const phaseSample = (tick: number) => sourceStates.find((s: any) => s.tick === tick);
+const preClear = phaseSample(168);
+const clearStepPost = phaseSample(169);
+if (!control) {
+  assert.ok(preClear && preClear.cachedBuildCamps === 0 && !(preClear.campsCleared > 0), 'retained pre-clear post-step tick168: cached camps 0, count not positive');
+  assert.ok(clearStepPost && clearStepPost.cachedBuildCamps === 1 && clearStepPost.campsCleared === 1, 'retained clear-step post-step tick169: cached camps 1, count 1');
+}
+const cachePhases = {
+  note: 'retained post-step samples only; not an intra-pass cache read (hook $oracle refs are not serialized)',
+  preClear: preClear ? { tick: preClear.tick, time: preClear.time, campsCleared: preClear.campsCleared, cachedBuildCamps: preClear.cachedBuildCamps } : null,
+  clearStepPost: clearStepPost ? { tick: clearStepPost.tick, time: clearStepPost.time, campsCleared: clearStepPost.campsCleared, cachedBuildCamps: clearStepPost.cachedBuildCamps } : null,
+  ordering: 'source ledger.ts precomputes outgoing mults before any victim/payout; campHeal increments canonical count in the deferred payout chain; mods.updateMods refreshes watched caches after payout and before the next ordinary pass (step.ts is the only applyLedger caller).',
+};
+
 
 const out = {
   format: 'rh-pack-leader-source/1',
@@ -112,10 +129,11 @@ const out = {
     engine: sha(readFileSync(new URL('../card-runtime-fixtures/engine.mts', import.meta.url))),
   },
   source: Object.fromEntries(['packages/shared/src/cards.ts', 'packages/server/src/sim/mods.ts', 'packages/server/src/sim/campHeal.ts', 'packages/server/src/sim/camps.ts', 'packages/server/src/sim/ledger.ts', 'packages/server/src/sim/step.ts', 'packages/server/src/sim/targeting.ts', 'packages/server/src/sim/weapons.ts'].map((p) => [p, sha(readFileSync(p))])),
-  witness: { clearTick, clearTime, laterHit: later, campMobs, campHook: clears[0], sourceStates },
+  witness: { clearTick, clearTime, laterHit: later, campMobs, campHook: clears[0], cachePhases, sourceStates },
   input,
   result: run,
 };
-mkdirSync('/out', { recursive: true });
-writeFileSync(process.env.RH_PACK_LEADER_OUTPUT ?? '/out/source.json', JSON.stringify(out) + '\n');
-console.log('pack-leader capture wrote ' + (process.env.RH_PACK_LEADER_OUTPUT ?? '/out/source.json'));
+const outputPath = process.env.RH_PACK_LEADER_OUTPUT ?? '/out/source.json';
+mkdirSync(dirname(outputPath), { recursive: true });
+writeFileSync(outputPath, JSON.stringify(out) + '\n');
+console.log('pack-leader capture wrote ' + outputPath);

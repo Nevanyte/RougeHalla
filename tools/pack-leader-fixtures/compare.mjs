@@ -1,7 +1,9 @@
-/** First-difference comparator for Pack Leader source outputs (provenance keys excluded). */
+/** Classify a mutant capture against the repaired canonical corpus: semantic vs provenance. */
 import { readFileSync } from 'node:fs';
 const [aPath, bPath] = process.argv.slice(2);
-const strip = (v) => { const o = JSON.parse(JSON.stringify(v)); delete o.source; delete o.tool; delete o.base; return o; };
+const read = (p) => JSON.parse(readFileSync(p, 'utf8'));
+const semantic = (v) => { const o = JSON.parse(JSON.stringify(v)); delete o.source; delete o.tool; delete o.base; return o; };
+const prov = (v) => ({ source: v.source ?? null, tool: v.tool ?? null, base: v.base ?? null });
 function firstDiff(a, b, path = '') {
   const ta = Array.isArray(a) ? 'array' : a === null ? 'null' : typeof a;
   const tb = Array.isArray(b) ? 'array' : b === null ? 'null' : typeof b;
@@ -20,6 +22,16 @@ function firstDiff(a, b, path = '') {
   if (a !== b) return { path, a, b };
   return null;
 }
-const d = firstDiff(strip(JSON.parse(readFileSync(aPath, 'utf8'))), strip(JSON.parse(readFileSync(bPath, 'utf8'))));
-if (!d) console.log('IDENTICAL');
-else console.log('DIFF ' + d.path + ' baseline=' + JSON.stringify(d.a) + ' mutant=' + JSON.stringify(d.b));
+const A = read(aPath), B = read(bPath);
+const s = firstDiff(semantic(A), semantic(B));
+if (s) { console.log('SEMANTIC-DIFF ' + s.path + ' baseline=' + JSON.stringify(s.a) + ' mutant=' + JSON.stringify(s.b)); }
+else {
+  const p = firstDiff(prov(A), prov(B));
+  if (p) {
+    const changed = [];
+    if (firstDiff(A.source ?? {}, B.source ?? {})) changed.push('source');
+    if (firstDiff(A.tool ?? {}, B.tool ?? {})) changed.push('tool');
+    if (firstDiff(A.base ?? null, B.base ?? null)) changed.push('base');
+    console.log('SEMANTIC-IDENTICAL PROVENANCE-DIFF changed=' + changed.join(','));
+  } else console.log('SEMANTIC-IDENTICAL PROVENANCE-IDENTICAL');
+}
