@@ -240,7 +240,11 @@ impl FairPerceptRing14 {
         if context.viewer != self.viewer {
             return Err(Refusal14::Viewer);
         }
-        if self.affinity.as_ref().is_some_and(|v| v != &frame.affinity) {
+        if self
+            .affinity
+            .as_ref()
+            .is_some_and(|v| !frame.same_local_session(v))
+        {
             return Err(Refusal14::Session);
         }
         let expected = self
@@ -297,7 +301,7 @@ impl FairPerceptRing14 {
         required: &[Required14],
     ) -> Result<&FairPercept14, Refusal14> {
         let frame = accepted.frame();
-        if accepted.session != frame.affinity {
+        if !frame.same_local_session(&accepted.session) {
             return Err(Refusal14::Session);
         }
         let players = self.preflight(frame, required)?;

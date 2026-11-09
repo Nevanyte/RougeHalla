@@ -308,6 +308,11 @@ fn stale_cross_session_full_and_bad_projection_refuse_without_partial_commit() {
         "public data equality is not session affinity"
     );
     assert_eq!(ring.accept(&foreign, &[]).err(), Some(Refusal14::Session));
+    assert_eq!(
+        ring.check_preview(foreign.frame(), &[]),
+        Err(Refusal14::Session)
+    );
+    assert_unchanged(&ring, &frames, &memory, last, &affinity);
     // Declared invalid public preview only; this does not mint an accepted receipt.
     let mut backward = second.frame().clone();
     backward.source_time = first.frame().source_time();
