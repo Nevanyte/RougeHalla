@@ -96,6 +96,7 @@ content! {
     SHIELD_BLOCK_SHARE: f64 = 0.07, "fraction";
     RIPOSTE_SHARE: f64 = 0.5, "fraction";
     STREAK_GAP_MS: f64 = 3000.0, "ms";
+    CARD_FIGHT_GAP_MS: f64 = 3000.0, "ms";
     WISHFUL_BUDGET_MS: f64 = 30_000.0, "ms";
     WISHFUL_WINDOW_MS: f64 = 60_000.0, "ms";
     WISHFUL_FLOOR_SHARE: f64 = 0.5, "share";
@@ -244,6 +245,10 @@ content! {
     MARK_TIER_EPS: f64 = 1e-9, "hits";
     MARK_CHILL_FLOOR: f64 = 0.05, "multiplier";
     MARK_EXECUTE_EPS: f64 = 1e-9, "damage";
+    MARK_TAX_THRESHOLD: f64 = 1.0, "attacks/s";
+    MARK_TAX_KEEP: f64 = 1.0, "fraction";
+    MARK_TAX_RATE_CAP: f64 = 99.0, "attacks/s";
+    SIG_TAXED: u8 = 16, "bits";
     MARK_PHYS_SHARE: f64 = 0.4, "fraction";
     MARK_MAGIC_SHARE: f64 = 0.6, "fraction";
     MARK_TRUE_SHARE: f64 = 0.0, "fraction";
@@ -457,4 +462,12 @@ content! {
 
     /// Source Overkill fires only for excess damage strictly above this threshold.
     OVERKILL_EPS: f64 = 1e-9, "damage";
+
+    // Source walkHint.ts: presentation-only bounds, independent of authoritative movement.
+    WALK_HINT_MAX_TICKS: u8 = 3, "ticks";
+    WALK_DIR_HYSTERESIS: u8 = 3, "byte-directions";
+    WALK_HINT_SPEED_SLACK: f64 = 1.01, "multiplier";
+    WALK_HINT_ICE_PROBE_U: f64 = 8.0, "u";
+    WALK_HINT_SEGMENT_EPS_U: f64 = 1e-3, "u";
+    WALK_HINT_WAYPOINT_SLACK_U: f64 = 1e-6, "u";
 }

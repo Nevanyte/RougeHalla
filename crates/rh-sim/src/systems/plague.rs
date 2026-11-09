@@ -170,12 +170,14 @@ pub(crate) fn after_damage(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, 
                 let Some(sheet) = w.paced_faction_spec(ix) else {
                     continue;
                 };
-                let interval = content::attack_interval(&sheet, weapon, 1.);
-                if w.is_player(ix) {
-                    content::player_timings(weapon, interval)
-                } else {
-                    content::npc_timings(weapon, interval)
-                }
+                let mirrors = p.modifiers.mirrors();
+                content::mirror_timings(
+                    &sheet,
+                    weapon,
+                    mirrors.as_mult,
+                    mirrors.windup_mult,
+                    !w.is_player(ix),
+                )
             };
             if tm.windup > 0. {
                 let p = w.core_mut(ix);

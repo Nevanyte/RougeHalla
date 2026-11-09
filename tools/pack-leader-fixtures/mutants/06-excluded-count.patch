@@ -1,0 +1,5 @@
+--- a/packages/server/src/sim/campHeal.ts
++++ b/packages/server/src/sim/campHeal.ts
+@@ -92,1 +92,1 @@
+-    if (eligible.has(c.id)) c.rt.campsCleared = (c.rt.campsCleared ?? 0) + 1;
++    if (eligible.has(c.id)) c.rt.campsCleared = (c.rt.campsCleared ?? 0);

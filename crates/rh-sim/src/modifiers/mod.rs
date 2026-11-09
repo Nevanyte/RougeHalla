@@ -117,6 +117,12 @@ impl Runtime {
     pub fn mirrors(&self) -> fold::StatMirrors {
         fold::decode_mirrors(&WireMirrors::from_source_values(self.wire))
     }
+    pub(crate) fn own_as_rows(&self) -> crate::systems::sentenced::mark_tax::OwnAsRows {
+        crate::systems::sentenced::mark_tax::OwnAsRows {
+            regular: StatSums::from_source_values(self.sums).attack_speed,
+            farm: StatSums::from_source_values(self.farm).attack_speed,
+        }
+    }
     pub fn attack_rate_wire(&self) -> f64 {
         self.wire[0]
     }
@@ -273,7 +279,17 @@ pub(crate) fn recompute_with(
     ix: crate::fighter::FighterIx,
     inputs: crate::status_runtime::stats::Inputs,
 ) {
-    recompute_core(k, w, ix, inputs, &[]);
+    recompute_core(k, w, ix, inputs, &[], false);
+}
+
+/// End updateMods differs from explicit recompute: a conditional flip refolds rows before asking tax sources.
+pub(crate) fn recompute_end_with(
+    k: &crate::statics::MatchStatic,
+    w: &mut crate::state::World,
+    ix: crate::fighter::FighterIx,
+    inputs: crate::status_runtime::stats::Inputs,
+) {
+    recompute_core(k, w, ix, inputs, &[], true);
 }
 
 /// Re-folds one fighter's stats from its rows, the diagnostic overlay and every registered source, and stores the mirrors.
@@ -284,6 +300,7 @@ fn recompute_core<'a>(
     ix: crate::fighter::FighterIx,
     inputs: crate::status_runtime::stats::Inputs,
     extra_rows: &[fold::EffectRow<'a>],
+    end_mods: bool,
 ) {
     let build = if w.is_player(ix) {
         w.players[ix.slot()].build
@@ -327,6 +344,14 @@ fn recompute_core<'a>(
     // same on every refold and again in its per-tick updateMods pass, which refolds only on a flip).
     let now = w.server_time;
     let is_player = w.is_player(ix);
+    let fight = if is_player {
+        if !crate::cards::fight_clock::watches_rows(fold_rows) {
+            crate::cards::fight_clock::clear(&mut w.players[ix.slot()]);
+        }
+        w.players[ix.slot()].card_runtime.and_then(|r| r.fight)
+    } else {
+        None
+    };
     let (bit_of, _) = while_bit_of(fold_rows);
     let mut holds = 0u64;
     {
@@ -336,7 +361,7 @@ fn recompute_core<'a>(
                 continue;
             };
             let bit = bit_of.get(i).copied().unwrap_or(NO_BIT);
-            if bit != NO_BIT && holds_now(now, core, is_player, &while_row) {
+            if bit != NO_BIT && holds_now(now, core, is_player, fight, &while_row) {
                 holds |= 1u64 << bit;
             }
         }
@@ -357,9 +382,21 @@ fn recompute_core<'a>(
             ..Default::default()
         },
     );
+    let own_as_rows = if end_mods && holds != w.core(ix).modifiers.holds {
+        crate::systems::sentenced::mark_tax::OwnAsRows {
+            regular: folded.sums.attack_speed,
+            farm: folded.farm_sums.attack_speed,
+        }
+    } else {
+        w.core(ix).modifiers.own_as_rows()
+    };
+    let source_inputs = crate::schedule::ModSourceInputs {
+        stats: inputs.view(w.core(ix)),
+        own_as_rows,
+    };
     let mut src = fold::SourceMods::default();
     for (_, source) in crate::schedule::Plan::of(k).mod_sources.live() {
-        if let Some(m) = source(w, w.core(ix), inputs.view(w.core(ix))) {
+        if let Some(m) = source(w, w.core(ix), source_inputs) {
             src.armor += m.armor.unwrap_or(0.);
             src.as_mult *= m.as_mult.unwrap_or(1.);
             src.speed_mult *= m.speed_mult.unwrap_or(1.);
@@ -468,12 +505,13 @@ fn combined_farm_rows(
 }
 
 /// Source `holdsNow`: does a `while` row's condition hold for this fighter now? `unarmed` needs a seated player's hands;
-/// `afterCast` waits for the cast runtime (the shipped rows are status-gated away; source R6); `fightTime` waits for the
-/// source fight clock (`mods.noteFights`), which no Rust state owns yet, so no such row holds.
+/// `afterCast` waits for the cast runtime (the shipped rows are status-gated away; source R6). FightTime reads the
+/// retained mods clock; it never touches this pass's landed list or retroactively changes an already-paid hit.
 fn holds_now(
     now: f64,
     core: &crate::fighter::FighterCore,
     is_player: bool,
+    fight: Option<crate::cards::runtime::FightClock>,
     row: &WhileRow,
 ) -> bool {
     use crate::stat_fold::WhileCond;
@@ -496,7 +534,7 @@ fn holds_now(
                 .is_none_or(|shot| now - shot >= row.ms.unwrap_or(0.))
         }
         WhileCond::Unarmed => is_player && core.active_weapon() == crate::WeaponId::Fists,
-        WhileCond::FightTime => false,
+        WhileCond::FightTime => is_player && crate::cards::fight_clock::holds(fight, now, row.arg),
     }
 }
 
@@ -510,7 +548,7 @@ pub(crate) fn refold_with_extra_rows(
     ix: crate::fighter::FighterIx,
     extra: &[fold::EffectRow<'_>],
 ) {
-    recompute_core(k, w, ix, Default::default(), extra);
+    recompute_core(k, w, ix, Default::default(), extra, false);
 }
 pub(crate) fn sync_max_hp(p: &mut crate::state::Player) {
     let max = crate::content::faction(p.faction()).hp * p.modifiers.max_hp_mult + p.card_tank_hp;
@@ -626,6 +664,7 @@ pub(crate) fn execute_share(
     victim_frac: f64,
     kind: OutgoingKind,
     baked: f64,
+    camps_cleared: u16,
 ) -> f64 {
     let has = build.cards().any(|id| {
         id.definition()
@@ -642,6 +681,7 @@ pub(crate) fn execute_share(
         victim_frac,
         kind,
         baked,
+        camps_cleared,
         0,
         VsProbe::default(),
         false,
@@ -655,6 +695,7 @@ pub(crate) fn execute_share(
         victim_frac,
         kind,
         baked,
+        camps_cleared,
         0,
         VsProbe::default(),
         true,
@@ -822,7 +863,8 @@ fn vs_holds(v: &crate::cards::VsRow, frac: f64, streak: u16, probe: VsProbe) -> 
 
 /// Source `outgoingMult`: what a hit deals before armor and shield, as (1 + the damage sums + holding vs rows + the
 /// stepped scale rows), G1-capped so the row multiplier times the entry's own kind mult never passes OUTGOING_ROW_CAP; farm
-/// damage is added outside the cap. Camps-cleared scales need the unported camp counter and contribute nothing yet.
+/// damage is added outside the cap. `camps_cleared` is the caller's pass-stable canonical Player.camps_cleared snapshot (the
+/// ledger freezes it before any victim/payout); mobs and unknown attackers pass 0. The camps scale reads only that value.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn outgoing_damage(
     p: &crate::fighter::FighterCore,
@@ -830,6 +872,7 @@ pub(crate) fn outgoing_damage(
     victim_frac: f64,
     kind: OutgoingKind,
     baked: f64,
+    camps_cleared: u16,
     streak: u16,
     probe: VsProbe,
     skip_execute: bool,
@@ -867,7 +910,9 @@ pub(crate) fn outgoing_damage(
                         crate::cards::ScaleSrc::Streak => {
                             s.per * (f64::from(streak) / s.step + 1e-9).floor()
                         }
-                        crate::cards::ScaleSrc::CampsCleared => 0.,
+                        crate::cards::ScaleSrc::CampsCleared => {
+                            s.per * (f64::from(camps_cleared) / s.step + 1e-9).floor()
+                        }
                     };
                     sum += if bonus > s.cap { s.cap } else { bonus };
                 }
@@ -880,6 +925,9 @@ pub(crate) fn outgoing_damage(
     }
     (1. + sum).min(ceiling).max(0.) + farm
 }
+
+#[cfg(test)]
+mod camps_tests;
 
 #[cfg(test)]
 mod race_tests {
@@ -1038,6 +1086,7 @@ mod guard_tests {
                 victim_frac,
                 OutgoingKind::Hit,
                 1.,
+                0,
                 0,
                 VsProbe::default(),
                 false,

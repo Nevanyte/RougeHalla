@@ -1,0 +1,4 @@
+# Keep exact raw Cargo output, including its final blank line.
+focused-final.log whitespace=-blank-at-eof
+focused.log whitespace=-blank-at-eof
+layout-before.log whitespace=-blank-at-eof

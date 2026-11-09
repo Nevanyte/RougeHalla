@@ -1,0 +1,66 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/protocol14-client-union/repo/crates/rh-sim)
+error[E0433]: cannot find module or crate `rh_sim` in this scope
+   --> crates/rh-sim/src/pack_leader_native_tests.rs:718:9
+    |
+718 |         rh_sim::arenas::practice_arena(),
+    |         ^^^^^^ use of unresolved module or unlinked crate `rh_sim`
+    |
+    = help: if you wanted to use a crate named `rh_sim`, use `cargo add rh_sim` to add it to your `Cargo.toml`
+help: consider importing this module
+    |
+  4 + use crate::arenas;
+    |
+help: if you import `arenas`, refer to it directly
+    |
+718 -         rh_sim::arenas::practice_arena(),
+718 +         arenas::practice_arena(),
+    |
+
+error[E0433]: cannot find module or crate `rh_sim` in this scope
+   --> crates/rh-sim/src/pack_leader_native_tests.rs:728:13
+    |
+728 |             rh_sim::mob_catalog::mob_type_by_id(ty.as_str())
+    |             ^^^^^^ use of unresolved module or unlinked crate `rh_sim`
+    |
+    = help: if you wanted to use a crate named `rh_sim`, use `cargo add rh_sim` to add it to your `Cargo.toml`
+help: consider importing this module
+    |
+  4 + use crate::mob_catalog;
+    |
+help: if you import `mob_catalog`, refer to it directly
+    |
+728 -             rh_sim::mob_catalog::mob_type_by_id(ty.as_str())
+728 +             mob_catalog::mob_type_by_id(ty.as_str())
+    |
+
+error[E0433]: cannot find module or crate `rh_sim` in this scope
+   --> crates/rh-sim/src/pack_leader_native_tests.rs:739:40
+    |
+739 |             validate(RawCommand::Train(rh_sim::input::TrainRaw {
+    |                                        ^^^^^^ use of unresolved module or unlinked crate `rh_sim`
+    |
+    = help: if you wanted to use a crate named `rh_sim`, use `cargo add rh_sim` to add it to your `Cargo.toml`
+help: consider importing this module
+    |
+  4 + use crate::input;
+    |
+help: if you import `input`, refer to it directly
+    |
+739 -             validate(RawCommand::Train(rh_sim::input::TrainRaw {
+739 +             validate(RawCommand::Train(input::TrainRaw {
+    |
+
+error[E0599]: no method named `capacity` found for struct `state::Path` in the current scope
+   --> crates/rh-sim/src/pack_leader_native_tests.rs:848:32
+    |
+848 |             m.core.motion.path.capacity(),
+    |                                ^^^^^^^^ method not found in `state::Path`
+    |
+   ::: crates/rh-sim/src/state.rs:202:1
+    |
+202 | pub struct Path {
+    | --------------- method `capacity` not found for this struct
+
+Some errors have detailed explanations: E0433, E0599.
+For more information about an error, try `rustc --explain E0433`.
+error: could not compile `rh-sim` (lib test) due to 4 previous errors

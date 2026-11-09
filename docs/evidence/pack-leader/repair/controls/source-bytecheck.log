@@ -1,0 +1,13 @@
+BASELINE_SHA256 62047e82cde33f9d056e5cc3452a8d1dc19545372f971f9040c99a3ee56e26ea
+SOURCE-INVENTORY-BEFORE
+85a220c1911579b5189b9d3acf34b13cdc51e51dd594988a74edd9cccceb7453  -
+208
+SOURCE-INVENTORY-AFTER
+85a220c1911579b5189b9d3acf34b13cdc51e51dd594988a74edd9cccceb7453  -
+208
+PROTECTED-SOURCE-SHA256
+4a51376a1ce3a79f417e32ce7ae8d7eb37142da5e49f59c3a2c89d48b11ae1e3  /repo/packages/shared/src/cards.ts
+93db949f7b217b93942efdeca66caef29096d94881c5dd28bcf0eaf8287d323b  /repo/packages/server/src/sim/mods.ts
+978239a9a24f722a854187fab1ad32cf7fc1705141fbfa34fc88860eb5c35db4  /repo/packages/server/src/sim/campHeal.ts
+878c2ac07e0795cf3482a4173340c7c5e55e8ee0fbc32a8772f4f79d01bb1613  /repo/packages/server/src/sim/camps.ts
+cc73151c50c43f65a85fc922050b2ea6a34973794ec893c7b7d51d657a4e6437  /repo/packages/server/src/sim/ledger.ts

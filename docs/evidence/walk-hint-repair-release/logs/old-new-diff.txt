@@ -1,0 +1,12 @@
+old_bytes_fixture=44372 old_sha=8cb8b2c24fe0be184e660a4670b0981b946c35782d9e7a47ae1ba3eff567ab77
+new_image node@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d
+old_image node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292
+old_frames 14 new_frames 14
+waypoint0_old_order None
+waypoint0_new_order {'type': 'move', 'msg': {'x': 266.6605407841042, 'y': 244.90201014713688, 'seq': 5}, 'accepted': True}
+payload_equal_except_image_and_declared_order yes
+hint_sequence_old [0, 3, 3, 3, 3, 0, 3, 3, 3, 3, 2, 1, 0, 0]
+hint_sequence_new [0, 3, 3, 3, 3, 0, 3, 3, 3, 3, 2, 1, 0, 0]
+events_equal True
+paths_equal True
+hints_equal True

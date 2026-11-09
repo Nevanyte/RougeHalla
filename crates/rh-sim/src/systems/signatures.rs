@@ -47,6 +47,7 @@ pub(crate) fn raid_started(hx: &mut Hx, args: &HookArgs) {
             p.credit.sentence = 0;
             p.signature.reset();
         }
+        super::sentenced::mark_tax::reset(hx.k, hx.w, hx.stats);
     }
 }
 /// Source `factions`' teleported hook: `resetAll(world, true)`, then `dropHealsOverTime`, then `rearmTriggers`.
@@ -57,9 +58,7 @@ pub(crate) fn teleported(hx: &mut Hx, args: &HookArgs) {
         return;
     }
     // resetAll(world, keepCombat = true): every combatant's faction runtime starts over; only the heal lockout's clock
-    // (source `combatAt`) survives. The source also drops the ephemeral mark index and re-folds the mirrors of whoever
-    // it taxed; the shipped sheet's tax is neutral and unported (the row stays Pending), so there is no index and no
-    // mirror to re-fold here.
+    // (source `combatAt`) survives. Drop the source-timed Mark index and refold its former members after reset.
     let fighters = hx.w.fighter_count();
     for slot in 0..fighters {
         let core = hx.w.core_mut(FighterIx::of_slot(slot));
@@ -71,6 +70,7 @@ pub(crate) fn teleported(hx: &mut Hx, args: &HookArgs) {
         core.signature.combat_at = combat_at;
         core.signature.bits = bits;
     }
+    super::sentenced::mark_tax::reset(hx.k, hx.w, hx.stats);
     hx.w.factions.dot.clear();
     hx.w.factions.dot_since = hx.w.server_time;
     // dropHealsOverTime: the steps still to come are forgotten (the first paid step has already landed).
@@ -138,6 +138,8 @@ fn returning(w: &World, id: PlayerId) -> bool {
     w.mobs.get(id).is_some_and(|m| m.returning())
 }
 pub(crate) fn after_weapons(cx: &mut Cx) {
+    #[cfg(test)]
+    super::sentenced::mark_tax::record_phase(cx.w, "before-factions-after-weapons");
     if cx.k.config.faction_mode.frost() {
         super::frost::after_weapons(cx);
     }
@@ -169,9 +171,13 @@ pub(crate) fn after_weapons(cx: &mut Cx) {
         }
         s.performed.push(a);
     }
+    #[cfg(test)]
+    super::sentenced::mark_tax::record_phase(cx.w, "after-factions-after-weapons");
 }
 /// The original beforeDamage row, shared by admitted standing combatants.
 pub(crate) fn before_damage(cx: &mut Cx) {
+    #[cfg(test)]
+    super::sentenced::mark_tax::record_phase(cx.w, "before-signature-damage");
     let Cx { k, w, s, .. } = cx;
     let now = w.server_time;
     // Legacy removes nonstanding runtime on this pass. A fighter downed later in the
@@ -356,15 +362,20 @@ pub(crate) fn before_damage(cx: &mut Cx) {
     }
     if k.config.faction_mode.sentenced() {
         super::sentenced::before_damage(k, w, &mut s.ledger, cx.ev);
+        super::sentenced::mark_tax::rebuild(k, w, &mut s.mark_tax_next, cx.stats);
     }
     super::sentenced::freeze_denials(k, w, &mut s.mark_denials);
     crate::modifiers::hit_window::update(w, &s.ledger);
     if k.config.faction_mode.plague() {
         super::plague::damage(k, w, &s.performed, &mut s.ledger);
     }
+    #[cfg(test)]
+    super::sentenced::mark_tax::record_phase(cx.w, "after-signature-damage");
 }
 /// Ordered post-barrier landed damage feeds combat clocks and surviving Holy attackers.
 pub(crate) fn after_damage(cx: &mut Cx) {
+    #[cfg(test)]
+    super::sentenced::mark_tax::record_phase(cx.w, "before-factions-after-damage");
     let Cx {
         k, w, s, ev, stats, ..
     } = cx;
@@ -433,6 +444,10 @@ pub(crate) fn after_damage(cx: &mut Cx) {
         super::frost::ranged_hits(w, &s.landed);
     }
     super::plague::after_damage(k, w, ev, &mut s.fx);
+    if k.config.faction_mode.sentenced() {
+        super::sentenced::mark_tax::rebuild(k, w, &mut s.mark_tax_next, *stats);
+        super::sentenced::mark_tax::sync_public(w, |core| core.modifiers.own_as_rows());
+    }
     // Festering Arcana: the damage-over-time signature stopped running on a target (source engagedOn).
     for slot in 0..w.fighter_count() {
         let ix = FighterIx::of_slot(slot);
@@ -507,6 +522,8 @@ pub(crate) fn after_damage(cx: &mut Cx) {
         };
         crate::systems::status::operations::apply_with(k, w, ev, from, apply, true, *stats);
     }
+    #[cfg(test)]
+    super::sentenced::mark_tax::record_phase(cx.w, "after-factions-after-damage");
 }
 
 impl crate::Sim {
@@ -544,12 +561,13 @@ pub(crate) fn validate_basic(
                 | crate::constants::SIG_DISEASED
                 | crate::constants::SIG_EXECUTE
                 | crate::constants::SIG_BURNING
-                | crate::constants::SIG_EXEC_BLOCKED)
+                | crate::constants::SIG_EXEC_BLOCKED
+                | crate::constants::SIG_TAXED)
             != 0
         || (!k.config.faction_mode.plague() && sig.bits != 0)
         || (!k.config.faction_mode.fire() && sig.bits & crate::constants::SIG_BURNING != 0)
         || (!k.config.faction_mode.sentenced()
-            && sig.bits & crate::constants::SIG_EXEC_BLOCKED != 0)
+            && sig.bits & (crate::constants::SIG_EXEC_BLOCKED | crate::constants::SIG_TAXED) != 0)
         || [sig.reach_at, sig.contact_at, sig.combat_at]
             .into_iter()
             .flatten()

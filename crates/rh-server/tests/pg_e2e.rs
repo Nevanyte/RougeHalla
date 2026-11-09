@@ -111,6 +111,7 @@ async fn a_match_over_websockets_banks_results_once_in_postgres() {
         linger: Duration::from_millis(100),
         ..DirectorConfig::new(
             SimConfig {
+                walk_hints: None,
                 regen: false,
                 quests: false,
                 training: false,
@@ -374,6 +375,7 @@ async fn an_mia_leave_is_banked_under_its_fence() {
         linger: Duration::from_millis(100),
         ..DirectorConfig::new(
             SimConfig {
+                walk_hints: None,
                 regen: false,
                 quests: false,
                 training: false,

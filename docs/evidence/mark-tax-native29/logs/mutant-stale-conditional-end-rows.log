@@ -1,0 +1,25 @@
+COMMAND cargo test -p rh-sim --lib genuine_card_grant_and_hp_conditional_query_distinguish_fold_stages --features trusted-status-probes --locked -- --test-threads=1
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/mark-tax-uncapped-source/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 32.30s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_sim-0ad75f2b040c28b6)
+
+running 1 test
+test systems::sentenced::mark_tax::source_tests::genuine_card_grant_and_hp_conditional_query_distinguish_fold_stages ... FAILED
+
+failures:
+
+---- systems::sentenced::mark_tax::source_tests::genuine_card_grant_and_hp_conditional_query_distinguish_fold_stages stdout ----
+
+thread 'systems::sentenced::mark_tax::source_tests::genuine_card_grant_and_hp_conditional_query_distinguish_fold_stages' (67488907) panicked at crates/rh-sim/src/systems/sentenced/mark_tax/source_tests.rs:656:13:
+assertion `left == right` failed: conditional rows precede the end-mods tax query
+  left: 104340.0
+ right: 104211.0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    systems::sentenced::mark_tax::source_tests::genuine_card_grant_and_hp_conditional_query_distinguish_fold_stages
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 823 filtered out; finished in 1.28s
+
+error: test failed, to rerun pass `-p rh-sim --lib`

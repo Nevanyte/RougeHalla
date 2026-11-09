@@ -1,0 +1,17 @@
+PACK-LEADER SOURCE SEAL - FAILED ATTEMPT LOG (preserved honestly; final logs/controls are the green run)
+1. First capture.mts draft had a duplicate `const out` declaration -> esbuild TransformError; fixed (transform/compile failure,
+   never a semantic result).
+2. Diagnostic plain-move probes: a plain `move` order walks one path waypoint and stops; the born map has walled-off
+   destinations (p1's first declared (400,240) is tile (12,7)=wall), so p1 never moved and no later hit occurred. Fixed by
+   declaring p1 in the open corridor and using explicit target-lock inputs instead of moving the witness.
+3. An earlier attempt declared p1 at (272,144): the wand-lock auto-acquired and killed p1 BEFORE the camp clear
+   (later-hit ordering failed). Fixed by moving the witness to (272,80) and using explicit target locks (camp first, p1 last),
+   then shortening the final span so p1 stays alive.
+4. A source-cache extraction attempt failed because the oracle nests `mods` itself as a `$oracle` ref; resolution fixed to
+   resolve the outer mods ref before actors/cache (no expected values supplied; lexical read only).
+5. First control patch set used off-by-one hunk starts -> PATCH-APPLY-FAILED (context mismatch); offsets corrected from
+   grep line numbers. No mutant was counted as a kill on a failed apply.
+6. First controls run: 04-cache-refresh-timing and 06-excluded-count were CAPTURE-FAILED because the exact-value
+   assertions were not yet guarded by RH_PACK_LEADER_CONTROL; re-applied the control guards and reran (see controls/run.log).
+7. Earlier per-mutant control logs from runs 5-6 were OVERWRITTEN by the final green rerun; their failure causes are this
+   file. The final run.log, per-mutant logs, restored.log and source-bytecheck.log are the retained green receipts.

@@ -37,6 +37,8 @@ pub(crate) struct TickScratch {
     pub(crate) performed: Vec<crate::factions::PerformedAttack>,
     pub(crate) performed_bounded: bool,
     pub(crate) mark_denials: Vec<(PlayerId, PlayerId)>,
+    /// Empty between passes. A rebuild installs the complete next tax index before refolding any affected member.
+    pub(crate) mark_tax_next: Vec<crate::factions::TaxBinding>,
     pub(crate) ledger_diagnostics: Vec<crate::factions::DamageView>,
     pub(crate) dot_sums: Vec<(PlayerId, f64)>,
     pub(crate) fx: crate::fx_report::TickFx,
@@ -47,6 +49,10 @@ pub(crate) struct TickScratch {
     pub(crate) action_order: Vec<u32>,
     /// Each slot's place in `action_order` (the rank of kill credit among a victim's hits), by slot.
     pub(crate) rank: Vec<u32>,
+    /// Every present player's canonical `camps_cleared` frozen ONCE at the start of the ledger pass (before any victim or
+    /// deferred payout can increment it), read by slot for outgoing damage and execute/full-versus-without shares. Transient
+    /// pass scratch, never serialized; empty between passes.
+    pub(crate) camps_at_pass_start: Vec<u16>,
     /// Indices of the players standing when this tick's move multipliers were read (legacy `standingCombatants`).
     pub(crate) standing: Vec<FighterIx>,
     /// Their move multipliers, aligned with `standing`: every one is read before anyone moves.
@@ -109,6 +115,7 @@ impl Default for TickScratch {
             performed: Vec::with_capacity(crate::fx_report::FX_INSTANT_BUCKETS_MAX),
             performed_bounded: true,
             mark_denials: Vec::with_capacity(MAX_PLAYERS),
+            mark_tax_next: Vec::new(),
             ledger_diagnostics: Vec::with_capacity(hits),
             dot_sums: Vec::with_capacity(p),
             fx: crate::fx_report::TickFx {
@@ -117,6 +124,7 @@ impl Default for TickScratch {
             bounty_at_tick_start: Vec::with_capacity(p),
             action_order: Vec::with_capacity(p),
             rank: Vec::with_capacity(p),
+            camps_at_pass_start: Vec::with_capacity(p),
             standing: Vec::with_capacity(p),
             mults: Vec::with_capacity(p),
             melee: Vec::with_capacity(p),
@@ -166,6 +174,7 @@ impl TickScratch {
             self.attack_started.resize(count, false);
         }
         macro_rules! reserve { ($($field:ident),*) => { $(if self.$field.capacity() < count {self.$field.reserve(count.saturating_sub(self.$field.len()));})* }; }
+        // Mark tax uses its checked sparse edge budget in sentenced::prepare, not total fighter count.
         reserve!(
             standing,
             mults,
@@ -174,7 +183,8 @@ impl TickScratch {
             victims,
             status_active,
             dot_sums,
-            alive
+            alive,
+            camps_at_pass_start
         );
     }
 
@@ -186,12 +196,14 @@ impl TickScratch {
     /// `bounty_at_tick_start` (rewritten at the start of every active tick), `bodies`, `victims`, `ledger_mults`,
     /// `entry_next`, `entry_rank`, `idxs`, `amounts`, `ledger_raws`, `order`, `hits`, `alive`, `path` and `drained`.
     pub(crate) fn is_settled(&self) -> bool {
-        self.cast_landings.is_empty()
+        self.mark_tax_next.is_empty()
+            && self.cast_landings.is_empty()
             && self.melee.is_empty()
             && self.ledger.is_empty()
             && self.downed_this_tick.is_empty()
             && self.standing.is_empty()
             && self.mults.is_empty()
+            && self.camps_at_pass_start.is_empty()
             && self.slot_head.iter().all(|&n| n == NONE)
             && self.slot_tail.iter().all(|&n| n == NONE)
     }

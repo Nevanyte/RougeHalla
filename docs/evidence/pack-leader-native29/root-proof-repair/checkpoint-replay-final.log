@@ -1,0 +1,26 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/protocol14-client-union/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 4.93s
+     Running tests/checkpoint.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fight-native/target/debug/deps/checkpoint-a8d34f2060bdde67)
+
+running 6 tests
+test a_checkpoint_whose_next_id_is_not_past_the_last_player_is_malformed_not_a_panic ... ok
+test a_checkpoint_names_its_content_and_build_and_refuses_other_content ... ok
+test a_checkpoint_contains_no_scratch_keys ... ok
+test the_format_tag_is_refused_before_the_payload_whatever_the_key_order ... ok
+test a_mid_fight_checkpoint_continues_identically ... ok
+test a_truncated_or_garbled_checkpoint_is_an_error_never_a_panic ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+     Running tests/replay.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fight-native/target/debug/deps/replay-8db336d7bd9fa8f7)
+
+running 6 tests
+test another_replay_format_is_refused_before_anything_runs ... ok
+test an_edited_replay_cannot_inject_an_unvalidated_command ... ok
+test a_tampered_step_hash_is_a_divergence ... ok
+test a_replay_with_a_malformed_map_is_an_error_not_a_panic ... ok
+test a_replay_names_its_build_and_a_file_without_the_new_keys_still_verifies ... ok
+test a_recorded_replay_is_tagged_roundtrips_complete_and_verifies ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+

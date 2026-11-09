@@ -1,0 +1,239 @@
+Diff in /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/walk-hint-native/repo/crates/rh-sim/src/systems/walk_hint/tests.rs:62:
+         Some(PlayerId(1))
+     );
+     if second {
+-        assert_eq!(sim.add_player("second", Some(FactionId::Fire), false), Some(PlayerId(2)));
++        assert_eq!(
++            sim.add_player("second", Some(FactionId::Fire), false),
++            Some(PlayerId(2))
++        );
+     }
+     sim
+ }
+Diff in /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/walk-hint-native/repo/crates/rh-sim/src/systems/walk_hint/tests.rs:101:
+     let source = corpus();
+     let frames = source["frames"].as_array().unwrap();
+     assert_eq!(frames.len(), 14);
+-    for field in ["patienceSeconds", "patienceMinSeconds", "suddenDeathSeconds"] {
+-        assert_eq!(source["profile"]["constructor"]["config"][field].as_f64(), Some(1e6));
++    for field in [
++        "patienceSeconds",
++        "patienceMinSeconds",
++        "suddenDeathSeconds",
++    ] {
++        assert_eq!(
++            source["profile"]["constructor"]["config"][field].as_f64(),
++            Some(1e6)
++        );
+     }
+-    let end_ms = frames.last().unwrap()["snapshot"]["serverTime"].as_f64().unwrap();
++    let end_ms = frames.last().unwrap()["snapshot"]["serverTime"]
++        .as_f64()
++        .unwrap();
+     assert_eq!(end_ms, 700.);
+     assert!(end_ms < 86_400. * 1000. && end_ms < 1e6 * 1000.);
+     let mut sim = construct(Some(true));
+Diff in /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/walk-hint-native/repo/crates/rh-sim/src/systems/walk_hint/tests.rs:111:
+     let mut main = crate::rng::Mulberry32::new(7);
+     let draws = source["setup"]["draws"].as_array().unwrap();
+     assert_eq!(draws.len(), 2);
+-    for draw in draws { assert_eq!(main.next_f64(), draw.as_f64().unwrap()); }
++    for draw in draws {
++        assert_eq!(main.next_f64(), draw.as_f64().unwrap());
++    }
+     for (i, frame) in frames.iter().enumerate() {
+         submit_frame(&mut sim, frame);
+         let events = sim.step();
+Diff in /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/walk-hint-native/repo/crates/rh-sim/src/systems/walk_hint/tests.rs:118:
+-        let source_events: Vec<_> = events.iter().map(|e| match e {
+-            crate::Event::RaidStarted => json!({"type":"raidStarted"}),
+-            other => panic!("unexpected native event in released movement slice: {other:?}"),
+-        }).collect();
+-        assert_eq!(json!(source_events), frame["events"], "{} event order", frame["label"]);
++        let source_events: Vec<_> = events
++            .iter()
++            .map(|e| match e {
++                crate::Event::RaidStarted => json!({"type":"raidStarted"}),
++                other => panic!("unexpected native event in released movement slice: {other:?}"),
++            })
++            .collect();
++        assert_eq!(
++            json!(source_events),
++            frame["events"],
++            "{} event order",
++            frame["label"]
++        );
+         assert!(frame["draws"].as_array().unwrap().is_empty());
+-        assert_eq!(sim.w.spawn_rng, main, "frame{i}: actual main stream has only setup's two draws");
++        assert_eq!(
++            sim.w.spawn_rng, main,
++            "frame{i}: actual main stream has only setup's two draws"
++        );
+         let expected = &frame["snapshot"];
+         let p = &sim.w.players[0];
+         let want = &expected["players"][0];
+Diff in /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/walk-hint-native/repo/crates/rh-sim/src/systems/walk_hint/tests.rs:142:
+         assert_eq!(p.weapon.weapon1, None);
+         assert!(p.weapon.action.is_none());
+         assert!(p.weapon.targeting.target.is_none());
+-        assert_eq!(p.modifiers.mirrors().speed_mult, want["speedMult"].as_f64().unwrap() / 1000.);
+-        assert_eq!(p.modifiers.mirrors().as_mult, want["asMult"].as_f64().unwrap() / 1000.);
+-        assert_eq!(p.modifiers.mirrors().windup_mult, want["windupMult"].as_f64().unwrap() / 1000.);
++        assert_eq!(
++            p.modifiers.mirrors().speed_mult,
++            want["speedMult"].as_f64().unwrap() / 1000.
++        );
++        assert_eq!(
++            p.modifiers.mirrors().as_mult,
++            want["asMult"].as_f64().unwrap() / 1000.
++        );
++        assert_eq!(
++            p.modifiers.mirrors().windup_mult,
++            want["windupMult"].as_f64().unwrap() / 1000.
++        );
+         let history = want["history"].as_array().unwrap();
+         assert_eq!(p.body.history.len(), history.len());
+         for (sample, expected) in p.body.history.iter().zip(history) {
+Diff in /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/walk-hint-native/repo/crates/rh-sim/src/systems/walk_hint/tests.rs:293:
+ fn warm_steps_allocate_zero(hints: bool) {
+     let mut original = construct(Some(hints));
+     original.step();
+-    original.submit(PlayerId(1), validate(RawCommand::Move {
+-        x: 1800., y: 208., seq: Some(1),
+-    }).unwrap()).unwrap();
+-    for _ in 0..10 { original.step(); }
++    original
++        .submit(
++            PlayerId(1),
++            validate(RawCommand::Move {
++                x: 1800.,
++                y: 208.,
++                seq: Some(1),
++            })
++            .unwrap(),
++        )
++        .unwrap();
++    for _ in 0..10 {
++        original.step();
++    }
+     assert_eq!(original.w.players[0].walk_ticks > 0, hints);
+     let clone = original.clone();
+     let restored = Sim::restore(serde_json::to_value(&original).unwrap()).unwrap();
+Diff in /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/walk-hint-native/repo/crates/rh-sim/src/systems/walk_hint/tests.rs:304:
+     let mut events: [Vec<crate::Event>; 3] = std::array::from_fn(|_| Vec::with_capacity(128));
+     // One ordinary post-Clone/restore step warms reusable scratch/output only. Retain
+     // this exact original workload: do not wait out later capacity growth.
+-    for (sim, events) in worlds.iter_mut().zip(&mut events) { sim.step_into(events); }
++    for (sim, events) in worlds.iter_mut().zip(&mut events) {
++        sim.step_into(events);
++    }
+     assert_eq!(worlds[0].state_hash(), worlds[1].state_hash());
+     assert_eq!(worlds[0].state_hash(), worlds[2].state_hash());
+     let _profiler = dhat::Profiler::builder().testing().build();
+Diff in /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/walk-hint-native/repo/crates/rh-sim/src/systems/walk_hint/tests.rs:311:
+     let _ = dhat::HeapStats::get();
+-    let storage_before: [_; 3] = std::array::from_fn(|i| worlds[i].w.players[0].vision.test_storage());
++    let storage_before: [_; 3] =
++        std::array::from_fn(|i| worlds[i].w.players[0].vision.test_storage());
+     let mut trace = [[(0u32, 0u64, 0usize, 0usize); 90]; 3];
+     let mut counts = [0; 3];
+     for (i, (sim, events)) in worlds.iter_mut().zip(&mut events).enumerate() {
+Diff in /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/walk-hint-native/repo/crates/rh-sim/src/systems/walk_hint/tests.rs:326:
+         }
+         counts[i] = dhat::HeapStats::get().total_blocks - before;
+     }
+-    eprintln!("hints={hints}: starting (trail len,capacity)={storage_before:?}, allocations={counts:?}");
++    eprintln!(
++        "hints={hints}: starting (trail len,capacity)={storage_before:?}, allocations={counts:?}"
++    );
+     for (i, steps) in trace.iter().enumerate() {
+         for &(tick, blocks, len, capacity) in steps {
+-            if blocks != 0 { eprintln!("world{i} tick{tick}: blocks{blocks}, trail len{len}, capacity{capacity}"); }
++            if blocks != 0 {
++                eprintln!(
++                    "world{i} tick{tick}: blocks{blocks}, trail len{len}, capacity{capacity}"
++                );
++            }
+         }
+     }
+-    assert_eq!(counts, [0; 3], "90 actual whole steps per original/Clone/restore, hints={hints}");
++    assert_eq!(
++        counts, [0; 3],
++        "90 actual whole steps per original/Clone/restore, hints={hints}"
++    );
+     assert_eq!(worlds[0].state_hash(), worlds[1].state_hash());
+     assert_eq!(worlds[0].state_hash(), worlds[2].state_hash());
+     eprintln!("active hints: original/Clone/restore 90 steps each, allocations={counts:?}");
+Diff in /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/walk-hint-native/repo/crates/rh-sim/src/systems/walk_hint/tests.rs:339:
+ }
+ 
+-
+ #[test]
+ fn actual_teleport_and_run_end_append_hooks_clear_positive_hints_keep_direction() {
+     // Separate genuine native lifecycle control, not a captured source World outcome.
+Diff in /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/walk-hint-native/repo/crates/rh-sim/src/systems/walk_hint/tests.rs:345:
+     let mut teleport = construct_with(Some(true), Some(0.15), true);
+     teleport.step();
+-    teleport.submit(PlayerId(1), validate(RawCommand::Move {
+-        x: 1800., y: 500., seq: Some(1),
+-    }).unwrap()).unwrap();
++    teleport
++        .submit(
++            PlayerId(1),
++            validate(RawCommand::Move {
++                x: 1800.,
++                y: 500.,
++                seq: Some(1),
++            })
++            .unwrap(),
++        )
++        .unwrap();
+     teleport.step();
+     teleport.step();
+     assert!(teleport.w.players[0].walk_ticks > 0);
+Diff in /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/walk-hint-native/repo/crates/rh-sim/src/systems/walk_hint/tests.rs:363:
+ 
+     let mut ended = construct_with(Some(true), Some(0.), true);
+     ended.step();
+-    ended.submit(PlayerId(1), validate(RawCommand::Move {
+-        x: 1800., y: 500., seq: Some(1),
+-    }).unwrap()).unwrap();
++    ended
++        .submit(
++            PlayerId(1),
++            validate(RawCommand::Move {
++                x: 1800.,
++                y: 500.,
++                seq: Some(1),
++            })
++            .unwrap(),
++        )
++        .unwrap();
+     ended.step();
+     assert!(ended.w.players[0].walk_ticks > 0);
+     let dir = ended.w.players[0].walk_dir;
+Diff in /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/walk-hint-native/repo/crates/rh-sim/src/systems/walk_hint/tests.rs:376:
+     assert_eq!(ended.w.players[0].walk_ticks, 0);
+     assert_eq!(ended.w.players[0].walk_dir, dir);
+     assert!(ended.w.players.iter().all(|p| p.walk_ticks == 0));
+-    assert_eq!(Sim::restore(serde_json::to_value(&ended).unwrap()).unwrap().state_hash(), ended.state_hash());
++    assert_eq!(
++        Sim::restore(serde_json::to_value(&ended).unwrap())
++            .unwrap()
++            .state_hash(),
++        ended.state_hash()
++    );
+ }
+ 
+Diff in /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/walk-hint-native/repo/crates/rh-sim/src/vision.rs:44:
+     fn clone(&self) -> Self {
+         let mut reveals = VecDeque::with_capacity(self.reveals.capacity());
+         reveals.extend(self.reveals.iter().copied());
+-        Self { phase: self.phase, reveals }
++        Self {
++            phase: self.phase,
++            reveals,
++        }
+     }
+ }
+ 

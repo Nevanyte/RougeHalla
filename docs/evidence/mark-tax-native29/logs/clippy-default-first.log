@@ -1,0 +1,13 @@
+    Checking rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/mark-tax-uncapped-source/repo/crates/rh-sim)
+    Checking rh-parity v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/mark-tax-uncapped-source/repo/crates/rh-parity)
+error: usage of `bool::then` in `filter_map`
+   --> crates/rh-sim/src/systems/sentenced/mark_tax/source_tests.rs:100:10
+    |
+100 |         .filter_map(|(k, n)| (n > 0).then(|| (k.into(), json!(n))))
+    |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: use `filter` then `map` instead: `filter(|&(k, n)| (n > 0)).map(|(k, n)| (k.into(), json!(n)))`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.97.0/index.html#filter_map_bool_then
+    = note: `-D clippy::filter-map-bool-then` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::filter_map_bool_then)]`
+
+error: could not compile `rh-sim` (lib test) due to 1 previous error

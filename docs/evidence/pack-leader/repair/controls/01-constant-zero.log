@@ -1,0 +1,7 @@
+CONTROL 01-constant-zero
+applied 1 hunk(s) to packages/server/src/sim/mods.ts
+pack-leader capture wrote /tmp/out/01-constant-zero/source.json
+MUTANT-SOURCE-HASH-BOUND packages/server/src/sim/mods.ts afa6a79670428830b58f5bf03f7279ecb70c3f4fbf963a9de96a4c8138c60181
+SEMANTIC-DIFF .result.completeNonemptyEventTape[111].events[1].fx.amount baseline=625.7285233040177 mutant=611.0630110390798
+OUTPUT_SHA256 e040b2a4ad082694ac11c571e32251cd58b5c209734986494f87c8eb143ce79e
+CONTROL-OK 01-constant-zero SEMANTIC-DIFF

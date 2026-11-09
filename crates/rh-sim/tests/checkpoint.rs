@@ -100,7 +100,7 @@ fn a_checkpoint_contains_no_scratch_keys() {
             "a checkpoint must not carry the scratch key `{banned}`"
         );
     }
-    assert_eq!(json["format"], "rh-checkpoint/28");
+    assert_eq!(json["format"], "rh-checkpoint/29");
     let top: Vec<&String> = json.as_object().unwrap().keys().collect();
     assert_eq!(
         top.len(),
@@ -148,9 +148,14 @@ fn the_format_tag_is_refused_before_the_payload_whatever_the_key_order() {
             .unwrap_or_else(|e| panic!("{order:?}: {e}"));
         assert_eq!(b.state_hash(), a.state_hash(), "{order:?}");
     }
-    // The reserved 25 layout's immediate predecessor is refused by its tag: the two new defaulted fields must not
-    // grant checkpoint-24 compatibility.
-    for found in ["rh-checkpoint/27", "rh-checkpoint/26", "rh-checkpoint/25"] {
+    // The reserved native29 layout must refuse its immediate predecessor28 before
+    // decoding payload or accepting any defaults from an older canonical shape.
+    for found in [
+        "rh-checkpoint/28",
+        "rh-checkpoint/27",
+        "rh-checkpoint/26",
+        "rh-checkpoint/25",
+    ] {
         let mut predecessor = good.clone();
         predecessor["format"] = found.into();
         assert_eq!(
@@ -176,6 +181,30 @@ fn the_format_tag_is_refused_before_the_payload_whatever_the_key_order() {
             found: "rh-checkpoint/8".into()
         })
     );
+    // The immediate predecessor wins over malformed payload and mismatched content,
+    // even when the format key follows those payload keys.
+    let mut prior28 = good.clone();
+    prior28["format"] = "rh-checkpoint/28".into();
+    prior28["world"] = serde_json::json!({"tick": "not a checkpoint"});
+    prior28["statics"] = serde_json::json!([1, 2, 3]);
+    prior28["content_hash"] = (good["content_hash"].as_u64().unwrap() ^ 1).into();
+    for order in [
+        ["format", "statics", "world"],
+        ["world", "statics", "format"],
+    ] {
+        // Include content_hash explicitly; reordered() otherwise lists only its supplied keys.
+        let payload = format!(
+            "{{\"content_hash\":{},{}",
+            prior28["content_hash"],
+            &reordered(&prior28, order)[1..]
+        );
+        assert_eq!(
+            Sim::restore(&mut serde_json::Deserializer::from_str(&payload)).err(),
+            Some(CheckpointError::UnsupportedFormat {
+                found: "rh-checkpoint/28".into()
+            })
+        );
+    }
     // A stale layout under a stale tag is refused by its tag, wherever the tag is, even though its payload would not parse.
     let mut stale = good.clone();
     stale["format"] = "rh-checkpoint/2".into();
@@ -238,7 +267,7 @@ fn a_truncated_or_garbled_checkpoint_is_an_error_never_a_panic() {
         "null",
         "[]",
         "42",
-        "\"rh-checkpoint/28\"",
+        "\"rh-checkpoint/29\"",
         "{}",
         "{\"format\":3}",
     ] {
@@ -304,7 +333,7 @@ fn a_checkpoint_names_its_content_and_build_and_refuses_other_content() {
     assert_eq!(good["build"], rh_sim::replay::BUILD_ID);
     assert!(serde_json::to_string(&a)
         .unwrap()
-        .starts_with("{\"format\":\"rh-checkpoint/28\",\"content_hash\":"));
+        .starts_with("{\"format\":\"rh-checkpoint/29\",\"content_hash\":"));
     assert!(Sim::restore(&good).is_ok());
 
     // Other content: refused with the typed error, whichever side of the tag it arrives on, and even when the payload
@@ -319,7 +348,7 @@ fn a_checkpoint_names_its_content_and_build_and_refuses_other_content() {
     other["world"] = Value::from("not a world");
     assert_eq!(Sim::restore(&other).err(), Some(expect.clone()));
     let text = format!(
-        "{{\"world\":1,\"content_hash\":{},\"format\":\"rh-checkpoint/28\"}}",
+        "{{\"world\":1,\"content_hash\":{},\"format\":\"rh-checkpoint/29\"}}",
         content ^ 1
     );
     assert_eq!(

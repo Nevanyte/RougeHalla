@@ -1,0 +1,14 @@
+=== H-1 execute callsite with genuine Mark
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/worktrees/deepseek-rust-completion/p-pack-leader/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 33.90s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fight-native/target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 1 test
+H-1 earn: swap #0 tier 3 hits 1 swaps 1
+H-1 earn: swap #1 tier 4 hits 1 swaps 2
+H-1: max_hp 1085.000 H 103.700000 loss 103.000000000 denial [(PlayerId(2), PlayerId(1))]
+test systems::ledger::camps_tests::h1_outcome_sensitive_execute_callsite_with_genuine_mark_denial ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 824 filtered out; finished in 0.01s
+
+EXIT=0

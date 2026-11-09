@@ -1,0 +1,16 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/walk-hint-native/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 33.45s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_sim-0ad75f2b040c28b6)
+
+running 1 test
+case "base-player-holy-real-reset-and-continuation"
+case "base-player-fire-real-reset-and-continuation"
+case "base-player-plague-real-reset-and-continuation"
+case "base-player-frost-real-reset-and-continuation"
+case "base-player-sentenced-real-reset-and-continuation"
+P-ABIL-1 FULL: 0 named prerequisite cases remain:
+
+test abilities::source_tests::frozen_full_source_all_63_cases ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 838 filtered out; finished in 6.73s
+

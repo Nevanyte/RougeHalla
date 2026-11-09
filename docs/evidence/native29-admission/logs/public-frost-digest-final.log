@@ -1,0 +1,11 @@
+   Compiling rh-headless v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/protocol14-client-union/repo/crates/rh-headless)
+    Finished `test` profile [unoptimized] target(s) in 2.75s
+     Running tests/frost_sources_digest.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fight-native/target/debug/deps/frost_sources_digest-3f695f0e72c7726f)
+
+running 3 tests
+test actual_training_recipients_have_a_nonpanicking_private_digest ... ok
+test actual_typed_npc_digest_keeps_the_legacy_encoding ... ok
+test frost_source_ids_length_and_order_change_private_digest_without_public_identity_changes ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

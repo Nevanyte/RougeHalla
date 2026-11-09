@@ -8,6 +8,7 @@ pub const SUPPORTED: [CardId; 3] = [CardId::SlowBurn, CardId::PocketSand, CardId
 mod after_damage;
 mod catalog;
 mod catalog_data;
+pub(crate) mod fight_clock;
 pub(crate) use after_damage::after_damage;
 pub(crate) mod on_hit;
 pub(crate) mod on_hurt;

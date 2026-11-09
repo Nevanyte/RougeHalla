@@ -1,0 +1,9 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/protocol14-client-union/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 33.64s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fight-native/target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 1 test
+test pack_leader_native_tests::diagnostic_nine_actor_clone_restore_capacity_changes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 838 filtered out; finished in 0.04s
+

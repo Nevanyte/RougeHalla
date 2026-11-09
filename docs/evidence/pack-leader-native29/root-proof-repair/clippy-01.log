@@ -1,0 +1,34 @@
+    Checking rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/protocol14-client-union/repo/crates/rh-sim)
+error: called `.err().expect()` on a `Result` value
+    --> crates/rh-sim/tests/hash_coverage.rs:2378:10
+     |
+2378 |           .err()
+     |  __________^
+2379 | |         .expect("used while bit requires matching cached fold");
+     | |_______________^ help: try: `expect_err`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.97.0/index.html#err_expect
+     = note: `-D clippy::err-expect` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[allow(clippy::err_expect)]`
+
+error: called `.err().expect()` on a `Result` value
+    --> crates/rh-sim/tests/hash_coverage.rs:2432:10
+     |
+2432 |           .err()
+     |  __________^
+2433 | |         .expect("regional NPC requires brain");
+     | |_______________^ help: try: `expect_err`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.97.0/index.html#err_expect
+
+error: called `.err().expect()` on a `Result` value
+    --> crates/rh-sim/tests/hash_coverage.rs:2456:10
+     |
+2456 |           .err()
+     |  __________^
+2457 | |         .expect("dummy cannot acquire regional brain");
+     | |_______________^ help: try: `expect_err`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.97.0/index.html#err_expect
+
+error: could not compile `rh-sim` (test "hash_coverage") due to 3 previous errors

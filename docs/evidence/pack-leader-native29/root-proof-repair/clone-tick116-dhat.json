@@ -1,0 +1,54 @@
+{
+"dhatFileVersion": 2,
+"mode": "rust-heap",
+"verb": "Allocated",
+"bklt": true,
+"bkacc": false,
+"tu": "µs",
+"Mtu": "s",
+"tuth": 10,
+"cmd": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fight-native/target/debug/deps/pack_leader_warm-296968f1026f5eae diagnostic_only_clone_tick116_two_event_trace --exact --test-threads=1 --nocapture",
+"pid": 7331,
+"tg": 418,
+"te": 421,
+"pps": [
+{
+"tb": 96,
+"tbk": 2,
+"tl": 2,
+"mb": 64,
+"mbk": 1,
+"gb": 64,
+"gbk": 1,
+"eb": 64,
+"ebk": 1,
+"fs": [
+1,
+2,
+3,
+4,
+5,
+6,
+7,
+8,
+9,
+10,
+11
+]
+}
+],
+"ftbl": [
+"[root]",
+"0x104c7c1f4: <dhat::Alloc as core::alloc::global::GlobalAlloc>::alloc (???:0:0)",
+"0x104ac8f7c: __rustc::__rust_alloc (???:0:0)",
+"0x104ff6514: <alloc::raw_vec::RawVecInner>::finish_grow (???:0:0)",
+"0x104fd9384: <alloc::raw_vec::RawVecInner>::grow_amortized (???:0:0)",
+"0x104edaaf8: <alloc::raw_vec::RawVec<(rh_sim::state::PlayerId, u8)>>::grow_one (???:0:0)",
+"0x104d94b28: <alloc::vec::Vec<(rh_sim::state::PlayerId, u8)>>::push_mut (???:0:0)",
+"0x104d94acc: <alloc::vec::Vec<(rh_sim::state::PlayerId, u8)>>::push (???:0:0)",
+"0x104eb3e30: <rh_sim::sim::Sim>::finish_fx_report (???:0:0)",
+"0x104eb4178: <rh_sim::sim::Sim>::step_into_with (???:0:0)",
+"0x104eb4c04: <rh_sim::sim::Sim>::step_into (???:0:0)",
+"0x104ac7858: pack_leader_warm::diagnostic_only_clone_tick116_two_event_trace (???:0:0)"
+]
+}

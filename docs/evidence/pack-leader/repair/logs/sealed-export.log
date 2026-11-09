@@ -1,0 +1,16 @@
+FROZEN-GIT-EXPORT-BYTE CHECK (repaired seal)
+export-commit=63dae843ff202161ad16c4cc5694fc1d1dc5cd0d
+export-dir=/tmp/pack-export-repair (git archive <commit> | tar -x; node_modules mountpoint only)
+export-manifest-integrity=files=39 result=PASS
+export-canonical-sha256=62047e82cde33f9d056e5cc3452a8d1dc19545372f971f9040c99a3ee56e26ea
+check-command=RH_PACK_LEADER_BASE=db5ed80b2b89a156eae09cd0bd3f4c9e77e9e6de RH_PACK_LEADER_CANONICAL_DIRECTORY=
+  /tmp/pack-export-repair/parity/pack-leader/repair bash /tmp/pack-export-repair/tools/pack-leader-fixtures/capture.sh --check
+inner-content-check=CHECK-OK (fresh capture reproduced the readonly canonical bytes exactly)
+observed-process-exit=125 (Docker daemon I/O error after the content check: 'Error waiting for container:
+  write /var/lib/desktop-containerd/daemon/io.containerd.metadata.v1.bolt/meta.db: input/output error')
+environment=ENV-BLOCKED after the disk filled to 100%; later retries fail at container creation with the same
+  containerd blob open I/O error. This is a Docker-daemon environment failure, NOT a byte-check semantic failure
+  and NOT counted as a pass claim: the content check itself printed CHECK-OK before the daemon error.
+fallback-integrity: the exported tree's canonical corpus and every manifest-listed tool/corpus/evidence file match
+  the sealed-Git manifest above, so the successful in-worktree readonly positive/negative checks and this export
+  reproduce the same sealed bytes; re-run the export check when the Docker daemon is healthy.

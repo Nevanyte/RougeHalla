@@ -1,0 +1,3 @@
+pack-leader capture wrote /tmp/pack-leader-check/source.json
+CHECK-MISMATCH: fresh capture bytes differ from the readonly canonical corpus
+/tmp/pack-leader-check/source.json /canonical/source.json differ: char 6840826, line 1

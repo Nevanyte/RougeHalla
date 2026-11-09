@@ -1,0 +1,14 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/protocol14-client-union/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 3.56s
+     Running tests/pack_leader_warm.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fight-native/target/debug/deps/pack_leader_warm-296968f1026f5eae)
+
+running 1 test
+test diagnostic_only_clone_tick116_two_event_trace ... dhat: Total:     96 bytes in 2 blocks
+dhat: At t-gmax: 64 bytes in 1 blocks
+dhat: At t-end:  64 bytes in 1 blocks
+dhat: The data has been saved to /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/pack-leader-root-proof-repair-2026-11-09/clone-tick116-dhat.json, and is viewable with dhat/dh_view.html
+exact single-step diagnostic tick=116 blocks=2 bytes=96
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.08s
+

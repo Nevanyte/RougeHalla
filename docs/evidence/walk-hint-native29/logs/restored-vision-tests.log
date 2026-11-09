@@ -1,0 +1,14 @@
+    Finished `test` profile [unoptimized] target(s) in 0.03s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 7 tests
+test vision::tests::the_first_wall_face_is_visible_but_corner_squeezes_and_floor_beyond_it_are_not ... ok
+test vision::tests::trail_uses_tile_centres_and_exclusive_expiry_not_an_actors_remembered_position ... ok
+test vision::tests::the_stagger_and_an_authoritative_early_query_obey_the_same_update_throttle ... ok
+test vision::tests::reconnect_refreshes_only_the_due_viewer_without_a_public_read ... ok
+test vision::tests::discarded_projection_cannot_reuse_a_different_private_trail ... ok
+test vision::tests::malformed_vision_history_is_refused_on_restore ... ok
+test vision::tests::bootstrap_discovery_grants_current_actors_props_and_attribution_until_expiry_but_never_hand_reach ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 818 filtered out; finished in 0.02s
+

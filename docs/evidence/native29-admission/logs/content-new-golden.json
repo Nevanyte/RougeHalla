@@ -1,0 +1,21 @@
+{
+  "head": "78be4f7e183df246387d2ab1058b96dd7982da25",
+  "command": [
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/cargo/bin/cargo",
+    "test",
+    "--locked",
+    "-p",
+    "rh-sim",
+    "--test",
+    "content",
+    "--",
+    "--nocapture"
+  ],
+  "extra_env": {},
+  "target": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fight-native/target",
+  "started_utc": "2026-11-09T16:50:00.959952+00:00",
+  "ended_utc": "2026-11-09T16:50:01.863796+00:00",
+  "exit_code": 0,
+  "log_sha256": "cee41f92c843ccac23974c029e68fce8d9a9c02c7eac9ef42fc288d83219b419",
+  "log": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/native29-final-admission-2026-11-09/content-new-golden.log"
+}

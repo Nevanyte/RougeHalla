@@ -1,0 +1,6 @@
+KILLED constant-false: holds at 3100
+KILLED exclude-victim: clock
+KILLED gap-equality-continues: clock
+KILLED row-loss-retains-clock: clock
+KILLED generic-reset-loses-clock: called `Option::unwrap()` on a `None` value
+PASS all five mutants rejected, exact original bytes restored

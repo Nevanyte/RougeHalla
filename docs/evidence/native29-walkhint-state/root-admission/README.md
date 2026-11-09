@@ -1,0 +1,9 @@
+# Root private state prerequisite admission
+
+Root reviews and privately composes source66b1ffb2651ff021fbe50e4eae83ea179d6a3c38 /seal41fcc29cf24bcb55ea1789d4beefb6fe74434ccf into04e82a8d812eb54c48bae293be012f010ea951f0, based on e096c4fb. All11 Git-bound manifest payloads independently match bytes/SHA256; exact3 production/test paths are state.rs, checkpoint.rs and the focused child tests. Manifest e5066d15b8ae232a047afdbc8e9480042d103fa31017f19b93285381ef57b6fb.
+
+Required Player-only walk_dir/walk_ticks bytes retain previous direction at zero ticks, join at0/0, clone/serialize/hash exactly and reject ticks above3/out-of-u8 values/missing fields. Root reads allfive test bodies and their retained actual focused/lint/layout receipts. They are explicitly declared serialization controls; no produced hint/source parity is inferred. Root does not rerun the unchanged scoped tests during this admission.
+
+No gameplay consumer, NPC/core field, observation/protocol/policy, schedule activation, Rule tuning, server/client, shared record or lockfile change follows. Native checkpoint29/replay23 remains a PRIVATE evolving candidate: final content, complete producer, exhaustive coverage and derived tapes are still pending. Public optimization_port remains28/22. Appending bytes increases measured local Player size by8B, retains all42 old measured offsets and unchanged FighterCore/Mob; repr(Rust) gives no portable offset/ABI promise.
+
+Complete walkHint.ts still requires the existing ordinary14-frame source witness plus the bounded helper branch witnesses, readonly movement/weapon/lock/ice queries, final system and teleported/runEnded hook implementation, noninterference, source/native parity and warm checks. Public P15 delivery remains separate. This admission supplies the canonical prerequisite and does not redefine completion around storage alone.

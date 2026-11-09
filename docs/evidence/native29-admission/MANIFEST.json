@@ -1,0 +1,119 @@
+{
+  "format": "rh-native29-root-admission/1",
+  "source": "60a11545e8756f75948a8258ef6b03ad28919bcf",
+  "identity": {
+    "protocol": 14,
+    "checkpoint": 29,
+    "replay": 23,
+    "observation": 21,
+    "policy": 15,
+    "content": "7c6a633f68c2cc72"
+  },
+  "files": [
+    {
+      "path": "docs/evidence/native29-admission/README.md",
+      "bytes": 4139,
+      "sha256": "0d6da76ab53d954396d9dc463881a1c656e12ed022f62fdb820311a4a4cf9126"
+    },
+    {
+      "path": "docs/evidence/native29-admission/logs/content-before-intentional-golden.json",
+      "bytes": 882,
+      "sha256": "e5aec1f1b200a588a63952d0c044418428fedf0330d07d1ed0ee12ae88db8df2"
+    },
+    {
+      "path": "docs/evidence/native29-admission/logs/content-before-intentional-golden.log",
+      "bytes": 2038,
+      "sha256": "471bb6e383c7b2580f4d59310befeb2d9fab774189d9d4b9f2616d0d8bbea735"
+    },
+    {
+      "path": "docs/evidence/native29-admission/logs/content-new-golden.json",
+      "bytes": 747,
+      "sha256": "cd822aed33e1fd6b3fe4ab60de753c9a20511cef9f7936c834b4f2df0103d9a8"
+    },
+    {
+      "path": "docs/evidence/native29-admission/logs/content-new-golden.log",
+      "bytes": 1643,
+      "sha256": "cee41f92c843ccac23974c029e68fce8d9a9c02c7eac9ef42fc288d83219b419"
+    },
+    {
+      "path": "docs/evidence/native29-admission/logs/native-tape-check-first.json",
+      "bytes": 708,
+      "sha256": "813d5ade31aef52e9307c2ffae673b186a794d3ce3df771697b5e336b70199ae"
+    },
+    {
+      "path": "docs/evidence/native29-admission/logs/native-tape-check-first.log",
+      "bytes": 431,
+      "sha256": "fb08f83c2d93817739526637f38e97a76d5a446065da55753bca87ae9e1ee96b"
+    },
+    {
+      "path": "docs/evidence/native29-admission/logs/native-tape-record-first.json",
+      "bytes": 930,
+      "sha256": "4828b3b810b0cc10d40f00cae173e78b5a1f62fdf4ef51ae9f28f3c8575d7ba5"
+    },
+    {
+      "path": "docs/evidence/native29-admission/logs/native-tape-record-first.log",
+      "bytes": 421,
+      "sha256": "55a5df0a3e9a7d687a2848f0dc660a3303b3121bcbb615d7344843a253c6998e"
+    },
+    {
+      "path": "docs/evidence/native29-admission/logs/predecessor-checkpoint28-hash-tape.json",
+      "bytes": 7002,
+      "sha256": "79f87e6ae604bc4f74bf72904b55a524c0f449cb87df5cbe0d626fe7bca5ad4f"
+    },
+    {
+      "path": "docs/evidence/native29-admission/logs/public-frost-digest-final.json",
+      "bytes": 602,
+      "sha256": "b2cdc37b49548cd8a7eed1c6b7ab3654ac38274c9c1e26550c1290c3665aee1a"
+    },
+    {
+      "path": "docs/evidence/native29-admission/logs/public-frost-digest-final.log",
+      "bytes": 766,
+      "sha256": "94d4c2005afe6c2527cb6a0ec5b862d117bc9799a7acc2989609c538d86fcad1"
+    },
+    {
+      "path": "docs/evidence/native29-admission/logs/public-tax-digest-final.json",
+      "bytes": 597,
+      "sha256": "d5a731daa4931b56b607acdee761910bb46abcd4fac76fd5d6d79e15812402a0"
+    },
+    {
+      "path": "docs/evidence/native29-admission/logs/public-tax-digest-final.log",
+      "bytes": 1080,
+      "sha256": "8b2cdfeb530527894f20890501584e88af9772ff8bd01921b2b5f5fcd3125364"
+    },
+    {
+      "path": "docs/evidence/native29-admission/logs/source63-full-first.json",
+      "bytes": 893,
+      "sha256": "4ef1bc04df1034cd79a90417218b7e6ebc77fd38f89bb0a67f4a82e2de4e61af"
+    },
+    {
+      "path": "docs/evidence/native29-admission/logs/source63-full-first.log",
+      "bytes": 887,
+      "sha256": "6d1d64ca6f97d068f67c882cc3047e59c990fce8629ebb4d3f34a03159e08a67"
+    },
+    {
+      "path": "docs/evidence/native29-admission/native29-brain-c920a40c-review.md",
+      "bytes": 4016,
+      "sha256": "c04a0e4df99dedfbb9c9dd8f56f6318484e89a856ec5cba8f8e9f27f3fdd3548"
+    },
+    {
+      "path": "docs/evidence/native29-admission/native29-preparation-independent-review.md",
+      "bytes": 8730,
+      "sha256": "e2f7ff779e8b89527d82bd06460579ecef91f51c03fea9005de5199f862f28eb"
+    },
+    {
+      "path": "docs/evidence/native29-admission/pack-leader-30a4ec84-independent-review.md",
+      "bytes": 7359,
+      "sha256": "077c0f9d0e2f44d5eeeb8b97400bccac61bb4499a673284c0452574f2b50fdee"
+    },
+    {
+      "path": "docs/evidence/native29-admission/pack-leader-root-proof-9e1962f5-handoff.md",
+      "bytes": 3997,
+      "sha256": "e700da1357f10ee2c0869c5261a2e89da0ae4eef5e8c4790b193bb8c2051aa9b"
+    },
+    {
+      "path": "docs/evidence/native29-admission/walk-hint3e5-independent-review.md",
+      "bytes": 9288,
+      "sha256": "70c7e64bb69fac8810d61b78935f341eca62073f2aa14d2e6ba43dee97dbb3ce"
+    }
+  ]
+}

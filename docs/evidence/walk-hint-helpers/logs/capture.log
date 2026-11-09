@@ -1,0 +1,2 @@
+{"mode":"capture","bytes":40317,"sha256":"a7b8feda1aca08fe20f5a46ee11f57959a2a186619caf73611a67cb086eaae06","cases":69,"errors":0,"bundleSha256":"2488d9de64b304dccb323418255ca194da5f5ce06b7571b41efa4b00145c5e54"}
+{"mode":"verify","cases":69,"errors":0,"families":["gates","positive","factors","weapon","weaponHoldsAt","lock","amove","ice","hysteresis","direction","waypoint","hook","mirrorTimings"]}

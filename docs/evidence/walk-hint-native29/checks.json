@@ -1,0 +1,189 @@
+{
+  "format": "rh-walk-hint-native29-review/1",
+  "status": "PRIVATE_REVIEW_CUT_NOT_FINAL_ADMISSION",
+  "code_head": "b0319d03a49f0dc8630cf62179a12b0a3bdacb3f",
+  "base": "2f1c4758e0db84515551f483c6df0d23879f4a99",
+  "source_merge": "2091d068",
+  "helper_seal": "70433a9834ccf082b5ca449dca0fd4319cd072ca",
+  "recovery_stash": "9ab9aa741163c2dc4ebc114b5adbc35e4da877e6",
+  "source_file_count": 42,
+  "oracles": [
+    {
+      "path": "parity/walk-hint/source.json",
+      "bytes": 44372,
+      "sha256": "8cb8b2c24fe0be184e660a4670b0981b946c35782d9e7a47ae1ba3eff567ab77"
+    },
+    {
+      "path": "parity/walk-hint/repair/source.json",
+      "bytes": 44520,
+      "sha256": "2c95328cc86136f55eda8f3fec641a9db081e77721d936ed614294f9aa4e0c4a"
+    },
+    {
+      "path": "parity/walk-hint/helpers/source.json",
+      "bytes": 40317,
+      "sha256": "a7b8feda1aca08fe20f5a46ee11f57959a2a186619caf73611a67cb086eaae06"
+    },
+    {
+      "path": "parity/policy/bot-fight/source.json",
+      "bytes": 467672,
+      "sha256": "197fe5d24b6b34822a3ef76e2999d422e6127bbda1e8dfda0ba0af3ee5e2785e"
+    },
+    {
+      "path": "parity/mark-tax-uncapped/source.json",
+      "bytes": 6276683,
+      "sha256": "dbfafa19ecbfadd98bf74078685ea436e70f25b8e1d6331043ac55067838afbc"
+    }
+  ],
+  "checks": [
+    {
+      "name": "producer10",
+      "command": "cargo test --locked -p rh-sim --lib systems::walk_hint -- --nocapture",
+      "exit_code": 0,
+      "scope": "final production code; later test-only cfg(trusted-status-probes) probe:None additions do not change this default-feature workload",
+      "log": {
+        "path": "docs/evidence/walk-hint-native29/logs/current-producer-tests.log",
+        "bytes": 1857,
+        "sha256": "bbdbd355189346b84ae9fc0e0384ce1f38f843f16c4e86a2b9e0c54089222688"
+      },
+      "test_count": 10
+    },
+    {
+      "name": "allocations2",
+      "command": "cargo test --locked -p rh-sim --lib original_clone_restore -- --ignored --test-threads=1 --nocapture",
+      "exit_code": 0,
+      "scope": "540 measured whole steps; unchanged original90-step windows",
+      "log": {
+        "path": "docs/evidence/walk-hint-native29/logs/current-allocations.log",
+        "bytes": 1213,
+        "sha256": "837f89b0fc5927f0d87a35b0c40d502eaa27471b6b77bcccb5fc115c45720774"
+      },
+      "test_count": 2
+    },
+    {
+      "name": "content-declarations1",
+      "command": "cargo test --locked -p rh-sim --test content every_const_in_the_source_tree_is_registered_or_explained -- --exact",
+      "exit_code": 0,
+      "scope": "exact3 Root observer-storage explanations only",
+      "log": {
+        "path": "docs/evidence/walk-hint-native29/logs/current-content-declarations.log",
+        "bytes": 547,
+        "sha256": "c5cd96948abd645db4dc5be344c6ce04312ca9d955eea08122a618efc3fef9f0"
+      },
+      "test_count": 1
+    },
+    {
+      "name": "schedule14",
+      "command": "cargo test --locked -p rh-parity --test schedule",
+      "exit_code": 0,
+      "scope": "guard preserved; cfgtest helper relocated inside existing module",
+      "log": {
+        "path": "docs/evidence/walk-hint-native29/logs/current-parity-schedule.log",
+        "bytes": 1463,
+        "sha256": "212772817d1853b23c4f3bc0568143aa5932892eeea27ae3be7a77781a71e757"
+      },
+      "test_count": 14
+    },
+    {
+      "name": "runtime2",
+      "command": "cargo test --locked -p rh-server --lib runtime::tests",
+      "exit_code": 0,
+      "scope": "explicit full endpoint flags and invalid configuration/map controls",
+      "log": {
+        "path": "docs/evidence/walk-hint-native29/logs/current-server-runtime.log",
+        "bytes": 1111,
+        "sha256": "c50722cafd7a2d7c451ea639345e253feb7dbe47f1e392e5b68eea2b57287b4e"
+      },
+      "test_count": 2
+    },
+    {
+      "name": "terrain-player-source1",
+      "command": "cargo test --locked -p rh-sim --lib --features trusted-status-probes systems::terrain::source_tests::terrain_player_passes_match_actual_source -- --exact",
+      "exit_code": 0,
+      "scope": "actual existing source player-pass corpus, after trusted Cx adapter repair",
+      "log": {
+        "path": "docs/evidence/walk-hint-native29/logs/current-terrain-player-source-restored.log",
+        "bytes": 567,
+        "sha256": "eba11de911435a12c77c5ec90edafe219660a6d3f3ecbb3b954356ba1fdb8145"
+      },
+      "test_count": 1
+    },
+    {
+      "name": "clippy",
+      "command": "cargo clippy --locked -p rh-sim -p rh-policy -p rh-parity -p rh-server -p rh-headless -p rh-load --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "scope": "final code",
+      "log": {
+        "path": "docs/evidence/walk-hint-native29/logs/current-clippy.log",
+        "bytes": 949,
+        "sha256": "34a55c04eb80dde23dad11641c8e1f9168945db83bfc3b90f4727f35ed6ec2f8"
+      }
+    },
+    {
+      "name": "fmt",
+      "command": "cargo fmt --all -- --check",
+      "exit_code": 0,
+      "scope": "final code",
+      "log": {
+        "path": "docs/evidence/walk-hint-native29/logs/current-fmt.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "source63-earlier",
+      "command": "RH_ABIL_REQUIRE_FULL=1 cargo test --locked -p rh-sim --lib --features trusted-status-probes abilities::source_tests::frozen_full_source_all_63_cases -- --exact --nocapture",
+      "exit_code": 0,
+      "scope": "63 cases plus companions; initial shared-helper/weapon/config/Clone revision, before later three timing caller delegations; not rerun or relabelled final-head proof",
+      "log": {
+        "path": "docs/evidence/walk-hint-native29/logs/source63.log",
+        "bytes": 869,
+        "sha256": "398fd96e214f7f416e68c62cd0ba6edadd784ce761951068a2404338ce3bd806"
+      },
+      "test_count": 1
+    },
+    {
+      "name": "source5-after-callers",
+      "command": "cargo test --locked -p rh-sim --lib abilities::source_tests::full_profile::exact_five_roster_signatures_production_comparator -- --nocapture",
+      "exit_code": 0,
+      "scope": "after timing caller delegations; before later readonly generic/helper-consumer seam",
+      "log": {
+        "path": "docs/evidence/walk-hint-native29/logs/restored-abilities-source_tests-full_profile-exact_five_roster_signatures_production_comparator.log",
+        "bytes": 439,
+        "sha256": "446b07610be23026f3b336c02e974162e5f1acc3ec2bef97753477323e1b798f"
+      },
+      "test_count": 1
+    },
+    {
+      "name": "marktax2-after-callers",
+      "command": "cargo test --locked -p rh-sim --lib systems::sentenced::mark_tax::source_tests::earned_training_two_cases_every_frame_phase_event_and_rng -- --nocapture",
+      "exit_code": 0,
+      "scope": "both source cases; after caller and test projection delegation",
+      "log": {
+        "path": "docs/evidence/walk-hint-native29/logs/restored-systems-sentenced-mark_tax-source_tests-earned_training_two_cases_every_frame_phase_event_and_rng.log",
+        "bytes": 451,
+        "sha256": "e721386405e323569f5015d02130d5170ec9fd3eaf3c8e7362053fd6e659f291"
+      },
+      "test_count": 1
+    },
+    {
+      "name": "player-timings90",
+      "command": "cargo test --locked -p rh-policy --lib bots::kite::own_timings -- --nocapture",
+      "exit_code": 0,
+      "scope": "shared helper unchanged thereafter;90 rows+6None+Fists",
+      "log": {
+        "path": "docs/evidence/walk-hint-native29/logs/shared-own-timings.log",
+        "bytes": 1387,
+        "sha256": "4d36fc8c2ad7d660b1606066d692654339f72cbf67d1876e6a116051b5fd1851"
+      },
+      "test_count": 3
+    }
+  ],
+  "native_mutants_stage": "Earlier stack before generic/helper seam;5 assertion kills, all restored; not relabelled final-head mutations",
+  "cache": "RELEASED; no owned live Cargo/rustc/test processes; no further builds",
+  "held": [
+    "Independent native review",
+    "Source boundary addendum",
+    "Root formats/content probes/golden/hash coverage/derived native tapes",
+    "Public hint transport/publication/full-port acceptance"
+  ]
+}

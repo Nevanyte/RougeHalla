@@ -1,0 +1,20 @@
+{
+  "format": "rh-private-native29-component-admission/1",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 1500,
+      "sha256": "991319633a1b4db5276e21ae7cd68687d0aa41badc7deb74f8008ef6ce45aaa1"
+    },
+    {
+      "path": "slow-starter-fdf4227b-independent-review.md",
+      "bytes": 7974,
+      "sha256": "e6a6af4f02ca683c94e014088a2b979837dad3e3b0c2dbf70138254cd9f2d7f9"
+    },
+    {
+      "path": "slow-starter-native-e618fe2d-independent-review.md",
+      "bytes": 8095,
+      "sha256": "0028f0d3e542f508527fe48fc81a9ac9981b0d9643cd1f911f1509fa4ad088ee"
+    }
+  ]
+}

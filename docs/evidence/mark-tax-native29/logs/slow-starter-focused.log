@@ -1,0 +1,14 @@
+    Finished `test` profile [unoptimized] target(s) in 0.03s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_sim-0ad75f2b040c28b6)
+
+running 7 tests
+test cards::fight_clock::tests::slow_starter_warm_alloc ... ignored, dhat must run alone: cargo test -p rh-sim --lib slow_starter_warm_alloc -- --ignored --test-threads=1
+test cards::fight_clock::tests::fractional_history_next_add_accepts_producer_and_refuses_nearer_reversed_dense_future ... ok
+test cards::fight_clock::tests::restore_refuses_invalid_clocks_empty_owners_and_missing_fields ... ok
+test cards::fight_clock::tests::fight_only_off_and_full_restore ... ok
+test cards::fight_clock::tests::generic_card_reset_preserves_fight_and_row_loss_preserves_wish ... ok
+test cards::fight_clock::tests::produced_fractional_clocks_and_histories_restore_without_poststate_repair ... ok
+test cards::fight_clock::tests::seven_actual_source_clock_witnesses ... ok
+
+test result: ok. 6 passed; 0 failed; 1 ignored; 0 measured; 816 filtered out; finished in 1.34s
+

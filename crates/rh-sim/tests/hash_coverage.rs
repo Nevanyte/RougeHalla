@@ -1,5 +1,6 @@
 //! State identity by construction (docs/CONTRACTS.md C-DET): the state hash is derived from the serialized state, so every
-//! serialized leaf must change it. This test proves that on real matches instead of trusting a field list: it serializes a
+//! serialized leaf must change it. This audits real matches and explicitly labelled coupled serialization seeds rather than
+//! trusting a field list (the seeds are not gameplay-producer evidence): it serializes a
 //! checkpoint, perturbs every leaf one at a time (numbers one ulp or one unit, bools flipped, strings changed, sequences
 //! shortened, optional values removed or filled), restores the perturbed checkpoint and demands a different `state_hash`.
 //! The allowlist of unhashed leaves is EMPTY, with one deliberate exclusion that is asserted rather than skipped: only the
@@ -631,6 +632,196 @@ fn wish_states() -> Vec<(&'static str, Sim)> {
     out
 }
 
+/// Admitted Training worlds produce their hints through ordinary validated movement.
+/// None inherits Training's enabled preset; explicit false and true remain distinct config tags.
+fn produced_walk_hint_states() -> Vec<(&'static str, Sim)> {
+    [None, Some(false), Some(true)]
+        .into_iter()
+        .map(|mode| {
+            let mut sim = Sim::reset_active(
+                SimConfig {
+                    training: true,
+                    quests: false,
+                    walk_hints: mode,
+                    ..Default::default()
+                },
+                practice_arena(),
+                Secrets::from_seed(71),
+                &[Placement {
+                    profile: "hash-hint".into(),
+                    faction: FactionId::Holy,
+                    bot: false,
+                    at: Vec2::new(400., 320.),
+                    hp: None,
+                    weapon0: None,
+                    weapon1: None,
+                }],
+            );
+            sim.submit(
+                PlayerId(1),
+                cmd(RawCommand::Move {
+                    x: 600.,
+                    y: 320.,
+                    seq: Some(1),
+                }),
+            )
+            .unwrap();
+            sim.step();
+            let cp = serde_json::to_value(&sim).unwrap();
+            assert_eq!(
+                cp["statics"]["config"]["walk_hints"],
+                serde_json::json!(mode)
+            );
+            let ticks = cp["world"]["players"][0]["walk_ticks"].as_u64().unwrap();
+            if mode == Some(false) {
+                assert_eq!(ticks, 0);
+            } else {
+                assert!(
+                    (1..=3).contains(&ticks),
+                    "ordinary movement produces a positive hint"
+                );
+            }
+            (
+                match mode {
+                    None => "produced hint with inherited Training preset",
+                    Some(false) => "disabled hint with explicit config",
+                    Some(true) => "produced hint with explicit config",
+                },
+                sim,
+            )
+        })
+        .collect()
+}
+
+/// Declared serialization controls, NOT earned cards, Mark application, or produced hints.
+/// The source-component tests remain the producer oracle. These coupled seeds let the
+/// generic serde audit reach private fields without a new gameplay/testing input door.
+fn declared_native29_states(wish_seed: &Sim) -> Vec<(&'static str, Sim)> {
+    fn fight_seed(sim: &Sim) -> Sim {
+        let mut chosen = sim.clone();
+        // The supplied Wish checkpoint may still be casting. Let that real cast
+        // finish before Choose; its public action door correctly refuses Busy.
+        let initial = serde_json::to_value(&chosen).unwrap();
+        if let Some(lands_at) =
+            initial["world"]["players"][0]["core"]["statuses"]["cast"]["lands_at"].as_f64()
+        {
+            let steps = ((lands_at - chosen.server_time()).max(0.) / rh_sim::constants::TICK_MS)
+                .ceil() as usize
+                + 1;
+            for _ in 0..steps {
+                if serde_json::to_value(&chosen).unwrap()["world"]["players"][0]["core"]["statuses"]
+                    ["cast"]
+                    .is_null()
+                {
+                    break;
+                }
+                chosen.step();
+            }
+        }
+        let mut cp = serde_json::to_value(&chosen).unwrap();
+        assert!(cp["world"]["players"][0]["core"]["statuses"]["cast"].is_null());
+        let retained_wish = cp["world"]["players"][0]["card_runtime"]["wish_cast"].clone();
+        let card = rh_sim::cards::CardId::SlowStarter;
+        assert_eq!(
+            cp["world"]["players"][0]["build"]["counts"][card.index()],
+            0
+        );
+        let chest_id = u32::try_from(cp["world"]["entity_counter"].as_u64().unwrap())
+            .unwrap()
+            .checked_add(1)
+            .unwrap();
+        let owner = chosen.player(PlayerId(1)).unwrap();
+        // Declared already-available chest, as in card_choices(); not an earned
+        // reward or a widened Training whitelist. The real grant owns ALL folds,
+        // including SlowStarter's unconditional -30% damage before its while row.
+        let chest = serde_json::json!({
+            "id": chest_id, "at": {"x": owner.body.x, "y": owner.body.y},
+            "expires_at": chosen.server_time() + rh_sim::reward_chests::DEFINITION.lifetime_ms,
+            "held_until_tick": 0, "options": [{"Card": card.as_str()}, null, null],
+            "taken": [null, null, null], "pickers": [], "camp": null, "owner": null
+        });
+        cp["world"]["reward_chests"]
+            .as_array_mut()
+            .unwrap()
+            .push(chest);
+        cp["world"]["entity_counter"] = chest_id.into();
+        chosen = Sim::restore(cp).expect("declared available chest with unchanged valid sheet");
+        chosen
+            .submit(
+                PlayerId(1),
+                cmd(RawCommand::Choose {
+                    chest_id: Some(chest_id),
+                    pick: 0,
+                }),
+            )
+            .unwrap();
+        let events = chosen.step();
+        assert!(
+            events.iter().any(|event| matches!(event,
+            rh_sim::Event::ChestTaken { chest, by: PlayerId(1), pick: 0 }
+                if *chest == chest_id)),
+            "real Choose must grant the declared card"
+        );
+        let mut cp = serde_json::to_value(&chosen).unwrap();
+        let now = chosen.server_time();
+        assert!(now >= rh_sim::constants::TICK_MS);
+        let p = &mut cp["world"]["players"][0];
+        assert_eq!(p["build"]["counts"][card.index()], 1);
+        assert_eq!(p["card_runtime"]["wish_cast"], retained_wish);
+        // Only the historical fight tuple is a serialization seed. Keep it below
+        // the real three-second condition; do not edit a cached sum or wire mirror.
+        p["card_runtime"] = serde_json::json!({
+            "wish_cast": retained_wish,
+            "fight": {"start": now - rh_sim::constants::TICK_MS, "last": now}
+        });
+        Sim::restore(cp).expect("declared watched fight clock after genuine grant/refold")
+    }
+
+    fn tax_seed(public: bool) -> Sim {
+        let mut cp = serde_json::to_value(crowded_8()).unwrap();
+        cp["statics"]["config"]["faction_mode"] =
+            serde_json::json!("EngagementHolyPlagueFireFrostSentenced");
+        // Historical player ids are valid marker identities without inventing a
+        // current-faction or live-nearby requirement. The last binding is not public,
+        // so shortening this ordered index remains independently restore-valid.
+        cp["world"]["factions"]["taxed"] = serde_json::json!([
+            {"victim": 2, "by": 5}, {"victim": 4, "by": 6}, {"victim": 6, "by": 7}
+        ]);
+        if public {
+            cp["world"]["factions"]["public_tax"] = serde_json::json!([
+                {"victim": 2, "percent": 48}, {"victim": 4, "percent": 23}
+            ]);
+            for i in [1usize, 3] {
+                let bits = &mut cp["world"]["players"][i]["core"]["signature"]["bits"];
+                *bits = (bits.as_u64().unwrap() | u64::from(rh_sim::constants::SIG_TAXED)).into();
+            }
+        }
+        Sim::restore(cp)
+            .expect("declared historical tax index/public percentages and matching bits")
+    }
+
+    let mut cp = serde_json::to_value(crowded_8()).unwrap();
+    cp["world"]["players"][0]["walk_dir"] = 255.into();
+    cp["world"]["players"][0]["walk_ticks"] = 3.into();
+    let walk = Sim::restore(cp.clone()).expect("declared private Player hint shape");
+    cp["world"]["players"][0]["walk_ticks"] = 0.into();
+    let retained_dir = Sim::restore(cp).expect("zero ticks retains all direction bytes");
+    vec![
+        (
+            "DECLARED fight-only serialization",
+            fight_seed(&crowded_8()),
+        ),
+        (
+            "DECLARED fight-plus-Wish serialization",
+            fight_seed(wish_seed),
+        ),
+        ("DECLARED tax index serialization", tax_seed(false)),
+        ("DECLARED public tax serialization", tax_seed(true)),
+        ("DECLARED Player hint serialization", walk),
+        ("DECLARED retained hint dir serialization", retained_dir),
+    ]
+}
+
 fn scenarios() -> Vec<(&'static str, Sim)> {
     let (mob_engaged, mob_cleared) = mob_audit_states();
     let (source_planning, source_active, source_locked) = source_lifecycle_states();
@@ -641,6 +832,15 @@ fn scenarios() -> Vec<(&'static str, Sim)> {
     let mut fuse = short_fuse();
     drive(&mut fuse, 400);
     let mut states = wish_states();
+    let declared = declared_native29_states(
+        &states
+            .iter()
+            .find(|(label, _)| *label == "Freeze pending")
+            .unwrap()
+            .1,
+    );
+    states.extend(declared);
+    states.extend(produced_walk_hint_states());
     states.extend([
         ("source planning", source_planning),
         ("source active timer", source_active),
@@ -830,6 +1030,14 @@ fn candidates(leaf: &Value, strings: &[String]) -> Vec<Value> {
 
 /// Patterns whose perturbation the restore may refuse, and why. Any other refusal fails the test.
 const VALIDATED: &[(&str, &str)] = &[
+    ("world.players.*.core.modifiers.holds", "changing a used while-row hold bit alone changes the exact re-folded sums and invalidates their cached mirrors; inert bits remain restore-valid and must change the hash"),
+    // Exact coupled restore constraints, not unhashed-field exceptions. The tax-only
+    // seed separately permits independent taxed.victim edits; accepted edits here
+    // still always have to change the hash. Public victim identity/order is also
+    // checked by a valid whole-row permutation below.
+    ("world.factions.taxed.*.victim", "a public percentage must retain a binding for its exact victim; changing that indexed victim alone can orphan the public row"),
+    ("world.factions.public_tax.*.victim", "public victim identity is coupled to the exact per-actor SIG_TAXED bits and a retained tax binding"),
+    ("world.factions.public_tax.#len", "removing a positive public row alone leaves that victim's SIG_TAXED bit without its required public percentage"),
     ("world.pending_events.*.CastEnded.event_time", "a required producer timestamp must be finite and between zero and the checkpoint server clock"),
     ("world.pending_events.*.CastEnded.reason", "CastEndReason is a closed enum: Fizzle, Interrupted or Cancelled"),
     (
@@ -871,12 +1079,12 @@ const VALIDATED: &[(&str, &str)] = &[
     ("world.players.*.core.statuses.instances.*.data.floor_hp", "LastStand DeathFloor payload requires the exact minimum health"),
     ("world.players.*.core.statuses.instances.*.data.heal_share", "LastStand DeathFloor payload requires the exact stored healing share"),
     ("world.players.*.core.statuses.cast.producer", "Full requires complete producer details; Off forbids them and only admits trusted bare cast facts"),
-    ("world.players.*.card_runtime", "Full canonical spend memory is coupled to produced stock clocks/cast; Off forbids card memory"),
+    ("world.players.*.card_runtime", "Wish spend requires Full and produced stocks; fight memory requires a watched row, and a lazy runtime cannot be empty"),
     ("world.players.*.card_streak", "the card-state streak exists only after the after-damage system records weapon hits; a fresh or no-hit state is legitimately None"),
     ("world.players.*.card_trims", "Wishful Thinking trims exist only after a Wish cast and landed hits inside the source window; a fresh state is legitimately empty"),
     ("world.players.*.card_hots", "heal-over-time runs exist only after a trigger heal starts one; a fresh state is legitimately empty"),
     ("world.players.*.card_fired", "the once-trigger fired set exists only after a trigger fires; a fresh state is legitimately empty"),
-    ("world.players.*.card_runtime.wish_cast", "the admitted lazy card runtime is created only by a successful Wish spend and cannot be empty"),
+    ("world.players.*.card_runtime.wish_cast", "Wish spend requires Full and matching stocks; removing the sole spend from a runtime without a fight clock would leave it empty"),
 
     ("world.abilities.fields.*.ability", "Full field ability is coupled to its Cloud/Trail/Zone kind and typed definition"),
     ("world.abilities.fields.*.ends_at", "Full field end equals started_at plus its exact ability duration"),
@@ -1079,6 +1287,7 @@ const VALIDATED: &[(&str, &str)] = &[
     ("world.mob_runtime.life.*.contributors.*", "contributors are unique retained player identities, never future ids or mobs"),
     ("world.mob_runtime.life.*.ward_expires_at", "ward expiry is zero without owner, otherwise cleared_at plus CAMP_WARD_MS"),
     ("world.mobs.#len", "camp alive count and typed current birth cycle must agree with actual mob store"),
+    ("world.mobs.*.brain", "actor class requires a brain exactly for non-zombie Regional/Practice NPCs; removing it there or adding one to a Training dummy is refused, while every nested brain leaf is still audited"),
     ("world.mobs.*.brain.mode", "target requires Fight mode; a dead mob must be Idle"),
     ("world.mobs.*.brain.threat.*.#len", "threat rows are exact (retained player id, finite nonnegative amount) pairs with unique ids"),
     ("world.mobs.*.brain.threat.*.*", "threat rows are exact (retained player id, finite nonnegative amount) pairs with unique ids"),
@@ -1418,6 +1627,21 @@ fn perturb_all(sim: &Sim, pool: &BTreeMap<String, Vec<Value>>, tally: &mut Tally
         }
         let secret = p.starts_with("statics.secrets");
         let tries: Vec<Value> = match item.kind {
+            Kind::Leaf
+                if matches!(
+                    pat.as_str(),
+                    "world.players.*.card_runtime.fight.start"
+                        | "world.players.*.card_runtime.fight.last"
+                ) =>
+            {
+                // Source clocks live on the fixed-step grid: one ULP would be a
+                // restore refusal rather than a useful accepted hash perturbation.
+                let at = leaf.as_f64().unwrap();
+                vec![
+                    serde_json::json!(at + rh_sim::constants::TICK_MS),
+                    serde_json::json!(at - rh_sim::constants::TICK_MS),
+                ]
+            }
             Kind::Leaf if p.ends_with(".core.modifiers.wire.0") => {
                 vec![serde_json::json!(800.0), serde_json::json!(900.0)]
             }
@@ -1461,7 +1685,11 @@ fn perturb_all(sim: &Sim, pool: &BTreeMap<String, Vec<Value>>, tally: &mut Tally
             let mut b = base.clone();
             let mut at = path.clone();
             at.pop();
-            *at_mut(&mut b, &[&at[..], &["kills".to_string()]].concat()) = 3.into();
+            let kills = at_mut(&mut b, &[&at[..], &["kills".to_string()]].concat());
+            // A solo Training world has only one retained player. Keep the probe
+            // inside that roster bound and never lower already-recorded credit.
+            let room_for_probe = sim.players().len().min(3) as u64;
+            *kills = kills.as_u64().unwrap().max(room_for_probe).into();
             let h = Sim::restore(&b)
                 .expect("kills within the roster restore")
                 .state_hash();
@@ -1576,6 +1804,32 @@ fn every_serialized_leaf_of_a_match_changes_the_state_hash() {
             "actual Wish producer must populate {path}"
         );
     }
+    for path in [
+        "world.players.*.core.modifiers.holds",
+        "statics.config.walk_hints",
+        "world.players.*.card_runtime.fight.start",
+        "world.players.*.card_runtime.fight.last",
+        "world.factions.taxed.*.victim",
+        "world.factions.taxed.*.by",
+        "world.factions.public_tax.*.victim",
+        "world.factions.public_tax.*.percent",
+        "world.players.*.walk_dir",
+        "world.players.*.walk_ticks",
+    ] {
+        assert!(
+            pool.get(path)
+                .is_some_and(|values| values.iter().any(|v| !v.is_null())),
+            "declared native29 serialization seed must populate {path}"
+        );
+    }
+    for path in ["world.players.*.walk_dir", "world.players.*.walk_ticks"] {
+        assert!(
+            pool[path]
+                .iter()
+                .any(|value| value.as_u64().is_some_and(|v| v > 0)),
+            "nonzero declared Player hint must remain present: {path}"
+        );
+    }
     let mut all = Tally::default();
     for (name, sim) in &sims {
         let mut t = Tally::default();
@@ -1640,6 +1894,22 @@ fn every_serialized_leaf_of_a_match_changes_the_state_hash() {
     // or have an exact documented restore refusal (including role-forbidden Some values).
     // Accepted edits are always checked, even for patterns listed in VALIDATED.
     let perturbed: BTreeSet<&String> = all.perturbed.iter().collect();
+    for path in [
+        "world.players.*.core.modifiers.holds",
+        "statics.config.walk_hints",
+        "world.players.*.card_runtime.fight.start",
+        "world.players.*.card_runtime.fight.last",
+        "world.factions.taxed.*.victim",
+        "world.factions.taxed.*.by",
+        "world.factions.public_tax.*.percent",
+        "world.players.*.walk_dir",
+        "world.players.*.walk_ticks",
+    ] {
+        assert!(
+            perturbed.iter().any(|actual| actual.as_str() == path),
+            "native29 leaf needs an accepted hash-changing edit: {path}"
+        );
+    }
     let validated_optional: BTreeSet<&String> = all.validated_optional.iter().collect();
     let never: BTreeSet<&String> = all
         .null_left
@@ -2007,5 +2277,211 @@ fn derived_blink_ring_clone_and_restore_preserve_actual_locked_casts() {
     assert!(
         crossing,
         "the clone/restore control must exercise an actual closed coliseum boundary"
+    );
+}
+
+#[test]
+fn native29_declared_seeds_roundtrip_and_ordered_tax_vectors_change_hash() {
+    let wish = wish_states();
+    let declared = declared_native29_states(
+        &wish
+            .iter()
+            .find(|(label, _)| *label == "Freeze pending")
+            .unwrap()
+            .1,
+    );
+    for (label, sim) in &declared {
+        let cp = serde_json::to_value(sim).unwrap();
+        assert_eq!(
+            Sim::restore(&cp).unwrap().state_hash(),
+            sim.state_hash(),
+            "{label}"
+        );
+        assert_eq!(sim.clone().state_hash(), sim.state_hash(), "{label}");
+        if label.contains("fight") {
+            let p = &cp["world"]["players"][0];
+            assert_eq!(
+                p["build"]["counts"][rh_sim::cards::CardId::SlowStarter.index()],
+                1
+            );
+            assert!(p["card_runtime"]["fight"]["start"].is_number());
+            assert!(p["card_runtime"]["fight"]["last"].is_number());
+            assert_eq!(
+                p["card_runtime"]["wish_cast"].is_object(),
+                label.contains("plus-Wish")
+            );
+        }
+        if label.contains("tax") {
+            assert_eq!(
+                cp["world"]["factions"]["taxed"].as_array().unwrap().len(),
+                3
+            );
+            assert_eq!(
+                cp["world"]["factions"]["public_tax"]
+                    .as_array()
+                    .unwrap()
+                    .len(),
+                if label.contains("public") { 2 } else { 0 }
+            );
+        }
+    }
+    let (_, sim) = declared
+        .iter()
+        .find(|(label, _)| *label == "DECLARED public tax serialization")
+        .unwrap();
+    for field in ["taxed", "public_tax"] {
+        let mut cp = serde_json::to_value(sim).unwrap();
+        cp["world"]["factions"][field]
+            .as_array_mut()
+            .unwrap()
+            .swap(0, 1);
+        let swapped = Sim::restore(cp).expect("historical tax vectors preserve valid source order");
+        assert_ne!(
+            sim.state_hash(),
+            swapped.state_hash(),
+            "ordered {field} is canonical"
+        );
+    }
+    // Produced hints and all three optional config tags have their separate ordinary-input control.
+}
+
+/// Cached while bits are coupled inputs, not unhashed leaves. This uses the
+/// declared chest/real grant seed; it is not evidence of earned fight history.
+#[test]
+fn native29_used_hold_bit_requires_its_fold_but_inert_bit_is_hashed() {
+    let wish = wish_states();
+    let states = declared_native29_states(
+        &wish
+            .iter()
+            .find(|(label, _)| *label == "Freeze pending")
+            .unwrap()
+            .1,
+    );
+    let (_, sim) = states
+        .iter()
+        .find(|(label, _)| *label == "DECLARED fight-only serialization")
+        .unwrap();
+    let cp = serde_json::to_value(sim).unwrap();
+    let p = &cp["world"]["players"][0];
+    assert_eq!(
+        p["build"]["counts"][rh_sim::cards::CardId::SlowStarter.index()],
+        1
+    );
+    assert_eq!(p["core"]["modifiers"]["holds"], 0);
+    assert!(p["card_runtime"]["fight"].is_object());
+    // SlowStarter is the only card: its sole while row receives bit zero.
+    // Activating its +0.65 row without changing the real grant's cached fold
+    // must fail validation, not be silently omitted from identity coverage.
+    let mut active = cp.clone();
+    active["world"]["players"][0]["core"]["modifiers"]["holds"] = 1.into();
+    let err = Sim::restore(active).expect_err("used while bit requires matching cached fold");
+    assert!(err.to_string().contains("invalid armor mirror"), "{err}");
+    // Bit one is beyond this build's sole while row. It buys no stat, so the
+    // validator admits it; serialized inert bits must still affect identity.
+    let mut inert = cp;
+    inert["world"]["players"][0]["core"]["modifiers"]["holds"] = 2.into();
+    let restored = Sim::restore(inert).expect("inert hold bit is a valid state");
+    assert_ne!(sim.state_hash(), restored.state_hash());
+    assert_eq!(
+        serde_json::to_value(restored).unwrap()["world"]["players"][0]["core"]["modifiers"]
+            ["holds"],
+        2
+    );
+}
+
+/// Real source-backed PvE birth/Target/wake states already populate the brain.
+/// Its optional shape is actor-class coupled, not a missing or unhashed subtree.
+#[test]
+fn native29_real_pve_brain_roundtrips_and_role_presence_is_validated() {
+    let (engaged, cleared) = mob_audit_states();
+    for sim in [&engaged, &cleared] {
+        let cp = serde_json::to_value(sim).unwrap();
+        assert_eq!(Sim::restore(&cp).unwrap().state_hash(), sim.state_hash());
+        assert_eq!(sim.clone().state_hash(), sim.state_hash());
+        assert!(cp["world"]["mobs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|m| m["brain"].is_object()));
+    }
+    let cp = serde_json::to_value(&engaged).unwrap();
+    let mobs = cp["world"]["mobs"].as_array().unwrap();
+    let i = mobs
+        .iter()
+        .position(|m| m["brain"]["target"].is_number())
+        .expect("real NPC wake selects target");
+    assert!(
+        mobs.iter()
+            .any(|m| m["core"]["weapon"]["action"].is_object()),
+        "real pending NPC attack"
+    );
+    assert!(
+        mobs.iter().any(|m| m["brain"]["goal"].is_object()),
+        "real NPC movement goal"
+    );
+    assert!(
+        mobs.iter()
+            .any(|m| !m["brain"]["threat"].as_array().unwrap().is_empty()),
+        "real threat history"
+    );
+    let mut missing = cp.clone();
+    missing["world"]["mobs"][i]["brain"] = Value::Null;
+    let err = Sim::restore(missing).expect_err("regional NPC requires brain");
+    assert!(
+        err.to_string().contains("actor brain capability mismatch"),
+        "{err}"
+    );
+    // Counterfactual accepted scalar edit: it is not a produced NPC decision.
+    let mut changed = cp.clone();
+    let moving = changed["world"]["mobs"][i]["brain"]["moving"]
+        .as_bool()
+        .unwrap();
+    changed["world"]["mobs"][i]["brain"]["moving"] = (!moving).into();
+    let changed = Sim::restore(changed).expect("independent brain scalar is restore-valid");
+    assert_ne!(engaged.state_hash(), changed.state_hash());
+    let training = produced_walk_hint_states();
+    let mut dummy = serde_json::to_value(&training[0].1).unwrap();
+    let dummy_i = dummy["world"]["mobs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|m| m["brain"].is_null())
+        .expect("actual Training dummy has no regional brain");
+    dummy["world"]["mobs"][dummy_i]["brain"] = mobs[i]["brain"].clone();
+    let err = Sim::restore(dummy).expect_err("dummy cannot acquire regional brain");
+    assert!(
+        err.to_string().contains("actor brain capability mismatch"),
+        "{err}"
+    );
+}
+
+#[test]
+fn native29_produced_hints_and_all_three_config_tags_roundtrip() {
+    let states = produced_walk_hint_states();
+    for (_, sim) in &states {
+        let cp = serde_json::to_value(sim).unwrap();
+        assert_eq!(Sim::restore(&cp).unwrap().state_hash(), sim.state_hash());
+        assert_eq!(sim.clone().state_hash(), sim.state_hash());
+    }
+    // Hold every World byte fixed while changing only the optional static config.
+    // Hints may be retained in a disabled checkpoint; no new gate/phase invariant is invented.
+    let base = serde_json::to_value(&states[2].1).unwrap();
+    let mut hashes = BTreeSet::new();
+    for mode in [None, Some(false), Some(true)] {
+        let mut cp = base.clone();
+        cp["statics"]["config"]["walk_hints"] = serde_json::json!(mode);
+        let sim = Sim::restore(cp).unwrap();
+        let restored = serde_json::to_value(&sim).unwrap();
+        assert_eq!(restored["world"], base["world"]);
+        assert_eq!(
+            restored["statics"]["config"]["walk_hints"],
+            serde_json::json!(mode)
+        );
+        hashes.insert(sim.state_hash());
+    }
+    assert_eq!(
+        hashes.len(),
+        3,
+        "None, explicit false and explicit true are separate identities"
     );
 }

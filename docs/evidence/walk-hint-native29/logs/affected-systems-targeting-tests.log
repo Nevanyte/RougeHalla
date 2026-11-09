@@ -1,0 +1,13 @@
+    Finished `test` profile [unoptimized] target(s) in 0.03s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 6 tests
+test systems::targeting::tests::a_visible_wand_target_across_a_sealed_low_barrier_cannot_be_chased ... ok
+test systems::targeting::tests::public_actor_admission_requires_a_delivered_view_and_current_sight ... ok
+test systems::targeting::tests::failed_delivery_and_unchanged_items_do_not_publish_new_actor_ids ... ok
+test systems::targeting::tests::visible_refusals_still_take_the_due_pre_movement_sample ... ok
+test systems::targeting::tests::an_autonomous_scan_cannot_renew_vision_from_a_concealed_bush_occupant ... ok
+test systems::targeting::tests::probing_a_hidden_or_absent_id_cannot_shift_an_odd_phase_movers_discovery ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 816 filtered out; finished in 0.07s
+

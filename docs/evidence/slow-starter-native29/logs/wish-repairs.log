@@ -1,0 +1,24 @@
+    Finished `test` profile [unoptimized] target(s) in 0.03s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 5 tests
+test abilities::source_tests::repair_tests::real_refunded_wish_survives_a_later_source_teleport ... ok
+
+thread 'abilities::source_tests::repair_tests::captured_blaze_path_history_and_weapon_fields_are_assertions' (67355546) panicked at crates/rh-sim/src/abilities/source_tests/compare.rs:6:13:
+/path/0/x/path/0/x: 1000 != 1001
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'abilities::source_tests::repair_tests::captured_blaze_path_history_and_weapon_fields_are_assertions' (67355546) panicked at crates/rh-sim/src/abilities/source_tests/compare.rs:6:13:
+/history/1/x/history/1/x: 608.5 != 609.5
+
+thread 'abilities::source_tests::repair_tests::captured_blaze_path_history_and_weapon_fields_are_assertions' (67355546) panicked at crates/rh-sim/src/abilities/source_tests/compare.rs:6:13:
+/weapon/aimAt/weapon/aimAt: 0 != 1
+
+thread 'abilities::source_tests::repair_tests::captured_blaze_path_history_and_weapon_fields_are_assertions' (67355546) panicked at crates/rh-sim/src/abilities/source_tests/compare.rs:6:13:
+/weapon/rootUntil/weapon/rootUntil: 0 != 1
+test abilities::source_tests::repair_tests::overlapping_real_blaze_charges_restore_player_and_born_npc ... ok
+test abilities::source_tests::repair_tests::captured_blaze_path_history_and_weapon_fields_are_assertions ... ok
+test abilities::source_tests::repair_tests::real_freeze_keeps_stunned_aim_clock_for_press_cursor_and_release ... ok
+test abilities::source_tests::repair_tests::completed_stocks_require_real_spend_or_refund_provenance ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 789 filtered out; finished in 1.39s

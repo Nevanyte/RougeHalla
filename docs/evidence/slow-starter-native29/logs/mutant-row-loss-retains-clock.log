@@ -1,0 +1,35 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/crates/rh-sim)
+warning: function `clear` is never used
+  --> crates/rh-sim/src/cards/fight_clock.rs:17:15
+   |
+17 | pub(crate) fn clear(p: &mut Player) {
+   |               ^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `rh-sim` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized] target(s) in 32.91s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 1 test
+test cards::fight_clock::tests::seven_actual_source_clock_witnesses ... source "ordinary-restart-gap-2950"
+source "ordinary-restart-gap-3000"
+source "ordinary-restart-gap-3050"
+source "mutual-player-landed-duplicate-touches"
+source "solo-training-npc-helper-grant-real-clear-reacquire"
+
+thread 'cards::fight_clock::tests::seven_actual_source_clock_witnesses' (67364089) panicked at crates/rh-sim/src/cards/fight_clock_tests.rs:269:5:
+assertion `left == right` failed: clock "action-5" at 4550
+  left: [("p0", FightClock { start: 600.0, last: 4050.0 })]
+ right: []
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    cards::fight_clock::tests::seven_actual_source_clock_witnesses
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 793 filtered out; finished in 0.72s
+
+error: test failed, to rerun pass `-p rh-sim --lib`

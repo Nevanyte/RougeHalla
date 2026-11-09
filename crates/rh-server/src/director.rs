@@ -2079,6 +2079,7 @@ mod tests {
 
     fn director_with(store: MemoryStore) -> Arc<Director> {
         let sim = SimConfig {
+            walk_hints: None,
             regen: false,
             training: false,
             dummies: false,

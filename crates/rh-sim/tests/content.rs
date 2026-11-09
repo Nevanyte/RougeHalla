@@ -28,6 +28,9 @@ const NUMBER_FREE_TYPES: &[(&str, bool, &str)] = &[
 /// Each entry must match a declaration the scan finds and not be covered by NUMBER_FREE_TYPES. Adding to this list is a
 /// review decision: a number that can change an outcome belongs in the registry instead.
 const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
+    ("systems/sentenced/mark_tax/source_tests.rs", "PHASES", "cfg(test)-only observational phase and RNG transcript storage; never read by production gameplay or content decisions"),
+    ("systems/sentenced/mark_tax/source_tests.rs", "PUBLIC_MARKS", "cfg(test)-only captured public Mark projection bookkeeping; never read by production gameplay or content decisions"),
+    ("systems/sentenced/mark_tax/source_tests.rs", "SEEN_SIGNATURE", "cfg(test)-only captured lazy signature presence bookkeeping; never read by production gameplay or content decisions"),
     ("systems/frost/source_tests.rs", "FROST_ALLOC", "inherited Full-base repair: cfg(test)-only dhat allocator/profiling infrastructure; no simulation or content effect"),
     ("owner_combat.rs", "SOURCE_U32_MODULUS", "source schema uint32 representation modulus for the owner-only projection; never read by simulation/gameplay"),
     ("abilities/source_tests/mod.rs", "PENDING_SOURCE_CASES", "test-only names/profiles/reasons for five explicitly unattempted source cases; no gameplay reads this inventory"),
@@ -516,7 +519,7 @@ fn hash_golden() {
         content_hash()
     );
 }
-const GOLDEN_CONTENT_HASH: u64 = 0x643d_2948_69db_55a4;
+const GOLDEN_CONTENT_HASH: u64 = 0x7c6a_633f_68c2_cc72;
 
 #[test]
 fn every_registry_row_perturbs_the_hash() {

@@ -1,0 +1,24 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/walk-hint-native/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 9.61s
+     Running tests/content.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/content-507fd2a384d05cbb)
+
+running 1 test
+
+thread 'every_const_in_the_source_tree_is_registered_or_explained' (67686817) panicked at crates/rh-sim/tests/content.rs:960:5:
+consts that are neither in the content! registry nor number-free nor in NON_GAMEPLAY (or registered names declared a second time): [
+    "systems/sentenced/mark_tax/source_tests.rs: PHASES (RefCell<Option<Vec<(Value,crate::rng::Mulberry32)>>>)",
+    "systems/sentenced/mark_tax/source_tests.rs: PUBLIC_MARKS (RefCell<std::collections::BTreeMap<PlayerId,(u8,String)>>)",
+    "systems/sentenced/mark_tax/source_tests.rs: SEEN_SIGNATURE (RefCell<std::collections::BTreeSet<PlayerId>>)",
+]
+a gameplay number is one line in crates/rh-sim/src/constants.rs content!; anything else needs a reason in NON_GAMEPLAY
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test every_const_in_the_source_tree_is_registered_or_explained ... FAILED
+
+failures:
+
+failures:
+    every_const_in_the_source_tree_is_registered_or_explained
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 20 filtered out; finished in 0.06s
+
+error: test failed, to rerun pass `-p rh-sim --test content`

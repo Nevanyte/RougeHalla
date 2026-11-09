@@ -1,0 +1,17 @@
+{
+  "format": "rh-root-mark-tax-admission/1",
+  "component": "2cc1b038741245b8ddda284a5b85fcfd5b7ce781",
+  "composition": "5a2e6553377ed59e61f166b633dbcda6a303d5c1",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 2904,
+      "sha256": "6a669672315e9dcf275fd90e4582ceed52cca90abbfad0b4134271c3a486ccf6"
+    },
+    {
+      "path": "independent-review.md",
+      "bytes": 10180,
+      "sha256": "f403fa28dbd506a64d10c2614524c436068d3f79b94888cb19aa0fd6c30ecdca"
+    }
+  ]
+}

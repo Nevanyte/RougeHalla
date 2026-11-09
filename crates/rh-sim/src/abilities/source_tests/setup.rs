@@ -123,6 +123,8 @@ pub(super) fn construct_with_stages(
         .collect();
     let training = input["profile"] == "training" || input["config"]["training"] == true;
     let config = SimConfig {
+        // Every immutable ability-source installer list omits walkHint, including Training.
+        walk_hints: Some(false),
         quests: false,
         consumables: false,
         // The ability source capture installs weapons and abilities only: no consumables module, so no wind timer.

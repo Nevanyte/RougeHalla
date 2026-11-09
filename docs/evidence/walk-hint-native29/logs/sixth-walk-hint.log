@@ -1,0 +1,14 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/walk-hint-native/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 32.61s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 6 tests
+test systems::walk_hint::tests::active_hint_original_clone_restore_warm_steps_allocate_zero ... ignored, global dhat allocator; run this exact test alone with --ignored --test-threads=1
+test systems::walk_hint::tests::actual_source_fourteen_world_frames ... ok
+test systems::walk_hint::tests::every_existing_gate_preset_has_exact_hint_variants ... ok
+test systems::walk_hint::tests::installed_hint_switch_is_gameplay_rng_event_and_vision_readonly ... ok
+test systems::walk_hint::tests::actual_produced_hint_clone_restore_keeps_bytes_and_input_continuation ... ok
+test systems::walk_hint::tests::actual_teleport_and_run_end_append_hooks_clear_positive_hints_keep_direction ... ok
+
+test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 816 filtered out; finished in 0.02s
+

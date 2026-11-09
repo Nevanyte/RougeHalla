@@ -1,0 +1,550 @@
+{
+  "format": "rh-slow-starter-sealed-assessment/1",
+  "scope": "Read-only extraction of retained source evidence; no new source execution or native parity claim.",
+  "baseRevision": "db5ed80b2b89a156eae09cd0bd3f4c9e77e9e6de",
+  "source": {
+    "path": "parity/card-runtime/source.json",
+    "bytes": 53035071,
+    "sha256": "f67417ff219039296852886e61aa9661ac535d2f5ce0126fa3f76f6a3a740337"
+  },
+  "verifiedInputs": {
+    "sourceInputs": 132,
+    "harnessInputs": 11
+  },
+  "caseIndex": 30,
+  "caseName": "while-hp-and-fight-cache-transition",
+  "input": {
+    "name": "while-hp-and-fight-cache-transition",
+    "map": "room",
+    "profile": "core",
+    "mainSeed": 12,
+    "rewardSalt": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "config": {
+      "pvpRules": false
+    },
+    "players": [
+      {
+        "faction": "holy",
+        "at": {
+          "x": 300,
+          "y": 320
+        },
+        "weapon": "sword",
+        "cards": [
+          "lastRites",
+          "slowStarter"
+        ]
+      },
+      {
+        "faction": "holy",
+        "at": {
+          "x": 332,
+          "y": 320
+        },
+        "cards": [
+          "vitality3",
+          "vitality3",
+          "vitality3",
+          "vitality3",
+          "vitality3"
+        ]
+      },
+      {
+        "faction": "fire",
+        "at": {
+          "x": 1100,
+          "y": 600
+        }
+      }
+    ],
+    "actions": [
+      {
+        "kind": "step",
+        "inputs": [
+          {
+            "actor": "p0",
+            "type": "attack",
+            "payload": {
+              "a": 0
+            }
+          }
+        ]
+      },
+      {
+        "kind": "span",
+        "count": 80,
+        "snapshots": []
+      },
+      {
+        "kind": "step",
+        "inputs": [
+          {
+            "actor": "p0",
+            "type": "release",
+            "payload": {
+              "a": 0
+            }
+          }
+        ]
+      },
+      {
+        "kind": "span",
+        "count": 110,
+        "snapshots": []
+      },
+      {
+        "kind": "place",
+        "actor": "p0",
+        "hpFrac": 0.29
+      },
+      {
+        "kind": "step",
+        "inputs": []
+      },
+      {
+        "kind": "place",
+        "actor": "p0",
+        "hpFrac": 0.3
+      },
+      {
+        "kind": "step",
+        "inputs": []
+      }
+    ]
+  },
+  "ordinarySteps": 195,
+  "canonicalHashAlgorithm": "Python json.dumps(sort_keys=True,separators=(',',':')), UTF-8, SHA256",
+  "caseCanonicalSha256": "0803b0d91a0ae27fc26a777001eab33901659132b6e955ff7d9c4a0c18d4cca1",
+  "randomTapeCanonicalSha256": "959be5c253a59ded1de66cf5cd54362bf7e0245ae9156f5b2c24516390c50a1d",
+  "randomTapeDraws": 137,
+  "selectedFrames": [
+    {
+      "label": "declared-player-bootstrap",
+      "time": 50,
+      "tick": 1,
+      "phase": "active",
+      "watch": [
+        "p0"
+      ],
+      "clock": null,
+      "holds": 0,
+      "damageSum": -0.3,
+      "landed": [],
+      "rng": {
+        "main": 5,
+        "reward": 44,
+        "quest": 0,
+        "total": 49
+      }
+    },
+    {
+      "label": "action-0",
+      "time": 100,
+      "tick": 2,
+      "phase": "active",
+      "watch": [
+        "p0"
+      ],
+      "clock": {
+        "start": 100,
+        "last": 100
+      },
+      "holds": 0,
+      "damageSum": -0.3,
+      "landed": [
+        {
+          "victim": "p1",
+          "by": "p0",
+          "amount": 25.29657695322707,
+          "weapon": "sword",
+          "sig": {
+            "$undefined": true
+          }
+        }
+      ],
+      "rng": {
+        "main": 5,
+        "reward": 44,
+        "quest": 0,
+        "total": 49
+      }
+    },
+    {
+      "label": "action-1-step-10",
+      "time": 600,
+      "tick": 12,
+      "phase": "active",
+      "watch": [
+        "p0"
+      ],
+      "clock": {
+        "start": 100,
+        "last": 600
+      },
+      "holds": 0,
+      "damageSum": -0.3,
+      "landed": [
+        {
+          "victim": "p1",
+          "by": "p0",
+          "amount": 25.29657695322707,
+          "weapon": "sword",
+          "sig": {
+            "$undefined": true
+          }
+        }
+      ],
+      "rng": {
+        "main": 5,
+        "reward": 44,
+        "quest": 0,
+        "total": 49
+      }
+    },
+    {
+      "label": "action-1-step-20",
+      "time": 1100,
+      "tick": 22,
+      "phase": "active",
+      "watch": [
+        "p0"
+      ],
+      "clock": {
+        "start": 100,
+        "last": 1100
+      },
+      "holds": 0,
+      "damageSum": -0.3,
+      "landed": [
+        {
+          "victim": "p1",
+          "by": "p0",
+          "amount": 25.29657695322707,
+          "weapon": "sword",
+          "sig": {
+            "$undefined": true
+          }
+        }
+      ],
+      "rng": {
+        "main": 5,
+        "reward": 44,
+        "quest": 0,
+        "total": 49
+      }
+    },
+    {
+      "label": "action-1-step-30",
+      "time": 1600,
+      "tick": 32,
+      "phase": "active",
+      "watch": [
+        "p0"
+      ],
+      "clock": {
+        "start": 100,
+        "last": 1600
+      },
+      "holds": 0,
+      "damageSum": -0.3,
+      "landed": [
+        {
+          "victim": "p1",
+          "by": "p0",
+          "amount": 25.29657695322707,
+          "weapon": "sword",
+          "sig": {
+            "$undefined": true
+          }
+        }
+      ],
+      "rng": {
+        "main": 5,
+        "reward": 44,
+        "quest": 0,
+        "total": 49
+      }
+    },
+    {
+      "label": "action-1-step-40",
+      "time": 2100,
+      "tick": 42,
+      "phase": "active",
+      "watch": [
+        "p0"
+      ],
+      "clock": {
+        "start": 100,
+        "last": 2100
+      },
+      "holds": 0,
+      "damageSum": -0.3,
+      "landed": [
+        {
+          "victim": "p1",
+          "by": "p0",
+          "amount": 25.29657695322707,
+          "weapon": "sword",
+          "sig": {
+            "$undefined": true
+          }
+        }
+      ],
+      "rng": {
+        "main": 5,
+        "reward": 44,
+        "quest": 0,
+        "total": 49
+      }
+    },
+    {
+      "label": "action-1-step-49",
+      "time": 2550,
+      "tick": 51,
+      "phase": "active",
+      "watch": [
+        "p0"
+      ],
+      "clock": {
+        "start": 100,
+        "last": 2550
+      },
+      "holds": 0,
+      "damageSum": -0.3,
+      "landed": [
+        {
+          "victim": "p1",
+          "by": "p0",
+          "amount": 25.29657695322707,
+          "weapon": "sword",
+          "sig": {
+            "$undefined": true
+          }
+        }
+      ],
+      "rng": {
+        "main": 5,
+        "reward": 44,
+        "quest": 0,
+        "total": 49
+      }
+    },
+    {
+      "label": "action-1-step-59",
+      "time": 3050,
+      "tick": 61,
+      "phase": "active",
+      "watch": [
+        "p0"
+      ],
+      "clock": {
+        "start": 100,
+        "last": 3050
+      },
+      "holds": 0,
+      "damageSum": -0.3,
+      "landed": [
+        {
+          "victim": "p1",
+          "by": "p0",
+          "amount": 25.29657695322707,
+          "weapon": "sword",
+          "sig": {
+            "$undefined": true
+          }
+        }
+      ],
+      "rng": {
+        "main": 5,
+        "reward": 44,
+        "quest": 0,
+        "total": 49
+      }
+    },
+    {
+      "label": "action-1-step-60",
+      "time": 3100,
+      "tick": 62,
+      "phase": "active",
+      "watch": [
+        "p0"
+      ],
+      "clock": {
+        "start": 100,
+        "last": 3050
+      },
+      "holds": 1,
+      "damageSum": 0.35000000000000003,
+      "landed": [],
+      "rng": {
+        "main": 5,
+        "reward": 44,
+        "quest": 0,
+        "total": 49
+      }
+    },
+    {
+      "label": "action-1-step-69",
+      "time": 3550,
+      "tick": 71,
+      "phase": "active",
+      "watch": [
+        "p0"
+      ],
+      "clock": {
+        "start": 100,
+        "last": 3550
+      },
+      "holds": 1,
+      "damageSum": 0.35000000000000003,
+      "landed": [
+        {
+          "victim": "p1",
+          "by": "p0",
+          "amount": 48.786255552652214,
+          "weapon": "sword",
+          "sig": {
+            "$undefined": true
+          }
+        }
+      ],
+      "rng": {
+        "main": 5,
+        "reward": 44,
+        "quest": 0,
+        "total": 49
+      }
+    },
+    {
+      "label": "action-1-step-79",
+      "time": 4050,
+      "tick": 81,
+      "phase": "active",
+      "watch": [
+        "p0"
+      ],
+      "clock": {
+        "start": 100,
+        "last": 4050
+      },
+      "holds": 1,
+      "damageSum": 0.35000000000000003,
+      "landed": [
+        {
+          "victim": "p1",
+          "by": "p0",
+          "amount": 48.786255552652214,
+          "weapon": "sword",
+          "sig": {
+            "$undefined": true
+          }
+        }
+      ],
+      "rng": {
+        "main": 5,
+        "reward": 44,
+        "quest": 0,
+        "total": 49
+      }
+    },
+    {
+      "label": "action-3-step-58",
+      "time": 7050,
+      "tick": 141,
+      "phase": "active",
+      "watch": [
+        "p0"
+      ],
+      "clock": {
+        "start": 100,
+        "last": 4050
+      },
+      "holds": 0,
+      "damageSum": -0.3,
+      "landed": [],
+      "rng": {
+        "main": 5,
+        "reward": 44,
+        "quest": 0,
+        "total": 49
+      }
+    },
+    {
+      "label": "action-5",
+      "time": 9700,
+      "tick": 194,
+      "phase": "active",
+      "watch": [
+        "p0"
+      ],
+      "clock": {
+        "start": 100,
+        "last": 4050
+      },
+      "holds": 2,
+      "damageSum": -0.3,
+      "landed": [],
+      "rng": {
+        "main": 5,
+        "reward": 132,
+        "quest": 0,
+        "total": 137
+      }
+    },
+    {
+      "label": "action-7",
+      "time": 9750,
+      "tick": 195,
+      "phase": "active",
+      "watch": [
+        "p0"
+      ],
+      "clock": {
+        "start": 100,
+        "last": 4050
+      },
+      "holds": 0,
+      "damageSum": -0.3,
+      "landed": [],
+      "rng": {
+        "main": 5,
+        "reward": 132,
+        "quest": 0,
+        "total": 137
+      }
+    },
+    {
+      "label": "final",
+      "time": 9750,
+      "tick": 195,
+      "phase": "active",
+      "watch": [
+        "p0"
+      ],
+      "clock": {
+        "start": 100,
+        "last": 4050
+      },
+      "holds": 0,
+      "damageSum": -0.3,
+      "landed": [],
+      "rng": {
+        "main": 5,
+        "reward": 132,
+        "quest": 0,
+        "total": 137
+      }
+    }
+  ],
+  "unwitnessed": [
+    "A real hit at gap <3000, =3000 and >3000ms after prior last hit",
+    "Watched victim-side touches and unwatched pre-acquisition hits",
+    "Legal card removal/reacquisition/clear and clock ownership",
+    "Lethal-hit/death/revive, real teleport, and same-world run-start lifecycle"
+  ]
+}

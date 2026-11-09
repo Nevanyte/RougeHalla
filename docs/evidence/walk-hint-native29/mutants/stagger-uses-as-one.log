@@ -1,0 +1,21 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/walk-hint-native/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 31.30s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 1 test
+
+thread 'systems::walk_hint::tests::actual_sword_stagger_pause_uses_captured_current_mirrors' (67727301) panicked at crates/rh-sim/src/systems/walk_hint/caller_tests.rs:151:5:
+assertion `left == right` failed: actual staggerPause caller uses source AS/windup, not AS1 or base player timings
+  left: 578.4688995215312
+ right: 339.2344497607656
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test systems::walk_hint::tests::actual_sword_stagger_pause_uses_captured_current_mirrors ... FAILED
+
+failures:
+
+failures:
+    systems::walk_hint::tests::actual_sword_stagger_pause_uses_captured_current_mirrors
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 824 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p rh-sim --lib`

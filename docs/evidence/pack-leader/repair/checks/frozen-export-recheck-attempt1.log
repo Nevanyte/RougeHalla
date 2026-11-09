@@ -1,0 +1,11 @@
+CONTAINER-NODE v22.23.4 x86_64
+NPM-CI-OK
+pack-leader capture wrote /tmp/pack-leader-check/source.json
+CHECK-OK: fresh capture reproduces the canonical corpus bytes exactly
+cut: '"': No such file or directory
+FRESH-SHA256 
+cut: '"': No such file or directory
+CANONICAL-SHA256 
+cut: '"': No such file or directory
+EXPORT-CAPTURE-MTS-SHA256 
++JSON.stringify(d.tool));console.log(FRESH-SOURCE-MODS: 17: Syntax error: Unterminated quoted string

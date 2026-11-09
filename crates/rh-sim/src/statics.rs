@@ -237,6 +237,9 @@ pub struct SimConfig {
     /// spawn when the run starts. A training world always has it; on its own it stays an arena run.
     #[serde(default)]
     pub dummies: bool,
+    /// Explicit source installer override. None preserves the existing foundation/Training preset.
+    #[serde(default)]
+    pub walk_hints: Option<bool>,
 }
 
 fn default_wish_lock() -> f64 {
@@ -271,6 +274,7 @@ impl Default for SimConfig {
             quests: false,
             training: false,
             dummies: false,
+            walk_hints: None,
         }
     }
 }

@@ -1,0 +1,752 @@
+//! Pack Leader native29: replay the released genuine one-clear source tape through the ordinary native path.
+//! The projection compares only the claimed facts (count/camp clear/deaths/order/later nonneutral player hit); the
+//! declared card/bulk-stat bootstrap is setup only and no HP/death/clear/outgoing/cache/event is installed.
+use crate::mob_runtime::MobMode;
+use crate::statics::FactionMode;
+use crate::{
+    cards::CardId, validate, Arena, FactionId, Placement, PlayerId, RawCommand, Secrets, Sim,
+    SimConfig, Vec2, WeaponId,
+};
+use serde_json::Value;
+
+const SOURCE: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../parity/pack-leader/repair/source.json"
+));
+const BORN: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../tools/card-runtime-fixtures/born-input.json"
+));
+
+fn source() -> Value {
+    serde_json::from_str(SOURCE).expect("released repaired source corpus")
+}
+
+fn arena() -> Arena {
+    let mut map: Value = serde_json::from_str(BORN).expect("born map fixture");
+    // Exact source `makeMap` born/holy transform (setup only).
+    let other = map["regions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|r| r["id"] == "holy")
+        .expect("holy region");
+    {
+        let regions = map["regions"].as_array_mut().unwrap();
+        let fire_id = regions[0]["id"].clone();
+        regions[0]["id"] = Value::String("holy".into());
+        regions[other]["id"] = fire_id;
+        if let Some(camps) = regions[0]["mobCamps"].as_array_mut() {
+            for camp in camps {
+                camp["id"] = Value::String("holy-1".into());
+                camp["region"] = Value::String("holy".into());
+                camp["weapon"] = Value::String("wand".into());
+            }
+        }
+        let tmp = regions[0].clone();
+        regions[0] = regions[other].clone();
+        regions[other] = tmp;
+        let spawns: Vec<Value> = regions
+            .iter()
+            .flat_map(|r| r["spawns"].as_array().cloned().unwrap_or_default())
+            .collect();
+        map["spawns"] = Value::Array(spawns);
+    }
+    for p in map["spawnPool"].as_array_mut().unwrap() {
+        let zone = p["zone"].as_str().unwrap_or("fire");
+        p["zone"] = Value::String(
+            if zone == "fire" {
+                "holy"
+            } else if zone == "holy" {
+                "fire"
+            } else {
+                zone
+            }
+            .into(),
+        );
+    }
+    let mapped: Vec<Value> = map["regionGrid"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| {
+            let n = v.as_u64().unwrap();
+            Value::from(if n == 1 {
+                other as u64 + 1
+            } else if n == other as u64 + 1 {
+                1
+            } else {
+                n
+            })
+        })
+        .collect();
+    map["regionGrid"] = Value::Array(mapped);
+    map["camps"][0]["zone"] = Value::String("holy".into());
+    map["camps"][0]["id"] = Value::String("holy-1".into());
+    let data: crate::mapdata::GameMapData = serde_json::from_value(map).expect("born map data");
+    let hash = u32::from_str_radix(&crate::mapgen::map_hash::map_hash(&data), 16).unwrap();
+    let v = crate::mapdata::MapExport {
+        format: "rh-map/2".into(),
+        legacy_map_hash_u32: hash,
+        map: data,
+    }
+    .validate()
+    .expect("born map validates");
+    let (w, h, t, l) = v.into_parts();
+    let spawns = l
+        .data()
+        .spawns
+        .iter()
+        .map(|p| Vec2::new(p.x, p.y))
+        .collect();
+    Arena {
+        map: crate::TileMap::new(w, h, t)
+            .unwrap()
+            .with_layers(std::sync::Arc::new(l))
+            .unwrap(),
+        spawns,
+    }
+}
+
+fn card(name: &str) -> CardId {
+    match name {
+        "packLeader" => CardId::PackLeader,
+        "bigGameHunter" => CardId::BigGameHunter,
+        "thickSkull" => CardId::ThickSkull,
+        "secondWind" => CardId::SecondWind,
+        "siphon" => CardId::Siphon,
+        "ap3" => CardId::Ap3,
+        "vitality3" => CardId::Vitality3,
+        "armor3" => CardId::Armor3,
+        "mr3" => CardId::Mr3,
+        other => panic!("declared bootstrap card {other}"),
+    }
+}
+
+fn build() -> (Sim, Vec<PlayerId>) {
+    let doc = source();
+    let input = &doc["input"];
+    let players = input["players"].as_array().unwrap();
+    let placements: Vec<Placement> = players
+        .iter()
+        .map(|p| Placement {
+            profile: p["faction"].as_str().unwrap().to_uppercase(),
+            faction: FactionId::parse(p["faction"].as_str().unwrap()).unwrap(),
+            bot: false,
+            at: Vec2::new(
+                p["at"]["x"].as_f64().unwrap(),
+                p["at"]["y"].as_f64().unwrap(),
+            ),
+            hp: None,
+            weapon0: p["weapon"].as_str().and_then(WeaponId::parse),
+            weapon1: None,
+        })
+        .collect();
+    let config = SimConfig {
+        abilities: crate::abilities::Mode::Full,
+        initial_loot: true,
+        consumables: true,
+        pvp_rules: true,
+        weapon_specials: true,
+        faction_mode: FactionMode::EngagementHolyPlagueFireFrostSentencedFireRoam,
+        mob_mode: MobMode::Pve,
+        quests: true,
+        min_players: players.len(),
+        fill_seconds: 0.,
+        ..Default::default()
+    };
+    let seed = input["mainSeed"].as_u64().unwrap() as u32;
+    let mut main = crate::rng::Mulberry32::new(seed);
+    let secrets = Secrets {
+        order_salt: main.next_u32(),
+        spawn_seed: seed,
+        reward_salt: [1, 2, 3, 4],
+    };
+    // Real admitted constructor/join boundaries, independently from the trusted
+    // placement convenience used for the source capture's declared coordinates.
+    let mut lobby = Sim::new(config.clone(), arena(), secrets);
+    assert_source_rng_boundary(&lobby, &doc, 0);
+    for p in &placements {
+        lobby
+            .add_player(&p.profile, Some(p.faction), p.bot)
+            .unwrap();
+        assert_source_rng_boundary(&lobby, &doc, 0);
+    }
+    let mut sim = Sim::reset_active(config, arena(), secrets, &placements);
+    for (p, slot) in players.iter().zip(0u32..) {
+        if let Some(cards) = p["cards"].as_array() {
+            for name in cards {
+                assert!(crate::cards::grant(
+                    &sim.k,
+                    &mut sim.w,
+                    PlayerId(slot + 1),
+                    card(name.as_str().unwrap())
+                ));
+            }
+        }
+    }
+    let mobs: Vec<PlayerId> = sim.mobs().iter().map(|m| m.core.id).collect();
+    assert_eq!(mobs.len(), 3, "source camp roster");
+    (sim, mobs)
+}
+
+fn submit(sim: &mut Sim, raw: RawCommand) {
+    sim.submit(PlayerId(1), validate(raw).unwrap()).unwrap();
+}
+
+type LandedRecord = (u64, f64, String, f64, String);
+
+fn compare_landed(
+    source: &[LandedRecord],
+    native: &[LandedRecord],
+    fatal_hp: &[(u64, String, f64)],
+) -> Result<(), String> {
+    if source.len() != native.len() {
+        return Err("landed count".into());
+    }
+    for (want, got) in source.iter().zip(native) {
+        if (want.0, want.1, &want.2, &want.4) != (got.0, got.1, &got.2, &got.4) {
+            return Err("landed metadata/order".into());
+        }
+    }
+    let mut i = 0;
+    while i < source.len() {
+        let mut j = i + 1;
+        while j < source.len() && source[j].0 == source[i].0 && source[j].2 == source[i].2 {
+            j += 1;
+        }
+        let sum: f64 = source[i..j].iter().map(|h| h.3).sum();
+        let share = if let Some((_, _, hp)) = fatal_hp
+            .iter()
+            .find(|(t, v, _)| *t == source[i].0 && *v == source[i].2)
+        {
+            if !hp.is_finite() || *hp <= 0. || sum < *hp {
+                return Err("fatal HP bound".into());
+            }
+            *hp / sum
+        } else {
+            1.0
+        };
+        for (want, got) in source[i..j].iter().zip(&native[i..j]) {
+            if (share == 1.0 && got.3 != want.3)
+                || (share != 1.0 && (got.3 - want.3 * share).abs() >= 1e-9)
+            {
+                return Err("landed amount/independent HP floor".into());
+            }
+        }
+        i = j;
+    }
+    Ok(())
+}
+
+#[test]
+fn landed_projection_rejects_metadata_and_nonfatal_proportional_underdamage() {
+    let source = vec![(1, 50., "mob1".into(), 10., "wand".into())];
+    assert!(compare_landed(&source, &source, &[]).is_ok());
+    for field in 0..4 {
+        let mut wrong = source.clone();
+        match field {
+            0 => wrong[0].0 += 1,
+            1 => wrong[0].1 += 1.,
+            2 => wrong[0].2 = "mob2".into(),
+            _ => wrong[0].4 = "sword".into(),
+        }
+        assert!(compare_landed(&source, &wrong, &[(1, "mob1".into(), 10.)]).is_err());
+    }
+    let mut reduced = source.clone();
+    reduced[0].3 = 5.;
+    assert!(compare_landed(&source, &reduced, &[]).is_err());
+    assert!(compare_landed(&source, &reduced, &[(1, "mob1".into(), 5.)]).is_ok());
+    assert!(compare_landed(&source, &reduced, &[(1, "mob1".into(), 6.)]).is_err());
+}
+
+fn assert_source_camps(sim: &Sim, snapshot: &Value) {
+    let camps = snapshot["private"]["camps"].as_array().unwrap();
+    assert_eq!(sim.camp_rosters().len(), camps.len());
+    for (got, want) in sim.camp_rosters().iter().zip(camps) {
+        assert_eq!(
+            (got.state, got.alive, got.cleared_at),
+            (
+                want["state"].as_u64().unwrap() as u8,
+                want["alive"].as_u64().unwrap() as u32,
+                want["clearedAt"].as_f64().unwrap()
+            )
+        );
+    }
+}
+
+fn assert_source_rng_boundary(sim: &Sim, doc: &Value, tick: u64) {
+    // All forty source draws are checked against fresh algorithms, with no live
+    // state installed. Boundaries compare actual serialized private state.
+    let mut main = crate::rng::Mulberry32::new(doc["input"]["mainSeed"].as_u64().unwrap() as u32);
+    let mut reward = crate::private_rng::Sfc32::from_words([1, 2, 3, 4]);
+    let mut main_count = 0;
+    let mut reward_count = 0;
+    for draw in doc["result"]["randomTape"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|d| d["tick"].as_u64().unwrap() <= tick)
+    {
+        let got = match draw["stream"].as_str().unwrap() {
+            "main" => {
+                main_count += 1;
+                main.next_f64()
+            }
+            "reward" => {
+                reward_count += 1;
+                reward.next_f64()
+            }
+            other => panic!("unexpected captured stream {other}"),
+        };
+        assert_eq!(
+            got.to_bits(),
+            draw["value"].as_f64().unwrap().to_bits(),
+            "captured draw {:?}",
+            draw
+        );
+    }
+    assert_eq!(
+        serde_json::to_value(&sim.w.spawn_rng).unwrap(),
+        serde_json::to_value(main).unwrap(),
+        "actual main state at source tick {tick}, {main_count} draws"
+    );
+    assert_eq!(
+        serde_json::to_value(&sim.w.reward_rng).unwrap(),
+        serde_json::to_value(reward).unwrap(),
+        "actual reward state at source tick {tick}, {reward_count} draws"
+    );
+    if [0, 1, 146, 181, 341, 384].contains(&tick) {
+        println!("actual serialized RNG boundary tick={tick} main_offset={main_count} reward_offset={reward_count} main={} reward={}", serde_json::to_value(&sim.w.spawn_rng).unwrap(), serde_json::to_value(&sim.w.reward_rng).unwrap());
+    }
+    if tick == 384 {
+        assert_eq!((main_count, reward_count), (4, 36));
+    }
+}
+
+struct Facts {
+    step: u64,
+    fatal_hp: Vec<(u64, PlayerId, f64)>,
+    clears: Vec<(u64, f64, u32)>,
+    landed: Vec<(u64, f64, String, f64, String)>,
+    pre_counts: Vec<(u64, u16)>,
+    deaths: Vec<(u64, PlayerId)>,
+    clear: Option<(u64, f64)>,
+    later: Option<(u64, f64, f64)>,
+}
+
+fn advance(sim: &mut Sim, f: &mut Facts, doc: &Value) {
+    // Independently observe actual HP before the pass; never infer clipping
+    // from a favorable source/native damage ratio.
+    let before: Vec<_> = sim
+        .mobs()
+        .iter()
+        .filter(|m| m.status == crate::state::Status::Alive)
+        .map(|m| (m.core.id, m.core.vitals.hp))
+        .collect();
+    f.pre_counts
+        .push((f.step + 1, sim.players()[0].camps_cleared));
+    let events = sim.step();
+    f.step += 1;
+    assert_source_rng_boundary(sim, doc, f.step);
+    for (id, hp) in before {
+        if sim
+            .mobs()
+            .iter()
+            .any(|m| m.core.id == id && m.status == crate::state::Status::Dead)
+        {
+            assert_eq!(sim.w.mobs.get(id).unwrap().core.vitals.hp, 0.0);
+            assert!(
+                sim.s
+                    .landed
+                    .iter()
+                    .filter(|h| h.victim == id && h.amount > 0.)
+                    .all(|h| h.by == Some(PlayerId(1))),
+                "this finite clipping context has one damage owner"
+            );
+            f.fatal_hp.push((f.step, id, hp));
+        }
+    }
+    for e in events {
+        if let crate::events::Event::CampCleared { camp } = e {
+            f.clears.push((f.step, sim.server_time(), camp));
+            if f.clear.is_none() {
+                assert_eq!(camp, 0, "the source's single camp");
+                f.clear = Some((f.step, sim.server_time()));
+            }
+        }
+    }
+    for m in sim.mobs() {
+        if m.status == crate::state::Status::Dead
+            && !f.deaths.iter().any(|(_, id)| *id == m.core.id)
+        {
+            f.deaths.push((f.step, m.core.id));
+        }
+    }
+    for h in sim.s.landed.iter() {
+        if h.by == Some(PlayerId(1)) && h.amount > 0. {
+            f.landed.push((
+                f.step,
+                sim.server_time(),
+                h.victim.0.to_string(),
+                h.amount,
+                h.weapon
+                    .map(|w| format!("{w:?}").to_lowercase())
+                    .unwrap_or_default(),
+            ));
+        }
+        if h.by == Some(PlayerId(1))
+            && h.victim == PlayerId(2)
+            && h.amount > 0.
+            && f.later.is_none()
+        {
+            f.later = Some((f.step, sim.server_time(), h.amount));
+        }
+    }
+}
+
+#[test]
+fn the_genuine_source_tape_produces_the_native_camp_count_and_later_player_damage() {
+    let doc = source();
+    let witness = &doc["witness"];
+    let expected_clear = witness["clearTick"].as_u64().unwrap();
+    let expected_clear_time = witness["clearTime"].as_f64().unwrap();
+    let later = &witness["laterHit"];
+    let expected_hit_tick = later["tick"].as_u64().unwrap();
+    let expected_hit_time = later["time"].as_f64().unwrap();
+    let expected_amount = later["amount"].as_f64().unwrap();
+    let camp_mobs: Vec<String> = witness["campMobs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|m| m.as_str().unwrap().into())
+        .collect();
+    // The source's own real death ticks (fighterOut hooks of the camp members), from the immutable tape.
+    let mut expected_deaths: Vec<u64> = Vec::new();
+    for h in doc["result"]["completeOrdinaryHookTape"]
+        .as_array()
+        .unwrap()
+    {
+        for k in h["hooks"].as_array().unwrap() {
+            if k["hook"] == "fighterOut"
+                && k["kind"] == "arguments"
+                && k["args"][0]
+                    .as_str()
+                    .is_some_and(|a| camp_mobs.iter().any(|m| m == a))
+            {
+                let tick = h["tick"].as_u64().unwrap();
+                if !expected_deaths.contains(&tick) {
+                    expected_deaths.push(tick);
+                }
+            }
+        }
+    }
+    expected_deaths.sort_unstable();
+
+    let (mut sim, mobs) = build();
+    assert_source_rng_boundary(&sim, &doc, 1);
+    assert_source_camps(&sim, &doc["result"]["initial"]);
+
+    println!(
+        "build: p0 at {:?} weapon {:?} mobs {:?}",
+        (sim.players()[0].body.x, sim.players()[0].body.y),
+        sim.players()[0].active_weapon(),
+        sim.mobs()
+            .iter()
+            .map(|m| (m.core.id, m.core.pos(), m.status))
+            .collect::<Vec<_>>()
+    );
+    let mut f = Facts {
+        step: 1,
+        fatal_hp: Vec::new(),
+        clears: Vec::new(),
+        landed: Vec::new(),
+        pre_counts: Vec::new(),
+        deaths: Vec::new(),
+        clear: None,
+        later: None,
+    };
+    // action 0: ordinary target of the first birth camp member (the source's @m0).
+    submit(&mut sim, RawCommand::Target { id: mobs[0] });
+    advance(&mut sim, &mut f, &doc);
+    for k in 0..300 {
+        advance(&mut sim, &mut f, &doc);
+        if k == 20 {
+            println!(
+                "at step {}: p0 pos {:?} weapon {:?} target {:?} held {} action {:?} mobs {:?}",
+                f.step,
+                (sim.players()[0].body.x, sim.players()[0].body.y),
+                sim.players()[0].active_weapon(),
+                sim.players()[0].weapon.targeting.target,
+                sim.players()[0].weapon.held,
+                sim.players()[0].weapon.action,
+                sim.mobs()
+                    .iter()
+                    .map(|m| (m.core.id, m.core.pos(), m.core.vitals.hp, m.status))
+                    .collect::<Vec<_>>()
+            );
+        }
+    }
+    // action 2: ordinary target of the later-damage witness player.
+    submit(&mut sim, RawCommand::Target { id: PlayerId(2) });
+    advance(&mut sim, &mut f, &doc);
+    for _ in 0..80 {
+        advance(&mut sim, &mut f, &doc);
+    }
+    submit(&mut sim, RawCommand::Release { a: 0., t: None });
+    advance(&mut sim, &mut f, &doc);
+
+    println!(
+        "native facts: steps={} clear={:?} deaths={:?} later={:?} count={} rosters={:?} expected: clear {}/{} deaths {:?} later {}/{}/{}",
+        f.step,
+        f.clear,
+        f.deaths,
+        f.later,
+        sim.players()[0].camps_cleared,
+        sim.camp_rosters().iter().map(|r| (r.state, r.alive)).collect::<Vec<_>>(),
+        expected_clear, expected_clear_time, expected_deaths, expected_hit_tick, expected_hit_time, expected_amount
+    );
+    assert_eq!(f.step, 384, "the tape's 384 ordinary steps");
+    assert_eq!(
+        sim.players()[0].camps_cleared,
+        1,
+        "real native camp clear count"
+    );
+    assert_eq!(
+        f.clear,
+        Some((expected_clear, expected_clear_time)),
+        "source camp clear ordering"
+    );
+    assert_eq!(
+        f.deaths.iter().map(|(t, _)| *t).collect::<Vec<_>>(),
+        expected_deaths,
+        "source camp-member death order/ticks"
+    );
+    let pre_clear = f
+        .pre_counts
+        .iter()
+        .find(|(step, _)| *step == expected_clear)
+        .map(|(_, count)| *count)
+        .expect("the clear step's pre-step sample");
+    assert_eq!(
+        pre_clear, 0,
+        "the clear pass used the pre-clear canonical count"
+    );
+    let (hit_tick, hit_time, amount) = f.later.expect("a genuine later p0 -> p1 ordinary hit");
+    assert_eq!((hit_tick, hit_time), (expected_hit_tick, expected_hit_time));
+    assert!(
+        (amount - expected_amount).abs() < 1e-9,
+        "later ordinary wand hit {amount} != source {expected_amount}"
+    );
+    assert_eq!(
+        sim.secrets_for_replay().reward_salt,
+        [1, 2, 3, 4],
+        "declared source reward RNG setup"
+    );
+
+    // Ordered relevant source `hitLanded` argument records: p0 -> the three camp members or p1, with tick/time/victim/
+    // amount/weapon; 338 records in the immutable capture (chunks included), compared in order, no set/totals reduction.
+    let source_hits: Vec<(u64, f64, String, f64, String)> = doc["result"]
+        ["completeOrdinaryHookTape"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|h| {
+            h["hooks"].as_array().unwrap().iter().filter_map(|k| {
+                if k["hook"] != "hitLanded" || k["kind"] != "arguments" {
+                    return None;
+                }
+                let a = &k["args"][0];
+                let by = a["by"]["id"].as_str().unwrap_or("");
+                let victim = a["victim"].as_str().unwrap_or("");
+                if by != "p0" || !["mob1", "mob2", "mob3", "p1"].contains(&victim) {
+                    return None;
+                }
+                Some((
+                    h["tick"].as_u64().unwrap(),
+                    h["time"].as_f64().unwrap(),
+                    victim.to_string(),
+                    k["args"][1].as_f64().unwrap(),
+                    a["weapon"].as_str().unwrap_or("").to_string(),
+                ))
+            })
+        })
+        .collect();
+    let mob_names: Vec<String> = witness["campMobs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|m| m.as_str().unwrap().into())
+        .collect();
+    let native_hits: Vec<(u64, f64, String, f64, String)> = f
+        .landed
+        .iter()
+        .map(|(tick, time, victim, amount, weapon)| {
+            let id: u32 = victim.parse().unwrap();
+            let name = if id == 2 {
+                "p1".to_string()
+            } else {
+                let ix = mobs
+                    .iter()
+                    .position(|m| m.0 == id)
+                    .expect("native camp member");
+                mob_names[ix].clone()
+            };
+            (*tick, *time, name, *amount, weapon.clone())
+        })
+        .collect();
+    assert_eq!(
+        source_hits.len(),
+        338,
+        "captured relevant hitLanded argument records"
+    );
+    assert_eq!(
+        native_hits.len(),
+        source_hits.len(),
+        "ordered relevant landed chunks"
+    );
+    let fatal_bounds: Vec<_> = f
+        .fatal_hp
+        .iter()
+        .map(|(tick, id, hp)| {
+            let ix = mobs.iter().position(|m| m == id).unwrap();
+            (*tick, mob_names[ix].clone(), *hp)
+        })
+        .collect();
+    compare_landed(&source_hits, &native_hits, &fatal_bounds)
+        .expect("ordered typed landed projection");
+    assert_source_camps(&sim, &doc["result"]["final"]);
+    let source_clears: Vec<_> = doc["result"]["completeOrdinaryHookTape"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|h| {
+            h["hooks"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|k| k["hook"] == "campCleared" && k["kind"] == "arguments")
+                .map(|k| {
+                    (
+                        h["tick"].as_u64().unwrap(),
+                        h["time"].as_f64().unwrap(),
+                        k["args"][0].as_u64().unwrap() as u32,
+                    )
+                })
+        })
+        .collect();
+    assert_eq!(
+        f.clears, source_clears,
+        "all CampCleared occurrences, including extras"
+    );
+    // Exact lifecycle facts from the same ordered tape.
+    let source_deaths: Vec<(u64, String, String)> = doc["result"]["completeOrdinaryHookTape"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|h| {
+            h["hooks"].as_array().unwrap().iter().filter_map(|k| {
+                if !(k["hook"] == "fighterOut" && k["kind"] == "arguments") {
+                    return None;
+                }
+                Some({
+                    (
+                        h["tick"].as_u64().unwrap(),
+                        k["args"][0].as_str().unwrap().to_string(),
+                        k["args"][1].as_str().unwrap().to_string(),
+                    )
+                })
+            })
+        })
+        .collect();
+    let native_deaths: Vec<(u64, String, String)> = f
+        .deaths
+        .iter()
+        .map(|(tick, id)| {
+            let ix = mobs
+                .iter()
+                .position(|m| *m == *id)
+                .expect("native camp death");
+            (*tick, mob_names[ix].clone(), "down".to_string())
+        })
+        .collect();
+    assert_eq!(
+        native_deaths, source_deaths,
+        "ordered fighterOut lifecycle facts"
+    );
+
+    assert_source_rng_boundary(&sim, &doc, f.step);
+    // Clone/restore continue the same real produced state with ordinary input-free steps (no expected state installed).
+    let mut cloned = sim.clone();
+    let mut restored: Sim =
+        Sim::restore(serde_json::to_value(&sim).unwrap()).expect("real produced state restores");
+    let original_events = sim.step();
+    assert_eq!(
+        cloned.step(),
+        original_events,
+        "clone continues identically"
+    );
+    assert_eq!(
+        restored.step(),
+        original_events,
+        "restore continues identically"
+    );
+    assert_eq!(sim.state_hash(), cloned.state_hash());
+    assert_eq!(sim.state_hash(), restored.state_hash());
+    assert_eq!(
+        sim.players()[0].camps_cleared,
+        cloned.players()[0].camps_cleared
+    );
+    assert_eq!(
+        sim.players()[0].camps_cleared,
+        restored.players()[0].camps_cleared
+    );
+}
+
+#[test]
+fn cold_clone_restore_prepare_actual_npc_report_capacity_without_copying_visibility() {
+    let (mut sim, _) = build();
+    sim.step();
+    assert!(sim.fx_report().complete);
+    assert!(!sim.fx_report().mob_seen.is_empty());
+    assert!(!sim.fx_report().viewers.is_empty());
+    let mut cloned = sim.clone();
+    let mut restored = Sim::restore(serde_json::to_value(&sim).unwrap()).unwrap();
+    assert!(!std::sync::Arc::ptr_eq(
+        &sim.projection.identity,
+        &cloned.projection.identity
+    ));
+    assert!(!std::sync::Arc::ptr_eq(
+        &sim.projection.identity,
+        &restored.projection.identity
+    ));
+    assert!(!std::sync::Arc::ptr_eq(
+        &cloned.projection.identity,
+        &restored.projection.identity
+    ));
+    for state in [&cloned, &restored] {
+        let r = state.fx_report();
+        assert!(!r.complete);
+        assert_eq!(r.tick, sim.tick());
+        assert!(r.mob_seen.capacity() >= state.mobs().len());
+        assert!(r.mob_seen.is_empty() && r.viewers.is_empty() && r.seen.is_empty());
+        assert!(r.ops.is_empty() && r.events.is_empty() && r.wish_points.is_empty());
+        assert!(std::sync::Arc::ptr_eq(
+            &r.identity,
+            &state.projection.identity
+        ));
+        assert_eq!(state.state_hash(), sim.state_hash());
+        println!(
+            "cold NPC report: mobs={} element_bytes={} capacity={} payload_bytes={}",
+            state.mobs().len(),
+            std::mem::size_of::<(PlayerId, u8)>(),
+            r.mob_seen.capacity(),
+            r.mob_seen.capacity() * std::mem::size_of::<(PlayerId, u8)>()
+        );
+    }
+    let events = sim.step();
+    assert_eq!(events, cloned.step());
+    assert_eq!(events, restored.step());
+    assert_eq!(sim.state_hash(), cloned.state_hash());
+    assert_eq!(sim.state_hash(), restored.state_hash());
+}

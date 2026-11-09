@@ -1,0 +1,94 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/protocol14-client-union/repo/crates/rh-sim)
+error: usage of an `unsafe extern` block
+  --> crates/rh-sim/tests/pack_leader_warm.rs:23:1
+   |
+23 | / unsafe extern "C" {
+24 | |     fn backtrace(buffer: *mut *mut std::ffi::c_void, size: i32) -> i32;
+25 | |     #[cfg(target_os = "macos")]
+26 | |     fn _dyld_get_image_header(index: u32) -> *const std::ffi::c_void;
+27 | | }
+   | |_^
+   |
+   = note: requested on the command line with `-F unsafe-code`
+
+error: usage of an `unsafe` block
+  --> crates/rh-sim/tests/pack_leader_warm.rs:40:17
+   |
+40 |         let n = unsafe { backtrace(pcs.as_mut_ptr(), pcs.len() as i32) }.max(0) as usize;
+   |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: implementation of an `unsafe` trait
+  --> crates/rh-sim/tests/pack_leader_warm.rs:56:1
+   |
+56 | / unsafe impl GlobalAlloc for RecordingAlloc {
+57 | |     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+58 | |         let p = unsafe { INNER.alloc(layout) };
+59 | |         record_allocation(layout.size(), 0);
+...  |
+70 | | }
+   | |_^
+
+error: implementation of an `unsafe` method
+  --> crates/rh-sim/tests/pack_leader_warm.rs:57:5
+   |
+57 | /     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+58 | |         let p = unsafe { INNER.alloc(layout) };
+59 | |         record_allocation(layout.size(), 0);
+60 | |         p
+61 | |     }
+   | |_____^
+
+error: usage of an `unsafe` block
+  --> crates/rh-sim/tests/pack_leader_warm.rs:58:17
+   |
+58 |         let p = unsafe { INNER.alloc(layout) };
+   |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: implementation of an `unsafe` method
+  --> crates/rh-sim/tests/pack_leader_warm.rs:62:5
+   |
+62 | /     unsafe fn dealloc(&self, p: *mut u8, layout: Layout) {
+63 | |         unsafe { INNER.dealloc(p, layout) }
+64 | |     }
+   | |_____^
+
+error: usage of an `unsafe` block
+  --> crates/rh-sim/tests/pack_leader_warm.rs:63:9
+   |
+63 |         unsafe { INNER.dealloc(p, layout) }
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: implementation of an `unsafe` method
+  --> crates/rh-sim/tests/pack_leader_warm.rs:65:5
+   |
+65 | /     unsafe fn realloc(&self, p: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+66 | |         let p = unsafe { INNER.realloc(p, layout, new_size) };
+67 | |         record_allocation(new_size, 1);
+68 | |         p
+69 | |     }
+   | |_____^
+
+error: usage of an `unsafe` block
+  --> crates/rh-sim/tests/pack_leader_warm.rs:66:17
+   |
+66 |         let p = unsafe { INNER.realloc(p, layout, new_size) };
+   |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: usage of an `unsafe` block
+   --> crates/rh-sim/tests/pack_leader_warm.rs:152:5
+    |
+152 | /     unsafe {
+153 | |         backtrace(prime.as_mut_ptr(), prime.len() as i32);
+154 | |     }
+    | |_____^
+
+error: usage of an `unsafe` block
+   --> crates/rh-sim/tests/pack_leader_warm.rs:197:44
+    |
+197 |       println!("diagnostic image base={:p}", unsafe {
+    |  ____________________________________________^
+198 | |         _dyld_get_image_header(0)
+199 | |     });
+    | |_____^
+
+error: could not compile `rh-sim` (test "pack_leader_warm") due to 11 previous errors

@@ -1,0 +1,14 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/walk-hint-native/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 31.60s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 2 tests
+test systems::walk_hint::tests::active_hint_original_clone_restore_warm_steps_allocate_zero ... hints=true: starting (trail len,capacity)=[(6, 1200), (6, 1200), (6, 1200)], allocations=[0, 0, 0]
+active hints: original/Clone/restore 90 steps each, allocations=[0, 0, 0]
+ok
+test systems::walk_hint::tests::disabled_hint_original_clone_restore_identical_workload_allocates_zero ... hints=false: starting (trail len,capacity)=[(6, 1200), (6, 1200), (6, 1200)], allocations=[0, 0, 0]
+active hints: original/Clone/restore 90 steps each, allocations=[0, 0, 0]
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 821 filtered out; finished in 0.03s
+

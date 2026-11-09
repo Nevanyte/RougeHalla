@@ -1,0 +1,18 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/mark-tax-uncapped-source/repo/crates/rh-sim)
+error: recursion limit reached while expanding `$crate::json_internal!`
+  --> crates/rh-sim/src/systems/sentenced/mark_tax/source_tests.rs:55:15
+   |
+55 |       let extra=json!({"name":p.seat.name,"bot":p.seat.bot,"moveSeq":p.motion.move_seq,
+   |  _______________^
+56 | |         "attackTarget":p.weapon.targeting.target.map(|id|label(w,id)).unwrap_or_default(),
+57 | |         "kills":p.credit.kills,"gv":p.credit.gv,"bounty":p.credit.bounty,"mobKills":p.credit.mob_kills,
+58 | |         "immuneUntil":p.vitals.immune_until,"asMult":m[0],"windupMult":m[1],"speedMult":m[2],
+...  |
+66 | |         "extra":{"wishFullAt":p.stocks.wish_full_at.unwrap_or(0.),"chestBoosts":boosts,"killStats":kill_stats,"bushRevealUntil":bush["until"]},
+67 | |         "tradeUsed":p.trade_used,"tradeOffers":p.trade_offers,"tradeStats":p.trade_stats.iter().map(|(k,v)|(k.as_str().to_string(),json!(v))).collect::<serde_json::Map<String,Value>>(),"build":p.build.cards().map(|id|(id.as_str().to_string(),json!(p.build.count(id)))).collect::<serde_json::Map<String,Value>>(),"plagueZombieId":w.mobs.iter().find(|m|m.owner==Some(p.id)&&m.zombie.is_some()).map(|m|label(w,m.core.id)).unwrap_or_default()});
+   | |________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________^
+   |
+   = help: consider increasing the recursion limit by adding a `#![recursion_limit = "256"]` attribute to your crate (`rh_sim`)
+   = note: this error originates in the macro `$crate::json_internal` which comes from the expansion of the macro `json` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: could not compile `rh-sim` (lib test) due to 1 previous error

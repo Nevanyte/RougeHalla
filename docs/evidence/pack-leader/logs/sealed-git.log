@@ -1,0 +1,3 @@
+SEALED-GIT-MANIFEST verified-at=a5e3fb22c8b678585590017631e8a0509ff02d6b files=36 result=PASS
+note: docs/evidence/pack-leader/manifest.txt is generated excluding itself and its two verification receipts
+(logs/sealed-git.log, logs/sealed-export.log, logs/attempts-failures.log); every other added source/tool/corpus/evidence file is listed.

@@ -1,0 +1,102 @@
+=== fmt
+Diff in /Users/nevinmckinnon/.codex/worktrees/deepseek-rust-completion/p-pack-leader/crates/rh-sim/src/systems/ledger.rs:495:
+                     frac,
+                     kind,
+                     e.critical_mult.unwrap_or(1.),
+-                    if w.is_player(i) { camps.get(i.slot()).copied().unwrap_or(0) } else { 0 },
++                    if w.is_player(i) {
++                        camps.get(i.slot()).copied().unwrap_or(0)
++                    } else {
++                        0
++                    },
+                     streak,
+                     probe,
+                     false,
+Diff in /Users/nevinmckinnon/.codex/worktrees/deepseek-rust-completion/p-pack-leader/crates/rh-sim/src/systems/ledger.rs:751:
+                             kind,
+                             e.critical_mult.unwrap_or(1.),
+                             if pass.w.is_player(bix) {
+-                                pass.camps_at_pass_start.get(bix.slot()).copied().unwrap_or(0)
++                                pass.camps_at_pass_start
++                                    .get(bix.slot())
++                                    .copied()
++                                    .unwrap_or(0)
+                             } else {
+                                 0
+                             },
+Diff in /Users/nevinmckinnon/.codex/worktrees/deepseek-rust-completion/p-pack-leader/crates/rh-sim/tests/pack_leader_warm.rs:3:
+ //! internals (population, cleanup, >8 prepared capacity) are asserted by the focused lib controls; this gate proves the
+ //! ordinary warm pass path those controls sit on allocates nothing and continues identically after Clone/restore.
+ #![cfg(not(feature = "schedule-trace"))]
+-use rh_sim::{
+-    validate, Event, FactionId, FactionMode, RawCommand, Secrets, Sim, SimConfig,
+-};
+ use rh_sim::mob_catalog::MobTypeId;
++use rh_sim::{validate, Event, FactionId, FactionMode, RawCommand, Secrets, Sim, SimConfig};
+ 
+ #[global_allocator]
+ static ALLOC: dhat::Alloc = dhat::Alloc;
+Diff in /Users/nevinmckinnon/.codex/worktrees/deepseek-rust-completion/p-pack-leader/crates/rh-sim/tests/pack_leader_warm.rs:29:
+         rh_sim::arenas::practice_arena(),
+         Secrets::from_seed(12),
+     );
+-    let id = sim.add_player("warm-growth", Some(FactionId::Holy), false).unwrap();
++    let id = sim
++        .add_player("warm-growth", Some(FactionId::Holy), false)
++        .unwrap();
+     sim.step();
+     let ty = MobTypeId::ALL
+         .into_iter()
+Diff in /Users/nevinmckinnon/.codex/worktrees/deepseek-rust-completion/p-pack-leader/crates/rh-sim/tests/pack_leader_warm.rs:36:
+         .find(|ty| {
+-            rh_sim::mob_catalog::mob_type_by_id(ty.as_str()).is_some_and(|t| t.zone == FactionId::Fire && !t.elite)
++            rh_sim::mob_catalog::mob_type_by_id(ty.as_str())
++                .is_some_and(|t| t.zone == FactionId::Fire && !t.elite)
+         })
+         .unwrap();
+     let code = MobTypeId::ALL.iter().position(|t| *t == ty).unwrap() as u32;
+Diff in /Users/nevinmckinnon/.codex/worktrees/deepseek-rust-completion/p-pack-leader/crates/rh-sim/tests/pack_leader_warm.rs:56:
+             sim.step();
+         }
+     }
+-    assert!(sim.players().len() + sim.mobs().len() > 8, "prepared capacity above 8 actors");
++    assert!(
++        sim.players().len() + sim.mobs().len() > 8,
++        "prepared capacity above 8 actors"
++    );
+     sim
+ }
+ 
+Diff in /Users/nevinmckinnon/.codex/worktrees/deepseek-rust-completion/p-pack-leader/crates/rh-sim/tests/pack_leader_warm.rs:67:
+         let before = dhat::HeapStats::get().total_blocks;
+         sim.step_into(out);
+         allocations += dhat::HeapStats::get().total_blocks - before;
+-        assert!(!out.iter().any(|e| matches!(e, Event::Resolved { .. } | Event::Victory { .. })));
++        assert!(!out
++            .iter()
++            .any(|e| matches!(e, Event::Resolved { .. } | Event::Victory { .. })));
+     }
+     allocations
+ }
+Diff in /Users/nevinmckinnon/.codex/worktrees/deepseek-rust-completion/p-pack-leader/crates/rh-sim/tests/pack_leader_warm.rs:89:
+     assert_eq!(clone_allocs, 0, "clone warm window allocations");
+ 
+     // The real produced state restores (construction outside the measured window).
+-    let mut restored = Sim::restore(serde_json::to_value(&sim).unwrap()).expect("real produced state restores");
++    let mut restored =
++        Sim::restore(serde_json::to_value(&sim).unwrap()).expect("real produced state restores");
+     let restore_allocs = allocations_over_window(&mut restored, &mut out);
+     assert_eq!(restore_allocs, 0, "restore warm window allocations");
+ 
+Diff in /Users/nevinmckinnon/.codex/worktrees/deepseek-rust-completion/p-pack-leader/crates/rh-sim/tests/pack_leader_warm.rs:96:
+     assert_eq!(sim.state_hash(), cloned.state_hash());
+     assert_eq!(sim.state_hash(), restored.state_hash());
+-    assert_eq!(sim.players()[0].camps_cleared, cloned.players()[0].camps_cleared);
++    assert_eq!(
++        sim.players()[0].camps_cleared,
++        cloned.players()[0].camps_cleared
++    );
+     println!("warm windows: original={original_allocs} clone={clone_allocs} restore={restore_allocs} actors={}", sim.players().len() + sim.mobs().len());
+ }
+ 
+EXIT=1

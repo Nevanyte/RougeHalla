@@ -1,0 +1,210 @@
+{
+  "format": "rh-walk-hint-helper-controls/1",
+  "required": 6,
+  "kills": 6,
+  "baseline": {
+    "diskWalkHint": {
+      "path": "/repo/packages/server/src/sim/walkHint.ts",
+      "bytes": 10241,
+      "sha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16"
+    },
+    "note": "sourceInfo/profile pins are baseline; rows carry executed onLoad/bundle provenance"
+  },
+  "canonicalAssertions": "PASS",
+  "pristine": {
+    "provenance": {
+      "mutation": null,
+      "onLoadCount": 1,
+      "onLoadPath": "/repo/packages/server/src/sim/walkHint.ts",
+      "originalBytes": 10241,
+      "executedBytes": 10241,
+      "originalSha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16",
+      "executedSha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16",
+      "bundleBytes": 1074409,
+      "bundleSha256": "2488d9de64b304dccb323418255ca194da5f5ce06b7571b41efa4b00145c5e54",
+      "bundlePath": "/tmp/walk-hint-helper-control-restored-21-1-2488d9de.mjs",
+      "baselineDiskSha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16"
+    },
+    "semanticEqualCanonical": true
+  },
+  "restored": {
+    "provenance": {
+      "mutation": null,
+      "onLoadCount": 1,
+      "onLoadPath": "/repo/packages/server/src/sim/walkHint.ts",
+      "originalBytes": 10241,
+      "executedBytes": 10241,
+      "originalSha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16",
+      "executedSha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16",
+      "bundleBytes": 1074409,
+      "bundleSha256": "2488d9de64b304dccb323418255ca194da5f5ce06b7571b41efa4b00145c5e54",
+      "bundlePath": "/tmp/walk-hint-helper-control-restored-21-9-2488d9de.mjs",
+      "baselineDiskSha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16"
+    },
+    "semanticEqualCanonical": true,
+    "provenanceEqualPristine": true,
+    "verifier": "PASS"
+  },
+  "rows": [
+    {
+      "id": "lock-always-free",
+      "status": "KILL",
+      "provenance": {
+        "mutation": "lock-always-free",
+        "onLoadCount": 1,
+        "onLoadPath": "/repo/packages/server/src/sim/walkHint.ts",
+        "originalBytes": 10241,
+        "executedBytes": 10279,
+        "originalSha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16",
+        "executedSha256": "e17199b8e4bcf432c54fcfef5126e0cf26f64f67d9d76582b6a56d7037c9f6f0",
+        "bundleBytes": 1074447,
+        "bundleSha256": "79cd144761c8611733635e84f186aa42973e963a065b2f4fdaed413a2c76b524",
+        "bundlePath": "/tmp/walk-hint-helper-control-lock-always-free-21-2-79cd1447.mjs",
+        "baselineDiskSha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16"
+      },
+      "runHelpersSucceeded": true,
+      "changed": true,
+      "firstDiff": "/cases/28/observed/hint/ticks",
+      "semanticEqual": false,
+      "verifier": "FAIL",
+      "verifierError": "Error: lock-stop expected zero ticks, got 1"
+    },
+    {
+      "id": "amove-never-acquires",
+      "status": "KILL",
+      "provenance": {
+        "mutation": "amove-never-acquires",
+        "onLoadCount": 1,
+        "onLoadPath": "/repo/packages/server/src/sim/walkHint.ts",
+        "originalBytes": 10241,
+        "executedBytes": 10257,
+        "originalSha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16",
+        "executedSha256": "b4aed0b34283de6670a131256908b5626898a711409bf35f68031c45d90bfb05",
+        "bundleBytes": 1074425,
+        "bundleSha256": "53fe3a9112c0460c217dbb1e08dea58b66ef0b392e6d6244b023225c4fa263ee",
+        "bundlePath": "/tmp/walk-hint-helper-control-amove-never-acquires-21-3-53fe3a91.mjs",
+        "baselineDiskSha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16"
+      },
+      "runHelpersSucceeded": true,
+      "changed": true,
+      "firstDiff": "/cases/33/observed/hint/ticks",
+      "semanticEqual": false,
+      "verifier": "FAIL",
+      "verifierError": "Error: amove-acquire expected zero ticks, got 1"
+    },
+    {
+      "id": "ice-never-holds",
+      "status": "KILL",
+      "provenance": {
+        "mutation": "ice-never-holds",
+        "onLoadCount": 1,
+        "onLoadPath": "/repo/packages/server/src/sim/walkHint.ts",
+        "originalBytes": 10241,
+        "executedBytes": 10257,
+        "originalSha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16",
+        "executedSha256": "9df22f13462e80252330d7c0e724e7974fd047948f8566a50d780d41943d1118",
+        "bundleBytes": 1074425,
+        "bundleSha256": "7d40728992600de29acb180dc857d1dec5030596089b8df25ddaac2fd66b21d6",
+        "bundlePath": "/tmp/walk-hint-helper-control-ice-never-holds-21-4-7d407289.mjs",
+        "baselineDiskSha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16"
+      },
+      "runHelpersSucceeded": true,
+      "changed": true,
+      "firstDiff": "/cases/36/observed/hint/ticks",
+      "semanticEqual": false,
+      "verifier": "FAIL",
+      "verifierError": "Error: ice-thin-strip expected zero ticks, got 3"
+    },
+    {
+      "id": "held-never-held",
+      "status": "KILL",
+      "provenance": {
+        "mutation": "held-never-held",
+        "onLoadCount": 1,
+        "onLoadPath": "/repo/packages/server/src/sim/walkHint.ts",
+        "originalBytes": 10241,
+        "executedBytes": 10194,
+        "originalSha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16",
+        "executedSha256": "851c16f257f99ccb2843d4877ee54311468b9005befcda422105e970aadf2bc4",
+        "bundleBytes": 1074362,
+        "bundleSha256": "a3643805d09f3b19ed7c8aca7637e2b00b91980d8189a09c870bd54877ec07a0",
+        "bundlePath": "/tmp/walk-hint-helper-control-held-never-held-21-5-a3643805.mjs",
+        "baselineDiskSha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16"
+      },
+      "runHelpersSucceeded": true,
+      "changed": true,
+      "firstDiff": "/cases/17/observed/hint/ticks",
+      "semanticEqual": false,
+      "verifier": "FAIL",
+      "verifierError": "Error: weapon-held-ready expected the observed 2-tick hold lower bound"
+    },
+    {
+      "id": "hook-no-zero",
+      "status": "KILL",
+      "provenance": {
+        "mutation": "hook-no-zero",
+        "onLoadCount": 1,
+        "onLoadPath": "/repo/packages/server/src/sim/walkHint.ts",
+        "originalBytes": 10241,
+        "executedBytes": 10251,
+        "originalSha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16",
+        "executedSha256": "73d0843765ee7cbf846cc03d5217a641b04cd5e0a4440031bfbcfe4b5113c191",
+        "bundleBytes": 1074419,
+        "bundleSha256": "f249290e9b1cf01cb6e134b81b14f9c2ebec492db8a1054b1d45a51bf208fd2e",
+        "bundlePath": "/tmp/walk-hint-helper-control-hook-no-zero-21-6-f249290e.mjs",
+        "baselineDiskSha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16"
+      },
+      "runHelpersSucceeded": true,
+      "changed": true,
+      "firstDiff": "/cases/49/observed/players/0/ticks",
+      "semanticEqual": false,
+      "verifier": "FAIL",
+      "verifierError": "Error: hook-teleported did not zero every player's ticks"
+    },
+    {
+      "id": "hysteresis-always",
+      "status": "KILL",
+      "provenance": {
+        "mutation": "hysteresis-always",
+        "onLoadCount": 1,
+        "onLoadPath": "/repo/packages/server/src/sim/walkHint.ts",
+        "originalBytes": 10241,
+        "executedBytes": 10223,
+        "originalSha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16",
+        "executedSha256": "3f378a14d3a715431015191b6c73f2c3d54709959878c7dea81c6d8968516463",
+        "bundleBytes": 1074362,
+        "bundleSha256": "601dc523bd253d98d92473a65fc3383f8044ba77c9041284ebceda03cd4fbb98",
+        "bundlePath": "/tmp/walk-hint-helper-control-hysteresis-always-21-7-601dc523.mjs",
+        "baselineDiskSha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16"
+      },
+      "runHelpersSucceeded": true,
+      "changed": true,
+      "firstDiff": "/cases/41/observed/observed/dir",
+      "semanticEqual": false,
+      "verifier": "FAIL",
+      "verifierError": "Error: delta2 incorrectly changed direction"
+    },
+    {
+      "id": "provenance-only-comment",
+      "status": "NON-KILL",
+      "provenance": {
+        "mutation": "provenance-only-comment",
+        "onLoadCount": 1,
+        "onLoadPath": "/repo/packages/server/src/sim/walkHint.ts",
+        "originalBytes": 10241,
+        "executedBytes": 10275,
+        "originalSha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16",
+        "executedSha256": "a179d4b3031670d3e72839652e306e762b3d0b23617280daf3b2857064026164",
+        "bundleBytes": 1074409,
+        "bundleSha256": "2488d9de64b304dccb323418255ca194da5f5ce06b7571b41efa4b00145c5e54",
+        "bundlePath": "/tmp/walk-hint-helper-control-provenance-only-comment-21-8-2488d9de.mjs",
+        "baselineDiskSha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16"
+      },
+      "runHelpersSucceeded": true,
+      "changed": false,
+      "firstDiff": null,
+      "semanticEqual": true,
+      "verifier": "PASS"
+    }
+  ]
+}

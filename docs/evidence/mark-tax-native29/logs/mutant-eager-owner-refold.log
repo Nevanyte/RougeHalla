@@ -1,0 +1,25 @@
+COMMAND cargo test -p rh-sim --lib membership_replacement_does_not_refold_but_removal_does --features trusted-status-probes --locked -- --test-threads=1
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/mark-tax-uncapped-source/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 32.24s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_sim-0ad75f2b040c28b6)
+
+running 1 test
+test systems::sentenced::mark_tax::tests::membership_replacement_does_not_refold_but_removal_does ... FAILED
+
+failures:
+
+---- systems::sentenced::mark_tax::tests::membership_replacement_does_not_refold_but_removal_does stdout ----
+
+thread 'systems::sentenced::mark_tax::tests::membership_replacement_does_not_refold_but_removal_does' (67486171) panicked at crates/rh-sim/src/systems/sentenced/mark_tax/tests.rs:129:5:
+assertion `left == right` failed: owner replacement must not call recompute
+  left: 1000.0
+ right: 777.0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    systems::sentenced::mark_tax::tests::membership_replacement_does_not_refold_but_removal_does
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 823 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p rh-sim --lib`

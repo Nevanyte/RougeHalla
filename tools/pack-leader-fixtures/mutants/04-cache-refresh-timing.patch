@@ -1,0 +1,5 @@
+--- a/packages/server/src/sim/mods.ts
++++ b/packages/server/src/sim/mods.ts
+@@ -744,1 +744,1 @@
+-      b.camps = rt.campsCleared ?? 0;
++      b.camps = 0;

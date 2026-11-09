@@ -1,0 +1,8 @@
+    Finished `test` profile [unoptimized] target(s) in 0.03s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 2 tests
+test abilities::source_tests::training_tests::repeated_training_swarm_recasts_keep_one_cloud_and_restore_the_original_hidden_start ... ok
+test abilities::source_tests::training_tests::genuine_training_swarm_recast_matches_the_frozen_source ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 792 filtered out; finished in 0.81s

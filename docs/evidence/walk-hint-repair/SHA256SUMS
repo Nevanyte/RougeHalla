@@ -1,0 +1,6 @@
+11e8a345d2f58ef2a8a68eebf1337796616c4590cc1620dfd0fb0b6344c063a0  ./README.md
+3a8b7e9bcbc2c9a1c42407a17b854049018a7dc115acba31a09825ee31adb366  ./hashes.txt
+80d8b8eac95b7fca352a3a6443ddf27541f20fb339c8111ce6ce40a15098ca42  ./logs/env-blocked-capture.log
+486b0ff60153100e8193edd8bd4fbb0d0b69bc597a6668f0f1b0190369e010cc  ./logs/output-guard.log
+47512c6b3ba555fd9d6f70cf3a05423b6d14248bca12ec114e5ea370b057bdf7  ./logs/static-checks.log
+8ae752e862a0b3dde02bbf4d0350ebbf18ec9094997bbaa317b44fea68afa5f1  ./receipt.json

@@ -1,0 +1,36 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/walk-hint-native/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 31.28s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 2 tests
+test systems::walk_hint::tests::active_hint_original_clone_restore_warm_steps_allocate_zero ... hints=true: starting (trail len,capacity)=[(6, 1200), (6, 10), (6, 1200)], allocations=[0, 3, 0]
+world1 tick22: blocks1, trail len11, capacity20
+world1 tick42: blocks1, trail len21, capacity40
+world1 tick82: blocks1, trail len41, capacity80
+
+thread 'systems::walk_hint::tests::active_hint_original_clone_restore_warm_steps_allocate_zero' (67688905) panicked at crates/rh-sim/src/systems/walk_hint/tests.rs:335:5:
+assertion `left == right` failed: 90 actual whole steps per original/Clone/restore, hints=true
+  left: [0, 3, 0]
+ right: [0, 0, 0]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+test systems::walk_hint::tests::disabled_hint_original_clone_restore_identical_workload_allocates_zero ... hints=false: starting (trail len,capacity)=[(6, 1200), (6, 10), (6, 1200)], allocations=[0, 3, 0]
+world1 tick22: blocks1, trail len11, capacity20
+world1 tick42: blocks1, trail len21, capacity40
+world1 tick82: blocks1, trail len41, capacity80
+
+thread 'systems::walk_hint::tests::disabled_hint_original_clone_restore_identical_workload_allocates_zero' (67688907) panicked at crates/rh-sim/src/systems/walk_hint/tests.rs:335:5:
+assertion `left == right` failed: 90 actual whole steps per original/Clone/restore, hints=false
+  left: [0, 3, 0]
+ right: [0, 0, 0]
+FAILED
+
+failures:
+
+failures:
+    systems::walk_hint::tests::active_hint_original_clone_restore_warm_steps_allocate_zero
+    systems::walk_hint::tests::disabled_hint_original_clone_restore_identical_workload_allocates_zero
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 821 filtered out; finished in 0.03s
+
+error: test failed, to rerun pass `-p rh-sim --lib`

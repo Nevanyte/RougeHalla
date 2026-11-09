@@ -1,0 +1,7 @@
+CONTROL 04-cache-refresh-timing
+applied 1 hunk(s) to packages/server/src/sim/mods.ts
+pack-leader capture wrote /tmp/out/04-cache-refresh-timing/source.json
+MUTANT-SOURCE-HASH-BOUND packages/server/src/sim/mods.ts 90bfdd93196a912be839a8577e17e57ed40a5791c9e334964fc3b9cbb85f9f7a
+SEMANTIC-DIFF .result.completeNonemptyEventTape[111].events[1].fx.amount baseline=625.7285233040177 mutant=611.0630110390798
+OUTPUT_SHA256 06f228fbdc27eb85bc48c868238edec1a72ae84165fdf18063df38ac82adb521
+CONTROL-OK 04-cache-refresh-timing SEMANTIC-DIFF

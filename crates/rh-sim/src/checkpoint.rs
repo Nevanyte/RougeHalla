@@ -20,7 +20,7 @@ use serde::ser::{SerializeStruct, Serializer};
 use std::fmt;
 
 /// The tag every checkpoint carries. Bump it when the layout of `statics` or `world` changes incompatibly.
-pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/28";
+pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/29";
 
 /// How far past the map edge a fighter, waypoint or spawn may be and still restore (real states stay inside the map).
 const COORD_MARGIN: f64 = 1024.0;
@@ -237,8 +237,10 @@ impl<'de> Visitor<'de> for CheckpointVisitor<'_> {
         if let Err(why) = crate::systems::sentenced::prepare(&k, &mut w, &mut scratch) {
             return Err(self.refuse(CheckpointError::Malformed(why.into())));
         }
+        let mut projection = crate::fx_report::Projection::empty_at(w.tick);
+        projection.prepare_mobs(w.mobs.len());
         Ok(Sim {
-            projection: crate::fx_report::Projection::empty_at(w.tick),
+            projection,
             k,
             w,
             s: scratch,
@@ -563,6 +565,7 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
             );
         }
     }
+    crate::systems::sentenced::mark_tax::validate(k, w)?;
     if !(0.0..=w.server_time).contains(&w.factions.dot_since)
         || (!k.config.faction_mode.engagement()
             && w.factions != crate::factions::FactionRuntime::default())
@@ -590,6 +593,10 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
         }
     }
     for p in w.players.iter() {
+        // Shape only: zero hints and zeroAll retain the previous direction byte.
+        if p.walk_ticks > crate::constants::WALK_HINT_MAX_TICKS {
+            return Err(format!("player {}: invalid walk hint ticks", p.id.0));
+        }
         // Locked history becomes admissible with the complete Source arena lifecycle.
         p.vision.check(
             w.tick,
@@ -699,7 +706,7 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
         // clamp, so only the first pair may share its timestamp.
         let h = p.body.history.as_slice();
         if h.windows(2).enumerate().any(|(i, s)| {
-            !(s[1].t - s[0].t >= TICK_MS)
+            !(s[1].t >= s[0].t + TICK_MS)
                 && !(i == 0
                     && (h[0].t == h[1].t || crate::abilities::checkpoint::blaze_history(k, p)))
         }) {
@@ -1767,3 +1774,7 @@ mod tests {
         assert!(refused > 50 && stepped_ok > 5, "{refused} {stepped_ok}");
     }
 }
+
+#[cfg(test)]
+#[path = "checkpoint/walk_hint_state_tests.rs"]
+mod walk_hint_state_tests;

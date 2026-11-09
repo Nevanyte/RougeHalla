@@ -1,0 +1,14 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/walk-hint-native/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 31.43s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 2 tests
+test systems::walk_hint::tests::active_hint_original_clone_restore_warm_steps_allocate_zero ... hints=true: legacy cold VecDeque clone(capacity,payloadB)=(5, 120); repaired cold trail(len,capacity,payloadB)=[(5, 1200, 28800), (5, 1200, 28800), (5, 1200, 28800)]; measured-start=[(6, 1200, 28800), (6, 1200, 28800), (6, 1200, 28800)], allocations=[0, 0, 0]
+hints=true: original/Clone/restore 90 steps each, allocations=[0, 0, 0]
+ok
+test systems::walk_hint::tests::disabled_hint_original_clone_restore_identical_workload_allocates_zero ... hints=false: legacy cold VecDeque clone(capacity,payloadB)=(5, 120); repaired cold trail(len,capacity,payloadB)=[(5, 1200, 28800), (5, 1200, 28800), (5, 1200, 28800)]; measured-start=[(6, 1200, 28800), (6, 1200, 28800), (6, 1200, 28800)], allocations=[0, 0, 0]
+hints=false: original/Clone/restore 90 steps each, allocations=[0, 0, 0]
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 821 filtered out; finished in 0.04s
+
