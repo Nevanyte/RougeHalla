@@ -10,6 +10,7 @@ use crate::{
     Placement, PlayerId, RawCommand, Secrets, Sim, SimConfig, Status, Vec2, WeaponId,
 };
 use serde_json::Value;
+use std::collections::BTreeMap;
 
 fn corpus() -> Value {
     serde_json::from_str(include_str!(concat!(
@@ -21,11 +22,14 @@ fn corpus() -> Value {
 fn number(v: &Value) -> f64 {
     v.as_f64().expect("finite source number")
 }
-fn near(actual: f64, expected: &Value, at: &str) {
+fn exact(actual: f64, expected: &Value, at: &str) {
     let expected = number(expected);
-    assert!(
-        (actual - expected).abs() <= 1e-8,
-        "{at}: native {actual:?}, source {expected:?}"
+    assert_eq!(
+        actual.to_bits(),
+        expected.to_bits(),
+        "{at}: native {actual:?} ({:016x}) source {expected:?} ({:016x})",
+        actual.to_bits(),
+        expected.to_bits()
     );
 }
 /// Bind the sealed source target (campRef 21, slot 0) to the native camp roster's real actor.
@@ -169,19 +173,19 @@ fn construct(setup: &Value) -> (Sim, u32) {
 }
 fn frame(s: &Sim, source: &Value, label: &str) -> PlayerId {
     let owner = s.player(PlayerId(1)).expect("owner");
-    near(
+    exact(
         s.server_time(),
         &source["serverTime"],
         &format!("{label}/clock"),
     );
     let canonical = &source["owner"];
     let decoded = &source["ownerDecoded"];
-    near(
+    exact(
         owner.weapon.draw_started_at,
         &canonical["drawStartedAt"],
         &format!("{label}/canonical draw"),
     );
-    near(
+    exact(
         owner.weapon.ready_at,
         &canonical["readyAt"],
         &format!("{label}/canonical ready"),
@@ -226,7 +230,7 @@ fn frame(s: &Sim, source: &Value, label: &str) -> PlayerId {
         "{label}/current identity"
     );
     for (native, key) in [(owner.vitals.hp, "hp"), (owner.vitals.max_hp, "maxHp")] {
-        near(native, &canonical[key], &format!("{label}/{key}"));
+        exact(native, &canonical[key], &format!("{label}/{key}"));
     }
     assert_eq!(
         owner.status,
@@ -253,17 +257,24 @@ fn frame(s: &Sim, source: &Value, label: &str) -> PlayerId {
         canonical["slot"].as_u64().unwrap(),
         "{label}/slot"
     );
-    let expected_farm: u64 = source["ownerMobStats"]["entries"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|entry| entry[1].as_u64().unwrap())
-        .sum();
-    let actual_farm: u64 = crate::mob_catalog::MobTypeId::ALL
-        .into_iter()
-        .map(|id| owner.farm.count(id))
-        .sum();
-    assert_eq!(actual_farm, expected_farm, "{label}/actual farm stacks");
+    let mut expected_farm: BTreeMap<String, u64> = BTreeMap::new();
+    for entry in source["ownerMobStats"]["entries"].as_array().unwrap() {
+        expected_farm.insert(
+            entry[0].as_str().unwrap().to_owned(),
+            entry[1].as_u64().unwrap(),
+        );
+    }
+    let mut actual_farm: BTreeMap<String, u64> = BTreeMap::new();
+    for id in crate::mob_catalog::MobTypeId::ALL {
+        let count = owner.farm.count(id);
+        if count > 0 {
+            actual_farm.insert(id.as_str().to_owned(), count);
+        }
+    }
+    assert_eq!(
+        actual_farm, expected_farm,
+        "{label}/typed farm map (extra native types or wrong per-type counts are rejected)"
+    );
     owner.id
 }
 fn run() {
