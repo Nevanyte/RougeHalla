@@ -7,7 +7,13 @@
 //! state effect only. Traders are enabled with the live-content config switch (`config.quests`, the same live-module family)
 //! so the capture/parity worlds match the source's always-installed traders while the pure combat corpora keep their
 //! recorded reward streams.
+mod notices;
 pub(crate) mod runtime;
+mod trade_view;
+pub(crate) use trade_view::project_into as trade_view_into;
+pub use trade_view::{MerchantView, TradeView, ViewError};
+#[cfg(test)]
+mod view_tests;
 
 // Weapon display names are durable client labels, part of the traders content table.
 pub(crate) fn weapon_name(weapon: crate::content::WeaponId) -> &'static str {
