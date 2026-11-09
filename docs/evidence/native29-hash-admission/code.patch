@@ -1,0 +1,344 @@
+diff --git a/crates/rh-sim/tests/checkpoint.rs b/crates/rh-sim/tests/checkpoint.rs
+index 3f12773f..6be6b8be 100644
+--- a/crates/rh-sim/tests/checkpoint.rs
++++ b/crates/rh-sim/tests/checkpoint.rs
+@@ -148,9 +148,14 @@ fn the_format_tag_is_refused_before_the_payload_whatever_the_key_order() {
+             .unwrap_or_else(|e| panic!("{order:?}: {e}"));
+         assert_eq!(b.state_hash(), a.state_hash(), "{order:?}");
+     }
+-    // The reserved 25 layout's immediate predecessor is refused by its tag: the two new defaulted fields must not
+-    // grant checkpoint-24 compatibility.
+-    for found in ["rh-checkpoint/27", "rh-checkpoint/26", "rh-checkpoint/25"] {
++    // The reserved native29 layout must refuse its immediate predecessor28 before
++    // decoding payload or accepting any defaults from an older canonical shape.
++    for found in [
++        "rh-checkpoint/28",
++        "rh-checkpoint/27",
++        "rh-checkpoint/26",
++        "rh-checkpoint/25",
++    ] {
+         let mut predecessor = good.clone();
+         predecessor["format"] = found.into();
+         assert_eq!(
+@@ -176,6 +181,30 @@ fn the_format_tag_is_refused_before_the_payload_whatever_the_key_order() {
+             found: "rh-checkpoint/8".into()
+         })
+     );
++    // The immediate predecessor wins over malformed payload and mismatched content,
++    // even when the format key follows those payload keys.
++    let mut prior28 = good.clone();
++    prior28["format"] = "rh-checkpoint/28".into();
++    prior28["world"] = serde_json::json!({"tick": "not a checkpoint"});
++    prior28["statics"] = serde_json::json!([1, 2, 3]);
++    prior28["content_hash"] = (good["content_hash"].as_u64().unwrap() ^ 1).into();
++    for order in [
++        ["format", "statics", "world"],
++        ["world", "statics", "format"],
++    ] {
++        // Include content_hash explicitly; reordered() otherwise lists only its supplied keys.
++        let payload = format!(
++            "{{\"content_hash\":{},{}",
++            prior28["content_hash"],
++            &reordered(&prior28, order)[1..]
++        );
++        assert_eq!(
++            Sim::restore(&mut serde_json::Deserializer::from_str(&payload)).err(),
++            Some(CheckpointError::UnsupportedFormat {
++                found: "rh-checkpoint/28".into()
++            })
++        );
++    }
+     // A stale layout under a stale tag is refused by its tag, wherever the tag is, even though its payload would not parse.
+     let mut stale = good.clone();
+     stale["format"] = "rh-checkpoint/2".into();
+diff --git a/crates/rh-sim/tests/hash_coverage.rs b/crates/rh-sim/tests/hash_coverage.rs
+index 618658e5..d23342dd 100644
+--- a/crates/rh-sim/tests/hash_coverage.rs
++++ b/crates/rh-sim/tests/hash_coverage.rs
+@@ -1,5 +1,6 @@
+ //! State identity by construction (docs/CONTRACTS.md C-DET): the state hash is derived from the serialized state, so every
+-//! serialized leaf must change it. This test proves that on real matches instead of trusting a field list: it serializes a
++//! serialized leaf must change it. This audits real matches and explicitly labelled coupled serialization seeds rather than
++//! trusting a field list (the seeds are not gameplay-producer evidence): it serializes a
+ //! checkpoint, perturbs every leaf one at a time (numbers one ulp or one unit, bools flipped, strings changed, sequences
+ //! shortened, optional values removed or filled), restores the perturbed checkpoint and demands a different `state_hash`.
+ //! The allowlist of unhashed leaves is EMPTY, with one deliberate exclusion that is asserted rather than skipped: only the
+@@ -631,6 +632,71 @@ fn wish_states() -> Vec<(&'static str, Sim)> {
+     out
+ }
+ 
++/// Declared serialization controls, NOT earned cards, Mark application, or produced hints.
++/// The source-component tests remain the producer oracle. These coupled seeds let the
++/// generic serde audit reach private fields without a new gameplay/testing input door.
++fn declared_native29_states(wish_seed: &Sim) -> Vec<(&'static str, Sim)> {
++    fn fight_seed(sim: &Sim) -> Sim {
++        let mut cp = serde_json::to_value(sim).unwrap();
++        let now = sim.server_time();
++        assert!(now >= rh_sim::constants::TICK_MS);
++        let p = &mut cp["world"]["players"][0];
++        // An inactive watched row preserves the existing folded sheet. Retain any
++        // genuine Wish spend so fight=None has a valid nonempty-runtime counterpart.
++        p["build"]["counts"][rh_sim::cards::CardId::SlowStarter.index()] = 1.into();
++        let wish_cast = p["card_runtime"]["wish_cast"].clone();
++        p["card_runtime"] = serde_json::json!({
++            "wish_cast": wish_cast,
++            "fight": {"start": 0.0, "last": now}
++        });
++        Sim::restore(cp).expect("declared watched fight clock and retained Wish tuple")
++    }
++
++    fn tax_seed(public: bool) -> Sim {
++        let mut cp = serde_json::to_value(crowded_8()).unwrap();
++        cp["statics"]["config"]["faction_mode"] =
++            serde_json::json!("EngagementHolyPlagueFireFrostSentenced");
++        // Historical player ids are valid marker identities without inventing a
++        // current-faction or live-nearby requirement. The last binding is not public,
++        // so shortening this ordered index remains independently restore-valid.
++        cp["world"]["factions"]["taxed"] = serde_json::json!([
++            {"victim": 2, "by": 5}, {"victim": 4, "by": 6}, {"victim": 6, "by": 7}
++        ]);
++        if public {
++            cp["world"]["factions"]["public_tax"] = serde_json::json!([
++                {"victim": 2, "percent": 48}, {"victim": 4, "percent": 23}
++            ]);
++            for i in [1usize, 3] {
++                let bits = &mut cp["world"]["players"][i]["core"]["signature"]["bits"];
++                *bits = (bits.as_u64().unwrap() | u64::from(rh_sim::constants::SIG_TAXED)).into();
++            }
++        }
++        Sim::restore(cp)
++            .expect("declared historical tax index/public percentages and matching bits")
++    }
++
++    let mut cp = serde_json::to_value(crowded_8()).unwrap();
++    cp["world"]["players"][0]["walk_dir"] = 255.into();
++    cp["world"]["players"][0]["walk_ticks"] = 3.into();
++    let walk = Sim::restore(cp.clone()).expect("declared private Player hint shape");
++    cp["world"]["players"][0]["walk_ticks"] = 0.into();
++    let retained_dir = Sim::restore(cp).expect("zero ticks retains all direction bytes");
++    vec![
++        (
++            "DECLARED fight-only serialization",
++            fight_seed(&crowded_8()),
++        ),
++        (
++            "DECLARED fight-plus-Wish serialization",
++            fight_seed(wish_seed),
++        ),
++        ("DECLARED tax index serialization", tax_seed(false)),
++        ("DECLARED public tax serialization", tax_seed(true)),
++        ("DECLARED Player hint serialization", walk),
++        ("DECLARED retained hint dir serialization", retained_dir),
++    ]
++}
++
+ fn scenarios() -> Vec<(&'static str, Sim)> {
+     let (mob_engaged, mob_cleared) = mob_audit_states();
+     let (source_planning, source_active, source_locked) = source_lifecycle_states();
+@@ -641,6 +707,8 @@ fn scenarios() -> Vec<(&'static str, Sim)> {
+     let mut fuse = short_fuse();
+     drive(&mut fuse, 400);
+     let mut states = wish_states();
++    let declared = declared_native29_states(&states[0].1);
++    states.extend(declared);
+     states.extend([
+         ("source planning", source_planning),
+         ("source active timer", source_active),
+@@ -830,6 +898,13 @@ fn candidates(leaf: &Value, strings: &[String]) -> Vec<Value> {
+ 
+ /// Patterns whose perturbation the restore may refuse, and why. Any other refusal fails the test.
+ const VALIDATED: &[(&str, &str)] = &[
++    // Exact coupled restore constraints, not unhashed-field exceptions. The tax-only
++    // seed separately permits independent taxed.victim edits; accepted edits here
++    // still always have to change the hash. Public victim identity/order is also
++    // checked by a valid whole-row permutation below.
++    ("world.factions.taxed.*.victim", "a public percentage must retain a binding for its exact victim; changing that indexed victim alone can orphan the public row"),
++    ("world.factions.public_tax.*.victim", "public victim identity is coupled to the exact per-actor SIG_TAXED bits and a retained tax binding"),
++    ("world.factions.public_tax.#len", "removing a positive public row alone leaves that victim's SIG_TAXED bit without its required public percentage"),
+     ("world.pending_events.*.CastEnded.event_time", "a required producer timestamp must be finite and between zero and the checkpoint server clock"),
+     ("world.pending_events.*.CastEnded.reason", "CastEndReason is a closed enum: Fizzle, Interrupted or Cancelled"),
+     (
+@@ -871,12 +946,12 @@ const VALIDATED: &[(&str, &str)] = &[
+     ("world.players.*.core.statuses.instances.*.data.floor_hp", "LastStand DeathFloor payload requires the exact minimum health"),
+     ("world.players.*.core.statuses.instances.*.data.heal_share", "LastStand DeathFloor payload requires the exact stored healing share"),
+     ("world.players.*.core.statuses.cast.producer", "Full requires complete producer details; Off forbids them and only admits trusted bare cast facts"),
+-    ("world.players.*.card_runtime", "Full canonical spend memory is coupled to produced stock clocks/cast; Off forbids card memory"),
++    ("world.players.*.card_runtime", "Wish spend requires Full and produced stocks; fight memory requires a watched row, and a lazy runtime cannot be empty"),
+     ("world.players.*.card_streak", "the card-state streak exists only after the after-damage system records weapon hits; a fresh or no-hit state is legitimately None"),
+     ("world.players.*.card_trims", "Wishful Thinking trims exist only after a Wish cast and landed hits inside the source window; a fresh state is legitimately empty"),
+     ("world.players.*.card_hots", "heal-over-time runs exist only after a trigger heal starts one; a fresh state is legitimately empty"),
+     ("world.players.*.card_fired", "the once-trigger fired set exists only after a trigger fires; a fresh state is legitimately empty"),
+-    ("world.players.*.card_runtime.wish_cast", "the admitted lazy card runtime is created only by a successful Wish spend and cannot be empty"),
++    ("world.players.*.card_runtime.wish_cast", "Wish spend requires Full and matching stocks; removing the sole spend from a runtime without a fight clock would leave it empty"),
+ 
+     ("world.abilities.fields.*.ability", "Full field ability is coupled to its Cloud/Trail/Zone kind and typed definition"),
+     ("world.abilities.fields.*.ends_at", "Full field end equals started_at plus its exact ability duration"),
+@@ -1418,6 +1493,21 @@ fn perturb_all(sim: &Sim, pool: &BTreeMap<String, Vec<Value>>, tally: &mut Tally
+         }
+         let secret = p.starts_with("statics.secrets");
+         let tries: Vec<Value> = match item.kind {
++            Kind::Leaf
++                if matches!(
++                    pat.as_str(),
++                    "world.players.*.card_runtime.fight.start"
++                        | "world.players.*.card_runtime.fight.last"
++                ) =>
++            {
++                // Source clocks live on the fixed-step grid: one ULP would be a
++                // restore refusal rather than a useful accepted hash perturbation.
++                let at = leaf.as_f64().unwrap();
++                vec![
++                    serde_json::json!(at + rh_sim::constants::TICK_MS),
++                    serde_json::json!(at - rh_sim::constants::TICK_MS),
++                ]
++            }
+             Kind::Leaf if p.ends_with(".core.modifiers.wire.0") => {
+                 vec![serde_json::json!(800.0), serde_json::json!(900.0)]
+             }
+@@ -1576,6 +1666,30 @@ fn every_serialized_leaf_of_a_match_changes_the_state_hash() {
+             "actual Wish producer must populate {path}"
+         );
+     }
++    for path in [
++        "world.players.*.card_runtime.fight.start",
++        "world.players.*.card_runtime.fight.last",
++        "world.factions.taxed.*.victim",
++        "world.factions.taxed.*.by",
++        "world.factions.public_tax.*.victim",
++        "world.factions.public_tax.*.percent",
++        "world.players.*.walk_dir",
++        "world.players.*.walk_ticks",
++    ] {
++        assert!(
++            pool.get(path)
++                .is_some_and(|values| values.iter().any(|v| !v.is_null())),
++            "declared native29 serialization seed must populate {path}"
++        );
++    }
++    for path in ["world.players.*.walk_dir", "world.players.*.walk_ticks"] {
++        assert!(
++            pool[path]
++                .iter()
++                .any(|value| value.as_u64().is_some_and(|v| v > 0)),
++            "nonzero declared Player hint must remain present: {path}"
++        );
++    }
+     let mut all = Tally::default();
+     for (name, sim) in &sims {
+         let mut t = Tally::default();
+@@ -1640,6 +1754,20 @@ fn every_serialized_leaf_of_a_match_changes_the_state_hash() {
+     // or have an exact documented restore refusal (including role-forbidden Some values).
+     // Accepted edits are always checked, even for patterns listed in VALIDATED.
+     let perturbed: BTreeSet<&String> = all.perturbed.iter().collect();
++    for path in [
++        "world.players.*.card_runtime.fight.start",
++        "world.players.*.card_runtime.fight.last",
++        "world.factions.taxed.*.victim",
++        "world.factions.taxed.*.by",
++        "world.factions.public_tax.*.percent",
++        "world.players.*.walk_dir",
++        "world.players.*.walk_ticks",
++    ] {
++        assert!(
++            perturbed.iter().any(|actual| actual.as_str() == path),
++            "native29 leaf needs an accepted hash-changing edit: {path}"
++        );
++    }
+     let validated_optional: BTreeSet<&String> = all.validated_optional.iter().collect();
+     let never: BTreeSet<&String> = all
+         .null_left
+@@ -2009,3 +2137,63 @@ fn derived_blink_ring_clone_and_restore_preserve_actual_locked_casts() {
+         "the clone/restore control must exercise an actual closed coliseum boundary"
+     );
+ }
++
++#[test]
++fn native29_declared_seeds_roundtrip_and_ordered_tax_vectors_change_hash() {
++    let wish = wish_states();
++    let declared = declared_native29_states(&wish[0].1);
++    for (label, sim) in &declared {
++        let cp = serde_json::to_value(sim).unwrap();
++        assert_eq!(
++            Sim::restore(&cp).unwrap().state_hash(),
++            sim.state_hash(),
++            "{label}"
++        );
++        assert_eq!(sim.clone().state_hash(), sim.state_hash(), "{label}");
++        if label.contains("fight") {
++            let p = &cp["world"]["players"][0];
++            assert_eq!(
++                p["build"]["counts"][rh_sim::cards::CardId::SlowStarter.index()],
++                1
++            );
++            assert!(p["card_runtime"]["fight"]["start"].is_number());
++            assert!(p["card_runtime"]["fight"]["last"].is_number());
++            assert_eq!(
++                p["card_runtime"]["wish_cast"].is_object(),
++                label.contains("plus-Wish")
++            );
++        }
++        if label.contains("tax") {
++            assert_eq!(
++                cp["world"]["factions"]["taxed"].as_array().unwrap().len(),
++                3
++            );
++            assert_eq!(
++                cp["world"]["factions"]["public_tax"]
++                    .as_array()
++                    .unwrap()
++                    .len(),
++                if label.contains("public") { 2 } else { 0 }
++            );
++        }
++    }
++    let (_, sim) = declared
++        .iter()
++        .find(|(label, _)| *label == "DECLARED public tax serialization")
++        .unwrap();
++    for field in ["taxed", "public_tax"] {
++        let mut cp = serde_json::to_value(sim).unwrap();
++        cp["world"]["factions"][field]
++            .as_array_mut()
++            .unwrap()
++            .swap(0, 1);
++        let swapped = Sim::restore(cp).expect("historical tax vectors preserve valid source order");
++        assert_ne!(
++            sim.state_hash(),
++            swapped.state_hash(),
++            "ordered {field} is canonical"
++        );
++    }
++    // This is prerequisite serialization coverage only. A produced hint and the
++    // None/Some(false)/Some(true) walk_hints config seeds await the frozen producer.
++}
+diff --git a/crates/rh-sim/tests/replay.rs b/crates/rh-sim/tests/replay.rs
+index c6c47c1a..c8dfec0b 100644
+--- a/crates/rh-sim/tests/replay.rs
++++ b/crates/rh-sim/tests/replay.rs
+@@ -80,6 +80,7 @@ fn another_replay_format_is_refused_before_anything_runs() {
+         "rh-replay/19",
+         "rh-replay/20",
+         "rh-replay/21",
++        "rh-replay/22",
+         "",
+         "something else",
+     ] {
+@@ -92,6 +93,18 @@ fn another_replay_format_is_refused_before_anything_runs() {
+             })
+         );
+     }
++    // The immediate predecessor is a typed format refusal even if both the rules
++    // identity and the first expected step hash are wrong. Nothing is simulated.
++    let mut prior22 = r.clone();
++    prior22.format = "rh-replay/22".into();
++    prior22.content_hash ^= 1;
++    prior22.hashes[0] ^= 1;
++    assert_eq!(
++        run_replay(&prior22).err(),
++        Some(ReplayError::Format {
++            found: "rh-replay/22".into()
++        })
++    );
+     // The format is checked before the content hash and before any step is run.
+     let mut both = r.clone();
+     both.format = "rh-replay/1".into();

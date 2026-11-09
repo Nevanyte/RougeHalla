@@ -1,0 +1,35 @@
+{
+  "base": "2f1c4758e0db84515551f483c6df0d23879f4a99",
+  "code": "0eca8958e1b86a46fca9a0ad60c94ec58a1aed93",
+  "testsExecuted": false,
+  "compiled": false,
+  "futureDependency": "exact frozen full WalkHint producer/config and Root cache lease",
+  "files": [
+    {
+      "path": "crates/rh-sim/tests/hash_coverage.rs",
+      "bytes": 114876,
+      "sha256": "11d58182166340a48e119a26b1beaae175f02564edee8f8cf30a6cabeed4a1f5"
+    },
+    {
+      "path": "crates/rh-sim/tests/checkpoint.rs",
+      "bytes": 13800,
+      "sha256": "996c9fdba59da217e336f60d79fdfa94c6c75329f1757cc0fbf43df484f099dd"
+    },
+    {
+      "path": "crates/rh-sim/tests/replay.rs",
+      "bytes": 6230,
+      "sha256": "45d2476be48d823920e29f75655d4bf1b9c8246c81f528908f2ba8796117fac0"
+    }
+  ],
+  "proposedFirstCommands": [
+    "cargo test --locked -p rh-sim --test hash_coverage native29_declared_seeds_roundtrip_and_ordered_tax_vectors_change_hash -- --exact",
+    "cargo test --locked -p rh-sim --test checkpoint the_format_tag_is_refused_before_the_payload_whatever_the_key_order -- --exact",
+    "cargo test --locked -p rh-sim --test replay another_replay_format_is_refused_before_anything_runs -- --exact"
+  ],
+  "notRun": [
+    "all cargo/compilation/tests",
+    "generic full hash campaign",
+    "produced WalkHint/config None/false/true cases",
+    "content/OutcomeDigest/tape admission"
+  ]
+}
