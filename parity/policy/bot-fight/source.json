@@ -147,10 +147,10 @@
    "tsconfig.base.json": "017575ec3101f44df43b5a7cc850779582650d9e01a2090b7e311b213b98ef88"
   },
   "toolSha256": {
-   "tools/bot-fight-fixtures/README.md": "20b4f792ba495e6666427c26ec6a70c646f30bce7c7b3e0b75b920f6f0325533",
-   "tools/bot-fight-fixtures/capture.mts": "164acfc9400448f9998631f41e74fc28676708d7064e83a827823ab4f8d27e84",
+   "tools/bot-fight-fixtures/README.md": "f8217b497f5b4625d56c881260c42eaf29f609e2f7e06606e11cac0bc366805c",
+   "tools/bot-fight-fixtures/capture.mts": "c7b4cd18dd55a9899d3765dfc5eea5fd1db25c2bb74c84b67021008c605ff4c3",
    "tools/bot-fight-fixtures/capture.sh": "d8736daaa8b01d25c601dbd970211abf7774fa2af57d24ccac27bcc14c31933e",
-   "tools/bot-fight-fixtures/cases.mts": "50cf296e3a66edcae6daa91f08e088a6102cf6606aa203068de5db2608eef724",
+   "tools/bot-fight-fixtures/cases.mts": "9e9e5785728b82476a70e977137aad7531df781b5bf4971ba4b4668a01a585fc",
    "tools/bot-fight-fixtures/controls.mjs": "76908e31a76f7a3c7e58430cedeb05a5f17af59f6c3927837bc91ae05eb63437",
    "tools/bot-fight-fixtures/controls.sh": "0d3e3f8ade22edf20eea1921327f82118a02442454e945fb79e1bba456f068f9",
    "tools/bot-fight-fixtures/verify.mjs": "45a1893c80166740042603c50708f84f78a533e877ff03f151772f1de5604bb6"
@@ -3654,7 +3654,7 @@
     1,
     1,
     0,
-    1,
+    0,
     1,
     1,
     1,
@@ -12049,7 +12049,7 @@
        "self": {
         "id": "p0",
         "name": "declared owner",
-        "x": 500,
+        "x": 496,
         "y": 360,
         "facing": 0,
         "status": "alive",
@@ -12098,7 +12098,7 @@
          "id": "p1",
          "name": "declared foe",
          "bot": false,
-         "x": 524,
+         "x": 560,
          "y": 360,
          "facing": 3.141592653589793,
          "status": "alive",
@@ -12114,7 +12114,7 @@
          "targetable": true,
          "vx": 0,
          "vy": 0,
-         "dist": 24,
+         "dist": 64,
          "los": true,
          "tint": 0,
          "central": true
@@ -12158,7 +12158,7 @@
        {
         "kind": "move",
         "to": {
-         "x": 524,
+         "x": 560,
          "y": 360
         },
         "priority": 2,
@@ -12169,7 +12169,7 @@
           "at": 100,
           "subject": "p1",
           "central": true,
-          "value": 24
+          "value": 64
          }
         },
         "why": "approach"
@@ -12325,7 +12325,7 @@
        "self": {
         "id": "p0",
         "name": "declared owner",
-        "x": 500,
+        "x": 496,
         "y": 360,
         "facing": 0,
         "status": "alive",
@@ -12374,7 +12374,7 @@
          "id": "p1",
          "name": "declared foe",
          "bot": false,
-         "x": 524,
+         "x": 560,
          "y": 360,
          "facing": 3.141592653589793,
          "status": "alive",
@@ -12390,7 +12390,7 @@
          "targetable": true,
          "vx": 0,
          "vy": 0,
-         "dist": 24,
+         "dist": 64,
          "los": true,
          "tint": 0,
          "central": true
@@ -12435,7 +12435,7 @@
         "kind": "lock",
         "target": "p1",
         "at": {
-         "x": 524,
+         "x": 560,
          "y": 360
         },
         "priority": 1,
@@ -22696,7 +22696,7 @@
          "id": "p1",
          "name": "declared foe",
          "bot": false,
-         "x": 440,
+         "x": 432,
          "y": 400,
          "facing": 3.141592653589793,
          "status": "alive",
@@ -22712,7 +22712,7 @@
          "targetable": true,
          "vx": 0,
          "vy": 0,
-         "dist": 40,
+         "dist": 32,
          "los": true,
          "tint": 0,
          "central": true
@@ -22745,8 +22745,8 @@
       "weapon": "bow",
       "foe": {
        "id": "p1",
-       "x": 440,
-       "y": 360
+       "x": 432,
+       "y": 400
       }
      },
      "normalReflex": {

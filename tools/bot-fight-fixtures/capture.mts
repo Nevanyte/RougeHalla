@@ -56,7 +56,10 @@ function context(c:any) {
  // Independent real reflex instance verifies there is no opportunity. Its zero draws are NOT part of the actual stream.
  const noReflex=createReflexes(),reflexStream=stream(c.seed,tags.decide);
  return {streams,calls,real,budget,paths,mem,know,rng,map,
-  row(p:any){budget.startTick();real.setFrame(p.now,p.hud.gatesLocked);mem.observe(p);
+  row(p:any){
+   assert(S.circleClear(map,p.self,S.PLAYER_RADIUS),'declared owner body must fit actual map');
+   for(const f of p.fighters){assert(S.circleClear(map,f,S.PLAYER_RADIUS),'declared visible body must fit actual map');assert.equal(f.los,S.hasLineOfSight(map,p.self,f),'declared sight must match actual map');assert.equal(f.dist,Math.hypot(f.x-p.self.x,f.y-p.self.y),'declared distance');}
+   budget.startTick();real.setFrame(p.now,p.hud.gatesLocked);mem.observe(p);
    const ctx={p,mem:mem.view,rng,cfg:{tier:TIERS[c.tier],persona:PERSONAS[c.persona],seed:c.seed,map,features},know,engaged:p.self.attackTarget!==null,svc:{paths,log(){}}};
    const reflex=noReflex.check({...ctx,rng:{decide:reflexStream.rng,motor:()=>{throw Error('reflex motor draw');},lapse:()=>{throw Error('reflex lapse draw');}}});
    assert.equal(reflex,null,'declared normal context actually triggered a reflex');assert.equal(noReflex.holdUntil,0);assert.equal(reflexStream.draws.length,0);

@@ -7,7 +7,7 @@ export function maps() {
   const base=()=>Array.from({length:w*h},(_,i)=>i%w===0||i%w===w-1||i<w||i>=w*(h-1)?1:0);
   const open=base(), wall=base(), closed=base(), fence=base(), corner=Array(w*h).fill(1);
   for(let y=1;y<h-1;y++){closed[y*w+16]=1;if(y!==17&&y!==18)wall[y*w+16]=1;fence[y*w+16]=2;}
-  corner[12*w+12]=0;
+  corner[12*w+12]=0;corner[12*w+13]=0;
   return {open:{w,h,tiles:open},wall:{w,h,tiles:wall},closed:{w,h,tiles:closed},fence:{w,h,tiles:fence},corner:{w,h,tiles:corner}};
 }
 export const frame=(now:number,fields:any={})=>({now,viewT:now,
@@ -35,7 +35,7 @@ export function fightCases(timing:any) {
     normal('approach-resend-and-progress-timeout',[100,500,801,1700,3500,6500,9500,10100,10101].map(t=>far(t))),
     normal('path-replan-gap-and-waypoint',[frame(100,{fighters:[fighter({x:700,dist:300,los:false})]}),frame(200,{fighters:[fighter({x:700,dist:300,los:false})]}),frame(501,{fighters:[fighter({x:700,dist:300,los:false})]})],{map:'wall'}),
     normal('no-path-third-plan-fails',[100,501,902].map(t=>frame(t,{fighters:[fighter({x:700,dist:300,los:false})]})),{map:'closed'}),
-    normal('melee-reach-is-not-sight',[frame(100,{self:{x:500},fighters:[fighter({x:524,dist:24,los:true})]}),frame(150,{self:{x:500,weapons:['bow',null]},fighters:[fighter({x:524,dist:24,los:true})]})],{map:'fence'}),
+    normal('melee-reach-is-not-sight',[frame(100,{self:{x:496},fighters:[fighter({x:560,dist:64,los:true})]}),frame(150,{self:{x:496,weapons:['bow',null]},fighters:[fighter({x:560,dist:64,los:true})]})],{map:'fence'}),
     normal('swap-cooldown-and-draw-guard',[frame(100,{self:{weapons:['bow','wand'],drawStartedAt:20},fighters:[fighter({inHand:'shield'})]}),frame(150,{self:{weapons:['bow','wand']},fighters:[fighter({inHand:'shield'})]}),frame(500,{self:{weapons:['bow','wand']},fighters:[fighter({inHand:'shield'})]}),frame(5000,{self:{weapons:['bow','wand']},fighters:[fighter({inHand:'shield'})]})],{tier:'hard',seed:0}),
     normal('target-down-and-unknown',[frame(100,{fighters:[fighter()]}),frame(150,{fighters:[fighter({status:'dead',hpFrac:0})]})]),
     normal('unknown-target-is-source-done',[frame(100)],{rows:[{percept:frame(100),goal:{kind:'fight',target:'never-seen'}}]}),
@@ -62,6 +62,6 @@ export function orbCases(timing:any) {
     {name:'no-cooldown-left',map:'open',reset:0,rows:[row(r-100,r)]},
     {name:'lost-move-900-boundary',map:'open',reset:0,rows:[row(w+1,r),row(w+901,r),row(w+902,r)]},
     {name:'away-abandoned-3000-boundary',map:'open',reset:0,rows:[row(w+1,r),row(w+51,r,false),row(w+3001,r,false),row(w+3002,r,false)]},
-    {name:'cornered-no-away-point',map:'corner',reset:0,rows:[{...row(w+1,r),percept:frame(w+1,{self:{...me,x:400,y:400,readyAt:r,attackTarget:'p1'},fighters:[fighter({x:440,y:400})]})}]}
+    {name:'cornered-no-away-point',map:'corner',reset:0,rows:[{...row(w+1,r),foe:{id:'p1',x:432,y:400},percept:frame(w+1,{self:{...me,x:400,y:400,readyAt:r,attackTarget:'p1'},fighters:[fighter({x:432,y:400,dist:32})]})}]}
   ].map(c=>({...c,seed:7,tier:'hard',persona:'cautious'}));
 }
