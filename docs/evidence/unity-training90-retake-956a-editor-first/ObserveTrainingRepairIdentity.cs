@@ -1,0 +1,38 @@
+using System;
+using System.IO;
+using System.Linq;
+using System.Collections.Generic;
+using System.Reflection;
+using System.Reflection.Emit;
+using System.Security.Cryptography;
+using UnityEditor;
+using UnityEngine;
+var t=typeof(Roguehalla.Client.TrainingConsoleView);
+var assemblies=AppDomain.CurrentDomain.GetAssemblies().Where(a=>a.GetName().Name=="Roguehalla.Client").ToArray();
+if(assemblies.Length!=1 || assemblies[0]!=t.Assembly) throw new InvalidOperationException("Expected one current Client assembly");
+var opcodes=typeof(OpCodes).GetFields(BindingFlags.Public|BindingFlags.Static).Where(f=>f.FieldType==typeof(OpCode)).Select(f=>(OpCode)f.GetValue(null)).ToDictionary(o=>unchecked((ushort)o.Value));
+var records=new List<object>();
+var ownTypes=new[]{typeof(Roguehalla.Client.TrainingConsoleView)};
+var ownNames=new[]{new[]{"OwnerAlive","DisposeOwned","RetireRoot","CurrentAction","get_ActionsAvailable","Attach","Detach","OnDestroy"}};
+for(int typeIndex=0;typeIndex<ownTypes.Length;typeIndex++) foreach(var name in ownNames[typeIndex]) {
+ var matches=ownTypes[typeIndex].GetMethods(BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Instance|BindingFlags.Static|BindingFlags.DeclaredOnly).Where(m=>m.Name==name).ToArray();
+ if(matches.Length!=1) throw new InvalidOperationException("Expected one owned method: "+name);
+ var method=matches[0];var body=method.GetMethodBody();if(body==null)throw new InvalidOperationException("Missing IL: "+name);
+ var bytes=body.GetILAsByteArray();var instructions=new List<object>();var calls=new List<string>();int at=0;
+ while(at<bytes.Length){int offset=at;ushort code=bytes[at++];if(code==0xfe)code=(ushort)(0xfe00|bytes[at++]);var op=opcodes[code];int size;string resolved=null;
+  switch(op.OperandType){
+   case OperandType.InlineNone:size=0;break;
+   case OperandType.ShortInlineBrTarget:case OperandType.ShortInlineI:case OperandType.ShortInlineVar:size=1;break;
+   case OperandType.InlineVar:size=2;break;
+   case OperandType.InlineI8:case OperandType.InlineR:size=8;break;
+   case OperandType.InlineSwitch:size=checked(4+4*BitConverter.ToInt32(bytes,at));break;
+   default:size=4;break;
+  }
+  if(at+size>bytes.Length)throw new InvalidOperationException("Invalid IL operand");
+  if(op.OperandType==OperandType.InlineMethod){var target=method.Module.ResolveMethod(BitConverter.ToInt32(bytes,at));resolved=target.DeclaringType.FullName+"."+target.Name;calls.Add(resolved);}
+  instructions.Add(new{offset,opcode=op.Name,operandHex=size==0?String.Empty:BitConverter.ToString(bytes,at,size),resolvedMethod=resolved});at+=size;
+ }
+ using(var sha=SHA256.Create())records.Add(new{declaringType=method.DeclaringType.FullName,name=method.Name,isStatic=method.IsStatic,returnType=method.ReturnType.FullName,parameters=method.GetParameters().Select(p=>p.ParameterType.FullName).ToArray(),moduleMvid=method.Module.ModuleVersionId.ToString(),ilSha256=BitConverter.ToString(sha.ComputeHash(bytes)).Replace("-","").ToLowerInvariant(),calls,instructions});
+}
+string location=t.Assembly.Location;string hash;using(var sha=SHA256.Create())hash=BitConverter.ToString(sha.ComputeHash(File.ReadAllBytes(location))).Replace("-","").ToLowerInvariant();
+return new{scope="Read-only CLR metadata and IL of this project's own MatchClient/MatchHud/TrainingConsoleView/InputSender, explicitly released by coordinator; no invocation, Editor-private reflection, or source change.",playing=EditorApplication.isPlaying,compiling=EditorApplication.isCompiling,singleClientAssembly=true,assembly=t.Assembly.FullName,moduleMvid=t.Module.ModuleVersionId.ToString(),assemblyLocation=location,assemblyFileSha256=hash,sourceGuid=AssetDatabase.AssetPathToGUID("Assets/Scripts/UI/TrainingConsoleView.cs"),sourceDependencyHash=AssetDatabase.GetAssetDependencyHash("Assets/Scripts/UI/TrainingConsoleView.cs").ToString(),methods=records};

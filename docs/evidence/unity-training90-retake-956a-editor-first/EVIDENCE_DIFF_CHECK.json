@@ -1,0 +1,27 @@
+{
+  "initialEvidenceCheck": {
+    "exitCode": 2,
+    "stdout": "docs/evidence/unity-training90-retake-956a-editor-first/evidence/ShaderGraph.first-import.observed.asset.txt:13: trailing whitespace.\n+  m_Name: \ndocs/evidence/unity-training90-retake-956a-editor-first/evidence/ShaderGraph.first-import.observed.asset.txt:14: trailing whitespace.\n+  m_EditorClassIdentifier: \ndocs/evidence/unity-training90-retake-956a-editor-first/evidence/first-import-overlay.patch:11: trailing whitespace.\n++  m_Name: \ndocs/evidence/unity-training90-retake-956a-editor-first/evidence/first-import-overlay.patch:12: trailing whitespace.\n++  m_EditorClassIdentifier: \n",
+    "stderr": ""
+  },
+  "reason": "Exact raw observed ShaderGraph settings and import diff preserve the two approved trailing spaces. No product-source tolerance.",
+  "onlyRawPathsExcluded": [
+    "docs/evidence/unity-training90-retake-956a-editor-first/evidence/ShaderGraph.first-import.observed.asset.txt",
+    "docs/evidence/unity-training90-retake-956a-editor-first/evidence/first-import-overlay.patch"
+  ],
+  "scopedCheck": {
+    "argv": [
+      "git",
+      "diff",
+      "--cached",
+      "--check",
+      "--",
+      ".",
+      ":(exclude)docs/evidence/unity-training90-retake-956a-editor-first/evidence/ShaderGraph.first-import.observed.asset.txt",
+      ":(exclude)docs/evidence/unity-training90-retake-956a-editor-first/evidence/first-import-overlay.patch"
+    ],
+    "exitCode": 0,
+    "stdout": "",
+    "stderr": ""
+  }
+}
