@@ -24,6 +24,9 @@ namespace Roguehalla.Client.Tests
     {
         public bool HideRequested;
 
+        // TMP creates its alpha tween runner in Start, which EditMode does not invoke here.
+        public void InitializeForEditMode() => base.Start();
+
         protected override void DestroyBlocker(GameObject blocker)
         {
             HideRequested = true;
@@ -651,6 +654,7 @@ namespace Roguehalla.Client.Tests
                 dropdown.itemText = itemText;
                 dropdown.AddOptions(new List<string> { "Choice A", "Choice B" });
                 template.SetActive(false);
+                dropdown.InitializeForEditMode();
                 EventSystem.current.SetSelectedGameObject(dropdownObject);
                 dropdown.Show();
                 Assert.That(dropdown.IsExpanded, Is.True, "the test opens an actual TMP_Dropdown popup");
