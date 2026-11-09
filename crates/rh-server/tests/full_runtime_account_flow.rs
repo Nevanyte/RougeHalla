@@ -263,6 +263,7 @@ struct PlayAudit {
     visible_human_samples: u32,
     last_tick: u32,
     result: Option<WireResult>,
+    result_tick: Option<u32>,
 }
 
 async fn play_with_map(name: &str, mut peer: Peer, map: rh_protocol::map::MapBlob) -> PlayAudit {
@@ -376,10 +377,11 @@ async fn play_with_map(name: &str, mut peer: Peer, map: rh_protocol::map::MapBlo
                     }
                 }
             }
-            ServerMsg::Events { events, .. } => {
+            ServerMsg::Events { tick, events } => {
                 for event in events {
                     if let WireEvent::Result(result) = event {
                         audit.result = Some(result);
+                        audit.result_tick = Some(tick);
                         return audit;
                     }
                 }
@@ -605,6 +607,10 @@ async fn account_flow() {
     let bob_profile = svc.profile("bob", &bob_token).await;
     for (profile, result) in [(&alice_profile, alice_result), (&bob_profile, bob_result)] {
         assert_eq!(profile["stats"]["runs"], 1);
+        assert_eq!(profile["stats"]["kills"], result.kills);
+        assert_eq!(profile["stats"]["wins"], u8::from(result.outcome == 0));
+        assert_eq!(profile["stats"]["draws"], u8::from(result.outcome == 1));
+        assert_eq!(profile["stats"]["deaths"], u8::from(result.outcome == 2));
         assert_eq!(profile["gv"], result.gv_total);
         assert_eq!(profile["gvLifetime"], result.gv_total);
     }
@@ -719,7 +725,7 @@ async fn account_flow() {
     assert_eq!(svc.spool.stats().pending, 0);
     assert_eq!(svc.director.recover_spooled(), 0);
     assert!(rh_persist::admin::reconcile(&reopened).await.unwrap().ok());
-    let receipt = json!({"source_base":"a0c4818ce9df8ad0f4124db31e65ba1244bddc3b","build":rh_sim::replay::BUILD_ID,"protocol":rh_protocol::PROTOCOL_VERSION,"full_source_default_rules":true,"map":"unchanged maps/first-playable.json","clock":"native 50ms steps; accelerated 3ms wall-clock wake, real loopback HTTP/WebSocket and PostgreSQL","replay_steps":replay.hashes.len(),"replay_hashes":"all verified","replay_terminal_phase":"Ended","wire_results":[{"name":"alice","gv":alice_result.gv_total,"kills":alice_result.kills},{"name":"bob","gv":bob_result.gv_total,"kills":bob_result.kills}],"public_snapshots":[alice_audit.snapshots,bob_audit.snapshots],"public_attack_commands":[alice_audit.attacks,bob_audit.attacks],"profiles":[alice_profile,bob_profile],"spooled":2,"pending":0,"duplicate_result":"AlreadyApplied; owner unchanged","wrong_principal":"NoLease; outsider unchanged","reconciliation":"ok","reopened_owner_profiles_and_board":"equal","physical_time_or_browser_acceptance":false});
+    let receipt = json!({"source_base":"a0c4818ce9df8ad0f4124db31e65ba1244bddc3b","build":rh_sim::replay::BUILD_ID,"protocol":rh_protocol::PROTOCOL_VERSION,"full_source_default_rules":true,"map":"unchanged maps/first-playable.json","clock":"native 50ms steps; accelerated 3ms wall-clock wake, real loopback HTTP/WebSocket and PostgreSQL","replay_steps":replay.hashes.len(),"replay_hashes":"all verified","replay_terminal_phase":"Ended","wire_results":[{"name":"alice","gv":alice_result.gv_total,"kills":alice_result.kills,"outcome":alice_result.outcome,"duration_sec":alice_result.duration_sec,"result_tick":alice_audit.result_tick},{"name":"bob","gv":bob_result.gv_total,"kills":bob_result.kills,"outcome":bob_result.outcome,"duration_sec":bob_result.duration_sec,"result_tick":bob_audit.result_tick}],"public_snapshots":[alice_audit.snapshots,bob_audit.snapshots],"public_attack_commands":[alice_audit.attacks,bob_audit.attacks],"profiles":[alice_profile,bob_profile],"spooled":2,"pending":0,"duplicate_result":"AlreadyApplied; owner unchanged","wrong_principal":"NoLease; outsider unchanged","reconciliation":"ok","reopened_owner_profiles_and_board":"equal","physical_time_or_browser_acceptance":false});
     std::fs::write(
         state.join("receipt.json"),
         serde_json::to_vec_pretty(&receipt).unwrap(),
