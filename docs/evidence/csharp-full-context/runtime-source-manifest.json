@@ -1,0 +1,56 @@
+[
+  {
+    "url": "https://raw.githubusercontent.com/dotnet/runtime/v8.0.33/src/coreclr/vm/comutilnative.cpp",
+    "path": "src/coreclr/vm/comutilnative.cpp",
+    "bytes": 59325,
+    "sha256": "80023fa120bb69c4eb27c4c51636a74537fe13886cdc5abdeef3f43f4bbd75b3"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/dotnet/runtime/v8.0.33/src/libraries/System.Private.CoreLib/src/System/Diagnostics/Stopwatch.cs",
+    "path": "src/libraries/System.Private.CoreLib/src/System/Diagnostics/Stopwatch.cs",
+    "bytes": 6073,
+    "sha256": "6ea0cea4e2e79ad2c581eadf73002e282c6bb178244f2a119d20c5cb673e2245"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/dotnet/runtime/v8.0.33/src/libraries/System.Private.CoreLib/src/System/Diagnostics/Stopwatch.Unix.cs",
+    "path": "src/libraries/System.Private.CoreLib/src/System/Diagnostics/Stopwatch.Unix.cs",
+    "bytes": 521,
+    "sha256": "0acadf22df705d4fb8f4df3298c8a7a54fffe03a835d0bf564c11c58344683f6"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/dotnet/runtime/v8.0.33/src/libraries/System.Private.CoreLib/src/System/Environment.cs",
+    "path": "src/libraries/System.Private.CoreLib/src/System/Environment.cs",
+    "bytes": 10125,
+    "sha256": "dcf35795a2a8f57553d92a80a042d6d4e0baebce75f38470b22bdf5eb6b76913"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/dotnet/runtime/v8.0.33/src/coreclr/System.Private.CoreLib/src/System/Threading/Thread.CoreCLR.cs",
+    "path": "src/coreclr/System.Private.CoreLib/src/System/Threading/Thread.CoreCLR.cs",
+    "bytes": 13516,
+    "sha256": "a5a1a91f6c57a72535c41fe928847310a906f8a7d4791817f77695d8c3c28d84"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/dotnet/runtime/v8.0.33/src/coreclr/vm/comsynchronizable.cpp",
+    "path": "src/coreclr/vm/comsynchronizable.cpp",
+    "bytes": 30421,
+    "sha256": "d689cbed865a4d2c198e9529a3f305ff30ff807e478485b282266fe8fc7750e4"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/dotnet/runtime/v8.0.33/src/libraries/Common/src/Interop/Unix/System.Native/Interop.GetTimestamp.cs",
+    "path": "src/libraries/Common/src/Interop/Unix/System.Native/Interop.GetTimestamp.cs",
+    "bytes": 444,
+    "sha256": "5e05b0e240a32178ddd3c3209f8864a0b51173772b12235d66b3f33e544d0405"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/dotnet/runtime/v8.0.33/src/native/libs/System.Native/pal_time.c",
+    "path": "src/native/libs/System.Native/pal_time.c",
+    "bytes": 5554,
+    "sha256": "4cdc3c67d3d185b12f5981c69dcc2addae1dd8493be64dfb1a8e5b042b63d671"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/dotnet/runtime/v8.0.33/src/coreclr/System.Private.CoreLib/src/System/Environment.CoreCLR.cs",
+    "path": "src/coreclr/System.Private.CoreLib/src/System/Environment.CoreCLR.cs",
+    "bytes": 4328,
+    "sha256": "d2c2b731551b67b5329e67970e433b49779e54daaa4510ea4a29b32d7dd6e22d"
+  }
+]

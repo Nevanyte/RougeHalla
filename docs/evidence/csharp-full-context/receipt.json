@@ -1,0 +1,71 @@
+{
+  "base": "1a1ac8d70b323ac7159d60dea336e89e7b56389e",
+  "role": "DIAGNOSTIC ONLY: Root review before workflow application/push/dispatch; no fix/CI clearance",
+  "historicalLinuxFailure": {
+    "run": 42610654982,
+    "passed": 756,
+    "failed": 1,
+    "total": 757,
+    "case": "PlainDecodeAllocatesOnlyTheSnapshotItsSelfAndOneActorArray(1)",
+    "limit": 120,
+    "actual": 120.108,
+    "inferredExtraBytes": 2160,
+    "cause": "UNKNOWN"
+  },
+  "laterLeadReportedObservation": {
+    "head": "3126e5c3209334c637d1f067f3f0b8209dbf06f4",
+    "run": 42615460588,
+    "csharp": "773PASS",
+    "historicalCauseCleared": false
+  },
+  "local": {
+    "sdk": "8.0.427",
+    "runtime": "8.0.33",
+    "architecture": "ARM64",
+    "ordinaryBaseFullSuite": {
+      "passed": 757,
+      "failed": 0
+    },
+    "tracedFullSuite": {
+      "passed": 754,
+      "failed": 3,
+      "windows": 28,
+      "capturedSamples": 540001
+    },
+    "controls": {
+      "cases": 4,
+      "windows": 4,
+      "capturedSamples": 80000,
+      "decoderInvocations": 0,
+      "GCCollectCalls": 0,
+      "extraInterstitialBytesInEveryObjectCase": 13704
+    }
+  },
+  "initialInvalidInvocation": "outside-repo artifacts prevent Util.RepoRoot fixture discovery;44failed/384discovered; not counted as allocation evidence",
+  "productionTree": "5df6ac67e78f251689081e2ee34501114513f7b8",
+  "proofLimits": [
+    "Instrumentation changes timing/heap pressure",
+    "API source has no explicit managed allocation path, not an exhaustive VM allocation-stack proof",
+    "Caller BGC metadata spans setup to post-Join construction, not exact measured GC events",
+    "Inside-body1304 and historicalLinux1128/2160 attribution remainUNKNOWN",
+    "No robust measurement or runtime workaround admitted"
+  ],
+  "unchanged": [
+    "all callers/setup/selectors/budgets outside PerCall",
+    "200warmups/20000measuredcalls",
+    "tiering/GC policy",
+    "production decoder/mirror",
+    "actual workflow",
+    "Cargo/lock/header/shared status"
+  ],
+  "checks": [
+    "warnings-as-errors build",
+    "all620001capturedsamples reconciled",
+    "all37archive member lengths/hashes",
+    "workflow patch applies in check-only mode",
+    "missing-window/bad-sum/discard-index200 rejected",
+    "Python AST",
+    "only PerCall diff in existing GarbageTests"
+  ],
+  "runningResources": "none; threads/processes completed; no Cargo/cache loan used"
+}

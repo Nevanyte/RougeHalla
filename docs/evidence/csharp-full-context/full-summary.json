@@ -1,0 +1,1340 @@
+{
+  "scope": "All windows reconciled, no filtering/correction. NUnit result remains independent; GC overlap alone is not causality.",
+  "windows": 28,
+  "capturedSamples": 540001,
+  "records": [
+    {
+      "ordinal": 1,
+      "test": "Roguehalla.Net.Tests.AllocationMeasurementTests.EmptyMeasuredBodyAllocatesExactlyZero",
+      "captured": 20000,
+      "runtime": ".NET 8.0.33",
+      "os": "Darwin 25.6.0 Darwin Kernel Version 25.6.0: Sat Jul 11 15:27:04 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T6050",
+      "architecture": "Arm64",
+      "totalBytes": 0,
+      "outsideBodyCounterDelta": 0,
+      "histogram": {
+        "0": 20000
+      },
+      "nonModalCount": 0,
+      "firstNonModalExamples": [],
+      "backgroundIndex": [
+        9,
+        9
+      ],
+      "gc0Span": [
+        13,
+        13
+      ],
+      "gc1Span": [
+        10,
+        10
+      ],
+      "gc2Span": [
+        4,
+        4
+      ]
+    },
+    {
+      "ordinal": 2,
+      "test": "Roguehalla.Net.Tests.AllocationMeasurementTests.MeasuredBodyExceptionReachesTheCallerUnchanged",
+      "captured": 1,
+      "runtime": ".NET 8.0.33",
+      "os": "Darwin 25.6.0 Darwin Kernel Version 25.6.0: Sat Jul 11 15:27:04 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T6050",
+      "architecture": "Arm64",
+      "totalBytes": null,
+      "outsideBodyCounterDelta": null,
+      "histogram": {
+        "408": 1
+      },
+      "nonModalCount": 0,
+      "firstNonModalExamples": [],
+      "backgroundIndex": [
+        9,
+        9
+      ],
+      "gc0Span": [
+        15,
+        15
+      ],
+      "gc1Span": [
+        11,
+        11
+      ],
+      "gc2Span": [
+        5,
+        5
+      ]
+    },
+    {
+      "ordinal": 3,
+      "test": "Roguehalla.Net.Tests.AllocationMeasurementTests.OneObjectAtTheFirstMeasuredIndexIsNotDiscarded",
+      "captured": 20000,
+      "runtime": ".NET 8.0.33",
+      "os": "Darwin 25.6.0 Darwin Kernel Version 25.6.0: Sat Jul 11 15:27:04 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T6050",
+      "architecture": "Arm64",
+      "totalBytes": 24,
+      "outsideBodyCounterDelta": 0,
+      "histogram": {
+        "0": 19999,
+        "24": 1
+      },
+      "nonModalCount": 1,
+      "firstNonModalExamples": [
+        {
+          "index": 200,
+          "delta": 24,
+          "gc0": [
+            16,
+            16
+          ],
+          "gc1": [
+            12,
+            12
+          ],
+          "gc2": [
+            6,
+            6
+          ]
+        }
+      ],
+      "backgroundIndex": [
+        9,
+        9
+      ],
+      "gc0Span": [
+        16,
+        16
+      ],
+      "gc1Span": [
+        12,
+        12
+      ],
+      "gc2Span": [
+        6,
+        6
+      ]
+    },
+    {
+      "ordinal": 4,
+      "test": "Roguehalla.Net.Tests.AllocationMeasurementTests.OneObjectEveryCallExceedsTheUnchangedZeroBudget",
+      "captured": 20000,
+      "runtime": ".NET 8.0.33",
+      "os": "Darwin 25.6.0 Darwin Kernel Version 25.6.0: Sat Jul 11 15:27:04 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T6050",
+      "architecture": "Arm64",
+      "totalBytes": 480000,
+      "outsideBodyCounterDelta": 0,
+      "histogram": {
+        "24": 20000
+      },
+      "nonModalCount": 0,
+      "firstNonModalExamples": [],
+      "backgroundIndex": [
+        16,
+        16
+      ],
+      "gc0Span": [
+        18,
+        18
+      ],
+      "gc1Span": [
+        13,
+        13
+      ],
+      "gc2Span": [
+        6,
+        6
+      ]
+    },
+    {
+      "ordinal": 5,
+      "test": "Roguehalla.Net.Tests.AllocationMeasurementTests.WarmupAndMeasurementUseOneDedicatedWorkerWithoutCallerContext",
+      "captured": 20000,
+      "runtime": ".NET 8.0.33",
+      "os": "Darwin 25.6.0 Darwin Kernel Version 25.6.0: Sat Jul 11 15:27:04 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T6050",
+      "architecture": "Arm64",
+      "totalBytes": 0,
+      "outsideBodyCounterDelta": 0,
+      "histogram": {
+        "0": 20000
+      },
+      "nonModalCount": 0,
+      "firstNonModalExamples": [],
+      "backgroundIndex": [
+        16,
+        16
+      ],
+      "gc0Span": [
+        20,
+        20
+      ],
+      "gc1Span": [
+        15,
+        15
+      ],
+      "gc2Span": [
+        7,
+        7
+      ]
+    },
+    {
+      "ordinal": 6,
+      "test": "Roguehalla.Net.Tests.GarbageTests.ASessionReceivingDeltasMakesNoGarbage(1)",
+      "captured": 20000,
+      "runtime": ".NET 8.0.33",
+      "os": "Darwin 25.6.0 Darwin Kernel Version 25.6.0: Sat Jul 11 15:27:04 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T6050",
+      "architecture": "Arm64",
+      "totalBytes": 0,
+      "outsideBodyCounterDelta": 0,
+      "histogram": {
+        "0": 20000
+      },
+      "nonModalCount": 0,
+      "firstNonModalExamples": [],
+      "backgroundIndex": [
+        20,
+        20
+      ],
+      "gc0Span": [
+        21,
+        21
+      ],
+      "gc1Span": [
+        16,
+        16
+      ],
+      "gc2Span": [
+        7,
+        7
+      ]
+    },
+    {
+      "ordinal": 7,
+      "test": "Roguehalla.Net.Tests.GarbageTests.ASessionReceivingDeltasMakesNoGarbage(14)",
+      "captured": 20000,
+      "runtime": ".NET 8.0.33",
+      "os": "Darwin 25.6.0 Darwin Kernel Version 25.6.0: Sat Jul 11 15:27:04 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T6050",
+      "architecture": "Arm64",
+      "totalBytes": 4512,
+      "outsideBodyCounterDelta": 4512,
+      "histogram": {
+        "0": 20000
+      },
+      "nonModalCount": 0,
+      "firstNonModalExamples": [],
+      "backgroundIndex": [
+        20,
+        23
+      ],
+      "gc0Span": [
+        23,
+        23
+      ],
+      "gc1Span": [
+        17,
+        17
+      ],
+      "gc2Span": [
+        8,
+        8
+      ]
+    },
+    {
+      "ordinal": 8,
+      "test": "Roguehalla.Net.Tests.GarbageTests.ASessionReceivingDeltasMakesNoGarbage(68)",
+      "captured": 20000,
+      "runtime": ".NET 8.0.33",
+      "os": "Darwin 25.6.0 Darwin Kernel Version 25.6.0: Sat Jul 11 15:27:04 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T6050",
+      "architecture": "Arm64",
+      "totalBytes": 0,
+      "outsideBodyCounterDelta": 0,
+      "histogram": {
+        "0": 20000
+      },
+      "nonModalCount": 0,
+      "firstNonModalExamples": [],
+      "backgroundIndex": [
+        23,
+        23
+      ],
+      "gc0Span": [
+        25,
+        25
+      ],
+      "gc1Span": [
+        18,
+        18
+      ],
+      "gc2Span": [
+        8,
+        8
+      ]
+    },
+    {
+      "ordinal": 9,
+      "test": "Roguehalla.Net.Tests.GarbageTests.ASessionReceivingSnapshotsMakesNoGarbage(1)",
+      "captured": 20000,
+      "runtime": ".NET 8.0.33",
+      "os": "Darwin 25.6.0 Darwin Kernel Version 25.6.0: Sat Jul 11 15:27:04 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T6050",
+      "architecture": "Arm64",
+      "totalBytes": 8032,
+      "outsideBodyCounterDelta": 8032,
+      "histogram": {
+        "0": 20000
+      },
+      "nonModalCount": 0,
+      "firstNonModalExamples": [],
+      "backgroundIndex": [
+        23,
+        27
+      ],
+      "gc0Span": [
+        27,
+        27
+      ],
+      "gc1Span": [
+        20,
+        20
+      ],
+      "gc2Span": [
+        9,
+        9
+      ]
+    },
+    {
+      "ordinal": 10,
+      "test": "Roguehalla.Net.Tests.GarbageTests.ASessionReceivingSnapshotsMakesNoGarbage(14)",
+      "captured": 20000,
+      "runtime": ".NET 8.0.33",
+      "os": "Darwin 25.6.0 Darwin Kernel Version 25.6.0: Sat Jul 11 15:27:04 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T6050",
+      "architecture": "Arm64",
+      "totalBytes": 0,
+      "outsideBodyCounterDelta": 0,
+      "histogram": {
+        "0": 20000
+      },
+      "nonModalCount": 0,
+      "firstNonModalExamples": [],
+      "backgroundIndex": [
+        27,
+        27
+      ],
+      "gc0Span": [
+        28,
+        28
+      ],
+      "gc1Span": [
+        21,
+        21
+      ],
+      "gc2Span": [
+        9,
+        9
+      ]
+    },
+    {
+      "ordinal": 11,
+      "test": "Roguehalla.Net.Tests.GarbageTests.ASessionReceivingSnapshotsMakesNoGarbage(68)",
+      "captured": 20000,
+      "runtime": ".NET 8.0.33",
+      "os": "Darwin 25.6.0 Darwin Kernel Version 25.6.0: Sat Jul 11 15:27:04 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T6050",
+      "architecture": "Arm64",
+      "totalBytes": 1304,
+      "outsideBodyCounterDelta": 0,
+      "histogram": {
+        "0": 19999,
+        "1304": 1
+      },
+      "nonModalCount": 1,
+      "firstNonModalExamples": [
+        {
+          "index": 227,
+          "delta": 1304,
+          "gc0": [
+            30,
+            30
+          ],
+          "gc1": [
+            22,
+            22
+          ],
+          "gc2": [
+            10,
+            10
+          ]
+        }
+      ],
+      "backgroundIndex": [
+        27,
+        30
+      ],
+      "gc0Span": [
+        30,
+        30
+      ],
+      "gc1Span": [
+        22,
+        22
+      ],
+      "gc2Span": [
+        10,
+        10
+      ]
+    },
+    {
+      "ordinal": 12,
+      "test": "Roguehalla.Net.Tests.GarbageTests.DecodeIntoTheSpareMeetsTheBudgetAndIsFreeInSteadyState(1)",
+      "captured": 20000,
+      "runtime": ".NET 8.0.33",
+      "os": "Darwin 25.6.0 Darwin Kernel Version 25.6.0: Sat Jul 11 15:27:04 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T6050",
+      "architecture": "Arm64",
+      "totalBytes": 0,
+      "outsideBodyCounterDelta": 0,
+      "histogram": {
+        "0": 20000
+      },
+      "nonModalCount": 0,
+      "firstNonModalExamples": [],
+      "backgroundIndex": [
+        30,
+        30
+      ],
+      "gc0Span": [
+        31,
+        31
+      ],
+      "gc1Span": [
+        23,
+        23
+      ],
+      "gc2Span": [
+        10,
+        10
+      ]
+    },
+    {
+      "ordinal": 13,
+      "test": "Roguehalla.Net.Tests.GarbageTests.DecodeIntoTheSpareMeetsTheBudgetAndIsFreeInSteadyState(1)",
+      "captured": 20000,
+      "runtime": ".NET 8.0.33",
+      "os": "Darwin 25.6.0 Darwin Kernel Version 25.6.0: Sat Jul 11 15:27:04 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T6050",
+      "architecture": "Arm64",
+      "totalBytes": 1440080,
+      "outsideBodyCounterDelta": 0,
+      "histogram": {
+        "56": 10000,
+        "88": 9999,
+        "168": 1
+      },
+      "nonModalCount": 10000,
+      "firstNonModalExamples": [
+        {
+          "index": 201,
+          "delta": 88,
+          "gc0": [
+            33,
+            33
+          ],
+          "gc1": [
+            24,
+            24
+          ],
+          "gc2": [
+            11,
+            11
+          ]
+        },
+        {
+          "index": 203,
+          "delta": 88,
+          "gc0": [
+            33,
+            33
+          ],
+          "gc1": [
+            24,
+            24
+          ],
+          "gc2": [
+            11,
+            11
+          ]
+        },
+        {
+          "index": 205,
+          "delta": 88,
+          "gc0": [
+            33,
+            33
+          ],
+          "gc1": [
+            24,
+            24
+          ],
+          "gc2": [
+            11,
+            11
+          ]
+        },
+        {
+          "index": 207,
+          "delta": 88,
+          "gc0": [
+            33,
+            33
+          ],
+          "gc1": [
+            24,
+            24
+          ],
+          "gc2": [
+            11,
+            11
+          ]
+        },
+        {
+          "index": 209,
+          "delta": 88,
+          "gc0": [
+            33,
+            33
+          ],
+          "gc1": [
+            24,
+            24
+          ],
+          "gc2": [
+            11,
+            11
+          ]
+        },
+        {
+          "index": 211,
+          "delta": 88,
+          "gc0": [
+            33,
+            33
+          ],
+          "gc1": [
+            24,
+            24
+          ],
+          "gc2": [
+            11,
+            11
+          ]
+        },
+        {
+          "index": 213,
+          "delta": 88,
+          "gc0": [
+            33,
+            33
+          ],
+          "gc1": [
+            24,
+            24
+          ],
+          "gc2": [
+            11,
+            11
+          ]
+        },
+        {
+          "index": 215,
+          "delta": 88,
+          "gc0": [
+            33,
+            33
+          ],
+          "gc1": [
+            24,
+            24
+          ],
+          "gc2": [
+            11,
+            11
+          ]
+        }
+      ],
+      "backgroundIndex": [
+        30,
+        33
+      ],
+      "gc0Span": [
+        33,
+        33
+      ],
+      "gc1Span": [
+        24,
+        24
+      ],
+      "gc2Span": [
+        11,
+        11
+      ]
+    },
+    {
+      "ordinal": 14,
+      "test": "Roguehalla.Net.Tests.GarbageTests.DecodeIntoTheSpareMeetsTheBudgetAndIsFreeInSteadyState(14)",
+      "captured": 20000,
+      "runtime": ".NET 8.0.33",
+      "os": "Darwin 25.6.0 Darwin Kernel Version 25.6.0: Sat Jul 11 15:27:04 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T6050",
+      "architecture": "Arm64",
+      "totalBytes": 0,
+      "outsideBodyCounterDelta": 0,
+      "histogram": {
+        "0": 20000
+      },
+      "nonModalCount": 0,
+      "firstNonModalExamples": [],
+      "backgroundIndex": [
+        33,
+        33
+      ],
+      "gc0Span": [
+        35,
+        35
+      ],
+      "gc1Span": [
+        25,
+        25
+      ],
+      "gc2Span": [
+        11,
+        11
+      ]
+    },
+    {
+      "ordinal": 15,
+      "test": "Roguehalla.Net.Tests.GarbageTests.DecodeIntoTheSpareMeetsTheBudgetAndIsFreeInSteadyState(14)",
+      "captured": 20000,
+      "runtime": ".NET 8.0.33",
+      "os": "Darwin 25.6.0 Darwin Kernel Version 25.6.0: Sat Jul 11 15:27:04 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T6050",
+      "architecture": "Arm64",
+      "totalBytes": 9760456,
+      "outsideBodyCounterDelta": 0,
+      "histogram": {
+        "472": 9999,
+        "504": 10000,
+        "928": 1
+      },
+      "nonModalCount": 10000,
+      "firstNonModalExamples": [
+        {
+          "index": 200,
+          "delta": 472,
+          "gc0": [
+            37,
+            37
+          ],
+          "gc1": [
+            27,
+            27
+          ],
+          "gc2": [
+            12,
+            12
+          ]
+        },
+        {
+          "index": 202,
+          "delta": 472,
+          "gc0": [
+            37,
+            37
+          ],
+          "gc1": [
+            27,
+            27
+          ],
+          "gc2": [
+            12,
+            12
+          ]
+        },
+        {
+          "index": 204,
+          "delta": 472,
+          "gc0": [
+            37,
+            37
+          ],
+          "gc1": [
+            27,
+            27
+          ],
+          "gc2": [
+            12,
+            12
+          ]
+        },
+        {
+          "index": 206,
+          "delta": 472,
+          "gc0": [
+            37,
+            37
+          ],
+          "gc1": [
+            27,
+            27
+          ],
+          "gc2": [
+            12,
+            12
+          ]
+        },
+        {
+          "index": 208,
+          "delta": 472,
+          "gc0": [
+            37,
+            37
+          ],
+          "gc1": [
+            27,
+            27
+          ],
+          "gc2": [
+            12,
+            12
+          ]
+        },
+        {
+          "index": 210,
+          "delta": 472,
+          "gc0": [
+            37,
+            37
+          ],
+          "gc1": [
+            27,
+            27
+          ],
+          "gc2": [
+            12,
+            12
+          ]
+        },
+        {
+          "index": 212,
+          "delta": 472,
+          "gc0": [
+            37,
+            37
+          ],
+          "gc1": [
+            27,
+            27
+          ],
+          "gc2": [
+            12,
+            12
+          ]
+        },
+        {
+          "index": 214,
+          "delta": 472,
+          "gc0": [
+            37,
+            37
+          ],
+          "gc1": [
+            27,
+            27
+          ],
+          "gc2": [
+            12,
+            12
+          ]
+        }
+      ],
+      "backgroundIndex": [
+        33,
+        37
+      ],
+      "gc0Span": [
+        37,
+        38
+      ],
+      "gc1Span": [
+        27,
+        28
+      ],
+      "gc2Span": [
+        12,
+        12
+      ]
+    },
+    {
+      "ordinal": 16,
+      "test": "Roguehalla.Net.Tests.GarbageTests.DecodeIntoTheSpareMeetsTheBudgetAndIsFreeInSteadyState(68)",
+      "captured": 20000,
+      "runtime": ".NET 8.0.33",
+      "os": "Darwin 25.6.0 Darwin Kernel Version 25.6.0: Sat Jul 11 15:27:04 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T6050",
+      "architecture": "Arm64",
+      "totalBytes": 0,
+      "outsideBodyCounterDelta": 0,
+      "histogram": {
+        "0": 20000
+      },
+      "nonModalCount": 0,
+      "firstNonModalExamples": [],
+      "backgroundIndex": [
+        37,
+        37
+      ],
+      "gc0Span": [
+        39,
+        39
+      ],
+      "gc1Span": [
+        28,
+        28
+      ],
+      "gc2Span": [
+        12,
+        12
+      ]
+    },
+    {
+      "ordinal": 17,
+      "test": "Roguehalla.Net.Tests.GarbageTests.DecodeIntoTheSpareMeetsTheBudgetAndIsFreeInSteadyState(68)",
+      "captured": 20000,
+      "runtime": ".NET 8.0.33",
+      "os": "Darwin 25.6.0 Darwin Kernel Version 25.6.0: Sat Jul 11 15:27:04 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T6050",
+      "architecture": "Arm64",
+      "totalBytes": 44321488,
+      "outsideBodyCounterDelta": 0,
+      "histogram": {
+        "2200": 10000,
+        "2232": 9999,
+        "3720": 1
+      },
+      "nonModalCount": 10000,
+      "firstNonModalExamples": [
+        {
+          "index": 201,
+          "delta": 2232,
+          "gc0": [
+            41,
+            41
+          ],
+          "gc1": [
+            30,
+            30
+          ],
+          "gc2": [
+            13,
+            13
+          ]
+        },
+        {
+          "index": 203,
+          "delta": 2232,
+          "gc0": [
+            41,
+            41
+          ],
+          "gc1": [
+            30,
+            30
+          ],
+          "gc2": [
+            13,
+            13
+          ]
+        },
+        {
+          "index": 205,
+          "delta": 2232,
+          "gc0": [
+            41,
+            41
+          ],
+          "gc1": [
+            30,
+            30
+          ],
+          "gc2": [
+            13,
+            13
+          ]
+        },
+        {
+          "index": 207,
+          "delta": 2232,
+          "gc0": [
+            41,
+            41
+          ],
+          "gc1": [
+            30,
+            30
+          ],
+          "gc2": [
+            13,
+            13
+          ]
+        },
+        {
+          "index": 209,
+          "delta": 2232,
+          "gc0": [
+            41,
+            41
+          ],
+          "gc1": [
+            30,
+            30
+          ],
+          "gc2": [
+            13,
+            13
+          ]
+        },
+        {
+          "index": 211,
+          "delta": 2232,
+          "gc0": [
+            41,
+            41
+          ],
+          "gc1": [
+            30,
+            30
+          ],
+          "gc2": [
+            13,
+            13
+          ]
+        },
+        {
+          "index": 213,
+          "delta": 2232,
+          "gc0": [
+            41,
+            41
+          ],
+          "gc1": [
+            30,
+            30
+          ],
+          "gc2": [
+            13,
+            13
+          ]
+        },
+        {
+          "index": 215,
+          "delta": 2232,
+          "gc0": [
+            41,
+            41
+          ],
+          "gc1": [
+            30,
+            30
+          ],
+          "gc2": [
+            13,
+            13
+          ]
+        }
+      ],
+      "backgroundIndex": [
+        37,
+        41
+      ],
+      "gc0Span": [
+        41,
+        47
+      ],
+      "gc1Span": [
+        30,
+        31
+      ],
+      "gc2Span": [
+        13,
+        13
+      ]
+    },
+    {
+      "ordinal": 18,
+      "test": "Roguehalla.Net.Tests.GarbageTests.DecodeIntoTheSpareReusesPresentWishOwnerAndCastWithoutSteadyAllocations",
+      "captured": 20000,
+      "runtime": ".NET 8.0.33",
+      "os": "Darwin 25.6.0 Darwin Kernel Version 25.6.0: Sat Jul 11 15:27:04 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T6050",
+      "architecture": "Arm64",
+      "totalBytes": 0,
+      "outsideBodyCounterDelta": 0,
+      "histogram": {
+        "0": 20000
+      },
+      "nonModalCount": 0,
+      "firstNonModalExamples": [],
+      "backgroundIndex": [
+        41,
+        41
+      ],
+      "gc0Span": [
+        48,
+        48
+      ],
+      "gc1Span": [
+        31,
+        31
+      ],
+      "gc2Span": [
+        13,
+        13
+      ]
+    },
+    {
+      "ordinal": 19,
+      "test": "Roguehalla.Net.Tests.GarbageTests.PlainDecodeAllocatesOnlyTheSnapshotItsSelfAndOneActorArray(1)",
+      "captured": 20000,
+      "runtime": ".NET 8.0.33",
+      "os": "Darwin 25.6.0 Darwin Kernel Version 25.6.0: Sat Jul 11 15:27:04 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T6050",
+      "architecture": "Arm64",
+      "totalBytes": 4000000,
+      "outsideBodyCounterDelta": 0,
+      "histogram": {
+        "200": 20000
+      },
+      "nonModalCount": 0,
+      "firstNonModalExamples": [],
+      "backgroundIndex": [
+        41,
+        50
+      ],
+      "gc0Span": [
+        50,
+        50
+      ],
+      "gc1Span": [
+        33,
+        33
+      ],
+      "gc2Span": [
+        14,
+        14
+      ]
+    },
+    {
+      "ordinal": 20,
+      "test": "Roguehalla.Net.Tests.GarbageTests.PlainDecodeAllocatesOnlyTheSnapshotItsSelfAndOneActorArray(1)",
+      "captured": 20000,
+      "runtime": ".NET 8.0.33",
+      "os": "Darwin 25.6.0 Darwin Kernel Version 25.6.0: Sat Jul 11 15:27:04 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T6050",
+      "architecture": "Arm64",
+      "totalBytes": 2400000,
+      "outsideBodyCounterDelta": 0,
+      "histogram": {
+        "120": 20000
+      },
+      "nonModalCount": 0,
+      "firstNonModalExamples": [],
+      "backgroundIndex": [
+        50,
+        50
+      ],
+      "gc0Span": [
+        51,
+        52
+      ],
+      "gc1Span": [
+        34,
+        34
+      ],
+      "gc2Span": [
+        14,
+        14
+      ]
+    },
+    {
+      "ordinal": 21,
+      "test": "Roguehalla.Net.Tests.GarbageTests.PlainDecodeAllocatesOnlyTheSnapshotItsSelfAndOneActorArray(14)",
+      "captured": 20000,
+      "runtime": ".NET 8.0.33",
+      "os": "Darwin 25.6.0 Darwin Kernel Version 25.6.0: Sat Jul 11 15:27:04 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T6050",
+      "architecture": "Arm64",
+      "totalBytes": 12320040,
+      "outsideBodyCounterDelta": 0,
+      "histogram": {
+        "616": 19999,
+        "656": 1
+      },
+      "nonModalCount": 1,
+      "firstNonModalExamples": [
+        {
+          "index": 1251,
+          "delta": 656,
+          "gc0": [
+            54,
+            54
+          ],
+          "gc1": [
+            36,
+            36
+          ],
+          "gc2": [
+            15,
+            15
+          ]
+        }
+      ],
+      "backgroundIndex": [
+        50,
+        54
+      ],
+      "gc0Span": [
+        54,
+        55
+      ],
+      "gc1Span": [
+        36,
+        37
+      ],
+      "gc2Span": [
+        15,
+        15
+      ]
+    },
+    {
+      "ordinal": 22,
+      "test": "Roguehalla.Net.Tests.GarbageTests.PlainDecodeAllocatesOnlyTheSnapshotItsSelfAndOneActorArray(14)",
+      "captured": 20000,
+      "runtime": ".NET 8.0.33",
+      "os": "Darwin 25.6.0 Darwin Kernel Version 25.6.0: Sat Jul 11 15:27:04 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T6050",
+      "architecture": "Arm64",
+      "totalBytes": 10720000,
+      "outsideBodyCounterDelta": 0,
+      "histogram": {
+        "536": 20000
+      },
+      "nonModalCount": 0,
+      "firstNonModalExamples": [],
+      "backgroundIndex": [
+        54,
+        54
+      ],
+      "gc0Span": [
+        57,
+        58
+      ],
+      "gc1Span": [
+        37,
+        37
+      ],
+      "gc2Span": [
+        15,
+        15
+      ]
+    },
+    {
+      "ordinal": 23,
+      "test": "Roguehalla.Net.Tests.GarbageTests.PlainDecodeAllocatesOnlyTheSnapshotItsSelfAndOneActorArray(68)",
+      "captured": 20000,
+      "runtime": ".NET 8.0.33",
+      "os": "Darwin 25.6.0 Darwin Kernel Version 25.6.0: Sat Jul 11 15:27:04 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T6050",
+      "architecture": "Arm64",
+      "totalBytes": 46882016,
+      "outsideBodyCounterDelta": 0,
+      "histogram": {
+        "2344": 19999,
+        "4360": 1
+      },
+      "nonModalCount": 1,
+      "firstNonModalExamples": [
+        {
+          "index": 299,
+          "delta": 4360,
+          "gc0": [
+            60,
+            60
+          ],
+          "gc1": [
+            38,
+            38
+          ],
+          "gc2": [
+            16,
+            16
+          ]
+        }
+      ],
+      "backgroundIndex": [
+        54,
+        60
+      ],
+      "gc0Span": [
+        60,
+        66
+      ],
+      "gc1Span": [
+        38,
+        39
+      ],
+      "gc2Span": [
+        16,
+        16
+      ]
+    },
+    {
+      "ordinal": 24,
+      "test": "Roguehalla.Net.Tests.GarbageTests.PlainDecodeAllocatesOnlyTheSnapshotItsSelfAndOneActorArray(68)",
+      "captured": 20000,
+      "runtime": ".NET 8.0.33",
+      "os": "Darwin 25.6.0 Darwin Kernel Version 25.6.0: Sat Jul 11 15:27:04 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T6050",
+      "architecture": "Arm64",
+      "totalBytes": 45280000,
+      "outsideBodyCounterDelta": 0,
+      "histogram": {
+        "2264": 20000
+      },
+      "nonModalCount": 0,
+      "firstNonModalExamples": [],
+      "backgroundIndex": [
+        60,
+        60
+      ],
+      "gc0Span": [
+        67,
+        72
+      ],
+      "gc1Span": [
+        39,
+        40
+      ],
+      "gc2Span": [
+        16,
+        16
+      ]
+    },
+    {
+      "ordinal": 25,
+      "test": "Roguehalla.Net.Tests.GarbageTests.SampleMakesNoGarbage(1)",
+      "captured": 20000,
+      "runtime": ".NET 8.0.33",
+      "os": "Darwin 25.6.0 Darwin Kernel Version 25.6.0: Sat Jul 11 15:27:04 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T6050",
+      "architecture": "Arm64",
+      "totalBytes": 0,
+      "outsideBodyCounterDelta": 0,
+      "histogram": {
+        "0": 20000
+      },
+      "nonModalCount": 0,
+      "firstNonModalExamples": [],
+      "backgroundIndex": [
+        60,
+        74
+      ],
+      "gc0Span": [
+        74,
+        74
+      ],
+      "gc1Span": [
+        41,
+        41
+      ],
+      "gc2Span": [
+        17,
+        17
+      ]
+    },
+    {
+      "ordinal": 26,
+      "test": "Roguehalla.Net.Tests.GarbageTests.SampleMakesNoGarbage(14)",
+      "captured": 20000,
+      "runtime": ".NET 8.0.33",
+      "os": "Darwin 25.6.0 Darwin Kernel Version 25.6.0: Sat Jul 11 15:27:04 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T6050",
+      "architecture": "Arm64",
+      "totalBytes": 0,
+      "outsideBodyCounterDelta": 0,
+      "histogram": {
+        "0": 20000
+      },
+      "nonModalCount": 0,
+      "firstNonModalExamples": [],
+      "backgroundIndex": [
+        74,
+        74
+      ],
+      "gc0Span": [
+        76,
+        76
+      ],
+      "gc1Span": [
+        42,
+        42
+      ],
+      "gc2Span": [
+        17,
+        17
+      ]
+    },
+    {
+      "ordinal": 27,
+      "test": "Roguehalla.Net.Tests.GarbageTests.SampleMakesNoGarbage(68)",
+      "captured": 20000,
+      "runtime": ".NET 8.0.33",
+      "os": "Darwin 25.6.0 Darwin Kernel Version 25.6.0: Sat Jul 11 15:27:04 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T6050",
+      "architecture": "Arm64",
+      "totalBytes": 0,
+      "outsideBodyCounterDelta": 0,
+      "histogram": {
+        "0": 20000
+      },
+      "nonModalCount": 0,
+      "firstNonModalExamples": [],
+      "backgroundIndex": [
+        74,
+        78
+      ],
+      "gc0Span": [
+        78,
+        78
+      ],
+      "gc1Span": [
+        44,
+        44
+      ],
+      "gc2Span": [
+        18,
+        18
+      ]
+    },
+    {
+      "ordinal": 28,
+      "test": "Roguehalla.Net.Tests.GarbageTests.SnapshotTrackerCopiesUnchangedWishOwnerAndCastWithoutSteadyAllocations",
+      "captured": 20000,
+      "runtime": ".NET 8.0.33",
+      "os": "Darwin 25.6.0 Darwin Kernel Version 25.6.0: Sat Jul 11 15:27:04 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T6050",
+      "architecture": "Arm64",
+      "totalBytes": 0,
+      "outsideBodyCounterDelta": 0,
+      "histogram": {
+        "0": 20000
+      },
+      "nonModalCount": 0,
+      "firstNonModalExamples": [],
+      "backgroundIndex": [
+        78,
+        78
+      ],
+      "gc0Span": [
+        79,
+        79
+      ],
+      "gc1Span": [
+        45,
+        45
+      ],
+      "gc2Span": [
+        18,
+        18
+      ]
+    }
+  ]
+}

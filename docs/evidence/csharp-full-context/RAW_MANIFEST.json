@@ -1,0 +1,190 @@
+{
+  "scope": "All raw data + exact executed source, no edited samples",
+  "files": [
+    {
+      "path": "controls-001/controls.json",
+      "bytes": 1624,
+      "sha256": "819f0027230547b13f4e3a605504879216817a31b8a29462ce72dec553d22dee"
+    },
+    {
+      "path": "controls-001/windows/33409-1.json",
+      "bytes": 1190416,
+      "sha256": "6f0703aea58467c3fe95acb6f10081117239d2b9ca3270ade091e1f16a0d838c"
+    },
+    {
+      "path": "controls-001/windows/33409-2.json",
+      "bytes": 1273380,
+      "sha256": "cb989c03f3aaa4b6f1588f55ab7e0dfa46b02c3ae50a151752ac44a309833c49"
+    },
+    {
+      "path": "controls-001/windows/33409-3.json",
+      "bytes": 1461186,
+      "sha256": "33f079b55a205269bb97a39b4b584b9ec350a312e3476a7ab5fcdd651b13f0ae"
+    },
+    {
+      "path": "controls-001/windows/33409-4.json",
+      "bytes": 1390424,
+      "sha256": "c8e965c35cd020346f5427453f4e27fc2768d6f1c0f84a934d6d4d2218e9fd72"
+    },
+    {
+      "path": "executed-source/client-unity/RoguehallaNet.Tests/AllocationWindowTrace.cs",
+      "bytes": 5530,
+      "sha256": "4d3a751059ae842dd7392abcfc504ee6e7a203d4dd90322b440976cbcac247ac"
+    },
+    {
+      "path": "executed-source/client-unity/RoguehallaNet.Tests/GarbageTests.cs",
+      "bytes": 23293,
+      "sha256": "e625a09bf1ae4c44a09b234b4fc87b0586cfe0e9d615899a484f1a287b9f1863"
+    },
+    {
+      "path": "executed-source/tools/csharp-full-context/CounterControls.csproj",
+      "bytes": 291,
+      "sha256": "d88d1327fc0a18c422c075c7c47f96d505236b5ef89c22fd18e88ae2c3671a82"
+    },
+    {
+      "path": "executed-source/tools/csharp-full-context/Program.cs",
+      "bytes": 4120,
+      "sha256": "71638addb16b4d12bf022f24a5a63fab98e436460cbc24df0cb615c20eeb70a2"
+    },
+    {
+      "path": "traced-full-001/31589-1.json",
+      "bytes": 1250426,
+      "sha256": "e4e07fa01222fa927eaa57f265ddc44bd8d13730bd975a240c08fcf69d7482c1"
+    },
+    {
+      "path": "traced-full-001/31589-10.json",
+      "bytes": 1410430,
+      "sha256": "b8da34270a61c9a130a607fa51852ba514dc3f5acf75e14b72eeb6fd18e8b9e9"
+    },
+    {
+      "path": "traced-full-001/31589-11.json",
+      "bytes": 1490438,
+      "sha256": "5e4cd1a2b2c66ee5a9c6cb26862344bf2d8295258052632d3b6b75ddfc6a3d14"
+    },
+    {
+      "path": "traced-full-001/31589-12.json",
+      "bytes": 1410441,
+      "sha256": "563a10891de7a021e48e8c4413a35a69f8c0e92808b79dcea21209138cde9a94"
+    },
+    {
+      "path": "traced-full-001/31589-13.json",
+      "bytes": 1501031,
+      "sha256": "96f4e39b1048b49f88a5009d7ea62fb915a945b7695d195ef25925a4e75fd2c8"
+    },
+    {
+      "path": "traced-full-001/31589-14.json",
+      "bytes": 1450444,
+      "sha256": "fefc1fd6dbc41a0e1f6525fd6c98e8cf6bb2806cfe8244f24c832ef97a129db6"
+    },
+    {
+      "path": "traced-full-001/31589-15.json",
+      "bytes": 1526786,
+      "sha256": "209aa3ae85aeeff369ec50cc373e66a6bce35c1f78bcc70dc46c3d2c496c5d76"
+    },
+    {
+      "path": "traced-full-001/31589-16.json",
+      "bytes": 1450444,
+      "sha256": "39d4ca4a8f3063d8e5ea609155f25cd03f08f8dad80e271cdbad6f5e6b17c6d1"
+    },
+    {
+      "path": "traced-full-001/31589-17.json",
+      "bytes": 1561348,
+      "sha256": "c160c4ba206048800d376e508cb0a4a49413f40f7e2d1f095ed0c2de6abfa2cc"
+    },
+    {
+      "path": "traced-full-001/31589-18.json",
+      "bytes": 1450457,
+      "sha256": "da2745ec3eeb4805faec2937fc251fd3c933ffd4df47e46d68ec79301402db6d"
+    },
+    {
+      "path": "traced-full-001/31589-19.json",
+      "bytes": 1520263,
+      "sha256": "6a0811252b3a617241b97df3981317f921dec3b845ab2fed1a45464c42f6e326"
+    },
+    {
+      "path": "traced-full-001/31589-2.json",
+      "bytes": 481133,
+      "sha256": "6d96f686bee7e46db227c10077e6f1750c713490102940b9af78d8a9d2b0886f"
+    },
+    {
+      "path": "traced-full-001/31589-20.json",
+      "bytes": 1512927,
+      "sha256": "d1eb4651f36f9abb8eced3275475e8d62e32ec1bd2e6f3b2972fb7ab43899d10"
+    },
+    {
+      "path": "traced-full-001/31589-21.json",
+      "bytes": 1535552,
+      "sha256": "e6ac91790e64ff905a724bd4c5731bd50a50e33557191cbc04a8e1dbac3ce0f8"
+    },
+    {
+      "path": "traced-full-001/31589-22.json",
+      "bytes": 1530222,
+      "sha256": "1ea19a0594a7eeedaca585d5e8936093fd95042eced852b09e55a9dbb01afc07"
+    },
+    {
+      "path": "traced-full-001/31589-23.json",
+      "bytes": 1561884,
+      "sha256": "dd3ce5679cd74666035b4667382a6e0027add7cc9c2d5e2542567a8c0dbdc82c"
+    },
+    {
+      "path": "traced-full-001/31589-24.json",
+      "bytes": 1561550,
+      "sha256": "db07e8737e1f6204f18002caf5b8b2ccf1fb09cdd694685b4a1053fb3c8596cc"
+    },
+    {
+      "path": "traced-full-001/31589-25.json",
+      "bytes": 1290401,
+      "sha256": "b28a129d381abf0e7f171a60515f6e958fc47b911f5419e12eaa49c372013aac"
+    },
+    {
+      "path": "traced-full-001/31589-26.json",
+      "bytes": 1290402,
+      "sha256": "784b7a5b36b8c6b2c5704f151ddbdb79d74ed7e71a35a61064e2d4a127035194"
+    },
+    {
+      "path": "traced-full-001/31589-27.json",
+      "bytes": 1290402,
+      "sha256": "4e706fd66dd4508913d69af0b50f45a05de74a2b1b81163f17e5010be3aedb02"
+    },
+    {
+      "path": "traced-full-001/31589-28.json",
+      "bytes": 1370452,
+      "sha256": "94f69cd0b201f0bb7689723b226b3532b14e2406e551f5832d3b4982d7c9e3af"
+    },
+    {
+      "path": "traced-full-001/31589-3.json",
+      "bytes": 1290437,
+      "sha256": "06ca4672c470447e137a56890e8e4e5248d9f94fb480481c2396e7408fbe693b"
+    },
+    {
+      "path": "traced-full-001/31589-4.json",
+      "bytes": 1442090,
+      "sha256": "469433439f52424ee436373b3fe03386ae385a4a97f733280b2af44ac84ab507"
+    },
+    {
+      "path": "traced-full-001/31589-5.json",
+      "bytes": 1330456,
+      "sha256": "9f9a42e68ba8b8fdc881863f1a3015fb67f40fd8161cc8b6722a94663dca729e"
+    },
+    {
+      "path": "traced-full-001/31589-6.json",
+      "bytes": 1370423,
+      "sha256": "2b956c5aef1843485a09d11fba453f92554d9977806582f88e439033b4467b92"
+    },
+    {
+      "path": "traced-full-001/31589-7.json",
+      "bytes": 1410432,
+      "sha256": "ff639cdac9d304602b7b13433a2d54e2994fdd8197d83c27fc4db1c3f41882bf"
+    },
+    {
+      "path": "traced-full-001/31589-8.json",
+      "bytes": 1450428,
+      "sha256": "d7b9d896e1c71c7e0d9220b0048ac6b1df26407828e2dde9149b2d04f9509e69"
+    },
+    {
+      "path": "traced-full-001/31589-9.json",
+      "bytes": 1406611,
+      "sha256": "6365f37367aba15de11a6e800ca53095450100092bbb9cd906707906ee7fca74"
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+*.raw.log -text -whitespace
+*.tar.gz -text

@@ -65,6 +65,9 @@ namespace Roguehalla.Net.Tests
         /// <summary>Bytes allocated per call of <paramref name="body"/>, after a warm-up (JIT, first-use statics).</summary>
         static double PerCall(Action<int> body)
         {
+            // Opt-in diagnostics only; normal selectors, body counts, counters and budgets remain unchanged.
+            var diagnostic = AllocationWindowTrace.TryCreate();
+            if (diagnostic != null) body = diagnostic.Observe(body);
             double result = 0;
             System.Runtime.ExceptionServices.ExceptionDispatchInfo failure = null;
             var worker = new System.Threading.Thread(() =>
@@ -76,7 +79,9 @@ namespace Roguehalla.Net.Tests
                     for (int i = 0; i < 200; i++) body(i);
                     long before = GC.GetAllocatedBytesForCurrentThread();
                     for (int i = 200; i < 200 + Iterations; i++) body(i);
-                    result = (GC.GetAllocatedBytesForCurrentThread() - before) / (double)Iterations;
+                    long after = GC.GetAllocatedBytesForCurrentThread();
+                    diagnostic?.SetWindow(before, after);
+                    result = (after - before) / (double)Iterations;
                 }
                 catch (Exception error)
                 {
@@ -89,6 +94,7 @@ namespace Roguehalla.Net.Tests
                 using (System.Threading.ExecutionContext.SuppressFlow()) worker.Start();
             }
             worker.Join();
+            diagnostic?.Complete(failure?.SourceException);
             failure?.Throw();
             return result;
         }

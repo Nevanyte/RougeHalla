@@ -1,0 +1,37 @@
+PROPOSAL ONLY: existing full suite and Unity-copy check stay first; Root owns apply/push/dispatch.
+
+diff --git a/.github/workflows/rust.yml b/.github/workflows/rust.yml
+--- a/.github/workflows/rust.yml
++++ b/.github/workflows/rust.yml
+@@ -327,3 +327,31 @@
+       - run: dotnet test client-unity/RoguehallaNet.Tests
+       - name: Unity copy of the library is up to date
+         run: bash client-unity/sync-net.sh --check
++      - name: Full-suite allocation context diagnostic (not a replacement gate)
++        if: always()
++        env:
++          RH_ALLOCATION_TRACE_DIRECTORY: ${{ runner.temp }}/rh-allocation-context/windows
++        run: |
++          set -euo pipefail
++          mkdir "${RUNNER_TEMP}/rh-allocation-context"
++          dotnet --info > "${RUNNER_TEMP}/rh-allocation-context/dotnet-info.txt"
++          dotnet --list-sdks > "${RUNNER_TEMP}/rh-allocation-context/sdks.txt"
++          dotnet --list-runtimes > "${RUNNER_TEMP}/rh-allocation-context/runtimes.txt"
++          git rev-parse HEAD > "${RUNNER_TEMP}/rh-allocation-context/head.txt"
++          sha256sum client-unity/RoguehallaNet.Tests/GarbageTests.cs client-unity/RoguehallaNet.Tests/AllocationWindowTrace.cs client-unity/RoguehallaNet/Protocol/Messages.cs client-unity/RoguehallaNet/Protocol/Codec.cs > "${RUNNER_TEMP}/rh-allocation-context/source-hashes.txt"
++          dotnet test client-unity/RoguehallaNet.Tests 2>&1 | tee "${RUNNER_TEMP}/rh-allocation-context/full-suite.log"
++      - name: Reconcile all allocation samples (diagnostic)
++        if: always()
++        run: python3 tools/csharp-full-context/analyze.py "${RUNNER_TEMP}/rh-allocation-context/windows" --expected-windows 28 > "${RUNNER_TEMP}/rh-allocation-context/analysis.json"
++      - name: Bounded no-decoder counter controls (diagnostic)
++        if: always()
++        run: dotnet run --project tools/csharp-full-context/CounterControls.csproj -- "${RUNNER_TEMP}/rh-allocation-context/controls"
++      - name: Reconcile no-decoder controls (diagnostic)
++        if: always()
++        run: python3 tools/csharp-full-context/analyze.py "${RUNNER_TEMP}/rh-allocation-context/controls/windows" --expected-windows 4 > "${RUNNER_TEMP}/rh-allocation-context/control-analysis.json"
++      - uses: actions/upload-artifact@v4
++        if: always()
++        with:
++          name: csharp-full-suite-allocation-context
++          path: ${{ runner.temp }}/rh-allocation-context
++          if-no-files-found: error

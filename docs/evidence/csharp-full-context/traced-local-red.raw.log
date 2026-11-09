@@ -1,0 +1,56 @@
+  RoguehallaNet -> /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/client-unity/RoguehallaNet/bin/Debug/netstandard2.1/RoguehallaNet.dll
+  RoguehallaNet.Probe -> /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/client-unity/RoguehallaNet.Probe/bin/Debug/net8.0/RoguehallaNet.Probe.dll
+  RoguehallaNet.Tests -> /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/client-unity/RoguehallaNet.Tests/bin/Debug/net8.0/RoguehallaNet.Tests.dll
+Test run for /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/client-unity/RoguehallaNet.Tests/bin/Debug/net8.0/RoguehallaNet.Tests.dll (.NETCoreApp,Version=v8.0)
+VSTest version 17.11.1 (arm64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+  Failed ASessionReceivingDeltasMakesNoGarbage(14) [125 ms]
+  Error Message:
+     Assert.That(actual, Is.EqualTo(expected))
+  Expected: 0.0d
+  But was:  0.22559999999999999d
+
+  Stack Trace:
+     at NUnit.Framework.Legacy.ClassicAssert.AreEqual(Object expected, Object actual)
+   at Roguehalla.Net.Tests.GarbageTests.ASessionReceivingDeltasMakesNoGarbage(Int32 actors) in /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/client-unity/RoguehallaNet.Tests/GarbageTests.cs:line 241
+   at InvokeStub_GarbageTests.ASessionReceivingDeltasMakesNoGarbage(Object, Span`1)
+
+1)    at NUnit.Framework.Legacy.ClassicAssert.AreEqual(Object expected, Object actual)
+   at Roguehalla.Net.Tests.GarbageTests.ASessionReceivingDeltasMakesNoGarbage(Int32 actors) in /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/client-unity/RoguehallaNet.Tests/GarbageTests.cs:line 241
+   at InvokeStub_GarbageTests.ASessionReceivingDeltasMakesNoGarbage(Object, Span`1)
+
+
+  Failed ASessionReceivingSnapshotsMakesNoGarbage(1) [30 ms]
+  Error Message:
+     Assert.That(actual, Is.EqualTo(expected))
+  Expected: 0.0d
+  But was:  0.40160000000000001d
+
+  Stack Trace:
+     at NUnit.Framework.Legacy.ClassicAssert.AreEqual(Object expected, Object actual)
+   at Roguehalla.Net.Tests.GarbageTests.ASessionReceivingSnapshotsMakesNoGarbage(Int32 actors) in /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/client-unity/RoguehallaNet.Tests/GarbageTests.cs:line 207
+
+1)    at NUnit.Framework.Legacy.ClassicAssert.AreEqual(Object expected, Object actual)
+   at Roguehalla.Net.Tests.GarbageTests.ASessionReceivingSnapshotsMakesNoGarbage(Int32 actors) in /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/client-unity/RoguehallaNet.Tests/GarbageTests.cs:line 207
+
+
+  Failed ASessionReceivingSnapshotsMakesNoGarbage(68) [207 ms]
+  Error Message:
+     Assert.That(actual, Is.EqualTo(expected))
+  Expected: 0.0d
+  But was:  0.065199999999999994d
+
+  Stack Trace:
+     at NUnit.Framework.Legacy.ClassicAssert.AreEqual(Object expected, Object actual)
+   at Roguehalla.Net.Tests.GarbageTests.ASessionReceivingSnapshotsMakesNoGarbage(Int32 actors) in /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/client-unity/RoguehallaNet.Tests/GarbageTests.cs:line 207
+   at InvokeStub_GarbageTests.ASessionReceivingSnapshotsMakesNoGarbage(Object, Span`1)
+
+1)    at NUnit.Framework.Legacy.ClassicAssert.AreEqual(Object expected, Object actual)
+   at Roguehalla.Net.Tests.GarbageTests.ASessionReceivingSnapshotsMakesNoGarbage(Int32 actors) in /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/client-unity/RoguehallaNet.Tests/GarbageTests.cs:line 207
+   at InvokeStub_GarbageTests.ASessionReceivingSnapshotsMakesNoGarbage(Object, Span`1)
+
+
+
+Failed!  - Failed:     3, Passed:   754, Skipped:     0, Total:   757, Duration: 6 s - RoguehallaNet.Tests.dll (net8.0)

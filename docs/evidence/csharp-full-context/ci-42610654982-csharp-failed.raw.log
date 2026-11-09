@@ -1,0 +1,32 @@
+csharp	Run dotnet test client-unity/RoguehallaNet.Tests	﻿2026-11-09T11:39:30.9112577Z ##[group]Run dotnet test client-unity/RoguehallaNet.Tests
+csharp	Run dotnet test client-unity/RoguehallaNet.Tests	2026-11-09T11:39:30.9113078Z [36;1mdotnet test client-unity/RoguehallaNet.Tests[0m
+csharp	Run dotnet test client-unity/RoguehallaNet.Tests	2026-11-09T11:39:30.9175036Z shell: /usr/bin/bash -e {0}
+csharp	Run dotnet test client-unity/RoguehallaNet.Tests	2026-11-09T11:39:30.9175343Z env:
+csharp	Run dotnet test client-unity/RoguehallaNet.Tests	2026-11-09T11:39:30.9175556Z   DOTNET_ROOT: /usr/share/dotnet
+csharp	Run dotnet test client-unity/RoguehallaNet.Tests	2026-11-09T11:39:30.9176085Z ##[endgroup]
+csharp	Run dotnet test client-unity/RoguehallaNet.Tests	2026-11-09T11:39:34.7316182Z   Determining projects to restore...
+csharp	Run dotnet test client-unity/RoguehallaNet.Tests	2026-11-09T11:39:35.8282963Z   Restored /home/runner/work/RougeHalla/RougeHalla/client-unity/RoguehallaNet.Probe/RoguehallaNet.Probe.csproj (in 113 ms).
+csharp	Run dotnet test client-unity/RoguehallaNet.Tests	2026-11-09T11:39:35.8284470Z   Restored /home/runner/work/RougeHalla/RougeHalla/client-unity/RoguehallaNet/RoguehallaNet.csproj (in 99 ms).
+csharp	Run dotnet test client-unity/RoguehallaNet.Tests	2026-11-09T11:39:36.5303626Z   Restored /home/runner/work/RougeHalla/RougeHalla/client-unity/RoguehallaNet.Tests/RoguehallaNet.Tests.csproj (in 833 ms).
+csharp	Run dotnet test client-unity/RoguehallaNet.Tests	2026-11-09T11:39:40.3917784Z   RoguehallaNet -> /home/runner/work/RougeHalla/RougeHalla/client-unity/RoguehallaNet/bin/Debug/netstandard2.1/RoguehallaNet.dll
+csharp	Run dotnet test client-unity/RoguehallaNet.Tests	2026-11-09T11:39:42.4938938Z   RoguehallaNet.Probe -> /home/runner/work/RougeHalla/RougeHalla/client-unity/RoguehallaNet.Probe/bin/Debug/net8.0/RoguehallaNet.Probe.dll
+csharp	Run dotnet test client-unity/RoguehallaNet.Tests	2026-11-09T11:39:44.2036617Z   RoguehallaNet.Tests -> /home/runner/work/RougeHalla/RougeHalla/client-unity/RoguehallaNet.Tests/bin/Debug/net8.0/RoguehallaNet.Tests.dll
+csharp	Run dotnet test client-unity/RoguehallaNet.Tests	2026-11-09T11:39:44.2119086Z Test run for /home/runner/work/RougeHalla/RougeHalla/client-unity/RoguehallaNet.Tests/bin/Debug/net8.0/RoguehallaNet.Tests.dll (.NETCoreApp,Version=v8.0)
+csharp	Run dotnet test client-unity/RoguehallaNet.Tests	2026-11-09T11:39:44.6685435Z A total of 1 test files matched the specified pattern.
+csharp	Run dotnet test client-unity/RoguehallaNet.Tests	2026-11-09T11:39:49.7677926Z   Failed PlainDecodeAllocatesOnlyTheSnapshotItsSelfAndOneActorArray(1) [100 ms]
+csharp	Run dotnet test client-unity/RoguehallaNet.Tests	2026-11-09T11:39:49.7679140Z   Error Message:
+csharp	Run dotnet test client-unity/RoguehallaNet.Tests	2026-11-09T11:39:49.7680043Z      Assert.That(arg1, Is.LessThanOrEqualTo(arg2))
+csharp	Run dotnet test client-unity/RoguehallaNet.Tests	2026-11-09T11:39:49.7680857Z   Expected: less than or equal to 120.0d
+csharp	Run dotnet test client-unity/RoguehallaNet.Tests	2026-11-09T11:39:49.7681520Z   But was:  120.108d
+csharp	Run dotnet test client-unity/RoguehallaNet.Tests	2026-11-09T11:39:49.7681936Z 
+csharp	Run dotnet test client-unity/RoguehallaNet.Tests	2026-11-09T11:39:49.7682270Z   Stack Trace:
+csharp	Run dotnet test client-unity/RoguehallaNet.Tests	2026-11-09T11:39:49.7683118Z      at NUnit.Framework.Legacy.ClassicAssert.LessOrEqual(Double arg1, Double arg2)
+csharp	Run dotnet test client-unity/RoguehallaNet.Tests	2026-11-09T11:39:49.7685334Z    at Roguehalla.Net.Tests.GarbageTests.PlainDecodeAllocatesOnlyTheSnapshotItsSelfAndOneActorArray(Int32 actors) in /home/runner/work/RougeHalla/RougeHalla/client-unity/RoguehallaNet.Tests/GarbageTests.cs:line 113
+csharp	Run dotnet test client-unity/RoguehallaNet.Tests	2026-11-09T11:39:49.7687298Z 
+csharp	Run dotnet test client-unity/RoguehallaNet.Tests	2026-11-09T11:39:49.7688149Z 1)    at NUnit.Framework.Legacy.ClassicAssert.LessOrEqual(Double arg1, Double arg2)
+csharp	Run dotnet test client-unity/RoguehallaNet.Tests	2026-11-09T11:39:49.7690570Z    at Roguehalla.Net.Tests.GarbageTests.PlainDecodeAllocatesOnlyTheSnapshotItsSelfAndOneActorArray(Int32 actors) in /home/runner/work/RougeHalla/RougeHalla/client-unity/RoguehallaNet.Tests/GarbageTests.cs:line 113
+csharp	Run dotnet test client-unity/RoguehallaNet.Tests	2026-11-09T11:39:49.7692091Z 
+csharp	Run dotnet test client-unity/RoguehallaNet.Tests	2026-11-09T11:39:49.7692284Z 
+csharp	Run dotnet test client-unity/RoguehallaNet.Tests	2026-11-09T11:39:57.6163570Z 
+csharp	Run dotnet test client-unity/RoguehallaNet.Tests	2026-11-09T11:39:57.6212564Z Failed!  - Failed:     1, Passed:   756, Skipped:     0, Total:   757, Duration: 10 s - RoguehallaNet.Tests.dll (net8.0)
+csharp	Run dotnet test client-unity/RoguehallaNet.Tests	2026-11-09T11:39:57.6771805Z ##[error]Process completed with exit code 1.
