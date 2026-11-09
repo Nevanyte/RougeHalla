@@ -1,0 +1,15 @@
+# Frozen 6d native98 verification
+
+The one native EditMode campaign passed **98/98** on the isolated Unity Editor PID 46583. Raw completed results contain 98 unique exact contract names: 98 passed, 0 failed, 0 skipped, 0 unrun and 0 retries. The nine fixture responses were retained before verdict checks. No earlier 90-case result was reused.
+
+Execution source: `6d5d9340a6b9f425a17d7ea4488b49291fff3dc1`, tree `caac77176dcb2fb33dc491b9a7990751a1f534d7`. The Candidate04 selector/typed contract remains authored at `1bf48a8109249ec36497eab5b1ffc5548a384dd5`; that author identity is separate from the execution cut. Unity 6000.0.85f2, WebGL target, Test Framework 1.6.0 and all 39 locked package selections were observed in the actual new Editor. Public discovery, CLR signatures/arguments, fixture GUIDs, module identities and actual Client/Net/Test DLL hashes were bound before execution and independently admitted by Root.
+
+All 1,284 frozen Git/disk inputs, 626 case-insensitively unique metadata GUIDs and the single Root-approved PackageManagerSettings.asset startup overlay matched before preference capture, immediately before tests and after restoration. The original stop on the untracked startup file remains preserved; the exact overlay was approved separately without modifying the frozen source.
+
+Only rh.ui.profile (string), roguehalla.showcase.textScale (float) and rh.ui.minimapScale (int) were captured to a private mode-0600 snapshot under a mode-0700 directory. The finally path restored each key using its approved schema type and verified presence/value before deleting the snapshot. Public PlayerPrefs exposes typed getters rather than stored-type introspection; no OS-level preference enumeration or credential keys were read. No preference values or snapshot bytes are in this delivery. The snapshot is gone.
+
+After the campaign, loaded assembly/package identities, input settings/devices, preference presence, one clean untitled scene with Main Camera/Directional Light, and zero scene EventSystems/Light2D instances matched the prior baseline. TestRunner recreated the scene roots with new instance IDs. Dirty loaded objects rose 799→1053 and dirty persistent assets 426→429. Those facts are retained; no dirty flags were cleared or assets saved, and exact in-memory restoration is not claimed. Root owns later disposal of this new Editor. Old Editor PID 9075 was never targeted.
+
+First tooling errors remain separate: the stalled CLI open was closed by Root's bounded interruption before the direct launch; two filesystem preparation mistakes, offline reference/type preparation failures, an offline verifier NameError and Root's withdrawn premature release all preceded the native campaign. No product source, contract or test was changed to obtain this pass.
+
+This is fake-only native test evidence. It does not establish Web build success, real browser gameplay, server/account backend behavior, asset completion, audio quality, layout acceptance or physical 1440p/144 Hz performance. The approved finite V2 layout matrix is still pending.

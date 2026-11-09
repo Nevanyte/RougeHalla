@@ -1,0 +1,4 @@
+{
+  "status": "ROOT_REVIEW_SCHEMA_STOP_BEFORE_TESTS",
+  "cause": "Root reviewer assumed methodReturnType present on every Candidate04 case. Actual immutable contract declares returns for34cases, preserves64older cases with parameter signatures only. No Source/contract/native test mutation; corrected review must compare all declared fields without inventing absent metadata."
+}

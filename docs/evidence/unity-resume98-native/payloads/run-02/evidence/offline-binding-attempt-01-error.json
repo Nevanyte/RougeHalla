@@ -1,0 +1,12 @@
+{
+  "status": "OFFLINE_BINDER_ERROR_BEFORE_TESTS",
+  "utc": "2026-11-09T19:12:55.232787+00:00",
+  "attempt": 1,
+  "verifierSha256": "dbd147e3803930247d51c298567476be92d7e1161852f8ccfd13eae477be1345",
+  "exitCode": 1,
+  "errorType": "NameError",
+  "error": "validate_context references bootstrap_overlay without argument binding at line102",
+  "bindingOutputCreated": false,
+  "nativeTestBodiesInvoked": false,
+  "action": "Preserve first verifier version/error; fix explicit parameter only; assertions unchanged; Root admission still required"
+}

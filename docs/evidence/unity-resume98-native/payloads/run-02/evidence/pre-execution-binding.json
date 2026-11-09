@@ -1,0 +1,42 @@
+{
+  "status": "PASS_BEFORE_EXECUTION",
+  "bootstrapOverlay": {
+    "manifestSha256": "aff1b08079e75b22b8a0f8c1132bf24ccbec8d36a8d14967c41526f9d89cbe3e",
+    "path": "client-unity/UnityProject/ProjectSettings/PackageManagerSettings.asset",
+    "bytes": 1044,
+    "sha256": "a2cb53758656a32e072c1e33d985a3f73b8374b2acb3365750d31070d60a67b5"
+  },
+  "contractSchema": "roguehalla-owned-seat-resume-typed-fixture-contract/1",
+  "contractSha256": "6bfa787e4f63be11fc8a1d51879f30cfc7617f4d7d51883afc60a28a7ef8870e",
+  "sourcePinsSha256": "72ab2814479574ed1c159a1a6af077f86b8c6870eaccb86c20ab97ea49312a1c",
+  "finalRootSourceSha": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+  "source": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+  "project": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+  "editorPid": 46583,
+  "fixtureSourcesSha256": "72ab2814479574ed1c159a1a6af077f86b8c6870eaccb86c20ab97ea49312a1c",
+  "nativeIdentitySha256": "07a51974aa0e04922e8acf699f2ef15299c777f716c3f00aacd76bbf8412dc35",
+  "contractSourceSnapshot": "1bf48a8109249ec36497eab5b1ffc5548a384dd5",
+  "context": {
+    "projectPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+    "editorPid": 46583,
+    "unityVersion": "6000.0.85f2"
+  },
+  "cases": 98,
+  "fixtureCounts": {
+    "MatchLaunchEditModeTests": 17,
+    "MatchSettlementEditModeTests": 22,
+    "Roguehalla.Client.Tests.PlayerFlowsEditModeTests": 11,
+    "Roguehalla.Client.Tests.QuestJournalViewEditModeTests": 8,
+    "Roguehalla.Client.Tests.TraderDialogViewEditModeTests": 6,
+    "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests": 13,
+    "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests": 5,
+    "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests": 8,
+    "Roguehalla.Client.Tests.MatchResumeEditModeTests": 8
+  },
+  "literalFullNamesExact": true,
+  "typedMethodSignaturesExact": true,
+  "typedArgumentsAndCaseAttributesExact": true,
+  "loadedFixtureGuidsAndPathsExact": true,
+  "loadedTestAssemblyMvid": "bdf00567-c602-4825-a76b-625796c869bd",
+  "executedTests": false
+}

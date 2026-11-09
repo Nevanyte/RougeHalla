@@ -1,0 +1,19 @@
+{
+  "status": "STOP_UNTRACKED_PROJECT_SETTINGS_DRIFT_BEFORE_TESTS",
+  "utc": "2026-11-09T19:08:03.332696+00:00",
+  "source": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+  "project": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+  "editorPid": 46583,
+  "excludedEditorPid": 9075,
+  "path": "client-unity/UnityProject/ProjectSettings/PackageManagerSettings.asset",
+  "bytes": 1044,
+  "sha256": "a2cb53758656a32e072c1e33d985a3f73b8374b2acb3365750d31070d60a67b5",
+  "firstBytesPrivatePath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/private/first-untracked-PackageManagerSettings.asset",
+  "firstDiffPrivatePath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/private/first-untracked-PackageManagerSettings.diff",
+  "sourcePins": 1284,
+  "sourcePinMismatches": [],
+  "executedTests": false,
+  "prefsCaptured": false,
+  "nativeObserverLast": "public discovery succeeded; no package-baseline native observer attempted",
+  "action": "Preserved first bytes/diff; no deletion, restoration, source change, allowance, or further native command"
+}

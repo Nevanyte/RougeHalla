@@ -1,0 +1,13 @@
+{
+  "scope": "Read-only descendant executable names of bound new-project launch wrapper/CLI only; no argv/env/token data",
+  "utc": "2026-11-09T18:41:50.460158+00:00",
+  "descendants": [
+    {
+      "pid": 43178,
+      "parentPid": 43177,
+      "executable": "<defunct>"
+    }
+  ],
+  "newLibraryExists": false,
+  "ownedLogExists": false
+}

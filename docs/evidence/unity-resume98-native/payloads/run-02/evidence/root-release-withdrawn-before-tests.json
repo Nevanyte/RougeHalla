@@ -1,0 +1,13 @@
+{
+  "status": "ROOT_RELEASE_WITHDRAWN_BEFORE_EXECUTION",
+  "utc": "2026-11-09T19:17:51.932366+00:00",
+  "source": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+  "editorPid": 46583,
+  "nativeTestBodiesInvoked": false,
+  "prefsCaptured": false,
+  "controllerInvoked": false,
+  "campaignLedgerExists": false,
+  "privateSnapshotExists": false,
+  "reason": "Root independently reviewing older parameter schema; prior premature execution release explicitly withdrawn; actual admission file never created",
+  "action": "Hold native98; no repeats, restarts, source edits, contract changes or test changes"
+}

@@ -1,0 +1,14 @@
+{
+  "scope": "Offline external-observer preparation against new project native response references; no native invocation/test bodies",
+  "argv": [
+    "/Applications/Unity/Hub/Editor/6000.0.85f2/Unity.app/Contents/NetCoreRuntime/dotnet",
+    "/Applications/Unity/Hub/Editor/6000.0.85f2/Unity.app/Contents/DotNetSdkRoslyn/csc.dll",
+    "@/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/offline-observer-compile/compile.rsp"
+  ],
+  "cwd": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+  "exitCode": 1,
+  "sourceSha256": "c2e2c235ccfd7cc0e323e1f68e442d029d2e74cee5cffb0faa9daba1c718be09",
+  "responseSource": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject/Library/Bee/artifacts/2000b0aE.dag/Roguehalla.Client.EditModeTests.rsp",
+  "responseSourceSha256": "e18081e7ff3fab7bcf0fe76daaeedc75c391406f797eb142622c56c6da1c9183",
+  "generatedResponseSha256": "a964181a02be2e18c04df980c47edebda43f11f7c875551ef59f2aff419a490d"
+}

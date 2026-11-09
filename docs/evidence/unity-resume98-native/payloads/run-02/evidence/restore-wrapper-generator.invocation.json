@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/controller-frozen/generate_resume98_prefs_lease.py",
+    "--operation",
+    "restore",
+    "--project-root",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+    "--expected-pid",
+    "46583",
+    "--excluded-pid",
+    "9075",
+    "--unity-version",
+    "6000.0.85f2",
+    "--editor-app",
+    "/Applications/Unity/Hub/Editor/6000.0.85f2/Unity.app",
+    "--editor-executable",
+    "/Applications/Unity/Hub/Editor/6000.0.85f2/Unity.app/Contents/MacOS/Unity",
+    "--private-dir",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/private",
+    "--wrapper-name",
+    "restore-resume98-prefs.cs"
+  ],
+  "startedUtc": "2026-11-09T19:23:14.102260+00:00"
+}

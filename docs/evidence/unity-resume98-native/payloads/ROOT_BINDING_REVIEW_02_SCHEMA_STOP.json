@@ -1,0 +1,4 @@
+{
+  "status": "ROOT_REVIEW_SCHEMA_STOP_BEFORE_TESTS",
+  "cause": "Expected older parameter rows carry index/type, sometimes optional name; actualreflection carriesname/type. Raw dictionary equality was wrong; compareexactposition,declaredType andeverydeclaredname. No Source/contract/native mutation. Root prematureexecutionreleasewaswithdrawn; confirmed0executed/98unrun."
+}

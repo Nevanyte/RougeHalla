@@ -1,0 +1,1 @@
+{"entries":[],"cursor":333,"session":"654be9d86c404632a326a1b305299a34","returned":0,"dropped":false,"reset":false,"counts":{"error":0,"warn":40,"log":293},"groundTruth":{"sampledUtc":"2026-11-09T19:23:13.738868Z","ageMs":180,"compilationFailed":false,"compiling":false,"consoleErrors":0,"consoleWarnings":40,"consoleLogs":293,"seeded":true}}

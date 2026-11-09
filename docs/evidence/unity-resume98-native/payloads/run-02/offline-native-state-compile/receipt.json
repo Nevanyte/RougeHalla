@@ -1,0 +1,12 @@
+{
+  "scope": "offline observer reference preparation only; no native Editor/test invocation",
+  "argv": [
+    "/Applications/Unity/Hub/Editor/6000.0.85f2/Unity.app/Contents/NetCoreRuntime/dotnet",
+    "/Applications/Unity/Hub/Editor/6000.0.85f2/Unity.app/Contents/DotNetSdkRoslyn/csc.dll",
+    "@/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/offline-native-state-compile/compile.rsp"
+  ],
+  "exitCode": 1,
+  "sourceSha256": "d67c1f98c3087c3e49c952caf26e61686792555957478b69d7c27a5264ca7dcc",
+  "responseSha256": "821b2aed8991866c1883fbb17c6b52c2418b653bd80f110aa1fca10e9e0580dc",
+  "utc": "2026-11-09T19:06:41.082194+00:00"
+}

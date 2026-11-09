@@ -1,0 +1,6 @@
+{
+  "classification": "Filesystem observer preparation error before log/source observation, not an Editor verdict",
+  "error": "FileNotFoundError: SOURCE_FREEZE.json",
+  "cause": "Path dot parent is dot until resolved; corrected to absolute current directory",
+  "nativeActionsInFailedObserver": 0
+}

@@ -1,0 +1,12 @@
+{
+  "scope": "Second offline observer preparation compile; first ambiguity failure preserved; no native Editor/test invocation",
+  "argv": [
+    "/Applications/Unity/Hub/Editor/6000.0.85f2/Unity.app/Contents/NetCoreRuntime/dotnet",
+    "/Applications/Unity/Hub/Editor/6000.0.85f2/Unity.app/Contents/DotNetSdkRoslyn/csc.dll",
+    "@/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/offline-native-state-compile-02/compile.rsp"
+  ],
+  "exitCode": 0,
+  "sourceSha256": "b77cf971a2f42ce6f63bf303581dec1c5acdcd48970c2fdda2c227171f3abf60",
+  "responseSha256": "ab7f960a72c4723a9396d298928056d756df83753244dee3e8ec97c4364e0f59",
+  "utc": "2026-11-09T19:10:05.061969+00:00"
+}

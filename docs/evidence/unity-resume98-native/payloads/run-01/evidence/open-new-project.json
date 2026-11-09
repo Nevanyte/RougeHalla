@@ -1,0 +1,12 @@
+{
+  "success": false,
+  "command": "open",
+  "data": null,
+  "errors": [
+    {
+      "code": "INTERRUPTED",
+      "message": "Interrupted."
+    }
+  ],
+  "warnings": []
+}

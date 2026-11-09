@@ -1,0 +1,20 @@
+{
+  "argv": [
+    "unity",
+    "command",
+    "script",
+    "eval",
+    "--project-path",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+    "--caller",
+    "plugin",
+    "--skill",
+    "unity-cli",
+    "--format",
+    "json",
+    "--",
+    "--file",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/private/restore-resume98-prefs.cs"
+  ],
+  "startedUtc": "2026-11-09T19:23:14.512838+00:00"
+}

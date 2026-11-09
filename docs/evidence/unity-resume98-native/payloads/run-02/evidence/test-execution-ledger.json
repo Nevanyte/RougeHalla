@@ -1,0 +1,1034 @@
+{
+  "policy": "Exactly once per canonical fixture; raw coverage before verdict; stop first error; no retry/resume",
+  "source": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+  "candidateSourceRole": "1bf48a8109249ec36497eab5b1ffc5548a384dd5",
+  "project": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+  "editorPid": 46583,
+  "contractSha256": "6bfa787e4f63be11fc8a1d51879f30cfc7617f4d7d51883afc60a28a7ef8870e",
+  "fixtureSourcesSha256": "72ab2814479574ed1c159a1a6af077f86b8c6870eaccb86c20ab97ea49312a1c",
+  "expectedCaseCount": 98,
+  "status": "PASS",
+  "completedFixtureTypes": [
+    "MatchLaunchEditModeTests",
+    "MatchSettlementEditModeTests",
+    "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+    "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+    "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+    "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests",
+    "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests",
+    "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests",
+    "Roguehalla.Client.Tests.MatchResumeEditModeTests"
+  ],
+  "passedFixtureTypes": [
+    "MatchLaunchEditModeTests",
+    "MatchSettlementEditModeTests",
+    "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+    "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+    "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+    "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests",
+    "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests",
+    "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests",
+    "Roguehalla.Client.Tests.MatchResumeEditModeTests"
+  ],
+  "executedFullNames": [
+    "MatchLaunchEditModeTests.CrossOriginTrainingCannotSendOwnerCredentialsOrStartAClaim",
+    "MatchLaunchEditModeTests.EditingTrainingTargetDuringOwnerRequestCannotUseItsCapturedToken",
+    "MatchLaunchEditModeTests.EndingBeforeTheFirstModeFactUnlocksRecoveryAndLeavePermitsAnotherDestination",
+    "MatchLaunchEditModeTests.LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation(False)",
+    "MatchLaunchEditModeTests.LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation(True)",
+    "MatchLaunchEditModeTests.MissingTrainingNeverFallsBackOrStartsAnOwnershipRequest",
+    "MatchLaunchEditModeTests.OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot(Arena,False)",
+    "MatchLaunchEditModeTests.OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot(Training,True)",
+    "MatchLaunchEditModeTests.PendingMenuAndPracticeCopyFollowDeliveredFactAndPlayAgainPreservesTraining",
+    "MatchLaunchEditModeTests.RapidModeChangesOnlyConnectTheCurrentOwnerIntentToItsCapturedTarget",
+    "MatchLaunchEditModeTests.ReconnectWelcomeRevokesConfirmationAndRequiresANewMatchingFact",
+    "MatchLaunchEditModeTests.ReentrantLeaveCallbackCannotHaveItsReplacementCancelledOrArenaDestroyed",
+    "MatchLaunchEditModeTests.RetiredCallbacksCannotResetOrRefuseANewerSession",
+    "MatchLaunchEditModeTests.SwitchingModeWhileOwnerReplyIsDeferredInvalidatesTheOldIntent",
+    "MatchLaunchEditModeTests.SynchronousFactionCancellationCannotOverwriteOrRelaunchANewerMode",
+    "MatchLaunchEditModeTests.WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput(Arena,True)",
+    "MatchLaunchEditModeTests.WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput(Training,False)",
+    "MatchSettlementEditModeTests.AcceptedArenaWithoutAGenuineResultNeverSendsAReceiptRead",
+    "MatchSettlementEditModeTests.AcceptedTrainingWithAGenuineResultNeverQueriesOrClaimsSavedCredit",
+    "MatchSettlementEditModeTests.CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(False,0L)",
+    "MatchSettlementEditModeTests.CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(False,9007199254740991L)",
+    "MatchSettlementEditModeTests.CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(True,0L)",
+    "MatchSettlementEditModeTests.DifferentWelcomeCannotPairRetainedLastResultWithANewMatchUuid",
+    "MatchSettlementEditModeTests.DuplicateDecodedResultFencesTheOldIdentityWithoutReplenishingAutomaticBudget",
+    "MatchSettlementEditModeTests.GenuineResultBeforeModeConfirmationNeedsAnAcceptedOwnedArenaFactAndExplicitCheck",
+    "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(403)",
+    "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(408)",
+    "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(429)",
+    "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(500)",
+    "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(503)",
+    "MatchSettlementEditModeTests.LeaveIsImmediateAndRetiredCallbacksCannotTouchTheReplacementResults",
+    "MatchSettlementEditModeTests.LeavingDuringUnknownDelayCancelsTheTimerAndDoesNotSendAnotherRequest",
+    "MatchSettlementEditModeTests.OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError(False)",
+    "MatchSettlementEditModeTests.OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError(True)",
+    "MatchSettlementEditModeTests.ReconnectCannotRestartOrClaimUntilAFreshSameMatchArenaFactAndManualAction",
+    "MatchSettlementEditModeTests.ResultsRowUsesActualReceiptStateAndNeverBlocksReturnToMenu",
+    "MatchSettlementEditModeTests.TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst(False)",
+    "MatchSettlementEditModeTests.TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst(True)",
+    "MatchSettlementEditModeTests.UnknownOnlyBurstHasThreeSequentialReadsAtTwoAndFiveSecondsAndManualCooldown",
+    "Roguehalla.Client.Tests.MatchResumeEditModeTests.ConfirmedCheckpointResumesExactSeatOnlyAfterFreshModeFact(Arena,False)",
+    "Roguehalla.Client.Tests.MatchResumeEditModeTests.ConfirmedCheckpointResumesExactSeatOnlyAfterFreshModeFact(Training,True)",
+    "Roguehalla.Client.Tests.MatchResumeEditModeTests.DelayedResumeOwnerReplyCannotConnectAfterTargetOrProfileChanges",
+    "Roguehalla.Client.Tests.MatchResumeEditModeTests.ExplicitLeaveSendsLeaveAndPreservesANewerCheckpoint",
+    "Roguehalla.Client.Tests.MatchResumeEditModeTests.MissingOrWrongCredentialCannotClaimAndCreatedProfileCannotResume",
+    "Roguehalla.Client.Tests.MatchResumeEditModeTests.ReentrantCheckpointClearCannotLeaveOrReplaceANewerResumedSession",
+    "Roguehalla.Client.Tests.MatchResumeEditModeTests.ResumeChooserDisablesActionsForTypedCallsignThatDiffersFromLoadedOwner",
+    "Roguehalla.Client.Tests.MatchResumeEditModeTests.TypedExpiredSeatClearsOnlyItsCapturedRevisionWhileGenericFailureRetainsIt",
+    "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.DeliveredMapPointsReplaceWithoutActorFabricationOrNameDeduplication",
+    "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.InFlightOldSessionNoticeCallbackCannotAppendAfterRebind",
+    "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.InFlightSameSessionNoticeCallbackCannotCrossSourceClockCutAndNewEpochKeepsDuplicates",
+    "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.JournalKeyboardOwnsSimultaneousMapAndWorldKeysAndRespectsExistingModals",
+    "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.MalformedFrameRetainsCanonicalViewButInvalidQuestItemReferenceFailsAndDisablesActions",
+    "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.OrdinaryMixedQuestTradeQueueSplitsAtSixteenWithoutUiGeneratedCommands",
+    "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningJournalDropAndResumedWelcomeClearRowsAndRestoreMapInput",
+    "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningJournalRespectsSettingsAndFocusedTextEntry",
+    "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningPreviewRetiresDeferredAcceptAndWaitsForFreshNativePermission",
+    "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningQuestReviewPreservesMapChoicesAndFocusWhileBlockingOtherPagesAndWorldKeys",
+    "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.ReceivedNoticeOrderIncludesDuplicatesAndResumeClearsBeforeNewBatch",
+    "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.AcceptUsesCurrentHandleAndFreshCanAcceptThenSessionBatchesOnlyThatIntent",
+    "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.MaximumLengthServerStringsRemainVerbatimInScrollableFixedSizeTextFields",
+    "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.MetadataReplacementPreservesScrollPositionWhenRowsOverflowViewport",
+    "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.OldAcceptTrackAndRowCallbacksCannotActAfterReplacementBeforeRefresh",
+    "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.OldSessionCallbacksAndRemovedRowsCannotAcceptAfterRebindWelcomeOrDisconnect",
+    "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.ReplacementPreservesSelectedHandleAndScrollButClearsRemovedSelectionAndTracking",
+    "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.SelectedParticipantsUseTypedRosterIdsKeepDuplicateLabelsAndClearOnReplacementOrRebind",
+    "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.UnseenUnavailableAndAvailableEmptyAreDistinctAndRowsPreserveExactServerText",
+    "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.CurrentOptionsQueueEveryOrdinaryStatPickAndMetadataReplacementInvalidatesOldCallbacks",
+    "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.DisconnectAndResumedWelcomeInvalidateOldRowsAndDropQueuedTradeInput",
+    "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.DuplicateMerchantRowsLabelsAndSignedStatDeltasRenderInSourceOrder",
+    "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.MissingUnavailableAndAvailableEmptyTradeViewsStayDistinctAndOpeningIsReadOnly",
+    "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.RebindingAnUnseenSessionClearsMerchantChoicesAndPendingCopyImmediately",
+    "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.StatUsedBlocksOnlyStatTradeWhileBarterPicksAreSentAsOrdinaryInput",
+    "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.ArenaAndPendingLaunchNeverExposeTrainingConsoleAndArenaTabStillOpensMap",
+    "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.CapturedConsoleCallbackCannotQueueIntoARetiredOrReplacementSession",
+    "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.ClosedTrainingTabEntersConsoleFocusAndFocusedTextOwnsWorldKeys",
+    "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.DropdownEscapeRequestsPopupHideBeforeConsoleCloseAndTrainingLeave",
+    "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.EscapeClosesTrainingConsoleAndOnlyTheNextPhysicalEscapeLeavesTraining",
+    "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.HigherSettingsModalUnbindsConsoleUntilANewAcceptedSnapshot",
+    "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.OpeningHigherPanelOnTheSameReadCannotAlsoFocusOrChooseAReward",
+    "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.PointerCloseConsumesItsInputUpdateButWorldInputReturnsOnTheNextUpdate",
+    "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.ReconnectWelcomeAndSourceClockCutRevokeConsoleUntilAcceptedTrainingFact",
+    "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.TrainingConsoleFlushesEarlierOrdinaryCommandsBeforeItsExactTrainIntent",
+    "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.TrainingRequiresTheExactSessionAndAcceptedSnapshotBeforeOpening",
+    "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.WindowFocusLossClosesTrainingConsoleAndFreshFactCanRestoreIt",
+    "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.WrongServerModeNeverLeavesAnArenaTrainingConsoleBound",
+    "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests.CardCopyChoicesMirrorTheSharedConsoleIncludingRemove",
+    "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests.InteractiveChoicesUseOnlyThePinnedWhitelistAndExistingCardTitles",
+    "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests.MobChoicesMatchThePinnedCatalogOrderAndDisplayNames",
+    "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests.SafeIntegerParserAcceptsZeroLeadingZerosAndTheExactMaximum",
+    "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests.SafeIntegerParserRejectsBlankSignsFractionsJunkAndOverflowWithoutClamping",
+    "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.CapturedActionCallbackCannotTargetAReboundSession",
+    "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.CapturedActionCannotCrossSameSessionSourceClockCutEvenAfterEpochReconfirmation",
+    "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.EachTrainingActionQueuesOneExactTrainWireIntentInExistingSessionOrder",
+    "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.EscapeClosesFocusedConsoleOnceAndDestroyedViewRemovesCapturedListener",
+    "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.InvalidStatTextAndDisconnectedSessionCannotQueueTrainingCommands",
+    "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.ReentrantSendRebindDoesNotSendToOrPoisonTheNewSession",
+    "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.StartsClosedAndRequiresAcceptedTrainingFactAndMatchingExplicitLaunchContext",
+    "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.TrainingActionFlushPreservesEarlierOrdinaryPendingInputOrder"
+  ],
+  "skippedFullNames": [],
+  "notYetInvokedFullNames": [],
+  "unrunFullNames": [],
+  "unresolvedCurrentFixtureFullNames": [],
+  "groups": [
+    {
+      "fixtureType": "MatchLaunchEditModeTests",
+      "expectedFullNames": [
+        "MatchLaunchEditModeTests.CrossOriginTrainingCannotSendOwnerCredentialsOrStartAClaim",
+        "MatchLaunchEditModeTests.EditingTrainingTargetDuringOwnerRequestCannotUseItsCapturedToken",
+        "MatchLaunchEditModeTests.EndingBeforeTheFirstModeFactUnlocksRecoveryAndLeavePermitsAnotherDestination",
+        "MatchLaunchEditModeTests.LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation(False)",
+        "MatchLaunchEditModeTests.LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation(True)",
+        "MatchLaunchEditModeTests.MissingTrainingNeverFallsBackOrStartsAnOwnershipRequest",
+        "MatchLaunchEditModeTests.OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot(Arena,False)",
+        "MatchLaunchEditModeTests.OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot(Training,True)",
+        "MatchLaunchEditModeTests.PendingMenuAndPracticeCopyFollowDeliveredFactAndPlayAgainPreservesTraining",
+        "MatchLaunchEditModeTests.RapidModeChangesOnlyConnectTheCurrentOwnerIntentToItsCapturedTarget",
+        "MatchLaunchEditModeTests.ReconnectWelcomeRevokesConfirmationAndRequiresANewMatchingFact",
+        "MatchLaunchEditModeTests.ReentrantLeaveCallbackCannotHaveItsReplacementCancelledOrArenaDestroyed",
+        "MatchLaunchEditModeTests.RetiredCallbacksCannotResetOrRefuseANewerSession",
+        "MatchLaunchEditModeTests.SwitchingModeWhileOwnerReplyIsDeferredInvalidatesTheOldIntent",
+        "MatchLaunchEditModeTests.SynchronousFactionCancellationCannotOverwriteOrRelaunchANewerMode",
+        "MatchLaunchEditModeTests.WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput(Arena,True)",
+        "MatchLaunchEditModeTests.WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput(Training,False)"
+      ],
+      "state": "PASS",
+      "argv": [
+        "unity",
+        "command",
+        "test",
+        "run",
+        "--project-path",
+        "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+        "--caller",
+        "plugin",
+        "--skill",
+        "unity-cli",
+        "--format",
+        "json",
+        "--timeout",
+        "60",
+        "--",
+        "--mode",
+        "editor",
+        "--filter",
+        "MatchLaunchEditModeTests",
+        "--timeout",
+        "60"
+      ],
+      "exitCode": 0,
+      "launchError": null,
+      "stdoutPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/evidence/run-01-MatchLaunchEditModeTests.stdout.txt",
+      "stderrPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/evidence/run-01-MatchLaunchEditModeTests.stderr.txt",
+      "invocationPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/evidence/run-01-MatchLaunchEditModeTests.invocation.json",
+      "rawResultCoverage": [
+        {
+          "fullName": "MatchLaunchEditModeTests.CrossOriginTrainingCannotSendOwnerCredentialsOrStartAClaim",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchLaunchEditModeTests.EditingTrainingTargetDuringOwnerRequestCannotUseItsCapturedToken",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchLaunchEditModeTests.EndingBeforeTheFirstModeFactUnlocksRecoveryAndLeavePermitsAnotherDestination",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchLaunchEditModeTests.LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation(False)",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchLaunchEditModeTests.LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation(True)",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchLaunchEditModeTests.MissingTrainingNeverFallsBackOrStartsAnOwnershipRequest",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchLaunchEditModeTests.OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot(Arena,False)",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchLaunchEditModeTests.OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot(Training,True)",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchLaunchEditModeTests.PendingMenuAndPracticeCopyFollowDeliveredFactAndPlayAgainPreservesTraining",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchLaunchEditModeTests.RapidModeChangesOnlyConnectTheCurrentOwnerIntentToItsCapturedTarget",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchLaunchEditModeTests.ReconnectWelcomeRevokesConfirmationAndRequiresANewMatchingFact",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchLaunchEditModeTests.ReentrantLeaveCallbackCannotHaveItsReplacementCancelledOrArenaDestroyed",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchLaunchEditModeTests.RetiredCallbacksCannotResetOrRefuseANewerSession",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchLaunchEditModeTests.SwitchingModeWhileOwnerReplyIsDeferredInvalidatesTheOldIntent",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchLaunchEditModeTests.SynchronousFactionCancellationCannotOverwriteOrRelaunchANewerMode",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchLaunchEditModeTests.WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput(Arena,True)",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchLaunchEditModeTests.WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput(Training,False)",
+          "status": "Passed"
+        }
+      ],
+      "executionStatus": "COMPLETE_RAW_RESULTS",
+      "verdict": "PASS",
+      "summary": {
+        "Total": 17,
+        "Passed": 17,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      }
+    },
+    {
+      "fixtureType": "MatchSettlementEditModeTests",
+      "expectedFullNames": [
+        "MatchSettlementEditModeTests.AcceptedArenaWithoutAGenuineResultNeverSendsAReceiptRead",
+        "MatchSettlementEditModeTests.AcceptedTrainingWithAGenuineResultNeverQueriesOrClaimsSavedCredit",
+        "MatchSettlementEditModeTests.CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(False,0L)",
+        "MatchSettlementEditModeTests.CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(False,9007199254740991L)",
+        "MatchSettlementEditModeTests.CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(True,0L)",
+        "MatchSettlementEditModeTests.DifferentWelcomeCannotPairRetainedLastResultWithANewMatchUuid",
+        "MatchSettlementEditModeTests.DuplicateDecodedResultFencesTheOldIdentityWithoutReplenishingAutomaticBudget",
+        "MatchSettlementEditModeTests.GenuineResultBeforeModeConfirmationNeedsAnAcceptedOwnedArenaFactAndExplicitCheck",
+        "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(403)",
+        "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(408)",
+        "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(429)",
+        "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(500)",
+        "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(503)",
+        "MatchSettlementEditModeTests.LeaveIsImmediateAndRetiredCallbacksCannotTouchTheReplacementResults",
+        "MatchSettlementEditModeTests.LeavingDuringUnknownDelayCancelsTheTimerAndDoesNotSendAnotherRequest",
+        "MatchSettlementEditModeTests.OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError(False)",
+        "MatchSettlementEditModeTests.OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError(True)",
+        "MatchSettlementEditModeTests.ReconnectCannotRestartOrClaimUntilAFreshSameMatchArenaFactAndManualAction",
+        "MatchSettlementEditModeTests.ResultsRowUsesActualReceiptStateAndNeverBlocksReturnToMenu",
+        "MatchSettlementEditModeTests.TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst(False)",
+        "MatchSettlementEditModeTests.TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst(True)",
+        "MatchSettlementEditModeTests.UnknownOnlyBurstHasThreeSequentialReadsAtTwoAndFiveSecondsAndManualCooldown"
+      ],
+      "state": "PASS",
+      "argv": [
+        "unity",
+        "command",
+        "test",
+        "run",
+        "--project-path",
+        "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+        "--caller",
+        "plugin",
+        "--skill",
+        "unity-cli",
+        "--format",
+        "json",
+        "--timeout",
+        "60",
+        "--",
+        "--mode",
+        "editor",
+        "--filter",
+        "MatchSettlementEditModeTests",
+        "--timeout",
+        "60"
+      ],
+      "exitCode": 0,
+      "launchError": null,
+      "stdoutPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/evidence/run-02-MatchSettlementEditModeTests.stdout.txt",
+      "stderrPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/evidence/run-02-MatchSettlementEditModeTests.stderr.txt",
+      "invocationPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/evidence/run-02-MatchSettlementEditModeTests.invocation.json",
+      "rawResultCoverage": [
+        {
+          "fullName": "MatchSettlementEditModeTests.AcceptedArenaWithoutAGenuineResultNeverSendsAReceiptRead",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.AcceptedTrainingWithAGenuineResultNeverQueriesOrClaimsSavedCredit",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(False,0L)",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(True,0L)",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(False,9007199254740991L)",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.DifferentWelcomeCannotPairRetainedLastResultWithANewMatchUuid",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.DuplicateDecodedResultFencesTheOldIdentityWithoutReplenishingAutomaticBudget",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.GenuineResultBeforeModeConfirmationNeedsAnAcceptedOwnedArenaFactAndExplicitCheck",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(403)",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(408)",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(429)",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(500)",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(503)",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.LeaveIsImmediateAndRetiredCallbacksCannotTouchTheReplacementResults",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.LeavingDuringUnknownDelayCancelsTheTimerAndDoesNotSendAnotherRequest",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError(False)",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError(True)",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.ReconnectCannotRestartOrClaimUntilAFreshSameMatchArenaFactAndManualAction",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.ResultsRowUsesActualReceiptStateAndNeverBlocksReturnToMenu",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst(False)",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst(True)",
+          "status": "Passed"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.UnknownOnlyBurstHasThreeSequentialReadsAtTwoAndFiveSecondsAndManualCooldown",
+          "status": "Passed"
+        }
+      ],
+      "executionStatus": "COMPLETE_RAW_RESULTS",
+      "verdict": "PASS",
+      "summary": {
+        "Total": 22,
+        "Passed": 22,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      }
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+      "expectedFullNames": [
+        "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.DeliveredMapPointsReplaceWithoutActorFabricationOrNameDeduplication",
+        "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.InFlightOldSessionNoticeCallbackCannotAppendAfterRebind",
+        "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.InFlightSameSessionNoticeCallbackCannotCrossSourceClockCutAndNewEpochKeepsDuplicates",
+        "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.JournalKeyboardOwnsSimultaneousMapAndWorldKeysAndRespectsExistingModals",
+        "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.MalformedFrameRetainsCanonicalViewButInvalidQuestItemReferenceFailsAndDisablesActions",
+        "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.OrdinaryMixedQuestTradeQueueSplitsAtSixteenWithoutUiGeneratedCommands",
+        "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningJournalDropAndResumedWelcomeClearRowsAndRestoreMapInput",
+        "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningJournalRespectsSettingsAndFocusedTextEntry",
+        "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningPreviewRetiresDeferredAcceptAndWaitsForFreshNativePermission",
+        "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningQuestReviewPreservesMapChoicesAndFocusWhileBlockingOtherPagesAndWorldKeys",
+        "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.ReceivedNoticeOrderIncludesDuplicatesAndResumeClearsBeforeNewBatch"
+      ],
+      "state": "PASS",
+      "argv": [
+        "unity",
+        "command",
+        "test",
+        "run",
+        "--project-path",
+        "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+        "--caller",
+        "plugin",
+        "--skill",
+        "unity-cli",
+        "--format",
+        "json",
+        "--timeout",
+        "60",
+        "--",
+        "--mode",
+        "editor",
+        "--filter",
+        "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+        "--timeout",
+        "60"
+      ],
+      "exitCode": 0,
+      "launchError": null,
+      "stdoutPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/evidence/run-03-Roguehalla_Client_Tests_PlayerFlowsEditModeTests.stdout.txt",
+      "stderrPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/evidence/run-03-Roguehalla_Client_Tests_PlayerFlowsEditModeTests.stderr.txt",
+      "invocationPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/evidence/run-03-Roguehalla_Client_Tests_PlayerFlowsEditModeTests.invocation.json",
+      "rawResultCoverage": [
+        {
+          "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.DeliveredMapPointsReplaceWithoutActorFabricationOrNameDeduplication",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.InFlightOldSessionNoticeCallbackCannotAppendAfterRebind",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.InFlightSameSessionNoticeCallbackCannotCrossSourceClockCutAndNewEpochKeepsDuplicates",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.JournalKeyboardOwnsSimultaneousMapAndWorldKeysAndRespectsExistingModals",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.MalformedFrameRetainsCanonicalViewButInvalidQuestItemReferenceFailsAndDisablesActions",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.OrdinaryMixedQuestTradeQueueSplitsAtSixteenWithoutUiGeneratedCommands",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningJournalDropAndResumedWelcomeClearRowsAndRestoreMapInput",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningJournalRespectsSettingsAndFocusedTextEntry",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningPreviewRetiresDeferredAcceptAndWaitsForFreshNativePermission",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningQuestReviewPreservesMapChoicesAndFocusWhileBlockingOtherPagesAndWorldKeys",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.ReceivedNoticeOrderIncludesDuplicatesAndResumeClearsBeforeNewBatch",
+          "status": "Passed"
+        }
+      ],
+      "executionStatus": "COMPLETE_RAW_RESULTS",
+      "verdict": "PASS",
+      "summary": {
+        "Total": 11,
+        "Passed": 11,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      }
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+      "expectedFullNames": [
+        "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.AcceptUsesCurrentHandleAndFreshCanAcceptThenSessionBatchesOnlyThatIntent",
+        "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.MaximumLengthServerStringsRemainVerbatimInScrollableFixedSizeTextFields",
+        "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.MetadataReplacementPreservesScrollPositionWhenRowsOverflowViewport",
+        "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.OldAcceptTrackAndRowCallbacksCannotActAfterReplacementBeforeRefresh",
+        "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.OldSessionCallbacksAndRemovedRowsCannotAcceptAfterRebindWelcomeOrDisconnect",
+        "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.ReplacementPreservesSelectedHandleAndScrollButClearsRemovedSelectionAndTracking",
+        "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.SelectedParticipantsUseTypedRosterIdsKeepDuplicateLabelsAndClearOnReplacementOrRebind",
+        "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.UnseenUnavailableAndAvailableEmptyAreDistinctAndRowsPreserveExactServerText"
+      ],
+      "state": "PASS",
+      "argv": [
+        "unity",
+        "command",
+        "test",
+        "run",
+        "--project-path",
+        "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+        "--caller",
+        "plugin",
+        "--skill",
+        "unity-cli",
+        "--format",
+        "json",
+        "--timeout",
+        "60",
+        "--",
+        "--mode",
+        "editor",
+        "--filter",
+        "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+        "--timeout",
+        "60"
+      ],
+      "exitCode": 0,
+      "launchError": null,
+      "stdoutPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/evidence/run-04-Roguehalla_Client_Tests_QuestJournalViewEditModeTests.stdout.txt",
+      "stderrPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/evidence/run-04-Roguehalla_Client_Tests_QuestJournalViewEditModeTests.stderr.txt",
+      "invocationPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/evidence/run-04-Roguehalla_Client_Tests_QuestJournalViewEditModeTests.invocation.json",
+      "rawResultCoverage": [
+        {
+          "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.AcceptUsesCurrentHandleAndFreshCanAcceptThenSessionBatchesOnlyThatIntent",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.MaximumLengthServerStringsRemainVerbatimInScrollableFixedSizeTextFields",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.MetadataReplacementPreservesScrollPositionWhenRowsOverflowViewport",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.OldAcceptTrackAndRowCallbacksCannotActAfterReplacementBeforeRefresh",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.OldSessionCallbacksAndRemovedRowsCannotAcceptAfterRebindWelcomeOrDisconnect",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.ReplacementPreservesSelectedHandleAndScrollButClearsRemovedSelectionAndTracking",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.SelectedParticipantsUseTypedRosterIdsKeepDuplicateLabelsAndClearOnReplacementOrRebind",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.UnseenUnavailableAndAvailableEmptyAreDistinctAndRowsPreserveExactServerText",
+          "status": "Passed"
+        }
+      ],
+      "executionStatus": "COMPLETE_RAW_RESULTS",
+      "verdict": "PASS",
+      "summary": {
+        "Total": 8,
+        "Passed": 8,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      }
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+      "expectedFullNames": [
+        "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.CurrentOptionsQueueEveryOrdinaryStatPickAndMetadataReplacementInvalidatesOldCallbacks",
+        "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.DisconnectAndResumedWelcomeInvalidateOldRowsAndDropQueuedTradeInput",
+        "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.DuplicateMerchantRowsLabelsAndSignedStatDeltasRenderInSourceOrder",
+        "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.MissingUnavailableAndAvailableEmptyTradeViewsStayDistinctAndOpeningIsReadOnly",
+        "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.RebindingAnUnseenSessionClearsMerchantChoicesAndPendingCopyImmediately",
+        "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.StatUsedBlocksOnlyStatTradeWhileBarterPicksAreSentAsOrdinaryInput"
+      ],
+      "state": "PASS",
+      "argv": [
+        "unity",
+        "command",
+        "test",
+        "run",
+        "--project-path",
+        "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+        "--caller",
+        "plugin",
+        "--skill",
+        "unity-cli",
+        "--format",
+        "json",
+        "--timeout",
+        "60",
+        "--",
+        "--mode",
+        "editor",
+        "--filter",
+        "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+        "--timeout",
+        "60"
+      ],
+      "exitCode": 0,
+      "launchError": null,
+      "stdoutPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/evidence/run-05-Roguehalla_Client_Tests_TraderDialogViewEditModeTests.stdout.txt",
+      "stderrPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/evidence/run-05-Roguehalla_Client_Tests_TraderDialogViewEditModeTests.stderr.txt",
+      "invocationPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/evidence/run-05-Roguehalla_Client_Tests_TraderDialogViewEditModeTests.invocation.json",
+      "rawResultCoverage": [
+        {
+          "fullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.CurrentOptionsQueueEveryOrdinaryStatPickAndMetadataReplacementInvalidatesOldCallbacks",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.DisconnectAndResumedWelcomeInvalidateOldRowsAndDropQueuedTradeInput",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.DuplicateMerchantRowsLabelsAndSignedStatDeltasRenderInSourceOrder",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.MissingUnavailableAndAvailableEmptyTradeViewsStayDistinctAndOpeningIsReadOnly",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.RebindingAnUnseenSessionClearsMerchantChoicesAndPendingCopyImmediately",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.StatUsedBlocksOnlyStatTradeWhileBarterPicksAreSentAsOrdinaryInput",
+          "status": "Passed"
+        }
+      ],
+      "executionStatus": "COMPLETE_RAW_RESULTS",
+      "verdict": "PASS",
+      "summary": {
+        "Total": 6,
+        "Passed": 6,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      }
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests",
+      "expectedFullNames": [
+        "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.ArenaAndPendingLaunchNeverExposeTrainingConsoleAndArenaTabStillOpensMap",
+        "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.CapturedConsoleCallbackCannotQueueIntoARetiredOrReplacementSession",
+        "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.ClosedTrainingTabEntersConsoleFocusAndFocusedTextOwnsWorldKeys",
+        "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.DropdownEscapeRequestsPopupHideBeforeConsoleCloseAndTrainingLeave",
+        "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.EscapeClosesTrainingConsoleAndOnlyTheNextPhysicalEscapeLeavesTraining",
+        "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.HigherSettingsModalUnbindsConsoleUntilANewAcceptedSnapshot",
+        "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.OpeningHigherPanelOnTheSameReadCannotAlsoFocusOrChooseAReward",
+        "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.PointerCloseConsumesItsInputUpdateButWorldInputReturnsOnTheNextUpdate",
+        "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.ReconnectWelcomeAndSourceClockCutRevokeConsoleUntilAcceptedTrainingFact",
+        "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.TrainingConsoleFlushesEarlierOrdinaryCommandsBeforeItsExactTrainIntent",
+        "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.TrainingRequiresTheExactSessionAndAcceptedSnapshotBeforeOpening",
+        "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.WindowFocusLossClosesTrainingConsoleAndFreshFactCanRestoreIt",
+        "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.WrongServerModeNeverLeavesAnArenaTrainingConsoleBound"
+      ],
+      "state": "PASS",
+      "argv": [
+        "unity",
+        "command",
+        "test",
+        "run",
+        "--project-path",
+        "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+        "--caller",
+        "plugin",
+        "--skill",
+        "unity-cli",
+        "--format",
+        "json",
+        "--timeout",
+        "60",
+        "--",
+        "--mode",
+        "editor",
+        "--filter",
+        "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests",
+        "--timeout",
+        "60"
+      ],
+      "exitCode": 0,
+      "launchError": null,
+      "stdoutPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/evidence/run-06-Roguehalla_Client_Tests_TrainingConsoleIntegrationEditModeTests.stdout.txt",
+      "stderrPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/evidence/run-06-Roguehalla_Client_Tests_TrainingConsoleIntegrationEditModeTests.stderr.txt",
+      "invocationPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/evidence/run-06-Roguehalla_Client_Tests_TrainingConsoleIntegrationEditModeTests.invocation.json",
+      "rawResultCoverage": [
+        {
+          "fullName": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.ArenaAndPendingLaunchNeverExposeTrainingConsoleAndArenaTabStillOpensMap",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.CapturedConsoleCallbackCannotQueueIntoARetiredOrReplacementSession",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.ClosedTrainingTabEntersConsoleFocusAndFocusedTextOwnsWorldKeys",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.DropdownEscapeRequestsPopupHideBeforeConsoleCloseAndTrainingLeave",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.EscapeClosesTrainingConsoleAndOnlyTheNextPhysicalEscapeLeavesTraining",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.HigherSettingsModalUnbindsConsoleUntilANewAcceptedSnapshot",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.OpeningHigherPanelOnTheSameReadCannotAlsoFocusOrChooseAReward",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.PointerCloseConsumesItsInputUpdateButWorldInputReturnsOnTheNextUpdate",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.ReconnectWelcomeAndSourceClockCutRevokeConsoleUntilAcceptedTrainingFact",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.TrainingConsoleFlushesEarlierOrdinaryCommandsBeforeItsExactTrainIntent",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.TrainingRequiresTheExactSessionAndAcceptedSnapshotBeforeOpening",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.WindowFocusLossClosesTrainingConsoleAndFreshFactCanRestoreIt",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.WrongServerModeNeverLeavesAnArenaTrainingConsoleBound",
+          "status": "Passed"
+        }
+      ],
+      "executionStatus": "COMPLETE_RAW_RESULTS",
+      "verdict": "PASS",
+      "summary": {
+        "Total": 13,
+        "Passed": 13,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      }
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests",
+      "expectedFullNames": [
+        "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests.CardCopyChoicesMirrorTheSharedConsoleIncludingRemove",
+        "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests.InteractiveChoicesUseOnlyThePinnedWhitelistAndExistingCardTitles",
+        "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests.MobChoicesMatchThePinnedCatalogOrderAndDisplayNames",
+        "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests.SafeIntegerParserAcceptsZeroLeadingZerosAndTheExactMaximum",
+        "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests.SafeIntegerParserRejectsBlankSignsFractionsJunkAndOverflowWithoutClamping"
+      ],
+      "state": "PASS",
+      "argv": [
+        "unity",
+        "command",
+        "test",
+        "run",
+        "--project-path",
+        "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+        "--caller",
+        "plugin",
+        "--skill",
+        "unity-cli",
+        "--format",
+        "json",
+        "--timeout",
+        "60",
+        "--",
+        "--mode",
+        "editor",
+        "--filter",
+        "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests",
+        "--timeout",
+        "60"
+      ],
+      "exitCode": 0,
+      "launchError": null,
+      "stdoutPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/evidence/run-07-Roguehalla_Client_Tests_TrainingConsoleSelectorsEditModeTests.stdout.txt",
+      "stderrPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/evidence/run-07-Roguehalla_Client_Tests_TrainingConsoleSelectorsEditModeTests.stderr.txt",
+      "invocationPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/evidence/run-07-Roguehalla_Client_Tests_TrainingConsoleSelectorsEditModeTests.invocation.json",
+      "rawResultCoverage": [
+        {
+          "fullName": "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests.CardCopyChoicesMirrorTheSharedConsoleIncludingRemove",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests.InteractiveChoicesUseOnlyThePinnedWhitelistAndExistingCardTitles",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests.MobChoicesMatchThePinnedCatalogOrderAndDisplayNames",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests.SafeIntegerParserAcceptsZeroLeadingZerosAndTheExactMaximum",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests.SafeIntegerParserRejectsBlankSignsFractionsJunkAndOverflowWithoutClamping",
+          "status": "Passed"
+        }
+      ],
+      "executionStatus": "COMPLETE_RAW_RESULTS",
+      "verdict": "PASS",
+      "summary": {
+        "Total": 5,
+        "Passed": 5,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      }
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests",
+      "expectedFullNames": [
+        "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.CapturedActionCallbackCannotTargetAReboundSession",
+        "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.CapturedActionCannotCrossSameSessionSourceClockCutEvenAfterEpochReconfirmation",
+        "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.EachTrainingActionQueuesOneExactTrainWireIntentInExistingSessionOrder",
+        "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.EscapeClosesFocusedConsoleOnceAndDestroyedViewRemovesCapturedListener",
+        "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.InvalidStatTextAndDisconnectedSessionCannotQueueTrainingCommands",
+        "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.ReentrantSendRebindDoesNotSendToOrPoisonTheNewSession",
+        "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.StartsClosedAndRequiresAcceptedTrainingFactAndMatchingExplicitLaunchContext",
+        "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.TrainingActionFlushPreservesEarlierOrdinaryPendingInputOrder"
+      ],
+      "state": "PASS",
+      "argv": [
+        "unity",
+        "command",
+        "test",
+        "run",
+        "--project-path",
+        "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+        "--caller",
+        "plugin",
+        "--skill",
+        "unity-cli",
+        "--format",
+        "json",
+        "--timeout",
+        "60",
+        "--",
+        "--mode",
+        "editor",
+        "--filter",
+        "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests",
+        "--timeout",
+        "60"
+      ],
+      "exitCode": 0,
+      "launchError": null,
+      "stdoutPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/evidence/run-08-Roguehalla_Client_Tests_TrainingConsoleViewEditModeTests.stdout.txt",
+      "stderrPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/evidence/run-08-Roguehalla_Client_Tests_TrainingConsoleViewEditModeTests.stderr.txt",
+      "invocationPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/evidence/run-08-Roguehalla_Client_Tests_TrainingConsoleViewEditModeTests.invocation.json",
+      "rawResultCoverage": [
+        {
+          "fullName": "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.CapturedActionCallbackCannotTargetAReboundSession",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.CapturedActionCannotCrossSameSessionSourceClockCutEvenAfterEpochReconfirmation",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.EachTrainingActionQueuesOneExactTrainWireIntentInExistingSessionOrder",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.EscapeClosesFocusedConsoleOnceAndDestroyedViewRemovesCapturedListener",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.InvalidStatTextAndDisconnectedSessionCannotQueueTrainingCommands",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.ReentrantSendRebindDoesNotSendToOrPoisonTheNewSession",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.StartsClosedAndRequiresAcceptedTrainingFactAndMatchingExplicitLaunchContext",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.TrainingActionFlushPreservesEarlierOrdinaryPendingInputOrder",
+          "status": "Passed"
+        }
+      ],
+      "executionStatus": "COMPLETE_RAW_RESULTS",
+      "verdict": "PASS",
+      "summary": {
+        "Total": 8,
+        "Passed": 8,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      }
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.MatchResumeEditModeTests",
+      "expectedFullNames": [
+        "Roguehalla.Client.Tests.MatchResumeEditModeTests.ConfirmedCheckpointResumesExactSeatOnlyAfterFreshModeFact(Arena,False)",
+        "Roguehalla.Client.Tests.MatchResumeEditModeTests.ConfirmedCheckpointResumesExactSeatOnlyAfterFreshModeFact(Training,True)",
+        "Roguehalla.Client.Tests.MatchResumeEditModeTests.DelayedResumeOwnerReplyCannotConnectAfterTargetOrProfileChanges",
+        "Roguehalla.Client.Tests.MatchResumeEditModeTests.ExplicitLeaveSendsLeaveAndPreservesANewerCheckpoint",
+        "Roguehalla.Client.Tests.MatchResumeEditModeTests.MissingOrWrongCredentialCannotClaimAndCreatedProfileCannotResume",
+        "Roguehalla.Client.Tests.MatchResumeEditModeTests.ReentrantCheckpointClearCannotLeaveOrReplaceANewerResumedSession",
+        "Roguehalla.Client.Tests.MatchResumeEditModeTests.ResumeChooserDisablesActionsForTypedCallsignThatDiffersFromLoadedOwner",
+        "Roguehalla.Client.Tests.MatchResumeEditModeTests.TypedExpiredSeatClearsOnlyItsCapturedRevisionWhileGenericFailureRetainsIt"
+      ],
+      "state": "PASS",
+      "argv": [
+        "unity",
+        "command",
+        "test",
+        "run",
+        "--project-path",
+        "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+        "--caller",
+        "plugin",
+        "--skill",
+        "unity-cli",
+        "--format",
+        "json",
+        "--timeout",
+        "60",
+        "--",
+        "--mode",
+        "editor",
+        "--filter",
+        "Roguehalla.Client.Tests.MatchResumeEditModeTests",
+        "--timeout",
+        "60"
+      ],
+      "exitCode": 0,
+      "launchError": null,
+      "stdoutPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/evidence/run-09-Roguehalla_Client_Tests_MatchResumeEditModeTests.stdout.txt",
+      "stderrPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/evidence/run-09-Roguehalla_Client_Tests_MatchResumeEditModeTests.stderr.txt",
+      "invocationPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/evidence/run-09-Roguehalla_Client_Tests_MatchResumeEditModeTests.invocation.json",
+      "rawResultCoverage": [
+        {
+          "fullName": "Roguehalla.Client.Tests.MatchResumeEditModeTests.ConfirmedCheckpointResumesExactSeatOnlyAfterFreshModeFact(Arena,False)",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.MatchResumeEditModeTests.ConfirmedCheckpointResumesExactSeatOnlyAfterFreshModeFact(Training,True)",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.MatchResumeEditModeTests.DelayedResumeOwnerReplyCannotConnectAfterTargetOrProfileChanges",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.MatchResumeEditModeTests.ExplicitLeaveSendsLeaveAndPreservesANewerCheckpoint",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.MatchResumeEditModeTests.MissingOrWrongCredentialCannotClaimAndCreatedProfileCannotResume",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.MatchResumeEditModeTests.ReentrantCheckpointClearCannotLeaveOrReplaceANewerResumedSession",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.MatchResumeEditModeTests.ResumeChooserDisablesActionsForTypedCallsignThatDiffersFromLoadedOwner",
+          "status": "Passed"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.MatchResumeEditModeTests.TypedExpiredSeatClearsOnlyItsCapturedRevisionWhileGenericFailureRetainsIt",
+          "status": "Passed"
+        }
+      ],
+      "executionStatus": "COMPLETE_RAW_RESULTS",
+      "verdict": "PASS",
+      "summary": {
+        "Total": 8,
+        "Passed": 8,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      }
+    }
+  ]
+}
