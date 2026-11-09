@@ -328,14 +328,14 @@ fn compare(s: &Sim, f: &Value, pulses: &[Value], name: &str) {
         } else {
             "mob"
         };
-        let mode = match c.regional_brain().mode {
-            crate::mob_runtime::BrainMode::Idle => "idle",
-            crate::mob_runtime::BrainMode::Fight => "fight",
-            crate::mob_runtime::BrainMode::Return => "return",
-        };
         let brain = if dummy {
             Value::Null
         } else {
+            let mode = match c.regional_brain().mode {
+                crate::mob_runtime::BrainMode::Idle => "idle",
+                crate::mob_runtime::BrainMode::Fight => "fight",
+                crate::mob_runtime::BrainMode::Return => "return",
+            };
             json!({"mode":mode,"region":c.core.vitals.faction.faction_id().expect("declared faction actor").as_str(),"elite":c.elite})
         };
         let mut got = json!({"id":name,"kind":kind,"faction":if dummy {""}else{c.core.vitals.faction.faction_id().expect("declared faction actor").as_str()},"camp":if s.k.config.training {c.camp}else{c.camp+1},"x":r6(c.core.body.x),"y":r6(c.core.body.y),"hp":r6(c.core.vitals.hp),"maxHp":r6(c.core.vitals.max_hp),"status":status(c.status),"weapon0":c.core.weapon.weapon0.map_or("",|w|w.as_str()),"type":c.mob_type.map_or("",|ty|ty.as_str()),"brain":brain});
