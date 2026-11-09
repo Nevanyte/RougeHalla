@@ -1,0 +1,360 @@
+{
+  "source": "035b22c8b0773d6637da4e0d4906c31d5b3af01e",
+  "status": "FAIL",
+  "executed": 42,
+  "passed": 27,
+  "failed": 15,
+  "skipped": 0,
+  "unrun": 0,
+  "extra": 0,
+  "mvid": "cad30248-17a5-410a-8d1b-d6b883f2b74d",
+  "groups": [
+    {
+      "fixture": "QuestJournalViewEditModeTests",
+      "raw": "tests-QuestJournalViewEditModeTests.json",
+      "sha256": "194ca6590b2be57fb756d6e772e8ceb49514ee4817658e80b3e0bb5faf8d1592",
+      "summary": {
+        "Total": 8,
+        "Passed": 8,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      }
+    },
+    {
+      "fixture": "TraderDialogViewEditModeTests",
+      "raw": "tests-TraderDialogViewEditModeTests.json",
+      "sha256": "926a428bf02c3658d8a49348a257beb63c36ad2b8d0f04bf479a79d2247eb2c3",
+      "summary": {
+        "Total": 6,
+        "Passed": 6,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      }
+    },
+    {
+      "fixture": "PlayerFlowsEditModeTests",
+      "raw": "tests-PlayerFlowsEditModeTests.json",
+      "sha256": "8ec231b56778f85c37a5fa652ade8730bc14071ec9837f57110b7d1706801faf",
+      "summary": {
+        "Total": 11,
+        "Passed": 11,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      }
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "raw": "tests-MatchLaunchEditModeTests.json",
+      "sha256": "654b61db48f7b2048b53fd732829d9ad7e4d25fd488b72186c17fcd4459ab3c4",
+      "summary": {
+        "Total": 17,
+        "Passed": 2,
+        "Failed": 15,
+        "Skipped": 0,
+        "Inconclusive": 0
+      }
+    }
+  ],
+  "retries": 0,
+  "playSessions": 0,
+  "failureObservedAfterLastGroupCompleted": true,
+  "results": [
+    {
+      "FullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.AcceptUsesCurrentHandleAndFreshCanAcceptThenSessionBatchesOnlyThatIntent",
+      "Status": "Passed",
+      "Duration": 0.274083,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.MaximumLengthServerStringsRemainVerbatimInScrollableFixedSizeTextFields",
+      "Status": "Passed",
+      "Duration": 0.0175862,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.MetadataReplacementPreservesScrollPositionWhenRowsOverflowViewport",
+      "Status": "Passed",
+      "Duration": 0.0121924,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.OldAcceptTrackAndRowCallbacksCannotActAfterReplacementBeforeRefresh",
+      "Status": "Passed",
+      "Duration": 0.0082722,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.OldSessionCallbacksAndRemovedRowsCannotAcceptAfterRebindWelcomeOrDisconnect",
+      "Status": "Passed",
+      "Duration": 0.0081227,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.ReplacementPreservesSelectedHandleAndScrollButClearsRemovedSelectionAndTracking",
+      "Status": "Passed",
+      "Duration": 0.0077402,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.SelectedParticipantsUseTypedRosterIdsKeepDuplicateLabelsAndClearOnReplacementOrRebind",
+      "Status": "Passed",
+      "Duration": 0.0087863,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.UnseenUnavailableAndAvailableEmptyAreDistinctAndRowsPreserveExactServerText",
+      "Status": "Passed",
+      "Duration": 0.0075748,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.CurrentOptionsQueueEveryOrdinaryStatPickAndMetadataReplacementInvalidatesOldCallbacks",
+      "Status": "Passed",
+      "Duration": 0.0349742,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.DisconnectAndResumedWelcomeInvalidateOldRowsAndDropQueuedTradeInput",
+      "Status": "Passed",
+      "Duration": 0.0059833,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.DuplicateMerchantRowsLabelsAndSignedStatDeltasRenderInSourceOrder",
+      "Status": "Passed",
+      "Duration": 0.0309983,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.MissingUnavailableAndAvailableEmptyTradeViewsStayDistinctAndOpeningIsReadOnly",
+      "Status": "Passed",
+      "Duration": 0.0029516,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.RebindingAnUnseenSessionClearsMerchantChoicesAndPendingCopyImmediately",
+      "Status": "Passed",
+      "Duration": 0.0070857,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.StatUsedBlocksOnlyStatTradeWhileBarterPicksAreSentAsOrdinaryInput",
+      "Status": "Passed",
+      "Duration": 0.0068546,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.DeliveredMapPointsReplaceWithoutActorFabricationOrNameDeduplication",
+      "Status": "Passed",
+      "Duration": 0.2343257,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.InFlightOldSessionNoticeCallbackCannotAppendAfterRebind",
+      "Status": "Passed",
+      "Duration": 0.1211224,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.InFlightSameSessionNoticeCallbackCannotCrossSourceClockCutAndNewEpochKeepsDuplicates",
+      "Status": "Passed",
+      "Duration": 0.1208516,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.JournalKeyboardOwnsSimultaneousMapAndWorldKeysAndRespectsExistingModals",
+      "Status": "Passed",
+      "Duration": 0.1329588,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.MalformedFrameRetainsCanonicalViewButInvalidQuestItemReferenceFailsAndDisablesActions",
+      "Status": "Passed",
+      "Duration": 0.1228495,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.OrdinaryMixedQuestTradeQueueSplitsAtSixteenWithoutUiGeneratedCommands",
+      "Status": "Passed",
+      "Duration": 0.1228516,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningJournalDropAndResumedWelcomeClearRowsAndRestoreMapInput",
+      "Status": "Passed",
+      "Duration": 0.1433495,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningJournalRespectsSettingsAndFocusedTextEntry",
+      "Status": "Passed",
+      "Duration": 0.1335647,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningPreviewRetiresDeferredAcceptAndWaitsForFreshNativePermission",
+      "Status": "Passed",
+      "Duration": 0.1368792,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningQuestReviewPreservesMapChoicesAndFocusWhileBlockingOtherPagesAndWorldKeys",
+      "Status": "Passed",
+      "Duration": 0.1477387,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.ReceivedNoticeOrderIncludesDuplicatesAndResumeClearsBeforeNewBatch",
+      "Status": "Passed",
+      "Duration": 0.13821,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "MatchLaunchEditModeTests.CrossOriginTrainingCannotSendOwnerCredentialsOrStartAClaim",
+      "Status": "Passed",
+      "Duration": 0.399501,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "MatchLaunchEditModeTests.EditingTrainingTargetDuringOwnerRequestCannotUseItsCapturedToken",
+      "Status": "Passed",
+      "Duration": 0.3002851,
+      "Message": null,
+      "StackTrace": null
+    },
+    {
+      "FullName": "MatchLaunchEditModeTests.EndingBeforeTheFirstModeFactUnlocksRecoveryAndLeavePermitsAnotherDestination",
+      "Status": "Failed",
+      "Duration": 0.4002645,
+      "Message": "Unhandled log message: '[Error] Failed setting EventSystem.current to unknown EventSystem <b>Selected:</b>\n\n\nNo module\n'. Use UnityEngine.TestTools.LogAssert.Expect",
+      "StackTrace": "UnityEngine.EventSystems.EventSystem:set_current (UnityEngine.EventSystems.EventSystem)\nMatchLaunchEditModeTests/Fixture:InitializeHud () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:90)\nMatchLaunchEditModeTests/<EndingBeforeTheFirstModeFactUnlocksRecoveryAndLeavePermitsAnotherDestination>d__24:MoveNext () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:379)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<MatchLaunchEditModeTests/<EndingBeforeTheFirstModeFactUnlocksRecoveryAndLeavePermitsAnotherDestination>d__24> (MatchLaunchEditModeTests/<EndingBeforeTheFirstModeFactUnlocksRecoveryAndLeavePermitsAnotherDestination>d__24&)\nMatchLaunchEditModeTests:EndingBeforeTheFirstModeFactUnlocksRecoveryAndLeavePermitsAnotherDestination ()\nUnityEditor.EditorApplication:Internal_CallUpdateFunctions () (at /Users/bokken/build/output/unity/unity/Editor/Mono/EditorApplication.cs:384)\n\n"
+    },
+    {
+      "FullName": "MatchLaunchEditModeTests.LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation(False)",
+      "Status": "Failed",
+      "Duration": 0.300033,
+      "Message": "Unhandled log message: '[Error] More than one global light on layer Default for light blend style index 0'. Use UnityEngine.TestTools.LogAssert.Expect",
+      "StackTrace": "UnityEngine.Rendering.Universal.Light2D:set_lightType (UnityEngine.Rendering.Universal.Light2D/LightType)\nRoguehalla.Client.ArenaView:Awake () (at Assets/Scripts/View/ArenaView.cs:57)\nSystem.Reflection.MethodBase:Invoke (object,object[])\nMatchLaunchEditModeTests:Invoke (object,string) (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:155)\nMatchLaunchEditModeTests/Fixture:<.ctor>b__8_0 () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:83)\nRoguehalla.Client.MatchClient:JoinCore (string,int,Roguehalla.Net.MatchLaunchTarget,string,long) (at Assets/Scripts/Net/MatchClient.cs:84)\nRoguehalla.Client.MatchClient/<JoinOwned>d__37:MoveNext () (at Assets/Scripts/Net/MatchClient.Accounts.cs:132)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<Roguehalla.Client.MatchClient/<JoinOwned>d__37> (Roguehalla.Client.MatchClient/<JoinOwned>d__37&)\nRoguehalla.Client.MatchClient:JoinOwned (string,int,Roguehalla.Net.MatchLaunchTarget)\nRoguehalla.Client.MatchClient:Join (string,int) (at Assets/Scripts/Net/MatchClient.Accounts.cs:113)\nRoguehalla.Client.MatchClient:Join (string,int,Roguehalla.Net.MatchLaunchMode) (at Assets/Scripts/Net/MatchClient.Accounts.cs:117)\nMatchLaunchEditModeTests/Fixture:Join (Roguehalla.Net.MatchLaunchMode) (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:94)\nMatchLaunchEditModeTests/Fixture/<JoinReady>d__11:MoveNext () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:98)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<MatchLaunchEditModeTests/Fixture/<JoinReady>d__11> (MatchLaunchEditModeTests/Fixture/<JoinReady>d__11&)\nMatchLaunchEditModeTests/Fixture:JoinReady (Roguehalla.Net.MatchLaunchMode)\nMatchLaunchEditModeTests/Fixture/<ProvePublicLaunch>d__12:MoveNext () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:113)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<MatchLaunchEditModeTests/Fixture/<ProvePublicLaunch>d__12> (MatchLaunchEditModeTests/Fixture/<ProvePublicLaunch>d__12&)\nMatchLaunchEditModeTests/Fixture:ProvePublicLaunch (Roguehalla.Net.MatchLaunchMode)\nMatchLaunchEditModeTests/<LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation>d__17:MoveNext () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:267)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<MatchLaunchEditModeTests/<LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation>d__17> (MatchLaunchEditModeTests/<LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation>d__17&)\nMatchLaunchEditModeTests:LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation (bool)\nUnityEditor.EditorApplication:Internal_CallUpdateFunctions () (at /Users/bokken/build/output/unity/unity/Editor/Mono/EditorApplication.cs:384)\n\n"
+    },
+    {
+      "FullName": "MatchLaunchEditModeTests.LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation(True)",
+      "Status": "Failed",
+      "Duration": 0.299965,
+      "Message": "Unhandled log message: '[Error] More than one global light on layer Default for light blend style index 0'. Use UnityEngine.TestTools.LogAssert.Expect",
+      "StackTrace": "UnityEngine.Rendering.Universal.Light2D:set_lightType (UnityEngine.Rendering.Universal.Light2D/LightType)\nRoguehalla.Client.ArenaView:Awake () (at Assets/Scripts/View/ArenaView.cs:57)\nSystem.Reflection.MethodBase:Invoke (object,object[])\nMatchLaunchEditModeTests:Invoke (object,string) (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:155)\nMatchLaunchEditModeTests/Fixture:<.ctor>b__8_0 () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:83)\nRoguehalla.Client.MatchClient:JoinCore (string,int,Roguehalla.Net.MatchLaunchTarget,string,long) (at Assets/Scripts/Net/MatchClient.cs:84)\nRoguehalla.Client.MatchClient/<JoinOwned>d__37:MoveNext () (at Assets/Scripts/Net/MatchClient.Accounts.cs:132)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<Roguehalla.Client.MatchClient/<JoinOwned>d__37> (Roguehalla.Client.MatchClient/<JoinOwned>d__37&)\nRoguehalla.Client.MatchClient:JoinOwned (string,int,Roguehalla.Net.MatchLaunchTarget)\nRoguehalla.Client.MatchClient:Join (string,int) (at Assets/Scripts/Net/MatchClient.Accounts.cs:113)\nRoguehalla.Client.MatchClient:Join (string,int,Roguehalla.Net.MatchLaunchMode) (at Assets/Scripts/Net/MatchClient.Accounts.cs:117)\nMatchLaunchEditModeTests/Fixture:Join (Roguehalla.Net.MatchLaunchMode) (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:94)\nMatchLaunchEditModeTests/Fixture/<JoinReady>d__11:MoveNext () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:98)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<MatchLaunchEditModeTests/Fixture/<JoinReady>d__11> (MatchLaunchEditModeTests/Fixture/<JoinReady>d__11&)\nMatchLaunchEditModeTests/Fixture:JoinReady (Roguehalla.Net.MatchLaunchMode)\nMatchLaunchEditModeTests/Fixture/<ProvePublicLaunch>d__12:MoveNext () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:113)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<MatchLaunchEditModeTests/Fixture/<ProvePublicLaunch>d__12> (MatchLaunchEditModeTests/Fixture/<ProvePublicLaunch>d__12&)\nMatchLaunchEditModeTests/Fixture:ProvePublicLaunch (Roguehalla.Net.MatchLaunchMode)\nMatchLaunchEditModeTests/<LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation>d__17:MoveNext () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:270)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<MatchLaunchEditModeTests/<LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation>d__17> (MatchLaunchEditModeTests/<LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation>d__17&)\nMatchLaunchEditModeTests:LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation (bool)\nUnityEditor.EditorApplication:Internal_CallUpdateFunctions () (at /Users/bokken/build/output/unity/unity/Editor/Mono/EditorApplication.cs:384)\n\n"
+    },
+    {
+      "FullName": "MatchLaunchEditModeTests.MissingTrainingNeverFallsBackOrStartsAnOwnershipRequest",
+      "Status": "Failed",
+      "Duration": 0.2989474,
+      "Message": "Unhandled log message: '[Error] More than one global light on layer Default for light blend style index 0'. Use UnityEngine.TestTools.LogAssert.Expect",
+      "StackTrace": "UnityEngine.Rendering.Universal.Light2D:set_lightType (UnityEngine.Rendering.Universal.Light2D/LightType)\nRoguehalla.Client.ArenaView:Awake () (at Assets/Scripts/View/ArenaView.cs:57)\nSystem.Reflection.MethodBase:Invoke (object,object[])\nMatchLaunchEditModeTests:Invoke (object,string) (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:155)\nMatchLaunchEditModeTests/Fixture:<.ctor>b__8_0 () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:83)\nRoguehalla.Client.MatchClient:JoinCore (string,int,Roguehalla.Net.MatchLaunchTarget,string,long) (at Assets/Scripts/Net/MatchClient.cs:84)\nRoguehalla.Client.MatchClient/<JoinOwned>d__37:MoveNext () (at Assets/Scripts/Net/MatchClient.Accounts.cs:132)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<Roguehalla.Client.MatchClient/<JoinOwned>d__37> (Roguehalla.Client.MatchClient/<JoinOwned>d__37&)\nRoguehalla.Client.MatchClient:JoinOwned (string,int,Roguehalla.Net.MatchLaunchTarget)\nRoguehalla.Client.MatchClient:Join (string,int) (at Assets/Scripts/Net/MatchClient.Accounts.cs:113)\nRoguehalla.Client.MatchClient:Join (string,int,Roguehalla.Net.MatchLaunchMode) (at Assets/Scripts/Net/MatchClient.Accounts.cs:117)\nMatchLaunchEditModeTests/Fixture:Join (Roguehalla.Net.MatchLaunchMode) (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:94)\nMatchLaunchEditModeTests/Fixture/<JoinReady>d__11:MoveNext () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:98)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<MatchLaunchEditModeTests/Fixture/<JoinReady>d__11> (MatchLaunchEditModeTests/Fixture/<JoinReady>d__11&)\nMatchLaunchEditModeTests/Fixture:JoinReady (Roguehalla.Net.MatchLaunchMode)\nMatchLaunchEditModeTests/Fixture/<ProvePublicLaunch>d__12:MoveNext () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:113)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<MatchLaunchEditModeTests/Fixture/<ProvePublicLaunch>d__12> (MatchLaunchEditModeTests/Fixture/<ProvePublicLaunch>d__12&)\nMatchLaunchEditModeTests/Fixture:ProvePublicLaunch (Roguehalla.Net.MatchLaunchMode)\nMatchLaunchEditModeTests/<MissingTrainingNeverFallsBackOrStartsAnOwnershipRequest>d__11:MoveNext () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:175)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<MatchLaunchEditModeTests/<MissingTrainingNeverFallsBackOrStartsAnOwnershipRequest>d__11> (MatchLaunchEditModeTests/<MissingTrainingNeverFallsBackOrStartsAnOwnershipRequest>d__11&)\nMatchLaunchEditModeTests:MissingTrainingNeverFallsBackOrStartsAnOwnershipRequest ()\nUnityEditor.EditorApplication:Internal_CallUpdateFunctions () (at /Users/bokken/build/output/unity/unity/Editor/Mono/EditorApplication.cs:384)\n\n"
+    },
+    {
+      "FullName": "MatchLaunchEditModeTests.OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot(Arena,False)",
+      "Status": "Failed",
+      "Duration": 0.3001705,
+      "Message": "Unhandled log message: '[Error] More than one global light on layer Default for light blend style index 0'. Use UnityEngine.TestTools.LogAssert.Expect",
+      "StackTrace": "UnityEngine.Rendering.Universal.Light2D:set_lightType (UnityEngine.Rendering.Universal.Light2D/LightType)\nRoguehalla.Client.ArenaView:Awake () (at Assets/Scripts/View/ArenaView.cs:57)\nSystem.Reflection.MethodBase:Invoke (object,object[])\nMatchLaunchEditModeTests:Invoke (object,string) (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:155)\nMatchLaunchEditModeTests/Fixture:<.ctor>b__8_0 () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:83)\nRoguehalla.Client.MatchClient:JoinCore (string,int,Roguehalla.Net.MatchLaunchTarget,string,long) (at Assets/Scripts/Net/MatchClient.cs:84)\nRoguehalla.Client.MatchClient/<JoinOwned>d__37:MoveNext () (at Assets/Scripts/Net/MatchClient.Accounts.cs:132)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<Roguehalla.Client.MatchClient/<JoinOwned>d__37> (Roguehalla.Client.MatchClient/<JoinOwned>d__37&)\nRoguehalla.Client.MatchClient:JoinOwned (string,int,Roguehalla.Net.MatchLaunchTarget)\nRoguehalla.Client.MatchClient:Join (string,int) (at Assets/Scripts/Net/MatchClient.Accounts.cs:113)\nRoguehalla.Client.MatchClient:Join (string,int,Roguehalla.Net.MatchLaunchMode) (at Assets/Scripts/Net/MatchClient.Accounts.cs:117)\nMatchLaunchEditModeTests/Fixture:Join (Roguehalla.Net.MatchLaunchMode) (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:94)\nMatchLaunchEditModeTests/Fixture/<JoinReady>d__11:MoveNext () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:98)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<MatchLaunchEditModeTests/Fixture/<JoinReady>d__11> (MatchLaunchEditModeTests/Fixture/<JoinReady>d__11&)\nMatchLaunchEditModeTests/Fixture:JoinReady (Roguehalla.Net.MatchLaunchMode)\nMatchLaunchEditModeTests/<OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot>d__18:MoveNext () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:278)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<MatchLaunchEditModeTests/<OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot>d__18> (MatchLaunchEditModeTests/<OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot>d__18&)\nMatchLaunchEditModeTests:OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot (Roguehalla.Net.MatchLaunchMode,bool)\nUnityEditor.EditorApplication:Internal_CallUpdateFunctions () (at /Users/bokken/build/output/unity/unity/Editor/Mono/EditorApplication.cs:384)\n\n"
+    },
+    {
+      "FullName": "MatchLaunchEditModeTests.OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot(Training,True)",
+      "Status": "Failed",
+      "Duration": 0.2999019,
+      "Message": "Unhandled log message: '[Error] More than one global light on layer Default for light blend style index 0'. Use UnityEngine.TestTools.LogAssert.Expect",
+      "StackTrace": "UnityEngine.Rendering.Universal.Light2D:set_lightType (UnityEngine.Rendering.Universal.Light2D/LightType)\nRoguehalla.Client.ArenaView:Awake () (at Assets/Scripts/View/ArenaView.cs:57)\nSystem.Reflection.MethodBase:Invoke (object,object[])\nMatchLaunchEditModeTests:Invoke (object,string) (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:155)\nMatchLaunchEditModeTests/Fixture:<.ctor>b__8_0 () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:83)\nRoguehalla.Client.MatchClient:JoinCore (string,int,Roguehalla.Net.MatchLaunchTarget,string,long) (at Assets/Scripts/Net/MatchClient.cs:84)\nRoguehalla.Client.MatchClient/<JoinOwned>d__37:MoveNext () (at Assets/Scripts/Net/MatchClient.Accounts.cs:132)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<Roguehalla.Client.MatchClient/<JoinOwned>d__37> (Roguehalla.Client.MatchClient/<JoinOwned>d__37&)\nRoguehalla.Client.MatchClient:JoinOwned (string,int,Roguehalla.Net.MatchLaunchTarget)\nRoguehalla.Client.MatchClient:Join (string,int) (at Assets/Scripts/Net/MatchClient.Accounts.cs:113)\nRoguehalla.Client.MatchClient:Join (string,int,Roguehalla.Net.MatchLaunchMode) (at Assets/Scripts/Net/MatchClient.Accounts.cs:117)\nMatchLaunchEditModeTests/Fixture:Join (Roguehalla.Net.MatchLaunchMode) (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:94)\nMatchLaunchEditModeTests/Fixture/<JoinReady>d__11:MoveNext () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:98)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<MatchLaunchEditModeTests/Fixture/<JoinReady>d__11> (MatchLaunchEditModeTests/Fixture/<JoinReady>d__11&)\nMatchLaunchEditModeTests/Fixture:JoinReady (Roguehalla.Net.MatchLaunchMode)\nMatchLaunchEditModeTests/<OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot>d__18:MoveNext () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:278)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<MatchLaunchEditModeTests/<OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot>d__18> (MatchLaunchEditModeTests/<OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot>d__18&)\nMatchLaunchEditModeTests:OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot (Roguehalla.Net.MatchLaunchMode,bool)\nUnityEditor.EditorApplication:Internal_CallUpdateFunctions () (at /Users/bokken/build/output/unity/unity/Editor/Mono/EditorApplication.cs:384)\n\n"
+    },
+    {
+      "FullName": "MatchLaunchEditModeTests.PendingMenuAndPracticeCopyFollowDeliveredFactAndPlayAgainPreservesTraining",
+      "Status": "Failed",
+      "Duration": 0.3993344,
+      "Message": "Unhandled log message: '[Error] Failed setting EventSystem.current to unknown EventSystem <b>Selected:</b>\n\n\nNo module\n'. Use UnityEngine.TestTools.LogAssert.Expect",
+      "StackTrace": "UnityEngine.EventSystems.EventSystem:set_current (UnityEngine.EventSystems.EventSystem)\nMatchLaunchEditModeTests/Fixture:InitializeHud () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:90)\nMatchLaunchEditModeTests/<PendingMenuAndPracticeCopyFollowDeliveredFactAndPlayAgainPreservesTraining>d__23:MoveNext () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:356)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<MatchLaunchEditModeTests/<PendingMenuAndPracticeCopyFollowDeliveredFactAndPlayAgainPreservesTraining>d__23> (MatchLaunchEditModeTests/<PendingMenuAndPracticeCopyFollowDeliveredFactAndPlayAgainPreservesTraining>d__23&)\nMatchLaunchEditModeTests:PendingMenuAndPracticeCopyFollowDeliveredFactAndPlayAgainPreservesTraining ()\nUnityEditor.EditorApplication:Internal_CallUpdateFunctions () (at /Users/bokken/build/output/unity/unity/Editor/Mono/EditorApplication.cs:384)\n\n"
+    },
+    {
+      "FullName": "MatchLaunchEditModeTests.RapidModeChangesOnlyConnectTheCurrentOwnerIntentToItsCapturedTarget",
+      "Status": "Failed",
+      "Duration": 0.3996873,
+      "Message": "Unhandled log message: '[Error] More than one global light on layer Default for light blend style index 0'. Use UnityEngine.TestTools.LogAssert.Expect",
+      "StackTrace": "UnityEngine.Rendering.Universal.Light2D:set_lightType (UnityEngine.Rendering.Universal.Light2D/LightType)\nRoguehalla.Client.ArenaView:Awake () (at Assets/Scripts/View/ArenaView.cs:57)\nSystem.Reflection.MethodBase:Invoke (object,object[])\nMatchLaunchEditModeTests:Invoke (object,string) (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:155)\nMatchLaunchEditModeTests/Fixture:<.ctor>b__8_0 () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:83)\nRoguehalla.Client.MatchClient:JoinCore (string,int,Roguehalla.Net.MatchLaunchTarget,string,long) (at Assets/Scripts/Net/MatchClient.cs:84)\nRoguehalla.Client.MatchClient/<JoinOwned>d__37:MoveNext () (at Assets/Scripts/Net/MatchClient.Accounts.cs:132)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder`1<Roguehalla.Net.AccountJoinIntent>:SetResult (Roguehalla.Net.AccountJoinIntent)\nRoguehalla.Net.AccountHubFlow/<PrepareJoinAsync>d__23:MoveNext () (at Assets/RoguehallaNet/Net/AccountHubFlow.cs:131)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder`1<Roguehalla.Net.OwnedAccount>:SetResult (Roguehalla.Net.OwnedAccount)\nRoguehalla.Net.AccountHubFlow/<Open>d__31:MoveNext () (at Assets/RoguehallaNet/Net/AccountHubFlow.cs:207)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder`1<Roguehalla.Net.AccountOpenResult>:SetResult (Roguehalla.Net.AccountOpenResult)\nRoguehalla.Net.AccountSession/<OpenAsync>d__25:MoveNext () (at Assets/RoguehallaNet/Net/AccountSession.cs:82)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder`1<Roguehalla.Net.AccountOpenResult>:SetResult (Roguehalla.Net.AccountOpenResult)\nRoguehalla.Net.AccountSession/<Fetch>d__28:MoveNext () (at Assets/RoguehallaNet/Net/AccountSession.cs:146)\nSystem.Threading.Tasks.TaskCompletionSource`1<Roguehalla.Net.AccountHttpResponse>:SetResult (Roguehalla.Net.AccountHttpResponse)\nMatchLaunchEditModeTests/<RapidModeChangesOnlyConnectTheCurrentOwnerIntentToItsCapturedTarget>d__14:MoveNext () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:215)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:SetResult ()\nMatchLaunchEditModeTests/<WaitFor>d__10:MoveNext () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:165)\nUnityEngine.UnitySynchronizationContext:ExecuteTasks () (at /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/UnitySynchronizationContext.cs:110)\n\n"
+    },
+    {
+      "FullName": "MatchLaunchEditModeTests.ReconnectWelcomeRevokesConfirmationAndRequiresANewMatchingFact",
+      "Status": "Failed",
+      "Duration": 0.2998735,
+      "Message": "Unhandled log message: '[Error] More than one global light on layer Default for light blend style index 0'. Use UnityEngine.TestTools.LogAssert.Expect",
+      "StackTrace": "UnityEngine.Rendering.Universal.Light2D:set_lightType (UnityEngine.Rendering.Universal.Light2D/LightType)\nRoguehalla.Client.ArenaView:Awake () (at Assets/Scripts/View/ArenaView.cs:57)\nSystem.Reflection.MethodBase:Invoke (object,object[])\nMatchLaunchEditModeTests:Invoke (object,string) (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:155)\nMatchLaunchEditModeTests/Fixture:<.ctor>b__8_0 () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:83)\nRoguehalla.Client.MatchClient:JoinCore (string,int,Roguehalla.Net.MatchLaunchTarget,string,long) (at Assets/Scripts/Net/MatchClient.cs:84)\nRoguehalla.Client.MatchClient/<JoinOwned>d__37:MoveNext () (at Assets/Scripts/Net/MatchClient.Accounts.cs:132)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<Roguehalla.Client.MatchClient/<JoinOwned>d__37> (Roguehalla.Client.MatchClient/<JoinOwned>d__37&)\nRoguehalla.Client.MatchClient:JoinOwned (string,int,Roguehalla.Net.MatchLaunchTarget)\nRoguehalla.Client.MatchClient:Join (string,int) (at Assets/Scripts/Net/MatchClient.Accounts.cs:113)\nRoguehalla.Client.MatchClient:Join (string,int,Roguehalla.Net.MatchLaunchMode) (at Assets/Scripts/Net/MatchClient.Accounts.cs:117)\nMatchLaunchEditModeTests/Fixture:Join (Roguehalla.Net.MatchLaunchMode) (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:94)\nMatchLaunchEditModeTests/Fixture/<JoinReady>d__11:MoveNext () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:98)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<MatchLaunchEditModeTests/Fixture/<JoinReady>d__11> (MatchLaunchEditModeTests/Fixture/<JoinReady>d__11&)\nMatchLaunchEditModeTests/Fixture:JoinReady (Roguehalla.Net.MatchLaunchMode)\nMatchLaunchEditModeTests/<ReconnectWelcomeRevokesConfirmationAndRequiresANewMatchingFact>d__20:MoveNext () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:310)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<MatchLaunchEditModeTests/<ReconnectWelcomeRevokesConfirmationAndRequiresANewMatchingFact>d__20> (MatchLaunchEditModeTests/<ReconnectWelcomeRevokesConfirmationAndRequiresANewMatchingFact>d__20&)\nMatchLaunchEditModeTests:ReconnectWelcomeRevokesConfirmationAndRequiresANewMatchingFact ()\nUnityEditor.EditorApplication:Internal_CallUpdateFunctions () (at /Users/bokken/build/output/unity/unity/Editor/Mono/EditorApplication.cs:384)\n\n"
+    },
+    {
+      "FullName": "MatchLaunchEditModeTests.ReentrantLeaveCallbackCannotHaveItsReplacementCancelledOrArenaDestroyed",
+      "Status": "Failed",
+      "Duration": 0.3002757,
+      "Message": "Unhandled log message: '[Error] More than one global light on layer Default for light blend style index 0'. Use UnityEngine.TestTools.LogAssert.Expect",
+      "StackTrace": "UnityEngine.Rendering.Universal.Light2D:set_lightType (UnityEngine.Rendering.Universal.Light2D/LightType)\nRoguehalla.Client.ArenaView:Awake () (at Assets/Scripts/View/ArenaView.cs:57)\nSystem.Reflection.MethodBase:Invoke (object,object[])\nMatchLaunchEditModeTests:Invoke (object,string) (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:155)\nMatchLaunchEditModeTests/Fixture:<.ctor>b__8_0 () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:83)\nRoguehalla.Client.MatchClient:JoinCore (string,int,Roguehalla.Net.MatchLaunchTarget,string,long) (at Assets/Scripts/Net/MatchClient.cs:84)\nRoguehalla.Client.MatchClient/<JoinOwned>d__37:MoveNext () (at Assets/Scripts/Net/MatchClient.Accounts.cs:132)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<Roguehalla.Client.MatchClient/<JoinOwned>d__37> (Roguehalla.Client.MatchClient/<JoinOwned>d__37&)\nRoguehalla.Client.MatchClient:JoinOwned (string,int,Roguehalla.Net.MatchLaunchTarget)\nRoguehalla.Client.MatchClient:Join (string,int) (at Assets/Scripts/Net/MatchClient.Accounts.cs:113)\nRoguehalla.Client.MatchClient:Join (string,int,Roguehalla.Net.MatchLaunchMode) (at Assets/Scripts/Net/MatchClient.Accounts.cs:117)\nMatchLaunchEditModeTests/Fixture:Join (Roguehalla.Net.MatchLaunchMode) (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:94)\nMatchLaunchEditModeTests/Fixture/<JoinReady>d__11:MoveNext () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:98)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<MatchLaunchEditModeTests/Fixture/<JoinReady>d__11> (MatchLaunchEditModeTests/Fixture/<JoinReady>d__11&)\nMatchLaunchEditModeTests/Fixture:JoinReady (Roguehalla.Net.MatchLaunchMode)\nMatchLaunchEditModeTests/<ReentrantLeaveCallbackCannotHaveItsReplacementCancelledOrArenaDestroyed>d__22:MoveNext () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:341)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<MatchLaunchEditModeTests/<ReentrantLeaveCallbackCannotHaveItsReplacementCancelledOrArenaDestroyed>d__22> (MatchLaunchEditModeTests/<ReentrantLeaveCallbackCannotHaveItsReplacementCancelledOrArenaDestroyed>d__22&)\nMatchLaunchEditModeTests:ReentrantLeaveCallbackCannotHaveItsReplacementCancelledOrArenaDestroyed ()\nUnityEditor.EditorApplication:Internal_CallUpdateFunctions () (at /Users/bokken/build/output/unity/unity/Editor/Mono/EditorApplication.cs:384)\n\n"
+    },
+    {
+      "FullName": "MatchLaunchEditModeTests.RetiredCallbacksCannotResetOrRefuseANewerSession",
+      "Status": "Failed",
+      "Duration": 0.2997267,
+      "Message": "Unhandled log message: '[Error] More than one global light on layer Default for light blend style index 0'. Use UnityEngine.TestTools.LogAssert.Expect",
+      "StackTrace": "UnityEngine.Rendering.Universal.Light2D:set_lightType (UnityEngine.Rendering.Universal.Light2D/LightType)\nRoguehalla.Client.ArenaView:Awake () (at Assets/Scripts/View/ArenaView.cs:57)\nSystem.Reflection.MethodBase:Invoke (object,object[])\nMatchLaunchEditModeTests:Invoke (object,string) (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:155)\nMatchLaunchEditModeTests/Fixture:<.ctor>b__8_0 () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:83)\nRoguehalla.Client.MatchClient:JoinCore (string,int,Roguehalla.Net.MatchLaunchTarget,string,long) (at Assets/Scripts/Net/MatchClient.cs:84)\nRoguehalla.Client.MatchClient/<JoinOwned>d__37:MoveNext () (at Assets/Scripts/Net/MatchClient.Accounts.cs:132)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<Roguehalla.Client.MatchClient/<JoinOwned>d__37> (Roguehalla.Client.MatchClient/<JoinOwned>d__37&)\nRoguehalla.Client.MatchClient:JoinOwned (string,int,Roguehalla.Net.MatchLaunchTarget)\nRoguehalla.Client.MatchClient:Join (string,int) (at Assets/Scripts/Net/MatchClient.Accounts.cs:113)\nRoguehalla.Client.MatchClient:Join (string,int,Roguehalla.Net.MatchLaunchMode) (at Assets/Scripts/Net/MatchClient.Accounts.cs:117)\nMatchLaunchEditModeTests/Fixture:Join (Roguehalla.Net.MatchLaunchMode) (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:94)\nMatchLaunchEditModeTests/Fixture/<JoinReady>d__11:MoveNext () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:98)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<MatchLaunchEditModeTests/Fixture/<JoinReady>d__11> (MatchLaunchEditModeTests/Fixture/<JoinReady>d__11&)\nMatchLaunchEditModeTests/Fixture:JoinReady (Roguehalla.Net.MatchLaunchMode)\nMatchLaunchEditModeTests/<RetiredCallbacksCannotResetOrRefuseANewerSession>d__21:MoveNext () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:324)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<MatchLaunchEditModeTests/<RetiredCallbacksCannotResetOrRefuseANewerSession>d__21> (MatchLaunchEditModeTests/<RetiredCallbacksCannotResetOrRefuseANewerSession>d__21&)\nMatchLaunchEditModeTests:RetiredCallbacksCannotResetOrRefuseANewerSession ()\nUnityEditor.EditorApplication:Internal_CallUpdateFunctions () (at /Users/bokken/build/output/unity/unity/Editor/Mono/EditorApplication.cs:384)\n\n"
+    },
+    {
+      "FullName": "MatchLaunchEditModeTests.SwitchingModeWhileOwnerReplyIsDeferredInvalidatesTheOldIntent",
+      "Status": "Failed",
+      "Duration": 0.3000661,
+      "Message": "Unhandled log message: '[Error] More than one global light on layer Default for light blend style index 0'. Use UnityEngine.TestTools.LogAssert.Expect",
+      "StackTrace": "UnityEngine.Rendering.Universal.Light2D:set_lightType (UnityEngine.Rendering.Universal.Light2D/LightType)\nRoguehalla.Client.ArenaView:Awake () (at Assets/Scripts/View/ArenaView.cs:57)\nSystem.Reflection.MethodBase:Invoke (object,object[])\nMatchLaunchEditModeTests:Invoke (object,string) (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:155)\nMatchLaunchEditModeTests/Fixture:<.ctor>b__8_0 () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:83)\nRoguehalla.Client.MatchClient:JoinCore (string,int,Roguehalla.Net.MatchLaunchTarget,string,long) (at Assets/Scripts/Net/MatchClient.cs:84)\nRoguehalla.Client.MatchClient/<JoinOwned>d__37:MoveNext () (at Assets/Scripts/Net/MatchClient.Accounts.cs:132)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<Roguehalla.Client.MatchClient/<JoinOwned>d__37> (Roguehalla.Client.MatchClient/<JoinOwned>d__37&)\nRoguehalla.Client.MatchClient:JoinOwned (string,int,Roguehalla.Net.MatchLaunchTarget)\nRoguehalla.Client.MatchClient:Join (string,int) (at Assets/Scripts/Net/MatchClient.Accounts.cs:113)\nRoguehalla.Client.MatchClient:Join (string,int,Roguehalla.Net.MatchLaunchMode) (at Assets/Scripts/Net/MatchClient.Accounts.cs:117)\nMatchLaunchEditModeTests/Fixture:Join (Roguehalla.Net.MatchLaunchMode) (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:94)\nMatchLaunchEditModeTests/Fixture/<JoinReady>d__11:MoveNext () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:98)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<MatchLaunchEditModeTests/Fixture/<JoinReady>d__11> (MatchLaunchEditModeTests/Fixture/<JoinReady>d__11&)\nMatchLaunchEditModeTests/Fixture:JoinReady (Roguehalla.Net.MatchLaunchMode)\nMatchLaunchEditModeTests/Fixture/<ProvePublicLaunch>d__12:MoveNext () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:113)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<MatchLaunchEditModeTests/Fixture/<ProvePublicLaunch>d__12> (MatchLaunchEditModeTests/Fixture/<ProvePublicLaunch>d__12&)\nMatchLaunchEditModeTests/Fixture:ProvePublicLaunch (Roguehalla.Net.MatchLaunchMode)\nMatchLaunchEditModeTests/<SwitchingModeWhileOwnerReplyIsDeferredInvalidatesTheOldIntent>d__13:MoveNext () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:199)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<MatchLaunchEditModeTests/<SwitchingModeWhileOwnerReplyIsDeferredInvalidatesTheOldIntent>d__13> (MatchLaunchEditModeTests/<SwitchingModeWhileOwnerReplyIsDeferredInvalidatesTheOldIntent>d__13&)\nMatchLaunchEditModeTests:SwitchingModeWhileOwnerReplyIsDeferredInvalidatesTheOldIntent ()\nUnityEditor.EditorApplication:Internal_CallUpdateFunctions () (at /Users/bokken/build/output/unity/unity/Editor/Mono/EditorApplication.cs:384)\n\n"
+    },
+    {
+      "FullName": "MatchLaunchEditModeTests.SynchronousFactionCancellationCannotOverwriteOrRelaunchANewerMode",
+      "Status": "Failed",
+      "Duration": 0.399172,
+      "Message": "Unhandled log message: '[Error] More than one global light on layer Default for light blend style index 0'. Use UnityEngine.TestTools.LogAssert.Expect",
+      "StackTrace": "UnityEngine.Rendering.Universal.Light2D:set_lightType (UnityEngine.Rendering.Universal.Light2D/LightType)\nRoguehalla.Client.ArenaView:Awake () (at Assets/Scripts/View/ArenaView.cs:57)\nSystem.Reflection.MethodBase:Invoke (object,object[])\nMatchLaunchEditModeTests:Invoke (object,string) (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:155)\nMatchLaunchEditModeTests/Fixture:<.ctor>b__8_0 () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:83)\nRoguehalla.Client.MatchClient:JoinCore (string,int,Roguehalla.Net.MatchLaunchTarget,string,long) (at Assets/Scripts/Net/MatchClient.cs:84)\nRoguehalla.Client.MatchClient/<JoinOwned>d__37:MoveNext () (at Assets/Scripts/Net/MatchClient.Accounts.cs:132)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder`1<Roguehalla.Net.AccountJoinIntent>:SetResult (Roguehalla.Net.AccountJoinIntent)\nRoguehalla.Net.AccountHubFlow/<PrepareJoinAsync>d__23:MoveNext () (at Assets/RoguehallaNet/Net/AccountHubFlow.cs:131)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder`1<Roguehalla.Net.OwnedAccount>:SetResult (Roguehalla.Net.OwnedAccount)\nRoguehalla.Net.AccountHubFlow/<Open>d__31:MoveNext () (at Assets/RoguehallaNet/Net/AccountHubFlow.cs:207)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder`1<Roguehalla.Net.AccountOpenResult>:SetResult (Roguehalla.Net.AccountOpenResult)\nRoguehalla.Net.AccountSession/<OpenAsync>d__25:MoveNext () (at Assets/RoguehallaNet/Net/AccountSession.cs:82)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder`1<Roguehalla.Net.AccountOpenResult>:SetResult (Roguehalla.Net.AccountOpenResult)\nRoguehalla.Net.AccountSession/<Fetch>d__28:MoveNext () (at Assets/RoguehallaNet/Net/AccountSession.cs:146)\nUnityEngine.UnitySynchronizationContext:ExecuteTasks () (at /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/UnitySynchronizationContext.cs:110)\n\n"
+    },
+    {
+      "FullName": "MatchLaunchEditModeTests.WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput(Arena,True)",
+      "Status": "Failed",
+      "Duration": 0.300452,
+      "Message": "Unhandled log message: '[Error] More than one global light on layer Default for light blend style index 0'. Use UnityEngine.TestTools.LogAssert.Expect",
+      "StackTrace": "UnityEngine.Rendering.Universal.Light2D:set_lightType (UnityEngine.Rendering.Universal.Light2D/LightType)\nRoguehalla.Client.ArenaView:Awake () (at Assets/Scripts/View/ArenaView.cs:57)\nSystem.Reflection.MethodBase:Invoke (object,object[])\nMatchLaunchEditModeTests:Invoke (object,string) (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:155)\nMatchLaunchEditModeTests/Fixture:<.ctor>b__8_0 () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:83)\nRoguehalla.Client.MatchClient:JoinCore (string,int,Roguehalla.Net.MatchLaunchTarget,string,long) (at Assets/Scripts/Net/MatchClient.cs:84)\nRoguehalla.Client.MatchClient/<JoinOwned>d__37:MoveNext () (at Assets/Scripts/Net/MatchClient.Accounts.cs:132)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<Roguehalla.Client.MatchClient/<JoinOwned>d__37> (Roguehalla.Client.MatchClient/<JoinOwned>d__37&)\nRoguehalla.Client.MatchClient:JoinOwned (string,int,Roguehalla.Net.MatchLaunchTarget)\nRoguehalla.Client.MatchClient:Join (string,int) (at Assets/Scripts/Net/MatchClient.Accounts.cs:113)\nRoguehalla.Client.MatchClient:Join (string,int,Roguehalla.Net.MatchLaunchMode) (at Assets/Scripts/Net/MatchClient.Accounts.cs:117)\nMatchLaunchEditModeTests/Fixture:Join (Roguehalla.Net.MatchLaunchMode) (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:94)\nMatchLaunchEditModeTests/Fixture/<JoinReady>d__11:MoveNext () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:98)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<MatchLaunchEditModeTests/Fixture/<JoinReady>d__11> (MatchLaunchEditModeTests/Fixture/<JoinReady>d__11&)\nMatchLaunchEditModeTests/Fixture:JoinReady (Roguehalla.Net.MatchLaunchMode)\nMatchLaunchEditModeTests/<WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput>d__19:MoveNext () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:298)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<MatchLaunchEditModeTests/<WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput>d__19> (MatchLaunchEditModeTests/<WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput>d__19&)\nMatchLaunchEditModeTests:WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput (Roguehalla.Net.MatchLaunchMode,bool)\nUnityEditor.EditorApplication:Internal_CallUpdateFunctions () (at /Users/bokken/build/output/unity/unity/Editor/Mono/EditorApplication.cs:384)\n\n"
+    },
+    {
+      "FullName": "MatchLaunchEditModeTests.WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput(Training,False)",
+      "Status": "Failed",
+      "Duration": 0.2999968,
+      "Message": "Unhandled log message: '[Error] More than one global light on layer Default for light blend style index 0'. Use UnityEngine.TestTools.LogAssert.Expect",
+      "StackTrace": "UnityEngine.Rendering.Universal.Light2D:set_lightType (UnityEngine.Rendering.Universal.Light2D/LightType)\nRoguehalla.Client.ArenaView:Awake () (at Assets/Scripts/View/ArenaView.cs:57)\nSystem.Reflection.MethodBase:Invoke (object,object[])\nMatchLaunchEditModeTests:Invoke (object,string) (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:155)\nMatchLaunchEditModeTests/Fixture:<.ctor>b__8_0 () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:83)\nRoguehalla.Client.MatchClient:JoinCore (string,int,Roguehalla.Net.MatchLaunchTarget,string,long) (at Assets/Scripts/Net/MatchClient.cs:84)\nRoguehalla.Client.MatchClient/<JoinOwned>d__37:MoveNext () (at Assets/Scripts/Net/MatchClient.Accounts.cs:132)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<Roguehalla.Client.MatchClient/<JoinOwned>d__37> (Roguehalla.Client.MatchClient/<JoinOwned>d__37&)\nRoguehalla.Client.MatchClient:JoinOwned (string,int,Roguehalla.Net.MatchLaunchTarget)\nRoguehalla.Client.MatchClient:Join (string,int) (at Assets/Scripts/Net/MatchClient.Accounts.cs:113)\nRoguehalla.Client.MatchClient:Join (string,int,Roguehalla.Net.MatchLaunchMode) (at Assets/Scripts/Net/MatchClient.Accounts.cs:117)\nMatchLaunchEditModeTests/Fixture:Join (Roguehalla.Net.MatchLaunchMode) (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:94)\nMatchLaunchEditModeTests/Fixture/<JoinReady>d__11:MoveNext () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:98)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<MatchLaunchEditModeTests/Fixture/<JoinReady>d__11> (MatchLaunchEditModeTests/Fixture/<JoinReady>d__11&)\nMatchLaunchEditModeTests/Fixture:JoinReady (Roguehalla.Net.MatchLaunchMode)\nMatchLaunchEditModeTests/<WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput>d__19:MoveNext () (at Assets/Tests/Editor/MatchLaunchEditModeTests.cs:298)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<MatchLaunchEditModeTests/<WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput>d__19> (MatchLaunchEditModeTests/<WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput>d__19&)\nMatchLaunchEditModeTests:WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput (Roguehalla.Net.MatchLaunchMode,bool)\nUnityEditor.EditorApplication:Internal_CallUpdateFunctions () (at /Users/bokken/build/output/unity/unity/Editor/Mono/EditorApplication.cs:384)\n\n"
+    }
+  ]
+}

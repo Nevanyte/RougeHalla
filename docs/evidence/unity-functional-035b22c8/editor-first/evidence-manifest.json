@@ -1,0 +1,209 @@
+{
+  "source": "035b22c8b0773d6637da4e0d4906c31d5b3af01e",
+  "status": "FAIL",
+  "executed": 42,
+  "passed": 27,
+  "failed": 15,
+  "skipped": 0,
+  "unrun": 0,
+  "extra": 0,
+  "retries": 0,
+  "playSessions": 0,
+  "files": [
+    {
+      "path": "DISCOVERY_REVIEW.md",
+      "bytes": 2357,
+      "sha256": "b2231874127743c0f8295623066244c9047d19bb97b7ef052c5a97d5384dfcea"
+    },
+    {
+      "path": "DiscoverLaunchCases.cs.txt",
+      "bytes": 7757,
+      "sha256": "039233869c010f6d1e752e852fa08d120ac1dc6344c180c3420afa125b4f6d19"
+    },
+    {
+      "path": "EXPECTED_SELECTORS.frozen.json",
+      "bytes": 7994,
+      "sha256": "32d8c1612e3c0c7672802f31859057e4b1a97678e4a9445081922045e7c220c9"
+    },
+    {
+      "path": "EXPECTED_SOURCE_IDENTITY.json",
+      "bytes": 29563,
+      "sha256": "ac333b5c10190fa882678cb5e14e7b5f59a8b9d4f0961e2459de329639c8ad03"
+    },
+    {
+      "path": "EXPECTED_SOURCE_IDENTITY.md",
+      "bytes": 7721,
+      "sha256": "459a4324054c5a56d352f5b30cb3bc9e20ad5af6a37ee996fb8ea53058e03d53"
+    },
+    {
+      "path": "ObserveNativeCleanup.cs.txt",
+      "bytes": 769,
+      "sha256": "d316c97af4f05a1ba5becc2e1fc3a6999d434996470f78708ff3aa8e1f799b3f"
+    },
+    {
+      "path": "ObserveTestFramework.cs.txt",
+      "bytes": 354,
+      "sha256": "22ba2e536ffbc0441da52c3166f41b1850c7a4b9c4827a042e28d6a57ba9d40c"
+    },
+    {
+      "path": "README.md",
+      "bytes": 3149,
+      "sha256": "91cdf93552a78564d3148ed47f2e797a8b03c8e0b730cf8cb4a9767b9ffc60d8"
+    },
+    {
+      "path": "RestoreTextPreference.cs.txt",
+      "bytes": 529,
+      "sha256": "fadf8bff8233ad554090c4c4848b5b9ae25ce05198ab4431e3c29ddae873e820"
+    },
+    {
+      "path": "SOURCE_IDENTITY.frozen.json",
+      "bytes": 249939,
+      "sha256": "0e8642a4abab996fe66e7ecf2355098f5c527f9df4d7aa9d3bf9f9f6ba5cc384"
+    },
+    {
+      "path": "ShaderGraphSettings.asset.observed.txt",
+      "bytes": 557,
+      "sha256": "83556175c6dccd540f2cac05e5c0f9fbb36c3c8d7a56bed2c7cf4d29e4c2ee2e"
+    },
+    {
+      "path": "TEST_RESULT_REVIEW.md",
+      "bytes": 4672,
+      "sha256": "416ec825b7ce93365750f779dd26b67612d5d6eaf8bd7250b749c046878221bc"
+    },
+    {
+      "path": "VerifyDiscovery.py",
+      "bytes": 4378,
+      "sha256": "19cd94c7e570c66a852b96aa55894160f05b68fcbe8f0a862256fade1c9e8cdd"
+    },
+    {
+      "path": "actual-test-framework.json",
+      "bytes": 372,
+      "sha256": "a01a38c323426bb0f867fa67b884a77f3d97c4c854a2faec7677e6e94fd7c709"
+    },
+    {
+      "path": "as-tested-source.json",
+      "bytes": 316566,
+      "sha256": "fb9ced9bca108a1fb1a6310a4bbd396ab6710ed77eee155a9a261907083251d0"
+    },
+    {
+      "path": "autotick-after-tests-off.json",
+      "bytes": 67,
+      "sha256": "8f7a98f96988f9d475b037fe7f70f89543c1de743d4da1af5266949716ee2db1"
+    },
+    {
+      "path": "autotick-for-discovery-tests.json",
+      "bytes": 101,
+      "sha256": "db4b8c66312249ee644383d5a8d75efa983694353a05fb553684ab15874dcbef"
+    },
+    {
+      "path": "composed-source-restoration-verification.json",
+      "bytes": 1039,
+      "sha256": "b465e9eef043b6114df0d4803d67b67790ab91c648f8cd1e1ba9347a2ebe7261"
+    },
+    {
+      "path": "discovered-cases.json",
+      "bytes": 34129,
+      "sha256": "935d40acc5da56002e16131096ec189b95940242d4f3c44c54012aac909a49a3"
+    },
+    {
+      "path": "discovery-binding-verification.json",
+      "bytes": 14197,
+      "sha256": "89bdc5fb0429b0a4ff9f42f8786f8143fbadc1677fbc3d2304379b83cd97e7b6"
+    },
+    {
+      "path": "discovery-only-run.json",
+      "bytes": 169,
+      "sha256": "fd48e685a458f03efc8f0f072a7ed19d247d1a2f6fb01813a130b0437caf77d6"
+    },
+    {
+      "path": "final-composed-idle-state.json",
+      "bytes": 589,
+      "sha256": "c8f6748d7c39e7c3c2534a2f0ccbc42f3420b13fc0cfea3871c2081a2347349b"
+    },
+    {
+      "path": "hold-for-source-restoration.json",
+      "bytes": 364,
+      "sha256": "756eed50ea1e2a5bb0568e1edd00682ca589a88c322cfb40e7b3a3124293c29e"
+    },
+    {
+      "path": "hold-frozen4-before-switch.json",
+      "bytes": 364,
+      "sha256": "756eed50ea1e2a5bb0568e1edd00682ca589a88c322cfb40e7b3a3124293c29e"
+    },
+    {
+      "path": "identity.cs.txt",
+      "bytes": 1264,
+      "sha256": "67d137f83cf6d138ed100d0e873ade81f961b0e1657a8ad892da78042b32af6e"
+    },
+    {
+      "path": "imported-loaded-identity.json",
+      "bytes": 4632,
+      "sha256": "5dbcfd2a6837041ba1cb893524321673bfecbe6f18293ecb9b66171a8ea9c724"
+    },
+    {
+      "path": "native-cleanup-after-tests.json",
+      "bytes": 210,
+      "sha256": "c21fdc6272e2b2c9fa9a3dcf130aa39a7b6bc174f7d2005e71f1a99df73ae511"
+    },
+    {
+      "path": "refresh-after-source-restoration.json",
+      "bytes": 121,
+      "sha256": "e6bfd25fda239343095b6c6309cc3a4137cde9d015e22dae9b4190c87ebebe91"
+    },
+    {
+      "path": "refresh-composed-source.json",
+      "bytes": 120,
+      "sha256": "f62e201d9f425f596076b6c199bd46edc609b5771db71b8a92bc3ffd521c397d"
+    },
+    {
+      "path": "source-after-tests.json",
+      "bytes": 319,
+      "sha256": "21ad51d929f09b258f27c7fb0297b70f6bf7f7f2e65acdd5ec02ff60eb42478f"
+    },
+    {
+      "path": "source-overlays.patch",
+      "bytes": 666,
+      "sha256": "09cb74c55dae2e6a26bf99861554f91293633dade61b3fede4889229c3a9062d"
+    },
+    {
+      "path": "state-after-tests.json",
+      "bytes": 589,
+      "sha256": "9d8c6649958b043984d0fe63d79b28f3f8b4aa104605a9b5efad1cbcae063bd9"
+    },
+    {
+      "path": "state-before-tests.json",
+      "bytes": 589,
+      "sha256": "235407def0f3fcdd7b0369c981caa488dfa77b86118412551c53b3086bd1d152"
+    },
+    {
+      "path": "temporary-pref-restoration.json",
+      "bytes": 133,
+      "sha256": "bb47ce12f760f9924c1287a2fc3ffbf6b6367e5c90c70c7175bc7c7e62a91ae8"
+    },
+    {
+      "path": "test-execution-ledger.json",
+      "bytes": 47897,
+      "sha256": "48a2464314f117580f596cc0bfa2cb5c99f1eeeecac958a2b6f6e15cfb285ea0"
+    },
+    {
+      "path": "tests-MatchLaunchEditModeTests.json",
+      "bytes": 39056,
+      "sha256": "654b61db48f7b2048b53fd732829d9ad7e4d25fd488b72186c17fcd4459ab3c4"
+    },
+    {
+      "path": "tests-PlayerFlowsEditModeTests.json",
+      "bytes": 2510,
+      "sha256": "8ec231b56778f85c37a5fa652ade8730bc14071ec9837f57110b7d1706801faf"
+    },
+    {
+      "path": "tests-QuestJournalViewEditModeTests.json",
+      "bytes": 1975,
+      "sha256": "194ca6590b2be57fb756d6e772e8ceb49514ee4817658e80b3e0bb5faf8d1592"
+    },
+    {
+      "path": "tests-TraderDialogViewEditModeTests.json",
+      "bytes": 1530,
+      "sha256": "926a428bf02c3658d8a49348a257beb63c36ad2b8d0f04bf479a79d2247eb2c3"
+    }
+  ]
+}
