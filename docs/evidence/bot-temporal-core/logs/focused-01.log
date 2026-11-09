@@ -1,0 +1,34 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/fair-percept14/repo/crates/rh-sim)
+   Compiling rh-protocol v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/fair-percept14/repo/crates/rh-protocol)
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/fair-percept14/repo/crates/rh-policy)
+    Finished `test` profile [unoptimized] target(s) in 16.69s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fight-native/target/debug/deps/rh_policy-c3fa0ee46865b1ea)
+
+running 11 tests
+test bots::temporal_percept::tests::declared_attribution_is_strict_nearest_public_drawn_actor_and_persists_null ... ok
+test bots::temporal_percept::tests::declared_death_pending_body_fade_and_extras_are_windowed_without_dropping_chests ... 
+thread 'bots::temporal_percept::tests::declared_death_pending_body_fade_and_extras_are_windowed_without_dropping_chests' (68354875) panicked at crates/rh-policy/src/bots/temporal_percept/tests.rs:370:5:
+assertion `left == right` failed
+  left: Object {"m": Number(2.0), "self": Number(1.0)}
+ right: Object {"m": Number(2), "self": Number(1)}
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+test bots::temporal_percept::tests::declared_flight_course_retains_hidden_map_order_once_credit_end_and_done ... ok
+test bots::temporal_percept::tests::declared_flight_tombstones_have_source_insertion_lifetime_and_reflected_vanish ... ok
+test bots::temporal_percept::tests::declared_source_overflow_is_reported_not_claimed_as_safe_public_admission ... ok
+test bots::temporal_percept::tests::declared_teleport_camera_scene_cut_and_strict_distance_guard ... ok
+test bots::temporal_percept::tests::declared_timestamp_replacement_late_ignore_and_velocity_use_exact_hundred_ms ... ok
+test bots::temporal_percept::tests::declared_tint_nearest_foe_strict_mob_tie_and_unknown_faction_are_distinct ... ok
+test bots::temporal_percept::tests::declared_world_then_immediate_order_redaction_and_announcement_subject_lifetime ... ok
+test bots::temporal_percept::tests::earned_runner_actual_frames_replay_all_five_prefilter_schedules ... actual source temporal frames=1549,prefilter=1541,startupNull=8,maxRawAbs=0.0; flight/fighter/event families not reached
+ok
+test bots::temporal_percept::tests::unavailable_nonfinite_and_failed_composition_leave_reached_state_unchanged ... ok
+
+failures:
+
+failures:
+    bots::temporal_percept::tests::declared_death_pending_body_fade_and_extras_are_windowed_without_dropping_chests
+
+test result: FAILED. 10 passed; 1 failed; 0 ignored; 0 measured; 168 filtered out; finished in 9.94s
+
+error: test failed, to rerun pass `-p rh-policy --lib`
