@@ -1,0 +1,12 @@
+GREEN focused source reset tests (code head 6a2d8418)
+
+Command:
+  CARGO_TARGET_DIR=<private target> CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 \
+    cargo test -p rh-policy --all-features --lib reset_stream_tests -- --nocapture --test-threads=1
+
+running 4 tests
+test bots::bot::reset_stream_tests::live_reset_installs_the_source_tag_streams_and_first_draws ... ok
+test bots::bot::reset_stream_tests::live_reset_is_cross_seat_deterministic_and_uses_low32_seed_domain ... ok
+test bots::bot::reset_stream_tests::live_reset_keeps_knowledge_on_independent_tag3_and_does_not_consume_streams ... ok
+test bots::bot::reset_stream_tests::source_vectors_cover_the_four_stream_tags ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 136 filtered out; finished in 0.03s

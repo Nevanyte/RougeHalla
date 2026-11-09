@@ -1,0 +1,14 @@
+All rh-policy tests after the reset repair (code head 6a2d8418)
+
+Command:
+  CARGO_TARGET_DIR=<private target> CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 \
+    cargo test -p rh-policy --all-features
+
+Result:
+  lib tests: 140 passed; 0 failed; 0 ignored
+  doc-tests: 1 passed; 0 failed
+Relevant existing controls included and passing:
+  - temporal_tests::synchronous_and_async_feed_do_not_depend_on_decisions_or_raw_event_presence
+  - delivery_tests::frame14_refuses_malformed_trade_update_without_mutating_retained_facts_or_tick
+  - delivery_tests::owner14_shared_goldens_and_reconstructed_delta_chains_keep_every_clock_and_mirror_bit
+  - bots::knowledge_repair_tests::knowledge_repair_derive_and_brain_wiring_match_the_source

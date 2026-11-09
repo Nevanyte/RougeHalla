@@ -1,0 +1,6 @@
+Scoped lint/format for the bot reset packet (code head 6a2d8418)
+
+  cargo fmt --all -- --check  -> exit 0
+  cargo clippy -p rh-policy --all-targets --all-features -- -D warnings -> exit 0
+
+No workspace/editor/Docker/recapture campaign was run.

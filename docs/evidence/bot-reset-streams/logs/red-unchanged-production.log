@@ -1,0 +1,16 @@
+RED control: source-stream live reset on UNCHANGED production (base 95bd9c1e)
+
+Command:
+  CARGO_TARGET_DIR=<private target> CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 \
+    cargo test -p rh-policy --all-features --lib reset_stream_tests -- --nocapture --test-threads=1
+
+Observed first semantic assertion (test bots::bot::reset_stream_tests::
+live_reset_installs_the_source_tag_streams_and_first_draws, unchanged production):
+  seed 0 tag 0: live reset stream seed
+    left (old reset): Rng { state: 458671337 }
+    right (source):   Rng { state: 520022130 }
+
+The RED control fail proves the old custom XOR/multiply reset wiring did not install source
+derive(seed, 0). Other assertions in that preliminary test revision covered fixture-vector
+range handling and are not claimed as semantic mismatches; the focused GREEN run below is the
+post-fix result.

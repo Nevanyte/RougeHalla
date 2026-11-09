@@ -145,11 +145,6 @@ impl HumanBot {
     fn tier_params(&self) -> &'static TierParams {
         TierParams::by_id(self.tier)
     }
-    /// The decision stream's seed for a seat seed (unchanged by the Knowledge repair; the other streams use their own
-    /// hashes and are not touched either).
-    fn decide_seed(seed: u64) -> u32 {
-        (seed as u32).wrapping_mul(0x27d4_eb2d) ^ 0x1b56_c4e9
-    }
     fn persona_params(&self) -> &'static PersonaParams {
         PersonaParams::by_id(self.persona)
     }
@@ -349,10 +344,13 @@ impl Policy for HumanBot {
         })
     }
     fn reset(&mut self, m: &MatchStart) {
-        let seed = m.seed;
-        self.motor = Rng::new((seed as u32) ^ 0x9e37_79b9);
-        self.lapse = Rng::new(((seed >> 32) as u32) ^ 0x85eb_ca6b);
-        self.decide = Rng::new(Self::decide_seed(seed));
+        // Source brain.ts 141-147: independent stream seeds derive(cfg.seed, 0/1/2) for decide/motor/lapse. The
+        // source cfg.seed domain is 32-bit, so use the existing low-32 convention; the high seed half is not a source
+        // input. Knowledge keeps its own derive(seed, 3) stream below.
+        let source_seed = m.seed as u32;
+        self.decide = Rng::new(derive(source_seed, 0));
+        self.motor = Rng::new(derive(source_seed, 1));
+        self.lapse = Rng::new(derive(source_seed, 2));
         let map = BotMap::from_tile_map(&m.arena.map);
         self.map = Some(map.clone());
         self.humanizer = Some(Humanizer::new(TierParams::by_id(self.tier), map));
@@ -377,7 +375,7 @@ impl Policy for HumanBot {
         // decision stream is untouched, so the first decision draw is the decision stream's first draw.
         self.knowledge = Some(Knowledge::create(
             TierParams::by_id(self.tier),
-            &mut Rng::new(derive(seed as u32, 3)),
+            &mut Rng::new(derive(m.seed as u32, 3)),
         ));
     }
     fn decide(&mut self, obs: &Observation) -> Vec<PublicCommand> {
@@ -745,7 +743,8 @@ impl HumanBot {
 
 /// P-BOTS repair (Knowledge stream): the seat-level regression for the reset wiring. The source brain (brain.ts 141-147)
 /// creates the Knowledge layer from its own stream, mulberry32(derive(cfg.seed, 3)), before any decision; the port used
-/// to draw it from the decision stream (70 draws), which moved every later decision.
+/// to draw it from the decision stream (70 draws), which moved every later decision. The same source constructor also
+/// installs independent decide/motor/lapse streams derive(seed, 0/1/2); see reset_stream_tests below.
 #[cfg(test)]
 mod knowledge_repair_reset_tests {
     use super::*;
@@ -783,14 +782,15 @@ mod knowledge_repair_reset_tests {
             // by coincidence for these declared seeds.
             let wrong = Knowledge::create(
                 TierParams::by_id(tier),
-                &mut Rng::new(HumanBot::decide_seed(seed)),
+                &mut Rng::new(derive(seed as u32, 0)),
             );
             assert_ne!(
                 &wrong, &expected,
                 "seed {seed}: the decision stream is not the tag3 stream"
             );
-            // (2) The decision stream was not consumed: its next draw is the stream's first draw.
-            let mut decide = Rng::new(HumanBot::decide_seed(seed));
+            // (2) The decision stream is the source derive(seed, 0) stream and was not consumed: its next draw is
+            // that stream's first draw.
+            let mut decide = Rng::new(derive(seed as u32, 0));
             assert_eq!(
                 bot.decide.next_f64().to_bits(),
                 decide.next_f64().to_bits(),
@@ -828,3 +828,5 @@ mod knowledge_repair_reset_tests {
 
 #[cfg(test)]
 mod connected_tests;
+#[cfg(test)]
+mod reset_stream_tests;
