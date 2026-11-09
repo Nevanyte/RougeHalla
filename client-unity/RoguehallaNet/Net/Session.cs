@@ -455,6 +455,7 @@ namespace Roguehalla.Net
                 return;
             }
             double now = Now;
+            if (_detached) return;
             var snap = msg as ServerMsg.Snapshot;
             if (snap != null)
             {

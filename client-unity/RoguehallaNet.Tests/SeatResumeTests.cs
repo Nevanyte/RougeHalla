@@ -51,11 +51,12 @@ namespace Roguehalla.Net.Tests
             public readonly Transport Wire = new Transport();
             public readonly Session Client;
             public double Now;
+            public Action OnClock;
             public Fixture(SeatResume seed = null)
             {
                 Client = new Session(Wire, new SessionOptions {
                     Url = "wss://resume.example/arena/ws", Profile = "synthetic-owner", InitialResume = seed,
-                    ContentHash = 1, Faction = 2, Now = () => Now, MaxReconnectAttempts = 2,
+                    ContentHash = 1, Faction = 2, Now = () => { OnClock?.Invoke(); return Now; }, MaxReconnectAttempts = 2,
                     ReconnectBaseMs = 500, ReconnectMaxMs = 1000 });
             }
             public void Hello() { Client.Connect(); Wire.Open(); }
@@ -314,6 +315,43 @@ namespace Roguehalla.Net.Tests
             f.Wire.Deliver(events);
             Assert.That(f.Client.State, Is.EqualTo(SessionState.Detached)); Assert.That(f.Client.LastResult, Is.Null);
             Assert.That(published, Is.Zero); Assert.That(f.Wire.Closes, Is.EqualTo(1));
+            Assert.That(f.Wire.Messages.OfType<ClientMsg.Leave>(), Is.Empty);
+        }
+
+        [Test]
+        public void ReentrantClockDetachPreventsANewRttNotificationAndPongStateMutation()
+        {
+            var f = new Fixture(Seed()); f.Accept(); f.Client.Update();
+            var ping = f.Wire.Messages.OfType<ClientMsg.Ping>().Single();
+            int rttNotifications = 0; f.Client.RttSample += value => rttNotifications++;
+            int sent = f.Wire.Sent.Count;
+            f.Now = 20; f.OnClock = f.Client.Detach;
+            f.Wire.Deliver(new ServerMsg.Pong { Nonce = ping.Nonce, ClientMs = ping.ClientMs, ServerMs = 5000 });
+            Assert.That(f.Client.State, Is.EqualTo(SessionState.Detached));
+            Assert.That(rttNotifications, Is.Zero); Assert.That(f.Client.Sync.HasSample, Is.False);
+            Assert.That(f.Client.Sync.LastRttMs, Is.Zero); Assert.That(f.Wire.Sent.Count, Is.EqualTo(sent));
+            Assert.That(f.Wire.Closes, Is.EqualTo(1)); Assert.That(f.Wire.Subscribers, Is.Zero);
+        }
+
+        [Test]
+        public void ReentrantClockDetachPreventsSnapshotAcceptanceAndASubsequentTimelineNotification()
+        {
+            var f = new Fixture(Seed()); f.Accept();
+            f.Wire.Deliver(new ServerMsg.Snapshot { Tick = 1, Phase = 1,
+                Me = new WireSelf { Id = 3, Status = 1, Hp = 10, MaxHp = 10, X = 1 } });
+            var before = (f.Client.Latest, f.Client.Snapshots.Newest, f.Client.SnapshotsReceived,
+                f.Client.Me.X, f.Client.Motion.SimX, f.Client.TimelineEpoch, f.Client.Training);
+            int snapshots = 0, timelines = 0;
+            f.Client.SnapshotReceived += snapshot => snapshots++;
+            f.Client.TimelineReset += () => timelines++;
+            f.OnClock = f.Client.Detach;
+            // If accepted this is a source-clock cut and would start a distinct TimelineReset before SnapshotReceived.
+            f.Wire.Deliver(new ServerMsg.Snapshot { Tick = 2, Phase = 1, Training = true, ServerTimeOverrideMs = 25,
+                Me = new WireSelf { Id = 3, Status = 1, Hp = 10, MaxHp = 10, X = 7 } });
+            Assert.That(f.Client.State, Is.EqualTo(SessionState.Detached));
+            Assert.That((f.Client.Latest, f.Client.Snapshots.Newest, f.Client.SnapshotsReceived,
+                f.Client.Me.X, f.Client.Motion.SimX, f.Client.TimelineEpoch, f.Client.Training), Is.EqualTo(before));
+            Assert.That(snapshots + timelines, Is.Zero); Assert.That(f.Wire.Closes, Is.EqualTo(1));
             Assert.That(f.Wire.Messages.OfType<ClientMsg.Leave>(), Is.Empty);
         }
     }
