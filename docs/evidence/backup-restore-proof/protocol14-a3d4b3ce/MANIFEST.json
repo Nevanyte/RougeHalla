@@ -1,0 +1,176 @@
+{
+  "format": "rh-current-cold-evidence/1",
+  "tested_source_head": "a3d4b3ce575442c9a06916888035ca849a6cd05a",
+  "scope": "one actual existing current cold proof, evidence only",
+  "payloads": [
+    {
+      "path": "docs/evidence/backup-restore-proof/protocol14-a3d4b3ce/.gitattributes",
+      "bytes": 103,
+      "sha256": "52993c5d9786d670b99ff0ec5e81d19ecc3838d3168e3de4a703f04e6f61cd7d"
+    },
+    {
+      "path": "docs/evidence/backup-restore-proof/protocol14-a3d4b3ce/README.md",
+      "bytes": 12428,
+      "sha256": "23d13c0892329915f0284a6e64a05f1243a155d0292a6aa9c819897b4d6bd896"
+    },
+    {
+      "path": "docs/evidence/backup-restore-proof/protocol14-a3d4b3ce/backup-manifest-checksums.json",
+      "bytes": 927,
+      "sha256": "64d5a54b690512289c7e1cf46aa359b3a94b0430d3d7603565d77af96b6099a1"
+    },
+    {
+      "path": "docs/evidence/backup-restore-proof/protocol14-a3d4b3ce/binary-receipt.json",
+      "bytes": 1572,
+      "sha256": "941bf25ed26775d410e1eecec8b49858113eb2318841a9e3864c03307f1b3e17"
+    },
+    {
+      "path": "docs/evidence/backup-restore-proof/protocol14-a3d4b3ce/boundary-checksums.json",
+      "bytes": 1976,
+      "sha256": "14109e46860f672ae1c00a4d59e6e19b6c54f6cd2b47ba88ed626a866f2bfbbe"
+    },
+    {
+      "path": "docs/evidence/backup-restore-proof/protocol14-a3d4b3ce/cleanup.json",
+      "bytes": 837,
+      "sha256": "173c890d1413f1307c400870d23469e564b9e17b4f10c1fd9f187b9bb68e891a"
+    },
+    {
+      "path": "docs/evidence/backup-restore-proof/protocol14-a3d4b3ce/current-revision.json",
+      "bytes": 2961,
+      "sha256": "e95303eb6ed0d033d66852f25021ab68b00392b5666ba16048e8ad783143b6fe"
+    },
+    {
+      "path": "docs/evidence/backup-restore-proof/protocol14-a3d4b3ce/log-manifest.json",
+      "bytes": 7715,
+      "sha256": "8d6c47a3be8b12ac0cf279b8d385c5572441394966a7cf20c1f6209e3755dee8"
+    },
+    {
+      "path": "docs/evidence/backup-restore-proof/protocol14-a3d4b3ce/logs/boundary.txt",
+      "bytes": 150,
+      "sha256": "e862ebc61a1c1c11f227177d1380460c0f10a9590c993d4f3283f28f4c88725e"
+    },
+    {
+      "path": "docs/evidence/backup-restore-proof/protocol14-a3d4b3ce/logs/guard.txt",
+      "bytes": 469,
+      "sha256": "64abe6c178d6d2b66dbc6cf5d170975d593568ba1b18cce5a802e1e09b24463d"
+    },
+    {
+      "path": "docs/evidence/backup-restore-proof/protocol14-a3d4b3ce/logs/lease-lock.txt",
+      "bytes": 40,
+      "sha256": "9002312f7cb4e762280057e6b6757fbcdbba69860535922d47d0a94688b0a98c"
+    },
+    {
+      "path": "docs/evidence/backup-restore-proof/protocol14-a3d4b3ce/logs/main-build.txt",
+      "bytes": 667,
+      "sha256": "b59854ec93cceb3e07e42093c082f53d5dc81a149df0d7db30048f97214c6c9e"
+    },
+    {
+      "path": "docs/evidence/backup-restore-proof/protocol14-a3d4b3ce/logs/pg-dump.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/evidence/backup-restore-proof/protocol14-a3d4b3ce/logs/pg-restore.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/evidence/backup-restore-proof/protocol14-a3d4b3ce/logs/phase-build.txt",
+      "bytes": 784,
+      "sha256": "328ae61d7dcf871a31fdb6eac66c431d424361f9486e0739aa0e5c228b82facf"
+    },
+    {
+      "path": "docs/evidence/backup-restore-proof/protocol14-a3d4b3ce/logs/proof-run.txt",
+      "bytes": 573,
+      "sha256": "46f7cfcbe56a3237632219a26a723426fe3a0ee3d7803eeb7621dda0d6d42eff"
+    },
+    {
+      "path": "docs/evidence/backup-restore-proof/protocol14-a3d4b3ce/logs/source-control.txt",
+      "bytes": 108,
+      "sha256": "d52c3d19b27719cac3b95cb56fbb6749d5ac0e8050f3edbc29e813a31e042d4e"
+    },
+    {
+      "path": "docs/evidence/backup-restore-proof/protocol14-a3d4b3ce/logs/source-initdb.txt",
+      "bytes": 1074,
+      "sha256": "910a104234ec09e85c51d316cd2ed6ec9076955fd2e69107821ff081aeb86891"
+    },
+    {
+      "path": "docs/evidence/backup-restore-proof/protocol14-a3d4b3ce/logs/source-postgres.txt",
+      "bytes": 1930,
+      "sha256": "62e28c0c71b510eebc1ad77632b068d016e0ce25c02699a7857eaa94038311e6"
+    },
+    {
+      "path": "docs/evidence/backup-restore-proof/protocol14-a3d4b3ce/logs/source.txt",
+      "bytes": 787,
+      "sha256": "5c06f2aa4f491917b372e2eec191bcdb4887bcdde2d77611f8aff66bcf4c14a6"
+    },
+    {
+      "path": "docs/evidence/backup-restore-proof/protocol14-a3d4b3ce/logs/target-control.txt",
+      "bytes": 216,
+      "sha256": "ff0672d583864603fb7156ac45be1418cf7c394428ed8950e6950084d7ccb794"
+    },
+    {
+      "path": "docs/evidence/backup-restore-proof/protocol14-a3d4b3ce/logs/target-initdb.txt",
+      "bytes": 1074,
+      "sha256": "dfb6a0212353fd0ef63dbdf4edc80a98184f1e6f2499d9235cd95995f87dbc5d"
+    },
+    {
+      "path": "docs/evidence/backup-restore-proof/protocol14-a3d4b3ce/logs/target-postgres.txt",
+      "bytes": 2477,
+      "sha256": "53e69f52ba449ae503286c358330e003a3d1055efc3bfafb6cf47731183769a9"
+    },
+    {
+      "path": "docs/evidence/backup-restore-proof/protocol14-a3d4b3ce/logs/truncated-restore.txt",
+      "bytes": 63,
+      "sha256": "03ce8e58e36a99b005f7cb476c87d0173cf6a7227c4e517eebd6de9e1a81bb5c"
+    },
+    {
+      "path": "docs/evidence/backup-restore-proof/protocol14-a3d4b3ce/logs/verify.txt",
+      "bytes": 968,
+      "sha256": "5b5e36469597fba2a0110a2106816c79ed4c59324e927141af0ed59ebab70bcb"
+    },
+    {
+      "path": "docs/evidence/backup-restore-proof/protocol14-a3d4b3ce/pending-recovery-audit.json",
+      "bytes": 305,
+      "sha256": "8958c1c1930ca1bab74f039ba7ef9798c3cebc7c9fddb80b92a1ce03d6c1de0d"
+    },
+    {
+      "path": "docs/evidence/backup-restore-proof/protocol14-a3d4b3ce/preflight.json",
+      "bytes": 603,
+      "sha256": "47785742cfa9832f7ff9d5fcd77e6bdcdc925ebb8db8f5060d2c415ae1cd4afd"
+    },
+    {
+      "path": "docs/evidence/backup-restore-proof/protocol14-a3d4b3ce/producer.json",
+      "bytes": 105,
+      "sha256": "4dd7968484201ad2b467b22f8fff146dc218d3ae67b872d34b4d3c6f2ea8864c"
+    },
+    {
+      "path": "docs/evidence/backup-restore-proof/protocol14-a3d4b3ce/quiescent.json",
+      "bytes": 68,
+      "sha256": "1e76b6b71e6f8c18e260f559106519b5bec4f85a0bb430d11c36db209576fa44"
+    },
+    {
+      "path": "docs/evidence/backup-restore-proof/protocol14-a3d4b3ce/raw-runner-receipt.json",
+      "bytes": 3431,
+      "sha256": "85a9decd17f295e91dd66fcef1fe63058f9f099155a87628e0557ff61e8a09bf"
+    },
+    {
+      "path": "docs/evidence/backup-restore-proof/protocol14-a3d4b3ce/verified.json",
+      "bytes": 641,
+      "sha256": "a20b829a8f2c3229fe76f5bef02509804ff3041264eed2f94f2d53bb28ac556f"
+    },
+    {
+      "path": "docs/evidence/backup-restore-proof/protocol14-a3d4b3ce/writer-fence.json",
+      "bytes": 325,
+      "sha256": "3306ef6263ec90f46211ea1b44a11fbe9b6a9ffb80afbf87ced373bb3a04b294"
+    }
+  ],
+  "private_exclusions": [
+    "database.dump",
+    "private-state.json",
+    "boundary.json",
+    "*.rec",
+    "PostgreSQL data directories",
+    "binary executables"
+  ],
+  "seal": "manifest self excluded; SHA256SUMS includes it and final Git commit seals both"
+}

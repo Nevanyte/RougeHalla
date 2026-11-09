@@ -1,0 +1,16 @@
+{
+  "boundary_unix_seconds": 1794205583.528119,
+  "committed_results": 2,
+  "format": 1,
+  "pending_results": 2,
+  "sha256": {
+    "boundary.json": "dcf560bd0478177c8849e258abb320f4b3bd10a1d257a3c5a0d0786682f893a3",
+    "database.dump": "74fd00f7fa03f8ea2bd31a6ca0eb49743c1aefcd841f0fbac349169a41e5682f",
+    "private-state.json": "df9b1d47f7c347ce86aa7394287cc47707cf90918b6b97e6914785b4703a5a3b",
+    "producer.json": "4dd7968484201ad2b467b22f8fff146dc218d3ae67b872d34b4d3c6f2ea8864c",
+    "quiescent.json": "1e76b6b71e6f8c18e260f559106519b5bec4f85a0bb430d11c36db209576fa44",
+    "source-identity.json": "edf3b9a746244cb3a0a6b4b15ad2003999fb64651aba3c507aa08b9d611a1940",
+    "spool/a8a24452-25fe-0a1e-a13d-85a899da5d5c-3.rec": "7be92b317d9a87a4ff93d7de29e13d28ba986c09cc32872801eea3fa3c753176",
+    "spool/a8a24452-25fe-0a1e-a13d-85a899da5d5c-4.rec": "230355630c09b0c45f2ac355f6a5cee21172e8ee89c9291bf8bd49f4517a6645"
+  }
+}

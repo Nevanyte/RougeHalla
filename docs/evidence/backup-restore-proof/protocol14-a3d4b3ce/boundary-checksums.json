@@ -1,0 +1,55 @@
+{
+  "format": "rh-cold-boundary-digests/1",
+  "scope": "full private boundary hashed per table, not raw account/credential rows",
+  "raw_boundary_sha256": "dcf560bd0478177c8849e258abb320f4b3bd10a1d257a3c5a0d0786682f893a3",
+  "tables": {
+    "_sqlx_migrations": {
+      "rows": 2,
+      "canonical_json_sha256": "bc212de08fab3cbb6171af32d6e998cf77a80edf94ee4061044df379a281d59c"
+    },
+    "bot_learning_baseline": {
+      "rows": 0,
+      "canonical_json_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "bot_learning_entries": {
+      "rows": 0,
+      "canonical_json_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "gv_by_month": {
+      "rows": 1,
+      "canonical_json_sha256": "1d65ba804891cd2d23b0cec88de6156a840af9e5b2aa03dc97bcea2fd67c0a46"
+    },
+    "gv_ledger": {
+      "rows": 1,
+      "canonical_json_sha256": "cfc45fe5d9b6c9167d45f954496941ff89560354fea04a6230f72c4ce5bb70ef"
+    },
+    "match_results": {
+      "rows": 2,
+      "canonical_json_sha256": "b15af97a6c88fb7a16e5377ebf162de3f2eaa606ad5cb93f32d7d06115e6d21e"
+    },
+    "matches": {
+      "rows": 1,
+      "canonical_json_sha256": "61c9ccf7f4055bdc8eb2dcd967dbe9fc86e123a1e7e721865f21803d786c16b0"
+    },
+    "profiles": {
+      "rows": 4,
+      "canonical_json_sha256": "612fae994f0daa944601abd52935bddef426908931080f3739fbe4bfa5474e46"
+    },
+    "purchases": {
+      "rows": 0,
+      "canonical_json_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "schema_compat": {
+      "rows": 1,
+      "canonical_json_sha256": "154be4b22f4d8aef37ecc03364775b189af9fbdb377de219cffe1a5c5f2d32ba"
+    },
+    "sequences": {
+      "rows": 2,
+      "canonical_json_sha256": "570f69838aad5776fda93d434c982e61cb9b6f3f855c0ab4ad0bbe682fa82bbd"
+    },
+    "session_leases": {
+      "rows": 4,
+      "canonical_json_sha256": "b61c33a080426f77a79cdad1c9085bfe349356d9376548b33f4a1fa19a3049e5"
+    }
+  }
+}

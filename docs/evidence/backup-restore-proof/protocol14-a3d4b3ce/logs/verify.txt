@@ -1,0 +1,12 @@
+
+running 1 test
+[results] recovering 2 spooled result(s) from /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/cold-restore-a3d4b3ce-2026-11-09/private-run/recovered-spool
+[results] committed match=a8a24452-25fe-0a1e-a13d-85a899da5d5c profile_id=3 (applied, recovered from spool)
+[results] committed match=a8a24452-25fe-0a1e-a13d-85a899da5d5c profile_id=4 (applied, recovered from spool)
+[results] recovering 2 spooled result(s) from /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/cold-restore-a3d4b3ce-2026-11-09/private-run/recovered-spool
+[results] committed match=a8a24452-25fe-0a1e-a13d-85a899da5d5c profile_id=4 (already applied, recovered from spool)
+[results] committed match=a8a24452-25fe-0a1e-a13d-85a899da5d5c profile_id=3 (already applied, recovered from spool)
+test cold_backup_restore_phase ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+

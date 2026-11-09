@@ -1,0 +1,17 @@
+{
+  "source": "a3d4b3ce575442c9a06916888035ca849a6cd05a",
+  "machine": "arm64",
+  "os": "Darwin",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "cargo": "cargo 1.97.0 (c980f4866 2026-06-30)",
+  "pg": "pg_dump (PostgreSQL) 16.15 (Homebrew)",
+  "pgbin": "/opt/homebrew/opt/postgresql@16/bin",
+  "target": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target",
+  "build": "a3d4b3ce575442c9a06916888035ca849a6cd05a",
+  "jobs": 1,
+  "incremental": 0,
+  "debug": 0,
+  "observed_cargo_processes": [],
+  "hardware_cpu": "Apple M5 Pro",
+  "macos_version": "26.6.1"
+}

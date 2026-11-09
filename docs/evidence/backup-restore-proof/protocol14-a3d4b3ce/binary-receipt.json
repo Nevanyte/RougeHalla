@@ -1,0 +1,37 @@
+{
+  "tested_source": "a3d4b3ce575442c9a06916888035ca849a6cd05a",
+  "RH_BUILD": "a3d4b3ce575442c9a06916888035ca849a6cd05a",
+  "architecture": "native arm64 macOS/M5 Pro",
+  "standalone_binary": {
+    "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/cold-restore-a3d4b3ce-2026-11-09/bin/rh-server-a3d4b3ce",
+    "sha256": "0b08727ba9cc7a5850e10f09e0737042937b865ee47dd29f1afc67abbbc242eb",
+    "bytes": 41799488,
+    "built_from": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/rh-server",
+    "build_argv": [
+      "cargo",
+      "build",
+      "--locked",
+      "-p",
+      "rh-server",
+      "--features",
+      "postgres",
+      "--bin",
+      "rh-server"
+    ],
+    "launch_argv": null,
+    "role": "retained for Root later Web proof; not the cold-phase executable"
+  },
+  "cold_phase_executable": {
+    "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/account_backup_restore_flow-415695eb797d293c",
+    "sha256": "9d72f0f918dd8188d011425ba177486df54e741e91f24771bc6a8decb42bc26d",
+    "argv": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/account_backup_restore_flow-415695eb797d293c",
+      "--ignored",
+      "--exact",
+      "cold_backup_restore_phase",
+      "--nocapture"
+    ],
+    "role": "separate OS-process production HTTP/control/Director/Store fixture; source SIGKILL, fresh target verification"
+  },
+  "target_cache_release_ready": true
+}

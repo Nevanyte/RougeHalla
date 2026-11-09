@@ -1,0 +1,17 @@
+2026-11-09 00:26:19.486 CST [97793] LOG:  starting PostgreSQL 16.15 (Homebrew) on aarch64-apple-darwin25.6.0, compiled by Apple clang version 21.0.0 (clang-2100.3.34.2), 64-bit
+2026-11-09 00:26:19.486 CST [97793] LOG:  listening on IPv4 address "127.0.0.1", port 62337
+2026-11-09 00:26:19.491 CST [97796] LOG:  database system was shut down at 2026-11-09 00:26:19 CST
+2026-11-09 00:26:19.494 CST [97793] LOG:  database system is ready to accept connections
+2026-11-09 00:26:23.446 CST [97852] FATAL:  terminating connection due to administrator command
+2026-11-09 00:26:23.446 CST [97852] CONTEXT:  while locking tuple (0,6) in relation "session_leases"
+2026-11-09 00:26:23.446 CST [97852] STATEMENT:  SELECT match_id, fence, released_at IS NOT NULL FROM session_leases WHERE profile_id = $1 FOR UPDATE
+2026-11-09 00:26:23.446 CST [97851] FATAL:  terminating connection due to administrator command
+2026-11-09 00:26:23.446 CST [97851] CONTEXT:  while locking tuple (0,5) in relation "session_leases"
+2026-11-09 00:26:23.446 CST [97851] STATEMENT:  SELECT match_id, fence, released_at IS NOT NULL FROM session_leases WHERE profile_id = $1 FOR UPDATE
+2026-11-09 00:26:23.636 CST [97793] LOG:  received fast shutdown request
+2026-11-09 00:26:23.636 CST [97793] LOG:  aborting any active transactions
+2026-11-09 00:26:23.637 CST [97793] LOG:  background worker "logical replication launcher" (PID 97799) exited with exit code 1
+2026-11-09 00:26:23.637 CST [97794] LOG:  shutting down
+2026-11-09 00:26:23.637 CST [97794] LOG:  checkpoint starting: shutdown immediate
+2026-11-09 00:26:23.662 CST [97794] LOG:  checkpoint complete: wrote 996 buffers (6.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.018 s, sync=0.007 s, total=0.026 s; sync files=351, longest=0.001 s, average=0.001 s; distance=4628 kB, estimate=4628 kB; lsn=0/19A2BB8, redo lsn=0/19A2BB8
+2026-11-09 00:26:23.664 CST [97793] LOG:  database system is shut down

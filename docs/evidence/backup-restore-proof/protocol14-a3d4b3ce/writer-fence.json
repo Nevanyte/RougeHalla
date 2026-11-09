@@ -1,0 +1,15 @@
+{
+  "application_sigkill": true,
+  "old_backends_terminated": 2,
+  "order": [
+    "external lease locks",
+    "genuine spool fsync",
+    "application SIGKILL",
+    "terminate old database backends",
+    "only locker remains",
+    "ROLLBACK external locks",
+    "zero sessions",
+    "boundary comparison",
+    "pg_dump"
+  ]
+}

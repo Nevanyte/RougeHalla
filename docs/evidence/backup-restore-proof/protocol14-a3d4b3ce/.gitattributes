@@ -1,0 +1,2 @@
+# Raw command transcripts retain their original final blank lines.
+logs/*.txt whitespace=-blank-at-eof

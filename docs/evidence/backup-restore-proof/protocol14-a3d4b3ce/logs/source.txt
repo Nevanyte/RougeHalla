@@ -1,0 +1,9 @@
+
+running 1 test
+[results] spooled match=09f489c6-e4f3-21c4-e0bf-69446598ef6a profile_id=1 fence=1 (durable on this host only; not yet committed)
+[results] spooled match=09f489c6-e4f3-21c4-e0bf-69446598ef6a profile_id=2 fence=1 (durable on this host only; not yet committed)
+[results] committed match=09f489c6-e4f3-21c4-e0bf-69446598ef6a profile_id=1 (applied)
+[results] committed match=09f489c6-e4f3-21c4-e0bf-69446598ef6a profile_id=2 (applied)
+[results] spooled match=a8a24452-25fe-0a1e-a13d-85a899da5d5c profile_id=4 fence=1 (durable on this host only; not yet committed)
+[results] spooled match=a8a24452-25fe-0a1e-a13d-85a899da5d5c profile_id=3 fence=1 (durable on this host only; not yet committed)
+SOURCE_BOUNDARY spooled=4 committed=2 pending=2 spool_errors=0 spool_full=0 dead=0

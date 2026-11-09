@@ -1,0 +1,52 @@
+{
+  "format": "rh-current-cold-restore-proof/1",
+  "status": "PASS",
+  "run_count": 1,
+  "source_head": "a3d4b3ce575442c9a06916888035ca849a6cd05a",
+  "evidence_branch": "codex/postgres-cold-restore-a3d4b3ce",
+  "identity": {
+    "protocol": 14,
+    "checkpoint": 28,
+    "replay": 22,
+    "observation": 21,
+    "policy": 15,
+    "content": "643d294869db55a4"
+  },
+  "identity_scope": "current compiled runtime; no simulation checkpoint-file restore is exercised",
+  "RH_BUILD": "a3d4b3ce575442c9a06916888035ca849a6cd05a",
+  "main_build_exit": 0,
+  "proof_exit": 0,
+  "proof_argv": [
+    "python3",
+    "-u",
+    "tools/backup-restore-proof/proof.py",
+    "--state",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/cold-restore-a3d4b3ce-2026-11-09/private-run"
+  ],
+  "current_code_changes": false,
+  "validator_compatibility": "uses current compiled PROTOCOL_VERSION; no frozen13-only validator or relaxation",
+  "legacy_raw_receipt_base_sha": "86f03cbdda15eca64585093d5c88fda2c42e4810 identifies original proof implementation provenance, not this execution base",
+  "source_test_sha256": "daa5c6d2fe4e07e51f3712f0b9d324c3a0c4adc05679915a761903d779971134",
+  "orchestrator_sha256": "9bb9083f37a2a8323eab2f77b4c00602dea0eb2cb7d28ff71c2084f5fad11e1c",
+  "archive_sha256": "74fd00f7fa03f8ea2bd31a6ca0eb49743c1aefcd841f0fbac349169a41e5682f",
+  "backup_manifest_sha256": "64d5a54b690512289c7e1cf46aa359b3a94b0430d3d7603565d77af96b6099a1",
+  "metadata_builds_in_committed_boundary": [
+    "a3d4b3ce575442c9a06916888035ca849a6cd05a"
+  ],
+  "private_artifacts": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/cold-restore-a3d4b3ce-2026-11-09/private-run",
+  "private_artifacts_published": false,
+  "portable_raw_logs": 17,
+  "credential_scan": "all portable payloads checked against the four synthetic HTTP credential values; none included",
+  "recovery_seconds_including_target_start_and_negative_controls": 0.444,
+  "target_initialization_seconds_separate": 0.667,
+  "cleanup": "two task-owned clusters stopped/PIDfiles absent/ports closed; all application phase processes exited",
+  "exclusive_final_target": "released to Root after proof, binary retention and cleanup verification; no further Cargo use",
+  "code_build_receipt": "binary-receipt.json",
+  "test_implementation": "unchanged ignored cold_backup_restore_phase instantiating production HTTP/control/Director/Store, separate OS processes",
+  "standalone_server_scope": "matching native arm64 postgres-feature rh-server built/retained for Root later Web gate; not launched by this harness",
+  "limits": [
+    "one local same-host logical dump/restore with synthetic accounts and bounded two-player authoritative matches",
+    "no physical power-loss, off-host/WAL/PITR, managed DB/cloud, production RTO/RPO or release certification",
+    "no full-game/heap/map/source/Editor/browser campaign or current saved-bundle rollback rerun"
+  ]
+}

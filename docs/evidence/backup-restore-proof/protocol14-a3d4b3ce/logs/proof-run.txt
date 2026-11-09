@@ -1,0 +1,5 @@
+Private proof state: /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/cold-restore-a3d4b3ce-2026-11-09/private-run
+Two independent loopback clusters: durable settings ON; identity checks recorded.
+Quiescent boundary: 2 committed results + 2 genuine pending spool records; source stopped.
+PASS: cold restore + original HTTP credentials + pending recovery + duplicate/fence protection (0.444s).
+Private receipts/artifacts: /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/cold-restore-a3d4b3ce-2026-11-09/private-run
