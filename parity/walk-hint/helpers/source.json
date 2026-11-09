@@ -1,0 +1,1711 @@
+{
+  "format": "rh-walk-hint-helpers/1",
+  "profile": {
+    "base": "2547a1c5766a8046aa725f5f3b3b38d244c38371",
+    "node": "v22.23.4",
+    "platform": "linux",
+    "arch": "x64",
+    "image": "node@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d",
+    "entry": "/repo/tools/walk-hint-fixtures/helper-scenario.mts",
+    "bundle": {
+      "bytes": 1075560,
+      "sha256": "289322548610f8fb2a6ba5d233baec9df85b3010e23e227d06828f0e3a2fe54c",
+      "path": "/tmp/walk-hint-helpers-20-28932254.mjs"
+    },
+    "source": {
+      "packages/server/src/sim/walkHint.ts": {
+        "bytes": 10241,
+        "sha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16"
+      },
+      "packages/server/src/sim/gameplay.ts": {
+        "bytes": 5104,
+        "sha256": "70f6f2b67571783f3042309bef01dc75aabd2656c59a184d0f97c9c0a8b8cf78"
+      },
+      "packages/server/src/sim/step.ts": {
+        "bytes": 14822,
+        "sha256": "5ff90451b4b27b12ddfe8175745cf38892eaf07a851282c904076edc46896634"
+      },
+      "packages/server/src/sim/inputs.ts": {
+        "bytes": 15914,
+        "sha256": "47bda82b978e67922c9d2361bfcd51be4555a55691453a4e0393deb917be4cde"
+      },
+      "packages/server/src/sim/status.ts": {
+        "bytes": 17222,
+        "sha256": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642"
+      },
+      "packages/server/src/sim/terrainEffects.ts": {
+        "bytes": 9684,
+        "sha256": "5b95ad7178862b11e64ab0d91b39adbc04846ec987aac7ca74ececfdc3dab4b5"
+      },
+      "packages/server/src/sim/combatant.ts": {
+        "bytes": 9454,
+        "sha256": "3c2fac6ed6fbee82802c5bea86b0131d36e8ebf86eceb2c1a99ce58664fa7e60"
+      },
+      "packages/server/src/sim/targeting.ts": {
+        "bytes": 10392,
+        "sha256": "13125287cec7cd39f550af50e1d18c15d3146357f249cfe3beeb9e00a334f0fd"
+      },
+      "packages/server/src/sim/movement.ts": {
+        "bytes": 5986,
+        "sha256": "86ebd2205a0af4608ed484317bea3723bb378b3e138954a44140e340adab1f93"
+      },
+      "packages/server/src/sim/world.ts": {
+        "bytes": 58199,
+        "sha256": "b98376a7f022ec6f9b681e368d62c18fbe524d95408b2d4eec93909934454d54"
+      },
+      "packages/shared/src/constants.ts": {
+        "bytes": 46007,
+        "sha256": "51ce4dd800ec868abee525fb1ae375688066f336972a7da878644df1235924e7"
+      },
+      "packages/shared/src/walk.ts": {
+        "bytes": 15362,
+        "sha256": "0d33c95623a6d11fa21a9e58b308eed8cb0150b24d65b592877c5f9e2b5a0020"
+      },
+      "packages/shared/src/status.ts": {
+        "bytes": 4682,
+        "sha256": "98a0570d7620e424d9d522356fe378a6af049109d8af0342be0ecff970310df7"
+      },
+      "packages/shared/src/terrain.ts": {
+        "bytes": 21947,
+        "sha256": "5ee4fe11e793f83f3d095720ba1156a186c5c7704e864f2cad74503ab13a07d6"
+      }
+    },
+    "contextPolicy": "declared HELPER inputs; actual imported source outputs only; no earned World history or installed expected hint",
+    "sourceFunctions": "walkHintOf/weaponHoldsAt/updateWalkHints exported; installed teleported/runEnded hooks invoked directly; all other branches through walkHintOf"
+  },
+  "cases": [
+    {
+      "id": "gate-phase-lobby",
+      "family": "gates",
+      "helper": true,
+      "input": {
+        "phase": "lobby",
+        "path": [
+          {
+            "x": 300,
+            "y": 200
+          }
+        ],
+        "extra": {
+          "walkTicks": 0,
+          "walkDir": 0
+        }
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "gate-phase-ended",
+      "family": "gates",
+      "helper": true,
+      "input": {
+        "phase": "ended",
+        "path": [
+          {
+            "x": 300,
+            "y": 200
+          }
+        ]
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "gate-standing-dead",
+      "family": "gates",
+      "helper": true,
+      "input": {
+        "status": "dead",
+        "path": [
+          {
+            "x": 300,
+            "y": 200
+          }
+        ]
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "gate-hidden",
+      "family": "gates",
+      "helper": true,
+      "input": {
+        "status": "hidden",
+        "path": [
+          {
+            "x": 300,
+            "y": 200
+          }
+        ]
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "gate-stun",
+      "family": "gates",
+      "helper": true,
+      "input": {
+        "status": "stun",
+        "path": [
+          {
+            "x": 300,
+            "y": 200
+          }
+        ]
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "gate-root",
+      "family": "gates",
+      "helper": true,
+      "input": {
+        "status": "root",
+        "path": [
+          {
+            "x": 300,
+            "y": 200
+          }
+        ]
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "gate-slip-center",
+      "family": "gates",
+      "helper": true,
+      "input": {
+        "onIce": true,
+        "path": [
+          {
+            "x": 400,
+            "y": 208
+          }
+        ]
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "gate-path-empty",
+      "family": "gates",
+      "helper": true,
+      "input": {
+        "path": []
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "gate-tiny-segment",
+      "family": "gates",
+      "helper": true,
+      "input": {
+        "path": [
+          {
+            "x": 200.0005,
+            "y": 200
+          }
+        ]
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "positive-baseline",
+      "family": "positive",
+      "helper": true,
+      "input": {
+        "path": [
+          {
+            "x": 300,
+            "y": 200
+          }
+        ]
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 3
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "factor-dt0",
+      "family": "factors",
+      "helper": true,
+      "input": {
+        "moveModifier": "returns1",
+        "recordDt": true,
+        "seen": [
+          0,
+          0
+        ]
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 3
+        },
+        "dtSeen": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ]
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "factor-zero",
+      "family": "factors",
+      "helper": true,
+      "input": {
+        "moveModifier": "returns0"
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "factor-floor",
+      "family": "factors",
+      "helper": true,
+      "input": {
+        "moveModifier": "returns0.1",
+        "floor": 0.35
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 3
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "factor-hazard-noninterference",
+      "family": "factors",
+      "helper": true,
+      "input": {
+        "beforeHazards": {
+          "damage": {},
+          "seconds": {
+            "ember": 0,
+            "bog": 0,
+            "ice": 0,
+            "light": 0
+          },
+          "heal": {}
+        },
+        "beforeSlip": null
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 3
+        },
+        "afterHazards": {
+          "damage": {},
+          "seconds": {
+            "ember": 0,
+            "bog": 0,
+            "ice": 0,
+            "light": 0
+          },
+          "heal": {}
+        },
+        "afterSlip": null
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "speed-mirror-boost",
+      "family": "factors",
+      "helper": true,
+      "input": {
+        "speedMult": 1500
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 3
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "sentenced-hunt",
+      "family": "factors",
+      "helper": true,
+      "input": {
+        "faction": "sentenced",
+        "huntTarget": "p-helper"
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 3
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "weapon-root-active",
+      "family": "weapon",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "rootUntil": "now+1000"
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "weapon-root-expired",
+      "family": "weapon",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "rootUntil": "now+1"
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 2
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "weapon-action-swing",
+      "family": "weapon",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "action": {
+          "kind": "swing",
+          "landsAt": "now+500"
+        }
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "weapon-action-draw",
+      "family": "weapon",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "action": {
+          "kind": "draw",
+          "landsAt": "now+500"
+        }
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 3
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "weapon-held-ready",
+      "family": "weapon",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "held": true,
+        "ready": "now",
+        "bufferedUntil": "now+100"
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 2
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "weapon-buffered-not-ready",
+      "family": "weapon",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "held": false,
+        "ready": "now+1000",
+        "bufferedUntil": "now-1"
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 3
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "weaponHoldsAt-root-before",
+      "family": "weaponHoldsAt",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "at": "now+50",
+        "rootUntil": "now+51",
+        "action": null
+      },
+      "observed": {
+        "kind": "weaponHoldsAt",
+        "at": "now+50",
+        "observed": true
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "weaponHoldsAt-root-at",
+      "family": "weaponHoldsAt",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "at": "now+50",
+        "rootUntil": "now+50",
+        "action": null
+      },
+      "observed": {
+        "kind": "weaponHoldsAt",
+        "at": "now+50",
+        "observed": false
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "weaponHoldsAt-swing-before",
+      "family": "weaponHoldsAt",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "at": "now+50",
+        "rootUntil": 0,
+        "action": {
+          "kind": "swing",
+          "landsAt": "now+500"
+        }
+      },
+      "observed": {
+        "kind": "weaponHoldsAt",
+        "at": "now+50",
+        "observed": true
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "weaponHoldsAt-swing-tie",
+      "family": "weaponHoldsAt",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "at": "now+50",
+        "rootUntil": 0,
+        "action": {
+          "kind": "swing",
+          "landsAt": "now+51.000001"
+        }
+      },
+      "observed": {
+        "kind": "weaponHoldsAt",
+        "at": "now+50",
+        "observed": true
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "weaponHoldsAt-draw-before",
+      "family": "weaponHoldsAt",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "at": "now+50",
+        "rootUntil": 0,
+        "action": {
+          "kind": "draw",
+          "landsAt": "now+500"
+        }
+      },
+      "observed": {
+        "kind": "weaponHoldsAt",
+        "at": "now+50",
+        "observed": false
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "weaponHoldsAt-swing-tie-exact",
+      "family": "weaponHoldsAt",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "at": "now+50",
+        "rootUntil": 0,
+        "action": {
+          "kind": "swing",
+          "landsAt": "now+50.000001"
+        }
+      },
+      "observed": {
+        "kind": "weaponHoldsAt",
+        "at": "now+50",
+        "observed": false
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "weaponHoldsAt-swing-tie-just-over",
+      "family": "weaponHoldsAt",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "at": "now+50",
+        "rootUntil": 0,
+        "action": {
+          "kind": "swing",
+          "landsAt": "now+50.000002"
+        }
+      },
+      "observed": {
+        "kind": "weaponHoldsAt",
+        "at": "now+50",
+        "observed": true
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "lock-free",
+      "family": "lock",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "lock": "p1",
+        "targetX": 820,
+        "planAt": "now",
+        "lockGoal": null,
+        "lockSeen": true
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 1
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "lock-stop",
+      "family": "lock",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "lock": "p1",
+        "targetX": 220,
+        "planAt": "now",
+        "lockGoal": null,
+        "lockSeen": true
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "lock-missing",
+      "family": "lock",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "lock": "missing",
+        "targetX": 820,
+        "planAt": "now",
+        "lockGoal": null,
+        "lockSeen": true
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "lock-replan",
+      "family": "lock",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "lock": "p1",
+        "targetX": 820,
+        "planAt": -250,
+        "lockGoal": {
+          "x": 0,
+          "y": 0
+        },
+        "lockSeen": true
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "lock-future-hidden",
+      "family": "lock",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "lock": "p1",
+        "targetX": 820,
+        "planAt": "now",
+        "lockGoal": null,
+        "lockSeen": true,
+        "targetStatus": "hidden"
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "lock-goal-target",
+      "family": "lock",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "lock": "p1",
+        "targetX": 400,
+        "planAt": -150,
+        "lockGoal": {
+          "x": 400,
+          "y": 200
+        },
+        "lockSeen": true
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "lock-goal-just-over",
+      "family": "lock",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "lock": "p1",
+        "targetX": 400,
+        "planAt": -150,
+        "lockGoal": {
+          "x": 391,
+          "y": 200
+        },
+        "lockSeen": true
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "lock-los-grace",
+      "family": "lock",
+      "helper": true,
+      "input": {
+        "wall": [
+          [
+            10,
+            5
+          ],
+          [
+            10,
+            6
+          ],
+          [
+            10,
+            7
+          ]
+        ],
+        "lockSeen": true,
+        "lockLosLostAt": "now-1000"
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "amove-no-target",
+      "family": "amove",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "attackMoveGoal": {
+          "x": 300,
+          "y": 200
+        },
+        "targets": 0
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 1
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "amove-acquire",
+      "family": "amove",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "attackMoveGoal": {
+          "x": 250,
+          "y": 200
+        },
+        "targetX": 400
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "amove-hidden-reveal",
+      "family": "amove",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "targetStatus": "hidden, reveal now+20..now+200",
+        "targetX": 400
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "amove-visible-then-hidden",
+      "family": "amove",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "targetStatus": "hidden, reveal now-100..now+20",
+        "targetX": 400
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 1
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "amove-current-hidden",
+      "family": "amove",
+      "helper": true,
+      "input": {
+        "weapon": "wand",
+        "attackMoveGoal": {
+          "x": 250,
+          "y": 200
+        },
+        "targetStatus": "hidden"
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 1
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "ice-center",
+      "family": "ice",
+      "helper": true,
+      "input": {
+        "onIceCenter": true,
+        "path": [
+          {
+            "x": 400,
+            "y": 208
+          }
+        ]
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "ice-thin-strip",
+      "family": "ice",
+      "helper": true,
+      "input": {
+        "iceCell": [
+          7,
+          6
+        ],
+        "path": [
+          {
+            "x": 400,
+            "y": 208
+          }
+        ],
+        "terrainAtProbe": 6,
+        "terrainAtCenter": 0,
+        "probes": [
+          {
+            "x": 220,
+            "accel": 0
+          },
+          {
+            "x": 228.5,
+            "accel": 425
+          },
+          {
+            "x": 237,
+            "accel": 425
+          },
+          {
+            "x": 250,
+            "accel": 425
+          },
+          {
+            "x": 400,
+            "accel": 0
+          }
+        ]
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "ice-endpoint",
+      "family": "ice",
+      "helper": true,
+      "input": {
+        "iceCell": [
+          8,
+          6
+        ],
+        "endpointOnIce": true
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 1
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "ice-clear",
+      "family": "ice",
+      "helper": true,
+      "input": {
+        "ice": false,
+        "path": [
+          {
+            "x": 400,
+            "y": 208
+          }
+        ]
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 3
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "ice-home-frost",
+      "family": "ice",
+      "helper": true,
+      "input": {
+        "onIceCenter": true,
+        "faction": "frost"
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 3
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "ice-all-hazards",
+      "family": "ice",
+      "helper": true,
+      "input": {
+        "onIceCenter": true,
+        "faction": "frost",
+        "hazards": "all"
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 0
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "hysteresis-old-zero",
+      "family": "hysteresis",
+      "helper": true,
+      "input": {
+        "path": [
+          {
+            "x": 300,
+            "y": 200
+          }
+        ],
+        "oldTicks": 0,
+        "oldDir": 77,
+        "newDirObservedBefore": 0
+      },
+      "observed": {
+        "kind": "updateWalkHints",
+        "observed": {
+          "dir": 0,
+          "ticks": 3
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "hysteresis-delta2",
+      "family": "hysteresis",
+      "helper": true,
+      "input": {
+        "path": [
+          {
+            "x": 300,
+            "y": 200
+          }
+        ],
+        "oldTicks": 3,
+        "oldDir": 254,
+        "newDirObservedBefore": 0
+      },
+      "observed": {
+        "kind": "updateWalkHints",
+        "observed": {
+          "dir": 254,
+          "ticks": 3
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "hysteresis-delta3",
+      "family": "hysteresis",
+      "helper": true,
+      "input": {
+        "path": [
+          {
+            "x": 300,
+            "y": 200
+          }
+        ],
+        "oldTicks": 3,
+        "oldDir": 253,
+        "newDirObservedBefore": 0
+      },
+      "observed": {
+        "kind": "updateWalkHints",
+        "observed": {
+          "dir": 0,
+          "ticks": 3
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "hysteresis-wrap-255",
+      "family": "hysteresis",
+      "helper": true,
+      "input": {
+        "path": [
+          {
+            "x": 300,
+            "y": 200
+          }
+        ],
+        "oldTicks": 3,
+        "oldDir": 255,
+        "newDirObservedBefore": 0
+      },
+      "observed": {
+        "kind": "updateWalkHints",
+        "observed": {
+          "dir": 255,
+          "ticks": 3
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "hysteresis-wrap-253",
+      "family": "hysteresis",
+      "helper": true,
+      "input": {
+        "path": [
+          {
+            "x": 300,
+            "y": 200
+          }
+        ],
+        "oldTicks": 3,
+        "oldDir": 253,
+        "newDirObservedBefore": 0
+      },
+      "observed": {
+        "kind": "updateWalkHints",
+        "observed": {
+          "dir": 0,
+          "ticks": 3
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "negative-rounding-a",
+      "family": "direction",
+      "helper": true,
+      "input": {
+        "angle": -1.5707963267948966,
+        "path": "negative-y"
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 192,
+          "ticks": 3
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "negative-rounding-b",
+      "family": "direction",
+      "helper": true,
+      "input": {
+        "angle": -1.5830681730979816,
+        "path": "adjacent-negative"
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 192,
+          "ticks": 3
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "waypoint-cap3",
+      "family": "waypoint",
+      "helper": true,
+      "input": {
+        "segment": 50
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 3
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "waypoint-cap2",
+      "family": "waypoint",
+      "helper": true,
+      "input": {
+        "segment": 20
+      },
+      "observed": {
+        "kind": "walkHintOf",
+        "hint": {
+          "dir": 0,
+          "ticks": 2
+        }
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "hook-teleported",
+      "family": "hook",
+      "helper": true,
+      "input": {
+        "hook": "teleported",
+        "before": {
+          "dir": 22,
+          "ticks": 3,
+          "path": [
+            {
+              "x": 300,
+              "y": 260
+            }
+          ]
+        },
+        "action": "ordinary accepted Move before synthetic hook invocation"
+      },
+      "observed": {
+        "kind": "installedHook",
+        "hook": "teleported",
+        "players": [
+          {
+            "dir": 22,
+            "ticks": 0
+          }
+        ],
+        "events": []
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    },
+    {
+      "id": "hook-runEnded",
+      "family": "hook",
+      "helper": true,
+      "input": {
+        "hook": "runEnded",
+        "before": {
+          "dir": 22,
+          "ticks": 3,
+          "path": [
+            {
+              "x": 300,
+              "y": 260
+            }
+          ]
+        },
+        "action": "ordinary accepted Move before synthetic hook invocation"
+      },
+      "observed": {
+        "kind": "installedHook",
+        "hook": "runEnded",
+        "players": [
+          {
+            "dir": 22,
+            "ticks": 0
+          }
+        ],
+        "events": []
+      },
+      "setupEvents": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "events": [],
+      "draws": 0
+    }
+  ]
+}
