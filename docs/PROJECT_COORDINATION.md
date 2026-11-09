@@ -15,7 +15,7 @@ Use the [latest migration update](MIGRATION.md#latest-integration-update-2026-11
 | Owner | Active work and remaining boundary |
 |---|---|
 | Lead: OPTimization_port | Reviewed integration, exact normal CI repair, fair fact/privacy/continuity design, final gameplay and release acceptance |
-| Check Git access | Current native c52 + Web57 local two-runtime/browser run. Same owned PG cluster, restricted app role and all durability checks pass; actual server/router startup reaches a public-metadata probe bug, then owned cleanup passes. Repair probe, then actual menu/account/Arena/Training/new-page Resume/quest/trade/result/bank proof |
+| Check Git access | Current native c52 + Web57 local two-runtime/browser run. Same owned PG cluster, restricted app role and all durability checks pass; actual server/router startup reaches a public-metadata probe bug, then owned cleanup passes. Third bootstrap now passes public/static/CORS/WS checks; next actual menu/account/Arena/Training/new-page Resume/quest/trade/result/bank proof |
 | Prepare Unity 2D Demo | Actual Web57 source/artifact accepted. Original preview failures preserved; next four720p/1440p default/150% text browser raster views and concrete product findings. No new art expansion |
 | Modernize Unity game UI | Owned-seat Resume plus all98 actual Editor cases accepted; source frozen and on call for actual browser findings, not speculative redesign |
 | Prove PostgreSQL cold recovery | Readonly physical device collector accepted. Implement executable expired-first-boot/immutable absolute-expiry boundary with meaningful offline OS-runner tests. Actual host provisioning/expiry/egress/backup/restore/cloud gates remain |

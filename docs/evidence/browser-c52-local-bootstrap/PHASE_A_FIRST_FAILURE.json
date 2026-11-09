@@ -1,0 +1,35 @@
+{
+  "format": "rh-browser-c52-phaseA-first-failure/1",
+  "stage": "checking-actual-postgres-durability-and-peer-role",
+  "exceptionType": "AssertionError",
+  "reason": "durability metadata query failed",
+  "utc": "2026-11-09T21:29:05.093065+00:00",
+  "cleanup": [
+    {
+      "name": "postgres",
+      "pid": 89309,
+      "stopExitCode": 0
+    }
+  ],
+  "partialFacts": {
+    "format": "rh-browser-c52-phaseA-actual/1",
+    "releaseSha256": "0f06a88f530a036ffa1d413394d9cddd4be88cc4e8964b0b0406f595c0940064",
+    "browserPhaseB": "NOT_RELEASED",
+    "claims": 0,
+    "HelloSent": 0,
+    "joins": 0,
+    "matchesCreatedByProbe": 0,
+    "startedUtc": "2026-11-09T21:29:03.967674+00:00",
+    "inputRevalidationSha256": {
+      "PG_TOOL_REVALIDATION.json": "9987479ae167b4b56239e07a4046e58b54078bf0444c05c1e2122e33e044afd6",
+      "AUTHOR_INPUT_REVALIDATION.json": "f32fa6744fc64830f908c49a29dce89d6f584430834c8fe6179d7d014818c2c3"
+    },
+    "postgresProcess": {
+      "pid": 89309,
+      "uid": 501,
+      "startWitness": "Mon Nov  9 15:29:04 2026"
+    }
+  },
+  "statePreserved": true,
+  "noFallbackOrRetry": true
+}

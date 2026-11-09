@@ -1,0 +1,49 @@
+{
+  "format": "rh-p15-protection-cues-variant-classification/1",
+  "status": "KILL",
+  "controlId": "teleport-immunity",
+  "code": "02d77c341548846bd719608b665f7cbddd652f42",
+  "sourceBase": "bb564d3b53728cbd205af375b5342eca466f3656",
+  "pristineCode": "4fe7aa8285ad65f2c9a1123297426cd48b03bdef",
+  "transform": {
+    "control": {
+      "id": "teleport-immunity",
+      "kind": "semantic",
+      "file": "packages/server/src/sim/arena.ts",
+      "expectedMatches": 1,
+      "find": "p.immuneUntil = now + TELEPORT_IMMUNITY_MS;",
+      "replace": "p.immuneUntil = 0;",
+      "firstFailureCase": "P0"
+    },
+    "controlsSha256": "a27967aef45638c64d2873063d66669f5724abf869d51e328c511a15b4ef837c",
+    "original": {
+      "path": "packages/server/src/sim/arena.ts",
+      "bytes": 29450,
+      "sha256": "f8395e83f1f7f81d91bbc51d8fdec4e025f95d299c42f7229250be908341191a"
+    },
+    "executed": {
+      "bytes": 29425,
+      "sha256": "2b88a78b4d705ca9955db4fcdb176ceec9ec78a46487ad999f3819a350bc2b6c"
+    },
+    "instrumentation": {
+      "kind": "exact-once-replacement",
+      "controlId": "teleport-immunity",
+      "file": "packages/server/src/sim/arena.ts",
+      "controlsSha256": "a27967aef45638c64d2873063d66669f5724abf869d51e328c511a15b4ef837c",
+      "find": "p.immuneUntil = now + TELEPORT_IMMUNITY_MS;",
+      "replace": "p.immuneUntil = 0;",
+      "expectedMatches": 1
+    }
+  },
+  "firstFailure": {
+    "caseId": "P0",
+    "assertion": "AssertionError [ERR_ASSERTION]: missing positive produced owner u32 deadline",
+    "teleportTime": 1050,
+    "baselineDeadline": 2550,
+    "observedDeadline": 0,
+    "steps": 21
+  },
+  "canonicalRefused": true,
+  "compileEnvelopeProvenanceTimeoutMissingRawCountAsKill": false,
+  "independentSourceReproduction": false
+}

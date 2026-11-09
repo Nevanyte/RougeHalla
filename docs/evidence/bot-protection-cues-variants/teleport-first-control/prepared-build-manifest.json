@@ -1,0 +1,1521 @@
+{
+  "format": "rh-p15-protection-cues-variant-build/1",
+  "sourceBase": "bb564d3b53728cbd205af375b5342eca466f3656",
+  "code": "02d77c341548846bd719608b665f7cbddd652f42",
+  "image": "node@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292",
+  "pristine": {
+    "code": "4fe7aa8285ad65f2c9a1123297426cd48b03bdef",
+    "manifestSha256": "53a54a282bd09da615088bf352ddbd0ef65514bdc72e806f69b1ba74c9c47e16",
+    "files": {
+      "observations-before-verification.json": {
+        "bytes": 45077539,
+        "sha256": "6449038bfbe6dc75d9afe1ce66f9172dd44cb23fb3048871a03e8ca16f6aac53"
+      },
+      "source.json": {
+        "bytes": 45079140,
+        "sha256": "0a8af4c8dee518e5e6bc6b31c3445dc2e5ab61e889810a830642381d9cf92e6e"
+      },
+      "verification.json": {
+        "bytes": 1558,
+        "sha256": "e5ded300c248096a6319bec9252efef53e28212d47862a1387a9e67056c35987"
+      }
+    },
+    "tools": {
+      "build.mjs": "3d10dbcaa2315a09f24cc583315f9b6572dfe0950edb78563cc41ef2fe8ffe17",
+      "runtime.mjs": "730bc3f6276ff9ca497876f7810bf31d7d6985c0046560eb518583765be5d303",
+      "controls.mjs": "a27967aef45638c64d2873063d66669f5724abf869d51e328c511a15b4ef837c",
+      "scenario.mts": "d054bcfec6ccf513c5e238b2c9c7eb4f4313bf06707236ef3da2da6d07243c39",
+      "verify.mjs": "10188528d712c8000000db548caa2388c74c56c03d5bb7f9af4a6b996853e935"
+    }
+  },
+  "variant": {
+    "control": {
+      "id": "teleport-immunity",
+      "kind": "semantic",
+      "file": "packages/server/src/sim/arena.ts",
+      "expectedMatches": 1,
+      "find": "p.immuneUntil = now + TELEPORT_IMMUNITY_MS;",
+      "replace": "p.immuneUntil = 0;",
+      "firstFailureCase": "P0"
+    },
+    "controlsSha256": "a27967aef45638c64d2873063d66669f5724abf869d51e328c511a15b4ef837c",
+    "original": {
+      "path": "packages/server/src/sim/arena.ts",
+      "bytes": 29450,
+      "sha256": "f8395e83f1f7f81d91bbc51d8fdec4e025f95d299c42f7229250be908341191a"
+    },
+    "executed": {
+      "bytes": 29425,
+      "sha256": "2b88a78b4d705ca9955db4fcdb176ceec9ec78a46487ad999f3819a350bc2b6c"
+    },
+    "instrumentation": {
+      "kind": "exact-once-replacement",
+      "controlId": "teleport-immunity",
+      "file": "packages/server/src/sim/arena.ts",
+      "controlsSha256": "a27967aef45638c64d2873063d66669f5724abf869d51e328c511a15b4ef837c",
+      "find": "p.immuneUntil = now + TELEPORT_IMMUNITY_MS;",
+      "replace": "p.immuneUntil = 0;",
+      "expectedMatches": 1
+    }
+  },
+  "host": {
+    "node": "v22.23.4",
+    "platform": "darwin",
+    "arch": "arm64",
+    "execPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/map-styled-bench/npm-cache/_npx/361c55be1121897e/node_modules/node/bin/node",
+    "sha256": "2cc28a1880d0774616959f2210ee739bffa6ac695c887e8988a496a21271f6c0"
+  },
+  "driver": {
+    "path": "tools/bot-protection-cues-fixtures/variants-build.mjs",
+    "bytes": 33156,
+    "sha256": "b18ba67c65f4c9c5efbbb24671199d4097f0f2ead5e9a5b1922c71321adb0e7e"
+  },
+  "compiler": {
+    "version": "0.28.2",
+    "files": {
+      "esbuild/lib/main.js": "61ec0ba144ff93f4bf0e96ad6fab6f430ede0aa13e27ace8063ed63ba416b3cd",
+      "esbuild/package.json": "9d0bc453f4e791553c4cc2298ba023b409241fd9801e494741666eb0f6051490",
+      "esbuild/bin/esbuild": "10b6243df618d374bb2d5c9cfbe7052e1405f6aa4e53a6164f11a91b9f2e1384",
+      "@esbuild/darwin-arm64/bin/esbuild": "10b6243df618d374bb2d5c9cfbe7052e1405f6aa4e53a6164f11a91b9f2e1384",
+      "@colyseus/schema/build/index.mjs": "c5d2c222121377565fda9799c7e1b852c70a21877136498add79795f2055face",
+      "@colyseus/schema/package.json": "e132bda166931370e39bddc3e03f778734e957f964134b6f2baa09f66ddd225d"
+    },
+    "processEnvelope": {
+      "node": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/map-styled-bench/npm-cache/_npx/361c55be1121897e/node_modules/node/bin/node",
+      "nativeHelper": "/Users/nevinmckinnon/Documents/Projects/RogueHalla/node_modules/@esbuild/darwin-arm64/bin/esbuild",
+      "readonlyGit": {
+        "path": "/Library/Developer/CommandLineTools/usr/bin/git",
+        "sha256": "be4afb2b003904725826250de9fb76567bbacf82323457b5a1ec26706b66bcae",
+        "commands": [
+          "rev-parse HEAD",
+          "merge-base --is-ancestor",
+          "show <frozen-ref>:<bounded-path>"
+        ]
+      },
+      "otherChildren": false,
+      "sourceEvaluation": false,
+      "networkOrInstall": false
+    }
+  },
+  "configuration": {
+    "package.json": {
+      "bytes": 2247,
+      "sha256": "9da8ab00050db3ec14c083365ab0c3a5b8986e38fd13c086b2913249d531422c"
+    },
+    "package-lock.json": {
+      "bytes": 153409,
+      "sha256": "991869bdfbbefb6874220500197c61db302a4d2b2603dfc2288fd7032ce1d481"
+    },
+    "tsconfig.base.json": {
+      "bytes": 410,
+      "sha256": "017575ec3101f44df43b5a7cc850779582650d9e01a2090b7e311b213b98ef88"
+    },
+    "packages/server/package.json": {
+      "bytes": 981,
+      "sha256": "d4965c850237876a64a02cd1c7c554f1a64d97392344cae3b63d4bd688e2f7b8"
+    },
+    "packages/server/tsconfig.json": {
+      "bytes": 153,
+      "sha256": "38a209200ba0dde3bbaeee8df1e29755aa35b63c588367da486b31a83b90cd15"
+    },
+    "packages/shared/package.json": {
+      "bytes": 427,
+      "sha256": "6e9c040348c50e0ad5043ec4cb9b4206f68f29cf4eeb4dec5f635f37a6f87f35"
+    },
+    "packages/shared/tsconfig.json": {
+      "bytes": 124,
+      "sha256": "e81b194f96f35e0d1e9e8069998a30740b08703e085bb7d0f92922d7b6d06193"
+    }
+  },
+  "resolutionMetadataChecked": [
+    "package.json",
+    "packages/package.json",
+    "packages/server/package.json",
+    "packages/server/src/bots/brain/package.json",
+    "packages/server/src/bots/brain/tsconfig.json",
+    "packages/server/src/bots/package.json",
+    "packages/server/src/bots/tsconfig.json",
+    "packages/server/src/package.json",
+    "packages/server/src/rooms/package.json",
+    "packages/server/src/rooms/tsconfig.json",
+    "packages/server/src/sim/package.json",
+    "packages/server/src/sim/tsconfig.json",
+    "packages/server/src/tsconfig.json",
+    "packages/server/tsconfig.json",
+    "packages/shared/package.json",
+    "packages/shared/src/package.json",
+    "packages/shared/src/tsconfig.json",
+    "packages/shared/src/zoneStyle/package.json",
+    "packages/shared/src/zoneStyle/tsconfig.json",
+    "packages/shared/tsconfig.json",
+    "packages/tsconfig.json",
+    "tools/bot-protection-cues-fixtures/package.json",
+    "tools/bot-protection-cues-fixtures/tsconfig.json",
+    "tools/package.json",
+    "tools/tsconfig.json",
+    "tsconfig.json"
+  ],
+  "selectedSource": {
+    "packages/server/src/sim/arena.ts": {
+      "bytes": 29450,
+      "sha256": "f8395e83f1f7f81d91bbc51d8fdec4e025f95d299c42f7229250be908341191a"
+    },
+    "packages/server/src/sim/weapons.ts": {
+      "bytes": 17776,
+      "sha256": "581ba4cf9ae93af5d3753cbb3cdf6b823bfaf730448edab7669e6c6d84c86f26"
+    },
+    "packages/server/src/sim/step.ts": {
+      "bytes": 14822,
+      "sha256": "5ff90451b4b27b12ddfe8175745cf38892eaf07a851282c904076edc46896634"
+    },
+    "packages/server/src/sim/targeting.ts": {
+      "bytes": 10392,
+      "sha256": "13125287cec7cd39f550af50e1d18c15d3146357f249cfe3beeb9e00a334f0fd"
+    },
+    "packages/server/src/sim/inputs.ts": {
+      "bytes": 15914,
+      "sha256": "47bda82b978e67922c9d2361bfcd51be4555a55691453a4e0393deb917be4cde"
+    },
+    "packages/server/src/sim/gameplay.ts": {
+      "bytes": 5104,
+      "sha256": "70f6f2b67571783f3042309bef01dc75aabd2656c59a184d0f97c9c0a8b8cf78"
+    },
+    "packages/server/src/sim/world.ts": {
+      "bytes": 58199,
+      "sha256": "b98376a7f022ec6f9b681e368d62c18fbe524d95408b2d4eec93909934454d54"
+    },
+    "packages/server/src/sim/combatant.ts": {
+      "bytes": 9454,
+      "sha256": "3c2fac6ed6fbee82802c5bea86b0131d36e8ebf86eceb2c1a99ce58664fa7e60"
+    },
+    "packages/server/src/sim/ledger.ts": {
+      "bytes": 24320,
+      "sha256": "cc73151c50c43f65a85fc922050b2ea6a34973794ec893c7b7d51d657a4e6437"
+    },
+    "packages/server/src/sim/status.ts": {
+      "bytes": 17222,
+      "sha256": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642"
+    },
+    "packages/server/src/bots/brain/perception.ts": {
+      "bytes": 36755,
+      "sha256": "059dba28d67a588be8b9f491cd69a242e841545a3b1863ce798da2e3f085390a"
+    },
+    "packages/server/src/bots/brain/memory.ts": {
+      "bytes": 35038,
+      "sha256": "29c2086be936ec867ddec97c2e4442b86acdbf1255e55de001e73892f7b128a8"
+    },
+    "packages/server/src/bots/brain/vision.ts": {
+      "bytes": 4865,
+      "sha256": "e4418c5bbd8e9d8e3c21e3b1b9b8f677c947d178f812c9d634934c6c8c92f34c"
+    },
+    "packages/server/src/bots/brain/frames.ts": {
+      "bytes": 20904,
+      "sha256": "aa8fcb62e8039d37d3c9f6cb000687fbfea61e12ab50805dfe45dae06119d6c6"
+    },
+    "packages/server/src/bots/brain/types.ts": {
+      "bytes": 57792,
+      "sha256": "12b3cae05bcde760cd642b9c5eb9919bfc47189882c81258994c9f1122d3d361"
+    },
+    "packages/server/src/rooms/FxChannel.ts": {
+      "bytes": 5438,
+      "sha256": "14dcbc44ae20f8e882846bb9231a842e2369d4c7a6c0d2c15e659a76c85e8776"
+    },
+    "packages/shared/src/schema.ts": {
+      "bytes": 21469,
+      "sha256": "245486da649ea5bc5d8b9b0d5d75f3e860fc8f153574fa2b9ee091dcb52e99cb"
+    },
+    "packages/shared/src/constants.ts": {
+      "bytes": 46007,
+      "sha256": "51ce4dd800ec868abee525fb1ae375688066f336972a7da878644df1235924e7"
+    },
+    "packages/shared/src/fxCodec.ts": {
+      "bytes": 24844,
+      "sha256": "db2080230ad1b3702e37d3e339384e4a071ef899a8203026e20038a3a2b0f0ba"
+    },
+    "packages/shared/src/weapons.ts": {
+      "bytes": 15391,
+      "sha256": "2f22f037502fe63fae6b47f20408cfd35ebc72bfea081194ae8d18cfc21df99b"
+    },
+    "packages/shared/src/signatures.ts": {
+      "bytes": 9370,
+      "sha256": "0a6befbb5a6fe9870b13a540d72235085c491668c8cae3674fa8faf89816e191"
+    },
+    "packages/shared/src/mods.ts": {
+      "bytes": 23134,
+      "sha256": "10e9dcd3d7417c4fe85d1c36ef33afe5abf7a5703a59b42a3a825a66aa4efaff"
+    }
+  },
+  "related": {
+    "bornMap": {
+      "path": "tools/ability-fixtures/born-input.json",
+      "bytes": 7510,
+      "sha256": "5ee388ca61234bae0e7dc04adca00702fbc6199f048487490fcbca25b2cffb16"
+    }
+  },
+  "loadedInputs": [
+    {
+      "path": "npm:@colyseus/schema/build/index.mjs",
+      "bytes": 489807,
+      "sha256": "c5d2c222121377565fda9799c7e1b852c70a21877136498add79795f2055face",
+      "executedBytes": 489807,
+      "executedSha256": "c5d2c222121377565fda9799c7e1b852c70a21877136498add79795f2055face",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/bots/brain/frames.ts",
+      "bytes": 20904,
+      "sha256": "aa8fcb62e8039d37d3c9f6cb000687fbfea61e12ab50805dfe45dae06119d6c6",
+      "executedBytes": 20904,
+      "executedSha256": "aa8fcb62e8039d37d3c9f6cb000687fbfea61e12ab50805dfe45dae06119d6c6",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/bots/brain/memory.ts",
+      "bytes": 35038,
+      "sha256": "29c2086be936ec867ddec97c2e4442b86acdbf1255e55de001e73892f7b128a8",
+      "executedBytes": 35038,
+      "executedSha256": "29c2086be936ec867ddec97c2e4442b86acdbf1255e55de001e73892f7b128a8",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/bots/brain/perception.ts",
+      "bytes": 36755,
+      "sha256": "059dba28d67a588be8b9f491cd69a242e841545a3b1863ce798da2e3f085390a",
+      "executedBytes": 36755,
+      "executedSha256": "059dba28d67a588be8b9f491cd69a242e841545a3b1863ce798da2e3f085390a",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/bots/brain/types.ts",
+      "bytes": 57792,
+      "sha256": "12b3cae05bcde760cd642b9c5eb9919bfc47189882c81258994c9f1122d3d361",
+      "executedBytes": 57792,
+      "executedSha256": "12b3cae05bcde760cd642b9c5eb9919bfc47189882c81258994c9f1122d3d361",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/bots/brain/vision.ts",
+      "bytes": 4865,
+      "sha256": "e4418c5bbd8e9d8e3c21e3b1b9b8f677c947d178f812c9d634934c6c8c92f34c",
+      "executedBytes": 4865,
+      "executedSha256": "e4418c5bbd8e9d8e3c21e3b1b9b8f677c947d178f812c9d634934c6c8c92f34c",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/rooms/FxChannel.ts",
+      "bytes": 5438,
+      "sha256": "14dcbc44ae20f8e882846bb9231a842e2369d4c7a6c0d2c15e659a76c85e8776",
+      "executedBytes": 5438,
+      "executedSha256": "14dcbc44ae20f8e882846bb9231a842e2369d4c7a6c0d2c15e659a76c85e8776",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/abilities.ts",
+      "bytes": 31302,
+      "sha256": "4457746101114724098d67024db28b73667a9300a0082be33718a9b3dc7fd4fc",
+      "executedBytes": 31302,
+      "executedSha256": "4457746101114724098d67024db28b73667a9300a0082be33718a9b3dc7fd4fc",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/arena.ts",
+      "bytes": 29450,
+      "sha256": "f8395e83f1f7f81d91bbc51d8fdec4e025f95d299c42f7229250be908341191a",
+      "executedBytes": 29425,
+      "executedSha256": "2b88a78b4d705ca9955db4fcdb176ceec9ec78a46487ad999f3819a350bc2b6c",
+      "instrumentation": {
+        "kind": "exact-once-replacement",
+        "controlId": "teleport-immunity",
+        "file": "packages/server/src/sim/arena.ts",
+        "controlsSha256": "a27967aef45638c64d2873063d66669f5724abf869d51e328c511a15b4ef837c",
+        "find": "p.immuneUntil = now + TELEPORT_IMMUNITY_MS;",
+        "replace": "p.immuneUntil = 0;",
+        "expectedMatches": 1
+      }
+    },
+    {
+      "path": "packages/server/src/sim/bruiserPassives.ts",
+      "bytes": 5323,
+      "sha256": "c980bd5bcfb5f92729bb074d060716999d25f0f6754d700f5671ef143a4b30a3",
+      "executedBytes": 5323,
+      "executedSha256": "c980bd5bcfb5f92729bb074d060716999d25f0f6754d700f5671ef143a4b30a3",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/buffs.ts",
+      "bytes": 5775,
+      "sha256": "f2cd5d69527da11e90f5abfda79e41f644b664d6e938ccb6c64965dab02c0b7f",
+      "executedBytes": 5775,
+      "executedSha256": "f2cd5d69527da11e90f5abfda79e41f644b664d6e938ccb6c64965dab02c0b7f",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/campHeal.ts",
+      "bytes": 5072,
+      "sha256": "978239a9a24f722a854187fab1ad32cf7fc1705141fbfa34fc88860eb5c35db4",
+      "executedBytes": 5072,
+      "executedSha256": "978239a9a24f722a854187fab1ad32cf7fc1705141fbfa34fc88860eb5c35db4",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/camps.ts",
+      "bytes": 5736,
+      "sha256": "878c2ac07e0795cf3482a4173340c7c5e55e8ee0fbc32a8772f4f79d01bb1613",
+      "executedBytes": 5736,
+      "executedSha256": "878c2ac07e0795cf3482a4173340c7c5e55e8ee0fbc32a8772f4f79d01bb1613",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/cardHooks.ts",
+      "bytes": 20212,
+      "sha256": "46905d00f5841c216dca43d31a8e97f7d27ef2b826b92406a6110334b50081c1",
+      "executedBytes": 20212,
+      "executedSha256": "46905d00f5841c216dca43d31a8e97f7d27ef2b826b92406a6110334b50081c1",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/cardState.ts",
+      "bytes": 5997,
+      "sha256": "e4425024d7901951f280493069fc951a990f9261c855113bd03046deed0806b4",
+      "executedBytes": 5997,
+      "executedSha256": "e4425024d7901951f280493069fc951a990f9261c855113bd03046deed0806b4",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/chests.ts",
+      "bytes": 13129,
+      "sha256": "d8cd2785536280d24070259f9dc4cd062f42c7ffe9308b4899e683bb299623a4",
+      "executedBytes": 13129,
+      "executedSha256": "d8cd2785536280d24070259f9dc4cd062f42c7ffe9308b4899e683bb299623a4",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/combatant.ts",
+      "bytes": 9454,
+      "sha256": "3c2fac6ed6fbee82802c5bea86b0131d36e8ebf86eceb2c1a99ce58664fa7e60",
+      "executedBytes": 9454,
+      "executedSha256": "3c2fac6ed6fbee82802c5bea86b0131d36e8ebf86eceb2c1a99ce58664fa7e60",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/consumables.ts",
+      "bytes": 10222,
+      "sha256": "96989f6b7d6147532e506028f164dc54f5a69b0ff9fd4765f32db3e2a58b3f4e",
+      "executedBytes": 10222,
+      "executedSha256": "96989f6b7d6147532e506028f164dc54f5a69b0ff9fd4765f32db3e2a58b3f4e",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/displace.ts",
+      "bytes": 1991,
+      "sha256": "cb3f57417fe819bce5feeccc51b2e1e70b7278f6ada08c10ea0e68670b705e23",
+      "executedBytes": 1991,
+      "executedSha256": "cb3f57417fe819bce5feeccc51b2e1e70b7278f6ada08c10ea0e68670b705e23",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/factions.ts",
+      "bytes": 68620,
+      "sha256": "9ea65429b48b9aa43578922642534d82a1369778fbcec502e62cc9e21dacbf1c",
+      "executedBytes": 68620,
+      "executedSha256": "9ea65429b48b9aa43578922642534d82a1369778fbcec502e62cc9e21dacbf1c",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/feed.ts",
+      "bytes": 2895,
+      "sha256": "308e344dc3dc0bdbea707edeb18e14b5af596d7d7422f25385c39adb79d2b157",
+      "executedBytes": 2895,
+      "executedSha256": "308e344dc3dc0bdbea707edeb18e14b5af596d7d7422f25385c39adb79d2b157",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/fields.ts",
+      "bytes": 2680,
+      "sha256": "617c36051243a9cda3e16614f92de76c4b09e42d8ecbc36c7ef0b9642c5ca203",
+      "executedBytes": 2680,
+      "executedSha256": "617c36051243a9cda3e16614f92de76c4b09e42d8ecbc36c7ef0b9642c5ca203",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/fireRoam.ts",
+      "bytes": 4591,
+      "sha256": "ab7fb545ca13c870aa26dc17ea2b54aa9eca73fb48f2b48f85e26760cf854775",
+      "executedBytes": 4591,
+      "executedSha256": "ab7fb545ca13c870aa26dc17ea2b54aa9eca73fb48f2b48f85e26760cf854775",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/gameplay.ts",
+      "bytes": 5104,
+      "sha256": "70f6f2b67571783f3042309bef01dc75aabd2656c59a184d0f97c9c0a8b8cf78",
+      "executedBytes": 5104,
+      "executedSha256": "70f6f2b67571783f3042309bef01dc75aabd2656c59a184d0f97c9c0a8b8cf78",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/inputs.ts",
+      "bytes": 15914,
+      "sha256": "47bda82b978e67922c9d2361bfcd51be4555a55691453a4e0393deb917be4cde",
+      "executedBytes": 15914,
+      "executedSha256": "47bda82b978e67922c9d2361bfcd51be4555a55691453a4e0393deb917be4cde",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/killAugments.ts",
+      "bytes": 3004,
+      "sha256": "0b364df731436813506f3ff5fc8db8954e3183fbe08c6ed2ef8e2dba1d466ad3",
+      "executedBytes": 3004,
+      "executedSha256": "0b364df731436813506f3ff5fc8db8954e3183fbe08c6ed2ef8e2dba1d466ad3",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/ledger.ts",
+      "bytes": 24320,
+      "sha256": "cc73151c50c43f65a85fc922050b2ea6a34973794ec893c7b7d51d657a4e6437",
+      "executedBytes": 24320,
+      "executedSha256": "cc73151c50c43f65a85fc922050b2ea6a34973794ec893c7b7d51d657a4e6437",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/loot.ts",
+      "bytes": 10336,
+      "sha256": "d3ea7b07513bbc0bababa1107c52d0f7e7f4f79ca588812c79fd05add2c0c2e0",
+      "executedBytes": 10336,
+      "executedSha256": "d3ea7b07513bbc0bababa1107c52d0f7e7f4f79ca588812c79fd05add2c0c2e0",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/lootTables.ts",
+      "bytes": 1599,
+      "sha256": "9113367a810c491652413f547689fe38e91d63d0c876744cc91d9869c61f8684",
+      "executedBytes": 1599,
+      "executedSha256": "9113367a810c491652413f547689fe38e91d63d0c876744cc91d9869c61f8684",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/melee.ts",
+      "bytes": 8525,
+      "sha256": "8b0699aed6258cce4364f8436efc28df9ee349a69dd500c6a87179d252fdefe6",
+      "executedBytes": 8525,
+      "executedSha256": "8b0699aed6258cce4364f8436efc28df9ee349a69dd500c6a87179d252fdefe6",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/mobAI.ts",
+      "bytes": 19620,
+      "sha256": "f99a67b67d7dcebbcf206ad50554b6e6715fb0b3cbeb80bd324a4765ee878649",
+      "executedBytes": 19620,
+      "executedSha256": "f99a67b67d7dcebbcf206ad50554b6e6715fb0b3cbeb80bd324a4765ee878649",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/mobLife.ts",
+      "bytes": 23425,
+      "sha256": "07ffe9240424b58eeed9f49c4140ae0c16db33906c738685a20cd4677ecfa3bd",
+      "executedBytes": 23425,
+      "executedSha256": "07ffe9240424b58eeed9f49c4140ae0c16db33906c738685a20cd4677ecfa3bd",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/mobStats.ts",
+      "bytes": 1143,
+      "sha256": "acbbcd69cb0939e2375124740de7fb39e99a3b49591bac6cf025bdc7c968d173",
+      "executedBytes": 1143,
+      "executedSha256": "acbbcd69cb0939e2375124740de7fb39e99a3b49591bac6cf025bdc7c968d173",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/mobs.ts",
+      "bytes": 8324,
+      "sha256": "9e8bf7c68d37dd33d7f0aaa0f141c7b773982c47d794c753a1a76fb09b128521",
+      "executedBytes": 8324,
+      "executedSha256": "9e8bf7c68d37dd33d7f0aaa0f141c7b773982c47d794c753a1a76fb09b128521",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/mods.ts",
+      "bytes": 41156,
+      "sha256": "93db949f7b217b93942efdeca66caef29096d94881c5dd28bcf0eaf8287d323b",
+      "executedBytes": 41156,
+      "executedSha256": "93db949f7b217b93942efdeca66caef29096d94881c5dd28bcf0eaf8287d323b",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/movement.ts",
+      "bytes": 5986,
+      "sha256": "86ebd2205a0af4608ed484317bea3723bb378b3e138954a44140e340adab1f93",
+      "executedBytes": 5986,
+      "executedSha256": "86ebd2205a0af4608ed484317bea3723bb378b3e138954a44140e340adab1f93",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/onHit.ts",
+      "bytes": 5376,
+      "sha256": "a5c5a4b41a5a9489e812921a28d3dc5531c75e1a43d21557befd6b9b3cf8588e",
+      "executedBytes": 5376,
+      "executedSha256": "a5c5a4b41a5a9489e812921a28d3dc5531c75e1a43d21557befd6b9b3cf8588e",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/plagueCorpses.ts",
+      "bytes": 4828,
+      "sha256": "55449dc54c27b9c33196ed89d761afdf6566cb65e2f992bbe86aa2a8828bc80c",
+      "executedBytes": 4828,
+      "executedSha256": "55449dc54c27b9c33196ed89d761afdf6566cb65e2f992bbe86aa2a8828bc80c",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/plagueZombies.ts",
+      "bytes": 10364,
+      "sha256": "137fb2a40800ce51e8e8cd99ddb1208b73921c0f99f10c71a2036d7af40be736",
+      "executedBytes": 10364,
+      "executedSha256": "137fb2a40800ce51e8e8cd99ddb1208b73921c0f99f10c71a2036d7af40be736",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/planning.ts",
+      "bytes": 19985,
+      "sha256": "d7dac9db742ad0b1b451e2bb2e47187e1876d6b541ed4d2abcd59efed2105efc",
+      "executedBytes": 19985,
+      "executedSha256": "d7dac9db742ad0b1b451e2bb2e47187e1876d6b541ed4d2abcd59efed2105efc",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/projectiles.ts",
+      "bytes": 20433,
+      "sha256": "5050e56cb3355ceafa0fcd6a07fb8e691bae08ff563c39a42c61e343f7dfdef4",
+      "executedBytes": 20433,
+      "executedSha256": "5050e56cb3355ceafa0fcd6a07fb8e691bae08ff563c39a42c61e343f7dfdef4",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/quests.ts",
+      "bytes": 21655,
+      "sha256": "ecba71ef1f05f2a40e8850270c0bcdf87d44c59d3fdbce7b510b35c18d2ba769",
+      "executedBytes": 21655,
+      "executedSha256": "ecba71ef1f05f2a40e8850270c0bcdf87d44c59d3fdbce7b510b35c18d2ba769",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/regen.ts",
+      "bytes": 1994,
+      "sha256": "7cef735927facfb3de588ce2c3f9e9c21bb784f24c783ee0f117f6128bb19050",
+      "executedBytes": 1994,
+      "executedSha256": "7cef735927facfb3de588ce2c3f9e9c21bb784f24c783ee0f117f6128bb19050",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/sentencedHunt.ts",
+      "bytes": 2875,
+      "sha256": "a3a444134fc88f69f18f9724f89a59b19fb05b6eef8df9633c278ad8c20e4606",
+      "executedBytes": 2875,
+      "executedSha256": "a3a444134fc88f69f18f9724f89a59b19fb05b6eef8df9633c278ad8c20e4606",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "bytes": 17222,
+      "sha256": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642",
+      "executedBytes": 17222,
+      "executedSha256": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/step.ts",
+      "bytes": 14822,
+      "sha256": "5ff90451b4b27b12ddfe8175745cf38892eaf07a851282c904076edc46896634",
+      "executedBytes": 14822,
+      "executedSha256": "5ff90451b4b27b12ddfe8175745cf38892eaf07a851282c904076edc46896634",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/targeting.ts",
+      "bytes": 10392,
+      "sha256": "13125287cec7cd39f550af50e1d18c15d3146357f249cfe3beeb9e00a334f0fd",
+      "executedBytes": 10392,
+      "executedSha256": "13125287cec7cd39f550af50e1d18c15d3146357f249cfe3beeb9e00a334f0fd",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/terrainEffects.ts",
+      "bytes": 9684,
+      "sha256": "5b95ad7178862b11e64ab0d91b39adbc04846ec987aac7ca74ececfdc3dab4b5",
+      "executedBytes": 9684,
+      "executedSha256": "5b95ad7178862b11e64ab0d91b39adbc04846ec987aac7ca74ececfdc3dab4b5",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/tickProfile.ts",
+      "bytes": 1311,
+      "sha256": "5e8e7286a5bf7058f3dd2d80bfdab11baf265e042252d252f2a342092f97397f",
+      "executedBytes": 1311,
+      "executedSha256": "5e8e7286a5bf7058f3dd2d80bfdab11baf265e042252d252f2a342092f97397f",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/traders.ts",
+      "bytes": 8713,
+      "sha256": "f3d3c0ad907720a065b11c75b8671dc6f0922f4199ad2f7afac09b34fd68d158",
+      "executedBytes": 8713,
+      "executedSha256": "f3d3c0ad907720a065b11c75b8671dc6f0922f4199ad2f7afac09b34fd68d158",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/training.ts",
+      "bytes": 17245,
+      "sha256": "1d433ef3c5cc512c78aba66a16811d9f2a5eba11e4fa00598406fc7cd81d8e74",
+      "executedBytes": 17245,
+      "executedSha256": "1d433ef3c5cc512c78aba66a16811d9f2a5eba11e4fa00598406fc7cd81d8e74",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/vision.ts",
+      "bytes": 4504,
+      "sha256": "25838e435b6e5282d31b28758e1955d36c8118086700e1e6497a979647287e56",
+      "executedBytes": 4504,
+      "executedSha256": "25838e435b6e5282d31b28758e1955d36c8118086700e1e6497a979647287e56",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/vsProbe.ts",
+      "bytes": 1681,
+      "sha256": "6e45e578f760ec31407481348551181d5a00bf1ab1b7af72e488d783978c668b",
+      "executedBytes": 1681,
+      "executedSha256": "6e45e578f760ec31407481348551181d5a00bf1ab1b7af72e488d783978c668b",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/walkHint.ts",
+      "bytes": 10241,
+      "sha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16",
+      "executedBytes": 10241,
+      "executedSha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/weapons.ts",
+      "bytes": 17776,
+      "sha256": "581ba4cf9ae93af5d3753cbb3cdf6b823bfaf730448edab7669e6c6d84c86f26",
+      "executedBytes": 17776,
+      "executedSha256": "581ba4cf9ae93af5d3753cbb3cdf6b823bfaf730448edab7669e6c6d84c86f26",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/server/src/sim/world.ts",
+      "bytes": 58199,
+      "sha256": "b98376a7f022ec6f9b681e368d62c18fbe524d95408b2d4eec93909934454d54",
+      "executedBytes": 58199,
+      "executedSha256": "b98376a7f022ec6f9b681e368d62c18fbe524d95408b2d4eec93909934454d54",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/abilities.ts",
+      "bytes": 16589,
+      "sha256": "95ef39376a9d9f40cc529a0f7300700a97427050628941e801aaa1e299862518",
+      "executedBytes": 16589,
+      "executedSha256": "95ef39376a9d9f40cc529a0f7300700a97427050628941e801aaa1e299862518",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/achievements.ts",
+      "bytes": 7472,
+      "sha256": "c80dbded6e1ea5eb79dc0f25378d9a45fbe41865a8298bf9fc5f2eeafdd46a34",
+      "executedBytes": 7472,
+      "executedSha256": "c80dbded6e1ea5eb79dc0f25378d9a45fbe41865a8298bf9fc5f2eeafdd46a34",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/blink.ts",
+      "bytes": 7936,
+      "sha256": "e5582562556f530fd99ec9bf8e506fa144805f666c09f4359aefb98ee9171f15",
+      "executedBytes": 7936,
+      "executedSha256": "e5582562556f530fd99ec9bf8e506fa144805f666c09f4359aefb98ee9171f15",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/bushes.ts",
+      "bytes": 6087,
+      "sha256": "ac64ce414134376d27b7b4819d59096e66edd01d82958e873d57348a79d85910",
+      "executedBytes": 6087,
+      "executedSha256": "ac64ce414134376d27b7b4819d59096e66edd01d82958e873d57348a79d85910",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/cards.ts",
+      "bytes": 34091,
+      "sha256": "4a51376a1ce3a79f417e32ce7ae8d7eb37142da5e49f59c3a2c89d48b11ae1e3",
+      "executedBytes": 34091,
+      "executedSha256": "4a51376a1ce3a79f417e32ce7ae8d7eb37142da5e49f59c3a2c89d48b11ae1e3",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/championPassives.ts",
+      "bytes": 1337,
+      "sha256": "d7e0ecdc8b9cbffc8463f40b9c564019431b14744f5948bf89eefb2505fbf6df",
+      "executedBytes": 1337,
+      "executedSha256": "d7e0ecdc8b9cbffc8463f40b9c564019431b14744f5948bf89eefb2505fbf6df",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/chestBoosts.ts",
+      "bytes": 4652,
+      "sha256": "60b50c685dacdfdbc2861fdc9f80a900845c5cc0af0b77741527cfb8da51fa81",
+      "executedBytes": 4652,
+      "executedSha256": "60b50c685dacdfdbc2861fdc9f80a900845c5cc0af0b77741527cfb8da51fa81",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/coliseum.ts",
+      "bytes": 8403,
+      "sha256": "48fc2fa156e70ff6520019605017939298144960d8871a748ef18aadbbf0c0e1",
+      "executedBytes": 8403,
+      "executedSha256": "48fc2fa156e70ff6520019605017939298144960d8871a748ef18aadbbf0c0e1",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/combatReadability.ts",
+      "bytes": 8406,
+      "sha256": "206f707658ee37f22d9aae403449003487e474220442e1cb178c8af85bfe8833",
+      "executedBytes": 8406,
+      "executedSha256": "206f707658ee37f22d9aae403449003487e474220442e1cb178c8af85bfe8833",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/constants.ts",
+      "bytes": 46007,
+      "sha256": "51ce4dd800ec868abee525fb1ae375688066f336972a7da878644df1235924e7",
+      "executedBytes": 46007,
+      "executedSha256": "51ce4dd800ec868abee525fb1ae375688066f336972a7da878644df1235924e7",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/consumables.ts",
+      "bytes": 1974,
+      "sha256": "1ffd882c4b44fed9c20743e671050fc4044706c17e2c36c365952eafc3bd3606",
+      "executedBytes": 1974,
+      "executedSha256": "1ffd882c4b44fed9c20743e671050fc4044706c17e2c36c365952eafc3bd3606",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/cosmetics.ts",
+      "bytes": 11625,
+      "sha256": "7513ea6b3cbc51072863ccb6ef568d96797f9239c8073f99d2a33ef3aab7b873",
+      "executedBytes": 11625,
+      "executedSha256": "7513ea6b3cbc51072863ccb6ef568d96797f9239c8073f99d2a33ef3aab7b873",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/detMath.ts",
+      "bytes": 874,
+      "sha256": "a806636428155920a0c1c8675cd84d896057993d4d6ff7b9b4623daa5a312b15",
+      "executedBytes": 874,
+      "executedSha256": "a806636428155920a0c1c8675cd84d896057993d4d6ff7b9b4623daa5a312b15",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/effectText.ts",
+      "bytes": 9977,
+      "sha256": "da22ddb275748104b8f7e11888c1c52c569463bcf165c8efc943cd42f7f0050f",
+      "executedBytes": 9977,
+      "executedSha256": "da22ddb275748104b8f7e11888c1c52c569463bcf165c8efc943cd42f7f0050f",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/effects.ts",
+      "bytes": 18193,
+      "sha256": "859ac817f16a8334865abf103b783fae76b5525d0e90dc407bddf921810f415b",
+      "executedBytes": 18193,
+      "executedSha256": "859ac817f16a8334865abf103b783fae76b5525d0e90dc407bddf921810f415b",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/factions.ts",
+      "bytes": 14039,
+      "sha256": "aa0cebf1c17af17b64bc1e020c4613ab10788ec66d82a72232aef8915d5403f3",
+      "executedBytes": 14039,
+      "executedSha256": "aa0cebf1c17af17b64bc1e020c4613ab10788ec66d82a72232aef8915d5403f3",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/fireRoam.ts",
+      "bytes": 1058,
+      "sha256": "ddf7a5372e3d223b86eb7f0408960908f2c4d4f7c6172fc5e65284ab1c4b8edb",
+      "executedBytes": 1058,
+      "executedSha256": "ddf7a5372e3d223b86eb7f0408960908f2c4d4f7c6172fc5e65284ab1c4b8edb",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/fxCodec.ts",
+      "bytes": 24844,
+      "sha256": "db2080230ad1b3702e37d3e339384e4a071ef899a8203026e20038a3a2b0f0ba",
+      "executedBytes": 24844,
+      "executedSha256": "db2080230ad1b3702e37d3e339384e4a071ef899a8203026e20038a3a2b0f0ba",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/geometry.ts",
+      "bytes": 7899,
+      "sha256": "b1a91a65281f8642b1779b81764768569311966ab493941101a2f988cfdc1f5d",
+      "executedBytes": 7899,
+      "executedSha256": "b1a91a65281f8642b1779b81764768569311966ab493941101a2f988cfdc1f5d",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/glossary.ts",
+      "bytes": 7261,
+      "sha256": "0c8871be2726d6a63700e2f6ba39a454992258189f276ad1ed87b8601150a5fb",
+      "executedBytes": 7261,
+      "executedSha256": "0c8871be2726d6a63700e2f6ba39a454992258189f276ad1ed87b8601150a5fb",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/gridOps.ts",
+      "bytes": 2375,
+      "sha256": "76587ddd597a2a6ecc05561427dd89b986b6f86026ffedc56848e1b03bb52493",
+      "executedBytes": 2375,
+      "executedSha256": "76587ddd597a2a6ecc05561427dd89b986b6f86026ffedc56848e1b03bb52493",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/gridTopology.ts",
+      "bytes": 12464,
+      "sha256": "deb2710d114cd669854a082c06bafe518f5ef750249722f89ede83a27d42d328",
+      "executedBytes": 12464,
+      "executedSha256": "deb2710d114cd669854a082c06bafe518f5ef750249722f89ede83a27d42d328",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/hpView.ts",
+      "bytes": 2020,
+      "sha256": "40ec081fdb8adb245dca088a21f1aef18fa8dbf9d991581f16baf99606508cc3",
+      "executedBytes": 2020,
+      "executedSha256": "40ec081fdb8adb245dca088a21f1aef18fa8dbf9d991581f16baf99606508cc3",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/index.ts",
+      "bytes": 1564,
+      "sha256": "2a78a73307372ea1a5ffe753f2f16fb11386c124100455f45339fe985b01dfcb",
+      "executedBytes": 1564,
+      "executedSha256": "2a78a73307372ea1a5ffe753f2f16fb11386c124100455f45339fe985b01dfcb",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/interactions.ts",
+      "bytes": 8524,
+      "sha256": "72aa41c26f8254e00d4956ba57d804471e80b924b55529d016efa6e7d4ecef11",
+      "executedBytes": 8524,
+      "executedSha256": "72aa41c26f8254e00d4956ba57d804471e80b924b55529d016efa6e7d4ecef11",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/interp.ts",
+      "bytes": 20983,
+      "sha256": "83cf2ac2359058b1e0497e636f83e36b1d60c97e13f81e15e6edf39d8f231eb4",
+      "executedBytes": 20983,
+      "executedSha256": "83cf2ac2359058b1e0497e636f83e36b1d60c97e13f81e15e6edf39d8f231eb4",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/killAugments.ts",
+      "bytes": 4382,
+      "sha256": "82641061ad98878f7fb209e72f490447034f5ddf36d149990e206fa83a548244",
+      "executedBytes": 4382,
+      "executedSha256": "82641061ad98878f7fb209e72f490447034f5ddf36d149990e206fa83a548244",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/map.ts",
+      "bytes": 21022,
+      "sha256": "35caac04108a3bd0e1d880a9502f14bdccb3a9a17d262cba335c3d6436995eed",
+      "executedBytes": 21022,
+      "executedSha256": "35caac04108a3bd0e1d880a9502f14bdccb3a9a17d262cba335c3d6436995eed",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/mapWire.ts",
+      "bytes": 402,
+      "sha256": "b52863f757b829ab9a36582cc11e95aea4c0902fd979df5d40bcb5889bba04eb",
+      "executedBytes": 402,
+      "executedSha256": "b52863f757b829ab9a36582cc11e95aea4c0902fd979df5d40bcb5889bba04eb",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/mapgen.ts",
+      "bytes": 57619,
+      "sha256": "975591aed836a345c4efd957ced95a478638e6e870fe8ea9bb8740526ef06d10",
+      "executedBytes": 57619,
+      "executedSha256": "975591aed836a345c4efd957ced95a478638e6e870fe8ea9bb8740526ef06d10",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/mark.ts",
+      "bytes": 4403,
+      "sha256": "44870381fa48b9c8f65f180ff74995725644d7264df5b069a3c43c2291540661",
+      "executedBytes": 4403,
+      "executedSha256": "44870381fa48b9c8f65f180ff74995725644d7264df5b069a3c43c2291540661",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/messages.ts",
+      "bytes": 30329,
+      "sha256": "f7f3b4eb6bb32c54bb97a7d3a8e2ba613b0aff0495a0f20c09fd6d36c797fe80",
+      "executedBytes": 30329,
+      "executedSha256": "f7f3b4eb6bb32c54bb97a7d3a8e2ba613b0aff0495a0f20c09fd6d36c797fe80",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/mobStats.ts",
+      "bytes": 7296,
+      "sha256": "94034887302346dcd070ff2fa774ae0e4f71933b549964f53be13389be087d5b",
+      "executedBytes": 7296,
+      "executedSha256": "94034887302346dcd070ff2fa774ae0e4f71933b549964f53be13389be087d5b",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/mobs.ts",
+      "bytes": 15613,
+      "sha256": "3b567c08363d8d4f1e9a897240b3d99d5b8ded7757b6809a4b534b63d72b5522",
+      "executedBytes": 15613,
+      "executedSha256": "3b567c08363d8d4f1e9a897240b3d99d5b8ded7757b6809a4b534b63d72b5522",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/mods.ts",
+      "bytes": 23134,
+      "sha256": "10e9dcd3d7417c4fe85d1c36ef33afe5abf7a5703a59b42a3a825a66aa4efaff",
+      "executedBytes": 23134,
+      "executedSha256": "10e9dcd3d7417c4fe85d1c36ef33afe5abf7a5703a59b42a3a825a66aa4efaff",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/pathfind.ts",
+      "bytes": 11003,
+      "sha256": "300caa48788f84bdc780befe8c50db41c2c0b2be520d3fb43a7f91e16de424d9",
+      "executedBytes": 11003,
+      "executedSha256": "300caa48788f84bdc780befe8c50db41c2c0b2be520d3fb43a7f91e16de424d9",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/plagueCorpses.ts",
+      "bytes": 3584,
+      "sha256": "cd85318857ba38853385c3ce9560b8674266b71b0b1555017953c7a41080378d",
+      "executedBytes": 3584,
+      "executedSha256": "cd85318857ba38853385c3ce9560b8674266b71b0b1555017953c7a41080378d",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/planning.ts",
+      "bytes": 5249,
+      "sha256": "8d52b212f6fec391359787cf9d81b8fa31a067ea839a2b9ccadc58c059027cb2",
+      "executedBytes": 5249,
+      "executedSha256": "8d52b212f6fec391359787cf9d81b8fa31a067ea839a2b9ccadc58c059027cb2",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/policies.ts",
+      "bytes": 13185,
+      "sha256": "3a08aef58ae780bb2417781e735ff75c310de08db43b47a742714bcf94619fbd",
+      "executedBytes": 13185,
+      "executedSha256": "3a08aef58ae780bb2417781e735ff75c310de08db43b47a742714bcf94619fbd",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/propKinds.ts",
+      "bytes": 2990,
+      "sha256": "431d70881377a8059960f053dc9452946cc0e942d212c92765bacb8a063027ee",
+      "executedBytes": 2990,
+      "executedSha256": "431d70881377a8059960f053dc9452946cc0e942d212c92765bacb8a063027ee",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/quests.ts",
+      "bytes": 37136,
+      "sha256": "99c4fdfeae5e2a9eb3e0894f56ae1cd3db7eea760c5c09df695685e250800bba",
+      "executedBytes": 37136,
+      "executedSha256": "99c4fdfeae5e2a9eb3e0894f56ae1cd3db7eea760c5c09df695685e250800bba",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/rewards.ts",
+      "bytes": 8894,
+      "sha256": "cc19d6d0a7be390a9574a1f88b6b5241ac0885c3720b4ca3fe17d1d450f3a601",
+      "executedBytes": 8894,
+      "executedSha256": "cc19d6d0a7be390a9574a1f88b6b5241ac0885c3720b4ca3fe17d1d450f3a601",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/rng.ts",
+      "bytes": 2115,
+      "sha256": "412bdcee4a5adcb6163bff3561cb4a07eff423dc7e30e9ba0694cb41b05b1bec",
+      "executedBytes": 2115,
+      "executedSha256": "412bdcee4a5adcb6163bff3561cb4a07eff423dc7e30e9ba0694cb41b05b1bec",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/rosters.ts",
+      "bytes": 4469,
+      "sha256": "0f544537f1ea1517345efd44bc3d4a4ee7d5bffd52a13cb084cc9693ec6f297d",
+      "executedBytes": 4469,
+      "executedSha256": "0f544537f1ea1517345efd44bc3d4a4ee7d5bffd52a13cb084cc9693ec6f297d",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/rules.ts",
+      "bytes": 6532,
+      "sha256": "c5822091cdc711e53086a6f2f8649c53c1d709009649a0a65c005096774893b7",
+      "executedBytes": 6532,
+      "executedSha256": "c5822091cdc711e53086a6f2f8649c53c1d709009649a0a65c005096774893b7",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/schema.ts",
+      "bytes": 21469,
+      "sha256": "245486da649ea5bc5d8b9b0d5d75f3e860fc8f153574fa2b9ee091dcb52e99cb",
+      "executedBytes": 21469,
+      "executedSha256": "245486da649ea5bc5d8b9b0d5d75f3e860fc8f153574fa2b9ee091dcb52e99cb",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/sentencedHunt.ts",
+      "bytes": 1184,
+      "sha256": "a606dd94905114562d14d13c09f6c59586a60a70e9a02da49285d886305ce561",
+      "executedBytes": 1184,
+      "executedSha256": "a606dd94905114562d14d13c09f6c59586a60a70e9a02da49285d886305ce561",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/signatureShares.ts",
+      "bytes": 1078,
+      "sha256": "e6996931487dde9d4e3f71481a9da996f7500fbcd2148f7924ed730a78eba1a4",
+      "executedBytes": 1078,
+      "executedSha256": "e6996931487dde9d4e3f71481a9da996f7500fbcd2148f7924ed730a78eba1a4",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/signatures.ts",
+      "bytes": 9370,
+      "sha256": "0a6befbb5a6fe9870b13a540d72235085c491668c8cae3674fa8faf89816e191",
+      "executedBytes": 9370,
+      "executedSha256": "0a6befbb5a6fe9870b13a540d72235085c491668c8cae3674fa8faf89816e191",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/status.ts",
+      "bytes": 4682,
+      "sha256": "98a0570d7620e424d9d522356fe378a6af049109d8af0342be0ecff970310df7",
+      "executedBytes": 4682,
+      "executedSha256": "98a0570d7620e424d9d522356fe378a6af049109d8af0342be0ecff970310df7",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/styler.ts",
+      "bytes": 7309,
+      "sha256": "314805a5a6cd9074763c9e555e48e7145c7ed7c87f265876c3712e4837abc51c",
+      "executedBytes": 7309,
+      "executedSha256": "314805a5a6cd9074763c9e555e48e7145c7ed7c87f265876c3712e4837abc51c",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/telemetry.ts",
+      "bytes": 28458,
+      "sha256": "3310df401408a2a4a893a40febe40dda72afe20a13898e6f63620a127d2ba8e2",
+      "executedBytes": 28458,
+      "executedSha256": "3310df401408a2a4a893a40febe40dda72afe20a13898e6f63620a127d2ba8e2",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/terrain.ts",
+      "bytes": 21947,
+      "sha256": "5ee4fe11e793f83f3d095720ba1156a186c5c7704e864f2cad74503ab13a07d6",
+      "executedBytes": 21947,
+      "executedSha256": "5ee4fe11e793f83f3d095720ba1156a186c5c7704e864f2cad74503ab13a07d6",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/traders.ts",
+      "bytes": 2434,
+      "sha256": "6b0fb339c3988c253a4162bdd70ae0d3be13f2d066cbdf10168c5b6d1345d1d3",
+      "executedBytes": 2434,
+      "executedSha256": "6b0fb339c3988c253a4162bdd70ae0d3be13f2d066cbdf10168c5b6d1345d1d3",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/training.ts",
+      "bytes": 1879,
+      "sha256": "8cf8332e7083fa801407bb2bfd911f2ca008029c1a7ad16cf6bd9bc6935ccc58",
+      "executedBytes": 1879,
+      "executedSha256": "8cf8332e7083fa801407bb2bfd911f2ca008029c1a7ad16cf6bd9bc6935ccc58",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/vision.ts",
+      "bytes": 12457,
+      "sha256": "f9d026e5c3e8932502f147d6f2ce5d11625845faf07a9dec734b595db76521db",
+      "executedBytes": 12457,
+      "executedSha256": "f9d026e5c3e8932502f147d6f2ce5d11625845faf07a9dec734b595db76521db",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/walk.ts",
+      "bytes": 15362,
+      "sha256": "0d33c95623a6d11fa21a9e58b308eed8cb0150b24d65b592877c5f9e2b5a0020",
+      "executedBytes": 15362,
+      "executedSha256": "0d33c95623a6d11fa21a9e58b308eed8cb0150b24d65b592877c5f9e2b5a0020",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/weapons.ts",
+      "bytes": 15391,
+      "sha256": "2f22f037502fe63fae6b47f20408cfd35ebc72bfea081194ae8d18cfc21df99b",
+      "executedBytes": 15391,
+      "executedSha256": "2f22f037502fe63fae6b47f20408cfd35ebc72bfea081194ae8d18cfc21df99b",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/wheel.ts",
+      "bytes": 3618,
+      "sha256": "e16388b4aa07cb1ab60c4ac5859879eaad0eb686f50e625a7917cad34e275466",
+      "executedBytes": 3618,
+      "executedSha256": "e16388b4aa07cb1ab60c4ac5859879eaad0eb686f50e625a7917cad34e275466",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/zoneStyle/context.ts",
+      "bytes": 30206,
+      "sha256": "8a87c8c930a11c2f1c83b3afe9384586a24f41690dd77a78f1c35b0f69a19dfb",
+      "executedBytes": 30206,
+      "executedSha256": "8a87c8c930a11c2f1c83b3afe9384586a24f41690dd77a78f1c35b0f69a19dfb",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/zoneStyle/features.ts",
+      "bytes": 40831,
+      "sha256": "f0d987fc114394e514c0b9e194b219aa1f8f3429a0fa141c7b6181e6d87ee983",
+      "executedBytes": 40831,
+      "executedSha256": "f0d987fc114394e514c0b9e194b219aa1f8f3429a0fa141c7b6181e6d87ee983",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/zoneStyle/gallows.ts",
+      "bytes": 37047,
+      "sha256": "0edb95a89d06fc6b0f60a6dc85da41613177362679c03e2073f2be24bbe186e4",
+      "executedBytes": 37047,
+      "executedSha256": "0edb95a89d06fc6b0f60a6dc85da41613177362679c03e2073f2be24bbe186e4",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/zoneStyle/hook.ts",
+      "bytes": 3970,
+      "sha256": "56eeba0fb5019dc5dd02e8fd76059c6f82ede6cfa2aa46c763ecf63b619bc668",
+      "executedBytes": 3970,
+      "executedSha256": "56eeba0fb5019dc5dd02e8fd76059c6f82ede6cfa2aa46c763ecf63b619bc668",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/zoneStyle/index.ts",
+      "bytes": 1629,
+      "sha256": "6ada1628cfd571cfda3616155e0dc0a047976d9056e467b521c68a6a44f6d673",
+      "executedBytes": 1629,
+      "executedSha256": "6ada1628cfd571cfda3616155e0dc0a047976d9056e467b521c68a6a44f6d673",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/zoneStyle/kit.ts",
+      "bytes": 17138,
+      "sha256": "dc69161c080b9474a873d12ac194d876b78285a1ae2cdb7eb24cb86b30337e16",
+      "executedBytes": 17138,
+      "executedSha256": "dc69161c080b9474a873d12ac194d876b78285a1ae2cdb7eb24cb86b30337e16",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/zoneStyle/landmarks.ts",
+      "bytes": 30532,
+      "sha256": "ad18e32099ceafc1b88fa33a2225ef2c02508ac6fa4a58c1a91473f0be4c6587",
+      "executedBytes": 30532,
+      "executedSha256": "ad18e32099ceafc1b88fa33a2225ef2c02508ac6fa4a58c1a91473f0be4c6587",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/zoneStyle/propKinds.ts",
+      "bytes": 809,
+      "sha256": "6a139d0727ab392512d427507ee3b027f67860734d56eea7db8085add24003b9",
+      "executedBytes": 809,
+      "executedSha256": "6a139d0727ab392512d427507ee3b027f67860734d56eea7db8085add24003b9",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/zoneStyle/rime.ts",
+      "bytes": 40601,
+      "sha256": "d25714c3b647392a03662b33082b48de2c7ec2933755501fe55260c2a1daa19a",
+      "executedBytes": 40601,
+      "executedSha256": "d25714c3b647392a03662b33082b48de2c7ec2933755501fe55260c2a1daa19a",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/zoneStyle/sanctum.ts",
+      "bytes": 24977,
+      "sha256": "dd2da40c09a1a5dc5fdbd6e45b568d2b4ada831a0e195e86fd0ab64f49b7babd",
+      "executedBytes": 24977,
+      "executedSha256": "dd2da40c09a1a5dc5fdbd6e45b568d2b4ada831a0e195e86fd0ab64f49b7babd",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/zoneStyle/scale.ts",
+      "bytes": 1361,
+      "sha256": "b8e055707f98dfa104233c1ceebd99358b9b3b5ae8e9fe001d9174806ca6a07e",
+      "executedBytes": 1361,
+      "executedSha256": "b8e055707f98dfa104233c1ceebd99358b9b3b5ae8e9fe001d9174806ca6a07e",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/zoneStyle/scorch.ts",
+      "bytes": 51569,
+      "sha256": "52b324dd4dfc9a77986a9ffdcb9704041a2d3608e6e61e9af98b0f697fd2f02a",
+      "executedBytes": 51569,
+      "executedSha256": "52b324dd4dfc9a77986a9ffdcb9704041a2d3608e6e61e9af98b0f697fd2f02a",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/zoneStyle/styleZones.ts",
+      "bytes": 10113,
+      "sha256": "9c328903541ae1e15ca473b288c788b5a2ebb55e8974a639c6215c7c804cbc36",
+      "executedBytes": 10113,
+      "executedSha256": "9c328903541ae1e15ca473b288c788b5a2ebb55e8974a639c6215c7c804cbc36",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/zoneStyle/types.ts",
+      "bytes": 15681,
+      "sha256": "193b6f57c1e76ea6f8249a316fc8898191682937493fbbce7beb3a0ffb26c33e",
+      "executedBytes": 15681,
+      "executedSha256": "193b6f57c1e76ea6f8249a316fc8898191682937493fbbce7beb3a0ffb26c33e",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/zoneStyle/warren.ts",
+      "bytes": 30968,
+      "sha256": "bdb057ebaf226fbe803403cc338d38f50c154c276a30fcb652b5229741a9ddcc",
+      "executedBytes": 30968,
+      "executedSha256": "bdb057ebaf226fbe803403cc338d38f50c154c276a30fcb652b5229741a9ddcc",
+      "instrumentation": null
+    },
+    {
+      "path": "packages/shared/src/zones.ts",
+      "bytes": 49948,
+      "sha256": "aa91d0c2b8d7b1957d6e28e29289c9dfa58ac6d4c8475b647445370fbcaeb814",
+      "executedBytes": 49948,
+      "executedSha256": "aa91d0c2b8d7b1957d6e28e29289c9dfa58ac6d4c8475b647445370fbcaeb814",
+      "instrumentation": null
+    },
+    {
+      "path": "tools/bot-protection-cues-fixtures/scenario.mts",
+      "bytes": 24085,
+      "sha256": "d054bcfec6ccf513c5e238b2c9c7eb4f4313bf06707236ef3da2da6d07243c39",
+      "executedBytes": 24085,
+      "executedSha256": "d054bcfec6ccf513c5e238b2c9c7eb4f4313bf06707236ef3da2da6d07243c39",
+      "instrumentation": null
+    },
+    {
+      "path": "tools/bot-protection-cues-fixtures/verify.mjs",
+      "bytes": 33741,
+      "sha256": "10188528d712c8000000db548caa2388c74c56c03d5bb7f9af4a6b996853e935",
+      "executedBytes": 33741,
+      "executedSha256": "10188528d712c8000000db548caa2388c74c56c03d5bb7f9af4a6b996853e935",
+      "instrumentation": null
+    }
+  ],
+  "outputs": {
+    "scenario": {
+      "path": "scenario.mjs",
+      "bytes": 1284695,
+      "sha256": "1be81524977b2dde0e1a8445409b5756cb261f3217872112646b847524a7a54e"
+    },
+    "runtime": {
+      "path": "variants-runtime.mjs",
+      "bytes": 37508,
+      "sha256": "e98352bfb7fa39b62e1ddbc3725179c5d890f634e55bab960f6811765a3bbde7"
+    },
+    "verify": {
+      "path": "verify.mjs",
+      "bytes": 33741,
+      "sha256": "10188528d712c8000000db548caa2388c74c56c03d5bb7f9af4a6b996853e935"
+    },
+    "metafile": {
+      "path": "metafile.json",
+      "bytes": 117763,
+      "sha256": "4a877045e309822016329d1bf914a3e594d1653b50173d0fa36094ca1b946268"
+    }
+  },
+  "limits": {
+    "maxCases": 11,
+    "maxStepsPerCase": 96,
+    "totalMaxSteps": 1056,
+    "maxCorpusBytes": 134217728,
+    "maxBundleBytes": 16777216,
+    "maxVerificationBytes": 1048576
+  },
+  "externals": [
+    "node:assert/strict",
+    "node:crypto",
+    "node:fs"
+  ],
+  "preparedInventory": [
+    "build-manifest.json",
+    "metafile.json",
+    "scenario.mjs",
+    "variants-runtime.mjs",
+    "verify.mjs"
+  ],
+  "runtimeApi": {
+    "expectedControlId": "teleport-immunity",
+    "capture": "capture({codeSha:manifest.code,sourceBase:manifest.sourceBase})",
+    "serialization": "verify.encodeRaw/verify.decodeRaw",
+    "verifier": "verify(serializedRaw)",
+    "modes": [
+      "capture",
+      "check-consistency"
+    ],
+    "checkMeaning": "existing tagged raw-to-canonical consistency only; NO source recapture or independent frozen execution"
+  },
+  "contextPolicy": "exact fixed11 actual-source producer contexts with separately labelled initial loadout/HP input; native/P15/fullworld admission remains held",
+  "controls": {
+    "source": "tools/bot-protection-cues-fixtures/controls.mjs",
+    "bytes": 3441,
+    "sha256": "a27967aef45638c64d2873063d66669f5724abf869d51e328c511a15b4ef837c",
+    "chosen": "teleport-immunity",
+    "semanticCount": 6,
+    "commentNonkillCount": 1,
+    "status": "ONE_CHOSEN_TRANSFORM_COMPILED_ONLY",
+    "preparedArtifact": false
+  },
+  "outputOwnership": {
+    "hostUid": 501,
+    "hostGid": 20,
+    "directoryMode": 448
+  },
+  "readset": {
+    "selectedSource": [
+      {
+        "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/arena.ts",
+        "container": "/repo/packages/server/src/sim/arena.ts"
+      },
+      {
+        "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/weapons.ts",
+        "container": "/repo/packages/server/src/sim/weapons.ts"
+      },
+      {
+        "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/step.ts",
+        "container": "/repo/packages/server/src/sim/step.ts"
+      },
+      {
+        "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/targeting.ts",
+        "container": "/repo/packages/server/src/sim/targeting.ts"
+      },
+      {
+        "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/inputs.ts",
+        "container": "/repo/packages/server/src/sim/inputs.ts"
+      },
+      {
+        "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/gameplay.ts",
+        "container": "/repo/packages/server/src/sim/gameplay.ts"
+      },
+      {
+        "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/world.ts",
+        "container": "/repo/packages/server/src/sim/world.ts"
+      },
+      {
+        "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/combatant.ts",
+        "container": "/repo/packages/server/src/sim/combatant.ts"
+      },
+      {
+        "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/ledger.ts",
+        "container": "/repo/packages/server/src/sim/ledger.ts"
+      },
+      {
+        "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/status.ts",
+        "container": "/repo/packages/server/src/sim/status.ts"
+      },
+      {
+        "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/perception.ts",
+        "container": "/repo/packages/server/src/bots/brain/perception.ts"
+      },
+      {
+        "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/memory.ts",
+        "container": "/repo/packages/server/src/bots/brain/memory.ts"
+      },
+      {
+        "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/vision.ts",
+        "container": "/repo/packages/server/src/bots/brain/vision.ts"
+      },
+      {
+        "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/frames.ts",
+        "container": "/repo/packages/server/src/bots/brain/frames.ts"
+      },
+      {
+        "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/types.ts",
+        "container": "/repo/packages/server/src/bots/brain/types.ts"
+      },
+      {
+        "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/rooms/FxChannel.ts",
+        "container": "/repo/packages/server/src/rooms/FxChannel.ts"
+      },
+      {
+        "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/schema.ts",
+        "container": "/repo/packages/shared/src/schema.ts"
+      },
+      {
+        "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/constants.ts",
+        "container": "/repo/packages/shared/src/constants.ts"
+      },
+      {
+        "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/fxCodec.ts",
+        "container": "/repo/packages/shared/src/fxCodec.ts"
+      },
+      {
+        "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/weapons.ts",
+        "container": "/repo/packages/shared/src/weapons.ts"
+      },
+      {
+        "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/signatures.ts",
+        "container": "/repo/packages/shared/src/signatures.ts"
+      },
+      {
+        "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/mods.ts",
+        "container": "/repo/packages/shared/src/mods.ts"
+      }
+    ],
+    "related": [
+      {
+        "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/tools/ability-fixtures/born-input.json",
+        "container": "/repo/tools/ability-fixtures/born-input.json"
+      }
+    ],
+    "prep": [
+      "build-manifest.json",
+      "metafile.json",
+      "scenario.mjs",
+      "variants-runtime.mjs",
+      "verify.mjs"
+    ],
+    "pristine": [
+      {
+        "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/prepared/build-manifest.json",
+        "container": "/pristine/build-manifest.json"
+      },
+      {
+        "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/observations-before-verification.json",
+        "container": "/pristine/observations-before-verification.json"
+      },
+      {
+        "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/source.json",
+        "container": "/pristine/source.json"
+      },
+      {
+        "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/verification.json",
+        "container": "/pristine/verification.json"
+      }
+    ]
+  }
+}

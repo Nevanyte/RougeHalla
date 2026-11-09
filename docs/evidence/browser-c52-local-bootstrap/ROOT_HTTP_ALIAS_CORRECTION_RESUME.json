@@ -1,0 +1,10 @@
+{
+  "format": "rh-root-browser-c52-http-alias-resume/1",
+  "issuedUtc": "2026-11-09T21:50:55.767452+00:00",
+  "authority": "ONE same-known-stopped-cluster Phase A continuation, after unchanged ownership/config/cluster/socket/listener revalidation. No initdb/database/role recreation, grants, fallback or path swap. Browser Phase B NOT RELEASED.",
+  "priorFailureSha256": "10baae23b96f929eed3faed91af16248432a95f473f339384fcfb562e6adb326",
+  "reviewedAliasProposalSha256": "cc1b98d7f5887bec9443f2ff5d582ef1b363664a0ceea66c8d8a2c05d1d42151",
+  "permittedExecutionDelta": "Only reviewed HTTPConnection alias fix plus fresh attempt03 receipt/log/progress paths and new Root authority binding. Preserve all earlier attempts; exact routes/checks/headers/native/web/router pins unchanged. Split app/admin queries unchanged. Existing migrated schema[1,2], floor1 and exact11tables must revalidate. Stop and clean only owned handles on first failure; retain separately.",
+  "priorBoundary": "Attempt02 starts all services then constructor AttributeError before any HTTP. Zero browser/claims/Hello/joins. All owned handles stopped.",
+  "successfulContinuation": "When all original Phase A checks pass, retain known owned services alive and report receipts/handles for separate normal browser Phase B."
+}

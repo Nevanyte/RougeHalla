@@ -1,0 +1,19 @@
+{
+  "format": "rh-root-browser-c52-phaseA-corrected-probe-resume/1",
+  "issuedUtc": "2026-11-09T21:35:06.806968+00:00",
+  "priorFailureReceipts": {
+    "PHASE_A_FIRST_FAILURE.json": "a0d93c678fc5b4d70023b5db97d5d6429fcefab0f1571c83fd010c9a0e359c7d",
+    "FIRST_FAILURE_CLASSIFICATION.json": "033765c64e4a73233881f355698a9f8f3640637f2cf23307187d45c483286d7a",
+    "RETAINED_STATE_METADATA.json": "727e3babd48f5614aebe8ee37c6cb997a1dc1e623b22f7069576c14ad818e2a7",
+    "OWNED_HANDLES.json": "e984da8735c663e599e79991d65cad4dca2c9b7f450a5dc4927368ca5a1e8e0f"
+  },
+  "authority": "ONE corrected-probe resume of the same known owned stopped cluster. No initdb, database or role recreation, new allocation, or path swap.",
+  "stateRoot": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/browser-c52-actual",
+  "socketRoot": "/private/tmp/rh-browser-c52-pg-65439",
+  "revalidate": "Revalidate known owner, mode 0700, configuration bytes and cluster identity. Confirm stopped postmaster, absent PID/socket and no unknown listeners. Preserve the prior failure unchanged.",
+  "onlyCorrection": "The application role reads fsync, synchronous_commit and full_page_writes. The existing bootstrap administrator peer reads restricted unix_socket_directories, listen, port and permission metadata. No pg_read_all_settings, superuser or role grant changes. Retain both actual receipts.",
+  "continuation": "After all probes pass, continue the original Phase A Source :7777, Training :7779 and router :8888 public Info, durability, static asset and upgrade-close checks with zero rooms. All original native, web and tool pins remain bound to ROOT_RELEASE.json SHA256 0f06a88f530a036ffa1d413394d9cddd4be88cc4e8964b0b0406f595c0940064.",
+  "sourceTrainingRouterStartedPrior": false,
+  "browserPhaseB": "NOT_RELEASED",
+  "failure": "Preserve the new first failure and clean up only known owned handles. No memory fallback, unreviewed privilege, path, clock or security changes."
+}

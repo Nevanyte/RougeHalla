@@ -1,0 +1,33 @@
+{
+  "format": "rh-root-protection-cue-variant-A/1",
+  "issuedUtc": "2026-11-09T21:51:42.693826+00:00",
+  "authority": "ONE compiler-only teleport-immunity variant build. No Source import/World/capture, no next operation. Exact original133-input closure and one declared in-memory anchor replacement only. No source/oracle/expected edits.",
+  "code": "02d77c341548846bd719608b665f7cbddd652f42",
+  "controlId": "teleport-immunity",
+  "argv": [
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/map-styled-bench/npm-cache/_npx/361c55be1121897e/node_modules/node/bin/node",
+    "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/tools/bot-protection-cues-fixtures/variants-build.mjs",
+    "--source-root",
+    "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings",
+    "--tool-root",
+    "/Users/nevinmckinnon/Documents/Projects/RogueHalla/node_modules",
+    "--output",
+    "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-teleport-immunity-root-reviewed-01/prepared",
+    "--expected-code-sha",
+    "02d77c341548846bd719608b665f7cbddd652f42",
+    "--control-id",
+    "teleport-immunity"
+  ],
+  "env": {
+    "PATH": "/usr/bin:/bin",
+    "LANG": "C",
+    "LC_ALL": "C",
+    "ESBUILD_BINARY_PATH": "/Users/nevinmckinnon/Documents/Projects/RogueHalla/node_modules/@esbuild/darwin-arm64/bin/esbuild"
+  },
+  "cwd": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings",
+  "timeoutSeconds": 120,
+  "independentSourceReviews": [
+    "76595527ddcacab1a1946ab581f696a699e065cbb846f22579adef549a581af5",
+    "df0c23badcf2f30b40994deb3075e6a9fa9f6545b5ddf7d315077d9fa5f5c9c9"
+  ]
+}

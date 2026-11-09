@@ -1,0 +1,55 @@
+{
+  "format": "rh-local-bootstrap-proof-manifest/1",
+  "payloads": [
+    {
+      "path": "ATTEMPT03_ADMIN_SOCKET_SETTINGS.json",
+      "bytes": 385,
+      "sha256": "4f47900d9d85f3a9e5b567ac80ef7497c2244637ed8aa1db1c835d3517214fd8"
+    },
+    {
+      "path": "ATTEMPT03_APP_DURABILITY.json",
+      "bytes": 134,
+      "sha256": "67fd2e6e79c4d342e01a17e1c62e06f9d3f57606d6db17b8fb8a1a787fbf1a07"
+    },
+    {
+      "path": "OWNED_HANDLES_ATTEMPT03.json",
+      "bytes": 961,
+      "sha256": "b9088c8e98e4b8dcbb7ead9ccfd436ede4dbd415e96cf2063fccbae9b0f9cf43"
+    },
+    {
+      "path": "PHASE_A_ATTEMPT02_FIRST_FAILURE.json",
+      "bytes": 3065,
+      "sha256": "10baae23b96f929eed3faed91af16248432a95f473f339384fcfb562e6adb326"
+    },
+    {
+      "path": "PHASE_A_ATTEMPT03_ACTUAL.json",
+      "bytes": 9653,
+      "sha256": "71fc780f3e4dfdaa1a0f4e35af931fd4e5fdb8941833e1ad5dafab767744e632"
+    },
+    {
+      "path": "PHASE_A_FIRST_FAILURE.json",
+      "bytes": 1113,
+      "sha256": "a0d93c678fc5b4d70023b5db97d5d6429fcefab0f1571c83fd010c9a0e359c7d"
+    },
+    {
+      "path": "README.md",
+      "bytes": 2281,
+      "sha256": "1c34a31543d5daebc9e389c593989d0de75c2525fe442b8de74c4e79cdfe0f66"
+    },
+    {
+      "path": "ROOT_CORRECTED_PROBE_RESUME.json",
+      "bytes": 1989,
+      "sha256": "90bd7ae2c25557412fd1f78880a78cec31bc8f0bb70d8df798a79096d88c2fdf"
+    },
+    {
+      "path": "ROOT_HTTP_ALIAS_CORRECTION_RESUME.json",
+      "bytes": 1294,
+      "sha256": "fa7ff4bb32a80871a914a7927e2196f07a6c8faa3ca1177f36bcb1ae0417a408"
+    },
+    {
+      "path": "ROOT_RELEASE.json",
+      "bytes": 3271,
+      "sha256": "0f06a88f530a036ffa1d413394d9cddd4be88cc4e8964b0b0406f595c0940064"
+    }
+  ]
+}

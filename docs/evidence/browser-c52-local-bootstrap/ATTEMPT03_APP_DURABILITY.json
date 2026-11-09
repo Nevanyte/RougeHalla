@@ -1,0 +1,7 @@
+{
+  "role": "rh_game",
+  "fsync": "on",
+  "synchronous_commit": "on",
+  "full_page_writes": "on",
+  "privilegeGrantsChanged": false
+}

@@ -1,0 +1,10 @@
+{
+  "role": "bootstrap-admin-peer",
+  "listenAddresses": "",
+  "port": 65439,
+  "socketDirectory": "/private/tmp/rh-browser-c52-pg-65439",
+  "socketPermissions": "0700",
+  "dataDirectory": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/browser-c52-actual/pgdata",
+  "databaseSystemIdentifier": "7706286922582076631",
+  "privilegeGrantsChanged": false
+}
