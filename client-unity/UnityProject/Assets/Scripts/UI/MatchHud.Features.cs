@@ -205,13 +205,17 @@ namespace Roguehalla.Client
             var kb = Keyboard.current;
             bool dialog = _settings.gameObject.activeSelf || _results.gameObject.activeSelf || _menu.gameObject.activeSelf || (_signIn != null && _signIn.gameObject.activeSelf) || (_hubGuide != null && _hubGuide.IsVisible) ||
                 _drawer != null && _drawer.IsVisible || _help != null && _help.gameObject.activeSelf;
+            bool unrelatedModal = _settings.gameObject.activeSelf || _results.gameObject.activeSelf || _menu.gameObject.activeSelf ||
+                (_signIn != null && _signIn.gameObject.activeSelf) || (_hubGuide != null && _hubGuide.IsVisible);
             if (kb != null && !Typing)
             {
                 bool modified = kb.ctrlKey.isPressed || kb.altKey.isPressed || kb.leftMetaKey.isPressed || kb.rightMetaKey.isPressed || kb.shiftKey.isPressed;
                 if (!modified)
                 {
-                    if (kb.bKey.wasPressedThisFrame && !(_map?.IsPlanning ?? false)) ToggleBuild();
-                    if (kb.hKey.wasPressedThisFrame) ToggleHelp();
+                    // Build and Help can switch between each other, but neither may steal keys from
+                    // account, menu, result, guide, or settings panels.
+                    if (!unrelatedModal && kb.bKey.wasPressedThisFrame && !(_map?.IsPlanning ?? false)) ToggleBuild();
+                    if (!unrelatedModal && kb.hKey.wasPressedThisFrame) ToggleHelp();
                     if (kb.escapeKey.wasPressedThisFrame)
                     {
                         if (_signIn.gameObject.activeSelf) SetSignInVisible(false);

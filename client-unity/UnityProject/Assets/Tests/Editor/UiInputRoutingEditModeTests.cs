@@ -378,6 +378,71 @@ namespace Roguehalla.Client.Tests
         }
 
         [Test]
+        public void SettingsOwnsKeyboardAndBlocksBuildHelpShortcutsWithoutWorldCommands()
+        {
+            Invoke(_hud, "ToggleSettings");
+            var settings = _hud.transform.Find("MatchUI/SettingsPanel").gameObject;
+            Assert.That(settings.activeSelf, Is.True);
+
+            Press(Key.B);
+            ReadBothAndFlush();
+            Assert.That(settings.activeSelf, Is.True);
+            Assert.That(_hud.transform.Find("MatchUI/BuildDrawer").gameObject.activeSelf, Is.False,
+                "B must not open the build drawer over settings");
+            Assert.That(_hud.transform.Find("MatchUI/ControlsHelp").gameObject.activeSelf, Is.False,
+                "B must not open Help over settings");
+            Assert.That(_transport.TakeCommands(), Is.Empty, "modal shortcut input must not enqueue world commands");
+
+            ReleaseKeys();
+            Press(Key.H);
+            ReadBothAndFlush();
+            Assert.That(settings.activeSelf, Is.True);
+            Assert.That(_hud.transform.Find("MatchUI/BuildDrawer").gameObject.activeSelf, Is.False);
+            Assert.That(_hud.transform.Find("MatchUI/ControlsHelp").gameObject.activeSelf, Is.False,
+                "H must not open Help over settings");
+            Assert.That(_transport.TakeCommands(), Is.Empty, "modal shortcut input must not enqueue world commands");
+        }
+
+        [Test]
+        public void BuildAndHelpShortcutsStillToggleAndSwitchBetweenTheirPanels()
+        {
+            var drawer = _hud.transform.Find("MatchUI/BuildDrawer").gameObject;
+            var help = _hud.transform.Find("MatchUI/ControlsHelp").gameObject;
+
+            Press(Key.B);
+            _hud.ReadUiInput();
+            Assert.That(drawer.activeSelf, Is.True);
+            ReleaseKeys();
+            Press(Key.B);
+            _hud.ReadUiInput();
+            Assert.That(drawer.activeSelf, Is.False, "B closes the build drawer when it owns the modal");
+            ReleaseKeys();
+
+            Press(Key.H);
+            _hud.ReadUiInput();
+            Assert.That(help.activeSelf, Is.True);
+            ReleaseKeys();
+            Press(Key.H);
+            _hud.ReadUiInput();
+            Assert.That(help.activeSelf, Is.False, "H closes Help when it owns the modal");
+            ReleaseKeys();
+
+            Press(Key.B);
+            _hud.ReadUiInput();
+            Assert.That(drawer.activeSelf, Is.True);
+            ReleaseKeys();
+            Press(Key.H);
+            _hud.ReadUiInput();
+            Assert.That(help.activeSelf, Is.True);
+            Assert.That(drawer.activeSelf, Is.False, "Help replaces the build drawer");
+            ReleaseKeys();
+            Press(Key.B);
+            _hud.ReadUiInput();
+            Assert.That(drawer.activeSelf, Is.True, "the build drawer replaces Help");
+            Assert.That(help.activeSelf, Is.False);
+        }
+
+        [Test]
         public void FocusedTextInputPreventsTabFromOpeningMap()
         {
             _typingField = _hud.transform.Find("MatchUI/JoinMenu/Nickname").GetComponent<TMP_InputField>();
@@ -461,6 +526,8 @@ namespace Roguehalla.Client.Tests
             {
                 case Key.C: return _keyboard.cKey;
                 case Key.Digit1: return _keyboard.digit1Key;
+                case Key.B: return _keyboard.bKey;
+                case Key.H: return _keyboard.hKey;
                 case Key.Tab: return _keyboard.tabKey;
                 case Key.W: return _keyboard.wKey;
                 default: Assert.Fail("No injected-key precondition configured for " + key); return null;
