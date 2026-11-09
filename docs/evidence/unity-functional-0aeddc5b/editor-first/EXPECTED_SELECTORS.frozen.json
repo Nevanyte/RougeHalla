@@ -1,0 +1,160 @@
+{
+  "format": "rh-composed-unity-launch-native-gate/1",
+  "sourceApproval": "4ec547312dc9b7214bbf6a8e20a6ff7ed3f3ba3b",
+  "expectedTotal": 42,
+  "groups": [
+    {
+      "fixture": "QuestJournalViewEditModeTests",
+      "expectedCases": 8
+    },
+    {
+      "fixture": "TraderDialogViewEditModeTests",
+      "expectedCases": 6
+    },
+    {
+      "fixture": "PlayerFlowsEditModeTests",
+      "expectedCases": 11
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "expectedCases": 17,
+      "sourceMethods": 14
+    }
+  ],
+  "unchanged25SelectorFile": "docs/evidence/unity-ui-planning-quests/typing-guard/native-selectors.txt",
+  "unchanged25Sha256": "2d619f2f0c69c3770c685f4e1403b68213dde6320257a09350de44d0c1b16c2b",
+  "unchanged25FullNames": [
+    "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.UnseenUnavailableAndAvailableEmptyAreDistinctAndRowsPreserveExactServerText",
+    "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.MaximumLengthServerStringsRemainVerbatimInScrollableFixedSizeTextFields",
+    "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.ReplacementPreservesSelectedHandleAndScrollButClearsRemovedSelectionAndTracking",
+    "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.OldAcceptTrackAndRowCallbacksCannotActAfterReplacementBeforeRefresh",
+    "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.MetadataReplacementPreservesScrollPositionWhenRowsOverflowViewport",
+    "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.SelectedParticipantsUseTypedRosterIdsKeepDuplicateLabelsAndClearOnReplacementOrRebind",
+    "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.AcceptUsesCurrentHandleAndFreshCanAcceptThenSessionBatchesOnlyThatIntent",
+    "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.OldSessionCallbacksAndRemovedRowsCannotAcceptAfterRebindWelcomeOrDisconnect",
+    "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.MissingUnavailableAndAvailableEmptyTradeViewsStayDistinctAndOpeningIsReadOnly",
+    "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.DuplicateMerchantRowsLabelsAndSignedStatDeltasRenderInSourceOrder",
+    "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.StatUsedBlocksOnlyStatTradeWhileBarterPicksAreSentAsOrdinaryInput",
+    "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.CurrentOptionsQueueEveryOrdinaryStatPickAndMetadataReplacementInvalidatesOldCallbacks",
+    "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.DisconnectAndResumedWelcomeInvalidateOldRowsAndDropQueuedTradeInput",
+    "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.RebindingAnUnseenSessionClearsMerchantChoicesAndPendingCopyImmediately",
+    "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.ReceivedNoticeOrderIncludesDuplicatesAndResumeClearsBeforeNewBatch",
+    "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.InFlightOldSessionNoticeCallbackCannotAppendAfterRebind",
+    "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.InFlightSameSessionNoticeCallbackCannotCrossSourceClockCutAndNewEpochKeepsDuplicates",
+    "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.OrdinaryMixedQuestTradeQueueSplitsAtSixteenWithoutUiGeneratedCommands",
+    "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.DeliveredMapPointsReplaceWithoutActorFabricationOrNameDeduplication",
+    "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.MalformedFrameRetainsCanonicalViewButInvalidQuestItemReferenceFailsAndDisablesActions",
+    "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.JournalKeyboardOwnsSimultaneousMapAndWorldKeysAndRespectsExistingModals",
+    "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningQuestReviewPreservesMapChoicesAndFocusWhileBlockingOtherPagesAndWorldKeys",
+    "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningPreviewRetiresDeferredAcceptAndWaitsForFreshNativePermission",
+    "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningJournalDropAndResumedWelcomeClearRowsAndRestoreMapInput",
+    "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningJournalRespectsSettingsAndFocusedTextEntry"
+  ],
+  "new17SourceCaseFile": "docs/evidence/unity-launch-modes/expected-native-cases.json",
+  "new17SourceCaseSha256": "160f16431671daa01b8463a44a51d47075b5bfcae84445b04c36c40b6d8da1b5",
+  "new17SourceCases": [
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "method": "MissingTrainingNeverFallsBackOrStartsAnOwnershipRequest",
+      "argumentsSource": null,
+      "status": "UNRUN"
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "method": "CrossOriginTrainingCannotSendOwnerCredentialsOrStartAClaim",
+      "argumentsSource": null,
+      "status": "UNRUN"
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "method": "SwitchingModeWhileOwnerReplyIsDeferredInvalidatesTheOldIntent",
+      "argumentsSource": null,
+      "status": "UNRUN"
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "method": "RapidModeChangesOnlyConnectTheCurrentOwnerIntentToItsCapturedTarget",
+      "argumentsSource": null,
+      "status": "UNRUN"
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "method": "EditingTrainingTargetDuringOwnerRequestCannotUseItsCapturedToken",
+      "argumentsSource": null,
+      "status": "UNRUN"
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "method": "SynchronousFactionCancellationCannotOverwriteOrRelaunchANewerMode",
+      "argumentsSource": null,
+      "status": "UNRUN"
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "method": "LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation",
+      "argumentsSource": "false",
+      "status": "UNRUN"
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "method": "LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation",
+      "argumentsSource": "true",
+      "status": "UNRUN"
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "method": "OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot",
+      "argumentsSource": "MatchLaunchMode.Arena, false",
+      "status": "UNRUN"
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "method": "OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot",
+      "argumentsSource": "MatchLaunchMode.Training, true",
+      "status": "UNRUN"
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "method": "WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput",
+      "argumentsSource": "MatchLaunchMode.Arena, true",
+      "status": "UNRUN"
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "method": "WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput",
+      "argumentsSource": "MatchLaunchMode.Training, false",
+      "status": "UNRUN"
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "method": "ReconnectWelcomeRevokesConfirmationAndRequiresANewMatchingFact",
+      "argumentsSource": null,
+      "status": "UNRUN"
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "method": "RetiredCallbacksCannotResetOrRefuseANewerSession",
+      "argumentsSource": null,
+      "status": "UNRUN"
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "method": "ReentrantLeaveCallbackCannotHaveItsReplacementCancelledOrArenaDestroyed",
+      "argumentsSource": null,
+      "status": "UNRUN"
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "method": "PendingMenuAndPracticeCopyFollowDeliveredFactAndPlayAgainPreservesTraining",
+      "argumentsSource": null,
+      "status": "UNRUN"
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "method": "EndingBeforeTheFirstModeFactUnlocksRecoveryAndLeavePermitsAnotherDestination",
+      "argumentsSource": null,
+      "status": "UNRUN"
+    }
+  ],
+  "gate": "New17UNRUN. Before execution bind actualNUnit discovery strings to eachmethod+argumentcase; permit only nameformat mapping, no missing/extra/substitute/casecount-only pass. Preserve original25fullnames/bodies. Actualnative42engine execution required."
+}

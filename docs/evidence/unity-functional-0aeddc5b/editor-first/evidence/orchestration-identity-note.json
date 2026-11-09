@@ -1,0 +1,6 @@
+{
+  "status": "STOPPED_BEFORE_DISCOVERY_AND_TEST_EXECUTION",
+  "reason": "An orchestration-only uniqueness assertion rejected the unchanged test assembly MVID from8c. No source or test assertion changed; no forced recompile. Actual fresh loaded identity is retained, including changed production MVID. Awaiting coordinator clarification before tests.",
+  "testMvid": "b78f3c03-15d1-4924-b90a-9fe89d2737f4",
+  "productionMvid": "17da474b-9a95-4b98-8af9-13124aff40e9"
+}

@@ -1,0 +1,153 @@
+{
+  "source": "0aeddc5b4ce0feb5fc0060f2cf2d56c05dff8944",
+  "mvid": "b78f3c03-15d1-4924-b90a-9fe89d2737f4",
+  "productionMvid": "17da474b-9a95-4b98-8af9-13124aff40e9",
+  "productionAssemblyFileSha256": "812b702a3c995d9f0daa838e023279adba2c811f3483e98ae40aff7b57de52dd",
+  "policy": "one invocation per exact group; stop after first failure",
+  "groups": [
+    {
+      "fixture": "QuestJournalViewEditModeTests",
+      "command": [
+        "unity",
+        "command",
+        "test",
+        "run",
+        "--project-path",
+        "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject",
+        "--caller",
+        "plugin",
+        "--skill",
+        "unity-cli",
+        "--format",
+        "json",
+        "--",
+        "--mode",
+        "editor",
+        "--filter",
+        "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+        "--timeout",
+        "60"
+      ],
+      "startedUtc": "2026-11-09T11:41:11.874397+00:00",
+      "exitCode": 0,
+      "summary": {
+        "Total": 8,
+        "Passed": 8,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "exactNamesMatch": true,
+      "status": "PASS",
+      "resultPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/functional-0aeddc5b-2026-11-09/evidence/tests-QuestJournalViewEditModeTests.json"
+    },
+    {
+      "fixture": "TraderDialogViewEditModeTests",
+      "command": [
+        "unity",
+        "command",
+        "test",
+        "run",
+        "--project-path",
+        "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject",
+        "--caller",
+        "plugin",
+        "--skill",
+        "unity-cli",
+        "--format",
+        "json",
+        "--",
+        "--mode",
+        "editor",
+        "--filter",
+        "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+        "--timeout",
+        "60"
+      ],
+      "startedUtc": "2026-11-09T11:41:17.774671+00:00",
+      "exitCode": 0,
+      "summary": {
+        "Total": 6,
+        "Passed": 6,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "exactNamesMatch": true,
+      "status": "PASS",
+      "resultPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/functional-0aeddc5b-2026-11-09/evidence/tests-TraderDialogViewEditModeTests.json"
+    },
+    {
+      "fixture": "PlayerFlowsEditModeTests",
+      "command": [
+        "unity",
+        "command",
+        "test",
+        "run",
+        "--project-path",
+        "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject",
+        "--caller",
+        "plugin",
+        "--skill",
+        "unity-cli",
+        "--format",
+        "json",
+        "--",
+        "--mode",
+        "editor",
+        "--filter",
+        "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+        "--timeout",
+        "60"
+      ],
+      "startedUtc": "2026-11-09T11:41:22.881514+00:00",
+      "exitCode": 0,
+      "summary": {
+        "Total": 11,
+        "Passed": 11,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "exactNamesMatch": true,
+      "status": "PASS",
+      "resultPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/functional-0aeddc5b-2026-11-09/evidence/tests-PlayerFlowsEditModeTests.json"
+    },
+    {
+      "fixture": "MatchLaunchEditModeTests",
+      "command": [
+        "unity",
+        "command",
+        "test",
+        "run",
+        "--project-path",
+        "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject",
+        "--caller",
+        "plugin",
+        "--skill",
+        "unity-cli",
+        "--format",
+        "json",
+        "--",
+        "--mode",
+        "editor",
+        "--filter",
+        "MatchLaunchEditModeTests",
+        "--timeout",
+        "60"
+      ],
+      "startedUtc": "2026-11-09T11:41:29.590764+00:00",
+      "exitCode": 0,
+      "summary": {
+        "Total": 17,
+        "Passed": 17,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "exactNamesMatch": true,
+      "status": "PASS",
+      "resultPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/functional-0aeddc5b-2026-11-09/evidence/tests-MatchLaunchEditModeTests.json"
+    }
+  ]
+}
