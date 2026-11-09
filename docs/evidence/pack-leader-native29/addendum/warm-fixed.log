@@ -1,0 +1,24 @@
+=== warm all-three windows (same warmed checkpoint, equal windows)
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/worktrees/deepseek-rust-completion/p-pack-leader/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 13.54s
+     Running tests/pack_leader_warm.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fight-native/target/debug/deps/pack_leader_warm-296968f1026f5eae)
+
+running 1 test
+warm windows: original=0 clone=2 restore=2 actors=9
+
+thread 'camps_snapshot_warm_original_clone_restore_allocates_nothing' (67774227) panicked at crates/rh-sim/tests/pack_leader_warm.rs:99:5:
+assertion `left == right` failed: clone warm window allocations
+  left: 2
+ right: 0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test camps_snapshot_warm_original_clone_restore_allocates_nothing ... FAILED
+
+failures:
+
+failures:
+    camps_snapshot_warm_original_clone_restore_allocates_nothing
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+error: test failed, to rerun pass `-p rh-sim --test pack_leader_warm`
+EXIT=101

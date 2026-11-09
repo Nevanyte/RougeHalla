@@ -664,6 +664,7 @@ pub(crate) fn execute_share(
     victim_frac: f64,
     kind: OutgoingKind,
     baked: f64,
+    camps_cleared: u16,
 ) -> f64 {
     let has = build.cards().any(|id| {
         id.definition()
@@ -680,6 +681,7 @@ pub(crate) fn execute_share(
         victim_frac,
         kind,
         baked,
+        camps_cleared,
         0,
         VsProbe::default(),
         false,
@@ -693,6 +695,7 @@ pub(crate) fn execute_share(
         victim_frac,
         kind,
         baked,
+        camps_cleared,
         0,
         VsProbe::default(),
         true,
@@ -860,7 +863,8 @@ fn vs_holds(v: &crate::cards::VsRow, frac: f64, streak: u16, probe: VsProbe) -> 
 
 /// Source `outgoingMult`: what a hit deals before armor and shield, as (1 + the damage sums + holding vs rows + the
 /// stepped scale rows), G1-capped so the row multiplier times the entry's own kind mult never passes OUTGOING_ROW_CAP; farm
-/// damage is added outside the cap. Camps-cleared scales need the unported camp counter and contribute nothing yet.
+/// damage is added outside the cap. `camps_cleared` is the caller's pass-stable canonical Player.camps_cleared snapshot (the
+/// ledger freezes it before any victim/payout); mobs and unknown attackers pass 0. The camps scale reads only that value.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn outgoing_damage(
     p: &crate::fighter::FighterCore,
@@ -868,6 +872,7 @@ pub(crate) fn outgoing_damage(
     victim_frac: f64,
     kind: OutgoingKind,
     baked: f64,
+    camps_cleared: u16,
     streak: u16,
     probe: VsProbe,
     skip_execute: bool,
@@ -905,7 +910,9 @@ pub(crate) fn outgoing_damage(
                         crate::cards::ScaleSrc::Streak => {
                             s.per * (f64::from(streak) / s.step + 1e-9).floor()
                         }
-                        crate::cards::ScaleSrc::CampsCleared => 0.,
+                        crate::cards::ScaleSrc::CampsCleared => {
+                            s.per * (f64::from(camps_cleared) / s.step + 1e-9).floor()
+                        }
                     };
                     sum += if bonus > s.cap { s.cap } else { bonus };
                 }
@@ -918,6 +925,9 @@ pub(crate) fn outgoing_damage(
     }
     (1. + sum).min(ceiling).max(0.) + farm
 }
+
+#[cfg(test)]
+mod camps_tests;
 
 #[cfg(test)]
 mod race_tests {
@@ -1076,6 +1086,7 @@ mod guard_tests {
                 victim_frac,
                 OutgoingKind::Hit,
                 1.,
+                0,
                 0,
                 VsProbe::default(),
                 false,

@@ -1,0 +1,5 @@
+--- a/packages/shared/src/cards.ts
++++ b/packages/shared/src/cards.ts
+@@ -344,1 +344,1 @@
+-    effects: [{ k: "scale", src: "campsCleared", per: 0.03, step: 1, cap: 0.24 }],
++    effects: [{ k: "scale", src: "campsCleared", per: 0.06, step: 1, cap: 0.24 }],

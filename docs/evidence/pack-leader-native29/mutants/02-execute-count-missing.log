@@ -1,0 +1,39 @@
+MUTANT 02-execute-count-missing
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/worktrees/deepseek-rust-completion/p-pack-leader/crates/rh-sim)
+warning: unused variable: `camps_cleared`
+   --> crates/rh-sim/src/modifiers/mod.rs:667:5
+    |
+667 |     camps_cleared: u16,
+    |     ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_camps_cleared`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `rh-sim` (lib test) generated 1 warning (run `cargo fix --lib -p rh-sim --tests` to apply 1 suggestion)
+    Finished `test` profile [unoptimized] target(s) in 37.83s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fight-native/target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 7 tests
+test systems::ledger::camps_tests::the_scratch_capacity_is_prepared_by_reserve_actors_past_eight_actors ... ok
+test modifiers::camps_tests::farm_damage_is_added_outside_the_camps_row_cap ... ok
+test modifiers::camps_tests::declared_helper_cache_refresh_timing_maps_to_the_explicit_native_count_argument ... ok
+test modifiers::camps_tests::declared_helper_counts_0_1_7_8_9_20_match_the_native_query ... ok
+test modifiers::camps_tests::declared_helper_execute_share_matches_the_native_full_versus_without_queries ... FAILED
+test systems::ledger::camps_tests::the_pass_snapshot_is_read_per_attacker_and_cleared_after_the_pass ... ok
+test systems::ledger::camps_tests::a_same_pass_camp_clear_uses_the_pass_start_count_and_the_next_pass_the_new_count ... ok
+
+failures:
+
+---- modifiers::camps_tests::declared_helper_execute_share_matches_the_native_full_versus_without_queries stdout ----
+
+thread 'modifiers::camps_tests::declared_helper_execute_share_matches_the_native_full_versus_without_queries' (67673207) panicked at crates/rh-sim/src/modifiers/camps_tests.rs:155:5:
+execute share count1 0.23076923076923084 != source 0.22556390977443608
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    modifiers::camps_tests::declared_helper_execute_share_matches_the_native_full_versus_without_queries
+
+test result: FAILED. 6 passed; 1 failed; 0 ignored; 0 measured; 817 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p rh-sim --lib`
+MUTANT-KILLED 02-execute-count-missing

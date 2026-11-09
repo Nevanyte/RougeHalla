@@ -1,0 +1,13 @@
+=== restored execute control
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/worktrees/deepseek-rust-completion/p-pack-leader/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 37.88s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fight-native/target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 3 tests
+test systems::ledger::camps_tests::the_scratch_capacity_is_prepared_by_reserve_actors_past_eight_actors ... ok
+test systems::ledger::camps_tests::the_pass_snapshot_is_read_per_attacker_and_cleared_after_the_pass ... ok
+test systems::ledger::camps_tests::a_same_pass_camp_clear_uses_the_pass_start_count_and_the_next_pass_the_new_count ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 821 filtered out; finished in 0.01s
+
+EXIT=0

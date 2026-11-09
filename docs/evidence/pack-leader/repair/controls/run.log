@@ -1,0 +1,20 @@
+CONTROL 01-constant-zero
+MUTANT-SOURCE-HASH-BOUND packages/server/src/sim/mods.ts afa6a79670428830b58f5bf03f7279ecb70c3f4fbf963a9de96a4c8138c60181
+CONTROL-OK 01-constant-zero SEMANTIC-DIFF
+CONTROL 02-wrong-per
+MUTANT-SOURCE-HASH-BOUND packages/shared/src/cards.ts e9869c22215d8a8ea5a741bf1cff18bd2e0c6da63762133826aefca0a9c6726b
+CONTROL-OK 02-wrong-per SEMANTIC-DIFF
+CONTROL 03-wrong-step
+MUTANT-SOURCE-HASH-BOUND packages/shared/src/cards.ts f1875b8445402a6c8cb6cde088a697a383329e13721e265652d0f391e00dda49
+CONTROL-OK 03-wrong-step SEMANTIC-DIFF
+CONTROL 04-cache-refresh-timing
+MUTANT-SOURCE-HASH-BOUND packages/server/src/sim/mods.ts 90bfdd93196a912be839a8577e17e57ed40a5791c9e334964fc3b9cbb85f9f7a
+CONTROL-OK 04-cache-refresh-timing SEMANTIC-DIFF
+CONTROL 05-comment-only
+MUTANT-SOURCE-HASH-BOUND packages/server/src/sim/mods.ts 8d4a289ad6bd859fd1cbe6f8c8af5caa4ac38943afde27acbfe6c39a98af925c
+CONTROL-OK 05-comment-only SEMANTIC-IDENTICAL PROVENANCE-DIFF
+CONTROL 06-excluded-count
+MUTANT-SOURCE-HASH-BOUND packages/server/src/sim/campHeal.ts fb91c9403c9a05a733dd41b5883c9c4ab34235ceccfca1faa0b2ea134c5639a6
+CONTROL-OK 06-excluded-count SEMANTIC-DIFF
+RESTORED-IDENTICAL-BYTES
+CONTROLS-GREEN

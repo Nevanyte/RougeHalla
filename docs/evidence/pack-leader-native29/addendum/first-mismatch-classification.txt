@@ -1,0 +1,11 @@
+FIRST SOURCE/NATIVE LANDED-ARGUMENT MISMATCH (sealed native29 replay, index 27)
+Source wants: tick37/1850ms, mob3, amount 173.02008852570654 (weapon wand, sig null, raw 307.9757575757576).
+Native got:  tick37/1850ms, mob3, amount 65.68637747290633 (weapon wand).
+Static corpus search: the native amount 65.68637747290633 does NOT occur anywhere in the 338 ordered relevant source
+hitLanded argument records; 173.02008852570654 occurs exactly at index 27. So this is NOT a pure ordering shift or a
+trivial chunk split/merge of a source record; it is a genuine native landed-chunk decomposition/arithmetic difference at
+the same tick/actor/weapon. Classification needs Root scope: inspect source chunk classification/signature and native
+LandedHit construction for that wand action before any production claim or fix. No production change made.
+Also: lifecycle comparator was not reached after this assertion; earlier death/clear tick checks passed. Warm RED retained
+(original=0, clone=2, restore=2). Live main/reward boundary-state comparisons are still NOT implemented; prior RNG claim
+correction stands (bootstrap patch now genuinely applied, live boundary checks pending).

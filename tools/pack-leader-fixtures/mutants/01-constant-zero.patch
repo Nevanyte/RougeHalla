@@ -1,0 +1,8 @@
+--- a/packages/server/src/sim/mods.ts
++++ b/packages/server/src/sim/mods.ts
+@@ -694,4 +694,4 @@
+     let bonus = 0;
+     if (e.src === "campsCleared") {
+-      bonus = e.per * Math.floor(b.camps / e.step + 1e-9);
++      bonus = 0;
+     } else if (e.src === "streak") {
