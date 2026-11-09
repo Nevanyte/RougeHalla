@@ -1,0 +1,9 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owner-combat-native-continuation/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 23.14s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owner-combat-native-continuation/target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 1 test
+test owner_combat::continuation_tests::source_l07_actual_target_death_retains_one_completed_held_frame ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 759 filtered out; finished in 0.06s
+

@@ -83,4 +83,6 @@ pub(crate) fn project(
 }
 
 #[cfg(test)]
+mod continuation_tests;
+#[cfg(test)]
 mod tests;

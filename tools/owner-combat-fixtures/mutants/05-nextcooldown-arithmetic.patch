@@ -1,0 +1,7 @@
+--- a/packages/client/src/ui/weaponBar.ts
++++ b/packages/client/src/ui/weaponBar.ts
+@@ -40,3 +40,3 @@
+ export function nextCooldown(prevReadyAt: number, prevCooldown: number, readyAt: number, patchT: number): number {
+-  return isExtension(prevReadyAt, readyAt, patchT) ? prevCooldown + (readyAt - prevReadyAt) : Math.max(1, readyAt - patchT);
++  return isExtension(prevReadyAt, readyAt, patchT) ? prevCooldown + (readyAt - prevReadyAt) : Math.max(1, readyAt - patchT + 1);
+ }

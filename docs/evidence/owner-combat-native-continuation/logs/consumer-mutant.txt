@@ -1,0 +1,24 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owner-combat-native-continuation/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 25.21s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owner-combat-native-continuation/target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 1 test
+test owner_combat::continuation_tests::source_l07_actual_target_death_retains_one_completed_held_frame ... FAILED
+
+failures:
+
+---- owner_combat::continuation_tests::source_l07_actual_target_death_retains_one_completed_held_frame stdout ----
+
+thread 'owner_combat::continuation_tests::source_l07_actual_target_death_retains_one_completed_held_frame' (65943513) panicked at crates/rh-sim/src/owner_combat/continuation_tests.rs:283:5:
+assertion `left == right` failed: L07/281/current identity
+  left: Clear
+ right: Held { target: Some(PlayerId(2)) }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    owner_combat::continuation_tests::source_l07_actual_target_death_retains_one_completed_held_frame
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 759 filtered out; finished in 0.06s
+
+error: test failed, to rerun pass `-p rh-sim --lib`

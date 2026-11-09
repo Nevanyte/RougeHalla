@@ -1,0 +1,9 @@
+--- a/packages/server/src/sim/mods.ts
++++ b/packages/server/src/sim/mods.ts
+@@ -273,6 +273,5 @@
+ function writeMirrors(s: PlayerState, m: StatMirrors): void {
+   if (s.asMult !== m.asMult) s.asMult = m.asMult;
+-  if (s.windupMult !== m.windupMult) s.windupMult = m.windupMult;
+   if (s.speedMult !== m.speedMult) s.speedMult = m.speedMult;
+   if (s.armorBonus !== m.armorBonus) s.armorBonus = m.armorBonus;
+   if (s.shieldBonus !== m.shieldBonus) s.shieldBonus = m.shieldBonus;

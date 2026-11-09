@@ -52,10 +52,20 @@ impl Entry {
         self.source.as_ref().and_then(|s| s.owner_id).or(self.by)
     }
 }
+/// The source Overkill predicate arithmetic: total damage, then what a player barrier absorbed, then what actually
+/// applied. The hook fires only when the result is strictly greater than 1e-9.
+fn overkill_excess(total: f64, absorbed: f64, applied: f64) -> f64 {
+    total - absorbed - applied
+}
+
 /// One entry that hit a victim the pass killed with damage to spare (source `OverkillHit`): the entry and its applied share.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct OverkillHit {
     pub(crate) entry: Entry,
+    /// The actual mitigated/capped/denied amount for this entry.
+    pub(crate) amount: f64,
+    /// The source pre-mitigation raw from this pass, after scaling/settlement multiplication and before mitigation,
+    /// caps and denials. The existing Overkill splash consumes this value unchanged.
     pub(crate) raw: f64,
 }
 
@@ -276,6 +286,7 @@ struct Pass<'a> {
 struct Bufs<'a> {
     idxs: &'a mut Vec<usize>,
     amounts: &'a mut Vec<f64>,
+    raws: &'a mut Vec<f64>,
     order: &'a mut Vec<(usize, usize)>,
     hits: &'a mut Vec<Hit>,
     dot_sums: &'a mut Vec<(PlayerId, f64)>,
@@ -359,6 +370,7 @@ fn apply_inner(
         entry_rank,
         idxs,
         amounts,
+        ledger_raws: raws,
         order,
         hits,
         dot_sums,
@@ -558,6 +570,7 @@ fn apply_inner(
     let mut bufs = Bufs {
         idxs,
         amounts,
+        raws,
         order,
         hits,
         dot_sums,
@@ -609,11 +622,13 @@ fn apply_victim(
     let Bufs {
         idxs,
         amounts,
+        raws,
         order,
         hits,
         dot_sums,
     } = b;
     amounts.clear();
+    raws.clear();
     amounts.extend(idxs.iter().map(|&k| {
         let e = &ledger[k];
         let attacker =
@@ -630,17 +645,19 @@ fn apply_victim(
                 .and_then(|p| pass.stats.view(p).mark_suppression),
         );
         let friendly_mobs = !player && e.by.is_some_and(|id| pass.w.mobs.contains(id));
-        let raw = if e.scale > 0. && !friendly_mobs {
+        let raw_source = if e.scale > 0. {
             e.packet.raw * e.scale * mults[k] * factor
         } else {
             0.
         };
+        raws.push(raw_source);
+        let raw_damage = if friendly_mobs { 0. } else { raw_source };
         let s = DamageShares {
             phys: e.packet.phys,
             magic: e.packet.magic,
             true_: e.packet.true_,
         };
-        mitigate_shares(raw, &s, armor, shield)
+        mitigate_shares(raw_damage, &s, armor, shield)
     }));
     if player && pass.k.config.pvp_rules {
         let cap = PVP_HIT_CAP_SHARE * pass.w.core(ix).vitals.max_hp;
@@ -909,33 +926,48 @@ fn apply_victim(
             weapons::stagger_cancel(pass.w.core_mut(ix), now, pass.ev);
         }
     }
-    // Source ledger: every hitLanded and stagger callback precedes overkilled.
-    if !pass.w.standing(ix) && total > hp_before {
-        let hits: Vec<OverkillHit> = idxs
-            .iter()
-            .enumerate()
-            .map(|(j, &index)| OverkillHit {
-                entry: ledger[index].clone(),
-                raw: amounts[j],
-            })
-            .collect();
-        crate::hooks::fire(
-            &mut crate::hooks::Hx {
-                stats: pass.stats,
-                k: pass.k,
-                w: pass.w,
-                ev: pass.ev,
-                fx: None,
-            },
-            crate::hooks::HookArgs::Overkilled {
-                victim: v,
-                hits,
-                overkill: total - hp_before,
-                total,
-            },
-        );
+    // Source ledger: every hitLanded and stagger callback precedes overkilled. What a player's barrier swallowed was
+    // never aimed at hp; the excess uses the source operation order total, absorbed, applied. Entries are included in
+    // their original ledger order, filtered to positive non-arena amounts, each with its own applied amount and raw.
+    if !pass.w.standing(ix) {
+        let absorbed = if player {
+            (barrier_before - pass.w.core(ix).vitals.barrier).max(0.0)
+        } else {
+            0.0
+        };
+        let overkill = overkill_excess(total, absorbed, applied);
+        if overkill > 1e-9 {
+            let hits: Vec<OverkillHit> = idxs
+                .iter()
+                .enumerate()
+                .filter(|(j, &index)| amounts[*j] > 0.0 && !ledger[index].arena)
+                .map(|(j, &index)| OverkillHit {
+                    entry: ledger[index].clone(),
+                    amount: amounts[j],
+                    raw: raws[j],
+                })
+                .collect();
+            crate::hooks::fire(
+                &mut crate::hooks::Hx {
+                    stats: pass.stats,
+                    k: pass.k,
+                    w: pass.w,
+                    ev: pass.ev,
+                    fx: None,
+                },
+                crate::hooks::HookArgs::Overkilled {
+                    victim: v,
+                    hits,
+                    overkill,
+                    total,
+                },
+            );
+        }
     }
 }
+
+#[cfg(all(test, feature = "trusted-status-probes"))]
+mod overkill_source_tests;
 
 /// Legacy `applyHits` for a player victim: the hits land together; the kill goes to the largest rival hit.
 fn apply_hits(pass: &mut Pass, vi: usize, hits: &[Hit]) -> f64 {

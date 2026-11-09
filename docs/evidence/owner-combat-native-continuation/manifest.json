@@ -1,0 +1,146 @@
+{
+  "base": "ce4de3614a2bcd75fad95e44d8ddeb700faea143",
+  "productionGateFix": "a30696671e22798bde6a7503bfca9845269a6575",
+  "inheritedTestLiteralFix": "b956cfedf2190c1642bf810ba3f7bc22d03490c8",
+  "branch": "codex/owner-combat-native-continuation",
+  "environment": "source final-env.sh; CARGO_TARGET_DIR=../target in this owned worktree",
+  "oracles": [
+    {
+      "path": "parity/policy/owner-combat-continuation/producer.json",
+      "bytes": 1011285,
+      "sha256": "6edf61838c6ff65afae7878f929afb832896cb1a9f031b8d7273babdbe51d096",
+      "unchangedFromBase": true
+    },
+    {
+      "path": "parity/policy/owner-combat-continuation/human-projection.json",
+      "bytes": 1160798,
+      "sha256": "b21e041e4b043c945928955ff9548ee54e1528d682fbdd66fdf5dbff5eb5324d",
+      "unchangedFromBase": true
+    }
+  ],
+  "files": [
+    {
+      "path": "crates/rh-sim/src/owner_combat.rs",
+      "bytes": 2629,
+      "sha256": "9970d63bdce895aa007dd076f56a09c108646302cfe0f8d6c3f57b5dadf00a77"
+    },
+    {
+      "path": "crates/rh-sim/src/owner_combat/continuation_tests.rs",
+      "bytes": 17817,
+      "sha256": "07d586a07591dc97ebdd122e365a51ecd9246f00bf04f05a7ed2267a828ee931"
+    },
+    {
+      "path": "crates/rh-sim/src/schedule.rs",
+      "bytes": 68467,
+      "sha256": "69417be04add138117416bec6af09c36fd2cf24206757baa907eded55c4de101"
+    },
+    {
+      "path": "crates/rh-sim/src/actor_refs.rs",
+      "bytes": 10316,
+      "sha256": "819e5aaf261e1b88eb0c3c3f8cb0b561b1e1f097779cd4392978dae56d85935c"
+    },
+    {
+      "path": "docs/evidence/owner-combat-native-continuation/README.md",
+      "bytes": 6661,
+      "sha256": "99999ebff11070c51fd49e338951ee3ce1d9e2b5097464c170c875893b47c77b"
+    },
+    {
+      "path": "docs/evidence/owner-combat-native-continuation/consumer-lock-clear.patch",
+      "bytes": 473,
+      "sha256": "b9a022725cc0a5d82e953b20e4214545578d4147131b96d4cdda3845fa7cd183"
+    },
+    {
+      "path": "docs/evidence/owner-combat-native-continuation/consumer-mutant.json",
+      "bytes": 749,
+      "sha256": "c964da4852c14864b2c1e3e7f7c5746c1a4f4018c758897ac13e7b5ed507c8be"
+    },
+    {
+      "path": "docs/evidence/owner-combat-native-continuation/logs/allocation.txt",
+      "bytes": 475,
+      "sha256": "3db782eb343db920b1520d30175d2941e37e014b5cb44d4deced5d70deacd332"
+    },
+    {
+      "path": "docs/evidence/owner-combat-native-continuation/logs/clippy-default.txt",
+      "bytes": 220,
+      "sha256": "2806a01ecbc4916c72aaece3a36a1ece918728317d6e434d012bf0b636e274a4"
+    },
+    {
+      "path": "docs/evidence/owner-combat-native-continuation/logs/clippy-trusted.txt",
+      "bytes": 220,
+      "sha256": "d88a214a786387a71851ff3c429add83908e0e30202229acc6cd875fdb42f2de"
+    },
+    {
+      "path": "docs/evidence/owner-combat-native-continuation/logs/consumer-mutant.txt",
+      "bytes": 1320,
+      "sha256": "8cc1b6bef004d40df84e90e01662cbca6d7aee0036abde03114fbe79ed551a44"
+    },
+    {
+      "path": "docs/evidence/owner-combat-native-continuation/logs/fmt.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/evidence/owner-combat-native-continuation/logs/owner.txt",
+      "bytes": 2423,
+      "sha256": "88a4c72116865438dd7aeccf414912e973e7be5d456a4644da83e1161f3359dd"
+    },
+    {
+      "path": "docs/evidence/owner-combat-native-continuation/logs/pre-fix-gates.txt",
+      "bytes": 1042,
+      "sha256": "f0dbed6f6dadb40c95863a91eb410da1fffebf7241ef39e534f9832c61759121"
+    },
+    {
+      "path": "docs/evidence/owner-combat-native-continuation/logs/pre-fix-m04.txt",
+      "bytes": 1306,
+      "sha256": "f79aa078b9e95739e7fc8490e15989ead87ddf73d0c8384a1195f770597227e8"
+    },
+    {
+      "path": "docs/evidence/owner-combat-native-continuation/logs/restored-control.txt",
+      "bytes": 634,
+      "sha256": "28bc75b156459d8e31f5c4f1a69f7a3fb28679e4f4a8b1609b13b956ec8c20b5"
+    },
+    {
+      "path": "docs/evidence/owner-combat-native-continuation/logs/schedule.txt",
+      "bytes": 828,
+      "sha256": "6077b0e5a370dfbf305fab6e2e71cd99f24ef4e1c4201c147ade24070449cdad"
+    },
+    {
+      "path": "docs/evidence/owner-combat-native-continuation/logs/strict63.txt",
+      "bytes": 593,
+      "sha256": "97d34a9d9b90d202d6ebd83678da7687d9e97f082598763b4610dfecc846517a"
+    },
+    {
+      "path": "docs/evidence/owner-combat-native-continuation/logs/training.txt",
+      "bytes": 1568,
+      "sha256": "8748c3ddfa278e12966314643913410eda16fbd98509d737030558b4c5991dde"
+    }
+  ],
+  "results": {
+    "ownerPassed": 11,
+    "ownerAllocationSeparatelyIgnored": 1,
+    "schedulePassed": 6,
+    "trainingPassed": 14,
+    "strictFullSourceCases": 63,
+    "strictFullSourceTestsPassed": 1,
+    "isolatedAllocationTestsPassed": 1,
+    "measuredProjectionCalls": 90000,
+    "allocatedBlocks": 0,
+    "newNativeSteps": 1377,
+    "newRawFrames": 306,
+    "newDirectSnapshots": 1,
+    "matchedRawAppliedHits": 137,
+    "compiledConsumerDiagnosticExit": 101,
+    "restoredExactControlPassed": 1,
+    "clippyDefault": 0,
+    "clippyTrusted": 0,
+    "fmtDiffCheck": 0
+  },
+  "limits": [
+    "collision-only map and lifecycle-Off normalization: bounded pre-teleport owner cases only",
+    "L08 explicitly direct lifecycle, no Room/socket claim",
+    "raw current entitled canonical identities before ActorRefs mapping; no retained hidden identities",
+    "M04 refused: no nonidentity mirror/fourth producer claim",
+    "no new native pre-settle callback snapshot or whole-world/projectile/terrain equality",
+    "public owner/codec/headers/content/tapes/status activation remains coordinator-owned"
+  ]
+}

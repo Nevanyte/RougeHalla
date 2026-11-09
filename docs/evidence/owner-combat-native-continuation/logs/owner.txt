@@ -1,0 +1,25 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owner-combat-native-continuation/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 25.36s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owner-combat-native-continuation/target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 12 tests
+test owner_combat::tests::projection_allocates_zero_for_visible_hidden_changed_identity_and_error_paths ... ignored, uses the existing global dhat allocator; run this exact test alone with --ignored --test-threads=1
+test owner_combat::tests::native_nonfinite_clocks_refuse_before_source_normalization_and_cache_errors_never_default ... ok
+test owner_combat::tests::projection_only_hidden_identity_pairs_are_equal_and_never_retained ... ok
+test owner_combat::tests::source_u32_matches_all_26_schema_and_bot_boundary_probes ... ok
+test owner_combat::tests::mirror_validation_preserves_source_encoded_f64_bits_without_u16_or_twenty_x_cap ... ok
+owner continuation M04: 26 raw frames, 26 actual native steps, 0 actual matched raw/applied hits
+owner continuation D02: 30 raw frames, 30 actual native steps, 0 actual matched raw/applied hits
+owner continuation L08: 24 raw frames, 24 actual native steps, 0 actual matched raw/applied hits
+owner continuation L07: 31 raw frames, 293 actual native steps, 14 actual matched raw/applied hits
+owner continuation M05: 195 raw frames, 1004 actual native steps, 123 actual matched raw/applied hits
+test owner_combat::continuation_tests::source_m04_refused_base_card_never_becomes_a_mirror_producer ... ok
+test owner_combat::continuation_tests::source_d02_legal_swap_cancels_the_actual_bow_draw ... ok
+test owner_combat::continuation_tests::source_l08_direct_lifecycle_removal_redacts_identity_before_next_step_clear ... ok
+test owner_combat::continuation_tests::source_l07_actual_target_death_retains_one_completed_held_frame ... ok
+test owner_combat::continuation_tests::source_m05_actual_practice_damage_downs_and_revives_twice ... ok
+test owner_combat::tests::source_u32_matches_every_recorded_producer_clock_without_rebuilding_it ... ok
+test owner_combat::tests::ordinary_native_acquire_reclick_retarget_move_stop_and_draw_compare_the_source_prefix ... ok
+
+test result: ok. 11 passed; 0 failed; 1 ignored; 0 measured; 748 filtered out; finished in 0.44s
+

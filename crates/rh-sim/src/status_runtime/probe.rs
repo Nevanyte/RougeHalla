@@ -129,6 +129,30 @@ pub enum HealSource {
     IgnoreLockout,
     DeathFloor,
 }
+/// Typed read-only Overkill diagnostic. It is separate from HookRecord, never enters canonical World state, and is
+/// populated only when the trusted probe is enabled.
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub(crate) struct OverkillProbeHit {
+    pub(crate) by: Option<PlayerId>,
+    pub(crate) victim: PlayerId,
+    pub(crate) amount: f64,
+    pub(crate) raw: f64,
+    pub(crate) weapon: Option<crate::content::WeaponId>,
+    pub(crate) arena: bool,
+    pub(crate) sig: Option<crate::factions::SignatureKind>,
+    pub(crate) ability: Option<AbilityId>,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub(crate) struct OverkillProbe {
+    pub(crate) victim: PlayerId,
+    pub(crate) tick: u32,
+    pub(crate) time: f64,
+    pub(crate) overkill: f64,
+    pub(crate) total: f64,
+    pub(crate) hits: Vec<OverkillProbeHit>,
+}
+
 #[derive(Debug, Default)]
 pub(crate) struct ProbeLog {
     pub enabled: bool,
@@ -137,6 +161,7 @@ pub(crate) struct ProbeLog {
     pub after_weapons: Vec<AfterWeaponsActor>,
     pub after_weapons_hook_count: usize,
     pub invocations: Vec<Invocation>,
+    pub overkilled: Vec<OverkillProbe>,
 }
 /// Read-only exact phase snapshot; the disabled path does nothing beyond the guard.
 pub(crate) fn after_weapons(w: &mut World) {
@@ -168,6 +193,34 @@ pub(crate) fn record_hook(w: &mut World, args: &HookArgs) {
         tick: w.tick,
         time: w.server_time,
     });
+    if let HookArgs::Overkilled {
+        victim,
+        hits,
+        overkill,
+        total,
+    } = args
+    {
+        w.trace.1.overkilled.push(OverkillProbe {
+            victim: *victim,
+            tick: w.tick,
+            time: w.server_time,
+            overkill: *overkill,
+            total: *total,
+            hits: hits
+                .iter()
+                .map(|hit| OverkillProbeHit {
+                    by: hit.entry.by,
+                    victim: hit.entry.victim,
+                    amount: hit.amount,
+                    raw: hit.raw,
+                    weapon: hit.entry.weapon,
+                    arena: hit.entry.arena,
+                    sig: hit.entry.sig,
+                    ability: hit.entry.ability,
+                })
+                .collect(),
+        });
+    }
     let record = match args {
         HookArgs::StatusApplied {
             id, index, fresh, ..
