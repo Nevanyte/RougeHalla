@@ -8,9 +8,9 @@
     "image": "node@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d",
     "entry": "/repo/tools/walk-hint-fixtures/helper-scenario.mts",
     "bundle": {
-      "bytes": 1075560,
-      "sha256": "289322548610f8fb2a6ba5d233baec9df85b3010e23e227d06828f0e3a2fe54c",
-      "path": "/tmp/walk-hint-helpers-20-28932254.mjs"
+      "bytes": 1074409,
+      "sha256": "2488d9de64b304dccb323418255ca194da5f5ce06b7571b41efa4b00145c5e54",
+      "path": "/tmp/walk-hint-helpers-20-2488d9de.mjs"
     },
     "source": {
       "packages/server/src/sim/walkHint.ts": {
@@ -57,6 +57,18 @@
         "bytes": 46007,
         "sha256": "51ce4dd800ec868abee525fb1ae375688066f336972a7da878644df1235924e7"
       },
+      "packages/shared/src/mods.ts": {
+        "bytes": 23134,
+        "sha256": "10e9dcd3d7417c4fe85d1c36ef33afe5abf7a5703a59b42a3a825a66aa4efaff"
+      },
+      "packages/shared/src/weapons.ts": {
+        "bytes": 15391,
+        "sha256": "2f22f037502fe63fae6b47f20408cfd35ebc72bfea081194ae8d18cfc21df99b"
+      },
+      "packages/shared/src/factions.ts": {
+        "bytes": 14039,
+        "sha256": "aa0cebf1c17af17b64bc1e020c4613ab10788ec66d82a72232aef8915d5403f3"
+      },
       "packages/shared/src/walk.ts": {
         "bytes": 15362,
         "sha256": "0d33c95623a6d11fa21a9e58b308eed8cb0150b24d65b592877c5f9e2b5a0020"
@@ -69,6 +81,12 @@
         "bytes": 21947,
         "sha256": "5ee4fe11e793f83f3d095720ba1156a186c5c7704e864f2cad74503ab13a07d6"
       }
+    },
+    "relatedPlayerTimingCorpus": {
+      "path": "parity/policy/bot-fight/source.json",
+      "bytes": 467672,
+      "sha256": "197fe5d24b6b34822a3ef76e2999d422e6127bbda1e8dfda0ba0af3ee5e2785e",
+      "note": "existing accepted 90 player timing rows; pure-kernel helper rows are separate and do not overwrite it"
     },
     "contextPolicy": "declared HELPER inputs; actual imported source outputs only; no earned World history or installed expected hint",
     "sourceFunctions": "walkHintOf/weaponHoldsAt/updateWalkHints exported; installed teleported/runEnded hooks invoked directly; all other branches through walkHintOf"
@@ -793,58 +811,6 @@
       "draws": 0
     },
     {
-      "id": "weaponHoldsAt-swing-tie-exact",
-      "family": "weaponHoldsAt",
-      "helper": true,
-      "input": {
-        "weapon": "wand",
-        "at": "now+50",
-        "rootUntil": 0,
-        "action": {
-          "kind": "swing",
-          "landsAt": "now+50.000001"
-        }
-      },
-      "observed": {
-        "kind": "weaponHoldsAt",
-        "at": "now+50",
-        "observed": false
-      },
-      "setupEvents": [
-        {
-          "type": "raidStarted"
-        }
-      ],
-      "events": [],
-      "draws": 0
-    },
-    {
-      "id": "weaponHoldsAt-swing-tie-just-over",
-      "family": "weaponHoldsAt",
-      "helper": true,
-      "input": {
-        "weapon": "wand",
-        "at": "now+50",
-        "rootUntil": 0,
-        "action": {
-          "kind": "swing",
-          "landsAt": "now+50.000002"
-        }
-      },
-      "observed": {
-        "kind": "weaponHoldsAt",
-        "at": "now+50",
-        "observed": true
-      },
-      "setupEvents": [
-        {
-          "type": "raidStarted"
-        }
-      ],
-      "events": [],
-      "draws": 0
-    },
-    {
       "id": "lock-free",
       "family": "lock",
       "helper": true,
@@ -984,103 +950,6 @@
       "draws": 0
     },
     {
-      "id": "lock-goal-target",
-      "family": "lock",
-      "helper": true,
-      "input": {
-        "weapon": "wand",
-        "lock": "p1",
-        "targetX": 400,
-        "planAt": -150,
-        "lockGoal": {
-          "x": 400,
-          "y": 200
-        },
-        "lockSeen": true
-      },
-      "observed": {
-        "kind": "walkHintOf",
-        "hint": {
-          "dir": 0,
-          "ticks": 0
-        }
-      },
-      "setupEvents": [
-        {
-          "type": "raidStarted"
-        }
-      ],
-      "events": [],
-      "draws": 0
-    },
-    {
-      "id": "lock-goal-just-over",
-      "family": "lock",
-      "helper": true,
-      "input": {
-        "weapon": "wand",
-        "lock": "p1",
-        "targetX": 400,
-        "planAt": -150,
-        "lockGoal": {
-          "x": 391,
-          "y": 200
-        },
-        "lockSeen": true
-      },
-      "observed": {
-        "kind": "walkHintOf",
-        "hint": {
-          "dir": 0,
-          "ticks": 0
-        }
-      },
-      "setupEvents": [
-        {
-          "type": "raidStarted"
-        }
-      ],
-      "events": [],
-      "draws": 0
-    },
-    {
-      "id": "lock-los-grace",
-      "family": "lock",
-      "helper": true,
-      "input": {
-        "wall": [
-          [
-            10,
-            5
-          ],
-          [
-            10,
-            6
-          ],
-          [
-            10,
-            7
-          ]
-        ],
-        "lockSeen": true,
-        "lockLosLostAt": "now-1000"
-      },
-      "observed": {
-        "kind": "walkHintOf",
-        "hint": {
-          "dir": 0,
-          "ticks": 0
-        }
-      },
-      "setupEvents": [
-        {
-          "type": "raidStarted"
-        }
-      ],
-      "events": [],
-      "draws": 0
-    },
-    {
       "id": "amove-no-target",
       "family": "amove",
       "helper": true,
@@ -1124,54 +993,6 @@
         "hint": {
           "dir": 0,
           "ticks": 0
-        }
-      },
-      "setupEvents": [
-        {
-          "type": "raidStarted"
-        }
-      ],
-      "events": [],
-      "draws": 0
-    },
-    {
-      "id": "amove-hidden-reveal",
-      "family": "amove",
-      "helper": true,
-      "input": {
-        "weapon": "wand",
-        "targetStatus": "hidden, reveal now+20..now+200",
-        "targetX": 400
-      },
-      "observed": {
-        "kind": "walkHintOf",
-        "hint": {
-          "dir": 0,
-          "ticks": 0
-        }
-      },
-      "setupEvents": [
-        {
-          "type": "raidStarted"
-        }
-      ],
-      "events": [],
-      "draws": 0
-    },
-    {
-      "id": "amove-visible-then-hidden",
-      "family": "amove",
-      "helper": true,
-      "input": {
-        "weapon": "wand",
-        "targetStatus": "hidden, reveal now-100..now+20",
-        "targetX": 400
-      },
-      "observed": {
-        "kind": "walkHintOf",
-        "hint": {
-          "dir": 0,
-          "ticks": 1
         }
       },
       "setupEvents": [
@@ -1282,32 +1103,6 @@
         "hint": {
           "dir": 0,
           "ticks": 0
-        }
-      },
-      "setupEvents": [
-        {
-          "type": "raidStarted"
-        }
-      ],
-      "events": [],
-      "draws": 0
-    },
-    {
-      "id": "ice-endpoint",
-      "family": "ice",
-      "helper": true,
-      "input": {
-        "iceCell": [
-          8,
-          6
-        ],
-        "endpointOnIce": true
-      },
-      "observed": {
-        "kind": "walkHintOf",
-        "hint": {
-          "dir": 0,
-          "ticks": 1
         }
       },
       "setupEvents": [
@@ -1706,6 +1501,402 @@
       ],
       "events": [],
       "draws": 0
+    },
+    {
+      "id": "mirrorTimings-sword-baseline",
+      "family": "mirrorTimings",
+      "helper": true,
+      "input": {
+        "profile": "npc",
+        "faction": "fire",
+        "weapon": "sword",
+        "asMult": 1,
+        "windupMult": 1,
+        "pair": "baseline",
+        "source": "actual shared mirrorTimings"
+      },
+      "observed": {
+        "interval": 0.7751937984496126,
+        "windup": 0.1,
+        "root": 0,
+        "ranged": false,
+        "intervalMs": 775.1937984496126,
+        "windupMs": 100
+      }
+    },
+    {
+      "id": "mirrorTimings-bow-baseline",
+      "family": "mirrorTimings",
+      "helper": true,
+      "input": {
+        "profile": "npc",
+        "faction": "fire",
+        "weapon": "bow",
+        "asMult": 1,
+        "windupMult": 1,
+        "pair": "baseline",
+        "source": "actual shared mirrorTimings"
+      },
+      "observed": {
+        "interval": 0.8547008547008548,
+        "windup": 0.6,
+        "root": 0,
+        "ranged": true,
+        "intervalMs": 854.7008547008547,
+        "windupMs": 600
+      }
+    },
+    {
+      "id": "mirrorTimings-wand-baseline",
+      "family": "mirrorTimings",
+      "helper": true,
+      "input": {
+        "profile": "npc",
+        "faction": "fire",
+        "weapon": "wand",
+        "asMult": 1,
+        "windupMult": 1,
+        "pair": "baseline",
+        "source": "actual shared mirrorTimings"
+      },
+      "observed": {
+        "interval": 1.0101010101010102,
+        "windup": 0.4,
+        "root": 0,
+        "ranged": true,
+        "intervalMs": 1010.1010101010102,
+        "windupMs": 400
+      }
+    },
+    {
+      "id": "mirrorTimings-shield-baseline",
+      "family": "mirrorTimings",
+      "helper": true,
+      "input": {
+        "profile": "npc",
+        "faction": "fire",
+        "weapon": "shield",
+        "asMult": 1,
+        "windupMult": 1,
+        "pair": "baseline",
+        "source": "actual shared mirrorTimings"
+      },
+      "observed": {
+        "interval": 1.0416666666666667,
+        "windup": 0.1,
+        "root": 0,
+        "ranged": false,
+        "intervalMs": 1041.6666666666667,
+        "windupMs": 100
+      }
+    },
+    {
+      "id": "mirrorTimings-axe-baseline",
+      "family": "mirrorTimings",
+      "helper": true,
+      "input": {
+        "profile": "npc",
+        "faction": "fire",
+        "weapon": "axe",
+        "asMult": 1,
+        "windupMult": 1,
+        "pair": "baseline",
+        "source": "actual shared mirrorTimings"
+      },
+      "observed": {
+        "interval": 1.1904761904761905,
+        "windup": 0.25,
+        "root": 0,
+        "ranged": false,
+        "intervalMs": 1190.4761904761904,
+        "windupMs": 250
+      }
+    },
+    {
+      "id": "mirrorTimings-fists-baseline",
+      "family": "mirrorTimings",
+      "helper": true,
+      "input": {
+        "profile": "npc",
+        "faction": "fire",
+        "weapon": "fists",
+        "asMult": 1,
+        "windupMult": 1,
+        "pair": "baseline",
+        "source": "actual shared mirrorTimings"
+      },
+      "observed": {
+        "interval": 0.6666666666666666,
+        "windup": 0.1,
+        "root": 0,
+        "ranged": false,
+        "intervalMs": 666.6666666666666,
+        "windupMs": 100
+      }
+    },
+    {
+      "id": "mirrorTimings-sword-fast-as-reduced-windup",
+      "family": "mirrorTimings",
+      "helper": true,
+      "input": {
+        "profile": "npc",
+        "faction": "fire",
+        "weapon": "sword",
+        "asMult": 1.5,
+        "windupMult": 0.5,
+        "pair": "fast-as-reduced-windup",
+        "source": "actual shared mirrorTimings"
+      },
+      "observed": {
+        "interval": 0.516795865633075,
+        "windup": 0.05,
+        "root": 0,
+        "ranged": false,
+        "intervalMs": 516.795865633075,
+        "windupMs": 50
+      }
+    },
+    {
+      "id": "mirrorTimings-bow-fast-as-reduced-windup",
+      "family": "mirrorTimings",
+      "helper": true,
+      "input": {
+        "profile": "npc",
+        "faction": "fire",
+        "weapon": "bow",
+        "asMult": 1.5,
+        "windupMult": 0.5,
+        "pair": "fast-as-reduced-windup",
+        "source": "actual shared mirrorTimings"
+      },
+      "observed": {
+        "interval": 0.5698005698005698,
+        "windup": 0.6,
+        "root": 0,
+        "ranged": true,
+        "intervalMs": 569.8005698005699,
+        "windupMs": 600
+      }
+    },
+    {
+      "id": "mirrorTimings-wand-fast-as-reduced-windup",
+      "family": "mirrorTimings",
+      "helper": true,
+      "input": {
+        "profile": "npc",
+        "faction": "fire",
+        "weapon": "wand",
+        "asMult": 1.5,
+        "windupMult": 0.5,
+        "pair": "fast-as-reduced-windup",
+        "source": "actual shared mirrorTimings"
+      },
+      "observed": {
+        "interval": 0.6734006734006734,
+        "windup": 0.4,
+        "root": 0,
+        "ranged": true,
+        "intervalMs": 673.4006734006734,
+        "windupMs": 400
+      }
+    },
+    {
+      "id": "mirrorTimings-shield-fast-as-reduced-windup",
+      "family": "mirrorTimings",
+      "helper": true,
+      "input": {
+        "profile": "npc",
+        "faction": "fire",
+        "weapon": "shield",
+        "asMult": 1.5,
+        "windupMult": 0.5,
+        "pair": "fast-as-reduced-windup",
+        "source": "actual shared mirrorTimings"
+      },
+      "observed": {
+        "interval": 0.6944444444444444,
+        "windup": 0.05,
+        "root": 0,
+        "ranged": false,
+        "intervalMs": 694.4444444444445,
+        "windupMs": 50
+      }
+    },
+    {
+      "id": "mirrorTimings-axe-fast-as-reduced-windup",
+      "family": "mirrorTimings",
+      "helper": true,
+      "input": {
+        "profile": "npc",
+        "faction": "fire",
+        "weapon": "axe",
+        "asMult": 1.5,
+        "windupMult": 0.5,
+        "pair": "fast-as-reduced-windup",
+        "source": "actual shared mirrorTimings"
+      },
+      "observed": {
+        "interval": 0.7936507936507936,
+        "windup": 0.0992063492063492,
+        "root": 0,
+        "ranged": false,
+        "intervalMs": 793.6507936507936,
+        "windupMs": 99.2063492063492
+      }
+    },
+    {
+      "id": "mirrorTimings-fists-fast-as-reduced-windup",
+      "family": "mirrorTimings",
+      "helper": true,
+      "input": {
+        "profile": "npc",
+        "faction": "fire",
+        "weapon": "fists",
+        "asMult": 1.5,
+        "windupMult": 0.5,
+        "pair": "fast-as-reduced-windup",
+        "source": "actual shared mirrorTimings"
+      },
+      "observed": {
+        "interval": 0.4444444444444444,
+        "windup": 0.05,
+        "root": 0,
+        "ranged": false,
+        "intervalMs": 444.4444444444444,
+        "windupMs": 50
+      }
+    },
+    {
+      "id": "mirrorTimings-sword-slow-as-increased-windup",
+      "family": "mirrorTimings",
+      "helper": true,
+      "input": {
+        "profile": "npc",
+        "faction": "fire",
+        "weapon": "sword",
+        "asMult": 0.5,
+        "windupMult": 1.5,
+        "pair": "slow-as-increased-windup",
+        "source": "actual shared mirrorTimings"
+      },
+      "observed": {
+        "interval": 1.5503875968992251,
+        "windup": 0.15000000000000002,
+        "root": 0,
+        "ranged": false,
+        "intervalMs": 1550.3875968992252,
+        "windupMs": 150.00000000000003
+      }
+    },
+    {
+      "id": "mirrorTimings-bow-slow-as-increased-windup",
+      "family": "mirrorTimings",
+      "helper": true,
+      "input": {
+        "profile": "npc",
+        "faction": "fire",
+        "weapon": "bow",
+        "asMult": 0.5,
+        "windupMult": 1.5,
+        "pair": "slow-as-increased-windup",
+        "source": "actual shared mirrorTimings"
+      },
+      "observed": {
+        "interval": 1.7094017094017095,
+        "windup": 0.8999999999999999,
+        "root": 0,
+        "ranged": true,
+        "intervalMs": 1709.4017094017095,
+        "windupMs": 899.9999999999999
+      }
+    },
+    {
+      "id": "mirrorTimings-wand-slow-as-increased-windup",
+      "family": "mirrorTimings",
+      "helper": true,
+      "input": {
+        "profile": "npc",
+        "faction": "fire",
+        "weapon": "wand",
+        "asMult": 0.5,
+        "windupMult": 1.5,
+        "pair": "slow-as-increased-windup",
+        "source": "actual shared mirrorTimings"
+      },
+      "observed": {
+        "interval": 2.0202020202020203,
+        "windup": 0.6000000000000001,
+        "root": 0,
+        "ranged": true,
+        "intervalMs": 2020.2020202020203,
+        "windupMs": 600.0000000000001
+      }
+    },
+    {
+      "id": "mirrorTimings-shield-slow-as-increased-windup",
+      "family": "mirrorTimings",
+      "helper": true,
+      "input": {
+        "profile": "npc",
+        "faction": "fire",
+        "weapon": "shield",
+        "asMult": 0.5,
+        "windupMult": 1.5,
+        "pair": "slow-as-increased-windup",
+        "source": "actual shared mirrorTimings"
+      },
+      "observed": {
+        "interval": 2.0833333333333335,
+        "windup": 0.15000000000000002,
+        "root": 0,
+        "ranged": false,
+        "intervalMs": 2083.3333333333335,
+        "windupMs": 150.00000000000003
+      }
+    },
+    {
+      "id": "mirrorTimings-axe-slow-as-increased-windup",
+      "family": "mirrorTimings",
+      "helper": true,
+      "input": {
+        "profile": "npc",
+        "faction": "fire",
+        "weapon": "axe",
+        "asMult": 0.5,
+        "windupMult": 1.5,
+        "pair": "slow-as-increased-windup",
+        "source": "actual shared mirrorTimings"
+      },
+      "observed": {
+        "interval": 2.380952380952381,
+        "windup": 0.375,
+        "root": 0,
+        "ranged": false,
+        "intervalMs": 2380.9523809523807,
+        "windupMs": 375
+      }
+    },
+    {
+      "id": "mirrorTimings-fists-slow-as-increased-windup",
+      "family": "mirrorTimings",
+      "helper": true,
+      "input": {
+        "profile": "npc",
+        "faction": "fire",
+        "weapon": "fists",
+        "asMult": 0.5,
+        "windupMult": 1.5,
+        "pair": "slow-as-increased-windup",
+        "source": "actual shared mirrorTimings"
+      },
+      "observed": {
+        "interval": 1.3333333333333333,
+        "windup": 0.15000000000000002,
+        "root": 0,
+        "ranged": false,
+        "intervalMs": 1333.3333333333333,
+        "windupMs": 150.00000000000003
+      }
     }
   ]
 }

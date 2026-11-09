@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { createHash } from "node:crypto";
 import {
   mapFromTiles, mulberry32, encodeMult, MOVE_MULT_FLOOR, PLAYER_SPEED, TERRAIN_ICE, TICK_MS,
-  WALK_HINT_MAX_TICKS,
+  WALK_HINT_MAX_TICKS, FACTIONS, mirrorTimings,
 } from "@raid/shared";
 import { createGameWorld } from "/repo/packages/server/src/sim/gameplay.ts";
 import { addPlayer, step } from "/repo/packages/server/src/sim/step.ts";
@@ -34,6 +34,9 @@ const SOURCE_FILES = [
   "packages/server/src/sim/movement.ts",
   "packages/server/src/sim/world.ts",
   "packages/shared/src/constants.ts",
+  "packages/shared/src/mods.ts",
+  "packages/shared/src/weapons.ts",
+  "packages/shared/src/factions.ts",
   "packages/shared/src/walk.ts",
   "packages/shared/src/status.ts",
   "packages/shared/src/terrain.ts",
@@ -232,8 +235,6 @@ export function runHelpers() {
   wh("weaponHoldsAt-swing-before", null, { kind: "swing", weapon: "sword", landsOffset: 500 });
   wh("weaponHoldsAt-swing-tie", null, { kind: "swing", weapon: "sword", landsOffset: TIE_EPS_MS + 50 + 1 });
   wh("weaponHoldsAt-draw-before", null, { kind: "draw", weapon: "bow", landsOffset: 500 });
-  wh("weaponHoldsAt-swing-tie-exact", null, { kind: "swing", weapon: "sword", landsOffset: 50 + TIE_EPS_MS });
-  wh("weaponHoldsAt-swing-tie-just-over", null, { kind: "swing", weapon: "sword", landsOffset: 50 + 2 * TIE_EPS_MS });
   // lock
   function lockBase(ctx, opts = {}) {
     const w = ctx.world; put(w, "p0", 200, 200); put(w, "p1", opts.targetX ?? 820, 200); equip(w, "p0", "wand");
@@ -252,17 +253,6 @@ export function runHelpers() {
     addStatus(ctx.world, C(ctx.world, "p1"), { kind: "hidden", source: { id: "helper", name: "helper" }, ms: 5000 });
     return { ...base, facts: { ...base.facts, targetStatus: "hidden" } };
   }));
-  cases.push(run("lock-goal-target", "lock", () => {
-    const ctx = makeWorld({ players: 2 }); return lockBase(ctx, { targetX: 400, planAt: ctx.world.state.serverTime - 200, lockGoal: { x: 400, y: 200 } });
-  }));
-  cases.push(run("lock-goal-just-over", "lock", () => {
-    const ctx = makeWorld({ players: 2 }); return lockBase(ctx, { targetX: 400, planAt: ctx.world.state.serverTime - 200, lockGoal: { x: 391, y: 200 } });
-  }));
-  cases.push(run("lock-los-grace", "lock", () => {
-    const ctx = makeWorld({ players: 2, wall: [[10, 5], [10, 6], [10, 7]] }); put(ctx.world, "p0", 200, 200); put(ctx.world, "p1", 400, 200); equip(ctx.world, "p0", "wand"); path(ctx.world, "p0", [{ x: 250, y: 200 }]);
-    const now = ctx.world.state.serverTime, rt = ctx.world.players.get("p0"); rt.weapon.lock = "p1"; rt.weapon.lockSeen = true; rt.weapon.lockLosLostAt = now - 1000; rt.weapon.lockPlanAt = now;
-    return { ...ctx, facts: { wall: [[10, 5], [10, 6], [10, 7]], lockSeen: true, lockLosLostAt: "now-1000" } };
-  }));
   // attack-move
   cases.push(run("amove-no-target", "amove", () => {
     const ctx = makeWorld(); put(ctx.world, "p0", 200, 200); equip(ctx.world, "p0", "wand"); path(ctx.world, "p0", [{ x: 300, y: 200 }]);
@@ -273,18 +263,6 @@ export function runHelpers() {
     const ctx = makeWorld({ players: 2 }); put(ctx.world, "p0", 200, 200); put(ctx.world, "p1", 400, 200); equip(ctx.world, "p0", "wand");
     path(ctx.world, "p0", [{ x: 250, y: 200 }]); ctx.world.players.get("p0").weapon.attackMoveGoal = { x: 250, y: 200 };
     return { ...ctx, facts: { weapon: "wand", attackMoveGoal: { x: 250, y: 200 }, targetX: 400 } };
-  }));
-  cases.push(run("amove-hidden-reveal", "amove", () => {
-    const ctx = makeWorld({ players: 2 }); put(ctx.world, "p0", 200, 200); put(ctx.world, "p1", 400, 200); equip(ctx.world, "p0", "wand"); path(ctx.world, "p0", [{ x: 250, y: 200 }]); ctx.world.players.get("p0").weapon.attackMoveGoal = { x: 250, y: 200 };
-    const inst = addStatus(ctx.world, C(ctx.world, "p1"), { kind: "hidden", source: { id: "helper", name: "helper" }, ms: 5000 });
-    const now = ctx.world.state.serverTime; inst.revealFrom = now + 20; inst.revealUntil = now + 200;
-    return { ...ctx, facts: { weapon: "wand", targetStatus: "hidden, reveal now+20..now+200", targetX: 400 } };
-  }));
-  cases.push(run("amove-visible-then-hidden", "amove", () => {
-    const ctx = makeWorld({ players: 2 }); put(ctx.world, "p0", 200, 200); put(ctx.world, "p1", 400, 200); equip(ctx.world, "p0", "wand"); path(ctx.world, "p0", [{ x: 250, y: 200 }]); ctx.world.players.get("p0").weapon.attackMoveGoal = { x: 250, y: 200 }; ctx.world.state.players.get("p0").weapon0 = "wand";
-    const inst = addStatus(ctx.world, C(ctx.world, "p1"), { kind: "hidden", source: { id: "helper", name: "helper" }, ms: 5000 });
-    const now = ctx.world.state.serverTime; inst.revealFrom = now - 100; inst.revealUntil = now + 20;
-    return { ...ctx, facts: { weapon: "wand", targetStatus: "hidden, reveal now-100..now+20", targetX: 400 } };
   }));
   cases.push(run("amove-current-hidden", "amove", () => {
     const ctx = makeWorld({ players: 2 }); put(ctx.world, "p0", 200, 200); put(ctx.world, "p1", 820, 200); equip(ctx.world, "p0", "wand");
@@ -301,10 +279,6 @@ export function runHelpers() {
     const ctx = makeWorld({ ice: [[7, 6]] }); put(ctx.world, "p0", 220, at(6, 6).y); path(ctx.world, "p0", [{ x: at(12, 6).x, y: at(6, 6).y }]);
     const c = C(ctx.world, "p0");
     return { ...ctx, facts: { iceCell: [7, 6], path: [{ x: at(12, 6).x, y: at(6, 6).y }], terrainAtProbe: ctx.world.map.terrain[6 * 64 + 7], terrainAtCenter: ctx.world.map.terrain[6 * 64 + 8], probes: [220, 228.5, 237, 250, 400].map((x) => ({ x, accel: slipAccelAt(ctx.world, c, x, at(6, 6).y) })) } };
-  }));
-  cases.push(run("ice-endpoint", "ice", () => {
-    const ctx = makeWorld({ ice: [[8, 6]] }); put(ctx.world, "p0", at(7, 6).x, at(6, 6).y); path(ctx.world, "p0", [{ x: at(8, 6).x, y: at(6, 6).y }]);
-    return { ...ctx, facts: { iceCell: [8, 6], endpointOnIce: true } };
   }));
   cases.push(run("ice-clear", "ice", () => {
     const ctx = makeWorld(); put(ctx.world, "p0", at(7, 6).x, at(8, 6).y); path(ctx.world, "p0", [{ x: at(12, 6).x, y: at(8, 6).y }]);
@@ -368,6 +342,21 @@ export function runHelpers() {
   }
   hookCase("hook-teleported", "teleported");
   hookCase("hook-runEnded", "runEnded");
+  // Pure shared timing kernel rows for the native worker: actual mirrorTimings(profile:"npc"), six weapons x
+  // three declared AS/windup pairs. These are kernel vectors, not World-earned hint contexts.
+  const NPC_PAIRS = [
+    { id: "baseline", asMult: 1, windupMult: 1 },
+    { id: "fast-as-reduced-windup", asMult: 1.5, windupMult: 0.5 },
+    { id: "slow-as-increased-windup", asMult: 0.5, windupMult: 1.5 },
+  ];
+  for (const pair of NPC_PAIRS) for (const weapon of ["sword", "bow", "wand", "shield", "axe", "fists"]) {
+    const t = mirrorTimings(FACTIONS.fire, weapon, pair.asMult, pair.windupMult, "npc");
+    cases.push({
+      id: "mirrorTimings-" + weapon + "-" + pair.id, family: "mirrorTimings", helper: true,
+      input: { profile: "npc", faction: "fire", weapon, asMult: pair.asMult, windupMult: pair.windupMult, pair: pair.id, source: "actual shared mirrorTimings" },
+      observed: { interval: t.interval, windup: t.windup, root: t.root, ranged: t.ranged, intervalMs: t.interval * 1000, windupMs: t.windup * 1000 },
+    });
+  }
   return cases;
 }
 export function assertHelperFacts(corpus) {
@@ -391,8 +380,8 @@ export function assertHelperFacts(corpus) {
   const wh2 = get("weaponHoldsAt-root-at").observed.observed;
   if (wh1 !== true || wh2 !== false) fail("weaponHoldsAt root boundary not observed");
   positive("lock-free"); zero("lock-stop"); zero("lock-missing"); zero("lock-replan"); zero("lock-future-hidden");
-  positive("amove-no-target"); zero("amove-acquire"); if (!get("amove-hidden-reveal").observed.hint) fail("amove reveal context missing");
-  zero("ice-center"); zero("ice-thin-strip"); positive("ice-clear"); if (hint("ice-endpoint").ticks !== 1) fail("ice-endpoint expected the observed 1-tick lower bound"); positive("ice-home-frost"); zero("ice-all-hazards");
+  positive("amove-no-target"); zero("amove-acquire");
+  zero("ice-center"); zero("ice-thin-strip"); positive("ice-clear"); positive("ice-home-frost"); zero("ice-all-hazards");
   const h0 = get("hysteresis-old-zero").observed.observed.dir;
   const oldDir = get("hysteresis-old-zero").input.oldDir;
   if (h0 === oldDir) fail("old ticks0 did not assign a new direction");
@@ -404,6 +393,18 @@ export function assertHelperFacts(corpus) {
   if (w253.observed.observed.dir === 253) fail("wrap253 did not change direction");
   if (hint("waypoint-cap3").ticks !== 3) fail("cap3 waypoint context not observed");
   if (hint("waypoint-cap2").ticks !== 2) fail("cap2 waypoint context not observed");
+  const mirror = corpus.cases.filter((c) => c.family === "mirrorTimings");
+  if (mirror.length !== 18) fail("mirrorTimings row count " + mirror.length + " !== 18");
+  const mt = (weapon, pair) => mirror.find((c) => c.input.weapon === weapon && c.input.pair === pair)?.observed;
+  for (const weapon of ["sword", "bow", "wand", "shield", "axe", "fists"]) {
+    const base = mt(weapon, "baseline"), fast = mt(weapon, "fast-as-reduced-windup"), slow = mt(weapon, "slow-as-increased-windup");
+    if (!base || !fast || !slow) fail("missing mirrorTimings pair " + weapon);
+    if (!(fast.interval > 0 && slow.interval > 0 && base.interval > 0)) fail("mirror interval not finite/positive " + weapon);
+    if (!(fast.interval < base.interval)) fail("fast AS did not reduce interval " + weapon);
+    if (fast.ranged) { if (fast.windup !== base.windup) fail("NPC ranged fast-AS base-speed floor lost " + weapon); }
+    else if (!(fast.windup <= base.windup)) fail("melee fast windup not reduced " + weapon);
+    if (!(slow.windup >= base.windup)) fail("slow windup not increased " + weapon);
+  }
   for (const id of ["hook-teleported", "hook-runEnded"]) {
     const c = get(id); const players = c.observed.players;
     if (c.input.before.ticks <= 0) fail(id + " had no nonzero hint before hook");

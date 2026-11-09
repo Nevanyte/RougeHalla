@@ -30,6 +30,7 @@ const corpus = {
     base: BASE, node: process.version, platform: process.platform, arch: process.arch, image: IMAGE,
     entry: ENTRY, bundle: { bytes: Buffer.byteLength(bundleText), sha256: bundleSha256, path: bundlePath },
     source: mod.sourceInfo(),
+    relatedPlayerTimingCorpus: (() => { const p = "/repo/parity/policy/bot-fight/source.json"; const s = readFileSync(p); return { path: "parity/policy/bot-fight/source.json", bytes: Buffer.byteLength(s), sha256: sha(s), note: "existing accepted 90 player timing rows; pure-kernel helper rows are separate and do not overwrite it" }; })(),
     contextPolicy: "declared HELPER inputs; actual imported source outputs only; no earned World history or installed expected hint",
     sourceFunctions: "walkHintOf/weaponHoldsAt/updateWalkHints exported; installed teleported/runEnded hooks invoked directly; all other branches through walkHintOf",
   },
