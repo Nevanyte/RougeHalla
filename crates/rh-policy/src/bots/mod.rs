@@ -6,6 +6,7 @@
 //! exactly. The legacy memory, strategy scoring, feature modules and the full perception.ts fair-view constructor are NOT
 //! ported here (P-BOTS-1 remainder: perception.ts, memory.ts, strategy.ts, tactics/*, modules/*, mobHunt/chestHunt).
 pub mod bot;
+pub mod brain;
 pub mod build_route;
 pub mod clicks;
 pub mod delay;
@@ -24,6 +25,7 @@ pub mod random;
 pub mod types;
 pub mod view;
 pub mod wish;
+pub mod world_tactics;
 
 #[cfg(test)]
 mod knowledge_parity_tests;

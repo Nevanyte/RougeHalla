@@ -1,10 +1,14 @@
 //! The human-like seat: a Policy that reads only Observation (C-OBS), decides through the ported hand, and proposes
 //! through the one validated input path (C-INPUT). docs/BOTS.md 4 describes the legacy layers; this is the bounded core
-//! slice: fair perception -> a small goal/tactics front end -> the ported humanizer -> PublicCommands. The legacy memory,
-//! strategy scoring and feature modules are P-BOTS-2..4 and remain unported.
+//! slice: observed-player memory -> source scheduling/world goals -> the ported humanizer -> PublicCommands.
+//! Candidate selection and combat remain the bounded compatibility front end. Full source memory,
+//! FrameRing, strategy scoring and fight/reflex/loot executors remain pending.
+use crate::bots::brain::{merge_intents, Brain, Goal, Output, Status as GoalStatus};
 use crate::bots::clicks::BotMap;
+use crate::bots::delivered::{Epoch, PlayerRef};
 use crate::bots::humanizer::{Context, Humanizer};
 use crate::bots::knowledge::Knowledge;
+use crate::bots::memory_prefix::{Memory, OwnerSight, Scene, MAX_RECORDS};
 use crate::bots::paths::{PathBudget, RoomPathService};
 use crate::bots::perception::Perception;
 use crate::bots::planning::{PlanDeal, PlanLearned, PlanMap, PlanModule};
@@ -14,6 +18,7 @@ use crate::bots::types::{
     TierId, TierParams,
 };
 use crate::bots::wish::{WishFoe, WishModule};
+use crate::bots::world_tactics::{Context as WorldContext, WorldTactics};
 use crate::{MatchStart, Policy, PolicySpec, POLICY_CONTRACT_VERSION};
 use rh_sim::{Observation, PlayerId, PublicCommand, OBSERVATION_VERSION};
 
@@ -75,7 +80,11 @@ pub struct HumanBot {
     ids: Vec<(String, PlayerId)>,
     stimuli: Vec<Stimulus>,
     prev_hp_frac: f64,
+    low_hp_prev_share: f64,
     roam: Option<rh_sim::Vec2>,
+    memory: Option<Memory>,
+    brain: Brain,
+    world: WorldTactics,
     /// The Wish module: its availability/remember/retry and slip state, and the public static map its blink landing reads.
     wish: WishModule,
     /// The room path service the tactics read (P-BOTS-3): the shared budget, the cache and the clear/sight queries.
@@ -105,7 +114,11 @@ impl HumanBot {
             ids: Vec::new(),
             stimuli: Vec::new(),
             prev_hp_frac: 0.,
+            low_hp_prev_share: 1.,
             roam: None,
+            memory: None,
+            brain: Brain::default(),
+            world: WorldTactics::default(),
             wish: WishModule::new(),
             paths: None,
             planning: PlanModule::new(),
@@ -180,101 +193,115 @@ impl HumanBot {
         })
     }
 
-    /// The decision front end: one goal (fight the nearest enemy, else walk toward it, else roam), turned into intents.
-    fn intents(&mut self, p: &crate::bots::types::Percept, stimuli: &[Stimulus]) -> Vec<Intent> {
-        let tier = self.tier_params();
-        let persona = self.persona_params();
-        let now = p.now;
-        let self_at = rh_sim::Vec2::new(p.self_view.x, p.self_view.y);
-        let mut intents = Vec::new();
-        let nearest = p
+    /// Candidate generation is still the bounded compatibility front end, not source strategy.ts.
+    /// Its goal is now retained and executed on the source brain's cadence.
+    fn choose_goal(&mut self, p: &Percept) -> Goal {
+        let at = rh_sim::Vec2::new(p.self_view.x, p.self_view.y);
+        if let Some(f) = p
             .fighters
             .iter()
             .filter(|f| f.status == "alive" && f.targetable)
-            .map(|f| (f, rh_sim::math::hypot(f.x - self_at.x, f.y - self_at.y)))
-            .min_by(|a, b| a.1.total_cmp(&b.1));
-        let nearest_mob = p
+            .min_by(|a, b| {
+                rh_sim::math::hypot(a.x - at.x, a.y - at.y)
+                    .total_cmp(&rh_sim::math::hypot(b.x - at.x, b.y - at.y))
+            })
+        {
+            return Goal::Fight {
+                target: f.id.clone(),
+            };
+        }
+        if let Some(m) = p
             .mobs
             .iter()
             .filter(|m| m.status == "alive")
-            .map(|m| (m, rh_sim::math::hypot(m.x - self_at.x, m.y - self_at.y)))
-            .min_by(|a, b| a.1.total_cmp(&b.1));
-        let engage_range = persona.player_threat.max(200.);
-        if let Some((target, dist)) = nearest {
-            if dist <= engage_range {
-                let fresh = stimuli.iter().find(|s| {
-                    s.kind == StimulusKind::NewThreat
-                        && s.subject.as_deref() == Some(target.id.as_str())
-                });
-                let timing = match fresh {
-                    Some(stim) => IntentTiming::React {
-                        stimulus: stim.clone(),
-                    },
-                    None => IntentTiming::Step {},
-                };
-                intents.push(Intent {
-                    body: IntentBody::Lock {
-                        target: target.id.clone(),
-                        at: rh_sim::Vec2::new(target.x, target.y),
-                    },
-                    priority: crate::bots::types::PRIORITY_COMBAT,
-                    timing,
-                    why: "human-bot engage".into(),
-                });
-            } else {
-                intents.push(Intent {
-                    body: IntentBody::Move {
-                        to: rh_sim::Vec2::new(target.x, target.y),
-                    },
-                    priority: crate::bots::types::PRIORITY_GOAL,
-                    timing: IntentTiming::Step {},
-                    why: "human-bot approach".into(),
-                });
-            }
-        } else if let Some((mob, dist)) = nearest_mob {
-            // Farm the nearest mob once it is reasonably close; the bounded front end does not route camps (P-BOTS-4).
-            if dist <= tier.route.reach && dist > 40. {
-                intents.push(Intent {
-                    body: IntentBody::Move {
-                        to: rh_sim::Vec2::new(mob.x, mob.y),
-                    },
-                    priority: crate::bots::types::PRIORITY_GOAL,
-                    timing: IntentTiming::Step {},
-                    why: "human-bot farm".into(),
-                });
-            } else if dist <= 40. {
-                intents.push(Intent {
-                    body: IntentBody::Lock {
-                        target: mob.id.clone(),
-                        at: rh_sim::Vec2::new(mob.x, mob.y),
-                    },
-                    priority: crate::bots::types::PRIORITY_COMBAT,
-                    timing: IntentTiming::Step {},
-                    why: "human-bot farm lock".into(),
-                });
-            }
-        } else {
-            // Roam: pick a fresh point from the policy's own decide stream when the last one is reached.
-            let need = self
-                .roam
-                .is_none_or(|r| rh_sim::math::hypot(r.x - self_at.x, r.y - self_at.y) < 64.);
-            if need {
-                let map = self.map.clone().expect("map at reset");
-                let x = self.decide.next_f64() * map.map_w();
-                let y = self.decide.next_f64() * map.map_h();
-                self.roam = Some(rh_sim::Vec2::new(x, y));
-            }
-            if let Some(to) = self.roam {
-                intents.push(Intent {
-                    body: IntentBody::Move { to },
-                    priority: crate::bots::types::PRIORITY_CHORE,
-                    timing: IntentTiming::Step {},
-                    why: "human-bot roam".into(),
-                });
-            }
+            .min_by(|a, b| {
+                rh_sim::math::hypot(a.x - at.x, a.y - at.y)
+                    .total_cmp(&rh_sim::math::hypot(b.x - at.x, b.y - at.y))
+            })
+        {
+            return Goal::Farm {
+                target: m.id.clone(),
+            };
         }
-        let _ = now;
-        intents
+        if matches!(self.brain.status, GoalStatus::Done | GoalStatus::Failed) {
+            self.roam = None;
+        }
+        if self.roam.is_none() {
+            let Some(map) = self.map.as_ref() else {
+                return Goal::Idle;
+            };
+            self.roam = Some(rh_sim::Vec2::new(
+                self.decide.next_f64() * map.map_w(),
+                self.decide.next_f64() * map.map_h(),
+            ));
+        }
+        Goal::Roam {
+            to: self.roam.expect("selected above"),
+            why: "compatibility roam",
+        }
+    }
+    fn compatibility_tactics(&self, p: &Percept, stimuli: &[Stimulus]) -> Output {
+        let found = match &self.brain.goal {
+            Goal::Fight { target } => p
+                .fighters
+                .iter()
+                .find(|f| f.id == *target && f.status == "alive" && f.targetable)
+                .map(|f| (f.id.clone(), f.x, f.y, false)),
+            Goal::Farm { target } => p
+                .mobs
+                .iter()
+                .find(|m| m.id == *target && m.status == "alive")
+                .map(|m| (m.id.clone(), m.x, m.y, true)),
+            _ => None,
+        };
+        let Some((id, x, y, mob)) = found else {
+            return Output {
+                intents: vec![],
+                status: GoalStatus::Failed,
+                why: "compatibility target not visible",
+                attacking: false,
+            };
+        };
+        let distance = rh_sim::math::hypot(x - p.self_view.x, y - p.self_view.y);
+        let timing = stimuli
+            .iter()
+            .find(|s| s.kind == StimulusKind::NewThreat && s.subject.as_deref() == Some(&id))
+            .map_or(IntentTiming::Step {}, |s| IntentTiming::React {
+                stimulus: s.clone(),
+            });
+        let lock = if mob {
+            distance <= 40.
+        } else {
+            distance <= self.persona_params().player_threat.max(200.)
+        };
+        let intents = if lock {
+            vec![Intent {
+                body: IntentBody::Lock {
+                    target: id,
+                    at: rh_sim::Vec2::new(x, y),
+                },
+                priority: crate::bots::types::PRIORITY_COMBAT,
+                timing,
+                why: "compatibility engage".into(),
+            }]
+        } else if !mob || distance <= self.tier_params().route.reach {
+            vec![Intent {
+                body: IntentBody::Move {
+                    to: rh_sim::Vec2::new(x, y),
+                },
+                priority: crate::bots::types::PRIORITY_GOAL,
+                timing: IntentTiming::Step {},
+                why: "compatibility approach".into(),
+            }]
+        } else {
+            vec![]
+        };
+        Output {
+            intents,
+            status: GoalStatus::Running,
+            why: "compatibility combat",
+            attacking: lock,
+        }
     }
 }
 
@@ -324,7 +351,13 @@ impl Policy for HumanBot {
         self.ids.clear();
         self.stimuli.clear();
         self.prev_hp_frac = 0.;
+        self.low_hp_prev_share = 1.;
         self.roam = None;
+        self.memory = PlayerRef::new(m.me.0)
+            .ok()
+            .and_then(|viewer| Memory::new(Epoch(1), viewer, self.tier, MAX_RECORDS).ok());
+        self.brain = Brain::default();
+        self.world.reset();
         self.wish.reset(&m.arena.map);
         self.paths = Some(RoomPathService::new(&m.arena.map, PathBudget::default()));
         self.planning.reset();
@@ -343,6 +376,38 @@ impl Policy for HumanBot {
         out
     }
     fn decide_into(&mut self, obs: &Observation, out: &mut Vec<PublicCommand>) {
+        let Some(owner) = obs.me.as_ref() else {
+            return;
+        };
+        let Ok(players) = crate::bots::perception::memory_players(obs) else {
+            return;
+        };
+        let Some(memory) = self.memory.as_mut() else {
+            return;
+        };
+        let Ok(viewer) = PlayerRef::new(owner.id.0) else {
+            return;
+        };
+        if memory
+            .observe_scene(Scene {
+                epoch: Epoch(1),
+                viewer,
+                now: obs.server_time,
+                owner: Some(OwnerSight {
+                    at: rh_sim::Vec2::new(owner.x, owner.y),
+                    status: owner.status,
+                }),
+                players: &players,
+            })
+            .is_err()
+        {
+            return;
+        }
+        let memory_stimuli = memory.stimuli().to_vec();
+        let still_since = memory
+            .own_motion()
+            .expect("accepted owner scene")
+            .still_since;
         if obs.phase == rh_sim::Phase::Planning {
             // The planning screen has no goal and no tactics: the module reads the private deal and answers it, exactly as
             // the source brain's planning branch does. Its intents are menu commands, converted 1:1 here.
@@ -399,19 +464,20 @@ impl Policy for HumanBot {
                     value: Some((self.prev_hp_frac - frac) * p.self_view.max_hp),
                 });
             }
-            if frac < self.persona_params().flee_hp {
+            if self.low_hp_prev_share >= 0.5 && frac < 0.5 {
                 self.stimuli.push(Stimulus {
                     kind: StimulusKind::LowHp,
                     at: p.now,
-                    subject: Some("me".into()),
+                    subject: None,
                     central: true,
                     value: Some(frac),
                 });
             }
             self.prev_hp_frac = frac;
+            self.low_hp_prev_share = frac;
         }
         let mut stimuli = std::mem::take(&mut self.stimuli);
-        stimuli.extend(frame.stimuli);
+        stimuli.extend(memory_stimuli);
         // The Wish module sees the same observation and the front end's chosen foe, and its cast is offered first: arming it is
         // part of deciding it, and the humanizer arbitrates by priority and channel as it does for every intent.
         if let Some(paths) = self.paths.as_mut() {
@@ -419,25 +485,79 @@ impl Policy for HumanBot {
             paths.set_frame(p.now, p.hud.gates_locked);
         }
         self.wish.observe(&p, self.tier, &mut self.decide);
-        let slip_active = self.wish.goal_active(&p);
-        let foe = self.front_foe(&p);
-        let mut intents = {
-            let Some(paths) = self.paths.as_mut() else {
-                return;
-            };
-            self.wish.intents(
-                &p,
-                &stimuli,
-                foe.as_ref(),
-                self.tier,
-                &mut self.decide,
-                paths,
-            )
-        };
-        // While the Wish module holds the slip goal, the bot casts and walks away and locks nobody: the module goal is above
-        // every front-end goal (legacy strategy scores it 1.4 over a flee at 1.1), so the front end's intents are not offered.
-        if !slip_active {
-            intents.extend(self.intents(&p, &stimuli));
+        let active = p.self_view.status == "alive" && p.hud.phase == "active";
+        let mut intents = Vec::new();
+        if active {
+            let slip_active = self.wish.goal_active(&p);
+            let mut changed = false;
+            if self.brain.strategy_due(p.now, &stimuli) {
+                let goal = if slip_active {
+                    Goal::WishSlip
+                } else {
+                    self.choose_goal(&p)
+                };
+                changed = self.brain.adopt(goal, p.now, tier, &mut self.decide);
+            }
+            let toast = obs
+                .events
+                .iter()
+                .any(|e| matches!(e, rh_sim::observe::SeenEvent::Toast { .. }));
+            if self.brain.tactics_due(p.now, changed, toast, &stimuli) {
+                let foe = self.front_foe(&p);
+                let Some(paths) = self.paths.as_mut() else {
+                    return;
+                };
+                let module_goal = matches!(self.brain.goal, Goal::WishSlip);
+                // A cached source module goal finishes through act(), even before the next
+                // strategy deadline. An expired/cornered slip must not pin the retained goal.
+                let extra = if module_goal && !slip_active {
+                    vec![]
+                } else {
+                    self.wish.intents(
+                        &p,
+                        &stimuli,
+                        foe.as_ref(),
+                        self.tier,
+                        &mut self.decide,
+                        paths,
+                    )
+                };
+                let output = if module_goal {
+                    let moving = extra
+                        .iter()
+                        .any(|i| matches!(i.body, IntentBody::Move { .. }));
+                    Output {
+                        intents: extra,
+                        status: if moving {
+                            GoalStatus::Running
+                        } else {
+                            GoalStatus::Done
+                        },
+                        why: if moving {
+                            "Wish slip module"
+                        } else {
+                            "Wish slip finished or cornered"
+                        },
+                        attacking: false,
+                    }
+                } else {
+                    let world = self.world.act(
+                        &self.brain.goal,
+                        WorldContext {
+                            now: p.now,
+                            at: rh_sim::Vec2::new(p.self_view.x, p.self_view.y),
+                            still_since,
+                        },
+                        |a, b| paths.walk(a, b).is_some(),
+                    );
+                    let mut base =
+                        world.unwrap_or_else(|| self.compatibility_tactics(&p, &stimuli));
+                    base.intents = merge_intents(base.intents, extra);
+                    base
+                };
+                self.brain.acted(p.now, &output, tier, &mut self.decide);
+                intents = output.intents;
+            }
         }
         let Some(humanizer) = self.humanizer.as_mut() else {
             return;
@@ -470,7 +590,13 @@ impl Policy for HumanBot {
             });
         }
         for timed in cmds {
-            self.emit(timed.cmd, out);
+            let before = out.len();
+            self.emit(timed.cmd.clone(), out);
+            if out.len() != before {
+                if let Some(memory) = self.memory.as_mut() {
+                    memory.note_sent(&timed);
+                }
+            }
         }
     }
 }
@@ -594,3 +720,6 @@ mod knowledge_repair_reset_tests {
         );
     }
 }
+
+#[cfg(test)]
+mod connected_tests;

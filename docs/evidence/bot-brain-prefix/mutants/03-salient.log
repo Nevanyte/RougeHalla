@@ -1,0 +1,24 @@
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-brain-prefix/repo/crates/rh-policy)
+    Finished `test` profile [unoptimized] target(s) in 6.07s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-brain-prefix/target/debug/deps/rh_policy-2b15a222dac79e29)
+
+running 1 test
+test bots::brain::tests::actual_source_brain_coordinator_call_sequence_and_rng_trace ... FAILED
+
+failures:
+
+---- bots::brain::tests::actual_source_brain_coordinator_call_sequence_and_rng_trace stdout ----
+
+thread 'bots::brain::tests::actual_source_brain_coordinator_call_sequence_and_rng_trace' (65829094) panicked at crates/rh-policy/src/bots/brain/tests.rs:44:13:
+assertion `left == right` failed: "easy" at 600
+  left: false
+ right: true
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    bots::brain::tests::actual_source_brain_coordinator_call_sequence_and_rng_trace
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 98 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p rh-policy --lib`

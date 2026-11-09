@@ -1,0 +1,193 @@
+{
+  "format": "rh-bot-brain-prefix-manifest/1",
+  "baseCommit": "6db02195abab67d9867f6340cc61a8dc7d4f6114",
+  "claims": "Component/native policy proof only; no full brain, gameplay, socket, browser or tournament admission. See README.",
+  "files": [
+    {
+      "path": "crates/rh-policy/src/bots/bot.rs",
+      "baseSha256": "dd8353ea6d1f632b5f5e88d5fbd91c7ffae3f4085d8f747666232f59485f3b09",
+      "newSha256": "6e72bc64f5fc1df7064089f844507b3bd89006e7801fa8361f3a0460bde9acea",
+      "bytes": 28221
+    },
+    {
+      "path": "crates/rh-policy/src/bots/bot/connected_tests.rs",
+      "baseSha256": null,
+      "newSha256": "bcbf1ebeb6ad9139fad5540d176a3f3d62c51399ff5ee4628186840cafda97ee",
+      "bytes": 7115
+    },
+    {
+      "path": "crates/rh-policy/src/bots/brain.rs",
+      "baseSha256": null,
+      "newSha256": "a9fb8d6fab134d124d4111740619d5cf1e9c631edde953a2d3ce8c9e21f1cbd4",
+      "bytes": 4946
+    },
+    {
+      "path": "crates/rh-policy/src/bots/brain/tests.rs",
+      "baseSha256": null,
+      "newSha256": "669b393389fc63175d9d7ae13c1025b890bfc319bae822dcbeb0a86a92990ce7",
+      "bytes": 9647
+    },
+    {
+      "path": "crates/rh-policy/src/bots/memory_prefix.rs",
+      "baseSha256": "fefd26850301f26ab761fba5043595853d422a49e48275d9b2ce76862dd97de1",
+      "newSha256": "3a32f150a6c6c81dfb581b93f1a6bcf079a4d71628c7ecb3f9857611a3e24603",
+      "bytes": 14104
+    },
+    {
+      "path": "crates/rh-policy/src/bots/memory_prefix/tests.rs",
+      "baseSha256": "cd374d717a58a76211471af071983e0c01300229528000b274befcdbd8c83dd4",
+      "newSha256": "ddaa4ba23eb6841e20bfc2be371d033c36da880a27af3239e207f2819b65ce60",
+      "bytes": 15804
+    },
+    {
+      "path": "crates/rh-policy/src/bots/mod.rs",
+      "baseSha256": "dc9e96166b06a6e7d9088eeb2714271ff2dea2a5f3a7f248d891fac28c743745",
+      "newSha256": "92ac83f125a6540992c96046cc0b0216d8412e3724829807b9091493442fbc29",
+      "bytes": 2852
+    },
+    {
+      "path": "crates/rh-policy/src/bots/perception.rs",
+      "baseSha256": "5cdc09bf020c8a8d39c43a2bfea4289f402f814c54cc1d53186ac541949b34f5",
+      "newSha256": "6b9e3f48cd361c7889bdd57e0a6112829536c120a5cce0aaf53bfd69a58d84ad",
+      "bytes": 12939
+    },
+    {
+      "path": "crates/rh-policy/src/bots/world_tactics.rs",
+      "baseSha256": null,
+      "newSha256": "9b83347e0f3a5ce901bfcda81db32bf8b1f9f53572d32c871aa2245b7ed95e9e",
+      "bytes": 3767
+    },
+    {
+      "path": "crates/rh-policy/src/bots/world_tactics/tests.rs",
+      "baseSha256": null,
+      "newSha256": "22e86914dfa79f8119f7885341d5ed4b9129c6cae72cc0cfbf87852cf4ae91d4",
+      "bytes": 3594
+    },
+    {
+      "path": "docs/evidence/bot-brain-prefix/README.md",
+      "baseSha256": null,
+      "newSha256": "21949133afc15f56157b1229847642ebdfdb18a5c42ecb0ee4dbc27316c7f1db",
+      "bytes": 10223
+    },
+    {
+      "path": "docs/evidence/bot-brain-prefix/attempts/borrowed-history.log",
+      "baseSha256": null,
+      "newSha256": "a85dc20ab092caa0a9269079c06e49b4283b75a32a907ed16539f66e7d498a8a",
+      "bytes": 8639
+    },
+    {
+      "path": "docs/evidence/bot-brain-prefix/attempts/source-harness-exclusion.log",
+      "baseSha256": null,
+      "newSha256": "b42c0fc716ddcdf953fc24acd5582fdffe16e51f6debefcc28a0de8994ecea7e",
+      "bytes": 647
+    },
+    {
+      "path": "docs/evidence/bot-brain-prefix/checks/clippy-all-features.log",
+      "baseSha256": null,
+      "newSha256": "af1d2cf35aacaf94dd1c8a40bb1eb81981171b00ae7b6668106f5acb3a38e60c",
+      "bytes": 60
+    },
+    {
+      "path": "docs/evidence/bot-brain-prefix/checks/clippy-default.log",
+      "baseSha256": null,
+      "newSha256": "ab084e9891599a8ede5847343c1c2468bea8454ef248a81763d10f7fdd5eec62",
+      "bytes": 209
+    },
+    {
+      "path": "docs/evidence/bot-brain-prefix/checks/fmt.log",
+      "baseSha256": null,
+      "newSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/evidence/bot-brain-prefix/checks/policy-tests.log",
+      "baseSha256": null,
+      "newSha256": "cdcb1f30518516b59e31d6cd343df77dcfbeeacae942f3cc1434d8f5c87ac82f",
+      "bytes": 9570
+    },
+    {
+      "path": "docs/evidence/bot-brain-prefix/checks/source-bytecheck.log",
+      "baseSha256": null,
+      "newSha256": "31b45dbd31a5634b83c179d8d535565f29469d9ac50c5fd0ef9c1bef2ed04ab6",
+      "bytes": 22
+    },
+    {
+      "path": "docs/evidence/bot-brain-prefix/checks/source-capture.log",
+      "baseSha256": null,
+      "newSha256": "5abf6c6a444461e7532040cb982b1550bf33d968950872932c75adb645e2b903",
+      "bytes": 91
+    },
+    {
+      "path": "docs/evidence/bot-brain-prefix/mutants/01-reentry.log",
+      "baseSha256": null,
+      "newSha256": "3eaf5fe158611cada3320bb9c0276f741bde6795a8848f71435d8c8995171983",
+      "bytes": 1451
+    },
+    {
+      "path": "docs/evidence/bot-brain-prefix/mutants/02-roam-boundary.log",
+      "baseSha256": null,
+      "newSha256": "364ea74823469597a7ff9d518aef6599d8dd53ef7df47445c0102f3ba7622f46",
+      "bytes": 1470
+    },
+    {
+      "path": "docs/evidence/bot-brain-prefix/mutants/03-salient.log",
+      "baseSha256": null,
+      "newSha256": "49d287bf4f223ff7e97dc0937579ba1b565d0060d88774233917c24e608f226a",
+      "bytes": 1173
+    },
+    {
+      "path": "docs/evidence/bot-brain-prefix/mutants/04-channel-first.log",
+      "baseSha256": null,
+      "newSha256": "27c0bbd3a57e42b3078ef1931861d547c7972a098a65570389120cf582a7ff74",
+      "bytes": 1506
+    },
+    {
+      "path": "docs/evidence/bot-brain-prefix/mutants/05-rng-extra-draw.log",
+      "baseSha256": null,
+      "newSha256": "8170b8ea22a89d66dff05277b3b99593b8a14d93fde7f436406d07e796c30e87",
+      "bytes": 1185
+    },
+    {
+      "path": "docs/evidence/bot-brain-prefix/mutants/06-comment-control.log",
+      "baseSha256": null,
+      "newSha256": "ffbf5813123a04d7877bdf1dab5ca5b11d26a68046a0cdd9fde20680d8b8ab81",
+      "bytes": 603
+    },
+    {
+      "path": "docs/evidence/bot-brain-prefix/mutants/07-restored-control.log",
+      "baseSha256": null,
+      "newSha256": "a7d944695b5304bdc333d3bd33eae41366cea6e00b605aea1f1506d9f22b334a",
+      "bytes": 9570
+    },
+    {
+      "path": "docs/evidence/bot-brain-prefix/mutants/results.json",
+      "baseSha256": null,
+      "newSha256": "1deeb8b2ef922ac29f0c63d963e41354c0e2a5131337736b398ebc6fa12d6883",
+      "bytes": 1275
+    },
+    {
+      "path": "parity/policy/bot-brain-prefix/source.json",
+      "baseSha256": null,
+      "newSha256": "5cce39815962a60417b99e35d8b36e942b95e2e03cf47c51ccf428f398da5d9f",
+      "bytes": 170621
+    },
+    {
+      "path": "tools/bot-brain-prefix-fixtures/capture.mts",
+      "baseSha256": null,
+      "newSha256": "64200479a2b5fb82eba0b980fd9f39615ba07aaee7863db3ac677afdc1e381b5",
+      "bytes": 10309
+    },
+    {
+      "path": "tools/bot-brain-prefix-fixtures/capture.sh",
+      "baseSha256": null,
+      "newSha256": "45e3c1f490db490ee66d031e695ff2198c4565e984318b9caa52c0666fae1a74",
+      "bytes": 931
+    },
+    {
+      "path": "tools/bot-brain-prefix-fixtures/run-mutants.py",
+      "baseSha256": null,
+      "newSha256": "1a469cf43561ac66dabd593b6cbab7e653399298195e5aaff8813c622f9d3bb1",
+      "bytes": 3559
+    }
+  ]
+}
