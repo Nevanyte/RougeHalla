@@ -1,0 +1,89 @@
+{
+  "scope": "unchanged historical fixture inspection after the new extra held-target assertion failed; no source/fixture edit",
+  "fixture": "protocol/fixtures/scene-candidate/full14.json",
+  "fixtureSha256": "1cc549e75815b5942d5cdfc86b51176d6d14bf43023da2cbf028b5347e6bc2b5",
+  "decoder": "crates/rh-server/web/probe.html",
+  "decoderSha256": "b6ef4b4b12aa2e1844c823a11ee18ef1cdd7f062942cd207e5207cd356d38dd7",
+  "name": "native-training-currentref-rack",
+  "innerFrameHex": "830200838044010000444400005c4400000000b60750028084808008118015801b00003003011180188018004050030000000000000000000000000000408f400000000000408f400000000000408f40",
+  "decoded": {
+    "t": "snapshot",
+    "tick": 2,
+    "serverMs": 100,
+    "phase": 1,
+    "ack": 0,
+    "training": true,
+    "me": {
+      "id": 1,
+      "faction": 0,
+      "x": 784,
+      "y": 880,
+      "facing": 0,
+      "hp": 950,
+      "maxHp": 950,
+      "status": 1,
+      "weapon": 5,
+      "readyIn": 0,
+      "kills": 0,
+      "bounty": 0,
+      "gv": 0,
+      "moveSeq": 0,
+      "effects": 0,
+      "displaceSeq": 0,
+      "sig": 0,
+      "huntTarget": null,
+      "huntStacks": 0,
+      "wish": null,
+      "barrierBits": 0,
+      "barrierRingStep": 0
+    },
+    "actors": [
+      {
+        "id": 2147484160,
+        "faction": 0,
+        "x": 688,
+        "y": 880,
+        "facing": 0,
+        "hpPct": 100,
+        "status": 1,
+        "weapon": 3,
+        "bounty": 0,
+        "kind": 3,
+        "effects": 0,
+        "displaceSeq": 0,
+        "mobTypeCode": 0,
+        "sig": 0,
+        "barrierPct": 0,
+        "barrierRingStep": 0
+      },
+      {
+        "id": 2147484161,
+        "faction": 0,
+        "x": 784,
+        "y": 784,
+        "facing": 1.5707963705062866,
+        "hpPct": 100,
+        "status": 1,
+        "weapon": 5,
+        "bounty": 0,
+        "kind": 3,
+        "effects": 0,
+        "displaceSeq": 0,
+        "mobTypeCode": 0,
+        "sig": 0,
+        "barrierPct": 0,
+        "barrierRingStep": 0
+      }
+    ],
+    "ownerCombat": {
+      "lock": {
+        "clear": true
+      },
+      "drawStartedAt": 0,
+      "readyAt": 0,
+      "asMilli": 1000,
+      "windupMilli": 1000,
+      "speedMilli": 1000
+    }
+  }
+}

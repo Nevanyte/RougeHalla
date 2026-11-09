@@ -1,0 +1,45 @@
+{
+  "scope": "cache observation only; absence of experimental symbol observed in first compile; mtime invalidation of own byte-identical package root requests rebuild without cache cleanup",
+  "timeUtc": "2026-11-09T17:13:59.477505+00:00",
+  "dependencyInfo": [
+    {
+      "file": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_protocol-483fb2f4f5e9fc79.d",
+      "mtime": 1794243341.2892292,
+      "sha256": "bf8acd7635eed42d990ca93bcb77394df47fa079f4e13495770e80aad7c5d048",
+      "sampleSourcePaths": [],
+      "mentionsSceneCandidate": false
+    },
+    {
+      "file": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_protocol-5f36d585de28e787.d",
+      "mtime": 1794241575.028457,
+      "sha256": "f1521ea35c7b5261b4c9b0fe1cdba210944e098dce45045b6d50af58eaffbcf2",
+      "sampleSourcePaths": [],
+      "mentionsSceneCandidate": true
+    },
+    {
+      "file": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_protocol-a9037f70357c9231.d",
+      "mtime": 1794243566.773503,
+      "sha256": "d056d0622999454507291f9957a6a2a735d1ab239a5b5fad5b14aab0e224a7c8",
+      "sampleSourcePaths": [],
+      "mentionsSceneCandidate": false
+    },
+    {
+      "file": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_protocol-e6fe9c21bdcf42f4.d",
+      "mtime": 1794202566.8682284,
+      "sha256": "8faec190c37f5a766f5a840aef71c0e49980efcba0b0045fbd38b7e203ce9648",
+      "sampleSourcePaths": [],
+      "mentionsSceneCandidate": false
+    },
+    {
+      "file": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_protocol-e8bf87f8e2d12c2d.d",
+      "mtime": 1794193261.3487356,
+      "sha256": "4785a3c65ce6eda9388d917f3d772ef24ed2f68eac4f4bcd2048e0829ef96e5c",
+      "sampleSourcePaths": [],
+      "mentionsSceneCandidate": false
+    }
+  ],
+  "touchedSource": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14-clients/repo/crates/rh-protocol/src/lib.rs",
+  "beforeMtime": 1794243331.036258,
+  "afterMtime": 1794244439.477433,
+  "unchangedSourceSha256": "d1258e9c3bd9911a32d0cbdce375c2a0a9ca8f3d792a8b368e382833cc3e896c"
+}

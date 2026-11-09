@@ -1,0 +1,11 @@
+Diff in /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14-clients/repo/crates/rh-server/src/outbox/scene_candidate.rs:4:
+ use std::collections::{BTreeMap, VecDeque};
+ use std::sync::{Arc, Mutex, MutexGuard};
+ 
+-pub mod socket;
+ #[cfg(test)]
+ mod client14_fixture;
++pub mod socket;
+ 
+ #[derive(Clone, Copy, Debug)]
+ pub struct QueueLimits {

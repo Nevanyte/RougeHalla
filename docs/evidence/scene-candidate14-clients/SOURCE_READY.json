@@ -1,0 +1,18 @@
+{
+  "state": "SOURCE_READY_NOT_YET_TESTED",
+  "base": "800b6a5ffcb87cf8f4f5cb102d279e5fadf02b68",
+  "createdUtc": "2026-11-09T17:12:39.518075+00:00",
+  "source": {
+    "crates/rh-server/src/outbox/scene_candidate.rs": "b5f1884517b7a0c5fc112d6931df9bb2ef50c29cc40b818a6c40c5f542bfe5ea",
+    "crates/rh-server/src/outbox/scene_candidate/client14_fixture.rs": "480d5d804ba6416b1d5aa23fa844e3863128ab6c73762059f3979497427d2014",
+    "client-unity/RoguehallaNet/Protocol/SceneCandidateClient14.cs": "6f480ec0f25736053e778940b260336f5234ebd42a2be728aa9be2a37a3f5996",
+    "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/SceneCandidateClient14.cs": "6f480ec0f25736053e778940b260336f5234ebd42a2be728aa9be2a37a3f5996",
+    "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/SceneCandidateClient14.cs.meta": "568139852cad8498f1370aa8f9204381b21efaaec2b4fd37f06e83038caa51ac",
+    "client-unity/RoguehallaNet.Tests/SceneCandidateClient14Tests.cs": "d90ea05dccd109c4b165a06ba59542562c051ad980b251e8ae6567cc35959700",
+    "tools/scene-candidate/client14.mjs": "fc671521ab1264812beef96c781294b1e91fe37b4928b44a74090e4f0d52c604",
+    "tools/scene-candidate/check-client14.mjs": "5d4aa21b4f36574c69831c0bb6a9d250fdd8d48da74c483a750e8f21791c8567"
+  },
+  "existingTrackedChange": "only a cfg(test) child module declaration in the private experimental server module",
+  "fixtureStatus": "not yet generated; explicit bounded Rust export is next",
+  "claim": "private client DATA/apply/ACK byte component only; no default or live integration"
+}

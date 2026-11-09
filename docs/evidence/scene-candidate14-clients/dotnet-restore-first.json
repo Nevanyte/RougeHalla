@@ -1,0 +1,15 @@
+{
+  "command": [
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/dotnet/dotnet",
+    "restore",
+    "client-unity/RoguehallaNet.Tests",
+    "--ignore-failed-sources",
+    "--nologo"
+  ],
+  "cwd": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14-clients/repo",
+  "startedUtc": "2026-11-09T17:02:59.856302+00:00",
+  "endedUtc": "2026-11-09T17:03:00.956244+00:00",
+  "exitCode": 0,
+  "logSha256": "b814b6cc414eb32c196347999896b017fc023b3c4329fe3cff78c4a634561d61",
+  "scope": "dependency preparation only; existing unchanged project/package versions"
+}

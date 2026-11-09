@@ -1,0 +1,6 @@
+   Compiling rh-protocol v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14-clients/repo/crates/rh-protocol)
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14-clients/repo/crates/rh-policy)
+   Compiling rh-headless v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14-clients/repo/crates/rh-headless)
+   Compiling rh-server v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14-clients/repo/crates/rh-server)
+    Finished `test` profile [unoptimized] target(s) in 12.23s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_server-825e280ee950b412)

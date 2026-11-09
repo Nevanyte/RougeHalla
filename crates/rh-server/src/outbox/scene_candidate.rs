@@ -4,6 +4,8 @@ use rh_protocol::scene_candidate::{Ack, Error, Limits, Meta, PreparedScene, Resu
 use std::collections::{BTreeMap, VecDeque};
 use std::sync::{Arc, Mutex, MutexGuard};
 
+#[cfg(test)]
+mod client14_fixture;
 pub mod socket;
 
 #[derive(Clone, Copy, Debug)]
