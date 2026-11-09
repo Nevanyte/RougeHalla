@@ -1,0 +1,15 @@
+Per-file hashes verified against sealed Git (not worktree-only)
+
+Base: 95bd9c1efcde9b71cb07f23f24aef8ff4fb17013
+Code commit: 6a2d8418a7a745db76af17a5b0ef7753046dce73
+
+git show 6a2d8418:crates/rh-policy/src/bots/bot.rs | shasum -a 256
+  8b4f0a8304bd2b10b4c929ec526e372805e6d6b6ea40d3effe0dfc4e8688872d
+git show 6a2d8418:crates/rh-policy/src/bots/bot/reset_stream_tests.rs | shasum -a 256
+  befeddcc23b2160200abc4fd182f68fb2b666250b24d393b44388d3a564d0136
+
+Source fixture (unchanged; sealed base equals worktree):
+git show 95bd9c1e:parity/policy/bot-knowledge-repair.json | shasum -a 256
+  a97293e2ec3e8a9e5e0dcac985c4b80b84f21caa447390931c00ad39ba40266b
+shasum -a 256 parity/policy/bot-knowledge-repair.json
+  a97293e2ec3e8a9e5e0dcac985c4b80b84f21caa447390931c00ad39ba40266b
