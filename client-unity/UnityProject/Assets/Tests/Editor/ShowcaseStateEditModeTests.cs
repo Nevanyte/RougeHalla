@@ -36,14 +36,16 @@ namespace Roguehalla.Client.Tests
             var focusObject = new GameObject("focus label");
             focusObject.transform.SetParent(_root.transform, false);
             SetField(hud, "_focusLabel", focusObject.AddComponent<TextMeshPro>());
+            SetField(hud, "_buildHint", _root.AddComponent<HudIconHint>());
 
             RefreshCollections(hud, BuildView(0));
             string previous = label.text;
             RefreshCollections(hud, BuildView(1));
 
-            Assert.That(previous, Is.EqualTo("B · BUILD DETAILS · 2 card stacks"));
-            Assert.That(label.text, Is.EqualTo("B · BUILD DETAILS · 3 card stacks"));
+            Assert.That(previous, Is.EqualTo("B · 2"));
+            Assert.That(label.text, Is.EqualTo("B · 3"));
             Assert.That(label.text, Is.Not.EqualTo(previous));
+            StringAssert.Contains("BUILD  ", ((HudIconHint)GetField(hud, "_buildHint")).Text);
         }
 
         [Test]
@@ -58,6 +60,14 @@ namespace Roguehalla.Client.Tests
             focusObject.transform.SetParent(_root.transform, false);
             var focusLabel = focusObject.AddComponent<TextMeshPro>();
             SetField(hud, "_focusLabel", focusLabel);
+            var potionButton = new GameObject("PotionButton", typeof(RectTransform));
+            potionButton.transform.SetParent(_root.transform, false);
+            var potionCount = new GameObject("PotionCount", typeof(RectTransform), typeof(TextMeshPro));
+            potionCount.transform.SetParent(potionButton.transform, false);
+            var potionObject = new GameObject("PotionIcon", typeof(RectTransform), typeof(UnityEngine.UI.Image));
+            potionObject.transform.SetParent(potionButton.transform, false);
+            SetField(hud, "_potionIcon", potionObject.GetComponent<UnityEngine.UI.Image>());
+            SetField(hud, "_potionHint", _root.AddComponent<HudIconHint>());
             var buildObject = new GameObject("build label");
             buildObject.transform.SetParent(_root.transform, false);
             SetField(hud, "_build", buildObject.AddComponent<TextMeshPro>());
@@ -65,17 +75,21 @@ namespace Roguehalla.Client.Tests
             RefreshCollections(hud, InventoryView(1));
             string firstSlot = slots[0].GetComponentInChildren<TMP_Text>().text;
             string secondSlot = slots[1].GetComponentInChildren<TMP_Text>().text;
-            Assert.That(focusLabel.text, Is.EqualTo("Potions 2 small / 1 camp / 3 healing"));
+            Assert.That(focusLabel.text, Is.Empty);
+            var potionHint = (HudIconHint)GetField(hud, "_potionHint");
+            Assert.That(potionHint.Text, Is.EqualTo("E · Drink potion\n2 small / 1 camp / 3 healing"));
 
             RefreshCollections(hud, InventoryView(0));
 
-            Assert.That(focusLabel.text, Is.EqualTo("Potions 2 small / 0 camp / 3 healing"));
+            Assert.That(focusLabel.text, Is.Empty);
+            Assert.That(potionHint.Text, Is.EqualTo("E · Drink potion\n2 small / 0 camp / 3 healing"));
             Assert.That(slots[0].GetComponentInChildren<TMP_Text>().text, Is.EqualTo(firstSlot));
             Assert.That(slots[1].GetComponentInChildren<TMP_Text>().text, Is.EqualTo(secondSlot));
 
             RefreshCollections(hud, InventoryView(null));
 
-            Assert.That(focusLabel.text, Is.EqualTo("Potions: awaiting server"));
+            Assert.That(focusLabel.text, Is.Empty);
+            Assert.That(potionHint.Text, Is.EqualTo("E · Drink potion\nAwaiting inventory"));
         }
 
         [Test]

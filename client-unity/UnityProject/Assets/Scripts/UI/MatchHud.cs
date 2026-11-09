@@ -78,6 +78,7 @@ namespace Roguehalla.Client
             _headerActions[0] = Button(_root, "Help", "H · HELP", .615f, .93f, .725f, .99f, ToggleHelp);
             _headerActions[1] = Button(_root, "Settings", "SETTINGS", .735f, .93f, .85f, .99f, ToggleSettings);
             _headerActions[2] = Button(_root, "Leave", "Leave / menu", .86f, .93f, .985f, .99f, () => _client.Leave());
+            CreateHeaderIcons();
             CreateJoinMenu();
             SetFaction(_faction);
             CreateCombatHud();
@@ -170,8 +171,8 @@ namespace Roguehalla.Client
             _dirty = _rewardsDirty = true; _bannerState = (SessionState)(-1); _bannerPhase = -1;
             ClearOwnerPresentation("Awaiting server");
             // Menu/modal visibility can keep these controls inactive until the next HUD tick.
-            _pickup.interactable = false; _pickup.GetComponentInChildren<TMP_Text>(true).text = "F · No pickup";
-            _focusLabel.text = "Potions: awaiting server";
+            _pickup.interactable = false; _pickup.GetComponentInChildren<TMP_Text>(true).text = "F";
+            _focusLabel.text = "";
             _slots[0].GetComponentInChildren<TMP_Text>(true).text = "1 · —";
             _slots[1].GetComponentInChildren<TMP_Text>(true).text = "2 · —";
             RefreshCollections(session.Collections);
@@ -233,7 +234,7 @@ namespace Roguehalla.Client
             _dirty = true;
         }
 
-        void OnDisable() { CloseResumeChooser(); UnbindTrainingSession(); }
+        void OnDisable() { HudIconHint.CloseAll(); CloseResumeChooser(); UnbindTrainingSession(); }
         void OnDestroy() { Unbind(); if (_trainingConsole != null) _trainingConsole.OpenStateChanged -= ConsumeTrainingUiUpdate; if (_showcaseSettings != null) _showcaseSettings.Changed -= ApplyTextScale; if (_uiPrefs != null) _uiPrefs.Changed -= ApplyDisplayPreferences; UiBrowserStorage.CaptureTab(false); }
         void Changed(SessionState state) { if (_session != null) RefreshCollections(_session.Collections); RefreshPlayerFlows(); _dirty = _rewardsDirty = true; }
         void Snapshot(ServerMsg.Snapshot snapshot) { RefreshTrainingConsole(_session, snapshot); _dirty = true; }
@@ -305,6 +306,7 @@ namespace Roguehalla.Client
         /// <summary>Renders only delivered owner facts; the accepted server clock is used for elapsed-time labels.</summary>
         internal void RefreshOwnerPresentation(SelfView me, double serverTimeMs)
         {
+            RefreshDamageReadout(me);
             if (me.Hp != _lastHp || me.MaxHp != _lastMaxHp || me.Kills != _lastKills || me.Gv != _lastGv || me.Status != _lastStatus || me.Barrier != _lastBarrier || me.BarrierRingStep != _lastBarrierRing)
             {
                 Set(_vitals, "HP " + me.Hp.ToString("0.#") + " / " + me.MaxHp.ToString("0.#") + " · Barrier " + me.Barrier.ToString("0.#"));
@@ -322,7 +324,8 @@ namespace Roguehalla.Client
             if (wishChanged || serverTimeMs != _lastServerTime)
             {
                 Set(_wishCard, FormatWishCard(me.Wish, serverTimeMs));
-                Set(_wishSummary, me.Wish.HasValue ? "R · WISH · " + me.Wish.Value.Charges + "/" + me.Wish.Value.MaxCharges : "R · WISH · —");
+                Set(_wishSummary, WishIconText(me.Wish, serverTimeMs));
+                if (_wishHint != null) _wishHint.Text = FormatWishCard(me.Wish, serverTimeMs);
                 _lastWish = me.Wish; _lastServerTime = serverTimeMs;
             }
         }
@@ -333,7 +336,9 @@ namespace Roguehalla.Client
             Set(_vitals, reason == "Unavailable" ? "Waiting / spectating" : "Waiting for player state");
             Set(_combatStats, "Awaiting player stats");
             Set(_wishCard, "R · WISH\n" + reason);
-            Set(_wishSummary, "R · WISH · —");
+            Set(_wishSummary, "R · —");
+            if (_wishHint != null) _wishHint.Text = "R · Wish\n" + reason;
+            RefreshDamageReadout(null);
             if (_healthBarFill != null) _healthBarFill.anchorMax = Vector2.zero;
             if (_barrierBarFill != null) { _barrierBarFill.anchorMin = Vector2.zero; _barrierBarFill.anchorMax = Vector2.zero; }
         }
@@ -372,9 +377,6 @@ namespace Roguehalla.Client
             if (!view.Inventory.HasValue)
             {
                 _inventoryShown = null;
-                Set(_slots[0].GetComponentInChildren<TMP_Text>(), "1 · —");
-                Set(_slots[1].GetComponentInChildren<TMP_Text>(), "2 · —");
-                Set(_focusLabel, "Potions: awaiting server");
             }
             if (view.Inventory.HasValue && (!_inventoryShown.HasValue ||
                 view.Inventory.Value.ActiveSlot != _inventoryShown.Value.ActiveSlot || view.Inventory.Value.Slot0 != _inventoryShown.Value.Slot0 ||
@@ -383,16 +385,15 @@ namespace Roguehalla.Client
                 view.Inventory.Value.PotionsHealing != _inventoryShown.Value.PotionsHealing))
             {
                 var inv = view.Inventory.Value; _inventoryShown = inv;
-                Set(_slots[0].GetComponentInChildren<TMP_Text>(), "1 · " + (inv.Slot0.HasValue ? inv.Slot0.ToString() : "Empty") + "");
-                Set(_slots[1].GetComponentInChildren<TMP_Text>(), "2 · " + (inv.Slot1.HasValue ? inv.Slot1.ToString() : "Empty") + "");
-                Set(_focusLabel, "Potions " + inv.PotionSmall + " small / " + inv.PotionLarge + " camp / " + inv.PotionsHealing + " healing");
             }
+            UpdateInventoryHints(view.Inventory);
             if (view.Focus.HasValue != _focusShown.HasValue || view.Focus.HasValue &&
                 (!view.Focus.Value.Handle.Equals(_focusShown.Value.Handle) || view.Focus.Value.Weapon != _focusShown.Value.Weapon || view.Focus.Value.Kind != _focusShown.Value.Kind))
             {
                 _focusShown = view.Focus;
                 _pickup.interactable = view.Focus.HasValue;
-                Set(_pickup.GetComponentInChildren<TMP_Text>(), view.Focus.HasValue ? "F · " + (view.Focus.Value.Weapon.HasValue ? view.Focus.Value.Weapon.ToString() : view.Focus.Value.Kind.ToString()) : "F · No pickup");
+                Set(_pickup.GetComponentInChildren<TMP_Text>(), "F");
+                if (_pickupHint != null) _pickupHint.Text = view.Focus.HasValue ? "F · Pick up " + (view.Focus.Value.Weapon.HasValue ? view.Focus.Value.Weapon.ToString() : view.Focus.Value.Kind.ToString()) : "F · Pick up\nNo pickup in range";
             }
             bool buildChanged = !_buildShown || _hasBuildShown != view.HasBuild;
             if (_cardsShown.Length != view.Cards.Count)
@@ -410,7 +411,8 @@ namespace Roguehalla.Client
             for (int i = 0; i < view.Cards.Count; i++) if (view.Cards[i] > 0) { text.Append(CardDisplayCatalog.Title((byte)i)).Append('×').Append(view.Cards[i]).Append("  "); any = true; }
             for (int i = 0; i < view.Boosts.Count; i++) if (view.Boosts[i] > 0) { text.Append((BoostId)i).Append('+').Append(view.Boosts[i]).Append("  "); any = true; }
             if (!any) text.Append(view.HasBuild ? "None" : "awaiting server");
-            Set(_build, any ? "B · BUILD DETAILS · " + CountCards(view) + " card stacks" : text.ToString());
+            Set(_build, view.HasBuild ? "B · " + CountCards(view) : "B · —");
+            if (_buildHint != null) _buildHint.Text = "B · Full build details\n" + text;
         }
         void RefreshRewards()
         {

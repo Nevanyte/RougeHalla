@@ -29,7 +29,7 @@ namespace Roguehalla.Client
         UnityEngine.UI.Image _potionIcon;
         TMP_Text _wishSummary;
         RectTransform _wishDetails;
-        RectTransform _vitalsPanel, _buildStrip, _combatActions;
+        RectTransform _vitalsPanel, _buildStrip, _combatActions, _damagePanel;
         TMP_Text _combatStats;
         bool _worldHudVisible = true;
         GameObject _worldHudFocus;
@@ -87,7 +87,7 @@ namespace Roguehalla.Client
         void CreateCombatHud()
         {
             _hud = Rect(_root, "PlayerHUD", 0, 0, 1, 1);
-            var vitals = _vitalsPanel = Panel(_hud, "VitalsPanel", .015f, .018f, .285f, .138f);
+            var vitals = _vitalsPanel = Panel(_hud, "VitalsPanel", .015f, .146f, .285f, .266f);
             _vitals = Text(vitals, "Vitals", "Waiting for player state", .04f, .35f, .96f, .95f, 15);
             SetBaseSize(_vitals, 22);
             var bar = Rect(vitals, "OwnerVitalBar", .04f, .12f, .96f, .22f);
@@ -96,13 +96,22 @@ namespace Roguehalla.Client
             var health = _healthBarFill.gameObject.AddComponent<UnityEngine.UI.Image>(); health.color = ShowcasePalette.Success; health.raycastTarget = false;
             _barrierBarFill = Rect(bar, "BarrierFill", 0, 0, 0, 1);
             var barrier = _barrierBarFill.gameObject.AddComponent<UnityEngine.UI.Image>(); barrier.color = ShowcasePalette.Gold; barrier.raycastTarget = false;
+            CreateDamageReadout();
             var actions = _combatActions = Panel(_hud, "CombatActions", .315f, .015f, .615f, .135f);
-            _wishSummary = Text(actions, "WishSummary", "R · WISH · —", .565f, .58f, .98f, .98f, 14);
+            var wishInfo = Button(actions, "WishInfo", "", .565f, .58f, .98f, .98f, () => { });
+            var wishIcon = MythicUi.Icon(wishInfo.transform, "WishIcon", MythicGlyph.Wish, 36);
+            wishIcon.rectTransform.anchorMin = wishIcon.rectTransform.anchorMax = new Vector2(.17f, .5f);
+            _wishSummary = wishInfo.GetComponentInChildren<TMP_Text>();
+            _wishSummary.rectTransform.anchorMin = new Vector2(.30f, .04f); _wishSummary.rectTransform.anchorMax = new Vector2(.98f, .96f);
+            SetBaseSize(_wishSummary, 20);
+            _wishSummary.text = "R · —";
             _wishSummary.color = ShowcasePalette.Gold;
+            _wishHint = HudIconHint.Attach(wishInfo, _root, "R · Wish\nAwaiting server");
+            // Retain the existing formatted detail model for tests/readers, without a permanent world overlay.
             _wishDetails = Panel(_hud, "WishPanel", .775f, .70f, .985f, .915f);
             _wishCard = Text(_wishDetails, "WishCard", "R · WISH\nAwaiting server", .04f, .04f, .96f, .96f, 14);
             _wishCard.color = ShowcasePalette.Gold;
-            MakeWishScrollable(_wishDetails);
+            _wishDetails.gameObject.SetActive(false);
             for (int i = 0; i < 2; i++)
             {
                 byte slot = (byte)i;
@@ -116,6 +125,7 @@ namespace Roguehalla.Client
                 _weaponActiveBars[i] = activeBar.gameObject.AddComponent<UnityEngine.UI.Image>();
                 _weaponActiveBars[i].color = ShowcasePalette.Gold;
                 _weaponActiveBars[i].raycastTarget = false; _weaponActiveBars[i].enabled = false;
+                _weaponHints[i] = HudIconHint.Attach(_slots[i], _root, (i + 1) + " · Empty weapon slot");
             }
             var potion = Button(actions, "Potion", "E · POTION", .38f, .035f, .545f, .965f, UsePotion);
             var potionText = potion.GetComponentInChildren<TMP_Text>();
@@ -123,7 +133,12 @@ namespace Roguehalla.Client
             _potionIcon = MythicUi.Icon(potion.transform, "PotionIcon", MythicGlyph.Potion, 48);
             _potionIcon.rectTransform.anchorMin = _potionIcon.rectTransform.anchorMax = new Vector2(.5f, .75f);
             _potionIcon.rectTransform.anchoredPosition = Vector2.zero;
+            _potionHint = HudIconHint.Attach(potion, _root, "E · Drink potion\nAwaiting inventory");
             _pickup = Button(actions, "Pickup", "F · PICK UP", .565f, .035f, .98f, .55f, () => _client.PickupFocus());
+            var pickupIcon = HudActionGlyphs.Icon(_pickup.transform, "PickupIcon", HudActionGlyph.Pickup, 34);
+            pickupIcon.rectTransform.anchorMin = pickupIcon.rectTransform.anchorMax = new Vector2(.20f, .5f);
+            _pickup.GetComponentInChildren<TMP_Text>().rectTransform.anchorMin = new Vector2(.4f, .05f);
+            _pickupHint = HudIconHint.Attach(_pickup, _root, "F · Pick up\nNo pickup in range");
             SetBaseSize(_pickup.GetComponentInChildren<TMP_Text>(), 20);
             var buildStrip = _buildStrip = Panel(_hud, "BuildStrip", .015f, .645f, .285f, .915f);
             _combatStats = Text(buildStrip, "CombatStats", "Awaiting player stats", .04f, .82f, .96f, .99f, 15);
@@ -131,6 +146,10 @@ namespace Roguehalla.Client
             _focusLabel = Text(buildStrip, "Focus", "", .04f, .715f, .96f, .81f, 12);
             var buildButton = Button(buildStrip, "BuildDetails", "B · BUILD DETAILS", .025f, .015f, .975f, .25f, ToggleBuild);
             _build = buildButton.GetComponentInChildren<TMP_Text>();
+            _buildHint = HudIconHint.Attach(buildButton, _root, "B · Full build details");
+            var buildIcon = MythicUi.Icon(buildButton.transform, "BuildIcon", MythicGlyph.Cards, 30);
+            buildIcon.rectTransform.anchorMin = buildIcon.rectTransform.anchorMax = new Vector2(.10f, .5f);
+            _build.rectTransform.anchorMin = new Vector2(.18f, .05f);
             SetBaseSize(_build, 20);
             var glyphs = new[] { MythicGlyph.Sword, MythicGlyph.Wish, MythicGlyph.Armor, MythicGlyph.Shield, MythicGlyph.Health, MythicGlyph.Bow, MythicGlyph.Speed, MythicGlyph.Potion };
             var labels = new[] { "OFF", "SOUL", "DEF", "S.DEF", "HP", "ATK", "MOVE", "LEECH" };
@@ -140,31 +159,19 @@ namespace Roguehalla.Client
                 var cell = Rect(buildStrip, "Build" + labels[i], x, y, x + .235f, y + .22f);
                 var icon = MythicUi.Icon(cell, "StatIcon", glyphs[i], 32);
                 icon.color = MythicUi.BoostColor(i);
-                icon.rectTransform.anchorMin = icon.rectTransform.anchorMax = new Vector2(.20f, .70f);
-                _buildCounts[i] = Text(cell, "Count", "—", .40f, .42f, .98f, .99f, 14);
+                icon.rectTransform.anchorMin = icon.rectTransform.anchorMax = new Vector2(.20f, .5f);
+                _buildCounts[i] = Text(cell, "Count", "—", .40f, .05f, .98f, .95f, 14);
                 SetBaseSize(_buildCounts[i], 20);
-                Text(cell, "StatLabel", labels[i], .03f, 0, .98f, .42f, 12).color = ShowcasePalette.MutedText;
+                var statSelect = cell.gameObject.AddComponent<UnityEngine.UI.Button>();
+                var target = cell.gameObject.AddComponent<UnityEngine.UI.Image>(); target.color = Color.clear;
+                statSelect.targetGraphic = target;
+                HudIconHint.Attach(statSelect, _root, StatNames[i] + " · build boost stacks\nOpen B for the full build ledger.");
             }
         }
         void SetBaseSize(TMP_Text label, float size)
         {
             int i = _scaledText.IndexOf(label); if (i >= 0) _textBaseSize[i] = size;
             label.fontSize = size * _showcaseSettings.TextScale; label.fontSizeMin = label.fontSize * .75f; label.fontSizeMax = label.fontSize;
-        }
-        void MakeWishScrollable(Transform parent)
-        {
-            var frame = Rect(parent, "WishDetails", .04f, .04f, .96f, .96f);
-            var scroll = frame.gameObject.AddComponent<UnityEngine.UI.ScrollRect>(); scroll.horizontal = false;
-            scroll.movementType = UnityEngine.UI.ScrollRect.MovementType.Clamped; scroll.scrollSensitivity = 30;
-            var viewport = Rect(frame, "Viewport", 0, 0, 1, 1);
-            var image = viewport.gameObject.AddComponent<UnityEngine.UI.Image>(); image.color = new Color(0, 0, 0, 0); image.raycastTarget = true;
-            viewport.gameObject.AddComponent<UnityEngine.UI.RectMask2D>();
-            var text = _wishCard.rectTransform; text.SetParent(viewport, false);
-            text.anchorMin = new Vector2(0, 1); text.anchorMax = Vector2.one; text.pivot = new Vector2(.5f, 1);
-            text.offsetMin = text.offsetMax = Vector2.zero;
-            _wishCard.enableAutoSizing = false;
-            text.gameObject.AddComponent<UnityEngine.UI.ContentSizeFitter>().verticalFit = UnityEngine.UI.ContentSizeFitter.FitMode.PreferredSize;
-            scroll.viewport = viewport; scroll.content = text;
         }
         void InitializeFeatures()
         {
@@ -324,6 +331,7 @@ namespace Roguehalla.Client
             TickPlayerFlows();
             if (TrainingHigherPanelVisible) UnbindTrainingSession();
             _trainingConsole?.Refresh();
+            AlignTrainingLauncher();
             _map?.Tick();
             RefreshWorldHudVisibility();
             if (_session != null) _drawer?.Refresh(_session.Collections, _session.Me, _showcaseSettings.TextScale);
@@ -333,8 +341,9 @@ namespace Roguehalla.Client
             bool visible = WorldHudVisible;
             if (_worldHudVisible != visible)
             {
+                HudIconHint.CloseAll();
                 _worldHudVisible = visible;
-                _vitalsPanel.gameObject.SetActive(visible); _buildStrip.gameObject.SetActive(visible); _combatActions.gameObject.SetActive(visible);
+                _vitalsPanel.gameObject.SetActive(visible); _damagePanel.gameObject.SetActive(visible); _buildStrip.gameObject.SetActive(visible); _combatActions.gameObject.SetActive(visible);
                 _notice.gameObject.SetActive(visible);
                 var selected = EventSystem.current != null ? EventSystem.current.currentSelectedGameObject : null;
                 var target = _worldHudFocus != null ? _worldHudFocus.GetComponent<UnityEngine.UI.Selectable>() : null;
@@ -344,7 +353,6 @@ namespace Roguehalla.Client
                 _dirty = _rewardsDirty = true;
             }
             _map?.SetMinimapSuppressed(!visible);
-            if (_wishDetails != null) _wishDetails.gameObject.SetActive(visible && !_rewards.gameObject.activeSelf);
             RefreshHeaderActionsVisibility();
             RememberWorldHudFocus();
         }
