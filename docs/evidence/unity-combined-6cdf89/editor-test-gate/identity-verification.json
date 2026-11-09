@@ -1,0 +1,68 @@
+{
+  "source": "6cdf893c67f55b70eb832c49ca01e72a7f7839f6",
+  "verified": [
+    {
+      "class": "BuildDrawerEditModeTests",
+      "sourceSha256": "e264ff22db95b3fdb4cdd88eba4d5a0ce8389cec0489588b212a959956ca20e8",
+      "sourceMatchesFrozen": true,
+      "guidMatches": true,
+      "methodsMatchSource": true,
+      "methodCount": 5,
+      "mvid": "47ec3e5d-5f23-44c6-8b54-b1fe42f61494"
+    },
+    {
+      "class": "UiInputRoutingEditModeTests",
+      "sourceSha256": "fa9db63b15e67aeb52eae800672ed4a1d8bf6f4921768f83f69cc42beda0823b",
+      "sourceMatchesFrozen": true,
+      "guidMatches": true,
+      "methodsMatchSource": true,
+      "methodCount": 10,
+      "mvid": "47ec3e5d-5f23-44c6-8b54-b1fe42f61494"
+    },
+    {
+      "class": "MatchHudWishBarrierEditModeTests",
+      "sourceSha256": "680a6a2e66c17c97d3cee761246ab697f3e47820eee5de65ea481bf0f07c581d",
+      "sourceMatchesFrozen": true,
+      "guidMatches": true,
+      "methodsMatchSource": true,
+      "methodCount": 3,
+      "mvid": "47ec3e5d-5f23-44c6-8b54-b1fe42f61494"
+    },
+    {
+      "class": "HubCosmeticsViewEditModeTests",
+      "sourceSha256": "51c642cfa8b928969353aac731852664328f178de7e038fec2da72c9adb4465f",
+      "sourceMatchesFrozen": true,
+      "guidMatches": true,
+      "methodsMatchSource": true,
+      "methodCount": 7,
+      "mvid": "47ec3e5d-5f23-44c6-8b54-b1fe42f61494"
+    },
+    {
+      "class": "HubProgressViewEditModeTests",
+      "sourceSha256": "76a26ae4efd15d65da91eec5c15954fbec850f828d378dbd10a48c9d3b9e7d7f",
+      "sourceMatchesFrozen": true,
+      "guidMatches": true,
+      "methodsMatchSource": true,
+      "methodCount": 3,
+      "mvid": "47ec3e5d-5f23-44c6-8b54-b1fe42f61494"
+    },
+    {
+      "class": "AccountRecoveryViewEditModeTests",
+      "sourceSha256": "bc5e93d43bc916e25620fd8f1055d9fc1cd4f0bc856427b2b927f72c81e41562",
+      "sourceMatchesFrozen": true,
+      "guidMatches": true,
+      "methodsMatchSource": true,
+      "methodCount": 2,
+      "mvid": "47ec3e5d-5f23-44c6-8b54-b1fe42f61494"
+    },
+    {
+      "class": "MatchClientAccountBindingEditModeTests",
+      "sourceSha256": "796533af3264030cc23cde24d1057cb07fad5bff6b6984c6fb2e7e4f36dec114",
+      "sourceMatchesFrozen": true,
+      "guidMatches": true,
+      "methodsMatchSource": true,
+      "methodCount": 4,
+      "mvid": "47ec3e5d-5f23-44c6-8b54-b1fe42f61494"
+    }
+  ]
+}
