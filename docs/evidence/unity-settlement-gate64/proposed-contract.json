@@ -1,0 +1,1141 @@
+{
+  "schema": "roguehalla-unity-editmode-typed-fixture-contract/1",
+  "sourceSnapshot": {
+    "worktree": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-settlement-receipt",
+    "gitHead": "305a45ced95b091e9b920b14251542788b91189c"
+  },
+  "provenance": {
+    "prior42": {
+      "discoveryFile": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training-console-2026-11-09/repo/docs/evidence/unity-functional-0aeddc5b/editor-first/discovered-cases.json",
+      "sha256": "61e1baa3fb227ea405911b90835e5efe9417dbc89b8a95405f1fdbcb1880d9c5",
+      "evidenceCommit": "854a08f1d622e931eff40eba40ba3820cbe040da",
+      "sourceGate": "0aeddc5b4ce0feb5fc0060f2cf2d56c05dff8944",
+      "executedTests": false
+    },
+    "new22": {
+      "compiledAssembly": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-settlement-receipt-2026-11-09/profiles/editor/bin/Debug/netstandard2.1/Roguehalla.Client.EditModeTests.dll",
+      "sha256": "a2a6258727d01c3aa1e21bffc71bae0fefcc3b82f0bc414f3708c7f730dff3f1",
+      "extractor": "Mono.Cecil metadata only",
+      "extractorSourceSha256": "4d47ff9ddf851b82743fb56e3059bb5caa09d337ce1440d4b9769a757fca9d31",
+      "nunitAssembly": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Library/PackageCache/com.unity.ext.nunit@031a54704bff/net40/unity-custom/nunit.framework.dll",
+      "nunitSha256": "25466626abfea654a068abc579be018d8ef164fbb5415856230de2b8fc4795d5",
+      "testBodiesInvoked": false,
+      "nunitNameFormatter": {
+        "proofFile": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-settlement-receipt-2026-11-09/gate64/name-format-proof.json",
+        "proofSha256": "72dfe9d5b2aa733a36571dcef7939dc72e1b7af50bf1a0ba1f0c63c3eab72ccf",
+        "formatter": "NUnit.Framework.Internal.TestNameGenerator.GetDisplayName(TestMethod, object[])",
+        "formatterAssemblySha256": "25466626abfea654a068abc579be018d8ef164fbb5415856230de2b8fc4795d5",
+        "stubSourceSha256": "25386f89f866305886d3bf6b34c1fa3f4340ff43b16ecbd10a89bfe68ad9f788",
+        "testBodiesInvoked": false,
+        "unityApisUsed": false,
+        "stubSource": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-settlement-receipt-2026-11-09/gate64/name-formatter/Program.cs",
+        "stubProject": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-settlement-receipt-2026-11-09/gate64/name-formatter/NameFormatter.csproj",
+        "stubProjectSha256": "9d36622d1fbd8716167c4beab8cf271010a4ce14ffd26c77560caaf5d7e14043"
+      },
+      "extractorSource": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-settlement-receipt-2026-11-09/gate64/metadata-extractor/Program.cs",
+      "extractorProject": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-settlement-receipt-2026-11-09/gate64/metadata-extractor/MetadataExtractor.csproj",
+      "extractorProjectSha256": "61361d5d9a1c625bc2431506bf93754ab0547db0bb66806c59ede6685b006014"
+    }
+  },
+  "counts": {
+    "fixtures": 5,
+    "priorCases": 42,
+    "newCases": 22,
+    "totalCases": 64
+  },
+  "fixtures": {
+    "MatchLaunchEditModeTests": {
+      "cases": [
+        {
+          "fullName": "MatchLaunchEditModeTests.CrossOriginTrainingCannotSendOwnerCredentialsOrStartAClaim",
+          "simpleToolLeafSelector": "CrossOriginTrainingCannotSendOwnerCredentialsOrStartAClaim",
+          "fixtureType": "MatchLaunchEditModeTests",
+          "method": "CrossOriginTrainingCannotSendOwnerCredentialsOrStartAClaim",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "declaredCaseAttributes": [],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "MatchLaunchEditModeTests.EditingTrainingTargetDuringOwnerRequestCannotUseItsCapturedToken",
+          "simpleToolLeafSelector": "EditingTrainingTargetDuringOwnerRequestCannotUseItsCapturedToken",
+          "fixtureType": "MatchLaunchEditModeTests",
+          "method": "EditingTrainingTargetDuringOwnerRequestCannotUseItsCapturedToken",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "declaredCaseAttributes": [],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "MatchLaunchEditModeTests.EndingBeforeTheFirstModeFactUnlocksRecoveryAndLeavePermitsAnotherDestination",
+          "simpleToolLeafSelector": "EndingBeforeTheFirstModeFactUnlocksRecoveryAndLeavePermitsAnotherDestination",
+          "fixtureType": "MatchLaunchEditModeTests",
+          "method": "EndingBeforeTheFirstModeFactUnlocksRecoveryAndLeavePermitsAnotherDestination",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "declaredCaseAttributes": [],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "MatchLaunchEditModeTests.LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation(False)",
+          "simpleToolLeafSelector": "LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation(False)",
+          "fixtureType": "MatchLaunchEditModeTests",
+          "method": "LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation",
+          "methodParameters": [
+            {
+              "index": 0,
+              "declaredType": "System.Boolean"
+            }
+          ],
+          "selectedArguments": [
+            {
+              "declaredType": "System.Boolean",
+              "value": false,
+              "displayValue": "False"
+            }
+          ],
+          "declaredCaseAttributes": [
+            {
+              "typeFullName": "NUnit.Framework.TestCaseAttribute",
+              "constructorArguments": [
+                {
+                  "typeFullName": "System.Boolean",
+                  "text": "False"
+                }
+              ]
+            },
+            {
+              "typeFullName": "NUnit.Framework.TestCaseAttribute",
+              "constructorArguments": [
+                {
+                  "typeFullName": "System.Boolean",
+                  "text": "True"
+                }
+              ]
+            }
+          ],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "MatchLaunchEditModeTests.LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation(True)",
+          "simpleToolLeafSelector": "LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation(True)",
+          "fixtureType": "MatchLaunchEditModeTests",
+          "method": "LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation",
+          "methodParameters": [
+            {
+              "index": 0,
+              "declaredType": "System.Boolean"
+            }
+          ],
+          "selectedArguments": [
+            {
+              "declaredType": "System.Boolean",
+              "value": true,
+              "displayValue": "True"
+            }
+          ],
+          "declaredCaseAttributes": [
+            {
+              "typeFullName": "NUnit.Framework.TestCaseAttribute",
+              "constructorArguments": [
+                {
+                  "typeFullName": "System.Boolean",
+                  "text": "False"
+                }
+              ]
+            },
+            {
+              "typeFullName": "NUnit.Framework.TestCaseAttribute",
+              "constructorArguments": [
+                {
+                  "typeFullName": "System.Boolean",
+                  "text": "True"
+                }
+              ]
+            }
+          ],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "MatchLaunchEditModeTests.MissingTrainingNeverFallsBackOrStartsAnOwnershipRequest",
+          "simpleToolLeafSelector": "MissingTrainingNeverFallsBackOrStartsAnOwnershipRequest",
+          "fixtureType": "MatchLaunchEditModeTests",
+          "method": "MissingTrainingNeverFallsBackOrStartsAnOwnershipRequest",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "declaredCaseAttributes": [],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "MatchLaunchEditModeTests.OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot(Arena,False)",
+          "simpleToolLeafSelector": "OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot(Arena,False)",
+          "fixtureType": "MatchLaunchEditModeTests",
+          "method": "OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot",
+          "methodParameters": [
+            {
+              "index": 0,
+              "declaredType": "Roguehalla.Net.MatchLaunchMode"
+            },
+            {
+              "index": 1,
+              "declaredType": "System.Boolean"
+            }
+          ],
+          "selectedArguments": [
+            {
+              "declaredType": "Roguehalla.Net.MatchLaunchMode",
+              "value": {
+                "name": "Arena",
+                "numericValue": 0
+              },
+              "displayValue": "Arena"
+            },
+            {
+              "declaredType": "System.Boolean",
+              "value": false,
+              "displayValue": "False"
+            }
+          ],
+          "declaredCaseAttributes": [
+            {
+              "typeFullName": "NUnit.Framework.TestCaseAttribute",
+              "constructorArguments": [
+                {
+                  "typeFullName": "Roguehalla.Net.MatchLaunchMode",
+                  "text": "0"
+                },
+                {
+                  "typeFullName": "System.Boolean",
+                  "text": "False"
+                }
+              ]
+            },
+            {
+              "typeFullName": "NUnit.Framework.TestCaseAttribute",
+              "constructorArguments": [
+                {
+                  "typeFullName": "Roguehalla.Net.MatchLaunchMode",
+                  "text": "1"
+                },
+                {
+                  "typeFullName": "System.Boolean",
+                  "text": "True"
+                }
+              ]
+            }
+          ],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "MatchLaunchEditModeTests.OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot(Training,True)",
+          "simpleToolLeafSelector": "OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot(Training,True)",
+          "fixtureType": "MatchLaunchEditModeTests",
+          "method": "OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot",
+          "methodParameters": [
+            {
+              "index": 0,
+              "declaredType": "Roguehalla.Net.MatchLaunchMode"
+            },
+            {
+              "index": 1,
+              "declaredType": "System.Boolean"
+            }
+          ],
+          "selectedArguments": [
+            {
+              "declaredType": "Roguehalla.Net.MatchLaunchMode",
+              "value": {
+                "name": "Training",
+                "numericValue": 1
+              },
+              "displayValue": "Training"
+            },
+            {
+              "declaredType": "System.Boolean",
+              "value": true,
+              "displayValue": "True"
+            }
+          ],
+          "declaredCaseAttributes": [
+            {
+              "typeFullName": "NUnit.Framework.TestCaseAttribute",
+              "constructorArguments": [
+                {
+                  "typeFullName": "Roguehalla.Net.MatchLaunchMode",
+                  "text": "0"
+                },
+                {
+                  "typeFullName": "System.Boolean",
+                  "text": "False"
+                }
+              ]
+            },
+            {
+              "typeFullName": "NUnit.Framework.TestCaseAttribute",
+              "constructorArguments": [
+                {
+                  "typeFullName": "Roguehalla.Net.MatchLaunchMode",
+                  "text": "1"
+                },
+                {
+                  "typeFullName": "System.Boolean",
+                  "text": "True"
+                }
+              ]
+            }
+          ],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "MatchLaunchEditModeTests.PendingMenuAndPracticeCopyFollowDeliveredFactAndPlayAgainPreservesTraining",
+          "simpleToolLeafSelector": "PendingMenuAndPracticeCopyFollowDeliveredFactAndPlayAgainPreservesTraining",
+          "fixtureType": "MatchLaunchEditModeTests",
+          "method": "PendingMenuAndPracticeCopyFollowDeliveredFactAndPlayAgainPreservesTraining",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "declaredCaseAttributes": [],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "MatchLaunchEditModeTests.RapidModeChangesOnlyConnectTheCurrentOwnerIntentToItsCapturedTarget",
+          "simpleToolLeafSelector": "RapidModeChangesOnlyConnectTheCurrentOwnerIntentToItsCapturedTarget",
+          "fixtureType": "MatchLaunchEditModeTests",
+          "method": "RapidModeChangesOnlyConnectTheCurrentOwnerIntentToItsCapturedTarget",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "declaredCaseAttributes": [],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "MatchLaunchEditModeTests.ReconnectWelcomeRevokesConfirmationAndRequiresANewMatchingFact",
+          "simpleToolLeafSelector": "ReconnectWelcomeRevokesConfirmationAndRequiresANewMatchingFact",
+          "fixtureType": "MatchLaunchEditModeTests",
+          "method": "ReconnectWelcomeRevokesConfirmationAndRequiresANewMatchingFact",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "declaredCaseAttributes": [],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "MatchLaunchEditModeTests.ReentrantLeaveCallbackCannotHaveItsReplacementCancelledOrArenaDestroyed",
+          "simpleToolLeafSelector": "ReentrantLeaveCallbackCannotHaveItsReplacementCancelledOrArenaDestroyed",
+          "fixtureType": "MatchLaunchEditModeTests",
+          "method": "ReentrantLeaveCallbackCannotHaveItsReplacementCancelledOrArenaDestroyed",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "declaredCaseAttributes": [],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "MatchLaunchEditModeTests.RetiredCallbacksCannotResetOrRefuseANewerSession",
+          "simpleToolLeafSelector": "RetiredCallbacksCannotResetOrRefuseANewerSession",
+          "fixtureType": "MatchLaunchEditModeTests",
+          "method": "RetiredCallbacksCannotResetOrRefuseANewerSession",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "declaredCaseAttributes": [],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "MatchLaunchEditModeTests.SwitchingModeWhileOwnerReplyIsDeferredInvalidatesTheOldIntent",
+          "simpleToolLeafSelector": "SwitchingModeWhileOwnerReplyIsDeferredInvalidatesTheOldIntent",
+          "fixtureType": "MatchLaunchEditModeTests",
+          "method": "SwitchingModeWhileOwnerReplyIsDeferredInvalidatesTheOldIntent",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "declaredCaseAttributes": [],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "MatchLaunchEditModeTests.SynchronousFactionCancellationCannotOverwriteOrRelaunchANewerMode",
+          "simpleToolLeafSelector": "SynchronousFactionCancellationCannotOverwriteOrRelaunchANewerMode",
+          "fixtureType": "MatchLaunchEditModeTests",
+          "method": "SynchronousFactionCancellationCannotOverwriteOrRelaunchANewerMode",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "declaredCaseAttributes": [],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "MatchLaunchEditModeTests.WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput(Arena,True)",
+          "simpleToolLeafSelector": "WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput(Arena,True)",
+          "fixtureType": "MatchLaunchEditModeTests",
+          "method": "WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput",
+          "methodParameters": [
+            {
+              "index": 0,
+              "declaredType": "Roguehalla.Net.MatchLaunchMode"
+            },
+            {
+              "index": 1,
+              "declaredType": "System.Boolean"
+            }
+          ],
+          "selectedArguments": [
+            {
+              "declaredType": "Roguehalla.Net.MatchLaunchMode",
+              "value": {
+                "name": "Arena",
+                "numericValue": 0
+              },
+              "displayValue": "Arena"
+            },
+            {
+              "declaredType": "System.Boolean",
+              "value": true,
+              "displayValue": "True"
+            }
+          ],
+          "declaredCaseAttributes": [
+            {
+              "typeFullName": "NUnit.Framework.TestCaseAttribute",
+              "constructorArguments": [
+                {
+                  "typeFullName": "Roguehalla.Net.MatchLaunchMode",
+                  "text": "0"
+                },
+                {
+                  "typeFullName": "System.Boolean",
+                  "text": "True"
+                }
+              ]
+            },
+            {
+              "typeFullName": "NUnit.Framework.TestCaseAttribute",
+              "constructorArguments": [
+                {
+                  "typeFullName": "Roguehalla.Net.MatchLaunchMode",
+                  "text": "1"
+                },
+                {
+                  "typeFullName": "System.Boolean",
+                  "text": "False"
+                }
+              ]
+            }
+          ],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "MatchLaunchEditModeTests.WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput(Training,False)",
+          "simpleToolLeafSelector": "WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput(Training,False)",
+          "fixtureType": "MatchLaunchEditModeTests",
+          "method": "WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput",
+          "methodParameters": [
+            {
+              "index": 0,
+              "declaredType": "Roguehalla.Net.MatchLaunchMode"
+            },
+            {
+              "index": 1,
+              "declaredType": "System.Boolean"
+            }
+          ],
+          "selectedArguments": [
+            {
+              "declaredType": "Roguehalla.Net.MatchLaunchMode",
+              "value": {
+                "name": "Training",
+                "numericValue": 1
+              },
+              "displayValue": "Training"
+            },
+            {
+              "declaredType": "System.Boolean",
+              "value": false,
+              "displayValue": "False"
+            }
+          ],
+          "declaredCaseAttributes": [
+            {
+              "typeFullName": "NUnit.Framework.TestCaseAttribute",
+              "constructorArguments": [
+                {
+                  "typeFullName": "Roguehalla.Net.MatchLaunchMode",
+                  "text": "0"
+                },
+                {
+                  "typeFullName": "System.Boolean",
+                  "text": "True"
+                }
+              ]
+            },
+            {
+              "typeFullName": "NUnit.Framework.TestCaseAttribute",
+              "constructorArguments": [
+                {
+                  "typeFullName": "Roguehalla.Net.MatchLaunchMode",
+                  "text": "1"
+                },
+                {
+                  "typeFullName": "System.Boolean",
+                  "text": "False"
+                }
+              ]
+            }
+          ],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        }
+      ]
+    },
+    "Roguehalla.Client.Tests.PlayerFlowsEditModeTests": {
+      "cases": [
+        {
+          "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.DeliveredMapPointsReplaceWithoutActorFabricationOrNameDeduplication",
+          "simpleToolLeafSelector": "DeliveredMapPointsReplaceWithoutActorFabricationOrNameDeduplication",
+          "fixtureType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+          "method": "DeliveredMapPointsReplaceWithoutActorFabricationOrNameDeduplication",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "declaredCaseAttributes": [],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.InFlightOldSessionNoticeCallbackCannotAppendAfterRebind",
+          "simpleToolLeafSelector": "InFlightOldSessionNoticeCallbackCannotAppendAfterRebind",
+          "fixtureType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+          "method": "InFlightOldSessionNoticeCallbackCannotAppendAfterRebind",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "declaredCaseAttributes": [],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.InFlightSameSessionNoticeCallbackCannotCrossSourceClockCutAndNewEpochKeepsDuplicates",
+          "simpleToolLeafSelector": "InFlightSameSessionNoticeCallbackCannotCrossSourceClockCutAndNewEpochKeepsDuplicates",
+          "fixtureType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+          "method": "InFlightSameSessionNoticeCallbackCannotCrossSourceClockCutAndNewEpochKeepsDuplicates",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "declaredCaseAttributes": [],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.JournalKeyboardOwnsSimultaneousMapAndWorldKeysAndRespectsExistingModals",
+          "simpleToolLeafSelector": "JournalKeyboardOwnsSimultaneousMapAndWorldKeysAndRespectsExistingModals",
+          "fixtureType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+          "method": "JournalKeyboardOwnsSimultaneousMapAndWorldKeysAndRespectsExistingModals",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "declaredCaseAttributes": [],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.MalformedFrameRetainsCanonicalViewButInvalidQuestItemReferenceFailsAndDisablesActions",
+          "simpleToolLeafSelector": "MalformedFrameRetainsCanonicalViewButInvalidQuestItemReferenceFailsAndDisablesActions",
+          "fixtureType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+          "method": "MalformedFrameRetainsCanonicalViewButInvalidQuestItemReferenceFailsAndDisablesActions",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "declaredCaseAttributes": [],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.OrdinaryMixedQuestTradeQueueSplitsAtSixteenWithoutUiGeneratedCommands",
+          "simpleToolLeafSelector": "OrdinaryMixedQuestTradeQueueSplitsAtSixteenWithoutUiGeneratedCommands",
+          "fixtureType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+          "method": "OrdinaryMixedQuestTradeQueueSplitsAtSixteenWithoutUiGeneratedCommands",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "declaredCaseAttributes": [],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningJournalDropAndResumedWelcomeClearRowsAndRestoreMapInput",
+          "simpleToolLeafSelector": "PlanningJournalDropAndResumedWelcomeClearRowsAndRestoreMapInput",
+          "fixtureType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+          "method": "PlanningJournalDropAndResumedWelcomeClearRowsAndRestoreMapInput",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "declaredCaseAttributes": [],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningJournalRespectsSettingsAndFocusedTextEntry",
+          "simpleToolLeafSelector": "PlanningJournalRespectsSettingsAndFocusedTextEntry",
+          "fixtureType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+          "method": "PlanningJournalRespectsSettingsAndFocusedTextEntry",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "declaredCaseAttributes": [],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningPreviewRetiresDeferredAcceptAndWaitsForFreshNativePermission",
+          "simpleToolLeafSelector": "PlanningPreviewRetiresDeferredAcceptAndWaitsForFreshNativePermission",
+          "fixtureType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+          "method": "PlanningPreviewRetiresDeferredAcceptAndWaitsForFreshNativePermission",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "declaredCaseAttributes": [],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningQuestReviewPreservesMapChoicesAndFocusWhileBlockingOtherPagesAndWorldKeys",
+          "simpleToolLeafSelector": "PlanningQuestReviewPreservesMapChoicesAndFocusWhileBlockingOtherPagesAndWorldKeys",
+          "fixtureType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+          "method": "PlanningQuestReviewPreservesMapChoicesAndFocusWhileBlockingOtherPagesAndWorldKeys",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "declaredCaseAttributes": [],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.ReceivedNoticeOrderIncludesDuplicatesAndResumeClearsBeforeNewBatch",
+          "simpleToolLeafSelector": "ReceivedNoticeOrderIncludesDuplicatesAndResumeClearsBeforeNewBatch",
+          "fixtureType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+          "method": "ReceivedNoticeOrderIncludesDuplicatesAndResumeClearsBeforeNewBatch",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "declaredCaseAttributes": [],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        }
+      ]
+    },
+    "Roguehalla.Client.Tests.QuestJournalViewEditModeTests": {
+      "cases": [
+        {
+          "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.AcceptUsesCurrentHandleAndFreshCanAcceptThenSessionBatchesOnlyThatIntent",
+          "simpleToolLeafSelector": "AcceptUsesCurrentHandleAndFreshCanAcceptThenSessionBatchesOnlyThatIntent",
+          "fixtureType": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+          "method": "AcceptUsesCurrentHandleAndFreshCanAcceptThenSessionBatchesOnlyThatIntent",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "declaredCaseAttributes": [],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.MaximumLengthServerStringsRemainVerbatimInScrollableFixedSizeTextFields",
+          "simpleToolLeafSelector": "MaximumLengthServerStringsRemainVerbatimInScrollableFixedSizeTextFields",
+          "fixtureType": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+          "method": "MaximumLengthServerStringsRemainVerbatimInScrollableFixedSizeTextFields",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "declaredCaseAttributes": [],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.MetadataReplacementPreservesScrollPositionWhenRowsOverflowViewport",
+          "simpleToolLeafSelector": "MetadataReplacementPreservesScrollPositionWhenRowsOverflowViewport",
+          "fixtureType": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+          "method": "MetadataReplacementPreservesScrollPositionWhenRowsOverflowViewport",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "declaredCaseAttributes": [],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.OldAcceptTrackAndRowCallbacksCannotActAfterReplacementBeforeRefresh",
+          "simpleToolLeafSelector": "OldAcceptTrackAndRowCallbacksCannotActAfterReplacementBeforeRefresh",
+          "fixtureType": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+          "method": "OldAcceptTrackAndRowCallbacksCannotActAfterReplacementBeforeRefresh",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "declaredCaseAttributes": [],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.OldSessionCallbacksAndRemovedRowsCannotAcceptAfterRebindWelcomeOrDisconnect",
+          "simpleToolLeafSelector": "OldSessionCallbacksAndRemovedRowsCannotAcceptAfterRebindWelcomeOrDisconnect",
+          "fixtureType": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+          "method": "OldSessionCallbacksAndRemovedRowsCannotAcceptAfterRebindWelcomeOrDisconnect",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "declaredCaseAttributes": [],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.ReplacementPreservesSelectedHandleAndScrollButClearsRemovedSelectionAndTracking",
+          "simpleToolLeafSelector": "ReplacementPreservesSelectedHandleAndScrollButClearsRemovedSelectionAndTracking",
+          "fixtureType": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+          "method": "ReplacementPreservesSelectedHandleAndScrollButClearsRemovedSelectionAndTracking",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "declaredCaseAttributes": [],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.SelectedParticipantsUseTypedRosterIdsKeepDuplicateLabelsAndClearOnReplacementOrRebind",
+          "simpleToolLeafSelector": "SelectedParticipantsUseTypedRosterIdsKeepDuplicateLabelsAndClearOnReplacementOrRebind",
+          "fixtureType": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+          "method": "SelectedParticipantsUseTypedRosterIdsKeepDuplicateLabelsAndClearOnReplacementOrRebind",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "declaredCaseAttributes": [],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.UnseenUnavailableAndAvailableEmptyAreDistinctAndRowsPreserveExactServerText",
+          "simpleToolLeafSelector": "UnseenUnavailableAndAvailableEmptyAreDistinctAndRowsPreserveExactServerText",
+          "fixtureType": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+          "method": "UnseenUnavailableAndAvailableEmptyAreDistinctAndRowsPreserveExactServerText",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "declaredCaseAttributes": [],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        }
+      ]
+    },
+    "Roguehalla.Client.Tests.TraderDialogViewEditModeTests": {
+      "cases": [
+        {
+          "fullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.CurrentOptionsQueueEveryOrdinaryStatPickAndMetadataReplacementInvalidatesOldCallbacks",
+          "simpleToolLeafSelector": "CurrentOptionsQueueEveryOrdinaryStatPickAndMetadataReplacementInvalidatesOldCallbacks",
+          "fixtureType": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+          "method": "CurrentOptionsQueueEveryOrdinaryStatPickAndMetadataReplacementInvalidatesOldCallbacks",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "declaredCaseAttributes": [],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.DisconnectAndResumedWelcomeInvalidateOldRowsAndDropQueuedTradeInput",
+          "simpleToolLeafSelector": "DisconnectAndResumedWelcomeInvalidateOldRowsAndDropQueuedTradeInput",
+          "fixtureType": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+          "method": "DisconnectAndResumedWelcomeInvalidateOldRowsAndDropQueuedTradeInput",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "declaredCaseAttributes": [],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.DuplicateMerchantRowsLabelsAndSignedStatDeltasRenderInSourceOrder",
+          "simpleToolLeafSelector": "DuplicateMerchantRowsLabelsAndSignedStatDeltasRenderInSourceOrder",
+          "fixtureType": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+          "method": "DuplicateMerchantRowsLabelsAndSignedStatDeltasRenderInSourceOrder",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "declaredCaseAttributes": [],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.MissingUnavailableAndAvailableEmptyTradeViewsStayDistinctAndOpeningIsReadOnly",
+          "simpleToolLeafSelector": "MissingUnavailableAndAvailableEmptyTradeViewsStayDistinctAndOpeningIsReadOnly",
+          "fixtureType": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+          "method": "MissingUnavailableAndAvailableEmptyTradeViewsStayDistinctAndOpeningIsReadOnly",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "declaredCaseAttributes": [],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.RebindingAnUnseenSessionClearsMerchantChoicesAndPendingCopyImmediately",
+          "simpleToolLeafSelector": "RebindingAnUnseenSessionClearsMerchantChoicesAndPendingCopyImmediately",
+          "fixtureType": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+          "method": "RebindingAnUnseenSessionClearsMerchantChoicesAndPendingCopyImmediately",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "declaredCaseAttributes": [],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        },
+        {
+          "fullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.StatUsedBlocksOnlyStatTradeWhileBarterPicksAreSentAsOrdinaryInput",
+          "simpleToolLeafSelector": "StatUsedBlocksOnlyStatTradeWhileBarterPicksAreSentAsOrdinaryInput",
+          "fixtureType": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+          "method": "StatUsedBlocksOnlyStatTradeWhileBarterPicksAreSentAsOrdinaryInput",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "declaredCaseAttributes": [],
+          "evidence": "public NUnit discovery metadata from frozen 854a08f1 gate; not execution in this packet"
+        }
+      ]
+    },
+    "MatchSettlementEditModeTests": {
+      "cases": [
+        {
+          "fullName": "MatchSettlementEditModeTests.AcceptedArenaWithoutAGenuineResultNeverSendsAReceiptRead",
+          "simpleToolLeafSelector": "AcceptedArenaWithoutAGenuineResultNeverSendsAReceiptRead",
+          "fixtureType": "MatchSettlementEditModeTests",
+          "method": "AcceptedArenaWithoutAGenuineResultNeverSendsAReceiptRead",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "evidence": "Mono.Cecil custom-attribute and signature metadata from rebuilt external Editor test-source assembly; no test body invoked"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.AcceptedTrainingWithAGenuineResultNeverQueriesOrClaimsSavedCredit",
+          "simpleToolLeafSelector": "AcceptedTrainingWithAGenuineResultNeverQueriesOrClaimsSavedCredit",
+          "fixtureType": "MatchSettlementEditModeTests",
+          "method": "AcceptedTrainingWithAGenuineResultNeverQueriesOrClaimsSavedCredit",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "evidence": "Mono.Cecil custom-attribute and signature metadata from rebuilt external Editor test-source assembly; no test body invoked"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(False,0L)",
+          "simpleToolLeafSelector": "CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(False,0L)",
+          "fixtureType": "MatchSettlementEditModeTests",
+          "method": "CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference",
+          "methodParameters": [
+            {
+              "index": 0,
+              "name": "isVoid",
+              "declaredType": "System.Boolean"
+            },
+            {
+              "index": 1,
+              "name": "credit",
+              "declaredType": "System.Int64"
+            }
+          ],
+          "selectedArguments": [
+            {
+              "declaredType": "System.Boolean",
+              "attributeValueType": "System.Boolean",
+              "value": false,
+              "displayValue": "False"
+            },
+            {
+              "declaredType": "System.Int64",
+              "attributeValueType": "System.Int64",
+              "value": "0",
+              "displayValue": "0"
+            }
+          ],
+          "evidence": "Mono.Cecil custom-attribute and signature metadata from rebuilt external Editor test-source assembly; no test body invoked"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(False,9007199254740991L)",
+          "simpleToolLeafSelector": "CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(False,9007199254740991L)",
+          "fixtureType": "MatchSettlementEditModeTests",
+          "method": "CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference",
+          "methodParameters": [
+            {
+              "index": 0,
+              "name": "isVoid",
+              "declaredType": "System.Boolean"
+            },
+            {
+              "index": 1,
+              "name": "credit",
+              "declaredType": "System.Int64"
+            }
+          ],
+          "selectedArguments": [
+            {
+              "declaredType": "System.Boolean",
+              "attributeValueType": "System.Boolean",
+              "value": false,
+              "displayValue": "False"
+            },
+            {
+              "declaredType": "System.Int64",
+              "attributeValueType": "System.Int64",
+              "value": "9007199254740991",
+              "displayValue": "9007199254740991"
+            }
+          ],
+          "evidence": "Mono.Cecil custom-attribute and signature metadata from rebuilt external Editor test-source assembly; no test body invoked"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(True,0L)",
+          "simpleToolLeafSelector": "CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(True,0L)",
+          "fixtureType": "MatchSettlementEditModeTests",
+          "method": "CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference",
+          "methodParameters": [
+            {
+              "index": 0,
+              "name": "isVoid",
+              "declaredType": "System.Boolean"
+            },
+            {
+              "index": 1,
+              "name": "credit",
+              "declaredType": "System.Int64"
+            }
+          ],
+          "selectedArguments": [
+            {
+              "declaredType": "System.Boolean",
+              "attributeValueType": "System.Boolean",
+              "value": true,
+              "displayValue": "True"
+            },
+            {
+              "declaredType": "System.Int64",
+              "attributeValueType": "System.Int64",
+              "value": "0",
+              "displayValue": "0"
+            }
+          ],
+          "evidence": "Mono.Cecil custom-attribute and signature metadata from rebuilt external Editor test-source assembly; no test body invoked"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.DifferentWelcomeCannotPairRetainedLastResultWithANewMatchUuid",
+          "simpleToolLeafSelector": "DifferentWelcomeCannotPairRetainedLastResultWithANewMatchUuid",
+          "fixtureType": "MatchSettlementEditModeTests",
+          "method": "DifferentWelcomeCannotPairRetainedLastResultWithANewMatchUuid",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "evidence": "Mono.Cecil custom-attribute and signature metadata from rebuilt external Editor test-source assembly; no test body invoked"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.DuplicateDecodedResultFencesTheOldIdentityWithoutReplenishingAutomaticBudget",
+          "simpleToolLeafSelector": "DuplicateDecodedResultFencesTheOldIdentityWithoutReplenishingAutomaticBudget",
+          "fixtureType": "MatchSettlementEditModeTests",
+          "method": "DuplicateDecodedResultFencesTheOldIdentityWithoutReplenishingAutomaticBudget",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "evidence": "Mono.Cecil custom-attribute and signature metadata from rebuilt external Editor test-source assembly; no test body invoked"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.GenuineResultBeforeModeConfirmationNeedsAnAcceptedOwnedArenaFactAndExplicitCheck",
+          "simpleToolLeafSelector": "GenuineResultBeforeModeConfirmationNeedsAnAcceptedOwnedArenaFactAndExplicitCheck",
+          "fixtureType": "MatchSettlementEditModeTests",
+          "method": "GenuineResultBeforeModeConfirmationNeedsAnAcceptedOwnedArenaFactAndExplicitCheck",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "evidence": "Mono.Cecil custom-attribute and signature metadata from rebuilt external Editor test-source assembly; no test body invoked"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(403)",
+          "simpleToolLeafSelector": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(403)",
+          "fixtureType": "MatchSettlementEditModeTests",
+          "method": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved",
+          "methodParameters": [
+            {
+              "index": 0,
+              "name": "status",
+              "declaredType": "System.Int32"
+            }
+          ],
+          "selectedArguments": [
+            {
+              "declaredType": "System.Int32",
+              "attributeValueType": "System.Int32",
+              "value": 403,
+              "displayValue": "403"
+            }
+          ],
+          "evidence": "Mono.Cecil custom-attribute and signature metadata from rebuilt external Editor test-source assembly; no test body invoked"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(408)",
+          "simpleToolLeafSelector": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(408)",
+          "fixtureType": "MatchSettlementEditModeTests",
+          "method": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved",
+          "methodParameters": [
+            {
+              "index": 0,
+              "name": "status",
+              "declaredType": "System.Int32"
+            }
+          ],
+          "selectedArguments": [
+            {
+              "declaredType": "System.Int32",
+              "attributeValueType": "System.Int32",
+              "value": 408,
+              "displayValue": "408"
+            }
+          ],
+          "evidence": "Mono.Cecil custom-attribute and signature metadata from rebuilt external Editor test-source assembly; no test body invoked"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(429)",
+          "simpleToolLeafSelector": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(429)",
+          "fixtureType": "MatchSettlementEditModeTests",
+          "method": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved",
+          "methodParameters": [
+            {
+              "index": 0,
+              "name": "status",
+              "declaredType": "System.Int32"
+            }
+          ],
+          "selectedArguments": [
+            {
+              "declaredType": "System.Int32",
+              "attributeValueType": "System.Int32",
+              "value": 429,
+              "displayValue": "429"
+            }
+          ],
+          "evidence": "Mono.Cecil custom-attribute and signature metadata from rebuilt external Editor test-source assembly; no test body invoked"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(500)",
+          "simpleToolLeafSelector": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(500)",
+          "fixtureType": "MatchSettlementEditModeTests",
+          "method": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved",
+          "methodParameters": [
+            {
+              "index": 0,
+              "name": "status",
+              "declaredType": "System.Int32"
+            }
+          ],
+          "selectedArguments": [
+            {
+              "declaredType": "System.Int32",
+              "attributeValueType": "System.Int32",
+              "value": 500,
+              "displayValue": "500"
+            }
+          ],
+          "evidence": "Mono.Cecil custom-attribute and signature metadata from rebuilt external Editor test-source assembly; no test body invoked"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(503)",
+          "simpleToolLeafSelector": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(503)",
+          "fixtureType": "MatchSettlementEditModeTests",
+          "method": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved",
+          "methodParameters": [
+            {
+              "index": 0,
+              "name": "status",
+              "declaredType": "System.Int32"
+            }
+          ],
+          "selectedArguments": [
+            {
+              "declaredType": "System.Int32",
+              "attributeValueType": "System.Int32",
+              "value": 503,
+              "displayValue": "503"
+            }
+          ],
+          "evidence": "Mono.Cecil custom-attribute and signature metadata from rebuilt external Editor test-source assembly; no test body invoked"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.LeaveIsImmediateAndRetiredCallbacksCannotTouchTheReplacementResults",
+          "simpleToolLeafSelector": "LeaveIsImmediateAndRetiredCallbacksCannotTouchTheReplacementResults",
+          "fixtureType": "MatchSettlementEditModeTests",
+          "method": "LeaveIsImmediateAndRetiredCallbacksCannotTouchTheReplacementResults",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "evidence": "Mono.Cecil custom-attribute and signature metadata from rebuilt external Editor test-source assembly; no test body invoked"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.LeavingDuringUnknownDelayCancelsTheTimerAndDoesNotSendAnotherRequest",
+          "simpleToolLeafSelector": "LeavingDuringUnknownDelayCancelsTheTimerAndDoesNotSendAnotherRequest",
+          "fixtureType": "MatchSettlementEditModeTests",
+          "method": "LeavingDuringUnknownDelayCancelsTheTimerAndDoesNotSendAnotherRequest",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "evidence": "Mono.Cecil custom-attribute and signature metadata from rebuilt external Editor test-source assembly; no test body invoked"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError(False)",
+          "simpleToolLeafSelector": "OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError(False)",
+          "fixtureType": "MatchSettlementEditModeTests",
+          "method": "OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError",
+          "methodParameters": [
+            {
+              "index": 0,
+              "name": "error",
+              "declaredType": "System.Boolean"
+            }
+          ],
+          "selectedArguments": [
+            {
+              "declaredType": "System.Boolean",
+              "attributeValueType": "System.Boolean",
+              "value": false,
+              "displayValue": "False"
+            }
+          ],
+          "evidence": "Mono.Cecil custom-attribute and signature metadata from rebuilt external Editor test-source assembly; no test body invoked"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError(True)",
+          "simpleToolLeafSelector": "OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError(True)",
+          "fixtureType": "MatchSettlementEditModeTests",
+          "method": "OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError",
+          "methodParameters": [
+            {
+              "index": 0,
+              "name": "error",
+              "declaredType": "System.Boolean"
+            }
+          ],
+          "selectedArguments": [
+            {
+              "declaredType": "System.Boolean",
+              "attributeValueType": "System.Boolean",
+              "value": true,
+              "displayValue": "True"
+            }
+          ],
+          "evidence": "Mono.Cecil custom-attribute and signature metadata from rebuilt external Editor test-source assembly; no test body invoked"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.ReconnectCannotRestartOrClaimUntilAFreshSameMatchArenaFactAndManualAction",
+          "simpleToolLeafSelector": "ReconnectCannotRestartOrClaimUntilAFreshSameMatchArenaFactAndManualAction",
+          "fixtureType": "MatchSettlementEditModeTests",
+          "method": "ReconnectCannotRestartOrClaimUntilAFreshSameMatchArenaFactAndManualAction",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "evidence": "Mono.Cecil custom-attribute and signature metadata from rebuilt external Editor test-source assembly; no test body invoked"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.ResultsRowUsesActualReceiptStateAndNeverBlocksReturnToMenu",
+          "simpleToolLeafSelector": "ResultsRowUsesActualReceiptStateAndNeverBlocksReturnToMenu",
+          "fixtureType": "MatchSettlementEditModeTests",
+          "method": "ResultsRowUsesActualReceiptStateAndNeverBlocksReturnToMenu",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "evidence": "Mono.Cecil custom-attribute and signature metadata from rebuilt external Editor test-source assembly; no test body invoked"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst(False)",
+          "simpleToolLeafSelector": "TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst(False)",
+          "fixtureType": "MatchSettlementEditModeTests",
+          "method": "TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst",
+          "methodParameters": [
+            {
+              "index": 0,
+              "name": "error",
+              "declaredType": "System.Boolean"
+            }
+          ],
+          "selectedArguments": [
+            {
+              "declaredType": "System.Boolean",
+              "attributeValueType": "System.Boolean",
+              "value": false,
+              "displayValue": "False"
+            }
+          ],
+          "evidence": "Mono.Cecil custom-attribute and signature metadata from rebuilt external Editor test-source assembly; no test body invoked"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst(True)",
+          "simpleToolLeafSelector": "TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst(True)",
+          "fixtureType": "MatchSettlementEditModeTests",
+          "method": "TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst",
+          "methodParameters": [
+            {
+              "index": 0,
+              "name": "error",
+              "declaredType": "System.Boolean"
+            }
+          ],
+          "selectedArguments": [
+            {
+              "declaredType": "System.Boolean",
+              "attributeValueType": "System.Boolean",
+              "value": true,
+              "displayValue": "True"
+            }
+          ],
+          "evidence": "Mono.Cecil custom-attribute and signature metadata from rebuilt external Editor test-source assembly; no test body invoked"
+        },
+        {
+          "fullName": "MatchSettlementEditModeTests.UnknownOnlyBurstHasThreeSequentialReadsAtTwoAndFiveSecondsAndManualCooldown",
+          "simpleToolLeafSelector": "UnknownOnlyBurstHasThreeSequentialReadsAtTwoAndFiveSecondsAndManualCooldown",
+          "fixtureType": "MatchSettlementEditModeTests",
+          "method": "UnknownOnlyBurstHasThreeSequentialReadsAtTwoAndFiveSecondsAndManualCooldown",
+          "methodParameters": [],
+          "selectedArguments": [],
+          "evidence": "Mono.Cecil custom-attribute and signature metadata from rebuilt external Editor test-source assembly; no test body invoked"
+        }
+      ]
+    }
+  },
+  "gateSource": "305a45ced95b091e9b920b14251542788b91189c",
+  "productionImplementationSource": "17b0f6401d730012f5e3580d2a59ed805e369fdc",
+  "status": "PROPOSED; all64UNRUN at this source. Requires coordinator frozen-source selection, public discovery binding, and Editor lease.",
+  "normativeBinding": "fixtureType + method + declared CLR parameter types + exact typed selectedArguments; fullName must match public NUnit discovery before execution.",
+  "verifiedLocalPriorDiscovery": "docs/evidence/unity-functional-0aeddc5b/editor-first/discovered-cases.json",
+  "verifiedLocalPriorDiscoverySha256": "61e1baa3fb227ea405911b90835e5efe9417dbc89b8a95405f1fdbcb1880d9c5"
+}

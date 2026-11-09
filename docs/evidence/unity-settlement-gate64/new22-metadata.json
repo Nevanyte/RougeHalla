@@ -1,0 +1,378 @@
+{
+  "assemblyPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-settlement-receipt-2026-11-09/profiles/editor/bin/Debug/netstandard2.1/Roguehalla.Client.EditModeTests.dll",
+  "assemblySha256": "a2a6258727d01c3aa1e21bffc71bae0fefcc3b82f0bc414f3708c7f730dff3f1",
+  "cases": [
+    {
+      "fixture": "MatchSettlementEditModeTests",
+      "method": "GenuineResultBeforeModeConfirmationNeedsAnAcceptedOwnedArenaFactAndExplicitCheck",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "parameters": [],
+      "simpleToolLeafSelector": "GenuineResultBeforeModeConfirmationNeedsAnAcceptedOwnedArenaFactAndExplicitCheck",
+      "fullName": "MatchSettlementEditModeTests.GenuineResultBeforeModeConfirmationNeedsAnAcceptedOwnedArenaFactAndExplicitCheck",
+      "arguments": []
+    },
+    {
+      "fixture": "MatchSettlementEditModeTests",
+      "method": "AcceptedArenaWithoutAGenuineResultNeverSendsAReceiptRead",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "parameters": [],
+      "simpleToolLeafSelector": "AcceptedArenaWithoutAGenuineResultNeverSendsAReceiptRead",
+      "fullName": "MatchSettlementEditModeTests.AcceptedArenaWithoutAGenuineResultNeverSendsAReceiptRead",
+      "arguments": []
+    },
+    {
+      "fixture": "MatchSettlementEditModeTests",
+      "method": "AcceptedTrainingWithAGenuineResultNeverQueriesOrClaimsSavedCredit",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "parameters": [],
+      "simpleToolLeafSelector": "AcceptedTrainingWithAGenuineResultNeverQueriesOrClaimsSavedCredit",
+      "fullName": "MatchSettlementEditModeTests.AcceptedTrainingWithAGenuineResultNeverQueriesOrClaimsSavedCredit",
+      "arguments": []
+    },
+    {
+      "fixture": "MatchSettlementEditModeTests",
+      "method": "CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "parameters": [
+        {
+          "name": "isVoid",
+          "declaredType": "System.Boolean"
+        },
+        {
+          "name": "credit",
+          "declaredType": "System.Int64"
+        }
+      ],
+      "simpleToolLeafSelector": "CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(False,0)",
+      "fullName": "MatchSettlementEditModeTests.CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(False,0)",
+      "arguments": [
+        {
+          "declaredType": "System.Boolean",
+          "attributeValueType": "System.Boolean",
+          "value": false,
+          "displayValue": "False"
+        },
+        {
+          "declaredType": "System.Int64",
+          "attributeValueType": "System.Int64",
+          "value": "0",
+          "displayValue": "0"
+        }
+      ]
+    },
+    {
+      "fixture": "MatchSettlementEditModeTests",
+      "method": "CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "parameters": [
+        {
+          "name": "isVoid",
+          "declaredType": "System.Boolean"
+        },
+        {
+          "name": "credit",
+          "declaredType": "System.Int64"
+        }
+      ],
+      "simpleToolLeafSelector": "CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(True,0)",
+      "fullName": "MatchSettlementEditModeTests.CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(True,0)",
+      "arguments": [
+        {
+          "declaredType": "System.Boolean",
+          "attributeValueType": "System.Boolean",
+          "value": true,
+          "displayValue": "True"
+        },
+        {
+          "declaredType": "System.Int64",
+          "attributeValueType": "System.Int64",
+          "value": "0",
+          "displayValue": "0"
+        }
+      ]
+    },
+    {
+      "fixture": "MatchSettlementEditModeTests",
+      "method": "CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "parameters": [
+        {
+          "name": "isVoid",
+          "declaredType": "System.Boolean"
+        },
+        {
+          "name": "credit",
+          "declaredType": "System.Int64"
+        }
+      ],
+      "simpleToolLeafSelector": "CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(False,9007199254740991)",
+      "fullName": "MatchSettlementEditModeTests.CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(False,9007199254740991)",
+      "arguments": [
+        {
+          "declaredType": "System.Boolean",
+          "attributeValueType": "System.Boolean",
+          "value": false,
+          "displayValue": "False"
+        },
+        {
+          "declaredType": "System.Int64",
+          "attributeValueType": "System.Int64",
+          "value": "9007199254740991",
+          "displayValue": "9007199254740991"
+        }
+      ]
+    },
+    {
+      "fixture": "MatchSettlementEditModeTests",
+      "method": "UnknownOnlyBurstHasThreeSequentialReadsAtTwoAndFiveSecondsAndManualCooldown",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "parameters": [],
+      "simpleToolLeafSelector": "UnknownOnlyBurstHasThreeSequentialReadsAtTwoAndFiveSecondsAndManualCooldown",
+      "fullName": "MatchSettlementEditModeTests.UnknownOnlyBurstHasThreeSequentialReadsAtTwoAndFiveSecondsAndManualCooldown",
+      "arguments": []
+    },
+    {
+      "fixture": "MatchSettlementEditModeTests",
+      "method": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "parameters": [
+        {
+          "name": "status",
+          "declaredType": "System.Int32"
+        }
+      ],
+      "simpleToolLeafSelector": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(403)",
+      "fullName": "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(403)",
+      "arguments": [
+        {
+          "declaredType": "System.Int32",
+          "attributeValueType": "System.Int32",
+          "value": 403,
+          "displayValue": "403"
+        }
+      ]
+    },
+    {
+      "fixture": "MatchSettlementEditModeTests",
+      "method": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "parameters": [
+        {
+          "name": "status",
+          "declaredType": "System.Int32"
+        }
+      ],
+      "simpleToolLeafSelector": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(408)",
+      "fullName": "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(408)",
+      "arguments": [
+        {
+          "declaredType": "System.Int32",
+          "attributeValueType": "System.Int32",
+          "value": 408,
+          "displayValue": "408"
+        }
+      ]
+    },
+    {
+      "fixture": "MatchSettlementEditModeTests",
+      "method": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "parameters": [
+        {
+          "name": "status",
+          "declaredType": "System.Int32"
+        }
+      ],
+      "simpleToolLeafSelector": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(429)",
+      "fullName": "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(429)",
+      "arguments": [
+        {
+          "declaredType": "System.Int32",
+          "attributeValueType": "System.Int32",
+          "value": 429,
+          "displayValue": "429"
+        }
+      ]
+    },
+    {
+      "fixture": "MatchSettlementEditModeTests",
+      "method": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "parameters": [
+        {
+          "name": "status",
+          "declaredType": "System.Int32"
+        }
+      ],
+      "simpleToolLeafSelector": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(500)",
+      "fullName": "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(500)",
+      "arguments": [
+        {
+          "declaredType": "System.Int32",
+          "attributeValueType": "System.Int32",
+          "value": 500,
+          "displayValue": "500"
+        }
+      ]
+    },
+    {
+      "fixture": "MatchSettlementEditModeTests",
+      "method": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "parameters": [
+        {
+          "name": "status",
+          "declaredType": "System.Int32"
+        }
+      ],
+      "simpleToolLeafSelector": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(503)",
+      "fullName": "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(503)",
+      "arguments": [
+        {
+          "declaredType": "System.Int32",
+          "attributeValueType": "System.Int32",
+          "value": 503,
+          "displayValue": "503"
+        }
+      ]
+    },
+    {
+      "fixture": "MatchSettlementEditModeTests",
+      "method": "TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "parameters": [
+        {
+          "name": "error",
+          "declaredType": "System.Boolean"
+        }
+      ],
+      "simpleToolLeafSelector": "TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst(False)",
+      "fullName": "MatchSettlementEditModeTests.TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst(False)",
+      "arguments": [
+        {
+          "declaredType": "System.Boolean",
+          "attributeValueType": "System.Boolean",
+          "value": false,
+          "displayValue": "False"
+        }
+      ]
+    },
+    {
+      "fixture": "MatchSettlementEditModeTests",
+      "method": "TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "parameters": [
+        {
+          "name": "error",
+          "declaredType": "System.Boolean"
+        }
+      ],
+      "simpleToolLeafSelector": "TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst(True)",
+      "fullName": "MatchSettlementEditModeTests.TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst(True)",
+      "arguments": [
+        {
+          "declaredType": "System.Boolean",
+          "attributeValueType": "System.Boolean",
+          "value": true,
+          "displayValue": "True"
+        }
+      ]
+    },
+    {
+      "fixture": "MatchSettlementEditModeTests",
+      "method": "ReconnectCannotRestartOrClaimUntilAFreshSameMatchArenaFactAndManualAction",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "parameters": [],
+      "simpleToolLeafSelector": "ReconnectCannotRestartOrClaimUntilAFreshSameMatchArenaFactAndManualAction",
+      "fullName": "MatchSettlementEditModeTests.ReconnectCannotRestartOrClaimUntilAFreshSameMatchArenaFactAndManualAction",
+      "arguments": []
+    },
+    {
+      "fixture": "MatchSettlementEditModeTests",
+      "method": "DifferentWelcomeCannotPairRetainedLastResultWithANewMatchUuid",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "parameters": [],
+      "simpleToolLeafSelector": "DifferentWelcomeCannotPairRetainedLastResultWithANewMatchUuid",
+      "fullName": "MatchSettlementEditModeTests.DifferentWelcomeCannotPairRetainedLastResultWithANewMatchUuid",
+      "arguments": []
+    },
+    {
+      "fixture": "MatchSettlementEditModeTests",
+      "method": "DuplicateDecodedResultFencesTheOldIdentityWithoutReplenishingAutomaticBudget",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "parameters": [],
+      "simpleToolLeafSelector": "DuplicateDecodedResultFencesTheOldIdentityWithoutReplenishingAutomaticBudget",
+      "fullName": "MatchSettlementEditModeTests.DuplicateDecodedResultFencesTheOldIdentityWithoutReplenishingAutomaticBudget",
+      "arguments": []
+    },
+    {
+      "fixture": "MatchSettlementEditModeTests",
+      "method": "OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "parameters": [
+        {
+          "name": "error",
+          "declaredType": "System.Boolean"
+        }
+      ],
+      "simpleToolLeafSelector": "OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError(False)",
+      "fullName": "MatchSettlementEditModeTests.OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError(False)",
+      "arguments": [
+        {
+          "declaredType": "System.Boolean",
+          "attributeValueType": "System.Boolean",
+          "value": false,
+          "displayValue": "False"
+        }
+      ]
+    },
+    {
+      "fixture": "MatchSettlementEditModeTests",
+      "method": "OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "parameters": [
+        {
+          "name": "error",
+          "declaredType": "System.Boolean"
+        }
+      ],
+      "simpleToolLeafSelector": "OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError(True)",
+      "fullName": "MatchSettlementEditModeTests.OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError(True)",
+      "arguments": [
+        {
+          "declaredType": "System.Boolean",
+          "attributeValueType": "System.Boolean",
+          "value": true,
+          "displayValue": "True"
+        }
+      ]
+    },
+    {
+      "fixture": "MatchSettlementEditModeTests",
+      "method": "LeaveIsImmediateAndRetiredCallbacksCannotTouchTheReplacementResults",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "parameters": [],
+      "simpleToolLeafSelector": "LeaveIsImmediateAndRetiredCallbacksCannotTouchTheReplacementResults",
+      "fullName": "MatchSettlementEditModeTests.LeaveIsImmediateAndRetiredCallbacksCannotTouchTheReplacementResults",
+      "arguments": []
+    },
+    {
+      "fixture": "MatchSettlementEditModeTests",
+      "method": "LeavingDuringUnknownDelayCancelsTheTimerAndDoesNotSendAnotherRequest",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "parameters": [],
+      "simpleToolLeafSelector": "LeavingDuringUnknownDelayCancelsTheTimerAndDoesNotSendAnotherRequest",
+      "fullName": "MatchSettlementEditModeTests.LeavingDuringUnknownDelayCancelsTheTimerAndDoesNotSendAnotherRequest",
+      "arguments": []
+    },
+    {
+      "fixture": "MatchSettlementEditModeTests",
+      "method": "ResultsRowUsesActualReceiptStateAndNeverBlocksReturnToMenu",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "parameters": [],
+      "simpleToolLeafSelector": "ResultsRowUsesActualReceiptStateAndNeverBlocksReturnToMenu",
+      "fullName": "MatchSettlementEditModeTests.ResultsRowUsesActualReceiptStateAndNeverBlocksReturnToMenu",
+      "arguments": []
+    }
+  ]
+}

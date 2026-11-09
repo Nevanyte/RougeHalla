@@ -1,0 +1,141 @@
+{
+  "schema": "nunit-name-format-proof/1",
+  "formatter": "NUnit.Framework.Internal.TestNameGenerator.GetDisplayName(TestMethod, object[])",
+  "formatterAssembly": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Library/PackageCache/com.unity.ext.nunit@031a54704bff/net40/unity-custom/nunit.framework.dll",
+  "formatterAssemblySha256": "25466626abfea654a068abc579be018d8ef164fbb5415856230de2b8fc4795d5",
+  "stubType": "StubMethods",
+  "stubSourceSha256": "25386f89f866305886d3bf6b34c1fa3f4340ff43b16ecbd10a89bfe68ad9f788",
+  "testBodiesInvoked": false,
+  "unityApisUsed": false,
+  "cases": [
+    {
+      "method": "CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference",
+      "argumentTypes": [
+        "System.Boolean",
+        "System.Int64"
+      ],
+      "displayArguments": [
+        false,
+        0
+      ],
+      "fullName": "CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(False,0L)"
+    },
+    {
+      "method": "CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference",
+      "argumentTypes": [
+        "System.Boolean",
+        "System.Int64"
+      ],
+      "displayArguments": [
+        true,
+        0
+      ],
+      "fullName": "CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(True,0L)"
+    },
+    {
+      "method": "CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference",
+      "argumentTypes": [
+        "System.Boolean",
+        "System.Int64"
+      ],
+      "displayArguments": [
+        false,
+        9007199254740991
+      ],
+      "fullName": "CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(False,9007199254740991L)"
+    },
+    {
+      "method": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved",
+      "argumentTypes": [
+        "System.Int32"
+      ],
+      "displayArguments": [
+        403
+      ],
+      "fullName": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(403)"
+    },
+    {
+      "method": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved",
+      "argumentTypes": [
+        "System.Int32"
+      ],
+      "displayArguments": [
+        408
+      ],
+      "fullName": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(408)"
+    },
+    {
+      "method": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved",
+      "argumentTypes": [
+        "System.Int32"
+      ],
+      "displayArguments": [
+        429
+      ],
+      "fullName": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(429)"
+    },
+    {
+      "method": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved",
+      "argumentTypes": [
+        "System.Int32"
+      ],
+      "displayArguments": [
+        500
+      ],
+      "fullName": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(500)"
+    },
+    {
+      "method": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved",
+      "argumentTypes": [
+        "System.Int32"
+      ],
+      "displayArguments": [
+        503
+      ],
+      "fullName": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(503)"
+    },
+    {
+      "method": "TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst",
+      "argumentTypes": [
+        "System.Boolean"
+      ],
+      "displayArguments": [
+        false
+      ],
+      "fullName": "TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst(False)"
+    },
+    {
+      "method": "TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst",
+      "argumentTypes": [
+        "System.Boolean"
+      ],
+      "displayArguments": [
+        true
+      ],
+      "fullName": "TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst(True)"
+    },
+    {
+      "method": "OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError",
+      "argumentTypes": [
+        "System.Boolean"
+      ],
+      "displayArguments": [
+        false
+      ],
+      "fullName": "OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError(False)"
+    },
+    {
+      "method": "OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError",
+      "argumentTypes": [
+        "System.Boolean"
+      ],
+      "displayArguments": [
+        true
+      ],
+      "fullName": "OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError(True)"
+    }
+  ],
+  "stubSource": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-settlement-receipt-2026-11-09/gate64/name-formatter/Program.cs",
+  "project": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-settlement-receipt-2026-11-09/gate64/name-formatter/NameFormatter.csproj",
+  "projectSha256": "9d36622d1fbd8716167c4beab8cf271010a4ce14ffd26c77560caaf5d7e14043"
+}

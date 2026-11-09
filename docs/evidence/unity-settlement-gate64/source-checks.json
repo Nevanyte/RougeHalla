@@ -1,0 +1,28 @@
+{
+  "gateSource": "305a45ced95b091e9b920b14251542788b91189c",
+  "productionImplementationSource": "17b0f6401d730012f5e3580d2a59ed805e369fdc",
+  "priorSeal": "70e5335ca0479aa28853984b63019b6519f1f528",
+  "inputDifferenceFromPriorSeal": [
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/MatchSettlementEditModeTests.cs",
+      "previousSHA256": "69e1209ae73d87fa2aa6f971f9ab191758f35939878c14d0b91865b59071d128",
+      "currentSHA256": "14687029f4673d872ad7bb4e089abcf8cd519c95375f432e145db0948d53824a"
+    }
+  ],
+  "productionAndManagedTestSourcesUnchanged": [
+    "client-unity/RoguehallaNet",
+    "client-unity/RoguehallaNet.Tests",
+    "client-unity/UnityProject/Assets/RoguehallaNet",
+    "client-unity/UnityProject/Assets/Scripts"
+  ],
+  "priorEditorSourceFilesUnchanged": 30,
+  "managedTests": "822/822 pass at17b; all their production and test sources unchanged. No repeat necessary for this Editor-test-only strengthening.",
+  "editorTestCompilation": "0 errors;1 preexisting Trophy CS0067 warning. Source-only .NET compilation, no native tests run.",
+  "EditorLease": "NOT_GRANTED; no Unity operation invoked",
+  "proposedEngineCases": {
+    "existing": 42,
+    "new": 22,
+    "total": 64,
+    "status": "UNRUN"
+  }
+}
