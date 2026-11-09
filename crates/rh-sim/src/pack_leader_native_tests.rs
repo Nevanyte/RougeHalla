@@ -162,6 +162,16 @@ fn build() -> (Sim, Vec<PlayerId>) {
         spawn_seed: seed,
         reward_salt: [1, 2, 3, 4],
     };
+    // Real admitted constructor/join boundaries, independently from the trusted
+    // placement convenience used for the source capture's declared coordinates.
+    let mut lobby = Sim::new(config.clone(), arena(), secrets);
+    assert_source_rng_boundary(&lobby, &doc, 0);
+    for p in &placements {
+        lobby
+            .add_player(&p.profile, Some(p.faction), p.bot)
+            .unwrap();
+        assert_source_rng_boundary(&lobby, &doc, 0);
+    }
     let mut sim = Sim::reset_active(config, arena(), secrets, &placements);
     for (p, slot) in players.iter().zip(0u32..) {
         if let Some(cards) = p["cards"].as_array() {
@@ -184,10 +194,140 @@ fn submit(sim: &mut Sim, raw: RawCommand) {
     sim.submit(PlayerId(1), validate(raw).unwrap()).unwrap();
 }
 
+type LandedRecord = (u64, f64, String, f64, String);
+
+fn compare_landed(
+    source: &[LandedRecord],
+    native: &[LandedRecord],
+    fatal_hp: &[(u64, String, f64)],
+) -> Result<(), String> {
+    if source.len() != native.len() {
+        return Err("landed count".into());
+    }
+    for (want, got) in source.iter().zip(native) {
+        if (want.0, want.1, &want.2, &want.4) != (got.0, got.1, &got.2, &got.4) {
+            return Err("landed metadata/order".into());
+        }
+    }
+    let mut i = 0;
+    while i < source.len() {
+        let mut j = i + 1;
+        while j < source.len() && source[j].0 == source[i].0 && source[j].2 == source[i].2 {
+            j += 1;
+        }
+        let sum: f64 = source[i..j].iter().map(|h| h.3).sum();
+        let share = if let Some((_, _, hp)) = fatal_hp
+            .iter()
+            .find(|(t, v, _)| *t == source[i].0 && *v == source[i].2)
+        {
+            if !hp.is_finite() || *hp <= 0. || sum < *hp {
+                return Err("fatal HP bound".into());
+            }
+            *hp / sum
+        } else {
+            1.0
+        };
+        for (want, got) in source[i..j].iter().zip(&native[i..j]) {
+            if (share == 1.0 && got.3 != want.3)
+                || (share != 1.0 && (got.3 - want.3 * share).abs() >= 1e-9)
+            {
+                return Err("landed amount/independent HP floor".into());
+            }
+        }
+        i = j;
+    }
+    Ok(())
+}
+
+#[test]
+fn landed_projection_rejects_metadata_and_nonfatal_proportional_underdamage() {
+    let source = vec![(1, 50., "mob1".into(), 10., "wand".into())];
+    assert!(compare_landed(&source, &source, &[]).is_ok());
+    for field in 0..4 {
+        let mut wrong = source.clone();
+        match field {
+            0 => wrong[0].0 += 1,
+            1 => wrong[0].1 += 1.,
+            2 => wrong[0].2 = "mob2".into(),
+            _ => wrong[0].4 = "sword".into(),
+        }
+        assert!(compare_landed(&source, &wrong, &[(1, "mob1".into(), 10.)]).is_err());
+    }
+    let mut reduced = source.clone();
+    reduced[0].3 = 5.;
+    assert!(compare_landed(&source, &reduced, &[]).is_err());
+    assert!(compare_landed(&source, &reduced, &[(1, "mob1".into(), 5.)]).is_ok());
+    assert!(compare_landed(&source, &reduced, &[(1, "mob1".into(), 6.)]).is_err());
+}
+
+fn assert_source_camps(sim: &Sim, snapshot: &Value) {
+    let camps = snapshot["private"]["camps"].as_array().unwrap();
+    assert_eq!(sim.camp_rosters().len(), camps.len());
+    for (got, want) in sim.camp_rosters().iter().zip(camps) {
+        assert_eq!(
+            (got.state, got.alive, got.cleared_at),
+            (
+                want["state"].as_u64().unwrap() as u8,
+                want["alive"].as_u64().unwrap() as u32,
+                want["clearedAt"].as_f64().unwrap()
+            )
+        );
+    }
+}
+
+fn assert_source_rng_boundary(sim: &Sim, doc: &Value, tick: u64) {
+    // All forty source draws are checked against fresh algorithms, with no live
+    // state installed. Boundaries compare actual serialized private state.
+    let mut main = crate::rng::Mulberry32::new(doc["input"]["mainSeed"].as_u64().unwrap() as u32);
+    let mut reward = crate::private_rng::Sfc32::from_words([1, 2, 3, 4]);
+    let mut main_count = 0;
+    let mut reward_count = 0;
+    for draw in doc["result"]["randomTape"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|d| d["tick"].as_u64().unwrap() <= tick)
+    {
+        let got = match draw["stream"].as_str().unwrap() {
+            "main" => {
+                main_count += 1;
+                main.next_f64()
+            }
+            "reward" => {
+                reward_count += 1;
+                reward.next_f64()
+            }
+            other => panic!("unexpected captured stream {other}"),
+        };
+        assert_eq!(
+            got.to_bits(),
+            draw["value"].as_f64().unwrap().to_bits(),
+            "captured draw {:?}",
+            draw
+        );
+    }
+    assert_eq!(
+        serde_json::to_value(&sim.w.spawn_rng).unwrap(),
+        serde_json::to_value(main).unwrap(),
+        "actual main state at source tick {tick}, {main_count} draws"
+    );
+    assert_eq!(
+        serde_json::to_value(&sim.w.reward_rng).unwrap(),
+        serde_json::to_value(reward).unwrap(),
+        "actual reward state at source tick {tick}, {reward_count} draws"
+    );
+    if [0, 1, 146, 181, 341, 384].contains(&tick) {
+        println!("actual serialized RNG boundary tick={tick} main_offset={main_count} reward_offset={reward_count} main={} reward={}", serde_json::to_value(&sim.w.spawn_rng).unwrap(), serde_json::to_value(&sim.w.reward_rng).unwrap());
+    }
+    if tick == 384 {
+        assert_eq!((main_count, reward_count), (4, 36));
+    }
+}
+
 struct Facts {
     step: u64,
-    reward_before: Vec<(u64, Vec<f64>)>,
-    reward_after_build: Vec<f64>,
+    fatal_hp: Vec<(u64, PlayerId, f64)>,
+    clears: Vec<(u64, f64, u32)>,
     landed: Vec<(u64, f64, String, f64, String)>,
     pre_counts: Vec<(u64, u16)>,
     deaths: Vec<(u64, PlayerId)>,
@@ -195,25 +335,41 @@ struct Facts {
     later: Option<(u64, f64, f64)>,
 }
 
-fn advance(sim: &mut Sim, f: &mut Facts) {
-    let next_step = f.step + 1;
-    let burst = match next_step {
-        146 => Some(6usize),
-        181 => Some(7usize),
-        341 => Some(7usize),
-        _ => None,
-    };
-    if let Some(n) = burst {
-        let mut r = sim.w.reward_rng.clone();
-        f.reward_before
-            .push((next_step, (0..n).map(|_| r.next_f64()).collect()));
-    }
+fn advance(sim: &mut Sim, f: &mut Facts, doc: &Value) {
+    // Independently observe actual HP before the pass; never infer clipping
+    // from a favorable source/native damage ratio.
+    let before: Vec<_> = sim
+        .mobs()
+        .iter()
+        .filter(|m| m.status == crate::state::Status::Alive)
+        .map(|m| (m.core.id, m.core.vitals.hp))
+        .collect();
     f.pre_counts
         .push((f.step + 1, sim.players()[0].camps_cleared));
     let events = sim.step();
     f.step += 1;
+    assert_source_rng_boundary(sim, doc, f.step);
+    for (id, hp) in before {
+        if sim
+            .mobs()
+            .iter()
+            .any(|m| m.core.id == id && m.status == crate::state::Status::Dead)
+        {
+            assert_eq!(sim.w.mobs.get(id).unwrap().core.vitals.hp, 0.0);
+            assert!(
+                sim.s
+                    .landed
+                    .iter()
+                    .filter(|h| h.victim == id && h.amount > 0.)
+                    .all(|h| h.by == Some(PlayerId(1))),
+                "this finite clipping context has one damage owner"
+            );
+            f.fatal_hp.push((f.step, id, hp));
+        }
+    }
     for e in events {
         if let crate::events::Event::CampCleared { camp } = e {
+            f.clears.push((f.step, sim.server_time(), camp));
             if f.clear.is_none() {
                 assert_eq!(camp, 0, "the source's single camp");
                 f.clear = Some((f.step, sim.server_time()));
@@ -288,6 +444,9 @@ fn the_genuine_source_tape_produces_the_native_camp_count_and_later_player_damag
     expected_deaths.sort_unstable();
 
     let (mut sim, mobs) = build();
+    assert_source_rng_boundary(&sim, &doc, 1);
+    assert_source_camps(&sim, &doc["result"]["initial"]);
+
     println!(
         "build: p0 at {:?} weapon {:?} mobs {:?}",
         (sim.players()[0].body.x, sim.players()[0].body.y),
@@ -299,11 +458,8 @@ fn the_genuine_source_tape_produces_the_native_camp_count_and_later_player_damag
     );
     let mut f = Facts {
         step: 1,
-        reward_before: Vec::new(),
-        reward_after_build: {
-            let mut r = sim.w.reward_rng.clone();
-            (0..6).map(|_| r.next_f64()).collect()
-        },
+        fatal_hp: Vec::new(),
+        clears: Vec::new(),
         landed: Vec::new(),
         pre_counts: Vec::new(),
         deaths: Vec::new(),
@@ -312,9 +468,9 @@ fn the_genuine_source_tape_produces_the_native_camp_count_and_later_player_damag
     };
     // action 0: ordinary target of the first birth camp member (the source's @m0).
     submit(&mut sim, RawCommand::Target { id: mobs[0] });
-    advance(&mut sim, &mut f);
+    advance(&mut sim, &mut f, &doc);
     for k in 0..300 {
-        advance(&mut sim, &mut f);
+        advance(&mut sim, &mut f, &doc);
         if k == 20 {
             println!(
                 "at step {}: p0 pos {:?} weapon {:?} target {:?} held {} action {:?} mobs {:?}",
@@ -333,12 +489,12 @@ fn the_genuine_source_tape_produces_the_native_camp_count_and_later_player_damag
     }
     // action 2: ordinary target of the later-damage witness player.
     submit(&mut sim, RawCommand::Target { id: PlayerId(2) });
-    advance(&mut sim, &mut f);
+    advance(&mut sim, &mut f, &doc);
     for _ in 0..80 {
-        advance(&mut sim, &mut f);
+        advance(&mut sim, &mut f, &doc);
     }
     submit(&mut sim, RawCommand::Release { a: 0., t: None });
-    advance(&mut sim, &mut f);
+    advance(&mut sim, &mut f, &doc);
 
     println!(
         "native facts: steps={} clear={:?} deaths={:?} later={:?} count={} rosters={:?} expected: clear {}/{} deaths {:?} later {}/{}/{}",
@@ -449,40 +605,40 @@ fn the_genuine_source_tape_produces_the_native_camp_count_and_later_player_damag
         source_hits.len(),
         "ordered relevant landed chunks"
     );
-    // Normalization of the one established typed projection difference: on a FATAL pass the native LandedHit/death-floor
-    // representation clips every chunk of that victim's pass proportionally to remaining HP, while source hitLanded args
-    // record the unclipped landed amounts. Nonfatal chunks must match exactly; fatal groups compare by the same ratio.
-    let mut i = 0usize;
-    while i < source_hits.len() {
-        let (tick, _t, ref victim, _, _) = source_hits[i];
-        let mut j = i;
-        while j < source_hits.len() && source_hits[j].0 == tick && source_hits[j].2 == *victim {
-            j += 1;
-        }
-        let source_group = &source_hits[i..j];
-        let native_group = &native_hits[i..j];
-        assert_eq!(native_group.len(), source_group.len());
-        let is_fatal = source_group.iter().map(|r| r.3).sum::<f64>()
-            > native_group.iter().map(|r| r.3).sum::<f64>() + 1e-9;
-        if is_fatal {
-            let s_sum: f64 = source_group.iter().map(|r| r.3).sum();
-            let n_sum: f64 = native_group.iter().map(|r| r.3).sum();
-            for (want, got) in source_group.iter().zip(native_group.iter()) {
-                let scaled = want.3 * n_sum / s_sum;
-                assert!(
-                    (got.3 - scaled).abs() < 1e-9,
-                    "fatal-group normalized amount mismatch tick {} victim {}",
-                    tick,
-                    victim
-                );
-            }
-        } else {
-            for (want, got) in source_group.iter().zip(native_group.iter()) {
-                assert_eq!(got, want, "nonfatal relevant landed record mismatch");
-            }
-        }
-        i = j;
-    }
+    let fatal_bounds: Vec<_> = f
+        .fatal_hp
+        .iter()
+        .map(|(tick, id, hp)| {
+            let ix = mobs.iter().position(|m| m == id).unwrap();
+            (*tick, mob_names[ix].clone(), *hp)
+        })
+        .collect();
+    compare_landed(&source_hits, &native_hits, &fatal_bounds)
+        .expect("ordered typed landed projection");
+    assert_source_camps(&sim, &doc["result"]["final"]);
+    let source_clears: Vec<_> = doc["result"]["completeOrdinaryHookTape"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|h| {
+            h["hooks"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|k| k["hook"] == "campCleared" && k["kind"] == "arguments")
+                .map(|k| {
+                    (
+                        h["tick"].as_u64().unwrap(),
+                        h["time"].as_f64().unwrap(),
+                        k["args"][0].as_u64().unwrap() as u32,
+                    )
+                })
+        })
+        .collect();
+    assert_eq!(
+        f.clears, source_clears,
+        "all CampCleared occurrences, including extras"
+    );
     // Exact lifecycle facts from the same ordered tape.
     let source_deaths: Vec<(u64, String, String)> = doc["result"]["completeOrdinaryHookTape"]
         .as_array()
@@ -490,8 +646,10 @@ fn the_genuine_source_tape_produces_the_native_camp_count_and_later_player_damag
         .iter()
         .flat_map(|h| {
             h["hooks"].as_array().unwrap().iter().filter_map(|k| {
-                if !(k["hook"] == "fighterOut" && k["kind"] == "arguments") { return None; }
-        Some({
+                if !(k["hook"] == "fighterOut" && k["kind"] == "arguments") {
+                    return None;
+                }
+                Some({
                     (
                         h["tick"].as_u64().unwrap(),
                         k["args"][0].as_str().unwrap().to_string(),
@@ -517,64 +675,7 @@ fn the_genuine_source_tape_produces_the_native_camp_count_and_later_player_damag
         "ordered fighterOut lifecycle facts"
     );
 
-    // Actual live RNG boundary states against the immutable captured randomTape. Reward burst boundaries in the filtered
-    // reward sequence are lobby[0..9), tick1[9..16), tick146[16..22), tick181[22..29), tick341[29..36). Construction
-    // consumes constructor main draw plus the lobby reward burst; after the birth step the live reward stream must continue
-    // at the tick146 burst, and the same stream must reach the later bursts in order. Main: the source constructor main draw
-    // fixes order_salt; the native spawn stream is a separate seeded stream (declared setup projection), so no source main
-    // tick1 draws are claimed as spawn-stream continuation.
-    let source_reward: Vec<f64> = doc["result"]["randomTape"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .filter(|d| d["stream"] == "reward")
-        .map(|d| d["value"].as_f64().unwrap())
-        .collect();
-    let source_main: Vec<f64> = doc["result"]["randomTape"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .filter(|d| d["stream"] == "main")
-        .map(|d| d["value"].as_f64().unwrap())
-        .collect();
-    assert!(
-        (f64::from(sim.secrets_for_replay().order_salt) / 4_294_967_296.0 - source_main[0]).abs()
-            < 1e-12,
-        "source constructor main draw fixes native order_salt"
-    );
-    let align = |values: &[f64]| -> Option<usize> {
-        source_reward
-            .windows(values.len())
-            .position(|w| w == values)
-    };
-    assert_eq!(
-        align(&f.reward_after_build),
-        Some(16),
-        "live reward stream continues at the source tick146 burst after birth"
-    );
-    for (step, values) in &f.reward_before {
-        let expected = match *step {
-            146 => 16,
-            181 => 22,
-            341 => 29,
-            _ => unreachable!(),
-        };
-        let got = align(values);
-        assert_eq!(
-            got,
-            Some(expected),
-            "live reward stream at source boundary tick {step}"
-        );
-    }
-    assert_eq!(source_reward.len(), 36, "the captured reward tape length");
-    let mut live = sim.w.reward_rng.clone();
-    let live_next: Vec<f64> = (0..3).map(|_| live.next_f64()).collect();
-    assert_eq!(
-        align(&live_next),
-        None,
-        "no captured source reward draws remain after the tick341 burst"
-    );
-
+    assert_source_rng_boundary(&sim, &doc, f.step);
     // Clone/restore continue the same real produced state with ordinary input-free steps (no expected state installed).
     let mut cloned = sim.clone();
     let mut restored: Sim =

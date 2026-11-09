@@ -64,17 +64,19 @@ fn grown_training_world() -> Sim {
     sim
 }
 
-fn allocations_over_window(sim: &mut Sim, out: &mut Vec<Event>) -> u64 {
-    let mut allocations = 0u64;
-    for _ in 0..WINDOW {
-        out.clear();
-        let before = dhat::HeapStats::get().total_blocks;
-        sim.step_into(out);
-        allocations += dhat::HeapStats::get().total_blocks - before;
-        assert!(!out
-            .iter()
-            .any(|e| matches!(e, Event::Resolved { .. } | Event::Victory { .. })));
-    }
+fn allocations_over_step(sim: &mut Sim, out: &mut Vec<Event>, world: usize) -> (u64, u64) {
+    out.clear();
+    let before = dhat::HeapStats::get();
+    let _ = world;
+    sim.step_into(out);
+    let after = dhat::HeapStats::get();
+    let allocations = (
+        after.total_blocks - before.total_blocks,
+        after.total_bytes - before.total_bytes,
+    );
+    assert!(!out
+        .iter()
+        .any(|e| matches!(e, Event::Resolved { .. } | Event::Victory { .. })));
     allocations
 }
 
@@ -85,23 +87,53 @@ fn camps_snapshot_warm_original_clone_restore_allocates_nothing() {
     for _ in 0..WARM {
         sim.step();
     }
-    let mut out = Vec::with_capacity(128);
-
-    let original_allocs = allocations_over_window(&mut sim, &mut out);
+    // Construct every continuation from this exact checkpoint before any window.
     let mut cloned = sim.clone();
-    let clone_allocs = allocations_over_window(&mut cloned, &mut out);
-    // The real produced state restores (construction outside the measured window); all three windows start at the SAME
-    // warmed checkpoint and run the SAME 40-step input-free window, so the restore result is measured even if clone is red.
     let mut restored =
         Sim::restore(serde_json::to_value(&sim).unwrap()).expect("real produced state restores");
-    let restore_allocs = allocations_over_window(&mut restored, &mut out);
-    println!("warm windows: original={original_allocs} clone={clone_allocs} restore={restore_allocs} actors={}", sim.players().len() + sim.mobs().len());
+    let initial_tick = sim.tick();
+    assert_eq!(sim.state_hash(), cloned.state_hash());
+    assert_eq!(sim.state_hash(), restored.state_hash());
+    let mut original_events = Vec::with_capacity(128);
+    let mut clone_events = Vec::with_capacity(128);
+    let mut restore_events = Vec::with_capacity(128);
+    let mut original_allocs = 0;
+    let mut clone_allocs = 0;
+    let mut restore_allocs = 0;
+    // Fixed recording storage: no recorder allocation, formatting or callback
+    // inside the measured step; no recursive global-allocator instrumentation.
+    let mut trace = [[(0u64, 0u64); WINDOW]; 3];
+    for step in 0..WINDOW {
+        trace[0][step] = allocations_over_step(&mut sim, &mut original_events, 0);
+        trace[1][step] = allocations_over_step(&mut cloned, &mut clone_events, 1);
+        trace[2][step] = allocations_over_step(&mut restored, &mut restore_events, 2);
+        original_allocs += trace[0][step].0;
+        clone_allocs += trace[1][step].0;
+        restore_allocs += trace[2][step].0;
+        assert_eq!(original_events, clone_events);
+        assert_eq!(original_events, restore_events);
+    }
+    for (world, samples) in trace.iter().enumerate() {
+        for (step, (blocks, bytes)) in samples.iter().enumerate() {
+            if *blocks != 0 {
+                println!(
+                    "allocation trace world={world} tick={} blocks={blocks} bytes={bytes}",
+                    initial_tick + step as u32 + 1
+                );
+            }
+        }
+    }
+    // Equal-window controls precede allocation assertions, even on an allocation red.
+    assert_eq!(sim.tick(), initial_tick + WINDOW as u32);
+    assert_eq!(sim.tick(), cloned.tick());
+    assert_eq!(sim.tick(), restored.tick());
+    assert_eq!(sim.state_hash(), cloned.state_hash());
+    assert_eq!(sim.state_hash(), restored.state_hash());
+    println!("same-checkpoint warm windows: original={original_allocs} clone={clone_allocs} restore={restore_allocs} start_tick={initial_tick} end_tick={} actors={}", sim.tick(), sim.players().len() + sim.mobs().len());
     assert_eq!(original_allocs, 0, "original warm window allocations");
     assert_eq!(clone_allocs, 0, "clone warm window allocations");
     assert_eq!(restore_allocs, 0, "restore warm window allocations");
 
-    assert_eq!(sim.state_hash(), cloned.state_hash());
-    assert_eq!(sim.state_hash(), restored.state_hash());
     assert_eq!(
         sim.players()[0].camps_cleared,
         cloned.players()[0].camps_cleared

@@ -2374,9 +2374,7 @@ fn native29_used_hold_bit_requires_its_fold_but_inert_bit_is_hashed() {
     // must fail validation, not be silently omitted from identity coverage.
     let mut active = cp.clone();
     active["world"]["players"][0]["core"]["modifiers"]["holds"] = 1.into();
-    let err = Sim::restore(active)
-        .err()
-        .expect("used while bit requires matching cached fold");
+    let err = Sim::restore(active).expect_err("used while bit requires matching cached fold");
     assert!(err.to_string().contains("invalid armor mirror"), "{err}");
     // Bit one is beyond this build's sole while row. It buys no stat, so the
     // validator admits it; serialized inert bits must still affect identity.
@@ -2428,9 +2426,7 @@ fn native29_real_pve_brain_roundtrips_and_role_presence_is_validated() {
     );
     let mut missing = cp.clone();
     missing["world"]["mobs"][i]["brain"] = Value::Null;
-    let err = Sim::restore(missing)
-        .err()
-        .expect("regional NPC requires brain");
+    let err = Sim::restore(missing).expect_err("regional NPC requires brain");
     assert!(
         err.to_string().contains("actor brain capability mismatch"),
         "{err}"
@@ -2452,9 +2448,7 @@ fn native29_real_pve_brain_roundtrips_and_role_presence_is_validated() {
         .position(|m| m["brain"].is_null())
         .expect("actual Training dummy has no regional brain");
     dummy["world"]["mobs"][dummy_i]["brain"] = mobs[i]["brain"].clone();
-    let err = Sim::restore(dummy)
-        .err()
-        .expect("dummy cannot acquire regional brain");
+    let err = Sim::restore(dummy).expect_err("dummy cannot acquire regional brain");
     assert!(
         err.to_string().contains("actor brain capability mismatch"),
         "{err}"
