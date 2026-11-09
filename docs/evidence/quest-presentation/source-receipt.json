@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_PASS_EXTERNAL_REPRO_PENDING",
+  "status": "SOURCE_PASS",
   "scope": "declared pure formatter contexts, not gameplay",
   "base": "7588edc8ab9d3545b31760dc74074bbc6f438792",
   "fixture_sha256": "4a021c349a6cc085c6994550fc4415ffadedc2cd22690cd803e56cc4eda8e19e",
@@ -57,5 +57,11 @@
     "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-presentation-metadata/logs/check.log": "fed66cd4b68c5a070fbab3ce444b4fcf1de0c54b64948de50b87231c157672e7",
     "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-presentation-metadata/logs/mutants.log": "6b2b1b0dc0d629cd805586cf2c57f8badcf5fdc7b631b9d7aeab8933572c555c"
   },
-  "limits": "no World/DOM/app/ordinary acquisition/grants/gameplay outcomes, historical card payout, session, UI render or public activation"
+  "limits": "no World/DOM/app/ordinary acquisition/grants/gameplay outcomes, historical card payout, session, UI render or public activation",
+  "external_reproduction": {
+    "status": "PASS",
+    "receipt": "external-reproduction.json",
+    "candidate": "4c5e564e95182559e956630a07e12e3ccd52ee84",
+    "scope": "author-run external source capsule, not independent reviewer admission"
+  }
 }

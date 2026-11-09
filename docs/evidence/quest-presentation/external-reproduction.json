@@ -1,0 +1,34 @@
+{
+  "status": "PASS",
+  "scope": "author-run external source capsule, not independent reviewer admission",
+  "exported_commit": "4c5e564e95182559e956630a07e12e3ccd52ee84",
+  "archive_sha256": "e4457db1dc4f3a7e125003e9ff9afd4fb1ef36f3f9d420cb595ef4c6691e9d7c",
+  "export_path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-presentation-metadata/external-reproduction/repo",
+  "command": "bash tools/quest-presentation-fixtures/capture.sh --check",
+  "exit_code": 0,
+  "result": {
+    "status": "CHECK_PASS",
+    "definitions": 20,
+    "contexts": 180,
+    "bytes": 210563,
+    "sha256": "4a021c349a6cc085c6994550fc4415ffadedc2cd22690cd803e56cc4eda8e19e",
+    "measured": {
+      "definitions": 20,
+      "formatterContextsPerDefinition": 9,
+      "actualRowCalls": 180,
+      "utf8FieldMaxima": {
+        "name": 25,
+        "giver_label": 22,
+        "brief": 96,
+        "objective": 61,
+        "reward": 91
+      },
+      "all20LargestPerDefinitionMetadataUtf8": 4620,
+      "fiveU8StringPrefixesForAll20": 100
+    }
+  },
+  "external_log_sha256": "fed66cd4b68c5a070fbab3ce444b4fcf1de0c54b64948de50b87231c157672e7",
+  "pinned_files_verified": 94,
+  "source_config_git_base_pins": 85,
+  "limits": "fresh directory and pinned process; same author/machine; declared formatter methods only"
+}
