@@ -9,6 +9,8 @@ pub use rh_policy::delivery::projection::{checked_phase, checked_snapshot, phase
 #[cfg(test)]
 use rh_policy::delivery::projection::{hp_pct, sat16, wire_actor, wire_point, WIRE_NO_SOURCE};
 use rh_protocol::quant::POS_MAX;
+#[cfg(test)]
+use rh_protocol::WirePoint;
 use rh_protocol::{QActor, ServerMsg, SnapshotData, WireCommand, WireEvent, WireFx};
 use rh_sim::observe::{ActorView, Observation, SeenEvent};
 #[cfg(test)]
@@ -1492,7 +1494,7 @@ mod tests {
             (12.5, 4)
         );
         let wish = owner_wire.wish.unwrap();
-        assert_eq!(wish.ability, ability_code(own.wish.unwrap().ability));
+        assert_eq!(wish.ability, 0, "Freeze keeps its protocol ability code");
         assert_eq!(
             (
                 wish.ready_at,
