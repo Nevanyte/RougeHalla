@@ -632,6 +632,67 @@ fn wish_states() -> Vec<(&'static str, Sim)> {
     out
 }
 
+/// Admitted Training worlds produce their hints through ordinary validated movement.
+/// None inherits Training's enabled preset; explicit false and true remain distinct config tags.
+fn produced_walk_hint_states() -> Vec<(&'static str, Sim)> {
+    [None, Some(false), Some(true)]
+        .into_iter()
+        .map(|mode| {
+            let mut sim = Sim::reset_active(
+                SimConfig {
+                    training: true,
+                    quests: false,
+                    walk_hints: mode,
+                    ..Default::default()
+                },
+                practice_arena(),
+                Secrets::from_seed(71),
+                &[Placement {
+                    profile: "hash-hint".into(),
+                    faction: FactionId::Holy,
+                    bot: false,
+                    at: Vec2::new(400., 320.),
+                    hp: None,
+                    weapon0: None,
+                    weapon1: None,
+                }],
+            );
+            sim.submit(
+                PlayerId(1),
+                cmd(RawCommand::Move {
+                    x: 600.,
+                    y: 320.,
+                    seq: Some(1),
+                }),
+            )
+            .unwrap();
+            sim.step();
+            let cp = serde_json::to_value(&sim).unwrap();
+            assert_eq!(
+                cp["statics"]["config"]["walk_hints"],
+                serde_json::json!(mode)
+            );
+            let ticks = cp["world"]["players"][0]["walk_ticks"].as_u64().unwrap();
+            if mode == Some(false) {
+                assert_eq!(ticks, 0);
+            } else {
+                assert!(
+                    (1..=3).contains(&ticks),
+                    "ordinary movement produces a positive hint"
+                );
+            }
+            (
+                match mode {
+                    None => "produced hint with inherited Training preset",
+                    Some(false) => "disabled hint with explicit config",
+                    Some(true) => "produced hint with explicit config",
+                },
+                sim,
+            )
+        })
+        .collect()
+}
+
 /// Declared serialization controls, NOT earned cards, Mark application, or produced hints.
 /// The source-component tests remain the producer oracle. These coupled seeds let the
 /// generic serde audit reach private fields without a new gameplay/testing input door.
@@ -709,6 +770,7 @@ fn scenarios() -> Vec<(&'static str, Sim)> {
     let mut states = wish_states();
     let declared = declared_native29_states(&states[0].1);
     states.extend(declared);
+    states.extend(produced_walk_hint_states());
     states.extend([
         ("source planning", source_planning),
         ("source active timer", source_active),
@@ -1667,6 +1729,7 @@ fn every_serialized_leaf_of_a_match_changes_the_state_hash() {
         );
     }
     for path in [
+        "statics.config.walk_hints",
         "world.players.*.card_runtime.fight.start",
         "world.players.*.card_runtime.fight.last",
         "world.factions.taxed.*.victim",
@@ -1755,6 +1818,7 @@ fn every_serialized_leaf_of_a_match_changes_the_state_hash() {
     // Accepted edits are always checked, even for patterns listed in VALIDATED.
     let perturbed: BTreeSet<&String> = all.perturbed.iter().collect();
     for path in [
+        "statics.config.walk_hints",
         "world.players.*.card_runtime.fight.start",
         "world.players.*.card_runtime.fight.last",
         "world.factions.taxed.*.victim",
@@ -2194,6 +2258,36 @@ fn native29_declared_seeds_roundtrip_and_ordered_tax_vectors_change_hash() {
             "ordered {field} is canonical"
         );
     }
-    // This is prerequisite serialization coverage only. A produced hint and the
-    // None/Some(false)/Some(true) walk_hints config seeds await the frozen producer.
+    // Produced hints and all three optional config tags have their separate ordinary-input control.
+}
+
+#[test]
+fn native29_produced_hints_and_all_three_config_tags_roundtrip() {
+    let states = produced_walk_hint_states();
+    for (_, sim) in &states {
+        let cp = serde_json::to_value(sim).unwrap();
+        assert_eq!(Sim::restore(&cp).unwrap().state_hash(), sim.state_hash());
+        assert_eq!(sim.clone().state_hash(), sim.state_hash());
+    }
+    // Hold every World byte fixed while changing only the optional static config.
+    // Hints may be retained in a disabled checkpoint; no new gate/phase invariant is invented.
+    let base = serde_json::to_value(&states[2].1).unwrap();
+    let mut hashes = BTreeSet::new();
+    for mode in [None, Some(false), Some(true)] {
+        let mut cp = base.clone();
+        cp["statics"]["config"]["walk_hints"] = serde_json::json!(mode);
+        let sim = Sim::restore(cp).unwrap();
+        let restored = serde_json::to_value(&sim).unwrap();
+        assert_eq!(restored["world"], base["world"]);
+        assert_eq!(
+            restored["statics"]["config"]["walk_hints"],
+            serde_json::json!(mode)
+        );
+        hashes.insert(sim.state_hash());
+    }
+    assert_eq!(
+        hashes.len(),
+        3,
+        "None, explicit false and explicit true are separate identities"
+    );
 }
