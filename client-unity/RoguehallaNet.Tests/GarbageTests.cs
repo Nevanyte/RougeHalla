@@ -65,10 +65,32 @@ namespace Roguehalla.Net.Tests
         /// <summary>Bytes allocated per call of <paramref name="body"/>, after a warm-up (JIT, first-use statics).</summary>
         static double PerCall(Action<int> body)
         {
-            for (int i = 0; i < 200; i++) body(i);
-            long before = GC.GetAllocatedBytesForCurrentThread();
-            for (int i = 200; i < 200 + Iterations; i++) body(i);
-            return (GC.GetAllocatedBytesForCurrentThread() - before) / (double)Iterations;
+            double result = 0;
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo failure = null;
+            var worker = new System.Threading.Thread(() =>
+            {
+                try
+                {
+                    // Counter first-use and caller/NUnit execution context are outside the measured work.
+                    GC.GetAllocatedBytesForCurrentThread();
+                    for (int i = 0; i < 200; i++) body(i);
+                    long before = GC.GetAllocatedBytesForCurrentThread();
+                    for (int i = 200; i < 200 + Iterations; i++) body(i);
+                    result = (GC.GetAllocatedBytesForCurrentThread() - before) / (double)Iterations;
+                }
+                catch (Exception error)
+                {
+                    failure = System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error);
+                }
+            });
+            if (System.Threading.ExecutionContext.IsFlowSuppressed()) worker.Start();
+            else
+            {
+                using (System.Threading.ExecutionContext.SuppressFlow()) worker.Start();
+            }
+            worker.Join();
+            failure?.Throw();
+            return result;
         }
 
         static double DecodeGarbage(int actors, bool me)
