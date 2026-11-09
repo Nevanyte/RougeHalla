@@ -1,5 +1,5 @@
    Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-brain-prefix/repo/crates/rh-policy)
-    Finished `test` profile [unoptimized] target(s) in 4.97s
+    Finished `test` profile [unoptimized] target(s) in 5.55s
      Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-brain-prefix/target/debug/deps/rh_policy-2b15a222dac79e29)
 
 running 1 test
@@ -9,7 +9,7 @@ failures:
 
 ---- bots::memory_prefix::tests::actual_source_memory_stimuli_and_world_motion_sequences stdout ----
 
-thread 'bots::memory_prefix::tests::actual_source_memory_stimuli_and_world_motion_sequences' (65828363) panicked at crates/rh-policy/src/bots/memory_prefix/tests.rs:265:13:
+thread 'bots::memory_prefix::tests::actual_source_memory_stimuli_and_world_motion_sequences' (65844912) panicked at crates/rh-policy/src/bots/memory_prefix/tests.rs:265:13:
 assertion `left == right` failed: "reentry-and-swap" at 150
   left: Array [Object {"at": Number(150.0), "central": Bool(true), "kind": String("newThreat"), "subject": String("p2"), "value": Number(80.0)}]
  right: Array [Object {"at": Number(150.0), "central": Bool(true), "kind": String("foeSwapped"), "subject": String("p2")}]

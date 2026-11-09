@@ -1,5 +1,5 @@
    Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-brain-prefix/repo/crates/rh-policy)
-    Finished `test` profile [unoptimized] target(s) in 5.67s
+    Finished `test` profile [unoptimized] target(s) in 5.66s
      Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-brain-prefix/target/debug/deps/rh_policy-2b15a222dac79e29)
 
 running 1 test
@@ -9,7 +9,7 @@ failures:
 
 ---- bots::brain::tests::actual_source_arbitration_is_observed_before_humanizer_submission stdout ----
 
-thread 'bots::brain::tests::actual_source_arbitration_is_observed_before_humanizer_submission' (65829421) panicked at crates/rh-policy/src/bots/brain/tests.rs:284:9:
+thread 'bots::brain::tests::actual_source_arbitration_is_observed_before_humanizer_submission' (65846052) panicked at crates/rh-policy/src/bots/brain/tests.rs:284:9:
 assertion `left == right` failed
   left: Array [Object {"kind": String("stop"), "priority": Number(0.0), "timing": Object {"kind": String("step")}, "why": String("declared stop")}]
  right: Array [Object {"kind": String("move"), "priority": Number(2.0), "timing": Object {"kind": String("step")}, "to": Object {"x": Number(340.0), "y": Number(300.0)}, "why": String("declared move")}]
@@ -19,6 +19,6 @@ note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 failures:
     bots::brain::tests::actual_source_arbitration_is_observed_before_humanizer_submission
 
-test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 98 filtered out; finished in 0.00s
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 98 filtered out; finished in 0.01s
 
 error: test failed, to rerun pass `-p rh-policy --lib`

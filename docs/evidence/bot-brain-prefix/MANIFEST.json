@@ -64,10 +64,16 @@
       "bytes": 3594
     },
     {
+      "path": "docs/evidence/bot-brain-prefix/PROVENANCE.json",
+      "baseSha256": null,
+      "newSha256": "a783edc90d58ddd27b9476490811a60ef75a26a1d0391baf16f54db1312816a7",
+      "bytes": 1555
+    },
+    {
       "path": "docs/evidence/bot-brain-prefix/README.md",
       "baseSha256": null,
-      "newSha256": "21949133afc15f56157b1229847642ebdfdb18a5c42ecb0ee4dbc27316c7f1db",
-      "bytes": 10223
+      "newSha256": "bc7588a74a6d56da99ed6e61974cd490946eddc9141142aee6d0b1419a73a0c3",
+      "bytes": 10613
     },
     {
       "path": "docs/evidence/bot-brain-prefix/attempts/borrowed-history.log",
@@ -90,7 +96,7 @@
     {
       "path": "docs/evidence/bot-brain-prefix/checks/clippy-default.log",
       "baseSha256": null,
-      "newSha256": "ab084e9891599a8ede5847343c1c2468bea8454ef248a81763d10f7fdd5eec62",
+      "newSha256": "3ff21dea2ec5ffbeb6f1cfd95bf068d185bd39805fe8b6a099fef0612f2fd783",
       "bytes": 209
     },
     {
@@ -102,7 +108,7 @@
     {
       "path": "docs/evidence/bot-brain-prefix/checks/policy-tests.log",
       "baseSha256": null,
-      "newSha256": "cdcb1f30518516b59e31d6cd343df77dcfbeeacae942f3cc1434d8f5c87ac82f",
+      "newSha256": "16e3bc261d3d4cf16113314ea24dcee6e2e4329fcde9c5142163abcc15cce252",
       "bytes": 9570
     },
     {
@@ -120,62 +126,62 @@
     {
       "path": "docs/evidence/bot-brain-prefix/mutants/01-reentry.log",
       "baseSha256": null,
-      "newSha256": "3eaf5fe158611cada3320bb9c0276f741bde6795a8848f71435d8c8995171983",
+      "newSha256": "ed7bb5261ab30db342625aa49edf0da93f1aeb8d49253809f5b27e3c3b91d14e",
       "bytes": 1451
     },
     {
       "path": "docs/evidence/bot-brain-prefix/mutants/02-roam-boundary.log",
       "baseSha256": null,
-      "newSha256": "364ea74823469597a7ff9d518aef6599d8dd53ef7df47445c0102f3ba7622f46",
+      "newSha256": "af347598f543464236f1e3c4c388c7ed9f712003f6f5536c4da7c1fff82c4173",
       "bytes": 1470
     },
     {
       "path": "docs/evidence/bot-brain-prefix/mutants/03-salient.log",
       "baseSha256": null,
-      "newSha256": "49d287bf4f223ff7e97dc0937579ba1b565d0060d88774233917c24e608f226a",
+      "newSha256": "327311a34c4e12dd296fc890319124963370acb92ca879abb8bb159760af1eb7",
       "bytes": 1173
     },
     {
       "path": "docs/evidence/bot-brain-prefix/mutants/04-channel-first.log",
       "baseSha256": null,
-      "newSha256": "27c0bbd3a57e42b3078ef1931861d547c7972a098a65570389120cf582a7ff74",
+      "newSha256": "7158db2d41f47783031fb15429337d2d4c2c1e5e241f5b284c1776e57c665f60",
       "bytes": 1506
     },
     {
       "path": "docs/evidence/bot-brain-prefix/mutants/05-rng-extra-draw.log",
       "baseSha256": null,
-      "newSha256": "8170b8ea22a89d66dff05277b3b99593b8a14d93fde7f436406d07e796c30e87",
+      "newSha256": "2d9b14a6a7eda5c2b035cf79baed53d1488c80b6fd44aac9cb06699564e2b489",
       "bytes": 1185
     },
     {
       "path": "docs/evidence/bot-brain-prefix/mutants/06-comment-control.log",
       "baseSha256": null,
-      "newSha256": "ffbf5813123a04d7877bdf1dab5ca5b11d26a68046a0cdd9fde20680d8b8ab81",
+      "newSha256": "babd33cd077c9e5f55a49ec4893e8a0fa50d31bd1638247f6ccca6fd403032e0",
       "bytes": 603
     },
     {
       "path": "docs/evidence/bot-brain-prefix/mutants/07-restored-control.log",
       "baseSha256": null,
-      "newSha256": "a7d944695b5304bdc333d3bd33eae41366cea6e00b605aea1f1506d9f22b334a",
+      "newSha256": "16e3bc261d3d4cf16113314ea24dcee6e2e4329fcde9c5142163abcc15cce252",
       "bytes": 9570
     },
     {
       "path": "docs/evidence/bot-brain-prefix/mutants/results.json",
       "baseSha256": null,
-      "newSha256": "1deeb8b2ef922ac29f0c63d963e41354c0e2a5131337736b398ebc6fa12d6883",
+      "newSha256": "d48516c0c989b27372c081280a4e070e0df8f1324f5001ef36f13720e440a7e5",
       "bytes": 1275
     },
     {
       "path": "parity/policy/bot-brain-prefix/source.json",
       "baseSha256": null,
-      "newSha256": "5cce39815962a60417b99e35d8b36e942b95e2e03cf47c51ccf428f398da5d9f",
-      "bytes": 170621
+      "newSha256": "a7674d96747e9a9c70c9a6c0b3bdc6b33717b32bd8c7be25f734d28d769de839",
+      "bytes": 171435
     },
     {
       "path": "tools/bot-brain-prefix-fixtures/capture.mts",
       "baseSha256": null,
-      "newSha256": "64200479a2b5fb82eba0b980fd9f39615ba07aaee7863db3ac677afdc1e381b5",
-      "bytes": 10309
+      "newSha256": "d150117a98f921ea10915b3827dae31909fb3c0afe25cd8b5da11e91de30cc4a",
+      "bytes": 10584
     },
     {
       "path": "tools/bot-brain-prefix-fixtures/capture.sh",

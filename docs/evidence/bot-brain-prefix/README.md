@@ -131,3 +131,8 @@ not the native expectation. No older source expected values were rewritten.
 
 Portable log copies strip only trailing blank lines; original untrimmed attempt/check logs remain
 in the private packet directory outside Git. The source corpus itself is byte-exact and unnormalized.
+
+The provenance follow-up after5fef25c6 adds the actual workspace export/install manifests, TypeScript
+configuration and capture-runner hash. `PROVENANCE.json` records the prior/new artifact hashes and
+canonical equality of every non-provenance field; all original input hashes remain unchanged. The
+actual recapture, bytecheck,99-test consumer and five mutants were rerun, not relabelled.

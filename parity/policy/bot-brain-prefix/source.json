@@ -119,9 +119,17 @@
    "packages/server/src/bots/tournament/report.ts": "a9b800f6d09d11cce235f76dd45de4aaf7215250e25ba3f1f341f6667682066c",
    "packages/server/src/bots/tournament/runTournament.ts": "a9bc0035fe6f2ccde1fe7377907f70c92a7f0108e3580e108971a55d8fb6230f",
    "packages/server/src/bots/tournament/tune.ts": "007860163619a75ece5ebaf682b0d2d684d81a293dc10ecd61f9054c11367974",
-   "packages/server/src/bots/tournament/worker.ts": "234924c85030238fd933e0e6ba439226128364309fa2d47256caf78dc85f809f"
+   "packages/server/src/bots/tournament/worker.ts": "234924c85030238fd933e0e6ba439226128364309fa2d47256caf78dc85f809f",
+   "package.json": "9da8ab00050db3ec14c083365ab0c3a5b8986e38fd13c086b2913249d531422c",
+   "packages/shared/package.json": "6e9c040348c50e0ad5043ec4cb9b4206f68f29cf4eeb4dec5f635f37a6f87f35",
+   "packages/server/package.json": "d4965c850237876a64a02cd1c7c554f1a64d97392344cae3b63d4bd688e2f7b8",
+   "packages/client/package.json": "05f2c477239869cf8879ea6b94ca490aa9717ba28e58712bb6bbe8cb0313b3e3",
+   "tsconfig.base.json": "017575ec3101f44df43b5a7cc850779582650d9e01a2090b7e311b213b98ef88",
+   "packages/shared/tsconfig.json": "e81b194f96f35e0d1e9e8069998a30740b08703e085bb7d0f92922d7b6d06193",
+   "packages/server/tsconfig.json": "38a209200ba0dde3bbaeee8df1e29755aa35b63c588367da486b31a83b90cd15",
+   "tools/bot-brain-prefix-fixtures/capture.sh": "45e3c1f490db490ee66d031e695ff2198c4565e984318b9caa52c0666fae1a74"
   },
-  "toolSha256": "64200479a2b5fb82eba0b980fd9f39615ba07aaee7863db3ac677afdc1e381b5",
+  "toolSha256": "d150117a98f921ea10915b3827dae31909fb3c0afe25cd8b5da11e91de30cc4a",
   "lockSha256": "991869bdfbbefb6874220500197c61db302a4d2b2603dfc2288fd7032ce1d481",
   "map": {
    "w": 24,
