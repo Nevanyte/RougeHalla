@@ -1,10 +1,6 @@
-name: Staging native component (temporary push/manual, no deployment)
+name: Staging native component (manual, no deployment)
 
 on:
-  # TEMPORARY: Root removes this after the one actual result. No tools/source glob.
-  push:
-    branches: [optimization_port]
-    paths: [".github/workflows/staging-native-artifact.yml"]
   workflow_dispatch:
     inputs:
       source_commit:
