@@ -1,0 +1,5 @@
+captured source.json bytes=1250443 sha256=73a29484a5bf9e103f0ca14cdc33ae5e94592a639c8cf42bbaebc3d4020d57ca
+kill step=105 frame=104 t=5300 target=mob36 (plagueRat camp=21 slot=0)
+mirrors before={"asMult":1000,"windupMult":1000,"speedMult":1000,"armorBonus":0,"shieldBonus":0,"adBonus":0,"apBonus":0} after={"asMult":1000,"windupMult":1000,"speedMult":1000,"armorBonus":0,"shieldBonus":0,"adBonus":0,"apBonus":0}
+mobStats before={} after={"plagueRat":3}
+expected wire={"asMult":1030,"windupMult":1000,"speedMult":1000,"armorBonus":0,"shieldBonus":0,"adBonus":0,"apBonus":0} frames=135 sourceChecks=FAIL

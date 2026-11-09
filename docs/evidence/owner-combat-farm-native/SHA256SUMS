@@ -1,0 +1,9 @@
+5a80bf5bb58c424c2608c6effc87f2bfbc946d9ceb8341fd66964be5ddce1f21  ./logs/corrected-cargo-test.log
+418de69fb939e16f8eabc5fe9bcbe7bf205b8894071126c06b42326310f006ff  ./logs/corrected-clippy.log
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./logs/corrected-fmt-check.log
+0dce9b9395645b7d2a7588827793464165150e833eb19603fc5a3bca8cd30684  ./logs/sealed-4ec-cargo-test.log
+c92508a29848820f033cd2ea015c85dde0953c88b07cc967ce34b7c08f610549  ./logs/sealed-4ec-clippy.log
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./logs/sealed-4ec-fmt-check.log
+c4dab6c5e08370b578c45a55b0f545f12a502f1d0000aaebe9a30d9b97c25eb2  ./README.md
+17942e24237af1bcc31d445dd6b5d87aacb1d19a953bbfc8584498b10bf6ca9e  ./receipt.json
+b19f328072164ac9444c2bcb750d9d2d0462023670186e949e8eb6ffbbca29d4  ./sealed-payloads.txt

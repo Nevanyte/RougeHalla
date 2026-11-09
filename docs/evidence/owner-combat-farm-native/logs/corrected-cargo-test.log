@@ -1,0 +1,9 @@
+    Finished `test` profile [unoptimized] target(s) in 0.08s
+     Running unittests src/lib.rs (/tmp/farm-native-target/debug/deps/rh_sim-1ade23872ca6c871)
+
+running 1 test
+owner-combat farm: 135 sealed frames replayed, rack c12, target mob36 killed, farm 3, asMult 1030
+test owner_combat::farm_source_tests::actual_native_farm_kill_earns_attack_speed_mirror ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 781 filtered out; finished in 1.68s
+

@@ -1,0 +1,7 @@
+--- a/packages/server/src/sim/mods.ts
++++ b/packages/server/src/sim/mods.ts
+@@ -273,3 +273,4 @@
+ function writeMirrors(s: PlayerState, m: StatMirrors): void {
++  // provenance-only mutant: a comment change with no semantic effect (this must not kill)
+   if (s.asMult !== m.asMult) s.asMult = m.asMult;
+   if (s.windupMult !== m.windupMult) s.windupMult = m.windupMult;

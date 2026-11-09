@@ -1,0 +1,76 @@
+{
+  "format": "rh-owner-combat-farm-native/2",
+  "status": "PASS_CORRECTED",
+  "repairOf": "4ecfb6cdb13908319be20807249667c12bac0416",
+  "base": "4ecfb6cdb13908319be20807249667c12bac0416",
+  "branch": "deepseek/farm-native-consumer-repair",
+  "worktree": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-farm-native-consumer-repair",
+  "codeHead": "76b57df2525392abcf571cf9452d255d852e9c8d",
+  "evidenceCommit": "final branch head containing this receipt; reported to Root",
+  "sealedFarmSource": {
+    "commit": "9800a34c57ce12d43d84fdc210313934e382ad79",
+    "corpus": "parity/policy/owner-combat-farm/source.json",
+    "bytes": 1250830,
+    "sha256": "9cbb71b162a6bf36b5b4445cd4ca4bb5ab5e3c6559279467153e9ee9d7a62228",
+    "captureSha256": "e15c3bc4bfaad9850a0d9cfe72e4de757742d18c1bf089c6b382394bab4725c3"
+  },
+  "sealedNativePayloads": "sealed-payloads.txt (git rev-parse/git show from 4ecfb6cd and 9800a34c; not worktree copies)",
+  "codeCorrection": {
+    "file": "crates/rh-sim/src/owner_combat/farm_source_tests.rs",
+    "bytes": 13572,
+    "lines": 371,
+    "sha256": "a86b11819b31374e84d157e29466a17138e0a4e97c55d272ba164fb2c37916df",
+    "cfgDeclaration": "unchanged #[cfg(test)] mod farm_source_tests; from sealed base",
+    "productionEdits": false
+  },
+  "comparison": {
+    "exactEveryFrame": [
+      "serverTime",
+      "drawStartedAt",
+      "maxHp",
+      "readyAt",
+      "hp",
+      "decoded draw u32",
+      "decoded ready u32",
+      "asMult",
+      "windupMult",
+      "speedMult"
+    ],
+    "exactAttemptOutcome": "readyAt and HP attempted exactly and passed; no discrepancy measured and no normalization retained",
+    "typedFarmPerFrame": true,
+    "farmFrames": {
+      "emptyFirst": 104,
+      "plagueRat3Next": 31
+    },
+    "totalFrames": 135,
+    "killStep": 105,
+    "nativeFarmCount": 3,
+    "nativeAsMult": 1030,
+    "targetDead": true,
+    "deathEvent": true,
+    "noInstalledOutcomes": true
+  },
+  "trackedLogs": {
+    "sealed4ec": {
+      "logs/sealed-4ec-cargo-test.log": "0dce9b9395645b7d2a7588827793464165150e833eb19603fc5a3bca8cd30684",
+      "logs/sealed-4ec-clippy.log": "c92508a29848820f033cd2ea015c85dde0953c88b07cc967ce34b7c08f610549",
+      "logs/sealed-4ec-fmt-check.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "corrected": {
+      "logs/corrected-cargo-test.log": "5a80bf5bb58c424c2608c6effc87f2bfbc946d9ceb8341fd66964be5ddce1f21",
+      "logs/corrected-clippy.log": "418de69fb939e16f8eabc5fe9bcbe7bf205b8894071126c06b42326310f006ff",
+      "logs/corrected-fmt-check.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "portable": "force-added to Git despite *.log ignore; SHA256SUMS portable"
+  },
+  "lethalWording": "owner-sourced combined disease/execute ledger pass killed the target; both disease callbacks observe victim already dead after combined subtraction; derived kill.lethalHit selects the last dead-status callback; no unique first-hit attribution in this new prose; sealed source README/corpus unchanged",
+  "existingMutants": "sealed source controls preserved, not rerun or overclaimed (one restored disposable checkout, fresh Node per variant)",
+  "build": {
+    "target": "/tmp/farm-native-target",
+    "jobs": 1,
+    "testDebug": 0,
+    "rustc": "1.97.0",
+    "cargo": "1.97.0"
+  },
+  "limits": "one seed/camp test-only native consumer; no public/Room/Unity/tape/status/workspace campaign; Root owns admission"
+}

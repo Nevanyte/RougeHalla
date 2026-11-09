@@ -1,0 +1,7 @@
+--- a/packages/server/src/sim/mods.ts
++++ b/packages/server/src/sim/mods.ts
+@@ -273,3 +273,3 @@
+ function writeMirrors(s: PlayerState, m: StatMirrors): void {
+-  if (s.asMult !== m.asMult) s.asMult = m.asMult;
++  // semantic mutant: the owner asMult mirror write is suppressed; the other mirror writes below are unchanged
+   if (s.windupMult !== m.windupMult) s.windupMult = m.windupMult;

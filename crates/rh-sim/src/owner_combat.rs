@@ -99,4 +99,7 @@ mod continuation_tests;
 mod tests;
 
 #[cfg(test)]
+mod farm_source_tests;
+
+#[cfg(test)]
 mod bridge_tests;

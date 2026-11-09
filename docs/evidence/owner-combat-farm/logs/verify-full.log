@@ -1,0 +1,1 @@
+OK corpus=/baseline/source.json sha256=9cbb71b162a6bf36b5b4445cd4ca4bb5ab5e3c6559279467153e9ee9d7a62228 frames=135 killStep=105 asMult=1000->1030 mobStats={"plagueRat":3} target=plagueRat@plague-1 slot=0

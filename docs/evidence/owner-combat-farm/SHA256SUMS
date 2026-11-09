@@ -1,0 +1,11 @@
+9cbb71b162a6bf36b5b4445cd4ca4bb5ab5e3c6559279467153e9ee9d7a62228  parity/policy/owner-combat-farm/source.json
+fd8c2bfd2c8c15a5612a27b1081c86f431d76c4f98cda54dd96aa40d65a59cf4  tools/owner-combat-farm-fixtures/capture.mts
+0828dfeba75608e14b6db93029aff98ba484b11e65f27e159c27a11f01556f4a  tools/owner-combat-farm-fixtures/capture.sh
+dca46ed9786ea07b775a09d2315105ca3e9a67648eb096e36e16974c1ac322d3  tools/owner-combat-farm-fixtures/verify.mjs
+eb4fc92a659ee9cf3580896a80d0a1b824dc44ffc50d2bda12fe6f8e17e47225  tools/owner-combat-farm-fixtures/apply-patch.mjs
+99375d8928970f50a4777634d8abdd642d94df41cdf39722c16842b8435820da  tools/owner-combat-farm-fixtures/run-mutants.sh
+edb0967ec022e61e87be75c6587769283b0a712fb0c7d4217f47744b881fa9ee  tools/owner-combat-farm-fixtures/hash-of.mjs
+02622cbb0e47d818c0a302b8bdd4755a3834bf843dac7dd5f67db86bbc3510e8  tools/owner-combat-farm-fixtures/README.md
+375031951675609bd483db6331b654ebf97bd402ab567666a8881d6baa1ef5a5  tools/owner-combat-farm-fixtures/mutants/01-writemirrors-asmirror-omit.patch
+c5db367738d3e17965473077f773c3e971c1cd5c97575936d9fe104576ea7f11  tools/owner-combat-farm-fixtures/mutants/02-provenance-only-comment.patch
+e2f469dab9720f9a492ba110cc8469533eb4abba64ff3aba448f67167dbb7765  tools/owner-combat-farm-fixtures/mutants/expected.txt
