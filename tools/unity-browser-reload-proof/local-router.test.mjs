@@ -76,3 +76,16 @@ test('Manifest rejects traversal, undeclared MIME, bad hashes, duplicates, and a
     await assert.rejects(validateAssetManifest(manifest,load));
   }
 });
+
+test('Markdown license assets use text/plain and reject HTML, wrong MIME, and undeclared extensions',async()=>{
+  const bytes=Uint8Array.from([76,73,67,69,78,83,69,10]),hash=createHash('sha256').update(bytes).digest('hex');
+  const valid={schema:ROUTER_MANIFEST_SCHEMA,files:[{path:'/Third-Party-Assets.md',file:'Third-Party-Assets.md',
+    sha256:hash,bytes:bytes.byteLength,contentType:'text/plain; charset=utf-8'}]};
+  const table=await validateAssetManifest(valid,async()=>bytes);
+  assert.equal(table.get('/Third-Party-Assets.md').contentType,'text/plain; charset=utf-8');
+  for(const row of [
+    {...valid.files[0],contentType:'text/html; charset=utf-8'},
+    {...valid.files[0],contentType:'application/octet-stream'},
+    {...valid.files[0],path:'/Third-Party-Assets.pdf'},
+  ]) await assert.rejects(validateAssetManifest({schema:ROUTER_MANIFEST_SCHEMA,files:[row]},async()=>bytes));
+});

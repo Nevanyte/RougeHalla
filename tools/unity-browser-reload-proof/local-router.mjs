@@ -33,7 +33,8 @@ const STATIC_MIME = Object.freeze({
   '.css':'text/css; charset=utf-8', '.symbols.json':'application/json; charset=utf-8',
   '.png':'image/png', '.jpg':'image/jpeg', '.jpeg':'image/jpeg', '.webp':'image/webp', '.svg':'image/svg+xml',
   '.ico':'image/x-icon', '.mp3':'audio/mpeg', '.ogg':'audio/ogg', '.wav':'audio/wav',
-  '.license':'text/plain; charset=utf-8', '.txt':'text/plain; charset=utf-8', '.mem':'application/octet-stream',
+  '.license':'text/plain; charset=utf-8', '.txt':'text/plain; charset=utf-8', '.md':'text/plain; charset=utf-8',
+  '.mem':'application/octet-stream',
 });
 
 const generic = Object.freeze({body:'Unavailable\n',type:'text/plain; charset=utf-8'});
