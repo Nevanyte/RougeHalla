@@ -1,0 +1,33 @@
+{
+  "argv": [
+    "unity",
+    "command",
+    "test",
+    "run",
+    "--project-path",
+    "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject",
+    "--caller",
+    "plugin",
+    "--skill",
+    "unity-cli",
+    "--format",
+    "json",
+    "--timeout",
+    "60",
+    "--",
+    "--mode",
+    "editor",
+    "--filter",
+    "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+    "--timeout",
+    "60"
+  ],
+  "startedUtc": "2026-11-09T14:49:19.429533+00:00",
+  "finishedUtc": "2026-11-09T14:49:25.638674+00:00",
+  "exitCode": 0,
+  "launchError": null,
+  "stdoutSha256": "fd78503a2e166121649cdf98932e240f9a0f1142c02e454a0a5866bd8af3e564",
+  "stdoutBytes": 1976,
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderrBytes": 0
+}

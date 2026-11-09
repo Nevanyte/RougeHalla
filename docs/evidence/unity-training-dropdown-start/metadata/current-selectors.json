@@ -1,0 +1,1113 @@
+{
+  "metadataOnly": true,
+  "cases": [
+    {
+      "fixtureType": "MatchLaunchEditModeTests",
+      "method": "CrossOriginTrainingCannotSendOwnerCredentialsOrStartAClaim",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "CrossOriginTrainingCannotSendOwnerCredentialsOrStartAClaim",
+      "fullName": "MatchLaunchEditModeTests.CrossOriginTrainingCannotSendOwnerCredentialsOrStartAClaim",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "MatchLaunchEditModeTests",
+      "method": "EditingTrainingTargetDuringOwnerRequestCannotUseItsCapturedToken",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "EditingTrainingTargetDuringOwnerRequestCannotUseItsCapturedToken",
+      "fullName": "MatchLaunchEditModeTests.EditingTrainingTargetDuringOwnerRequestCannotUseItsCapturedToken",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "MatchLaunchEditModeTests",
+      "method": "EndingBeforeTheFirstModeFactUnlocksRecoveryAndLeavePermitsAnotherDestination",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "EndingBeforeTheFirstModeFactUnlocksRecoveryAndLeavePermitsAnotherDestination",
+      "fullName": "MatchLaunchEditModeTests.EndingBeforeTheFirstModeFactUnlocksRecoveryAndLeavePermitsAnotherDestination",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "MatchLaunchEditModeTests",
+      "method": "LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [
+        {
+          "name": "destroy",
+          "declaredType": "System.Boolean"
+        }
+      ],
+      "simpleToolLeafSelector": "LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation(False)",
+      "fullName": "MatchLaunchEditModeTests.LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation(False)",
+      "selectedArguments": [
+        {
+          "declaredType": "System.Boolean",
+          "attributeValueType": "System.Boolean",
+          "value": false,
+          "displayValue": "False"
+        }
+      ]
+    },
+    {
+      "fixtureType": "MatchLaunchEditModeTests",
+      "method": "LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [
+        {
+          "name": "destroy",
+          "declaredType": "System.Boolean"
+        }
+      ],
+      "simpleToolLeafSelector": "LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation(True)",
+      "fullName": "MatchLaunchEditModeTests.LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation(True)",
+      "selectedArguments": [
+        {
+          "declaredType": "System.Boolean",
+          "attributeValueType": "System.Boolean",
+          "value": true,
+          "displayValue": "True"
+        }
+      ]
+    },
+    {
+      "fixtureType": "MatchLaunchEditModeTests",
+      "method": "MissingTrainingNeverFallsBackOrStartsAnOwnershipRequest",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "MissingTrainingNeverFallsBackOrStartsAnOwnershipRequest",
+      "fullName": "MatchLaunchEditModeTests.MissingTrainingNeverFallsBackOrStartsAnOwnershipRequest",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "MatchLaunchEditModeTests",
+      "method": "OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [
+        {
+          "name": "mode",
+          "declaredType": "Roguehalla.Net.MatchLaunchMode"
+        },
+        {
+          "name": "training",
+          "declaredType": "System.Boolean"
+        }
+      ],
+      "simpleToolLeafSelector": "OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot(Arena,False)",
+      "fullName": "MatchLaunchEditModeTests.OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot(Arena,False)",
+      "selectedArguments": [
+        {
+          "declaredType": "Roguehalla.Net.MatchLaunchMode",
+          "attributeValueType": "Roguehalla.Net.MatchLaunchMode",
+          "value": {
+            "name": "Arena",
+            "numericValue": 0
+          },
+          "displayValue": "Arena"
+        },
+        {
+          "declaredType": "System.Boolean",
+          "attributeValueType": "System.Boolean",
+          "value": false,
+          "displayValue": "False"
+        }
+      ]
+    },
+    {
+      "fixtureType": "MatchLaunchEditModeTests",
+      "method": "OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [
+        {
+          "name": "mode",
+          "declaredType": "Roguehalla.Net.MatchLaunchMode"
+        },
+        {
+          "name": "training",
+          "declaredType": "System.Boolean"
+        }
+      ],
+      "simpleToolLeafSelector": "OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot(Training,True)",
+      "fullName": "MatchLaunchEditModeTests.OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot(Training,True)",
+      "selectedArguments": [
+        {
+          "declaredType": "Roguehalla.Net.MatchLaunchMode",
+          "attributeValueType": "Roguehalla.Net.MatchLaunchMode",
+          "value": {
+            "name": "Training",
+            "numericValue": 1
+          },
+          "displayValue": "Training"
+        },
+        {
+          "declaredType": "System.Boolean",
+          "attributeValueType": "System.Boolean",
+          "value": true,
+          "displayValue": "True"
+        }
+      ]
+    },
+    {
+      "fixtureType": "MatchLaunchEditModeTests",
+      "method": "PendingMenuAndPracticeCopyFollowDeliveredFactAndPlayAgainPreservesTraining",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "PendingMenuAndPracticeCopyFollowDeliveredFactAndPlayAgainPreservesTraining",
+      "fullName": "MatchLaunchEditModeTests.PendingMenuAndPracticeCopyFollowDeliveredFactAndPlayAgainPreservesTraining",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "MatchLaunchEditModeTests",
+      "method": "RapidModeChangesOnlyConnectTheCurrentOwnerIntentToItsCapturedTarget",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "RapidModeChangesOnlyConnectTheCurrentOwnerIntentToItsCapturedTarget",
+      "fullName": "MatchLaunchEditModeTests.RapidModeChangesOnlyConnectTheCurrentOwnerIntentToItsCapturedTarget",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "MatchLaunchEditModeTests",
+      "method": "ReconnectWelcomeRevokesConfirmationAndRequiresANewMatchingFact",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "ReconnectWelcomeRevokesConfirmationAndRequiresANewMatchingFact",
+      "fullName": "MatchLaunchEditModeTests.ReconnectWelcomeRevokesConfirmationAndRequiresANewMatchingFact",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "MatchLaunchEditModeTests",
+      "method": "ReentrantLeaveCallbackCannotHaveItsReplacementCancelledOrArenaDestroyed",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "ReentrantLeaveCallbackCannotHaveItsReplacementCancelledOrArenaDestroyed",
+      "fullName": "MatchLaunchEditModeTests.ReentrantLeaveCallbackCannotHaveItsReplacementCancelledOrArenaDestroyed",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "MatchLaunchEditModeTests",
+      "method": "RetiredCallbacksCannotResetOrRefuseANewerSession",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "RetiredCallbacksCannotResetOrRefuseANewerSession",
+      "fullName": "MatchLaunchEditModeTests.RetiredCallbacksCannotResetOrRefuseANewerSession",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "MatchLaunchEditModeTests",
+      "method": "SwitchingModeWhileOwnerReplyIsDeferredInvalidatesTheOldIntent",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "SwitchingModeWhileOwnerReplyIsDeferredInvalidatesTheOldIntent",
+      "fullName": "MatchLaunchEditModeTests.SwitchingModeWhileOwnerReplyIsDeferredInvalidatesTheOldIntent",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "MatchLaunchEditModeTests",
+      "method": "SynchronousFactionCancellationCannotOverwriteOrRelaunchANewerMode",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "SynchronousFactionCancellationCannotOverwriteOrRelaunchANewerMode",
+      "fullName": "MatchLaunchEditModeTests.SynchronousFactionCancellationCannotOverwriteOrRelaunchANewerMode",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "MatchLaunchEditModeTests",
+      "method": "WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [
+        {
+          "name": "mode",
+          "declaredType": "Roguehalla.Net.MatchLaunchMode"
+        },
+        {
+          "name": "deliveredTraining",
+          "declaredType": "System.Boolean"
+        }
+      ],
+      "simpleToolLeafSelector": "WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput(Arena,True)",
+      "fullName": "MatchLaunchEditModeTests.WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput(Arena,True)",
+      "selectedArguments": [
+        {
+          "declaredType": "Roguehalla.Net.MatchLaunchMode",
+          "attributeValueType": "Roguehalla.Net.MatchLaunchMode",
+          "value": {
+            "name": "Arena",
+            "numericValue": 0
+          },
+          "displayValue": "Arena"
+        },
+        {
+          "declaredType": "System.Boolean",
+          "attributeValueType": "System.Boolean",
+          "value": true,
+          "displayValue": "True"
+        }
+      ]
+    },
+    {
+      "fixtureType": "MatchLaunchEditModeTests",
+      "method": "WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [
+        {
+          "name": "mode",
+          "declaredType": "Roguehalla.Net.MatchLaunchMode"
+        },
+        {
+          "name": "deliveredTraining",
+          "declaredType": "System.Boolean"
+        }
+      ],
+      "simpleToolLeafSelector": "WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput(Training,False)",
+      "fullName": "MatchLaunchEditModeTests.WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput(Training,False)",
+      "selectedArguments": [
+        {
+          "declaredType": "Roguehalla.Net.MatchLaunchMode",
+          "attributeValueType": "Roguehalla.Net.MatchLaunchMode",
+          "value": {
+            "name": "Training",
+            "numericValue": 1
+          },
+          "displayValue": "Training"
+        },
+        {
+          "declaredType": "System.Boolean",
+          "attributeValueType": "System.Boolean",
+          "value": false,
+          "displayValue": "False"
+        }
+      ]
+    },
+    {
+      "fixtureType": "MatchSettlementEditModeTests",
+      "method": "AcceptedArenaWithoutAGenuineResultNeverSendsAReceiptRead",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "AcceptedArenaWithoutAGenuineResultNeverSendsAReceiptRead",
+      "fullName": "MatchSettlementEditModeTests.AcceptedArenaWithoutAGenuineResultNeverSendsAReceiptRead",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "MatchSettlementEditModeTests",
+      "method": "AcceptedTrainingWithAGenuineResultNeverQueriesOrClaimsSavedCredit",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "AcceptedTrainingWithAGenuineResultNeverQueriesOrClaimsSavedCredit",
+      "fullName": "MatchSettlementEditModeTests.AcceptedTrainingWithAGenuineResultNeverQueriesOrClaimsSavedCredit",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "MatchSettlementEditModeTests",
+      "method": "CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [
+        {
+          "name": "isVoid",
+          "declaredType": "System.Boolean"
+        },
+        {
+          "name": "credit",
+          "declaredType": "System.Int64"
+        }
+      ],
+      "simpleToolLeafSelector": "CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(False,0L)",
+      "fullName": "MatchSettlementEditModeTests.CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(False,0L)",
+      "selectedArguments": [
+        {
+          "declaredType": "System.Boolean",
+          "attributeValueType": "System.Boolean",
+          "value": false,
+          "displayValue": "False"
+        },
+        {
+          "declaredType": "System.Int64",
+          "attributeValueType": "System.Int64",
+          "value": "0",
+          "displayValue": "0"
+        }
+      ]
+    },
+    {
+      "fixtureType": "MatchSettlementEditModeTests",
+      "method": "CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [
+        {
+          "name": "isVoid",
+          "declaredType": "System.Boolean"
+        },
+        {
+          "name": "credit",
+          "declaredType": "System.Int64"
+        }
+      ],
+      "simpleToolLeafSelector": "CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(False,9007199254740991L)",
+      "fullName": "MatchSettlementEditModeTests.CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(False,9007199254740991L)",
+      "selectedArguments": [
+        {
+          "declaredType": "System.Boolean",
+          "attributeValueType": "System.Boolean",
+          "value": false,
+          "displayValue": "False"
+        },
+        {
+          "declaredType": "System.Int64",
+          "attributeValueType": "System.Int64",
+          "value": "9007199254740991",
+          "displayValue": "9007199254740991"
+        }
+      ]
+    },
+    {
+      "fixtureType": "MatchSettlementEditModeTests",
+      "method": "CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [
+        {
+          "name": "isVoid",
+          "declaredType": "System.Boolean"
+        },
+        {
+          "name": "credit",
+          "declaredType": "System.Int64"
+        }
+      ],
+      "simpleToolLeafSelector": "CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(True,0L)",
+      "fullName": "MatchSettlementEditModeTests.CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(True,0L)",
+      "selectedArguments": [
+        {
+          "declaredType": "System.Boolean",
+          "attributeValueType": "System.Boolean",
+          "value": true,
+          "displayValue": "True"
+        },
+        {
+          "declaredType": "System.Int64",
+          "attributeValueType": "System.Int64",
+          "value": "0",
+          "displayValue": "0"
+        }
+      ]
+    },
+    {
+      "fixtureType": "MatchSettlementEditModeTests",
+      "method": "DifferentWelcomeCannotPairRetainedLastResultWithANewMatchUuid",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "DifferentWelcomeCannotPairRetainedLastResultWithANewMatchUuid",
+      "fullName": "MatchSettlementEditModeTests.DifferentWelcomeCannotPairRetainedLastResultWithANewMatchUuid",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "MatchSettlementEditModeTests",
+      "method": "DuplicateDecodedResultFencesTheOldIdentityWithoutReplenishingAutomaticBudget",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "DuplicateDecodedResultFencesTheOldIdentityWithoutReplenishingAutomaticBudget",
+      "fullName": "MatchSettlementEditModeTests.DuplicateDecodedResultFencesTheOldIdentityWithoutReplenishingAutomaticBudget",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "MatchSettlementEditModeTests",
+      "method": "GenuineResultBeforeModeConfirmationNeedsAnAcceptedOwnedArenaFactAndExplicitCheck",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "GenuineResultBeforeModeConfirmationNeedsAnAcceptedOwnedArenaFactAndExplicitCheck",
+      "fullName": "MatchSettlementEditModeTests.GenuineResultBeforeModeConfirmationNeedsAnAcceptedOwnedArenaFactAndExplicitCheck",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "MatchSettlementEditModeTests",
+      "method": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [
+        {
+          "name": "status",
+          "declaredType": "System.Int32"
+        }
+      ],
+      "simpleToolLeafSelector": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(403)",
+      "fullName": "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(403)",
+      "selectedArguments": [
+        {
+          "declaredType": "System.Int32",
+          "attributeValueType": "System.Int32",
+          "value": 403,
+          "displayValue": "403"
+        }
+      ]
+    },
+    {
+      "fixtureType": "MatchSettlementEditModeTests",
+      "method": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [
+        {
+          "name": "status",
+          "declaredType": "System.Int32"
+        }
+      ],
+      "simpleToolLeafSelector": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(408)",
+      "fullName": "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(408)",
+      "selectedArguments": [
+        {
+          "declaredType": "System.Int32",
+          "attributeValueType": "System.Int32",
+          "value": 408,
+          "displayValue": "408"
+        }
+      ]
+    },
+    {
+      "fixtureType": "MatchSettlementEditModeTests",
+      "method": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [
+        {
+          "name": "status",
+          "declaredType": "System.Int32"
+        }
+      ],
+      "simpleToolLeafSelector": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(429)",
+      "fullName": "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(429)",
+      "selectedArguments": [
+        {
+          "declaredType": "System.Int32",
+          "attributeValueType": "System.Int32",
+          "value": 429,
+          "displayValue": "429"
+        }
+      ]
+    },
+    {
+      "fixtureType": "MatchSettlementEditModeTests",
+      "method": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [
+        {
+          "name": "status",
+          "declaredType": "System.Int32"
+        }
+      ],
+      "simpleToolLeafSelector": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(500)",
+      "fullName": "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(500)",
+      "selectedArguments": [
+        {
+          "declaredType": "System.Int32",
+          "attributeValueType": "System.Int32",
+          "value": 500,
+          "displayValue": "500"
+        }
+      ]
+    },
+    {
+      "fixtureType": "MatchSettlementEditModeTests",
+      "method": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [
+        {
+          "name": "status",
+          "declaredType": "System.Int32"
+        }
+      ],
+      "simpleToolLeafSelector": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(503)",
+      "fullName": "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(503)",
+      "selectedArguments": [
+        {
+          "declaredType": "System.Int32",
+          "attributeValueType": "System.Int32",
+          "value": 503,
+          "displayValue": "503"
+        }
+      ]
+    },
+    {
+      "fixtureType": "MatchSettlementEditModeTests",
+      "method": "LeaveIsImmediateAndRetiredCallbacksCannotTouchTheReplacementResults",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "LeaveIsImmediateAndRetiredCallbacksCannotTouchTheReplacementResults",
+      "fullName": "MatchSettlementEditModeTests.LeaveIsImmediateAndRetiredCallbacksCannotTouchTheReplacementResults",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "MatchSettlementEditModeTests",
+      "method": "LeavingDuringUnknownDelayCancelsTheTimerAndDoesNotSendAnotherRequest",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "LeavingDuringUnknownDelayCancelsTheTimerAndDoesNotSendAnotherRequest",
+      "fullName": "MatchSettlementEditModeTests.LeavingDuringUnknownDelayCancelsTheTimerAndDoesNotSendAnotherRequest",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "MatchSettlementEditModeTests",
+      "method": "OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [
+        {
+          "name": "error",
+          "declaredType": "System.Boolean"
+        }
+      ],
+      "simpleToolLeafSelector": "OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError(False)",
+      "fullName": "MatchSettlementEditModeTests.OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError(False)",
+      "selectedArguments": [
+        {
+          "declaredType": "System.Boolean",
+          "attributeValueType": "System.Boolean",
+          "value": false,
+          "displayValue": "False"
+        }
+      ]
+    },
+    {
+      "fixtureType": "MatchSettlementEditModeTests",
+      "method": "OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [
+        {
+          "name": "error",
+          "declaredType": "System.Boolean"
+        }
+      ],
+      "simpleToolLeafSelector": "OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError(True)",
+      "fullName": "MatchSettlementEditModeTests.OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError(True)",
+      "selectedArguments": [
+        {
+          "declaredType": "System.Boolean",
+          "attributeValueType": "System.Boolean",
+          "value": true,
+          "displayValue": "True"
+        }
+      ]
+    },
+    {
+      "fixtureType": "MatchSettlementEditModeTests",
+      "method": "ReconnectCannotRestartOrClaimUntilAFreshSameMatchArenaFactAndManualAction",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "ReconnectCannotRestartOrClaimUntilAFreshSameMatchArenaFactAndManualAction",
+      "fullName": "MatchSettlementEditModeTests.ReconnectCannotRestartOrClaimUntilAFreshSameMatchArenaFactAndManualAction",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "MatchSettlementEditModeTests",
+      "method": "ResultsRowUsesActualReceiptStateAndNeverBlocksReturnToMenu",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "ResultsRowUsesActualReceiptStateAndNeverBlocksReturnToMenu",
+      "fullName": "MatchSettlementEditModeTests.ResultsRowUsesActualReceiptStateAndNeverBlocksReturnToMenu",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "MatchSettlementEditModeTests",
+      "method": "TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [
+        {
+          "name": "error",
+          "declaredType": "System.Boolean"
+        }
+      ],
+      "simpleToolLeafSelector": "TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst(False)",
+      "fullName": "MatchSettlementEditModeTests.TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst(False)",
+      "selectedArguments": [
+        {
+          "declaredType": "System.Boolean",
+          "attributeValueType": "System.Boolean",
+          "value": false,
+          "displayValue": "False"
+        }
+      ]
+    },
+    {
+      "fixtureType": "MatchSettlementEditModeTests",
+      "method": "TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [
+        {
+          "name": "error",
+          "declaredType": "System.Boolean"
+        }
+      ],
+      "simpleToolLeafSelector": "TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst(True)",
+      "fullName": "MatchSettlementEditModeTests.TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst(True)",
+      "selectedArguments": [
+        {
+          "declaredType": "System.Boolean",
+          "attributeValueType": "System.Boolean",
+          "value": true,
+          "displayValue": "True"
+        }
+      ]
+    },
+    {
+      "fixtureType": "MatchSettlementEditModeTests",
+      "method": "UnknownOnlyBurstHasThreeSequentialReadsAtTwoAndFiveSecondsAndManualCooldown",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "UnknownOnlyBurstHasThreeSequentialReadsAtTwoAndFiveSecondsAndManualCooldown",
+      "fullName": "MatchSettlementEditModeTests.UnknownOnlyBurstHasThreeSequentialReadsAtTwoAndFiveSecondsAndManualCooldown",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+      "method": "DeliveredMapPointsReplaceWithoutActorFabricationOrNameDeduplication",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "DeliveredMapPointsReplaceWithoutActorFabricationOrNameDeduplication",
+      "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.DeliveredMapPointsReplaceWithoutActorFabricationOrNameDeduplication",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+      "method": "InFlightOldSessionNoticeCallbackCannotAppendAfterRebind",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "InFlightOldSessionNoticeCallbackCannotAppendAfterRebind",
+      "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.InFlightOldSessionNoticeCallbackCannotAppendAfterRebind",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+      "method": "InFlightSameSessionNoticeCallbackCannotCrossSourceClockCutAndNewEpochKeepsDuplicates",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "InFlightSameSessionNoticeCallbackCannotCrossSourceClockCutAndNewEpochKeepsDuplicates",
+      "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.InFlightSameSessionNoticeCallbackCannotCrossSourceClockCutAndNewEpochKeepsDuplicates",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+      "method": "JournalKeyboardOwnsSimultaneousMapAndWorldKeysAndRespectsExistingModals",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "JournalKeyboardOwnsSimultaneousMapAndWorldKeysAndRespectsExistingModals",
+      "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.JournalKeyboardOwnsSimultaneousMapAndWorldKeysAndRespectsExistingModals",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+      "method": "MalformedFrameRetainsCanonicalViewButInvalidQuestItemReferenceFailsAndDisablesActions",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "MalformedFrameRetainsCanonicalViewButInvalidQuestItemReferenceFailsAndDisablesActions",
+      "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.MalformedFrameRetainsCanonicalViewButInvalidQuestItemReferenceFailsAndDisablesActions",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+      "method": "OrdinaryMixedQuestTradeQueueSplitsAtSixteenWithoutUiGeneratedCommands",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "OrdinaryMixedQuestTradeQueueSplitsAtSixteenWithoutUiGeneratedCommands",
+      "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.OrdinaryMixedQuestTradeQueueSplitsAtSixteenWithoutUiGeneratedCommands",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+      "method": "PlanningJournalDropAndResumedWelcomeClearRowsAndRestoreMapInput",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "PlanningJournalDropAndResumedWelcomeClearRowsAndRestoreMapInput",
+      "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningJournalDropAndResumedWelcomeClearRowsAndRestoreMapInput",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+      "method": "PlanningJournalRespectsSettingsAndFocusedTextEntry",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "PlanningJournalRespectsSettingsAndFocusedTextEntry",
+      "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningJournalRespectsSettingsAndFocusedTextEntry",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+      "method": "PlanningPreviewRetiresDeferredAcceptAndWaitsForFreshNativePermission",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "PlanningPreviewRetiresDeferredAcceptAndWaitsForFreshNativePermission",
+      "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningPreviewRetiresDeferredAcceptAndWaitsForFreshNativePermission",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+      "method": "PlanningQuestReviewPreservesMapChoicesAndFocusWhileBlockingOtherPagesAndWorldKeys",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "PlanningQuestReviewPreservesMapChoicesAndFocusWhileBlockingOtherPagesAndWorldKeys",
+      "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningQuestReviewPreservesMapChoicesAndFocusWhileBlockingOtherPagesAndWorldKeys",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+      "method": "ReceivedNoticeOrderIncludesDuplicatesAndResumeClearsBeforeNewBatch",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "ReceivedNoticeOrderIncludesDuplicatesAndResumeClearsBeforeNewBatch",
+      "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.ReceivedNoticeOrderIncludesDuplicatesAndResumeClearsBeforeNewBatch",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+      "method": "AcceptUsesCurrentHandleAndFreshCanAcceptThenSessionBatchesOnlyThatIntent",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "AcceptUsesCurrentHandleAndFreshCanAcceptThenSessionBatchesOnlyThatIntent",
+      "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.AcceptUsesCurrentHandleAndFreshCanAcceptThenSessionBatchesOnlyThatIntent",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+      "method": "MaximumLengthServerStringsRemainVerbatimInScrollableFixedSizeTextFields",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "MaximumLengthServerStringsRemainVerbatimInScrollableFixedSizeTextFields",
+      "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.MaximumLengthServerStringsRemainVerbatimInScrollableFixedSizeTextFields",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+      "method": "MetadataReplacementPreservesScrollPositionWhenRowsOverflowViewport",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "MetadataReplacementPreservesScrollPositionWhenRowsOverflowViewport",
+      "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.MetadataReplacementPreservesScrollPositionWhenRowsOverflowViewport",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+      "method": "OldAcceptTrackAndRowCallbacksCannotActAfterReplacementBeforeRefresh",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "OldAcceptTrackAndRowCallbacksCannotActAfterReplacementBeforeRefresh",
+      "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.OldAcceptTrackAndRowCallbacksCannotActAfterReplacementBeforeRefresh",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+      "method": "OldSessionCallbacksAndRemovedRowsCannotAcceptAfterRebindWelcomeOrDisconnect",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "OldSessionCallbacksAndRemovedRowsCannotAcceptAfterRebindWelcomeOrDisconnect",
+      "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.OldSessionCallbacksAndRemovedRowsCannotAcceptAfterRebindWelcomeOrDisconnect",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+      "method": "ReplacementPreservesSelectedHandleAndScrollButClearsRemovedSelectionAndTracking",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "ReplacementPreservesSelectedHandleAndScrollButClearsRemovedSelectionAndTracking",
+      "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.ReplacementPreservesSelectedHandleAndScrollButClearsRemovedSelectionAndTracking",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+      "method": "SelectedParticipantsUseTypedRosterIdsKeepDuplicateLabelsAndClearOnReplacementOrRebind",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "SelectedParticipantsUseTypedRosterIdsKeepDuplicateLabelsAndClearOnReplacementOrRebind",
+      "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.SelectedParticipantsUseTypedRosterIdsKeepDuplicateLabelsAndClearOnReplacementOrRebind",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+      "method": "UnseenUnavailableAndAvailableEmptyAreDistinctAndRowsPreserveExactServerText",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "UnseenUnavailableAndAvailableEmptyAreDistinctAndRowsPreserveExactServerText",
+      "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.UnseenUnavailableAndAvailableEmptyAreDistinctAndRowsPreserveExactServerText",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+      "method": "CurrentOptionsQueueEveryOrdinaryStatPickAndMetadataReplacementInvalidatesOldCallbacks",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "CurrentOptionsQueueEveryOrdinaryStatPickAndMetadataReplacementInvalidatesOldCallbacks",
+      "fullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.CurrentOptionsQueueEveryOrdinaryStatPickAndMetadataReplacementInvalidatesOldCallbacks",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+      "method": "DisconnectAndResumedWelcomeInvalidateOldRowsAndDropQueuedTradeInput",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "DisconnectAndResumedWelcomeInvalidateOldRowsAndDropQueuedTradeInput",
+      "fullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.DisconnectAndResumedWelcomeInvalidateOldRowsAndDropQueuedTradeInput",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+      "method": "DuplicateMerchantRowsLabelsAndSignedStatDeltasRenderInSourceOrder",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "DuplicateMerchantRowsLabelsAndSignedStatDeltasRenderInSourceOrder",
+      "fullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.DuplicateMerchantRowsLabelsAndSignedStatDeltasRenderInSourceOrder",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+      "method": "MissingUnavailableAndAvailableEmptyTradeViewsStayDistinctAndOpeningIsReadOnly",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "MissingUnavailableAndAvailableEmptyTradeViewsStayDistinctAndOpeningIsReadOnly",
+      "fullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.MissingUnavailableAndAvailableEmptyTradeViewsStayDistinctAndOpeningIsReadOnly",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+      "method": "RebindingAnUnseenSessionClearsMerchantChoicesAndPendingCopyImmediately",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "RebindingAnUnseenSessionClearsMerchantChoicesAndPendingCopyImmediately",
+      "fullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.RebindingAnUnseenSessionClearsMerchantChoicesAndPendingCopyImmediately",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+      "method": "StatUsedBlocksOnlyStatTradeWhileBarterPicksAreSentAsOrdinaryInput",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "StatUsedBlocksOnlyStatTradeWhileBarterPicksAreSentAsOrdinaryInput",
+      "fullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.StatUsedBlocksOnlyStatTradeWhileBarterPicksAreSentAsOrdinaryInput",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests",
+      "method": "ArenaAndPendingLaunchNeverExposeTrainingConsoleAndArenaTabStillOpensMap",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "ArenaAndPendingLaunchNeverExposeTrainingConsoleAndArenaTabStillOpensMap",
+      "fullName": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.ArenaAndPendingLaunchNeverExposeTrainingConsoleAndArenaTabStillOpensMap",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests",
+      "method": "CapturedConsoleCallbackCannotQueueIntoARetiredOrReplacementSession",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "CapturedConsoleCallbackCannotQueueIntoARetiredOrReplacementSession",
+      "fullName": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.CapturedConsoleCallbackCannotQueueIntoARetiredOrReplacementSession",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests",
+      "method": "ClosedTrainingTabEntersConsoleFocusAndFocusedTextOwnsWorldKeys",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "ClosedTrainingTabEntersConsoleFocusAndFocusedTextOwnsWorldKeys",
+      "fullName": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.ClosedTrainingTabEntersConsoleFocusAndFocusedTextOwnsWorldKeys",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests",
+      "method": "DropdownEscapeRequestsPopupHideBeforeConsoleCloseAndTrainingLeave",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "DropdownEscapeRequestsPopupHideBeforeConsoleCloseAndTrainingLeave",
+      "fullName": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.DropdownEscapeRequestsPopupHideBeforeConsoleCloseAndTrainingLeave",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests",
+      "method": "EscapeClosesTrainingConsoleAndOnlyTheNextPhysicalEscapeLeavesTraining",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "EscapeClosesTrainingConsoleAndOnlyTheNextPhysicalEscapeLeavesTraining",
+      "fullName": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.EscapeClosesTrainingConsoleAndOnlyTheNextPhysicalEscapeLeavesTraining",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests",
+      "method": "HigherSettingsModalUnbindsConsoleUntilANewAcceptedSnapshot",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "HigherSettingsModalUnbindsConsoleUntilANewAcceptedSnapshot",
+      "fullName": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.HigherSettingsModalUnbindsConsoleUntilANewAcceptedSnapshot",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests",
+      "method": "OpeningHigherPanelOnTheSameReadCannotAlsoFocusOrChooseAReward",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "OpeningHigherPanelOnTheSameReadCannotAlsoFocusOrChooseAReward",
+      "fullName": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.OpeningHigherPanelOnTheSameReadCannotAlsoFocusOrChooseAReward",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests",
+      "method": "PointerCloseConsumesItsInputUpdateButWorldInputReturnsOnTheNextUpdate",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "PointerCloseConsumesItsInputUpdateButWorldInputReturnsOnTheNextUpdate",
+      "fullName": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.PointerCloseConsumesItsInputUpdateButWorldInputReturnsOnTheNextUpdate",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests",
+      "method": "ReconnectWelcomeAndSourceClockCutRevokeConsoleUntilAcceptedTrainingFact",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "ReconnectWelcomeAndSourceClockCutRevokeConsoleUntilAcceptedTrainingFact",
+      "fullName": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.ReconnectWelcomeAndSourceClockCutRevokeConsoleUntilAcceptedTrainingFact",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests",
+      "method": "TrainingConsoleFlushesEarlierOrdinaryCommandsBeforeItsExactTrainIntent",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "TrainingConsoleFlushesEarlierOrdinaryCommandsBeforeItsExactTrainIntent",
+      "fullName": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.TrainingConsoleFlushesEarlierOrdinaryCommandsBeforeItsExactTrainIntent",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests",
+      "method": "TrainingRequiresTheExactSessionAndAcceptedSnapshotBeforeOpening",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "TrainingRequiresTheExactSessionAndAcceptedSnapshotBeforeOpening",
+      "fullName": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.TrainingRequiresTheExactSessionAndAcceptedSnapshotBeforeOpening",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests",
+      "method": "WindowFocusLossClosesTrainingConsoleAndFreshFactCanRestoreIt",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "WindowFocusLossClosesTrainingConsoleAndFreshFactCanRestoreIt",
+      "fullName": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.WindowFocusLossClosesTrainingConsoleAndFreshFactCanRestoreIt",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests",
+      "method": "WrongServerModeNeverLeavesAnArenaTrainingConsoleBound",
+      "methodReturnType": "System.Threading.Tasks.Task",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "WrongServerModeNeverLeavesAnArenaTrainingConsoleBound",
+      "fullName": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.WrongServerModeNeverLeavesAnArenaTrainingConsoleBound",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests",
+      "method": "CardCopyChoicesMirrorTheSharedConsoleIncludingRemove",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "CardCopyChoicesMirrorTheSharedConsoleIncludingRemove",
+      "fullName": "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests.CardCopyChoicesMirrorTheSharedConsoleIncludingRemove",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests",
+      "method": "InteractiveChoicesUseOnlyThePinnedWhitelistAndExistingCardTitles",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "InteractiveChoicesUseOnlyThePinnedWhitelistAndExistingCardTitles",
+      "fullName": "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests.InteractiveChoicesUseOnlyThePinnedWhitelistAndExistingCardTitles",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests",
+      "method": "MobChoicesMatchThePinnedCatalogOrderAndDisplayNames",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "MobChoicesMatchThePinnedCatalogOrderAndDisplayNames",
+      "fullName": "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests.MobChoicesMatchThePinnedCatalogOrderAndDisplayNames",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests",
+      "method": "SafeIntegerParserAcceptsZeroLeadingZerosAndTheExactMaximum",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "SafeIntegerParserAcceptsZeroLeadingZerosAndTheExactMaximum",
+      "fullName": "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests.SafeIntegerParserAcceptsZeroLeadingZerosAndTheExactMaximum",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests",
+      "method": "SafeIntegerParserRejectsBlankSignsFractionsJunkAndOverflowWithoutClamping",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "SafeIntegerParserRejectsBlankSignsFractionsJunkAndOverflowWithoutClamping",
+      "fullName": "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests.SafeIntegerParserRejectsBlankSignsFractionsJunkAndOverflowWithoutClamping",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests",
+      "method": "CapturedActionCallbackCannotTargetAReboundSession",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "CapturedActionCallbackCannotTargetAReboundSession",
+      "fullName": "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.CapturedActionCallbackCannotTargetAReboundSession",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests",
+      "method": "CapturedActionCannotCrossSameSessionSourceClockCutEvenAfterEpochReconfirmation",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "CapturedActionCannotCrossSameSessionSourceClockCutEvenAfterEpochReconfirmation",
+      "fullName": "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.CapturedActionCannotCrossSameSessionSourceClockCutEvenAfterEpochReconfirmation",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests",
+      "method": "EachTrainingActionQueuesOneExactTrainWireIntentInExistingSessionOrder",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "EachTrainingActionQueuesOneExactTrainWireIntentInExistingSessionOrder",
+      "fullName": "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.EachTrainingActionQueuesOneExactTrainWireIntentInExistingSessionOrder",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests",
+      "method": "EscapeClosesFocusedConsoleOnceAndDestroyedViewRemovesCapturedListener",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "EscapeClosesFocusedConsoleOnceAndDestroyedViewRemovesCapturedListener",
+      "fullName": "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.EscapeClosesFocusedConsoleOnceAndDestroyedViewRemovesCapturedListener",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests",
+      "method": "InvalidStatTextAndDisconnectedSessionCannotQueueTrainingCommands",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "InvalidStatTextAndDisconnectedSessionCannotQueueTrainingCommands",
+      "fullName": "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.InvalidStatTextAndDisconnectedSessionCannotQueueTrainingCommands",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests",
+      "method": "ReentrantSendRebindDoesNotSendToOrPoisonTheNewSession",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "ReentrantSendRebindDoesNotSendToOrPoisonTheNewSession",
+      "fullName": "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.ReentrantSendRebindDoesNotSendToOrPoisonTheNewSession",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests",
+      "method": "StartsClosedAndRequiresAcceptedTrainingFactAndMatchingExplicitLaunchContext",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "StartsClosedAndRequiresAcceptedTrainingFactAndMatchingExplicitLaunchContext",
+      "fullName": "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.StartsClosedAndRequiresAcceptedTrainingFactAndMatchingExplicitLaunchContext",
+      "selectedArguments": []
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests",
+      "method": "TrainingActionFlushPreservesEarlierOrdinaryPendingInputOrder",
+      "methodReturnType": "System.Void",
+      "methodParameters": [],
+      "simpleToolLeafSelector": "TrainingActionFlushPreservesEarlierOrdinaryPendingInputOrder",
+      "fullName": "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests.TrainingActionFlushPreservesEarlierOrdinaryPendingInputOrder",
+      "selectedArguments": []
+    }
+  ]
+}

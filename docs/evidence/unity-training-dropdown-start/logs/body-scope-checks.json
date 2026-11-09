@@ -1,0 +1,9 @@
+{
+  "base": "2601f9d84fadc20ae57d193c29409ca4042614a4",
+  "onlyChangedPath": "client-unity/UnityProject/Assets/Tests/Editor/TrainingConsoleIntegrationEditModeTests.cs",
+  "oldSha256": "024f7ba9705963f77e4d90b71eb27289778668e1d19d2681bc7ca86a3add8ed0",
+  "newSha256": "5d66e3f396212856aa85f2c994343781afd22d68b6b5790d42f6c169aab51eac",
+  "expectedTwoInsertionsOnly": true,
+  "oneRealStartSetupInvocation": true,
+  "allExistingAssertionsAndOtherBytesPreserved": true
+}

@@ -1,0 +1,30 @@
+{
+  "schema": "roguehalla-training-dropdown-start-metadata-audit/1",
+  "sourceHead": "76f341ed60ca5bb8ac70d76cf244c9afc1be9e23",
+  "sourceWorktree": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-training-dropdown-start",
+  "compiledArtifactsOnly": true,
+  "testBodiesInvoked": false,
+  "unityApisInvoked": false,
+  "selectorCount": 90,
+  "prior90TypedTuplesMatch": true,
+  "nativeSelectorSetMatches": true,
+  "dropdownIlProof": {
+    "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-training-dropdown-start-2026-11-09/metadata/output/dropdown-il-proof.json",
+    "sha256": "3b00f9d2b7f6f65dc10bc4c8f4e2467579c291863194f0e38b90ed4c09ac4db1",
+    "checksPass": true
+  },
+  "metadataTool": {
+    "source": "Program.cs",
+    "sourceSha256": "b4224b712c21bbc3a3527382e64906a7d472af0e4c736ec57a853113b24d0849",
+    "project": "MetadataAudit.csproj",
+    "projectSha256": "89ae0d7b13572f13628e084c1481f3a06ada5531415a4c74ac600f2e2907cc62"
+  },
+  "priorContractSha256": "cf38da76450bbcc01bb2f6c15d73c44d119152959733ef3037dcc04960f1cc7e",
+  "nativeSelectorsSha256": "a7210a4c56509d707923c67a62082c8374465e039d5e58473726960ce3df3b43",
+  "editorTestsAssemblySha256": "b0527c27b7a868d3c14cf2d1921e58e873013fdb727421ca6fcd138b75e1d611",
+  "editorTestsAssemblyMvid": "f160e7f9-12e3-4349-9750-dc24a1e9ca39",
+  "tmpAssemblySha256": "242f61cd3d1da5dd1e6038c2bc4de6b48e60ad3ba896dd7003cdf36f258979c2",
+  "tmpAssemblyMvid": "0df08f32-6fbc-4df7-be30-06445d9c8c22",
+  "sourcePinsPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-training-dropdown-start-2026-11-09/metadata/output/source-input-pins.json",
+  "sourcePinsSha256": "aa73d42a2db3e2c73c2612edbed23364c38419de8032837eddf5db4507ad8564"
+}

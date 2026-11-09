@@ -1,0 +1,26 @@
+{
+  "source": "99172b65a317fc489b2290caa43c1735f26f2e26",
+  "status": "PASS_IDENTITY_BEFORE_EXECUTION",
+  "nativeTestsExecuted": 0,
+  "pins": 1176,
+  "allPinsExact": true,
+  "clientMvid": "14a3cc27-1bf8-40e3-86cc-39aae052227d",
+  "clientDllSha256": "42f1d8005e5c8216db457a97c4440d84f2039140f4310c8ede6fcbb4a84e938b",
+  "testMvid": "139e4ef9-8b31-4bd9-9591-0e64f0b7a703",
+  "testDllSha256": "1ebd1a5e7e76188ac3beda295c66bfe3c67e86f528e1533d24c3b93929ecdc88",
+  "fixtureTypes": [
+    "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+    "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+    "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+    "MatchLaunchEditModeTests",
+    "MatchSettlementEditModeTests",
+    "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests",
+    "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests",
+    "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests"
+  ],
+  "ownProductionIlMethods": 16,
+  "ownTestBodies": 442,
+  "unityVersion": "6000.0.85f2",
+  "selectedAndLoadedTestFramework": "1.6.0",
+  "knownSerializationException": "PRETEST_SERIALIZATION_EXCEPTION.json; original stop preserved"
+}

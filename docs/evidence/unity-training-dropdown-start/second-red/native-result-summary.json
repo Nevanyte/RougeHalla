@@ -1,0 +1,122 @@
+{
+  "source": "956a80dcfe89dd290816f2ea6051b210b7a4834f",
+  "status": "FAILED_CORRECTED_COMPLETE90_RETAKE",
+  "executedOnce": 90,
+  "passed": 89,
+  "failed": 1,
+  "skipped": 0,
+  "inconclusive": 0,
+  "unrun": 0,
+  "missingOrExtra": 0,
+  "fixtureInvocations": 8,
+  "retries": 0,
+  "fixtures": [
+    {
+      "fixtureType": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+      "summary": {
+        "Total": 8,
+        "Passed": 8,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "invocations": 1,
+      "exactNames": true
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+      "summary": {
+        "Total": 6,
+        "Passed": 6,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "invocations": 1,
+      "exactNames": true
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+      "summary": {
+        "Total": 11,
+        "Passed": 11,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "invocations": 1,
+      "exactNames": true
+    },
+    {
+      "fixtureType": "MatchLaunchEditModeTests",
+      "summary": {
+        "Total": 17,
+        "Passed": 17,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "invocations": 1,
+      "exactNames": true
+    },
+    {
+      "fixtureType": "MatchSettlementEditModeTests",
+      "summary": {
+        "Total": 22,
+        "Passed": 22,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "invocations": 1,
+      "exactNames": true
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests",
+      "summary": {
+        "Total": 5,
+        "Passed": 5,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "invocations": 1,
+      "exactNames": true
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests",
+      "summary": {
+        "Total": 8,
+        "Passed": 8,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "invocations": 1,
+      "exactNames": true
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests",
+      "summary": {
+        "Total": 13,
+        "Passed": 12,
+        "Failed": 1,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "invocations": 1,
+      "exactNames": true
+    }
+  ],
+  "failures": [
+    {
+      "FullName": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.DropdownEscapeRequestsPopupHideBeforeConsoleCloseAndTrainingLeave",
+      "Status": "Failed",
+      "Duration": 0.3995776,
+      "Message": "System.NullReferenceException : Object reference not set to an instance of an object",
+      "StackTrace": "  at TMPro.TMP_Dropdown.AlphaFadeList (System.Single duration, System.Single start, System.Single end) [0x00048] in ./Library/PackageCache/com.unity.ugui@cd4936b8279f/Runtime/TMP/TMP_Dropdown.cs:1183 \n  at TMPro.TMP_Dropdown.Show () [0x00796] in ./Library/PackageCache/com.unity.ugui@cd4936b8279f/Runtime/TMP/TMP_Dropdown.cs:968 \n  at Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.DropdownEscapeRequestsPopupHideBeforeConsoleCloseAndTrainingLeave () [0x00290] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/TrainingConsoleIntegrationEditModeTests.cs:655 \n  at UnityEngine.TestTools.TestRunner.TestTaskWrapper+<Execute>d__2.MoveNext () [0x00063] in ./Library/PackageCache/com.unity.test-framework@082c24152fd4/UnityEngine.TestRunner/TestRunner/TestTaskWrapper.cs:31 \n  at UnityEngine.TestTools.TestEnumerator+<Execute>d__7.MoveNext () [0x0003a] in ./Library/PackageCache/com.unity.test-framework@082c24152fd4/UnityEngine.TestRunner/NUnitExtensions/Attributes/TestEnumerator.cs:44 "
+    }
+  ],
+  "originalFailedGatePreservedSeparate": "ea39a0aa1007456360e319026b0e68cf56bf4a37",
+  "layout": "NOT_ATTEMPTED:90PASS condition not achieved"
+}

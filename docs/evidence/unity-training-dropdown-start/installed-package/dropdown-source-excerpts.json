@@ -1,0 +1,367 @@
+{
+  "sourcePath": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Library/PackageCache/com.unity.ugui@cd4936b8279f/Runtime/TMP/TMP_Dropdown.cs",
+  "sourceSha256": "e4f051dabc62b6d88ead39185aa9f93a269c25f3f517160ebe374942906c211d",
+  "packageJsonPath": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Library/PackageCache/com.unity.ugui@cd4936b8279f/package.json",
+  "packageJsonSha256": "d8df43a06f5c808e1150d40a97ae551d9bc3151c9af36f74d59e8f0bcd7d871b",
+  "fragments": [
+    {
+      "startLine": 357,
+      "endLine": 369,
+      "lines": [
+        {
+          "line": 357,
+          "text": "        /// <summary>"
+        },
+        {
+          "line": 358,
+          "text": "        /// The time interval at which a drop down will appear and disappear"
+        },
+        {
+          "line": 359,
+          "text": "        /// </summary>"
+        },
+        {
+          "line": 360,
+          "text": "        public float alphaFadeSpeed { get { return m_AlphaFadeSpeed; } set { m_AlphaFadeSpeed = value; } }"
+        },
+        {
+          "line": 361,
+          "text": ""
+        },
+        {
+          "line": 362,
+          "text": "        private GameObject m_Dropdown;"
+        },
+        {
+          "line": 363,
+          "text": "        private GameObject m_Blocker;"
+        },
+        {
+          "line": 364,
+          "text": "        private List<DropdownItem> m_Items = new List<DropdownItem>();"
+        },
+        {
+          "line": 365,
+          "text": "        private TweenRunner<FloatTween> m_AlphaTweenRunner;"
+        },
+        {
+          "line": 366,
+          "text": "        private bool validTemplate = false;"
+        },
+        {
+          "line": 367,
+          "text": "        private Coroutine m_Coroutine = null;"
+        },
+        {
+          "line": 368,
+          "text": ""
+        },
+        {
+          "line": 369,
+          "text": "        private static OptionData s_NoOptionData = new OptionData();"
+        }
+      ]
+    },
+    {
+      "startLine": 459,
+      "endLine": 483,
+      "lines": [
+        {
+          "line": 459,
+          "text": "        protected TMP_Dropdown() { }"
+        },
+        {
+          "line": 460,
+          "text": ""
+        },
+        {
+          "line": 461,
+          "text": "        protected override void Awake()"
+        },
+        {
+          "line": 462,
+          "text": "        {"
+        },
+        {
+          "line": 463,
+          "text": "            #if UNITY_EDITOR"
+        },
+        {
+          "line": 464,
+          "text": "            if (!Application.isPlaying)"
+        },
+        {
+          "line": 465,
+          "text": "                return;"
+        },
+        {
+          "line": 466,
+          "text": "            #endif"
+        },
+        {
+          "line": 467,
+          "text": ""
+        },
+        {
+          "line": 468,
+          "text": "            if (m_CaptionImage)"
+        },
+        {
+          "line": 469,
+          "text": "                m_CaptionImage.enabled = (m_CaptionImage.sprite != null && m_CaptionImage.color.a > 0);"
+        },
+        {
+          "line": 470,
+          "text": ""
+        },
+        {
+          "line": 471,
+          "text": "            if (m_Template)"
+        },
+        {
+          "line": 472,
+          "text": "                m_Template.gameObject.SetActive(false);"
+        },
+        {
+          "line": 473,
+          "text": "        }"
+        },
+        {
+          "line": 474,
+          "text": ""
+        },
+        {
+          "line": 475,
+          "text": "        protected override void Start()"
+        },
+        {
+          "line": 476,
+          "text": "        {"
+        },
+        {
+          "line": 477,
+          "text": "            m_AlphaTweenRunner = new TweenRunner<FloatTween>();"
+        },
+        {
+          "line": 478,
+          "text": "            m_AlphaTweenRunner.Init(this);"
+        },
+        {
+          "line": 479,
+          "text": "            base.Start();"
+        },
+        {
+          "line": 480,
+          "text": ""
+        },
+        {
+          "line": 481,
+          "text": "            RefreshShownValue();"
+        },
+        {
+          "line": 482,
+          "text": "        }"
+        },
+        {
+          "line": 483,
+          "text": ""
+        }
+      ]
+    },
+    {
+      "startLine": 959,
+      "endLine": 970,
+      "lines": [
+        {
+          "line": 959,
+          "text": "            {"
+        },
+        {
+          "line": 960,
+          "text": "                RectTransform itemRect = m_Items[i].rectTransform;"
+        },
+        {
+          "line": 961,
+          "text": "                itemRect.anchorMin = new Vector2(itemRect.anchorMin.x, 0);"
+        },
+        {
+          "line": 962,
+          "text": "                itemRect.anchorMax = new Vector2(itemRect.anchorMax.x, 0);"
+        },
+        {
+          "line": 963,
+          "text": "                itemRect.anchoredPosition = new Vector2(itemRect.anchoredPosition.x, offsetMin.y + itemSize.y * (m_Items.Count - 1 - i) + itemSize.y * itemRect.pivot.y);"
+        },
+        {
+          "line": 964,
+          "text": "                itemRect.sizeDelta = new Vector2(itemRect.sizeDelta.x, itemSize.y);"
+        },
+        {
+          "line": 965,
+          "text": "            }"
+        },
+        {
+          "line": 966,
+          "text": ""
+        },
+        {
+          "line": 967,
+          "text": "            // Fade in the popup"
+        },
+        {
+          "line": 968,
+          "text": "            AlphaFadeList(m_AlphaFadeSpeed, 0f, 1f);"
+        },
+        {
+          "line": 969,
+          "text": ""
+        },
+        {
+          "line": 970,
+          "text": "            // Make drop-down template and item template inactive"
+        }
+      ]
+    },
+    {
+      "startLine": 1169,
+      "endLine": 1184,
+      "lines": [
+        {
+          "line": 1169,
+          "text": "        private void AlphaFadeList(float duration, float alpha)"
+        },
+        {
+          "line": 1170,
+          "text": "        {"
+        },
+        {
+          "line": 1171,
+          "text": "            CanvasGroup group = m_Dropdown.GetComponent<CanvasGroup>();"
+        },
+        {
+          "line": 1172,
+          "text": "            AlphaFadeList(duration, group.alpha, alpha);"
+        },
+        {
+          "line": 1173,
+          "text": "        }"
+        },
+        {
+          "line": 1174,
+          "text": ""
+        },
+        {
+          "line": 1175,
+          "text": "        private void AlphaFadeList(float duration, float start, float end)"
+        },
+        {
+          "line": 1176,
+          "text": "        {"
+        },
+        {
+          "line": 1177,
+          "text": "            if (end.Equals(start))"
+        },
+        {
+          "line": 1178,
+          "text": "                return;"
+        },
+        {
+          "line": 1179,
+          "text": ""
+        },
+        {
+          "line": 1180,
+          "text": "            FloatTween tween = new FloatTween { duration = duration, startValue = start, targetValue = end };"
+        },
+        {
+          "line": 1181,
+          "text": "            tween.AddOnChangedCallback(SetAlpha);"
+        },
+        {
+          "line": 1182,
+          "text": "            tween.ignoreTimeScale = true;"
+        },
+        {
+          "line": 1183,
+          "text": "            m_AlphaTweenRunner.StartTween(tween);"
+        },
+        {
+          "line": 1184,
+          "text": "        }"
+        }
+      ]
+    },
+    {
+      "startLine": 1198,
+      "endLine": 1213,
+      "lines": [
+        {
+          "line": 1198,
+          "text": "        public void Hide()"
+        },
+        {
+          "line": 1199,
+          "text": "        {"
+        },
+        {
+          "line": 1200,
+          "text": "            if (m_Coroutine == null)"
+        },
+        {
+          "line": 1201,
+          "text": "            {"
+        },
+        {
+          "line": 1202,
+          "text": "                if (m_Dropdown != null)"
+        },
+        {
+          "line": 1203,
+          "text": "                {"
+        },
+        {
+          "line": 1204,
+          "text": "                    AlphaFadeList(m_AlphaFadeSpeed, 0f);"
+        },
+        {
+          "line": 1205,
+          "text": ""
+        },
+        {
+          "line": 1206,
+          "text": "                    // User could have disabled the dropdown during the OnValueChanged call."
+        },
+        {
+          "line": 1207,
+          "text": "                    if (IsActive())"
+        },
+        {
+          "line": 1208,
+          "text": "                        m_Coroutine = StartCoroutine(DelayedDestroyDropdownList(m_AlphaFadeSpeed));"
+        },
+        {
+          "line": 1209,
+          "text": "                }"
+        },
+        {
+          "line": 1210,
+          "text": ""
+        },
+        {
+          "line": 1211,
+          "text": "                if (m_Blocker != null)"
+        },
+        {
+          "line": 1212,
+          "text": "                    DestroyBlocker(m_Blocker);"
+        },
+        {
+          "line": 1213,
+          "text": ""
+        }
+      ]
+    }
+  ],
+  "interpretation": "m_AlphaTweenRunner assigned+Init only in Start; Show calls AlphaFadeList and line1183 dereferences that runner. Awake has no assignment and exits in EditMode. Fixture must invoke real required Start before actual Show; no private popup/tween state installed."
+}
