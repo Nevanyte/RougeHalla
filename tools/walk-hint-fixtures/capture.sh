@@ -58,7 +58,7 @@ case "$MODE" in
     mkdir -p "$OUTPUT"; OUTPUT=$(cd "$OUTPUT" && pwd); MOUNT="type=bind,src=$OUTPUT,dst=/out"
     ;;
 esac
-IMAGE=node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292
+IMAGE=node@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d
 BASE=$(printenv RH_WALK_HINT_BASE || true)
 [ -n "$BASE" ] || BASE=db5ed80b2b89a156eae09cd0bd3f4c9e77e9e6de
 docker run --rm --platform linux/amd64 \
