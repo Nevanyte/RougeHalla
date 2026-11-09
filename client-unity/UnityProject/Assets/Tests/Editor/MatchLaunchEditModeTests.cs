@@ -11,6 +11,7 @@ using Roguehalla.Net.Protocol;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.Rendering.Universal;
 
 /// <summary>Actual MatchClient/account/decoded Session seams. Editor execution and browser routing are separate gates.</summary>
 public sealed class MatchLaunchEditModeTests
@@ -58,7 +59,11 @@ public sealed class MatchLaunchEditModeTests
         public readonly AccountCoordinator Owner;
         public readonly Accounts Accounts = new Accounts();
         public readonly List<Transport> Matches = new List<Transport>();
+        readonly List<GameObject> _arenas = new List<GameObject>();
+        readonly List<Light2D> _lights = new List<Light2D>();
+        readonly Light2D[] _priorRegisteredLights = RegisteredLights();
         readonly EventSystem _priorEvents = EventSystem.current;
+        readonly GameObject _priorSelection = EventSystem.current != null ? EventSystem.current.currentSelectedGameObject : null;
         GameObject _events;
         public MatchHud Hud;
         public Fixture(bool immediate = false)
@@ -80,16 +85,36 @@ public sealed class MatchLaunchEditModeTests
             Field(Client, "_transportFactory", new Func<ITransport>(() =>
             {
                 var arena = Client.Arena;
-                if (Get(arena, "_actors") == null) Invoke(arena, "Awake");
+                Assert.That(arena, Is.Not.Null, "the public launch must create its real ArenaView");
+                _arenas.Add(arena.gameObject);
+                arena.transform.SetParent(Root.transform, false);
+                try
+                {
+                    if (Get(arena, "_actors") == null) Invoke(arena, "Awake");
+                    Assert.That(Get(arena, "_actors"), Is.Not.Null);
+                    Assert.That(Get(arena, "_wishes"), Is.Not.Null);
+                }
+                finally
+                {
+                    // Awake creates registered ExecuteAlways lights even in EditMode.
+                    // Keep ownership if a later part of initialization throws as well.
+                    _lights.AddRange(arena.GetComponentsInChildren<Light2D>(true));
+                }
                 var transport = new Transport(); Matches.Add(transport); return transport;
             }));
         }
         public void InitializeHud()
         {
-            _events = new GameObject("Launch fixture events", typeof(EventSystem), typeof(UnityEngine.InputSystem.UI.InputSystemUIInputModule));
-            EventSystem.current = _events.GetComponent<EventSystem>();
+            // Use the same actual EditMode registration lifecycle as the passing input
+            // fixtures. A plain EventSystem has not registered merely by being created.
+            _events = new GameObject("Launch fixture events", typeof(Roguehalla.Client.Tests.UiInputRoutingEventSystem));
+            var system = _events.GetComponent<EventSystem>();
+            system.enabled = false; system.enabled = true;
+            EventSystem.current = system;
+            Assert.That(EventSystem.current, Is.SameAs(system), "owned EventSystem must be registered before HUD setup");
             Hud = Root.AddComponent<MatchHud>(); Hud.Initialize(Client);
             Field(Client, "<Hud>k__BackingField", Hud);
+            Assert.That(EventSystem.current, Is.SameAs(system), "HUD must reuse the registered owned EventSystem");
         }
         public void Join(MatchLaunchMode mode) { Client.Join("alice", 4, mode); }
         public async Task JoinReady(MatchLaunchMode mode)
@@ -145,10 +170,58 @@ public sealed class MatchLaunchEditModeTests
         }
         public void Dispose()
         {
-            if (Root != null) UnityEngine.Object.DestroyImmediate(Root);
-            if (_events != null) UnityEngine.Object.DestroyImmediate(_events);
-            if (_priorEvents != null) EventSystem.current = _priorEvents;
+            try
+            {
+                // The player component's OnDestroy/deferred Destroy is not the fixture's
+                // EditMode lifetime. Exercise normal Leave while its objects still live.
+                if (Client != null) Client.Leave();
+            }
+            finally
+            {
+                try
+                {
+                    // JoinCore creates independent roots; retain every retired/replaced
+                    // Arena too, and retire its registered light before the next case.
+                    for (int i = _arenas.Count - 1; i >= 0; i--)
+                        if (_arenas[i] != null)
+                        {
+                            _arenas[i].SetActive(false);
+                            UnityEngine.Object.DestroyImmediate(_arenas[i]);
+                        }
+                    if (Root != null) UnityEngine.Object.DestroyImmediate(Root);
+                }
+                finally
+                {
+                    if (_events != null)
+                    {
+                        var system = _events.GetComponent<EventSystem>();
+                        if (EventSystem.current == system) system.SetSelectedGameObject(null);
+                        system.enabled = false;
+                        UnityEngine.Object.DestroyImmediate(_events);
+                    }
+                    if (_priorEvents != null && _priorEvents.isActiveAndEnabled)
+                    {
+                        EventSystem.current = _priorEvents;
+                        if (_priorSelection != null && _priorSelection.activeInHierarchy)
+                            _priorEvents.SetSelectedGameObject(_priorSelection);
+                    }
+                }
+                Assert.That(_arenas.All(arena => arena == null), Is.True, "every fixture-owned Arena must be destroyed immediately");
+                Assert.That(_lights.All(light => light == null), Is.True, "every fixture-owned light must be destroyed");
+                CollectionAssert.AreEquivalent(_priorRegisteredLights, RegisteredLights(), "fixture must restore the real URP light registry without mutating unrelated lights");
+                var expectedEvents = _priorEvents != null && _priorEvents.isActiveAndEnabled ? _priorEvents : null;
+                Assert.That(EventSystem.current, Is.SameAs(expectedEvents), "fixture must restore the prior registered EventSystem");
+            }
         }
+    }
+    // Read-only observation of the installed URP's actual registration list. Never
+    // clear/remove entries or treat a logged package error as an expected test result.
+    static Light2D[] RegisteredLights()
+    {
+        var manager = typeof(Light2D).Assembly.GetType("UnityEngine.Rendering.Universal.Light2DManager", true);
+        var property = manager.GetProperty("lights", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+        Assert.That(property, Is.Not.Null);
+        return ((System.Collections.IEnumerable)property.GetValue(null)).Cast<Light2D>().ToArray();
     }
     static void Field(object target, string name, object value) => target.GetType().GetField(name, Private).SetValue(target, value);
     static object Get(object target, string name) => target.GetType().GetField(name, Private).GetValue(target);
