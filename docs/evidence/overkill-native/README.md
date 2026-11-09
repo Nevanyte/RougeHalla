@@ -52,7 +52,7 @@ CARGO_INCREMENTAL=0, jobs <= 2):
 - RH_ABIL_REQUIRE_FULL=1 cargo test -p rh-sim --all-features --lib frozen_full_source_all_63_cases -> 1 passed.
 - cargo fmt --all -- --check -> clean; cargo clippy -p rh-sim --all-targets -- -D warnings and
   --all-features -- -D warnings -> clean.
-- Broader lib sweep (not required scope): 737 passed, 3 failed, 7 ignored. The same three failures occur unchanged at the
+- Broader lib sweep (not required scope): 738 passed (735 untouched-base + 3 new tests), 3 failed, 7 ignored. The same three failures occur unchanged at the
   untouched base 6d48b6e6: ability_hash_tape_matches_the_base expects checkpoint version 27 but base records 25 (the
   known old-Full hash tape; NOT refreshed here), trial_convicted_radius expects 200 but base gives 300, and
   basic_pve_mode_content_and_join expects full PvE construction to be refused but base accepts it. They are pre-existing
