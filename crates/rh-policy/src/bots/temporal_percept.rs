@@ -8,6 +8,7 @@ mod data;
 mod input;
 #[cfg(test)]
 mod tests;
+mod vision;
 
 #[cfg(test)]
 mod protection_cues_tests;
