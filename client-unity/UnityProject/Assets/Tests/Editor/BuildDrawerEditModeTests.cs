@@ -8,6 +8,7 @@ using Roguehalla.Client;
 using Roguehalla.Net;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace Roguehalla.Client.Tests
@@ -118,6 +119,116 @@ namespace Roguehalla.Client.Tests
         }
 
         [Test]
+        public void DrawerViewportBuildsVisibleCardMeshesClipsHitsScrollsAndKeepsSelection()
+        {
+            var canvas = _canvasObject.GetComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            var scaler = _canvasObject.GetComponent<UnityEngine.UI.CanvasScaler>();
+            scaler.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(2560, 1440);
+            scaler.matchWidthOrHeight = .5f;
+            _drawer.SetVisible(true);
+
+            Canvas.ForceUpdateCanvases();
+            UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate(_drawer.Content);
+            Canvas.ForceUpdateCanvases();
+            var viewport = _drawer.Scroll.viewport;
+            var firstCard = _drawer.Content.Find("Card00") as RectTransform;
+            var firstButton = firstCard.GetComponent<UnityEngine.UI.Button>();
+            var viewportBounds = ScreenBounds(viewport);
+            var firstBounds = ScreenBounds(firstCard);
+            Assert.That(Intersects(viewportBounds, firstBounds), Is.True,
+                "Card00 should be visible in the first viewport after initial layout");
+            var firstCenter = firstBounds.center;
+            Assert.That(RectTransformUtility.RectangleContainsScreenPoint(viewport, firstCenter), Is.True);
+
+            var cardImage = firstCard.GetComponent<UnityEngine.UI.Image>();
+            cardImage.Rebuild(UnityEngine.UI.CanvasUpdate.PreRender);
+            var cardMesh = cardImage.canvasRenderer.GetMesh();
+            Assert.That(cardMesh, Is.Not.Null);
+            Assert.That(cardMesh.vertexCount, Is.GreaterThan(0), "the card background builds real UI mesh geometry");
+            var glyph = firstCard.Find("CardGlyph").GetComponent<UnityEngine.UI.Image>();
+            glyph.Rebuild(UnityEngine.UI.CanvasUpdate.PreRender);
+            var glyphMesh = glyph.canvasRenderer.GetMesh();
+            Assert.That(glyph.sprite, Is.Not.Null);
+            Assert.That(glyphMesh, Is.Not.Null);
+            Assert.That(glyphMesh.vertexCount, Is.GreaterThan(0), "the card glyph builds real UI mesh geometry");
+
+            var raycaster = _canvasObject.GetComponent<UnityEngine.UI.GraphicRaycaster>();
+            var pointer = new PointerEventData(null) { position = firstCenter };
+            var hits = new List<RaycastResult>();
+            raycaster.Raycast(pointer, hits);
+            Assert.That(ContainsButtonHit(hits, firstButton), Is.True, "visible card responds to the actual Canvas UnityEngine.UI.GraphicRaycaster");
+
+            _drawer.Scroll.verticalNormalizedPosition = .5f;
+            Canvas.ForceUpdateCanvases();
+            UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate(_drawer.Content);
+            Canvas.ForceUpdateCanvases();
+            viewportBounds = ScreenBounds(viewport);
+            UnityEngine.UI.Button clippedCard = null;
+            Rect clippedBounds = default;
+            var cards = _drawer.Content.GetComponentsInChildren<UnityEngine.UI.Button>(true);
+            foreach (var candidate in cards)
+            {
+                var bounds = ScreenBounds((RectTransform)candidate.transform);
+                if (Intersects(viewportBounds, bounds) &&
+                    (bounds.yMin < viewportBounds.yMin || bounds.yMax > viewportBounds.yMax))
+                {
+                    clippedCard = candidate; clippedBounds = bounds; break;
+                }
+            }
+            Assert.That(clippedCard, Is.Not.Null, "mid-scroll layout includes a partially clipped card row");
+            float outsideY = clippedBounds.yMax > viewportBounds.yMax
+                ? viewportBounds.yMax + .5f : viewportBounds.yMin - .5f;
+            var clippedPoint = new Vector2(Mathf.Clamp(clippedBounds.center.x, viewportBounds.xMin + 1, viewportBounds.xMax - 1), outsideY);
+            Assert.That(clippedBounds.Contains(clippedPoint), Is.True, "probe point is inside card geometry but outside the viewport");
+            pointer.position = clippedPoint;
+            hits.Clear(); raycaster.Raycast(pointer, hits);
+            Assert.That(ContainsButtonHit(hits, clippedCard), Is.False,
+                "the viewport's clipping filter rejects hits outside its visible rectangle");
+
+            var visibleButton = null as UnityEngine.UI.Button;
+            foreach (var candidate in cards)
+            {
+                var bounds = ScreenBounds((RectTransform)candidate.transform);
+                if (!RectTransformUtility.RectangleContainsScreenPoint(viewport, bounds.center)) continue;
+                pointer.position = bounds.center; hits.Clear(); raycaster.Raycast(pointer, hits);
+                if (ContainsButtonHit(hits, candidate)) { visibleButton = candidate; break; }
+            }
+            Assert.That(visibleButton, Is.Not.Null, "a visible card remains raycastable after scrolling");
+
+            float beforeWheel = _drawer.Scroll.verticalNormalizedPosition;
+            pointer.scrollDelta = new Vector2(0, -1);
+            var wheelTarget = ExecuteEvents.ExecuteHierarchy<IScrollHandler>(visibleButton.gameObject, pointer, ExecuteEvents.scrollHandler);
+            Assert.That(wheelTarget, Is.SameAs(_drawer.Scroll.gameObject), "wheel dispatch reaches the owning ScrollRect");
+            Canvas.ForceUpdateCanvases();
+            Assert.That(_drawer.Scroll.verticalNormalizedPosition, Is.Not.EqualTo(beforeWheel), "wheel dispatch moves the real content");
+
+            var selectionBounds = ScreenBounds((RectTransform)visibleButton.transform);
+            pointer.position = selectionBounds.center; pointer.button = PointerEventData.InputButton.Left;
+            Assert.That(RectTransformUtility.RectangleContainsScreenPoint(viewport, pointer.position), Is.True);
+            hits.Clear(); raycaster.Raycast(pointer, hits);
+            Assert.That(ContainsButtonHit(hits, visibleButton), Is.True, "the clicked card remains visible after the wheel event");
+            var clickTarget = ExecuteEvents.ExecuteHierarchy<IPointerClickHandler>(visibleButton.gameObject, pointer, ExecuteEvents.pointerClickHandler);
+            Assert.That(clickTarget, Is.SameAs(visibleButton.gameObject), "selection uses the normal pointer-click handler path");
+            int selected = int.Parse(visibleButton.name.Substring("Card".Length));
+            Assert.That(_drawer.SelectedIndex, Is.EqualTo(selected));
+            var detail = typeof(BuildDrawer).GetField("_detail", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(_drawer) as TMP_Text;
+            StringAssert.StartsWith(CardDisplayCatalog.Get(selected).Title, detail.text);
+
+            var normalized = _drawer.Scroll.verticalNormalizedPosition;
+            var collections = new CollectionsView();
+            var counts = new List<byte>(new byte[80]); counts[selected] = 1;
+            SetView(collections, "HasBuild", true); SetView(collections, "Cards", counts);
+            _drawer.Refresh(collections, null, 1f);
+            Assert.That(_drawer.SelectedIndex, Is.EqualTo(selected));
+            Assert.That(_drawer.Scroll.verticalNormalizedPosition, Is.EqualTo(normalized).Within(.01f));
+            _drawer.SetVisible(false); _drawer.SetVisible(true);
+            Assert.That(_drawer.SelectedIndex, Is.EqualTo(selected));
+            Assert.That(_drawer.Scroll.verticalNormalizedPosition, Is.EqualTo(normalized).Within(.01f));
+        }
+
+        [Test]
         public void FactoryButtonsHaveAccessibleMinimumSizeAndGeneratedIcons()
         {
             var button = MythicUi.Button(_canvasObject.transform, "MinimumButton", "Action", new Vector2(.5f, .5f), new Vector2(.5f, .5f), () => { });
@@ -135,6 +246,25 @@ namespace Roguehalla.Client.Tests
         {
             var info = typeof(CollectionsView).GetProperty(property, BindingFlags.Instance | BindingFlags.Public);
             info.GetSetMethod(true).Invoke(view, new[] { value });
+        }
+
+        static Rect ScreenBounds(RectTransform rect)
+        {
+            var corners = new Vector3[4]; rect.GetWorldCorners(corners);
+            Vector2 min = RectTransformUtility.WorldToScreenPoint(null, corners[0]);
+            Vector2 max = RectTransformUtility.WorldToScreenPoint(null, corners[2]);
+            return Rect.MinMaxRect(min.x, min.y, max.x, max.y);
+        }
+
+        static bool Intersects(Rect a, Rect b) => a.xMin < b.xMax && a.xMax > b.xMin && a.yMin < b.yMax && a.yMax > b.yMin;
+
+        static bool ContainsButtonHit(List<RaycastResult> hits, UnityEngine.UI.Button button)
+        {
+            foreach (var hit in hits)
+            {
+                if (hit.gameObject == button.gameObject || hit.gameObject.GetComponentInParent<UnityEngine.UI.Button>() == button) return true;
+            }
+            return false;
         }
     }
 }

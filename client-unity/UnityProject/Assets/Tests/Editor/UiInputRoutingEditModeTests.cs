@@ -445,6 +445,61 @@ namespace Roguehalla.Client.Tests
         }
 
         [Test]
+        public void BuildDrawerHidesGlobalHeaderActionsAndRestoresTheirCallbacksOnClose()
+        {
+            var drawer = _hud.transform.Find("MatchUI/BuildDrawer").gameObject;
+            var help = _hud.transform.Find("MatchUI/Help").GetComponent<UnityEngine.UI.Button>();
+            var settings = _hud.transform.Find("MatchUI/Settings").GetComponent<UnityEngine.UI.Button>();
+            var leave = _hud.transform.Find("MatchUI/Leave").GetComponent<UnityEngine.UI.Button>();
+            var header = new[] { help, settings, leave };
+
+            Press(Key.B);
+            _hud.ReadUiInput();
+            Assert.That(drawer.activeSelf, Is.True);
+            foreach (var button in header) Assert.That(button.gameObject.activeSelf, Is.False, button.name + " should be hidden behind the drawer");
+            Invoke(_client, "ReadInput");
+            _session.FlushInput();
+            Assert.That(_transport.TakeCommands(), Is.Empty, "opening the drawer must not create world commands");
+
+            ReleaseKeys();
+            Press(Key.Escape);
+            _hud.ReadUiInput();
+            Assert.That(drawer.activeSelf, Is.False, "Escape closes the drawer");
+            foreach (var button in header)
+            {
+                Assert.That(button.gameObject.activeSelf, Is.True, button.name + " should return when the drawer closes");
+                Assert.That(button.IsInteractable(), Is.True, button.name + " should remain actionable");
+            }
+            Invoke(_client, "ReadInput");
+            _session.FlushInput();
+            Assert.That(_transport.TakeCommands(), Is.Empty, "closing the drawer must not create world commands");
+            ReleaseKeys();
+
+            Press(Key.B);
+            _hud.ReadUiInput();
+            Assert.That(drawer.activeSelf, Is.True);
+            foreach (var button in header) Assert.That(button.gameObject.activeSelf, Is.False);
+            _hud.transform.Find("MatchUI/BuildDrawer/Close").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            Assert.That(drawer.activeSelf, Is.False, "the drawer's own Close button closes the modal");
+            foreach (var button in header) Assert.That(button.gameObject.activeSelf, Is.True,
+                "the Close callback must restore " + button.name + " immediately");
+            ReleaseKeys();
+
+            help.onClick.Invoke();
+            Assert.That(_hud.transform.Find("MatchUI/ControlsHelp").gameObject.activeSelf, Is.True,
+                "the restored Help button must still invoke its original callback");
+            _hud.transform.Find("MatchUI/ControlsHelp/HelpClose").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            Assert.That(_hud.transform.Find("MatchUI/ControlsHelp").gameObject.activeSelf, Is.False);
+
+            settings.onClick.Invoke();
+            Assert.That(_hud.transform.Find("MatchUI/ModernSettings").gameObject.activeSelf, Is.True,
+                "the restored Settings button must still invoke its original callback");
+            settings.onClick.Invoke();
+            Assert.That(_hud.transform.Find("MatchUI/ModernSettings").gameObject.activeSelf, Is.False);
+            Assert.That(_transport.TakeCommands(), Is.Empty, "restored header actions must not enqueue world commands");
+        }
+
+        [Test]
         public void FocusedTextInputPreventsTabFromOpeningMap()
         {
             _typingField = _hud.transform.Find("MatchUI/JoinMenu/Nickname").GetComponent<TMP_InputField>();
@@ -518,6 +573,8 @@ namespace Roguehalla.Client.Tests
             Assert.That(Keyboard.current, Is.SameAs(_keyboard), "release event must reach the controlled keyboard");
             Assert.That(_keyboard.cKey.isPressed, Is.False);
             Assert.That(_keyboard.digit1Key.isPressed, Is.False);
+            Assert.That(_keyboard.bKey.isPressed, Is.False);
+            Assert.That(_keyboard.escapeKey.isPressed, Is.False);
             Assert.That(_keyboard.tabKey.isPressed, Is.False);
             Assert.That(_keyboard.wKey.isPressed, Is.False);
         }
