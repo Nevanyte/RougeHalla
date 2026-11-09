@@ -1,0 +1,87 @@
+{
+  "format": "rh-native28-admission/1",
+  "source": "739807d198bfb4d4067c39752d5a709f5ba99ad8",
+  "tape_commit": "6000839d0e614f3a885e3121de709b5ef35474d1",
+  "identities": {
+    "protocol": 14,
+    "checkpoint": 28,
+    "replay": 22,
+    "observation": 21,
+    "policy": 15,
+    "content": "643d294869db55a4"
+  },
+  "source_corpus_sha256": "8629c08fa42ac9fb15b21c52416658997c7d8969a6962cf59b71cebedd571330",
+  "derived_tape_sha256": "79f87e6ae604bc4f74bf72904b55a524c0f449cb87df5cbe0d626fe7bca5ad4f",
+  "payloads": [
+    {
+      "path": "docs/evidence/native28-admission/README.md",
+      "bytes": 2746,
+      "sha256": "643a68fdd8bbd71060db0ce655c6ca30e88b4bcc92e711e3976386306fae2f68"
+    },
+    {
+      "path": "docs/evidence/native28-admission/logs/final-identity-all63.txt",
+      "bytes": 405,
+      "sha256": "8dc227b578d1db5ca53eb7bc39ea00cd606d268047f8d5cf38ef8be0799a2569",
+      "raw_bytes": 406,
+      "raw_sha256": "0e23f69541327197220e6db1afcf4cb6ee42e6d67c8d6c2ab4e17d99a1c26554",
+      "normalization": "Remove redundant blank lines at EOF only."
+    },
+    {
+      "path": "docs/evidence/native28-admission/logs/final-identity-checkpoint-replay.txt",
+      "bytes": 1592,
+      "sha256": "f48b41dfaad78d74ede6d3ab1754f832ec4420044ed7e52de991b9184f7ac9d7",
+      "raw_bytes": 1593,
+      "raw_sha256": "40ef5c3260502afd432c1dfa0d7457c7df54a1e27a4a3b22dd11d4b4cd918cb5",
+      "normalization": "Remove redundant blank lines at EOF only."
+    },
+    {
+      "path": "docs/evidence/native28-admission/logs/final-identity-content-before-golden.txt",
+      "bytes": 2058,
+      "sha256": "dd6268a2bf0fe5cc6be4f68892795a67fe3382273a3b3b538d61fdc550289218",
+      "raw_bytes": 2058,
+      "raw_sha256": "dd6268a2bf0fe5cc6be4f68892795a67fe3382273a3b3b538d61fdc550289218",
+      "normalization": "Remove redundant blank lines at EOF only."
+    },
+    {
+      "path": "docs/evidence/native28-admission/logs/final-identity-content.txt",
+      "bytes": 1631,
+      "sha256": "7e1101823e66c81160ff45f985feff96fb820e7e1f775379b9c32cbcac4d7b5f",
+      "raw_bytes": 1632,
+      "raw_sha256": "59263adb32b29d73f1b0fb8690c65430ba7dbccbd9b2af39b98e07ed0c34deea",
+      "normalization": "Remove redundant blank lines at EOF only."
+    },
+    {
+      "path": "docs/evidence/native28-admission/logs/final-identity-overkill.txt",
+      "bytes": 785,
+      "sha256": "1a0b1665cbd2c271f673d5b02616bd773c8d0f9a25de252f326c2eb64377e76f",
+      "raw_bytes": 786,
+      "raw_sha256": "d5a65e724bab67afdd1f329605f5b5a6646171b08a21a49d0efe4d00b13379a2",
+      "normalization": "Remove redundant blank lines at EOF only."
+    },
+    {
+      "path": "docs/evidence/native28-admission/logs/final-identity-policy.txt",
+      "bytes": 13932,
+      "sha256": "4a0f88b88143dc4c6dda219656c68e817f091f0b3f1b1f237daf95b3a9438a7a",
+      "raw_bytes": 13933,
+      "raw_sha256": "c505db1e26c37ea533cdf2b0caadd094117388163c8d893702bca8ff27aea887",
+      "normalization": "Remove redundant blank lines at EOF only."
+    },
+    {
+      "path": "docs/evidence/native28-admission/logs/final-identity-tape-check.txt",
+      "bytes": 419,
+      "sha256": "1192c1cd7925af7880075fd1715cb38c9579df572ed1382c6fc0e8410f5ff8d7",
+      "raw_bytes": 420,
+      "raw_sha256": "17ffe85ef82368f4599b6a2570d024a8572c47769a230421603ef67b5f32ad67",
+      "normalization": "Remove redundant blank lines at EOF only."
+    },
+    {
+      "path": "docs/evidence/native28-admission/logs/final-identity-tape-record.txt",
+      "bytes": 409,
+      "sha256": "3e286cf92e7b5be9fb29c095da731adf391818a45564d9327edcf49359acc961",
+      "raw_bytes": 410,
+      "raw_sha256": "3506371a60ebe1f6d68d56c3213780623703714dabe172b7310ef321384897fd",
+      "normalization": "Remove redundant blank lines at EOF only."
+    }
+  ],
+  "status": "PRIVATE_REVIEWED_IDENTITY; integration/release gates remain"
+}

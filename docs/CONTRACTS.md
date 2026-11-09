@@ -12,6 +12,26 @@ revision; [sweep/README.md](sweep/README.md) says which (H-sim and H-server-2 ha
 
 ## Status table
 
+### November 8 private native28/accepted-frame candidate
+
+Runtime code now identifies protocol 14/checkpoint 28/replay 22/observation 21/policy 15/content `643d294869db55a4`.
+This private candidate supersedes the code identity descriptions below; public/hosted admission is still pending.
+C-TICK and C-INPUT retain Rust authority,20 Hz order and validate+submit. C-OBS/C-RNG retain checked recipient filtering,
+neutral noncombat givers, complete staged aliases/collections, redacted owner locks and exact public clock/mirror facts.
+
+The reviewed policy ABI delivers immutable decoded human-format frames only after local acceptance. Preflight is data
+validation, not a delivery receipt; failure before acceptance preserves staged aliases/baselines/events/cadence. A
+post-accept callback failure cannot undo arbitrary policy memory, but refused or panicked output proposals are removed.
+Opaque local affinity prevents equal-looking references from different sessions comparing as the same NPC; data equality
+never exposes an address/global counter. Actual HumanBot async→ordinary intake is verified; full fight/reflex/hunter and
+source outcome parity are not implied. Explicit native compatibility callbacks do not claim human-codec equivalence.
+
+The coordinator's [identity receipt](evidence/native28-admission/README.md) records independent Overkill registration
+review and strict predecessor/source 63/native-tape gates. [Trade/Quest14](evidence/trade-quest14/README.md) records the
+complete 11-key transport, opaque five-string quest rows and native-owned trader values. UI/HTTP/Web/cloud/performance
+acceptance and final provenance/integration gates remain pending. This addendum is the evidence-backed contract change
+log; historical cells keep their original revision-specific results.
+
 ### November 8 Wish/Trophy admission (takes precedence over older addenda)
 
 Current identity is protocol13/checkpoint25/replay19/observation19/policy13/content `67183626db240b6a`.
