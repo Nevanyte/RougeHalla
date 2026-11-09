@@ -1,0 +1,95 @@
+{
+  "archive_bytes": 21546,
+  "archive_sha256": "74fd00f7fa03f8ea2bd31a6ca0eb49743c1aefcd841f0fbac349169a41e5682f",
+  "backup_manifest_sha256": "64d5a54b690512289c7e1cf46aa359b3a94b0430d3d7603565d77af96b6099a1",
+  "base_sha": "86f03cbdda15eca64585093d5c88fda2c42e4810",
+  "negative_controls": {
+    "corrupt_archive_checksum": "ARTIFACT_CHECKSUM_MISMATCH: database.dump",
+    "missing_authentication_receipt": "REQUIRED_ARTIFACT_MISSING: bundle file inventory differs",
+    "missing_pending_spool": "REQUIRED_ARTIFACT_MISSING: bundle file inventory differs",
+    "reachable_original_cluster": "CLUSTER_IDENTITY_MISMATCH",
+    "truncated_archive_pg_restore": "pg_restore: error: could not read from input file: end of file"
+  },
+  "orchestrator_sha256": "9bb9083f37a2a8323eab2f77b4c00602dea0eb2cb7d28ff71c2084f5fad11e1c",
+  "producer": {
+    "committed": 2,
+    "dead": 0,
+    "pending": 2,
+    "spool_errors": 0,
+    "spool_full": 0,
+    "spooled": 4
+  },
+  "recovery_seconds_including_target_start_and_negative_controls": 0.444,
+  "show_settings": {
+    "source": {
+      "fsync": "on",
+      "full_page_writes": "on",
+      "synchronous_commit": "on"
+    },
+    "target": {
+      "fsync": "on",
+      "full_page_writes": "on",
+      "synchronous_commit": "on"
+    }
+  },
+  "source": {
+    "address": "127.0.0.1",
+    "data_directory": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/cold-restore-a3d4b3ce-2026-11-09/private-run/source/data",
+    "database": "rh_backup",
+    "fsync": "on",
+    "full_page_writes": "on",
+    "port": 62337,
+    "synchronous_commit": "on",
+    "system_identifier": "7706054284319083982"
+  },
+  "source_test_sha256": "daa5c6d2fe4e07e51f3712f0b9d324c3a0c4adc05679915a761903d779971134",
+  "status": "PASS",
+  "target": {
+    "address": "127.0.0.1",
+    "data_directory": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/cold-restore-a3d4b3ce-2026-11-09/private-run/target/data",
+    "database": "rh_backup",
+    "fsync": "on",
+    "full_page_writes": "on",
+    "port": 62338,
+    "synchronous_commit": "on",
+    "system_identifier": "7706054287388188185"
+  },
+  "target_initialization_seconds_separate": 0.667,
+  "test_executable_sha256": "9d72f0f918dd8188d011425ba177486df54e741e91f24771bc6a8decb42bc26d",
+  "tested_head": "a3d4b3ce575442c9a06916888035ca849a6cd05a",
+  "verification": {
+    "committed_results": 4,
+    "duplicate_spool_replays": 2,
+    "duplicate_store_retries": 5,
+    "gv": 20,
+    "lease_fence": "successor protected; stale result refused",
+    "ledger_rows": 2,
+    "live_pending_leases_verified": 2,
+    "pending_recovered": 2,
+    "pending_recovery_audit": {
+      "complete_metadata_records_verified": 2,
+      "complete_result_envelopes_verified": 2,
+      "max_original_time_error_ms": 0.0,
+      "original_time_groups_verified": 1,
+      "original_time_tolerance_ms": 0.01,
+      "timestamp_rule": "maximum original spooled_at_ms per match; per-record times need not be identical"
+    },
+    "profiles": 4,
+    "reconciliation": "ok"
+  },
+  "writer_fence": {
+    "application_sigkill": true,
+    "old_backends_terminated": 2,
+    "order": [
+      "external lease locks",
+      "genuine spool fsync",
+      "application SIGKILL",
+      "terminate old database backends",
+      "only locker remains",
+      "ROLLBACK external locks",
+      "zero sessions",
+      "boundary comparison",
+      "pg_dump"
+    ]
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "verified_utc": "2026-11-09T06:28:32.320132+00:00",
+  "clusters": [
+    {
+      "label": "source",
+      "port": 62337,
+      "data_directory": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/cold-restore-a3d4b3ce-2026-11-09/private-run/source/data",
+      "pg_ctl_status_exit": 3,
+      "postmaster_pid_absent": true,
+      "tcp_listener_closed": true
+    },
+    {
+      "label": "target",
+      "port": 62338,
+      "data_directory": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/cold-restore-a3d4b3ce-2026-11-09/private-run/target/data",
+      "pg_ctl_status_exit": 3,
+      "postmaster_pid_absent": true,
+      "tcp_listener_closed": true
+    }
+  ],
+  "focused_application_processes_remaining": [],
+  "standalone_binary_launched": false,
+  "cache_released": true
+}

@@ -1,0 +1,20 @@
+{
+  "committed_results": 4,
+  "duplicate_spool_replays": 2,
+  "duplicate_store_retries": 5,
+  "gv": 20,
+  "lease_fence": "successor protected; stale result refused",
+  "ledger_rows": 2,
+  "live_pending_leases_verified": 2,
+  "pending_recovered": 2,
+  "pending_recovery_audit": {
+    "complete_metadata_records_verified": 2,
+    "complete_result_envelopes_verified": 2,
+    "max_original_time_error_ms": 0.0,
+    "original_time_groups_verified": 1,
+    "original_time_tolerance_ms": 0.01,
+    "timestamp_rule": "maximum original spooled_at_ms per match; per-record times need not be identical"
+  },
+  "profiles": 4,
+  "reconciliation": "ok"
+}

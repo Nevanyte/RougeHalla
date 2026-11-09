@@ -1,0 +1,8 @@
+{
+  "complete_metadata_records_verified": 2,
+  "complete_result_envelopes_verified": 2,
+  "max_original_time_error_ms": 0.0,
+  "original_time_groups_verified": 1,
+  "original_time_tolerance_ms": 0.01,
+  "timestamp_rule": "maximum original spooled_at_ms per match; per-record times need not be identical"
+}
