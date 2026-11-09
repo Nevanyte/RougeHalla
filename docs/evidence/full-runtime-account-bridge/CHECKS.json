@@ -1,0 +1,59 @@
+{
+  "final_code_sha": "7c8dd4eea94a1574a46cc77c79f609426c20942a",
+  "checks": [
+    {
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "-p",
+        "rh-server",
+        "--features",
+        "postgres",
+        "--test",
+        "full_runtime_account_flow",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "log": "logs/clippy-final.txt"
+    },
+    {
+      "command": [
+        "rustfmt",
+        "--edition",
+        "2021",
+        "--check",
+        "crates/rh-server/tests/full_runtime_account_flow.rs"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "python3",
+        "tools/full-runtime-account-proof/test_state_guard.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "tests_passed": 8,
+      "log": "logs/state-guard.txt"
+    },
+    {
+      "command": [
+        "python3",
+        "tools/full-runtime-account-proof/proof.py",
+        "--pg-bin",
+        "/opt/homebrew/opt/postgresql@16/bin",
+        "--state",
+        "<new private state outside Git>"
+      ],
+      "exit_code": 0,
+      "test": "http_owned_source_match_spool_profile_and_leaderboard_agree",
+      "tests_passed": 1,
+      "tests_ignored": 0,
+      "log": "logs/attempt-004.txt"
+    }
+  ],
+  "scope": "focused only; no workspace/map campaign"
+}

@@ -1,0 +1,11 @@
+   Compiling sqlx-core v0.8.6
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/crates/rh-sim)
+   Compiling sqlx-postgres v0.8.6
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/crates/rh-policy)
+   Compiling sqlx v0.8.6
+   Compiling tokio-rustls v0.26.6
+   Compiling axum-server v0.7.3
+   Compiling rh-persist v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/crates/rh-persist)
+   Compiling rh-headless v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/crates/rh-headless)
+   Compiling rh-server v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/crates/rh-server)
+    Finished `dev` profile [unoptimized] target(s) in 17.94s

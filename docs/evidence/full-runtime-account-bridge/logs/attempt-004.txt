@@ -1,0 +1,28 @@
+   Compiling ring v0.17.14
+   Compiling rustls v0.23.46
+   Compiling rustls-webpki v0.103.16
+   Compiling sqlx-core v0.8.6
+   Compiling sqlx-postgres v0.8.6
+   Compiling sqlx-macros-core v0.8.6
+   Compiling sqlx-macros v0.8.6
+   Compiling tokio-rustls v0.26.6
+   Compiling sqlx v0.8.6
+   Compiling axum-server v0.7.3
+   Compiling rcgen v0.13.2
+   Compiling rh-persist v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/crates/rh-persist)
+   Compiling rh-server v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/crates/rh-server)
+   Compiling tungstenite v0.26.2
+   Compiling tokio-tungstenite v0.26.2
+    Finished `test` profile [unoptimized] target(s) in 16.30s
+     Running tests/full_runtime_account_flow.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/full_runtime_account_flow-a900e7ade5b0af7d)
+
+running 1 test
+[results] spooled match=0a75c57c-ac9a-8d0b-6ec3-20dbf9e0115c profile_id=1 fence=1 (durable on this host only; not yet committed)
+[results] spooled match=0a75c57c-ac9a-8d0b-6ec3-20dbf9e0115c profile_id=2 fence=1 (durable on this host only; not yet committed)
+[results] committed match=0a75c57c-ac9a-8d0b-6ec3-20dbf9e0115c profile_id=2 (applied)
+[results] committed match=0a75c57c-ac9a-8d0b-6ec3-20dbf9e0115c profile_id=1 (applied)
+full Source account bridge PASS; redacted receipt retained by proof runner
+test http_owned_source_match_spool_profile_and_leaderboard_agree ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.42s
+

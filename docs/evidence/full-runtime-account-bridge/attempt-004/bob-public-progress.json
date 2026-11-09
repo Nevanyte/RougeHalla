@@ -1,0 +1,24 @@
+{
+  "attack_commands": 17,
+  "commands": 35,
+  "name": "bob",
+  "owner": {
+    "hp": 226.6557159423828,
+    "status": 1,
+    "x": 782.0,
+    "y": 1104.0
+  },
+  "phase": 1,
+  "server_time": 15200.0,
+  "snapshots": 300,
+  "tick": 304,
+  "visible_human_samples": 17,
+  "visible_humans": [
+    {
+      "hp_pct": 50,
+      "status": 1,
+      "x": 783.0,
+      "y": 1104.0
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "attack_commands": 0,
+  "commands": 1109,
+  "name": "alice",
+  "owner": {
+    "hp": 684.0,
+    "status": 1,
+    "x": 748.0,
+    "y": 604.0
+  },
+  "phase": 1,
+  "server_time": 670200.0,
+  "snapshots": 13400,
+  "tick": 13404,
+  "visible_human_samples": 1108,
+  "visible_humans": [
+    {
+      "hp_pct": 70,
+      "status": 1,
+      "x": 838.0,
+      "y": 622.0
+    }
+  ]
+}

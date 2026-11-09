@@ -1,0 +1,43 @@
+{
+  "private_replay_sha256": "665ae4146b0f5c6928e4a50907d3689939f67bcc8ce67f03648d313d29eb7758",
+  "private_replay_bytes": 73921,
+  "raw_replay_published": false,
+  "config": {
+    "abilities": "Full",
+    "wish_lock_ms": 45000.0,
+    "lifecycle": {
+      "Source": {
+        "plan_seconds": 45.0,
+        "first_patience_seconds": null,
+        "coliseum_schedule": {
+          "first_seconds": 600.0,
+          "second_seconds": 900.0,
+          "repeat_seconds": 120.0,
+          "min_gap_seconds": 30.0
+        },
+        "patience_seconds": 300.0,
+        "patience_min_seconds": 120.0,
+        "sudden_death_seconds": 60.0
+      }
+    },
+    "hazards": "All",
+    "initial_loot": true,
+    "consumables": true,
+    "min_players": 2,
+    "lobby_seconds": 30.0,
+    "fill_seconds": 5.0,
+    "pvp_rules": true,
+    "weapon_specials": true,
+    "faction_mode": "EngagementHolyPlagueFireFrostSentencedFireRoam",
+    "mob_mode": "Pve",
+    "regen": true,
+    "quests": true,
+    "training": false,
+    "dummies": false
+  },
+  "format": "rh-replay/22",
+  "build": "a0c4818ce9df8ad0f4124db31e65ba1244bddc3b",
+  "content_hash": 7222974768362509732,
+  "hash_count": 2031,
+  "tick_records": 27
+}

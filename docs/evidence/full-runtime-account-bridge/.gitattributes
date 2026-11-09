@@ -1,0 +1,2 @@
+# Preserve raw Cargo transcript bytes, including their final blank lines.
+logs/*.txt whitespace=-blank-at-eof
