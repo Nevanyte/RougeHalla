@@ -64,6 +64,8 @@ env.pop('RH_SCENE_CLIENT14_FIXTURE_OUT', None)
 if kind == 'rust-export':
     env['RH_SCENE_CLIENT14_FIXTURE_OUT'] = str(ROOT / 'protocol/fixtures/scene-candidate/client14.json')
 before = {path: sha(ROOT / path) for path in SOURCE}
+fixture = ROOT / 'protocol/fixtures/scene-candidate/client14.json'
+fixture_before = sha(fixture) if fixture.exists() else None
 head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
 started = datetime.datetime.now(datetime.timezone.utc).isoformat()
 minimum = free_bytes()
@@ -80,6 +82,7 @@ with log.open('xb') as stream:
         time.sleep(0.2)
     status = child.wait()
 after = {path: sha(ROOT / path) for path in SOURCE}
+fixture_after = sha(fixture) if fixture.exists() else None
 record = dict(kind=kind, command=command, cwd=str(ROOT), sourceHead=head,
               startedUtc=started, endedUtc=datetime.datetime.now(datetime.timezone.utc).isoformat(),
               exitCode=status, sourceBefore=before, sourceAfter=after,
@@ -88,10 +91,13 @@ record = dict(kind=kind, command=command, cwd=str(ROOT), sourceHead=head,
               rustTarget=str(TARGET) if kind.startswith('rust-') else None,
               rustEnvironment={key: env[key] for key in ['CARGO_BUILD_JOBS', 'CARGO_INCREMENTAL', 'CARGO_PROFILE_DEV_DEBUG', 'CARGO_PROFILE_TEST_DEBUG']} if kind.startswith('rust-') else None,
               fixtureExport=env.get('RH_SCENE_CLIENT14_FIXTURE_OUT'),
+              fixtureBeforeSha256=fixture_before, fixtureAfterSha256=fixture_after,
               runnerSha256=sha(Path(__file__)))
 receipt.write_text(json.dumps(record, indent=2) + '\n')
 print(json.dumps({key: record[key] for key in ['kind', 'sourceHead', 'exitCode', 'sourceUnchanged', 'minFreeBytes', 'diskStopped', 'logSha256']}))
 print(log.read_text()[-6000:])
 assert before == after, 'source changed during the check'
+if kind != 'rust-export':
+    assert fixture_before == fixture_after, 'fixture changed during the check'
 assert not stopped, 'owned process stopped at disk threshold'
 raise SystemExit(status)

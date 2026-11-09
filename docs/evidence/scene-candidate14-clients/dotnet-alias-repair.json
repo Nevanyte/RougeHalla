@@ -1,0 +1,48 @@
+{
+  "kind": "dotnet",
+  "command": [
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/dotnet/dotnet",
+    "test",
+    "client-unity/RoguehallaNet.Tests",
+    "--no-restore",
+    "--nologo",
+    "--filter",
+    "FullyQualifiedName~SceneCandidateClient14Tests|FullyQualifiedName~ProtocolVectorTests|FullyQualifiedName~StateTests|FullyQualifiedName~OwnerCombatProtocolTests|FullyQualifiedName~QuestBridgeProtocolTests|FullyQualifiedName~TradeQuest14ProtocolTests|FullyQualifiedName~GiverActorProtocolTests|FullyQualifiedName~TrophyProtocolTests|FullyQualifiedName~FirstPlayableProtocolTests|FullyQualifiedName~UnitySyncTests"
+  ],
+  "cwd": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14-clients/repo",
+  "sourceHead": "36098830e6a3f448b476f1d372ca78b58bb5c888",
+  "startedUtc": "2026-11-09T17:29:01.437926+00:00",
+  "endedUtc": "2026-11-09T17:29:05.599810+00:00",
+  "exitCode": 1,
+  "sourceBefore": {
+    "crates/rh-server/src/outbox/scene_candidate.rs": "392a72ac398579deb3648b1d610eba39c93596c0851014c7fe4aedc37cc63601",
+    "crates/rh-server/src/outbox/scene_candidate/client14_fixture.rs": "e5f63b404f37b242454b069be4cc6fde60b1e6f6ca9e457f40eaecdba701ab96",
+    "client-unity/RoguehallaNet/Protocol/SceneCandidateClient14.cs": "6f480ec0f25736053e778940b260336f5234ebd42a2be728aa9be2a37a3f5996",
+    "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/SceneCandidateClient14.cs": "6f480ec0f25736053e778940b260336f5234ebd42a2be728aa9be2a37a3f5996",
+    "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/SceneCandidateClient14.cs.meta": "568139852cad8498f1370aa8f9204381b21efaaec2b4fd37f06e83038caa51ac",
+    "client-unity/RoguehallaNet.Tests/SceneCandidateClient14Tests.cs": "4742a63ff4f2634b8796b6ac6141d27bba776b724e9304d6c774a6c42c4611aa",
+    "tools/scene-candidate/client14.mjs": "fc671521ab1264812beef96c781294b1e91fe37b4928b44a74090e4f0d52c604",
+    "tools/scene-candidate/check-client14.mjs": "d62ea2c5347d2b36e5cc1690964d37c83ec9f8b30d22ebd2fbae33f84f40f77d"
+  },
+  "sourceAfter": {
+    "crates/rh-server/src/outbox/scene_candidate.rs": "392a72ac398579deb3648b1d610eba39c93596c0851014c7fe4aedc37cc63601",
+    "crates/rh-server/src/outbox/scene_candidate/client14_fixture.rs": "e5f63b404f37b242454b069be4cc6fde60b1e6f6ca9e457f40eaecdba701ab96",
+    "client-unity/RoguehallaNet/Protocol/SceneCandidateClient14.cs": "6f480ec0f25736053e778940b260336f5234ebd42a2be728aa9be2a37a3f5996",
+    "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/SceneCandidateClient14.cs": "6f480ec0f25736053e778940b260336f5234ebd42a2be728aa9be2a37a3f5996",
+    "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/SceneCandidateClient14.cs.meta": "568139852cad8498f1370aa8f9204381b21efaaec2b4fd37f06e83038caa51ac",
+    "client-unity/RoguehallaNet.Tests/SceneCandidateClient14Tests.cs": "4742a63ff4f2634b8796b6ac6141d27bba776b724e9304d6c774a6c42c4611aa",
+    "tools/scene-candidate/client14.mjs": "fc671521ab1264812beef96c781294b1e91fe37b4928b44a74090e4f0d52c604",
+    "tools/scene-candidate/check-client14.mjs": "d62ea2c5347d2b36e5cc1690964d37c83ec9f8b30d22ebd2fbae33f84f40f77d"
+  },
+  "sourceUnchanged": true,
+  "logSha256": "94be0aa63e569d502c07b40e85a5a0068a1a944fa37cf62526f3aad53768f743",
+  "minFreeBytes": 13390692352,
+  "stopBytes": 1610612736,
+  "diskStopped": false,
+  "rustTarget": null,
+  "rustEnvironment": null,
+  "fixtureExport": null,
+  "fixtureBeforeSha256": "2ed5c66a4609551fd43624d316c00f873a1f7bb5420a77eafa06b389ae1b91a2",
+  "fixtureAfterSha256": "2ed5c66a4609551fd43624d316c00f873a1f7bb5420a77eafa06b389ae1b91a2",
+  "runnerSha256": "947824f88ada60fb436ae8f2c75bdbcdb58d923ca4b33baca228b8f10f5dc965"
+}

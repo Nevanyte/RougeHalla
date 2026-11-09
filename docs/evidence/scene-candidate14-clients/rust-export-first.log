@@ -1,0 +1,131 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14-clients/repo/crates/rh-sim)
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14-clients/repo/crates/rh-policy)
+   Compiling rh-headless v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14-clients/repo/crates/rh-headless)
+   Compiling rh-server v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14-clients/repo/crates/rh-server)
+error[E0432]: unresolved import `rh_protocol::scene_candidate`
+ --> crates/rh-server/src/outbox/scene_candidate.rs:3:18
+  |
+3 | use rh_protocol::scene_candidate::{Ack, Error, Limits, Meta, PreparedScene, Result};
+  |                  ^^^^^^^^^^^^^^^ could not find `scene_candidate` in `rh_protocol`
+
+error[E0432]: unresolved import `rh_protocol::scene_candidate`
+ --> crates/rh-server/src/outbox/scene_candidate/socket.rs:8:18
+  |
+8 | use rh_protocol::scene_candidate::{decode_ack, Limits, Meta, HEADER};
+  |                  ^^^^^^^^^^^^^^^ could not find `scene_candidate` in `rh_protocol`
+
+error[E0432]: unresolved import `rh_protocol::scene_candidate`
+  --> crates/rh-server/src/outbox/scene_candidate/socket/tests.rs:18:18
+   |
+18 | use rh_protocol::scene_candidate::{Ack, PreparedScene, Receiver};
+   |                  ^^^^^^^^^^^^^^^ could not find `scene_candidate` in `rh_protocol`
+
+error[E0432]: unresolved import `rh_protocol::scene_candidate`
+ --> crates/rh-server/src/outbox/scene_candidate/fixture.rs:5:5
+  |
+5 |     scene_candidate::{Limits, Meta, PreparedScene},
+  |     ^^^^^^^^^^^^^^^ could not find `scene_candidate` in `rh_protocol`
+
+error[E0432]: unresolved import `rh_protocol::scene_candidate`
+ --> crates/rh-server/src/outbox/scene_candidate/client14_fixture.rs:5:18
+  |
+5 | use rh_protocol::scene_candidate::{encode_ack, Ack, Limits, Meta, PreparedScene, Receiver, View};
+  |                  ^^^^^^^^^^^^^^^ could not find `scene_candidate` in `rh_protocol`
+
+error[E0433]: cannot find `scene_candidate` in `rh_protocol`
+   --> crates/rh-server/src/outbox/scene_candidate/socket/tests.rs:299:30
+    |
+299 |                 rh_protocol::scene_candidate::encode_ack(ack).into(),
+    |                              ^^^^^^^^^^^^^^^ could not find `scene_candidate` in `rh_protocol`
+
+error[E0433]: cannot find `scene_candidate` in `rh_protocol`
+   --> crates/rh-server/src/outbox/scene_candidate/socket/tests.rs:551:67
+    |
+551 |     let application = Arc::new(Mutex::new(None::<Arc<rh_protocol::scene_candidate::View>>));
+    |                                                                   ^^^^^^^^^^^^^^^ could not find `scene_candidate` in `rh_protocol`
+
+error[E0433]: cannot find `scene_candidate` in `rh_protocol`
+   --> crates/rh-server/src/outbox/scene_candidate/socket/tests.rs:606:67
+    |
+606 |     let application = Arc::new(Mutex::new(None::<Arc<rh_protocol::scene_candidate::View>>));
+    |                                                                   ^^^^^^^^^^^^^^^ could not find `scene_candidate` in `rh_protocol`
+
+error[E0433]: cannot find `scene_candidate` in `rh_protocol`
+   --> crates/rh-server/src/outbox/scene_candidate/socket/tests/poll_faults.rs:306:48
+    |
+306 |             ServerMessage::Binary(rh_protocol::scene_candidate::encode_ack(first_ack).into()),
+    |                                                ^^^^^^^^^^^^^^^ could not find `scene_candidate` in `rh_protocol`
+
+error[E0433]: cannot find `scene_candidate` in `rh_protocol`
+   --> crates/rh-server/src/outbox/scene_candidate/socket/tests/poll_faults.rs:315:30
+    |
+315 |                 rh_protocol::scene_candidate::encode_ack(Ack {
+    |                              ^^^^^^^^^^^^^^^ could not find `scene_candidate` in `rh_protocol`
+
+error[E0433]: cannot find `scene_candidate` in `rh_protocol`
+  --> crates/rh-server/src/outbox/scene_candidate/socket.rs:95:43
+   |
+95 |     fn model_error(&self, e: rh_protocol::scene_candidate::Error) -> SocketError {
+   |                                           ^^^^^^^^^^^^^^^ could not find `scene_candidate` in `rh_protocol`
+   |
+help: consider importing this module
+   |
+ 4 + use crate::outbox::scene_candidate;
+   |
+help: if you import `scene_candidate`, refer to it directly
+   |
+95 -     fn model_error(&self, e: rh_protocol::scene_candidate::Error) -> SocketError {
+95 +     fn model_error(&self, e: scene_candidate::Error) -> SocketError {
+   |
+
+error[E0433]: cannot find `scene_candidate` in `rh_protocol`
+   --> crates/rh-server/src/outbox/scene_candidate/tests.rs:263:34
+    |
+263 |         let mut r = rh_protocol::scene_candidate::Receiver::new(epoch, codec).unwrap();
+    |                                  ^^^^^^^^^^^^^^^ could not find `scene_candidate` in `rh_protocol`
+    |
+help: consider importing this struct
+    |
+  1 + use std::sync::mpsc::Receiver;
+    |
+help: if you import `Receiver`, refer to it directly
+    |
+263 -         let mut r = rh_protocol::scene_candidate::Receiver::new(epoch, codec).unwrap();
+263 +         let mut r = Receiver::new(epoch, codec).unwrap();
+    |
+
+error[E0433]: cannot find `scene_candidate` in `rh_protocol`
+   --> crates/rh-server/src/outbox/scene_candidate/tests.rs:281:38
+    |
+281 |             let mut r = rh_protocol::scene_candidate::Receiver::new(epoch, codec).unwrap();
+    |                                      ^^^^^^^^^^^^^^^ could not find `scene_candidate` in `rh_protocol`
+    |
+help: consider importing this struct
+    |
+  1 + use std::sync::mpsc::Receiver;
+    |
+help: if you import `Receiver`, refer to it directly
+    |
+281 -             let mut r = rh_protocol::scene_candidate::Receiver::new(epoch, codec).unwrap();
+281 +             let mut r = Receiver::new(epoch, codec).unwrap();
+    |
+
+error[E0433]: cannot find `scene_candidate` in `rh_protocol`
+   --> crates/rh-server/src/outbox/scene_candidate/tests.rs:291:42
+    |
+291 |             let mut prior = rh_protocol::scene_candidate::Receiver::new(epoch, codec).unwrap();
+    |                                          ^^^^^^^^^^^^^^^ could not find `scene_candidate` in `rh_protocol`
+    |
+help: consider importing this struct
+    |
+  1 + use std::sync::mpsc::Receiver;
+    |
+help: if you import `Receiver`, refer to it directly
+    |
+291 -             let mut prior = rh_protocol::scene_candidate::Receiver::new(epoch, codec).unwrap();
+291 +             let mut prior = Receiver::new(epoch, codec).unwrap();
+    |
+
+Some errors have detailed explanations: E0432, E0433.
+For more information about an error, try `rustc --explain E0432`.
+error: could not compile `rh-server` (lib test) due to 14 previous errors

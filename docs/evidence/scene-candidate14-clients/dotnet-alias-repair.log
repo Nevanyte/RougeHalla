@@ -1,0 +1,21 @@
+  RoguehallaNet -> /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14-clients/repo/client-unity/RoguehallaNet/bin/Debug/netstandard2.1/RoguehallaNet.dll
+  RoguehallaNet.Probe -> /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14-clients/repo/client-unity/RoguehallaNet.Probe/bin/Debug/net8.0/RoguehallaNet.Probe.dll
+  RoguehallaNet.Tests -> /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14-clients/repo/client-unity/RoguehallaNet.Tests/bin/Debug/net8.0/RoguehallaNet.Tests.dll
+Test run for /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14-clients/repo/client-unity/RoguehallaNet.Tests/bin/Debug/net8.0/RoguehallaNet.Tests.dll (.NETCoreApp,Version=v8.0)
+A total of 1 test files matched the specified pattern.
+  Failed AllEightExistingNativeAndDeclaredShapesSurviveFreshTrackerAndCollections [13 ms]
+  Error Message:
+     Assert.That(condition, Is.True)
+  Expected: True
+  But was:  False
+
+  Stack Trace:
+     at NUnit.Framework.Legacy.ClassicAssert.IsTrue(Boolean condition)
+   at Roguehalla.Net.Tests.SceneCandidateClient14Tests.AllEightExistingNativeAndDeclaredShapesSurviveFreshTrackerAndCollections() in /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14-clients/repo/client-unity/RoguehallaNet.Tests/SceneCandidateClient14Tests.cs:line 412
+
+1)    at NUnit.Framework.Legacy.ClassicAssert.IsTrue(Boolean condition)
+   at Roguehalla.Net.Tests.SceneCandidateClient14Tests.AllEightExistingNativeAndDeclaredShapesSurviveFreshTrackerAndCollections() in /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14-clients/repo/client-unity/RoguehallaNet.Tests/SceneCandidateClient14Tests.cs:line 412
+
+
+
+Failed!  - Failed:     1, Passed:   462, Skipped:     0, Total:   463, Duration: 2 s - RoguehallaNet.Tests.dll (net8.0)

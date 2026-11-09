@@ -1,0 +1,213 @@
+{
+  "state": "VERIFIED_PRIVATE_COMPONENT_NOT_ACTIVATED",
+  "createdUtc": "2026-11-09T17:34:42.974821+00:00",
+  "base": "800b6a5ffcb87cf8f4f5cb102d279e5fadf02b68",
+  "sourceReady": "c84cf1a0dabc9b4c986392350291a729420ee87d",
+  "correctedCode": "2d8b369c90116cb1517c6cbff12b86789e41062c",
+  "source": {
+    "crates/rh-server/src/outbox/scene_candidate.rs": "392a72ac398579deb3648b1d610eba39c93596c0851014c7fe4aedc37cc63601",
+    "crates/rh-server/src/outbox/scene_candidate/client14_fixture.rs": "e5f63b404f37b242454b069be4cc6fde60b1e6f6ca9e457f40eaecdba701ab96",
+    "client-unity/RoguehallaNet/Protocol/SceneCandidateClient14.cs": "6f480ec0f25736053e778940b260336f5234ebd42a2be728aa9be2a37a3f5996",
+    "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/SceneCandidateClient14.cs": "6f480ec0f25736053e778940b260336f5234ebd42a2be728aa9be2a37a3f5996",
+    "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/SceneCandidateClient14.cs.meta": "568139852cad8498f1370aa8f9204381b21efaaec2b4fd37f06e83038caa51ac",
+    "client-unity/RoguehallaNet.Tests/SceneCandidateClient14Tests.cs": "e33de34ec438bccf08e46dde4936a606dabe1c6fe42c92d4aac5da6f5a450acf",
+    "tools/scene-candidate/client14.mjs": "fc671521ab1264812beef96c781294b1e91fe37b4928b44a74090e4f0d52c604",
+    "tools/scene-candidate/check-client14.mjs": "d62ea2c5347d2b36e5cc1690964d37c83ec9f8b30d22ebd2fbae33f84f40f77d"
+  },
+  "implementationsUnchangedFromSourceReady": true,
+  "fixture": {
+    "path": "protocol/fixtures/scene-candidate/client14.json",
+    "sha256": "2ed5c66a4609551fd43624d316c00f873a1f7bb5420a77eafa06b389ae1b91a2",
+    "bytes": 28306,
+    "scenes": 2,
+    "negatives": 14,
+    "cueOccurrencesInSecondScene": 4,
+    "positiveTail": "synthetic: two duplicate original Fx batches at tick3"
+  },
+  "passingGates": {
+    "rust-export-after-space": {
+      "receipt": "rust-export-after-space.json",
+      "sourceHead": "efdfe45b876b31dca6134ebe7b4a2cea8d0a606a",
+      "exitCode": 0,
+      "relevantSourcesMatchFinal": true,
+      "relevantSources": [
+        "crates/rh-server/src/outbox/scene_candidate.rs",
+        "crates/rh-server/src/outbox/scene_candidate/client14_fixture.rs"
+      ],
+      "fixtureSha256": "2ed5c66a4609551fd43624d316c00f873a1f7bb5420a77eafa06b389ae1b91a2",
+      "minFreeBytes": 13331353600
+    },
+    "rust-check-first": {
+      "receipt": "rust-check-first.json",
+      "sourceHead": "efdfe45b876b31dca6134ebe7b4a2cea8d0a606a",
+      "exitCode": 0,
+      "relevantSourcesMatchFinal": true,
+      "relevantSources": [
+        "crates/rh-server/src/outbox/scene_candidate.rs",
+        "crates/rh-server/src/outbox/scene_candidate/client14_fixture.rs"
+      ],
+      "fixtureSha256": "2ed5c66a4609551fd43624d316c00f873a1f7bb5420a77eafa06b389ae1b91a2",
+      "minFreeBytes": 13392412672
+    },
+    "dotnet-fixture-repair": {
+      "receipt": "dotnet-fixture-repair.json",
+      "sourceHead": "2d8b369c90116cb1517c6cbff12b86789e41062c",
+      "exitCode": 0,
+      "relevantSourcesMatchFinal": true,
+      "relevantSources": [
+        "client-unity/RoguehallaNet/Protocol/SceneCandidateClient14.cs",
+        "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/SceneCandidateClient14.cs",
+        "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/SceneCandidateClient14.cs.meta",
+        "client-unity/RoguehallaNet.Tests/SceneCandidateClient14Tests.cs"
+      ],
+      "fixtureSha256": "2ed5c66a4609551fd43624d316c00f873a1f7bb5420a77eafa06b389ae1b91a2",
+      "minFreeBytes": 13389234176
+    },
+    "js-first": {
+      "receipt": "js-first.json",
+      "sourceHead": "efdfe45b876b31dca6134ebe7b4a2cea8d0a606a",
+      "exitCode": 0,
+      "relevantSourcesMatchFinal": true,
+      "relevantSources": [
+        "tools/scene-candidate/client14.mjs",
+        "tools/scene-candidate/check-client14.mjs"
+      ],
+      "fixtureSha256": "2ed5c66a4609551fd43624d316c00f873a1f7bb5420a77eafa06b389ae1b91a2",
+      "minFreeBytes": 13392412672
+    },
+    "fmt-current": {
+      "receipt": "fmt-current.json",
+      "sourceHead": "efdfe45b876b31dca6134ebe7b4a2cea8d0a606a",
+      "exitCode": 0,
+      "relevantSourcesMatchFinal": true,
+      "relevantSources": [
+        "crates/rh-server/src/outbox/scene_candidate.rs",
+        "crates/rh-server/src/outbox/scene_candidate/client14_fixture.rs"
+      ],
+      "fixtureSha256": "2ed5c66a4609551fd43624d316c00f873a1f7bb5420a77eafa06b389ae1b91a2",
+      "minFreeBytes": 13392412672
+    },
+    "js-regression-first": {
+      "receipt": "js-regression-first.json",
+      "sourceHead": "3a80ad7b28aba2291a1c08fbe18d5c3c4f527e09",
+      "exitCode": 0,
+      "relevantSourcesMatchFinal": true,
+      "relevantSources": [],
+      "fixtureSha256": null,
+      "minFreeBytes": 2624274432
+    }
+  },
+  "retainedNonpassingAttempts": {
+    "rust-export-first": {
+      "receipt": "rust-export-first.json",
+      "sourceHead": "c84cf1a0dabc9b4c986392350291a729420ee87d",
+      "exitCode": 101,
+      "diskStopped": false
+    },
+    "rust-export-rebuilt": {
+      "receipt": "rust-export-rebuilt.json",
+      "sourceHead": "3a80ad7b28aba2291a1c08fbe18d5c3c4f527e09",
+      "exitCode": -15,
+      "diskStopped": true
+    },
+    "fmt-first": {
+      "receipt": "fmt-first.json",
+      "sourceHead": "c84cf1a0dabc9b4c986392350291a729420ee87d",
+      "exitCode": 1,
+      "diskStopped": false
+    },
+    "dotnet-first": {
+      "receipt": "dotnet-first.json",
+      "sourceHead": "efdfe45b876b31dca6134ebe7b4a2cea8d0a606a",
+      "exitCode": 1,
+      "diskStopped": false
+    },
+    "dotnet-alias-repair": {
+      "receipt": "dotnet-alias-repair.json",
+      "sourceHead": "36098830e6a3f448b476f1d372ca78b58bb5c888",
+      "exitCode": 1,
+      "diskStopped": false
+    }
+  },
+  "protected": {
+    "base": "800b6a5ffcb87cf8f4f5cb102d279e5fadf02b68",
+    "unchanged": {
+      "Cargo.toml": "324339553924942eb5c8f034e73b8269735a07a4223a783f3cc3805beb220855",
+      "Cargo.lock": "b14507716b80f1c0b85f7298b380b3c9146917134d9361c1bb408062782c0b22",
+      "crates/rh-protocol/src/lib.rs": "d1258e9c3bd9911a32d0cbdce375c2a0a9ca8f3d792a8b368e382833cc3e896c",
+      "crates/rh-protocol/src/scene_candidate/mod.rs": "ef49e09665008dce37b6d75f071aef31db1e16fbbc776041e385ec88eba825f9",
+      "crates/rh-protocol/src/scene_candidate/tests.rs": "3d6d4f400bf040cc8ae352439f862f822a7e6ba530d749d090410470862e8676",
+      "crates/rh-server/src/conn.rs": "1729bd99cb30feaebaea80a9e2a5137145dbfa2cbb6a7aa236ecde4245a5b9eb",
+      "crates/rh-server/src/lib.rs": "99c418d44a860ee2640fe2d9c972c2c555f0692bd5cd8a7b372f62f9c0276975",
+      "crates/rh-server/src/outbox.rs": "4d0c697258a8a63b7ab69ad61ea8ec365840a8ab075430c5673d3386b91cdfdd",
+      "crates/rh-server/web/probe.html": "b6ef4b4b12aa2e1844c823a11ee18ef1cdd7f062942cd207e5207cd356d38dd7",
+      "client-unity/RoguehallaNet/Protocol/SceneCandidate.cs": "17cdfb057bc3628b0367e07dbd1caffc64e33742b50234f9a2946a85b1a329d0",
+      "client-unity/RoguehallaNet/Protocol/SnapshotTracker.cs": "c1079909aba35def0451f2afd5020652f257620f1ab1d2bc39c874d606be2c00",
+      "client-unity/RoguehallaNet/Protocol/Messages.cs": "ad35b76a1e22a31d1388f412d00d2097b4cf789aa130d63b20749d0def4a68ad",
+      "client-unity/RoguehallaNet/Protocol/Codec.cs": "d6977f013d6ebd97d775ae0ffd386f59cfc5eaa6e1cf069ebaaf54109c814370",
+      "client-unity/RoguehallaNet/Protocol/State.cs": "440ee19df31c8fd30d4bfe963f8c2f10aebed10f8498de456dbaff0a590828f3",
+      "client-unity/RoguehallaNet/Net/Session.cs": "542d39bd04c640f50ab9422eb6cb97e121168a56b57c9a223a16e7273b4d8081",
+      "client-unity/RoguehallaNet/Net/Collections.cs": "3cc99026504414f6581ebff1ba4d6cc32b185bacb2fe8731fe9363050f6c7ce3",
+      "protocol/fixtures/v14.json": "9012167a320419d04d62aa340276d7fbc5181a60ea818554f278a62d26b1b336",
+      "protocol/fixtures/scene-candidate/full14.json": "1cc549e75815b5942d5cdfc86b51176d6d14bf43023da2cbf028b5347e6bc2b5",
+      "tools/scene-candidate/scene-candidate.mjs": "e9c0700398fdd20eb565980267975dad39d98a4fa388e4c577db69b5082f69de",
+      "tools/scene-candidate/check.mjs": "9a0dd186c47e811819ccfea68d49a31f441c7a7b4a19c323e1467b8effa6bcdf",
+      "tools/protocol-js/check-vectors.mjs": "1173a06fa8b2d0017367795f4a07c82bfe87285cbcc300df197aa5ee80aa47b3"
+    }
+  },
+  "evidence": {
+    "docs/evidence/scene-candidate14-clients/PROTECTED.json": "c8a8a304064005f0682196e9f179d8f4e1c121c7d77491187e01ee7a34cccad4",
+    "docs/evidence/scene-candidate14-clients/README.md": "07901a8cd6f665066668f4301ee58d1e0b005cc00338335dea8b8ac64984c0cc",
+    "docs/evidence/scene-candidate14-clients/SOURCE_READY.json": "4b42c8b733ae43399af61560a1f4f49c24cd41afdf3d31d6499381010e753c12",
+    "docs/evidence/scene-candidate14-clients/SOURCE_REVIEW.md": "981a628fccb5eaa06611f18e04eb0df90dda6a88588d9e17bc63c984b54efe76",
+    "docs/evidence/scene-candidate14-clients/cache-observation.json": "76138015b0bb8e47e82f14952ec25ea7a15951651fb6328a57d7b4713e16012d",
+    "docs/evidence/scene-candidate14-clients/dotnet-alias-repair.json": "41d8dafaa2b0f88346e439bf33f049271ce8eb8a3502998bc97bd288a6a2035f",
+    "docs/evidence/scene-candidate14-clients/dotnet-alias-repair.log": "94be0aa63e569d502c07b40e85a5a0068a1a944fa37cf62526f3aad53768f743",
+    "docs/evidence/scene-candidate14-clients/dotnet-first.json": "d35457405ac0cb774fe3d3da9aeb516f6114348c598b6e76e0bfc10ed5ae025b",
+    "docs/evidence/scene-candidate14-clients/dotnet-first.log": "815d98c3fb60d3f927bbf4a0b6f70d0b9d8e05b241d232b03bacab85cc67afd7",
+    "docs/evidence/scene-candidate14-clients/dotnet-fixture-repair.json": "30e0683037dea9d32af1e6fdb6b5839e58b8c12cae5cdf7a2803cabad7b1a3ac",
+    "docs/evidence/scene-candidate14-clients/dotnet-fixture-repair.log": "4c772bc806a60c5d4d03342a27ff1eaa6d09003cebc284661df2abd871df5e96",
+    "docs/evidence/scene-candidate14-clients/dotnet-restore-first.json": "ffcf55d159065fcca4e90821812c168a4baad669d5d15274ec99e1ef57c7d6da",
+    "docs/evidence/scene-candidate14-clients/dotnet-restore-first.log": "b814b6cc414eb32c196347999896b017fc023b3c4329fe3cff78c4a634561d61",
+    "docs/evidence/scene-candidate14-clients/fmt-current.json": "c4f3fa7889751cc99b7c184af5584f0fdca5a1fbeca92a8d7876cb677314d0c6",
+    "docs/evidence/scene-candidate14-clients/fmt-current.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/evidence/scene-candidate14-clients/fmt-final.json": "c9d8801b73461a32b1605d4756767a708a9a2887d131633fbe79a58a6f727ecd",
+    "docs/evidence/scene-candidate14-clients/fmt-final.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/evidence/scene-candidate14-clients/fmt-first.json": "5ef190daf1b53f4a1844dc8e0a46db3cf7dcd4da173efb197db45bf3bcea20f6",
+    "docs/evidence/scene-candidate14-clients/fmt-first.log": "868f39a1f8526e7be95e59e7ecf323a03a2f3c4330423e0055cad481d272e83f",
+    "docs/evidence/scene-candidate14-clients/js-first.json": "7598d071147692b83e3c8a5a6d1fedc056fc65d18ca75705ecc8fc2576b2aae1",
+    "docs/evidence/scene-candidate14-clients/js-first.log": "9e302b29ec0fbaf8541e2ecbdfadcfff02c17666da2386b428151b669889f8cd",
+    "docs/evidence/scene-candidate14-clients/js-regression-first.json": "60b8895f2c9513c308d3b243b7ec9105c3232bfb37c2b548b8b04f791364e737",
+    "docs/evidence/scene-candidate14-clients/js-regression-first.log": "c3bf4f34f5b07dfaf48b1b405b1362ba95e61bddbda2a05f4a48b2469b6509d3",
+    "docs/evidence/scene-candidate14-clients/native-training-inspection.json": "709617b1a1c0af1b4138b777a255bd8fc386b19fd8ded1428b03a7cc3ff17a24",
+    "docs/evidence/scene-candidate14-clients/run-gate.py": "947824f88ada60fb436ae8f2c75bdbcdb58d923ca4b33baca228b8f10f5dc965",
+    "docs/evidence/scene-candidate14-clients/rust-check-first.json": "c1fa4851f3417c3d42321b131b690b071729b6be8bdf8e7078e74345e421ef6c",
+    "docs/evidence/scene-candidate14-clients/rust-check-first.log": "ff287b76ba0405ea827bac60cde34aeb3f8097ccc1fbd32fce3a0a8b96a7c5a4",
+    "docs/evidence/scene-candidate14-clients/rust-export-after-space.json": "22f0ab88faa4a6fa19018d2b24aed6dcd05d7d6959444cb3e639cc4970d10acf",
+    "docs/evidence/scene-candidate14-clients/rust-export-after-space.log": "cf09e5c9a08624d947bfeebe50693e635212347f2429f104bb8e13b4dbced974",
+    "docs/evidence/scene-candidate14-clients/rust-export-first.json": "39a1629c6d7d0db88fbafd59fccb676e7df203d09ad120350e24c9cf89037d26",
+    "docs/evidence/scene-candidate14-clients/rust-export-first.log": "a5b4a1c0c7e5502665ba4b97e49e64d6ed234e1f7fae8e4f74b1a38788a3602e",
+    "docs/evidence/scene-candidate14-clients/rust-export-rebuilt.json": "3e8b55aa22cb18a5a68c0a89a48b2573e837abbc33ba41ea9e4bcb87eae3b5de",
+    "docs/evidence/scene-candidate14-clients/rust-export-rebuilt.log": "ff35ef7d3f11436eabea29129a40862dd9b0bd6bd77ac039c4d1ab820349246a"
+  },
+  "historicalRunner": {
+    "revision": "c84cf1a0dabc9b4c986392350291a729420ee87d",
+    "path": "docs/evidence/scene-candidate14-clients/run-gate.py",
+    "sha256": "47c96fa2197d76e9b5fcf01418769cbe7817eef9eb542a856b3dbc1f657d2e4b"
+  },
+  "lease": {
+    "target": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target",
+    "released": true,
+    "stopBytes": 1610612736,
+    "cleanupByThisLane": false,
+    "newTarget": false
+  },
+  "limits": [
+    "finite private Full-only assembler/application-data-pointer/explicit ACK bytes only",
+    "serialized trusted caller; CommitApplied is an assertion, not gameplay/render/delivery attestation",
+    "existing cumulative encoded-body budget, not RSS/copyout/history/context bound",
+    "no default Session/Room/connection/UI/public14/P15/disclosure/version/golden/Cargo.lock/status activation",
+    "no new Clippy/full workspace/Editor/browser/actual client socket/cloud gate",
+    "passing checks retain their actual heads; final input equivalence is explicit rather than a relabelled same-head run"
+  ]
+}

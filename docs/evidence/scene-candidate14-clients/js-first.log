@@ -1,0 +1,1 @@
+{"result":"PASS","legacyCases":8,"assertions":459,"fixture":{"available":true,"schema":"rh-scene-candidate14-client-fixtures/1","scenes":2,"negatives":14,"generation":"41","epoch":"9007199254740999"},"profile":"SYNTHETIC-small47-not-product-capacity","boundary":"actual embedded JS decoder/Tracker with isolated byte transport; no socket, scene policy or gameplay authority"}
