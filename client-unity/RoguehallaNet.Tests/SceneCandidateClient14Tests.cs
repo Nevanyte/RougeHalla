@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text.Json;
 using NUnit.Framework;
 using Roguehalla.Net.Protocol;
-using Client = Roguehalla.Net.Protocol.SceneCandidateClient14;
+using SceneClient14 = Roguehalla.Net.Protocol.SceneCandidateClient14;
 
 namespace Roguehalla.Net.Tests
 {
@@ -43,9 +43,9 @@ namespace Roguehalla.Net.Tests
                 l.GetProperty("retainedBodyBytes").GetInt32());
         }
 
-        static Client NewClient(JsonElement document)
+        static SceneClient14 NewClient(JsonElement document)
         {
-            return new Client(U64(document.GetProperty("generation")),
+            return new SceneClient14(U64(document.GetProperty("generation")),
                 U64(document.GetProperty("epoch")), Limits(document));
         }
 
@@ -57,11 +57,11 @@ namespace Roguehalla.Net.Tests
             return null;
         }
 
-        static Client.Candidate Deliver(Client client, JsonElement scene)
+        static SceneClient14.Candidate Deliver(SceneClient14 client, JsonElement scene)
         {
             var records = scene.GetProperty("recordsHex").EnumerateArray().ToArray();
             var old = client.Current;
-            Client.Candidate candidate = null;
+            SceneClient14.Candidate candidate = null;
             for (int i = 0; i < records.Length; i++)
             {
                 byte[] wire = Hex(records[i].GetString());
@@ -76,7 +76,7 @@ namespace Roguehalla.Net.Tests
             return candidate;
         }
 
-        static void MatchMessages(Client.Candidate candidate, JsonElement scene)
+        static void MatchMessages(SceneClient14.Candidate candidate, JsonElement scene)
         {
             var meta = scene.GetProperty("meta");
             Assert.AreEqual(U64(meta.GetProperty("epoch")), candidate.Metadata.Epoch);
@@ -293,7 +293,7 @@ namespace Roguehalla.Net.Tests
             }
         }
 
-        static void MutateCopyOut(Client.Candidate candidate)
+        static void MutateCopyOut(SceneClient14.Candidate candidate)
         {
             byte[] bytes = candidate.BodyCopy();
             Array.Clear(bytes, 0, bytes.Length);
@@ -332,7 +332,7 @@ namespace Roguehalla.Net.Tests
                 var root = fixture.RootElement;
                 Assert.AreEqual(14, root.GetProperty("protocol").GetInt32());
                 var client = NewClient(root);
-                Client.AppliedReceipt previous = null;
+                SceneClient14.AppliedReceipt previous = null;
                 byte[] previousAck = null;
                 long charged = 0;
                 foreach (var scene in root.GetProperty("scenes").EnumerateArray())
@@ -382,7 +382,7 @@ namespace Roguehalla.Net.Tests
                 foreach (var scene in cases)
                 {
                     ulong epoch = U64(scene.GetProperty("meta").GetProperty("epoch"));
-                    var client = new Client(1, epoch, Limits(root));
+                    var client = new SceneClient14(1, epoch, Limits(root));
                     var candidate = Deliver(client, scene);
                     MutateCopyOut(candidate);
                     MatchMessages(candidate, scene);
@@ -429,7 +429,7 @@ namespace Roguehalla.Net.Tests
                 foreach (var negative in root.GetProperty("negatives").EnumerateArray())
                 {
                     var client = negative.TryGetProperty("limitsOverride", out var customLimits)
-                        ? new Client(U64(root.GetProperty("generation")), U64(root.GetProperty("epoch")),
+                        ? new SceneClient14(U64(root.GetProperty("generation")), U64(root.GetProperty("epoch")),
                             LimitsObject(customLimits))
                         : NewClient(root);
                     var held = Deliver(client, first);
@@ -544,7 +544,7 @@ namespace Roguehalla.Net.Tests
                 var l = Limits(root);
                 var bounded = new SceneCandidate.Limits(Math.Max(firstSize, secondSize),
                     l.PartBytes, l.Parts, l.Frames, l.FrameBytes, firstSize + secondSize - 1);
-                var client = new Client(U64(root.GetProperty("generation")), U64(root.GetProperty("epoch")), bounded);
+                var client = new SceneClient14(U64(root.GetProperty("generation")), U64(root.GetProperty("epoch")), bounded);
                 var old = Deliver(client, first);
                 client.CommitApplied(client.Generation, old);
                 Refuses(() => client.Push(client.Generation, Hex(second.GetProperty("recordsHex")[0].GetString())));
@@ -571,11 +571,11 @@ namespace Roguehalla.Net.Tests
                 var root = fixture.RootElement;
                 ulong epoch = U64(root.GetProperty("cases")[0].GetProperty("meta").GetProperty("epoch"));
                 var limits = Limits(root);
-                Assert.IsInstanceOf<ArgumentOutOfRangeException>(Refuses(() => new Client(0, epoch, limits)));
-                Refuses(() => new Client(1, 0, limits));
-                Refuses(() => new Client(1, ulong.MaxValue, limits));
-                Refuses(() => new Client(1, epoch, default(SceneCandidate.Limits)));
-                var max = new Client(ulong.MaxValue, epoch, limits);
+                Assert.IsInstanceOf<ArgumentOutOfRangeException>(Refuses(() => new SceneClient14(0, epoch, limits)));
+                Refuses(() => new SceneClient14(1, 0, limits));
+                Refuses(() => new SceneClient14(1, ulong.MaxValue, limits));
+                Refuses(() => new SceneClient14(1, epoch, default(SceneCandidate.Limits)));
+                var max = new SceneClient14(ulong.MaxValue, epoch, limits);
                 Assert.AreEqual(ulong.MaxValue, max.Generation);
                 Assert.AreEqual(epoch, max.Epoch);
                 Assert.IsNull(max.Current);
