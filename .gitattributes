@@ -1,0 +1,10 @@
+
+# Exact observed Unity serialization overlays: preserve raw trailing spaces.
+docs/evidence/unity-functional-035b22c8/editor-first/ShaderGraphSettings.asset.observed.txt whitespace=-blank-at-eol
+docs/evidence/unity-functional-035b22c8/editor-first/source-overlays.patch whitespace=-blank-at-eol
+docs/evidence/unity-functional-0aeddc5b/editor-first/evidence/ShaderGraphSettings.asset.observed.txt whitespace=-blank-at-eol
+docs/evidence/unity-functional-0aeddc5b/editor-first/evidence/source-overlays.patch whitespace=-blank-at-eol
+docs/evidence/unity-functional-8cdbd77d/editor-first/evidence/ShaderGraphSettings.asset.observed.txt whitespace=-blank-at-eol
+docs/evidence/unity-functional-8cdbd77d/editor-first/evidence/source-overlays.patch whitespace=-blank-at-eol
+docs/evidence/unity-functional-9c658e04/editor-first/ShaderGraphSettings.asset.observed.txt whitespace=-blank-at-eol
+docs/evidence/unity-functional-9c658e04/editor-first/source-overlays.patch whitespace=-blank-at-eol
