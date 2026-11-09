@@ -185,8 +185,9 @@ impl Ring {
         while self.frames.len() > MAX_FRAMES {
             self.frames.pop_front();
         }
-        self.death_at
-            .retain(|(_, time)| !(*time + MOB_FADE_MS < cutoff - 2000.));
+        self.death_at.retain(|(_, time)| {
+            (*time + MOB_FADE_MS).partial_cmp(&(cutoff - 2000.)) != Some(std::cmp::Ordering::Less)
+        });
         report.frames_pruned = before - self.frames.len();
         report
     }

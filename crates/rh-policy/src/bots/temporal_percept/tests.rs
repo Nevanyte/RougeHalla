@@ -367,7 +367,7 @@ fn declared_death_pending_body_fade_and_extras_are_windowed_without_dropping_che
     let p = value(&mut ring, &cfg);
     assert!(p["containers"].as_array().unwrap().is_empty());
     assert_eq!(p["mobs"].as_array().unwrap().len(), 1);
-    assert_eq!(p["extras"]["effects"], json!({"self":1,"m":2}));
+    assert_eq!(p["extras"]["effects"], json!({"self":1.0,"m":2.0}));
     assert!(p["extras"]["fields"][0]["owner"].is_null());
     assert_eq!(p["extras"]["chests"].as_array().unwrap().len(), 1);
     f["t"] = json!(650.);
