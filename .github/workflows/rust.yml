@@ -9,6 +9,12 @@ on:
   pull_request:
     paths: ["crates/**", "protocol/**", "parity/**", "maps/**", "packages/shared/src/**", "packages/server/src/**", "package.json", "package-lock.json", "client-unity/**", "tools/**", "Cargo.*", "rust-toolchain.toml", ".github/workflows/rust.yml"]
   workflow_dispatch:
+    inputs:
+      allocation_context_diagnostic:
+        description: "Run the one approved private C# full-context diagnostic"
+        type: boolean
+        required: true
+        default: false
 
 permissions:
   contents: read
@@ -29,6 +35,7 @@ jobs:
   # Keep the complete pure-simulation suite independent of transport/PG/source recapture work. The default workspace
   # suite passed 1,520 tests at b01fc9e2, but consumed 31 minutes of the old job's cumulative 40-minute allowance.
   simulation:
+    if: ${{ !(github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/codex/csharp-full-context-linux-once' && inputs.allocation_context_diagnostic == true) }}
     needs: provenance
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -49,6 +56,7 @@ jobs:
         run: cargo test --locked -p rh-sim --features trusted-status-probes
 
   rust:
+    if: ${{ !(github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/codex/csharp-full-context-linux-once' && inputs.allocation_context_diagnostic == true) }}
     needs: provenance
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -304,6 +312,7 @@ jobs:
           node tools/browser-proof/proof.mjs
 
   card-runtime-source:
+    if: ${{ !(github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/codex/csharp-full-context-linux-once' && inputs.allocation_context_diagnostic == true) }}
     needs: provenance
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -326,4 +335,33 @@ jobs:
           dotnet-version: "8.0.x"
       - run: dotnet test client-unity/RoguehallaNet.Tests
       - name: Unity copy of the library is up to date
+        if: ${{ success() || (always() && (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/codex/csharp-full-context-linux-once' && inputs.allocation_context_diagnostic == true)) }}
         run: bash client-unity/sync-net.sh --check
+      - name: Full-suite allocation context diagnostic (not a replacement gate)
+        if: ${{ always() && (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/codex/csharp-full-context-linux-once' && inputs.allocation_context_diagnostic == true) }}
+        env:
+          RH_ALLOCATION_TRACE_DIRECTORY: ${{ runner.temp }}/rh-allocation-context/windows
+        run: |
+          set -euo pipefail
+          mkdir "${RUNNER_TEMP}/rh-allocation-context"
+          dotnet --info > "${RUNNER_TEMP}/rh-allocation-context/dotnet-info.txt"
+          dotnet --list-sdks > "${RUNNER_TEMP}/rh-allocation-context/sdks.txt"
+          dotnet --list-runtimes > "${RUNNER_TEMP}/rh-allocation-context/runtimes.txt"
+          git rev-parse HEAD > "${RUNNER_TEMP}/rh-allocation-context/head.txt"
+          sha256sum client-unity/RoguehallaNet.Tests/GarbageTests.cs client-unity/RoguehallaNet.Tests/AllocationWindowTrace.cs client-unity/RoguehallaNet/Protocol/Messages.cs client-unity/RoguehallaNet/Protocol/Codec.cs > "${RUNNER_TEMP}/rh-allocation-context/source-hashes.txt"
+          dotnet test client-unity/RoguehallaNet.Tests 2>&1 | tee "${RUNNER_TEMP}/rh-allocation-context/full-suite.log"
+      - name: Reconcile all allocation samples (diagnostic)
+        if: ${{ always() && (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/codex/csharp-full-context-linux-once' && inputs.allocation_context_diagnostic == true) }}
+        run: python3 tools/csharp-full-context/analyze.py "${RUNNER_TEMP}/rh-allocation-context/windows" --expected-windows 28 > "${RUNNER_TEMP}/rh-allocation-context/analysis.json"
+      - name: Bounded no-decoder counter controls (diagnostic)
+        if: ${{ always() && (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/codex/csharp-full-context-linux-once' && inputs.allocation_context_diagnostic == true) }}
+        run: dotnet run --project tools/csharp-full-context/CounterControls.csproj -- "${RUNNER_TEMP}/rh-allocation-context/controls"
+      - name: Reconcile no-decoder controls (diagnostic)
+        if: ${{ always() && (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/codex/csharp-full-context-linux-once' && inputs.allocation_context_diagnostic == true) }}
+        run: python3 tools/csharp-full-context/analyze.py "${RUNNER_TEMP}/rh-allocation-context/controls/windows" --expected-windows 4 > "${RUNNER_TEMP}/rh-allocation-context/control-analysis.json"
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() && (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/codex/csharp-full-context-linux-once' && inputs.allocation_context_diagnostic == true) }}
+        with:
+          name: csharp-full-suite-allocation-context
+          path: ${{ runner.temp }}/rh-allocation-context
+          if-no-files-found: error

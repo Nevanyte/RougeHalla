@@ -1,0 +1,494 @@
+{
+  "scope": "Static YAML/source and expression truth model; no GitHub execution claim",
+  "base": "3426d0d46a04251572234e49d9488f38065736d3",
+  "privateRef": "refs/heads/codex/csharp-full-context-linux-once",
+  "cases": [
+    {
+      "event": "push",
+      "ref": "refs/heads/codex/csharp-full-context-linux-once",
+      "input": null,
+      "normalSucceeded": false,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": false
+    },
+    {
+      "event": "push",
+      "ref": "refs/heads/codex/csharp-full-context-linux-once",
+      "input": null,
+      "normalSucceeded": true,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": true
+    },
+    {
+      "event": "push",
+      "ref": "refs/heads/codex/csharp-full-context-linux-once",
+      "input": false,
+      "normalSucceeded": false,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": false
+    },
+    {
+      "event": "push",
+      "ref": "refs/heads/codex/csharp-full-context-linux-once",
+      "input": false,
+      "normalSucceeded": true,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": true
+    },
+    {
+      "event": "push",
+      "ref": "refs/heads/codex/csharp-full-context-linux-once",
+      "input": true,
+      "normalSucceeded": false,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": false
+    },
+    {
+      "event": "push",
+      "ref": "refs/heads/codex/csharp-full-context-linux-once",
+      "input": true,
+      "normalSucceeded": true,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": true
+    },
+    {
+      "event": "push",
+      "ref": "refs/heads/optimization_port",
+      "input": null,
+      "normalSucceeded": false,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": false
+    },
+    {
+      "event": "push",
+      "ref": "refs/heads/optimization_port",
+      "input": null,
+      "normalSucceeded": true,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": true
+    },
+    {
+      "event": "push",
+      "ref": "refs/heads/optimization_port",
+      "input": false,
+      "normalSucceeded": false,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": false
+    },
+    {
+      "event": "push",
+      "ref": "refs/heads/optimization_port",
+      "input": false,
+      "normalSucceeded": true,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": true
+    },
+    {
+      "event": "push",
+      "ref": "refs/heads/optimization_port",
+      "input": true,
+      "normalSucceeded": false,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": false
+    },
+    {
+      "event": "push",
+      "ref": "refs/heads/optimization_port",
+      "input": true,
+      "normalSucceeded": true,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": true
+    },
+    {
+      "event": "push",
+      "ref": "refs/heads/codex/other",
+      "input": null,
+      "normalSucceeded": false,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": false
+    },
+    {
+      "event": "push",
+      "ref": "refs/heads/codex/other",
+      "input": null,
+      "normalSucceeded": true,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": true
+    },
+    {
+      "event": "push",
+      "ref": "refs/heads/codex/other",
+      "input": false,
+      "normalSucceeded": false,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": false
+    },
+    {
+      "event": "push",
+      "ref": "refs/heads/codex/other",
+      "input": false,
+      "normalSucceeded": true,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": true
+    },
+    {
+      "event": "push",
+      "ref": "refs/heads/codex/other",
+      "input": true,
+      "normalSucceeded": false,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": false
+    },
+    {
+      "event": "push",
+      "ref": "refs/heads/codex/other",
+      "input": true,
+      "normalSucceeded": true,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": true
+    },
+    {
+      "event": "pull_request",
+      "ref": "refs/heads/codex/csharp-full-context-linux-once",
+      "input": null,
+      "normalSucceeded": false,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": false
+    },
+    {
+      "event": "pull_request",
+      "ref": "refs/heads/codex/csharp-full-context-linux-once",
+      "input": null,
+      "normalSucceeded": true,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": true
+    },
+    {
+      "event": "pull_request",
+      "ref": "refs/heads/codex/csharp-full-context-linux-once",
+      "input": false,
+      "normalSucceeded": false,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": false
+    },
+    {
+      "event": "pull_request",
+      "ref": "refs/heads/codex/csharp-full-context-linux-once",
+      "input": false,
+      "normalSucceeded": true,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": true
+    },
+    {
+      "event": "pull_request",
+      "ref": "refs/heads/codex/csharp-full-context-linux-once",
+      "input": true,
+      "normalSucceeded": false,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": false
+    },
+    {
+      "event": "pull_request",
+      "ref": "refs/heads/codex/csharp-full-context-linux-once",
+      "input": true,
+      "normalSucceeded": true,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": true
+    },
+    {
+      "event": "pull_request",
+      "ref": "refs/heads/optimization_port",
+      "input": null,
+      "normalSucceeded": false,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": false
+    },
+    {
+      "event": "pull_request",
+      "ref": "refs/heads/optimization_port",
+      "input": null,
+      "normalSucceeded": true,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": true
+    },
+    {
+      "event": "pull_request",
+      "ref": "refs/heads/optimization_port",
+      "input": false,
+      "normalSucceeded": false,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": false
+    },
+    {
+      "event": "pull_request",
+      "ref": "refs/heads/optimization_port",
+      "input": false,
+      "normalSucceeded": true,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": true
+    },
+    {
+      "event": "pull_request",
+      "ref": "refs/heads/optimization_port",
+      "input": true,
+      "normalSucceeded": false,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": false
+    },
+    {
+      "event": "pull_request",
+      "ref": "refs/heads/optimization_port",
+      "input": true,
+      "normalSucceeded": true,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": true
+    },
+    {
+      "event": "pull_request",
+      "ref": "refs/heads/codex/other",
+      "input": null,
+      "normalSucceeded": false,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": false
+    },
+    {
+      "event": "pull_request",
+      "ref": "refs/heads/codex/other",
+      "input": null,
+      "normalSucceeded": true,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": true
+    },
+    {
+      "event": "pull_request",
+      "ref": "refs/heads/codex/other",
+      "input": false,
+      "normalSucceeded": false,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": false
+    },
+    {
+      "event": "pull_request",
+      "ref": "refs/heads/codex/other",
+      "input": false,
+      "normalSucceeded": true,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": true
+    },
+    {
+      "event": "pull_request",
+      "ref": "refs/heads/codex/other",
+      "input": true,
+      "normalSucceeded": false,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": false
+    },
+    {
+      "event": "pull_request",
+      "ref": "refs/heads/codex/other",
+      "input": true,
+      "normalSucceeded": true,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": true
+    },
+    {
+      "event": "workflow_dispatch",
+      "ref": "refs/heads/codex/csharp-full-context-linux-once",
+      "input": null,
+      "normalSucceeded": false,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": false
+    },
+    {
+      "event": "workflow_dispatch",
+      "ref": "refs/heads/codex/csharp-full-context-linux-once",
+      "input": null,
+      "normalSucceeded": true,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": true
+    },
+    {
+      "event": "workflow_dispatch",
+      "ref": "refs/heads/codex/csharp-full-context-linux-once",
+      "input": false,
+      "normalSucceeded": false,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": false
+    },
+    {
+      "event": "workflow_dispatch",
+      "ref": "refs/heads/codex/csharp-full-context-linux-once",
+      "input": false,
+      "normalSucceeded": true,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": true
+    },
+    {
+      "event": "workflow_dispatch",
+      "ref": "refs/heads/codex/csharp-full-context-linux-once",
+      "input": true,
+      "normalSucceeded": false,
+      "diagnostic": true,
+      "heavyJobsEligible": false,
+      "sync": true
+    },
+    {
+      "event": "workflow_dispatch",
+      "ref": "refs/heads/codex/csharp-full-context-linux-once",
+      "input": true,
+      "normalSucceeded": true,
+      "diagnostic": true,
+      "heavyJobsEligible": false,
+      "sync": true
+    },
+    {
+      "event": "workflow_dispatch",
+      "ref": "refs/heads/optimization_port",
+      "input": null,
+      "normalSucceeded": false,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": false
+    },
+    {
+      "event": "workflow_dispatch",
+      "ref": "refs/heads/optimization_port",
+      "input": null,
+      "normalSucceeded": true,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": true
+    },
+    {
+      "event": "workflow_dispatch",
+      "ref": "refs/heads/optimization_port",
+      "input": false,
+      "normalSucceeded": false,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": false
+    },
+    {
+      "event": "workflow_dispatch",
+      "ref": "refs/heads/optimization_port",
+      "input": false,
+      "normalSucceeded": true,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": true
+    },
+    {
+      "event": "workflow_dispatch",
+      "ref": "refs/heads/optimization_port",
+      "input": true,
+      "normalSucceeded": false,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": false
+    },
+    {
+      "event": "workflow_dispatch",
+      "ref": "refs/heads/optimization_port",
+      "input": true,
+      "normalSucceeded": true,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": true
+    },
+    {
+      "event": "workflow_dispatch",
+      "ref": "refs/heads/codex/other",
+      "input": null,
+      "normalSucceeded": false,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": false
+    },
+    {
+      "event": "workflow_dispatch",
+      "ref": "refs/heads/codex/other",
+      "input": null,
+      "normalSucceeded": true,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": true
+    },
+    {
+      "event": "workflow_dispatch",
+      "ref": "refs/heads/codex/other",
+      "input": false,
+      "normalSucceeded": false,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": false
+    },
+    {
+      "event": "workflow_dispatch",
+      "ref": "refs/heads/codex/other",
+      "input": false,
+      "normalSucceeded": true,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": true
+    },
+    {
+      "event": "workflow_dispatch",
+      "ref": "refs/heads/codex/other",
+      "input": true,
+      "normalSucceeded": false,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": false
+    },
+    {
+      "event": "workflow_dispatch",
+      "ref": "refs/heads/codex/other",
+      "input": true,
+      "normalSucceeded": true,
+      "diagnostic": false,
+      "heavyJobsEligible": true,
+      "sync": true
+    }
+  ],
+  "count": 54
+}

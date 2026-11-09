@@ -1,0 +1,62 @@
+diff --git a/.github/workflows/rust.yml b/.github/workflows/rust.yml
+index bf9195dd..f5172d19 100644
+--- a/.github/workflows/rust.yml
++++ b/.github/workflows/rust.yml
+@@ -11,0 +12,6 @@ on:
++    inputs:
++      allocation_context_diagnostic:
++        description: "Run the one approved private C# full-context diagnostic"
++        type: boolean
++        required: true
++        default: false
+@@ -31,0 +38 @@ jobs:
++    if: ${{ !(github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/codex/csharp-full-context-linux-once' && inputs.allocation_context_diagnostic == true) }}
+@@ -51,0 +59 @@ jobs:
++    if: ${{ !(github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/codex/csharp-full-context-linux-once' && inputs.allocation_context_diagnostic == true) }}
+@@ -306,0 +315 @@ jobs:
++    if: ${{ !(github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/codex/csharp-full-context-linux-once' && inputs.allocation_context_diagnostic == true) }}
+@@ -328,0 +338 @@ jobs:
++        if: ${{ success() || (always() && (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/codex/csharp-full-context-linux-once' && inputs.allocation_context_diagnostic == true)) }}
+@@ -329,0 +340,28 @@ jobs:
++      - name: Full-suite allocation context diagnostic (not a replacement gate)
++        if: ${{ always() && (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/codex/csharp-full-context-linux-once' && inputs.allocation_context_diagnostic == true) }}
++        env:
++          RH_ALLOCATION_TRACE_DIRECTORY: ${{ runner.temp }}/rh-allocation-context/windows
++        run: |
++          set -euo pipefail
++          mkdir "${RUNNER_TEMP}/rh-allocation-context"
++          dotnet --info > "${RUNNER_TEMP}/rh-allocation-context/dotnet-info.txt"
++          dotnet --list-sdks > "${RUNNER_TEMP}/rh-allocation-context/sdks.txt"
++          dotnet --list-runtimes > "${RUNNER_TEMP}/rh-allocation-context/runtimes.txt"
++          git rev-parse HEAD > "${RUNNER_TEMP}/rh-allocation-context/head.txt"
++          sha256sum client-unity/RoguehallaNet.Tests/GarbageTests.cs client-unity/RoguehallaNet.Tests/AllocationWindowTrace.cs client-unity/RoguehallaNet/Protocol/Messages.cs client-unity/RoguehallaNet/Protocol/Codec.cs > "${RUNNER_TEMP}/rh-allocation-context/source-hashes.txt"
++          dotnet test client-unity/RoguehallaNet.Tests 2>&1 | tee "${RUNNER_TEMP}/rh-allocation-context/full-suite.log"
++      - name: Reconcile all allocation samples (diagnostic)
++        if: ${{ always() && (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/codex/csharp-full-context-linux-once' && inputs.allocation_context_diagnostic == true) }}
++        run: python3 tools/csharp-full-context/analyze.py "${RUNNER_TEMP}/rh-allocation-context/windows" --expected-windows 28 > "${RUNNER_TEMP}/rh-allocation-context/analysis.json"
++      - name: Bounded no-decoder counter controls (diagnostic)
++        if: ${{ always() && (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/codex/csharp-full-context-linux-once' && inputs.allocation_context_diagnostic == true) }}
++        run: dotnet run --project tools/csharp-full-context/CounterControls.csproj -- "${RUNNER_TEMP}/rh-allocation-context/controls"
++      - name: Reconcile no-decoder controls (diagnostic)
++        if: ${{ always() && (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/codex/csharp-full-context-linux-once' && inputs.allocation_context_diagnostic == true) }}
++        run: python3 tools/csharp-full-context/analyze.py "${RUNNER_TEMP}/rh-allocation-context/controls/windows" --expected-windows 4 > "${RUNNER_TEMP}/rh-allocation-context/control-analysis.json"
++      - uses: actions/upload-artifact@v4
++        if: ${{ always() && (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/codex/csharp-full-context-linux-once' && inputs.allocation_context_diagnostic == true) }}
++        with:
++          name: csharp-full-suite-allocation-context
++          path: ${{ runner.temp }}/rh-allocation-context
++          if-no-files-found: error
+diff --git a/docs/evidence/csharp-full-context/README.md b/docs/evidence/csharp-full-context/README.md
+index 70cd518a..82eb7a43 100644
+--- a/docs/evidence/csharp-full-context/README.md
++++ b/docs/evidence/csharp-full-context/README.md
+@@ -45 +45 @@ Pinned primary sources at **v8.0.33**, all downloaded source lengths/hashes/URLs
+-- [GC counters](https://github.com/dotnet/runtime/blob/v8.0.33/src/coreclr/vm/comutilnative.cpp): CollectionCount761–773 queries the heap and polls GC; GetAllocatedBytesForCurrentThread868–876 combines context byte counters and remaining context space.
++- [GC counters](https://github.com/dotnet/runtime/blob/v8.0.33/src/coreclr/vm/comutilnative.cpp): CollectionCount761–773 queries the heap and polls GC; GetAllocatedBytesForCurrentThread936–945 combines context byte counters and remaining context space.
+diff --git a/docs/evidence/csharp-full-context/SHA256SUMS b/docs/evidence/csharp-full-context/SHA256SUMS
+index 81d0eec9..bfd57632 100644
+--- a/docs/evidence/csharp-full-context/SHA256SUMS
++++ b/docs/evidence/csharp-full-context/SHA256SUMS
+@@ -5 +5 @@ e625a09bf1ae4c44a09b234b4fc87b0586cfe0e9d615899a484f1a287b9f1863  client-unity/R
+-103dae2577d15b49a89d7f3e70e89d323600f2594a0e7b47bd13dfa28935dc08  docs/evidence/csharp-full-context/README.md
++111d9d991a100119cc9d173048595ef33cbcba2ca819012f5eb5271f67192158  docs/evidence/csharp-full-context/README.md
