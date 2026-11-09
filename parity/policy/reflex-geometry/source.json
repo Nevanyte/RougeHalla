@@ -835,6 +835,68 @@
           "lag_ms": 0
         },
         "result": null
+      },
+      {
+        "id": "general-positive-nonpythagorean",
+        "branch": "general",
+        "input": {
+          "from_self": false,
+          "origin": [
+            5,
+            7
+          ],
+          "at": [
+            15,
+            11
+          ],
+          "velocity": [
+            7,
+            11
+          ],
+          "range": 200,
+          "self_at": [
+            35,
+            25
+          ],
+          "lag_ms": 0
+        },
+        "result": {
+          "tti_ms": 1729.411764705882,
+          "offset": -9.356972863937921,
+          "nx": -0.8436614877321075,
+          "ny": 0.5368754921931592
+        }
+      },
+      {
+        "id": "general-positive-negative-direction",
+        "branch": "general",
+        "input": {
+          "from_self": false,
+          "origin": [
+            10,
+            -4
+          ],
+          "at": [
+            22,
+            10
+          ],
+          "velocity": [
+            -3,
+            8
+          ],
+          "range": 150,
+          "self_at": [
+            30,
+            20
+          ],
+          "lag_ms": 0
+        },
+        "result": {
+          "tti_ms": 767.1232876712329,
+          "offset": -11.001867836436274,
+          "nx": -0.9363291775690445,
+          "ny": -0.3511234415883917
+        }
       }
     ]
   },

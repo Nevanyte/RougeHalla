@@ -3,8 +3,9 @@
 use super::*;
 use serde_json::Value;
 
-/// C-PARITY continuous tolerance: the fixture rounds to 1e-6 and libm/V8 may differ by ulps.
-/// Only continuous outputs use it; Some/None/error and discrete facts compare exactly.
+/// C-PARITY continuous tolerance: 2e-6 absolute for continuous outputs (libm/V8 may differ by ulps).
+/// The source JSON and the Rust comparison do not pre-round either value; Some/None/error and discrete
+/// facts compare exactly. Observed max differences are reported raw, not bitwise.
 const PARITY_TOL: f64 = 2e-6;
 
 fn corpus() -> Value {
@@ -50,7 +51,7 @@ fn close(actual: f64, expected: &Value, at: &str, max_diff: &mut f64) {
 }
 
 #[test]
-fn actual_source_90_plus_6_geometry_rows_match() {
+fn actual_source_geometry_rows_match() {
     let corpus = corpus();
     assert_eq!(
         corpus["profile"]["base"],
@@ -69,7 +70,11 @@ fn actual_source_90_plus_6_geometry_rows_match() {
         close(got, &row["result"], &format!("angle[{i}]"), &mut max_diff);
     }
     let courses = corpus["course"]["cases"].as_array().unwrap();
-    assert_eq!(courses.len(), 25, "course fixture row count");
+    assert_eq!(
+        courses.len(),
+        27,
+        "course fixture row count (25 original + 2 positive general probes)"
+    );
     let mut some = 0usize;
     let mut none = 0usize;
     for (i, row) in courses.iter().enumerate() {
@@ -110,7 +115,7 @@ fn actual_source_90_plus_6_geometry_rows_match() {
         }
     }
     assert!(some > 0 && none > 0, "both Some and None outcomes covered");
-    eprintln!("reflex geometry: 10 angle + 25 course rows; max C-PARITY abs diff {max_diff:?}");
+    eprintln!("reflex geometry: 10 angle + 27 course rows; max C-PARITY raw abs diff {max_diff:?}");
 }
 
 #[test]

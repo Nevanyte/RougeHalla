@@ -125,6 +125,10 @@ const courseCases = [
   { id: "axis-negative-velocity", branch: "axis", from_self: false, origin: [140, 0], at: [120, 0], velocity: [-1, 0], range: 100, self_at: [100, 0], lag_ms: 0 },
   { id: "general-origin", branch: "general", from_self: false, origin: [80, 20], at: [60, 20], velocity: [1, 0], range: 100, self_at: [40, 30], lag_ms: 0 },
   { id: "general-lateral-refusal", branch: "general", from_self: false, origin: [80, 20], at: [60, 20], velocity: [1, 0], range: 100, self_at: [40, 60], lag_ms: 0 },
+  // Genuine positive general courses: non-axis, non-Pythagorean speed and travelled distance,
+  // nonzero origin and already-travelled displacement. Source supplies the expected output.
+  { id: "general-positive-nonpythagorean", branch: "general", from_self: false, origin: [5, 7], at: [15, 11], velocity: [7, 11], range: 200, self_at: [35, 25], lag_ms: 0 },
+  { id: "general-positive-negative-direction", branch: "general", from_self: false, origin: [10, -4], at: [22, 10], velocity: [-3, 8], range: 150, self_at: [30, 20], lag_ms: 0 },
 ];
 
 function selfView(at) {
