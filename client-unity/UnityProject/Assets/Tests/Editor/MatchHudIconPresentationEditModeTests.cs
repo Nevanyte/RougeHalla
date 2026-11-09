@@ -82,7 +82,7 @@ namespace Roguehalla.Client.Tests
             var details = (RectTransform)GetField("_wishDetails");
             var summary = (TMP_Text)GetField("_wishSummary");
             var hint = (HudIconHint)GetField("_wishHint");
-            var wishButton = _root.transform.Find("MatchHud/PlayerHUD/CombatActions/WishInfo").GetComponent<Button>();
+            var wishButton = _root.transform.Find("PlayerHUD/CombatActions/WishInfo").GetComponent<Button>();
             var wishImage = wishButton.transform.Find("WishIcon").GetComponent<Image>();
             Assert.That(wishImage.enabled && wishImage.sprite != null, Is.True, "wish action has a visible semantic icon");
             Assert.That(details.gameObject.activeSelf, Is.False, "the permanent top-right Wish paragraph is inactive");
