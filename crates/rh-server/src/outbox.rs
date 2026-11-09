@@ -9,6 +9,9 @@
 //!   for the encoding;
 //! * fx are disposable: at most FX_CAP are kept, the oldest dropped first.
 
+/// Private-cut FIFO primitive; not wired into the live Outbox or socket writer.
+pub mod scene_candidate;
+
 use rh_protocol::{ConnEncoder, FrameKind, RejectCode, SnapshotData};
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};

@@ -147,6 +147,8 @@ pub use encode::delta;
 pub mod map;
 pub mod quant;
 pub mod samples;
+/// Isolated experimental container; never accepted by the live protocol decoder.
+pub mod scene_candidate;
 pub mod state;
 pub use state::{
     validate_quest_props, PickupHandle, QuestHandle, RewardChestHandle, RosterId, StateItem,
