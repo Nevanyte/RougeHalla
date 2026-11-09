@@ -16,6 +16,7 @@ crates/rh-sim/src/systems/sentenced/mark_tax/source_tests.rs
 crates/rh-sim/src/systems/sentenced/mark_tax/tests.rs
 crates/rh-sim/src/systems/signatures.rs
 crates/rh-sim/src/systems/status/mod.rs
+docs/evidence/mark-tax-native29/.gitattributes
 docs/evidence/mark-tax-native29/CHECKS.md
 docs/evidence/mark-tax-native29/GIT_PATHS.txt
 docs/evidence/mark-tax-native29/MANIFEST.json

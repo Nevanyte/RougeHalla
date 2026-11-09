@@ -1,0 +1,2 @@
+# Preserve exact raw command receipts, including Cargo's final blank line.
+logs/*.log whitespace=-blank-at-eof

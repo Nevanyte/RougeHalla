@@ -21,3 +21,5 @@ Earlier affected-scope gates (before two additional MarkTax tests, no outcome re
 First lint attempt found test-only filter_map_bool_then. It was rewritten as filter+map, no allow/suppression. All earlier compile/comparator/fixture-context/producer/allocation failures remain under `logs/`; green receipts do not replace them. Old28/22 tapes/content goldens remain known predecessors, owned by Root, not refreshed or weakened here.
 
 Five-source callback audit: shred reads existing status rows and ignored the former StatView; attackSlow reads the same old `stats.slow_resist`; consumable/wind forwards the exact former StatView to unchanged wind helper; FireRoam and FrozenJustice ignore this third argument and read their existing clocks/status/guard facts. None now receives newly folded maxHP/stat facts. Only tax consumes the explicit AS-row context; `note_fights` remains first in live end mods after the paid ledger.
+
+Raw Cargo receipts include terminal blank lines. The evidence-local `.gitattributes` disables only blank-at-EOF whitespace complaints for `logs/*.log`; it does not ignore files or relax any test. Raw bytes/hashes are retained unchanged.
