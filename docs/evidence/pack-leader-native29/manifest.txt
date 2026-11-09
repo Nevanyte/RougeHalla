@@ -4,7 +4,7 @@ f4859b366daedd5b074eb03168ef5d9446934a0d176c01e272616c603552308c  6990  crates/r
 61eb22dd84e7e2f9e3c69154d136ea772b3808ea8348bad9d15bcf5c1273bf06  11675  crates/rh-sim/src/scratch.rs
 eb33468a8a80623a1f19bab12c133c17c6fb8f41091c80af2226fe1792572bc0  43829  crates/rh-sim/src/systems/ledger.rs
 4b1629f179b1db71bfc61c95a0efac714b3f7e83ab0c9d4d476ea98039673282  8447  crates/rh-sim/src/systems/ledger/camps_tests.rs
-20922a7e64d44c3d9fa7f20afa73117a74ff26e2dc27c212e7857dc5af02b0f9  17597  crates/rh-sim/src/pack_leader_native_tests.rs
+f699776d27216e7a1e61ae8ebc51d78a8d743ac3a79769247e0350ad08f75d2c  20249  crates/rh-sim/src/pack_leader_native_tests.rs
 6c20d72dda3a867b37d05d0b4431d3dc3d10a49dc698bf71d00bc73147f78795  4271  crates/rh-sim/tests/pack_leader_warm.rs
 14ff2b8ecfb679ec8ea776d95055c2b92f1f31b3e7b92c8ea9404df924157fde  4430  docs/evidence/pack-leader-native29/README.md
 4b39c58a8863d3da19912ddea17409523c644991e84dd3b84ca0a732c64d5302  208  docs/evidence/pack-leader-native29/addendum/clippy.log
@@ -16,6 +16,7 @@ c001a294510867891c21baafe153d49d9ce76578a559e5dfe8c881f393418589  1721  docs/evi
 a3411cf9597e189449298a02775b80515825748435b8dc51bb8e0092e2e5beb1  747  docs/evidence/pack-leader-native29/addendum/mutant-05-execute-callsite.log
 fd78ada89cd87f4cf4771a6dcf0d3b4ec33a502567d7d7679f09358f1029e6d6  3766  docs/evidence/pack-leader-native29/addendum/native-chunk-diag.log
 d24261aa16c57e6cbd179944ad00259f37abf224e910cfbda1799e01db53e63d  848  docs/evidence/pack-leader-native29/addendum/restored.log
+fe0661b061b8448893de7e83fe272d3d6576392ed7c04513a42131f80e816d2f  1707  docs/evidence/pack-leader-native29/addendum/rng-boundaries.log
 c2427e5d0101c4ceb55ac967718322ae95a9f68c4a571c52f9ee66422206aba0  1699  docs/evidence/pack-leader-native29/addendum/tape-rng.log
 b11e7636cdd63b15d1f5599f749d7284b1c6d47c4b629c5f95c26845f918ca09  1150  docs/evidence/pack-leader-native29/addendum/warm-fixed.log
 f872ebe6ce3d5aa981220249a4f294a1915711db3a3840ba3d0b6ff2d3eedaf7  205  docs/evidence/pack-leader-native29/logs/clippy-all-features.log

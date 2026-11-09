@@ -186,6 +186,8 @@ fn submit(sim: &mut Sim, raw: RawCommand) {
 
 struct Facts {
     step: u64,
+    reward_before: Vec<(u64, Vec<f64>)>,
+    reward_after_build: Vec<f64>,
     landed: Vec<(u64, f64, String, f64, String)>,
     pre_counts: Vec<(u64, u16)>,
     deaths: Vec<(u64, PlayerId)>,
@@ -194,6 +196,18 @@ struct Facts {
 }
 
 fn advance(sim: &mut Sim, f: &mut Facts) {
+    let next_step = f.step + 1;
+    let burst = match next_step {
+        146 => Some(6usize),
+        181 => Some(7usize),
+        341 => Some(7usize),
+        _ => None,
+    };
+    if let Some(n) = burst {
+        let mut r = sim.w.reward_rng.clone();
+        f.reward_before
+            .push((next_step, (0..n).map(|_| r.next_f64()).collect()));
+    }
     f.pre_counts
         .push((f.step + 1, sim.players()[0].camps_cleared));
     let events = sim.step();
@@ -285,6 +299,11 @@ fn the_genuine_source_tape_produces_the_native_camp_count_and_later_player_damag
     );
     let mut f = Facts {
         step: 1,
+        reward_before: Vec::new(),
+        reward_after_build: {
+            let mut r = sim.w.reward_rng.clone();
+            (0..6).map(|_| r.next_f64()).collect()
+        },
         landed: Vec::new(),
         pre_counts: Vec::new(),
         deaths: Vec::new(),
@@ -430,6 +449,32 @@ fn the_genuine_source_tape_produces_the_native_camp_count_and_later_player_damag
         (*tick, mob_names[ix].clone(), "down".to_string())
     }).collect();
     assert_eq!(native_deaths, source_deaths, "ordered fighterOut lifecycle facts");
+
+    // Actual live RNG boundary states against the immutable captured randomTape. Reward burst boundaries in the filtered
+    // reward sequence are lobby[0..9), tick1[9..16), tick146[16..22), tick181[22..29), tick341[29..36). Construction
+    // consumes constructor main draw plus the lobby reward burst; after the birth step the live reward stream must continue
+    // at the tick146 burst, and the same stream must reach the later bursts in order. Main: the source constructor main draw
+    // fixes order_salt; the native spawn stream is a separate seeded stream (declared setup projection), so no source main
+    // tick1 draws are claimed as spawn-stream continuation.
+    let source_reward: Vec<f64> = doc["result"]["randomTape"].as_array().unwrap().iter()
+        .filter(|d| d["stream"] == "reward").map(|d| d["value"].as_f64().unwrap()).collect();
+    let source_main: Vec<f64> = doc["result"]["randomTape"].as_array().unwrap().iter()
+        .filter(|d| d["stream"] == "main").map(|d| d["value"].as_f64().unwrap()).collect();
+    assert!((f64::from(sim.secrets_for_replay().order_salt) / 4_294_967_296.0 - source_main[0]).abs() < 1e-12,
+        "source constructor main draw fixes native order_salt");
+    let align = |values: &[f64]| -> Option<usize> {
+        source_reward.windows(values.len()).position(|w| w == values)
+    };
+    assert_eq!(align(&f.reward_after_build), Some(16), "live reward stream continues at the source tick146 burst after birth");
+    for (step, values) in &f.reward_before {
+        let expected = match *step { 146 => 16, 181 => 22, 341 => 29, _ => unreachable!() };
+        let got = align(values);
+        assert_eq!(got, Some(expected), "live reward stream at source boundary tick {step}");
+    }
+    assert_eq!(source_reward.len(), 36, "the captured reward tape length");
+    let mut live = sim.w.reward_rng.clone();
+    let live_next: Vec<f64> = (0..3).map(|_| live.next_f64()).collect();
+    assert_eq!(align(&live_next), None, "no captured source reward draws remain after the tick341 burst");
 
     // Clone/restore continue the same real produced state with ordinary input-free steps (no expected state installed).
     let mut cloned = sim.clone();
