@@ -173,16 +173,20 @@ export function runBoundaries() {
     put(w, "p0", 200, 200); put(w, "p1", targetX, 200); equip(w, "p0");
     const rt = w.players.get("p0"); rt.path = [{ x: 250, y: 200 }];
     Object.assign(rt.weapon, { lock: "p1", lockSeen: true, lockGoal: { x: targetX, y: 200 }, lockPlanAt: w.state.serverTime + TICK_MS });
-    const at = w.state.serverTime + TICK_MS, equalLost = at - TARGET_LOS_GRACE_MS;
-    rt.weapon.lockLosLostAt = side === "before" ? nextUp(equalLost) : equalLost;
+    const at = w.state.serverTime + TICK_MS;
+    const targetElapsed = side === "before" ? nextDown(TARGET_LOS_GRACE_MS) : TARGET_LOS_GRACE_MS;
+    rt.weapon.lockLosLostAt = at - targetElapsed;
     const self = C(w, "p0"), target = C(w, "p1");
     const visible = canPlayerSeeActor(w, "p0", "p1", target.s), eligible = lockable(w, self, target);
     const los = hasLineOfSight(collisionMap(w), self.s, target.s), elapsed = at - rt.weapon.lockLosLostAt;
     need(visible && eligible && !los && rt.weapon.lockLosLostAt > 0, "LOS grace preconditions not reached; coverage remains OPEN",
       { visible, eligible, los, lostAt: rt.weapon.lockLosLostAt, elapsed });
+    need(elapsed === targetElapsed, "LOS elapsed round-trip did not isolate the declared boundary",
+      { side, at, targetElapsed, lostAt: rt.weapon.lockLosLostAt, elapsed });
     need(side === "before" ? elapsed < TARGET_LOS_GRACE_MS : elapsed === TARGET_LOS_GRACE_MS, "LOS clocks do not straddle expiry", elapsed);
     ctx.recipe = { ...ctx.recipe, side, at, primedAt, extraOrdinarySourceSteps: 2, actualVisible: visible,
-      actualLockable: eligible, actualLOS: los, lostAt: rt.weapon.lockLosLostAt, lostAtBits: floatBits(rt.weapon.lockLosLostAt), elapsed };
+      actualLockable: eligible, actualLOS: los, lostAt: rt.weapon.lockLosLostAt, lostAtBits: floatBits(rt.weapon.lockLosLostAt),
+      targetElapsed, targetElapsedBits: floatBits(targetElapsed), elapsed };
     return ctx;
   }, hintObserve));
   for (const variant of ["hidden-active", "hidden-revealed", "untargetable-before", "untargetable-equal"]) cases.push(run("future-" + variant, "futureVisibility", () => {
