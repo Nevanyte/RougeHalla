@@ -1,0 +1,10 @@
+{
+  "base": "2601f9d84fadc20ae57d193c29409ca4042614a4",
+  "source": "76f341ed60ca5bb8ac70d76cf244c9afc1be9e23",
+  "onlyChangedPath": "client-unity/UnityProject/Assets/Tests/Editor/TrainingConsoleIntegrationEditModeTests.cs",
+  "exactFourAddedLines": true,
+  "allOtherEditorSourceFilesByteIdentical": 33,
+  "allMetaFilesByteIdentical": 616,
+  "allRuntimeAndLibraryFilesUnchanged": true,
+  "sourcePatchSha256": "95a17605c7541300b9c1c793bf6514a06b48dfd347eac2e2561d69413f960b29"
+}

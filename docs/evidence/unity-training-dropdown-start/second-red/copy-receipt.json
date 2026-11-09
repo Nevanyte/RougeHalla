@@ -1,0 +1,216 @@
+{
+  "source": "956a80dcfe89dd290816f2ea6051b210b7a4834f",
+  "copiedVerbatim": true,
+  "files": [
+    {
+      "path": "run-01-Roguehalla_Client_Tests_QuestJournalViewEditModeTests.invocation.json",
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-retake-956a80dc-2026-11-09/evidence/run-01-Roguehalla_Client_Tests_QuestJournalViewEditModeTests.invocation.json",
+      "bytes": 805,
+      "sha256": "59a96539f0984abc70e7863efe01adb7acf5260182afd90056df961bfc6bff64"
+    },
+    {
+      "path": "run-01-Roguehalla_Client_Tests_QuestJournalViewEditModeTests.stderr.txt",
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-retake-956a80dc-2026-11-09/evidence/run-01-Roguehalla_Client_Tests_QuestJournalViewEditModeTests.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "run-01-Roguehalla_Client_Tests_QuestJournalViewEditModeTests.stdout.txt",
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-retake-956a80dc-2026-11-09/evidence/run-01-Roguehalla_Client_Tests_QuestJournalViewEditModeTests.stdout.txt",
+      "bytes": 1975,
+      "sha256": "420668f956f742db859d33b61c2c7a483dcba6fe8717a4ced19d647280efa869"
+    },
+    {
+      "path": "run-02-Roguehalla_Client_Tests_TraderDialogViewEditModeTests.invocation.json",
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-retake-956a80dc-2026-11-09/evidence/run-02-Roguehalla_Client_Tests_TraderDialogViewEditModeTests.invocation.json",
+      "bytes": 805,
+      "sha256": "5506946b23a3078690df9a01a8d81b28d72d6188e851d610bac389031a93e4f9"
+    },
+    {
+      "path": "run-02-Roguehalla_Client_Tests_TraderDialogViewEditModeTests.stderr.txt",
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-retake-956a80dc-2026-11-09/evidence/run-02-Roguehalla_Client_Tests_TraderDialogViewEditModeTests.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "run-02-Roguehalla_Client_Tests_TraderDialogViewEditModeTests.stdout.txt",
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-retake-956a80dc-2026-11-09/evidence/run-02-Roguehalla_Client_Tests_TraderDialogViewEditModeTests.stdout.txt",
+      "bytes": 1531,
+      "sha256": "577368783c5e18d4962b9c3ab089b7829865b69e1c9e1e9b3e74fd636a5619d1"
+    },
+    {
+      "path": "run-03-Roguehalla_Client_Tests_PlayerFlowsEditModeTests.invocation.json",
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-retake-956a80dc-2026-11-09/evidence/run-03-Roguehalla_Client_Tests_PlayerFlowsEditModeTests.invocation.json",
+      "bytes": 800,
+      "sha256": "c14fcbef541256bb341281b34281956c1f0f72067380e6cdfccadb524d12ccba"
+    },
+    {
+      "path": "run-03-Roguehalla_Client_Tests_PlayerFlowsEditModeTests.stderr.txt",
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-retake-956a80dc-2026-11-09/evidence/run-03-Roguehalla_Client_Tests_PlayerFlowsEditModeTests.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "run-03-Roguehalla_Client_Tests_PlayerFlowsEditModeTests.stdout.txt",
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-retake-956a80dc-2026-11-09/evidence/run-03-Roguehalla_Client_Tests_PlayerFlowsEditModeTests.stdout.txt",
+      "bytes": 2513,
+      "sha256": "b368de2bcb9b622f6342fb0968291a2931923dcdb08aacd2f542aeecb39e235f"
+    },
+    {
+      "path": "run-04-MatchLaunchEditModeTests.invocation.json",
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-retake-956a80dc-2026-11-09/evidence/run-04-MatchLaunchEditModeTests.invocation.json",
+      "bytes": 776,
+      "sha256": "5fd981aa0aba871183141592ac01d97c0ee424d20f25bbaa3b9cb5c795e03d78"
+    },
+    {
+      "path": "run-04-MatchLaunchEditModeTests.stderr.txt",
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-retake-956a80dc-2026-11-09/evidence/run-04-MatchLaunchEditModeTests.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "run-04-MatchLaunchEditModeTests.stdout.txt",
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-retake-956a80dc-2026-11-09/evidence/run-04-MatchLaunchEditModeTests.stdout.txt",
+      "bytes": 3324,
+      "sha256": "d19affbaaa3d9ccd02b0443869e6ff34541a3e7b8e2e46af194e9905df763515"
+    },
+    {
+      "path": "run-05-MatchSettlementEditModeTests.invocation.json",
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-retake-956a80dc-2026-11-09/evidence/run-05-MatchSettlementEditModeTests.invocation.json",
+      "bytes": 780,
+      "sha256": "5c326a089bcd2419f9152ca22567099dbc2357ef654341a88dc0a24b2474be19"
+    },
+    {
+      "path": "run-05-MatchSettlementEditModeTests.stderr.txt",
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-retake-956a80dc-2026-11-09/evidence/run-05-MatchSettlementEditModeTests.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "run-05-MatchSettlementEditModeTests.stdout.txt",
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-retake-956a80dc-2026-11-09/evidence/run-05-MatchSettlementEditModeTests.stdout.txt",
+      "bytes": 4260,
+      "sha256": "1f85218eeb908874d326c70ab8f4037aeda0b59bdf971eab1fd60b0080d36f83"
+    },
+    {
+      "path": "run-06-Roguehalla_Client_Tests_TrainingConsoleSelectorsEditModeTests.invocation.json",
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-retake-956a80dc-2026-11-09/evidence/run-06-Roguehalla_Client_Tests_TrainingConsoleSelectorsEditModeTests.invocation.json",
+      "bytes": 813,
+      "sha256": "4f20e21400461d4e820b605cf94d3054041c5ad089d7c8d099b2eea18ea4ca84"
+    },
+    {
+      "path": "run-06-Roguehalla_Client_Tests_TrainingConsoleSelectorsEditModeTests.stderr.txt",
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-retake-956a80dc-2026-11-09/evidence/run-06-Roguehalla_Client_Tests_TrainingConsoleSelectorsEditModeTests.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "run-06-Roguehalla_Client_Tests_TrainingConsoleSelectorsEditModeTests.stdout.txt",
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-retake-956a80dc-2026-11-09/evidence/run-06-Roguehalla_Client_Tests_TrainingConsoleSelectorsEditModeTests.stdout.txt",
+      "bytes": 1305,
+      "sha256": "8fb42e7ac80e5c22db7ea21729b2b5e0adc7a227b6048c2bec5603824c8ef7db"
+    },
+    {
+      "path": "run-07-Roguehalla_Client_Tests_TrainingConsoleViewEditModeTests.invocation.json",
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-retake-956a80dc-2026-11-09/evidence/run-07-Roguehalla_Client_Tests_TrainingConsoleViewEditModeTests.invocation.json",
+      "bytes": 808,
+      "sha256": "223eab4f5322b27e87542c9e9e25374d269238508627a988091692593b2e36df"
+    },
+    {
+      "path": "run-07-Roguehalla_Client_Tests_TrainingConsoleViewEditModeTests.stderr.txt",
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-retake-956a80dc-2026-11-09/evidence/run-07-Roguehalla_Client_Tests_TrainingConsoleViewEditModeTests.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "run-07-Roguehalla_Client_Tests_TrainingConsoleViewEditModeTests.stdout.txt",
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-retake-956a80dc-2026-11-09/evidence/run-07-Roguehalla_Client_Tests_TrainingConsoleViewEditModeTests.stdout.txt",
+      "bytes": 1929,
+      "sha256": "3e06c2668fb4d7548fc2431a452367583372290f52cfd147d6ee96162276ebe7"
+    },
+    {
+      "path": "run-08-Roguehalla_Client_Tests_TrainingConsoleIntegrationEditModeTests.invocation.json",
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-retake-956a80dc-2026-11-09/evidence/run-08-Roguehalla_Client_Tests_TrainingConsoleIntegrationEditModeTests.invocation.json",
+      "bytes": 815,
+      "sha256": "ac38ea6f78cad4255169c026aacef93cdebe4c22beb2ba1a67e776c7ad874cc9"
+    },
+    {
+      "path": "run-08-Roguehalla_Client_Tests_TrainingConsoleIntegrationEditModeTests.stderr.txt",
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-retake-956a80dc-2026-11-09/evidence/run-08-Roguehalla_Client_Tests_TrainingConsoleIntegrationEditModeTests.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "run-08-Roguehalla_Client_Tests_TrainingConsoleIntegrationEditModeTests.stdout.txt",
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-retake-956a80dc-2026-11-09/evidence/run-08-Roguehalla_Client_Tests_TrainingConsoleIntegrationEditModeTests.stdout.txt",
+      "bytes": 4219,
+      "sha256": "f3c33c132a42e101da37ae5b2b3c8e97a65f5fd3845a03d200515559c11f99a8"
+    },
+    {
+      "path": "test-execution-ledger.json",
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-retake-956a80dc-2026-11-09/evidence/test-execution-ledger.json",
+      "bytes": 36246,
+      "sha256": "4eca76aeedb75898c83ae849d9b35ab9f6b009ffe43a5797041ff6302a707171"
+    },
+    {
+      "path": "native-result-summary.json",
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-retake-956a80dc-2026-11-09/evidence/native-result-summary.json",
+      "bytes": 4068,
+      "sha256": "0e6883e4fe17b4cdfb4d0bf61827517cb6f1e92c0287446029f67f15199c452f"
+    },
+    {
+      "path": "loaded-identity.json",
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-retake-956a80dc-2026-11-09/evidence/loaded-identity.json",
+      "bytes": 9471,
+      "sha256": "37547a82edda9c081001440c9df9ecd0b399dcf27eb5ff2af94788cdc30f8f19"
+    },
+    {
+      "path": "loaded-identity.json.invocation.json",
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-retake-956a80dc-2026-11-09/evidence/loaded-identity.json.invocation.json",
+      "bytes": 492,
+      "sha256": "c624149e2b7da8dbeb4bc827694be0b1c7ec4b9dd370258ac40405fd1dabf449"
+    },
+    {
+      "path": "native-identity-verification.json",
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-retake-956a80dc-2026-11-09/evidence/native-identity-verification.json",
+      "bytes": 1500,
+      "sha256": "cfae82fab918480a635051d0f112e7b3b00656dba9f7fe4e6b0a288d47686dcf"
+    },
+    {
+      "path": "discovery-binding-verification.json",
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-retake-956a80dc-2026-11-09/evidence/discovery-binding-verification.json",
+      "bytes": 1481,
+      "sha256": "0d2d885cdbf6325bbcd250f39a2525a39ef5663f5806f13c1788361e6364b21a"
+    },
+    {
+      "path": "immediate-pre-execution-pins.json",
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-retake-956a80dc-2026-11-09/evidence/immediate-pre-execution-pins.json",
+      "bytes": 164,
+      "sha256": "f9714c76ed5fd654d55e1ed1b2870160f5a671adc8d5f8a1367038c3943c967d"
+    },
+    {
+      "path": "post-run-source-pins.json",
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-retake-956a80dc-2026-11-09/evidence/post-run-source-pins.json",
+      "bytes": 100,
+      "sha256": "46944b13342a5dd9eb621deeab5ce3c161c2ed905df7b0d309c551ea6e8b9fdd"
+    },
+    {
+      "path": "final-composed-source-verification.json",
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-retake-956a80dc-2026-11-09/evidence/final-composed-source-verification.json",
+      "bytes": 233,
+      "sha256": "a853aa14044281f5f82ecef2649ed6ec12821f155774da887669c5c86ef251f1"
+    },
+    {
+      "path": "SOURCE_IDENTITY.json",
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-retake-956a80dc-2026-11-09/SOURCE_IDENTITY.json",
+      "bytes": 255215,
+      "sha256": "47eadd633b2f042f917c27a916377fdb3ace00e558f5d9075e91cd318edcc040"
+    },
+    {
+      "path": "EXPECTED_SELECTORS.json",
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-retake-956a80dc-2026-11-09/EXPECTED_SELECTORS.json",
+      "bytes": 72188,
+      "sha256": "2a6290fd1ded1c4b97eae92d87f5e55f63a8b3f7f9a0b453a8bef6088ab5e2b8"
+    }
+  ]
+}
