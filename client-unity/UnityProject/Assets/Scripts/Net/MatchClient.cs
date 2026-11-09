@@ -84,7 +84,7 @@ namespace Roguehalla.Client
             var transport = _transportFactory();
             if (_destroying || generation != _joinGeneration)
             {
-                if (ReferenceEquals(Arena, arena)) { Arena = null; arena.gameObject.SetActive(false); Destroy(arena.gameObject); }
+                if (ReferenceEquals(Arena, arena)) { Arena = null; DestroyOwnedArena(arena.gameObject); }
                 transport.Close(); return;
             }
             var session = new Session(transport, new SessionOptions
@@ -155,11 +155,27 @@ namespace Roguehalla.Client
             UnbindPresentationSession(); ResetPresentationTimeline();
             Arena = null;
             _actors.Clear(); _steering = false; _attackHeld = false;
-            if (oldArena != null) { oldArena.gameObject.SetActive(false); Destroy(oldArena.gameObject); }
+            if (oldArena != null) DestroyOwnedArena(oldArena.gameObject);
             if (!_destroying) Hud?.ShowMenu();
             // Retired-session callbacks may synchronously start another launch. All old
             // binding/arena mutations must finish before invoking the old session's Leave.
             old?.Leave();
+        }
+
+        // The caller has already detached ownership. Never look up a mutable Arena
+        // here: teardown callbacks may install a replacement while this root retires.
+        static void DestroyOwnedArena(GameObject owned)
+        {
+            if (owned == null) return;
+            owned.SetActive(false);
+#if UNITY_EDITOR
+            if (!Application.isPlaying)
+            {
+                if (owned != null) UnityEngine.Object.DestroyImmediate(owned);
+                return;
+            }
+#endif
+            if (owned != null) UnityEngine.Object.Destroy(owned);
         }
 
         public void Leave()
