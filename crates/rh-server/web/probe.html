@@ -121,6 +121,8 @@ function checkTerrainAgainstCollision(collisionBuf, collision, terrainBuf, terra
 }
 const PROTOCOL = 14;
 const MAX_TICKET = 448;
+const MAX_QUEST_VIEW_BYTES = 24 * 1024;
+const MAX_TRADE_VIEW_BYTES = 2213;
 // Quantized remote actors and swings (rh-protocol quant.rs): positions are u16 at 1/8 u, angles u16 over 2 pi read as a signed code.
 const FACING_STEP_F32 = Math.fround(2 * Math.PI / 65536);
 const dqPos = (q) => q / 8;
@@ -154,6 +156,7 @@ function input(seq, cmds) {
     else if(c.k === "huntTarget") { if(!Number.isInteger(c.actorRef)||c.actorRef<=0||c.actorRef>0xffffffff) throw new Error("bad hunt target");w.u8(12);w.u32(c.actorRef); }
     else if(c.k === "consumeCorpse") { if(!Number.isInteger(c.handle)||c.handle<=0||c.handle>0xffffffff) throw new Error("bad corpse handle");w.u8(13);w.u32(c.handle); }
     else if(c.k === "questAccept") { if(!Number.isInteger(c.handle)||c.handle<=0||c.handle>0xffffffff) throw new Error("bad quest handle");w.u8(17);w.varint(c.handle); }
+    else if(c.k === "trade") { if (!Number.isInteger(c.kind) || c.kind < 0 || c.kind > 1 || !Number.isInteger(c.pick) || c.pick < 0 || c.pick > 2) throw new Error("bad trade command"); w.u8(18); w.u8(c.kind); w.u8(c.pick); }
     else if(c.k === "cast") {
       if (!Number.isInteger(c.slot) || c.slot < 0 || c.slot > 2) throw new Error("bad cast slot");
       if (!Number.isFinite(c.x) || !Number.isFinite(c.y) || !Number.isFinite(Math.fround(c.x)) || !Number.isFinite(Math.fround(c.y))) throw new Error("non-finite");
@@ -200,6 +203,7 @@ function decodeClient(buf) {
       else if(k === 12) {const actorRef=r.u32();if(!actorRef)throw new Error("bad hunt target");c={k:"huntTarget",actorRef};}
       else if(k === 13) {const handle=r.u32();if(!handle)throw new Error("bad corpse handle");c={k:"consumeCorpse",handle};}
       else if(k === 17) {const handle=r.varint();if(!handle)throw new Error("bad quest handle");c={k:"questAccept",handle};}
+      else if (k === 18) { const kind = r.u8(), pick = r.u8(); if (kind > 1 || pick > 2) throw new Error("bad trade command"); c = { k: "trade", kind, pick }; }
       else if (k === 16) {
         const slot = r.code(2, "cast slot"), x = finite(r.f32()), y = finite(r.f32());
         const actorRef = strictOpt(r, () => { const v = r.u32(); if (!v) throw new Error("bad actor reference"); return v; });
@@ -598,7 +602,7 @@ function decodeBody(r) {
 
 // Complete replacements. Decode the entire frame before a collection consumer changes retained state.
 function readState(r) {
-  const n = r.varint(); if (n > 10) throw new Error("too many state keys");
+  const n = r.varint(); if (n > 11) throw new Error("too many state keys");
   const flag = () => r.opt(() => true) !== null;
   const strictBool = (what) => { const v = r.u8(); if (v > 1) throw new Error("bad " + what); return v === 1; };
   const finite = (x) => { if (!Number.isFinite(x)) throw new Error("bad field"); return x; };
@@ -608,7 +612,7 @@ function readState(r) {
   const count = () => { const v = r.varint(); if (v > 512) throw new Error("too many state rows"); return v; };
   const items = []; let previous = 0;
   for (let i = 0; i < n; i++) {
-    const key = r.varint(); if (key <= previous || key > 10) throw new Error("bad state key"); previous = key;
+    const key = r.varint(); if (key <= previous || key > 11) throw new Error("bad state key"); previous = key;
     let value;
     if (key === 1) value = r.opt(() => ({ activeSlot: r.code(1, "active slot"), slots: [weapon(), weapon()], potionSmall: r.code(5, "potion count"), potionLarge: r.code(5, "potion count"), potionsHealing: r.code(3, "potion count") }));
     else if (key === 2) {
@@ -698,6 +702,7 @@ function readState(r) {
         return a;
       });
     } else if (key === 10) value = readQuests(r, strictBool, finite, handle);
+    else if (key === 11) value = readTrade(r, strictBool);
     else value = r.opt(() => ({ cards: Array.from(r.bytes(80)), boosts: Array.from(r.bytes(8)) }));
     items.push({ key, value });
   }
@@ -751,11 +756,12 @@ function readQuests(r, strictBool, finite, handle) {
     const flags = r.u8(); if (flags & ~15) throw new Error("bad quest flags");
     const ownerProgress = r.varint(), ownerVisited = r.u8();
     if (ownerVisited & ~0x1f) throw new Error("bad quest visited mask");
+    const name = r.str(), giverLabel = r.str(), brief = r.str(), objective = r.str(), reward = r.str();
     rows.push({
       handle: rowHandle, def, giver, state, expiresAt, participants, carrier, doneBy,
       canAccept: (flags & 1) !== 0, ownerAccepted: (flags & 2) !== 0,
       ownerCompleted: (flags & 4) !== 0, ownerReady: (flags & 8) !== 0,
-      ownerProgress, ownerVisited,
+      ownerProgress, ownerVisited, name, giverLabel, brief, objective, reward,
     });
   }
   const objectives = [], objectivesPerQuest = new Map();
@@ -765,7 +771,7 @@ function readQuests(r, strictBool, finite, handle) {
     if (count > 8) throw new Error("too many objectives per quest");
     objectivesPerQuest.set(quest, count); objectives.push({ quest, at });
   }
-  if (r.p - start > 16 * 1024) throw new Error("quest payload too large");
+  if (r.p - start > MAX_QUEST_VIEW_BYTES) throw new Error("quest payload too large");
   const view = { unknownCount, displayUnknownCount, ownerRoster, roster, rows, objectives };
   for (const row of rows) {
     for (const p of row.participants) if (!rosterIds.has(p.id)) throw new Error("unknown quest participant roster id");
@@ -773,6 +779,103 @@ function readQuests(r, strictBool, finite, handle) {
   }
   for (const objective of objectives) if (!questHandles.has(objective.quest)) throw new Error("unknown objective quest handle");
   return view;
+}
+
+function readTrade(r, strictBool) {
+  const start = r.p;
+  const available = strictBool("trade flag");
+  if (!available) return null;
+  const tradeUsed = strictBool("trade flag");
+  const offerCount = r.varint(); if (offerCount > 3) throw new Error("too many trade offers");
+  const offers = [];
+  for (let i = 0; i < offerCount; i++) {
+    const cost = r.u8(); if (cost > 6) throw new Error("bad trade stat");
+    const costValue = r.f64();
+    const gain = r.u8(); if (gain > 6) throw new Error("bad trade stat");
+    const gainValue = r.f64();
+    const label = r.str();
+    if (cost === gain || !Number.isFinite(costValue) || costValue <= 0 || !Number.isFinite(gainValue) || gainValue <= 0) throw new Error("bad trade offer");
+    offers.push({ cost, costValue, gain, gainValue, label });
+  }
+  const statCount = r.varint(); if (statCount > 7) throw new Error("too many trade stats");
+  const stats = [];
+  for (let i = 0; i < statCount; i++) {
+    const stat = r.u8(); if (stat > 6) throw new Error("bad trade stat");
+    const value = r.f64();
+    if (!Number.isFinite(value)) throw new Error("bad trade delta");
+    stats.push({ stat, value });
+  }
+  const barterReadyAt = r.opt(() => {
+    const value = r.f64(); if (!Number.isFinite(value) || value < 0) throw new Error("bad trade deadline"); return value;
+  });
+  const merchantCount = r.varint(); if (merchantCount > 2) throw new Error("too many trade merchants");
+  const merchants = [];
+  for (let i = 0; i < merchantCount; i++) {
+    const kind = r.u8(); if (kind > 1) throw new Error("bad trade kind");
+    const x = r.f64(), y = r.f64(), name = r.str();
+    if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || x > 8191.875 || y < 0 || y > 8191.875) throw new Error("bad trade merchant");
+    merchants.push({ kind, x, y, name });
+  }
+  const barterLabels = [r.str(), r.str(), r.str()];
+  if (r.p - start > MAX_TRADE_VIEW_BYTES) throw new Error("trade payload too large");
+  return { tradeUsed, offers, stats, barterReadyAt, merchants, barterLabels };
+}
+
+function validateAndCopyTradeValue(value) {
+  const bad = (message) => { throw new Error(message); };
+  const isRecord = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+  const exactKeys = (v, keys) => isRecord(v) && Object.keys(v).length === keys.length && keys.every(k => Object.prototype.hasOwnProperty.call(v, k));
+  const textBytes = (v, what) => {
+    if (typeof v !== "string") bad("bad " + what);
+    const encoded = new TextEncoder().encode(v);
+    if (UTF8.decode(encoded) !== v) bad("bad utf-8");
+    if (encoded.length > 255) bad("bad " + what);
+    return encoded.length;
+  };
+  if (value === null) return null;
+  if (!exactKeys(value, ["tradeUsed", "offers", "stats", "barterReadyAt", "merchants", "barterLabels"])) bad("bad trade view");
+  if (typeof value.tradeUsed !== "boolean") bad("bad trade flag");
+  if (!Array.isArray(value.offers) || value.offers.length > 3) bad("too many trade offers");
+  if (!Array.isArray(value.stats) || value.stats.length > 7) bad("too many trade stats");
+  if (!Array.isArray(value.merchants) || value.merchants.length > 2) bad("too many trade merchants");
+  if (!Array.isArray(value.barterLabels) || value.barterLabels.length !== 3) bad("bad trade barter labels");
+  let size = 1 + 1 + 1; // availability, used, offer count
+  const offers = value.offers.map(offer => {
+    if (!exactKeys(offer, ["cost", "costValue", "gain", "gainValue", "label"])) bad("bad trade offer");
+    const labelBytes = textBytes(offer.label, "trade offer label");
+    if (!Number.isInteger(offer.cost) || offer.cost < 0 || offer.cost > 6
+      || !Number.isInteger(offer.gain) || offer.gain < 0 || offer.gain > 6) bad("bad trade stat");
+    if (offer.cost === offer.gain || !Number.isFinite(offer.costValue) || offer.costValue <= 0
+      || !Number.isFinite(offer.gainValue) || offer.gainValue <= 0) bad("bad trade offer");
+    size += 19 + labelBytes;
+    return { cost: offer.cost, costValue: offer.costValue, gain: offer.gain, gainValue: offer.gainValue, label: offer.label };
+  });
+  size += 1 + value.stats.length * 9; // stat count and fixed-width rows
+  const stats = value.stats.map(row => {
+    if (!exactKeys(row, ["stat", "value"]) || !Number.isInteger(row.stat) || row.stat < 0 || row.stat > 6) bad("bad trade stat");
+    if (!Number.isFinite(row.value)) bad("bad trade delta");
+    return { stat: row.stat, value: row.value };
+  });
+  let barterReadyAt = value.barterReadyAt;
+  size += 1;
+  if (barterReadyAt !== null) {
+    if (!Number.isFinite(barterReadyAt) || barterReadyAt < 0) bad("bad trade deadline");
+    size += 8;
+  }
+  size += 1; // merchant count
+  const merchants = value.merchants.map(merchant => {
+    if (!exactKeys(merchant, ["kind", "x", "y", "name"]) || !Number.isInteger(merchant.kind) || merchant.kind < 0 || merchant.kind > 1) bad("bad trade kind");
+    if (!Number.isFinite(merchant.x) || !Number.isFinite(merchant.y) || merchant.x < 0 || merchant.x > 8191.875
+      || merchant.y < 0 || merchant.y > 8191.875) bad("bad trade merchant");
+    const nameBytes = textBytes(merchant.name, "trade merchant name");
+    size += 18 + nameBytes;
+    return { kind: merchant.kind, x: merchant.x, y: merchant.y, name: merchant.name };
+  });
+  const barterLabels = value.barterLabels.map(label => {
+    const bytes = textBytes(label, "trade barter label"); size += 1 + bytes; return label;
+  });
+  if (size > MAX_TRADE_VIEW_BYTES) bad("trade payload too large");
+  return { tradeUsed: value.tradeUsed, offers, stats, barterReadyAt, merchants, barterLabels };
 }
 
 function validateQuestPropReferences(collections) {
@@ -811,7 +914,7 @@ class Tracker {
     if (m.t === "welcome") { this.reset(); return m; }
     if (m.t === "state") {
       const candidate = new Map(this.collections);
-      for (const item of m.items) candidate.set(item.key, item.value);
+      for (const item of m.items) candidate.set(item.key, item.key === 11 ? validateAndCopyTradeValue(item.value) : item.value);
       validateQuestPropReferences(candidate);
       this.collections = candidate;
       return m;

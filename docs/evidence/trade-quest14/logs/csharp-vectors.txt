@@ -1,0 +1,11 @@
+$ /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/dotnet/dotnet test client-unity/RoguehallaNet.Tests/RoguehallaNet.Tests.csproj --no-restore --filter "FullyQualifiedName~ProtocolVectorTests" --logger "console;verbosity=minimal"
+  RoguehallaNet -> /Users/nevinmckinnon/Documents/Projects/RogueHalla-trade-quest14/client-unity/RoguehallaNet/bin/Debug/netstandard2.1/RoguehallaNet.dll
+  RoguehallaNet.Probe -> /Users/nevinmckinnon/Documents/Projects/RogueHalla-trade-quest14/client-unity/RoguehallaNet.Probe/bin/Debug/net8.0/RoguehallaNet.Probe.dll
+  RoguehallaNet.Tests -> /Users/nevinmckinnon/Documents/Projects/RogueHalla-trade-quest14/client-unity/RoguehallaNet.Tests/bin/Debug/net8.0/RoguehallaNet.Tests.dll
+Test run for /Users/nevinmckinnon/Documents/Projects/RogueHalla-trade-quest14/client-unity/RoguehallaNet.Tests/bin/Debug/net8.0/RoguehallaNet.Tests.dll (.NETCoreApp,Version=v8.0)
+VSTest version 17.11.1 (arm64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:   413, Skipped:     0, Total:   413, Duration: 1 s - RoguehallaNet.Tests.dll (net8.0)

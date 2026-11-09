@@ -34,6 +34,20 @@ const eq = (got, want, what) => {
 const canonical = (v) => Array.isArray(v) ? v.map(canonical) : v && typeof v === "object"
   ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, canonical(v[k])])) : v;
 const eqJson = (got, want, what) => eq(JSON.stringify(canonical(got)), JSON.stringify(canonical(want)), what);
+const exactJson = (got, want, what) => {
+  const same = (a, b) => {
+    // Rust JSON serializes negative zero as `0`; the raw decoder check below asserts its sign directly.
+    if (typeof a === "number" || typeof b === "number") return Object.is(a, b) || (a === 0 && b === 0);
+    if (Array.isArray(a) || Array.isArray(b)) return Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((v, i) => same(v, b[i]));
+    if (a && b && typeof a === "object" && typeof b === "object") {
+      const ak = Object.keys(a).sort(), bk = Object.keys(b).sort();
+      return ak.length === bk.length && ak.every((k, i) => k === bk[i] && same(a[k], b[k]));
+    }
+    return a === b;
+  };
+  checks++;
+  if (!same(got, want)) throw new Error(`${what}: exact numeric/object mismatch`);
+};
 
 for (const v of fx.client) {
   const m = decodeClient(bytes(v.hex)); checks++;
@@ -108,7 +122,7 @@ eq(JSON.stringify(state.items), JSON.stringify([
   {key:5,value:{cards:[...Array(80)].map((_,i)=>i===0||i===2?1:0),boosts:[0,1,2,3,0,1,2,3]}},
   {key:6,value:[{mobType:0,elite:30,alive:0,state:2,clearedAt:1000,respawnAt:181000}]},
   {key:7,value:[{kind:0,x:800,y:900,facing:12345,owner:1},{kind:0,x:800,y:900,facing:12345,owner:1}]},
-  {key:8,value:null}, {key:9,value:null}, {key:10,value:null}
+  {key:8,value:null}, {key:9,value:null}, {key:10,value:null}, {key:11,value:null}
 ]), "all reliable public facts");
 const planning = decode(bytes(fx.server.find(v => v.name === "state_planning").hex));
 eq(JSON.stringify(planning.items.map(i => i.key)), JSON.stringify([8, 9]), "planning state keys");
@@ -118,7 +132,7 @@ eq(planning.items[0].value.options[1].walkSeconds, null, "typed absent walk");
 eq(planning.items[1].value.startedWith, 7, "arena starter count");
 eq(planning.items[1].value.patienceEndsAt, 601000, "arena patience deadline");
 collectionTracker.decode(bytes(fx.server.find(v => v.name === "snapshot").hex));
-eq(collectionTracker.collections.size, 10, "snapshot retains reliable collections");
+eq(collectionTracker.collections.size, 11, "snapshot retains reliable collections");
 collectionTracker.decode(new Uint8Array([0x88,1,1,1,0]).buffer);
 eq(collectionTracker.collections.get(1), null, "missing inventory clears");
 eq(collectionTracker.collections.get(2).rows.length, 4, "missing key retains props");
@@ -142,7 +156,9 @@ eq(collectionTracker.collections.get(7).length,0,"projectiles clear");
 const qcat = (...parts) => Uint8Array.from(parts.flatMap(part => Array.from(part)));
 const qByte = (v) => Uint8Array.of(v);
 const qVarint = (v) => { const out=[]; do { const low=v%128; v=Math.floor(v/128); out.push(low | (v ? 128 : 0)); } while(v); return Uint8Array.from(out); };
+const qVarintLen = (v) => qVarint(v).length;
 const qU16 = (v) => Uint8Array.of(v&255,(v>>>8)&255);
+const qU32 = (v) => Uint8Array.of(v&255,(v>>>8)&255,(v>>>16)&255,(v>>>24)&255);
 const qF64 = (v) => { const out=new Uint8Array(8); new DataView(out.buffer).setFloat64(0,v,true); return out; };
 const qStr = (s) => { const b=new TextEncoder().encode(s); return qcat(qByte(b.length),b); };
 const questViewBytes = (questHandle = 1) => qcat(
@@ -151,9 +167,20 @@ const questViewBytes = (questHandle = 1) => qcat(
   qVarint(1), qVarint(questHandle), qStr("collect_apple"), qF64(0), qF64(8191.875),
   qByte(1), qF64(0), qVarint(1), qVarint(1), qByte(1), qVarint(0), qByte(0),
   qVarint(2), qByte(1), qStr("same"), qByte(2), qVarint(0), qByte(0), // carrier, doneBy, flags, owner facts
+  qStr("A name"), qStr("A giver"), qStr("A brief"), qStr("An objective"), qStr("A reward"),
   qVarint(1), qVarint(questHandle), qF64(8191.875), qF64(0), // objective
 );
 const questUnavailableBytes = () => qByte(0);
+const tradeEmptyBytes = () => qcat(qByte(1), qByte(0), qVarint(0), qVarint(0), qByte(0), qVarint(0), qStr(""), qStr(""), qStr(""));
+const tradeLabel255 = "é".repeat(127) + "a";
+const tradeMaxLabelBytes = () => qcat(qByte(1), qByte(0), qVarint(0), qVarint(0), qByte(0), qVarint(0), qStr(tradeLabel255), qStr(""), qStr(""));
+const tradeSignedBytes = () => qcat(qByte(1), qByte(0), qVarint(0), qVarint(2),
+  qByte(1), qF64(-0), qByte(1), qF64(Number.MAX_VALUE),
+  qByte(1), qF64(-0), qVarint(0), qStr(""), qStr(""), qStr(""));
+const tradeInvalidOfferBytes = () => qcat(qByte(1), qByte(0), qVarint(1), qByte(1), qF64(1), qByte(1), qF64(2), qStr("bad"));
+const tradeBadUsedFlagBytes = () => qcat(qByte(1), qByte(2));
+const tradeBadDeadlineOptionBytes = () => qcat(qByte(1), qByte(0), qVarint(0), qVarint(0), qByte(2));
+const tradeBadUtf8Bytes = () => qcat(qByte(1), qByte(0), qVarint(0), qVarint(0), qByte(0), qVarint(0), qByte(1), qByte(0xff), qStr(""), qStr(""));
 const questPropBytes = (propHandle, questHandle, fetch = 0) => qcat(
   qVarint(1), qVarint(propHandle), qU16(64), qU16(72), qByte(7), qVarint(questHandle), qByte(fetch), qVarint(0),
 );
@@ -169,10 +196,32 @@ for (const name of ["quest_accept_zero", "quest_accept_truncated", "quest_accept
 let badQuestCommand;
 try { input(31, [{k:"questAccept",handle:0}]); } catch (e) { badQuestCommand=e; }
 eq(!!badQuestCommand, true, "QuestAccept refuses null capability");
+const tradeCommand = decodeClient(input(32, [{k:"trade",kind:0,pick:2}]).buffer);
+eqJson(tradeCommand.cmds, [{k:"trade",kind:0,pick:2}], "Input18 Trade command round trip");
+eq(Buffer.from(input(tradeCommand.seq, tradeCommand.cmds)).toString("hex"), Buffer.from(input(32, [{k:"trade",kind:0,pick:2}])).toString("hex"), "Input18 Trade re-encoding");
+for (let kind = 0; kind <= 1; kind++) for (let pick = 0; pick <= 2; pick++) {
+  const decoded = decodeClient(input(32, [{k:"trade",kind,pick}]).buffer);
+  eqJson(decoded.cmds, [{k:"trade",kind,pick}], `Input18 kind ${kind} pick ${pick}`);
+}
+if (!fx.client.some(v => v.name === "input_trade")) throw new Error("missing Rust-generated input_trade vector");
+for (const name of ["input_trade_kind_unknown", "input_trade_pick_over_limit"]) {
+  if (!fx.malformedClient.some(v => v.name === name)) throw new Error(`missing Rust-generated ${name} control`);
+  const v = fx.malformedClient.find(v => v.name === name);
+  let err = null; try { decodeClient(bytes(v.hex)); } catch (e) { err=e; }
+  eq(/bad trade command/.test(String(err?.message)), true, `${name} exact refusal reason`);
+}
+let badTradeInputEncode, badTradeInputDecode;
+try { input(32, [{k:"trade",kind:2,pick:0}]); } catch (e) { badTradeInputEncode=e; }
+try { decodeClient(qcat(qByte(2),qU32(32),qU16(1),qByte(18),qByte(0),qByte(3)).buffer); } catch (e) { badTradeInputDecode=e; }
+eq(!!badTradeInputEncode, true, "Trade encoder closes kind enum");
+eq(!!badTradeInputDecode, true, "Trade decoder closes pick enum");
 const questTracker = new Tracker();
 const sameNumberNamespaces = questTracker.decode(stateFrameBytes(1, [[2, questPropBytes(1,1,1)], [10, questViewBytes()]]));
 eq(sameNumberNamespaces.items[1].value.rows[0].handle, 1, "QuestItem and row share numeric quest handle");
 eq(sameNumberNamespaces.items[1].value.rows[0].ownerCompleted, false, "doneBy does not imply owner completion");
+eqJson([sameNumberNamespaces.items[1].value.rows[0].name, sameNumberNamespaces.items[1].value.rows[0].giverLabel,
+  sameNumberNamespaces.items[1].value.rows[0].brief, sameNumberNamespaces.items[1].value.rows[0].objective,
+  sameNumberNamespaces.items[1].value.rows[0].reward], ["A name","A giver","A brief","An objective","A reward"], "Quest metadata fields decode in appended order");
 eq(sameNumberNamespaces.items[1].value.roster[0].label, sameNumberNamespaces.items[1].value.roster[1].label, "duplicate quest labels accepted");
 eq(questTracker.collections.get(2).rows[0].handle, 1, "pickup handle remains its own namespace");
 let sameFrameBadReference;
@@ -196,6 +245,60 @@ eq(questTracker.collections.get(10).rows[0].handle, 2, "unavailable replacement 
 questTracker.decode(stateFrameBytes(3, [[2, qcat(qVarint(0), qVarint(0))], [10, questUnavailableBytes()]]));
 eq(questTracker.collections.get(10), null, "explicit unavailable Quest view accepted after props clear");
 
+const tradeTracker = new Tracker();
+eq(tradeTracker.collections.has(11), false, "Trade key absent before first replacement");
+tradeTracker.decode(stateFrameBytes(1, [[11, tradeEmptyBytes()]]));
+eqJson(tradeTracker.collections.get(11), {tradeUsed:false,offers:[],stats:[],barterReadyAt:null,merchants:[],barterLabels:["","",""]}, "available empty Trade differs from unavailable");
+tradeTracker.decode(stateFrameBytes(2, []));
+eq(tradeTracker.collections.get(11).tradeUsed, false, "omitted Trade key retains the prior collection");
+tradeTracker.decode(stateFrameBytes(3, [[11, qByte(0)]]));
+eq(tradeTracker.collections.get(11), null, "explicit unavailable Trade clears the prior collection");
+eq(tradeTracker.collections.has(11), true, "explicit unavailable Trade is represented by null, not omission");
+const signedTrade = decode(stateFrameBytes(4, [[11, tradeSignedBytes()]]));
+const signedStats = signedTrade.items[0].value.stats;
+eq(Object.is(signedStats[0].value,-0), true, "Trade stat keeps negative zero");
+eq(Object.is(signedStats[1].value,Number.MAX_VALUE), true, "Trade stat keeps huge finite f64");
+eq(Object.is(signedTrade.items[0].value.barterReadyAt,-0), true, "Trade deadline keeps negative zero");
+const maxLabelTrade = decode(stateFrameBytes(4, [[11, tradeMaxLabelBytes()]]));
+eq(maxLabelTrade.items[0].value.barterLabels[0], tradeLabel255, "Trade accepts exact 255 UTF-8 byte label");
+tradeTracker.decode(stateFrameBytes(5, [[11, tradeEmptyBytes()]]));
+const tradeBaseline = tradeTracker.collections;
+let malformedTradeFrame;
+try { tradeTracker.decode(stateFrameBytes(6, [[11, tradeInvalidOfferBytes()]])); } catch (e) { malformedTradeFrame=e; }
+eq(!!malformedTradeFrame, true, "malformed Trade replacement is rejected");
+eq(tradeTracker.collections, tradeBaseline, "malformed Trade frame leaves retained collections untouched");
+for (const [name, payload, expected] of [
+  ["trade used flag", tradeBadUsedFlagBytes(), /bad trade flag/],
+  ["Trade deadline option", tradeBadDeadlineOptionBytes(), /bad option/],
+  ["Trade text UTF-8", tradeBadUtf8Bytes(), /bad utf-8/],
+]) {
+  let err = null; try { decode(stateFrameBytes(7, [[11, payload]])); } catch (e) { err=e; }
+  eq(expected.test(String(err?.message)), true, `${name} strict malformed control`);
+}
+tradeTracker.decode(bytes(fx.server.find(v => v.name === "welcome").hex));
+eq(tradeTracker.collections.has(11), false, "Welcome clears Trade state at the observer epoch boundary");
+
+const directTradeTracker = new Tracker();
+const directTradeValue = {
+  tradeUsed: false, offers: [{cost:1,costValue:1,gain:2,gainValue:2,label:"offer"}],
+  stats: [{stat:1,value:-0},{stat:1,value:2}], barterReadyAt:null,
+  merchants: [{kind:0,x:1,y:2,name:"merchant"}], barterLabels:["one","two","three"],
+};
+directTradeTracker.apply({t:"state",items:[{key:11,value:directTradeValue}]});
+const heldDirectTrade = directTradeTracker.collections.get(11), directTradeMap = directTradeTracker.collections;
+directTradeValue.offers[0].label = "mutated"; directTradeValue.stats[0].value = 99;
+directTradeValue.stats.push({stat:4,value:4}); directTradeValue.merchants[0].x = 99; directTradeValue.barterLabels[0] = "mutated";
+eq(heldDirectTrade.offers[0].label, "offer", "direct Tracker.apply deep-copies Trade offers");
+eq(Object.is(heldDirectTrade.stats[0].value,-0), true, "direct Tracker.apply keeps copied signed zero");
+eq(heldDirectTrade.stats.length, 2, "direct Tracker.apply copies Trade delta array");
+eq(heldDirectTrade.merchants[0].x, 1, "direct Tracker.apply deep-copies merchants");
+eq(heldDirectTrade.barterLabels[0], "one", "direct Tracker.apply copies fixed Trade labels");
+const invalidDirectTrade = { ...directTradeValue, offers:[{cost:1,costValue:1,gain:1,gainValue:2,label:"bad"}] };
+let invalidDirectTradeError;
+try { directTradeTracker.apply({t:"state",items:[{key:1,value:null},{key:11,value:invalidDirectTrade}]}); } catch (e) { invalidDirectTradeError=e; }
+eq(invalidDirectTradeError?.message, "bad trade offer", "direct Tracker.apply validates the full Trade candidate");
+eq(directTradeTracker.collections, directTradeMap, "invalid later direct Trade leaves exact held collections baseline");
+
 const bomReject = decode(bytes(fx.server.find(v => v.name === "reject_unknown_bom").hex));
 eq(bomReject.code, 300, "unknown Reject code"); eq(bomReject.reason, "\uFEFFa", "unknown Reject BOM reason");
 const maxFx = new Uint8Array(262144); maxFx.set([0x85, 0, 0x80, 0x80, 2]);
@@ -208,6 +311,9 @@ for (const size of [262145, 262149]) {
   let err; try { decode(oversized.buffer); } catch (e) { err = e; }
   eq(err?.message, "frame too large", "server frame cap " + size);
 }
+const oversizedStateFrame = new Uint8Array(262145); oversizedStateFrame[0] = 0x88;
+let oversizedStateError; try { decode(oversizedStateFrame.buffer); } catch (e) { oversizedStateError = e; }
+eq(oversizedStateError?.message, "frame too large", "State decoder applies unchanged 262,144-byte server frame ceiling before parsing");
 const wrongWelcome = Uint8Array.from(new Uint8Array(bytes(fx.server.find(v => v.name === "welcome").hex))); wrongWelcome[1] = 4;
 const welcomeTracker = new Tracker(); welcomeTracker.base = { tick: 99 };
 let wrongVersion; try { welcomeTracker.decode(wrongWelcome.buffer); } catch (e) { wrongVersion = e; }
@@ -362,15 +468,69 @@ for (const v of fx.server) {
       return decodedItem;
     });
     eqJson({...fields, items:expectedItems, kind:t}, d, `${n} exact decoded State items`);
+    for (const item of d.items) if (item.key === 11 && item.value !== null) {
+      const actual = fields.items.find(candidate => candidate.key === 11)?.value;
+      exactJson(actual, item.value, `${n} exact Trade f64 values (including signed zero)`);
+    }
   }
 }
 
-for (const name of ["state_quests_available", "state_quests_empty", "state_quests_unavailable", "state_ten_keys"]) {
+for (const name of ["state_quests_available", "state_quests_empty", "state_quests_unavailable", "state_quests_max_24576", "state_eleven_keys"]) {
   if (!fx.server.some(v => v.name === name)) throw new Error(`missing Rust-generated ${name} vector`);
 }
-const tenStateKeys = decode(bytes(fx.server.find(v => v.name === "state_ten_keys").hex));
-eqJson(tenStateKeys.items.map(item => item.key), [1,2,3,4,5,6,7,8,9,10], "all ten State keys accepted");
-eq(tenStateKeys.items[9].value.rows.length, 0, "available empty Quest view remains distinct from unavailable");
+const questEmptyVector = decode(bytes(fx.server.find(v => v.name === "state_quests_empty").hex));
+eq(questEmptyVector.items[0].value.rows.length, 0, "available empty Quest view remains distinct from unavailable");
+const maxQuestVector = fx.server.find(v => v.name === "state_quests_max_24576");
+const maxQuestFrame = bytes(maxQuestVector.hex);
+eq(maxQuestFrame.byteLength, 1 + qVarintLen(maxQuestVector.decoded.tick) + 1 + 1 + 24576,
+  "maximum complete Quest replacement is exactly 24,576 bytes inside the State frame");
+const maxQuestDecoded = decode(maxQuestFrame).items.find(item => item.key === 10)?.value;
+for (const row of maxQuestDecoded.rows) for (const field of ["name","giverLabel","brief","objective","reward"]) {
+  eq(new TextEncoder().encode(row[field]).length <= 255, true, `Quest ${field} remains within the u8 UTF-8 string bound`);
+}
+for (const name of ["state_trade_available", "state_trade_empty", "state_trade_unavailable", "state_trade_max_2213", "state_trade_duplicate_delta_stats", "state_eleven_keys"]) {
+  if (!fx.server.some(v => v.name === name)) throw new Error(`missing Rust-generated ${name} vector`);
+}
+const elevenStateKeys = decode(bytes(fx.server.find(v => v.name === "state_eleven_keys").hex));
+eqJson(elevenStateKeys.items.map(item => item.key), [1,2,3,4,5,6,7,8,9,10,11], "all eleven State keys accepted");
+eq(elevenStateKeys.items[10].value, null, "State key11 explicit unavailable Trade is distinct");
+const allMaxStateVector = fx.server.find(v => v.name === "state_all_max_budget");
+if (!allMaxStateVector) throw new Error("missing all-key maximum State budget vector");
+const allMaxStateFrame = bytes(allMaxStateVector.hex);
+eq(allMaxStateFrame.byteLength, 247696, "all eleven maximum collections remain within the exact aggregate byte bound");
+eq(allMaxStateFrame.byteLength < 262144, true, "all-key maximum State remains below MAX_SERVER_FRAME");
+eqJson(decode(allMaxStateFrame).items.map(item => item.key), [1,2,3,4,5,6,7,8,9,10,11], "max aggregate State decodes every replacement collection");
+const emptyTradeVector = decode(bytes(fx.server.find(v => v.name === "state_trade_empty").hex));
+eqJson(emptyTradeVector.items.find(item => item.key === 11)?.value?.offers, [], "available empty Trade preserves empty offers");
+const unavailableTradeVector = decode(bytes(fx.server.find(v => v.name === "state_trade_unavailable").hex));
+eq(unavailableTradeVector.items.find(item => item.key === 11)?.value, null, "explicit unavailable Trade remains null");
+const duplicateDeltaTrade = decode(bytes(fx.server.find(v => v.name === "state_trade_duplicate_delta_stats").hex));
+const duplicateStats = duplicateDeltaTrade.items.find(item => item.key === 11)?.value?.stats;
+eq(duplicateStats?.length, 2, "duplicate applied Trade stat rows are accepted");
+eq(duplicateStats?.[0].stat, duplicateStats?.[1].stat, "duplicate applied Trade stat rows retain their repeated code");
+const maxTradeHex = fx.server.find(v => v.name === "state_trade_max_2213").hex;
+const maxTradeFrame = bytes(maxTradeHex);
+eq(maxTradeFrame.byteLength, 1 + qVarintLen(fx.server.find(v => v.name === "state_trade_max_2213").decoded.tick) + 1 + 1 + 2213,
+  "maximum Trade replacement is exactly 2,213 bytes inside the server State frame");
+const maxTrade = decode(maxTradeFrame);
+eq(maxTrade.items[0].value.offers.length, 3, "max Trade preserves all three offers");
+eq(maxTrade.items[0].value.stats.length, 7, "max Trade preserves all seven stat deltas");
+eq(maxTrade.items[0].value.merchants.length, 2, "max Trade preserves both merchants");
+for (const offer of maxTrade.items[0].value.offers) eq(new TextEncoder().encode(offer.label).length, 255, "max Trade offer label uses full u8 string bound");
+for (const merchant of maxTrade.items[0].value.merchants) eq(new TextEncoder().encode(merchant.name).length, 255, "max Trade merchant name uses full u8 string bound");
+for (const label of maxTrade.items[0].value.barterLabels) eq(new TextEncoder().encode(label).length, 255, "max Trade barter label uses full u8 string bound");
+const availableTrade = decode(bytes(fx.server.find(v => v.name === "state_trade_available").hex)).items[0].value;
+eq(Object.is(availableTrade.stats[0].value,-0), true, "Rust Trade vector preserves signed-zero stat despite JSON normalization");
+eq(Object.is(availableTrade.barterReadyAt,-0), true, "Rust Trade vector preserves signed-zero barter deadline despite JSON normalization");
+eq(Object.is(availableTrade.merchants[1].x, 1.0000000000000002), true, "Trade merchant coordinate preserves neighboring f64 bit pattern");
+eq(Object.is(maxTrade.items[0].value.stats[0].value,-0), true, "maximum Trade vector preserves signed-zero stat");
+for (const name of ["state_trade_availability_flag", "state_trade_kind_unknown", "state_trade_stat_unknown",
+  "state_trade_offer_same_stat", "state_trade_offer_nonpositive", "state_trade_offer_nonfinite", "state_trade_delta_nonfinite", "state_trade_deadline_negative",
+  "state_trade_deadline_nonfinite", "state_trade_used_flag", "state_trade_deadline_option_unknown",
+  "state_trade_merchant_nonfinite", "state_trade_merchant_out_of_range",
+  "state_trade_offers_over_limit", "state_trade_stats_over_limit", "state_trade_merchants_over_limit"]) {
+  if (!fx.malformedServer.some(v => v.name === name)) throw new Error(`missing Rust-generated ${name} control`);
+}
 
 for (const name of ["wish_fx_started", "wish_fx_landed", "wish_fx_ended"]) {
   if (!fx.server.some((v) => v.name === name)) throw new Error(`missing Rust-generated ${name} vector`);
@@ -424,6 +584,16 @@ const reason = {
   state_quest_participants_over_limit: /too many quest participants/,
   state_quest_objectives_over_limit: /too many quest objectives/,
   state_quest_objectives_per_row_over_limit: /too many objectives per quest/,
+  state_trade_availability_flag: /bad trade flag/, state_trade_kind_unknown: /bad trade kind/,
+  state_trade_used_flag: /bad trade flag/, state_trade_deadline_option_unknown: /bad option/,
+  state_trade_stat_unknown: /bad trade stat/, state_trade_offer_same_stat: /bad trade offer/,
+  state_trade_offer_nonpositive: /bad trade offer/, state_trade_offer_nonfinite: /bad trade offer/,
+  state_trade_delta_nonfinite: /bad trade delta/, state_trade_deadline_negative: /bad trade deadline/,
+  state_trade_deadline_nonfinite: /bad trade deadline/,
+  state_trade_merchant_nonfinite: /bad trade merchant/, state_trade_merchant_out_of_range: /bad trade merchant/,
+  state_trade_label_bad_utf8: /utf-8/,
+  state_trade_offers_over_limit: /too many/, state_trade_stats_over_limit: /too many/, state_trade_merchants_over_limit: /too many/,
+  state_quests_over_24576: /quest payload too large/,
   owner_combat_bad_lock: /owner combat/, owner_combat_zero_target: /owner combat/,
   owner_combat_missing_self: /owner combat/, owner_combat_dangling_target: /owner combat/,
   owner_combat_nonfinite_mirror: /owner combat/, owner_combat_fractional_mirror: /owner combat/,
@@ -522,6 +692,9 @@ for (const name of [
 ]) {
   if (!fx.malformedServer.some(v => v.name === name)) throw new Error(`missing Rust-generated ${name} control`);
 }
+if (!fx.malformedServer.some(v => v.name === "state_quests_over_24576")) {
+  throw new Error("missing structurally valid Quest payload over the 24,576-byte bound");
+}
 for (const name of ["state_reward_kind_unknown", "state_reward_kill_key_unknown", "state_reward_kill_gain_zero",
   "state_reward_kill_gain_negative", "state_reward_kill_gain_nan", "state_reward_kill_gain_infinity",
   "state_reward_kill_truncated_key", "state_reward_kill_truncated_gain", "state_reward_options_too_many"]) {
@@ -535,7 +708,18 @@ for (const name of ["map_ext_short", "map_ext_version", "map_ext_presence", "map
 
 for (const v of fx.server) {
   const full = bytes(v.hex);
-  for (let cut = 0; cut < full.byteLength; cut++) {
+  // Every existing vector keeps exhaustive prefix coverage. The all-collections budget witness is intentionally large;
+  // sample all first/last 512 cuts plus every 1 KiB boundary so this one does not make the suite quadratic in ~248 KiB.
+  const cuts = v.name === "state_all_max_budget"
+    ? [...new Set([
+      ...Array.from({length: Math.min(512, full.byteLength)}, (_, i) => i),
+      ...Array.from({length: Math.min(512, full.byteLength)}, (_, i) => Math.max(0, full.byteLength - 512 + i)),
+      ...Array.from({length: Math.floor(full.byteLength / 1024) + 1}, (_, i) => Math.min(full.byteLength - 1, i * 1024)),
+      full.byteLength - 1,
+    ])].sort((a,b) => a-b)
+    : Array.from({length: full.byteLength}, (_, i) => i);
+  if (v.name === "state_all_max_budget") eq(cuts.length < 1800, true, "bounded prefix sample stays under 1,800 cuts");
+  for (const cut of cuts) {
     let threw = false;
     try { decode(full.slice(0, cut)); } catch { threw = true; }
     checks++;

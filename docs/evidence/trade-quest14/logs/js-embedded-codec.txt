@@ -1,0 +1,22 @@
+Embedded JS protocol checker
+===========================
+
+Command:
+  node tools/protocol-js/check-vectors.mjs
+
+Runtime:
+  Node.js v25.8.1
+
+Result:
+  JS decoder agrees with protocol/fixtures/v14.json: 65 server vectors, 201 malformed, 23 chains, 49311 checks
+
+Additional gates:
+  node --check tools/protocol-js/check-vectors.mjs: PASS
+  git diff --check -- crates/rh-server/web/probe.html tools/protocol-js/check-vectors.mjs: PASS
+
+SHA-256:
+  protocol/fixtures/v14.json  9012167a320419d04d62aa340276d7fbc5181a60ea818554f278a62d26b1b336
+  crates/rh-server/web/probe.html  b6ef4b4b12aa2e1844c823a11ee18ef1cdd7f062942cd207e5207cd356d38dd7
+  tools/protocol-js/check-vectors.mjs  1173a06fa8b2d0017367795f4a07c82bfe87285cbcc300df197aa5ee80aa47b3
+
+The large `state_all_max_budget` vector is checked for exact 247,696-byte acceptance and gets bounded prefix cuts (first/last 512 bytes plus each 1 KiB boundary); all other server vectors retain exhaustive prefix truncation checks.

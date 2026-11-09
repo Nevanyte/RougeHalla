@@ -17,11 +17,18 @@ use rh_sim::observe::{ActorView, Observation, SeenEvent};
 use rh_sim::sim::{Phase, Status};
 use rh_sim::Class;
 
-/// The public command projection. Trade still has no protocol message; Cast is projected as untrusted
-/// player aim/selection input and then resolved through the seat's delivered references before submission.
+/// Public intents only. Trade names its fixed catalog kind; Cast references are resolved through
+/// the seat's delivered actor references before ordinary validation and submission.
 pub fn command(c: WireCommand) -> rh_sim::PublicCommand {
     use rh_sim::PublicCommand as Public;
     match c {
+        WireCommand::Trade { kind, pick } => Public::Trade {
+            merchant: match kind {
+                rh_protocol::WireTradeKind::Barter => rh_sim::traders::Kind::Barter,
+                rh_protocol::WireTradeKind::Stats => rh_sim::traders::Kind::Stats,
+            },
+            pick: pick as i8,
+        },
         WireCommand::QuestAccept { handle } => Public::QuestAccept {
             handle: rh_sim::quest_view::QuestHandle::new(handle.get())
                 .expect("nonzero wire quest handle"),

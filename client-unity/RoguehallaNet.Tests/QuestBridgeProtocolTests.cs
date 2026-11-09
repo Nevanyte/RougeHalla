@@ -27,6 +27,7 @@ namespace Roguehalla.Net.Tests
                         Handle = new QuestHandle(7), Def = "collect_wood",
                         GiverX = BitConverter.Int64BitsToDouble(unchecked((long)0x3ff0000000000001UL)), GiverY = 8191.875,
                         State = QuestRowState.Open, ExpiresAt = 123456.125,
+                        Name = "Wood Keeper", GiverLabel = "Keeper", Brief = "Bring wood", Objective = "Collect 5 wood", Reward = "Gain 2 armor",
                         Participants = new[] { new WireQuestParticipant { Id = new RosterId(10), Accepted = true, Progress = uint.MaxValue, Visited = 0x1f } },
                         Carrier = new RosterId(11), DoneBy = "duplicate label", CanAccept = true, OwnerAccepted = true,
                         OwnerCompleted = true, OwnerReady = true, OwnerProgress = 0xf1234567, OwnerVisited = 0x1f,
@@ -81,6 +82,11 @@ namespace Roguehalla.Net.Tests
             Assert.AreEqual("duplicate label", quest.View.Roster[0].Label);
             Assert.AreEqual("duplicate label", quest.View.Roster[1].Label, "display labels are not IDs");
             Assert.AreEqual(new QuestHandle(7), quest.View.Rows[0].Handle);
+            Assert.AreEqual("Wood Keeper", quest.View.Rows[0].Name);
+            Assert.AreEqual("Keeper", quest.View.Rows[0].GiverLabel);
+            Assert.AreEqual("Bring wood", quest.View.Rows[0].Brief);
+            Assert.AreEqual("Collect 5 wood", quest.View.Rows[0].Objective);
+            Assert.AreEqual("Gain 2 armor", quest.View.Rows[0].Reward);
             Assert.AreEqual(uint.MaxValue, quest.View.Rows[0].Participants[0].Progress);
             Assert.AreEqual(unchecked((ulong)BitConverter.DoubleToInt64Bits(View().Rows[0].GiverX)),
                 unchecked((ulong)BitConverter.DoubleToInt64Bits(quest.View.Rows[0].GiverX)));
@@ -117,6 +123,28 @@ namespace Roguehalla.Net.Tests
             transport.Deliver(new ServerMsg.State { Tick = 5, Items = new StateItem[] { new PropsState(), new QuestsState { Available = false } } });
             Assert.IsNotNull(session.Collections.Quests);
             Assert.IsFalse(session.Collections.Quests.Available);
+        }
+
+        [Test]
+        public void QuestPresentationStringsAreCopiedAsDisplayTextAndDoNotReplaceTypedIdentity()
+        {
+            var transport = new FakeTransport();
+            var session = new Session(transport, new SessionOptions { Url = "ws://x/ws", Profile = "p", Ticket = Array.Empty<byte>(), Now = () => 0 });
+            session.Connect(); transport.Open();
+            transport.Deliver(new ServerMsg.Welcome { Protocol = Wire.ProtocolVersion, MatchId = new byte[16], Session = new byte[16],
+                PlayerId = 1, TickRate = 20, Map = new MapBlob(4, 4, new byte[16]) });
+            transport.Deliver(new ServerMsg.State { Tick = 1, Items = new StateItem[] { Available() } });
+            var first = session.Collections.Quests.Rows[0];
+            var source = View(); source.Rows[0].Name = "Updated Wood Keeper"; source.Rows[0].Reward = "Updated reward";
+            transport.Deliver(new ServerMsg.State { Tick = 2, Items = new StateItem[] { Available(source) } });
+            var current = session.Collections.Quests.Rows[0];
+            source.Rows[0].Name = "mutated after delivery";
+            Assert.AreEqual("Wood Keeper", first.Name, "a replacement does not mutate a previously held owned row");
+            Assert.AreEqual("Updated Wood Keeper", current.Name, "metadata-only row replacement is applied");
+            Assert.AreEqual("Updated reward", current.Reward);
+            Assert.AreEqual("Keeper", current.GiverLabel);
+            Assert.AreEqual(new QuestHandle(7), current.Handle, "typed handle remains the action identity");
+            Assert.AreEqual(first.OwnerProgress, current.OwnerProgress);
         }
 
         [Test]

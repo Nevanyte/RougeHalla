@@ -1,0 +1,22 @@
+$ cargo +1.97.0 test --locked -p rh-policy --lib delivery::collections --no-default-features
+Jobs1, incremental0, dev/test debug0.
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-trade-quest14/crates/rh-policy)
+    Finished `test` profile [unoptimized] target(s) in 4.83s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/targets/rougehalla-trade-quest14/debug/deps/rh_policy-c3fa0ee46865b1ea)
+
+running 11 tests
+test delivery::collections::tests::quest_item_cross_refs_refuse_without_committing_and_empty_is_available ... ok
+test delivery::collections::tests::malformed_authoritative_collections_refuse_before_baseline_changes ... ok
+test delivery::collections::tests::collection_baselines_commit_after_enqueue_and_defer_flooded_resyncs ... ok
+test delivery::collections::tests::invalid_plan_walk_time_is_refused_rather_than_changed_to_absent ... ok
+test delivery::collections::tests::typed_trophy_rows_preserve_order_and_invalid_gain_refuses_without_commit ... ok
+test delivery::collections::tests::actual_potions_camps_and_projectiles_commit_retain_clear_and_reconnect ... ok
+test delivery::collections::trade_tests::trade_projection_preserves_opaque_owner_facts_and_exact_inventory_labels ... ok
+test delivery::collections::trade_tests::trade_baseline_is_bitwise_transactional_and_unavailable_is_not_empty ... ok
+test delivery::collections::trade_tests::unsupported_trade_views_and_inventory_refuse_without_advancing_forced_state ... ok
+test delivery::collections::tests::quest_projection_preserves_duplicate_labels_owner_facts_and_transactional_baselines ... ok
+test delivery::collections::tests::captured_plan_messages_project_field_for_field_into_state_key_8 ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 99 filtered out; finished in 0.34s
+
+exit0

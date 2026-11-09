@@ -130,6 +130,7 @@ namespace Roguehalla.Net.Protocol
         public bool CanAccept, OwnerAccepted, OwnerCompleted, OwnerReady;
         public uint OwnerProgress;
         public byte OwnerVisited;
+        public string Name, GiverLabel, Brief, Objective, Reward;
     }
     public struct WireQuestObjective { public QuestHandle Quest; public double X, Y; }
     public sealed class WireQuestView
@@ -140,7 +141,21 @@ namespace Roguehalla.Net.Protocol
         public WireQuestRow[] Rows = Array.Empty<WireQuestRow>();
         public WireQuestObjective[] Objectives = Array.Empty<WireQuestObjective>();
     }
-    public enum StateKey : byte { Inventory = 1, Props = 2, Fields = 3, RewardChests = 4, Build = 5, Camps = 6, Projectiles = 7, Plan = 8, Arena = 9, Quests = 10 }
+    public enum TradeKind : byte { Barter = 0, Stats = 1 }
+    public enum TradeStat : byte { MaxHp = 0, Ad = 1, Ap = 2, AttackSpeed = 3, MoveSpeed = 4, Armor = 5, Shield = 6 }
+    public struct WireTradeOffer { public TradeStat Cost, Gain; public double CostValue, GainValue; public string Label; }
+    public struct WireTradeDelta { public TradeStat Stat; public double Value; }
+    public struct WireMerchant { public TradeKind Kind; public double X, Y; public string Name; }
+    public sealed class WireTradeView
+    {
+        public bool TradeUsed;
+        public WireTradeOffer[] Offers = Array.Empty<WireTradeOffer>();
+        public WireTradeDelta[] Stats = Array.Empty<WireTradeDelta>();
+        public double? BarterReadyAt;
+        public WireMerchant[] Merchants = Array.Empty<WireMerchant>();
+        public string[] BarterLabels = new[] { "", "", "" };
+    }
+    public enum StateKey : byte { Inventory = 1, Props = 2, Fields = 3, RewardChests = 4, Build = 5, Camps = 6, Projectiles = 7, Plan = 8, Arena = 9, Quests = 10, Trade = 11 }
 
     /// <summary>Keys are ascending, unique complete replacements. Missing keys retain their previous values.</summary>
     public abstract class StateItem
@@ -148,7 +163,7 @@ namespace Roguehalla.Net.Protocol
         public abstract uint Key { get; }
         internal abstract void Check();
         internal abstract void Write(Writer w);
-        internal const int MaxRows = 512, MaxKeys = (int)StateKey.Quests;
+        internal const int MaxRows = 512, MaxKeys = (int)StateKey.Trade;
         internal static void Require(bool condition, string name) { if (!condition) throw new EncodeException(name); }
         internal static bool Finite(double v) { return !double.IsNaN(v) && !double.IsInfinity(v); }
         internal static bool QuestFlag(ref Reader r, string field)
@@ -256,6 +271,9 @@ namespace Roguehalla.Net.Protocol
                 row.OwnerCompleted = (flags & 4) != 0; row.OwnerReady = (flags & 8) != 0;
                 row.OwnerProgress = r.Varint(); row.OwnerVisited = r.U8();
                 if ((row.OwnerVisited & 0xe0) != 0) throw new DecodeException(DecodeError.BadField, "owner quest visited mask");
+                row.Name = PresentationString(ref r); row.GiverLabel = PresentationString(ref r);
+                row.Brief = PresentationString(ref r); row.Objective = PresentationString(ref r);
+                row.Reward = PresentationString(ref r);
                 view.Rows[i] = row;
             }
             view.Objectives = new WireQuestObjective[Count(ref r, 160)];
@@ -272,7 +290,61 @@ namespace Roguehalla.Net.Protocol
                 objectiveCounts[objective.Quest] = count + 1;
                 view.Objectives[i] = objective;
             }
-            if (r.Position - start > 16 * 1024) throw new DecodeException(DecodeError.TooLarge, "quest view bytes");
+            if (r.Position - start > 24575) throw new DecodeException(DecodeError.TooLarge, "quest view bytes");
+            return view;
+        }
+        internal static string PresentationString(ref Reader r)
+        {
+            string value = r.Str();
+            if (Encoding.UTF8.GetByteCount(value) > 255) throw new DecodeException(DecodeError.BadField, "quest presentation string");
+            return value;
+        }
+        internal static bool IsTradeStat(byte value) => value <= (byte)TradeStat.Shield;
+        internal static bool TradePosition(double value) => Finite(value) && value >= 0 && value <= 8191.875;
+        internal static WireTradeView ReadTradeView(ref Reader r)
+        {
+            var view = new WireTradeView { TradeUsed = QuestFlag(ref r, "trade used") };
+            int offers = Count(ref r, 3);
+            view.Offers = new WireTradeOffer[offers];
+            for (int i = 0; i < offers; i++)
+            {
+                byte cost = r.U8(); if (!IsTradeStat(cost)) throw new DecodeException(DecodeError.BadField, "trade stat");
+                double costValue = r.F64();
+                byte gain = r.U8(); if (!IsTradeStat(gain)) throw new DecodeException(DecodeError.BadField, "trade stat");
+                double gainValue = r.F64();
+                string label = r.Str();
+                if (cost == gain || !Finite(costValue) || costValue <= 0 || !Finite(gainValue) || gainValue <= 0)
+                    throw new DecodeException(DecodeError.BadField, "trade offer");
+                view.Offers[i] = new WireTradeOffer { Cost = (TradeStat)cost, CostValue = costValue,
+                    Gain = (TradeStat)gain, GainValue = gainValue, Label = label };
+            }
+            int stats = Count(ref r, 7);
+            view.Stats = new WireTradeDelta[stats];
+            for (int i = 0; i < stats; i++)
+            {
+                byte stat = r.U8(); if (!IsTradeStat(stat)) throw new DecodeException(DecodeError.BadField, "trade stat");
+                double value = r.F64();
+                if (!Finite(value)) throw new DecodeException(DecodeError.BadField, "trade delta");
+                view.Stats[i] = new WireTradeDelta { Stat = (TradeStat)stat, Value = value };
+            }
+            if (QuestFlag(ref r, "trade ready flag"))
+            {
+                double readyAt = r.F64();
+                if (!Finite(readyAt) || readyAt < 0) throw new DecodeException(DecodeError.BadField, "trade ready time");
+                view.BarterReadyAt = readyAt;
+            }
+            int merchants = Count(ref r, 2);
+            view.Merchants = new WireMerchant[merchants];
+            for (int i = 0; i < merchants; i++)
+            {
+                byte kind = r.U8(); if (kind > (byte)TradeKind.Stats) throw new DecodeException(DecodeError.BadField, "trade kind");
+                double x = r.F64(), y = r.F64();
+                string name = r.Str();
+                if (!TradePosition(x) || !TradePosition(y)) throw new DecodeException(DecodeError.BadField, "trade position");
+                view.Merchants[i] = new WireMerchant { Kind = (TradeKind)kind, X = x, Y = y, Name = name };
+            }
+            view.BarterLabels = new string[3];
+            for (int i = 0; i < view.BarterLabels.Length; i++) view.BarterLabels[i] = r.Str();
             return view;
         }
         internal static byte? ReadPlanCode(ref Reader r) { byte v = r.U8(); if (v > 2) throw new DecodeException(DecodeError.BadField, "plan pick"); return v == 0 ? (byte?)null : (byte)(v - 1); }
@@ -436,8 +508,14 @@ namespace Roguehalla.Net.Protocol
                         int questPayloadStart = r.Position;
                         var quests = new QuestsState { Available = QuestFlag(ref r, "quest flag") };
                         if (quests.Available) quests.View = ReadQuestView(ref r);
-                        if (r.Position - questPayloadStart > 16 * 1024) throw new DecodeException(DecodeError.TooLarge, "quest view bytes");
+                        if (r.Position - questPayloadStart > 24576) throw new DecodeException(DecodeError.TooLarge, "quest view bytes");
                         item = quests; break;
+                    case 11:
+                        int tradePayloadStart = r.Position;
+                        var trade = new TradeState { Available = QuestFlag(ref r, "trade availability") };
+                        if (trade.Available) trade.Value = ReadTradeView(ref r);
+                        if (r.Position - tradePayloadStart > 2213) throw new DecodeException(DecodeError.TooLarge, "trade view bytes");
+                        item = trade; break;
                     default: throw new DecodeException(DecodeError.BadField, "state key");
                 }
                 try { item.Check(); } catch (EncodeException e) { throw new DecodeException(DecodeError.BadField, e.Message); }
@@ -692,12 +770,76 @@ namespace Roguehalla.Net.Protocol
             QuestStateCodec.CheckQuestView(View);
             var bounded = new Writer();
             QuestStateCodec.WriteQuestView(bounded, View);
-            Require(bounded.Finish().Length + 1 <= 16 * 1024, "quest view too large");
+            Require(bounded.Finish().Length + 1 <= 24576, "quest view too large");
         }
         internal override void Write(Writer w)
         {
             w.U8(Available ? (byte)1 : (byte)0);
             if (Available) QuestStateCodec.WriteQuestView(w, View);
+        }
+    }
+
+    /// <summary>Key 11: unavailable differs from an available view with empty rows; omitted key retains.</summary>
+    public sealed class TradeState : StateItem
+    {
+        public override uint Key { get { return 11; } }
+        public bool Available;
+        public WireTradeView Value;
+        internal override void Check()
+        {
+            Require(Available == (Value != null), "trade availability");
+            if (Available) TradeStateCodec.Check(Value);
+            if (Available)
+            {
+                var bounded = new Writer(); TradeStateCodec.Write(bounded, Value);
+                Require(bounded.Finish().Length + 1 <= 2213, "trade view too large");
+            }
+        }
+        internal override void Write(Writer w)
+        {
+            w.U8(Available ? (byte)1 : (byte)0);
+            if (Available) TradeStateCodec.Write(w, Value);
+        }
+    }
+
+    internal static class TradeStateCodec
+    {
+        static bool Label(string value) => value != null && Encoding.UTF8.GetByteCount(value) <= 255;
+        internal static void Check(WireTradeView view)
+        {
+            StateItem.Require(view != null && view.Offers != null && view.Offers.Length <= 3, "trade offers");
+            StateItem.Require(view.Stats != null && view.Stats.Length <= 7, "trade stats");
+            StateItem.Require(!view.BarterReadyAt.HasValue || (StateItem.Finite(view.BarterReadyAt.Value) && view.BarterReadyAt.Value >= 0), "trade ready time");
+            StateItem.Require(view.Merchants != null && view.Merchants.Length <= 2, "trade merchants");
+            StateItem.Require(view.BarterLabels != null && view.BarterLabels.Length == 3, "barter labels");
+            foreach (var offer in view.Offers)
+                StateItem.Require((byte)offer.Cost <= (byte)TradeStat.Shield && (byte)offer.Gain <= (byte)TradeStat.Shield && offer.Cost != offer.Gain
+                    && StateItem.Finite(offer.CostValue) && offer.CostValue > 0 && StateItem.Finite(offer.GainValue)
+                    && offer.GainValue > 0 && Label(offer.Label), "trade offer");
+            foreach (var stat in view.Stats)
+                StateItem.Require((byte)stat.Stat <= (byte)TradeStat.Shield && StateItem.Finite(stat.Value), "trade stat");
+            foreach (var merchant in view.Merchants)
+                StateItem.Require((byte)merchant.Kind <= (byte)TradeKind.Stats && StateItem.TradePosition(merchant.X)
+                    && StateItem.TradePosition(merchant.Y) && Label(merchant.Name), "trade merchant");
+            foreach (string label in view.BarterLabels) StateItem.Require(Label(label), "barter label");
+        }
+        internal static void Write(Writer w, WireTradeView view)
+        {
+            w.U8(view.TradeUsed ? (byte)1 : (byte)0);
+            w.Varint((uint)view.Offers.Length);
+            foreach (var offer in view.Offers)
+            {
+                w.U8((byte)offer.Cost); w.F64(offer.CostValue); w.U8((byte)offer.Gain); w.F64(offer.GainValue); w.Str(offer.Label);
+            }
+            w.Varint((uint)view.Stats.Length);
+            foreach (var stat in view.Stats) { w.U8((byte)stat.Stat); w.F64(stat.Value); }
+            if (view.BarterReadyAt.HasValue) { w.U8(1); w.F64(view.BarterReadyAt.Value); } else w.U8(0);
+            w.Varint((uint)view.Merchants.Length);
+            foreach (var merchant in view.Merchants)
+            {
+                w.U8((byte)merchant.Kind); w.F64(merchant.X); w.F64(merchant.Y); w.Str(merchant.Name);
+            }
+            foreach (string label in view.BarterLabels) w.Str(label);
         }
     }
 
@@ -721,6 +863,8 @@ namespace Roguehalla.Net.Protocol
         {
             StateItem.Require(row != null && row.Handle.IsValid && handles.Add(row.Handle), "quest handle");
             StateItem.Require(row.Def != null && row.Def.Length != 0 && Encoding.UTF8.GetByteCount(row.Def) <= 16, "quest definition");
+            StateItem.Require(Label(row.Name) && Label(row.GiverLabel) && Label(row.Brief)
+                && Label(row.Objective) && Label(row.Reward), "quest presentation string");
             StateItem.Require(QuestPositionValid(row.GiverX) && QuestPositionValid(row.GiverY), "quest giver position");
             StateItem.Require((byte)row.State <= (byte)QuestRowState.Expired && StateItem.Finite(row.ExpiresAt) && row.ExpiresAt >= 0, "quest row state/time");
             StateItem.Require(row.Participants != null && row.Participants.Length <= 8, "quest participants");
@@ -746,6 +890,7 @@ namespace Roguehalla.Net.Protocol
     }
 
     static bool QuestPositionValid(double value) => StateItem.Finite(value) && value >= 0 && value <= 8191.875;
+    static bool Label(string value) => value != null && Encoding.UTF8.GetByteCount(value) <= 255;
 
     internal static void WriteQuestView(Writer w, WireQuestView view)
     {
@@ -765,6 +910,7 @@ namespace Roguehalla.Net.Protocol
             w.U8(row.DoneBy == null ? (byte)0 : (byte)1); if (row.DoneBy != null) w.Str(row.DoneBy);
             byte flags = (byte)((row.CanAccept ? 1 : 0) | (row.OwnerAccepted ? 2 : 0) | (row.OwnerCompleted ? 4 : 0) | (row.OwnerReady ? 8 : 0));
             w.U8(flags); w.Varint(row.OwnerProgress); w.U8(row.OwnerVisited);
+            w.Str(row.Name); w.Str(row.GiverLabel); w.Str(row.Brief); w.Str(row.Objective); w.Str(row.Reward);
         }
         w.Varint((uint)view.Objectives.Length);
         foreach (var objective in view.Objectives) { w.Varint(objective.Quest.Value); w.F64(objective.X); w.F64(objective.Y); }

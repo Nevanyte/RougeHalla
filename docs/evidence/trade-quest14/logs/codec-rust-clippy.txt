@@ -1,0 +1,2 @@
+    Checking rh-protocol v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-trade-quest14/crates/rh-protocol)
+    Finished `dev` profile [unoptimized] target(s) in 2.35s

@@ -1,0 +1,2 @@
+$ ./client-unity/sync-net.sh --check
+Unity copy is up to date
