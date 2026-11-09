@@ -609,7 +609,7 @@ fn client14_document() -> Value {
     negatives.push(replay_negative(
         "quest_props_dangling_ref",
         bad_quest_records,
-        "quest props",
+        "inner codec",
         limits,
         &first_case_p,
         json!({"group":"Props+Quests"}),
