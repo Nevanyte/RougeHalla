@@ -8,6 +8,10 @@ use crate::bots::paths::RoomPathService;
 mod own_timings;
 pub use own_timings::{own_timings, OwnTimings};
 
+#[path = "kite/reflex_geometry.rs"]
+mod reflex_geometry;
+pub use reflex_geometry::{angle_gap, projectile_course, Course, CourseFacts, GeometryError};
+
 pub const TURNS: [f64; 5] = [0., 0.5, -0.5, 1.05, -1.05];
 pub const LENGTHS: [f64; 2] = [1., 0.6];
 
