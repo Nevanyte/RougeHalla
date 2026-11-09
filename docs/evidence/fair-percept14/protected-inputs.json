@@ -1,0 +1,108 @@
+{
+  "base": "8e467beb3ec76d8178927998b62a23cdf7b77a06",
+  "code": "6b75ab2d1307580f4544a5ac0b27c6de2bad3ebd",
+  "files": [
+    {
+      "path": "Cargo.lock",
+      "bytes": 66555,
+      "sha256": "b14507716b80f1c0b85f7298b380b3c9146917134d9361c1bb408062782c0b22",
+      "unchanged_from": "8e467beb3ec76d8178927998b62a23cdf7b77a06"
+    },
+    {
+      "path": "crates/rh-policy/src/lib.rs",
+      "bytes": 72288,
+      "sha256": "452cabdba98394a751a69b2760d2c67bf5cbca72f00de7cb7b19485a6ce93dfa",
+      "unchanged_from": "8e467beb3ec76d8178927998b62a23cdf7b77a06"
+    },
+    {
+      "path": "crates/rh-policy/src/bots/bot.rs",
+      "bytes": 32475,
+      "sha256": "8b4f0a8304bd2b10b4c929ec526e372805e6d6b6ea40d3effe0dfc4e8688872d",
+      "unchanged_from": "8e467beb3ec76d8178927998b62a23cdf7b77a06"
+    },
+    {
+      "path": "crates/rh-policy/src/bots/perception.rs",
+      "bytes": 15800,
+      "sha256": "c70d2a4e3f1b032e9f490f4289baead0e508720ee58e9816234dc7b9a0f8d95f",
+      "unchanged_from": "8e467beb3ec76d8178927998b62a23cdf7b77a06"
+    },
+    {
+      "path": "crates/rh-policy/src/bots/memory_prefix.rs",
+      "bytes": 14474,
+      "sha256": "418d10ca05857f5f612a644d61fe129b540b28eb233ed946fb466af0c8076ec2",
+      "unchanged_from": "8e467beb3ec76d8178927998b62a23cdf7b77a06"
+    },
+    {
+      "path": "crates/rh-policy/src/bots/memory_prefix/tests.rs",
+      "bytes": 15804,
+      "sha256": "ddaa4ba23eb6841e20bfc2be371d033c36da880a27af3239e207f2819b65ce60",
+      "unchanged_from": "8e467beb3ec76d8178927998b62a23cdf7b77a06"
+    },
+    {
+      "path": "crates/rh-policy/src/bots/random.rs",
+      "bytes": 6100,
+      "sha256": "d369b36155e7935c7b80763453ca5db3b1323a83b2239ffa0a20c61fa5d99a52",
+      "unchanged_from": "8e467beb3ec76d8178927998b62a23cdf7b77a06"
+    },
+    {
+      "path": "crates/rh-policy/src/delivery/session.rs",
+      "bytes": 5375,
+      "sha256": "0fdb84eed7bbddc16d3309efe28c68afd57a23eced4f013264fcc0a16a866f2b",
+      "unchanged_from": "8e467beb3ec76d8178927998b62a23cdf7b77a06"
+    },
+    {
+      "path": "crates/rh-policy/src/delivery/projection.rs",
+      "bytes": 15316,
+      "sha256": "40fe4f243ebb67c9f7489d7ac2ba05b1900f7b82bdeae39e3001c1cd48e6bdd6",
+      "unchanged_from": "8e467beb3ec76d8178927998b62a23cdf7b77a06"
+    },
+    {
+      "path": "crates/rh-policy/src/delivery/collections.rs",
+      "bytes": 52379,
+      "sha256": "c771402a2fdd0640cfc066619c9c0aef1c791f38c38e8e921b1fe67f555c7693",
+      "unchanged_from": "8e467beb3ec76d8178927998b62a23cdf7b77a06"
+    },
+    {
+      "path": "crates/rh-protocol/src/lib.rs",
+      "bytes": 65953,
+      "sha256": "c1fc8feea5a694c062b90a250fa5c2e869fc6a8817fdf7ebdf6bce62a1688fc6",
+      "unchanged_from": "8e467beb3ec76d8178927998b62a23cdf7b77a06"
+    },
+    {
+      "path": "crates/rh-protocol/src/state.rs",
+      "bytes": 65917,
+      "sha256": "dc2e8db3f61777887fbbca44e857fc486ec37cf74538ec8b4af92fecb07db882",
+      "unchanged_from": "8e467beb3ec76d8178927998b62a23cdf7b77a06"
+    },
+    {
+      "path": "crates/rh-sim/src/observe.rs",
+      "bytes": 43493,
+      "sha256": "9627addd3bbc1f8e149d06db7017aa092e3cbd96f0d84a2d20f7fa9366928ceb",
+      "unchanged_from": "8e467beb3ec76d8178927998b62a23cdf7b77a06"
+    },
+    {
+      "path": "crates/rh-sim/src/item_view.rs",
+      "bytes": 43803,
+      "sha256": "5453744b98f64b8cf2c9398b491e392551d150b16ec37a0e04d29c5aa9a01a9e",
+      "unchanged_from": "8e467beb3ec76d8178927998b62a23cdf7b77a06"
+    },
+    {
+      "path": "parity/policy/bot-memory-subset.json",
+      "bytes": 39873,
+      "sha256": "40d29e352be25e91039bf4007b7395f985593facf7359422ab110a90cec0aa94",
+      "unchanged_from": "8e467beb3ec76d8178927998b62a23cdf7b77a06"
+    },
+    {
+      "path": "parity/policy/bot-brain-prefix/source.json",
+      "bytes": 171435,
+      "sha256": "a7674d96747e9a9c70c9a6c0b3bdc6b33717b32bd8c7be25f734d28d769de839",
+      "unchanged_from": "8e467beb3ec76d8178927998b62a23cdf7b77a06"
+    },
+    {
+      "path": "protocol/fixtures/v14.json",
+      "bytes": 1647863,
+      "sha256": "9012167a320419d04d62aa340276d7fbc5181a60ea818554f278a62d26b1b336",
+      "unchanged_from": "8e467beb3ec76d8178927998b62a23cdf7b77a06"
+    }
+  ]
+}

@@ -1,0 +1,220 @@
+{
+  "base": "8e467beb3ec76d8178927998b62a23cdf7b77a06",
+  "first_source": "f7aa10ac21ab1e067d8fa8399a5280582bc33795",
+  "code": "6b75ab2d1307580f4544a5ac0b27c6de2bad3ebd",
+  "source_scope": [
+    "crates/rh-policy/src/bots/fair_percept14.rs",
+    "crates/rh-policy/src/bots/fair_percept14/tests.rs",
+    "crates/rh-policy/src/bots/fair_percept14/tests/connected.rs",
+    "crates/rh-policy/src/bots/mod.rs",
+    "crates/rh-policy/src/delivery/frame.rs"
+  ],
+  "scope": "Bounded lossless accepted current14 FIFO + unchanged existing Player Memory; no interpolating FrameRing/full Memory/P15/live Brain admission",
+  "first_failure": {
+    "head": "f7aa10ac21ab1e067d8fa8399a5280582bc33795",
+    "exit": 101,
+    "kind": "compiler E0616 before tests",
+    "log": "logs/attempt-01-focused.log",
+    "repair": "Root leased one pub(crate) boolean-only Frame14::same_local_session helper over existing opaque equality; stronger foreign preview and accept gates preserved",
+    "expectation_or_limit_changes": false
+  },
+  "checks": [
+    {
+      "name": "focused",
+      "argv": [
+        "cargo",
+        "test",
+        "-p",
+        "rh-policy",
+        "--lib",
+        "bots::fair_percept14",
+        "--locked",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/attempt-02-focused.log",
+      "actual_test_names": [
+        "bots::fair_percept14::tests::complete_owned_current14_sample_keeps_all_leaves_and_feeds_real_player_memory",
+        "bots::fair_percept14::tests::declared_neutral_actor_keeps_unarmed_current_row_without_joining_player_memory",
+        "bots::fair_percept14::tests::real_hidden_world_pair_has_equal_public_samples_and_player_memory",
+        "bots::fair_percept14::tests::unpublished_requirements_and_memory_limit_refuse_atomically_from_reached_state",
+        "bots::fair_percept14::tests::explicit_new_session_reset_is_atomic_and_old_receipts_cannot_rejoin",
+        "bots::fair_percept14::tests::connected::real_sync_accepted_intake_runs_memory_humanizer_and_normal_submit_without_fallback",
+        "bots::fair_percept14::tests::connected::real_async_accepted_intake_keeps_original_sample_clocks_and_validated_commands",
+        "bots::fair_percept14::tests::omitted_update_retention_present_empty_and_authoritative_clears_stay_distinct",
+        "bots::fair_percept14::tests::stale_cross_session_full_and_bad_projection_refuse_without_partial_commit"
+      ]
+    },
+    {
+      "name": "delivered",
+      "argv": [
+        "cargo",
+        "test",
+        "-p",
+        "rh-policy",
+        "--lib",
+        "delivery_tests",
+        "--locked",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "passed": 22,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/existing-delivery-tests.log",
+      "actual_test_names": [
+        "delivery_tests::data_constructor_is_not_acceptance_and_keeps_owner_unavailable_clear_held_distinct",
+        "delivery_tests::frame14_requires_all_eleven_keys_including_explicit_trade_unavailable",
+        "delivery_tests::identical_public_frames_do_not_make_fresh_session_npc_references_equal",
+        "delivery_tests::malformed_public_event_or_owner_clock_refuses_entire_candidate_without_advancing_baseline",
+        "delivery_tests::actual_prepared_target_has_same_quantized_scene_and_only_accepted_aliases_resolve",
+        "delivery_tests::async_failed_send_and_failed_fallback_do_not_accept_anything_but_successful_fallback_does_once",
+        "delivery_tests::actual_async_receiver_and_same_public_fallback_use_typed_sample_and_session_reply_tokens",
+        "delivery_tests::owner_loss_is_a_real_cleared_delivery_and_new_local_sessions_have_distinct_receipts",
+        "delivery_tests::full_async_queue_and_refused_fallback_preserve_next_alias_sample_and_carried_events",
+        "delivery_tests::renewed_observer_drop_preserves_old_aliases_and_the_next_delivery_reuses_the_same_new_scene",
+        "delivery_tests::sync_preflight_refusal_keeps_events_cadence_and_aliases_until_a_receiver_accepts",
+        "delivery_tests::actual_human_bot_async_handshake_delivers_frame14_and_submits_real_nonempty_commands_without_fallback",
+        "delivery_tests::genuine_landed_attack_owner_result_survives_cadence_and_never_includes_another_seats_result",
+        "delivery_tests::successful_fallback_stop_is_valid_and_reaches_real_intake_in_both_drivers",
+        "delivery_tests::fallback_append_then_refusal_never_reaches_sync_submit_or_queued_delivery",
+        "delivery_tests::fallback_append_then_panic_is_contained_and_never_reaches_either_driver",
+        "delivery_tests::hidden_a_b_produce_equal_delivered_frames_and_human_commands_without_raw_fallback",
+        "delivery_tests::reconstructed_collections_keep_none_empty_retained_rows_and_refuse_dangling_or_unknown_updates_atomically",
+        "delivery_tests::frame14_refuses_malformed_trade_update_without_mutating_retained_facts_or_tick",
+        "delivery_tests::frame14_keeps_all_five_final_quest_strings_owned_retained_and_replaced",
+        "delivery_tests::owner14_shared_goldens_and_reconstructed_delta_chains_keep_every_clock_and_mirror_bit",
+        "delivery_tests::frame14_retains_exact_trade_order_bits_and_explicit_empty_or_unavailable_replacements"
+      ]
+    },
+    {
+      "name": "humanbot",
+      "argv": [
+        "cargo",
+        "test",
+        "-p",
+        "rh-policy",
+        "--lib",
+        "bots::bot::connected_tests",
+        "--locked",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/existing-humanbot-connected.log",
+      "actual_test_names": [
+        "bots::bot::connected_tests::an_entitled_noncombat_lock_keeps_its_reference_without_creating_a_target_candidate",
+        "bots::bot::connected_tests::delivered_perception_keeps_source_absolute_ready_redacted_held_and_targetability_without_immunity",
+        "bots::bot::connected_tests::a_cleared_owner_from_another_viewer_is_not_this_bots_owner_loss",
+        "bots::bot::connected_tests::raw_or_unavailable_owner_inputs_refuse_before_any_memory_brain_or_rng_advance",
+        "bots::bot::connected_tests::an_expired_cached_wish_goal_finishes_before_the_next_strategy_deadline",
+        "bots::bot::connected_tests::neutral_dummy_zombie_rows_never_become_enemy_or_regional_farm_goals",
+        "bots::bot::connected_tests::rejected_duplicate_scene_does_not_advance_the_live_brain_memory_or_random_streams",
+        "bots::bot::connected_tests::live_roam_uses_world_executor_and_never_exceeds_path_budget",
+        "bots::bot::connected_tests::same_observations_reset_cross_seat_and_hidden_rows_cannot_perturb_commands",
+        "bots::bot::connected_tests::real_seat_validates_submits_and_repeats_identically_without_fallback"
+      ]
+    },
+    {
+      "name": "memory",
+      "argv": [
+        "cargo",
+        "test",
+        "-p",
+        "rh-policy",
+        "--lib",
+        "bots::memory_prefix",
+        "--locked",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/existing-player-memory.log",
+      "actual_test_names": [
+        "bots::memory_prefix::tests::hidden_and_off_camera_rows_cannot_change_memory_or_consume_record_capacity",
+        "bots::memory_prefix::tests::unseen_disappearance_retains_prior_facts_and_npc_refs_never_enter_player_memory",
+        "bots::memory_prefix::tests::lifecycle_and_capacity_refusals_are_atomic_and_explicit_reset_clears_memory",
+        "bots::memory_prefix::tests::actual_source_memory_subset_reproduces_all_48_declared_frames",
+        "bots::memory_prefix::tests::actual_source_note_sent_records_only_emitted_orders_and_casts_and_reset_clears_them",
+        "bots::memory_prefix::tests::actual_source_memory_stimuli_and_world_motion_sequences"
+      ]
+    },
+    {
+      "name": "privacy",
+      "argv": [
+        "cargo",
+        "test",
+        "-p",
+        "rh-policy",
+        "--doc",
+        "--locked"
+      ],
+      "exit": 0,
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/privacy-doctests.log",
+      "actual_test_names": [
+        "crates/rh-policy/src/delivery/frame.rs - delivery::frame::AcceptedFrame14 (line 449) - compile fail",
+        "crates/rh-policy/src/bots/fair_percept14.rs - bots::fair_percept14::FairPercept14 (line 70) - compile fail"
+      ]
+    }
+  ],
+  "unit_test_total": 47,
+  "compile_fail_total": 2,
+  "clippy": {
+    "argv": [
+      "cargo",
+      "clippy",
+      "-p",
+      "rh-policy",
+      "--lib",
+      "--tests",
+      "--all-features",
+      "--locked",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit": 0,
+    "log": "logs/attempt-01-clippy.log"
+  },
+  "fmt": {
+    "argv": [
+      "cargo",
+      "fmt",
+      "-p",
+      "rh-policy",
+      "--",
+      "--check"
+    ],
+    "exit": 0,
+    "log": "logs/fmt.log"
+  },
+  "new_source_capture": false,
+  "new_target": false,
+  "exclusive_existing_target": "return-cleanup-2026-11-08/final-target",
+  "target_lease": "RELEASED after all Cargo/fmt calls completed; no subsequent build",
+  "free_bytes_after": 2872434688,
+  "unchanged_protected_count": 17,
+  "source_parity_boundary": "Existing six Player Memory tests reuse unchanged bot-memory-subset and bot-brain-prefix; new DTO retention probes are not earned/source captures. Real connected tests delegate unchanged HumanBot/humanizer and ordinary submit.",
+  "held": [
+    "source interpolation/event delivery queues/full Memory",
+    "P15/new fields/producers/codec activation",
+    "protection/remote Bow/Wand/full flight course and NPC/item continuity",
+    "owner NPC semantics",
+    "live full Brain/fight/reflex/hunters",
+    "producer/byte/RSS/allocation/performance certification"
+  ]
+}
