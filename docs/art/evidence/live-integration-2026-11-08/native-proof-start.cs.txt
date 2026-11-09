@@ -1,0 +1,253 @@
+// Unity Editor C# eval script. Evaluating this file starts a bounded native buddy session;
+// it returns immediately and leaves one EditorApplication.update callback to drive it.
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Text;
+using Roguehalla.Client;
+using Roguehalla.Net;
+using Roguehalla.Net.Protocol;
+using UnityEditor;
+using UnityEngine;
+
+var proofOutputPath = "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/evidence/native-session-proof.json";
+var proofContentHashText = "67183626db240b6a";
+var proofUrl = "ws://127.0.0.1:7788/ws";
+var proofStartedAt = EditorApplication.timeSinceStartup;
+var proofDeadline = proofStartedAt + 115.0;
+var proofReadyAt = -1.0;
+var proofLastWriteAt = -1.0;
+var proofReady = false;
+var proofFinished = false;
+var proofReason = "waiting_for_both_phase1_players";
+var proofAttackCount = 0;
+var proofReleaseCount = 0;
+var proofWishInputCount = 0;
+var proofObservedBuddy = false;
+var proofCaptured = false;
+var proofCaptureAfter = -1.0;
+var proofCaptureFrame = 0;
+var proofCapturePath = "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/evidence/native-combat.png";
+var proofMainAttackHeld = false;
+var proofMainAttackAngle = 0f;
+var proofMainReleaseAt = -1.0;
+var proofFxNames = new[] { "Swing", "Hit", "Block", "Stagger", "Teleport", "WishStarted", "WishLanded", "WishEnded" };
+var proofMainFx = new Dictionary<string, int>();
+var proofBuddyFx = new Dictionary<string, int>();
+foreach (var fxName in proofFxNames) { proofMainFx[fxName] = 0; proofBuddyFx[fxName] = 0; }
+var proofClients = UnityEngine.Object.FindObjectsByType<MatchClient>(FindObjectsSortMode.None);
+if (!EditorApplication.isPlaying || EditorApplication.isPaused) throw new InvalidOperationException("Native proof requires the already-running Play-mode main MatchClient.");
+if (proofClients == null || proofClients.Length != 1 || proofClients[0].Session == null) throw new InvalidOperationException("Expected exactly one active main MatchClient with its AutoJoin session.");
+var proofMainClient = proofClients[0];
+var proofMainSession = proofMainClient.Session;
+var proofTicketBytes = Encoding.UTF8.GetBytes(Guid.NewGuid().ToString("N"));
+var proofBuddyProfile = "artbuddy" + Guid.NewGuid().ToString("N").Substring(0, 8);
+var proofContentHash = ulong.Parse(proofContentHashText, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+var proofBuddySession = new Session(TransportFactory.Create(), new SessionOptions
+{
+    Url = proofUrl,
+    Profile = proofBuddyProfile,
+    Ticket = proofTicketBytes,
+    ContentHash = proofContentHash,
+    Build = "unity-web-0.1.0",
+    Faction = (byte)3,
+    Now = () => Time.realtimeSinceStartupAsDouble * 1000.0
+});
+Action<Dictionary<string, int>, ServerMsg.Fx> proofCountFx = (counts, message) =>
+{
+    if (message == null || message.List == null) return;
+    foreach (var item in message.List)
+    {
+        string name = item.Kind.ToString();
+        if (counts.ContainsKey(name)) counts[name]++;
+    }
+};
+Action<ServerMsg.Fx> proofMainFxHandler = message => proofCountFx(proofMainFx, message);
+Action<ServerMsg.Fx> proofBuddyFxHandler = message => proofCountFx(proofBuddyFx, message);
+proofMainSession.FxReceived += proofMainFxHandler;
+proofBuddySession.FxReceived += proofBuddyFxHandler;
+proofBuddySession.Connect();
+Func<Session, bool> proofCanInput = session => session != null && session.State == Roguehalla.Net.SessionState.InMatch &&
+    session.Latest != null && session.Latest.Phase == 1 && session.Me != null && session.Me.Status == ActorStatus.Alive;
+Func<string, string> proofJsonString = value => "\"" + (value ?? "").Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r") + "\"";
+Func<Dictionary<string, int>, string> proofFxJson = counts => "{" + string.Join(",", proofFxNames.Select(name => proofJsonString(name) + ":" + counts[name].ToString(CultureInfo.InvariantCulture))) + "}";
+Action<string> proofWriteEvidence = status =>
+{
+    var mainWelcome = proofMainSession != null ? proofMainSession.Welcome : null;
+    var buddyWelcome = proofBuddySession != null ? proofBuddySession.Welcome : null;
+    var mainMap = proofMainSession != null ? proofMainSession.Map : null;
+    int mainPhase = proofMainSession != null && proofMainSession.Latest != null ? proofMainSession.Latest.Phase : -1;
+    int buddyPhase = proofBuddySession != null && proofBuddySession.Latest != null ? proofBuddySession.Latest.Phase : -1;
+    string mainHash = mainMap != null ? mainMap.LayerHash.ToString("x8", CultureInfo.InvariantCulture) : "";
+    string mainWelcomeHash = mainWelcome != null ? mainWelcome.ContentHash.ToString("x16", CultureInfo.InvariantCulture) : "";
+    string buddyWelcomeHash = buddyWelcome != null ? buddyWelcome.ContentHash.ToString("x16", CultureInfo.InvariantCulture) : "";
+    double elapsed = EditorApplication.timeSinceStartup - proofStartedAt;
+    var json = new StringBuilder(1200);
+    json.Append("{\n");
+    json.Append("  \"status\":").Append(proofJsonString(status)).Append(",\n");
+    json.Append("  \"reason\":").Append(proofJsonString(proofReason)).Append(",\n");
+    json.Append("  \"protocolVersion\":").Append(Wire.ProtocolVersion.ToString(CultureInfo.InvariantCulture)).Append(",\n");
+    json.Append("  \"submittedContentHash\":").Append(proofJsonString(proofContentHashText)).Append(",\n");
+    json.Append("  \"mainWelcomeContentHash\":").Append(proofJsonString(mainWelcomeHash)).Append(",\n");
+    json.Append("  \"buddyWelcomeContentHash\":").Append(proofJsonString(buddyWelcomeHash)).Append(",\n");
+    json.Append("  \"mainPlayerId\":").Append((mainWelcome != null ? mainWelcome.PlayerId : 0).ToString(CultureInfo.InvariantCulture)).Append(",\n");
+    json.Append("  \"buddyPlayerId\":").Append((buddyWelcome != null ? buddyWelcome.PlayerId : 0).ToString(CultureInfo.InvariantCulture)).Append(",\n");
+    json.Append("  \"mainState\":").Append(proofJsonString(proofMainSession != null ? proofMainSession.State.ToString() : "missing")).Append(",\n");
+    json.Append("  \"buddyState\":").Append(proofJsonString(proofBuddySession != null ? proofBuddySession.State.ToString() : "missing")).Append(",\n");
+    json.Append("  \"mainPhase\":").Append(mainPhase.ToString(CultureInfo.InvariantCulture)).Append(",\n");
+    json.Append("  \"buddyPhase\":").Append(buddyPhase.ToString(CultureInfo.InvariantCulture)).Append(",\n");
+    json.Append("  \"mainStatus\":").Append(proofJsonString(proofMainSession != null && proofMainSession.Me != null ? proofMainSession.Me.Status.ToString() : "none")).Append(",\n");
+    json.Append("  \"buddyStatus\":").Append(proofJsonString(proofBuddySession != null && proofBuddySession.Me != null ? proofBuddySession.Me.Status.ToString() : "none")).Append(",\n");
+    json.Append("  \"mainMapLayerHash\":").Append(proofJsonString(mainHash)).Append(",\n");
+    json.Append("  \"mainMapSize\":").Append(mainMap != null ? "[" + mainMap.W.ToString(CultureInfo.InvariantCulture) + "," + mainMap.H.ToString(CultureInfo.InvariantCulture) + "]" : "null").Append(",\n");
+    json.Append("  \"bothReachedPhase1WithMe\":").Append(proofReady ? "true" : "false").Append(",\n");
+    json.Append("  \"mainObservedBuddyAtAttack\":").Append(proofObservedBuddy ? "true" : "false").Append(",\n");
+    json.Append("  \"inputCounts\":{\"mainAttack\":").Append(proofAttackCount.ToString(CultureInfo.InvariantCulture));
+    json.Append(",\"mainRelease\":").Append(proofReleaseCount.ToString(CultureInfo.InvariantCulture));
+    json.Append(",\"mainWishCastInput\":").Append(proofWishInputCount.ToString(CultureInfo.InvariantCulture)).Append("},\n");
+    json.Append("  \"fxKindCounts\":{\"main\":").Append(proofFxJson(proofMainFx)).Append(",\"buddy\":").Append(proofFxJson(proofBuddyFx)).Append("},\n");
+    json.Append("  \"capturedFrame\":").Append(proofCaptureFrame).Append(",\n");
+    json.Append("  \"elapsedSeconds\":").Append(elapsed.ToString("0.0", CultureInfo.InvariantCulture)).Append("\n");
+    json.Append("}\n");
+    Directory.CreateDirectory(Path.GetDirectoryName(proofOutputPath));
+    File.WriteAllText(proofOutputPath, json.ToString());
+    Debug.Log("[native-session-proof] " + status + ": " + proofOutputPath);
+};
+EditorApplication.CallbackFunction proofTick = null;
+Action proofCleanup = () =>
+{
+    if (proofMainAttackHeld && proofMainSession != null)
+    {
+        double? time = proofMainSession.Clock.Ready ? proofMainSession.Clock.RenderMs : (double?)null;
+        proofMainSession.Input.Release(proofMainAttackAngle, time);
+        proofReleaseCount++;
+        proofMainAttackHeld = false;
+    }
+    if (proofMainSession != null) proofMainSession.FxReceived -= proofMainFxHandler;
+    if (proofBuddySession != null) proofBuddySession.FxReceived -= proofBuddyFxHandler;
+    EditorApplication.update -= proofTick;
+    if (proofBuddySession != null && proofBuddySession.State != Roguehalla.Net.SessionState.Ended) proofBuddySession.Leave();
+};
+Action proofFinish = () =>
+{
+    if (proofFinished) return;
+    proofFinished = true;
+    proofWriteEvidence(proofReady ? "complete" : "incomplete");
+    proofCleanup();
+};
+proofTick = () =>
+{
+    if (proofFinished) return;
+    try
+    {
+        if (!EditorApplication.isPlaying || EditorApplication.isPaused)
+        {
+            proofReason = "play_mode_stopped_or_paused";
+            proofFinish();
+            return;
+        }
+        proofBuddySession.Poll();
+        proofBuddySession.FlushInput();
+        double now = EditorApplication.timeSinceStartup;
+        if (proofBuddySession.State == Roguehalla.Net.SessionState.Rejected || proofBuddySession.State == Roguehalla.Net.SessionState.Failed)
+        {
+            proofReason = "buddy_admission_"+proofBuddySession.State+"_"+proofBuddySession.RejectCode;
+            proofFinish(); return;
+        }
+        if(now-proofLastWriteAt>=10) {proofLastWriteAt=now;proofWriteEvidence("running");}
+        if (!proofReady && proofCanInput(proofMainSession) && proofCanInput(proofBuddySession))
+        {
+            proofReady = true;
+            proofReadyAt = now;
+            proofReason = "bounded_inputs_sent_over_native_sessions";
+        }
+        if (proofReady)
+        {
+            if (!proofCaptured && proofMainFx["Swing"]+proofMainFx["Hit"] > 0)
+            {
+                if(proofCaptureAfter<0) proofCaptureAfter=now+.035;
+                if(now>=proofCaptureAfter)
+                {
+                    var camera=proofMainClient.Cam;
+                    var oldTarget=camera.targetTexture; var oldActive=RenderTexture.active;
+                    var target=RenderTexture.GetTemporary(2560,1440,24,RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
+                    Texture2D image=null;
+                    try
+                    {
+                        camera.targetTexture=target; camera.Render(); RenderTexture.active=target;
+                        image=new Texture2D(2560,1440,TextureFormat.RGB24,false);
+                        image.ReadPixels(new Rect(0,0,2560,1440),0,0); image.Apply(false,false);
+                        File.WriteAllBytes(proofCapturePath,image.EncodeToPNG());
+                        proofCaptureFrame=Time.frameCount; proofCaptured=true;
+                    }
+                    finally
+                    {
+                        camera.targetTexture=oldTarget; RenderTexture.active=oldActive;
+                        if(image!=null) UnityEngine.Object.DestroyImmediate(image);
+                        RenderTexture.ReleaseTemporary(target);
+                    }
+                }
+            }
+            if (proofMainAttackHeld && now >= proofMainReleaseAt)
+            {
+                double? time = proofMainSession.Clock.Ready ? proofMainSession.Clock.RenderMs : (double?)null;
+                proofMainSession.Input.Release(proofMainAttackAngle, time);
+                proofReleaseCount++;
+                proofMainAttackHeld = false;
+            }
+            if (proofWishInputCount == 0 && now - proofReadyAt >= .35 && proofCanInput(proofMainSession))
+            {
+                var me = proofMainSession.Me;
+                byte seq = proofMainSession.CollectWishInput(true, false, true, me.X, me.Y);
+                if (seq != 0) proofWishInputCount++;
+            }
+            if (proofAttackCount < 3 && !proofMainAttackHeld && now - proofReadyAt >= .8 + proofAttackCount * 1.25 && proofCanInput(proofMainSession))
+            {
+                uint buddyId = proofBuddySession.PlayerId;
+                var latest = proofMainSession.Latest;
+                WireActor target = default;
+                bool foundTarget = false;
+                if (latest != null && latest.Actors != null)
+                    for (int i = 0; i < latest.Actors.Length; i++)
+                        if (latest.Actors[i].Id == buddyId) { target = latest.Actors[i]; foundTarget = true; break; }
+                if (foundTarget)
+                {
+                    var me = proofMainSession.Me;
+                    float dx = target.X - me.X, dy = target.Y - me.Y;
+                    if (dx * dx + dy * dy > .0001f)
+                    {
+                        proofMainAttackAngle = Mathf.Atan2(dy, dx);
+                        double? time = proofMainSession.Clock.Ready ? proofMainSession.Clock.RenderMs : (double?)null;
+                        proofMainSession.Input.Attack(proofMainAttackAngle, time);
+                        proofAttackCount++;
+                        proofMainAttackHeld = true;
+                        proofMainReleaseAt = now + .18;
+                        proofObservedBuddy = true;
+                    }
+                }
+            }
+            if (now - proofReadyAt >= 8.0)
+            {
+                proofReason = "input_window_complete";
+                proofFinish();
+                return;
+            }
+        }
+        if (now >= proofDeadline)
+        {
+            proofReason = proofReady ? "maximum_lifetime_reached" : "both_sessions_did_not_reach_phase1_with_me";
+            proofFinish();
+        }
+    }
+    catch (Exception e)
+    {
+        proofReason = "exception_" + e.GetType().Name;
+        proofFinish();
+    }
+};
+EditorApplication.update += proofTick;
+Debug.Log("[native-session-proof] started native buddy session; evidence will be written within 115 seconds; credentials are not logged.");
+
+return new {started=true,maximumLifetimeSeconds=115,evidence=proofOutputPath};

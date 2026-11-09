@@ -1,0 +1,66 @@
+{
+  "summary": {
+    "Total": 82,
+    "Passed": 71,
+    "Failed": 11,
+    "Skipped": 0,
+    "Inconclusive": 0
+  },
+  "failures": [
+    {
+      "test": "Roguehalla.Client.Tests.HubGuideViewEditModeTests.ChampionGuideListsFiveFactionsAndForwardsTheSelectedFaction",
+      "message": "  Expected: not null\n  But was:  null\n",
+      "stack": "at Roguehalla.Client.Tests.HubGuideViewEditModeTests.ChampionGuideListsFiveFactionsAndForwardsTheSelectedFaction () [0x000b6] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/HubGuideViewEditModeTests.cs:119\n"
+    },
+    {
+      "test": "Roguehalla.Client.Tests.HubGuideViewEditModeTests.GuideTabsOpenDirectlySupportKeyboardFocusAndEscapeRestoresOpener",
+      "message": "  Expected: same as <WEAPONSTab (UnityEngine.GameObject)>\n  But was:  <OpenGuide (UnityEngine.GameObject)>\n",
+      "stack": "at Roguehalla.Client.Tests.HubGuideViewEditModeTests.GuideTabsOpenDirectlySupportKeyboardFocusAndEscapeRestoresOpener () [0x000e9] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/HubGuideViewEditModeTests.cs:96\n"
+    },
+    {
+      "test": "Roguehalla.Client.Tests.MatchHudTrophyEditModeTests.DecodedGainOnlyChangeRefreshesActualHudAndOrdinaryChooseKeepsHandleAndIndex",
+      "message": "  String lengths are both 9. Strings differ at index 0.\n  Expected: \"Slow Burn\"\n  But was:  \"Offense I\"\n  -----------^\n",
+      "stack": "at Roguehalla.Client.Tests.MatchHudTrophyEditModeTests.DecodedGainOnlyChangeRefreshesActualHudAndOrdinaryChooseKeepsHandleAndIndex () [0x00038] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/MatchHudTrophyEditModeTests.cs:51\n"
+    },
+    {
+      "test": "Roguehalla.Client.Tests.ShowcaseStateEditModeTests.BuildLabelUpdatesWhenOnlyTheHighestCardIndexChanges",
+      "message": "  Expected: String containing \"SlowBurn\u00d71\"\n  But was:  \"B \u00b7 BUILD DETAILS \u00b7 2 card stacks\"\n",
+      "stack": "at Roguehalla.Client.Tests.ShowcaseStateEditModeTests.BuildLabelUpdatesWhenOnlyTheHighestCardIndexChanges () [0x000ca] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/ShowcaseStateEditModeTests.cs:44\n"
+    },
+    {
+      "test": "Roguehalla.Client.Tests.UiInputRoutingEditModeTests.ChestChoiceConsumesDigitEvenAsItReleasesChestFocus",
+      "message": "SetUp : Unhandled log message: '[Error] Failed setting EventSystem.current to unknown EventSystem <b>Selected:</b>\n\n\nNo module\n'. Use UnityEngine.TestTools.LogAssert.Expect\nTearDown : Unhandled log message: '[Error] Failed setting EventSystem.current to unknown EventSystem '. Use UnityEngine.TestTools.LogAssert.Expect",
+      "stack": "UnityEngine.EventSystems.EventSystem:set_current (UnityEngine.EventSystems.EventSystem)\nRoguehalla.Client.Tests.UiInputRoutingEditModeTests:TearDown () (at Assets/Tests/Editor/UiInputRoutingEditModeTests.cs:122)\nSystem.Reflection.MethodBase:Invoke (object,object[])\nNUnit.Framework.Internal.Reflect:InvokeMethod (System.Reflection.MethodInfo,object,object[])\nNUnit.Framework.Internal.Reflect:InvokeMethod (System.Reflection.MethodInfo,object)\nUnityEditor.EditorApplication:Internal_CallUpdateFunctions () (at /Users/bokken/build/output/unity/unity/Editor/Mono/EditorApplication.cs:384)\n\n"
+    },
+    {
+      "test": "Roguehalla.Client.Tests.UiInputRoutingEditModeTests.FocusedTextInputPreventsTabFromOpeningMap",
+      "message": "SetUp : Unhandled log message: '[Error] Failed setting EventSystem.current to unknown EventSystem <b>Selected:</b>\n\n\nNo module\n'. Use UnityEngine.TestTools.LogAssert.Expect\nTearDown : Unhandled log message: '[Error] Failed setting EventSystem.current to unknown EventSystem '. Use UnityEngine.TestTools.LogAssert.Expect",
+      "stack": "UnityEngine.EventSystems.EventSystem:set_current (UnityEngine.EventSystems.EventSystem)\nRoguehalla.Client.Tests.UiInputRoutingEditModeTests:TearDown () (at Assets/Tests/Editor/UiInputRoutingEditModeTests.cs:122)\nSystem.Reflection.MethodBase:Invoke (object,object[])\nNUnit.Framework.Internal.Reflect:InvokeMethod (System.Reflection.MethodInfo,object,object[])\nNUnit.Framework.Internal.Reflect:InvokeMethod (System.Reflection.MethodInfo,object)\nUnityEditor.EditorApplication:Internal_CallUpdateFunctions () (at /Users/bokken/build/output/unity/unity/Editor/Mono/EditorApplication.cs:384)\n\n"
+    },
+    {
+      "test": "Roguehalla.Client.Tests.UiInputRoutingEditModeTests.MenuAndResultsPreventTabFromOpeningMap",
+      "message": "SetUp : Unhandled log message: '[Error] Failed setting EventSystem.current to unknown EventSystem <b>Selected:</b>\n\n\nNo module\n'. Use UnityEngine.TestTools.LogAssert.Expect\nTearDown : Unhandled log message: '[Error] Failed setting EventSystem.current to unknown EventSystem '. Use UnityEngine.TestTools.LogAssert.Expect",
+      "stack": "UnityEngine.EventSystems.EventSystem:set_current (UnityEngine.EventSystems.EventSystem)\nRoguehalla.Client.Tests.UiInputRoutingEditModeTests:TearDown () (at Assets/Tests/Editor/UiInputRoutingEditModeTests.cs:122)\nSystem.Reflection.MethodBase:Invoke (object,object[])\nNUnit.Framework.Internal.Reflect:InvokeMethod (System.Reflection.MethodInfo,object,object[])\nNUnit.Framework.Internal.Reflect:InvokeMethod (System.Reflection.MethodInfo,object)\nUnityEditor.EditorApplication:Internal_CallUpdateFunctions () (at /Users/bokken/build/output/unity/unity/Editor/Mono/EditorApplication.cs:384)\n\n"
+    },
+    {
+      "test": "Roguehalla.Client.Tests.UiInputRoutingEditModeTests.PlainDigitOneQueuesWeaponSwap",
+      "message": "SetUp : Unhandled log message: '[Error] Failed setting EventSystem.current to unknown EventSystem <b>Selected:</b>\n\n\nNo module\n'. Use UnityEngine.TestTools.LogAssert.Expect\nTearDown : Unhandled log message: '[Error] Failed setting EventSystem.current to unknown EventSystem '. Use UnityEngine.TestTools.LogAssert.Expect",
+      "stack": "UnityEngine.EventSystems.EventSystem:set_current (UnityEngine.EventSystems.EventSystem)\nRoguehalla.Client.Tests.UiInputRoutingEditModeTests:TearDown () (at Assets/Tests/Editor/UiInputRoutingEditModeTests.cs:122)\nSystem.Reflection.MethodBase:Invoke (object,object[])\nNUnit.Framework.Internal.Reflect:InvokeMethod (System.Reflection.MethodInfo,object,object[])\nNUnit.Framework.Internal.Reflect:InvokeMethod (System.Reflection.MethodInfo,object)\nUnityEditor.EditorApplication:Internal_CallUpdateFunctions () (at /Users/bokken/build/output/unity/unity/Editor/Mono/EditorApplication.cs:384)\n\n"
+    },
+    {
+      "test": "Roguehalla.Client.Tests.UiInputRoutingEditModeTests.TabOpensMapAndBlocksPointerWhileWasdStillQueuesMove",
+      "message": "SetUp : Unhandled log message: '[Error] Failed setting EventSystem.current to unknown EventSystem <b>Selected:</b>\n\n\nNo module\n'. Use UnityEngine.TestTools.LogAssert.Expect\nTearDown : Unhandled log message: '[Error] Failed setting EventSystem.current to unknown EventSystem '. Use UnityEngine.TestTools.LogAssert.Expect",
+      "stack": "UnityEngine.EventSystems.EventSystem:set_current (UnityEngine.EventSystems.EventSystem)\nRoguehalla.Client.Tests.UiInputRoutingEditModeTests:TearDown () (at Assets/Tests/Editor/UiInputRoutingEditModeTests.cs:122)\nSystem.Reflection.MethodBase:Invoke (object,object[])\nNUnit.Framework.Internal.Reflect:InvokeMethod (System.Reflection.MethodInfo,object,object[])\nNUnit.Framework.Internal.Reflect:InvokeMethod (System.Reflection.MethodInfo,object)\nUnityEditor.EditorApplication:Internal_CallUpdateFunctions () (at /Users/bokken/build/output/unity/unity/Editor/Mono/EditorApplication.cs:384)\n\n"
+    },
+    {
+      "test": "Roguehalla.Client.Tests.UiInputRoutingEditModeTests.WindowBlurReleasesChestAndHeldMapFocus",
+      "message": "SetUp : Unhandled log message: '[Error] Failed setting EventSystem.current to unknown EventSystem <b>Selected:</b>\n\n\nNo module\n'. Use UnityEngine.TestTools.LogAssert.Expect\nTearDown : Unhandled log message: '[Error] Failed setting EventSystem.current to unknown EventSystem '. Use UnityEngine.TestTools.LogAssert.Expect",
+      "stack": "UnityEngine.EventSystems.EventSystem:set_current (UnityEngine.EventSystems.EventSystem)\nRoguehalla.Client.Tests.UiInputRoutingEditModeTests:TearDown () (at Assets/Tests/Editor/UiInputRoutingEditModeTests.cs:122)\nSystem.Reflection.MethodBase:Invoke (object,object[])\nNUnit.Framework.Internal.Reflect:InvokeMethod (System.Reflection.MethodInfo,object,object[])\nNUnit.Framework.Internal.Reflect:InvokeMethod (System.Reflection.MethodInfo,object)\nUnityEditor.EditorApplication:Internal_CallUpdateFunctions () (at /Users/bokken/build/output/unity/unity/Editor/Mono/EditorApplication.cs:384)\n\n"
+    },
+    {
+      "test": "Roguehalla.Client.Tests.WeaponCounterGuideEditModeTests.WheelExposesRailLayoutAndReleasesItsGeneratedTexture",
+      "message": "  Expected: 0.280000001f\n  But was:  0.0f\n",
+      "stack": "at Roguehalla.Client.Tests.WeaponCounterGuideEditModeTests.WheelExposesRailLayoutAndReleasesItsGeneratedTexture () [0x00079] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/HubGuideViewEditModeTests.cs:50\n"
+    }
+  ]
+}

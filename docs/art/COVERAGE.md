@@ -1,5 +1,7 @@
 # Art preparation and runtime coverage
 
+Historical matrix: the repair-era rows below retain their original revision scope and contain superseded Wish/barrier availability notes. Use the [current original-game inventory](inventory/README.md) and its [125-entry checklist](inventory/asset-checklist.json) for the updated art audit. Accepted protocol13 all-five-Wish/Trophy browser evidence is separate from asset completeness.
+
 This is an asset/presentation inventory, not a gameplay parity or release-readiness claim. “Prepared” means source bytes, metadata, or Unity assets are present. “Live” means the server-fed arena path currently consumes a fact or catalog entry. A staged preview is explicitly not evidence of live game coverage. Creative reuse of the current art family is permitted; bespoke species, hero or weapon artwork is not a prerequisite. Delivered identities and essential cues still need readable presentation and selected-demo evidence.
 
 The server-fed coverage below describes the served `4f37e9f0` runtime. Later prop/signature and animation-selector source drafts compiled and passed 42 Unity Editor tests, but remain unbuilt and browser-unverified; see [source-cue evidence](evidence/source-cues/summary.json) and [WORK_LOG.md](WORK_LOG.md). These tests do not establish visual readability, performance, or live server-fed coverage.

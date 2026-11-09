@@ -12,7 +12,8 @@ namespace Roguehalla.Client
         sealed class Art
         {
             public GameObject Root;
-            public SpriteRenderer Body, Shadow, Halo, RuneBack, Rune, Hp, HpBack, Barrier, Weapon, Status;
+            public SpriteRenderer Body, BodyRim, Shadow, Halo, RuneBack, Rune, Hp, HpBack, Barrier, Weapon, Status;
+            public ShowcaseIdentityOwner Identity;
             public SpriteRenderer[] BarrierRing;
             public SpriteRenderer[] StatusIcons;
             public SpriteRenderer[] SignatureIcons;
@@ -25,6 +26,9 @@ namespace Roguehalla.Client
             public float AttackAt, HitAt, BlockAt, DeadAt, HitUntil, BlockUntil;
             public bool Dead, HoldDeathFrame;
             public WeaponId WeaponId;
+            public FactionId Faction;
+            public ActorKind Kind;
+            public MobTypeId? MobType;
             public int Stamp;
         }
         readonly Transform _parent;
@@ -47,6 +51,12 @@ namespace Roguehalla.Client
         public SpriteActorPresenter(Transform parent, ShowcaseCatalog catalog) { _parent = parent; _catalog = catalog; }
         public bool Contains(uint id) { return _active.ContainsKey(id); }
         public bool IsLiving(uint id) { return _active.TryGetValue(id, out var art) && !art.Dead; }
+        public bool TrySoundContext(uint id, out WeaponId weapon, out FactionId faction, out ActorKind kind, out MobTypeId? type)
+        {
+            if (_active.TryGetValue(id, out var art))
+            { weapon=art.WeaponId; faction=art.Faction; kind=art.Kind; type=art.MobType; return true; }
+            weapon=default; faction=default; kind=default; type=null; return false;
+        }
         /// <summary>Clears local-time animation phases after a presentation clock cut.</summary>
         public void ResetTransientTimers()
         {
@@ -116,6 +126,7 @@ namespace Roguehalla.Client
             foreach (var segment in art.BarrierRing) segment.enabled = false;
             art.UnknownSignature.enabled = false;
             art.UnknownSignatureBacker.enabled = false;
+            art.Identity.Clear();
             art.Root.SetActive(false);
             _active.Remove(id);_pool.Push(art);
         }
@@ -138,10 +149,11 @@ namespace Roguehalla.Client
             bool dead = status == ActorStatus.Dead || status == ActorStatus.Mia;
             if(dead && !a.Dead) { a.DeadAt=Time.unscaledTime; a.HoldDeathFrame=false; }
             if(!dead) a.HoldDeathFrame=false;
-            a.Dead=dead;a.WeaponId=weapon;
+            a.Dead=dead;a.WeaponId=weapon; a.Faction=faction; a.Kind=kind; a.MobType=mob;
             bool isMob = kind != ActorKind.Player;
-            string key = kind == ActorKind.TrainingDummy ? "knight" : isMob ? ((mob.HasValue && (int)mob.Value % 2 == 0) ? "goblin" : "skeleton") : ((int)faction == 1 || (int)faction == 2 ? "hero-female" : "hero");
+            string key = ShowcaseActorLook.AppearanceKey(kind, faction, mob);
             a.Appearance = _catalog != null ? _catalog.Find(key) : null;
+            if (a.Appearance == null && _catalog != null && kind == ActorKind.Player) a.Appearance = _catalog.Find("hero");
             if (a.Appearance == null && _catalog != null) a.Appearance = _catalog.Find("knight");
             bool reduced = ShowcaseSettings.Current != null && ShowcaseSettings.Current.ReducedMotion;
             var appearance = a.Appearance;
@@ -184,6 +196,13 @@ namespace Roguehalla.Client
             a.Body.color = dead ? new Color(.4f, .43f, .48f, .65f) : Color.Lerp(Color.white, color, isMob ? .14f : .22f);
             a.Body.sortingOrder = order;
             a.Body.transform.localRotation = Quaternion.Euler(0, 0, dead && (appearance==null || appearance.Death==null || appearance.Death.Length==0) ? 75 : 0);
+            a.BodyRim.sprite = a.Body.sprite;
+            a.BodyRim.transform.localPosition = a.Body.transform.localPosition + new Vector3(.01f,.005f);
+            a.BodyRim.transform.localRotation = a.Body.transform.localRotation;
+            a.BodyRim.transform.localScale = a.Body.transform.localScale * 1.045f;
+            a.BodyRim.sortingOrder = order-1;
+            a.BodyRim.color = new Color(.008f,.012f,.02f,dead ? .35f : .88f);
+            a.Identity.Present((int)faction,kind,mob,order,!dead);
             a.Shadow.sortingOrder = order - 8;
             a.Halo.sortingOrder = order - 7;
             a.Halo.transform.localScale = new Vector3(local ? 1.05f : .9f, .48f, 1);
@@ -275,6 +294,9 @@ namespace Roguehalla.Client
             a.Shadow = ShowcaseSprites.Create(t, "Contact shadow", "shadow", 0, Color.white, new Vector2(1.2f, .45f), new Vector3(.13f, -.04f), false);
             a.Halo = ShowcaseSprites.Create(t, "Faction footprint", "ring", 1, Color.white, Vector2.one, Vector3.zero, false);
             a.Body = ShowcaseSprites.Create(t, "Authored character", "rune", 2, Color.white, Vector2.one, Vector3.zero);
+            a.BodyRim = ShowcaseSprites.Create(t, "Character contrast rim", "rune", 1, Color.black, Vector2.one, Vector3.zero, false);
+            a.Identity = ShowcaseIdentityOwner.Configure(t);
+            a.Identity.StandaloneFactionBadge = false; // The existing tested backed faction mark remains canonical here.
             a.RuneBack = ShowcaseSprites.Create(t, "Faction insignia backplate", "bar", 2, new Color(.008f, .012f, .022f, .96f), new Vector2(.46f, .46f), Vector3.zero, false);
             a.Rune = ShowcaseSprites.Create(t, "Faction insignia", "rune", 3, Color.white, Vector2.one, Vector3.zero, false);
             a.HpBack = ShowcaseSprites.Create(t, "Health and barrier track", "bar", 4, new Color(.015f, .02f, .035f), new Vector2(.98f, .11f), new Vector3(0, 1.8f), false);

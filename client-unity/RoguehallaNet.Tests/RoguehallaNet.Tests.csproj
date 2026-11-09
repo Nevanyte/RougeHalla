@@ -4,6 +4,7 @@
     <Nullable>disable</Nullable>
     <IsPackable>false</IsPackable>
     <RootNamespace>Roguehalla.Net.Tests</RootNamespace>
+    <DefineConstants>$(DefineConstants);RH_LAYOUT_REVIEW_TESTS</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
@@ -19,6 +20,7 @@
   <ItemGroup>
     <ProjectReference Include="..\RoguehallaNet\RoguehallaNet.csproj" />
     <ProjectReference Include="..\RoguehallaNet.Probe\RoguehallaNet.Probe.csproj" />
+    <Compile Include="..\UnityProject\Assets\Scripts\UI\UiLayoutReviewFrames.cs" Link="UiLayoutReviewFrames.cs" />
     <Compile Include="..\UnityProject\Assets\Scripts\UI\TrophyText.cs" Link="TrophyText.cs" />
     <Compile Include="..\UnityProject\Assets\Scripts\Net\AccountFullJson.cs" Link="AccountFullJson.cs" />
     <EmbeddedResource Include="..\..\crates\rh-persist\data\cosmetics.json" LogicalName="Account.Cosmetics.json" />

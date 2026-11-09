@@ -1,0 +1,14 @@
+[
+  {
+    "path": "client-unity/UnityProject/ProjectSettings/ProjectSettings.asset",
+    "beforeRestoreSha256": "23623a1950e017240dc434ef08fe29d526ac25cc67b6a80572592f8b81988469",
+    "restoredSha256": "9448f661c3eebb92d49f798f442e2b4c6d565e25c94b86509e856ab172add085",
+    "restoredExactHead": true
+  },
+  {
+    "path": "client-unity/UnityProject/ProjectSettings/ShaderGraphSettings.asset",
+    "beforeRestoreSha256": "83556175c6dccd540f2cac05e5c0f9fbb36c3c8d7a56bed2c7cf4d29e4c2ee2e",
+    "restoredSha256": "d9285133fee72ad8257e0b2c2d904b487757ebcef4862e3b10bef073bf218894",
+    "restoredExactHead": true
+  }
+]

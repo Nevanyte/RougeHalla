@@ -1,0 +1,848 @@
+{
+  "method": "macOS afinfo metadata + afconvert decode to float32 PCM WAV + NumPy sample analysis; source files unchanged",
+  "sourceRoot": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Art/ThirdParty/FlareAudioExpansion/Raw/soundfx",
+  "sourceFileCount": 24,
+  "audioFiles": [
+    {
+      "source": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Art/ThirdParty/FlareAudioExpansion/Raw/soundfx/enemies/antlion_die.ogg",
+      "relativePath": "enemies/antlion_die.ogg",
+      "sha256": "dad48d8ffb0794250cfaf49b045a277ca35df213fe6615c40617f20f8a9b667c",
+      "sourceCodec": "Ogg Vorbis",
+      "channels": 1,
+      "sampleRateHz": 22050,
+      "estimatedDurationSeconds": 1.019864,
+      "decodedFrames": 22488,
+      "decodedDurationSeconds": 1.0198639455782312,
+      "decodedSampleRateHz": 22050,
+      "decodedChannels": 1,
+      "peakLinear": 0.23771655559539795,
+      "peakDbfs": -12.478811421948901,
+      "rmsLinear": 0.03473244439585644,
+      "rmsDbfs": -29.185293017761133,
+      "channelPeakLinear": [
+        0.23771655559539795
+      ],
+      "channelPeakDbfs": [
+        -12.478811421948901
+      ],
+      "channelRmsDbfs": [
+        -29.185293017761133
+      ],
+      "dcOffsetPerChannel": [
+        5.233613226496944e-05
+      ],
+      "samplesAtOrAboveMinus0_01Dbfs": 0,
+      "samplesAbove0Dbfs": 0,
+      "decodedWav": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/decoded/enemies__antlion_die.wav",
+      "afinfoEvidence": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/afinfo/enemies__antlion_die.txt"
+    },
+    {
+      "source": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Art/ThirdParty/FlareAudioExpansion/Raw/soundfx/enemies/antlion_hit.ogg",
+      "relativePath": "enemies/antlion_hit.ogg",
+      "sha256": "f570af03e93b037edf7d6994bee0616a18da75f981cc5984648a2d5bb820f998",
+      "sourceCodec": "Ogg Vorbis",
+      "channels": 1,
+      "sampleRateHz": 22050,
+      "estimatedDurationSeconds": 0.6678,
+      "decodedFrames": 14725,
+      "decodedDurationSeconds": 0.6678004535147393,
+      "decodedSampleRateHz": 22050,
+      "decodedChannels": 1,
+      "peakLinear": 0.1406458169221878,
+      "peakDbfs": -17.03746360124142,
+      "rmsLinear": 0.020044547096735373,
+      "rmsDbfs": -33.96007504230838,
+      "channelPeakLinear": [
+        0.1406458169221878
+      ],
+      "channelPeakDbfs": [
+        -17.03746360124142
+      ],
+      "channelRmsDbfs": [
+        -33.96007504230838
+      ],
+      "dcOffsetPerChannel": [
+        0.0006422005046403386
+      ],
+      "samplesAtOrAboveMinus0_01Dbfs": 0,
+      "samplesAbove0Dbfs": 0,
+      "decodedWav": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/decoded/enemies__antlion_hit.wav",
+      "afinfoEvidence": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/afinfo/enemies__antlion_hit.txt"
+    },
+    {
+      "source": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Art/ThirdParty/FlareAudioExpansion/Raw/soundfx/enemies/goblin_die.ogg",
+      "relativePath": "enemies/goblin_die.ogg",
+      "sha256": "91800902403a09be556c84327e493fa4c6f25a3b9977ab9f2477922b30a1800a",
+      "sourceCodec": "Ogg Vorbis",
+      "channels": 1,
+      "sampleRateHz": 22050,
+      "estimatedDurationSeconds": 1.185533,
+      "decodedFrames": 26141,
+      "decodedDurationSeconds": 1.185532879818594,
+      "decodedSampleRateHz": 22050,
+      "decodedChannels": 1,
+      "peakLinear": 0.1331380158662796,
+      "peakDbfs": -17.513958391091943,
+      "rmsLinear": 0.021765229240194913,
+      "rmsDbfs": -33.244735086348165,
+      "channelPeakLinear": [
+        0.1331380158662796
+      ],
+      "channelPeakDbfs": [
+        -17.513958391091943
+      ],
+      "channelRmsDbfs": [
+        -33.244735086348165
+      ],
+      "dcOffsetPerChannel": [
+        0.00012082372071722512
+      ],
+      "samplesAtOrAboveMinus0_01Dbfs": 0,
+      "samplesAbove0Dbfs": 0,
+      "decodedWav": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/decoded/enemies__goblin_die.wav",
+      "afinfoEvidence": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/afinfo/enemies__goblin_die.txt"
+    },
+    {
+      "source": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Art/ThirdParty/FlareAudioExpansion/Raw/soundfx/enemies/goblin_hit.ogg",
+      "relativePath": "enemies/goblin_hit.ogg",
+      "sha256": "b6207ec7a9c039de20f188fc84c26bb1bd2720e9a6b367b4aab4265f290f18a4",
+      "sourceCodec": "Ogg Vorbis",
+      "channels": 1,
+      "sampleRateHz": 22050,
+      "estimatedDurationSeconds": 0.203401,
+      "decodedFrames": 4357,
+      "decodedDurationSeconds": 0.19759637188208617,
+      "decodedSampleRateHz": 22050,
+      "decodedChannels": 1,
+      "peakLinear": 0.20790129899978638,
+      "peakDbfs": -13.64285594240604,
+      "rmsLinear": 0.040211426799869845,
+      "rmsDbfs": -27.91301033584441,
+      "channelPeakLinear": [
+        0.20790129899978638
+      ],
+      "channelPeakDbfs": [
+        -13.64285594240604
+      ],
+      "channelRmsDbfs": [
+        -27.91301033584441
+      ],
+      "dcOffsetPerChannel": [
+        5.209617426872117e-05
+      ],
+      "samplesAtOrAboveMinus0_01Dbfs": 0,
+      "samplesAbove0Dbfs": 0,
+      "decodedWav": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/decoded/enemies__goblin_hit.wav",
+      "afinfoEvidence": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/afinfo/enemies__goblin_hit.txt"
+    },
+    {
+      "source": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Art/ThirdParty/FlareAudioExpansion/Raw/soundfx/enemies/skeleton_die.ogg",
+      "relativePath": "enemies/skeleton_die.ogg",
+      "sha256": "186f56a163394cf11c8fb40bc246b9adbe5dfc5a68fc768630608e98dd9a350d",
+      "sourceCodec": "Ogg Vorbis",
+      "channels": 1,
+      "sampleRateHz": 22050,
+      "estimatedDurationSeconds": 1.05034,
+      "decodedFrames": 23040,
+      "decodedDurationSeconds": 1.0448979591836736,
+      "decodedSampleRateHz": 22050,
+      "decodedChannels": 1,
+      "peakLinear": 0.12573641538619995,
+      "peakDbfs": -18.01077850182319,
+      "rmsLinear": 0.01312854003165853,
+      "rmsDbfs": -37.63567134484937,
+      "channelPeakLinear": [
+        0.12573641538619995
+      ],
+      "channelPeakDbfs": [
+        -18.01077850182319
+      ],
+      "channelRmsDbfs": [
+        -37.63567134484937
+      ],
+      "dcOffsetPerChannel": [
+        1.7720385263426e-05
+      ],
+      "samplesAtOrAboveMinus0_01Dbfs": 0,
+      "samplesAbove0Dbfs": 0,
+      "decodedWav": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/decoded/enemies__skeleton_die.wav",
+      "afinfoEvidence": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/afinfo/enemies__skeleton_die.txt"
+    },
+    {
+      "source": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Art/ThirdParty/FlareAudioExpansion/Raw/soundfx/enemies/skeleton_hit.ogg",
+      "relativePath": "enemies/skeleton_hit.ogg",
+      "sha256": "9a5ae9d51f12f6e42733e5b65ff2a38ac60ec81bff98393806373660f627bc7e",
+      "sourceCodec": "Ogg Vorbis",
+      "channels": 1,
+      "sampleRateHz": 22050,
+      "estimatedDurationSeconds": 0.542132,
+      "decodedFrames": 11954,
+      "decodedDurationSeconds": 0.5421315192743764,
+      "decodedSampleRateHz": 22050,
+      "decodedChannels": 1,
+      "peakLinear": 0.17604772746562958,
+      "peakDbfs": -15.08739153405794,
+      "rmsLinear": 0.02285443722567418,
+      "rmsDbfs": -32.82058936873864,
+      "channelPeakLinear": [
+        0.17604772746562958
+      ],
+      "channelPeakDbfs": [
+        -15.08739153405794
+      ],
+      "channelRmsDbfs": [
+        -32.82058936873864
+      ],
+      "dcOffsetPerChannel": [
+        -1.3024383119339983e-05
+      ],
+      "samplesAtOrAboveMinus0_01Dbfs": 0,
+      "samplesAbove0Dbfs": 0,
+      "decodedWav": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/decoded/enemies__skeleton_hit.wav",
+      "afinfoEvidence": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/afinfo/enemies__skeleton_hit.txt"
+    },
+    {
+      "source": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Art/ThirdParty/FlareAudioExpansion/Raw/soundfx/enemies/zombie_critdie.ogg",
+      "relativePath": "enemies/zombie_critdie.ogg",
+      "sha256": "21b9083b091582c745b0752c412bfe8ef156c022364faa943f9a70857f64ff88",
+      "sourceCodec": "Ogg Vorbis",
+      "channels": 1,
+      "sampleRateHz": 22050,
+      "estimatedDurationSeconds": 1.117778,
+      "decodedFrames": 24576,
+      "decodedDurationSeconds": 1.1145578231292517,
+      "decodedSampleRateHz": 22050,
+      "decodedChannels": 1,
+      "peakLinear": 0.26816707849502563,
+      "peakDbfs": -11.431890786626045,
+      "rmsLinear": 0.032164100516112806,
+      "rmsDbfs": -29.8525717867807,
+      "channelPeakLinear": [
+        0.26816707849502563
+      ],
+      "channelPeakDbfs": [
+        -11.431890786626045
+      ],
+      "channelRmsDbfs": [
+        -29.8525717867807
+      ],
+      "dcOffsetPerChannel": [
+        4.247987484775247e-05
+      ],
+      "samplesAtOrAboveMinus0_01Dbfs": 0,
+      "samplesAbove0Dbfs": 0,
+      "decodedWav": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/decoded/enemies__zombie_critdie.wav",
+      "afinfoEvidence": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/afinfo/enemies__zombie_critdie.txt"
+    },
+    {
+      "source": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Art/ThirdParty/FlareAudioExpansion/Raw/soundfx/enemies/zombie_die.ogg",
+      "relativePath": "enemies/zombie_die.ogg",
+      "sha256": "cdd487bcf433f955656c8d92a0373ef157af4eabb80469c1c6eb332220fa2446",
+      "sourceCodec": "Ogg Vorbis",
+      "channels": 1,
+      "sampleRateHz": 22050,
+      "estimatedDurationSeconds": 1.581088,
+      "decodedFrames": 34863,
+      "decodedDurationSeconds": 1.5810884353741497,
+      "decodedSampleRateHz": 22050,
+      "decodedChannels": 1,
+      "peakLinear": 0.16969119012355804,
+      "peakDbfs": -15.406814088241983,
+      "rmsLinear": 0.020082489036501335,
+      "rmsDbfs": -33.94364922911939,
+      "channelPeakLinear": [
+        0.16969119012355804
+      ],
+      "channelPeakDbfs": [
+        -15.406814088241983
+      ],
+      "channelRmsDbfs": [
+        -33.94364922911939
+      ],
+      "dcOffsetPerChannel": [
+        -0.00012498122513322877
+      ],
+      "samplesAtOrAboveMinus0_01Dbfs": 0,
+      "samplesAbove0Dbfs": 0,
+      "decodedWav": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/decoded/enemies__zombie_die.wav",
+      "afinfoEvidence": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/afinfo/enemies__zombie_die.txt"
+    },
+    {
+      "source": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Art/ThirdParty/FlareAudioExpansion/Raw/soundfx/environment/cave_wind_loop.ogg",
+      "relativePath": "environment/cave_wind_loop.ogg",
+      "sha256": "8aa3b5e8bfc3a61b453c10cd6a2ef20443dc29c401e46732bfda392a9025547b",
+      "sourceCodec": "Ogg Vorbis",
+      "channels": 2,
+      "sampleRateHz": 48000,
+      "estimatedDurationSeconds": 21.712229,
+      "decodedFrames": 1042187,
+      "decodedDurationSeconds": 21.712229166666667,
+      "decodedSampleRateHz": 48000,
+      "decodedChannels": 2,
+      "peakLinear": 0.020672069862484932,
+      "peakDbfs": -33.69232071917192,
+      "rmsLinear": 0.003053596790016011,
+      "rmsDbfs": -50.30376619190398,
+      "channelPeakLinear": [
+        0.01780446618795395,
+        0.020672069862484932
+      ],
+      "channelPeakDbfs": [
+        -34.98942085552195,
+        -33.69232071917192
+      ],
+      "channelRmsDbfs": [
+        -50.300028509299665,
+        -50.307507094051154
+      ],
+      "dcOffsetPerChannel": [
+        3.5048735191229505e-06,
+        1.7579228748955318e-06
+      ],
+      "samplesAtOrAboveMinus0_01Dbfs": 0,
+      "samplesAbove0Dbfs": 0,
+      "decodedWav": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/decoded/environment__cave_wind_loop.wav",
+      "afinfoEvidence": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/afinfo/environment__cave_wind_loop.txt",
+      "loopSeam": {
+        "boundaryJumpPerChannel": [
+          0.0003203793166903779,
+          0.00036649149205914
+        ],
+        "boundaryJumpPeak": 0.00036649149205914,
+        "boundaryJumpDbfs": -68.71872205727321,
+        "internalAdjacentDeltaP999": [
+          0.0004213325062301025,
+          0.0003865601064171653
+        ],
+        "boundaryJumpVsInternalP999": [
+          0.7603954405440747,
+          0.9480841038046285
+        ],
+        "first50msRmsDbfs": [
+          -60.24350829220714,
+          -63.68221134073384
+        ],
+        "last50msRmsDbfs": [
+          -61.42780303471948,
+          -60.5078672604363
+        ],
+        "firstLast50msRmsDifferenceDb": [
+          1.1842947425123356,
+          -3.1743440802975655
+        ],
+        "windowMs": 50
+      }
+    },
+    {
+      "source": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Art/ThirdParty/FlareAudioExpansion/Raw/soundfx/flying_loot.ogg",
+      "relativePath": "flying_loot.ogg",
+      "sha256": "fc50934350867ab1671f75f33ea4057f65883de5c47a4aa815e0b11066333c4f",
+      "sourceCodec": "Ogg Vorbis",
+      "channels": 1,
+      "sampleRateHz": 22050,
+      "estimatedDurationSeconds": 0.521723,
+      "decodedFrames": 11376,
+      "decodedDurationSeconds": 0.5159183673469387,
+      "decodedSampleRateHz": 22050,
+      "decodedChannels": 1,
+      "peakLinear": 0.2569570243358612,
+      "peakDbfs": -11.802790113488895,
+      "rmsLinear": 0.03650118437911632,
+      "rmsDbfs": -28.75386086924335,
+      "channelPeakLinear": [
+        0.2569570243358612
+      ],
+      "channelPeakDbfs": [
+        -11.802790113488895
+      ],
+      "channelRmsDbfs": [
+        -28.75386086924335
+      ],
+      "dcOffsetPerChannel": [
+        -0.000453856854441631
+      ],
+      "samplesAtOrAboveMinus0_01Dbfs": 0,
+      "samplesAbove0Dbfs": 0,
+      "decodedWav": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/decoded/flying_loot.wav",
+      "afinfoEvidence": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/afinfo/flying_loot.txt"
+    },
+    {
+      "source": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Art/ThirdParty/FlareAudioExpansion/Raw/soundfx/inventory/inventory_potion.ogg",
+      "relativePath": "inventory/inventory_potion.ogg",
+      "sha256": "0ce275cee5280392c3880ca4b459f48dfdbb54d8540f6c4fa54b22a399b77727",
+      "sourceCodec": "Ogg Vorbis",
+      "channels": 1,
+      "sampleRateHz": 44100,
+      "estimatedDurationSeconds": 0.5,
+      "decodedFrames": 22050,
+      "decodedDurationSeconds": 0.5,
+      "decodedSampleRateHz": 44100,
+      "decodedChannels": 1,
+      "peakLinear": 0.2399066984653473,
+      "peakDbfs": -12.399152517431682,
+      "rmsLinear": 0.034623691017321566,
+      "rmsDbfs": -29.21253273093983,
+      "channelPeakLinear": [
+        0.2399066984653473
+      ],
+      "channelPeakDbfs": [
+        -12.399152517431682
+      ],
+      "channelRmsDbfs": [
+        -29.21253273093983
+      ],
+      "dcOffsetPerChannel": [
+        0.0019154442880271812
+      ],
+      "samplesAtOrAboveMinus0_01Dbfs": 0,
+      "samplesAbove0Dbfs": 0,
+      "decodedWav": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/decoded/inventory__inventory_potion.wav",
+      "afinfoEvidence": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/afinfo/inventory__inventory_potion.txt"
+    },
+    {
+      "source": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Art/ThirdParty/FlareAudioExpansion/Raw/soundfx/level_up.ogg",
+      "relativePath": "level_up.ogg",
+      "sha256": "ce9b48d0e56ee377f1ffc3b5bc2b2844b1b543e4dfce02f9dce92c2d9fae443e",
+      "sourceCodec": "Ogg Vorbis",
+      "channels": 2,
+      "sampleRateHz": 44100,
+      "estimatedDurationSeconds": 2.574082,
+      "decodedFrames": 113517,
+      "decodedDurationSeconds": 2.574081632653061,
+      "decodedSampleRateHz": 44100,
+      "decodedChannels": 2,
+      "peakLinear": 0.15875600278377533,
+      "peakDbfs": -15.985396889024317,
+      "rmsLinear": 0.021412563561573825,
+      "rmsDbfs": -33.386626697084594,
+      "channelPeakLinear": [
+        0.08784059435129166,
+        0.15875600278377533
+      ],
+      "channelPeakDbfs": [
+        -21.126094686792914,
+        -15.985396889024317
+      ],
+      "channelRmsDbfs": [
+        -35.71449181467137,
+        -31.879300546708226
+      ],
+      "dcOffsetPerChannel": [
+        -6.8815014294309535e-06,
+        3.6802144095228565e-05
+      ],
+      "samplesAtOrAboveMinus0_01Dbfs": 0,
+      "samplesAbove0Dbfs": 0,
+      "decodedWav": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/decoded/level_up.wav",
+      "afinfoEvidence": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/afinfo/level_up.txt"
+    },
+    {
+      "source": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Art/ThirdParty/FlareAudioExpansion/Raw/soundfx/melee_attack_2.ogg",
+      "relativePath": "melee_attack_2.ogg",
+      "sha256": "66055aa7fcb94533582f1cb0c9389ef7e6660cc84fdb43fa56239b0d64c27127",
+      "sourceCodec": "Ogg Vorbis",
+      "channels": 2,
+      "sampleRateHz": 44100,
+      "estimatedDurationSeconds": 0.286621,
+      "decodedFrames": 12640,
+      "decodedDurationSeconds": 0.28662131519274375,
+      "decodedSampleRateHz": 44100,
+      "decodedChannels": 2,
+      "peakLinear": 0.351223886013031,
+      "peakDbfs": -9.088319125768377,
+      "rmsLinear": 0.04852187128348056,
+      "rmsDbfs": -26.28124917160043,
+      "channelPeakLinear": [
+        0.34374764561653137,
+        0.351223886013031
+      ],
+      "channelPeakDbfs": [
+        -9.275205354099093,
+        -9.088319125768377
+      ],
+      "channelRmsDbfs": [
+        -26.4798174871327,
+        -26.091364230200305
+      ],
+      "dcOffsetPerChannel": [
+        -0.00032542628666125503,
+        0.0004354469661314194
+      ],
+      "samplesAtOrAboveMinus0_01Dbfs": 0,
+      "samplesAbove0Dbfs": 0,
+      "decodedWav": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/decoded/melee_attack_2.wav",
+      "afinfoEvidence": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/afinfo/melee_attack_2.txt"
+    },
+    {
+      "source": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Art/ThirdParty/FlareAudioExpansion/Raw/soundfx/melee_attack_3.ogg",
+      "relativePath": "melee_attack_3.ogg",
+      "sha256": "3738417e1b365bc228886413976e3f8f17ede14b6bf0e2626c0d6ca9e7f25d81",
+      "sourceCodec": "Ogg Vorbis",
+      "channels": 2,
+      "sampleRateHz": 44100,
+      "estimatedDurationSeconds": 0.234512,
+      "decodedFrames": 10214,
+      "decodedDurationSeconds": 0.23160997732426303,
+      "decodedSampleRateHz": 44100,
+      "decodedChannels": 2,
+      "peakLinear": 0.3559073805809021,
+      "peakDbfs": -8.973260115600318,
+      "rmsLinear": 0.04884497541773094,
+      "rmsDbfs": -26.22360209257296,
+      "channelPeakLinear": [
+        0.34842076897621155,
+        0.3559073805809021
+      ],
+      "channelPeakDbfs": [
+        -9.157919301592516,
+        -8.973260115600318
+      ],
+      "channelRmsDbfs": [
+        -26.426217808422802,
+        -26.030019349809418
+      ],
+      "dcOffsetPerChannel": [
+        -0.00010720744262889777,
+        0.000609268432083493
+      ],
+      "samplesAtOrAboveMinus0_01Dbfs": 0,
+      "samplesAbove0Dbfs": 0,
+      "decodedWav": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/decoded/melee_attack_3.wav",
+      "afinfoEvidence": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/afinfo/melee_attack_3.txt"
+    },
+    {
+      "source": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Art/ThirdParty/FlareAudioExpansion/Raw/soundfx/powers/arrow_wall.ogg",
+      "relativePath": "powers/arrow_wall.ogg",
+      "sha256": "c6aca9fe866547a4bfec07bebae2f1f5f7a3b5cddd17e8cc4766917deb7a0122",
+      "sourceCodec": "Ogg Vorbis",
+      "channels": 1,
+      "sampleRateHz": 22050,
+      "estimatedDurationSeconds": 0.763673,
+      "decodedFrames": 16839,
+      "decodedDurationSeconds": 0.7636734693877552,
+      "decodedSampleRateHz": 22050,
+      "decodedChannels": 1,
+      "peakLinear": 0.145608052611351,
+      "peakDbfs": -16.73629212848582,
+      "rmsLinear": 0.008837994246641062,
+      "rmsDbfs": -41.07292570981453,
+      "channelPeakLinear": [
+        0.145608052611351
+      ],
+      "channelPeakDbfs": [
+        -16.73629212848582
+      ],
+      "channelRmsDbfs": [
+        -41.07292570981453
+      ],
+      "dcOffsetPerChannel": [
+        -2.8363492682146494e-06
+      ],
+      "samplesAtOrAboveMinus0_01Dbfs": 0,
+      "samplesAbove0Dbfs": 0,
+      "decodedWav": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/decoded/powers__arrow_wall.wav",
+      "afinfoEvidence": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/afinfo/powers__arrow_wall.txt"
+    },
+    {
+      "source": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Art/ThirdParty/FlareAudioExpansion/Raw/soundfx/powers/block.ogg",
+      "relativePath": "powers/block.ogg",
+      "sha256": "63dc9876d267b5a21943d774226d7e3251ed558606f10d5d46668af845e369dd",
+      "sourceCodec": "Ogg Vorbis",
+      "channels": 1,
+      "sampleRateHz": 22050,
+      "estimatedDurationSeconds": 0.750023,
+      "decodedFrames": 16410,
+      "decodedDurationSeconds": 0.7442176870748299,
+      "decodedSampleRateHz": 22050,
+      "decodedChannels": 1,
+      "peakLinear": 0.21878217160701752,
+      "peakDbfs": -13.199761424483402,
+      "rmsLinear": 0.02257183829748147,
+      "rmsDbfs": -32.92866139271036,
+      "channelPeakLinear": [
+        0.21878217160701752
+      ],
+      "channelPeakDbfs": [
+        -13.199761424483402
+      ],
+      "channelRmsDbfs": [
+        -32.92866139271036
+      ],
+      "dcOffsetPerChannel": [
+        -0.0001675105132737046
+      ],
+      "samplesAtOrAboveMinus0_01Dbfs": 0,
+      "samplesAbove0Dbfs": 0,
+      "decodedWav": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/decoded/powers__block.wav",
+      "afinfoEvidence": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/afinfo/powers__block.txt"
+    },
+    {
+      "source": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Art/ThirdParty/FlareAudioExpansion/Raw/soundfx/powers/burn.ogg",
+      "relativePath": "powers/burn.ogg",
+      "sha256": "3f525aa97a4b33e0282ac78855ec52ab88c534e67dc471403a2a3a97931db021",
+      "sourceCodec": "Ogg Vorbis",
+      "channels": 1,
+      "sampleRateHz": 22050,
+      "estimatedDurationSeconds": 1.72771,
+      "decodedFrames": 38096,
+      "decodedDurationSeconds": 1.7277097505668935,
+      "decodedSampleRateHz": 22050,
+      "decodedChannels": 1,
+      "peakLinear": 0.565390944480896,
+      "peakDbfs": -4.953023032369383,
+      "rmsLinear": 0.068587130944239,
+      "rmsDbfs": -23.275147273095847,
+      "channelPeakLinear": [
+        0.565390944480896
+      ],
+      "channelPeakDbfs": [
+        -4.953023032369383
+      ],
+      "channelRmsDbfs": [
+        -23.275147273095847
+      ],
+      "dcOffsetPerChannel": [
+        0.007449382520811904
+      ],
+      "samplesAtOrAboveMinus0_01Dbfs": 0,
+      "samplesAbove0Dbfs": 0,
+      "decodedWav": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/decoded/powers__burn.wav",
+      "afinfoEvidence": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/afinfo/powers__burn.txt"
+    },
+    {
+      "source": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Art/ThirdParty/FlareAudioExpansion/Raw/soundfx/powers/fireball.ogg",
+      "relativePath": "powers/fireball.ogg",
+      "sha256": "0d0390a4b84d731e81b87df828725b08a27c4df5277e4323f2ceb72d01fdc627",
+      "sourceCodec": "Ogg Vorbis",
+      "channels": 2,
+      "sampleRateHz": 22050,
+      "estimatedDurationSeconds": 0.828889,
+      "decodedFrames": 18176,
+      "decodedDurationSeconds": 0.8243083900226758,
+      "decodedSampleRateHz": 22050,
+      "decodedChannels": 2,
+      "peakLinear": 0.200847327709198,
+      "peakDbfs": -13.94267884437883,
+      "rmsLinear": 0.023764552291492148,
+      "rmsDbfs": -32.48140726228114,
+      "channelPeakLinear": [
+        0.1696837693452835,
+        0.200847327709198
+      ],
+      "channelPeakDbfs": [
+        -15.407193939844658,
+        -13.94267884437883
+      ],
+      "channelRmsDbfs": [
+        -32.82878222980954,
+        -32.15977137829282
+      ],
+      "dcOffsetPerChannel": [
+        -1.64551526647019e-05,
+        7.095245707310488e-06
+      ],
+      "samplesAtOrAboveMinus0_01Dbfs": 0,
+      "samplesAbove0Dbfs": 0,
+      "decodedWav": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/decoded/powers__fireball.wav",
+      "afinfoEvidence": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/afinfo/powers__fireball.txt"
+    },
+    {
+      "source": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Art/ThirdParty/FlareAudioExpansion/Raw/soundfx/powers/freeze.ogg",
+      "relativePath": "powers/freeze.ogg",
+      "sha256": "0e20bf06629a4f4913e63b124c6662138d3821ae7552e5413456ba22cd37aa84",
+      "sourceCodec": "Ogg Vorbis",
+      "channels": 1,
+      "sampleRateHz": 22050,
+      "estimatedDurationSeconds": 0.91873,
+      "decodedFrames": 20224,
+      "decodedDurationSeconds": 0.9171882086167801,
+      "decodedSampleRateHz": 22050,
+      "decodedChannels": 1,
+      "peakLinear": 0.4918971359729767,
+      "peakDbfs": -6.162514121480715,
+      "rmsLinear": 0.017458111686986955,
+      "rmsDbfs": -35.16005464934579,
+      "channelPeakLinear": [
+        0.4918971359729767
+      ],
+      "channelPeakDbfs": [
+        -6.162514121480715
+      ],
+      "channelRmsDbfs": [
+        -35.16005464934579
+      ],
+      "dcOffsetPerChannel": [
+        -1.5158251669588781e-06
+      ],
+      "samplesAtOrAboveMinus0_01Dbfs": 0,
+      "samplesAbove0Dbfs": 0,
+      "decodedWav": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/decoded/powers__freeze.wav",
+      "afinfoEvidence": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/afinfo/powers__freeze.txt"
+    },
+    {
+      "source": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Art/ThirdParty/FlareAudioExpansion/Raw/soundfx/powers/heal.ogg",
+      "relativePath": "powers/heal.ogg",
+      "sha256": "0240234d960a684fced186833d8db6e960a0ce0e26095da1b6386cb0e235dc16",
+      "sourceCodec": "Ogg Vorbis",
+      "channels": 1,
+      "sampleRateHz": 22050,
+      "estimatedDurationSeconds": 1.959184,
+      "decodedFrames": 43200,
+      "decodedDurationSeconds": 1.9591836734693877,
+      "decodedSampleRateHz": 22050,
+      "decodedChannels": 1,
+      "peakLinear": 0.22486139833927155,
+      "peakDbfs": -12.961701858573543,
+      "rmsLinear": 0.04477961877091421,
+      "rmsDbfs": -26.978392161719967,
+      "channelPeakLinear": [
+        0.22486139833927155
+      ],
+      "channelPeakDbfs": [
+        -12.961701858573543
+      ],
+      "channelRmsDbfs": [
+        -26.978392161719967
+      ],
+      "dcOffsetPerChannel": [
+        -0.0004379237153704256
+      ],
+      "samplesAtOrAboveMinus0_01Dbfs": 0,
+      "samplesAbove0Dbfs": 0,
+      "decodedWav": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/decoded/powers__heal.wav",
+      "afinfoEvidence": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/afinfo/powers__heal.txt"
+    },
+    {
+      "source": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Art/ThirdParty/FlareAudioExpansion/Raw/soundfx/powers/quake.ogg",
+      "relativePath": "powers/quake.ogg",
+      "sha256": "dcb12477adf80c40abf966b2e83cd97675c9a1cad56962d7822b46617ec87a8a",
+      "sourceCodec": "Ogg Vorbis",
+      "channels": 1,
+      "sampleRateHz": 22050,
+      "estimatedDurationSeconds": 1.5,
+      "decodedFrames": 33075,
+      "decodedDurationSeconds": 1.5,
+      "decodedSampleRateHz": 22050,
+      "decodedChannels": 1,
+      "peakLinear": 0.7257112264633179,
+      "peakDbfs": -2.784723170080379,
+      "rmsLinear": 0.16328562955895906,
+      "rmsDbfs": -15.741040699371675,
+      "channelPeakLinear": [
+        0.7257112264633179
+      ],
+      "channelPeakDbfs": [
+        -2.784723170080379
+      ],
+      "channelRmsDbfs": [
+        -15.741040699371675
+      ],
+      "dcOffsetPerChannel": [
+        0.001289689281678951
+      ],
+      "samplesAtOrAboveMinus0_01Dbfs": 0,
+      "samplesAbove0Dbfs": 0,
+      "decodedWav": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/decoded/powers__quake.wav",
+      "afinfoEvidence": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/afinfo/powers__quake.txt"
+    },
+    {
+      "source": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Art/ThirdParty/FlareAudioExpansion/Raw/soundfx/powers/shield.ogg",
+      "relativePath": "powers/shield.ogg",
+      "sha256": "8f6c75d914a76b86fe4d35c3b8b48212d6cedc18b7b3a284f7db2dc38a745711",
+      "sourceCodec": "Ogg Vorbis",
+      "channels": 1,
+      "sampleRateHz": 22050,
+      "estimatedDurationSeconds": 0.446939,
+      "decodedFrames": 9727,
+      "decodedDurationSeconds": 0.4411337868480726,
+      "decodedSampleRateHz": 22050,
+      "decodedChannels": 1,
+      "peakLinear": 0.17590691149234772,
+      "peakDbfs": -15.094341930120844,
+      "rmsLinear": 0.03739185963582174,
+      "rmsDbfs": -28.54445870467587,
+      "channelPeakLinear": [
+        0.17590691149234772
+      ],
+      "channelPeakDbfs": [
+        -15.094341930120844
+      ],
+      "channelRmsDbfs": [
+        -28.54445870467587
+      ],
+      "dcOffsetPerChannel": [
+        4.379707647072765e-07
+      ],
+      "samplesAtOrAboveMinus0_01Dbfs": 0,
+      "samplesAbove0Dbfs": 0,
+      "decodedWav": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/decoded/powers__shield.wav",
+      "afinfoEvidence": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/afinfo/powers__shield.txt"
+    },
+    {
+      "source": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Art/ThirdParty/FlareAudioExpansion/Raw/soundfx/powers/shock.ogg",
+      "relativePath": "powers/shock.ogg",
+      "sha256": "342be451371c2464db9ae5656867f90605687b60faaf0fc713972571a9dbe3a1",
+      "sourceCodec": "Ogg Vorbis",
+      "channels": 1,
+      "sampleRateHz": 88200,
+      "estimatedDurationSeconds": 1.190385,
+      "decodedFrames": 104992,
+      "decodedDurationSeconds": 1.1903854875283446,
+      "decodedSampleRateHz": 88200,
+      "decodedChannels": 1,
+      "peakLinear": 0.06781554967164993,
+      "peakDbfs": -23.373414275370155,
+      "rmsLinear": 0.0068893295433784755,
+      "rmsDbfs": -43.236460815197134,
+      "channelPeakLinear": [
+        0.06781554967164993
+      ],
+      "channelPeakDbfs": [
+        -23.373414275370155
+      ],
+      "channelRmsDbfs": [
+        -43.236460815197134
+      ],
+      "dcOffsetPerChannel": [
+        -1.2591994228736891e-05
+      ],
+      "samplesAtOrAboveMinus0_01Dbfs": 0,
+      "samplesAbove0Dbfs": 0,
+      "decodedWav": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/decoded/powers__shock.wav",
+      "afinfoEvidence": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/afinfo/powers__shock.txt"
+    },
+    {
+      "source": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Art/ThirdParty/FlareAudioExpansion/Raw/soundfx/powers/shoot.ogg",
+      "relativePath": "powers/shoot.ogg",
+      "sha256": "ac3e1f9868946cfd2fdfe00f65d7170d1e30d66ec626ba7767a5370dacedaba6",
+      "sourceCodec": "Ogg Vorbis",
+      "channels": 1,
+      "sampleRateHz": 22050,
+      "estimatedDurationSeconds": 0.449206,
+      "decodedFrames": 9777,
+      "decodedDurationSeconds": 0.4434013605442177,
+      "decodedSampleRateHz": 22050,
+      "decodedChannels": 1,
+      "peakLinear": 0.544772207736969,
+      "peakDbfs": -5.275701132564485,
+      "rmsLinear": 0.04687363362736224,
+      "rmsDbfs": -26.581427576429316,
+      "channelPeakLinear": [
+        0.544772207736969
+      ],
+      "channelPeakDbfs": [
+        -5.275701132564485
+      ],
+      "channelRmsDbfs": [
+        -26.581427576429316
+      ],
+      "dcOffsetPerChannel": [
+        -0.0001231366267361979
+      ],
+      "samplesAtOrAboveMinus0_01Dbfs": 0,
+      "samplesAbove0Dbfs": 0,
+      "decodedWav": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/decoded/powers__shoot.wav",
+      "afinfoEvidence": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/live-integration-2026-11-08/audio-audit/afinfo/powers__shoot.txt"
+    }
+  ]
+}

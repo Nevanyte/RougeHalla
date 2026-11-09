@@ -8,7 +8,7 @@ using Roguehalla.Net.Protocol;
 
 namespace Roguehalla.Client
 {
-    public sealed class MatchClient : MonoBehaviour
+    public sealed partial class MatchClient : MonoBehaviour
     {
         public string Url = "ws://127.0.0.1:7777/ws", Profile = "unity1";
         /// <summary>The admission ticket, sent as its UTF-8 bytes (the dev server checks the callsign secret; P-HOST-1 defines hosted tickets).</summary>
@@ -23,6 +23,7 @@ namespace Roguehalla.Client
 
         public Session Session { get; private set; }
         Session _presentationSession;
+        Func<ITransport> _transportFactory = TransportFactory.Create;
         readonly List<InterpActor> _actors = new List<InterpActor>();
         readonly List<InterpActor> _targetActors = new List<InterpActor>();
         const double SteerRepeatMs = 100;
@@ -36,14 +37,23 @@ namespace Roguehalla.Client
 
         static double NowMs() { return Time.realtimeSinceStartupAsDouble * 1000.0; }
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        internal void InitializeLayoutReview(Session session)
+        {
+            Session = session;
+            Hud = gameObject.AddComponent<MatchHud>(); Hud.Initialize(this); Hud.Bind(session);
+        }
+#endif
+
         void Start()
         {
+            InitializeAccounts();
             Hud = gameObject.AddComponent<MatchHud>();
             Hud.Initialize(this);
             if (AutoJoin) Join(Profile, Faction);
         }
 
-        public void Join(string nickname, int faction)
+        void JoinCore(string nickname, int faction, string validatedMatchUrl, string ownerToken)
         {
             if (Session != null) { UnbindPresentationSession(); ResetPresentationTimeline(); Session.Leave(); }
             Profile = string.IsNullOrWhiteSpace(nickname) ? Profile : nickname.Trim();
@@ -51,9 +61,9 @@ namespace Roguehalla.Client
             _actors.Clear(); _steering = false; _attackHeld = false;
             if (Arena != null) Destroy(Arena.gameObject);
             Arena = new GameObject("Arena").AddComponent<ArenaView>();
-            Session = new Session(TransportFactory.Create(), new SessionOptions
+            Session = new Session(_transportFactory(), new SessionOptions
             {
-                Url = Url, Profile = Profile, Ticket = System.Text.Encoding.UTF8.GetBytes(Token ?? ""), ContentHash = ContentHash, Build = "unity-web-0.1.0",
+                Url = validatedMatchUrl, Profile = Profile, Ticket = System.Text.Encoding.UTF8.GetBytes(ownerToken ?? ""), ContentHash = ContentHash, Build = "unity-web-0.1.0",
                 Faction = Faction >= 0 ? (byte)Faction : (byte?)null, Now = NowMs,
             });
             Session.StateChanged += state =>
@@ -68,23 +78,29 @@ namespace Roguehalla.Client
 
         public void Leave()
         {
+            bool hadResult = Session != null && Session.LastResult != null;
+            CancelOwnedJoin();
             UnbindPresentationSession(); ResetPresentationTimeline();
             if (Session != null) Session.Leave();
             if (Arena != null) Destroy(Arena.gameObject);
             Session = null;
             Hud.ShowMenu();
+            if (hadResult) RefreshAccountAfterResult();
         }
 
         void OnApplicationFocus(bool focused)
         {
+            if (!focused) Hud?.ReleaseUiFocusForWindowLoss();
             if (focused || Session == null || Session.State != SessionState.InMatch) return;
             if (_attackHeld) Session.Input.Release(_aimAngle, Session.Clock.RenderMs);
             if (_steering) Session.OrderStop();
             _attackHeld = _steering = false;
+            Hud?.TacticalMap?.ReleaseTransient();
         }
 
         void OnDestroy()
         {
+            CancelOwnedJoin();
             UnbindPresentationSession(); ResetPresentationTimeline();
             if (Session != null) Session.Leave();
             if (Arena != null) { Arena.gameObject.SetActive(false); Destroy(Arena.gameObject); }
@@ -118,10 +134,11 @@ namespace Roguehalla.Client
 
         void Update()
         {
-            if (Session == null) return;
+            if (Session == null) { Hud?.ReadUiInput(); return; }
             _traceLatency = LatencyTrace.Enabled;
             if (_traceLatency) LatencyTrace.Mark("frameStart", Session.PlayerId, 0, 0, 0);
             Session.Poll();
+            Hud?.ReadUiInput();
             if (Session.State != SessionState.InMatch && Session.State != SessionState.Ended) return;
             if (Arena != null && !Arena.HasMap && Session.Map != null) Arena.Build(Session.Map);
             Session.Snapshots.Sample(Session.Clock.RenderMs, _actors);
@@ -147,14 +164,20 @@ namespace Roguehalla.Client
             {
                 Session.Input.Release(_aimAngle, Session.Clock.RenderMs); _attackHeld = false;
             }
-            bool blocked = Hud != null && Hud.BlocksWorldInput;
-            if (blocked)
+            bool keyboardBlocked = Hud != null && Hud.BlocksKeyboardInput;
+            bool blocked = Hud != null && Hud.BlocksPointerInput;
+            // Opening a map/menu cancels a held attack immediately; release is never swallowed by UI capture.
+            if ((keyboardBlocked || Hud != null && Hud.TacticalMap != null && Hud.TacticalMap.PointerBlocked) && _attackHeld)
+            {
+                Session.Input.Release(_aimAngle, Session.Clock.RenderMs); _attackHeld = false;
+            }
+            if (keyboardBlocked)
             {
                 if (_steering) { OrderStop(); _steering = false; }
                 return;
             }
             float sx = myX, sy = myY;
-            bool haveCursor = mouse != null && Cam != null && Arena != null && Arena.ScreenToServer(Cam, mouse.position.ReadValue(), out sx, out sy);
+            bool haveCursor = !blocked && mouse != null && Cam != null && Arena != null && Arena.ScreenToServer(Cam, mouse.position.ReadValue(), out sx, out sy);
             if (haveCursor)
             {
                 _aimAngle = Mathf.Atan2(sy - myY, sx - myX);
@@ -188,14 +211,18 @@ namespace Roguehalla.Client
                 byte seq = Session.CollectWishInput(true, blocked, haveCursor, sx, sy, target == 0 ? (uint?)null : target);
                 if (_traceLatency && seq != 0) LatencyTrace.Mark("sampleWish", Session.PlayerId, seq, sx, sy);
             }
-            if (kb.digit1Key.wasPressedThisFrame) Session.Input.Swap(0);
-            if (kb.digit2Key.wasPressedThisFrame) Session.Input.Swap(1);
+            if (Hud == null || !Hud.ChestOwnsDigits)
+            {
+                if (kb.digit1Key.wasPressedThisFrame) Session.Input.Swap(0);
+                if (kb.digit2Key.wasPressedThisFrame) Session.Input.Swap(1);
+            }
             if (kb.qKey.wasPressedThisFrame) Session.Input.Swap();
             if (kb.eKey.wasPressedThisFrame) Session.Input.UseConsumable();
             if (kb.fKey.wasPressedThisFrame) PickupFocus();
             // Server +y points down the screen. This sends destinations; it never simulates movement.
-            var dir = new Vector2((kb.dKey.isPressed || kb.rightArrowKey.isPressed ? 1 : 0) - (kb.aKey.isPressed || kb.leftArrowKey.isPressed ? 1 : 0),
-                (kb.sKey.isPressed || kb.downArrowKey.isPressed ? 1 : 0) - (kb.wKey.isPressed || kb.upArrowKey.isPressed ? 1 : 0));
+            bool arrows = Hud == null || !Hud.ConsumesArrowNavigation;
+            var dir = new Vector2((kb.dKey.isPressed || arrows && kb.rightArrowKey.isPressed ? 1 : 0) - (kb.aKey.isPressed || arrows && kb.leftArrowKey.isPressed ? 1 : 0),
+                (kb.sKey.isPressed || arrows && kb.downArrowKey.isPressed ? 1 : 0) - (kb.wKey.isPressed || arrows && kb.upArrowKey.isPressed ? 1 : 0));
             if (dir != Vector2.zero)
             {
                 dir.Normalize();
@@ -272,7 +299,11 @@ namespace Roguehalla.Client
                 foreach (var actor in _actors)
                     LatencyTrace.Mark("presentActor", actor.Id, 0, actor.X, actor.Y);
             }
-            if (Cam != null && Session.Motion != null && Session.Motion.Initialized) Arena.Follow(Cam, Session.Motion.DrawnX, Session.Motion.DrawnY);
+            if (Cam != null && Hud != null && Hud.TacticalMap != null && Hud.TacticalMap.IsPeeking)
+            {
+                var at = Hud.TacticalMap.PeekAt; Arena.Follow(Cam, at.x, at.y);
+            }
+            else if (Cam != null && Session.Motion != null && Session.Motion.Initialized) Arena.Follow(Cam, Session.Motion.DrawnX, Session.Motion.DrawnY);
         }
     }
 }

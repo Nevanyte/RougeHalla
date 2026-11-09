@@ -1,0 +1,10 @@
+EncodeException: potion count
+  at Roguehalla.Net.Protocol.StateItem.Require (System.Boolean condition, System.String name) [0x0000a] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/RoguehallaNet/Protocol/State.cs:103 
+  at Roguehalla.Net.Protocol.InventoryState.Check () [0x0002d] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/RoguehallaNet/Protocol/State.cs:292 
+  at Roguehalla.Net.Protocol.StateItem.WriteAll (Roguehalla.Net.Protocol.Writer w, Roguehalla.Net.Protocol.StateItem[] items) [0x00046] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/RoguehallaNet/Protocol/State.cs:283 
+  at Roguehalla.Net.Protocol.ServerMsg+State.Encode () [0x0001c] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/RoguehallaNet/Protocol/Messages.cs:1425 
+  at Roguehalla.Client.UiLayoutReview+LayoutTransport.Deliver (Roguehalla.Net.Protocol.ServerMsg message) [0x00000] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Scripts/UI/UiLayoutReview.cs:93 
+  at Roguehalla.Client.UiLayoutReview.Initialize (UnityEngine.Camera camera, System.String mode) [0x00157] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Scripts/UI/UiLayoutReview.cs:36 
+  at Roguehalla.Client.Bootstrap.Start () [0x000d7] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Scripts/Bootstrap.cs:63 
+
+(Filename: Assets/Scripts/Bootstrap.cs Line: 63)

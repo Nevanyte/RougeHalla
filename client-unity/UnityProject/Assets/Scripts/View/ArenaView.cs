@@ -38,6 +38,11 @@ namespace Roguehalla.Client
         Vector3 _lastFollow;
         bool _hasFollow;
         public bool IsObserved(uint id) { return _actors != null && _actors.Contains(id); }
+        public bool TrySoundContext(uint id, out WeaponId weapon, out FactionId faction, out ActorKind kind, out MobTypeId? type)
+        {
+            if (_actors != null) return _actors.TrySoundContext(id,out weapon,out faction,out kind,out type);
+            weapon=default; faction=default; kind=default; type=null; return false;
+        }
         sealed class Flash { public SpriteRenderer Sprite; public TMP_Text Text; public uint Actor; public float Start, Duration; public Vector3 Position; public Color Color; public float Size; }
         struct PendingFx { public FxKind Kind; public uint Subject; public float Amount; }
 
@@ -67,12 +72,14 @@ namespace Roguehalla.Client
         {
             if (HasMap) return;
             float w = map.W, h = map.H * GroundSquash;
-            var floor = new Color(.43f, .4f, .38f);
             for (int y = 0; y < map.H; y += 4) for (int x = 0; x < map.W; x += 4)
             {
                 float cw = Mathf.Min(4, map.W - x), ch = Mathf.Min(4, map.H - y);
-                ShowcaseSprites.Create(_mapRoot, "Weathered floor", "floor", -100, floor * (1 + Hash(x, y) * .1f),
+                var ground = ShowcaseSprites.Create(_mapRoot, "Neutral carved flagstone", "bar", -100, Color.white,
                     new Vector2(cw, ch * GroundSquash), new Vector3(x + cw / 2, -(y + ch / 2) * GroundSquash));
+                // Collision-only maps identify no faction or terrain. Neutral artwork is deliberate;
+                // lava, ice, healing and zone treatments wait for public static-map facts.
+                ground.sprite = ShowcaseBiomeArt.Floor(ShowcaseBiome.Neutral, (x/4 + y/4) % 3);
             }
             for (int y = 0; y < map.H; y++) for (int x = 0; x < map.W; x++)
             {
@@ -81,7 +88,7 @@ namespace Roguehalla.Client
                 bool wall = tile == MapBlob.Wall;
                 int order = 2000 + y * 16;
                 float height = wall ? .67f : .25f;
-                var tint = wall ? new Color(.5f, .46f, .42f) : new Color(.36f, .37f, .39f);
+                var tint = wall ? new Color(.88f, .80f, .65f) : new Color(.48f, .56f, .60f);
                 ShowcaseSprites.Create(_mapRoot, "Wall contact", "shadow", order - 5, Color.white, new Vector2(1.5f, .65f), p + new Vector3(.16f, -.26f), false);
                 ShowcaseSprites.Create(_mapRoot, "Painted wall face", "stone", order, tint * .58f, new Vector2(1.02f, height + .32f), p + new Vector3(0, height / 2));
                 var crown = ShowcaseSprites.Create(_mapRoot, "Beveled stone crown", "stone", order + 1, tint, new Vector2(1.02f, .7f), p + new Vector3(0, height));

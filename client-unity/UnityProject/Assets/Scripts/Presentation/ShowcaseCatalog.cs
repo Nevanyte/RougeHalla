@@ -21,6 +21,7 @@ namespace Roguehalla.Client
         public Sprite Chest, Barrel, Statue;
         public AudioClip Music, Ambience;
         public AudioClip[] Hits, Swings, Ui;
+        public ShowcaseAudioLibrary AudioLibrary;
         public AudioMixerGroup MusicGroup, AmbienceGroup, SfxGroup;
         public Appearance Find(string key)
         {

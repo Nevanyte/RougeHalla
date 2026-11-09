@@ -1,0 +1,898 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ce5a038fd8cd848a980ee410542fec8a, type: 3}
+  m_Name: ShowcasePropCatalog
+  m_EditorClassIdentifier: 
+  entries:
+  - key: flare.dungeon.016
+    family: dungeon
+    tileId: 16
+    candidateRole: surface.floor
+    visualDescription: stone floor sample
+    sourcePath: mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceSha256: 5ff7051291cc579ddf09eb4f81b939bebe92f259a341283b01a334ae3db998bc
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSha256: 309ef683a4d0a82a928f2c941d414770ebdac9295fb24757888e4c708783b78f
+    sourceRectTopLeftPixels:
+      x: 1438
+      y: 2644
+      width: 192
+      height: 96
+    flareOffsetPixels: {x: 96, y: 48}
+    unityPivotNormalized: {x: 0.5, y: 0.5}
+    sprite: {fileID: 21300000, guid: 07fc89b72ddb246a28aedd43497e7bc6, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.dungeon.060
+    family: dungeon
+    tileId: 60
+    candidateRole: glow.rune
+    visualDescription: glowing floor rune
+    sourcePath: mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceSha256: 5ff7051291cc579ddf09eb4f81b939bebe92f259a341283b01a334ae3db998bc
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSha256: 309ef683a4d0a82a928f2c941d414770ebdac9295fb24757888e4c708783b78f
+    sourceRectTopLeftPixels:
+      x: 1974
+      y: 2320
+      width: 192
+      height: 96
+    flareOffsetPixels: {x: 96, y: 48}
+    unityPivotNormalized: {x: 0.5, y: 0.5}
+    sprite: {fileID: 21300000, guid: 6fe83db004d6d40fb827835e60ef292f, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.dungeon.064
+    family: dungeon
+    tileId: 64
+    candidateRole: surface.wall
+    visualDescription: stone wall face
+    sourcePath: mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceSha256: 5ff7051291cc579ddf09eb4f81b939bebe92f259a341283b01a334ae3db998bc
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSha256: 309ef683a4d0a82a928f2c941d414770ebdac9295fb24757888e4c708783b78f
+    sourceRectTopLeftPixels:
+      x: 384
+      y: 3081
+      width: 178
+      height: 328
+    flareOffsetPixels: {x: 96, y: 287}
+    unityPivotNormalized: {x: 0.53846157, y: 0.12951808}
+    sprite: {fileID: 21300000, guid: b5c52a496da08471da33066017917ffb, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.dungeon.107
+    family: dungeon
+    tileId: 107
+    candidateRole: prop.banner
+    visualDescription: hanging cloth banner
+    sourcePath: mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceSha256: 5ff7051291cc579ddf09eb4f81b939bebe92f259a341283b01a334ae3db998bc
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSha256: 309ef683a4d0a82a928f2c941d414770ebdac9295fb24757888e4c708783b78f
+    sourceRectTopLeftPixels:
+      x: 740
+      y: 3119
+      width: 178
+      height: 328
+    flareOffsetPixels: {x: 82, y: 287}
+    unityPivotNormalized: {x: 0.46153846, y: 0.12951808}
+    sprite: {fileID: 21300000, guid: 8a3fa987f88bd4c53a27da24383dc252, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.dungeon.108
+    family: dungeon
+    tileId: 108
+    candidateRole: prop.banner_red
+    visualDescription: red hanging banner
+    sourcePath: mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceSha256: 5ff7051291cc579ddf09eb4f81b939bebe92f259a341283b01a334ae3db998bc
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSha256: 309ef683a4d0a82a928f2c941d414770ebdac9295fb24757888e4c708783b78f
+    sourceRectTopLeftPixels:
+      x: 918
+      y: 2791
+      width: 178
+      height: 328
+    flareOffsetPixels: {x: 96, y: 287}
+    unityPivotNormalized: {x: 0.53846157, y: 0.12951808}
+    sprite: {fileID: 21300000, guid: 2115ffb7017bb42a4b6ed9e7d651e588, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.dungeon.114
+    family: dungeon
+    tileId: 114
+    candidateRole: prop.cell_bars
+    visualDescription: iron-barred doorway
+    sourcePath: mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceSha256: 5ff7051291cc579ddf09eb4f81b939bebe92f259a341283b01a334ae3db998bc
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSha256: 309ef683a4d0a82a928f2c941d414770ebdac9295fb24757888e4c708783b78f
+    sourceRectTopLeftPixels:
+      x: 1110
+      y: 1821
+      width: 178
+      height: 328
+    flareOffsetPixels: {x: 96, y: 287}
+    unityPivotNormalized: {x: 0.53846157, y: 0.12951808}
+    sprite: {fileID: 21300000, guid: 07e0e2f502cf24bbaa1040142f6ced85, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.dungeon.115
+    family: dungeon
+    tileId: 115
+    candidateRole: prop.cell_bars
+    visualDescription: barred door variant
+    sourcePath: mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceSha256: 5ff7051291cc579ddf09eb4f81b939bebe92f259a341283b01a334ae3db998bc
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSha256: 309ef683a4d0a82a928f2c941d414770ebdac9295fb24757888e4c708783b78f
+    sourceRectTopLeftPixels:
+      x: 1110
+      y: 2149
+      width: 178
+      height: 328
+    flareOffsetPixels: {x: 82, y: 287}
+    unityPivotNormalized: {x: 0.46153846, y: 0.12951808}
+    sprite: {fileID: 21300000, guid: 9c225faf0b8e44b358d54dea44e31c84, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.dungeon.128
+    family: dungeon
+    tileId: 128
+    candidateRole: landmark.shrine
+    visualDescription: statue on plinth
+    sourcePath: mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceSha256: 5ff7051291cc579ddf09eb4f81b939bebe92f259a341283b01a334ae3db998bc
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSha256: 309ef683a4d0a82a928f2c941d414770ebdac9295fb24757888e4c708783b78f
+    sourceRectTopLeftPixels:
+      x: 1105
+      y: 3780
+      width: 137
+      height: 219
+    flareOffsetPixels: {x: 50, y: 197}
+    unityPivotNormalized: {x: 0.36879432, y: 0.10762332}
+    sprite: {fileID: 21300000, guid: 0a844e6a98fec41b18b8a51de72e1320, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.dungeon.130
+    family: dungeon
+    tileId: 130
+    candidateRole: landmark.shrine
+    visualDescription: statue variant
+    sourcePath: mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceSha256: 5ff7051291cc579ddf09eb4f81b939bebe92f259a341283b01a334ae3db998bc
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSha256: 309ef683a4d0a82a928f2c941d414770ebdac9295fb24757888e4c708783b78f
+    sourceRectTopLeftPixels:
+      x: 2034
+      y: 0
+      width: 133
+      height: 217
+    flareOffsetPixels: {x: 50, y: 195}
+    unityPivotNormalized: {x: 0.37956205, y: 0.108597286}
+    sprite: {fileID: 21300000, guid: 43c31c0039a4344748b42a4ac3930a36, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.dungeon.136
+    family: dungeon
+    tileId: 136
+    candidateRole: prop.altar
+    visualDescription: stone table/plinth
+    sourcePath: mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceSha256: 5ff7051291cc579ddf09eb4f81b939bebe92f259a341283b01a334ae3db998bc
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSha256: 309ef683a4d0a82a928f2c941d414770ebdac9295fb24757888e4c708783b78f
+    sourceRectTopLeftPixels:
+      x: 1964
+      y: 3463
+      width: 139
+      height: 97
+    flareOffsetPixels: {x: 64, y: 70}
+    unityPivotNormalized: {x: 0.46153846, y: 0.28712872}
+    sprite: {fileID: 21300000, guid: d02bc747131cd4e3f8d3b71e16fb4cf4, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.dungeon.145
+    family: dungeon
+    tileId: 145
+    candidateRole: prop.chest
+    visualDescription: closed chest
+    sourcePath: mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceSha256: 5ff7051291cc579ddf09eb4f81b939bebe92f259a341283b01a334ae3db998bc
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSha256: 309ef683a4d0a82a928f2c941d414770ebdac9295fb24757888e4c708783b78f
+    sourceRectTopLeftPixels:
+      x: 2076
+      y: 539
+      width: 91
+      height: 86
+    flareOffsetPixels: {x: 40, y: 66}
+    unityPivotNormalized: {x: 0.44210526, y: 0.24444444}
+    sprite: {fileID: 21300000, guid: 3c12a2c97a6b14bb1a2938b797470377, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.dungeon.146
+    family: dungeon
+    tileId: 146
+    candidateRole: prop.barrel
+    visualDescription: barrel
+    sourcePath: mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceSha256: 5ff7051291cc579ddf09eb4f81b939bebe92f259a341283b01a334ae3db998bc
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSha256: 309ef683a4d0a82a928f2c941d414770ebdac9295fb24757888e4c708783b78f
+    sourceRectTopLeftPixels:
+      x: 2069
+      y: 3778
+      width: 92
+      height: 108
+    flareOffsetPixels: {x: 35, y: 93}
+    unityPivotNormalized: {x: 0.38541666, y: 0.15178572}
+    sprite: {fileID: 21300000, guid: ad5fa62a5580c4beead87a3a2b10e7bc, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.dungeon.147
+    family: dungeon
+    tileId: 147
+    candidateRole: prop.crate
+    visualDescription: crate
+    sourcePath: mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceSha256: 5ff7051291cc579ddf09eb4f81b939bebe92f259a341283b01a334ae3db998bc
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSha256: 309ef683a4d0a82a928f2c941d414770ebdac9295fb24757888e4c708783b78f
+    sourceRectTopLeftPixels:
+      x: 1474
+      y: 3842
+      width: 110
+      height: 106
+    flareOffsetPixels: {x: 45, y: 83}
+    unityPivotNormalized: {x: 0.4122807, y: 0.22727273}
+    sprite: {fileID: 21300000, guid: f944aedc46be84475ad044d75c482acb, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.dungeon.148
+    family: dungeon
+    tileId: 148
+    candidateRole: prop.lectern
+    visualDescription: lectern
+    sourcePath: mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceSha256: 5ff7051291cc579ddf09eb4f81b939bebe92f259a341283b01a334ae3db998bc
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSha256: 309ef683a4d0a82a928f2c941d414770ebdac9295fb24757888e4c708783b78f
+    sourceRectTopLeftPixels:
+      x: 1644
+      y: 2738
+      width: 115
+      height: 144
+    flareOffsetPixels: {x: 43, y: 129}
+    unityPivotNormalized: {x: 0.37815127, y: 0.11486486}
+    sprite: {fileID: 21300000, guid: e097ac5eb82bb413085c492f763b2df3, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.dungeon.150
+    family: dungeon
+    tileId: 150
+    candidateRole: prop.torch
+    visualDescription: pedestal torch
+    sourcePath: mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceSha256: 5ff7051291cc579ddf09eb4f81b939bebe92f259a341283b01a334ae3db998bc
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSha256: 309ef683a4d0a82a928f2c941d414770ebdac9295fb24757888e4c708783b78f
+    sourceRectTopLeftPixels:
+      x: 2089
+      y: 3560
+      width: 76
+      height: 80
+    flareOffsetPixels: {x: 28, y: 66}
+    unityPivotNormalized: {x: 0.375, y: 0.1904762}
+    sprite: {fileID: 21300000, guid: c850c7d85f459486eacacb5b5326b980, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.dungeon.151
+    family: dungeon
+    tileId: 151
+    candidateRole: prop.brazier
+    visualDescription: fire bowl / brazier
+    sourcePath: mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceSha256: 5ff7051291cc579ddf09eb4f81b939bebe92f259a341283b01a334ae3db998bc
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSha256: 309ef683a4d0a82a928f2c941d414770ebdac9295fb24757888e4c708783b78f
+    sourceRectTopLeftPixels:
+      x: 2062
+      y: 3886
+      width: 97
+      height: 82
+    flareOffsetPixels: {x: 42, y: 62}
+    unityPivotNormalized: {x: 0.43564355, y: 0.25581396}
+    sprite: {fileID: 21300000, guid: 119d1b2eef83b4154b82a643b553bad7, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.dungeon.176
+    family: dungeon
+    tileId: 176
+    candidateRole: prop.rubble
+    visualDescription: bone/rubble pile
+    sourcePath: mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceSha256: 5ff7051291cc579ddf09eb4f81b939bebe92f259a341283b01a334ae3db998bc
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSha256: 309ef683a4d0a82a928f2c941d414770ebdac9295fb24757888e4c708783b78f
+    sourceRectTopLeftPixels:
+      x: 184
+      y: 3940
+      width: 79
+      height: 50
+    flareOffsetPixels: {x: 42, y: 14}
+    unityPivotNormalized: {x: 0.5301205, y: 0.7037037}
+    sprite: {fileID: 21300000, guid: 8080f1f1df3f94ba8a0884c438d81860, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.dungeon.177
+    family: dungeon
+    tileId: 177
+    candidateRole: prop.rubble
+    visualDescription: bone/rubble variant
+    sourcePath: mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceSha256: 5ff7051291cc579ddf09eb4f81b939bebe92f259a341283b01a334ae3db998bc
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSha256: 309ef683a4d0a82a928f2c941d414770ebdac9295fb24757888e4c708783b78f
+    sourceRectTopLeftPixels:
+      x: 263
+      y: 3940
+      width: 66
+      height: 44
+    flareOffsetPixels: {x: 39, y: 31}
+    unityPivotNormalized: {x: 0.5857143, y: 0.3125}
+    sprite: {fileID: 21300000, guid: a051a41eb4bc4404a9c574d5f4bcdf8b, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.dungeon.192
+    family: dungeon
+    tileId: 192
+    candidateRole: prop.chain
+    visualDescription: hanging chain
+    sourcePath: mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_dungeon.png
+    sourceSha256: 5ff7051291cc579ddf09eb4f81b939bebe92f259a341283b01a334ae3db998bc
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+    definitionSha256: 309ef683a4d0a82a928f2c941d414770ebdac9295fb24757888e4c708783b78f
+    sourceRectTopLeftPixels:
+      x: 0
+      y: 1258
+      width: 246
+      height: 354
+    flareOffsetPixels: {x: 192, y: 324}
+    unityPivotNormalized: {x: 0.776, y: 0.08938547}
+    sprite: {fileID: 21300000, guid: 3c43e41874b924954a2f2d0b706292d9, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.cave.016
+    family: cave
+    tileId: 16
+    candidateRole: surface.floor
+    visualDescription: cave floor sample
+    sourcePath: mods/fantasycore/images/tilesets/tileset_cave.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_cave.png
+    sourceSha256: e4a85a818a01521e48ac477e3f9bba0d59c4d70447a37608ab2cbe2d086e32d8
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_cave.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_cave.txt
+    definitionSha256: a840f12c98b62c3e3831ca279653d01212ca925eb269e59743273342040d4e4a
+    sourceRectTopLeftPixels:
+      x: 1152
+      y: 1149
+      width: 192
+      height: 96
+    flareOffsetPixels: {x: 96, y: 48}
+    unityPivotNormalized: {x: 0.5, y: 0.5}
+    sprite: {fileID: 21300000, guid: e46335be592cc4fd88faeae3dacc2a45, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.cave.048
+    family: cave
+    tileId: 48
+    candidateRole: prop.rubble
+    visualDescription: rock/bone debris floor
+    sourcePath: mods/fantasycore/images/tilesets/tileset_cave.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_cave.png
+    sourceSha256: e4a85a818a01521e48ac477e3f9bba0d59c4d70447a37608ab2cbe2d086e32d8
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_cave.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_cave.txt
+    definitionSha256: a840f12c98b62c3e3831ca279653d01212ca925eb269e59743273342040d4e4a
+    sourceRectTopLeftPixels:
+      x: 1536
+      y: 1536
+      width: 192
+      height: 96
+    flareOffsetPixels: {x: 96, y: 48}
+    unityPivotNormalized: {x: 0.5, y: 0.5}
+    sprite: {fileID: 21300000, guid: 75370705f0bba4e93a886e3271e5d52d, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.cave.052
+    family: cave
+    tileId: 52
+    candidateRole: prop.rubble
+    visualDescription: skeletal debris floor
+    sourcePath: mods/fantasycore/images/tilesets/tileset_cave.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_cave.png
+    sourceSha256: e4a85a818a01521e48ac477e3f9bba0d59c4d70447a37608ab2cbe2d086e32d8
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_cave.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_cave.txt
+    definitionSha256: a840f12c98b62c3e3831ca279653d01212ca925eb269e59743273342040d4e4a
+    sourceRectTopLeftPixels:
+      x: 0
+      y: 1432
+      width: 192
+      height: 96
+    flareOffsetPixels: {x: 96, y: 48}
+    unityPivotNormalized: {x: 0.5, y: 0.5}
+    sprite: {fileID: 21300000, guid: de2c831024b96405a8ace4f25af9a269, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.cave.064
+    family: cave
+    tileId: 64
+    candidateRole: surface.wall
+    visualDescription: cave wall face
+    sourcePath: mods/fantasycore/images/tilesets/tileset_cave.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_cave.png
+    sourceSha256: e4a85a818a01521e48ac477e3f9bba0d59c4d70447a37608ab2cbe2d086e32d8
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_cave.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_cave.txt
+    definitionSha256: a840f12c98b62c3e3831ca279653d01212ca925eb269e59743273342040d4e4a
+    sourceRectTopLeftPixels:
+      x: 1185
+      y: 2676
+      width: 176
+      height: 339
+    flareOffsetPixels: {x: 96, y: 298}
+    unityPivotNormalized: {x: 0.54444444, y: 0.12536444}
+    sprite: {fileID: 21300000, guid: c89b5b9710c6d4c04a11c1086d62719e, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.cave.080
+    family: cave
+    tileId: 80
+    candidateRole: prop.spire
+    visualDescription: stone spire formation
+    sourcePath: mods/fantasycore/images/tilesets/tileset_cave.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_cave.png
+    sourceSha256: e4a85a818a01521e48ac477e3f9bba0d59c4d70447a37608ab2cbe2d086e32d8
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_cave.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_cave.txt
+    definitionSha256: a840f12c98b62c3e3831ca279653d01212ca925eb269e59743273342040d4e4a
+    sourceRectTopLeftPixels:
+      x: 357
+      y: 2078
+      width: 160
+      height: 306
+    flareOffsetPixels: {x: 80, y: 298}
+    unityPivotNormalized: {x: 0.5, y: 0.032258064}
+    sprite: {fileID: 21300000, guid: 9a44104744b7947048a0a1108eda06aa, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.cave.084
+    family: cave
+    tileId: 84
+    candidateRole: prop.spire
+    visualDescription: stone spire variant
+    sourcePath: mods/fantasycore/images/tilesets/tileset_cave.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_cave.png
+    sourceSha256: e4a85a818a01521e48ac477e3f9bba0d59c4d70447a37608ab2cbe2d086e32d8
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_cave.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_cave.txt
+    definitionSha256: a840f12c98b62c3e3831ca279653d01212ca925eb269e59743273342040d4e4a
+    sourceRectTopLeftPixels:
+      x: 850
+      y: 2026
+      width: 168
+      height: 312
+    flareOffsetPixels: {x: 88, y: 298}
+    unityPivotNormalized: {x: 0.5232558, y: 0.050632913}
+    sprite: {fileID: 21300000, guid: 681a38c80e3664550b06f365e551c8c5, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.cave.224
+    family: cave
+    tileId: 224
+    candidateRole: prop.timber
+    visualDescription: wood plank/beam piece
+    sourcePath: mods/fantasycore/images/tilesets/tileset_cave.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_cave.png
+    sourceSha256: e4a85a818a01521e48ac477e3f9bba0d59c4d70447a37608ab2cbe2d086e32d8
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_cave.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_cave.txt
+    definitionSha256: a840f12c98b62c3e3831ca279653d01212ca925eb269e59743273342040d4e4a
+    sourceRectTopLeftPixels:
+      x: 1713
+      y: 2073
+      width: 176
+      height: 98
+    flareOffsetPixels: {x: 88, y: 48}
+    unityPivotNormalized: {x: 0.5, y: 0.50980395}
+    sprite: {fileID: 21300000, guid: 6b77016e202844188b1d52bd746513ec, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.cave.264
+    family: cave
+    tileId: 264
+    candidateRole: landmark.shrine
+    visualDescription: stone ring platform
+    sourcePath: mods/fantasycore/images/tilesets/tileset_cave.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_cave.png
+    sourceSha256: e4a85a818a01521e48ac477e3f9bba0d59c4d70447a37608ab2cbe2d086e32d8
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_cave.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_cave.txt
+    definitionSha256: a840f12c98b62c3e3831ca279653d01212ca925eb269e59743273342040d4e4a
+    sourceRectTopLeftPixels:
+      x: 0
+      y: 0
+      width: 384
+      height: 192
+    flareOffsetPixels: {x: 96, y: 96}
+    unityPivotNormalized: {x: 0.2525773, y: 0.5}
+    sprite: {fileID: 21300000, guid: 089f7fa3ae6f7456a8db0119f6f771da, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.cave.265
+    family: cave
+    tileId: 265
+    candidateRole: landmark.shrine
+    visualDescription: glowing ring platform
+    sourcePath: mods/fantasycore/images/tilesets/tileset_cave.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_cave.png
+    sourceSha256: e4a85a818a01521e48ac477e3f9bba0d59c4d70447a37608ab2cbe2d086e32d8
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_cave.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_cave.txt
+    definitionSha256: a840f12c98b62c3e3831ca279653d01212ca925eb269e59743273342040d4e4a
+    sourceRectTopLeftPixels:
+      x: 384
+      y: 0
+      width: 384
+      height: 192
+    flareOffsetPixels: {x: 96, y: 96}
+    unityPivotNormalized: {x: 0.2525773, y: 0.5}
+    sprite: {fileID: 21300000, guid: fc121012c4fa8443182f8ceab74d98d8, type: 3}
+    hasAuthoredAnimation: 1
+    animationRecord: 265;384,0,66ms;768,0,66ms;1152,0,66ms;1536,0,66ms;
+  - key: flare.grassland.016
+    family: grassland
+    tileId: 16
+    candidateRole: surface.floor
+    visualDescription: grassland floor sample
+    sourcePath: mods/fantasycore/images/tilesets/tileset_grassland.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_grassland.png
+    sourceSha256: db795f49ee915b0259c4831898e54455fa2d0c0c1e8e0f6be012ac996eec6945
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_grassland.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_grassland.txt
+    definitionSha256: 96d3bfd2dd5522c865913f29005693f78056648757ecf6f0eadb1589ae7f0b6c
+    sourceRectTopLeftPixels:
+      x: 1061
+      y: 2698
+      width: 192
+      height: 96
+    flareOffsetPixels: {x: 96, y: 48}
+    unityPivotNormalized: {x: 0.5, y: 0.5}
+    sprite: {fileID: 21300000, guid: 4dcb7de3cc2c44c41bf4bb5508f00be2, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.grassland.048
+    family: grassland
+    tileId: 48
+    candidateRole: surface.wall
+    visualDescription: rock/cliff wall face
+    sourcePath: mods/fantasycore/images/tilesets/tileset_grassland.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_grassland.png
+    sourceSha256: db795f49ee915b0259c4831898e54455fa2d0c0c1e8e0f6be012ac996eec6945
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_grassland.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_grassland.txt
+    definitionSha256: 96d3bfd2dd5522c865913f29005693f78056648757ecf6f0eadb1589ae7f0b6c
+    sourceRectTopLeftPixels:
+      x: 1473
+      y: 1674
+      width: 170
+      height: 283
+    flareOffsetPixels: {x: 96, y: 244}
+    unityPivotNormalized: {x: 0.5632184, y: 0.14285715}
+    sprite: {fileID: 21300000, guid: 3a4f447b71f51403b8b4b764747e7732, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.grassland.102
+    family: grassland
+    tileId: 102
+    candidateRole: prop.fire
+    visualDescription: campfire ring
+    sourcePath: mods/fantasycore/images/tilesets/tileset_grassland.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_grassland.png
+    sourceSha256: db795f49ee915b0259c4831898e54455fa2d0c0c1e8e0f6be012ac996eec6945
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_grassland.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_grassland.txt
+    definitionSha256: 96d3bfd2dd5522c865913f29005693f78056648757ecf6f0eadb1589ae7f0b6c
+    sourceRectTopLeftPixels:
+      x: 831
+      y: 3294
+      width: 145
+      height: 145
+    flareOffsetPixels: {x: 72, y: 108}
+    unityPivotNormalized: {x: 0.4966443, y: 0.26174498}
+    sprite: {fileID: 21300000, guid: 918e5679c6edc4154995d5242e41fd11, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.grassland.103
+    family: grassland
+    tileId: 103
+    candidateRole: prop.anvil
+    visualDescription: anvil on stump
+    sourcePath: mods/fantasycore/images/tilesets/tileset_grassland.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_grassland.png
+    sourceSha256: db795f49ee915b0259c4831898e54455fa2d0c0c1e8e0f6be012ac996eec6945
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_grassland.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_grassland.txt
+    definitionSha256: 96d3bfd2dd5522c865913f29005693f78056648757ecf6f0eadb1589ae7f0b6c
+    sourceRectTopLeftPixels:
+      x: 368
+      y: 3480
+      width: 143
+      height: 132
+    flareOffsetPixels: {x: 72, y: 91}
+    unityPivotNormalized: {x: 0.50340134, y: 0.31617647}
+    sprite: {fileID: 21300000, guid: 896f262b593b744c69a6be476ccb3cdd, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.grassland.105
+    family: grassland
+    tileId: 105
+    candidateRole: prop.gate_post
+    visualDescription: wood fence post
+    sourcePath: mods/fantasycore/images/tilesets/tileset_grassland.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_grassland.png
+    sourceSha256: db795f49ee915b0259c4831898e54455fa2d0c0c1e8e0f6be012ac996eec6945
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_grassland.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_grassland.txt
+    definitionSha256: 96d3bfd2dd5522c865913f29005693f78056648757ecf6f0eadb1589ae7f0b6c
+    sourceRectTopLeftPixels:
+      x: 2105
+      y: 405
+      width: 73
+      height: 106
+    flareOffsetPixels: {x: 0, y: 101}
+    unityPivotNormalized: {x: 0.025974026, y: 0.06363636}
+    sprite: {fileID: 21300000, guid: f0437fa61412b4e5c953f86b4df76004, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.grassland.120
+    family: grassland
+    tileId: 120
+    candidateRole: prop.reed
+    visualDescription: tall grass/reed clump
+    sourcePath: mods/fantasycore/images/tilesets/tileset_grassland.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_grassland.png
+    sourceSha256: db795f49ee915b0259c4831898e54455fa2d0c0c1e8e0f6be012ac996eec6945
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_grassland.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_grassland.txt
+    definitionSha256: 96d3bfd2dd5522c865913f29005693f78056648757ecf6f0eadb1589ae7f0b6c
+    sourceRectTopLeftPixels:
+      x: 2016
+      y: 3444
+      width: 121
+      height: 102
+    flareOffsetPixels: {x: 46, y: 79}
+    unityPivotNormalized: {x: 0.384, y: 0.23584905}
+    sprite: {fileID: 21300000, guid: d063782c815e64424944f7122c342404, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.grassland.129
+    family: grassland
+    tileId: 129
+    candidateRole: prop.rock
+    visualDescription: rock cluster
+    sourcePath: mods/fantasycore/images/tilesets/tileset_grassland.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_grassland.png
+    sourceSha256: db795f49ee915b0259c4831898e54455fa2d0c0c1e8e0f6be012ac996eec6945
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_grassland.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_grassland.txt
+    definitionSha256: 96d3bfd2dd5522c865913f29005693f78056648757ecf6f0eadb1589ae7f0b6c
+    sourceRectTopLeftPixels:
+      x: 2045
+      y: 2986
+      width: 88
+      height: 76
+    flareOffsetPixels: {x: 44, y: 62}
+    unityPivotNormalized: {x: 0.5, y: 0.2}
+    sprite: {fileID: 21300000, guid: ba48c789485f44dc8bf98d749e325736, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.grassland.140
+    family: grassland
+    tileId: 140
+    candidateRole: landmark.shrine
+    visualDescription: stone marker
+    sourcePath: mods/fantasycore/images/tilesets/tileset_grassland.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_grassland.png
+    sourceSha256: db795f49ee915b0259c4831898e54455fa2d0c0c1e8e0f6be012ac996eec6945
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_grassland.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_grassland.txt
+    definitionSha256: 96d3bfd2dd5522c865913f29005693f78056648757ecf6f0eadb1589ae7f0b6c
+    sourceRectTopLeftPixels:
+      x: 1915
+      y: 3450
+      width: 101
+      height: 117
+    flareOffsetPixels: {x: 42, y: 94}
+    unityPivotNormalized: {x: 0.41904762, y: 0.20661157}
+    sprite: {fileID: 21300000, guid: 1e14ae294541f4690b79e9f5d305c872, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.grassland.142
+    family: grassland
+    tileId: 142
+    candidateRole: landmark.shrine
+    visualDescription: stone cross
+    sourcePath: mods/fantasycore/images/tilesets/tileset_grassland.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_grassland.png
+    sourceSha256: db795f49ee915b0259c4831898e54455fa2d0c0c1e8e0f6be012ac996eec6945
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_grassland.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_grassland.txt
+    definitionSha256: 96d3bfd2dd5522c865913f29005693f78056648757ecf6f0eadb1589ae7f0b6c
+    sourceRectTopLeftPixels:
+      x: 350
+      y: 2038
+      width: 129
+      height: 171
+    flareOffsetPixels: {x: 51, y: 144}
+    unityPivotNormalized: {x: 0.39849624, y: 0.16571428}
+    sprite: {fileID: 21300000, guid: 98a2b184612ba4be99a962feba5c0166, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.grassland.208
+    family: grassland
+    tileId: 208
+    candidateRole: landmark.guardhouse
+    visualDescription: building wall fragment
+    sourcePath: mods/fantasycore/images/tilesets/tileset_grassland.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_grassland.png
+    sourceSha256: db795f49ee915b0259c4831898e54455fa2d0c0c1e8e0f6be012ac996eec6945
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_grassland.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_grassland.txt
+    definitionSha256: 96d3bfd2dd5522c865913f29005693f78056648757ecf6f0eadb1589ae7f0b6c
+    sourceRectTopLeftPixels:
+      x: 819
+      y: 1894
+      width: 92
+      height: 288
+    flareOffsetPixels: {x: 92, y: 241}
+    unityPivotNormalized: {x: 0.9791667, y: 0.16780822}
+    sprite: {fileID: 21300000, guid: 3a52cf558f07b4b6381daba6153075e4, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.grassland.209
+    family: grassland
+    tileId: 209
+    candidateRole: landmark.guardhouse
+    visualDescription: building corner fragment
+    sourcePath: mods/fantasycore/images/tilesets/tileset_grassland.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_grassland.png
+    sourceSha256: db795f49ee915b0259c4831898e54455fa2d0c0c1e8e0f6be012ac996eec6945
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_grassland.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_grassland.txt
+    definitionSha256: 96d3bfd2dd5522c865913f29005693f78056648757ecf6f0eadb1589ae7f0b6c
+    sourceRectTopLeftPixels:
+      x: 1604
+      y: 515
+      width: 192
+      height: 429
+    flareOffsetPixels: {x: 96, y: 382}
+    unityPivotNormalized: {x: 0.5, y: 0.11316397}
+    sprite: {fileID: 21300000, guid: aa7f7d5edce1f40aca2b41844052c282, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.grassland.240
+    family: grassland
+    tileId: 240
+    candidateRole: prop.tree
+    visualDescription: tree variant
+    sourcePath: mods/fantasycore/images/tilesets/tileset_grassland.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_grassland.png
+    sourceSha256: db795f49ee915b0259c4831898e54455fa2d0c0c1e8e0f6be012ac996eec6945
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_grassland.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_grassland.txt
+    definitionSha256: 96d3bfd2dd5522c865913f29005693f78056648757ecf6f0eadb1589ae7f0b6c
+    sourceRectTopLeftPixels:
+      x: 1295
+      y: 1338
+      width: 354
+      height: 336
+    flareOffsetPixels: {x: 162, y: 322}
+    unityPivotNormalized: {x: 0.45810056, y: 0.047058824}
+    sprite: {fileID: 21300000, guid: 3cf259890917f4e21baaddf763d2372b, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.grassland.245
+    family: grassland
+    tileId: 245
+    candidateRole: prop.dead_tree
+    visualDescription: dead tree
+    sourcePath: mods/fantasycore/images/tilesets/tileset_grassland.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_grassland.png
+    sourceSha256: db795f49ee915b0259c4831898e54455fa2d0c0c1e8e0f6be012ac996eec6945
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_grassland.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_grassland.txt
+    definitionSha256: 96d3bfd2dd5522c865913f29005693f78056648757ecf6f0eadb1589ae7f0b6c
+    sourceRectTopLeftPixels:
+      x: 0
+      y: 1636
+      width: 350
+      height: 573
+    flareOffsetPixels: {x: 158, y: 582}
+    unityPivotNormalized: {x: 0.4519774, y: 0.0034129692}
+    sprite: {fileID: 21300000, guid: 9e2de5f4e8b9d4450bb5170ec6b9a362, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 
+  - key: flare.grassland.296
+    family: grassland
+    tileId: 296
+    candidateRole: landmark.guardhouse
+    visualDescription: large roofed stone hut/building asset; not identified by Flare
+      as a guardhouse
+    sourcePath: mods/fantasycore/images/tilesets/tileset_grassland.png
+    sourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/tilesets/tileset_grassland.png
+    sourceSha256: db795f49ee915b0259c4831898e54455fa2d0c0c1e8e0f6be012ac996eec6945
+    definitionSourcePath: mods/fantasycore/tilesetdefs/tileset_grassland.txt
+    definitionSourceUrl: https://raw.githubusercontent.com/flareteam/flare-game/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_grassland.txt
+    definitionSha256: 96d3bfd2dd5522c865913f29005693f78056648757ecf6f0eadb1589ae7f0b6c
+    sourceRectTopLeftPixels:
+      x: 0
+      y: 0
+      width: 888
+      height: 1051
+    flareOffsetPixels: {x: -35, y: 895}
+    unityPivotNormalized: {x: 0.0021574972, y: 0.14976303}
+    sprite: {fileID: 21300000, guid: 03878cebc2f14454294af53f839889d3, type: 3}
+    hasAuthoredAnimation: 0
+    animationRecord: 

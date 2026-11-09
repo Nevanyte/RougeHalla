@@ -1,0 +1,932 @@
+{
+  "upstream_commit": "af6eee6d339ac98011864bfe89da837fe7769c28",
+  "records": [
+    {
+      "family": "dungeon",
+      "tile_id": 16,
+      "candidate_role": "surface.floor",
+      "visual_description": "stone floor sample",
+      "source_atlas": "Raw/images/tilesets/tileset_dungeon.png",
+      "source_definition": "Raw/tilesetdefs/tileset_dungeon.txt",
+      "source_rect_top_left_px": [
+        1438,
+        2644,
+        192,
+        96
+      ],
+      "source_offset_px": [
+        96,
+        48
+      ],
+      "local_crop": "Candidates/dungeon-016.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "d03ce8b67534526806f63ca8960052864f5a0fe467b0112abdfa310e898e7d09",
+      "bytes": 10038
+    },
+    {
+      "family": "dungeon",
+      "tile_id": 60,
+      "candidate_role": "glow.rune",
+      "visual_description": "glowing floor rune",
+      "source_atlas": "Raw/images/tilesets/tileset_dungeon.png",
+      "source_definition": "Raw/tilesetdefs/tileset_dungeon.txt",
+      "source_rect_top_left_px": [
+        1974,
+        2320,
+        192,
+        96
+      ],
+      "source_offset_px": [
+        96,
+        48
+      ],
+      "local_crop": "Candidates/dungeon-060.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "edf53be8235c813c1b7672a3580d7effe6038324787ea4dcdc5f0b8c489e653c",
+      "bytes": 14479
+    },
+    {
+      "family": "dungeon",
+      "tile_id": 64,
+      "candidate_role": "surface.wall",
+      "visual_description": "stone wall face",
+      "source_atlas": "Raw/images/tilesets/tileset_dungeon.png",
+      "source_definition": "Raw/tilesetdefs/tileset_dungeon.txt",
+      "source_rect_top_left_px": [
+        384,
+        3081,
+        178,
+        328
+      ],
+      "source_offset_px": [
+        96,
+        287
+      ],
+      "local_crop": "Candidates/dungeon-064.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "df105deba774521b3f7f01ef0b91d208fabfa1894656effa3cbbf34231bc0459",
+      "bytes": 55347
+    },
+    {
+      "family": "dungeon",
+      "tile_id": 107,
+      "candidate_role": "prop.banner",
+      "visual_description": "hanging cloth banner",
+      "source_atlas": "Raw/images/tilesets/tileset_dungeon.png",
+      "source_definition": "Raw/tilesetdefs/tileset_dungeon.txt",
+      "source_rect_top_left_px": [
+        740,
+        3119,
+        178,
+        328
+      ],
+      "source_offset_px": [
+        82,
+        287
+      ],
+      "local_crop": "Candidates/dungeon-107.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "c93c7306cbea96730c3dea814862b5ca5cb4bda06788526c0a29d21db80c648e",
+      "bytes": 47089
+    },
+    {
+      "family": "dungeon",
+      "tile_id": 108,
+      "candidate_role": "prop.banner_red",
+      "visual_description": "red hanging banner",
+      "source_atlas": "Raw/images/tilesets/tileset_dungeon.png",
+      "source_definition": "Raw/tilesetdefs/tileset_dungeon.txt",
+      "source_rect_top_left_px": [
+        918,
+        2791,
+        178,
+        328
+      ],
+      "source_offset_px": [
+        96,
+        287
+      ],
+      "local_crop": "Candidates/dungeon-108.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "cd9314d6ac6d131d1afc9bc597570a8040560f7cf1a831e3a6a815997b1bfb16",
+      "bytes": 59528
+    },
+    {
+      "family": "dungeon",
+      "tile_id": 114,
+      "candidate_role": "prop.cell_bars",
+      "visual_description": "iron-barred doorway",
+      "source_atlas": "Raw/images/tilesets/tileset_dungeon.png",
+      "source_definition": "Raw/tilesetdefs/tileset_dungeon.txt",
+      "source_rect_top_left_px": [
+        1110,
+        1821,
+        178,
+        328
+      ],
+      "source_offset_px": [
+        96,
+        287
+      ],
+      "local_crop": "Candidates/dungeon-114.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "d190e6e57d2d3804049ade601504701de5ae4bfe8483e33aa121e8d43de1a321",
+      "bytes": 46094
+    },
+    {
+      "family": "dungeon",
+      "tile_id": 115,
+      "candidate_role": "prop.cell_bars",
+      "visual_description": "barred door variant",
+      "source_atlas": "Raw/images/tilesets/tileset_dungeon.png",
+      "source_definition": "Raw/tilesetdefs/tileset_dungeon.txt",
+      "source_rect_top_left_px": [
+        1110,
+        2149,
+        178,
+        328
+      ],
+      "source_offset_px": [
+        82,
+        287
+      ],
+      "local_crop": "Candidates/dungeon-115.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "2f626b3acd8538b82cd0f9d2917294261ed0632b14ae0418b5e513cd769d7124",
+      "bytes": 47172
+    },
+    {
+      "family": "dungeon",
+      "tile_id": 128,
+      "candidate_role": "landmark.shrine",
+      "visual_description": "statue on plinth",
+      "source_atlas": "Raw/images/tilesets/tileset_dungeon.png",
+      "source_definition": "Raw/tilesetdefs/tileset_dungeon.txt",
+      "source_rect_top_left_px": [
+        1105,
+        3780,
+        137,
+        219
+      ],
+      "source_offset_px": [
+        50,
+        197
+      ],
+      "local_crop": "Candidates/dungeon-128.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "48e1419225317989df85fee2a21c847cb5fcf316647b47d55f4d8d78846a0868",
+      "bytes": 28881
+    },
+    {
+      "family": "dungeon",
+      "tile_id": 130,
+      "candidate_role": "landmark.shrine",
+      "visual_description": "statue variant",
+      "source_atlas": "Raw/images/tilesets/tileset_dungeon.png",
+      "source_definition": "Raw/tilesetdefs/tileset_dungeon.txt",
+      "source_rect_top_left_px": [
+        2034,
+        0,
+        133,
+        217
+      ],
+      "source_offset_px": [
+        50,
+        195
+      ],
+      "local_crop": "Candidates/dungeon-130.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "c906ebc950e0a58feeab07c4e51391628ac057dc14cb705b1eca6cfa5e71c5a3",
+      "bytes": 27688
+    },
+    {
+      "family": "dungeon",
+      "tile_id": 136,
+      "candidate_role": "prop.altar",
+      "visual_description": "stone table/plinth",
+      "source_atlas": "Raw/images/tilesets/tileset_dungeon.png",
+      "source_definition": "Raw/tilesetdefs/tileset_dungeon.txt",
+      "source_rect_top_left_px": [
+        1964,
+        3463,
+        139,
+        97
+      ],
+      "source_offset_px": [
+        64,
+        70
+      ],
+      "local_crop": "Candidates/dungeon-136.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "0a8d209239c0d01b9cd88aa978d8627c49da7794fc949f9bbd875ac60fbd5363",
+      "bytes": 14503
+    },
+    {
+      "family": "dungeon",
+      "tile_id": 145,
+      "candidate_role": "prop.chest",
+      "visual_description": "closed chest",
+      "source_atlas": "Raw/images/tilesets/tileset_dungeon.png",
+      "source_definition": "Raw/tilesetdefs/tileset_dungeon.txt",
+      "source_rect_top_left_px": [
+        2076,
+        539,
+        91,
+        86
+      ],
+      "source_offset_px": [
+        40,
+        66
+      ],
+      "local_crop": "Candidates/dungeon-145.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "e19ef4719e14c427e1a23bb71787acdcc4a4601ad0ca72a76a648d298704fd19",
+      "bytes": 9037
+    },
+    {
+      "family": "dungeon",
+      "tile_id": 146,
+      "candidate_role": "prop.barrel",
+      "visual_description": "barrel",
+      "source_atlas": "Raw/images/tilesets/tileset_dungeon.png",
+      "source_definition": "Raw/tilesetdefs/tileset_dungeon.txt",
+      "source_rect_top_left_px": [
+        2069,
+        3778,
+        92,
+        108
+      ],
+      "source_offset_px": [
+        35,
+        93
+      ],
+      "local_crop": "Candidates/dungeon-146.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "c955dd0eb56accefc588cdc3fa9a4e2e0613bec0b6cc42c86d4118c22b22ca02",
+      "bytes": 11628
+    },
+    {
+      "family": "dungeon",
+      "tile_id": 147,
+      "candidate_role": "prop.crate",
+      "visual_description": "crate",
+      "source_atlas": "Raw/images/tilesets/tileset_dungeon.png",
+      "source_definition": "Raw/tilesetdefs/tileset_dungeon.txt",
+      "source_rect_top_left_px": [
+        1474,
+        3842,
+        110,
+        106
+      ],
+      "source_offset_px": [
+        45,
+        83
+      ],
+      "local_crop": "Candidates/dungeon-147.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "4f46843280e23312e04787225d0f7a7317b7f3c6a57663537929d9b56ad8f092",
+      "bytes": 13409
+    },
+    {
+      "family": "dungeon",
+      "tile_id": 148,
+      "candidate_role": "prop.lectern",
+      "visual_description": "lectern",
+      "source_atlas": "Raw/images/tilesets/tileset_dungeon.png",
+      "source_definition": "Raw/tilesetdefs/tileset_dungeon.txt",
+      "source_rect_top_left_px": [
+        1644,
+        2738,
+        115,
+        144
+      ],
+      "source_offset_px": [
+        43,
+        129
+      ],
+      "local_crop": "Candidates/dungeon-148.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "1f0fed7735b5727d06b25e931bff77c90b2d21ae6ff2c18317ef199802414f50",
+      "bytes": 14419
+    },
+    {
+      "family": "dungeon",
+      "tile_id": 150,
+      "candidate_role": "prop.torch",
+      "visual_description": "pedestal torch",
+      "source_atlas": "Raw/images/tilesets/tileset_dungeon.png",
+      "source_definition": "Raw/tilesetdefs/tileset_dungeon.txt",
+      "source_rect_top_left_px": [
+        2089,
+        3560,
+        76,
+        80
+      ],
+      "source_offset_px": [
+        28,
+        66
+      ],
+      "local_crop": "Candidates/dungeon-150.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "a2dd62ff605be959ba492b9b1bc5f5530cedef05d1d563f4eddb6163d980de50",
+      "bytes": 5449
+    },
+    {
+      "family": "dungeon",
+      "tile_id": 151,
+      "candidate_role": "prop.brazier",
+      "visual_description": "fire bowl / brazier",
+      "source_atlas": "Raw/images/tilesets/tileset_dungeon.png",
+      "source_definition": "Raw/tilesetdefs/tileset_dungeon.txt",
+      "source_rect_top_left_px": [
+        2062,
+        3886,
+        97,
+        82
+      ],
+      "source_offset_px": [
+        42,
+        62
+      ],
+      "local_crop": "Candidates/dungeon-151.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "8b28f8df6be794cd9d176486afb5b3c67d1dd72fcc44c3d6f8fcf5cad4676d0a",
+      "bytes": 9659
+    },
+    {
+      "family": "dungeon",
+      "tile_id": 176,
+      "candidate_role": "prop.rubble",
+      "visual_description": "bone/rubble pile",
+      "source_atlas": "Raw/images/tilesets/tileset_dungeon.png",
+      "source_definition": "Raw/tilesetdefs/tileset_dungeon.txt",
+      "source_rect_top_left_px": [
+        184,
+        3940,
+        79,
+        50
+      ],
+      "source_offset_px": [
+        42,
+        14
+      ],
+      "local_crop": "Candidates/dungeon-176.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "c1199c4a1e8855aa1d73f0d712ca714e66a28e36292ae436be0b0812abff0c4d",
+      "bytes": 6714
+    },
+    {
+      "family": "dungeon",
+      "tile_id": 177,
+      "candidate_role": "prop.rubble",
+      "visual_description": "bone/rubble variant",
+      "source_atlas": "Raw/images/tilesets/tileset_dungeon.png",
+      "source_definition": "Raw/tilesetdefs/tileset_dungeon.txt",
+      "source_rect_top_left_px": [
+        263,
+        3940,
+        66,
+        44
+      ],
+      "source_offset_px": [
+        39,
+        31
+      ],
+      "local_crop": "Candidates/dungeon-177.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "54814698917caee49dd5202dd61f85463d9c97b362a1d5ed48838eb8327b7b0c",
+      "bytes": 5696
+    },
+    {
+      "family": "dungeon",
+      "tile_id": 192,
+      "candidate_role": "prop.chain",
+      "visual_description": "hanging chain",
+      "source_atlas": "Raw/images/tilesets/tileset_dungeon.png",
+      "source_definition": "Raw/tilesetdefs/tileset_dungeon.txt",
+      "source_rect_top_left_px": [
+        0,
+        1258,
+        246,
+        354
+      ],
+      "source_offset_px": [
+        192,
+        324
+      ],
+      "local_crop": "Candidates/dungeon-192.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "a2c559f53855e431dcd9cc46850248c0c986490e81cb6ec276b00faf08cce85b",
+      "bytes": 28514
+    },
+    {
+      "family": "cave",
+      "tile_id": 16,
+      "candidate_role": "surface.floor",
+      "visual_description": "cave floor sample",
+      "source_atlas": "Raw/images/tilesets/tileset_cave.png",
+      "source_definition": "Raw/tilesetdefs/tileset_cave.txt",
+      "source_rect_top_left_px": [
+        1152,
+        1149,
+        192,
+        96
+      ],
+      "source_offset_px": [
+        96,
+        48
+      ],
+      "local_crop": "Candidates/cave-016.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "efe4c0a8dc08b513ec1db91688876847dfa7ba670a694ea50d805276431c2687",
+      "bytes": 19530
+    },
+    {
+      "family": "cave",
+      "tile_id": 48,
+      "candidate_role": "prop.rubble",
+      "visual_description": "rock/bone debris floor",
+      "source_atlas": "Raw/images/tilesets/tileset_cave.png",
+      "source_definition": "Raw/tilesetdefs/tileset_cave.txt",
+      "source_rect_top_left_px": [
+        1536,
+        1536,
+        192,
+        96
+      ],
+      "source_offset_px": [
+        96,
+        48
+      ],
+      "local_crop": "Candidates/cave-048.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "a1310038c654f69315e718f471a84c339993eb863e5c4b7fc52611dc7556b9cc",
+      "bytes": 20287
+    },
+    {
+      "family": "cave",
+      "tile_id": 52,
+      "candidate_role": "prop.rubble",
+      "visual_description": "skeletal debris floor",
+      "source_atlas": "Raw/images/tilesets/tileset_cave.png",
+      "source_definition": "Raw/tilesetdefs/tileset_cave.txt",
+      "source_rect_top_left_px": [
+        0,
+        1432,
+        192,
+        96
+      ],
+      "source_offset_px": [
+        96,
+        48
+      ],
+      "local_crop": "Candidates/cave-052.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "3a7cfeab8b71471db4ea18b273d71d55f3cd4694fb2f5d067b14d828329a1daa",
+      "bytes": 19502
+    },
+    {
+      "family": "cave",
+      "tile_id": 64,
+      "candidate_role": "surface.wall",
+      "visual_description": "cave wall face",
+      "source_atlas": "Raw/images/tilesets/tileset_cave.png",
+      "source_definition": "Raw/tilesetdefs/tileset_cave.txt",
+      "source_rect_top_left_px": [
+        1185,
+        2676,
+        176,
+        339
+      ],
+      "source_offset_px": [
+        96,
+        298
+      ],
+      "local_crop": "Candidates/cave-064.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "2572934cff3246252bc3e5f952dd7839744c5defcd482d397d50901dc33eab2b",
+      "bytes": 51320
+    },
+    {
+      "family": "cave",
+      "tile_id": 80,
+      "candidate_role": "prop.spire",
+      "visual_description": "stone spire formation",
+      "source_atlas": "Raw/images/tilesets/tileset_cave.png",
+      "source_definition": "Raw/tilesetdefs/tileset_cave.txt",
+      "source_rect_top_left_px": [
+        357,
+        2078,
+        160,
+        306
+      ],
+      "source_offset_px": [
+        80,
+        298
+      ],
+      "local_crop": "Candidates/cave-080.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "85b8c17e89618d41cde65258eca8acf9758f47fe26507f1c4f88a3dcf2f78052",
+      "bytes": 49842
+    },
+    {
+      "family": "cave",
+      "tile_id": 84,
+      "candidate_role": "prop.spire",
+      "visual_description": "stone spire variant",
+      "source_atlas": "Raw/images/tilesets/tileset_cave.png",
+      "source_definition": "Raw/tilesetdefs/tileset_cave.txt",
+      "source_rect_top_left_px": [
+        850,
+        2026,
+        168,
+        312
+      ],
+      "source_offset_px": [
+        88,
+        298
+      ],
+      "local_crop": "Candidates/cave-084.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "e37d53f811a23aa90769381b60b7a4c25981bd4031899ea47c7ce80e27c963b9",
+      "bytes": 51965
+    },
+    {
+      "family": "cave",
+      "tile_id": 224,
+      "candidate_role": "prop.timber",
+      "visual_description": "wood plank/beam piece",
+      "source_atlas": "Raw/images/tilesets/tileset_cave.png",
+      "source_definition": "Raw/tilesetdefs/tileset_cave.txt",
+      "source_rect_top_left_px": [
+        1713,
+        2073,
+        176,
+        98
+      ],
+      "source_offset_px": [
+        88,
+        48
+      ],
+      "local_crop": "Candidates/cave-224.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "16b571e52ee6a04a290292acb527087710274ac30fea5cead9799ef3af678894",
+      "bytes": 19016
+    },
+    {
+      "family": "cave",
+      "tile_id": 264,
+      "candidate_role": "landmark.shrine",
+      "visual_description": "stone ring platform",
+      "source_atlas": "Raw/images/tilesets/tileset_cave.png",
+      "source_definition": "Raw/tilesetdefs/tileset_cave.txt",
+      "source_rect_top_left_px": [
+        0,
+        0,
+        384,
+        192
+      ],
+      "source_offset_px": [
+        96,
+        96
+      ],
+      "local_crop": "Candidates/cave-264.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "768d73b39da3347b841dced7591937ca0e405cc098ee7a5f56cee92f4c92c79a",
+      "bytes": 79636
+    },
+    {
+      "family": "cave",
+      "tile_id": 265,
+      "candidate_role": "landmark.shrine",
+      "visual_description": "glowing ring platform",
+      "source_atlas": "Raw/images/tilesets/tileset_cave.png",
+      "source_definition": "Raw/tilesetdefs/tileset_cave.txt",
+      "source_rect_top_left_px": [
+        384,
+        0,
+        384,
+        192
+      ],
+      "source_offset_px": [
+        96,
+        96
+      ],
+      "local_crop": "Candidates/cave-265.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "f54910c95b2a998a07276255b328b7c94c2a2cf729424292efd1379743df244f",
+      "bytes": 86985
+    },
+    {
+      "family": "grassland",
+      "tile_id": 16,
+      "candidate_role": "surface.floor",
+      "visual_description": "grassland floor sample",
+      "source_atlas": "Raw/images/tilesets/tileset_grassland.png",
+      "source_definition": "Raw/tilesetdefs/tileset_grassland.txt",
+      "source_rect_top_left_px": [
+        1061,
+        2698,
+        192,
+        96
+      ],
+      "source_offset_px": [
+        96,
+        48
+      ],
+      "local_crop": "Candidates/grassland-016.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "2c61bf0dbc86082f0a722552c73c66488eff9ad487af2d0e4faed713d4770255",
+      "bytes": 22771
+    },
+    {
+      "family": "grassland",
+      "tile_id": 48,
+      "candidate_role": "surface.wall",
+      "visual_description": "rock/cliff wall face",
+      "source_atlas": "Raw/images/tilesets/tileset_grassland.png",
+      "source_definition": "Raw/tilesetdefs/tileset_grassland.txt",
+      "source_rect_top_left_px": [
+        1473,
+        1674,
+        170,
+        283
+      ],
+      "source_offset_px": [
+        96,
+        244
+      ],
+      "local_crop": "Candidates/grassland-048.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "ea6a223b273aeb78b3756d25e5330c465254648884aa29ea0036d7d46f884d0b",
+      "bytes": 68079
+    },
+    {
+      "family": "grassland",
+      "tile_id": 102,
+      "candidate_role": "prop.fire",
+      "visual_description": "campfire ring",
+      "source_atlas": "Raw/images/tilesets/tileset_grassland.png",
+      "source_definition": "Raw/tilesetdefs/tileset_grassland.txt",
+      "source_rect_top_left_px": [
+        831,
+        3294,
+        145,
+        145
+      ],
+      "source_offset_px": [
+        72,
+        108
+      ],
+      "local_crop": "Candidates/grassland-102.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "3563da343785b5852601c9229dddb0fccbc315efae0c56cf0f4b77b33c8db7dc",
+      "bytes": 28594
+    },
+    {
+      "family": "grassland",
+      "tile_id": 103,
+      "candidate_role": "prop.anvil",
+      "visual_description": "anvil on stump",
+      "source_atlas": "Raw/images/tilesets/tileset_grassland.png",
+      "source_definition": "Raw/tilesetdefs/tileset_grassland.txt",
+      "source_rect_top_left_px": [
+        368,
+        3480,
+        143,
+        132
+      ],
+      "source_offset_px": [
+        72,
+        91
+      ],
+      "local_crop": "Candidates/grassland-103.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "982297d3217fe623eb019a7c3c9ec48e3b36ba68034f9e9afd84cab5c59173f7",
+      "bytes": 29706
+    },
+    {
+      "family": "grassland",
+      "tile_id": 105,
+      "candidate_role": "prop.gate_post",
+      "visual_description": "wood fence post",
+      "source_atlas": "Raw/images/tilesets/tileset_grassland.png",
+      "source_definition": "Raw/tilesetdefs/tileset_grassland.txt",
+      "source_rect_top_left_px": [
+        2105,
+        405,
+        73,
+        106
+      ],
+      "source_offset_px": [
+        0,
+        101
+      ],
+      "local_crop": "Candidates/grassland-105.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "c4cdb818b97f62276216df21a7c0b7f0d14c25bb3e0ac982fe914745cf5e1e62",
+      "bytes": 8728
+    },
+    {
+      "family": "grassland",
+      "tile_id": 120,
+      "candidate_role": "prop.reed",
+      "visual_description": "tall grass/reed clump",
+      "source_atlas": "Raw/images/tilesets/tileset_grassland.png",
+      "source_definition": "Raw/tilesetdefs/tileset_grassland.txt",
+      "source_rect_top_left_px": [
+        2016,
+        3444,
+        121,
+        102
+      ],
+      "source_offset_px": [
+        46,
+        79
+      ],
+      "local_crop": "Candidates/grassland-120.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "7134babea75da8d33278f16178aa7e44d09e8c548d9f288e6d66dcdfbe684784",
+      "bytes": 20419
+    },
+    {
+      "family": "grassland",
+      "tile_id": 129,
+      "candidate_role": "prop.rock",
+      "visual_description": "rock cluster",
+      "source_atlas": "Raw/images/tilesets/tileset_grassland.png",
+      "source_definition": "Raw/tilesetdefs/tileset_grassland.txt",
+      "source_rect_top_left_px": [
+        2045,
+        2986,
+        88,
+        76
+      ],
+      "source_offset_px": [
+        44,
+        62
+      ],
+      "local_crop": "Candidates/grassland-129.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "008600654cb56d57f2144fbec2aa53ed0fcc9642da39732e3ca15c272abc3282",
+      "bytes": 11489
+    },
+    {
+      "family": "grassland",
+      "tile_id": 140,
+      "candidate_role": "landmark.shrine",
+      "visual_description": "stone marker",
+      "source_atlas": "Raw/images/tilesets/tileset_grassland.png",
+      "source_definition": "Raw/tilesetdefs/tileset_grassland.txt",
+      "source_rect_top_left_px": [
+        1915,
+        3450,
+        101,
+        117
+      ],
+      "source_offset_px": [
+        42,
+        94
+      ],
+      "local_crop": "Candidates/grassland-140.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "dc826613588c53a7b259a718b21bcc57486053490630b11b3a9fa674890a6792",
+      "bytes": 14461
+    },
+    {
+      "family": "grassland",
+      "tile_id": 142,
+      "candidate_role": "landmark.shrine",
+      "visual_description": "stone cross",
+      "source_atlas": "Raw/images/tilesets/tileset_grassland.png",
+      "source_definition": "Raw/tilesetdefs/tileset_grassland.txt",
+      "source_rect_top_left_px": [
+        350,
+        2038,
+        129,
+        171
+      ],
+      "source_offset_px": [
+        51,
+        144
+      ],
+      "local_crop": "Candidates/grassland-142.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "babe5f994482404526d40fe76665dd98f0ee05911fa1aecbf6406550c2e2c337",
+      "bytes": 23224
+    },
+    {
+      "family": "grassland",
+      "tile_id": 208,
+      "candidate_role": "landmark.guardhouse",
+      "visual_description": "building wall fragment",
+      "source_atlas": "Raw/images/tilesets/tileset_grassland.png",
+      "source_definition": "Raw/tilesetdefs/tileset_grassland.txt",
+      "source_rect_top_left_px": [
+        819,
+        1894,
+        92,
+        288
+      ],
+      "source_offset_px": [
+        92,
+        241
+      ],
+      "local_crop": "Candidates/grassland-208.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "92d5f05d2ba60536d73d3d657ad50763727148a9327501a8eff6037143cbbdfd",
+      "bytes": 36211
+    },
+    {
+      "family": "grassland",
+      "tile_id": 209,
+      "candidate_role": "landmark.guardhouse",
+      "visual_description": "building corner fragment",
+      "source_atlas": "Raw/images/tilesets/tileset_grassland.png",
+      "source_definition": "Raw/tilesetdefs/tileset_grassland.txt",
+      "source_rect_top_left_px": [
+        1604,
+        515,
+        192,
+        429
+      ],
+      "source_offset_px": [
+        96,
+        382
+      ],
+      "local_crop": "Candidates/grassland-209.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "2942f606023af81f08e02b010daaaac21f77bc975050eef8d7b50bf400a9b913",
+      "bytes": 126785
+    },
+    {
+      "family": "grassland",
+      "tile_id": 240,
+      "candidate_role": "prop.tree",
+      "visual_description": "tree variant",
+      "source_atlas": "Raw/images/tilesets/tileset_grassland.png",
+      "source_definition": "Raw/tilesetdefs/tileset_grassland.txt",
+      "source_rect_top_left_px": [
+        1295,
+        1338,
+        354,
+        336
+      ],
+      "source_offset_px": [
+        162,
+        322
+      ],
+      "local_crop": "Candidates/grassland-240.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "869bcdb14d6207e2664990ada7a9ecca6eb14cc7233bfffb9987a90773dca5e4",
+      "bytes": 164192
+    },
+    {
+      "family": "grassland",
+      "tile_id": 245,
+      "candidate_role": "prop.dead_tree",
+      "visual_description": "dead tree",
+      "source_atlas": "Raw/images/tilesets/tileset_grassland.png",
+      "source_definition": "Raw/tilesetdefs/tileset_grassland.txt",
+      "source_rect_top_left_px": [
+        0,
+        1636,
+        350,
+        573
+      ],
+      "source_offset_px": [
+        158,
+        582
+      ],
+      "local_crop": "Candidates/grassland-245.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "59024663abd1efd8ce20f6cb85e0ee10921e9b6208f94a5eaf01bbcbe91f5cc7",
+      "bytes": 85960
+    },
+    {
+      "family": "grassland",
+      "tile_id": 296,
+      "candidate_role": "landmark.guardhouse",
+      "visual_description": "large roofed stone hut/building asset; not identified by Flare as a guardhouse",
+      "source_atlas": "Raw/images/tilesets/tileset_grassland.png",
+      "source_definition": "Raw/tilesetdefs/tileset_grassland.txt",
+      "source_rect_top_left_px": [
+        0,
+        0,
+        888,
+        1051
+      ],
+      "source_offset_px": [
+        -35,
+        895
+      ],
+      "local_crop": "Candidates/grassland-296.png",
+      "crop_method": "Direct RGBA pixel crop from the pinned atlas; no resize, rotation, color change, or manual paint. Tile offsets remain separate metadata.",
+      "sha256": "8c7f4dbccfd04b40057cc617065d2bb2a36072baaa63615920b1b0b7d1e5e6a3",
+      "bytes": 1142921,
+      "animated_in_tiledefs": false,
+      "animation_frames_record": null,
+      "crop_includes_animation": "No; crop is the static tile= base rect only. Use raw tiledefs for complete source metadata."
+    }
+  ]
+}

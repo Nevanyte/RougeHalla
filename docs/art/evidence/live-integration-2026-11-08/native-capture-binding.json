@@ -1,0 +1,16 @@
+{
+  "serverBinary": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/preserved-server-binaries/28101b04c2a94b8d3010f3a2db7a8ea64634e7bb174b0482a4454e318692ed27/rh-server",
+  "serverBinarySha256": "28101b04c2a94b8d3010f3a2db7a8ea64634e7bb174b0482a4454e318692ed27",
+  "ownedPid": 35897,
+  "ownedPort": 7788,
+  "cleanedUp": true,
+  "sourceBase": "4b58dbf3106dcfec5923117045a6ebd55a83137e",
+  "exactWorkingFiles": "native-source-manifest.json",
+  "imageSha256": "31b8549011635142fffd0f36975b795b07acb8df62eb078238cc922fc90d4352",
+  "imageDimensions": [
+    2560,
+    1440
+  ],
+  "captureMethod": "Live Camera.Render into sRGB ARGB32 RenderTexture, no post-capture image edits",
+  "scope": "Actual native Unity Editor match with ordinary native WS clients and scripted ordinary inputs; not Web browser proof, not 144Hz performance acceptance. First pass delivered3Swing/3Hit; sRGB capture pass delivered3Swing/0Hit. One Wish input in each pass yielded no Wish FX, therefore no new Wish proof."
+}

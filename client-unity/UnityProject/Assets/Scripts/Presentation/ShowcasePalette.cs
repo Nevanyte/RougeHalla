@@ -10,7 +10,7 @@ namespace Roguehalla.Client
         public static readonly Color32 PanelRaised = new Color32(27, 38, 53, 255);
         public static readonly Color32 PanelStroke = new Color32(65, 81, 101, 255);
         public static readonly Color32 Text = new Color32(244, 242, 235, 255);
-        public static readonly Color32 MutedText = new Color32(181, 194, 210, 255);
+        public static readonly Color32 MutedText = new Color32(181, 195, 210, 255);
         public static readonly Color32 Gold = new Color32(237, 199, 123, 255);
         public static readonly Color32 GoldDim = new Color32(144, 107, 52, 255);
         public static readonly Color32 Success = new Color32(140, 224, 178, 255);

@@ -85,6 +85,8 @@ namespace Roguehalla.Net
         public ServerMsg.Snapshot Latest { get; private set; }
         /// <summary>The server's public training-room fact from the newest accepted snapshot.</summary>
         public bool Training { get; private set; }
+        /// <summary>Owned public phase; UI never retains recycled codec snapshots.</summary>
+        public MatchPhase? Phase => Latest == null ? (MatchPhase?)null : (MatchPhase)Latest.Phase;
         /// <summary>Changes on Welcome and an accepted source-clock cut; never a snapshot-ordering key.</summary>
         public uint TimelineEpoch { get; private set; }
         /// <summary>The newest accepted source time, including its per-frame override.</summary>

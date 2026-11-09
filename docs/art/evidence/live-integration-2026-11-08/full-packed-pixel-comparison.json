@@ -1,0 +1,12 @@
+{
+  "frames": 3008,
+  "changedPackedFrames": 0,
+  "droppedOpaqueInputPixels": 0,
+  "maxPivotErrorPixels": 9.599999998499698e-06,
+  "sourceTexturePixels": 414270976,
+  "packedTexturePixels": 75038720,
+  "areaReductionPercent": 81.88656112853052,
+  "restoredUniqueSourceSitesAcrossFrames": 95138,
+  "fullRawImporterRequiredClearancePixels": 2,
+  "scope": "Independent raw PNG to packed PNG comparison; no claim of GPU memory, draw-call or FPS measurement."
+}

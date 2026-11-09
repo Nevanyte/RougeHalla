@@ -48,7 +48,8 @@ namespace Roguehalla.Client.Tests
             Deliver(.0625, false, true, false);
             StringAssert.StartsWith("Trophy ", _title.text);
             Assert.AreEqual("+6.3% damage", Text(1));
-            Assert.AreEqual("SlowBurn", Text(0));
+            Assert.AreEqual("Offense I", Text(0), "Wire card 0 is the admitted 80-card catalog index, not the old three-card enum name.");
+            Assert.AreEqual(0, (byte)_session.Collections.RewardChests[0].Options[0].Card.Value);
             Assert.AreEqual("Lifesteal", Text(2));
             Assert.IsTrue(_buttons[1].interactable);
             Deliver(.064, false, true, false); // Same row, key and eligibility; only the delivered f64 changed.
