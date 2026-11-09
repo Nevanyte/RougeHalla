@@ -74,7 +74,20 @@ public sealed class MatchClientAccountBindingEditModeTests
             typeof(MatchClient).GetField("<AccountOwner>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)
                 .SetValue(Client, Owner);
             typeof(MatchClient).GetField("_transportFactory", BindingFlags.Instance | BindingFlags.NonPublic)
-                .SetValue(Client, new Func<ITransport>(() => { var t = new MatchTransport(); Matches.Add(t); return t; }));
+                .SetValue(Client, new Func<ITransport>(() =>
+                {
+                    // JoinCore has created the real view here. EditMode does not supply the
+                    // normal Play Awake lifecycle; initialize it exactly as the arena fixtures do.
+                    var arena = Client.Arena;
+                    Assert.That(arena != null, Is.True, "JoinCore creates its ArenaView before the transport");
+                    var actors = typeof(Roguehalla.Client.ArenaView).GetField("_actors", BindingFlags.Instance | BindingFlags.NonPublic);
+                    var wishes = typeof(Roguehalla.Client.ArenaView).GetField("_wishes", BindingFlags.Instance | BindingFlags.NonPublic);
+                    if (actors.GetValue(arena) == null && wishes.GetValue(arena) == null)
+                        typeof(Roguehalla.Client.ArenaView).GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(arena, null);
+                    Assert.That(actors.GetValue(arena), Is.Not.Null);
+                    Assert.That(wishes.GetValue(arena), Is.Not.Null);
+                    var t = new MatchTransport(); Matches.Add(t); return t;
+                }));
         }
 
         public void InitializeHud()
