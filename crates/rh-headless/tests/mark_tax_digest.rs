@@ -27,7 +27,7 @@ fn scene(with_mobs: bool) -> Sim {
             quests: false,
             faction_mode: FactionMode::EngagementHolyPlagueFireFrostSentenced,
             mob_mode: if with_mobs {
-                rh_sim::mob_runtime::MobMode::SpawnFoundation
+                rh_sim::mob_runtime::MobMode::Pve
             } else {
                 rh_sim::mob_runtime::MobMode::Off
             },
