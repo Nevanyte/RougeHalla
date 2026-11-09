@@ -1,0 +1,26 @@
+{
+  "baselineSource": "e2baadae03dd25cf74979bdfeb3bf35fd696393d",
+  "baselineBranch": null,
+  "baselineManifest": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/combined-e2baad-2026-11-08/evidence/as-tested-source.json",
+  "baselineManifestSha256": "0aa5c9a05e5d1728535cef4f3ef66de58689a57d75868629af23a5d03f780ebb",
+  "scope": "client-unity/UnityProject tracked files listed by as-tested-source.json",
+  "baselineFileCount": 1122,
+  "currentProjectTrackedFileCount": 1122,
+  "currentHead": "e2baadae03dd25cf74979bdfeb3bf35fd696393d",
+  "currentBranch": "codex/unity-e2baad-native-proof",
+  "changedFiles": [
+    {
+      "path": "client-unity/UnityProject/ProjectSettings/ShaderGraphSettings.asset",
+      "baselineBytes": 555,
+      "currentBytes": 557,
+      "baselineSha256": "d9285133fee72ad8257e0b2c2d904b487757ebcef4862e3b10bef073bf218894",
+      "currentSha256": "83556175c6dccd540f2cac05e5c0f9fbb36c3c8d7a56bed2c7cf4d29e4c2ee2e"
+    }
+  ],
+  "missingBaselineFiles": [],
+  "untrackedProjectFiles": [],
+  "projectStatus": [
+    " M client-unity/UnityProject/ProjectSettings/ShaderGraphSettings.asset"
+  ],
+  "helperStatus": "No helper file was written; helper planning was interrupted before any external helper artifact existed."
+}

@@ -1,0 +1,70 @@
+{
+  "targetRootCommit": "e2baadae03dd25cf74979bdfeb3bf35fd696393d",
+  "sourceMethod": "git show <exact commit>:<path> (read-only); hashes are SHA-256 of frozen source and .meta bytes",
+  "scope": "Only AccountRecoveryViewEditModeTests (2 selectors) and MatchClientAccountBindingEditModeTests (4 selectors), total 6. No tests were run by the manifest author.",
+  "groups": [
+    {
+      "class": "AccountRecoveryViewEditModeTests",
+      "file": "Assets/Tests/Editor/AccountRecoveryViewEditModeTests.cs",
+      "metaFile": "Assets/Tests/Editor/AccountRecoveryViewEditModeTests.cs.meta",
+      "testMethodCount": 2,
+      "selectorCount": 2,
+      "sourceSha256": "1c736677f4ea514478e420fc1837df0a082b114a791223b5dca77a81590d35e4",
+      "metaSha256": "cea2fd37d637112f3ef67fd629eaf72da74762174baa5de901e7b6d5b25a4ba4",
+      "metaGuid": "3d27b1c5c0524949b029e33fb04aa312",
+      "sourceBytes": 10477,
+      "metaBytes": 60,
+      "workspaceMatchesGitShow": null,
+      "methods": [
+        {
+          "name": "UnownedAndFailedProfilesCannotRevealARecoveryKey",
+          "selectors": 1
+        },
+        {
+          "name": "OwnedKeyNeedsRevealAndManualSelectionAndClearsOnCloseSwitchCancelAndBlur",
+          "selectors": 1
+        }
+      ],
+      "namespace": "Roguehalla.Client.Tests"
+    },
+    {
+      "class": "MatchClientAccountBindingEditModeTests",
+      "file": "Assets/Tests/Editor/MatchClientAccountBindingEditModeTests.cs",
+      "metaFile": "Assets/Tests/Editor/MatchClientAccountBindingEditModeTests.cs.meta",
+      "testMethodCount": 4,
+      "selectorCount": 4,
+      "sourceSha256": "9d6b5778c92c3a47467a90adc4e471eac283920fb4ff8a362ad303fae77afcea",
+      "metaSha256": "995ff5d51834ee1c063d477bad98a65b67bbcb4a43a4a4f65f1ded641bc03723",
+      "metaGuid": "fac78127a58b4044bec5d3a102c8fec7",
+      "sourceBytes": 10100,
+      "metaBytes": 60,
+      "workspaceMatchesGitShow": null,
+      "methods": [
+        {
+          "name": "SelectingFactionDuringDeferredJoinInvalidatesIntentAndCreatesNoSocket",
+          "selectors": 1
+        },
+        {
+          "name": "StaleJoinFailureCannotOverwriteProfileSelectedBySynchronousFlowCallback",
+          "selectors": 1
+        },
+        {
+          "name": "MutatingMatchUrlWhileOwnershipRequestIsPendingCannotUseCapturedIntentOrConnect",
+          "selectors": 1
+        },
+        {
+          "name": "SuccessfulOrdinaryJoinUsesOwnedCanonicalIdentityTokenAndValidatedUrl",
+          "selectors": 1
+        }
+      ],
+      "namespace": "(global namespace)"
+    }
+  ],
+  "expectedTestMethodCount": 6,
+  "expectedSelectorCount": 6,
+  "revisionBoundaries": {
+    "95bd9c": "Earlier recovery cut had 1 pass and 1 failed recovery selector; cosmetics and progress passed there. Not rerun here.",
+    "719cc2": "Earlier separately scoped drawer/input/owner receipt has 18 passed selectors. Not rerun here."
+  },
+  "generatedUtc": "2026-11-09T05:08:53.210292+00:00"
+}

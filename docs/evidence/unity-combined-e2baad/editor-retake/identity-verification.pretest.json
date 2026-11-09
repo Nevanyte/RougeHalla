@@ -1,0 +1,42 @@
+{
+  "source": "e2baadae03dd25cf74979bdfeb3bf35fd696393d",
+  "selectors": 6,
+  "allMatch": true,
+  "classes": [
+    {
+      "class": "AccountRecoveryViewEditModeTests",
+      "loadedType": "Roguehalla.Client.Tests.AccountRecoveryViewEditModeTests",
+      "methods": [
+        "OwnedKeyNeedsRevealAndManualSelectionAndClearsOnCloseSwitchCancelAndBlur",
+        "UnownedAndFailedProfilesCannotRevealARecoveryKey"
+      ],
+      "mvid": "e4946255-a7a1-4d99-8e3e-b146994f5e47",
+      "guid": "3d27b1c5c0524949b029e33fb04aa312",
+      "sourceSha256": "1c736677f4ea514478e420fc1837df0a082b114a791223b5dca77a81590d35e4",
+      "metaSha256": "cea2fd37d637112f3ef67fd629eaf72da74762174baa5de901e7b6d5b25a4ba4",
+      "match": true
+    },
+    {
+      "class": "MatchClientAccountBindingEditModeTests",
+      "loadedType": "MatchClientAccountBindingEditModeTests",
+      "methods": [
+        "MutatingMatchUrlWhileOwnershipRequestIsPendingCannotUseCapturedIntentOrConnect",
+        "SelectingFactionDuringDeferredJoinInvalidatesIntentAndCreatesNoSocket",
+        "StaleJoinFailureCannotOverwriteProfileSelectedBySynchronousFlowCallback",
+        "SuccessfulOrdinaryJoinUsesOwnedCanonicalIdentityTokenAndValidatedUrl"
+      ],
+      "mvid": "e4946255-a7a1-4d99-8e3e-b146994f5e47",
+      "guid": "fac78127a58b4044bec5d3a102c8fec7",
+      "sourceSha256": "9d6b5778c92c3a47467a90adc4e471eac283920fb4ff8a362ad303fae77afcea",
+      "metaSha256": "995ff5d51834ee1c063d477bad98a65b67bbcb4a43a4a4f65f1ded641bc03723",
+      "match": true
+    }
+  ],
+  "net": {
+    "playing": false,
+    "compiling": false,
+    "loadedProtocol": 14,
+    "assembly": "RoguehallaNet, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null",
+    "mvid": "3734718b-02bd-4a5f-ad3c-d2f64cda6d5d"
+  }
+}
