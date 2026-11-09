@@ -1,0 +1,131 @@
+{
+  "schema": "hub-unknown-retry-repair/1",
+  "base": "719cc2b7e78415226246c0273ae9c78f7385fc04",
+  "sourceCommit": "6749d62f44483deb9fa1a8d37ce3f20c814419b1",
+  "sourceOnlyRuntimeAndTestFiles": [
+    "client-unity/UnityProject/Assets/Scripts/UI/HubCosmeticsView.cs",
+    "client-unity/UnityProject/Assets/Tests/Editor/HubCosmeticsViewEditModeTests.cs"
+  ],
+  "existingClassCaseCount": 7,
+  "payloads": [
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/HubCosmeticsView.cs",
+      "sha256": "bd5a33bca79909392b0050ea4ff38bbb0980cf34dd55ef91e9cc08a740773693",
+      "bytes": 41594
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/HubCosmeticsViewEditModeTests.cs",
+      "sha256": "d78c64231d6a2b4d24eed743bfb45950751fb3d88b35dc00aca5c3178aa9fea4",
+      "bytes": 26914
+    },
+    {
+      "path": "docs/evidence/hub-unknown-retry-repair/README.md",
+      "sha256": "422cc72f76e67ce70414186dd7f9154ce34626056c25f4dd8c1a855bd6c493c2",
+      "bytes": 4717
+    },
+    {
+      "path": "docs/evidence/hub-unknown-retry-repair/managed-compile.txt",
+      "sha256": "8ce6735222aa710be0fd5706725ea06c6538da03a4cc38793ae173e8653dd090",
+      "bytes": 1813
+    },
+    {
+      "path": "docs/evidence/hub-unknown-retry-repair/original-failures.json",
+      "sha256": "001bdd65ece970cd982cedc687b1384d522227f769e41623787e6ad7444460f2",
+      "bytes": 4144
+    },
+    {
+      "path": "docs/evidence/hub-unknown-retry-repair/original-source-integrity.json",
+      "sha256": "ede61d3d9b20d39af8e9878664738bea5c9f25b1d6fb1db63e6f24d6714eeff1",
+      "bytes": 306
+    }
+  ],
+  "protectedUnchangedRootFiles": [
+    {
+      "path": "client-unity/RoguehallaNet/Net/AccountApiService.cs",
+      "sha256": "5f043418e17c5b47017753baddeefeb9e38759094405e607a330b5e02c271be5",
+      "bytes": 17199
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Net/AccountHubFlow.cs",
+      "sha256": "1e8b7376d97f1117c90b6924e9ed632ab984fee6cfe60d9a14996a981614294f",
+      "bytes": 15463
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountApiService.cs",
+      "sha256": "5f043418e17c5b47017753baddeefeb9e38759094405e607a330b5e02c271be5",
+      "bytes": 17199
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountHubFlow.cs",
+      "sha256": "1e8b7376d97f1117c90b6924e9ed632ab984fee6cfe60d9a14996a981614294f",
+      "bytes": 15463
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/AccountRecoveryView.cs",
+      "sha256": "153aa78c21328cf18f45f871eb06400e68f525c00f12f5fb26724354380abd95",
+      "bytes": 6013
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.cs",
+      "sha256": "6301e88cd25f07d2c12c97e88f083d37460770054121bf210cd7482902337cbe",
+      "bytes": 32216
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/MythicUi.cs",
+      "sha256": "77d18490a0be77317c0db6451067621f77cbac02288d96edb99554d5f6a9153f",
+      "bytes": 17334
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/AccountRecoveryViewEditModeTests.cs",
+      "sha256": "dc171e87ebd395a4b59bf5b59c4d41d3c9f1355e3759d05e1e385b8970e25b53",
+      "bytes": 10378
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/MatchClientAccountBindingEditModeTests.cs",
+      "sha256": "9d6b5778c92c3a47467a90adc4e471eac283920fb4ff8a362ad303fae77afcea",
+      "bytes": 10100
+    },
+    {
+      "path": "Cargo.lock",
+      "sha256": "b14507716b80f1c0b85f7298b380b3c9146917134d9361c1bb408062782c0b22",
+      "bytes": 66555
+    }
+  ],
+  "capturedArtBaseFiles": [
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/HubCosmeticsView.cs",
+      "sha256": "49a08f1b46d71639645e29cb097183e166a40d0209c6ec1d441d6e89bfb0e38f",
+      "bytes": 41306
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/HubCosmeticsViewEditModeTests.cs",
+      "sha256": "b9497df9dd5824934ece7c7ce85ea54ee91e314c10e746dff63393e320083b95",
+      "bytes": 25100
+    }
+  ],
+  "artSourceAfterTestsManifest": {
+    "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/combined-719cc2-2026-11-08/evidence/source-after-tests.json",
+    "sha256": "9067ba0b8e337ca35afb59b7a74316673982881824cc5b6c20fa88fcb9bb710a"
+  },
+  "compileTemplates": [
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/hub-unknown-retry-repair/compile/Client.csproj",
+      "sha256": "c162db6ea3296f438ecee9b5bbce37f7d58e1a473b5945035a8c952609a2a7cd"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/hub-unknown-retry-repair/compile/Tests.csproj",
+      "sha256": "a154a83f327c62e3e6e396fcfc48c6d04acdc081fd4fc89c64865159154df11c"
+    }
+  ],
+  "checks": {
+    "managedApiReferenceCompile": {
+      "result": "PASS",
+      "errors": 0,
+      "inheritedWarnings": 1,
+      "testExecution": false
+    },
+    "actualUnityRetakePerformed": false,
+    "postRepairEditorPassClaim": false
+  },
+  "actualReplaySelector": "Roguehalla.Client.Tests.HubCosmeticsViewEditModeTests"
+}
