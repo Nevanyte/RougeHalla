@@ -1,0 +1,17 @@
+    Checking sqlx-core v0.8.6
+    Checking sqlx-postgres v0.8.6
+    Checking rh-sim v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla/crates/rh-sim)
+    Checking rh-policy v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla/crates/rh-policy)
+    Checking sqlx v0.8.6
+    Checking axum-server v0.7.3
+    Checking rh-persist v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla/crates/rh-persist)
+    Checking rh-headless v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla/crates/rh-headless)
+    Checking rh-server v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla/crates/rh-server)
+error: file is loaded as a module multiple times: `crates/rh-server/src/outbox/scene_candidate/fixture.rs`
+  |
+  = help: replace all but one `mod` item with `use` items
+  = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.97.0/index.html#duplicate_mod
+  = note: `-D clippy::duplicate-mod` implied by `-D warnings`
+  = help: to override `-D warnings` add `#[allow(clippy::duplicate_mod)]`
+
+error: could not compile `rh-server` (lib test) due to 1 previous error

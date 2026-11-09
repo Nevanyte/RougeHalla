@@ -1,6 +1,5 @@
 // Reuse the existing native/declared private scene-candidate source fixture verbatim.
-#[path = "fixture.rs"]
-mod original;
+use super::fixture as original;
 
 use rh_protocol::scene_candidate::{encode_ack, Ack, Limits, Meta, PreparedScene, Receiver, View};
 use rh_protocol::{ServerMsg, StateItem, WireOwnerCombat, WireOwnerLock};

@@ -1,0 +1,21 @@
+{
+  "head": "bb564d3b53728cbd205af375b5342eca466f3656",
+  "source_changes_after_head": "coordinator docs only; no Rust edits",
+  "command": [
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/cargo/bin/cargo",
+    "test",
+    "--locked",
+    "--offline",
+    "-p",
+    "rh-policy",
+    "--lib",
+    "fair_percept14",
+    "--",
+    "--nocapture"
+  ],
+  "target": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target",
+  "started_utc": "2026-11-09T17:42:24.304066+00:00",
+  "ended_utc": "2026-11-09T17:42:39.659180+00:00",
+  "exit_code": 0,
+  "log_sha256": "02b33ed3e561e1f687e3da5a0728e248e5f9d5887044b7baf637eb2c83d0eb20"
+}

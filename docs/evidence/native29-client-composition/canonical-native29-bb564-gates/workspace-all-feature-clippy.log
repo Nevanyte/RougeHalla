@@ -1,0 +1,18 @@
+    Checking rh-sim v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla/crates/rh-sim)
+    Checking rh-protocol v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla/crates/rh-protocol)
+    Checking rh-policy v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla/crates/rh-policy)
+    Checking rh-headless v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla/crates/rh-headless)
+   Compiling sqlx-core v0.8.6
+   Compiling sqlx-postgres v0.8.6
+   Compiling sqlx-macros-core v0.8.6
+   Compiling sqlx-macros v0.8.6
+    Checking sqlx v0.8.6
+    Checking rh-persist v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla/crates/rh-persist)
+    Checking tokio-rustls v0.26.6
+    Checking axum-server v0.7.3
+    Checking tokio-tungstenite v0.26.2
+    Checking rh-server v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla/crates/rh-server)
+    Checking rh-parity v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla/crates/rh-parity)
+    Checking rh-placement v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla/crates/rh-placement)
+    Checking rh-load v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla/crates/rh-load)
+    Finished `dev` profile [unoptimized] target(s) in 1m 01s

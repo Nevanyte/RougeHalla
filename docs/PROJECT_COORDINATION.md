@@ -15,18 +15,18 @@ The latest [migration checkpoint](MIGRATION.md#reviewed-protocol14-wrap-up-check
 [full-runtime/component batch](evidence/root-runtime14-composition/README.md) supersede the historical tables below.
 Current identity is protocol14/checkpoint29/replay23/OBS21/policy15/content7c6a633f68c2cc72. The four native producer rows are integrated with reviewed source/canonical/transient fixes;63 strict source cases,21 content checks, the63-case derived tape/checker and four digest cases pass. BakedContent is generated from actual canonical /info. The older8e467beb normal CI42631043999 passes all five jobs; a new normal CI must bind this composition. The private allocation diagnostic remains historical and supplies no changed byte budget.
 
-Actual Unity90/90 passes once at cdb0 (the earlier64 plus Training26), with both prior RED cuts preserved. The separate layout observer fails on EventSystem registration and has no PNG/input acceptance. Source/visible-state Frozen4 return is exact; AutoRefresh assertions remain OPEN. The helper-only fix/restart remain proposals. Pure initial-resume/Detach and tab-session checkpoint components are reviewed; explicit Resume UI and real new-page browser/dual-runtime/bank acceptance remain separate.
+Actual Unity90/90 passes once at cdb0 (the earlier64 plus Training26), with both prior RED cuts preserved. The separate layout observer fails on EventSystem registration and has no PNG/input acceptance. Source/visible-state Frozen4 return is exact; AutoRefresh assertions remain OPEN. The helper-only fix is source-reviewed; the restart preflight stops on dirty persistent objects and the original Editor stays untouched. The next proof will use an isolated fresh project after its frozen source is reviewed. Pure initial-resume/Detach and tab-session checkpoint components are reviewed; explicit Resume UI and real new-page browser/dual-runtime/bank acceptance remain separate.
 
 | Current owner | Current work / next boundary |
 |---|---|
 | Lead: OPTimization_port | Canonical reviewed merges, coherent native/client identity, combined checks and normal CI; original full-port acceptance |
-| Prepare Unity 2D Demo | Functional90 proof complete; bounded helper-only layout repair and guarded clean Editor restart proposal, no asset/audio expansion |
+| Prepare Unity 2D Demo | Functional90 proof complete; original Editor restart stopped safely on dirty assets, preparing a fresh isolated composed98 project and bounded V2 layout helper, no asset/audio expansion |
 | Modernize Unity game UI | Explicit owned-seat page-reload Resume, current account/target/mode/session fences, prompt checkpoint saving and retirement Detach; new source-bound engine/browser gates |
 | Prove PostgreSQL cold recovery | Reviewed checkpoint store complete (919 managed,11 JS adapter VM); available for the next bounded integration review |
-| Check Git access | Reviewed private socket39 checks; new private C#/JS full-scene receiver/apply/ACK component and Rust-authoritative vectors, no default activation |
+| Check Git access | Private socket and C#/JS full-scene receiver/apply/ACK reviewed and composed; current933 managed and34 native scene regressions pass, no default activation |
 | DeepSeek Rust Port Worker | Bounded24 captured WalkHint method consumers using existing interfaces; no production/schema edits or new source capture |
 | DeepSeek Post Rust | Finite24 source capture/evidence sealed194e; direct-angle transition true, Cartesian/path transition OPEN, controls/frozen/native scope explicit |
-| Internal Rust specialist | Bounded accepted current14 FIFO/PlayerMemory component47unit+2privacy doctests; no full interpolation/new facts/NPC/full Brain claim |
+| Internal Rust specialist | Accepted current14 FIFO/PlayerMemory component reviewed and composed; no full interpolation/new facts/NPC/full Brain claim |
 
 The full WalkHint and PackLeader producers, SlowStarter and complete MarkTax are now in native29. The readonly WalkHint is not Unity authority. The generic hash audit123446 leaves/85214 accepted perturbations/0unhashed and source14/helper69/other component receipts keep their actual prior revisions. Private scene/retained-frame components prepare the full facts contract; they do not certify full Brain/public delivery/outcome parity.
 

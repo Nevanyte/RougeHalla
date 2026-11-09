@@ -1,0 +1,42 @@
+   Compiling rh-server v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla/crates/rh-server)
+    Finished `test` profile [unoptimized] target(s) in 7.43s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_server-825e280ee950b412)
+
+running 34 tests
+test outbox::scene_candidate::socket::tests::ownership::unused_endpoint_drop_closes_and_wakes_without_socket_construction ... ok
+test outbox::scene_candidate::socket::tests::ownership::final_producer_arc_drop_closes_even_while_driver_owns_shared ... ok
+test outbox::scene_candidate::socket::tests::ownership::checked_configuration_precedes_endpoint_construction ... ok
+test outbox::scene_candidate::socket::tests::ownership::pending_reservation_failure_is_terminal_without_discarding_existing_owner ... ok
+test outbox::scene_candidate::socket::tests::ownership::nonfull_prepare_and_publication_errors_close_and_wake ... ok
+test outbox::scene_candidate::socket::tests::ownership::wait_admit_checks_a_close_that_precedes_its_first_notification_registration ... ok
+test outbox::scene_candidate::socket::tests::ownership::full_preserves_the_exact_pending_and_wait_admit_closes_without_lost_wake ... ok
+test outbox::scene_candidate::socket::tests::ownership::cancelling_a_waiting_pending_closes_and_signals_its_captured_context ... ok
+test outbox::scene_candidate::socket::tests::dropping_unpolled_driver_closes_its_queue_owner ... ok
+test outbox::scene_candidate::socket::tests::ownership::admitted_pending_drop_is_disarmed_but_repeat_admission_is_terminal ... ok
+test outbox::scene_candidate::socket::tests::ownership::model_only_writer_release_really_wakes_the_same_waiting_pending ... ok
+test outbox::scene_candidate::tests::exact_ack_tuple_generation_and_both_completion_orders ... ok
+test outbox::scene_candidate::tests::early_ack_full_refusal_exact_retry_and_lease_lifetime ... ok
+test outbox::scene_candidate::tests::every_write_cancellation_closes_and_prevents_next_scene ... ok
+test outbox::scene_candidate::tests::failed_source_retention_or_dropped_pending_closes_without_publication ... ok
+test outbox::scene_candidate::tests::fifo_no_second_writer_and_partial_commit_claim_never_credits ... ok
+test outbox::scene_candidate::socket::tests::poll_faults::injected_pending_flush_obeys_one_fixed_scene_deadline_despite_control_progress ... ok
+test outbox::scene_candidate::tests::stale_closed_writer_callbacks_cannot_mutate_a_new_context ... ok
+test outbox::scene_candidate::socket::tests::poll_faults::injected_success_token_waits_for_stream_pending_and_queued_close_wins ... ok
+test outbox::scene_candidate::socket::tests::poll_faults::injected_duplicate_ack_and_controls_never_renew_ack_deadline_invalid_ack_closes ... ok
+test outbox::scene_candidate::tests::ack_and_successful_completion_cross_threads_in_both_orders ... ok
+test outbox::scene_candidate::tests::real_observer_offer_and_collection_stage_survive_refused_admission ... ok
+test outbox::scene_candidate::socket::tests::oversized_inbound_message_is_rejected_at_websocket_limit ... ok
+test outbox::scene_candidate::socket::tests::real_loopback_full_records_apply_atomically_then_ack ... ok
+test outbox::scene_candidate::socket::tests::actual_socket_duplicate_ack_is_idempotent_then_stale_tuple_closes_epoch ... ok
+test outbox::scene_candidate::socket::tests::capacity_refusal_retries_the_same_pending_scene_after_ack_and_writer_release ... ok
+test outbox::scene_candidate::socket::tests::real_loopback_replacement_keeps_old_application_until_commit_apply ... ok
+test outbox::scene_candidate::socket::tests::close_or_generation_change_before_borrowed_complete_keeps_credit_until_drop ... ok
+test outbox::scene_candidate::socket::tests::close_at_each_record_flush_fence_drops_socket_before_credit ... ok
+test outbox::scene_candidate::socket::tests::poll_faults::injected_error_matrix_retains_leases_until_socket_and_owned_error_drop ... ok
+test outbox::scene_candidate::socket::tests::actual_flush_ack_race_defers_exact_ack_until_flush_observation ... ok
+test outbox::scene_candidate::socket::tests::actual_socket_rejects_wrong_epoch_future_and_wrong_cue_acks ... ok
+test outbox::scene_candidate::tests::native_fixture_roundtrip_and_explicit_export ... ok
+test outbox::scene_candidate::client14_fixture::client14_fixture_actual_receiver_acceptance_and_rejections ... ok
+
+test result: ok. 34 passed; 0 failed; 0 ignored; 0 measured; 182 filtered out; finished in 0.04s
+

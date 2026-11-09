@@ -1,0 +1,22 @@
+{
+  "head": "bb564d3b53728cbd205af375b5342eca466f3656",
+  "source_unchanged": true,
+  "command": [
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/cargo/bin/cargo",
+    "test",
+    "--locked",
+    "--offline",
+    "-p",
+    "rh-server",
+    "--test",
+    "runtime_admission",
+    "--",
+    "--nocapture"
+  ],
+  "target": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target",
+  "started_utc": "2026-11-09T17:47:10.246326+00:00",
+  "ended_utc": "2026-11-09T17:47:28.403000+00:00",
+  "exit_code": 0,
+  "log_sha256": "d85d94dee5dcddc53830cde9ccd6b8e06601067148df2a09fb03d41bc6bd2c53",
+  "reason": "First regular policy dependency reused stale rh-sim artifact lacking actual unconditional mirror_timings; rebuild ONLY package in leased cache, no source/expectation edits"
+}

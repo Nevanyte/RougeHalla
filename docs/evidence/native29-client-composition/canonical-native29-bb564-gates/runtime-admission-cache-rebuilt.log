@@ -1,0 +1,47 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla/crates/rh-sim)
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla/crates/rh-policy)
+   Compiling rh-headless v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla/crates/rh-headless)
+   Compiling rh-server v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla/crates/rh-server)
+    Finished `test` profile [unoptimized] target(s) in 15.77s
+     Running tests/runtime_admission.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/runtime_admission-ee4ccf0d738ebeb5)
+
+running 7 tests
+test saved_broker_quotes_require_move_ack_and_current_arrival ... ok
+public condition at crates/rh-server/tests/runtime_admission.rs:736:11: tick=3 time=150 input=0/0
+public condition at crates/rh-server/tests/runtime_admission.rs:639:10: tick=1 time=50 input=0/0
+public condition at crates/rh-server/tests/runtime_admission.rs:641:9: tick=1 time=50 input=0/0
+public condition at crates/rh-server/tests/runtime_admission.rs:658:10: tick=2 time=100 input=0/1
+public condition at crates/rh-server/tests/runtime_admission.rs:746:13: tick=5 time=250 input=0/0
+test hosted_training_validates_capacity_and_admits_only_first_solo_seat ... ok
+public condition at crates/rh-server/tests/runtime_admission.rs:662:9: tick=2 time=100 input=1/1
+public condition at crates/rh-server/tests/runtime_admission.rs:682:10: tick=6 time=300 input=1/0
+test training_endpoint_concurrent_hellos_get_solo_rooms_and_real_console ... ok
+public condition at crates/rh-server/tests/runtime_admission.rs:426:11: tick=15 time=750 input=0/0
+public condition at crates/rh-server/tests/runtime_admission.rs:427:9: tick=15 time=750 input=0/0
+public condition at crates/rh-server/tests/runtime_admission.rs:446:10: tick=16 time=800 input=0/1
+public condition at crates/rh-server/tests/runtime_admission.rs:463:10: tick=18 time=900 input=2/2
+public condition at crates/rh-server/tests/runtime_admission.rs:465:9: tick=18 time=900 input=1/1
+public condition at crates/rh-server/tests/runtime_admission.rs:498:10: tick=46 time=2300 input=3/3
+public condition at crates/rh-server/tests/runtime_admission.rs:513:10: tick=47 time=2350 input=3/4
+public condition at crates/rh-server/tests/runtime_admission.rs:524:9: tick=49 time=2450 input=2/2
+public condition at crates/rh-server/tests/runtime_admission.rs:559:10: tick=47 time=2350 input=3/5
+public condition at crates/rh-server/tests/runtime_admission.rs:588:10: tick=99 time=4950 input=6/6
+public condition at crates/rh-server/tests/runtime_admission.rs:599:10: tick=99 time=4950 input=6/7
+public condition at crates/rh-server/tests/runtime_admission.rs:616:11: tick=99 time=4950 input=6/8
+public condition at crates/rh-server/tests/runtime_admission.rs:617:11: tick=101 time=5050 input=8/8
+test source_endpoint_hello_planning_ready_and_live_quest_trade_state ... ok
+public condition at crates/rh-server/tests/runtime_admission.rs:918:11: tick=14 time=700 input=0/0
+public condition at crates/rh-server/tests/runtime_admission.rs:919:9: tick=14 time=700 input=0/0
+public condition at crates/rh-server/tests/runtime_admission.rs:930:10: tick=18 time=900 input=1/1
+public condition at crates/rh-server/tests/runtime_admission.rs:932:9: tick=18 time=900 input=1/1
+test real_binary_refuses_unknown_runtime_and_incompatible_configuration ... ok
+public condition at crates/rh-server/tests/runtime_admission.rs:841:23: tick=1 time=50 input=0/0
+test captured_full_source_map_admits_encoded_planning_and_live_public_state ... ok
+public condition at crates/rh-server/tests/runtime_admission.rs:826:23: tick=21 time=1050 input=0/0
+public condition at crates/rh-server/tests/runtime_admission.rs:827:21: tick=21 time=1050 input=0/0
+public condition at crates/rh-server/tests/runtime_admission.rs:838:22: tick=22 time=1100 input=1/1
+public condition at crates/rh-server/tests/runtime_admission.rs:819:18: tick=1 time=50 input=0/0
+test real_binary_composes_core_source_and_training_without_a_hello_mode ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.81s
+

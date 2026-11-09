@@ -1,0 +1,136 @@
+{
+  "format": "rh-native29-client-composition/1",
+  "parent": "f277a66f9658f046cc9d371e5e5aede8e0c2d8d8",
+  "payloads": [
+    {
+      "path": "README.md",
+      "bytes": 2855,
+      "sha256": "4da5b1579a6336199ddecdaacf383ebf81e1a7b51dd9ab08ba8a22852a4d1085"
+    },
+    {
+      "path": "canonical-native29-bb564-gates/fair-percept9.json",
+      "bytes": 670,
+      "sha256": "63a00dd5ecfb0801c62d51ee96f57c9078a1a846c1f04ade95b2f27f52beaeb2"
+    },
+    {
+      "path": "canonical-native29-bb564-gates/fair-percept9.log",
+      "bytes": 1611,
+      "sha256": "02b33ed3e561e1f687e3da5a0728e248e5f9d5887044b7baf637eb2c83d0eb20"
+    },
+    {
+      "path": "canonical-native29-bb564-gates/rh-sim-only-cache-clean.json",
+      "bytes": 715,
+      "sha256": "4db0a738aed64cb7c6d604f90e4ac5c8493606a63f09f5705760bc9e54d672c7"
+    },
+    {
+      "path": "canonical-native29-bb564-gates/rh-sim-only-cache-clean.log",
+      "bytes": 38,
+      "sha256": "54b135f2e5982fc10b7d3ab7ec48984d3fd860a6493e2d698618aa7da18fd7f9"
+    },
+    {
+      "path": "canonical-native29-bb564-gates/runtime-admission-cache-rebuilt.json",
+      "bytes": 818,
+      "sha256": "241053ba99fa4b24d90301545c729711b081c4fa03e2bd1e5ed24d8c38b82617"
+    },
+    {
+      "path": "canonical-native29-bb564-gates/runtime-admission-cache-rebuilt.log",
+      "bytes": 4160,
+      "sha256": "d85d94dee5dcddc53830cde9ccd6b8e06601067148df2a09fb03d41bc6bd2c53"
+    },
+    {
+      "path": "canonical-native29-bb564-gates/runtime-admission7.json",
+      "bytes": 676,
+      "sha256": "b1e29908b3cdf450eb25915cedb33aae44a316b28ea6489268a372fecd935b60"
+    },
+    {
+      "path": "canonical-native29-bb564-gates/runtime-admission7.log",
+      "bytes": 496,
+      "sha256": "62b08777b5121ceced43561a06664aba72c7b757d67c00e0756f8ecb12b4837f"
+    },
+    {
+      "path": "canonical-native29-bb564-gates/workspace-all-feature-clippy.json",
+      "bytes": 823,
+      "sha256": "630393509e76d8b7b7cced2836a1006d7d1ac1a5ec546af4e79580e8c030eb90"
+    },
+    {
+      "path": "canonical-native29-bb564-gates/workspace-all-feature-clippy.log",
+      "bytes": 1230,
+      "sha256": "c5ecd45c75d200d0a2d238cfcfeeba7937636dd7c20d019b67bbaac8df5a6702"
+    },
+    {
+      "path": "canonical-scene14-clients-rust/client14-native-bytecheck.json",
+      "bytes": 701,
+      "sha256": "1f2c7efcb4ad6ea6f428a20930a5174a03389b56174fabf12783504264067498"
+    },
+    {
+      "path": "canonical-scene14-clients-rust/client14-native-bytecheck.log",
+      "bytes": 554,
+      "sha256": "af1e57e17b7437da2ce4e3d4b636e27a669991e3ac73da55e6134fe83669bc7c"
+    },
+    {
+      "path": "canonical-scene14-clients-rust/final-workspace-fmt.json",
+      "bytes": 645,
+      "sha256": "7a6594bbd5fbdb5cb8452d0ffb641fd4a231d074fd69347dad621a098526d8ef"
+    },
+    {
+      "path": "canonical-scene14-clients-rust/final-workspace-fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "canonical-scene14-clients-rust/server-feature-clippy.json",
+      "bytes": 625,
+      "sha256": "bcc11a31d604502d5c46599c6657de29b4b6ea692d06ac6b891b98e0d8836ec5"
+    },
+    {
+      "path": "canonical-scene14-clients-rust/server-feature-clippy.log",
+      "bytes": 1116,
+      "sha256": "aec5ea5d3671fd72d714b592d24ad454eba32ad0566c2b7f19836a365a01bb33"
+    },
+    {
+      "path": "canonical-scene14-clients-rust/single-module-scene-regressions.json",
+      "bytes": 733,
+      "sha256": "11094d745f20df001dea8e10737e0edaf70d0e0b578cc8ce8e42f548202ff3fb"
+    },
+    {
+      "path": "canonical-scene14-clients-rust/single-module-scene-regressions.log",
+      "bytes": 4477,
+      "sha256": "249d2f763467e917b50b0b32cadf2d64a9ad45d9d1b26ca6eb234719b89b0a02"
+    },
+    {
+      "path": "canonical-scene14-clients-rust/single-module-server-clippy.json",
+      "bytes": 756,
+      "sha256": "3444e071a821f3fabf5d530fcb009d4c8fdf302bf3dc2a13d6981ce3badb4a7a"
+    },
+    {
+      "path": "canonical-scene14-clients-rust/single-module-server-clippy.log",
+      "bytes": 160,
+      "sha256": "c26d05cffee2a8d18f35f861a60721cee8ac5de8ea3d2e79b2968cd6487e5f4d"
+    },
+    {
+      "path": "canonical-scene14-clients.trx",
+      "bytes": 1260996,
+      "sha256": "19fe9f5d3ee739dd41106130dfa005cb922c8ecf0c5a7a1f118370348bcd662a"
+    },
+    {
+      "path": "managed-input-receipts.json",
+      "bytes": 1119,
+      "sha256": "e210039054c16ac91ffbddd7969dadd10b33d4607719bdc1c0d009fb1172d6db"
+    },
+    {
+      "path": "mirror-final.log",
+      "bytes": 25,
+      "sha256": "df5a45a2ab7772bde9308c3f020adece1eccb98c913e246a29a1455036b29683"
+    },
+    {
+      "path": "provenance-final.json",
+      "bytes": 2025,
+      "sha256": "384934d88a728547b14366559db409ce06b49e88256150be6d7d8bada469ed3f"
+    },
+    {
+      "path": "single-module-independent-review.md",
+      "bytes": 1973,
+      "sha256": "6b4a695e2e6b96a2c0066b212d2ee76bf0f9cd9054e5798fcb68c07b999515c8"
+    }
+  ]
+}

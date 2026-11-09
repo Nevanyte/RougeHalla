@@ -236,8 +236,6 @@ fn fifo_no_second_writer_and_partial_commit_claim_never_credits() {
     assert_eq!(q.meter().scenes, 0);
 }
 
-#[path = "fixture.rs"]
-mod fixture;
 #[test]
 fn native_fixture_roundtrip_and_explicit_export() {
     let document = fixture::document();

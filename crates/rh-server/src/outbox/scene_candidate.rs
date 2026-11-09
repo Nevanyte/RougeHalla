@@ -6,6 +6,8 @@ use std::sync::{Arc, Mutex, MutexGuard};
 
 #[cfg(test)]
 mod client14_fixture;
+#[cfg(test)]
+mod fixture;
 pub mod socket;
 
 #[derive(Clone, Copy, Debug)]
