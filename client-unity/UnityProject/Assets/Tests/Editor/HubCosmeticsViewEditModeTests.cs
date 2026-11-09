@@ -236,15 +236,25 @@ namespace Roguehalla.Client.Tests
                 var operation = (AccountMutation)entry.GetType().GetField("Operation").GetValue(entry);
                 Guid originalId = operation.Id;
                 transport.ApiReply.TrySetResult(new AccountApiResponse(503));
-                for (int i = 0; i < 8 && operation.State != AccountMutationState.Unknown; i++) await Task.Yield();
+                for (int i = 0; i < 100 && (operation.State == AccountMutationState.InFlight || (bool)entry.GetType().GetField("Submitting").GetValue(entry)); i++) await Task.Delay(1);
                 Assert.That(operation.State, Is.EqualTo(AccountMutationState.Unknown));
+                Assert.That(entry.GetType().GetField("Submitting").GetValue(entry), Is.False);
+                var previousResult = (AccountApiResult)entry.GetType().GetField("Result").GetValue(entry);
+                Assert.That(previousResult, Is.Not.Null, "the original uncertain delivery must have completed");
+                Assert.That(owner.Api.IsCurrent(previousResult), Is.True);
 
                 owner.Flow.Cancel();
                 Assert.That(await owner.Flow.OpenProfileAsync("alice"), Is.True, "reopening with the same confirmed credential should restore ownership");
+                Assert.That(owner.Snapshot.FullProfile, Is.Not.Null, "a usable owned profile must have been admitted");
                 Assert.That(owner.Api.IsCurrentOwner(operation), Is.True);
+                Assert.That(owner.Api.IsCurrent(previousResult), Is.False, "reopening invalidates the old delivery, not this credential's uncertain operation");
                 var sameOwnerSummary = (string)typeof(HubCosmeticsView).GetMethod("MutationSummary", BindingFlags.Instance | BindingFlags.NonPublic)
                     .Invoke(view, new object[] { owner.Snapshot.FullProfile });
+                Assert.That(sameOwnerSummary, Is.Not.Null, "current-owner Unknown history must not be filtered by its old delivery generation");
                 Assert.That(sameOwnerSummary, Does.Contain("Retry resubmits this change"), "same-credential Unknown history remains retryable");
+                Assert.That(view.Root.Find("CosmeticsScroll/Viewport/Content/Cosmetic_skin-red/RetrySame"), Is.Not.Null);
+                Assert.That(transport.ApiRequests, Is.EqualTo(1), "reopening must not automatically retry");
+                Assert.That(operation.Id, Is.EqualTo(originalId));
 
                 owner.Flow.Cancel();
                 transport.OwnerToken = new string('b', 64);
@@ -265,6 +275,7 @@ namespace Roguehalla.Client.Tests
                 var summary = (string)typeof(HubCosmeticsView).GetMethod("MutationSummary", BindingFlags.Instance | BindingFlags.NonPublic)
                     .Invoke(view, new object[] { owner.Snapshot.FullProfile });
                 Assert.That(summary, Is.Null, "a previous credential's status must not describe the replacement profile");
+                Assert.That(view.Root.Find("CosmeticsScroll/Viewport/Content/Cosmetic_skin-red/RetrySame"), Is.Null);
                 string rendered = string.Join("\n", view.GetComponentsInChildren<TMPro.TMP_Text>(true).Select(t => t.text));
                 Assert.That(rendered.Contains("Retry resubmits this change"), Is.False);
                 Assert.That(rendered.Contains(transport.OwnerToken), Is.False, "credentials must never be rendered");
@@ -312,6 +323,9 @@ namespace Roguehalla.Client.Tests
                 for (int i = 0; i < 100 && (operation.State == AccountMutationState.InFlight || (bool)entry.GetType().GetField("Submitting").GetValue(entry)); i++) await Task.Delay(1);
                 Assert.That(operation.State, Is.EqualTo(AccountMutationState.Unknown));
                 Assert.That(entry.GetType().GetField("Submitting").GetValue(entry), Is.False);
+                var previousResult = (AccountApiResult)entry.GetType().GetField("Result").GetValue(entry);
+                Assert.That(previousResult, Is.Not.Null);
+                Assert.That(owner.Api.IsCurrent(previousResult), Is.True);
                 Assert.That(transport.LastPurchaseId, Is.EqualTo(originalId));
                 StringAssert.Contains("Retry resubmits", status.text);
 
@@ -322,7 +336,10 @@ namespace Roguehalla.Client.Tests
                 Assert.That(transport.ApiRequests, Is.EqualTo(1));
 
                 Assert.That(await owner.Flow.OpenProfileAsync("alice"), Is.True);
+                Assert.That(owner.Snapshot.FullProfile, Is.Not.Null);
                 Assert.That(owner.Api.IsCurrentOwner(operation), Is.True);
+                Assert.That(owner.Api.IsCurrent(previousResult), Is.False);
+                Assert.That(transport.ApiRequests, Is.EqualTo(1), "reopening only restores display; retry remains explicit");
                 StringAssert.Contains("500", wallet.text);
                 StringAssert.Contains("Retry resubmits", status.text);
                 typeof(HubCosmeticsView).GetMethod("Retry", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(view, new object[] { entry });
