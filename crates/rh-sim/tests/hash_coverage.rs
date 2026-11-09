@@ -1287,6 +1287,7 @@ const VALIDATED: &[(&str, &str)] = &[
     ("world.mob_runtime.life.*.contributors.*", "contributors are unique retained player identities, never future ids or mobs"),
     ("world.mob_runtime.life.*.ward_expires_at", "ward expiry is zero without owner, otherwise cleared_at plus CAMP_WARD_MS"),
     ("world.mobs.#len", "camp alive count and typed current birth cycle must agree with actual mob store"),
+    ("world.mobs.*.brain", "actor class requires a brain exactly for non-zombie Regional/Practice NPCs; removing it there or adding one to a Training dummy is refused, while every nested brain leaf is still audited"),
     ("world.mobs.*.brain.mode", "target requires Fight mode; a dead mob must be Idle"),
     ("world.mobs.*.brain.threat.*.#len", "threat rows are exact (retained player id, finite nonnegative amount) pairs with unique ids"),
     ("world.mobs.*.brain.threat.*.*", "threat rows are exact (retained player id, finite nonnegative amount) pairs with unique ids"),
@@ -2387,6 +2388,76 @@ fn native29_used_hold_bit_requires_its_fold_but_inert_bit_is_hashed() {
         serde_json::to_value(restored).unwrap()["world"]["players"][0]["core"]["modifiers"]
             ["holds"],
         2
+    );
+}
+
+/// Real source-backed PvE birth/Target/wake states already populate the brain.
+/// Its optional shape is actor-class coupled, not a missing or unhashed subtree.
+#[test]
+fn native29_real_pve_brain_roundtrips_and_role_presence_is_validated() {
+    let (engaged, cleared) = mob_audit_states();
+    for sim in [&engaged, &cleared] {
+        let cp = serde_json::to_value(sim).unwrap();
+        assert_eq!(Sim::restore(&cp).unwrap().state_hash(), sim.state_hash());
+        assert_eq!(sim.clone().state_hash(), sim.state_hash());
+        assert!(cp["world"]["mobs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|m| m["brain"].is_object()));
+    }
+    let cp = serde_json::to_value(&engaged).unwrap();
+    let mobs = cp["world"]["mobs"].as_array().unwrap();
+    let i = mobs
+        .iter()
+        .position(|m| m["brain"]["target"].is_number())
+        .expect("real NPC wake selects target");
+    assert!(
+        mobs.iter()
+            .any(|m| m["core"]["weapon"]["action"].is_object()),
+        "real pending NPC attack"
+    );
+    assert!(
+        mobs.iter().any(|m| m["brain"]["goal"].is_object()),
+        "real NPC movement goal"
+    );
+    assert!(
+        mobs.iter()
+            .any(|m| !m["brain"]["threat"].as_array().unwrap().is_empty()),
+        "real threat history"
+    );
+    let mut missing = cp.clone();
+    missing["world"]["mobs"][i]["brain"] = Value::Null;
+    let err = Sim::restore(missing)
+        .err()
+        .expect("regional NPC requires brain");
+    assert!(
+        err.to_string().contains("actor brain capability mismatch"),
+        "{err}"
+    );
+    // Counterfactual accepted scalar edit: it is not a produced NPC decision.
+    let mut changed = cp.clone();
+    let moving = changed["world"]["mobs"][i]["brain"]["moving"]
+        .as_bool()
+        .unwrap();
+    changed["world"]["mobs"][i]["brain"]["moving"] = (!moving).into();
+    let changed = Sim::restore(changed).expect("independent brain scalar is restore-valid");
+    assert_ne!(engaged.state_hash(), changed.state_hash());
+    let training = produced_walk_hint_states();
+    let mut dummy = serde_json::to_value(&training[0].1).unwrap();
+    let dummy_i = dummy["world"]["mobs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|m| m["brain"].is_null())
+        .expect("actual Training dummy has no regional brain");
+    dummy["world"]["mobs"][dummy_i]["brain"] = mobs[i]["brain"].clone();
+    let err = Sim::restore(dummy)
+        .err()
+        .expect("dummy cannot acquire regional brain");
+    assert!(
+        err.to_string().contains("actor brain capability mismatch"),
+        "{err}"
     );
 }
 
