@@ -1,0 +1,103 @@
+{
+  "schema": "rh-evidence-manifest-v1",
+  "excludes": "manifest.json itself",
+  "fileCount": 19,
+  "bytes": 436913,
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 5239,
+      "sha256": "7ee26e1a2078ba999a4ccaddcb9d55f0cf0204f6332fdb8c9a861d750af1cb93"
+    },
+    {
+      "path": "diagnosis/Boundary.csproj.txt",
+      "bytes": 432,
+      "sha256": "8e69a3a3e174dd97d409be635e96dae482733d5ad37c300d05917509d2c55792"
+    },
+    {
+      "path": "diagnosis/Program.cs.txt",
+      "bytes": 2240,
+      "sha256": "2b18925ad9808d313ce4a8526caa346b23e5cf5690e029ccebac7c5d4aaf20ce"
+    },
+    {
+      "path": "diagnosis/account-boundary.json",
+      "bytes": 685,
+      "sha256": "2ec5a038d587e6ed3936afa7beff43124a9739947ae6a0e83a4689de377c9970"
+    },
+    {
+      "path": "managed/Tests.csproj.txt",
+      "bytes": 38335,
+      "sha256": "24facd86af2071768a479d93a991de17c139f57388188e35e4b0cb2b2b56d316"
+    },
+    {
+      "path": "managed/account-tests.txt",
+      "bytes": 555,
+      "sha256": "7318830cd72e46ebd5f82a42cb82d90870beed56cd5f112bd879c2b7e39c0b47"
+    },
+    {
+      "path": "managed/tests-compile.txt",
+      "bytes": 784,
+      "sha256": "e13aab564004b931cde97cae6a1a657a0ce6fb033fd56e8eb01730e5cb63acf7"
+    },
+    {
+      "path": "raw-engine-9c/as-tested-source.json",
+      "bytes": 316518,
+      "sha256": "98d0c0615fca2495e7b39ceb592ff8ec4fe396c4803548c427e5023ca3fb0e86"
+    },
+    {
+      "path": "raw-engine-9c/discovery-binding-verification.json",
+      "bytes": 14197,
+      "sha256": "3e700f10e46a160bbb4ec3c55f35235f8d53ace2f6e8e063365b7ec8f92a6a7d"
+    },
+    {
+      "path": "raw-engine-9c/imported-loaded-identity.json",
+      "bytes": 4632,
+      "sha256": "969a0951216b5848d333e3a02ffafed9b7f7d13fd1d9f76e684b926eb33b2e26"
+    },
+    {
+      "path": "raw-engine-9c/source-after-tests.json",
+      "bytes": 319,
+      "sha256": "21ad51d929f09b258f27c7fb0297b70f6bf7f7f2e65acdd5ec02ff60eb42478f"
+    },
+    {
+      "path": "raw-engine-9c/source-overlays.patch.gz",
+      "bytes": 333,
+      "sha256": "e2b113068cae27bbee0bcb0b523ee7e32b445f04ac160d2a911665786ddd73ab"
+    },
+    {
+      "path": "raw-engine-9c/test-execution-ledger.json",
+      "bytes": 23083,
+      "sha256": "9ee4b7d2e641159714a4bf303bea72ac1b5e91b00dfefcc05a70d2445d025d07"
+    },
+    {
+      "path": "raw-engine-9c/tests-MatchLaunchEditModeTests.json",
+      "bytes": 14208,
+      "sha256": "abcb7c26ffb1c078a7b83b61b22937b8f6c82ab01a23a07f62fa2261afc7d818"
+    },
+    {
+      "path": "raw-engine-9c/tests-PlayerFlowsEditModeTests.json",
+      "bytes": 2510,
+      "sha256": "5e6dc96184de8ca71604ea5ec986b8f347305f41e2b0393a2e63f1233a9617e6"
+    },
+    {
+      "path": "raw-engine-9c/tests-QuestJournalViewEditModeTests.json",
+      "bytes": 1976,
+      "sha256": "30775ac6822b41875c52b72d25fb6937adf4929b6036749066b759478d723e2b"
+    },
+    {
+      "path": "raw-engine-9c/tests-TraderDialogViewEditModeTests.json",
+      "bytes": 1530,
+      "sha256": "aa0232743e555d1344c10d18e9425fcd72700d2dea22a24cd080a94e9f46ef3e"
+    },
+    {
+      "path": "receipt.json",
+      "bytes": 8498,
+      "sha256": "5cd1b84d0a51153cc61afbc6cbb014466e090a81d36912cd2aabf1845b156a57"
+    },
+    {
+      "path": "seal-verification.json",
+      "bytes": 839,
+      "sha256": "b21a77aae36b01f69d403723cce0d94ef4acc5f2babf33eb1037550d701deb66"
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "scope": "Actual unmodified AccountHubFlow/AccountSession boundary; no Unity or Session constructed",
+  "cases": [
+    {
+      "explicitCounters": false,
+      "counters": [
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "requests": 1,
+      "state": "Failed",
+      "failure": "Unreadable",
+      "intentReturned": false,
+      "canJoin": false
+    },
+    {
+      "explicitCounters": true,
+      "counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "requests": 1,
+      "state": "Owned",
+      "failure": "None",
+      "intentReturned": true,
+      "canJoin": true
+    }
+  ]
+}

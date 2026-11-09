@@ -1,0 +1,240 @@
+{
+  "schema": "rh-launch-fixture-repair-v1",
+  "failedEngineSource": "9c658e049d4b4e77118004d481349d1523e2ded4",
+  "failedEngineMvid": "5060c178-6253-4a15-a153-f5615131d3c5",
+  "failedEngineOutcome": {
+    "total": 42,
+    "passed": 30,
+    "failed": 12,
+    "old25Passed": 25,
+    "launch17Passed": 5,
+    "launch17Failed": 12
+  },
+  "rawEngineFiles": [
+    {
+      "path": "raw-engine-9c/tests-QuestJournalViewEditModeTests.json",
+      "bytes": 1976,
+      "sha256": "30775ac6822b41875c52b72d25fb6937adf4929b6036749066b759478d723e2b",
+      "originalUnchanged": true
+    },
+    {
+      "path": "raw-engine-9c/tests-TraderDialogViewEditModeTests.json",
+      "bytes": 1530,
+      "sha256": "aa0232743e555d1344c10d18e9425fcd72700d2dea22a24cd080a94e9f46ef3e",
+      "originalUnchanged": true
+    },
+    {
+      "path": "raw-engine-9c/tests-PlayerFlowsEditModeTests.json",
+      "bytes": 2510,
+      "sha256": "5e6dc96184de8ca71604ea5ec986b8f347305f41e2b0393a2e63f1233a9617e6",
+      "originalUnchanged": true
+    },
+    {
+      "path": "raw-engine-9c/tests-MatchLaunchEditModeTests.json",
+      "bytes": 14208,
+      "sha256": "abcb7c26ffb1c078a7b83b61b22937b8f6c82ab01a23a07f62fa2261afc7d818",
+      "originalUnchanged": true
+    },
+    {
+      "path": "raw-engine-9c/test-execution-ledger.json",
+      "bytes": 23083,
+      "sha256": "9ee4b7d2e641159714a4bf303bea72ac1b5e91b00dfefcc05a70d2445d025d07",
+      "originalUnchanged": true
+    },
+    {
+      "path": "raw-engine-9c/discovery-binding-verification.json",
+      "bytes": 14197,
+      "sha256": "3e700f10e46a160bbb4ec3c55f35235f8d53ace2f6e8e063365b7ec8f92a6a7d",
+      "originalUnchanged": true
+    },
+    {
+      "path": "raw-engine-9c/imported-loaded-identity.json",
+      "bytes": 4632,
+      "sha256": "969a0951216b5848d333e3a02ffafed9b7f7d13fd1d9f76e684b926eb33b2e26",
+      "originalUnchanged": true
+    },
+    {
+      "path": "raw-engine-9c/as-tested-source.json",
+      "bytes": 316518,
+      "sha256": "98d0c0615fca2495e7b39ceb592ff8ec4fe396c4803548c427e5023ca3fb0e86",
+      "originalUnchanged": true
+    },
+    {
+      "path": "raw-engine-9c/source-after-tests.json",
+      "bytes": 319,
+      "sha256": "21ad51d929f09b258f27c7fb0297b70f6bf7f7f2e65acdd5ec02ff60eb42478f",
+      "originalUnchanged": true
+    },
+    {
+      "path": "raw-engine-9c/source-overlays.patch.gz",
+      "bytes": 333,
+      "sha256": "e2b113068cae27bbee0bcb0b523ee7e32b445f04ac160d2a911665786ddd73ab",
+      "encoding": "gzip",
+      "uncompressedBytes": 666,
+      "uncompressedSha256": "09cb74c55dae2e6a26bf99861554f91293633dade61b3fede4889229c3a9062d",
+      "originalUnchangedAfterDecompression": true
+    }
+  ],
+  "correctiveCommit": "9398ce232fcf8774ebd84a60cb7abefafd9e9a77",
+  "parentSourceLease": "554ca4f59ecf75e5ad2d2761ce1ff5b5408d7dfb",
+  "sourceChange": {
+    "path": "client-unity/UnityProject/Assets/Tests/Editor/MatchLaunchEditModeTests.cs",
+    "beforeSha256": "85d3fa8ae38a23bc6647a24e10836cc83802aba21f5157740992af22483508ea",
+    "afterSha256": "0b39a8b75960a9fbb3a288982ce8822ce1283982eefd7c0a473f673d5410c98a",
+    "onlyChangedCodeFile": true
+  },
+  "same17SelectorNamesAndArguments": true,
+  "expectedSelectors": [
+    {
+      "method": "MissingTrainingNeverFallsBackOrStartsAnOwnershipRequest",
+      "argumentsSource": null
+    },
+    {
+      "method": "CrossOriginTrainingCannotSendOwnerCredentialsOrStartAClaim",
+      "argumentsSource": null
+    },
+    {
+      "method": "SwitchingModeWhileOwnerReplyIsDeferredInvalidatesTheOldIntent",
+      "argumentsSource": null
+    },
+    {
+      "method": "RapidModeChangesOnlyConnectTheCurrentOwnerIntentToItsCapturedTarget",
+      "argumentsSource": null
+    },
+    {
+      "method": "EditingTrainingTargetDuringOwnerRequestCannotUseItsCapturedToken",
+      "argumentsSource": null
+    },
+    {
+      "method": "SynchronousFactionCancellationCannotOverwriteOrRelaunchANewerMode",
+      "argumentsSource": null
+    },
+    {
+      "method": "LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation",
+      "argumentsSource": "false"
+    },
+    {
+      "method": "LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation",
+      "argumentsSource": "true"
+    },
+    {
+      "method": "OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot",
+      "argumentsSource": "MatchLaunchMode.Arena, false"
+    },
+    {
+      "method": "OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot",
+      "argumentsSource": "MatchLaunchMode.Training, true"
+    },
+    {
+      "method": "WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput",
+      "argumentsSource": "MatchLaunchMode.Arena, true"
+    },
+    {
+      "method": "WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput",
+      "argumentsSource": "MatchLaunchMode.Training, false"
+    },
+    {
+      "method": "ReconnectWelcomeRevokesConfirmationAndRequiresANewMatchingFact",
+      "argumentsSource": null
+    },
+    {
+      "method": "RetiredCallbacksCannotResetOrRefuseANewerSession",
+      "argumentsSource": null
+    },
+    {
+      "method": "ReentrantLeaveCallbackCannotHaveItsReplacementCancelledOrArenaDestroyed",
+      "argumentsSource": null
+    },
+    {
+      "method": "PendingMenuAndPracticeCopyFollowDeliveredFactAndPlayAgainPreservesTraining",
+      "argumentsSource": null
+    },
+    {
+      "method": "EndingBeforeTheFirstModeFactUnlocksRecoveryAndLeavePermitsAnotherDestination",
+      "argumentsSource": null
+    }
+  ],
+  "oldNativeTests": [
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/QuestJournalViewEditModeTests.cs",
+      "sha256": "a227e72035a95c76998a8e715eea197e54bf28de37ade69998404830186a9508",
+      "unchangedFromFailedGate": true
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/TraderDialogViewEditModeTests.cs",
+      "sha256": "74f08af89ac872699567c2fe7ecc5451bdc3ffa94f6df48ec60abda813bb66cb",
+      "unchangedFromFailedGate": true
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/PlayerFlowsEditModeTests.cs",
+      "sha256": "d3b75829d5fb35708b328eeaa95d3975c0369cc287195db330dfbe2a7bb11c26",
+      "unchangedFromFailedGate": true
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/MatchClientAccountBindingEditModeTests.cs",
+      "sha256": "ecde6696a981499a3a206cd333d3dfeb7a4061c5e1e345f2b4911ef4022b45f2",
+      "unchangedFromFailedGate": true
+    }
+  ],
+  "productionChanges": false,
+  "accountBoundarySourceFiles": [
+    {
+      "path": "client-unity/RoguehallaNet/Net/AccountContracts.cs",
+      "sha256": "18bec6531adbffa52e1940ae51df64c02ac8d02cc54878fbf4796767976dcc73",
+      "unchangedFromFailedGate": true
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Net/AccountSession.cs",
+      "sha256": "07967e10b4c9e0f06ddde6b81cb8a1fb874be287554e837d164e8521ba45555b",
+      "unchangedFromFailedGate": true
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Net/AccountHubFlow.cs",
+      "sha256": "1e8b7376d97f1117c90b6924e9ed632ab984fee6cfe60d9a14996a981614294f",
+      "unchangedFromFailedGate": true
+    }
+  ],
+  "boundaryAssembly": {
+    "path": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-launch-modes/client-unity/RoguehallaNet/bin/Debug/netstandard2.1/RoguehallaNet.dll",
+    "sha256": "8302237a77b17bf76ec18abb6586cf1d92828f6a668918f948d42dfec4ffa450"
+  },
+  "managedAccountTests": {
+    "passed": 80,
+    "failed": 0,
+    "rawTrx": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-launch-repair-2026-11-09/managed-results/account-tests.trx",
+    "rawSha256": "ea78a31860e145c8b9df8dda792cf9d1520114f0254c4d247ef2633ede91a0fe",
+    "counters": {
+      "total": "80",
+      "executed": "80",
+      "passed": "80",
+      "failed": "0",
+      "error": "0",
+      "timeout": "0",
+      "aborted": "0",
+      "inconclusive": "0",
+      "passedButRunAborted": "0",
+      "notRunnable": "0",
+      "notExecuted": "0",
+      "disconnected": "0",
+      "warning": "0",
+      "completed": "0",
+      "inProgress": "0",
+      "pending": "0"
+    }
+  },
+  "managedEditorTestCompile": {
+    "errors": 0,
+    "warnings": 1,
+    "existingWarning": "CS0067 unused MatchHudTrophyEditModeTests.TestTransport.Closed event",
+    "profile": "managed/Tests.csproj.txt",
+    "log": "managed/tests-compile.txt"
+  },
+  "newEngine42": "UNRUN",
+  "editorTouchedByAuthor": false,
+  "newNativeRunByAuthor": false,
+  "play": false,
+  "browser": false,
+  "webBuild": false,
+  "server": false,
+  "cloud": false
+}
