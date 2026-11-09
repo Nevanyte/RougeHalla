@@ -2,6 +2,7 @@ using System.Reflection;
 using NUnit.Framework;
 using Roguehalla.Client;
 using Roguehalla.Net;
+using Roguehalla.Net.Protocol;
 using TMPro;
 using UnityEngine;
 
@@ -128,6 +129,69 @@ namespace Roguehalla.Client.Tests
             OwnerVitalBars.Percent(new SelfView { Hp = float.NaN, MaxHp = 100, Barrier = 20 }, out hp, out barrier);
             Assert.That(hp, Is.Zero); Assert.That(barrier, Is.Zero);
         }
+
+        [Test]
+        public void WeaponIconsRetainSemanticTintAcrossSlotChangesAndClearMissingInventory()
+        {
+            var icons = (UnityEngine.UI.Image[])GetField("_weaponIcons");
+            var activeBars = (UnityEngine.UI.Image[])GetField("_weaponActiveBars");
+            for (int i = 0; i < 2; i++)
+            {
+                var iconObject = new GameObject("Weapon icon " + i, typeof(RectTransform), typeof(UnityEngine.UI.Image));
+                iconObject.transform.SetParent(_root.transform, false);
+                icons[i] = iconObject.GetComponent<UnityEngine.UI.Image>();
+                var barObject = new GameObject("Weapon active bar " + i, typeof(RectTransform), typeof(UnityEngine.UI.Image));
+                barObject.transform.SetParent(_root.transform, false);
+                activeBars[i] = barObject.GetComponent<UnityEngine.UI.Image>();
+            }
+
+            RefreshBuildIcons(InventoryView((byte)WeaponId.Sword, (byte)WeaponId.Wand, 0));
+            Color swordTint = icons[0].color, wandTint = icons[1].color;
+            Sprite swordSprite = icons[0].sprite;
+            Assert.That(icons[0].enabled && icons[1].enabled, Is.True);
+            Assert.That(swordTint.a, Is.EqualTo(1f).Within(.001f));
+            Assert.That(wandTint.a, Is.EqualTo(1f).Within(.001f));
+            Assert.That(swordTint, Is.Not.EqualTo(wandTint), "different weapon types keep distinguishable hues");
+            Assert.That(activeBars[0].enabled, Is.True);
+            Assert.That(activeBars[1].enabled, Is.False);
+
+            RefreshBuildIcons(InventoryView((byte)WeaponId.Sword, (byte)WeaponId.Wand, 1));
+            Assert.That(icons[0].color, Is.EqualTo(swordTint));
+            Assert.That(icons[1].color, Is.EqualTo(wandTint));
+            Assert.That(activeBars[0].enabled, Is.False);
+            Assert.That(activeBars[1].enabled, Is.True);
+
+            RefreshBuildIcons(InventoryView((byte)WeaponId.Shield, (byte)WeaponId.Wand, 1));
+            Assert.That(icons[0].sprite, Is.Not.SameAs(swordSprite));
+            Assert.That(icons[0].color, Is.Not.EqualTo(swordTint), "replacing a weapon updates its semantic tint");
+            Assert.That(activeBars[0].enabled, Is.False);
+            Assert.That(activeBars[1].enabled, Is.True);
+
+            RefreshBuildIcons(InventoryView(null, null, 0));
+            Assert.That(icons[0].enabled, Is.False);
+            Assert.That(icons[1].enabled, Is.False);
+            Assert.That(activeBars[0].enabled, Is.False);
+            Assert.That(activeBars[1].enabled, Is.False);
+        }
+
+        CollectionsView InventoryView(byte? slot0, byte? slot1, byte activeSlot)
+        {
+            var view = new CollectionsView();
+            var inventory = new InventoryState
+            {
+                Value = slot0.HasValue || slot1.HasValue
+                    ? new WireInventory { ActiveSlot = activeSlot, Slot0 = slot0, Slot1 = slot1 }
+                    : (WireInventory?)null
+            };
+            typeof(CollectionsView).GetMethod("Apply", BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(view, new object[] { new ServerMsg.State { Items = new StateItem[] { inventory } } });
+            return view;
+        }
+
+        void RefreshBuildIcons(CollectionsView view) => typeof(MatchHud).GetMethod("RefreshBuildIcons", BindingFlags.Instance | BindingFlags.NonPublic)
+            .Invoke(_hud, new object[] { view });
+
+        object GetField(string name) => typeof(MatchHud).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic).GetValue(_hud);
 
         void SetField(string name, object value) => typeof(MatchHud).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic).SetValue(_hud, value);
         void Invoke(string name, params object[] args) => typeof(MatchHud).GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic).Invoke(_hud, args);

@@ -64,7 +64,7 @@ namespace Roguehalla.Client
             for (int i = 0; i < boostNames.Length; i++)
             {
                 float x0 = .008f + i * .124f;
-                MythicUi.Icon(boosts, "BoostGlyph" + i, boostGlyphs[i], new Vector2(x0, .20f), new Vector2(x0 + .055f, .80f));
+                MythicUi.Icon(boosts, "BoostGlyph" + i, boostGlyphs[i], new Vector2(x0, .20f), new Vector2(x0 + .055f, .80f)).color = MythicUi.BoostColor(i);
                 MythicUi.Text(boosts, "Boost" + i, boostNames[i] + " 0", new Vector2(x0 + .055f, .05f), new Vector2(x0 + .119f, .95f), 12,
                     ShowcasePalette.MutedText, TextAlignmentOptions.Center);
             }

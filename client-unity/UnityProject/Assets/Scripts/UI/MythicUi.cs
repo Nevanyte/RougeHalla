@@ -32,6 +32,34 @@ namespace Roguehalla.Client
 
         static TMP_FontAsset _font, _headingFont;
         static readonly Sprite[] GlyphSprites = new Sprite[12];
+        // AD, AP, ARM, SHD, HP, AS, SPD, LS. Shared by the compact HUD and full ledger.
+        static readonly Color32[] BoostColors = {
+            new Color32(240, 138, 99, 255), new Color32(185, 154, 255, 255),
+            new Color32(120, 188, 235, 255), new Color32(89, 198, 176, 255),
+            new Color32(140, 224, 178, 255), new Color32(232, 184, 93, 255),
+            new Color32(112, 212, 230, 255), new Color32(214, 140, 203, 255)
+        };
+
+        public static Color BoostColor(int index) => index >= 0 && index < BoostColors.Length ? BoostColors[index] : ShowcasePalette.Text;
+
+        public static Color GlyphColor(MythicGlyph glyph)
+        {
+            switch (glyph)
+            {
+                case MythicGlyph.Sword: return BoostColors[0];
+                case MythicGlyph.Axe: return new Color32(255, 121, 136, 255);
+                case MythicGlyph.Bow: return BoostColors[5];
+                case MythicGlyph.Wand: return BoostColors[1];
+                case MythicGlyph.Armor: return BoostColors[2];
+                case MythicGlyph.Shield: return BoostColors[3];
+                case MythicGlyph.Health: return BoostColors[4];
+                case MythicGlyph.Potion: return new Color32(113, 230, 155, 255);
+                case MythicGlyph.Speed: return BoostColors[6];
+                case MythicGlyph.Cards: return BoostColors[7];
+                case MythicGlyph.Map: return BoostColors[6];
+                default: return ShowcasePalette.Gold;
+            }
+        }
 
         public static RectTransform Rect(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax,
             Vector2? offsetMin = null, Vector2? offsetMax = null)
@@ -144,7 +172,7 @@ namespace Roguehalla.Client
         {
             var rect = Rect(parent, name, anchorMin, anchorMax);
             var image = rect.gameObject.AddComponent<Image>();
-            image.sprite = GlyphSprite(glyph); image.color = ShowcasePalette.Gold;
+            image.sprite = GlyphSprite(glyph); image.color = GlyphColor(glyph);
             image.preserveAspect = true; image.raycastTarget = false;
             return image;
         }
@@ -154,7 +182,7 @@ namespace Roguehalla.Client
             var rect = Rect(parent, name, new Vector2(.5f, .5f), new Vector2(.5f, .5f));
             rect.sizeDelta = new Vector2(size, size);
             var image = rect.gameObject.AddComponent<Image>();
-            image.sprite = GlyphSprite(glyph); image.color = ShowcasePalette.Gold;
+            image.sprite = GlyphSprite(glyph); image.color = GlyphColor(glyph);
             image.preserveAspect = true; image.raycastTarget = false;
             return image;
         }
@@ -194,7 +222,8 @@ namespace Roguehalla.Client
 
         static void DrawGlyph(Color32[] pixels, int size, MythicGlyph glyph)
         {
-            Color32 ink = ShowcasePalette.Gold;
+            // Neutral ink lets the opaque Image tint supply the intended hue without multiplying baked-in gold.
+            Color32 ink = new Color32(255, 255, 255, 255);
             switch (glyph)
             {
                 case MythicGlyph.Sword: Line(pixels,size,13,8,35,38,ink,4); Line(pixels,size,12,8,18,12,ink,4); Line(pixels,size,16,15,25,7,ink,4); break;

@@ -25,6 +25,7 @@ namespace Roguehalla.Client
         readonly byte[] _visibleBoosts = new byte[8];
         bool _visibleBuild;
         readonly UnityEngine.UI.Image[] _weaponIcons = new UnityEngine.UI.Image[2];
+        readonly UnityEngine.UI.Image[] _weaponActiveBars = new UnityEngine.UI.Image[2];
         UnityEngine.UI.Image _potionIcon;
         TMP_Text _wishSummary;
         RectTransform _wishDetails;
@@ -102,6 +103,10 @@ namespace Roguehalla.Client
                 _weaponIcons[i] = MythicUi.Icon(_slots[i].transform, "WeaponIcon", MythicGlyph.Sword, 48);
                 _weaponIcons[i].rectTransform.anchorMin = _weaponIcons[i].rectTransform.anchorMax = new Vector2(.5f, .75f);
                 _weaponIcons[i].rectTransform.anchoredPosition = Vector2.zero;
+                var activeBar = Rect(_slots[i].transform, "ActiveWeapon", .18f, .95f, .82f, .99f);
+                _weaponActiveBars[i] = activeBar.gameObject.AddComponent<UnityEngine.UI.Image>();
+                _weaponActiveBars[i].color = ShowcasePalette.Gold;
+                _weaponActiveBars[i].raycastTarget = false; _weaponActiveBars[i].enabled = false;
             }
             var potion = Button(actions, "Potion", "E · POTION", .38f, .035f, .545f, .965f, UsePotion);
             var potionText = potion.GetComponentInChildren<TMP_Text>();
@@ -125,6 +130,7 @@ namespace Roguehalla.Client
                 float x = .02f + (i % 4) * .245f, y = i < 4 ? .49f : .26f;
                 var cell = Rect(buildStrip, "Build" + labels[i], x, y, x + .235f, y + .22f);
                 var icon = MythicUi.Icon(cell, "StatIcon", glyphs[i], 32);
+                icon.color = MythicUi.BoostColor(i);
                 icon.rectTransform.anchorMin = icon.rectTransform.anchorMax = new Vector2(.20f, .70f);
                 _buildCounts[i] = Text(cell, "Count", "—", .40f, .42f, .98f, .99f, 14);
                 SetBaseSize(_buildCounts[i], 20);
@@ -309,15 +315,20 @@ namespace Roguehalla.Client
                     var weapon = i == 0 ? inv.Slot0 : inv.Slot1;
                     if (_weaponIcons[i] == null) continue;
                     _weaponIcons[i].enabled = weapon.HasValue;
+                    if (_weaponActiveBars[i] != null) _weaponActiveBars[i].enabled = weapon.HasValue && inv.ActiveSlot == i;
                     if (weapon.HasValue)
                     {
                         MythicGlyph glyph = weapon == WeaponId.Bow ? MythicGlyph.Bow : weapon == WeaponId.Wand ? MythicGlyph.Wand : weapon == WeaponId.Shield ? MythicGlyph.Shield : weapon == WeaponId.Axe ? MythicGlyph.Axe : MythicGlyph.Sword;
                         _weaponIcons[i].sprite = MythicUi.GlyphSprite(glyph);
+                        _weaponIcons[i].color = MythicUi.GlyphColor(glyph);
                     }
-                    _weaponIcons[i].color = weapon.HasValue ? inv.ActiveSlot == i ? ShowcasePalette.Gold : ShowcasePalette.Text : ShowcasePalette.MutedText;
                 }
             }
-            else foreach (var image in _weaponIcons) if (image != null) image.enabled = false;
+            else for (int i = 0; i < _weaponIcons.Length; i++)
+            {
+                if (_weaponIcons[i] != null) _weaponIcons[i].enabled = false;
+                if (_weaponActiveBars[i] != null) _weaponActiveBars[i].enabled = false;
+            }
         }
     }
 }
