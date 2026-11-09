@@ -1,0 +1,32 @@
+using System;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
+using Roguehalla.Net;
+
+class Profiles : IAccountTransport {
+ readonly AccountHttpResponse response;
+ public Profiles(AccountHttpResponse r) { response=r; }
+ public int Requests;
+ public Task<AccountHttpResponse> GetProfileAsync(string u,string t,string p,CancellationToken c) { Requests++; return Task.FromResult(response); }
+}
+class Credentials : IAccountCredentialStore {
+ public string Read(string s,string n) => null;
+ public bool WriteConfirmed(string s,string n,string t) => false;
+}
+class Program {
+ static AccountHttpResponse Response(bool explicitCounters) {
+  var p=new AccountProfile { name="Alice", stats=new AccountStats() };
+  if(explicitCounters) { p.gv=p.gvLifetime=0; p.stats.runs=p.stats.wins=p.stats.draws=p.stats.deaths=p.stats.kills=0; }
+  return new AccountHttpResponse(200,new AccountReply { profile=p,token=new string('c',64),created=true });
+ }
+ static async Task<object> Run(bool valid) {
+  var reply=Response(valid);var transport=new Profiles(reply);
+  var flow=new AccountHubFlow(new AccountSession(AccountEndpoint.FromPage("https://launch.example/play"),transport,new Credentials()));
+  var intent=await flow.PrepareJoinAsync("alice","wss://launch.example/training/ws");
+  bool canJoin=intent!=null && flow.CanJoin(intent);
+  if(valid ? !canJoin || flow.Snapshot.Failure!=AccountFailure.None : canJoin || flow.Snapshot.Failure!=AccountFailure.Unreadable) throw new Exception("account boundary hypothesis did not match");
+  return new { explicitCounters=valid, counters=new[]{reply.Reply.profile.gv,reply.Reply.profile.gvLifetime,reply.Reply.profile.stats.runs,reply.Reply.profile.stats.wins,reply.Reply.profile.stats.draws,reply.Reply.profile.stats.deaths,reply.Reply.profile.stats.kills}, requests=transport.Requests, state=flow.Snapshot.State.ToString(), failure=flow.Snapshot.Failure.ToString(), intentReturned=intent!=null, canJoin };
+ }
+ static async Task Main() { Console.WriteLine(JsonSerializer.Serialize(new { scope="Actual unmodified AccountHubFlow/AccountSession boundary; no Unity or Session constructed", cases=new[]{await Run(false),await Run(true)} },new JsonSerializerOptions{WriteIndented=true})); }
+}

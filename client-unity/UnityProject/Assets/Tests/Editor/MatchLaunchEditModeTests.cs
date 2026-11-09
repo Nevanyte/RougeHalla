@@ -72,6 +72,11 @@ public sealed class MatchLaunchEditModeTests
             Owner = Root.AddComponent<AccountCoordinator>();
             Owner.Initialize(AccountEndpoint.FromPage(Client.PageUrl), Accounts, new Credentials());
             Field(Client, "<AccountOwner>k__BackingField", Owner);
+            Assert.That(Client.AccountFlow, Is.SameAs(Owner.Flow));
+            Assert.That(Client.IsDiagnostic, Is.False);
+            Assert.That(Client.Session, Is.Null);
+            Assert.That(Client.LaunchTarget(MatchLaunchMode.Arena).Available, Is.True);
+            Assert.That(Client.LaunchTarget(MatchLaunchMode.Training).Available, Is.True);
             Field(Client, "_transportFactory", new Func<ITransport>(() =>
             {
                 var arena = Client.Arena;
@@ -87,16 +92,47 @@ public sealed class MatchLaunchEditModeTests
             Field(Client, "<Hud>k__BackingField", Hud);
         }
         public void Join(MatchLaunchMode mode) { Client.Join("alice", 4, mode); }
+        public async Task JoinReady(MatchLaunchMode mode)
+        {
+            int requests = Accounts.Requests.Count, matches = Matches.Count;
+            Join(mode);
+            await WaitFor(() => Matches.Count > matches && Client.Session != null && Matches.Last().Url != null || !string.IsNullOrEmpty(Client.AccountUiError) ||
+                Owner.Flow.Snapshot.State == AccountHubState.Failed);
+            Assert.That(Owner.Flow.Snapshot.Failure, Is.EqualTo(AccountFailure.None), "owned reply must be valid before testing Session behavior");
+            Assert.That(Owner.Flow.Snapshot.ConnectionFailure, Is.EqualTo(AccountConnectionFailure.None));
+            Assert.That(Owner.Flow.Snapshot.State, Is.EqualTo(AccountHubState.Owned));
+            Assert.That(Client.AccountUiError, Is.Empty);
+            Assert.That(Accounts.Requests.Count, Is.EqualTo(requests + 1), "normal public Join must check profile ownership");
+            Assert.That(Matches.Count, Is.EqualTo(matches + 1), "normal public Join must create exactly one transport");
+            Assert.That(Client.Session, Is.Not.Null);
+            Assert.That(Matches.Last().Url, Is.EqualTo(Client.LaunchTarget(mode).Url), "transport.Connect must reach the chosen owned target");
+        }
+        public async Task ProvePublicLaunch(MatchLaunchMode mode)
+        {
+            Accounts.Immediate = true;
+            await JoinReady(mode); Welcome(); Snapshot(mode == MatchLaunchMode.Training);
+            Assert.That(Client.LaunchVerified, Is.True, "positive control requires an accepted matching mode snapshot");
+        }
         // Await the exact production account worker for cancellation tests. Separate cases
         // exercise the public Join dispatcher/Hello, so no timing sleeps are needed here.
-        public Task BeginOwned(MatchLaunchMode mode)
+        public Task BeginOwned(MatchLaunchMode mode, bool requestAlreadyStarted = true)
         {
             Assert.That(Client.SelectLaunchMode(mode), Is.True);
-            return (Task)typeof(MatchClient).GetMethod("JoinOwned", Private).Invoke(Client,
+            int requests = Accounts.Requests.Count;
+            var pending = (Task)typeof(MatchClient).GetMethod("JoinOwned", Private).Invoke(Client,
                 new object[] { "alice", 4, Client.LaunchTarget(mode) });
+            if (requestAlreadyStarted)
+                Assert.That(Accounts.Requests.Count, Is.EqualTo(requests + 1), "the deferred scenario must reach the real account request");
+            Assert.That(Owner.Flow.Snapshot.State, Is.EqualTo(AccountHubState.PreparingJoin));
+            Assert.That(Owner.Flow.Snapshot.ConnectionFailure, Is.EqualTo(AccountConnectionFailure.None));
+            Assert.That(pending.IsCompleted, Is.False);
+            return pending;
         }
         public void Welcome()
         {
+            Assert.That(Client.Session, Is.Not.Null, "normal Join must finish before a server Welcome can be delivered");
+            Assert.That(Matches, Is.Not.Empty);
+            Assert.That(Matches.Last().Url, Is.Not.Null, "transport.Connect must run before server delivery");
             Matches.Last().Open();
             Matches.Last().Deliver(new ServerMsg.Welcome { Protocol = Wire.ProtocolVersion,
                 MatchId = new byte[16], Session = new byte[16], PlayerId = 1, TickRate = 20,
@@ -118,9 +154,17 @@ public sealed class MatchLaunchEditModeTests
     static object Get(object target, string name) => target.GetType().GetField(name, Private).GetValue(target);
     static void Invoke(object target, string name) => target.GetType().GetMethod(name, Private).Invoke(target, null);
     static AccountHttpResponse Owned() => new AccountHttpResponse(200, new AccountReply {
-        profile = new AccountProfile { name = "Alice", stats = new AccountStats() }, token = new string('c', 64), created = true });
+        profile = new AccountProfile { name = "Alice", gv = 0, gvLifetime = 0,
+            stats = new AccountStats { runs = 0, wins = 0, draws = 0, deaths = 0, kills = 0 } },
+        token = new string('c', 64), created = true });
+    static async Task WaitFor(Func<bool> completed)
+    {
+        var timeout = System.Diagnostics.Stopwatch.StartNew();
+        while (!completed() && timeout.Elapsed < TimeSpan.FromSeconds(5)) await Task.Delay(1);
+        Assert.That(completed(), Is.True, "public Join did not complete its ownership/session prerequisite");
+    }
     [Test]
-    public void MissingTrainingNeverFallsBackOrStartsAnOwnershipRequest()
+    public async Task MissingTrainingNeverFallsBackOrStartsAnOwnershipRequest()
     {
         using (var f = new Fixture())
         {
@@ -128,16 +172,18 @@ public sealed class MatchLaunchEditModeTests
             Assert.That(f.Client.SelectedLaunchMode, Is.EqualTo(MatchLaunchMode.Arena));
             Assert.That(f.Client.AccountUiError, Does.Contain("Training"));
             Assert.That(f.Accounts.Requests, Is.Empty); Assert.That(f.Matches, Is.Empty);
+            await f.ProvePublicLaunch(MatchLaunchMode.Arena);
         }
     }
     [Test]
-    public void CrossOriginTrainingCannotSendOwnerCredentialsOrStartAClaim()
+    public async Task CrossOriginTrainingCannotSendOwnerCredentialsOrStartAClaim()
     {
         using (var f = new Fixture())
         {
             f.Client.TrainingUrl = "wss://elsewhere.example/training/ws"; f.Join(MatchLaunchMode.Training);
             Assert.That(f.Accounts.Requests, Is.Empty); Assert.That(f.Matches, Is.Empty);
             Assert.That(f.Client.LaunchTarget(MatchLaunchMode.Arena).Available, Is.True);
+            await f.ProvePublicLaunch(MatchLaunchMode.Arena);
         }
     }
     [Test]
@@ -150,6 +196,7 @@ public sealed class MatchLaunchEditModeTests
             f.Accounts.Requests[0].Reply.SetResult(Owned()); await pending;
             Assert.That(f.Matches, Is.Empty); Assert.That(f.Client.Session, Is.Null);
             Assert.That(f.Client.SelectedLaunchMode, Is.EqualTo(MatchLaunchMode.Training));
+            await f.ProvePublicLaunch(MatchLaunchMode.Training);
         }
     }
     [Test]
@@ -159,10 +206,16 @@ public sealed class MatchLaunchEditModeTests
         {
             var first = f.BeginOwned(MatchLaunchMode.Arena);
             f.Client.SelectLaunchMode(MatchLaunchMode.Training); f.Client.SelectLaunchMode(MatchLaunchMode.Arena);
-            var second = f.BeginOwned(MatchLaunchMode.Training);
+            // The account owner serializes HTTP requests for the same profile. This
+            // second operation is pending behind the first until its reply is released.
+            var second = f.BeginOwned(MatchLaunchMode.Training, false);
             f.Accounts.Requests[0].Reply.SetResult(Owned()); await first;
             Assert.That(f.Matches, Is.Empty);
+            await WaitFor(() => f.Accounts.Requests.Count == 2);
             f.Accounts.Requests[1].Reply.SetResult(Owned()); await second;
+            Assert.That(f.Owner.Flow.Snapshot.Failure, Is.EqualTo(AccountFailure.None));
+            Assert.That(f.Owner.Flow.Snapshot.State, Is.EqualTo(AccountHubState.Owned));
+            Assert.That(f.Matches, Has.Count.EqualTo(1));
             Assert.That(f.Matches[0].Url, Is.EqualTo("wss://launch.example/training/ws"));
         }
     }
@@ -173,6 +226,8 @@ public sealed class MatchLaunchEditModeTests
         {
             var pending = f.BeginOwned(MatchLaunchMode.Training); f.Client.TrainingUrl = "wss://launch.example/other/ws";
             f.Accounts.Requests[0].Reply.SetResult(Owned()); await pending;
+            Assert.That(f.Owner.Flow.Snapshot.Failure, Is.EqualTo(AccountFailure.None), "target-change check requires a valid owned intent");
+            Assert.That(f.Owner.Flow.Snapshot.State, Is.EqualTo(AccountHubState.Owned));
             Assert.That(f.Matches, Is.Empty); Assert.That(f.Client.AccountUiError, Does.Contain("connection changed"));
         }
     }
@@ -190,6 +245,10 @@ public sealed class MatchLaunchEditModeTests
             };
             f.Client.Join("alice", 2);
             f.Accounts.Requests[0].Reply.SetResult(Owned()); await pending;
+            await WaitFor(() => f.Matches.Count == 1 && f.Matches[0].Url != null ||
+                !string.IsNullOrEmpty(f.Client.AccountUiError) || f.Owner.Flow.Snapshot.State == AccountHubState.Failed);
+            Assert.That(f.Owner.Flow.Snapshot.State, Is.EqualTo(AccountHubState.Owned));
+            Assert.That(f.Owner.Flow.Snapshot.Failure, Is.EqualTo(AccountFailure.None));
             Assert.That(switched, Is.True); Assert.That(f.Matches, Has.Count.EqualTo(1));
             Assert.That(f.Matches[0].Url, Is.EqualTo(f.Client.TrainingUrl));
             Assert.That(f.Client.Faction, Is.EqualTo(4)); Assert.That(f.Client.AccountUiError, Is.Empty);
@@ -205,15 +264,18 @@ public sealed class MatchLaunchEditModeTests
             if (destroy) UnityEngine.Object.DestroyImmediate(f.Root); else f.Client.Leave();
             f.Accounts.Requests[0].Reply.SetResult(Owned()); await pending;
             Assert.That(f.Matches, Is.Empty);
+            if (!destroy) await f.ProvePublicLaunch(MatchLaunchMode.Training);
         }
+        if (destroy)
+            using (var healthy = new Fixture(true)) await healthy.ProvePublicLaunch(MatchLaunchMode.Training);
     }
     [TestCase(MatchLaunchMode.Arena, false)]
     [TestCase(MatchLaunchMode.Training, true)]
-    public void OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot(MatchLaunchMode mode, bool training)
+    public async Task OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot(MatchLaunchMode mode, bool training)
     {
         using (var f = new Fixture(true))
         {
-            f.Join(mode); Assert.That(f.Matches, Has.Count.EqualTo(1));
+            await f.JoinReady(mode); Assert.That(f.Matches, Has.Count.EqualTo(1));
             Assert.That(f.Matches[0].Url, Is.EqualTo(training ? f.Client.TrainingUrl : f.Client.Url));
             f.Welcome();
             var hello = (ClientMsg.Hello)ClientMsg.Decode(f.Matches[0].Sent[0]);
@@ -229,11 +291,11 @@ public sealed class MatchLaunchEditModeTests
     }
     [TestCase(MatchLaunchMode.Arena, true)]
     [TestCase(MatchLaunchMode.Training, false)]
-    public void WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput(MatchLaunchMode mode, bool deliveredTraining)
+    public async Task WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput(MatchLaunchMode mode, bool deliveredTraining)
     {
         using (var f = new Fixture(true))
         {
-            f.Join(mode); f.Welcome(); f.Snapshot(deliveredTraining);
+            await f.JoinReady(mode); f.Welcome(); f.Snapshot(deliveredTraining);
             Assert.That(f.Client.Session, Is.Null); Assert.That(f.Matches[0].Closes, Is.GreaterThan(0));
             Assert.That(f.Client.SelectedLaunchMode, Is.EqualTo(mode)); Assert.That(f.Matches, Has.Count.EqualTo(1));
             Assert.That(f.Client.AccountUiError, Does.Contain("server returned"));
@@ -241,11 +303,11 @@ public sealed class MatchLaunchEditModeTests
         }
     }
     [Test]
-    public void ReconnectWelcomeRevokesConfirmationAndRequiresANewMatchingFact()
+    public async Task ReconnectWelcomeRevokesConfirmationAndRequiresANewMatchingFact()
     {
         using (var f = new Fixture(true))
         {
-            f.Join(MatchLaunchMode.Training); f.Welcome(); f.Snapshot(true);
+            await f.JoinReady(MatchLaunchMode.Training); f.Welcome(); f.Snapshot(true);
             uint epoch = f.Client.Session.TimelineEpoch;
             f.Matches[0].Drop(); f.Welcome();
             Assert.That(f.Client.Session.TimelineEpoch, Is.GreaterThan(epoch));
@@ -255,16 +317,16 @@ public sealed class MatchLaunchEditModeTests
         }
     }
     [Test]
-    public void RetiredCallbacksCannotResetOrRefuseANewerSession()
+    public async Task RetiredCallbacksCannotResetOrRefuseANewerSession()
     {
         using (var f = new Fixture(true))
         {
-            f.Join(MatchLaunchMode.Training); f.Welcome(); f.Snapshot(true);
+            await f.JoinReady(MatchLaunchMode.Training); f.Welcome(); f.Snapshot(true);
             var old = f.Client.Session;
             var snapshot = (Action<ServerMsg.Snapshot>)Get(f.Client, "_boundLaunchSnapshot");
             var state = (Action<SessionState>)Get(f.Client, "_boundLaunchState");
             var timeline = (Action)Get(f.Client, "_boundLaunchTimeline");
-            f.Client.Leave(); f.Join(MatchLaunchMode.Arena); f.Welcome(); f.Snapshot(false);
+            f.Client.Leave(); await f.JoinReady(MatchLaunchMode.Arena); f.Welcome(); f.Snapshot(false);
             var current = f.Client.Session;
             snapshot(old.Latest); state(SessionState.Failed); timeline();
             Assert.That(f.Client.Session, Is.SameAs(current)); Assert.That(f.Client.LaunchVerified, Is.True);
@@ -272,13 +334,14 @@ public sealed class MatchLaunchEditModeTests
         }
     }
     [Test]
-    public void ReentrantLeaveCallbackCannotHaveItsReplacementCancelledOrArenaDestroyed()
+    public async Task ReentrantLeaveCallbackCannotHaveItsReplacementCancelledOrArenaDestroyed()
     {
         using (var f = new Fixture(true))
         {
-            f.Join(MatchLaunchMode.Arena); f.Welcome(); f.Snapshot(false);
+            await f.JoinReady(MatchLaunchMode.Arena); f.Welcome(); f.Snapshot(false);
             f.Client.Session.StateChanged += state => { if (state == SessionState.Ended) f.Join(MatchLaunchMode.Training); };
             f.Client.Leave();
+            await WaitFor(() => f.Matches.Count == 2 || !string.IsNullOrEmpty(f.Client.AccountUiError) || f.Owner.Flow.Snapshot.State == AccountHubState.Failed);
             Assert.That(f.Matches, Has.Count.EqualTo(2)); Assert.That(f.Client.Session, Is.Not.Null);
             Assert.That(f.Matches[1].Url, Is.EqualTo(f.Client.TrainingUrl));
             Assert.That(f.Owner.Flow.Snapshot.State, Is.EqualTo(AccountHubState.Owned));
@@ -286,11 +349,11 @@ public sealed class MatchLaunchEditModeTests
         }
     }
     [Test]
-    public void PendingMenuAndPracticeCopyFollowDeliveredFactAndPlayAgainPreservesTraining()
+    public async Task PendingMenuAndPracticeCopyFollowDeliveredFactAndPlayAgainPreservesTraining()
     {
         using (var f = new Fixture(true))
         {
-            f.InitializeHud(); f.Join(MatchLaunchMode.Training); f.Welcome();
+            f.InitializeHud(); await f.JoinReady(MatchLaunchMode.Training); f.Welcome();
             var menu = (RectTransform)Get(f.Hud, "_menu");
             Assert.That(menu.gameObject.activeSelf, Is.True); Assert.That(menu.GetComponent<CanvasGroup>().interactable, Is.False);
             Assert.That(f.Hud.BlocksKeyboardInput, Is.True); Assert.That(f.Client.ConfirmedPractice, Is.False);
@@ -302,17 +365,18 @@ public sealed class MatchLaunchEditModeTests
             Assert.That(((TMP_Text)Get(f.Hud, "_phaseStrip")).text, Does.Contain("PRACTICE"));
             f.Matches[0].Deliver(new ServerMsg.Events { Tick = 2, List = new List<WireEvent> { new WireEvent { Kind = EventKind.MatchEnded } } });
             Invoke(f.Hud, "JoinAgain");
+            await WaitFor(() => f.Matches.Count == 2 || !string.IsNullOrEmpty(f.Client.AccountUiError) || f.Owner.Flow.Snapshot.State == AccountHubState.Failed);
             Assert.That(f.Matches, Has.Count.EqualTo(2)); Assert.That(f.Matches[1].Url, Is.EqualTo(f.Client.TrainingUrl));
             f.Client.Leave(); Assert.That(f.Client.SelectedLaunchMode, Is.EqualTo(MatchLaunchMode.Training));
             Assert.That(menu.gameObject.activeSelf, Is.True); Assert.That(menu.GetComponent<CanvasGroup>().interactable, Is.True);
         }
     }
     [Test]
-    public void EndingBeforeTheFirstModeFactUnlocksRecoveryAndLeavePermitsAnotherDestination()
+    public async Task EndingBeforeTheFirstModeFactUnlocksRecoveryAndLeavePermitsAnotherDestination()
     {
         using (var f = new Fixture(true))
         {
-            f.InitializeHud(); f.Join(MatchLaunchMode.Arena); f.Welcome();
+            f.InitializeHud(); await f.JoinReady(MatchLaunchMode.Arena); f.Welcome();
             f.Matches[0].Deliver(new ServerMsg.Events { Tick = 1, List = new List<WireEvent> { new WireEvent { Kind = EventKind.MatchEnded } } });
             var menu = (RectTransform)Get(f.Hud, "_menu");
             Assert.That(f.Client.LaunchVerified, Is.False); Assert.That(menu.gameObject.activeSelf, Is.True);
