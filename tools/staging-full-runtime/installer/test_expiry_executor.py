@@ -16,6 +16,8 @@ import expiry_executor as e
 
 REQUEST = {'run_id': '20261109t120000z-abcdef', 'prepared_at': '2026-11-09T12:00:00Z',
            'expires_at': '2026-11-09T16:00:00Z'}
+LEGACY_ENABLE = (*e.SC, 'enable', '--now', e.TIMER)
+QUIET_ENABLE = (*e.SC, '--quiet', 'enable', '--now', e.TIMER)
 
 
 def text(values):
@@ -128,7 +130,7 @@ class FakeLinux:
                 config.read_string((self.units / unit).read_text())
                 self.loaded[unit] = config
             return ''
-        if argv == (*e.SC, 'enable', '--now', e.TIMER):
+        if argv in (LEGACY_ENABLE, QUIET_ENABLE):
             if set(self.loaded) != {e.TIMER, e.SERVICE}: raise RuntimeError('no loaded units')
             wants = self.units / 'timers.target.wants'; wants.mkdir(exist_ok=True, mode=0o700)
             link = wants / e.TIMER
@@ -152,6 +154,30 @@ class FakeLinux:
             self.job = 18
 
 
+class NativeBoundaryLinux(FakeLinux):
+    """Production LinuxRunner.run over an injected v255 CLI and file-derived manager.
+
+    Only subprocess/tool ownership checks are mocked. Normal first-enable info
+    reaches the production stderr policy unless actual argv contains --quiet.
+    """
+    def __init__(self, root):
+        super().__init__(root)
+        self.emissions = []
+
+    def run(self, argv):
+        return e.LinuxRunner().run(argv)
+
+    def subprocess_result(self, argv, **_kwargs):
+        first_enable = argv in (LEGACY_ENABLE, QUIET_ENABLE) and not self.enabled
+        stdout = FakeLinux.run(self, argv)
+        stderr = ''
+        if first_enable and '--quiet' not in argv:
+            stderr = ('Created symlink /etc/systemd/system/timers.target.wants/' + e.TIMER +
+                      ' → /etc/systemd/system/' + e.TIMER + '.\n')
+        self.emissions.append((argv, stderr))
+        return SimpleNamespace(stdout=stdout, stderr=stderr)
+
+
 class Expiry(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -172,7 +198,7 @@ class Expiry(unittest.TestCase):
         guard = events.index(('command', e.SHOW_GUARD))
         write = events.index(('ensure-before', e.STATE))
         reload = events.index(('command', (*e.SC, 'daemon-reload')))
-        arm = events.index(('command', (*e.SC, 'enable', '--now', e.TIMER)))
+        arm = events.index(('command', QUIET_ENABLE))
         verify = events.index(('command', e.SHOW_TIMER))
         self.assertLess(guard, write); self.assertLess(write, reload)
         self.assertLess(reload, arm); self.assertLess(arm, verify)
@@ -303,7 +329,7 @@ class Expiry(unittest.TestCase):
             with self.assertRaises(e.ShutdownRequested): e.execute(request, self.runner)
 
     def test_daemon_reload_arm_and_shutdown_failure_or_cancellation_cannot_false_pass(self):
-        for command in ((*e.SC, 'daemon-reload'), (*e.SC, 'enable', '--now', e.TIMER)):
+        for command in ((*e.SC, 'daemon-reload'), QUIET_ENABLE):
             self.runner.job = 0
             self.runner.events.clear()
             self.runner.fail_command = command
@@ -382,6 +408,48 @@ class Expiry(unittest.TestCase):
             for bad in (('/bin/sh', '-c', 'true'), (*e.SC, 'stop', e.TIMER), (*e.SC, 'poweroff', '--force')):
                 with self.assertRaises(e.Refused): runner.run(bad)
             self.assertEqual(run.call_count, before)
+
+    def test_v255_first_enable_native_boundary_and_loaded_manager_return_gate(self):
+        # This fails on31bd: real LinuxRunner sees normal successful-enable stderr
+        # from the CLI model and requests shutdown despite loaded/armed units.
+        root = Path(self.temp.name) / 'native-boundary'; root.mkdir(mode=0o700)
+        runner = NativeBoundaryLinux(root)
+        with patch.object(e.LinuxProbe, 'trusted_tool'), patch.object(e.subprocess, 'run', side_effect=runner.subprocess_result):
+            result = e.execute(REQUEST, runner)
+        self.assertTrue(result['expiry_gate'])
+        self.assertTrue(runner.enabled and runner.armed)
+        self.assertIn((QUIET_ENABLE, ''), runner.emissions)
+        self.assertNotIn(('command', e.POWEROFF), runner.events)
+        self.assertIn(('command', e.SHOW_TIMER), runner.events)
+
+    def test_quiet_enable_native_argv_and_strict_query_warning_policy(self):
+        runner = e.LinuxRunner()
+        with patch.object(e.LinuxProbe, 'trusted_tool'), patch.object(e.subprocess, 'run',
+                return_value=SimpleNamespace(stdout='', stderr='')) as process:
+            self.assertEqual(runner.run(QUIET_ENABLE), '')
+            self.assertEqual(process.call_args.args, (QUIET_ENABLE,))
+            process.return_value = SimpleNamespace(stdout='', stderr='unexpected warning\n')
+            for command in (QUIET_ENABLE, e.SHOW_TIMER, e.TIME_QUERY):
+                with self.subTest(command=command), self.assertRaisesRegex(e.Refused, 'command output refused'):
+                    runner.run(command)
+            self.assertEqual(process.call_count, 4)
+            with self.assertRaisesRegex(e.Refused, 'command not allowlisted'):
+                runner.run(LEGACY_ENABLE)
+            self.assertEqual(process.call_count, 4)
+
+    def test_v255_cli_model_emits_first_enable_info_and_retains_manager_effects(self):
+        # Independently exercise the CLI model's documented nonquiet behavior;
+        # the corrected production allowlist will no longer permit this argv.
+        root = Path(self.temp.name) / 'legacy-boundary'; root.mkdir(mode=0o700)
+        runner = NativeBoundaryLinux(root)
+        bodies = e.material(e.request_record(REQUEST))
+        with runner.files() as files:
+            for name, body in bodies.items(): files.ensure(name, body)
+        runner.subprocess_result((*e.SC, 'daemon-reload'))
+        first = runner.subprocess_result(LEGACY_ENABLE)
+        self.assertTrue(runner.enabled and runner.armed)
+        self.assertTrue(first.stderr.startswith('Created symlink '))
+        self.assertEqual(runner.subprocess_result(LEGACY_ENABLE).stderr, '')
 
     def test_cli_mac_refusal_performs_no_runner_io_and_emits_no_gate(self):
         out, err = io.StringIO(), io.StringIO()

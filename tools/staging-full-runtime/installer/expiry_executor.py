@@ -26,6 +26,7 @@ TIMER = 'rougehalla-absolute-expiry.timer'
 SERVICE = 'rougehalla-absolute-expiry.service'
 STATE = 'run-deadline.json'
 SC = ('/usr/bin/systemctl', '--system', '--no-pager', '--no-ask-password')
+ENABLE = (*SC, '--quiet', 'enable', '--now', TIMER)
 TIME_QUERY = ('/usr/bin/timedatectl', '--no-pager', '--no-ask-password', 'show',
               '--property=NTPSynchronized')
 POWEROFF = (*SC, '--no-block', '--job-mode=replace-irreversibly', 'start', 'poweroff.target')
@@ -58,7 +59,7 @@ SHOW_TIMER = show(TIMER, TIMER_PROPS)
 SHOW_SERVICE = show(SERVICE, SERVICE_PROPS)
 SHOW_POWEROFF = show('poweroff.target', 'Id,LoadState,ActiveState,Job')
 COMMANDS = (SHOW_GUARD, SHOW_TIMER, SHOW_SERVICE, SHOW_POWEROFF, TIME_QUERY,
-            (*SC, '--version'), (*SC, 'daemon-reload'), (*SC, 'enable', '--now', TIMER), POWEROFF)
+            (*SC, '--version'), (*SC, 'daemon-reload'), ENABLE, POWEROFF)
 
 
 def properties(text):
@@ -336,7 +337,7 @@ def execute(request, runner=None):
                 files.ensure(name, body)
             check_clock()
             runner.run((*SC, 'daemon-reload'))
-            runner.run((*SC, 'enable', '--now', TIMER))
+            runner.run(ENABLE)
             files.persist_enabled()
             check_clock()
             verify_units(runner, end)
