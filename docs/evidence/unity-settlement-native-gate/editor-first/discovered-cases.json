@@ -1,0 +1,1635 @@
+{
+  "schema": "public-test-discovery-v1",
+  "mode": "EditMode",
+  "executedTests": false,
+  "fixturePrefixes": [
+    "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.",
+    "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.",
+    "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.",
+    "MatchLaunchEditModeTests.",
+    "MatchSettlementEditModeTests."
+  ],
+  "loadedTestModules": [
+    "Roguehalla.Client.EditModeTests.dll:9d365372-e9bf-4720-8a09-a5d45db8179f"
+  ],
+  "classFilterMatches": {
+    "QuestJournalViewEditModeTests": [
+      "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.AcceptUsesCurrentHandleAndFreshCanAcceptThenSessionBatchesOnlyThatIntent",
+      "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.MaximumLengthServerStringsRemainVerbatimInScrollableFixedSizeTextFields",
+      "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.MetadataReplacementPreservesScrollPositionWhenRowsOverflowViewport",
+      "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.OldAcceptTrackAndRowCallbacksCannotActAfterReplacementBeforeRefresh",
+      "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.OldSessionCallbacksAndRemovedRowsCannotAcceptAfterRebindWelcomeOrDisconnect",
+      "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.ReplacementPreservesSelectedHandleAndScrollButClearsRemovedSelectionAndTracking",
+      "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.SelectedParticipantsUseTypedRosterIdsKeepDuplicateLabelsAndClearOnReplacementOrRebind",
+      "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.UnseenUnavailableAndAvailableEmptyAreDistinctAndRowsPreserveExactServerText"
+    ],
+    "TraderDialogViewEditModeTests": [
+      "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.CurrentOptionsQueueEveryOrdinaryStatPickAndMetadataReplacementInvalidatesOldCallbacks",
+      "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.DisconnectAndResumedWelcomeInvalidateOldRowsAndDropQueuedTradeInput",
+      "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.DuplicateMerchantRowsLabelsAndSignedStatDeltasRenderInSourceOrder",
+      "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.MissingUnavailableAndAvailableEmptyTradeViewsStayDistinctAndOpeningIsReadOnly",
+      "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.RebindingAnUnseenSessionClearsMerchantChoicesAndPendingCopyImmediately",
+      "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.StatUsedBlocksOnlyStatTradeWhileBarterPicksAreSentAsOrdinaryInput"
+    ],
+    "PlayerFlowsEditModeTests": [
+      "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.DeliveredMapPointsReplaceWithoutActorFabricationOrNameDeduplication",
+      "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.InFlightOldSessionNoticeCallbackCannotAppendAfterRebind",
+      "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.InFlightSameSessionNoticeCallbackCannotCrossSourceClockCutAndNewEpochKeepsDuplicates",
+      "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.JournalKeyboardOwnsSimultaneousMapAndWorldKeysAndRespectsExistingModals",
+      "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.MalformedFrameRetainsCanonicalViewButInvalidQuestItemReferenceFailsAndDisablesActions",
+      "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.OrdinaryMixedQuestTradeQueueSplitsAtSixteenWithoutUiGeneratedCommands",
+      "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningJournalDropAndResumedWelcomeClearRowsAndRestoreMapInput",
+      "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningJournalRespectsSettingsAndFocusedTextEntry",
+      "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningPreviewRetiresDeferredAcceptAndWaitsForFreshNativePermission",
+      "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningQuestReviewPreservesMapChoicesAndFocusWhileBlockingOtherPagesAndWorldKeys",
+      "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.ReceivedNoticeOrderIncludesDuplicatesAndResumeClearsBeforeNewBatch"
+    ],
+    "MatchLaunchEditModeTests": [
+      "MatchLaunchEditModeTests.CrossOriginTrainingCannotSendOwnerCredentialsOrStartAClaim",
+      "MatchLaunchEditModeTests.EditingTrainingTargetDuringOwnerRequestCannotUseItsCapturedToken",
+      "MatchLaunchEditModeTests.EndingBeforeTheFirstModeFactUnlocksRecoveryAndLeavePermitsAnotherDestination",
+      "MatchLaunchEditModeTests.LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation(False)",
+      "MatchLaunchEditModeTests.LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation(True)",
+      "MatchLaunchEditModeTests.MissingTrainingNeverFallsBackOrStartsAnOwnershipRequest",
+      "MatchLaunchEditModeTests.OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot(Arena,False)",
+      "MatchLaunchEditModeTests.OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot(Training,True)",
+      "MatchLaunchEditModeTests.PendingMenuAndPracticeCopyFollowDeliveredFactAndPlayAgainPreservesTraining",
+      "MatchLaunchEditModeTests.RapidModeChangesOnlyConnectTheCurrentOwnerIntentToItsCapturedTarget",
+      "MatchLaunchEditModeTests.ReconnectWelcomeRevokesConfirmationAndRequiresANewMatchingFact",
+      "MatchLaunchEditModeTests.ReentrantLeaveCallbackCannotHaveItsReplacementCancelledOrArenaDestroyed",
+      "MatchLaunchEditModeTests.RetiredCallbacksCannotResetOrRefuseANewerSession",
+      "MatchLaunchEditModeTests.SwitchingModeWhileOwnerReplyIsDeferredInvalidatesTheOldIntent",
+      "MatchLaunchEditModeTests.SynchronousFactionCancellationCannotOverwriteOrRelaunchANewerMode",
+      "MatchLaunchEditModeTests.WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput(Arena,True)",
+      "MatchLaunchEditModeTests.WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput(Training,False)"
+    ],
+    "MatchSettlementEditModeTests": [
+      "MatchSettlementEditModeTests.AcceptedArenaWithoutAGenuineResultNeverSendsAReceiptRead",
+      "MatchSettlementEditModeTests.AcceptedTrainingWithAGenuineResultNeverQueriesOrClaimsSavedCredit",
+      "MatchSettlementEditModeTests.CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(False,0L)",
+      "MatchSettlementEditModeTests.CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(True,0L)",
+      "MatchSettlementEditModeTests.CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(False,9007199254740991L)",
+      "MatchSettlementEditModeTests.DifferentWelcomeCannotPairRetainedLastResultWithANewMatchUuid",
+      "MatchSettlementEditModeTests.DuplicateDecodedResultFencesTheOldIdentityWithoutReplenishingAutomaticBudget",
+      "MatchSettlementEditModeTests.GenuineResultBeforeModeConfirmationNeedsAnAcceptedOwnedArenaFactAndExplicitCheck",
+      "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(403)",
+      "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(408)",
+      "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(429)",
+      "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(500)",
+      "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(503)",
+      "MatchSettlementEditModeTests.LeaveIsImmediateAndRetiredCallbacksCannotTouchTheReplacementResults",
+      "MatchSettlementEditModeTests.LeavingDuringUnknownDelayCancelsTheTimerAndDoesNotSendAnotherRequest",
+      "MatchSettlementEditModeTests.OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError(False)",
+      "MatchSettlementEditModeTests.OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError(True)",
+      "MatchSettlementEditModeTests.ReconnectCannotRestartOrClaimUntilAFreshSameMatchArenaFactAndManualAction",
+      "MatchSettlementEditModeTests.ResultsRowUsesActualReceiptStateAndNeverBlocksReturnToMenu",
+      "MatchSettlementEditModeTests.TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst(False)",
+      "MatchSettlementEditModeTests.TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst(True)",
+      "MatchSettlementEditModeTests.UnknownOnlyBurstHasThreeSequentialReadsAtTwoAndFiveSecondsAndManualCooldown"
+    ]
+  },
+  "caseCount": 64,
+  "cases": [
+    {
+      "fullName": "MatchLaunchEditModeTests.CrossOriginTrainingCannotSendOwnerCredentialsOrStartAClaim",
+      "name": "CrossOriginTrainingCannotSendOwnerCredentialsOrStartAClaim",
+      "methodName": "CrossOriginTrainingCannotSendOwnerCredentialsOrStartAClaim",
+      "methodParameters": [],
+      "declaringType": "MatchLaunchEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "MatchLaunchEditModeTests.EditingTrainingTargetDuringOwnerRequestCannotUseItsCapturedToken",
+      "name": "EditingTrainingTargetDuringOwnerRequestCannotUseItsCapturedToken",
+      "methodName": "EditingTrainingTargetDuringOwnerRequestCannotUseItsCapturedToken",
+      "methodParameters": [],
+      "declaringType": "MatchLaunchEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "MatchLaunchEditModeTests.EndingBeforeTheFirstModeFactUnlocksRecoveryAndLeavePermitsAnotherDestination",
+      "name": "EndingBeforeTheFirstModeFactUnlocksRecoveryAndLeavePermitsAnotherDestination",
+      "methodName": "EndingBeforeTheFirstModeFactUnlocksRecoveryAndLeavePermitsAnotherDestination",
+      "methodParameters": [],
+      "declaringType": "MatchLaunchEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "MatchLaunchEditModeTests.LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation(False)",
+      "name": "LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation(False)",
+      "methodName": "LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation",
+      "methodParameters": [
+        {
+          "name": "destroy",
+          "declaredType": "System.Boolean"
+        }
+      ],
+      "declaringType": "MatchLaunchEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [
+        {
+          "typeFullName": "System.Boolean",
+          "text": "False",
+          "boolValue": false
+        }
+      ],
+      "nUnitTestCaseAttributes": [
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Boolean",
+              "text": "False"
+            }
+          ]
+        },
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Boolean",
+              "text": "True"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fullName": "MatchLaunchEditModeTests.LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation(True)",
+      "name": "LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation(True)",
+      "methodName": "LeaveOrDestroyDuringOwnershipRequestPreventsLateSocketCreation",
+      "methodParameters": [
+        {
+          "name": "destroy",
+          "declaredType": "System.Boolean"
+        }
+      ],
+      "declaringType": "MatchLaunchEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [
+        {
+          "typeFullName": "System.Boolean",
+          "text": "True",
+          "boolValue": true
+        }
+      ],
+      "nUnitTestCaseAttributes": [
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Boolean",
+              "text": "False"
+            }
+          ]
+        },
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Boolean",
+              "text": "True"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fullName": "MatchLaunchEditModeTests.MissingTrainingNeverFallsBackOrStartsAnOwnershipRequest",
+      "name": "MissingTrainingNeverFallsBackOrStartsAnOwnershipRequest",
+      "methodName": "MissingTrainingNeverFallsBackOrStartsAnOwnershipRequest",
+      "methodParameters": [],
+      "declaringType": "MatchLaunchEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "MatchLaunchEditModeTests.OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot(Arena,False)",
+      "name": "OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot(Arena,False)",
+      "methodName": "OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot",
+      "methodParameters": [
+        {
+          "name": "mode",
+          "declaredType": "Roguehalla.Net.MatchLaunchMode"
+        },
+        {
+          "name": "training",
+          "declaredType": "System.Boolean"
+        }
+      ],
+      "declaringType": "MatchLaunchEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [
+        {
+          "typeFullName": "Roguehalla.Net.MatchLaunchMode",
+          "text": "Arena",
+          "enumName": "Arena",
+          "numericValue": 0
+        },
+        {
+          "typeFullName": "System.Boolean",
+          "text": "False",
+          "boolValue": false
+        }
+      ],
+      "nUnitTestCaseAttributes": [
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "Roguehalla.Net.MatchLaunchMode",
+              "text": "0"
+            },
+            {
+              "typeFullName": "System.Boolean",
+              "text": "False"
+            }
+          ]
+        },
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "Roguehalla.Net.MatchLaunchMode",
+              "text": "1"
+            },
+            {
+              "typeFullName": "System.Boolean",
+              "text": "True"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fullName": "MatchLaunchEditModeTests.OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot(Training,True)",
+      "name": "OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot(Training,True)",
+      "methodName": "OrdinaryOwnedTargetAndModeRemainUnconfirmedUntilAnAcceptedMatchingSnapshot",
+      "methodParameters": [
+        {
+          "name": "mode",
+          "declaredType": "Roguehalla.Net.MatchLaunchMode"
+        },
+        {
+          "name": "training",
+          "declaredType": "System.Boolean"
+        }
+      ],
+      "declaringType": "MatchLaunchEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [
+        {
+          "typeFullName": "Roguehalla.Net.MatchLaunchMode",
+          "text": "Training",
+          "enumName": "Training",
+          "numericValue": 1
+        },
+        {
+          "typeFullName": "System.Boolean",
+          "text": "True",
+          "boolValue": true
+        }
+      ],
+      "nUnitTestCaseAttributes": [
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "Roguehalla.Net.MatchLaunchMode",
+              "text": "0"
+            },
+            {
+              "typeFullName": "System.Boolean",
+              "text": "False"
+            }
+          ]
+        },
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "Roguehalla.Net.MatchLaunchMode",
+              "text": "1"
+            },
+            {
+              "typeFullName": "System.Boolean",
+              "text": "True"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fullName": "MatchLaunchEditModeTests.PendingMenuAndPracticeCopyFollowDeliveredFactAndPlayAgainPreservesTraining",
+      "name": "PendingMenuAndPracticeCopyFollowDeliveredFactAndPlayAgainPreservesTraining",
+      "methodName": "PendingMenuAndPracticeCopyFollowDeliveredFactAndPlayAgainPreservesTraining",
+      "methodParameters": [],
+      "declaringType": "MatchLaunchEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "MatchLaunchEditModeTests.RapidModeChangesOnlyConnectTheCurrentOwnerIntentToItsCapturedTarget",
+      "name": "RapidModeChangesOnlyConnectTheCurrentOwnerIntentToItsCapturedTarget",
+      "methodName": "RapidModeChangesOnlyConnectTheCurrentOwnerIntentToItsCapturedTarget",
+      "methodParameters": [],
+      "declaringType": "MatchLaunchEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "MatchLaunchEditModeTests.ReconnectWelcomeRevokesConfirmationAndRequiresANewMatchingFact",
+      "name": "ReconnectWelcomeRevokesConfirmationAndRequiresANewMatchingFact",
+      "methodName": "ReconnectWelcomeRevokesConfirmationAndRequiresANewMatchingFact",
+      "methodParameters": [],
+      "declaringType": "MatchLaunchEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "MatchLaunchEditModeTests.ReentrantLeaveCallbackCannotHaveItsReplacementCancelledOrArenaDestroyed",
+      "name": "ReentrantLeaveCallbackCannotHaveItsReplacementCancelledOrArenaDestroyed",
+      "methodName": "ReentrantLeaveCallbackCannotHaveItsReplacementCancelledOrArenaDestroyed",
+      "methodParameters": [],
+      "declaringType": "MatchLaunchEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "MatchLaunchEditModeTests.RetiredCallbacksCannotResetOrRefuseANewerSession",
+      "name": "RetiredCallbacksCannotResetOrRefuseANewerSession",
+      "methodName": "RetiredCallbacksCannotResetOrRefuseANewerSession",
+      "methodParameters": [],
+      "declaringType": "MatchLaunchEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "MatchLaunchEditModeTests.SwitchingModeWhileOwnerReplyIsDeferredInvalidatesTheOldIntent",
+      "name": "SwitchingModeWhileOwnerReplyIsDeferredInvalidatesTheOldIntent",
+      "methodName": "SwitchingModeWhileOwnerReplyIsDeferredInvalidatesTheOldIntent",
+      "methodParameters": [],
+      "declaringType": "MatchLaunchEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "MatchLaunchEditModeTests.SynchronousFactionCancellationCannotOverwriteOrRelaunchANewerMode",
+      "name": "SynchronousFactionCancellationCannotOverwriteOrRelaunchANewerMode",
+      "methodName": "SynchronousFactionCancellationCannotOverwriteOrRelaunchANewerMode",
+      "methodParameters": [],
+      "declaringType": "MatchLaunchEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "MatchLaunchEditModeTests.WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput(Arena,True)",
+      "name": "WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput(Arena,True)",
+      "methodName": "WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput",
+      "methodParameters": [
+        {
+          "name": "mode",
+          "declaredType": "Roguehalla.Net.MatchLaunchMode"
+        },
+        {
+          "name": "deliveredTraining",
+          "declaredType": "System.Boolean"
+        }
+      ],
+      "declaringType": "MatchLaunchEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [
+        {
+          "typeFullName": "Roguehalla.Net.MatchLaunchMode",
+          "text": "Arena",
+          "enumName": "Arena",
+          "numericValue": 0
+        },
+        {
+          "typeFullName": "System.Boolean",
+          "text": "True",
+          "boolValue": true
+        }
+      ],
+      "nUnitTestCaseAttributes": [
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "Roguehalla.Net.MatchLaunchMode",
+              "text": "0"
+            },
+            {
+              "typeFullName": "System.Boolean",
+              "text": "True"
+            }
+          ]
+        },
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "Roguehalla.Net.MatchLaunchMode",
+              "text": "1"
+            },
+            {
+              "typeFullName": "System.Boolean",
+              "text": "False"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fullName": "MatchLaunchEditModeTests.WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput(Training,False)",
+      "name": "WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput(Training,False)",
+      "methodName": "WrongDeliveredModeClosesTheExactSessionWithoutFallbackOrGameplayInput",
+      "methodParameters": [
+        {
+          "name": "mode",
+          "declaredType": "Roguehalla.Net.MatchLaunchMode"
+        },
+        {
+          "name": "deliveredTraining",
+          "declaredType": "System.Boolean"
+        }
+      ],
+      "declaringType": "MatchLaunchEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [
+        {
+          "typeFullName": "Roguehalla.Net.MatchLaunchMode",
+          "text": "Training",
+          "enumName": "Training",
+          "numericValue": 1
+        },
+        {
+          "typeFullName": "System.Boolean",
+          "text": "False",
+          "boolValue": false
+        }
+      ],
+      "nUnitTestCaseAttributes": [
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "Roguehalla.Net.MatchLaunchMode",
+              "text": "0"
+            },
+            {
+              "typeFullName": "System.Boolean",
+              "text": "True"
+            }
+          ]
+        },
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "Roguehalla.Net.MatchLaunchMode",
+              "text": "1"
+            },
+            {
+              "typeFullName": "System.Boolean",
+              "text": "False"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fullName": "MatchSettlementEditModeTests.AcceptedArenaWithoutAGenuineResultNeverSendsAReceiptRead",
+      "name": "AcceptedArenaWithoutAGenuineResultNeverSendsAReceiptRead",
+      "methodName": "AcceptedArenaWithoutAGenuineResultNeverSendsAReceiptRead",
+      "methodParameters": [],
+      "declaringType": "MatchSettlementEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "MatchSettlementEditModeTests.AcceptedTrainingWithAGenuineResultNeverQueriesOrClaimsSavedCredit",
+      "name": "AcceptedTrainingWithAGenuineResultNeverQueriesOrClaimsSavedCredit",
+      "methodName": "AcceptedTrainingWithAGenuineResultNeverQueriesOrClaimsSavedCredit",
+      "methodParameters": [],
+      "declaringType": "MatchSettlementEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "MatchSettlementEditModeTests.CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(False,0L)",
+      "name": "CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(False,0L)",
+      "methodName": "CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference",
+      "methodParameters": [
+        {
+          "name": "isVoid",
+          "declaredType": "System.Boolean"
+        },
+        {
+          "name": "credit",
+          "declaredType": "System.Int64"
+        }
+      ],
+      "declaringType": "MatchSettlementEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [
+        {
+          "typeFullName": "System.Boolean",
+          "text": "False",
+          "boolValue": false
+        },
+        {
+          "typeFullName": "System.Int64",
+          "text": "0",
+          "numericValue": 0
+        }
+      ],
+      "nUnitTestCaseAttributes": [
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Boolean",
+              "text": "False"
+            },
+            {
+              "typeFullName": "System.Int64",
+              "text": "0"
+            }
+          ]
+        },
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Boolean",
+              "text": "True"
+            },
+            {
+              "typeFullName": "System.Int64",
+              "text": "0"
+            }
+          ]
+        },
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Boolean",
+              "text": "False"
+            },
+            {
+              "typeFullName": "System.Int64",
+              "text": "9007199254740991"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fullName": "MatchSettlementEditModeTests.CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(True,0L)",
+      "name": "CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(True,0L)",
+      "methodName": "CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference",
+      "methodParameters": [
+        {
+          "name": "isVoid",
+          "declaredType": "System.Boolean"
+        },
+        {
+          "name": "credit",
+          "declaredType": "System.Int64"
+        }
+      ],
+      "declaringType": "MatchSettlementEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [
+        {
+          "typeFullName": "System.Boolean",
+          "text": "True",
+          "boolValue": true
+        },
+        {
+          "typeFullName": "System.Int64",
+          "text": "0",
+          "numericValue": 0
+        }
+      ],
+      "nUnitTestCaseAttributes": [
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Boolean",
+              "text": "False"
+            },
+            {
+              "typeFullName": "System.Int64",
+              "text": "0"
+            }
+          ]
+        },
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Boolean",
+              "text": "True"
+            },
+            {
+              "typeFullName": "System.Int64",
+              "text": "0"
+            }
+          ]
+        },
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Boolean",
+              "text": "False"
+            },
+            {
+              "typeFullName": "System.Int64",
+              "text": "9007199254740991"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fullName": "MatchSettlementEditModeTests.CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(False,9007199254740991L)",
+      "name": "CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference(False,9007199254740991L)",
+      "methodName": "CommittedZeroVoidAndMaximumCreditsAreDisplayedWithoutBalanceInference",
+      "methodParameters": [
+        {
+          "name": "isVoid",
+          "declaredType": "System.Boolean"
+        },
+        {
+          "name": "credit",
+          "declaredType": "System.Int64"
+        }
+      ],
+      "declaringType": "MatchSettlementEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [
+        {
+          "typeFullName": "System.Boolean",
+          "text": "False",
+          "boolValue": false
+        },
+        {
+          "typeFullName": "System.Int64",
+          "text": "9007199254740991",
+          "numericValue": 9007199254740991
+        }
+      ],
+      "nUnitTestCaseAttributes": [
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Boolean",
+              "text": "False"
+            },
+            {
+              "typeFullName": "System.Int64",
+              "text": "0"
+            }
+          ]
+        },
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Boolean",
+              "text": "True"
+            },
+            {
+              "typeFullName": "System.Int64",
+              "text": "0"
+            }
+          ]
+        },
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Boolean",
+              "text": "False"
+            },
+            {
+              "typeFullName": "System.Int64",
+              "text": "9007199254740991"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fullName": "MatchSettlementEditModeTests.DifferentWelcomeCannotPairRetainedLastResultWithANewMatchUuid",
+      "name": "DifferentWelcomeCannotPairRetainedLastResultWithANewMatchUuid",
+      "methodName": "DifferentWelcomeCannotPairRetainedLastResultWithANewMatchUuid",
+      "methodParameters": [],
+      "declaringType": "MatchSettlementEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "MatchSettlementEditModeTests.DuplicateDecodedResultFencesTheOldIdentityWithoutReplenishingAutomaticBudget",
+      "name": "DuplicateDecodedResultFencesTheOldIdentityWithoutReplenishingAutomaticBudget",
+      "methodName": "DuplicateDecodedResultFencesTheOldIdentityWithoutReplenishingAutomaticBudget",
+      "methodParameters": [],
+      "declaringType": "MatchSettlementEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "MatchSettlementEditModeTests.GenuineResultBeforeModeConfirmationNeedsAnAcceptedOwnedArenaFactAndExplicitCheck",
+      "name": "GenuineResultBeforeModeConfirmationNeedsAnAcceptedOwnedArenaFactAndExplicitCheck",
+      "methodName": "GenuineResultBeforeModeConfirmationNeedsAnAcceptedOwnedArenaFactAndExplicitCheck",
+      "methodParameters": [],
+      "declaringType": "MatchSettlementEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(403)",
+      "name": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(403)",
+      "methodName": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved",
+      "methodParameters": [
+        {
+          "name": "status",
+          "declaredType": "System.Int32"
+        }
+      ],
+      "declaringType": "MatchSettlementEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [
+        {
+          "typeFullName": "System.Int32",
+          "text": "403",
+          "numericValue": 403
+        }
+      ],
+      "nUnitTestCaseAttributes": [
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Int32",
+              "text": "403"
+            }
+          ]
+        },
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Int32",
+              "text": "408"
+            }
+          ]
+        },
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Int32",
+              "text": "429"
+            }
+          ]
+        },
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Int32",
+              "text": "500"
+            }
+          ]
+        },
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Int32",
+              "text": "503"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fullName": "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(408)",
+      "name": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(408)",
+      "methodName": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved",
+      "methodParameters": [
+        {
+          "name": "status",
+          "declaredType": "System.Int32"
+        }
+      ],
+      "declaringType": "MatchSettlementEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [
+        {
+          "typeFullName": "System.Int32",
+          "text": "408",
+          "numericValue": 408
+        }
+      ],
+      "nUnitTestCaseAttributes": [
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Int32",
+              "text": "403"
+            }
+          ]
+        },
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Int32",
+              "text": "408"
+            }
+          ]
+        },
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Int32",
+              "text": "429"
+            }
+          ]
+        },
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Int32",
+              "text": "500"
+            }
+          ]
+        },
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Int32",
+              "text": "503"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fullName": "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(429)",
+      "name": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(429)",
+      "methodName": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved",
+      "methodParameters": [
+        {
+          "name": "status",
+          "declaredType": "System.Int32"
+        }
+      ],
+      "declaringType": "MatchSettlementEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [
+        {
+          "typeFullName": "System.Int32",
+          "text": "429",
+          "numericValue": 429
+        }
+      ],
+      "nUnitTestCaseAttributes": [
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Int32",
+              "text": "403"
+            }
+          ]
+        },
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Int32",
+              "text": "408"
+            }
+          ]
+        },
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Int32",
+              "text": "429"
+            }
+          ]
+        },
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Int32",
+              "text": "500"
+            }
+          ]
+        },
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Int32",
+              "text": "503"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fullName": "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(500)",
+      "name": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(500)",
+      "methodName": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved",
+      "methodParameters": [
+        {
+          "name": "status",
+          "declaredType": "System.Int32"
+        }
+      ],
+      "declaringType": "MatchSettlementEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [
+        {
+          "typeFullName": "System.Int32",
+          "text": "500",
+          "numericValue": 500
+        }
+      ],
+      "nUnitTestCaseAttributes": [
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Int32",
+              "text": "403"
+            }
+          ]
+        },
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Int32",
+              "text": "408"
+            }
+          ]
+        },
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Int32",
+              "text": "429"
+            }
+          ]
+        },
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Int32",
+              "text": "500"
+            }
+          ]
+        },
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Int32",
+              "text": "503"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fullName": "MatchSettlementEditModeTests.HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(503)",
+      "name": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved(503)",
+      "methodName": "HttpErrorsStopTheBurstAndNeverBecomeUnknownOrSaved",
+      "methodParameters": [
+        {
+          "name": "status",
+          "declaredType": "System.Int32"
+        }
+      ],
+      "declaringType": "MatchSettlementEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [
+        {
+          "typeFullName": "System.Int32",
+          "text": "503",
+          "numericValue": 503
+        }
+      ],
+      "nUnitTestCaseAttributes": [
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Int32",
+              "text": "403"
+            }
+          ]
+        },
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Int32",
+              "text": "408"
+            }
+          ]
+        },
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Int32",
+              "text": "429"
+            }
+          ]
+        },
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Int32",
+              "text": "500"
+            }
+          ]
+        },
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Int32",
+              "text": "503"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fullName": "MatchSettlementEditModeTests.LeaveIsImmediateAndRetiredCallbacksCannotTouchTheReplacementResults",
+      "name": "LeaveIsImmediateAndRetiredCallbacksCannotTouchTheReplacementResults",
+      "methodName": "LeaveIsImmediateAndRetiredCallbacksCannotTouchTheReplacementResults",
+      "methodParameters": [],
+      "declaringType": "MatchSettlementEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "MatchSettlementEditModeTests.LeavingDuringUnknownDelayCancelsTheTimerAndDoesNotSendAnotherRequest",
+      "name": "LeavingDuringUnknownDelayCancelsTheTimerAndDoesNotSendAnotherRequest",
+      "methodName": "LeavingDuringUnknownDelayCancelsTheTimerAndDoesNotSendAnotherRequest",
+      "methodParameters": [],
+      "declaringType": "MatchSettlementEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "MatchSettlementEditModeTests.OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError(False)",
+      "name": "OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError(False)",
+      "methodName": "OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError",
+      "methodParameters": [
+        {
+          "name": "error",
+          "declaredType": "System.Boolean"
+        }
+      ],
+      "declaringType": "MatchSettlementEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [
+        {
+          "typeFullName": "System.Boolean",
+          "text": "False",
+          "boolValue": false
+        }
+      ],
+      "nUnitTestCaseAttributes": [
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Boolean",
+              "text": "False"
+            }
+          ]
+        },
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Boolean",
+              "text": "True"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fullName": "MatchSettlementEditModeTests.OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError(True)",
+      "name": "OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError(True)",
+      "methodName": "OwnerChangeHidesTheRowAndFencesBothOldSuccessAndError",
+      "methodParameters": [
+        {
+          "name": "error",
+          "declaredType": "System.Boolean"
+        }
+      ],
+      "declaringType": "MatchSettlementEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [
+        {
+          "typeFullName": "System.Boolean",
+          "text": "True",
+          "boolValue": true
+        }
+      ],
+      "nUnitTestCaseAttributes": [
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Boolean",
+              "text": "False"
+            }
+          ]
+        },
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Boolean",
+              "text": "True"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fullName": "MatchSettlementEditModeTests.ReconnectCannotRestartOrClaimUntilAFreshSameMatchArenaFactAndManualAction",
+      "name": "ReconnectCannotRestartOrClaimUntilAFreshSameMatchArenaFactAndManualAction",
+      "methodName": "ReconnectCannotRestartOrClaimUntilAFreshSameMatchArenaFactAndManualAction",
+      "methodParameters": [],
+      "declaringType": "MatchSettlementEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "MatchSettlementEditModeTests.ResultsRowUsesActualReceiptStateAndNeverBlocksReturnToMenu",
+      "name": "ResultsRowUsesActualReceiptStateAndNeverBlocksReturnToMenu",
+      "methodName": "ResultsRowUsesActualReceiptStateAndNeverBlocksReturnToMenu",
+      "methodParameters": [],
+      "declaringType": "MatchSettlementEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "MatchSettlementEditModeTests.TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst(False)",
+      "name": "TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst(False)",
+      "methodName": "TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst",
+      "methodParameters": [
+        {
+          "name": "error",
+          "declaredType": "System.Boolean"
+        }
+      ],
+      "declaringType": "MatchSettlementEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [
+        {
+          "typeFullName": "System.Boolean",
+          "text": "False",
+          "boolValue": false
+        }
+      ],
+      "nUnitTestCaseAttributes": [
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Boolean",
+              "text": "False"
+            }
+          ]
+        },
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Boolean",
+              "text": "True"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fullName": "MatchSettlementEditModeTests.TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst(True)",
+      "name": "TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst(True)",
+      "methodName": "TimelineCutCancelsSuccessAndErrorAndRequiresAnExplicitNewBurst",
+      "methodParameters": [
+        {
+          "name": "error",
+          "declaredType": "System.Boolean"
+        }
+      ],
+      "declaringType": "MatchSettlementEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [
+        {
+          "typeFullName": "System.Boolean",
+          "text": "True",
+          "boolValue": true
+        }
+      ],
+      "nUnitTestCaseAttributes": [
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Boolean",
+              "text": "False"
+            }
+          ]
+        },
+        {
+          "typeFullName": "NUnit.Framework.TestCaseAttribute",
+          "constructorArguments": [
+            {
+              "typeFullName": "System.Boolean",
+              "text": "True"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fullName": "MatchSettlementEditModeTests.UnknownOnlyBurstHasThreeSequentialReadsAtTwoAndFiveSecondsAndManualCooldown",
+      "name": "UnknownOnlyBurstHasThreeSequentialReadsAtTwoAndFiveSecondsAndManualCooldown",
+      "methodName": "UnknownOnlyBurstHasThreeSequentialReadsAtTwoAndFiveSecondsAndManualCooldown",
+      "methodParameters": [],
+      "declaringType": "MatchSettlementEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.DeliveredMapPointsReplaceWithoutActorFabricationOrNameDeduplication",
+      "name": "DeliveredMapPointsReplaceWithoutActorFabricationOrNameDeduplication",
+      "methodName": "DeliveredMapPointsReplaceWithoutActorFabricationOrNameDeduplication",
+      "methodParameters": [],
+      "declaringType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.InFlightOldSessionNoticeCallbackCannotAppendAfterRebind",
+      "name": "InFlightOldSessionNoticeCallbackCannotAppendAfterRebind",
+      "methodName": "InFlightOldSessionNoticeCallbackCannotAppendAfterRebind",
+      "methodParameters": [],
+      "declaringType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.InFlightSameSessionNoticeCallbackCannotCrossSourceClockCutAndNewEpochKeepsDuplicates",
+      "name": "InFlightSameSessionNoticeCallbackCannotCrossSourceClockCutAndNewEpochKeepsDuplicates",
+      "methodName": "InFlightSameSessionNoticeCallbackCannotCrossSourceClockCutAndNewEpochKeepsDuplicates",
+      "methodParameters": [],
+      "declaringType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.JournalKeyboardOwnsSimultaneousMapAndWorldKeysAndRespectsExistingModals",
+      "name": "JournalKeyboardOwnsSimultaneousMapAndWorldKeysAndRespectsExistingModals",
+      "methodName": "JournalKeyboardOwnsSimultaneousMapAndWorldKeysAndRespectsExistingModals",
+      "methodParameters": [],
+      "declaringType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.MalformedFrameRetainsCanonicalViewButInvalidQuestItemReferenceFailsAndDisablesActions",
+      "name": "MalformedFrameRetainsCanonicalViewButInvalidQuestItemReferenceFailsAndDisablesActions",
+      "methodName": "MalformedFrameRetainsCanonicalViewButInvalidQuestItemReferenceFailsAndDisablesActions",
+      "methodParameters": [],
+      "declaringType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.OrdinaryMixedQuestTradeQueueSplitsAtSixteenWithoutUiGeneratedCommands",
+      "name": "OrdinaryMixedQuestTradeQueueSplitsAtSixteenWithoutUiGeneratedCommands",
+      "methodName": "OrdinaryMixedQuestTradeQueueSplitsAtSixteenWithoutUiGeneratedCommands",
+      "methodParameters": [],
+      "declaringType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningJournalDropAndResumedWelcomeClearRowsAndRestoreMapInput",
+      "name": "PlanningJournalDropAndResumedWelcomeClearRowsAndRestoreMapInput",
+      "methodName": "PlanningJournalDropAndResumedWelcomeClearRowsAndRestoreMapInput",
+      "methodParameters": [],
+      "declaringType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningJournalRespectsSettingsAndFocusedTextEntry",
+      "name": "PlanningJournalRespectsSettingsAndFocusedTextEntry",
+      "methodName": "PlanningJournalRespectsSettingsAndFocusedTextEntry",
+      "methodParameters": [],
+      "declaringType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningPreviewRetiresDeferredAcceptAndWaitsForFreshNativePermission",
+      "name": "PlanningPreviewRetiresDeferredAcceptAndWaitsForFreshNativePermission",
+      "methodName": "PlanningPreviewRetiresDeferredAcceptAndWaitsForFreshNativePermission",
+      "methodParameters": [],
+      "declaringType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.PlanningQuestReviewPreservesMapChoicesAndFocusWhileBlockingOtherPagesAndWorldKeys",
+      "name": "PlanningQuestReviewPreservesMapChoicesAndFocusWhileBlockingOtherPagesAndWorldKeys",
+      "methodName": "PlanningQuestReviewPreservesMapChoicesAndFocusWhileBlockingOtherPagesAndWorldKeys",
+      "methodParameters": [],
+      "declaringType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.ReceivedNoticeOrderIncludesDuplicatesAndResumeClearsBeforeNewBatch",
+      "name": "ReceivedNoticeOrderIncludesDuplicatesAndResumeClearsBeforeNewBatch",
+      "methodName": "ReceivedNoticeOrderIncludesDuplicatesAndResumeClearsBeforeNewBatch",
+      "methodParameters": [],
+      "declaringType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.AcceptUsesCurrentHandleAndFreshCanAcceptThenSessionBatchesOnlyThatIntent",
+      "name": "AcceptUsesCurrentHandleAndFreshCanAcceptThenSessionBatchesOnlyThatIntent",
+      "methodName": "AcceptUsesCurrentHandleAndFreshCanAcceptThenSessionBatchesOnlyThatIntent",
+      "methodParameters": [],
+      "declaringType": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.MaximumLengthServerStringsRemainVerbatimInScrollableFixedSizeTextFields",
+      "name": "MaximumLengthServerStringsRemainVerbatimInScrollableFixedSizeTextFields",
+      "methodName": "MaximumLengthServerStringsRemainVerbatimInScrollableFixedSizeTextFields",
+      "methodParameters": [],
+      "declaringType": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.MetadataReplacementPreservesScrollPositionWhenRowsOverflowViewport",
+      "name": "MetadataReplacementPreservesScrollPositionWhenRowsOverflowViewport",
+      "methodName": "MetadataReplacementPreservesScrollPositionWhenRowsOverflowViewport",
+      "methodParameters": [],
+      "declaringType": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.OldAcceptTrackAndRowCallbacksCannotActAfterReplacementBeforeRefresh",
+      "name": "OldAcceptTrackAndRowCallbacksCannotActAfterReplacementBeforeRefresh",
+      "methodName": "OldAcceptTrackAndRowCallbacksCannotActAfterReplacementBeforeRefresh",
+      "methodParameters": [],
+      "declaringType": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.OldSessionCallbacksAndRemovedRowsCannotAcceptAfterRebindWelcomeOrDisconnect",
+      "name": "OldSessionCallbacksAndRemovedRowsCannotAcceptAfterRebindWelcomeOrDisconnect",
+      "methodName": "OldSessionCallbacksAndRemovedRowsCannotAcceptAfterRebindWelcomeOrDisconnect",
+      "methodParameters": [],
+      "declaringType": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.ReplacementPreservesSelectedHandleAndScrollButClearsRemovedSelectionAndTracking",
+      "name": "ReplacementPreservesSelectedHandleAndScrollButClearsRemovedSelectionAndTracking",
+      "methodName": "ReplacementPreservesSelectedHandleAndScrollButClearsRemovedSelectionAndTracking",
+      "methodParameters": [],
+      "declaringType": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.SelectedParticipantsUseTypedRosterIdsKeepDuplicateLabelsAndClearOnReplacementOrRebind",
+      "name": "SelectedParticipantsUseTypedRosterIdsKeepDuplicateLabelsAndClearOnReplacementOrRebind",
+      "methodName": "SelectedParticipantsUseTypedRosterIdsKeepDuplicateLabelsAndClearOnReplacementOrRebind",
+      "methodParameters": [],
+      "declaringType": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.UnseenUnavailableAndAvailableEmptyAreDistinctAndRowsPreserveExactServerText",
+      "name": "UnseenUnavailableAndAvailableEmptyAreDistinctAndRowsPreserveExactServerText",
+      "methodName": "UnseenUnavailableAndAvailableEmptyAreDistinctAndRowsPreserveExactServerText",
+      "methodParameters": [],
+      "declaringType": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.CurrentOptionsQueueEveryOrdinaryStatPickAndMetadataReplacementInvalidatesOldCallbacks",
+      "name": "CurrentOptionsQueueEveryOrdinaryStatPickAndMetadataReplacementInvalidatesOldCallbacks",
+      "methodName": "CurrentOptionsQueueEveryOrdinaryStatPickAndMetadataReplacementInvalidatesOldCallbacks",
+      "methodParameters": [],
+      "declaringType": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.DisconnectAndResumedWelcomeInvalidateOldRowsAndDropQueuedTradeInput",
+      "name": "DisconnectAndResumedWelcomeInvalidateOldRowsAndDropQueuedTradeInput",
+      "methodName": "DisconnectAndResumedWelcomeInvalidateOldRowsAndDropQueuedTradeInput",
+      "methodParameters": [],
+      "declaringType": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.DuplicateMerchantRowsLabelsAndSignedStatDeltasRenderInSourceOrder",
+      "name": "DuplicateMerchantRowsLabelsAndSignedStatDeltasRenderInSourceOrder",
+      "methodName": "DuplicateMerchantRowsLabelsAndSignedStatDeltasRenderInSourceOrder",
+      "methodParameters": [],
+      "declaringType": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.MissingUnavailableAndAvailableEmptyTradeViewsStayDistinctAndOpeningIsReadOnly",
+      "name": "MissingUnavailableAndAvailableEmptyTradeViewsStayDistinctAndOpeningIsReadOnly",
+      "methodName": "MissingUnavailableAndAvailableEmptyTradeViewsStayDistinctAndOpeningIsReadOnly",
+      "methodParameters": [],
+      "declaringType": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.RebindingAnUnseenSessionClearsMerchantChoicesAndPendingCopyImmediately",
+      "name": "RebindingAnUnseenSessionClearsMerchantChoicesAndPendingCopyImmediately",
+      "methodName": "RebindingAnUnseenSessionClearsMerchantChoicesAndPendingCopyImmediately",
+      "methodParameters": [],
+      "declaringType": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    },
+    {
+      "fullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.StatUsedBlocksOnlyStatTradeWhileBarterPicksAreSentAsOrdinaryInput",
+      "name": "StatUsedBlocksOnlyStatTradeWhileBarterPicksAreSentAsOrdinaryInput",
+      "methodName": "StatUsedBlocksOnlyStatTradeWhileBarterPicksAreSentAsOrdinaryInput",
+      "methodParameters": [],
+      "declaringType": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+      "runState": "Runnable",
+      "methodModuleMvid": "9d365372-e9bf-4720-8a09-a5d45db8179f",
+      "arguments": [],
+      "nUnitTestCaseAttributes": []
+    }
+  ]
+}

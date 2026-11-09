@@ -1,0 +1,182 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Reflection;
+using System.Text;
+using System.Threading.Tasks;
+using NUnit.Framework.Interfaces;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using UnityEditor.TestTools.TestRunner.Api;
+using UnityEngine;
+
+// Public TestRunnerApi discovery only. This helper never executes tests or enters Play Mode.
+public static class DiscoverSettlement64Cases
+{
+    private const string OutputPath = "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/settlement64-5457b9c0-2026-11-09/discovered-cases.json";
+    private static readonly string[] FixturePrefixes =
+    {
+        "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.",
+        "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.",
+        "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.",
+        "MatchLaunchEditModeTests.",
+        "MatchSettlementEditModeTests."
+    };
+
+    public static async Task Run()
+    {
+        var api = ScriptableObject.CreateInstance<TestRunnerApi>();
+        var completion = new TaskCompletionSource<bool>();
+        try
+        {
+            api.RetrieveTestList(TestMode.EditMode, root =>
+            {
+                try
+                {
+                    var cases = new JArray();
+                    var modules = new SortedSet<string>(StringComparer.Ordinal);
+                    var classMatches = new JObject();
+                    foreach (string prefix in FixturePrefixes)
+                    {
+                        string[] pieces = prefix.TrimEnd('.').Split('.');
+                        classMatches[pieces[pieces.Length - 1]] = new JArray();
+                    }
+                    Visit(root, cases, modules, classMatches);
+                    var document = new JObject
+                    {
+                        ["schema"] = "public-test-discovery-v1",
+                        ["mode"] = "EditMode",
+                        ["executedTests"] = false,
+                        ["fixturePrefixes"] = new JArray(FixturePrefixes),
+                        ["loadedTestModules"] = new JArray(modules),
+                        ["classFilterMatches"] = classMatches,
+                        ["caseCount"] = cases.Count,
+                        ["cases"] = cases
+                    };
+                    using (var stream = new FileStream(OutputPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                    using (var writer = new StreamWriter(stream, new UTF8Encoding(false)))
+                        writer.Write(document.ToString(Formatting.Indented));
+                    completion.TrySetResult(true);
+                }
+                catch (Exception error)
+                {
+                    completion.TrySetException(error);
+                }
+            });
+            await completion.Task;
+        }
+        finally
+        {
+            if (api != null) UnityEngine.Object.DestroyImmediate(api);
+        }
+    }
+
+    private static void Visit(ITestAdaptor node, JArray output, SortedSet<string> modules, JObject classMatches)
+    {
+        if (node == null) return;
+        if (!node.IsSuite && !node.HasChildren)
+        {
+            foreach (JProperty property in classMatches.Properties())
+                if (!string.IsNullOrEmpty(node.FullName) && node.FullName.IndexOf(property.Name, StringComparison.OrdinalIgnoreCase) >= 0)
+                    ((JArray)property.Value).Add(node.FullName);
+            if (IsRequested(node.FullName)) output.Add(Describe(node, modules));
+        }
+        var children = node.Children;
+        if (children == null) return;
+        foreach (var child in children) Visit(child, output, modules, classMatches);
+    }
+
+    private static bool IsRequested(string fullName)
+    {
+        if (string.IsNullOrEmpty(fullName)) return false;
+        foreach (var prefix in FixturePrefixes)
+            if (fullName.StartsWith(prefix, StringComparison.Ordinal)) return true;
+        return false;
+    }
+
+    private static JObject Describe(ITestAdaptor test, SortedSet<string> modules)
+    {
+        var method = test.Method;
+        var reflectedMethod = PublicPropertyValue(method, "MethodInfo") as MethodInfo;
+        var declaringType = reflectedMethod == null ? null : reflectedMethod.DeclaringType;
+        var module = reflectedMethod == null ? null : reflectedMethod.Module;
+        if (module != null) modules.Add(module.Name + ":" + module.ModuleVersionId.ToString("D"));
+
+        var args = new JArray();
+        var actual = test.Arguments ?? Array.Empty<object>();
+        foreach (var value in actual) args.Add(DescribeArgument(value));
+
+        var attributes = new JArray();
+        if (reflectedMethod != null)
+        {
+            foreach (var attribute in reflectedMethod.GetCustomAttributesData())
+            {
+                if (attribute.AttributeType.FullName == null ||
+                    attribute.AttributeType.FullName.IndexOf("TestCaseAttribute", StringComparison.Ordinal) < 0) continue;
+                var metadata = new JObject { ["typeFullName"] = attribute.AttributeType.FullName };
+                var ctor = new JArray();
+                foreach (var item in attribute.ConstructorArguments)
+                    ctor.Add(new JObject
+                    {
+                        ["typeFullName"] = item.ArgumentType == null ? null : item.ArgumentType.FullName,
+                        ["text"] = item.Value == null ? null : Convert.ToString(item.Value, CultureInfo.InvariantCulture)
+                    });
+                metadata["constructorArguments"] = ctor;
+                attributes.Add(metadata);
+            }
+        }
+
+        return new JObject
+        {
+            ["fullName"] = test.FullName,
+            ["name"] = test.Name,
+            ["methodName"] = method == null ? null : method.Name,
+            ["methodParameters"] = reflectedMethod == null ? new JArray() : new JArray(Array.ConvertAll(reflectedMethod.GetParameters(), p => new JObject { ["name"] = p.Name, ["declaredType"] = p.ParameterType.FullName })),
+            ["declaringType"] = declaringType == null ? (test.TypeInfo == null ? null : test.TypeInfo.FullName) : declaringType.FullName,
+            ["runState"] = test.RunState.ToString(),
+            ["methodModuleMvid"] = module == null ? null : module.ModuleVersionId.ToString("D"),
+            ["arguments"] = args,
+            ["nUnitTestCaseAttributes"] = attributes
+        };
+    }
+
+    private static JObject DescribeArgument(object value)
+    {
+        var result = new JObject
+        {
+            ["typeFullName"] = value == null ? null : value.GetType().FullName,
+            ["text"] = SafeText(value)
+        };
+        if (value is bool boolean) result["boolValue"] = boolean;
+        if (value != null && value.GetType().IsEnum) result["enumName"] = Enum.GetName(value.GetType(), value);
+        if (IsNumeric(value)) result["numericValue"] = JToken.FromObject(value);
+        return result;
+    }
+
+    private static bool IsNumeric(object value)
+    {
+        if (value == null) return false;
+        switch (Type.GetTypeCode(value.GetType()))
+        {
+            case TypeCode.Byte: case TypeCode.SByte: case TypeCode.Int16: case TypeCode.UInt16:
+            case TypeCode.Int32: case TypeCode.UInt32: case TypeCode.Int64: case TypeCode.UInt64:
+            case TypeCode.Single: case TypeCode.Double: case TypeCode.Decimal: return true;
+            default: return false;
+        }
+    }
+
+    private static string SafeText(object value)
+    {
+        if (value == null) return null;
+        try { return Convert.ToString(value, CultureInfo.InvariantCulture); }
+        catch { return "<ToString failed>"; }
+    }
+
+    private static object PublicPropertyValue(object target, string propertyName)
+    {
+        if (target == null) return null;
+        var property = target.GetType().GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public);
+        return property == null ? null : property.GetValue(target, null);
+    }
+}

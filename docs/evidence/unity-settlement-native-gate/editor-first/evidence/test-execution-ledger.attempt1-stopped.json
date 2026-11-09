@@ -1,0 +1,49 @@
+{
+  "source": "5457b9c03149333ed3b2bcebdfb10b224364fc25",
+  "policy": "once per exact fixture; stop first failed fixture; no retries",
+  "groups": [
+    {
+      "fixture": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+      "argv": [
+        "unity",
+        "command",
+        "test",
+        "run",
+        "--project-path",
+        "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject",
+        "--caller",
+        "plugin",
+        "--skill",
+        "unity-cli",
+        "--format",
+        "json",
+        "--",
+        "--mode",
+        "editor",
+        "--filter",
+        "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+        "--timeout",
+        "60"
+      ],
+      "startedUtc": "2026-11-09T13:13:46.295265+00:00",
+      "exitCode": 0,
+      "stderr": "",
+      "result": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/settlement64-5457b9c0-2026-11-09/evidence/tests-QuestJournalViewEditModeTests.json",
+      "summary": {
+        "Total": 8,
+        "Passed": 8,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "pass": false,
+      "parseFailure": "KeyError('QuestJournalViewEditModeTests')"
+    }
+  ],
+  "unrun": [
+    "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+    "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+    "MatchLaunchEditModeTests",
+    "MatchSettlementEditModeTests"
+  ]
+}

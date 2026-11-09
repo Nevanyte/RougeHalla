@@ -1,0 +1,16 @@
+{
+  "rawRetained": true,
+  "sourceTestOrAssertionFailure": false,
+  "wrapperFailure": "KeyError('QuestJournalViewEditModeTests'): wrong contract lookup key after actual clean8PASS returned",
+  "actualSummary": {
+    "Total": 8,
+    "Passed": 8,
+    "Failed": 0,
+    "Skipped": 0,
+    "Inconclusive": 0
+  },
+  "actualNamesExact": true,
+  "actualExitCode": 0,
+  "retry": false,
+  "remainingFixturesUnrun": 4
+}

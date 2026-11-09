@@ -1,0 +1,167 @@
+{
+  "success": true,
+  "command": "command",
+  "data": {
+    "target": {
+      "host": "127.0.0.1",
+      "port": 7800,
+      "projectPath": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject"
+    },
+    "server": {
+      "version": "0.10.0-exp.1",
+      "port": 55489
+    },
+    "commands": [],
+    "count": 0,
+    "total": 0,
+    "offset": 0,
+    "limit": null,
+    "hint": "No Pipeline commands match \"test run|script eval|script run|editor set_auto_tick\". To search CLI commands and plugins, run unity commands --grep <pattern>.",
+    "search": {
+      "pattern": "test run|script eval|script run|editor set_auto_tick",
+      "count": 6,
+      "matches": [
+        {
+          "kind": "pipeline",
+          "name": "editor set_auto_tick",
+          "path": "editor set_auto_tick",
+          "description": "Keep the editor ticking while unfocused by forcing EditorApplication.SignalTick at a throttled rate",
+          "matchedOn": "name",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity command editor set_auto_tick --project-path /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject"
+        },
+        {
+          "kind": "pipeline",
+          "name": "job batch",
+          "path": "job batch",
+          "description": "Run multiple registered commands in one transactional request. Later ops can reference earlier results with \"$<id-or-index>.<jsonPath>\" (e.g. \"$0.instanceId\"; \"$$\" escapes a literal '$'). transactional=true (default) groups every op into one Undo step and reverts all applied ops if any op fails; commands that mutate outside the Undo system (asset/file/settings writes) are rejected unless transactional=false. on-error=abort|continue (continue forces transactional=false); dry-run validates without mutating; timeout (seconds, default 60) bounds execution — when it is about to run out the remaining ops are skipped and a transactional batch rolls back (submit long batches with \"job\": true). Excludes build run, build.target switch, the package commands, editor.playmode start/stop/pause, script recompile, script eval, script eval_file, script run, editor invoke_menu, scene open/scene create, async commands (test run/test list), runtime-only commands, and nested job batch.",
+          "matchedOn": "description",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity command job batch --project-path /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject"
+        },
+        {
+          "kind": "pipeline",
+          "name": "script eval",
+          "path": "script eval",
+          "description": "Evaluate C# code, given inline or read from a .cs file, using Roslyn's script mode",
+          "matchedOn": "name",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity command script eval --project-path /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject"
+        },
+        {
+          "kind": "pipeline",
+          "name": "script eval_file",
+          "path": "script eval_file",
+          "description": "Deprecated: use script eval --file. Evaluate C# code read from a .cs file on disk",
+          "matchedOn": "name",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity command script eval_file --project-path /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject"
+        },
+        {
+          "kind": "pipeline",
+          "name": "script run",
+          "path": "script run",
+          "description": "Compile a project C# file in memory (no domain reload) and execute a named static entry point. The builder-pattern path for bulk construction. Still arbitrary code execution — shares script eval's capability gate.",
+          "matchedOn": "name",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity command script run --project-path /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject"
+        },
+        {
+          "kind": "pipeline",
+          "name": "test run",
+          "path": "test run",
+          "description": "Execute Unity tests with filtering options",
+          "matchedOn": "name",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity command test run --project-path /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject"
+        }
+      ],
+      "hint": "",
+      "items": [
+        {
+          "kind": "pipeline",
+          "name": "editor set_auto_tick",
+          "path": "editor set_auto_tick",
+          "description": "Keep the editor ticking while unfocused by forcing EditorApplication.SignalTick at a throttled rate",
+          "matchedOn": "name",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity command editor set_auto_tick --project-path /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject"
+        },
+        {
+          "kind": "pipeline",
+          "name": "job batch",
+          "path": "job batch",
+          "description": "Run multiple registered commands in one transactional request. Later ops can reference earlier results with \"$<id-or-index>.<jsonPath>\" (e.g. \"$0.instanceId\"; \"$$\" escapes a literal '$'). transactional=true (default) groups every op into one Undo step and reverts all applied ops if any op fails; commands that mutate outside the Undo system (asset/file/settings writes) are rejected unless transactional=false. on-error=abort|continue (continue forces transactional=false); dry-run validates without mutating; timeout (seconds, default 60) bounds execution — when it is about to run out the remaining ops are skipped and a transactional batch rolls back (submit long batches with \"job\": true). Excludes build run, build.target switch, the package commands, editor.playmode start/stop/pause, script recompile, script eval, script eval_file, script run, editor invoke_menu, scene open/scene create, async commands (test run/test list), runtime-only commands, and nested job batch.",
+          "matchedOn": "description",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity command job batch --project-path /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject"
+        },
+        {
+          "kind": "pipeline",
+          "name": "script eval",
+          "path": "script eval",
+          "description": "Evaluate C# code, given inline or read from a .cs file, using Roslyn's script mode",
+          "matchedOn": "name",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity command script eval --project-path /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject"
+        },
+        {
+          "kind": "pipeline",
+          "name": "script eval_file",
+          "path": "script eval_file",
+          "description": "Deprecated: use script eval --file. Evaluate C# code read from a .cs file on disk",
+          "matchedOn": "name",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity command script eval_file --project-path /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject"
+        },
+        {
+          "kind": "pipeline",
+          "name": "script run",
+          "path": "script run",
+          "description": "Compile a project C# file in memory (no domain reload) and execute a named static entry point. The builder-pattern path for bulk construction. Still arbitrary code execution — shares script eval's capability gate.",
+          "matchedOn": "name",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity command script run --project-path /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject"
+        },
+        {
+          "kind": "pipeline",
+          "name": "test run",
+          "path": "test run",
+          "description": "Execute Unity tests with filtering options",
+          "matchedOn": "name",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity command test run --project-path /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject"
+        }
+      ],
+      "total": 6,
+      "nextPage": null,
+      "partial": false
+    }
+  },
+  "errors": [],
+  "warnings": []
+}

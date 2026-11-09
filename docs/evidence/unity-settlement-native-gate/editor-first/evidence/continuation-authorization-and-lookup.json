@@ -1,0 +1,18 @@
+{
+  "authorization": "Root explicitly approves orchestration-only four-unrun continuation after frozen contract independent validation; no Quest retry, source/test/selector change or typed-binding relaxation",
+  "exactFixtureKeys": [
+    "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+    "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+    "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+    "MatchLaunchEditModeTests",
+    "MatchSettlementEditModeTests"
+  ],
+  "counts": [
+    8,
+    6,
+    11,
+    17,
+    22
+  ],
+  "allKeysValidated": true
+}

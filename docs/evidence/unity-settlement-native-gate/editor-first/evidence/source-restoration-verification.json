@@ -1,0 +1,11 @@
+{
+  "source": "5457b9c03149333ed3b2bcebdfb10b224364fc25",
+  "pinsVerified": 1162,
+  "allExact": true,
+  "cleanGit": true,
+  "initialStateRestoredExceptTransientSceneHandle": true,
+  "actualCasesPassed": 64,
+  "testInvocationCount": 5,
+  "retry": 0,
+  "unrun": 0
+}

@@ -1,0 +1,9 @@
+using System;
+using System.Linq;
+using System.Collections.Generic;
+using System.Reflection;
+using UnityEngine;
+using UnityEditor;
+var names=new[]{"QuestJournalViewEditModeTests","TraderDialogViewEditModeTests","PlayerFlowsEditModeTests","MatchLaunchEditModeTests","MatchSettlementEditModeTests"};
+var results=names.Select(n=>{string path="Assets/Tests/Editor/"+n+".cs";var script=AssetDatabase.LoadAssetAtPath<MonoScript>(path);var t=script!=null?script.GetClass():null;return new{name=n,path,importedPath=script!=null?AssetDatabase.GetAssetPath(script):null,guid=AssetDatabase.AssetPathToGUID(path),loadedType=t!=null?t.FullName:null,assembly=t!=null?t.Assembly.FullName:null,mvid=t!=null?t.Module.ModuleVersionId.ToString():null,methods=t==null?new string[0]:t.GetMethods(BindingFlags.Public|BindingFlags.Instance|BindingFlags.DeclaredOnly).Where(m=>m.GetCustomAttributesData().Any(a=>new[]{"NUnit.Framework.TestAttribute","NUnit.Framework.TestCaseAttribute","NUnit.Framework.TestCaseSourceAttribute"}.Contains(a.AttributeType.FullName))).Select(m=>m.Name).OrderBy(x=>x).ToArray()};}).ToArray();
+return new{compiling=EditorApplication.isCompiling,updating=EditorApplication.isUpdating,focusedWindow=EditorWindow.focusedWindow!=null?EditorWindow.focusedWindow.GetType().FullName:null,loadedProduction=new{type=typeof(Roguehalla.Client.MatchClient).FullName,assembly=typeof(Roguehalla.Client.MatchClient).Assembly.FullName,mvid=typeof(Roguehalla.Client.MatchClient).Module.ModuleVersionId.ToString(),path="Assets/Scripts/Net/MatchClient.cs",guid=AssetDatabase.AssetPathToGUID("Assets/Scripts/Net/MatchClient.cs"),dependencyHash=AssetDatabase.GetAssetDependencyHash("Assets/Scripts/Net/MatchClient.cs").ToString()},results};

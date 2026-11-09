@@ -1,0 +1,1 @@
+Call.py attempted d.get on successful JSON string response for editor set_auto_tick, causing AttributeError. Exact successful raw response and invocation exit0 retained in autotick-for-discovery-tests.json. No test body was invoked by that command. Parser now accepts successful JSON string responses.

@@ -1,0 +1,22 @@
+{
+  "source": "Exact JSON observed in first tool output; no test invocation or Editor mutation",
+  "argv": [
+    "unity",
+    "list",
+    "--format",
+    "json"
+  ],
+  "exitCode": 2,
+  "stdout": {
+    "success": false,
+    "command": "",
+    "data": null,
+    "errors": [
+      {
+        "code": "INVALID_COMMAND_ARGS",
+        "message": "unknown command 'list'\\n(Did you mean unity command?) Not sure which command? unity commands --grep <term>"
+      }
+    ],
+    "warnings": []
+  }
+}

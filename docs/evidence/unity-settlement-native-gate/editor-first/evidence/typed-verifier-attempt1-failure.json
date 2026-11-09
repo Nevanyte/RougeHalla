@@ -1,0 +1,5 @@
+{
+  "beforeTests": true,
+  "failure": "AssertionError comparing actual Int64 numericValue integer0 to contract value string0; both types System.Int64; fullName actually ends0L",
+  "repair": "Compare exact invariant numeric text for integral contract strings; no source/selector/test change"
+}

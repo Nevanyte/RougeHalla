@@ -1,0 +1,26 @@
+{
+  "argv": [
+    "unity",
+    "command",
+    "editor",
+    "set_auto_tick",
+    "--project-path",
+    "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject",
+    "--caller",
+    "plugin",
+    "--skill",
+    "unity-cli",
+    "--format",
+    "json",
+    "--",
+    "--enabled",
+    "true",
+    "--interval-ms",
+    "16",
+    "--persist",
+    "false"
+  ],
+  "exitCode": 0,
+  "stderr": "",
+  "utc": "2026-11-09T13:12:03.464747+00:00"
+}
