@@ -1,4 +1,5 @@
 //! Shared Sentenced source/group kernel; admission requires the complete source-born consumer gates.
+pub(crate) mod mark_tax;
 use super::ledger::Entry;
 use crate::constants::*;
 use crate::content::FactionId;
@@ -83,6 +84,7 @@ pub(crate) fn prepare(
     if !k.config.faction_mode.sentenced() {
         return Ok(());
     }
+    mark_tax::prepare(w, &mut s.mark_tax_next)?;
     let edges = edge_budget(k, w.players.len())?;
     if s.mark_denials.capacity() < edges {
         s.mark_denials

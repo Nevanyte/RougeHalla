@@ -37,6 +37,8 @@ pub(crate) struct TickScratch {
     pub(crate) performed: Vec<crate::factions::PerformedAttack>,
     pub(crate) performed_bounded: bool,
     pub(crate) mark_denials: Vec<(PlayerId, PlayerId)>,
+    /// Empty between passes. A rebuild installs the complete next tax index before refolding any affected member.
+    pub(crate) mark_tax_next: Vec<crate::factions::TaxBinding>,
     pub(crate) ledger_diagnostics: Vec<crate::factions::DamageView>,
     pub(crate) dot_sums: Vec<(PlayerId, f64)>,
     pub(crate) fx: crate::fx_report::TickFx,
@@ -109,6 +111,7 @@ impl Default for TickScratch {
             performed: Vec::with_capacity(crate::fx_report::FX_INSTANT_BUCKETS_MAX),
             performed_bounded: true,
             mark_denials: Vec::with_capacity(MAX_PLAYERS),
+            mark_tax_next: Vec::with_capacity(MAX_PLAYERS),
             ledger_diagnostics: Vec::with_capacity(hits),
             dot_sums: Vec::with_capacity(p),
             fx: crate::fx_report::TickFx {
@@ -167,6 +170,7 @@ impl TickScratch {
         }
         macro_rules! reserve { ($($field:ident),*) => { $(if self.$field.capacity() < count {self.$field.reserve(count.saturating_sub(self.$field.len()));})* }; }
         reserve!(
+            mark_tax_next,
             standing,
             mults,
             bodies,
@@ -186,7 +190,8 @@ impl TickScratch {
     /// `bounty_at_tick_start` (rewritten at the start of every active tick), `bodies`, `victims`, `ledger_mults`,
     /// `entry_next`, `entry_rank`, `idxs`, `amounts`, `ledger_raws`, `order`, `hits`, `alive`, `path` and `drained`.
     pub(crate) fn is_settled(&self) -> bool {
-        self.cast_landings.is_empty()
+        self.mark_tax_next.is_empty()
+            && self.cast_landings.is_empty()
             && self.melee.is_empty()
             && self.ledger.is_empty()
             && self.downed_this_tick.is_empty()
