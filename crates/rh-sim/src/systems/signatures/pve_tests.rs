@@ -551,13 +551,25 @@ fn basic_pve_mode_content_and_join_are_closed_before_mutation() {
     assert!(Sim::try_new(cfg.clone(), arena("frost"), Secrets::from_seed(1)).is_err());
     let mut full = cfg.clone();
     full.faction_mode = crate::FactionMode::EngagementHolyPlagueFireFrostSentenced;
-    assert!(Sim::try_new(full, arena("fire"), Secrets::from_seed(1)).is_err());
+    // Full admission is complete; lower profiles below still fail before changing the world.
+    for zone in ["fire", "frost", "sentenced"] {
+        let mut admitted = Sim::try_new(full.clone(), arena(zone), Secrets::from_seed(1)).unwrap();
+        for faction in [FactionId::Frost, FactionId::Sentenced] {
+            let id = admitted
+                .add_player(faction.as_str(), Some(faction), false)
+                .unwrap();
+            assert_eq!(admitted.player(id).unwrap().faction(), faction);
+        }
+        assert_eq!(admitted.players().len(), 2);
+    }
     let mut s = Sim::try_new(cfg, arena("fire"), Secrets::from_seed(1)).unwrap();
     let before = serde_json::to_value(&s).unwrap();
+    let before_hash = s.state_hash();
     assert!(s
         .add_player("unsupported", Some(FactionId::Frost), false)
         .is_none());
     assert_eq!(serde_json::to_value(&s).unwrap(), before);
+    assert_eq!(s.state_hash(), before_hash);
     assert!(s
         .add_player("supported", Some(FactionId::Holy), false)
         .is_some());

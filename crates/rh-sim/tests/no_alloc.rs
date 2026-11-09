@@ -578,6 +578,10 @@ fn sentenced_denial_refills() {
         sig["contact_at"] = serde_json::json!(now);
         sig["reach_at"] = serde_json::json!(now);
     }
+    // A singleton Mark now carries its typed historical target group, including trusted helper setups.
+    cp["world"]["players"][0]["core"]["signature"]["mark"]["group"] =
+        serde_json::json!({"Fighter": 2});
+    cp["world"]["players"][0]["core"]["signature"]["mark"]["group_size"] = serde_json::json!(1);
     cp["world"]["players"][0]["core"]["signature"]["mark"]["tier"] = serde_json::json!(4);
     cp["world"]["players"][0]["core"]["signature"]["mark"]["hits"] = serde_json::json!(9);
     cp["world"]["players"][0]["core"]["signature"]["mark"]["progress"] = serde_json::json!(9.);
