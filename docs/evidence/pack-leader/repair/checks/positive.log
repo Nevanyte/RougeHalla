@@ -1,0 +1,2 @@
+pack-leader capture wrote /tmp/pack-leader-check/source.json
+CHECK-OK: fresh capture reproduces the canonical corpus bytes exactly

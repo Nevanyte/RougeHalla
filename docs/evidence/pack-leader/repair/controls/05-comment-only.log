@@ -1,0 +1,7 @@
+CONTROL 05-comment-only
+applied 1 hunk(s) to packages/server/src/sim/mods.ts
+pack-leader capture wrote /tmp/out/05-comment-only/source.json
+MUTANT-SOURCE-HASH-BOUND packages/server/src/sim/mods.ts 8d4a289ad6bd859fd1cbe6f8c8af5caa4ac38943afde27acbfe6c39a98af925c
+SEMANTIC-IDENTICAL PROVENANCE-DIFF changed=source
+OUTPUT_SHA256 5ba83c6d890c2b338502d821a23441567d51e73ce12428e4b01386de03ac2c51
+CONTROL-OK 05-comment-only SEMANTIC-IDENTICAL PROVENANCE-DIFF

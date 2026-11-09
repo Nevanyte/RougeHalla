@@ -1,0 +1,9 @@
+OLD-VS-NEW-SOURCE-CORPUS (historical old seal c946cfbf vs repaired canonical)
+old-corpus-sha256 c9ae77c74ebd14c1b1b6cce557be592165e2105b8263604f8deaf21b0893169e old-path parity/pack-leader/source.json (historical, preserved byte-unchanged)
+new-corpus-sha256 62047e82cde33f9d056e5cc3452a8d1dc19545372f971f9040c99a3ee56e26ea new-path parity/pack-leader/repair/source.json (repaired canonical)
+allowed-added: /witness/cachePhases (new narrowed post-step cache phase field; no gameplay change)
+allowed-changed: /tool/capture (capture tool hash, unavoidable tool provenance)
+removed: none
+gameplay-projection-equal: YES
+result-identical: YES
+RESULT PASS (only the named additive/provenance changes)

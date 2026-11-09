@@ -1,0 +1,7 @@
+CONTROL 06-excluded-count
+applied 1 hunk(s) to packages/server/src/sim/campHeal.ts
+pack-leader capture wrote /tmp/out/06-excluded-count/source.json
+MUTANT-SOURCE-HASH-BOUND packages/server/src/sim/campHeal.ts fb91c9403c9a05a733dd41b5883c9c4ab34235ceccfca1faa0b2ea134c5639a6
+SEMANTIC-DIFF .result.completeNonemptyEventTape[111].events[1].fx.amount baseline=625.7285233040177 mutant=611.0630110390798
+OUTPUT_SHA256 a9e56ffbbf848829e008fea30e0abf7443009c5ea21af34338bc7875257413e3
+CONTROL-OK 06-excluded-count SEMANTIC-DIFF
