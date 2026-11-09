@@ -1,0 +1,770 @@
+{
+  "cell": "C13",
+  "cellClass": "startup",
+  "comparisons": {
+    "startup.decoded_bytes": {
+      "note": "ratio of pooled order statistics; direction of 'better' depends on the metric",
+      "portOverLegacy": {
+        "mean": 7.153846153846154,
+        "p50": 7.153846153846154,
+        "p95": 7.153846153846154,
+        "p99": 7.153846153846154
+      }
+    },
+    "startup.encoded_bytes": {
+      "note": "ratio of pooled order statistics; direction of 'better' depends on the metric",
+      "portOverLegacy": {
+        "mean": 9.791666666666666,
+        "p50": 9.791666666666666,
+        "p95": 9.791666666666666,
+        "p99": 9.791666666666666
+      }
+    },
+    "startup.engine_ready_ms": {
+      "note": "ratio of pooled order statistics; direction of 'better' depends on the metric",
+      "portOverLegacy": {
+        "mean": 1.9988950619133994,
+        "p50": 1.9879977024304964,
+        "p95": 1.9963896810185477,
+        "p99": 1.9963896810185477
+      }
+    },
+    "startup.first_snapshot_ms": {
+      "note": "ratio of pooled order statistics; direction of 'better' depends on the metric",
+      "portOverLegacy": {
+        "mean": 1.8371158169182318,
+        "p50": 1.8463007567852603,
+        "p95": 1.8012595336840111,
+        "p99": 1.8012595336840111
+      }
+    },
+    "startup.join_to_active_ms": {
+      "note": "ratio of pooled order statistics; direction of 'better' depends on the metric",
+      "portOverLegacy": {
+        "mean": 1.0024167511582869,
+        "p50": 1.027686627809443,
+        "p95": 1.01210788653017,
+        "p99": 1.01210788653017
+      }
+    },
+    "startup.payload_complete_ms": {
+      "note": "ratio of pooled order statistics; direction of 'better' depends on the metric",
+      "portOverLegacy": {
+        "mean": 0.9819453737098607,
+        "p50": 0.9793838478476579,
+        "p95": 0.9873808253948481,
+        "p99": 0.9873808253948481
+      }
+    }
+  },
+  "format": "rh-full-port-perf-summary/1",
+  "labels": [
+    "SYNTHETIC CONTROL - not a measurement of any build or machine",
+    "Startup for one declared cache state only; cold and warm are separate cells."
+  ],
+  "matrixSha256": "37e87e090f7dd5bbdbb0f739a4274c68ac7755f792287de92dc7bbd988ed8176",
+  "reportSha256": "66fbb25ac6f05e2527123957638ac112f77ac2d025168ef57b221b7051a5442f",
+  "sides": {
+    "legacy": {
+      "derived": {},
+      "load": {},
+      "metrics": {
+        "startup.decoded_bytes": {
+          "coverage": 1.0,
+          "crossStackComparable": true,
+          "kind": "counter",
+          "perTrial": [
+            {
+              "count": 1,
+              "p50": 7800000,
+              "p99": 7800000,
+              "trial": 0
+            },
+            {
+              "count": 1,
+              "p50": 7800000,
+              "p99": 7800000,
+              "trial": 1
+            },
+            {
+              "count": 1,
+              "p50": 7800000,
+              "p99": 7800000,
+              "trial": 2
+            },
+            {
+              "count": 1,
+              "p50": 7800000,
+              "p99": 7800000,
+              "trial": 3
+            },
+            {
+              "count": 1,
+              "p50": 7800000,
+              "p99": 7800000,
+              "trial": 4
+            }
+          ],
+          "pooled": {
+            "count": 5,
+            "max": 7800000,
+            "mean": 7800000.0,
+            "min": 7800000,
+            "p50": 7800000,
+            "p90": 7800000,
+            "p95": 7800000,
+            "p99": 7800000,
+            "p99_9": 7800000
+          },
+          "pooledMeaning": "distribution of per-window (or per-trial) counter values",
+          "source": "resource-timing",
+          "status": "measured",
+          "total": 39000000,
+          "trialP50Range": [
+            7800000,
+            7800000
+          ],
+          "unit": "bytes"
+        },
+        "startup.encoded_bytes": {
+          "coverage": 1.0,
+          "crossStackComparable": true,
+          "kind": "counter",
+          "perTrial": [
+            {
+              "count": 1,
+              "p50": 2400000,
+              "p99": 2400000,
+              "trial": 0
+            },
+            {
+              "count": 1,
+              "p50": 2400000,
+              "p99": 2400000,
+              "trial": 1
+            },
+            {
+              "count": 1,
+              "p50": 2400000,
+              "p99": 2400000,
+              "trial": 2
+            },
+            {
+              "count": 1,
+              "p50": 2400000,
+              "p99": 2400000,
+              "trial": 3
+            },
+            {
+              "count": 1,
+              "p50": 2400000,
+              "p99": 2400000,
+              "trial": 4
+            }
+          ],
+          "pooled": {
+            "count": 5,
+            "max": 2400000,
+            "mean": 2400000.0,
+            "min": 2400000,
+            "p50": 2400000,
+            "p90": 2400000,
+            "p95": 2400000,
+            "p99": 2400000,
+            "p99_9": 2400000
+          },
+          "pooledMeaning": "distribution of per-window (or per-trial) counter values",
+          "source": "resource-timing",
+          "status": "measured",
+          "total": 12000000,
+          "trialP50Range": [
+            2400000,
+            2400000
+          ],
+          "unit": "bytes"
+        },
+        "startup.engine_ready_ms": {
+          "coverage": 1.0,
+          "crossStackComparable": true,
+          "kind": "counter",
+          "perTrial": [
+            {
+              "count": 1,
+              "p50": 1518.126,
+              "p99": 1518.126,
+              "trial": 0
+            },
+            {
+              "count": 1,
+              "p50": 1487.604,
+              "p99": 1487.604,
+              "trial": 1
+            },
+            {
+              "count": 1,
+              "p50": 1486.559,
+              "p99": 1486.559,
+              "trial": 2
+            },
+            {
+              "count": 1,
+              "p50": 1523.332,
+              "p99": 1523.332,
+              "trial": 3
+            },
+            {
+              "count": 1,
+              "p50": 1525.073,
+              "p99": 1525.073,
+              "trial": 4
+            }
+          ],
+          "pooled": {
+            "count": 5,
+            "max": 1525.073,
+            "mean": 1508.1388000000002,
+            "min": 1486.559,
+            "p50": 1518.126,
+            "p90": 1525.073,
+            "p95": 1525.073,
+            "p99": 1525.073,
+            "p99_9": 1525.073
+          },
+          "pooledMeaning": "distribution of per-window (or per-trial) counter values",
+          "source": "lifecycle-marks",
+          "status": "measured",
+          "total": 7540.694,
+          "trialP50Range": [
+            1486.559,
+            1525.073
+          ],
+          "unit": "ms"
+        },
+        "startup.first_snapshot_ms": {
+          "coverage": 1.0,
+          "crossStackComparable": true,
+          "kind": "counter",
+          "perTrial": [
+            {
+              "count": 1,
+              "p50": 1756.304,
+              "p99": 1756.304,
+              "trial": 0
+            },
+            {
+              "count": 1,
+              "p50": 1843.857,
+              "p99": 1843.857,
+              "trial": 1
+            },
+            {
+              "count": 1,
+              "p50": 1790.204,
+              "p99": 1790.204,
+              "trial": 2
+            },
+            {
+              "count": 1,
+              "p50": 1829.575,
+              "p99": 1829.575,
+              "trial": 3
+            },
+            {
+              "count": 1,
+              "p50": 1759.698,
+              "p99": 1759.698,
+              "trial": 4
+            }
+          ],
+          "pooled": {
+            "count": 5,
+            "max": 1843.857,
+            "mean": 1795.9276000000002,
+            "min": 1756.304,
+            "p50": 1790.204,
+            "p90": 1843.857,
+            "p95": 1843.857,
+            "p99": 1843.857,
+            "p99_9": 1843.857
+          },
+          "pooledMeaning": "distribution of per-window (or per-trial) counter values",
+          "source": "lifecycle-marks",
+          "status": "measured",
+          "total": 8979.638,
+          "trialP50Range": [
+            1756.304,
+            1843.857
+          ],
+          "unit": "ms"
+        },
+        "startup.join_to_active_ms": {
+          "coverage": 1.0,
+          "crossStackComparable": true,
+          "kind": "counter",
+          "perTrial": [
+            {
+              "count": 1,
+              "p50": 3162.651,
+              "p99": 3162.651,
+              "trial": 0
+            },
+            {
+              "count": 1,
+              "p50": 3283.329,
+              "p99": 3283.329,
+              "trial": 1
+            },
+            {
+              "count": 1,
+              "p50": 3149.571,
+              "p99": 3149.571,
+              "trial": 2
+            },
+            {
+              "count": 1,
+              "p50": 3212.959,
+              "p99": 3212.959,
+              "trial": 3
+            },
+            {
+              "count": 1,
+              "p50": 3352.856,
+              "p99": 3352.856,
+              "trial": 4
+            }
+          ],
+          "pooled": {
+            "count": 5,
+            "max": 3352.856,
+            "mean": 3232.2732,
+            "min": 3149.571,
+            "p50": 3212.959,
+            "p90": 3352.856,
+            "p95": 3352.856,
+            "p99": 3352.856,
+            "p99_9": 3352.856
+          },
+          "pooledMeaning": "distribution of per-window (or per-trial) counter values",
+          "source": "lifecycle-marks",
+          "status": "measured",
+          "total": 16161.366,
+          "trialP50Range": [
+            3149.571,
+            3352.856
+          ],
+          "unit": "ms"
+        },
+        "startup.payload_complete_ms": {
+          "coverage": 1.0,
+          "crossStackComparable": true,
+          "kind": "counter",
+          "perTrial": [
+            {
+              "count": 1,
+              "p50": 513.255,
+              "p99": 513.255,
+              "trial": 0
+            },
+            {
+              "count": 1,
+              "p50": 505.914,
+              "p99": 505.914,
+              "trial": 1
+            },
+            {
+              "count": 1,
+              "p50": 513.742,
+              "p99": 513.742,
+              "trial": 2
+            },
+            {
+              "count": 1,
+              "p50": 505.545,
+              "p99": 505.545,
+              "trial": 3
+            },
+            {
+              "count": 1,
+              "p50": 487.434,
+              "p99": 487.434,
+              "trial": 4
+            }
+          ],
+          "pooled": {
+            "count": 5,
+            "max": 513.742,
+            "mean": 505.178,
+            "min": 487.434,
+            "p50": 505.914,
+            "p90": 513.742,
+            "p95": 513.742,
+            "p99": 513.742,
+            "p99_9": 513.742
+          },
+          "pooledMeaning": "distribution of per-window (or per-trial) counter values",
+          "source": "resource-timing",
+          "status": "measured",
+          "total": 2525.89,
+          "trialP50Range": [
+            487.434,
+            513.742
+          ],
+          "unit": "ms"
+        }
+      },
+      "stack": "legacy-ts-colyseus-phaser"
+    },
+    "port": {
+      "derived": {},
+      "load": {},
+      "metrics": {
+        "startup.decoded_bytes": {
+          "coverage": 1.0,
+          "crossStackComparable": true,
+          "kind": "counter",
+          "perTrial": [
+            {
+              "count": 1,
+              "p50": 55800000,
+              "p99": 55800000,
+              "trial": 0
+            },
+            {
+              "count": 1,
+              "p50": 55800000,
+              "p99": 55800000,
+              "trial": 1
+            },
+            {
+              "count": 1,
+              "p50": 55800000,
+              "p99": 55800000,
+              "trial": 2
+            },
+            {
+              "count": 1,
+              "p50": 55800000,
+              "p99": 55800000,
+              "trial": 3
+            },
+            {
+              "count": 1,
+              "p50": 55800000,
+              "p99": 55800000,
+              "trial": 4
+            }
+          ],
+          "pooled": {
+            "count": 5,
+            "max": 55800000,
+            "mean": 55800000.0,
+            "min": 55800000,
+            "p50": 55800000,
+            "p90": 55800000,
+            "p95": 55800000,
+            "p99": 55800000,
+            "p99_9": 55800000
+          },
+          "pooledMeaning": "distribution of per-window (or per-trial) counter values",
+          "source": "resource-timing",
+          "status": "measured",
+          "total": 279000000,
+          "trialP50Range": [
+            55800000,
+            55800000
+          ],
+          "unit": "bytes"
+        },
+        "startup.encoded_bytes": {
+          "coverage": 1.0,
+          "crossStackComparable": true,
+          "kind": "counter",
+          "perTrial": [
+            {
+              "count": 1,
+              "p50": 23500000,
+              "p99": 23500000,
+              "trial": 0
+            },
+            {
+              "count": 1,
+              "p50": 23500000,
+              "p99": 23500000,
+              "trial": 1
+            },
+            {
+              "count": 1,
+              "p50": 23500000,
+              "p99": 23500000,
+              "trial": 2
+            },
+            {
+              "count": 1,
+              "p50": 23500000,
+              "p99": 23500000,
+              "trial": 3
+            },
+            {
+              "count": 1,
+              "p50": 23500000,
+              "p99": 23500000,
+              "trial": 4
+            }
+          ],
+          "pooled": {
+            "count": 5,
+            "max": 23500000,
+            "mean": 23500000.0,
+            "min": 23500000,
+            "p50": 23500000,
+            "p90": 23500000,
+            "p95": 23500000,
+            "p99": 23500000,
+            "p99_9": 23500000
+          },
+          "pooledMeaning": "distribution of per-window (or per-trial) counter values",
+          "source": "resource-timing",
+          "status": "measured",
+          "total": 117500000,
+          "trialP50Range": [
+            23500000,
+            23500000
+          ],
+          "unit": "bytes"
+        },
+        "startup.engine_ready_ms": {
+          "coverage": 1.0,
+          "crossStackComparable": true,
+          "kind": "counter",
+          "perTrial": [
+            {
+              "count": 1,
+              "p50": 3005.835,
+              "p99": 3005.835,
+              "trial": 0
+            },
+            {
+              "count": 1,
+              "p50": 3044.64,
+              "p99": 3044.64,
+              "trial": 1
+            },
+            {
+              "count": 1,
+              "p50": 3028.299,
+              "p99": 3028.299,
+              "trial": 2
+            },
+            {
+              "count": 1,
+              "p50": 3018.031,
+              "p99": 3018.031,
+              "trial": 3
+            },
+            {
+              "count": 1,
+              "p50": 2976.251,
+              "p99": 2976.251,
+              "trial": 4
+            }
+          ],
+          "pooled": {
+            "count": 5,
+            "max": 3044.64,
+            "mean": 3014.6112000000003,
+            "min": 2976.251,
+            "p50": 3018.031,
+            "p90": 3044.64,
+            "p95": 3044.64,
+            "p99": 3044.64,
+            "p99_9": 3044.64
+          },
+          "pooledMeaning": "distribution of per-window (or per-trial) counter values",
+          "source": "lifecycle-marks",
+          "status": "measured",
+          "total": 15073.056,
+          "trialP50Range": [
+            2976.251,
+            3044.64
+          ],
+          "unit": "ms"
+        },
+        "startup.first_snapshot_ms": {
+          "coverage": 1.0,
+          "crossStackComparable": true,
+          "kind": "counter",
+          "perTrial": [
+            {
+              "count": 1,
+              "p50": 3319.112,
+              "p99": 3319.112,
+              "trial": 0
+            },
+            {
+              "count": 1,
+              "p50": 3305.255,
+              "p99": 3305.255,
+              "trial": 1
+            },
+            {
+              "count": 1,
+              "p50": 3264.58,
+              "p99": 3264.58,
+              "trial": 2
+            },
+            {
+              "count": 1,
+              "p50": 3321.265,
+              "p99": 3321.265,
+              "trial": 3
+            },
+            {
+              "count": 1,
+              "p50": 3286.423,
+              "p99": 3286.423,
+              "trial": 4
+            }
+          ],
+          "pooled": {
+            "count": 5,
+            "max": 3321.265,
+            "mean": 3299.3269999999998,
+            "min": 3264.58,
+            "p50": 3305.255,
+            "p90": 3321.265,
+            "p95": 3321.265,
+            "p99": 3321.265,
+            "p99_9": 3321.265
+          },
+          "pooledMeaning": "distribution of per-window (or per-trial) counter values",
+          "source": "lifecycle-marks",
+          "status": "measured",
+          "total": 16496.635,
+          "trialP50Range": [
+            3264.58,
+            3321.265
+          ],
+          "unit": "ms"
+        },
+        "startup.join_to_active_ms": {
+          "coverage": 1.0,
+          "crossStackComparable": true,
+          "kind": "counter",
+          "perTrial": [
+            {
+              "count": 1,
+              "p50": 3018.329,
+              "p99": 3018.329,
+              "trial": 0
+            },
+            {
+              "count": 1,
+              "p50": 3327.729,
+              "p99": 3327.729,
+              "trial": 1
+            },
+            {
+              "count": 1,
+              "p50": 3393.452,
+              "p99": 3393.452,
+              "trial": 2
+            },
+            {
+              "count": 1,
+              "p50": 3158.999,
+              "p99": 3158.999,
+              "trial": 3
+            },
+            {
+              "count": 1,
+              "p50": 3301.915,
+              "p99": 3301.915,
+              "trial": 4
+            }
+          ],
+          "pooled": {
+            "count": 5,
+            "max": 3393.452,
+            "mean": 3240.0847999999996,
+            "min": 3018.329,
+            "p50": 3301.915,
+            "p90": 3393.452,
+            "p95": 3393.452,
+            "p99": 3393.452,
+            "p99_9": 3393.452
+          },
+          "pooledMeaning": "distribution of per-window (or per-trial) counter values",
+          "source": "lifecycle-marks",
+          "status": "measured",
+          "total": 16200.423999999999,
+          "trialP50Range": [
+            3018.329,
+            3393.452
+          ],
+          "unit": "ms"
+        },
+        "startup.payload_complete_ms": {
+          "coverage": 1.0,
+          "crossStackComparable": true,
+          "kind": "counter",
+          "perTrial": [
+            {
+              "count": 1,
+              "p50": 504.244,
+              "p99": 504.244,
+              "trial": 0
+            },
+            {
+              "count": 1,
+              "p50": 482.349,
+              "p99": 482.349,
+              "trial": 1
+            },
+            {
+              "count": 1,
+              "p50": 495.484,
+              "p99": 495.484,
+              "trial": 2
+            },
+            {
+              "count": 1,
+              "p50": 507.259,
+              "p99": 507.259,
+              "trial": 3
+            },
+            {
+              "count": 1,
+              "p50": 490.95,
+              "p99": 490.95,
+              "trial": 4
+            }
+          ],
+          "pooled": {
+            "count": 5,
+            "max": 507.259,
+            "mean": 496.0572,
+            "min": 482.349,
+            "p50": 495.484,
+            "p90": 507.259,
+            "p95": 507.259,
+            "p99": 507.259,
+            "p99_9": 507.259
+          },
+          "pooledMeaning": "distribution of per-window (or per-trial) counter values",
+          "source": "resource-timing",
+          "status": "measured",
+          "total": 2480.286,
+          "trialP50Range": [
+            482.349,
+            507.259
+          ],
+          "unit": "ms"
+        }
+      },
+      "stack": "rust-native-unity-web"
+    }
+  },
+  "synthetic": true,
+  "toolSha256": "77503d21b6fd48cc9f5c5257552f2f80ec25580240343e0f926339d840ca0e17",
+  "verdict": "ADMITTED-SYNTHETIC-CONTROL"
+}

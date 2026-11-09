@@ -1,0 +1,12 @@
+{
+  "cell": "C13",
+  "finalEvidence": false,
+  "format": "rh-full-port-perf-verdict/1",
+  "matrixSha256": "37e87e090f7dd5bbdbb0f739a4274c68ac7755f792287de92dc7bbd988ed8176",
+  "refusalCodes": [],
+  "refusals": [],
+  "reportSha256": "66fbb25ac6f05e2527123957638ac112f77ac2d025168ef57b221b7051a5442f",
+  "status": "ADMITTED-SYNTHETIC-CONTROL",
+  "synthetic": true,
+  "warnings": []
+}

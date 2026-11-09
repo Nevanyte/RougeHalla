@@ -1,0 +1,966 @@
+{
+  "bases": [
+    {
+      "cell": "C01",
+      "finalEvidence": false,
+      "pass": true,
+      "reportSha256": "d7c8cb902807ae58955cf0a22571f6033a3991e1b21361f236feb70470e2c5d9",
+      "status": "ADMITTED-SYNTHETIC-CONTROL",
+      "warnings": []
+    },
+    {
+      "cell": "C02",
+      "finalEvidence": false,
+      "pass": true,
+      "reportSha256": "f592034bdd1a392284d07917c21cbafc7bf1c6eac997608d47f6b319cf847c79",
+      "status": "ADMITTED-SYNTHETIC-CONTROL",
+      "warnings": []
+    },
+    {
+      "cell": "C03",
+      "finalEvidence": false,
+      "pass": true,
+      "reportSha256": "50621793bf342230ae332852d4ad36d2becdcc73e130d6eb550e0f85fee972ca",
+      "status": "ADMITTED-SYNTHETIC-CONTROL",
+      "warnings": []
+    },
+    {
+      "cell": "C04",
+      "finalEvidence": false,
+      "pass": true,
+      "reportSha256": "253d6a7fee1ae5de18a7ac6020fc04bd2df5d804d8782ad4d91dbc50c97c6037",
+      "status": "ADMITTED-SYNTHETIC-CONTROL",
+      "warnings": []
+    },
+    {
+      "cell": "C05",
+      "finalEvidence": false,
+      "pass": true,
+      "reportSha256": "bd79391d3a487f66295efb794343da3f965135ec19b97a93209e939d2a3f90fc",
+      "status": "ADMITTED-SYNTHETIC-CONTROL",
+      "warnings": []
+    },
+    {
+      "cell": "C06",
+      "finalEvidence": false,
+      "pass": true,
+      "reportSha256": "7f2efd49c2acda266b4114617ea3e58497747ed01ff9158c6fdc5b17c029cea7",
+      "status": "ADMITTED-SYNTHETIC-CONTROL",
+      "warnings": []
+    },
+    {
+      "cell": "C07",
+      "finalEvidence": false,
+      "pass": true,
+      "reportSha256": "45700f314d8633090a577dd370f8109a3d7922777d71acb3d5dbad3ec444a98e",
+      "status": "ADMITTED-SYNTHETIC-CONTROL",
+      "warnings": []
+    },
+    {
+      "cell": "C08",
+      "finalEvidence": false,
+      "pass": true,
+      "reportSha256": "0dbf89d05e31c8799bc42ff9a181d04b26ebae38611e99c9aecdfe29afddf6e0",
+      "status": "ADMITTED-SYNTHETIC-CONTROL",
+      "warnings": []
+    },
+    {
+      "cell": "C09",
+      "finalEvidence": false,
+      "pass": true,
+      "reportSha256": "cffe7e49ccb42d58a9d385385c8a14b455e1a28a1b22d873483c43cdc8897c39",
+      "status": "ADMITTED-SYNTHETIC-CONTROL",
+      "warnings": []
+    },
+    {
+      "cell": "C10",
+      "finalEvidence": false,
+      "pass": true,
+      "reportSha256": "8b2e07d560dd6b97b77cb7a5e8025dab3ef5ab2fb687cb7522a77a4278983f07",
+      "status": "ADMITTED-SYNTHETIC-CONTROL",
+      "warnings": []
+    },
+    {
+      "cell": "C11",
+      "finalEvidence": false,
+      "pass": true,
+      "reportSha256": "b9d24808998b7d81b32ee20f4baceffbbe51c5becf1205e01ddb5bd959464833",
+      "status": "ADMITTED-SYNTHETIC-CONTROL",
+      "warnings": []
+    },
+    {
+      "cell": "C12",
+      "finalEvidence": false,
+      "pass": true,
+      "reportSha256": "ff48b58eeb3bc2b80724f2f366816c3dc046c301380e4798c5fbd0609f582e1a",
+      "status": "ADMITTED-SYNTHETIC-CONTROL",
+      "warnings": []
+    },
+    {
+      "cell": "C13",
+      "finalEvidence": false,
+      "pass": true,
+      "reportSha256": "66fbb25ac6f05e2527123957638ac112f77ac2d025168ef57b221b7051a5442f",
+      "status": "ADMITTED-SYNTHETIC-CONTROL",
+      "warnings": []
+    },
+    {
+      "cell": "C14",
+      "finalEvidence": false,
+      "pass": true,
+      "reportSha256": "b09060016f53924e4de95e9408640094eb6c8783c4ecd78563a0680a793d45e9",
+      "status": "ADMITTED-SYNTHETIC-CONTROL",
+      "warnings": []
+    },
+    {
+      "cell": "C15",
+      "finalEvidence": false,
+      "pass": true,
+      "reportSha256": "251203fd696e5e3fdfb3a9c88103e46f32d188510155ac9a2b1e8929a2875953",
+      "status": "ADMITTED-SYNTHETIC-CONTROL",
+      "warnings": []
+    }
+  ],
+  "counts": {
+    "bases": 15,
+    "basesPassed": 15,
+    "refusalControls": 63,
+    "refusalControlsPassed": 63
+  },
+  "label": "SYNTHETIC CONTROL - not a measurement of any build or machine",
+  "matrixSha256": "37e87e090f7dd5bbdbb0f739a4274c68ac7755f792287de92dc7bbd988ed8176",
+  "refusals": [
+    {
+      "cell": "C01",
+      "control": "mismatched-map",
+      "mustInclude": [
+        "WORKLOAD_MISMATCH"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "INITIAL_CHECK",
+        "WORKLOAD_MISMATCH"
+      ],
+      "refusalCount": 6,
+      "reportSha256": "388498ef82e244b06383805b8bf9e143dd7b28ad22baf2d31b398a5881a9cc70"
+    },
+    {
+      "cell": "C01",
+      "control": "mismatched-bot-seed",
+      "mustInclude": [
+        "WORKLOAD_MISMATCH"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "WORKLOAD_MISMATCH",
+        "WORKLOAD_NOT_CELL"
+      ],
+      "refusalCount": 2,
+      "reportSha256": "59997dca861a88591d7e2503721416e2fcfca1da4a9adc73a64faa0c286f41d9"
+    },
+    {
+      "cell": "C01",
+      "control": "mismatched-population",
+      "mustInclude": [
+        "WORKLOAD_MISMATCH"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "INITIAL_CHECK",
+        "WORKLOAD_MISMATCH"
+      ],
+      "refusalCount": 7,
+      "reportSha256": "8611f2ef98f1596ca448cbe8cdcc7e669e05b9721de4d138a409ca700267a065"
+    },
+    {
+      "cell": "C01",
+      "control": "different-machine",
+      "mustInclude": [
+        "MACHINE_MISMATCH"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "MACHINE_MISMATCH"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "a4e96e401f92316ad826be573bf16427d1081aedb153d96a6659e26aa92839a6"
+    },
+    {
+      "cell": "C01",
+      "control": "battery-power",
+      "mustInclude": [
+        "MACHINE_MISMATCH"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "MACHINE_MISMATCH"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "acfa53bb84189a6e680a7d4486ca8443cc459885e40cdc45ee63b8197e2bc697"
+    },
+    {
+      "cell": "C01",
+      "control": "development-build",
+      "mustInclude": [
+        "BUILD_NOT_RELEASE"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "BUILD_NOT_RELEASE"
+      ],
+      "refusalCount": 2,
+      "reportSha256": "5e546c671aab7e1519af31ff040aea8121a78b67d25959bb1fb84e69fc96f091"
+    },
+    {
+      "cell": "C01",
+      "control": "dirty-source",
+      "mustInclude": [
+        "BUILD_DIRTY"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "BUILD_DIRTY"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "4c041aa2be31c48f4901012a991f9291e9494bcff17990ef2cf2df5e13940170"
+    },
+    {
+      "cell": "C01",
+      "control": "artifact-changed-during-run",
+      "mustInclude": [
+        "BUILD_CHANGED"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "BUILD_CHANGED"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "4f3b10a6200ca3359adb5a144d9ddce8754417e53326a167f2948bfc9544d623"
+    },
+    {
+      "cell": "C01",
+      "control": "short-revision",
+      "mustInclude": [
+        "BUILD_PROVENANCE"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "BUILD_PROVENANCE"
+      ],
+      "refusalCount": 2,
+      "reportSha256": "b732c4cf085a75d9e88c8363e4ce35ab142f5a4964964d267cf555a8ecd13913"
+    },
+    {
+      "cell": "C01",
+      "control": "port-client-server-split",
+      "mustInclude": [
+        "PORT_IDENTITY_SPLIT"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "PORT_IDENTITY_SPLIT"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "b059a57e68972b2548b6d11fc0276ee981282da4dec2ee3a8d675e265d55cef9"
+    },
+    {
+      "cell": "C01",
+      "control": "missing-content-pairing",
+      "mustInclude": [
+        "CONTENT_PAIRING"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "CONTENT_PAIRING"
+      ],
+      "refusalCount": 5,
+      "reportSha256": "e1306e415ab85de5c4ac6427b826c893f632267dc5931c74c30f9ca243c276df"
+    },
+    {
+      "cell": "C01",
+      "control": "browser-version-mismatch",
+      "mustInclude": [
+        "BROWSER_MISMATCH"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "BROWSER_MISMATCH"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "ab3cc03fb532c3b5e0a5f0b816081d5bb2d433bb3e7252c552ab4fbd44764c61"
+    },
+    {
+      "cell": "C01",
+      "control": "headless-browser",
+      "mustInclude": [
+        "BROWSER_POLICY"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "BROWSER_POLICY"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "37f11b7f5546bea919557eb1cac6f0ddb99c4247ba4726cae1cc80ce2af82974"
+    },
+    {
+      "cell": "C01",
+      "control": "viewport-mismatch",
+      "mustInclude": [
+        "VIEWPORT_MISMATCH"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "VIEWPORT_MISMATCH"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "0ebeec79d749b5f58e50b5ed83d42b00e072e9af6f541fd3f5e38c017fffcb97"
+    },
+    {
+      "cell": "C01",
+      "control": "display-refresh-unrecorded",
+      "mustInclude": [
+        "DISPLAY_MISMATCH"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "DISPLAY_MISMATCH"
+      ],
+      "refusalCount": 2,
+      "reportSha256": "3957c97f3bdff2028f908a0dd30587f32d2a84a886fb29984bc8830dbb5b74a5"
+    },
+    {
+      "cell": "C01",
+      "control": "uncapped-flag-in-normal-cell",
+      "mustInclude": [
+        "DIAGNOSTIC_MIX"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "DIAGNOSTIC_MIX"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "95b83ce028738034a22f5a41d61b313ec1e1149204355877df820f5e8a197887"
+    },
+    {
+      "cell": "C01",
+      "control": "unity-frame-cap-60",
+      "mustInclude": [
+        "FRAME_CAP"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "FRAME_CAP"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "6fa1a7f9cf8fdc7d22c4505bd5b832963117f37cea040e31eed82e3095c2e465"
+    },
+    {
+      "cell": "C01",
+      "control": "fps-target-key",
+      "mustInclude": [
+        "FORBIDDEN_KEY"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "FORBIDDEN_KEY"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "4c3f0254eab4621b9b32c2a8cc5ab1b7d0867d38b6fe8b4adcedb4d1cc276133"
+    },
+    {
+      "cell": "C01",
+      "control": "overhead-subtraction-key",
+      "mustInclude": [
+        "FORBIDDEN_KEY"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "FORBIDDEN_KEY"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "51469fedc1e1ba6bf0bdd9a22a17099bdac11eb171a95fbd7bef598c68319efa"
+    },
+    {
+      "cell": "C01",
+      "control": "script-mismatch",
+      "mustInclude": [
+        "SCRIPT_MISMATCH"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "SCRIPT_MISMATCH"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "71e0b984f0a7dfcadbb0f282012a9f2bf9e1cfd9c21dbba1048b0dd24c17ecbe"
+    },
+    {
+      "cell": "C01",
+      "control": "tick-rate-30hz",
+      "mustInclude": [
+        "TICK_RATE"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "TICK_RATE",
+        "WORKLOAD_NOT_CELL"
+      ],
+      "refusalCount": 2,
+      "reportSha256": "743419eb0496f1fd9b8d0fad38330179431a5fcc2796f47edba8f9a0c56aec9c"
+    },
+    {
+      "cell": "C01",
+      "control": "accelerated-clock",
+      "mustInclude": [
+        "TICK_COUNT"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "TICK_COUNT"
+      ],
+      "refusalCount": 300,
+      "reportSha256": "69e554de43e9653a625fba204a5babb4e97982f42db8bd7d7f768304324c488c"
+    },
+    {
+      "cell": "C01",
+      "control": "trial-order-blocked",
+      "mustInclude": [
+        "TRIAL_ORDER"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "TRIAL_ORDER"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "918661e62a1b5ab9fc1ee9f8c706fe4b7bc7788b0ce60761683873592970e2e5"
+    },
+    {
+      "cell": "C01",
+      "control": "too-few-trials",
+      "mustInclude": [
+        "TRIAL_COUNT"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "TRIAL_COUNT"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "7ff7e98d75e3aade35c853130bb481231fe1eab479946f0963966282ce28dee7"
+    },
+    {
+      "cell": "C01",
+      "control": "short-warmup",
+      "mustInclude": [
+        "WARMUP"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "WARMUP"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "942d6cd0531d9c1b1ffeb71c74227a801831ddf3d8ff030a786db9c91465216c"
+    },
+    {
+      "cell": "C01",
+      "control": "cold-trial-in-warm-cell",
+      "mustInclude": [
+        "STARTUP_CACHE_STATE"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "STARTUP_CACHE_STATE"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "9fa0fb8eee12cb2bf551d9f4a523e041916375dac6d2618c17a556c713ff17d4"
+    },
+    {
+      "cell": "C01",
+      "control": "missing-sample-window",
+      "mustInclude": [
+        "WINDOW_COUNT",
+        "WINDOW_MISSING"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "WINDOW_COUNT",
+        "WINDOW_MISSING"
+      ],
+      "refusalCount": 45,
+      "reportSha256": "c26f3a453d8ca30be683bad728adf94b95ae6a712f221bf42e9050bf8d879d87"
+    },
+    {
+      "cell": "C01",
+      "control": "gap-between-windows",
+      "mustInclude": [
+        "WINDOW_MISSING"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "WINDOW_MISSING"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "ee3e5b7ae5442f981e58fab4805d9d9dc305e8a4b389a39d6c0b49243783e07b"
+    },
+    {
+      "cell": "C01",
+      "control": "idle-scene",
+      "mustInclude": [
+        "LOAD_FLOOR"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "LOAD_FLOOR"
+      ],
+      "refusalCount": 120,
+      "reportSha256": "bb55045c5c65c7a4dbdf546ffcaeaee6d895bdac65e95335e6e3693387e2bdfb"
+    },
+    {
+      "cell": "C01",
+      "control": "load-mismatch",
+      "mustInclude": [
+        "LOAD_MISMATCH"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "LOAD_MISMATCH"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "f3a96f91381b2356a59331074f0f5c56a8ee6eb959244b7b3375e92842aa45fb"
+    },
+    {
+      "cell": "C01",
+      "control": "initial-check-failed",
+      "mustInclude": [
+        "INITIAL_CHECK"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "INITIAL_CHECK"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "fcd76420a610d0f7c2498f19146f7563d9cb6ded543e1a98c20bbb28a355ae07"
+    },
+    {
+      "cell": "C01",
+      "control": "measured-human-died",
+      "mustInclude": [
+        "OUTCOME_CHECK"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "OUTCOME_CHECK"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "5d6a09081bc1f71659a6771a2c12ad1606145cd639668ae7b4d4a28d82d78780"
+    },
+    {
+      "cell": "C01",
+      "control": "server-crashed",
+      "mustInclude": [
+        "OUTCOME_CHECK"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "OUTCOME_CHECK"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "c6e6a0d352e5d6298ff7a32421e7b0cf36805ec6b511e741113c0444ff97c791"
+    },
+    {
+      "cell": "C01",
+      "control": "page-errors",
+      "mustInclude": [
+        "OUTCOME_CHECK"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "OUTCOME_CHECK"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "213df65db1addb92407337825ba89efa0b651c18a88a9e43fff6ae61646d166f"
+    },
+    {
+      "cell": "C01",
+      "control": "zero-as-absent-gpu",
+      "mustInclude": [
+        "METRIC_ZERO_AS_ABSENT"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "METRIC_ZERO_AS_ABSENT"
+      ],
+      "refusalCount": 60,
+      "reportSha256": "0c792bbe6ed7cac2dadc4eb7aa09b086998a84b79a2398c6763c7fd7c47812c4"
+    },
+    {
+      "cell": "C01",
+      "control": "implicit-absence",
+      "mustInclude": [
+        "METRIC_IMPLICIT_ABSENCE"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "METRIC_IMPLICIT_ABSENCE"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "98890512ff190a9eebf39ae561e843339e806f84a4ab06978a4ce67f51e00832"
+    },
+    {
+      "cell": "C01",
+      "control": "required-metric-absent",
+      "mustInclude": [
+        "METRIC_REQUIRED_ABSENT"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "METRIC_REQUIRED_ABSENT"
+      ],
+      "refusalCount": 300,
+      "reportSha256": "8c68f12343553c8ed78855d518258588c186fe069b17eba1c5abdb9a80f7944a"
+    },
+    {
+      "cell": "C01",
+      "control": "summary-instead-of-raw",
+      "mustInclude": [
+        "SUMMARY_WITHOUT_RAW"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "METRIC_EMPTY",
+        "SUMMARY_WITHOUT_RAW"
+      ],
+      "refusalCount": 2,
+      "reportSha256": "b1ba28fcd6d03a33269d0fd96b5bf888b7ce4349358962792cadd2fc6feedd6f"
+    },
+    {
+      "cell": "C01",
+      "control": "presented-frames-from-raf",
+      "mustInclude": [
+        "METRIC_SEPARATION"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "METRIC_SEPARATION"
+      ],
+      "refusalCount": 600,
+      "reportSha256": "8eef79ec65d5cda6d57facb9dec6fbae5a2bfa964362213c87e56e44ef6a92e5"
+    },
+    {
+      "cell": "C01",
+      "control": "rtt-from-presentation-trace",
+      "mustInclude": [
+        "METRIC_SEPARATION"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "METRIC_INSTRUMENT_MISMATCH",
+        "METRIC_SEPARATION"
+      ],
+      "refusalCount": 6,
+      "reportSha256": "715378a708179a257ab3bebdf616a223376bcf54ff26f173bc3b424520339034"
+    },
+    {
+      "cell": "C01",
+      "control": "throughput-metric-in-realtime-cell",
+      "mustInclude": [
+        "METRIC_SEPARATION"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "METRIC_SEPARATION"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "9ed77e785857558501d15b7db56cefb0c46563d18234f32e53b8106149f87754"
+    },
+    {
+      "cell": "C01",
+      "control": "different-instruments",
+      "mustInclude": [
+        "METRIC_INSTRUMENT_MISMATCH"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "METRIC_INSTRUMENT_MISMATCH"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "6872113e4adcd35acd8808de6bc0c720f3eaa7a15d8f45cda09087913a9d5d90"
+    },
+    {
+      "cell": "C01",
+      "control": "unknown-fps-metric",
+      "mustInclude": [
+        "METRIC_UNKNOWN"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "METRIC_UNKNOWN"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "e39ed510fcd92e876df0c90862732f1f4f5919369e8ddb151c971ff5195108f5"
+    },
+    {
+      "cell": "C01",
+      "control": "recorder-overhead-ab",
+      "mustInclude": [
+        "RECORDER_OVERHEAD"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "RECORDER_OVERHEAD"
+      ],
+      "refusalCount": 2,
+      "reportSha256": "65e20552530856285fd5aebf52a98604d771c701270791b783cc30510ea2e16c"
+    },
+    {
+      "cell": "C01",
+      "control": "recorder-self-share",
+      "mustInclude": [
+        "RECORDER_OVERHEAD"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "RECORDER_OVERHEAD"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "604fd4fdd51bfe195685c6b82bbd4617807a9e9c558b2f839892c342bb44d264"
+    },
+    {
+      "cell": "C01",
+      "control": "recorder-mismatch",
+      "mustInclude": [
+        "RECORDER_MISMATCH"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "RECORDER_MISMATCH"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "eef0433b8c8ed8db6431bb1ed41f1d70da33b5dc98ee169b04ff93252694ddb6"
+    },
+    {
+      "cell": "C01",
+      "control": "recorder-overflow",
+      "mustInclude": [
+        "RECORDER_OVERFLOW"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "RECORDER_OVERFLOW"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "94bcc551ac8b248e5dc0c5acb1671b3f42eb4a2270ac1b06a53e3b7bdbcaa6d3"
+    },
+    {
+      "cell": "C01",
+      "control": "no-overhead-control",
+      "mustInclude": [
+        "OVERHEAD_CONTROL_MISSING"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "OVERHEAD_CONTROL_MISSING"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "9e05199e2ce513741c5a818457ad789408a6b39128a2368ca581cfe7ebdab94a"
+    },
+    {
+      "cell": "C01",
+      "control": "privacy-home-path",
+      "mustInclude": [
+        "PRIVACY"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "PRIVACY"
+      ],
+      "refusalCount": 2,
+      "reportSha256": "8149def8b63c72781bbdc70f7e7923867a874a54991cc92c59442423fed29a90"
+    },
+    {
+      "cell": "C01",
+      "control": "privacy-url-token",
+      "mustInclude": [
+        "PRIVACY"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "PRIVACY"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "9781bc96800ab814b4e484c7dfd2c2e8862da30459704a72c5cccfa94ad84f89"
+    },
+    {
+      "cell": "C01",
+      "control": "unlabelled-synthetic",
+      "mustInclude": [
+        "SYNTHETIC_LABEL"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "SYNTHETIC_LABEL"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "ba3b808fe0713d71aca57616118262e0517a65196c252455a330ed015c440359"
+    },
+    {
+      "cell": "C01",
+      "control": "synthetic-posing-as-real",
+      "mustInclude": [
+        "MACHINE_NOT_REFERENCE",
+        "SYNTHETIC_LABEL"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "MACHINE_NOT_REFERENCE",
+        "SYNTHETIC_LABEL"
+      ],
+      "refusalCount": 2,
+      "reportSha256": "12aaaf4c181a936205578e7603e9883a5bbb6302fc4a9238f18f84247c0908a0"
+    },
+    {
+      "cell": "C01",
+      "control": "wrong-matrix",
+      "mustInclude": [
+        "MATRIX_HASH"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "MATRIX_HASH"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "1405b3dc9e1f374c8626d3865e952961ea8fcba1db67bdaea88856ce2c2d8c8f"
+    },
+    {
+      "cell": "C01",
+      "control": "slice-not-in-matrix",
+      "mustInclude": [
+        "CELL_UNKNOWN"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "CELL_UNKNOWN"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "0f48f07990b35a6c8651c337ceb4f13ac0783a3609bf8c3f389815beff460359"
+    },
+    {
+      "cell": "C05",
+      "control": "throughput-nondeterministic",
+      "mustInclude": [
+        "DETERMINISM"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "DETERMINISM"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "64e80dc6473077805943268969831ce1bc305f6027b0454e1763e2c86f9e8c00"
+    },
+    {
+      "cell": "C05",
+      "control": "throughput-browser-metric",
+      "mustInclude": [
+        "METRIC_SEPARATION"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "METRIC_SEPARATION"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "7297fceab7ef5277700f36ed63f33f87945e0a170ade4f239b51036ffa020da7"
+    },
+    {
+      "cell": "C10",
+      "control": "latency-from-ping",
+      "mustInclude": [
+        "METRIC_SEPARATION"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "METRIC_INSTRUMENT_MISMATCH",
+        "METRIC_SEPARATION"
+      ],
+      "refusalCount": 6,
+      "reportSha256": "98ef5554fcdff272fe23aecb27dbc22a5527db5b21fb13ce5070684aa9678c0d"
+    },
+    {
+      "cell": "C10",
+      "control": "latency-unpaired-instrument",
+      "mustInclude": [
+        "METRIC_INSTRUMENT_MISMATCH"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "METRIC_INSTRUMENT_MISMATCH"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "e24fb7894b22ee08a2d43739eb38f4bfa96c094b6913a69356020b10883c2c7b"
+    },
+    {
+      "cell": "C10",
+      "control": "latency-impairment-mismatch",
+      "mustInclude": [
+        "IMPAIRMENT_MISMATCH"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "IMPAIRMENT_MISMATCH"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "8612ed3ebe217f20355a54693fe3738c7e9db636ffbe0c9e1b118cec5d6fbb32"
+    },
+    {
+      "cell": "C13",
+      "control": "startup-warm-trial-in-cold-cell",
+      "mustInclude": [
+        "STARTUP_CACHE_STATE"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "STARTUP_CACHE_STATE"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "370f8d87038bc3652528bdde8548de6bc7dc6a8b2ef468abc8bb17206fb0a306"
+    },
+    {
+      "cell": "C14",
+      "control": "startup-throttle-mismatch",
+      "mustInclude": [
+        "NETWORK_MISMATCH"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "NETWORK_MISMATCH"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "2ab6e02ae3f8e3ef0ffe3789fd38ef2aab398521e188d1376882f62e6a651b43"
+    },
+    {
+      "cell": "C04",
+      "control": "diagnostic-missing-flags",
+      "mustInclude": [
+        "DIAGNOSTIC_MIX"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "DIAGNOSTIC_MIX"
+      ],
+      "refusalCount": 1,
+      "reportSha256": "05c7428f85575850513a430c075647dce1d20b8948a4852a52d41f4327156fb0"
+    },
+    {
+      "cell": "C06",
+      "control": "density-budget-missing",
+      "mustInclude": [
+        "METRIC_IMPLICIT_ABSENCE"
+      ],
+      "pass": true,
+      "refusalCodes": [
+        "METRIC_IMPLICIT_ABSENCE"
+      ],
+      "refusalCount": 60,
+      "reportSha256": "55e4419d0102fceb88a0bd332457c9c4a04353bfd7ce1d6b3f7c7fde0b8553e4"
+    }
+  ],
+  "repoVerified": true,
+  "toolSha256": "77503d21b6fd48cc9f5c5257552f2f80ec25580240343e0f926339d840ca0e17"
+}

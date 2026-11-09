@@ -1,0 +1,920 @@
+{
+  "cell": "C13",
+  "contentPairing": {
+    "evidence": {
+      "path": "docs/evidence/full-port-perf-preparation/synthetic/SYNTHETIC-content-pairing.json",
+      "sha256": "d942200302022eeeb1dc9b2ad2e94522437e8a44f871bb96d7b8e1442d7947ca"
+    },
+    "legacySourceRevision": "b8ff49cef1c679eba90b35cd617f776bfd145a39",
+    "portContentHash": "5e57e71c5e57e71c"
+  },
+  "format": "rh-full-port-perf-report/1",
+  "label": "SYNTHETIC CONTROL - not a measurement of any build or machine",
+  "matrixSha256": "37e87e090f7dd5bbdbb0f739a4274c68ac7755f792287de92dc7bbd988ed8176",
+  "sides": {
+    "legacy": {
+      "builds": {
+        "client": {
+          "artifactSha256": "beca81828f16d2a2ccff8871618557fffcef721dae224573774ea3cade8dc373",
+          "artifactSha256After": "beca81828f16d2a2ccff8871618557fffcef721dae224573774ea3cade8dc373",
+          "devServer": false,
+          "development": false,
+          "dirty": false,
+          "kind": "legacy-vite-production-bundle",
+          "release": true,
+          "sourceMapsLoaded": false,
+          "sourceRevision": "b8ff49cef1c679eba90b35cd617f776bfd145a39"
+        },
+        "server": {
+          "artifactSha256": "7dc03d83e54ef1c124aa080245f630d82b6bc1d756d83369a868e2ba8124b041",
+          "artifactSha256After": "7dc03d83e54ef1c124aa080245f630d82b6bc1d756d83369a868e2ba8124b041",
+          "development": false,
+          "dirty": false,
+          "inspectorAttached": false,
+          "kind": "legacy-node-colyseus-server",
+          "release": true,
+          "sourceRevision": "b8ff49cef1c679eba90b35cd617f776bfd145a39",
+          "sourceTransformAtRuntime": false
+        }
+      },
+      "environment": {
+        "browser": {
+          "executableSha256": "c1f667e2dcc74958d8201e30b8877491797e8c721b5f781eb1586daad22b92b3",
+          "flags": [
+            "--use-angle=metal"
+          ],
+          "focused": true,
+          "frameRateLimitDisabled": false,
+          "headless": false,
+          "product": "SYNTHETIC-Browser",
+          "version": "0.0.0",
+          "visibility": "visible",
+          "vsyncDisabled": false
+        },
+        "display": {
+          "refreshHz": 60,
+          "resolution": [
+            3024,
+            1964
+          ],
+          "scale": 2,
+          "variableRefresh": false
+        },
+        "frameRateLimit": {
+          "capped": false,
+          "phaserForceSetTimeOut": false,
+          "phaserFpsLimit": 0
+        },
+        "machine": {
+          "arch": "arm64",
+          "cpu": "SYNTHETIC-CPU",
+          "logicalCpus": 18,
+          "memoryBytes": 68719476736,
+          "model": "SYNTHETIC-MODEL",
+          "native": true,
+          "os": "SYNTHETIC-OS",
+          "osBuild": "0"
+        },
+        "network": {
+          "throttle": null
+        },
+        "power": {
+          "lowPowerMode": false,
+          "powerSource": "ac",
+          "thermalState": "nominal"
+        },
+        "viewport": {
+          "canvas": [
+            960,
+            600
+          ],
+          "dpr": 1,
+          "window": [
+            1280,
+            900
+          ]
+        }
+      },
+      "impairment": null,
+      "loadSource": "SYNTHETIC server-side load counters",
+      "recorder": {
+        "bufferOverflow": false,
+        "droppedRecords": 0,
+        "id": "SYNTHETIC-recorder",
+        "overheadControl": {
+          "full": [
+            501.656,
+            501.02,
+            497.806,
+            501.917,
+            498.339
+          ],
+          "metric": "startup.payload_complete_ms",
+          "minimal": [
+            501.758,
+            501.051,
+            500.872,
+            497.857,
+            501.588
+          ]
+        },
+        "sha256": "06f0fc9db7a41718c4320fe59d7e22242e0a2ae8f8fca40d82b84530b4b67684"
+      },
+      "stack": "legacy-ts-colyseus-phaser",
+      "trials": [
+        {
+          "cacheState": "cold",
+          "index": 0,
+          "initialCheck": {
+            "cacheState": "cold",
+            "ok": true,
+            "phase": "navigation"
+          },
+          "metrics": {
+            "startup.decoded_bytes": {
+              "source": "resource-timing",
+              "status": "measured",
+              "unit": "bytes",
+              "value": 7800000
+            },
+            "startup.encoded_bytes": {
+              "source": "resource-timing",
+              "status": "measured",
+              "unit": "bytes",
+              "value": 2400000
+            },
+            "startup.engine_ready_ms": {
+              "source": "lifecycle-marks",
+              "status": "measured",
+              "unit": "ms",
+              "value": 1518.126
+            },
+            "startup.first_snapshot_ms": {
+              "source": "lifecycle-marks",
+              "status": "measured",
+              "unit": "ms",
+              "value": 1756.304
+            },
+            "startup.join_to_active_ms": {
+              "source": "lifecycle-marks",
+              "status": "measured",
+              "unit": "ms",
+              "value": 3162.651
+            },
+            "startup.payload_complete_ms": {
+              "source": "resource-timing",
+              "status": "measured",
+              "unit": "ms",
+              "value": 513.255
+            }
+          },
+          "orderPosition": 0,
+          "outcome": {
+            "crashed": false,
+            "errors": [],
+            "humans": 1,
+            "mapPin": "7:0:6255dbbe",
+            "measuredHumanAlive": true,
+            "phaseAtEnd": "active",
+            "seatedPlayers": 8
+          },
+          "warmup": {},
+          "windows": []
+        },
+        {
+          "cacheState": "cold",
+          "index": 1,
+          "initialCheck": {
+            "cacheState": "cold",
+            "ok": true,
+            "phase": "navigation"
+          },
+          "metrics": {
+            "startup.decoded_bytes": {
+              "source": "resource-timing",
+              "status": "measured",
+              "unit": "bytes",
+              "value": 7800000
+            },
+            "startup.encoded_bytes": {
+              "source": "resource-timing",
+              "status": "measured",
+              "unit": "bytes",
+              "value": 2400000
+            },
+            "startup.engine_ready_ms": {
+              "source": "lifecycle-marks",
+              "status": "measured",
+              "unit": "ms",
+              "value": 1487.604
+            },
+            "startup.first_snapshot_ms": {
+              "source": "lifecycle-marks",
+              "status": "measured",
+              "unit": "ms",
+              "value": 1843.857
+            },
+            "startup.join_to_active_ms": {
+              "source": "lifecycle-marks",
+              "status": "measured",
+              "unit": "ms",
+              "value": 3283.329
+            },
+            "startup.payload_complete_ms": {
+              "source": "resource-timing",
+              "status": "measured",
+              "unit": "ms",
+              "value": 505.914
+            }
+          },
+          "orderPosition": 3,
+          "outcome": {
+            "crashed": false,
+            "errors": [],
+            "humans": 1,
+            "mapPin": "7:0:6255dbbe",
+            "measuredHumanAlive": true,
+            "phaseAtEnd": "active",
+            "seatedPlayers": 8
+          },
+          "warmup": {},
+          "windows": []
+        },
+        {
+          "cacheState": "cold",
+          "index": 2,
+          "initialCheck": {
+            "cacheState": "cold",
+            "ok": true,
+            "phase": "navigation"
+          },
+          "metrics": {
+            "startup.decoded_bytes": {
+              "source": "resource-timing",
+              "status": "measured",
+              "unit": "bytes",
+              "value": 7800000
+            },
+            "startup.encoded_bytes": {
+              "source": "resource-timing",
+              "status": "measured",
+              "unit": "bytes",
+              "value": 2400000
+            },
+            "startup.engine_ready_ms": {
+              "source": "lifecycle-marks",
+              "status": "measured",
+              "unit": "ms",
+              "value": 1486.559
+            },
+            "startup.first_snapshot_ms": {
+              "source": "lifecycle-marks",
+              "status": "measured",
+              "unit": "ms",
+              "value": 1790.204
+            },
+            "startup.join_to_active_ms": {
+              "source": "lifecycle-marks",
+              "status": "measured",
+              "unit": "ms",
+              "value": 3149.571
+            },
+            "startup.payload_complete_ms": {
+              "source": "resource-timing",
+              "status": "measured",
+              "unit": "ms",
+              "value": 513.742
+            }
+          },
+          "orderPosition": 4,
+          "outcome": {
+            "crashed": false,
+            "errors": [],
+            "humans": 1,
+            "mapPin": "7:0:6255dbbe",
+            "measuredHumanAlive": true,
+            "phaseAtEnd": "active",
+            "seatedPlayers": 8
+          },
+          "warmup": {},
+          "windows": []
+        },
+        {
+          "cacheState": "cold",
+          "index": 3,
+          "initialCheck": {
+            "cacheState": "cold",
+            "ok": true,
+            "phase": "navigation"
+          },
+          "metrics": {
+            "startup.decoded_bytes": {
+              "source": "resource-timing",
+              "status": "measured",
+              "unit": "bytes",
+              "value": 7800000
+            },
+            "startup.encoded_bytes": {
+              "source": "resource-timing",
+              "status": "measured",
+              "unit": "bytes",
+              "value": 2400000
+            },
+            "startup.engine_ready_ms": {
+              "source": "lifecycle-marks",
+              "status": "measured",
+              "unit": "ms",
+              "value": 1523.332
+            },
+            "startup.first_snapshot_ms": {
+              "source": "lifecycle-marks",
+              "status": "measured",
+              "unit": "ms",
+              "value": 1829.575
+            },
+            "startup.join_to_active_ms": {
+              "source": "lifecycle-marks",
+              "status": "measured",
+              "unit": "ms",
+              "value": 3212.959
+            },
+            "startup.payload_complete_ms": {
+              "source": "resource-timing",
+              "status": "measured",
+              "unit": "ms",
+              "value": 505.545
+            }
+          },
+          "orderPosition": 7,
+          "outcome": {
+            "crashed": false,
+            "errors": [],
+            "humans": 1,
+            "mapPin": "7:0:6255dbbe",
+            "measuredHumanAlive": true,
+            "phaseAtEnd": "active",
+            "seatedPlayers": 8
+          },
+          "warmup": {},
+          "windows": []
+        },
+        {
+          "cacheState": "cold",
+          "index": 4,
+          "initialCheck": {
+            "cacheState": "cold",
+            "ok": true,
+            "phase": "navigation"
+          },
+          "metrics": {
+            "startup.decoded_bytes": {
+              "source": "resource-timing",
+              "status": "measured",
+              "unit": "bytes",
+              "value": 7800000
+            },
+            "startup.encoded_bytes": {
+              "source": "resource-timing",
+              "status": "measured",
+              "unit": "bytes",
+              "value": 2400000
+            },
+            "startup.engine_ready_ms": {
+              "source": "lifecycle-marks",
+              "status": "measured",
+              "unit": "ms",
+              "value": 1525.073
+            },
+            "startup.first_snapshot_ms": {
+              "source": "lifecycle-marks",
+              "status": "measured",
+              "unit": "ms",
+              "value": 1759.698
+            },
+            "startup.join_to_active_ms": {
+              "source": "lifecycle-marks",
+              "status": "measured",
+              "unit": "ms",
+              "value": 3352.856
+            },
+            "startup.payload_complete_ms": {
+              "source": "resource-timing",
+              "status": "measured",
+              "unit": "ms",
+              "value": 487.434
+            }
+          },
+          "orderPosition": 8,
+          "outcome": {
+            "crashed": false,
+            "errors": [],
+            "humans": 1,
+            "mapPin": "7:0:6255dbbe",
+            "measuredHumanAlive": true,
+            "phaseAtEnd": "active",
+            "seatedPlayers": 8
+          },
+          "warmup": {},
+          "windows": []
+        }
+      ],
+      "workload": {
+        "botSeed": 7001,
+        "botTier": "normal",
+        "bots": 7,
+        "contentIdentity": {
+          "legacySourceRevision": "b8ff49cef1c679eba90b35cd617f776bfd145a39"
+        },
+        "factions": {
+          "bots": "derived from botSeed",
+          "human": 4
+        },
+        "features": [
+          "all-factions",
+          "bots-full",
+          "camps",
+          "cards",
+          "chests",
+          "coliseum-schedule",
+          "mobs",
+          "planning",
+          "quests",
+          "terrain",
+          "traders",
+          "wish"
+        ],
+        "humans": 1,
+        "id": "WL-STARTUP",
+        "inputScriptSha256": null,
+        "mapPin": "7:0:6255dbbe",
+        "mode": "startup-to-active",
+        "rooms": 1,
+        "seatedPlayers": 8,
+        "tickHz": 20,
+        "tickSchedule": "C-TICK: legacy tick order, executable schedule in crates/rh-parity/tests/schedule.rs (never reordered)"
+      }
+    },
+    "port": {
+      "builds": {
+        "client": {
+          "artifactSha256": "87b367ffc87e7915c73dfbe5b320ecee7f96e26fae269bf54733c606da3d36c4",
+          "artifactSha256After": "87b367ffc87e7915c73dfbe5b320ecee7f96e26fae269bf54733c606da3d36c4",
+          "autoconnectProfiler": false,
+          "deepProfiling": false,
+          "development": false,
+          "developmentBuild": false,
+          "dirty": false,
+          "identity": {
+            "contentHash": "5e57e71c5e57e71c",
+            "protocol": 14
+          },
+          "kind": "unity-web-release",
+          "release": true,
+          "sourceRevision": "cf8386d6e6056b6d944069f47dd31ec3b34b798d"
+        },
+        "server": {
+          "artifactSha256": "24a9ab7873db956d1bc1ba680f6e911f6fd08b5fd9fc5d073869f74b820dcd3e",
+          "artifactSha256After": "24a9ab7873db956d1bc1ba680f6e911f6fd08b5fd9fc5d073869f74b820dcd3e",
+          "debugAssertions": false,
+          "development": false,
+          "dirty": false,
+          "identity": {
+            "contentHash": "5e57e71c5e57e71c",
+            "protocol": 14
+          },
+          "kind": "rust-native-release",
+          "release": true,
+          "sourceRevision": "cf8386d6e6056b6d944069f47dd31ec3b34b798d"
+        }
+      },
+      "environment": {
+        "browser": {
+          "executableSha256": "c1f667e2dcc74958d8201e30b8877491797e8c721b5f781eb1586daad22b92b3",
+          "flags": [
+            "--use-angle=metal"
+          ],
+          "focused": true,
+          "frameRateLimitDisabled": false,
+          "headless": false,
+          "product": "SYNTHETIC-Browser",
+          "version": "0.0.0",
+          "visibility": "visible",
+          "vsyncDisabled": false
+        },
+        "display": {
+          "refreshHz": 60,
+          "resolution": [
+            3024,
+            1964
+          ],
+          "scale": 2,
+          "variableRefresh": false
+        },
+        "frameRateLimit": {
+          "capped": false,
+          "unityTargetFrameRate": -1
+        },
+        "machine": {
+          "arch": "arm64",
+          "cpu": "SYNTHETIC-CPU",
+          "logicalCpus": 18,
+          "memoryBytes": 68719476736,
+          "model": "SYNTHETIC-MODEL",
+          "native": true,
+          "os": "SYNTHETIC-OS",
+          "osBuild": "0"
+        },
+        "network": {
+          "throttle": null
+        },
+        "power": {
+          "lowPowerMode": false,
+          "powerSource": "ac",
+          "thermalState": "nominal"
+        },
+        "viewport": {
+          "canvas": [
+            960,
+            600
+          ],
+          "dpr": 1,
+          "window": [
+            1280,
+            900
+          ]
+        }
+      },
+      "impairment": null,
+      "loadSource": "SYNTHETIC server-side load counters",
+      "recorder": {
+        "bufferOverflow": false,
+        "droppedRecords": 0,
+        "id": "SYNTHETIC-recorder",
+        "overheadControl": {
+          "full": [
+            502.106,
+            499.719,
+            502.473,
+            497.987,
+            499.384
+          ],
+          "metric": "startup.payload_complete_ms",
+          "minimal": [
+            500.923,
+            500.45,
+            497.945,
+            501.698,
+            499.722
+          ]
+        },
+        "sha256": "06f0fc9db7a41718c4320fe59d7e22242e0a2ae8f8fca40d82b84530b4b67684"
+      },
+      "stack": "rust-native-unity-web",
+      "trials": [
+        {
+          "cacheState": "cold",
+          "index": 0,
+          "initialCheck": {
+            "cacheState": "cold",
+            "ok": true,
+            "phase": "navigation"
+          },
+          "metrics": {
+            "startup.decoded_bytes": {
+              "source": "resource-timing",
+              "status": "measured",
+              "unit": "bytes",
+              "value": 55800000
+            },
+            "startup.encoded_bytes": {
+              "source": "resource-timing",
+              "status": "measured",
+              "unit": "bytes",
+              "value": 23500000
+            },
+            "startup.engine_ready_ms": {
+              "source": "lifecycle-marks",
+              "status": "measured",
+              "unit": "ms",
+              "value": 3005.835
+            },
+            "startup.first_snapshot_ms": {
+              "source": "lifecycle-marks",
+              "status": "measured",
+              "unit": "ms",
+              "value": 3319.112
+            },
+            "startup.join_to_active_ms": {
+              "source": "lifecycle-marks",
+              "status": "measured",
+              "unit": "ms",
+              "value": 3018.329
+            },
+            "startup.payload_complete_ms": {
+              "source": "resource-timing",
+              "status": "measured",
+              "unit": "ms",
+              "value": 504.244
+            }
+          },
+          "orderPosition": 1,
+          "outcome": {
+            "crashed": false,
+            "errors": [],
+            "humans": 1,
+            "mapPin": "7:0:6255dbbe",
+            "measuredHumanAlive": true,
+            "phaseAtEnd": "active",
+            "seatedPlayers": 8
+          },
+          "warmup": {},
+          "windows": []
+        },
+        {
+          "cacheState": "cold",
+          "index": 1,
+          "initialCheck": {
+            "cacheState": "cold",
+            "ok": true,
+            "phase": "navigation"
+          },
+          "metrics": {
+            "startup.decoded_bytes": {
+              "source": "resource-timing",
+              "status": "measured",
+              "unit": "bytes",
+              "value": 55800000
+            },
+            "startup.encoded_bytes": {
+              "source": "resource-timing",
+              "status": "measured",
+              "unit": "bytes",
+              "value": 23500000
+            },
+            "startup.engine_ready_ms": {
+              "source": "lifecycle-marks",
+              "status": "measured",
+              "unit": "ms",
+              "value": 3044.64
+            },
+            "startup.first_snapshot_ms": {
+              "source": "lifecycle-marks",
+              "status": "measured",
+              "unit": "ms",
+              "value": 3305.255
+            },
+            "startup.join_to_active_ms": {
+              "source": "lifecycle-marks",
+              "status": "measured",
+              "unit": "ms",
+              "value": 3327.729
+            },
+            "startup.payload_complete_ms": {
+              "source": "resource-timing",
+              "status": "measured",
+              "unit": "ms",
+              "value": 482.349
+            }
+          },
+          "orderPosition": 2,
+          "outcome": {
+            "crashed": false,
+            "errors": [],
+            "humans": 1,
+            "mapPin": "7:0:6255dbbe",
+            "measuredHumanAlive": true,
+            "phaseAtEnd": "active",
+            "seatedPlayers": 8
+          },
+          "warmup": {},
+          "windows": []
+        },
+        {
+          "cacheState": "cold",
+          "index": 2,
+          "initialCheck": {
+            "cacheState": "cold",
+            "ok": true,
+            "phase": "navigation"
+          },
+          "metrics": {
+            "startup.decoded_bytes": {
+              "source": "resource-timing",
+              "status": "measured",
+              "unit": "bytes",
+              "value": 55800000
+            },
+            "startup.encoded_bytes": {
+              "source": "resource-timing",
+              "status": "measured",
+              "unit": "bytes",
+              "value": 23500000
+            },
+            "startup.engine_ready_ms": {
+              "source": "lifecycle-marks",
+              "status": "measured",
+              "unit": "ms",
+              "value": 3028.299
+            },
+            "startup.first_snapshot_ms": {
+              "source": "lifecycle-marks",
+              "status": "measured",
+              "unit": "ms",
+              "value": 3264.58
+            },
+            "startup.join_to_active_ms": {
+              "source": "lifecycle-marks",
+              "status": "measured",
+              "unit": "ms",
+              "value": 3393.452
+            },
+            "startup.payload_complete_ms": {
+              "source": "resource-timing",
+              "status": "measured",
+              "unit": "ms",
+              "value": 495.484
+            }
+          },
+          "orderPosition": 5,
+          "outcome": {
+            "crashed": false,
+            "errors": [],
+            "humans": 1,
+            "mapPin": "7:0:6255dbbe",
+            "measuredHumanAlive": true,
+            "phaseAtEnd": "active",
+            "seatedPlayers": 8
+          },
+          "warmup": {},
+          "windows": []
+        },
+        {
+          "cacheState": "cold",
+          "index": 3,
+          "initialCheck": {
+            "cacheState": "cold",
+            "ok": true,
+            "phase": "navigation"
+          },
+          "metrics": {
+            "startup.decoded_bytes": {
+              "source": "resource-timing",
+              "status": "measured",
+              "unit": "bytes",
+              "value": 55800000
+            },
+            "startup.encoded_bytes": {
+              "source": "resource-timing",
+              "status": "measured",
+              "unit": "bytes",
+              "value": 23500000
+            },
+            "startup.engine_ready_ms": {
+              "source": "lifecycle-marks",
+              "status": "measured",
+              "unit": "ms",
+              "value": 3018.031
+            },
+            "startup.first_snapshot_ms": {
+              "source": "lifecycle-marks",
+              "status": "measured",
+              "unit": "ms",
+              "value": 3321.265
+            },
+            "startup.join_to_active_ms": {
+              "source": "lifecycle-marks",
+              "status": "measured",
+              "unit": "ms",
+              "value": 3158.999
+            },
+            "startup.payload_complete_ms": {
+              "source": "resource-timing",
+              "status": "measured",
+              "unit": "ms",
+              "value": 507.259
+            }
+          },
+          "orderPosition": 6,
+          "outcome": {
+            "crashed": false,
+            "errors": [],
+            "humans": 1,
+            "mapPin": "7:0:6255dbbe",
+            "measuredHumanAlive": true,
+            "phaseAtEnd": "active",
+            "seatedPlayers": 8
+          },
+          "warmup": {},
+          "windows": []
+        },
+        {
+          "cacheState": "cold",
+          "index": 4,
+          "initialCheck": {
+            "cacheState": "cold",
+            "ok": true,
+            "phase": "navigation"
+          },
+          "metrics": {
+            "startup.decoded_bytes": {
+              "source": "resource-timing",
+              "status": "measured",
+              "unit": "bytes",
+              "value": 55800000
+            },
+            "startup.encoded_bytes": {
+              "source": "resource-timing",
+              "status": "measured",
+              "unit": "bytes",
+              "value": 23500000
+            },
+            "startup.engine_ready_ms": {
+              "source": "lifecycle-marks",
+              "status": "measured",
+              "unit": "ms",
+              "value": 2976.251
+            },
+            "startup.first_snapshot_ms": {
+              "source": "lifecycle-marks",
+              "status": "measured",
+              "unit": "ms",
+              "value": 3286.423
+            },
+            "startup.join_to_active_ms": {
+              "source": "lifecycle-marks",
+              "status": "measured",
+              "unit": "ms",
+              "value": 3301.915
+            },
+            "startup.payload_complete_ms": {
+              "source": "resource-timing",
+              "status": "measured",
+              "unit": "ms",
+              "value": 490.95
+            }
+          },
+          "orderPosition": 9,
+          "outcome": {
+            "crashed": false,
+            "errors": [],
+            "humans": 1,
+            "mapPin": "7:0:6255dbbe",
+            "measuredHumanAlive": true,
+            "phaseAtEnd": "active",
+            "seatedPlayers": 8
+          },
+          "warmup": {},
+          "windows": []
+        }
+      ],
+      "workload": {
+        "botSeed": 7001,
+        "botTier": "normal",
+        "bots": 7,
+        "contentIdentity": {
+          "portContentHash": "5e57e71c5e57e71c"
+        },
+        "factions": {
+          "bots": "derived from botSeed",
+          "human": 4
+        },
+        "features": [
+          "all-factions",
+          "bots-full",
+          "camps",
+          "cards",
+          "chests",
+          "coliseum-schedule",
+          "mobs",
+          "planning",
+          "quests",
+          "terrain",
+          "traders",
+          "wish"
+        ],
+        "humans": 1,
+        "id": "WL-STARTUP",
+        "inputScriptSha256": null,
+        "mapPin": "7:0:6255dbbe",
+        "mode": "startup-to-active",
+        "rooms": 1,
+        "seatedPlayers": 8,
+        "tickHz": 20,
+        "tickSchedule": "C-TICK: legacy tick order, executable schedule in crates/rh-parity/tests/schedule.rs (never reordered)"
+      }
+    }
+  },
+  "synthetic": true,
+  "trialOrder": [
+    "legacy",
+    "port",
+    "port",
+    "legacy",
+    "legacy",
+    "port",
+    "port",
+    "legacy",
+    "legacy",
+    "port"
+  ]
+}

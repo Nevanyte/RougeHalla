@@ -1,0 +1,211 @@
+{
+  "note": "Assessment of existing receipts through the adapters. No new measurement; inputs are read, never edited, and no private string is copied.",
+  "receipts": {
+    "domain-browser-normal": {
+      "assessment": {
+        "admissible": false,
+        "findings": [
+          {
+            "code": "SUMMARY_WITHOUT_RAW",
+            "detail": "13 channel(s) hold quantiles without their raw values: gpu.elapsedMs, rendered.intervalMs, rendered.synchronousCallbackCpuMs, rendered.draws, rendered.instances, counts.visibleActors, counts.visibleMobs, counts.projectiles, memory.jsHeapBytes, memory.wasmLinearBytes, network.actualUnityPingPongRttMs, network.snapshotGapMs, network.snapshotTickGaps"
+          },
+          {
+            "code": "CELL_UNKNOWN",
+            "detail": "single-stack MVP scene: no legacy side, no matrix cell, no pinned map, no server-side load counts"
+          },
+          {
+            "code": "PRIVACY",
+            "detail": "2 value(s) hold a home-directory path, a player name or a player-identifying URL parameter; a final report must hash or drop them"
+          }
+        ],
+        "reusable": [
+          "the collector's window definition (eligible frames after warm-up, active/alive gating)",
+          "its GPU timer-query and synchronous-callback channels, once they keep raw values",
+          "its environment block (browser version, GPU renderer, viewport, DPR, visibility)"
+        ]
+      },
+      "path": "docs/evidence/first-playable-domain-performance/browser-normal.json",
+      "sha256": "31dc29cb68d61ccd1f537929977c448dff593f95f706bdfc9be20ad11ce104f0"
+    },
+    "first-playable-browser-normal": {
+      "assessment": {
+        "admissible": false,
+        "findings": [
+          {
+            "code": "SUMMARY_WITHOUT_RAW",
+            "detail": "10 channel(s) hold quantiles without their raw values: gpu.elapsedMs, renderedRafIntervalMs, synchronousRafCpuMs, draws, instances, observedCounts.visibleActors, observedCounts.visibleMobs, observedCounts.projectiles, memory.jsHeapBytes, memory.wasmLinearBytes"
+          },
+          {
+            "code": "CELL_UNKNOWN",
+            "detail": "single-stack MVP scene: no legacy side, no matrix cell, no pinned map, no server-side load counts"
+          },
+          {
+            "code": "PRIVACY",
+            "detail": "4 value(s) hold a home-directory path, a player name or a player-identifying URL parameter; a final report must hash or drop them"
+          }
+        ],
+        "reusable": [
+          "the collector's window definition (eligible frames after warm-up, active/alive gating)",
+          "its GPU timer-query and synchronous-callback channels, once they keep raw values",
+          "its environment block (browser version, GPU renderer, viewport, DPR, visibility)"
+        ]
+      },
+      "path": "docs/evidence/first-playable-performance/browser-normal.json",
+      "sha256": "d121ff8de05cf227770cc83d36f7bf8b9547ceed96ae6696aaab8e08953d5dec"
+    },
+    "first-playable-browser-uncapped": {
+      "assessment": {
+        "admissible": false,
+        "findings": [
+          {
+            "code": "SUMMARY_WITHOUT_RAW",
+            "detail": "10 channel(s) hold quantiles without their raw values: gpu.elapsedMs, renderedRafIntervalMs, synchronousRafCpuMs, draws, instances, observedCounts.visibleActors, observedCounts.visibleMobs, observedCounts.projectiles, memory.jsHeapBytes, memory.wasmLinearBytes"
+          },
+          {
+            "code": "CELL_UNKNOWN",
+            "detail": "single-stack MVP scene: no legacy side, no matrix cell, no pinned map, no server-side load counts"
+          },
+          {
+            "code": "PRIVACY",
+            "detail": "4 value(s) hold a home-directory path, a player name or a player-identifying URL parameter; a final report must hash or drop them"
+          },
+          {
+            "code": "DIAGNOSTIC_MIX",
+            "detail": "uncapped diagnostic receipt; never a shipping frame rate"
+          }
+        ],
+        "reusable": [
+          "the collector's window definition (eligible frames after warm-up, active/alive gating)",
+          "its GPU timer-query and synchronous-callback channels, once they keep raw values",
+          "its environment block (browser version, GPU renderer, viewport, DPR, visibility)"
+        ]
+      },
+      "path": "docs/evidence/first-playable-performance/browser-uncapped-diagnostic.json",
+      "sha256": "6e4941403ef4829eb1d412ee316ef54d5b0fc867c92ec81d4a5317e5f68de408"
+    },
+    "input-latency-linux-rtt-sweep": {
+      "assessment": {
+        "pairable": false,
+        "pairingNote": "Unity-only post-Present trace. The legacy client has no equivalent hook, so a paired input-latency cell needs a stack-neutral pixel-change-probe on both stacks; these values stay port-side diagnostics.",
+        "profiles": [
+          {
+            "events": 3,
+            "impairment": {
+              "addedRttMs": 0,
+              "direct": false,
+              "injected": true,
+              "jitterMs": 10,
+              "seed": 72617
+            },
+            "selfVisibleP50Ms": 66.60009765625,
+            "socketRtt": "absent"
+          },
+          {
+            "events": 3,
+            "impairment": {
+              "addedRttMs": 50,
+              "direct": false,
+              "injected": true,
+              "jitterMs": 10,
+              "seed": 72618
+            },
+            "selfVisibleP50Ms": 83.39990234375,
+            "socketRtt": "absent"
+          },
+          {
+            "events": 3,
+            "impairment": {
+              "addedRttMs": 100,
+              "direct": false,
+              "injected": true,
+              "jitterMs": 10,
+              "seed": 72619
+            },
+            "selfVisibleP50Ms": 116.60009765625,
+            "socketRtt": "absent"
+          },
+          {
+            "events": 3,
+            "impairment": {
+              "addedRttMs": 150,
+              "direct": false,
+              "injected": true,
+              "jitterMs": 10,
+              "seed": 72620
+            },
+            "selfVisibleP50Ms": 199.699951171875,
+            "socketRtt": "absent"
+          }
+        ]
+      },
+      "path": "docs/evidence/input-latency/linux-rtt-sweep-final.json",
+      "sha256": "a3e9243b22d32794cb03792dbfe60b03f1bdc092e89f20702b4e75de0f76f9cb"
+    },
+    "stage2-map-bench": {
+      "assessment": {
+        "findings": [
+          {
+            "code": "BUILD_DIRTY",
+            "detail": "measured from a dirty working tree (revision alone is not the source identity)"
+          },
+          {
+            "code": "CELL_UNKNOWN",
+            "detail": "map generation is a slice; a slice timing cannot establish full-game speedup (R-OPT-4)"
+          }
+        ],
+        "fullGameAdmissible": false,
+        "modes": {
+          "plain": {
+            "rust": {
+              "recomputedMidpointMedianNs": 13472833.5,
+              "recomputedNearestRankP50Ns": 13429084,
+              "recomputedNearestRankP95Ns": 21236875,
+              "storedMatches": "midpoint-median truncated to integer ns",
+              "storedMedianNs": 13472833,
+              "storedP95Ns": 21236875
+            },
+            "sameSeedsAndHashes": true,
+            "samples": [
+              40,
+              40
+            ],
+            "typescript": {
+              "recomputedMidpointMedianNs": 29484416.5,
+              "recomputedNearestRankP50Ns": 29461458,
+              "recomputedNearestRankP95Ns": 49752084,
+              "storedMatches": "midpoint-median truncated to integer ns",
+              "storedMedianNs": 29484416,
+              "storedP95Ns": 49752084
+            }
+          },
+          "styled": {
+            "rust": {
+              "recomputedMidpointMedianNs": 22206250.0,
+              "recomputedNearestRankP50Ns": 22063541,
+              "recomputedNearestRankP95Ns": 32984292,
+              "storedMatches": "midpoint-median",
+              "storedMedianNs": 22206250,
+              "storedP95Ns": 32984292
+            },
+            "sameSeedsAndHashes": true,
+            "samples": [
+              40,
+              40
+            ],
+            "typescript": {
+              "recomputedMidpointMedianNs": 45316104.5,
+              "recomputedNearestRankP50Ns": 45143625,
+              "recomputedNearestRankP95Ns": 68044084,
+              "storedMatches": "midpoint-median truncated to integer ns",
+              "storedMedianNs": 45316104,
+              "storedP95Ns": 68044084
+            }
+          }
+        },
+        "scope": "slice:map-generation"
+      },
+      "path": "docs/evidence/stage2-styled-map/performance.json",
+      "sha256": "1ae21c5c554889ec47df3dbf5acd3c2c4949dda99d10594a2d9cb04aa5386a10"
+    }
+  }
+}
