@@ -1,0 +1,71 @@
+{
+  "ordered_pre_fix_diagnostic_invocations": [
+    {
+      "log": "docs/evidence/ci-runtime-admission-3126/logs/diagnostic-first.log",
+      "sha256": "a86a7421054e513330d0df5c6f811c109168c70cb21acf5f4e2824b6f1bd39c7",
+      "same_diagnostic_overlay_sha256": "759fdfe49e8ed974e3d1d39e9e8ce73ef3a0c46bd64c663669b7a1b33ea51419",
+      "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.45s",
+      "fresh_os_match_entropy": true,
+      "deadline_seconds": 8
+    },
+    {
+      "log": "docs/evidence/ci-runtime-admission-3126/logs/random-public-navigation-01.log",
+      "sha256": "1254b5f78135f7dbb53ae80a70a13526dabb783772704ec0b4877b1646593887",
+      "same_diagnostic_overlay_sha256": "759fdfe49e8ed974e3d1d39e9e8ce73ef3a0c46bd64c663669b7a1b33ea51419",
+      "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.46s",
+      "fresh_os_match_entropy": true,
+      "deadline_seconds": 8
+    },
+    {
+      "log": "docs/evidence/ci-runtime-admission-3126/logs/random-public-navigation-02.log",
+      "sha256": "91ae9ede62cc2a6cfb2c0460fef1dd083fd42e0acfcea906eda0c6e086e49184",
+      "same_diagnostic_overlay_sha256": "759fdfe49e8ed974e3d1d39e9e8ce73ef3a0c46bd64c663669b7a1b33ea51419",
+      "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.24s",
+      "fresh_os_match_entropy": true,
+      "deadline_seconds": 8
+    },
+    {
+      "log": "docs/evidence/ci-runtime-admission-3126/logs/random-public-navigation-03.log",
+      "sha256": "8c809671ac6fd1c8c4719c1eb2f001e9e1fa67b35d0bf1c49982b22f2c68e597",
+      "same_diagnostic_overlay_sha256": "759fdfe49e8ed974e3d1d39e9e8ce73ef3a0c46bd64c663669b7a1b33ea51419",
+      "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.76s",
+      "fresh_os_match_entropy": true,
+      "deadline_seconds": 8
+    },
+    {
+      "log": "docs/evidence/ci-runtime-admission-3126/logs/random-public-navigation-04.log",
+      "sha256": "05952afb1b32252b243957e13d46ed5334b39f2d9c6619cc1513860b70e0ffb0",
+      "same_diagnostic_overlay_sha256": "759fdfe49e8ed974e3d1d39e9e8ce73ef3a0c46bd64c663669b7a1b33ea51419",
+      "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.43s",
+      "fresh_os_match_entropy": true,
+      "deadline_seconds": 8
+    },
+    {
+      "log": "docs/evidence/ci-runtime-admission-3126/logs/random-public-navigation-05.log",
+      "sha256": "ea6a56773d37a9e2ccc71bb2a0d7b24f408f628a35b90b40ab2344e5902b5734",
+      "same_diagnostic_overlay_sha256": "759fdfe49e8ed974e3d1d39e9e8ce73ef3a0c46bd64c663669b7a1b33ea51419",
+      "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.49s",
+      "fresh_os_match_entropy": true,
+      "deadline_seconds": 8
+    },
+    {
+      "log": "docs/evidence/ci-runtime-admission-3126/logs/random-public-navigation-06.log",
+      "sha256": "8902e031eb6da70856eb5f7ae8b2590790b1b806448d7e1a1529f5798a9264cd",
+      "same_diagnostic_overlay_sha256": "759fdfe49e8ed974e3d1d39e9e8ce73ef3a0c46bd64c663669b7a1b33ea51419",
+      "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.34s",
+      "fresh_os_match_entropy": true,
+      "deadline_seconds": 8
+    },
+    {
+      "log": "docs/evidence/ci-runtime-admission-3126/logs/random-public-navigation-07.log",
+      "sha256": "5e7a5f4405db7bc80e90266afb8482e160daf83676086d666f51abb7354d1066",
+      "same_diagnostic_overlay_sha256": "759fdfe49e8ed974e3d1d39e9e8ce73ef3a0c46bd64c663669b7a1b33ea51419",
+      "result": "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 8.15s",
+      "fresh_os_match_entropy": true,
+      "deadline_seconds": 8
+    }
+  ],
+  "bounded_loop_max": 12,
+  "bounded_loop_stopped_at_first_failure": 7,
+  "no_timeout_seed_or_test_logic_changes_between_invocations": true
+}

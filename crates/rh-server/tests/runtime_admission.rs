@@ -128,6 +128,11 @@ struct Client {
     build: Option<rh_protocol::WireBuild>,
     me: Option<rh_protocol::WireSelf>,
     map: Option<rh_protocol::map::MapBlob>,
+    tick: u32,
+    server_time: f64,
+    frames: u32,
+    snapshots: u32,
+    states: u32,
 }
 impl Client {
     async fn connect(
@@ -178,6 +183,11 @@ impl Client {
             build: None,
             me: None,
             map: None,
+            tick: 0,
+            server_time: 0.,
+            frames: 0,
+            snapshots: 0,
+            states: 0,
         };
         loop {
             match client.recv().await {
@@ -213,20 +223,27 @@ impl Client {
                 .decoder
                 .decode(&bytes)
                 .expect("public frame decodes atomically");
+            self.frames += 1;
             match &msg {
                 ServerMsg::Snapshot {
+                    tick,
+                    server_time,
                     phase,
                     training,
                     me,
                     ack_input,
                     ..
                 } => {
+                    self.tick = *tick;
+                    self.server_time = *server_time;
+                    self.snapshots += 1;
                     self.phase = *phase;
                     self.training = *training;
                     self.me = *me;
                     self.ack_input = *ack_input;
                 }
                 ServerMsg::State { items, .. } => {
+                    self.states += 1;
                     for item in items {
                         match item {
                             StateItem::Plan(v) => self.plan = v.clone(),
@@ -242,14 +259,36 @@ impl Client {
             return msg;
         }
     }
-    async fn until(&mut self, predicate: impl Fn(&Self) -> bool) {
-        tokio::time::timeout(Duration::from_secs(8), async {
-            while !predicate(self) {
-                self.recv().await;
-            }
-        })
-        .await
-        .expect("public state condition");
+    fn public_summary(&self) -> String {
+        format!("tick={} time={} phase={} training={} input={}/{} frames={} snapshots={} states={} me={:?} plan={:?} quests={:?} trade={:?}",
+            self.tick,self.server_time,self.phase,self.training,self.ack_input,self.seq,self.frames,self.snapshots,self.states,
+            self.me.map(|m|(m.x,m.y,m.hp,m.status)),self.plan.as_ref().map(|p|(p.pick,p.ready,p.ends_at)),
+            self.quests.as_ref().map(|v|(v.unknown_count,v.rows.iter().map(|q|(q.handle,q.state,q.can_accept,q.owner_accepted,q.giver.x,q.giver.y)).collect::<Vec<_>>())),
+            self.trade.as_ref().map(|v|(v.trade_used,v.offers.len(),v.merchants.iter().map(|m|(m.kind,m.x,m.y)).collect::<Vec<_>>())))
+    }
+    #[track_caller]
+    fn until<'a>(
+        &'a mut self,
+        predicate: impl Fn(&Self) -> bool + 'a,
+    ) -> impl std::future::Future<Output = ()> + 'a {
+        let caller = std::panic::Location::caller();
+        async move {
+            let result = tokio::time::timeout(Duration::from_secs(8), async {
+                while !predicate(self) {
+                    self.recv().await;
+                }
+            })
+            .await;
+            assert!(
+                result.is_ok(),
+                "public state condition at {caller}: {}",
+                self.public_summary()
+            );
+            eprintln!(
+                "public condition at {caller}: tick={} time={} input={}/{}",
+                self.tick, self.server_time, self.ack_input, self.seq
+            );
+        }
     }
     async fn input(&mut self, command: WireCommand) {
         self.seq += 1;
@@ -265,6 +304,96 @@ impl Client {
             .await
             .unwrap();
     }
+}
+
+/// Test navigation gate, not trade authority: only the subsequent encoded Trade and trade_used update prove success.
+fn broker_ready(
+    ack: u32,
+    move_seq: u32,
+    me: Option<rh_protocol::WireSelf>,
+    trade: Option<&rh_protocol::WireTradeView>,
+) -> bool {
+    let (Some(me), Some(trade)) = (me, trade) else {
+        return false;
+    };
+    ack >= move_seq
+        && me.status == 1
+        && !trade.offers.is_empty()
+        && trade.merchants.iter().any(|m| {
+            m.kind == rh_protocol::WireTradeKind::Stats
+                && (m.x - f64::from(me.x)).hypot(m.y - f64::from(me.y))
+                    <= rh_sim::constants::TRADER_RANGE
+        })
+}
+
+#[test]
+fn saved_broker_quotes_require_move_ack_and_current_arrival() {
+    use rh_protocol::{
+        WireMerchant, WireSelf, WireTradeKind, WireTradeOffer, WireTradeStat, WireTradeView,
+    };
+    // Declared decoded public facts, not an earned quote/World fixture. These distinguish receipt from arrival and
+    // preserved owner quotes from current merchant location; the socket test below proves the actual trade authority.
+    let mut trade = WireTradeView {
+        trade_used: false,
+        offers: vec![WireTradeOffer {
+            cost: WireTradeStat::Ad,
+            cost_value: 1.,
+            gain: WireTradeStat::Ap,
+            gain_value: 1.,
+            label: "diagnostic quote".into(),
+        }],
+        stats: vec![],
+        barter_ready_at: None,
+        merchants: vec![WireMerchant {
+            kind: WireTradeKind::Stats,
+            x: 592.,
+            y: 208.,
+            name: "Soul Broker".into(),
+        }],
+        barter_labels: Default::default(),
+    };
+    trade.check().unwrap();
+    let far = WireSelf {
+        x: 690.383,
+        y: 124.323395,
+        status: 1,
+        ..Default::default()
+    };
+    let near = WireSelf {
+        x: 592.,
+        y: 208.,
+        status: 1,
+        ..Default::default()
+    };
+    assert!(
+        !broker_ready(3, 6, Some(far), Some(&trade)),
+        "saved quotes before move receipt are insufficient"
+    );
+    assert!(
+        !broker_ready(6, 6, Some(far), Some(&trade)),
+        "acknowledged frame alone is not arrival"
+    );
+    assert!(
+        !broker_ready(3, 6, Some(near), Some(&trade)),
+        "near state alone does not witness the requested frame"
+    );
+    assert!(
+        broker_ready(6, 6, Some(near), Some(&trade)),
+        "exact acknowledged arrival with quotes"
+    );
+    trade.merchants[0].x += rh_sim::constants::TRADER_RANGE + 1.;
+    assert!(
+        !broker_ready(6, 6, Some(near), Some(&trade)),
+        "use the current broker location"
+    );
+    assert!(!broker_ready(6, 6, None, Some(&trade)));
+    assert!(!broker_ready(6, 6, Some(near), None));
+    trade.merchants[0].x = 592.;
+    trade.offers.clear();
+    assert!(
+        !broker_ready(6, 6, Some(near), Some(&trade)),
+        "arrival without owner quotes is insufficient"
+    );
 }
 
 #[tokio::test]
@@ -452,8 +581,11 @@ async fn source_endpoint_hello_planning_ready_and_live_quest_trade_state() {
             seq: Some(3),
         })
         .await;
+    // Quotes persist after leaving a broker. Their presence may predate BOTH movement frames above and cannot
+    // witness this move's receipt or the owner's current arrival. Use only current delivered owner/merchant facts.
+    let broker_move = alice.seq;
     alice
-        .until(|c| c.trade.as_ref().is_some_and(|v| !v.offers.is_empty()))
+        .until(|c| broker_ready(c.ack_input, broker_move, c.me, c.trade.as_ref()))
         .await;
     let offers = alice.trade.as_ref().unwrap().offers.clone();
     assert_eq!(offers.len(), 3, "nearby broker rolls genuine owner offers");

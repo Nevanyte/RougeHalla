@@ -1,0 +1,37 @@
+2026-11-09T12:24:52.7154361Z [1m[92m     Running[0m tests/runtime_admission.rs (target/debug/deps/runtime_admission-8028ac1ef9b7a106)
+2026-11-09T12:24:52.7170412Z 
+2026-11-09T12:24:52.7170564Z running 6 tests
+2026-11-09T12:24:52.7380861Z test hosted_training_validates_capacity_and_admits_only_first_solo_seat ... ok
+2026-11-09T12:24:52.7672260Z test real_binary_refuses_unknown_runtime_and_incompatible_configuration ... ok
+2026-11-09T12:24:52.8108449Z test training_endpoint_concurrent_hellos_get_solo_rooms_and_real_console ... ok
+2026-11-09T12:24:53.9795274Z test real_binary_composes_core_source_and_training_without_a_hello_mode ... ok
+2026-11-09T12:24:54.2095124Z test captured_full_source_map_admits_encoded_planning_and_live_public_state ... ok
+2026-11-09T12:25:00.8851743Z test source_endpoint_hello_planning_ready_and_live_quest_trade_state ... FAILED
+2026-11-09T12:25:00.8852139Z 
+2026-11-09T12:25:00.8852221Z failures:
+2026-11-09T12:25:00.8852324Z 
+2026-11-09T12:25:00.8852555Z ---- source_endpoint_hello_planning_ready_and_live_quest_trade_state stdout ----
+2026-11-09T12:25:00.8852821Z 
+2026-11-09T12:25:00.8853164Z thread 'source_endpoint_hello_planning_ready_and_live_quest_trade_state' (14970) panicked at crates/rh-server/tests/runtime_admission.rs:252:10:
+2026-11-09T12:25:00.8853644Z public state condition: Elapsed(())
+2026-11-09T12:25:00.8853966Z note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+2026-11-09T12:25:00.8854209Z 
+2026-11-09T12:25:00.8854213Z 
+2026-11-09T12:25:00.8854290Z failures:
+2026-11-09T12:25:00.8854524Z     source_endpoint_hello_planning_ready_and_live_quest_trade_state
+2026-11-09T12:25:00.8854734Z 
+2026-11-09T12:25:00.8854964Z test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.17s
+2026-11-09T12:25:00.8855252Z 
+2026-11-09T12:25:00.8860009Z [1m[91merror[0m: test failed, to rerun pass `-p rh-server --test runtime_admission`
+2026-11-09T12:25:00.8943750Z ##[error]Process completed with exit code 101.
+2026-11-09T12:25:00.9228752Z Post job cleanup.
+2026-11-09T12:25:00.9971837Z [command]/usr/bin/git version
+2026-11-09T12:25:01.0013681Z git version 2.56.0
+2026-11-09T12:25:01.0045733Z Temporarily overriding HOME='/home/runner/work/_temp/6546e731-ba9d-4003-8671-a5dd24ec67f7' before making global git config changes
+2026-11-09T12:25:01.0046730Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-09T12:25:01.0050768Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/RougeHalla/RougeHalla
+2026-11-09T12:25:01.0089620Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-09T12:25:01.0122911Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-09T12:25:01.0407032Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-09T12:25:01.0432694Z http.https://github.com/.extraheader
+2026-11-09T12:25:01.0442607Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
