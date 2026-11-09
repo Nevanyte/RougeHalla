@@ -16,7 +16,7 @@ namespace Roguehalla.Net
         void Poll();
     }
 
-    public enum SessionState { Idle, Connecting, HelloSent, InMatch, Reconnecting, Ended, Rejected, Failed }
+    public enum SessionState { Idle, Connecting, HelloSent, InMatch, Reconnecting, Ended, Rejected, Failed, Detached }
 
     public sealed class SessionOptions
     {
@@ -24,6 +24,8 @@ namespace Roguehalla.Net
         public string Profile = "", Build = "web-0.1.0";
         /// <summary>Opaque admission credential sent in the Hello (at most <see cref="Wire.MaxTicket"/> bytes); the profile stays the display name.</summary>
         public byte[] Ticket = new byte[0];
+        /// <summary>Optional live-seat capability for a new Session's first Hello. The owned endpoint remains the caller's responsibility.</summary>
+        public SeatResume InitialResume;
         /// <summary>0 means "unknown": the server answers ContentMismatch and its reason names the hash.</summary>
         public ulong ContentHash;
         public byte? Faction;
@@ -47,6 +49,8 @@ namespace Roguehalla.Net
     {
         readonly ITransport _t;
         readonly SessionOptions _o;
+        readonly SeatResume _initialResume;
+        bool _resumeTerminated, _detached;
         bool _resuming;
         int _attempt;
         double _nextAttemptAt, _lastPing = double.NegativeInfinity;
@@ -122,6 +126,8 @@ namespace Roguehalla.Net
         {
             _t = transport;
             _o = options;
+            _initialResume = options.InitialResume;
+            _resuming = _initialResume != null;
             _t.Opened += OnOpened;
             _t.Received += OnReceived;
             _t.Closed += OnClosed;
@@ -132,21 +138,31 @@ namespace Roguehalla.Net
 
         void Set(SessionState s)
         {
+            if (_detached && s != SessionState.Detached) return;
             if (State == s) return;
             State = s;
-            if (StateChanged != null) StateChanged(s);
+            var subscribers = StateChanged;
+            if (subscribers != null) foreach (Action<SessionState> subscriber in subscribers.GetInvocationList())
+            {
+                if (_detached && s != SessionState.Detached) break;
+                subscriber(s);
+            }
         }
 
         public void Connect()
         {
+            if (_detached || _resumeTerminated) return;
+            // An imported capability can only restore its expected seat, never become a fresh admission.
+            if (_initialResume != null && State != SessionState.Idle) return;
             _leaveSent = false;
             Set(SessionState.Connecting);
-            _t.Connect(_o.Url);
+            if (!_detached) _t.Connect(_o.Url);
         }
 
         /// <summary>Order a move: sent with the next Update; the local view follows accepted server snapshots.</summary>
         public byte OrderMove(float x, float y)
         {
+            if (_detached) return 0;
             byte seq = Input.Move(x, y);
             if (seq != 0 && Motion != null) Motion.Order(x, y, seq, Now, Input.LastMovementOrder);
             return seq;
@@ -154,6 +170,7 @@ namespace Roguehalla.Net
 
         public byte OrderStop()
         {
+            if (_detached) return 0;
             byte seq = Input.Stop();
             if (Motion != null) Motion.StopOrder(seq, Now, Input.LastMovementOrder);
             return seq;
@@ -183,6 +200,7 @@ namespace Roguehalla.Net
 
         public void Leave()
         {
+            if (_detached) return;
             // MatchEnded ends play while the socket can still own its resolved seat.
             if (!_leaveSent && (State == SessionState.InMatch || State == SessionState.Ended && Welcome != null))
             {
@@ -190,12 +208,32 @@ namespace Roguehalla.Net
                 _leaveSent = true;
             }
             Set(SessionState.Ended);
-            _t.Close();
+            if (!_detached) _t.Close();
+        }
+
+        /// <summary>
+        /// Retires this connection without relinquishing its live seat. Capture a separate SeatResume first.
+        /// Terminal for this instance: a new Session is required to resume. Retains delivered data, without synthesizing an outcome.
+        /// The owner still unbinds its public Session events; only this Session's transport subscriptions are removed here.
+        /// </summary>
+        public void Detach()
+        {
+            if (_detached) return;
+            _detached = true; // Terminal before any subscriber or transport callback can reenter.
+            _resuming = _attemptInFlight = false;
+            _attempt = 0; _nextAttemptAt = 0;
+            Input.ClearPending();
+            _t.Opened -= OnOpened;
+            _t.Received -= OnReceived;
+            _t.Closed -= OnClosed;
+            try { Set(SessionState.Detached); }
+            finally { _t.Close(); }
         }
 
         /// <summary>Pumps incoming state and flushes queued input. Call once per frame when input was collected beforehand.</summary>
         public void Update()
         {
+            if (_detached) return;
             Poll();
             FlushInput();
         }
@@ -206,7 +244,9 @@ namespace Roguehalla.Net
         /// </summary>
         public void Poll()
         {
+            if (_detached) return;
             _t.Poll();
+            if (_detached) return;
             double now = Now;
             if (State == SessionState.Reconnecting && !_attemptInFlight && now >= _nextAttemptAt)
             {
@@ -215,6 +255,7 @@ namespace Roguehalla.Net
             }
             if (State != SessionState.InMatch) return;
             if (now - _lastPing >= _o.PingIntervalMs) { _lastPing = now; Send(Sync.MakePing(now)); }
+            if (_detached) return;
             if (Clock.Ready) Clock.Update(now);
             // P-NET-1 Phase 2: presentation only. Advance the predicted walk with the same injected clock while the
             // session is polled, so a frame-driven client can poll -> read input -> flush input -> present once per frame.
@@ -225,10 +266,12 @@ namespace Roguehalla.Net
         /// <summary>Sends collected controls once per frame. It does not poll or advance the session again.</summary>
         public void FlushInput()
         {
+            if (_detached) return;
             if (State != SessionState.InMatch) return;
             foreach (var f in Input.Flush(Now))
             {
                 Send(f);
+                if (_detached) return;
                 if (Motion != null) foreach (var command in f.Commands)
                 {
                     Motion.MovementOrderSent(command, f.Seq);
@@ -238,10 +281,11 @@ namespace Roguehalla.Net
             }
         }
 
-        void Send(ClientMsg m) { _t.Send(m.Encode()); }
+        void Send(ClientMsg m) { if (!_detached) _t.Send(m.Encode()); }
 
         void OnOpened()
         {
+            if (_detached || _resumeTerminated) return;
             if (State != SessionState.Connecting && State != SessionState.Reconnecting) return;
             _attemptInFlight = false;
             try
@@ -249,14 +293,15 @@ namespace Roguehalla.Net
                 Send(new ClientMsg.Hello
                 {
                     Protocol = Wire.ProtocolVersion, ContentHash = _o.ContentHash, Build = _o.Build, Profile = _o.Profile,
-                    Ticket = _o.Ticket, Faction = _o.Faction, Resume = _resuming ? SessionToken : null,
+                    Ticket = _o.Ticket, Faction = _o.Faction,
+                    Resume = _resuming ? SessionToken ?? _initialResume?.CopyCapability() : null,
                 });
             }
             catch (EncodeException e)
             {
                 // A build or profile over 255 bytes, or a ticket over the bound, cannot be sent (the codec never truncates it): say so, do not retry.
                 Fail("cannot send Hello: " + e.Message);
-                _t.Close();
+                if (!_detached) _t.Close();
                 return;
             }
             Set(SessionState.HelloSent);
@@ -264,6 +309,7 @@ namespace Roguehalla.Net
 
         void OnClosed(string reason)
         {
+            if (_detached || _resumeTerminated) return;
             _attemptInFlight = false;
             switch (State)
             {
@@ -286,6 +332,7 @@ namespace Roguehalla.Net
 
         void ScheduleRetry(string reason)
         {
+            if (_detached) return;
             if (++_attempt > _o.MaxReconnectAttempts) { Fail("reconnect failed after " + _o.MaxReconnectAttempts + " attempts: " + reason); return; }
             double backoff = Math.Min(_o.ReconnectMaxMs, _o.ReconnectBaseMs * Math.Pow(2, _attempt - 1));
             _nextAttemptAt = Now + backoff;
@@ -296,6 +343,7 @@ namespace Roguehalla.Net
 
         void OnReceived(byte[] frame)
         {
+            if (_detached || _resumeTerminated) return;
             // SnapshotTracker resets itself when it decodes a Welcome. Ignore unexpected Welcomes before they can disturb the
             // current connection's delta base; a valid Welcome is handled only during the handshake.
             if (frame.Length > 0 && frame[0] == 0x81 && State != SessionState.HelloSent)
@@ -367,13 +415,15 @@ namespace Roguehalla.Net
                 if (reject.Code == Protocol.RejectCode.TooSlow && State == SessionState.InMatch && SessionToken != null)
                 {
                     _t.Close();
+                    if (_detached) return;
                     _resuming = true;
                     _attempt = 0;
                     ScheduleRetry("too slow");
                     return;
                 }
+                _resumeTerminated = _initialResume != null;
                 Set(SessionState.Rejected);
-                _t.Close();
+                if (!_detached) _t.Close();
                 return;
             }
             var welcome = msg as ServerMsg.Welcome;
@@ -389,7 +439,7 @@ namespace Roguehalla.Net
                     DecodeErrors++;
                     Error = "bad server collection state: " + e.Message;
                     Set(SessionState.Failed);
-                    _t.Close();
+                    if (!_detached) _t.Close();
                     return;
                 }
                 bool locked = Collections.Arena.HasValue && Collections.Arena.Value.GatesLocked;
@@ -433,6 +483,7 @@ namespace Roguehalla.Net
                         TimelineEpoch++;
                         if (TimelineReset != null) TimelineReset();
                     }
+                    if (_detached) return;
                     if (SnapshotReceived != null) SnapshotReceived(snap);
                 }
                 return;
@@ -444,9 +495,11 @@ namespace Roguehalla.Net
             {
                 foreach (var e in events.List)
                 {
+                    if (_detached) return;
                     if (e.Kind == EventKind.Result) LastResult = e.Result;
                     if (e.Kind == EventKind.MatchEnded) Set(SessionState.Ended);
                 }
+                if (_detached) return;
                 if (EventsReceived != null) EventsReceived(events);
                 return;
             }
@@ -474,7 +527,15 @@ namespace Roguehalla.Net
         void OnWelcome(ServerMsg.Welcome w)
         {
             if (State != SessionState.HelloSent) { Ignored++; return; }
-            if (w.Protocol != Wire.ProtocolVersion) { Fail("server protocol " + w.Protocol); _t.Close(); return; }
+            if (w.Protocol != Wire.ProtocolVersion) { Fail("server protocol " + w.Protocol); if (!_detached) _t.Close(); return; }
+            // Validate before exposing Welcome, timelines, input eligibility or this seat's retained Result.
+            if (_initialResume != null && !_initialResume.Matches(w))
+            {
+                _resumeTerminated = true;
+                Fail("resumed seat identity mismatch");
+                if (!_detached) _t.Close();
+                return;
+            }
             Welcome = w;
             SessionToken = w.Session;
             _resuming = false;
