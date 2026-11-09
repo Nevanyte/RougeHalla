@@ -5,6 +5,7 @@ f4859b366daedd5b074eb03168ef5d9446934a0d176c01e272616c603552308c  6990  crates/r
 663eadc16d81508c019a2085d0b8ad9d64f9039e4f7a140fb60d293bed206d41  43630  crates/rh-sim/src/systems/ledger.rs
 5c9c95c6d2f5c087c97cbfe6d44a4fea0a4efaf207471b8404adc02462630b68  8101  crates/rh-sim/src/systems/ledger/camps_tests.rs
 703492725b9fdb95506f1e5a96714db440b50bd0cb9d4a7c6e5287892d44abb9  12938  crates/rh-sim/src/pack_leader_native_tests.rs
+0bc6dc80fe526ec0e758756e1af2fbd1522714fa0aa7596d44c6f5bbe1d14392  3860  crates/rh-sim/tests/pack_leader_warm.rs
 14ff2b8ecfb679ec8ea776d95055c2b92f1f31b3e7b92c8ea9404df924157fde  4430  docs/evidence/pack-leader-native29/README.md
 f872ebe6ce3d5aa981220249a4f294a1915711db3a3840ba3d0b6ff2d3eedaf7  205  docs/evidence/pack-leader-native29/logs/clippy-all-features.log
 c7491e82d095056067c439555ca3586f2f627d292643c5337fac3ccce448e453  200  docs/evidence/pack-leader-native29/logs/clippy-default.log
@@ -19,3 +20,8 @@ fe011381d219ee9fbd70214229c70985caeeb97270e0225de8fc3021d3069860  1721  docs/evi
 9023497ab861e0f8089a7aa4c51aaef7b3881bd5d03b412ce3c96e8cc08e8adf  2359  docs/evidence/pack-leader-native29/mutants/02-execute-count-missing.log
 1109efe01da57d7f31e32079958d08e7b6c9904f6fd1dca6ca8f0a527ea6ef2c  1836  docs/evidence/pack-leader-native29/mutants/03-farm-inside-cap.log
 e7bec5bdf448eaf05eee0beb8038bea05b874b70b02ff4f475ac6a5e9732bc2a  2413  docs/evidence/pack-leader-native29/mutants/04-snapshot-missing.log
+ec2090d57e19483c27864a8815961c25ebee684516b8ae92891e2b83455e7214  838  docs/evidence/pack-leader-native29/warm-gate/README.txt
+f70950ec4abe65419db9594c774659276e3d28adf4f50f0fb2da9cedd630c89b  1050  docs/evidence/pack-leader-native29/warm-gate/camps-warm.log
+9ed232414fde522646f99d5fbf53914cbbb66879c5860fcdfafb767c7395c7d8  216  docs/evidence/pack-leader-native29/warm-gate/clippy-warm.log
+184b8ab0d8b90d0b8017b25019ad3dfdd5aad409f5ed02fec219fa3e91fa3e00  5199  docs/evidence/pack-leader-native29/warm-gate/fmt-warm.log
+b0d436815d89bbfe585bcbad2def7b5836eec4832891215785d18cbf2e53ece7  577  docs/evidence/pack-leader-native29/warm-gate/no-alloc.log
