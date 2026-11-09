@@ -1,0 +1,134 @@
+{
+  "format": "rh-trader-public-native-evidence/1",
+  "base": "ea99b12429398f4e9b34c02d55b447bb30f9aca8",
+  "production_head": "261b9af22f30c7be60dc23bbf49edf86c7a2d346",
+  "armor_fix": "5f7444ee48ec52c940312c8a576dd8386abae0ba",
+  "changed_code_files": [
+    {
+      "path": "crates/rh-headless/tests/trader_public.rs",
+      "bytes": 6838,
+      "sha256": "8a0ef58e4dee590816e2d92ac5f6360d13ac7fecb6af5cb2aae68e9c42f5b82e"
+    },
+    {
+      "path": "crates/rh-sim/src/input.rs",
+      "bytes": 42183,
+      "sha256": "9908dc148d50b97ed23c7caeba6f8c183b5974017b162f62f9351c8a02938f84"
+    },
+    {
+      "path": "crates/rh-sim/src/item_view.rs",
+      "bytes": 43366,
+      "sha256": "b4ea9664e98fa6431d3a4cfb36bce45ab620e42232180efe84599ebdf9d7d313"
+    },
+    {
+      "path": "crates/rh-sim/src/modifiers/mod.rs",
+      "bytes": 40693,
+      "sha256": "8f34d29f3fb7365e9f6ec30d80522a968aeba0c3116abf3ea2678b9c6086ae26"
+    },
+    {
+      "path": "crates/rh-sim/src/observe.rs",
+      "bytes": 42822,
+      "sha256": "5100c5e2e111298acc7490de44c51f58f7696407ca9f5ee0419e0b0b3de2b483"
+    },
+    {
+      "path": "crates/rh-sim/src/traders/mod.rs",
+      "bytes": 11826,
+      "sha256": "e527775976ac803d522ab7b7255ec58328eb8bb9bfcd13d05722987ecd4e2036"
+    },
+    {
+      "path": "crates/rh-sim/src/traders/notices.rs",
+      "bytes": 283,
+      "sha256": "aeedfd7407406a33d09a49d82a22aa70550ae327479293a432a6c3ec3ea8c258"
+    },
+    {
+      "path": "crates/rh-sim/src/traders/runtime.rs",
+      "bytes": 15532,
+      "sha256": "a178dadef4ce76bcc63365e6e11633bd02648c2f39bc3666056f2aff11311c25"
+    },
+    {
+      "path": "crates/rh-sim/src/traders/trade_view.rs",
+      "bytes": 2635,
+      "sha256": "3a1e7a4f5ace6bb4f0f13c306dcb5078f5d7c68109f8244671fc5b9a7064d669"
+    },
+    {
+      "path": "crates/rh-sim/src/traders/view_tests.rs",
+      "bytes": 9312,
+      "sha256": "8163e5fad295d088e711ff2dadc96ddd22e28cae1d16b07dae0493fe9d2a7ccf"
+    },
+    {
+      "path": "crates/rh-sim/src/traders/view_tests/source_public.rs",
+      "bytes": 8532,
+      "sha256": "280faed98f85d28b6dee760227cf1550e4ca430cdd2bcdf58429b7701da06607"
+    }
+  ],
+  "immutable_source": [
+    {
+      "path": "parity/trade/runtime.json",
+      "bytes": 64757,
+      "sha256": "a03bfd021997c99e60a1cf1307c34dabef1bd1dd6c1c75d78ecd0818ad0805e1"
+    },
+    {
+      "path": "parity/trade-public/doors.json",
+      "bytes": 84114,
+      "sha256": "2ace515574261ef6d092cf8e973f8df0c0218a462037ab707badc73540ac5cc5"
+    },
+    {
+      "path": "parity/trade-public/schema-receivers.json",
+      "bytes": 45101,
+      "sha256": "ca15081396b494009d0bdf09c46942ae04dd5930133e7f4a68b4ffce6824ca8f"
+    }
+  ],
+  "source_counts": {
+    "state_cases": 6,
+    "public_action_cases": 17,
+    "feedback_rows": 18
+  },
+  "checks": [
+    {
+      "path": "docs/evidence/trader-public-native/checks/clippy-all-features.txt",
+      "bytes": 671,
+      "sha256": "d6ccc6917d5c8c6d697a015754aa6ae8e35212f735ecb25251abd47be83e59cb"
+    },
+    {
+      "path": "docs/evidence/trader-public-native/checks/clippy-default.txt",
+      "bytes": 671,
+      "sha256": "0e37be10b033b8f7692b78dee26470c96ef8020196b53c2912d1c1ee7137e3a6"
+    },
+    {
+      "path": "docs/evidence/trader-public-native/checks/fmt.txt",
+      "bytes": 40,
+      "sha256": "f8585fe9ef465b465e8501be55a43a72060940fc952de9612cce2ba28ff7f23e"
+    },
+    {
+      "path": "docs/evidence/trader-public-native/checks/headless.txt",
+      "bytes": 985,
+      "sha256": "2a8cef27d8be90b5322276903bde07f09f60a8b69736a0ba184b9111e7756934"
+    },
+    {
+      "path": "docs/evidence/trader-public-native/checks/modifiers.txt",
+      "bytes": 1005,
+      "sha256": "3c95aa2e2c815734b9a533857f265896f0448db88a8ca1f3192dd3d30bb106c4"
+    },
+    {
+      "path": "docs/evidence/trader-public-native/checks/owner-follow-up.txt",
+      "bytes": 604,
+      "sha256": "b1b44a85f8364631f4c5d90c6b1b18ed3ce9265978007f7ff09b7e093f0e11a0"
+    },
+    {
+      "path": "docs/evidence/trader-public-native/checks/traders.txt",
+      "bytes": 1250,
+      "sha256": "f52b3f36588f16978b56584331f8101f41188d5b1eb0da22adade1115ba3b6be"
+    }
+  ],
+  "readme": {
+    "path": "docs/evidence/trader-public-native/README.md",
+    "bytes": 8621,
+    "sha256": "7d7d544ab52f22713064c20301694f0688bb6e390e196f2906116efbb8e2c053"
+  },
+  "holds": [
+    "Coordinator observation/policy/format and checked server transport union",
+    "Client/public trader activation; no native wire equivalence claim",
+    "Legacy foreign-offer leak intentionally repaired under C-OBS",
+    "Declared ended-phase intake queue and invalid catalog-kind grammar are not intake parity claims"
+  ],
+  "protected_changes": []
+}

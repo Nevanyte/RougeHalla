@@ -1,0 +1,11 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/trader-public-native/repo/crates/rh-sim)
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/trader-public-native/repo/crates/rh-policy)
+   Compiling rh-headless v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/trader-public-native/repo/crates/rh-headless)
+    Finished `test` profile [unoptimized] target(s) in 16.78s
+     Running tests/trader_public.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/trader-public-native/target/debug/deps/trader_public-e8712beea38a2ac7)
+
+running 2 tests
+test a_positive_folded_trade_base_keeps_the_stricter_relative_shred_bound ... ok
+test fixed_kind_public_commands_trade_through_the_actual_external_headless_door ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.71s

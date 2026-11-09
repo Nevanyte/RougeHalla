@@ -1,0 +1,8 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/trader-public-native/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 35.45s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/trader-public-native/target/debug/deps/rh_sim-0ad75f2b040c28b6)
+
+running 1 test
+test traders::view_tests::owner_quotes_are_read_only_private_stable_and_not_rolled_by_observation ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 773 filtered out; finished in 0.77s
