@@ -53,6 +53,7 @@ namespace Roguehalla.Client.Tests
         Keyboard _keyboard;
         Keyboard _previousKeyboard;
         InputSettings _originalInputSettings, _fixtureInputSettings;
+        HideFlags _originalInputSettingsHideFlags;
         TMP_InputField _typingField;
         bool _oldToggleMode;
 
@@ -61,6 +62,7 @@ namespace Roguehalla.Client.Tests
         {
             _previousEvents = EventSystem.current;
             _originalInputSettings = InputSystem.settings;
+            _originalInputSettingsHideFlags = _originalInputSettings.hideFlags;
             _previousKeyboard = Keyboard.current;
             // ExecuteAlways ensures EventSystem.OnEnable registers this test instance in EditMode.
             // Keep the project EventSystem active and move this known-registered instance to the front.
@@ -79,6 +81,10 @@ namespace Roguehalla.Client.Tests
             _fixtureInputSettings.updateMode = InputSettings.UpdateMode.ProcessEventsInDynamicUpdate;
             _fixtureInputSettings.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus;
             _fixtureInputSettings.SetInternalFeatureFlag("RUN_PLAYER_UPDATES_IN_EDIT_MODE", true);
+            // InputManager treats the exact HideAndDontSave combination as an internally-owned settings object
+            // and destroys it when replaced. Retain the no-save/unload flags while the fixture owns the reference.
+            if (_originalInputSettingsHideFlags == HideFlags.HideAndDontSave)
+                _originalInputSettings.hideFlags = HideFlags.DontSave;
             InputSystem.settings = _fixtureInputSettings;
             _keyboard = InputSystem.AddDevice<Keyboard>();
             _keyboard.MakeCurrent();
@@ -227,7 +233,26 @@ namespace Roguehalla.Client.Tests
             }
             finally
             {
-                if (_fixtureInputSettings != null) UnityEngine.Object.DestroyImmediate(_fixtureInputSettings);
+                try
+                {
+                    if (_originalInputSettings != null) _originalInputSettings.hideFlags = _originalInputSettingsHideFlags;
+                }
+                finally
+                {
+                    try
+                    {
+                        if (_fixtureInputSettings != null && !ReferenceEquals(InputSystem.settings, _fixtureInputSettings))
+                            UnityEngine.Object.DestroyImmediate(_fixtureInputSettings);
+                    }
+                    finally
+                    {
+                        Assert.That(_originalInputSettings != null, Is.True, "the original InputSettings asset must remain alive");
+                        Assert.That(ReferenceEquals(InputSystem.settings, _originalInputSettings), Is.True,
+                            "the exact original InputSettings reference must be restored");
+                        Assert.That(_originalInputSettings.hideFlags, Is.EqualTo(_originalInputSettingsHideFlags),
+                            "the original InputSettings hide flags must be restored exactly");
+                    }
+                }
             }
         }
 
