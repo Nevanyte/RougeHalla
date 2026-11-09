@@ -30,6 +30,9 @@ impl Drop for Rig {
 }
 impl Rig {
     async fn start(mode: &str, hosted: bool) -> Self {
+        Self::start_arena(mode, hosted, None).await
+    }
+    async fn start_arena(mode: &str, hosted: bool, arena: Option<rh_sim::Arena>) -> Self {
         let mut args = vec!["--runtime".into(), mode.into()];
         if mode == "source-arena" {
             args.extend([
@@ -48,7 +51,10 @@ impl Rig {
             max_rooms: 2,
             require_admit: hosted,
             tick: Duration::from_millis(3),
-            ..DirectorConfig::new(settings.sim(), settings.arena().unwrap())
+            ..DirectorConfig::new(
+                settings.sim(),
+                arena.unwrap_or_else(|| settings.arena().unwrap()),
+            )
         };
         let lifecycle = Arc::new(Lifecycle::default());
         let director = Director::new(
@@ -755,4 +761,46 @@ fn real_binary_refuses_unknown_runtime_and_incompatible_configuration() {
             "{args:?}: {stderr}"
         );
     }
+}
+
+#[tokio::test]
+async fn captured_full_source_map_admits_encoded_planning_and_live_public_state() {
+    // Only the unchanged map export is read from the capture; no captured inputs, secrets or expected outcomes enter play.
+    let capture: Value =
+        serde_json::from_slice(include_bytes!("../../../parity/arena/source.json")).unwrap();
+    let arena =
+        rh_server::runtime::source_map(&serde_json::to_vec(&capture["map"]["export"]).unwrap())
+            .unwrap();
+    let rig = Rig::start_arena("source-arena", false, Some(arena)).await;
+    let mut alice = Client::connect(&rig, "alice", "alice-secret", None)
+        .await
+        .unwrap();
+    let mut bob = Client::connect(&rig, "bob", "bob-secret", None)
+        .await
+        .unwrap();
+    let map = alice.map.as_ref().unwrap();
+    assert_eq!((map.w, map.h), (160, 160));
+    assert_eq!(map.terrain_mode, rh_protocol::GroundMode::All);
+    assert!(map.terrain.is_some() && map.regions.is_some());
+    assert_eq!(alice.room, bob.room);
+    alice.until(|c| c.phase == 3 && c.plan.is_some()).await;
+    bob.until(|c| c.phase == 3 && c.plan.is_some()).await;
+    for client in [&mut alice, &mut bob] {
+        client
+            .input(WireCommand::Plan {
+                spawn: None,
+                boon: None,
+                ready: Some(true),
+            })
+            .await;
+    }
+    alice
+        .until(|c| c.phase == 1 && c.plan.is_none() && c.quests.is_some() && c.trade.is_some())
+        .await;
+    bob.until(|c| c.phase == 1 && c.plan.is_none() && c.quests.is_some() && c.trade.is_some())
+        .await;
+    for _ in 0..8 {
+        alice.recv().await;
+    }
+    assert!(!alice.training && !bob.training);
 }
