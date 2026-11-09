@@ -235,7 +235,10 @@ impl Runtime {
             && self.wire[0] <= base[0]
             && self.wire[1] == base[1]
             && self.wire[2] == base[2]
-            && self.wire[3] >= fold::encode_flat(-crate::constants::AXE_SHRED_CAP)
+            // Trade/card/farm rows may make the folded armor negative. Shred lowers that real
+            // base by at most its source cap; an absolute -cap bound rejects earned trades.
+            && self.wire[3]
+                >= fold::encode_flat(mirrors.armor_bonus - crate::constants::AXE_SHRED_CAP)
             && self.wire[3] <= base[3] + passive
             && (base[4]..=base[4] + passive).contains(&self.wire[4])
             && self.wire[5..] == base[5..]
