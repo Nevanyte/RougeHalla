@@ -1,0 +1,34 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/worktrees/deepseek-rust-completion/p-pack-leader/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 33.35s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fight-native/target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 1 test
+build: p0 at (200.0, 240.0) weapon Wand mobs [(PlayerId(4), Vec2 { x: 144.0, y: 112.0 }, Alive), (PlayerId(5), Vec2 { x: 112.0, y: 144.0 }, Alive), (PlayerId(6), Vec2 { x: 144.0, y: 144.0 }, Alive)]
+at step 23: p0 pos (200.0, 240.0) weapon Wand target Some(PlayerId(4)) held true action Some(PendingAction { target: Some(PlayerId(4)), kind: Cast, weapon: Wand, started_at: 1110.1010101010102, lands_at: 1560.1010101010102, a: -1.983206768392284, packet: Packet { raw: 615.9515151515152, phys: 0.0, magic: 1.0, true_: 0.0 }, roam_armed: false }) mobs [(PlayerId(4), Vec2 { x: 144.0, y: 112.0 }, 2847.23493360572, Alive), (PlayerId(5), Vec2 { x: 132.6771736326308, y: 166.55691669014266 }, 601.9201717803534, Alive), (PlayerId(6), Vec2 { x: 155.56384003577776, y: 163.82372577561904 }, 229.53719860625546, Alive)]
+DIAG step=34 by=Some(PlayerId(1)) victim=6 amount=1.258426966 weapon=Some(Wand) sig=Some(Burn) dot=false crit=false cut=1.000000000 ability=None
+DIAG step=34 by=Some(PlayerId(1)) victim=6 amount=8.898876404 weapon=Some(Wand) sig=Some(Burn) dot=false crit=false cut=1.000000000 ability=None
+DIAG step=35 by=Some(PlayerId(1)) victim=6 amount=1.258426966 weapon=Some(Wand) sig=Some(Burn) dot=false crit=false cut=1.000000000 ability=None
+DIAG step=35 by=Some(PlayerId(1)) victim=6 amount=8.898876404 weapon=Some(Wand) sig=Some(Burn) dot=false crit=false cut=1.000000000 ability=None
+DIAG step=36 by=Some(PlayerId(1)) victim=6 amount=1.258426966 weapon=Some(Wand) sig=Some(Burn) dot=false crit=false cut=1.000000000 ability=None
+DIAG step=36 by=Some(PlayerId(1)) victim=6 amount=8.898876404 weapon=Some(Wand) sig=Some(Burn) dot=false crit=false cut=1.000000000 ability=None
+DIAG step=37 by=Some(PlayerId(1)) victim=6 amount=65.686377473 weapon=Some(Wand) sig=None dot=false crit=false cut=1.000000000 ability=None
+DIAG step=37 by=Some(PlayerId(1)) victim=6 amount=0.477756713 weapon=Some(Wand) sig=Some(Burn) dot=false crit=false cut=1.000000000 ability=None
+DIAG step=37 by=Some(PlayerId(1)) victim=6 amount=3.378422469 weapon=Some(Wand) sig=Some(Burn) dot=false crit=false cut=1.000000000 ability=None
+DIAG step=37 by=Some(PlayerId(1)) victim=5 amount=51.906026558 weapon=Some(Wand) sig=None dot=false crit=false cut=1.000000000 ability=None
+native facts: steps=384 clear=Some((169, 8450.0)) deaths=[(37, PlayerId(6)), (146, PlayerId(4)), (169, PlayerId(5))] later=Some((321, 16050.0, 625.7285233040177)) count=1 rosters=[(2, 0)] expected: clear 169/8450 deaths [37, 146, 169] later 321/16050/625.7285233040177
+
+thread 'pack_leader_native_tests::the_genuine_source_tape_produces_the_native_camp_count_and_later_player_damage' (67909528) panicked at crates/rh-sim/src/pack_leader_native_tests.rs:404:9:
+assertion `left == right` failed: first relevant landed argument mismatch at index 27
+  left: (37, 1850.0, "mob3", 65.68637747290633, "wand")
+ right: (37, 1850.0, "mob3", 173.02008852570654, "wand")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test pack_leader_native_tests::the_genuine_source_tape_produces_the_native_camp_count_and_later_player_damage ... FAILED
+
+failures:
+
+failures:
+    pack_leader_native_tests::the_genuine_source_tape_produces_the_native_camp_count_and_later_player_damage
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 823 filtered out; finished in 0.53s
+
+error: test failed, to rerun pass `-p rh-sim --lib`

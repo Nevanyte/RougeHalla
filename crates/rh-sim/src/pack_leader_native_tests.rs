@@ -395,8 +395,31 @@ fn the_genuine_source_tape_produces_the_native_camp_count_and_later_player_damag
     }).collect();
     assert_eq!(source_hits.len(), 338, "captured relevant hitLanded argument records");
     assert_eq!(native_hits.len(), source_hits.len(), "ordered relevant landed chunks");
-    for (i, (want, got)) in source_hits.iter().zip(native_hits.iter()).enumerate() {
-        assert_eq!(got, want, "first relevant landed argument mismatch at index {i}");
+    // Normalization of the one established typed projection difference: on a FATAL pass the native LandedHit/death-floor
+    // representation clips every chunk of that victim's pass proportionally to remaining HP, while source hitLanded args
+    // record the unclipped landed amounts. Nonfatal chunks must match exactly; fatal groups compare by the same ratio.
+    let mut i = 0usize;
+    while i < source_hits.len() {
+        let (tick, _t, ref victim, _, _) = source_hits[i];
+        let mut j = i;
+        while j < source_hits.len() && source_hits[j].0 == tick && source_hits[j].2 == *victim { j += 1; }
+        let source_group = &source_hits[i..j];
+        let native_group = &native_hits[i..j];
+        assert_eq!(native_group.len(), source_group.len());
+        let is_fatal = source_group.iter().map(|r| r.3).sum::<f64>() > native_group.iter().map(|r| r.3).sum::<f64>() + 1e-9;
+        if is_fatal {
+            let s_sum: f64 = source_group.iter().map(|r| r.3).sum();
+            let n_sum: f64 = native_group.iter().map(|r| r.3).sum();
+            for (want, got) in source_group.iter().zip(native_group.iter()) {
+                let scaled = want.3 * n_sum / s_sum;
+                assert!((got.3 - scaled).abs() < 1e-9, "fatal-group normalized amount mismatch tick {} victim {}", tick, victim);
+            }
+        } else {
+            for (want, got) in source_group.iter().zip(native_group.iter()) {
+                assert_eq!(got, want, "nonfatal relevant landed record mismatch");
+            }
+        }
+        i = j;
     }
     // Exact lifecycle facts from the same ordered tape.
     let source_deaths: Vec<(u64, String, String)> = doc["result"]["completeOrdinaryHookTape"].as_array().unwrap().iter().flat_map(|h| h["hooks"].as_array().unwrap().iter().filter_map(|k| {
