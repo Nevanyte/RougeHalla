@@ -1,0 +1,4 @@
+running 1 test
+test systems::frost::tests::owned_zombie_frost_tuple_restores_and_refuses_malformed ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 779 filtered out; finished in 0.03s

@@ -1,0 +1,4 @@
+running 1 test
+test systems::sentenced::group_source_tests::closed_profile_kernel_source_six_cases_sparse_snapshots_and_complete_mark_pulse_tapes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 779 filtered out; finished in 9.54s
