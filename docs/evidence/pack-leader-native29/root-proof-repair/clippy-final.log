@@ -1,0 +1,17 @@
+    Checking rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/protocol14-client-union/repo/crates/rh-sim)
+error: the loop variable `step` is only used to index `trace`
+   --> crates/rh-sim/tests/pack_leader_warm.rs:106:17
+    |
+106 |     for step in 0..WINDOW {
+    |                 ^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.97.0/index.html#needless_range_loop
+    = note: `-D clippy::needless-range-loop` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::needless_range_loop)]`
+help: consider using an iterator
+    |
+106 -     for step in 0..WINDOW {
+106 +     for <item> in trace.iter_mut().take(WINDOW) {
+    |
+
+error: could not compile `rh-sim` (test "pack_leader_warm") due to 1 previous error

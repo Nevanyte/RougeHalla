@@ -1,0 +1,11 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/protocol14-client-union/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 2.77s
+     Running tests/pack_leader_warm.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fight-native/target/debug/deps/pack_leader_warm-296968f1026f5eae)
+
+running 1 test
+same-checkpoint warm windows: original=0 clone=0 restore=0 start_tick=115 end_tick=155 actors=9
+warm windows: original=0 clone=0 restore=0 actors=9
+test camps_snapshot_warm_original_clone_restore_allocates_nothing ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
