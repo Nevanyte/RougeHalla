@@ -32,6 +32,8 @@ namespace Roguehalla.Client
 
         public RectTransform Root => _root;
         public RectTransform Panel => _panel;
+        /// <summary>The owning HUD can retain input ownership through a same-update open/close.</summary>
+        public event Action OpenStateChanged;
         public bool IsOpen => _opened && _panel != null && _panel.gameObject.activeSelf;
         public bool ActionsAvailable => _initialized && !_destroyed && _root != null && _panel != null &&
             _container != null && _container.gameObject.activeInHierarchy && isActiveAndEnabled && _confirmed && AcceptedTraining(_session, _epoch);
@@ -151,7 +153,7 @@ namespace Roguehalla.Client
             if (!open) ReleaseFocus();
             _opened = open; _actionGeneration++;
             if (_panel != null) _panel.gameObject.SetActive(open && ActionsAvailable);
-            WireControls(); UpdateControls(); return true;
+            WireControls(); UpdateControls(); OpenStateChanged?.Invoke(); return true;
         }
 
         /// <summary>The owner consumes this Escape only when true; the following Escape remains its ordinary Leave action.</summary>

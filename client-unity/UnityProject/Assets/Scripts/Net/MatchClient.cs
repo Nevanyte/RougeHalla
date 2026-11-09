@@ -97,7 +97,7 @@ namespace Roguehalla.Client
             _boundLaunchState = state =>
             {
                 if (!CurrentLaunchSession(session, generation)) return;
-                if (state != SessionState.InMatch) { _steering = false; _attackHeld = false; }
+                if (state != SessionState.InMatch) { Hud?.UnbindTrainingSession(); _steering = false; _attackHeld = false; }
                 if (state == SessionState.Failed || state == SessionState.Rejected || state == SessionState.Ended) Hud?.RefreshLaunchConfirmation(session);
                 Debug.Log("[net] " + state + (session.RejectCode.HasValue ? " " + session.RejectCode + ": " + session.RejectReason : "") + (session.Error != null ? " " + session.Error : ""));
             };
@@ -119,6 +119,7 @@ namespace Roguehalla.Client
             {
                 if (!CurrentLaunchSession(session, generation)) return;
                 _modeConfirmed = false;
+                Hud?.UnbindTrainingSession();
                 Hud?.RefreshLaunchConfirmation(session);
             };
             session.StateChanged += _boundLaunchState;
@@ -145,6 +146,7 @@ namespace Roguehalla.Client
         {
             var old = Session;
             var oldArena = Arena;
+            Hud?.UnbindTrainingSession();
             UnbindSettlementSession();
             Session = null; _sessionTarget = null; _modeConfirmed = false;
             if (old != null)
@@ -188,6 +190,7 @@ namespace Roguehalla.Client
         void OnApplicationFocus(bool focused)
         {
             if (!focused) Hud?.ReleaseUiFocusForWindowLoss();
+            else Hud?.RestoreUiFocusAfterWindowGain();
             if (focused || Session == null || Session.State != SessionState.InMatch) return;
             if (_attackHeld) Session.Input.Release(_aimAngle, Session.Clock.RenderMs);
             if (_steering) Session.OrderStop();

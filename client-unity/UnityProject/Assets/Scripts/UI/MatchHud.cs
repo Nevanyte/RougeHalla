@@ -101,6 +101,7 @@ namespace Roguehalla.Client
             Button(_results, "Rejoin", "Play again", .08f, .05f, .48f, .20f, JoinAgain);
             Button(_results, "Menu", "Return to menu", .52f, .05f, .92f, .20f, () => _client.Leave());
             InitializeFeatures();
+            InitializeTrainingConsole();
             ShowMenu();
         }
 
@@ -116,6 +117,7 @@ namespace Roguehalla.Client
 
         void ToggleSettings()
         {
+            SuspendTrainingForPanel();
             _showcaseAudio?.UnlockFromUserGesture();
             bool show = !_modernSettings.IsVisible;
             if (show) { SetSignInVisible(false); CloseHubPanels(); _drawer?.SetVisible(false); _help?.gameObject.SetActive(false); _map?.SetOpen(false); }
@@ -195,6 +197,7 @@ namespace Roguehalla.Client
         }
         void Unbind()
         {
+            UnbindTrainingSession();
             if (_session == null) return;
             _session.StateChanged -= Changed; _session.SnapshotReceived -= Snapshot;
             _session.CollectionsChanged -= Collections;
@@ -227,12 +230,14 @@ namespace Roguehalla.Client
             _dirty = true;
         }
 
-        void OnDestroy() { Unbind(); if (_showcaseSettings != null) _showcaseSettings.Changed -= ApplyTextScale; if (_uiPrefs != null) _uiPrefs.Changed -= ApplyDisplayPreferences; UiBrowserStorage.CaptureTab(false); }
+        void OnDisable() { UnbindTrainingSession(); }
+        void OnDestroy() { Unbind(); if (_trainingConsole != null) _trainingConsole.OpenStateChanged -= ConsumeTrainingUiUpdate; if (_showcaseSettings != null) _showcaseSettings.Changed -= ApplyTextScale; if (_uiPrefs != null) _uiPrefs.Changed -= ApplyDisplayPreferences; UiBrowserStorage.CaptureTab(false); }
         void Changed(SessionState state) { if (_session != null) RefreshCollections(_session.Collections); RefreshPlayerFlows(); _dirty = _rewardsDirty = true; }
-        void Snapshot(ServerMsg.Snapshot snapshot) { _dirty = true; }
+        void Snapshot(ServerMsg.Snapshot snapshot) { RefreshTrainingConsole(_session, snapshot); _dirty = true; }
         void Collections(CollectionsView view) { RefreshCollections(view); RefreshPlayerFlows(); _dirty = _rewardsDirty = true; }
         void Events(ServerMsg.Events events)
         {
+            if (_session?.LastResult != null) UnbindTrainingSession();
             if (_session != null)
             {
                 if (_playerFlowEpoch != _session.TimelineEpoch) ResetPlayerFlowTimeline();
