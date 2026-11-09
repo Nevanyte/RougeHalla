@@ -9,6 +9,7 @@ import re
 import shutil
 import signal
 import socket
+import stat
 import subprocess
 import sys
 import tempfile
@@ -18,6 +19,7 @@ import urllib.request
 
 from component import (Refused, TABLES, TARGET, MAX_BINARY, canonical, elf, hex_string,
                        inspect_archive, read_regular, require, sha, strict_json, validate_info, write_component)
+from diagnostics import Diagnostics
 
 # Public throwaway service credentials, valid only in this isolated CI job; never emitted or packaged.
 CI_URL = 'postgresql://rh_native:rh_native_ci_only@127.0.0.1:5432/rh_native_component'
@@ -81,8 +83,73 @@ def sql(psql, statement, env):
                     '--command', statement], env=env, timeout=10).strip()
 
 
-def probe(binary, psql, env, scratch):
-    require(sql(psql, "SELECT count(*) FROM pg_tables WHERE schemaname='public'", env) == '0', 'CI database is not fresh')
+def stage_cargo_executable(scratch, diagnostics=None):
+    """Copy trusted owned Cargo output (which may be hardlinked) to a new single-link executable.
+
+    This does not relax component.read_regular: validation, execution and archive
+    creation all use the exclusive copy through that original strict boundary.
+    """
+    diag = diagnostics or Diagnostics()
+    handles = []
+    scratch = Path(scratch)
+    def owned_directory(fd):
+        info = os.fstat(fd)
+        require(stat.S_ISDIR(info.st_mode) and info.st_uid == os.geteuid() and not info.st_mode & 0o022,
+                'owned Cargo directory required')
+    def identity(info):
+        return (info.st_dev, info.st_ino, info.st_mode, info.st_uid, info.st_nlink,
+                info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+    try:
+        root = os.open(scratch, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)
+        handles.append(root); owned_directory(root)
+        parent = root
+        for name in ('target', TARGET, 'release'):
+            parent = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=parent)
+            handles.append(parent); owned_directory(parent)
+        diag.binary('cargo', os.stat('rh-server', dir_fd=parent, follow_symlinks=False))
+        source = os.open('rh-server', os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=parent)
+        handles.append(source)
+        before = os.fstat(source)
+        diag.binary('cargo', before)
+        require(stat.S_ISREG(before.st_mode) and before.st_uid == os.geteuid() and before.st_nlink >= 1
+                and 0 < before.st_size <= MAX_BINARY and before.st_mode & 0o111 and not before.st_mode & 0o022,
+                'owned bounded regular Cargo executable required')
+        with os.fdopen(os.dup(source), 'rb') as stream:
+            data = stream.read(MAX_BINARY + 1)
+        require(len(data) == before.st_size and identity(os.fstat(source)) == identity(before)
+                and identity(os.stat('rh-server', dir_fd=parent, follow_symlinks=False)) == identity(before),
+                'Cargo output changed while copying')
+        os.mkdir('executed-component', mode=0o700, dir_fd=root)  # Never reuse/replace an existing stage.
+        staged_dir = os.open('executed-component', os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=root)
+        handles.append(staged_dir); owned_directory(staged_dir)
+        target = os.open('rh-server', os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC,
+                         0o700, dir_fd=staged_dir)
+        handles.append(target)
+        remaining = memoryview(data)
+        while remaining:
+            count = os.write(target, remaining)
+            require(count > 0, 'incomplete staged executable write')
+            remaining = remaining[count:]
+        os.fsync(target); os.fsync(staged_dir); os.fsync(root)
+        staged_info = os.fstat(target)
+        diag.binary('staged', staged_info)
+        require(staged_info.st_uid == os.geteuid() and staged_info.st_nlink == 1
+                and (staged_info.st_dev, staged_info.st_ino) != (before.st_dev, before.st_ino),
+                'staged executable identity mismatch')
+        require(identity(os.fstat(source)) == identity(before)
+                and identity(os.stat('rh-server', dir_fd=parent, follow_symlinks=False)) == identity(before),
+                'Cargo output changed while copying')
+        staged = scratch / 'executed-component' / 'rh-server'
+        require(read_regular(staged, MAX_BINARY, executable=True) == data, 'staged executable identity mismatch')
+        return staged
+    finally:
+        for fd in reversed(handles): os.close(fd)
+
+
+def probe(binary, psql, env, scratch, diagnostics=None):
+    diag = diagnostics or Diagnostics()
+    with diag.stage('database-fresh'):
+        require(sql(psql, "SELECT count(*) FROM pg_tables WHERE schemaname='public'", env) == '0', 'CI database is not fresh')
     with socket.socket() as listener:
         listener.bind(('127.0.0.1', 0)); port = listener.getsockname()[1]
     started = time.monotonic()
@@ -90,41 +157,50 @@ def probe(binary, psql, env, scratch):
                '--instance-id', 'ci-native-readiness', '--max-rooms', '1', '--fill-bots', '0', '--bot-learning', 'off']
     # Logs stay private in the owned CI temporary directory, never in artifact upload paths.
     with (scratch / 'server-private.log').open('xb') as log:
-        process = subprocess.Popen(command, env=env, stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True)
+        with diag.stage('server-start'):
+            process = subprocess.Popen(command, env=env, stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True)
         try:
-            deadline = started + 40
-            while True:
-                require(process.poll() is None, 'native process exited before readiness')
-                try:
-                    ready = strict_json(get_loopback(port, '/readyz'))
-                    if ready == {'ok': True, 'state': 'ready', 'storage': 'ok'}:
-                        break
-                except (OSError, urllib.error.URLError):
-                    pass  # Only bounded startup transport/503 retries; all terminal checks below remain strict.
-                require(time.monotonic() < deadline, 'bounded native readiness timed out')
-                time.sleep(0.2)
-            info = strict_json(get_loopback(port, '/info'))
-            health = get_loopback(port, '/healthz').decode('ascii')
-            counts = ','.join("'" + table + "',(SELECT count(*) FROM " + table + ')' for table in TABLES)
-            rows = strict_json(sql(psql, 'SELECT json_build_object(' + counts + ')', env))
-            validate_info(info, ready, rows)
-            require(health == 'ok', 'native health refused')
-            postgres = sql(psql, 'SHOW server_version', env)
+            with diag.stage('http-ready'):
+                deadline = started + 40
+                while True:
+                    state = process.poll()
+                    if state is not None: diag.process_exit(state)
+                    require(state is None, 'native process exited before readiness')
+                    try:
+                        ready = strict_json(get_loopback(port, '/readyz'))
+                        if ready == {'ok': True, 'state': 'ready', 'storage': 'ok'}:
+                            break
+                    except (OSError, urllib.error.URLError):
+                        pass  # Only bounded startup transport/503 retries; all terminal checks below remain strict.
+                    require(time.monotonic() < deadline, 'bounded native readiness timed out')
+                    time.sleep(0.2)
+            with diag.stage('http-info'):
+                info = strict_json(get_loopback(port, '/info'))
+                health = get_loopback(port, '/healthz').decode('ascii')
+            with diag.stage('database-boundary'):
+                counts = ','.join("'" + table + "',(SELECT count(*) FROM " + table + ')' for table in TABLES)
+                rows = strict_json(sql(psql, 'SELECT json_build_object(' + counts + ')', env))
+                validate_info(info, ready, rows)
+                require(health == 'ok', 'native health refused')
+                postgres = sql(psql, 'SHOW server_version', env)
         finally:
-            if process.poll() is None:
-                os.killpg(process.pid, signal.SIGTERM)
-            try:
-                exit_code = process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                os.killpg(process.pid, signal.SIGKILL)
-                process.wait(timeout=5)
-                raise Refused('owned readiness process did not stop within grace') from None
-        require(exit_code == 0, 'native readiness process did not stop cleanly')
-    final_rows = strict_json(sql(psql, 'SELECT json_build_object(' + counts + ')', env))
-    require(final_rows == rows, 'database changed during native shutdown')
-    validate_info(info, ready, final_rows)
-    elapsed = int((time.monotonic() - started) * 1000)
-    require(elapsed <= 60000, 'readiness elapsed bound exceeded')
+            with diag.stage('server-stop'):
+                if process.poll() is None:
+                    os.killpg(process.pid, signal.SIGTERM)
+                try:
+                    exit_code = process.wait(timeout=5)
+                    diag.process_exit(exit_code)
+                except subprocess.TimeoutExpired:
+                    os.killpg(process.pid, signal.SIGKILL)
+                    process.wait(timeout=5)
+                    raise Refused('owned readiness process did not stop within grace') from None
+                require(exit_code == 0, 'native readiness process did not stop cleanly')
+    with diag.stage('database-final'):
+        final_rows = strict_json(sql(psql, 'SELECT json_build_object(' + counts + ')', env))
+        require(final_rows == rows, 'database changed during native shutdown')
+        validate_info(info, ready, final_rows)
+        elapsed = int((time.monotonic() - started) * 1000)
+        require(elapsed <= 60000, 'readiness elapsed bound exceeded')
     return {'profile': 'core-readiness-only', 'info': info, 'readyz': ready, 'healthz': health,
             'db_rows': rows, 'postgres_version': postgres, 'elapsed_ms': elapsed, 'exit_code': exit_code}
 
@@ -147,71 +223,90 @@ def authorize_event(commit):
     return event_name
 
 
-def produce(harness, source, commit, output):
-    require(sys.platform == 'linux' and platform.machine() == 'x86_64',
-            'producer is restricted to Linux x86_64 GitHub jobs')
-    authorize_event(commit)
-    selected = selection(harness, commit)
-    clean_source(source, commit)
-    cargo_lock = read_regular(source / 'Cargo.lock', 1024 * 1024)
-    rust_file = read_regular(source / 'rust-toolchain.toml', 8192)
-    channel = toolchain_channel(rust_file)
-    rustup, psql = shutil.which('rustup'), shutil.which('psql')
-    require(rustup is not None and psql is not None, 'runner must already provide rustup and psql; no package install fallback')
+def produce(harness, source, commit, output, diagnostics=None):
+    diag = diagnostics or Diagnostics()
+    with diag.stage('ci-context'):
+        require(sys.platform == 'linux' and platform.machine() == 'x86_64',
+                'producer is restricted to Linux x86_64 GitHub jobs')
+        authorize_event(commit)
+    with diag.stage('source-selection'):
+        selected = selection(harness, commit)
+        clean_source(source, commit)
+    with diag.stage('source-inputs'):
+        cargo_lock = read_regular(source / 'Cargo.lock', 1024 * 1024)
+        rust_file = read_regular(source / 'rust-toolchain.toml', 8192)
+        channel = toolchain_channel(rust_file)
+        rustup, psql = shutil.which('rustup'), shutil.which('psql')
+        require(rustup is not None and psql is not None, 'runner must already provide rustup and psql; no package install fallback')
     base_env = {key: os.environ[key] for key in ('PATH', 'HOME', 'RUSTUP_HOME') if key in os.environ}
     with tempfile.TemporaryDirectory(prefix='rh-native-component-', dir=os.environ['RUNNER_TEMP']) as temp:
         scratch = Path(temp).resolve(strict=True)
         env = {**base_env, 'LC_ALL': 'C', 'CARGO_HOME': str(scratch / 'cargo-home'),
                'CARGO_TARGET_DIR': str(scratch / 'target'), 'CARGO_PROFILE_RELEASE_DEBUG': '0',
                'CARGO_TERM_COLOR': 'never', 'RH_BUILD': commit}
-        subprocess.run([rustup, 'toolchain', 'install', channel, '--profile', 'minimal', '--no-self-update'],
-                       env=env, check=True, timeout=600)
+        with diag.stage('toolchain-install'):
+            subprocess.run([rustup, 'toolchain', 'install', channel, '--profile', 'minimal', '--no-self-update'],
+                           env=env, check=True, timeout=600)
         prefix = [rustup, 'run', channel]
-        rustc_vv = capture([*prefix, 'rustc', '-vV'], env=env)
-        cargo_vv = capture([*prefix, 'cargo', '-vV'], env=env)
-        subprocess.run([*prefix, 'cargo', *BUILD_ARGS], cwd=source, env=env, check=True, timeout=2700)
-        binary = scratch / 'target' / TARGET / 'release' / 'rh-server'
-        data = read_regular(binary, MAX_BINARY, executable=True); elf_info = elf(data)
-        readiness = probe(binary, psql, env, scratch)
-        require(read_regular(binary, MAX_BINARY, executable=True) == data, 'executed binary bytes changed')
-        clean_source(source, commit)
-        require(read_regular(source / 'Cargo.lock', 1024 * 1024) == cargo_lock
-                and read_regular(source / 'rust-toolchain.toml', 8192) == rust_file, 'source identities changed during build')
-        manifest = {'format': 'rh-native-component/1', 'component': 'rh-server-postgres-release', 'deployable': False,
-                    'source': {**selected, 'tree': git(source, 'rev-parse', 'HEAD^{tree}'),
-                               'cargo_lock_sha256': sha(cargo_lock), 'rust_toolchain_sha256': sha(rust_file)},
-                    'build': {'target': TARGET, 'profile': 'release', 'features': ['postgres'], 'locked': True,
-                              'rust_toolchain': channel, 'rustc_vv': rustc_vv, 'cargo_vv': cargo_vv,
-                              'libc': os.confstr('CS_GNU_LIBC_VERSION'), 'release_debug': '0'},
-                    'binary': {'path': 'bin/rh-server', 'bytes': len(data), 'sha256': sha(data), 'elf': elf_info},
-                    'readiness': readiness}
-        return write_component(binary, manifest, output)
+        with diag.stage('toolchain-identity'):
+            rustc_vv = capture([*prefix, 'rustc', '-vV'], env=env)
+            cargo_vv = capture([*prefix, 'cargo', '-vV'], env=env)
+        with diag.stage('cargo-build'):
+            subprocess.run([*prefix, 'cargo', *BUILD_ARGS], cwd=source, env=env, check=True, timeout=2700)
+        with diag.stage('cargo-output-copy'):
+            binary = stage_cargo_executable(scratch, diag)
+        with diag.stage('staged-binary'):
+            data = read_regular(binary, MAX_BINARY, executable=True); elf_info = elf(data)
+        with diag.stage('server-start'):
+            readiness = probe(binary, psql, env, scratch, diagnostics=diag)
+        with diag.stage('source-recheck'):
+            require(read_regular(binary, MAX_BINARY, executable=True) == data, 'executed binary bytes changed')
+            clean_source(source, commit)
+            require(read_regular(source / 'Cargo.lock', 1024 * 1024) == cargo_lock
+                    and read_regular(source / 'rust-toolchain.toml', 8192) == rust_file, 'source identities changed during build')
+        with diag.stage('manifest-build'):
+            manifest = {'format': 'rh-native-component/1', 'component': 'rh-server-postgres-release', 'deployable': False,
+                        'source': {**selected, 'tree': git(source, 'rev-parse', 'HEAD^{tree}'),
+                                   'cargo_lock_sha256': sha(cargo_lock), 'rust_toolchain_sha256': sha(rust_file)},
+                        'build': {'target': TARGET, 'profile': 'release', 'features': ['postgres'], 'locked': True,
+                                  'rust_toolchain': channel, 'rustc_vv': rustc_vv, 'cargo_vv': cargo_vv,
+                                  'libc': os.confstr('CS_GNU_LIBC_VERSION'), 'release_debug': '0'},
+                        'binary': {'path': 'bin/rh-server', 'bytes': len(data), 'sha256': sha(data), 'elf': elf_info},
+                        'readiness': readiness}
+        with diag.stage('archive-create'):
+            return write_component(binary, manifest, output)
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__)
+    class SafeParser(argparse.ArgumentParser):
+        def error(self, _message): raise Refused('invalid producer CLI')
+    parser = SafeParser(description=__doc__)
     parser.add_argument('command', choices=['select', 'produce', 'verify'])
     parser.add_argument('--harness', type=Path)
     parser.add_argument('--source', type=Path)
     parser.add_argument('--commit')
     parser.add_argument('--archive', type=Path)
-    args = parser.parse_args(argv)
+    diag = Diagnostics(sys.stderr)
     try:
+        with diag.stage('cli'):
+            args = parser.parse_args(argv)
         if args.command == 'select':
-            require(args.harness is not None, 'harness checkout required')
-            result = selection(args.harness, args.commit)
+            with diag.stage('source-selection'):
+                require(args.harness is not None, 'harness checkout required')
+                result = selection(args.harness, args.commit)
         elif args.command == 'produce':
             require(args.harness is not None and args.source is not None and args.archive is not None, 'source/harness/new output required')
-            result = produce(args.harness, args.source, args.commit, args.archive)
+            result = produce(args.harness, args.source, args.commit, args.archive, diagnostics=diag)
         else:
-            require(args.archive is not None, 'component archive required')
-            data = read_regular(args.archive, MAX_BINARY + 1024 * 1024)
-            manifest = inspect_archive(data)
-            result = {'sha256': sha(data), 'source_commit': manifest['source']['commit'], 'deployable': False}
+            with diag.stage('archive-verify'):
+                require(args.archive is not None, 'component archive required')
+                data = read_regular(args.archive, MAX_BINARY + 1024 * 1024)
+                manifest = inspect_archive(data)
+                result = {'sha256': sha(data), 'source_commit': manifest['source']['commit'], 'deployable': False}
         print(json.dumps(result, sort_keys=True))
         return 0
-    except (Refused, OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError):
-        print('native component refused; no deployable artifact produced (private CI diagnosis required)', file=sys.stderr)
+    except (Exception, KeyboardInterrupt) as error:
+        diag.failure(error)
         return 2
 
 
