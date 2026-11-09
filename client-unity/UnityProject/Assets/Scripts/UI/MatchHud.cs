@@ -79,10 +79,10 @@ namespace Roguehalla.Client
             CreateJoinMenu();
             SetFaction(_faction);
             CreateCombatHud();
-            _notice = Text(_root, "Notice", "", .32f, .15f, .70f, .22f, 19);
+            _notice = Text(_root, "Notice", "", .32f, .15f, .61f, .22f, 19);
             _rewards = Panel(_root, "Rewards", .70f, .425f, .985f, .915f);
             _rewardTitle = Text(_rewards, "RewardTitle", "", .06f, .76f, .94f, .99f, 23);
-            SetBaseSize(_rewardTitle, 28);
+            SetBaseSize(_rewardTitle, 25);
             _rewardTitle.color = ShowcasePalette.Gold;
             for (int i = 0; i < 3; i++)
             {
@@ -256,13 +256,15 @@ namespace Roguehalla.Client
                 _resultTitle.color = ShowcasePalette.Warning;
                 _results.gameObject.SetActive(true);
             }
+            RefreshWorldHudVisibility();
         }
         /// <summary>Renders only delivered owner facts; the accepted server clock is used for elapsed-time labels.</summary>
         internal void RefreshOwnerPresentation(SelfView me, double serverTimeMs)
         {
             if (me.Hp != _lastHp || me.MaxHp != _lastMaxHp || me.Kills != _lastKills || me.Gv != _lastGv || me.Status != _lastStatus || me.Barrier != _lastBarrier || me.BarrierRingStep != _lastBarrierRing)
             {
-                Set(_vitals, "HP " + me.Hp.ToString("0.#") + " / " + me.MaxHp.ToString("0.#") + " · Barrier " + me.Barrier.ToString("0.#") + "\nKills " + me.Kills + " · GV " + me.Gv + " · " + me.Status);
+                Set(_vitals, "HP " + me.Hp.ToString("0.#") + " / " + me.MaxHp.ToString("0.#") + " · Barrier " + me.Barrier.ToString("0.#"));
+                Set(_combatStats, "Kills " + me.Kills + " · GV " + me.Gv + " · " + me.Status);
                 _lastHp = me.Hp; _lastMaxHp = me.MaxHp; _lastKills = me.Kills; _lastGv = me.Gv; _lastStatus = me.Status; _lastBarrier = me.Barrier; _lastBarrierRing = me.BarrierRingStep;
                 OwnerVitalBars.Percent(me, out float healthPercent, out float barrierPercent);
                 float healthEnd = healthPercent / 100f;
@@ -285,6 +287,7 @@ namespace Roguehalla.Client
         {
             _lastHp = float.NaN; _lastBarrier = 0f; _lastBarrierRing = 0; _lastWish = null; _lastServerTime = double.NaN;
             Set(_vitals, reason == "Unavailable" ? "Waiting / spectating" : "Waiting for player state");
+            Set(_combatStats, "Awaiting player stats");
             Set(_wishCard, "R · WISH\n" + reason);
             Set(_wishSummary, "R · WISH · —");
             if (_healthBarFill != null) _healthBarFill.anchorMax = Vector2.zero;
@@ -368,7 +371,7 @@ namespace Roguehalla.Client
         void RefreshRewards()
         {
             var chests = _session.Collections.RewardChests;
-            bool show = chests.Count > 0 && !_results.gameObject.activeSelf;
+            bool show = chests.Count > 0 && !_results.gameObject.activeSelf && WorldHudVisible;
             _rewards.gameObject.SetActive(show);
             if (!show) { _shownChest = default; ReleaseChestFocus(); return; }
             _chestIndex %= chests.Count;
@@ -420,9 +423,9 @@ namespace Roguehalla.Client
         static RectTransform Panel(Transform parent, string name, float x0, float y0, float x1, float y1)
         {
             var r = Rect(parent, name, x0, y0, x1, y1);
-            var image = r.gameObject.AddComponent<UnityEngine.UI.Image>(); image.color = ShowcasePalette.Panel; image.raycastTarget = true;
+            var image = r.gameObject.AddComponent<UnityEngine.UI.Image>(); image.color = MythicUi.Backdrop(ShowcasePalette.Panel); image.raycastTarget = true;
             var outline = r.gameObject.AddComponent<UnityEngine.UI.Outline>();
-            outline.effectColor = new Color32(126, 96, 51, 220); outline.effectDistance = new Vector2(1f, -1f); outline.useGraphicAlpha = true;
+            outline.effectColor = new Color32(126, 96, 51, 220); outline.effectDistance = new Vector2(1f, -1f); outline.useGraphicAlpha = false;
             if (name == "JoinMenu" || name == "PlayerHUD" || name == "Rewards" || name == "Results" || name == "SettingsPanel")
                 AddCornerOrnaments(r);
             return r;
@@ -469,7 +472,7 @@ namespace Roguehalla.Client
         {
             var r = Panel(parent, name, x0, y0, x1, y1);
             var background = r.GetComponent<UnityEngine.UI.Image>();
-            background.color = Color.white;
+            background.color = MythicUi.Backdrop(Color.white);
             var button = r.gameObject.AddComponent<UnityEngine.UI.Button>();
             button.targetGraphic = background; button.onClick.AddListener(action);
             var label = Text(r, "Label", text, .04f, .05f, .96f, .95f, 20); label.alignment = TextAlignmentOptions.Center;

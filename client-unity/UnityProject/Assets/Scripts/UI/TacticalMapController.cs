@@ -43,6 +43,7 @@ namespace Roguehalla.Client
         double _nextPaint, _nextPath;
         bool _factsDirty = true;
         bool _mapOpen;
+        bool _minimapSuppressed;
         public bool ToggleMode => _prefs.MapToggle;
         public bool ShowRoute => _prefs.ShowRoute;
         public bool IsPlanning => _bound?.Collections.Plan != null && _bound.LastResult == null && (_bound.State == SessionState.InMatch || _bound.State == SessionState.Reconnecting || _bound.State == SessionState.HelloSent);
@@ -61,6 +62,7 @@ namespace Roguehalla.Client
             _title = MythicUi.Text(_panel, "MapHeading", "TACTICAL MAP", new Vector2(.025f, .89f), new Vector2(.72f, .995f), 22, ShowcasePalette.Gold, heading: true);
             MythicUi.Button(_panel, "CloseMap", "CLOSE", new Vector2(.87f, .91f), new Vector2(.985f, .985f), () => SetOpen(false));
             var mapFrame = MythicUi.Panel(_panel, "MapFrame", new Vector2(.02f, .22f), new Vector2(.69f, .89f), ShowcasePalette.Background);
+            mapFrame.GetComponent<Image>().color = Color.clear;
             var mapRect = MythicUi.Rect(mapFrame, "PublicMap", Vector2.zero, Vector2.one);
             _large = mapRect.gameObject.AddComponent<TacticalMapSurface>(); _large.Initialize();
             _large.Pressed = (point, button) => { if (button == PointerEventData.InputButton.Left) AddRoutePoint(point); };
@@ -95,11 +97,11 @@ namespace Roguehalla.Client
             MythicUi.Button(_panel, "UndoRoute", "UNDO", new Vector2(.715f, .09f), new Vector2(.84f, .17f), () => { _route.Undo(); _routeStorageDirty = true; _nextPath = _nextPaint = 0; });
             MythicUi.Button(_panel, "ClearRoute", "CLEAR", new Vector2(.855f, .09f), new Vector2(.98f, .17f), () => { _route.Clear(); _routeStorageDirty = true; _nextPath = _nextPaint = 0; });
             _status = MythicUi.Text(_panel, "MapStatus", "", new Vector2(.025f, .005f), new Vector2(.98f, .075f), 17, ShowcasePalette.MutedText);
-            _miniRoot = MythicUi.Panel(root, "Minimap", new Vector2(.845f, .018f), new Vector2(.985f, .198f));
-            var miniFrame = MythicUi.Rect(_miniRoot, "TerrainFrame", new Vector2(.04f, .27f), new Vector2(.96f, .96f));
+            _miniRoot = MythicUi.Panel(root, "Minimap", new Vector2(.705f, .018f), new Vector2(.985f, .378f), Color.clear);
+            var miniFrame = MythicUi.Rect(_miniRoot, "TerrainFrame", new Vector2(.04f, .18f), new Vector2(.96f, .96f));
             _mini = miniFrame.gameObject.AddComponent<TacticalMapSurface>(); _mini.Initialize();
             _mini.Pressed = MinimapPress; _mini.Dragged = MinimapDrag; _mini.PointerReleased = MinimapRelease; _mini.Aborted = ReleaseMinimap;
-            MythicUi.Button(_miniRoot, "OpenMap", "TAB · MAP", new Vector2(.04f, .02f), new Vector2(.96f, .24f), () => SetOpen(!IsOpen), fontSize: 14);
+            MythicUi.Button(_miniRoot, "OpenMap", "TAB · MAP", new Vector2(.04f, .02f), new Vector2(.96f, .15f), () => SetOpen(!IsOpen), fontSize: 14);
             _panel.gameObject.SetActive(false); _miniRoot.gameObject.SetActive(false);
         }
 
@@ -115,7 +117,7 @@ namespace Roguehalla.Client
                 _bound.StateChanged += MapStateChanged;
             }
             _large.SetMap(null); _mini.SetMap(null); _routePlan = null; _routePoints = Array.Empty<RoutePoint>();
-            _miniRoot.gameObject.SetActive(session != null); _nextPaint = _nextPath = 0;
+            RefreshMinimapVisibility(); _nextPaint = _nextPath = 0;
         }
         public void SetToggleMode(bool value) { _prefs.SetMapToggle(value); ReleaseTransient(); }
         public void SetShowRoute(bool value) { _prefs.SetShowRoute(value); _nextPaint = 0; }
@@ -123,14 +125,28 @@ namespace Roguehalla.Client
         {
             if (_miniRoot == null) return;
             value = Mathf.Clamp(value, .85f, 1.25f);
-            _miniRoot.anchorMin = new Vector2(.985f - .14f * value, .018f);
-            _miniRoot.anchorMax = new Vector2(.985f, .018f + .18f * value);
+            _miniRoot.anchorMin = new Vector2(.985f - .28f * value, .018f);
+            _miniRoot.anchorMax = new Vector2(.985f, .018f + .36f * value);
+        }
+        public void SetMinimapSuppressed(bool suppressed)
+        {
+            if (_minimapSuppressed == suppressed) return;
+            _minimapSuppressed = suppressed; RefreshMinimapVisibility();
+        }
+        void RefreshMinimapVisibility()
+        {
+            if (_miniRoot == null) return;
+            bool visible = !_minimapSuppressed && !IsOpen && _bound != null && _bound.LastResult == null &&
+                (_bound.State == SessionState.InMatch || _bound.State == SessionState.Reconnecting);
+            if (!visible) ReleaseMinimap();
+            if (_miniRoot.gameObject.activeSelf != visible) _miniRoot.gameObject.SetActive(visible);
         }
         public void SetOpen(bool open)
         {
             if (open) _mapKeys.OpenMap(MapContext(false, false)); else _mapKeys.CloseMap();
             _mapOpen = _mapKeys.MapHeld;
             _panel.gameObject.SetActive(IsPlanning || _mapOpen);
+            RefreshMinimapVisibility();
             if (open) ReleaseMinimap();
         }
         bool MapAllowed => _bound != null && _bound.State == SessionState.InMatch && _bound.Phase == MatchPhase.Active && !_bound.Training && _bound.LastResult == null;
@@ -158,12 +174,12 @@ namespace Roguehalla.Client
             }
             _mapOpen = _mapKeys.MapHeld;
             _panel.gameObject.SetActive(IsPlanning || _mapOpen);
+            RefreshMinimapVisibility();
         }
         public void Tick()
         {
             if (_bound == null || _bound.Map == null) return;
             _large.SetMap(_bound.Map); _mini.SetMap(_bound.Map);
-            _miniRoot.gameObject.SetActive(_bound.LastResult == null && (_bound.State == SessionState.InMatch || _bound.State == SessionState.Reconnecting));
             if ((_storageKey == null || _timelineEpoch != _bound.TimelineEpoch) && _bound.Welcome != null)
             {
                 _timelineEpoch = _bound.TimelineEpoch;
@@ -172,6 +188,7 @@ namespace Roguehalla.Client
             }
             if (_bound.State != SessionState.InMatch || _bound.LastResult != null) ReleaseTransient();
             _panel.gameObject.SetActive(_bound.LastResult == null && (IsPlanning || _mapOpen));
+            RefreshMinimapVisibility();
             if (_factsDirty) _nextPaint = 0;
             if (Time.realtimeSinceStartupAsDouble < _nextPaint) return;
             _factsDirty = false;

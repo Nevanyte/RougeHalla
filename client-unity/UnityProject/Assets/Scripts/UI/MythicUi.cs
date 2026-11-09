@@ -11,6 +11,10 @@ namespace Roguehalla.Client
     public static class MythicUi
     {
         public enum ButtonStyle { Primary, Secondary, Quiet }
+        const float BackdropOpacity = 200f / 255f;
+
+        // UI backing only: shared world-art colors and child text/icons keep their own opacity.
+        public static Color Backdrop(Color color) { color.a = Mathf.Min(color.a, BackdropOpacity); return color; }
 
         static TMP_FontAsset _font, _headingFont;
         static readonly Sprite[] GlyphSprites = new Sprite[12];
@@ -31,7 +35,7 @@ namespace Roguehalla.Client
         {
             var rect = Rect(parent, name, anchorMin, anchorMax);
             var image = rect.gameObject.AddComponent<Image>();
-            image.color = fill ?? ShowcasePalette.Panel;
+            image.color = Backdrop(fill ?? ShowcasePalette.Panel);
             image.raycastTarget = raycast;
             return rect;
         }
@@ -86,7 +90,7 @@ namespace Roguehalla.Client
             if (Mathf.Approximately(anchorMin.y, anchorMax.y) && Mathf.Approximately(rect.sizeDelta.y, 0)) rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, 44);
             var edge = rect.gameObject.AddComponent<UnityEngine.UI.Outline>();
             edge.effectColor = ShowcasePalette.GoldDim; edge.effectDistance = new Vector2(2, -2); edge.useGraphicAlpha = false;
-            image.color = Color.white;
+            image.color = Backdrop(Color.white);
             var colors = button.colors;
             colors.normalColor = ShowcasePalette.PanelRaised;
             colors.highlightedColor = ShowcasePalette.PanelStroke;
@@ -96,7 +100,7 @@ namespace Roguehalla.Client
             button.colors = colors;
             button.onClick.AddListener(onClick);
             Text(rect, "Label", label, Vector2.zero, Vector2.one, fontSize,
-                style == ButtonStyle.Primary ? ShowcasePalette.Text : ShowcasePalette.MutedText,
+                ShowcasePalette.Text,
                 TextAlignmentOptions.Center);
             return button;
         }

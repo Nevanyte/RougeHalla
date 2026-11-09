@@ -355,6 +355,29 @@ namespace Roguehalla.Client.Tests
         }
 
         [Test]
+        public void ClosingSettingsRestoresThePreviouslyFocusedWorldHudControl()
+        {
+            var control = _hud.transform.Find("MatchUI/PlayerHUD/BuildStrip/BuildDetails").gameObject;
+            var selectable = control.GetComponent<UnityEngine.UI.Selectable>();
+            Assert.That(control.activeInHierarchy, Is.True);
+            Assert.That(selectable != null && selectable.IsInteractable(), Is.True, "the build control must be available to focus");
+            EventSystem.current.SetSelectedGameObject(control);
+            Assert.That(EventSystem.current.currentSelectedGameObject, Is.SameAs(control));
+            Invoke(_hud, "RefreshWorldHudVisibility");
+
+            Invoke(_hud, "ToggleSettings");
+            Invoke(_hud, "RefreshWorldHudVisibility");
+            Assert.That(control.activeInHierarchy, Is.False,
+                "opening settings hides the previously focused combat HUD control");
+
+            Invoke(_hud, "ToggleSettings");
+            Invoke(_hud, "RefreshWorldHudVisibility");
+            Assert.That(control.activeInHierarchy, Is.True);
+            Assert.That(EventSystem.current.currentSelectedGameObject, Is.SameAs(control),
+                "the exact prior HUD control is restored after settings closes");
+        }
+
+        [Test]
         public void FocusedTextInputPreventsTabFromOpeningMap()
         {
             _typingField = _hud.transform.Find("MatchUI/JoinMenu/Nickname").GetComponent<TMP_InputField>();

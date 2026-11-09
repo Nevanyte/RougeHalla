@@ -22,3 +22,13 @@ Actual first review: combined source `20f188c678a48ce7aabe78801f122944df4e27a7` 
 The follow-up fit packet keeps the compact HUD geometry and interactions: shared controls use the body font, with explicit decorative map headings; the map backplate is opaque; route/status labels have separate footer rows and concise copy; selected/pending text remains; and headings, minimap labels, marker widths, and the offline watermark have room at larger text sizes. Route math, timing and server facts are unchanged. Managed runtime and Editor-test compilation pass; the follow-up still requires native capture and font-fit review before acceptance.
 
 No Editor was launched or switched by this lane. Diagnostic previews remain offline synthetic data, not browser or network proof.
+
+## Larger minimap and glass backdrops
+
+The next owner revision is based on `96a3462eb6f774891e80c6b2e6dde2700eb8fed6`. It doubles the minimap's reference width and height, retains the full saved scale range, and moves health/barrier to the bottom-left. Build stats, kills/GV/status, and potion counts are grouped at the top-left. The action bar moves slightly left, while rewards move upward only as needed at larger minimap scales; source rectangle checks cover 720p, 1080p, 1440p, and ultrawide at minimum/default/maximum scale without overlaps.
+
+UI background images use alpha 200/255. Shared world-art palette colors, text, icon images, logos, map contacts, walls, and low obstacles retain their existing opacity. Only the map's navy floor tint becomes translucent. Button captions use opaque ivory for readability; gold framing retains its own alpha. No CanvasGroup fade is introduced.
+
+The minimap and combat underlay are hidden behind full map/modal views, so translucent overlays reveal the world rather than overlapping UI text. Closing an overlay restores the authoritative reward view and the prior eligible keyboard focus. New regressions cover minimap suppression/restoration, focus return, and immediate clearing of the newly separated combat stats on owner reset.
+
+This revision has managed runtime/Editor-test compilation and source geometry checks only. Native affected tests and exact-revision captures at normal/150% text, including minimap scale endpoints and opaque foreground checks, remain required. The 20% actor/overhead scale is retained without further actor or gameplay changes.

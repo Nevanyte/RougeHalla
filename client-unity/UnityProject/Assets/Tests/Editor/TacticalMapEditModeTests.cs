@@ -96,6 +96,29 @@ namespace Roguehalla.Client.Tests
             Assert.AreEqual(1, MinimapMarks().ContactCount);
         }
 
+        [Test]
+        public void MinimapVisibilityTracksActiveMapSuppressionAndUnbind()
+        {
+            CreateController(_session);
+            _transport.Deliver(Snapshot(1));
+            Assert.AreEqual(SessionState.InMatch, _session.State);
+            Assert.AreEqual(MatchPhase.Active, _session.Phase);
+            Assert.IsTrue(MinimapRoot().activeSelf, "an active bound session should show its minimap");
+
+            _controller.SetOpen(true);
+            Assert.IsFalse(MinimapRoot().activeSelf, "the minimap hides while its large map is open");
+            _controller.SetOpen(false);
+            Assert.IsTrue(MinimapRoot().activeSelf, "closing the large map restores the minimap");
+
+            _controller.SetMinimapSuppressed(true);
+            Assert.IsFalse(MinimapRoot().activeSelf, "an explicit suppression hides the minimap");
+            _controller.SetMinimapSuppressed(false);
+            Assert.IsTrue(MinimapRoot().activeSelf, "clearing suppression restores it for the active session");
+
+            _controller.Bind(null);
+            Assert.IsFalse(MinimapRoot().activeSelf, "unbinding the session hides the minimap");
+        }
+
         void CreateController(Session session)
         {
             _uiRoot = new GameObject("Tactical map controller canvas", typeof(RectTransform), typeof(Canvas), typeof(GraphicRaycaster));
@@ -110,6 +133,7 @@ namespace Roguehalla.Client.Tests
         }
 
         TacticalMapMarks LargeMarks() => _uiRoot.transform.Find("TacticalMap/MapFrame/PublicMap/Delivered contacts and personal route").GetComponent<TacticalMapMarks>();
+        GameObject MinimapRoot() => _uiRoot.transform.Find("Minimap").gameObject;
         TacticalMapMarks MinimapMarks() => _uiRoot.transform.Find("Minimap/TerrainFrame/Delivered contacts and personal route").GetComponent<TacticalMapMarks>();
         string ContactsText() => _uiRoot.transform.Find("TacticalMap/TacticalInformation/ContactsPage/DeliveredContacts/Viewport/Content").GetComponent<TMPro.TMP_Text>().text;
         void SetNextPaint(double value) => typeof(TacticalMapController).GetField("_nextPaint", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(_controller, value);

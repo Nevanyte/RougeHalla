@@ -28,6 +28,11 @@ namespace Roguehalla.Client
         UnityEngine.UI.Image _potionIcon;
         TMP_Text _wishSummary;
         RectTransform _wishDetails;
+        RectTransform _vitalsPanel, _buildStrip, _combatActions;
+        TMP_Text _combatStats;
+        bool _worldHudVisible = true;
+        GameObject _worldHudFocus;
+        bool WorldHudVisible => !BlocksKeyboardInput && !(_map?.IsOpen ?? false);
         public TacticalMapController TacticalMap => _map;
         public bool ChestOwnsDigits => _chestFocus || _chestConsumedDigits;
         public bool ConsumesArrowNavigation => _chestFocus || _map != null && _map.ContainsFocus;
@@ -72,18 +77,16 @@ namespace Roguehalla.Client
         void CreateCombatHud()
         {
             _hud = Rect(_root, "PlayerHUD", 0, 0, 1, 1);
-            // Secondary facts live at the upper edge; the lower playfield stays open for combat.
-            var vitals = Panel(_hud, "VitalsPanel", .015f, .775f, .285f, .915f);
-            _vitals = Text(vitals, "Vitals", "Waiting for player state", .04f, .44f, .96f, .98f, 15);
+            var vitals = _vitalsPanel = Panel(_hud, "VitalsPanel", .015f, .018f, .285f, .138f);
+            _vitals = Text(vitals, "Vitals", "Waiting for player state", .04f, .35f, .96f, .95f, 15);
             SetBaseSize(_vitals, 22);
-            var bar = Rect(vitals, "OwnerVitalBar", .04f, .36f, .96f, .41f);
+            var bar = Rect(vitals, "OwnerVitalBar", .04f, .12f, .96f, .22f);
             var bg = bar.gameObject.AddComponent<UnityEngine.UI.Image>(); bg.color = ShowcasePalette.PanelStroke; bg.raycastTarget = false;
             _healthBarFill = Rect(bar, "HealthFill", 0, 0, 0, 1);
             var health = _healthBarFill.gameObject.AddComponent<UnityEngine.UI.Image>(); health.color = ShowcasePalette.Success; health.raycastTarget = false;
             _barrierBarFill = Rect(bar, "BarrierFill", 0, 0, 0, 1);
             var barrier = _barrierBarFill.gameObject.AddComponent<UnityEngine.UI.Image>(); barrier.color = ShowcasePalette.Gold; barrier.raycastTarget = false;
-            _focusLabel = Text(vitals, "Focus", "", .04f, .025f, .96f, .31f, 12);
-            var actions = Panel(_hud, "CombatActions", .35f, .015f, .65f, .135f);
+            var actions = _combatActions = Panel(_hud, "CombatActions", .315f, .015f, .615f, .135f);
             _wishSummary = Text(actions, "WishSummary", "R · WISH · —", .565f, .58f, .98f, .98f, 14);
             _wishSummary.color = ShowcasePalette.Gold;
             _wishDetails = Panel(_hud, "WishPanel", .775f, .70f, .985f, .915f);
@@ -108,16 +111,19 @@ namespace Roguehalla.Client
             _potionIcon.rectTransform.anchoredPosition = Vector2.zero;
             _pickup = Button(actions, "Pickup", "F · PICK UP", .565f, .035f, .98f, .55f, () => _client.PickupFocus());
             SetBaseSize(_pickup.GetComponentInChildren<TMP_Text>(), 20);
-            var buildStrip = Panel(_hud, "BuildStrip", .015f, .56f, .285f, .765f);
-            var buildButton = Button(buildStrip, "BuildDetails", "B · BUILD DETAILS", .025f, .015f, .975f, .32f, ToggleBuild);
+            var buildStrip = _buildStrip = Panel(_hud, "BuildStrip", .015f, .645f, .285f, .915f);
+            _combatStats = Text(buildStrip, "CombatStats", "Awaiting player stats", .04f, .82f, .96f, .99f, 15);
+            SetBaseSize(_combatStats, 22);
+            _focusLabel = Text(buildStrip, "Focus", "", .04f, .715f, .96f, .81f, 12);
+            var buildButton = Button(buildStrip, "BuildDetails", "B · BUILD DETAILS", .025f, .015f, .975f, .25f, ToggleBuild);
             _build = buildButton.GetComponentInChildren<TMP_Text>();
             SetBaseSize(_build, 20);
             var glyphs = new[] { MythicGlyph.Sword, MythicGlyph.Wish, MythicGlyph.Armor, MythicGlyph.Shield, MythicGlyph.Health, MythicGlyph.Bow, MythicGlyph.Speed, MythicGlyph.Potion };
             var labels = new[] { "OFF", "SOUL", "DEF", "S.DEF", "HP", "ATK", "MOVE", "LEECH" };
             for (int i = 0; i < 8; i++)
             {
-                float x = .02f + (i % 4) * .245f, y = i < 4 ? .67f : .335f;
-                var cell = Rect(buildStrip, "Build" + labels[i], x, y, x + .235f, y + .32f);
+                float x = .02f + (i % 4) * .245f, y = i < 4 ? .49f : .26f;
+                var cell = Rect(buildStrip, "Build" + labels[i], x, y, x + .235f, y + .22f);
                 var icon = MythicUi.Icon(cell, "StatIcon", glyphs[i], 32);
                 icon.rectTransform.anchorMin = icon.rectTransform.anchorMax = new Vector2(.20f, .70f);
                 _buildCounts[i] = Text(cell, "Count", "—", .40f, .42f, .98f, .99f, 14);
@@ -168,6 +174,8 @@ namespace Roguehalla.Client
         {
             if (_map == null || _uiPrefs == null) return;
             _map.SetMinimapScale(_uiPrefs.MinimapScale);
+            // Keep the saved scale useful at its full range without covering rewards or combat controls.
+            _rewards.anchorMin = new Vector2(.70f, Mathf.Max(.425f, .018f + .36f * _uiPrefs.MinimapScale + .015f));
         }
         void TickMetrics()
         {
@@ -192,6 +200,7 @@ namespace Roguehalla.Client
         void ToggleHelp() { if (_help != null) { _help.gameObject.SetActive(!_help.gameObject.activeSelf); if (_help.gameObject.activeSelf) { _drawer?.SetVisible(false); _map?.SetOpen(false); } ReleaseChestFocus(); } }
         public void ReadUiInput()
         {
+            RememberWorldHudFocus();
             _chestConsumedDigits = false;
             var kb = Keyboard.current;
             bool dialog = _settings.gameObject.activeSelf || _results.gameObject.activeSelf || _menu.gameObject.activeSelf || (_signIn != null && _signIn.gameObject.activeSelf) || (_hubGuide != null && _hubGuide.IsVisible) ||
@@ -249,8 +258,33 @@ namespace Roguehalla.Client
             TickHubAtrium();
             TickMetrics();
             _map?.Tick();
-            if (_wishDetails != null) _wishDetails.gameObject.SetActive(!_rewards.gameObject.activeSelf && !(_map?.IsOpen ?? false));
+            RefreshWorldHudVisibility();
             if (_session != null) _drawer?.Refresh(_session.Collections, _session.Me, _showcaseSettings.TextScale);
+        }
+        void RefreshWorldHudVisibility()
+        {
+            bool visible = WorldHudVisible;
+            if (_worldHudVisible != visible)
+            {
+                _worldHudVisible = visible;
+                _vitalsPanel.gameObject.SetActive(visible); _buildStrip.gameObject.SetActive(visible); _combatActions.gameObject.SetActive(visible);
+                _notice.gameObject.SetActive(visible);
+                var selected = EventSystem.current != null ? EventSystem.current.currentSelectedGameObject : null;
+                var target = _worldHudFocus != null ? _worldHudFocus.GetComponent<UnityEngine.UI.Selectable>() : null;
+                if (visible && target != null && target.IsActive() && target.IsInteractable() &&
+                    EventSystem.current != null && (selected == null || !selected.activeInHierarchy))
+                    EventSystem.current.SetSelectedGameObject(_worldHudFocus);
+                _dirty = _rewardsDirty = true;
+            }
+            _map?.SetMinimapSuppressed(!visible);
+            if (_wishDetails != null) _wishDetails.gameObject.SetActive(visible && !_rewards.gameObject.activeSelf);
+            RememberWorldHudFocus();
+        }
+        void RememberWorldHudFocus()
+        {
+            if (!_worldHudVisible || !WorldHudVisible || EventSystem.current == null) return;
+            var selected = EventSystem.current.currentSelectedGameObject;
+            _worldHudFocus = selected != null && selected.transform.IsChildOf(_hud) ? selected : null;
         }
         static int CountCards(CollectionsView view) { int count = 0; foreach (byte card in view.Cards) if (card > 0) count++; return count; }
         void RefreshBuildIcons(CollectionsView view)

@@ -87,7 +87,7 @@ namespace Roguehalla.Client
         void CreateCard(int index, Transform parent)
         {
             var buttonRect = MythicUi.Rect(parent, "Card" + index.ToString("00"), Vector2.zero, Vector2.one);
-            var background = buttonRect.gameObject.AddComponent<Image>(); background.color = ShowcasePalette.PanelRaised;
+            var background = buttonRect.gameObject.AddComponent<Image>(); background.color = MythicUi.Backdrop(ShowcasePalette.PanelRaised);
             background.raycastTarget = true;
             var button = buttonRect.gameObject.AddComponent<Button>(); button.targetGraphic = background;
             var colors = button.colors; colors.normalColor = ShowcasePalette.PanelRaised; colors.highlightedColor = ShowcasePalette.PanelStroke;
