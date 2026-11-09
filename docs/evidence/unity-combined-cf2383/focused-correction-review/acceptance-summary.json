@@ -1,0 +1,1376 @@
+{
+  "source": "cf23833ff99b2472b217d43e26c5e5167391d2b9",
+  "captures": [
+    {
+      "case": "1440-hud-text100",
+      "pngSha256": "19ed45895d0d95bf7f8328aac4f49e613cedae4f021031f8fec91ee3c4645cfc",
+      "pngBytes": 4800408,
+      "nativeWidth": 2560,
+      "nativeHeight": 1440,
+      "readyAdvancingWatermarkedNative": true,
+      "tmpFlags": 0,
+      "actors": 8,
+      "allActorScales120AndAnchored": true,
+      "camera": {
+        "orthographic": true,
+        "orthographicSize": 9.0,
+        "position": [
+          21.875,
+          -14.343749,
+          -30.0
+        ],
+        "aspect": 1.77777779
+      },
+      "textOpaque": true,
+      "iconsOpaque": true,
+      "activeBorderCount": 72,
+      "allBordersNonraycast": true,
+      "activeMeshEffects": [],
+      "controlCenterHits": 14,
+      "controlCount": 14,
+      "activeMesh": {
+        "path": "Offline UI layout review/MatchUI/Minimap/TerrainFrame/Delivered contacts and personal route",
+        "contacts": 7,
+        "rendererPresent": true,
+        "rendererCull": false,
+        "meshPresent": true,
+        "vertexCount": 106,
+        "triangleIndexCount": 156
+      },
+      "meshVertexColorsDecoded": [
+        {
+          "rgba": [
+            237,
+            199,
+            123,
+            255
+          ],
+          "count": 12
+        },
+        {
+          "rgba": [
+            9,
+            13,
+            20,
+            255
+          ],
+          "count": 32
+        },
+        {
+          "rgba": [
+            255,
+            126,
+            94,
+            255
+          ],
+          "count": 6
+        },
+        {
+          "rgba": [
+            205,
+            184,
+            255,
+            255
+          ],
+          "count": 8
+        },
+        {
+          "rgba": [
+            178,
+            220,
+            128,
+            255
+          ],
+          "count": 4
+        },
+        {
+          "rgba": [
+            120,
+            210,
+            239,
+            255
+          ],
+          "count": 8
+        },
+        {
+          "rgba": [
+            255,
+            226,
+            145,
+            255
+          ],
+          "count": 32
+        },
+        {
+          "rgba": [
+            244,
+            242,
+            235,
+            255
+          ],
+          "count": 4
+        }
+      ],
+      "uiRoots": [
+        {
+          "path": "Offline UI layout review/MatchUI/Help",
+          "name": "Help",
+          "activeSelf": true,
+          "activeInHierarchy": true,
+          "bounds": [
+            1574.40015,
+            1339.20007,
+            1856.0,
+            1425.6
+          ],
+          "anchorMin": [
+            0.615,
+            0.93
+          ],
+          "anchorMax": [
+            0.725,
+            0.99
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/Settings",
+          "name": "Settings",
+          "activeSelf": true,
+          "activeInHierarchy": true,
+          "bounds": [
+            1881.6001,
+            1339.20007,
+            2176.0,
+            1425.6
+          ],
+          "anchorMin": [
+            0.735,
+            0.93
+          ],
+          "anchorMax": [
+            0.85,
+            0.99
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/PlayerHUD",
+          "name": "PlayerHUD",
+          "activeSelf": true,
+          "activeInHierarchy": true,
+          "bounds": [
+            -3.81469727e-05,
+            -2.14576721e-05,
+            2560.0,
+            1440.0
+          ],
+          "anchorMin": [
+            0.0,
+            0.0
+          ],
+          "anchorMax": [
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/PlayerHUD/VitalsPanel",
+          "name": "VitalsPanel",
+          "activeSelf": true,
+          "activeInHierarchy": true,
+          "bounds": [
+            38.3999748,
+            25.91996,
+            729.600037,
+            198.71994
+          ],
+          "anchorMin": [
+            0.015,
+            0.018
+          ],
+          "anchorMax": [
+            0.285,
+            0.138
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/PlayerHUD/CombatActions",
+          "name": "CombatActions",
+          "activeSelf": true,
+          "activeInHierarchy": true,
+          "bounds": [
+            806.399963,
+            21.6000137,
+            1574.4,
+            194.4
+          ],
+          "anchorMin": [
+            0.315,
+            0.015
+          ],
+          "anchorMax": [
+            0.615,
+            0.135
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/PlayerHUD/WishPanel",
+          "name": "WishPanel",
+          "activeSelf": false,
+          "activeInHierarchy": false,
+          "bounds": [
+            1984.0,
+            1008.00006,
+            2521.6,
+            1317.6001
+          ],
+          "anchorMin": [
+            0.775,
+            0.7
+          ],
+          "anchorMax": [
+            0.985,
+            0.915
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/PlayerHUD/BuildStrip",
+          "name": "BuildStrip",
+          "activeSelf": true,
+          "activeInHierarchy": true,
+          "bounds": [
+            38.3999748,
+            928.7999,
+            729.600037,
+            1317.6
+          ],
+          "anchorMin": [
+            0.015,
+            0.645
+          ],
+          "anchorMax": [
+            0.285,
+            0.915
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/Rewards",
+          "name": "Rewards",
+          "activeSelf": true,
+          "activeInHierarchy": true,
+          "bounds": [
+            1792.0,
+            612.0,
+            2521.6,
+            1317.6001
+          ],
+          "anchorMin": [
+            0.7,
+            0.425
+          ],
+          "anchorMax": [
+            0.985,
+            0.915
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer",
+          "name": "BuildDrawer",
+          "activeSelf": false,
+          "activeInHierarchy": false,
+          "bounds": [
+            1459.20007,
+            35.99998,
+            2521.6,
+            1404.0
+          ],
+          "anchorMin": [
+            0.57,
+            0.025
+          ],
+          "anchorMax": [
+            0.985,
+            0.975
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/TacticalMap",
+          "name": "TacticalMap",
+          "activeSelf": false,
+          "activeInHierarchy": false,
+          "bounds": [
+            63.99996,
+            223.199982,
+            2496.0,
+            1317.6001
+          ],
+          "anchorMin": [
+            0.025,
+            0.155
+          ],
+          "anchorMax": [
+            0.975,
+            0.915
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/Minimap",
+          "name": "Minimap",
+          "activeSelf": true,
+          "activeInHierarchy": true,
+          "bounds": [
+            1804.80017,
+            25.9199963,
+            2521.60034,
+            544.32
+          ],
+          "anchorMin": [
+            0.705,
+            0.018
+          ],
+          "anchorMax": [
+            0.985,
+            0.378
+          ]
+        }
+      ],
+      "mapState": {
+        "isOpen": false,
+        "isPlanning": false,
+        "blocksKeyboard": false,
+        "blocksPointer": false,
+        "savedScaleKey": false,
+        "savedScaleIndex": 1,
+        "loadedScale": 1.0
+      }
+    },
+    {
+      "case": "1440-map-text150",
+      "pngSha256": "2a090c8410c9e7ace0618be345a5e562fadbe82004a2f1d77c6ccfeed6f2ae1a",
+      "pngBytes": 4271017,
+      "nativeWidth": 2560,
+      "nativeHeight": 1440,
+      "readyAdvancingWatermarkedNative": true,
+      "tmpFlags": 0,
+      "actors": 8,
+      "allActorScales120AndAnchored": true,
+      "camera": {
+        "orthographic": true,
+        "orthographicSize": 9.0,
+        "position": [
+          21.875,
+          -14.343749,
+          -30.0
+        ],
+        "aspect": 1.77777779
+      },
+      "textOpaque": true,
+      "iconsOpaque": true,
+      "activeBorderCount": 32,
+      "allBordersNonraycast": true,
+      "activeMeshEffects": [],
+      "controlCenterHits": 8,
+      "controlCount": 8,
+      "activeMesh": {
+        "path": "Offline UI layout review/MatchUI/TacticalMap/MapFrame/PublicMap/Delivered contacts and personal route",
+        "contacts": 7,
+        "rendererPresent": true,
+        "rendererCull": false,
+        "meshPresent": true,
+        "vertexCount": 106,
+        "triangleIndexCount": 156
+      },
+      "meshVertexColorsDecoded": [
+        {
+          "rgba": [
+            237,
+            199,
+            123,
+            255
+          ],
+          "count": 12
+        },
+        {
+          "rgba": [
+            9,
+            13,
+            20,
+            255
+          ],
+          "count": 32
+        },
+        {
+          "rgba": [
+            255,
+            126,
+            94,
+            255
+          ],
+          "count": 6
+        },
+        {
+          "rgba": [
+            205,
+            184,
+            255,
+            255
+          ],
+          "count": 8
+        },
+        {
+          "rgba": [
+            178,
+            220,
+            128,
+            255
+          ],
+          "count": 4
+        },
+        {
+          "rgba": [
+            120,
+            210,
+            239,
+            255
+          ],
+          "count": 8
+        },
+        {
+          "rgba": [
+            255,
+            226,
+            145,
+            255
+          ],
+          "count": 32
+        },
+        {
+          "rgba": [
+            244,
+            242,
+            235,
+            255
+          ],
+          "count": 4
+        }
+      ],
+      "uiRoots": [
+        {
+          "path": "Offline UI layout review/MatchUI/Help",
+          "name": "Help",
+          "activeSelf": true,
+          "activeInHierarchy": true,
+          "bounds": [
+            1574.40015,
+            1339.20007,
+            1856.0,
+            1425.6
+          ],
+          "anchorMin": [
+            0.615,
+            0.93
+          ],
+          "anchorMax": [
+            0.725,
+            0.99
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/Settings",
+          "name": "Settings",
+          "activeSelf": true,
+          "activeInHierarchy": true,
+          "bounds": [
+            1881.6001,
+            1339.20007,
+            2176.0,
+            1425.6
+          ],
+          "anchorMin": [
+            0.735,
+            0.93
+          ],
+          "anchorMax": [
+            0.85,
+            0.99
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/PlayerHUD",
+          "name": "PlayerHUD",
+          "activeSelf": true,
+          "activeInHierarchy": true,
+          "bounds": [
+            -3.81469727e-05,
+            -2.14576721e-05,
+            2560.0,
+            1440.0
+          ],
+          "anchorMin": [
+            0.0,
+            0.0
+          ],
+          "anchorMax": [
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/PlayerHUD/VitalsPanel",
+          "name": "VitalsPanel",
+          "activeSelf": false,
+          "activeInHierarchy": false,
+          "bounds": [
+            38.3999748,
+            25.91996,
+            729.600037,
+            198.71994
+          ],
+          "anchorMin": [
+            0.015,
+            0.018
+          ],
+          "anchorMax": [
+            0.285,
+            0.138
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/PlayerHUD/CombatActions",
+          "name": "CombatActions",
+          "activeSelf": false,
+          "activeInHierarchy": false,
+          "bounds": [
+            806.399963,
+            21.6000137,
+            1574.4,
+            194.4
+          ],
+          "anchorMin": [
+            0.315,
+            0.015
+          ],
+          "anchorMax": [
+            0.615,
+            0.135
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/PlayerHUD/WishPanel",
+          "name": "WishPanel",
+          "activeSelf": false,
+          "activeInHierarchy": false,
+          "bounds": [
+            1984.0,
+            1008.00006,
+            2521.6,
+            1317.6001
+          ],
+          "anchorMin": [
+            0.775,
+            0.7
+          ],
+          "anchorMax": [
+            0.985,
+            0.915
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/PlayerHUD/BuildStrip",
+          "name": "BuildStrip",
+          "activeSelf": false,
+          "activeInHierarchy": false,
+          "bounds": [
+            38.3999748,
+            928.7999,
+            729.600037,
+            1317.6
+          ],
+          "anchorMin": [
+            0.015,
+            0.645
+          ],
+          "anchorMax": [
+            0.285,
+            0.915
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/Rewards",
+          "name": "Rewards",
+          "activeSelf": false,
+          "activeInHierarchy": false,
+          "bounds": [
+            1792.0,
+            612.0,
+            2521.6,
+            1317.6001
+          ],
+          "anchorMin": [
+            0.7,
+            0.425
+          ],
+          "anchorMax": [
+            0.985,
+            0.915
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer",
+          "name": "BuildDrawer",
+          "activeSelf": false,
+          "activeInHierarchy": false,
+          "bounds": [
+            1459.20007,
+            35.99998,
+            2521.6,
+            1404.0
+          ],
+          "anchorMin": [
+            0.57,
+            0.025
+          ],
+          "anchorMax": [
+            0.985,
+            0.975
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/TacticalMap",
+          "name": "TacticalMap",
+          "activeSelf": true,
+          "activeInHierarchy": true,
+          "bounds": [
+            63.99996,
+            223.199982,
+            2496.0,
+            1317.6001
+          ],
+          "anchorMin": [
+            0.025,
+            0.155
+          ],
+          "anchorMax": [
+            0.975,
+            0.915
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/Minimap",
+          "name": "Minimap",
+          "activeSelf": false,
+          "activeInHierarchy": false,
+          "bounds": [
+            1804.80017,
+            25.9199963,
+            2521.60034,
+            544.32
+          ],
+          "anchorMin": [
+            0.705,
+            0.018
+          ],
+          "anchorMax": [
+            0.985,
+            0.378
+          ]
+        }
+      ],
+      "mapState": {
+        "isOpen": true,
+        "isPlanning": false,
+        "blocksKeyboard": false,
+        "blocksPointer": true,
+        "savedScaleKey": false,
+        "savedScaleIndex": 1,
+        "loadedScale": 1.0
+      }
+    },
+    {
+      "case": "720-hud-text150-mini125",
+      "pngSha256": "f69a49742843b5c5e3f1dbdd7f47e084b06a75c791561ff3b4157d35118f0826",
+      "pngBytes": 1320335,
+      "nativeWidth": 1280,
+      "nativeHeight": 720,
+      "readyAdvancingWatermarkedNative": true,
+      "tmpFlags": 0,
+      "actors": 8,
+      "allActorScales120AndAnchored": true,
+      "camera": {
+        "orthographic": true,
+        "orthographicSize": 9.0,
+        "position": [
+          21.875,
+          -14.343749,
+          -30.0
+        ],
+        "aspect": 1.77777779
+      },
+      "textOpaque": true,
+      "iconsOpaque": true,
+      "activeBorderCount": 72,
+      "allBordersNonraycast": true,
+      "activeMeshEffects": [],
+      "controlCenterHits": 14,
+      "controlCount": 14,
+      "activeMesh": {
+        "path": "Offline UI layout review/MatchUI/Minimap/TerrainFrame/Delivered contacts and personal route",
+        "contacts": 7,
+        "rendererPresent": true,
+        "rendererCull": false,
+        "meshPresent": true,
+        "vertexCount": 106,
+        "triangleIndexCount": 156
+      },
+      "meshVertexColorsDecoded": [
+        {
+          "rgba": [
+            237,
+            199,
+            123,
+            255
+          ],
+          "count": 12
+        },
+        {
+          "rgba": [
+            9,
+            13,
+            20,
+            255
+          ],
+          "count": 32
+        },
+        {
+          "rgba": [
+            255,
+            126,
+            94,
+            255
+          ],
+          "count": 6
+        },
+        {
+          "rgba": [
+            205,
+            184,
+            255,
+            255
+          ],
+          "count": 8
+        },
+        {
+          "rgba": [
+            178,
+            220,
+            128,
+            255
+          ],
+          "count": 4
+        },
+        {
+          "rgba": [
+            120,
+            210,
+            239,
+            255
+          ],
+          "count": 8
+        },
+        {
+          "rgba": [
+            255,
+            226,
+            145,
+            255
+          ],
+          "count": 32
+        },
+        {
+          "rgba": [
+            244,
+            242,
+            235,
+            255
+          ],
+          "count": 4
+        }
+      ],
+      "uiRoots": [
+        {
+          "path": "Offline UI layout review/MatchUI/Help",
+          "name": "Help",
+          "activeSelf": true,
+          "activeInHierarchy": true,
+          "bounds": [
+            787.2001,
+            669.600037,
+            928.0,
+            712.8
+          ],
+          "anchorMin": [
+            0.615,
+            0.93
+          ],
+          "anchorMax": [
+            0.725,
+            0.99
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/Settings",
+          "name": "Settings",
+          "activeSelf": true,
+          "activeInHierarchy": true,
+          "bounds": [
+            940.800049,
+            669.600037,
+            1088.0,
+            712.8
+          ],
+          "anchorMin": [
+            0.735,
+            0.93
+          ],
+          "anchorMax": [
+            0.85,
+            0.99
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/PlayerHUD",
+          "name": "PlayerHUD",
+          "activeSelf": true,
+          "activeInHierarchy": true,
+          "bounds": [
+            -1.90734863e-05,
+            -1.07288361e-05,
+            1280.0,
+            720.0
+          ],
+          "anchorMin": [
+            0.0,
+            0.0
+          ],
+          "anchorMax": [
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/PlayerHUD/VitalsPanel",
+          "name": "VitalsPanel",
+          "activeSelf": true,
+          "activeInHierarchy": true,
+          "bounds": [
+            19.1999874,
+            12.95998,
+            364.800018,
+            99.35997
+          ],
+          "anchorMin": [
+            0.015,
+            0.018
+          ],
+          "anchorMax": [
+            0.285,
+            0.138
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/PlayerHUD/CombatActions",
+          "name": "CombatActions",
+          "activeSelf": true,
+          "activeInHierarchy": true,
+          "bounds": [
+            403.199982,
+            10.8000069,
+            787.2,
+            97.2
+          ],
+          "anchorMin": [
+            0.315,
+            0.015
+          ],
+          "anchorMax": [
+            0.615,
+            0.135
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/PlayerHUD/WishPanel",
+          "name": "WishPanel",
+          "activeSelf": false,
+          "activeInHierarchy": false,
+          "bounds": [
+            992.0,
+            504.000031,
+            1260.8,
+            658.800049
+          ],
+          "anchorMin": [
+            0.775,
+            0.7
+          ],
+          "anchorMax": [
+            0.985,
+            0.915
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/PlayerHUD/BuildStrip",
+          "name": "BuildStrip",
+          "activeSelf": true,
+          "activeInHierarchy": true,
+          "bounds": [
+            19.1999874,
+            464.399963,
+            364.800018,
+            658.8
+          ],
+          "anchorMin": [
+            0.015,
+            0.645
+          ],
+          "anchorMax": [
+            0.285,
+            0.915
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/Rewards",
+          "name": "Rewards",
+          "activeSelf": true,
+          "activeInHierarchy": true,
+          "bounds": [
+            896.0,
+            347.76004,
+            1260.8,
+            658.800049
+          ],
+          "anchorMin": [
+            0.7,
+            0.483
+          ],
+          "anchorMax": [
+            0.985,
+            0.915
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer",
+          "name": "BuildDrawer",
+          "activeSelf": false,
+          "activeInHierarchy": false,
+          "bounds": [
+            729.600037,
+            17.99999,
+            1260.8,
+            702.0
+          ],
+          "anchorMin": [
+            0.57,
+            0.025
+          ],
+          "anchorMax": [
+            0.985,
+            0.975
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/TacticalMap",
+          "name": "TacticalMap",
+          "activeSelf": false,
+          "activeInHierarchy": false,
+          "bounds": [
+            31.99998,
+            111.599991,
+            1248.0,
+            658.800049
+          ],
+          "anchorMin": [
+            0.025,
+            0.155
+          ],
+          "anchorMax": [
+            0.975,
+            0.915
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/Minimap",
+          "name": "Minimap",
+          "activeSelf": true,
+          "activeInHierarchy": true,
+          "bounds": [
+            812.8,
+            12.9599762,
+            1260.8,
+            336.96
+          ],
+          "anchorMin": [
+            0.635,
+            0.018
+          ],
+          "anchorMax": [
+            0.985,
+            0.468000025
+          ]
+        }
+      ],
+      "mapState": {
+        "isOpen": false,
+        "isPlanning": false,
+        "blocksKeyboard": false,
+        "blocksPointer": false,
+        "savedScaleKey": true,
+        "savedScaleIndex": 2,
+        "loadedScale": 1.25
+      }
+    },
+    {
+      "case": "720-planning-text150",
+      "pngSha256": "d09c52b9d54e5f55bef894685764e536b24502f6ad748f5207bb6fdc75ccc039",
+      "pngBytes": 1138067,
+      "nativeWidth": 1280,
+      "nativeHeight": 720,
+      "readyAdvancingWatermarkedNative": true,
+      "tmpFlags": 0,
+      "actors": 8,
+      "allActorScales120AndAnchored": true,
+      "camera": {
+        "orthographic": true,
+        "orthographicSize": 9.0,
+        "position": [
+          21.875,
+          -14.343749,
+          -30.0
+        ],
+        "aspect": 1.77777779
+      },
+      "textOpaque": true,
+      "iconsOpaque": true,
+      "activeBorderCount": 52,
+      "allBordersNonraycast": true,
+      "activeMeshEffects": [],
+      "controlCenterHits": 13,
+      "controlCount": 13,
+      "activeMesh": {
+        "path": "Offline UI layout review/MatchUI/TacticalMap/MapFrame/PublicMap/Delivered contacts and personal route",
+        "contacts": 7,
+        "rendererPresent": true,
+        "rendererCull": false,
+        "meshPresent": true,
+        "vertexCount": 106,
+        "triangleIndexCount": 156
+      },
+      "meshVertexColorsDecoded": [
+        {
+          "rgba": [
+            237,
+            199,
+            123,
+            255
+          ],
+          "count": 12
+        },
+        {
+          "rgba": [
+            9,
+            13,
+            20,
+            255
+          ],
+          "count": 32
+        },
+        {
+          "rgba": [
+            255,
+            126,
+            94,
+            255
+          ],
+          "count": 6
+        },
+        {
+          "rgba": [
+            205,
+            184,
+            255,
+            255
+          ],
+          "count": 8
+        },
+        {
+          "rgba": [
+            178,
+            220,
+            128,
+            255
+          ],
+          "count": 4
+        },
+        {
+          "rgba": [
+            120,
+            210,
+            239,
+            255
+          ],
+          "count": 8
+        },
+        {
+          "rgba": [
+            255,
+            226,
+            145,
+            255
+          ],
+          "count": 32
+        },
+        {
+          "rgba": [
+            244,
+            242,
+            235,
+            255
+          ],
+          "count": 4
+        }
+      ],
+      "uiRoots": [
+        {
+          "path": "Offline UI layout review/MatchUI/Help",
+          "name": "Help",
+          "activeSelf": true,
+          "activeInHierarchy": true,
+          "bounds": [
+            787.2001,
+            669.600037,
+            928.0,
+            712.8
+          ],
+          "anchorMin": [
+            0.615,
+            0.93
+          ],
+          "anchorMax": [
+            0.725,
+            0.99
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/Settings",
+          "name": "Settings",
+          "activeSelf": true,
+          "activeInHierarchy": true,
+          "bounds": [
+            940.800049,
+            669.600037,
+            1088.0,
+            712.8
+          ],
+          "anchorMin": [
+            0.735,
+            0.93
+          ],
+          "anchorMax": [
+            0.85,
+            0.99
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/PlayerHUD",
+          "name": "PlayerHUD",
+          "activeSelf": true,
+          "activeInHierarchy": true,
+          "bounds": [
+            -1.90734863e-05,
+            -1.07288361e-05,
+            1280.0,
+            720.0
+          ],
+          "anchorMin": [
+            0.0,
+            0.0
+          ],
+          "anchorMax": [
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/PlayerHUD/VitalsPanel",
+          "name": "VitalsPanel",
+          "activeSelf": false,
+          "activeInHierarchy": false,
+          "bounds": [
+            19.1999874,
+            12.95998,
+            364.800018,
+            99.35997
+          ],
+          "anchorMin": [
+            0.015,
+            0.018
+          ],
+          "anchorMax": [
+            0.285,
+            0.138
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/PlayerHUD/CombatActions",
+          "name": "CombatActions",
+          "activeSelf": false,
+          "activeInHierarchy": false,
+          "bounds": [
+            403.199982,
+            10.8000069,
+            787.2,
+            97.2
+          ],
+          "anchorMin": [
+            0.315,
+            0.015
+          ],
+          "anchorMax": [
+            0.615,
+            0.135
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/PlayerHUD/WishPanel",
+          "name": "WishPanel",
+          "activeSelf": false,
+          "activeInHierarchy": false,
+          "bounds": [
+            992.0,
+            504.000031,
+            1260.8,
+            658.800049
+          ],
+          "anchorMin": [
+            0.775,
+            0.7
+          ],
+          "anchorMax": [
+            0.985,
+            0.915
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/PlayerHUD/BuildStrip",
+          "name": "BuildStrip",
+          "activeSelf": false,
+          "activeInHierarchy": false,
+          "bounds": [
+            19.1999874,
+            464.399963,
+            364.800018,
+            658.8
+          ],
+          "anchorMin": [
+            0.015,
+            0.645
+          ],
+          "anchorMax": [
+            0.285,
+            0.915
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/Rewards",
+          "name": "Rewards",
+          "activeSelf": false,
+          "activeInHierarchy": false,
+          "bounds": [
+            896.0,
+            306.0,
+            1260.8,
+            658.800049
+          ],
+          "anchorMin": [
+            0.7,
+            0.425
+          ],
+          "anchorMax": [
+            0.985,
+            0.915
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/BuildDrawer",
+          "name": "BuildDrawer",
+          "activeSelf": false,
+          "activeInHierarchy": false,
+          "bounds": [
+            729.600037,
+            17.99999,
+            1260.8,
+            702.0
+          ],
+          "anchorMin": [
+            0.57,
+            0.025
+          ],
+          "anchorMax": [
+            0.985,
+            0.975
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/TacticalMap",
+          "name": "TacticalMap",
+          "activeSelf": true,
+          "activeInHierarchy": true,
+          "bounds": [
+            31.99998,
+            111.599991,
+            1248.0,
+            658.800049
+          ],
+          "anchorMin": [
+            0.025,
+            0.155
+          ],
+          "anchorMax": [
+            0.975,
+            0.915
+          ]
+        },
+        {
+          "path": "Offline UI layout review/MatchUI/Minimap",
+          "name": "Minimap",
+          "activeSelf": false,
+          "activeInHierarchy": false,
+          "bounds": [
+            902.4001,
+            12.9599981,
+            1260.80017,
+            272.16
+          ],
+          "anchorMin": [
+            0.705,
+            0.018
+          ],
+          "anchorMax": [
+            0.985,
+            0.378
+          ]
+        }
+      ],
+      "mapState": {
+        "isOpen": true,
+        "isPlanning": true,
+        "blocksKeyboard": true,
+        "blocksPointer": true,
+        "savedScaleKey": false,
+        "savedScaleIndex": 1,
+        "loadedScale": 1.0
+      }
+    }
+  ],
+  "totalPngBytes": 11529827,
+  "actorObservations": 32,
+  "totalTmpFlags": 0
+}
