@@ -1,0 +1,7 @@
+e9cdebb9b56b2c905523e123144c96a197134601b8821832cc04b50f850bc834  docs/evidence/staging-host-device-collector/README.md
+ef39bb22e7efd563e0ba9be9f3b75fd0a984292a1efe3831e54c6c426d552fca  docs/evidence/staging-host-device-collector/final-offline.txt
+4ef2a3eeb8a21873585e9cac63e7de613507f6e7f3697d8c47ebb915b56b31b5  docs/evidence/staging-host-device-collector/first-offline.txt
+a5eb325f2072ac00379be3b23ced3cbb94f484ef3362acd1d14e5943e0aa885a  docs/evidence/staging-host-device-collector/source-audit.json
+049b569f47f3fd0b51d480aaafeb0cb74f0406773ece1f24f5d6fd2179a2fda5  docs/evidence/staging-host-device-collector/verify.sh
+f5d63a201aae7549a51f7952ca3916595fac846ce2ca83fcdafbb3d952a87ade  tools/staging-full-runtime/installer/host_device.py
+e345f582c9929835e04d536f8606c42850149175eb6dff7c7c0e16f45811e94a  tools/staging-full-runtime/installer/test_host_device.py
