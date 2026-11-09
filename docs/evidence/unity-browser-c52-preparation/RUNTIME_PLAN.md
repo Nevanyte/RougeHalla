@@ -16,11 +16,11 @@ Its adjacent build receipt says it came from c52 with
 profile, one build job, incremental compilation off, and debug info level zero.
 It explicitly records that the server and PostgreSQL were not started. It is a
 functional local binary, not release/performance evidence. The Web1 build was
-held after three serialized asset drifts. The coordinator has released the
-Web2 build from source target `57e166f46b35fb703e5f3c76914fcc4e8bf3191c`, but
-its immutable Web output pins are still forthcoming. Use only that released
-Web2 artifact after its complete pin receipt is available; do not serve Web1 or
-an older build.
+held after three serialized asset drifts. The coordinator accepted the Web57
+artifact from source target `57e166f46b35fb703e5f3c76914fcc4e8bf3191c` after a
+14-file review. The Phase A runtime lease is still pending: this accepted
+artifact has not been served or browser-tested here. Do not use Web1 or an
+older build.
 
 Planned loopback endpoints:
 
@@ -42,10 +42,17 @@ started. The required sole browser origin is
 `[::1]:8888` loopback connections only. The browser configuration is
 `?server=ws://localhost:8888/ws&trainingServer=ws://localhost:8888/training/ws`.
 Keep the router listener, Unity page configuration, and native
-`--api-cors-origins http://localhost:8888` consistent. The router must replace
-incoming `X-Forwarded-For` with the actual loopback peer address, preserve the
-browser's exact `Origin`, and serve only the released static asset manifest;
-both native profiles will declare `--client-ip-header x-forwarded-for`. Do not bind
+`--api-cors-origins http://localhost:8888` consistent. The Node router must
+overwrite any incoming `X-Forwarded-For` with the actual browser peer address
+(`127.0.0.1` or `::1`), preserve the exact `Origin`, and serve only the released
+static asset manifest. Its upstream TCP connections to both native servers
+originate from `127.0.0.1`; therefore both profiles declare
+`--client-ip-header x-forwarded-for --trusted-proxies 127.0.0.1`, trusting only
+that fixed local proxy peer while consuming its forwarded client address. For
+an IPv6 browser connection, the router forwards `::1` as the client address
+value; it does not become the native proxy peer. The router must connect to the
+servers through `127.0.0.1`, and the native trusted-proxy list must not be
+broadened to `::1`. Do not bind
 `0.0.0.0` or `::`, open direct browser connections to 7777/7779, or mix
 `localhost` and `127.0.0.1` across the account API and game endpoints: the client
 requires one same-origin scheme, host, and port. The router is pending review
@@ -206,7 +213,7 @@ exec /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-
   --result-spool /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/browser-c52-actual/spool-source \
   --min-players 2 --fill-bots 0 --max-rooms 16 --lobby-seconds 30 --fill-seconds 5 \
   --bot-learning off --api-cors-origins http://localhost:8888 \
-  --client-ip-header x-forwarded-for
+  --client-ip-header x-forwarded-for --trusted-proxies 127.0.0.1
 ```
 
 Training (separate endpoint and process, same fresh private database):
@@ -219,7 +226,7 @@ exec /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-
   --instance-id c52-browser-training-20261109-1 \
   --min-players 1 --fill-bots 0 --max-rooms 1 --lobby-seconds 0 --fill-seconds 0 \
   --bot-learning off --api-cors-origins http://localhost:8888 \
-  --client-ip-header x-forwarded-for
+  --client-ip-header x-forwarded-for --trusted-proxies 127.0.0.1
 ```
 
 The argv values above are a credential-free DSN and configuration paths, not

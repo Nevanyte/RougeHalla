@@ -1,0 +1,139 @@
+{
+  "format": "rh-web57-router-manifest-addendum/1",
+  "state": "ACTUAL_FS_PREPARATION_PASS_NO_RUNTIME_RELEASE",
+  "baseEvidenceCommit": "85af961e4d6f5f5f9e7e55b0c8d36dfb1a0e80a0",
+  "baseManifestSha256": "de454cd895bd1612dea7658a7974aba0d26f795c5c34ca266f572ab777e27d0a",
+  "rootSourceOfflineReviewSha256": "6c96e986caa58db4669ee8d652ee9b15e2b0ee113a77f79f67a58a415fcbf03c",
+  "toolSourceCommit": "e1146d40cbd0b9d1c54b45175c8c86f8ba448e02",
+  "originalWebManifestSha256": "a224cc6cc378604e4f9407f1c540f3ceae364d9cf0c97004fcd21df816c83824",
+  "derivedRouterManifestSha256": "103664aed485a1ee634d2be6de1ca759822a95a10945540aa8b1ed35a57e41d7",
+  "provenanceSha256": "f177042ca4dd58f687189c9a6df0c104013efc9079904b2557148f1e3a33340f",
+  "toolPinOverrides": {
+    "tools/unity-browser-reload-proof/local-router.mjs": {
+      "bytes": 19693,
+      "sha256": "aa4d699c7080944856cc9d5cd2f1a0ef7a6af114d6c691f2c871af80020eac63"
+    },
+    "tools/unity-browser-reload-proof/local-router.test.mjs": {
+      "bytes": 5609,
+      "sha256": "61fc75646a29c205e35d56ce5e58be1e229c7a29a229f67c61336e2e4328280b"
+    }
+  },
+  "evidencePinOverrides": {
+    "docs/evidence/unity-browser-c52-preparation/RUNTIME_PLAN.md": {
+      "bytes": 19358,
+      "sha256": "74978e74703ccde4e1c9202e3becca4e99f77533cba8d6c79c3e922a8106efce"
+    }
+  },
+  "payloads": {
+    "INDEPENDENT_REVIEW.md": {
+      "bytes": 1377,
+      "sha256": "17388f2ef2600955dbd23ac797bd3b8472b3a5b9a64386609661d2202e8869ee"
+    },
+    "README.md": {
+      "bytes": 3986,
+      "sha256": "5c9e91cb15221674a3e77250e29a1218345c7e98e1ab60b85e492ab62937976e"
+    },
+    "payloads/CHECKS.json": {
+      "bytes": 4041,
+      "sha256": "eab35fbb293ce6d4ac3d544806ca7ca73cfc8256e64711c4a24355714849db2d"
+    },
+    "payloads/derive-router-assets.py": {
+      "bytes": 3695,
+      "sha256": "1b6c9fa4698a0801b04b4a169bd78ea92f4c4bb9169b49dfeeecd8c67e20f00e"
+    },
+    "payloads/derive.receipt.json": {
+      "bytes": 590,
+      "sha256": "4656530c9729c64691684487722e69283efebde40796de7b0ac26ad3686f3255"
+    },
+    "payloads/derive.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "payloads/derive.stdout.log": {
+      "bytes": 289,
+      "sha256": "4d436b042c136975969eb9e2bbb14a2af60dd78d0131bcc9c22499ae4518edfa"
+    },
+    "payloads/fs-load.receipt.json": {
+      "bytes": 1265,
+      "sha256": "4a9c1ef6933b01970caeb3253096a041e3a0cc126dc1e79b9fb3f326cf69444f"
+    },
+    "payloads/fs-load.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "payloads/fs-load.stdout.log": {
+      "bytes": 524,
+      "sha256": "4bcdcea23ed2cb8d2e287e719c1caddfce18cf5cc475b32500cc6de2ba5d9729"
+    },
+    "payloads/fs-preflight.mjs": {
+      "bytes": 2148,
+      "sha256": "498480394eec7320814f26f542fc044e99821b722d639c56f64728d2b5ff6548"
+    },
+    "payloads/mime-affected.receipt.json": {
+      "bytes": 786,
+      "sha256": "c76849ed253db4b7191982f04aa2d5a2586ea004e49f244929686255d9a872fd"
+    },
+    "payloads/mime-affected.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "payloads/mime-affected.stdout.log": {
+      "bytes": 374,
+      "sha256": "27f87d8800ada606d9a863d53afc094c61ee138e7e23561ff33be962f1d0e129"
+    },
+    "payloads/node-version.receipt.json": {
+      "bytes": 592,
+      "sha256": "6151e1844b66a7ab54baefbdf8efffb2bf6e2669da0fcbc318c32716824a7e83"
+    },
+    "payloads/node-version.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "payloads/node-version.stdout.log": {
+      "bytes": 9,
+      "sha256": "2266957ed9a639bd7264d714bfa798a961510bf2e50695c668ab8fc0c3f4e906"
+    },
+    "payloads/orchestration-attempt-01.json": {
+      "bytes": 357,
+      "sha256": "4c60546b6b6e96d4e750b5445b66898dd5d874f5955aba35bd1d17ab06bac853"
+    },
+    "payloads/orchestration-attempt-01.log": {
+      "bytes": 137,
+      "sha256": "8ffc066c2ee442a777df91a116bcca70887c2cf02efc4c83f6637a3fac9cccac"
+    },
+    "payloads/provenance.json": {
+      "bytes": 3662,
+      "sha256": "f177042ca4dd58f687189c9a6df0c104013efc9079904b2557148f1e3a33340f"
+    },
+    "payloads/router-assets.json": {
+      "bytes": 3845,
+      "sha256": "103664aed485a1ee634d2be6de1ca759822a95a10945540aa8b1ed35a57e41d7"
+    },
+    "payloads/web57-artifact-manifest.json": {
+      "bytes": 3189,
+      "sha256": "a224cc6cc378604e4f9407f1c540f3ceae364d9cf0c97004fcd21df816c83824"
+    }
+  },
+  "results": {
+    "priorOfflineChecksRetained": 14,
+    "newAffectedMimePassed": 1,
+    "newAffectedMimeFailed": 0,
+    "actualFsLoad": "PASS_14_PHYSICAL_FILES_15_URLS",
+    "physicalBytes": 106987680,
+    "aliasCountedBytes": 106995600,
+    "orchestrationErrorRetained": true,
+    "listenersStarted": 0,
+    "proxyRequests": 0,
+    "databaseStarted": false,
+    "browserStarted": false
+  },
+  "runtimeTrustedProxyFlagsBoth": [
+    "--client-ip-header",
+    "x-forwarded-for",
+    "--trusted-proxies",
+    "127.0.0.1"
+  ],
+  "phaseARelease": "PENDING_ROOT",
+  "phaseBBrowserRelease": "PENDING_SEPARATE_ROOT_REVIEW",
+  "reservedActualStateCreated": false
+}
