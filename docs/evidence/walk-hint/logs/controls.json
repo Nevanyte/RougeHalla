@@ -1,0 +1,38 @@
+{
+  "format": "rh-walk-hint-controls/1",
+  "required": 3,
+  "kills": 3,
+  "restoredEqual": true,
+  "restoredVerifier": "PASS",
+  "canonicalAssertions": "PASS",
+  "rows": [
+    {
+      "id": "forced-zero",
+      "status": "KILL",
+      "changed": true,
+      "firstDiff": "/frames/1/snapshot/players/0/extra/walkDir",
+      "verifierError": "Error: initial move did not produce hint/path"
+    },
+    {
+      "id": "wrong-cap",
+      "status": "KILL",
+      "changed": true,
+      "firstDiff": "/frames/1/snapshot/players/0/extra/walkTicks",
+      "verifierError": "Error: cap3 not reached"
+    },
+    {
+      "id": "hysteresis-always",
+      "status": "KILL",
+      "changed": true,
+      "firstDiff": "/frames/3/snapshot/players/0/extra/walkDir",
+      "verifierError": "Error: small-turn hysteresis not observed"
+    },
+    {
+      "id": "provenance-only-comment",
+      "status": "NON-KILL",
+      "changed": false,
+      "firstDiff": null,
+      "verifier": "PASS"
+    }
+  ]
+}
