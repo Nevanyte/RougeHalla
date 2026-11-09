@@ -1,0 +1,204 @@
+{
+  "targetRootCommit": "95bd9c1efcde9b71cb07f23f24aef8ff4fb17013",
+  "manifestPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/combined-95bd9c-2026-11-08/evidence/EXPECTED_TESTS.json",
+  "manifestSha256": "3463f1ba7f33f57d5d8b3d77c163f5e53ff5669c07a0f7128b592f6a202cbf04",
+  "gateStatus": "Stopped after recorded recovery failure; no retry requested or performed.",
+  "expected": {
+    "groups": 4,
+    "testMethods": 16,
+    "selectors": 16
+  },
+  "execution": {
+    "groupsExecuted": 3,
+    "ran": 12,
+    "passed": 11,
+    "failed": 1,
+    "skipped": 0,
+    "inconclusive": 0,
+    "unrun": 4,
+    "groupSummaries": [
+      {
+        "class": "HubCosmeticsViewEditModeTests",
+        "Total": 7,
+        "Passed": 7,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0,
+        "rawResultFile": "tests-HubCosmeticsViewEditModeTests.json",
+        "expectedMethodNamesMatch": true
+      },
+      {
+        "class": "HubProgressViewEditModeTests",
+        "Total": 3,
+        "Passed": 3,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0,
+        "rawResultFile": "tests-HubProgressViewEditModeTests.json",
+        "expectedMethodNamesMatch": true
+      },
+      {
+        "class": "AccountRecoveryViewEditModeTests",
+        "Total": 2,
+        "Passed": 1,
+        "Failed": 1,
+        "Skipped": 0,
+        "Inconclusive": 0,
+        "rawResultFile": "tests-AccountRecoveryViewEditModeTests.json",
+        "expectedMethodNamesMatch": true
+      }
+    ],
+    "results": [
+      {
+        "fullName": "Roguehalla.Client.Tests.HubCosmeticsViewEditModeTests.EquipGuardAllowsNullOnlyForAnEquippedSlotAndRequiresOwnershipOtherwise",
+        "class": "HubCosmeticsViewEditModeTests",
+        "method": "EquipGuardAllowsNullOnlyForAnEquippedSlotAndRequiresOwnershipOtherwise",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-HubCosmeticsViewEditModeTests.json"
+      },
+      {
+        "fullName": "Roguehalla.Client.Tests.HubCosmeticsViewEditModeTests.ExistingOwnedFullProfileCanPurchaseWithoutExtraReadAndShowsPendingBeforeReply",
+        "class": "HubCosmeticsViewEditModeTests",
+        "method": "ExistingOwnedFullProfileCanPurchaseWithoutExtraReadAndShowsPendingBeforeReply",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-HubCosmeticsViewEditModeTests.json"
+      },
+      {
+        "fullName": "Roguehalla.Client.Tests.HubCosmeticsViewEditModeTests.FocusRestoresTheNewActionWhileTheRetiredSameNamedCardStillExists",
+        "class": "HubCosmeticsViewEditModeTests",
+        "method": "FocusRestoresTheNewActionWhileTheRetiredSameNamedCardStillExists",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-HubCosmeticsViewEditModeTests.json"
+      },
+      {
+        "fullName": "Roguehalla.Client.Tests.HubCosmeticsViewEditModeTests.NullOwnerCanInitializeAndShowUnavailableCatalog",
+        "class": "HubCosmeticsViewEditModeTests",
+        "method": "NullOwnerCanInitializeAndShowUnavailableCatalog",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-HubCosmeticsViewEditModeTests.json"
+      },
+      {
+        "fullName": "Roguehalla.Client.Tests.HubCosmeticsViewEditModeTests.SameNameCredentialReplacementHidesAndRejectsOldUnknownRetryWithoutLosingHistory",
+        "class": "HubCosmeticsViewEditModeTests",
+        "method": "SameNameCredentialReplacementHidesAndRejectsOldUnknownRetryWithoutLosingHistory",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-HubCosmeticsViewEditModeTests.json"
+      },
+      {
+        "fullName": "Roguehalla.Client.Tests.HubCosmeticsViewEditModeTests.ShowingAndChangingCallsSignDoNotIssueProfileReadsAndRefreshRequiresOwnedProfile",
+        "class": "HubCosmeticsViewEditModeTests",
+        "method": "ShowingAndChangingCallsSignDoNotIssueProfileReadsAndRefreshRequiresOwnedProfile",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-HubCosmeticsViewEditModeTests.json"
+      },
+      {
+        "fullName": "Roguehalla.Client.Tests.HubCosmeticsViewEditModeTests.UnusableSameNameOwnerClearsWalletAndStatusWithoutDiscardingUnknownPurchase",
+        "class": "HubCosmeticsViewEditModeTests",
+        "method": "UnusableSameNameOwnerClearsWalletAndStatusWithoutDiscardingUnknownPurchase",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-HubCosmeticsViewEditModeTests.json"
+      },
+      {
+        "fullName": "Roguehalla.Net.Tests.HubProgressViewEditModeTests.AchievementRowsShowServerFactsAndPreserveUnknownFutureIds",
+        "class": "HubProgressViewEditModeTests",
+        "method": "AchievementRowsShowServerFactsAndPreserveUnknownFutureIds",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-HubProgressViewEditModeTests.json"
+      },
+      {
+        "fullName": "Roguehalla.Net.Tests.HubProgressViewEditModeTests.FormatsInt64WithoutFloatingPointLoss",
+        "class": "HubProgressViewEditModeTests",
+        "method": "FormatsInt64WithoutFloatingPointLoss",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-HubProgressViewEditModeTests.json"
+      },
+      {
+        "fullName": "Roguehalla.Net.Tests.HubProgressViewEditModeTests.OwnerRankIsClearedOnCancelAndSelectionChangeAndLatePrivateBoardCannotRestoreIt",
+        "class": "HubProgressViewEditModeTests",
+        "method": "OwnerRankIsClearedOnCancelAndSelectionChangeAndLatePrivateBoardCannotRestoreIt",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-HubProgressViewEditModeTests.json"
+      },
+      {
+        "fullName": "Roguehalla.Client.Tests.AccountRecoveryViewEditModeTests.OwnedKeyNeedsRevealAndManualSelectionAndClearsOnCloseSwitchCancelAndBlur",
+        "class": "AccountRecoveryViewEditModeTests",
+        "method": "OwnedKeyNeedsRevealAndManualSelectionAndClearsOnCloseSwitchCancelAndBlur",
+        "status": "Failed",
+        "message": "Unhandled log message: '[Assert] Assertion failed on expression: 'ShouldRunBehaviour()''. Use UnityEngine.TestTools.LogAssert.Expect",
+        "stackTrace": "UnityEngine.Component:SendMessage (string,object,UnityEngine.SendMessageOptions)\nRoguehalla.Client.Tests.AccountRecoveryViewEditModeTests/<OwnedKeyNeedsRevealAndManualSelectionAndClearsOnCloseSwitchCancelAndBlur>d__17:MoveNext () (at Assets/Tests/Editor/AccountRecoveryViewEditModeTests.cs:183)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<Roguehalla.Client.Tests.AccountRecoveryViewEditModeTests/<OwnedKeyNeedsRevealAndManualSelectionAndClearsOnCloseSwitchCancelAndBlur>d__17> (Roguehalla.Client.Tests.AccountRecoveryViewEditModeTests/<OwnedKeyNeedsRevealAndManualSelectionAndClearsOnCloseSwitchCancelAndBlur>d__17&)\nRoguehalla.Client.Tests.AccountRecoveryViewEditModeTests:OwnedKeyNeedsRevealAndManualSelectionAndClearsOnCloseSwitchCancelAndBlur ()\nUnityEditor.EditorApplication:Internal_CallUpdateFunctions ()\n\n",
+        "rawResultFile": "tests-AccountRecoveryViewEditModeTests.json"
+      },
+      {
+        "fullName": "Roguehalla.Client.Tests.AccountRecoveryViewEditModeTests.UnownedAndFailedProfilesCannotRevealARecoveryKey",
+        "class": "AccountRecoveryViewEditModeTests",
+        "method": "UnownedAndFailedProfilesCannotRevealARecoveryKey",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-AccountRecoveryViewEditModeTests.json"
+      }
+    ],
+    "unrunMethods": [
+      {
+        "class": "MatchClientAccountBindingEditModeTests",
+        "method": "SelectingFactionDuringDeferredJoinInvalidatesIntentAndCreatesNoSocket"
+      },
+      {
+        "class": "MatchClientAccountBindingEditModeTests",
+        "method": "StaleJoinFailureCannotOverwriteProfileSelectedBySynchronousFlowCallback"
+      },
+      {
+        "class": "MatchClientAccountBindingEditModeTests",
+        "method": "MutatingMatchUrlWhileOwnershipRequestIsPendingCannotUseCapturedIntentOrConnect"
+      },
+      {
+        "class": "MatchClientAccountBindingEditModeTests",
+        "method": "SuccessfulOrdinaryJoinUsesOwnedCanonicalIdentityTokenAndValidatedUrl"
+      }
+    ],
+    "allExecutedMethodNamesMatchManifest": true
+  },
+  "failureBoundary": {
+    "fullName": "Roguehalla.Client.Tests.AccountRecoveryViewEditModeTests.OwnedKeyNeedsRevealAndManualSelectionAndClearsOnCloseSwitchCancelAndBlur",
+    "sourceLine": 183,
+    "recordedMessage": "Unhandled log message: '[Assert] Assertion failed on expression: 'ShouldRunBehaviour()''. Use UnityEngine.TestTools.LogAssert.Expect",
+    "rootCause": "Not determined from the saved result."
+  },
+  "priorPreservedResults": {
+    "sourceCommit": "719cc2b7e78415226246c0273ae9c78f7385fc04",
+    "passedSelectors": 18,
+    "groups": [
+      "BuildDrawerEditModeTests (5/5)",
+      "UiInputRoutingEditModeTests (10/10)",
+      "MatchHudWishBarrierEditModeTests (3/3)"
+    ],
+    "reRun": false,
+    "receipt": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/combined-719cc2-2026-11-08/evidence/test-verification.json"
+  },
+  "acceptanceBoundary": {
+    "playSession": false,
+    "screenshots": false,
+    "globalBindingExecuted": false,
+    "sourceOrTestsChanged": false
+  }
+}

@@ -1,0 +1,163 @@
+{
+  "source": "95bd9c1efcde9b71cb07f23f24aef8ff4fb17013",
+  "branch": "codex/unity-95bd9c-native-proof",
+  "status": "FAIL_STOPPED",
+  "executed": 12,
+  "passed": 11,
+  "failed": 1,
+  "unrun": 4,
+  "playSessions": 0,
+  "nativeCaptures": 0,
+  "files": [
+    {
+      "path": "CAPTURE_AND_INTERACTION_PLAN.md",
+      "bytes": 8259,
+      "sha256": "5a0057d64ea26c0a1b933eca774432ad591d13c7e80e6e9e2a90f7331d0e2739"
+    },
+    {
+      "path": "EXPECTED_TESTS.json",
+      "bytes": 10480,
+      "sha256": "3463f1ba7f33f57d5d8b3d77c163f5e53ff5669c07a0f7128b592f6a202cbf04"
+    },
+    {
+      "path": "EXPECTED_TESTS.md",
+      "bytes": 6055,
+      "sha256": "9ab43da598df4f0ad699dc4ac70dd9054302a9cb0348d74afa42e4fe4ede98f7"
+    },
+    {
+      "path": "FAILURE_TRIAGE.md",
+      "bytes": 3473,
+      "sha256": "543624f70e165129b8e59853267f1c73b7625f5e4b63d8f00150f47d185fb4aa"
+    },
+    {
+      "path": "README.md",
+      "bytes": 5365,
+      "sha256": "77faffc74577f43115d070d2fc863bf11594a03ebb3b58a10b35c7ff8e636d1b"
+    },
+    {
+      "path": "SOURCE_AUDIT.md",
+      "bytes": 1230,
+      "sha256": "195fee40a6d984a0a68f2f3bade9d0cee761264444c22920eae4e5c88f1f6266"
+    },
+    {
+      "path": "ShaderGraphSettings-as-tested.asset.txt",
+      "bytes": 557,
+      "sha256": "83556175c6dccd540f2cac05e5c0f9fbb36c3c8d7a56bed2c7cf4d29e4c2ee2e"
+    },
+    {
+      "path": "ShaderGraphSettings-overlay.patch",
+      "bytes": 666,
+      "sha256": "09cb74c55dae2e6a26bf99861554f91293633dade61b3fede4889229c3a9062d"
+    },
+    {
+      "path": "as-tested-source.json",
+      "bytes": 243313,
+      "sha256": "cbdf7cdda05167e67f36bc976c5e018035d0a75d39eebe8eca8b607e09cccf43"
+    },
+    {
+      "path": "autotick-for-tests.json",
+      "bytes": 101,
+      "sha256": "db4b8c66312249ee644383d5a8d75efa983694353a05fb553684ab15874dcbef"
+    },
+    {
+      "path": "autotick-restored.json",
+      "bytes": 67,
+      "sha256": "8f7a98f96988f9d475b037fe7f70f89543c1de743d4da1af5266949716ee2db1"
+    },
+    {
+      "path": "compile-after-switch.json",
+      "bytes": 366,
+      "sha256": "f76518333117082800d3ca6b25ab9c130079401d47efc2827d2e4aa906271a74"
+    },
+    {
+      "path": "compile-complete.json",
+      "bytes": 76,
+      "sha256": "557b4b332f7528cefa6e865b86ceadbd17bf1074d7d7ba0c72199248f6e2b2dd"
+    },
+    {
+      "path": "compile-final.json",
+      "bytes": 76,
+      "sha256": "557b4b332f7528cefa6e865b86ceadbd17bf1074d7d7ba0c72199248f6e2b2dd"
+    },
+    {
+      "path": "console-on-test-failure.json",
+      "bytes": 7214,
+      "sha256": "d80174f6e18c9a0a84bdcce98a11a3bb6d01b560005b90c332d0d39379fef0e0"
+    },
+    {
+      "path": "editor-ready-after-switch.json",
+      "bytes": 1105,
+      "sha256": "d76f027e77bc1c8b8b6b3f97398d67b0efa0d2470f77b3ed4e64b56cd83b6607"
+    },
+    {
+      "path": "final-idle-state.json",
+      "bytes": 412,
+      "sha256": "3177b406c4ba69ab92b4ef692a7bd44ca2db6f4c3b60f773951a4b0fdf2c93d3"
+    },
+    {
+      "path": "hold-and-baseline.cs.txt",
+      "bytes": 928,
+      "sha256": "e200c3f50608544059e638833e5bcacb7a18c3f7a069da683ce8545b7979b9b9"
+    },
+    {
+      "path": "identity-observer.cs.txt",
+      "bytes": 1285,
+      "sha256": "6176cc148895071a627103909f0008e71b76bcbed93214e2308419da3e3149b5"
+    },
+    {
+      "path": "identity-verification.pretest.json",
+      "bytes": 2975,
+      "sha256": "95c6ac8947b6939c368a90fad577dd9d7b7827ecbab22496607a5fabe10fb46b"
+    },
+    {
+      "path": "imported-loaded-identity.json",
+      "bytes": 3027,
+      "sha256": "9593426e05dc1f9eacf1ac340ac629357bb8713d9decc3502e2920bdce87ed26"
+    },
+    {
+      "path": "input-prefs-baseline.json",
+      "bytes": 364,
+      "sha256": "756eed50ea1e2a5bb0568e1edd00682ca589a88c322cfb40e7b3a3124293c29e"
+    },
+    {
+      "path": "loaded-net-identity.json",
+      "bytes": 428,
+      "sha256": "6a0323304f33cec47a47cded45d3b817abf31e6381e50258f68307e7ea20cc29"
+    },
+    {
+      "path": "refresh-after-switch.json",
+      "bytes": 120,
+      "sha256": "f62e201d9f425f596076b6c199bd46edc609b5771db71b8a92bc3ffd521c397d"
+    },
+    {
+      "path": "restoration-verification.json",
+      "bytes": 638,
+      "sha256": "0cdaaa1e48326741f1cc6331070a74d00c86b02de2be3e7314cb17743c94b4e4"
+    },
+    {
+      "path": "source-after-tests.json",
+      "bytes": 1151,
+      "sha256": "9dc082d0cc39522c1f645905d9349dcf24dc0e914531062d89dd41f1f8b781aa"
+    },
+    {
+      "path": "test-verification.json",
+      "bytes": 9606,
+      "sha256": "ecc349e184394fc3ede99cb0ab5574c23200b3645a73f2392ebf2b03eefe142e"
+    },
+    {
+      "path": "tests-AccountRecoveryViewEditModeTests.json",
+      "bytes": 1602,
+      "sha256": "087b33495bd9572c057547bda7c8de873957c37f593f398e98b654dae3516c37"
+    },
+    {
+      "path": "tests-HubCosmeticsViewEditModeTests.json",
+      "bytes": 1709,
+      "sha256": "b90165e4fbfe5ee31eea089f619ab29a7e9f56db0a861dfa2fae0f28b25b2590"
+    },
+    {
+      "path": "tests-HubProgressViewEditModeTests.json",
+      "bytes": 809,
+      "sha256": "b8303ef92a1a49ba29f639d35997a75ca714bb296f45d087bfb856695f9b956a"
+    }
+  ]
+}
