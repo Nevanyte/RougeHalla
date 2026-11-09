@@ -1,0 +1,232 @@
+{
+  "targetRootCommit": "719cc2b7e78415226246c0273ae9c78f7385fc04",
+  "sourceReadFrom": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor",
+  "groups": [
+    {
+      "group": "BuildDrawerEditModeTests",
+      "sourcePath": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/BuildDrawerEditModeTests.cs",
+      "metaPath": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/BuildDrawerEditModeTests.cs.meta",
+      "testMethodCount": 5,
+      "selectorCount": 5,
+      "sourceSha256": "1a21b74b0f66e4ae777e663c778c517186e3e634c4581486693ce6d5df1797eb",
+      "metaSha256": "aad91af14e835facd975f707b00dd1d751fc3bc20477fbab1ce9d7a4d79b52cb",
+      "metaGuid": "6995df0d410c4d188dda9c8ab9ecbabb",
+      "tests": [
+        {
+          "method": "DisplayCatalogExactlyMirrorsRustCardIdsTitlesDescriptionsAndTags",
+          "selectors": 1
+        },
+        {
+          "method": "CatalogDrawerHasEightyFocusableCardsAndReadOnlyServerFactsSurviveRefresh",
+          "selectors": 1
+        },
+        {
+          "method": "HighestCardStackChangeRefreshesWithoutResettingInspectionOrScroll",
+          "selectors": 1
+        },
+        {
+          "method": "DrawerGeometryMaskFiltersAndCallbacksPreserveScrollAndSelection",
+          "selectors": 1
+        },
+        {
+          "method": "FactoryButtonsHaveAccessibleMinimumSizeAndGeneratedIcons",
+          "selectors": 1
+        }
+      ]
+    },
+    {
+      "group": "UiInputRoutingEditModeTests",
+      "sourcePath": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/UiInputRoutingEditModeTests.cs",
+      "metaPath": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/UiInputRoutingEditModeTests.cs.meta",
+      "testMethodCount": 10,
+      "selectorCount": 10,
+      "sourceSha256": "231bf1918895c181a871e325c663010429808dd3c1ab93556bcc33d94f6aac45",
+      "metaSha256": "bcf8fd8bf40b77c77a9cde2a30c0794a5f6636b2ae73bba8a083ab14c0342064",
+      "metaGuid": "f828a23cec084275bbe2f4d7bb93f185",
+      "tests": [
+        {
+          "method": "PlainDigitOneQueuesWeaponSwap",
+          "selectors": 1
+        },
+        {
+          "method": "ChestChoiceConsumesDigitEvenAsItReleasesChestFocus",
+          "selectors": 1
+        },
+        {
+          "method": "TabOpensMapAndBlocksPointerWhileWasdStillQueuesMove",
+          "selectors": 1
+        },
+        {
+          "method": "MenuAndResultsPreventTabFromOpeningMap",
+          "selectors": 1
+        },
+        {
+          "method": "ClosingSettingsRestoresThePreviouslyFocusedWorldHudControl",
+          "selectors": 1
+        },
+        {
+          "method": "SettingsOwnsKeyboardAndBlocksBuildHelpShortcutsWithoutWorldCommands",
+          "selectors": 1
+        },
+        {
+          "method": "BuildAndHelpShortcutsStillToggleAndSwitchBetweenTheirPanels",
+          "selectors": 1
+        },
+        {
+          "method": "BuildDrawerHidesGlobalHeaderActionsAndRestoresTheirCallbacksOnClose",
+          "selectors": 1
+        },
+        {
+          "method": "FocusedTextInputPreventsTabFromOpeningMap",
+          "selectors": 1
+        },
+        {
+          "method": "WindowBlurReleasesChestAndHeldMapFocus",
+          "selectors": 1
+        }
+      ]
+    },
+    {
+      "group": "MatchHudWishBarrierEditModeTests",
+      "sourcePath": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/MatchHudWishBarrierEditModeTests.cs",
+      "metaPath": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/MatchHudWishBarrierEditModeTests.cs.meta",
+      "testMethodCount": 3,
+      "selectorCount": 3,
+      "sourceSha256": "680a6a2e66c17c97d3cee761246ab697f3e47820eee5de65ea481bf0f07c581d",
+      "metaSha256": "9ee7ff34ea32460af0edf8df0acfc74a71f3bdeb0609b3b204017591b89cdb70",
+      "metaGuid": "42ed7398690c426f8885769e5faed8ad",
+      "tests": [
+        {
+          "method": "OwnerFactsRenderAndClearAcrossWishAndSessionResetTransitions",
+          "selectors": 1
+        },
+        {
+          "method": "OwnerVitalPercentagesPreserveDeliveredSharesAndHandleInvalidInput",
+          "selectors": 1
+        },
+        {
+          "method": "WeaponIconsRetainSemanticTintAcrossSlotChangesAndClearMissingInventory",
+          "selectors": 1
+        }
+      ]
+    },
+    {
+      "group": "HubCosmeticsViewEditModeTests",
+      "sourcePath": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/HubCosmeticsViewEditModeTests.cs",
+      "metaPath": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/HubCosmeticsViewEditModeTests.cs.meta",
+      "testMethodCount": 7,
+      "selectorCount": 7,
+      "sourceSha256": "b9497df9dd5824934ece7c7ce85ea54ee91e314c10e746dff63393e320083b95",
+      "metaSha256": "6a4231ed2835dbfc121980c03c7657b2d1af2ea4f586c455fb05f832baccf20a",
+      "metaGuid": "f87f72a74f9d4be69e495c1b16a0541e",
+      "tests": [
+        {
+          "method": "NullOwnerCanInitializeAndShowUnavailableCatalog",
+          "selectors": 1
+        },
+        {
+          "method": "ShowingAndChangingCallsSignDoNotIssueProfileReadsAndRefreshRequiresOwnedProfile",
+          "selectors": 1
+        },
+        {
+          "method": "EquipGuardAllowsNullOnlyForAnEquippedSlotAndRequiresOwnershipOtherwise",
+          "selectors": 1
+        },
+        {
+          "method": "FocusRestoresTheNewActionWhileTheRetiredSameNamedCardStillExists",
+          "selectors": 1
+        },
+        {
+          "method": "ExistingOwnedFullProfileCanPurchaseWithoutExtraReadAndShowsPendingBeforeReply",
+          "selectors": 1
+        },
+        {
+          "method": "SameNameCredentialReplacementHidesAndRejectsOldUnknownRetryWithoutLosingHistory",
+          "selectors": 1
+        },
+        {
+          "method": "UnusableSameNameOwnerClearsWalletAndStatusWithoutDiscardingUnknownPurchase",
+          "selectors": 1
+        }
+      ]
+    },
+    {
+      "group": "HubProgressViewEditModeTests",
+      "sourcePath": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/HubProgressViewEditModeTests.cs",
+      "metaPath": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/HubProgressViewEditModeTests.cs.meta",
+      "testMethodCount": 3,
+      "selectorCount": 3,
+      "sourceSha256": "76a26ae4efd15d65da91eec5c15954fbec850f828d378dbd10a48c9d3b9e7d7f",
+      "metaSha256": "84370b5e647a7b18b16e787065882443fde47e471d8b5c65416c539f967ba694",
+      "metaGuid": "9ed2e7b4dd5241d58ea4ab7a1e0a0af3",
+      "tests": [
+        {
+          "method": "FormatsInt64WithoutFloatingPointLoss",
+          "selectors": 1
+        },
+        {
+          "method": "AchievementRowsShowServerFactsAndPreserveUnknownFutureIds",
+          "selectors": 1
+        },
+        {
+          "method": "OwnerRankIsClearedOnCancelAndSelectionChangeAndLatePrivateBoardCannotRestoreIt",
+          "selectors": 1
+        }
+      ]
+    },
+    {
+      "group": "AccountRecoveryViewEditModeTests",
+      "sourcePath": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/AccountRecoveryViewEditModeTests.cs",
+      "metaPath": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/AccountRecoveryViewEditModeTests.cs.meta",
+      "testMethodCount": 2,
+      "selectorCount": 2,
+      "sourceSha256": "dc171e87ebd395a4b59bf5b59c4d41d3c9f1355e3759d05e1e385b8970e25b53",
+      "metaSha256": "cea2fd37d637112f3ef67fd629eaf72da74762174baa5de901e7b6d5b25a4ba4",
+      "metaGuid": "3d27b1c5c0524949b029e33fb04aa312",
+      "tests": [
+        {
+          "method": "UnownedAndFailedProfilesCannotRevealARecoveryKey",
+          "selectors": 1
+        },
+        {
+          "method": "OwnedKeyNeedsRevealAndManualSelectionAndClearsOnCloseSwitchCancelAndBlur",
+          "selectors": 1
+        }
+      ]
+    },
+    {
+      "group": "MatchClientAccountBindingEditModeTests",
+      "sourcePath": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/MatchClientAccountBindingEditModeTests.cs",
+      "metaPath": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/MatchClientAccountBindingEditModeTests.cs.meta",
+      "testMethodCount": 4,
+      "selectorCount": 4,
+      "sourceSha256": "9d6b5778c92c3a47467a90adc4e471eac283920fb4ff8a362ad303fae77afcea",
+      "metaSha256": "995ff5d51834ee1c063d477bad98a65b67bbcb4a43a4a4f65f1ded641bc03723",
+      "metaGuid": "fac78127a58b4044bec5d3a102c8fec7",
+      "tests": [
+        {
+          "method": "SelectingFactionDuringDeferredJoinInvalidatesIntentAndCreatesNoSocket",
+          "selectors": 1
+        },
+        {
+          "method": "StaleJoinFailureCannotOverwriteProfileSelectedBySynchronousFlowCallback",
+          "selectors": 1
+        },
+        {
+          "method": "MutatingMatchUrlWhileOwnershipRequestIsPendingCannotUseCapturedIntentOrConnect",
+          "selectors": 1
+        },
+        {
+          "method": "SuccessfulOrdinaryJoinUsesOwnedCanonicalIdentityTokenAndValidatedUrl",
+          "selectors": 1
+        }
+      ]
+    }
+  ],
+  "totals": {
+    "groups": 7,
+    "testMethods": 34,
+    "selectors": 34
+  },
+  "sourceDiscrepancy": "Requested method DrawerGeometryMaskFiltersAndCallbacksPreserveScrollAndSelection was not present in the readable BuildDrawerEditModeTests.cs; that file instead contains DrawerViewportBuildsVisibleCardMeshesClipsHitsScrollsAndKeepsSelection. No Git command was run, so these hashes identify the readable checkout only, not independently the target root commit."
+}

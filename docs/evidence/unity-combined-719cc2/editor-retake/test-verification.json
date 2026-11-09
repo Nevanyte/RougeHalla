@@ -1,0 +1,86 @@
+{
+  "source": "719cc2b7e78415226246c0273ae9c78f7385fc04",
+  "passed": 23,
+  "executed": 25,
+  "failed": 2,
+  "groups": [
+    {
+      "group": "BuildDrawerEditModeTests",
+      "summary": {
+        "Total": 5,
+        "Passed": 5,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "methodNamesMatch": true,
+      "failed": []
+    },
+    {
+      "group": "UiInputRoutingEditModeTests",
+      "summary": {
+        "Total": 10,
+        "Passed": 10,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "methodNamesMatch": true,
+      "failed": []
+    },
+    {
+      "group": "MatchHudWishBarrierEditModeTests",
+      "summary": {
+        "Total": 3,
+        "Passed": 3,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "methodNamesMatch": true,
+      "failed": []
+    },
+    {
+      "group": "HubCosmeticsViewEditModeTests",
+      "summary": {
+        "Total": 7,
+        "Passed": 5,
+        "Failed": 2,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "methodNamesMatch": true,
+      "failed": [
+        {
+          "FullName": "Roguehalla.Client.Tests.HubCosmeticsViewEditModeTests.SameNameCredentialReplacementHidesAndRejectsOldUnknownRetryWithoutLosingHistory",
+          "Status": "Failed",
+          "Duration": 0.3359453,
+          "Message": "System.ArgumentException : The actual value must be an IEnumerable\nParameter name: actual",
+          "StackTrace": "  at NUnit.Framework.Constraints.CollectionConstraint.ApplyTo (System.Object actual) [0x0000a] in <f577cd9686154d6ab10efd7e65e64366>:0 \n  at NUnit.Framework.Constraints.ContainsConstraint.ApplyTo (System.Object actual) [0x00042] in <f577cd9686154d6ab10efd7e65e64366>:0 \n  at NUnit.Framework.Assert.That[TActual] (TActual actual, NUnit.Framework.Constraints.IResolveConstraint expression, System.String message, System.Object[] args) [0x0000b] in <f577cd9686154d6ab10efd7e65e64366>:0 \n  at Roguehalla.Client.Tests.HubCosmeticsViewEditModeTests.SameNameCredentialReplacementHidesAndRejectsOldUnknownRetryWithoutLosingHistory () [0x004d4] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/HubCosmeticsViewEditModeTests.cs:247 \n  at UnityEngine.TestTools.TestRunner.TestTaskWrapper+<Execute>d__2.MoveNext () [0x00063] in ./Library/PackageCache/com.unity.test-framework@082c24152fd4/UnityEngine.TestRunner/TestRunner/TestTaskWrapper.cs:31 \n  at UnityEngine.TestTools.TestEnumerator+<Execute>d__7.MoveNext () [0x0003a] in ./Library/PackageCache/com.unity.test-framework@082c24152fd4/UnityEngine.TestRunner/NUnitExtensions/Attributes/TestEnumerator.cs:44 "
+        },
+        {
+          "FullName": "Roguehalla.Client.Tests.HubCosmeticsViewEditModeTests.UnusableSameNameOwnerClearsWalletAndStatusWithoutDiscardingUnknownPurchase",
+          "Status": "Failed",
+          "Duration": 0.3263636,
+          "Message": "  Expected: String containing \"Retry resubmits\"\n  But was:  \"Choose a cosmetic to buy or equip.\"\n",
+          "StackTrace": "at NUnit.Framework.StringAssert.Contains (System.String expected, System.String actual, System.String message, System.Object[] args) [0x00007] in <f577cd9686154d6ab10efd7e65e64366>:0\nat NUnit.Framework.StringAssert.Contains (System.String expected, System.String actual) [0x00000] in <f577cd9686154d6ab10efd7e65e64366>:0\nat Roguehalla.Client.Tests.HubCosmeticsViewEditModeTests.UnusableSameNameOwnerClearsWalletAndStatusWithoutDiscardingUnknownPurchase () [0x0059b] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/HubCosmeticsViewEditModeTests.cs:327\nat UnityEngine.TestTools.TestRunner.TestTaskWrapper+<Execute>d__2.MoveNext () [0x00063] in ./Library/PackageCache/com.unity.test-framework@082c24152fd4/UnityEngine.TestRunner/TestRunner/TestTaskWrapper.cs:31\nat UnityEngine.TestTools.TestEnumerator+<Execute>d__7.MoveNext () [0x0003a] in ./Library/PackageCache/com.unity.test-framework@082c24152fd4/UnityEngine.TestRunner/NUnitExtensions/Attributes/TestEnumerator.cs:44\n"
+        }
+      ]
+    },
+    {
+      "group": "HubProgressViewEditModeTests",
+      "status": "NOTRUN - halted at prior failed group",
+      "expected": 3
+    },
+    {
+      "group": "AccountRecoveryViewEditModeTests",
+      "status": "NOTRUN - halted at prior failed group",
+      "expected": 2
+    },
+    {
+      "group": "MatchClientAccountBindingEditModeTests",
+      "status": "NOTRUN - halted at prior failed group",
+      "expected": 4
+    }
+  ]
+}
