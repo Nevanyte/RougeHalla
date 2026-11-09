@@ -1,0 +1,165 @@
+{
+  "format": "rh-quest-presentation-native/1",
+  "base": "7588edc8ab9d3545b31760dc74074bbc6f438792",
+  "source_head": "4c5e564e95182559e956630a07e12e3ccd52ee84",
+  "source_external_evidence": "9ca8ba55d2cede2d078625c0a7dc78b500865c3c",
+  "native_head": "eac1d09a6a5a077ab7daa2e851a768749db2b04e",
+  "source_fixture_sha256": "4a021c349a6cc085c6994550fc4415ffadedc2cd22690cd803e56cc4eda8e19e",
+  "native_files": [
+    {
+      "path": "crates/rh-sim/src/quest_view/mod.rs",
+      "bytes": 17979,
+      "sha256": "95a942f3815de862797247aa7662dba455690ec422ab777ca3d1cab94b9443fe"
+    },
+    {
+      "path": "crates/rh-sim/src/quest_view/presentation.rs",
+      "bytes": 3405,
+      "sha256": "2c9166bd4f839786f163fcf9564dfcb20a6e835631a33c65f3d3ca23ed977b05"
+    },
+    {
+      "path": "crates/rh-sim/src/quest_view/presentation_source_tests.rs",
+      "bytes": 4794,
+      "sha256": "56b08606666150492a1a4ac80135d460f0c1a57baf03a4a62d3923094dbbb635"
+    },
+    {
+      "path": "crates/rh-sim/src/quest_view/presentation_view_tests.rs",
+      "bytes": 4049,
+      "sha256": "f5c63c528022689b4c118de602eadf7202bfdabee69357c1ed0c1a24e4b5b63b"
+    },
+    {
+      "path": "crates/rh-sim/src/quest_view/tests.rs",
+      "bytes": 46377,
+      "sha256": "58005636cfcfc138567ca9373d51365ef745177cb9ed0f6f59a444f6a69e56a5"
+    }
+  ],
+  "frozen_source_files": [
+    {
+      "path": "docs/evidence/quest-presentation/README.md",
+      "bytes": 1855,
+      "sha256": "bb97304a0b4629feb78499f41418f1f3949bb50c1578ec45d2d3efae3c180e41"
+    },
+    {
+      "path": "docs/evidence/quest-presentation/bounded.txt",
+      "bytes": 3183,
+      "sha256": "4b8ec32375c99e142f9fb479aa4dd755553ec1db6c3c4e8eacde0f9b51dd33c6"
+    },
+    {
+      "path": "docs/evidence/quest-presentation/external-check.txt",
+      "bytes": 398,
+      "sha256": "fed66cd4b68c5a070fbab3ce444b4fcf1de0c54b64948de50b87231c157672e7"
+    },
+    {
+      "path": "docs/evidence/quest-presentation/external-reproduction.json",
+      "bytes": 1331,
+      "sha256": "6a4a48585e2fea3e0d00daeed102fc3f24c8714e7a19afcaf7c5f75a35224f6d"
+    },
+    {
+      "path": "docs/evidence/quest-presentation/source-receipt.json",
+      "bytes": 2484,
+      "sha256": "ea788d7721b5536370dc0729f32d363c3190c9d965ce5d77f698244d99472940"
+    },
+    {
+      "path": "parity/quest-presentation/README.md",
+      "bytes": 871,
+      "sha256": "fb4d00246f3307f41dc1b8991d5dd895ce53aadf2022da7d1961e33461e1732a"
+    },
+    {
+      "path": "parity/quest-presentation/source.json",
+      "bytes": 210563,
+      "sha256": "4a021c349a6cc085c6994550fc4415ffadedc2cd22690cd803e56cc4eda8e19e"
+    },
+    {
+      "path": "tools/quest-presentation-fixtures/README.md",
+      "bytes": 2150,
+      "sha256": "dfa96e070a5b3fc936222e2771f7d1e8280438d72037acdf4a75dfb944c23b79"
+    },
+    {
+      "path": "tools/quest-presentation-fixtures/capture.mts",
+      "bytes": 7750,
+      "sha256": "d5b08371a49ab7990b0161d3177f8b6eca01154192e2af77755f95880e54443f"
+    },
+    {
+      "path": "tools/quest-presentation-fixtures/capture.sh",
+      "bytes": 1254,
+      "sha256": "0f5ef61bea10b44e7a8177dc7d988e02b0a23f15c56c8603e59b93ecd7b9dd40"
+    },
+    {
+      "path": "tools/quest-presentation-fixtures/compare.mjs",
+      "bytes": 1661,
+      "sha256": "5ee045a272177d677c348dcbb76af2ac6446928e4019d941fd51daf01b9d5049"
+    },
+    {
+      "path": "tools/quest-presentation-fixtures/inner.sh",
+      "bytes": 2840,
+      "sha256": "d5c0839a7790f031d6f31dbd01fdc01370ae322fcd6699a4c3bb4b1bf0c80802"
+    },
+    {
+      "path": "tools/quest-presentation-fixtures/mutants.json",
+      "bytes": 736,
+      "sha256": "628650503f3a00f07975a7f4fb8dedb004e799c7150f3a5240bc4fe587c5e201"
+    },
+    {
+      "path": "tools/quest-presentation-fixtures/mutants.mjs",
+      "bytes": 851,
+      "sha256": "a01f4122fb07afe94ef4b1a51eb135b6c667c972946bdebe1ab8e59e8344e5b8"
+    },
+    {
+      "path": "tools/quest-presentation-fixtures/pins.json",
+      "bytes": 394,
+      "sha256": "04b119fe64e50046b022b9e05d2a14a667ce67c89eb5d6dbe6d25fad9525b8a5"
+    },
+    {
+      "path": "tools/quest-presentation-fixtures/run-mutants.sh",
+      "bytes": 112,
+      "sha256": "ba2c6dacb7f3039dbe4bd1cb8ee166232d2d147d3e54de83c298b23a7915999e"
+    },
+    {
+      "path": "docs/evidence/quest-presentation/SHA256SUMS",
+      "bytes": 1793,
+      "sha256": "4561ff4fb1c227be5cf8bb1b15d6c05ea0d08441ae3bdceb03a4f3b493881a81"
+    }
+  ],
+  "native_receipts": [
+    {
+      "path": "docs/evidence/quest-presentation/NATIVE.md",
+      "bytes": 3700,
+      "sha256": "2a03f97bb67267bd821c8fb6b125136cc10f44d6f1c095213a4a8b6d1b779c6f"
+    },
+    {
+      "path": "docs/evidence/quest-presentation/native-source-tests.txt",
+      "bytes": 1704,
+      "sha256": "45858b334df758da011feedab1b68db5a45d4ab48c7bdc6abe49357653e93ba2"
+    },
+    {
+      "path": "docs/evidence/quest-presentation/native-view-tests.txt",
+      "bytes": 3064,
+      "sha256": "0fdef2e215a63c293b41ef614079597c5e345c3e9d16a2a5b2c717d4e28a5048"
+    },
+    {
+      "path": "docs/evidence/quest-presentation/native-clippy.txt",
+      "bytes": 1498,
+      "sha256": "bcf269cb58b7b7ea3abc67695742c38f9fa07329c34731ec744b1acf851535e5"
+    },
+    {
+      "path": "docs/evidence/quest-presentation/native-fmt.txt",
+      "bytes": 40,
+      "sha256": "f8585fe9ef465b465e8501be55a43a72060940fc952de9612cce2ba28ff7f23e"
+    }
+  ],
+  "status": "bounded source/Native metadata complete; public transport/activation/UI remains root-owned",
+  "measured": {
+    "definitions": 20,
+    "formatterContextsPerDefinition": 9,
+    "actualRowCalls": 180,
+    "utf8FieldMaxima": {
+      "name": 25,
+      "giver_label": 22,
+      "brief": 96,
+      "objective": 61,
+      "reward": 91
+    },
+    "all20LargestPerDefinitionMetadataUtf8": 4620,
+    "fiveU8StringPrefixesForAll20": 100
+  },
+  "limits": "declared formatter contexts; no new gameplay grants, public bytes/header/cap/schema/client rules, canonical state/cache/aliases, broad campaign or complete-port admission"
+}

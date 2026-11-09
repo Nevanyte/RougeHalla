@@ -128,6 +128,11 @@ namespace Roguehalla.Net
         public bool OwnerReady { get; }
         public uint OwnerProgress { get; }
         public byte OwnerVisited { get; }
+        public string Name { get; }
+        public string GiverLabel { get; }
+        public string Brief { get; }
+        public string Objective { get; }
+        public string Reward { get; }
         internal QuestRowView(WireQuestRow source)
         {
             Handle = source.Handle; Def = source.Def; GiverX = source.GiverX; GiverY = source.GiverY; State = source.State; ExpiresAt = source.ExpiresAt;
@@ -136,6 +141,65 @@ namespace Roguehalla.Net
             Participants = Array.AsReadOnly(participants); Carrier = source.Carrier; DoneBy = source.DoneBy;
             CanAccept = source.CanAccept; OwnerAccepted = source.OwnerAccepted; OwnerCompleted = source.OwnerCompleted; OwnerReady = source.OwnerReady;
             OwnerProgress = source.OwnerProgress; OwnerVisited = source.OwnerVisited;
+            Name = source.Name; GiverLabel = source.GiverLabel; Brief = source.Brief; Objective = source.Objective; Reward = source.Reward;
+        }
+    }
+
+    public readonly struct TradeOfferView
+    {
+        public Protocol.TradeStat Cost { get; }
+        public double CostValue { get; }
+        public Protocol.TradeStat Gain { get; }
+        public double GainValue { get; }
+        public string Label { get; }
+        internal TradeOfferView(Protocol.WireTradeOffer value)
+        { Cost = value.Cost; CostValue = value.CostValue; Gain = value.Gain; GainValue = value.GainValue; Label = value.Label; }
+    }
+    public readonly struct TradeDeltaView
+    {
+        public Protocol.TradeStat Stat { get; }
+        public double Value { get; }
+        internal TradeDeltaView(Protocol.WireTradeDelta value) { Stat = value.Stat; Value = value.Value; }
+    }
+    public readonly struct MerchantView
+    {
+        public Protocol.TradeKind Kind { get; }
+        public double X { get; }
+        public double Y { get; }
+        public string Name { get; }
+        internal MerchantView(Protocol.WireMerchant value) { Kind = value.Kind; X = value.X; Y = value.Y; Name = value.Name; }
+    }
+    /// <summary>Owned copy of one complete Trade replacement; unavailable differs from available-empty.</summary>
+    public sealed class TradeView
+    {
+        public bool Available { get; }
+        public bool TradeUsed { get; }
+        public IReadOnlyList<TradeOfferView> Offers { get; }
+        public IReadOnlyList<TradeDeltaView> Stats { get; }
+        public double? BarterReadyAt { get; }
+        public IReadOnlyList<MerchantView> Merchants { get; }
+        public IReadOnlyList<string> BarterLabels { get; }
+        internal TradeView(TradeState source)
+        {
+            Available = source.Available;
+            if (!Available)
+            {
+                TradeUsed = false; Offers = Array.Empty<TradeOfferView>(); Stats = Array.Empty<TradeDeltaView>();
+                BarterReadyAt = null; Merchants = Array.Empty<MerchantView>(); BarterLabels = Array.Empty<string>();
+                return;
+            }
+            var value = source.Value;
+            TradeUsed = value.TradeUsed; BarterReadyAt = value.BarterReadyAt;
+            var offers = new TradeOfferView[value.Offers.Length];
+            for (int i = 0; i < offers.Length; i++) offers[i] = new TradeOfferView(value.Offers[i]);
+            Offers = Array.AsReadOnly(offers);
+            var stats = new TradeDeltaView[value.Stats.Length];
+            for (int i = 0; i < stats.Length; i++) stats[i] = new TradeDeltaView(value.Stats[i]);
+            Stats = Array.AsReadOnly(stats);
+            var merchants = new MerchantView[value.Merchants.Length];
+            for (int i = 0; i < merchants.Length; i++) merchants[i] = new MerchantView(value.Merchants[i]);
+            Merchants = Array.AsReadOnly(merchants);
+            BarterLabels = Array.AsReadOnly((string[])value.BarterLabels.Clone());
         }
     }
     public readonly struct QuestObjectiveView
@@ -201,18 +265,21 @@ namespace Roguehalla.Net
         public ArenaView? Arena { get; private set; }
         /// <summary>Null means key 10 has not yet been received; a non-null unavailable view is a received disabled state.</summary>
         public QuestView Quests { get; private set; }
+        /// <summary>Null means State key 11 has not arrived; unavailable is an explicit complete replacement.</summary>
+        public TradeView Trade { get; private set; }
         const uint KnownStateMask =
             (1u << ((int)StateKey.Inventory - 1)) | (1u << ((int)StateKey.Props - 1)) |
             (1u << ((int)StateKey.Fields - 1)) | (1u << ((int)StateKey.RewardChests - 1)) |
             (1u << ((int)StateKey.Build - 1)) | (1u << ((int)StateKey.Camps - 1)) |
             (1u << ((int)StateKey.Projectiles - 1)) | (1u << ((int)StateKey.Plan - 1)) |
-            (1u << ((int)StateKey.Arena - 1)) | (1u << ((int)StateKey.Quests - 1));
+            (1u << ((int)StateKey.Arena - 1)) | (1u << ((int)StateKey.Quests - 1)) |
+            (1u << ((int)StateKey.Trade - 1));
         uint _seen;
         public bool HasFullState { get { return _seen == KnownStateMask; } }
 
         internal void Reset()
         {
-            Plan = null; Arena = null; Quests = null;
+            Plan = null; Arena = null; Quests = null; Trade = null;
             Tick = 0; _seen = 0; Camps=Array.Empty<CampView>(); Projectiles=Array.Empty<NetProjectileView>(); Inventory = null; Focus = null; HasBuild = false;
             Props = Array.Empty<PropView>(); Fields = Array.Empty<AreaView>();
             RewardChests = Array.Empty<RewardChestView>(); Cards = Array.Empty<byte>(); Boosts = Array.Empty<byte>();
@@ -222,8 +289,13 @@ namespace Roguehalla.Net
             // Decode validated the complete frame before this method can mutate the retained view.
             foreach (var item in state.Items)
             {
-                if (item.Key < (uint)StateKey.Inventory || item.Key > (uint)StateKey.Quests)
+                if (item.Key < (uint)StateKey.Inventory || item.Key > (uint)StateKey.Trade)
                     throw new ArgumentException("unknown state key");
+                if (item is TradeState trade)
+                {
+                    try { trade.Check(); }
+                    catch (EncodeException e) { throw new InvalidCollectionStateException("invalid trade state: " + e.Message); }
+                }
             }
             ValidateQuestPropReferences(state);
             foreach (var item in state.Items)
@@ -322,6 +394,10 @@ namespace Roguehalla.Net
                 else if (item is QuestsState quests)
                 {
                     Quests = new QuestView(quests);
+                }
+                else if (item is TradeState trade)
+                {
+                    Trade = new TradeView(trade);
                 }
                 else if (item is BuildState build)
                 {

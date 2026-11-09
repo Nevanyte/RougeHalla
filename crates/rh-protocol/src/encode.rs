@@ -137,6 +137,7 @@ fn command_len(c: &WireCommand) -> usize {
                 + opt_len(seq.is_some(), 1)
         }
         WireCommand::QuestAccept { handle } => 1 + varint_len(handle.get()),
+        WireCommand::Trade { .. } => 3,
     }
 }
 
@@ -156,6 +157,7 @@ fn command_finite(c: &WireCommand) -> bool {
         | WireCommand::Train { .. }
         | WireCommand::UseConsumable => true,
         WireCommand::QuestAccept { .. } => true,
+        WireCommand::Trade { pick, .. } => pick <= 2,
         WireCommand::Aim { a } => a.is_finite(),
         WireCommand::Attack { a, t } | WireCommand::Release { a, t } => {
             a.is_finite() && t.is_none_or(f64::is_finite)
@@ -223,6 +225,7 @@ impl Frame for ClientMsg {
                             if !(1..=5).contains(command) || *option_count > 3)
                         || matches!(c, WireCommand::Cast { slot, actor, .. }
                             if *slot > 2 || actor.is_some_and(|id| id == 0))
+                        || matches!(c, WireCommand::Trade { pick, .. } if *pick > 2)
                 }) {
                     return Err(EncodeError::BadValue("command"));
                 }
@@ -370,6 +373,11 @@ impl Frame for ClientMsg {
                         WireCommand::QuestAccept { handle } => {
                             w.u8(C_QUEST_ACCEPT);
                             w.varint(handle.get());
+                        }
+                        WireCommand::Trade { kind, pick } => {
+                            w.u8(C_TRADE);
+                            w.u8(kind.code());
+                            w.u8(pick);
                         }
                     }
                 }

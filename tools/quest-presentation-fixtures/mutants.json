@@ -1,0 +1,6 @@
+[
+  {"name":"objective-label","kind":"semantic","before":"Find the parcel and return it to ${def.giver}","after":"Find the parcel MUTANT_LABEL and return it to ${def.giver}"},
+  {"name":"contextual-total","kind":"semantic","before":"${current + gained} total after this quest","after":"${current + gained + 1} total after this quest"},
+  {"name":"closed-context","kind":"semantic","before":"reward: closed ? questReward(def) : questReward(def, feed, mobStats)","after":"reward: closed ? questReward(def, feed, mobStats) : questReward(def, feed, mobStats)"},
+  {"name":"provenance-only","kind":"provenance-only","before":"const MAX_NAV_CACHE_KEYS = 64;","after":"// Provenance-only formatter control.\nconst MAX_NAV_CACHE_KEYS = 64;"}
+]

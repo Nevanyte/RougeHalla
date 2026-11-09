@@ -1,0 +1,11 @@
+import assert from "node:assert/strict";
+import {readFileSync,writeFileSync} from "node:fs";
+import {join,resolve} from "node:path";
+const [root,name]=process.argv.slice(2);
+assert(root&&name&&resolve(root).startsWith("/work/variant-"),"only disposable container variants may be mutated");
+const definitions=JSON.parse(readFileSync(join(root,"tools/quest-presentation-fixtures/mutants.json"),"utf8"));
+const mutation=definitions.find(row=>row.name===name);assert(mutation);
+const path=join(root,"packages/client/src/ui/questModel.ts");const original=readFileSync(path,"utf8");
+assert.equal(original.split(mutation.before).length-1,1,"exact actual compiled source anchor");
+writeFileSync(path,original.replace(mutation.before,mutation.after));
+console.log(JSON.stringify({applied:name,kind:mutation.kind,path:"packages/client/src/ui/questModel.ts"}));

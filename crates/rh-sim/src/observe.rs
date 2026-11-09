@@ -218,6 +218,8 @@ pub enum SeenEvent {
 pub struct Observation {
     /// Seat-local quest facts; None when quests are disabled or viewer is ineligible.
     pub quests: Option<crate::quest_view::QuestView>,
+    /// Own saved trade state plus the merchants this viewer can actually see.
+    pub trade: Option<crate::traders::TradeView>,
     pub arena: Option<crate::ArenaView>,
     pub plan: Option<crate::PlanningView>,
     pub projectiles: Vec<crate::ProjectileView>,
@@ -427,6 +429,7 @@ impl Default for Observation {
     fn default() -> Self {
         Self {
             quests: None,
+            trade: None,
             arena: None,
             plan: None,
             projectiles: Vec::new(),
@@ -678,6 +681,8 @@ pub(crate) fn observe_with(
     let me = sim.player(viewer);
     let now = sim.server_time();
     out.quests = None;
+    crate::traders::trade_view_into(sim, viewer, &mut out.trade)
+        .map_err(crate::OfferError::Trades)?;
     out.projectiles.clear();
     out.reward_chests.clear();
     out.build = me.map(|p| crate::reward_chests::BuildView::from(&p.build));

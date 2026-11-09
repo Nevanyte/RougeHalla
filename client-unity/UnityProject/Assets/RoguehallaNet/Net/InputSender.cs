@@ -101,6 +101,13 @@ namespace Roguehalla.Net
             _queue.Add(WireCommand.QuestAccept(handle));
         }
 
+        /// <summary>Queues a fixed merchant kind and choice index; availability and eligibility remain server decisions.</summary>
+        public void Trade(TradeKind kind, byte pick)
+        {
+            if ((byte)kind > (byte)TradeKind.Stats || pick > 2) { Dropped++; return; }
+            _queue.Add(WireCommand.Trade(kind, pick));
+        }
+
         /// <summary>Cancels commands that belong to an earlier connection/observer epoch.</summary>
         internal void ClearPending() { _queue.Clear(); _aim=null; LastMovementOrder=null; }
 
