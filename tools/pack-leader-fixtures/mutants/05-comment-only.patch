@@ -1,0 +1,5 @@
+--- a/packages/server/src/sim/mods.ts
++++ b/packages/server/src/sim/mods.ts
+@@ -697,1 +697,1 @@
+-    } else if (e.src === "streak") {
++    } else if (e.src === "streak") { // provenance-only control comment change
