@@ -1,0 +1,120 @@
+{
+  "format": "rh-runtime-admission-test-repair/1",
+  "base": "3126e5c3209334c637d1f067f3f0b8209dbf06f4",
+  "code_commit": "d885859966f62dc83be46b05e19f7a0f6a282b06",
+  "native_files": [
+    {
+      "path": "crates/rh-server/tests/runtime_admission.rs",
+      "base_sha256": "dfc8bb2b060fda8409c0529088bb93d72d6b71d578781e68a2504674755114a8",
+      "new_sha256": "6489be5b908bf2c9859892658359624f9c80053aad60f166cbb2fbfe4525d45e",
+      "new_bytes": 31676
+    }
+  ],
+  "evidence": [
+    {
+      "path": "docs/evidence/ci-runtime-admission-3126/.gitattributes",
+      "sha256": "3de6ecd53b23ff80670c2fe5b193580b33a75bd8598fbbbb6a0b59b07eb2d7ae",
+      "bytes": 148
+    },
+    {
+      "path": "docs/evidence/ci-runtime-admission-3126/ATTEMPTS.json",
+      "sha256": "b5e748a169f238a1947ed154e792947c79ace5192aec36c17cec10ba254fcab5",
+      "bytes": 4003
+    },
+    {
+      "path": "docs/evidence/ci-runtime-admission-3126/CI_FAILURE.txt",
+      "sha256": "3ea8bc3aa258c9d41149e4ecaadfb6673ce658a9dd01becfd1ae8f2271dfcb5e",
+      "bytes": 3213
+    },
+    {
+      "path": "docs/evidence/ci-runtime-admission-3126/CI_SOURCE.json",
+      "sha256": "7106bbc4432cf0e5e15d50b386116dba0b816a10bb3d211dc2d586e4a382c5db",
+      "bytes": 387
+    },
+    {
+      "path": "docs/evidence/ci-runtime-admission-3126/README.md",
+      "sha256": "573337c65dd7f9c6056dbc5fac2e66515dfb455042b44ae353d75e33e9f13af3",
+      "bytes": 6089
+    },
+    {
+      "path": "docs/evidence/ci-runtime-admission-3126/diagnostic-overlay-reconstructed.txt",
+      "sha256": "759fdfe49e8ed974e3d1d39e9e8ce73ef3a0c46bd64c663669b7a1b33ea51419",
+      "bytes": 28227
+    },
+    {
+      "path": "docs/evidence/ci-runtime-admission-3126/logs/clippy-final.log",
+      "sha256": "85b1848ff0786559a68f2c7d6c8e7b4e23c47dd812a476da9fb7088ae24aa6ff",
+      "bytes": 715
+    },
+    {
+      "path": "docs/evidence/ci-runtime-admission-3126/logs/clippy-first.log",
+      "sha256": "013c105e519a3168b002d16d3a2fae928e553078d218eee69d418598f1f19e61",
+      "bytes": 1330
+    },
+    {
+      "path": "docs/evidence/ci-runtime-admission-3126/logs/diagnostic-first.log",
+      "sha256": "a86a7421054e513330d0df5c6f811c109168c70cb21acf5f4e2824b6f1bd39c7",
+      "bytes": 13400
+    },
+    {
+      "path": "docs/evidence/ci-runtime-admission-3126/logs/fixed-runtime-seven-final.log",
+      "sha256": "2f9cd228aa645453c21d89257ab77f411d4816790ded41c97a1ad4fa58293d55",
+      "bytes": 4489
+    },
+    {
+      "path": "docs/evidence/ci-runtime-admission-3126/logs/fixed-runtime-seven-first.log",
+      "sha256": "1e87716dc118053ade03352750cfb2cac01c1586e24e1f62f0826e52ebe45a4d",
+      "bytes": 4495
+    },
+    {
+      "path": "docs/evidence/ci-runtime-admission-3126/logs/fmt-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/evidence/ci-runtime-admission-3126/logs/fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/evidence/ci-runtime-admission-3126/logs/old-quotes-only-control.log",
+      "sha256": "1bbf6775e1b637000ae87e5a02fa98a223cbdf3d53575e00c3e7b3b9c8d5c15e",
+      "bytes": 1580
+    },
+    {
+      "path": "docs/evidence/ci-runtime-admission-3126/logs/random-public-navigation-01.log",
+      "sha256": "1254b5f78135f7dbb53ae80a70a13526dabb783772704ec0b4877b1646593887",
+      "bytes": 11460
+    },
+    {
+      "path": "docs/evidence/ci-runtime-admission-3126/logs/random-public-navigation-02.log",
+      "sha256": "91ae9ede62cc2a6cfb2c0460fef1dd083fd42e0acfcea906eda0c6e086e49184",
+      "bytes": 11140
+    },
+    {
+      "path": "docs/evidence/ci-runtime-admission-3126/logs/random-public-navigation-03.log",
+      "sha256": "8c809671ac6fd1c8c4719c1eb2f001e9e1fa67b35d0bf1c49982b22f2c68e597",
+      "bytes": 12466
+    },
+    {
+      "path": "docs/evidence/ci-runtime-admission-3126/logs/random-public-navigation-04.log",
+      "sha256": "05952afb1b32252b243957e13d46ed5334b39f2d9c6619cc1513860b70e0ffb0",
+      "bytes": 11480
+    },
+    {
+      "path": "docs/evidence/ci-runtime-admission-3126/logs/random-public-navigation-05.log",
+      "sha256": "ea6a56773d37a9e2ccc71bb2a0d7b24f408f628a35b90b40ab2344e5902b5734",
+      "bytes": 11734
+    },
+    {
+      "path": "docs/evidence/ci-runtime-admission-3126/logs/random-public-navigation-06.log",
+      "sha256": "8902e031eb6da70856eb5f7ae8b2590790b1b806448d7e1a1529f5798a9264cd",
+      "bytes": 10226
+    },
+    {
+      "path": "docs/evidence/ci-runtime-admission-3126/logs/random-public-navigation-07.log",
+      "sha256": "5e7a5f4405db7bc80e90266afb8482e160daf83676086d666f51abb7354d1066",
+      "bytes": 9574
+    }
+  ]
+}

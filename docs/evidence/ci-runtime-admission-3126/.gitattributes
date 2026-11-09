@@ -1,0 +1,2 @@
+# Preserve raw command receipts exactly; this changes whitespace checking only, not inclusion or test behavior.
+logs/*.log whitespace=-blank-at-eof

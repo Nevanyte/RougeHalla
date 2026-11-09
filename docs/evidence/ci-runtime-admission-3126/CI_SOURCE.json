@@ -1,0 +1,13 @@
+{
+  "commit": "3126e5c3209334c637d1f067f3f0b8209dbf06f4",
+  "run": 42615460588,
+  "job": 129154324524,
+  "raw_log_sha256": "51185ecab0a8927f08312a865803385deddcafd3fd35e65ee15880b19d171253",
+  "raw_log_bytes": 342242,
+  "excerpt_lines": [
+    2820,
+    2856
+  ],
+  "diagnostic_overlay_reconstructed_from_exact_recorded_edit": true,
+  "diagnostic_overlay_not_a_historical_commit": true
+}

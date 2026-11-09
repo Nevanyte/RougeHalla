@@ -1,0 +1,58 @@
+   Compiling ring v0.17.14
+   Compiling rustls v0.23.46
+   Compiling rustls-webpki v0.103.16
+   Compiling sqlx-core v0.8.6
+   Compiling sqlx-postgres v0.8.6
+   Compiling sqlx-macros-core v0.8.6
+   Compiling sqlx-macros v0.8.6
+   Compiling tokio-rustls v0.26.6
+   Compiling sqlx v0.8.6
+   Compiling axum-server v0.7.3
+   Compiling rcgen v0.13.2
+   Compiling rh-persist v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/ci-runtime-admission/repo/crates/rh-persist)
+   Compiling rh-server v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/ci-runtime-admission/repo/crates/rh-server)
+   Compiling tungstenite v0.26.2
+   Compiling tokio-tungstenite v0.26.2
+    Finished `test` profile [unoptimized] target(s) in 17.77s
+     Running tests/runtime_admission.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/runtime_admission-4adff2bd7a71a912)
+
+running 7 tests
+test saved_broker_quotes_require_move_ack_and_current_arrival ... ok
+public condition at crates/rh-server/tests/runtime_admission.rs:633:10: tick=1 time=50 input=0/0
+public condition at crates/rh-server/tests/runtime_admission.rs:730:11: tick=2 time=100 input=0/0
+public condition at crates/rh-server/tests/runtime_admission.rs:635:9: tick=1 time=50 input=0/0
+public condition at crates/rh-server/tests/runtime_admission.rs:652:10: tick=2 time=100 input=0/1
+public condition at crates/rh-server/tests/runtime_admission.rs:740:13: tick=4 time=200 input=0/0
+test hosted_training_validates_capacity_and_admits_only_first_solo_seat ... ok
+public condition at crates/rh-server/tests/runtime_admission.rs:656:9: tick=3 time=150 input=1/1
+public condition at crates/rh-server/tests/runtime_admission.rs:676:10: tick=5 time=250 input=1/0
+test training_endpoint_concurrent_hellos_get_solo_rooms_and_real_console ... ok
+public condition at crates/rh-server/tests/runtime_admission.rs:420:11: tick=13 time=650 input=0/0
+public condition at crates/rh-server/tests/runtime_admission.rs:421:9: tick=13 time=650 input=0/0
+public condition at crates/rh-server/tests/runtime_admission.rs:440:10: tick=14 time=700 input=0/1
+public condition at crates/rh-server/tests/runtime_admission.rs:457:10: tick=16 time=800 input=2/2
+public condition at crates/rh-server/tests/runtime_admission.rs:459:9: tick=16 time=800 input=1/1
+public condition at crates/rh-server/tests/runtime_admission.rs:492:10: tick=42 time=2100 input=3/3
+public condition at crates/rh-server/tests/runtime_admission.rs:507:10: tick=43 time=2150 input=3/4
+public condition at crates/rh-server/tests/runtime_admission.rs:518:9: tick=45 time=2250 input=2/2
+public condition at crates/rh-server/tests/runtime_admission.rs:912:11: tick=14 time=700 input=0/0
+public condition at crates/rh-server/tests/runtime_admission.rs:913:9: tick=14 time=700 input=0/0
+public condition at crates/rh-server/tests/runtime_admission.rs:924:10: tick=18 time=900 input=1/1
+public condition at crates/rh-server/tests/runtime_admission.rs:926:9: tick=18 time=900 input=1/1
+test captured_full_source_map_admits_encoded_planning_and_live_public_state ... ok
+test real_binary_refuses_unknown_runtime_and_incompatible_configuration ... ok
+public condition at crates/rh-server/tests/runtime_admission.rs:835:23: tick=1 time=50 input=0/0
+public condition at crates/rh-server/tests/runtime_admission.rs:553:10: tick=255 time=12750 input=5/5
+public condition at crates/rh-server/tests/runtime_admission.rs:582:10: tick=281 time=14050 input=6/6
+public condition at crates/rh-server/tests/runtime_admission.rs:593:10: tick=281 time=14050 input=6/7
+public condition at crates/rh-server/tests/runtime_admission.rs:610:11: tick=281 time=14050 input=6/8
+public condition at crates/rh-server/tests/runtime_admission.rs:611:11: tick=283 time=14150 input=8/8
+test source_endpoint_hello_planning_ready_and_live_quest_trade_state ... ok
+public condition at crates/rh-server/tests/runtime_admission.rs:820:23: tick=21 time=1050 input=0/0
+public condition at crates/rh-server/tests/runtime_admission.rs:821:21: tick=21 time=1050 input=0/0
+public condition at crates/rh-server/tests/runtime_admission.rs:832:22: tick=22 time=1100 input=1/1
+public condition at crates/rh-server/tests/runtime_admission.rs:813:18: tick=1 time=50 input=0/0
+test real_binary_composes_core_source_and_training_without_a_hello_mode ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.96s
+
