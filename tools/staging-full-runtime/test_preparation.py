@@ -85,8 +85,14 @@ class Preparation(unittest.TestCase):
         root = HERE.parents[1]
         pins = json.loads((HERE / 'native-pins.json').read_text())
         self.assertEqual(pins['source_commit'], p.BASE)
+        self.assertEqual(json.loads((HERE / 'plan.unverified.json').read_text())['source_commit'], p.BASE)
+        self.assertIn('Frozen native candidate: `' + p.BASE + '`', (HERE / 'README.md').read_text())
+        self.assertEqual(set(pins['files']), {
+            'crates/rh-server/src/' + name + '.rs'
+            for name in ('runtime', 'main', 'lib', 'director', 'room')})
         for path, digest in pins['files'].items():
-            self.assertEqual(hashlib.sha256((root / path).read_bytes()).hexdigest(), digest, path)
+            with self.subTest(path=path):
+                self.assertEqual(hashlib.sha256((root / path).read_bytes()).hexdigest(), digest, path)
 
     def test_missing_wrong_stale_cost_credit_and_over_total_refuse(self):
         cases = [lambda x: x.update(account='961470857356'), lambda x: x.update(region='ca-central-1'),
@@ -111,6 +117,28 @@ class Preparation(unittest.TestCase):
         for mutate in cases:
             plan = copy.deepcopy(self.plan); mutate(plan)
             with self.assertRaises(p.Refused): p.validate(plan, self.root, NOW)
+
+        # A reviewed source refreeze cannot promote historical a0c artifacts by changing only the plan.
+        historical = 'a0c4818ce9df8ad0f4124db31e65ba1244bddc3b'
+        plan = copy.deepcopy(self.plan); plan['source_commit'] = historical
+        with self.assertRaisesRegex(p.Refused, 'native source is not the frozen base'):
+            p.validate(plan, self.root, NOW)
+        for key, reason in (
+                ('native_validation', 'binary/map/runtime proof does not bind the frozen artifacts'),
+                ('web_manifest', 'Web runtime/account binding required')):
+            with self.subTest(historical_receipt=key):
+                item = self.plan['artifacts'][key]
+                path = self.root / item['path']
+                original = path.read_bytes()
+                receipt = json.loads(original); receipt['source_commit'] = historical
+                path.write_text(json.dumps(receipt))
+                plan = copy.deepcopy(self.plan)
+                plan['artifacts'][key]['sha256'] = hashlib.sha256(path.read_bytes()).hexdigest()
+                try:
+                    # Rehashing reaches the source binding check, not the generic checksum refusal.
+                    with self.assertRaisesRegex(p.Refused, reason): p.validate(plan, self.root, NOW)
+                finally:
+                    path.write_bytes(original)
 
     def test_artifact_replacement_path_and_incomplete_map_refuse(self):
         (self.root / 'server').write_bytes(b'changed')
