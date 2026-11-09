@@ -1,0 +1,16 @@
+{
+  "format": "rh-c52-browser-socket-path-precheck/1",
+  "recordedUtc": "2026-11-09T20:36:08.867652+00:00",
+  "classification": "READ_ONLY_PREPARATION_NOT_RUNTIME",
+  "requestedSocketDirectory": "/private/tmp/rh-browser-c52-pg-65439",
+  "existsOrSymlinkAtSnapshot": false,
+  "shortSocketPathBytes": 51,
+  "rejectedLongSocketPathBytes": 118,
+  "darwinHeader": "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/un.h",
+  "headerSha256": "a733cb89955ef81312f4bc3a42002c6cc873e27381eb43656c7158ef9a433c24",
+  "sunPathCapacity": 104,
+  "creationAuthorized": false,
+  "requiresRootLease": true,
+  "requireFreshExclusive0700Directory": true,
+  "postgresTCPListener": false
+}

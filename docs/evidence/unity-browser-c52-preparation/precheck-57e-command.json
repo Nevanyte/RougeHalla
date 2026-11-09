@@ -1,0 +1,10 @@
+{
+  "argv": [
+    "node",
+    "tools/unity-browser-reload-proof/pin-c52-preparation.mjs",
+    "docs/evidence/unity-browser-c52-preparation/PRECHECK-57E.json"
+  ],
+  "exitCode": 0,
+  "outputSha256": "9e5b4b481f4775af9fb1467263c115f8ba6c24946bb4a0a1f01828d1ce8e6afe",
+  "scope": "read-only local inventory; no runtime"
+}

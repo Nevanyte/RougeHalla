@@ -1,0 +1,19 @@
+{
+  "name": "fs-load",
+  "argv": [
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/map-styled-bench/npm-cache/_npx/361c55be1121897e/node_modules/node/bin/node",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/web57-router-preflight-2026-11-09-01/fs-preflight.mjs",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14-clients/repo/tools/unity-browser-reload-proof/local-router.mjs",
+    "aa4d699c7080944856cc9d5cd2f1a0ef7a6af114d6c691f2c871af80020eac63",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/web57-router-preflight-2026-11-09-01/router-assets.json",
+    "103664aed485a1ee634d2be6de1ca759822a95a10945540aa8b1ed35a57e41d7",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/web-build-57e166-2026-11-09/Web"
+  ],
+  "sourceCommit": "e1146d40cbd0b9d1c54b45175c8c86f8ba448e02",
+  "startedUtc": "2026-11-09T21:10:25.205211+00:00",
+  "elapsedSeconds": 0.0935,
+  "exitCode": 0,
+  "stdoutSha256": "4bcdcea23ed2cb8d2e287e719c1caddfce18cf5cc475b32500cc6de2ba5d9729",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "scope": "PREPARATION_ONLY_NO_LISTENERS_PG_BROWSER_OR_PROXY"
+}

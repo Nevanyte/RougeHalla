@@ -1,0 +1,14 @@
+{
+  "name": "node-version",
+  "argv": [
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/map-styled-bench/npm-cache/_npx/361c55be1121897e/node_modules/node/bin/node",
+    "--version"
+  ],
+  "sourceCommit": "e1146d40cbd0b9d1c54b45175c8c86f8ba448e02",
+  "startedUtc": "2026-11-09T21:10:25.121515+00:00",
+  "elapsedSeconds": 0.0124,
+  "exitCode": 0,
+  "stdoutSha256": "2266957ed9a639bd7264d714bfa798a961510bf2e50695c668ab8fc0c3f4e906",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "scope": "PREPARATION_ONLY_NO_LISTENERS_PG_BROWSER_OR_PROXY"
+}

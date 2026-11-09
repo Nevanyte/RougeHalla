@@ -1,0 +1,141 @@
+{
+  "format": "rh-c52-57e-browser-preparation-manifest/1",
+  "state": "PREPARATION_ONLY_NOT_RUNTIME_ACCEPTANCE",
+  "base": "c52e41a633c91f8402e3f68724e9202351d1cdb3",
+  "toolSourceCommit": "4cf33c4a5545378650db1111146576c89e20ceda",
+  "nativeSource": "c52e41a633c91f8402e3f68724e9202351d1cdb3",
+  "clientSource": "57e166f46b35fb703e5f3c76914fcc4e8bf3191c",
+  "clientComposition": "5e19ef1b801ef363a83217ddecd768c5aba71cac",
+  "browserOrigin": "http://localhost:8888",
+  "nativeBinarySha256": "2533c89b6581610a33a79ff95492989711a33d52999efdd2fc045cb771a62a65",
+  "webStatus": "PENDING_WEB2_SEAL_AND_POSTBUILD_GUARDS_WEB1_HELD",
+  "tests": {
+    "affectedCollectorPassed": 8,
+    "routerSyntheticPassed": 6,
+    "failed": 0,
+    "runtimeOrBrowserTests": 0,
+    "templateStatus": "OPEN",
+    "templateExpectedExitCode": 2
+  },
+  "toolPins": {
+    "tools/unity-browser-reload-proof/Caddyfile.local.proposal": {
+      "bytes": 1376,
+      "sha256": "0f6ee0420ed12199047aeb8f583a061ecf8669c5d2095c6b9824a7c9e011db40"
+    },
+    "tools/unity-browser-reload-proof/check.mjs": {
+      "bytes": 17840,
+      "sha256": "4e5759af6060a3bfe7d7469a1c12fbad7d86b5f10451c7ebff6c51ee0d8f1618"
+    },
+    "tools/unity-browser-reload-proof/check.test.mjs": {
+      "bytes": 16081,
+      "sha256": "2ec62a5706d69ef04b9cba2593378553511149cdce9084e72b3c937845ee6866"
+    },
+    "tools/unity-browser-reload-proof/local-router.mjs": {
+      "bytes": 19656,
+      "sha256": "5a9ba3d280314f33ef3470a5cf05e1f4deb3a37d2cc42cc29f107557ad01241e"
+    },
+    "tools/unity-browser-reload-proof/local-router.test.mjs": {
+      "bytes": 4711,
+      "sha256": "1cfba3ba26a7083ed6309ac3e446638383c7028823b936736a1a20b110f90df7"
+    },
+    "tools/unity-browser-reload-proof/make-preload-proposal.mjs": {
+      "bytes": 2340,
+      "sha256": "6a5ca491989f3cb42359ecdf6806a8b1702df3ac9006a016a1bc5808ebde9e0f"
+    },
+    "tools/unity-browser-reload-proof/observer.js": {
+      "bytes": 4980,
+      "sha256": "7f8171d234d14ba0cd87582704dc50cea0b4aedf022ae194e3b5786382594e1b"
+    },
+    "tools/unity-browser-reload-proof/pin-c52-preparation.mjs": {
+      "bytes": 5666,
+      "sha256": "d0f1f29376184d1a5a37a2c0708ca4b6fe954be3c956901852e5da924c960e87"
+    },
+    "tools/unity-browser-reload-proof/pin-sources.mjs": {
+      "bytes": 4534,
+      "sha256": "3767209cb4c7d5c861e1fc87458521df4aa5b4f2a8d29680057c6df9aad9d452"
+    },
+    "tools/unity-browser-reload-proof/wire-metadata.js": {
+      "bytes": 8141,
+      "sha256": "1347008ce2d4da0a0b8d1a9cf1b897a0404b87ecd7e4e74f066265d39f093e00"
+    },
+    "tools/unity-browser-reload-proof/wire-tap-proposal.js": {
+      "bytes": 5942,
+      "sha256": "50d70d91b60352033aede576b8ee2d154eecf3be7a32567a762338674cfacb35"
+    }
+  },
+  "payloads": {
+    "COLLECTOR_TEMPLATE.json": {
+      "bytes": 370,
+      "sha256": "479c49a9e59229936bde5e7157d665ce985b799e9b6826c212654c3f1f7dfefb"
+    },
+    "OFFLINE_CHECKS.json": {
+      "bytes": 3058,
+      "sha256": "c2aaf003bb9d6bfe224e9861eaa9f32ef1b79bb235d3122bcc68a55366ce8174"
+    },
+    "PLAYER_FLOW_CASES.md": {
+      "bytes": 20054,
+      "sha256": "b479cfe4122623fa684ede39a4d433b97ae8ffa9a0cb4e451b3a34389670c472"
+    },
+    "PRECHECK-57E.json": {
+      "bytes": 5181,
+      "sha256": "e13a00e1087f81f7ee31f23700382ee5a686ae2478b48c6d3927acb5ecd708bb"
+    },
+    "PRECHECK.json": {
+      "bytes": 5106,
+      "sha256": "d96d58016657d00823a60d22ec161f34247da56ba3294bedbc36a9511add8ebb"
+    },
+    "README.md": {
+      "bytes": 3701,
+      "sha256": "0b6dbcb14f46302ff72723532c362f11fdc51020eff8279f1223e5b5ccd63df2"
+    },
+    "REVIEW.md": {
+      "bytes": 3872,
+      "sha256": "db651698af9ea272110e1f4a897288fb7f0f030b4ba5f97745991feeda99b2a1"
+    },
+    "RUNTIME_PLAN.md": {
+      "bytes": 18837,
+      "sha256": "05f1e29e5c271cf14ec741ea2d678901202638068c21b11bc7b300955b77b4ae"
+    },
+    "SOCKET_PATH_PRECHECK.json": {
+      "bytes": 686,
+      "sha256": "1872def978fc57eff0cf8c31d6fed66e049dbc7fb033d416ab569ab727c01792"
+    },
+    "TEMPLATE_OPEN_REPORT.json": {
+      "bytes": 670,
+      "sha256": "470295682f0321865dbb48c8ddf35c2f74a84b9ea0385ea7794148534e887707"
+    },
+    "collector-affected.log": {
+      "bytes": 837,
+      "sha256": "def2e8cf42ca5fa468bc04aea1c3cd2be4f15146dba10e6384374c86e5464121"
+    },
+    "precheck-57e-command.json": {
+      "bytes": 319,
+      "sha256": "a74b73168047cd8dcef15a86ee2404a98fa6df19a76201182b16ab88ba9a61db"
+    },
+    "precheck-57e.log": {
+      "bytes": 314,
+      "sha256": "9e5b4b481f4775af9fb1467263c115f8ba6c24946bb4a0a1f01828d1ce8e6afe"
+    },
+    "router-offline.log": {
+      "bytes": 695,
+      "sha256": "bb8512627f140a33d6c38be461a3e989d3b8b098c5c61795d45fdb90b0839185"
+    },
+    "template-create.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "template-open.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "whitespace.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "runtimeStarted": false,
+  "databaseStarted": false,
+  "browserStarted": false,
+  "cloudActions": false,
+  "rootRuntimeReleaseStillRequired": true
+}

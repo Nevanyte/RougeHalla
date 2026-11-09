@@ -1,0 +1,14 @@
+{
+  "name": "derive",
+  "argv": [
+    "python3",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/web57-router-preflight-2026-11-09-01/derive-router-assets.py"
+  ],
+  "sourceCommit": "e1146d40cbd0b9d1c54b45175c8c86f8ba448e02",
+  "startedUtc": "2026-11-09T21:10:25.093987+00:00",
+  "elapsedSeconds": 0.0269,
+  "exitCode": 0,
+  "stdoutSha256": "4d436b042c136975969eb9e2bbb14a2af60dd78d0131bcc9c22499ae4518edfa",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "scope": "PREPARATION_ONLY_NO_LISTENERS_PG_BROWSER_OR_PROXY"
+}

@@ -7,7 +7,8 @@
     }
 }
 
-http://127.0.0.1:8888 {
+http://localhost:8888 {
+    bind 127.0.0.1 ::1
     route {
         @source path /ws /info /ping /healthz /api /api/* /readyz
         handle @source {

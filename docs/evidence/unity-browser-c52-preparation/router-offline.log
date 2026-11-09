@@ -1,0 +1,14 @@
+✔ Fixed source and training routes preserve query and never cross upstreams (1.157584ms)
+✔ Only the fixed local Host is admitted and forwarded peer replaces incoming XFF (0.072708ms)
+✔ Control and unsupported training paths are rejected, not sent to a fallback upstream (0.057042ms)
+✔ Static fallback is only an exact canonical path for GET or HEAD (0.057875ms)
+✔ Manifest validation copies and pins only declared asset bytes and compressed MIME (0.397833ms)
+✔ Manifest rejects traversal, undeclared MIME, bad hashes, duplicates, and asset size mismatches (0.312125ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 84.088667

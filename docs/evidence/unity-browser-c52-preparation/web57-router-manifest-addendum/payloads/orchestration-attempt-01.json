@@ -1,0 +1,10 @@
+{
+  "classification": "ORCHESTRATION_ERROR_BEFORE_TESTS_OR_MANIFEST_OR_RUNTIME",
+  "recordedUtc": "2026-11-09T21:08:43.747274+00:00",
+  "exitCode": 1,
+  "cause": "Host Python lacks hashlib.file_digest; use streamed hashlib.sha256 instead",
+  "codeCommitCreated": false,
+  "testExecuted": false,
+  "artifactChanged": false,
+  "reservedStateCreated": false
+}

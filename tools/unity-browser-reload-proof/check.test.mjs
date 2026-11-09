@@ -6,7 +6,7 @@ import {readFileSync} from 'node:fs';
 import {parseClientHello, parseServerWelcome, parseWireMetadata} from './wire-metadata.js';
 import {proposeWireTap} from './wire-tap-proposal.js';
 import {makePreloadProposal} from './make-preload-proposal.mjs';
-import {template, evaluate, CONTENT} from './check.mjs';
+import {template, evaluate, CONTENT, NATIVE_REFERENCE, BROWSER_ORIGIN} from './check.mjs';
 
 const match = '00112233445566778899aabbccddeeff';
 // Only public/control bytes exist in this reader. A payload read throws BEFORE any value exists.
@@ -128,7 +128,7 @@ test('Unknown wire shapes disable only metadata and cannot replace native delive
 function browserMock(id='synthetic-doc-1',origin=1000){
   const handlers=new Map(),context={console,JSON,Math,Object,Array,Set,Date:{now:()=>origin+100},
     crypto:{randomUUID:()=>id},performance:{timeOrigin:origin,now:()=>100,getEntriesByType:()=>[{type:'reload',get name(){throw new Error('no URL read');}}]},
-    location:{origin:'http://127.0.0.1:8888'},navigator:{onLine:true,userAgent:'synthetic-offline'},
+    location:{origin:BROWSER_ORIGIN},navigator:{onLine:true,userAgent:'synthetic-offline'},
     innerWidth:1280,innerHeight:720,devicePixelRatio:1};
   const events={addEventListener(k,f){if(!handlers.has(k))handlers.set(k,new Set());handlers.get(k).add(f);},removeEventListener(k,f){handlers.get(k)?.delete(f);}};
   context.window=context;context.top=context;Object.assign(context,events);context.document={...events,visibilityState:'visible'};
@@ -163,7 +163,7 @@ function safeDoc(id,timeOrigin,execution,resume){
   const clocks=t=>({wallTimeMs:timeOrigin+t,timeOriginMs:timeOrigin,performanceNowMs:t});
   const row=(event,t,extra={})=>({schema:'unity-browser-reload-wire/1',documentId:id,connection:1,event,...clocks(t),...extra});
   return {browserContextWitness:'synthetic-context',tabWitness:'synthetic-tab',executionContextWitness:execution,
-    observer:{schema:'unity-browser-reload-observer/1',documentId:id,page:{...clocks(10),origin:'http://127.0.0.1:8888',
+    observer:{schema:'unity-browser-reload-observer/1',documentId:id,page:{...clocks(10),origin:BROWSER_ORIGIN,
       userAgent:'synthetic-offline',viewport:{width:1280,height:720,devicePixelRatio:1},topLevel:true,navigationType:'reload'},
       capturedAt:clocks(1000),events:[{kind:'pointerup',trusted:true,...clocks(200)}],overflow:false,stopped:false},
     wire:{schema:'unity-browser-reload-wire/1',documentId:id,records:[row('game-socket-created',201),
@@ -182,10 +182,24 @@ test('Readiness template and synthetic consistency never grant browser acceptanc
   assert.equal(r.cases[0].status,'CONSISTENT_FOR_REVIEW');assert.equal(r.browserAcceptance,'NOT_GRANTED_BY_COLLECTOR');
 });
 test('Checker requires the exact reviewed native source',()=>{
-  const b=bundle();b.nativeSource='1'.repeat(40);const r=evaluate(b);
+  const b=bundle();b.nativeSource='7a13b88aaa104cf2fd18dc2de7eada6c02060485';const r=evaluate(b);
   assert.equal(r.status,'FAIL');
   assert(r.failures.includes('native source differs from the reviewed reference'));
+  assert.equal(b.nativeSource !== NATIVE_REFERENCE, true);
   assert.equal(r.browserAcceptance,'NOT_GRANTED_BY_COLLECTOR');
+});
+test('Checker rejects the superseded 6d client reference',()=>{
+  const b=bundle();b.clientSource='6d5d9340a6b9f425a17d7ea4488b49291fff3dc1';const r=evaluate(b);
+  assert.equal(r.status,'FAIL');
+  assert(r.failures.includes('client source differs from the reviewed composition'));
+  assert.equal(r.browserAcceptance,'NOT_GRANTED_BY_COLLECTOR');
+});
+test('Case documents must use the exact reviewed local Unity origin',()=>{
+  const b=bundle();b.cases[0].documents[1].observer.page.origin='http://127.0.0.1:8888';
+  const r=evaluate(b);
+  assert.equal(r.status,'FAIL');
+  assert(r.cases[0].failures.includes('browser origin differs from the expected local Unity origin'));
+  assert.notEqual(BROWSER_ORIGIN,'http://127.0.0.1:8888');
 });
 test('Checker rejects same-document, replacement tab, changed identity, fresh fallback and late reload',()=>{
   const edits=[b=>b.cases[0].documents[1].executionContextWitness='exec-1',
