@@ -1,0 +1,6 @@
+01-setlock-attacktarget-omit|KILL|producer.json|/cases/0/frames/1/owner/attackTarget|"tgt"|""
+02-clearlock-attacktarget-omit|KILL|producer.json|/cases/1/frames/6/owner/attackTarget|""|"tgt"
+03-perceive-u32-identity|KILL|producer.json|/cases/0/frames/5/bot/self/readyAt|1360|1360.1010101010102
+04-writemirrors-windupmult-omit|IDENTICAL||| | 
+05-nextcooldown-arithmetic|KILL|human-projection.json|/cases/0/frames/0/cooldown/nextCooldown|250|251
+06-provenance-only-comment|IDENTICAL||| | 

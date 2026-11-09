@@ -1,0 +1,4 @@
+01-clearlock-attacktarget-omit|KILL|producer.json|/cases/0/frames/20/owner/attackTarget|""|"tgt"
+02-weaponchanged-cancel-omit|KILL|producer.json|/cases/2/frames/8/owner/drawStartedAt|0|350
+03-trainingsettle-resetweapons-omit|KILL|producer.json|/cases/4/frames/58/owner/readyAt|0|25652.52525252526
+04-provenance-only-comment|IDENTICAL

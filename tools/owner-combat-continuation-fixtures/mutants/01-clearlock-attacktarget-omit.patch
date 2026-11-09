@@ -1,0 +1,9 @@
+--- a/packages/server/src/sim/weapons.ts
++++ b/packages/server/src/sim/weapons.ts
+@@ -71,5 +71,4 @@ export function clearLock(c: Combatant): void {
+   w.lockSeen = false;
+   w.lockLosLostAt = 0;
+   w.lockGoal = null;
+-  if (c.kind === "player" && c.s.attackTarget !== "") c.s.attackTarget = "";
+ }
+ 

@@ -1,0 +1,7 @@
+--- a/packages/server/src/sim/weapons.ts
++++ b/packages/server/src/sim/weapons.ts
+@@ -170,4 +170,3 @@ export function weaponChanged(world: World, c: Combatant): void {
+-  cancelAction(world, c);
+   c.s.readyAt = swapReadyAt(c.s.readyAt, world.state.serverTime);
+   if (activeWeapon(c.s) !== "wand") dropLock(c);
+   world.hooks.weaponSwapped?.(world, c);

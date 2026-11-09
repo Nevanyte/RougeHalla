@@ -1,0 +1,62 @@
+applied 1 hunk(s) to packages/server/src/sim/weapons.ts
+KILL 01-setlock-attacktarget-omit: producer.json FIRST_MISMATCH /cases/0/frames/1/owner/attackTarget expected="tgt" mutant=""
+  raw log kept at /tmp/out/01-setlock-attacktarget-omit/capture.log; output sha256 recorded
+c8d166a79cd53d297354da8286e0b6e73f1f826f7b2f3e6f982b97672e458529  /tmp/out/01-setlock-attacktarget-omit/producer.json
+db5c0cc12b612e4f6db9fdc19088cdbc7485b344b700e04a8f5c369ef956c04a  /tmp/out/01-setlock-attacktarget-omit/human-projection.json
+bf3ac3b8981559e0a4655d89a680347c3d101628e202ba148811a72cfc081f09  /tmp/out/01-setlock-attacktarget-omit/boundaries.json
+applied 1 hunk(s) to packages/server/src/sim/weapons.ts
+KILL 02-clearlock-attacktarget-omit: producer.json FIRST_MISMATCH /cases/1/frames/6/owner/attackTarget expected="" mutant="tgt"
+  raw log kept at /tmp/out/02-clearlock-attacktarget-omit/capture.log; output sha256 recorded
+407fdf4276ac25593e3226f2420343d8998f597c5f34c54492cabd91e9a063fc  /tmp/out/02-clearlock-attacktarget-omit/producer.json
+8d50f1f71030f3f5ae807fee3c7ecf385eec94a80bf85c17b2a5205c66881c15  /tmp/out/02-clearlock-attacktarget-omit/human-projection.json
+8129fef3234223b6baccaa93f115df2378d7e88aa3f4cb3cd8c70d8575830e82  /tmp/out/02-clearlock-attacktarget-omit/boundaries.json
+applied 1 hunk(s) to packages/server/src/bots/brain/perception.ts
+KILL 03-perceive-u32-identity: producer.json FIRST_MISMATCH /cases/0/frames/5/bot/self/readyAt expected=1360 mutant=1360.1010101010102
+  raw log kept at /tmp/out/03-perceive-u32-identity/capture.log; output sha256 recorded
+4fa0c4cabd08dbb9f1e9f12ca7b645fc8ef9200c66f2a4bc0861f778363a57db  /tmp/out/03-perceive-u32-identity/producer.json
+667275b3331a27a4387dd5f6572821d864a0ffa999fa2fa1366a8ded89be76fe  /tmp/out/03-perceive-u32-identity/human-projection.json
+867793df25acf87fea44bfe479ee59f25a05575f287236fb2498adccad1df349  /tmp/out/03-perceive-u32-identity/boundaries.json
+applied 1 hunk(s) to packages/server/src/sim/mods.ts
+SURVIVOR 04-writemirrors-windupmult-omit: every corpus is semantically identical (provenance only)
+  mutated source hash 90eefeaeb4adaca233d8993794da397020c048ced127079292e10ec4f2279a59 (baseline 93db949f7b217b93942efdeca66caef29096d94881c5dd28bcf0eaf8287d323b) is excluded from the comparison
+2df90c4b3e5392f8eb49823c185f372fca12a161e8977075dff113bc935c9cd5  /tmp/out/04-writemirrors-windupmult-omit/producer.json
+f401de46e90e36c79ab99a7f483a722c9389a741aac679b092cbcdf2f791494e  /tmp/out/04-writemirrors-windupmult-omit/human-projection.json
+d61a5b46d89f251e90b2197437d6e4a8bd625197e4e6546881793b7909bd88a2  /tmp/out/04-writemirrors-windupmult-omit/boundaries.json
+applied 1 hunk(s) to packages/client/src/ui/weaponBar.ts
+KILL 05-nextcooldown-arithmetic: human-projection.json FIRST_MISMATCH /cases/0/frames/0/cooldown/nextCooldown expected=250 mutant=251
+  raw log kept at /tmp/out/05-nextcooldown-arithmetic/capture.log; output sha256 recorded
+c401f720bcdd81fa28f4f702f2beacde71e95cc061e6d218ecd8b1943d489ddd  /tmp/out/05-nextcooldown-arithmetic/producer.json
+ed6bfd9dd5216da8d804a3e1d23e87b8d95b9307532a6f5506b611f96e213691  /tmp/out/05-nextcooldown-arithmetic/human-projection.json
+74a1bada69cf4000f91e814d574d71720420b20a0fc6cdf82396c751c1a4eaa0  /tmp/out/05-nextcooldown-arithmetic/boundaries.json
+applied 1 hunk(s) to packages/server/src/sim/weapons.ts
+SURVIVOR 06-provenance-only-comment: every corpus is semantically identical (provenance only)
+  mutated source hash 0b76b7695ba2cbf3651c99a831923786c939344043c0ae10a6d9a9bd4b730b3b (baseline 581ba4cf9ae93af5d3753cbb3cdf6b823bfaf730448edab7669e6c6d84c86f26) is excluded from the comparison
+cb4b0dfac4ac658a992a20fc128e7df4033f16cb3a350c8bae916f67b3d9ced5  /tmp/out/06-provenance-only-comment/producer.json
+9373ee254308184b147e962216eb53d56c035d364c52a0644cec5f0b826e6152  /tmp/out/06-provenance-only-comment/human-projection.json
+219aa73c00049988dd92a4cb6c055aff6d80d5df1d4c82381e8e7efe8ee20ec2  /tmp/out/06-provenance-only-comment/boundaries.json
+== restored control (unmutated /repo, read-only baseline)
+(node:528) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("/capture/client-stub-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+checked 3 corpora byte for byte: producer.json, human-projection.json, boundaries.json
+cases: L01(26) L02(32) L03(32) L04(300) L05(60) L06(198) D01(46) D03(26) D04(26) M01(14) M02(28) M03(20)
+case L01 frames 26 firstLock {"step":1,"t":150} firstLosFalse null firstEntitledFalse null firstBush null firstHidden null hiddenLockSameStep false maxLosLostMs 0 finalTarget "thr"
+case L02 frames 32 firstLock {"step":1,"t":150} firstLosFalse null firstEntitledFalse null firstBush null firstHidden null hiddenLockSameStep false maxLosLostMs 0 finalTarget ""
+case L03 frames 32 firstLock {"step":1,"t":150} firstLosFalse null firstEntitledFalse null firstBush null firstHidden null hiddenLockSameStep false maxLosLostMs 0 finalTarget ""
+case L04 frames 300 firstLock {"step":180,"t":9100} firstLosFalse {"step":63,"t":3250} firstEntitledFalse null firstBush null firstHidden null hiddenLockSameStep false maxLosLostMs 1450 finalTarget ""
+case L05 frames 60 firstLock {"step":1,"t":150} firstLosFalse null firstEntitledFalse {"step":23,"t":1250} firstBush {"step":23,"t":1250} firstHidden null hiddenLockSameStep false maxLosLostMs 0 finalTarget ""
+case L06 frames 198 firstLock {"step":897,"t":44950} firstLosFalse null firstEntitledFalse null firstBush null firstHidden {"step":904,"t":45300} hiddenLockSameStep true maxLosLostMs 0 finalTarget "tgt"
+case D01 frames 46 firstLock null firstLosFalse null firstEntitledFalse null firstBush null firstHidden null hiddenLockSameStep false maxLosLostMs 0 finalTarget ""
+case D03 frames 26 firstLock null firstLosFalse null firstEntitledFalse null firstBush null firstHidden null hiddenLockSameStep false maxLosLostMs 0 finalTarget ""
+case D04 frames 26 firstLock null firstLosFalse null firstEntitledFalse null firstBush null firstHidden null hiddenLockSameStep false maxLosLostMs 0 finalTarget ""
+case M01 frames 14 firstLock null firstLosFalse null firstEntitledFalse null firstBush null firstHidden null hiddenLockSameStep false maxLosLostMs 0 finalTarget ""
+case M02 frames 28 firstLock null firstLosFalse null firstEntitledFalse null firstBush null firstHidden null hiddenLockSameStep false maxLosLostMs 0 finalTarget ""
+case M03 frames 20 firstLock null firstLosFalse null firstEntitledFalse null firstBush null firstHidden null hiddenLockSameStep false maxLosLostMs 0 finalTarget ""
+hidden-lock intervals: perceptionDisclosure=0 () sourceEntitlement=1 (L05@23:50ms)
+mirrors M01: [[1000,1000,1000],[1000,1000,1000],[1000,1000,1000],[1000,1000,1000],[1000,1000,1000],[1000,1000,1000],[1000,1000,1000],[1000,1000,1000],[1000,1000,1000],[1000,1000,1000],[1000,1000,1000],[1000,1000,1000],[1000,1000,1000],[1000,1000,1000]]
+mirrors M03: [[1000,null],[1000,null],[1000,null],[1000,null],[1000,null],[1000,null],[1000,null],[1000,null],[1000,null],[1000,null],[1000,null],[1000,null],[1000,null],[1000,null],[1000,null],[1000,null],[1000,null],[1000,null],[1000,null],[1000,null]]
+mirrors M02 asMult+windupMult: [[1000,1000],[1000,1000],[1000,1000],[1000,1000],[1000,1000],[1000,1000],[1000,1000],[1000,1000],[1000,1000],[1000,1000],[1000,1000],[1000,1000],[1000,1000],[1000,1000],[1000,1000],[1000,1000],[1000,1000],[1000,1000],[1000,1000],[1000,1000],[1000,1000],[1000,1000],[1000,1000],[1000,1000],[1000,1000],[1000,1000],[1000,1000],[1000,1000]]
+D03 raw/decoded/bot: [[0,0,100350.25,0,100350,0,100350],[1,0,100350.25,0,100350,0,100350],[2,0,100350.25,0,100350,0,100350],[3,0,100350.25,0,100350,0,100350],[4,0,100350.25,0,100350,0,100350],[5,100350.25,101204.95085470086,100350,101204,100350,101204],[6,100350.25,101204.95085470086,100350,101204,100350,101204],[7,100350.25,101204.95085470086,100350,101204,100350,101204],[8,100350.25,101204.95085470086,100350,101204,100350,101204],[9,100350.25,101204.95085470086,100350,101204,100350,101204],[10,100350.25,101204.95085470086,100350,101204,100350,101204],[11,100350.25,101204.95085470086,100350,101204,100350,101204],[12,100350.25,101204.95085470086,100350,101204,100350,101204],[13,100350.25,101204.95085470086,100350,101204,100350,101204],[14,100350.25,101204.95085470086,100350,101204,100350,101204],[15,0,101204.95085470086,0,101204,0,101204],[16,0,101204.95085470086,0,101204,0,101204],[17,0,101204.95085470086,0,101204,0,101204],[18,0,101204.95085470086,0,101204,0,101204],[19,0,101204.95085470086,0,101204,0,101204],[20,0,101204.95085470086,0,101204,0,101204],[21,0,101204.95085470086,0,101204,0,101204],[22,0,101204.95085470086,0,101204,0,101204],[23,101204.95085470086,102059.65170940172,101204,102059,101204,102059],[24,101204.95085470086,102059.65170940172,101204,102059,101204,102059],[25,101204.95085470086,102059.65170940172,101204,102059,101204,102059]]
+D04 raw/decoded/bot: [[0,0,4294967570.75,0,274,0,274],[1,0,4294967570.75,0,274,0,274],[2,0,4294967570.75,0,274,0,274],[3,0,4294967570.75,0,274,0,274],[4,0,4294967570.75,0,274,0,274],[5,4294967570.75,4294968425.450854,274,1129,274,1129],[6,4294967570.75,4294968425.450854,274,1129,274,1129],[7,4294967570.75,4294968425.450854,274,1129,274,1129],[8,4294967570.75,4294968425.450854,274,1129,274,1129],[9,4294967570.75,4294968425.450854,274,1129,274,1129],[10,4294967570.75,4294968425.450854,274,1129,274,1129],[11,4294967570.75,4294968425.450854,274,1129,274,1129],[12,4294967570.75,4294968425.450854,274,1129,274,1129],[13,4294967570.75,4294968425.450854,274,1129,274,1129],[14,4294967570.75,4294968425.450854,274,1129,274,1129],[15,0,4294968425.450854,0,1129,0,1129],[16,0,4294968425.450854,0,1129,0,1129],[17,0,4294968425.450854,0,1129,0,1129],[18,0,4294968425.450854,0,1129,0,1129],[19,0,4294968425.450854,0,1129,0,1129],[20,0,4294968425.450854,0,1129,0,1129],[21,0,4294968425.450854,0,1129,0,1129],[22,0,4294968425.450854,0,1129,0,1129],[23,4294968425.450854,4294969280.151709,1129,1984,1129,1984],[24,4294968425.450854,4294969280.151709,1129,1984,1129,1984],[25,4294968425.450854,4294969280.151709,1129,1984,1129,1984]]
+RESTORED CONTROL PASS: the unmutated capture matches the checked-in corpora byte for byte
+EXIT=0

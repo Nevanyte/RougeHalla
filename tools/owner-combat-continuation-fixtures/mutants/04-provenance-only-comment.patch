@@ -1,0 +1,9 @@
+--- a/packages/server/src/sim/training.ts
++++ b/packages/server/src/sim/training.ts
+@@ -2,5 +2,5 @@
+ // that never die and a rack of every weapon: sim/mobs.ts spawnTraining, switched on by SimConfig.dummies), and none of the
+ // run's consequences: there is no patience timer, teleport or sudden death, no result, no GV and nothing recorded on the
+ // profile. Whoever goes down is put back on their feet. Everything here sits behind the flag: an arena world never reaches it.
+-//
++// provenance-only comment mutant (no semantic change)
+ // The practice console (the `train` message, roguelike R4a/R5; cards since the balance pass): set how many copies of a card the

@@ -1,0 +1,37 @@
+applied 1 hunk(s) to packages/server/src/sim/weapons.ts
+KILL 01-clearlock-attacktarget-omit: producer.json FIRST_MISMATCH /cases/0/frames/20/owner/attackTarget expected="" mutant="tgt"
+  raw log kept at /tmp/out/01-clearlock-attacktarget-omit/capture.log; output sha256 recorded
+489be87d108f5da22a3cd53bb3e8017604edde16c7df0d2ddfd7082af4b42578  /tmp/out/01-clearlock-attacktarget-omit/producer.json
+6900a0410916d10c2fc5c7fb54fd2ce3a5866575dd4d478ba0f92c8d46019948  /tmp/out/01-clearlock-attacktarget-omit/human-projection.json
+applied 1 hunk(s) to packages/server/src/sim/weapons.ts
+KILL 02-weaponchanged-cancel-omit: producer.json FIRST_MISMATCH /cases/2/frames/8/owner/drawStartedAt expected=0 mutant=350
+  raw log kept at /tmp/out/02-weaponchanged-cancel-omit/capture.log; output sha256 recorded
+89b44f8129280fb95ed88d6f6f387f27a1a2fc406fb54a67e743d4c5e3ef9793  /tmp/out/02-weaponchanged-cancel-omit/producer.json
+6c1b88204e3362a07568c87e2d28ba193bca1099f70b26bace188a8e468bee55  /tmp/out/02-weaponchanged-cancel-omit/human-projection.json
+applied 1 hunk(s) to packages/server/src/sim/training.ts
+KILL 03-trainingsettle-resetweapons-omit: producer.json FIRST_MISMATCH /cases/4/frames/58/owner/readyAt expected=0 mutant=25652.52525252526
+  raw log kept at /tmp/out/03-trainingsettle-resetweapons-omit/capture.log; output sha256 recorded
+f13c8a2fd8fb8d66726f133efb5b54974d62a158f5d76bac7f9d48d259e796da  /tmp/out/03-trainingsettle-resetweapons-omit/producer.json
+208456a2a6f7933a1ddcc426d98a5bae0562b24d8344991c11a65428372f8e0d  /tmp/out/03-trainingsettle-resetweapons-omit/human-projection.json
+applied 1 hunk(s) to packages/server/src/sim/training.ts
+SURVIVOR 04-provenance-only-comment: every corpus is semantically identical (provenance only)
+  mutated source hash 70d4ce47a2f4ec3e19df587755c6bdb1d33e528595395e8ac26483d1b83db50d (baseline 1d433ef3c5cc512c78aba66a16811d9f2a5eba11e4fa00598406fc7cd81d8e74) is excluded from the comparison
+4bf8713db719311b09d8e21f7c613f8a66ec5593ff0880d8dd18825efb54df0c  /tmp/out/04-provenance-only-comment/producer.json
+edb0fba9ba9c5298967bcbc791ba61ac40f0f7fe96ec0695c142fdbe713f6f66  /tmp/out/04-provenance-only-comment/human-projection.json
+== restored control (unmutated /repo, read-only baseline)
+(node:332) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("/capture/client-stub-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+checked 2 corpora byte for byte: producer.json, human-projection.json
+cases: L07(31) L08(24) D02(30) M04(26) M05(195)
+case L07 result PASS frames 31 direct 0 actions 2
+L07 death={"step":281,"t":14150,"hp":0,"attackTarget":"tgt","probe":{"id":"tgt","present":true,"kind":"player","x":480,"y":320,"hp":0,"maxHp":950,"status":"dead","effects":0,"down":{"outcome":"died"},"resolved":true,"killedBy":"OWN","lastHit":{"by":"own","at":14150},"standing":false,"hidden":false,"untargetable":false,"canSeePoint":true,"entitled":true,"directLos":true,"bushConcealed":false,"lockable":false}} clear={"step":282,"t":14200,"attackTarget":""} lethal={"kind":"hitLanded","step":281,"serverTime":14150,"by":{"id":"own","name":"OWN","ownerId":null},"victim":"tgt","applied":68.84848484848486,"weapon":"wand","raw":82.61818181818182,"crit":false,"victimHpAfter":0,"victimStatusAfter":"dead"}
+case L08 result PASS frames 24 direct 1 actions 2
+L08 direct={"step":8,"t":450,"ownerAttackTarget":"tgt","ownerDecodedAttackTarget":"tgt","targetPresent":false,"targetProbe":{"id":"tgt","present":false,"note":"no state row for this id"},"targetRowDecoded":null,"botFighters":["fou","thr"],"botDecodedFighters":["fou","thr"],"projectiles":[]} events=[{"type":"resolved","id":"tgt","result":{"outcome":"mia","profile":"TGT","durationSec":0,"kills":0,"killedBy":null,"place":4,"players":4,"gv":{"kills":0,"mobs":0,"bounty":0,"quest":0,"win":0,"total":0},"winBonusWithheld":false}}] clear={"step":8,"t":500,"attackTarget":"","decodedAttackTarget":"","targetPresent":false,"botFighters":["fou","thr"]}
+case D02 result PASS frames 30 direct 0 actions 7
+D02 swap={"allowed":true,"slotBefore":0,"weapon0":"bow","weapon1":"wand","readyBefore":1204.7008547008547,"drawBefore":350} drawStarts=[{"step":5,"drawStartedAt":350,"readyAt":1204.7008547008547,"action":{"kind":"draw","weapon":"bow","startedAt":350,"landsAt":820.0854700854702,"target":null},"slot":0},{"step":6,"drawStartedAt":350,"readyAt":1204.7008547008547,"action":{"kind":"draw","weapon":"bow","startedAt":350,"landsAt":820.0854700854702,"target":null},"slot":0},{"step":7,"drawStartedAt":350,"readyAt":1204.7008547008547,"action":{"kind":"draw","weapon":"bow","startedAt":350,"landsAt":820.0854700854702,"target":null},"slot":0}] swap={"step":8,"owner":{"attackTarget":"","drawStartedAt":0,"readyAt":1454.7008547008547,"asMult":1000,"windupMult":1000,"speedMult":1000,"status":"alive","faction":"fire","slot":1,"weapon0":"bow","weapon1":"wand","hp":950,"effects":0},"action":null} bowProjectiles=0
+case M04 result BLOCKED frames 26 direct 0 actions 5
+M04 interactive=false build={"entries":[]} mirrors={"asMult":1000,"windupMult":1000,"speedMult":1000} toasts=[{"step":6,"to":"own","text":"Cleared: cards, practice mobs and chests"}]
+case M05 result PASS frames 195 direct 0 actions 8
+M05 card={"entries":[["overkill",1]]} down1={"id":"own","present":true,"kind":"player","status":"dead","hp":0,"maxHp":950,"x":400,"y":320,"faction":"fire","effects":0,"attackTarget":"","drawStartedAt":0,"readyAt":25652.52525252526,"slot":0,"weapon0":"wand","weapon1":"bow","down":{"outcome":"died"},"resolved":false,"killedBy":"Executioner","build":{"entries":[["overkill",1]]},"mobStats":{"entries":[]},"lock":null,"held":false,"action":null} pre1={"hp":9.975290697675916,"readyAt":25652.52525252526,"attackTarget":"moba"} revive1={"hp":950,"status":"alive","readyAt":0,"attackTarget":"","build":{"entries":[["overkill",1]]}} down2={"id":"own","present":true,"kind":"player","status":"dead","hp":0,"maxHp":950,"x":400,"y":320,"faction":"fire","effects":0,"attackTarget":"","drawStartedAt":0,"readyAt":50514.02486402485,"slot":1,"weapon0":"wand","weapon1":"bow","down":{"outcome":"died"},"resolved":false,"killedBy":"Executioner","build":{"entries":[["overkill",1]]},"mobStats":{"entries":[]},"lock":null,"held":false,"action":null} pre2={"hp":9.975290697675916,"readyAt":50514.02486402485,"drawStartedAt":49659.324009323995,"attackTarget":""} revive2={"hp":950,"status":"alive","readyAt":0,"drawStartedAt":0,"build":{"entries":[["overkill",1]]}}
+RESTORED CONTROL PASS: the unmutated capture matches the checked-in corpora byte for byte
