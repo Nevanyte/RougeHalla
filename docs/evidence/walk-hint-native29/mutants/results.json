@@ -1,0 +1,118 @@
+{
+  "format": "rh-native-walk-hint-mutation-controls/1",
+  "git_head_before": "23c3600b017422c31bc0ccaf4882a7779a92cf1d",
+  "target": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target",
+  "protected": {
+    "parity/walk-hint/repair/source.json": "2c95328cc86136f55eda8f3fec641a9db081e77721d936ed614294f9aa4e0c4a",
+    "parity/policy/bot-fight/source.json": "197fe5d24b6b34822a3ef76e2999d422e6127bbda1e8dfda0ba0af3ee5e2785e",
+    "parity/mark-tax-uncapped/source.json": "dbfafa19ecbfadd98bf74078685ea436e70f25b8e1d6331043ac55067838afbc"
+  },
+  "cases": [
+    {
+      "name": "cap-two",
+      "file": "crates/rh-sim/src/systems/walk_hint.rs",
+      "filter": "actual_source_fourteen_world_frames",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-sim",
+        "--lib",
+        "actual_source_fourteen_world_frames",
+        "--",
+        "--nocapture"
+      ],
+      "original_sha256": "ace492605e1082d2975339b7be7303213e655e657c4152c5c23cdd3ab6f84592",
+      "mutated_sha256": "bb30bc44db19b1dd9a804b448b14115c893eb56fb99035c1c7134b69458b9ad2",
+      "log_sha256": "eaacbefe04012dbf5ab6d5aec02505742e4ac6988770bc4d5d2cd91868b796a0",
+      "returncode": 101,
+      "verdict": "KILLED_BY_ASSERTION"
+    },
+    {
+      "name": "cleanup-keeps-one",
+      "file": "crates/rh-sim/src/systems/walk_hint.rs",
+      "filter": "actual_teleport_and_run_end_append_hooks_clear_positive_hints_keep_direction",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-sim",
+        "--lib",
+        "actual_teleport_and_run_end_append_hooks_clear_positive_hints_keep_direction",
+        "--",
+        "--nocapture"
+      ],
+      "original_sha256": "ace492605e1082d2975339b7be7303213e655e657c4152c5c23cdd3ab6f84592",
+      "mutated_sha256": "81ea47e3ba483696af2c10d4bc9f0945e2fa2d9a4965e7060db7cc9e8f69822d",
+      "log_sha256": "ef5bc84cee0e5801f7663943df025105baa2e74973d2da56a12fa641eabf1a55",
+      "returncode": 101,
+      "verdict": "KILLED_BY_ASSERTION"
+    },
+    {
+      "name": "lock-ignores-windup-mirror",
+      "file": "crates/rh-sim/src/systems/targeting.rs",
+      "filter": "captured_timing_drives_real_lock_aim_and_actual_weapon_start",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-sim",
+        "--lib",
+        "captured_timing_drives_real_lock_aim_and_actual_weapon_start",
+        "--",
+        "--nocapture"
+      ],
+      "original_sha256": "899a75945fa2a14f5a909248784eddb039dee309680e4fff991b523946233ed3",
+      "mutated_sha256": "5bdb4b045f15268243071e1ded21f6d432848ceffee8620436af1c88768a75db",
+      "log_sha256": "7942d39e239ee4abaca1ac1bcf537b5484138b1ed6654bb7d5fcdf5a6a0ca96b",
+      "returncode": 101,
+      "verdict": "KILLED_BY_ASSERTION"
+    },
+    {
+      "name": "weapon-ignores-windup-mirror",
+      "file": "crates/rh-sim/src/systems/weapons.rs",
+      "filter": "captured_timing_drives_real_lock_aim_and_actual_weapon_start",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-sim",
+        "--lib",
+        "captured_timing_drives_real_lock_aim_and_actual_weapon_start",
+        "--",
+        "--nocapture"
+      ],
+      "original_sha256": "c507389116b996a3a520caf30625ac7544797ce1a607e3997edec0b9a8f85b04",
+      "mutated_sha256": "4b7ab2ea64708d20a23af64850d9fac6a7196afb440231e544b1d51366931e00",
+      "log_sha256": "21ff2f516bdcd0c2cd9424cb0788b427edaff9ab65bd0af23fc710f3f7afd757",
+      "returncode": 101,
+      "verdict": "KILLED_BY_ASSERTION"
+    },
+    {
+      "name": "stagger-uses-as-one",
+      "file": "crates/rh-sim/src/systems/plague.rs",
+      "filter": "actual_sword_stagger_pause_uses_captured_current_mirrors",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-sim",
+        "--lib",
+        "actual_sword_stagger_pause_uses_captured_current_mirrors",
+        "--",
+        "--nocapture"
+      ],
+      "original_sha256": "d7695ddc3e00fc70c87d2c9bdbdf729786eb5792b0f55e46c7acc660c8427f14",
+      "mutated_sha256": "01468c116dca303839dab6a8511074071e2c24dc34a868d0f7ffdaaad4d10fbc",
+      "log_sha256": "c5c0fc6e87219b76b5d092d51a3918269c354a814305875ad4a0e8ede8defba8",
+      "returncode": 101,
+      "verdict": "KILLED_BY_ASSERTION"
+    }
+  ],
+  "sources_restored": true
+}

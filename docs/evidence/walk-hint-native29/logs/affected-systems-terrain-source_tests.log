@@ -1,0 +1,10 @@
+    Finished `test` profile [unoptimized] target(s) in 0.03s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 3 tests
+test systems::terrain::source_tests::terrain_velocity_and_slow_math_match_actual_source ... ok
+test systems::terrain::source_tests::terrain_shared_walk_matches_all_actual_source_frames ... ok
+test systems::terrain::source_tests::terrain_surface_and_sweep_match_actual_source ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 819 filtered out; finished in 0.05s
+

@@ -1,0 +1,23 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/walk-hint-native/repo/crates/rh-sim)
+   Compiling rh-parity v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/walk-hint-native/repo/crates/rh-parity)
+    Finished `test` profile [unoptimized] target(s) in 14.09s
+     Running tests/schedule.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/schedule-7e7aedb772dbf431)
+
+running 14 tests
+test what_the_slice_has_ported_stays_ported ... ok
+test the_call_guard_rejects_a_system_called_from_another_file ... ok
+test partial_rows_keep_pending_ownership_and_execute_in_source_position ... ok
+test the_tables_cover_what_the_record_covers ... ok
+test a_dropped_row_is_rejected ... ok
+test the_tables_equal_the_legacy_record_in_all_three_worlds ... ok
+test moving_flush_announcements_before_factions_after_damage_is_rejected ... ok
+test a_changed_gate_or_an_invented_packet_is_rejected ... ok
+test a_swapped_phase_row_is_rejected ... ok
+test a_changed_hook_chain_is_rejected ... ok
+test nothing_but_the_schedule_calls_a_system ... ok
+test a_death_fires_drop_body_inside_the_ledger_and_a_leave_between_steps ... ok
+test an_execution_that_is_not_the_table_is_rejected ... ok
+test a_match_runs_its_ported_rows_in_table_order ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.55s
+

@@ -1,0 +1,10 @@
+time 2026-11-09T12:16:59Z
+node v25.8.1
+scenario_static=0
+controls_static=0
+capture_static=0
+verify_static=0
+capture_shell_static=0
+guard_shell_static=0
+guard: PASS default=/tmp/walk-hint-controls.vRFdnD fresh=/private/tmp/walk-hint-guard.53cqmT/fresh-controls canonical/caller sentinels preserved
+guard_runtime=0

@@ -133,11 +133,15 @@ impl Gates {
     /// Other signature producers remain Pending even in the latter plan.
     pub(crate) const fn of(k: &MatchStatic) -> Gates {
         if k.config.training {
-            return if k.config.faction_mode.engagement() {
+            let mut g = if k.config.faction_mode.engagement() {
                 Gates::TRAINING
             } else {
                 Gates::TRAINING_NO_SIGNATURES
             };
+            if let Some(hints) = k.config.walk_hints {
+                g.walk_hints = hints;
+            }
+            return g;
         }
         let mut g = if matches!(
             k.config.mob_mode,
@@ -161,6 +165,9 @@ impl Gates {
         g.fire_roam = k.config.faction_mode.fire_roam();
         // The quest module's install guard is config.quests && !config.training; every other slot stays as the plan had it.
         g.quests = k.config.quests;
+        if let Some(hints) = k.config.walk_hints {
+            g.walk_hints = hints;
+        }
         g
     }
     /// The full five-faction foundation plus the explicit Fire roam auxiliary installer.
@@ -255,14 +262,6 @@ const fn partial<F>(
             completed,
             pending,
         },
-    }
-}
-
-const fn pending<F>(legacy: &'static str, gate: Gate, packet: &'static str) -> Item<F> {
-    Item {
-        legacy,
-        gate,
-        run: Run::Pending(packet),
     }
 }
 
@@ -649,70 +648,136 @@ impl Plan {
 
     /// The plan of a match's world.
     pub(crate) fn of(k: &MatchStatic) -> &'static Plan {
-        let g = Gates::of(k);
-        if g.quests && g != Gates::PRODUCTION {
+        let configured = Gates::of(k);
+        let hints = configured.walk_hints;
+        let g = without_walk_hints(configured);
+        if g.quests && g != without_walk_hints(Gates::PRODUCTION) {
             if g == (Gates {
                 quests: true,
                 ..Gates::CAPTURE
             }) {
-                return &QUESTS_CAPTURE_PLAN;
+                return select_walk_plan(
+                    hints,
+                    &QUESTS_CAPTURE_PLAN_WITHOUT_HINTS,
+                    &QUESTS_CAPTURE_PLAN_WITH_HINTS,
+                );
             }
             if g == (Gates {
                 quests: true,
                 ..Gates::MOB_FOUNDATION
             }) {
-                return &QUESTS_MOB_FOUNDATION_PLAN;
+                return select_walk_plan(
+                    hints,
+                    &QUESTS_MOB_FOUNDATION_PLAN_WITHOUT_HINTS,
+                    &QUESTS_MOB_FOUNDATION_PLAN_WITH_HINTS,
+                );
             }
             if g == (Gates {
                 quests: true,
                 ..Gates::HOLY_FOUNDATION
             }) {
-                return &QUESTS_HOLY_FOUNDATION_PLAN;
+                return select_walk_plan(
+                    hints,
+                    &QUESTS_HOLY_FOUNDATION_PLAN_WITHOUT_HINTS,
+                    &QUESTS_HOLY_FOUNDATION_PLAN_WITH_HINTS,
+                );
             }
             if g == (Gates {
                 quests: true,
                 ..Gates::MOB_BASIC_FACTIONS
             }) {
-                return &QUESTS_MOB_BASIC_FACTIONS_PLAN;
+                return select_walk_plan(
+                    hints,
+                    &QUESTS_MOB_BASIC_FACTIONS_PLAN_WITHOUT_HINTS,
+                    &QUESTS_MOB_BASIC_FACTIONS_PLAN_WITH_HINTS,
+                );
             }
             if g == (Gates {
                 quests: true,
                 ..Gates::MOB_FROST_FOUNDATION
             }) {
-                return &QUESTS_MOB_FROST_FOUNDATION_PLAN;
+                return select_walk_plan(
+                    hints,
+                    &QUESTS_MOB_FROST_FOUNDATION_PLAN_WITHOUT_HINTS,
+                    &QUESTS_MOB_FROST_FOUNDATION_PLAN_WITH_HINTS,
+                );
             }
             if g == (Gates {
                 quests: true,
                 ..Gates::MOB_FROST_FIRE_ROAM_FOUNDATION
             }) {
-                return &QUESTS_MOB_FROST_FIRE_ROAM_FOUNDATION_PLAN;
+                return select_walk_plan(
+                    hints,
+                    &QUESTS_MOB_FROST_FIRE_ROAM_FOUNDATION_PLAN_WITHOUT_HINTS,
+                    &QUESTS_MOB_FROST_FIRE_ROAM_FOUNDATION_PLAN_WITH_HINTS,
+                );
             }
             if g == (Gates {
                 quests: true,
                 ..Gates::FIRE_ROAM_FOUNDATION
             }) {
-                return &QUESTS_FIRE_ROAM_FOUNDATION_PLAN;
+                return select_walk_plan(
+                    hints,
+                    &QUESTS_FIRE_ROAM_FOUNDATION_PLAN_WITHOUT_HINTS,
+                    &QUESTS_FIRE_ROAM_FOUNDATION_PLAN_WITH_HINTS,
+                );
             }
             panic!("no compiled quest plan for gate set {g:?}: add one with the config switch that made it");
         }
-        if g == Gates::PRODUCTION {
-            &PRODUCTION_PLAN
+        if g == without_walk_hints(Gates::PRODUCTION) {
+            select_walk_plan(
+                hints,
+                &PRODUCTION_PLAN_WITHOUT_HINTS,
+                &PRODUCTION_PLAN_WITH_HINTS,
+            )
         } else if g == Gates::FIRE_ROAM_FOUNDATION {
-            &FIRE_ROAM_FOUNDATION_PLAN
+            select_walk_plan(
+                hints,
+                &FIRE_ROAM_FOUNDATION_PLAN_WITHOUT_HINTS,
+                &FIRE_ROAM_FOUNDATION_PLAN_WITH_HINTS,
+            )
         } else if g == Gates::MOB_FROST_FIRE_ROAM_FOUNDATION {
-            &MOB_FROST_FIRE_ROAM_FOUNDATION_PLAN
+            select_walk_plan(
+                hints,
+                &MOB_FROST_FIRE_ROAM_FOUNDATION_PLAN_WITHOUT_HINTS,
+                &MOB_FROST_FIRE_ROAM_FOUNDATION_PLAN_WITH_HINTS,
+            )
         } else if g == Gates::MOB_FROST_FOUNDATION {
-            &MOB_FROST_FOUNDATION_PLAN
+            select_walk_plan(
+                hints,
+                &MOB_FROST_FOUNDATION_PLAN_WITHOUT_HINTS,
+                &MOB_FROST_FOUNDATION_PLAN_WITH_HINTS,
+            )
         } else if g == Gates::HOLY_FOUNDATION {
-            &HOLY_FOUNDATION_PLAN
+            select_walk_plan(
+                hints,
+                &HOLY_FOUNDATION_PLAN_WITHOUT_HINTS,
+                &HOLY_FOUNDATION_PLAN_WITH_HINTS,
+            )
         } else if g == Gates::MOB_BASIC_FACTIONS {
-            &MOB_BASIC_FACTIONS_PLAN
+            select_walk_plan(
+                hints,
+                &MOB_BASIC_FACTIONS_PLAN_WITHOUT_HINTS,
+                &MOB_BASIC_FACTIONS_PLAN_WITH_HINTS,
+            )
         } else if g == Gates::MOB_FOUNDATION {
-            &MOB_FOUNDATION_PLAN
-        } else if g == Gates::TRAINING {
-            &TRAINING_PLAN
-        } else if g == Gates::TRAINING_NO_SIGNATURES {
-            &TRAINING_NO_SIGNATURES_PLAN
+            select_walk_plan(
+                hints,
+                &MOB_FOUNDATION_PLAN_WITHOUT_HINTS,
+                &MOB_FOUNDATION_PLAN_WITH_HINTS,
+            )
+        } else if g == without_walk_hints(Gates::TRAINING) {
+            select_walk_plan(
+                hints,
+                &TRAINING_PLAN_WITHOUT_HINTS,
+                &TRAINING_PLAN_WITH_HINTS,
+            )
+        } else if g == without_walk_hints(Gates::TRAINING_NO_SIGNATURES) {
+            select_walk_plan(
+                hints,
+                &TRAINING_NO_SIGNATURES_PLAN_WITHOUT_HINTS,
+                &TRAINING_NO_SIGNATURES_PLAN_WITH_HINTS,
+            )
         } else {
             // A config switch that makes another combination
             // must add its plan (and its record) here: it never silently plays the capture world.
@@ -720,50 +785,124 @@ impl Plan {
                 g == Gates::CAPTURE,
                 "no compiled plan for gate set {g:?}: add one with the config switch that made it"
             );
-            &CAPTURE_PLAN
+            select_walk_plan(hints, &CAPTURE_PLAN_WITHOUT_HINTS, &CAPTURE_PLAN_WITH_HINTS)
         }
     }
 }
 
-static MOB_BASIC_FACTIONS_PLAN: Plan = Plan::compile(&Gates::MOB_BASIC_FACTIONS);
-static MOB_FOUNDATION_PLAN: Plan = Plan::compile(&Gates::MOB_FOUNDATION);
-static PRODUCTION_PLAN: Plan = Plan::compile(&Gates::PRODUCTION);
-static CAPTURE_PLAN: Plan = Plan::compile(&Gates::CAPTURE);
-static HOLY_FOUNDATION_PLAN: Plan = Plan::compile(&Gates::HOLY_FOUNDATION);
-static FIRE_ROAM_FOUNDATION_PLAN: Plan = Plan::compile(&Gates::FIRE_ROAM_FOUNDATION);
-static MOB_FROST_FOUNDATION_PLAN: Plan = Plan::compile(&Gates::MOB_FROST_FOUNDATION);
-static TRAINING_PLAN: Plan = Plan::compile(&Gates::TRAINING);
-static MOB_FROST_FIRE_ROAM_FOUNDATION_PLAN: Plan =
-    Plan::compile(&Gates::MOB_FROST_FIRE_ROAM_FOUNDATION);
-static QUESTS_MOB_FROST_FOUNDATION_PLAN: Plan = Plan::compile(&Gates {
+const fn without_walk_hints(mut g: Gates) -> Gates {
+    g.walk_hints = false;
+    g
+}
+const fn with_walk_hints(mut g: Gates) -> Gates {
+    g.walk_hints = true;
+    g
+}
+/// Select an already compiled static plan, never compile/allocate at a tick boundary.
+fn select_walk_plan(hints: bool, without: &'static Plan, with: &'static Plan) -> &'static Plan {
+    if hints {
+        with
+    } else {
+        without
+    }
+}
+
+static MOB_BASIC_FACTIONS_PLAN_WITHOUT_HINTS: Plan =
+    Plan::compile(&without_walk_hints(Gates::MOB_BASIC_FACTIONS));
+static MOB_BASIC_FACTIONS_PLAN_WITH_HINTS: Plan =
+    Plan::compile(&with_walk_hints(Gates::MOB_BASIC_FACTIONS));
+static MOB_FOUNDATION_PLAN_WITHOUT_HINTS: Plan =
+    Plan::compile(&without_walk_hints(Gates::MOB_FOUNDATION));
+static MOB_FOUNDATION_PLAN_WITH_HINTS: Plan =
+    Plan::compile(&with_walk_hints(Gates::MOB_FOUNDATION));
+static PRODUCTION_PLAN_WITHOUT_HINTS: Plan = Plan::compile(&without_walk_hints(Gates::PRODUCTION));
+static PRODUCTION_PLAN_WITH_HINTS: Plan = Plan::compile(&with_walk_hints(Gates::PRODUCTION));
+static CAPTURE_PLAN_WITHOUT_HINTS: Plan = Plan::compile(&without_walk_hints(Gates::CAPTURE));
+static CAPTURE_PLAN_WITH_HINTS: Plan = Plan::compile(&with_walk_hints(Gates::CAPTURE));
+static HOLY_FOUNDATION_PLAN_WITHOUT_HINTS: Plan =
+    Plan::compile(&without_walk_hints(Gates::HOLY_FOUNDATION));
+static HOLY_FOUNDATION_PLAN_WITH_HINTS: Plan =
+    Plan::compile(&with_walk_hints(Gates::HOLY_FOUNDATION));
+static FIRE_ROAM_FOUNDATION_PLAN_WITHOUT_HINTS: Plan =
+    Plan::compile(&without_walk_hints(Gates::FIRE_ROAM_FOUNDATION));
+static FIRE_ROAM_FOUNDATION_PLAN_WITH_HINTS: Plan =
+    Plan::compile(&with_walk_hints(Gates::FIRE_ROAM_FOUNDATION));
+static MOB_FROST_FOUNDATION_PLAN_WITHOUT_HINTS: Plan =
+    Plan::compile(&without_walk_hints(Gates::MOB_FROST_FOUNDATION));
+static MOB_FROST_FOUNDATION_PLAN_WITH_HINTS: Plan =
+    Plan::compile(&with_walk_hints(Gates::MOB_FROST_FOUNDATION));
+static TRAINING_PLAN_WITHOUT_HINTS: Plan = Plan::compile(&without_walk_hints(Gates::TRAINING));
+static TRAINING_PLAN_WITH_HINTS: Plan = Plan::compile(&with_walk_hints(Gates::TRAINING));
+static MOB_FROST_FIRE_ROAM_FOUNDATION_PLAN_WITHOUT_HINTS: Plan =
+    Plan::compile(&without_walk_hints(Gates::MOB_FROST_FIRE_ROAM_FOUNDATION));
+static MOB_FROST_FIRE_ROAM_FOUNDATION_PLAN_WITH_HINTS: Plan =
+    Plan::compile(&with_walk_hints(Gates::MOB_FROST_FIRE_ROAM_FOUNDATION));
+static QUESTS_MOB_FROST_FOUNDATION_PLAN_WITHOUT_HINTS: Plan =
+    Plan::compile(&without_walk_hints(Gates {
+        quests: true,
+        ..Gates::MOB_FROST_FOUNDATION
+    }));
+static QUESTS_MOB_FROST_FOUNDATION_PLAN_WITH_HINTS: Plan = Plan::compile(&with_walk_hints(Gates {
     quests: true,
     ..Gates::MOB_FROST_FOUNDATION
-});
-static QUESTS_MOB_FROST_FIRE_ROAM_FOUNDATION_PLAN: Plan = Plan::compile(&Gates {
-    quests: true,
-    ..Gates::MOB_FROST_FIRE_ROAM_FOUNDATION
-});
-static QUESTS_FIRE_ROAM_FOUNDATION_PLAN: Plan = Plan::compile(&Gates {
+}));
+static QUESTS_MOB_FROST_FIRE_ROAM_FOUNDATION_PLAN_WITHOUT_HINTS: Plan =
+    Plan::compile(&without_walk_hints(Gates {
+        quests: true,
+        ..Gates::MOB_FROST_FIRE_ROAM_FOUNDATION
+    }));
+static QUESTS_MOB_FROST_FIRE_ROAM_FOUNDATION_PLAN_WITH_HINTS: Plan =
+    Plan::compile(&with_walk_hints(Gates {
+        quests: true,
+        ..Gates::MOB_FROST_FIRE_ROAM_FOUNDATION
+    }));
+static QUESTS_FIRE_ROAM_FOUNDATION_PLAN_WITHOUT_HINTS: Plan =
+    Plan::compile(&without_walk_hints(Gates {
+        quests: true,
+        ..Gates::FIRE_ROAM_FOUNDATION
+    }));
+static QUESTS_FIRE_ROAM_FOUNDATION_PLAN_WITH_HINTS: Plan = Plan::compile(&with_walk_hints(Gates {
     quests: true,
     ..Gates::FIRE_ROAM_FOUNDATION
-});
-static QUESTS_CAPTURE_PLAN: Plan = Plan::compile(&Gates {
+}));
+static QUESTS_CAPTURE_PLAN_WITHOUT_HINTS: Plan = Plan::compile(&without_walk_hints(Gates {
     quests: true,
     ..Gates::CAPTURE
-});
-static QUESTS_MOB_FOUNDATION_PLAN: Plan = Plan::compile(&Gates {
+}));
+static QUESTS_CAPTURE_PLAN_WITH_HINTS: Plan = Plan::compile(&with_walk_hints(Gates {
+    quests: true,
+    ..Gates::CAPTURE
+}));
+static QUESTS_MOB_FOUNDATION_PLAN_WITHOUT_HINTS: Plan = Plan::compile(&without_walk_hints(Gates {
     quests: true,
     ..Gates::MOB_FOUNDATION
-});
-static QUESTS_HOLY_FOUNDATION_PLAN: Plan = Plan::compile(&Gates {
+}));
+static QUESTS_MOB_FOUNDATION_PLAN_WITH_HINTS: Plan = Plan::compile(&with_walk_hints(Gates {
+    quests: true,
+    ..Gates::MOB_FOUNDATION
+}));
+static QUESTS_HOLY_FOUNDATION_PLAN_WITHOUT_HINTS: Plan =
+    Plan::compile(&without_walk_hints(Gates {
+        quests: true,
+        ..Gates::HOLY_FOUNDATION
+    }));
+static QUESTS_HOLY_FOUNDATION_PLAN_WITH_HINTS: Plan = Plan::compile(&with_walk_hints(Gates {
     quests: true,
     ..Gates::HOLY_FOUNDATION
-});
-static QUESTS_MOB_BASIC_FACTIONS_PLAN: Plan = Plan::compile(&Gates {
+}));
+static QUESTS_MOB_BASIC_FACTIONS_PLAN_WITHOUT_HINTS: Plan =
+    Plan::compile(&without_walk_hints(Gates {
+        quests: true,
+        ..Gates::MOB_BASIC_FACTIONS
+    }));
+static QUESTS_MOB_BASIC_FACTIONS_PLAN_WITH_HINTS: Plan = Plan::compile(&with_walk_hints(Gates {
     quests: true,
     ..Gates::MOB_BASIC_FACTIONS
-});
-static TRAINING_NO_SIGNATURES_PLAN: Plan = Plan::compile(&Gates::TRAINING_NO_SIGNATURES);
+}));
+static TRAINING_NO_SIGNATURES_PLAN_WITHOUT_HINTS: Plan =
+    Plan::compile(&without_walk_hints(Gates::TRAINING_NO_SIGNATURES));
+static TRAINING_NO_SIGNATURES_PLAN_WITH_HINTS: Plan =
+    Plan::compile(&with_walk_hints(Gates::TRAINING_NO_SIGNATURES));
 
 /// Runs compiled phases in order: the one place `updateActive`'s systems are called from.
 pub(crate) fn run_steps(cx: &mut Cx, steps: &[(&'static str, PhaseFn)]) -> Flow {
@@ -1071,7 +1210,11 @@ static SYSTEMS: [Item<SystemFn>; 24] = [
         Gate::Signatures,
         crate::systems::plague_zombies::regen,
     ),
-    pending("walkHint.updateWalkHints", Gate::WalkHints, "P-NET-2"),
+    ported(
+        "walkHint.updateWalkHints",
+        Gate::WalkHints,
+        crate::systems::walk_hint::update,
+    ),
 ];
 /// Legacy `moveModifiers` (`world.moveModifiers`, folded `acc * modifier(c)` in registration order, then floored).
 /// `movement::multipliers` folds fighter by fighter, each fighter's whole chain before the next fighter's, as legacy does.
@@ -1349,7 +1492,12 @@ static TELEPORTED: [Link; 13] = [
         Gate::Signatures,
         crate::systems::plague_zombies::teleported,
     ),
-    pending_link("walkHint.zeroAll", Mode::Append, Gate::WalkHints, "P-NET-2"),
+    ported_link(
+        "walkHint.zeroAll",
+        Mode::Append,
+        Gate::WalkHints,
+        crate::systems::walk_hint::zero_all,
+    ),
 ];
 static ATTACK_STARTED: [Link; 3] = [
     ported_link(
@@ -1579,7 +1727,12 @@ static RUN_ENDED: [Link; 12] = [
         Gate::Signatures,
         crate::systems::plague_zombies::run_ended,
     ),
-    pending_link("walkHint.zeroAll", Mode::Append, Gate::WalkHints, "P-NET-2"),
+    ported_link(
+        "walkHint.zeroAll",
+        Mode::Append,
+        Gate::WalkHints,
+        crate::systems::walk_hint::zero_all,
+    ),
 ];
 static MOB_KILLED: [Link; 2] = [
     ported_link(
@@ -1962,6 +2115,14 @@ mod tests {
     use super::*;
     use crate::hooks::HookArgs;
 
+    const fn pending<F>(legacy: &'static str, gate: Gate, packet: &'static str) -> Item<F> {
+        Item {
+            legacy,
+            gate,
+            run: Run::Pending(packet),
+        }
+    }
+
     #[test]
     fn tables_are_indexed_by_their_ids() {
         for (i, a) in ACTIONS.iter().enumerate() {
@@ -2010,12 +2171,178 @@ mod tests {
     fn a_plan_is_the_tables_resolved_for_its_gates() {
         let t = tables();
         for (plan, g) in [
-            (&PRODUCTION_PLAN, Gates::PRODUCTION),
-            (&CAPTURE_PLAN, Gates::CAPTURE),
-            (&TRAINING_PLAN, Gates::TRAINING),
-            (&TRAINING_NO_SIGNATURES_PLAN, Gates::TRAINING_NO_SIGNATURES),
-            (&MOB_FOUNDATION_PLAN, Gates::MOB_FOUNDATION),
-            (&MOB_BASIC_FACTIONS_PLAN, Gates::MOB_BASIC_FACTIONS),
+            (
+                &MOB_BASIC_FACTIONS_PLAN_WITHOUT_HINTS,
+                without_walk_hints(Gates::MOB_BASIC_FACTIONS),
+            ),
+            (
+                &MOB_BASIC_FACTIONS_PLAN_WITH_HINTS,
+                with_walk_hints(Gates::MOB_BASIC_FACTIONS),
+            ),
+            (
+                &MOB_FOUNDATION_PLAN_WITHOUT_HINTS,
+                without_walk_hints(Gates::MOB_FOUNDATION),
+            ),
+            (
+                &MOB_FOUNDATION_PLAN_WITH_HINTS,
+                with_walk_hints(Gates::MOB_FOUNDATION),
+            ),
+            (
+                &PRODUCTION_PLAN_WITHOUT_HINTS,
+                without_walk_hints(Gates::PRODUCTION),
+            ),
+            (
+                &PRODUCTION_PLAN_WITH_HINTS,
+                with_walk_hints(Gates::PRODUCTION),
+            ),
+            (
+                &CAPTURE_PLAN_WITHOUT_HINTS,
+                without_walk_hints(Gates::CAPTURE),
+            ),
+            (&CAPTURE_PLAN_WITH_HINTS, with_walk_hints(Gates::CAPTURE)),
+            (
+                &HOLY_FOUNDATION_PLAN_WITHOUT_HINTS,
+                without_walk_hints(Gates::HOLY_FOUNDATION),
+            ),
+            (
+                &HOLY_FOUNDATION_PLAN_WITH_HINTS,
+                with_walk_hints(Gates::HOLY_FOUNDATION),
+            ),
+            (
+                &FIRE_ROAM_FOUNDATION_PLAN_WITHOUT_HINTS,
+                without_walk_hints(Gates::FIRE_ROAM_FOUNDATION),
+            ),
+            (
+                &FIRE_ROAM_FOUNDATION_PLAN_WITH_HINTS,
+                with_walk_hints(Gates::FIRE_ROAM_FOUNDATION),
+            ),
+            (
+                &MOB_FROST_FOUNDATION_PLAN_WITHOUT_HINTS,
+                without_walk_hints(Gates::MOB_FROST_FOUNDATION),
+            ),
+            (
+                &MOB_FROST_FOUNDATION_PLAN_WITH_HINTS,
+                with_walk_hints(Gates::MOB_FROST_FOUNDATION),
+            ),
+            (
+                &TRAINING_PLAN_WITHOUT_HINTS,
+                without_walk_hints(Gates::TRAINING),
+            ),
+            (&TRAINING_PLAN_WITH_HINTS, with_walk_hints(Gates::TRAINING)),
+            (
+                &MOB_FROST_FIRE_ROAM_FOUNDATION_PLAN_WITHOUT_HINTS,
+                without_walk_hints(Gates::MOB_FROST_FIRE_ROAM_FOUNDATION),
+            ),
+            (
+                &MOB_FROST_FIRE_ROAM_FOUNDATION_PLAN_WITH_HINTS,
+                with_walk_hints(Gates::MOB_FROST_FIRE_ROAM_FOUNDATION),
+            ),
+            (
+                &TRAINING_NO_SIGNATURES_PLAN_WITHOUT_HINTS,
+                without_walk_hints(Gates::TRAINING_NO_SIGNATURES),
+            ),
+            (
+                &TRAINING_NO_SIGNATURES_PLAN_WITH_HINTS,
+                with_walk_hints(Gates::TRAINING_NO_SIGNATURES),
+            ),
+            (
+                &QUESTS_MOB_FROST_FOUNDATION_PLAN_WITHOUT_HINTS,
+                without_walk_hints(Gates {
+                    quests: true,
+                    ..Gates::MOB_FROST_FOUNDATION
+                }),
+            ),
+            (
+                &QUESTS_MOB_FROST_FOUNDATION_PLAN_WITH_HINTS,
+                with_walk_hints(Gates {
+                    quests: true,
+                    ..Gates::MOB_FROST_FOUNDATION
+                }),
+            ),
+            (
+                &QUESTS_MOB_FROST_FIRE_ROAM_FOUNDATION_PLAN_WITHOUT_HINTS,
+                without_walk_hints(Gates {
+                    quests: true,
+                    ..Gates::MOB_FROST_FIRE_ROAM_FOUNDATION
+                }),
+            ),
+            (
+                &QUESTS_MOB_FROST_FIRE_ROAM_FOUNDATION_PLAN_WITH_HINTS,
+                with_walk_hints(Gates {
+                    quests: true,
+                    ..Gates::MOB_FROST_FIRE_ROAM_FOUNDATION
+                }),
+            ),
+            (
+                &QUESTS_FIRE_ROAM_FOUNDATION_PLAN_WITHOUT_HINTS,
+                without_walk_hints(Gates {
+                    quests: true,
+                    ..Gates::FIRE_ROAM_FOUNDATION
+                }),
+            ),
+            (
+                &QUESTS_FIRE_ROAM_FOUNDATION_PLAN_WITH_HINTS,
+                with_walk_hints(Gates {
+                    quests: true,
+                    ..Gates::FIRE_ROAM_FOUNDATION
+                }),
+            ),
+            (
+                &QUESTS_CAPTURE_PLAN_WITHOUT_HINTS,
+                without_walk_hints(Gates {
+                    quests: true,
+                    ..Gates::CAPTURE
+                }),
+            ),
+            (
+                &QUESTS_CAPTURE_PLAN_WITH_HINTS,
+                with_walk_hints(Gates {
+                    quests: true,
+                    ..Gates::CAPTURE
+                }),
+            ),
+            (
+                &QUESTS_MOB_FOUNDATION_PLAN_WITHOUT_HINTS,
+                without_walk_hints(Gates {
+                    quests: true,
+                    ..Gates::MOB_FOUNDATION
+                }),
+            ),
+            (
+                &QUESTS_MOB_FOUNDATION_PLAN_WITH_HINTS,
+                with_walk_hints(Gates {
+                    quests: true,
+                    ..Gates::MOB_FOUNDATION
+                }),
+            ),
+            (
+                &QUESTS_HOLY_FOUNDATION_PLAN_WITHOUT_HINTS,
+                without_walk_hints(Gates {
+                    quests: true,
+                    ..Gates::HOLY_FOUNDATION
+                }),
+            ),
+            (
+                &QUESTS_HOLY_FOUNDATION_PLAN_WITH_HINTS,
+                with_walk_hints(Gates {
+                    quests: true,
+                    ..Gates::HOLY_FOUNDATION
+                }),
+            ),
+            (
+                &QUESTS_MOB_BASIC_FACTIONS_PLAN_WITHOUT_HINTS,
+                without_walk_hints(Gates {
+                    quests: true,
+                    ..Gates::MOB_BASIC_FACTIONS
+                }),
+            ),
+            (
+                &QUESTS_MOB_BASIC_FACTIONS_PLAN_WITH_HINTS,
+                with_walk_hints(Gates {
+                    quests: true,
+                    ..Gates::MOB_BASIC_FACTIONS
+                }),
+            ),
         ] {
             let ported_live = |es: &[Entry]| -> Vec<&'static str> {
                 es.iter()
@@ -2051,9 +2378,9 @@ mod tests {
             }
         }
         // Source void guard and sudden death now run at their original ordered phase slots.
-        assert_eq!(CAPTURE_PLAN.phases.live().len(), 22);
+        assert_eq!(CAPTURE_PLAN_WITHOUT_HINTS.phases.live().len(), 22);
         assert_eq!(
-            CAPTURE_PLAN
+            CAPTURE_PLAN_WITHOUT_HINTS
                 .systems
                 .live()
                 .iter()
@@ -2080,12 +2407,12 @@ mod tests {
             ]
         );
         // Training swaps the arena settle for `settle:training` at the settle slot (trainingSettle).
-        assert!(!TRAINING_PLAN
+        assert!(!TRAINING_PLAN_WITH_HINTS
             .phases
             .live()
             .iter()
             .any(|(n, _)| *n == "settle"));
-        assert!(TRAINING_PLAN
+        assert!(TRAINING_PLAN_WITH_HINTS
             .phases
             .live()
             .iter()
@@ -2134,12 +2461,16 @@ mod tests {
             }
         }
         for name in ["fireRoam.update", "bruiserPassives.update"] {
-            assert!(!TRAINING_NO_SIGNATURES_PLAN
+            assert!(!TRAINING_NO_SIGNATURES_PLAN_WITH_HINTS
                 .systems
                 .live()
                 .iter()
                 .any(|(n, _)| *n == name));
-            assert!(TRAINING_PLAN.systems.live().iter().any(|(n, _)| *n == name));
+            assert!(TRAINING_PLAN_WITH_HINTS
+                .systems
+                .live()
+                .iter()
+                .any(|(n, _)| *n == name));
         }
     }
 

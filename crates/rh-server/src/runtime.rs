@@ -122,6 +122,7 @@ impl Settings {
     pub fn sim(&self) -> SimConfig {
         let training = self.profile == Profile::Training;
         SimConfig {
+            walk_hints: Some(true),
             regen: true,
             quests: !training,
             training,
@@ -204,10 +205,12 @@ mod tests {
         }
         let source = parse("--runtime source-arena --map x").unwrap().unwrap();
         let sim = source.sim();
+        assert_eq!(sim.walk_hints, Some(true));
         assert!(sim.quests && sim.regen && sim.initial_loot && sim.faction_mode.fire_roam());
         assert_eq!(sim.abilities, abilities::Mode::Full);
         assert!(matches!(sim.lifecycle, ArenaMode::Source(_)));
         let training = parse("--runtime training").unwrap().unwrap().sim();
+        assert_eq!(training.walk_hints, Some(true));
         assert!(training.training && training.dummies && !training.quests);
         assert_eq!(training.lifecycle, ArenaMode::Off);
     }

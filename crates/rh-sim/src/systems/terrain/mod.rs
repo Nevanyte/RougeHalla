@@ -28,14 +28,35 @@ pub(crate) fn bog(
     dt: f64,
     stats: crate::status_runtime::StatView,
 ) -> f64 {
-    if !k.hazards.slow {
-        return 1.;
-    }
-    let e = effect(k, w, ix);
-    if e.speed != 1. {
+    let (multiplier, counts) = bog_read(k, w, ix, stats);
+    if counts {
         w.terrain.seconds[1] += dt / 1000.;
     }
-    crate::status_runtime::resist_slow(e.speed, stats.slow_resist)
+    multiplier
+}
+fn bog_read(
+    k: &MatchStatic,
+    w: &World,
+    ix: FighterIx,
+    stats: crate::status_runtime::StatView,
+) -> (f64, bool) {
+    if !k.hazards.slow {
+        return (1., false);
+    }
+    let e = effect(k, w, ix);
+    (
+        crate::status_runtime::resist_slow(e.speed, stats.slow_resist),
+        e.speed != 1.,
+    )
+}
+/// The same dt0 query without even writing +0 to the authoritative exposure counter.
+pub(crate) fn bog_value(
+    k: &MatchStatic,
+    w: &World,
+    ix: FighterIx,
+    stats: crate::status_runtime::StatView,
+) -> f64 {
+    bog_read(k, w, ix, stats).0
 }
 pub(crate) fn burn(cx: &mut Cx) {
     burn_dt(cx, TICK_MS);

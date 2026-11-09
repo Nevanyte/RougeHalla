@@ -22,6 +22,7 @@ struct InProc {
 
 async fn start(creds: &Creds, max_rooms: usize) -> InProc {
     let sim = rh_sim::SimConfig {
+        walk_hints: None,
         regen: false,
         quests: false,
         training: false,

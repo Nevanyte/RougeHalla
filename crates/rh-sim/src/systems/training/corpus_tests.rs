@@ -49,6 +49,8 @@ fn arena(spawn: Vec2) -> Arena {
 
 fn config(kind: &str) -> SimConfig {
     SimConfig {
+        // The immutable source recipe explicitly installs signatures/walkHints off.
+        walk_hints: Some(false),
         regen: false,
         quests: false,
         consumables: false,

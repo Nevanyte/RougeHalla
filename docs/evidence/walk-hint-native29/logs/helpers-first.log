@@ -1,0 +1,84 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/walk-hint-native/repo/crates/rh-sim)
+error[E0422]: cannot find struct, variant or union type `Sample` in the crate root
+  --> crates/rh-sim/src/systems/walk_hint/helper_tests.rs:48:33
+   |
+48 |     p.body.history.reset(crate::Sample {
+   |                                 ^^^^^^ not found in the crate root
+   |
+help: consider importing this struct
+   |
+ 5 + use crate::state::Sample;
+   |
+help: if you import `Sample`, refer to it directly
+   |
+48 -     p.body.history.reset(crate::Sample {
+48 +     p.body.history.reset(Sample {
+   |
+
+error[E0433]: cannot find `ActionKind` in `crate`
+   --> crates/rh-sim/src/systems/walk_hint/helper_tests.rs:235:31
+    |
+235 |             "swing" => crate::ActionKind::Swing,
+    |                               ^^^^^^^^^^ could not find `ActionKind` in the crate root
+    |
+help: consider importing this enum
+    |
+  5 + use crate::state::ActionKind;
+    |
+help: if you import `ActionKind`, refer to it directly
+    |
+235 -             "swing" => crate::ActionKind::Swing,
+235 +             "swing" => ActionKind::Swing,
+    |
+
+error[E0433]: cannot find `ActionKind` in `crate`
+   --> crates/rh-sim/src/systems/walk_hint/helper_tests.rs:236:30
+    |
+236 |             "draw" => crate::ActionKind::Draw,
+    |                              ^^^^^^^^^^ could not find `ActionKind` in the crate root
+    |
+help: consider importing this enum
+    |
+  5 + use crate::state::ActionKind;
+    |
+help: if you import `ActionKind`, refer to it directly
+    |
+236 -             "draw" => crate::ActionKind::Draw,
+236 +             "draw" => ActionKind::Draw,
+    |
+
+error[E0433]: cannot find `ActionKind` in `crate`
+   --> crates/rh-sim/src/systems/walk_hint/helper_tests.rs:239:40
+    |
+239 |         let weapon = if kind == crate::ActionKind::Draw {
+    |                                        ^^^^^^^^^^ could not find `ActionKind` in the crate root
+    |
+help: consider importing this enum
+    |
+  5 + use crate::state::ActionKind;
+    |
+help: if you import `ActionKind`, refer to it directly
+    |
+239 -         let weapon = if kind == crate::ActionKind::Draw {
+239 +         let weapon = if kind == ActionKind::Draw {
+    |
+
+error[E0422]: cannot find struct, variant or union type `PendingAction` in the crate root
+   --> crates/rh-sim/src/systems/walk_hint/helper_tests.rs:247:54
+    |
+247 |         sim.w.players[0].weapon.action = Some(crate::PendingAction {
+    |                                                      ^^^^^^^^^^^^^ not found in the crate root
+    |
+help: consider importing this struct
+    |
+  5 + use crate::state::PendingAction;
+    |
+help: if you import `PendingAction`, refer to it directly
+    |
+247 -         sim.w.players[0].weapon.action = Some(crate::PendingAction {
+247 +         sim.w.players[0].weapon.action = Some(PendingAction {
+    |
+
+Some errors have detailed explanations: E0422, E0433.
+For more information about an error, try `rustc --explain E0422`.
+error: could not compile `rh-sim` (lib test) due to 5 previous errors

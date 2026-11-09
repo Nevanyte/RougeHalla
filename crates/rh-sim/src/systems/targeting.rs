@@ -2,7 +2,7 @@
 //! still requires a clear physical ray. Only the actor's own input and gameplay phases update vision.
 use super::{weapons, Cx};
 use crate::constants::*;
-use crate::content::{attack_interval, paced, player_timings, WeaponId};
+use crate::content::{mirror_timings, paced, WeaponId};
 use crate::fighter::{FighterCore, FighterIx};
 use crate::geometry::has_line_of_sight;
 use crate::input::ActionCmd;
@@ -32,38 +32,58 @@ fn set_lock(p: &mut FighterCore, id: PlayerId) {
     lock.goal = None;
 }
 
-fn lockable(cx: &mut Cx, i: usize, j: usize) -> bool {
-    let viewer = &cx.w.players[i];
+fn lockable_visible(
+    k: &crate::statics::MatchStatic,
+    w: &crate::state::World,
+    i: usize,
+    j: usize,
+) -> bool {
+    let viewer = &w.players[i];
     let other_ix = FighterIx::of_slot(j);
-    let other = cx.w.core(other_ix);
-    if !super::plague_zombies::hostile(cx.w, viewer.id, other.id)
-        || !cx.w.standing(other_ix)
-        || crate::status_runtime::untargetable(&other.statuses.instances, cx.w.server_time)
+    let other = w.core(other_ix);
+    if !super::plague_zombies::hostile(w, viewer.id, other.id)
+        || !w.standing(other_ix)
+        || crate::status_runtime::untargetable(&other.statuses.instances, w.server_time)
     {
         return false;
     }
-    let wards = crate::vision::WardSight::of(cx.k, cx.w);
-    let visible = if cx.w.is_player(other_ix) {
+    let wards = crate::vision::WardSight::of(k, w);
+    if w.is_player(other_ix) {
         crate::vision::gameplay_actor_visible(
-            cx.k.collision_view(cx.w.rt.gates_locked),
+            k.collision_view(w.rt.gates_locked),
             viewer,
-            &cx.w.players[j],
-            cx.w.tick,
+            &w.players[j],
+            w.tick,
             wards,
         )
     } else {
         crate::vision::point_visible(
-            cx.k.collision_view(cx.w.rt.gates_locked),
+            k.collision_view(w.rt.gates_locked),
             viewer,
             other.pos(),
-            cx.w.tick,
+            w.tick,
             wards,
         )
-    };
-    if !visible {
+    }
+}
+/// Current authoritative target eligibility without refreshing its viewer's vision trail.
+pub(super) fn lockable_now(
+    k: &crate::statics::MatchStatic,
+    w: &crate::state::World,
+    i: usize,
+    j: usize,
+) -> bool {
+    lockable_visible(k, w, i, j)
+        && distance(w.players[i].pos(), w.core(FighterIx::of_slot(j)).pos()) <= TARGET_RANGE
+}
+fn lockable(cx: &mut Cx, i: usize, j: usize) -> bool {
+    if !lockable_visible(cx.k, cx.w, i, j) {
         return false;
     }
+    let viewer = &cx.w.players[i];
+    let other = cx.w.core(FighterIx::of_slot(j));
     let within = distance(viewer.pos(), other.pos()) <= TARGET_RANGE;
+    // Preserve the original refresh for a visible candidate even when it is out of range.
     crate::vision::refresh_player(&mut cx.w.players[i], cx.w.tick, cx.w.rt.gates_locked);
     within
 }
@@ -270,9 +290,13 @@ fn follow(cx: &mut Cx, i: usize, id: PlayerId) {
         return;
     }
     let faction = paced(p.faction());
-    let tm = player_timings(
+    let mirrors = p.modifiers.mirrors();
+    let tm = mirror_timings(
+        &faction,
         WeaponId::Wand,
-        attack_interval(&faction, WeaponId::Wand, p.modifiers.mirrors().as_mult),
+        mirrors.as_mult,
+        mirrors.windup_mult,
+        false,
     );
     let vel = velocity(cx.w.core(FighterIx::of_slot(j)), now);
     let out = crate::combat_policy::decide(

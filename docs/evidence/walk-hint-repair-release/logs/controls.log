@@ -1,0 +1,6 @@
+CONTROL forced-zero: KILL /frames/1/snapshot/players/0/extra/walkDir
+CONTROL wrong-cap: KILL /frames/1/snapshot/players/0/extra/walkTicks
+CONTROL hysteresis-always: KILL /frames/3/snapshot/players/0/extra/walkDir
+CONTROL provenance-only-comment: NON-KILL
+{"mode":"controls","required":3,"kills":3,"restoredEqual":true,"restoredProvenanceEqual":true,"restoredVerifier":"PASS","ok":true}
+Wrote walk-hint controls: /private/tmp/walk-hint-release-controls.62QFcx/controls/controls.json

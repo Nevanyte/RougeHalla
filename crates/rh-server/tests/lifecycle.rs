@@ -45,6 +45,7 @@ fn arena() -> Arena {
 
 fn sim_config() -> SimConfig {
     SimConfig {
+        walk_hints: None,
         regen: false,
         quests: false,
         training: false,
@@ -433,6 +434,7 @@ async fn room_heap_probe() {
     let arena = rh_headless::load_arena(&map).expect("map");
     // One human closes the lobby on the first step: the next admission opens a room of its own.
     let sim = SimConfig {
+        walk_hints: None,
         regen: false,
         quests: false,
         training: false,

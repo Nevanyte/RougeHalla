@@ -1,0 +1,31 @@
+    Checking rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/walk-hint-native/repo/crates/rh-sim)
+error: right-hand side of `&&` operator has no effect
+   --> crates/rh-sim/src/systems/walk_hint/tests.rs:121:13
+    |
+121 |     assert!(end_ms < 86_400. * 1000. && end_ms < 1e6 * 1000.);
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+note: `if `end_ms < 86_400. * 1000.` evaluates to true, end_ms < 1e6 * 1000.` will always evaluate to true as well
+   --> crates/rh-sim/src/systems/walk_hint/tests.rs:121:38
+    |
+121 |     assert!(end_ms < 86_400. * 1000. && end_ms < 1e6 * 1000.);
+    |                                      ^^^^^^^^^^^^^^^^^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.97.0/index.html#redundant_comparisons
+    = note: `#[deny(clippy::redundant_comparisons)]` on by default
+
+error: the loop variable `n` is only used to index `trace`
+   --> crates/rh-sim/src/systems/walk_hint/tests.rs:367:18
+    |
+367 |         for n in 0..90 {
+    |                  ^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.97.0/index.html#needless_range_loop
+    = note: `-D clippy::needless-range-loop` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::needless_range_loop)]`
+help: consider using an iterator
+    |
+367 -         for n in 0..90 {
+367 +         for <item> in &mut trace {
+    |
+
+error: could not compile `rh-sim` (lib test) due to 2 previous errors
