@@ -87,6 +87,8 @@ jobs:
         run: cargo test --locked -p rh-placement --features postgres,fault-injection
       - name: Parity report (Rust vs captured legacy scenarios)
         run: cargo run -p rh-parity --bin parity-report
+      - name: Private durable-proof state stays outside Git
+        run: python3 tools/full-runtime-account-proof/test_state_guard.py
       - name: Headless smoke (real 160x160 map, 8 bots)
         run: cargo run --release -p rh-headless -- --matches 4 --players 8 --map parity/maps/seed1.map.json --max-ticks 4000
       - name: Headless smoke (full gameplay map layers, 8 bots)
@@ -95,6 +97,7 @@ jobs:
         run: |
           node tools/protocol-js/check-vectors.mjs
           node tools/protocol-js/check-first-playable.mjs
+          node --test tools/browser-proof/protocol14-ui/contract.test.cjs
       - uses: actions/setup-node@v4
         with:
           node-version: "22.23.4"

@@ -1,0 +1,67 @@
+{
+  "reviewedUtc": "2026-11-09T08:58:14.494784+00:00",
+  "exactFrozenHead": "ad219c5e1a4bd4a27fc8379efcc63f9f1bfd46b5",
+  "productionBase": "a0c4818ce9df8ad0f4124db31e65ba1244bddc3b",
+  "sourceAndTestUnchanged": true,
+  "receipt": {
+    "build": "a0c4818ce9df8ad0f4124db31e65ba1244bddc3b",
+    "clock": "native 50ms steps; accelerated 3ms wall-clock wake, real loopback HTTP/WebSocket and PostgreSQL",
+    "duplicate_result": "AlreadyApplied; owner unchanged",
+    "full_source_default_rules": true,
+    "map": "unchanged maps/first-playable.json",
+    "pending": 0,
+    "physical_time_or_browser_acceptance": false,
+    "protocol": 14,
+    "public_attack_commands": [
+      19,
+      19
+    ],
+    "public_snapshots": [
+      356,
+      354
+    ],
+    "reconciliation": "ok",
+    "reopened_owner_profiles_and_board": "equal",
+    "replay_hashes": "all verified",
+    "replay_steps": 2027,
+    "replay_terminal_phase": "Ended",
+    "source_base": "a0c4818ce9df8ad0f4124db31e65ba1244bddc3b",
+    "spooled": 2,
+    "wire_results": [
+      {
+        "duration_sec": 13,
+        "gv": 10,
+        "kills": 1,
+        "name": "alice",
+        "outcome": 0,
+        "result_tick": 360
+      },
+      {
+        "duration_sec": 13,
+        "gv": 0,
+        "kills": 0,
+        "name": "bob",
+        "outcome": 2,
+        "result_tick": 360
+      }
+    ],
+    "wrong_principal": "NoLease; outsider unchanged"
+  },
+  "cluster": {
+    "address": "127.0.0.1",
+    "fsync": "on",
+    "full_page_writes": "on",
+    "port": 62281,
+    "synchronous_commit": "on",
+    "system_identifier": "7706092855685540751"
+  },
+  "cleanup": {
+    "elapsed_seconds": 7.562867292,
+    "pg_ctl_status": 3,
+    "port_closed": true,
+    "postmaster_pid_absent": true
+  },
+  "privateReceiptSha256": "4c5bac89a4373e3f5fb1691a353ecffc48ea30b3c6d27d5fe037c2b8316388b6",
+  "privateReplaySha256": "bf0d24e65f3d5bce4f4d6fe2e9a6bc8b707edacb9644fa1282af4fd629da22d5",
+  "privateArtifacts": "mode0700 outsideGit; rawprivate logs, tokens, replay and DB remain there and are not copied"
+}

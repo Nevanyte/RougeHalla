@@ -24,7 +24,9 @@ new two-case quest consumer passes there too. The remaining gates pass: postgres
 strict all-target workspace lint with all features and with defaults, fmt,109 compared slice scenarios and300
 path queries MATCH (13 additional cases are capture-only), and a bounded eight-player full-map headless smoke. Both test PostgreSQL clusters used durable settings
 and were stopped. The original red run remains explicit; this is not a claim that a second complete workspace run was
-performed. Branch CI is the final composed-tree gate. C# net752/752 and JS49,311 checks pass; the protected provenance
+performed. [CI42585284401](https://github.com/Nevanyte/RougeHalla/actions/runs/42585284401) at exacta0c4818c passes all five jobs,
+including complete simulation, Rust/backend/source witnesses and C#. Later proof-only additions retain their own
+revision-scoped receipts. C# net752/752 and JS49,311 checks pass; the protected provenance
 chain is admitted and the new source witnesses are wired into CI without changing captured expected gameplay.
 
 Live bot reset streams0/1/2 now match source with independent Knowledge3. The exact135-frame farm/mirror consumer and
@@ -43,8 +45,9 @@ and binding4 passes keep their own exact scopes. Opening views does not spend or
 clock cuts and rebinds fence stale callbacks. BakedContent is generated from a real loopback server /info and now
 matches643d294869db55a4. An actual matchinga3d4b3ce baseline Web build succeeds (14files/106,765,469bytes); its later
 Unity changes are outside that artifact. The actual browser run reaches ordinary profile claim, join, movement, active
-HUD and same-seat resume with a rendered scrolling drawer. Its attempt02 remains failed for two harness observer/check
-issues; the correction/retry is separate. Complete browser/account/banking acceptance remains required.
+HUD and same-seat resume with a rendered scrolling drawer. [Attempt03](evidence/unity-web14-a3d4b3ce/ROOT_ADMISSION.md)
+retains rawPARTIAL/7PASS/5OPEN with zero contract failures; Root separately admits the finite rendered subcases. Original
+attempts01/02 remainFAIL. Complete browser/account/banking acceptance remains required.
 
 Explicit protocol14 full-game endpoint admission is now reviewed: `--runtime source-arena --map <rh-map/2-export>`
 requires the validated source map and enables Source planning, all factions/Wish, quests, PvE, loot and terrain;
@@ -53,6 +56,13 @@ the previous core endpoint. The actual encoded-router tests include the captured
 acceptance and stat trade through public-coordinate navigation, and isolated Training/resume. See the
 [batch receipt](evidence/root-runtime14-composition/README.md) for exact source, scoped243passes and six overlapping
 postgres-feature memory-backed runtime passes. No database restart, hosted, long-match or browser full-game claim follows.
+
+The [fullSource result bridge](evidence/full-runtime-account-bridge/README.md) now proves actual HTTP-owned hosted seats,
+Plan/Ready, ordinary public-coordinate combat, real native kill/award, fsyncedspool→committedPostgreSQL→authenticated
+profile/leaderboard, genuine duplicate/foreign-owner refusals and private replay throughEnded. Author final004 and
+[Root's fresh durable retake](evidence/full-runtime-account-bridge/root-retake/README.md) pass separately with durable
+settingsON and both ownedclusters stopped. Native50ms steps use accelerated3ms wall wakes on the unchanged smallmap;
+this is no physical20Hz/browser/full-map population/cloud proof. Client match-correlated bank confirmation remains open.
 
 The earlier native b4 player-loop frame1/noPNG failure remains held separately. The actuala3d browser screenshots now
 show the drawer rasterized without cyan in the inspected views; this does not turn its failed harness run into a pass.

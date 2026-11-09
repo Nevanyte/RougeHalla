@@ -1,0 +1,30 @@
+{
+  "decision": "RELEASE",
+  "scope": "bounded native Source account/results bridge; coordinator integration",
+  "base": "a0c4818ce9df8ad0f4124db31e65ba1244bddc3b",
+  "code": "7c8dd4eea94a1574a46cc77c79f609426c20942a",
+  "seal": "ad219c5e1a4bd4a27fc8379efcc63f9f1bfd46b5",
+  "manifest_sha256": "0780c76031760735a1255ffba2e2dc8d8af309069d4d2df246c3eefbce8677a3",
+  "verified": {
+    "code_entries": 3,
+    "payloads": 42,
+    "checksums": 43,
+    "raw_logs": 9,
+    "production_tree_pins": 6,
+    "standalone_binary_sha256": "cd802bd8bf4391ee3d8a24281dc0832dedb6c6c94db6d8dcbc9bf6c0729a20d5"
+  },
+  "preserved_attempts": [
+    "FAIL",
+    "PASS",
+    "PASS",
+    "PASS"
+  ],
+  "final_logged_tests": {
+    "focused_durable_bridge": 1,
+    "state_guard": 8
+  },
+  "private_replay_hashes_verified_by_executed_test": 2029,
+  "reviewer_ran_drill": false,
+  "fresh_drill_source_assessment": "safe bounded task-owned disposable durable setup; Root chooses",
+  "report_sha256": "24487b90c6ecbc6587841840629d6c538ab697f9b7e856abede71c66e41a3180"
+}

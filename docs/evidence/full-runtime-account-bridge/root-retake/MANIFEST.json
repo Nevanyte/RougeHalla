@@ -1,0 +1,31 @@
+{
+  "format": "rh-root-full-source-retake/1",
+  "frozenHead": "ad219c5e1a4bd4a27fc8379efcc63f9f1bfd46b5",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 1622,
+      "sha256": "015aa0d336f7f6917fcbff5dd46ad7415e675ce31c7cd42e4cf2e8ae630ea3e9"
+    },
+    {
+      "path": "ROOT_RESULT.json",
+      "bytes": 2045,
+      "sha256": "98528dd18d5928adb1cb46aebe6514a2a99a947c8ddc263adddda3c6388f840e"
+    },
+    {
+      "path": "full-runtime-account-bridge-independent-review.json",
+      "bytes": 1038,
+      "sha256": "f8d9b2dc48cc9deaa8fe30c4017098cee0c9442595475b4d8e939e852592dce4"
+    },
+    {
+      "path": "full-runtime-account-bridge-independent-review.md",
+      "bytes": 8365,
+      "sha256": "24487b90c6ecbc6587841840629d6c538ab697f9b7e856abede71c66e41a3180"
+    },
+    {
+      "path": "test-summary.txt",
+      "bytes": 181,
+      "sha256": "6dfb711a50ecbf5fd64a83a10d63e49a26a408e2b130c18cd52b36a0fc4ed880"
+    }
+  ]
+}
