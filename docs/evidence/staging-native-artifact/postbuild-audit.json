@@ -1,0 +1,143 @@
+{
+  "format": "rh-native-postbuild-diagnostics-audit/1",
+  "base": "024ad82a3d87721b5fb8bd5e39916d34c474065b",
+  "code_commit": "1f58350f167284e8fcba460e77f106ad0a8e4fce",
+  "changed_code_paths": [
+    "tools/staging-native-artifact/diagnostics.py",
+    "tools/staging-native-artifact/produce.py",
+    "tools/staging-native-artifact/test_postbuild.py"
+  ],
+  "unchanged_strict_component_reader_and_workflow": true,
+  "original_evidence_unchanged": [
+    "docs/evidence/staging-native-artifact/PUSH-ACTIVATION.md",
+    "docs/evidence/staging-native-artifact/README.md",
+    "docs/evidence/staging-native-artifact/SHA256SUMS",
+    "docs/evidence/staging-native-artifact/final-offline.txt",
+    "docs/evidence/staging-native-artifact/first-offline.txt",
+    "docs/evidence/staging-native-artifact/push-activation-SHA256SUMS",
+    "docs/evidence/staging-native-artifact/push-activation-audit.json",
+    "docs/evidence/staging-native-artifact/push-activation-offline.txt",
+    "docs/evidence/staging-native-artifact/source-audit.json",
+    "docs/evidence/staging-native-artifact/verify.sh"
+  ],
+  "historical_manifests_rehashed": [
+    {
+      "revision": "2703ee7ae36908cded696cf5d62a425efd56034a",
+      "manifest": "SHA256SUMS",
+      "sha256": "afb69b810f813cd1820ac42752621c29d7fa601db73d57daca3852b7f31b54d2",
+      "payloads": [
+        {
+          "path": ".github/workflows/staging-native-artifact.yml",
+          "sha256": "70bc3e7f72e3ff7e3f0f1f0115301e6bfe53d64ba02e27a6bc9ddb2352bbbf5d"
+        },
+        {
+          "path": "docs/evidence/staging-native-artifact/README.md",
+          "sha256": "b486449e27fb47d08006bf155325ac433226c6067e0e832500573a7697081c65"
+        },
+        {
+          "path": "docs/evidence/staging-native-artifact/final-offline.txt",
+          "sha256": "860de796e3ae48e0c803e14ccffbac15d86354a36f04e6199064fbf272c3919e"
+        },
+        {
+          "path": "docs/evidence/staging-native-artifact/first-offline.txt",
+          "sha256": "f9c80152b45cad60b06b0efd1fade2ce05ee64b64fd7a14d102ce2a827465f30"
+        },
+        {
+          "path": "docs/evidence/staging-native-artifact/source-audit.json",
+          "sha256": "9b7626712c5f1bec1489bf5b75557d4fb465ddc8d14c2b7617cd9c79808de3be"
+        },
+        {
+          "path": "docs/evidence/staging-native-artifact/verify.sh",
+          "sha256": "89199e9886229d6b6c6b4e73a9467dae7be34563cec3776dd7788849d66243e9"
+        },
+        {
+          "path": "tools/staging-native-artifact/README.md",
+          "sha256": "344e77ca42e4acd15502bea45365a223ab112963c857d13c5394b168b7597ed4"
+        },
+        {
+          "path": "tools/staging-native-artifact/component.py",
+          "sha256": "d7fc7770978cfa9f3f094323372bcb06e4bae55204df980953663af93b0d35bd"
+        },
+        {
+          "path": "tools/staging-native-artifact/produce.py",
+          "sha256": "68f77366bb92a14ae1b8ec646e973fa763934f9b6b5732f414944f2a87f4d34f"
+        },
+        {
+          "path": "tools/staging-native-artifact/test_component.py",
+          "sha256": "8209947a14d8a368b51bc18408187b7a283cf81585651e4d4ca93b551658f4be"
+        },
+        {
+          "path": "tools/staging-native-artifact/test_produce.py",
+          "sha256": "2d84275e517fc124606c50a286075c32c0c254fb07dc0af2d9a163bc73966c9d"
+        }
+      ]
+    },
+    {
+      "revision": "024ad82a3d87721b5fb8bd5e39916d34c474065b",
+      "manifest": "push-activation-SHA256SUMS",
+      "sha256": "4114424ec80aa030b90d71cd4405daaa14428628933a4790a6dc7b6431bf256b",
+      "payloads": [
+        {
+          "path": ".github/workflows/staging-native-artifact.yml",
+          "sha256": "2d5197c73049ec4bf52693d9627e8ab3156010b161a135295a4d51f7361cb679"
+        },
+        {
+          "path": "docs/evidence/staging-native-artifact/PUSH-ACTIVATION.md",
+          "sha256": "7b1d0061f50ca58b60f368021d405965d0858c9ccbcd057f71de44b4625e5853"
+        },
+        {
+          "path": "docs/evidence/staging-native-artifact/push-activation-audit.json",
+          "sha256": "0e5c8510732face19b9f590b040429515677c9f67822db5905554106c2f9343f"
+        },
+        {
+          "path": "docs/evidence/staging-native-artifact/push-activation-offline.txt",
+          "sha256": "d42bfcd088b6e7fa00ba0b6553c653cda8b3d3e8991da788ca34498bb3639248"
+        },
+        {
+          "path": "tools/staging-native-artifact/produce.py",
+          "sha256": "cb14532ea5bd78516f1644b28492d73c16250f5c13eab7d292ca593af2324d77"
+        },
+        {
+          "path": "tools/staging-native-artifact/test_produce.py",
+          "sha256": "a8ae43d085445e4a368cf756daf94ca6087f553fdfccb6f2fa7af2814d2558c5"
+        }
+      ]
+    }
+  ],
+  "actual_run_as_reported_by_Root": {
+    "run_id": "42714491373",
+    "job_id": "129492372135",
+    "source_commit": "7401e2908a080799937a6f074dbc142d74320cc1",
+    "actual_locked_optimized_Linux_postgres_compile": "PASS",
+    "compile_seconds": 160,
+    "postbuild_refusal": true,
+    "underlying_postbuild_failure_cause": "UNKNOWN",
+    "archive_produced": false,
+    "independently_retrieved_in_this_packet": false
+  },
+  "local_metadata_only": {
+    "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/final-target/debug/rh-server",
+    "regular": true,
+    "mode": "0755",
+    "bytes": 42479296,
+    "nlink": 1,
+    "same_inode_deps_found": false,
+    "contents_read_or_executed": false,
+    "confirms_Linux_link_count_or_failure_cause": false
+  },
+  "checks": {
+    "first_offline_tests": 25,
+    "first_failures": 0,
+    "final_offline_tests": 25,
+    "final_failures": 0,
+    "AST_files": 3,
+    "all_static_require_codes_allowlisted": "PASS",
+    "staged_whitespace": "PASS",
+    "real_two_link_fixture_producer_boundary": "PASS",
+    "exception_argument_output_environment_redaction": "PASS",
+    "strict_archive_guard_relaxations": 0,
+    "local_native_build_PG_server_or_host_actions": 0,
+    "workflow_dispatch_push_or_retry": 0
+  },
+  "remaining": "Root review and separately authorized ONE real Linux retry; original failure cause remains unknown; no deployable artifact claim."
+}
