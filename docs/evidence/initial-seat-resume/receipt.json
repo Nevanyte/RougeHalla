@@ -1,0 +1,46 @@
+{
+  "scope": "Pure net-library software and normal managed tests only; no page reload/storage/backend/cloud evidence",
+  "base": "8e467beb3ec76d8178927998b62a23cdf7b77a06",
+  "codeHead": "82e9aba9aaa27257fd2438e0480aafa75bcff9fd",
+  "branch": "codex/initial-seat-resume",
+  "commands": [
+    {
+      "command": "dotnet test client-unity/RoguehallaNet.Tests --filter 'FullyQualifiedName~SeatResumeTests|FullyQualifiedName~SessionTests' -warnaserror",
+      "exit": 0,
+      "passed": 115,
+      "failed": 0,
+      "skipped": 0,
+      "log": "focused.log",
+      "source": "Working bytes identical to codeHead; before source commit"
+    },
+    {
+      "command": "dotnet test client-unity/RoguehallaNet.Tests -warnaserror",
+      "exit": 0,
+      "passed": 861,
+      "failed": 0,
+      "skipped": 0,
+      "runs": 1,
+      "log": "full-managed.log",
+      "source": "82e9aba9aaa27257fd2438e0480aafa75bcff9fd"
+    },
+    {
+      "command": "bash client-unity/sync-net.sh --check",
+      "exit": 0,
+      "result": "Unity copy is up to date"
+    },
+    {
+      "command": "git diff 8e467beb3ec76d8178927998b62a23cdf7b77a06 --check",
+      "exit": 0
+    }
+  ],
+  "sourceUnchangedAfterVerification": true,
+  "allocationHarnessAndControlsUnchangedFromBase": true,
+  "taskRustAndPostgresStateUnused": true,
+  "secretHandling": "No actual credentials or raw capability/key payloads in evidence; protocol fixtures in test source are synthetic",
+  "limits": [
+    "No UI/storage/browser integration",
+    "No server/protocol/auth changes",
+    "No live-room crash recovery",
+    "No allocation diagnosis or fix claim"
+  ]
+}
