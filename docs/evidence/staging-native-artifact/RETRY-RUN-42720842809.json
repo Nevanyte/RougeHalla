@@ -1,0 +1,237 @@
+{
+  "format": "rh-native-retry-safe-extract/1",
+  "reviewed_code": "1f58350f167284e8fcba460e77f106ad0a8e4fce",
+  "reviewed_evidence": "d1ac627da22dbe8bc99bde6e2d535ce5e1aff04e",
+  "review_base": "024ad82a3d87721b5fb8bd5e39916d34c474065b",
+  "integration": "2ed37295cbcb0932d3118a18933e8f3db2d417cd",
+  "review": {
+    "decision": "SOURCE/EVIDENCE RELEASE",
+    "blocking_findings": 0,
+    "changes_required": false
+  },
+  "run": {
+    "id": 42720842809,
+    "job_id": 129514112674,
+    "source_commit": "8e3afa6907cff3d1d512c7372b9caf0f9ee4fc9d",
+    "event": "push",
+    "attempt": 1,
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-11-09T23:29:20Z",
+    "run_started_at": "2026-11-09T23:29:20Z",
+    "updated_at": "2026-11-09T23:33:02Z",
+    "url": "https://github.com/Nevanyte/RougeHalla/actions/runs/42720842809",
+    "verification": "Independently fetched run, job, decoded job logs and artifact listing via read-only GitHub connector."
+  },
+  "compile": {
+    "status": "PASS",
+    "duration_seconds": 161,
+    "finished_at_utc": "2026-11-09T23:32:54.8490573Z"
+  },
+  "diagnostics": {
+    "format": "rh-native-diagnostic/1",
+    "failure_events": 0,
+    "events": [
+      {
+        "event": "enter",
+        "format": "rh-native-diagnostic/1",
+        "stage": "cli"
+      },
+      {
+        "event": "enter",
+        "format": "rh-native-diagnostic/1",
+        "stage": "source-selection"
+      },
+      {
+        "event": "enter",
+        "format": "rh-native-diagnostic/1",
+        "stage": "cli"
+      },
+      {
+        "event": "enter",
+        "format": "rh-native-diagnostic/1",
+        "stage": "ci-context"
+      },
+      {
+        "event": "enter",
+        "format": "rh-native-diagnostic/1",
+        "stage": "source-selection"
+      },
+      {
+        "event": "enter",
+        "format": "rh-native-diagnostic/1",
+        "stage": "source-inputs"
+      },
+      {
+        "event": "enter",
+        "format": "rh-native-diagnostic/1",
+        "stage": "toolchain-install"
+      },
+      {
+        "event": "enter",
+        "format": "rh-native-diagnostic/1",
+        "stage": "toolchain-identity"
+      },
+      {
+        "event": "enter",
+        "format": "rh-native-diagnostic/1",
+        "stage": "cargo-build"
+      },
+      {
+        "event": "enter",
+        "format": "rh-native-diagnostic/1",
+        "stage": "cargo-output-copy"
+      },
+      {
+        "binary": {
+          "bytes": 17319088,
+          "kind": "regular",
+          "mode": "0755",
+          "nlink": 2,
+          "owned_by_runner": true
+        },
+        "binary_label": "cargo",
+        "event": "binary_observed",
+        "format": "rh-native-diagnostic/1",
+        "stage": "cargo-output-copy"
+      },
+      {
+        "binary": {
+          "bytes": 17319088,
+          "kind": "regular",
+          "mode": "0755",
+          "nlink": 2,
+          "owned_by_runner": true
+        },
+        "binary_label": "cargo",
+        "event": "binary_observed",
+        "format": "rh-native-diagnostic/1",
+        "stage": "cargo-output-copy"
+      },
+      {
+        "binary": {
+          "bytes": 17319088,
+          "kind": "regular",
+          "mode": "0700",
+          "nlink": 1,
+          "owned_by_runner": true
+        },
+        "binary_label": "staged",
+        "event": "binary_observed",
+        "format": "rh-native-diagnostic/1",
+        "stage": "cargo-output-copy"
+      },
+      {
+        "event": "enter",
+        "format": "rh-native-diagnostic/1",
+        "stage": "staged-binary"
+      },
+      {
+        "event": "enter",
+        "format": "rh-native-diagnostic/1",
+        "stage": "server-start"
+      },
+      {
+        "event": "enter",
+        "format": "rh-native-diagnostic/1",
+        "stage": "database-fresh"
+      },
+      {
+        "event": "enter",
+        "format": "rh-native-diagnostic/1",
+        "stage": "server-start"
+      },
+      {
+        "event": "enter",
+        "format": "rh-native-diagnostic/1",
+        "stage": "http-ready"
+      },
+      {
+        "event": "enter",
+        "format": "rh-native-diagnostic/1",
+        "stage": "http-info"
+      },
+      {
+        "event": "enter",
+        "format": "rh-native-diagnostic/1",
+        "stage": "database-boundary"
+      },
+      {
+        "event": "enter",
+        "format": "rh-native-diagnostic/1",
+        "stage": "server-stop"
+      },
+      {
+        "event": "process_exit",
+        "exit_status": 0,
+        "format": "rh-native-diagnostic/1",
+        "stage": "server-stop"
+      },
+      {
+        "event": "enter",
+        "format": "rh-native-diagnostic/1",
+        "stage": "database-final"
+      },
+      {
+        "event": "enter",
+        "format": "rh-native-diagnostic/1",
+        "stage": "source-recheck"
+      },
+      {
+        "event": "enter",
+        "format": "rh-native-diagnostic/1",
+        "stage": "manifest-build"
+      },
+      {
+        "event": "enter",
+        "format": "rh-native-diagnostic/1",
+        "stage": "archive-create"
+      },
+      {
+        "event": "enter",
+        "format": "rh-native-diagnostic/1",
+        "stage": "cli"
+      },
+      {
+        "event": "enter",
+        "format": "rh-native-diagnostic/1",
+        "stage": "archive-verify"
+      }
+    ]
+  },
+  "artifact": {
+    "id": 13719639181,
+    "name": "native-component-8e3afa6907cff3d1d512c7372b9caf0f9ee4fc9d-42720842809-1",
+    "size_in_bytes": 17326234,
+    "url": "https://api.github.com/repos/Nevanyte/RougeHalla/actions/artifacts/13719639181",
+    "archive_download_url": "https://api.github.com/repos/Nevanyte/RougeHalla/actions/artifacts/13719639181/zip",
+    "expired": false,
+    "created_at": "2026-11-09T23:32:58Z",
+    "expires_at": "2026-11-12T23:32:57Z",
+    "updated_at": "2026-11-09T23:32:58Z",
+    "digest": "sha256:085510e488a30c80d25b2a270621c28eda536f40b689fa011418cef578cbfe65",
+    "workflow_run": {
+      "id": 42720842809,
+      "repository_id": 1434725438,
+      "head_repository_id": 1434725438,
+      "head_branch": "optimization_port",
+      "head_sha": "8e3afa6907cff3d1d512c7372b9caf0f9ee4fc9d"
+    },
+    "verification": "Downloaded once via read-only GitHub connector; ZIP SHA-256/size match API; ZIP has exactly native-component.tar; component size/hash match both actual producer/verify CLI receipts; unchanged strict inspect_archive passes without extraction or execution.",
+    "component_bytes": 17326080,
+    "component_sha256": "e0953432138e2196e3e030059eb486d7d7770bea0aeae2a3e2c7ceabb728e98b",
+    "component_manifest_sha256": "21deb9f9d2148691a8031a0fe6d26bad38731f326ef2ad17ef853bcf572907aa",
+    "private_storage": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/staging-native-artifact-retry-42720842809"
+  },
+  "limitations": [
+    "Core-readiness-only component with deployable:false; not a deployed game or complete staging bundle.",
+    "Actual two-link Cargo output is observed on this retry. Original run42714491373 has no corresponding metadata; its underlying post-build cause remains UNKNOWN.",
+    "Build/probe occurred only in this single approved Linux GitHub retry; no native binary was executed locally for artifact inspection."
+  ],
+  "original_failure_preserved": "ORIGINAL-RUN-42714491373.json; historical source/evidence and original run unchanged.",
+  "disarm": {
+    "commit": "4b423b418347378b29e7825a491c781811eb41d3",
+    "verification": "Independently fetched remote optimization_port branch at this SHA; local immutable workflow at the same SHA has workflow_dispatch only and no on.push.",
+    "second_retry_authorized": false
+  }
+}
