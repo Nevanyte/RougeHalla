@@ -1,0 +1,71 @@
+name: Staging native component (temporary push/manual, no deployment)
+
+on:
+  # TEMPORARY: Root removes this after the one actual result. No tools/source glob.
+  push:
+    branches: [optimization_port]
+    paths: [".github/workflows/staging-native-artifact.yml"]
+  workflow_dispatch:
+    inputs:
+      source_commit:
+        description: Exact Root-selected 40-hex commit reachable from optimization_port
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  native-component:
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/optimization_port'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: rh_native
+          POSTGRES_PASSWORD: rh_native_ci_only
+          POSTGRES_DB: rh_native_component
+        ports: ["127.0.0.1:5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U rh_native -d rh_native_component"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      SELECTED_COMMIT: ${{ github.event_name == 'push' && github.sha || inputs.source_commit }}
+    steps:
+      - name: Reviewed harness, complete ancestry, no persisted credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          path: harness
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+          sparse-checkout: tools/staging-native-artifact
+      - name: Refuse nonexact or noncanonical source before checkout/build
+        run: python3 harness/tools/staging-native-artifact/produce.py select --harness harness --commit "$SELECTED_COMMIT"
+      - name: Exact source checkout, isolated from reviewed harness
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          path: source
+          ref: ${{ env.SELECTED_COMMIT }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Build locked RELEASE + actual bounded PostgreSQL loopback readiness
+        run: >-
+          python3 harness/tools/staging-native-artifact/produce.py produce
+          --harness harness --source source --commit "$SELECTED_COMMIT"
+          --archive "$RUNNER_TEMP/native-component.tar"
+      - name: Independently re-read exact archive structure and hashes
+        run: python3 harness/tools/staging-native-artifact/produce.py verify --archive "$RUNNER_TEMP/native-component.tar"
+      - name: Retain only component archive in GitHub Actions (not AWS or a public bundle)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: native-component-${{ env.SELECTED_COMMIT }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/native-component.tar
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 0
+          overwrite: false
+          include-hidden-files: false

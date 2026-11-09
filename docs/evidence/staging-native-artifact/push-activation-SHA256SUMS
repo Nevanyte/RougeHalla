@@ -1,0 +1,6 @@
+2d5197c73049ec4bf52693d9627e8ab3156010b161a135295a4d51f7361cb679  .github/workflows/staging-native-artifact.yml
+7b1d0061f50ca58b60f368021d405965d0858c9ccbcd057f71de44b4625e5853  docs/evidence/staging-native-artifact/PUSH-ACTIVATION.md
+0e5c8510732face19b9f590b040429515677c9f67822db5905554106c2f9343f  docs/evidence/staging-native-artifact/push-activation-audit.json
+d42bfcd088b6e7fa00ba0b6553c653cda8b3d3e8991da788ca34498bb3639248  docs/evidence/staging-native-artifact/push-activation-offline.txt
+cb14532ea5bd78516f1644b28492d73c16250f5c13eab7d292ca593af2324d77  tools/staging-native-artifact/produce.py
+a8ae43d085445e4a368cf756daf94ca6087f553fdfccb6f2fa7af2814d2558c5  tools/staging-native-artifact/test_produce.py
