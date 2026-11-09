@@ -193,6 +193,9 @@ fn a_same_pass_camp_clear_uses_the_pass_start_count_and_the_next_pass_the_new_co
     let mut ref1 = pve_sim();
     for r in [&mut ref0, &mut ref1] {
         grant(r, &[CardId::PackLeader, CardId::CoupDeGrace]);
+        // Declared component context: a real tier-4 mark denial edge (victim p1, attacker p0), the same accepted shape
+        // signatures::freeze_denials produces, so the production execute_share callsite is actually reached.
+        r.s.mark_denials.push((PlayerId(2), PlayerId(1)));
         let i = p1_index(r);
         r.w.players[i].vitals.hp = r.w.players[i].vitals.max_hp * 0.2;
         r.w.players[i].vitals.hp_frac_at_tick_start = 0.2;
@@ -207,6 +210,7 @@ fn a_same_pass_camp_clear_uses_the_pass_start_count_and_the_next_pass_the_new_co
     // to 1 only after the victims, and the NEXT ordinary pass must use the new count.
     let mut sim = pve_sim();
     grant(&mut sim, &[CardId::PackLeader, CardId::CoupDeGrace]);
+    sim.s.mark_denials.push((PlayerId(2), PlayerId(1)));
     let i = p1_index(&sim);
     sim.w.players[i].vitals.hp = sim.w.players[i].vitals.max_hp * 0.2;
     sim.w.players[i].vitals.hp_frac_at_tick_start = 0.2;

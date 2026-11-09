@@ -495,7 +495,11 @@ fn apply_inner(
                     frac,
                     kind,
                     e.critical_mult.unwrap_or(1.),
-                    if w.is_player(i) { camps.get(i.slot()).copied().unwrap_or(0) } else { 0 },
+                    if w.is_player(i) {
+                        camps.get(i.slot()).copied().unwrap_or(0)
+                    } else {
+                        0
+                    },
                     streak,
                     probe,
                     false,
@@ -751,7 +755,10 @@ fn apply_victim(
                             kind,
                             e.critical_mult.unwrap_or(1.),
                             if pass.w.is_player(bix) {
-                                pass.camps_at_pass_start.get(bix.slot()).copied().unwrap_or(0)
+                                pass.camps_at_pass_start
+                                    .get(bix.slot())
+                                    .copied()
+                                    .unwrap_or(0)
                             } else {
                                 0
                             },
