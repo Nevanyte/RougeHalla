@@ -1,0 +1,36 @@
+exit=1 signal=null
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
+  [
+    2,
+    0,
+    0,
+-   1,
+    0,
+    0,
++   0,
+    1
+  ]
+
+    at verify (file:///work/tools/bot-fight-fixtures/verify.mjs:40:9)
+    at <anonymous> (/work/tools/bot-fight-fixtures/capture.mts:111:45) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: [
+    2, 0, 0, 0,
+    0, 0, 1
+  ],
+  expected: [
+    2, 0, 0, 1,
+    0, 0, 1
+  ],
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}
+
+Node.js v22.23.4

@@ -1,0 +1,13 @@
+{"control":"decide-stream-tag","exit":0,"semanticEqual":false,"profileEqual":false}
+{"control":"knowledge-once","exit":1,"semanticEqual":false,"profileEqual":false}
+{"control":"wand-lock","exit":1,"semanticEqual":false,"profileEqual":false}
+{"control":"replan","exit":1,"semanticEqual":false,"profileEqual":false}
+{"control":"progress","exit":1,"semanticEqual":false,"profileEqual":false}
+{"control":"move-resend","exit":1,"semanticEqual":false,"profileEqual":false}
+{"control":"launch","exit":1,"semanticEqual":false,"profileEqual":false}
+{"control":"bow-draw","exit":1,"semanticEqual":false,"profileEqual":false}
+{"control":"relock-lead","exit":1,"semanticEqual":false,"profileEqual":false}
+{"control":"engagement-gap","exit":1,"semanticEqual":false,"profileEqual":false}
+{"control":"orb-chance","exit":1,"semanticEqual":false,"profileEqual":false}
+{"control":"provenance-nonkill","exit":0,"semanticEqual":true,"profileEqual":false}
+{"semanticKills":11,"provenanceNonkills":1,"pristine":true,"restored":true}

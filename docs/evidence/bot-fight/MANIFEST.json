@@ -1,0 +1,182 @@
+{
+ "format": "rh-bot-fight-evidence/1",
+ "base": "e2baadae03dd25cf74979bdfeb3bf35fd696393d",
+ "codeHead": "ae20cc3c06ef98ce2f86df9a119c0d478779a595",
+ "codeCommits": [
+  "0cfad10f6223a73063222a3d38180f3061b6b80b",
+  "cf4c5c4ffa85b7de46bce4d89caa9431e21f751e",
+  "ae20cc3c06ef98ce2f86df9a119c0d478779a595"
+ ],
+ "fixture": {
+  "path": "parity/policy/bot-fight/source.json",
+  "bytes": 467672,
+  "sha256": "197fe5d24b6b34822a3ef76e2999d422e6127bbda1e8dfda0ba0af3ee5e2785e",
+  "tacticsSequences": 16,
+  "tacticsFrames": 47,
+  "orbSequences": 6,
+  "orbFrames": 20,
+  "timings": 90,
+  "unavailableTimings": 6,
+  "directFightInvocations": 1,
+  "invalidCallerDiagnostics": 1
+ },
+ "runtime": {
+  "node": "v22.23.4",
+  "platform": "linux",
+  "arch": "x64",
+  "image": "node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292"
+ },
+ "sourcePinsAgainstBaseGit": {
+  "sharedAndBotTs": 113,
+  "configuration": 8,
+  "toolPinsAgainstCodeGit": 7
+ },
+ "controls": {
+  "semanticKills": 11,
+  "provenanceOnlyNonkills": 1,
+  "pristineAndRestoredFullProfileAndSemanticMatch": true,
+  "rawControlLogs": 14
+ },
+ "externalReproduction": {
+  "commit": "ae20cc3c06ef98ce2f86df9a119c0d478779a595",
+  "method": "fresh git archive export, no .git or inherited node_modules; fresh read-only-input container and tmpfs dependency install",
+  "selection": [
+   "packages",
+   "package.json",
+   "package-lock.json",
+   "tsconfig.base.json",
+   "tools/bot-fight-fixtures",
+   "parity/policy/bot-fight"
+  ],
+  "command": "bash tools/bot-fight-fixtures/capture.sh --check",
+  "log": "docs/evidence/bot-fight/logs/external-repro.log",
+  "fixtureByteExact": true
+ },
+ "writeScope": [
+  "NEW tools/bot-fight-fixtures/**",
+  "NEW parity/policy/bot-fight/**",
+  "NEW docs/evidence/bot-fight/**"
+ ],
+ "boundary": "Declared chronological public method contexts, actual Tactics/Fight/Orb/Timings/Memory/Knowledge/PathService. NOT earned World outcomes, full brain, reflex or native/live activation.",
+ "held": [
+  "native consumer and accepted decoded-frame integration",
+  "humanizer and ordinary validate+submit live engagement",
+  "full strategy/brain and reflex opportunities",
+  "NPC continuity/hunters and tournament outcome parity",
+  "all canonical/public version/content/tape admission"
+ ],
+ "artifacts": {
+  "parity/policy/bot-fight/source.json": {
+   "bytes": 467672,
+   "sha256": "197fe5d24b6b34822a3ef76e2999d422e6127bbda1e8dfda0ba0af3ee5e2785e"
+  },
+  "tools/bot-fight-fixtures/README.md": {
+   "bytes": 2723,
+   "sha256": "f8217b497f5b4625d56c881260c42eaf29f609e2f7e06606e11cac0bc366805c"
+  },
+  "tools/bot-fight-fixtures/capture.mts": {
+   "bytes": 11103,
+   "sha256": "c7b4cd18dd55a9899d3765dfc5eea5fd1db25c2bb74c84b67021008c605ff4c3"
+  },
+  "tools/bot-fight-fixtures/capture.sh": {
+   "bytes": 1157,
+   "sha256": "d8736daaa8b01d25c601dbd970211abf7774fa2af57d24ccac27bcc14c31933e"
+  },
+  "tools/bot-fight-fixtures/cases.mts": {
+   "bytes": 7351,
+   "sha256": "9e9e5785728b82476a70e977137aad7531df781b5bf4971ba4b4668a01a585fc"
+  },
+  "tools/bot-fight-fixtures/controls.mjs": {
+   "bytes": 5095,
+   "sha256": "76908e31a76f7a3c7e58430cedeb05a5f17af59f6c3927837bc91ae05eb63437"
+  },
+  "tools/bot-fight-fixtures/controls.sh": {
+   "bytes": 728,
+   "sha256": "0d3e3f8ade22edf20eea1921327f82118a02442454e945fb79e1bba456f068f9"
+  },
+  "tools/bot-fight-fixtures/verify.mjs": {
+   "bytes": 4053,
+   "sha256": "45a1893c80166740042603c50708f84f78a533e877ff03f151772f1de5604bb6"
+  },
+  "docs/evidence/bot-fight/README.md": {
+   "bytes": 6444,
+   "sha256": "e84585976d95c8e85a7bfb8a2bfe2d245f421cec368a7d4acb68b9f7a3418201"
+  },
+  "docs/evidence/bot-fight/logs/bow-draw.log": {
+   "bytes": 605,
+   "sha256": "0964b92aed1f269afecb8d2a675445887a7aa59325dac6520b7176e78190b154"
+  },
+  "docs/evidence/bot-fight/logs/capture.log": {
+   "bytes": 340,
+   "sha256": "dc1a37342c8b19b1fa165776fa64c3626b908534d2c3da7865ccedf099c75032"
+  },
+  "docs/evidence/bot-fight/logs/controls-run.log": {
+   "bytes": 1011,
+   "sha256": "0e62c5ff0517c9fba94bbdd5498a8916b30b1db0e0a0e738e072b220fad5e089"
+  },
+  "docs/evidence/bot-fight/logs/controls.json": {
+   "bytes": 8544,
+   "sha256": "efed6ffaeef483ac9c56b13c3dec4e058548c72e310f53935ce0053bdd73e22f"
+  },
+  "docs/evidence/bot-fight/logs/decide-stream-tag.log": {
+   "bytes": 189,
+   "sha256": "e3237f3902108ddd0a771aa49e7a72b394f50d7d54b382d8a58892da4b71bee7"
+  },
+  "docs/evidence/bot-fight/logs/engagement-gap.log": {
+   "bytes": 604,
+   "sha256": "7911956c3f4c1ca2913f3dc9cf181049922f6b240743f4e6ed849d97cf5b5652"
+  },
+  "docs/evidence/bot-fight/logs/external-repro.log": {
+   "bytes": 170,
+   "sha256": "a08040a76ad7fe935f9a38e4a5b9d47369e2040de222317de365ea0264143472"
+  },
+  "docs/evidence/bot-fight/logs/knowledge-once.log": {
+   "bytes": 533,
+   "sha256": "c0dfb0442bcaa095f306019ae0e2f1c995d5be3dc28e4b88c97fd50d69a4efde"
+  },
+  "docs/evidence/bot-fight/logs/launch.log": {
+   "bytes": 605,
+   "sha256": "3109966cf9bd4f3aa525e2e32d64ea1d681c24fbf4602fe74ed355e7df34cf47"
+  },
+  "docs/evidence/bot-fight/logs/move-resend.log": {
+   "bytes": 513,
+   "sha256": "9a5f32a42404d95b34c1ae5e85c53e2d438f767a63a67c177fa0b47097b91c1d"
+  },
+  "docs/evidence/bot-fight/logs/orb-chance.log": {
+   "bytes": 605,
+   "sha256": "e2de7be2a1b3aa07377225ffa560a4c40206508c77b144d7ca885139b782a816"
+  },
+  "docs/evidence/bot-fight/logs/pins-and-syntax.log": {
+   "bytes": 517,
+   "sha256": "36068e4d3c2410aac1a467c7bec0a3381638345e86264feccd0809a860dabfbe"
+  },
+  "docs/evidence/bot-fight/logs/pristine.log": {
+   "bytes": 189,
+   "sha256": "056121f4f9739dc092e8bd682b2d50e79a27fb61777905068e8a10fdc6d2da09"
+  },
+  "docs/evidence/bot-fight/logs/progress.log": {
+   "bytes": 668,
+   "sha256": "7f1b0cee9c26cbfed31dffcb152ee21d7a997227e6044f36a61c60d5dc2176f9"
+  },
+  "docs/evidence/bot-fight/logs/provenance-nonkill.log": {
+   "bytes": 189,
+   "sha256": "9c3d42641a154632e5f2a3f6811d016d46ff85e78126fd6e7fdd332c54d4cf1b"
+  },
+  "docs/evidence/bot-fight/logs/relock-lead.log": {
+   "bytes": 541,
+   "sha256": "e7f144a859ffb22096b287e5d2af52921ff7ce344ffd8c35d6d3e1df453ff98b"
+  },
+  "docs/evidence/bot-fight/logs/replan.log": {
+   "bytes": 532,
+   "sha256": "ee54ebdec3f25dd0a1359923fa3481de856709f775a30f48d023d4f5123bcaf9"
+  },
+  "docs/evidence/bot-fight/logs/restored.log": {
+   "bytes": 189,
+   "sha256": "056121f4f9739dc092e8bd682b2d50e79a27fb61777905068e8a10fdc6d2da09"
+  },
+  "docs/evidence/bot-fight/logs/wand-lock.log": {
+   "bytes": 513,
+   "sha256": "88d63a15471b9704c965d1a4db740aeb7fa047ad23c6f699cd2b0b2fb8309cc4"
+  }
+ }
+}

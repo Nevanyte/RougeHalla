@@ -1,0 +1,228 @@
+{
+ "format": "rh-bot-fight-controls/1",
+ "fixtureSha256": "197fe5d24b6b34822a3ef76e2999d422e6127bbda1e8dfda0ba0af3ee5e2785e",
+ "expectedSemanticSha256": "a470ae66eb315eae43d9f28b924aa14714227d6803e0181a3f66efcc6a4b47c2",
+ "pristine": {
+  "exit": 0,
+  "signal": null,
+  "logSha256": "056121f4f9739dc092e8bd682b2d50e79a27fb61777905068e8a10fdc6d2da09",
+  "semanticEqual": true,
+  "semanticSha256": "a470ae66eb315eae43d9f28b924aa14714227d6803e0181a3f66efcc6a4b47c2",
+  "profileEqual": true
+ },
+ "results": [
+  {
+   "name": "decide-stream-tag",
+   "file": "brain.ts",
+   "before": "decide: mulberry32(derive(cfg.seed, 0)),",
+   "after": "decide: mulberry32(derive(cfg.seed, 1)),",
+   "beforeFileSha256": "e5068026aba10f5bfe85d806b33cb76c4fc7e4408a958d87703dc1f3a391f800",
+   "afterFileSha256": "48dcccac20244d956ca693488ed9ffd7806ccf1d661c94f7a919ce8ad47c141f",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 0,
+    "signal": null,
+    "logSha256": "e3237f3902108ddd0a771aa49e7a72b394f50d7d54b382d8a58892da4b71bee7",
+    "semanticEqual": false,
+    "semanticSha256": "ff89653951ae0e19075c5ee58e1324026ccf353c0a7096fbafafecd7260fe6e0",
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "knowledge-once",
+   "file": "tactics.ts",
+   "before": "knowsSuddenDeath ??= ctx.rng.decide() < ctx.cfg.tier.knowledge;",
+   "after": "knowsSuddenDeath ??= false;",
+   "beforeFileSha256": "64804de4b29e87fdc12bdf7e2df65d69573293c7db5fdae08c6c11dcc4ae08ef",
+   "afterFileSha256": "ede07a05e7c3ab6cdd8f0e35871efcb53465372e1089c896e49ed077378cbb9c",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "c0dfb0442bcaa095f306019ae0e2f1c995d5be3dc28e4b88c97fd50d69a4efde",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "wand-lock",
+   "file": "tactics/fight.ts",
+   "before": "if (locked && weapon === \"wand\") return finish",
+   "after": "if (false && locked && weapon === \"wand\") return finish",
+   "beforeFileSha256": "10a9aeb45b69c9635072213fefbcfe7aa40fd113773f7cf2b254594ae8204a50",
+   "afterFileSha256": "da5f617bf30dd705f7875611b67f9f3283f902fa804e4c502fd82abaf378c347",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "88d63a15471b9704c965d1a4db740aeb7fa047ad23c6f699cd2b0b2fb8309cc4",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "replan",
+   "file": "tactics/fight.ts",
+   "before": "const REPLAN_MS = 400;",
+   "after": "const REPLAN_MS = 4000;",
+   "beforeFileSha256": "10a9aeb45b69c9635072213fefbcfe7aa40fd113773f7cf2b254594ae8204a50",
+   "afterFileSha256": "bf986cc81ca77d7fd03081a57c009ff25a72cdafb90be251fb1355791d445903",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "ee54ebdec3f25dd0a1359923fa3481de856709f775a30f48d023d4f5123bcaf9",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "progress",
+   "file": "tactics/fight.ts",
+   "before": "const NO_PROGRESS_MS = 10_000;",
+   "after": "const NO_PROGRESS_MS = 20_000;",
+   "beforeFileSha256": "10a9aeb45b69c9635072213fefbcfe7aa40fd113773f7cf2b254594ae8204a50",
+   "afterFileSha256": "1fffb602eb2bfcec29cb335b2efe22a59eb6163ee8fc56bb2c913ac58d191a29",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "7f1b0cee9c26cbfed31dffcb152ee21d7a997227e6044f36a61c60d5dc2176f9",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "move-resend",
+   "file": "tactics/fight.ts",
+   "before": "const STILL_RESEND_MS = 700;",
+   "after": "const STILL_RESEND_MS = 1000;",
+   "beforeFileSha256": "10a9aeb45b69c9635072213fefbcfe7aa40fd113773f7cf2b254594ae8204a50",
+   "afterFileSha256": "d3dc321cb89f7d98bc9bee0d2dfae3a3062b1b9eca9630dac21a186244065d02",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "9a5f32a42404d95b34c1ae5e85c53e2d438f767a63a67c177fa0b47097b91c1d",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "launch",
+   "file": "tactics/kite.ts",
+   "before": "if (now < launchAt || (weapon === \"bow\" && self.drawStartedAt > 0)) return null;",
+   "after": "if (weapon === \"bow\" && self.drawStartedAt > 0) return null;",
+   "beforeFileSha256": "b7ceff483d51fe1d58d79ef34562e28a079027623527f11264c21439c2b6e2be",
+   "afterFileSha256": "703a53844ea62a2db72fb5d8dc96337badbf445cd5b01bb1c8ab7d3b8a7f0c62",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "3109966cf9bd4f3aa525e2e32d64ea1d681c24fbf4602fe74ed355e7df34cf47",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "bow-draw",
+   "file": "tactics/kite.ts",
+   "before": "if (now < launchAt || (weapon === \"bow\" && self.drawStartedAt > 0)) return null;",
+   "after": "if (now < launchAt) return null;",
+   "beforeFileSha256": "b7ceff483d51fe1d58d79ef34562e28a079027623527f11264c21439c2b6e2be",
+   "afterFileSha256": "8d79becc8c3ca392594c89cb31fe3c6c196645782d870adda7caa705b65241f2",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "0964b92aed1f269afecb8d2a675445887a7aa59325dac6520b7176e78190b154",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "relock-lead",
+   "file": "tactics/kite.ts",
+   "before": "const RELOCK_LEAD_MS = 100;",
+   "after": "const RELOCK_LEAD_MS = 0;",
+   "beforeFileSha256": "b7ceff483d51fe1d58d79ef34562e28a079027623527f11264c21439c2b6e2be",
+   "afterFileSha256": "2bdc003b3f713028bb4d71783699ce7dd4a0458f8cefdfb42ac80ecc5a7058f9",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "e7f144a859ffb22096b287e5d2af52921ff7ce344ffd8c35d6d3e1df453ff98b",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "engagement-gap",
+   "file": "tactics/fight.ts",
+   "before": "const ENGAGEMENT_GAP_MS = 4000;",
+   "after": "const ENGAGEMENT_GAP_MS = 8000;",
+   "beforeFileSha256": "10a9aeb45b69c9635072213fefbcfe7aa40fd113773f7cf2b254594ae8204a50",
+   "afterFileSha256": "3ae4c02843ce1a53c347e85010f921cb89f2326effce02181150dda1afa2e02e",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "7911956c3f4c1ca2913f3dc9cf181049922f6b240743f4e6ed849d97cf5b5652",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "orb-chance",
+   "file": "tactics/fight.ts",
+   "before": "kite: rng.decide() < cfg.tier.orbwalk.p * cfg.persona.kite",
+   "after": "kite: rng.decide() < 0",
+   "beforeFileSha256": "10a9aeb45b69c9635072213fefbcfe7aa40fd113773f7cf2b254594ae8204a50",
+   "afterFileSha256": "001f9401f5448a55e45742a4e3364531d0f2849c712e8a930fccd12271267700",
+   "expected": "semantic kill",
+   "observed": {
+    "exit": 1,
+    "signal": null,
+    "logSha256": "e2de7be2a1b3aa07377225ffa560a4c40206508c77b144d7ca885139b782a816",
+    "semanticEqual": false,
+    "semanticSha256": null,
+    "profileEqual": false
+   }
+  },
+  {
+   "name": "provenance-nonkill",
+   "file": "tactics/fight.ts",
+   "before": "const LOCK_MARGIN = 40;",
+   "after": "const LOCK_MARGIN = 40; // provenance-only control",
+   "beforeFileSha256": "10a9aeb45b69c9635072213fefbcfe7aa40fd113773f7cf2b254594ae8204a50",
+   "afterFileSha256": "e1da070117a31b0c043c6037562423bcca1759196cad0668301f4ee710f2c326",
+   "expected": "semantic nonkill, provenance changes",
+   "observed": {
+    "exit": 0,
+    "signal": null,
+    "logSha256": "9c3d42641a154632e5f2a3f6811d016d46ff85e78126fd6e7fdd332c54d4cf1b",
+    "semanticEqual": true,
+    "semanticSha256": "a470ae66eb315eae43d9f28b924aa14714227d6803e0181a3f66efcc6a4b47c2",
+    "profileEqual": false
+   }
+  }
+ ],
+ "restored": {
+  "exit": 0,
+  "signal": null,
+  "logSha256": "056121f4f9739dc092e8bd682b2d50e79a27fb61777905068e8a10fdc6d2da09",
+  "semanticEqual": true,
+  "semanticSha256": "a470ae66eb315eae43d9f28b924aa14714227d6803e0181a3f66efcc6a4b47c2",
+  "profileEqual": true
+ },
+ "boundary": "Actual TS imports are compiled by tsx after one unique source edit in tmpfs. No fixture mutation. Semantic comparison excludes only profile/provenance; declared inputs, outputs, streams, timing and path records remain included."
+}
