@@ -1,0 +1,203 @@
+{
+  "schema": "roguehalla-unity-web14-ui-proof/1",
+  "startedUtc": "2026-11-09T08:04:56.388Z",
+  "identities": {
+    "source": "a3d4b3ce575442c9a06916888035ca849a6cd05a",
+    "protocol": 14,
+    "contentHash": "643d294869db55a4",
+    "artifact": {
+      "manifestSha256": "c5a10239a43d339f033de943f28df987401c40226d259290f221f6213acd0434",
+      "fileCount": 14,
+      "verifiedFiles": 14,
+      "bytes": 106765469,
+      "unchangedAfter": true,
+      "buildId": "build_c9711b3ad936",
+      "unity": "6000.0.85f2",
+      "compression": "Disabled",
+      "development": false
+    },
+    "server": {
+      "sha256": "0b08727ba9cc7a5850e10f09e0737042937b865ee47dd29f1afc67abbbc242eb"
+    },
+    "browser": {},
+    "resolution": {},
+    "host": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "chip": "Apple M5 Pro",
+      "model": "MacBook Pro",
+      "memory": "64 GB"
+    },
+    "buildProvenance": {
+      "sha256": "bdddc04ac712f16220bd27a674bbd080954e848fb1f60c87ff34468e412756ca",
+      "handoffSha256": "866dbf2c21e6bc3089234b07a0e25392e41414ed707bcd658d61840d74408778",
+      "unity": "6000.0.85f2",
+      "buildId": "build_c9711b3ad936",
+      "development": false
+    },
+    "passiveDecoder": {
+      "source": "a3d4b3ce575442c9a06916888035ca849a6cd05a",
+      "path": "crates/rh-server/web/probe.html",
+      "blockSha256": "0ab7aab9bb5f2ad5de635dccca9a7be04e3a5f5afce13f59fe8c2db560efafbf",
+      "applicationFramesSentByObserver": 0
+    }
+  },
+  "policy": {
+    "ordinary": true,
+    "diagnostic": false,
+    "syntheticProfilesOnly": true,
+    "noWorldInjection": true,
+    "privateWorldHooks": false
+  },
+  "checks": {
+    "menu": {
+      "status": "OPEN",
+      "reason": "Not reached"
+    },
+    "profile": {
+      "status": "OPEN",
+      "reason": "Not reached"
+    },
+    "ordinaryJoin": {
+      "status": "OPEN",
+      "reason": "Not reached"
+    },
+    "authoritativeSnapshots": {
+      "status": "OPEN",
+      "reason": "Not reached"
+    },
+    "authoritativeInput": {
+      "status": "OPEN",
+      "reason": "Not reached"
+    },
+    "reconnect": {
+      "status": "OPEN",
+      "reason": "Not reached"
+    },
+    "hud": {
+      "status": "OPEN",
+      "reason": "Not reached"
+    },
+    "help": {
+      "status": "OPEN",
+      "reason": "Not reached"
+    },
+    "journalActive": {
+      "status": "OPEN",
+      "reason": "Not reached"
+    },
+    "drawer": {
+      "status": "OPEN",
+      "reason": "Not reached"
+    },
+    "planning": {
+      "status": "OPEN",
+      "reason": "Not reached"
+    },
+    "renderHeartbeat": {
+      "status": "OPEN",
+      "reason": "Not reached"
+    }
+  },
+  "errors": {
+    "pageErrors": [],
+    "unityErrors": [],
+    "observerErrors": []
+  },
+  "screenshots": [],
+  "console": [],
+  "http": [],
+  "loadedArtifactResponses": [],
+  "frames": {
+    "sent": 0,
+    "received": 0,
+    "snapshots": 0
+  },
+  "hellos": [],
+  "welcomes": [],
+  "commands": [],
+  "phases": [],
+  "collectionsKeys": [],
+  "runtimeEvents": [
+    {
+      "event": "failed",
+      "errorType": "NameError"
+    },
+    {
+      "event": "cleanup",
+      "postgresPid": 36867,
+      "postgresPort": 55004,
+      "postgres_port_closed": true,
+      "postgres_stopped": true,
+      "serverPid": 36876,
+      "serverPort": 55005,
+      "server_forced_kill": false,
+      "server_port_closed": true,
+      "server_stopped": true,
+      "staticPort": 55003,
+      "static_port_closed": true,
+      "static_stopped": true,
+      "supervisorPid": 36851
+    }
+  ],
+  "cleanup": {
+    "browserClosed": true,
+    "serverStopped": true,
+    "postgresStopped": true,
+    "noOwnedListeners": true
+  },
+  "limits": {
+    "planningJ": false,
+    "engine25": false,
+    "performance": false,
+    "completeMatchBanking": false
+  },
+  "failure": {
+    "step": "runtime",
+    "message": "Local runtime failed before readiness; private logs retained"
+  },
+  "runtimeCleanup": {
+    "postgresPid": 36867,
+    "postgresPort": 55004,
+    "postgres_port_closed": true,
+    "postgres_stopped": true,
+    "serverPid": 36876,
+    "serverPort": 55005,
+    "server_forced_kill": false,
+    "server_port_closed": true,
+    "server_stopped": true,
+    "staticPort": 55003,
+    "static_port_closed": true,
+    "static_stopped": true,
+    "supervisorPid": 36851
+  },
+  "completedUtc": "2026-11-09T08:04:58.516Z",
+  "contract": {
+    "status": "FAIL",
+    "failures": [
+      "server /info identity is missing",
+      "browser version is missing",
+      "browser renderer is missing",
+      "resolution.width must be a positive integer",
+      "resolution.height must be a positive integer",
+      "resolution.canvasWidth must be a positive integer",
+      "resolution.canvasHeight must be a positive integer",
+      "at least one screenshot is required"
+    ],
+    "open": [
+      "menu",
+      "profile",
+      "ordinaryJoin",
+      "authoritativeSnapshots",
+      "authoritativeInput",
+      "reconnect",
+      "hud",
+      "help",
+      "journalActive",
+      "drawer",
+      "planning",
+      "renderHeartbeat"
+    ]
+  },
+  "status": "FAIL"
+}

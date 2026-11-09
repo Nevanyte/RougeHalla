@@ -1,0 +1,59 @@
+{
+  "step": "failed-runtime",
+  "at": "2026-11-09T08:04:58.456Z",
+  "checks": {
+    "menu": {
+      "status": "OPEN",
+      "reason": "Not reached"
+    },
+    "profile": {
+      "status": "OPEN",
+      "reason": "Not reached"
+    },
+    "ordinaryJoin": {
+      "status": "OPEN",
+      "reason": "Not reached"
+    },
+    "authoritativeSnapshots": {
+      "status": "OPEN",
+      "reason": "Not reached"
+    },
+    "authoritativeInput": {
+      "status": "OPEN",
+      "reason": "Not reached"
+    },
+    "reconnect": {
+      "status": "OPEN",
+      "reason": "Not reached"
+    },
+    "hud": {
+      "status": "OPEN",
+      "reason": "Not reached"
+    },
+    "help": {
+      "status": "OPEN",
+      "reason": "Not reached"
+    },
+    "journalActive": {
+      "status": "OPEN",
+      "reason": "Not reached"
+    },
+    "drawer": {
+      "status": "OPEN",
+      "reason": "Not reached"
+    },
+    "planning": {
+      "status": "OPEN",
+      "reason": "Not reached"
+    },
+    "renderHeartbeat": {
+      "status": "OPEN",
+      "reason": "Not reached"
+    }
+  },
+  "frames": {
+    "sent": 0,
+    "received": 0,
+    "snapshots": 0
+  }
+}

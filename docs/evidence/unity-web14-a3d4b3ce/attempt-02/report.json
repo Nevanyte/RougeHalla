@@ -1,0 +1,1381 @@
+{
+  "schema": "roguehalla-unity-web14-ui-proof/1",
+  "startedUtc": "2026-11-09T08:06:26.252Z",
+  "identities": {
+    "source": "a3d4b3ce575442c9a06916888035ca849a6cd05a",
+    "protocol": 14,
+    "contentHash": "643d294869db55a4",
+    "artifact": {
+      "manifestSha256": "c5a10239a43d339f033de943f28df987401c40226d259290f221f6213acd0434",
+      "fileCount": 14,
+      "verifiedFiles": 14,
+      "bytes": 106765469,
+      "unchangedAfter": true,
+      "buildId": "build_c9711b3ad936",
+      "unity": "6000.0.85f2",
+      "compression": "Disabled",
+      "development": false
+    },
+    "server": {
+      "sha256": "0b08727ba9cc7a5850e10f09e0737042937b865ee47dd29f1afc67abbbc242eb",
+      "info": {
+        "closedRooms": [],
+        "contentHash": "643d294869db55a4",
+        "lobbies": 0,
+        "maxRooms": 16,
+        "players": 0,
+        "protocol": 14,
+        "resultsFailed": 0,
+        "resultsOk": 0,
+        "resultsRefused": 0,
+        "rooms": 0,
+        "state": "ready"
+      },
+      "ownership": {
+        "supervisorPid": 37666,
+        "serverPid": 37763,
+        "postgresPid": 37736,
+        "serverPort": 55259,
+        "postgresPort": 55258,
+        "staticPort": 55257
+      }
+    },
+    "browser": {
+      "version": "156.0.8078.4",
+      "playwright": "1.64.1",
+      "executable": "/Users/nevinmckinnon/Library/Caches/ms-playwright/chromium-1248/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+      "headless": false,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)",
+      "performanceAcceptance": false,
+      "vendor": "Google Inc. (Apple)"
+    },
+    "resolution": {
+      "width": 2560,
+      "height": 1440,
+      "canvasWidth": 2560,
+      "canvasHeight": 1440
+    },
+    "host": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "chip": "Apple M5 Pro",
+      "model": "MacBook Pro",
+      "memory": "64 GB"
+    },
+    "buildProvenance": {
+      "sha256": "bdddc04ac712f16220bd27a674bbd080954e848fb1f60c87ff34468e412756ca",
+      "handoffSha256": "866dbf2c21e6bc3089234b07a0e25392e41414ed707bcd658d61840d74408778",
+      "unity": "6000.0.85f2",
+      "buildId": "build_c9711b3ad936",
+      "development": false
+    },
+    "passiveDecoder": {
+      "source": "a3d4b3ce575442c9a06916888035ca849a6cd05a",
+      "path": "crates/rh-server/web/probe.html",
+      "blockSha256": "0ab7aab9bb5f2ad5de635dccca9a7be04e3a5f5afce13f59fe8c2db560efafbf",
+      "applicationFramesSentByObserver": 0
+    }
+  },
+  "policy": {
+    "ordinary": true,
+    "diagnostic": false,
+    "syntheticProfilesOnly": true,
+    "noWorldInjection": true,
+    "privateWorldHooks": false
+  },
+  "checks": {
+    "menu": {
+      "status": "PASS",
+      "nativeCanvas": true,
+      "noSocketBeforeJoin": true,
+      "screenshot": "01-menu.png"
+    },
+    "profile": {
+      "status": "PASS",
+      "profile": "ui14mw8z9a7t",
+      "calls": [
+        {
+          "path": "/api/profile/ui14mw8z9a7t",
+          "method": "GET",
+          "status": 200,
+          "at": 1794211595831,
+          "profileName": "ui14mw8z9a7t",
+          "created": true,
+          "ownerCredentialReceived": true
+        }
+      ],
+      "screenshot": "02-owned-profile.png",
+      "noFakeResponses": true
+    },
+    "ordinaryJoin": {
+      "status": "PASS",
+      "hello": {
+        "protocol": 14,
+        "contentHash": "643d294869db55a4",
+        "profile": "ui14mw8z9a7t",
+        "build": "unity-web-0.1.0",
+        "faction": 4,
+        "resumed": false,
+        "credentialMatchesOwnedHttpResponse": true,
+        "at": 1794211596940
+      },
+      "welcome": {
+        "protocol": 14,
+        "contentHash": "643d294869db55a4",
+        "player": 1,
+        "tick": 0,
+        "map": {
+          "width": 48,
+          "height": 40,
+          "collisionHash": 477571931,
+          "groundVersion": null
+        },
+        "matchIdentitySha256": "2f91de6e79cd2108a9fa89b2203a8afcdc8150288e94ac661fd996755f9903ea",
+        "at": 1794211596949
+      },
+      "diagnostic": false,
+      "all11Collections": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ]
+    },
+    "authoritativeSnapshots": {
+      "status": "PASS",
+      "before": {
+        "tick": 3,
+        "serverMs": 150
+      },
+      "after": {
+        "tick": 8,
+        "serverMs": 400
+      },
+      "snapshots": 8
+    },
+    "authoritativeInput": {
+      "status": "FAIL",
+      "method": "Real canvas keyboard; actual Unity WebSocket Input and Rust self echo",
+      "before": {
+        "id": 1,
+        "faction": 4,
+        "x": 432,
+        "y": 176,
+        "facing": 0,
+        "hp": 1145,
+        "maxHp": 1145,
+        "status": 1,
+        "weapon": 5,
+        "readyIn": 0,
+        "kills": 0,
+        "bounty": 0,
+        "gv": 0,
+        "moveSeq": 0,
+        "effects": 0,
+        "displaceSeq": 0,
+        "sig": 0,
+        "huntTarget": null,
+        "huntStacks": 0,
+        "wish": null,
+        "barrierBits": 0,
+        "barrierRingStep": 0
+      },
+      "after": {
+        "id": 1,
+        "faction": 4,
+        "x": 542.5,
+        "y": 176,
+        "facing": -2.603379249572754,
+        "hp": 1145,
+        "maxHp": 1145,
+        "status": 1,
+        "weapon": 5,
+        "readyIn": 0,
+        "kills": 0,
+        "bounty": 0,
+        "gv": 0,
+        "moveSeq": 8,
+        "effects": 0,
+        "displaceSeq": 0,
+        "sig": 0,
+        "huntTarget": null,
+        "huntStacks": 0,
+        "wish": null,
+        "barrierBits": 0,
+        "barrierRingStep": 0
+      },
+      "sentMoves": [
+        {
+          "k": "move",
+          "x": 496,
+          "y": 176,
+          "seq": 1,
+          "inputFrame": 288,
+          "at": 1794211604977
+        },
+        {
+          "k": "move",
+          "x": 516.1026000976562,
+          "y": 176,
+          "seq": 2,
+          "inputFrame": 292,
+          "at": 1794211605080
+        },
+        {
+          "k": "move",
+          "x": 535.1304321289062,
+          "y": 176,
+          "seq": 3,
+          "inputFrame": 296,
+          "at": 1794211605185
+        },
+        {
+          "k": "move",
+          "x": 553.4984130859375,
+          "y": 176,
+          "seq": 4,
+          "inputFrame": 301,
+          "at": 1794211605289
+        },
+        {
+          "k": "move",
+          "x": 571.4520874023438,
+          "y": 176,
+          "seq": 5,
+          "inputFrame": 306,
+          "at": 1794211605393
+        },
+        {
+          "k": "move",
+          "x": 589.271240234375,
+          "y": 176,
+          "seq": 6,
+          "inputFrame": 310,
+          "at": 1794211605497
+        },
+        {
+          "k": "move",
+          "x": 606.6214599609375,
+          "y": 176,
+          "seq": 7,
+          "inputFrame": 314,
+          "at": 1794211605601
+        }
+      ]
+    },
+    "reconnect": {
+      "status": "PASS",
+      "beforeWelcomeCount": 1,
+      "afterWelcomeCount": 2,
+      "resumedHello": {
+        "protocol": 14,
+        "contentHash": "643d294869db55a4",
+        "profile": "ui14mw8z9a7t",
+        "build": "unity-web-0.1.0",
+        "faction": 4,
+        "resumed": true,
+        "credentialMatchesOwnedHttpResponse": true,
+        "at": 1794211606718
+      },
+      "welcome": {
+        "protocol": 14,
+        "contentHash": "643d294869db55a4",
+        "player": 1,
+        "tick": 195,
+        "map": {
+          "width": 48,
+          "height": 40,
+          "collisionHash": 477571931,
+          "groundVersion": null
+        },
+        "matchIdentitySha256": "2f91de6e79cd2108a9fa89b2203a8afcdc8150288e94ac661fd996755f9903ea",
+        "at": 1794211606721
+      }
+    },
+    "hud": {
+      "status": "OPEN",
+      "reason": "Actual screenshot produced; visual inspection required",
+      "screenshot": "03-active-hud.png",
+      "actualOwner": {
+        "hp": 1145,
+        "maxHp": 1145,
+        "moveSeq": 8
+      }
+    },
+    "help": {
+      "status": "OPEN",
+      "reason": "Rendered open/close captures require visual inspection",
+      "screenshot": "06-help.png",
+      "unintendedWorldCommands": [],
+      "noWorldCommands": true
+    },
+    "journalActive": {
+      "status": "OPEN",
+      "reason": "Actual current-build active journal capture requires visual inspection",
+      "screenshot": "07-active-journal.png",
+      "noWorldCommands": true,
+      "unintendedWorldCommands": [],
+      "planningJIncluded": false
+    },
+    "drawer": {
+      "status": "OPEN",
+      "reason": "Real routed wheel/click/clipped-area/header captures exist; inspect actual pixels/selection before accepting",
+      "screenshots": [
+        "08-drawer-top.png",
+        "09-drawer-first-selection.png",
+        "10-drawer-scrolled.png",
+        "11-drawer-scrolled-selection.png",
+        "12-drawer-outside-viewport-click.png",
+        "13-drawer-hidden-global-help-click.png",
+        "14-restored-header-help.png"
+      ],
+      "noDirectCanvasMethodCalls": true
+    },
+    "planning": {
+      "status": "OPEN",
+      "reason": "Pinned public server profile has lifecycle Off and quests false; no public planning activation was added or injected.",
+      "observedPhases": [
+        0,
+        1
+      ]
+    },
+    "renderHeartbeat": {
+      "status": "PASS",
+      "before": {
+        "drawCalls": 10774,
+        "drawnRafs": 698,
+        "rafCallbacks": 699,
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)",
+        "vendor": "Google Inc. (Apple)",
+        "trace": {
+          "frameStartCount": 0,
+          "firstFrame": null,
+          "lastFrame": null,
+          "presentedCount": 0
+        },
+        "canvas": {
+          "width": 2560,
+          "height": 1440
+        }
+      },
+      "after": {
+        "drawCalls": 720246,
+        "drawnRafs": 3826,
+        "rafCallbacks": 3827,
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)",
+        "vendor": "Google Inc. (Apple)",
+        "trace": {
+          "frameStartCount": 2708,
+          "firstFrame": 829,
+          "lastFrame": 3536,
+          "presentedCount": 2617
+        },
+        "canvas": {
+          "width": 2560,
+          "height": 1440
+        }
+      },
+      "note": "Functional advancing-frame observation only; no performance acceptance"
+    }
+  },
+  "errors": {
+    "pageErrors": [],
+    "unityErrors": [],
+    "observerErrors": [
+      "Error: response.body: Protocol error (Network.getResponseBody): Request content was evicted from inspector cache\nResponse body is not available for a response that was navigated away from. Read response.body() before triggering any navigation.",
+      "Error: response.body: Protocol error (Network.getResponseBody): Request content was evicted from inspector cache\nResponse body is not available for a response that was navigated away from. Read response.body() before triggering any navigation."
+    ]
+  },
+  "screenshots": [
+    {
+      "path": "01-menu.png",
+      "sha256": "9cff80afe98f90320883441f22b3fa8a21084fa24ab6b589e8e253dafa9caafa",
+      "bytes": 243460,
+      "width": 2560,
+      "height": 1440,
+      "heartbeat": {
+        "drawCalls": 10990,
+        "drawnRafs": 707,
+        "rafCallbacks": 708,
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)",
+        "vendor": "Google Inc. (Apple)",
+        "trace": {
+          "frameStartCount": 0,
+          "firstFrame": null,
+          "lastFrame": null,
+          "presentedCount": 0
+        },
+        "canvas": {
+          "width": 2560,
+          "height": 1440
+        }
+      },
+      "server": null
+    },
+    {
+      "path": "02-owned-profile.png",
+      "sha256": "6484ce2d4fb27cd40579748ef38dc4cadf4228697277064600ba637f8d5043e0",
+      "bytes": 266807,
+      "width": 2560,
+      "height": 1440,
+      "heartbeat": {
+        "drawCalls": 20278,
+        "drawnRafs": 1066,
+        "rafCallbacks": 1067,
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)",
+        "vendor": "Google Inc. (Apple)",
+        "trace": {
+          "frameStartCount": 0,
+          "firstFrame": null,
+          "lastFrame": null,
+          "presentedCount": 0
+        },
+        "canvas": {
+          "width": 2560,
+          "height": 1440
+        }
+      },
+      "server": null
+    },
+    {
+      "path": "03-active-hud.png",
+      "sha256": "2a492092ad8c5db1739a05485853cbac7c47b6ec47a06e681fb5de54a2d72085",
+      "bytes": 2517450,
+      "width": 2560,
+      "height": 1440,
+      "heartbeat": {
+        "drawCalls": 322137,
+        "drawnRafs": 2435,
+        "rafCallbacks": 2436,
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)",
+        "vendor": "Google Inc. (Apple)",
+        "trace": {
+          "frameStartCount": 1305,
+          "firstFrame": 829,
+          "lastFrame": 2133,
+          "presentedCount": 1299
+        },
+        "canvas": {
+          "width": 2560,
+          "height": 1440
+        }
+      },
+      "server": {
+        "tick": 184,
+        "serverMs": 9200,
+        "phase": 1
+      }
+    },
+    {
+      "path": "04-reconnecting.png",
+      "sha256": "eb07108595172ca5986d20151eb96d11ceb0eb8d0cd8e24e26197557e1a5dfb9",
+      "bytes": 2520319,
+      "width": 2560,
+      "height": 1440,
+      "heartbeat": {
+        "drawCalls": 344931,
+        "drawnRafs": 2517,
+        "rafCallbacks": 2518,
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)",
+        "vendor": "Google Inc. (Apple)",
+        "trace": {
+          "frameStartCount": 1391,
+          "firstFrame": 829,
+          "lastFrame": 2219,
+          "presentedCount": 1312
+        },
+        "canvas": {
+          "width": 2560,
+          "height": 1440
+        }
+      },
+      "server": {
+        "tick": 184,
+        "serverMs": 9200,
+        "phase": 1
+      }
+    },
+    {
+      "path": "05-resumed-hud.png",
+      "sha256": "f33cbf5804a0d1ca02b90620c1f4a09c62a3aeccd070f04f049029572c811667",
+      "bytes": 2504934,
+      "width": 2560,
+      "height": 1440,
+      "heartbeat": {
+        "drawCalls": 380442,
+        "drawnRafs": 2643,
+        "rafCallbacks": 2644,
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)",
+        "vendor": "Google Inc. (Apple)",
+        "trace": {
+          "frameStartCount": 1521,
+          "firstFrame": 829,
+          "lastFrame": 2349,
+          "presentedCount": 1430
+        },
+        "canvas": {
+          "width": 2560,
+          "height": 1440
+        }
+      },
+      "server": {
+        "tick": 213,
+        "serverMs": 10650,
+        "phase": 1
+      }
+    },
+    {
+      "path": "06-help.png",
+      "sha256": "3ac3313eee6df4e3d1136ca6a5208e748f701a19152738714585aa468155b18a",
+      "bytes": 2482901,
+      "width": 2560,
+      "height": 1440,
+      "heartbeat": {
+        "drawCalls": 404485,
+        "drawnRafs": 2732,
+        "rafCallbacks": 2733,
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)",
+        "vendor": "Google Inc. (Apple)",
+        "trace": {
+          "frameStartCount": 1607,
+          "firstFrame": 829,
+          "lastFrame": 2435,
+          "presentedCount": 1516
+        },
+        "canvas": {
+          "width": 2560,
+          "height": 1440
+        }
+      },
+      "server": {
+        "tick": 225,
+        "serverMs": 11250,
+        "phase": 1
+      }
+    },
+    {
+      "path": "07-active-journal.png",
+      "sha256": "3040c266dc1c54118b89aeb0fce16251d17d2b5c4462354c71d38f71e5250ebd",
+      "bytes": 2261447,
+      "width": 2560,
+      "height": 1440,
+      "heartbeat": {
+        "drawCalls": 456002,
+        "drawnRafs": 2920,
+        "rafCallbacks": 2921,
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)",
+        "vendor": "Google Inc. (Apple)",
+        "trace": {
+          "frameStartCount": 1794,
+          "firstFrame": 829,
+          "lastFrame": 2622,
+          "presentedCount": 1703
+        },
+        "canvas": {
+          "width": 2560,
+          "height": 1440
+        }
+      },
+      "server": {
+        "tick": 251,
+        "serverMs": 12550,
+        "phase": 1
+      }
+    },
+    {
+      "path": "08-drawer-top.png",
+      "sha256": "7757acac7887c2fff3051f48afbe2b231d551ec406a50270455996c1da5e9f45",
+      "bytes": 2594076,
+      "width": 2560,
+      "height": 1440,
+      "heartbeat": {
+        "drawCalls": 508419,
+        "drawnRafs": 3103,
+        "rafCallbacks": 3104,
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)",
+        "vendor": "Google Inc. (Apple)",
+        "trace": {
+          "frameStartCount": 1974,
+          "firstFrame": 829,
+          "lastFrame": 2802,
+          "presentedCount": 1883
+        },
+        "canvas": {
+          "width": 2560,
+          "height": 1440
+        }
+      },
+      "server": {
+        "tick": 277,
+        "serverMs": 13850,
+        "phase": 1
+      }
+    },
+    {
+      "path": "09-drawer-first-selection.png",
+      "sha256": "f9e72e73f36c2262fcd188c653b58860b44f47742221458ca294350592d8e379",
+      "bytes": 2575526,
+      "width": 2560,
+      "height": 1440,
+      "heartbeat": {
+        "drawCalls": 536634,
+        "drawnRafs": 3198,
+        "rafCallbacks": 3199,
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)",
+        "vendor": "Google Inc. (Apple)",
+        "trace": {
+          "frameStartCount": 2074,
+          "firstFrame": 829,
+          "lastFrame": 2902,
+          "presentedCount": 1983
+        },
+        "canvas": {
+          "width": 2560,
+          "height": 1440
+        }
+      },
+      "server": {
+        "tick": 291,
+        "serverMs": 14550,
+        "phase": 1
+      }
+    },
+    {
+      "path": "10-drawer-scrolled.png",
+      "sha256": "bed7a7a3d326d0ca53be03a99cfc38ccd785fe4033ee6dcfcf349eefdbe17aeb",
+      "bytes": 2597633,
+      "width": 2560,
+      "height": 1440,
+      "heartbeat": {
+        "drawCalls": 589376,
+        "drawnRafs": 3375,
+        "rafCallbacks": 3376,
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)",
+        "vendor": "Google Inc. (Apple)",
+        "trace": {
+          "frameStartCount": 2247,
+          "firstFrame": 829,
+          "lastFrame": 3075,
+          "presentedCount": 2156
+        },
+        "canvas": {
+          "width": 2560,
+          "height": 1440
+        }
+      },
+      "server": {
+        "tick": 315,
+        "serverMs": 15750,
+        "phase": 1
+      }
+    },
+    {
+      "path": "11-drawer-scrolled-selection.png",
+      "sha256": "0bc3d7a40bd020fefd35605ff29c013dd1c3c54ea6377db633fe99ece4dc9bcf",
+      "bytes": 2581311,
+      "width": 2560,
+      "height": 1440,
+      "heartbeat": {
+        "drawCalls": 617686,
+        "drawnRafs": 3470,
+        "rafCallbacks": 3471,
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)",
+        "vendor": "Google Inc. (Apple)",
+        "trace": {
+          "frameStartCount": 2348,
+          "firstFrame": 829,
+          "lastFrame": 3176,
+          "presentedCount": 2257
+        },
+        "canvas": {
+          "width": 2560,
+          "height": 1440
+        }
+      },
+      "server": {
+        "tick": 328,
+        "serverMs": 16400,
+        "phase": 1
+      }
+    },
+    {
+      "path": "12-drawer-outside-viewport-click.png",
+      "sha256": "f9ce9482ce55c164e953259c4b0126e3abd75ffca81073ab8153d4613b506a7f",
+      "bytes": 2595763,
+      "width": 2560,
+      "height": 1440,
+      "heartbeat": {
+        "drawCalls": 646294,
+        "drawnRafs": 3566,
+        "rafCallbacks": 3567,
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)",
+        "vendor": "Google Inc. (Apple)",
+        "trace": {
+          "frameStartCount": 2449,
+          "firstFrame": 829,
+          "lastFrame": 3277,
+          "presentedCount": 2358
+        },
+        "canvas": {
+          "width": 2560,
+          "height": 1440
+        }
+      },
+      "server": {
+        "tick": 342,
+        "serverMs": 17100,
+        "phase": 1
+      }
+    },
+    {
+      "path": "13-drawer-hidden-global-help-click.png",
+      "sha256": "d7527f6a3c8cc04729492d132dbe05c9c6d804608dd89e27c17effdba4ab602d",
+      "bytes": 2597031,
+      "width": 2560,
+      "height": 1440,
+      "heartbeat": {
+        "drawCalls": 674604,
+        "drawnRafs": 3661,
+        "rafCallbacks": 3662,
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)",
+        "vendor": "Google Inc. (Apple)",
+        "trace": {
+          "frameStartCount": 2535,
+          "firstFrame": 829,
+          "lastFrame": 3363,
+          "presentedCount": 2444
+        },
+        "canvas": {
+          "width": 2560,
+          "height": 1440
+        }
+      },
+      "server": {
+        "tick": 355,
+        "serverMs": 17750,
+        "phase": 1
+      }
+    },
+    {
+      "path": "14-restored-header-help.png",
+      "sha256": "1cb6357e45cc4124785f864a561338f0f9a14b392bbfe17eb218292fedf66916",
+      "bytes": 2473171,
+      "width": 2560,
+      "height": 1440,
+      "heartbeat": {
+        "drawCalls": 709505,
+        "drawnRafs": 3788,
+        "rafCallbacks": 3789,
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)",
+        "vendor": "Google Inc. (Apple)",
+        "trace": {
+          "frameStartCount": 2665,
+          "firstFrame": 829,
+          "lastFrame": 3493,
+          "presentedCount": 2574
+        },
+        "canvas": {
+          "width": 2560,
+          "height": 1440
+        }
+      },
+      "server": {
+        "tick": 373,
+        "serverMs": 18650,
+        "phase": 1
+      }
+    }
+  ],
+  "console": [
+    {
+      "type": "log",
+      "text": "[UnityCache] 'http://127.0.0.1:55257/Build/Web.data' successfully downloaded and stored in the browser cache"
+    },
+    {
+      "type": "log",
+      "text": "[UnityMemory] Configuration Parameters - Can be set up in boot.config\n"
+    },
+    {
+      "type": "log",
+      "text": "    \"memorysetup-allocator-temp-initial-block-size-main=262144\"\n"
+    },
+    {
+      "type": "log",
+      "text": "    \"memorysetup-allocator-temp-initial-block-size-worker=262144\"\n"
+    },
+    {
+      "type": "log",
+      "text": "    \"memorysetup-temp-allocator-size-audio-worker=65536\"\n"
+    },
+    {
+      "type": "log",
+      "text": "    \"memorysetup-remapper-allocator-initial-capacity=32768\"\n"
+    },
+    {
+      "type": "log",
+      "text": "    \"memorysetup-temp-allocator-size-background-worker=32768\"\n"
+    },
+    {
+      "type": "log",
+      "text": "    \"memorysetup-bucket-allocator-granularity=16\"\n"
+    },
+    {
+      "type": "log",
+      "text": "    \"memorysetup-bucket-allocator-bucket-count=8\"\n"
+    },
+    {
+      "type": "log",
+      "text": "    \"memorysetup-bucket-allocator-block-size=4194304\"\n"
+    },
+    {
+      "type": "log",
+      "text": "    \"memorysetup-bucket-allocator-block-count=1\"\n"
+    },
+    {
+      "type": "log",
+      "text": "    \"memorysetup-main-allocator-block-size=16777216\"\n"
+    },
+    {
+      "type": "log",
+      "text": "    \"memorysetup-thread-allocator-block-size=16777216\"\n"
+    },
+    {
+      "type": "log",
+      "text": "    \"memorysetup-gfx-main-allocator-block-size=16777216\"\n"
+    },
+    {
+      "type": "log",
+      "text": "    \"memorysetup-gfx-thread-allocator-block-size=16777216\"\n"
+    },
+    {
+      "type": "log",
+      "text": "    \"memorysetup-cache-allocator-block-size=4194304\"\n"
+    },
+    {
+      "type": "log",
+      "text": "    \"memorysetup-typetree-allocator-block-size=2097152\"\n"
+    },
+    {
+      "type": "log",
+      "text": "    \"memorysetup-profiler-bucket-allocator-granularity=16\"\n"
+    },
+    {
+      "type": "log",
+      "text": "    \"memorysetup-profiler-bucket-allocator-bucket-count=8\"\n"
+    },
+    {
+      "type": "log",
+      "text": "    \"memorysetup-profiler-bucket-allocator-block-size=4194304\"\n"
+    },
+    {
+      "type": "log",
+      "text": "    \"memorysetup-profiler-bucket-allocator-block-count=1\"\n"
+    },
+    {
+      "type": "log",
+      "text": "    \"memorysetup-profiler-allocator-block-size=16777216\"\n"
+    },
+    {
+      "type": "log",
+      "text": "    \"memorysetup-profiler-editor-allocator-block-size=1048576\"\n"
+    },
+    {
+      "type": "log",
+      "text": "    \"memorysetup-temp-allocator-size-main=4194304\"\n"
+    },
+    {
+      "type": "log",
+      "text": "    \"memorysetup-job-temp-allocator-block-size=2097152\"\n"
+    },
+    {
+      "type": "log",
+      "text": "    \"memorysetup-job-temp-allocator-block-size-background=1048576\"\n"
+    },
+    {
+      "type": "log",
+      "text": "    \"memorysetup-job-temp-allocator-reduction-small-platforms=262144\"\n"
+    },
+    {
+      "type": "log",
+      "text": "Input System module state changed to: Initialized.\n"
+    },
+    {
+      "type": "log",
+      "text": "[Physics::Module] Initialized fallback backend.\n"
+    },
+    {
+      "type": "log",
+      "text": "[Physics::Module] Id: 0xdecafbad\n"
+    },
+    {
+      "type": "log",
+      "text": "Loading player data from data.unity3d\n"
+    },
+    {
+      "type": "log",
+      "text": "Initialize engine version: 6000.0.85f2 (b028303d8e7d)\n"
+    },
+    {
+      "type": "log",
+      "text": "Creating WebGL 2.0 context."
+    },
+    {
+      "type": "log",
+      "text": "Renderer: WebKit WebGL\n"
+    },
+    {
+      "type": "log",
+      "text": "Vendor:   WebKit\n"
+    },
+    {
+      "type": "log",
+      "text": "Version:  OpenGL ES 3.0 (WebGL 2.0 (OpenGL ES 3.0 Chromium))\n"
+    },
+    {
+      "type": "log",
+      "text": "GLES:     3\n"
+    },
+    {
+      "type": "log",
+      "text": " EXT_clip_control EXT_color_buffer_float EXT_color_buffer_half_float EXT_conservative_depth EXT_depth_clamp EXT_disjoint_timer_query_webgl2 EXT_float_blend EXT_polygon_offset_clamp EXT_render_snorm EXT_texture_compression_bptc EXT_texture_compression_rgtc EXT_texture_filter_anisotropic EXT_texture_mirror_clamp_to_edge EXT_texture_norm16 KHR_parallel_shader_compile NV_shader_noperspective_interpolation OES_draw_buffers_indexed OES_sample_variables OES_shader_multisample_interpolation OES_texture_float_linear WEBGL_blend_func_extended WEBGL_clip_cull_distance WEBGL_compressed_texture_astc WEBGL_compressed_texture_etc WEBGL_compressed_texture_etc1 WEBGL_compressed_texture_pvrtc WEBGL_compressed_texture_s3tc WEBGL_compressed_texture_s3tc_srgb WEBGL_debug_renderer_info WEBGL_debug_shaders WEBGL_lose_context WEBGL_multi_draw WEBGL_polygon_mode WEBGL_provoking_vertex WEBGL_render_shared_exponent WEBGL_stencil_texturing GL_EXT_clip_control GL_EXT_color_buffer_float GL_EXT_color_buffer_half_float GL_EXT_conservative_\n"
+    },
+    {
+      "type": "log",
+      "text": "depth GL_EXT_depth_clamp GL_EXT_disjoint_timer_query_webgl2 GL_EXT_float_blend GL_EXT_polygon_offset_clamp GL_EXT_render_snorm GL_EXT_texture_compression_bptc GL_EXT_texture_compression_rgtc GL_EXT_texture_filter_anisotropic GL_EXT_texture_mirror_clamp_to_edge GL_EXT_texture_norm16 GL_KHR_parallel_shader_compile GL_NV_shader_noperspective_interpolation GL_OES_draw_buffers_indexed GL_OES_sample_variables GL_OES_shader_multisample_interpolation GL_OES_texture_float_linear GL_WEBGL_blend_func_extended GL_WEBGL_clip_cull_distance GL_WEBGL_compressed_texture_astc GL_WEBGL_compressed_texture_etc GL_WEBGL_compressed_texture_etc1 GL_WEBGL_compressed_texture_pvrtc GL_WEBGL_compressed_texture_s3tc GL_WEBGL_compressed_texture_s3tc_srgb GL_WEBGL_debug_renderer_info GL_WEBGL_debug_shaders GL_WEBGL_lose_context GL_WEBGL_multi_draw GL_WEBGL_polygon_mode GL_WEBGL_provoking_vertex GL_WEBGL_render_shared_exponent GL_WEBGL_stencil_texturing\n"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_ENUM: getInternalformatParameter: invalid internalformat"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_ENUM: getInternalformatParameter: invalid internalformat"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_ENUM: getInternalformatParameter: invalid internalformat"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_ENUM: getInternalformatParameter: invalid internalformat"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_ENUM: getInternalformatParameter: invalid internalformat"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_ENUM: getInternalformatParameter: invalid internalformat"
+    },
+    {
+      "type": "log",
+      "text": "OPENGL LOG: Creating OpenGL ES 3.0 graphics device ; Context level  <OpenGL ES 3.0> ; Context handle 1\n"
+    },
+    {
+      "type": "log",
+      "text": "[Physics::Module] Selected backend.\n"
+    },
+    {
+      "type": "log",
+      "text": "[Physics::Module] Name: PhysX\n"
+    },
+    {
+      "type": "log",
+      "text": "[Physics::Module] Id: 0xf2b8ea05\n"
+    },
+    {
+      "type": "log",
+      "text": "[Physics::Module] SDK Version: 4.1.2\n"
+    },
+    {
+      "type": "log",
+      "text": "[Physics::Module] Integration Version: 1.0.0\n"
+    },
+    {
+      "type": "log",
+      "text": "[Physics::Module] Threading Mode: Single-Threaded\n"
+    },
+    {
+      "type": "log",
+      "text": "ERROR: Shader "
+    },
+    {
+      "type": "log",
+      "text": "Hidden/CoreSRP/CoreCopy shader is not supported on this GPU (none of subshaders/fallbacks are suitable)\n"
+    },
+    {
+      "type": "log",
+      "text": "ERROR: Shader "
+    },
+    {
+      "type": "log",
+      "text": "Hidden/Universal/HDRDebugView shader is not supported on this GPU (none of subshaders/fallbacks are suitable)\n"
+    },
+    {
+      "type": "log",
+      "text": "Input System initialize...\n"
+    },
+    {
+      "type": "log",
+      "text": "UnloadTime: 0.500000 ms\n"
+    },
+    {
+      "type": "log",
+      "text": "Audio context resumed after 0.190 seconds."
+    },
+    {
+      "type": "log",
+      "text": "RenderGraph is now enabled.\n"
+    },
+    {
+      "type": "warning",
+      "text": "Manual synchronization of Unity Application.persistentDataPath via JS_FileSystem_Sync() is deprecated and will be later removed in a future Unity version. The persistent data directory will be automatically synchronized instead on file modification. Pass config.autoSyncPersistentDataPath = true; to configuration in createUnityInstance() to opt in to the new behavior."
+    },
+    {
+      "type": "log",
+      "text": "FMOD returns error code 78 (FMOD_ERR_UNIMPLEMENTED) executing getSystemObject"
+    },
+    {
+      "type": "log",
+      "text": "FMOD returns error code 78 (r) executing getSystemObject"
+    },
+    {
+      "type": "log",
+      "text": "FMOD returns error code 36 (FMOD_ERR_INVALID_HANDLE) executing getSoftwareFormat"
+    },
+    {
+      "type": "log",
+      "text": "Trying to get length of sound which is not loaded yet."
+    },
+    {
+      "type": "log",
+      "text": "FMOD returns error code 78 (FMOD_ERR_UNIMPLEMENTED) executing getSystemObject"
+    },
+    {
+      "type": "log",
+      "text": "FMOD returns error code 78 (r) executing getSystemObject"
+    },
+    {
+      "type": "log",
+      "text": "FMOD returns error code 36 (FMOD_ERR_INVALID_HANDLE) executing getSoftwareFormat"
+    },
+    {
+      "type": "log",
+      "text": "Trying to get length of sound which is not loaded yet."
+    },
+    {
+      "type": "log",
+      "text": "[net] Connecting\n"
+    },
+    {
+      "type": "log",
+      "text": "[net] HelloSent\n"
+    },
+    {
+      "type": "log",
+      "text": "[net] InMatch\n"
+    },
+    {
+      "type": "log",
+      "text": "[net] Reconnecting\n"
+    },
+    {
+      "type": "log",
+      "text": "[net] HelloSent\n"
+    },
+    {
+      "type": "log",
+      "text": "[net] InMatch\n"
+    }
+  ],
+  "http": [
+    {
+      "path": "/api/profile/ui14mw8z9a7t",
+      "method": "GET",
+      "status": 200,
+      "at": 1794211595831,
+      "profileName": "ui14mw8z9a7t",
+      "created": true,
+      "ownerCredentialReceived": true
+    },
+    {
+      "path": "/api/profile/ui14mw8z9a7t",
+      "method": "GET",
+      "status": 200,
+      "at": 1794211596925,
+      "profileName": "ui14mw8z9a7t",
+      "created": false,
+      "ownerCredentialReceived": true
+    }
+  ],
+  "loadedArtifactResponses": [
+    {
+      "path": "Build/Web.loader.js",
+      "status": 200,
+      "bytes": 26455,
+      "sha256": "0ffb7b6250fdb5e0c3d55721694f477ab9e60c3945dbc754814ba927e5024d2f",
+      "matchesManifest": true,
+      "contentType": "text/javascript"
+    },
+    {
+      "path": "Build/Web.framework.js",
+      "status": 200,
+      "bytes": 494386,
+      "sha256": "765db272f6c2bf0a5672fdca5a4ca64a50994ed259d2d481e3c90eea15b7feb2",
+      "matchesManifest": true,
+      "contentType": "text/javascript"
+    }
+  ],
+  "frames": {
+    "sent": 410,
+    "received": 403,
+    "snapshots": 367
+  },
+  "hellos": [
+    {
+      "protocol": 14,
+      "contentHash": "643d294869db55a4",
+      "profile": "ui14mw8z9a7t",
+      "build": "unity-web-0.1.0",
+      "faction": 4,
+      "resumed": false,
+      "credentialMatchesOwnedHttpResponse": true,
+      "at": 1794211596940
+    },
+    {
+      "protocol": 14,
+      "contentHash": "643d294869db55a4",
+      "profile": "ui14mw8z9a7t",
+      "build": "unity-web-0.1.0",
+      "faction": 4,
+      "resumed": true,
+      "credentialMatchesOwnedHttpResponse": true,
+      "at": 1794211606718
+    }
+  ],
+  "welcomes": [
+    {
+      "protocol": 14,
+      "contentHash": "643d294869db55a4",
+      "player": 1,
+      "tick": 0,
+      "map": {
+        "width": 48,
+        "height": 40,
+        "collisionHash": 477571931,
+        "groundVersion": null
+      },
+      "matchIdentitySha256": "2f91de6e79cd2108a9fa89b2203a8afcdc8150288e94ac661fd996755f9903ea",
+      "at": 1794211596949
+    },
+    {
+      "protocol": 14,
+      "contentHash": "643d294869db55a4",
+      "player": 1,
+      "tick": 195,
+      "map": {
+        "width": 48,
+        "height": 40,
+        "collisionHash": 477571931,
+        "groundVersion": null
+      },
+      "matchIdentitySha256": "2f91de6e79cd2108a9fa89b2203a8afcdc8150288e94ac661fd996755f9903ea",
+      "at": 1794211606721
+    }
+  ],
+  "commands": [
+    {
+      "k": "move",
+      "x": 496,
+      "y": 176,
+      "seq": 1,
+      "inputFrame": 288,
+      "at": 1794211604977
+    },
+    {
+      "k": "move",
+      "x": 516.1026000976562,
+      "y": 176,
+      "seq": 2,
+      "inputFrame": 292,
+      "at": 1794211605080
+    },
+    {
+      "k": "move",
+      "x": 535.1304321289062,
+      "y": 176,
+      "seq": 3,
+      "inputFrame": 296,
+      "at": 1794211605185
+    },
+    {
+      "k": "move",
+      "x": 553.4984130859375,
+      "y": 176,
+      "seq": 4,
+      "inputFrame": 301,
+      "at": 1794211605289
+    },
+    {
+      "k": "move",
+      "x": 571.4520874023438,
+      "y": 176,
+      "seq": 5,
+      "inputFrame": 306,
+      "at": 1794211605393
+    },
+    {
+      "k": "move",
+      "x": 589.271240234375,
+      "y": 176,
+      "seq": 6,
+      "inputFrame": 310,
+      "at": 1794211605497
+    },
+    {
+      "k": "move",
+      "x": 606.6214599609375,
+      "y": 176,
+      "seq": 7,
+      "inputFrame": 314,
+      "at": 1794211605601
+    },
+    {
+      "k": "stop",
+      "seq": 8,
+      "inputFrame": 316,
+      "at": 1794211605629
+    }
+  ],
+  "phases": [
+    0,
+    1
+  ],
+  "collectionsKeys": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+  ],
+  "runtimeEvents": [
+    {
+      "event": "ready",
+      "postgresDurability": {
+        "fsync": "on",
+        "full_page_writes": "on",
+        "synchronous_commit": "on"
+      },
+      "postgresPid": 37736,
+      "postgresPort": 55258,
+      "serverPid": 37763,
+      "serverPort": 55259,
+      "serverSha256": "0b08727ba9cc7a5850e10f09e0737042937b865ee47dd29f1afc67abbbc242eb",
+      "staticPort": 55257,
+      "supervisorPid": 37666
+    },
+    {
+      "event": "cleanup",
+      "postgresPid": 37736,
+      "postgresPort": 55258,
+      "postgres_port_closed": true,
+      "postgres_stopped": true,
+      "serverPid": 37763,
+      "serverPort": 55259,
+      "server_forced_kill": true,
+      "server_port_closed": true,
+      "server_stopped": true,
+      "staticPort": 55257,
+      "static_port_closed": true,
+      "static_stopped": true,
+      "supervisorPid": 37666
+    }
+  ],
+  "cleanup": {
+    "browserClosed": true,
+    "serverStopped": true,
+    "postgresStopped": true,
+    "noOwnedListeners": true
+  },
+  "limits": {
+    "planningJ": false,
+    "engine25": false,
+    "performance": false,
+    "completeMatchBanking": false
+  },
+  "pageUrl": "http://127.0.0.1:55257/?server=ws%3A%2F%2F127.0.0.1%3A55259%2Fws&accountApi=http%3A%2F%2F127.0.0.1%3A55259%2Fapi",
+  "syntheticProfile": "ui14mw8z9a7t",
+  "finalSource": {
+    "tick": 378,
+    "serverMs": 18900,
+    "phase": 1,
+    "owner": {
+      "id": 1,
+      "faction": 4,
+      "x": 542.5,
+      "y": 176,
+      "facing": -1.1614220142364502,
+      "hp": 1145,
+      "maxHp": 1145,
+      "status": 1,
+      "weapon": 5,
+      "readyIn": 0,
+      "kills": 0,
+      "bounty": 0,
+      "gv": 0,
+      "moveSeq": 8,
+      "effects": 0,
+      "displaceSeq": 0,
+      "sig": 0,
+      "huntTarget": null,
+      "huntStacks": 0,
+      "wish": null,
+      "barrierBits": 0,
+      "barrierRingStep": 0
+    }
+  },
+  "runtimeCleanup": {
+    "postgresPid": 37736,
+    "postgresPort": 55258,
+    "postgres_port_closed": true,
+    "postgres_stopped": true,
+    "serverPid": 37763,
+    "serverPort": 55259,
+    "server_forced_kill": true,
+    "server_port_closed": true,
+    "server_stopped": true,
+    "staticPort": 55257,
+    "static_port_closed": true,
+    "static_stopped": true,
+    "supervisorPid": 37666
+  },
+  "completedUtc": "2026-11-09T08:06:59.233Z",
+  "contract": {
+    "status": "FAIL",
+    "failures": [
+      "check authoritativeInput failed",
+      "errors.observerErrors must be empty"
+    ],
+    "open": [
+      "hud",
+      "help",
+      "journalActive",
+      "drawer",
+      "planning"
+    ]
+  },
+  "status": "FAIL"
+}

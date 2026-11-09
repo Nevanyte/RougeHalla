@@ -1,0 +1,24 @@
+{
+  "schema": "rougehalla-web-build-handoff/1",
+  "source": "a3d4b3ce575442c9a06916888035ca849a6cd05a",
+  "bakedHash": "643d294869db55a4",
+  "protocol": 14,
+  "result": "Succeeded",
+  "artifactRoot": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/builds/protocol14-a3d4b3ce/Web",
+  "artifactManifestSha256": "c5a10239a43d339f033de943f28df987401c40226d259290f221f6213acd0434",
+  "provenanceSha256": "bdddc04ac712f16220bd27a674bbd080954e848fb1f60c87ff34468e412756ca",
+  "evidenceManifestSha256": "f4b2a62837e20658728b612f25d05ea5ff65f62769a66ed2a041b8051266c6ff",
+  "evidenceRoot": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/build-a3d4b3ce-2026-11-09/evidence",
+  "fileCount": 14,
+  "artifactBytes": 106765469,
+  "reviewedBy": [
+    "Luna asset_visual_supply",
+    "Luna legacy_world_inventory"
+  ],
+  "sourceClean": true,
+  "artBranchUnchanged": true,
+  "browserAcceptance": false,
+  "nativeVisualAcceptance": false,
+  "performanceAcceptance": false,
+  "sealedUtc": "2026-11-09T07:00:41.177347+00:00"
+}

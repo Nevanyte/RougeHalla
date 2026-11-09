@@ -1,0 +1,86 @@
+{
+  "before": {
+    "manifestSha256": "c5a10239a43d339f033de943f28df987401c40226d259290f221f6213acd0434",
+    "fileCount": 14,
+    "verifiedFiles": 14,
+    "bytes": 106765469,
+    "unchangedAfter": true,
+    "buildId": "build_c9711b3ad936",
+    "unity": "6000.0.85f2",
+    "compression": "Disabled",
+    "development": false
+  },
+  "files": [
+    {
+      "path": "Build/Web.data",
+      "bytes": 47824411,
+      "sha256": "6dbccacbbcef526fc59a55908d624caaa374b6783370265f74dd90ecbdb10f96"
+    },
+    {
+      "path": "Build/Web.framework.js",
+      "bytes": 494386,
+      "sha256": "765db272f6c2bf0a5672fdca5a4ca64a50994ed259d2d481e3c90eea15b7feb2"
+    },
+    {
+      "path": "Build/Web.loader.js",
+      "bytes": 26455,
+      "sha256": "0ffb7b6250fdb5e0c3d55721694f477ab9e60c3945dbc754814ba927e5024d2f"
+    },
+    {
+      "path": "Build/Web.wasm",
+      "bytes": 58371263,
+      "sha256": "d802f9a9c0fc5ed6a3b4855401d81eb06fa81ee4304345712ffadb36eb1201cd"
+    },
+    {
+      "path": "Licenses/CinzelDecorative-OFL.txt",
+      "bytes": 4393,
+      "sha256": "1e5d6660366ddcfca4f2fc10e2acfba9fa4d97d40aec80d7dbfd41d730a420ae"
+    },
+    {
+      "path": "Licenses/EmojiOne-Attribution.txt",
+      "bytes": 185,
+      "sha256": "4b65f8960e4f4c5c8b35fd139e369265e9bb45667fc16461b2ba01188d464d93"
+    },
+    {
+      "path": "Licenses/Flare-Audio-Notice.txt",
+      "bytes": 1130,
+      "sha256": "64e2de64656079009cfda050f49e1de5075167a387c403f17555c6c651d9b516"
+    },
+    {
+      "path": "Licenses/Flare-CC-BY-SA-3.0.txt",
+      "bytes": 22240,
+      "sha256": "3f941b3b89cf7b8370ceb83cc76d2120d471b58735d8ca60238a751a48d7f72f"
+    },
+    {
+      "path": "Licenses/Flare-Credits.txt",
+      "bytes": 3510,
+      "sha256": "8b0985009dd04911b851553a35941e6862f1df66a6864f9b2a5c7ff330574fbc"
+    },
+    {
+      "path": "Licenses/LiberationSans-OFL.txt",
+      "bytes": 4469,
+      "sha256": "37f8552e9a874ec10710dc0ede6a9adf168e6609fbd02a507f35629373b85a48"
+    },
+    {
+      "path": "Licenses/Roguehalla-MIT.txt",
+      "bytes": 1080,
+      "sha256": "385298d673f01f328553f49d75680ab30254c09d2295171c929fa61efe84b103"
+    },
+    {
+      "path": "Licenses/Third-Party-Assets.md",
+      "bytes": 3566,
+      "sha256": "75994d0600bb013e3a47a78be320b9f4d78e5f4d76a8849e9494793a95b89295"
+    },
+    {
+      "path": "Licenses/Unity-Companion.md",
+      "bytes": 461,
+      "sha256": "6550a14445e6c2116213b2419c4c28b75be4b99039afc8d091ced3192624390c"
+    },
+    {
+      "path": "index.html",
+      "bytes": 7920,
+      "sha256": "3d122f461a72433123a98732aeaf6602377874fabf7e321f1f2740c1ea1b62f5"
+    }
+  ],
+  "unchangedAfter": true
+}
