@@ -56,7 +56,10 @@ cat > /usr/local/sbin/rougehalla-egress-limit <<'LIMIT'
 set -euo pipefail
 iface=$(ip -4 route show default | awk '{for (i = 1; i <= NF; i++) if ($i == "dev") {print $(i+1); exit}}')
 test -n "$iface"
-tc qdisc replace dev "$iface" root tbf rate 8mbit burst 512kb latency 1000ms
+# Game WSS frames and static downloads share TCP 443, so classify per flow, not per port: fq_codel keeps each
+# flow's queue short and serves sparse flows (game frames) ahead of bulk ones (Unity .data/.wasm).
+tc qdisc replace dev "$iface" root handle 1: tbf rate 8mbit burst 512kb latency 50ms
+tc qdisc replace dev "$iface" parent 1:1 handle 10: fq_codel limit 512 target 5ms interval 100ms
 LIMIT
 chmod 0755 /usr/local/sbin/rougehalla-egress-limit
 cat > /etc/systemd/system/rougehalla-egress-limit.service <<'UNIT'

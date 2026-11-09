@@ -21,7 +21,7 @@ from a measurement.
 The Rust/Unity split is sound: the client audit found no damage, hit, cooldown, vision or AI rule computed in Unity. The
 only client-side gameplay code is the sanctioned movement prediction and its pathfinder.
 
-## Wave 1: no owner decision needed (in progress on `claude/peaceful-babbage-rtsgq6`)
+## Wave 1: no owner decision needed (implemented on `claude/peaceful-babbage-rtsgq6`)
 
 | # | Change | Why | Where |
 |---|---|---|---|
@@ -38,6 +38,19 @@ only client-side gameplay code is the sanctioned movement prediction and its pat
 
 Items 7 to 9 edit Unity scene scripts, which cannot be compiled outside the Unity editor; they need an editor build
 before merge.
+
+As built, and what to confirm:
+
+- Item 1 widens the accepted rewind window to `srtt + 150 + 50 + 20` ms, still capped at `MAX_REWIND_MS` (300). From
+  about 80 ms RTT every client gets the full cap, and a client with no RTT sample yet gets 300 ms (was 200). The cap was
+  already reachable by delaying pongs, so nothing new is exploitable, but this is a fairness policy change for the owner
+  to confirm.
+- Item 4 mirrors `speed_milli` and is checked against a C# server model only. A Rust-generated vector for a buffed walk
+  should follow (C-PARITY), and `docs/PLAYER_PREDICTION.md` / P-NET-1 still describe the old reconcile rule.
+- Item 5 measured: recovery after a spike 6440 ms to 3232 ms on a synthetic trace. The 4 s jitter window is unchanged.
+- Item 6 re-sends an unchanged aim every 100 ms, because the server drops aim while stunned or target-locked.
+- Item 10 replaces the 1 s FIFO with a 50 ms token bucket plus `fq_codel`; the `tc` commands were not run on a host.
+- No number in this wave was measured on a real link. Item 2's metrics are the way to get them.
 
 ## Wave 2: needs an owner decision first
 

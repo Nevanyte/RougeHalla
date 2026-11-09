@@ -100,6 +100,57 @@ namespace Roguehalla.Net.Tests
             Assert.LessOrEqual(noisy.TargetDelayMs, RenderClock.MaxDelayMs);
         }
 
+
+        // Snapshots arrive up to 140 ms late at local 3.0 s (a spike, order kept) which drives the target to the 150 ms ceiling. Returns
+        // the ms from the moment the target is back at the floor (the 4 s window has aged the spike out) until the slewing delay
+        // is within 15 ms of it: the part of the recovery this change speeds up.
+        static double RecoveryMs(double maxCatchUp, out double minDelay, out int reversals, out double peakDelay)
+        {
+            var c = new RenderClock { MaxCatchUpShare = maxCatchUp };
+            double targetLow = -1, recovered = -1, last = double.NegativeInfinity, prev = double.NaN, lo = double.MaxValue, peak = 0; int flips = 0, dir = 0;
+            Drive(c, i => i == 40 ? 140 : i == 41 || i == 42 ? 100 : i == 43 ? 60 : i == 44 ? 20 : 0, double.MaxValue, double.MaxValue, 40, (t, r) =>
+            {
+                Assert.GreaterOrEqual(r, last, "render time went backwards"); last = r;
+                if (t > 3000) lo = Math.Min(lo, c.DelayMs);
+                peak = Math.Max(peak, c.DelayMs);
+                if (peak > 140 && targetLow < 0 && c.TargetDelayMs <= RenderClock.MinDelayMs + 5) targetLow = t;
+                if (targetLow >= 0 && recovered < 0 && c.DelayMs <= RenderClock.MinDelayMs + 15) recovered = t - targetLow;
+                if (t > 25000 && !double.IsNaN(prev)) { int d = Math.Sign(Math.Round(c.DelayMs - prev, 3)); if (d != 0) { if (dir != 0 && d != dir) flips++; dir = d; } }
+                prev = c.DelayMs;
+            });
+            minDelay = lo; reversals = flips; peakDelay = peak;
+            return recovered;
+        }
+
+        [Test]
+        public void DelayRecoversFasterAfterAStallWithoutDippingBelowTheFloorOrOscillating()
+        {
+            double minOld, minNew, peakOld, peakNew; int revOld, revNew;
+            double oldMs = RecoveryMs(0.01, out minOld, out revOld, out peakOld), newMs = RecoveryMs(0.04, out minNew, out revNew, out peakNew);
+            Console.WriteLine("recovery ms: constant 1% = " + oldMs + ", adaptive = " + newMs);
+            Assert.Greater(oldMs, 0); Assert.Greater(newMs, 0);
+            Assert.Greater(peakNew, 140); Assert.Greater(peakOld, 140);
+            Assert.Less(newMs, oldMs * 0.6, "old " + oldMs + " new " + newMs);
+            Assert.GreaterOrEqual(minNew, RenderClock.MinDelayMs - 1e-6, "delay below the floor");
+            Assert.LessOrEqual(revNew, 0, "delay oscillates on a steady link");
+        }
+
+        [Test]
+        public void SteadyJitterDoesNotMakeTheDelayOscillate()
+        {
+            var rnd = new Random(11);
+            var c = new RenderClock();
+            double prev = double.NaN, last = double.NegativeInfinity; int flips = 0, dir = 0, frames = 0;
+            Drive(c, i => rnd.NextDouble() * 30, double.MaxValue, double.MaxValue, 40, (t, r) =>
+            {
+                Assert.GreaterOrEqual(r, last); last = r;
+                Assert.GreaterOrEqual(c.DelayMs, RenderClock.MinDelayMs - 1e-6);
+                if (t > 15000) { frames++; if (!double.IsNaN(prev)) { int d = Math.Sign(Math.Round(c.DelayMs - prev, 3)); if (d != 0) { if (dir != 0 && d != dir) flips++; dir = d; } } prev = c.DelayMs; }
+            });
+            // Arrival-phase noise moves the measured delay by a few ms either way, but never in slews of tens of ms.
+            Assert.Less(flips, frames / 20, "flips " + flips + " of " + frames);
+        }
+
         [Test]
         public void StartsAtAHundredMilliseconds()
         {
@@ -154,6 +205,49 @@ namespace Roguehalla.Net.Tests
                 foreach (var f in s.Flush(t)) aims += f.Commands.Count(c => c.Kind == CommandKind.Aim);
             }
             Assert.That(aims, Is.InRange(38, 40));
+        }
+
+
+        [Test]
+        public void UnchangedAimIsNotResentExceptByTheSlowRepeat()
+        {
+            var s = new InputSender();
+            int aims = 0;
+            for (double t = 0; t < 2000; t += 5)
+            {
+                s.Aim(1.25f);
+                foreach (var f in s.Flush(t)) aims += f.Commands.Count(c => c.Kind == CommandKind.Aim);
+            }
+            Assert.That(aims, Is.InRange(20, 21)); // first send plus the 100 ms repeat (server drops aim while stunned or locked), not 40/s
+        }
+
+        [Test]
+        public void ChangedAimIsNeverLostWhileRateLimited()
+        {
+            var s = new InputSender();
+            s.Aim(1f); Assert.AreEqual(1f, s.Flush(0)[0].Commands[0].A);
+            s.Aim(2f); Assert.AreEqual(0, s.Flush(10).Count);
+            s.Aim(1f); // back to the sent value before the gate opened: nothing left to say
+            Assert.AreEqual(0, s.Flush(30).Count);
+            s.Aim(3f);
+            var frames = s.Flush(40);
+            Assert.AreEqual(1, frames.Count); Assert.AreEqual(3f, frames[0].Commands[0].A);
+            s.Aim(4f); Assert.AreEqual(0, s.Flush(50).Count); // gated, still pending
+            frames = s.Flush(65);
+            Assert.AreEqual(4f, frames[0].Commands[0].A);
+            Assert.AreEqual(0, s.Flush(90).Count);
+        }
+
+        [Test]
+        public void IdleFlushAllocatesNothing()
+        {
+            var s = new InputSender();
+            s.Aim(1f); s.Flush(0);
+            for (int i = 0; i < 100; i++) s.Flush(i);
+            s.Aim(1f); s.Flush(1000); // the slow repeat is due here; measure the quiet window that follows it
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            for (int i = 1; i < 200; i++) { s.Aim(1f); s.Flush(1000 + i * 0.4); }
+            Assert.That(GC.GetAllocatedBytesForCurrentThread() - before, Is.LessThan(1024));
         }
 
         [Test]

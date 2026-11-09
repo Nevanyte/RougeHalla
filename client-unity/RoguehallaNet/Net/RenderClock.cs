@@ -5,13 +5,14 @@ namespace Roguehalla.Net
     /// <summary>
     /// Maps the local clock to the server time that remote actors are drawn at ("render time"), a delay behind the newest data.
     /// The delay follows snapshot arrival jitter between 70 and 150 ms. Render time never runs backwards: when more delay is
-    /// needed it slows to 80% speed; when less, it catches up at 1%; it only jumps forward (after a 250 ms gap).
+    /// needed it slows to 80% speed; when less, it catches up at 1% for a gap of 20 ms or less, ramping smoothly to
+    /// <see cref="MaxCatchUpShare"/> (4%) at 80 ms, so a spike's extra delay is gone in seconds, not ten; it only jumps forward (after a 250 ms gap).
     /// </summary>
     public sealed class RenderClock
     {
         public const double MinDelayMs = 70, MaxDelayMs = 150, StartDelayMs = 100, SnapMs = 250;
         const int Window = 80; // about 4 s of snapshots at 20 Hz
-        const double SlowShare = 0.2, CatchUpShare = 0.01;
+        const double SlowShare = 0.2, CatchUpShare = 0.01, RampFromMs = 20, RampSpanMs = 60;
 
         readonly double[] _d = new double[Window];
         readonly double[] _sorted = new double[Window];
@@ -23,6 +24,9 @@ namespace Roguehalla.Net
 
         /// <summary>Server tick interval; the delay must cover one interval plus the arrival jitter to have a complete segment to draw.</summary>
         public double TickMs = 50;
+
+        /// <summary>Catch-up speed-up reached for gaps of 80 ms or more (0.01 reproduces the old constant 1%).</summary>
+        public double MaxCatchUpShare = 0.04;
 
         public bool Ready { get { return _init; } }
         public double TargetDelayMs { get { return _targetDelay; } }
@@ -67,7 +71,12 @@ namespace Roguehalla.Net
             double adv;
             if (diff < 0) adv = dt + Math.Max(diff, -SlowShare * dt);
             else if (diff >= SnapMs) adv = dt + diff;
-            else adv = dt + Math.Min(diff, CatchUpShare * dt);
+            else
+            {
+                double ramp = Math.Min(1, Math.Max(0, (diff - RampFromMs) / RampSpanMs));
+                double share = CatchUpShare + ramp * Math.Max(0, MaxCatchUpShare - CatchUpShare);
+                adv = dt + Math.Min(diff, share * dt);
+            }
             _render += adv;
             return _render;
         }

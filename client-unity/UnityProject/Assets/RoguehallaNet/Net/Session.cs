@@ -474,7 +474,9 @@ namespace Roguehalla.Net
                     if (Motion != null)
                     {
                         if (sourceCut) Motion.RebasePresentationClock(now);
-                        if (_hasMe) Motion.OnSnapshot(snap.Me, now, snap.AckInput);
+                        // Source time aligns the sample with the predicted walk; the owner's speed mirror sets the walk speed.
+                        if (_hasMe) Motion.OnSnapshot(snap.Me, now, snap.AckInput, snap.ServerMs,
+                            _me.OwnerCombat.HasValue ? _me.OwnerCombat.Value.SpeedMilli : (double?)null);
                         else Motion.Clear();
                     }
                     if (sourceCut)

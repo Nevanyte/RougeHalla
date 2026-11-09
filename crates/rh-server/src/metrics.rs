@@ -226,6 +226,22 @@ pub struct Metrics {
     /// Milliseconds from an admit being consumed by a Hello to the room taking the seat (hosted mode only: admits exist
     /// only under `--require-admit`). Recorded by [`Metrics::note_admit_to_seat`].
     pub admit_to_seat_ms: AtomicHistogram,
+    /// Microseconds from an Input frame being decoded on its connection task to the start of the step that applies it
+    /// (one value per seat per step that had input: the age of the oldest Input message that step applies).
+    pub input_age_us: AtomicHistogram,
+    /// Microseconds from the start of the step that produced a tick batch to the connection writer taking that batch
+    /// (after any snapshot encode), and to the socket write of it completing. A batch the writer found already
+    /// coalesced with an older one is measured from the older step.
+    pub step_to_conn_us: AtomicHistogram,
+    pub step_to_written_us: AtomicHistogram,
+    /// Attack/release/cast render times the server bounded by the seat's rewind window, by edge: older than the window
+    /// allows, or later than the sim time the command is applied at. Never labelled by player.
+    pub rewind_clamps_old: Counter,
+    pub rewind_clamps_future: Counter,
+    /// The same clamps by how far past the edge the claim was: `<= 25`, `<= 50`, `<= 100`, `> 100` ms (both edges).
+    pub rewind_clamp_excess: [Counter; 4],
+    /// The largest excess seen, in whole milliseconds (rounded up).
+    pub rewind_clamp_excess_max_ms: AtomicU32,
 }
 
 impl Default for Metrics {
@@ -247,6 +263,13 @@ impl Metrics {
             lateness_us: AtomicHistogram::new(),
             late_steps: Counter::new(),
             admit_to_seat_ms: AtomicHistogram::new(),
+            input_age_us: AtomicHistogram::new(),
+            step_to_conn_us: AtomicHistogram::new(),
+            step_to_written_us: AtomicHistogram::new(),
+            rewind_clamps_old: Counter::new(),
+            rewind_clamps_future: Counter::new(),
+            rewind_clamp_excess: [const { Counter::new() }; 4],
+            rewind_clamp_excess_max_ms: AtomicU32::new(0),
         }
     }
 
@@ -261,10 +284,49 @@ impl Metrics {
         }
     }
 
+    /// A tick batch was taken by its writer / finished writing `since_step` after the start of the step that made it.
+    pub fn note_step_to_conn(&self, since_step: Duration) {
+        self.step_to_conn_us
+            .record(since_step.as_micros().min(u128::from(u32::MAX)) as u32);
+    }
+
+    pub fn note_step_to_written(&self, since_step: Duration) {
+        self.step_to_written_us
+            .record(since_step.as_micros().min(u128::from(u32::MAX)) as u32);
+    }
+
     /// An admit was consumed `took` ago and its seat has now been taken.
     pub fn note_admit_to_seat(&self, took: Duration) {
         self.admit_to_seat_ms
             .record(took.as_millis().min(u128::from(u32::MAX)) as u32);
+    }
+
+    /// Folds the clamps of one input message into the process counters (nothing is touched when there were none).
+    pub fn note_rewind_clamps(&self, stats: &crate::room::rtt::RewindClampStats) {
+        if stats.total() == 0 {
+            return;
+        }
+        let add = |c: &Counter, v: u64| {
+            if v > 0 {
+                c.fetch_add(v, Ordering::Relaxed);
+            }
+        };
+        add(&self.rewind_clamps_old, stats.old_edge.count);
+        add(&self.rewind_clamps_future, stats.future_edge.count);
+        for i in 0..4 {
+            add(
+                &self.rewind_clamp_excess[i],
+                stats.old_edge.excess_buckets[i] + stats.future_edge.excess_buckets[i],
+            );
+        }
+        let max = stats
+            .old_edge
+            .excess_ms_max
+            .max(stats.future_edge.excess_ms_max);
+        self.rewind_clamp_excess_max_ms.fetch_max(
+            max.ceil().min(f64::from(u32::MAX)) as u32,
+            Ordering::Relaxed,
+        );
     }
 
     pub fn json(&self) -> serde_json::Value {
@@ -280,6 +342,18 @@ impl Metrics {
             "latenessUs": self.lateness_us.json(),
             "lateSteps": n(&self.late_steps),
             "admitToSeatMs": self.admit_to_seat_ms.json(),
+            "inputAgeUs": self.input_age_us.json(),
+            "stepToConnUs": self.step_to_conn_us.json(),
+            "stepToWrittenUs": self.step_to_written_us.json(),
+            "rewindClamps": {
+                "oldEdge": n(&self.rewind_clamps_old),
+                "futureEdge": n(&self.rewind_clamps_future),
+                "excessMsLe25": n(&self.rewind_clamp_excess[0]),
+                "excessMsLe50": n(&self.rewind_clamp_excess[1]),
+                "excessMsLe100": n(&self.rewind_clamp_excess[2]),
+                "excessMsGt100": n(&self.rewind_clamp_excess[3]),
+                "excessMsMax": self.rewind_clamp_excess_max_ms.load(Ordering::Relaxed),
+            },
             "rssBytes": rss_bytes(),
             "note": "histogram quantiles are bucket upper bounds (at most 25% above the true value, never below); max is exact",
         })
@@ -436,5 +510,26 @@ mod tests {
         assert_eq!(j["admitToSeatMs"]["count"], 5);
         assert!(j["admitToSeatMs"]["p50"].as_u64().unwrap() >= 40);
         assert_eq!(m.admit_to_seat_ms.max(), u64::from(u32::MAX));
+    }
+
+    #[test]
+    fn rewind_clamps_and_step_latency_reach_the_health_json() {
+        let m = Metrics::new();
+        let mut stats = crate::room::rtt::RewindClampStats::default();
+        m.note_rewind_clamps(&stats); // nothing to fold
+        stats.note(0.0, 1000.0, 300.0, 50.0); // old edge, 700 ms past
+        stats.note(1030.0, 1000.0, 300.0, 50.0); // future edge, 30 ms past
+        m.note_rewind_clamps(&stats);
+        m.note_step_to_conn(Duration::from_micros(800));
+        m.note_step_to_written(Duration::from_micros(1500));
+        let j = m.json();
+        assert_eq!(j["rewindClamps"]["oldEdge"], 1);
+        assert_eq!(j["rewindClamps"]["futureEdge"], 1);
+        assert_eq!(j["rewindClamps"]["excessMsLe50"], 1);
+        assert_eq!(j["rewindClamps"]["excessMsGt100"], 1);
+        assert_eq!(j["rewindClamps"]["excessMsMax"], 700);
+        assert_eq!(j["stepToConnUs"]["count"], 1);
+        assert_eq!(j["stepToWrittenUs"]["max"], 1500);
+        assert_eq!(j["inputAgeUs"]["count"], 0);
     }
 }

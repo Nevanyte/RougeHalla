@@ -194,7 +194,10 @@ namespace Roguehalla.Client
             if (focused || Session == null || Session.State != SessionState.InMatch) return;
             if (_attackHeld) Session.Input.Release(_aimAngle, Session.Clock.RenderMs);
             if (_steering) Session.OrderStop();
+            bool queued = _attackHeld || _steering;
             _attackHeld = _steering = false;
+            // A hidden tab may not run Update again for a long time: send the Release/Stop now, not on the next frame.
+            if (queued) Session.FlushInput();
             Hud?.TacticalMap?.ReleaseTransient();
         }
 
@@ -228,7 +231,17 @@ namespace Roguehalla.Client
             if (soundscape != null) soundscape.ResetTransientCues();
         }
 
-        void PresentFx(ServerMsg.Fx fx) { if (LaunchVerified && Arena != null) Arena.ConfirmedFx(fx); }
+        void PresentFx(ServerMsg.Fx fx)
+        {
+            if (!LaunchVerified || Arena == null) return;
+            // Fx of tick T happened in step T: interpolated remote poses reach it when render time reaches snapshot T's
+            // source time. Anchor on the newest snapshot so a source-time override (epoch cut) is respected.
+            var s = _presentationSession ?? Session;
+            if (s == null) { Arena.ConfirmedFx(fx); return; }
+            var latest = s.Latest;
+            double dueMs = latest != null ? latest.ServerMs + ((double)fx.Tick - latest.Tick) * Wire.TickMs : double.NaN;
+            Arena.ConfirmedFx(fx, s.PlayerId, dueMs);
+        }
 
         void Update()
         {
@@ -367,7 +380,8 @@ namespace Roguehalla.Client
             foreach (var actor in _targetActors)
             {
                 if (actor.Id == Session.PlayerId) continue;
-                var screen = Cam.WorldToScreenPoint(ArenaView.WorldPoint(actor.X, actor.Y));
+                DrawnPosition(actor, out float x, out float y);
+                var screen = Cam.WorldToScreenPoint(ArenaView.WorldPoint(x, y));
                 if (screen.z > 0) LatencyTrace.Mark("targetActor", actor.Id, (int)actor.Kind, screen.x, screen.y);
             }
         }
@@ -380,12 +394,23 @@ namespace Roguehalla.Client
             foreach (var actor in _targetActors)
             {
                 if (actor.Id == Session.PlayerId) continue;
-                var screen = Cam.WorldToScreenPoint(ArenaView.WorldPoint(actor.X, actor.Y));
+                DrawnPosition(actor, out float x, out float y);
+                var screen = Cam.WorldToScreenPoint(ArenaView.WorldPoint(x, y));
                 if (screen.z <= 0) continue;
                 float d = ((Vector2)screen - pointer).sqrMagnitude;
                 if (d < best) { best = d; id = actor.Id; }
             }
             return id;
+        }
+
+        // Hit geometry follows ArenaView.Present: remote players are drawn at this frame's render-time sample (_actors),
+        // NPCs and players not yet in that sample at their newest delivered position.
+        void DrawnPosition(InterpActor newest, out float x, out float y)
+        {
+            x = newest.X; y = newest.Y;
+            if (newest.Kind != ActorKind.Player) return;
+            foreach (var drawn in _actors)
+                if (drawn.Id == newest.Id) { x = drawn.X; y = drawn.Y; return; }
         }
 
         void Present()

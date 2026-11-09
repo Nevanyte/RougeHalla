@@ -20,6 +20,8 @@ proxied. This run uses in-memory profiles/results, so progression is disposable 
   simulation lifetime alone is not an infrastructure cost control.
 - Caddy requires an8Mbit/s egress limiter before starting, including on reboot. Failure to install the limiter prevents
   the public web service from starting. This temporary transfer limit is unrelated to the client performance target.
+  The 8 Mbit/s cap is a `tbf` with a 50 ms queue and a per-flow `fq_codel` child, so game WSS frames (same port 443 as
+  static downloads) are not queued behind bulk Unity bundle downloads. Verify on a host with `tc -s qdisc`.
 - Standard T-class CPU credits prevent unlimited CPU-credit charges. A single host has no automatic relaunch path.
 - Local cleanup still deletes the CloudFormation stack and artifact bucket, and the coordinator removes only its
   temporary marked practice DNS record. Verify termination/volume deletion; the OS timer is not a guarantee against
