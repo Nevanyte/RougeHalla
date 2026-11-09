@@ -50,7 +50,7 @@ namespace Roguehalla.Client
             _content.pivot = new Vector2(.5f, 1);
             var vertical = _content.gameObject.AddComponent<VerticalLayoutGroup>();
             vertical.padding = new RectOffset(10, 10, 10, 10); vertical.spacing = 8;
-            vertical.childAlignment = TextAnchor.UpperCenter; vertical.childControlWidth = true; vertical.childControlHeight = false;
+            vertical.childAlignment = TextAnchor.UpperCenter; vertical.childControlWidth = true; vertical.childControlHeight = true;
             vertical.childForceExpandWidth = true; vertical.childForceExpandHeight = false;
             _content.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
             _scroll.viewport = viewport; _scroll.content = _content;
