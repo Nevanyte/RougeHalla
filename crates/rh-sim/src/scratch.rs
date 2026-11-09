@@ -49,6 +49,10 @@ pub(crate) struct TickScratch {
     pub(crate) action_order: Vec<u32>,
     /// Each slot's place in `action_order` (the rank of kill credit among a victim's hits), by slot.
     pub(crate) rank: Vec<u32>,
+    /// Every present player's canonical `camps_cleared` frozen ONCE at the start of the ledger pass (before any victim or
+    /// deferred payout can increment it), read by slot for outgoing damage and execute/full-versus-without shares. Transient
+    /// pass scratch, never serialized; empty between passes.
+    pub(crate) camps_at_pass_start: Vec<u16>,
     /// Indices of the players standing when this tick's move multipliers were read (legacy `standingCombatants`).
     pub(crate) standing: Vec<FighterIx>,
     /// Their move multipliers, aligned with `standing`: every one is read before anyone moves.
@@ -120,6 +124,7 @@ impl Default for TickScratch {
             bounty_at_tick_start: Vec::with_capacity(p),
             action_order: Vec::with_capacity(p),
             rank: Vec::with_capacity(p),
+            camps_at_pass_start: Vec::with_capacity(p),
             standing: Vec::with_capacity(p),
             mults: Vec::with_capacity(p),
             melee: Vec::with_capacity(p),
@@ -178,7 +183,8 @@ impl TickScratch {
             victims,
             status_active,
             dot_sums,
-            alive
+            alive,
+            camps_at_pass_start
         );
     }
 
@@ -197,6 +203,7 @@ impl TickScratch {
             && self.downed_this_tick.is_empty()
             && self.standing.is_empty()
             && self.mults.is_empty()
+            && self.camps_at_pass_start.is_empty()
             && self.slot_head.iter().all(|&n| n == NONE)
             && self.slot_tail.iter().all(|&n| n == NONE)
     }

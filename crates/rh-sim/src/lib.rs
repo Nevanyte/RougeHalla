@@ -111,3 +111,5 @@ pub use systems::planning::{ArenaView, PlanView, PlanningView, SpawnOptionView};
 
 #[cfg(test)]
 mod card_witness_tests;
+#[cfg(test)]
+mod pack_leader_native_tests;

@@ -285,6 +285,8 @@ struct Pass<'a> {
     bounty_at_tick_start: &'a [u32],
     downed: &'a mut Vec<PlayerId>,
     landed: &'a mut Vec<crate::systems::signatures::LandedHit>,
+    /// The pass-start canonical camps count per player slot (see [`TickScratch::camps_at_pass_start`]).
+    camps_at_pass_start: &'a [u16],
 }
 
 /// One victim's working lists (tick scratch, reused for every victim of the pass).
@@ -380,11 +382,22 @@ fn apply_inner(
         hits,
         dot_sums,
         mark_denials,
+        camps_at_pass_start,
         ..
     } = &mut **s;
+    // Freeze the canonical per-player camps count ONCE for this pass, before any victim or deferred payout can increment it:
+    // outgoing damage AND execute/full-versus-without queries all read this same snapshot by stable player slot.
+    camps_at_pass_start.clear();
+    debug_assert!(
+        camps_at_pass_start.capacity() >= w.players.len(),
+        "camps pass-start scratch capacity is prepared by reserve_actors"
+    );
+    camps_at_pass_start.extend(w.players.iter().map(|p| p.camps_cleared));
     if ledger.is_empty() {
+        camps_at_pass_start.clear();
         return;
     }
+    let camps = camps_at_pass_start.as_slice();
     // Group by victim in order of first appearance (legacy Map insertion order): each entry is chained on its victim's
     // slot, so a pass costs O(entries + victims) however many fighters there are. A victim who is no longer present has no
     // slot and nothing to apply to.
@@ -482,6 +495,7 @@ fn apply_inner(
                     frac,
                     kind,
                     e.critical_mult.unwrap_or(1.),
+                    if w.is_player(i) { camps.get(i.slot()).copied().unwrap_or(0) } else { 0 },
                     streak,
                     probe,
                     false,
@@ -571,6 +585,7 @@ fn apply_inner(
         bounty_at_tick_start,
         downed: downed_this_tick,
         landed,
+        camps_at_pass_start: camps,
     };
     let mut bufs = Bufs {
         idxs,
@@ -596,6 +611,7 @@ fn apply_inner(
     }
     pay_all_with(pass.k, pass.w, pass.ev, pf, pass.stats);
     ledger.clear();
+    camps_at_pass_start.clear();
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -734,6 +750,11 @@ fn apply_victim(
                             victim_frac,
                             kind,
                             e.critical_mult.unwrap_or(1.),
+                            if pass.w.is_player(bix) {
+                                pass.camps_at_pass_start.get(bix.slot()).copied().unwrap_or(0)
+                            } else {
+                                0
+                            },
                         )
                     })
                 }
@@ -971,6 +992,9 @@ fn apply_victim(
     }
 }
 
+#[cfg(test)]
+mod camps_tests;
+
 #[cfg(all(test, feature = "trusted-status-probes"))]
 mod overkill_source_tests;
 
@@ -1132,6 +1156,7 @@ pub(crate) fn apply_declared_hit(
         bounty_at_tick_start: &[],
         downed: &mut downed,
         landed: &mut landed,
+        camps_at_pass_start: &[],
     };
     let hit = Hit {
         terrain: false,
