@@ -1,0 +1,716 @@
+{
+  "runId": 42680383918,
+  "source": "76d170a16158a9709178a741f12bd4abb357201f",
+  "jobs": [
+    {
+      "id": 129372998332,
+      "name": "provenance",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 42680383918,
+      "logs_url": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Run actions/setup-node@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "Accepted card provenance chain is current and unchanged",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4
+        },
+        {
+          "name": "Post Run actions/setup-node@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9
+        }
+      ]
+    },
+    {
+      "id": 129373456702,
+      "name": "csharp",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 42680383918,
+      "logs_url": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Run actions/setup-dotnet@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "Run dotnet test client-unity/RoguehallaNet.Tests",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4
+        },
+        {
+          "name": "Unity copy of the library is up to date",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5
+        },
+        {
+          "name": "Post Run actions/setup-dotnet@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11
+        }
+      ]
+    },
+    {
+      "id": 129373457035,
+      "name": "card-runtime-source",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 42680383918,
+      "logs_url": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Actual card runtime and positive Witness remain byte exact",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7
+        }
+      ]
+    },
+    {
+      "id": 129373457105,
+      "name": "simulation",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 42680383918,
+      "logs_url": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Toolchain (from rust-toolchain.toml)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "Run Swatinem/rust-cache@v2",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4
+        },
+        {
+          "name": "Complete workspace-unified simulation suite, including map generators and documentation",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5
+        },
+        {
+          "name": "Post Run Swatinem/rust-cache@v2",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11
+        }
+      ]
+    },
+    {
+      "id": 129373457287,
+      "name": "rust",
+      "status": "completed",
+      "conclusion": "failure",
+      "run_id": 42680383918,
+      "logs_url": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Initialize containers",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "Toolchain (from rust-toolchain.toml)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4
+        },
+        {
+          "name": "Run Swatinem/rust-cache@v2",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5
+        },
+        {
+          "name": "Run cargo fmt --all --check",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6
+        },
+        {
+          "name": "Run cargo clippy --workspace --all-targets --all-features -- -D warnings",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7
+        },
+        {
+          "name": "Run cargo clippy --workspace --all-targets -- -D warnings",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8
+        },
+        {
+          "name": "Standalone map benchmark builds without Unity or AWS",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9
+        },
+        {
+          "name": "Remaining default workspace tests (full rh-sim suite runs in the simulation job)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10
+        },
+        {
+          "name": "Server with the durable store (every PostgreSQL-backed server test, incl. pg_e2e and the lease conformance suite)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11
+        },
+        {
+          "name": "Durable placement ownership and process recovery (real PostgreSQL and persistent fake)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 12
+        },
+        {
+          "name": "Parity report (Rust vs captured legacy scenarios)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 13
+        },
+        {
+          "name": "Private durable-proof state stays outside Git",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 14
+        },
+        {
+          "name": "Offline staging preparation refuses invalid costs, artifacts and Training spool entries",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 15
+        },
+        {
+          "name": "Headless smoke (real 160x160 map, 8 bots)",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 16
+        },
+        {
+          "name": "Headless smoke (full gameplay map layers, 8 bots)",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 17
+        },
+        {
+          "name": "JS probe decoder vs the golden vectors",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 18
+        },
+        {
+          "name": "Run actions/setup-node@v4",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 19
+        },
+        {
+          "name": "Run npm ci",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 20
+        },
+        {
+          "name": "Composed bot, quest, trade, telemetry and fair-view witnesses remain byte exact",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 21
+        },
+        {
+          "name": "Heal-barrier callers and victim Frost resistance remain source exact",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 22
+        },
+        {
+          "name": "Bounded Frost NPC recipients, weapon draws and return paths remain source exact",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 23
+        },
+        {
+          "name": "Human Wish and Trophy source witnesses remain byte exact",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 24
+        },
+        {
+          "name": "Human quest and trader doors, schema and receivers remain source exact",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 25
+        },
+        {
+          "name": "First-playable cards, constructor, potions and PvE still match the actual source",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 26
+        },
+        {
+          "name": "Pure stat fold still matches the actual source",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 27
+        },
+        {
+          "name": "Complete card catalog and reward selection still match the actual source",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 28
+        },
+        {
+          "name": "Terrain player and source-born NPC witnesses remain byte exact",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 29
+        },
+        {
+          "name": "Bounded terrain kernel and collision allocation checks",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 30
+        },
+        {
+          "name": "Planning and arena source witnesses remain byte exact",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 31
+        },
+        {
+          "name": "All five Wish source witnesses remain byte exact",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 32
+        },
+        {
+          "name": "Bounded native Wishes retain source behavior and warmed allocations",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 33
+        },
+        {
+          "name": "Pure mob catalog and rosters still match the actual source",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 34
+        },
+        {
+          "name": "Status runtime matches all four frozen source corpora",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 35
+        },
+        {
+          "name": "Status source corpora and nested admission remain exact",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 36
+        },
+        {
+          "name": "Durable achievement rules still match the legacy evaluator",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 37
+        },
+        {
+          "name": "Shop catalog and validated look words still match the legacy reference",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 38
+        },
+        {
+          "name": "Ending metadata still matches the legacy room and store",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 39
+        },
+        {
+          "name": "Plague ledger and hidden-history proofs still match the actual source",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 40
+        },
+        {
+          "name": "Fire ledger and hidden-instant proofs still match the actual source",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 41
+        },
+        {
+          "name": "Frost helpers and installed runtime still match the actual source",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 42
+        },
+        {
+          "name": "Sentenced runtime, denial and public proofs still match the actual source",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 43
+        },
+        {
+          "name": "Map foundations still match the legacy reference",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 44
+        },
+        {
+          "name": "Full map exports still match the legacy reference",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 45
+        },
+        {
+          "name": "Zone partitions still match the legacy reference",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 46
+        },
+        {
+          "name": "Initial camps and territories still match the legacy reference",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 47
+        },
+        {
+          "name": "Attempt prefixes still match the actual legacy generator",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 48
+        },
+        {
+          "name": "Spawn stages still match the actual legacy generator",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 49
+        },
+        {
+          "name": "Elite bushes still match the actual legacy generator",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 50
+        },
+        {
+          "name": "Whole-wall landmark runtime still matches the actual legacy generator",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 51
+        },
+        {
+          "name": "Landmark templates and stamps still match the actual legacy generator",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 52
+        },
+        {
+          "name": "Landmark search and scoped cache still match the actual legacy generator",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 53
+        },
+        {
+          "name": "Landmark recipe support still matches the actual legacy helpers",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 54
+        },
+        {
+          "name": "Scorch and Gallows recipes still match the actual legacy callbacks",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 55
+        },
+        {
+          "name": "Rime Sanctum and Warren recipes still match the actual legacy callbacks",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 56
+        },
+        {
+          "name": "Ordered landmark admission and masks still match the actual generator",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 57
+        },
+        {
+          "name": "Final map records still match the actual generator",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 58
+        },
+        {
+          "name": "Camp crate and ground placement still match the actual generator",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 59
+        },
+        {
+          "name": "Crate ownership preserves source Uint16 IDs",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 60
+        },
+        {
+          "name": "Safety nets and territory repair still match the actual generator",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 61
+        },
+        {
+          "name": "Terrain cleanup loot decor and final shape gate still match the actual generator",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 62
+        },
+        {
+          "name": "Ordered terrain validation still matches the actual source",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 63
+        },
+        {
+          "name": "Exact map hash and Number strings still match the actual source",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 64
+        },
+        {
+          "name": "Independent hard-map certificate still matches the actual source",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 65
+        },
+        {
+          "name": "Stage-six guarded runtime still matches the actual source",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 66
+        },
+        {
+          "name": "Style feature search and geometry still match the actual source",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 67
+        },
+        {
+          "name": "Holy style callbacks still match the actual source",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 68
+        },
+        {
+          "name": "Warren style callbacks still match the actual source",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 69
+        },
+        {
+          "name": "Scorch style callbacks still match the actual source",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 70
+        },
+        {
+          "name": "Rime style callbacks still match the actual source",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 71
+        },
+        {
+          "name": "Gallows style callbacks still match the actual source",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 72
+        },
+        {
+          "name": "Generator style contract and original pool hazards still match the actual source",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 73
+        },
+        {
+          "name": "Styled attempt streams options and retry wrappers still match the actual source",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 74
+        },
+        {
+          "name": "Five-faction dispatch and original OPEN pins still match the actual source",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 75
+        },
+        {
+          "name": "Complete styled pipeline and original pins still match the actual source",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 76
+        },
+        {
+          "name": "Complete plain pipeline and original pins still match the actual source",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 77
+        },
+        {
+          "name": "Browser proof (Chromium over WSS)",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 78
+        },
+        {
+          "name": "Post Run Swatinem/rust-cache@v2",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 154
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 155
+        },
+        {
+          "name": "Stop containers",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 156
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 157
+        }
+      ]
+    }
+  ]
+}

@@ -7,7 +7,8 @@ passes both workspace lint configurations, formatting, remaining default tests, 
 suites, and the parity report. It then **fails** the offline staging preparation step:13/14 checks pass, while
 `test_actual_frozen_native_configuration_is_pinned` compares current `runtime.rs` against an older frozen base.
 The exact [step15 excerpt](rust-step15.log) is retained. This run is not green; subsequent Rust-job source,
-headless, decoder and browser steps are skipped. Simulation was still running when this diagnosis was recorded.
+headless, decoder and browser steps are skipped. The subsequent terminal [job snapshot](jobs.json) records simulation
+PASS too: four jobs pass, Rust fails only at the described offline preparation step.
 
 The failure is current SHA256 `e90c5037ce04ba35d83da65e8b4030a070015ad3de3745d2ca27f3aa77df7e8f`
 versus frozen `a3d52a5595b4e2c489784aa8e4e8bcc8a7b1f3c7cfca6685bb20a7bedaa6d7bf` for
