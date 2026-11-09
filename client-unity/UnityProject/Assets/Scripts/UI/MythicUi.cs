@@ -11,6 +11,8 @@ namespace Roguehalla.Client
     public static class MythicUi
     {
         public enum ButtonStyle { Primary, Secondary, Quiet }
+        public static readonly Color32 HoverFill = new Color32(62, 78, 98, 255);
+        public static readonly Color32 SelectedFill = new Color32(90, 64, 28, 255);
         const float BackdropOpacity = 200f / 255f;
 
         // UI backing only: shared world-art colors and child text/icons keep their own opacity.
@@ -89,6 +91,7 @@ namespace Roguehalla.Client
             var text = rect.gameObject.AddComponent<TextMeshProUGUI>();
             text.font = heading ? HeadingFont : Font;
             text.text = value ?? "";
+            text.richText = false;
             text.fontSize = fontSize; text.fontSizeMin = Mathf.Max(9, fontSize * .72f); text.fontSizeMax = fontSize;
             text.enableAutoSizing = true; text.color = color ?? ShowcasePalette.Text;
             text.alignment = alignment; text.enableWordWrapping = true;

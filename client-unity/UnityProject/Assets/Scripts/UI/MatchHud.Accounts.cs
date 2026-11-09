@@ -14,6 +14,10 @@ namespace Roguehalla.Client
         AccountHubSnapshot _accountShown;
         HubGuideView _hubGuide;
         HubAtriumView _atrium;
+        HubProgressView _hubProgress;
+        AccountRecoveryView _recovery;
+        HubCosmeticsView _hubCosmetics;
+        bool AnyHubPanelVisible => (_recovery != null && _recovery.IsVisible) || (_hubGuide != null && _hubGuide.IsVisible) || (_hubProgress != null && _hubProgress.IsVisible) || (_hubCosmetics != null && _hubCosmetics.IsVisible);
         public string OwnershipKey => _ownershipKey != null ? _ownershipKey.text : "";
         public string PlaytestPasscode => _passcode != null ? _passcode.text : "";
 
@@ -21,7 +25,7 @@ namespace Roguehalla.Client
         {
             _menu = Panel(_root, "JoinMenu", .015f, .17f, .35f, .91f);
             Text(_menu, "Title", "ROGUEHALLA", .06f, .90f, .94f, .99f, 28).color = ShowcasePalette.Gold;
-            Text(_menu, "Intro", "Choose your name and faction. Plan your run.", .06f, .82f, .94f, .90f, 14);
+            Button(_menu, "OpenProfileRecords", "PROFILE & RECORDS", .06f, .82f, .94f, .90f, () => OpenProgress(HubProgressTab.Profile));
             _nickname = Input(_menu, _client.Profile, .06f, .72f, .68f, .81f);
             _loadProfile = Button(_menu, "LoadProfile", "LOAD", .71f, .72f, .94f, .81f,
                 () => _client.OpenProfile(_nickname.text, OwnershipKey, PlaytestPasscode));
@@ -51,27 +55,40 @@ namespace Roguehalla.Client
             Text(_signIn, "PasscodeHint", "Playtest access code, if required", .06f, .33f, .94f, .44f, 16);
             _passcode = Input(_signIn, "", .06f, .20f, .94f, .32f);
             _passcode.name = "PlaytestAccessCode"; _passcode.characterLimit = 256; _passcode.contentType = TMP_InputField.ContentType.Password;
-            Button(_signIn, "SignInDone", "DONE", .28f, .035f, .72f, .16f, () => SetSignInVisible(false));
+            Button(_signIn, "SignInDone", "DONE", .06f, .035f, .48f, .16f, () => SetSignInVisible(false));
+            Button(_signIn, "OpenRecovery", "RECOVERY KEY", .52f, .035f, .94f, .16f, OpenRecovery);
             SetSignInVisible(false);
             _nickname.onValueChanged.AddListener(name => { _client.SelectProfile(name); _ownershipKey.text = ""; });
         }
         void SetSignInVisible(bool visible)
         {
             _signIn.gameObject.SetActive(visible); _signInBackdrop.gameObject.SetActive(visible);
-            if (visible) _signInBackdrop.SetAsLastSibling();
+            if (visible) { _recovery?.SetVisible(false); _signInBackdrop.SetAsLastSibling(); }
         }
         void InitializeHubGuides()
         {
             _hubGuide = gameObject.AddComponent<HubGuideView>(); _hubGuide.Initialize(_root, SetFaction);
             _hubGuide.RefreshScale(_showcaseSettings.TextScale);
+            _recovery = gameObject.AddComponent<AccountRecoveryView>(); _recovery.Initialize(_root, _client.AccountFlow, ReadRecoveryKey);
+            _hubProgress = gameObject.AddComponent<HubProgressView>(); _hubProgress.Initialize(_root, _client.AccountOwner);
+            _hubCosmetics = gameObject.AddComponent<HubCosmeticsView>(); _hubCosmetics.Initialize(_root, _client.AccountOwner);
             _atrium = gameObject.AddComponent<HubAtriumView>(); _atrium.Initialize(_root, destination =>
             {
                 if (!_menu.gameObject.activeSelf || _signIn.gameObject.activeSelf || _settings.gameObject.activeSelf) return;
+                CloseHubPanels();
                 if (destination == HubDestination.Champions) _hubGuide.ShowTab(HubGuideView.GuideTab.Champions);
                 else if (destination == HubDestination.Weapons) _hubGuide.ShowTab(HubGuideView.GuideTab.Weapons);
                 else if (destination == HubDestination.Counters) _hubGuide.ShowTab(HubGuideView.GuideTab.Counters);
+                else if (destination == HubDestination.Achievements) OpenProgress(HubProgressTab.Achievements);
+                else if (destination == HubDestination.Leaderboard) OpenProgress(HubProgressTab.Leaderboard);
+                else if (destination == HubDestination.Shop) OpenCosmetics(HubCosmeticsTab.Shop);
+                else if (destination == HubDestination.Wardrobe) OpenCosmetics(HubCosmeticsTab.Wardrobe);
+                else if (destination == HubDestination.Titles) OpenCosmetics(HubCosmeticsTab.Titles);
             });
             _atrium.SetFaction(_faction);
+            bool services = _client.AccountOwner?.Api != null;
+            foreach (var destination in new[] { HubDestination.Shop, HubDestination.Wardrobe, HubDestination.Titles, HubDestination.Achievements, HubDestination.Leaderboard })
+                _atrium.SetStationAvailable(destination, services, services ? "Open " + destination + "." : "Account services are unavailable for this connection.");
             var close = _root.Find("HubAtrium/CloseAtrium"); if (close != null) close.gameObject.SetActive(false);
         }
         void TickHubAtrium()
@@ -80,8 +97,35 @@ namespace Roguehalla.Client
             bool menu = _menu.gameObject.activeSelf;
             _atrium.SetVisible(menu);
             if (!menu) return;
-            bool focusedControl = UnityEngine.EventSystems.EventSystem.current != null && UnityEngine.EventSystems.EventSystem.current.currentSelectedGameObject != null;
-            _atrium.ReadInput(!Typing && !_signIn.gameObject.activeSelf && !_settings.gameObject.activeSelf && !_hubGuide.IsVisible && !_help.gameObject.activeSelf);
+            _atrium.ReadInput(!Typing && !_signIn.gameObject.activeSelf && !_settings.gameObject.activeSelf && !AnyHubPanelVisible && !_help.gameObject.activeSelf);
+        }
+
+        void CloseHubPanels()
+        {
+            _recovery?.SetVisible(false); _hubGuide?.SetVisible(false); _hubProgress?.SetVisible(false); _hubCosmetics?.SetVisible(false);
+        }
+        bool ReadRecoveryKey(out string name, out string key)
+        {
+            name = key = "";
+            return _client?.AccountOwner != null && _client.AccountOwner.TryGetRecoveryKey(out name, out key);
+        }
+        void OpenRecovery()
+        {
+            if (_recovery == null) return;
+            SetSignInVisible(false); CloseHubPanels(); _recovery.SetVisible(true);
+            MythicUi.ApplyTextScale(_recovery.Root, _showcaseSettings.TextScale);
+        }
+        void OpenProgress(HubProgressTab tab)
+        {
+            if (_hubProgress == null) return;
+            CloseHubPanels(); _hubProgress.Show(tab); _hubProgress.SetVisible(true);
+            MythicUi.ApplyTextScale(_hubProgress.Root, _showcaseSettings.TextScale);
+        }
+        void OpenCosmetics(HubCosmeticsTab tab)
+        {
+            if (_hubCosmetics == null) return;
+            CloseHubPanels(); _hubCosmetics.Show(tab); _hubCosmetics.SetVisible(true);
+            _hubCosmetics.RefreshScale(_showcaseSettings.TextScale);
         }
 
         void RefreshAccountMenu()
@@ -94,7 +138,7 @@ namespace Roguehalla.Client
                 if (state?.Profile != null)
                 {
                     var p = state.Profile;
-                    _profileSummary.text = "GV " + p.Gv.ToString("N0") + " · Lifetime " + p.GvLifetime.ToString("N0") +
+                    _profileSummary.text = p.Name + "\nGV " + p.Gv.ToString("N0") + " · Lifetime " + p.GvLifetime.ToString("N0") +
                         "\nRuns " + p.Runs + " · Wins " + p.Wins + " · Draws " + p.Draws + "\nDeaths " + p.Deaths + " · Kills " + p.Kills;
                 }
                 else _profileSummary.text = "Enter a callsign to load or claim it.\nYour saved ownership stays on this device.";
@@ -108,7 +152,7 @@ namespace Roguehalla.Client
                 if (busy) status = state.State == AccountHubState.PreparingJoin ? "Checking your profile and joining…" : state.State == AccountHubState.Refreshing ? "Refreshing your profile…" : "Loading your profile…";
                 else if (state.ConnectionFailure != AccountConnectionFailure.None) status = "The account and match server addresses do not match. Check the connection settings.";
                 else if (state.Failure != AccountFailure.None && state.Failure != AccountFailure.Cancelled) status = AccountFailureText(state.Failure);
-                else if (state.Recovery == AccountCredentialRecovery.PageLifetimeOnly) status = "This browser could not save your ownership. Keep your sign-in key before closing this page.";
+                else if (state.Recovery == AccountCredentialRecovery.PageLifetimeOnly) status = "This browser could not save your ownership. Open Sign-in options → Recovery key and save it before closing this page.";
                 else if (state.Profile != null) status = "Profile loaded. Choose a faction and start your run.";
             }
             if (_accountStatus.text != status) _accountStatus.text = status;
