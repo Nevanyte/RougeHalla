@@ -199,8 +199,8 @@ namespace Roguehalla.Client.Tests
                     }
                     finally
                     {
-                        EventSystem.current = _previousEvents;
-                        Assert.That(_previousEvents == null || EventSystem.current == _previousEvents,
+                        if (_previousEvents != null && EventSystem.current != _previousEvents) EventSystem.current = _previousEvents;
+                        Assert.That(EventSystem.current == _previousEvents,
                             "the fixture must restore the previously current EventSystem");
                     }
                 }
