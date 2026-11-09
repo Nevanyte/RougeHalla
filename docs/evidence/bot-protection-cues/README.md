@@ -1,4 +1,11 @@
-# Protection/cues finite source witness — CODE-ONLY PREPARATION (UNRUN)
+# Protection/cues finite source witness
+
+The [first actual source capture](root-first-capture/README.md) now passes11/11 cases at exact4fe7, with full replayable
+Frame histories and one separate readonly consistency pass. Controls, independent frozen reproduction, native comparison
+and P15/public/full-Brain admission remain held. The code-ready design below records the historical pre-execution4fe7
+state; its UNRUN labels are superseded only within the explicit first-capture receipt's scope.
+
+## Historical code-ready4fe7 design
 
 Status: repaired CODE-ONLY / source capture UNRUN. The earlier9cf code-only proposal is preserved in Git.
 Root transferred the technical repairs to two Codex specialists, with independent cross-reviews and no
