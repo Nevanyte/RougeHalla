@@ -1,0 +1,97 @@
+{
+  "sourceCommit": "e0da2de0b5100d979901aa5e20cc3d8f964e0626",
+  "parentMerge": "6a61b069f7928c4dc4f571f13c0d994270a8fdd1",
+  "actualSettlementProofBase": "1a7774e4b23b5f10a0ab3a1b687a2dec5bbf21f4",
+  "reviewedTrainingLeaf": "70d176c3d29a5e13749ed536905130042d613eb0",
+  "branch": "codex/unity-training-integration",
+  "worktree": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-training-integration",
+  "scope": "14source/meta paths; sharedHUD/clientintegration+OpenStateChangedleafnotification+13wiringmethods+7newmetas. No protocol/server/gameplay/settings/package/art/audio changes.",
+  "managedResult": {
+    "passed": 826,
+    "failed": 0,
+    "skipped": 0
+  },
+  "editorClientCompile": {
+    "errors": 0,
+    "warnings": 0
+  },
+  "playerClientCompile": {
+    "errors": 0,
+    "warnings": 0
+  },
+  "editorTestSourceCompile": {
+    "errors": 0,
+    "warnings": 1,
+    "existingWarning": "CS0067 MatchHudTrophyEditModeTests.cs:116"
+  },
+  "editorTestExecution": "UNRUN atsourcee0da; currentcombinedtypedcontractprovidedseparately",
+  "machine": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "release": "25.6.0"
+  },
+  "invoked": {
+    "dotnetManagedTests": true,
+    "managedCompilationAgainstUnityDlls": true,
+    "UnityEditor": false,
+    "PlayMode": false,
+    "nativeTests": false,
+    "browser": false,
+    "WebBuild": false,
+    "server": false,
+    "cloud": false
+  },
+  "compileReproductionCommands": [
+    [
+      "/Users/nevinmckinnon/.dotnet/dotnet",
+      "build",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-training-integration-2026-11-09/profiles/editor/Client.csproj",
+      "-t:Rebuild",
+      "-v",
+      "minimal"
+    ],
+    [
+      "/Users/nevinmckinnon/.dotnet/dotnet",
+      "build",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-training-integration-2026-11-09/profiles/editor/Tests.csproj",
+      "-t:Rebuild",
+      "-v",
+      "minimal"
+    ],
+    [
+      "/Users/nevinmckinnon/.dotnet/dotnet",
+      "build",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-training-integration-2026-11-09/profiles/player/Client.csproj",
+      "-t:Rebuild",
+      "-v",
+      "minimal"
+    ]
+  ],
+  "managedCommand": [
+    "/Users/nevinmckinnon/.dotnet/dotnet",
+    "test",
+    "client-unity/RoguehallaNet.Tests/RoguehallaNet.Tests.csproj",
+    "--logger",
+    "trx;LogFileName=training-integration-managed.trx",
+    "--results-directory",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-training-integration-2026-11-09/logs",
+    "-v",
+    "minimal"
+  ],
+  "inputClockEvidence": {
+    "api": "UnityEngine.InputSystem.LowLevel.InputState.updateCount",
+    "source": "UnityInputSystempackage/InputSystem/Runtime/State/InputState.cs:33",
+    "meaning": "same public update count used by inputedges; no use of Editor frameCount or private InputSystem mutation in productcode"
+  },
+  "testInputSetup": "Only the new fixture temporarily clonesInputSettings and enables the same player-updates-in-EditMode feature as prior admittedinputfixtures; restores identity/flags/devices/EventSystem/map-preference/lights. No productsettings edits.",
+  "layoutStatus": "PROPOSED observation checklist only; no generatedimage/visualacceptance/backend-application claim.",
+  "combinedSourceDeclaredContract": {
+    "prior64": 64,
+    "leafSelectors": 5,
+    "leafView": 8,
+    "integration": 13,
+    "total": 90,
+    "status": "UNRUN at current source; public native discovery binding still required"
+  },
+  "exactUnityNetProtocolMirrorCount": 29
+}

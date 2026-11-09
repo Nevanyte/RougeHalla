@@ -1,0 +1,266 @@
+#if UNITY_EDITOR
+// Native layout observer preparation; no product-source import. Only execute after the frozen90 native PASS.
+using System; using System.Collections.Generic; using System.Reflection; using System.Threading; using System.Threading.Tasks; using Roguehalla.Client; using Roguehalla.Net; using Roguehalla.Net.Protocol; using TMPro; using UnityEditor; using UnityEditor.SceneManagement; using UnityEngine.SceneManagement; using SessionState = Roguehalla.Net.SessionState; using UnityEngine; using UnityEngine.EventSystems; using UnityEngine.InputSystem.UI; using UnityEngine.UI;
+public sealed class TrainingLayoutStage {
+    public sealed class StageState {
+        public readonly string RootName;
+        public readonly GameObject Root;
+        public readonly MatchClient Client;
+        public readonly MatchHud Hud;
+        public readonly TrainingConsoleView Console;
+        public readonly Canvas Canvas;
+        public readonly CanvasScaler Scaler;
+        public readonly EventSystem Events;
+        public bool Ready { get; internal set; }
+        public string[] CleanupErrors { get; internal set; } = Array.Empty<string>();
+        public string Error { get; internal set; }
+        internal readonly EventSystem PriorEvents;
+        internal readonly GameObject PriorSelection;
+        internal readonly float PriorTextScale;
+        internal readonly bool HadTextScalePref;
+        internal readonly float TextScalePref;
+        internal readonly bool HadProfilePref;
+        internal readonly string ProfilePref;
+        internal readonly StageTransport Transport;
+        internal bool WelcomeDelivered, SnapshotDelivered, Closed;
+        internal int Updates;
+        public readonly Camera Camera;
+        internal MapBlob Map;
+        internal StageState(string name, GameObject root, MatchClient client, MatchHud hud,
+            EventSystem events, EventSystem priorEvents, GameObject priorSelection,
+            StageTransport transport, MapBlob map, Camera camera, float priorScale, bool hadPref, float pref, bool hadProfile, string profilePref)
+        {
+            RootName=name; Root=root; Client=client; Hud=hud; Console=hud.TrainingConsole;
+            Canvas=root.transform.Find("MatchUI").GetComponent<Canvas>();
+            Scaler=Canvas.GetComponent<CanvasScaler>(); Events=events; Camera=camera;
+            PriorEvents=priorEvents; PriorSelection=priorSelection; Transport=transport; Map=map;
+            PriorTextScale=priorScale; HadTextScalePref=hadPref; TextScalePref=pref;
+            HadProfilePref=hadProfile; ProfilePref=profilePref;
+        }
+        public RectTransform ConsoleRoot => Console != null ? Console.Root : null;
+        public RectTransform Panel => Console != null ? Console.Panel : null; public float CanvasScaleFactor => Canvas != null ? Canvas.scaleFactor : 0;
+        public bool Open() => Ready && Console != null && Console.SetOpen(true);
+        public bool ClosePanel() => Console != null && Console.SetOpen(false);
+        public bool SelectMob(int index) => Ready && Console.SelectMob(index); public bool SelectCard(int index) => Ready && Console.SelectCard(index);
+        public bool SelectCopies(int index) => Ready && Console.SelectCopies(index); public bool SetStackText(string text) => Ready && Console.SetStatText(text);
+        public bool SetTextScale(float scale)
+        { if (ShowcaseSettings.Current == null || Closed) return false; ShowcaseSettings.Current.SetTextScale(scale); Canvas.ForceUpdateCanvases(); return true; }
+        public string ReadTextSizes()
+        {
+            if (ConsoleRoot == null) return ""; var texts=ConsoleRoot.GetComponentsInChildren<TMP_Text>(true); var rows=new string[texts.Length];
+            for(int i=0;i<texts.Length;i++) rows[i]=texts[i].name+"="+texts[i].fontSize.ToString("0.##"); return string.Join(";",rows);
+        }
+        public Rect ScreenBounds(RectTransform rect)
+        {
+            if(rect==null) return default; var corners=new Vector3[4]; rect.GetWorldCorners(corners);
+            var a=RectTransformUtility.WorldToScreenPoint(null,corners[0]); var b=RectTransformUtility.WorldToScreenPoint(null,corners[2]); return Rect.MinMaxRect(a.x,a.y,b.x,b.y);
+        }
+    }
+    sealed class StageAccountTransport : IAccountTransport
+    {
+        public Task<AccountHttpResponse> GetProfileAsync(string url,string ownerToken,string passcode,CancellationToken cancellation) =>
+            Task.FromResult(new AccountHttpResponse(200,new AccountReply { profile=new AccountProfile { name="LayoutAlice",gv=0,gvLifetime=0,
+                stats=new AccountStats { runs=0,wins=0,draws=0,deaths=0,kills=0 } }, token=new string('c',64),created=true }));
+    }
+    sealed class StageCredentials : IAccountCredentialStore
+    {
+        public string Read(string scope,string name) => null; public bool WriteConfirmed(string scope,string name,string token) => false;
+    }
+    internal sealed class StageTransport : ITransport
+    {
+        public event Action Opened;
+        public event Action<byte[]> Received;
+        public event Action<string> Closed;
+        public string ConnectedUrl;
+        public int CloseCount;
+        public void Connect(string url) { ConnectedUrl=url; } public void Send(byte[] frame) { }
+        public void Close() { CloseCount++; Closed?.Invoke("preview closed"); } public void Poll() { }
+        public void Open() { Opened?.Invoke(); } public void Deliver(ServerMsg msg) { Received?.Invoke(msg.Encode()); }
+    }
+    static StageState _active; static Scene _priorScene, _stageScene; const string TextScaleKey = "roguehalla.showcase.textScale"; const string ProfileKey = "rh.ui.profile";
+    const BindingFlags InstancePrivate = BindingFlags.Instance | BindingFlags.NonPublic;
+    public static StageState Create()
+    {
+        if (_active != null && !_active.Closed) throw new InvalidOperationException("A Training layout stage is already active.");
+        var priorEvents=EventSystem.current;
+        var priorSelection=priorEvents != null ? priorEvents.currentSelectedGameObject : null;
+        bool hadPref=PlayerPrefs.HasKey(TextScaleKey);
+        float pref=hadPref ? PlayerPrefs.GetFloat(TextScaleKey) : 1f;
+        bool hadProfile=PlayerPrefs.HasKey(ProfileKey);
+        string profilePref=hadProfile ? PlayerPrefs.GetString(ProfileKey) : null;
+        float priorScale=ShowcaseSettings.Current != null ? ShowcaseSettings.Current.TextScale : pref;
+        string name="TrainingLayoutStage-"+Guid.NewGuid().ToString("N");
+        _priorScene=SceneManager.GetActiveScene(); _stageScene=EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Additive); SceneManager.SetActiveScene(_stageScene);
+        var root=new GameObject(name); root.hideFlags=HideFlags.DontSave;
+        StageState state=null;
+        try
+        {
+            var eventGo=new GameObject(name+"-EventSystem",typeof(EventSystem),typeof(InputSystemUIInputModule));
+            eventGo.transform.SetParent(root.transform,false);
+            var events=eventGo.GetComponent<EventSystem>(); events.enabled=false; events.enabled=true;
+            EventSystem.current=events;
+            var client=root.AddComponent<MatchClient>(); client.enabled=false;
+            var cameraGo=new GameObject(name+"-Camera",typeof(Camera)); cameraGo.transform.SetParent(root.transform,false);
+            var camera=cameraGo.GetComponent<Camera>(); camera.orthographic=true; camera.orthographicSize=220f;
+            camera.transform.position=new Vector3(320,320,-10); camera.backgroundColor=new Color(.035f,.045f,.065f);
+            camera.clearFlags=CameraClearFlags.SolidColor; client.Cam=camera;
+            client.PageUrl="https://layout.invalid/play"; client.Url="wss://layout.invalid/arena/ws";
+            client.TrainingUrl="wss://layout.invalid/training/ws"; client.Profile="LayoutAlice"; client.Faction=4;
+            var owner=root.AddComponent<AccountCoordinator>();
+            owner.Initialize(AccountEndpoint.FromPage(client.PageUrl),new StageAccountTransport(),new StageCredentials());
+            SetField(client,"<AccountOwner>k__BackingField",owner);
+            var hud=root.AddComponent<MatchHud>(); hud.Initialize(client);
+            SetField(client,"<Hud>k__BackingField",hud);
+            var ownSettings=root.GetComponentInChildren<ShowcaseSettings>(true); if(ShowcaseSettings.Current==null) InvokeNoArg(ownSettings,"Awake");
+            foreach(var audio in root.GetComponentsInChildren<AudioSource>(true)) audio.mute=true;
+            MythicUi.Text(hud.transform.Find("MatchUI"),"StagedFactsLabel","STAGED OFFLINE FACTS · NO BACKEND APPLICATION",new Vector2(.34f,.90f),new Vector2(.66f,.94f),12,ShowcasePalette.Gold).alignment=TextAlignmentOptions.Center;
+            var map=new MapBlob(32,32,new byte[1024]);
+            var transport=new StageTransport();
+            SetField(client,"_transportFactory",new Func<ITransport>(()=>{
+                if(client.Arena!=null)
+                {
+                    if(GetFieldValue(client.Arena,"_actors")==null) InvokeNoArg(client.Arena,"Awake");
+                    client.Arena.transform.SetParent(root.transform,false);
+                }
+                return transport;
+            }));
+            state=new StageState(name,root,client,hud,events,priorEvents,priorSelection,transport,map,camera,priorScale,hadPref,pref,hadProfile,profilePref);
+            _active=state;
+            EditorApplication.update += Tick;
+            client.Join("LayoutAlice",4,MatchLaunchMode.Training);
+            Canvas.ForceUpdateCanvases();
+            return state;
+        }
+        catch
+        {
+            if(state!=null) Close(state);
+            else { if(root!=null) UnityEngine.Object.DestroyImmediate(root); RestoreEvents(priorEvents,priorSelection); RestorePreference(hadPref,pref); RestoreProfilePreference(hadProfile,profilePref); if(_priorScene.IsValid()&&_priorScene.isLoaded)SceneManager.SetActiveScene(_priorScene); if(_stageScene.IsValid()&&_stageScene.isLoaded)EditorSceneManager.CloseScene(_stageScene,true); }
+            throw;
+        }
+    }
+    public static async Task<object> Run()
+    {
+        var s=Create();
+        for(int i=0;i<500 && !s.Ready && s.Error==null;i++) await Task.Yield();
+        if(!s.Ready) { var message=s.Error ?? "Stage did not become ready"; var errors=Close(s); throw new InvalidOperationException(message+"; cleanup="+string.Join(";",errors)); }
+        return Describe();
+    }
+    public static object Describe()
+    {
+        var s=_active; if(s==null)return new {active=false};
+        UnityEngine.Canvas.ForceUpdateCanvases();
+        return new {active=true,ready=s.Ready,error=s.Error,rootName=s.RootName,stagedOfflineFacts=true,backendApplied=false,playing=EditorApplication.isPlaying,
+          screen=new {width=Screen.width,height=Screen.height},canvasPixelRect=s.Canvas.pixelRect,canvasScaleFactor=s.Canvas.scaleFactor,
+          textScale=s.Root.GetComponentInChildren<ShowcaseSettings>(true).TextScale,open=s.Console.IsOpen,actions=s.Console.ActionsAvailable,
+          rootBounds=s.ScreenBounds(s.ConsoleRoot),panelBounds=s.ScreenBounds(s.Panel),fonts=s.ReadTextSizes(),cameraName=s.Camera.name};
+    }
+    public static object Configure(float textScale,bool open,bool bottom)
+    {
+        var s=_active; if(s==null||!s.Ready)throw new InvalidOperationException("No ready stage");
+        s.Root.GetComponentInChildren<ShowcaseSettings>(true).SetTextScale(textScale);
+        s.Console.SetOpen(open); UnityEngine.Canvas.ForceUpdateCanvases();
+        var scroll=s.Console.Root.GetComponentInChildren<ScrollRect>(true);scroll.verticalNormalizedPosition=bottom?0f:1f;
+        UnityEngine.Canvas.ForceUpdateCanvases(); return Describe();
+    }
+    public static string[] CloseActive() { return Close(_active); }
+    static void Tick()
+    {
+        var s=_active;
+        if(s==null || s.Closed) { EditorApplication.update-=Tick; return; }
+        try
+        {
+            if(!s.Ready && ++s.Updates>600) { s.Error="Timed out waiting for local owned Join/decoded Training snapshot."; EditorApplication.update-=Tick; return; }
+            if(s.Client.Session!=null && s.Transport.ConnectedUrl!=null)
+            {
+                if(!s.WelcomeDelivered)
+                {
+                    s.Transport.Open();
+                    s.Transport.Deliver(new ServerMsg.Welcome { Protocol=Wire.ProtocolVersion,
+                        MatchId=new byte[16], Session=new byte[16], PlayerId=3, TickRate=20, ServerMs=50, Map=s.Map });
+                    s.WelcomeDelivered=true;
+                }
+                if(!s.SnapshotDelivered && s.Client.Session.State==SessionState.InMatch)
+                {
+                    s.Transport.Deliver(new ServerMsg.Snapshot { Tick=1, ServerTimeOverrideMs=50, Phase=1, Training=true,
+                        Me=new WireSelf { Id=3, X=320, Y=320, Hp=100, MaxHp=100, Status=1, Weapon=0 } });
+                    s.SnapshotDelivered=true;
+                    if(s.Client.Arena!=null && s.Client.Session.Latest!=null)
+                    {
+                        s.Client.Arena.Build(s.Map);
+                        var actors=new List<InterpActor>();
+                        s.Client.Session.Snapshots.Sample(s.Client.Session.Snapshots.NewestMs,actors);
+                        s.Client.Arena.RefreshVisibility(s.Client.Session);
+                        s.Client.Arena.PresentCollections(s.Client.Session.Collections);
+                        s.Client.Arena.Present(actors,s.Client.Session.Me,s.Client.Session.Motion,0);
+                        if(s.Client.Session.Me!=null) s.Client.Arena.Follow(s.Camera,s.Client.Session.Me.X,s.Client.Session.Me.Y);
+                    }
+                }
+            }
+            if(!s.Ready && s.SnapshotDelivered && s.Client.ConfirmedPractice && s.Console.ActionsAvailable)
+            {
+                s.Ready=s.Console.SetOpen(true);
+                if(!s.Ready) s.Error="Accepted local Training fact did not open the owned console.";
+            }
+            Canvas.ForceUpdateCanvases();
+        }
+        catch(Exception e) { s.Error=e.GetType().Name+": "+e.Message; EditorApplication.update-=Tick; }
+    }
+    public static string[] Close(StageState state)
+    {
+        if(state==null || state.Closed) return Array.Empty<string>();
+        state.Closed=true; EditorApplication.update-=Tick;
+        var errors=new List<string>();
+        Capture(errors,"client-leave",()=>state.Client?.Leave());
+        Capture(errors,"restore-text-scale",()=>{ if(ShowcaseSettings.Current!=null) ShowcaseSettings.Current.SetTextScale(state.PriorTextScale); });
+        Capture(errors,"restore-text-pref",()=>RestorePreference(state.HadTextScalePref,state.TextScalePref));
+        Capture(errors,"restore-profile-pref",()=>RestoreProfilePreference(state.HadProfilePref,state.ProfilePref));
+        Capture(errors,"unregister-stage-event-system",()=>{ if(state.Events!=null) state.Events.enabled=false; });
+        if(state.PriorEvents!=null && state.PriorEvents)
+        {
+            Capture(errors,"restore-current-event-system",()=>EventSystem.current=state.PriorEvents);
+            if(state.PriorSelection!=null && state.PriorSelection && EventSystem.current==state.PriorEvents)
+                Capture(errors,"restore-event-selection",()=>state.PriorEvents.SetSelectedGameObject(state.PriorSelection));
+        }
+        Capture(errors,"destroy-owned-root",()=>{ if(state.Root!=null) UnityEngine.Object.DestroyImmediate(state.Root); });
+        Capture(errors,"close-owned-scene",()=>{ if(_priorScene.IsValid()&&_priorScene.isLoaded)SceneManager.SetActiveScene(_priorScene); if(_stageScene.IsValid()&&_stageScene.isLoaded)EditorSceneManager.CloseScene(_stageScene,true); });
+        if(_active==state) _active=null;
+        state.CleanupErrors=errors.ToArray();
+        return state.CleanupErrors;
+    }
+    public static string[] Close(string uniqueRootName)
+    {
+        return _active!=null && string.Equals(_active.RootName,uniqueRootName,StringComparison.Ordinal)
+            ? Close(_active) : Array.Empty<string>();
+    }
+    static void Capture(List<string> errors,string step,Action action)
+    {
+        try { action(); } catch(Exception e) { errors.Add(step+": "+e.GetType().Name+": "+e.Message); }
+    }
+    static void RestoreEvents(EventSystem prior,GameObject selected)
+    {
+        if(prior!=null && prior) { try { EventSystem.current=prior; if(selected!=null) prior.SetSelectedGameObject(selected); } catch { } }
+    }
+    static void RestorePreference(bool had,float value)
+    { if(had) PlayerPrefs.SetFloat(TextScaleKey,value); else PlayerPrefs.DeleteKey(TextScaleKey); PlayerPrefs.Save(); }
+    static void RestoreProfilePreference(bool had,string value)
+    { if(had) PlayerPrefs.SetString(ProfileKey,value ?? ""); else PlayerPrefs.DeleteKey(ProfileKey); PlayerPrefs.Save(); }
+    static object GetFieldValue(object target,string name)
+    {
+        var field=target.GetType().GetField(name,InstancePrivate);
+        if(field==null) throw new MissingFieldException(target.GetType().FullName,name);
+        return field.GetValue(target);
+    }
+    static void InvokeNoArg(object target,string name)
+    {
+        var method=target.GetType().GetMethod(name,InstancePrivate);
+        if(method==null) throw new MissingMethodException(target.GetType().FullName,name);
+        method.Invoke(target,null);
+    }
+    static void SetField(object target,string name,object value)
+    {
+        var field=target.GetType().GetField(name,InstancePrivate);
+        if(field==null) throw new MissingFieldException(target.GetType().FullName,name);
+        field.SetValue(target,value);
+    }
+}
+#endif

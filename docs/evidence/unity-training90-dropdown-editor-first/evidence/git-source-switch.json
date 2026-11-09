@@ -1,0 +1,11 @@
+{
+  "argv": [
+    "git",
+    "switch",
+    "--detach",
+    "cdb0bc4b8bd623939a464f6ce7780bde69198e85"
+  ],
+  "exitCode": 0,
+  "stdout": "",
+  "stderr": "HEAD is now at cdb0bc4b docs: freeze same90 Training gate with reviewed TMP fixture initialization\n"
+}

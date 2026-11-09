@@ -1,0 +1,55 @@
+{
+  "sourceCommit": "8a92e14a61e39948582f3d2c77b88cf9831bc5e6",
+  "base": "3126e5c3209334c637d1f067f3f0b8209dbf06f4",
+  "checks": [
+    {
+      "argv": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "bash",
+        "client-unity/sync-net.sh",
+        "--check"
+      ],
+      "exitCode": 0,
+      "stdout": "Unity copy is up to date\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "apply",
+        "--check",
+        "docs/ui/TRAINING_CONSOLE_INTEGRATION_PROPOSAL.patch"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "check": "Generate selector data and13source pins in memory; compare without writing",
+      "passed": true
+    },
+    {
+      "check": "20protected paths byte-identical to3126base and original receipt",
+      "passed": true,
+      "noLiveEditorCheckoutRead": true
+    },
+    {
+      "check": "Final affected-source compilation receipt hashes still match current source",
+      "passed": true,
+      "noLibraryReferencesRead": true
+    },
+    {
+      "check": "InputSender exact managed/Unitymirror",
+      "passed": true
+    }
+  ]
+}

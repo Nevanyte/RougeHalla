@@ -44,6 +44,24 @@ namespace Roguehalla.Net
             _queue.Add(WireCommand.Plan(spawn, boon, ready));
         }
 
+        /// <summary>
+        /// Queues a training-console wire intent. This checks only the fixed wire shape; catalog validity, counts,
+        /// option uniqueness and whether training is currently accepted remain server decisions.
+        /// </summary>
+        public void Train(byte command, uint id, ulong count, byte[] options = null)
+        {
+            if (command < 1 || command > 5 || (options != null && options.Length > 3))
+            {
+                Dropped++;
+                return;
+            }
+
+            byte[] ownedOptions = options == null || options.Length == 0
+                ? Array.Empty<byte>()
+                : (byte[])options.Clone();
+            _queue.Add(WireCommand.Train(command, id, count, ownedOptions));
+        }
+
         public void Target(uint actorRef) { if(actorRef==0) { Dropped++; return; } _queue.Add(WireCommand.Target(actorRef)); }
         public byte AttackMove(float x,float y) { if(!Finite(x)||!Finite(y)) {Dropped++;return 0;} byte s=NextOrderSeq();LastMovementOrder=WireCommand.AttackMove(x,y,s);_queue.Add(LastMovementOrder);return s; }
         public byte Stop()

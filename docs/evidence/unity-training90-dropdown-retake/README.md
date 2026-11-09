@@ -1,0 +1,11 @@
+# Training90 dropdown fixture retake freeze
+
+Root composes preserved failed90-case proof5a61 with reviewed source76f/evidence6b7645. All90 normative case tuples and617 unique meta GUIDs are unchanged. Relative to956a, exactly one of1179 pinned source files changes: four added fixture-only lines call actual TMP protected Start before public Show. Installed TMP initialization, original byte preservation and actual IL are independently reviewed. No production, library, assertion, package, attribute or selector change occurs. The prior ordinary combined867/867 managed result remains revision-scoped at740535; no unchanged managed rerun was needed. Fresh native gate is UNRUN.
+
+Preserve both RED gates:99172/ea39 executed77 once=73PASS4FAIL with13UNRUN;956a/5a61 executed90 once=89PASS1FAIL with0UNRUN. Second ledger unresolvedCurrentFixtureFullNames13 is verdict bookkeeping, not13 unexecuted cases. All8 original raw outputs and native summary remain immutable; do not fill this gate with earlier passes or retry a failed case.
+
+The sole Editor owner binds all1179 pins, actual loaded DLLs/MVIDs, real lifecycle/source IL, exact public discovery and typed arguments before one complete90-case run. Record executed/returned coverage before evaluating verdicts. Stop on any failed/missing/extra/skipped/inconclusive case or unexpected drift; retain first output. Only after all90 pass may the separate finite1280x720/2560x1440 default/150%text layout checklist run. Restore exact clean Frozen4 afterward and release the lease. No browser/real Training command/settlement/cloud/performance claim follows from synthetic Editor data.
+
+Sole permitted observed import overlay: ShaderGraphSettings.asset555B/d9285133fee72ad8257e0b2c2d904b487757ebcef4862e3b10bef073bf218894 to557B/83556175c6dccd540f2cac05e5c0f9fbb36c3c8d7a56bed2c7cf4d29e4c2ee2e, exactly two trailing spaces on empty strings. Preserve observed bytes and restore frozen bytes before final seal; any other drift stops. Require Editor6000.0.85f2 and direct/resolved/loaded builtin TestFramework1.6.0. No package edit.
+
+Freeze tooling initially stopped before writing because its GUID regex excluded three existing uppercase GUIDs. The case-insensitive check now validates all617 without modifying any meta; this is not an engine/test retry.

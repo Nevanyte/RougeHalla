@@ -1,0 +1,32 @@
+{
+  "source": "956a80dcfe89dd290816f2ea6051b210b7a4834f",
+  "status": "PASS_IDENTITY_BEFORE_EXECUTION",
+  "nativeTestsExecuted": 0,
+  "netMvid": "74ec5a6b-b52d-477f-889e-861cc800394b",
+  "netDllSha256": "4e77d3f4d25594ccae4fe537c4ca3b9ecd609ecd4109ae12b4c700394f715d15",
+  "ownNetIlMethods": 9,
+  "trainingRepairIlMethods": 8,
+  "noLiveSeatResumeValuesRead": true,
+  "priorFailedProofPreservedSeparate": "ea39a0aa1007456360e319026b0e68cf56bf4a37",
+  "pins": 1179,
+  "allPinsExact": true,
+  "clientMvid": "77eb0424-5886-4c8e-b5f4-4d37c5faab2a",
+  "clientDllSha256": "8fe005bd629877691d83dcff1b5606bf666d5d5878593fd4d9dcd6077b183636",
+  "testMvid": "c7ba103d-2385-4f68-8d72-fe9bfd8d83a5",
+  "testDllSha256": "21703a1919db4da4f9e421dde67b63fe64e782522125d888ff721e6aa9c88348",
+  "fixtureTypes": [
+    "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+    "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+    "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+    "MatchLaunchEditModeTests",
+    "MatchSettlementEditModeTests",
+    "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests",
+    "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests",
+    "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests"
+  ],
+  "ownProductionIlMethods": 16,
+  "ownTestBodies": 455,
+  "unityVersion": "6000.0.85f2",
+  "selectedAndLoadedTestFramework": "1.6.0",
+  "knownSerializationException": "FROZEN_README.md: preapproved exact two-space exception; observed bytes retained"
+}

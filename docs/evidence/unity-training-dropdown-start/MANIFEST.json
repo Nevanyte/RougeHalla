@@ -1,0 +1,459 @@
+{
+  "schema": "roguehalla-evidence-manifest/1",
+  "sourceCommit": "76f341ed60ca5bb8ac70d76cf244c9afc1be9e23",
+  "status": "Compiled fixture lifecycle correction only; original99172 and corrected956a native revisions remain FAILED; fresh native gate UNRUN",
+  "payloadCount": 90,
+  "payloadBytes": 1119384,
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 6068,
+      "sha256": "3ae67bb9f7f8037522b73747139ca384a5e448cd033bf1259fa5d8c6b23c3b99"
+    },
+    {
+      "path": "compile-profiles/Tests.csproj",
+      "bytes": 38423,
+      "sha256": "9e2f7f4a984ec07ebd35888011786a3cd69f0513ac37150cb9031463b53808c1"
+    },
+    {
+      "path": "first-red/EXPECTED_SELECTORS.json",
+      "bytes": 71554,
+      "sha256": "cf38da76450bbcc01bb2f6c15d73c44d119152959733ef3037dcc04960f1cc7e"
+    },
+    {
+      "path": "first-red/SOURCE_IDENTITY.json",
+      "bytes": 254815,
+      "sha256": "b587924ba6d536ff1265002ebaa9533fd904af5c21c689ff0f1d5cd797d16d76"
+    },
+    {
+      "path": "first-red/copy-receipt.json",
+      "bytes": 11127,
+      "sha256": "7d7c9a1e24134c9c50c40ad2bfd48041ed98fbfd5ebed22b6878e0545ddf2768"
+    },
+    {
+      "path": "first-red/discovery-binding-verification.json",
+      "bytes": 1427,
+      "sha256": "5f77ec6624bca4e0098ee90a6aeab1ec24c061f6344f5788d3a2a1b038589662"
+    },
+    {
+      "path": "first-red/immediate-pre-execution-pins.json",
+      "bytes": 158,
+      "sha256": "3e1e111bdc49e14ef589f857085db1fc61a02bdced6ced9c651698d03fa7624b"
+    },
+    {
+      "path": "first-red/loaded-identity.json",
+      "bytes": 9471,
+      "sha256": "43e89f9208909ecdc29be12fe0318f61641245216b9c4349fec76048f553ceb2"
+    },
+    {
+      "path": "first-red/loaded-identity.json.invocation.json",
+      "bytes": 485,
+      "sha256": "7c6a2e6ae8803aa66785afb3f002dbfe32cf32b1813bf374147fd4ec62e1b5ff"
+    },
+    {
+      "path": "first-red/native-identity-verification.json",
+      "bytes": 1165,
+      "sha256": "e8d7c14b162bf951f5dd3b0414904371a0b810b10930c2d6bde3beb25408983f"
+    },
+    {
+      "path": "first-red/native-result-summary.json",
+      "bytes": 12729,
+      "sha256": "8e0fb73b44a5b8a95aab271d0b434eacb276000a6443d09afc370313c2ab59fd"
+    },
+    {
+      "path": "first-red/post-stop-source-pins.json",
+      "bytes": 64,
+      "sha256": "5cb47e5f7b853a0340420d893305e72b31cb74774ac308709f30e694fce2b55a"
+    },
+    {
+      "path": "first-red/run-01-Roguehalla_Client_Tests_QuestJournalViewEditModeTests.invocation.json",
+      "bytes": 805,
+      "sha256": "f85d3801670bfd697000db8dc164948a02876cd3b408f0e338090138ffa06011"
+    },
+    {
+      "path": "first-red/run-01-Roguehalla_Client_Tests_QuestJournalViewEditModeTests.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "first-red/run-01-Roguehalla_Client_Tests_QuestJournalViewEditModeTests.stdout.txt",
+      "bytes": 1976,
+      "sha256": "fd78503a2e166121649cdf98932e240f9a0f1142c02e454a0a5866bd8af3e564"
+    },
+    {
+      "path": "first-red/run-02-Roguehalla_Client_Tests_TraderDialogViewEditModeTests.invocation.json",
+      "bytes": 805,
+      "sha256": "c16aaaf5e718fd53b75adec2a0438924c4cf6d34574431232ac1af0a44f9d2a6"
+    },
+    {
+      "path": "first-red/run-02-Roguehalla_Client_Tests_TraderDialogViewEditModeTests.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "first-red/run-02-Roguehalla_Client_Tests_TraderDialogViewEditModeTests.stdout.txt",
+      "bytes": 1531,
+      "sha256": "3138d7d52f374f635feb55de300dda2bdfa1f239a95de74453f94ced7336542b"
+    },
+    {
+      "path": "first-red/run-03-Roguehalla_Client_Tests_PlayerFlowsEditModeTests.invocation.json",
+      "bytes": 800,
+      "sha256": "3a105c8fdde36d2ed7ca66994733d113222a3cce301aef1b62474b32fae8839a"
+    },
+    {
+      "path": "first-red/run-03-Roguehalla_Client_Tests_PlayerFlowsEditModeTests.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "first-red/run-03-Roguehalla_Client_Tests_PlayerFlowsEditModeTests.stdout.txt",
+      "bytes": 2510,
+      "sha256": "036e9fe7e4cf76a17910bb4a169a918eb353fe2c9209b4036500834ebe8b7547"
+    },
+    {
+      "path": "first-red/run-04-MatchLaunchEditModeTests.invocation.json",
+      "bytes": 776,
+      "sha256": "eb8cf422d5cfcd0121cd0781da34191adbbeffa51f93c308773175802df50e8b"
+    },
+    {
+      "path": "first-red/run-04-MatchLaunchEditModeTests.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "first-red/run-04-MatchLaunchEditModeTests.stdout.txt",
+      "bytes": 3333,
+      "sha256": "c5f1e89ecb2b50464accd346313d8c07f45e88632a49d17fce51de209cc8905b"
+    },
+    {
+      "path": "first-red/run-05-MatchSettlementEditModeTests.invocation.json",
+      "bytes": 780,
+      "sha256": "7f05bbb7dd3be2bae884d8c60f4c8a6d6773a9e6e1a42338aec7bc520a36f02b"
+    },
+    {
+      "path": "first-red/run-05-MatchSettlementEditModeTests.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "first-red/run-05-MatchSettlementEditModeTests.stdout.txt",
+      "bytes": 4272,
+      "sha256": "181f3b1551a83f9dcf2074d3795a70de96b3c8998ae195fb2f3da59b41ae2bf3"
+    },
+    {
+      "path": "first-red/run-06-Roguehalla_Client_Tests_TrainingConsoleSelectorsEditModeTests.invocation.json",
+      "bytes": 813,
+      "sha256": "56a5f3be5da07ac2e89ae0f0afa91e5a1870f7ef9d879e3147644f175ebbc0fd"
+    },
+    {
+      "path": "first-red/run-06-Roguehalla_Client_Tests_TrainingConsoleSelectorsEditModeTests.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "first-red/run-06-Roguehalla_Client_Tests_TrainingConsoleSelectorsEditModeTests.stdout.txt",
+      "bytes": 1305,
+      "sha256": "2846b0fb714e3827aaaa3d5fb3a230f94b393d7be8662af6e7c031354dd267af"
+    },
+    {
+      "path": "first-red/run-07-Roguehalla_Client_Tests_TrainingConsoleViewEditModeTests.invocation.json",
+      "bytes": 808,
+      "sha256": "9766d5e5aa1989b855e2825187cfef7293258e75845c84f16943bb78f04af6e0"
+    },
+    {
+      "path": "first-red/run-07-Roguehalla_Client_Tests_TrainingConsoleViewEditModeTests.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "first-red/run-07-Roguehalla_Client_Tests_TrainingConsoleViewEditModeTests.stdout.txt",
+      "bytes": 9280,
+      "sha256": "33df1b98b76467f43afb2d899d855039eaafe88812e94e05ee3082b3473b09b2"
+    },
+    {
+      "path": "first-red/test-execution-ledger.json",
+      "bytes": 32415,
+      "sha256": "5ba9f27e6fbc1087fd89796a10e883c997faaa0ff24c06b05c6559b23bf4367b"
+    },
+    {
+      "path": "installed-package/dropdown-source-excerpts.json",
+      "bytes": 9610,
+      "sha256": "24d1950f1d22ffd749491ceccf2eb6aea891c327d930061e9698232cb81bbda0"
+    },
+    {
+      "path": "installed-package/package.json",
+      "bytes": 725,
+      "sha256": "d8df43a06f5c808e1150d40a97ae551d9bc3151c9af36f74d59e8f0bcd7d871b"
+    },
+    {
+      "path": "logs/body-scope-checks.json",
+      "bytes": 467,
+      "sha256": "c72f187956b59e81955a27d77152f6739340c86e37f782d27d49815bc970e746"
+    },
+    {
+      "path": "logs/editor-tests.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/editor-tests.stdout.log",
+      "bytes": 1164,
+      "sha256": "a8a5b534c6569388790afb9f8084e0c7abae611e8570c7ef03f74e509e536c54"
+    },
+    {
+      "path": "logs/metadata-build.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/metadata-build.stdout.log",
+      "bytes": 302,
+      "sha256": "52935905e1bdadd0ebcc291ea3beca32bcb505e60fbaee92ab30e90fbf8f716a"
+    },
+    {
+      "path": "logs/metadata-run.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/metadata-run.stdout.log",
+      "bytes": 291,
+      "sha256": "959c03afde547e53e8a4cdb765480ed168a4a7e1c6b0065ce40cbad47ee478fd"
+    },
+    {
+      "path": "metadata/current-selectors.json",
+      "bytes": 53590,
+      "sha256": "c220dfe0827e1bb63fb54689244de905265dc355ce2580a277acfd11c6e4d203"
+    },
+    {
+      "path": "metadata/dropdown-il-proof.json",
+      "bytes": 82456,
+      "sha256": "3b00f9d2b7f6f65dc10bc4c8f4e2467579c291863194f0e38b90ed4c09ac4db1"
+    },
+    {
+      "path": "metadata/metadata-audit.json",
+      "bytes": 1700,
+      "sha256": "33c70bd9a6290b7e17987b422f49cfe4e51ef539eb28cf32b343bc69d07d330a"
+    },
+    {
+      "path": "metadata/source-input-pins.json",
+      "bytes": 47160,
+      "sha256": "aa73d42a2db3e2c73c2612edbed23364c38419de8032837eddf5db4507ad8564"
+    },
+    {
+      "path": "metadata-tool/MetadataAudit.csproj",
+      "bytes": 467,
+      "sha256": "89ae0d7b13572f13628e084c1481f3a06ada5531415a4c74ac600f2e2907cc62"
+    },
+    {
+      "path": "metadata-tool/Program.cs",
+      "bytes": 14990,
+      "sha256": "b4224b712c21bbc3a3527382e64906a7d472af0e4c736ec57a853113b24d0849"
+    },
+    {
+      "path": "native-red-accounting.json",
+      "bytes": 9481,
+      "sha256": "73575b5d3e47aaee53d6d00ad46f1b57b7fc6fd04b50e1ef9e0983f219849665"
+    },
+    {
+      "path": "receipt.json",
+      "bytes": 4357,
+      "sha256": "8d29b50e2ec42937ebf550c7067fef9a060c6403a7ed17ae3f29fee33999d378"
+    },
+    {
+      "path": "second-red/EXPECTED_SELECTORS.json",
+      "bytes": 72188,
+      "sha256": "2a6290fd1ded1c4b97eae92d87f5e55f63a8b3f7f9a0b453a8bef6088ab5e2b8"
+    },
+    {
+      "path": "second-red/SOURCE_IDENTITY.json",
+      "bytes": 255215,
+      "sha256": "47eadd633b2f042f917c27a916377fdb3ace00e558f5d9075e91cd318edcc040"
+    },
+    {
+      "path": "second-red/copy-receipt.json",
+      "bytes": 12939,
+      "sha256": "1e216068716f8c51feee253489de055546f4e1d075a90b7031dc3307e82d0c06"
+    },
+    {
+      "path": "second-red/discovery-binding-verification.json",
+      "bytes": 1481,
+      "sha256": "0d2d885cdbf6325bbcd250f39a2525a39ef5663f5806f13c1788361e6364b21a"
+    },
+    {
+      "path": "second-red/final-composed-source-verification.json",
+      "bytes": 233,
+      "sha256": "a853aa14044281f5f82ecef2649ed6ec12821f155774da887669c5c86ef251f1"
+    },
+    {
+      "path": "second-red/immediate-pre-execution-pins.json",
+      "bytes": 164,
+      "sha256": "f9714c76ed5fd654d55e1ed1b2870160f5a671adc8d5f8a1367038c3943c967d"
+    },
+    {
+      "path": "second-red/loaded-identity.json",
+      "bytes": 9471,
+      "sha256": "37547a82edda9c081001440c9df9ecd0b399dcf27eb5ff2af94788cdc30f8f19"
+    },
+    {
+      "path": "second-red/loaded-identity.json.invocation.json",
+      "bytes": 492,
+      "sha256": "c624149e2b7da8dbeb4bc827694be0b1c7ec4b9dd370258ac40405fd1dabf449"
+    },
+    {
+      "path": "second-red/native-identity-verification.json",
+      "bytes": 1500,
+      "sha256": "cfae82fab918480a635051d0f112e7b3b00656dba9f7fe4e6b0a288d47686dcf"
+    },
+    {
+      "path": "second-red/native-result-summary.json",
+      "bytes": 4068,
+      "sha256": "0e6883e4fe17b4cdfb4d0bf61827517cb6f1e92c0287446029f67f15199c452f"
+    },
+    {
+      "path": "second-red/post-run-source-pins.json",
+      "bytes": 100,
+      "sha256": "46944b13342a5dd9eb621deeab5ce3c161c2ed905df7b0d309c551ea6e8b9fdd"
+    },
+    {
+      "path": "second-red/run-01-Roguehalla_Client_Tests_QuestJournalViewEditModeTests.invocation.json",
+      "bytes": 805,
+      "sha256": "59a96539f0984abc70e7863efe01adb7acf5260182afd90056df961bfc6bff64"
+    },
+    {
+      "path": "second-red/run-01-Roguehalla_Client_Tests_QuestJournalViewEditModeTests.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "second-red/run-01-Roguehalla_Client_Tests_QuestJournalViewEditModeTests.stdout.txt",
+      "bytes": 1975,
+      "sha256": "420668f956f742db859d33b61c2c7a483dcba6fe8717a4ced19d647280efa869"
+    },
+    {
+      "path": "second-red/run-02-Roguehalla_Client_Tests_TraderDialogViewEditModeTests.invocation.json",
+      "bytes": 805,
+      "sha256": "5506946b23a3078690df9a01a8d81b28d72d6188e851d610bac389031a93e4f9"
+    },
+    {
+      "path": "second-red/run-02-Roguehalla_Client_Tests_TraderDialogViewEditModeTests.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "second-red/run-02-Roguehalla_Client_Tests_TraderDialogViewEditModeTests.stdout.txt",
+      "bytes": 1531,
+      "sha256": "577368783c5e18d4962b9c3ab089b7829865b69e1c9e1e9b3e74fd636a5619d1"
+    },
+    {
+      "path": "second-red/run-03-Roguehalla_Client_Tests_PlayerFlowsEditModeTests.invocation.json",
+      "bytes": 800,
+      "sha256": "c14fcbef541256bb341281b34281956c1f0f72067380e6cdfccadb524d12ccba"
+    },
+    {
+      "path": "second-red/run-03-Roguehalla_Client_Tests_PlayerFlowsEditModeTests.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "second-red/run-03-Roguehalla_Client_Tests_PlayerFlowsEditModeTests.stdout.txt",
+      "bytes": 2513,
+      "sha256": "b368de2bcb9b622f6342fb0968291a2931923dcdb08aacd2f542aeecb39e235f"
+    },
+    {
+      "path": "second-red/run-04-MatchLaunchEditModeTests.invocation.json",
+      "bytes": 776,
+      "sha256": "5fd981aa0aba871183141592ac01d97c0ee424d20f25bbaa3b9cb5c795e03d78"
+    },
+    {
+      "path": "second-red/run-04-MatchLaunchEditModeTests.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "second-red/run-04-MatchLaunchEditModeTests.stdout.txt",
+      "bytes": 3324,
+      "sha256": "d19affbaaa3d9ccd02b0443869e6ff34541a3e7b8e2e46af194e9905df763515"
+    },
+    {
+      "path": "second-red/run-05-MatchSettlementEditModeTests.invocation.json",
+      "bytes": 780,
+      "sha256": "5c326a089bcd2419f9152ca22567099dbc2357ef654341a88dc0a24b2474be19"
+    },
+    {
+      "path": "second-red/run-05-MatchSettlementEditModeTests.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "second-red/run-05-MatchSettlementEditModeTests.stdout.txt",
+      "bytes": 4260,
+      "sha256": "1f85218eeb908874d326c70ab8f4037aeda0b59bdf971eab1fd60b0080d36f83"
+    },
+    {
+      "path": "second-red/run-06-Roguehalla_Client_Tests_TrainingConsoleSelectorsEditModeTests.invocation.json",
+      "bytes": 813,
+      "sha256": "4f20e21400461d4e820b605cf94d3054041c5ad089d7c8d099b2eea18ea4ca84"
+    },
+    {
+      "path": "second-red/run-06-Roguehalla_Client_Tests_TrainingConsoleSelectorsEditModeTests.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "second-red/run-06-Roguehalla_Client_Tests_TrainingConsoleSelectorsEditModeTests.stdout.txt",
+      "bytes": 1305,
+      "sha256": "8fb42e7ac80e5c22db7ea21729b2b5e0adc7a227b6048c2bec5603824c8ef7db"
+    },
+    {
+      "path": "second-red/run-07-Roguehalla_Client_Tests_TrainingConsoleViewEditModeTests.invocation.json",
+      "bytes": 808,
+      "sha256": "223eab4f5322b27e87542c9e9e25374d269238508627a988091692593b2e36df"
+    },
+    {
+      "path": "second-red/run-07-Roguehalla_Client_Tests_TrainingConsoleViewEditModeTests.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "second-red/run-07-Roguehalla_Client_Tests_TrainingConsoleViewEditModeTests.stdout.txt",
+      "bytes": 1929,
+      "sha256": "3e06c2668fb4d7548fc2431a452367583372290f52cfd147d6ee96162276ebe7"
+    },
+    {
+      "path": "second-red/run-08-Roguehalla_Client_Tests_TrainingConsoleIntegrationEditModeTests.invocation.json",
+      "bytes": 815,
+      "sha256": "ac38ea6f78cad4255169c026aacef93cdebe4c22beb2ba1a67e776c7ad874cc9"
+    },
+    {
+      "path": "second-red/run-08-Roguehalla_Client_Tests_TrainingConsoleIntegrationEditModeTests.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "second-red/run-08-Roguehalla_Client_Tests_TrainingConsoleIntegrationEditModeTests.stdout.txt",
+      "bytes": 4219,
+      "sha256": "f3c33c132a42e101da37ae5b2b3c8e97a65f5fd3845a03d200515559c11f99a8"
+    },
+    {
+      "path": "second-red/test-execution-ledger.json",
+      "bytes": 36246,
+      "sha256": "4eca76aeedb75898c83ae849d9b35ab9f6b009ffe43a5797041ff6302a707171"
+    },
+    {
+      "path": "source-change.patch.gz",
+      "bytes": 556,
+      "sha256": "995caf9f7f346f2852620351461e82cea29bb423e8f49f4152186d1f65d7edde"
+    },
+    {
+      "path": "source-diff-receipt.json",
+      "bytes": 340,
+      "sha256": "db87388d8d64d0bb7c727df0d8e0b44f29d78d462a79435c260b0f7c6ee90bdd"
+    },
+    {
+      "path": "source-preservation.json",
+      "bytes": 478,
+      "sha256": "ce57278a35d49c3f60881815a94fb883ab3929c6d6090cfbe832234f6e2a342f"
+    }
+  ]
+}

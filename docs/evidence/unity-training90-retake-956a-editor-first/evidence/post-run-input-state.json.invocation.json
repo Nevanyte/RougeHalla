@@ -1,0 +1,22 @@
+{
+  "argv": [
+    "unity",
+    "command",
+    "script",
+    "eval",
+    "--project-path",
+    "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject",
+    "--caller",
+    "plugin",
+    "--skill",
+    "unity-cli",
+    "--format",
+    "json",
+    "--",
+    "--file",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-retake-956a80dc-2026-11-09/ObserveInputState.cs"
+  ],
+  "exitCode": 0,
+  "stderr": "",
+  "utc": "2026-11-09T15:57:35.661008+00:00"
+}

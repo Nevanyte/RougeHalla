@@ -1,0 +1,81 @@
+{
+  "sourceCommit": "8a92e14a61e39948582f3d2c77b88cf9831bc5e6",
+  "parent": "3126e5c3209334c637d1f067f3f0b8209dbf06f4",
+  "files": [
+    {
+      "path": "client-unity/RoguehallaNet.Tests/FrameInputTests.cs",
+      "bytes": 4165,
+      "sha256": "a776231caac79575844a62e6851ec538a904ff21e9b8315b76f517ebc341bf18"
+    },
+    {
+      "path": "client-unity/RoguehallaNet.Tests/NetTests.cs",
+      "bytes": 12445,
+      "sha256": "a82c3c75fd18acaaa815a303d93f9feea49b5f37f88203de2145a75213cfcd83"
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Net/InputSender.cs",
+      "bytes": 6836,
+      "sha256": "52913b46d4bcc6884cf43a82b0780663cfe42fdfe6d5b0bf2102741d8cfc61ac"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/InputSender.cs",
+      "bytes": 6836,
+      "sha256": "52913b46d4bcc6884cf43a82b0780663cfe42fdfe6d5b0bf2102741d8cfc61ac"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/TrainingConsolePointerRelease.cs",
+      "bytes": 857,
+      "sha256": "acd5a3ac0d1ee5873c44ff0d24b0c984bf8b460283f01c868477000f90bc8f9a"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/TrainingConsoleSelectors.cs",
+      "bytes": 4014,
+      "sha256": "2465324187791db68a23226724ace81f91193bd2b3a500b9da7148f997a3a124"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/TrainingConsoleView.cs",
+      "bytes": 22575,
+      "sha256": "54fc30f34bfd04040bb310ce2ad90ae869821ecdbd7374d4be16825b6e23e490"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/TrainingConsoleSelectorsEditModeTests.cs",
+      "bytes": 4686,
+      "sha256": "0dbb264aa1f0f00dda1b00e048578719fd11a3475be951e20e3d4884715bccbc"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/TrainingConsoleViewEditModeTests.cs",
+      "bytes": 21766,
+      "sha256": "b7c190585813a1d4ffb564c0a747dd43fc878029844b95850e0ca5de506144f3"
+    },
+    {
+      "path": "docs/ui/TRAINING_CONSOLE_INTEGRATION.md",
+      "bytes": 3112,
+      "sha256": "986b184e0b7411e4d255216130eaad3851565edb714370a27feb332e91a7d68d"
+    },
+    {
+      "path": "docs/ui/TRAINING_CONSOLE_INTEGRATION_PROPOSAL.patch",
+      "bytes": 6401,
+      "sha256": "5c20a8fa8dcf50891c71dae42ff0400c40a7718addbc39937b739006809dc2a1"
+    },
+    {
+      "path": "docs/ui/TRAINING_CONSOLE_SOURCE_REVIEW.md",
+      "bytes": 4058,
+      "sha256": "ea51bfeb47586d8d3ee3b1d5bc78044a8c34005eaef7accf6a1822e17e61414a"
+    },
+    {
+      "path": "docs/ui/TRAINING_CONSOLE_VALIDATION.md",
+      "bytes": 3729,
+      "sha256": "d5efa04dab33a7aa4d2ce0ecc0691f52f17f08e2cf31f5480d5ae4cce33ed112"
+    },
+    {
+      "path": "tools/training-console/generate_training_console_selectors.py",
+      "bytes": 13270,
+      "sha256": "a67db2846fc819e4cdbae2d6da8a0b963048e3fa76784157d6f940ed4d14be60"
+    },
+    {
+      "path": "tools/training-console/training-console-source-pins.json",
+      "bytes": 3341,
+      "sha256": "5c5daeb57d216e03957e60d8f6bc127c67bfd9d5a0ed68f318f42728566aac5a"
+    }
+  ]
+}

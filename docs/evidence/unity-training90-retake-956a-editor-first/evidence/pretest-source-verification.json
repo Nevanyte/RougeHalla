@@ -1,0 +1,22 @@
+{
+  "source": "956a80dcfe89dd290816f2ea6051b210b7a4834f",
+  "stage": "First import, zero tests",
+  "mismatches": [
+    {
+      "path": "client-unity/UnityProject/ProjectSettings/ShaderGraphSettings.asset",
+      "expected": {
+        "path": "client-unity/UnityProject/ProjectSettings/ShaderGraphSettings.asset",
+        "bytes": 555,
+        "sha256": "d9285133fee72ad8257e0b2c2d904b487757ebcef4862e3b10bef073bf218894"
+      },
+      "actualBytes": 557,
+      "actualSha256": "83556175c6dccd540f2cac05e5c0f9fbb36c3c8d7a56bed2c7cf4d29e4c2ee2e"
+    }
+  ],
+  "authority": "Root retake lease and FROZEN_README exact two-space exception",
+  "status": "PREAPPROVED_EXACT_SERIALIZATION_RESTORED",
+  "all1179PinsExact": true,
+  "uniqueMetaGuids": 617,
+  "nativeTestsExecuted": 0,
+  "refreshGuardHeld": true
+}

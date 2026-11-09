@@ -1,0 +1,189 @@
+{
+  "schema": "roguehalla-evidence-manifest/1",
+  "sourceCommit": "d90dd0a12b898dceae6715e26c1aec71a68d8d3a",
+  "status": "Compiled repair only; actual frozen99172 gate remains FAILED; new native retake UNRUN",
+  "payloadCount": 36,
+  "payloadBytes": 438369,
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 7203,
+      "sha256": "2e595cd08abde59eef57b79ae0e3b331d06239d2093697982b9625af1ed0a97b"
+    },
+    {
+      "path": "compile-profiles/editor/Client.csproj",
+      "bytes": 37895,
+      "sha256": "21d6bba23539d44b68c3d9dbb5722039f0f99a4932cd1da3f4e241c70375815b"
+    },
+    {
+      "path": "compile-profiles/editor/Tests.csproj",
+      "bytes": 38425,
+      "sha256": "b5fee99ed6e72b821e8c058fc70d01696e158a70365067328c689e65670f90e8"
+    },
+    {
+      "path": "compile-profiles/player/Client.csproj",
+      "bytes": 37882,
+      "sha256": "4563a9107ee7aeaab1207e7b4f9454224c1bcbf21bc742a1a499d69c3888343a"
+    },
+    {
+      "path": "logs/body-scope-checks.json",
+      "bytes": 794,
+      "sha256": "cb243475e3b68144052bc1fda9299c85e1d0eb37403a9c75f374386ff2bbfe24"
+    },
+    {
+      "path": "logs/editor-client.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/editor-client.stdout.log",
+      "bytes": 411,
+      "sha256": "b6bc0e595b92adbeaa292a3c608c340030a1529935386a2b2c2fba3753a4ec1c"
+    },
+    {
+      "path": "logs/editor-tests.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/editor-tests.stdout.log",
+      "bytes": 1176,
+      "sha256": "ed344fcd4065432d2a36397f61395e663aacd46da1c96769f3f61639de5b00c3"
+    },
+    {
+      "path": "logs/metadata/build.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/metadata/build.stdout.log",
+      "bytes": 304,
+      "sha256": "29742899bb214b58f35a31a2df3430e3e6e2237fa2015cb0b9b37f531f261b57"
+    },
+    {
+      "path": "logs/metadata/run.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/metadata/run.stdout.log",
+      "bytes": 932,
+      "sha256": "eed08969162da23cd6c465bbe425bf7996e9be052080a644c1f0bf2788daa391"
+    },
+    {
+      "path": "logs/net-build.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/net-build.stdout.log",
+      "bytes": 439,
+      "sha256": "9fc90745f96f36b1e6dd2756eb3dfb19b61c6fef071c3c414c7ae71bf6a5e8be"
+    },
+    {
+      "path": "logs/player-client.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/player-client.stdout.log",
+      "bytes": 411,
+      "sha256": "81c7724a2bdc9e8da6ea1a1498ac15c5defa9b62e6fd8d5c3db558218906f3ce"
+    },
+    {
+      "path": "metadata/current-selectors.json",
+      "bytes": 53590,
+      "sha256": "c220dfe0827e1bb63fb54689244de905265dc355ce2580a277acfd11c6e4d203"
+    },
+    {
+      "path": "metadata/metadata-source-validation.json",
+      "bytes": 54211,
+      "sha256": "e4d17c331d310ec0bea57e6c100ae51ad80ae7579f3fa5bb494955042a5b42be"
+    },
+    {
+      "path": "metadata/source-input-pins.json",
+      "bytes": 33706,
+      "sha256": "bb6d9c3688ec2b77d2eded53e0c2d3468bcecf77385cbac7e5fd8c036743df9b"
+    },
+    {
+      "path": "metadata-tool/MetadataAudit.csproj",
+      "bytes": 401,
+      "sha256": "61361d5d9a1c625bc2431506bf93754ab0547db0bb66806c59ede6685b006014"
+    },
+    {
+      "path": "metadata-tool/Program.cs",
+      "bytes": 24749,
+      "sha256": "91494601686bc123d1e0ee7e5312b64ea2840ce857000d62535d5b7120a1c8b6"
+    },
+    {
+      "path": "native-selectors.txt",
+      "bytes": 10118,
+      "sha256": "a7210a4c56509d707923c67a62082c8374465e039d5e58473726960ce3df3b43"
+    },
+    {
+      "path": "original-red/loaded-identity.json",
+      "bytes": 9471,
+      "sha256": "43e89f9208909ecdc29be12fe0318f61641245216b9c4349fec76048f553ceb2"
+    },
+    {
+      "path": "original-red/native-identity-verification.json",
+      "bytes": 1165,
+      "sha256": "e8d7c14b162bf951f5dd3b0414904371a0b810b10930c2d6bde3beb25408983f"
+    },
+    {
+      "path": "original-red/post-stop-source-pins.json",
+      "bytes": 64,
+      "sha256": "5cb47e5f7b853a0340420d893305e72b31cb74774ac308709f30e694fce2b55a"
+    },
+    {
+      "path": "original-red/receipt.json",
+      "bytes": 1869,
+      "sha256": "23fdc04361546c969fb0b69826af526b958d17176df553c190a89754214f929d"
+    },
+    {
+      "path": "original-red/run-07-Roguehalla_Client_Tests_TrainingConsoleViewEditModeTests.invocation.json",
+      "bytes": 808,
+      "sha256": "9766d5e5aa1989b855e2825187cfef7293258e75845c84f16943bb78f04af6e0"
+    },
+    {
+      "path": "original-red/run-07-Roguehalla_Client_Tests_TrainingConsoleViewEditModeTests.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "original-red/run-07-Roguehalla_Client_Tests_TrainingConsoleViewEditModeTests.stdout.txt",
+      "bytes": 9280,
+      "sha256": "33df1b98b76467f43afb2d899d855039eaafe88812e94e05ee3082b3473b09b2"
+    },
+    {
+      "path": "original-red/test-execution-ledger.json",
+      "bytes": 32415,
+      "sha256": "5ba9f27e6fbc1087fd89796a10e883c997faaa0ff24c06b05c6559b23bf4367b"
+    },
+    {
+      "path": "prior90-typed-contract.json",
+      "bytes": 71554,
+      "sha256": "cf38da76450bbcc01bb2f6c15d73c44d119152959733ef3037dcc04960f1cc7e"
+    },
+    {
+      "path": "receipt.json",
+      "bytes": 3747,
+      "sha256": "a59ffd019e87af45f1c15374351fa630917e7ce206308959e7a57d774e1a927f"
+    },
+    {
+      "path": "source-change.patch.gz",
+      "bytes": 4020,
+      "sha256": "0e2a70d89a4f4847f586b949a302eb7e42a358bd6f7178a33b10c3236b7d0248"
+    },
+    {
+      "path": "source-diff-receipt.json",
+      "bytes": 457,
+      "sha256": "7074eec25d71336372fec4cdb72f0db9961699458ad93a300a93b12a14630f78"
+    },
+    {
+      "path": "source-preservation.json",
+      "bytes": 872,
+      "sha256": "1b0cd30e4b47e90cf65b9b89941e5a83201a6f466f5a9f8c110c472d00907e5b"
+    }
+  ]
+}

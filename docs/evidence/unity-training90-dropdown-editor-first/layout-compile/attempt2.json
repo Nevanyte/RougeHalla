@@ -1,0 +1,10 @@
+{
+  "scope": "Offline helper preparation only; not native UI execution",
+  "argv": [
+    "/Applications/Unity/Hub/Editor/6000.0.85f2/Unity.app/Contents/NetCoreRuntime/dotnet",
+    "/Applications/Unity/Hub/Editor/6000.0.85f2/Unity.app/Contents/DotNetSdkRoslyn/csc.dll",
+    "@/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-dropdown-cdb0bc4b-2026-11-09/layout-compile/TrainingLayoutStage.rsp"
+  ],
+  "exitCode": 0,
+  "sourceSha256": "0d6ed7321f0dc3bced9cd76c2874b55d17643119204451024154c5bb3f73fed9"
+}

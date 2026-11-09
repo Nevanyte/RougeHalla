@@ -1,0 +1,54 @@
+{
+  "source": "99172b65a317fc489b2290caa43c1735f26f2e26",
+  "status": "FAILED; preserved first actual run, no retry",
+  "executed": 77,
+  "passed": 73,
+  "failed": 4,
+  "unrun": 13,
+  "viewGroup": {
+    "Total": 8,
+    "Passed": 4,
+    "Failed": 4,
+    "Skipped": 0,
+    "Inconclusive": 0
+  },
+  "rawFilePins": [
+    {
+      "file": "run-07-Roguehalla_Client_Tests_TrainingConsoleViewEditModeTests.stdout.txt",
+      "bytes": 9280,
+      "sha256": "33df1b98b76467f43afb2d899d855039eaafe88812e94e05ee3082b3473b09b2"
+    },
+    {
+      "file": "run-07-Roguehalla_Client_Tests_TrainingConsoleViewEditModeTests.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "run-07-Roguehalla_Client_Tests_TrainingConsoleViewEditModeTests.invocation.json",
+      "bytes": 808,
+      "sha256": "9766d5e5aa1989b855e2825187cfef7293258e75845c84f16943bb78f04af6e0"
+    },
+    {
+      "file": "test-execution-ledger.json",
+      "bytes": 32415,
+      "sha256": "5ba9f27e6fbc1087fd89796a10e883c997faaa0ff24c06b05c6559b23bf4367b"
+    },
+    {
+      "file": "loaded-identity.json",
+      "bytes": 9471,
+      "sha256": "43e89f9208909ecdc29be12fe0318f61641245216b9c4349fec76048f553ceb2"
+    },
+    {
+      "file": "native-identity-verification.json",
+      "bytes": 1165,
+      "sha256": "e8d7c14b162bf951f5dd3b0414904371a0b810b10930c2d6bde3beb25408983f"
+    },
+    {
+      "file": "post-stop-source-pins.json",
+      "bytes": 64,
+      "sha256": "5cb47e5f7b853a0340420d893305e72b31cb74774ac308709f30e694fce2b55a"
+    }
+  ],
+  "rawSourceFolder": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-99172b65-2026-11-09/evidence",
+  "recordingNote": "Copied immutable run/identity/source-pin records. Cleanup remains owned by Art/coordinator; this lane invoked no Editor/native operation."
+}

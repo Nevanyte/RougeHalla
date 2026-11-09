@@ -1,0 +1,38 @@
+{
+  "scope": "Approved one-guard reentrant-clock correction plus two controls; remaining source sites audited read-only",
+  "base": "8e467beb3ec76d8178927998b62a23cdf7b77a06",
+  "codeHead": "6fd7ed46fd4d3880ef9299984d80773fb8a6863b",
+  "originalCode": "82e9aba9aaa27257fd2438e0480aafa75bcff9fd",
+  "originalEvidence": "98bc727afb1823d394cc30aa96e97d4c31693a97",
+  "focused": {
+    "passed": 117,
+    "failed": 0,
+    "skipped": 0,
+    "exit": 0,
+    "runs": 1,
+    "flags": "--filter FullyQualifiedName~SeatResumeTests|FullyQualifiedName~SessionTests -warnaserror",
+    "log": "focused-clock.log"
+  },
+  "full": {
+    "passed": 863,
+    "failed": 0,
+    "skipped": 0,
+    "exit": 0,
+    "runs": 1,
+    "flags": "-warnaserror",
+    "log": "full-managed-clock.log"
+  },
+  "originalManifestGitObjectEntriesVerified": 13,
+  "originalEvidenceUnchanged": true,
+  "currentFrozenFilesUnchangedAfterBothRuns": true,
+  "exactUnityMirrors": true,
+  "baseDiffWhitespaceCheck": true,
+  "contract": "Same accepted multicast dispatch may finish; no subsequent distinct parser notification or I/O authority after Detach. UI owner revokes generation/session ownership before Detach.",
+  "readOnlyFindings": "Other intentionally reentrant clock sites can alter local retained prediction/diagnostic bookkeeping; no source expansion or additional campaign authorized",
+  "sourceScope": [
+    "Session.cs one guard",
+    "exact Session mirror",
+    "SeatResumeTests two controls"
+  ],
+  "noRustPgEditorBrowserCloudOrAllocationCampaign": true
+}

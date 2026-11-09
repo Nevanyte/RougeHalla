@@ -1,0 +1,11 @@
+{
+  "scope": "Offline draft-helper compilation only; no Editor load, invocation or test",
+  "argv": [
+    "/Applications/Unity/Hub/Editor/6000.0.85f2/Unity.app/Contents/NetCoreRuntime/dotnet",
+    "/Applications/Unity/Hub/Editor/6000.0.85f2/Unity.app/Contents/DotNetSdkRoslyn/csc.dll",
+    "@/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-dropdown-cdb0bc4b-2026-11-09/layout-compile/TrainingLayoutStage.rsp"
+  ],
+  "exitCode": 1,
+  "sourceSha256": "322b2e4a7180f79ca1f4286fc70ccf8c4677f6d5f9ccb6c4898589f8363a5123",
+  "rspSha256": "9a06338374f956cb92675227a794e7fe4a532c42d3d4b7999dfa09381c569bf6"
+}

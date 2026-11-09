@@ -1,0 +1,11 @@
+{
+  "argv": [
+    "git",
+    "switch",
+    "--detach",
+    "956a80dcfe89dd290816f2ea6051b210b7a4834f"
+  ],
+  "exitCode": 0,
+  "stdout": "",
+  "stderr": "HEAD is now at 956a80dc docs: freeze corrected Training90 and resume library composition\n"
+}

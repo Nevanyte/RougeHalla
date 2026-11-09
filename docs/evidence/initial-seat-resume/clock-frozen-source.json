@@ -1,0 +1,32 @@
+{
+  "base": "8e467beb3ec76d8178927998b62a23cdf7b77a06",
+  "originalCode": "82e9aba9aaa27257fd2438e0480aafa75bcff9fd",
+  "originalEvidence": "98bc727afb1823d394cc30aa96e97d4c31693a97",
+  "codeHead": "6fd7ed46fd4d3880ef9299984d80773fb8a6863b",
+  "files": [
+    {
+      "path": "client-unity/RoguehallaNet.Tests/SeatResumeTests.cs",
+      "sha256": "49c14a25c4d9c89929bb9a0d3a9ae942a987ec1eee874b6216ed4a32a78a539b"
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Net/SeatResume.cs",
+      "sha256": "9d8afd57e2e30d70b937ef7ba233f9cc8b5b2f1e6c9836ec68ec12da74524791"
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Net/Session.cs",
+      "sha256": "4ce6326df240d08b4877bb026d425221fa87f778d9188365c62206bda275965a"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/SeatResume.cs",
+      "sha256": "9d8afd57e2e30d70b937ef7ba233f9cc8b5b2f1e6c9836ec68ec12da74524791"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/SeatResume.cs.meta",
+      "sha256": "8d53aca3f429bbbcd2b1560d7c2fcb9700025c87b3fcb7598d266fe49697438e"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/Session.cs",
+      "sha256": "4ce6326df240d08b4877bb026d425221fa87f778d9188365c62206bda275965a"
+    }
+  ]
+}

@@ -1,0 +1,103 @@
+{
+  "source": "76f341ed60ca5bb8ac70d76cf244c9afc1be9e23",
+  "parent": "2601f9d84fadc20ae57d193c29409ca4042614a4",
+  "branch": "codex/unity-training-dropdown-start",
+  "worktree": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-training-dropdown-start",
+  "authorizedWriteFiles": [
+    "client-unity/UnityProject/Assets/Tests/Editor/TrainingConsoleIntegrationEditModeTests.cs"
+  ],
+  "authorization": "Root conditionally authorized invocation of the actual required TMP lifecycle hook once in fixture setup before real publicShow, when installed native/package source proved omitted initialization; all existing assertions/selectors/attributes remain. Installed package proves Start, not Awake, creates and initializes m_AlphaTweenRunner.",
+  "sourceChange": {
+    "addedLines": 4,
+    "removedLines": 0,
+    "realHook": "TMPro.TMP_Dropdown.Start",
+    "invocationCountInChangedTestSetup": 1,
+    "insertionBefore": "public TMP_Dropdown.Show()",
+    "privateExpectedStateInstalled": false,
+    "existingAssertionsAndAllOtherBytesPreserved": true
+  },
+  "installedSource": {
+    "path": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Library/PackageCache/com.unity.ugui@cd4936b8279f/Runtime/TMP/TMP_Dropdown.cs",
+    "sha256": "e4f051dabc62b6d88ead39185aa9f93a269c25f3f517160ebe374942906c211d",
+    "declarationLine": 365,
+    "initializationMethod": "Start",
+    "initializationLines": [
+      475,
+      482
+    ],
+    "showFadeLine": 968,
+    "failingDereferenceLine": 1183
+  },
+  "nativeRevisions": [
+    {
+      "source": "99172b65a317fc489b2290caa43c1735f26f2e26",
+      "status": "FAILED; preserved immutable",
+      "executedOnce": 77,
+      "passed": 73,
+      "failed": 4,
+      "unrun": 13,
+      "rawDir": "first-red",
+      "completePreservationCommit": "ea39a0aa1007456360e319026b0e68cf56bf4a37"
+    },
+    {
+      "source": "956a80dcfe89dd290816f2ea6051b210b7a4834f",
+      "status": "FAILED; preserved immutable",
+      "executedOnce": 90,
+      "passed": 89,
+      "failed": 1,
+      "unrun": 0,
+      "skipped": 0,
+      "retries": 0,
+      "rawDir": "second-red"
+    }
+  ],
+  "compilation": {
+    "scope": "Exact current all Editor test source",
+    "errors": 0,
+    "warnings": 1,
+    "existingWarning": "CS0067 MatchHudTrophyEditModeTests.cs:116 unused Closed event",
+    "profile": "compile-profiles/Tests.csproj",
+    "unchangedClientNetReferencesReused": true,
+    "notUnityLoadedArtifactIdentity": true
+  },
+  "managedSuite": "Not rerun as directed; no library source change. Root retains distinct combined867 result, not new execution in this branch.",
+  "newNativeStatus": "UNRUN; no Editor/native retry/test or import action performed here",
+  "operations": {
+    "ordinaryManagedCompile": true,
+    "UnityEditor": false,
+    "PlayMode": false,
+    "nativeTests": false,
+    "browser": false,
+    "WebBuild": false,
+    "server": false,
+    "cloud": false
+  },
+  "unchangedNativeSelectorSha256": "a7210a4c56509d707923c67a62082c8374465e039d5e58473726960ce3df3b43",
+  "unchangedPriorTypedContractSha256": "cf38da76450bbcc01bb2f6c15d73c44d119152959733ef3037dcc04960f1cc7e",
+  "notChanged": [
+    "every runtime source",
+    "library and managed tests",
+    "prior64 and all Training view/selector assertions",
+    "all outcome assertions in Integration13",
+    "all90 selectors/attributes/argument tuples",
+    "all616meta files",
+    "packages/settings/assets/art/audio/status/Cargo.lock"
+  ],
+  "metadataValidation": {
+    "audit": "metadata/metadata-audit.json",
+    "auditSha256": "33c70bd9a6290b7e17987b422f49cfe4e51ef539eb28cf32b343bc69d07d330a",
+    "selectorCount": 90,
+    "allNamesAndTypedTuplesUnchanged": true,
+    "currentSelectors": "metadata/current-selectors.json",
+    "currentSelectorsSha256": "c220dfe0827e1bb63fb54689244de905265dc355ce2580a277acfd11c6e4d203",
+    "ilProof": "metadata/dropdown-il-proof.json",
+    "ilProofSha256": "3b00f9d2b7f6f65dc10bc4c8f4e2467579c291863194f0e38b90ed4c09ac4db1",
+    "realTmpStartCalledByInitializerOnce": true,
+    "oneInitializeCallBeforeOnePublicShow": true,
+    "sourceInputPins": "metadata/source-input-pins.json",
+    "sourceInputPinsSha256": "aa73d42a2db3e2c73c2612edbed23364c38419de8032837eddf5db4507ad8564",
+    "testBodiesInvoked": false,
+    "unityApisInvoked": false,
+    "compiledArtifactIdentityOnly": true
+  }
+}

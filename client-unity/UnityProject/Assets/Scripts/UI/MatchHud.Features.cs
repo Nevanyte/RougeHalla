@@ -40,7 +40,7 @@ namespace Roguehalla.Client
         bool ReadingPaneSelected => EventSystem.current != null && EventSystem.current.currentSelectedGameObject != null &&
             EventSystem.current.currentSelectedGameObject.activeInHierarchy &&
             EventSystem.current.currentSelectedGameObject.GetComponent<KeyboardScrollPane>() != null;
-        public bool BlocksKeyboardInput => (_client != null && _client.LaunchPending) || _menu != null && (_menu.gameObject.activeSelf || _results.gameObject.activeSelf ||
+        public bool BlocksKeyboardInput => TrainingInputConsumed || TrainingOwnsKeyboard || (_client != null && _client.LaunchPending) || _menu != null && (_menu.gameObject.activeSelf || _results.gameObject.activeSelf ||
             _settings.gameObject.activeSelf || (_signIn != null && _signIn.gameObject.activeSelf) || AnyHubPanelVisible || PlayerFlowVisible || Typing || (_drawer != null && _drawer.IsVisible) || (_help != null && _help.gameObject.activeSelf) || (_map != null && _map.IsPlanning));
         public bool BlocksPointerInput => BlocksKeyboardInput || (_map != null && _map.PointerBlocked) ||
             PointerHitsUi();
@@ -69,6 +69,7 @@ namespace Roguehalla.Client
                 if (_menu.gameObject.activeSelf) return _root;
                 if (_chestFocus) return _rewards;
                 if (_map != null && _map.IsPlanning) return _root.Find("TacticalMap/PlanningDecisions");
+                if (_trainingConsole?.ActionsAvailable == true) return _trainingConsole.IsOpen ? _trainingConsole.Panel : _trainingConsole.Root;
                 return null;
             }
         }
@@ -211,10 +212,11 @@ namespace Roguehalla.Client
         void ToggleBuild()
         {
             if (_drawer == null || _session == null) return;
+            SuspendTrainingForPanel();
             _drawer.SetVisible(!_drawer.IsVisible); if (_drawer.IsVisible) { _map?.SetOpen(false); if (_help != null) _help.gameObject.SetActive(false); } ReleaseChestFocus();
             RefreshHeaderActionsVisibility();
         }
-        void ToggleHelp() { if (_help != null) { _help.gameObject.SetActive(!_help.gameObject.activeSelf); if (_help.gameObject.activeSelf) { CloseHubPanels(); _drawer?.SetVisible(false); _map?.SetOpen(false); } ReleaseChestFocus(); RefreshHeaderActionsVisibility(); } }
+        void ToggleHelp() { if (_help != null) { SuspendTrainingForPanel(); _help.gameObject.SetActive(!_help.gameObject.activeSelf); if (_help.gameObject.activeSelf) { CloseHubPanels(); _drawer?.SetVisible(false); _map?.SetOpen(false); } ReleaseChestFocus(); RefreshHeaderActionsVisibility(); } }
         void RefreshHeaderActionsVisibility()
         {
             bool visible = (_drawer == null || !_drawer.IsVisible) && !PlayerFlowVisible;
@@ -225,12 +227,20 @@ namespace Roguehalla.Client
         }
         public void ReadUiInput()
         {
+            if (TrainingInputConsumed) return;
             // Text entry owns this whole read; generic navigation must not remove its
             // focus and reclassify the same keys as planning or world input.
             bool typing = Typing;
+            bool trainingOwnsKeys = TrainingOwnsKeyboard;
+            if (trainingOwnsKeys) ConsumeTrainingUiUpdate();
             RememberWorldHudFocus();
             _chestConsumedDigits = false;
             var kb = Keyboard.current;
+            if (_client != null && _client.ConfirmedPractice && BareTrainingEscape(kb) &&
+                (TrainingHigherPanelVisible || _chestFocus)) ConsumeTrainingUiUpdate();
+            if (ReadTrainingEscape(kb, typing)) return;
+            if (!TrainingHigherPanelVisible && ExpandedTrainingDropdown() != null)
+            { ConsumeTrainingUiUpdate(); _map?.ReadUiInput(true, true); return; }
             // Recovery's read-only selectable key is still a focused input field. Escape must
             // clear it and close the Hub panel before the ordinary typing gate runs.
             if (kb != null && AnyHubPanelVisible && kb.escapeKey.wasPressedThisFrame && !kb.ctrlKey.isPressed && !kb.altKey.isPressed && !kb.leftMetaKey.isPressed && !kb.rightMetaKey.isPressed)
@@ -240,25 +250,28 @@ namespace Roguehalla.Client
                 EventSystem.current?.SetSelectedGameObject(null);
                 CloseHubPanels();
             }
-            bool dialog = _settings.gameObject.activeSelf || _results.gameObject.activeSelf || _menu.gameObject.activeSelf || (_signIn != null && _signIn.gameObject.activeSelf) || AnyHubPanelVisible ||
+            bool dialog = trainingOwnsKeys || _settings.gameObject.activeSelf || _results.gameObject.activeSelf || _menu.gameObject.activeSelf || (_signIn != null && _signIn.gameObject.activeSelf) || AnyHubPanelVisible ||
                 _drawer != null && _drawer.IsVisible || _help != null && _help.gameObject.activeSelf || PlayerFlowVisible;
-            bool unrelatedModal = _settings.gameObject.activeSelf || _results.gameObject.activeSelf || _menu.gameObject.activeSelf ||
+            bool unrelatedModal = trainingOwnsKeys || _settings.gameObject.activeSelf || _results.gameObject.activeSelf || _menu.gameObject.activeSelf ||
                 (_signIn != null && _signIn.gameObject.activeSelf) || AnyHubPanelVisible || PlayerFlowVisible;
             if (kb != null && !typing)
             {
                 bool modified = kb.ctrlKey.isPressed || kb.altKey.isPressed || kb.leftMetaKey.isPressed || kb.rightMetaKey.isPressed || kb.shiftKey.isPressed;
                 if (!modified)
                 {
-                    if (kb.jKey.wasPressedThisFrame && (PlayerFlowVisible || PlayerFlowLauncherAllowed))
+                    if (!trainingOwnsKeys && kb.jKey.wasPressedThisFrame && (PlayerFlowVisible || PlayerFlowLauncherAllowed))
                     {
                         if (PlayerFlowVisible) ClosePlayerFlows();
                         else ShowPlayerFlow(DefaultPlayerFlowPage);
+                        if (TrainingInputConsumed) return;
                     }
                     if (kb.escapeKey.wasPressedThisFrame && PlayerFlowVisible) ClosePlayerFlows();
                     // Build and Help can switch between each other, but neither may steal keys from
                     // account, menu, result, guide, or settings panels.
-                    if (!unrelatedModal && !PlayerFlowVisible && kb.bKey.wasPressedThisFrame && !(_map?.IsPlanning ?? false)) ToggleBuild();
-                    if (!unrelatedModal && !PlayerFlowVisible && kb.hKey.wasPressedThisFrame) ToggleHelp();
+                    if (!unrelatedModal && !PlayerFlowVisible && kb.bKey.wasPressedThisFrame && !(_map?.IsPlanning ?? false))
+                    { ToggleBuild(); if (TrainingInputConsumed) return; }
+                    if (!unrelatedModal && !PlayerFlowVisible && kb.hKey.wasPressedThisFrame)
+                    { ToggleHelp(); if (TrainingInputConsumed) return; }
                     if (kb.escapeKey.wasPressedThisFrame)
                     {
                         if (_signIn.gameObject.activeSelf) SetSignInVisible(false);
@@ -267,6 +280,7 @@ namespace Roguehalla.Client
                         else if (_help.gameObject.activeSelf) ToggleHelp();
                         else if (_drawer.IsVisible) { _drawer.SetVisible(false); RefreshHeaderActionsVisibility(); }
                         else if (_chestFocus) ReleaseChestFocus();
+                        if (TrainingInputConsumed) return;
                     }
                     if (!dialog && _rewards.gameObject.activeSelf && kb.cKey.wasPressedThisFrame)
                     {
@@ -291,6 +305,7 @@ namespace Roguehalla.Client
         }
         public void ReleaseUiFocusForWindowLoss()
         {
+            _trainingWindowFocused = false; UnbindTrainingSession();
             _recovery?.SetVisible(false); ReleaseChestFocus(); _chestConsumedDigits = false; _map?.ReleaseTransient();
         }
         void ReleaseChestFocus()
@@ -305,6 +320,8 @@ namespace Roguehalla.Client
             TickHubAtrium();
             TickMetrics();
             TickPlayerFlows();
+            if (TrainingHigherPanelVisible) UnbindTrainingSession();
+            _trainingConsole?.Refresh();
             _map?.Tick();
             RefreshWorldHudVisibility();
             if (_session != null) _drawer?.Refresh(_session.Collections, _session.Me, _showcaseSettings.TextScale);

@@ -1,0 +1,62 @@
+{
+  "status": "ERROR_OPEN_NO_RETRY",
+  "functionalGateSeparate": "90/90 PASS once-only",
+  "firstLayoutError": {
+    "seq": 42043,
+    "timestampUtc": "2026-11-09T16:33:11.044249Z",
+    "level": "error",
+    "logType": "Error",
+    "message": "Failed setting EventSystem.current to unknown EventSystem <b>Selected:</b>\n\n\nNo module\n",
+    "stackTrace": "UnityEngine.EventSystems.EventSystem:set_current (UnityEngine.EventSystems.EventSystem)\nTrainingLayoutStage:Create () (at /Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-dropdown-cdb0bc4b-2026-11-09/TrainingLayoutStage.cs:101)\nTrainingLayoutStage/<Run>d__11:MoveNext () (at /Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/training90-dropdown-cdb0bc4b-2026-11-09/TrainingLayoutStage.cs:143)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder`1<object>:Start<TrainingLayoutStage/<Run>d__11> (TrainingLayoutStage/<Run>d__11&)\nTrainingLayoutStage:Run ()\nSystem.Reflection.MethodBase:Invoke (object,object[])\nUnity.Pipeline.Editor.Commands.Scripts.RunScriptCommand/<RunEphemeral>d__2:MoveNext () (at ./Library/PackageCache/com.unity.pipeline@303cb578aa66/Editor/Commands/Scripts/RunScriptCommand.cs:219)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder`1<Unity.Pipeline.Editor.Commands.Scripts.RunScriptResponse>:Start<Unity.Pipeline.Editor.Commands.Scripts.RunScriptCommand/<RunEphemeral>d__2> (Unity.Pipeline.Editor.Commands.Scripts.RunScriptCommand/<RunEphemeral>d__2&)\nUnity.Pipeline.Editor.Commands.Scripts.RunScriptCommand:RunEphemeral (string,string,Newtonsoft.Json.Linq.JArray,string[],string[],bool,bool,System.TimeSpan,System.Diagnostics.Stopwatch)\nUnity.Pipeline.Editor.Commands.Scripts.RunScriptCommand/<Run>d__1:MoveNext () (at ./Library/PackageCache/com.unity.pipeline@303cb578aa66/Editor/Commands/Scripts/RunScriptCommand.cs:75)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder`1<Unity.Pipeline.Editor.Commands.Scripts.RunScriptResponse>:Start<Unity.Pipeline.Editor.Commands.Scripts.RunScriptCommand/<Run>d__1> (Unity.Pipeline.Editor.Commands.Scripts.RunScriptCommand/<Run>d__1&)\nUnity.Pipeline.Editor.Commands.Scripts.RunScriptCommand:Run (string,string,Newtonsoft.Json.Linq.JArray,string,string[],string[],bool,double,bool)\nSystem.Reflection.MethodBase:Invoke (object,object[])\nUnity.Pipeline.Commands.DefaultCommandQueue:InvokeDirect (Unity.Pipeline.Commands.CommandContext,Unity.Pipeline.Commands.CommandInfo,object[]) (at ./Library/PackageCache/com.unity.pipeline@303cb578aa66/Runtime/CommandExecution/CommandQueue/DefaultCommandQueue.cs:533)\nUnity.Pipeline.Commands.DefaultCommandQueue/<>c__DisplayClass20_0:<Invoke>b__2 () (at ./Library/PackageCache/com.unity.pipeline@303cb578aa66/Runtime/CommandExecution/CommandQueue/DefaultCommandQueue.cs:455)\nUnity.Pipeline.Threading.Dispatcher/WorkItem`1<object>:ExecuteCore () (at ./Library/PackageCache/com.unity.pipeline@303cb578aa66/Runtime/Common/Dispatcher.cs:342)\nUnity.Pipeline.Threading.Dispatcher/WorkItem:Execute () (at ./Library/PackageCache/com.unity.pipeline@303cb578aa66/Runtime/Common/Dispatcher.cs:285)\nUnity.Pipeline.Threading.Dispatcher:ProcessWorkQueue (int) (at ./Library/PackageCache/com.unity.pipeline@303cb578aa66/Runtime/Common/Dispatcher.cs:251)\nUnity.Pipeline.Threading.Dispatcher:ProcessWorkQueue () (at ./Library/PackageCache/com.unity.pipeline@303cb578aa66/Runtime/Common/Dispatcher.cs:266)\nUnityEditor.EditorApplication:Internal_CallUpdateFunctions () (at /Users/bokken/build/output/unity/unity/Editor/Mono/EditorApplication.cs:384)\n",
+    "seeded": false
+  },
+  "wrapperReadyIsNotAcceptance": true,
+  "noPngCaptured": true,
+  "unproved": [
+    "1280x720 matrix",
+    "150% text matrix",
+    "pointer dispatch",
+    "scroll/focus",
+    "layout readability/clipping",
+    "browser or backend application"
+  ],
+  "resolutionLiteral": {
+    "publicPlayModeWindow": [
+      2560,
+      1440
+    ],
+    "canvasPixelRect": [
+      2560,
+      1440
+    ],
+    "canvasScaleFactor": 1.333333,
+    "Screen": [
+      1352,
+      20
+    ]
+  },
+  "consoleContext": {
+    "retainedErrorCount": 80,
+    "preTestPreparationRefreshAssertions": [
+      41813,
+      41814
+    ],
+    "historicalAndPreparationAssertionsNotDiscarded": true
+  },
+  "ownedLogicalGuardTrace": [
+    {
+      "step": "hold-before-source-switch",
+      "delta": 1
+    },
+    {
+      "step": "refresh-frozen-source",
+      "delta": -1
+    },
+    {
+      "step": "hold-pretest-exact-source",
+      "delta": 1
+    }
+  ],
+  "logicalOutstandingHold": 1,
+  "actualInternalCount": "unobserved; retained negative-counter assertions prevent stronger claim"
+}

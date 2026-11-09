@@ -1,0 +1,19 @@
+{
+  "source": "cdb0bc4b8bd623939a464f6ce7780bde69198e85",
+  "all1179PinsExact": true,
+  "uniqueMetaGuids": 617,
+  "onlyApprovedImportOverlay": [
+    {
+      "path": "client-unity/UnityProject/ProjectSettings/ShaderGraphSettings.asset",
+      "expected": {
+        "path": "client-unity/UnityProject/ProjectSettings/ShaderGraphSettings.asset",
+        "bytes": 555,
+        "sha256": "d9285133fee72ad8257e0b2c2d904b487757ebcef4862e3b10bef073bf218894"
+      },
+      "actualBytes": 557,
+      "actualSha256": "83556175c6dccd540f2cac05e5c0f9fbb36c3c8d7a56bed2c7cf4d29e4c2ee2e"
+    }
+  ],
+  "frozenBytesRestored": true,
+  "testsInvoked": 0
+}

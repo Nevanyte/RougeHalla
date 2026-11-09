@@ -1,0 +1,101 @@
+{
+  "source": "d90dd0a12b898dceae6715e26c1aec71a68d8d3a",
+  "parent": "e2b2671107506f5cb892cfb74cba7374c7a52a6d",
+  "branch": "codex/unity-training-lifecycle-repair",
+  "worktree": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-training-lifecycle-repair",
+  "originalActualFailedSource": "99172b65a317fc489b2290caa43c1735f26f2e26",
+  "originalResult": {
+    "executed": 77,
+    "passed": 73,
+    "failed": 4,
+    "unrun": 13,
+    "status": "FAILED; immutable first run"
+  },
+  "authorizedWriteFiles": [
+    "client-unity/UnityProject/Assets/Scripts/UI/TrainingConsoleView.cs",
+    "client-unity/UnityProject/Assets/Tests/Editor/TrainingConsoleViewEditModeTests.cs"
+  ],
+  "clockPreconditionApproval": "Root explicitly approved exactly Assert.IsTrue(_view.SetOpen(true)) after new-epoch ActionsAvailable and before oldEvent.Invoke; every existing assertion/expected value/attribute/selector preserved. No production auto-reopen.",
+  "compilation": {
+    "netReferenceBuild": {
+      "errors": 0,
+      "warnings": 0
+    },
+    "editorClient": {
+      "errors": 0,
+      "warnings": 0
+    },
+    "playerClient": {
+      "errors": 0,
+      "warnings": 0
+    },
+    "editorTests": {
+      "errors": 0,
+      "warnings": 1,
+      "existingWarning": "CS0067 MatchHudTrophyEditModeTests.cs:116 unused Closed event"
+    }
+  },
+  "managedSuite": "Not rerun as directed. All managed library and managed test source is byte-identical to preserved seal. Previous826/826 receipt is not new execution evidence.",
+  "newNativeStatus": "UNRUN; no retry/remaining13/Editor operation performed here",
+  "operations": {
+    "managedCompilerOnly": true,
+    "UnityEditor": false,
+    "PlayMode": false,
+    "nativeTests": false,
+    "browser": false,
+    "WebBuild": false,
+    "server": false,
+    "cloud": false
+  },
+  "compileReproductionCommands": [
+    [
+      "/Users/nevinmckinnon/.dotnet/dotnet",
+      "build",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-training-lifecycle-repair-2026-11-09/profiles/editor/Client.csproj",
+      "-t:Rebuild",
+      "-v",
+      "minimal"
+    ],
+    [
+      "/Users/nevinmckinnon/.dotnet/dotnet",
+      "build",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-training-lifecycle-repair-2026-11-09/profiles/editor/Tests.csproj",
+      "-t:Rebuild",
+      "-v",
+      "minimal"
+    ],
+    [
+      "/Users/nevinmckinnon/.dotnet/dotnet",
+      "build",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-training-lifecycle-repair-2026-11-09/profiles/player/Client.csproj",
+      "-t:Rebuild",
+      "-v",
+      "minimal"
+    ]
+  ],
+  "scopeNotChanged": [
+    "all previous64 test bodies",
+    "Training selector test bodies",
+    "Training integration13 test bodies",
+    "all other leaf test assertions",
+    "all90 selectors/attributes/argument tuples",
+    "all616existingmetaGUIDs",
+    "otherUIflows/HUD/MatchClient",
+    "gameplay/physics/AI/backend/wire/library",
+    "packages/settings/assets/art/audio/status/Cargo.lock"
+  ],
+  "metadataValidation": {
+    "report": "metadata/metadata-source-validation.json",
+    "sha256": "e4d17c331d310ec0bea57e6c100ae51ad80ae7579f3fa5bb494955042a5b42be",
+    "all90SelectorsAndTypedArgumentsUnchanged": true,
+    "currentSelectors": "metadata/current-selectors.json",
+    "currentSelectorsSha256": "c220dfe0827e1bb63fb54689244de905265dc355ce2580a277acfd11c6e4d203",
+    "sourceInputPins": "metadata/source-input-pins.json",
+    "sourceInputPinsSha256": "bb6d9c3688ec2b77d2eded53e0c2d3468bcecf77385cbac7e5fd8c036743df9b",
+    "ownedLifetimeGuardAndCleanupIlChecks": true,
+    "playerRetireRootDeferredDestroyOnly": true,
+    "testBodiesInvoked": false,
+    "unityApisInvoked": false,
+    "compiledArtifactIdentityIsNotUnityLoadedIdentity": true
+  }
+}

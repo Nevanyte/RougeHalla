@@ -1,0 +1,244 @@
+{
+  "testExecutionPerformedHere": false,
+  "method": "Read copied raw Results and compare unique names with unchanged expected90, plus original native summary. No gate rerun.",
+  "revisions": [
+    {
+      "label": "first-red",
+      "source": "99172b65a317fc489b2290caa43c1735f26f2e26",
+      "expected": 90,
+      "executedUnique": 77,
+      "counts": {
+        "Passed": 73,
+        "Failed": 4,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "unrun": 13,
+      "extra": [],
+      "missing": [
+        "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.ArenaAndPendingLaunchNeverExposeTrainingConsoleAndArenaTabStillOpensMap",
+        "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.CapturedConsoleCallbackCannotQueueIntoARetiredOrReplacementSession",
+        "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.ClosedTrainingTabEntersConsoleFocusAndFocusedTextOwnsWorldKeys",
+        "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.DropdownEscapeRequestsPopupHideBeforeConsoleCloseAndTrainingLeave",
+        "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.EscapeClosesTrainingConsoleAndOnlyTheNextPhysicalEscapeLeavesTraining",
+        "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.HigherSettingsModalUnbindsConsoleUntilANewAcceptedSnapshot",
+        "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.OpeningHigherPanelOnTheSameReadCannotAlsoFocusOrChooseAReward",
+        "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.PointerCloseConsumesItsInputUpdateButWorldInputReturnsOnTheNextUpdate",
+        "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.ReconnectWelcomeAndSourceClockCutRevokeConsoleUntilAcceptedTrainingFact",
+        "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.TrainingConsoleFlushesEarlierOrdinaryCommandsBeforeItsExactTrainIntent",
+        "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.TrainingRequiresTheExactSessionAndAcceptedSnapshotBeforeOpening",
+        "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.WindowFocusLossClosesTrainingConsoleAndFreshFactCanRestoreIt",
+        "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests.WrongServerModeNeverLeavesAnArenaTrainingConsoleBound"
+      ],
+      "fixtures": [
+        {
+          "stdout": "run-01-Roguehalla_Client_Tests_QuestJournalViewEditModeTests.stdout.txt",
+          "summary": {
+            "Total": 8,
+            "Passed": 8,
+            "Failed": 0,
+            "Skipped": 0,
+            "Inconclusive": 0
+          },
+          "resultCount": 8,
+          "sha256": "fd78503a2e166121649cdf98932e240f9a0f1142c02e454a0a5866bd8af3e564"
+        },
+        {
+          "stdout": "run-02-Roguehalla_Client_Tests_TraderDialogViewEditModeTests.stdout.txt",
+          "summary": {
+            "Total": 6,
+            "Passed": 6,
+            "Failed": 0,
+            "Skipped": 0,
+            "Inconclusive": 0
+          },
+          "resultCount": 6,
+          "sha256": "3138d7d52f374f635feb55de300dda2bdfa1f239a95de74453f94ced7336542b"
+        },
+        {
+          "stdout": "run-03-Roguehalla_Client_Tests_PlayerFlowsEditModeTests.stdout.txt",
+          "summary": {
+            "Total": 11,
+            "Passed": 11,
+            "Failed": 0,
+            "Skipped": 0,
+            "Inconclusive": 0
+          },
+          "resultCount": 11,
+          "sha256": "036e9fe7e4cf76a17910bb4a169a918eb353fe2c9209b4036500834ebe8b7547"
+        },
+        {
+          "stdout": "run-04-MatchLaunchEditModeTests.stdout.txt",
+          "summary": {
+            "Total": 17,
+            "Passed": 17,
+            "Failed": 0,
+            "Skipped": 0,
+            "Inconclusive": 0
+          },
+          "resultCount": 17,
+          "sha256": "c5f1e89ecb2b50464accd346313d8c07f45e88632a49d17fce51de209cc8905b"
+        },
+        {
+          "stdout": "run-05-MatchSettlementEditModeTests.stdout.txt",
+          "summary": {
+            "Total": 22,
+            "Passed": 22,
+            "Failed": 0,
+            "Skipped": 0,
+            "Inconclusive": 0
+          },
+          "resultCount": 22,
+          "sha256": "181f3b1551a83f9dcf2074d3795a70de96b3c8998ae195fb2f3da59b41ae2bf3"
+        },
+        {
+          "stdout": "run-06-Roguehalla_Client_Tests_TrainingConsoleSelectorsEditModeTests.stdout.txt",
+          "summary": {
+            "Total": 5,
+            "Passed": 5,
+            "Failed": 0,
+            "Skipped": 0,
+            "Inconclusive": 0
+          },
+          "resultCount": 5,
+          "sha256": "2846b0fb714e3827aaaa3d5fb3a230f94b393d7be8662af6e7c031354dd267af"
+        },
+        {
+          "stdout": "run-07-Roguehalla_Client_Tests_TrainingConsoleViewEditModeTests.stdout.txt",
+          "summary": {
+            "Total": 8,
+            "Passed": 4,
+            "Failed": 4,
+            "Skipped": 0,
+            "Inconclusive": 0
+          },
+          "resultCount": 8,
+          "sha256": "33df1b98b76467f43afb2d899d855039eaafe88812e94e05ee3082b3473b09b2"
+        }
+      ],
+      "ledgerCompletedFixtures": 6,
+      "ledgerListedUnrunCount": 13,
+      "actualRawResultCount": 77,
+      "status": "FAILED; preserve immutable, do not merge counts"
+    },
+    {
+      "label": "second-red",
+      "source": "956a80dcfe89dd290816f2ea6051b210b7a4834f",
+      "expected": 90,
+      "executedUnique": 90,
+      "counts": {
+        "Passed": 89,
+        "Failed": 1,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "unrun": 0,
+      "extra": [],
+      "missing": [],
+      "fixtures": [
+        {
+          "stdout": "run-01-Roguehalla_Client_Tests_QuestJournalViewEditModeTests.stdout.txt",
+          "summary": {
+            "Total": 8,
+            "Passed": 8,
+            "Failed": 0,
+            "Skipped": 0,
+            "Inconclusive": 0
+          },
+          "resultCount": 8,
+          "sha256": "420668f956f742db859d33b61c2c7a483dcba6fe8717a4ced19d647280efa869"
+        },
+        {
+          "stdout": "run-02-Roguehalla_Client_Tests_TraderDialogViewEditModeTests.stdout.txt",
+          "summary": {
+            "Total": 6,
+            "Passed": 6,
+            "Failed": 0,
+            "Skipped": 0,
+            "Inconclusive": 0
+          },
+          "resultCount": 6,
+          "sha256": "577368783c5e18d4962b9c3ab089b7829865b69e1c9e1e9b3e74fd636a5619d1"
+        },
+        {
+          "stdout": "run-03-Roguehalla_Client_Tests_PlayerFlowsEditModeTests.stdout.txt",
+          "summary": {
+            "Total": 11,
+            "Passed": 11,
+            "Failed": 0,
+            "Skipped": 0,
+            "Inconclusive": 0
+          },
+          "resultCount": 11,
+          "sha256": "b368de2bcb9b622f6342fb0968291a2931923dcdb08aacd2f542aeecb39e235f"
+        },
+        {
+          "stdout": "run-04-MatchLaunchEditModeTests.stdout.txt",
+          "summary": {
+            "Total": 17,
+            "Passed": 17,
+            "Failed": 0,
+            "Skipped": 0,
+            "Inconclusive": 0
+          },
+          "resultCount": 17,
+          "sha256": "d19affbaaa3d9ccd02b0443869e6ff34541a3e7b8e2e46af194e9905df763515"
+        },
+        {
+          "stdout": "run-05-MatchSettlementEditModeTests.stdout.txt",
+          "summary": {
+            "Total": 22,
+            "Passed": 22,
+            "Failed": 0,
+            "Skipped": 0,
+            "Inconclusive": 0
+          },
+          "resultCount": 22,
+          "sha256": "1f85218eeb908874d326c70ab8f4037aeda0b59bdf971eab1fd60b0080d36f83"
+        },
+        {
+          "stdout": "run-06-Roguehalla_Client_Tests_TrainingConsoleSelectorsEditModeTests.stdout.txt",
+          "summary": {
+            "Total": 5,
+            "Passed": 5,
+            "Failed": 0,
+            "Skipped": 0,
+            "Inconclusive": 0
+          },
+          "resultCount": 5,
+          "sha256": "8fb42e7ac80e5c22db7ea21729b2b5e0adc7a227b6048c2bec5603824c8ef7db"
+        },
+        {
+          "stdout": "run-07-Roguehalla_Client_Tests_TrainingConsoleViewEditModeTests.stdout.txt",
+          "summary": {
+            "Total": 8,
+            "Passed": 8,
+            "Failed": 0,
+            "Skipped": 0,
+            "Inconclusive": 0
+          },
+          "resultCount": 8,
+          "sha256": "3e06c2668fb4d7548fc2431a452367583372290f52cfd147d6ee96162276ebe7"
+        },
+        {
+          "stdout": "run-08-Roguehalla_Client_Tests_TrainingConsoleIntegrationEditModeTests.stdout.txt",
+          "summary": {
+            "Total": 13,
+            "Passed": 12,
+            "Failed": 1,
+            "Skipped": 0,
+            "Inconclusive": 0
+          },
+          "resultCount": 13,
+          "sha256": "f3c33c132a42e101da37ae5b2b3c8e97a65f5fd3845a03d200515559c11f99a8"
+        }
+      ],
+      "ledgerCompletedFixtures": 7,
+      "ledgerListedUnrunCount": 0,
+      "actualRawResultCount": 90,
+      "status": "FAILED; preserve immutable, do not merge counts",
+      "ledgerUnresolvedCurrentFixtureCount": 13,
+      "ledgerDiscrepancy": "Ledger lists 7 completed (fully passing) fixture types, 0 unrun, and the 13 failing-current-group names as unresolvedCurrentFixtureFullNames. Its group8 record carries a validationError rather than copied results. All 8 raw stdout files and native-result-summary prove 90 unique executed /89PASS1FAIL /0UNRUN. Unresolved in this ledger is not unrun. Ledger copied byte-for-byte; counts are reconciled from actual raw Results."
+    }
+  ]
+}

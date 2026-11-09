@@ -1,0 +1,56 @@
+{
+  "status": "PASS",
+  "checks": {
+    "playing": true,
+    "willChangePlay": true,
+    "paused": true,
+    "compiling": true,
+    "compileFailed": true,
+    "background": true,
+    "runtimeBackground": true,
+    "sceneCount": true,
+    "previewSceneCount": true,
+    "inputId": true,
+    "inputFlags": true,
+    "inputMode": true,
+    "inputBehavior": true,
+    "textKey": true,
+    "textScale": true,
+    "minimapKey": true,
+    "minimapIndex": true,
+    "previewQuery": true,
+    "activeScenePathDirtyRoots": true,
+    "inputDevicesCurrentAndSelectionExact": true,
+    "layoutPrefsWindowsFocusExact": true,
+    "noCanvasOrArena": true,
+    "noEventSystems": true,
+    "noSceneLight2D": true,
+    "ownedCleanupNoErrors": true
+  },
+  "activeSceneHandleRecreatedDuringSourceImport": {
+    "before": -5783534,
+    "after": -6409136
+  },
+  "cachedAssetLight2D": [
+    {
+      "id": 49890,
+      "name": "Torch",
+      "kind": "Point",
+      "active": false,
+      "scene": null,
+      "sceneHandle": 0
+    },
+    {
+      "id": 52008,
+      "name": "TorchAccurate",
+      "kind": "Point",
+      "active": false,
+      "scene": null,
+      "sceneHandle": 0
+    }
+  ],
+  "limits": [
+    "No private URP registry access; public inventory distinguishes inactive prefab assets sceneHandle0 from scene instances.",
+    "Auto-refresh internal count not read; logical owned guard trace recorded separately."
+  ]
+}

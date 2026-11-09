@@ -60,6 +60,7 @@ namespace Roguehalla.Client
         public void ShowPlayerFlow(int page)
         {
             if (!PlayerFlowPageAllowed(page)) return;
+            SuspendTrainingForPanel();
             _returnToResults |= _results.gameObject.activeSelf;
             _results.gameObject.SetActive(false);
             CloseHubPanels();

@@ -1,0 +1,7 @@
+{
+  "path": "source-change.patch.gz",
+  "format": "gzip; exact decompressed Git unified source diff",
+  "decompressedBytes": 1280,
+  "decompressedSha256": "95a17605c7541300b9c1c793bf6514a06b48dfd347eac2e2561d69413f960b29",
+  "reason": "Retain raw blank diff context without whitespace lint treating it as newly added product whitespace."
+}

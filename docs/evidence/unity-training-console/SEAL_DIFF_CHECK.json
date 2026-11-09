@@ -1,0 +1,39 @@
+{
+  "firstEvidenceSealCheck": {
+    "argv": [
+      "git",
+      "diff",
+      "--cached",
+      "--check"
+    ],
+    "exitCode": 2,
+    "stdout": "docs/evidence/unity-training-console/compile-asmdef-scoped/Player/Roguehalla.Client.stdout.txt:22: trailing whitespace.\n+client-unity/UnityProject/Assets/Scripts/Presentation/ShowcasePropCatalog.cs(26,38): warning CS0649: Field 'ShowcasePropCatalog.Entry.unityPivotNormalized' is never assigned to, and will always have its default value \ndocs/evidence/unity-training-console/compile-asmdef-scoped/Player/Roguehalla.Client.stdout.txt:30: trailing whitespace.\n+client-unity/UnityProject/Assets/Scripts/Presentation/ShowcasePropCatalog.cs(24,38): warning CS0649: Field 'ShowcasePropCatalog.Entry.sourceRectTopLeftPixels' is never assigned to, and will always have its default value \ndocs/evidence/unity-training-console/compile-asmdef-scoped/Player/Roguehalla.Client.stdout.txt:31: trailing whitespace.\n+client-unity/UnityProject/Assets/Scripts/Presentation/ShowcasePropCatalog.cs(25,38): warning CS0649: Field 'ShowcasePropCatalog.Entry.flareOffsetPixels' is never assigned to, and will always have its default value \ndocs/evidence/unity-training-console/compile-unity-csc/Editor/Roguehalla.Client.stdout.txt:20: trailing whitespace.\n+client-unity/UnityProject/Assets/Scripts/Presentation/ShowcasePropCatalog.cs(26,38): warning CS0649: Field 'ShowcasePropCatalog.Entry.unityPivotNormalized' is never assigned to, and will always have its default value \ndocs/evidence/unity-training-console/compile-unity-csc/Editor/Roguehalla.Client.stdout.txt:24: trailing whitespace.\n+client-unity/UnityProject/Assets/Scripts/Presentation/ShowcasePropCatalog.cs(25,38): warning CS0649: Field 'ShowcasePropCatalog.Entry.flareOffsetPixels' is never assigned to, and will always have its default value \ndocs/evidence/unity-training-console/compile-unity-csc/Editor/Roguehalla.Client.stdout.txt:31: trailing whitespace.\n+client-unity/UnityProject/Assets/Scripts/Presentation/ShowcasePropCatalog.cs(24,38): warning CS0649: Field 'ShowcasePropCatalog.Entry.sourceRectTopLeftPixels' is never assigned to, and will always have its default value \ndocs/evidence/unity-training-console/compile/Editor/Roguehalla.Client.stdout.txt:68: trailing whitespace.\n+client-unity/UnityProject/Assets/Scripts/Presentation/ShowcasePropCatalog.cs(24,38): warning CS0649: Field 'ShowcasePropCatalog.Entry.sourceRectTopLeftPixels' is never assigned to, and will always have its default value \ndocs/evidence/unity-training-console/compile/Editor/Roguehalla.Client.stdout.txt:70: trailing whitespace.\n+client-unity/UnityProject/Assets/Scripts/Presentation/ShowcasePropCatalog.cs(25,38): warning CS0649: Field 'ShowcasePropCatalog.Entry.flareOffsetPixels' is never assigned to, and will always have its default value \ndocs/evidence/unity-training-console/compile/Editor/Roguehalla.Client.stdout.txt:72: trailing whitespace.\n+client-unity/UnityProject/Assets/Scripts/Presentation/ShowcasePropCatalog.cs(26,38): warning CS0649: Field 'ShowcasePropCatalog.Entry.unityPivotNormalized' is never assigned to, and will always have its default value \ndocs/evidence/unity-training-console/final-focus-compile/Editor/Roguehalla.Client.stdout.txt:25: trailing whitespace.\n+client-unity/UnityProject/Assets/Scripts/Presentation/ShowcasePropCatalog.cs(24,38): warning CS0649: Field 'ShowcasePropCatalog.Entry.sourceRectTopLeftPixels' is never assigned to, and will always have its default value \ndocs/evidence/unity-training-console/final-focus-compile/Editor/Roguehalla.Client.stdout.txt:26: trailing whitespace.\n+client-unity/UnityProject/Assets/Scripts/Presentation/ShowcasePropCatalog.cs(25,38): warning CS0649: Field 'ShowcasePropCatalog.Entry.flareOffsetPixels' is never assigned to, and will always have its default value \ndocs/evidence/unity-training-console/final-focus-compile/Editor/Roguehalla.Client.stdout.txt:30: trailing whitespace.\n+client-unity/UnityProject/Assets/Scripts/Presentation/ShowcasePropCatalog.cs(26,38): warning CS0649: Field 'ShowcasePropCatalog.Entry.unityPivotNormalized' is never assigned to, and will always have its default value \ndocs/evidence/unity-training-console/final-focus-compile/Player/Roguehalla.Client.stdout.txt:30: trailing whitespace.\n+client-unity/UnityProject/Assets/Scripts/Presentation/ShowcasePropCatalog.cs(26,38): warning CS0649: Field 'ShowcasePropCatalog.Entry.unityPivotNormalized' is never assigned to, and will always have its default value \ndocs/evidence/unity-training-console/final-focus-compile/Player/Roguehalla.Client.stdout.txt:31: trailing whitespace.\n+client-unity/UnityProject/Assets/Scripts/Presentation/ShowcasePropCatalog.cs(24,38): warning CS0649: Field 'ShowcasePropCatalog.Entry.sourceRectTopLeftPixels' is never assigned to, and will always have its default value \ndocs/evidence/unity-training-console/final-focus-compile/Player/Roguehalla.Client.stdout.txt:34: trailing whitespace.\n+client-unity/UnityProject/Assets/Scripts/Presentation/ShowcasePropCatalog.cs(25,38): warning CS0649: Field 'ShowcasePropCatalog.Entry.flareOffsetPixels' is never assigned to, and will always have its default value \n",
+    "stderr": ""
+  },
+  "reason": "Unmodified raw compiler stdout has trailing spaces in compiler warning text; preserve exact bytes. Source/code diff checks passed.",
+  "rawCompilerLogPathsWithTrailingSpace": [
+    "docs/evidence/unity-training-console/compile-asmdef-scoped/Player/Roguehalla.Client.stdout.txt",
+    "docs/evidence/unity-training-console/compile-unity-csc/Editor/Roguehalla.Client.stdout.txt",
+    "docs/evidence/unity-training-console/compile/Editor/Roguehalla.Client.stdout.txt",
+    "docs/evidence/unity-training-console/final-focus-compile/Editor/Roguehalla.Client.stdout.txt",
+    "docs/evidence/unity-training-console/final-focus-compile/Player/Roguehalla.Client.stdout.txt"
+  ],
+  "checkExcludingOnlyListedRawCompilerLogs": {
+    "argv": [
+      "git",
+      "diff",
+      "--cached",
+      "--check",
+      "--",
+      ".",
+      ":(exclude)docs/evidence/unity-training-console/compile-asmdef-scoped/Player/Roguehalla.Client.stdout.txt",
+      ":(exclude)docs/evidence/unity-training-console/compile-unity-csc/Editor/Roguehalla.Client.stdout.txt",
+      ":(exclude)docs/evidence/unity-training-console/compile/Editor/Roguehalla.Client.stdout.txt",
+      ":(exclude)docs/evidence/unity-training-console/final-focus-compile/Editor/Roguehalla.Client.stdout.txt",
+      ":(exclude)docs/evidence/unity-training-console/final-focus-compile/Player/Roguehalla.Client.stdout.txt"
+    ],
+    "exitCode": 0,
+    "stdout": "",
+    "stderr": ""
+  }
+}
