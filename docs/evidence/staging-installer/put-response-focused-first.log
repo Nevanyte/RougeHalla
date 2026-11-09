@@ -1,0 +1,7 @@
+test_only_bounded_ciphertext_envelope_produces_conditional_checksum_put_not_restore_claim (test_installer.InstallerTests) ... ok
+test_put_response_requires_nonempty_string_version_and_matching_checksum (test_installer.InstallerTests) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.002s
+
+OK
