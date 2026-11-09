@@ -1,0 +1,31 @@
+{
+  "recorded_utc": "2026-11-09 05:15:34 UTC",
+  "recorded_local_date": "2026-11-08",
+  "base_evidence": "8c21f0e5faf13cc35f8f15c5a23a811d6b4827ab",
+  "source": "de86e15952d0d94ef1dfc992d2207c8494285234",
+  "source_file_count": 18,
+  "corrected_file_count": 4,
+  "compiled_native_selector_count": 20,
+  "native_engine_execution_count": 0,
+  "fixture_counts": {
+    "PlayerFlowsEditModeTests": 7,
+    "QuestJournalViewEditModeTests": 7,
+    "TraderDialogViewEditModeTests": 6
+  },
+  "added_native_selectors": [
+    "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.InFlightSameSessionNoticeCallbackCannotCrossSourceClockCutAndNewEpochKeepsDuplicates"
+  ],
+  "managed_compile_exit_code": 0,
+  "managed_compile_errors": 0,
+  "managed_compile_warning_count": 1,
+  "pure_source_clock_control_count": 2,
+  "pure_source_clock_control_pass_count": 2,
+  "pure_source_clock_control_exit_code": 0,
+  "pure_source_clock_control_warning": "AD0001 MissingMethodException from CSharpDetectPreviewFeatureAnalyzer in RoguehallaNet.Probe",
+  "editor_runs": 0,
+  "play_runs": 0,
+  "captures": 0,
+  "browser_runs": 0,
+  "web_builds": 0,
+  "graph_project_hashes_match_prior": true
+}
