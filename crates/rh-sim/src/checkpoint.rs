@@ -699,7 +699,7 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
         // clamp, so only the first pair may share its timestamp.
         let h = p.body.history.as_slice();
         if h.windows(2).enumerate().any(|(i, s)| {
-            !(s[1].t - s[0].t >= TICK_MS)
+            !(s[1].t >= s[0].t + TICK_MS)
                 && !(i == 0
                     && (h[0].t == h[1].t || crate::abilities::checkpoint::blaze_history(k, p)))
         }) {

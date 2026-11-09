@@ -1,0 +1,17 @@
+docs/evidence/slow-starter-assessment/NATIVE_PROPOSAL.md: OK
+docs/evidence/slow-starter-assessment/README.md: OK
+docs/evidence/slow-starter-assessment/door.json: OK
+docs/evidence/slow-starter-assessment/logs/attempt-001-mount-failure.log: OK
+docs/evidence/slow-starter-assessment/logs/attempt-002-observations.log: OK
+docs/evidence/slow-starter-assessment/logs/attempt-003-observations.log: OK
+docs/evidence/slow-starter-assessment/logs/check.log: OK
+docs/evidence/slow-starter-assessment/logs/door-probe.log: OK
+docs/evidence/slow-starter-assessment/logs/reuse-check.log: OK
+docs/evidence/slow-starter-assessment/reused-case30.json: OK
+docs/evidence/slow-starter-assessment/source.json: OK
+tools/slow-starter-fixtures/capture.mts: OK
+tools/slow-starter-fixtures/capture.sh: OK
+tools/slow-starter-fixtures/check.py: OK
+tools/slow-starter-fixtures/door-probe.mts: OK
+tools/slow-starter-fixtures/door-probe.sh: OK
+tools/slow-starter-fixtures/extract_reuse.py: OK

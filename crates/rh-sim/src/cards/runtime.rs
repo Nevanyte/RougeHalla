@@ -2,7 +2,24 @@
 #[derive(Clone, Copy, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Runtime {
+    #[serde(deserialize_with = "required_option")]
     pub wish_cast: Option<WishSpend>,
+    #[serde(deserialize_with = "required_option")]
+    pub fight: Option<FightClock>,
+}
+fn required_option<'de, D, T>(d: D) -> Result<Option<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: serde::Deserialize<'de>,
+{
+    <Option<T> as serde::Deserialize>::deserialize(d)
+}
+/// Source mods' watched fight clock, independent of cardHooks' run/streak/Wish memory.
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FightClock {
+    pub start: f64,
+    pub last: f64,
 }
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -10,9 +27,14 @@ pub struct WishSpend {
     pub at: f64,
     pub cooldown_ms: f64,
 }
-/// Forgets everything the cards left in one player's memory (start of a run, or the practice console's clear).
+/// Resets cardHooks memory. Source mods owns its fight clock separately; a clear's no-row refold removes it.
 pub(crate) fn reset_player(p: &mut crate::state::Player) {
-    p.card_runtime = None;
+    p.card_runtime = p.card_runtime.and_then(|r| {
+        r.fight.map(|fight| Runtime {
+            fight: Some(fight),
+            ..Default::default()
+        })
+    });
     p.card_streak = None;
     p.card_trims.clear();
     p.card_hots.clear();

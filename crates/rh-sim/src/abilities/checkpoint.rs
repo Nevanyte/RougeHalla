@@ -66,29 +66,25 @@ pub(crate) fn validate(
         super::effect_checkpoint::validate(w)?;
     }
     for p in &w.players {
+        crate::cards::fight_clock::validate(k, w, p)?;
         let stocks = p.stocks;
-        if let Some(cards) = p.card_runtime {
+        if let Some(spend) = p.card_runtime.and_then(|cards| cards.wish_cast) {
             if !full {
                 return Err("card Wish memory in Off mode".into());
             }
-            if cards.wish_cast.is_none() {
-                return Err("unproduced empty card runtime".into());
-            }
-            if let Some(spend) = cards.wish_cast {
-                if !(first_cast..=w.server_time).contains(&spend.at)
-                    || spend.at % crate::constants::TICK_MS != 0.
-                    || !spend.cooldown_ms.is_finite()
-                    || spend.cooldown_ms <= 0.
-                    || spend.cooldown_ms.fract() != 0.
-                    || spend.cooldown_ms
-                        != cooldown(
-                            wish(p.faction()),
-                            k.config.training,
-                            Some(p.modifiers.wish_cooldown_mult()),
-                        )
-                {
-                    return Err("invalid card Wish spend".into());
-                }
+            if !(first_cast..=w.server_time).contains(&spend.at)
+                || spend.at % crate::constants::TICK_MS != 0.
+                || !spend.cooldown_ms.is_finite()
+                || spend.cooldown_ms <= 0.
+                || spend.cooldown_ms.fract() != 0.
+                || spend.cooldown_ms
+                    != cooldown(
+                        wish(p.faction()),
+                        k.config.training,
+                        Some(p.modifiers.wish_cooldown_mult()),
+                    )
+            {
+                return Err("invalid card Wish spend".into());
             }
         }
         if !full && stocks != Stocks::default() {
@@ -109,7 +105,9 @@ pub(crate) fn validate(
         if full {
             let begun = w.raid_started_at > 0.;
             if !begun {
-                if stocks != Stocks::default() || p.card_runtime.is_some() {
+                if stocks != Stocks::default()
+                    || p.card_runtime.and_then(|cards| cards.wish_cast).is_some()
+                {
                     return Err("Wish state before raid start".into());
                 }
             } else {
