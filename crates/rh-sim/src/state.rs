@@ -599,6 +599,10 @@ pub struct Player {
     /// Legacy sim/buffs.ts `decays`: a heal-made barrier loses BARRIER_DECAY_SHARE_PER_SECOND of max hp a second.
     #[serde(default)]
     pub barrier_decays: bool,
+    /// Presentation-only source walk hint (PlayerExtraState.walkDir), retained even when ticks is zero.
+    pub(crate) walk_dir: u8,
+    /// Presentation-only source walk hint (PlayerExtraState.walkTicks), never read by gameplay decisions.
+    pub(crate) walk_ticks: u8,
 }
 
 impl Keyed for Player {
@@ -660,6 +664,8 @@ impl Player {
             speed_boost_until: 0.,
             barrier_until: 0.,
             barrier_decays: false,
+            walk_dir: 0,
+            walk_ticks: 0,
             healing_until: 0.,
             potions_healing: 0,
             farm: Default::default(),

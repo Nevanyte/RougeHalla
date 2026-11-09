@@ -590,6 +590,10 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
         }
     }
     for p in w.players.iter() {
+        // Shape only: zero hints and zeroAll retain the previous direction byte.
+        if p.walk_ticks > 3 {
+            return Err(format!("player {}: invalid walk hint ticks", p.id.0));
+        }
         // Locked history becomes admissible with the complete Source arena lifecycle.
         p.vision.check(
             w.tick,
@@ -1767,3 +1771,7 @@ mod tests {
         assert!(refused > 50 && stepped_ok > 5, "{refused} {stepped_ok}");
     }
 }
+
+#[cfg(test)]
+#[path = "checkpoint/walk_hint_state_tests.rs"]
+mod walk_hint_state_tests;

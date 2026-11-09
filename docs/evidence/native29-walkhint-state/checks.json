@@ -1,0 +1,79 @@
+{
+  "format": "rh-native29-walkhint-state-checks/1",
+  "base": "e096c4fbfe6560f5b52c366ae26d9b0bf4baf547",
+  "code": "66b1ffb2651ff021fbe50e4eae83ea179d6a3c38",
+  "fields": {
+    "world.players[i].walk_dir": "required serde u8; all0..255 retained even ticks0",
+    "world.players[i].walk_ticks": "required serde u8 plus checkpoint guard0..3"
+  },
+  "joining": [
+    0,
+    0
+  ],
+  "sourcePlayerDefinition": {
+    "beforeBytes": 4459,
+    "beforeSha256": "8032ad60e44a87ac127508e875bef8814b17fbf19dbda51035910cf87be552f1",
+    "afterBytes": 4731,
+    "afterSha256": "b301a1b17721dbd61beff07209d730654d548cfb758001a43a301faff18d73c6"
+  },
+  "sourcePins": {
+    "Cargo.lock": {
+      "bytes": 66555,
+      "sha256": "b14507716b80f1c0b85f7298b380b3c9146917134d9361c1bb408062782c0b22",
+      "unchangedFromBase": true
+    },
+    "crates/rh-sim/src/constants.rs": {
+      "bytes": 21245,
+      "sha256": "96f1bda2c297768cff42683ed8d3b2973d03ed5afafd19a40534237811b002e7",
+      "unchangedFromBase": true
+    },
+    "crates/rh-sim/src/content.rs": {
+      "bytes": 51182,
+      "sha256": "37c861656c27ad325374942d48ced9e11a012ad021193391e005f9d4019261f1",
+      "unchangedFromBase": true
+    },
+    "crates/rh-sim/src/fighter.rs": {
+      "bytes": 12802,
+      "sha256": "f94bb4045b6d8e4a76b3e0d7975a557c5aa043c118ad7dafff805b4d1791f44b",
+      "unchangedFromBase": true
+    },
+    "crates/rh-sim/src/mob_runtime.rs": {
+      "bytes": 14532,
+      "sha256": "859fbd239b1b3dece6e39cb31303a5f5511254b198af5b2802258345e9f07c6e",
+      "unchangedFromBase": true
+    },
+    "crates/rh-sim/src/replay.rs": {
+      "bytes": 9343,
+      "sha256": "f2a407537a10f5ed6c7ec058c5f9967c6d93b51e6d69fc3a2d9b1d85962c96b1",
+      "unchangedFromBase": true
+    },
+    "crates/rh-sim/src/schedule.rs": {
+      "bytes": 68467,
+      "sha256": "69417be04add138117416bec6af09c36fd2cf24206757baa907eded55c4de101",
+      "unchangedFromBase": true
+    },
+    "crates/rh-sim/src/observe.rs": {
+      "bytes": 43493,
+      "sha256": "9627addd3bbc1f8e149d06db7017aa092e3cbd96f0d84a2d20f7fa9366928ceb",
+      "unchangedFromBase": true
+    },
+    "packages/shared/src/schema.ts": {
+      "bytes": 21469,
+      "sha256": "245486da649ea5bc5d8b9b0d5d75f3e860fc8f153574fa2b9ee091dcb52e99cb",
+      "unchangedFromBase": true
+    },
+    "packages/server/src/sim/walkHint.ts": {
+      "bytes": 10241,
+      "sha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16",
+      "unchangedFromBase": true
+    }
+  },
+  "focusedPassed": 5,
+  "strictClippy": "rh-sim --lib --tests -D warnings PASS",
+  "versionsBumped": false,
+  "producerImplemented": false,
+  "publicPublicationImplemented": false,
+  "cargoCache": "exclusive bot-fight-native/target; released after tests/lint; final-target untouched",
+  "testsAre": "declared serialization controls, not source-produced hint parity",
+  "serializedFieldAttributes": "neither serde(default) nor skip; no new accessor"
+}
