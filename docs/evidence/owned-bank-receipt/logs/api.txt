@@ -1,0 +1,32 @@
+$ cargo test --locked -p rh-server --features postgres --test account_settlement --test account_settlement_memory
+   Compiling sqlx-core v0.8.6
+   Compiling sqlx-postgres v0.8.6
+   Compiling tokio-rustls v0.26.6
+   Compiling sqlx v0.8.6
+   Compiling axum-server v0.7.3
+   Compiling rcgen v0.13.2
+   Compiling rh-persist v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/crates/rh-persist)
+   Compiling rh-server v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/crates/rh-server)
+   Compiling tungstenite v0.26.2
+   Compiling tokio-tungstenite v0.26.2
+    Finished `test` profile [unoptimized] target(s) in 9.33s
+     Running tests/account_settlement.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/account_settlement-9138492eca4eef87)
+
+running 5 tests
+test authorization_uniform_unknown_and_uncommitted_visibility_never_claim_names ... ok
+test typed_zero_void_repeat_spending_and_corrupt_document_controls ... ok
+test method_uuid_cors_and_lookup_limit_controls_stay_at_the_edge ... ok
+test database_slot_timeout_and_storage_failure_never_become_unknown ... ok
+test verified_principal_survives_name_reassignment_between_auth_and_receipt_read ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.68s
+
+     Running tests/account_settlement_memory.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/account_settlement_memory-4d5f36c303753ccb)
+
+running 1 test
+test disabled_storage_receipt_is_503_and_not_a_commit_state ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+exit_code=0

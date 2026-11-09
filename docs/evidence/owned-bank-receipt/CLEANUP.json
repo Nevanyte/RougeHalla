@@ -1,0 +1,12 @@
+{
+  "pg_ctl_status": 3,
+  "port_closed": true,
+  "postmaster_pid_absent": true,
+  "task_owned_data_directory": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owned-bank-receipt-ad219-2026-11-09/postgres/data",
+  "retained_binary_hashes": {
+    "retained_a0": "cd802bd8bf4391ee3d8a24281dc0832dedb6c6c94db6d8dcbc9bf6c0729a20d5",
+    "retained_a3d": "0b08727ba9cc7a5850e10f09e0737042937b865ee47dd29f1afc67abbbc242eb"
+  },
+  "no_active_task_compiler_or_server": true,
+  "target_loan": "ready to release; no further Cargo commands required"
+}

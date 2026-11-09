@@ -1,0 +1,11 @@
+$ cargo clippy --locked -p rh-persist --lib --test settlement -- -D warnings
+    Checking ring v0.17.14
+    Checking rustls-webpki v0.103.16
+    Checking rustls v0.23.46
+    Checking sqlx-core v0.8.6
+    Checking sqlx-postgres v0.8.6
+    Checking sqlx v0.8.6
+    Checking rh-persist v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/crates/rh-persist)
+    Finished `dev` profile [unoptimized] target(s) in 3.96s
+
+exit_code=0

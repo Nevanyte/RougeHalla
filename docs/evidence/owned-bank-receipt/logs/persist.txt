@@ -1,0 +1,22 @@
+$ cargo test --locked -p rh-persist --test settlement
+   Compiling ring v0.17.14
+   Compiling rustls v0.23.46
+   Compiling rustls-webpki v0.103.16
+   Compiling sqlx-core v0.8.6
+   Compiling sqlx-postgres v0.8.6
+   Compiling sqlx-macros-core v0.8.6
+   Compiling sqlx-macros v0.8.6
+   Compiling sqlx v0.8.6
+   Compiling rh-persist v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/crates/rh-persist)
+    Finished `test` profile [unoptimized] target(s) in 12.71s
+     Running tests/settlement.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/settlement-ff9ae6134823ae22)
+
+running 3 tests
+test uncommitted_row_and_rollback_are_unknown_on_another_connection ... ok
+test committed_owner_scope_zero_void_clamp_and_duplicate_are_stable ... ok
+test result_and_ledger_corruption_fails_closed_without_zero_or_summing ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+
+
+exit_code=0
