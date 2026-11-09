@@ -1,0 +1,93 @@
+{
+  "source": "f5f5e016555755fb3e11b77026234148c107ca6b",
+  "originalCaptureFrame": 167,
+  "originalViewportBounds": [
+    1485.76013,
+    371.159973,
+    2495.04028,
+    1018.22394
+  ],
+  "firstTwoCards": [
+    {
+      "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card00",
+      "bounds": [
+        1499.09338,
+        6851.55762,
+        1983.73352,
+        7144.89063
+      ]
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card01",
+      "bounds": [
+        1997.06689,
+        6851.55762,
+        2481.707,
+        7144.89063
+      ]
+    }
+  ],
+  "cardBackgroundsIntersectingViewport": [
+    {
+      "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card40",
+      "bounds": [
+        1499.09338,
+        718.223938,
+        1983.73352,
+        1011.55731
+      ],
+      "active": true
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card41",
+      "bounds": [
+        1997.06689,
+        718.223938,
+        2481.707,
+        1011.55731
+      ],
+      "active": true
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card42",
+      "bounds": [
+        1499.09338,
+        411.557281,
+        1983.73352,
+        704.8906
+      ],
+      "active": true
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card43",
+      "bounds": [
+        1997.06689,
+        411.557281,
+        2481.707,
+        704.8906
+      ],
+      "active": true
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card44",
+      "bounds": [
+        1499.09338,
+        104.89061,
+        1983.73352,
+        398.223938
+      ],
+      "active": true
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card45",
+      "bounds": [
+        1997.06689,
+        104.89061,
+        2481.707,
+        398.223938
+      ],
+      "active": true
+    }
+  ],
+  "scope": "Read-only original failed capture metadata; geometric intersection does not establish raster visibility under cyan."
+}

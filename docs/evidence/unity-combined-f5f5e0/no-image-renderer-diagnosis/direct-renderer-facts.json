@@ -1,0 +1,1738 @@
+{
+  "phase": "bounded-direct-public-state-after-canvas-update",
+  "frame": 2,
+  "realtime": 447.55231279630971,
+  "source": "f5f5e016555755fb3e11b77026234148c107ca6b",
+  "anythingCompiling": false,
+  "scriptCompiling": false,
+  "updating": false,
+  "viewport": {
+    "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport",
+    "bounds": [
+      1485.76013,
+      371.159973,
+      2495.04028,
+      1018.22394
+    ],
+    "maskEnabled": true,
+    "showMaskGraphic": false,
+    "maskImageColor": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "parentRectMasks": []
+  },
+  "graphics": [
+    {
+      "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport",
+      "type": "Image",
+      "active": true,
+      "componentColor": [
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "depth": -1,
+      "bounds": [
+        1485.76013,
+        371.159973,
+        2495.04028,
+        1018.22394
+      ],
+      "intersectsViewport": true,
+      "renderer": {
+        "absoluteDepth": -1,
+        "relativeDepth": -1,
+        "cull": false,
+        "cullTransparentMesh": true,
+        "hasRectClipping": false,
+        "clippingSoftness": [
+          0.0,
+          0.0
+        ],
+        "hasPopInstruction": true,
+        "materialCount": 1,
+        "popMaterialCount": 1,
+        "normalMaterials": [
+          {
+            "name": "Stencil Id:1, Op:Replace, Comp:Always, WriteMask:255, ReadMask:255, ColorMask:0 AlphaClip:True (Default UI Material)",
+            "id": -2570182,
+            "shader": "UI/Default",
+            "shaderId": 54,
+            "renderQueue": 3000,
+            "keywords": [
+              "UNITY_UI_ALPHACLIP"
+            ],
+            "passCount": 1,
+            "compiledPasses": [
+              {
+                "pass": 0,
+                "compiled": true
+              }
+            ],
+            "properties": {
+              "_Stencil": 1.0,
+              "_StencilComp": 8.0,
+              "_StencilOp": 2.0,
+              "_ColorMask": 0.0,
+              "_StencilReadMask": 255.0,
+              "_StencilWriteMask": 255.0,
+              "_UseUIAlphaClip": 1.0,
+              "_Color": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
+              ],
+              "_ClipRect": null
+            }
+          }
+        ],
+        "popMaterials": [
+          {
+            "name": "Stencil Id:1, Op:Zero, Comp:Always, WriteMask:255, ReadMask:255, ColorMask:0 AlphaClip:True (Default UI Material)",
+            "id": -2570184,
+            "shader": "UI/Default",
+            "shaderId": 54,
+            "renderQueue": 3000,
+            "keywords": [
+              "UNITY_UI_ALPHACLIP"
+            ],
+            "passCount": 1,
+            "compiledPasses": [
+              {
+                "pass": 0,
+                "compiled": true
+              }
+            ],
+            "properties": {
+              "_Stencil": 1.0,
+              "_StencilComp": 8.0,
+              "_StencilOp": 1.0,
+              "_ColorMask": 0.0,
+              "_StencilReadMask": 255.0,
+              "_StencilWriteMask": 255.0,
+              "_UseUIAlphaClip": 1.0,
+              "_Color": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
+              ],
+              "_ClipRect": null
+            }
+          }
+        ]
+      },
+      "materialForRendering": {
+        "name": "Stencil Id:1, Op:Replace, Comp:Always, WriteMask:255, ReadMask:255, ColorMask:0 AlphaClip:True (Default UI Material)",
+        "id": -2570182,
+        "shader": "UI/Default",
+        "shaderId": 54,
+        "renderQueue": 3000,
+        "keywords": [
+          "UNITY_UI_ALPHACLIP"
+        ],
+        "passCount": 1,
+        "compiledPasses": [
+          {
+            "pass": 0,
+            "compiled": true
+          }
+        ],
+        "properties": {
+          "_Stencil": 1.0,
+          "_StencilComp": 8.0,
+          "_StencilOp": 2.0,
+          "_ColorMask": 0.0,
+          "_StencilReadMask": 255.0,
+          "_StencilWriteMask": 255.0,
+          "_UseUIAlphaClip": 1.0,
+          "_Color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "_ClipRect": null
+        }
+      },
+      "mesh": {
+        "vertexCount": 4,
+        "triangleIndexCount": 6,
+        "localBoundsCenter": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "localBoundsSize": [
+          756.9601,
+          485.297974,
+          0.0
+        ],
+        "colors": [
+          {
+            "rgba": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "count": 4
+          }
+        ]
+      }
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card00",
+      "type": "Image",
+      "active": true,
+      "componentColor": [
+        0.105882354,
+        0.149019614,
+        0.20784314,
+        0.784313738
+      ],
+      "depth": -1,
+      "bounds": [
+        1499.09338,
+        6851.55762,
+        1983.73352,
+        7144.89063
+      ],
+      "intersectsViewport": false,
+      "renderer": {
+        "absoluteDepth": -1,
+        "relativeDepth": -1,
+        "cull": false,
+        "cullTransparentMesh": true,
+        "hasRectClipping": false,
+        "clippingSoftness": [
+          0.0,
+          0.0
+        ],
+        "hasPopInstruction": false,
+        "materialCount": 1,
+        "popMaterialCount": 0,
+        "normalMaterials": [
+          {
+            "name": "Stencil Id:1, Op:Keep, Comp:Equal, WriteMask:0, ReadMask:1, ColorMask:All AlphaClip:False (Default UI Material)",
+            "id": -2570186,
+            "shader": "UI/Default",
+            "shaderId": 54,
+            "renderQueue": 3000,
+            "keywords": [],
+            "passCount": 1,
+            "compiledPasses": [
+              {
+                "pass": 0,
+                "compiled": true
+              }
+            ],
+            "properties": {
+              "_Stencil": 1.0,
+              "_StencilComp": 3.0,
+              "_StencilOp": 0.0,
+              "_ColorMask": 15.0,
+              "_StencilReadMask": 1.0,
+              "_StencilWriteMask": 0.0,
+              "_UseUIAlphaClip": 0.0,
+              "_Color": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
+              ],
+              "_ClipRect": null
+            }
+          }
+        ],
+        "popMaterials": []
+      },
+      "materialForRendering": {
+        "name": "Stencil Id:1, Op:Keep, Comp:Equal, WriteMask:0, ReadMask:1, ColorMask:All AlphaClip:False (Default UI Material)",
+        "id": -2570186,
+        "shader": "UI/Default",
+        "shaderId": 54,
+        "renderQueue": 3000,
+        "keywords": [],
+        "passCount": 1,
+        "compiledPasses": [
+          {
+            "pass": 0,
+            "compiled": true
+          }
+        ],
+        "properties": {
+          "_Stencil": 1.0,
+          "_StencilComp": 3.0,
+          "_StencilOp": 0.0,
+          "_ColorMask": 15.0,
+          "_StencilReadMask": 1.0,
+          "_StencilWriteMask": 0.0,
+          "_UseUIAlphaClip": 0.0,
+          "_Color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "_ClipRect": null
+        }
+      },
+      "mesh": {
+        "vertexCount": 4,
+        "triangleIndexCount": 6,
+        "localBoundsCenter": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "localBoundsSize": [
+          363.480042,
+          220.0,
+          0.0
+        ],
+        "colors": [
+          {
+            "rgba": [
+              27,
+              38,
+              53,
+              200
+            ],
+            "count": 4
+          }
+        ]
+      }
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card00/CardGlyph",
+      "type": "Image",
+      "active": true,
+      "componentColor": [
+        0.9411765,
+        0.5411765,
+        0.3882353,
+        1.0
+      ],
+      "depth": -1,
+      "bounds": [
+        1508.78613,
+        7015.82373,
+        1625.09985,
+        7139.024
+      ],
+      "intersectsViewport": false,
+      "renderer": {
+        "absoluteDepth": -1,
+        "relativeDepth": -1,
+        "cull": false,
+        "cullTransparentMesh": true,
+        "hasRectClipping": false,
+        "clippingSoftness": [
+          0.0,
+          0.0
+        ],
+        "hasPopInstruction": false,
+        "materialCount": 1,
+        "popMaterialCount": 0,
+        "normalMaterials": [
+          {
+            "name": "Stencil Id:1, Op:Keep, Comp:Equal, WriteMask:0, ReadMask:1, ColorMask:All AlphaClip:False (Default UI Material)",
+            "id": -2570186,
+            "shader": "UI/Default",
+            "shaderId": 54,
+            "renderQueue": 3000,
+            "keywords": [],
+            "passCount": 1,
+            "compiledPasses": [
+              {
+                "pass": 0,
+                "compiled": true
+              }
+            ],
+            "properties": {
+              "_Stencil": 1.0,
+              "_StencilComp": 3.0,
+              "_StencilOp": 0.0,
+              "_ColorMask": 15.0,
+              "_StencilReadMask": 1.0,
+              "_StencilWriteMask": 0.0,
+              "_UseUIAlphaClip": 0.0,
+              "_Color": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
+              ],
+              "_ClipRect": null
+            }
+          }
+        ],
+        "popMaterials": []
+      },
+      "materialForRendering": {
+        "name": "Stencil Id:1, Op:Keep, Comp:Equal, WriteMask:0, ReadMask:1, ColorMask:All AlphaClip:False (Default UI Material)",
+        "id": -2570186,
+        "shader": "UI/Default",
+        "shaderId": 54,
+        "renderQueue": 3000,
+        "keywords": [],
+        "passCount": 1,
+        "compiledPasses": [
+          {
+            "pass": 0,
+            "compiled": true
+          }
+        ],
+        "properties": {
+          "_Stencil": 1.0,
+          "_StencilComp": 3.0,
+          "_StencilOp": 0.0,
+          "_ColorMask": 15.0,
+          "_StencilReadMask": 1.0,
+          "_StencilWriteMask": 0.0,
+          "_UseUIAlphaClip": 0.0,
+          "_Color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "_ClipRect": null
+        }
+      },
+      "mesh": {
+        "vertexCount": 4,
+        "triangleIndexCount": 6,
+        "localBoundsCenter": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "localBoundsSize": [
+          87.2352,
+          87.2352,
+          0.0
+        ],
+        "colors": [
+          {
+            "rgba": [
+              240,
+              138,
+              99,
+              255
+            ],
+            "count": 4
+          }
+        ]
+      }
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card00/CardTitle",
+      "type": "TextMeshProUGUI",
+      "active": true,
+      "componentColor": [
+        0.956862748,
+        0.9490196,
+        0.921568632,
+        1.0
+      ],
+      "depth": -1,
+      "bounds": [
+        1637.94617,
+        7057.95752,
+        1956.34778,
+        7132.09131
+      ],
+      "intersectsViewport": false,
+      "renderer": {
+        "absoluteDepth": -1,
+        "relativeDepth": -1,
+        "cull": false,
+        "cullTransparentMesh": true,
+        "hasRectClipping": false,
+        "clippingSoftness": [
+          0.0,
+          0.0
+        ],
+        "hasPopInstruction": false,
+        "materialCount": 1,
+        "popMaterialCount": 0,
+        "normalMaterials": [
+          {
+            "name": "Stencil Id:1, Op:Keep, Comp:Equal, WriteMask:0, ReadMask:1, ColorMask:All AlphaClip:False (LiberationSans SDF Material)",
+            "id": -2570188,
+            "shader": "TextMeshPro/Mobile/Distance Field",
+            "shaderId": 37648,
+            "renderQueue": 3000,
+            "keywords": [],
+            "passCount": 1,
+            "compiledPasses": [
+              {
+                "pass": 0,
+                "compiled": true
+              }
+            ],
+            "properties": {
+              "_Stencil": 1.0,
+              "_StencilComp": 3.0,
+              "_StencilOp": 0.0,
+              "_ColorMask": 15.0,
+              "_StencilReadMask": 1.0,
+              "_StencilWriteMask": 0.0,
+              "_UseUIAlphaClip": 0.0,
+              "_Color": null,
+              "_ClipRect": [
+                -32767.0,
+                -32767.0,
+                32767.0,
+                32767.0
+              ]
+            }
+          }
+        ],
+        "popMaterials": []
+      },
+      "materialForRendering": {
+        "name": "Stencil Id:1, Op:Keep, Comp:Equal, WriteMask:0, ReadMask:1, ColorMask:All AlphaClip:False (LiberationSans SDF Material)",
+        "id": -2570188,
+        "shader": "TextMeshPro/Mobile/Distance Field",
+        "shaderId": 37648,
+        "renderQueue": 3000,
+        "keywords": [],
+        "passCount": 1,
+        "compiledPasses": [
+          {
+            "pass": 0,
+            "compiled": true
+          }
+        ],
+        "properties": {
+          "_Stencil": 1.0,
+          "_StencilComp": 3.0,
+          "_StencilOp": 0.0,
+          "_ColorMask": 15.0,
+          "_StencilReadMask": 1.0,
+          "_StencilWriteMask": 0.0,
+          "_UseUIAlphaClip": 0.0,
+          "_Color": null,
+          "_ClipRect": [
+            -32767.0,
+            -32767.0,
+            32767.0,
+            32767.0
+          ]
+        }
+      },
+      "mesh": {
+        "vertexCount": 36,
+        "triangleIndexCount": 54,
+        "localBoundsCenter": [
+          -59.3405647,
+          0.0,
+          0.0
+        ],
+        "localBoundsSize": [
+          118.681129,
+          17.13663,
+          0.0
+        ],
+        "colors": [
+          {
+            "rgba": [
+              244,
+              242,
+              235,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "count": 4
+          }
+        ]
+      }
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card00/CardDescription",
+      "type": "TextMeshProUGUI",
+      "active": true,
+      "componentColor": [
+        0.709803939,
+        0.7647059,
+        0.8235294,
+        1.0
+      ],
+      "depth": -1,
+      "bounds": [
+        1526.479,
+        6920.091,
+        1956.3479,
+        7041.157
+      ],
+      "intersectsViewport": false,
+      "renderer": {
+        "absoluteDepth": -1,
+        "relativeDepth": -1,
+        "cull": false,
+        "cullTransparentMesh": true,
+        "hasRectClipping": false,
+        "clippingSoftness": [
+          0.0,
+          0.0
+        ],
+        "hasPopInstruction": false,
+        "materialCount": 1,
+        "popMaterialCount": 0,
+        "normalMaterials": [
+          {
+            "name": "Stencil Id:1, Op:Keep, Comp:Equal, WriteMask:0, ReadMask:1, ColorMask:All AlphaClip:False (LiberationSans SDF Material)",
+            "id": -2570188,
+            "shader": "TextMeshPro/Mobile/Distance Field",
+            "shaderId": 37648,
+            "renderQueue": 3000,
+            "keywords": [],
+            "passCount": 1,
+            "compiledPasses": [
+              {
+                "pass": 0,
+                "compiled": true
+              }
+            ],
+            "properties": {
+              "_Stencil": 1.0,
+              "_StencilComp": 3.0,
+              "_StencilOp": 0.0,
+              "_ColorMask": 15.0,
+              "_StencilReadMask": 1.0,
+              "_StencilWriteMask": 0.0,
+              "_UseUIAlphaClip": 0.0,
+              "_Color": null,
+              "_ClipRect": [
+                -32767.0,
+                -32767.0,
+                32767.0,
+                32767.0
+              ]
+            }
+          }
+        ],
+        "popMaterials": []
+      },
+      "materialForRendering": {
+        "name": "Stencil Id:1, Op:Keep, Comp:Equal, WriteMask:0, ReadMask:1, ColorMask:All AlphaClip:False (LiberationSans SDF Material)",
+        "id": -2570188,
+        "shader": "TextMeshPro/Mobile/Distance Field",
+        "shaderId": 37648,
+        "renderQueue": 3000,
+        "keywords": [],
+        "passCount": 1,
+        "compiledPasses": [
+          {
+            "pass": 0,
+            "compiled": true
+          }
+        ],
+        "properties": {
+          "_Stencil": 1.0,
+          "_StencilComp": 3.0,
+          "_StencilOp": 0.0,
+          "_ColorMask": 15.0,
+          "_StencilReadMask": 1.0,
+          "_StencilWriteMask": 0.0,
+          "_UseUIAlphaClip": 0.0,
+          "_Color": null,
+          "_ClipRect": [
+            -32767.0,
+            -32767.0,
+            32767.0,
+            32767.0
+          ]
+        }
+      },
+      "mesh": {
+        "vertexCount": 44,
+        "triangleIndexCount": 66,
+        "localBoundsCenter": [
+          -80.3126144,
+          -2.38418579E-07,
+          0.0
+        ],
+        "localBoundsSize": [
+          160.625229,
+          13.7093029,
+          0.0
+        ],
+        "colors": [
+          {
+            "rgba": [
+              181,
+              195,
+              210,
+              255
+            ],
+            "count": 40
+          },
+          {
+            "rgba": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "count": 4
+          }
+        ]
+      }
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card00/CardTags",
+      "type": "TextMeshProUGUI",
+      "active": true,
+      "componentColor": [
+        0.929411769,
+        0.78039217,
+        0.482352942,
+        1.0
+      ],
+      "depth": -1,
+      "bounds": [
+        1526.47888,
+        6870.224,
+        1830.34143,
+        6906.224
+      ],
+      "intersectsViewport": false,
+      "renderer": {
+        "absoluteDepth": -1,
+        "relativeDepth": -1,
+        "cull": false,
+        "cullTransparentMesh": true,
+        "hasRectClipping": false,
+        "clippingSoftness": [
+          0.0,
+          0.0
+        ],
+        "hasPopInstruction": false,
+        "materialCount": 1,
+        "popMaterialCount": 0,
+        "normalMaterials": [
+          {
+            "name": "Stencil Id:1, Op:Keep, Comp:Equal, WriteMask:0, ReadMask:1, ColorMask:All AlphaClip:False (LiberationSans SDF Material)",
+            "id": -2570188,
+            "shader": "TextMeshPro/Mobile/Distance Field",
+            "shaderId": 37648,
+            "renderQueue": 3000,
+            "keywords": [],
+            "passCount": 1,
+            "compiledPasses": [
+              {
+                "pass": 0,
+                "compiled": true
+              }
+            ],
+            "properties": {
+              "_Stencil": 1.0,
+              "_StencilComp": 3.0,
+              "_StencilOp": 0.0,
+              "_ColorMask": 15.0,
+              "_StencilReadMask": 1.0,
+              "_StencilWriteMask": 0.0,
+              "_UseUIAlphaClip": 0.0,
+              "_Color": null,
+              "_ClipRect": [
+                -32767.0,
+                -32767.0,
+                32767.0,
+                32767.0
+              ]
+            }
+          }
+        ],
+        "popMaterials": []
+      },
+      "materialForRendering": {
+        "name": "Stencil Id:1, Op:Keep, Comp:Equal, WriteMask:0, ReadMask:1, ColorMask:All AlphaClip:False (LiberationSans SDF Material)",
+        "id": -2570188,
+        "shader": "TextMeshPro/Mobile/Distance Field",
+        "shaderId": 37648,
+        "renderQueue": 3000,
+        "keywords": [],
+        "passCount": 1,
+        "compiledPasses": [
+          {
+            "pass": 0,
+            "compiled": true
+          }
+        ],
+        "properties": {
+          "_Stencil": 1.0,
+          "_StencilComp": 3.0,
+          "_StencilOp": 0.0,
+          "_ColorMask": 15.0,
+          "_StencilReadMask": 1.0,
+          "_StencilWriteMask": 0.0,
+          "_UseUIAlphaClip": 0.0,
+          "_Color": null,
+          "_ClipRect": [
+            -32767.0,
+            -32767.0,
+            32767.0,
+            32767.0
+          ]
+        }
+      },
+      "mesh": {
+        "vertexCount": 36,
+        "triangleIndexCount": 54,
+        "localBoundsCenter": [
+          -56.47275,
+          -2.38418579E-07,
+          0.0
+        ],
+        "localBoundsSize": [
+          112.9455,
+          11.0755806,
+          0.0
+        ],
+        "colors": [
+          {
+            "rgba": [
+              237,
+              199,
+              123,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "count": 4
+          }
+        ]
+      }
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card00/OwnedCount",
+      "type": "TextMeshProUGUI",
+      "active": true,
+      "componentColor": [
+        0.549019635,
+        0.8784314,
+        0.698039234,
+        1.0
+      ],
+      "depth": -1,
+      "bounds": [
+        1856.03418,
+        6865.82471,
+        1961.19434,
+        6909.15771
+      ],
+      "intersectsViewport": false,
+      "renderer": {
+        "absoluteDepth": -1,
+        "relativeDepth": -1,
+        "cull": false,
+        "cullTransparentMesh": true,
+        "hasRectClipping": false,
+        "clippingSoftness": [
+          0.0,
+          0.0
+        ],
+        "hasPopInstruction": false,
+        "materialCount": 1,
+        "popMaterialCount": 0,
+        "normalMaterials": [
+          {
+            "name": "Stencil Id:1, Op:Keep, Comp:Equal, WriteMask:0, ReadMask:1, ColorMask:All AlphaClip:False (LiberationSans SDF Material)",
+            "id": -2570188,
+            "shader": "TextMeshPro/Mobile/Distance Field",
+            "shaderId": 37648,
+            "renderQueue": 3000,
+            "keywords": [],
+            "passCount": 1,
+            "compiledPasses": [
+              {
+                "pass": 0,
+                "compiled": true
+              }
+            ],
+            "properties": {
+              "_Stencil": 1.0,
+              "_StencilComp": 3.0,
+              "_StencilOp": 0.0,
+              "_ColorMask": 15.0,
+              "_StencilReadMask": 1.0,
+              "_StencilWriteMask": 0.0,
+              "_UseUIAlphaClip": 0.0,
+              "_Color": null,
+              "_ClipRect": [
+                -32767.0,
+                -32767.0,
+                32767.0,
+                32767.0
+              ]
+            }
+          }
+        ],
+        "popMaterials": []
+      },
+      "materialForRendering": {
+        "name": "Stencil Id:1, Op:Keep, Comp:Equal, WriteMask:0, ReadMask:1, ColorMask:All AlphaClip:False (LiberationSans SDF Material)",
+        "id": -2570188,
+        "shader": "TextMeshPro/Mobile/Distance Field",
+        "shaderId": 37648,
+        "renderQueue": 3000,
+        "keywords": [],
+        "passCount": 1,
+        "compiledPasses": [
+          {
+            "pass": 0,
+            "compiled": true
+          }
+        ],
+        "properties": {
+          "_Stencil": 1.0,
+          "_StencilComp": 3.0,
+          "_StencilOp": 0.0,
+          "_ColorMask": 15.0,
+          "_StencilReadMask": 1.0,
+          "_StencilWriteMask": 0.0,
+          "_UseUIAlphaClip": 0.0,
+          "_Color": null,
+          "_ClipRect": [
+            -32767.0,
+            -32767.0,
+            32767.0,
+            32767.0
+          ]
+        }
+      },
+      "mesh": {
+        "vertexCount": 20,
+        "triangleIndexCount": 30,
+        "localBoundsCenter": [
+          15.9932508,
+          2.38418579E-07,
+          0.0
+        ],
+        "localBoundsSize": [
+          46.029068,
+          15.5058136,
+          0.0
+        ],
+        "colors": [
+          {
+            "rgba": [
+              140,
+              224,
+              178,
+              255
+            ],
+            "count": 16
+          },
+          {
+            "rgba": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "count": 4
+          }
+        ]
+      }
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card01",
+      "type": "Image",
+      "active": true,
+      "componentColor": [
+        0.105882354,
+        0.149019614,
+        0.20784314,
+        0.784313738
+      ],
+      "depth": -1,
+      "bounds": [
+        1997.06689,
+        6851.55762,
+        2481.707,
+        7144.89063
+      ],
+      "intersectsViewport": false,
+      "renderer": {
+        "absoluteDepth": -1,
+        "relativeDepth": -1,
+        "cull": false,
+        "cullTransparentMesh": true,
+        "hasRectClipping": false,
+        "clippingSoftness": [
+          0.0,
+          0.0
+        ],
+        "hasPopInstruction": false,
+        "materialCount": 1,
+        "popMaterialCount": 0,
+        "normalMaterials": [
+          {
+            "name": "Stencil Id:1, Op:Keep, Comp:Equal, WriteMask:0, ReadMask:1, ColorMask:All AlphaClip:False (Default UI Material)",
+            "id": -2570186,
+            "shader": "UI/Default",
+            "shaderId": 54,
+            "renderQueue": 3000,
+            "keywords": [],
+            "passCount": 1,
+            "compiledPasses": [
+              {
+                "pass": 0,
+                "compiled": true
+              }
+            ],
+            "properties": {
+              "_Stencil": 1.0,
+              "_StencilComp": 3.0,
+              "_StencilOp": 0.0,
+              "_ColorMask": 15.0,
+              "_StencilReadMask": 1.0,
+              "_StencilWriteMask": 0.0,
+              "_UseUIAlphaClip": 0.0,
+              "_Color": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
+              ],
+              "_ClipRect": null
+            }
+          }
+        ],
+        "popMaterials": []
+      },
+      "materialForRendering": {
+        "name": "Stencil Id:1, Op:Keep, Comp:Equal, WriteMask:0, ReadMask:1, ColorMask:All AlphaClip:False (Default UI Material)",
+        "id": -2570186,
+        "shader": "UI/Default",
+        "shaderId": 54,
+        "renderQueue": 3000,
+        "keywords": [],
+        "passCount": 1,
+        "compiledPasses": [
+          {
+            "pass": 0,
+            "compiled": true
+          }
+        ],
+        "properties": {
+          "_Stencil": 1.0,
+          "_StencilComp": 3.0,
+          "_StencilOp": 0.0,
+          "_ColorMask": 15.0,
+          "_StencilReadMask": 1.0,
+          "_StencilWriteMask": 0.0,
+          "_UseUIAlphaClip": 0.0,
+          "_Color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "_ClipRect": null
+        }
+      },
+      "mesh": {
+        "vertexCount": 4,
+        "triangleIndexCount": 6,
+        "localBoundsCenter": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "localBoundsSize": [
+          363.480042,
+          220.0,
+          0.0
+        ],
+        "colors": [
+          {
+            "rgba": [
+              27,
+              38,
+              53,
+              200
+            ],
+            "count": 4
+          }
+        ]
+      }
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card01/CardGlyph",
+      "type": "Image",
+      "active": true,
+      "componentColor": [
+        0.9411765,
+        0.5411765,
+        0.3882353,
+        1.0
+      ],
+      "depth": -1,
+      "bounds": [
+        2006.75964,
+        7015.82373,
+        2123.07324,
+        7139.024
+      ],
+      "intersectsViewport": false,
+      "renderer": {
+        "absoluteDepth": -1,
+        "relativeDepth": -1,
+        "cull": false,
+        "cullTransparentMesh": true,
+        "hasRectClipping": false,
+        "clippingSoftness": [
+          0.0,
+          0.0
+        ],
+        "hasPopInstruction": false,
+        "materialCount": 1,
+        "popMaterialCount": 0,
+        "normalMaterials": [
+          {
+            "name": "Stencil Id:1, Op:Keep, Comp:Equal, WriteMask:0, ReadMask:1, ColorMask:All AlphaClip:False (Default UI Material)",
+            "id": -2570186,
+            "shader": "UI/Default",
+            "shaderId": 54,
+            "renderQueue": 3000,
+            "keywords": [],
+            "passCount": 1,
+            "compiledPasses": [
+              {
+                "pass": 0,
+                "compiled": true
+              }
+            ],
+            "properties": {
+              "_Stencil": 1.0,
+              "_StencilComp": 3.0,
+              "_StencilOp": 0.0,
+              "_ColorMask": 15.0,
+              "_StencilReadMask": 1.0,
+              "_StencilWriteMask": 0.0,
+              "_UseUIAlphaClip": 0.0,
+              "_Color": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
+              ],
+              "_ClipRect": null
+            }
+          }
+        ],
+        "popMaterials": []
+      },
+      "materialForRendering": {
+        "name": "Stencil Id:1, Op:Keep, Comp:Equal, WriteMask:0, ReadMask:1, ColorMask:All AlphaClip:False (Default UI Material)",
+        "id": -2570186,
+        "shader": "UI/Default",
+        "shaderId": 54,
+        "renderQueue": 3000,
+        "keywords": [],
+        "passCount": 1,
+        "compiledPasses": [
+          {
+            "pass": 0,
+            "compiled": true
+          }
+        ],
+        "properties": {
+          "_Stencil": 1.0,
+          "_StencilComp": 3.0,
+          "_StencilOp": 0.0,
+          "_ColorMask": 15.0,
+          "_StencilReadMask": 1.0,
+          "_StencilWriteMask": 0.0,
+          "_UseUIAlphaClip": 0.0,
+          "_Color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "_ClipRect": null
+        }
+      },
+      "mesh": {
+        "vertexCount": 4,
+        "triangleIndexCount": 6,
+        "localBoundsCenter": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "localBoundsSize": [
+          87.2352,
+          87.2352,
+          0.0
+        ],
+        "colors": [
+          {
+            "rgba": [
+              240,
+              138,
+              99,
+              255
+            ],
+            "count": 4
+          }
+        ]
+      }
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card01/CardTitle",
+      "type": "TextMeshProUGUI",
+      "active": true,
+      "componentColor": [
+        0.956862748,
+        0.9490196,
+        0.921568632,
+        1.0
+      ],
+      "depth": -1,
+      "bounds": [
+        2135.91968,
+        7057.95752,
+        2454.32153,
+        7132.09131
+      ],
+      "intersectsViewport": false,
+      "renderer": {
+        "absoluteDepth": -1,
+        "relativeDepth": -1,
+        "cull": false,
+        "cullTransparentMesh": true,
+        "hasRectClipping": false,
+        "clippingSoftness": [
+          0.0,
+          0.0
+        ],
+        "hasPopInstruction": false,
+        "materialCount": 1,
+        "popMaterialCount": 0,
+        "normalMaterials": [
+          {
+            "name": "Stencil Id:1, Op:Keep, Comp:Equal, WriteMask:0, ReadMask:1, ColorMask:All AlphaClip:False (LiberationSans SDF Material)",
+            "id": -2570188,
+            "shader": "TextMeshPro/Mobile/Distance Field",
+            "shaderId": 37648,
+            "renderQueue": 3000,
+            "keywords": [],
+            "passCount": 1,
+            "compiledPasses": [
+              {
+                "pass": 0,
+                "compiled": true
+              }
+            ],
+            "properties": {
+              "_Stencil": 1.0,
+              "_StencilComp": 3.0,
+              "_StencilOp": 0.0,
+              "_ColorMask": 15.0,
+              "_StencilReadMask": 1.0,
+              "_StencilWriteMask": 0.0,
+              "_UseUIAlphaClip": 0.0,
+              "_Color": null,
+              "_ClipRect": [
+                -32767.0,
+                -32767.0,
+                32767.0,
+                32767.0
+              ]
+            }
+          }
+        ],
+        "popMaterials": []
+      },
+      "materialForRendering": {
+        "name": "Stencil Id:1, Op:Keep, Comp:Equal, WriteMask:0, ReadMask:1, ColorMask:All AlphaClip:False (LiberationSans SDF Material)",
+        "id": -2570188,
+        "shader": "TextMeshPro/Mobile/Distance Field",
+        "shaderId": 37648,
+        "renderQueue": 3000,
+        "keywords": [],
+        "passCount": 1,
+        "compiledPasses": [
+          {
+            "pass": 0,
+            "compiled": true
+          }
+        ],
+        "properties": {
+          "_Stencil": 1.0,
+          "_StencilComp": 3.0,
+          "_StencilOp": 0.0,
+          "_ColorMask": 15.0,
+          "_StencilReadMask": 1.0,
+          "_StencilWriteMask": 0.0,
+          "_UseUIAlphaClip": 0.0,
+          "_Color": null,
+          "_ClipRect": [
+            -32767.0,
+            -32767.0,
+            32767.0,
+            32767.0
+          ]
+        }
+      },
+      "mesh": {
+        "vertexCount": 40,
+        "triangleIndexCount": 60,
+        "localBoundsCenter": [
+          -59.3405647,
+          0.0,
+          0.0
+        ],
+        "localBoundsSize": [
+          118.681129,
+          17.13663,
+          0.0
+        ],
+        "colors": [
+          {
+            "rgba": [
+              244,
+              242,
+              235,
+              255
+            ],
+            "count": 36
+          },
+          {
+            "rgba": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "count": 4
+          }
+        ]
+      }
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card01/CardDescription",
+      "type": "TextMeshProUGUI",
+      "active": true,
+      "componentColor": [
+        0.709803939,
+        0.7647059,
+        0.8235294,
+        1.0
+      ],
+      "depth": -1,
+      "bounds": [
+        2024.45227,
+        6920.091,
+        2454.321,
+        7041.157
+      ],
+      "intersectsViewport": false,
+      "renderer": {
+        "absoluteDepth": -1,
+        "relativeDepth": -1,
+        "cull": false,
+        "cullTransparentMesh": true,
+        "hasRectClipping": false,
+        "clippingSoftness": [
+          0.0,
+          0.0
+        ],
+        "hasPopInstruction": false,
+        "materialCount": 1,
+        "popMaterialCount": 0,
+        "normalMaterials": [
+          {
+            "name": "Stencil Id:1, Op:Keep, Comp:Equal, WriteMask:0, ReadMask:1, ColorMask:All AlphaClip:False (LiberationSans SDF Material)",
+            "id": -2570188,
+            "shader": "TextMeshPro/Mobile/Distance Field",
+            "shaderId": 37648,
+            "renderQueue": 3000,
+            "keywords": [],
+            "passCount": 1,
+            "compiledPasses": [
+              {
+                "pass": 0,
+                "compiled": true
+              }
+            ],
+            "properties": {
+              "_Stencil": 1.0,
+              "_StencilComp": 3.0,
+              "_StencilOp": 0.0,
+              "_ColorMask": 15.0,
+              "_StencilReadMask": 1.0,
+              "_StencilWriteMask": 0.0,
+              "_UseUIAlphaClip": 0.0,
+              "_Color": null,
+              "_ClipRect": [
+                -32767.0,
+                -32767.0,
+                32767.0,
+                32767.0
+              ]
+            }
+          }
+        ],
+        "popMaterials": []
+      },
+      "materialForRendering": {
+        "name": "Stencil Id:1, Op:Keep, Comp:Equal, WriteMask:0, ReadMask:1, ColorMask:All AlphaClip:False (LiberationSans SDF Material)",
+        "id": -2570188,
+        "shader": "TextMeshPro/Mobile/Distance Field",
+        "shaderId": 37648,
+        "renderQueue": 3000,
+        "keywords": [],
+        "passCount": 1,
+        "compiledPasses": [
+          {
+            "pass": 0,
+            "compiled": true
+          }
+        ],
+        "properties": {
+          "_Stencil": 1.0,
+          "_StencilComp": 3.0,
+          "_StencilOp": 0.0,
+          "_ColorMask": 15.0,
+          "_StencilReadMask": 1.0,
+          "_StencilWriteMask": 0.0,
+          "_UseUIAlphaClip": 0.0,
+          "_Color": null,
+          "_ClipRect": [
+            -32767.0,
+            -32767.0,
+            32767.0,
+            32767.0
+          ]
+        }
+      },
+      "mesh": {
+        "vertexCount": 44,
+        "triangleIndexCount": 66,
+        "localBoundsCenter": [
+          -80.3126144,
+          -2.38418579E-07,
+          0.0
+        ],
+        "localBoundsSize": [
+          160.625229,
+          13.7093029,
+          0.0
+        ],
+        "colors": [
+          {
+            "rgba": [
+              181,
+              195,
+              210,
+              255
+            ],
+            "count": 40
+          },
+          {
+            "rgba": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "count": 4
+          }
+        ]
+      }
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card01/CardTags",
+      "type": "TextMeshProUGUI",
+      "active": true,
+      "componentColor": [
+        0.929411769,
+        0.78039217,
+        0.482352942,
+        1.0
+      ],
+      "depth": -1,
+      "bounds": [
+        2024.45251,
+        6870.224,
+        2328.315,
+        6906.224
+      ],
+      "intersectsViewport": false,
+      "renderer": {
+        "absoluteDepth": -1,
+        "relativeDepth": -1,
+        "cull": false,
+        "cullTransparentMesh": true,
+        "hasRectClipping": false,
+        "clippingSoftness": [
+          0.0,
+          0.0
+        ],
+        "hasPopInstruction": false,
+        "materialCount": 1,
+        "popMaterialCount": 0,
+        "normalMaterials": [
+          {
+            "name": "Stencil Id:1, Op:Keep, Comp:Equal, WriteMask:0, ReadMask:1, ColorMask:All AlphaClip:False (LiberationSans SDF Material)",
+            "id": -2570188,
+            "shader": "TextMeshPro/Mobile/Distance Field",
+            "shaderId": 37648,
+            "renderQueue": 3000,
+            "keywords": [],
+            "passCount": 1,
+            "compiledPasses": [
+              {
+                "pass": 0,
+                "compiled": true
+              }
+            ],
+            "properties": {
+              "_Stencil": 1.0,
+              "_StencilComp": 3.0,
+              "_StencilOp": 0.0,
+              "_ColorMask": 15.0,
+              "_StencilReadMask": 1.0,
+              "_StencilWriteMask": 0.0,
+              "_UseUIAlphaClip": 0.0,
+              "_Color": null,
+              "_ClipRect": [
+                -32767.0,
+                -32767.0,
+                32767.0,
+                32767.0
+              ]
+            }
+          }
+        ],
+        "popMaterials": []
+      },
+      "materialForRendering": {
+        "name": "Stencil Id:1, Op:Keep, Comp:Equal, WriteMask:0, ReadMask:1, ColorMask:All AlphaClip:False (LiberationSans SDF Material)",
+        "id": -2570188,
+        "shader": "TextMeshPro/Mobile/Distance Field",
+        "shaderId": 37648,
+        "renderQueue": 3000,
+        "keywords": [],
+        "passCount": 1,
+        "compiledPasses": [
+          {
+            "pass": 0,
+            "compiled": true
+          }
+        ],
+        "properties": {
+          "_Stencil": 1.0,
+          "_StencilComp": 3.0,
+          "_StencilOp": 0.0,
+          "_ColorMask": 15.0,
+          "_StencilReadMask": 1.0,
+          "_StencilWriteMask": 0.0,
+          "_UseUIAlphaClip": 0.0,
+          "_Color": null,
+          "_ClipRect": [
+            -32767.0,
+            -32767.0,
+            32767.0,
+            32767.0
+          ]
+        }
+      },
+      "mesh": {
+        "vertexCount": 36,
+        "triangleIndexCount": 54,
+        "localBoundsCenter": [
+          -56.47275,
+          -2.38418579E-07,
+          0.0
+        ],
+        "localBoundsSize": [
+          112.9455,
+          11.0755806,
+          0.0
+        ],
+        "colors": [
+          {
+            "rgba": [
+              237,
+              199,
+              123,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "count": 4
+          }
+        ]
+      }
+    },
+    {
+      "path": "Offline UI layout review/MatchUI/BuildDrawer/CardCatalogScroll/Viewport/Content/Card01/OwnedCount",
+      "type": "TextMeshProUGUI",
+      "active": true,
+      "componentColor": [
+        0.549019635,
+        0.8784314,
+        0.698039234,
+        1.0
+      ],
+      "depth": -1,
+      "bounds": [
+        2354.00781,
+        6865.82471,
+        2459.168,
+        6909.15771
+      ],
+      "intersectsViewport": false,
+      "renderer": {
+        "absoluteDepth": -1,
+        "relativeDepth": -1,
+        "cull": false,
+        "cullTransparentMesh": true,
+        "hasRectClipping": false,
+        "clippingSoftness": [
+          0.0,
+          0.0
+        ],
+        "hasPopInstruction": false,
+        "materialCount": 1,
+        "popMaterialCount": 0,
+        "normalMaterials": [
+          {
+            "name": "Stencil Id:1, Op:Keep, Comp:Equal, WriteMask:0, ReadMask:1, ColorMask:All AlphaClip:False (LiberationSans SDF Material)",
+            "id": -2570188,
+            "shader": "TextMeshPro/Mobile/Distance Field",
+            "shaderId": 37648,
+            "renderQueue": 3000,
+            "keywords": [],
+            "passCount": 1,
+            "compiledPasses": [
+              {
+                "pass": 0,
+                "compiled": true
+              }
+            ],
+            "properties": {
+              "_Stencil": 1.0,
+              "_StencilComp": 3.0,
+              "_StencilOp": 0.0,
+              "_ColorMask": 15.0,
+              "_StencilReadMask": 1.0,
+              "_StencilWriteMask": 0.0,
+              "_UseUIAlphaClip": 0.0,
+              "_Color": null,
+              "_ClipRect": [
+                -32767.0,
+                -32767.0,
+                32767.0,
+                32767.0
+              ]
+            }
+          }
+        ],
+        "popMaterials": []
+      },
+      "materialForRendering": {
+        "name": "Stencil Id:1, Op:Keep, Comp:Equal, WriteMask:0, ReadMask:1, ColorMask:All AlphaClip:False (LiberationSans SDF Material)",
+        "id": -2570188,
+        "shader": "TextMeshPro/Mobile/Distance Field",
+        "shaderId": 37648,
+        "renderQueue": 3000,
+        "keywords": [],
+        "passCount": 1,
+        "compiledPasses": [
+          {
+            "pass": 0,
+            "compiled": true
+          }
+        ],
+        "properties": {
+          "_Stencil": 1.0,
+          "_StencilComp": 3.0,
+          "_StencilOp": 0.0,
+          "_ColorMask": 15.0,
+          "_StencilReadMask": 1.0,
+          "_StencilWriteMask": 0.0,
+          "_UseUIAlphaClip": 0.0,
+          "_Color": null,
+          "_ClipRect": [
+            -32767.0,
+            -32767.0,
+            32767.0,
+            32767.0
+          ]
+        }
+      },
+      "mesh": {
+        "vertexCount": 20,
+        "triangleIndexCount": 30,
+        "localBoundsCenter": [
+          15.9932508,
+          2.38418579E-07,
+          0.0
+        ],
+        "localBoundsSize": [
+          46.029068,
+          15.5058136,
+          0.0
+        ],
+        "colors": [
+          {
+            "rgba": [
+              140,
+              224,
+              178,
+              255
+            ],
+            "count": 16
+          },
+          {
+            "rgba": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "count": 4
+          }
+        ]
+      }
+    }
+  ]
+}
