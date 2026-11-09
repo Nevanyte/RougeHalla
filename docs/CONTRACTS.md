@@ -14,6 +14,12 @@ revision; [sweep/README.md](sweep/README.md) says which (H-sim and H-server-2 ha
 
 ### November9 protocol14 composition (supersedes older identity/status addenda)
 
+The subsequent [native29 admission](evidence/native29-admission/README.md) identifies14/29/23/21/15/content7c6a633f68c2cc72, with63 strict source cases,21 content checks, derived native tape/checker and public-digest tests at their exact cuts. Private rules/state identities change; the default wire14 is unchanged. SlowStarter/MarkTax/PackLeader/readonly WalkHint preserve Rust authority, tick order and source phase semantics. The proven cold NPC-report buffer reserve preserves empty/incomplete/fresh-identity reports, with matched original/Clone/restore step/events/hash and0/0/0 warm allocations. Hash coverage and earlier restore/lint receipts are not relabelled as rerun at the final cut. Current BakedContent comes from actual canonical /info.
+
+C-NET/C-OBS components now include a private Full-scene socket with39 scoped passes, but no default Room/client binding/new disclosure. Training90 passes its exact engine cut; separate layout error and return AutoRefresh assertions remain OPEN. Pure initial resume/Detach and tab checkpoint storage do not establish full-page browser resume. Exact8e CI42631043999 passes all five jobs; the newer batch needs its own normal CI.
+
+The following paragraph records the prior native28 composition:
+
 Current code identifies14/28/22/21/15/content643d294869db55a4. The [composition receipt](evidence/root-final14-composition/README.md)
 records a complete1928-pass/1-obsolete-test-failure/11-ignored workspace run and the green repaired target/new quest test/
 remaining native PG/lint/parity/headless gates at their exact cuts. It does not relabel the original red run or imply a

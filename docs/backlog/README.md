@@ -16,6 +16,10 @@ actual Unity 6000.0.85f2 Web build and the selected MVP match loop verified, inc
 Initial loot discovery and all seven reliable views are integrated; broader content and cloud deployment remain open. The ported tick order is the table `schedule::PHASES` in `crates/rh-sim/src/schedule.rs` (run by `systems::update_active`); unported
 rows are `Pending("P-...")` entries there, named after the legacy rows, and [../CONTRACTS.md](../CONTRACTS.md) C-TICK describes them.
 
+## November9 coordinator checkpoint
+
+The [current migration checkpoint](../MIGRATION.md) supersedes the older version/status lists below:14/29/23/21/15/content7c6a633f68c2cc72. Native SlowStarter/complete MarkTax/PackLeader/readonly WalkHint and source timings are integrated with63 strict source cases and a derived native tape. Actual Training90 passes its frozen engine cut; layout/complete browser remain open. Pure owned-seat resume/checkpoint storage and private socket components are reviewed, with UI adoption/new-page proof and full fact/Brain activation still separate. Owner scope is the **full original port**, including durable regional hosting and matched M5 Pro performance; the earlier playable-core scope is historical. AWS login renewal is owner-deferred. Consult PROJECT_COORDINATION before allocating work; do not duplicate released components.
+
 ## November 8 integration handoff
 
 Use the superseding [migration checkpoint](../MIGRATION.md#consolidated-working-checkpoint-2026-11-08),
