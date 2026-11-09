@@ -180,7 +180,7 @@ namespace Roguehalla.Client.Tests
             Assert.IsTrue(await aliceAgain);
             reveal.onClick.Invoke();
             Assert.AreEqual(AliceKey, field.text);
-            _view.SendMessage("OnApplicationFocus", false, SendMessageOptions.RequireReceiver);
+            typeof(AccountRecoveryView).GetMethod("OnApplicationFocus", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).Invoke(_view, new object[] { false });
             Assert.IsFalse(_view.IsVisible);
             AssertMaskedAndEmpty(field);
             if (canReadClipboard) Assert.AreEqual(clipboard, GUIUtility.systemCopyBuffer, "the view never writes the clipboard automatically");
