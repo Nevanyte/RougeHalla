@@ -13,8 +13,8 @@
   "evidence": [
     {
       "path": "docs/evidence/ci-runtime-admission-3126/.gitattributes",
-      "sha256": "3de6ecd53b23ff80670c2fe5b193580b33a75bd8598fbbbb6a0b59b07eb2d7ae",
-      "bytes": 148
+      "sha256": "255f8978495ce39fa5d520da8d6ceafb3a016727ced1f18b2f0ed660accc24f7",
+      "bytes": 268
     },
     {
       "path": "docs/evidence/ci-runtime-admission-3126/ATTEMPTS.json",
@@ -33,8 +33,8 @@
     },
     {
       "path": "docs/evidence/ci-runtime-admission-3126/README.md",
-      "sha256": "573337c65dd7f9c6056dbc5fac2e66515dfb455042b44ae353d75e33e9f13af3",
-      "bytes": 6089
+      "sha256": "af62d83538e176015ce90bfd19a7d307a294e1dcd857b2fb1173484f84aaaa0f",
+      "bytes": 6302
     },
     {
       "path": "docs/evidence/ci-runtime-admission-3126/diagnostic-overlay-reconstructed.txt",

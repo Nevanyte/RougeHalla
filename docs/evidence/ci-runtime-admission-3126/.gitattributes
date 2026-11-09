@@ -1,2 +1,4 @@
 # Preserve raw command receipts exactly; this changes whitespace checking only, not inclusion or test behavior.
 logs/*.log whitespace=-blank-at-eof
+# GitHub's timestamp-only raw lines end in a space; preserve the exact excerpt.
+CI_FAILURE.txt whitespace=-blank-at-eol
