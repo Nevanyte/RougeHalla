@@ -60,6 +60,8 @@ namespace Roguehalla.Client.Tests
         public void SetUp()
         {
             _previousEvents = EventSystem.current;
+            _originalInputSettings = InputSystem.settings;
+            _previousKeyboard = Keyboard.current;
             // ExecuteAlways ensures EventSystem.OnEnable registers this test instance in EditMode.
             // Keep the project EventSystem active and move this known-registered instance to the front.
             _ownedEvents = new GameObject("UI input routing test EventSystem", typeof(UiInputRoutingEventSystem));
@@ -73,13 +75,11 @@ namespace Roguehalla.Client.Tests
             // that path swaps editor buffers without advancing InputDevice.m_CurrentUpdateStepCount, so button edges
             // fail the wasUpdatedThisFrame guard used by wasPressedThisFrame. Use a temporary settings clone with the
             // package's supported player-updates-in-EditMode feature enabled, and restore the original settings asset.
-            _originalInputSettings = InputSystem.settings;
             _fixtureInputSettings = ScriptableObject.Instantiate(_originalInputSettings);
             _fixtureInputSettings.updateMode = InputSettings.UpdateMode.ProcessEventsInDynamicUpdate;
             _fixtureInputSettings.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus;
             _fixtureInputSettings.SetInternalFeatureFlag("RUN_PLAYER_UPDATES_IN_EDIT_MODE", true);
             InputSystem.settings = _fixtureInputSettings;
-            _previousKeyboard = Keyboard.current;
             _keyboard = InputSystem.AddDevice<Keyboard>();
             _keyboard.MakeCurrent();
             Assert.That(_keyboard.enabled, Is.True, "injected test keyboard must be enabled");
@@ -134,23 +134,99 @@ namespace Roguehalla.Client.Tests
         {
             try
             {
+                CleanupUi();
+            }
+            finally
+            {
+                try
+                {
+                    CleanupEventSystem();
+                }
+                finally
+                {
+                    try
+                    {
+                        CleanupKeyboard();
+                    }
+                    finally
+                    {
+                        RestoreInputSettings();
+                    }
+                }
+            }
+        }
+
+        void CleanupUi()
+        {
+            try
+            {
                 if (_typingField != null) _typingField.DeactivateInputField();
+            }
+            finally
+            {
+                try
+                {
+                    if (_hud != null && _hud.TacticalMap != null) _hud.TacticalMap.SetToggleMode(_oldToggleMode);
+                }
+                finally
+                {
+                    if (_root != null) UnityEngine.Object.DestroyImmediate(_root);
+                }
+            }
+        }
+
+        void CleanupEventSystem()
+        {
+            try
+            {
                 if (_ownedEvents != null)
                 {
                     var ownedSystem = _ownedEvents.GetComponent<EventSystem>();
                     if (ownedSystem != null && EventSystem.current == ownedSystem) ownedSystem.SetSelectedGameObject(null);
                 }
-                if (_hud != null && _hud.TacticalMap != null) _hud.TacticalMap.SetToggleMode(_oldToggleMode);
-                if (_keyboard != null && _keyboard.added) InputSystem.RemoveDevice(_keyboard);
-                if (_previousKeyboard != null && _previousKeyboard.added) _previousKeyboard.MakeCurrent();
-                if (_root != null) UnityEngine.Object.DestroyImmediate(_root);
-                if (_ownedEvents != null) UnityEngine.Object.DestroyImmediate(_ownedEvents);
-                Assert.That(_previousEvents == null || EventSystem.current == _previousEvents,
-                    "destroying the test EventSystem should restore the previously current system");
             }
             finally
             {
+                try
+                {
+                    if (_ownedEvents != null) _ownedEvents.SetActive(false);
+                }
+                finally
+                {
+                    try
+                    {
+                        if (_ownedEvents != null) UnityEngine.Object.DestroyImmediate(_ownedEvents);
+                    }
+                    finally
+                    {
+                        EventSystem.current = _previousEvents;
+                        Assert.That(_previousEvents == null || EventSystem.current == _previousEvents,
+                            "the fixture must restore the previously current EventSystem");
+                    }
+                }
+            }
+        }
+
+        void CleanupKeyboard()
+        {
+            try
+            {
+                if (_keyboard != null && _keyboard.added) InputSystem.RemoveDevice(_keyboard);
+            }
+            finally
+            {
+                if (_previousKeyboard != null && _previousKeyboard.added) _previousKeyboard.MakeCurrent();
+            }
+        }
+
+        void RestoreInputSettings()
+        {
+            try
+            {
                 if (_originalInputSettings != null) InputSystem.settings = _originalInputSettings;
+            }
+            finally
+            {
                 if (_fixtureInputSettings != null) UnityEngine.Object.DestroyImmediate(_fixtureInputSettings);
             }
         }
