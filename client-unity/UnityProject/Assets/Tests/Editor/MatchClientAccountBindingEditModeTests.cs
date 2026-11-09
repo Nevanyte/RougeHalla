@@ -209,7 +209,7 @@ public sealed class MatchClientAccountBindingEditModeTests
             Assert.That(f.Matches.Count, Is.EqualTo(1));
             Assert.That(f.Client.Session, Is.Not.Null);
             Assert.That(pickupLabel.gameObject.activeSelf, Is.False);
-            Assert.That(pickupLabel.text, Is.EqualTo("F · No pickup"), "ordinary Bind updates the actual inactive label");
+            Assert.That(pickupLabel.text, Is.EqualTo("F"), "ordinary Bind updates the compact actual inactive label");
             Assert.That(f.Matches[0].Url, Is.EqualTo("wss://game.example/arena/ws"));
             f.Matches[0].Open();
             var hello = (ClientMsg.Hello)ClientMsg.Decode(f.Matches[0].Sent[0]);
