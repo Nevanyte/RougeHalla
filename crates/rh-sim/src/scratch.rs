@@ -111,7 +111,7 @@ impl Default for TickScratch {
             performed: Vec::with_capacity(crate::fx_report::FX_INSTANT_BUCKETS_MAX),
             performed_bounded: true,
             mark_denials: Vec::with_capacity(MAX_PLAYERS),
-            mark_tax_next: Vec::with_capacity(MAX_PLAYERS),
+            mark_tax_next: Vec::new(),
             ledger_diagnostics: Vec::with_capacity(hits),
             dot_sums: Vec::with_capacity(p),
             fx: crate::fx_report::TickFx {
@@ -169,8 +169,8 @@ impl TickScratch {
             self.attack_started.resize(count, false);
         }
         macro_rules! reserve { ($($field:ident),*) => { $(if self.$field.capacity() < count {self.$field.reserve(count.saturating_sub(self.$field.len()));})* }; }
+        // Mark tax uses its checked sparse edge budget in sentenced::prepare, not total fighter count.
         reserve!(
-            mark_tax_next,
             standing,
             mults,
             bodies,

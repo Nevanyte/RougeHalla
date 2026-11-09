@@ -67,7 +67,7 @@ pub(crate) fn update(cx: &mut Cx) {
 pub(crate) fn roaming_speed(
     w: &World,
     core: &FighterCore,
-    _stats: crate::status_runtime::StatView,
+    _stats: crate::schedule::ModSourceInputs,
 ) -> Option<crate::schedule::ModContribution> {
     if w.phase != crate::Phase::Active {
         return None;

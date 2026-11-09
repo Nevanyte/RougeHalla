@@ -309,9 +309,13 @@ pub(crate) fn movement(
 pub(crate) fn attack_source(
     w: &World,
     p: &crate::fighter::FighterCore,
-    stats: rt::StatView,
+    stats: crate::schedule::ModSourceInputs,
 ) -> Option<crate::schedule::ModContribution> {
-    let f = rt::attack_slow_factor(&p.statuses.instances, w.server_time, stats.slow_resist);
+    let f = rt::attack_slow_factor(
+        &p.statuses.instances,
+        w.server_time,
+        stats.stats.slow_resist,
+    );
     (f < 1.).then_some(crate::schedule::ModContribution {
         as_mult: Some(f),
         ..Default::default()

@@ -489,12 +489,11 @@ fn what_the_slice_has_ported_stays_ported() {
         .1
         .iter()
         .any(|l| l.legacy == "factions.<arrow>" && l.pending.is_none()));
-    // The remaining P-FACTION-1 row is the intentionally neutral mark tax, not a live consumer: the shipped sheet's
-    // keep 1 / cap 99 leaves taxedRate(r) == r, so it cuts no rate and stays Pending (see the evidence README).
+    // Mark tax is an active source: genuine uncapped Training farm AS can exceed the shipped rate cap.
     assert!(t
         .mod_sources
         .iter()
-        .any(|l| l.legacy == "factions.markTaxSource" && l.pending == Some("P-FACTION-1")));
+        .any(|l| l.legacy == "factions.markTaxSource" && l.pending.is_none()));
     assert!(t
         .hooks
         .iter()

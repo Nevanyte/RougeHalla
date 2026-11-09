@@ -287,9 +287,15 @@ pub(crate) struct ModContribution {
     pub(crate) armor: Option<f64>,
     pub(crate) shield: Option<f64>,
 }
+/// Private source query. Existing status inputs retain their previous cached read semantics. Own AS rows explicitly
+/// distinguish ordinary ask-before-refold from the end-mods conditional prepass.
+#[derive(Clone, Copy, Default)]
+pub(crate) struct ModSourceInputs {
+    pub(crate) stats: crate::status_runtime::StatView,
+    pub(crate) own_as_rows: crate::systems::sentenced::mark_tax::OwnAsRows,
+}
 /// A source the stat mirrors fold in besides the fighter's own rows (legacy `ModSource`).
-pub(crate) type SourceFn =
-    fn(&World, &FighterCore, crate::status_runtime::StatView) -> Option<ModContribution>;
+pub(crate) type SourceFn = fn(&World, &FighterCore, ModSourceInputs) -> Option<ModContribution>;
 /// An action handler (legacy `ActionHandler`): the queued command of the fighter at `ix`.
 pub(crate) type ActionFn = fn(&mut Cx, FighterIx, &ActionCmd);
 
@@ -605,11 +611,7 @@ fn no_phase(_: &mut Cx) -> Flow {
     Flow::Continue
 }
 fn no_system(_: &mut Cx) {}
-fn no_source(
-    _: &World,
-    _: &FighterCore,
-    _: crate::status_runtime::StatView,
-) -> Option<ModContribution> {
+fn no_source(_: &World, _: &FighterCore, _: ModSourceInputs) -> Option<ModContribution> {
     None
 }
 fn no_modifier(
@@ -1117,7 +1119,11 @@ static MOVE_MODIFIERS: [Item<MoveFn>; 7] = [
 ];
 /// Legacy stat modifier sources, folded after damage in registration order.
 static MOD_SOURCES: [Item<SourceFn>; 6] = [
-    pending("factions.markTaxSource", Gate::Signatures, "P-FACTION-1"),
+    ported(
+        "factions.markTaxSource",
+        Gate::Signatures,
+        crate::systems::sentenced::mark_tax::mod_source,
+    ),
     ported(
         "abilities.attackSlowSource",
         Gate::Always,

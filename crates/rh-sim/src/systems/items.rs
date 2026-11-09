@@ -15,7 +15,7 @@ use crate::{Sim, WeaponId};
 pub(crate) fn shred_source(
     w: &World,
     p: &FighterCore,
-    _: crate::status_runtime::StatView,
+    _: crate::schedule::ModSourceInputs,
 ) -> Option<crate::schedule::ModContribution> {
     let shred = crate::status_runtime::value(
         &p.statuses.instances,
@@ -29,10 +29,14 @@ pub(crate) fn shred_source(
 }
 
 pub(crate) fn fold_armor(cx: &mut Cx) {
+    #[cfg(test)]
+    super::sentenced::mark_tax::record_phase(cx.w, "before-mods");
     crate::cards::fight_clock::note_fights(cx.w, &cx.s.landed);
     for i in 0..cx.w.fighter_count() {
-        refold_modifiers_with(cx.k, cx.w, i, cx.stats);
+        crate::modifiers::recompute_end_with(cx.k, cx.w, FighterIx::of_slot(i), cx.stats);
     }
+    #[cfg(test)]
+    super::sentenced::mark_tax::record_phase(cx.w, "after-mods");
 }
 /// Current mirror owner: every source recompute refreshes all registered current sources together.
 pub(crate) fn refold_modifiers_with(

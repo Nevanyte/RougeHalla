@@ -198,7 +198,7 @@ pub(crate) fn reset_run(hx: &mut Hx, args: &HookArgs) {
 pub(crate) fn frozen_justice(
     w: &World,
     core: &FighterCore,
-    _stats: crate::status_runtime::StatView,
+    _stats: crate::schedule::ModSourceInputs,
 ) -> Option<crate::schedule::ModContribution> {
     let p = w.player(core.id)?;
     if p.vitals.faction != FactionId::Frost || p.status != Status::Alive || !p.frost_guard.active {
