@@ -124,6 +124,8 @@ impl Gates {
     /// The training/ability source profile installs dummies and training but no faction signatures.
     pub const TRAINING_NO_SIGNATURES: Gates = Gates {
         signatures: false,
+        fire_roam: false,
+        bruiser: false,
         ..Self::TRAINING
     };
 
@@ -2092,6 +2094,47 @@ mod tests {
         assert!(!rows(&Gates::TRAINING).contains(&"suddenDeath(notTraining)"));
         assert!(!rows(&Gates::TRAINING).contains(&"settle"));
         assert!(rows(&Gates::TRAINING).contains(&"settle:training"));
+    }
+
+    #[test]
+    fn weapon_only_training_omits_faction_auxiliaries_but_ordinary_training_keeps_them() {
+        // createGameWorld(...,{signatures:false}) omits these installers together, also in training.
+        let t = tables();
+        let auxiliary =
+            |name: &str| name.starts_with("fireRoam.") || name.starts_with("bruiserPassives.");
+        for row in t
+            .after_weapons
+            .iter()
+            .chain(&t.systems)
+            .chain(&t.mod_sources)
+        {
+            if auxiliary(row.legacy) {
+                assert!(
+                    !row.gate.on(&Gates::TRAINING_NO_SIGNATURES),
+                    "{}",
+                    row.legacy
+                );
+                assert!(row.gate.on(&Gates::TRAINING), "{}", row.legacy);
+            }
+        }
+        for (_, links) in &t.hooks {
+            for row in links.iter().filter(|row| auxiliary(row.legacy)) {
+                assert!(
+                    !row.gate.on(&Gates::TRAINING_NO_SIGNATURES),
+                    "{}",
+                    row.legacy
+                );
+                assert!(row.gate.on(&Gates::TRAINING), "{}", row.legacy);
+            }
+        }
+        for name in ["fireRoam.update", "bruiserPassives.update"] {
+            assert!(!TRAINING_NO_SIGNATURES_PLAN
+                .systems
+                .live()
+                .iter()
+                .any(|(n, _)| *n == name));
+            assert!(TRAINING_PLAN.systems.live().iter().any(|(n, _)| *n == name));
+        }
     }
 
     fn sim() -> crate::Sim {
