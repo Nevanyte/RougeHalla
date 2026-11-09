@@ -1,0 +1,283 @@
+{
+  "sourceReleaseRequested": "6cdf893c67f55b70eb832c49ca01e72a7f7839f6",
+  "basis": "Source [Test] attributes and public test method declarations plus sibling .meta GUIDs; no Unity test assembly/discovery or execution was run.",
+  "totalTestMethods": 34,
+  "totalTestCaseAttributes": 0,
+  "totalExpectedCasesFromTheseAttributes": 34,
+  "groups": [
+    {
+      "class": "BuildDrawerEditModeTests",
+      "namespace": "Roguehalla.Client.Tests",
+      "file": "Assets/Tests/Editor/BuildDrawerEditModeTests.cs",
+      "metaGuid": "6995df0d410c4d188dda9c8ab9ecbabb",
+      "testMethodCount": 5,
+      "testCaseAttributes": 0,
+      "tests": [
+        {
+          "name": "DisplayCatalogExactlyMirrorsRustCardIdsTitlesDescriptionsAndTags",
+          "attributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "name": "CatalogDrawerHasEightyFocusableCardsAndReadOnlyServerFactsSurviveRefresh",
+          "attributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "name": "HighestCardStackChangeRefreshesWithoutResettingInspectionOrScroll",
+          "attributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "name": "DrawerViewportBuildsVisibleCardMeshesClipsHitsScrollsAndKeepsSelection",
+          "attributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "name": "FactoryButtonsHaveAccessibleMinimumSizeAndGeneratedIcons",
+          "attributes": [
+            "[Test]"
+          ]
+        }
+      ]
+    },
+    {
+      "class": "UiInputRoutingEditModeTests",
+      "namespace": "Roguehalla.Client.Tests",
+      "file": "Assets/Tests/Editor/UiInputRoutingEditModeTests.cs",
+      "metaGuid": "f828a23cec084275bbe2f4d7bb93f185",
+      "testMethodCount": 10,
+      "testCaseAttributes": 0,
+      "tests": [
+        {
+          "name": "PlainDigitOneQueuesWeaponSwap",
+          "attributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "name": "ChestChoiceConsumesDigitEvenAsItReleasesChestFocus",
+          "attributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "name": "TabOpensMapAndBlocksPointerWhileWasdStillQueuesMove",
+          "attributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "name": "MenuAndResultsPreventTabFromOpeningMap",
+          "attributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "name": "ClosingSettingsRestoresThePreviouslyFocusedWorldHudControl",
+          "attributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "name": "SettingsOwnsKeyboardAndBlocksBuildHelpShortcutsWithoutWorldCommands",
+          "attributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "name": "BuildAndHelpShortcutsStillToggleAndSwitchBetweenTheirPanels",
+          "attributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "name": "BuildDrawerHidesGlobalHeaderActionsAndRestoresTheirCallbacksOnClose",
+          "attributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "name": "FocusedTextInputPreventsTabFromOpeningMap",
+          "attributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "name": "WindowBlurReleasesChestAndHeldMapFocus",
+          "attributes": [
+            "[Test]"
+          ]
+        }
+      ]
+    },
+    {
+      "class": "MatchHudWishBarrierEditModeTests",
+      "namespace": "Roguehalla.Client.Tests",
+      "file": "Assets/Tests/Editor/MatchHudWishBarrierEditModeTests.cs",
+      "metaGuid": "42ed7398690c426f8885769e5faed8ad",
+      "testMethodCount": 3,
+      "testCaseAttributes": 0,
+      "tests": [
+        {
+          "name": "OwnerFactsRenderAndClearAcrossWishAndSessionResetTransitions",
+          "attributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "name": "OwnerVitalPercentagesPreserveDeliveredSharesAndHandleInvalidInput",
+          "attributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "name": "WeaponIconsRetainSemanticTintAcrossSlotChangesAndClearMissingInventory",
+          "attributes": [
+            "[Test]"
+          ]
+        }
+      ]
+    },
+    {
+      "class": "HubCosmeticsViewEditModeTests",
+      "namespace": "Roguehalla.Client.Tests",
+      "file": "Assets/Tests/Editor/HubCosmeticsViewEditModeTests.cs",
+      "metaGuid": "f87f72a74f9d4be69e495c1b16a0541e",
+      "testMethodCount": 7,
+      "testCaseAttributes": 0,
+      "tests": [
+        {
+          "name": "NullOwnerCanInitializeAndShowUnavailableCatalog",
+          "attributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "name": "ShowingAndChangingCallsSignDoNotIssueProfileReadsAndRefreshRequiresOwnedProfile",
+          "attributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "name": "EquipGuardAllowsNullOnlyForAnEquippedSlotAndRequiresOwnershipOtherwise",
+          "attributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "name": "FocusRestoresTheNewActionWhileTheRetiredSameNamedCardStillExists",
+          "attributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "name": "ExistingOwnedFullProfileCanPurchaseWithoutExtraReadAndShowsPendingBeforeReply",
+          "attributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "name": "SameNameCredentialReplacementHidesAndRejectsOldUnknownRetryWithoutLosingHistory",
+          "attributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "name": "UnusableSameNameOwnerClearsWalletAndStatusWithoutDiscardingUnknownPurchase",
+          "attributes": [
+            "[Test]"
+          ]
+        }
+      ]
+    },
+    {
+      "class": "HubProgressViewEditModeTests",
+      "namespace": "Roguehalla.Net.Tests",
+      "file": "Assets/Tests/Editor/HubProgressViewEditModeTests.cs",
+      "metaGuid": "9ed2e7b4dd5241d58ea4ab7a1e0a0af3",
+      "testMethodCount": 3,
+      "testCaseAttributes": 0,
+      "tests": [
+        {
+          "name": "FormatsInt64WithoutFloatingPointLoss",
+          "attributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "name": "AchievementRowsShowServerFactsAndPreserveUnknownFutureIds",
+          "attributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "name": "OwnerRankIsClearedOnCancelAndSelectionChangeAndLatePrivateBoardCannotRestoreIt",
+          "attributes": [
+            "[Test]"
+          ]
+        }
+      ]
+    },
+    {
+      "class": "AccountRecoveryViewEditModeTests",
+      "namespace": "Roguehalla.Client.Tests",
+      "file": "Assets/Tests/Editor/AccountRecoveryViewEditModeTests.cs",
+      "metaGuid": "3d27b1c5c0524949b029e33fb04aa312",
+      "testMethodCount": 2,
+      "testCaseAttributes": 0,
+      "tests": [
+        {
+          "name": "UnownedAndFailedProfilesCannotRevealARecoveryKey",
+          "attributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "name": "OwnedKeyNeedsRevealAndManualSelectionAndClearsOnCloseSwitchCancelAndBlur",
+          "attributes": [
+            "[Test]"
+          ]
+        }
+      ]
+    },
+    {
+      "class": "MatchClientAccountBindingEditModeTests",
+      "namespace": null,
+      "file": "Assets/Tests/Editor/MatchClientAccountBindingEditModeTests.cs",
+      "metaGuid": "fac78127a58b4044bec5d3a102c8fec7",
+      "testMethodCount": 4,
+      "testCaseAttributes": 0,
+      "tests": [
+        {
+          "name": "SelectingFactionDuringDeferredJoinInvalidatesIntentAndCreatesNoSocket",
+          "attributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "name": "StaleJoinFailureCannotOverwriteProfileSelectedBySynchronousFlowCallback",
+          "attributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "name": "MutatingMatchUrlWhileOwnershipRequestIsPendingCannotUseCapturedIntentOrConnect",
+          "attributes": [
+            "[Test]"
+          ]
+        },
+        {
+          "name": "SuccessfulOrdinaryJoinUsesOwnedCanonicalIdentityTokenAndValidatedUrl",
+          "attributes": [
+            "[Test]"
+          ]
+        }
+      ]
+    }
+  ]
+}

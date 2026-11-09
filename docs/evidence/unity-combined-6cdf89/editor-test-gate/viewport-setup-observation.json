@@ -1,0 +1,10 @@
+{
+  "method": "Native CUA idle setup observation and one ordinary raise/Game tab/Game pane focus attempt",
+  "preset": "QHD (2560x1440)",
+  "scale": 0.28,
+  "gameTabVisiblySelected": true,
+  "nativeErrorMacLockedReported": false,
+  "publicFocusedWindowAfterSetup": null,
+  "presetAlteredDuringGate": false,
+  "playOrNativeCaptureAttempted": false
+}

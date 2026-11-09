@@ -1,0 +1,157 @@
+{
+  "source": "6cdf893c67f55b70eb832c49ca01e72a7f7839f6",
+  "groups": [
+    {
+      "group": "BuildDrawerEditModeTests",
+      "summary": {
+        "Total": 5,
+        "Passed": 4,
+        "Failed": 1,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "methodNamesMatch": true,
+      "failed": [
+        {
+          "FullName": "Roguehalla.Client.Tests.BuildDrawerEditModeTests.DrawerViewportBuildsVisibleCardMeshesClipsHitsScrollsAndKeepsSelection",
+          "Status": "Failed",
+          "Duration": 0.1239728,
+          "Message": "  visible card responds to the actual Canvas UnityEngine.UI.GraphicRaycaster\n  Expected: True\n  But was:  False\n",
+          "StackTrace": "at Roguehalla.Client.Tests.BuildDrawerEditModeTests.DrawerViewportBuildsVisibleCardMeshesClipsHitsScrollsAndKeepsSelection () [0x001bc] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/BuildDrawerEditModeTests.cs:161\n"
+        }
+      ]
+    },
+    {
+      "group": "UiInputRoutingEditModeTests",
+      "summary": {
+        "Total": 10,
+        "Passed": 9,
+        "Failed": 1,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "methodNamesMatch": true,
+      "failed": [
+        {
+          "FullName": "Roguehalla.Client.Tests.UiInputRoutingEditModeTests.BuildDrawerHidesGlobalHeaderActionsAndRestoresTheirCallbacksOnClose",
+          "Status": "Failed",
+          "Duration": 0.1185573,
+          "Message": "No injected-key precondition configured for Escape",
+          "StackTrace": "at Roguehalla.Client.Tests.UiInputRoutingEditModeTests.KeyControlFor (UnityEngine.InputSystem.Key key) [0x0006e] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/UiInputRoutingEditModeTests.cs:592\nat Roguehalla.Client.Tests.UiInputRoutingEditModeTests.Press (UnityEngine.InputSystem.Key[] keys) [0x000c8] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/UiInputRoutingEditModeTests.cs:563\nat Roguehalla.Client.Tests.UiInputRoutingEditModeTests.BuildDrawerHidesGlobalHeaderActionsAndRestoresTheirCallbacksOnClose () [0x0013c] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/UiInputRoutingEditModeTests.cs:465\n"
+        }
+      ]
+    },
+    {
+      "group": "MatchHudWishBarrierEditModeTests",
+      "summary": {
+        "Total": 3,
+        "Passed": 3,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "methodNamesMatch": true,
+      "failed": []
+    },
+    {
+      "group": "HubCosmeticsViewEditModeTests",
+      "summary": {
+        "Total": 7,
+        "Passed": 2,
+        "Failed": 5,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "methodNamesMatch": true,
+      "failed": [
+        {
+          "FullName": "Roguehalla.Client.Tests.HubCosmeticsViewEditModeTests.ExistingOwnedFullProfileCanPurchaseWithoutExtraReadAndShowsPendingBeforeReply",
+          "Status": "Failed",
+          "Duration": 0.3009336,
+          "Message": "Unhandled log message: '[Exception] MissingComponentException: There is no 'CanvasGroup' attached to the \"Cosmetic_skin-red\" game object, but a script is trying to access it.\nYou probably need to add a CanvasGroup to the game object \"Cosmetic_skin-red\". Or your script needs to check if the component is attached before using it.'. Use UnityEngine.TestTools.LogAssert.Expect",
+          "StackTrace": "UnityEngine.Object+MarshalledUnityObject.TryThrowEditorNullExceptionObject (UnityEngine.Object unityObj, System.String parameterName) (at /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/UnityEngineObject.bindings.cs:883)\nUnityEngine.Bindings.ThrowHelper.ThrowNullReferenceException (System.Object obj) (at /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/BindingsHelpers.cs:61)\nUnityEngine.CanvasGroup.set_alpha (System.Single value) (at <e244e4fc1dd44c47ae877009b2d74ab1>:0)\nRoguehalla.Client.HubCosmeticsView.RetireCard (UnityEngine.GameObject card) (at Assets/Scripts/UI/HubCosmeticsView.cs:616)\nRoguehalla.Client.HubCosmeticsView.RebuildCards () (at Assets/Scripts/UI/HubCosmeticsView.cs:309)\nRoguehalla.Client.HubCosmeticsView.SendMutation (Roguehalla.Client.HubCosmeticsView+MutationEntry entry) (at Assets/Scripts/UI/HubCosmeticsView.cs:663)\nSystem.Runtime.CompilerServices.AsyncMethodBuilderCore+<>c.<ThrowAsync>b__7_0 (System.Object state) (at <a5b04fdd22cd4a3e97368c21b1fd2d9d>:0)\nUnityEngine.UnitySynchronizationContext+WorkRequest.Invoke () (at /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/UnitySynchronizationContext.cs:156)\nUnityEngine.UnitySynchronizationContext.Exec () (at /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/UnitySynchronizationContext.cs:84)\nUnityEngine.UnitySynchronizationContext.ExecuteTasks () (at /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/UnitySynchronizationContext.cs:110)\n\n"
+        },
+        {
+          "FullName": "Roguehalla.Client.Tests.HubCosmeticsViewEditModeTests.FocusRestoresTheNewActionWhileTheRetiredSameNamedCardStillExists",
+          "Status": "Failed",
+          "Duration": 0.0018065,
+          "Message": "System.Reflection.TargetInvocationException : Exception has been thrown by the target of an invocation.\n  ----> UnityEngine.MissingComponentException : There is no 'CanvasGroup' attached to the \"Cosmetic_blade-blue\" game object, but a script is trying to access it.\nYou probably need to add a CanvasGroup to the game object \"Cosmetic_blade-blue\". Or your script needs to check if the component is attached before using it.",
+          "StackTrace": "  at System.Reflection.RuntimeMethodInfo.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00083] in <a5b04fdd22cd4a3e97368c21b1fd2d9d>:0 \n  at System.Reflection.MethodBase.Invoke (System.Object obj, System.Object[] parameters) [0x00000] in <a5b04fdd22cd4a3e97368c21b1fd2d9d>:0 \n  at Roguehalla.Client.Tests.HubCosmeticsViewEditModeTests.FocusRestoresTheNewActionWhileTheRetiredSameNamedCardStillExists () [0x000d2] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/HubCosmeticsViewEditModeTests.cs:126 \n  at (wrapper managed-to-native) System.Reflection.RuntimeMethodInfo.InternalInvoke(System.Reflection.RuntimeMethodInfo,object,object[],System.Exception&)\n  at System.Reflection.RuntimeMethodInfo.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x0006a] in <a5b04fdd22cd4a3e97368c21b1fd2d9d>:0 \n--MissingComponentException\n  at UnityEngine.Object+MarshalledUnityObject.TryThrowEditorNullExceptionObject (UnityEngine.Object unityObj, System.String parameterName) [0x000d1] in /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/UnityEngineObject.bindings.cs:883 \n  at UnityEngine.Bindings.ThrowHelper.ThrowNullReferenceException (System.Object obj) [0x00010] in /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/BindingsHelpers.cs:61 \n  at UnityEngine.CanvasGroup.set_alpha (System.Single value) [0x00006] in <e244e4fc1dd44c47ae877009b2d74ab1>:0 \n  at Roguehalla.Client.HubCosmeticsView.RetireCard (UnityEngine.GameObject card) [0x00026] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Scripts/UI/HubCosmeticsView.cs:616 \n  at (wrapper managed-to-native) System.Reflection.RuntimeMethodInfo.InternalInvoke(System.Reflection.RuntimeMethodInfo,object,object[],System.Exception&)\n  at System.Reflection.RuntimeMethodInfo.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x0006a] in <a5b04fdd22cd4a3e97368c21b1fd2d9d>:0 "
+        },
+        {
+          "FullName": "Roguehalla.Client.Tests.HubCosmeticsViewEditModeTests.SameNameCredentialReplacementHidesAndRejectsOldUnknownRetryWithoutLosingHistory",
+          "Status": "Failed",
+          "Duration": 0.4493448,
+          "Message": "Unhandled log message: '[Exception] MissingComponentException: There is no 'CanvasGroup' attached to the \"Cosmetic_skin-red\" game object, but a script is trying to access it.\nYou probably need to add a CanvasGroup to the game object \"Cosmetic_skin-red\". Or your script needs to check if the component is attached before using it.'. Use UnityEngine.TestTools.LogAssert.Expect",
+          "StackTrace": "UnityEngine.Object+MarshalledUnityObject.TryThrowEditorNullExceptionObject (UnityEngine.Object unityObj, System.String parameterName) (at /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/UnityEngineObject.bindings.cs:883)\nUnityEngine.Bindings.ThrowHelper.ThrowNullReferenceException (System.Object obj) (at /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/BindingsHelpers.cs:61)\nUnityEngine.CanvasGroup.set_alpha (System.Single value) (at <e244e4fc1dd44c47ae877009b2d74ab1>:0)\nRoguehalla.Client.HubCosmeticsView.RetireCard (UnityEngine.GameObject card) (at Assets/Scripts/UI/HubCosmeticsView.cs:616)\nRoguehalla.Client.HubCosmeticsView.RebuildCards () (at Assets/Scripts/UI/HubCosmeticsView.cs:309)\nRoguehalla.Client.HubCosmeticsView.SendMutation (Roguehalla.Client.HubCosmeticsView+MutationEntry entry) (at Assets/Scripts/UI/HubCosmeticsView.cs:663)\nSystem.Runtime.CompilerServices.AsyncMethodBuilderCore+<>c.<ThrowAsync>b__7_0 (System.Object state) (at <a5b04fdd22cd4a3e97368c21b1fd2d9d>:0)\nUnityEngine.UnitySynchronizationContext+WorkRequest.Invoke () (at /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/UnitySynchronizationContext.cs:156)\nUnityEngine.UnitySynchronizationContext.Exec () (at /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/UnitySynchronizationContext.cs:84)\nUnityEngine.UnitySynchronizationContext.ExecuteTasks () (at /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/UnitySynchronizationContext.cs:110)\n\n"
+        },
+        {
+          "FullName": "Roguehalla.Client.Tests.HubCosmeticsViewEditModeTests.ShowingAndChangingCallsSignDoNotIssueProfileReadsAndRefreshRequiresOwnedProfile",
+          "Status": "Failed",
+          "Duration": 0.0534615,
+          "Message": "UnityEngine.MissingComponentException : There is no 'CanvasGroup' attached to the \"Cosmetic_gilded-shield\" game object, but a script is trying to access it.\nYou probably need to add a CanvasGroup to the game object \"Cosmetic_gilded-shield\". Or your script needs to check if the component is attached before using it.",
+          "StackTrace": "  at UnityEngine.Object+MarshalledUnityObject.TryThrowEditorNullExceptionObject (UnityEngine.Object unityObj, System.String parameterName) [0x000d1] in /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/UnityEngineObject.bindings.cs:883 \n  at UnityEngine.Bindings.ThrowHelper.ThrowNullReferenceException (System.Object obj) [0x00010] in /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/BindingsHelpers.cs:61 \n  at UnityEngine.CanvasGroup.set_alpha (System.Single value) [0x00006] in <e244e4fc1dd44c47ae877009b2d74ab1>:0 \n  at Roguehalla.Client.HubCosmeticsView.RetireCard (UnityEngine.GameObject card) [0x00026] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Scripts/UI/HubCosmeticsView.cs:616 \n  at Roguehalla.Client.HubCosmeticsView.RebuildCards () [0x00088] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Scripts/UI/HubCosmeticsView.cs:309 \n  at Roguehalla.Client.HubCosmeticsView.OnOwnerChanged (Roguehalla.Net.AccountHubSnapshot snapshot) [0x00079] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Scripts/UI/HubCosmeticsView.cs:268 \n  at Roguehalla.Net.AccountHubFlow.Set (Roguehalla.Net.AccountHubState state, Roguehalla.Net.AccountFailure failure, Roguehalla.Net.AccountConnectionFailure connectionFailure, Roguehalla.Net.AccountRefreshReason reason) [0x0005e] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountHubFlow.cs:225 \n  at Roguehalla.Net.AccountHubFlow.SelectName (System.String name) [0x00065] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountHubFlow.cs:98 \n  at Roguehalla.Client.Tests.HubCosmeticsViewEditModeTests.ShowingAndChangingCallsSignDoNotIssueProfileReadsAndRefreshRequiresOwnedProfile () [0x0008b] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/HubCosmeticsViewEditModeTests.cs:86 \n  at (wrapper managed-to-native) System.Reflection.RuntimeMethodInfo.InternalInvoke(System.Reflection.RuntimeMethodInfo,object,object[],System.Exception&)\n  at System.Reflection.RuntimeMethodInfo.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x0006a] in <a5b04fdd22cd4a3e97368c21b1fd2d9d>:0 "
+        },
+        {
+          "FullName": "Roguehalla.Client.Tests.HubCosmeticsViewEditModeTests.UnusableSameNameOwnerClearsWalletAndStatusWithoutDiscardingUnknownPurchase",
+          "Status": "Failed",
+          "Duration": 10.3459568,
+          "Message": "Unhandled log message: '[Exception] MissingComponentException: There is no 'CanvasGroup' attached to the \"Cosmetic_skin-red\" game object, but a script is trying to access it.\nYou probably need to add a CanvasGroup to the game object \"Cosmetic_skin-red\". Or your script needs to check if the component is attached before using it.'. Use UnityEngine.TestTools.LogAssert.Expect",
+          "StackTrace": "UnityEngine.Object+MarshalledUnityObject.TryThrowEditorNullExceptionObject (UnityEngine.Object unityObj, System.String parameterName) (at /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/UnityEngineObject.bindings.cs:883)\nUnityEngine.Bindings.ThrowHelper.ThrowNullReferenceException (System.Object obj) (at /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/BindingsHelpers.cs:61)\nUnityEngine.CanvasGroup.set_alpha (System.Single value) (at <e244e4fc1dd44c47ae877009b2d74ab1>:0)\nRoguehalla.Client.HubCosmeticsView.RetireCard (UnityEngine.GameObject card) (at Assets/Scripts/UI/HubCosmeticsView.cs:616)\nRoguehalla.Client.HubCosmeticsView.RebuildCards () (at Assets/Scripts/UI/HubCosmeticsView.cs:309)\nRoguehalla.Client.HubCosmeticsView.SendMutation (Roguehalla.Client.HubCosmeticsView+MutationEntry entry) (at Assets/Scripts/UI/HubCosmeticsView.cs:663)\nSystem.Runtime.CompilerServices.AsyncMethodBuilderCore+<>c.<ThrowAsync>b__7_0 (System.Object state) (at <a5b04fdd22cd4a3e97368c21b1fd2d9d>:0)\nUnityEngine.UnitySynchronizationContext+WorkRequest.Invoke () (at /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/UnitySynchronizationContext.cs:156)\nUnityEngine.UnitySynchronizationContext.Exec () (at /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/UnitySynchronizationContext.cs:84)\nUnityEngine.UnitySynchronizationContext.ExecuteTasks () (at /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/UnitySynchronizationContext.cs:110)\n\n"
+        }
+      ]
+    },
+    {
+      "group": "HubProgressViewEditModeTests",
+      "summary": {
+        "Total": 3,
+        "Passed": 3,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "methodNamesMatch": true,
+      "failed": []
+    },
+    {
+      "group": "AccountRecoveryViewEditModeTests",
+      "summary": {
+        "Total": 2,
+        "Passed": 1,
+        "Failed": 1,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "methodNamesMatch": true,
+      "failed": [
+        {
+          "FullName": "Roguehalla.Client.Tests.AccountRecoveryViewEditModeTests.OwnedKeyNeedsRevealAndManualSelectionAndClearsOnCloseSwitchCancelAndBlur",
+          "Status": "Failed",
+          "Duration": 0.2997152,
+          "Message": "  Expected: 64\n  But was:  0\n",
+          "StackTrace": "at Roguehalla.Client.Tests.AccountRecoveryViewEditModeTests.OwnedKeyNeedsRevealAndManualSelectionAndClearsOnCloseSwitchCancelAndBlur () [0x00216] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/AccountRecoveryViewEditModeTests.cs:147\nat UnityEngine.TestTools.TestRunner.TestTaskWrapper+<Execute>d__2.MoveNext () [0x00063] in ./Library/PackageCache/com.unity.test-framework@082c24152fd4/UnityEngine.TestRunner/TestRunner/TestTaskWrapper.cs:31\nat UnityEngine.TestTools.TestEnumerator+<Execute>d__7.MoveNext () [0x0003a] in ./Library/PackageCache/com.unity.test-framework@082c24152fd4/UnityEngine.TestRunner/NUnitExtensions/Attributes/TestEnumerator.cs:44\n"
+        }
+      ]
+    },
+    {
+      "group": "MatchClientAccountBindingEditModeTests",
+      "summary": {
+        "Total": 4,
+        "Passed": 3,
+        "Failed": 1,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "methodNamesMatch": true,
+      "failed": [
+        {
+          "FullName": "MatchClientAccountBindingEditModeTests.SuccessfulOrdinaryJoinUsesOwnedCanonicalIdentityTokenAndValidatedUrl",
+          "Status": "Failed",
+          "Duration": 0.298896,
+          "Message": "  Expected: \"wss://game.example/arena/ws\"\n  But was:  null\n",
+          "StackTrace": "at MatchClientAccountBindingEditModeTests.SuccessfulOrdinaryJoinUsesOwnedCanonicalIdentityTokenAndValidatedUrl () [0x0013e] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/MatchClientAccountBindingEditModeTests.cs:184\nat UnityEngine.TestTools.TestRunner.TestTaskWrapper+<Execute>d__2.MoveNext () [0x00063] in ./Library/PackageCache/com.unity.test-framework@082c24152fd4/UnityEngine.TestRunner/TestRunner/TestTaskWrapper.cs:31\nat UnityEngine.TestTools.TestEnumerator+<Execute>d__7.MoveNext () [0x0003a] in ./Library/PackageCache/com.unity.test-framework@082c24152fd4/UnityEngine.TestRunner/NUnitExtensions/Attributes/TestEnumerator.cs:44\n"
+        }
+      ]
+    }
+  ]
+}
