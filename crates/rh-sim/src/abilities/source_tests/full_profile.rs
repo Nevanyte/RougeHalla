@@ -273,7 +273,7 @@ fn base36(mut id: u32) -> String {
 pub(super) fn complete_events(s: &Sim, events: &[Event], case: &V) {
     let actual:Vec<V>=events.iter().filter_map(|e|Some(match e {
         Event::RaidStarted=>json!({"type":"raidStarted"}),
-        Event::Toast{to,text}=>json!({"type":"toast","to":label(*to),"text":text}),
+        Event::Toast{to,text}=>json!({"type":"toast","to":to.map(label),"text":text}),
         Event::MobArmed{id,weapon}=>json!({"type":"toast","to":label(*id),"text":format!("Armed: {weapon:?}")}),
         Event::MarkNotice{recipient,notice}=>json!({"type":"toast","to":label(*recipient),"text":notice.message()}),
         Event::Gv{id,amount,reason}=>json!({"type":"gv","id":label(*id),"amount":amount,"reason":format!("{reason:?}").to_lowercase()}),

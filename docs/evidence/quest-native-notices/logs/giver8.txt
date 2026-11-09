@@ -1,0 +1,17 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-native-notices/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 41.57s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-native-notices/target/debug/deps/rh_sim-0ad75f2b040c28b6)
+
+running 1 test
+source giver case passed: planning-then-active-birth, actual steps 42
+source giver case passed: movement-through-giver, actual steps 41
+source giver case passed: projectile-through-giver, actual steps 81
+source giver case passed: melee-through-giver, actual steps 31
+source giver case passed: status-wish-on-giver, actual steps 45
+source giver case passed: fire-ember-through-giver, actual steps 61
+test quests::giver_tests::source::all_eight_captured_source_giver_cases_use_real_inputs_and_runtime has been running for over 60 seconds
+source giver case passed: expiry-retirement, actual steps 6003
+source giver case passed: completion-retirement, actual steps 33
+test quests::giver_tests::source::all_eight_captured_source_giver_cases_use_real_inputs_and_runtime ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 770 filtered out; finished in 78.05s

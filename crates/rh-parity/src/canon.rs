@@ -60,7 +60,7 @@ pub(crate) fn canon(e: &Event, sim: &Sim) -> Option<Value> {
             json!({"kind":"toast","to":fid(*id),"text":reason.message()})
         }
         Event::Toast { to, text } => {
-            json!({"kind":"toast","to":fid(*to),"text":text})
+            json!({"kind":"toast","to":to.map(fid),"text":text})
         }
         Event::WindEmblem { id } => {
             json!({"kind":"toast","to":fid(*id),"text":"Wind emblem · +50% movement for 5s"})

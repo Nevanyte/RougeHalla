@@ -359,8 +359,6 @@ fn complete(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, oi: usize, id: 
         return;
     };
     let def = &catalog::DEFINITION[def_index];
-    let name = def.name;
-    let _ = name;
     let Some(i) = w.idx(id) else { return };
     if !standing(w, id) {
         return;
@@ -372,10 +370,27 @@ fn complete(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, oi: usize, id: 
     }
     gv_quest(k, w, ev, i, def.reward_gv);
     let (stat, stacks) = rules::reward_stats(def);
-    crate::modifiers::grant_mob_stat(k, w, id, stat, stacks);
+    let gained = crate::modifiers::grant_mob_stat(k, w, id, stat, stacks);
+    if gained > 0 {
+        super::notices::owner(
+            ev,
+            id,
+            crate::modifiers::farm_text::grant_notice(stat, gained, w.players[i].farm.count(stat)),
+        );
+    }
+    super::notices::owner(ev, id, format!("Quest complete: {}", def.name));
+    super::notices::room(
+        ev,
+        format!(
+            "{} completed quest: {}",
+            w.roster.name(id).unwrap_or(""),
+            def.name
+        ),
+    );
 }
 
-fn close_all(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>) {
+fn close_all(w: &mut World, ev: &mut Vec<Event>, loud: bool) {
+    let mut expired = super::notices::Expired::default();
     let mut ids: Vec<u32> = quests(w)
         .map(|q| {
             q.offers
@@ -388,18 +403,23 @@ fn close_all(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>) {
     ids.sort_unstable();
     while let Some(id) = ids.pop() {
         if let Some(oi) = quests(w).and_then(|q| q.offers.iter().position(|o| o.id == id)) {
-            expire(w, oi);
+            let def = w.quests.as_ref().unwrap().offers[oi].def;
+            if expire(w, oi) {
+                expired.add(def);
+            }
         }
     }
-    let _ = (k, ev);
+    if loud {
+        expired.announce(ev);
+    }
 }
 
 pub(crate) fn on_teleported(hx: &mut crate::hooks::Hx, _: &crate::hooks::HookArgs) {
-    close_all(hx.k, hx.w, hx.ev);
+    close_all(hx.w, hx.ev, true);
 }
 
 pub(crate) fn on_run_ended(hx: &mut crate::hooks::Hx, _: &crate::hooks::HookArgs) {
-    close_all(hx.k, hx.w, hx.ev);
+    close_all(hx.w, hx.ev, false);
 }
 
 /// Source `onMobKilled`: kill offers progress for standing humans that accepted them.
@@ -511,6 +531,11 @@ pub(crate) fn on_drop_body(hx: &mut crate::hooks::Hx, args: &crate::hooks::HookA
     let Some((_, quest_id)) = q.carried.iter().find(|(who, _)| who == victim).copied() else {
         return;
     };
+    let def = q
+        .offers
+        .iter()
+        .find(|o| o.id == quest_id && o.status == Status::Open)
+        .map(|o| o.def);
     let at = hx.w.player(*victim).map(|p| p.pos());
     if let Some(q) = quests_mut(hx.w) {
         q.carried.retain(|(who, _)| who != victim);
@@ -520,6 +545,7 @@ pub(crate) fn on_drop_body(hx: &mut crate::hooks::Hx, args: &crate::hooks::HookA
             }
         }
     }
+    let Some(def) = def else { return };
     if let Some(at) = at {
         add_quest_container(hx.w, at, quest_id);
         if let Some(offer) =
@@ -530,6 +556,14 @@ pub(crate) fn on_drop_body(hx: &mut crate::hooks::Hx, args: &crate::hooks::HookA
             let id = hx.w.containers.last().map(|c| c.id).unwrap_or(0);
             offer.containers.push(id);
         }
+        super::notices::room(
+            hx.ev,
+            format!(
+                "{} dropped parcel: {}",
+                hx.w.roster.name(*victim).unwrap_or(""),
+                catalog::DEFINITION[def as usize].name
+            ),
+        );
     }
 }
 
@@ -559,7 +593,7 @@ pub(crate) fn accept_eligibility(
     id: PlayerId,
     quest_id: Option<u32>,
 ) -> Result<usize, AcceptRefusal> {
-    if accept_blocked(k, w) || !standing(w, id) {
+    if accept_blocked(k, w) || w.quests.is_none() || !standing(w, id) {
         return Err(AcceptRefusal::Silent);
     }
     let player = w.player(id).ok_or(AcceptRefusal::Silent)?;
@@ -592,7 +626,7 @@ pub(crate) fn accept_eligibility(
     Ok(oi)
 }
 
-/// Source `handleQuestAccept`, called from the ACTION table. Refusals are private (no toast transport yet).
+/// Source `handleQuestAccept`, called from the ACTION table with private source-ordered feedback.
 pub(crate) fn handle_accept(cx: &mut Cx, ix: crate::fighter::FighterIx, cmd: &ActionCmd) {
     let ActionCmd::QuestAccept { quest_id } = *cmd else {
         return;
@@ -601,17 +635,32 @@ pub(crate) fn handle_accept(cx: &mut Cx, ix: crate::fighter::FighterIx, cmd: &Ac
         return;
     }
     let id = cx.w.core(ix).id;
-    let Ok(oi) = accept_eligibility(cx.k, cx.w, id, quest_id) else {
-        return;
+    let oi = match accept_eligibility(cx.k, cx.w, id, quest_id) {
+        Ok(oi) => oi,
+        Err(AcceptRefusal::Silent) => return,
+        Err(refusal) => {
+            let text = match refusal {
+                AcceptRefusal::Busy => rules::REFUSAL_BUSY,
+                AcceptRefusal::Over => rules::REFUSAL_OVER,
+                AcceptRefusal::Far => rules::REFUSAL_FAR,
+                AcceptRefusal::Blocked => rules::REFUSAL_BLOCKED,
+                AcceptRefusal::Already => rules::REFUSAL_ALREADY,
+                AcceptRefusal::Silent => unreachable!(),
+            };
+            super::notices::owner(cx.ev, id, text);
+            return;
+        }
     };
     let offer = &cx.w.quests.as_ref().unwrap().offers[oi];
     let now = cx.w.server_time;
-    let expires = catalog::DEFINITION[offer.def as usize].expires_at_sec;
+    let def = &catalog::DEFINITION[offer.def as usize];
+    let expires = def.expires_at_sec;
     let q = cx.w.quests.as_mut().unwrap();
     if q.offers[oi].expires_at == 0. {
         q.offers[oi].expires_at = now + expires * 1000.;
     }
     q.offers[oi].accepted.push(id);
+    super::notices::owner(cx.ev, id, rules::accepted_text(def));
 }
 
 /// Source `onQuestPickup`: a quest item's pickup. Returns true when the quest system handled it (the item never becomes a
@@ -626,7 +675,11 @@ pub(crate) fn pickup(cx: &mut Cx, ix: crate::fighter::FighterIx, container_ix: u
         return;
     };
     let id = cx.w.core(ix).id;
-    if !cx.w.is_player(ix) || !takes_part(cx.w, id) || cx.w.phase != crate::state::Phase::Active {
+    if !cx.w.is_player(ix)
+        || !takes_part(cx.w, id)
+        || cx.w.phase != crate::state::Phase::Active
+        || cx.w.quests.is_none()
+    {
         return;
     }
     let Some(offer) = quests(cx.w).and_then(|q| {
@@ -634,23 +687,26 @@ pub(crate) fn pickup(cx: &mut Cx, ix: crate::fighter::FighterIx, container_ix: u
             .iter()
             .position(|o| o.id == quest_id && o.published && o.status == Status::Open)
     }) else {
+        super::notices::owner(cx.ev, id, rules::REFUSAL_OVER);
         return;
     };
+    let def = &catalog::DEFINITION[cx.w.quests.as_ref().unwrap().offers[offer].def as usize];
     if !accepted(&cx.w.quests.as_ref().unwrap().offers[offer], id) {
+        super::notices::owner(cx.ev, id, rules::accept_first_text(def));
         return;
     }
-    let kind = catalog::DEFINITION[cx.w.quests.as_ref().unwrap().offers[offer].def as usize].kind;
+    let kind = def.kind;
     let container_at = cx.w.containers[container_ix].at;
     if kind == Kind::Fetch {
         let q = cx.w.quests.as_ref().unwrap();
         if q.carried.iter().any(|(who, _)| *who == id) {
+            super::notices::owner(cx.ev, id, "you can carry one quest item");
             return;
         }
         if q.offers[offer].carrier.is_some() {
             return;
         }
         let stolen = q.offers[offer].last_carrier.is_some_and(|last| last != id);
-        let _ = stolen;
         let q = cx.w.quests.as_mut().unwrap();
         q.offers[offer].carrier = Some(id);
         q.offers[offer].last_carrier = Some(id);
@@ -660,15 +716,38 @@ pub(crate) fn pickup(cx: &mut Cx, ix: crate::fighter::FighterIx, container_ix: u
             .retain(|cid| *cid != cx.w.containers[container_ix].id);
         let _ = container_at;
         cx.w.containers.remove(container_ix);
+        if stolen {
+            super::notices::room(
+                cx.ev,
+                format!(
+                    "{} stole parcel: {}",
+                    cx.w.roster.name(id).unwrap_or(""),
+                    def.name
+                ),
+            );
+        }
+        super::notices::owner(
+            cx.ev,
+            id,
+            format!("Picked up: {} — carry it to {}", def.name, def.giver),
+        );
         return;
     }
-    let count = catalog::DEFINITION[cx.w.quests.as_ref().unwrap().offers[offer].def as usize].count;
+    let count = def.count;
     let have = cx.w.quests.as_ref().unwrap().offers[offer]
         .progress
         .iter()
         .find(|(who, _)| *who == id)
         .map_or(0, |(_, n)| *n);
     if have >= count {
+        super::notices::owner(
+            cx.ev,
+            id,
+            format!(
+                "You have enough tokens for {}; return to {}",
+                def.name, def.giver
+            ),
+        );
         return;
     }
     bump(&mut cx.w.quests.as_mut().unwrap().offers[offer], id, 1);
@@ -677,6 +756,11 @@ pub(crate) fn pickup(cx: &mut Cx, ix: crate::fighter::FighterIx, container_ix: u
         q.offers[offer].containers.retain(|x| *x != cid);
     }
     cx.w.containers.remove(container_ix);
+    super::notices::owner(
+        cx.ev,
+        id,
+        format!("{}: {}/{}", def.name, (have + 1).min(count), count),
+    );
 }
 
 /// Source `questSystem`: linger sweep, camp-clear recheck, expiry, hidden reveals with the head start, then automatic
@@ -696,12 +780,13 @@ pub(crate) fn system(cx: &mut Cx) {
         q.offers
             .retain(|o| o.status == Status::Open || now - o.closed_at < CLOSED_QUEST_LINGER_MS);
     }
+    let mut expired = super::notices::Expired::default();
     // The camp-clear supply recheck.
     if quests(w).is_some_and(|q| q.recheck) {
         if let Some(q) = quests_mut(w) {
             q.recheck = false;
         }
-        close_impossible(w, None);
+        close_impossible(w, None, &mut expired);
     }
     // Expiry and hidden reveals.
     let n = quests(w).map_or(0, |q| q.offers.len());
@@ -713,7 +798,10 @@ pub(crate) fn system(cx: &mut Cx) {
             continue;
         }
         if offer.expires_at > 0. && now >= offer.expires_at {
-            expire(w, oi);
+            let def = offer.def;
+            if expire(w, oi) {
+                expired.add(def);
+            }
             continue;
         }
         if offer.published {
@@ -722,9 +810,23 @@ pub(crate) fn system(cx: &mut Cx) {
         if offer.publish_at > 0. {
             if now >= offer.publish_at {
                 publish(k, w, oi);
+                let offer = &w.quests.as_ref().unwrap().offers[oi];
+                if let Some(finder) = offer.finder {
+                    let name = w
+                        .player(finder)
+                        .and_then(|_| w.roster.name(finder))
+                        .unwrap_or("A scout");
+                    super::notices::room(
+                        ev,
+                        format!(
+                            "{name} revealed quest: {}",
+                            catalog::DEFINITION[offer.def as usize].name
+                        ),
+                    );
+                }
                 cx.s.reserve_actors(w.fighter_count());
                 crate::systems::sentenced::prepare(k, w, cx.s).expect("validated Mark edge budget");
-                close_impossible(w, Some(oi));
+                close_impossible(w, Some(oi), &mut expired);
             }
             continue;
         }
@@ -752,8 +854,14 @@ pub(crate) fn system(cx: &mut Cx) {
         let offer = &mut q.offers[oi];
         offer.finder = Some(finder);
         offer.publish_at = now_ms + head_start;
-        let _ = ev;
+        let def = &catalog::DEFINITION[offer.def as usize];
+        super::notices::owner(
+            ev,
+            finder,
+            format!("Quest discovered: {} ({})", def.name, def.giver),
+        );
     }
+    expired.announce(ev);
     if w.rt.gates_locked {
         return;
     }
@@ -792,7 +900,7 @@ pub(crate) fn system(cx: &mut Cx) {
     }
 }
 
-fn close_impossible(w: &mut World, only: Option<usize>) {
+fn close_impossible(w: &mut World, only: Option<usize>, expired: &mut super::notices::Expired) {
     let Some(q) = quests(w) else { return };
     let mut zones = [0u32; 5];
     let mut elites = 0u32;
@@ -814,7 +922,6 @@ fn close_impossible(w: &mut World, only: Option<usize>) {
         Some(oi) => vec![oi],
         None => (0..q.offers.len()).collect(),
     };
-    let mut expired = Vec::new();
     for oi in indices {
         let Some(offer) = quests(w).map(|q| &q.offers[oi]) else {
             continue;
@@ -860,11 +967,11 @@ fn close_impossible(w: &mut World, only: Option<usize>) {
         if !anyone {
             continue;
         }
+        let def = offer.def;
         if !possible && expire(w, oi) {
-            expired.push(oi);
+            expired.add(def);
         }
     }
-    let _ = expired;
 }
 
 /// Checkpoint validation for the quest runtime and its containers.
