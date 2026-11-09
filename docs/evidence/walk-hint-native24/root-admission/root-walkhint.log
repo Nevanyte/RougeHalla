@@ -1,0 +1,70 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 33.93s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 18 tests
+test systems::walk_hint::tests::active_hint_original_clone_restore_warm_steps_allocate_zero ... ignored, global dhat allocator; run this exact test alone with --ignored --test-threads=1
+test systems::walk_hint::tests::disabled_hint_original_clone_restore_identical_workload_allocates_zero ... ignored, global dhat allocator; run this exact test alone with --ignored --test-threads=1
+layout Player.walk_dir=3328 Player.walk_ticks=3329
+layout Player.size=3336 align=8 FighterCore.size=2264 Mob.size=2480
+layout Player.stocks=0
+layout Player.card_runtime=2648
+layout Player.card_streak=40
+layout Player.card_trims=2696
+layout Player.card_hots=2720
+layout Player.card_fired=2744
+layout Player.card_crit_acc=2888
+layout Player.card_still_x=2896
+layout Player.card_still_y=2904
+layout Player.card_still_since=2912
+layout Player.card_boost=2920
+layout Player.card_prevented=2944
+layout Player.card_tank_hp=2952
+layout Player.roam=64
+layout Player.frost_guard=88
+layout Player.plan_ready=3318
+layout Player.build=2960
+layout Player.potion_small=3324
+layout Player.healing_until=3048
+layout Player.potions_healing=3325
+layout Player.farm=3056
+layout Player.kill_stats=3224
+layout Player.trade_used=3319
+layout Player.trade_offers=2768
+layout Player.trade_stats=2792
+layout Player.core=112
+layout Player.seat=2376
+layout Player.vision=2816
+layout Player.bush=2464
+layout Player.credit=2488
+layout Player.fate=2856
+layout Player.status=3322
+layout Player.down=3323
+layout Player.resolved=3320
+layout Player.regen_at=2632
+layout Player.hunt_target=3312
+layout Player.hunt_stacks=3326
+layout Player.potion_large=3327
+layout Player.camps_cleared=3316
+layout Player.speed_boost_until=3296
+layout Player.barrier_until=3304
+layout Player.barrier_decays=3321
+test checkpoint::walk_hint_state_tests::walk_hint_state_layout_report ... ok
+test systems::walk_hint::tests::every_existing_gate_preset_has_exact_hint_variants ... ok
+test systems::walk_hint::helper_tests::immutable_source_eighteen_npc_mirror_timings_match_exact_bits ... ok
+test systems::walk_hint::tests::actual_source_fourteen_world_frames ... ok
+test systems::walk_hint::helper_tests::captured_npc_timings_drive_real_ai_aim_proposals ... ok
+test checkpoint::walk_hint_state_tests::walk_hint_state_joining_zero_and_fields_are_required_canonical_leaves ... ok
+test checkpoint::walk_hint_state_tests::walk_hint_state_clone_restore_and_each_field_changes_private_hash ... ok
+test systems::walk_hint::tests::actual_teleport_and_run_end_append_hooks_clear_positive_hints_keep_direction ... ok
+test systems::walk_hint::tests::actual_produced_hint_clone_restore_keeps_bytes_and_input_continuation ... ok
+test checkpoint::walk_hint_state_tests::walk_hint_state_malformed_ticks_and_out_of_range_direction_refuse ... ok
+test systems::walk_hint::tests::installed_hint_switch_is_gameplay_rng_event_and_vision_readonly ... ok
+test systems::walk_hint::tests::actual_sword_stagger_pause_uses_captured_current_mirrors ... ok
+test systems::walk_hint::tests::captured_timing_drives_real_lock_aim_and_actual_weapon_start ... ok
+test systems::walk_hint::helper_tests::immutable_source_fifty_one_declared_helper_contexts ... ok
+test systems::walk_hint::helper_tests::boundary24::native24_boundary_methods_are_consumed_exactly ... ok
+test checkpoint::walk_hint_state_tests::walk_hint_state_all_direction_bytes_survive_zero_ticks_and_valid_ticks_survive_shape_guard ... ok
+
+test result: ok. 16 passed; 0 failed; 2 ignored; 0 measured; 822 filtered out; finished in 0.34s
+

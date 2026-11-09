@@ -1,0 +1,32 @@
+{
+  "format": "rh-walkhint-native24-root-admission/1",
+  "source": "565eaa259f42bf1e9f0c22b6bbc9abbc3976c45c",
+  "composed": "16985dd6cd445963f7d887344e57200094ec520e",
+  "payloads": [
+    {
+      "path": "README.md",
+      "bytes": 1967,
+      "sha256": "92a37eb343a3c9ec07ef1670ace16194b5a14f6a254f58cad46bfe5cfa7d44c4"
+    },
+    {
+      "path": "root-walkhint.json",
+      "bytes": 529,
+      "sha256": "426de16c6616546d04e64cf001c73324f8253f42b78eb1154b4ee8aafd081d48"
+    },
+    {
+      "path": "root-walkhint.log",
+      "bytes": 3829,
+      "sha256": "5c91c915a6afc5fd2fc275c58086ea9cb601c33e4338afae82a921373e1478fc"
+    },
+    {
+      "path": "walk-hint-native24-2fbc-independent-review.md",
+      "bytes": 6770,
+      "sha256": "7a02419a6681ea303cd8849de0e7189c69475e1c4521fb3ae6b01395e4939e56"
+    },
+    {
+      "path": "walk-hint-native24-565eaa25-repair-review.md",
+      "bytes": 3873,
+      "sha256": "fa6c5ec8e25fe924ed4d8c54f888280b98812fe6c5b6b9da565413ec52def415"
+    }
+  ]
+}

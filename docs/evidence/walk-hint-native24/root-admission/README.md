@@ -1,0 +1,9 @@
+# Root admission: finite WalkHint boundary24 consumer
+
+Admit repaired source565eaa259f42bf1e9f0c22b6bbc9abbc3976c45c, composed in optimization_port16985dd6cd445963f7d887344e57200094ec520e. The entire rh-sim source tree is byte-identical to the repaired author tree; no new gameplay/state/content/protocol/checkpoint identity follows from this test-only addition.
+
+The original2fbc finite tests passed but independent review held three source-sequence gaps: omitted first hidden chooser call, current rather than next-tick candidate status query, and a different native LOS priming history. The additive repair uses actual first update before selectedBefore, queries at now+TICK_MS, and puts p0 at target.x−24 for two ordinary steps with no Move. Actual native visibility/lockability and physical LOS preconditions still pass; expected outputs/trail/targets are not installed. Both independent reports and the original/superseding author logs remain retained.
+
+The final review verifies14 manifest-pinned author payloads against immutable Git blobs, unchanged corpus and old69 recipes, real producer queries/order/removal, and all three corrections. Root then runs the single composed walk_hint filter:16 passed,0 failed,two existing ignored, including the new24-case loop and existing14/69 scope. This is one overlapping filter result, not16+24 independent tests. Author strict scoped lint/fmt remains its exact source result; no unchanged broad campaign was repeated.
+
+Accepted scope is declared source-method parity for the exact24 unique cases/eight decisions. It is not earned World/physics/public/restore/full-Brain parity or complete direction boundary coverage. Direct-angle255/0/0 and collapsed Cartesian path/hint observations remain separate. Existing source14/helper69 and current native29 admission keep their original limits. New full-port CI remains required; the ongoing7a13 CI excludes this later test-only child. No source fixture was regenerated.
