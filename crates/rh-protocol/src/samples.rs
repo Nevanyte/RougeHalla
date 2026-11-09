@@ -4,12 +4,12 @@
 //! held to the same quantization, not just to the same bytes.
 
 use crate::delta::{
-    AD_ALL, AD_BOUNTY, AD_HP, AD_NEW, AD_STATUS, AD_X, DH_DEPARTED, DH_GV, DH_HP, DH_KILLS,
-    DH_MOVE_SEQ, DH_PHASE, DH_PRESENT, DH_STATUS, DH_X, DH_Y,
+    AD_ALL, AD_BOUNTY, AD_HP, AD_KIND, AD_KIT, AD_NEW, AD_STATUS, AD_X, DH_DEPARTED, DH_GV, DH_HP,
+    DH_KILLS, DH_MOVE_SEQ, DH_PHASE, DH_PRESENT, DH_STATUS, DH_X, DH_Y,
 };
 use crate::map::MapBlob;
 use crate::*;
-use crate::{AM_BOUNTY, AM_HP, AM_STATUS};
+use crate::{AM_BOUNTY, AM_HP, AM_KIND, AM_KIT, AM_MOB_TYPE, AM_STATUS};
 
 // The aim of -3.1415927 is deliberate: an f32 at the -PI edge of the angle range.
 #[allow(clippy::approx_constant)]
@@ -728,6 +728,62 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     weapon: 4,
                     bounty: 0,
                     kind: 3,
+                    ..WireActor::default()
+                }],
+            },
+        ),
+        (
+            "snapshot_quest_giver_actor",
+            ServerMsg::Snapshot {
+                training: false,
+                tick: 14,
+                server_time: snapshot_server_ms(14),
+                phase: 1,
+                ack_input: 9,
+                me: None,
+                actors: vec![WireActor {
+                    id: 0x8000_0001,
+                    faction: 15,
+                    x: 123.125,
+                    y: 456.75,
+                    facing: -0.75,
+                    hp_pct: 73,
+                    status: 1,
+                    weapon: 15,
+                    bounty: 321,
+                    kind: 4,
+                    effects: 0x1234,
+                    displace_seq: 17,
+                    mob_type_code: 0,
+                    sig: 29,
+                    barrier_pct: 11,
+                    barrier_ring_step: 2,
+                }],
+            },
+        ),
+        (
+            "snapshot_unknown_kind_max_kit",
+            ServerMsg::Snapshot {
+                training: false,
+                tick: 15,
+                server_time: snapshot_server_ms(15),
+                phase: 1,
+                ack_input: 10,
+                me: Some(WireSelf {
+                    id: 7,
+                    faction: 15,
+                    weapon: 15,
+                    ..WireSelf::default()
+                }),
+                actors: vec![WireActor {
+                    id: 9,
+                    faction: 15,
+                    weapon: 15,
+                    kind: 255,
+                    mob_type_code: 15,
+                    hp_pct: 47,
+                    effects: 0x00a5,
+                    displace_seq: 9,
                     ..WireActor::default()
                 }],
             },
@@ -1620,6 +1676,16 @@ fn actor_bytes(mask: u32, extra: &[u8]) -> Vec<u8> {
     a.bytes(&[0; 6]);
     a.bytes(extra);
     a.finish()
+}
+
+fn actor_giver_tuple_bytes(faction: u8, weapon: u8, kind: u8, mob_type: Option<u8>) -> Vec<u8> {
+    let mut mask = AM_KIT | AM_KIND;
+    let mut extra = vec![(weapon << 4) | faction, kind];
+    if let Some(mob_type) = mob_type {
+        mask |= AM_MOB_TYPE;
+        extra.push(mob_type);
+    }
+    actor_bytes(mask, &extra)
 }
 
 // Explicit malformed-wire builder: each independent field is deliberately mutable by the controls.
@@ -2543,6 +2609,22 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
             "actor_status_over_3",
             snapshot_bytes(0, &[], 1, &actor_bytes(AM_STATUS, &[4])),
         ),
+        (
+            "snapshot_giver_kit_default",
+            snapshot_bytes(0, &[], 1, &actor_giver_tuple_bytes(0, 0, 4, None)),
+        ),
+        (
+            "snapshot_giver_kit_half",
+            snapshot_bytes(0, &[], 1, &actor_giver_tuple_bytes(15, 0, 4, None)),
+        ),
+        (
+            "snapshot_giver_kit_half_weapon",
+            snapshot_bytes(0, &[], 1, &actor_giver_tuple_bytes(0, 15, 4, None)),
+        ),
+        (
+            "snapshot_giver_mob_type",
+            snapshot_bytes(0, &[], 1, &actor_giver_tuple_bytes(15, 15, 4, Some(1))),
+        ),
         // The actor mask 0x80 0x00 is a two-byte zero.
         (
             "actor_mask_overlong_varint",
@@ -3238,24 +3320,299 @@ pub fn chain_samples() -> Vec<(&'static str, Vec<ChainStep>)> {
         }
     };
     let refused = |t: &mut SnapshotTracker, f: Vec<u8>, code: &'static str| -> ChainStep {
+        let before = t.snapshot();
         let e = t.decode(&f).expect_err("refused");
         match e {
             TrackError::Delta(d) => assert_eq!(d.code(), code),
             other => panic!("not a delta refusal: {other:?}"),
         }
+        assert_eq!(t.snapshot(), before, "a refused delta is atomic");
         ChainStep {
             frame: f,
             outcome: ChainOutcome::Refused(code),
         }
     };
-    let mut refusal = |name: &'static str, d: SnapshotDelta, code: &'static str| {
+    let refusal = |name: &'static str, d: SnapshotDelta, code: &'static str| {
         let mut t = SnapshotTracker::new();
         let base = applied(&mut t, full_frame(&refusal_base()));
         let bad = refused(&mut t, delta_message(d), code);
         // The refusal changed nothing: the empty delta of the real base still applies and equals the base at tick 11.
         let ok = applied(&mut t, delta_message(empty_delta()));
-        chains.push((name, vec![base, bad, ok]));
+        (name, vec![base, bad, ok])
     };
+    let giver = |id, x| WireActor {
+        faction: 15,
+        weapon: 15,
+        kind: 4,
+        mob_type_code: 0,
+        effects: 0x0123,
+        displace_seq: 7,
+        sig: 9,
+        bounty: 31,
+        barrier_pct: 12,
+        barrier_ring_step: 2,
+        ..wa(id, x, 25.0, 73, 1)
+    };
+    let actor_delta = |tick, base_tick, changed| SnapshotDelta {
+        training: false,
+        tick,
+        server_time: snapshot_server_ms(tick),
+        base_tick,
+        phase: None,
+        ack_input: 0,
+        me: None,
+        changed,
+        departed: Vec::new(),
+    };
+
+    // A Full QG actor can be updated by fields unrelated to its tuple, then replaced by Full. Welcome resets the base.
+    {
+        let mut tracker = SnapshotTracker::new();
+        let mut steps = Vec::new();
+        let base = snap(10, 1, 0, None, &[giver(5, 10.0)]);
+        steps.push(applied(&mut tracker, full_frame(&base)));
+        let retained = actor_delta(
+            11,
+            10,
+            vec![ActorDelta {
+                mask: AD_X,
+                q: QActor {
+                    id: 5,
+                    x: 88,
+                    ..QActor::default()
+                },
+            }],
+        );
+        steps.push(applied(&mut tracker, delta_message(retained)));
+        let replaced = snap(
+            12,
+            1,
+            0,
+            None,
+            &[WireActor {
+                effects: 0x0042,
+                ..giver(5, 42.0)
+            }],
+        );
+        steps.push(applied(&mut tracker, full_frame(&replaced)));
+        let welcome = server_samples()
+            .into_iter()
+            .find(|(name, _)| *name == "welcome")
+            .expect("welcome sample")
+            .1
+            .encode();
+        tracker.decode(&welcome).expect("Welcome resets snapshot");
+        steps.push(ChainStep {
+            frame: welcome,
+            outcome: ChainOutcome::Reset,
+        });
+        let after_reset = actor_delta(13, 12, Vec::new());
+        steps.push(refused(&mut tracker, delta_message(after_reset), "no_base"));
+        let renewed = snap(14, 1, 0, None, &[giver(5, 50.0)]);
+        steps.push(applied(&mut tracker, full_frame(&renewed)));
+        chains.push(("quest_giver_retained_delta_reset", steps));
+    }
+
+    // Actor identity fields can change independently when the retained tuple is already valid.
+    {
+        let mut tracker = SnapshotTracker::new();
+        let mut steps = Vec::new();
+        let unknown = WireActor {
+            faction: 15,
+            weapon: 15,
+            kind: 255,
+            mob_type_code: 0,
+            ..wa(5, 20.0, 30.0, 61, 1)
+        };
+        let base = snap(20, 1, 0, None, &[unknown]);
+        steps.push(applied(&mut tracker, full_frame(&base)));
+        steps.push(applied(
+            &mut tracker,
+            delta_message(actor_delta(
+                21,
+                20,
+                vec![ActorDelta {
+                    mask: AD_KIND,
+                    q: QActor {
+                        id: 5,
+                        kind: 4,
+                        ..QActor::default()
+                    },
+                }],
+            )),
+        ));
+        steps.push(applied(
+            &mut tracker,
+            delta_message(actor_delta(
+                22,
+                21,
+                vec![ActorDelta {
+                    mask: AD_KIND,
+                    q: QActor {
+                        id: 5,
+                        kind: 255,
+                        ..QActor::default()
+                    },
+                }],
+            )),
+        ));
+        steps.push(applied(
+            &mut tracker,
+            delta_message(actor_delta(
+                23,
+                22,
+                vec![ActorDelta {
+                    mask: AD_KIT,
+                    q: QActor {
+                        id: 5,
+                        kit: 0xff,
+                        ..QActor::default()
+                    },
+                }],
+            )),
+        ));
+        steps.push(applied(
+            &mut tracker,
+            delta_message(actor_delta(
+                24,
+                23,
+                vec![ActorDelta {
+                    mask: AD_KIND,
+                    q: QActor {
+                        id: 5,
+                        kind: 255,
+                        ..QActor::default()
+                    },
+                }],
+            )),
+        ));
+        chains.push(("quest_giver_identity_edges", steps));
+    }
+
+    // Outside kind 4, every existing kind continues to accept every four-bit kit pairing.
+    {
+        let mut tracker = SnapshotTracker::new();
+        let mut steps = Vec::new();
+        let base = snap(30, 1, 0, None, &[wa(5, 20.0, 30.0, 61, 1)]);
+        steps.push(applied(&mut tracker, full_frame(&base)));
+        let kit_only = actor_delta(
+            31,
+            30,
+            vec![ActorDelta {
+                mask: AD_KIT,
+                q: QActor {
+                    id: 5,
+                    kit: 0xff,
+                    ..QActor::default()
+                },
+            }],
+        );
+        steps.push(applied(&mut tracker, delta_message(kit_only)));
+        assert_eq!(
+            (
+                tracker.actors()[0].kind,
+                tracker.actors()[0].faction,
+                tracker.actors()[0].weapon
+            ),
+            (0, 15, 15)
+        );
+        chains.push(("quest_giver_non4_kit_sentinel", steps));
+    }
+
+    // A kind-only transition to QG cannot manufacture a missing kit sentinel.
+    {
+        let mut tracker = SnapshotTracker::new();
+        let mut steps = Vec::new();
+        steps.push(applied(
+            &mut tracker,
+            full_frame(&snap(
+                10,
+                1,
+                0,
+                None,
+                &[WireActor {
+                    kind: 3,
+                    ..wa(5, 20.0, 30.0, 61, 1)
+                }],
+            )),
+        ));
+        let bad = actor_delta(
+            11,
+            10,
+            vec![ActorDelta {
+                mask: AD_KIND,
+                q: QActor {
+                    id: 5,
+                    kind: 4,
+                    ..QActor::default()
+                },
+            }],
+        );
+        steps.push(refused(&mut tracker, delta_message(bad), "giver_actor"));
+        steps.push(applied(
+            &mut tracker,
+            delta_message(actor_delta(11, 10, Vec::new())),
+        ));
+        chains.push(("quest_giver_kind_transition_missing_kit", steps));
+    }
+    {
+        let mut tracker = SnapshotTracker::new();
+        let mut steps = Vec::new();
+        steps.push(applied(
+            &mut tracker,
+            full_frame(&snap(10, 1, 0, None, &[giver(5, 20.0)])),
+        ));
+        let bad = actor_delta(
+            11,
+            10,
+            vec![ActorDelta {
+                mask: AD_KIT,
+                q: QActor {
+                    id: 5,
+                    kit: 0x0f,
+                    ..QActor::default()
+                },
+            }],
+        );
+        steps.push(refused(&mut tracker, delta_message(bad), "giver_actor"));
+        steps.push(applied(
+            &mut tracker,
+            delta_message(actor_delta(11, 10, Vec::new())),
+        ));
+        chains.push(("quest_giver_kit_transition_missing_kind", steps));
+    }
+    {
+        let mut tracker = SnapshotTracker::new();
+        let mut steps = Vec::new();
+        let base = WireActor {
+            kind: 3,
+            mob_type_code: 1,
+            ..wa(5, 20.0, 30.0, 61, 1)
+        };
+        steps.push(applied(
+            &mut tracker,
+            full_frame(&snap(10, 1, 0, None, &[base])),
+        ));
+        let bad = actor_delta(
+            11,
+            10,
+            vec![ActorDelta {
+                mask: AD_KIND | AD_KIT,
+                q: QActor {
+                    id: 5,
+                    kind: 4,
+                    kit: 0xff,
+                    ..QActor::default()
+                },
+            }],
+        );
+        steps.push(refused(&mut tracker, delta_message(bad), "giver_actor"));
+        steps.push(applied(
+            &mut tracker,
+            delta_message(actor_delta(11, 10, Vec::new())),
+        ));
+        chains.push(("quest_giver_kind_transition_retained_mob_type", steps));
+    }
     let new_actor = |id: u32| ActorDelta {
         mask: AD_NEW,
         q: QActor {
@@ -3265,7 +3622,7 @@ pub fn chain_samples() -> Vec<(&'static str, Vec<ChainStep>)> {
             ..QActor::default()
         },
     };
-    refusal(
+    chains.push(refusal(
         "delta_base_mismatch",
         SnapshotDelta {
             training: false,
@@ -3275,16 +3632,16 @@ pub fn chain_samples() -> Vec<(&'static str, Vec<ChainStep>)> {
             ..empty_delta()
         },
         "base_mismatch",
-    );
-    refusal(
+    ));
+    chains.push(refusal(
         "delta_departs_unknown_actor",
         SnapshotDelta {
             departed: vec![7],
             ..empty_delta()
         },
         "unknown_departed",
-    );
-    refusal(
+    ));
+    chains.push(refusal(
         "delta_updates_departed_actor",
         SnapshotDelta {
             changed: vec![ActorDelta {
@@ -3300,8 +3657,8 @@ pub fn chain_samples() -> Vec<(&'static str, Vec<ChainStep>)> {
             ..empty_delta()
         },
         "departed_and_changed",
-    );
-    refusal(
+    ));
+    chains.push(refusal(
         "delta_updates_unknown_actor",
         SnapshotDelta {
             changed: vec![ActorDelta {
@@ -3316,7 +3673,7 @@ pub fn chain_samples() -> Vec<(&'static str, Vec<ChainStep>)> {
             ..empty_delta()
         },
         "incomplete_new_actor",
-    );
+    ));
     // More than MAX_ACTORS after applying: a base of MAX_ACTORS actors and one new one.
     {
         let crowd512: Vec<WireActor> = (0..MAX_ACTORS as u32)

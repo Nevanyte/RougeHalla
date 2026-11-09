@@ -178,7 +178,7 @@ namespace Roguehalla.Client
         void PresentLatestNpcs()
         {
             foreach(var a in _latestNpcs)
-                _actors.Present(a.Id,a.X,a.Y,a.Facing,a.HpPct,a.Faction,a.Status,a.Weapon,a.Kind,a.MobType,a.Effects,a.SourceSig,false,0,0);
+                _actors.Present(a.Id,a.X,a.Y,a.Facing,a.HpPct,a.Faction,a.Status,a.Weapon,a.Kind,a.MobType,a.Effects,a.SourceSig,false,a.BarrierPct,a.BarrierRingStep);
         }
 
         public void PresentCollections(CollectionsView collections)

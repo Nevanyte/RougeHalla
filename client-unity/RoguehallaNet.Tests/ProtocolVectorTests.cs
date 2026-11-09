@@ -661,6 +661,7 @@ namespace Roguehalla.Net.Tests
                 case "wish_fx_caster_zero": case "wish_fx_ability_over_4": case "wish_fx_time_nonfinite": case "wish_fx_blaze_one_point":
                 case "wish_fx_nonblaze_destination": case "wish_fx_anonymous_landed_target": case "wish_fx_anonymous_landed_no_target": case "wish_fx_end_reason_over_2":
                 case "actor_mob_type_over_30": case "delta_actor_mob_type_over_30":
+                case "snapshot_giver_kit_default": case "snapshot_giver_kit_half": case "snapshot_giver_kit_half_weapon": case "snapshot_giver_mob_type": want = DecodeError.BadField; break;
                 case "chest_bad_reason_zero": case "chest_bad_reason_unknown":
                 case "pickup_bad_reason_zero": case "pickup_bad_reason_unknown":
                 case "state_quest_status_unknown": case "state_quest_flags_unknown": case "state_quest_visited_unknown":

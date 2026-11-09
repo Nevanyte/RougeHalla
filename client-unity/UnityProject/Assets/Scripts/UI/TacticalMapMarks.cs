@@ -57,9 +57,10 @@ namespace Roguehalla.Client
             }
             if (_self.HasValue) { var p = At(_self.Value); Mark(vh, p, 7, ShowcasePalette.Background, true); Mark(vh, p, 4, ShowcasePalette.Text, true); }
         }
-        static void FactionMark(VertexHelper vh, Vector2 point, float radius, FactionId faction)
+        static void FactionMark(VertexHelper vh, Vector2 point, float radius, FactionId? faction)
         {
-            Color32 color = ShowcasePalette.Faction((int)faction);
+            if (!faction.HasValue) { Mark(vh, point, radius, ShowcasePalette.MutedText, true); return; }
+            Color32 color = ShowcasePalette.Faction((int)faction.Value);
             if (faction == FactionId.Frost)
             {
                 Line(vh, point + Vector2.up * radius, point + Vector2.down * radius, 2, color);

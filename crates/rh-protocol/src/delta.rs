@@ -16,8 +16,8 @@
 //! tick (quantized as always), and the self block is exact (bitwise, so -0.0 and NaN payloads survive).
 
 use super::{
-    actor_looks_bad, head_len, head_word, id_field, kit, list, self_len, snapshot_fault,
-    write_snapshot_head, Fixed, SnapshotHeader, MAX_ACTOR_LEN,
+    actor_looks_bad, giver_actor_fault, head_len, head_word, id_field, kit, list, self_len,
+    snapshot_fault, write_snapshot_head, Fixed, SnapshotHeader, MAX_ACTOR_LEN,
 };
 use crate::codec::{varint_len, DecodeError, EncodeError, Reader, Writer};
 use crate::*;
@@ -1815,6 +1815,8 @@ pub enum DeltaError {
     IncompleteNewActor(u32),
     /// The result would list more than [`MAX_ACTORS`] actors.
     TooManyActors(usize),
+    /// A reconstructed kind-4 actor does not carry the contextual Neutral/None tuple.
+    InvalidGiverActor(u32),
 }
 
 impl DeltaError {
@@ -1828,6 +1830,7 @@ impl DeltaError {
             DeltaError::DepartedAndChanged(_) => "departed_and_changed",
             DeltaError::IncompleteNewActor(_) => "incomplete_new_actor",
             DeltaError::TooManyActors(_) => "too_many_actors",
+            DeltaError::InvalidGiverActor(_) => "giver_actor",
         }
     }
 }
@@ -1931,6 +1934,13 @@ impl SnapshotTracker {
                 actors,
                 training,
             } => {
+                if let Some(id) = actors
+                    .iter()
+                    .find(|actor| giver_actor_fault(actor).is_some())
+                    .map(|actor| actor.id)
+                {
+                    return Err(DeltaError::InvalidGiverActor(id));
+                }
                 self.tick = Some(tick);
                 self.server_time = server_time;
                 self.training = training;
@@ -1979,6 +1989,14 @@ impl SnapshotTracker {
         if let Err(e) = r {
             self.scratch = out;
             return Err(e);
+        }
+        if let Some(id) = out
+            .iter()
+            .find(|actor| giver_actor_fault(actor).is_some())
+            .map(|actor| actor.id)
+        {
+            self.scratch = out;
+            return Err(DeltaError::InvalidGiverActor(id));
         }
         std::mem::swap(&mut self.actors, &mut out);
         self.scratch = out;

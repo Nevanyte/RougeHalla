@@ -564,6 +564,12 @@ namespace Roguehalla.Net.Protocol
         internal const uint MKit = 1 << 0, MHp = 1 << 1, MStatus = 1 << 2, MBounty = 1 << 3, MKind = 1 << 4, MEffects = 1 << 5, MDisplace = 1 << 6, MMobType = 1 << 7, MSig = 1 << 8, MBarrier = 1 << 9, MKnown = MKit | MHp | MStatus | MBounty | MKind | MEffects | MDisplace | MMobType | MSig | MBarrier;
         internal const byte DefaultHpPct = 100;
 
+        /// <summary>Only native quest givers use the reserved absent-identity kit and carry no regional type.</summary>
+        internal bool HasValidGiverIdentity
+        {
+            get { return Kind != 4 || (Faction == 15 && Weapon == 15 && MobTypeCode == 0); }
+        }
+
         internal uint Mask()
         {
             uint m = 0;
@@ -617,6 +623,7 @@ namespace Roguehalla.Net.Protocol
             a.Sig = (mask & MSig) != 0 ? r.U8() : (byte)0;
             if ((mask & MBarrier) != 0) { a.BarrierPct = r.U8(); a.BarrierRingStep = r.U8(); }
             if (a.BarrierPct > 100 || a.BarrierRingStep > 8) throw new DecodeException(DecodeError.BadField, "barrier");
+            if (!a.HasValidGiverIdentity) throw new DecodeException(DecodeError.BadField, "giver actor");
             return a;
         }
 
@@ -1011,6 +1018,7 @@ namespace Roguehalla.Net.Protocol
                 {
                     var a = Actors[i];
                     if (a.Faction > Wire.MaxKitCode || a.Weapon > Wire.MaxKitCode || a.Status > Wire.MaxStatusCode) throw new ArgumentException("actor faction/weapon/status");
+                    if (!a.HasValidGiverIdentity) throw new ArgumentException("giver actor");
                     if (a.HpPct > 100) throw new ArgumentException("hp_pct");
                     if (!Quant.PosInRange(a.X) || !Quant.PosInRange(a.Y)) throw new ArgumentException("position");
                     if (i > 0 && a.Id <= Actors[i - 1].Id) throw new ArgumentException("actor ids must strictly ascend");

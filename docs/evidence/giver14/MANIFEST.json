@@ -1,0 +1,162 @@
+{
+  "format": "rh-giver14-evidence/1",
+  "date": "2026-11-08",
+  "base_commit": "3a1c8fc443e1ef922c3b72c264a70c8f36fa0cb1",
+  "protocol": 14,
+  "tuple": {
+    "actor_kind": 4,
+    "actor_kit": 255,
+    "mob_type_code": 0,
+    "semantics": "contextual_only"
+  },
+  "native_source_changes": [],
+  "fixture_sha256": "70b4408422d889e64816f6cb7afb9cf642fe755a5a1b60ac59fab5cb80037a9c",
+  "source_files": [
+    {
+      "path": "client-unity/RoguehallaNet.Tests/GiverActorProtocolTests.cs",
+      "sha256": "cf43dfd0e369e614fe42bc7a9d863c6e666177bc40e4e5ade0d90e8151f95e09"
+    },
+    {
+      "path": "client-unity/RoguehallaNet.Tests/ProtocolVectorTests.cs",
+      "sha256": "5fd2202f353500bfdf4ff99c413166258f37269851c7726b65139ccfdc1d856e"
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Net/SnapshotBuffer.cs",
+      "sha256": "f70ae37dbf15116f97757708c30405d27c510b1bd2ed7abeeccd3dcf89c9ee76"
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Net/Views.cs",
+      "sha256": "f95c63fac919280d966d9048747660f8ee55e1f4fc7dd619494e75c623c9ffce"
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Protocol/Messages.cs",
+      "sha256": "25ce9437b9cfd1d6886463f9f2efe15643afce961cd9723ebf38ce561f32e4fd"
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Protocol/SnapshotTracker.cs",
+      "sha256": "fc0f7f3299f2ac0731ff00dc9c741fab3c2bc7ae913d0a6914b2b549fb77470f"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/SnapshotBuffer.cs",
+      "sha256": "f70ae37dbf15116f97757708c30405d27c510b1bd2ed7abeeccd3dcf89c9ee76"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/Views.cs",
+      "sha256": "f95c63fac919280d966d9048747660f8ee55e1f4fc7dd619494e75c623c9ffce"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/Messages.cs",
+      "sha256": "25ce9437b9cfd1d6886463f9f2efe15643afce961cd9723ebf38ce561f32e4fd"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/SnapshotTracker.cs",
+      "sha256": "fc0f7f3299f2ac0731ff00dc9c741fab3c2bc7ae913d0a6914b2b549fb77470f"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcaseActorLook.cs",
+      "sha256": "9cd8f8957f504b75a25259b155f9573cd5c8b81e0850242d902f27a63d52f3cc"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/SpriteActorPresenter.cs",
+      "sha256": "79a0ef297f971ad1e7038b7d11b2e19335188584d5cef6c4deb20efee753b874"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/TacticalMapController.cs",
+      "sha256": "96dd2b3a5a791878c0c5a805d69d2a72431d14417e43a4faa9684a3bbfc95891"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/TacticalMapMarks.cs",
+      "sha256": "1a4ef4fcb10a60ba98956d7c5625717c10e66ce8bce6ca56f5391121f9ac2536"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/View/ArenaView.cs",
+      "sha256": "03f235679d431dd9d2f9053505dc6fa715b907d2c89ce34a87dbe9318aaf2214"
+    },
+    {
+      "path": "crates/rh-protocol/src/delta.rs",
+      "sha256": "20ca8dca646fa8055d24377658ec927d3739428b59561d83438389b6d2af5096"
+    },
+    {
+      "path": "crates/rh-protocol/src/encode.rs",
+      "sha256": "d316b27a76a9e05738eb65c5bfb2bbed1a8be187beba9c8ad45c4604b781f03d"
+    },
+    {
+      "path": "crates/rh-protocol/src/lib.rs",
+      "sha256": "d45e1adf98cfd346875c332c0ea90532aec49e4072da77cbb8b42375b94db4b2"
+    },
+    {
+      "path": "crates/rh-protocol/src/samples.rs",
+      "sha256": "a88e162ab89e5070ffd279ba340d5543568530a88557d75476f298784e58dfc8"
+    },
+    {
+      "path": "crates/rh-protocol/tests/giver_actor.rs",
+      "sha256": "ecb6c383a5f80c6d230ad29f92ac8fa1c406d84bde9adc9a45f375e9b6a60359"
+    },
+    {
+      "path": "crates/rh-protocol/tests/vectors.rs",
+      "sha256": "b55bf4440c31e7137d1970be3350f65a4a41a4fca22e9401d82c4845c695adbf"
+    },
+    {
+      "path": "crates/rh-server/src/wire.rs",
+      "sha256": "db3a72bd3d5984dfd726e17e48f32cbda6ad4d9efd088ebf6bb980298452c599"
+    },
+    {
+      "path": "crates/rh-server/web/probe.html",
+      "sha256": "630721ef1e32c6020fd960f3aa8ab6b05b8c2591c54f2263aad6a804e8dadd19"
+    },
+    {
+      "path": "protocol/fixtures/v14.json",
+      "sha256": "70b4408422d889e64816f6cb7afb9cf642fe755a5a1b60ac59fab5cb80037a9c"
+    },
+    {
+      "path": "tools/protocol-js/check-vectors.mjs",
+      "sha256": "b09905e004f5571659a5fb8f60c63812cd87e891752e5c55e0a3acd6b67ba70c"
+    }
+  ],
+  "artifact_files": [
+    {
+      "path": "docs/evidence/giver14/CSHARP.md",
+      "sha256": "6012dd90f96b3fe14667af5783b35021fc3c512ad4a6eed10011d5906719f600"
+    },
+    {
+      "path": "docs/evidence/giver14/JS.md",
+      "sha256": "6963d8aede85eee686be366e317fc273f49f63a032a0e05155d5c6ee42e867dd"
+    },
+    {
+      "path": "docs/evidence/giver14/README.md",
+      "sha256": "3eae841e56e38ba1bdeafadeb8621e8e7c67ebe5f250974e9fd0592e97e09d64"
+    },
+    {
+      "path": "docs/evidence/giver14/RENDER.md",
+      "sha256": "fc043a1462d56b6510b2b68c75ee7d9fe31c2493937c7d3d64b2d22db032b289"
+    },
+    {
+      "path": "docs/evidence/giver14/RUST.md",
+      "sha256": "47601e5ad7c0f7ae40723e8f221b1d1bc6b26f584482bf2dd871e6f7e5119396"
+    },
+    {
+      "path": "docs/evidence/giver14/render-compile/ContractRunner.cs.txt",
+      "sha256": "7d4ba46bc6cb9803a4c7c8615c4a2b2da747155c164d7e1e3e2a778861fe454b"
+    },
+    {
+      "path": "docs/evidence/giver14/render-compile/ContractRunner.csproj.txt",
+      "sha256": "c246a316f7d79b6e7cfaab48b2db8325f26caf97dba95d591f8917f3e30d9d13"
+    },
+    {
+      "path": "docs/evidence/giver14/render-compile/RenderCompile.csproj.txt",
+      "sha256": "3376b7b7ddb5a88b9151a826626b75630fefc9568b9352dca0ca9296781fdb6b"
+    },
+    {
+      "path": "docs/evidence/giver14/render-compile/assemblies.json",
+      "sha256": "53bcc05424a5f27ab279c57ea6f7ab72dd10de70d84144921f743657e2d6a57f"
+    },
+    {
+      "path": "docs/evidence/giver14/render-compile/build.txt",
+      "sha256": "a0dfcd13bf1d48ed8dc90ae60e19cc14fa3e4178e5039de451c97464a38e2ea0"
+    },
+    {
+      "path": "docs/evidence/giver14/render-compile/contract.txt",
+      "sha256": "60ebe5a7346401ef6043e836695e63b3056296c5653adb9084a533605f52d6fe"
+    }
+  ]
+}

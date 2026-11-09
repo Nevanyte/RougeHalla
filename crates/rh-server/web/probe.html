@@ -250,6 +250,7 @@ function decode(buf) {
   const r = new R(buf);
   const m = decodeBody(r);
   if (r.p !== buf.byteLength) throw new Error("trailing bytes");
+  if (m.t === "snapshot") validateGiverActors(m.actors, false);
   return m;
 }
 // Protocol-12 and later options are explicitly strict without changing the v1..v11 option rules.
@@ -733,6 +734,19 @@ function validateQuestPropReferences(collections) {
 // A client's snapshot decoder (mirror of rh-protocol SnapshotTracker): holds the last snapshot applied, the base of the next delta.
 // A delta it cannot apply is REFUSED (an Error with a `code`), the held snapshot is kept, and nothing is repaired or clamped.
 function refused(code) { const e = new Error("refused " + code); e.code = code; return e; }
+// Kind 4 is the contextual neutral QuestGiver representation. Keep raw faction/weapon
+// nibbles on the wire model; only the exact paired sentinel has presentation meaning.
+function isValidGiverActor(a) { return a.kind !== 4 || (a.faction === 15 && a.weapon === 15 && a.mobTypeCode === 0); }
+function validateGiverActors(actors, trackerCandidate) {
+  if (actors.some(a => !isValidGiverActor(a))) {
+    if (trackerCandidate) throw refused("giver_actor");
+    throw new Error("bad giver actor");
+  }
+}
+function remoteActorPresentation(a) {
+  return a.kind === 4 ? { faction: null, weapon: null, neutral: true }
+    : { faction: a.faction, weapon: a.weapon, neutral: false };
+}
 class Tracker {
   constructor() { this.reset(); }
   reset() { this.base = null; this.collections = new Map(); }
@@ -746,7 +760,7 @@ class Tracker {
       this.collections = candidate;
       return m;
     }
-    if (m.t === "snapshot") { this.base = { tick: m.tick, serverMs: m.serverMs, phase: m.phase, training: m.training, me: m.me, actors: m.actors }; return m; }
+    if (m.t === "snapshot") { validateGiverActors(m.actors, false); this.base = { tick: m.tick, serverMs: m.serverMs, phase: m.phase, training: m.training, me: m.me, actors: m.actors }; return m; }
     if (m.t !== "delta") return m;
     const b = this.base;
     if (!b) throw refused("no_base");
@@ -795,6 +809,9 @@ class Tracker {
     flush(null);
     if (di < dep.length) throw refused("unknown_departed");
     if (out.length > 512) throw refused("too_many_actors");
+    // Kind and kit are independently optional in a delta. Validate the fully merged
+    // candidate before changing the held baseline, so retained identity fields count.
+    validateGiverActors(out, true);
     let me = null;
     if (m.me) {
       const d = m.me, s = { ...b.me };
@@ -907,7 +924,7 @@ function draw() {
       const t = map.tiles[ty * map.w + tx]; if (t === 0) continue;
       g.fillStyle = t === 1 ? "#4a5068" : "#7a5a3a"; g.fillRect(tx * T - v.ox, ty * T - v.oy, T, T);
     }
-    const disc = (a, me) => { g.fillStyle = COLORS[a.faction] || "#ccc"; g.beginPath(); g.arc(a.x - v.ox, a.y - v.oy, 12, 0, Math.PI * 2); g.fill(); if (me) { g.strokeStyle = "#fff"; g.stroke(); } };
+    const disc = (a, me) => { const look = remoteActorPresentation(a); g.fillStyle = look.neutral ? "#c7cbd4" : (COLORS[look.faction] || "#ccc"); g.beginPath(); g.arc(a.x - v.ox, a.y - v.oy, 12, 0, Math.PI * 2); g.fill(); if (me) { g.strokeStyle = "#fff"; g.stroke(); } };
     for (const a of P.actors) if (a.status === 1) disc(a, false);
     if (P.me && P.me.status === 1) disc(P.me, true);
   }

@@ -14,8 +14,10 @@ namespace Roguehalla.Client
             "mage", "mob-skeleton-mage", "mob-zombie", "hero", "mage-female", "hero-female"
         };
 
-        public static string AppearanceKey(ActorKind kind, FactionId faction, MobTypeId? type)
+        public static string AppearanceKey(ActorKind kind, FactionId? faction, MobTypeId? type)
         {
+            // The giver uses the existing neutral silhouette, without a fighter catalog fallback.
+            if (kind == ActorKind.QuestGiver) return null;
             if (kind == ActorKind.TrainingDummy) return "knight";
             if (kind == ActorKind.Zombie) return "mob-zombie";
             if (kind == ActorKind.Player)

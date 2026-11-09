@@ -904,6 +904,9 @@ fn snapshot_fault(phase: u8, me: Option<&WireSelf>, actors: &[WireActor]) -> Opt
     }
     let mut prev: Option<u32> = None;
     for a in actors {
+        if giver_actor_fault(a).is_some() {
+            return Some("giver actor");
+        }
         if let Some(f) = kit_status_fault(a.faction, a.weapon, a.status) {
             return Some(f);
         }
@@ -930,7 +933,8 @@ fn snapshot_fault(phase: u8, me: Option<&WireSelf>, actors: &[WireActor]) -> Opt
 /// Whether `snapshot_fault` could report `a` (or its order after `prev`): a cheap superset test, exact when it says no.
 #[inline(always)]
 fn actor_looks_bad(a: &WireActor, prev: Option<u32>) -> bool {
-    (a.faction | a.weapon) > MAX_KIT_CODE
+    giver_actor_fault(a).is_some()
+        || (a.faction | a.weapon) > MAX_KIT_CODE
         || a.status > MAX_STATUS_CODE
         || a.mob_type_code > 30
         || a.hp_pct > 100
@@ -938,6 +942,13 @@ fn actor_looks_bad(a: &WireActor, prev: Option<u32>) -> bool {
         || a.barrier_ring_step > 8
         || !(quant::pos_in_range(a.x) && quant::pos_in_range(a.y))
         || prev.is_some_and(|p| a.id <= p)
+}
+
+/// A QuestGiver actor has one contextual sentinel tuple. Other actor kinds and Self retain the full four-bit domains.
+#[inline(always)]
+pub(crate) fn giver_actor_fault(a: &WireActor) -> Option<&'static str> {
+    (a.kind == 4 && (a.faction != 15 || a.weapon != 15 || a.mob_type_code != 0))
+        .then_some("giver actor")
 }
 
 fn kit_status_fault(faction: u8, weapon: u8, status: u8) -> Option<&'static str> {

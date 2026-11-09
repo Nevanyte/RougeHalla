@@ -103,6 +103,9 @@ namespace Roguehalla.Net.Protocol
             Flush(d, 0, false, ref bi, ref di, ref o);
             if (di < d.DepartedCount) throw new DeltaException("unknown_departed", d.Departed[di].ToString());
             if (o > Wire.MaxActors) throw new DeltaException("too_many_actors", o.ToString());
+            for (int i = 0; i < o; i++)
+                if (!_next[i].HasValidGiverIdentity)
+                    throw new DeltaException("giver_actor", _next[i].Id.ToString());
 
             // Everything checked: commit.
             var swap = _actors; _actors = _next; _next = swap; _count = o;

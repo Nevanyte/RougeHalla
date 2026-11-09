@@ -8,9 +8,9 @@ namespace Roguehalla.Net
     public struct InterpActor
     {
         public uint Id;
-        public FactionId Faction;
+        public FactionId? Faction;
         public ActorStatus Status;
-        public WeaponId Weapon;
+        public WeaponId? Weapon;
         public byte HpPct;
         public float X, Y, Facing;
         public ushort Bounty, Effects;
@@ -127,7 +127,7 @@ namespace Roguehalla.Net
             for (int i = 0; i < cur.Length; i++)
             {
                 ref readonly WireActor c = ref cur[i];
-                var o = new InterpActor { Id = c.Id, Faction = (FactionId)c.Faction, HpPct = c.HpPct, Status = (ActorStatus)c.Status, Weapon = (WeaponId)c.Weapon, Bounty = c.Bounty, Effects=c.Effects, DisplaceSeq=c.DisplaceSeq, Kind=(ActorKind)c.Kind, MobType=c.MobTypeCode==0?(MobTypeId?)null:(MobTypeId)(c.MobTypeCode-1),SourceSig=c.Sig, BarrierPct=c.BarrierPct, BarrierRingStep=c.BarrierRingStep, X = c.X, Y = c.Y, Facing = c.Facing };
+                var o = new InterpActor { Id = c.Id, Faction = c.Kind == (byte)ActorKind.QuestGiver ? (FactionId?)null : (FactionId)c.Faction, HpPct = c.HpPct, Status = (ActorStatus)c.Status, Weapon = c.Kind == (byte)ActorKind.QuestGiver ? (WeaponId?)null : (WeaponId)c.Weapon, Bounty = c.Bounty, Effects=c.Effects, DisplaceSeq=c.DisplaceSeq, Kind=(ActorKind)c.Kind, MobType=c.MobTypeCode==0?(MobTypeId?)null:(MobTypeId)(c.MobTypeCode-1),SourceSig=c.Sig, BarrierPct=c.BarrierPct, BarrierRingStep=c.BarrierRingStep, X = c.X, Y = c.Y, Facing = c.Facing };
                 int k = -1;
                 if (merge)
                 {

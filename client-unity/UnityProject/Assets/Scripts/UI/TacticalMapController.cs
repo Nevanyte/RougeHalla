@@ -244,7 +244,7 @@ namespace Roguehalla.Client
             foreach (var actor in _contacts)
             {
                 if (actor.Id == _bound.PlayerId) continue;
-                shown++; text.Append(ShowcasePalette.GetFactionName((int)actor.Faction)).Append(" · ").Append(actor.Kind).Append("\n");
+                shown++; text.Append(actor.Faction.HasValue ? ShowcasePalette.GetFactionName((int)actor.Faction.Value) : "Neutral").Append(" · ").Append(actor.Kind).Append("\n");
             }
             if (shown == 0) text.Append("No other contacts in view.");
             _contactsText.text = text.ToString();

@@ -13,7 +13,7 @@ const html = readFileSync(join(root, "crates/rh-server/web/probe.html"), "utf8")
 const a = html.search(/\/\/ ---- protocol v\d+/);
 const b = html.indexOf("// ---- probe state");
 if (a < 0 || b < 0) throw new Error("probe.html markers not found");
-const { decode, decodeClient, input, Tracker } = new Function(`"use strict"; ${html.slice(a, b)}; return { decode, decodeClient, input, Tracker };`)();
+const { decode, decodeClient, input, Tracker, remoteActorPresentation } = new Function(`"use strict"; ${html.slice(a, b)}; return { decode, decodeClient, input, Tracker, remoteActorPresentation };`)();
 const version = /const PROTOCOL = (\d+);/.exec(html.slice(a, b))[1];
 const fx = JSON.parse(readFileSync(join(root, `protocol/fixtures/v${version}.json`), "utf8"));
 if (fx.protocol !== Number(version)) throw new Error(`the page speaks protocol ${version}, the vectors ${fx.protocol}`);
@@ -388,6 +388,8 @@ const reason = {
   map_ext_plane_length: /terrain|region.*length/, map_ext_terrain_collision: /terrain collision/,
   map_ext_semantic_hash: /semantic hash/, map_ext_mode: /terrain mode/, map_ext_context_hash: /context hash/,
   map_ext_trailing: /extension|trailing/, welcome_trailing: /trailing/,
+  snapshot_giver_kit_default: /giver actor/, snapshot_giver_kit_half: /giver actor/, snapshot_giver_kit_half_weapon: /giver actor/,
+  snapshot_giver_mob_type: /giver actor/,
   quest_accept_zero: /bad quest handle/, quest_accept_truncated: /./, quest_accept_overlong: /varint/,
   wish_ability_over_4: /bad ability/, wish_charge_count_invalid: /bad Wish charges/, wish_time_nonfinite: /bad Wish clock/,
   wish_option_over_1: /bad option/, wish_cast_time_order: /bad Wish cast order/,
@@ -407,6 +409,33 @@ for (const v of fx.malformedServer) {
 }
 for (const name of ["state_quest_status_unknown", "state_quest_flags_unknown", "state_quest_visited_unknown", "state_quest_ref_missing", "state_quest_prop_missing_view"]) {
   if (!fx.malformedServer.some(v => v.name === name)) throw new Error(`missing Rust-generated ${name} control`);
+}
+if (version >= 14) {
+  for (const name of ["snapshot_quest_giver_actor", "snapshot_unknown_kind_max_kit", "snapshot_zero_hp"]) {
+    if (!fx.server.some(v => v.name === name)) throw new Error(`missing Rust-generated ${name} control`);
+  }
+  const giver = decode(bytes(fx.server.find(v => v.name === "snapshot_quest_giver_actor").hex)).actors[0];
+  eq(giver.kind, 4, "QuestGiver raw kind"); eq(giver.faction, 15, "QuestGiver raw faction sentinel");
+  eq(giver.weapon, 15, "QuestGiver raw weapon sentinel"); eq(giver.mobTypeCode, 0, "QuestGiver raw mob type");
+  eqJson(remoteActorPresentation(giver), { faction: null, weapon: null, neutral: true }, "QuestGiver presentation adapter");
+  const future = decode(bytes(fx.server.find(v => v.name === "snapshot_unknown_kind_max_kit").hex)).actors[0];
+  eq(future.kind, 255, "future actor kind remains open"); eq(future.faction, 15, "future actor raw faction remains open");
+  eq(future.weapon, 15, "future actor raw weapon remains open"); eq(future.mobTypeCode, 15, "future actor raw mob type remains open");
+  eqJson(remoteActorPresentation(future), { faction: 15, weapon: 15, neutral: false }, "future actor presentation remains raw");
+  const extremeSelf = decode(bytes(fx.server.find(v => v.name === "snapshot_zero_hp").hex)).me;
+  eq(extremeSelf.faction, 15, "Self raw faction 15 remains unchanged"); eq(extremeSelf.weapon, 15, "Self raw weapon 15 remains unchanged");
+  const directTracker = new Tracker(), heldDirect = { tick: 17, actors: [{ id: 1 }] };
+  directTracker.base = heldDirect;
+  let directBadFull;
+  try {
+    directTracker.apply({ t: "snapshot", tick: 18, serverMs: 900, phase: 1, training: false, me: null,
+      actors: [{ id: 2, kind: 4, faction: 15, weapon: 0, mobTypeCode: 0 }] });
+  } catch (e) { directBadFull = e; }
+  eq(directBadFull?.message, "bad giver actor", "direct Tracker.apply validates a Full candidate");
+  eq(directTracker.base, heldDirect, "invalid direct Full retains exact baseline");
+  for (const name of ["snapshot_giver_kit_default", "snapshot_giver_kit_half", "snapshot_giver_kit_half_weapon", "snapshot_giver_mob_type"]) {
+    if (!fx.malformedServer.some(v => v.name === name)) throw new Error(`missing Rust-generated ${name} control`);
+  }
 }
 for (const name of [
   "state_quest_row_handle_zero", "state_quest_roster_id_zero", "state_quest_objective_handle_zero", "state_quest_prop_handle_zero",
@@ -448,6 +477,7 @@ for (const c of fx.chains) {
   c.steps.forEach((st, i) => {
     const at = `chain ${c.name} step ${i}`;
     if (st.refused !== undefined) {
+      const previousBase = t.base;
       const held = t.base && { tick: t.base.tick, n: t.base.actors.length };
       let err = null;
       try { t.decode(bytes(st.hex)); } catch (e) { err = e; }
@@ -455,6 +485,7 @@ for (const c of fx.chains) {
       if (!err) throw new Error(`${at}: the delta was applied, want refused ${st.refused}`);
       eq(err.code, st.refused, `${at} reason`);
       eq(JSON.stringify(t.base && { tick: t.base.tick, n: t.base.actors.length }), JSON.stringify(held), `${at} state kept`);
+      if (c.name.startsWith("quest_giver_")) eq(t.base, previousBase, `${at} exact snapshot baseline kept`);
       return;
     }
     const frame = bytes(st.hex), tag = new Uint8Array(frame)[0], previous = t.base;
@@ -489,6 +520,18 @@ for (const c of fx.chains) {
     }
     if (c.name === "wish_source_time_per_frame" && m.t === "snapshot" && m.serverMs !== m.tick * 50) wishBarrierCoverage.sourceOverride = true;
   });
+}
+
+if (version >= 14) {
+  for (const name of ["quest_giver_retained_delta_reset", "quest_giver_identity_edges", "quest_giver_kind_transition_missing_kit",
+    "quest_giver_kit_transition_missing_kind", "quest_giver_kind_transition_retained_mob_type", "quest_giver_non4_kit_sentinel"]) {
+    if (!fx.chains.some(c => c.name === name)) throw new Error(`missing Rust-generated ${name} chain`);
+  }
+  for (const name of ["quest_giver_kind_transition_missing_kit", "quest_giver_kit_transition_missing_kind", "quest_giver_kind_transition_retained_mob_type"]) {
+    if (!fx.chains.find(c => c.name === name).steps.some(s => s.refused === "giver_actor")) {
+      throw new Error(`${name} lacks a Tracker refusal for the invalid reconstructed actor`);
+    }
+  }
 }
 
 for (const name of ["wish_barrier_lifecycle", "wish_source_time_per_frame"]) {

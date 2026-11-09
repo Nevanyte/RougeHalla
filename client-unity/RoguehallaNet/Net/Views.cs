@@ -41,7 +41,7 @@ namespace Roguehalla.Net
         Archon = 29,
     }
     public enum PotionNotice : byte { Stored=1,BagFull=2,Used=3,Blocked=4,Busy=5,Full=6,Empty=7,LargeStored=8,LargeUsed=9,CampBagFull=10 }
-    public enum ActorKind : byte { Player = 0, RegionalMob = 1, Zombie = 2, TrainingDummy = 3 }
+    public enum ActorKind : byte { Player = 0, RegionalMob = 1, Zombie = 2, TrainingDummy = 3, QuestGiver = 4 }
 
     /// <summary>Faction code: <c>FactionId::ALL</c> order (append only). A value outside the named ones is a newer server's.</summary>
     public enum FactionId : byte { Fire = 0, Sentenced = 1, Plague = 2, Frost = 3, Holy = 4 }

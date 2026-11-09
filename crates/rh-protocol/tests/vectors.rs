@@ -176,6 +176,10 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
             | "delta_actor_mask_unknown_bit" => BadField("actor mask"),
             "actor_id_gap_zero" | "actor_id_overflow" => BadField("actor order"),
             "actor_hp_over_100" => BadField("hp_pct"),
+            "snapshot_giver_kit_default"
+            | "snapshot_giver_kit_half"
+            | "snapshot_giver_kit_half_weapon"
+            | "snapshot_giver_mob_type" => BadField("giver actor"),
             "actor_bounty_over_u16" => BadField("bounty"),
             "delta_age_zero" | "delta_age_over_max" | "delta_age_past_tick" => BadField("base age"),
             "delta_head_field_without_present_bit" => BadField("head"),

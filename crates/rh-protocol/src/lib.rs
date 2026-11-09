@@ -433,8 +433,9 @@ pub struct WireActor {
     pub status: u8,
     pub weapon: u8,
     pub bounty: u16,
-    /// What the entity is: 0 = player (the default, which costs no byte). Other kinds are assigned by the packet that adds
-    /// them; the id namespace is shared by every kind.
+    /// What the entity is: 0 = player (the default, which costs no byte). Kind 4 is a QuestGiver and requires the actor-only
+    /// packed kit 0xff (Neutral/None) with mob_type_code 0. Other kinds remain opaque/extensible and keep their full kit range;
+    /// the id namespace is shared by every kind.
     pub kind: u8,
     pub effects: u16,
     pub displace_seq: u8,
@@ -1275,6 +1276,12 @@ impl ServerMsg {
                     let a = read_actor(&mut r, prev)?;
                     prev = Some(a.id);
                     actors.push(a);
+                }
+                if actors
+                    .iter()
+                    .any(|actor| encode::giver_actor_fault(actor).is_some())
+                {
+                    return Err(DecodeError::BadField("giver actor"));
                 }
                 ServerMsg::Snapshot {
                     tick,

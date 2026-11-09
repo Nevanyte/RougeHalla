@@ -1,0 +1,14 @@
+using System;
+using Roguehalla.Client;
+using Roguehalla.Net;
+static class ContractRunner {
+ static void Check(bool ok,string name) {if(!ok)throw new Exception(name);}
+ static void Main() {
+ Check(ShowcaseActorLook.AppearanceKey(ActorKind.QuestGiver,null,null)==null,"giver has no fighter appearance");
+ Check(ShowcaseActorLook.AppearanceKey(ActorKind.QuestGiver,FactionId.Fire,null)==null,"giver never falls back to a faction fighter");
+ Check(ShowcaseActorLook.AppearanceKey(ActorKind.Player,FactionId.Fire,null)=="hero","player appearance retained");
+ Check(ShowcaseActorLook.AppearanceKey(ActorKind.Player,FactionId.Holy,null)=="mage-female","Holy appearance retained");
+ Check(ShowcaseActorLook.AppearanceKey((ActorKind)255,(FactionId)15,null)=="knight","opaque unknown appearance retained");
+ Console.WriteLine("5 pure appearance contract checks passed; no Unity objects created.");
+ }
+}
