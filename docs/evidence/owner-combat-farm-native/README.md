@@ -1,94 +1,82 @@
-# Owner-combat farm mirror — native consumer
+# Owner-combat farm mirror — corrected native consumer
 
-Status: PASS. One bounded actual native consumer of the sealed farm source corpus, implemented as a
-test-only module. No production rule, schema, protocol/version, content, tape, status, Cargo.lock,
-client, cloud or native admission file was changed; no other campaign was run.
+Status: PASS after the bounded review corrections. This is the follow-up to sealed native commit
+4ecfb6cdb13908319be20807249667c12bac0416 (which remains immutable in Git history). The real native
+producer path is unchanged; the consumer contract, portable evidence and wording are corrected.
 
-## Base / branch / worktree
+## Base / branch / sealed inputs
 
-- Base: 1ddad5d63f7016e65d3eddaa5bd47082c3a3710f (exact root requested by Root).
-- Branch/worktree: deepseek/farm-native-consumer in
-  /Users/nevinmckinnon/Documents/Projects/RogueHalla-farm-native-consumer.
-- Sealed source addition: commit 9800a34c57ce12d43d84fdc210313934e382ad79, copied only as its 30
-  tools/owner-combat-farm-fixtures, parity/policy/owner-combat-farm and
-  docs/evidence/owner-combat-farm paths. The frozen author branches/corpora were not edited and their
-  sealed files are byte-identical.
-- Sealed farm corpus: parity/policy/owner-combat-farm/source.json, 1,250,830 bytes,
+- Follow-up base: 4ecfb6cdb13908319be20807249667c12bac0416 (sealed native consumer).
+- Exact source root: 1ddad5d63f7016e65d3eddaa5bd47082c3a3710f plus only the sealed farm additions from
+  9800a34c57ce12d43d84fdc210313934e382ad79.
+- Branch/worktree: deepseek/farm-native-consumer-repair,
+  /Users/nevinmckinnon/Documents/Projects/RogueHalla-farm-native-consumer-repair.
+- Code head in this receipt: 76b57df2525392abcf571cf9452d255d852e9c8d (test-only correction commit).
+  The final evidence commit is the branch head containing this receipt; Root is given the exact head.
+- Sealed farm corpus remains byte-identical: parity/policy/owner-combat-farm/source.json, 1,250,830 bytes,
   sha256 9cbb71b162a6bf36b5b4445cd4ca4bb5ab5e3c6559279467153e9ee9d7a62228,
   captureSha e15c3bc4bfaad9850a0d9cfe72e4de757742d18c1bf089c6b382394bab4725c3.
+- Original source README/corpus at 9800a34c and original native evidence/test at 4ecfb6cd are not
+  modified. Every receipt payload quoted by the review is verified with git show from the sealed commit
+  into sealed-payloads.txt (blob id + git-object content hash), not from a worktree copy.
 
-## Code added (test-only)
+## Code correction (test-only)
 
-- crates/rh-sim/src/owner_combat/farm_source_tests.rs (360 lines, sha256
-  82758046c8bedd5a5ecdad9f054db78145d3c446b38c88b1c28f49fef1e921df): one #[test]
-  actual_native_farm_kill_earns_attack_speed_mirror.
-- crates/rh-sim/src/owner_combat.rs: only #[cfg(test)] mod farm_source_tests; (+3 lines); no
-  production module change.
+Only crates/rh-sim/src/owner_combat/farm_source_tests.rs changed in code:
+- bytes: 13572; lines: 371; sha256:
+  a86b11819b31374e84d157e29466a17138e0a4e97c55d272ba164fb2c37916df.
+- The cfg(test) module declaration and all production bodies remain unchanged from the sealed base.
 
-## Method (declared setup only; actual outcomes from native stepping)
+The consumer now compares:
+- serverTime, canonical drawStartedAt and maxHp exactly on every one of 135 frames.
+- readyAt and hp exactly on every frame as well. This was attempted exactly and passed; no numeric
+  discrepancy was found and no tolerance/normalization remains for those fields.
+- decoded u32 draw/ready clocks and all three mirror thousandths exactly (unchanged).
+- the full typed farm map on every frame rather than summed totals: empty for the first 104 recorded
+  frames, then exactly plagueRat=3 for the next 31; extra native types or wrong per-type counts are
+  rejected. The actual kill step/died target death event and PlagueRat=3/asMult=1030 before/after
+  assertions are retained; nothing is installed in Sim state.
+- canonical target and current-entitled projection, owner status/weapons/slot and the real map/hash,
+  seeds/config/placements/RNG/rack/target bindings as before.
 
-- Native real mapgen pipeline: generate_styled(seed 20261101, attempt 0, default options); the native
-  resulting map hashU32 is asserted equal to the sealed setup map.hashU32 3435915058, width/height 160,
-  camps 50. The admitted map layers are used through their real MapExport validation and are built into
-  the real Arena.
-- Native Sim::reset_active with config min_players 3, lobby/fill 0, pvp_rules true, weapon_specials
-  true, regen true, hazards Map, mob_mode Pve, complete faction mode/abilities, Source arena lifecycle
-  (patience 3600 no timer in this window). This is the ordinary nontraining PvE world.
-- Seats/positions/initial HP are the sealed setup values (owner plague at 2436,3568; allies frost/holy
-  at 2736,2640 / 2640,2736, kept alive). Secrets: orderSalt from the sealed source mulberry32(8) first
-  draw (671282643), spawn seed = its state after that draw, rewardSalt [1,2,3,4].
-- The real ground rack is seeded at the declared owner position with a wand through the real
-  seed_weapon_container API. The sealed source rack alias is c12; the native engine assigns its own
-  container serial, so the ordinary pickup input binds the native actual rack id. The source ground
-  rack position/loadout is setup, not an outcome.
-- The sealed target alias mob36 is bound through the real native camp roster by ActorOrigin camp 20
-  (0-based camp index) spot 0, which is asserted to be a live nonelite PlagueRat; native actor serials
-  are not assumed equal to source serials. No target HP/status/death/farm/mirror is written.
-- Source actions at step 1 (pickup rack) and step 4 (ordinary target order) are submitted through
-  crate::validate + Sim::submit (C-INPUT); the test then steps the real Sim for steps 1..=135.
-- The native consumer compares every recorded source frame (135 frames): source/native public owner
-  lock, host drawStartedAt/readyAt, decoded clocks via the checked owner projection, wire and decoded
-  asMult/windupMult/speedMult rows, status, weapon slots, farm count and the current-entitled identity.
-  It also checks the actual native death event, target dead state, farm count 3 and projected asMult
-  1030 on the kill step.
+No normalization is recorded because none is needed. Source/native host scalars are bit-identical for
+serverTime, drawStartedAt, readyAt, hp and maxHp on this corpus; decoded clocks/mirrors are exact.
 
-## Result
+## Portable logs and sealed payload correction
 
-- cargo test -p rh-sim --lib owner_combat::farm_source_tests: PASS, 1 passed / 0 failed, exit 0.
-  Output: "owner-combat farm: 135 sealed frames replayed, rack c12, target mob36 killed, farm 3,
-  asMult 1030".
-- The actual native kill is step 105/frame 104 (source serverTime 5300): the target native actor is
-  dead, the native death event is emitted, owner.farm.count(PlagueRat) is 3, and the checked owner
-  projection asMult is 1030. The target's farm is not installed anywhere in the test.
-- cargo fmt --check: exit 0. cargo clippy -p rh-sim --lib --tests --no-deps: exit 0 (no warnings).
-- Actual source/native numeric normalization: decoded u32 clock fields and all mirror thousandths are
-  exact; the canonical host f64 clocks/hp use an explicit 1e-8 absolute comparison for source JSON
-  doubles vs native f64 computations, with no blanket epsilon over decoded or mirror fields. Map hash
-  and frame/step counts are exact.
+The original ignored logs from the sealed native run are now tracked under logs so a checkout/archive
+of this branch verifies them:
+- logs/sealed-4ec-cargo-test.log sha256 0dce9b9395645b7d2a7588827793464165150e833eb19603fc5a3bca8cd30684
+- logs/sealed-4ec-clippy.log sha256 c92508a29848820f033cd2ea015c85dde0953c88b07cc967ce34b7c08f610549
+- logs/sealed-4ec-fmt-check.log sha256 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+- logs/corrected-cargo-test.log sha256 5a80bf5bb58c424c2608c6effc87f2bfbc946d9ceb8341fd66964be5ddce1f21
+- logs/corrected-clippy.log sha256 418de69fb939e16f8eabc5fe9bcbe7bf205b8894071126c06b42326310f006ff
+- logs/corrected-fmt-check.log sha256 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
 
-## Correction carried into this evidence (original sealed README/corpus preserved unchanged)
+sealed-payloads.txt records, via git rev-parse/git show from 4ecfb6cd and 9800a34c, the exact blob ids
+and content hashes of the sealed receipt, README, SHA256SUMS, old test and owner_combat.rs, plus the
+sealed source tool/corpus/README payloads used at admission.
 
-The sealed farm README's kill wording is superseded here: the kill pass's first owner wand hit
-(applied 2.3502824858757068) removed the target's remaining 1.2313904974938321 hp. The recorded
-7.287056304148811 hitLanded is the same pass's second/signature disease share, not a unique lethal
-first hit. The two disease-tagged callbacks observe the victim already dead after the combined ledger
-subtraction; kill.lethalHit is the last-dead callback, not uniquely the first hit. This is a wording
-correction only; the sealed source corpus and README at 9800a34c were not modified.
+## Verification
 
-## Existing source mutants
+- cargo test -p rh-sim --lib owner_combat::farm_source_tests -- --nocapture: PASS 1/0. Output:
+  "owner-combat farm: 135 sealed frames replayed, rack c12, target mob36 killed, farm 3, asMult 1030".
+- cargo fmt --check: exit 0. cargo clippy -p rh-sim --lib --tests --no-deps: exit 0, no warnings.
+- Private target /tmp/farm-native-target, jobs 1, test debug 0; rustc/cargo 1.97.0. No broad campaign,
+  recapture, mutant rerun or workspace run.
 
-The sealed farm source controls (01 writeMirrors asMult omit KILL, 02 provenance-only SURVIVOR,
-restored control PASS) are already sealed evidence and were NOT rerun or overclaimed here. Their
-disposable method remains one restored disposable checkout with a fresh Node per variant; this native
-consumer does not claim to repeat them.
+## Lethal wording boundary
 
-## Limits
+The new prose does not attribute the kill to a uniquely first hit. The owner-sourced combined
+disease/execute ledger pass killed the target; the two disease-tagged callbacks both observe the victim
+already dead after the combined ledger subtraction, and derived kill.lethalHit selects the last
+dead-status callback. The earlier sealed source README/corpus wording remains untouched and immutable;
+this correction is the new evidence boundary only.
 
-- Test-only native consumer/source-projection proof: no native public-field admission, protocol,
-  Room/socket/join, Unity/DOM/rendering, headless-digest or tape change.
-- One generated map seed/attempt and one actual camp-20 nonelite PlagueRat kill; not a whole-map,
-  workspace, previous-owner or quest campaign.
-- The source capture's private fixture data is not public wire; native public entitlement is still
-  gated by the current observation and no hidden identity is added.
-- No production rules, schemas, protocol/version, content identity, status, Cargo.lock or client edit;
-  Root owns merge/admission.
+## Existing mutants / limits
+
+The sealed farm source controls (writeMirrors asMult-omit KILL, provenance-only SURVIVOR, restored PASS)
+are preserved and were not rerun or overclaimed; their one-restored-disposable-checkout/fresh-Node-per-
+variant method is unchanged. This remains one seed/camp test-only native consumer; no native public
+admission, protocol/Room/socket, Unity/DOM, headless digest/tape/status or workspace campaign. Root owns
+merge/admission.
