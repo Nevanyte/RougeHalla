@@ -1,0 +1,6 @@
+CONTROL 06-excluded-count
+applied 1 hunk(s) to packages/server/src/sim/campHeal.ts
+pack-leader capture wrote /tmp/out/06-excluded-count/source.json
+DIFF .result.completeNonemptyEventTape[111].events[1].fx.amount baseline=625.7285233040177 mutant=611.0630110390798
+OUTPUT_SHA256 589ccf78a51595326895a1270b9b1319fd4f0ff51f12ee0d87980f8fc4bd89c9
+CONTROL-OK 06-excluded-count DIFF

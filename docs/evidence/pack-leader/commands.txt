@@ -1,0 +1,20 @@
+# Pack Leader source-first seal — exact commands and exits (2026-11-09)
+
+BASE=$(git rev-parse HEAD)   # db5ed80b2b89a156eae09cd0bd3f4c9e77e9e6de at packet start
+
+1. capture corpus (exit 0)
+   mkdir -p node_modules
+   RH_PACK_LEADER_BASE=$BASE RH_PACK_LEADER_DIRECTORY=$PWD/parity/pack-leader bash tools/pack-leader-fixtures/capture.sh
+   -> parity/pack-leader/source.json  sha256 c9ae77c74ebd14c1b1b6cce557be592165e2105b8263604f8deaf21b0893169e
+   -> docs/evidence/pack-leader/logs/capture.log
+
+2. helper probes (same pinned docker pattern; exit 0)
+   -> parity/pack-leader/helpers.json  sha256 2fc32f0285cab0bbd53c945afba83e54c739d7521f96185186c0073d9e9d3bbd
+   -> docs/evidence/pack-leader/logs/helpers.log
+
+3. controls (exit 0; run.log ends CONTROLS-GREEN)
+   RH_PACK_CONTROLS_LOG=$PWD/docs/evidence/pack-leader/controls bash tools/pack-leader-fixtures/run-controls.sh
+   -> docs/evidence/pack-leader/controls/{01..06}-*.log, restored.log, source-bytecheck.log, run.log
+
+4. sealed-Git file hashes + clean-export reproduction: docs/evidence/pack-leader/logs/sealed-git.log and
+   logs/sealed-export.log (written after the code/evidence commits; each log states the exact commit and result).

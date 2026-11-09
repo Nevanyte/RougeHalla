@@ -1,0 +1,6 @@
+CONTROL 04-cache-refresh-timing
+applied 1 hunk(s) to packages/server/src/sim/mods.ts
+pack-leader capture wrote /tmp/out/04-cache-refresh-timing/source.json
+DIFF .result.completeNonemptyEventTape[111].events[1].fx.amount baseline=625.7285233040177 mutant=611.0630110390798
+OUTPUT_SHA256 234d3ebc424eda96ffb9f9646e319328d449eaa53b5f0a3808c3e73007e6a4ba
+CONTROL-OK 04-cache-refresh-timing DIFF
