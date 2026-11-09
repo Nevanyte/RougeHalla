@@ -1,0 +1,117 @@
+{
+  "scope": "Root separately approved one readonly bytecheck; same reviewed image/pins/minimalmounts, capturedreadonly",
+  "preflight_note": "Prior Root local guard stopped before invoking docker because it assumed name rather than actual id field. Corrected guard inspects actual schema; no prior bytecheck executed.",
+  "command": [
+    "docker",
+    "run",
+    "--rm",
+    "--pull=never",
+    "--network=none",
+    "--platform",
+    "linux/amd64",
+    "--name",
+    "rh-walkhint8151-boundaries02-readonly-check",
+    "--read-only",
+    "--cap-drop=ALL",
+    "--security-opt=no-new-privileges:true",
+    "--pids-limit=64",
+    "--memory=1g",
+    "--cpus=1",
+    "--env",
+    "NODE_OPTIONS=",
+    "--env",
+    "NODE_PATH=",
+    "--env",
+    "NODE_COMPILE_CACHE=",
+    "--mount",
+    "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/walk-hint-helper-boundaries/offline-790-corrected-review-02/prepared,dst=/run,readonly",
+    "--mount",
+    "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/walkHint.ts,dst=/repo/packages/server/src/sim/walkHint.ts,readonly",
+    "--mount",
+    "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/gameplay.ts,dst=/repo/packages/server/src/sim/gameplay.ts,readonly",
+    "--mount",
+    "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/step.ts,dst=/repo/packages/server/src/sim/step.ts,readonly",
+    "--mount",
+    "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/status.ts,dst=/repo/packages/server/src/sim/status.ts,readonly",
+    "--mount",
+    "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/targeting.ts,dst=/repo/packages/server/src/sim/targeting.ts,readonly",
+    "--mount",
+    "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/combatant.ts,dst=/repo/packages/server/src/sim/combatant.ts,readonly",
+    "--mount",
+    "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/movement.ts,dst=/repo/packages/server/src/sim/movement.ts,readonly",
+    "--mount",
+    "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/world.ts,dst=/repo/packages/server/src/sim/world.ts,readonly",
+    "--mount",
+    "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/vision.ts,dst=/repo/packages/server/src/sim/vision.ts,readonly",
+    "--mount",
+    "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/weapons.ts,dst=/repo/packages/server/src/sim/weapons.ts,readonly",
+    "--mount",
+    "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/constants.ts,dst=/repo/packages/shared/src/constants.ts,readonly",
+    "--mount",
+    "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/mods.ts,dst=/repo/packages/shared/src/mods.ts,readonly",
+    "--mount",
+    "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/weapons.ts,dst=/repo/packages/shared/src/weapons.ts,readonly",
+    "--mount",
+    "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/policies.ts,dst=/repo/packages/shared/src/policies.ts,readonly",
+    "--mount",
+    "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/terrain.ts,dst=/repo/packages/shared/src/terrain.ts,readonly",
+    "--mount",
+    "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/interp.ts,dst=/repo/packages/shared/src/interp.ts,readonly",
+    "--mount",
+    "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/parity/walk-hint/helpers/source.json,dst=/repo/parity/walk-hint/helpers/source.json,readonly",
+    "--mount",
+    "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/parity/policy/bot-fight/source.json,dst=/repo/parity/policy/bot-fight/source.json,readonly",
+    "--mount",
+    "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/walk-hint-helper-boundaries/offline-790-corrected-review-02/captured,dst=/out,readonly",
+    "--entrypoint",
+    "/usr/local/bin/node",
+    "node@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292",
+    "/run/boundaries-runtime.mjs",
+    "--mode=check",
+    "--output=/out",
+    "--expected-manifest",
+    "a087f0c2198505881281173c158643c9cbed5a31a7fc880a859b73f5d2c1ad08",
+    "--expected-bundle",
+    "2869c9bf780ffe5d33e0600257a53c3eb4935921d1e36d24a81bc9a0dd6e93b4"
+  ],
+  "started_utc": "2026-11-09T16:31:46.956829+00:00",
+  "ended_utc": "2026-11-09T16:31:47.695591+00:00",
+  "exit_code": 0,
+  "stdout": "{\"mode\":\"check\",\"bytes\":150406,\"sha256\":\"1702ce0a44940709d229161211cbd6ceaf8b0f4ef55c147d3321b3e3ab78e774\",\"bundleSha256\":\"2869c9bf780ffe5d33e0600257a53c3eb4935921d1e36d24a81bc9a0dd6e93b4\",\"cases\":24,\"directDirectionTransition\":true,\"pathDirectionTransition\":false,\"actualPathAngleCount\":1,\"directionPathCoverage\":\"OPEN until independent capture review: direct adjacent-input kernel and Cartesian path observations are separate; no fabricated transition\"}\n",
+  "stderr": "",
+  "all_run_files_unchanged": true,
+  "files": {
+    "prepared/boundaries-runtime.mjs": {
+      "bytes": 5862,
+      "sha256": "b435b157d6d2f1d222cdf142b813eb8cf20b1486134018ec0b1accd6e05207d0"
+    },
+    "prepared/boundaries-verify.mjs": {
+      "bytes": 5399,
+      "sha256": "09de20680ce4c637e22adc5bf8cf90d98bbb006aaf18a92a2da3bb216975e65d"
+    },
+    "prepared/build-manifest.json": {
+      "bytes": 51822,
+      "sha256": "a087f0c2198505881281173c158643c9cbed5a31a7fc880a859b73f5d2c1ad08"
+    },
+    "prepared/metafile.json": {
+      "bytes": 114348,
+      "sha256": "bb61c1ed33763cca08dfb94e398e60d2a4e0c0d97ce41031d52fd82e473f4b6a"
+    },
+    "prepared/scenario.mjs": {
+      "bytes": 1061790,
+      "sha256": "2869c9bf780ffe5d33e0600257a53c3eb4935921d1e36d24a81bc9a0dd6e93b4"
+    },
+    "captured/source.json": {
+      "bytes": 150406,
+      "sha256": "1702ce0a44940709d229161211cbd6ceaf8b0f4ef55c147d3321b3e3ab78e774"
+    },
+    "captured/verification.json": {
+      "bytes": 289,
+      "sha256": "3eb09901ad7c5855b556a6f6f12512cf644612d91e704e368851f2a8e816e7d9"
+    },
+    "captured/observations-before-verification.json": {
+      "bytes": 150406,
+      "sha256": "1702ce0a44940709d229161211cbd6ceaf8b0f4ef55c147d3321b3e3ab78e774"
+    }
+  }
+}

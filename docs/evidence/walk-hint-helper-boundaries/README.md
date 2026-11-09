@@ -1,0 +1,11 @@
+# WalkHint boundary correction — private code/design only
+
+Against frozen790b739d5df9917e45b5f54630ef5398d26950ca. No build, source execution, capture, container start/exec, install/network/Editor/Cargo/cache use. Root must review/seal this correction and authorize a separate host build; generated bundle/readset pins require another Root review before any runtime import. This is not execution permission or source/native admission.
+
+All existing70433/790 refs and old69/14-frame/player90 corpora are untouched. Original denied wrapper and boundaries-capture.mts remain preserved and forbidden. Exact write scope: existing boundaries build/runtime/scenario/verify and this dedicated evidence directory only; no production application source.
+
+24 declared fresh helper contexts: goal3, repath3, LOS2, future status4, amove3, waypoint3, direction3, tie3. Source clock comes from40 ordinary setup steps (LOS adds2 actual sight-priming steps); positions/history/weapon/status/cache inputs remain explicitly DECLARED, not earned combat. The actual source decide/updateTargets/walkHintOf/isUntargetableAt/weaponHoldsAt/encodeWalkDir functions supply every answer. No copied output formulas or installed expected choice. Append-only compiled export of existing SPEED_SLACK is input geometry instrumentation, with original/executed hash distinction.
+
+Rounding uses true adjacent binary64 values. Direction kernel and Cartesian path outputs are both retained: path isolation explicitly remains OPEN until capture review, never a forced transition. Waypoint origin/endpoint construction avoids losing tiny segment perturbations at a large common world origin and asserts actual floating predicate isolation before calling source. If any source precondition/answer differs, retain raw observations and stop; do not force agreement.
+
+See PRIVATE-CORRECTION.md for precise changes/limits; OFFLINE-COMMANDS.md for separate proposed phases; PROPOSED_READSET.json for selected16 source pins+metadata+tool pins. The complete compiled closure/count remains UNOBSERVED until a reviewed host build. The prior helper69 has17 selected pins; this new runtime readset has16, and neither number is the complete esbuild closure. No prior raw receipt or expected file was rewritten.

@@ -1,0 +1,25 @@
+{
+  "head": "a4ece57e4f7e5c233e6c80a8663f43ca99be74b7",
+  "command": [
+    "/usr/bin/env",
+    "-i",
+    "PATH=/usr/bin:/bin",
+    "ESBUILD_BINARY_PATH=/Users/nevinmckinnon/Documents/Projects/RogueHalla/node_modules/@esbuild/darwin-arm64/bin/esbuild",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/map-styled-bench/npm-cache/_npx/361c55be1121897e/node_modules/node/bin/node",
+    "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/tools/walk-hint-fixtures/boundaries-build.mjs",
+    "--source-root",
+    "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings",
+    "--tool-root",
+    "/Users/nevinmckinnon/Documents/Projects/RogueHalla/node_modules",
+    "--output",
+    "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/walk-hint-helper-boundaries/offline-790-corrected-review-01/prepared",
+    "--expected-head",
+    "a4ece57e4f7e5c233e6c80a8663f43ca99be74b7"
+  ],
+  "started_utc": "2026-11-09T16:14:33.456157+00:00",
+  "ended_utc": "2026-11-09T16:14:48.299322+00:00",
+  "exit_code": 0,
+  "stdout": "{\"mode\":\"build-only\",\"code\":\"a4ece57e4f7e5c233e6c80a8663f43ca99be74b7\",\"output\":\"/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/walk-hint-helper-boundaries/offline-790-corrected-review-01/prepared\",\"captured\":\"/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/walk-hint-helper-boundaries/offline-790-corrected-review-01/captured\",\"bundleSha256\":\"e6489e6b31babd83f5f3cc0167b4c5d75ae0d845f3b0c0d94f4237fcf5fefb35\",\"manifestSha256\":\"62fa15e87396bb2a2a243d0c6eab2ee6b2a019ef44261818026d0dd087f91421\",\"loadedInputs\":127,\"next\":\"STOP: Root must inspect generated closure and pin manifest/bundle before any container execution\"}\n",
+  "stderr": "",
+  "scope": "Phase A host compiler only; no scenario execution"
+}

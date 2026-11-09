@@ -1,0 +1,15 @@
+7fbb37ea94caff55f21b297fcbdb4eeb8cea1cf5906596995b99b3d797318539  ./MANIFEST.json
+b0d0737c9fe34274fa9b131ee8c8d4b6992079982a6576d63710502e9e7039a8  ./MECHANICAL-VERIFICATION.txt
+844bdd0ac9a76680a0768cd25e4b151e5a9442e9e27467304cebc42f5ff27df2  ./README.md
+ea033360ed44ff0cd3ff6f246b6c23de021b16a26cee6dd74ef7d42468352976  ./RECEIPT.json
+e4ea093153f72f8d2de745680c82df9c1b0c6593bb7a6d34f7b6a21f649a296c  ./first-failed-observation.sha256
+3ad4fa1e7040c524026f0aab2bd5a816fffbb1effc6421fad7e8fe7774db0daa  ./first-failed-observations-before-verification.json
+61888923065d6d54ba8929ecbc28e244e817ae9a82f7609b2097e49237d35257  ./raw-phase/walkhint-a4ece-first-capture-diagnosis.md
+40514c68f15f6bfa9493c542ef59d933303e5f8d722a2436c817d2eb0927d27a  ./raw-phase/walkhint-a4ece-host-build-first.json
+7c7ac83233468e97532b959e8aa48e7fedacc6e29b19bbdb9e811aff130024c6  ./raw-phase/walkhint-a4ece-phase-b-first.json
+f3aff286dca364d6ad80c1ba63c7ee4cf5a8952f68699cd6b3882d0c1c48c46f  ./raw-phase/walkhint8151-generated02-review.md
+867443c452e7b2e8836b456cf6b5f49767b4ea8537b767effb34fa73fc92d293  ./raw-phase/walkhint8151-host-build-first.json
+8e98bbb2c79013eef9293d4c2aabeff9c69e7d44afe6d7f09adfcb065894e243  ./raw-phase/walkhint8151-los-elapsed-correction-handoff.md
+ec3bef2c268a1c6c833f10d245331cfe99d006f1713afef2c89e58b7b81c7c91  ./raw-phase/walkhint8151-phase-b02-first.json
+325fcd9e85ac9214602a9bbc9b61912cdd52c8e150f437f3f2b4d3b028c532ce  ./raw-phase/walkhint8151-phase-check02-first.json
+3eb09901ad7c5855b556a6f6f12512cf644612d91e704e368851f2a8e816e7d9  ./verification.json
