@@ -1,0 +1,19 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 34.37s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 1 test
+test cards::fight_clock::tests::generic_card_reset_preserves_fight_and_row_loss_preserves_wish ...
+thread 'cards::fight_clock::tests::generic_card_reset_preserves_fight_and_row_loss_preserves_wish' (67368074) panicked at crates/rh-sim/src/cards/fight_clock_tests.rs:664:48:
+called `Option::unwrap()` on a `None` value
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    cards::fight_clock::tests::generic_card_reset_preserves_fight_and_row_loss_preserves_wish
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 793 filtered out; finished in 0.18s
+
+error: test failed, to rerun pass `-p rh-sim --lib`

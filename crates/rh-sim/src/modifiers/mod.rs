@@ -327,6 +327,14 @@ fn recompute_core<'a>(
     // same on every refold and again in its per-tick updateMods pass, which refolds only on a flip).
     let now = w.server_time;
     let is_player = w.is_player(ix);
+    let fight = if is_player {
+        if !crate::cards::fight_clock::watches_rows(fold_rows) {
+            crate::cards::fight_clock::clear(&mut w.players[ix.slot()]);
+        }
+        w.players[ix.slot()].card_runtime.and_then(|r| r.fight)
+    } else {
+        None
+    };
     let (bit_of, _) = while_bit_of(fold_rows);
     let mut holds = 0u64;
     {
@@ -336,7 +344,7 @@ fn recompute_core<'a>(
                 continue;
             };
             let bit = bit_of.get(i).copied().unwrap_or(NO_BIT);
-            if bit != NO_BIT && holds_now(now, core, is_player, &while_row) {
+            if bit != NO_BIT && holds_now(now, core, is_player, fight, &while_row) {
                 holds |= 1u64 << bit;
             }
         }
@@ -468,12 +476,13 @@ fn combined_farm_rows(
 }
 
 /// Source `holdsNow`: does a `while` row's condition hold for this fighter now? `unarmed` needs a seated player's hands;
-/// `afterCast` waits for the cast runtime (the shipped rows are status-gated away; source R6); `fightTime` waits for the
-/// source fight clock (`mods.noteFights`), which no Rust state owns yet, so no such row holds.
+/// `afterCast` waits for the cast runtime (the shipped rows are status-gated away; source R6). FightTime reads the
+/// retained mods clock; it never touches this pass's landed list or retroactively changes an already-paid hit.
 fn holds_now(
     now: f64,
     core: &crate::fighter::FighterCore,
     is_player: bool,
+    fight: Option<crate::cards::runtime::FightClock>,
     row: &WhileRow,
 ) -> bool {
     use crate::stat_fold::WhileCond;
@@ -496,7 +505,7 @@ fn holds_now(
                 .is_none_or(|shot| now - shot >= row.ms.unwrap_or(0.))
         }
         WhileCond::Unarmed => is_player && core.active_weapon() == crate::WeaponId::Fists,
-        WhileCond::FightTime => false,
+        WhileCond::FightTime => is_player && crate::cards::fight_clock::holds(fight, now, row.arg),
     }
 }
 

@@ -1,0 +1,110 @@
+{
+  "scope": "Compiled native semantic mutants; no source fixture edits",
+  "mutants": [
+    {
+      "name": "constant-false",
+      "path": "crates/rh-sim/src/modifiers/mod.rs",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-sim",
+        "--lib",
+        "cards::fight_clock::tests::seven_actual_source_clock_witnesses",
+        "--",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exitCode": 101,
+      "intendedAssertion": "holds at 3100",
+      "originalSha256": "8d421b8f65d2ed387f0bd2791e2e570cda4aafbf7fff4e73cca371f6513c4472",
+      "mutantSha256": "ec58e5a5e5b59af585d36e66251e9f8179faecf3e25501a975a6eb75478da2f2"
+    },
+    {
+      "name": "exclude-victim",
+      "path": "crates/rh-sim/src/cards/fight_clock.rs",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-sim",
+        "--lib",
+        "cards::fight_clock::tests::seven_actual_source_clock_witnesses",
+        "--",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exitCode": 101,
+      "intendedAssertion": "clock",
+      "originalSha256": "f8a4c1c3a9743b0ea45460726e5fb8e8adcba40f7b8b4f1531d4ebe81b705d94",
+      "mutantSha256": "05cc6ce962136e1a46732f9acf0cc3e1764ee2355dfeff6e4e1247a4b40755d4"
+    },
+    {
+      "name": "gap-equality-continues",
+      "path": "crates/rh-sim/src/cards/fight_clock.rs",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-sim",
+        "--lib",
+        "cards::fight_clock::tests::seven_actual_source_clock_witnesses",
+        "--",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exitCode": 101,
+      "intendedAssertion": "clock",
+      "originalSha256": "f8a4c1c3a9743b0ea45460726e5fb8e8adcba40f7b8b4f1531d4ebe81b705d94",
+      "mutantSha256": "1df3b56da182da6fe6cff6749ef279b59dd4b7de7444cc8d04130f9ba954f6c1"
+    },
+    {
+      "name": "row-loss-retains-clock",
+      "path": "crates/rh-sim/src/modifiers/mod.rs",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-sim",
+        "--lib",
+        "cards::fight_clock::tests::seven_actual_source_clock_witnesses",
+        "--",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exitCode": 101,
+      "intendedAssertion": "clock",
+      "originalSha256": "8d421b8f65d2ed387f0bd2791e2e570cda4aafbf7fff4e73cca371f6513c4472",
+      "mutantSha256": "adcb28df3e81ef086fea4e129dc7cb6b271dfc9ab5d5bff35431307d8477e741"
+    },
+    {
+      "name": "generic-reset-loses-clock",
+      "path": "crates/rh-sim/src/cards/runtime.rs",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-sim",
+        "--lib",
+        "cards::fight_clock::tests::generic_card_reset_preserves_fight_and_row_loss_preserves_wish",
+        "--",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exitCode": 101,
+      "intendedAssertion": "called `Option::unwrap()` on a `None` value",
+      "originalSha256": "17c0357f79dabcf7c8744ee21a78a14e3f1b6d1af6d3f05b9e1e75c1934d65b3",
+      "mutantSha256": "d71190d54295a6b5413587c5c002a0b3bb154df44c6508b7e7aa8d119d238175"
+    }
+  ]
+}

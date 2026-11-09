@@ -1,0 +1,7 @@
+# Private native29 Slow Starter component admission
+
+Root composes independently reviewed e618fe2d/code and original fdf4227b source assessment on private dfca7746. Seven exact source cases pass native consumer and21focused tests, including producedcheckpoint/recordedcommands, Wish separation, clone/restore, five genuine compiled controls and180warm0allocation steps. No Root rerun is invented. Attached reviews bind exact scope/payloads and the remaining limitations.
+
+The approved history validator uses actual producer next-add rather than subtracting two floats:50.1+50==100.1 while100.1−50.1 is49.99999999999999. It preserves existing first-equal/Blaze exceptions and refuses malformed nearer/reversed/future/dense histories. No epsilon or changed history data. All4actualfractionalepoch continuations pass.
+
+This is PRIVATE component admission, not publication of native29 as the complete game. MarkTax retained caches/end-source adapter and other native leaves are separately coordinated. Root still owns final content golden, hash coverage, predecessor refusals and derived native tapes/wholeunion validation. Old28/22tapes remain historical. Protocol14/OBS21/policy15/publiccontent643d remain published until a later reviewed union. Optional SlowStarter has no ordinary reward/Training grant door; replay proof starts from a genuinely produced checkpoint, not a new invented grant command/fullfromlobby claim. Same-world restart/Trainingrevive/sameID source limitations remain explicit.

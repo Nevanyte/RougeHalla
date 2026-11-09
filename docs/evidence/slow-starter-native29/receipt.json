@@ -1,0 +1,156 @@
+{
+  "scope": "Private Slow Starter native29 candidate; Root retains identity/content/hash-coverage/tape/publication admission",
+  "base": "dfca7746dab87407bfd1dec2920322446c5a5598",
+  "sourceSeal": "fdf4227bdebbe1c119bfd42f4ef9db9bb6497e34",
+  "sourceMerge": "4813510551dfa12c1cad3cdba975077b8930bc03",
+  "sourceCorpusSha256": "10681ab8a9be45a194e665de7206ac49c2813663412f9590b5df191996d4afdc",
+  "tests": {
+    "newFocused": 6,
+    "newWarmExplicit": 1,
+    "wishRepair": 5,
+    "wishTraining": 2,
+    "midFightCheckpoint": 1,
+    "replay": 6,
+    "distinctPassed": 21,
+    "compiledMutantsKilled": 5
+  },
+  "strictLint": {
+    "default": true,
+    "trustedStatusProbes": true
+  },
+  "format": true,
+  "allocation": {
+    "original": {
+      "measuredSteps": 60,
+      "allocations": 0
+    },
+    "clone": {
+      "measuredSteps": 60,
+      "allocations": 0
+    },
+    "restore": {
+      "measuredSteps": 60,
+      "allocations": 0
+    }
+  },
+  "fractionalEpochs": [
+    0.1,
+    0.3333333333333333,
+    100000.1,
+    100000.33333333333
+  ],
+  "historyRepair": {
+    "approvedBy": "OPTimization_port lead",
+    "predicateBefore": "s[1].t - s[0].t >= TICK_MS",
+    "predicateAfter": "s[1].t >= s[0].t + TICK_MS",
+    "producedPairBits": [
+      "40490ccccccccccd",
+      "4059066666666666"
+    ],
+    "deltaBits": "4048ffffffffffff",
+    "epsilonOrRoundingOrPostHistoryReset": false
+  },
+  "replayLimit": "Clock uses produced checkpoint + JSON ReplayInput continuation. No full-from-lobby optional-card grant representation is added.",
+  "cargoTargetLoan": "Released after canonical rebuild; no running Cargo or database/task services",
+  "rootOwnedPending": [
+    "final content golden",
+    "full canonical hash coverage",
+    "old derived native tapes",
+    "private identity union review",
+    "public integration"
+  ],
+  "rawLogCopiesBeforeWhitespaceTrim": {
+    "canonical-fmt.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "canonical-focused.log": {
+      "bytes": 1553,
+      "sha256": "f57c1cb3daf41eb5cf7a9ff172bd9dbe8b2d778e75b6ff5824026c5a83fd4781"
+    },
+    "canonical-warm.log": {
+      "bytes": 400,
+      "sha256": "4035e1830231bfd4816c01a8c568e495d561320ecc0f50faf9dcae3ee6f7d0f2"
+    },
+    "checkpoint.log": {
+      "bytes": 542,
+      "sha256": "0c0461cd513137f7c051fb4abf340e936b9d492a5abb2b4268e7b8519f50ed49"
+    },
+    "clippy-default.log": {
+      "bytes": 207,
+      "sha256": "a913229e175c0fdef6b28df2c69d7581c195b013f1c3cd230271f5b5db3517bb"
+    },
+    "clippy-trusted.log": {
+      "bytes": 207,
+      "sha256": "b3beff3268140a94646ea4b922e4e0db4259cecd95870dc939535d61e3d1137b"
+    },
+    "first-compile.log": {
+      "bytes": 1340,
+      "sha256": "5490defdabd88c423d439e59dc7d2d4d21ab1a7906d3d77a83dfc7c09937f64d"
+    },
+    "first-dhat-measurement-error.log": {
+      "bytes": 894,
+      "sha256": "2cfaa9d32ab2336dcc683403e824aa4fa4c0a733a505c75ad23b6672f870d65d"
+    },
+    "first-fractional-refusal.log": {
+      "bytes": 2229,
+      "sha256": "bba2146678241a984a22ba09edd49bc7b5bd7bca3b556183b6172f90694d68a4"
+    },
+    "first-source-rng-mismatch.log": {
+      "bytes": 1085,
+      "sha256": "c46a0b1b2564d372bddb4d3e8e286c9ddbb2497acda07d4f186e0126a9706d0d"
+    },
+    "fmt.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "focused-before-mutants.log": {
+      "bytes": 1553,
+      "sha256": "006ecc9b70b05897613dff665069b2d6e1241ebd68265ac2ad74a22076eb3906"
+    },
+    "frozen-source-seal.log": {
+      "bytes": 961,
+      "sha256": "ba3528b90943aace9c37ed8b1237ae5e5a023e302e6433b2850d57bd0cf555ff"
+    },
+    "mutant-constant-false.log": {
+      "bytes": 1489,
+      "sha256": "8410e348336397d55df2137fd6ceae2b49fdb17ff56901fd70d3f0412e331803"
+    },
+    "mutant-exclude-victim.log": {
+      "bytes": 1421,
+      "sha256": "4a78021edf98c9d3e42e6dd6dd8b86a116b01fdc4027966d68a25a691b5fba3a"
+    },
+    "mutant-gap-equality-continues.log": {
+      "bytes": 1184,
+      "sha256": "3abc64b8e9e16059bf494f535854781319ba6053c998d5de1ab065d6fef07a95"
+    },
+    "mutant-generic-reset-loses-clock.log": {
+      "bytes": 1060,
+      "sha256": "febc9394cb87645d28015884b84136f4766afa04e7498efb677ae2feba1265e2"
+    },
+    "mutant-row-loss-retains-clock.log": {
+      "bytes": 1571,
+      "sha256": "0accaf442357cf647df76c5120a54926e9e4ab3e1939f51cfb78c44b6d7d7ef3"
+    },
+    "mutants.log": {
+      "bytes": 280,
+      "sha256": "50b9c50fcf2e9c7d19ffff3d02390df6cb49051d3c0f8d88112f2d1a18c9ff78"
+    },
+    "replay.log": {
+      "bytes": 881,
+      "sha256": "cc57e5d196f8f68528bd3a54942c5fd0509d2ab5e4807ce1c6008a0da8311ad7"
+    },
+    "warm-before-mutants.log": {
+      "bytes": 400,
+      "sha256": "7b3661ee5d66ffcb335ae8e28e4ab997233d0358830562a812633cca51144ea3"
+    },
+    "wish-repairs.log": {
+      "bytes": 1881,
+      "sha256": "db7a148febe89be9a167442dc5fb435838bd1c84f52af599c24c70cf68901310"
+    },
+    "wish-training.log": {
+      "bytes": 585,
+      "sha256": "39c3b9a3db9132b47e457f92e9c3dde80c23a71b729cac4a4961c976d8e0ffae"
+    }
+  }
+}
