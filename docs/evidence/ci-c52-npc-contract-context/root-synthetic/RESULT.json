@@ -1,0 +1,9 @@
+{
+  "scope": "Root AST2 +syntheticcontrols, NO Docker/npm/Source/World",
+  "argv": [
+    "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+    "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/tools/npc-witness-context/tests.py",
+    "-v"
+  ],
+  "exitCode": 0
+}

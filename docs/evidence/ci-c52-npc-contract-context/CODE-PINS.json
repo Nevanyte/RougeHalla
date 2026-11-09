@@ -1,0 +1,32 @@
+{
+  "format": "npc-historical-context-preparation-pins/1",
+  "status": "CODE_ONLY_UNPARSED_UNRUN",
+  "files": [
+    {
+      "path": "docs/evidence/ci-c52-npc-contract-context/README.md",
+      "bytes": 7671,
+      "sha256": "cfdeb6ffb59eef9b03953d5be1a5cb5c96e87d9adb91a9bf3706d2893fab8c05"
+    },
+    {
+      "path": "tools/npc-witness-context/CONTRACTS.197926e2.md",
+      "bytes": 87296,
+      "sha256": "2c9e0b9b562752ec907fe8ffa0e67986e6f6005a11c744f657fd67863de6e7cd"
+    },
+    {
+      "path": "tools/npc-witness-context/context.json",
+      "bytes": 124135,
+      "sha256": "937a6b0a38ef533a3a1848e77b63a7e6763f94ebe29383ab5790314210076e14"
+    },
+    {
+      "path": "tools/npc-witness-context/run.py",
+      "bytes": 10416,
+      "sha256": "6109cdf476024a37cf2b464a663398d6aa54b5122b797c46822aeae55ef797ae"
+    },
+    {
+      "path": "tools/npc-witness-context/tests.py",
+      "bytes": 5248,
+      "sha256": "417dbf3e52bec5d677708e6c5f7b9d2b7ea2fa9e9c9b86f645e28fe38a10f5e0"
+    }
+  ],
+  "performed": "Read-only source/Git/hash/inventory and static text checks; no new wrapper/test/Node/import/compiler/npm/Docker/Source execution."
+}
