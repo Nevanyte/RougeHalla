@@ -1,0 +1,18 @@
+exit=1 signal=null
+--- stdout ---
+--- stderr ---
+node:fs:440
+    return binding.readFileUtf8(path, stringToFlags(options.flag));
+                   ^
+
+Error: ENOENT: no such file or directory, open '/work/packages/client/src/ui/Minimap.ts'
+    at readFileSync (node:fs:440:20)
+    at sourceLiteral (/work/tools/bot-public-facts-fixtures/capture.mts:34:62)
+    at <anonymous> (/work/tools/bot-public-facts-fixtures/capture.mts:37:299) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/work/packages/client/src/ui/Minimap.ts'
+}
+
+Node.js v22.23.4

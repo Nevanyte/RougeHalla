@@ -1,0 +1,13 @@
+/repo/node_modules/@colyseus/schema/src/encoding/assert.ts:65
+        throw new EncodeSchemaError(`a '${type.name}' was expected, but '${value && (value as any).constructor.name}' was provided in ${instance.constructor.name}#${field}`);
+              ^
+
+EncodeSchemaError: a 'PlayerState' was expected, but 'Object' was provided in MapSchema#flight-shooter
+    at assertInstanceType (/repo/node_modules/@colyseus/schema/src/encoding/assert.ts:65:15)
+    at MapSchema.set (/repo/node_modules/@colyseus/schema/src/types/custom/MapSchema.ts:153:13)
+    at captureJoinDisclosure (/repo/tools/bot-public-facts-fixtures/flight.mts:288:28)
+    at runStep (/repo/tools/bot-public-facts-fixtures/flight.mts:406:29)
+    at captureFlightWitness (/repo/tools/bot-public-facts-fixtures/flight.mts:435:5)
+    at <anonymous> (/capture-runner.mjs:3:21)
+
+Node.js v22.23.4

@@ -1,0 +1,72 @@
+{
+  "format": "rh-bot-public-facts-evidence/1",
+  "baseRevision": "a3d4b3ce575442c9a06916888035ca849a6cd05a",
+  "sourceCommit": "30467ff47be51681cfb3ada4fbf86d3021be8db2",
+  "fixture": {
+    "path": "parity/policy/bot-public-facts/source.json",
+    "bytes": 119206,
+    "sha256": "80fe51a44d91e30e617308464bde3137bdeae6bc52f801c30d03e4bec1030850"
+  },
+  "runtime": {
+    "node": "v22.23.4",
+    "platform": "linux",
+    "arch": "x64",
+    "image": "node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292"
+  },
+  "commands": [
+    {
+      "command": "bash tools/bot-public-facts-fixtures/capture.sh",
+      "exit": 0,
+      "elapsedSeconds": 8.847,
+      "receipt": "logs/capture-and-bytecheck.log",
+      "claims": "one capture plus one byte-exact check"
+    },
+    {
+      "command": "bash tools/bot-public-facts-fixtures/controls.sh ABSOLUTE_EXTERNAL_OUTPUT",
+      "exit": 0,
+      "elapsedSeconds": 11.788,
+      "receipt": "logs/controls-run.log",
+      "claims": "pristine; two source semantic kills; one comment provenance nonkill; exact restored capture"
+    }
+  ],
+  "controls": {
+    "pristine": true,
+    "semanticKills": 2,
+    "commentProvenanceNonkills": 1,
+    "restored": true,
+    "compileImportFailuresCountedAsKills": false,
+    "semanticNormalization": "remove only top-level profile",
+    "receipt": "controls/controls.json"
+  },
+  "finalAudit": {
+    "currentPinCounts": {
+      "source": 333,
+      "config": 8,
+      "tools": 8,
+      "contracts": 2
+    },
+    "allCurrentPinsMatch": true,
+    "all343BaselinePinsMatchExactGitBase": true,
+    "baselineTrackedFilesUnchanged": true,
+    "sourceDelta": "nine additions only in the two new source/fixture directories",
+    "staticChecks": [
+      "bash -n both shell wrappers",
+      "node --check controls.mjs",
+      "node --check verify.mjs"
+    ],
+    "receipt": "logs/final-audit.log"
+  },
+  "status": "BOUNDED_SOURCE_EVIDENCE_ONLY; unsupported scenes, privacy/lifetime/rebase/cap and implementation gates remain",
+  "notClaimed": [
+    "World-earned NPC death/return/respawn",
+    "human minimap retention parity",
+    "hidden gameplay or hidden Schema/socket proof",
+    "retained human windup after swap",
+    "positive juke or owner-immunity clock",
+    "full Brain reset/humanizer/action/survival proof",
+    "general rebase history/privacy equivalence",
+    "universal actor/projectile/rate/lifetime or protocol budget",
+    "native/P15 implementation or ADR approval",
+    "new browser/native/workspace/hosted/performance campaign"
+  ]
+}

@@ -1,0 +1,6 @@
+$ bash tools/bot-public-facts-fixtures/capture.sh
+{"mode":"--write","format":"rh-bot-public-facts-source/1","bytes":119210,"sha256":"55b4b73f14475cc44eac8a645e68aa4a3ac17ef045464f73ff955a12c861d3c8","sourcePins":333,"toolPins":8}
+{"mode":"--check","format":"rh-bot-public-facts-source/1","bytes":119210,"sha256":"55b4b73f14475cc44eac8a645e68aa4a3ac17ef045464f73ff955a12c861d3c8","sourcePins":333,"toolPins":8}
+
+exit=0
+elapsed_seconds=9.156

@@ -1,0 +1,4 @@
+exit=0 signal=null
+--- stdout ---
+{"mode":"--write","format":"rh-bot-public-facts-source/1","bytes":119206,"sha256":"80fe51a44d91e30e617308464bde3137bdeae6bc52f801c30d03e4bec1030850","sourcePins":333,"toolPins":8}
+--- stderr ---

@@ -1,0 +1,20 @@
+$ bash tools/bot-public-facts-fixtures/capture.sh
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: wall history public identity relations should match under one fixed id bijection
+    at captureNpcWitness (/repo/tools/bot-public-facts-fixtures/npc.mts:304:3)
+    at <anonymous> (/repo/tools/bot-public-facts-fixtures/capture.mts:26:26) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v22.23.4
+
+exit=1
+elapsed_seconds=8.058

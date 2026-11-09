@@ -1,0 +1,5 @@
+$ bash tools/bot-public-facts-fixtures/controls.sh /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/bot-public-facts-source/repo/docs/evidence/bot-public-facts-source/controls
+{"semanticKills":2,"provenanceNonkills":1,"pristine":true,"restored":true}
+
+exit=0
+elapsed_seconds=11.788

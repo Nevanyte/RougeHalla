@@ -1,0 +1,38 @@
+Base a3d4b3ce575442c9a06916888035ca849a6cd05a
+Tracked baseline diff: empty
+[
+  {
+    "group": "sourceSha256",
+    "pins": 333,
+    "current_matches": true,
+    "git_base_matches": true
+  },
+  {
+    "group": "configSha256",
+    "pins": 8,
+    "current_matches": true,
+    "git_base_matches": true
+  },
+  {
+    "group": "contractInputs",
+    "pins": 2,
+    "current_matches": true,
+    "git_base_matches": true
+  },
+  {
+    "group": "toolSha256",
+    "pins": 8,
+    "current_matches": true,
+    "git_base_matches": false
+  }
+]
+$ bash -n tools/bot-public-facts-fixtures/capture.sh tools/bot-public-facts-fixtures/controls.sh
+
+exit=0
+$ node --check tools/bot-public-facts-fixtures/controls.mjs
+
+exit=0
+$ node --check tools/bot-public-facts-fixtures/verify.mjs
+
+exit=0
+No new capture, browser, Rust, native, hosted or performance test was run by this static/pin audit.

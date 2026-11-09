@@ -1,0 +1,22 @@
+exit=1 signal=null
+--- stdout ---
+--- stderr ---
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: actual human visibility gate must deny the occluded NPC
+
+true !== false
+
+    at verify (file:///work/tools/bot-public-facts-fixtures/verify.mjs:10:9)
+    at <anonymous> (/work/tools/bot-public-facts-fixtures/capture.mts:53:1) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: true,
+  expected: false,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v22.23.4
