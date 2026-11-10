@@ -244,6 +244,9 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
             "map_ext_context_hash" => BadMap("context hash"),
             "map_ext_trailing" => BadMap("extension trailing"),
             "welcome_trailing" => Trailing(1),
+            "welcome_archetype_order" => BadField("archetype order"),
+            "welcome_archetype_hull" => BadField("archetype hull"),
+            "welcome_archetype_zero_box" => BadField("archetype"),
             other => panic!("no expectation for {other}"),
         }
     };

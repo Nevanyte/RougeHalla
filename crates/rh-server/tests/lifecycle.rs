@@ -364,6 +364,7 @@ fn legacy_welcome(room_welcome: &[u8], arena: &Arena) -> Vec<u8> {
         tick_rate,
         tick,
         server_ms,
+        archetypes,
         map,
     } = ServerMsg::decode(room_welcome).expect("a Welcome")
     else {
@@ -371,6 +372,7 @@ fn legacy_welcome(room_welcome: &[u8], arena: &Arena) -> Vec<u8> {
     };
     assert_eq!(map.tiles, arena.map.tiles, "the map the sim plays on");
     ServerMsg::Welcome {
+        archetypes,
         protocol,
         content_hash,
         match_id,

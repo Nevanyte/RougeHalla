@@ -34,7 +34,7 @@ namespace Roguehalla.Net.Tests
             throw new KeyNotFoundException(name);
         }
 
-        [Test] public void FixtureIsProtocolV14() { Assert.AreEqual(14, Wire.ProtocolVersion); Assert.AreEqual(Wire.ProtocolVersion, Fixture().GetProperty("protocol").GetInt32()); }
+        [Test] public void FixtureIsProtocolV16() { Assert.AreEqual(16, Wire.ProtocolVersion); Assert.AreEqual(Wire.ProtocolVersion, Fixture().GetProperty("protocol").GetInt32()); }
 
         [TestCaseSource(nameof(ClientVectors))]
         public void ClientVectorRoundTripsByteForByte(string name, string hex)
@@ -249,12 +249,28 @@ namespace Roguehalla.Net.Tests
         }
 
         [Test]
+        public void WelcomeCarriesTheArchetypeTableRustWrote()
+        {
+            var w = (ServerMsg.Welcome)ServerMsg.Decode(Util.FromHex(SrvHex("welcome")));
+            Assert.AreEqual(3, w.Archetypes.Length);
+            var circle = w.Archetypes[0];
+            Assert.AreEqual((0, "legacy_circle", 0, 12, 0), (circle.Id, circle.Key, circle.Hull, circle.R, circle.Chest));
+            var hero = WireArchetype.Find(w.Archetypes, 1);
+            Assert.AreEqual(("hero", 1, 10, 6, 16, 35), (hero.Key, hero.Hull, hero.Fx, hero.Fy, hero.Bx, hero.By));
+            Assert.AreEqual((0, -30, 30), (hero.Ox, hero.Oy, hero.Chest));
+            Assert.AreEqual("mob-zombie", WireArchetype.Find(w.Archetypes, 12).Key);
+            Assert.IsNull(WireArchetype.Find(w.Archetypes, 2));
+            CollectionAssert.AreEqual(Util.FromHex(SrvHex("welcome")), w.Encode());
+        }
+
+        [Test]
         public void MapWithWrongHashOrRunsIsRejected()
         {
             var good = ServerMsg.Decode(Util.FromHex(SrvHex("welcome")));
             byte[] f = good.Encode();
-            // The hash sits right after the 4 size bytes of the map blob; the blob starts at 1+2+8+16+4+16+1+4+8 = 60.
-            f[64] ^= 1;
+            // The hash sits right after the 4 size bytes of the map blob; the blob follows the 60-byte header and the archetype
+            // table (protocol 16), so it starts EncodedLength bytes before the end.
+            f[f.Length - ((ServerMsg.Welcome)good).Map.EncodedLength + 4] ^= 1;
             Assert.AreEqual(DecodeError.BadMap, Assert.Throws<DecodeException>(() => ServerMsg.Decode(f)).Error);
         }
 
@@ -792,6 +808,7 @@ namespace Roguehalla.Net.Tests
                     want = DecodeError.BadMap; break;
                 case "map_ext_mode": want = DecodeError.BadField; break;
                 case "welcome_trailing": want = DecodeError.Trailing; break;
+                case "welcome_archetype_order": case "welcome_archetype_hull": case "welcome_archetype_zero_box": want = DecodeError.BadField; break;
                 default: throw new KeyNotFoundException("no expectation for " + name);
             }
             Assert.AreEqual(want, Assert.Throws<DecodeException>(() => ServerMsg.Decode(Util.FromHex(hex)), name).Error, name);

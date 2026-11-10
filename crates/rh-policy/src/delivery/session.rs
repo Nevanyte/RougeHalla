@@ -105,7 +105,7 @@ impl DeliverySession {
             fx_batches.push(FxBatch { tick, fx });
         }
         let context = FrameContext14 {
-            protocol: 14,
+            protocol: rh_protocol::PROTOCOL_VERSION,
             epoch: self.epoch,
             sample: SampleId(self.next),
             viewer,

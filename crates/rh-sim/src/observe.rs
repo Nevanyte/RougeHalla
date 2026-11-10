@@ -17,7 +17,7 @@ use crate::sim::{Event, Phase, PlayerId, Sim, Status};
 use crate::state::Player;
 use crate::vision::{actor_with, scene_line_blocked};
 
-pub const OBSERVATION_VERSION: u16 = 21;
+pub const OBSERVATION_VERSION: u16 = 22;
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SelfView {
@@ -55,6 +55,8 @@ pub struct SelfView {
     pub hunt_stacks: u32,
     pub corpse_stacks: u16,
     pub plague_zombie: Option<PlayerId>,
+    /// The own hitbox row (ADR0024): public, derived from the kind and faction.
+    pub archetype: crate::archetype::ArchetypeId,
 }
 
 /// Native actor identity; public protocol tags are checked by the server adapter.
@@ -96,6 +98,8 @@ pub struct ActorView {
     pub status: Status,
     pub weapon: Option<WeaponId>,
     pub bounty: u32,
+    /// The hitbox row (ADR0024): public, derived from the kind, faction and catalog mob type.
+    pub archetype: crate::archetype::ArchetypeId,
 }
 
 /// An event the observer could perceive.
@@ -736,6 +740,7 @@ pub(crate) fn observe_with(
             hunt_stacks: u32::from(p.hunt_stacks),
             corpse_stacks: u16::from(p.farm.corpse_stacks()),
             plague_zombie: crate::systems::plague_zombies::zombie_of(&sim.w, p.id),
+            archetype: p.archetype,
         })
     } else {
         None
@@ -788,6 +793,7 @@ pub(crate) fn observe_with(
                     status: o.status,
                     weapon: Some(o.active_weapon()),
                     bounty: o.credit.bounty,
+                    archetype: o.archetype,
                 });
             }
         }
@@ -1053,6 +1059,7 @@ fn mob_view(
         status: mob.status,
         weapon: (mob.kind != crate::mob_runtime::MobKind::QuestGiver).then(|| core.active_weapon()),
         bounty: 0,
+        archetype: core.archetype,
     })
 }
 

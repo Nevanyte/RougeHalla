@@ -66,7 +66,7 @@ fn delta_zero_explicitly_clears_hunt_and_never_looks_like_a_zero_actor_reference
     assert_eq!(ServerMsg::decode(&bytes).unwrap(), clear);
     assert!(make(Some(0)).try_encode().is_err());
     assert_eq!(DH_TRAINING, 1 << 20);
-    assert_eq!(DH_KNOWN, (1 << 25) - 1);
+    assert_eq!(DH_KNOWN, (1 << 26) - 1);
     assert_eq!(
         DH_FIELDS & DH_TRAINING,
         0,

@@ -95,7 +95,7 @@ fn snapshot(f: &Frame14) -> ServerMsg {
 }
 fn context(viewer: u32, sample: u64) -> FrameContext14 {
     FrameContext14 {
-        protocol: 14,
+        protocol: rh_protocol::PROTOCOL_VERSION,
         epoch: Epoch(1),
         sample: SampleId(sample),
         viewer: PlayerRef::new(viewer).unwrap(),
@@ -1542,7 +1542,7 @@ fn actual_human_bot_async_handshake_delivers_frame14_and_submits_real_nonempty_c
             .expect("real delegated HumanBot callback ack");
         assert_eq!((context.sample, context.epoch), (token.sample, token.epoch));
         assert_eq!(context.viewer, PlayerRef::new(1).unwrap());
-        assert_eq!(context.protocol, 14);
+        assert_eq!(context.protocol, rh_protocol::PROTOCOL_VERSION);
         real_output.extend(commands);
         samples += 1;
         // Ack is issued before the worker posts its reply. Yield to that real sender until poll

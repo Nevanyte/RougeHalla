@@ -122,6 +122,8 @@ namespace Roguehalla.Net
         public ushort HuntStacks;
         public float Barrier;
         public byte BarrierRingStep;
+        /// <summary>The own hitbox archetype id (protocol 16, ADR0024); look the row up in <see cref="Session.Archetypes"/>.</summary>
+        public byte Archetype;
         public WishView? Wish;
         public OwnerCombatView? OwnerCombat;
 
@@ -143,7 +145,7 @@ namespace Roguehalla.Net
             Status = (ActorStatus)w.Status; Weapon = (WeaponId)w.Weapon; ReadyInMs = w.ReadyInMs; Kills = w.Kills; Bounty = w.Bounty;
             HuntTarget = w.HuntTarget; HuntStacks = w.HuntStacks;
             Gv = w.Gv; MoveSeq = w.MoveSeq; Effects = w.Effects; DisplaceSeq = w.DisplaceSeq; SelfSig=w.Sig;
-            Barrier = w.Barrier; BarrierRingStep = w.BarrierRingStep;
+            Barrier = w.Barrier; BarrierRingStep = w.BarrierRingStep; Archetype = w.Archetype;
             Wish = w.Wish == null ? (WishView?)null : WishView.From(w.Wish);
             OwnerCombat = ownerCombat == null ? (OwnerCombatView?)null : new OwnerCombatView(ownerCombat);
         }

@@ -5,6 +5,7 @@ use rh_protocol::*;
 
 fn actor(i: u32) -> WireActor {
     WireActor {
+        archetype: Default::default(),
         sig: 0,
         mob_type_code: 0,
         effects: 0,
@@ -26,6 +27,7 @@ fn actor(i: u32) -> WireActor {
 
 fn me() -> WireSelf {
     WireSelf {
+        archetype: Default::default(),
         sig: 0,
         effects: 0,
         displace_seq: 0,

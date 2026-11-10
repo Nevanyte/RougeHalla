@@ -198,7 +198,7 @@ impl Client {
                     map,
                     ..
                 } => {
-                    assert_eq!(protocol, 14);
+                    assert_eq!(protocol, rh_protocol::PROTOCOL_VERSION);
                     client.room = match_id;
                     client.session = session;
                     client.map = Some(map);

@@ -394,7 +394,8 @@ fn state_sample() -> ServerMsg {
                     x: 800,
                     y: 900,
                     facing: 12345,
-                    owner: Some(1)
+                    owner: Some(1),
+                    height: 30,
                 };
                 2
             ]),
@@ -673,6 +674,7 @@ fn state_all_max_budget() -> ServerMsg {
             y: u16::MAX,
             facing: u16::MAX,
             owner: Some(u32::MAX - i),
+            height: u8::MAX,
         })
         .collect();
     let plan = WirePlan {
@@ -767,8 +769,52 @@ fn state_all_max_budget() -> ServerMsg {
     msg
 }
 
+/// A sample archetype table (protocol 16): the legacy circle and two boxed rows, one with an id gap.
+pub fn sample_archetypes() -> Vec<WireArchetype> {
+    vec![
+        WireArchetype {
+            id: 0,
+            key: "legacy_circle".into(),
+            hull: WireHull::Circle { r: 12 },
+            chest: 0,
+        },
+        WireArchetype {
+            id: 1,
+            key: "hero".into(),
+            hull: WireHull::Boxes {
+                fx: 10,
+                fy: 6,
+                bx: 16,
+                by: 35,
+                ox: 0,
+                oy: -30,
+            },
+            chest: 30,
+        },
+        WireArchetype {
+            id: 12,
+            key: "mob-zombie".into(),
+            hull: WireHull::Boxes {
+                fx: 10,
+                fy: 6,
+                bx: 9,
+                by: 21,
+                ox: 0,
+                oy: -21,
+            },
+            chest: 21,
+        },
+    ]
+}
+
+/// Writes an archetype table without checking it (for decoder refusal tests).
+pub fn write_archetype_table_for_tests(w: &mut Writer, rows: &[WireArchetype]) {
+    crate::archetype::write_table(w, rows);
+}
+
 fn welcome_map_msg(map: MapBlob) -> ServerMsg {
     ServerMsg::Welcome {
+        archetypes: sample_archetypes(),
         protocol: PROTOCOL_VERSION,
         content_hash: 0x0102_0304_0506_0708,
         match_id: [1; 16],
@@ -1169,6 +1215,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     sig: 29,
                     barrier_pct: 11,
                     barrier_ring_step: 2,
+                    archetype: 1,
                 }],
             },
         ),
@@ -2165,6 +2212,36 @@ fn snapshot_bytes(head: u32, body: &[u8], count: u32, actors: &[u8]) -> Vec<u8> 
 
 /// A Welcome whose map is `w` x `h` with these (tile, length) runs and `hash` (by default the true hash of the tiles the
 /// runs spell, so only the named fault is wrong).
+/// A Welcome whose archetype table has rows `(id, shape)`: shape 0 a circle of radius 12, 1 a hero box row, 2 an unknown
+/// hull tag, 3 a box with a zero half-extent. A valid 1x1 map follows.
+fn welcome_archetypes(rows: &[(u8, u8)]) -> Vec<u8> {
+    let good = welcome_map(1, 1, None, &[(1, 1)]);
+    let mut table = Writer::default();
+    table.u8(rows.len() as u8);
+    for &(id, shape) in rows {
+        table.u8(id);
+        table.str("k");
+        match shape {
+            0 => {
+                table.u8(0);
+                table.u8(12);
+            }
+            2 => table.u8(2),
+            _ => {
+                table.u8(1);
+                for v in [if shape == 3 { 0 } else { 10 }, 6, 16, 35, 0, (-30i8) as u8] {
+                    table.u8(v);
+                }
+            }
+        }
+        table.u8(30);
+    }
+    let mut out = good[..WELCOME_HEADER_LEN].to_vec();
+    out.extend(table.finish());
+    out.extend_from_slice(&good[WELCOME_HEADER_LEN + 1..]);
+    out
+}
+
 fn welcome_map(w: u16, h: u16, hash: Option<u32>, runs: &[(u8, u16)]) -> Vec<u8> {
     let tiles: Vec<u8> = runs
         .iter()
@@ -2180,6 +2257,8 @@ fn welcome_map(w: u16, h: u16, hash: Option<u32>, runs: &[(u8, u16)]) -> Vec<u8>
     b.u8(20);
     b.u32(0);
     b.f64(0.0);
+    // An empty archetype table (protocol 16).
+    b.u8(0);
     b.u16(w);
     b.u16(h);
     b.u32(hash.unwrap_or_else(|| crate::map::layer_hash(w as u32, h as u32, &tiles)));
@@ -2218,11 +2297,15 @@ fn ground_welcome_bytes(
     w.u8(20);
     w.u32(0);
     w.f64(0.0);
+    // An empty archetype table (protocol 16).
+    w.u8(0);
     map.write(&mut w);
     w.finish()
 }
 
+/// `at` is the offset in the frame without the archetype table (the one-byte empty table moves the map by one).
 fn mutate_ground_welcome(mut frame: Vec<u8>, at: usize, bytes: &[u8]) -> Vec<u8> {
+    let at = at + 1;
     frame[at..at + bytes.len()].copy_from_slice(bytes);
     frame
 }
@@ -3082,11 +3165,11 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ("state_too_many_projectiles", vec![0x88, 0, 1, 7, 0x81, 4]),
         (
             "projectile_kind",
-            vec![0x88, 0, 1, 7, 1, 2, 0, 0, 0, 0, 0, 0, 0],
+            vec![0x88, 0, 1, 7, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0],
         ),
         (
             "projectile_owner_zero",
-            vec![0x88, 0, 1, 7, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+            vec![0x88, 0, 1, 7, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
         ),
         (
             "projectile_owner_flag",
@@ -3143,7 +3226,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
             snapshot_bytes(0x0002, &[], 0, &[]),
         ),
         // Bit 13 is not a field of this version: a mask bit a decoder does not know is refused, never skipped.
-        ("head_unknown_bit", snapshot_bytes(1 << 21, &[], 0, &[])),
+        ("head_unknown_bit", snapshot_bytes(1 << 22, &[], 0, &[])),
         ("wish_ability_over_4", {
             let mut w = valid_wish();
             w[0] = 5;
@@ -3294,7 +3377,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ("actor_count_without_actors", snapshot_bytes(0, &[], 1, &[])),
         (
             "actor_reserved_mask_bit",
-            snapshot_bytes(0, &[], 1, &actor_bytes(0x400, &[])),
+            snapshot_bytes(0, &[], 1, &actor_bytes(0x800, &[])),
         ),
         (
             "actor_id_gap_zero",
@@ -3346,7 +3429,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         // Kind and status/displacement bits are known; bit 9 is not.
         (
             "actor_unknown_mask_bit_after_kind",
-            snapshot_bytes(0, &[], 1, &actor_bytes(1 << 10, &[])),
+            snapshot_bytes(0, &[], 1, &actor_bytes(1 << 11, &[])),
         ),
         (
             "actor_hp_over_100",
@@ -3519,6 +3602,9 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ("server_bad_utf8", vec![0x82, 7, 0, 2, 0xc3, 0x28]),
         // Welcome maps: every MapBlob rule, one fault each.
         ("map_zero_size", welcome_map(0, 4, None, &[])),
+        ("welcome_archetype_order", welcome_archetypes(&[(1, 0), (1, 0)])),
+        ("welcome_archetype_hull", welcome_archetypes(&[(0, 2)])),
+        ("welcome_archetype_zero_box", welcome_archetypes(&[(0, 3)])),
         ("map_too_large", welcome_map(2048, 1024, None, &[(0, 1)])),
         ("map_bad_tile", welcome_map(1, 1, None, &[(3, 1)])),
         ("map_zero_run", welcome_map(1, 1, None, &[(0, 0), (0, 1)])),
@@ -3559,9 +3645,10 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ),
         ("map_ext_run_zero", {
             let mut frame = ground_welcome_bytes(Some(vec![0]), None, crate::GroundMode::Off);
-            frame[85..89].copy_from_slice(&0u32.to_le_bytes());
-            frame.drain(89..92);
-            frame[75..79].copy_from_slice(&15u32.to_le_bytes());
+            // Offsets include the one-byte empty archetype table (protocol 16).
+            frame[86..90].copy_from_slice(&0u32.to_le_bytes());
+            frame.drain(90..93);
+            frame[76..80].copy_from_slice(&15u32.to_le_bytes());
             frame
         }),
         (
@@ -3623,7 +3710,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ("map_ext_trailing", {
             let mut frame = ground_welcome_bytes(None, None, crate::GroundMode::Off);
             frame.push(0);
-            frame[75..79].copy_from_slice(&12u32.to_le_bytes());
+            frame[76..80].copy_from_slice(&12u32.to_le_bytes());
             frame
         }),
         ("welcome_trailing", {
@@ -3673,6 +3760,7 @@ fn wa(id: u32, x: f32, y: f32, hp_pct: u8, status: u8) -> WireActor {
         kind: 0,
         barrier_pct: 0,
         barrier_ring_step: 0,
+        archetype: (id % 13) as u8,
     }
 }
 
@@ -3700,6 +3788,7 @@ fn chain_self(x: f32) -> WireSelf {
         wish: None,
         barrier: 0.0,
         barrier_ring_step: 0,
+        archetype: 3,
     }
 }
 
@@ -4723,7 +4812,7 @@ pub fn malformed_deltas() -> Vec<(&'static str, Vec<u8>)> {
             delta_bytes(10, 1, DH_X, &[0]),
         ),
         // Bit 25 is not a field of this version; bit 24 carries owner combat.
-        ("delta_head_unknown_bit", delta_bytes(10, 1, 1 << 25, &[0])),
+        ("delta_head_unknown_bit", delta_bytes(10, 1, 1 << 26, &[0])),
         (
             "delta_owner_combat_option_unknown",
             delta_owner(2, &[], false),
@@ -4757,10 +4846,10 @@ pub fn malformed_deltas() -> Vec<(&'static str, Vec<u8>)> {
             delta_bytes(10, 1, DH_PRESENT | DH_STATUS, &[4, 0]),
         ),
         ("delta_phase_over_3", delta_bytes(10, 1, DH_PHASE, &[4, 0])),
-        // Actor delta bit 13 is not a field of this version.
+        // Actor delta bit 14 is not a field of this version.
         (
             "delta_actor_mask_unknown_bit",
-            delta_bytes(10, 1, 0, &[1, 1, 0x80, 0x40]),
+            delta_bytes(10, 1, 0, &[1, 1, 0x80, 0x80, 0x01]),
         ),
         (
             "delta_actor_status_over_3",
@@ -4900,7 +4989,7 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
     let me = match me {
         None => "null".to_string(),
         Some(s) => format!(
-            "{{\"id\": {}, \"faction\": {}, \"xBits\": {}, \"yBits\": {}, \"facingBits\": {}, \"hpBits\": {}, \"maxHpBits\": {}, \"status\": {}, \"weapon\": {}, \"readyInMs\": {}, \"kills\": {}, \"bounty\": {}, \"gv\": {}, \"moveSeq\": {}, \"effects\": {}, \"displaceSeq\": {}, \"sig\": {}, \"huntTarget\": {}, \"huntStacks\": {}, \"wish\": {}, \"barrierBits\": {}, \"barrierRingStep\": {}}}",
+            "{{\"id\": {}, \"faction\": {}, \"xBits\": {}, \"yBits\": {}, \"facingBits\": {}, \"hpBits\": {}, \"maxHpBits\": {}, \"status\": {}, \"weapon\": {}, \"readyInMs\": {}, \"kills\": {}, \"bounty\": {}, \"gv\": {}, \"moveSeq\": {}, \"effects\": {}, \"displaceSeq\": {}, \"sig\": {}, \"huntTarget\": {}, \"huntStacks\": {}, \"wish\": {}, \"barrierBits\": {}, \"barrierRingStep\": {}, \"archetype\": {}}}",
             s.id,
             s.faction,
             bits(s.x),
@@ -4922,14 +5011,15 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
             s.hunt_stacks,
             json_wish(s.wish),
             bits(s.barrier),
-            s.barrier_ring_step
+            s.barrier_ring_step,
+            s.archetype
         ),
     };
     let actors: Vec<String> = actors
         .iter()
         .map(|a| {
             format!(
-                "{{\"id\": {}, \"faction\": {}, \"xBits\": {}, \"yBits\": {}, \"facingBits\": {}, \"hpPct\": {}, \"status\": {}, \"weapon\": {}, \"bounty\": {}, \"kind\": {}, \"effects\": {}, \"displaceSeq\": {}, \"mobTypeCode\": {}, \"sig\": {}, \"barrierPct\": {}, \"barrierRingStep\": {}}}",
+                "{{\"id\": {}, \"faction\": {}, \"xBits\": {}, \"yBits\": {}, \"facingBits\": {}, \"hpPct\": {}, \"status\": {}, \"weapon\": {}, \"bounty\": {}, \"kind\": {}, \"effects\": {}, \"displaceSeq\": {}, \"mobTypeCode\": {}, \"sig\": {}, \"barrierPct\": {}, \"barrierRingStep\": {}, \"archetype\": {}}}",
                 a.id,
                 a.faction,
                 bits(a.x),
@@ -4939,7 +5029,8 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
                 a.status,
                 a.weapon,
                 a.bounty,
-                a.kind, a.effects, a.displace_seq, a.mob_type_code, a.sig, a.barrier_pct, a.barrier_ring_step
+                a.kind, a.effects, a.displace_seq, a.mob_type_code, a.sig, a.barrier_pct, a.barrier_ring_step,
+                a.archetype
             )
         })
         .collect();
@@ -4952,9 +5043,35 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
 }
 
 fn decoded_map_json(m: &ServerMsg) -> String {
-    let ServerMsg::Welcome { map, .. } = m else {
+    let ServerMsg::Welcome {
+        map, archetypes, ..
+    } = m
+    else {
         unreachable!()
     };
+    let rows: Vec<String> = archetypes
+        .iter()
+        .map(|a| {
+            let hull = match a.hull {
+                WireHull::Circle { r } => format!("\"hull\":0,\"r\":{r}"),
+                WireHull::Boxes {
+                    fx,
+                    fy,
+                    bx,
+                    by,
+                    ox,
+                    oy,
+                } => format!(
+                    "\"hull\":1,\"fx\":{fx},\"fy\":{fy},\"bx\":{bx},\"by\":{by},\"ox\":{ox},\"oy\":{oy}"
+                ),
+            };
+            format!(
+                "{{\"id\":{},\"key\":\"{}\",{hull},\"chest\":{}}}",
+                a.id, a.key, a.chest
+            )
+        })
+        .collect();
+    let archetypes = rows.join(",");
     let nums = |values: &[u8]| {
         values
             .iter()
@@ -4966,7 +5083,7 @@ fn decoded_map_json(m: &ServerMsg) -> String {
         values.map_or_else(|| "null".to_string(), |v| format!("[{}]", nums(v)))
     };
     format!(
-        "{{\"map\":{{\"w\":{},\"h\":{},\"tiles\":[{}],\"layerHash\":{},\"terrain\":{},\"regions\":{},\"terrainMode\":{},\"semanticHash\":{},\"contextHash\":{}}}}}",
+        "{{\"archetypes\":[{archetypes}],\"map\":{{\"w\":{},\"h\":{},\"tiles\":[{}],\"layerHash\":{},\"terrain\":{},\"regions\":{},\"terrainMode\":{},\"semanticHash\":{},\"contextHash\":{}}}}}",
         map.w,
         map.h,
         nums(&map.tiles),

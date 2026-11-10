@@ -3,6 +3,7 @@ use rh_protocol::*;
 
 fn self_view() -> WireSelf {
     WireSelf {
+        archetype: Default::default(),
         sig: 0,
         effects: 0,
         displace_seq: 0,

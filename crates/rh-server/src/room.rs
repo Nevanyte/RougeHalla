@@ -289,6 +289,12 @@ pub struct RoomStats {
     pub rewind_clamps: u64,
 }
 
+/// The hitbox archetype table every Welcome carries (protocol 16, ADR0024): built once from the sim's table.
+pub fn archetype_table() -> &'static [rh_protocol::WireArchetype] {
+    static TABLE: std::sync::OnceLock<Vec<rh_protocol::WireArchetype>> = std::sync::OnceLock::new();
+    TABLE.get_or_init(rh_policy::delivery::projection::wire_archetypes)
+}
+
 /// What every room of one map shares: the immutable arena and its Welcome map blob, RLE-encoded once. The director builds
 /// one per map; a room only clones the `Arc`s.
 #[derive(Clone)]
@@ -581,6 +587,7 @@ impl Room {
                 tick: self.sim.tick(),
                 server_ms: self.sim.server_time(),
             },
+            archetype_table(),
             &self.welcome_map,
             crate::public_ground::mode(self.sim.config().hazards),
         )

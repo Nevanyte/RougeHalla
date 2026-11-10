@@ -82,6 +82,7 @@ fn source_flight_records_project_without_ids_and_restore_identically() {
                 let facing = ((f64::from(angle) / (std::f64::consts::TAU / 65536.)).round() as i64
                     & 65535) as u16;
                 expected.push(ProjectileView {
+                    height: Default::default(),
                     kind,
                     x: q(x),
                     y: q(y),

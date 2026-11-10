@@ -7,6 +7,7 @@ use rh_protocol::*;
 
 fn actor(i: u32) -> WireActor {
     WireActor {
+        archetype: Default::default(),
         sig: 0,
         mob_type_code: 0,
         effects: 0,
@@ -28,6 +29,7 @@ fn actor(i: u32) -> WireActor {
 
 fn me() -> WireSelf {
     WireSelf {
+        archetype: Default::default(),
         sig: 0,
         effects: 0,
         displace_seq: 0,
@@ -352,6 +354,7 @@ fn welcome(map: MapBlob) -> ServerMsg {
         tick_rate: h.tick_rate,
         tick: h.tick,
         server_ms: h.server_ms,
+        archetypes: rh_protocol::samples::sample_archetypes(),
         map,
     }
 }
@@ -391,12 +394,18 @@ fn a_pre_encoded_map_gives_the_same_welcome() {
         let mode = map.terrain_mode;
         let msg = welcome(map);
         let want = msg.encode();
-        let got = encode_welcome(&welcome_header(), &pre, mode);
+        let got = encode_welcome(&welcome_header(), &rh_protocol::samples::sample_archetypes(), &pre, mode);
         assert_eq!(got, want);
         assert_eq!(got.capacity(), got.len());
         let mut out = vec![1];
         assert_eq!(
-            encode_welcome_into(&welcome_header(), &pre, mode, &mut out),
+            encode_welcome_into(
+                &welcome_header(),
+                &rh_protocol::samples::sample_archetypes(),
+                &pre,
+                mode,
+                &mut out
+            ),
             Ok(want.len())
         );
         assert_eq!(&out[1..], &want[..]);
@@ -414,8 +423,8 @@ fn cached_static_map_is_content_bound_while_mode_is_per_welcome() {
     assert!(!cached.matches_slices(2, 1, &tiles, Some(&[0, 5]), None));
     assert!(!cached.matches_slices(2, 1, &[0, 1], Some(&terrain), None));
 
-    let off = encode_welcome(&welcome_header(), &cached, GroundMode::Off);
-    let all = encode_welcome(&welcome_header(), &cached, GroundMode::All);
+    let off = encode_welcome(&welcome_header(), &[], &cached, GroundMode::Off);
+    let all = encode_welcome(&welcome_header(), &[], &cached, GroundMode::All);
     let ServerMsg::Welcome { map: off_map, .. } = ServerMsg::decode(&off).unwrap() else {
         panic!("welcome")
     };
@@ -573,4 +582,48 @@ fn positions_outside_the_quantizable_range_are_refused_not_clamped() {
         swing(f32::NAN, 0.0).try_encode(),
         Err(EncodeError::BadValue("position"))
     );
+}
+
+#[test]
+fn a_welcome_refuses_a_malformed_archetype_table() {
+    use rh_protocol::{WireArchetype, WireHull};
+    let good = rh_protocol::samples::sample_archetypes();
+    let pre = MapBlob::new(1, 1, vec![2]).pre_encode().unwrap();
+    let bytes = encode_welcome(&welcome_header(), &good, &pre, GroundMode::Off);
+    let ServerMsg::Welcome { archetypes, .. } = ServerMsg::decode(&bytes).unwrap() else {
+        panic!("welcome")
+    };
+    assert_eq!(archetypes, good);
+    let mut unordered = good.clone();
+    unordered.swap(0, 1);
+    let mut empty_key = good.clone();
+    empty_key[0].key.clear();
+    let mut zero_box = good.clone();
+    zero_box[1].hull = WireHull::Boxes {
+        fx: 0,
+        fy: 6,
+        bx: 16,
+        by: 35,
+        ox: 0,
+        oy: -30,
+    };
+    let too_many: Vec<_> = (0..=32u8)
+        .map(|id| WireArchetype {
+            id,
+            key: "k".into(),
+            hull: WireHull::Circle { r: 1 },
+            chest: 0,
+        })
+        .collect();
+    for bad in [unordered, empty_key, zero_box, too_many] {
+        let mut out = Vec::new();
+        assert!(encode_welcome_into(&welcome_header(), &bad, &pre, GroundMode::Off, &mut out).is_err());
+        // Forge the frame: the decoder refuses it too.
+        let mut forged = encode_welcome(&welcome_header(), &[], &pre, GroundMode::Off);
+        let mut table = Writer::default();
+        rh_protocol::samples::write_archetype_table_for_tests(&mut table, &bad);
+        let table = table.finish();
+        forged.splice(rh_protocol::WELCOME_HEADER_LEN..rh_protocol::WELCOME_HEADER_LEN + 1, table);
+        assert!(ServerMsg::decode(&forged).is_err());
+    }
 }

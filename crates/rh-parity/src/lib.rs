@@ -18,6 +18,7 @@ mod combat;
 mod fire_roam;
 mod frost;
 mod holy;
+pub mod hitbox_goldens;
 mod hunt;
 mod mapping;
 mod plague;

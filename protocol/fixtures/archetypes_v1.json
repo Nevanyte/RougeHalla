@@ -1,0 +1,303 @@
+{
+  "archetypes": [
+    {
+      "chest": 0.0,
+      "hull": {
+        "kind": "circle",
+        "r": 12.0
+      },
+      "id": 0,
+      "key": "legacy_circle"
+    },
+    {
+      "chest": 30.0,
+      "hull": {
+        "body": [
+          16.0,
+          35.0
+        ],
+        "bodyOffset": [
+          0.0,
+          -30.0
+        ],
+        "foot": [
+          10.0,
+          6.0
+        ],
+        "kind": "boxes"
+      },
+      "id": 1,
+      "key": "hero"
+    },
+    {
+      "chest": 33.0,
+      "hull": {
+        "body": [
+          15.0,
+          35.0
+        ],
+        "bodyOffset": [
+          0.0,
+          -33.0
+        ],
+        "foot": [
+          10.0,
+          6.0
+        ],
+        "kind": "boxes"
+      },
+      "id": 2,
+      "key": "hero-female"
+    },
+    {
+      "chest": 25.0,
+      "hull": {
+        "body": [
+          17.0,
+          28.0
+        ],
+        "bodyOffset": [
+          0.0,
+          -25.0
+        ],
+        "foot": [
+          10.0,
+          6.0
+        ],
+        "kind": "boxes"
+      },
+      "id": 3,
+      "key": "mage"
+    },
+    {
+      "chest": 27.0,
+      "hull": {
+        "body": [
+          17.0,
+          28.0
+        ],
+        "bodyOffset": [
+          0.0,
+          -27.0
+        ],
+        "foot": [
+          10.0,
+          6.0
+        ],
+        "kind": "boxes"
+      },
+      "id": 4,
+      "key": "mage-female"
+    },
+    {
+      "chest": 35.0,
+      "hull": {
+        "body": [
+          18.0,
+          37.0
+        ],
+        "bodyOffset": [
+          0.0,
+          -35.0
+        ],
+        "foot": [
+          10.0,
+          6.0
+        ],
+        "kind": "boxes"
+      },
+      "id": 5,
+      "key": "knight"
+    },
+    {
+      "chest": 19.0,
+      "hull": {
+        "body": [
+          17.0,
+          22.0
+        ],
+        "bodyOffset": [
+          0.0,
+          -19.0
+        ],
+        "foot": [
+          10.0,
+          6.0
+        ],
+        "kind": "boxes"
+      },
+      "id": 6,
+      "key": "goblin"
+    },
+    {
+      "chest": 31.0,
+      "hull": {
+        "body": [
+          18.0,
+          40.0
+        ],
+        "bodyOffset": [
+          0.0,
+          -31.0
+        ],
+        "foot": [
+          10.0,
+          6.0
+        ],
+        "kind": "boxes"
+      },
+      "id": 7,
+      "key": "skeleton"
+    },
+    {
+      "chest": 16.0,
+      "hull": {
+        "body": [
+          13.0,
+          18.0
+        ],
+        "bodyOffset": [
+          0.0,
+          -16.0
+        ],
+        "foot": [
+          10.0,
+          6.0
+        ],
+        "kind": "boxes"
+      },
+      "id": 8,
+      "key": "mob-goblin-elite"
+    },
+    {
+      "chest": 11.0,
+      "hull": {
+        "body": [
+          20.0,
+          18.0
+        ],
+        "bodyOffset": [
+          0.0,
+          -11.0
+        ],
+        "foot": [
+          10.0,
+          6.0
+        ],
+        "kind": "boxes"
+      },
+      "id": 9,
+      "key": "mob-antlion"
+    },
+    {
+      "chest": 21.0,
+      "hull": {
+        "body": [
+          14.0,
+          24.0
+        ],
+        "bodyOffset": [
+          0.0,
+          -21.0
+        ],
+        "foot": [
+          10.0,
+          6.0
+        ],
+        "kind": "boxes"
+      },
+      "id": 10,
+      "key": "mob-skeleton-archer"
+    },
+    {
+      "chest": 21.0,
+      "hull": {
+        "body": [
+          14.0,
+          23.0
+        ],
+        "bodyOffset": [
+          0.0,
+          -21.0
+        ],
+        "foot": [
+          10.0,
+          6.0
+        ],
+        "kind": "boxes"
+      },
+      "id": 11,
+      "key": "mob-skeleton-mage"
+    },
+    {
+      "chest": 21.0,
+      "hull": {
+        "body": [
+          9.0,
+          21.0
+        ],
+        "bodyOffset": [
+          0.0,
+          -21.0
+        ],
+        "foot": [
+          10.0,
+          6.0
+        ],
+        "kind": "boxes"
+      },
+      "id": 12,
+      "key": "mob-zombie"
+    }
+  ],
+  "assign": {
+    "dummy": 5,
+    "mob": {
+      "acolyte": 3,
+      "archon": 2,
+      "ashDrake": 9,
+      "avalancheTroll": 8,
+      "bailiff": 7,
+      "bloatfly": 9,
+      "bloodSaint": 4,
+      "chainWarden": 8,
+      "cinderHound": 9,
+      "emberImp": 6,
+      "executioner": 8,
+      "flameCaller": 11,
+      "frostWisp": 11,
+      "frostbowSentry": 10,
+      "gaoler": 11,
+      "glacialWarden": 7,
+      "iceGolem": 8,
+      "inquisitor": 10,
+      "magmaBrute": 8,
+      "miasmaWitch": 4,
+      "pardoner": 11,
+      "penitent": 12,
+      "plagueRat": 9,
+      "poxBehemoth": 12,
+      "ratOgre": 8,
+      "rimeStalker": 10,
+      "rotMonk": 12,
+      "seraphShard": 11,
+      "wyrmling": 8,
+      "zealot": 1
+    },
+    "mode": "Archetypes (LegacyCircle assigns id 0 to everyone)",
+    "player": {
+      "Fire": 1,
+      "Frost": 2,
+      "Holy": 4,
+      "Plague": 3,
+      "Sentenced": 1
+    },
+    "playerNeutral": 5,
+    "questGiver": 1,
+    "zombie": 12
+  },
+  "axes": "sim units; +x east, +y south (north is -y); the body box is centred at feet + bodyOffset; chest = -bodyOffset.y",
+  "contentHash": "d9479b6612616984",
+  "format": "rh-hitbox-archetypes/1",
+  "source": "crates/rh-sim/src/archetype.rs (ADR0024); the live client reads the same table from the protocol-16 Welcome"
+}

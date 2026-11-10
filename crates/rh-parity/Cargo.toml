@@ -34,3 +34,7 @@ trusted-status-probes = ["rh-sim/trusted-status-probes"]
 name = "status-probes"
 path = "src/bin/status_probes.rs"
 required-features = ["trusted-status-probes"]
+
+[[bin]]
+name = "hitbox-fixtures"
+path = "src/bin/hitbox_fixtures.rs"

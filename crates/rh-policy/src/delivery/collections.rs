@@ -432,6 +432,7 @@ fn projectiles(observation: &Observation) -> Vec<WireProjectile> {
         .projectiles
         .iter()
         .map(|p| WireProjectile {
+            height: p.height,
             kind: match p.kind {
                 rh_sim::ProjectileKind::Arrow => 0,
                 rh_sim::ProjectileKind::Ball => 1,
@@ -801,6 +802,7 @@ mod tests {
             respawn_at: 0.,
         });
         let flight = rh_sim::ProjectileView {
+            height: Default::default(),
             kind: rh_sim::ProjectileKind::Ball,
             x: 800,
             y: 900,
@@ -884,6 +886,7 @@ mod tests {
         let expected = publisher.prepare(&good, false, false, false).unwrap().frame;
         let mut invalid = Observation::default();
         invalid.projectiles.push(rh_sim::ProjectileView {
+            height: Default::default(),
             kind: rh_sim::ProjectileKind::Arrow,
             x: 0,
             y: 0,

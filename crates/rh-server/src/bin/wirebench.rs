@@ -482,6 +482,7 @@ fn run(
         all
     };
     let welcome = ServerMsg::Welcome {
+        archetypes: rh_server::room::archetype_table().to_vec(),
         protocol: rh_protocol::PROTOCOL_VERSION,
         content_hash: rh_sim::content::content_hash(),
         match_id: [0; 16],

@@ -60,6 +60,8 @@ pub const DH_BARRIER: u32 = 1 << 22;
 pub const DH_SERVER_TIME: u32 = 1 << 23;
 /// Owner-combat state changed; the field has a strict 0/1 availability tag.
 pub const DH_OWNER_COMBAT: u32 = 1 << 24;
+/// The self's hitbox archetype id changed (protocol 16): one byte after the barrier pair.
+pub const DH_ARCHETYPE: u32 = 1 << 25;
 pub const DH_FIELDS: u32 = 0x7e7e
     | DH_EFFECTS
     | DH_DISPLACE
@@ -67,7 +69,8 @@ pub const DH_FIELDS: u32 = 0x7e7e
     | DH_HUNT_TARGET
     | DH_HUNT_STACKS
     | DH_WISH
-    | DH_BARRIER;
+    | DH_BARRIER
+    | DH_ARCHETYPE;
 pub const DH_KNOWN: u32 = DH_PRESENT
     | DH_FIELDS
     | DH_PHASE
@@ -94,7 +97,9 @@ pub const AD_MOB_TYPE: u32 = 1 << 10;
 pub const AD_SIG: u32 = 1 << 11;
 /// Source barrier share and ring pair (protocol 12).
 pub const AD_BARRIER: u32 = 1 << 12;
-pub const AD_ALL: u32 = 0x1fff;
+/// Hitbox archetype id (protocol 16). An entity's archetype never changes, so only a new actor carries it.
+pub const AD_ARCHETYPE: u32 = 1 << 13;
+pub const AD_ALL: u32 = 0x3fff;
 /// What a new actor (one the base does not hold) must carry: its position. Every other field starts at its default.
 pub const AD_NEW: u32 = AD_X | AD_Y | AD_FACING;
 
@@ -105,12 +110,12 @@ const MIN_ACTOR: usize = 1 + 1 + 6;
 
 /// Largest self delta after the head: x, y, facing, hp, max_hp (4 each), kit, ready (2), kills, bounty, gv (3 each),
 /// move_seq, status, phase, effects (2), displacement, sig.
-const MAX_SELF_DELTA: usize = 20 + 1 + 2 + 9 + 1 + 1 + 1 + 2 + 1 + 1 + 5 + 3 + 56 + 5;
+const MAX_SELF_DELTA: usize = 20 + 1 + 2 + 9 + 1 + 1 + 1 + 2 + 1 + 1 + 5 + 3 + 56 + 5 + 1;
 /// Largest delta head: tag, tick (5), age, ack (5), head (1 placeholder), the self delta, the changed count (3).
 const MAX_DELTA_HEAD: usize =
     1 + 5 + 1 + 5 + 5 + MAX_SELF_DELTA + 8 + 3 + 1 + 1 + 5 + 8 + 8 + 8 + 8;
 /// Largest changed-actor record: id 5, mask 2, x/y/facing 6, kit/hp, bounty 3, status/kind, effects 2, displacement/mob type/sig.
-const MAX_ACTOR_DELTA: usize = 5 + 2 + 6 + 1 + 1 + 3 + 1 + 1 + 2 + 1 + 1 + 1 + 2;
+const MAX_ACTOR_DELTA: usize = 5 + 2 + 6 + 1 + 1 + 3 + 1 + 1 + 2 + 1 + 1 + 1 + 2 + 1;
 
 fn optional_f64_bits_equal(a: Option<f64>, b: Option<f64>) -> bool {
     match (a, b) {
@@ -167,6 +172,7 @@ pub struct QActor {
     pub mob_type_code: u8,
     pub barrier_pct: u8,
     pub barrier_ring_step: u8,
+    pub archetype: u8,
 }
 
 impl QActor {
@@ -187,6 +193,7 @@ impl QActor {
         sig: 0,
         barrier_pct: 0,
         barrier_ring_step: 0,
+        archetype: 0,
     };
 
     /// `a` checked and quantized: the first reason a decoder would reject the actor on its own (a faction, weapon or status over
@@ -220,6 +227,7 @@ impl QActor {
             sig: a.sig,
             barrier_pct: a.barrier_pct,
             barrier_ring_step: a.barrier_ring_step,
+            archetype: a.archetype,
         }
     }
 
@@ -242,6 +250,7 @@ impl QActor {
             sig: self.sig,
             barrier_pct: self.barrier_pct,
             barrier_ring_step: self.barrier_ring_step,
+            archetype: self.archetype,
         }
     }
 
@@ -279,6 +288,9 @@ impl QActor {
         if self.barrier_pct != 0 || self.barrier_ring_step != 0 {
             m |= AM_BARRIER;
         }
+        if self.archetype != 0 {
+            m |= AM_ARCHETYPE;
+        }
         m
     }
 
@@ -302,6 +314,7 @@ impl QActor {
             + (self.mob_type_code != 0) as usize
             + (self.sig != 0) as usize
             + 2 * (self.barrier_pct != 0 || self.barrier_ring_step != 0) as usize
+            + (self.archetype != 0) as usize
     }
 }
 
@@ -345,6 +358,9 @@ fn write_full_actor(out: &mut Writer, q: &QActor, prev: Option<u32>) {
     if m & AM_BARRIER != 0 {
         w.u8(q.barrier_pct);
         w.u8(q.barrier_ring_step);
+    }
+    if m & AM_ARCHETYPE != 0 {
+        w.u8(q.archetype);
     }
     w.put(out);
 }
@@ -866,6 +882,7 @@ fn actor_delta_mask(p: &QActor, q: &QActor) -> u32 {
         | ((p.sig != q.sig) as u32) << 11
         | ((p.barrier_pct != q.barrier_pct || p.barrier_ring_step != q.barrier_ring_step) as u32)
             << 12
+        | ((p.archetype != q.archetype) as u32) << 13
 }
 
 /// The mask of a NEW actor: its position, and every other field that is not the default.
@@ -976,6 +993,9 @@ fn write_delta(
         if mask & AD_BARRIER != 0 {
             w.u8(q.barrier_pct);
             w.u8(q.barrier_ring_step);
+        }
+        if mask & AD_ARCHETYPE != 0 {
+            w.u8(q.archetype);
         }
         put(out, &w);
         last = q.id;
@@ -1118,6 +1138,10 @@ fn write_self_delta(f: &mut Fixed<MAX_DELTA_HEAD>, b: &WireSelf, c: &WireSelf) -
         f.f32(c.barrier);
         f.u8(c.barrier_ring_step);
     }
+    if c.archetype != b.archetype {
+        m |= DH_ARCHETYPE;
+        f.u8(c.archetype);
+    }
     m
 }
 
@@ -1148,6 +1172,7 @@ pub struct SelfDelta {
     pub wish: Option<Option<WireWishOwner>>,
     pub barrier: f32,
     pub barrier_ring_step: u8,
+    pub archetype: u8,
 }
 
 impl SelfDelta {
@@ -1216,6 +1241,9 @@ impl SelfDelta {
             s.barrier = self.barrier;
             s.barrier_ring_step = self.barrier_ring_step;
         }
+        if m & DH_ARCHETYPE != 0 {
+            s.archetype = self.archetype;
+        }
         s
     }
 
@@ -1263,6 +1291,7 @@ impl SelfDelta {
             } else {
                 0
             },
+            archetype: if keep(DH_ARCHETYPE) { c.archetype } else { 0 },
         }
     }
 }
@@ -1319,6 +1348,9 @@ impl ActorDelta {
         if self.mask & AD_BARRIER != 0 {
             a.barrier_pct = self.q.barrier_pct;
             a.barrier_ring_step = self.q.barrier_ring_step;
+        }
+        if self.mask & AD_ARCHETYPE != 0 {
+            a.archetype = self.q.archetype;
         }
         a
     }
@@ -1469,6 +1501,11 @@ fn mask_fields(q: &QActor, mask: u32) -> QActor {
         } else {
             0
         },
+        archetype: if mask & AD_ARCHETYPE != 0 {
+            q.archetype
+        } else {
+            0
+        },
     }
 }
 
@@ -1565,6 +1602,9 @@ pub(crate) fn write_message(w: &mut Writer, d: &SnapshotDelta) {
             w.f32(s.barrier);
             w.u8(s.barrier_ring_step);
         }
+        if m & DH_ARCHETYPE != 0 {
+            w.u8(s.archetype);
+        }
     }
     if let Some(p) = d.phase {
         w.u8(p);
@@ -1617,6 +1657,9 @@ pub(crate) fn write_message(w: &mut Writer, d: &SnapshotDelta) {
         if a.mask & AD_BARRIER != 0 {
             w.u8(a.q.barrier_pct);
             w.u8(a.q.barrier_ring_step);
+        }
+        if a.mask & AD_ARCHETYPE != 0 {
+            w.u8(a.q.archetype);
         }
     }
     if !d.departed.is_empty() {
@@ -1779,6 +1822,9 @@ fn read_self_delta(r: &mut Reader, mask: u32) -> Result<SelfDelta, DecodeError> 
             return Err(DecodeError::BadField("barrier"));
         }
     }
+    if mask & DH_ARCHETYPE != 0 {
+        s.archetype = r.u8()?;
+    }
     Ok(s)
 }
 
@@ -1888,6 +1934,9 @@ pub(crate) fn read_snapshot_delta(r: &mut Reader) -> Result<SnapshotDelta, Decod
             if q.barrier_pct > 100 || q.barrier_ring_step > 8 {
                 return Err(DecodeError::BadField("barrier"));
             }
+        }
+        if mask & AD_ARCHETYPE != 0 {
+            q.archetype = r.u8()?;
         }
         changed.push(ActorDelta { mask, q });
     }
