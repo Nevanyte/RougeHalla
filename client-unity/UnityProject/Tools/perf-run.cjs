@@ -354,6 +354,7 @@ async function session(o, { seconds, uncapped, extraFlags = '', label, outDir, s
     });
     rec.measuredHz = rec.cadence.hz;
 
+    rec.loadAvgBefore = os.loadavg();
     await sleep(Math.max(0, o.warmup) * 1000);
     if (screenshots) await shot(page, outDir, `${label}-before.png`, rec);
 
@@ -361,6 +362,7 @@ async function session(o, { seconds, uncapped, extraFlags = '', label, outDir, s
     const startedAt = Date.now();
     await runTimeline(page, o, seconds, rec);
     rec.recordedSeconds = (Date.now() - startedAt) / 1000;
+    rec.loadAvgAfter = os.loadavg();
     const data = await page.evaluate(() => { const P = window.__rhPerf; P.stop(); return { stats: P.stats(), timestamps: P.timestamps(), row: P.row }; });
     if (screenshots) await shot(page, outDir, `${label}-after.png`, rec);
     rec.pageStats = data.stats; rec.timestamps = data.timestamps; rec.row = data.row;
@@ -544,7 +546,8 @@ function writeOutputs(o, outDir, info, sys, result) {
   const stripStats = s => Object.fromEntries(Object.entries(s).map(([k, v]) => [k, r3(v)]));
   const report = {
     tool: 'perf-run.cjs', generatedAt: new Date().toISOString(), options: { ...o, token: '[redacted]' },
-    target: TARGET, server: { info }, host: { platform: process.platform, release: os.release(), cpus: os.cpus()[0] && os.cpus()[0].model },
+    target: TARGET, server: { info }, host: { platform: process.platform, release: os.release(), cpus: os.cpus()[0] && os.cpus()[0].model, cpuCount: os.cpus().length,
+      loadAvgBeforeWindow: rec.loadAvgBefore, loadAvgAfterWindow: rec.loadAvgAfter },
     displaySystem: sys, display: result.displayInfo || null, vsyncOff: result.vsyncOff,
     browser: { version: rec.browserVersion, userAgent: rec.userAgent, gpu: rec.gpu, window: rec.window, uncapped: rec.uncapped },
     run: {
@@ -558,6 +561,7 @@ function writeOutputs(o, outDir, info, sys, result) {
       'Frame time is the delta between consecutive requestAnimationFrame timestamps in the page (presented cadence as the browser reports it), not GPU time.',
       'Under vsync a frame cannot be faster than the refresh interval, so headroom is invisible; the attribution mode therefore runs vsync-off.',
       'Playwright input events and screenshots run in the same browser; screenshots are taken outside the recorded window.',
+      'Other processes on the machine (other Unity editors, browsers) share the GPU and CPU; host.loadAvg* is recorded so a noisy run can be recognised. Runs differ because bot fights are not deterministic.',
       'A scripted walk-and-attack loop against server bots is representative of a fight only to the extent bots engage; see run.actors and run.wire for activity evidence.',
     ],
   };
