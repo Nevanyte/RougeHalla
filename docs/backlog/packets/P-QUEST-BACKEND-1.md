@@ -30,7 +30,7 @@ Source boundary clarification: frozen `killMob` calls supply no explicit new cre
 | DeepSeek stage0 Rust regression and minimal repair | `crates/rh-sim/src/quests/live.rs`, `crates/rh-sim/src/quests/mod.rs`, NEW `crates/rh-sim/src/quests/tour_supply_source_tests.rs`; narrow appended semantics marker in `quests/catalog.rs::visit_content` as decided below |
 | DeepSeek stage1 objective/reward extraction | Same `live.rs`/`mod.rs`; NEW `crates/rh-sim/src/quests/objectives.rs`, NEW `crates/rh-sim/src/quests/rewards.rs` |
 | Sol/Luna preparation | `docs/coordination/QUEST_BACKEND_REWORK.md`, this packet |
-| DeepSeek stage0 followup, Root allocated 2026-11-10 | Only `parity/abilities/hash-tape.json` metadata `contentHash`: `7c6a633f68c2cc72` → `8edd862f48ffa100`; preserve all63 case folds/ticks and other metadata. Run the existing checker; never the recorder. |
+| DeepSeek stage0 followup, Root allocated 2026-11-10 | Only `parity/abilities/hash-tape.json` metadata `contentHash`: `7c6a633f68c2cc72` → `8edd862f48ffa100`, and `crates/rh-sim/tests/content.rs::GOLDEN_CONTENT_HASH` literal `0x7c6a_633f_68c2_cc72` → `0x8edd_862f_48ff_a100`; preserve all63 case folds/ticks and other metadata. Run the existing tape checker and full content test target; never the recorder. |
 | Root only | Admission of the new content hash/pin; shared MIGRATION/CONTRACTS status and Cargo.lock |
 
 All paths outside these scopes are read-only. In particular preserve all `quests/catalog.rs` rows and prior fold words (only the approved appended marker may change), `rules.rs`, `roster.rs`,
