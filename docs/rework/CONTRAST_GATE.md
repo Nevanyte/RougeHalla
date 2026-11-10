@@ -23,8 +23,8 @@ Strict gate, 1920x1080, High, the whole matrix (931 cells: 13 looks on every sur
 | baseline `d6f18dce` (full matrix, 4 configs) | 0 / 2,808 | 265 / 2,808 | FAIL |
 | adaptive 3 px outline (previous branch state, full matrix, 4 configs) | 3,339 / 3,724 | 3,204 / 3,724 | FAIL (Fire ember, Plague bog) |
 | **none (default now)** | **62 / 931** (Fire 1 / 242, Sentenced 0 / 90, Plague 2 / 212, Frost 41 / 166, Holy 9 / 166, Coliseum 9 / 55) | **1 / 931** | **FAIL** |
-| outline (`fx.outline=1`) | OUTLINE_EDGE | OUTLINE_MARK | OUTLINE_VERDICT |
-| rim (`fx.rim=1`) | RIM_EDGE | RIM_MARK | RIM_VERDICT |
+| outline (`fx.outline=1`) | 428 / 931 (Fire 128 / 242, Sentenced 79 / 90, Plague 160 / 212, Frost 41 / 166, Holy 11 / 166, Coliseum 9 / 55) | 8 / 931 | FAIL (helps on dark and mid ground, not on bright snow and temple) |
+| rim (`fx.rim=1`) | 251 / 931 (Fire 103 / 242, Sentenced 65 / 90, Plague 64 / 212, Frost 4 / 166, Holy 14 / 166, Coliseum 1 / 55) | 0 / 931 | FAIL |
 
 BODY (interior against the ring, reported) medians with no outline: Fire 1.43, Sentenced 1.49, Plague 1.36, Frost 6.94, Holy 4.43, Coliseum 7.35. **The gate does not pass without an outline, and that is the accepted state.** The footprint ring is a faction mark and is still drawn; its own contrast is in the markers column.
 Evidence and the three-way comparison: [evidence/contrast/README.md](evidence/contrast/README.md).
