@@ -338,7 +338,7 @@ namespace Roguehalla.Client
             var scroll = scrollRoot.gameObject.AddComponent<ScrollRect>();
             scroll.horizontal = false; scroll.vertical = true; scroll.movementType = ScrollRect.MovementType.Clamped; scroll.inertia = true;
             var viewport = MythicUi.Panel(scrollRoot, "Viewport", Vector2.zero, Vector2.one, new Color32(0, 0, 0, 0), true);
-            viewport.gameObject.AddComponent<Mask>().showMaskGraphic = false;
+            viewport.gameObject.AddComponent<RectMask2D>(); // a stencil Mask over a fully transparent graphic hides everything (the guide pages rendered blank)
             content = MythicUi.Rect(viewport, "Content", new Vector2(0, 1), new Vector2(1, 1), Vector2.zero, Vector2.zero);
             content.pivot = new Vector2(.5f, 1);
             var vertical = content.gameObject.AddComponent<VerticalLayoutGroup>();

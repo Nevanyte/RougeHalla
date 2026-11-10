@@ -312,12 +312,20 @@ async function run(cfg) {
   // damage numbers); `mobaudit` prints the creature art create/destroy rate the page logged (?mob.audit=1, ?mob.continuity=0 for the old
   // behaviour); `panels` opens the journal (J), Traders and Notices pages; `results` waits idle until the run ends and the results screen shows.
   if (steps.has('fight')) {
+    // Walk toward the middle of the map first (right-click on the minimap, repeated) so the shots find the bots.
+    const target = (process.env.RH_SHOTS_FIGHT_TARGET || '0.5,0.5').split(',').map(Number);
+    const mini = minimapRect(cfg.w, cfg.h, s);
+    for (let k = 0; k < Number(process.env.RH_SHOTS_FIGHT_WALKS || 4); k++) {
+      await page.mouse.move(mini.x + mini.size * target[0], mini.y + mini.size * target[1]); await page.waitForTimeout(100);
+      await page.mouse.down({ button: 'right' }); await page.waitForTimeout(90); await page.mouse.up({ button: 'right' });
+      await page.waitForTimeout(6000);
+    }
     const frames = Number(process.env.RH_SHOTS_FIGHT_FRAMES || 12);
     for (let i = 0; i < frames; i++) { await page.waitForTimeout(Number(process.env.RH_SHOTS_FIGHT_GAP_MS || 2500)); await shot(`fight-${String(i).padStart(2, '0')}`); }
   }
   if (steps.has('panels')) {
     await page.keyboard.press('j'); await page.waitForTimeout(900); await shot('panel-quests');
-    const pageTab = (i) => ({ x: cfg.w * (0.12 + 0.76 * (0.025 + i * 0.32 + 0.155)), y: cfg.h * (0.12 + 0.795 * (1 - 0.8625)) });
+    const pageTab = (i) => ({ x: cfg.w * (0.12 + 0.76 * (0.025 + i * 0.32 + 0.155)), y: cfg.h * (1 - (0.12 + 0.795 * 0.8625)) });
     await page.mouse.click(pageTab(1).x, pageTab(1).y, { delay: 60 }); await page.waitForTimeout(700); await shot('panel-traders');
     await page.mouse.click(pageTab(2).x, pageTab(2).y, { delay: 60 }); await page.waitForTimeout(700); await shot('panel-notices');
     await page.keyboard.press('Escape'); await page.waitForTimeout(500);

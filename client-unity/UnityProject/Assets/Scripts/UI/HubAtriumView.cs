@@ -22,7 +22,7 @@ namespace Roguehalla.Client
     [DisallowMultipleComponent]
     public sealed class HubAtriumView : MonoBehaviour
     {
-        public const float RoomW = 896f, RoomH = 576f, Wall = 32f, AvatarRadius = 12f, Reach = 32f, MaxScale = 1.4f, MinScale = .45f;
+        public const float RoomW = 896f, RoomH = 576f, Wall = 32f, AvatarRadius = 12f, Reach = 32f, MaxScale = 1.15f, MinScale = .45f; // the room never blows up past 1.15x: a bigger window gets margin, not a larger, emptier floor
         const float WalkSpeed = 210f;
         const float StallSeconds = .6f;
         public const string DefaultHint = "WASD or arrows to walk  ·  E to use a station  ·  right-click to walk  ·  or click a station";
@@ -251,7 +251,7 @@ namespace Roguehalla.Client
                 X = RoomW - Wall - 8 - 70, Y = 288, W = 140, H = 60, StandX = RoomW - Wall - 8 - 140 - 26, StandY = 288, Solid = true });
             for (int i = 0; i < PedestalSpots.Length; i++)
                 _stations.Add(new Station { Kind = Kind.Pedestal, Id = "Faction_" + LaunchCopy.Houses[i].Name, Label = LaunchCopy.Houses[i].Name, Hint = LaunchCopy.Houses[i].Weapon,
-                    Verb = "Choose " + LaunchCopy.Houses[i].Name, Shape = LaunchCopy.Houses[i].Shape, Faction = i, X = PedestalSpots[i].x, Y = PedestalSpots[i].y, W = 66, H = 66,
+                    Verb = "Choose " + LaunchCopy.Houses[i].Name, Shape = LaunchCopy.Houses[i].Shape, Faction = i, X = PedestalSpots[i].x, Y = PedestalSpots[i].y, W = 80, H = 66,
                     StandX = PedestalSpots[i].x, StandY = PedestalSpots[i].y });
 
             // Tab order follows creation order: the kiosks first (west to east reading), then the arena and training, then the pedestals.
@@ -283,7 +283,8 @@ namespace Roguehalla.Client
                 var b = LaunchUi.Button(_room, "Station_" + s.Id, left, top, s.W, s.H, LaunchUi.Look.Raised, () => Press(captured), 10f);
                 s.Button = b;
                 s.IconImage = LaunchUi.Shape(b.transform, "Shape", s.Shape, (s.W - 30f) / 2f, 6f, 30f, theme.FactionColor(s.Faction));
-                LaunchUi.Text(b.transform, "Name", 0, 38f, s.W, 16f, s.Label, 12f, theme.TextPrimary, TextAlignmentOptions.Center, true);
+                var pedestalName = LaunchUi.Text(b.transform, "Name", 0, 38f, s.W, 16f, s.Label, 12f, theme.TextPrimary, TextAlignmentOptions.Center, true);
+                pedestalName.enableAutoSizing = true; pedestalName.fontSizeMin = 9f; pedestalName.fontSizeMax = 12f;
                 s.HintText = LaunchUi.Text(b.transform, "Hint", 0, 51f, s.W, 13f, s.Hint, 10f, theme.TextSecondary, TextAlignmentOptions.Center);
                 s.SelectedMark = LaunchUi.Icon(b.transform, "Selected", LaunchIcon.Check, s.W - 18f, 3f, 14f, theme.Accent);
             }
