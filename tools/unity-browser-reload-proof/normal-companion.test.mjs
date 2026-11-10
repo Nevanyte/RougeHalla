@@ -121,6 +121,51 @@ test('claims a fresh profile and sends its credential only in the ordinary Hello
   }
 });
 
+test('concurrent companions each consume their own retained prevalidated Response by exact URL', async () => {
+  FakeWebSocket.instances = [];
+  const endpoint = 'http://127.0.0.1:7777';
+  const specs = ['source14_pair_a', 'source14_pair_b'].map((profile, index) => {
+    const url = `${endpoint}/api/profile/${profile}`;
+    const response = new Response(JSON.stringify({
+      created: true, profile: { name: profile }, token: `private-concurrent-token-${index}`,
+    }), { status: 200 });
+    return { url, profile, faction: index === 0 ? 0 : 4, response, used: false };
+  });
+  for (const spec of specs) {
+    const preclaim = await spec.response.clone().json();
+    assert.equal(preclaim.created, true);
+    assert.equal(spec.response.bodyUsed, false);
+  }
+  const infoUrl = `${endpoint}/info`;
+  const fetchImpl = async url => {
+    const exact = String(url);
+    if (exact === infoUrl) return new Response(JSON.stringify({ protocol: 14, contentHash: companionContentHash }), { status: 200 });
+    const spec = specs.find(candidate => candidate.url === exact && !candidate.used);
+    if (!spec) throw new Error('unmatched or duplicate fake profile URL');
+    spec.used = true;
+    return spec.response;
+  };
+
+  const results = await Promise.allSettled(specs.map(async spec => connectNormalCompanion({
+    endpoint, profile: spec.profile, faction: spec.faction, fetchImpl, WebSocketImpl: FakeWebSocket, timeoutMs: 1000,
+  })));
+  const admitted = results.filter(result => result.status === 'fulfilled').map(result => result.value);
+  try {
+    assert.equal(admitted.length, 2, results.filter(result => result.status === 'rejected').map(result => result.reason?.message).join('; '));
+    assert.deepEqual(specs.map(spec => spec.used), [true, true]);
+    assert.deepEqual(specs.map(spec => spec.response.bodyUsed), [true, true]);
+    assert.equal(FakeWebSocket.instances.length, 2);
+    const hellos = FakeWebSocket.instances.map(socket => protocol.decodeClient(socket.sent[0].buffer.slice(
+      socket.sent[0].byteOffset, socket.sent[0].byteOffset + socket.sent[0].byteLength)));
+    assert.deepEqual(hellos.map(hello => hello.profile).sort(), specs.map(spec => spec.profile).sort());
+    assert.equal(admitted.every(companion => companion.view().snapshot && companion.view().welcome.protocol === 14), true);
+    const sanitized = JSON.stringify(admitted.map(companion => companion.sanitizedReport()));
+    assert.equal(sanitized.includes('private-concurrent-token'), false);
+  } finally {
+    await Promise.all(admitted.map(companion => companion.leaveAndClose(100)));
+  }
+});
+
 test('rejects non-loopback and identity-mismatched endpoints before profile claim or socket creation', async () => {
   let calls = 0;
   const fetchImpl = async () => { calls++; return new Response('{}'); };
