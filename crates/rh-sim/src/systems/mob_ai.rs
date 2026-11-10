@@ -401,7 +401,7 @@ fn fight(cx: &mut Cx, id: PlayerId, b: &mut Brain) {
 
 /// What mob spacing does for a mob whose policy wants it to stay put (`systems/mob_spacing.rs`).
 enum Spaced {
-    /// Nothing: the legacy circle, alone, settled or no room to move.
+    /// Nothing: the legacy circle, alone, settled, no room to move, or the mob cannot move this tick.
     No,
     /// The mob is still walking the spacing step it was given: no new order until it arrives.
     Walking,
@@ -430,6 +430,14 @@ fn spacing_step(
     };
     if super::mob_spacing::walking(m, b.goal).is_some() {
         return Spaced::Walking;
+    }
+    // A mob that cannot move this tick (rooted, casting, winding a swing) gets no order: a Move it cannot walk would
+    // only cost a path search. It looks again once it can.
+    let now = cx.w.server_time;
+    if super::weapons::move_multiplier(&m.core, now) == 0.
+        || crate::status_runtime::cannot_move(&m.core.statuses, now)
+    {
+        return Spaced::No;
     }
     let (camp, home, foot, room) = (m.camp, m.home, m.core.foot(), super::mob_spacing::room(m));
     let p = crate::combat_policy::spacing(weapon, false);

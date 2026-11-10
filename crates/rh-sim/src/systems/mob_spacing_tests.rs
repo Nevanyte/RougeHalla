@@ -532,3 +532,222 @@ fn a_pack_of_40_comes_to_rest() {
 fn a_pack_of_200_comes_to_rest() {
     assert_rest(200);
 }
+
+// ---- review 2026-11-10: rooted and frozen crowds, elites, ice and bog (finding 4) ----
+
+/// Roots (or stuns: Frost's Freeze) every mob for `ms`.
+fn hold_all(sim: &mut Sim, kind: crate::status_runtime::StatusKind, ms: f64) {
+    use crate::status_runtime as status;
+    let now = sim.w.server_time;
+    for m in sim.w.mobs.iter_mut() {
+        status::apply(
+            &mut m.core.statuses,
+            now,
+            status::StatusApply {
+                kind,
+                ms,
+                source: status::StatusSource {
+                    id: Some(PlayerId(9000)),
+                    name: "test".into(),
+                    owner_id: None,
+                },
+                ability: None,
+                tag: None,
+                value: None,
+                add: None,
+                data: None,
+            },
+        );
+    }
+}
+
+/// A crowd born overlapping inside the stop band (no chase to order), then held in place: while held it orders no
+/// spacing step and runs no path search; once free it spreads and comes to rest.
+fn held_crowd(kind: crate::status_runtime::StatusKind) {
+    let target = centre(20, 12);
+    let n = 12;
+    let mut sim = pack(
+        HitboxMode::Archetypes,
+        open_room(),
+        target,
+        Vec2::new(target.x - 40., target.y - 8.),
+        n,
+        "emberImp",
+    );
+    hold_all(&mut sim, kind, 3000.);
+    let searches = sim.pf.searches;
+    let mut steps = 0;
+    for _ in 0..55 {
+        run(&mut sim, 1);
+        steps += sim.mob_spacing_diagnostics().steps;
+    }
+    assert_eq!(steps, 0, "{kind:?}: spacing steps while held");
+    assert_eq!(
+        sim.pf.searches, searches,
+        "{kind:?}: path searches while held"
+    );
+    assert!(min_pair(&mobs(&sim)) < 8., "still a crowd");
+    run(&mut sim, 400);
+    let ps = mobs(&sim);
+    assert!(
+        min_pair(&ps) >= settled_floor() - 1e-9,
+        "{kind:?}: {}",
+        min_pair(&ps)
+    );
+    assert!(
+        walked(&mut sim, 60) < 1e-9,
+        "{kind:?}: the crowd comes to rest"
+    );
+}
+
+#[test]
+fn a_rooted_crowd_orders_nothing_until_it_can_move() {
+    held_crowd(crate::status_runtime::StatusKind::Root);
+}
+
+#[test]
+fn a_frozen_crowd_orders_nothing_until_it_can_move() {
+    // Frost's Freeze is a stun.
+    held_crowd(crate::status_runtime::StatusKind::Stun);
+}
+
+#[test]
+fn a_pack_with_elites_spreads_and_rests() {
+    let target = centre(20, 12);
+    let n = 12;
+    let mut sim = pack(
+        HitboxMode::Archetypes,
+        open_room(),
+        target,
+        centre(6, 12),
+        n,
+        "emberImp",
+    );
+    // Every third mob an elite (same look and foot box, so the same room).
+    let ty = mob_type_by_id("emberImp").unwrap().id;
+    let now = sim.w.server_time;
+    for i in 0..4 {
+        let at = Vec2::new(
+            centre(6, 14).x + i as f64 * 4.,
+            centre(6, 14).y + (i % 2) as f64 * 4.,
+        );
+        let id = super::mobs::place_practice_mob(
+            &mut sim.w,
+            ty,
+            true,
+            101,
+            at,
+            0.,
+            HitboxMode::Archetypes,
+        );
+        let b = sim.w.mobs.get_mut(id).unwrap().brain.as_mut().unwrap();
+        super::mob_ai::add_threat(b, PlayerId(1), 1.);
+        super::mob_ai::wake(b, PlayerId(1), now);
+    }
+    assert_eq!(sim.w.mobs.iter().filter(|m| m.elite).count(), 4);
+    let hitters = run(&mut sim, 400);
+    let ps = mobs(&sim);
+    assert_eq!(ps.len(), n + 4);
+    assert_eq!(hitters.len(), n + 4, "{hitters:?}");
+    assert!(min_pair(&ps) >= settled_floor() - 1e-9, "{}", min_pair(&ps));
+    assert!(walked(&mut sim, 60) < 1e-9, "the pack comes to rest");
+}
+
+/// The seed1 map with a 20 x 20 tile patch of `terrain` (5 bog, 6 ice) in its largest open square (tiles 54..=93,
+/// 116..=155), and the patch's centre.
+fn patched_seed1(terrain: u8) -> (Arena, Vec2) {
+    let mut v: serde_json::Value =
+        serde_json::from_str(include_str!("../mapdata/fixtures/seed1.map.json")).unwrap();
+    let w = v["map"]["w"].as_u64().unwrap() as usize;
+    for y in 126..146 {
+        for x in 64..84 {
+            assert_eq!(v["map"]["tiles"][y * w + x], 0, "open floor");
+            v["map"]["terrain"][y * w + x] = terrain.into();
+        }
+    }
+    let mut export: crate::mapdata::MapExport = serde_json::from_value(v).unwrap();
+    export.legacy_map_hash_u32 =
+        u32::from_str_radix(&crate::mapgen::map_hash::map_hash(&export.map), 16).unwrap();
+    let arena = export.validate().unwrap().into_arena().unwrap();
+    (arena, centre(74, 136))
+}
+
+/// A pack of 12 on a terrain patch: every mob reaches and hits, at every tick every foot box is clear of walls, the
+/// pack spreads, and it comes to rest (no spacing step over the last 100 ticks).
+fn terrain_pack(terrain: u8) {
+    let (arena, target) = patched_seed1(terrain);
+    let mut sim = Sim::reset_active(
+        SimConfig {
+            quests: false,
+            consumables: false,
+            training: true,
+            hitboxes: HitboxMode::Archetypes,
+            hazards: crate::terrain::Mode::Map,
+            ..Default::default()
+        },
+        arena,
+        Secrets::from_seed(31),
+        &[Placement {
+            profile: "target".into(),
+            faction: FactionId::Fire,
+            bot: false,
+            at: target,
+            hp: Some(1e9),
+            weapon0: Some(WeaponId::Sword),
+            weapon1: None,
+        }],
+    );
+    match terrain {
+        5 => assert!(sim.k.hazards.slow),
+        _ => assert!(sim.k.hazards.slip),
+    }
+    let ty = mob_type_by_id("emberImp").unwrap().id;
+    let now = sim.w.server_time;
+    let n = 12;
+    for i in 0..n {
+        let at = Vec2::new(
+            target.x - 200. + (i % 3) as f64 * 4.,
+            target.y + (i / 3) as f64 * 4.,
+        );
+        let id = super::mobs::place_practice_mob(
+            &mut sim.w,
+            ty,
+            false,
+            101,
+            at,
+            0.,
+            HitboxMode::Archetypes,
+        );
+        let b = sim.w.mobs.get_mut(id).unwrap().brain.as_mut().unwrap();
+        super::mob_ai::add_threat(b, PlayerId(1), 1.);
+        super::mob_ai::wake(b, PlayerId(1), now);
+    }
+    let hitters = run(&mut sim, 700);
+    let ps = mobs(&sim);
+    assert_eq!(hitters.len(), n, "{terrain}: {hitters:?}");
+    assert!(
+        min_pair(&ps) >= settled_floor() - 1e-9,
+        "{terrain}: {}",
+        min_pair(&ps)
+    );
+    let mut steps = 0;
+    for _ in 0..100 {
+        run(&mut sim, 1);
+        steps += sim.mob_spacing_diagnostics().steps;
+    }
+    assert_eq!(steps, 0, "{terrain}: spacing steps once settled");
+    assert!(
+        walked(&mut sim, 60) < 1e-6,
+        "{terrain}: the pack comes to rest"
+    );
+}
+
+#[test]
+fn a_pack_on_ice_spreads_and_rests() {
+    terrain_pack(6);
+}
+
+#[test]
+fn a_pack_in_a_bog_spreads_and_rests() {
+    terrain_pack(5);
+}
