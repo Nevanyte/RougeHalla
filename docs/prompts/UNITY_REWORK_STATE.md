@@ -20,11 +20,11 @@ All under `/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/`. Remov
 |---|---|---|---|---|
 | `rework-hitbox` | `rework/hitbox` | Opus | ADR 0024 packets P-HB-0..6 + P-HB-9 flags; protocol 16, obs 22, checkpoint 30, replay 24, policy 16, content `d9479b6612616984` | DONE at `c54c7a18`, NOT merged: waiting on the Opus review, then merge (expect rh-sim conflicts with the crash fixes) |
 | (review, no worktree) | reads `rework/hitbox` | Opus, high | independent review of the hitbox diff `8f677cb5..c54c7a18` and crash fixes `2bfdc57b`, `a1f1d129` | running |
-| `rework-wish-fx` | `rework/wish-fx` | Sonnet | animation and VFX for the five Wishes, HUD Wish tile, SFX (ports 7857/8157) | running |
+| `rework-contrast-lab` | `rework/contrast-lab` | Sonnet | serverless contrast lab stage (`?contrastlab=1`), `contrast-gate.cjs` (edge >= 3.0, markers >= 4.5, exit code), `docs/rework/CONTRAST_GATE.md`, baseline numbers (ports 7887/8187) | running |
 | `rework-vision` | `rework/vision` | Sonnet | fog of war mirroring the Rust sight rule (golden vectors `sight_v1.json`), fade on leaving/entering sight, minimap/Tab map visibility (ports 7867/8167) | running |
 | `rework-regions2` | `rework/regions2` | Sonnet | SurfaceMap (first commit), Holy temple, Plague mud/grass/shallow water, Fire dark basalt, Sentenced black tiles, contrast >= 3:1 / 4.5:1, coliseum props, TerrainMode honesty (ports 7877/8177) | running |
 
-Merged and removed: `rework/controls`, `rework/hud`, `rework/skin`, `rework/regions`, `rework/perf`, `rework/map-hud`, `rework/sim-crash`, `rework/launch`, `rework/atmosphere` (merge `2ffe468d`; EditMode 369/369, C# 1022, palette-check 396/396 after fixing the checker's token source).
+Merged and removed: `rework/wish-fx` (squash `d6f18dce`; five Wish sequences driven by server data, C# 1035; Wish FX are functional but modest, give them light and bloom in the rendering-features pass; not on the wire: Trial/Swarm radius during windup, Swarm cloud position for observers, stun/Last Stand durations), `rework/controls`, `rework/hud`, `rework/skin`, `rework/regions`, `rework/perf`, `rework/map-hud`, `rework/sim-crash`, `rework/launch`, `rework/atmosphere` (merge `2ffe468d`; EditMode 369/369, C# 1022, palette-check 396/396 after fixing the checker's token source).
 
 Queue (start as slots free, max 4 agents):
 1. After the hitbox review: fix findings, merge `rework/hitbox`, rebuild server + client at protocol 16, then **P-HB-7** (C# `Footprint`, `LocalMotion` own foot box, tests against `pathfinding_v2.json` / `server_walk_v2.json`) and **P-HB-8** (Unity chest aim in `MatchClient`, projectiles drawn at height, sprite from archetype key, delete Unity `MobLooks`, debug box overlay). Then rest of P-HB-9: parity-report label + guard test, headless balance verdict both modes, bot hit-rate check. `tools/unity-browser-reload-proof` pins the old content hash.
@@ -49,6 +49,9 @@ Known gaps from the lighting pass (assigned to `rework/regions2`): Holy clips 2.
 | Baseline tests | parity all MATCH, C# 956/956, server builds; cargo rerun with Postgres + browser proof in flight | Gate 1 report |
 
 After these merge: P-HB-7 (C# foot-box prediction) and P-HB-8 (Unity chest aim, projectile height, sprite from archetype), then workstreams E (region ground), F (lighting/particles/audio) and G (Ultra preset, profiling).
+
+## Evidence policy (set 2026-11-10)
+Committed screenshots had reached 370 MB. Pruned to about 28 MB at `fc67e123` (JPEG, 1600 px max, one resolution per screen). From now on: evidence in the repo is JPEG only, a curated handful per pass (aim under 5 MB per folder); raw captures stay outside the repo; bulky agent branches are squash-merged and trimmed. Branch history still holds the old PNG blobs: at Gate 3 recommend a squash merge so they never reach the public repo.
 
 ## Decisions taken
 - 2026-11-09: branch name `feature/unity-rework`.
