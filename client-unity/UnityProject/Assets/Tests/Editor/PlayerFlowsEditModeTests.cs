@@ -235,12 +235,12 @@ namespace Roguehalla.Client.Tests
                 Assert.IsTrue(_hud.QuestJournal.IsVisible); Assert.IsFalse(_hud.TacticalMap.IsOpen);
                 Assert.IsTrue(_hud.BlocksKeyboardInput); Assert.IsTrue(_hud.BlocksPointerInput);
                 Assert.AreEqual(0, _transport.Inputs().Count, "journal focus must not leak movement, weapon or pickup actions");
-                foreach (string name in new[] { "Help", "Settings", "Leave", "Journal" })
-                    Assert.IsFalse(_hud.transform.Find("MatchUI/" + name).gameObject.activeSelf);
+                foreach (string name in new[] { "Help", "Settings", "Fullscreen", "Journal" })
+                    Assert.IsFalse(HudTestPaths.Find(_hud.transform, "MatchUI/" + name).gameObject.activeSelf);
                 InputSystem.QueueStateEvent(keyboard, new KeyboardState()); InputSystem.Update();
                 InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Escape)); InputSystem.Update(); _hud.ReadUiInput();
                 Assert.IsFalse(_hud.QuestJournal.IsVisible);
-                Assert.IsTrue(_hud.transform.Find("MatchUI/Journal").gameObject.activeSelf);
+                Assert.IsTrue(HudTestPaths.Find(_hud.transform, "MatchUI/Journal").gameObject.activeSelf);
                 Invoke(_hud, "ToggleSettings"); _hud.ShowPlayerFlow(0);
                 Assert.IsFalse(_hud.QuestJournal.IsVisible, "the launcher cannot stack a flow over settings");
             });
@@ -253,7 +253,7 @@ namespace Roguehalla.Client.Tests
             DeliverPlanning(new QuestHandle(71));
             Assert.IsFalse(_hud.TraderDialog.IsVisible, "entering planning closes a previously open trader");
             var plan = _session.Collections.Plan;
-            var map = _hud.transform.Find("MatchUI/TacticalMap");
+            var map = HudTestPaths.Find(_hud.transform, "MatchUI/TacticalMap");
             var ready = map.Find("PlanningDecisions/Ready").GetComponent<UnityEngine.UI.Button>();
             string readyText = ready.GetComponentInChildren<TMP_Text>().text;
             Assert.IsTrue(ready.IsInteractable());
@@ -326,7 +326,7 @@ namespace Roguehalla.Client.Tests
             var handle = new QuestHandle(71); DeliverPlanning(handle);
             _hud.ShowPlayerFlow(0); _hud.QuestJournal.SelectQuest(handle);
             var view = _session.Collections.Quests; uint epoch = _session.TimelineEpoch;
-            var group = _hud.transform.Find("MatchUI/TacticalMap").GetComponent<UnityEngine.CanvasGroup>();
+            var group = HudTestPaths.Find(_hud.transform, "MatchUI/TacticalMap").GetComponent<UnityEngine.CanvasGroup>();
             _transport.Drop();
             Assert.AreEqual(SessionState.Reconnecting, _session.State);
             Assert.IsFalse(_hud.QuestJournal.TryAccept(handle));
@@ -362,7 +362,7 @@ namespace Roguehalla.Client.Tests
             Invoke(_hud, "ToggleSettings"); _hud.ShowPlayerFlow(0);
             Assert.IsFalse(_hud.QuestJournal.IsVisible);
             Invoke(_hud, "ToggleSettings");
-            var field = _hud.transform.Find("MatchUI/JoinMenu/Nickname").GetComponent<TMP_InputField>();
+            var field = HudTestPaths.Find(_hud.transform, "MatchUI/JoinMenu/Nickname").GetComponent<TMP_InputField>();
             var parent = field.transform.parent;
             try
             {

@@ -16,9 +16,10 @@ namespace Roguehalla.Client
         MatchClient _client;
         Session _session;
         Action<ServerMsg.Events> _boundNoticeEvents;
-        RectTransform _root, _menu, _hud, _rewards, _results, _settings;
+        RectTransform _root, _stage, _chromeStage, _menu, _hud, _rewards, _results, _settings;
+        HudStage _stageScaler, _chromeScaler;
         TMP_InputField _nickname;
-        TMP_Text _factionLabel, _banner, _vitals, _build, _focusLabel, _wishCard, _rewardTitle, _resultTitle, _resultText, _notice;
+        TMP_Text _factionLabel, _banner, _vitals, _build, _wishCard, _rewardTitle, _resultTitle, _resultText, _notice;
         RectTransform _healthBarFill, _barrierBarFill;
         readonly UnityEngine.UI.Button[] _options = new UnityEngine.UI.Button[3];
         readonly UnityEngine.UI.Button[] _headerActions = new UnityEngine.UI.Button[3];
@@ -74,16 +75,13 @@ namespace Roguehalla.Client
             var scaler = go.GetComponent<UnityEngine.UI.CanvasScaler>();
             scaler.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080); scaler.matchWidthOrHeight = .5f;
-            _banner = Text(_root, "Connection", "Choose a faction and join", .02f, .925f, .30f, .99f, 15);
-            _headerActions[0] = Button(_root, "Help", "H · HELP", .615f, .93f, .725f, .99f, ToggleHelp);
-            _headerActions[1] = Button(_root, "Settings", "SETTINGS", .735f, .93f, .85f, .99f, ToggleSettings);
-            _headerActions[2] = Button(_root, "Leave", "Leave / menu", .86f, .93f, .985f, .99f, () => _client.Leave());
-            CreateHeaderIcons();
+            EnsureStage();
+            CreateTopAndToastPills();
+            CreateLegacyChrome();
             CreateJoinMenu();
             SetFaction(_faction);
             CreateCombatHud();
-            _notice = Text(_root, "Notice", "", .32f, .15f, .61f, .22f, 19);
-            _rewards = Panel(_root, "Rewards", .70f, .425f, .985f, .915f);
+            _rewards = Panel(_stage, "Rewards", .70f, .425f, .985f, .915f);
             _rewardTitle = Text(_rewards, "RewardTitle", "", .06f, .76f, .94f, .99f, 23);
             SetBaseSize(_rewardTitle, 25);
             _rewardTitle.color = ShowcasePalette.Gold;
@@ -94,6 +92,7 @@ namespace Roguehalla.Client
             }
             _skip = Button(_rewards, "Skip", "Skip", .06f, .05f, .47f, .19f, () => Choose(-1));
             Button(_rewards, "Next", "Next chest", .51f, .05f, .94f, .19f, () => { _chestIndex++; _dirty = _rewardsDirty = true; });
+            foreach (var label in _rewards.GetComponentsInChildren<TMP_Text>(true)) SetBaseSize(label, label == _rewardTitle ? 13 : 12);
             _results = Panel(_root, "Results", .22f, .28f, .78f, .85f);
             _resultTitle = Text(_results, "ResultsTitle", "RUN RESULTS", .08f, .80f, .92f, .97f, 30);
             _resultTitle.color = ShowcasePalette.Gold;
@@ -103,6 +102,8 @@ namespace Roguehalla.Client
             Button(_results, "Menu", "Return to menu", .52f, .05f, .92f, .20f, () => _client.Leave());
             InitializeFeatures();
             InitializeTrainingConsole();
+            _chromeStage.SetAsLastSibling();
+            ApplyLegacyViewport(_stageScaler.Viewport);
             ShowMenu();
         }
 
@@ -171,10 +172,9 @@ namespace Roguehalla.Client
             _dirty = _rewardsDirty = true; _bannerState = (SessionState)(-1); _bannerPhase = -1;
             ClearOwnerPresentation("Awaiting server");
             // Menu/modal visibility can keep these controls inactive until the next HUD tick.
-            _pickup.interactable = false; _pickup.GetComponentInChildren<TMP_Text>(true).text = "F";
-            _focusLabel.text = "";
-            _slots[0].GetComponentInChildren<TMP_Text>(true).text = "1 · —";
-            _slots[1].GetComponentInChildren<TMP_Text>(true).text = "2 · —";
+            _pickup.interactable = false; _pickup.GetComponentInChildren<TMP_Text>(true).text = "F"; _pickup.gameObject.SetActive(false);
+            _slots[0].GetComponentInChildren<TMP_Text>(true).text = "1";
+            _slots[1].GetComponentInChildren<TMP_Text>(true).text = "2";
             RefreshCollections(session.Collections);
             RefreshLaunchConfirmation(session);
             RotateNoticeEvents();
@@ -218,7 +218,7 @@ namespace Roguehalla.Client
             if (_launchMenuInput != null) _launchMenuInput.interactable = true;
             _rewards.gameObject.SetActive(false); _results.gameObject.SetActive(false); _settings.gameObject.SetActive(false);
             ClearOwnerPresentation("Awaiting server");
-            _banner.text = "Choose a faction and join"; _notice.text = "";
+            _banner.text = "Choose a faction and join"; _notice.text = ""; Set(_plateStatus, "");
             _map?.Bind(null); _drawer?.SetVisible(false); RefreshHeaderActionsVisibility(); ReleaseChestFocus();
         }
 
@@ -273,7 +273,7 @@ namespace Roguehalla.Client
             else if (_session.State == SessionState.Rejected) banner = "Join rejected: " + _session.RejectReason;
             else if (_session.State == SessionState.Failed) banner = "Connection failed: " + _session.Error;
             else banner = _session.State.ToString();
-            Set(_banner, banner); _bannerState = _session.State; _bannerPhase = phase; _bannerAttempt = _session.ReconnectAttempt;
+            Set(_banner, banner); Set(_plateStatus, banner); _bannerState = _session.State; _bannerPhase = phase; _bannerAttempt = _session.ReconnectAttempt;
             }
             if (_client != null && _client.LaunchPending) return;
             Set(_notice, _feedback);
@@ -309,7 +309,7 @@ namespace Roguehalla.Client
             RefreshDamageReadout(me);
             if (me.Hp != _lastHp || me.MaxHp != _lastMaxHp || me.Kills != _lastKills || me.Gv != _lastGv || me.Status != _lastStatus || me.Barrier != _lastBarrier || me.BarrierRingStep != _lastBarrierRing)
             {
-                Set(_vitals, "HP " + me.Hp.ToString("0.#") + " / " + me.MaxHp.ToString("0.#") + " · Barrier " + me.Barrier.ToString("0.#"));
+                Set(_vitals, ShowcasePalette.GetFactionName((int)me.Faction) + " · HP " + me.Hp.ToString("0.#") + " / " + me.MaxHp.ToString("0.#") + " · Barrier " + me.Barrier.ToString("0.#"));
                 Set(_combatStats, "Kills " + me.Kills + " · GV " + me.Gv + " · " + me.Status);
                 _lastHp = me.Hp; _lastMaxHp = me.MaxHp; _lastKills = me.Kills; _lastGv = me.Gv; _lastStatus = me.Status; _lastBarrier = me.Barrier; _lastBarrierRing = me.BarrierRingStep;
                 OwnerVitalBars.Percent(me, out float healthPercent, out float barrierPercent);
@@ -328,6 +328,7 @@ namespace Roguehalla.Client
                 if (_wishHint != null) _wishHint.Text = FormatWishCard(me.Wish, serverTimeMs);
                 _lastWish = me.Wish; _lastServerTime = serverTimeMs;
             }
+            RefreshLegacyHud(me, serverTimeMs);
         }
 
         internal void ClearOwnerPresentation(string reason)
@@ -336,9 +337,10 @@ namespace Roguehalla.Client
             Set(_vitals, reason == "Unavailable" ? "Waiting / spectating" : "Waiting for player state");
             Set(_combatStats, "Awaiting player stats");
             Set(_wishCard, "R · WISH\n" + reason);
-            Set(_wishSummary, "R · —");
+            Set(_wishSummary, "—");
             if (_wishHint != null) _wishHint.Text = "R · Wish\n" + reason;
             RefreshDamageReadout(null);
+            RefreshLegacyHud(null, 0d);
             if (_healthBarFill != null) _healthBarFill.anchorMax = Vector2.zero;
             if (_barrierBarFill != null) { _barrierBarFill.anchorMin = Vector2.zero; _barrierBarFill.anchorMax = Vector2.zero; }
         }
@@ -392,8 +394,14 @@ namespace Roguehalla.Client
             {
                 _focusShown = view.Focus;
                 _pickup.interactable = view.Focus.HasValue;
-                Set(_pickup.GetComponentInChildren<TMP_Text>(), "F");
-                if (_pickupHint != null) _pickupHint.Text = view.Focus.HasValue ? "F · Pick up " + (view.Focus.Value.Weapon.HasValue ? view.Focus.Value.Weapon.ToString() : view.Focus.Value.Kind.ToString()) : "F · Pick up\nNo pickup in range";
+                _pickup.gameObject.SetActive(view.Focus.HasValue);
+                string what = view.Focus.HasValue ? (view.Focus.Value.Weapon.HasValue ? view.Focus.Value.Weapon.ToString() : view.Focus.Value.Kind.ToString()) : "";
+                if (_pickupText != null)
+                {
+                    string held = _inventoryShown.HasValue ? (_inventoryShown.Value.ActiveSlot == 0 ? _inventoryShown.Value.Slot0 : _inventoryShown.Value.Slot1)?.ToString() : null;
+                    Set(_pickupText, !view.Focus.HasValue ? "F" : view.Focus.Value.Weapon.HasValue && held != null ? "F  swap " + held + " for " + what : "F  take " + what);
+                }
+                if (_pickupHint != null) _pickupHint.Text = view.Focus.HasValue ? "F · Pick up " + what : "F · Pick up\nNo pickup in range";
             }
             bool buildChanged = !_buildShown || _hasBuildShown != view.HasBuild;
             if (_cardsShown.Length != view.Cards.Count)
@@ -411,8 +419,9 @@ namespace Roguehalla.Client
             for (int i = 0; i < view.Cards.Count; i++) if (view.Cards[i] > 0) { text.Append(CardDisplayCatalog.Title((byte)i)).Append('×').Append(view.Cards[i]).Append("  "); any = true; }
             for (int i = 0; i < view.Boosts.Count; i++) if (view.Boosts[i] > 0) { text.Append((BoostId)i).Append('+').Append(view.Boosts[i]).Append("  "); any = true; }
             if (!any) text.Append(view.HasBuild ? "None" : "awaiting server");
-            Set(_build, view.HasBuild ? "B · " + CountCards(view) : "B · —");
+            Set(_build, view.HasBuild ? "Cards & mob bonuses · " + CountCards(view) : "Cards & mob bonuses");
             if (_buildHint != null) _buildHint.Text = "B · Full build details\n" + text;
+            RefreshCardsRow(view);
         }
         void RefreshRewards()
         {
@@ -469,43 +478,17 @@ namespace Roguehalla.Client
         static RectTransform Panel(Transform parent, string name, float x0, float y0, float x1, float y1)
         {
             var r = Rect(parent, name, x0, y0, x1, y1);
-            var image = r.gameObject.AddComponent<UnityEngine.UI.Image>(); image.color = MythicUi.Backdrop(ShowcasePalette.Panel); image.raycastTarget = true;
-            MythicUi.Border(r, new Color32(126, 96, 51, 220));
-            if (name == "JoinMenu" || name == "PlayerHUD" || name == "Rewards" || name == "Results" || name == "SettingsPanel")
-                AddCornerOrnaments(r);
+            HudUi.Surface(r, ShowcasePalette.Panel, UiTheme.Current.CornerRadius, UiTheme.Current.Border);
             return r;
         }
 
-        static void AddCornerOrnaments(RectTransform panel)
-        {
-            // Fine, non-interactive corner strokes frame the panels without covering content or stealing clicks.
-            const float length = .026f, thickness = .0025f;
-            AddOrnament(panel, "OrnamentTLH", 0, 1 - thickness, length, 1);
-            AddOrnament(panel, "OrnamentTLV", 0, 1 - length, thickness, 1);
-            AddOrnament(panel, "OrnamentTRH", 1 - length, 1 - thickness, 1, 1);
-            AddOrnament(panel, "OrnamentTRV", 1 - thickness, 1 - length, 1, 1);
-            AddOrnament(panel, "OrnamentBLH", 0, 0, length, thickness);
-            AddOrnament(panel, "OrnamentBLV", 0, 0, thickness, length);
-            AddOrnament(panel, "OrnamentBRH", 1 - length, 0, 1, thickness);
-            AddOrnament(panel, "OrnamentBRV", 1 - thickness, 0, 1, length);
-        }
-
-        static void AddOrnament(Transform parent, string name, float x0, float y0, float x1, float y1)
-        {
-            var rect = Rect(parent, name, x0, y0, x1, y1);
-            var image = rect.gameObject.AddComponent<UnityEngine.UI.Image>();
-            image.color = new Color32(156, 119, 62, 225);
-            image.raycastTarget = false;
-        }
         TMP_Text Text(Transform parent, string name, string text, float x0, float y0, float x1, float y1, int size)
         {
             size = Mathf.RoundToInt(size * 1.5f);
             var r = Rect(parent, name, x0, y0, x1, y1);
             var label = r.gameObject.AddComponent<TextMeshProUGUI>();
             bool decorativeTitle = name == "Title" || name == "RewardTitle" || name == "ResultsTitle" || name == "SettingsTitle";
-            var bodyFont = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF");
-            var titleFont = decorativeTitle ? Resources.Load<TMP_FontAsset>("Showcase/CinzelDecorative") : null;
-            label.font = titleFont != null ? titleFont : bodyFont != null ? bodyFont : TMP_Settings.defaultFontAsset;
+            label.font = UiTheme.Current.Font(decorativeTitle ? UiFontRole.Display : UiFontRole.Body);
             label.text = text; label.fontSize = size * (_showcaseSettings != null ? _showcaseSettings.TextScale : 1f); label.color = ShowcasePalette.Text;
             if (decorativeTitle) label.characterSpacing = 2.0f;
             label.alignment = TextAlignmentOptions.MidlineLeft; label.raycastTarget = false; label.richText = false;
@@ -516,17 +499,18 @@ namespace Roguehalla.Client
         UnityEngine.UI.Button Button(Transform parent, string name, string text, float x0, float y0, float x1, float y1, UnityEngine.Events.UnityAction action)
         {
             var r = Panel(parent, name, x0, y0, x1, y1);
+            var theme = UiTheme.Current;
             var background = r.GetComponent<UnityEngine.UI.Image>();
-            background.color = MythicUi.Backdrop(Color.white);
+            background.color = Color.white; // the colour block supplies the visible fill
             var button = r.gameObject.AddComponent<UnityEngine.UI.Button>();
             button.targetGraphic = background; button.onClick.AddListener(action);
             var label = Text(r, "Label", text, .04f, .05f, .96f, .95f, 20); label.alignment = TextAlignmentOptions.Center;
             var colors = button.colors;
-            colors.normalColor = ShowcasePalette.PanelRaised;
-            colors.highlightedColor = new Color32(73, 67, 52, 255);
-            colors.selectedColor = new Color32(86, 70, 46, 255);
-            colors.pressedColor = new Color32(96, 69, 31, 255);
-            colors.disabledColor = new Color32(37, 43, 51, 255);
+            colors.normalColor = theme.SurfaceRaised;
+            colors.highlightedColor = theme.SurfaceHover;
+            colors.selectedColor = theme.SurfaceHover;
+            colors.pressedColor = theme.SurfaceSelected;
+            colors.disabledColor = theme.SurfaceDisabled;
             colors.fadeDuration = .12f;
             button.colors = colors;
             return button;

@@ -31,7 +31,7 @@ namespace Roguehalla.Client
             _resumeButton = Button(_menu, "ResumeRun", "RESUME…", .60f, .82f, .94f, .90f, OpenResumeChooser);
 
             _resumeOverlay = Panel(_root, "ResumeRunOverlay", 0, 0, 1, 1);
-            _resumeOverlay.GetComponent<UnityEngine.UI.Image>().color = new Color32(3, 7, 12, 225);
+            _resumeOverlay.GetComponent<UnityEngine.UI.Image>().color = UiTheme.Current.Scrim;
             var dialog = Panel(_resumeOverlay, "ResumeRunDialog", .22f, .25f, .78f, .76f);
             Text(dialog, "ResumeTitle", "RESUME A SAVED RUN", .07f, .83f, .80f, .97f, 24).color = ShowcasePalette.Gold;
             _resumeCancel = Button(dialog, "ResumeCancel", "CLOSE", .82f, .84f, .95f, .96f, CloseResumeChooser);

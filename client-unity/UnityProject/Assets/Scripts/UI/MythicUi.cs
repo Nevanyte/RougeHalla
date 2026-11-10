@@ -11,12 +11,11 @@ namespace Roguehalla.Client
     public static class MythicUi
     {
         public enum ButtonStyle { Primary, Secondary, Quiet }
-        public static readonly Color32 HoverFill = new Color32(62, 78, 98, 255);
-        public static readonly Color32 SelectedFill = new Color32(90, 64, 28, 255);
-        const float BackdropOpacity = 200f / 255f;
+        public static Color32 HoverFill => UiTheme.Current.SurfaceHover;
+        public static Color32 SelectedFill => UiTheme.Current.SurfaceSelected;
 
-        // UI backing only: shared world-art colors and child text/icons keep their own opacity.
-        public static Color Backdrop(Color color) { color.a = Mathf.Min(color.a, BackdropOpacity); return color; }
+        /// <summary>Retained for call sites; the translucent "glass" opacity cap is gone, opacity now comes from the theme tokens.</summary>
+        public static Color Backdrop(Color color) { return color; }
 
         public static void Border(Transform parent, Color color, float width = 1)
         {
@@ -32,15 +31,9 @@ namespace Roguehalla.Client
             edge.color = color; edge.raycastTarget = false;
         }
 
-        static TMP_FontAsset _font, _headingFont;
         static readonly Sprite[] GlyphSprites = new Sprite[12];
-        // AD, AP, ARM, SHD, HP, AS, SPD, LS. Shared by the compact HUD and full ledger.
-        static readonly Color32[] BoostColors = {
-            new Color32(240, 138, 99, 255), new Color32(185, 154, 255, 255),
-            new Color32(120, 188, 235, 255), new Color32(89, 198, 176, 255),
-            new Color32(140, 224, 178, 255), new Color32(232, 184, 93, 255),
-            new Color32(112, 212, 230, 255), new Color32(214, 140, 203, 255)
-        };
+        // AD, AP, ARM, SHD, HP, AS, SPD, LS come from UiTheme.Stat. Shared by the compact HUD and full ledger.
+        static Color32[] BoostColors => UiTheme.Current.Stat;
 
         public static Color BoostColor(int index) => index >= 0 && index < BoostColors.Length ? BoostColors[index] : ShowcasePalette.Text;
 
@@ -49,13 +42,13 @@ namespace Roguehalla.Client
             switch (glyph)
             {
                 case MythicGlyph.Sword: return BoostColors[0];
-                case MythicGlyph.Axe: return new Color32(255, 121, 136, 255);
+                case MythicGlyph.Axe: return UiTheme.Current.Danger;
                 case MythicGlyph.Bow: return BoostColors[5];
                 case MythicGlyph.Wand: return BoostColors[1];
                 case MythicGlyph.Armor: return BoostColors[2];
                 case MythicGlyph.Shield: return BoostColors[3];
                 case MythicGlyph.Health: return BoostColors[4];
-                case MythicGlyph.Potion: return new Color32(113, 230, 155, 255);
+                case MythicGlyph.Potion: return UiTheme.Current.Success;
                 case MythicGlyph.Speed: return BoostColors[6];
                 case MythicGlyph.Cards: return BoostColors[7];
                 case MythicGlyph.Map: return BoostColors[6];
@@ -79,7 +72,7 @@ namespace Roguehalla.Client
         {
             var rect = Rect(parent, name, anchorMin, anchorMax);
             var image = rect.gameObject.AddComponent<Image>();
-            image.color = Backdrop(fill ?? ShowcasePalette.Panel);
+            image.color = fill ?? (Color)ShowcasePalette.Panel;
             image.raycastTarget = raycast;
             return rect;
         }
@@ -126,21 +119,21 @@ namespace Roguehalla.Client
         {
             var rect = Rect(parent, name, anchorMin, anchorMax);
             var image = rect.gameObject.AddComponent<Image>();
-            image.color = style == ButtonStyle.Primary ? ShowcasePalette.GoldDim :
-                style == ButtonStyle.Quiet ? ShowcasePalette.Panel : ShowcasePalette.PanelRaised;
+            var theme = UiTheme.Current;
+            image.sprite = UiSprites.Panel(theme); image.type = Image.Type.Sliced;
+            image.color = Color.white; // the colour block below supplies the visible fill
             image.raycastTarget = true;
             var button = rect.gameObject.AddComponent<Button>(); button.targetGraphic = image;
             var minimum = rect.gameObject.AddComponent<LayoutElement>(); minimum.minWidth = 44; minimum.minHeight = 44;
             if (Mathf.Approximately(anchorMin.x, anchorMax.x) && Mathf.Approximately(rect.sizeDelta.x, 0)) rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, 44);
             if (Mathf.Approximately(anchorMin.y, anchorMax.y) && Mathf.Approximately(rect.sizeDelta.y, 0)) rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, 44);
-            Border(rect, ShowcasePalette.GoldDim, 2);
-            image.color = Backdrop(Color.white);
+            Border(rect, style == ButtonStyle.Primary ? theme.BorderStrong : theme.Border, theme.BorderWidth);
             var colors = button.colors;
-            colors.normalColor = ShowcasePalette.PanelRaised;
-            colors.highlightedColor = ShowcasePalette.PanelStroke;
-            colors.pressedColor = new Color32(96, 69, 31, 255);
-            colors.selectedColor = ShowcasePalette.PanelStroke;
-            colors.disabledColor = new Color32(37, 43, 51, 255); colors.fadeDuration = .08f;
+            colors.normalColor = style == ButtonStyle.Primary ? theme.AccentDim : style == ButtonStyle.Quiet ? theme.Surface : theme.SurfaceRaised;
+            colors.highlightedColor = theme.SurfaceHover;
+            colors.pressedColor = theme.SurfaceSelected;
+            colors.selectedColor = theme.SurfaceHover;
+            colors.disabledColor = theme.SurfaceDisabled; colors.fadeDuration = .08f;
             button.colors = colors;
             button.onClick.AddListener(onClick);
             Text(rect, "Label", label, Vector2.zero, Vector2.one, fontSize,
@@ -191,23 +184,8 @@ namespace Roguehalla.Client
             return image;
         }
 
-        static TMP_FontAsset Font
-        {
-            get
-            {
-                if (_font == null) _font = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF") ?? TMP_Settings.defaultFontAsset;
-                return _font;
-            }
-        }
-
-        static TMP_FontAsset HeadingFont
-        {
-            get
-            {
-                if (_headingFont == null) _headingFont = Resources.Load<TMP_FontAsset>("Showcase/CinzelDecorative") ?? Font;
-                return _headingFont;
-            }
-        }
+        static TMP_FontAsset Font => UiTheme.Current.Font(UiFontRole.Body);
+        static TMP_FontAsset HeadingFont => UiTheme.Current.Font(UiFontRole.Display);
 
         public static Sprite GlyphSprite(MythicGlyph glyph)
         {
@@ -228,19 +206,20 @@ namespace Roguehalla.Client
         {
             // Neutral ink lets the opaque Image tint supply the intended hue without multiplying baked-in gold.
             Color32 ink = new Color32(255, 255, 255, 255);
+            Color32 Clear = new Color32(255, 255, 255, 0);
             switch (glyph)
             {
                 case MythicGlyph.Sword: Line(pixels,size,13,8,35,38,ink,4); Line(pixels,size,12,8,18,12,ink,4); Line(pixels,size,16,15,25,7,ink,4); break;
-                case MythicGlyph.Shield: Poly(pixels,size,new[]{new Vector2(24,42),new Vector2(38,35),new Vector2(36,18),new Vector2(24,7),new Vector2(12,18),new Vector2(10,35)},ink); Line(pixels,size,24,38,24,12,ShowcasePalette.Background,2); break;
+                case MythicGlyph.Shield: Poly(pixels,size,new[]{new Vector2(24,42),new Vector2(38,35),new Vector2(36,18),new Vector2(24,7),new Vector2(12,18),new Vector2(10,35)},ink); Line(pixels,size,24,38,24,12,Clear,2); break;
                 case MythicGlyph.Axe: Line(pixels,size,16,8,31,39,ink,4); Poly(pixels,size,new[]{new Vector2(27,32),new Vector2(35,40),new Vector2(41,31),new Vector2(37,20),new Vector2(27,21)},ink); break;
                 case MythicGlyph.Bow: Line(pixels,size,31,7,31,41,ink,3); Line(pixels,size,31,7,14,24,ink,2); Line(pixels,size,14,24,31,41,ink,2); Line(pixels,size,10,24,39,24,ink,2); break;
                 case MythicGlyph.Wand: Line(pixels,size,14,9,30,30,ink,4); Circle(pixels,size,34,35,7,ink); Circle(pixels,size,34,35,3,ShowcasePalette.Panel); break;
-                case MythicGlyph.Potion: Poly(pixels,size,new[]{new Vector2(19,39),new Vector2(29,39),new Vector2(29,33),new Vector2(36,25),new Vector2(33,11),new Vector2(15,11),new Vector2(12,25),new Vector2(19,33)},ink); Line(pixels,size,17,26,31,26,ShowcasePalette.Panel,3); break;
+                case MythicGlyph.Potion: Poly(pixels,size,new[]{new Vector2(19,39),new Vector2(29,39),new Vector2(29,33),new Vector2(36,25),new Vector2(33,11),new Vector2(15,11),new Vector2(12,25),new Vector2(19,33)},ink); Line(pixels,size,17,26,31,26,Clear,3); break;
                 case MythicGlyph.Wish: Star(pixels,size,24,24,19,7,5,ink); break;
-                case MythicGlyph.Health: Circle(pixels,size,24,24,17,ink); Line(pixels,size,24,14,24,34,ShowcasePalette.Panel,4); Line(pixels,size,14,24,34,24,ShowcasePalette.Panel,4); break;
+                case MythicGlyph.Health: Circle(pixels,size,24,24,17,ink); Line(pixels,size,24,14,24,34,Clear,4); Line(pixels,size,14,24,34,24,Clear,4); break;
                 case MythicGlyph.Armor: Poly(pixels,size,new[]{new Vector2(9,36),new Vector2(14,13),new Vector2(24,8),new Vector2(34,13),new Vector2(39,36),new Vector2(30,40),new Vector2(24,32),new Vector2(18,40)},ink); break;
                 case MythicGlyph.Speed: Poly(pixels,size,new[]{new Vector2(7,27),new Vector2(24,42),new Vector2(41,27),new Vector2(34,27),new Vector2(24,36),new Vector2(14,27)},ink); Line(pixels,size,10,19,29,19,ink,3); Line(pixels,size,15,12,34,12,ink,3); break;
-                case MythicGlyph.Cards: Poly(pixels,size,new[]{new Vector2(10,10),new Vector2(33,10),new Vector2(33,37),new Vector2(10,37)},ink); Line(pixels,size,16,17,27,17,ShowcasePalette.Panel,2); Line(pixels,size,16,24,27,24,ShowcasePalette.Panel,2); Line(pixels,size,16,31,24,31,ShowcasePalette.Panel,2); Line(pixels,size,18,7,39,7,ink,3); break;
+                case MythicGlyph.Cards: Poly(pixels,size,new[]{new Vector2(10,10),new Vector2(33,10),new Vector2(33,37),new Vector2(10,37)},ink); Line(pixels,size,16,17,27,17,Clear,2); Line(pixels,size,16,24,27,24,Clear,2); Line(pixels,size,16,31,24,31,Clear,2); Line(pixels,size,18,7,39,7,ink,3); break;
                 default: Circle(pixels,size,24,24,18,ink); Circle(pixels,size,24,24,12,ShowcasePalette.Panel); Line(pixels,size,8,24,40,24,ink,2); Line(pixels,size,24,8,24,40,ink,2); Circle(pixels,size,24,24,4,ink); break;
             }
         }

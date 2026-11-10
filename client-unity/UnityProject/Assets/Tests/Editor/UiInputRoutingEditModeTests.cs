@@ -150,7 +150,7 @@ namespace Roguehalla.Client.Tests
             _session.Poll();
             Invoke(_hud, "LateUpdate");
             Assert.That(_session.State, Is.EqualTo(SessionState.InMatch));
-            Assert.That(_hud.transform.Find("MatchUI/Rewards").gameObject.activeSelf, Is.True, "decoded chest is visible and eligible");
+            Assert.That(HudTestPaths.Find(_hud.transform, "MatchUI/Rewards").gameObject.activeSelf, Is.True, "decoded chest is visible and eligible");
         }
 
         [TearDown]
@@ -337,7 +337,7 @@ namespace Roguehalla.Client.Tests
         [Test]
         public void MenuAndResultsPreventTabFromOpeningMap()
         {
-            var menu = _hud.transform.Find("MatchUI/JoinMenu").gameObject;
+            var menu = HudTestPaths.Find(_hud.transform, "MatchUI/JoinMenu").gameObject;
             menu.SetActive(true);
             Press(Key.Tab);
             _hud.ReadUiInput();
@@ -346,7 +346,7 @@ namespace Roguehalla.Client.Tests
             ReleaseKeys();
             menu.SetActive(false);
 
-            var results = _hud.transform.Find("MatchUI/Results").gameObject;
+            var results = HudTestPaths.Find(_hud.transform, "MatchUI/Results").gameObject;
             results.SetActive(true);
             Press(Key.Tab);
             _hud.ReadUiInput();
@@ -357,7 +357,7 @@ namespace Roguehalla.Client.Tests
         [Test]
         public void ClosingSettingsRestoresThePreviouslyFocusedWorldHudControl()
         {
-            var control = _hud.transform.Find("MatchUI/PlayerHUD/BuildStrip/BuildDetails").gameObject;
+            var control = HudTestPaths.Find(_hud.transform, "MatchUI/PlayerHUD/BuildStrip/BuildDetails").gameObject;
             var selectable = control.GetComponent<UnityEngine.UI.Selectable>();
             Assert.That(control.activeInHierarchy, Is.True);
             Assert.That(selectable != null && selectable.IsInteractable(), Is.True, "the build control must be available to focus");
@@ -381,7 +381,7 @@ namespace Roguehalla.Client.Tests
         public void SettingsOwnsKeyboardAndBlocksBuildHelpShortcutsWithoutWorldCommands()
         {
             Invoke(_hud, "ToggleSettings");
-            var settingsRoot = _hud.transform.Find("MatchUI/ModernSettings");
+            var settingsRoot = HudTestPaths.Find(_hud.transform, "MatchUI/ModernSettings");
             Assert.That(settingsRoot, Is.Not.Null, "the real settings view must exist");
             var settings = settingsRoot.gameObject;
             Assert.That(settings.activeSelf, Is.True);
@@ -389,9 +389,9 @@ namespace Roguehalla.Client.Tests
             Press(Key.B);
             ReadBothAndFlush();
             Assert.That(settings.activeSelf, Is.True);
-            Assert.That(_hud.transform.Find("MatchUI/BuildDrawer").gameObject.activeSelf, Is.False,
+            Assert.That(HudTestPaths.Find(_hud.transform, "MatchUI/BuildDrawer").gameObject.activeSelf, Is.False,
                 "B must not open the build drawer over settings");
-            Assert.That(_hud.transform.Find("MatchUI/ControlsHelp").gameObject.activeSelf, Is.False,
+            Assert.That(HudTestPaths.Find(_hud.transform, "MatchUI/ControlsHelp").gameObject.activeSelf, Is.False,
                 "B must not open Help over settings");
             Assert.That(_transport.TakeCommands(), Is.Empty, "modal shortcut input must not enqueue world commands");
 
@@ -399,8 +399,8 @@ namespace Roguehalla.Client.Tests
             Press(Key.H);
             ReadBothAndFlush();
             Assert.That(settings.activeSelf, Is.True);
-            Assert.That(_hud.transform.Find("MatchUI/BuildDrawer").gameObject.activeSelf, Is.False);
-            Assert.That(_hud.transform.Find("MatchUI/ControlsHelp").gameObject.activeSelf, Is.False,
+            Assert.That(HudTestPaths.Find(_hud.transform, "MatchUI/BuildDrawer").gameObject.activeSelf, Is.False);
+            Assert.That(HudTestPaths.Find(_hud.transform, "MatchUI/ControlsHelp").gameObject.activeSelf, Is.False,
                 "H must not open Help over settings");
             Assert.That(_transport.TakeCommands(), Is.Empty, "modal shortcut input must not enqueue world commands");
         }
@@ -408,8 +408,8 @@ namespace Roguehalla.Client.Tests
         [Test]
         public void BuildAndHelpShortcutsStillToggleAndSwitchBetweenTheirPanels()
         {
-            var drawer = _hud.transform.Find("MatchUI/BuildDrawer").gameObject;
-            var help = _hud.transform.Find("MatchUI/ControlsHelp").gameObject;
+            var drawer = HudTestPaths.Find(_hud.transform, "MatchUI/BuildDrawer").gameObject;
+            var help = HudTestPaths.Find(_hud.transform, "MatchUI/ControlsHelp").gameObject;
 
             Press(Key.B);
             _hud.ReadUiInput();
@@ -447,10 +447,10 @@ namespace Roguehalla.Client.Tests
         [Test]
         public void BuildDrawerHidesGlobalHeaderActionsAndRestoresTheirCallbacksOnClose()
         {
-            var drawer = _hud.transform.Find("MatchUI/BuildDrawer").gameObject;
-            var help = _hud.transform.Find("MatchUI/Help").GetComponent<UnityEngine.UI.Button>();
-            var settings = _hud.transform.Find("MatchUI/Settings").GetComponent<UnityEngine.UI.Button>();
-            var leave = _hud.transform.Find("MatchUI/Leave").GetComponent<UnityEngine.UI.Button>();
+            var drawer = HudTestPaths.Find(_hud.transform, "MatchUI/BuildDrawer").gameObject;
+            var help = HudTestPaths.Find(_hud.transform, "MatchUI/Help").GetComponent<UnityEngine.UI.Button>();
+            var settings = HudTestPaths.Find(_hud.transform, "MatchUI/Settings").GetComponent<UnityEngine.UI.Button>();
+            var leave = HudTestPaths.Find(_hud.transform, "MatchUI/Fullscreen").GetComponent<UnityEngine.UI.Button>();
             var header = new[] { help, settings, leave };
 
             Press(Key.B);
@@ -479,37 +479,37 @@ namespace Roguehalla.Client.Tests
             _hud.ReadUiInput();
             Assert.That(drawer.activeSelf, Is.True);
             foreach (var button in header) Assert.That(button.gameObject.activeSelf, Is.False);
-            _hud.transform.Find("MatchUI/BuildDrawer/Close").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            HudTestPaths.Find(_hud.transform, "MatchUI/BuildDrawer/Close").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
             Assert.That(drawer.activeSelf, Is.False, "the drawer's own Close button closes the modal");
             foreach (var button in header) Assert.That(button.gameObject.activeSelf, Is.True,
                 "the Close callback must restore " + button.name + " immediately");
             ReleaseKeys();
 
             help.onClick.Invoke();
-            Assert.That(_hud.transform.Find("MatchUI/ControlsHelp").gameObject.activeSelf, Is.True,
+            Assert.That(HudTestPaths.Find(_hud.transform, "MatchUI/ControlsHelp").gameObject.activeSelf, Is.True,
                 "the restored Help button must still invoke its original callback");
-            _hud.transform.Find("MatchUI/ControlsHelp/HelpClose").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
-            Assert.That(_hud.transform.Find("MatchUI/ControlsHelp").gameObject.activeSelf, Is.False);
+            HudTestPaths.Find(_hud.transform, "MatchUI/ControlsHelp/HelpClose").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+            Assert.That(HudTestPaths.Find(_hud.transform, "MatchUI/ControlsHelp").gameObject.activeSelf, Is.False);
 
             settings.onClick.Invoke();
-            Assert.That(_hud.transform.Find("MatchUI/ModernSettings").gameObject.activeSelf, Is.True,
+            Assert.That(HudTestPaths.Find(_hud.transform, "MatchUI/ModernSettings").gameObject.activeSelf, Is.True,
                 "the restored Settings button must still invoke its original callback");
             settings.onClick.Invoke();
-            Assert.That(_hud.transform.Find("MatchUI/ModernSettings").gameObject.activeSelf, Is.False);
+            Assert.That(HudTestPaths.Find(_hud.transform, "MatchUI/ModernSettings").gameObject.activeSelf, Is.False);
             Assert.That(_transport.TakeCommands(), Is.Empty, "restored header actions must not enqueue world commands");
         }
 
         [Test]
         public void FocusedTextInputPreventsTabFromOpeningMap()
         {
-            _typingField = _hud.transform.Find("MatchUI/JoinMenu/Nickname").GetComponent<TMP_InputField>();
-            _hud.transform.Find("MatchUI/JoinMenu").gameObject.SetActive(true);
+            _typingField = HudTestPaths.Find(_hud.transform, "MatchUI/JoinMenu/Nickname").GetComponent<TMP_InputField>();
+            HudTestPaths.Find(_hud.transform, "MatchUI/JoinMenu").gameObject.SetActive(true);
             _typingField.transform.SetParent(_root.transform, false);
             EventSystem.current.SetSelectedGameObject(_typingField.gameObject);
             _typingField.ActivateInputField();
             Invoke(_typingField, "LateUpdate"); // TMP activates a requested field in its real LateUpdate lifecycle.
             Assert.That(_typingField.isFocused, Is.True);
-            _hud.transform.Find("MatchUI/JoinMenu").gameObject.SetActive(false);
+            HudTestPaths.Find(_hud.transform, "MatchUI/JoinMenu").gameObject.SetActive(false);
 
             Press(Key.Tab);
             _hud.ReadUiInput();

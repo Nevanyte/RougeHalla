@@ -55,7 +55,7 @@ namespace Roguehalla.Client.Tests
             StringAssert.DoesNotContain("Kills", _vitals.text);
             StringAssert.Contains("Kills 2 · GV 4", _stats.text);
             StringAssert.Contains("Blaze", _wish.text); StringAssert.Contains("1/2", _wish.text);
-            Assert.That(_summary.text, Is.EqualTo("R · 1/2 · 0.5s"));
+            Assert.That(_summary.text, Is.EqualTo("1/2 · 0.5s"));
             StringAssert.Contains("Wish timer: 0.5s", _wish.text);
             StringAssert.Contains("Recharge 4.0s", _wish.text);
             StringAssert.Contains("Next charge in 2.0s", _wish.text);
@@ -79,13 +79,13 @@ namespace Roguehalla.Client.Tests
             StringAssert.Contains("Full charges in 0.0s", _wish.text);
             StringAssert.Contains("Casting Blaze · 0.0s", _wish.text);
             StringAssert.Contains("1/2", _wish.text, "elapsed labels never predict stock");
-            Assert.That(_summary.text, Is.EqualTo("R · 1/2 · 0.0s"), "elapsed time never predicts summary stock either");
+            Assert.That(_summary.text, Is.EqualTo("1/2 · 0.0s"), "elapsed time never predicts summary stock either");
 
             var stock = me.Wish.Value;
             stock.Charges = 0; me.Wish = stock;
             Invoke("RefreshOwnerPresentation", me, 13010d);
             StringAssert.Contains("0/2", _wish.text);
-            Assert.That(_summary.text, Is.EqualTo("R · 0/2 · 0.0s"));
+            Assert.That(_summary.text, Is.EqualTo("0/2 · 0.0s"));
             stock.Charges = 2; stock.NextChargeAt = null; stock.FullAt = null; stock.Cast = null;
             me.Wish = stock;
             Invoke("RefreshOwnerPresentation", me, 13020d);
@@ -100,14 +100,14 @@ namespace Roguehalla.Client.Tests
 
             Invoke("ClearOwnerPresentation", "Awaiting server");
             Assert.That(_stats.text, Is.EqualTo("Awaiting player stats"), "separated stats clear on owner rebind too");
-            Assert.That(_summary.text, Is.EqualTo("R · —"), "a rebind clears the previous owner's stock immediately");
+            Assert.That(_summary.text, Is.EqualTo("—"), "a rebind clears the previous owner's stock immediately");
             Invoke("RefreshOwnerPresentation", me, 13030d);
-            Assert.That(_summary.text, Is.EqualTo("R · 2/2 · 0.0s"));
+            Assert.That(_summary.text, Is.EqualTo("2/2 · 0.0s"));
 
             me.Wish = null; me.Barrier = 0;
             Invoke("RefreshOwnerPresentation", me, 13040d);
             StringAssert.Contains("None delivered", _wish.text);
-            Assert.That(_summary.text, Is.EqualTo("R · —"));
+            Assert.That(_summary.text, Is.EqualTo("—"));
             StringAssert.Contains("Barrier 0", _vitals.text);
             StringAssert.DoesNotContain("ring", _vitals.text);
             Assert.That(_barrier.anchorMax.x, Is.EqualTo(_barrier.anchorMin.x).Within(.001f));

@@ -2,13 +2,13 @@ using UnityEngine;
 
 namespace Roguehalla.Client
 {
-    public enum HudActionGlyph { Help, Settings, Leave, Pickup }
+    public enum HudActionGlyph { Help, Settings, Leave, Pickup, Fullscreen }
 
     /// <summary>Cached, code-drawn neutral glyphs for compact HUD actions.</summary>
     public static class HudActionGlyphs
     {
         const int Resolution = 64;
-        static readonly Sprite[] Sprites = new Sprite[4];
+        static readonly Sprite[] Sprites = new Sprite[5];
 
         public static UnityEngine.UI.Image Icon(Transform parent, string name, HudActionGlyph glyph, float size = 40f)
         {
@@ -48,6 +48,13 @@ namespace Roguehalla.Client
                     Line(pixels, new Vector2(41, 21), new Vector2(52, 32), 6);
                     Line(pixels, new Vector2(52, 32), new Vector2(41, 43), 6);
                     break;
+                case HudActionGlyph.Fullscreen:
+                    // Four corner brackets.
+                    Polyline(pixels, new[] { new Vector2(10, 24), new Vector2(10, 10), new Vector2(24, 10) }, 5);
+                    Polyline(pixels, new[] { new Vector2(40, 10), new Vector2(54, 10), new Vector2(54, 24) }, 5);
+                    Polyline(pixels, new[] { new Vector2(54, 40), new Vector2(54, 54), new Vector2(40, 54) }, 5);
+                    Polyline(pixels, new[] { new Vector2(24, 54), new Vector2(10, 54), new Vector2(10, 40) }, 5);
+                    break;
                 case HudActionGlyph.Pickup:
                     FillRect(pixels, 11, 17, 42, 25);
                     ClearRect(pixels, 16, 22, 32, 15);
@@ -76,6 +83,7 @@ namespace Roguehalla.Client
             {
                 case HudActionGlyph.Help: return ShowcasePalette.Gold;
                 case HudActionGlyph.Settings: return ShowcasePalette.MutedText;
+                case HudActionGlyph.Fullscreen: return ShowcasePalette.Text;
                 case HudActionGlyph.Leave: return ShowcasePalette.Warning;
                 case HudActionGlyph.Pickup: return ShowcasePalette.Success;
                 default: return ShowcasePalette.Text;

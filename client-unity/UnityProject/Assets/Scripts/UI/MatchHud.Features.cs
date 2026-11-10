@@ -13,6 +13,7 @@ namespace Roguehalla.Client
         BuildDrawer _drawer;
         TacticalMapController _map;
         RectTransform _help;
+        HelpGuideView _helpGuide;
         bool _chestFocus, _chestConsumedDigits;
         PointerEventData _pointerQuery;
         readonly List<RaycastResult> _pointerHits = new List<RaycastResult>(32);
@@ -84,89 +85,41 @@ namespace Roguehalla.Client
             }
         }
 
+        /// <summary>
+        /// Creates the legacy-sized HUD stages (1 unit = 1 legacy CSS px, see <see cref="HudStage"/>): the in-world HUD stage, and a chrome
+        /// stage kept above every modal for the always-visible chrome buttons and the settings/help cards.
+        /// </summary>
+        void EnsureStage()
+        {
+            if (_stage != null) return;
+            _stage = CreateStage("HudStage", out _stageScaler);
+            _chromeStage = CreateStage("ChromeStage", out _chromeScaler);
+            _stageScaler.ViewportChanged += ApplyViewport; _chromeScaler.ViewportChanged += ApplyViewport;
+        }
+
+        RectTransform CreateStage(string name, out HudStage scaler)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(HudStage));
+            go.transform.SetParent(_root, false);
+            scaler = go.GetComponent<HudStage>();
+            var canvas = _root.GetComponentInParent<Canvas>();
+            scaler.Apply(Screen.width, Screen.height, canvas != null ? canvas.scaleFactor : HudLayout.CanvasScalerFactor(Screen.width, Screen.height));
+            return (RectTransform)go.transform;
+        }
+
+        /// <summary>Re-solves every size that depends on the laid-out width or height (legacy min()/clamp() widths).</summary>
+        void ApplyViewport(HudViewport viewport) { ApplyLegacyViewport(viewport); }
+
+        /// <summary>Builds the in-world HUD in legacy anchors; see MatchHud.Legacy.cs.</summary>
         void CreateCombatHud()
         {
-            _hud = Rect(_root, "PlayerHUD", 0, 0, 1, 1);
-            var vitals = _vitalsPanel = Panel(_hud, "VitalsPanel", .015f, .146f, .285f, .266f);
-            _vitals = Text(vitals, "Vitals", "Waiting for player state", .04f, .35f, .96f, .95f, 15);
-            SetBaseSize(_vitals, 22);
-            var bar = Rect(vitals, "OwnerVitalBar", .04f, .12f, .96f, .22f);
-            var bg = bar.gameObject.AddComponent<UnityEngine.UI.Image>(); bg.color = ShowcasePalette.PanelStroke; bg.raycastTarget = false;
-            _healthBarFill = Rect(bar, "HealthFill", 0, 0, 0, 1);
-            var health = _healthBarFill.gameObject.AddComponent<UnityEngine.UI.Image>(); health.color = ShowcasePalette.Success; health.raycastTarget = false;
-            _barrierBarFill = Rect(bar, "BarrierFill", 0, 0, 0, 1);
-            var barrier = _barrierBarFill.gameObject.AddComponent<UnityEngine.UI.Image>(); barrier.color = ShowcasePalette.Gold; barrier.raycastTarget = false;
-            CreateDamageReadout();
-            var actions = _combatActions = Panel(_hud, "CombatActions", .315f, .015f, .615f, .135f);
-            var wishInfo = Button(actions, "WishInfo", "", .565f, .58f, .98f, .98f, () => { });
-            var wishIcon = MythicUi.Icon(wishInfo.transform, "WishIcon", MythicGlyph.Wish, 36);
-            wishIcon.rectTransform.anchorMin = wishIcon.rectTransform.anchorMax = new Vector2(.17f, .5f);
-            _wishSummary = wishInfo.GetComponentInChildren<TMP_Text>();
-            _wishSummary.rectTransform.anchorMin = new Vector2(.30f, .04f); _wishSummary.rectTransform.anchorMax = new Vector2(.98f, .96f);
-            SetBaseSize(_wishSummary, 20);
-            _wishSummary.text = "R · —";
-            _wishSummary.color = ShowcasePalette.Gold;
-            _wishHint = HudIconHint.Attach(wishInfo, _root, "R · Wish\nAwaiting server");
-            // Retain the existing formatted detail model for tests/readers, without a permanent world overlay.
-            _wishDetails = Panel(_hud, "WishPanel", .775f, .70f, .985f, .915f);
-            _wishCard = Text(_wishDetails, "WishCard", "R · WISH\nAwaiting server", .04f, .04f, .96f, .96f, 14);
-            _wishCard.color = ShowcasePalette.Gold;
-            _wishDetails.gameObject.SetActive(false);
-            for (int i = 0; i < 2; i++)
-            {
-                byte slot = (byte)i;
-                _slots[i] = Button(actions, "Slot" + (i + 1), (i + 1) + " · EMPTY", .02f + i * .18f, .035f, .185f + i * .18f, .965f, () => Swap(slot));
-                var label = _slots[i].GetComponentInChildren<TMP_Text>();
-                label.rectTransform.anchorMin = new Vector2(.02f, .02f); label.rectTransform.anchorMax = new Vector2(.98f, .49f); SetBaseSize(label, 20);
-                _weaponIcons[i] = MythicUi.Icon(_slots[i].transform, "WeaponIcon", MythicGlyph.Sword, 48);
-                _weaponIcons[i].rectTransform.anchorMin = _weaponIcons[i].rectTransform.anchorMax = new Vector2(.5f, .75f);
-                _weaponIcons[i].rectTransform.anchoredPosition = Vector2.zero;
-                var activeBar = Rect(_slots[i].transform, "ActiveWeapon", .18f, .95f, .82f, .99f);
-                _weaponActiveBars[i] = activeBar.gameObject.AddComponent<UnityEngine.UI.Image>();
-                _weaponActiveBars[i].color = ShowcasePalette.Gold;
-                _weaponActiveBars[i].raycastTarget = false; _weaponActiveBars[i].enabled = false;
-                _weaponHints[i] = HudIconHint.Attach(_slots[i], _root, (i + 1) + " · Empty weapon slot");
-            }
-            var potion = Button(actions, "Potion", "E · POTION", .38f, .035f, .545f, .965f, UsePotion);
-            var potionText = potion.GetComponentInChildren<TMP_Text>();
-            potionText.rectTransform.anchorMin = new Vector2(.02f, .02f); potionText.rectTransform.anchorMax = new Vector2(.98f, .49f); SetBaseSize(potionText, 20);
-            _potionIcon = MythicUi.Icon(potion.transform, "PotionIcon", MythicGlyph.Potion, 48);
-            _potionIcon.rectTransform.anchorMin = _potionIcon.rectTransform.anchorMax = new Vector2(.5f, .75f);
-            _potionIcon.rectTransform.anchoredPosition = Vector2.zero;
-            _potionHint = HudIconHint.Attach(potion, _root, "E · Drink potion\nAwaiting inventory");
-            _pickup = Button(actions, "Pickup", "F · PICK UP", .565f, .035f, .98f, .55f, () => _client.PickupFocus());
-            var pickupIcon = HudActionGlyphs.Icon(_pickup.transform, "PickupIcon", HudActionGlyph.Pickup, 34);
-            pickupIcon.rectTransform.anchorMin = pickupIcon.rectTransform.anchorMax = new Vector2(.20f, .5f);
-            _pickup.GetComponentInChildren<TMP_Text>().rectTransform.anchorMin = new Vector2(.4f, .05f);
-            _pickupHint = HudIconHint.Attach(_pickup, _root, "F · Pick up\nNo pickup in range");
-            SetBaseSize(_pickup.GetComponentInChildren<TMP_Text>(), 20);
-            var buildStrip = _buildStrip = Panel(_hud, "BuildStrip", .015f, .645f, .285f, .915f);
-            _combatStats = Text(buildStrip, "CombatStats", "Awaiting player stats", .04f, .82f, .96f, .99f, 15);
-            SetBaseSize(_combatStats, 22);
-            _focusLabel = Text(buildStrip, "Focus", "", .04f, .715f, .96f, .81f, 12);
-            var buildButton = Button(buildStrip, "BuildDetails", "B · BUILD DETAILS", .025f, .015f, .975f, .25f, ToggleBuild);
-            _build = buildButton.GetComponentInChildren<TMP_Text>();
-            _buildHint = HudIconHint.Attach(buildButton, _root, "B · Full build details");
-            var buildIcon = MythicUi.Icon(buildButton.transform, "BuildIcon", MythicGlyph.Cards, 30);
-            buildIcon.rectTransform.anchorMin = buildIcon.rectTransform.anchorMax = new Vector2(.10f, .5f);
-            _build.rectTransform.anchorMin = new Vector2(.18f, .05f);
-            SetBaseSize(_build, 20);
-            var glyphs = new[] { MythicGlyph.Sword, MythicGlyph.Wish, MythicGlyph.Armor, MythicGlyph.Shield, MythicGlyph.Health, MythicGlyph.Bow, MythicGlyph.Speed, MythicGlyph.Potion };
-            var labels = new[] { "OFF", "SOUL", "DEF", "S.DEF", "HP", "ATK", "MOVE", "LEECH" };
-            for (int i = 0; i < 8; i++)
-            {
-                float x = .02f + (i % 4) * .245f, y = i < 4 ? .49f : .26f;
-                var cell = Rect(buildStrip, "Build" + labels[i], x, y, x + .235f, y + .22f);
-                var icon = MythicUi.Icon(cell, "StatIcon", glyphs[i], 32);
-                icon.color = MythicUi.BoostColor(i);
-                icon.rectTransform.anchorMin = icon.rectTransform.anchorMax = new Vector2(.20f, .5f);
-                _buildCounts[i] = Text(cell, "Count", "—", .40f, .05f, .98f, .95f, 14);
-                SetBaseSize(_buildCounts[i], 20);
-                var statSelect = cell.gameObject.AddComponent<UnityEngine.UI.Button>();
-                var target = cell.gameObject.AddComponent<UnityEngine.UI.Image>(); target.color = Color.clear;
-                statSelect.targetGraphic = target;
-                HudIconHint.Attach(statSelect, _root, StatNames[i] + " · build boost stacks\nOpen B for the full build ledger.");
-            }
+            EnsureStage();
+            _hud = Rect(_stage, "PlayerHUD", 0, 0, 1, 1);
+            _edgeThreats = new EdgeThreatView(_hud);
+            CreatePlate();
+            CreateWeaponBar();
+            CreateDeathLine();
+            _edgeThreats.Root.SetAsFirstSibling();
         }
         void SetBaseSize(TMP_Text label, float size)
         {
@@ -178,27 +131,21 @@ namespace Roguehalla.Client
             InitializeHubGuides();
             _drawer = gameObject.AddComponent<BuildDrawer>(); _drawer.Initialize(_root, RefreshHeaderActionsVisibility);
             _uiPrefs = new UiDisplayPreferences();
-            _map = gameObject.AddComponent<TacticalMapController>(); _map.Initialize(_client, _root, _uiPrefs);
+            _map = gameObject.AddComponent<TacticalMapController>(); _map.Initialize(_client, _root, _uiPrefs, _stage);
             _modernSettings = gameObject.AddComponent<ModernSettingsView>();
-            _modernSettings.Initialize(_root, _showcaseSettings, _map, _uiPrefs, () => _modernSettings.SetVisible(false));
+            _modernSettings.Initialize(_chromeStage, _showcaseSettings, _map, _uiPrefs, () => _modernSettings.SetVisible(false), () => _client.Leave());
             _settings = _modernSettings.Root;
             _uiPrefs.Changed += ApplyDisplayPreferences;
-            _phaseStrip = Text(_root, "PhaseTimer", "", .31f, .925f, .60f, .99f, 20);
-            _metrics = Text(_root, "PerformanceReadout", "", .40f, .855f, .66f, .92f, 15);
             ApplyDisplayPreferences();
-            _help = Panel(_root, "ControlsHelp", .18f, .28f, .82f, .90f);
-            Text(_help, "HelpTitle", "CONTROLS & FIELD GUIDE", .04f, .87f, .96f, .99f, 26).color = ShowcasePalette.Gold;
-            Text(_help, "HelpText", "WASD / arrows   Move\nLeft click / hold   Attack; wand selects a target\nRight click   Move to a point\nQ / 1 / 2   Swap / select weapon\nE   Drink potion       R   Cast Wish at cursor\nF   Interact / pick up\nJ   Quest journal, traders and notices (planning: quests only)\nHold Tab   Tactical map and personal route\nB   Full build details\nC   Give the chest keyboard focus; 1–3 choose, 0 skip\nMinimap RMB   Move       Minimap hold LMB   Camera peek\nEscape   Close the focused panel\n\nPlanning: 1 / 2 select spawn. Select an offered boon, then Ready.\nA planned route is a personal guide. It never moves your character.\nThe run continues while panels are open.", .04f, .12f, .96f, .86f, 17);
-            Button(_help, "HelpClose", "CLOSE · H / ESC", .30f, .02f, .70f, .11f, ToggleHelp);
-            _help.gameObject.SetActive(false);
+            _helpGuide = gameObject.AddComponent<HelpGuideView>();
+            _helpGuide.Initialize(_chromeStage, () => { ToggleHelpClosed(); });
+            _help = _helpGuide.Root;
             InitializePlayerFlows();
         }
         void ApplyDisplayPreferences()
         {
             if (_map == null || _uiPrefs == null) return;
-            _map.SetMinimapScale(_uiPrefs.MinimapScale);
-            // Keep the saved scale useful at its full range without covering rewards or combat controls.
-            _rewards.anchorMin = new Vector2(.70f, Mathf.Max(.425f, .018f + .36f * _uiPrefs.MinimapScale + .015f));
+            ApplyLegacyViewport(_viewport);
         }
         void TickMetrics()
         {
@@ -206,10 +153,14 @@ namespace Roguehalla.Client
             _frameAverage = _frameAverage <= 0 ? Time.unscaledDeltaTime : Mathf.Lerp(_frameAverage, Time.unscaledDeltaTime, .08f);
             if (Time.realtimeSinceStartupAsDouble < _nextMetricsAt) return;
             _nextMetricsAt = Time.realtimeSinceStartupAsDouble + .25;
-            string metrics = "";
-            if (_uiPrefs.ShowFps && _frameAverage > 0) metrics = "FPS " + Mathf.RoundToInt(1 / _frameAverage);
-            if (_uiPrefs.ShowPing && _session != null) metrics += (metrics.Length == 0 ? "" : " · ") + "PING " + (_session.Sync.HasSample ? _session.Sync.LastRttMs.ToString("0") + " ms" : "—");
-            _metrics.text = metrics;
+            // Legacy perf pill: "144 fps - 32 ms", each half only when enabled in settings; fps tone good >= 50, warn >= 30, bad below.
+            var theme = UiTheme.Current;
+            string metrics = ""; Color tone = theme.TextSecondary;
+            int fps = _frameAverage > 0 ? Mathf.RoundToInt(1 / _frameAverage) : 0;
+            if (_uiPrefs.ShowFps && fps > 0) { metrics = fps + " fps"; tone = fps >= 50 ? theme.Success : fps >= 30 ? theme.Warning : theme.Danger; }
+            if (_uiPrefs.ShowPing && _session != null) metrics += (metrics.Length == 0 ? "" : " · ") + (_session.Sync.HasSample ? _session.Sync.LastRttMs.ToString("0") + " ms" : "— ms");
+            _metrics.text = metrics; _metrics.color = tone;
+            if (_metricsPill != null) _metricsPill.gameObject.SetActive(metrics.Length > 0);
             if (_session == null || _session.State != SessionState.InMatch) { _phaseStrip.text = ""; return; }
             if (_client != null && _client.LaunchPending) { _phaseStrip.text = "VERIFYING DESTINATION"; return; }
             if (_client != null && _client.ConfirmedPractice) { _phaseStrip.text = "PRACTICE · NO RUN REWARDS"; return; }
@@ -225,6 +176,7 @@ namespace Roguehalla.Client
             RefreshHeaderActionsVisibility();
         }
         void ToggleHelp() { if (_help != null) { SuspendTrainingForPanel(); _help.gameObject.SetActive(!_help.gameObject.activeSelf); if (_help.gameObject.activeSelf) { CloseHubPanels(); _drawer?.SetVisible(false); _map?.SetOpen(false); } ReleaseChestFocus(); RefreshHeaderActionsVisibility(); } }
+        void ToggleHelpClosed() { ReleaseChestFocus(); RefreshHeaderActionsVisibility(); }
         void RefreshHeaderActionsVisibility()
         {
             bool visible = (_drawer == null || !_drawer.IsVisible) && !PlayerFlowVisible;
@@ -245,6 +197,7 @@ namespace Roguehalla.Client
             RememberWorldHudFocus();
             _chestConsumedDigits = false;
             var kb = Keyboard.current;
+            if (kb != null && kb.altKey.isPressed && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame)) ToggleFullscreen();
             if (_client != null && _client.ConfirmedPractice && BareTrainingEscape(kb) &&
                 (TrainingHigherPanelVisible || _chestFocus)) ConsumeTrainingUiUpdate();
             if (ReadTrainingEscape(kb, typing)) return;
@@ -334,6 +287,8 @@ namespace Roguehalla.Client
             AlignTrainingLauncher();
             _map?.Tick();
             RefreshWorldHudVisibility();
+            SyncTopCentre();
+            UpdateEdgeThreatsStub();
             if (_session != null) _drawer?.Refresh(_session.Collections, _session.Me, _showcaseSettings.TextScale);
         }
         void RefreshWorldHudVisibility()
@@ -343,8 +298,7 @@ namespace Roguehalla.Client
             {
                 HudIconHint.CloseAll();
                 _worldHudVisible = visible;
-                _vitalsPanel.gameObject.SetActive(visible); _damagePanel.gameObject.SetActive(visible); _buildStrip.gameObject.SetActive(visible); _combatActions.gameObject.SetActive(visible);
-                _notice.gameObject.SetActive(visible);
+                RefreshHudElementVisibility();
                 var selected = EventSystem.current != null ? EventSystem.current.currentSelectedGameObject : null;
                 var target = _worldHudFocus != null ? _worldHudFocus.GetComponent<UnityEngine.UI.Selectable>() : null;
                 if (visible && target != null && target.IsActive() && target.IsInteractable() &&
@@ -369,7 +323,12 @@ namespace Roguehalla.Client
             {
                 byte count = i < view.Boosts.Count ? view.Boosts[i] : (byte)0;
                 if (!_visibleBuild || count != _visibleBoosts[i])
+                {
                     _buildCounts[i].text = view.HasBuild ? "×" + count : "—";
+                    // Legacy "dim" cell: a zero value is muted and regular weight.
+                    _buildCounts[i].color = count == 0 ? UiTheme.Current.TextSecondary : UiTheme.Current.TextPrimary;
+                    _buildCounts[i].fontStyle = count == 0 ? FontStyles.Normal : FontStyles.Bold;
+                }
                 _visibleBoosts[i] = count;
             }
             _visibleBuild = view.HasBuild;
@@ -381,7 +340,11 @@ namespace Roguehalla.Client
                     var weapon = i == 0 ? inv.Slot0 : inv.Slot1;
                     if (_weaponIcons[i] == null) continue;
                     _weaponIcons[i].enabled = weapon.HasValue;
-                    if (_weaponActiveBars[i] != null) _weaponActiveBars[i].enabled = weapon.HasValue && inv.ActiveSlot == i;
+                    bool inHand = weapon.HasValue && inv.ActiveSlot == i;
+                    if (_weaponActiveBars[i] != null) _weaponActiveBars[i].enabled = inHand;
+                    if (_slots[i] != null) HudUi.ApplyColors(_slots[i], inHand ? UiTheme.Current.SurfaceSelected : UiTheme.Current.SurfaceRaised);
+                    if (_slotGroups[i] != null) _slotGroups[i].alpha = weapon.HasValue ? 1f : .5f;
+                    if (_slotNames[i] != null) Set(_slotNames[i], weapon.HasValue ? weapon.Value.ToString() : "Empty");
                     if (weapon.HasValue)
                     {
                         MythicGlyph glyph = weapon == WeaponId.Bow ? MythicGlyph.Bow : weapon == WeaponId.Wand ? MythicGlyph.Wand : weapon == WeaponId.Shield ? MythicGlyph.Shield : weapon == WeaponId.Axe ? MythicGlyph.Axe : MythicGlyph.Sword;
@@ -392,6 +355,8 @@ namespace Roguehalla.Client
             }
             else for (int i = 0; i < _weaponIcons.Length; i++)
             {
+                if (_slotGroups[i] != null) _slotGroups[i].alpha = .5f;
+                if (_slotNames[i] != null) Set(_slotNames[i], "Empty");
                 if (_weaponIcons[i] != null) _weaponIcons[i].enabled = false;
                 if (_weaponActiveBars[i] != null) _weaponActiveBars[i].enabled = false;
             }

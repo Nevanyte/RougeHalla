@@ -50,8 +50,8 @@ namespace Roguehalla.Client
                 for (int x = 0; x < map.W; x++)
                 {
                     byte tile = map.Tiles[y * map.W + x];
-                    pixels[(map.H - 1 - y) * map.W + x] = tile == MapBlob.Wall ? new Color32(117, 137, 159, 255) :
-                        tile == MapBlob.Low ? new Color32(126, 113, 82, 255) : new Color32(16, 27, 37, 200);
+                    pixels[(map.H - 1 - y) * map.W + x] = tile == MapBlob.Wall ? UiTheme.Current.Border :
+                        tile == MapBlob.Low ? UiTheme.Current.AccentDim : UiTheme.Current.SurfaceSunken;
                 }
             _texture.SetPixels32(pixels); _texture.Apply(false, true); _terrain.texture = _texture;
             var fit = GetComponent<AspectRatioFitter>() ?? gameObject.AddComponent<AspectRatioFitter>();
@@ -65,8 +65,12 @@ namespace Roguehalla.Client
 
         public bool PointerWorld(PointerEventData e, out Vector2 point)
         {
+            return ScreenWorld(e.position, e.pressEventCamera, out point);
+        }
+        public bool ScreenWorld(Vector2 screen, Camera eventCamera, out Vector2 point)
+        {
             point = default;
-            if (_map == null || !RectTransformUtility.ScreenPointToLocalPointInRectangle(Rect, e.position, e.pressEventCamera, out var p)) return false;
+            if (_map == null || Rect.rect.width <= 0 || Rect.rect.height <= 0 || !RectTransformUtility.ScreenPointToLocalPointInRectangle(Rect, screen, eventCamera, out var p)) return false;
             var rect = Rect.rect;
             float x = Mathf.Clamp01((p.x - rect.xMin) / rect.width), y = Mathf.Clamp01((p.y - rect.yMin) / rect.height);
             point = new Vector2(x * _map.W * 32f, (1 - y) * _map.H * 32f);

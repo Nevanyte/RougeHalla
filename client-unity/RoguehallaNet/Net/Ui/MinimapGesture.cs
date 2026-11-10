@@ -75,6 +75,13 @@ namespace Roguehalla.Net.Ui
             return Emit(now, force: false);
         }
 
+        /// <summary>Cancels only a lost button capture, without sending its queued movement.</summary>
+        public void Cancel(MinimapButton button)
+        {
+            if (button == MinimapButton.Left) _leftHeld = false;
+            else { _rightHeld = false; _hasMovePoint = false; }
+        }
+
         /// <summary>Aborts gestures on blur or cancellation without sending the queued destination.</summary>
         public void Abort()
         {

@@ -2,28 +2,20 @@ using UnityEngine;
 
 namespace Roguehalla.Client
 {
-    /// <summary>Shared high-contrast colors for the dark mythic showcase presentation.</summary>
+    /// <summary>Colour accessors that forward to the active <see cref="UiTheme"/>.</summary>
     public static class ShowcasePalette
     {
-        public static readonly Color32 Background = new Color32(9, 13, 20, 255);
-        public static readonly Color32 Panel = new Color32(17, 24, 35, 248);
-        public static readonly Color32 PanelRaised = new Color32(27, 38, 53, 255);
-        public static readonly Color32 PanelStroke = new Color32(65, 81, 101, 255);
-        public static readonly Color32 Text = new Color32(244, 242, 235, 255);
-        public static readonly Color32 MutedText = new Color32(181, 195, 210, 255);
-        public static readonly Color32 Gold = new Color32(237, 199, 123, 255);
-        public static readonly Color32 GoldDim = new Color32(144, 107, 52, 255);
-        public static readonly Color32 Success = new Color32(140, 224, 178, 255);
-        public static readonly Color32 Warning = new Color32(255, 173, 130, 255);
-
-        static readonly Color32[] FactionColors =
-        {
-            new Color32(255, 126, 94, 255), // Fire
-            new Color32(205, 184, 255, 255), // Sentenced
-            new Color32(178, 220, 128, 255), // Plague
-            new Color32(120, 210, 239, 255), // Frost
-            new Color32(255, 226, 145, 255), // Holy
-        };
+        // Facade over the single theme seam (UiTheme.Current): kept so existing call sites reskin together.
+        public static Color32 Background => UiTheme.Current.SurfaceSunken;
+        public static Color32 Panel => UiTheme.Current.Surface;
+        public static Color32 PanelRaised => UiTheme.Current.SurfaceRaised;
+        public static Color32 PanelStroke => UiTheme.Current.Border;
+        public static Color32 Text => UiTheme.Current.TextPrimary;
+        public static Color32 MutedText => UiTheme.Current.TextSecondary;
+        public static Color32 Gold => UiTheme.Current.Accent;
+        public static Color32 GoldDim => UiTheme.Current.AccentDim;
+        public static Color32 Success => UiTheme.Current.Success;
+        public static Color32 Warning => UiTheme.Current.Warning;
 
         static readonly string[] FactionNames = { "Fire", "Sentenced", "Plague", "Frost", "Holy" };
 
@@ -32,7 +24,7 @@ namespace Roguehalla.Client
 
         public static Color32 Faction(int faction)
         {
-            return faction >= 0 && faction < FactionColors.Length ? FactionColors[faction] : MutedText;
+            return UiTheme.Current.FactionColor(faction);
         }
 
         public static string GetFactionName(int faction)

@@ -39,7 +39,7 @@ namespace Roguehalla.Client
             static TMP_Text CreateRow(Transform parent, int index)
             {
                 var panel = MythicUi.Panel(parent, "ProgressRow" + index, Vector2.zero, Vector2.one,
-                    index % 2 == 0 ? new Color32(22, 28, 37, 235) : new Color32(28, 35, 45, 235), false);
+                    index % 2 == 0 ? ShowcasePalette.PanelRaised : ShowcasePalette.Panel, false);
                 var layout = panel.gameObject.AddComponent<LayoutElement>(); layout.minHeight = 58; layout.preferredHeight = -1;
                 var stack = panel.gameObject.AddComponent<VerticalLayoutGroup>();
                 stack.padding = new RectOffset(14, 12, 8, 8); stack.childAlignment = TextAnchor.MiddleLeft;
@@ -85,7 +85,7 @@ namespace Roguehalla.Client
             if (root == null) throw new ArgumentNullException(nameof(root));
             _initialized = true; _owner = owner; _flow = owner != null ? owner.Flow : null; _api = owner != null ? owner.Api : null;
             _closeCallback = close;
-            _root = MythicUi.Panel(root, "HubProgressOverlay", Vector2.zero, Vector2.one, new Color32(3, 7, 12, 224));
+            _root = MythicUi.Panel(root, "HubProgressOverlay", Vector2.zero, Vector2.one, UiTheme.Current.Scrim);
             var dismiss = _root.gameObject.AddComponent<ModalDismissSurface>(); dismiss.Dismiss = CloseByUser;
             _card = MythicUi.Panel(_root, "HubProgressCard", new Vector2(.09f, .055f), new Vector2(.91f, .945f), ShowcasePalette.Panel);
             MythicUi.Text(_card, "ProgressTitle", "RECORDS", new Vector2(.035f, .925f), new Vector2(.68f, .995f), 27, ShowcasePalette.Gold);

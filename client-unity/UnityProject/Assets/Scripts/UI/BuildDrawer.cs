@@ -91,7 +91,7 @@ namespace Roguehalla.Client
             var button = buttonRect.gameObject.AddComponent<Button>(); button.targetGraphic = background;
             var colors = button.colors; colors.normalColor = ShowcasePalette.PanelRaised; colors.highlightedColor = ShowcasePalette.PanelStroke;
             colors.pressedColor = ShowcasePalette.GoldDim; colors.selectedColor = ShowcasePalette.GoldDim;
-            colors.disabledColor = new Color32(47, 55, 66, 255); button.colors = colors;
+            colors.disabledColor = UiTheme.Current.SurfaceDisabled; button.colors = colors;
             int captured = index; button.onClick.AddListener(() => Select(captured));
             _cardButtons[index] = button; _cardBorders[index] = background;
 

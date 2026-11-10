@@ -166,7 +166,7 @@ namespace Roguehalla.Client
             _overlay = MythicUi.Rect(_root, "HubGuideOverlay", Vector2.zero, Vector2.one);
             var backdrop = MythicUi.Rect(_overlay, "Backdrop", Vector2.zero, Vector2.one);
             var shade = backdrop.gameObject.AddComponent<Image>();
-            shade.color = new Color32(3, 7, 12, 220); shade.raycastTarget = true;
+            shade.color = UiTheme.Current.Scrim; shade.raycastTarget = true;
             var backdropButton = backdrop.gameObject.AddComponent<Button>();
             backdropButton.targetGraphic = shade;
             backdropButton.onClick.AddListener(() => SetVisible(false));
