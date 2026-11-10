@@ -204,6 +204,32 @@ shows hidden state. In legacy all of these are **public synced state**; whether 
 | B18 | Attack / Passive numbers of the champion HUD | damage packet and scaling terms (`packetFor`, `stat_fold`) | Self only | Owner group: per-hit damage (f32), scaling term list (stat key + coefficient), passive text id |
 | B19 | Own mob-stat counts ("Mob bonuses") | `Player.mob_stats` | Self only | Owner group: counts by stat key |
 
-## 5. What this pass changed in Unity
+## 5. What this pass changed in Unity (branch `rework/indicators`)
 
-Filled in at the end of the pass (see commits and `docs/rework/evidence/indicators/README.md`).
+Totals over the audit tables (P1-P18, S1-S13, G1-G7, M1-M7, F1-F9, W1-W18, H1-H5 = 97 rows): **matching or kept 22**, **fixed 14** (hp
+tones, barrier blue, mob bar rule, hidden fighters, interact ring, damage number colour/size/lanes, corpse puddle excluded below), **built
+new 22** (bounty crown and number, own off-hand badge, mob names, attack lock ring, 12 status glyphs, quest `!`/`?`/turn-in, trader
+mark, melee hit zone), **blocked by missing wire data 33** (section 4). Not built although data exists: hover ring, hurt vignette (F5),
+heal-less items, container label and reward-chest ring (W2, W3), plague corpse sprite (W9), wish icon beside the name for the local
+player (P6, duplicated by the weapon-bar R slot), death X decal (F8), quest item markers (W6), sentenced hunt ring (W17), champion HUD
+attack-speed/move-speed multipliers (H3). These stay open for a follow-up pass.
+
+How the two named indicators work in legacy and in Unity:
+- **Dominant stat**: legacy shows the top two of nine invested stat scores (section 1.1) in 18 px dark squares at x = 0 and +18 beside the
+  weapon spot. The wire carries no build or mirror for a remote player and Unity holds no card formulas, so nothing is drawn: blocked (B2).
+- **Secondary weapon**: legacy draws the weapon of the slot not in hand (fists when empty) at x = -18. Unity draws it for the local player
+  from the delivered inventory (`Indicators.SecondaryWeapon`, `CollectionsView.Inventory`); remote players are blocked (B1).
+
+New code: `RoguehallaNet/Net/Ui/Indicators.cs` (pure rules and cluster layout), `Net/Ui/WeaponShapes.cs` (hit-zone seam: `WeaponShape`,
+`WeaponShapes.Set/TryGet`, sector and sweep maths), tests `IndicatorsTests`, `HitZoneTests`; Unity `Presentation/OverheadIndicators.cs`,
+`IndicatorArt.cs`, `WorldMarks.cs`, `HitZonePresenter.cs` and EditMode tests. Hit-zone numbers come only from `WeaponShapes` (empty by
+default: no zone is drawn). The coordinator wires the Welcome weapon table with `Roguehalla.Net.Ui.WeaponShapes.Set(IReadOnlyList<WeaponShape>)`
+(kind 1 = melee arc, reach in sim units, half-arc in radians) once the protocol branch merges, and may delete the `?hitzone.demo=1` filler
+(`HitZonePresenter.FillDemoShapes`). Swing fx arrive at landing, so a remote swing's zone appears at the hit, not as a windup telegraph (B13).
+
+Edits to shared files, by line: `SpriteActorPresenter.cs` (hooks only: `Art.Ind/IndFacts` fields, `Release` -> `Ind.HideAll`, `Create` -> new
+`OverheadIndicators`, head-height `lift` added to bar/insignia/ring/signature y, hp tone and barrier colours, mob bar rule, hidden fighter
+alpha and hide, a facts block at the end of `Present`, `SignatureSlotPosition` now adds the lift, new `PresentIndicators`); `SpriteActorPresenter.Fade.cs`
+(one line: `art.Ind?.ApplyOpacity`); `ArenaView.cs` (hit-zone and world-mark fields, creation in `Awake`, `PendingFx` carries By/X/Y/A/Weapon/Passive,
+`PresentFx` hit zone call and damage number style, three `PresentIndicators` call sites, inventory capture, gold focus ring, two diagnostics
+flags). `ArenaPropCueEditModeTests` and `SpriteActorSignatureEditModeTests` were updated for the new focus ring (4 renderers) and the removed generic status cue.
