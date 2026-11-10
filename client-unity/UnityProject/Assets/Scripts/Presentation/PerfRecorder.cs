@@ -61,6 +61,17 @@ namespace Roguehalla.Client
             return sb.ToString();
         }
 
+        /// <summary>
+        /// Called from the page (unityInstance.SendMessage("Frame-time recorder", "SetFlags", "fx.bloom=0")) so the harness can
+        /// toggle effects inside one live match and compare interleaved windows. Empty string clears all overrides.
+        /// </summary>
+        public void SetFlags(string query)
+        {
+            ShowcaseQuality? preset; bool adaptive; QualityOverrides overrides;
+            QualityFlags.Parse(query ?? "", out preset, out adaptive, out overrides);
+            if (ShowcaseSettings.Current != null) ShowcaseSettings.Current.SetOverrides(overrides);
+        }
+
         void PublishRow()
         {
 #if UNITY_WEBGL && !UNITY_EDITOR

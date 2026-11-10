@@ -70,6 +70,16 @@ namespace Roguehalla.Client
             PerfRecorder.StartIfRequested(PageSearch());
         }
 
+        /// <summary>
+        /// Replaces the per-effect overrides at runtime (same fields as the ?fx.* URL flags). Used by the perf harness
+        /// to toggle one effect inside a live match; an empty value restores the plain preset.
+        /// </summary>
+        public void SetOverrides(QualityOverrides overrides)
+        {
+            _overrides = overrides;
+            NotifyChanged();
+        }
+
         /// <summary>Query string of the hosting page (WebGL), or empty.</summary>
         static string PageSearch()
         {
