@@ -54,6 +54,7 @@ namespace Roguehalla.Client
             typeof(ArenaView).GetMethod("Awake", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(arena, null);
             AtmosphereQuality.SetUrl(Arg("-atmUrl", "")); AtmosphereQuality.ApplyPreset(ShowcaseQuality.High, false);
             arena.Build(map);
+            if (Arg("-atmParticles", "1") == "0") { AtmosphereQuality.ParticleDensity = 0f; arena.Atmosphere.Particles.RefreshQuality(); }     // judge the ground without the haze
             int width = int.Parse(Arg("-atmW", "1920")), height = int.Parse(Arg("-atmH", "1080"));
             string spots = Arg("-atmSpots", "frost:108:127,fire:20:70,plague:42:116,holy:86:31,sentenced:132:62,coliseum:79:79");
             var rt = new RenderTexture(width, height, 24, RenderTextureFormat.ARGBHalf) { name = "capture" };

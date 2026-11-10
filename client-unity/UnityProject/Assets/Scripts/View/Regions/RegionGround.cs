@@ -52,11 +52,26 @@ namespace Roguehalla.Client
             // Plague mud, grass and shallow water (r water, g grass, b depth), 2 texels per tile.
             const int plgTexels = 2;
             Material.SetTexture("_PlgTex", Tex("Plague ground", w * plgTexels, h * plgTexels, plague.Bake(plgTexels)));
-            // Temple: footprint (x0, y0, size, found), centre and warm fixtures; coliseum: centre, half extent, found.
-            Material.SetVector("_Temple", temple != null && temple.Found ? new Vector4(temple.X0, temple.Y0, temple.Size, 1f) : Vector4.zero);
-            Material.SetVector("_TempleInfo", temple != null && temple.Found ? new Vector4(temple.Center.x, temple.Center.y, temple.Braziers.Count, 0f) : Vector4.zero);
-            var braz = new Vector4[8]; if (temple != null) for (int i = 0; i < 8 && i < temple.Braziers.Count; i++) braz[i] = new Vector4(temple.Braziers[i].x, temple.Braziers[i].y, 1f, 0f);
-            Material.SetVectorArray("_TempleBraz", braz);
+            // Temple: footprint (x0, y0, size, found); great crossing, light count and apse radius; portals and apse edge; the stone; lamp and brazier pools; pier presence per tile.
+            bool hasTemple = temple != null && temple.Found;
+            Material.SetVector("_Temple", hasTemple ? new Vector4(temple.X0, temple.Y0, temple.Size, 1f) : Vector4.zero);
+            var lights = new Vector4[16]; int nl = 0;
+            if (hasTemple)
+            {
+                foreach (var bz in temple.Braziers) if (nl < 16) lights[nl++] = new Vector4(bz.x, bz.y, 1f, 1f);
+                foreach (var lp in temple.Lamps) if (nl < 16) lights[nl++] = new Vector4(lp.x, lp.y, 1f, 2f);
+            }
+            Material.SetVector("_TempleInfo", hasTemple ? new Vector4(temple.CenterX, temple.CenterY, nl, temple.ApseRadius) : Vector4.zero);
+            Material.SetVector("_TempleGrid", hasTemple
+                ? new Vector4(temple.Portals[0].Open ? temple.Portals[0].Axis : -999f, temple.Portals[1].Open ? temple.Portals[1].Axis : -999f, temple.Portals[2].Open ? temple.Portals[2].Axis : -999f, temple.ApseRadius > 0f ? temple.ApseY : -999f)
+                : new Vector4(-999f, -999f, -999f, -999f));
+            var stone = TempleStyle.Stone.linear; Material.SetVector("_TempleStone", new Vector4(stone.r, stone.g, stone.b, 1f));
+            Material.SetVectorArray("_TempleBraz", lights);
+            var pier = new Color32[w * h];
+            if (hasTemple) for (int ty = 0; ty < h; ty++) for (int tx = 0; tx < w; tx++) if (temple.TryBlock(tx, ty, out _, out _)) pier[ty * w + tx] = new Color32(255, 0, 0, 255);
+            var pierTex = new Texture2D(w, h, TextureFormat.RGBA32, false, true) { name = "Temple piers", wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Point };
+            pierTex.SetPixelData(pier, 0); pierTex.Apply(false, true); _owned.Add(pierTex);
+            Material.SetTexture("_TempleTex", pierTex);
             Material.SetVector("_Coliseum", ColiseumBounds(map.Regions, w, h));
 
             Material.SetVector("_Map", new Vector4(w, h, ArenaView.GroundSquash, 0));
