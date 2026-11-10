@@ -46,7 +46,8 @@ namespace Roguehalla.Client
             while (_rows.Count <= i)
             {
                 int n = _rows.Count; var theme = UiTheme.Current;
-                var button = HudUi.Button(_root, "Rival" + n, "", HudAnchor.TopLeft, 7f, 50f + n * (RowH + 3f), Width - 14f, RowH, () => Choose(n), 10f, 4f);
+                // A non-empty label so the button owns a label child (HudUi.Button adds none for ""): WebGL builds trap, not throw, on a null deref.
+                var button = HudUi.Button(_root, "Rival" + n, " ", HudAnchor.TopLeft, 7f, 50f + n * (RowH + 3f), Width - 14f, RowH, () => Choose(n), 10f, 4f);
                 var label = button.GetComponentInChildren<TMP_Text>(); label.alignment = TextAlignmentOptions.MidlineLeft; label.rectTransform.offsetMin = new Vector2(30f, label.rectTransform.offsetMin.y);
                 var icon = LaunchUi.FactionShape(button.transform, "FactionIcon", 0, 8f, 5f, 14f, theme.TextPrimary);
                 _rows.Add(button); _rowText.Add(label); _rowIcon.Add(icon);

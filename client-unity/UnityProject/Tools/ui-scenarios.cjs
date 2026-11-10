@@ -505,9 +505,12 @@ scenarios['fade-player'] = async () => {
   const run = await open('fade-player', { faction: 3, query: '&vision.fadeDemo=1' });
   await startArena(run); await sleep(8000);
   const cast = new Cast(run, 6000); await cast.start();
-  const t0 = Date.now(); let prev = new Map(); let events = 0; const deps = [];
+  const t0 = Date.now(); let prev = new Map(); let events = 0; const deps = []; let lastWalk = 0; let wp = 0;
+  const route = [[2560, 2560], [1800, 2200], [3300, 2200], [2560, 3300], [2560, 1800]];
   while (Date.now() - t0 < Math.min(MINUTES, 4) * 60000 && events < 2) {
     const p = await run.probe(); if (!p || !p.me) { await sleep(40); continue; }
+    if (p.me.status !== 1) break;
+    if (Date.now() - lastWalk > 9000) { const r = route[wp++ % route.length]; await run.walkWorld(r[0], r[1]); lastWalk = Date.now(); } // look for bots around the middle
     const t = Date.now() - cast.t0; const cur = new Map((p.actors || []).filter(a => a.kind === 0 && a.status === 1).map(a => [a.id, a]));
     for (const [id, a] of prev) if (!cur.has(id)) { // a living player stopped being delivered
       events++; deps.push({ id, t, sx: Math.round(a.sx), sy: Math.round(a.sy) }); await sleep(1000);
