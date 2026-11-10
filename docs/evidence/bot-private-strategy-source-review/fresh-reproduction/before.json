@@ -1,0 +1,88 @@
+{
+  "stage": "before",
+  "utc": "2026-11-10T05:52:47.860613+00:00",
+  "cwd": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-strategy-source-review",
+  "head": "5ec31212b0082d650cbe15d58877e82ac2793060",
+  "branch": "codex/strategy-source-review",
+  "status": "",
+  "manifest": {
+    "bytes": 2862,
+    "sha256": "8ca988c39466a8536a5e8aba6190619b1fbe7f4c862b0f2822f5093164445e24"
+  },
+  "files": {
+    "tools/bot-private-strategy-fixtures/README.md": {
+      "bytes": 11589,
+      "sha256": "525fbf0a34aa5dbeb98d87367add0648e86370c79039a5f3eaaae91cedc35618"
+    },
+    "tools/bot-private-strategy-fixtures/builders.mts": {
+      "bytes": 5498,
+      "sha256": "365037fc8612f6d17f0afb925d74b09489b59d67e4ca4f87051dbe3a16afa951"
+    },
+    "tools/bot-private-strategy-fixtures/capture.mts": {
+      "bytes": 7937,
+      "sha256": "565c76ce3b2c9e9abdae1b2ab510025b1ad05e1f621aac4cf735e7e52bb56178"
+    },
+    "tools/bot-private-strategy-fixtures/capture.sh": {
+      "bytes": 1248,
+      "sha256": "8812aab60267d56969499ded07fb4e9854c6a693791717b49982b6d3f41ef4a1"
+    },
+    "tools/bot-private-strategy-fixtures/checks.mts": {
+      "bytes": 8853,
+      "sha256": "14e004a0d0f5676a4bc9adeb34a1748b36327b797fbbb360655f4c9dc7d1d4fb"
+    },
+    "tools/bot-private-strategy-fixtures/codec.mts": {
+      "bytes": 1885,
+      "sha256": "18af593cc383869260002af50b52f74cec9f7ba94f0ebaf842fe9477ad48adc2"
+    },
+    "tools/bot-private-strategy-fixtures/controls.mjs": {
+      "bytes": 10113,
+      "sha256": "4f4448b327c3c9f62d645f4de963dc72c8d517ed9d5cde65861ee66d15c069f0"
+    },
+    "tools/bot-private-strategy-fixtures/controls.sh": {
+      "bytes": 1031,
+      "sha256": "bffe1e0aa2618cfde8a3ab4a64afad95373536aae0c4ca230546aeb0f979ca4e"
+    },
+    "tools/bot-private-strategy-fixtures/dependency-cases.mts": {
+      "bytes": 13922,
+      "sha256": "302c569153d4ee8837d6b7fa906e602b447151d1a89559048552715ae6b5c313"
+    },
+    "tools/bot-private-strategy-fixtures/memory-cases.mts": {
+      "bytes": 10800,
+      "sha256": "0b99a20971b0dd543ae4d84dd436a8c71a9daec9db3db06e7575df7bc4d1e687"
+    },
+    "tools/bot-private-strategy-fixtures/runner.mts": {
+      "bytes": 10725,
+      "sha256": "3fa93e0880580f4504a7ea8c531c2131558a9e4657d1909a735c826a7883dedd"
+    },
+    "tools/bot-private-strategy-fixtures/runtime.mts": {
+      "bytes": 1102,
+      "sha256": "f2872875e1e4e3f459a20263bd16f6316a87193869dfec15380b85bd64b7d77b"
+    },
+    "tools/bot-private-strategy-fixtures/strategy-cases.mts": {
+      "bytes": 15634,
+      "sha256": "bd4302bdae455737a5d80f37cf0352f4201818248dc407d9fc86076149b40993"
+    },
+    "tools/bot-private-strategy-fixtures/verify.mjs": {
+      "bytes": 9762,
+      "sha256": "781f8a37c8c918918a0e2ef32616e64bcb34d1fb23f69f3eb45cb2796f50adc1"
+    },
+    "parity/policy/bot-private-strategy/source.json": {
+      "bytes": 12263237,
+      "sha256": "3a3ae0d498cc3933b5eee11c5be995f267f4a76530379ad7c73a934082125d8d"
+    },
+    "parity/policy/bot-private-strategy/coverage.json": {
+      "bytes": 1981587,
+      "sha256": "a560ee78a81e9f851933aafda5d42fe566a0e72d346d74f51d15a1a1890d6e12"
+    },
+    "parity/policy/bot-private-strategy/controls.json": {
+      "bytes": 8143,
+      "sha256": "ad9b789f8c40c922ac221c6e5eef7a483037383d23b3b8624b6fea774fd4877b"
+    }
+  },
+  "expectedRuntime": {
+    "image": "node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292",
+    "node": "v22.23.4",
+    "platform": "linux",
+    "arch": "x64"
+  }
+}
