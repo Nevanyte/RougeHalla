@@ -1,7 +1,7 @@
 // Character sprites lit by the same analytic local lights as the ground, walls and props, so a lantern or lava glow that reaches the floor
 // reaches the people standing in it (render pass, switch fx.actorlights). A pseudo normal from the sprite's own alpha and luma gives a soft
-// diffuse response and a thin rim on the side facing a light. It is additive on top of the regular global light, never darkens, takes no wall
-// shadow and no cookie, and the rim is capped so it can only brighten the lit edge: it cannot lower the 3:1 silhouette contrast gate.
+// diffuse response and a thin rim on the side facing a light, both only INSIDE the silhouette (never the outermost 3 px). It is additive on top of the regular global light, never darkens, takes no wall
+// shadow and no cookie, and the outline and the silhouette contrast gate belong to the contrast pass and are untouched.
 // With the actor-light switch off, the shader behaves exactly like the stock lit sprite (mask 1: the Light2D twins light it).
 Shader "Roguehalla/ActorLit"
 {
@@ -71,9 +71,14 @@ Shader "Roguehalla/ActorLit"
                 bool analytic = _RhLG.y > 0.5 && _RhLI.x > 0.5;      // actors are lit by the field (and the Light2D twins are masked off)
                 // Pseudo normal taps are computed here, outside any branch, so the derivatives are well defined.
                 float2 px = abs(float2(ddx(i.uv.x), ddy(i.uv.y))) + 1e-5;
-                float2 oa = px * 3.0, ol = px * 1.2;
+                float2 oa = px * 6.0, ol = px * 1.2, oi = px * 3.0;
                 float aR = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv + float2(oa.x, 0)).a, aL = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv - float2(oa.x, 0)).a;
                 float aU = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv + float2(0, oa.y)).a, aD = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv - float2(0, oa.y)).a;
+                // Interior mask: the outermost 3 px of the drawn silhouette are never touched by this shader (the character outline and its contrast belong to
+                // the contrast pass); light and rim only act on pixels at least 3 px inside, fading in over 2 more.
+                float iR = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv + float2(oi.x, 0)).a, iL = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv - float2(oi.x, 0)).a;
+                float iU = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv + float2(0, oi.y)).a, iD = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv - float2(0, oi.y)).a;
+                float inner = smoothstep(0.6, 0.98, min(min(iR, iL), min(iU, iD)));
                 float3 lw = float3(0.2126, 0.7152, 0.0722);
                 float lR = dot(SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv + float2(ol.x, 0)).rgb, lw), lL = dot(SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv - float2(ol.x, 0)).rgb, lw);
                 float lU = dot(SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv + float2(0, ol.y)).rgb, lw), lD = dot(SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv - float2(0, ol.y)).rgb, lw);
@@ -91,7 +96,7 @@ Shader "Roguehalla/ActorLit"
                         float3 n = normalize(float3(tilt, 1.0));
                         float3 dif, spc;
                         RhLocalLights(pt, n, 0.0, 12.0, 0.0, 0.0, 0.30, dif, spc);
-                        lit.rgb += main.rgb * dif * main.a * 0.8 + spc * main.a;
+                        lit.rgb += (main.rgb * dif * 0.8 + spc) * main.a * inner;
                     }
                 }
                 return lit;
