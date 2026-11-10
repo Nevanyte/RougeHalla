@@ -75,6 +75,9 @@ namespace Roguehalla.Net.Ui
             return Emit(now, force: false);
         }
 
+        /// <summary>Takes back the last emitted destination because the sender refused it (over the order budget), so it is offered again.</summary>
+        public void Unsend() { _hasSentPoint = false; }
+
         /// <summary>Cancels only a lost button capture, without sending its queued movement.</summary>
         public void Cancel(MinimapButton button)
         {
