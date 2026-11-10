@@ -119,5 +119,21 @@ namespace Roguehalla.Net.Tests
             Assert.That(config.Target(MatchLaunchMode.Arena).Available, Is.False);
             Assert.That(config.Target(MatchLaunchMode.Training).Available, Is.False);
         }
+
+        [Test]
+        public void UnavailableTargetsReportWhichPartOfThePolicyRefusedThem()
+        {
+            var config = new MatchLaunchConfig(Endpoint(), "wss://elsewhere.example/ws", null);
+            Assert.That(config.Target(MatchLaunchMode.Arena).Kind, Is.EqualTo(LaunchUnavailableKind.OtherSite));
+            Assert.That(config.Target(MatchLaunchMode.Training).Kind, Is.EqualTo(LaunchUnavailableKind.NotConfigured));
+            Assert.That(new MatchLaunchConfig(Endpoint(), "not a url", null).Target(MatchLaunchMode.Arena).Kind, Is.EqualTo(LaunchUnavailableKind.BadAddress));
+            Assert.That(new MatchLaunchConfig(null, "wss://game.example/ws", null).Target(MatchLaunchMode.Arena).Kind, Is.EqualTo(LaunchUnavailableKind.NoAccountService));
+            var ok = new MatchLaunchConfig(Endpoint(), "wss://game.example/ws", null).Target(MatchLaunchMode.Arena);
+            Assert.That(ok.Available, Is.True);
+            Assert.That(ok.Kind, Is.EqualTo(LaunchUnavailableKind.None));
+            // The policy verdict itself is unchanged: an unavailable target still carries no URL and the original reason text.
+            Assert.That(config.Target(MatchLaunchMode.Arena).Url, Is.Empty);
+            Assert.That(config.Target(MatchLaunchMode.Arena).UnavailableReason, Does.Contain("Arena is unavailable"));
+        }
     }
 }
