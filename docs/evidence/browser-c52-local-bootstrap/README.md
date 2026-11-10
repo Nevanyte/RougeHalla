@@ -1,0 +1,11 @@
+# Actual local Source/Training/Web bootstrap
+
+Root accepts the [third actual bootstrap](PHASE_A_ATTEMPT03_ACTUAL.json), SHA25671fc780f3e4dfdaa1a0f4e35af931fd4e5fdb8941833e1ad5dafab767744e632. Native binary from public c52 and the accepted Web57 artifact serve ordinary local Source7777, Training7779 and dual-loopback router8888. Actual public identities are protocol14/content7c6a633f68c2cc72. Both runtimes are ready with zero rooms/lobbies/players before and after probes.
+
+All15 URL rows/14 physical artifact files, including all nine notices, match exact lengths/hashes/MIME. Cache304, loopbackIPv6 and private/missing/traversal refusals pass. Configured Origin CORS and nonmatching alias refusal pass. Source and Training WebSocket upgrades return101, receive normal client close1000 and then EOF with zero application frames/Hello/rooms; no server close-code receipt is invented.
+
+The same owned PostgreSQL16.15 cluster is retained across attempts: actual fsync/synchronous_commit/full_page_writes are ON, TCP disabled, mode0700 local peer socket, restricted application role and exact migrations1/2/floor1/11 tables. [App durability](ATTEMPT03_APP_DURABILITY.json) and [restricted metadata](ATTEMPT03_ADMIN_SOCKET_SETTINGS.json) use their respective existing roles, with no new grants. Source fsynced spool is configured; Training has none. No real Result was produced, so Result fsync/recovery is unexercised.
+
+The first attempt failed on a restricted-setting query through the app role; the second passed database/startup but failed in a Python probe name collision before any HTTP. Both original failure receipts remain unchanged here; known handles were cleanly stopped. The third changes only that probe alias plus new attempt metadata, and passes. No database/role recreation, privilege expansion, state/path swap, production/cloud call or spending occurred.
+
+Known services remain alive for the separate normal browser run. Browser/claim/join/gameplay/new-document Resume, quest/trader/account/banking, layout and performance are not proved by this bootstrap. The native binary is a development functional build; no release-throughput inference follows. This is the admitted small source map, not representative full-map/population performance or hosted acceptance.

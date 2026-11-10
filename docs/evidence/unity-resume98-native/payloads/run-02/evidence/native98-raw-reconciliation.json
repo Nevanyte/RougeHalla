@@ -1,0 +1,121 @@
+{
+  "status": "PASS_NATIVE98_RAW_ACCOUNTING_AND_RESTORE",
+  "utc": "2026-11-09T19:23:36.315737+00:00",
+  "source": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+  "editorPid": 46583,
+  "expected": 98,
+  "rawExecuted": 98,
+  "rawPassed": 98,
+  "rawFailed": 0,
+  "skipped": 0,
+  "unrun": 0,
+  "retries": 0,
+  "fixtures": [
+    {
+      "fixtureType": "MatchLaunchEditModeTests",
+      "rawRows": 17,
+      "passed": 17,
+      "stdoutSha256": "ae080de97b4a06d2a6d163dee544fdf1c48daad33c2303b452771cd8db126226"
+    },
+    {
+      "fixtureType": "MatchSettlementEditModeTests",
+      "rawRows": 22,
+      "passed": 22,
+      "stdoutSha256": "71b9031a6ee9aca0672bc46173f07f0a4e1350d87d643e15a98814caa08dfdb3"
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+      "rawRows": 11,
+      "passed": 11,
+      "stdoutSha256": "716e6cde07767ce172686d14e7e844f5c706df00b85e4409182706cdcc79f465"
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+      "rawRows": 8,
+      "passed": 8,
+      "stdoutSha256": "78842316e60847c1f28330cb46c4697d4bc18162e30dca78c5ab306f8afb040a"
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+      "rawRows": 6,
+      "passed": 6,
+      "stdoutSha256": "5978b109ed3710910ef8eca2afe4f320734f0e32caf22c4238851bef4089da29"
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests",
+      "rawRows": 13,
+      "passed": 13,
+      "stdoutSha256": "c812ff6c37f611e7b40225e9f5d5a74bdf43aa190c6485f461a91941a176915a"
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests",
+      "rawRows": 5,
+      "passed": 5,
+      "stdoutSha256": "b4a8ae6ec7b1808fdabb77c3b7ca84d51293b6b540a66d9dbc6c14c12b1144e1"
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests",
+      "rawRows": 8,
+      "passed": 8,
+      "stdoutSha256": "52dc79ede4825aacc8b4edf530fc5afc2016374c3fd482c4642d3e0d66b33d9d"
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.MatchResumeEditModeTests",
+      "rawRows": 8,
+      "passed": 8,
+      "stdoutSha256": "8316430c94ae689893068572f187723dd749c475b85e85199e8258c27970267a"
+    }
+  ],
+  "controller": {
+    "captureConfirmed": true,
+    "editorPid": 46583,
+    "gateExitCode": 0,
+    "gateInvoked": true,
+    "preferenceValuesIncluded": false,
+    "restoreConfirmed": true,
+    "snapshotPresentAfter": false,
+    "source": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+    "sourcePreflightBeforeCapture": {
+      "commit": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+      "sourcePins": 1284,
+      "startupOverlay": {
+        "bytes": 1044,
+        "gitStatus": "?? client-unity/UnityProject/ProjectSettings/PackageManagerSettings.asset",
+        "path": "client-unity/UnityProject/ProjectSettings/PackageManagerSettings.asset",
+        "sha256": "a2cb53758656a32e072c1e33d985a3f73b8374b2acb3365750d31070d60a67b5"
+      },
+      "status": "PASS",
+      "tree": "caac77176dcb2fb33dc491b9a7990751a1f534d7",
+      "uniqueMetaGuids": 626
+    },
+    "sourcePreflightBeforeTests": {
+      "commit": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+      "sourcePins": 1284,
+      "startupOverlay": {
+        "bytes": 1044,
+        "gitStatus": "?? client-unity/UnityProject/ProjectSettings/PackageManagerSettings.asset",
+        "path": "client-unity/UnityProject/ProjectSettings/PackageManagerSettings.asset",
+        "sha256": "a2cb53758656a32e072c1e33d985a3f73b8374b2acb3365750d31070d60a67b5"
+      },
+      "status": "PASS",
+      "tree": "caac77176dcb2fb33dc491b9a7990751a1f534d7",
+      "uniqueMetaGuids": 626
+    },
+    "sourcePreflightFinal": {
+      "commit": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+      "sourcePins": 1284,
+      "startupOverlay": {
+        "bytes": 1044,
+        "gitStatus": "?? client-unity/UnityProject/ProjectSettings/PackageManagerSettings.asset",
+        "path": "client-unity/UnityProject/ProjectSettings/PackageManagerSettings.asset",
+        "sha256": "a2cb53758656a32e072c1e33d985a3f73b8374b2acb3365750d31070d60a67b5"
+      },
+      "status": "PASS",
+      "tree": "caac77176dcb2fb33dc491b9a7990751a1f534d7",
+      "uniqueMetaGuids": 626
+    },
+    "status": "PASS_GATE_RESTORED_AND_SOURCE_PREFLIGHT"
+  },
+  "ledgerSha256": "c9fa74f0d2cb6d94d7fc9b86bf0686597eb93d4bc5f069b5f2210f7ba884c6d2",
+  "scope": "Native EditMode fake-only tests; no Web, browser, account backend, gameplay or physical performance acceptance"
+}

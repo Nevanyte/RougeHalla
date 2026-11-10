@@ -1,0 +1,91 @@
+{
+  "status": "FILE_ONLY_BUILD_PLAN_PREFLIGHT",
+  "frozenSourceGuard": {
+    "status": "PASS",
+    "commit": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+    "tree": "caac77176dcb2fb33dc491b9a7990751a1f534d7",
+    "sourcePins": 1284,
+    "uniqueMetaGuids": 626,
+    "startupOverlay": {
+      "path": "client-unity/UnityProject/ProjectSettings/PackageManagerSettings.asset",
+      "bytes": 1044,
+      "sha256": "a2cb53758656a32e072c1e33d985a3f73b8374b2acb3365750d31070d60a67b5",
+      "gitStatus": "?? client-unity/UnityProject/ProjectSettings/PackageManagerSettings.asset"
+    }
+  },
+  "currentMainHead": "c52e41a633c91f8402e3f68724e9202351d1cdb3",
+  "clientProtocolTreeDiffNames": [],
+  "treeCompareExit": 0,
+  "proposedOutput": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/web-build-6d-2026-11-09/Web",
+  "outputExists": false,
+  "availableBytes": 9186361344,
+  "notices": [
+    {
+      "source": "LICENSE",
+      "destination": "Licenses/Roguehalla-MIT.txt",
+      "exists": true,
+      "bytes": 1080,
+      "sha256": "385298d673f01f328553f49d75680ab30254c09d2295171c929fa61efe84b103"
+    },
+    {
+      "source": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/LICENSE.txt",
+      "destination": "Licenses/Flare-CC-BY-SA-3.0.txt",
+      "exists": true,
+      "bytes": 22240,
+      "sha256": "3f941b3b89cf7b8370ceb83cc76d2120d471b58735d8ca60238a751a48d7f72f"
+    },
+    {
+      "source": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/CREDITS.txt",
+      "destination": "Licenses/Flare-Credits.txt",
+      "exists": true,
+      "bytes": 3510,
+      "sha256": "8b0985009dd04911b851553a35941e6862f1df66a6864f9b2a5c7ff330574fbc"
+    },
+    {
+      "source": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Audio/NOTICE.txt",
+      "destination": "Licenses/Flare-Audio-Notice.txt",
+      "exists": true,
+      "bytes": 1130,
+      "sha256": "64e2de64656079009cfda050f49e1de5075167a387c403f17555c6c651d9b516"
+    },
+    {
+      "source": "client-unity/UnityProject/Assets/Art/ThirdParty/Fonts/OFL-CinzelDecorative.txt",
+      "destination": "Licenses/CinzelDecorative-OFL.txt",
+      "exists": true,
+      "bytes": 4393,
+      "sha256": "1e5d6660366ddcfca4f2fc10e2acfba9fa4d97d40aec80d7dbfd41d730a420ae"
+    },
+    {
+      "source": "client-unity/THIRD_PARTY_ASSETS.md",
+      "destination": "Licenses/Third-Party-Assets.md",
+      "exists": true,
+      "bytes": 3566,
+      "sha256": "75994d0600bb013e3a47a78be320b9f4d78e5f4d76a8849e9494793a95b89295"
+    },
+    {
+      "source": "client-unity/UnityProject/Assets/TextMesh Pro/License.Unity.md",
+      "destination": "Licenses/Unity-Companion.md",
+      "exists": true,
+      "bytes": 461,
+      "sha256": "6550a14445e6c2116213b2419c4c28b75be4b99039afc8d091ced3192624390c"
+    },
+    {
+      "source": "client-unity/UnityProject/Assets/TextMesh Pro/Fonts/LiberationSans - OFL.txt",
+      "destination": "Licenses/LiberationSans-OFL.txt",
+      "exists": true,
+      "bytes": 4469,
+      "sha256": "37f8552e9a874ec10710dc0ede6a9adf168e6609fbd02a507f35629373b85a48"
+    },
+    {
+      "source": "client-unity/UnityProject/Assets/TextMesh Pro/Sprites/EmojiOne Attribution.txt",
+      "destination": "Licenses/EmojiOne-Attribution.txt",
+      "exists": true,
+      "bytes": 185,
+      "sha256": "4b65f8960e4f4c5c8b35fd139e369265e9bb45667fc16461b2ba01188d464d93"
+    }
+  ],
+  "sceneSha256": "ac5f980d3515e5d2d8870c51a7d76fb61c554ec772f65cf429f2486b190a307e",
+  "bakedContentSha256": "8413908cace2df6eb8b8fe5025c0914991397f95271e985656929b335186101e",
+  "effectiveSettingsRawSha256": "9b8a59803c8338888029b3063b271a02841dc48a5b62119bff1d33d5929ee5a1",
+  "buildQueued": false
+}

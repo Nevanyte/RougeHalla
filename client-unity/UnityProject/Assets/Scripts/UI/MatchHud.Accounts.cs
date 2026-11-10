@@ -27,7 +27,8 @@ namespace Roguehalla.Client
             _menu = Panel(_root, "JoinMenu", .015f, .17f, .35f, .91f);
             _launchMenuInput = _menu.gameObject.AddComponent<CanvasGroup>();
             Text(_menu, "Title", "ROGUEHALLA", .06f, .90f, .94f, .99f, 28).color = ShowcasePalette.Gold;
-            Button(_menu, "OpenProfileRecords", "PROFILE & RECORDS", .06f, .82f, .94f, .90f, () => OpenProgress(HubProgressTab.Profile));
+            Button(_menu, "OpenProfileRecords", "PROFILE & RECORDS", .06f, .82f, .57f, .90f, () => OpenProgress(HubProgressTab.Profile));
+            InitializeResumeMenu();
             _nickname = Input(_menu, _client.Profile, .06f, .72f, .68f, .81f);
             _loadProfile = Button(_menu, "LoadProfile", "LOAD", .71f, .72f, .94f, .81f,
                 () => _client.OpenProfile(_nickname.text, OwnershipKey, PlaytestPasscode));
@@ -118,7 +119,8 @@ namespace Roguehalla.Client
             bool menu = _menu.gameObject.activeSelf;
             _atrium.SetVisible(menu);
             if (!menu) return;
-            _atrium.ReadInput(!Typing && !_signIn.gameObject.activeSelf && !_settings.gameObject.activeSelf && !AnyHubPanelVisible && !_help.gameObject.activeSelf);
+            _atrium.ReadInput(!Typing && !_signIn.gameObject.activeSelf && !_settings.gameObject.activeSelf && !AnyHubPanelVisible &&
+                !_help.gameObject.activeSelf && !ResumeChooserVisible);
         }
 
         void CloseHubPanels()
@@ -164,17 +166,20 @@ namespace Roguehalla.Client
                 }
                 else _profileSummary.text = "Enter a callsign to load or claim it.\nYour saved ownership stays on this device.";
             }
-            bool busy = state != null && state.Busy;
+            bool busy = (state != null && state.Busy) || _client.ResumeBusy;
             _loadProfile.interactable = !busy && !_client.IsDiagnostic;
             var arena = _client.LaunchTarget(MatchLaunchMode.Arena);
             var training = _client.LaunchTarget(MatchLaunchMode.Training);
             bool account = _client.IsDiagnostic || _client.AccountFlow != null;
             _joinMatch.interactable = !busy && !_client.LaunchPending && account && arena.Available;
             _joinTraining.interactable = !busy && !_client.LaunchPending && !_client.IsDiagnostic && account && training.Available;
+            RefreshResumeMenu(state, busy, arena, training);
             string launchInfo = !arena.Available ? arena.UnavailableReason : !training.Available ? training.UnavailableReason :
                 "Arena run or solo Training · last destination: " + _client.SelectedLaunchMode;
             if (_launchInfo.text != launchInfo) _launchInfo.text = launchInfo;
             string status = _client.AccountUiError;
+            string resumeStatus = _client.ResumeStatus ?? "";
+            if (!string.IsNullOrEmpty(resumeStatus)) status = resumeStatus;
             if (string.IsNullOrEmpty(status) && state != null)
             {
                 if (busy) status = state.State == AccountHubState.PreparingJoin ? "Checking your profile and joining…" : state.State == AccountHubState.Refreshing ? "Refreshing your profile…" : "Loading your profile…";

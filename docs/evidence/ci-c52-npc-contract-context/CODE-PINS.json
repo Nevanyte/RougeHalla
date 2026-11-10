@@ -1,0 +1,37 @@
+{
+  "format": "npc-historical-context-preparation-pins/1",
+  "status": "CODE_PREPARATION_ONLY_SYNTHETIC_7_PASS_SOURCE_UNRUN",
+  "files": [
+    {
+      "path": "docs/evidence/ci-c52-npc-contract-context/README.md",
+      "bytes": 7671,
+      "sha256": "cfdeb6ffb59eef9b03953d5be1a5cb5c96e87d9adb91a9bf3706d2893fab8c05"
+    },
+    {
+      "path": "tools/npc-witness-context/CONTRACTS.197926e2.md",
+      "bytes": 87296,
+      "sha256": "2c9e0b9b562752ec907fe8ffa0e67986e6f6005a11c744f657fd67863de6e7cd"
+    },
+    {
+      "path": "tools/npc-witness-context/context.json",
+      "bytes": 124135,
+      "sha256": "937a6b0a38ef533a3a1848e77b63a7e6763f94ebe29383ab5790314210076e14"
+    },
+    {
+      "path": "tools/npc-witness-context/run.py",
+      "bytes": 10518,
+      "sha256": "5043164d4d60bf1ab54329afeb35648e0637606c9dc85fe056d381b03942141a"
+    },
+    {
+      "path": "tools/npc-witness-context/tests.py",
+      "bytes": 7277,
+      "sha256": "a051cbaaf8f9fcfc43c9e2e41d9004eacacadbfd400567664a179a9a2dfd284b"
+    },
+    {
+      "path": "docs/evidence/ci-c52-npc-contract-context/FSIZE-BYTE-UNIT-REPAIR.md",
+      "bytes": 4737,
+      "sha256": "4d4204e38270d56130da0c2ee688ffc517013ca69850d4091aff69ce808977b7"
+    }
+  ],
+  "performed": "Static checks plus two sequential offline synthetic unittest invocations, 7 PASS each; first proves byte-unit repair, second proves Source-only prlimit ordering; no actual Docker/npm/Node/Source/World execution by this author."
+}

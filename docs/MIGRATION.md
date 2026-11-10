@@ -4,6 +4,104 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Current delivery scope: technical demo (owner decision, 2026-11-09)
+
+**Unity ownership change, 2026-11-10:** the owner has paused all Codex Unity development and assigned it to Claude.
+Unity code/assets/builds, client profiling and browser/Editor work are stopped. Root continues Rust/backend/AWS
+coordination. The one approved local benchmark attempt ended before measurement with
+`BROWSER_DEFAULT_FLAGS_UNAVAILABLE`; its private browser, native child and both listeners closed, independently checked.
+There is no FPS result and no retry is authorized under this pause. The [handoff](coordination/CLAUDE_UNITY_HANDOFF.md)
+records the current artifacts, WIP and evidence for Claude.
+
+**Backend measurement update, 2026-11-10 03:10 UTC:** the first [paired M5 Pro backend run](evidence/m5-backend-first-pair/README.md)
+now captures the same160×160 collision map, three ordinary Holy seats and a30-second movement window after warmup.
+Both deliver600 observed steps. Rust's inner~29s process samples use6.69% of one CPU and18.38–18.48MiB RSS;
+legacy uses5.46% and191.58–191.88MiB. This demonstrates about90.4% lower resident memory, **no CPU speedup**;
+one active-workstation run, different interest/publication/storage/mechanics and CPU-clock precision prevent a maximum-capacity
+or general regression claim. Both owned processes/listeners close independently. A separate10s native CPU sample points to
+vision-trail/LOS and Frost/Sentenced scans for investigation; it changes no gameplay or prior measurement. Unity/FPS work remains
+paused. Normal source CI at `02551405` also finishes green (all five foundation jobs plus separate latency checks).
+
+**Technical demo update 2026-11-10:** owner-authorized Claude Wave1/security and the reproduced stale-echo repair are
+composed at `fe0e2983`; 956 managed tests and 102 affected Rust tests pass at their recorded cuts. Web B
+`build_81371688fcdf` is the current local release: 14 files/107,046,886 bytes, manifest SHA
+`89aa154216996a7df694479d3efc990ffb73521de02dae143a15fa105b4a4455`. Its compiled Assets match canonical `3253da04`;
+the Mac release binary SHA `c30fc84f9b284d0212d2bbe0d13c3b7d894f098d6d93271072df6b8ad6f1dc28` serves Source PID 63281
+and Training PID 63295 through router PID 64050. 37 focused actual Editor cases pass across the retained runs; all five faction
+ability activations and a genuine three-player PvP kill/Trophy chosen-and-taken state now pass in the ordinary browser
+at 2560×1440/text 150%. Results capture is finishing. These are functional checks, not measured speedups.
+
+The new-source Linux artifact run 42729941646 at `d265ab95` passes; its strict verified native binary SHA is
+`dd7a208cc2b183268740a910d07db6aa7002260d6d1f9511cfaccf3e4791ce6d`. The temporary workflow trigger is removed at
+`bac4820f`. The first actual Calgary guest `i-0b2f4485d0491740e` failed `rh-demo-isolation.service` and terminated through
+the intended failure/poweroff path. CloudFormation completion did not establish readiness; no public hosted demo is
+claimed by those failed attempts. The multiline repair reproduces old NFT syntax failure and passes the actual Ubuntu
+parser. Fixed guest `i-00b97e48b4e5c4f31` now passes native/storage readiness, exact binary identity, actual NFT and
+8mbit/fq_codel checks. **https://play.rougehalla.com is live** with valid public TLS. Root's actual hosted browser check
+passes ordinary profile load, Training join,400ms Right movement and normal Leave to the menu. Production
+**play.roguehalla.com** remains untouched. The original fixed shutdown is **2026-11-10 03:50:21 UTC** (November9,
+20:50:21 Calgary). This is an ephemeral demo, not retained progression hosting.
+
+An observed cold-load issue is corrected by the explicit response MIME matcher at `9859f700`: the installed Caddy
+validates and gracefully reloads the exact candidate, and actual normal-TLS GETs now return gzip for both WASM/data
+where the earlier requests did not. A complete normal-TLS download now verifies both decoded hashes against Web B:
+WASM58,599,146→16,436,423 bytes (16.86s), data47,874,287→37,908,873 bytes (39.75s). These two HTTP bodies total
+54,345,296 compressed bytes versus106,473,433 decoded bytes under the fixed8mbit limit. They do not measure Unity
+startup or frame time. Hosted multiplayer, final frame-time/latency/legacy comparison and cleanup/release checks remain
+open. Deferred content stays outside the demo critical path.
+
+The latest normal source CI runs42729941642 (`d265ab95`) and42727133953 (`112f8ec7`) both pass provenance, simulation,
+C# and card-source jobs but fail Rust's all-feature Clippy compile on the missing `RoomCmd::Input.received` test field.
+The one-line test repair is `2c665f6a`; Root's strict all-feature/all-target `rh-server` Clippy passes in25.97s, without
+running tests or rebuilding the release binary. Fresh normal [CI42739863259](https://github.com/Nevanyte/RougeHalla/actions/runs/42739863259)
+at exact `388e35572f05f41e7cf0a16fb3d403a2fe4502ca` now passes all five jobs, including PostgreSQL lease tests,
+headless/source checks and the actual Chromium/WSS proof. This supersedes the earlier failed runs at their recorded cuts.
+Claude's newer `1f7c5460` is explicitly protocol15 WIP with missing C#/JS consumers and concrete bounded review
+findings. It is not merged or deployed. The [focused completion handoff](coordination/CLAUDE_NETCODE_CHECKPOINT_FINISH.md)
+preserves the approved speed direction and lists the actual interoperability/lifecycle/track/counterplay work.
+
+The finite M5 profiling runner is composed at `64327d70`:24 scoped Node controls and its exact frozen-B
+asset/dependency preflight pass. It enables the Chromium sandbox, excludes unsafe SwiftShader fallback and classifies
+the actual renderer. The owner approved one local experiment; it failed before measurement and was cleaned up. The
+subsequent Unity pause now prevents Codex repair/retry. Its proposed30s local-WS/three-seat/48×40 window is not a matched legacy comparison.
+A fresh isolated Phaser production build and the actual shared160×160 map identity guard also pass. The first backend-only
+common-map pair is now captured above; a matched rendered client/FPS comparison remains open under Claude ownership.
+
+The bounded hosted Source protocol test now passes: two fresh normal accounts join the same WSS match, complete
+ordinary Plan/Ready, reach Active/alive/nontraining, and each send one Move/Stop with accepted sequence0→1→2 and
+delivered positions. Each sees the opposite-faction player through its own legitimate observer rows; local aliases are
+not cross-compared with Welcome IDs. No attacks, rewards farming, grants or hidden reads. Both normal Leave/close and
+the owned Node process exit are confirmed; final public Source is0rooms/0players/resultsFailed0. This is actual hosted
+multiplayer transport/input acceptance, not a new hosted full-match outcome or frame-rate test.
+
+The owner now prioritizes a complete visual/networked **technical demo as soon as possible** to measure Unity 2D and
+AWS/Rust speed. Full quests, every augment/elite reward, advanced bot parity and production completeness no longer block
+this delivery. The [demo scope and owners](coordination/TECHNICAL_DEMO.md) supersede earlier full-port release blockers
+below; the existing Rust authority/privacy/input rules remain. Settings and icon-first HUD are composed at `68ef361e`,
+with one combined optimized Web build and real core-match acceptance next. Normal `cdec` and `7401` CI each pass four
+jobs; Rust stops at a demonstrated private-output Docker UID permission failure. The reviewed caller-UID fix reproduces
+both unchanged historical NPC outputs exactly (13,952,630 and30,636,484 bytes). The reviewed native packaging repair
+passes25 offline tests; its first Linux run compiled successfully but failed postbuild for an unknown reason, retained
+as a failure. One diagnostic retry is authorized. These are preparation results, not completed demo/hosting/performance
+claims. The actual optimized Linux retry42720842809 at8e3afa69 now passes build, PostgreSQL readiness, clean stop and
+strict archive validation; the temporary trigger is removed/pushed at4b423b41. Root independently verifies the same
+archive without executing it. Combined Settings/HUD14 focused cases pass after two retained fixture hierarchy failures
+and literal-only test repairs; the single optimized Web build is in preparation. AWS CLI profile rougehalla-staging is
+renewed through the in-app browser and STS confirms048226733033; the still-expired plugin connections no longer block
+CLI-based staging preparation. An actual M5 release server build uses the existing render-trace cache at jobs1.
+
+## Latest integration update (2026-11-09 21:45 UTC; before demo scope change)
+
+The native identity remains **protocol14/checkpoint29/replay23/OBS21/policy15/content7c6a633f68c2cc72**. Canonical `optimization_port` now includes reviewed three-asset Unity serialization merge `5e19ef1b`; no P15 or full Brain activation is implied. The exact [Web57 artifact](evidence/unity-web57-admission/README.md) passes its fresh actual build, complete pre/post source/settings checks and Root's independent14-file/37-payload verification. Earlier native98 remains scoped to6d; both zero-case layout failures and the first successful compiler job's failed source guard remain retained. Actual browser flows and the raster matrix are next.
+
+The [actual protection/cue Source witness](evidence/bot-protection-cues/root-first-capture/README.md) is now composed: all11 cases/1,056 ordinary World steps/2,112 complete Frames, with2,046 Percepts and66 startup nulls. Actual inputs now include player fighters, Bow/Wand lifecycles, delayed flights, containers and events. The [private MethodValue component](evidence/bot-temporal-method-values-root-admission/README.md) distinguishes source undefined/null/missing without public/schema changes. DeepSeek's [native replay](evidence/native2112-and-expiry-admission/README.md) now matches all2,112 inputs to2,046 outputs/66 nulls with zero numeric error; Root's merged three affected tests pass. All six Source semantic controls now reach their intended KILL and the comment-only control NONKILL; independent raw/outcome review accepts the [complete finite suite](evidence/bot-protection-cues-variants/remaining-six-controls/README.md). External reproduction, full fair publication and live Brain remain open. The full source Memory/strategy/reflex/hunt/loot/learning/tournament outcome path remains the largest implementation gap. A newly confirmed smaller seam is card-only bleed grouped hit feedback/run-end flush; existing bleed damage is implemented.
+
+[Normal c52 CI](evidence/ci-c52-npc-context-root/README.md) passes four jobs and the Rust native/PG/placement/parity/offline14/both full-map smoke/vector prefix, then fails the unchanged NPC witness comparison on exactly the CONTRACTS documentation provenance hash. Source/config/tool bodies remain exact. An explicit historical-input wrapper preserves both current normative and frozen metadata inputs; Root's first corrected Source-only-limit continuity run now matches all13,952,630 original bytes. The runner/nested-continuity check also matches all30,636,484 bytes. Normal8da run42706253349 later fails in the wrapper without retaining its underlying receipt/error in the public job log; the root cause remains unproven, and bounded receipt/stderr/npm diagnostics are added before the next normal run. No captured gameplay expectation changes. The two earlier npm resource failures occurred before Source and stay retained.
+
+The [readonly Linux device collector](evidence/staging-host-device-root-admission/README.md) is composed with20 author synthetic passes and independent source review. The [executable expiry component](evidence/native2112-and-expiry-admission/README.md) is now composed after the reviewed quiet-enable repair; Root21 synthetic tests pass. Real Linux/cloud execution remains open. The account chat next prepares a manual Linux release component build, with no dispatch/deployment yet. Actual browser startup resumed the same owned local PG cluster without new grants: all three durability settings are ON, restricted app role/peer socket checks pass, Source/Training/router start, then a public-metadata probe AttributeError stops the run. All four owned processes stop cleanly; no browser/profile claim/Hello/admission occurred. The subsequent [third bootstrap](evidence/browser-c52-local-bootstrap/README.md) corrects only the probe alias and passes public identities/readiness, all15 static URL rows, CORS and both no-Hello WebSocket upgrade/EOF checks. Known owned services remain alive. The first actual normal IAB Training flow now passes fresh callsign/LOAD/confirmed Practice/no rewards and400ms native Right movement/release; actual720p screenshot and receipt are retained. This finite visible baseline does not prove Arena, reload/Resume, banking or performance.
+
+Complete current browser/account/quest/trader/result/reload acceptance, deployable durable hosting/backup/restore/provider lifecycle, full M5 Pro matched legacy performance and release/rollback checks remain open. AWS renewal remains owner-deferred; no new permission is needed for useful local work. Practice rougehalla.com, Calgary account048226733033, CAD20 TOTAL and unchanged production remain the operating scope.
+
 ## Reviewed protocol14 wrap-up checkpoint (2026-11-09 UTC)
 
 This checkpoint supersedes the versions and pending descriptions below. The composed code identifies **protocol14 /
@@ -17,7 +115,9 @@ The [finite WalkHint boundary24 consumer](evidence/walk-hint-native24/root-admis
 
 The [combined client admission](evidence/native29-client-composition/README.md) records Root's933/933 managed run, fair-perception9, runtime admission7,34 scene-candidate regressions, strict workspace all-feature lint and subsequent server lint/format checks at their exact cuts. The original stale-cache compile and duplicate test-module lint failures remain explicit. This composition still awaits normal CI.
 
-The [Training90 engine proof](evidence/unity-training90-dropdown-editor-first/README.md) passes all90 exact cases once at frozen cdb0, preserving both prior failed runs. Its separate first layout observer fails EventSystem registration; layout remains OPEN. The corrected helper is source-reviewed. A guarded restart preflight stops on dirty persistent objects; no quit/save/discard occurs and the old Editor stays intact. A fresh isolated project is being prepared for the next composed proof. Return-time AutoRefresh assertions remain explicitly unresolved despite exact source/visible-state restoration. The [owned-seat tab checkpoint component](evidence/owned-seat-checkpoint/README.md) and initial-resume/Detach library are reviewed; explicit page-reload UI and actual browser proof are separate work. The private [SceneCandidate socket](evidence/scene-candidate14-socket/README.md) passes39 scoped checks and is independently reviewed; it does not activate a new Room/client/public fact protocol. The original [composition receipt](evidence/root-final14-composition/README.md) retains its earlier exact cuts.
+The [native98 functional admission](evidence/unity-resume98-admission/README.md) now composes explicit owned-seat Resume after all98 exact actual Editor cases pass once at frozen6d5d9340: the prior90 plus eight Resume cases. Root verifies the entire client/protocol tree matches that tested cut. The fresh isolated Editor and single approved generated settings overlay leave the original dirty Editor untouched. The312-payload portable proof retains original tooling/schema failures and the withdrawn pre-test release; three authorized preference keys restore, while dirty RAM/asset deltas remain explicit. Layout/raster, a current Web build and actual browser reload/settlement remain OPEN. Earlier [Training90](evidence/unity-training90-dropdown-editor-first/README.md), its failed layout observer and unresolved original AutoRefresh assertions keep their historical scopes. The [owned-seat tab checkpoint component](evidence/owned-seat-checkpoint/README.md) and initial-resume/Detach library are reviewed. The private [SceneCandidate socket](evidence/scene-candidate14-socket/README.md) passes39 scoped checks and is independently reviewed; it does not activate a new Room/client/public fact protocol. The original [composition receipt](evidence/root-final14-composition/README.md) retains its earlier exact cuts.
+
+[Normal76d CI](evidence/ci-76d-staging-pin/README.md) creates all five jobs. Provenance, C#, card-source and complete simulation pass; Rust passes its native/default/PostgreSQL/placement/parity and lint gates, then fails one of14 offline staging checks on an obsolete frozen runtime fingerprint. Subsequent Rust-job gates are skipped. The [reviewed preparation batch](evidence/wrapup-preparation-admission/README.md) now repairs this with a consistent76d native refreeze, exact five-file coverage and stale-a0c artifact receipt refusals; Root14/14 passes at the merged cut. The same batch adds the independently reviewed nondeployable installer foundation and browser reload readiness after its exact-source check repair. Actual host and browser execution remain open. A fresh normal CI must attest this composition; the old red is retained.
 
 Typed neutral quest givers, ordered NPC Frost sources, Sentenced NPC/group combat and all63 strict source cases are
 composed. The actual Overkill threshold is registered without changing its arithmetic; strict predecessor refusals and

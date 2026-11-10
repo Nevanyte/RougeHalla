@@ -1,0 +1,16 @@
+✔ Readiness template and synthetic consistency never grant browser acceptance (1.702792ms)
+✔ Checker requires the exact reviewed native source (0.167041ms)
+✔ Checker rejects the superseded 6d client reference (0.129792ms)
+✔ Case documents must use the exact reviewed local Unity origin (0.101333ms)
+✔ Checker rejects same-document, replacement tab, changed identity, fresh fallback and late reload (0.362084ms)
+✔ Unknown credential/raw payload fields are refused without echoing rejected values (0.216917ms)
+✔ Automatic connection or Hello shortly before the real trusted Resume click is refused (0.076834ms)
+✔ A resumed mode label before Welcome cannot be reused as accepted gameplay evidence (0.052583ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 73.032667

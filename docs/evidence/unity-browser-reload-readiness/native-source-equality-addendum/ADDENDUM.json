@@ -1,0 +1,48 @@
+{
+  "state": "TINY_NATIVE_REFERENCE_GATE_CORRECTION_OFFLINE_ONLY",
+  "baseReadiness": "cfb861a14d894e70c9733d9fe86e3115421f618e",
+  "code": "a180f47b7492b3e444671d54d3f3b63657c0d420",
+  "nativeReference": "7a13b88aaa104cf2fd18dc2de7eada6c02060485",
+  "originalReadinessManifestSha256": "8457921cbfb64307b7b05584919e57c5850c396b679db1150bd8969dea353b4c",
+  "updatedToolPins": {
+    "tools/unity-browser-reload-proof/check.mjs": "73ef8e6b7927a9f461d19fb3da018de71ad4ea2a52fd909378b068a6069b146a",
+    "tools/unity-browser-reload-proof/check.test.mjs": "9fb38be5e92474cfdd9768b915c4421f95f4edbc63b05f3f912706d256a8e9f9"
+  },
+  "inheritedToolPinsUnchanged": 6,
+  "originalEvidencePinsUnchanged": 19,
+  "original15PassPreserved": true,
+  "runs": {
+    "regressionBeforeFix": {
+      "tests": 1,
+      "passed": 0,
+      "failed": 1,
+      "expectedFailure": true
+    },
+    "affectedAfterFix": {
+      "tests": 2,
+      "passed": 2,
+      "failed": 0,
+      "fullSuiteRerun": false
+    }
+  },
+  "review": "Independent read-only review: exactly two code files / seven added lines, no original tests or other source altered; no blocker. No execution by reviewer.",
+  "scope": "checker/test plus new addendum only; no actual browser/socket/server/profile/storage/network/build/install",
+  "evidence": {
+    "README.md": "a70cacbe492e7e989a3cb3f9b23fbe19d81a4d035d740b36d845773b1bb7f613",
+    "affected-after-fix.json": "ca41975f675f0526292ff3bf7b4f74e66128564d227771a28cf9d22cfcd957d1",
+    "affected-after-fix.log": "870587c030e2f429a661c923bf54043f648adc2a5e2e6da2ffbacac0bd5b98c6",
+    "regression-before-fix.json": "48d5e48470474a2d9e287723dfca445b146ec5068d0ef9e67e0c24ea7d2fb375",
+    "regression-before-fix.log": "d97066941858437585c886585b00b6a51e1635b39b1647bab33ea536f25de643"
+  },
+  "stop": "Return bounded code/evidence hashes and stop. Browser acceptance remains NOT_RUN.",
+  "whitespace": {
+    "authoredSourceAndEvidenceExitCode": 0,
+    "rawDiagnosticDiffCheckExitCode": 2,
+    "preservedRawDiagnosticWarnings": [
+      "docs/evidence/unity-browser-reload-readiness/native-source-equality-addendum/regression-before-fix.log:16: trailing whitespace.",
+      "+  ",
+      "docs/evidence/unity-browser-reload-readiness/native-source-equality-addendum/regression-before-fix.log:18: trailing whitespace.",
+      "+  "
+    ]
+  }
+}

@@ -1,0 +1,97 @@
+{
+  "format": "rh-web57-router-manifest-provenance/1",
+  "classification": "PREPARATION_ONLY_NO_LISTENERS_OR_BROWSER",
+  "originalManifest": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/evidence/web57-artifact-manifest.json",
+  "originalManifestSha256": "a224cc6cc378604e4f9407f1c540f3ceae364d9cf0c97004fcd21df816c83824",
+  "artifactRoot": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/web-build-57e166-2026-11-09/Web",
+  "source": "57e166f46b35fb703e5f3c76914fcc4e8bf3191c",
+  "canonicalClientProtocolEquivalent": "5e19ef1b801ef363a83217ddecd768c5aba71cac",
+  "buildId": "build_4421a3763bf9",
+  "physicalFileCount": 14,
+  "physicalBytes": 106987680,
+  "urlEntryCount": 15,
+  "aliasCountedBytes": 106995600,
+  "derivedManifest": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/web57-router-preflight-2026-11-09-01/router-assets.json",
+  "derivedManifestSha256": "103664aed485a1ee634d2be6de1ca759822a95a10945540aa8b1ed35a57e41d7",
+  "generatorSha256": "1b6c9fa4698a0801b04b4a169bd78ea92f4c4bb9169b49dfeeecd8c67e20f00e",
+  "uncompressed": true,
+  "artifactModified": false,
+  "alias": {
+    "path": "/",
+    "originalPath": "index.html",
+    "sha256": "3d122f461a72433123a98732aeaf6602377874fabf7e321f1f2740c1ea1b62f5",
+    "bytes": 7920
+  },
+  "physicalRows": [
+    {
+      "path": "Build/Web.data",
+      "bytes": 47866159,
+      "sha256": "b215df5daba529f3be05833e331b279c21781093b7cc8824c7856b9e850cd0ca"
+    },
+    {
+      "path": "Build/Web.framework.js",
+      "bytes": 497713,
+      "sha256": "7195592217940abcc95ccf839c2a2d297aab7214909e234b7e6f374a79c39d42"
+    },
+    {
+      "path": "Build/Web.loader.js",
+      "bytes": 26455,
+      "sha256": "c92c2f28f1fe8f67e904567d01f4c560596b1caecf663e5d3db36f33dc3b690b"
+    },
+    {
+      "path": "Build/Web.wasm",
+      "bytes": 58548399,
+      "sha256": "d77af9b676296c77aed3f82c2fa295fd8be8cd3ce638191b6726820b226deafc"
+    },
+    {
+      "path": "Licenses/CinzelDecorative-OFL.txt",
+      "bytes": 4393,
+      "sha256": "1e5d6660366ddcfca4f2fc10e2acfba9fa4d97d40aec80d7dbfd41d730a420ae"
+    },
+    {
+      "path": "Licenses/EmojiOne-Attribution.txt",
+      "bytes": 185,
+      "sha256": "4b65f8960e4f4c5c8b35fd139e369265e9bb45667fc16461b2ba01188d464d93"
+    },
+    {
+      "path": "Licenses/Flare-Audio-Notice.txt",
+      "bytes": 1130,
+      "sha256": "64e2de64656079009cfda050f49e1de5075167a387c403f17555c6c651d9b516"
+    },
+    {
+      "path": "Licenses/Flare-CC-BY-SA-3.0.txt",
+      "bytes": 22240,
+      "sha256": "3f941b3b89cf7b8370ceb83cc76d2120d471b58735d8ca60238a751a48d7f72f"
+    },
+    {
+      "path": "Licenses/Flare-Credits.txt",
+      "bytes": 3510,
+      "sha256": "8b0985009dd04911b851553a35941e6862f1df66a6864f9b2a5c7ff330574fbc"
+    },
+    {
+      "path": "Licenses/LiberationSans-OFL.txt",
+      "bytes": 4469,
+      "sha256": "37f8552e9a874ec10710dc0ede6a9adf168e6609fbd02a507f35629373b85a48"
+    },
+    {
+      "path": "Licenses/Roguehalla-MIT.txt",
+      "bytes": 1080,
+      "sha256": "385298d673f01f328553f49d75680ab30254c09d2295171c929fa61efe84b103"
+    },
+    {
+      "path": "Licenses/Third-Party-Assets.md",
+      "bytes": 3566,
+      "sha256": "75994d0600bb013e3a47a78be320b9f4d78e5f4d76a8849e9494793a95b89295"
+    },
+    {
+      "path": "Licenses/Unity-Companion.md",
+      "bytes": 461,
+      "sha256": "6550a14445e6c2116213b2419c4c28b75be4b99039afc8d091ced3192624390c"
+    },
+    {
+      "path": "index.html",
+      "bytes": 7920,
+      "sha256": "3d122f461a72433123a98732aeaf6602377874fabf7e321f1f2740c1ea1b62f5"
+    }
+  ]
+}

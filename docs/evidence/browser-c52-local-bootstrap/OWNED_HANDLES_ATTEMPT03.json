@@ -1,0 +1,27 @@
+{
+  "format": "rh-browser-c52-phaseA-owned-handles/1",
+  "releaseSha256": "0f06a88f530a036ffa1d413394d9cddd4be88cc4e8964b0b0406f595c0940064",
+  "stateRoot": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/browser-c52-actual",
+  "socketRoot": "/private/tmp/rh-browser-c52-pg-65439",
+  "postgresPid": 95251,
+  "processes": [
+    {
+      "name": "source",
+      "pid": 95283,
+      "startedUtc": "2026-11-09T21:55:07.245612+00:00",
+      "argvSha256": "f369da94b20bb9224945178f18f9351b657a5325235778fbd9d187601ca38bfb"
+    },
+    {
+      "name": "training",
+      "pid": 95289,
+      "startedUtc": "2026-11-09T21:55:07.301893+00:00",
+      "argvSha256": "bd9b4488c9fcecdd668b1738c9f2873b2c021718c901f93faf29b992dde22d7e"
+    },
+    {
+      "name": "router",
+      "pid": 95295,
+      "startedUtc": "2026-11-09T21:55:07.357784+00:00",
+      "argvSha256": "6e200e4eb9b08cd8184a76c58060d37ff721766591eae2c3df838967290433dc"
+    }
+  ]
+}

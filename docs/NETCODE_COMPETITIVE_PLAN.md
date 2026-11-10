@@ -1,5 +1,15 @@
 # Competitive netcode plan (input -> client -> server -> sim -> opponent)
 
+Root integration update2026-11-10: the owner explicitly authorizes the competitive-speed tradeoffs. Wave1 plus the
+reviewed stale prediction-echo repair is composed at `fe0e2983`:956 managed tests,102 affected Rust tests, format and
+strict server lint pass; actual Unity Client/Net compilation passes. The two retained stale-echo failures demonstrate
+why new alignment state needs sent-frame proof as well as the reusable movement byte. The current running demo remains
+the frozen pre-Wave1 artifact for a baseline. New builds and real-link measurements are next; the numbers below retain
+their original inferred/synthetic scope. Later waves remain proposals, not already implemented features.
+
+The hosting change uses TBF plus fq_codel. Its50ms TBF parameter is not a hard queue-delay bound after replacing the
+inner FIFO; actual host queue behavior and concurrent download/game latency remain unmeasured.
+
 Source: a read-only sweep of the built pipeline on `optimization_port` at `76d170a1` (eight reviewers, 2026-11-09).
 Serves ORDER_OF_OPERATIONS polish of the network path. Nothing here changes the 20 Hz step, the tick order, the
 `validate` + `Sim::submit` rule or the wire unless a row says so. Figures marked *inferred* come from reading code, not

@@ -1,0 +1,5 @@
+# Actual normal IAB Training baseline
+
+The [receipt](B1_RECEIPT.json) records ordinary UI in a new in-app tab: empty initial account field, new callsign rhc52a1109, LOAD/owned profile, TRAINING and confirmed Practice/no rewards, then400ms native Right key with release and rendered movement. [Actual final screenshot](training-after-movement.jpg) is1280x720; earlier menu/profile images were observed inline only and were not recreated. Root and the art chat independently inspect the saved screenshot.
+
+Source remains0 rooms/players; Training is1 room/player, both protocol14/content7c6a633f68c2cc72/ready/results0. Existing Chrome/AWS tabs and settings remain untouched; no storage/credential/app-global inspection, preloads, handlers or direct claims API. The live tab remains for continuation. This proves a finite visible Training baseline, not same-seat reload/Resume, Arena, combat, banking, latency/FPS or full-game acceptance. Text scale was not recorded explicitly; default/150% raster matrix remains open.

@@ -1,0 +1,10 @@
+MatchLaunchEditModeTests: PASS 17/17
+MatchSettlementEditModeTests: PASS 22/22
+Roguehalla.Client.Tests.PlayerFlowsEditModeTests: PASS 11/11
+Roguehalla.Client.Tests.QuestJournalViewEditModeTests: PASS 8/8
+Roguehalla.Client.Tests.TraderDialogViewEditModeTests: PASS 6/6
+Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests: PASS 13/13
+Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests: PASS 5/5
+Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests: PASS 8/8
+Roguehalla.Client.Tests.MatchResumeEditModeTests: PASS 8/8
+PASS:98 exact cases passed once; no retries

@@ -1,0 +1,30 @@
+{
+  "argv": [
+    "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/controller-frozen/RunGate98.py",
+    "--project",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+    "--evidence",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/evidence",
+    "--contract",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/docs/evidence/unity-owned-seat-resume/metadata/candidate04-1bf48a81/typed-fixture-contract.json",
+    "--fixture-sources",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/docs/evidence/unity-owned-seat-resume/metadata/candidate04-1bf48a81/source-input-pins.json",
+    "--binding",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/evidence/pre-execution-binding.json",
+    "--native-identity",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/evidence/native-identity-verification.json",
+    "--console-baseline",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/evidence/pre-execution-console-baseline.json",
+    "--source",
+    "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+    "--contract-sha256",
+    "6bfa787e4f63be11fc8a1d51879f30cfc7617f4d7d51883afc60a28a7ef8870e",
+    "--fixture-sources-sha256",
+    "72ab2814479574ed1c159a1a6af077f86b8c6870eaccb86c20ab97ea49312a1c",
+    "--editor-pid",
+    "46583",
+    "--execute-native98"
+  ],
+  "startedUtc": "2026-11-09T19:21:50.049606+00:00"
+}

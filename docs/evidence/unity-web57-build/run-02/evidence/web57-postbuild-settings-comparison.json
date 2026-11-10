@@ -1,0 +1,9 @@
+{
+  "status": "PASS_EFFECTIVE_SETTINGS_MAIN_BAKED_EXACT",
+  "source": "57e166f46b35fb703e5f3c76914fcc4e8bf3191c",
+  "settingsPreSha256": "72d6449a3c6d88ada29bbb0387d131ffd24b94b4505da54d8135a6c5ab4af63b",
+  "settingsPostSha256": "3f693cb70d60727285e0922a04a66acc823863a3a079456aaa188bd14188c5db",
+  "effectiveSettingsExact": true,
+  "sceneSha256": "ac5f980d3515e5d2d8870c51a7d76fb61c554ec772f65cf429f2486b190a307e",
+  "bakedSha256": "8413908cace2df6eb8b8fe5025c0914991397f95271e985656929b335186101e"
+}

@@ -1,0 +1,17 @@
+{
+  "source": "f98f57f08d923e3c6755e263d00b1afdfac0dafc",
+  "argv": [
+    "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "tools/staging-full-runtime",
+    "-p",
+    "test_*.py",
+    "-v"
+  ],
+  "exitCode": 0,
+  "time": "2026-11-09T19:48:08.378143+00:00",
+  "scope": "14 offline staging preparation contracts only; no artifact/host/cloud admission"
+}

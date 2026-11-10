@@ -1,0 +1,13 @@
+{
+  "status": "PASS",
+  "commit": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+  "tree": "caac77176dcb2fb33dc491b9a7990751a1f534d7",
+  "sourcePins": 1284,
+  "uniqueMetaGuids": 626,
+  "startupOverlay": {
+    "path": "client-unity/UnityProject/ProjectSettings/PackageManagerSettings.asset",
+    "bytes": 1044,
+    "sha256": "a2cb53758656a32e072c1e33d985a3f73b8374b2acb3365750d31070d60a67b5",
+    "gitStatus": "?? client-unity/UnityProject/ProjectSettings/PackageManagerSettings.asset"
+  }
+}

@@ -1,0 +1,96 @@
+{
+  "format": "rh-protection-cue-remaining-controls/1",
+  "sourceRuntimeExecutions": 6,
+  "compilerOnlyBuilds": 6,
+  "semanticKills": 5,
+  "commentNonkills": 1,
+  "withPreviouslyReviewedTeleport": "6 KILL / 1 NONKILL",
+  "independentReviewSha256": "bf1e424fd402d2e511f2388b4342afe2623363afbbd6e13240a88f8eacc0384c",
+  "controls": [
+    {
+      "control": "remote-lower-guard",
+      "status": "KILL",
+      "rawBytes": 4042896,
+      "rawSha256": "116c8b39431a4574214c23d1e91f6e73230bce3e383870e44103bc50059cafd0",
+      "firstFailure": {
+        "caseId": "P0",
+        "assertion": "AssertionError [ERR_ASSERTION]: exact remote lower/upper guard\n\ntrue !== false\n",
+        "sampleTime": 2650,
+        "baselineRemoteImmune": false,
+        "observedRemoteImmune": true,
+        "positiveOwnerDeadline": 2550
+      }
+    },
+    {
+      "control": "remote-upper-guard",
+      "status": "KILL",
+      "rawBytes": 4042799,
+      "rawSha256": "f016105b3eceee155853f9388be49949618079c5afd64629983ea31a1c23483e",
+      "firstFailure": {
+        "caseId": "P0",
+        "assertion": "AssertionError [ERR_ASSERTION]: exact remote lower/upper guard\n\ntrue !== false\n",
+        "sampleTime": 1050,
+        "baselineRemoteImmune": false,
+        "observedRemoteImmune": true,
+        "positiveOwnerDeadline": 2550
+      }
+    },
+    {
+      "control": "preserve-ranged-cancel",
+      "status": "KILL",
+      "rawBytes": 28829617,
+      "rawSha256": "6adba6e31d3113af7599fe55113344c510d6469d11a95977b1f9d476e77e680a",
+      "firstFailure": {
+        "caseId": "W1",
+        "assertion": "AssertionError [ERR_ASSERTION]: same committed cast survives order\n+ actual - expected\n\n+ null\n- {\n-   a: 3.141592653589793,\n-   kind: 'cast',\n-   landsAt: 2918.9792663476874,\n-   packet: {\n-     magic: 0,\n-     phys: 1,\n-     raw: 89.40606060606062,\n-     true: 0\n-   },\n-   startedAt: 2600,\n-   target: 'cue-observer',\n-   weapon: 'wand'\n- }\n",
+        "targetedCastTime": 2600,
+        "actualStopApplyTime": 2650,
+        "cancelTime": 2650,
+        "observedBallBirths": 0,
+        "baselineBallBirths": 1
+      }
+    },
+    {
+      "control": "different-target-cancel",
+      "status": "KILL",
+      "rawBytes": 24817491,
+      "rawSha256": "85fced622cb591d9f40ef4829706ff6e807a7dd67d334799641eab7338b2fddd",
+      "firstFailure": {
+        "caseId": "W0",
+        "assertion": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n0 !== 1\n",
+        "realTargetApplyTime": 2650,
+        "publicLock": "cue-other",
+        "retainedActionTarget": "cue-observer",
+        "observedCancelCount": 0,
+        "baselineCancelCount": 1,
+        "observedFeints": 0,
+        "observedLastFeintAt": null,
+        "baselineFeints": 1,
+        "baselineLastFeintAt": 2650
+      }
+    },
+    {
+      "control": "bow-stagger-exclusion",
+      "status": "KILL",
+      "rawBytes": 20136186,
+      "rawSha256": "12de9ec1973503f58ce9d1ecd7854015472968c652b975ae4f35233a6ba2e30f",
+      "firstFailure": {
+        "caseId": "B2",
+        "assertion": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- 'draw'\n",
+        "positiveDrawTime": 2600,
+        "paidHitTime": 2650,
+        "paidHitAmount": 25.71361379670761,
+        "observedStagger": true,
+        "observedArrowBirths": 0,
+        "baselineArrowBirths": 1
+      }
+    },
+    {
+      "control": "comment-provenance",
+      "status": "NONKILL",
+      "rawBytes": 45079413,
+      "rawSha256": "4c9ec841eb2c6353de0ffbff59319fb8837797c3137e4b41951754b182f2265c",
+      "firstFailure": null
+    }
+  ]
+}

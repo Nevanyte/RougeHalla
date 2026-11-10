@@ -1,0 +1,253 @@
+{
+  "format": "rh-web6d-build1-held-proof/1",
+  "createdUtc": "2026-11-09T20:33:42.459186+00:00",
+  "source": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+  "buildId": "build_bf4d3ece70b3",
+  "rawResult": "Succeeded",
+  "disposition": "HELD_THREE_POSTBUILD_SERIALIZATION_MISMATCHES",
+  "payloadCount": 48,
+  "payloadBytes": 2583922,
+  "artifactBinariesPrivateDataAndRawEditorLogsIncluded": false,
+  "payloads": [
+    {
+      "path": "BOOTSTRAP_OVERLAY_01.json",
+      "bytes": 1250,
+      "sha256": "aff1b08079e75b22b8a0f8c1132bf24ccbec8d36a8d14967c41526f9d89cbe3e"
+    },
+    {
+      "path": "SOURCE_FREEZE.json",
+      "bytes": 285667,
+      "sha256": "2845414b71e5afe0c5ad6597e38c50187e0975680a8712823b9e039f1068a343"
+    },
+    {
+      "path": "run-02/BuildPlanSettings6d.cs",
+      "bytes": 10153,
+      "sha256": "969f631f08656be535715149f06bb6fb026fdbdd07a35606dbf435e043fef5b5"
+    },
+    {
+      "path": "run-02/ROOT_WEB6D_BUILD_RELEASE.json",
+      "bytes": 3725,
+      "sha256": "b3f04e42211573806d52a2af45333083486f8b013c37e817754f54e4362052c3"
+    },
+    {
+      "path": "run-02/WEB6D_BUILD_PLAN.json",
+      "bytes": 5444,
+      "sha256": "26dca77f57ffa70b8d809e975dc294cbb68b6f068abc44a5eadfba6dc6c2e419"
+    },
+    {
+      "path": "run-02/WEB6D_BUILD_PLAN.md",
+      "bytes": 2544,
+      "sha256": "fa8978562952d3473e4fae7be46876f56195cea62e2fccd54543dfc00162f0a1"
+    },
+    {
+      "path": "run-02/evidence/HELD_BUILD1_REPORT.json",
+      "bytes": 14314,
+      "sha256": "a61a15d78f2a9cf33c43c016d5a216bb486eeea627d9f05a1441f727092574c9"
+    },
+    {
+      "path": "run-02/evidence/HELD_BUILD1_REPORT.md",
+      "bytes": 6900,
+      "sha256": "fdb7c0035a268f03de0bc7243bacf4b93c963a5a0d4fd1f97a96e02910eff16e"
+    },
+    {
+      "path": "run-02/evidence/web6d-build-dry-run.json",
+      "bytes": 56,
+      "sha256": "741f5dafba6ab0a2059959ac5dbf2539948c245d096686c9831ded05b1409a72"
+    },
+    {
+      "path": "run-02/evidence/web6d-build-dry-run.json.invocation.json",
+      "bytes": 817,
+      "sha256": "8d01c3658f2c49dfdcbf576eab642e2098f9a9f9e874356a1d44879630e11501"
+    },
+    {
+      "path": "run-02/evidence/web6d-build-dry-run.json.target.json",
+      "bytes": 1291,
+      "sha256": "7582e095c8da9d689537dbc0c574ea2ff9d28d7843b2142f687bb037dfdf2c7f"
+    },
+    {
+      "path": "run-02/evidence/web6d-build-dry-run.json.target.json.invocation.json",
+      "bytes": 400,
+      "sha256": "30672bdb117a869ed9c62898b6f1de27176007f5512ea0ea8308a11e4e445780"
+    },
+    {
+      "path": "run-02/evidence/web6d-build-persisted-status-001.json",
+      "bytes": 264,
+      "sha256": "4ec6e6e8e30f1e8bfbccd5279f2f18a30aedd1241777fa7030e54ec6661595dd"
+    },
+    {
+      "path": "run-02/evidence/web6d-build-persisted-status-001.observation.json",
+      "bytes": 445,
+      "sha256": "73a2fea833be002a9bb225a62911d84cf4447e5fcfeb95e5eba954d638ef3d73"
+    },
+    {
+      "path": "run-02/evidence/web6d-build-persisted-status-002.json",
+      "bytes": 1095386,
+      "sha256": "d4f41a5ade6b590a7998a87a486d967eb800faf9912b7ec50cd95eb91fda26ce"
+    },
+    {
+      "path": "run-02/evidence/web6d-build-queued.json",
+      "bytes": 51,
+      "sha256": "ce2a02421384027a3a14ba43ca87d7857d4e01f702ba8a76d25e0a279befa862"
+    },
+    {
+      "path": "run-02/evidence/web6d-build-queued.json.invocation.json",
+      "bytes": 817,
+      "sha256": "4199b367fa5dfa52dc1354223e12ae6090158bac329209755b88638d7f2a6afb"
+    },
+    {
+      "path": "run-02/evidence/web6d-build-queued.json.target.json",
+      "bytes": 1291,
+      "sha256": "7582e095c8da9d689537dbc0c574ea2ff9d28d7843b2142f687bb037dfdf2c7f"
+    },
+    {
+      "path": "run-02/evidence/web6d-build-queued.json.target.json.invocation.json",
+      "bytes": 400,
+      "sha256": "c61109dd7bc8baec7ee2ac817ebae5a5ee10b20e88d30d3399c9658c2aa431ef"
+    },
+    {
+      "path": "run-02/evidence/web6d-build-status-001.json.target.json",
+      "bytes": 1490,
+      "sha256": "f1c4c6ab4a162e81e70c911e145317847e65dc16d52c5aa82f65b9a219b5ce89"
+    },
+    {
+      "path": "run-02/evidence/web6d-build-status-001.json.target.json.invocation.json",
+      "bytes": 401,
+      "sha256": "e6862097845c75a03ee8c925ea4087f9da609fe5694c88e68853e3828fa31af8"
+    },
+    {
+      "path": "run-02/evidence/web6d-build-status-terminal.json",
+      "bytes": 1095387,
+      "sha256": "b3347314b53afd53108d58e68b059ef50a001ab67bb5e1fbb2335250cb51d7f0"
+    },
+    {
+      "path": "run-02/evidence/web6d-build-status-terminal.json.invocation.json",
+      "bytes": 490,
+      "sha256": "1cb9f811a6bf63b85505b24c4d444a86f9ac65dd64650dd989e9b854fb93738b"
+    },
+    {
+      "path": "run-02/evidence/web6d-build-status-terminal.json.target.json",
+      "bytes": 1291,
+      "sha256": "7582e095c8da9d689537dbc0c574ea2ff9d28d7843b2142f687bb037dfdf2c7f"
+    },
+    {
+      "path": "run-02/evidence/web6d-build-status-terminal.json.target.json.invocation.json",
+      "bytes": 400,
+      "sha256": "2a724ffaafbf257619ed8aa578d7baa10def9bcc9aec0111f7e443c4206d0dd1"
+    },
+    {
+      "path": "run-02/evidence/web6d-build-submission.json",
+      "bytes": 671,
+      "sha256": "b3b77f6cad45e62ef2bed5fee283f76e8462da055d9ba3a1fe9eea1c8e0c5c91"
+    },
+    {
+      "path": "run-02/evidence/web6d-held-artifact-manifest.json",
+      "bytes": 1282,
+      "sha256": "4944c9b0e6b72b3f4c48e72f9bbd40f52a6eb4e60480c0cb41d32be07e800eaa"
+    },
+    {
+      "path": "run-02/evidence/web6d-plan-effective-settings.json",
+      "bytes": 4138,
+      "sha256": "9b8a59803c8338888029b3063b271a02841dc48a5b62119bff1d33d5929ee5a1"
+    },
+    {
+      "path": "run-02/evidence/web6d-plan-effective-settings.json.invocation.json",
+      "bytes": 697,
+      "sha256": "09567cdbf83cb467b0dad677058b5ddbf8c2c82718867716d8d59498386de4e6"
+    },
+    {
+      "path": "run-02/evidence/web6d-plan-effective-settings.json.target.json",
+      "bytes": 1291,
+      "sha256": "7582e095c8da9d689537dbc0c574ea2ff9d28d7843b2142f687bb037dfdf2c7f"
+    },
+    {
+      "path": "run-02/evidence/web6d-plan-effective-settings.json.target.json.invocation.json",
+      "bytes": 400,
+      "sha256": "32059a192df3545f0827e59b3a81857d10a78614c1ee241d118d84a21977654d"
+    },
+    {
+      "path": "run-02/evidence/web6d-plan-file-preflight.json",
+      "bytes": 3708,
+      "sha256": "33613ca509a81549db2c4afd9f4f9483fcc79a3e3aee0878d4b2860be5d8c414"
+    },
+    {
+      "path": "run-02/evidence/web6d-postbuild-drift-inventory.json",
+      "bytes": 2056,
+      "sha256": "508c8441331f532bafdc9cdf65465d24afeae5cd88e71480cb3647395c811584"
+    },
+    {
+      "path": "run-02/evidence/web6d-postbuild-drift-stop.json",
+      "bytes": 913,
+      "sha256": "68d20c3b8749511ea09f93f196857c7e90cff86e52a08f36bb460ffa5d325e97"
+    },
+    {
+      "path": "run-02/evidence/web6d-postbuild-effective-settings.json",
+      "bytes": 4138,
+      "sha256": "f36d1a1490dab5cd957f978b05c24275cdf58baf9e7f2840a85c5805e85f25a3"
+    },
+    {
+      "path": "run-02/evidence/web6d-postbuild-effective-settings.json.invocation.json",
+      "bytes": 697,
+      "sha256": "c98c352cd4d7be8582191aeb9ccd11986bf1af93a3efc44a20ecb3d7f62ad855"
+    },
+    {
+      "path": "run-02/evidence/web6d-postbuild-effective-settings.json.target.json",
+      "bytes": 1291,
+      "sha256": "7582e095c8da9d689537dbc0c574ea2ff9d28d7843b2142f687bb037dfdf2c7f"
+    },
+    {
+      "path": "run-02/evidence/web6d-postbuild-effective-settings.json.target.json.invocation.json",
+      "bytes": 400,
+      "sha256": "7d95ef1af329ebff02efc1e97b11ed9cd59e11f0b37eebbd11e298e4f99cfb90"
+    },
+    {
+      "path": "run-02/evidence/web6d-postbuild-first-diff.patch",
+      "bytes": 9479,
+      "sha256": "36aba7c3a8aa307aa119fdb7d1f3a7007ac3c228f2bfc912d030a9edcc3407b8"
+    },
+    {
+      "path": "run-02/evidence/web6d-postbuild-first-status.txt",
+      "bytes": 339,
+      "sha256": "b24a96fa1255b908df9eb40d472da95479ba9555d739414c51cef250e2fc167a"
+    },
+    {
+      "path": "run-02/evidence/web6d-postbuild-source-guard.json",
+      "bytes": 188,
+      "sha256": "8d1ca8af3ac518053b654ecdad3d5ce52645d9007ffa9a4783d026c7c6ad784e"
+    },
+    {
+      "path": "run-02/evidence/web6d-prebuild-effective-settings.json",
+      "bytes": 4138,
+      "sha256": "8611129d109dc21e4c251cc296b5a5f6a5043634752b7c078b8146496665fce6"
+    },
+    {
+      "path": "run-02/evidence/web6d-prebuild-effective-settings.json.invocation.json",
+      "bytes": 697,
+      "sha256": "a1409b935c4b7b1a8574ddf26b3529f3e0467c0ace671239507bb7cc144d20ad"
+    },
+    {
+      "path": "run-02/evidence/web6d-prebuild-effective-settings.json.target.json",
+      "bytes": 1291,
+      "sha256": "7582e095c8da9d689537dbc0c574ea2ff9d28d7843b2142f687bb037dfdf2c7f"
+    },
+    {
+      "path": "run-02/evidence/web6d-prebuild-effective-settings.json.target.json.invocation.json",
+      "bytes": 400,
+      "sha256": "2606c2de43fc992ef7bea735ef21cff7dfd63f80162a31eee17046be8c36870b"
+    },
+    {
+      "path": "run-02/evidence/web6d-prebuild-source-guard.json",
+      "bytes": 488,
+      "sha256": "0cf08e8e13772ede4c5b0d060294ab00d48d89fb0ac9b1b65e2083503d97188f"
+    },
+    {
+      "path": "run-02/evidence/web6d-warning-review.json",
+      "bytes": 11564,
+      "sha256": "9a9c74e05fe08305d4782a568218eaaf538374e7e518647eee7d56c3c9cc110c"
+    },
+    {
+      "path": "run-02/evidence/web6d-warning-review.md",
+      "bytes": 2982,
+      "sha256": "62972a9e76ba704ba647b67cd2c94b299a1855f3a336257053258a1b98d4a9db"
+    }
+  ]
+}

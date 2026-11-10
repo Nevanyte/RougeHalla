@@ -1,0 +1,20 @@
+{
+  "format": "rh-root-layout6d-attempt2-release/1",
+  "issuedUtc": "2026-11-09T19:59:15.112996+00:00",
+  "project": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+  "editorPid": 46583,
+  "source": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+  "overlaySha256": "a2cb53758656a32e072c1e33d985a3f73b8374b2acb3365750d31070d60a67b5",
+  "pins": {
+    "RunLayout6dAttempt2.frozen.py": "c1e58b45e982d2410f4b34305706d8e9ac350ab173132fa82411f292725088c8",
+    "TrainingLayoutNativeAttempt2.cs": "728899bdfc3e1d4121afda249234eeaf36b3935f36b95259d364cb2b95a5c1cd",
+    "layout6d-r2-controller.diff": "c868786bb27623cf261e7e523ef3e4244a790a430e29430caee25b371d4c4c82",
+    "layout6d-r2-resolver.diff": "43f0c6e24d24fc3f1e6cd4455caece45bc98ab3bf887d60927177ac2e01aa649"
+  },
+  "authority": "ONE frozenAttempt2 fourcase720p/1440p default/150%text cameraRT+Canvas+PNG run, freshlayout6d-r2 artifactprefix; exactnewhelperassemblyfinallycleanup",
+  "preserve": "first0case Gitresolver failure, allnative98proof, originalEditor9075 andsource",
+  "guards": "1284sourcepins/626GUIDs/exactHEAD+overlay/threeprivateprefsfinallyrestore; no product changes/GameViewsetter/native98rerun",
+  "liveGameViewPointerAcceptance": false,
+  "webBuildReleased": false,
+  "failure": "Stop/preserve first failure, restore/verify exactauthorizedprefs andscene/source guards; no auto retry"
+}

@@ -1,0 +1,13 @@
+{
+  "scope": "new offline synthetic native-reference regression only; before the one-line fix",
+  "command": [
+    "node",
+    "--test",
+    "--test-name-pattern=^Checker requires the exact reviewed native source$",
+    "tools/unity-browser-reload-proof/check.test.mjs"
+  ],
+  "base": "cfb861a14d894e70c9733d9fe86e3115421f618e",
+  "exitCode": 1,
+  "expected": "FAIL before fix",
+  "logSha256": "d97066941858437585c886585b00b6a51e1635b39b1647bab33ea536f25de643"
+}

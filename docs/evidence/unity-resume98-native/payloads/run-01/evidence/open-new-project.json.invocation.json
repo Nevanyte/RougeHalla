@@ -1,0 +1,20 @@
+{
+  "argv": [
+    "unity",
+    "open",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+    "--editor-version",
+    "6000.0.85f2",
+    "--build-target",
+    "WebGL",
+    "--format",
+    "json",
+    "--args",
+    "-logFile \"/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-01/private/Editor.log\""
+  ],
+  "startedUtc": "2026-11-09T18:35:42.646877+00:00",
+  "finishedUtc": "2026-11-09T18:51:49.144565+00:00",
+  "exitCode": -2,
+  "stderr": "Warning: \"/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject\" was not found in the Hub project registry, opening as a file path.\n",
+  "stdoutSha256": "41978357e30bb8d93fee3afc368bdcdae139ff1fa81e7c36fbc7fdcbb6b8bc91"
+}

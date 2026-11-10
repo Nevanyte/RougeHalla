@@ -8,6 +8,8 @@ on:
       - 'client-unity/RoguehallaNet/**'
       - 'client-unity/UnityProject/Assets/Scripts/Net/**'
       - 'client-unity/UnityProject/Assets/Plugins/WebGL/**'
+      - 'client-unity/UnityProject/Tools/profile-*.cjs'
+      - 'client-unity/UnityProject/Tools/webgl-profile-init.js'
       - 'hosting/staging-mvp/staging.py'
       - 'hosting/staging-mvp/test_latency_render.py'
       - '.github/workflows/input-latency.yml'
@@ -16,6 +18,8 @@ on:
     paths:
       - 'tools/latency/**'
       - 'docs/evidence/input-latency/**'
+      - 'client-unity/UnityProject/Tools/profile-*.cjs'
+      - 'client-unity/UnityProject/Tools/webgl-profile-init.js'
       - 'hosting/staging-mvp/staging.py'
       - 'hosting/staging-mvp/test_latency_render.py'
       - '.github/workflows/input-latency.yml'
@@ -33,6 +37,8 @@ jobs:
         with:
           node-version: '22.23.4'
       - run: node --test tools/latency/latency.test.cjs
+      - name: Check passive profiler and bounded local runner
+        run: node --test client-unity/UnityProject/Tools/profile-hub14.test.cjs client-unity/UnityProject/Tools/profile-m5-b.test.cjs
       - run: python3 hosting/staging-mvp/test_latency_render.py
       - name: Check saved measurements against current completeness rules
         run: node tools/latency/check-evidence.cjs

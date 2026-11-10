@@ -1,0 +1,26 @@
+{
+  "previous_release": "e246002aa6b2b038639d78700fc205e7a4005b34",
+  "code_head": "15ad9dbf061494a95116ca61611bb17e730563b4",
+  "independent_review_sha256": "8590fb6b87034aee7377b6f6b2d4e5fa514a446d6d94b844e17023bf8f4b2b4f",
+  "affected_offline_tests": {
+    "passed": 2,
+    "exit": 0,
+    "runs": 1,
+    "malformed_version_cases": 12,
+    "malformed_response_cases": 7,
+    "bad_checksum_cases": 6
+  },
+  "historical_git_payload_hashes_verified": 27,
+  "original_evidence_and_manifest_unchanged": true,
+  "host_controller_role_old_preparer_unchanged": true,
+  "broad_lint_old14_or_whole_suite_repeated": false,
+  "host_installed": false,
+  "deployable": false,
+  "cloud_or_cli_response_execution": false,
+  "expiry_limit": "Already-expired first boot only refuses; independent real shutdown required before operational release",
+  "other_limits": [
+    "device strings are not physical ancestry attestation",
+    "Allow-only fragment can be enlarged by other grants",
+    "current delete markers permit conditional key recreation"
+  ]
+}

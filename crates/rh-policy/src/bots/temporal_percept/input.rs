@@ -1,8 +1,8 @@
 //! The record payload preserves every uninspected public leaf and optional omission.
 //! Typed fields below are the exact leaves the source temporal composer reads.
-use super::data::{faction, finite, num, object, text, weapon, Object};
+use super::data::{faction, finite, num, object, text, weapon, MethodValue, Object};
 use super::Error;
-use crate::bots::view::{Features, MessageData};
+use crate::bots::view::Features;
 use rh_sim::{FactionId, TileMap, Vec2, WeaponId};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -137,7 +137,7 @@ pub(crate) struct Event {
 impl Event {
     fn read(record: Object) -> Result<Self, Error> {
         let at = match record.get("at")? {
-            MessageData::Null => None,
+            MethodValue::Null => None,
             value => Some(Object::read(value.clone())?.at()?),
         };
         let kind = match record.string("kind")? {
@@ -177,7 +177,7 @@ pub(crate) struct Frame {
     pub(crate) mobs: Vec<Actor>,
     pub(crate) containers: Vec<Container>,
     pub(crate) projectiles: Vec<Projectile>,
-    pub(crate) minimap: MessageData,
+    pub(crate) minimap: MethodValue,
     pub(crate) events: Vec<Event>,
     pub(crate) immediate: Vec<Event>,
     pub(crate) extras: Object,
@@ -185,7 +185,7 @@ pub(crate) struct Frame {
 impl Frame {
     /// Declared source method data only. Missing fields refuse; no Unknown→empty,
     /// Unknown→null faction, reconstructed course or expected-Percept constructor.
-    pub(crate) fn read(data: MessageData) -> Result<Self, Error> {
+    pub(crate) fn read(data: MethodValue) -> Result<Self, Error> {
         let record = Object::read(data)?;
         let hud = record.object("hud")?;
         let frame = Self {
@@ -218,13 +218,13 @@ impl Frame {
         if let Some(effects) = self.extras.optional("effects") {
             let effects = Object::read(effects.clone())?;
             for (_, value) in effects.0 {
-                if !matches!(value, MessageData::Num(_)) {
+                if !matches!(value, MethodValue::Num(_)) {
                     return Err(Error::Shape("effects"));
                 }
             }
         }
         if let Some(fields) = self.extras.optional("fields") {
-            let MessageData::Arr(fields) = fields else {
+            let MethodValue::Arr(fields) = fields else {
                 return Err(Error::Shape("fields"));
             };
             for field in fields {
@@ -275,15 +275,15 @@ pub(crate) struct Percept {
     pub(crate) fighters: Vec<Object>,
     pub(crate) mobs: Vec<Object>,
     pub(crate) containers: Vec<Object>,
-    pub(crate) projectiles: Vec<MessageData>,
-    pub(crate) minimap: MessageData,
+    pub(crate) projectiles: Vec<MethodValue>,
+    pub(crate) minimap: MethodValue,
     pub(crate) events: Vec<Object>,
     pub(crate) extras: Object,
     pub(crate) features: Features,
 }
 impl Percept {
-    pub(crate) fn data(&self) -> MessageData {
-        let rows = |rows: &[Object]| MessageData::Arr(rows.iter().map(Object::data).collect());
+    pub(crate) fn data(&self) -> MethodValue {
+        let rows = |rows: &[Object]| MethodValue::Arr(rows.iter().map(Object::data).collect());
         object([
             ("now", num(self.now)),
             ("viewT", num(self.view_time)),
@@ -292,7 +292,7 @@ impl Percept {
             ("fighters", rows(&self.fighters)),
             ("mobs", rows(&self.mobs)),
             ("containers", rows(&self.containers)),
-            ("projectiles", MessageData::Arr(self.projectiles.clone())),
+            ("projectiles", MethodValue::Arr(self.projectiles.clone())),
             ("minimap", self.minimap.clone()),
             ("events", rows(&self.events)),
             ("extras", self.extras.data()),
@@ -304,12 +304,12 @@ impl Percept {
     }
 }
 
-fn features_data(f: &Features) -> MessageData {
-    let bit = MessageData::Bool;
+fn features_data(f: &Features) -> MethodValue {
+    let bit = MethodValue::Bool;
     object([
         (
             "messageTypes",
-            MessageData::Arr(f.message_types.iter().map(|s| text(s)).collect()),
+            MethodValue::Arr(f.message_types.iter().map(|s| text(s)).collect()),
         ),
         ("wishes", bit(f.wishes)),
         ("statusEffects", bit(f.status_effects)),

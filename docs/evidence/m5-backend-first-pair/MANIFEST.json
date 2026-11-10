@@ -1,0 +1,89 @@
+[
+  {
+    "path": "RESULTS.json",
+    "bytes": 5486,
+    "sha256": "5af40436092f8aaa35657d3ad729e45e53251d517fb32bc77e2466d0403eadbb",
+    "source": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/backend-paired-results-01/RESULTS.json"
+  },
+  {
+    "path": "native-report.json",
+    "bytes": 86925,
+    "sha256": "0c902a9e822dcbbb2ade91875eb6647988a2c71bdbfa9e1514eda77517513eab",
+    "source": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/native-m5-backend-run-02/report.json"
+  },
+  {
+    "path": "native-cleanup.json",
+    "bytes": 166,
+    "sha256": "c4c1dea87654807ac1be2a15a065565538e1ee66a15e81aabb773987c9f5bf11",
+    "source": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/native-m5-backend-run-02/INDEPENDENT_CLEANUP.json"
+  },
+  {
+    "path": "legacy-measured.json",
+    "bytes": 1723,
+    "sha256": "7c3858775b068977b93469f98a0bfeb8096a3ac86a8809d914b8f92f6a58cbb0",
+    "source": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/legacy-backend-m5-packet-02/runs/run-01/MEASURED.json"
+  },
+  {
+    "path": "legacy-result.json",
+    "bytes": 628,
+    "sha256": "92a12ee06e343c45d4a9bbaa1edc4c8d2d0bf40bfd57bfb194c2353cc5d0cc2a",
+    "source": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/legacy-backend-m5-packet-02/runs/run-01/RESULT.json"
+  },
+  {
+    "path": "legacy-process.json",
+    "bytes": 10521,
+    "sha256": "1e0d76527440652906069db9bb1fe4f2614fbf1544eb3b0ed9d39f9d7d0c242c",
+    "source": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/legacy-backend-m5-packet-02/runs/run-01/PROCESS_SAMPLES.json"
+  },
+  {
+    "path": "legacy-events.json",
+    "bytes": 28850,
+    "sha256": "6dc0725214ebed8bd0208aba7dbd6ce5f7e7f9c6be03caa649669139de1f9c82",
+    "source": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/legacy-backend-m5-packet-02/runs/run-01/EVENTS.json"
+  },
+  {
+    "path": "legacy-cleanup.json",
+    "bytes": 165,
+    "sha256": "1a3b2e60a0b39088b6bdba53ea47301fa184336f9318b4d27fcc7bfa0bcd813d",
+    "source": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/legacy-backend-m5-packet-02/runs/run-01/INDEPENDENT_CLEANUP.json"
+  },
+  {
+    "path": "workload.json",
+    "bytes": 1024,
+    "sha256": "5c3943587a0d9724abfbf8e9cb7b6ba4e746c8dc68533c9121670ffa204d77e2",
+    "source": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/backend-paired-workload-01.json"
+  },
+  {
+    "path": "host-context.json",
+    "bytes": 4468,
+    "sha256": "059ef984297900d5f44d94e56fac828601592f0d2cf081c4c9e8fe0f6ac8ed4b",
+    "source": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/backend-paired-host-context-01.json"
+  },
+  {
+    "path": "source-ci.json",
+    "bytes": 2677,
+    "sha256": "3d2991b6f0168f5ae8b457694dd86bdf7502a0488b7c41d6414d2a40ea37076a",
+    "source": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/demo-ci-final-snapshot-01/CI_RESULT.json"
+  },
+  {
+    "path": "cpu-diagnostic-receipt.json",
+    "bytes": 923,
+    "sha256": "1fe2e1b4ffbf55b3a4e7f746650cbe873e35ec78fa1e5f4b1339773a57c0078a",
+    "source": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/native-m5-cpu-diagnostic-01/RECEIPT.json"
+  },
+  {
+    "path": "cpu-diagnostic-cleanup.json",
+    "bytes": 215,
+    "sha256": "f1f50aa36ac04578b0fbd069c22cce2408b33b4eecf62af3ee95a91d0854b46c",
+    "source": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/native-m5-cpu-diagnostic-01/INDEPENDENT_CLEANUP.json"
+  },
+  {
+    "path": "cpu-diagnostic-excerpt.txt",
+    "bytes": 2507,
+    "sha256": "52696e9afa16dccec6ceaceeb8cb95a1a0240d288800152318690b23d43ead96",
+    "derivation": "verbatim header and collapsed top-of-stack section, trailing blank lines omitted; no binary image list",
+    "fullTraceSource": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/native-m5-cpu-diagnostic-01/sample.txt",
+    "fullTraceBytes": 247102,
+    "fullTraceSha256": "e17b9b466bedfe6e6632fa9abe63f8685f6679f1e79aa4412eafa7923789b6f6"
+  }
+]

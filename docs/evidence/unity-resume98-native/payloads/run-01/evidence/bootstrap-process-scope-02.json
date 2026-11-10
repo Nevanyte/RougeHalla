@@ -1,0 +1,21 @@
+{
+  "scope": "Read-only metadata filtered to exact new-project launch; no args/credentials output",
+  "utc": "2026-11-09T18:39:35.669918+00:00",
+  "processes": [
+    {
+      "pid": 43174,
+      "parentPid": 8483,
+      "elapsed": "03:53",
+      "kind": "own launch wrapper",
+      "exactNewProjectArgumentPresent": true
+    },
+    {
+      "pid": 43177,
+      "parentPid": 43174,
+      "elapsed": "03:53",
+      "kind": "new-project CLI launch",
+      "exactNewProjectArgumentPresent": true
+    }
+  ],
+  "firstObserverLimit": "bootstrap-process-scope-01 used too-narrow executable-name filtering; its empty list is not proof no matching process existed."
+}

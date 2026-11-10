@@ -1,0 +1,20 @@
+# REQUIRED INTEGRATION CONTRACT / NOT INSTALLED OR EXECUTED.
+# Root must pin/install the trusted module bundle and interpreter, substitute
+# the ORIGINAL reviewed run/timestamps, and integrate this before other work.
+# The executor refuses an absent/incompatible unit, shell wrapper main PID,
+# different cgroup, unreviewed systemd version, drop-in, or unsynchronized clock.
+# No userdata, unit or service outside this evidence directory was changed.
+[Unit]
+Description=Independent fail-safe for absolute expiry setup
+FailureAction=poweroff
+RefuseManualStop=yes
+
+[Service]
+Type=oneshot
+User=root
+TimeoutStartSec=120s
+TimeoutStartFailureMode=kill
+KillMode=control-group
+Restart=no
+SuccessExitStatus=
+ExecStart=/usr/bin/python3 /opt/rougehalla/installer/expiry_executor.py --run-id <original-run-id> --prepared-at <original-UTC-prepared-at> --expires-at <original-UTC-expires-at>

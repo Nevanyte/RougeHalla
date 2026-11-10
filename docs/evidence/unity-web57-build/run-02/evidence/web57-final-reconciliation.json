@@ -1,0 +1,37 @@
+{
+  "status": "PASS_FINAL_SOURCE_AND_ALL_14_ARTIFACT_PINS",
+  "source": "57e166f46b35fb703e5f3c76914fcc4e8bf3191c",
+  "artifactManifestSha256": "a224cc6cc378604e4f9407f1c540f3ceae364d9cf0c97004fcd21df816c83824",
+  "artifactFileCount": 14,
+  "artifactBytes": 106987680,
+  "sourceGuard": {
+    "status": "PASS_WEB57_EXACT_FROZEN_SOURCE",
+    "source": "57e166f46b35fb703e5f3c76914fcc4e8bf3191c",
+    "tree": "fb73018fb0ba8acb81af08320c3d671b4e6fd5ee",
+    "sourceFreezeSha256": "ba2c65e9b206c368414941231e27db9ab33ca704c73dbbf6fc66dba57742620c",
+    "releaseSha256": "37bd893c6e2305c85912c1407c53e02c8d9ab8a1381523c7f51b74bf9d218170",
+    "sourcePins": 1284,
+    "uniqueAssetGuids": 626,
+    "packages": 39,
+    "packageSources": {
+      "registry": 9,
+      "builtin": 30
+    },
+    "soleStartupOverlay": {
+      "path": "client-unity/UnityProject/ProjectSettings/PackageManagerSettings.asset",
+      "bytes": 1044,
+      "sha256": "a2cb53758656a32e072c1e33d985a3f73b8374b2acb3365750d31070d60a67b5"
+    },
+    "canonicalClientProtocolEquivalent": "5e19ef1b801ef363a83217ddecd768c5aba71cac"
+  },
+  "build1BaseArtifactByteComparison": {
+    "Build/Web.data": false,
+    "Build/Web.framework.js": true,
+    "Build/Web.loader.js": true,
+    "Build/Web.wasm": true,
+    "index.html": true
+  },
+  "comparisonLimit": "Historical build1 remains held; equality does not retroactively waive its failed source guard",
+  "browserAcceptance": false,
+  "performanceAcceptance": false
+}

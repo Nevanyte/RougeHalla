@@ -1,0 +1,8 @@
+Test run for /Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/client-unity/RoguehallaNet.Tests/bin/Debug/net8.0/RoguehallaNet.Tests.dll (.NETCoreApp,Version=v8.0)
+VSTest version 17.11.1 (arm64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+Results File: /Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/claude-prediction-echo-fix/results/full-managed/full-managed.trx
+
+Passed!  - Failed:     0, Passed:   956, Skipped:     0, Total:   956, Duration: 6 s - RoguehallaNet.Tests.dll (net8.0)

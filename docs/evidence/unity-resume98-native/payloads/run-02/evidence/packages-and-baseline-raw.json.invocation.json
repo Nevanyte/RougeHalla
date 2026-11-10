@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "unity",
+    "command",
+    "script",
+    "run",
+    "--project-path",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+    "--caller",
+    "plugin",
+    "--skill",
+    "unity-cli",
+    "--format",
+    "json",
+    "--",
+    "--file",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/Resume98NativeStateCorrected.cs",
+    "--entry",
+    "Resume98PackagesAndBaseline.Run"
+  ],
+  "exitCode": 0,
+  "stderr": "",
+  "utc": "2026-11-09T19:10:34.333940+00:00",
+  "stdoutSha256": "67363f9b7d0180bd466cefbf1272cd5e46f999cc72571e11ef83b3b7c0e0b3aa"
+}

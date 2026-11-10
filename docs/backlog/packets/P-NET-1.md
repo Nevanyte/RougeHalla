@@ -1,5 +1,13 @@
 # P-NET-1: client prediction parity and the rewind bound
 
+**Historical packet; current revision2026-11-10:** the owner approved competitive-speed departures from the earlier
+constraints. Reviewed Wave1 is composed at `fe0e2983`; see [current prediction status](../../PLAYER_PREDICTION.md) and
+[the competitive plan](../../NETCODE_COMPETITIVE_PLAN.md). In particular, reconciliation can run while newer movement is
+pending, sent-frame proof guards reusable-byte echoes, and accepted rewind is `min(srtt+220ms,300ms)`. The original
+RTT/2 formula and unconditional pending-order reconciliation skip below describe the predecessor. Buffed-speed checks
+currently use a C# model rather than a new Rust vector; actual Unity compilation now passes. Real-link measurements
+and new artifact comparison remain separate. Preserve the remaining text as original packet history.
+
 ## ID and outcome
 Stage 2 interim correction (2026-11-05): the unverified straight-line/wall-slide model is removed from the runtime. The
 current client displays accepted authoritative self positions. This packet must introduce only the narrow movement

@@ -1,0 +1,154 @@
+{
+  "format": "rh-prediction-echo-fix-manifest/1",
+  "base": "aef6da2c532874c52125545c4ee2a0fc42d1097d",
+  "firstRedSource": "b2032ffea7271774bab3d351506ce480a5e18ab9",
+  "code": "0bfe80f462be9eac02b67d3e8f89962dc3e3602a",
+  "sourceFiles": [
+    {
+      "path": "client-unity/RoguehallaNet/Net/LocalMotion.cs",
+      "bytes": 38073,
+      "sha256": "6f77c67811bf90082f22835fe1b50f9869f195315812128aafcbe03f5b1bab0e"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/LocalMotion.cs",
+      "bytes": 38073,
+      "sha256": "6f77c67811bf90082f22835fe1b50f9869f195315812128aafcbe03f5b1bab0e"
+    },
+    {
+      "path": "client-unity/RoguehallaNet.Tests/PredictionEchoOrderTests.cs",
+      "bytes": 5560,
+      "sha256": "a1adab74fcb8f4d3903c56b1ff690ba05be187605ac28a82257311345673bf60"
+    }
+  ],
+  "payloads": [
+    {
+      "path": "docs/evidence/claude-prediction-echo-fix/COMMANDS.json",
+      "bytes": 2625,
+      "sha256": "39f9c9afb306f50868f5be009bc6ec7348a75c756f5d3a603baff99b8109701a"
+    },
+    {
+      "path": "docs/evidence/claude-prediction-echo-fix/README.md",
+      "bytes": 4423,
+      "sha256": "48b79496827526e94fb077aeae65d7825bd0c2d9d96e6075255255f92dc8ea51"
+    },
+    {
+      "path": "docs/evidence/claude-prediction-echo-fix/logs/first-red.log",
+      "bytes": 4179,
+      "sha256": "ac4d95b247b351e22fbb2d0d2fb3c80298a68a4fb332cc2a3e71b46a05a76ffe"
+    },
+    {
+      "path": "docs/evidence/claude-prediction-echo-fix/logs/focused-green.log",
+      "bytes": 1081,
+      "sha256": "a101087d28ddfda14e0b48d05a594702f0fb1e3dd9a8cf5bf31be5cfde26815c"
+    },
+    {
+      "path": "docs/evidence/claude-prediction-echo-fix/logs/full-managed.log",
+      "bytes": 589,
+      "sha256": "8d9410d91292a7ce9ec1fcb0aa9837dc35c1045cb7655e666b79785278b8712d"
+    },
+    {
+      "path": "docs/evidence/claude-prediction-echo-fix/logs/offline-restore.log",
+      "bytes": 476,
+      "sha256": "936016ea54c2fbdf560f3c1a4d5b182534fdbd804115cf5c047415808f393e02"
+    },
+    {
+      "path": "docs/evidence/claude-prediction-echo-fix/results/first-red/first-red.trx",
+      "bytes": 10348,
+      "sha256": "29421028054ba17a9daf8e52a755a0565b7916ec6374b5a006fe467f36a51f62"
+    },
+    {
+      "path": "docs/evidence/claude-prediction-echo-fix/results/focused-green/focused-green.trx",
+      "bytes": 7159,
+      "sha256": "21b7d70536f6620f48a145df72db92fbf393e3c3ed3ee397b3eba02b6a862441"
+    },
+    {
+      "path": "docs/evidence/claude-prediction-echo-fix/results/full-managed/full-managed.trx",
+      "bytes": 1323179,
+      "sha256": "786c327383e0c2eb9f8328550910958b7e3db8fdcdbf8c597090adba21b72385"
+    }
+  ],
+  "counters": {
+    "first-red": {
+      "total": "4",
+      "executed": "4",
+      "passed": "2",
+      "failed": "2",
+      "error": "0",
+      "timeout": "0",
+      "aborted": "0",
+      "inconclusive": "0",
+      "passedButRunAborted": "0",
+      "notRunnable": "0",
+      "notExecuted": "0",
+      "disconnected": "0",
+      "warning": "0",
+      "completed": "0",
+      "inProgress": "0",
+      "pending": "0"
+    },
+    "focused-green": {
+      "total": "4",
+      "executed": "4",
+      "passed": "4",
+      "failed": "0",
+      "error": "0",
+      "timeout": "0",
+      "aborted": "0",
+      "inconclusive": "0",
+      "passedButRunAborted": "0",
+      "notRunnable": "0",
+      "notExecuted": "0",
+      "disconnected": "0",
+      "warning": "0",
+      "completed": "0",
+      "inProgress": "0",
+      "pending": "0"
+    },
+    "full-managed": {
+      "total": "956",
+      "executed": "956",
+      "passed": "956",
+      "failed": "0",
+      "error": "0",
+      "timeout": "0",
+      "aborted": "0",
+      "inconclusive": "0",
+      "passedButRunAborted": "0",
+      "notRunnable": "0",
+      "notExecuted": "0",
+      "disconnected": "0",
+      "warning": "0",
+      "completed": "0",
+      "inProgress": "0",
+      "pending": "0"
+    }
+  },
+  "firstRedTests": [
+    {
+      "name": "StaleHeldByteCannotRetireOrRealignTheQueuedMovement(True)",
+      "outcome": "Failed"
+    },
+    {
+      "name": "MatchingByteWithItsFreshSentFrameAcknowledgesAndKeepsTheWalk",
+      "outcome": "Passed"
+    },
+    {
+      "name": "AValidPriorSentMotionStillReconcilesWhileTheNewerMoveIsPending",
+      "outcome": "Passed"
+    },
+    {
+      "name": "StaleHeldByteCannotRetireOrRealignTheQueuedMovement(False)",
+      "outcome": "Failed"
+    }
+  ],
+  "generatedTestAssembly": {
+    "path": "client-unity/RoguehallaNet.Tests/bin/Debug/net8.0/RoguehallaNet.Tests.dll",
+    "bytes": 580096,
+    "sha256": "9803e971b696fc95bd497f9923faf8671025a03b2556c0298abfed5f4ccf03c6",
+    "role": "measurement identity only; generated binary NOT a committed payload or Unity proof"
+  },
+  "offlinePackageSources": {
+    "/Users/nevinmckinnon/.nuget/packages": {}
+  },
+  "remaining": "Unity scene assembly compile/integration and actual performance unrun; Root demo freeze untouched"
+}

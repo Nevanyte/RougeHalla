@@ -1,0 +1,33 @@
+{
+  "schema": "roguehalla-owned-seat-resume-metadata-audit/1",
+  "sourceSha": "4dd410d3c33812653c8ebfbdd754f699f75cc72f",
+  "compiledArtifactsOnly": true,
+  "testBodiesInvoked": false,
+  "unityApisInvoked": false,
+  "prior90TypedSelectorsPreserved": true,
+  "newResumeSelectorCount": 8,
+  "unionCount": 98,
+  "ilAuditPassed": true,
+  "metadataTool": {
+    "source": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-owned-seat-resume-2026-11-09/metadata/Program.cs",
+      "sha256": "d1d75635bee01b3ac41b265e777a866518707db38c79bd01719f766840a7a6fa"
+    },
+    "project": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-owned-seat-resume-2026-11-09/metadata/MetadataAudit.csproj",
+      "sha256": "89ae0d7b13572f13628e084c1481f3a06ada5531415a4c74ac600f2e2907cc62"
+    }
+  },
+  "union": {
+    "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-owned-seat-resume-2026-11-09/metadata/output/candidate03-4dd410d3/typed-fixture-contract.json",
+    "sha256": "35fd85e0e483fb4a445fc00d735464b54fe6401e546e26463c06409afbf5d2bc"
+  },
+  "il": {
+    "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-owned-seat-resume-2026-11-09/metadata/output/candidate03-4dd410d3/resume-il-audit.json",
+    "sha256": "15f462671cacb15208c04ef50aac64ac70635960b0168342ac6664e3846468b2"
+  },
+  "sourcePins": {
+    "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-owned-seat-resume-2026-11-09/metadata/output/candidate03-4dd410d3/source-input-pins.json",
+    "sha256": "c1193dc2a60dcc342f51a07ce7739b48f28ebb49ae5c649035c6b1c85db5207c"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "startedUtc": "2026-11-09T22:05:27.542250+00:00",
+  "kind": "ONE actual different-target-cancel",
+  "status": "PROCESS_COMPLETED",
+  "exit": 0,
+  "containerCleanup": "verified-not-present",
+  "finishedUtc": "2026-11-09T22:05:31.695465+00:00"
+}

@@ -1,0 +1,9 @@
+{
+  "path": "Program-candidate02-03.cs.gz",
+  "format": "lossless gzip",
+  "rawBytes": 22272,
+  "rawSha256": "d1d75635bee01b3ac41b265e777a866518707db38c79bd01719f766840a7a6fa",
+  "project": "MetadataAudit-candidate02-03.csproj",
+  "projectSha256": "89ae0d7b13572f13628e084c1481f3a06ada5531415a4c74ac600f2e2907cc62",
+  "usedFor": "Preserved candidate02 and candidate03 audits; current tool adds fixture lifecycle metadata dumps."
+}

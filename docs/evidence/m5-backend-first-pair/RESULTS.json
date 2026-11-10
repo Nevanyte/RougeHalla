@@ -1,0 +1,106 @@
+{
+  "format": "rh-backend-paired-results/1",
+  "capturedUtc": "2026-11-10T03:07:02.860176+00:00",
+  "status": "CAPTURED_BOUNDED_PROCESS_COSTS",
+  "machine": "Apple M5 Pro, Mac17,9, 64GiB",
+  "native": {
+    "measurementWallSeconds": 30.000536750000002,
+    "observedTickDelta": 600,
+    "observedServerMsDelta": 30000,
+    "processSampleCount": 30,
+    "processSampleSpanSeconds": 29.000720875,
+    "processCpuSecondsDelta": 1.94,
+    "percentOneCpu": 6.689488886713751,
+    "sampledRssMiBMin": 18.375,
+    "sampledRssMiBMax": 18.484375,
+    "cpuMethod": "macOS ps cumulative time, .01s text precision; inner samples, not %cpu column",
+    "commandRows": 90,
+    "maxCommandLatenessMsRelativeToFirstSeat0": 3.249459000002389
+  },
+  "legacy": {
+    "measurementWallSeconds": 29.999612667,
+    "observedTickDelta": 600,
+    "observedServerMsDelta": 30000,
+    "processSampleCount": 30,
+    "processSampleSpanSeconds": 29.023399833,
+    "processCpuSecondsDelta": 1.583704,
+    "percentOneCpu": 5.456645358960693,
+    "sampledRssMiBMin": 191.578125,
+    "sampledRssMiBMax": 191.875,
+    "cpuMethod": "Node process.cpuUsage user+system microseconds, inner IPC sample monotonic timestamps; no rounded readyz CPU delta",
+    "eventRows": 30,
+    "maxCommandLatenessMsRelativeToFirst": 0.00879200000417768,
+    "maxAbsolutePhaseDeviationMsRelativeToFirst": 2.380625000000691,
+    "cadenceLimit": "inter-event and relative phase only; no persisted first-event origin and no enforced250ms absolute gate"
+  },
+  "sampledRssMaxRatioLegacyOverNative": 10.380388841927303,
+  "cpuPercentRatioNativeOverLegacy": 1.2259343326625634,
+  "nativeWholeRoomSummary": [
+    {
+      "ticks": 1152,
+      "stepUsP50": 2559,
+      "stepUsP99": 3583,
+      "stepUsMax": 4690,
+      "lateWakes": 0,
+      "droppedSteps": 0,
+      "bytesOut": 1082238,
+      "bytesEnqueuedTotal": 1085829,
+      "fxDropped": 0,
+      "snapshotsSkipped": 0,
+      "snapshotsFull": 51,
+      "snapshotsDelta": 3402,
+      "snapshotBytesSent": 1287429,
+      "snapshotRefusals": 0,
+      "frameRefusals": 0,
+      "crashed": false
+    }
+  ],
+  "limits": [
+    "One sequential run per backend; background applications and other Rust tests active; not isolated capacity or statistically established regression.",
+    "Same captured160x160 collision map, three ordinary Holy seats, ten-second warmup,30-second input recipe after public Move/Stop rendezvous. Ambient RNG, mechanics, publication, persistence and profile setup differ.",
+    "Process CPU samples cover inner~29s spans with different CPU clock precision; not full30s CPU integral. Native PSD sampling timestamps precede ps completion.",
+    "Native interest is900u with LOS; legacy publishes global schema/FX. This is not equal-view or codec-only work.",
+    "Native room step quantiles include intake/seat/lease work plus Sim and exclude publication; these whole-room quantiles are not directly comparable to legacy rolling stepping-wake workMs.",
+    "Native whole-room lateWakes/droppedSteps are0; legacy measurement reanchors0. Per-window native late/drop metrics unavailable.",
+    "No Unity/browser/render/FPS/network RTT/input-to-visible/max throughput measurements. Current native fixed20Hz is configuration, not maximum capability.",
+    "Frozen nativec30fc84f P14 is demoB, not newerClaudeP15WIP. No claim covers unmerged work."
+  ],
+  "inputs": [
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/native-m5-backend-run-02/report.json",
+      "sha256": "0c902a9e822dcbbb2ade91875eb6647988a2c71bdbfa9e1514eda77517513eab"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/legacy-backend-m5-packet-02/runs/run-01/MEASURED.json",
+      "sha256": "7c3858775b068977b93469f98a0bfeb8096a3ac86a8809d914b8f92f6a58cbb0"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/legacy-backend-m5-packet-02/runs/run-01/RESULT.json",
+      "sha256": "92a12ee06e343c45d4a9bbaa1edc4c8d2d0bf40bfd57bfb194c2353cc5d0cc2a"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/legacy-backend-m5-packet-02/runs/run-01/PROCESS_SAMPLES.json",
+      "sha256": "1e0d76527440652906069db9bb1fe4f2614fbf1544eb3b0ed9d39f9d7d0c242c"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/legacy-backend-m5-packet-02/runs/run-01/EVENTS.json",
+      "sha256": "6dc0725214ebed8bd0208aba7dbd6ce5f7e7f9c6be03caa649669139de1f9c82"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/backend-paired-workload-01.json",
+      "sha256": "5c3943587a0d9724abfbf8e9cb7b6ba4e746c8dc68533c9121670ffa204d77e2"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/backend-paired-host-context-01.json",
+      "sha256": "059ef984297900d5f44d94e56fac828601592f0d2cf081c4c9e8fe0f6ac8ed4b"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/native-m5-backend-run-02/INDEPENDENT_CLEANUP.json",
+      "sha256": "c4c1dea87654807ac1be2a15a065565538e1ee66a15e81aabb773987c9f5bf11"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/legacy-backend-m5-packet-02/runs/run-01/INDEPENDENT_CLEANUP.json",
+      "sha256": "1a3b2e60a0b39088b6bdba53ea47301fa184336f9318b4d27fcc7bfa0bcd813d"
+    }
+  ]
+}

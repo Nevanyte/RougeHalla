@@ -9,8 +9,11 @@ mod input;
 #[cfg(test)]
 mod tests;
 
-use crate::bots::view::{field_in_view, in_view, FieldInView, MessageData};
-use data::{nullable, num, object, text, Object};
+#[cfg(test)]
+mod protection_cues_tests;
+
+use crate::bots::view::{field_in_view, in_view, FieldInView};
+use data::{nullable, num, object, text, MethodValue, Object};
 use input::{Actor, Compose, Event, EventKind, Frame, MethodId, Owner, Percept};
 use rh_sim::mapgen::certify::source_hypot as hypot;
 use rh_sim::Vec2;
@@ -467,7 +470,7 @@ impl Ring {
         eye: Vec2,
         fighters: &[Object],
         mobs: &[Object],
-    ) -> Result<Vec<MessageData>, Error> {
+    ) -> Result<Vec<MethodValue>, Error> {
         let mut out = Vec::new();
         let mut index = 0;
         while index < self.flights.len() {
@@ -602,13 +605,13 @@ fn drawn(
     ] {
         row.put(key, num(value));
     }
-    row.put("los", MessageData::Bool(los));
+    row.put("los", MethodValue::Bool(los));
     if fighter {
         row.put("tint", num(0.));
     }
     row.put(
         "central",
-        MessageData::Bool(
+        MethodValue::Bool(
             (at.x - eye.x).abs() <= central * crate::bots::types::BOT_VIEW_HALF_W
                 && (at.y - eye.y).abs() <= central * crate::bots::types::BOT_VIEW_HALF_H,
         ),
@@ -720,9 +723,9 @@ fn deliver(q: &Queued, view: &View) -> Result<Option<Object>, Error> {
                 if kind == Some("mob") {
                     return Ok(None);
                 }
-                row.put("at", MessageData::Null);
+                row.put("at", MethodValue::Null);
                 if kind != Some("elite") {
-                    row.put("by", MessageData::Null);
+                    row.put("by", MethodValue::Null);
                 }
             }
         }
@@ -738,7 +741,7 @@ fn deliver(q: &Queued, view: &View) -> Result<Option<Object>, Error> {
             }
             let mut data = data.clone();
             for (_, value) in &mut data.0 {
-                let MessageData::Str(id) = value else {
+                let MethodValue::Str(id) = value else {
                     continue;
                 };
                 if view.visible.iter().any(|key| &key.0 == id) {
@@ -748,7 +751,7 @@ fn deliver(q: &Queued, view: &View) -> Result<Option<Object>, Error> {
                 if find_actor(&q.frame.fighters, &key).is_some()
                     || find_actor(&q.frame.mobs, &key).is_some()
                 {
-                    *value = MessageData::Null;
+                    *value = MethodValue::Null;
                 }
             }
             row.put("data", data.data());
@@ -772,9 +775,9 @@ fn window_extras(extras: &Object, view: &View) -> Result<Object, Error> {
                 bits.push((id.0.clone(), value.clone()));
             }
         }
-        out.put("effects", MessageData::Obj(bits));
+        out.put("effects", MethodValue::Obj(bits));
     }
-    if let Some(MessageData::Arr(fields)) = extras.optional("fields") {
+    if let Some(MethodValue::Arr(fields)) = extras.optional("fields") {
         let mut kept = Vec::new();
         for field in fields {
             let mut row = Object::read(field.clone())?;
@@ -794,11 +797,11 @@ fn window_extras(extras: &Object, view: &View) -> Result<Object, Error> {
                 .as_ref()
                 .is_some_and(|id| !view.visible.iter().any(|key| &key.0 == id))
             {
-                row.put("owner", MessageData::Null);
+                row.put("owner", MethodValue::Null);
             }
             kept.push(row.data());
         }
-        out.put("fields", MessageData::Arr(kept));
+        out.put("fields", MethodValue::Arr(kept));
     }
     Ok(out)
 }

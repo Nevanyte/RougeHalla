@@ -1,0 +1,9 @@
+# Second finite raster attempt stopped
+
+Root released the resolver-only second attempt on the same frozen6d source and Editor46583. The corrected Git resolver passed. The next actual setup operation failed: Unity refused EditorSceneManager.NewScene(Additive) while the existing default scene was untitled and unsaved. Stage.Create retained an AggregateException including a restore-active-scene failure. Zero cases were configured and zero PNGs were captured. No product, layout, rendering or pointer verdict is available; no further retry or helper change followed this failure.
+
+The exact newly compiled helper assembly was retained from the failed start response, and the outer finally called Close on that exact assembly. Host.Close returned success/cleanupErrors[], but this does not erase the earlier setup aggregate. All three private preferences were restored and verified, and the snapshot was deleted. Source checks1284/GUID626/soleoverlay passed before capture, before host and after cleanup. Native98 ledger/root admission remain unchanged and no tests were rerun.
+
+Independent post-stop observations show the same original clean untitled scene, same Main Camera and Directional Light instance IDs, same active scene/setup, zero EventSystems/Light2D, same input and preference presence, same1053 dirty objects/429 dirty assets, same39packages and actual assembly identities. Console remains0errors/40warnings/compilationFailedfalse, session654be9d86c404632a326a1b305299a34/cursor333. No save, scene replacement, resolution setter, flag clearing, Play, browser or oldEditor9075 action was performed. New Editor disposal remains Root-owned.
+
+The first resolver failure remains a separate0case/0PNG leaf. This second failure is an external scene-staging limitation. Actual Unity screenshots and real browser proof are still unavailable from this leaf.

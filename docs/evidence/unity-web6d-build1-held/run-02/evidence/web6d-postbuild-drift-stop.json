@@ -1,0 +1,13 @@
+{
+  "status": "STOP_POSTBUILD_PIPELINE_ASSET_DRIFT",
+  "utc": "2026-11-09T20:23:55.686168+00:00",
+  "source": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+  "editorPid": 46583,
+  "buildId": "build_bf4d3ece70b3",
+  "rawBuildResult": "Succeeded",
+  "firstMismatchPath": "client-unity/UnityProject/Assets/Settings/RoguehallaPipeline.asset",
+  "firstBytesPrivatePath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/private/web6d-first-drift-RoguehallaPipeline.asset",
+  "firstBytesSha256": "ea26d6362d84b96ab37fdbbe03b92f7a723f35e05a5a306b586fc05730e5641c",
+  "firstDiffSha256": "36aba7c3a8aa307aa119fdb7d1f3a7007ac3c228f2bfc912d030a9edcc3407b8",
+  "action": "Hold artifact; no restoration, allowance, source fix, requeue, or second build. Read-only post-settings probe was already issued by the same shell after source verifier failure; no mutation."
+}

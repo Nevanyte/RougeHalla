@@ -150,7 +150,9 @@ namespace Roguehalla.Client.Tests
         {
             var firstTransport = new Transport(); var first = Start(firstTransport);
             Bind(first); Bind(first);
-            Assert.That(Listeners(first, "TimelineReset"), Is.EqualTo(1));
+            Assert.That(Listeners(first, "TimelineReset"), Is.EqualTo(2), "one client and one HUD presentation subscriber after repeated bind");
+            Assert.That(OwnedListeners(first, "TimelineReset", _client), Is.EqualTo(1));
+            Assert.That(OwnedListeners(first, "TimelineReset", _hud), Is.EqualTo(1));
             Assert.That(Listeners(first, "FxReceived"), Is.EqualTo(2), "one view and one admitted audio subscriber");
             firstTransport.Queue(Fx(Started())); first.Poll(); Assert.That(Wishes.ActiveCount, Is.EqualTo(1));
 
@@ -184,6 +186,15 @@ namespace Roguehalla.Client.Tests
         {
             var callback = (Delegate)typeof(Session).GetField(eventName, BindingFlags.Instance | BindingFlags.NonPublic).GetValue(session);
             return callback == null ? 0 : callback.GetInvocationList().Length;
+        }
+        static int OwnedListeners(Session session, string eventName, object owner)
+        {
+            var callback = (Delegate)typeof(Session).GetField(eventName, BindingFlags.Instance | BindingFlags.NonPublic).GetValue(session);
+            int count = 0;
+            if (callback != null)
+                foreach (var listener in callback.GetInvocationList())
+                    if (ReferenceEquals(listener.Target, owner)) count++;
+            return count;
         }
         static object Get(object value, string field) { return value.GetType().GetField(field, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public).GetValue(value); }
         static void Set(object value, string field, object data) { value.GetType().GetField(field, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public).SetValue(value, data); }

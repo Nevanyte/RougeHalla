@@ -1,0 +1,9 @@
+{
+  "mode": "check-consistency",
+  "sourceExecuted": false,
+  "independentFrozenReproduction": false,
+  "code": "4fe7aa8285ad65f2c9a1123297426cd48b03bdef",
+  "cases": 11,
+  "rawBytes": 45077539,
+  "rawSha256": "6449038bfbe6dc75d9afe1ce66f9172dd44cb23fb3048871a03e8ca16f6aac53"
+}

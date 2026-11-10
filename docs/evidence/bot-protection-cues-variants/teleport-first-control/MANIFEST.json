@@ -1,0 +1,77 @@
+{
+  "format": "rh-first-protection-cue-control-proof/1",
+  "rawDecodedBytes": 825007,
+  "rawDecodedSha256": "c706f8030ffcad6d5e576d9ce9620cae1bc53b4561102c8d50ffe8b3cf3680a5",
+  "payloads": [
+    {
+      "path": "README.md",
+      "bytes": 1577,
+      "sha256": "5c29f472fca62753c8b2be9e2faa548f8e4b1a36112106fdff88450d514ee8aa"
+    },
+    {
+      "path": "actual-independent-review.md",
+      "bytes": 3303,
+      "sha256": "a7b9d2f7c496c94dd3f01a4d2bfb73e8ca922e5e2174ad723d111bb4f6106853"
+    },
+    {
+      "path": "classification.json",
+      "bytes": 1769,
+      "sha256": "6340a2c2295da9b1df04c13b96362cf238d399f481f1666d4e404d2d0aa834f4"
+    },
+    {
+      "path": "generated-review.md",
+      "bytes": 3567,
+      "sha256": "3157b5897886cc0c080aceda02bf5de4c2098a5385a2a4e9890322d02af92d03"
+    },
+    {
+      "path": "observations-before-verification.json.gz",
+      "bytes": 27532,
+      "sha256": "eaa47b7c75046ef1263525b45e9da4e7068a6791a7786af39c676c27116c1e2f"
+    },
+    {
+      "path": "phaseA/RESULT.json",
+      "bytes": 158,
+      "sha256": "8c56ad61ca98911487d889430c7aefba6353a9c949453dd8fa7c281dd4676326"
+    },
+    {
+      "path": "phaseA/ROOT_RELEASE.json",
+      "bytes": 1692,
+      "sha256": "3ac4e527379fa0650f0f05ef080fe57bc8439e57ffd0c606975da207ea9fd802"
+    },
+    {
+      "path": "phaseA/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "phaseA/stdout.log",
+      "bytes": 866,
+      "sha256": "c17c293bdc7c9d0d320e3195010b609c95d034d6ac9d07e410c6af5363ed8075"
+    },
+    {
+      "path": "phaseB/RESULT.json",
+      "bytes": 241,
+      "sha256": "f34ca1f0a4a62c57ba55cf648640e4481e01a8a2e86f540d44f71d235ffe6deb"
+    },
+    {
+      "path": "phaseB/ROOT_RELEASE.json",
+      "bytes": 9104,
+      "sha256": "546dd43e1fa2dc327a7ebd1b74fce6a79ebf4d2d000ae86031d2d76c48085d9b"
+    },
+    {
+      "path": "phaseB/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "phaseB/stdout.log",
+      "bytes": 230,
+      "sha256": "e45c804280d2666629d19a98a596809e5ff8ad50f143363c6fc7d3d305be25b0"
+    },
+    {
+      "path": "prepared-build-manifest.json",
+      "bytes": 61404,
+      "sha256": "423b47a5d3e688eb6e95af6e06482cd6bda9048d2ee502748331e1a0160235c8"
+    }
+  ]
+}

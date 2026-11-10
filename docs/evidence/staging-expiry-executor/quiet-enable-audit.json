@@ -1,0 +1,80 @@
+{
+  "format": "rh-expiry-quiet-enable-review-repair/1",
+  "base": "b0ebb776c57a2f04bd5d36b11a2826945dcc8f15",
+  "code_commit": "27ec2acbc287ca73e3a886640162070868dcd605",
+  "code_changed_paths": [
+    "tools/staging-full-runtime/installer/expiry_executor.py",
+    "tools/staging-full-runtime/installer/test_expiry_executor.py"
+  ],
+  "production_change": "exact quiet enable allowlist/call vector only; stderr policy unchanged",
+  "original_evidence_files_unchanged": [
+    "docs/evidence/staging-expiry-executor/README.md",
+    "docs/evidence/staging-expiry-executor/SHA256SUMS",
+    "docs/evidence/staging-expiry-executor/after-isolation.txt",
+    "docs/evidence/staging-expiry-executor/bootstrap-required.service.txt",
+    "docs/evidence/staging-expiry-executor/final-offline.txt",
+    "docs/evidence/staging-expiry-executor/first-offline.txt",
+    "docs/evidence/staging-expiry-executor/source-audit.json",
+    "docs/evidence/staging-expiry-executor/verify.sh"
+  ],
+  "original_manifest_sha256": "b2863d9b32d2efe73723f3d40cf9dee4f5a89b217b6c8513647ff1f24359e812",
+  "historical_payloads_rehashed_from_git": [
+    {
+      "path": "docs/evidence/staging-expiry-executor/README.md",
+      "sha256": "835e96c76fc65fc09225ba837f00c13492644ffc869ea4554fa9587d474cb3b2"
+    },
+    {
+      "path": "docs/evidence/staging-expiry-executor/after-isolation.txt",
+      "sha256": "e7bc580b60454b38e3b6727583d348c7347774350cbf3628047e1c0fc08991c1"
+    },
+    {
+      "path": "docs/evidence/staging-expiry-executor/bootstrap-required.service.txt",
+      "sha256": "c66d9e3ec0cf414717c2e4744aeaab9ed5990d30c52ade150e77033d87df6d75"
+    },
+    {
+      "path": "docs/evidence/staging-expiry-executor/final-offline.txt",
+      "sha256": "a0cdf823a73a6733d9baa43b1ea87379115dbd0cc244b2b77729ca02bc72a3f8"
+    },
+    {
+      "path": "docs/evidence/staging-expiry-executor/first-offline.txt",
+      "sha256": "c8d7b01568ae6ac55d6631f49e04e9f087cc26132d95a431d125ea76248e637d"
+    },
+    {
+      "path": "docs/evidence/staging-expiry-executor/source-audit.json",
+      "sha256": "44c9f77f1376a992fa8dcc1960aa132fe5af50b8f84bb97454493630c4181cb7"
+    },
+    {
+      "path": "docs/evidence/staging-expiry-executor/verify.sh",
+      "sha256": "f90a875b0b0222e71a500f859eb898d01b92cca8905e66a96e9edac696e7ade1"
+    },
+    {
+      "path": "tools/staging-full-runtime/installer/expiry_executor.py",
+      "sha256": "6582771b791c8857ab77159d142c2d55cdbd1f742e8b551bbdd6ae2ae1deb28a"
+    },
+    {
+      "path": "tools/staging-full-runtime/installer/test_expiry_executor.py",
+      "sha256": "ea03b16ca26f6468c073274b5f57e2a0df882d11f1840d9c7a52ed68d378ca0b"
+    }
+  ],
+  "checks": {
+    "first_regression_attempt": {
+      "tests": 4,
+      "errors": 3,
+      "includes_fixture_name_collision": true
+    },
+    "original_code_regression": {
+      "tests": 4,
+      "intended_errors": 2
+    },
+    "corrected_suite": {
+      "tests": 21,
+      "failures": 0
+    },
+    "AST": "both modified Python files PASS",
+    "whitespace": "PASS",
+    "real_host_service_runs": 0,
+    "cloud_calls": 0
+  },
+  "review_status": "lead finite review complete: one quiet-enable HOLD; delta awaits Root re-review/integration",
+  "remaining_gate": "Actual trusted Linux255 bootstrap/first enable/timer/shutdown plus external physical host and EC2 termination verification."
+}

@@ -1,0 +1,62 @@
+{
+  "nativeTestsExecuted": 0,
+  "focused01": "Build-blocked before test execution by missing sparse Probe; no TRX was generated. Raw failure is logs/focused-managed-01.stdout.log.",
+  "actualRuns": [
+    {
+      "kind": "focused",
+      "invocationSource": "fe698d21f65d4e835018044f4f5a221555ceab7e",
+      "libraryAndManagedTestInputsUnchangedAtFinalSource": true,
+      "rawOrigin": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-owned-seat-resume-2026-11-09/results/focused/focused.trx",
+      "compressedPath": "results/focused.trx.gz",
+      "rawBytes": 149916,
+      "rawSha256": "cd5ea72b353c79fa0c737fb19a205e6f3f33220fc016fbfb5eaa445545aef0e6",
+      "compression": "lossless gzip",
+      "counters": {
+        "total": "97",
+        "executed": "97",
+        "passed": "97",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "kind": "full",
+      "invocationSource": "fe698d21f65d4e835018044f4f5a221555ceab7e",
+      "libraryAndManagedTestInputsUnchangedAtFinalSource": true,
+      "rawOrigin": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-owned-seat-resume-2026-11-09/results/full/full.trx",
+      "compressedPath": "results/full.trx.gz",
+      "rawBytes": 1350712,
+      "rawSha256": "b710c8d5caae6be0fa94e70678da9d9084bbf1f5e98fb97e3f305b4233220806",
+      "compression": "lossless gzip",
+      "counters": {
+        "total": "923",
+        "executed": "923",
+        "passed": "923",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    }
+  ]
+}

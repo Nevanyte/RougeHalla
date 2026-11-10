@@ -1,0 +1,24 @@
+{
+  "classification": "Root-authorized one direct official Editor launch after bounded CLI interruption",
+  "source": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+  "project": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+  "editorExecutable": "/Applications/Unity/Hub/Editor/6000.0.85f2/Unity.app/Contents/MacOS/Unity",
+  "pid": 46583,
+  "spawnUtc": "2026-11-09T18:53:37.285054+00:00",
+  "startupBudgetSeconds": 900,
+  "target": "WebGL",
+  "logPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/private/Editor.log",
+  "oldEditorExcluded": 9075,
+  "previousCliClosed": true,
+  "raceRecheckFoundEditors": [],
+  "sourcePinsBeforeSpawn": 1284,
+  "allowedArgumentNames": [
+    "-projectPath",
+    "-buildTarget",
+    "-logFile"
+  ],
+  "rawArgvOrEnvironmentLogged": false,
+  "immediateExitCode": null,
+  "processStartIdentity": "46583 46574 Mon Nov  9 12:53:37 2026     /Applications/Unity/Hub/Editor/6000.0.85f2/Unity.app/Contents/MacOS/Unity",
+  "metadataExitCode": 0
+}

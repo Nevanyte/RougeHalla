@@ -1,0 +1,14 @@
+{
+  "format": "rh-unity-isolated-bootstrap-overlay/1",
+  "approved_utc": "2026-11-09T19:10:25.277797+00:00",
+  "source": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+  "editor_pid": 46583,
+  "source_freeze_sha256": "2845414b71e5afe0c5ad6597e38c50187e0975680a8712823b9e039f1068a343",
+  "path": "client-unity/UnityProject/ProjectSettings/PackageManagerSettings.asset",
+  "bytes": 1044,
+  "sha256": "a2cb53758656a32e072c1e33d985a3f73b8374b2acb3365750d31070d60a67b5",
+  "decision": "Approve this exact automatically generated file as one startup-only overlay; preserve original1284 pins and originalSTOP receipt. No source/code/metas/package manifest/lock/version changes approved.",
+  "inspection": "Only default https://packages.unity.com registry, empty scoped registries/scopes, no secret/auth keys, pre-release/see-all disabled. Builtin Editor script/UI state and transient draft instance IDs. No new dependency/source/credential/permission/terms/service requested.",
+  "limits": "Not blanket serialization permission; preserve file bytes, no deletion/reset/SaveAssets or counter manipulation. Recheck exact overlay alongside all1284pins before98 and return.",
+  "native98": "UNRUN; actualloadedidentity/public98binding stillrequiresRootadmission"
+}

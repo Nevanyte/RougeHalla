@@ -1,0 +1,55 @@
+{
+  "format": "rh-p15-protection-cues-variant-classification/1",
+  "status": "NONKILL",
+  "controlId": "comment-provenance",
+  "code": "02d77c341548846bd719608b665f7cbddd652f42",
+  "sourceBase": "bb564d3b53728cbd205af375b5342eca466f3656",
+  "pristineCode": "4fe7aa8285ad65f2c9a1123297426cd48b03bdef",
+  "transform": {
+    "control": {
+      "id": "comment-provenance",
+      "kind": "comment-nonkill",
+      "file": "packages/server/src/sim/arena.ts",
+      "expectedMatches": 1,
+      "find": "export function teleportToColiseum(world: World): void {",
+      "replace": "export function teleportToColiseum(world: World): void { // control: comment-only nonkill",
+      "firstFailureCase": null
+    },
+    "controlsSha256": "a27967aef45638c64d2873063d66669f5724abf869d51e328c511a15b4ef837c",
+    "original": {
+      "path": "packages/server/src/sim/arena.ts",
+      "bytes": 29450,
+      "sha256": "f8395e83f1f7f81d91bbc51d8fdec4e025f95d299c42f7229250be908341191a"
+    },
+    "executed": {
+      "bytes": 29483,
+      "sha256": "f6bc821d252227e51d12df4d3334101dd965606efc04f24c91e07bb00ed4b7fa"
+    },
+    "instrumentation": {
+      "kind": "exact-once-replacement",
+      "controlId": "comment-provenance",
+      "file": "packages/server/src/sim/arena.ts",
+      "controlsSha256": "a27967aef45638c64d2873063d66669f5724abf869d51e328c511a15b4ef837c",
+      "find": "export function teleportToColiseum(world: World): void {",
+      "replace": "export function teleportToColiseum(world: World): void { // control: comment-only nonkill",
+      "expectedMatches": 1
+    }
+  },
+  "equality": {
+    "allCases": 11,
+    "allFunctionalFieldsExact": true,
+    "allowedDifferences": [
+      "profile.driverCode",
+      "profile.frozenBuild.code",
+      "profile.frozenBuild.manifestSha256",
+      "profile.frozenBuild.bundle.bytes",
+      "profile.frozenBuild.bundle.sha256",
+      "profile.frozenBuild.variant (exact added record)",
+      "profile.frozenBuild.loadedInputs[8].executedBytes",
+      "profile.frozenBuild.loadedInputs[8].executedSha256",
+      "profile.frozenBuild.loadedInputs[8].instrumentation (exact chosen control)"
+    ]
+  },
+  "sourceVerifierStatus": "PASS",
+  "independentSourceReproduction": false
+}

@@ -1,0 +1,24 @@
+{
+  "source": "fe698d21f65d4e835018044f4f5a221555ceab7e",
+  "reason": "Retain exact candidate1 compiled artifacts before the source-review child is compiled; no native execution.",
+  "files": [
+    {
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-owned-seat-resume-2026-11-09/profiles/editor/bin/Debug/netstandard2.1/Roguehalla.Client.dll",
+      "archived": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-owned-seat-resume-2026-11-09/retired-artifacts/fe698d21/editor-Roguehalla.Client.dll",
+      "sha256": "9664832a996ece3d4550fb2a0bd07159aa5e72f664a953df436b82751d3412d3",
+      "bytes": 513024
+    },
+    {
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-owned-seat-resume-2026-11-09/profiles/editor/bin/Debug/netstandard2.1/Roguehalla.Client.EditModeTests.dll",
+      "archived": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-owned-seat-resume-2026-11-09/retired-artifacts/fe698d21/editor-Roguehalla.Client.EditModeTests.dll",
+      "sha256": "c258b5e8ff64c0653abab46ebd801b574caf8e968fb4562b1ea0f7967b980d92",
+      "bytes": 414720
+    },
+    {
+      "origin": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-owned-seat-resume-2026-11-09/profiles/player/bin/Debug/netstandard2.1/Roguehalla.Client.dll",
+      "archived": "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-owned-seat-resume-2026-11-09/retired-artifacts/fe698d21/player-Roguehalla.Client.dll",
+      "sha256": "05a91a57dfed69fbddf7ff93c9beea700bdab6603e5ef5a9857a21ae43ed364a",
+      "bytes": 504832
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "bucket": "ROOT-REPLACE",
+  "key": "technical-demo/ROOT-REPLACE.tar",
+  "sha256": "ROOT-REPLACE-EXACT-64-LOWERCASE-HEX",
+  "region": "ca-west-1",
+  "expires_at": "ROOT-REPLACE-ABSOLUTE-UTC",
+  "domain": "play.rougehalla.com",
+  "run_id": "root-replace"
+}

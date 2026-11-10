@@ -1,0 +1,42 @@
+{
+  "previous_released_evidence": "e246002aa6b2b038639d78700fc205e7a4005b34",
+  "code_head": "15ad9dbf061494a95116ca61611bb17e730563b4",
+  "files": [
+    {
+      "path": "tools/staging-full-runtime/installer/README.md",
+      "sha256": "af4c8c33cf0027d961ac63d8d4c9a1334f92bef6066d9d6f5c345b2c9cc25273"
+    },
+    {
+      "path": "tools/staging-full-runtime/installer/contract.py",
+      "sha256": "6dab4b7f4c29ddf947d11fa18460e5549e2d0976c39aff74a47f23be23421280"
+    },
+    {
+      "path": "tools/staging-full-runtime/installer/foundation.py",
+      "sha256": "541df0f2b3e7887ed6c40b286a38d9398604e27618f59e43772fdcb69d4f3000"
+    },
+    {
+      "path": "tools/staging-full-runtime/installer/host_material.py",
+      "sha256": "7849a4afd0b96f08980936076bec52872b96f7ea08083c607babcf219cdd87ef"
+    },
+    {
+      "path": "tools/staging-full-runtime/installer/plan.schema.json",
+      "sha256": "5ceb1fcd950b78f5b31c99eb5c08b8f63156ecef2a5f68db6dcdab3fc42f9e60"
+    },
+    {
+      "path": "tools/staging-full-runtime/installer/plan.unverified.json",
+      "sha256": "509a8b1243dff630175f3472d8a825b0a3a44b93f3aa2e7e066fb80c2c71fcbf"
+    },
+    {
+      "path": "tools/staging-full-runtime/installer/security.guard",
+      "sha256": "7eceb7fa4c38f8b18385dbd6ab6269f3be38eb19a6530b7478ecd9d969cc7858"
+    },
+    {
+      "path": "tools/staging-full-runtime/installer/test_installer.py",
+      "sha256": "841de45296941bc307983f83c6bf75328416134fce5fd8f2d61c70ac5770a62b"
+    },
+    {
+      "path": "tools/staging-full-runtime/installer/transfer.py",
+      "sha256": "73fd9a1c08123e98d3d48dd09221ce5748b095d94895e73b643521ad0cfdf764"
+    }
+  ]
+}

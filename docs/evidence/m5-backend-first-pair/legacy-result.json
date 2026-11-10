@@ -1,0 +1,22 @@
+{
+  "status": "PASS",
+  "failure": null,
+  "serverReady": {
+    "kind": "ready",
+    "pid": 10301,
+    "wireBuild": "414115dd8f03877ff319245e6ee91d66f791eccc1c9120154a1adc5c813fdf4e",
+    "serverBuild": "7ce408ee96760c6ebb7fcb985c1a1edefba4794789da8adde1103aa377c19f30"
+  },
+  "ownedChildPid": 10301,
+  "childClosed": true,
+  "remainingOwnedListener": false,
+  "ordinarySeats": 3,
+  "heartbeatCounts": [
+    60,
+    59,
+    59
+  ],
+  "deadlineHit": false,
+  "elapsedSeconds": 61.491679917,
+  "metricsScope": "backend only; no browser/render/input-to-visible/Unity/cloud; Node CPU user/systemus+selfRSS at1s; no wirebyteclaim"
+}

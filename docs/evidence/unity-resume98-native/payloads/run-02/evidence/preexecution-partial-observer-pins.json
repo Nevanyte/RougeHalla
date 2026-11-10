@@ -1,0 +1,36 @@
+{
+  "status": "PREEXECUTION_PARTIAL_SEAL_NOT_EXECUTION_ADMISSION",
+  "executedTests": false,
+  "files": [
+    {
+      "path": "Resume98MetadataObservers.cs",
+      "bytes": 20320,
+      "sha256": "c2e2c235ccfd7cc0e323e1f68e442d029d2e74cee5cffb0faa9daba1c718be09"
+    },
+    {
+      "path": "evidence/loaded-identity-raw.json",
+      "bytes": 13542,
+      "sha256": "20ad1f78bae0a94f1055aa52fb37eef90f88dcdb0f5618300ec1cc418d760fa8"
+    },
+    {
+      "path": "evidence/loaded-signatures-raw.json",
+      "bytes": 14486,
+      "sha256": "dcc25dbc7215234a34d693d804f69de404c3ad272ad3937b681ec1afc51a5c81"
+    },
+    {
+      "path": "evidence/public-discovery-invocation.json",
+      "bytes": 174,
+      "sha256": "b37367e591053b4d55bfb0325aaba53df3b69bcf50d4afa3cc050adeee1413ee"
+    },
+    {
+      "path": "evidence/discovered-cases.json",
+      "bytes": 93551,
+      "sha256": "3686e2eb4f65e619e5f0cb0589eb1aab6588a3a47f35e6fbd68e4ef7e47276bc"
+    },
+    {
+      "path": "evidence/untracked-package-settings-stop.json",
+      "bytes": 1258,
+      "sha256": "b9cd1a4c42f825c63145cab06ec836c64be997404cbed850ebfa0da08953320e"
+    }
+  ]
+}

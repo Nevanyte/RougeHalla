@@ -1,0 +1,11 @@
+{
+  "scope": "immutable Git source hashing only; no runtime/network/world capture",
+  "command": [
+    "node",
+    "tools/unity-browser-reload-proof/pin-sources.mjs",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14-clients/repo/docs/evidence/unity-browser-reload-readiness/source-pins.json"
+  ],
+  "startedUtc": "2026-11-09T19:09:03.817466+00:00",
+  "exitCode": 0,
+  "logSha256": "aa9bd12c3784d6f8ac3bf580c01b4156a40153dff3ee9bfcf43417871213491c"
+}

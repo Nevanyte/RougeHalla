@@ -1,0 +1,17 @@
+{
+  "status": "ROOT_ADMITTED_ONE_EXACT_NATIVE98_RUN",
+  "utc": "2026-11-09T19:18:53.726997+00:00",
+  "source": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+  "project": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+  "pid": 46583,
+  "contract_sha256": "6bfa787e4f63be11fc8a1d51879f30cfc7617f4d7d51883afc60a28a7ef8870e",
+  "identity_sha256": "07a51974aa0e04922e8acf699f2ef15299c777f716c3f00aacd76bbf8412dc35",
+  "binding_sha256": "55b7fc63981b0564e8011b5180314cfc5a83a16654bd1839f8375fda7eec9fde",
+  "source_pins_independently_rechecked": 1284,
+  "overlay_sha256": "a2cb53758656a32e072c1e33d985a3f73b8374b2acb3365750d31070d60a67b5",
+  "cases": 98,
+  "root_raw_names_signatures": "98uniqueexactnames;29parameterentriespositions/types/everydeclaredname;34declaredreturns;64oldrowsomitreturnmetadata",
+  "author_strict_typed_arguments_attributes_guids": "PASS,capturedactualreceiptsretained",
+  "conditions": "Pin external3keycontroller; samePID/context/source/assembly; rawcoveragebeforeverdict; stopfirstfailure/noretries; Source+oneoverlaypre/post; old9075untargeted.",
+  "tests_at_admission": "0executed/98unrun; priorprematurereleasewithdrawnbeforeexecution"
+}

@@ -1,0 +1,34 @@
+{
+  "schema": "roguehalla-owned-seat-resume-metadata-audit-receipt/1",
+  "sourceSha": "fe698d21f65d4e835018044f4f5a221555ceab7e",
+  "initialAttempt": {
+    "commandRecord": "../logs/metadata-audit-01.command.txt",
+    "rawToolResponseRecord": "../logs/metadata-audit-01.tool-response.txt",
+    "stdoutAndStderrSeparatelyCaptured": false,
+    "failure": "Compiled old selector names differed because expected NUnit full names use the long suffix L (for example 0L) while direct Cecil metadata formatting emitted 0.",
+    "nativeTestsExecuted": 0,
+    "unityApisInvoked": false
+  },
+  "correction": "Matched compiled old90 cases to the frozen expected contract by fixture, method, declared parameter types and typed argument tuples; retained those 90 expected case objects verbatim in the union. The six new MatchResumeEditModeTests cases were extracted from compiled Cecil metadata only and remain pending public native discovery.",
+  "finalToolSource": {
+    "path": "metadata/Program.cs",
+    "sha256": "bb6d44dec0e797b3c33289a35b078bc8d895274f753cc278245471ce4c2fdebf"
+  },
+  "finalToolProject": {
+    "path": "metadata/MetadataAudit.csproj",
+    "sha256": "89ae0d7b13572f13628e084c1481f3a06ada5531415a4c74ac600f2e2907cc62"
+  },
+  "finalAudit": {
+    "path": "metadata/output/final/metadata-audit.json",
+    "sha256": "1983871f8eabb3b2959b132ed94d96b8852e70c1d97e73541507bcc5cbdb6bb9",
+    "contractSha256": "1f89b3ed14a6c9786d104aa19c5f812da46f2509d8a55321d77a9b7e512778cf",
+    "ilAuditSha256": "efaece80c5a62bfe52a43c6eb2231f641360a463b556e0e9896c9cc4d4be6fae",
+    "sourcePinsSha256": "be44a85bb396d74fc1e60a02826d69208bcac77850f83eb3a168c3a7445ed9eb"
+  },
+  "recoveredPriorToolVersion": {
+    "path": "metadata/versions/Program-candidate01.cs",
+    "sha256": "bb6d44dec0e797b3c33289a35b078bc8d895274f753cc278245471ce4c2fdebf",
+    "recovery": "Reconstructed candidate01 source by reversing only the recorded candidate02 additions (post-ClearSeatRecord generation IL check and metadata-tool source/project hash fields) from the preserved candidate02 Program.cs; wrote the reconstruction only after SHA-256 exactly matched the candidate01 hash already recorded in the first audit receipt.",
+    "hashVerified": true
+  }
+}

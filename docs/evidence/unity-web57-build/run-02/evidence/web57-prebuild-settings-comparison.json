@@ -1,0 +1,7 @@
+{
+  "status": "PASS_SAME_EFFECTIVE_SETTINGS_NEW_ASSET_CANONICAL_SOURCE",
+  "source": "57e166f46b35fb703e5f3c76914fcc4e8bf3191c",
+  "editorPid": 46583,
+  "onlyContextDifferenceFromPrior": "sourceSha points to newly canonical asset commit; settings/context otherwise identical",
+  "oldNative98Rerun": false
+}

@@ -1,0 +1,4212 @@
+{
+  "inputs": {
+    "pinned-schema:@colyseus/schema/build/index.mjs": {
+      "bytes": 489807,
+      "imports": [],
+      "format": "esm"
+    },
+    "packages/shared/src/constants.ts": {
+      "bytes": 46007,
+      "imports": [],
+      "format": "esm"
+    },
+    "packages/shared/src/messages.ts": {
+      "bytes": 30329,
+      "imports": [],
+      "format": "esm"
+    },
+    "packages/shared/src/weapons.ts": {
+      "bytes": 15391,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/mark.ts": {
+      "bytes": 4403,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants"
+        },
+        {
+          "path": "packages/shared/src/weapons.ts",
+          "kind": "import-statement",
+          "original": "./weapons"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/signatureShares.ts": {
+      "bytes": 1078,
+      "imports": [],
+      "format": "esm"
+    },
+    "packages/shared/src/factions.ts": {
+      "bytes": 14039,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants"
+        },
+        {
+          "path": "packages/shared/src/mark.ts",
+          "kind": "import-statement",
+          "original": "./mark"
+        },
+        {
+          "path": "packages/shared/src/signatureShares.ts",
+          "kind": "import-statement",
+          "original": "./signatureShares"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/abilities.ts": {
+      "bytes": 16589,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants"
+        },
+        {
+          "path": "packages/shared/src/factions.ts",
+          "kind": "import-statement",
+          "original": "./factions"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/status.ts": {
+      "bytes": 4682,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/fxCodec.ts": {
+      "bytes": 24844,
+      "imports": [
+        {
+          "path": "packages/shared/src/abilities.ts",
+          "kind": "import-statement",
+          "original": "./abilities"
+        },
+        {
+          "path": "packages/shared/src/status.ts",
+          "kind": "import-statement",
+          "original": "./status"
+        },
+        {
+          "path": "packages/shared/src/weapons.ts",
+          "kind": "import-statement",
+          "original": "./weapons"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/map.ts": {
+      "bytes": 21022,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/interactions.ts": {
+      "bytes": 8524,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants"
+        },
+        {
+          "path": "packages/shared/src/map.ts",
+          "kind": "import-statement",
+          "original": "./map"
+        },
+        {
+          "path": "packages/shared/src/weapons.ts",
+          "kind": "import-statement",
+          "original": "./weapons"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/policies.ts": {
+      "bytes": 13185,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants"
+        },
+        {
+          "path": "packages/shared/src/weapons.ts",
+          "kind": "import-statement",
+          "original": "./weapons"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/geometry.ts": {
+      "bytes": 7899,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants"
+        },
+        {
+          "path": "packages/shared/src/map.ts",
+          "kind": "import-statement",
+          "original": "./map"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/pathfind.ts": {
+      "bytes": 11003,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants"
+        },
+        {
+          "path": "packages/shared/src/geometry.ts",
+          "kind": "import-statement",
+          "original": "./geometry"
+        },
+        {
+          "path": "packages/shared/src/map.ts",
+          "kind": "import-statement",
+          "original": "./map"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/propKinds.ts": {
+      "bytes": 2990,
+      "imports": [
+        {
+          "path": "packages/shared/src/map.ts",
+          "kind": "import-statement",
+          "original": "./map"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/terrain.ts": {
+      "bytes": 21947,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants"
+        },
+        {
+          "path": "packages/shared/src/factions.ts",
+          "kind": "import-statement",
+          "original": "./factions"
+        },
+        {
+          "path": "packages/shared/src/map.ts",
+          "kind": "import-statement",
+          "original": "./map"
+        },
+        {
+          "path": "packages/shared/src/pathfind.ts",
+          "kind": "import-statement",
+          "original": "./pathfind"
+        },
+        {
+          "path": "packages/shared/src/propKinds.ts",
+          "kind": "import-statement",
+          "original": "./propKinds"
+        },
+        {
+          "path": "packages/shared/src/propKinds.ts",
+          "kind": "import-statement",
+          "original": "./propKinds"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/interp.ts": {
+      "bytes": 20983,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/rng.ts": {
+      "bytes": 2115,
+      "imports": [],
+      "format": "esm"
+    },
+    "packages/shared/src/detMath.ts": {
+      "bytes": 874,
+      "imports": [],
+      "format": "esm"
+    },
+    "packages/shared/src/coliseum.ts": {
+      "bytes": 8403,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants"
+        },
+        {
+          "path": "packages/shared/src/detMath.ts",
+          "kind": "import-statement",
+          "original": "./detMath"
+        },
+        {
+          "path": "packages/shared/src/map.ts",
+          "kind": "import-statement",
+          "original": "./map"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/gridTopology.ts": {
+      "bytes": 12464,
+      "imports": [
+        {
+          "path": "packages/shared/src/map.ts",
+          "kind": "import-statement",
+          "original": "./map"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/gridOps.ts": {
+      "bytes": 2375,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants"
+        },
+        {
+          "path": "packages/shared/src/gridTopology.ts",
+          "kind": "import-statement",
+          "original": "./gridTopology"
+        },
+        {
+          "path": "packages/shared/src/map.ts",
+          "kind": "import-statement",
+          "original": "./map"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/mobs.ts": {
+      "bytes": 15613,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants"
+        },
+        {
+          "path": "packages/shared/src/factions.ts",
+          "kind": "import-statement",
+          "original": "./factions"
+        },
+        {
+          "path": "packages/shared/src/map.ts",
+          "kind": "import-statement",
+          "original": "./map"
+        },
+        {
+          "path": "packages/shared/src/weapons.ts",
+          "kind": "import-statement",
+          "original": "./weapons"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/planning.ts": {
+      "bytes": 5249,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants"
+        },
+        {
+          "path": "packages/shared/src/factions.ts",
+          "kind": "import-statement",
+          "original": "./factions"
+        },
+        {
+          "path": "packages/shared/src/mobs.ts",
+          "kind": "import-statement",
+          "original": "./mobs"
+        },
+        {
+          "path": "packages/shared/src/pathfind.ts",
+          "kind": "import-statement",
+          "original": "./pathfind"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/bushes.ts": {
+      "bytes": 6087,
+      "imports": [
+        {
+          "path": "packages/shared/src/rng.ts",
+          "kind": "import-statement",
+          "original": "./rng"
+        },
+        {
+          "path": "packages/shared/src/map.ts",
+          "kind": "import-statement",
+          "original": "./map"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/zoneStyle/features.ts": {
+      "bytes": 40831,
+      "imports": [
+        {
+          "path": "packages/shared/src/coliseum.ts",
+          "kind": "import-statement",
+          "original": "../coliseum"
+        },
+        {
+          "path": "packages/shared/src/gridTopology.ts",
+          "kind": "import-statement",
+          "original": "../gridTopology"
+        },
+        {
+          "path": "packages/shared/src/map.ts",
+          "kind": "import-statement",
+          "original": "../map"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/zoneStyle/kit.ts": {
+      "bytes": 17138,
+      "imports": [
+        {
+          "path": "packages/shared/src/map.ts",
+          "kind": "import-statement",
+          "original": "../map"
+        },
+        {
+          "path": "packages/shared/src/rng.ts",
+          "kind": "import-statement",
+          "original": "../rng"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/zoneStyle/types.ts": {
+      "bytes": 15681,
+      "imports": [],
+      "format": "esm"
+    },
+    "packages/shared/src/zoneStyle/context.ts": {
+      "bytes": 30206,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "../constants"
+        },
+        {
+          "path": "packages/shared/src/gridTopology.ts",
+          "kind": "import-statement",
+          "original": "../gridTopology"
+        },
+        {
+          "path": "packages/shared/src/map.ts",
+          "kind": "import-statement",
+          "original": "../map"
+        },
+        {
+          "path": "packages/shared/src/rng.ts",
+          "kind": "import-statement",
+          "original": "../rng"
+        },
+        {
+          "path": "packages/shared/src/terrain.ts",
+          "kind": "import-statement",
+          "original": "../terrain"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/kit.ts",
+          "kind": "import-statement",
+          "original": "./kit"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/types.ts",
+          "kind": "import-statement",
+          "original": "./types"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/zoneStyle/landmarks.ts": {
+      "bytes": 30532,
+      "imports": [
+        {
+          "path": "packages/shared/src/map.ts",
+          "kind": "import-statement",
+          "original": "../map"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/types.ts",
+          "kind": "import-statement",
+          "original": "./types"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/zoneStyle/propKinds.ts": {
+      "bytes": 809,
+      "imports": [
+        {
+          "path": "packages/shared/src/propKinds.ts",
+          "kind": "import-statement",
+          "original": "../propKinds"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/zoneStyle/scale.ts": {
+      "bytes": 1361,
+      "imports": [],
+      "format": "esm"
+    },
+    "packages/shared/src/zoneStyle/gallows.ts": {
+      "bytes": 37047,
+      "imports": [
+        {
+          "path": "packages/shared/src/map.ts",
+          "kind": "import-statement",
+          "original": "../map"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/features.ts",
+          "kind": "import-statement",
+          "original": "./features"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/landmarks.ts",
+          "kind": "import-statement",
+          "original": "./landmarks"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/propKinds.ts",
+          "kind": "import-statement",
+          "original": "./propKinds"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/scale.ts",
+          "kind": "import-statement",
+          "original": "./scale"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/zoneStyle/rime.ts": {
+      "bytes": 40601,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "../constants"
+        },
+        {
+          "path": "packages/shared/src/coliseum.ts",
+          "kind": "import-statement",
+          "original": "../coliseum"
+        },
+        {
+          "path": "packages/shared/src/map.ts",
+          "kind": "import-statement",
+          "original": "../map"
+        },
+        {
+          "path": "packages/shared/src/pathfind.ts",
+          "kind": "import-statement",
+          "original": "../pathfind"
+        },
+        {
+          "path": "packages/shared/src/terrain.ts",
+          "kind": "import-statement",
+          "original": "../terrain"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/features.ts",
+          "kind": "import-statement",
+          "original": "./features"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/landmarks.ts",
+          "kind": "import-statement",
+          "original": "./landmarks"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/propKinds.ts",
+          "kind": "import-statement",
+          "original": "./propKinds"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/scale.ts",
+          "kind": "import-statement",
+          "original": "./scale"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/zoneStyle/sanctum.ts": {
+      "bytes": 24977,
+      "imports": [
+        {
+          "path": "packages/shared/src/map.ts",
+          "kind": "import-statement",
+          "original": "../map"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/features.ts",
+          "kind": "import-statement",
+          "original": "./features"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/landmarks.ts",
+          "kind": "import-statement",
+          "original": "./landmarks"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/propKinds.ts",
+          "kind": "import-statement",
+          "original": "./propKinds"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/scale.ts",
+          "kind": "import-statement",
+          "original": "./scale"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/zoneStyle/scorch.ts": {
+      "bytes": 51569,
+      "imports": [
+        {
+          "path": "packages/shared/src/map.ts",
+          "kind": "import-statement",
+          "original": "../map"
+        },
+        {
+          "path": "packages/shared/src/terrain.ts",
+          "kind": "import-statement",
+          "original": "../terrain"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/kit.ts",
+          "kind": "import-statement",
+          "original": "./kit"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/features.ts",
+          "kind": "import-statement",
+          "original": "./features"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/landmarks.ts",
+          "kind": "import-statement",
+          "original": "./landmarks"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/propKinds.ts",
+          "kind": "import-statement",
+          "original": "./propKinds"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/types.ts",
+          "kind": "import-statement",
+          "original": "./types"
+        },
+        {
+          "path": "packages/shared/src/gridTopology.ts",
+          "kind": "import-statement",
+          "original": "../gridTopology"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/scale.ts",
+          "kind": "import-statement",
+          "original": "./scale"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/zoneStyle/warren.ts": {
+      "bytes": 30968,
+      "imports": [
+        {
+          "path": "packages/shared/src/map.ts",
+          "kind": "import-statement",
+          "original": "../map"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/scale.ts",
+          "kind": "import-statement",
+          "original": "./scale"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/features.ts",
+          "kind": "import-statement",
+          "original": "./features"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/landmarks.ts",
+          "kind": "import-statement",
+          "original": "./landmarks"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/propKinds.ts",
+          "kind": "import-statement",
+          "original": "./propKinds"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/zoneStyle/styleZones.ts": {
+      "bytes": 10113,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "../constants"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/features.ts",
+          "kind": "import-statement",
+          "original": "./features"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/kit.ts",
+          "kind": "import-statement",
+          "original": "./kit"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/context.ts",
+          "kind": "import-statement",
+          "original": "./context"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/gallows.ts",
+          "kind": "import-statement",
+          "original": "./gallows"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/rime.ts",
+          "kind": "import-statement",
+          "original": "./rime"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/sanctum.ts",
+          "kind": "import-statement",
+          "original": "./sanctum"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/scorch.ts",
+          "kind": "import-statement",
+          "original": "./scorch"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/warren.ts",
+          "kind": "import-statement",
+          "original": "./warren"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/propKinds.ts",
+          "kind": "import-statement",
+          "original": "./propKinds"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/types.ts",
+          "kind": "import-statement",
+          "original": "./types"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/zoneStyle/hook.ts": {
+      "bytes": 3970,
+      "imports": [
+        {
+          "path": "packages/shared/src/zoneStyle/styleZones.ts",
+          "kind": "import-statement",
+          "original": "./styleZones"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/styler.ts": {
+      "bytes": 7309,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants"
+        },
+        {
+          "path": "packages/shared/src/rng.ts",
+          "kind": "import-statement",
+          "original": "./rng"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/hook.ts",
+          "kind": "import-statement",
+          "original": "./zoneStyle/hook"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/zones.ts": {
+      "bytes": 49948,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants"
+        },
+        {
+          "path": "packages/shared/src/coliseum.ts",
+          "kind": "import-statement",
+          "original": "./coliseum"
+        },
+        {
+          "path": "packages/shared/src/gridOps.ts",
+          "kind": "import-statement",
+          "original": "./gridOps"
+        },
+        {
+          "path": "packages/shared/src/map.ts",
+          "kind": "import-statement",
+          "original": "./map"
+        },
+        {
+          "path": "packages/shared/src/rng.ts",
+          "kind": "import-statement",
+          "original": "./rng"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/mapgen.ts": {
+      "bytes": 57619,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants"
+        },
+        {
+          "path": "packages/shared/src/coliseum.ts",
+          "kind": "import-statement",
+          "original": "./coliseum"
+        },
+        {
+          "path": "packages/shared/src/gridOps.ts",
+          "kind": "import-statement",
+          "original": "./gridOps"
+        },
+        {
+          "path": "packages/shared/src/gridTopology.ts",
+          "kind": "import-statement",
+          "original": "./gridTopology"
+        },
+        {
+          "path": "packages/shared/src/map.ts",
+          "kind": "import-statement",
+          "original": "./map"
+        },
+        {
+          "path": "packages/shared/src/pathfind.ts",
+          "kind": "import-statement",
+          "original": "./pathfind"
+        },
+        {
+          "path": "packages/shared/src/planning.ts",
+          "kind": "import-statement",
+          "original": "./planning"
+        },
+        {
+          "path": "packages/shared/src/bushes.ts",
+          "kind": "import-statement",
+          "original": "./bushes"
+        },
+        {
+          "path": "packages/shared/src/rng.ts",
+          "kind": "import-statement",
+          "original": "./rng"
+        },
+        {
+          "path": "packages/shared/src/styler.ts",
+          "kind": "import-statement",
+          "original": "./styler"
+        },
+        {
+          "path": "packages/shared/src/terrain.ts",
+          "kind": "import-statement",
+          "original": "./terrain"
+        },
+        {
+          "path": "packages/shared/src/zones.ts",
+          "kind": "import-statement",
+          "original": "./zones"
+        },
+        {
+          "path": "packages/shared/src/zones.ts",
+          "kind": "import-statement",
+          "original": "./zones"
+        },
+        {
+          "path": "packages/shared/src/styler.ts",
+          "kind": "import-statement",
+          "original": "./styler"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/mapWire.ts": {
+      "bytes": 402,
+      "imports": [
+        {
+          "path": "packages/shared/src/mapgen.ts",
+          "kind": "import-statement",
+          "original": "./mapgen"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/rules.ts": {
+      "bytes": 6532,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/cards.ts": {
+      "bytes": 34091,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/glossary.ts": {
+      "bytes": 7261,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants"
+        },
+        {
+          "path": "packages/shared/src/weapons.ts",
+          "kind": "import-statement",
+          "original": "./weapons"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/effects.ts": {
+      "bytes": 18193,
+      "imports": [],
+      "format": "esm"
+    },
+    "packages/shared/src/effectText.ts": {
+      "bytes": 9977,
+      "imports": [
+        {
+          "path": "packages/shared/src/effects.ts",
+          "kind": "import-statement",
+          "original": "./effects"
+        },
+        {
+          "path": "packages/shared/src/rules.ts",
+          "kind": "import-statement",
+          "original": "./rules"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/hpView.ts": {
+      "bytes": 2020,
+      "imports": [],
+      "format": "esm"
+    },
+    "packages/shared/src/rosters.ts": {
+      "bytes": 4469,
+      "imports": [
+        {
+          "path": "packages/shared/src/mobs.ts",
+          "kind": "import-statement",
+          "original": "./mobs"
+        },
+        {
+          "path": "packages/shared/src/rng.ts",
+          "kind": "import-statement",
+          "original": "./rng"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/signatures.ts": {
+      "bytes": 9370,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants"
+        },
+        {
+          "path": "packages/shared/src/weapons.ts",
+          "kind": "import-statement",
+          "original": "./weapons"
+        },
+        {
+          "path": "packages/shared/src/signatureShares.ts",
+          "kind": "import-statement",
+          "original": "./signatureShares"
+        },
+        {
+          "path": "packages/shared/src/mark.ts",
+          "kind": "import-statement",
+          "original": "./mark"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/wheel.ts": {
+      "bytes": 3618,
+      "imports": [
+        {
+          "path": "packages/shared/src/factions.ts",
+          "kind": "import-statement",
+          "original": "./factions"
+        },
+        {
+          "path": "packages/shared/src/weapons.ts",
+          "kind": "import-statement",
+          "original": "./weapons"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/cosmetics.ts": {
+      "bytes": 11625,
+      "imports": [],
+      "format": "esm"
+    },
+    "packages/shared/src/achievements.ts": {
+      "bytes": 7472,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants"
+        },
+        {
+          "path": "packages/shared/src/cosmetics.ts",
+          "kind": "import-statement",
+          "original": "./cosmetics"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/blink.ts": {
+      "bytes": 7936,
+      "imports": [
+        {
+          "path": "packages/shared/src/abilities.ts",
+          "kind": "import-statement",
+          "original": "./abilities"
+        },
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants"
+        },
+        {
+          "path": "packages/shared/src/geometry.ts",
+          "kind": "import-statement",
+          "original": "./geometry"
+        },
+        {
+          "path": "packages/shared/src/map.ts",
+          "kind": "import-statement",
+          "original": "./map"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/chestBoosts.ts": {
+      "bytes": 4652,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/mods.ts": {
+      "bytes": 23134,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants"
+        },
+        {
+          "path": "packages/shared/src/chestBoosts.ts",
+          "kind": "import-statement",
+          "original": "./chestBoosts"
+        },
+        {
+          "path": "packages/shared/src/effects.ts",
+          "kind": "import-statement",
+          "original": "./effects"
+        },
+        {
+          "path": "packages/shared/src/weapons.ts",
+          "kind": "import-statement",
+          "original": "./weapons"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/walk.ts": {
+      "bytes": 15362,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants"
+        },
+        {
+          "path": "packages/shared/src/geometry.ts",
+          "kind": "import-statement",
+          "original": "./geometry"
+        },
+        {
+          "path": "packages/shared/src/map.ts",
+          "kind": "import-statement",
+          "original": "./map"
+        },
+        {
+          "path": "packages/shared/src/pathfind.ts",
+          "kind": "import-statement",
+          "original": "./pathfind"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/zoneStyle/index.ts": {
+      "bytes": 1629,
+      "imports": [
+        {
+          "path": "packages/shared/src/zoneStyle/types.ts",
+          "kind": "import-statement",
+          "original": "./types"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/hook.ts",
+          "kind": "import-statement",
+          "original": "./hook"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/styleZones.ts",
+          "kind": "import-statement",
+          "original": "./styleZones"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/propKinds.ts",
+          "kind": "import-statement",
+          "original": "./propKinds"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/scale.ts",
+          "kind": "import-statement",
+          "original": "./scale"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/scorch.ts",
+          "kind": "import-statement",
+          "original": "./scorch"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/gallows.ts",
+          "kind": "import-statement",
+          "original": "./gallows"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/warren.ts",
+          "kind": "import-statement",
+          "original": "./warren"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/rime.ts",
+          "kind": "import-statement",
+          "original": "./rime"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/sanctum.ts",
+          "kind": "import-statement",
+          "original": "./sanctum"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/mobStats.ts": {
+      "bytes": 7296,
+      "imports": [
+        {
+          "path": "packages/shared/src/mobs.ts",
+          "kind": "import-statement",
+          "original": "./mobs"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/championPassives.ts": {
+      "bytes": 1337,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/combatReadability.ts": {
+      "bytes": 8406,
+      "imports": [
+        {
+          "path": "packages/shared/src/cards.ts",
+          "kind": "import-statement",
+          "original": "./cards"
+        },
+        {
+          "path": "packages/shared/src/mobStats.ts",
+          "kind": "import-statement",
+          "original": "./mobStats"
+        },
+        {
+          "path": "packages/shared/src/factions.ts",
+          "kind": "import-statement",
+          "original": "./factions"
+        },
+        {
+          "path": "packages/shared/src/mods.ts",
+          "kind": "import-statement",
+          "original": "./mods"
+        },
+        {
+          "path": "packages/shared/src/rules.ts",
+          "kind": "import-statement",
+          "original": "./rules"
+        },
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants"
+        },
+        {
+          "path": "packages/shared/src/chestBoosts.ts",
+          "kind": "import-statement",
+          "original": "./chestBoosts"
+        },
+        {
+          "path": "packages/shared/src/championPassives.ts",
+          "kind": "import-statement",
+          "original": "./championPassives"
+        },
+        {
+          "path": "packages/shared/src/weapons.ts",
+          "kind": "import-statement",
+          "original": "./weapons"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/killAugments.ts": {
+      "bytes": 4382,
+      "imports": [
+        {
+          "path": "packages/shared/src/combatReadability.ts",
+          "kind": "import-statement",
+          "original": "./combatReadability"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/rewards.ts": {
+      "bytes": 8894,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants"
+        },
+        {
+          "path": "packages/shared/src/chestBoosts.ts",
+          "kind": "import-statement",
+          "original": "./chestBoosts"
+        },
+        {
+          "path": "packages/shared/src/cards.ts",
+          "kind": "import-statement",
+          "original": "./cards"
+        },
+        {
+          "path": "packages/shared/src/killAugments.ts",
+          "kind": "import-statement",
+          "original": "./killAugments"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/training.ts": {
+      "bytes": 1879,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/quests.ts": {
+      "bytes": 37136,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants"
+        },
+        {
+          "path": "packages/shared/src/cards.ts",
+          "kind": "import-statement",
+          "original": "./cards"
+        },
+        {
+          "path": "packages/shared/src/mobStats.ts",
+          "kind": "import-statement",
+          "original": "./mobStats"
+        },
+        {
+          "path": "packages/shared/src/geometry.ts",
+          "kind": "import-statement",
+          "original": "./geometry"
+        },
+        {
+          "path": "packages/shared/src/map.ts",
+          "kind": "import-statement",
+          "original": "./map"
+        },
+        {
+          "path": "packages/shared/src/rules.ts",
+          "kind": "import-statement",
+          "original": "./rules"
+        },
+        {
+          "path": "packages/shared/src/terrain.ts",
+          "kind": "import-statement",
+          "original": "./terrain"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/vision.ts": {
+      "bytes": 12457,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants"
+        },
+        {
+          "path": "packages/shared/src/map.ts",
+          "kind": "import-statement",
+          "original": "./map"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/fireRoam.ts": {
+      "bytes": 1058,
+      "imports": [],
+      "format": "esm"
+    },
+    "packages/shared/src/plagueCorpses.ts": {
+      "bytes": 3584,
+      "imports": [],
+      "format": "esm"
+    },
+    "packages/shared/src/sentencedHunt.ts": {
+      "bytes": 1184,
+      "imports": [],
+      "format": "esm"
+    },
+    "packages/shared/src/traders.ts": {
+      "bytes": 2434,
+      "imports": [
+        {
+          "path": "packages/shared/src/weapons.ts",
+          "kind": "import-statement",
+          "original": "./weapons"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/consumables.ts": {
+      "bytes": 1974,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/telemetry.ts": {
+      "bytes": 28458,
+      "imports": [],
+      "format": "esm"
+    },
+    "packages/shared/src/index.ts": {
+      "bytes": 1564,
+      "imports": [
+        {
+          "path": "packages/shared/src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants"
+        },
+        {
+          "path": "packages/shared/src/messages.ts",
+          "kind": "import-statement",
+          "original": "./messages"
+        },
+        {
+          "path": "packages/shared/src/fxCodec.ts",
+          "kind": "import-statement",
+          "original": "./fxCodec"
+        },
+        {
+          "path": "packages/shared/src/weapons.ts",
+          "kind": "import-statement",
+          "original": "./weapons"
+        },
+        {
+          "path": "packages/shared/src/interactions.ts",
+          "kind": "import-statement",
+          "original": "./interactions"
+        },
+        {
+          "path": "packages/shared/src/policies.ts",
+          "kind": "import-statement",
+          "original": "./policies"
+        },
+        {
+          "path": "packages/shared/src/map.ts",
+          "kind": "import-statement",
+          "original": "./map"
+        },
+        {
+          "path": "packages/shared/src/terrain.ts",
+          "kind": "import-statement",
+          "original": "./terrain"
+        },
+        {
+          "path": "packages/shared/src/interp.ts",
+          "kind": "import-statement",
+          "original": "./interp"
+        },
+        {
+          "path": "packages/shared/src/rng.ts",
+          "kind": "import-statement",
+          "original": "./rng"
+        },
+        {
+          "path": "packages/shared/src/mapgen.ts",
+          "kind": "import-statement",
+          "original": "./mapgen"
+        },
+        {
+          "path": "packages/shared/src/mapWire.ts",
+          "kind": "import-statement",
+          "original": "./mapWire"
+        },
+        {
+          "path": "packages/shared/src/geometry.ts",
+          "kind": "import-statement",
+          "original": "./geometry"
+        },
+        {
+          "path": "packages/shared/src/pathfind.ts",
+          "kind": "import-statement",
+          "original": "./pathfind"
+        },
+        {
+          "path": "packages/shared/src/rules.ts",
+          "kind": "import-statement",
+          "original": "./rules"
+        },
+        {
+          "path": "packages/shared/src/factions.ts",
+          "kind": "import-statement",
+          "original": "./factions"
+        },
+        {
+          "path": "packages/shared/src/cards.ts",
+          "kind": "import-statement",
+          "original": "./cards"
+        },
+        {
+          "path": "packages/shared/src/glossary.ts",
+          "kind": "import-statement",
+          "original": "./glossary"
+        },
+        {
+          "path": "packages/shared/src/effectText.ts",
+          "kind": "import-statement",
+          "original": "./effectText"
+        },
+        {
+          "path": "packages/shared/src/hpView.ts",
+          "kind": "import-statement",
+          "original": "./hpView"
+        },
+        {
+          "path": "packages/shared/src/mobs.ts",
+          "kind": "import-statement",
+          "original": "./mobs"
+        },
+        {
+          "path": "packages/shared/src/rosters.ts",
+          "kind": "import-statement",
+          "original": "./rosters"
+        },
+        {
+          "path": "packages/shared/src/signatures.ts",
+          "kind": "import-statement",
+          "original": "./signatures"
+        },
+        {
+          "path": "packages/shared/src/wheel.ts",
+          "kind": "import-statement",
+          "original": "./wheel"
+        },
+        {
+          "path": "packages/shared/src/cosmetics.ts",
+          "kind": "import-statement",
+          "original": "./cosmetics"
+        },
+        {
+          "path": "packages/shared/src/achievements.ts",
+          "kind": "import-statement",
+          "original": "./achievements"
+        },
+        {
+          "path": "packages/shared/src/status.ts",
+          "kind": "import-statement",
+          "original": "./status"
+        },
+        {
+          "path": "packages/shared/src/abilities.ts",
+          "kind": "import-statement",
+          "original": "./abilities"
+        },
+        {
+          "path": "packages/shared/src/blink.ts",
+          "kind": "import-statement",
+          "original": "./blink"
+        },
+        {
+          "path": "packages/shared/src/effects.ts",
+          "kind": "import-statement",
+          "original": "./effects"
+        },
+        {
+          "path": "packages/shared/src/mods.ts",
+          "kind": "import-statement",
+          "original": "./mods"
+        },
+        {
+          "path": "packages/shared/src/walk.ts",
+          "kind": "import-statement",
+          "original": "./walk"
+        },
+        {
+          "path": "packages/shared/src/gridTopology.ts",
+          "kind": "import-statement",
+          "original": "./gridTopology"
+        },
+        {
+          "path": "packages/shared/src/zoneStyle/index.ts",
+          "kind": "import-statement",
+          "original": "./zoneStyle"
+        },
+        {
+          "path": "packages/shared/src/planning.ts",
+          "kind": "import-statement",
+          "original": "./planning"
+        },
+        {
+          "path": "packages/shared/src/rewards.ts",
+          "kind": "import-statement",
+          "original": "./rewards"
+        },
+        {
+          "path": "packages/shared/src/killAugments.ts",
+          "kind": "import-statement",
+          "original": "./killAugments"
+        },
+        {
+          "path": "packages/shared/src/training.ts",
+          "kind": "import-statement",
+          "original": "./training"
+        },
+        {
+          "path": "packages/shared/src/quests.ts",
+          "kind": "import-statement",
+          "original": "./quests"
+        },
+        {
+          "path": "packages/shared/src/combatReadability.ts",
+          "kind": "import-statement",
+          "original": "./combatReadability"
+        },
+        {
+          "path": "packages/shared/src/vision.ts",
+          "kind": "import-statement",
+          "original": "./vision"
+        },
+        {
+          "path": "packages/shared/src/fireRoam.ts",
+          "kind": "import-statement",
+          "original": "./fireRoam"
+        },
+        {
+          "path": "packages/shared/src/championPassives.ts",
+          "kind": "import-statement",
+          "original": "./championPassives"
+        },
+        {
+          "path": "packages/shared/src/mobStats.ts",
+          "kind": "import-statement",
+          "original": "./mobStats"
+        },
+        {
+          "path": "packages/shared/src/chestBoosts.ts",
+          "kind": "import-statement",
+          "original": "./chestBoosts"
+        },
+        {
+          "path": "packages/shared/src/plagueCorpses.ts",
+          "kind": "import-statement",
+          "original": "./plagueCorpses"
+        },
+        {
+          "path": "packages/shared/src/sentencedHunt.ts",
+          "kind": "import-statement",
+          "original": "./sentencedHunt"
+        },
+        {
+          "path": "packages/shared/src/traders.ts",
+          "kind": "import-statement",
+          "original": "./traders"
+        },
+        {
+          "path": "packages/shared/src/consumables.ts",
+          "kind": "import-statement",
+          "original": "./consumables"
+        },
+        {
+          "path": "packages/shared/src/telemetry.ts",
+          "kind": "import-statement",
+          "original": "./telemetry"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/shared/src/schema.ts": {
+      "bytes": 21469,
+      "imports": [
+        {
+          "path": "pinned-schema:@colyseus/schema/build/index.mjs",
+          "kind": "import-statement",
+          "original": "@colyseus/schema"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/mods.ts": {
+      "bytes": 41156,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/world.ts": {
+      "bytes": 58199,
+      "imports": [
+        {
+          "path": "node:crypto",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/shared/src/schema.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared/schema"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/cardState.ts": {
+      "bytes": 5997,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/server/src/sim/mods.ts",
+          "kind": "import-statement",
+          "original": "./mods"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/buffs.ts": {
+      "bytes": 5775,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/server/src/sim/mods.ts",
+          "kind": "import-statement",
+          "original": "./mods"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/feed.ts": {
+      "bytes": 2895,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/status.ts": {
+      "bytes": 17222,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/server/src/sim/buffs.ts",
+          "kind": "import-statement",
+          "original": "./buffs"
+        },
+        {
+          "path": "packages/server/src/sim/combatant.ts",
+          "kind": "import-statement",
+          "original": "./combatant"
+        },
+        {
+          "path": "packages/server/src/sim/mods.ts",
+          "kind": "import-statement",
+          "original": "./mods"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/weapons.ts": {
+      "bytes": 17776,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/server/src/sim/buffs.ts",
+          "kind": "import-statement",
+          "original": "./buffs"
+        },
+        {
+          "path": "packages/server/src/sim/cardState.ts",
+          "kind": "import-statement",
+          "original": "./cardState"
+        },
+        {
+          "path": "packages/server/src/sim/combatant.ts",
+          "kind": "import-statement",
+          "original": "./combatant"
+        },
+        {
+          "path": "packages/server/src/sim/mods.ts",
+          "kind": "import-statement",
+          "original": "./mods"
+        },
+        {
+          "path": "packages/server/src/sim/movement.ts",
+          "kind": "import-statement",
+          "original": "./movement"
+        },
+        {
+          "path": "packages/server/src/sim/status.ts",
+          "kind": "import-statement",
+          "original": "./status"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/arena.ts": {
+      "bytes": 29450,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/server/src/sim/buffs.ts",
+          "kind": "import-statement",
+          "original": "./buffs"
+        },
+        {
+          "path": "packages/server/src/sim/feed.ts",
+          "kind": "import-statement",
+          "original": "./feed"
+        },
+        {
+          "path": "packages/server/src/sim/ledger.ts",
+          "kind": "import-statement",
+          "original": "./ledger"
+        },
+        {
+          "path": "packages/server/src/sim/status.ts",
+          "kind": "import-statement",
+          "original": "./status"
+        },
+        {
+          "path": "packages/server/src/sim/weapons.ts",
+          "kind": "import-statement",
+          "original": "./weapons"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/displace.ts": {
+      "bytes": 1991,
+      "imports": [
+        {
+          "path": "packages/server/src/sim/movement.ts",
+          "kind": "import-statement",
+          "original": "./movement"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/killAugments.ts": {
+      "bytes": 3004,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/server/src/sim/buffs.ts",
+          "kind": "import-statement",
+          "original": "./buffs"
+        },
+        {
+          "path": "./combatant",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "packages/server/src/sim/loot.ts",
+          "kind": "import-statement",
+          "original": "./loot"
+        },
+        {
+          "path": "packages/server/src/sim/mods.ts",
+          "kind": "import-statement",
+          "original": "./mods"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/chests.ts": {
+      "bytes": 13129,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/server/src/sim/arena.ts",
+          "kind": "import-statement",
+          "original": "./arena"
+        },
+        {
+          "path": "packages/server/src/sim/buffs.ts",
+          "kind": "import-statement",
+          "original": "./buffs"
+        },
+        {
+          "path": "packages/server/src/sim/campHeal.ts",
+          "kind": "import-statement",
+          "original": "./campHeal"
+        },
+        {
+          "path": "packages/server/src/sim/combatant.ts",
+          "kind": "import-statement",
+          "original": "./combatant"
+        },
+        {
+          "path": "packages/server/src/sim/factions.ts",
+          "kind": "import-statement",
+          "original": "./factions"
+        },
+        {
+          "path": "packages/server/src/sim/killAugments.ts",
+          "kind": "import-statement",
+          "original": "./killAugments"
+        },
+        {
+          "path": "packages/server/src/sim/loot.ts",
+          "kind": "import-statement",
+          "original": "./loot"
+        },
+        {
+          "path": "packages/server/src/sim/mods.ts",
+          "kind": "import-statement",
+          "original": "./mods"
+        },
+        {
+          "path": "packages/server/src/sim/status.ts",
+          "kind": "import-statement",
+          "original": "./status"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/lootTables.ts": {
+      "bytes": 1599,
+      "imports": [],
+      "format": "esm"
+    },
+    "packages/server/src/sim/loot.ts": {
+      "bytes": 10336,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/shared/src/schema.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared/schema"
+        },
+        {
+          "path": "packages/server/src/sim/chests.ts",
+          "kind": "import-statement",
+          "original": "./chests"
+        },
+        {
+          "path": "packages/server/src/sim/consumables.ts",
+          "kind": "import-statement",
+          "original": "./consumables"
+        },
+        {
+          "path": "packages/server/src/sim/combatant.ts",
+          "kind": "import-statement",
+          "original": "./combatant"
+        },
+        {
+          "path": "packages/server/src/sim/mods.ts",
+          "kind": "import-statement",
+          "original": "./mods"
+        },
+        {
+          "path": "packages/server/src/sim/lootTables.ts",
+          "kind": "import-statement",
+          "original": "./lootTables"
+        },
+        {
+          "path": "packages/server/src/sim/status.ts",
+          "kind": "import-statement",
+          "original": "./status"
+        },
+        {
+          "path": "packages/server/src/sim/weapons.ts",
+          "kind": "import-statement",
+          "original": "./weapons"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/consumables.ts": {
+      "bytes": 10222,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/server/src/sim/combatant.ts",
+          "kind": "import-statement",
+          "original": "./combatant"
+        },
+        {
+          "path": "packages/server/src/sim/factions.ts",
+          "kind": "import-statement",
+          "original": "./factions"
+        },
+        {
+          "path": "packages/server/src/sim/displace.ts",
+          "kind": "import-statement",
+          "original": "./displace"
+        },
+        {
+          "path": "packages/server/src/sim/loot.ts",
+          "kind": "import-statement",
+          "original": "./loot"
+        },
+        {
+          "path": "packages/server/src/sim/mods.ts",
+          "kind": "import-statement",
+          "original": "./mods"
+        },
+        {
+          "path": "packages/server/src/sim/status.ts",
+          "kind": "import-statement",
+          "original": "./status"
+        },
+        {
+          "path": "packages/server/src/sim/weapons.ts",
+          "kind": "import-statement",
+          "original": "./weapons"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/campHeal.ts": {
+      "bytes": 5072,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/server/src/sim/combatant.ts",
+          "kind": "import-statement",
+          "original": "./combatant"
+        },
+        {
+          "path": "packages/server/src/sim/consumables.ts",
+          "kind": "import-statement",
+          "original": "./consumables"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/camps.ts": {
+      "bytes": 5736,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/shared/src/schema.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared/schema"
+        },
+        {
+          "path": "packages/server/src/sim/campHeal.ts",
+          "kind": "import-statement",
+          "original": "./campHeal"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/mobStats.ts": {
+      "bytes": 1143,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/server/src/sim/buffs.ts",
+          "kind": "import-statement",
+          "original": "./buffs"
+        },
+        {
+          "path": "packages/server/src/sim/mods.ts",
+          "kind": "import-statement",
+          "original": "./mods"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/mobAI.ts": {
+      "bytes": 19620,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/server/src/sim/combatant.ts",
+          "kind": "import-statement",
+          "original": "./combatant"
+        },
+        {
+          "path": "packages/server/src/sim/movement.ts",
+          "kind": "import-statement",
+          "original": "./movement"
+        },
+        {
+          "path": "packages/server/src/sim/status.ts",
+          "kind": "import-statement",
+          "original": "./status"
+        },
+        {
+          "path": "packages/server/src/sim/weapons.ts",
+          "kind": "import-statement",
+          "original": "./weapons"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/inputs.ts": {
+      "bytes": 15914,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/mobs.ts": {
+      "bytes": 8324,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/shared/src/schema.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared/schema"
+        },
+        {
+          "path": "packages/server/src/sim/inputs.ts",
+          "kind": "import-statement",
+          "original": "./inputs"
+        },
+        {
+          "path": "packages/server/src/sim/loot.ts",
+          "kind": "import-statement",
+          "original": "./loot"
+        },
+        {
+          "path": "packages/server/src/sim/movement.ts",
+          "kind": "import-statement",
+          "original": "./movement"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/mobLife.ts": {
+      "bytes": 23425,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/server/src/sim/arena.ts",
+          "kind": "import-statement",
+          "original": "./arena"
+        },
+        {
+          "path": "packages/server/src/sim/camps.ts",
+          "kind": "import-statement",
+          "original": "./camps"
+        },
+        {
+          "path": "packages/server/src/sim/campHeal.ts",
+          "kind": "import-statement",
+          "original": "./campHeal"
+        },
+        {
+          "path": "packages/server/src/sim/combatant.ts",
+          "kind": "import-statement",
+          "original": "./combatant"
+        },
+        {
+          "path": "packages/server/src/sim/factions.ts",
+          "kind": "import-statement",
+          "original": "./factions"
+        },
+        {
+          "path": "packages/server/src/sim/feed.ts",
+          "kind": "import-statement",
+          "original": "./feed"
+        },
+        {
+          "path": "packages/server/src/sim/mobStats.ts",
+          "kind": "import-statement",
+          "original": "./mobStats"
+        },
+        {
+          "path": "packages/server/src/sim/loot.ts",
+          "kind": "import-statement",
+          "original": "./loot"
+        },
+        {
+          "path": "packages/server/src/sim/chests.ts",
+          "kind": "import-statement",
+          "original": "./chests"
+        },
+        {
+          "path": "packages/server/src/sim/mobAI.ts",
+          "kind": "import-statement",
+          "original": "./mobAI"
+        },
+        {
+          "path": "packages/server/src/sim/mobs.ts",
+          "kind": "import-statement",
+          "original": "./mobs"
+        },
+        {
+          "path": "packages/server/src/sim/weapons.ts",
+          "kind": "import-statement",
+          "original": "./weapons"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/vision.ts": {
+      "bytes": 4504,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/plagueZombies.ts": {
+      "bytes": 10364,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/shared/src/schema.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared/schema"
+        },
+        {
+          "path": "packages/server/src/sim/combatant.ts",
+          "kind": "import-statement",
+          "original": "./combatant"
+        },
+        {
+          "path": "packages/server/src/sim/displace.ts",
+          "kind": "import-statement",
+          "original": "./displace"
+        },
+        {
+          "path": "packages/server/src/sim/inputs.ts",
+          "kind": "import-statement",
+          "original": "./inputs"
+        },
+        {
+          "path": "packages/server/src/sim/mods.ts",
+          "kind": "import-statement",
+          "original": "./mods"
+        },
+        {
+          "path": "packages/server/src/sim/status.ts",
+          "kind": "import-statement",
+          "original": "./status"
+        },
+        {
+          "path": "packages/server/src/sim/vision.ts",
+          "kind": "import-statement",
+          "original": "./vision"
+        },
+        {
+          "path": "packages/server/src/sim/weapons.ts",
+          "kind": "import-statement",
+          "original": "./weapons"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/vsProbe.ts": {
+      "bytes": 1681,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/server/src/sim/cardState.ts",
+          "kind": "import-statement",
+          "original": "./cardState"
+        },
+        {
+          "path": "packages/server/src/sim/combatant.ts",
+          "kind": "import-statement",
+          "original": "./combatant"
+        },
+        {
+          "path": "packages/server/src/sim/status.ts",
+          "kind": "import-statement",
+          "original": "./status"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/ledger.ts": {
+      "bytes": 24320,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/server/src/sim/arena.ts",
+          "kind": "import-statement",
+          "original": "./arena"
+        },
+        {
+          "path": "packages/server/src/sim/cardState.ts",
+          "kind": "import-statement",
+          "original": "./cardState"
+        },
+        {
+          "path": "packages/server/src/sim/combatant.ts",
+          "kind": "import-statement",
+          "original": "./combatant"
+        },
+        {
+          "path": "packages/server/src/sim/mobLife.ts",
+          "kind": "import-statement",
+          "original": "./mobLife"
+        },
+        {
+          "path": "packages/server/src/sim/mobs.ts",
+          "kind": "import-statement",
+          "original": "./mobs"
+        },
+        {
+          "path": "packages/server/src/sim/plagueZombies.ts",
+          "kind": "import-statement",
+          "original": "./plagueZombies"
+        },
+        {
+          "path": "packages/server/src/sim/mods.ts",
+          "kind": "import-statement",
+          "original": "./mods"
+        },
+        {
+          "path": "packages/server/src/sim/status.ts",
+          "kind": "import-statement",
+          "original": "./status"
+        },
+        {
+          "path": "packages/server/src/sim/weapons.ts",
+          "kind": "import-statement",
+          "original": "./weapons"
+        },
+        {
+          "path": "packages/server/src/sim/feed.ts",
+          "kind": "import-statement",
+          "original": "./feed"
+        },
+        {
+          "path": "packages/server/src/sim/vsProbe.ts",
+          "kind": "import-statement",
+          "original": "./vsProbe"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/factions.ts": {
+      "bytes": 68620,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/server/src/sim/buffs.ts",
+          "kind": "import-statement",
+          "original": "./buffs"
+        },
+        {
+          "path": "packages/server/src/sim/cardState.ts",
+          "kind": "import-statement",
+          "original": "./cardState"
+        },
+        {
+          "path": "packages/server/src/sim/combatant.ts",
+          "kind": "import-statement",
+          "original": "./combatant"
+        },
+        {
+          "path": "packages/server/src/sim/ledger.ts",
+          "kind": "import-statement",
+          "original": "./ledger"
+        },
+        {
+          "path": "packages/server/src/sim/mods.ts",
+          "kind": "import-statement",
+          "original": "./mods"
+        },
+        {
+          "path": "packages/server/src/sim/status.ts",
+          "kind": "import-statement",
+          "original": "./status"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/terrainEffects.ts": {
+      "bytes": 9684,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/server/src/sim/combatant.ts",
+          "kind": "import-statement",
+          "original": "./combatant"
+        },
+        {
+          "path": "packages/server/src/sim/factions.ts",
+          "kind": "import-statement",
+          "original": "./factions"
+        },
+        {
+          "path": "packages/server/src/sim/ledger.ts",
+          "kind": "import-statement",
+          "original": "./ledger"
+        },
+        {
+          "path": "packages/server/src/sim/mods.ts",
+          "kind": "import-statement",
+          "original": "./mods"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/movement.ts": {
+      "bytes": 5986,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/server/src/sim/terrainEffects.ts",
+          "kind": "import-statement",
+          "original": "./terrainEffects"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/combatant.ts": {
+      "bytes": 9454,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/server/src/sim/buffs.ts",
+          "kind": "import-statement",
+          "original": "./buffs"
+        },
+        {
+          "path": "packages/server/src/sim/mods.ts",
+          "kind": "import-statement",
+          "original": "./mods"
+        },
+        {
+          "path": "packages/server/src/sim/movement.ts",
+          "kind": "import-statement",
+          "original": "./movement"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/fields.ts": {
+      "bytes": 2680,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/shared/src/schema.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared/schema"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/abilities.ts": {
+      "bytes": 31302,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/server/src/sim/cardState.ts",
+          "kind": "import-statement",
+          "original": "./cardState"
+        },
+        {
+          "path": "packages/server/src/sim/combatant.ts",
+          "kind": "import-statement",
+          "original": "./combatant"
+        },
+        {
+          "path": "packages/server/src/sim/displace.ts",
+          "kind": "import-statement",
+          "original": "./displace"
+        },
+        {
+          "path": "packages/server/src/sim/factions.ts",
+          "kind": "import-statement",
+          "original": "./factions"
+        },
+        {
+          "path": "packages/server/src/sim/fields.ts",
+          "kind": "import-statement",
+          "original": "./fields"
+        },
+        {
+          "path": "packages/server/src/sim/ledger.ts",
+          "kind": "import-statement",
+          "original": "./ledger"
+        },
+        {
+          "path": "packages/server/src/sim/mods.ts",
+          "kind": "import-statement",
+          "original": "./mods"
+        },
+        {
+          "path": "packages/server/src/sim/status.ts",
+          "kind": "import-statement",
+          "original": "./status"
+        },
+        {
+          "path": "packages/server/src/sim/weapons.ts",
+          "kind": "import-statement",
+          "original": "./weapons"
+        },
+        {
+          "path": "packages/server/src/sim/vision.ts",
+          "kind": "import-statement",
+          "original": "./vision"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/bruiserPassives.ts": {
+      "bytes": 5323,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/server/src/sim/combatant.ts",
+          "kind": "import-statement",
+          "original": "./combatant"
+        },
+        {
+          "path": "packages/server/src/sim/mods.ts",
+          "kind": "import-statement",
+          "original": "./mods"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/onHit.ts": {
+      "bytes": 5376,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/server/src/sim/mods.ts",
+          "kind": "import-statement",
+          "original": "./mods"
+        },
+        {
+          "path": "packages/server/src/sim/cardState.ts",
+          "kind": "import-statement",
+          "original": "./cardState"
+        },
+        {
+          "path": "packages/server/src/sim/combatant.ts",
+          "kind": "import-statement",
+          "original": "./combatant"
+        },
+        {
+          "path": "packages/server/src/sim/status.ts",
+          "kind": "import-statement",
+          "original": "./status"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/cardHooks.ts": {
+      "bytes": 20212,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/server/src/sim/buffs.ts",
+          "kind": "import-statement",
+          "original": "./buffs"
+        },
+        {
+          "path": "packages/server/src/sim/cardState.ts",
+          "kind": "import-statement",
+          "original": "./cardState"
+        },
+        {
+          "path": "packages/server/src/sim/combatant.ts",
+          "kind": "import-statement",
+          "original": "./combatant"
+        },
+        {
+          "path": "packages/server/src/sim/ledger.ts",
+          "kind": "import-statement",
+          "original": "./ledger"
+        },
+        {
+          "path": "packages/server/src/sim/mods.ts",
+          "kind": "import-statement",
+          "original": "./mods"
+        },
+        {
+          "path": "packages/server/src/sim/onHit.ts",
+          "kind": "import-statement",
+          "original": "./onHit"
+        },
+        {
+          "path": "packages/server/src/sim/status.ts",
+          "kind": "import-statement",
+          "original": "./status"
+        },
+        {
+          "path": "packages/server/src/sim/weapons.ts",
+          "kind": "import-statement",
+          "original": "./weapons"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/traders.ts": {
+      "bytes": 8713,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/shared/src/schema.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared/schema"
+        },
+        {
+          "path": "packages/server/src/sim/buffs.ts",
+          "kind": "import-statement",
+          "original": "./buffs"
+        },
+        {
+          "path": "packages/server/src/sim/combatant.ts",
+          "kind": "import-statement",
+          "original": "./combatant"
+        },
+        {
+          "path": "packages/server/src/sim/consumables.ts",
+          "kind": "import-statement",
+          "original": "./consumables"
+        },
+        {
+          "path": "packages/server/src/sim/mods.ts",
+          "kind": "import-statement",
+          "original": "./mods"
+        },
+        {
+          "path": "packages/server/src/sim/status.ts",
+          "kind": "import-statement",
+          "original": "./status"
+        },
+        {
+          "path": "packages/server/src/sim/weapons.ts",
+          "kind": "import-statement",
+          "original": "./weapons"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/fireRoam.ts": {
+      "bytes": 4591,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/server/src/sim/ledger.ts",
+          "kind": "import-statement",
+          "original": "./ledger"
+        },
+        {
+          "path": "packages/server/src/sim/mods.ts",
+          "kind": "import-statement",
+          "original": "./mods"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/projectiles.ts": {
+      "bytes": 20433,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/server/src/sim/combatant.ts",
+          "kind": "import-statement",
+          "original": "./combatant"
+        },
+        {
+          "path": "packages/server/src/sim/ledger.ts",
+          "kind": "import-statement",
+          "original": "./ledger"
+        },
+        {
+          "path": "packages/server/src/sim/mods.ts",
+          "kind": "import-statement",
+          "original": "./mods"
+        },
+        {
+          "path": "packages/server/src/sim/movement.ts",
+          "kind": "import-statement",
+          "original": "./movement"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/plagueCorpses.ts": {
+      "bytes": 4828,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/shared/src/schema.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared/schema"
+        },
+        {
+          "path": "packages/server/src/sim/combatant.ts",
+          "kind": "import-statement",
+          "original": "./combatant"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        },
+        {
+          "path": "packages/server/src/sim/mods.ts",
+          "kind": "import-statement",
+          "original": "./mods"
+        },
+        {
+          "path": "packages/server/src/sim/buffs.ts",
+          "kind": "import-statement",
+          "original": "./buffs"
+        },
+        {
+          "path": "packages/server/src/sim/factions.ts",
+          "kind": "import-statement",
+          "original": "./factions"
+        },
+        {
+          "path": "packages/server/src/sim/status.ts",
+          "kind": "import-statement",
+          "original": "./status"
+        },
+        {
+          "path": "packages/server/src/sim/plagueZombies.ts",
+          "kind": "import-statement",
+          "original": "./plagueZombies"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/regen.ts": {
+      "bytes": 1994,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/server/src/sim/combatant.ts",
+          "kind": "import-statement",
+          "original": "./combatant"
+        },
+        {
+          "path": "packages/server/src/sim/factions.ts",
+          "kind": "import-statement",
+          "original": "./factions"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/quests.ts": {
+      "bytes": 21655,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/shared/src/schema.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared/schema"
+        },
+        {
+          "path": "packages/server/src/sim/arena.ts",
+          "kind": "import-statement",
+          "original": "./arena"
+        },
+        {
+          "path": "packages/server/src/sim/mobStats.ts",
+          "kind": "import-statement",
+          "original": "./mobStats"
+        },
+        {
+          "path": "packages/server/src/sim/combatant.ts",
+          "kind": "import-statement",
+          "original": "./combatant"
+        },
+        {
+          "path": "packages/server/src/sim/loot.ts",
+          "kind": "import-statement",
+          "original": "./loot"
+        },
+        {
+          "path": "packages/server/src/sim/mobs.ts",
+          "kind": "import-statement",
+          "original": "./mobs"
+        },
+        {
+          "path": "packages/server/src/sim/status.ts",
+          "kind": "import-statement",
+          "original": "./status"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        },
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/sentencedHunt.ts": {
+      "bytes": 2875,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/targeting.ts": {
+      "bytes": 10392,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/server/src/sim/combatant.ts",
+          "kind": "import-statement",
+          "original": "./combatant"
+        },
+        {
+          "path": "packages/server/src/sim/movement.ts",
+          "kind": "import-statement",
+          "original": "./movement"
+        },
+        {
+          "path": "packages/server/src/sim/status.ts",
+          "kind": "import-statement",
+          "original": "./status"
+        },
+        {
+          "path": "packages/server/src/sim/weapons.ts",
+          "kind": "import-statement",
+          "original": "./weapons"
+        },
+        {
+          "path": "packages/server/src/sim/vision.ts",
+          "kind": "import-statement",
+          "original": "./vision"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/walkHint.ts": {
+      "bytes": 10241,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/server/src/sim/combatant.ts",
+          "kind": "import-statement",
+          "original": "./combatant"
+        },
+        {
+          "path": "packages/server/src/sim/movement.ts",
+          "kind": "import-statement",
+          "original": "./movement"
+        },
+        {
+          "path": "packages/server/src/sim/status.ts",
+          "kind": "import-statement",
+          "original": "./status"
+        },
+        {
+          "path": "packages/server/src/sim/targeting.ts",
+          "kind": "import-statement",
+          "original": "./targeting"
+        },
+        {
+          "path": "packages/server/src/sim/terrainEffects.ts",
+          "kind": "import-statement",
+          "original": "./terrainEffects"
+        },
+        {
+          "path": "packages/server/src/sim/weapons.ts",
+          "kind": "import-statement",
+          "original": "./weapons"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/gameplay.ts": {
+      "bytes": 5104,
+      "imports": [
+        {
+          "path": "packages/server/src/sim/abilities.ts",
+          "kind": "import-statement",
+          "original": "./abilities"
+        },
+        {
+          "path": "packages/server/src/sim/buffs.ts",
+          "kind": "import-statement",
+          "original": "./buffs"
+        },
+        {
+          "path": "packages/server/src/sim/bruiserPassives.ts",
+          "kind": "import-statement",
+          "original": "./bruiserPassives"
+        },
+        {
+          "path": "packages/server/src/sim/campHeal.ts",
+          "kind": "import-statement",
+          "original": "./campHeal"
+        },
+        {
+          "path": "packages/server/src/sim/cardHooks.ts",
+          "kind": "import-statement",
+          "original": "./cardHooks"
+        },
+        {
+          "path": "packages/server/src/sim/camps.ts",
+          "kind": "import-statement",
+          "original": "./camps"
+        },
+        {
+          "path": "packages/server/src/sim/chests.ts",
+          "kind": "import-statement",
+          "original": "./chests"
+        },
+        {
+          "path": "packages/server/src/sim/consumables.ts",
+          "kind": "import-statement",
+          "original": "./consumables"
+        },
+        {
+          "path": "packages/server/src/sim/traders.ts",
+          "kind": "import-statement",
+          "original": "./traders"
+        },
+        {
+          "path": "packages/server/src/sim/factions.ts",
+          "kind": "import-statement",
+          "original": "./factions"
+        },
+        {
+          "path": "packages/server/src/sim/feed.ts",
+          "kind": "import-statement",
+          "original": "./feed"
+        },
+        {
+          "path": "packages/server/src/sim/fireRoam.ts",
+          "kind": "import-statement",
+          "original": "./fireRoam"
+        },
+        {
+          "path": "packages/server/src/sim/killAugments.ts",
+          "kind": "import-statement",
+          "original": "./killAugments"
+        },
+        {
+          "path": "packages/server/src/sim/loot.ts",
+          "kind": "import-statement",
+          "original": "./loot"
+        },
+        {
+          "path": "packages/server/src/sim/mobAI.ts",
+          "kind": "import-statement",
+          "original": "./mobAI"
+        },
+        {
+          "path": "packages/server/src/sim/mobLife.ts",
+          "kind": "import-statement",
+          "original": "./mobLife"
+        },
+        {
+          "path": "packages/server/src/sim/mobs.ts",
+          "kind": "import-statement",
+          "original": "./mobs"
+        },
+        {
+          "path": "packages/server/src/sim/mods.ts",
+          "kind": "import-statement",
+          "original": "./mods"
+        },
+        {
+          "path": "packages/server/src/sim/projectiles.ts",
+          "kind": "import-statement",
+          "original": "./projectiles"
+        },
+        {
+          "path": "packages/server/src/sim/plagueCorpses.ts",
+          "kind": "import-statement",
+          "original": "./plagueCorpses"
+        },
+        {
+          "path": "packages/server/src/sim/plagueZombies.ts",
+          "kind": "import-statement",
+          "original": "./plagueZombies"
+        },
+        {
+          "path": "packages/server/src/sim/regen.ts",
+          "kind": "import-statement",
+          "original": "./regen"
+        },
+        {
+          "path": "packages/server/src/sim/quests.ts",
+          "kind": "import-statement",
+          "original": "./quests"
+        },
+        {
+          "path": "packages/server/src/sim/sentencedHunt.ts",
+          "kind": "import-statement",
+          "original": "./sentencedHunt"
+        },
+        {
+          "path": "packages/server/src/sim/targeting.ts",
+          "kind": "import-statement",
+          "original": "./targeting"
+        },
+        {
+          "path": "packages/server/src/sim/terrainEffects.ts",
+          "kind": "import-statement",
+          "original": "./terrainEffects"
+        },
+        {
+          "path": "packages/server/src/sim/weapons.ts",
+          "kind": "import-statement",
+          "original": "./weapons"
+        },
+        {
+          "path": "packages/server/src/sim/vision.ts",
+          "kind": "import-statement",
+          "original": "./vision"
+        },
+        {
+          "path": "packages/server/src/sim/walkHint.ts",
+          "kind": "import-statement",
+          "original": "./walkHint"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/melee.ts": {
+      "bytes": 8525,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/server/src/sim/combatant.ts",
+          "kind": "import-statement",
+          "original": "./combatant"
+        },
+        {
+          "path": "packages/server/src/sim/ledger.ts",
+          "kind": "import-statement",
+          "original": "./ledger"
+        },
+        {
+          "path": "packages/server/src/sim/mods.ts",
+          "kind": "import-statement",
+          "original": "./mods"
+        },
+        {
+          "path": "packages/server/src/sim/movement.ts",
+          "kind": "import-statement",
+          "original": "./movement"
+        },
+        {
+          "path": "packages/server/src/sim/projectiles.ts",
+          "kind": "import-statement",
+          "original": "./projectiles"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/planning.ts": {
+      "bytes": 19985,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/tickProfile.ts": {
+      "bytes": 1311,
+      "imports": [],
+      "format": "esm"
+    },
+    "packages/server/src/sim/training.ts": {
+      "bytes": 17245,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/server/src/sim/buffs.ts",
+          "kind": "import-statement",
+          "original": "./buffs"
+        },
+        {
+          "path": "packages/server/src/sim/chests.ts",
+          "kind": "import-statement",
+          "original": "./chests"
+        },
+        {
+          "path": "packages/server/src/sim/combatant.ts",
+          "kind": "import-statement",
+          "original": "./combatant"
+        },
+        {
+          "path": "packages/server/src/sim/mobLife.ts",
+          "kind": "import-statement",
+          "original": "./mobLife"
+        },
+        {
+          "path": "packages/server/src/sim/mods.ts",
+          "kind": "import-statement",
+          "original": "./mods"
+        },
+        {
+          "path": "packages/server/src/sim/movement.ts",
+          "kind": "import-statement",
+          "original": "./movement"
+        },
+        {
+          "path": "packages/server/src/sim/projectiles.ts",
+          "kind": "import-statement",
+          "original": "./projectiles"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        },
+        {
+          "path": "packages/server/src/sim/weapons.ts",
+          "kind": "import-statement",
+          "original": "./weapons"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/sim/step.ts": {
+      "bytes": 14822,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/shared/src/schema.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared/schema"
+        },
+        {
+          "path": "packages/server/src/sim/abilities.ts",
+          "kind": "import-statement",
+          "original": "./abilities"
+        },
+        {
+          "path": "packages/server/src/sim/arena.ts",
+          "kind": "import-statement",
+          "original": "./arena"
+        },
+        {
+          "path": "packages/server/src/sim/combatant.ts",
+          "kind": "import-statement",
+          "original": "./combatant"
+        },
+        {
+          "path": "packages/server/src/sim/inputs.ts",
+          "kind": "import-statement",
+          "original": "./inputs"
+        },
+        {
+          "path": "packages/server/src/sim/ledger.ts",
+          "kind": "import-statement",
+          "original": "./ledger"
+        },
+        {
+          "path": "packages/server/src/sim/melee.ts",
+          "kind": "import-statement",
+          "original": "./melee"
+        },
+        {
+          "path": "packages/server/src/sim/movement.ts",
+          "kind": "import-statement",
+          "original": "./movement"
+        },
+        {
+          "path": "packages/server/src/sim/planning.ts",
+          "kind": "import-statement",
+          "original": "./planning"
+        },
+        {
+          "path": "packages/server/src/sim/projectiles.ts",
+          "kind": "import-statement",
+          "original": "./projectiles"
+        },
+        {
+          "path": "packages/server/src/sim/status.ts",
+          "kind": "import-statement",
+          "original": "./status"
+        },
+        {
+          "path": "packages/server/src/sim/targeting.ts",
+          "kind": "import-statement",
+          "original": "./targeting"
+        },
+        {
+          "path": "packages/server/src/sim/tickProfile.ts",
+          "kind": "import-statement",
+          "original": "./tickProfile"
+        },
+        {
+          "path": "packages/server/src/sim/training.ts",
+          "kind": "import-statement",
+          "original": "./training"
+        },
+        {
+          "path": "packages/server/src/sim/weapons.ts",
+          "kind": "import-statement",
+          "original": "./weapons"
+        },
+        {
+          "path": "packages/server/src/sim/world.ts",
+          "kind": "import-statement",
+          "original": "./world"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/rooms/FxChannel.ts": {
+      "bytes": 5438,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/bots/brain/vision.ts": {
+      "bytes": 4865,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/bots/brain/types.ts": {
+      "bytes": 57792,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/bots/brain/perception.ts": {
+      "bytes": 36755,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/server/src/bots/brain/types.ts",
+          "kind": "import-statement",
+          "original": "./types"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/bots/brain/frames.ts": {
+      "bytes": 20904,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/server/src/bots/brain/perception.ts",
+          "kind": "import-statement",
+          "original": "./perception"
+        },
+        {
+          "path": "packages/server/src/bots/brain/types.ts",
+          "kind": "import-statement",
+          "original": "./types"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/server/src/bots/brain/memory.ts": {
+      "bytes": 35038,
+      "imports": [
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/server/src/bots/brain/types.ts",
+          "kind": "import-statement",
+          "original": "./types"
+        }
+      ],
+      "format": "esm"
+    },
+    "tools/bot-protection-cues-fixtures/verify.mjs": {
+      "bytes": 33741,
+      "imports": [
+        {
+          "path": "node:assert/strict",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:crypto",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "tools/bot-protection-cues-fixtures/scenario.mts": {
+      "bytes": 24085,
+      "imports": [
+        {
+          "path": "node:assert/strict",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:fs",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:crypto",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "pinned-schema:@colyseus/schema/build/index.mjs",
+          "kind": "import-statement",
+          "original": "@colyseus/schema"
+        },
+        {
+          "path": "packages/shared/src/index.ts",
+          "kind": "import-statement",
+          "original": "@raid/shared"
+        },
+        {
+          "path": "packages/shared/src/schema.ts",
+          "kind": "import-statement",
+          "original": "../../packages/shared/src/schema.ts"
+        },
+        {
+          "path": "packages/server/src/sim/gameplay.ts",
+          "kind": "import-statement",
+          "original": "../../packages/server/src/sim/gameplay.ts"
+        },
+        {
+          "path": "packages/server/src/sim/step.ts",
+          "kind": "import-statement",
+          "original": "../../packages/server/src/sim/step.ts"
+        },
+        {
+          "path": "packages/server/src/sim/inputs.ts",
+          "kind": "import-statement",
+          "original": "../../packages/server/src/sim/inputs.ts"
+        },
+        {
+          "path": "packages/server/src/sim/weapons.ts",
+          "kind": "import-statement",
+          "original": "../../packages/server/src/sim/weapons.ts"
+        },
+        {
+          "path": "packages/server/src/rooms/FxChannel.ts",
+          "kind": "import-statement",
+          "original": "../../packages/server/src/rooms/FxChannel.ts"
+        },
+        {
+          "path": "packages/server/src/bots/brain/vision.ts",
+          "kind": "import-statement",
+          "original": "../../packages/server/src/bots/brain/vision.ts"
+        },
+        {
+          "path": "packages/server/src/bots/brain/frames.ts",
+          "kind": "import-statement",
+          "original": "../../packages/server/src/bots/brain/frames.ts"
+        },
+        {
+          "path": "packages/server/src/bots/brain/perception.ts",
+          "kind": "import-statement",
+          "original": "../../packages/server/src/bots/brain/perception.ts"
+        },
+        {
+          "path": "packages/server/src/bots/brain/memory.ts",
+          "kind": "import-statement",
+          "original": "../../packages/server/src/bots/brain/memory.ts"
+        },
+        {
+          "path": "packages/server/src/bots/brain/types.ts",
+          "kind": "import-statement",
+          "original": "../../packages/server/src/bots/brain/types.ts"
+        },
+        {
+          "path": "tools/bot-protection-cues-fixtures/verify.mjs",
+          "kind": "import-statement",
+          "original": "./verify.mjs"
+        }
+      ],
+      "format": "esm"
+    }
+  },
+  "outputs": {
+    "scenario.js": {
+      "imports": [
+        {
+          "path": "node:assert/strict",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:fs",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:crypto",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:crypto",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:assert/strict",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:crypto",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "exports": [
+        "capture"
+      ],
+      "entryPoint": "tools/bot-protection-cues-fixtures/scenario.mts",
+      "inputs": {
+        "tools/bot-protection-cues-fixtures/scenario.mts": {
+          "bytesInOutput": 23226
+        },
+        "pinned-schema:@colyseus/schema/build/index.mjs": {
+          "bytesInOutput": 258343
+        },
+        "packages/shared/src/index.ts": {
+          "bytesInOutput": 40111
+        },
+        "packages/shared/src/constants.ts": {
+          "bytesInOutput": 7125
+        },
+        "packages/shared/src/messages.ts": {
+          "bytesInOutput": 1146
+        },
+        "packages/shared/src/weapons.ts": {
+          "bytesInOutput": 5287
+        },
+        "packages/shared/src/mark.ts": {
+          "bytesInOutput": 1308
+        },
+        "packages/shared/src/signatureShares.ts": {
+          "bytesInOutput": 198
+        },
+        "packages/shared/src/factions.ts": {
+          "bytesInOutput": 7352
+        },
+        "packages/shared/src/abilities.ts": {
+          "bytesInOutput": 8107
+        },
+        "packages/shared/src/status.ts": {
+          "bytesInOutput": 2046
+        },
+        "packages/shared/src/fxCodec.ts": {
+          "bytesInOutput": 14427
+        },
+        "packages/shared/src/map.ts": {
+          "bytesInOutput": 5846
+        },
+        "packages/shared/src/interactions.ts": {
+          "bytesInOutput": 2870
+        },
+        "packages/shared/src/policies.ts": {
+          "bytesInOutput": 6043
+        },
+        "packages/shared/src/geometry.ts": {
+          "bytesInOutput": 4375
+        },
+        "packages/shared/src/pathfind.ts": {
+          "bytesInOutput": 6623
+        },
+        "packages/shared/src/propKinds.ts": {
+          "bytesInOutput": 2095
+        },
+        "packages/shared/src/terrain.ts": {
+          "bytesInOutput": 12769
+        },
+        "packages/shared/src/interp.ts": {
+          "bytesInOutput": 11811
+        },
+        "packages/shared/src/rng.ts": {
+          "bytesInOutput": 1184
+        },
+        "packages/shared/src/detMath.ts": {
+          "bytesInOutput": 449
+        },
+        "packages/shared/src/coliseum.ts": {
+          "bytesInOutput": 5540
+        },
+        "packages/shared/src/gridTopology.ts": {
+          "bytesInOutput": 8077
+        },
+        "packages/shared/src/gridOps.ts": {
+          "bytesInOutput": 1087
+        },
+        "packages/shared/src/mobs.ts": {
+          "bytesInOutput": 6496
+        },
+        "packages/shared/src/planning.ts": {
+          "bytesInOutput": 1860
+        },
+        "packages/shared/src/bushes.ts": {
+          "bytesInOutput": 3838
+        },
+        "packages/shared/src/zoneStyle/features.ts": {
+          "bytesInOutput": 18775
+        },
+        "packages/shared/src/zoneStyle/kit.ts": {
+          "bytesInOutput": 5089
+        },
+        "packages/shared/src/zoneStyle/types.ts": {
+          "bytesInOutput": 206
+        },
+        "packages/shared/src/zoneStyle/context.ts": {
+          "bytesInOutput": 23196
+        },
+        "packages/shared/src/zoneStyle/landmarks.ts": {
+          "bytesInOutput": 13672
+        },
+        "packages/shared/src/zoneStyle/propKinds.ts": {
+          "bytesInOutput": 156
+        },
+        "packages/shared/src/zoneStyle/scale.ts": {
+          "bytesInOutput": 320
+        },
+        "packages/shared/src/zoneStyle/gallows.ts": {
+          "bytesInOutput": 22357
+        },
+        "packages/shared/src/zoneStyle/rime.ts": {
+          "bytesInOutput": 25454
+        },
+        "packages/shared/src/zoneStyle/sanctum.ts": {
+          "bytesInOutput": 13423
+        },
+        "packages/shared/src/zoneStyle/scorch.ts": {
+          "bytesInOutput": 34169
+        },
+        "packages/shared/src/zoneStyle/warren.ts": {
+          "bytesInOutput": 17007
+        },
+        "packages/shared/src/zoneStyle/styleZones.ts": {
+          "bytesInOutput": 6462
+        },
+        "packages/shared/src/zoneStyle/hook.ts": {
+          "bytesInOutput": 2316
+        },
+        "packages/shared/src/styler.ts": {
+          "bytesInOutput": 291
+        },
+        "packages/shared/src/zones.ts": {
+          "bytesInOutput": 33989
+        },
+        "packages/shared/src/mapgen.ts": {
+          "bytesInOutput": 36564
+        },
+        "packages/shared/src/mapWire.ts": {
+          "bytesInOutput": 79
+        },
+        "packages/shared/src/rules.ts": {
+          "bytesInOutput": 2622
+        },
+        "packages/shared/src/cards.ts": {
+          "bytesInOutput": 25302
+        },
+        "packages/shared/src/glossary.ts": {
+          "bytesInOutput": 4910
+        },
+        "packages/shared/src/effects.ts": {
+          "bytesInOutput": 3241
+        },
+        "packages/shared/src/effectText.ts": {
+          "bytesInOutput": 9217
+        },
+        "packages/shared/src/hpView.ts": {
+          "bytesInOutput": 897
+        },
+        "packages/shared/src/rosters.ts": {
+          "bytesInOutput": 1306
+        },
+        "packages/shared/src/signatures.ts": {
+          "bytesInOutput": 2665
+        },
+        "packages/shared/src/wheel.ts": {
+          "bytesInOutput": 1718
+        },
+        "packages/shared/src/cosmetics.ts": {
+          "bytesInOutput": 6885
+        },
+        "packages/shared/src/achievements.ts": {
+          "bytesInOutput": 4827
+        },
+        "packages/shared/src/blink.ts": {
+          "bytesInOutput": 4065
+        },
+        "packages/shared/src/chestBoosts.ts": {
+          "bytesInOutput": 2404
+        },
+        "packages/shared/src/mods.ts": {
+          "bytesInOutput": 8714
+        },
+        "packages/shared/src/walk.ts": {
+          "bytesInOutput": 7916
+        },
+        "packages/shared/src/zoneStyle/index.ts": {
+          "bytesInOutput": 0
+        },
+        "packages/shared/src/mobStats.ts": {
+          "bytesInOutput": 3913
+        },
+        "packages/shared/src/championPassives.ts": {
+          "bytesInOutput": 615
+        },
+        "packages/shared/src/combatReadability.ts": {
+          "bytesInOutput": 4852
+        },
+        "packages/shared/src/killAugments.ts": {
+          "bytesInOutput": 2440
+        },
+        "packages/shared/src/rewards.ts": {
+          "bytesInOutput": 4416
+        },
+        "packages/shared/src/training.ts": {
+          "bytesInOutput": 471
+        },
+        "packages/shared/src/quests.ts": {
+          "bytesInOutput": 22681
+        },
+        "packages/shared/src/vision.ts": {
+          "bytesInOutput": 9415
+        },
+        "packages/shared/src/fireRoam.ts": {
+          "bytesInOutput": 617
+        },
+        "packages/shared/src/plagueCorpses.ts": {
+          "bytesInOutput": 1408
+        },
+        "packages/shared/src/sentencedHunt.ts": {
+          "bytesInOutput": 652
+        },
+        "packages/shared/src/traders.ts": {
+          "bytesInOutput": 1516
+        },
+        "packages/shared/src/consumables.ts": {
+          "bytesInOutput": 1006
+        },
+        "packages/shared/src/telemetry.ts": {
+          "bytesInOutput": 9029
+        },
+        "packages/shared/src/schema.ts": {
+          "bytesInOutput": 18766
+        },
+        "packages/server/src/sim/mods.ts": {
+          "bytesInOutput": 18002
+        },
+        "packages/server/src/sim/world.ts": {
+          "bytesInOutput": 5718
+        },
+        "packages/server/src/sim/cardState.ts": {
+          "bytesInOutput": 1971
+        },
+        "packages/server/src/sim/buffs.ts": {
+          "bytesInOutput": 2061
+        },
+        "packages/server/src/sim/feed.ts": {
+          "bytesInOutput": 1282
+        },
+        "packages/server/src/sim/status.ts": {
+          "bytesInOutput": 8561
+        },
+        "packages/server/src/sim/weapons.ts": {
+          "bytesInOutput": 8576
+        },
+        "packages/server/src/sim/arena.ts": {
+          "bytesInOutput": 14044
+        },
+        "packages/server/src/sim/displace.ts": {
+          "bytesInOutput": 643
+        },
+        "packages/server/src/sim/killAugments.ts": {
+          "bytesInOutput": 1387
+        },
+        "packages/server/src/sim/chests.ts": {
+          "bytesInOutput": 6486
+        },
+        "packages/server/src/sim/lootTables.ts": {
+          "bytesInOutput": 698
+        },
+        "packages/server/src/sim/loot.ts": {
+          "bytesInOutput": 4876
+        },
+        "packages/server/src/sim/consumables.ts": {
+          "bytesInOutput": 8613
+        },
+        "packages/server/src/sim/campHeal.ts": {
+          "bytesInOutput": 2396
+        },
+        "packages/server/src/sim/camps.ts": {
+          "bytesInOutput": 1826
+        },
+        "packages/server/src/sim/mobStats.ts": {
+          "bytesInOutput": 691
+        },
+        "packages/server/src/sim/mobAI.ts": {
+          "bytesInOutput": 8937
+        },
+        "packages/server/src/sim/inputs.ts": {
+          "bytesInOutput": 8955
+        },
+        "packages/server/src/sim/mobs.ts": {
+          "bytesInOutput": 4490
+        },
+        "packages/server/src/sim/mobLife.ts": {
+          "bytesInOutput": 10249
+        },
+        "packages/server/src/sim/vision.ts": {
+          "bytesInOutput": 3251
+        },
+        "packages/server/src/sim/plagueZombies.ts": {
+          "bytesInOutput": 8154
+        },
+        "packages/server/src/sim/vsProbe.ts": {
+          "bytesInOutput": 666
+        },
+        "packages/server/src/sim/ledger.ts": {
+          "bytesInOutput": 10637
+        },
+        "packages/server/src/sim/factions.ts": {
+          "bytesInOutput": 37404
+        },
+        "packages/server/src/sim/terrainEffects.ts": {
+          "bytesInOutput": 4296
+        },
+        "packages/server/src/sim/movement.ts": {
+          "bytesInOutput": 2959
+        },
+        "packages/server/src/sim/combatant.ts": {
+          "bytesInOutput": 3762
+        },
+        "packages/server/src/sim/fields.ts": {
+          "bytesInOutput": 1455
+        },
+        "packages/server/src/sim/abilities.ts": {
+          "bytesInOutput": 18091
+        },
+        "packages/server/src/sim/bruiserPassives.ts": {
+          "bytesInOutput": 4085
+        },
+        "packages/server/src/sim/onHit.ts": {
+          "bytesInOutput": 1799
+        },
+        "packages/server/src/sim/cardHooks.ts": {
+          "bytesInOutput": 11019
+        },
+        "packages/server/src/sim/traders.ts": {
+          "bytesInOutput": 7646
+        },
+        "packages/server/src/sim/fireRoam.ts": {
+          "bytesInOutput": 3768
+        },
+        "packages/server/src/sim/projectiles.ts": {
+          "bytesInOutput": 12415
+        },
+        "packages/server/src/sim/plagueCorpses.ts": {
+          "bytesInOutput": 2934
+        },
+        "packages/server/src/sim/regen.ts": {
+          "bytesInOutput": 1029
+        },
+        "packages/server/src/sim/quests.ts": {
+          "bytesInOutput": 14542
+        },
+        "packages/server/src/sim/sentencedHunt.ts": {
+          "bytesInOutput": 2241
+        },
+        "packages/server/src/sim/targeting.ts": {
+          "bytesInOutput": 6428
+        },
+        "packages/server/src/sim/walkHint.ts": {
+          "bytesInOutput": 5609
+        },
+        "packages/server/src/sim/gameplay.ts": {
+          "bytesInOutput": 2268
+        },
+        "packages/server/src/sim/melee.ts": {
+          "bytesInOutput": 3506
+        },
+        "packages/server/src/sim/planning.ts": {
+          "bytesInOutput": 10451
+        },
+        "packages/server/src/sim/tickProfile.ts": {
+          "bytesInOutput": 306
+        },
+        "packages/server/src/sim/training.ts": {
+          "bytesInOutput": 562
+        },
+        "packages/server/src/sim/step.ts": {
+          "bytesInOutput": 6509
+        },
+        "packages/server/src/rooms/FxChannel.ts": {
+          "bytesInOutput": 3612
+        },
+        "packages/server/src/bots/brain/vision.ts": {
+          "bytesInOutput": 4227
+        },
+        "packages/server/src/bots/brain/types.ts": {
+          "bytesInOutput": 3762
+        },
+        "packages/server/src/bots/brain/perception.ts": {
+          "bytesInOutput": 20004
+        },
+        "packages/server/src/bots/brain/frames.ts": {
+          "bytesInOutput": 14139
+        },
+        "packages/server/src/bots/brain/memory.ts": {
+          "bytesInOutput": 25250
+        },
+        "tools/bot-protection-cues-fixtures/verify.mjs": {
+          "bytesInOutput": 28436
+        }
+      },
+      "bytes": 1284720
+    }
+  }
+}

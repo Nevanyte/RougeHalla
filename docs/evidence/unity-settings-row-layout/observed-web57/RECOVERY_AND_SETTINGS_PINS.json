@@ -1,0 +1,36 @@
+{
+  "status": "STOP_SETTINGS_LAYOUT_OVERLAP",
+  "boundarySha256": "6734f403588788a07ef884f080fa72603329f8e08383038b004c0732e625bb18",
+  "screenshots": {
+    "00-current-practice.jpg": {
+      "bytes": 99716,
+      "sha256": "9fb165fcb82079eaecdc742867622d432a11b350565b7c29d6da591faa268f4c",
+      "capturedUtc": "2026-11-09T22:32:31.651Z"
+    },
+    "01-before-ordinary-menu-recovery.jpg": {
+      "bytes": 99692,
+      "sha256": "766f2f3da9a4b776cc886931c39937f881b00e2bd62e72b1ec27c210668b66b7",
+      "capturedUtc": "2026-11-09T22:39:47.784Z"
+    },
+    "02-owned-profile-menu.jpg": {
+      "bytes": 87549,
+      "sha256": "50a8bbb335acc92ca12ce99e14946127145cfc7ac33e0b3a548c7c67b35f7ee5",
+      "capturedUtc": "2026-11-09T22:39:52.305Z"
+    },
+    "03-new-practice.jpg": {
+      "bytes": 92583,
+      "sha256": "ccd16aa729f696d43d4a246025ea10395ac34ac918716f97a86d488adba3b0d0",
+      "capturedUtc": "2026-11-09T22:40:00.478Z"
+    },
+    "04-settings-original-visible-value.jpg": {
+      "bytes": 67991,
+      "sha256": "36b68e34d6bd8e75184037241bc56e63ae19278904c5fc725969968edd5e695f",
+      "capturedUtc": "2026-11-09T22:40:11.611Z"
+    },
+    "05-settings-second-observation-no-input.jpg": {
+      "bytes": 67945,
+      "sha256": "c70261f470e378970f5683c798a799f527ea8d2ca82f6caaf346a2d3e729bbd0",
+      "capturedUtc": "2026-11-09T22:40:49.401Z"
+    }
+  }
+}

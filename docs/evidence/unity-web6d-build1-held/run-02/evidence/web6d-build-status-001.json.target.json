@@ -1,0 +1,43 @@
+{
+  "success": false,
+  "command": "status",
+  "data": {
+    "count": 1,
+    "instances": [
+      {
+        "port": 7801,
+        "project": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+        "projectPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+        "version": "6000.0.85f2",
+        "editorVersion": "6000.0.85f2",
+        "pid": 46583,
+        "state": "unreachable",
+        "role": "main",
+        "instanceName": "Main Editor"
+      }
+    ],
+    "items": [
+      {
+        "port": 7801,
+        "project": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+        "projectPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+        "version": "6000.0.85f2",
+        "editorVersion": "6000.0.85f2",
+        "pid": 46583,
+        "state": "unreachable",
+        "role": "main",
+        "instanceName": "Main Editor"
+      }
+    ],
+    "total": 1,
+    "nextPage": null,
+    "partial": false
+  },
+  "errors": [
+    {
+      "code": "STATUS_ALL_UNREACHABLE",
+      "message": "All discovered Unity Editor instances are unreachable. Open Unity and verify the Pipeline package is installed."
+    }
+  ],
+  "warnings": []
+}

@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "status": "SOURCE_CANDIDATE_NATIVE_UNRUN",
+  "baseCommit": "cdec00efa6d56661264271ebc3437f7b7f5349c2",
+  "sourceCommit": "cb7f67d93db4e36d97940f3f48713f6c107db234",
+  "sourcePaths": [
+    "client-unity/UnityProject/Assets/Scripts/UI/ModernSettingsView.cs",
+    "client-unity/UnityProject/Assets/Tests/Editor/ModernSettingsLayoutEditModeTests.cs",
+    "client-unity/UnityProject/Assets/Tests/Editor/ModernSettingsLayoutEditModeTests.cs.meta"
+  ],
+  "authoredCases": {
+    "fixture": "Roguehalla.Client.Tests.ModernSettingsLayoutEditModeTests",
+    "method": "SettingsRowsUseDeclaredHeightAndReachBothScrollEnds",
+    "arguments": [
+      1.0,
+      1.5
+    ],
+    "compilation": "NOT_RUN",
+    "execution": "NOT_RUN"
+  },
+  "evidenceFiles": [
+    {
+      "path": "docs/evidence/unity-settings-row-layout/README.md",
+      "bytes": 5182,
+      "sha256": "b76358825ff5840cc46a9b0dd99f0f9143f508db7824671085cd01525d459d7c"
+    },
+    {
+      "path": "docs/evidence/unity-settings-row-layout/SOURCE_REVIEW.json",
+      "bytes": 2702,
+      "sha256": "c1b3306291aa6c2a1ddeecdc69988504012415e9af9558a272db77be1aec2972"
+    },
+    {
+      "path": "docs/evidence/unity-settings-row-layout/checks/capture_source_review.py",
+      "bytes": 5341,
+      "sha256": "7901f46eb8c01c881dc79100c032454557862a9d3f41978fb3700dc7ff66e065"
+    },
+    {
+      "path": "docs/evidence/unity-settings-row-layout/checks/git-diff-check.json",
+      "bytes": 116,
+      "sha256": "c2214dc665c756bbbe9d1755e3dda29e95010001b5ba5b20894adc413d3abd0b"
+    },
+    {
+      "path": "docs/evidence/unity-settings-row-layout/observed-web57/04-settings-original-visible-value.jpg",
+      "bytes": 67991,
+      "sha256": "36b68e34d6bd8e75184037241bc56e63ae19278904c5fc725969968edd5e695f"
+    },
+    {
+      "path": "docs/evidence/unity-settings-row-layout/observed-web57/05-settings-second-observation-no-input.jpg",
+      "bytes": 67945,
+      "sha256": "c70261f470e378970f5683c798a799f527ea8d2ca82f6caaf346a2d3e729bbd0"
+    },
+    {
+      "path": "docs/evidence/unity-settings-row-layout/observed-web57/RECOVERY_AND_SETTINGS_PINS.json",
+      "bytes": 1368,
+      "sha256": "e73fae0bc35bcd448a418c1da11fa5de089f12b4a9688c1357fd8f2744b7f8a3"
+    },
+    {
+      "path": "docs/evidence/unity-settings-row-layout/observed-web57/SETTINGS_OVERLAP_BOUNDARY.json",
+      "bytes": 2538,
+      "sha256": "6734f403588788a07ef884f080fa72603329f8e08383038b004c0732e625bb18"
+    }
+  ]
+}

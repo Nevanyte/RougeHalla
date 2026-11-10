@@ -1,0 +1,30 @@
+✖ Checker requires the exact reviewed native source (1.6745ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 61.355334
+
+✖ failing tests:
+
+test at tools/unity-browser-reload-proof/check.test.mjs:184:1
+✖ Checker requires the exact reviewed native source (1.6745ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'OPEN' !== 'FAIL'
+  
+      at TestContext.<anonymous> (file:///Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14-clients/repo/tools/unity-browser-reload-proof/check.test.mjs:186:10)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.start (node:internal/test_runner/test:1096:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'OPEN',
+    expected: 'FAIL',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

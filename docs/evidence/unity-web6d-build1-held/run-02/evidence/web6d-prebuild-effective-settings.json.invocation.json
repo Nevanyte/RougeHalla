@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "unity",
+    "command",
+    "script",
+    "run",
+    "--project-path",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+    "--caller",
+    "plugin",
+    "--skill",
+    "unity-cli",
+    "--format",
+    "json",
+    "--",
+    "--file",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/BuildPlanSettings6d.cs",
+    "--entry",
+    "BuildPlanSettings6d.Run"
+  ],
+  "exitCode": 0,
+  "stderr": "",
+  "utc": "2026-11-09T20:17:31.361062+00:00",
+  "stdoutSha256": "8611129d109dc21e4c251cc296b5a5f6a5043634752b7c078b8146496665fce6"
+}

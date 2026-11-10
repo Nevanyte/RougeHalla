@@ -1,0 +1,49 @@
+  RoguehallaNet -> /Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/client-unity/RoguehallaNet/bin/Debug/netstandard2.1/RoguehallaNet.dll
+  RoguehallaNet.Probe -> /Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/client-unity/RoguehallaNet.Probe/bin/Debug/net8.0/RoguehallaNet.Probe.dll
+  RoguehallaNet.Tests -> /Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/client-unity/RoguehallaNet.Tests/bin/Debug/net8.0/RoguehallaNet.Tests.dll
+Test run for /Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/client-unity/RoguehallaNet.Tests/bin/Debug/net8.0/RoguehallaNet.Tests.dll (.NETCoreApp,Version=v8.0)
+VSTest version 17.11.1 (arm64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+  Failed StaleHeldByteCannotRetireOrRealignTheQueuedMovement(False) [10 ms]
+  Error Message:
+     A stale byte echo must not consume NEW order-alignment state while the sent-frame gate refuses it
+Assert.That(actual, Is.EqualTo(expected).Within(delta))
+  Expected: 117.0d +/- 9.9999999999999995E-07d
+  But was:  113.65550994873047d
+  Off by:   3.3444900512695312d
+
+  Stack Trace:
+     at NUnit.Framework.Legacy.ClassicAssert.AssertDoublesAreEqual(Double expected, Double actual, Double delta, String message, Object[] args)
+   at NUnit.Framework.Legacy.ClassicAssert.AreEqual(Double expected, Double actual, Double delta, String message, Object[] args)
+   at Roguehalla.Net.Tests.PredictionEchoOrderTests.StaleHeldByteCannotRetireOrRealignTheQueuedMovement(Boolean sent) in /Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/client-unity/RoguehallaNet.Tests/PredictionEchoOrderTests.cs:line 77
+
+1)    at NUnit.Framework.Legacy.ClassicAssert.AssertDoublesAreEqual(Double expected, Double actual, Double delta, String message, Object[] args)
+   at NUnit.Framework.Legacy.ClassicAssert.AreEqual(Double expected, Double actual, Double delta, String message, Object[] args)
+   at Roguehalla.Net.Tests.PredictionEchoOrderTests.StaleHeldByteCannotRetireOrRealignTheQueuedMovement(Boolean sent) in /Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/client-unity/RoguehallaNet.Tests/PredictionEchoOrderTests.cs:line 77
+
+
+  Failed StaleHeldByteCannotRetireOrRealignTheQueuedMovement(True) [< 1 ms]
+  Error Message:
+     A stale byte echo must not consume NEW order-alignment state while the sent-frame gate refuses it
+Assert.That(actual, Is.EqualTo(expected).Within(delta))
+  Expected: 117.0d +/- 9.9999999999999995E-07d
+  But was:  113.65550994873047d
+  Off by:   3.3444900512695312d
+
+  Stack Trace:
+     at NUnit.Framework.Legacy.ClassicAssert.AssertDoublesAreEqual(Double expected, Double actual, Double delta, String message, Object[] args)
+   at NUnit.Framework.Legacy.ClassicAssert.AreEqual(Double expected, Double actual, Double delta, String message, Object[] args)
+   at Roguehalla.Net.Tests.PredictionEchoOrderTests.StaleHeldByteCannotRetireOrRealignTheQueuedMovement(Boolean sent) in /Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/client-unity/RoguehallaNet.Tests/PredictionEchoOrderTests.cs:line 77
+   at InvokeStub_PredictionEchoOrderTests.StaleHeldByteCannotRetireOrRealignTheQueuedMovement(Object, Span`1)
+
+1)    at NUnit.Framework.Legacy.ClassicAssert.AssertDoublesAreEqual(Double expected, Double actual, Double delta, String message, Object[] args)
+   at NUnit.Framework.Legacy.ClassicAssert.AreEqual(Double expected, Double actual, Double delta, String message, Object[] args)
+   at Roguehalla.Net.Tests.PredictionEchoOrderTests.StaleHeldByteCannotRetireOrRealignTheQueuedMovement(Boolean sent) in /Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/client-unity/RoguehallaNet.Tests/PredictionEchoOrderTests.cs:line 77
+   at InvokeStub_PredictionEchoOrderTests.StaleHeldByteCannotRetireOrRealignTheQueuedMovement(Object, Span`1)
+
+
+Results File: /Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/claude-prediction-echo-fix/results/first-red/first-red.trx
+
+Failed!  - Failed:     2, Passed:     2, Skipped:     0, Total:     4, Duration: 29 ms - RoguehallaNet.Tests.dll (net8.0)

@@ -1,0 +1,137 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "OFFLINE PRIVATE DESIGN: exact-object role only; NOT an installer/host deployment release",
+  "Metadata": {
+    "Deployable": false,
+    "ActualHostRun": false,
+    "Base": "7a13b88aaa104cf2fd18dc2de7eada6c02060485",
+    "PrimaryReview": "3c577a97c2f170913a1a6418fa7e7d4efeb1fdec",
+    "RequiredSemanticReview": [
+      "EC2 assume-role supported context keys",
+      "S3 conditional PutObject key and CLI version",
+      "actual bucket owner/version/encryption/cost"
+    ]
+  },
+  "Rules": {
+    "CorrectScope": {
+      "Assertions": [
+        {
+          "Assert": {
+            "Fn::Equals": [
+              {
+                "Ref": "AWS::AccountId"
+              },
+              "048226733033"
+            ]
+          },
+          "AssertDescription": "Dedicated account only"
+        },
+        {
+          "Assert": {
+            "Fn::Equals": [
+              {
+                "Ref": "AWS::Region"
+              },
+              "ca-west-1"
+            ]
+          },
+          "AssertDescription": "Calgary only"
+        }
+      ]
+    }
+  },
+  "Resources": {
+    "RunTransferRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "ec2.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "ExactRunObjects",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Sid": "OnlyPinnedArtifactVersionBeforeExpiry",
+                  "Effect": "Allow",
+                  "Action": "s3:GetObjectVersion",
+                  "Resource": "arn:aws:s3:::rh-synthetic-artifacts/runs/20000101t000000z-abcdef/public-bundle.tar",
+                  "Condition": {
+                    "Bool": {
+                      "aws:SecureTransport": "true"
+                    },
+                    "DateLessThan": {
+                      "aws:CurrentTime": "2000-01-01T04:00:00Z"
+                    },
+                    "StringEquals": {
+                      "s3:ResourceAccount": "048226733033",
+                      "s3:VersionId": "synthetic-version"
+                    }
+                  }
+                },
+                {
+                  "Sid": "OnlyCreateRunCiphertextBeforeExpiry",
+                  "Effect": "Allow",
+                  "Action": "s3:PutObject",
+                  "Resource": "arn:aws:s3:::rh-synthetic-backup/runs/20000101t000000z-abcdef/cold-backup.age",
+                  "Condition": {
+                    "Bool": {
+                      "aws:SecureTransport": "true"
+                    },
+                    "DateLessThan": {
+                      "aws:CurrentTime": "2000-01-01T04:00:00Z"
+                    },
+                    "StringEquals": {
+                      "s3:ResourceAccount": "048226733033",
+                      "s3:x-amz-server-side-encryption": "AES256",
+                      "s3:if-none-match": "*"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "RoguehallaRun",
+            "Value": "20000101t000000z-abcdef"
+          },
+          {
+            "Key": "Purpose",
+            "Value": "InstallerOfflineCandidate"
+          }
+        ]
+      }
+    },
+    "RunTransferProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Properties": {
+        "Roles": [
+          {
+            "Ref": "RunTransferRole"
+          }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "ProfileName": {
+      "Value": {
+        "Ref": "RunTransferProfile"
+      },
+      "Description": "Unattached private design; Root must review exact host binding/PassRole"
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "unity",
+    "command",
+    "script",
+    "run",
+    "--project-path",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+    "--caller",
+    "plugin",
+    "--skill",
+    "unity-cli",
+    "--format",
+    "json",
+    "--",
+    "--file",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/private/layout6d-host-close-cleanup.cs",
+    "--entry",
+    "Layout6dHostInvoker.Invoke"
+  ],
+  "exitCode": 0,
+  "stderr": "",
+  "utc": "2026-11-09T19:51:12.454446+00:00",
+  "stdoutSha256": "e84483748114f79abe682dd2822e0e3f6986e056e9ae0edcb792f249757aec17"
+}

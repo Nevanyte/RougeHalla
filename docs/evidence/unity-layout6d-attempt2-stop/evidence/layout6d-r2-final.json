@@ -1,0 +1,141 @@
+{
+  "backendApplied": false,
+  "caseResults": [],
+  "casesExpected": [
+    [
+      1280,
+      720,
+      1.0,
+      false
+    ],
+    [
+      1280,
+      720,
+      1.5,
+      true
+    ],
+    [
+      2560,
+      1440,
+      1.0,
+      false
+    ],
+    [
+      2560,
+      1440,
+      1.5,
+      true
+    ]
+  ],
+  "combinedSourceSha256": "728899bdfc3e1d4121afda249234eeaf36b3935f36b95259d364cb2b95a5c1cd",
+  "editorPid": 46583,
+  "errorType": "ValueError",
+  "gameplayBackendAcceptance": false,
+  "hostClose": {
+    "cleanupErrors": [],
+    "final": {
+      "backendApplied": false,
+      "camera": {},
+      "canvas": {},
+      "configuredCase": {
+        "bottom": false,
+        "height": 0,
+        "scale": 0.0,
+        "width": 0
+      },
+      "consoleRootProjectedBounds": null,
+      "firstFailure": "AggregateException: Layout setup failed; all independent owned cleanup steps were attempted. (Cannot create a new scene additively with an untitled scene unsaved.) (restore-active-scene: System.InvalidOperationException: The recorded original scene could not be made active.\n  at TrainingLayoutStage+<>c.<CleanupOwned>b__29_11 () [0x00038] in /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/TrainingLayoutNativeAttempt2.cs:419 \n  at TrainingLayoutStage.Capture (System.Collections.Generic.List`1[T] errors, System.String step, System.Action action) [0x00002] in /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/TrainingLayoutNativeAttempt2.cs:440 )",
+      "gameViewBaseline": {
+        "fullScreenMode": "Windowed",
+        "renderHeight": 1440,
+        "renderWidth": 2560,
+        "screenHeight": 453,
+        "screenWidth": 752,
+        "viewType": "GameView"
+      },
+      "gameViewBaselineError": null,
+      "gameViewCurrent": {
+        "playModeRenderingHeight": 1440,
+        "playModeRenderingWidth": 2560,
+        "playModeViewType": "GameView",
+        "screenFullScreenMode": "Windowed",
+        "screenHeight": 453,
+        "screenWidth": 752
+      },
+      "gameViewFinalObservation": null,
+      "hostAssemblyName": "PipelineRunScript_TrainingLayoutNativeAttempt2_d46420d816c7456faccec7984500fe7f",
+      "panelProjectedBounds": null,
+      "pointerClaims": "open; off-screen RT capture is not live Game View pointer evidence",
+      "presentationEvidence": "staged offline facts only; no backend/gameplay application",
+      "sourceCutExpected": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+      "stageActive": false,
+      "stageError": null,
+      "stageReady": false,
+      "textScale": -1.0,
+      "textSizes": null
+    },
+    "firstFailure": "AggregateException: Layout setup failed; all independent owned cleanup steps were attempted. (Cannot create a new scene additively with an untitled scene unsaved.) (restore-active-scene: System.InvalidOperationException: The recorded original scene could not be made active.\n  at TrainingLayoutStage+<>c.<CleanupOwned>b__29_11 () [0x00038] in /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/TrainingLayoutNativeAttempt2.cs:419 \n  at TrainingLayoutStage.Capture (System.Collections.Generic.List`1[T] errors, System.String step, System.Action action) [0x00002] in /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/TrainingLayoutNativeAttempt2.cs:440 )",
+    "success": true
+  },
+  "liveGameViewPointerAcceptance": false,
+  "native98LedgerSha256": "c9fa74f0d2cb6d94d7fc9b86bf0686597eb93d4bc5f069b5f2210f7ba884c6d2",
+  "native98RecheckFinal": {
+    "ledgerSha256": "c9fa74f0d2cb6d94d7fc9b86bf0686597eb93d4bc5f069b5f2210f7ba884c6d2",
+    "rootReceiptSha256": "96cb7f9591cf326df3cc0d8200bf7e414ae38ef14a9db2e557dac0021dda8d14",
+    "status": "PASS"
+  },
+  "native98RootReceiptSha256": "96cb7f9591cf326df3cc0d8200bf7e414ae38ef14a9db2e557dac0021dda8d14",
+  "native98TestsReusedNotRerun": true,
+  "pointerAcceptance": "OPEN_OFFSCREEN_CAPTURE_ONLY",
+  "prefsRestore": {
+    "result": "RESTORE_OK;keys=3;verified=3;snapshotDeleted=true"
+  },
+  "project": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+  "snapshotPresentAfter": false,
+  "source": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+  "sourcePreflightBeforeCapture": {
+    "commit": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+    "sourcePins": 1284,
+    "startupOverlay": {
+      "bytes": 1044,
+      "gitStatus": "?? client-unity/UnityProject/ProjectSettings/PackageManagerSettings.asset",
+      "path": "client-unity/UnityProject/ProjectSettings/PackageManagerSettings.asset",
+      "sha256": "a2cb53758656a32e072c1e33d985a3f73b8374b2acb3365750d31070d60a67b5"
+    },
+    "status": "PASS",
+    "tree": "caac77176dcb2fb33dc491b9a7990751a1f534d7",
+    "uniqueMetaGuids": 626
+  },
+  "sourcePreflightBeforeHost": {
+    "commit": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+    "sourcePins": 1284,
+    "startupOverlay": {
+      "bytes": 1044,
+      "gitStatus": "?? client-unity/UnityProject/ProjectSettings/PackageManagerSettings.asset",
+      "path": "client-unity/UnityProject/ProjectSettings/PackageManagerSettings.asset",
+      "sha256": "a2cb53758656a32e072c1e33d985a3f73b8374b2acb3365750d31070d60a67b5"
+    },
+    "status": "PASS",
+    "tree": "caac77176dcb2fb33dc491b9a7990751a1f534d7",
+    "uniqueMetaGuids": 626
+  },
+  "sourcePreflightFinal": {
+    "commit": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+    "sourcePins": 1284,
+    "startupOverlay": {
+      "bytes": 1044,
+      "gitStatus": "?? client-unity/UnityProject/ProjectSettings/PackageManagerSettings.asset",
+      "path": "client-unity/UnityProject/ProjectSettings/PackageManagerSettings.asset",
+      "sha256": "a2cb53758656a32e072c1e33d985a3f73b8374b2acb3365750d31070d60a67b5"
+    },
+    "status": "PASS",
+    "tree": "caac77176dcb2fb33dc491b9a7990751a1f534d7",
+    "uniqueMetaGuids": 626
+  },
+  "startInvocation": {
+    "compiledAssemblyName": "PipelineRunScript_TrainingLayoutNativeAttempt2_d46420d816c7456faccec7984500fe7f",
+    "exitCode": 6,
+    "stdoutSha256": "3a62c3cac2f6c4d3039c979205872c50618eb1b2f8af93b8be62de8da8062183"
+  },
+  "status": "STOP_FIRST_LAYOUT_ERROR"
+}

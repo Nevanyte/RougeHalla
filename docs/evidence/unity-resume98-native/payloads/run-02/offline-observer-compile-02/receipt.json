@@ -1,0 +1,14 @@
+{
+  "scope": "Second offline reference-preparation compile; no native invocation; first failure preserved separately",
+  "argv": [
+    "/Applications/Unity/Hub/Editor/6000.0.85f2/Unity.app/Contents/NetCoreRuntime/dotnet",
+    "/Applications/Unity/Hub/Editor/6000.0.85f2/Unity.app/Contents/DotNetSdkRoslyn/csc.dll",
+    "@/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/offline-observer-compile-02/compile.rsp"
+  ],
+  "exitCode": 0,
+  "sourceSha256": "c2e2c235ccfd7cc0e323e1f68e442d029d2e74cee5cffb0faa9daba1c718be09",
+  "responseSha256": "e64dbdc50a387f04b86acbc291cc37cb9e5227dd3823c98f6c3506667c118cac",
+  "addedExistingReference": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject/Library/PackageCache/com.unity.nuget.newtonsoft-json@4dfd81071c64/Runtime/Newtonsoft.Json.dll",
+  "addedReferenceSha256": "7292d3eb508652d14726749dd27094f2d481aeccf2db6427b62f68a71460897e",
+  "packageVersion": "3.2.2"
+}

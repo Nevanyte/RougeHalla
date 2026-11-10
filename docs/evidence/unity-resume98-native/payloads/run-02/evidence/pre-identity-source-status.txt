@@ -1,0 +1,1 @@
+?? client-unity/UnityProject/ProjectSettings/PackageManagerSettings.asset

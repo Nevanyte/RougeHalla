@@ -50,7 +50,7 @@ namespace Roguehalla.Client
             _content.pivot = new Vector2(.5f, 1);
             var vertical = _content.gameObject.AddComponent<VerticalLayoutGroup>();
             vertical.padding = new RectOffset(10, 10, 10, 10); vertical.spacing = 8;
-            vertical.childAlignment = TextAnchor.UpperCenter; vertical.childControlWidth = true; vertical.childControlHeight = false;
+            vertical.childAlignment = TextAnchor.UpperCenter; vertical.childControlWidth = true; vertical.childControlHeight = true;
             vertical.childForceExpandWidth = true; vertical.childForceExpandHeight = false;
             _content.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
             _scroll.viewport = viewport; _scroll.content = _content;
@@ -193,6 +193,7 @@ namespace Roguehalla.Client
             if (_fps != null) Label(_fps, "FRAME RATE  " + (_prefs.ShowFps ? "ON" : "OFF"));
             if (_ping != null) Label(_ping, "PING  " + (_prefs.ShowPing ? "ON" : "OFF"));
             if (_scale != null) Label(_scale, "MINIMAP SIZE  " + Mathf.RoundToInt(_prefs.MinimapScale * 100f) + "%");
+            if (_reset != null) Label(_reset, "RESET");
             SetSlider(_textScale, _textScaleValue, _source.TextScale, "0.00×");
             SetSlider(_music, _musicValue, _source.MusicVolume, "0%");
             SetSlider(_ambience, _ambienceValue, _source.AmbienceVolume, "0%");

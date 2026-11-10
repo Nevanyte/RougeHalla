@@ -1,0 +1,8 @@
+{
+  "status": "GENERATED_UNRUN",
+  "operation": "restore",
+  "wrapper": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/private/restore-resume98-prefs.cs",
+  "planned_command_unrun": "unity command script eval --project-path /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject --caller plugin --skill unity-cli --format json -- --file /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/private/restore-resume98-prefs.cs",
+  "private_snapshot_path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/private/resume98-playerprefs.snapshot.bin",
+  "snapshot_payload_or_values_in_receipt": false
+}

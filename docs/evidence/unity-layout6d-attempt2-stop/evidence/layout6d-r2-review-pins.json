@@ -1,0 +1,8 @@
+{
+  "status": "PENDING_ROOT_ATTEMPT2_RELEASE",
+  "combinedSourceSha256": "728899bdfc3e1d4121afda249234eeaf36b3935f36b95259d364cb2b95a5c1cd",
+  "controllerSha256": "c1e58b45e982d2410f4b34305706d8e9ac350ab173132fa82411f292725088c8",
+  "controllerDiffSha256": "c868786bb27623cf261e7e523ef3e4244a790a430e29430caee25b371d4c4c82",
+  "resolverDiffSha256": "43f0c6e24d24fc3f1e6cd4455caece45bc98ab3bf887d60927177ac2e01aa649",
+  "nativeAttempt2Invoked": false
+}

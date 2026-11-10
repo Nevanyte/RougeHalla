@@ -23,7 +23,7 @@ namespace Roguehalla.Client
         public static Sprite Get(string key)
         {
             Initialize();
-            if (Sprites.TryGetValue(key, out var cached)) return cached;
+            if (Sprites.TryGetValue(key, out var cached) && cached != null) return cached;
             const int n = 128;
             var texture = new Texture2D(n, n, TextureFormat.RGBA32, false) { name = "Original / " + key, filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
             var pixels = new Color[n * n];
@@ -107,7 +107,7 @@ namespace Roguehalla.Client
                 secondary = new[] { new SecondarySpriteTexture { name = "_NormalMap", texture = normals } };
             }
             var sprite = Sprite.Create(texture, new Rect(0, 0, n, n), new Vector2(.5f, .5f), n, 0, SpriteMeshType.FullRect, Vector4.zero, false, secondary);
-            sprite.name = key; Sprites.Add(key, sprite); Owned.Add(texture); Owned.Add(sprite);
+            sprite.name = key; Sprites[key] = sprite; Owned.Add(texture); Owned.Add(sprite);
             return sprite;
         }
 

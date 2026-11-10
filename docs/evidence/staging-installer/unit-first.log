@@ -1,0 +1,17 @@
+test_actual_cli_refuses_blank_plan_without_rendering_or_any_host_operation (test_installer.InstallerTests) ... ok
+test_archive_link_traversal_duplicate_special_and_unmanifested_members_refuse_without_extraction (test_installer.InstallerTests) ... ok
+test_blank_unknown_root_or_foreign_volume_is_never_formatted_or_downloaded (test_installer.InstallerTests) ... ok
+test_deadline_expiring_during_download_refuses_even_valid_bytes (test_installer.InstallerTests) ... ok
+test_download_command_and_real_local_bytes_refuse_substitution_partial_or_foreign_version (test_installer.InstallerTests) ... ok
+test_expired_or_renewed_deadline_never_restarts_the_clock (test_installer.InstallerTests) ... ok
+test_foundation_order_stops_short_of_host_installation_and_never_emits_marker (test_installer.InstallerTests) ... ok
+test_only_bounded_ciphertext_envelope_produces_conditional_checksum_put_not_restore_claim (test_installer.InstallerTests) ... ok
+test_pg_role_material_is_private_stdin_not_a_superuser_or_restored_account_seed (test_installer.InstallerTests) ... ok
+test_policy_has_only_exact_version_get_and_exact_create_ciphertext_put (test_installer.InstallerTests) ... ok
+test_render_is_new_directory_only_and_expiry_script_is_syntax_checked_never_executed (test_installer.InstallerTests) ... ok
+test_wrong_scope_unbound_keys_and_unknown_inputs_refuse_before_any_operation (test_installer.InstallerTests) ... ok
+
+----------------------------------------------------------------------
+Ran 12 tests in 0.046s
+
+OK

@@ -1,0 +1,6 @@
+{
+  "status": "STOP_FIRST_LAYOUT_ERROR",
+  "cases": 0,
+  "snapshotPresentAfter": false,
+  "preferenceValuesIncluded": false
+}

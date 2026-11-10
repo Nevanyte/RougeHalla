@@ -1,0 +1,2091 @@
+{
+  "format": "rh-protection-cues-variant-proposed-envelopes/1",
+  "status": "CODE_PREPARATION_ONLY_UNFROZEN_UNRUN",
+  "warning": "Templates are intentionally not executable approvals: unresolved placeholder hash/code values fail guards. Each A and each B needs its own Root authorization; never run as a loop or chain.",
+  "sourceBase": "bb564d3b53728cbd205af375b5342eca466f3656",
+  "pristineCode": "4fe7aa8285ad65f2c9a1123297426cd48b03bdef",
+  "pristineProof": {
+    "observations-before-verification.json": {
+      "bytes": 45077539,
+      "sha256": "6449038bfbe6dc75d9afe1ce66f9172dd44cb23fb3048871a03e8ca16f6aac53"
+    },
+    "source.json": {
+      "bytes": 45079140,
+      "sha256": "0a8af4c8dee518e5e6bc6b31c3445dc2e5ab61e889810a830642381d9cf92e6e"
+    },
+    "verification.json": {
+      "bytes": 1558,
+      "sha256": "e5ded300c248096a6319bec9252efef53e28212d47862a1387a9e67056c35987"
+    }
+  },
+  "controlsSourceSha256": "a27967aef45638c64d2873063d66669f5724abf869d51e328c511a15b4ef837c",
+  "operations": [
+    {
+      "controlId": "teleport-immunity",
+      "kind": "semantic",
+      "firstFailureCase": "P0",
+      "freshRunRoot": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-teleport-immunity-root-reviewed-01",
+      "phaseA": {
+        "status": "NOT_RELEASED; replace driver placeholder only after Root immutable freeze/source review",
+        "argv": [
+          "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/map-styled-bench/npm-cache/_npx/361c55be1121897e/node_modules/node/bin/node",
+          "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/tools/bot-protection-cues-fixtures/variants-build.mjs",
+          "--source-root",
+          "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings",
+          "--tool-root",
+          "/Users/nevinmckinnon/Documents/Projects/RogueHalla/node_modules",
+          "--output",
+          "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-teleport-immunity-root-reviewed-01/prepared",
+          "--expected-code-sha",
+          "<ROOT_FROZEN_VARIANT_DRIVER_SHA40>",
+          "--control-id",
+          "teleport-immunity"
+        ],
+        "env": {
+          "PATH": "/usr/bin:/bin",
+          "LANG": "C",
+          "LC_ALL": "C",
+          "ESBUILD_BINARY_PATH": "/Users/nevinmckinnon/Documents/Projects/RogueHalla/node_modules/@esbuild/darwin-arm64/bin/esbuild"
+        }
+      },
+      "phaseB": {
+        "status": "NOT_RELEASED; actual variant artifact review and independent literal hashes REQUIRED",
+        "argv": [
+          "/usr/local/bin/docker",
+          "run",
+          "--rm",
+          "--pull=never",
+          "--network=none",
+          "--platform",
+          "linux/amd64",
+          "--name",
+          "rh-p15-variant-teleport-immunity-root-reviewed-01",
+          "--read-only",
+          "--cap-drop=ALL",
+          "--security-opt=no-new-privileges:true",
+          "--pids-limit=64",
+          "--memory=1g",
+          "--cpus=1",
+          "--user",
+          "501:20",
+          "--env",
+          "NODE_OPTIONS=",
+          "--env",
+          "NODE_PATH=",
+          "--env",
+          "NODE_COMPILE_CACHE=",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-teleport-immunity-root-reviewed-01/prepared,dst=/run,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/arena.ts,dst=/repo/packages/server/src/sim/arena.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/weapons.ts,dst=/repo/packages/server/src/sim/weapons.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/step.ts,dst=/repo/packages/server/src/sim/step.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/targeting.ts,dst=/repo/packages/server/src/sim/targeting.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/inputs.ts,dst=/repo/packages/server/src/sim/inputs.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/gameplay.ts,dst=/repo/packages/server/src/sim/gameplay.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/world.ts,dst=/repo/packages/server/src/sim/world.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/combatant.ts,dst=/repo/packages/server/src/sim/combatant.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/ledger.ts,dst=/repo/packages/server/src/sim/ledger.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/status.ts,dst=/repo/packages/server/src/sim/status.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/perception.ts,dst=/repo/packages/server/src/bots/brain/perception.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/memory.ts,dst=/repo/packages/server/src/bots/brain/memory.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/vision.ts,dst=/repo/packages/server/src/bots/brain/vision.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/frames.ts,dst=/repo/packages/server/src/bots/brain/frames.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/types.ts,dst=/repo/packages/server/src/bots/brain/types.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/rooms/FxChannel.ts,dst=/repo/packages/server/src/rooms/FxChannel.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/schema.ts,dst=/repo/packages/shared/src/schema.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/constants.ts,dst=/repo/packages/shared/src/constants.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/fxCodec.ts,dst=/repo/packages/shared/src/fxCodec.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/weapons.ts,dst=/repo/packages/shared/src/weapons.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/signatures.ts,dst=/repo/packages/shared/src/signatures.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/mods.ts,dst=/repo/packages/shared/src/mods.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/tools/ability-fixtures/born-input.json,dst=/repo/tools/ability-fixtures/born-input.json,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/prepared/build-manifest.json,dst=/pristine/build-manifest.json,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/observations-before-verification.json,dst=/pristine/observations-before-verification.json,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/source.json,dst=/pristine/source.json,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/verification.json,dst=/pristine/verification.json,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-teleport-immunity-root-reviewed-01/captured,dst=/out",
+          "node@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292",
+          "node",
+          "/run/variants-runtime.mjs",
+          "--mode",
+          "capture",
+          "--output",
+          "/out",
+          "--expected-code-sha",
+          "<ROOT_FROZEN_VARIANT_DRIVER_SHA40>",
+          "--expected-control-id",
+          "teleport-immunity",
+          "--expected-manifest-sha256",
+          "<INDEPENDENT_ROOT_VARIANT_MANIFEST_SHA256>",
+          "--expected-bundle-sha256",
+          "<INDEPENDENT_ROOT_VARIANT_BUNDLE_SHA256>",
+          "--expected-runtime-sha256",
+          "<INDEPENDENT_ROOT_VARIANT_RUNTIME_SHA256>",
+          "--expected-verify-sha256",
+          "10188528d712c8000000db548caa2388c74c56c03d5bb7f9af4a6b996853e935",
+          "--expected-pristine-manifest-sha256",
+          "53a54a282bd09da615088bf352ddbd0ef65514bdc72e806f69b1ba74c9c47e16",
+          "--expected-pristine-raw-sha256",
+          "6449038bfbe6dc75d9afe1ce66f9172dd44cb23fb3048871a03e8ca16f6aac53",
+          "--expected-pristine-source-sha256",
+          "0a8af4c8dee518e5e6bc6b31c3445dc2e5ab61e889810a830642381d9cf92e6e",
+          "--expected-pristine-verification-sha256",
+          "e5ded300c248096a6319bec9252efef53e28212d47862a1387a9e67056c35987"
+        ],
+        "mounts": [
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-teleport-immunity-root-reviewed-01/prepared",
+            "container": "/run",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/arena.ts",
+            "container": "/repo/packages/server/src/sim/arena.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/weapons.ts",
+            "container": "/repo/packages/server/src/sim/weapons.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/step.ts",
+            "container": "/repo/packages/server/src/sim/step.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/targeting.ts",
+            "container": "/repo/packages/server/src/sim/targeting.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/inputs.ts",
+            "container": "/repo/packages/server/src/sim/inputs.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/gameplay.ts",
+            "container": "/repo/packages/server/src/sim/gameplay.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/world.ts",
+            "container": "/repo/packages/server/src/sim/world.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/combatant.ts",
+            "container": "/repo/packages/server/src/sim/combatant.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/ledger.ts",
+            "container": "/repo/packages/server/src/sim/ledger.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/status.ts",
+            "container": "/repo/packages/server/src/sim/status.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/perception.ts",
+            "container": "/repo/packages/server/src/bots/brain/perception.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/memory.ts",
+            "container": "/repo/packages/server/src/bots/brain/memory.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/vision.ts",
+            "container": "/repo/packages/server/src/bots/brain/vision.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/frames.ts",
+            "container": "/repo/packages/server/src/bots/brain/frames.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/types.ts",
+            "container": "/repo/packages/server/src/bots/brain/types.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/rooms/FxChannel.ts",
+            "container": "/repo/packages/server/src/rooms/FxChannel.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/schema.ts",
+            "container": "/repo/packages/shared/src/schema.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/constants.ts",
+            "container": "/repo/packages/shared/src/constants.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/fxCodec.ts",
+            "container": "/repo/packages/shared/src/fxCodec.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/weapons.ts",
+            "container": "/repo/packages/shared/src/weapons.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/signatures.ts",
+            "container": "/repo/packages/shared/src/signatures.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/mods.ts",
+            "container": "/repo/packages/shared/src/mods.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/tools/ability-fixtures/born-input.json",
+            "container": "/repo/tools/ability-fixtures/born-input.json",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/prepared/build-manifest.json",
+            "container": "/pristine/build-manifest.json",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/observations-before-verification.json",
+            "container": "/pristine/observations-before-verification.json",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/source.json",
+            "container": "/pristine/source.json",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/verification.json",
+            "container": "/pristine/verification.json",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-teleport-immunity-root-reviewed-01/captured",
+            "container": "/out",
+            "readonly": false
+          }
+        ],
+        "timeoutSeconds": "Root must approve a finite external deadline; timeout is ERROR/never KILL"
+      },
+      "acceptedOutcome": {
+        "exitCode": 0,
+        "classification": "KILL"
+      },
+      "noAutomaticNextOperation": true
+    },
+    {
+      "controlId": "remote-lower-guard",
+      "kind": "semantic",
+      "firstFailureCase": "P0",
+      "freshRunRoot": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-remote-lower-guard-root-reviewed-01",
+      "phaseA": {
+        "status": "NOT_RELEASED; replace driver placeholder only after Root immutable freeze/source review",
+        "argv": [
+          "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/map-styled-bench/npm-cache/_npx/361c55be1121897e/node_modules/node/bin/node",
+          "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/tools/bot-protection-cues-fixtures/variants-build.mjs",
+          "--source-root",
+          "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings",
+          "--tool-root",
+          "/Users/nevinmckinnon/Documents/Projects/RogueHalla/node_modules",
+          "--output",
+          "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-remote-lower-guard-root-reviewed-01/prepared",
+          "--expected-code-sha",
+          "<ROOT_FROZEN_VARIANT_DRIVER_SHA40>",
+          "--control-id",
+          "remote-lower-guard"
+        ],
+        "env": {
+          "PATH": "/usr/bin:/bin",
+          "LANG": "C",
+          "LC_ALL": "C",
+          "ESBUILD_BINARY_PATH": "/Users/nevinmckinnon/Documents/Projects/RogueHalla/node_modules/@esbuild/darwin-arm64/bin/esbuild"
+        }
+      },
+      "phaseB": {
+        "status": "NOT_RELEASED; actual variant artifact review and independent literal hashes REQUIRED",
+        "argv": [
+          "/usr/local/bin/docker",
+          "run",
+          "--rm",
+          "--pull=never",
+          "--network=none",
+          "--platform",
+          "linux/amd64",
+          "--name",
+          "rh-p15-variant-remote-lower-guard-root-reviewed-01",
+          "--read-only",
+          "--cap-drop=ALL",
+          "--security-opt=no-new-privileges:true",
+          "--pids-limit=64",
+          "--memory=1g",
+          "--cpus=1",
+          "--user",
+          "501:20",
+          "--env",
+          "NODE_OPTIONS=",
+          "--env",
+          "NODE_PATH=",
+          "--env",
+          "NODE_COMPILE_CACHE=",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-remote-lower-guard-root-reviewed-01/prepared,dst=/run,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/arena.ts,dst=/repo/packages/server/src/sim/arena.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/weapons.ts,dst=/repo/packages/server/src/sim/weapons.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/step.ts,dst=/repo/packages/server/src/sim/step.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/targeting.ts,dst=/repo/packages/server/src/sim/targeting.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/inputs.ts,dst=/repo/packages/server/src/sim/inputs.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/gameplay.ts,dst=/repo/packages/server/src/sim/gameplay.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/world.ts,dst=/repo/packages/server/src/sim/world.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/combatant.ts,dst=/repo/packages/server/src/sim/combatant.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/ledger.ts,dst=/repo/packages/server/src/sim/ledger.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/status.ts,dst=/repo/packages/server/src/sim/status.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/perception.ts,dst=/repo/packages/server/src/bots/brain/perception.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/memory.ts,dst=/repo/packages/server/src/bots/brain/memory.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/vision.ts,dst=/repo/packages/server/src/bots/brain/vision.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/frames.ts,dst=/repo/packages/server/src/bots/brain/frames.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/types.ts,dst=/repo/packages/server/src/bots/brain/types.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/rooms/FxChannel.ts,dst=/repo/packages/server/src/rooms/FxChannel.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/schema.ts,dst=/repo/packages/shared/src/schema.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/constants.ts,dst=/repo/packages/shared/src/constants.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/fxCodec.ts,dst=/repo/packages/shared/src/fxCodec.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/weapons.ts,dst=/repo/packages/shared/src/weapons.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/signatures.ts,dst=/repo/packages/shared/src/signatures.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/mods.ts,dst=/repo/packages/shared/src/mods.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/tools/ability-fixtures/born-input.json,dst=/repo/tools/ability-fixtures/born-input.json,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/prepared/build-manifest.json,dst=/pristine/build-manifest.json,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/observations-before-verification.json,dst=/pristine/observations-before-verification.json,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/source.json,dst=/pristine/source.json,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/verification.json,dst=/pristine/verification.json,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-remote-lower-guard-root-reviewed-01/captured,dst=/out",
+          "node@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292",
+          "node",
+          "/run/variants-runtime.mjs",
+          "--mode",
+          "capture",
+          "--output",
+          "/out",
+          "--expected-code-sha",
+          "<ROOT_FROZEN_VARIANT_DRIVER_SHA40>",
+          "--expected-control-id",
+          "remote-lower-guard",
+          "--expected-manifest-sha256",
+          "<INDEPENDENT_ROOT_VARIANT_MANIFEST_SHA256>",
+          "--expected-bundle-sha256",
+          "<INDEPENDENT_ROOT_VARIANT_BUNDLE_SHA256>",
+          "--expected-runtime-sha256",
+          "<INDEPENDENT_ROOT_VARIANT_RUNTIME_SHA256>",
+          "--expected-verify-sha256",
+          "10188528d712c8000000db548caa2388c74c56c03d5bb7f9af4a6b996853e935",
+          "--expected-pristine-manifest-sha256",
+          "53a54a282bd09da615088bf352ddbd0ef65514bdc72e806f69b1ba74c9c47e16",
+          "--expected-pristine-raw-sha256",
+          "6449038bfbe6dc75d9afe1ce66f9172dd44cb23fb3048871a03e8ca16f6aac53",
+          "--expected-pristine-source-sha256",
+          "0a8af4c8dee518e5e6bc6b31c3445dc2e5ab61e889810a830642381d9cf92e6e",
+          "--expected-pristine-verification-sha256",
+          "e5ded300c248096a6319bec9252efef53e28212d47862a1387a9e67056c35987"
+        ],
+        "mounts": [
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-remote-lower-guard-root-reviewed-01/prepared",
+            "container": "/run",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/arena.ts",
+            "container": "/repo/packages/server/src/sim/arena.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/weapons.ts",
+            "container": "/repo/packages/server/src/sim/weapons.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/step.ts",
+            "container": "/repo/packages/server/src/sim/step.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/targeting.ts",
+            "container": "/repo/packages/server/src/sim/targeting.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/inputs.ts",
+            "container": "/repo/packages/server/src/sim/inputs.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/gameplay.ts",
+            "container": "/repo/packages/server/src/sim/gameplay.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/world.ts",
+            "container": "/repo/packages/server/src/sim/world.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/combatant.ts",
+            "container": "/repo/packages/server/src/sim/combatant.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/ledger.ts",
+            "container": "/repo/packages/server/src/sim/ledger.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/status.ts",
+            "container": "/repo/packages/server/src/sim/status.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/perception.ts",
+            "container": "/repo/packages/server/src/bots/brain/perception.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/memory.ts",
+            "container": "/repo/packages/server/src/bots/brain/memory.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/vision.ts",
+            "container": "/repo/packages/server/src/bots/brain/vision.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/frames.ts",
+            "container": "/repo/packages/server/src/bots/brain/frames.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/types.ts",
+            "container": "/repo/packages/server/src/bots/brain/types.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/rooms/FxChannel.ts",
+            "container": "/repo/packages/server/src/rooms/FxChannel.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/schema.ts",
+            "container": "/repo/packages/shared/src/schema.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/constants.ts",
+            "container": "/repo/packages/shared/src/constants.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/fxCodec.ts",
+            "container": "/repo/packages/shared/src/fxCodec.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/weapons.ts",
+            "container": "/repo/packages/shared/src/weapons.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/signatures.ts",
+            "container": "/repo/packages/shared/src/signatures.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/mods.ts",
+            "container": "/repo/packages/shared/src/mods.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/tools/ability-fixtures/born-input.json",
+            "container": "/repo/tools/ability-fixtures/born-input.json",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/prepared/build-manifest.json",
+            "container": "/pristine/build-manifest.json",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/observations-before-verification.json",
+            "container": "/pristine/observations-before-verification.json",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/source.json",
+            "container": "/pristine/source.json",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/verification.json",
+            "container": "/pristine/verification.json",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-remote-lower-guard-root-reviewed-01/captured",
+            "container": "/out",
+            "readonly": false
+          }
+        ],
+        "timeoutSeconds": "Root must approve a finite external deadline; timeout is ERROR/never KILL"
+      },
+      "acceptedOutcome": {
+        "exitCode": 0,
+        "classification": "KILL"
+      },
+      "noAutomaticNextOperation": true
+    },
+    {
+      "controlId": "remote-upper-guard",
+      "kind": "semantic",
+      "firstFailureCase": "P0",
+      "freshRunRoot": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-remote-upper-guard-root-reviewed-01",
+      "phaseA": {
+        "status": "NOT_RELEASED; replace driver placeholder only after Root immutable freeze/source review",
+        "argv": [
+          "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/map-styled-bench/npm-cache/_npx/361c55be1121897e/node_modules/node/bin/node",
+          "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/tools/bot-protection-cues-fixtures/variants-build.mjs",
+          "--source-root",
+          "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings",
+          "--tool-root",
+          "/Users/nevinmckinnon/Documents/Projects/RogueHalla/node_modules",
+          "--output",
+          "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-remote-upper-guard-root-reviewed-01/prepared",
+          "--expected-code-sha",
+          "<ROOT_FROZEN_VARIANT_DRIVER_SHA40>",
+          "--control-id",
+          "remote-upper-guard"
+        ],
+        "env": {
+          "PATH": "/usr/bin:/bin",
+          "LANG": "C",
+          "LC_ALL": "C",
+          "ESBUILD_BINARY_PATH": "/Users/nevinmckinnon/Documents/Projects/RogueHalla/node_modules/@esbuild/darwin-arm64/bin/esbuild"
+        }
+      },
+      "phaseB": {
+        "status": "NOT_RELEASED; actual variant artifact review and independent literal hashes REQUIRED",
+        "argv": [
+          "/usr/local/bin/docker",
+          "run",
+          "--rm",
+          "--pull=never",
+          "--network=none",
+          "--platform",
+          "linux/amd64",
+          "--name",
+          "rh-p15-variant-remote-upper-guard-root-reviewed-01",
+          "--read-only",
+          "--cap-drop=ALL",
+          "--security-opt=no-new-privileges:true",
+          "--pids-limit=64",
+          "--memory=1g",
+          "--cpus=1",
+          "--user",
+          "501:20",
+          "--env",
+          "NODE_OPTIONS=",
+          "--env",
+          "NODE_PATH=",
+          "--env",
+          "NODE_COMPILE_CACHE=",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-remote-upper-guard-root-reviewed-01/prepared,dst=/run,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/arena.ts,dst=/repo/packages/server/src/sim/arena.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/weapons.ts,dst=/repo/packages/server/src/sim/weapons.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/step.ts,dst=/repo/packages/server/src/sim/step.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/targeting.ts,dst=/repo/packages/server/src/sim/targeting.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/inputs.ts,dst=/repo/packages/server/src/sim/inputs.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/gameplay.ts,dst=/repo/packages/server/src/sim/gameplay.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/world.ts,dst=/repo/packages/server/src/sim/world.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/combatant.ts,dst=/repo/packages/server/src/sim/combatant.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/ledger.ts,dst=/repo/packages/server/src/sim/ledger.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/status.ts,dst=/repo/packages/server/src/sim/status.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/perception.ts,dst=/repo/packages/server/src/bots/brain/perception.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/memory.ts,dst=/repo/packages/server/src/bots/brain/memory.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/vision.ts,dst=/repo/packages/server/src/bots/brain/vision.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/frames.ts,dst=/repo/packages/server/src/bots/brain/frames.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/types.ts,dst=/repo/packages/server/src/bots/brain/types.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/rooms/FxChannel.ts,dst=/repo/packages/server/src/rooms/FxChannel.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/schema.ts,dst=/repo/packages/shared/src/schema.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/constants.ts,dst=/repo/packages/shared/src/constants.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/fxCodec.ts,dst=/repo/packages/shared/src/fxCodec.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/weapons.ts,dst=/repo/packages/shared/src/weapons.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/signatures.ts,dst=/repo/packages/shared/src/signatures.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/mods.ts,dst=/repo/packages/shared/src/mods.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/tools/ability-fixtures/born-input.json,dst=/repo/tools/ability-fixtures/born-input.json,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/prepared/build-manifest.json,dst=/pristine/build-manifest.json,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/observations-before-verification.json,dst=/pristine/observations-before-verification.json,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/source.json,dst=/pristine/source.json,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/verification.json,dst=/pristine/verification.json,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-remote-upper-guard-root-reviewed-01/captured,dst=/out",
+          "node@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292",
+          "node",
+          "/run/variants-runtime.mjs",
+          "--mode",
+          "capture",
+          "--output",
+          "/out",
+          "--expected-code-sha",
+          "<ROOT_FROZEN_VARIANT_DRIVER_SHA40>",
+          "--expected-control-id",
+          "remote-upper-guard",
+          "--expected-manifest-sha256",
+          "<INDEPENDENT_ROOT_VARIANT_MANIFEST_SHA256>",
+          "--expected-bundle-sha256",
+          "<INDEPENDENT_ROOT_VARIANT_BUNDLE_SHA256>",
+          "--expected-runtime-sha256",
+          "<INDEPENDENT_ROOT_VARIANT_RUNTIME_SHA256>",
+          "--expected-verify-sha256",
+          "10188528d712c8000000db548caa2388c74c56c03d5bb7f9af4a6b996853e935",
+          "--expected-pristine-manifest-sha256",
+          "53a54a282bd09da615088bf352ddbd0ef65514bdc72e806f69b1ba74c9c47e16",
+          "--expected-pristine-raw-sha256",
+          "6449038bfbe6dc75d9afe1ce66f9172dd44cb23fb3048871a03e8ca16f6aac53",
+          "--expected-pristine-source-sha256",
+          "0a8af4c8dee518e5e6bc6b31c3445dc2e5ab61e889810a830642381d9cf92e6e",
+          "--expected-pristine-verification-sha256",
+          "e5ded300c248096a6319bec9252efef53e28212d47862a1387a9e67056c35987"
+        ],
+        "mounts": [
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-remote-upper-guard-root-reviewed-01/prepared",
+            "container": "/run",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/arena.ts",
+            "container": "/repo/packages/server/src/sim/arena.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/weapons.ts",
+            "container": "/repo/packages/server/src/sim/weapons.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/step.ts",
+            "container": "/repo/packages/server/src/sim/step.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/targeting.ts",
+            "container": "/repo/packages/server/src/sim/targeting.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/inputs.ts",
+            "container": "/repo/packages/server/src/sim/inputs.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/gameplay.ts",
+            "container": "/repo/packages/server/src/sim/gameplay.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/world.ts",
+            "container": "/repo/packages/server/src/sim/world.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/combatant.ts",
+            "container": "/repo/packages/server/src/sim/combatant.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/ledger.ts",
+            "container": "/repo/packages/server/src/sim/ledger.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/status.ts",
+            "container": "/repo/packages/server/src/sim/status.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/perception.ts",
+            "container": "/repo/packages/server/src/bots/brain/perception.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/memory.ts",
+            "container": "/repo/packages/server/src/bots/brain/memory.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/vision.ts",
+            "container": "/repo/packages/server/src/bots/brain/vision.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/frames.ts",
+            "container": "/repo/packages/server/src/bots/brain/frames.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/types.ts",
+            "container": "/repo/packages/server/src/bots/brain/types.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/rooms/FxChannel.ts",
+            "container": "/repo/packages/server/src/rooms/FxChannel.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/schema.ts",
+            "container": "/repo/packages/shared/src/schema.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/constants.ts",
+            "container": "/repo/packages/shared/src/constants.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/fxCodec.ts",
+            "container": "/repo/packages/shared/src/fxCodec.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/weapons.ts",
+            "container": "/repo/packages/shared/src/weapons.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/signatures.ts",
+            "container": "/repo/packages/shared/src/signatures.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/mods.ts",
+            "container": "/repo/packages/shared/src/mods.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/tools/ability-fixtures/born-input.json",
+            "container": "/repo/tools/ability-fixtures/born-input.json",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/prepared/build-manifest.json",
+            "container": "/pristine/build-manifest.json",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/observations-before-verification.json",
+            "container": "/pristine/observations-before-verification.json",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/source.json",
+            "container": "/pristine/source.json",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/verification.json",
+            "container": "/pristine/verification.json",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-remote-upper-guard-root-reviewed-01/captured",
+            "container": "/out",
+            "readonly": false
+          }
+        ],
+        "timeoutSeconds": "Root must approve a finite external deadline; timeout is ERROR/never KILL"
+      },
+      "acceptedOutcome": {
+        "exitCode": 0,
+        "classification": "KILL"
+      },
+      "noAutomaticNextOperation": true
+    },
+    {
+      "controlId": "preserve-ranged-cancel",
+      "kind": "semantic",
+      "firstFailureCase": "W1",
+      "freshRunRoot": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-preserve-ranged-cancel-root-reviewed-01",
+      "phaseA": {
+        "status": "NOT_RELEASED; replace driver placeholder only after Root immutable freeze/source review",
+        "argv": [
+          "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/map-styled-bench/npm-cache/_npx/361c55be1121897e/node_modules/node/bin/node",
+          "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/tools/bot-protection-cues-fixtures/variants-build.mjs",
+          "--source-root",
+          "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings",
+          "--tool-root",
+          "/Users/nevinmckinnon/Documents/Projects/RogueHalla/node_modules",
+          "--output",
+          "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-preserve-ranged-cancel-root-reviewed-01/prepared",
+          "--expected-code-sha",
+          "<ROOT_FROZEN_VARIANT_DRIVER_SHA40>",
+          "--control-id",
+          "preserve-ranged-cancel"
+        ],
+        "env": {
+          "PATH": "/usr/bin:/bin",
+          "LANG": "C",
+          "LC_ALL": "C",
+          "ESBUILD_BINARY_PATH": "/Users/nevinmckinnon/Documents/Projects/RogueHalla/node_modules/@esbuild/darwin-arm64/bin/esbuild"
+        }
+      },
+      "phaseB": {
+        "status": "NOT_RELEASED; actual variant artifact review and independent literal hashes REQUIRED",
+        "argv": [
+          "/usr/local/bin/docker",
+          "run",
+          "--rm",
+          "--pull=never",
+          "--network=none",
+          "--platform",
+          "linux/amd64",
+          "--name",
+          "rh-p15-variant-preserve-ranged-cancel-root-reviewed-01",
+          "--read-only",
+          "--cap-drop=ALL",
+          "--security-opt=no-new-privileges:true",
+          "--pids-limit=64",
+          "--memory=1g",
+          "--cpus=1",
+          "--user",
+          "501:20",
+          "--env",
+          "NODE_OPTIONS=",
+          "--env",
+          "NODE_PATH=",
+          "--env",
+          "NODE_COMPILE_CACHE=",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-preserve-ranged-cancel-root-reviewed-01/prepared,dst=/run,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/arena.ts,dst=/repo/packages/server/src/sim/arena.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/weapons.ts,dst=/repo/packages/server/src/sim/weapons.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/step.ts,dst=/repo/packages/server/src/sim/step.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/targeting.ts,dst=/repo/packages/server/src/sim/targeting.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/inputs.ts,dst=/repo/packages/server/src/sim/inputs.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/gameplay.ts,dst=/repo/packages/server/src/sim/gameplay.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/world.ts,dst=/repo/packages/server/src/sim/world.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/combatant.ts,dst=/repo/packages/server/src/sim/combatant.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/ledger.ts,dst=/repo/packages/server/src/sim/ledger.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/status.ts,dst=/repo/packages/server/src/sim/status.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/perception.ts,dst=/repo/packages/server/src/bots/brain/perception.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/memory.ts,dst=/repo/packages/server/src/bots/brain/memory.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/vision.ts,dst=/repo/packages/server/src/bots/brain/vision.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/frames.ts,dst=/repo/packages/server/src/bots/brain/frames.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/types.ts,dst=/repo/packages/server/src/bots/brain/types.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/rooms/FxChannel.ts,dst=/repo/packages/server/src/rooms/FxChannel.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/schema.ts,dst=/repo/packages/shared/src/schema.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/constants.ts,dst=/repo/packages/shared/src/constants.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/fxCodec.ts,dst=/repo/packages/shared/src/fxCodec.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/weapons.ts,dst=/repo/packages/shared/src/weapons.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/signatures.ts,dst=/repo/packages/shared/src/signatures.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/mods.ts,dst=/repo/packages/shared/src/mods.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/tools/ability-fixtures/born-input.json,dst=/repo/tools/ability-fixtures/born-input.json,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/prepared/build-manifest.json,dst=/pristine/build-manifest.json,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/observations-before-verification.json,dst=/pristine/observations-before-verification.json,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/source.json,dst=/pristine/source.json,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/verification.json,dst=/pristine/verification.json,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-preserve-ranged-cancel-root-reviewed-01/captured,dst=/out",
+          "node@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292",
+          "node",
+          "/run/variants-runtime.mjs",
+          "--mode",
+          "capture",
+          "--output",
+          "/out",
+          "--expected-code-sha",
+          "<ROOT_FROZEN_VARIANT_DRIVER_SHA40>",
+          "--expected-control-id",
+          "preserve-ranged-cancel",
+          "--expected-manifest-sha256",
+          "<INDEPENDENT_ROOT_VARIANT_MANIFEST_SHA256>",
+          "--expected-bundle-sha256",
+          "<INDEPENDENT_ROOT_VARIANT_BUNDLE_SHA256>",
+          "--expected-runtime-sha256",
+          "<INDEPENDENT_ROOT_VARIANT_RUNTIME_SHA256>",
+          "--expected-verify-sha256",
+          "10188528d712c8000000db548caa2388c74c56c03d5bb7f9af4a6b996853e935",
+          "--expected-pristine-manifest-sha256",
+          "53a54a282bd09da615088bf352ddbd0ef65514bdc72e806f69b1ba74c9c47e16",
+          "--expected-pristine-raw-sha256",
+          "6449038bfbe6dc75d9afe1ce66f9172dd44cb23fb3048871a03e8ca16f6aac53",
+          "--expected-pristine-source-sha256",
+          "0a8af4c8dee518e5e6bc6b31c3445dc2e5ab61e889810a830642381d9cf92e6e",
+          "--expected-pristine-verification-sha256",
+          "e5ded300c248096a6319bec9252efef53e28212d47862a1387a9e67056c35987"
+        ],
+        "mounts": [
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-preserve-ranged-cancel-root-reviewed-01/prepared",
+            "container": "/run",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/arena.ts",
+            "container": "/repo/packages/server/src/sim/arena.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/weapons.ts",
+            "container": "/repo/packages/server/src/sim/weapons.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/step.ts",
+            "container": "/repo/packages/server/src/sim/step.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/targeting.ts",
+            "container": "/repo/packages/server/src/sim/targeting.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/inputs.ts",
+            "container": "/repo/packages/server/src/sim/inputs.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/gameplay.ts",
+            "container": "/repo/packages/server/src/sim/gameplay.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/world.ts",
+            "container": "/repo/packages/server/src/sim/world.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/combatant.ts",
+            "container": "/repo/packages/server/src/sim/combatant.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/ledger.ts",
+            "container": "/repo/packages/server/src/sim/ledger.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/status.ts",
+            "container": "/repo/packages/server/src/sim/status.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/perception.ts",
+            "container": "/repo/packages/server/src/bots/brain/perception.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/memory.ts",
+            "container": "/repo/packages/server/src/bots/brain/memory.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/vision.ts",
+            "container": "/repo/packages/server/src/bots/brain/vision.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/frames.ts",
+            "container": "/repo/packages/server/src/bots/brain/frames.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/types.ts",
+            "container": "/repo/packages/server/src/bots/brain/types.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/rooms/FxChannel.ts",
+            "container": "/repo/packages/server/src/rooms/FxChannel.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/schema.ts",
+            "container": "/repo/packages/shared/src/schema.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/constants.ts",
+            "container": "/repo/packages/shared/src/constants.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/fxCodec.ts",
+            "container": "/repo/packages/shared/src/fxCodec.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/weapons.ts",
+            "container": "/repo/packages/shared/src/weapons.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/signatures.ts",
+            "container": "/repo/packages/shared/src/signatures.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/mods.ts",
+            "container": "/repo/packages/shared/src/mods.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/tools/ability-fixtures/born-input.json",
+            "container": "/repo/tools/ability-fixtures/born-input.json",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/prepared/build-manifest.json",
+            "container": "/pristine/build-manifest.json",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/observations-before-verification.json",
+            "container": "/pristine/observations-before-verification.json",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/source.json",
+            "container": "/pristine/source.json",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/verification.json",
+            "container": "/pristine/verification.json",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-preserve-ranged-cancel-root-reviewed-01/captured",
+            "container": "/out",
+            "readonly": false
+          }
+        ],
+        "timeoutSeconds": "Root must approve a finite external deadline; timeout is ERROR/never KILL"
+      },
+      "acceptedOutcome": {
+        "exitCode": 0,
+        "classification": "KILL"
+      },
+      "noAutomaticNextOperation": true
+    },
+    {
+      "controlId": "different-target-cancel",
+      "kind": "semantic",
+      "firstFailureCase": "W0",
+      "freshRunRoot": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-different-target-cancel-root-reviewed-01",
+      "phaseA": {
+        "status": "NOT_RELEASED; replace driver placeholder only after Root immutable freeze/source review",
+        "argv": [
+          "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/map-styled-bench/npm-cache/_npx/361c55be1121897e/node_modules/node/bin/node",
+          "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/tools/bot-protection-cues-fixtures/variants-build.mjs",
+          "--source-root",
+          "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings",
+          "--tool-root",
+          "/Users/nevinmckinnon/Documents/Projects/RogueHalla/node_modules",
+          "--output",
+          "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-different-target-cancel-root-reviewed-01/prepared",
+          "--expected-code-sha",
+          "<ROOT_FROZEN_VARIANT_DRIVER_SHA40>",
+          "--control-id",
+          "different-target-cancel"
+        ],
+        "env": {
+          "PATH": "/usr/bin:/bin",
+          "LANG": "C",
+          "LC_ALL": "C",
+          "ESBUILD_BINARY_PATH": "/Users/nevinmckinnon/Documents/Projects/RogueHalla/node_modules/@esbuild/darwin-arm64/bin/esbuild"
+        }
+      },
+      "phaseB": {
+        "status": "NOT_RELEASED; actual variant artifact review and independent literal hashes REQUIRED",
+        "argv": [
+          "/usr/local/bin/docker",
+          "run",
+          "--rm",
+          "--pull=never",
+          "--network=none",
+          "--platform",
+          "linux/amd64",
+          "--name",
+          "rh-p15-variant-different-target-cancel-root-reviewed-01",
+          "--read-only",
+          "--cap-drop=ALL",
+          "--security-opt=no-new-privileges:true",
+          "--pids-limit=64",
+          "--memory=1g",
+          "--cpus=1",
+          "--user",
+          "501:20",
+          "--env",
+          "NODE_OPTIONS=",
+          "--env",
+          "NODE_PATH=",
+          "--env",
+          "NODE_COMPILE_CACHE=",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-different-target-cancel-root-reviewed-01/prepared,dst=/run,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/arena.ts,dst=/repo/packages/server/src/sim/arena.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/weapons.ts,dst=/repo/packages/server/src/sim/weapons.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/step.ts,dst=/repo/packages/server/src/sim/step.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/targeting.ts,dst=/repo/packages/server/src/sim/targeting.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/inputs.ts,dst=/repo/packages/server/src/sim/inputs.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/gameplay.ts,dst=/repo/packages/server/src/sim/gameplay.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/world.ts,dst=/repo/packages/server/src/sim/world.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/combatant.ts,dst=/repo/packages/server/src/sim/combatant.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/ledger.ts,dst=/repo/packages/server/src/sim/ledger.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/status.ts,dst=/repo/packages/server/src/sim/status.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/perception.ts,dst=/repo/packages/server/src/bots/brain/perception.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/memory.ts,dst=/repo/packages/server/src/bots/brain/memory.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/vision.ts,dst=/repo/packages/server/src/bots/brain/vision.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/frames.ts,dst=/repo/packages/server/src/bots/brain/frames.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/types.ts,dst=/repo/packages/server/src/bots/brain/types.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/rooms/FxChannel.ts,dst=/repo/packages/server/src/rooms/FxChannel.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/schema.ts,dst=/repo/packages/shared/src/schema.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/constants.ts,dst=/repo/packages/shared/src/constants.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/fxCodec.ts,dst=/repo/packages/shared/src/fxCodec.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/weapons.ts,dst=/repo/packages/shared/src/weapons.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/signatures.ts,dst=/repo/packages/shared/src/signatures.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/mods.ts,dst=/repo/packages/shared/src/mods.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/tools/ability-fixtures/born-input.json,dst=/repo/tools/ability-fixtures/born-input.json,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/prepared/build-manifest.json,dst=/pristine/build-manifest.json,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/observations-before-verification.json,dst=/pristine/observations-before-verification.json,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/source.json,dst=/pristine/source.json,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/verification.json,dst=/pristine/verification.json,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-different-target-cancel-root-reviewed-01/captured,dst=/out",
+          "node@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292",
+          "node",
+          "/run/variants-runtime.mjs",
+          "--mode",
+          "capture",
+          "--output",
+          "/out",
+          "--expected-code-sha",
+          "<ROOT_FROZEN_VARIANT_DRIVER_SHA40>",
+          "--expected-control-id",
+          "different-target-cancel",
+          "--expected-manifest-sha256",
+          "<INDEPENDENT_ROOT_VARIANT_MANIFEST_SHA256>",
+          "--expected-bundle-sha256",
+          "<INDEPENDENT_ROOT_VARIANT_BUNDLE_SHA256>",
+          "--expected-runtime-sha256",
+          "<INDEPENDENT_ROOT_VARIANT_RUNTIME_SHA256>",
+          "--expected-verify-sha256",
+          "10188528d712c8000000db548caa2388c74c56c03d5bb7f9af4a6b996853e935",
+          "--expected-pristine-manifest-sha256",
+          "53a54a282bd09da615088bf352ddbd0ef65514bdc72e806f69b1ba74c9c47e16",
+          "--expected-pristine-raw-sha256",
+          "6449038bfbe6dc75d9afe1ce66f9172dd44cb23fb3048871a03e8ca16f6aac53",
+          "--expected-pristine-source-sha256",
+          "0a8af4c8dee518e5e6bc6b31c3445dc2e5ab61e889810a830642381d9cf92e6e",
+          "--expected-pristine-verification-sha256",
+          "e5ded300c248096a6319bec9252efef53e28212d47862a1387a9e67056c35987"
+        ],
+        "mounts": [
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-different-target-cancel-root-reviewed-01/prepared",
+            "container": "/run",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/arena.ts",
+            "container": "/repo/packages/server/src/sim/arena.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/weapons.ts",
+            "container": "/repo/packages/server/src/sim/weapons.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/step.ts",
+            "container": "/repo/packages/server/src/sim/step.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/targeting.ts",
+            "container": "/repo/packages/server/src/sim/targeting.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/inputs.ts",
+            "container": "/repo/packages/server/src/sim/inputs.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/gameplay.ts",
+            "container": "/repo/packages/server/src/sim/gameplay.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/world.ts",
+            "container": "/repo/packages/server/src/sim/world.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/combatant.ts",
+            "container": "/repo/packages/server/src/sim/combatant.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/ledger.ts",
+            "container": "/repo/packages/server/src/sim/ledger.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/status.ts",
+            "container": "/repo/packages/server/src/sim/status.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/perception.ts",
+            "container": "/repo/packages/server/src/bots/brain/perception.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/memory.ts",
+            "container": "/repo/packages/server/src/bots/brain/memory.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/vision.ts",
+            "container": "/repo/packages/server/src/bots/brain/vision.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/frames.ts",
+            "container": "/repo/packages/server/src/bots/brain/frames.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/types.ts",
+            "container": "/repo/packages/server/src/bots/brain/types.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/rooms/FxChannel.ts",
+            "container": "/repo/packages/server/src/rooms/FxChannel.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/schema.ts",
+            "container": "/repo/packages/shared/src/schema.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/constants.ts",
+            "container": "/repo/packages/shared/src/constants.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/fxCodec.ts",
+            "container": "/repo/packages/shared/src/fxCodec.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/weapons.ts",
+            "container": "/repo/packages/shared/src/weapons.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/signatures.ts",
+            "container": "/repo/packages/shared/src/signatures.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/mods.ts",
+            "container": "/repo/packages/shared/src/mods.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/tools/ability-fixtures/born-input.json",
+            "container": "/repo/tools/ability-fixtures/born-input.json",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/prepared/build-manifest.json",
+            "container": "/pristine/build-manifest.json",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/observations-before-verification.json",
+            "container": "/pristine/observations-before-verification.json",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/source.json",
+            "container": "/pristine/source.json",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/verification.json",
+            "container": "/pristine/verification.json",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-different-target-cancel-root-reviewed-01/captured",
+            "container": "/out",
+            "readonly": false
+          }
+        ],
+        "timeoutSeconds": "Root must approve a finite external deadline; timeout is ERROR/never KILL"
+      },
+      "acceptedOutcome": {
+        "exitCode": 0,
+        "classification": "KILL"
+      },
+      "noAutomaticNextOperation": true
+    },
+    {
+      "controlId": "bow-stagger-exclusion",
+      "kind": "semantic",
+      "firstFailureCase": "B2",
+      "freshRunRoot": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-bow-stagger-exclusion-root-reviewed-01",
+      "phaseA": {
+        "status": "NOT_RELEASED; replace driver placeholder only after Root immutable freeze/source review",
+        "argv": [
+          "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/map-styled-bench/npm-cache/_npx/361c55be1121897e/node_modules/node/bin/node",
+          "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/tools/bot-protection-cues-fixtures/variants-build.mjs",
+          "--source-root",
+          "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings",
+          "--tool-root",
+          "/Users/nevinmckinnon/Documents/Projects/RogueHalla/node_modules",
+          "--output",
+          "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-bow-stagger-exclusion-root-reviewed-01/prepared",
+          "--expected-code-sha",
+          "<ROOT_FROZEN_VARIANT_DRIVER_SHA40>",
+          "--control-id",
+          "bow-stagger-exclusion"
+        ],
+        "env": {
+          "PATH": "/usr/bin:/bin",
+          "LANG": "C",
+          "LC_ALL": "C",
+          "ESBUILD_BINARY_PATH": "/Users/nevinmckinnon/Documents/Projects/RogueHalla/node_modules/@esbuild/darwin-arm64/bin/esbuild"
+        }
+      },
+      "phaseB": {
+        "status": "NOT_RELEASED; actual variant artifact review and independent literal hashes REQUIRED",
+        "argv": [
+          "/usr/local/bin/docker",
+          "run",
+          "--rm",
+          "--pull=never",
+          "--network=none",
+          "--platform",
+          "linux/amd64",
+          "--name",
+          "rh-p15-variant-bow-stagger-exclusion-root-reviewed-01",
+          "--read-only",
+          "--cap-drop=ALL",
+          "--security-opt=no-new-privileges:true",
+          "--pids-limit=64",
+          "--memory=1g",
+          "--cpus=1",
+          "--user",
+          "501:20",
+          "--env",
+          "NODE_OPTIONS=",
+          "--env",
+          "NODE_PATH=",
+          "--env",
+          "NODE_COMPILE_CACHE=",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-bow-stagger-exclusion-root-reviewed-01/prepared,dst=/run,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/arena.ts,dst=/repo/packages/server/src/sim/arena.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/weapons.ts,dst=/repo/packages/server/src/sim/weapons.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/step.ts,dst=/repo/packages/server/src/sim/step.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/targeting.ts,dst=/repo/packages/server/src/sim/targeting.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/inputs.ts,dst=/repo/packages/server/src/sim/inputs.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/gameplay.ts,dst=/repo/packages/server/src/sim/gameplay.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/world.ts,dst=/repo/packages/server/src/sim/world.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/combatant.ts,dst=/repo/packages/server/src/sim/combatant.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/ledger.ts,dst=/repo/packages/server/src/sim/ledger.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/status.ts,dst=/repo/packages/server/src/sim/status.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/perception.ts,dst=/repo/packages/server/src/bots/brain/perception.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/memory.ts,dst=/repo/packages/server/src/bots/brain/memory.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/vision.ts,dst=/repo/packages/server/src/bots/brain/vision.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/frames.ts,dst=/repo/packages/server/src/bots/brain/frames.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/types.ts,dst=/repo/packages/server/src/bots/brain/types.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/rooms/FxChannel.ts,dst=/repo/packages/server/src/rooms/FxChannel.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/schema.ts,dst=/repo/packages/shared/src/schema.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/constants.ts,dst=/repo/packages/shared/src/constants.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/fxCodec.ts,dst=/repo/packages/shared/src/fxCodec.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/weapons.ts,dst=/repo/packages/shared/src/weapons.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/signatures.ts,dst=/repo/packages/shared/src/signatures.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/mods.ts,dst=/repo/packages/shared/src/mods.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/tools/ability-fixtures/born-input.json,dst=/repo/tools/ability-fixtures/born-input.json,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/prepared/build-manifest.json,dst=/pristine/build-manifest.json,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/observations-before-verification.json,dst=/pristine/observations-before-verification.json,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/source.json,dst=/pristine/source.json,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/verification.json,dst=/pristine/verification.json,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-bow-stagger-exclusion-root-reviewed-01/captured,dst=/out",
+          "node@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292",
+          "node",
+          "/run/variants-runtime.mjs",
+          "--mode",
+          "capture",
+          "--output",
+          "/out",
+          "--expected-code-sha",
+          "<ROOT_FROZEN_VARIANT_DRIVER_SHA40>",
+          "--expected-control-id",
+          "bow-stagger-exclusion",
+          "--expected-manifest-sha256",
+          "<INDEPENDENT_ROOT_VARIANT_MANIFEST_SHA256>",
+          "--expected-bundle-sha256",
+          "<INDEPENDENT_ROOT_VARIANT_BUNDLE_SHA256>",
+          "--expected-runtime-sha256",
+          "<INDEPENDENT_ROOT_VARIANT_RUNTIME_SHA256>",
+          "--expected-verify-sha256",
+          "10188528d712c8000000db548caa2388c74c56c03d5bb7f9af4a6b996853e935",
+          "--expected-pristine-manifest-sha256",
+          "53a54a282bd09da615088bf352ddbd0ef65514bdc72e806f69b1ba74c9c47e16",
+          "--expected-pristine-raw-sha256",
+          "6449038bfbe6dc75d9afe1ce66f9172dd44cb23fb3048871a03e8ca16f6aac53",
+          "--expected-pristine-source-sha256",
+          "0a8af4c8dee518e5e6bc6b31c3445dc2e5ab61e889810a830642381d9cf92e6e",
+          "--expected-pristine-verification-sha256",
+          "e5ded300c248096a6319bec9252efef53e28212d47862a1387a9e67056c35987"
+        ],
+        "mounts": [
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-bow-stagger-exclusion-root-reviewed-01/prepared",
+            "container": "/run",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/arena.ts",
+            "container": "/repo/packages/server/src/sim/arena.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/weapons.ts",
+            "container": "/repo/packages/server/src/sim/weapons.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/step.ts",
+            "container": "/repo/packages/server/src/sim/step.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/targeting.ts",
+            "container": "/repo/packages/server/src/sim/targeting.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/inputs.ts",
+            "container": "/repo/packages/server/src/sim/inputs.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/gameplay.ts",
+            "container": "/repo/packages/server/src/sim/gameplay.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/world.ts",
+            "container": "/repo/packages/server/src/sim/world.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/combatant.ts",
+            "container": "/repo/packages/server/src/sim/combatant.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/ledger.ts",
+            "container": "/repo/packages/server/src/sim/ledger.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/status.ts",
+            "container": "/repo/packages/server/src/sim/status.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/perception.ts",
+            "container": "/repo/packages/server/src/bots/brain/perception.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/memory.ts",
+            "container": "/repo/packages/server/src/bots/brain/memory.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/vision.ts",
+            "container": "/repo/packages/server/src/bots/brain/vision.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/frames.ts",
+            "container": "/repo/packages/server/src/bots/brain/frames.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/types.ts",
+            "container": "/repo/packages/server/src/bots/brain/types.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/rooms/FxChannel.ts",
+            "container": "/repo/packages/server/src/rooms/FxChannel.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/schema.ts",
+            "container": "/repo/packages/shared/src/schema.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/constants.ts",
+            "container": "/repo/packages/shared/src/constants.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/fxCodec.ts",
+            "container": "/repo/packages/shared/src/fxCodec.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/weapons.ts",
+            "container": "/repo/packages/shared/src/weapons.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/signatures.ts",
+            "container": "/repo/packages/shared/src/signatures.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/mods.ts",
+            "container": "/repo/packages/shared/src/mods.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/tools/ability-fixtures/born-input.json",
+            "container": "/repo/tools/ability-fixtures/born-input.json",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/prepared/build-manifest.json",
+            "container": "/pristine/build-manifest.json",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/observations-before-verification.json",
+            "container": "/pristine/observations-before-verification.json",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/source.json",
+            "container": "/pristine/source.json",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/verification.json",
+            "container": "/pristine/verification.json",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-bow-stagger-exclusion-root-reviewed-01/captured",
+            "container": "/out",
+            "readonly": false
+          }
+        ],
+        "timeoutSeconds": "Root must approve a finite external deadline; timeout is ERROR/never KILL"
+      },
+      "acceptedOutcome": {
+        "exitCode": 0,
+        "classification": "KILL"
+      },
+      "noAutomaticNextOperation": true
+    },
+    {
+      "controlId": "comment-provenance",
+      "kind": "comment-nonkill",
+      "firstFailureCase": null,
+      "freshRunRoot": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-comment-provenance-root-reviewed-01",
+      "phaseA": {
+        "status": "NOT_RELEASED; replace driver placeholder only after Root immutable freeze/source review",
+        "argv": [
+          "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/map-styled-bench/npm-cache/_npx/361c55be1121897e/node_modules/node/bin/node",
+          "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/tools/bot-protection-cues-fixtures/variants-build.mjs",
+          "--source-root",
+          "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings",
+          "--tool-root",
+          "/Users/nevinmckinnon/Documents/Projects/RogueHalla/node_modules",
+          "--output",
+          "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-comment-provenance-root-reviewed-01/prepared",
+          "--expected-code-sha",
+          "<ROOT_FROZEN_VARIANT_DRIVER_SHA40>",
+          "--control-id",
+          "comment-provenance"
+        ],
+        "env": {
+          "PATH": "/usr/bin:/bin",
+          "LANG": "C",
+          "LC_ALL": "C",
+          "ESBUILD_BINARY_PATH": "/Users/nevinmckinnon/Documents/Projects/RogueHalla/node_modules/@esbuild/darwin-arm64/bin/esbuild"
+        }
+      },
+      "phaseB": {
+        "status": "NOT_RELEASED; actual variant artifact review and independent literal hashes REQUIRED",
+        "argv": [
+          "/usr/local/bin/docker",
+          "run",
+          "--rm",
+          "--pull=never",
+          "--network=none",
+          "--platform",
+          "linux/amd64",
+          "--name",
+          "rh-p15-variant-comment-provenance-root-reviewed-01",
+          "--read-only",
+          "--cap-drop=ALL",
+          "--security-opt=no-new-privileges:true",
+          "--pids-limit=64",
+          "--memory=1g",
+          "--cpus=1",
+          "--user",
+          "501:20",
+          "--env",
+          "NODE_OPTIONS=",
+          "--env",
+          "NODE_PATH=",
+          "--env",
+          "NODE_COMPILE_CACHE=",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-comment-provenance-root-reviewed-01/prepared,dst=/run,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/arena.ts,dst=/repo/packages/server/src/sim/arena.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/weapons.ts,dst=/repo/packages/server/src/sim/weapons.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/step.ts,dst=/repo/packages/server/src/sim/step.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/targeting.ts,dst=/repo/packages/server/src/sim/targeting.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/inputs.ts,dst=/repo/packages/server/src/sim/inputs.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/gameplay.ts,dst=/repo/packages/server/src/sim/gameplay.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/world.ts,dst=/repo/packages/server/src/sim/world.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/combatant.ts,dst=/repo/packages/server/src/sim/combatant.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/ledger.ts,dst=/repo/packages/server/src/sim/ledger.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/status.ts,dst=/repo/packages/server/src/sim/status.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/perception.ts,dst=/repo/packages/server/src/bots/brain/perception.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/memory.ts,dst=/repo/packages/server/src/bots/brain/memory.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/vision.ts,dst=/repo/packages/server/src/bots/brain/vision.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/frames.ts,dst=/repo/packages/server/src/bots/brain/frames.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/types.ts,dst=/repo/packages/server/src/bots/brain/types.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/rooms/FxChannel.ts,dst=/repo/packages/server/src/rooms/FxChannel.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/schema.ts,dst=/repo/packages/shared/src/schema.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/constants.ts,dst=/repo/packages/shared/src/constants.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/fxCodec.ts,dst=/repo/packages/shared/src/fxCodec.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/weapons.ts,dst=/repo/packages/shared/src/weapons.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/signatures.ts,dst=/repo/packages/shared/src/signatures.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/mods.ts,dst=/repo/packages/shared/src/mods.ts,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/tools/ability-fixtures/born-input.json,dst=/repo/tools/ability-fixtures/born-input.json,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/prepared/build-manifest.json,dst=/pristine/build-manifest.json,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/observations-before-verification.json,dst=/pristine/observations-before-verification.json,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/source.json,dst=/pristine/source.json,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/verification.json,dst=/pristine/verification.json,readonly",
+          "--mount",
+          "type=bind,src=/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-comment-provenance-root-reviewed-01/captured,dst=/out",
+          "node@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292",
+          "node",
+          "/run/variants-runtime.mjs",
+          "--mode",
+          "capture",
+          "--output",
+          "/out",
+          "--expected-code-sha",
+          "<ROOT_FROZEN_VARIANT_DRIVER_SHA40>",
+          "--expected-control-id",
+          "comment-provenance",
+          "--expected-manifest-sha256",
+          "<INDEPENDENT_ROOT_VARIANT_MANIFEST_SHA256>",
+          "--expected-bundle-sha256",
+          "<INDEPENDENT_ROOT_VARIANT_BUNDLE_SHA256>",
+          "--expected-runtime-sha256",
+          "<INDEPENDENT_ROOT_VARIANT_RUNTIME_SHA256>",
+          "--expected-verify-sha256",
+          "10188528d712c8000000db548caa2388c74c56c03d5bb7f9af4a6b996853e935",
+          "--expected-pristine-manifest-sha256",
+          "53a54a282bd09da615088bf352ddbd0ef65514bdc72e806f69b1ba74c9c47e16",
+          "--expected-pristine-raw-sha256",
+          "6449038bfbe6dc75d9afe1ce66f9172dd44cb23fb3048871a03e8ca16f6aac53",
+          "--expected-pristine-source-sha256",
+          "0a8af4c8dee518e5e6bc6b31c3445dc2e5ab61e889810a830642381d9cf92e6e",
+          "--expected-pristine-verification-sha256",
+          "e5ded300c248096a6319bec9252efef53e28212d47862a1387a9e67056c35987"
+        ],
+        "mounts": [
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-comment-provenance-root-reviewed-01/prepared",
+            "container": "/run",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/arena.ts",
+            "container": "/repo/packages/server/src/sim/arena.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/weapons.ts",
+            "container": "/repo/packages/server/src/sim/weapons.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/step.ts",
+            "container": "/repo/packages/server/src/sim/step.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/targeting.ts",
+            "container": "/repo/packages/server/src/sim/targeting.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/inputs.ts",
+            "container": "/repo/packages/server/src/sim/inputs.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/gameplay.ts",
+            "container": "/repo/packages/server/src/sim/gameplay.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/world.ts",
+            "container": "/repo/packages/server/src/sim/world.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/combatant.ts",
+            "container": "/repo/packages/server/src/sim/combatant.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/ledger.ts",
+            "container": "/repo/packages/server/src/sim/ledger.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/sim/status.ts",
+            "container": "/repo/packages/server/src/sim/status.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/perception.ts",
+            "container": "/repo/packages/server/src/bots/brain/perception.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/memory.ts",
+            "container": "/repo/packages/server/src/bots/brain/memory.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/vision.ts",
+            "container": "/repo/packages/server/src/bots/brain/vision.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/frames.ts",
+            "container": "/repo/packages/server/src/bots/brain/frames.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/bots/brain/types.ts",
+            "container": "/repo/packages/server/src/bots/brain/types.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/server/src/rooms/FxChannel.ts",
+            "container": "/repo/packages/server/src/rooms/FxChannel.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/schema.ts",
+            "container": "/repo/packages/shared/src/schema.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/constants.ts",
+            "container": "/repo/packages/shared/src/constants.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/fxCodec.ts",
+            "container": "/repo/packages/shared/src/fxCodec.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/weapons.ts",
+            "container": "/repo/packages/shared/src/weapons.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/signatures.ts",
+            "container": "/repo/packages/shared/src/signatures.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/packages/shared/src/mods.ts",
+            "container": "/repo/packages/shared/src/mods.ts",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/tools/ability-fixtures/born-input.json",
+            "container": "/repo/tools/ability-fixtures/born-input.json",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/prepared/build-manifest.json",
+            "container": "/pristine/build-manifest.json",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/observations-before-verification.json",
+            "container": "/pristine/observations-before-verification.json",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/source.json",
+            "container": "/pristine/source.json",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues/offline-root-reviewed-01/captured/verification.json",
+            "container": "/pristine/verification.json",
+            "readonly": true
+          },
+          {
+            "host": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-comment-provenance-root-reviewed-01/captured",
+            "container": "/out",
+            "readonly": false
+          }
+        ],
+        "timeoutSeconds": "Root must approve a finite external deadline; timeout is ERROR/never KILL"
+      },
+      "acceptedOutcome": {
+        "exitCode": 0,
+        "classification": "NONKILL"
+      },
+      "noAutomaticNextOperation": true
+    }
+  ],
+  "checkConsistency": "Only after one actual classified success, separately approved read-only mode check-consistency with exact same pins and existing output; never a recapture/export proof.",
+  "restoredPristine": "NOT included; separately named Root-approved strict pristine operation/export required. No disk source patch was ever applied to restore."
+}

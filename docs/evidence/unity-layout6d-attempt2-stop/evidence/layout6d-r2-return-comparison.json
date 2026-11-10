@@ -1,0 +1,45 @@
+{
+  "status": "PUBLIC_RETURN_BASELINE_MATCHES_DESPITE_SETUP_AGGREGATE_ERROR",
+  "source": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+  "editorPid": 46583,
+  "sameFields": {
+    "scenes": true,
+    "sceneCount": true,
+    "sceneRootCount": true,
+    "activeScene": true,
+    "editorSceneSetup": true,
+    "eventSystems": true,
+    "light2DInstances": true,
+    "input": true,
+    "authorizedPreferenceKeyPresenceOnly": true,
+    "dirtyCounts": true
+  },
+  "contextPackagesAndAssembliesSame": true,
+  "dirtyObjects": 1053,
+  "dirtyAssets": 429,
+  "cleanupLimit": "Stage.Create aggregate retains restore-active-scene failure; Host.Close success does not erase it. Independent readonly observer shows original clean scene+same root instance IDs remain intact.",
+  "privateSnapshotPresent": false,
+  "console": {
+    "entries": [],
+    "cursor": 333,
+    "session": "654be9d86c404632a326a1b305299a34",
+    "returned": 0,
+    "dropped": false,
+    "reset": false,
+    "counts": {
+      "error": 0,
+      "warn": 40,
+      "log": 293
+    },
+    "groundTruth": {
+      "sampledUtc": "2026-11-09T20:02:17.077557Z",
+      "ageMs": 113,
+      "compilationFailed": false,
+      "compiling": false,
+      "consoleErrors": 0,
+      "consoleWarnings": 40,
+      "consoleLogs": 293,
+      "seeded": true
+    }
+  }
+}

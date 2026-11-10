@@ -1,0 +1,11 @@
+{
+  "scope": "Offline compile of class template only; no wrappers generated, preferences read, or native invocation",
+  "exitCode": 0,
+  "sourceSha256": "a66aa04a2c99f2cfefe021d46f5d062aceabc8a90687679c61e011a91cd80be1",
+  "responseSha256": "ee2ba9babc3023c6e55abc8150377bb42fd00badfedb7a6d27e834c17f2b3106",
+  "argv": [
+    "/Applications/Unity/Hub/Editor/6000.0.85f2/Unity.app/Contents/NetCoreRuntime/dotnet",
+    "/Applications/Unity/Hub/Editor/6000.0.85f2/Unity.app/Contents/DotNetSdkRoslyn/csc.dll",
+    "@/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/offline-prefs-template-compile/compile.rsp"
+  ]
+}

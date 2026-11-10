@@ -1,0 +1,32 @@
+{
+  "status": "PENDING_ROOT_ADMISSION_NATIVE98_UNRUN",
+  "source": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+  "editorPid": 46583,
+  "rows": [
+    {
+      "path": "evidence/native-identity-verification.json",
+      "bytes": 10309,
+      "sha256": "07a51974aa0e04922e8acf699f2ef15299c777f716c3f00aacd76bbf8412dc35"
+    },
+    {
+      "path": "evidence/pre-execution-binding.json",
+      "bytes": 2221,
+      "sha256": "55b7fc63981b0564e8011b5180314cfc5a83a16654bd1839f8375fda7eec9fde"
+    },
+    {
+      "path": "evidence/pre-execution-console-baseline.json",
+      "bytes": 338,
+      "sha256": "c63b003cdd541125cd5512653539443265bc095e1d0f8b5a7e0dc4711c71d85c"
+    },
+    {
+      "path": "evidence/packages-and-baseline-raw.json",
+      "bytes": 33599,
+      "sha256": "67363f9b7d0180bd466cefbf1272cd5e46f999cc72571e11ef83b3b7c0e0b3aa"
+    },
+    {
+      "path": "VerifyNativeIdentity.py",
+      "bytes": 8766,
+      "sha256": "4bd55632fc66fc3dc02059d33c8b85a744b9fcc4510026ab2baadb7378870027"
+    }
+  ]
+}

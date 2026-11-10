@@ -1,0 +1,9 @@
+{
+  "parent": "56523c6f4aa372eb5aa2b0850911c2ae0a8295f0",
+  "authorizedBy": "Coordinator explicit instruction: only two new fixture wording assertions; production copy unchanged",
+  "changedPath": "client-unity/UnityProject/Assets/Tests/Editor/MatchResumeEditModeTests.cs",
+  "oldSha256": "446494e159f39ef3cd30f76f38e39d7242bea72427fed44a6facbf9c253f7284",
+  "newSha256": "f97465d755a267161e056636225a2cea98781c18a594dfa7333ac3c2cac76411",
+  "exactTwoLiteralReplacementsOnly": true,
+  "allOtherAssertionsSelectorsOutcomeAndProductionBytesPreserved": true
+}

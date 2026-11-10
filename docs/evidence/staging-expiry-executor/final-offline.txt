@@ -1,0 +1,23 @@
+test_cancellation_before_and_after_arm_never_disarms_timer_or_returns_gate (test_expiry_executor.Expiry) ... ok
+test_cli_mac_refusal_performs_no_runner_io_and_emits_no_gate (test_expiry_executor.Expiry) ... ok
+test_crash_partial_state_can_resume_exact_bytes_under_same_guard (test_expiry_executor.Expiry) ... ok
+test_daemon_reload_arm_and_shutdown_failure_or_cancellation_cannot_false_pass (test_expiry_executor.Expiry) ... ok
+test_expired_first_boot_requests_verified_independent_shutdown_without_state (test_expiry_executor.Expiry) ... ok
+test_fsync_error_closes_gate_and_existing_enable_link_is_not_overwritten (test_expiry_executor.Expiry) ... ok
+test_future_boot_writes_persists_loads_arms_checks_before_gate (test_expiry_executor.Expiry) ... ok
+test_loaded_manager_properties_are_checked_not_expected_plan_echoes (test_expiry_executor.Expiry) ... ok
+test_missing_or_misconfigured_independent_guard_refuses_before_deadline_state (test_expiry_executor.Expiry) ... ok
+test_native_runner_fixed_commands_no_shell_no_inherited_environment (test_expiry_executor.Expiry) ... ok
+test_platform_root_pid1_cgroup_namespace_and_unknown_systemd_refuse (test_expiry_executor.Expiry) ... ok
+test_preexisting_shutdown_job_cannot_return_a_future_work_gate (test_expiry_executor.Expiry) ... ok
+test_private_files_reject_symlink_hardlink_bad_mode_and_competing_lock (test_expiry_executor.Expiry) ... ok
+test_restart_after_deadline_and_expiry_during_setup_never_return_gate (test_expiry_executor.Expiry) ... ok
+test_restart_is_idempotent_and_cannot_extend_or_replace_original_deadline (test_expiry_executor.Expiry) ... ok
+test_time_sync_loss_backward_jump_and_malformed_request_refuse (test_expiry_executor.Expiry) ... ok
+test_untrusted_partial_or_orphaned_deadline_material_never_gets_replaced (test_expiry_executor.Expiry) ... ok
+test_v255_empty_job_and_omitted_empty_monotonic_array_are_not_numeric_echoes (test_expiry_executor.Expiry) ... ok
+
+----------------------------------------------------------------------
+Ran 18 tests in 0.033s
+
+OK

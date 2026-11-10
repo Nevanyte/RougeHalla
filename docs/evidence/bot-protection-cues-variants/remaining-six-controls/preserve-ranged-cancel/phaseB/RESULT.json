@@ -1,0 +1,8 @@
+{
+  "startedUtc": "2026-11-09T22:04:36.595271+00:00",
+  "kind": "ONE actual preserve-ranged-cancel",
+  "status": "PROCESS_COMPLETED",
+  "exit": 0,
+  "containerCleanup": "verified-not-present",
+  "finishedUtc": "2026-11-09T22:04:40.698870+00:00"
+}

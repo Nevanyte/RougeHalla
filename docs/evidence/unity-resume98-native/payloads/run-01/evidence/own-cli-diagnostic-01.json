@@ -1,0 +1,24 @@
+{
+  "scope": "CLI-only log rows containing exact new-project path or bound CLI PID43177; values redacted, no Editor log or credential retrieval",
+  "sourcePath": "/Users/nevinmckinnon/Library/Application Support/UnityHub/logs/cli-log.json",
+  "utc": "2026-11-09T18:47:45.615330+00:00",
+  "selectedCount": 2,
+  "parseErrors": 0,
+  "records": [
+    {
+      "level": "info",
+      "time": "2026-11-09T18:35:42.840Z",
+      "pid": 43177,
+      "moduleName": "CLI",
+      "msg": "Unity CLI started \u2014 version 1.0.0-beta.17"
+    },
+    {
+      "level": "info",
+      "time": "2026-11-09T18:35:42.845Z",
+      "pid": 43177,
+      "moduleName": "CLI",
+      "msg": "CLI invocation started",
+      "context": "<structured-value-not-emitted>"
+    }
+  ]
+}

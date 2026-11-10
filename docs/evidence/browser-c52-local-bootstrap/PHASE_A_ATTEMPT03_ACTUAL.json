@@ -1,0 +1,335 @@
+{
+  "format": "rh-browser-c52-phaseA-actual/1",
+  "releaseSha256": "0f06a88f530a036ffa1d413394d9cddd4be88cc4e8964b0b0406f595c0940064",
+  "browserPhaseB": "NOT_RELEASED",
+  "claims": 0,
+  "HelloSent": 0,
+  "joins": 0,
+  "matchesCreatedByProbe": 0,
+  "startedUtc": "2026-11-09T21:55:06.587449+00:00",
+  "attempt": 3,
+  "correctedProbeResumeSha256": "90bd7ae2c25557412fd1f78880a78cec31bc8f0bb70d8df798a79096d88c2fdf",
+  "priorFailureSha256": "10baae23b96f929eed3faed91af16248432a95f473f339384fcfb562e6adb326",
+  "httpAliasResumeReleaseSha256": "fa7ff4bb32a80871a914a7927e2196f07a6c8faa3ca1177f36bcb1ae0417a408",
+  "databaseReinitialized": false,
+  "rolesRecreated": false,
+  "privilegesChanged": false,
+  "pathsSwapped": false,
+  "preResumeDatabaseSystemIdentifier": "7706286922582076631",
+  "inputRevalidationSha256": {
+    "ATTEMPT03_CLUSTER_REVALIDATION.json": "bb9895db95d3e5b26a8316b9328370950ce222681d6828b06a047194d72d1d50",
+    "ATTEMPT03_INPUT_REVALIDATION.json": "fa6d12f984001b8a8b6a20a9ad772777610681192106422dc546c1f902e7d1e7"
+  },
+  "postgresProcess": {
+    "pid": 95251,
+    "uid": 501,
+    "startWitness": "Mon Nov  9 15:55:06 2026"
+  },
+  "actualSocket": {
+    "uid": 501,
+    "mode": "0o700",
+    "isSocket": true
+  },
+  "postgres": {
+    "version": "16.15 (Homebrew)",
+    "fsync": "on",
+    "synchronousCommit": "on",
+    "fullPageWrites": "on",
+    "listenAddresses": "",
+    "socketPort": 65439,
+    "tcpListener": false,
+    "appRole": "rh_game",
+    "peerMappedOsOwner": "nevinmckinnon",
+    "appRoleRestricted": true,
+    "databaseOwnedByApp": true,
+    "encoding": "UTF8"
+  },
+  "schema": {
+    "appliedVersions": [
+      1,
+      2
+    ],
+    "failedMigrations": 0,
+    "compatibilityFloor": 1,
+    "expectedTableCount": 11,
+    "exactTableInventory": true
+  },
+  "sourceListener": {
+    "pid": 95283,
+    "port": 7777,
+    "addresses": [
+      "127.0.0.1:7777"
+    ],
+    "uid": 501,
+    "startWitness": "Mon Nov  9 15:55:07 2026"
+  },
+  "trainingListener": {
+    "pid": 95289,
+    "port": 7779,
+    "addresses": [
+      "127.0.0.1:7779"
+    ],
+    "uid": 501,
+    "startWitness": "Mon Nov  9 15:55:07 2026"
+  },
+  "routerListener": {
+    "pid": 95295,
+    "port": 8888,
+    "addresses": [
+      "127.0.0.1:8888",
+      "[::1]:8888"
+    ],
+    "uid": 501,
+    "startWitness": "Mon Nov  9 15:55:07 2026"
+  },
+  "infoBefore": {
+    "source": {
+      "protocol": 14,
+      "contentHash": "7c6a633f68c2cc72",
+      "rooms": 0,
+      "lobbies": 0,
+      "players": 0,
+      "maxRooms": 16,
+      "state": "ready",
+      "resultsOk": 0,
+      "resultsFailed": 0,
+      "resultsRefused": 0
+    },
+    "training": {
+      "protocol": 14,
+      "contentHash": "7c6a633f68c2cc72",
+      "rooms": 0,
+      "lobbies": 0,
+      "players": 0,
+      "maxRooms": 1,
+      "state": "ready",
+      "resultsOk": 0,
+      "resultsFailed": 0,
+      "resultsRefused": 0
+    }
+  },
+  "readiness": {
+    "source": {
+      "ok": true,
+      "state": "ready",
+      "storage": "ok"
+    },
+    "training": {
+      "ok": true,
+      "state": "ready",
+      "storage": "ok"
+    }
+  },
+  "cors": {
+    "sameOriginEcho": true,
+    "varyOrigin": true,
+    "expectedMethodsAndHeaderNames": true,
+    "credentialsHeaderAbsent": true,
+    "unconfiguredAliasNotEchoed": true
+  },
+  "servedAssets": [
+    {
+      "path": "/Build/Web.data",
+      "bytes": 47866159,
+      "sha256": "b215df5daba529f3be05833e331b279c21781093b7cc8824c7856b9e850cd0ca",
+      "mime": "application/octet-stream"
+    },
+    {
+      "path": "/Build/Web.framework.js",
+      "bytes": 497713,
+      "sha256": "7195592217940abcc95ccf839c2a2d297aab7214909e234b7e6f374a79c39d42",
+      "mime": "application/javascript; charset=utf-8"
+    },
+    {
+      "path": "/Build/Web.loader.js",
+      "bytes": 26455,
+      "sha256": "c92c2f28f1fe8f67e904567d01f4c560596b1caecf663e5d3db36f33dc3b690b",
+      "mime": "application/javascript; charset=utf-8"
+    },
+    {
+      "path": "/Build/Web.wasm",
+      "bytes": 58548399,
+      "sha256": "d77af9b676296c77aed3f82c2fa295fd8be8cd3ce638191b6726820b226deafc",
+      "mime": "application/wasm"
+    },
+    {
+      "path": "/Licenses/CinzelDecorative-OFL.txt",
+      "bytes": 4393,
+      "sha256": "1e5d6660366ddcfca4f2fc10e2acfba9fa4d97d40aec80d7dbfd41d730a420ae",
+      "mime": "text/plain; charset=utf-8"
+    },
+    {
+      "path": "/Licenses/EmojiOne-Attribution.txt",
+      "bytes": 185,
+      "sha256": "4b65f8960e4f4c5c8b35fd139e369265e9bb45667fc16461b2ba01188d464d93",
+      "mime": "text/plain; charset=utf-8"
+    },
+    {
+      "path": "/Licenses/Flare-Audio-Notice.txt",
+      "bytes": 1130,
+      "sha256": "64e2de64656079009cfda050f49e1de5075167a387c403f17555c6c651d9b516",
+      "mime": "text/plain; charset=utf-8"
+    },
+    {
+      "path": "/Licenses/Flare-CC-BY-SA-3.0.txt",
+      "bytes": 22240,
+      "sha256": "3f941b3b89cf7b8370ceb83cc76d2120d471b58735d8ca60238a751a48d7f72f",
+      "mime": "text/plain; charset=utf-8"
+    },
+    {
+      "path": "/Licenses/Flare-Credits.txt",
+      "bytes": 3510,
+      "sha256": "8b0985009dd04911b851553a35941e6862f1df66a6864f9b2a5c7ff330574fbc",
+      "mime": "text/plain; charset=utf-8"
+    },
+    {
+      "path": "/Licenses/LiberationSans-OFL.txt",
+      "bytes": 4469,
+      "sha256": "37f8552e9a874ec10710dc0ede6a9adf168e6609fbd02a507f35629373b85a48",
+      "mime": "text/plain; charset=utf-8"
+    },
+    {
+      "path": "/Licenses/Roguehalla-MIT.txt",
+      "bytes": 1080,
+      "sha256": "385298d673f01f328553f49d75680ab30254c09d2295171c929fa61efe84b103",
+      "mime": "text/plain; charset=utf-8"
+    },
+    {
+      "path": "/Licenses/Third-Party-Assets.md",
+      "bytes": 3566,
+      "sha256": "75994d0600bb013e3a47a78be320b9f4d78e5f4d76a8849e9494793a95b89295",
+      "mime": "text/plain; charset=utf-8"
+    },
+    {
+      "path": "/Licenses/Unity-Companion.md",
+      "bytes": 461,
+      "sha256": "6550a14445e6c2116213b2419c4c28b75be4b99039afc8d091ced3192624390c",
+      "mime": "text/plain; charset=utf-8"
+    },
+    {
+      "path": "/index.html",
+      "bytes": 7920,
+      "sha256": "3d122f461a72433123a98732aeaf6602377874fabf7e321f1f2740c1ea1b62f5",
+      "mime": "text/html; charset=utf-8"
+    },
+    {
+      "path": "/",
+      "bytes": 7920,
+      "sha256": "3d122f461a72433123a98732aeaf6602377874fabf7e321f1f2740c1ea1b62f5",
+      "mime": "text/html; charset=utf-8"
+    }
+  ],
+  "routing": {
+    "staticPhysicalFiles": 14,
+    "staticUrlEntries": 15,
+    "allNineNoticesServedExact": true,
+    "etag304": true,
+    "ipv6LoopbackReachable": true,
+    "privateAndMissingPathsRejected": true,
+    "traversalRejected": true
+  },
+  "websocket": [
+    {
+      "route": "source",
+      "transportPeer": "127.0.0.1",
+      "status": 101,
+      "clientCloseCode": 1000,
+      "observedServerCloseCode": null,
+      "serverFrameOpcodeCounts": {},
+      "receivedFrameBytes": 0,
+      "peerEOF": true,
+      "applicationFramesSent": 0,
+      "HelloSent": false
+    },
+    {
+      "route": "training",
+      "transportPeer": "::1",
+      "status": 101,
+      "clientCloseCode": 1000,
+      "observedServerCloseCode": null,
+      "serverFrameOpcodeCounts": {},
+      "receivedFrameBytes": 0,
+      "peerEOF": true,
+      "applicationFramesSent": 0,
+      "HelloSent": false
+    }
+  ],
+  "infoAfter": {
+    "source": {
+      "protocol": 14,
+      "contentHash": "7c6a633f68c2cc72",
+      "rooms": 0,
+      "lobbies": 0,
+      "players": 0,
+      "maxRooms": 16,
+      "state": "ready",
+      "resultsOk": 0,
+      "resultsFailed": 0,
+      "resultsRefused": 0
+    },
+    "training": {
+      "protocol": 14,
+      "contentHash": "7c6a633f68c2cc72",
+      "rooms": 0,
+      "lobbies": 0,
+      "players": 0,
+      "maxRooms": 1,
+      "state": "ready",
+      "resultsOk": 0,
+      "resultsFailed": 0,
+      "resultsRefused": 0
+    }
+  },
+  "statePaths": {
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/browser-c52-actual": {
+      "uid": 501,
+      "mode": "0o700"
+    },
+    "/private/tmp/rh-browser-c52-pg-65439": {
+      "uid": 501,
+      "mode": "0o700"
+    },
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/browser-c52-actual/pgdata": {
+      "uid": 501,
+      "mode": "0o700"
+    },
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/browser-c52-actual/logs": {
+      "uid": 501,
+      "mode": "0o700"
+    },
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/browser-c52-actual/spool-source": {
+      "uid": 501,
+      "mode": "0o700"
+    }
+  },
+  "spool": {
+    "sourceConfigured": true,
+    "trainingConfigured": false,
+    "pendingEntryCount": 0,
+    "deadEntryCount": 0,
+    "resultFsyncExercised": false
+  },
+  "processes": [
+    {
+      "name": "source",
+      "pid": 95283,
+      "startedUtc": "2026-11-09T21:55:07.245612+00:00",
+      "argvSha256": "f369da94b20bb9224945178f18f9351b657a5325235778fbd9d187601ca38bfb"
+    },
+    {
+      "name": "training",
+      "pid": 95289,
+      "startedUtc": "2026-11-09T21:55:07.301893+00:00",
+      "argvSha256": "bd9b4488c9fcecdd668b1738c9f2873b2c021718c901f93faf29b992dde22d7e"
+    },
+    {
+      "name": "router",
+      "pid": 95295,
+      "startedUtc": "2026-11-09T21:55:07.357784+00:00",
+      "argvSha256": "6e200e4eb9b08cd8184a76c58060d37ff721766591eae2c3df838967290433dc"
+    }
+  ],
+  "status": "PHASE_A_PASS_RUNNING_OWNED_HANDLES",
+  "finishedUtc": "2026-11-09T21:55:07.652856+00:00",
+  "limits": "No browser, claim, Hello, admission, match, Result, bank receipt or gameplay/performance assertion. PostgreSQL local durability settings verified; no Result record fsync or host recovery exercised."
+}

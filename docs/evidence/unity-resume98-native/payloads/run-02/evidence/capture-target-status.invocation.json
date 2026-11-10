@@ -1,0 +1,11 @@
+{
+  "argv": [
+    "unity",
+    "status",
+    "--project-path",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+    "--format",
+    "json"
+  ],
+  "startedUtc": "2026-11-09T19:21:48.592642+00:00"
+}

@@ -1,0 +1,12 @@
+{
+  "mode": "capture",
+  "sourceExecuted": true,
+  "independentFrozenReproduction": false,
+  "code": "4fe7aa8285ad65f2c9a1123297426cd48b03bdef",
+  "cases": 11,
+  "rawBytes": 45077539,
+  "rawSha256": "6449038bfbe6dc75d9afe1ce66f9172dd44cb23fb3048871a03e8ca16f6aac53",
+  "sourceBytes": 45079140,
+  "sourceSha256": "0a8af4c8dee518e5e6bc6b31c3445dc2e5ab61e889810a830642381d9cf92e6e",
+  "verificationSha256": "e5ded300c248096a6319bec9252efef53e28212d47862a1387a9e67056c35987"
+}

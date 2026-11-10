@@ -1,0 +1,232 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Disposable Calgary technical demo; PREPARATION ONLY, Root approval required.
+# Two-phase create: LaunchHost=false creates bucket, host IAM/profile and SG only.
+# Root uploads/verifies the exact bundle, then updates LaunchHost=true with a fresh
+# original <=3h expiry, matching bootstrap config and already-base64 gzip chunks.
+# Bootstrap currently does ONE get_object, not a missing-key wait; never race upload.
+# Split encoded bytes at multiples of 4, each <=4096 ASCII bytes; join does not
+# base64 again. Root must verify joined gzip <=16384B and exact decompressed script.
+# No secret values belong in UserData. This template cannot enforce wall-clock age
+# or equality to embedded bootstrap config; Root must compare both before launch.
+# CFN Schedule currently lacks ActionAfterCompletion. The completed one-time
+# schedule remains until Root deletes the stack; no repeat invocation is configured.
+# No unsupported CFN property, custom resource, Lambda or extra API step is used.
+# Empty this bundle bucket before deleting stack; 1-day expiry is asynchronous,
+# not a cleanup receipt. The ephemeral root disk contains no retained-data promise.
+Parameters:
+  LaunchHost:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['false', 'true']
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: Root-verified default VPC in ca-west-1.
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: Root-verified public subnet in VpcId, with Internet Gateway route.
+  ImageId:
+    Type: AWS::EC2::Image::Id
+    Default: ami-0534b90585e73fdb1
+    AllowedValues: [ami-0534b90585e73fdb1]
+    AllowedPattern: '^ami-[a-f0-9]{17}$'
+    Description: Verified Canonical Ubuntu 24.04 x86_64, minimum root disk 8 GiB.
+  BucketName:
+    Type: String
+    MinLength: 3
+    MaxLength: 63
+    AllowedPattern: '^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$'
+  BundleKey:
+    Type: String
+    MinLength: 1
+    MaxLength: 1024
+    AllowedPattern: '^[A-Za-z0-9_-]+(/[A-Za-z0-9_.-]+)*$'
+    Description: Exact immutable bundle key, identical to rendered bootstrap config.
+  ExpiresAt:
+    Type: String
+    AllowedPattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}$'
+    Description: Original absolute UTC deadline without Z, same instant as config expires_at.
+  EncodedGzipUserData1:
+    Type: String
+    Default: ''
+    MaxLength: 4096
+    AllowedPattern: '^[A-Za-z0-9+/=]*$'
+  EncodedGzipUserData2:
+    Type: String
+    Default: ''
+    MaxLength: 4096
+    AllowedPattern: '^[A-Za-z0-9+/=]*$'
+  EncodedGzipUserData3:
+    Type: String
+    Default: ''
+    MaxLength: 4096
+    AllowedPattern: '^[A-Za-z0-9+/=]*$'
+  EncodedGzipUserData4:
+    Type: String
+    Default: ''
+    MaxLength: 4096
+    AllowedPattern: '^[A-Za-z0-9+/=]*$'
+Rules:
+  ApprovedBoundary:
+    Assertions:
+      - Assert: !Equals [!Ref 'AWS::AccountId', '048226733033']
+        AssertDescription: Only the approved staging account.
+      - Assert: !Equals [!Ref 'AWS::Region', ca-west-1]
+        AssertDescription: Only Calgary.
+  NonemptyLaunchData:
+    RuleCondition: !Equals [!Ref LaunchHost, 'true']
+    Assertions:
+      - Assert: !Not [!Equals [!Ref EncodedGzipUserData1, '']]
+        AssertDescription: Host requires the reviewed gzip user data.
+Conditions:
+  RunHost: !Equals [!Ref LaunchHost, 'true']
+Resources:
+  BundleBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      BucketName: !Ref BucketName
+      OwnershipControls:
+        Rules: [{ObjectOwnership: BucketOwnerEnforced}]
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: {SSEAlgorithm: AES256}
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireDisposableBundle
+            Status: Enabled
+            ExpirationInDays: 1
+            AbortIncompleteMultipartUpload: {DaysAfterInitiation: 1}
+      Tags: [{Key: Project, Value: RoguehallaRun}, {Key: Purpose, Value: technical-demo}]
+  BundleTransportPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref BundleBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource: [!GetAtt BundleBucket.Arn, !Sub '${BundleBucket.Arn}/*']
+            Condition: {Bool: {'aws:SecureTransport': 'false'}}
+  HostRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: ec2.amazonaws.com}
+            Action: sts:AssumeRole
+      ManagedPolicyArns: [!Sub 'arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore']
+      Policies:
+        - PolicyName: ExactBundleAndNoParameterReads
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: s3:GetObject
+                Resource: !Sub '${BundleBucket.Arn}/${BundleKey}'
+              - Effect: Deny
+                Action: [ssm:GetParameter, ssm:GetParameters, ssm:GetParametersByPath]
+                Resource: '*'
+  HostProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: [!Ref HostRole]
+  HostSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Public HTTPS and ACME HTTP only; no SSH, app or database ingress.
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - {IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIp: 0.0.0.0/0}
+        - {IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0}
+      SecurityGroupEgress:
+        - {IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIp: 0.0.0.0/0}
+        - {IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0}
+        - {IpProtocol: udp, FromPort: 53, ToPort: 53, CidrIp: 0.0.0.0/0}
+        - {IpProtocol: tcp, FromPort: 53, ToPort: 53, CidrIp: 0.0.0.0/0}
+  DemoHost:
+    Type: AWS::EC2::Instance
+    Condition: RunHost
+    DependsOn: BundleTransportPolicy
+    Properties:
+      ImageId: !Ref ImageId
+      InstanceType: t3.small
+      CreditSpecification: {CPUCredits: standard}
+      IamInstanceProfile: !Ref HostProfile
+      InstanceInitiatedShutdownBehavior: terminate
+      Monitoring: false
+      MetadataOptions:
+        HttpEndpoint: enabled
+        HttpTokens: required
+        HttpPutResponseHopLimit: 1
+        HttpProtocolIpv6: disabled
+      NetworkInterfaces:
+        - DeviceIndex: '0'
+          AssociatePublicIpAddress: true
+          DeleteOnTermination: true
+          SubnetId: !Ref SubnetId
+          GroupSet: [!Ref HostSecurityGroup]
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs: {VolumeSize: 8, VolumeType: gp3, Encrypted: true, DeleteOnTermination: true}
+      UserData: !Join ['', [!Ref EncodedGzipUserData1, !Ref EncodedGzipUserData2, !Ref EncodedGzipUserData3, !Ref EncodedGzipUserData4]]
+      Tags: [{Key: Project, Value: RoguehallaRun}, {Key: Purpose, Value: technical-demo}]
+      PropagateTagsToVolumeOnCreation: true
+  ExpiryRole:
+    Type: AWS::IAM::Role
+    Condition: RunHost
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: scheduler.amazonaws.com}
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref 'AWS::AccountId'
+                aws:SourceArn: !Sub 'arn:${AWS::Partition}:scheduler:${AWS::Region}:${AWS::AccountId}:schedule-group/default'
+      Policies:
+        - PolicyName: TerminateOnlyThisHost
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: ec2:TerminateInstances
+                Resource: !Sub 'arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/${DemoHost}'
+  ExpirySchedule:
+    Type: AWS::Scheduler::Schedule
+    Condition: RunHost
+    Properties:
+      Description: Independent one-time termination of this exact disposable demo instance.
+      GroupName: default
+      ScheduleExpression: !Sub 'at(${ExpiresAt})'
+      ScheduleExpressionTimezone: UTC
+      FlexibleTimeWindow: {Mode: 'OFF'}
+      State: ENABLED
+      Target:
+        Arn: !Sub 'arn:${AWS::Partition}:scheduler:::aws-sdk:ec2:terminateInstances'
+        RoleArn: !GetAtt ExpiryRole.Arn
+        Input: !Sub '{"InstanceIds":["${DemoHost}"]}'
+        RetryPolicy: {MaximumEventAgeInSeconds: 300, MaximumRetryAttempts: 2}
+Outputs:
+  InstanceId:
+    Condition: RunHost
+    Description: Only the demo instance; Root must verify termination at expiry.
+    Value: !Ref DemoHost
+  PublicIp:
+    Condition: RunHost
+    Description: Ephemeral public IPv4; Root manages practice DNS separately.
+    Value: !GetAtt DemoHost.PublicIp
+  ArtifactBucket:
+    Description: Private disposable bundle bucket; empty before stack deletion.
+    Value: !Ref BundleBucket

@@ -1,0 +1,38 @@
+{
+  "format": "rh-root-local-browser-runtime-phaseA-release/1",
+  "issuedUtc": "2026-11-09T21:20:33.465946+00:00",
+  "toolSeal": "39ea5f7ec4b88d91077552a0d492e5d34b92a52e",
+  "reviewSha256": "6c96e986caa58db4669ee8d652ee9b15e2b0ee113a77f79f67a58a415fcbf03c",
+  "rootDeltaReview": "Exact.mdMIMEconstant+affectednegative; derived14physical/15URLrows independentlyequalactualartifact",
+  "native": {
+    "source": "c52e41a633c91f8402e3f68724e9202351d1cdb3",
+    "binary": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/native-browser-c52-build/rh-server",
+    "sha256": "2533c89b6581610a33a79ff95492989711a33d52999efdd2fc045cb771a62a65",
+    "profile": "postgresfeaturedev, functionalonly/noperformanceclaim"
+  },
+  "web": {
+    "source": "57e166f46b35fb703e5f3c76914fcc4e8bf3191c",
+    "root": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/web-build-57e166-2026-11-09/Web",
+    "artifactManifestSha256": "a224cc6cc378604e4f9407f1c540f3ceae364d9cf0c97004fcd21df816c83824",
+    "files": 14,
+    "bytes": 106987680
+  },
+  "routerManifest": {
+    "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/web57-router-preflight-2026-11-09-01/router-assets.json",
+    "sha256": "103664aed485a1ee634d2be6de1ca759822a95a10945540aa8b1ed35a57e41d7"
+  },
+  "hostNode": {
+    "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/map-styled-bench/npm-cache/_npx/361c55be1121897e/node_modules/node/bin/node",
+    "sha256": "2cc28a1880d0774616959f2210ee739bffa6ac695c887e8988a496a21271f6c0"
+  },
+  "stateRoot": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/browser-c52-actual",
+  "socketRoot": "/private/tmp/rh-browser-c52-pg-65439",
+  "allocation": "NEWexclusive0700/owner501, no reuse/delete/unknownPID; verifyallports7777/7779/8888/Unixsocketfreebeforestarting",
+  "postgres": "ExistingPG16toolsverifiedpath/version; newemptycluster/socketONLYpeeractualOSowner\u2192rh_gameLOGINNOSUPER/NOCREATEDB/NOCREATEROLE/NOINHERIT, appDBowner; noTCP; all3durabilityONactualSHOW; nocredentialsargv/valueoutput",
+  "nativeArgvAuthority": "ExactRUNTIME_PLAN.md at39ea, both--trusted-proxies127.0.0.1; source7777first-playablemapsha90bc4c8e82b7d4ba4819843001ae59da35c20ee870b5591b20192082b5bd16aa/spool; training7779nospool/nobanking; samefreshPG; learningOFF, real20Hz/default10s; uniqueinstanceIDs",
+  "routerAuthority": "Exactreviewedlocal-routerstandalone localhost8888 dualLOOPBACKONLY withimmutable14files+indexalias; noCloud/TLS/securityrelaxation",
+  "allowed": "PHASE A ONLY createfreshprivatePG/config/spool/logs, migrate/start2pinnednativeprocesses+ownedrouter, actualdurability/ownership/readiness/info14+7c6a633f68c2cc72/zero-room/CORS/staticservedhashes/WSupgrade-and-close(noHello/auth/gameadmission) checks",
+  "browserPhaseB": "NOT_RELEASED, no browser/claims/joins/matches/genuineResult untilactualPhaseAreceipt reviewed",
+  "secrets": "No passcode/profile/sessioncap/HTTPbody/DBrows/env/argvdump; minimalprivateenv, allowlistedpublicmetadataonly",
+  "failure": "Preservefirstactualfailure/ownedstate; stopknownownedchildrenifstartupfails; no fallbackmemory/unknownPIDkill/portorpathswap/retry. AskRootconcretedefectreport."
+}

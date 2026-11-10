@@ -1,5 +1,26 @@
 # Predicting players so ping feels faster
 
+## Current Rust/Unity implementation (2026-11-10 UTC)
+
+The research below concerns the legacy TypeScript client. Current Rust/Unity delivery follows the
+[technical demo scope](coordination/TECHNICAL_DEMO.md) and [competitive netcode plan](NETCODE_COMPETITIVE_PLAN.md).
+No learned predictor or ML model is part of this implementation.
+
+Reviewed Wave1 integration `fe0e2983` keeps server authority and the20Hz step. The local movement mirror now reconciles
+against a bounded history at the observed order delay, retains its prediction lead, and corrects while newer movement
+is pending. A reusable movement byte alone is insufficient: alignment/history retirement also require the exact command's
+sent input frame and a fresh acknowledgement. The retained regression goes2failed/2passed to4passed; the full managed
+suite passes956. Existing Rust walk/path fixtures remain in use. Buffed movement now uses delivered `speed_milli`, with
+additional C# model tests; a new Rust-generated buffed-walk vector is not claimed.
+
+Accepted rewind is `min(srtt + 220ms, 300ms)` (estimator floor20ms, default100ms), so fresh sessions and clients at80ms
+RTT or above receive the full300ms window. This is an owner-authorized fairness change. Source review and102 affected
+Rust tests, format and strict server lint pass; the actual Unity Client/Net assemblies compile without errors. Real-link
+latency/FPS gains remain unmeasured. The running optimized demo is still the separately frozen pre-Wave1 baseline until
+new artifacts are built and compared.
+
+## Historical legacy research
+
 Status: **research and plan, with Stage 0 and Stage 1 shipped, and Stage 2 built on branch `claude/draw-ahead`**. Only what "Shipped in this pass" lists is built.
 
 **Scope of this file.** Everything down to "Historical Rust / Unity measurement" is the TypeScript-era research and plan. The

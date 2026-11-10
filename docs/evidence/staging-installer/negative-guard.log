@@ -1,0 +1,55 @@
+/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owned-seat-checkpoint/repo/docs/evidence/staging-installer/synthetic-broad-role.negative.json Status = FAIL
+FAILED rules
+security.guard/only_two_exact_object_permissions        FAIL
+---
+{
+  "name": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owned-seat-checkpoint/repo/docs/evidence/staging-installer/synthetic-broad-role.negative.json",
+  "metadata": {},
+  "status": "FAIL",
+  "not_compliant": [
+    {
+      "Rule": {
+        "name": "only_two_exact_object_permissions",
+        "metadata": {},
+        "messages": {
+          "custom_message": null,
+          "error_message": null
+        },
+        "checks": [
+          {
+            "Clause": {
+              "Binary": {
+                "context": " Resource not EQUALS  \"*\"",
+                "messages": {
+                  "custom_message": "",
+                  "error_message": "Check was not compliant as property value [Path=/Resources/RunTransferRole/Properties/Policies/0/PolicyDocument/Statement/0/Resource[L:68,C:30] Value=\"*\"] equal to value [Path=[L:0,C:0] Value=\"*\"]."
+                },
+                "check": {
+                  "Resolved": {
+                    "from": {
+                      "path": "/Resources/RunTransferRole/Properties/Policies/0/PolicyDocument/Statement/0/Resource",
+                      "value": "*"
+                    },
+                    "to": {
+                      "path": "",
+                      "value": "*"
+                    },
+                    "comparison": [
+                      "Eq",
+                      true
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "not_applicable": [],
+  "compliant": [
+    "offline_fragment_cannot_activate_host"
+  ]
+}
+exit=19 (EXPECTED REFUSAL)

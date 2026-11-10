@@ -1,0 +1,61 @@
+{
+  "status": "SOURCE_REVIEW_ONLY_NATIVE_UNRUN",
+  "baseCommit": "cdec00efa6d56661264271ebc3437f7b7f5349c2",
+  "sourceCommit": "cb7f67d93db4e36d97940f3f48713f6c107db234",
+  "scope": "One existing layout property, one new direct geometry fixture and its meta; no existing tests changed.",
+  "productDiffIsExactlyOneProperty": true,
+  "existingEditorTestAndMetaFilesUnchanged": 72,
+  "newMetaGuidUniqueAgainstBase": true,
+  "diagnosis": {
+    "oldAllocatedRowHeight": 0,
+    "oldRowAdvance": 8.0,
+    "oldContentPreferredHeight": 108.0,
+    "oldRenderedRowHeightNote": "LayoutGroup pins both anchors to Vector2.up; the final rect has zero height. Content height is 108.",
+    "expectedFixedRowHeight": 72.0,
+    "expectedFixedGap": 8.0,
+    "expectedFixedContentPreferredHeight": 972.0,
+    "nativeMeasurements": null
+  },
+  "checksPerformed": [
+    "Exact source diff",
+    "Existing Editor fixtures and metas byte comparison",
+    "New meta GUID uniqueness",
+    "Installed UGUI branch inspection",
+    "Source-derived layout arithmetic"
+  ],
+  "notPerformed": [
+    "Compilation",
+    "Managed tests",
+    "Unity/native tests",
+    "Editor actions",
+    "Browser input",
+    "Web build",
+    "Fixed raster capture"
+  ],
+  "files": {
+    "client-unity/UnityProject/Assets/Scripts/UI/ModernSettingsView.cs": {
+      "sha256": "9590d87b09b7a93946595137228d01ef98ca83782e85f2452d5c762b2b4e5e3b",
+      "bytes": 12386
+    },
+    "client-unity/UnityProject/Assets/Tests/Editor/ModernSettingsLayoutEditModeTests.cs": {
+      "sha256": "ad9f9553fcc56134856c7d4d7c08e116b73ee43a9a4d40ab8f105c9d5738c162",
+      "bytes": 8815
+    },
+    "client-unity/UnityProject/Assets/Tests/Editor/ModernSettingsLayoutEditModeTests.cs.meta": {
+      "sha256": "722888730655d3785b5b1cee9c1f491779c18513f87ddb56ed9555dbe802b74c",
+      "bytes": 60
+    }
+  },
+  "installedUguiSource": {
+    "path": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Library/PackageCache/com.unity.ugui@cd4936b8279f/Runtime/UGUI/UI/Core/Layout/HorizontalOrVerticalLayoutGroup.cs",
+    "sha256": "5bc725ba0cd30d649fa50c8646392e2eaa04cc47a4f7d09e9807081938ec6d94",
+    "bytes": 14160
+  },
+  "installedLayoutGroupSource": {
+    "path": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Library/PackageCache/com.unity.ugui@cd4936b8279f/Runtime/UGUI/UI/Core/Layout/LayoutGroup.cs",
+    "sha256": "c21e2d675d9e44f0c09c1adb32a48e23df97135557d10f29860826c1ab83d8d2",
+    "bytes": 15720
+  },
+  "sourceCheckerSha256": "7901f46eb8c01c881dc79100c032454557862a9d3f41978fb3700dc7ff66e065",
+  "testCasesStatus": "Authored source only; no compiled case inventory and no test result."
+}

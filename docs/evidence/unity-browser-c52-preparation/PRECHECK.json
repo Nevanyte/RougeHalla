@@ -1,0 +1,143 @@
+{
+  "format": "rh-c52-browser-preparation-precheck/1",
+  "recordedUtc": "2026-11-09T20:29:33.380Z",
+  "classification": "READ_ONLY_PREPARATION_NOT_RUNTIME_ACCEPTANCE",
+  "nativeSource": "c52e41a633c91f8402e3f68724e9202351d1cdb3",
+  "clientSource": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+  "browserOrigin": "http://localhost:8888",
+  "sourceTrees": {
+    "client-unity": {
+      "clientTree": "472705443109af59873329292baa51c7e93e5814",
+      "nativeTree": "472705443109af59873329292baa51c7e93e5814",
+      "equal": true
+    },
+    "protocol": {
+      "clientTree": "97a2b4e27dbea94cceb751c1000c646a01eb00ae",
+      "nativeTree": "97a2b4e27dbea94cceb751c1000c646a01eb00ae",
+      "equal": true
+    }
+  },
+  "sharedUi": {
+    "client-unity/UnityProject/Assets/Scripts/Net/MatchClient.Resume.cs": {
+      "bytes": 15475,
+      "sha256": "db7f2daf9acf031a1d8addbe722dda8417ea62e938fd7d9ef6f89f2438190912",
+      "equal": true
+    },
+    "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.Resume.cs": {
+      "bytes": 10404,
+      "sha256": "10d0f1b0a89e3b44fc445164597366b960f6b5848152269c16d921191fdd918d",
+      "equal": true
+    },
+    "client-unity/RoguehallaNet/Net/OwnedSeatCheckpoint.cs": {
+      "bytes": 8739,
+      "sha256": "bae379d55aecefe5da17b4a8313ecd11494fdd814d7e8269dd5116edcdca4bcb",
+      "equal": true
+    },
+    "client-unity/RoguehallaNet/Net/OwnedSeatCheckpointCodec.cs": {
+      "bytes": 5792,
+      "sha256": "d319f4f8f16415258bff826654e07b095270410cc3393232b320685afd790afd",
+      "equal": true
+    },
+    "client-unity/RoguehallaNet/Net/WebGlSeatCheckpointStorage.cs": {
+      "bytes": 2987,
+      "sha256": "43fcb9f9cf32cc95f996a5dadb3f462ec8a0d57635e2034ecd87223135c8d48b",
+      "equal": true
+    }
+  },
+  "nativePins": {
+    "crates/rh-protocol/src/lib.rs": {
+      "bytes": 66060,
+      "sha256": "d1258e9c3bd9911a32d0cbdce375c2a0a9ca8f3d792a8b368e382833cc3e896c"
+    },
+    "crates/rh-protocol/src/map.rs": {
+      "bytes": 26087,
+      "sha256": "3610dea813c3df460ce93741cdcb9c49ea20c42db31ab522c873ce17f8a4c03d"
+    },
+    "crates/rh-server/src/main.rs": {
+      "bytes": 43718,
+      "sha256": "4e46669ed9ec8c2be21e7da4d88cd912c359114acadf9943fc0a6b4760ad7d4f"
+    },
+    "crates/rh-server/src/runtime.rs": {
+      "bytes": 8795,
+      "sha256": "e90c5037ce04ba35d83da65e8b4030a070015ad3de3745d2ca27f3aa77df7e8f"
+    },
+    "crates/rh-server/src/room.rs": {
+      "bytes": 147371,
+      "sha256": "dec9fdcb5f491cce503e5865667ba577f733b216f44f2772f039b157af21f886"
+    },
+    "crates/rh-server/src/director.rs": {
+      "bytes": 130537,
+      "sha256": "a70452ca1273e1784b166a29b5ad372429fa07eeb3df3304111c060fd5514e26"
+    },
+    "crates/rh-server/src/api.rs": {
+      "bytes": 19068,
+      "sha256": "fe03e0d7304ced9b32a38231ea47c512ad2419890ee28a47a64aa7d2bfc5654c"
+    },
+    "crates/rh-server/src/api/profile.rs": {
+      "bytes": 31212,
+      "sha256": "245eee98f14c943eaa16823f4f37d6769b597a73137aff3b6e4b869a9f9f7cef"
+    },
+    "crates/rh-server/src/persist.rs": {
+      "bytes": 31438,
+      "sha256": "3cea39cbcf0f2f19d63361c1adc70a2dd35c4c0a1b6deab96d8fb6d4b56db74e"
+    },
+    "maps/first-playable.json": {
+      "bytes": 23635,
+      "sha256": "90bc4c8e82b7d4ba4819843001ae59da35c20ee870b5591b20192082b5bd16aa"
+    }
+  },
+  "nativeArtifact": {
+    "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/native-browser-c52-build/rh-server",
+    "bytes": 42479296,
+    "sha256": "2533c89b6581610a33a79ff95492989711a33d52999efdd2fc045cb771a62a65",
+    "buildReceiptSha256": "24dabcf480360b4b60fe0d1cb0a456c79370c0ccd2c5e03dceb45f0e706f02e2",
+    "profile": "dev/debug; functional browser only, NOT release/performance evidence",
+    "serverStartedByThisCheck": false,
+    "postgresStartedByThisCheck": false
+  },
+  "versions": {
+    "node": "v25.8.1",
+    "platform": "darwin",
+    "arch": "arm64",
+    "postgres": "postgres (PostgreSQL) 16.15 (Homebrew)"
+  },
+  "portSnapshot": {
+    "ports": {
+      "7777": {
+        "listenerPresent": false,
+        "exitCode": 1
+      },
+      "7779": {
+        "listenerPresent": false,
+        "exitCode": 1
+      },
+      "8888": {
+        "listenerPresent": false,
+        "exitCode": 1
+      },
+      "65439": {
+        "listenerPresent": false,
+        "exitCode": 1
+      }
+    },
+    "reservation": false,
+    "recheckBeforeReleasedStartup": true
+  },
+  "privateState": {
+    "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/browser-c52-actual",
+    "exists": false,
+    "createdByThisCheck": false
+  },
+  "webArtifact": {
+    "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/web-build-6d-2026-11-09/Web",
+    "status": "PENDING_IMMUTABLE_ART_RECEIPT",
+    "resourcesReadOrHashed": false
+  },
+  "pending": [
+    "Root review and explicit runtime release",
+    "sealed Web source/resource receipt",
+    "router source and manifest review",
+    "fresh durable PostgreSQL and Source spool",
+    "actual ordinary UI browser campaign and separate genuine Source settlement"
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "argv": [
+    "unity",
+    "command",
+    "test",
+    "run",
+    "--project-path",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+    "--caller",
+    "plugin",
+    "--skill",
+    "unity-cli",
+    "--format",
+    "json",
+    "--timeout",
+    "60",
+    "--",
+    "--mode",
+    "editor",
+    "--filter",
+    "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests",
+    "--timeout",
+    "60"
+  ],
+  "startedUtc": "2026-11-09T19:22:49.407211+00:00",
+  "finishedUtc": "2026-11-09T19:22:54.316277+00:00",
+  "exitCode": 0,
+  "launchError": null,
+  "stdoutSha256": "b4a8ae6ec7b1808fdabb77c3b7ca84d51293b6b540a66d9dbc6c14c12b1144e1",
+  "stdoutBytes": 1305,
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderrBytes": 0
+}

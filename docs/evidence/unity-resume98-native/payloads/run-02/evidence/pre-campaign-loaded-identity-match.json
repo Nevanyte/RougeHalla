@@ -1,0 +1,9 @@
+{
+  "status": "PASS_SAME_NATIVE_IDENTITY_BEFORE_CAMPAIGN",
+  "originalSha256": "20ad1f78bae0a94f1055aa52fb37eef90f88dcdb0f5618300ec1cc418d760fa8",
+  "freshSha256": "75b8fbf2be132b7e76df8fa946b6da4cc4332a60f484359c64c51b64b0cd5753",
+  "executedTests": false,
+  "project": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+  "editorPid": 46583,
+  "source": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1"
+}

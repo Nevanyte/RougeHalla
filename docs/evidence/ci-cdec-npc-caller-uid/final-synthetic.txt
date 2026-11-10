@@ -1,0 +1,14 @@
+test_cleanup_never_stops_unowned_container (<run_path>.ContextControls) ... ok
+test_current_and_historical_doc_drift_refused_independently (<run_path>.ContextControls) ... ok
+test_every_byte_including_metadata_is_compared_without_normalization (<run_path>.ContextControls) ... ok
+test_invalid_or_ambiguous_caller_and_wrong_fresh_output_owner_refuse (<run_path>.ContextControls) ... ok
+test_nonroot_caller_owns_actual_container_and_all_private_tmpfs (<run_path>.ContextControls) ... ok
+test_one_write_original_script_and_mount_envelope (<run_path>.ContextControls) ... ok
+test_source_inventory_and_new_old_tool_files_refused (<run_path>.ContextControls) ... ok
+test_source_only_file_limit_fits_oracles_after_npm (<run_path>.ContextControls) ... ok
+test_symlink_ancestor_and_file_are_refused (<run_path>.ContextControls) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.009s
+
+OK

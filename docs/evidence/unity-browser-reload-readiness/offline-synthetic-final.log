@@ -1,0 +1,23 @@
+✔ Hello skips every private/string/content byte and reports presence only (1.360208ms)
+✔ Welcome reads exact public identity/structural headers and skips session plus map payload (0.170917ms)
+✔ All structural prefixes refuse; unknown versions do not inspect later fields (8.374167ms)
+✔ Original-buffer adapter parser neither converts text/Blob nor confuses ignored tags (0.35225ms)
+✔ Inert proposal forwards genuine constructor/send args and original received buffer exactly once (19.082291ms)
+✔ Native throws remain native; diagnostic failure and stop never send/close or change game buffers (0.2385ms)
+✔ Unknown wire shapes disable only metadata and cannot replace native delivery (0.092875ms)
+✔ Document observer is idempotent, ignores text keys, and touches no storage/URL values (1.24675ms)
+✔ Generated preload proposal is classic-script syntax only; it is NOT installed by this test (0.478666ms)
+✔ Proposal installation is idempotent and reversible in a synthetic VM, with zero socket construction (0.575ms)
+✔ Readiness template and synthetic consistency never grant browser acceptance (0.757666ms)
+✔ Checker rejects same-document, replacement tab, changed identity, fresh fallback and late reload (0.38575ms)
+✔ Unknown credential/raw payload fields are refused without echoing rejected values (0.180208ms)
+✔ Automatic connection or Hello shortly before the real trusted Resume click is refused (0.069417ms)
+✔ A resumed mode label before Welcome cannot be reused as accepted gameplay evidence (0.050541ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 102.216209

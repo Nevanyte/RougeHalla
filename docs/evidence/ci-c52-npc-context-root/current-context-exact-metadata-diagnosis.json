@@ -1,0 +1,18 @@
+{
+  "format": "rh-ci-c52-npc-exact-metadata-diagnosis/1",
+  "sourceExecutions": 1,
+  "preSourceSetupFailuresPreserved": 2,
+  "actualBytes": 13952630,
+  "actualSha256": "61edae278ce5538a0a265dbaeede62d67129e3ad6cf00cda02b4ca3aea36a9ad",
+  "originalOracleBytes": 13952630,
+  "originalOracleSha256": "15c3dbc1f5d718859413e8dbb9891602dd49870f10dae4f12dc3152e2c57de96",
+  "onlyPointer": "/profile/contractInputs/docs~1CONTRACTS.md",
+  "historicalContractSha256": "2c9e0b9b562752ec907fe8ffa0e67986e6f6005a11c744f657fd67863de6e7cd",
+  "currentContractSha256": "456652ccc0b8441f39464513fdf31843b9882e0bcece44958e7d620a987d359a",
+  "singleLiteralOccurrences": 1,
+  "entireRemainingSerializedBytesEqual": true,
+  "originalOracleUnchanged": true,
+  "normalizedOutputWritten": false,
+  "claim": "Exactone provenancehashdiff; no gameplay/source/config/tool/ID/order/numeric/whitespace difference outsidethatmember",
+  "legacyOriginalCheck": "remainsFAILEDunderCURRENTdoccontext; notrelabeledgreen"
+}

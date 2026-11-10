@@ -1,0 +1,18 @@
+{
+  "format": "rh-root-variant-generated-review/1",
+  "reviewedUtc": "2026-11-09T22:07:26.270154+00:00",
+  "status": "PASS",
+  "controlId": "comment-provenance",
+  "code": "02d77c341548846bd719608b665f7cbddd652f42",
+  "manifestSha256": "502f91c19d3acf183f89a0807812c1f4792d33691dcf964158d5a524e975e4ca",
+  "bundleSha256": "aa70fa9f32df064286ea269af0545f958d562f325ff8ce348e36e7abb209352f",
+  "runtimeSha256": "e98352bfb7fa39b62e1ddbc3725179c5d890f634e55bab960f6811765a3bbde7",
+  "verifySha256": "10188528d712c8000000db548caa2388c74c56c03d5bb7f9af4a6b996853e935",
+  "originalClosure": 133,
+  "changedExecutedSource": [
+    "packages/server/src/sim/arena.ts"
+  ],
+  "wholeBundle": "exact single declared literal replacement, or identical comment nonkill",
+  "sourceExecuted": false,
+  "phaseB": "NOT_RELEASED"
+}

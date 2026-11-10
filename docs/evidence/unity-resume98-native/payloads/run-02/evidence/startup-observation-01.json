@@ -1,0 +1,11 @@
+{
+  "scope": "Only newPID46583 owned log and frozen source files",
+  "utc": "2026-11-09T18:54:46.257411+00:00",
+  "logExists": true,
+  "logBytes": 753897,
+  "logLines": 4511,
+  "diagnosticCandidates": [],
+  "packageMarkers": 5,
+  "compileMarkers": 33,
+  "sourceDrift": []
+}

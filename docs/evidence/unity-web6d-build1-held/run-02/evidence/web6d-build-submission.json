@@ -1,0 +1,18 @@
+{
+  "source": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+  "editorPid": 46583,
+  "actualBuildOrdinal": 1,
+  "releaseSha256": "b3f04e42211573806d52a2af45333083486f8b013c37e817754f54e4362052c3",
+  "planSha256": "26dca77f57ffa70b8d809e975dc294cbb68b6f068abc44a5eadfba6dc6c2e419",
+  "options": [
+    "DetailedBuildReport"
+  ],
+  "development": false,
+  "output": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/web-build-6d-2026-11-09/Web",
+  "scenes": [
+    "Assets/Scenes/Main.unity"
+  ],
+  "requestedUtc": "2026-11-09T20:18:11.869084+00:00",
+  "availableBytes": 9113534464,
+  "privateEditorLogStartBytes": 3157524
+}

@@ -1,0 +1,26 @@
+{
+  "format": "rh-root-native2112-expiry-admission/1",
+  "utc": "2026-11-09T22:11:21.126562+00:00",
+  "temporal": {
+    "source": "71bcb39fa626f4b635faad13c3f52c165e9bc88a",
+    "finalEvidence": "fde2cbf6175dd051ccd975ba3cfde7e2a06506d8",
+    "rootIntegratedTests": 3,
+    "frames": 2112,
+    "nonnull": 2046,
+    "null": 66,
+    "maxRawNumericError": 0.0,
+    "authorRegression": 17,
+    "sourceScope": "test-only adapter through unchanged private Ring, not public/live/fullBrain"
+  },
+  "expiry": {
+    "source": "27ec2acbc287ca73e3a886640162070868dcd605",
+    "evidence": "f640dbf17bb8f4a7252d021bdb2707f742f8175e",
+    "merge": "6a251045a05e3abd2ed63eb2df4d080930a22a64",
+    "rootIntegratedTests": 21,
+    "rootSeconds": 0.043,
+    "scope": "Linux-only executable component with injected OS tests; no real host invocation or install/deploy gate",
+    "originalHold": "successful first enable emits stderr without --quiet; repaired exact shared enable vector and native-runner regression; original evidence retained"
+  },
+  "identity": "P14/cp29/replay23/OBS21/policy15/content7c6a633f68c2cc72 unchanged",
+  "runtimeBrowserSource": "c52 functional dev, Web57 accepted; new test/tool merges do not relabel binary as release/performance build"
+}

@@ -1,0 +1,25 @@
+test_ambiguous_missing_unsupported_and_disagreeing_device_graphs_refuse (test_host_device.DeviceCollector) ... ok
+test_cli_collects_then_refuses_actual_uuid_mismatch_without_success_output (test_host_device.DeviceCollector) ... ok
+test_collected_kernel_and_lsblk_serials_are_independent_checks (test_host_device.DeviceCollector) ... ok
+test_collected_uuid_must_match_both_probes_and_expected_uuid (test_host_device.DeviceCollector) ... ok
+test_cycle_and_missing_mapped_slave_refuse (test_host_device.DeviceCollector) ... ok
+test_dedicated_data_with_mapped_root_is_supported (test_host_device.DeviceCollector) ... ok
+test_dedicated_partition_collects_observed_identity_and_all_ancestors (test_host_device.DeviceCollector) ... ok
+test_dedicated_whole_device_and_mapped_targets (test_host_device.DeviceCollector) ... ok
+test_each_mount_ancestor_symlink_and_stat_device_mismatch_refuse (test_host_device.DeviceCollector) ... ok
+test_invalid_expected_contract_cannot_override_observed_facts (test_host_device.DeviceCollector) ... ok
+test_lvm_root_checks_every_slave_not_just_first_parent (test_host_device.DeviceCollector) ... ok
+test_mac_and_unknown_platform_refuse_before_any_probe (test_host_device.DeviceCollector) ... ok
+test_mount_change_between_snapshots_and_probe_failure_refuse (test_host_device.DeviceCollector) ... ok
+test_multi_disk_root_reports_all_ancestors_and_multi_disk_data_refuses (test_host_device.DeviceCollector) ... ok
+test_native_adapter_uses_only_fixed_argv_no_shell_and_readonly_lowlevel_blkid (test_host_device.DeviceCollector) ... ok
+test_native_mount_walk_uses_readonly_nofollow_directory_descriptors_and_closes (test_host_device.DeviceCollector) ... ok
+test_nested_lsblk_tree_and_kernel_parent_edges_agree (test_host_device.DeviceCollector) ... ok
+test_root_alias_same_partition_different_partition_and_whole_disk_refuse (test_host_device.DeviceCollector) ... ok
+test_tool_paths_require_root_owned_unwritable_symlink_free_components (test_host_device.DeviceCollector) ... ok
+test_unmounted_readonly_wrong_fstype_and_bind_mount_refuse (test_host_device.DeviceCollector) ... ok
+
+----------------------------------------------------------------------
+Ran 20 tests in 0.008s
+
+OK

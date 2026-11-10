@@ -1,0 +1,86 @@
+{
+  "base": "7401e2908a080799937a6f074dbc142d74320cc1",
+  "status": "unchanged exact bytes",
+  "files": [
+    {
+      "path": "tools/npc-witness-context/context.json",
+      "bytes": 124135,
+      "sha256": "937a6b0a38ef533a3a1848e77b63a7e6763f94ebe29383ab5790314210076e14"
+    },
+    {
+      "path": "tools/npc-witness-context/CONTRACTS.197926e2.md",
+      "bytes": 87296,
+      "sha256": "2c9e0b9b562752ec907fe8ffa0e67986e6f6005a11c744f657fd67863de6e7cd"
+    },
+    {
+      "path": "docs/CONTRACTS.md",
+      "bytes": 88542,
+      "sha256": "456652ccc0b8441f39464513fdf31843b9882e0bcece44958e7d620a987d359a"
+    },
+    {
+      "path": "parity/policy/npc-continuity/source.json",
+      "bytes": 13952630,
+      "sha256": "15c3dbc1f5d718859413e8dbb9891602dd49870f10dae4f12dc3152e2c57de96"
+    },
+    {
+      "path": "parity/policy/npc-runner-callsite/source.json",
+      "bytes": 30636484,
+      "sha256": "0c9344109283d2cf848c83892924071e9277f163d79e69e3c634c3d19c7f4a58"
+    },
+    {
+      "path": "tools/npc-continuity-fixtures/README.md",
+      "bytes": 2689,
+      "sha256": "7b6af4181d4ca9a56984ad6a4d3f301772088be5447bdbd25717645ed8bd361f"
+    },
+    {
+      "path": "tools/npc-continuity-fixtures/bot.mts",
+      "bytes": 8979,
+      "sha256": "145532ba8af04c2afc8cd86d7c16261bbaf71594aecf3d7496c558e03f959f8e"
+    },
+    {
+      "path": "tools/npc-continuity-fixtures/capture.mts",
+      "bytes": 8925,
+      "sha256": "ba900b80513634b878fe55a82b2520620afeb421e013f31735bc759fa10e9b71"
+    },
+    {
+      "path": "tools/npc-continuity-fixtures/capture.sh",
+      "bytes": 1104,
+      "sha256": "610c9c7cf8623ad2b8a815f5464d15d7d1f31e86be0cbf91a2e2e50598cc88c0"
+    },
+    {
+      "path": "tools/npc-continuity-fixtures/human.mts",
+      "bytes": 15599,
+      "sha256": "aee30c480e9505473c541f400be9a644c167ddaab66e1c20206db68b6487f299"
+    },
+    {
+      "path": "tools/npc-continuity-fixtures/world.mts",
+      "bytes": 15841,
+      "sha256": "359f556eb4c4af616401ce3094b388c04c996bd964081f72d43b4a2e941a0e89"
+    },
+    {
+      "path": "tools/npc-runner-callsite-fixtures/README.md",
+      "bytes": 2338,
+      "sha256": "cf6dd7ec0ac6f1049e317175d84cb871502b3800bb046ddb3ee66b1724a80294"
+    },
+    {
+      "path": "tools/npc-runner-callsite-fixtures/capture.mts",
+      "bytes": 6739,
+      "sha256": "b7d21027814fed88dd0d6e6cf3c99304d72ff37bb8e9fe79fb411cb05ff23714"
+    },
+    {
+      "path": "tools/npc-runner-callsite-fixtures/capture.sh",
+      "bytes": 1115,
+      "sha256": "ce3684a37603585268bf69acc1020b42908d4aa28b73fc86bb0fb35b0c76cbe1"
+    },
+    {
+      "path": "tools/npc-runner-callsite-fixtures/runner.mts",
+      "bytes": 23088,
+      "sha256": "2539814f2a1b8b3c13ae9242af3a384aebabeecbb0a5d58060dff121fe943f7b"
+    },
+    {
+      "path": "tools/npc-runner-callsite-fixtures/source-history.mts",
+      "bytes": 9956,
+      "sha256": "29a99643a9a59a9586846d7d40a26050c4c5d75acddc513fedff102722c27d05"
+    }
+  ]
+}

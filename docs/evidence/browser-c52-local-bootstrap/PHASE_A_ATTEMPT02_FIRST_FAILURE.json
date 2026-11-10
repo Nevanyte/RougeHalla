@@ -1,0 +1,115 @@
+{
+  "format": "rh-browser-c52-phaseA-first-failure/1",
+  "stage": "checking-public-identities-readiness-cors",
+  "exceptionType": "AttributeError",
+  "reason": "Operation failed; private output retained without dump",
+  "utc": "2026-11-09T21:44:43.486980+00:00",
+  "cleanup": [
+    {
+      "name": "router",
+      "pid": 91868,
+      "exitCode": 0
+    },
+    {
+      "name": "training",
+      "pid": 91853,
+      "exitCode": 0
+    },
+    {
+      "name": "source",
+      "pid": 91832,
+      "exitCode": 0
+    },
+    {
+      "name": "postgres",
+      "pid": 91805,
+      "stopExitCode": 0
+    }
+  ],
+  "partialFacts": {
+    "format": "rh-browser-c52-phaseA-actual/1",
+    "releaseSha256": "0f06a88f530a036ffa1d413394d9cddd4be88cc4e8964b0b0406f595c0940064",
+    "browserPhaseB": "NOT_RELEASED",
+    "claims": 0,
+    "HelloSent": 0,
+    "joins": 0,
+    "matchesCreatedByProbe": 0,
+    "startedUtc": "2026-11-09T21:44:41.685105+00:00",
+    "attempt": 2,
+    "correctedProbeResumeSha256": "90bd7ae2c25557412fd1f78880a78cec31bc8f0bb70d8df798a79096d88c2fdf",
+    "priorFailureSha256": "a0d93c678fc5b4d70023b5db97d5d6429fcefab0f1571c83fd010c9a0e359c7d",
+    "databaseReinitialized": false,
+    "rolesRecreated": false,
+    "privilegesChanged": false,
+    "pathsSwapped": false,
+    "preResumeDatabaseSystemIdentifier": "7706286922582076631",
+    "inputRevalidationSha256": {
+      "RESUME_CLUSTER_REVALIDATION.json": "e4978c3c17bcc8b123dd309e9de23967af0617e9cf0dd5c925c2396b05364c79",
+      "RESUME_INPUT_REVALIDATION.json": "6af79c9b79225faf52cb7eadcadecbf00e203429c836268cb7bc222d880c23e2"
+    },
+    "postgresProcess": {
+      "pid": 91805,
+      "uid": 501,
+      "startWitness": "Mon Nov  9 15:44:42 2026"
+    },
+    "actualSocket": {
+      "uid": 501,
+      "mode": "0o700",
+      "isSocket": true
+    },
+    "postgres": {
+      "version": "16.15 (Homebrew)",
+      "fsync": "on",
+      "synchronousCommit": "on",
+      "fullPageWrites": "on",
+      "listenAddresses": "",
+      "socketPort": 65439,
+      "tcpListener": false,
+      "appRole": "rh_game",
+      "peerMappedOsOwner": "nevinmckinnon",
+      "appRoleRestricted": true,
+      "databaseOwnedByApp": true,
+      "encoding": "UTF8"
+    },
+    "sourceListener": {
+      "pid": 91832,
+      "port": 7777,
+      "addresses": [
+        "127.0.0.1:7777"
+      ],
+      "uid": 501,
+      "startWitness": "Mon Nov  9 15:44:42 2026"
+    },
+    "trainingListener": {
+      "pid": 91853,
+      "port": 7779,
+      "addresses": [
+        "127.0.0.1:7779"
+      ],
+      "uid": 501,
+      "startWitness": "Mon Nov  9 15:44:43 2026"
+    },
+    "schema": {
+      "appliedVersions": [
+        1,
+        2
+      ],
+      "failedMigrations": 0,
+      "compatibilityFloor": 1,
+      "expectedTableCount": 11,
+      "exactTableInventory": true
+    },
+    "routerListener": {
+      "pid": 91868,
+      "port": 8888,
+      "addresses": [
+        "127.0.0.1:8888",
+        "[::1]:8888"
+      ],
+      "uid": 501,
+      "startWitness": "Mon Nov  9 15:44:43 2026"
+    }
+  },
+  "statePreserved": true,
+  "noFallbackOrRetry": true
+}

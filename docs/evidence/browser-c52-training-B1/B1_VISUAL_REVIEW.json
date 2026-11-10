@@ -1,0 +1,77 @@
+{
+  "format": "rh-b1-saved-raster-visual-review/1",
+  "reviewedUtc": "2026-11-09T22:20:48.272498+00:00",
+  "scope": "Only saved1280x720 JPEG and B1 receipt; no live browser/Editor input or source changes",
+  "imageSha256": "5e47441a6dc5fda8c6d26c2e3a91442b7c91666fa4b10efc07c8e85e1db36e96",
+  "receiptSha256": "414b24392dc6acc5309e0edbd372fe80349ece5e493c16fb7897bbba6cb80ed7",
+  "assessment": "READABLE_BASELINE_FRAME_WITH_DENSITY_AND_CROWDING_FOLLOWUPS",
+  "observedPasses": [
+    "Practice/no-rewards status is prominent and consistent with the training receipt.",
+    "HP readout/bar, action slots, CONSOLE, HELP, SETTINGS, Leave/menu and TAB MAP are legible in this saved raster.",
+    "No obvious panel-to-panel collision, clipped primary control or HUD text cut off by the image edges.",
+    "Controlled actor selection ring appears under the feet; no obvious floating or ground penetration in this frame.",
+    "Bright obstacle faces and torch locations are distinguishable from the floor in this frame."
+  ],
+  "findings": [
+    {
+      "id": "B1-V1",
+      "severity": "readability-followup",
+      "finding": "Top-left stat abbreviations/counts and small control hints are dense at720p; primary labels remain readable.",
+      "disposition": "Inspect the existing150% text option at720p before deciding whether a UI correction is needed."
+    },
+    {
+      "id": "B1-V2",
+      "severity": "crowding-followup-not-confirmed-defect",
+      "finding": "The central adjacent actor silhouettes, overhead bars and triangle/ring markers overlap; assigning every bar/marker to an actor is less clear than the isolated actor.",
+      "disposition": "Retain for the finite visual matrix and later combat observation; this still does not prove wrong sorting, collision or bar ownership."
+    }
+  ],
+  "notEstablished": [
+    "No measured WCAG contrast ratio from this JPEG.",
+    "No independently measured displacement or input latency from a single post-movement still; movement is reported by the receipt.",
+    "No animation, combat, aiming/interaction accuracy, hidden-actor cue cleanup, faction coverage, Trophy selection, results, audio or performance acceptance.",
+    "Screenshot raster size does not by itself prove WebGL drawing-buffer size.",
+    "B1 receipt records no settings changes, but it does not record the actual text-scale value; default100% must be confirmed through ordinary visible settings before closing that matrix cell."
+  ],
+  "finiteMatrix": [
+    {
+      "raster": [
+        1280,
+        720
+      ],
+      "text": "default100%",
+      "status": "saved raster reviewed; actual scale not recorded in B1 receipt"
+    },
+    {
+      "raster": [
+        1280,
+        720
+      ],
+      "text": "150%",
+      "status": "OPEN"
+    },
+    {
+      "raster": [
+        2560,
+        1440
+      ],
+      "text": "default100%",
+      "status": "OPEN"
+    },
+    {
+      "raster": [
+        2560,
+        1440
+      ],
+      "text": "150%",
+      "status": "OPEN"
+    }
+  ],
+  "perCaseChecks": [
+    "Record requested viewport/raster size and visible text-scale setting without claiming unobserved drawing-buffer facts.",
+    "Inspect practice banner, small stats, HP/action row, ability copy, minimap/footer and top navigation for clipping/overlap.",
+    "Keep the local player marker/feet and nearby actor indicators distinguishable; record any observed defect with its actual capture.",
+    "Preserve only actual saved screenshots and receipts; no reconstructed earlier frames or FPS claims."
+  ],
+  "liveControl": "Functional browser lane retains IAB tab1; this review did not claim or operate it."
+}

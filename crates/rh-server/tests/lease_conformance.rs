@@ -550,6 +550,7 @@ async fn director_renews_live_seats_by_id_and_expires_only_the_stalled_seat() {
     // Every later snapshot proves a completed room step while our transaction still owns the lock.
     resumed_tx
         .send(rh_server::room::RoomCmd::Input {
+            received: std::time::Instant::now(),
             player: resumed_join.player,
             conn: 4,
             seq: 7001,

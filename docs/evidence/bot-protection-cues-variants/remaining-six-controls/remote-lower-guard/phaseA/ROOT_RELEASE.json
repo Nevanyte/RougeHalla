@@ -1,0 +1,29 @@
+{
+  "format": "rh-root-protection-cue-variant-A/1",
+  "issuedUtc": "2026-11-09T22:00:09.447176+00:00",
+  "authority": "ONE remote-lower-guard compiler-only build. No Source/World/import/capture or automatic next operation. Frozen code and source remain unchanged.",
+  "code": "02d77c341548846bd719608b665f7cbddd652f42",
+  "controlId": "remote-lower-guard",
+  "argv": [
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/map-styled-bench/npm-cache/_npx/361c55be1121897e/node_modules/node/bin/node",
+    "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/tools/bot-protection-cues-fixtures/variants-build.mjs",
+    "--source-root",
+    "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings",
+    "--tool-root",
+    "/Users/nevinmckinnon/Documents/Projects/RogueHalla/node_modules",
+    "--output",
+    "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/docs/evidence/bot-protection-cues-variants/offline-remote-lower-guard-root-reviewed-01/prepared",
+    "--expected-code-sha",
+    "02d77c341548846bd719608b665f7cbddd652f42",
+    "--control-id",
+    "remote-lower-guard"
+  ],
+  "env": {
+    "PATH": "/usr/bin:/bin",
+    "LANG": "C",
+    "LC_ALL": "C",
+    "ESBUILD_BINARY_PATH": "/Users/nevinmckinnon/Documents/Projects/RogueHalla/node_modules/@esbuild/darwin-arm64/bin/esbuild"
+  },
+  "cwd": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings",
+  "timeoutSeconds": 120
+}

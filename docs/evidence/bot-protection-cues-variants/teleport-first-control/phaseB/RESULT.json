@@ -1,0 +1,8 @@
+{
+  "startedUtc": "2026-11-09T21:54:55.307819+00:00",
+  "kind": "ONE actual semantic control",
+  "status": "PROCESS_COMPLETED",
+  "exit": 0,
+  "containerCleanup": "verified-not-present",
+  "finishedUtc": "2026-11-09T21:54:56.775889+00:00"
+}

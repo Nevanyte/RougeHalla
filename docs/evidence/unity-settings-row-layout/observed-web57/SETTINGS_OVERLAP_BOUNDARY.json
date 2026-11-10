@@ -1,0 +1,69 @@
+{
+  "status": "STOP_SETTINGS_LAYOUT_OVERLAP",
+  "newPracticeConfirmed": true,
+  "profile": "rhc52a1109",
+  "originalTextScale": null,
+  "textScaleReliablyReadable": false,
+  "textScaleChanged": false,
+  "settingsStillOpen": true,
+  "RSent": false,
+  "attackSent": false,
+  "actionSequence": [
+    {
+      "action": "Return to menu",
+      "startedUtc": "2026-11-09T22:39:52.125Z",
+      "endedUtc": "2026-11-09T22:39:52.145Z"
+    },
+    {
+      "action": "Training new practice session",
+      "startedUtc": "2026-11-09T22:40:00.292Z",
+      "endedUtc": "2026-11-09T22:40:00.310Z",
+      "resume": false
+    },
+    {
+      "action": "Open ordinary Settings",
+      "startedUtc": "2026-11-09T22:40:11.426Z",
+      "endedUtc": "2026-11-09T22:40:11.444Z"
+    }
+  ],
+  "screenshots": [
+    {
+      "label": "00-current-practice",
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/browser-c52-training-B2-01/00-current-practice.jpg",
+      "bytes": 99716,
+      "capturedUtc": "2026-11-09T22:32:31.651Z"
+    },
+    {
+      "label": "01-before-ordinary-menu-recovery",
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/browser-c52-training-B2-01/01-before-ordinary-menu-recovery.jpg",
+      "bytes": 99692,
+      "capturedUtc": "2026-11-09T22:39:47.784Z"
+    },
+    {
+      "label": "02-owned-profile-menu",
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/browser-c52-training-B2-01/02-owned-profile-menu.jpg",
+      "bytes": 87549,
+      "capturedUtc": "2026-11-09T22:39:52.305Z"
+    },
+    {
+      "label": "03-new-practice",
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/browser-c52-training-B2-01/03-new-practice.jpg",
+      "bytes": 92583,
+      "capturedUtc": "2026-11-09T22:40:00.478Z"
+    },
+    {
+      "label": "04-settings-original-visible-value",
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/browser-c52-training-B2-01/04-settings-original-visible-value.jpg",
+      "bytes": 67991,
+      "capturedUtc": "2026-11-09T22:40:11.611Z"
+    },
+    {
+      "label": "05-settings-second-observation-no-input",
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/browser-c52-training-B2-01/05-settings-second-observation-no-input.jpg",
+      "bytes": 67945,
+      "capturedUtc": "2026-11-09T22:40:49.401Z"
+    }
+  ],
+  "recordedUtc": "2026-11-09T22:41:57.119Z",
+  "previousClosedOutcomePreserved": true
+}

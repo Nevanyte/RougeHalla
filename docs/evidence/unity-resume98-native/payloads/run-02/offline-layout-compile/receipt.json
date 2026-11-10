@@ -1,0 +1,11 @@
+{
+  "scope": "offline new6d source preparation compile only; no stage or native call",
+  "sourceSha256": "92e06f9b168fd3f2d6606a5bd88a07d8eeab2f4592e1711778a6a1423ca57d7c",
+  "responseSha256": "9f5ca8e62cd4dc67618b57c11ed8e3951f3b021cdd7e171d19d362a538ca0cdc",
+  "exitCode": 0,
+  "argv": [
+    "/Applications/Unity/Hub/Editor/6000.0.85f2/Unity.app/Contents/NetCoreRuntime/dotnet",
+    "/Applications/Unity/Hub/Editor/6000.0.85f2/Unity.app/Contents/DotNetSdkRoslyn/csc.dll",
+    "@/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/offline-layout-compile/compile.rsp"
+  ]
+}

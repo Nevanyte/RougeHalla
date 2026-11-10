@@ -1,0 +1,17 @@
+test_actual_frozen_native_configuration_is_pinned (test_preparation.Preparation) ... FAIL
+
+======================================================================
+FAIL: test_actual_frozen_native_configuration_is_pinned (test_preparation.Preparation)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owned-seat-checkpoint/repo/tools/staging-full-runtime/test_preparation.py", line 89, in test_actual_frozen_native_configuration_is_pinned
+    self.assertEqual(hashlib.sha256((root / path).read_bytes()).hexdigest(), digest, path)
+AssertionError: 'e90c5037ce04ba35d83da65e8b4030a070015ad3de3745d2ca27f3aa77df7e8f' != 'a3d52a5595b4e2c489784aa8e4e8bcc8a7b1f3c7cfca6685bb20a7bedaa6d7bf'
+- e90c5037ce04ba35d83da65e8b4030a070015ad3de3745d2ca27f3aa77df7e8f
++ a3d52a5595b4e2c489784aa8e4e8bcc8a7b1f3c7cfca6685bb20a7bedaa6d7bf
+ : crates/rh-server/src/runtime.rs
+
+----------------------------------------------------------------------
+Ran 1 test in 0.002s
+
+FAILED (failures=1)

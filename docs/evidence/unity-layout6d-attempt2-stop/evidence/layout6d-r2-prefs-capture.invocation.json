@@ -1,0 +1,23 @@
+{
+  "argv": [
+    "unity",
+    "command",
+    "script",
+    "eval",
+    "--project-path",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+    "--caller",
+    "plugin",
+    "--skill",
+    "unity-cli",
+    "--format",
+    "json",
+    "--",
+    "--file",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/private/capture-layout6d-r2-prefs.cs"
+  ],
+  "exitCode": 0,
+  "stderr": "",
+  "utc": "2026-11-09T20:00:51.811306+00:00",
+  "stdoutSha256": "3f7cefb8297c08d44fa120c5f6d78fa2ff6f3daef9441eceefa73c52b17e806c"
+}

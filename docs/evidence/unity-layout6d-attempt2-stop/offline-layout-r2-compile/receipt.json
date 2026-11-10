@@ -1,0 +1,12 @@
+{
+  "scope": "offline resolver-only attempt2 preparation; no native attempt2 release yet",
+  "sourceSha256": "728899bdfc3e1d4121afda249234eeaf36b3935f36b95259d364cb2b95a5c1cd",
+  "responseSha256": "2a7c2ccf1a5a01cf3326977786e8310f330f0cab6dd3b5bba66af64afca9ee4d",
+  "resolverDiffSha256": "43f0c6e24d24fc3f1e6cd4455caece45bc98ab3bf887d60927177ac2e01aa649",
+  "exitCode": 0,
+  "argv": [
+    "/Applications/Unity/Hub/Editor/6000.0.85f2/Unity.app/Contents/NetCoreRuntime/dotnet",
+    "/Applications/Unity/Hub/Editor/6000.0.85f2/Unity.app/Contents/DotNetSdkRoslyn/csc.dll",
+    "@/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/offline-layout-r2-compile/compile.rsp"
+  ]
+}

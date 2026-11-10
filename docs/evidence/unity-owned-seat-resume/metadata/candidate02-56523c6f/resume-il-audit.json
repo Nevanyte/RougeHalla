@@ -1,0 +1,4569 @@
+{
+  "initialResumeAssignedInJoinCore": true,
+  "connectGateBeforeConnect": true,
+  "gateMethodsPresent": true,
+  "captureOnlyAfterMatchingMode": {
+    "count": 1,
+    "sites": [
+      {
+        "caller": "System.Void Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::\u003CJoinCore\u003Eb__1(Roguehalla.Net.Protocol.ServerMsg/Snapshot)",
+        "offset": 359,
+        "hasModePredicateBefore": true,
+        "hasModeConfirmedWriteBefore": true
+      }
+    ],
+    "allAfterModePredicateAndConfirmation": true
+  },
+  "retireGenerationBeforeClose": true,
+  "closeCapturesOldSessionAndRecord": true,
+  "closeHasDetachAndLeaveRoutes": true,
+  "closeDetachesAfterClearWhenRetirementGenerationChanged": true,
+  "noErrorStringParsing": true,
+  "directIL": {
+    "joinCore": {
+      "method": "System.Void Roguehalla.Client.MatchClient::JoinCore(System.String,System.Int32,Roguehalla.Net.MatchLaunchTarget,System.String,System.Int64,Roguehalla.Net.AccountSettlementAccess,Roguehalla.Net.AccountJoinIntent,Roguehalla.Net.OwnedSeatCheckpoint)",
+      "instructions": [
+        {
+          "offset": 0,
+          "opcode": "newobj",
+          "operand": "System.Void Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::.ctor()"
+        },
+        {
+          "offset": 5,
+          "opcode": "stloc.0",
+          "operand": null
+        },
+        {
+          "offset": 6,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 7,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 8,
+          "opcode": "stfld",
+          "operand": "Roguehalla.Client.MatchClient Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::\u003C\u003E4__this"
+        },
+        {
+          "offset": 13,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 14,
+          "opcode": "ldarg.s",
+          "operand": "generation"
+        },
+        {
+          "offset": 16,
+          "opcode": "stfld",
+          "operand": "System.Int64 Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::generation"
+        },
+        {
+          "offset": 21,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 22,
+          "opcode": "ldarg.3",
+          "operand": null
+        },
+        {
+          "offset": 23,
+          "opcode": "stfld",
+          "operand": "Roguehalla.Net.MatchLaunchTarget Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::target"
+        },
+        {
+          "offset": 28,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 29,
+          "opcode": "ldarg.2",
+          "operand": null
+        },
+        {
+          "offset": 30,
+          "opcode": "stfld",
+          "operand": "System.Int32 Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::faction"
+        },
+        {
+          "offset": 35,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 36,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 37,
+          "opcode": "ldfld",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient::_destroying"
+        },
+        {
+          "offset": 42,
+          "opcode": "brtrue.s",
+          "operand": "IL_003F"
+        },
+        {
+          "offset": 44,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 45,
+          "opcode": "ldfld",
+          "operand": "System.Int64 Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::generation"
+        },
+        {
+          "offset": 50,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 51,
+          "opcode": "ldfld",
+          "operand": "System.Int64 Roguehalla.Client.MatchClient::_joinGeneration"
+        },
+        {
+          "offset": 56,
+          "opcode": "ceq",
+          "operand": null
+        },
+        {
+          "offset": 58,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 59,
+          "opcode": "ceq",
+          "operand": null
+        },
+        {
+          "offset": 61,
+          "opcode": "br.s",
+          "operand": "IL_0040"
+        },
+        {
+          "offset": 63,
+          "opcode": "ldc.i4.1",
+          "operand": null
+        },
+        {
+          "offset": 64,
+          "opcode": "stloc.3",
+          "operand": null
+        },
+        {
+          "offset": 65,
+          "opcode": "ldloc.3",
+          "operand": null
+        },
+        {
+          "offset": 66,
+          "opcode": "brfalse.s",
+          "operand": "IL_0049"
+        },
+        {
+          "offset": 68,
+          "opcode": "br",
+          "operand": "IL_036E"
+        },
+        {
+          "offset": 73,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 74,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 75,
+          "opcode": "ldarg.s",
+          "operand": "resumeRecord"
+        },
+        {
+          "offset": 77,
+          "opcode": "ldnull",
+          "operand": null
+        },
+        {
+          "offset": 78,
+          "opcode": "cgt.un",
+          "operand": null
+        },
+        {
+          "offset": 80,
+          "opcode": "call",
+          "operand": "System.Void Roguehalla.Client.MatchClient::CloseCurrentSession(System.Boolean,System.Boolean)"
+        },
+        {
+          "offset": 85,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 86,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 87,
+          "opcode": "ldfld",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient::_destroying"
+        },
+        {
+          "offset": 92,
+          "opcode": "brtrue.s",
+          "operand": "IL_0071"
+        },
+        {
+          "offset": 94,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 95,
+          "opcode": "ldfld",
+          "operand": "System.Int64 Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::generation"
+        },
+        {
+          "offset": 100,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 101,
+          "opcode": "ldfld",
+          "operand": "System.Int64 Roguehalla.Client.MatchClient::_joinGeneration"
+        },
+        {
+          "offset": 106,
+          "opcode": "ceq",
+          "operand": null
+        },
+        {
+          "offset": 108,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 109,
+          "opcode": "ceq",
+          "operand": null
+        },
+        {
+          "offset": 111,
+          "opcode": "br.s",
+          "operand": "IL_0072"
+        },
+        {
+          "offset": 113,
+          "opcode": "ldc.i4.1",
+          "operand": null
+        },
+        {
+          "offset": 114,
+          "opcode": "stloc.s",
+          "operand": "V_4"
+        },
+        {
+          "offset": 116,
+          "opcode": "ldloc.s",
+          "operand": "V_4"
+        },
+        {
+          "offset": 118,
+          "opcode": "brfalse.s",
+          "operand": "IL_007D"
+        },
+        {
+          "offset": 120,
+          "opcode": "br",
+          "operand": "IL_036E"
+        },
+        {
+          "offset": 125,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 126,
+          "opcode": "ldarg.1",
+          "operand": null
+        },
+        {
+          "offset": 127,
+          "opcode": "call",
+          "operand": "System.Boolean System.String::IsNullOrWhiteSpace(System.String)"
+        },
+        {
+          "offset": 132,
+          "opcode": "brtrue.s",
+          "operand": "IL_008E"
+        },
+        {
+          "offset": 134,
+          "opcode": "ldarg.1",
+          "operand": null
+        },
+        {
+          "offset": 135,
+          "opcode": "callvirt",
+          "operand": "System.String System.String::Trim()"
+        },
+        {
+          "offset": 140,
+          "opcode": "br.s",
+          "operand": "IL_0094"
+        },
+        {
+          "offset": 142,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 143,
+          "opcode": "ldfld",
+          "operand": "System.String Roguehalla.Client.MatchClient::Profile"
+        },
+        {
+          "offset": 148,
+          "opcode": "stfld",
+          "operand": "System.String Roguehalla.Client.MatchClient::Profile"
+        },
+        {
+          "offset": 153,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 154,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 155,
+          "opcode": "ldfld",
+          "operand": "System.Int32 Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::faction"
+        },
+        {
+          "offset": 160,
+          "opcode": "stfld",
+          "operand": "System.Int32 Roguehalla.Client.MatchClient::Faction"
+        },
+        {
+          "offset": 165,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 166,
+          "opcode": "ldfld",
+          "operand": "System.Collections.Generic.List\u00601\u003CRoguehalla.Net.InterpActor\u003E Roguehalla.Client.MatchClient::_actors"
+        },
+        {
+          "offset": 171,
+          "opcode": "callvirt",
+          "operand": "System.Void System.Collections.Generic.List\u00601\u003CRoguehalla.Net.InterpActor\u003E::Clear()"
+        },
+        {
+          "offset": 176,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 177,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 178,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 179,
+          "opcode": "stfld",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient::_steering"
+        },
+        {
+          "offset": 184,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 185,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 186,
+          "opcode": "stfld",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient::_attackHeld"
+        },
+        {
+          "offset": 191,
+          "opcode": "ldstr",
+          "operand": "Arena"
+        },
+        {
+          "offset": 196,
+          "opcode": "newobj",
+          "operand": "System.Void UnityEngine.GameObject::.ctor(System.String)"
+        },
+        {
+          "offset": 201,
+          "opcode": "call",
+          "operand": "!!0 UnityEngine.GameObject::AddComponent\u003CRoguehalla.Client.ArenaView\u003E()"
+        },
+        {
+          "offset": 206,
+          "opcode": "stloc.1",
+          "operand": null
+        },
+        {
+          "offset": 207,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 208,
+          "opcode": "ldloc.1",
+          "operand": null
+        },
+        {
+          "offset": 209,
+          "opcode": "stfld",
+          "operand": "Roguehalla.Client.ArenaView Roguehalla.Client.MatchClient::Arena"
+        },
+        {
+          "offset": 214,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 215,
+          "opcode": "ldfld",
+          "operand": "System.Func\u00601\u003CRoguehalla.Net.ITransport\u003E Roguehalla.Client.MatchClient::_transportFactory"
+        },
+        {
+          "offset": 220,
+          "opcode": "callvirt",
+          "operand": "!0 System.Func\u00601\u003CRoguehalla.Net.ITransport\u003E::Invoke()"
+        },
+        {
+          "offset": 225,
+          "opcode": "stloc.2",
+          "operand": null
+        },
+        {
+          "offset": 226,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 227,
+          "opcode": "ldfld",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient::_destroying"
+        },
+        {
+          "offset": 232,
+          "opcode": "brtrue.s",
+          "operand": "IL_00FD"
+        },
+        {
+          "offset": 234,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 235,
+          "opcode": "ldfld",
+          "operand": "System.Int64 Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::generation"
+        },
+        {
+          "offset": 240,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 241,
+          "opcode": "ldfld",
+          "operand": "System.Int64 Roguehalla.Client.MatchClient::_joinGeneration"
+        },
+        {
+          "offset": 246,
+          "opcode": "ceq",
+          "operand": null
+        },
+        {
+          "offset": 248,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 249,
+          "opcode": "ceq",
+          "operand": null
+        },
+        {
+          "offset": 251,
+          "opcode": "br.s",
+          "operand": "IL_00FE"
+        },
+        {
+          "offset": 253,
+          "opcode": "ldc.i4.1",
+          "operand": null
+        },
+        {
+          "offset": 254,
+          "opcode": "stloc.s",
+          "operand": "V_5"
+        },
+        {
+          "offset": 256,
+          "opcode": "ldloc.s",
+          "operand": "V_5"
+        },
+        {
+          "offset": 258,
+          "opcode": "brfalse.s",
+          "operand": "IL_0135"
+        },
+        {
+          "offset": 260,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 261,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 262,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Client.ArenaView Roguehalla.Client.MatchClient::Arena"
+        },
+        {
+          "offset": 267,
+          "opcode": "ldloc.1",
+          "operand": null
+        },
+        {
+          "offset": 268,
+          "opcode": "ceq",
+          "operand": null
+        },
+        {
+          "offset": 270,
+          "opcode": "stloc.s",
+          "operand": "V_6"
+        },
+        {
+          "offset": 272,
+          "opcode": "ldloc.s",
+          "operand": "V_6"
+        },
+        {
+          "offset": 274,
+          "opcode": "brfalse.s",
+          "operand": "IL_0129"
+        },
+        {
+          "offset": 276,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 277,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 278,
+          "opcode": "ldnull",
+          "operand": null
+        },
+        {
+          "offset": 279,
+          "opcode": "stfld",
+          "operand": "Roguehalla.Client.ArenaView Roguehalla.Client.MatchClient::Arena"
+        },
+        {
+          "offset": 284,
+          "opcode": "ldloc.1",
+          "operand": null
+        },
+        {
+          "offset": 285,
+          "opcode": "callvirt",
+          "operand": "UnityEngine.GameObject UnityEngine.Component::get_gameObject()"
+        },
+        {
+          "offset": 290,
+          "opcode": "call",
+          "operand": "System.Void Roguehalla.Client.MatchClient::DestroyOwnedArena(UnityEngine.GameObject)"
+        },
+        {
+          "offset": 295,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 296,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 297,
+          "opcode": "ldloc.2",
+          "operand": null
+        },
+        {
+          "offset": 298,
+          "opcode": "callvirt",
+          "operand": "System.Void Roguehalla.Net.ITransport::Close()"
+        },
+        {
+          "offset": 303,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 304,
+          "opcode": "br",
+          "operand": "IL_036E"
+        },
+        {
+          "offset": 309,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 310,
+          "opcode": "ldloc.2",
+          "operand": null
+        },
+        {
+          "offset": 311,
+          "opcode": "newobj",
+          "operand": "System.Void Roguehalla.Net.SessionOptions::.ctor()"
+        },
+        {
+          "offset": 316,
+          "opcode": "stloc.s",
+          "operand": "V_7"
+        },
+        {
+          "offset": 318,
+          "opcode": "ldloc.s",
+          "operand": "V_7"
+        },
+        {
+          "offset": 320,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 321,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Net.MatchLaunchTarget Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::target"
+        },
+        {
+          "offset": 326,
+          "opcode": "callvirt",
+          "operand": "System.String Roguehalla.Net.MatchLaunchTarget::get_Url()"
+        },
+        {
+          "offset": 331,
+          "opcode": "stfld",
+          "operand": "System.String Roguehalla.Net.SessionOptions::Url"
+        },
+        {
+          "offset": 336,
+          "opcode": "ldloc.s",
+          "operand": "V_7"
+        },
+        {
+          "offset": 338,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 339,
+          "opcode": "ldfld",
+          "operand": "System.String Roguehalla.Client.MatchClient::Profile"
+        },
+        {
+          "offset": 344,
+          "opcode": "stfld",
+          "operand": "System.String Roguehalla.Net.SessionOptions::Profile"
+        },
+        {
+          "offset": 349,
+          "opcode": "ldloc.s",
+          "operand": "V_7"
+        },
+        {
+          "offset": 351,
+          "opcode": "call",
+          "operand": "System.Text.Encoding System.Text.Encoding::get_UTF8()"
+        },
+        {
+          "offset": 356,
+          "opcode": "ldarg.s",
+          "operand": "ownerToken"
+        },
+        {
+          "offset": 358,
+          "opcode": "dup",
+          "operand": null
+        },
+        {
+          "offset": 359,
+          "opcode": "brtrue.s",
+          "operand": "IL_016F"
+        },
+        {
+          "offset": 361,
+          "opcode": "pop",
+          "operand": null
+        },
+        {
+          "offset": 362,
+          "opcode": "ldstr",
+          "operand": ""
+        },
+        {
+          "offset": 367,
+          "opcode": "callvirt",
+          "operand": "System.Byte[] System.Text.Encoding::GetBytes(System.String)"
+        },
+        {
+          "offset": 372,
+          "opcode": "stfld",
+          "operand": "System.Byte[] Roguehalla.Net.SessionOptions::Ticket"
+        },
+        {
+          "offset": 377,
+          "opcode": "ldloc.s",
+          "operand": "V_7"
+        },
+        {
+          "offset": 379,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 380,
+          "opcode": "ldfld",
+          "operand": "System.UInt64 Roguehalla.Client.MatchClient::ContentHash"
+        },
+        {
+          "offset": 385,
+          "opcode": "stfld",
+          "operand": "System.UInt64 Roguehalla.Net.SessionOptions::ContentHash"
+        },
+        {
+          "offset": 390,
+          "opcode": "ldloc.s",
+          "operand": "V_7"
+        },
+        {
+          "offset": 392,
+          "opcode": "ldstr",
+          "operand": "unity-web-0.1.0"
+        },
+        {
+          "offset": 397,
+          "opcode": "stfld",
+          "operand": "System.String Roguehalla.Net.SessionOptions::Build"
+        },
+        {
+          "offset": 402,
+          "opcode": "ldloc.s",
+          "operand": "V_7"
+        },
+        {
+          "offset": 404,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 405,
+          "opcode": "ldfld",
+          "operand": "System.Int32 Roguehalla.Client.MatchClient::Faction"
+        },
+        {
+          "offset": 410,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 411,
+          "opcode": "bge.s",
+          "operand": "IL_01A9"
+        },
+        {
+          "offset": 413,
+          "opcode": "ldloca.s",
+          "operand": "V_8"
+        },
+        {
+          "offset": 415,
+          "opcode": "initobj",
+          "operand": "System.Nullable\u00601\u003CSystem.Byte\u003E"
+        },
+        {
+          "offset": 421,
+          "opcode": "ldloc.s",
+          "operand": "V_8"
+        },
+        {
+          "offset": 423,
+          "opcode": "br.s",
+          "operand": "IL_01B5"
+        },
+        {
+          "offset": 425,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 426,
+          "opcode": "ldfld",
+          "operand": "System.Int32 Roguehalla.Client.MatchClient::Faction"
+        },
+        {
+          "offset": 431,
+          "opcode": "conv.u1",
+          "operand": null
+        },
+        {
+          "offset": 432,
+          "opcode": "newobj",
+          "operand": "System.Void System.Nullable\u00601\u003CSystem.Byte\u003E::.ctor(!0)"
+        },
+        {
+          "offset": 437,
+          "opcode": "stfld",
+          "operand": "System.Nullable\u00601\u003CSystem.Byte\u003E Roguehalla.Net.SessionOptions::Faction"
+        },
+        {
+          "offset": 442,
+          "opcode": "ldloc.s",
+          "operand": "V_7"
+        },
+        {
+          "offset": 444,
+          "opcode": "ldnull",
+          "operand": null
+        },
+        {
+          "offset": 445,
+          "opcode": "ldftn",
+          "operand": "System.Double Roguehalla.Client.MatchClient::NowMs()"
+        },
+        {
+          "offset": 451,
+          "opcode": "newobj",
+          "operand": "System.Void System.Func\u00601\u003CSystem.Double\u003E::.ctor(System.Object,System.IntPtr)"
+        },
+        {
+          "offset": 456,
+          "opcode": "stfld",
+          "operand": "System.Func\u00601\u003CSystem.Double\u003E Roguehalla.Net.SessionOptions::Now"
+        },
+        {
+          "offset": 461,
+          "opcode": "ldloc.s",
+          "operand": "V_7"
+        },
+        {
+          "offset": 463,
+          "opcode": "ldarg.s",
+          "operand": "resumeRecord"
+        },
+        {
+          "offset": 465,
+          "opcode": "brtrue.s",
+          "operand": "IL_01D6"
+        },
+        {
+          "offset": 467,
+          "opcode": "ldnull",
+          "operand": null
+        },
+        {
+          "offset": 468,
+          "opcode": "br.s",
+          "operand": "IL_01DD"
+        },
+        {
+          "offset": 470,
+          "opcode": "ldarg.s",
+          "operand": "resumeRecord"
+        },
+        {
+          "offset": 472,
+          "opcode": "call",
+          "operand": "Roguehalla.Net.SeatResume Roguehalla.Net.OwnedSeatCheckpoint::CreateSeed()"
+        },
+        {
+          "offset": 477,
+          "opcode": "stfld",
+          "operand": "Roguehalla.Net.SeatResume Roguehalla.Net.SessionOptions::InitialResume"
+        },
+        {
+          "offset": 482,
+          "opcode": "ldloc.s",
+          "operand": "V_7"
+        },
+        {
+          "offset": 484,
+          "opcode": "newobj",
+          "operand": "System.Void Roguehalla.Net.Session::.ctor(Roguehalla.Net.ITransport,Roguehalla.Net.SessionOptions)"
+        },
+        {
+          "offset": 489,
+          "opcode": "stfld",
+          "operand": "Roguehalla.Net.Session Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::session"
+        },
+        {
+          "offset": 494,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 495,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 496,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Net.Session Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::session"
+        },
+        {
+          "offset": 501,
+          "opcode": "call",
+          "operand": "System.Void Roguehalla.Client.MatchClient::set_Session(Roguehalla.Net.Session)"
+        },
+        {
+          "offset": 506,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 507,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 508,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 509,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Net.MatchLaunchTarget Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::target"
+        },
+        {
+          "offset": 514,
+          "opcode": "stfld",
+          "operand": "Roguehalla.Net.MatchLaunchTarget Roguehalla.Client.MatchClient::_sessionTarget"
+        },
+        {
+          "offset": 519,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 520,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 521,
+          "opcode": "ldfld",
+          "operand": "System.Int32 Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::faction"
+        },
+        {
+          "offset": 526,
+          "opcode": "stfld",
+          "operand": "System.Int32 Roguehalla.Client.MatchClient::_sessionFaction"
+        },
+        {
+          "offset": 531,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 532,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 533,
+          "opcode": "ldfld",
+          "operand": "System.Int64 Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::generation"
+        },
+        {
+          "offset": 538,
+          "opcode": "stfld",
+          "operand": "System.Int64 Roguehalla.Client.MatchClient::_sessionGeneration"
+        },
+        {
+          "offset": 543,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 544,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 545,
+          "opcode": "stfld",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient::_modeConfirmed"
+        },
+        {
+          "offset": 550,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 551,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 552,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Net.Session Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::session"
+        },
+        {
+          "offset": 557,
+          "opcode": "ldarg.s",
+          "operand": "ownerIntent"
+        },
+        {
+          "offset": 559,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 560,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Net.MatchLaunchTarget Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::target"
+        },
+        {
+          "offset": 565,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 566,
+          "opcode": "ldfld",
+          "operand": "System.Int32 Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::faction"
+        },
+        {
+          "offset": 571,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 572,
+          "opcode": "ldfld",
+          "operand": "System.Int64 Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::generation"
+        },
+        {
+          "offset": 577,
+          "opcode": "ldarg.s",
+          "operand": "resumeRecord"
+        },
+        {
+          "offset": 579,
+          "opcode": "call",
+          "operand": "System.Void Roguehalla.Client.MatchClient::BindOwnedSeatSession(Roguehalla.Net.Session,Roguehalla.Net.AccountJoinIntent,Roguehalla.Net.MatchLaunchTarget,System.Int32,System.Int64,Roguehalla.Net.OwnedSeatCheckpoint)"
+        },
+        {
+          "offset": 584,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 585,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 586,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 587,
+          "opcode": "ldftn",
+          "operand": "System.Void Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::\u003CJoinCore\u003Eb__0(Roguehalla.Net.SessionState)"
+        },
+        {
+          "offset": 593,
+          "opcode": "newobj",
+          "operand": "System.Void System.Action\u00601\u003CRoguehalla.Net.SessionState\u003E::.ctor(System.Object,System.IntPtr)"
+        },
+        {
+          "offset": 598,
+          "opcode": "stfld",
+          "operand": "System.Action\u00601\u003CRoguehalla.Net.SessionState\u003E Roguehalla.Client.MatchClient::_boundLaunchState"
+        },
+        {
+          "offset": 603,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 604,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 605,
+          "opcode": "ldftn",
+          "operand": "System.Void Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::\u003CJoinCore\u003Eb__1(Roguehalla.Net.Protocol.ServerMsg/Snapshot)"
+        },
+        {
+          "offset": 611,
+          "opcode": "newobj",
+          "operand": "System.Void System.Action\u00601\u003CRoguehalla.Net.Protocol.ServerMsg/Snapshot\u003E::.ctor(System.Object,System.IntPtr)"
+        },
+        {
+          "offset": 616,
+          "opcode": "stfld",
+          "operand": "System.Action\u00601\u003CRoguehalla.Net.Protocol.ServerMsg/Snapshot\u003E Roguehalla.Client.MatchClient::_boundLaunchSnapshot"
+        },
+        {
+          "offset": 621,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 622,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 623,
+          "opcode": "ldftn",
+          "operand": "System.Void Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::\u003CJoinCore\u003Eb__2()"
+        },
+        {
+          "offset": 629,
+          "opcode": "newobj",
+          "operand": "System.Void System.Action::.ctor(System.Object,System.IntPtr)"
+        },
+        {
+          "offset": 634,
+          "opcode": "stfld",
+          "operand": "System.Action Roguehalla.Client.MatchClient::_boundLaunchTimeline"
+        },
+        {
+          "offset": 639,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 640,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Net.Session Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::session"
+        },
+        {
+          "offset": 645,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 646,
+          "opcode": "ldfld",
+          "operand": "System.Action\u00601\u003CRoguehalla.Net.SessionState\u003E Roguehalla.Client.MatchClient::_boundLaunchState"
+        },
+        {
+          "offset": 651,
+          "opcode": "callvirt",
+          "operand": "System.Void Roguehalla.Net.Session::add_StateChanged(System.Action\u00601\u003CRoguehalla.Net.SessionState\u003E)"
+        },
+        {
+          "offset": 656,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 657,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 658,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Net.Session Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::session"
+        },
+        {
+          "offset": 663,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 664,
+          "opcode": "ldfld",
+          "operand": "System.Action\u00601\u003CRoguehalla.Net.Protocol.ServerMsg/Snapshot\u003E Roguehalla.Client.MatchClient::_boundLaunchSnapshot"
+        },
+        {
+          "offset": 669,
+          "opcode": "callvirt",
+          "operand": "System.Void Roguehalla.Net.Session::add_SnapshotReceived(System.Action\u00601\u003CRoguehalla.Net.Protocol.ServerMsg/Snapshot\u003E)"
+        },
+        {
+          "offset": 674,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 675,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 676,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Net.Session Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::session"
+        },
+        {
+          "offset": 681,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 682,
+          "opcode": "ldfld",
+          "operand": "System.Action Roguehalla.Client.MatchClient::_boundLaunchTimeline"
+        },
+        {
+          "offset": 687,
+          "opcode": "callvirt",
+          "operand": "System.Void Roguehalla.Net.Session::add_TimelineReset(System.Action)"
+        },
+        {
+          "offset": 692,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 693,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 694,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 695,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Net.Session Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::session"
+        },
+        {
+          "offset": 700,
+          "opcode": "ldarg.s",
+          "operand": "settlementAccess"
+        },
+        {
+          "offset": 702,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 703,
+          "opcode": "ldfld",
+          "operand": "System.Int64 Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::generation"
+        },
+        {
+          "offset": 708,
+          "opcode": "call",
+          "operand": "System.Void Roguehalla.Client.MatchClient::BindSettlementSession(Roguehalla.Net.Session,Roguehalla.Net.AccountSettlementAccess,System.Int64)"
+        },
+        {
+          "offset": 713,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 714,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 715,
+          "opcode": "call",
+          "operand": "Roguehalla.Client.MatchHud Roguehalla.Client.MatchClient::get_Hud()"
+        },
+        {
+          "offset": 720,
+          "opcode": "dup",
+          "operand": null
+        },
+        {
+          "offset": 721,
+          "opcode": "brtrue.s",
+          "operand": "IL_02D6"
+        },
+        {
+          "offset": 723,
+          "opcode": "pop",
+          "operand": null
+        },
+        {
+          "offset": 724,
+          "opcode": "br.s",
+          "operand": "IL_02E2"
+        },
+        {
+          "offset": 726,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 727,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Net.Session Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::session"
+        },
+        {
+          "offset": 732,
+          "opcode": "call",
+          "operand": "System.Void Roguehalla.Client.MatchHud::Bind(Roguehalla.Net.Session)"
+        },
+        {
+          "offset": 737,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 738,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 739,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 740,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Net.Session Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::session"
+        },
+        {
+          "offset": 745,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 746,
+          "opcode": "ldfld",
+          "operand": "System.Int64 Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::generation"
+        },
+        {
+          "offset": 751,
+          "opcode": "call",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient::CurrentLaunchSession(Roguehalla.Net.Session,System.Int64)"
+        },
+        {
+          "offset": 756,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 757,
+          "opcode": "ceq",
+          "operand": null
+        },
+        {
+          "offset": 759,
+          "opcode": "stloc.s",
+          "operand": "V_9"
+        },
+        {
+          "offset": 761,
+          "opcode": "ldloc.s",
+          "operand": "V_9"
+        },
+        {
+          "offset": 763,
+          "opcode": "brfalse.s",
+          "operand": "IL_02FF"
+        },
+        {
+          "offset": 765,
+          "opcode": "br.s",
+          "operand": "IL_036E"
+        },
+        {
+          "offset": 767,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 768,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 769,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Net.Session Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::session"
+        },
+        {
+          "offset": 774,
+          "opcode": "call",
+          "operand": "System.Void Roguehalla.Client.MatchClient::BindPresentationSession(Roguehalla.Net.Session)"
+        },
+        {
+          "offset": 779,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 780,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 781,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 782,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Net.Session Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::session"
+        },
+        {
+          "offset": 787,
+          "opcode": "call",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient::SeatResumeConnectAllowed(Roguehalla.Net.Session)"
+        },
+        {
+          "offset": 792,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 793,
+          "opcode": "ceq",
+          "operand": null
+        },
+        {
+          "offset": 795,
+          "opcode": "stloc.s",
+          "operand": "V_10"
+        },
+        {
+          "offset": 797,
+          "opcode": "ldloc.s",
+          "operand": "V_10"
+        },
+        {
+          "offset": 799,
+          "opcode": "brfalse.s",
+          "operand": "IL_0345"
+        },
+        {
+          "offset": 801,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 802,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 803,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 804,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Net.Session Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::session"
+        },
+        {
+          "offset": 809,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 810,
+          "opcode": "ldfld",
+          "operand": "System.Int64 Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::generation"
+        },
+        {
+          "offset": 815,
+          "opcode": "call",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient::CurrentLaunchSession(Roguehalla.Net.Session,System.Int64)"
+        },
+        {
+          "offset": 820,
+          "opcode": "stloc.s",
+          "operand": "V_11"
+        },
+        {
+          "offset": 822,
+          "opcode": "ldloc.s",
+          "operand": "V_11"
+        },
+        {
+          "offset": 824,
+          "opcode": "brfalse.s",
+          "operand": "IL_0343"
+        },
+        {
+          "offset": 826,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 827,
+          "opcode": "ldc.i4.1",
+          "operand": null
+        },
+        {
+          "offset": 828,
+          "opcode": "ldc.i4.1",
+          "operand": null
+        },
+        {
+          "offset": 829,
+          "opcode": "call",
+          "operand": "System.Void Roguehalla.Client.MatchClient::CloseCurrentSession(System.Boolean,System.Boolean)"
+        },
+        {
+          "offset": 834,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 835,
+          "opcode": "br.s",
+          "operand": "IL_036E"
+        },
+        {
+          "offset": 837,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 838,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 839,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Net.Session Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::session"
+        },
+        {
+          "offset": 844,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 845,
+          "opcode": "ldfld",
+          "operand": "System.Int64 Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::generation"
+        },
+        {
+          "offset": 850,
+          "opcode": "call",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient::CurrentLaunchSession(Roguehalla.Net.Session,System.Int64)"
+        },
+        {
+          "offset": 855,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 856,
+          "opcode": "ceq",
+          "operand": null
+        },
+        {
+          "offset": 858,
+          "opcode": "stloc.s",
+          "operand": "V_12"
+        },
+        {
+          "offset": 860,
+          "opcode": "ldloc.s",
+          "operand": "V_12"
+        },
+        {
+          "offset": 862,
+          "opcode": "brfalse.s",
+          "operand": "IL_0362"
+        },
+        {
+          "offset": 864,
+          "opcode": "br.s",
+          "operand": "IL_036E"
+        },
+        {
+          "offset": 866,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 867,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Net.Session Roguehalla.Client.MatchClient/\u003C\u003Ec__DisplayClass88_0::session"
+        },
+        {
+          "offset": 872,
+          "opcode": "callvirt",
+          "operand": "System.Void Roguehalla.Net.Session::Connect()"
+        },
+        {
+          "offset": 877,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 878,
+          "opcode": "ret",
+          "operand": null
+        }
+      ]
+    },
+    "resumeCurrent": {
+      "method": "System.Void Roguehalla.Client.MatchClient::ResumeCurrentRun(System.String,System.Int32,Roguehalla.Net.MatchLaunchMode)",
+      "instructions": [
+        {
+          "offset": 0,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 1,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 2,
+          "opcode": "ldnull",
+          "operand": null
+        },
+        {
+          "offset": 3,
+          "opcode": "call",
+          "operand": "System.Boolean UnityEngine.Object::op_Equality(UnityEngine.Object,UnityEngine.Object)"
+        },
+        {
+          "offset": 8,
+          "opcode": "brtrue.s",
+          "operand": "IL_002D"
+        },
+        {
+          "offset": 10,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 11,
+          "opcode": "ldfld",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient::_destroying"
+        },
+        {
+          "offset": 16,
+          "opcode": "brtrue.s",
+          "operand": "IL_002D"
+        },
+        {
+          "offset": 18,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 19,
+          "opcode": "call",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient::get_IsDiagnostic()"
+        },
+        {
+          "offset": 24,
+          "opcode": "brtrue.s",
+          "operand": "IL_002D"
+        },
+        {
+          "offset": 26,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 27,
+          "opcode": "call",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient::get_ResumeBusy()"
+        },
+        {
+          "offset": 32,
+          "opcode": "brtrue.s",
+          "operand": "IL_002D"
+        },
+        {
+          "offset": 34,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 35,
+          "opcode": "call",
+          "operand": "Roguehalla.Net.Session Roguehalla.Client.MatchClient::get_Session()"
+        },
+        {
+          "offset": 40,
+          "opcode": "ldnull",
+          "operand": null
+        },
+        {
+          "offset": 41,
+          "opcode": "cgt.un",
+          "operand": null
+        },
+        {
+          "offset": 43,
+          "opcode": "br.s",
+          "operand": "IL_002E"
+        },
+        {
+          "offset": 45,
+          "opcode": "ldc.i4.1",
+          "operand": null
+        },
+        {
+          "offset": 46,
+          "opcode": "stloc.2",
+          "operand": null
+        },
+        {
+          "offset": 47,
+          "opcode": "ldloc.2",
+          "operand": null
+        },
+        {
+          "offset": 48,
+          "opcode": "brfalse.s",
+          "operand": "IL_0037"
+        },
+        {
+          "offset": 50,
+          "opcode": "br",
+          "operand": "IL_010B"
+        },
+        {
+          "offset": 55,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 56,
+          "opcode": "ldarg.1",
+          "operand": null
+        },
+        {
+          "offset": 57,
+          "opcode": "call",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient::OwnedProfileLoaded(System.String)"
+        },
+        {
+          "offset": 62,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 63,
+          "opcode": "ceq",
+          "operand": null
+        },
+        {
+          "offset": 65,
+          "opcode": "stloc.3",
+          "operand": null
+        },
+        {
+          "offset": 66,
+          "opcode": "ldloc.3",
+          "operand": null
+        },
+        {
+          "offset": 67,
+          "opcode": "brfalse.s",
+          "operand": "IL_0056"
+        },
+        {
+          "offset": 69,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 70,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 71,
+          "opcode": "ldstr",
+          "operand": "Load or sign in to your existing profile before resuming."
+        },
+        {
+          "offset": 76,
+          "opcode": "stfld",
+          "operand": "System.String Roguehalla.Client.MatchClient::_resumeStatus"
+        },
+        {
+          "offset": 81,
+          "opcode": "br",
+          "operand": "IL_010B"
+        },
+        {
+          "offset": 86,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 87,
+          "opcode": "ldarg.3",
+          "operand": null
+        },
+        {
+          "offset": 88,
+          "opcode": "call",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient::SelectLaunchMode(Roguehalla.Net.MatchLaunchMode)"
+        },
+        {
+          "offset": 93,
+          "opcode": "brfalse.s",
+          "operand": "IL_0074"
+        },
+        {
+          "offset": 95,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 96,
+          "opcode": "ldarg.2",
+          "operand": null
+        },
+        {
+          "offset": 97,
+          "opcode": "call",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient::TrySelectFaction(System.Int32)"
+        },
+        {
+          "offset": 102,
+          "opcode": "brfalse.s",
+          "operand": "IL_0074"
+        },
+        {
+          "offset": 104,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 105,
+          "opcode": "ldarg.1",
+          "operand": null
+        },
+        {
+          "offset": 106,
+          "opcode": "call",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient::OwnedProfileLoaded(System.String)"
+        },
+        {
+          "offset": 111,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 112,
+          "opcode": "ceq",
+          "operand": null
+        },
+        {
+          "offset": 114,
+          "opcode": "br.s",
+          "operand": "IL_0075"
+        },
+        {
+          "offset": 116,
+          "opcode": "ldc.i4.1",
+          "operand": null
+        },
+        {
+          "offset": 117,
+          "opcode": "stloc.s",
+          "operand": "V_4"
+        },
+        {
+          "offset": 119,
+          "opcode": "ldloc.s",
+          "operand": "V_4"
+        },
+        {
+          "offset": 121,
+          "opcode": "brfalse.s",
+          "operand": "IL_0080"
+        },
+        {
+          "offset": 123,
+          "opcode": "br",
+          "operand": "IL_010B"
+        },
+        {
+          "offset": 128,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 129,
+          "opcode": "ldarg.3",
+          "operand": null
+        },
+        {
+          "offset": 130,
+          "opcode": "call",
+          "operand": "Roguehalla.Net.MatchLaunchTarget Roguehalla.Client.MatchClient::LaunchTarget(Roguehalla.Net.MatchLaunchMode)"
+        },
+        {
+          "offset": 135,
+          "opcode": "stloc.0",
+          "operand": null
+        },
+        {
+          "offset": 136,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 137,
+          "opcode": "callvirt",
+          "operand": "System.Boolean Roguehalla.Net.MatchLaunchTarget::get_Available()"
+        },
+        {
+          "offset": 142,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 143,
+          "opcode": "ceq",
+          "operand": null
+        },
+        {
+          "offset": 145,
+          "opcode": "stloc.s",
+          "operand": "V_5"
+        },
+        {
+          "offset": 147,
+          "opcode": "ldloc.s",
+          "operand": "V_5"
+        },
+        {
+          "offset": 149,
+          "opcode": "brfalse.s",
+          "operand": "IL_00A6"
+        },
+        {
+          "offset": 151,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 152,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 153,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 154,
+          "opcode": "callvirt",
+          "operand": "System.String Roguehalla.Net.MatchLaunchTarget::get_UnavailableReason()"
+        },
+        {
+          "offset": 159,
+          "opcode": "stfld",
+          "operand": "System.String Roguehalla.Client.MatchClient::_resumeStatus"
+        },
+        {
+          "offset": 164,
+          "opcode": "br.s",
+          "operand": "IL_010B"
+        },
+        {
+          "offset": 166,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 167,
+          "opcode": "ldnull",
+          "operand": null
+        },
+        {
+          "offset": 168,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 169,
+          "opcode": "ldarg.2",
+          "operand": null
+        },
+        {
+          "offset": 170,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 171,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 172,
+          "opcode": "ldfld",
+          "operand": "System.Int64 Roguehalla.Client.MatchClient::_joinGeneration"
+        },
+        {
+          "offset": 177,
+          "opcode": "ldc.i4.1",
+          "operand": null
+        },
+        {
+          "offset": 178,
+          "opcode": "conv.i8",
+          "operand": null
+        },
+        {
+          "offset": 179,
+          "opcode": "add",
+          "operand": null
+        },
+        {
+          "offset": 180,
+          "opcode": "stloc.s",
+          "operand": "V_6"
+        },
+        {
+          "offset": 182,
+          "opcode": "ldloc.s",
+          "operand": "V_6"
+        },
+        {
+          "offset": 184,
+          "opcode": "stfld",
+          "operand": "System.Int64 Roguehalla.Client.MatchClient::_joinGeneration"
+        },
+        {
+          "offset": 189,
+          "opcode": "ldloc.s",
+          "operand": "V_6"
+        },
+        {
+          "offset": 191,
+          "opcode": "call",
+          "operand": "Roguehalla.Client.MatchClient/SeatPreparation Roguehalla.Client.MatchClient::CaptureSeatOwner(Roguehalla.Net.AccountJoinIntent,Roguehalla.Net.MatchLaunchTarget,System.Int32,System.Int64)"
+        },
+        {
+          "offset": 196,
+          "opcode": "stloc.1",
+          "operand": null
+        },
+        {
+          "offset": 197,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 198,
+          "opcode": "ldloc.1",
+          "operand": null
+        },
+        {
+          "offset": 199,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 200,
+          "opcode": "call",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient::CurrentSeatOwner(Roguehalla.Client.MatchClient/SeatPreparation,System.Boolean)"
+        },
+        {
+          "offset": 205,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 206,
+          "opcode": "ceq",
+          "operand": null
+        },
+        {
+          "offset": 208,
+          "opcode": "stloc.s",
+          "operand": "V_7"
+        },
+        {
+          "offset": 210,
+          "opcode": "ldloc.s",
+          "operand": "V_7"
+        },
+        {
+          "offset": 212,
+          "opcode": "brfalse.s",
+          "operand": "IL_00E4"
+        },
+        {
+          "offset": 214,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 215,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 216,
+          "opcode": "ldstr",
+          "operand": "The profile or connection changed. Load it again before resuming."
+        },
+        {
+          "offset": 221,
+          "opcode": "stfld",
+          "operand": "System.String Roguehalla.Client.MatchClient::_resumeStatus"
+        },
+        {
+          "offset": 226,
+          "opcode": "br.s",
+          "operand": "IL_010B"
+        },
+        {
+          "offset": 228,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 229,
+          "opcode": "ldloc.1",
+          "operand": null
+        },
+        {
+          "offset": 230,
+          "opcode": "stfld",
+          "operand": "Roguehalla.Client.MatchClient/SeatPreparation Roguehalla.Client.MatchClient::_resumePreparation"
+        },
+        {
+          "offset": 235,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 236,
+          "opcode": "ldstr",
+          "operand": "Checking your saved run\u2026"
+        },
+        {
+          "offset": 241,
+          "opcode": "stfld",
+          "operand": "System.String Roguehalla.Client.MatchClient::_resumeStatus"
+        },
+        {
+          "offset": 246,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 247,
+          "opcode": "ldstr",
+          "operand": ""
+        },
+        {
+          "offset": 252,
+          "opcode": "call",
+          "operand": "System.Void Roguehalla.Client.MatchClient::set_AccountUiError(System.String)"
+        },
+        {
+          "offset": 257,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 258,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 259,
+          "opcode": "ldloc.1",
+          "operand": null
+        },
+        {
+          "offset": 260,
+          "opcode": "ldarg.1",
+          "operand": null
+        },
+        {
+          "offset": 261,
+          "opcode": "call",
+          "operand": "System.Threading.Tasks.Task Roguehalla.Client.MatchClient::ResumeOwned(Roguehalla.Client.MatchClient/SeatPreparation,System.String)"
+        },
+        {
+          "offset": 266,
+          "opcode": "pop",
+          "operand": null
+        },
+        {
+          "offset": 267,
+          "opcode": "ret",
+          "operand": null
+        }
+      ]
+    },
+    "captureConfirmedSeat": {
+      "method": "System.Void Roguehalla.Client.MatchClient::CaptureConfirmedSeat(Roguehalla.Net.Session)",
+      "instructions": [
+        {
+          "offset": 0,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 1,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 2,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Client.MatchClient/SeatBinding Roguehalla.Client.MatchClient::_seatBinding"
+        },
+        {
+          "offset": 7,
+          "opcode": "stloc.0",
+          "operand": null
+        },
+        {
+          "offset": 8,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 9,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 10,
+          "opcode": "call",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient::CurrentSeatBinding(Roguehalla.Client.MatchClient/SeatBinding)"
+        },
+        {
+          "offset": 15,
+          "opcode": "brfalse.s",
+          "operand": "IL_0049"
+        },
+        {
+          "offset": 17,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 18,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Net.Session Roguehalla.Client.MatchClient/SeatBinding::Session"
+        },
+        {
+          "offset": 23,
+          "opcode": "ldarg.1",
+          "operand": null
+        },
+        {
+          "offset": 24,
+          "opcode": "bne.un.s",
+          "operand": "IL_0049"
+        },
+        {
+          "offset": 26,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 27,
+          "opcode": "call",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient::get_LaunchVerified()"
+        },
+        {
+          "offset": 32,
+          "opcode": "brfalse.s",
+          "operand": "IL_0049"
+        },
+        {
+          "offset": 34,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 35,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 36,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Client.MatchClient/SeatPreparation Roguehalla.Client.MatchClient/SeatBinding::Owner"
+        },
+        {
+          "offset": 41,
+          "opcode": "ldc.i4.1",
+          "operand": null
+        },
+        {
+          "offset": 42,
+          "opcode": "call",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient::CurrentSeatOwner(Roguehalla.Client.MatchClient/SeatPreparation,System.Boolean)"
+        },
+        {
+          "offset": 47,
+          "opcode": "brfalse.s",
+          "operand": "IL_0049"
+        },
+        {
+          "offset": 49,
+          "opcode": "ldarg.1",
+          "operand": null
+        },
+        {
+          "offset": 50,
+          "opcode": "callvirt",
+          "operand": "Roguehalla.Net.Protocol.ServerMsg/Welcome Roguehalla.Net.Session::get_Welcome()"
+        },
+        {
+          "offset": 55,
+          "opcode": "brfalse.s",
+          "operand": "IL_0049"
+        },
+        {
+          "offset": 57,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 58,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Net.Protocol.ServerMsg/Welcome Roguehalla.Client.MatchClient/SeatBinding::AttemptedWelcome"
+        },
+        {
+          "offset": 63,
+          "opcode": "ldarg.1",
+          "operand": null
+        },
+        {
+          "offset": 64,
+          "opcode": "callvirt",
+          "operand": "Roguehalla.Net.Protocol.ServerMsg/Welcome Roguehalla.Net.Session::get_Welcome()"
+        },
+        {
+          "offset": 69,
+          "opcode": "ceq",
+          "operand": null
+        },
+        {
+          "offset": 71,
+          "opcode": "br.s",
+          "operand": "IL_004A"
+        },
+        {
+          "offset": 73,
+          "opcode": "ldc.i4.1",
+          "operand": null
+        },
+        {
+          "offset": 74,
+          "opcode": "stloc.2",
+          "operand": null
+        },
+        {
+          "offset": 75,
+          "opcode": "ldloc.2",
+          "operand": null
+        },
+        {
+          "offset": 76,
+          "opcode": "brfalse.s",
+          "operand": "IL_0053"
+        },
+        {
+          "offset": 78,
+          "opcode": "br",
+          "operand": "IL_011B"
+        },
+        {
+          "offset": 83,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 84,
+          "opcode": "ldarg.1",
+          "operand": null
+        },
+        {
+          "offset": 85,
+          "opcode": "callvirt",
+          "operand": "Roguehalla.Net.Protocol.ServerMsg/Welcome Roguehalla.Net.Session::get_Welcome()"
+        },
+        {
+          "offset": 90,
+          "opcode": "stfld",
+          "operand": "Roguehalla.Net.Protocol.ServerMsg/Welcome Roguehalla.Client.MatchClient/SeatBinding::AttemptedWelcome"
+        },
+        {
+          "offset": 95,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 96,
+          "opcode": "call",
+          "operand": "System.Void Roguehalla.Client.MatchClient::InitializeSeatResume()"
+        },
+        {
+          "offset": 101,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 102,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 103,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 104,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Net.OwnedSeatCheckpointStore Roguehalla.Client.MatchClient::_seatStore"
+        },
+        {
+          "offset": 109,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 110,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 111,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Client.MatchClient/SeatPreparation Roguehalla.Client.MatchClient/SeatBinding::Owner"
+        },
+        {
+          "offset": 116,
+          "opcode": "call",
+          "operand": "Roguehalla.Net.OwnedSeatCheckpointContext Roguehalla.Client.MatchClient::SeatContext(Roguehalla.Client.MatchClient/SeatPreparation)"
+        },
+        {
+          "offset": 121,
+          "opcode": "ldarg.1",
+          "operand": null
+        },
+        {
+          "offset": 122,
+          "opcode": "callvirt",
+          "operand": "System.Byte[] Roguehalla.Net.Session::get_SessionToken()"
+        },
+        {
+          "offset": 127,
+          "opcode": "ldarg.1",
+          "operand": null
+        },
+        {
+          "offset": 128,
+          "opcode": "callvirt",
+          "operand": "Roguehalla.Net.Protocol.ServerMsg/Welcome Roguehalla.Net.Session::get_Welcome()"
+        },
+        {
+          "offset": 133,
+          "opcode": "ldfld",
+          "operand": "System.Byte[] Roguehalla.Net.Protocol.ServerMsg/Welcome::MatchId"
+        },
+        {
+          "offset": 138,
+          "opcode": "ldarg.1",
+          "operand": null
+        },
+        {
+          "offset": 139,
+          "opcode": "callvirt",
+          "operand": "System.UInt32 Roguehalla.Net.Session::get_PlayerId()"
+        },
+        {
+          "offset": 144,
+          "opcode": "callvirt",
+          "operand": "Roguehalla.Net.SeatCheckpointWriteResult Roguehalla.Net.OwnedSeatCheckpointStore::Save(Roguehalla.Net.OwnedSeatCheckpointContext,System.Byte[],System.Byte[],System.UInt32)"
+        },
+        {
+          "offset": 149,
+          "opcode": "stloc.1",
+          "operand": null
+        },
+        {
+          "offset": 150,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 151,
+          "opcode": "leave.s",
+          "operand": "IL_00A8"
+        },
+        {
+          "offset": 153,
+          "opcode": "pop",
+          "operand": null
+        },
+        {
+          "offset": 154,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 155,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 156,
+          "opcode": "ldstr",
+          "operand": "This run could not be saved for reload."
+        },
+        {
+          "offset": 161,
+          "opcode": "stfld",
+          "operand": "System.String Roguehalla.Client.MatchClient::_resumeStatus"
+        },
+        {
+          "offset": 166,
+          "opcode": "leave.s",
+          "operand": "IL_011B"
+        },
+        {
+          "offset": 168,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 169,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 170,
+          "opcode": "call",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient::CurrentSeatBinding(Roguehalla.Client.MatchClient/SeatBinding)"
+        },
+        {
+          "offset": 175,
+          "opcode": "brfalse.s",
+          "operand": "IL_00C3"
+        },
+        {
+          "offset": 177,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 178,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 179,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Client.MatchClient/SeatPreparation Roguehalla.Client.MatchClient/SeatBinding::Owner"
+        },
+        {
+          "offset": 184,
+          "opcode": "ldc.i4.1",
+          "operand": null
+        },
+        {
+          "offset": 185,
+          "opcode": "call",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient::CurrentSeatOwner(Roguehalla.Client.MatchClient/SeatPreparation,System.Boolean)"
+        },
+        {
+          "offset": 190,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 191,
+          "opcode": "ceq",
+          "operand": null
+        },
+        {
+          "offset": 193,
+          "opcode": "br.s",
+          "operand": "IL_00C4"
+        },
+        {
+          "offset": 195,
+          "opcode": "ldc.i4.1",
+          "operand": null
+        },
+        {
+          "offset": 196,
+          "opcode": "stloc.3",
+          "operand": null
+        },
+        {
+          "offset": 197,
+          "opcode": "ldloc.3",
+          "operand": null
+        },
+        {
+          "offset": 198,
+          "opcode": "brfalse.s",
+          "operand": "IL_00CA"
+        },
+        {
+          "offset": 200,
+          "opcode": "br.s",
+          "operand": "IL_011B"
+        },
+        {
+          "offset": 202,
+          "opcode": "ldloc.1",
+          "operand": null
+        },
+        {
+          "offset": 203,
+          "opcode": "callvirt",
+          "operand": "Roguehalla.Net.SeatCheckpointWriteStatus Roguehalla.Net.SeatCheckpointWriteResult::get_Status()"
+        },
+        {
+          "offset": 208,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 209,
+          "opcode": "ceq",
+          "operand": null
+        },
+        {
+          "offset": 211,
+          "opcode": "stloc.s",
+          "operand": "V_4"
+        },
+        {
+          "offset": 213,
+          "opcode": "ldloc.s",
+          "operand": "V_4"
+        },
+        {
+          "offset": 215,
+          "opcode": "brfalse.s",
+          "operand": "IL_0100"
+        },
+        {
+          "offset": 217,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 218,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 219,
+          "opcode": "ldloc.1",
+          "operand": null
+        },
+        {
+          "offset": 220,
+          "opcode": "callvirt",
+          "operand": "Roguehalla.Net.OwnedSeatCheckpoint Roguehalla.Net.SeatCheckpointWriteResult::get_Record()"
+        },
+        {
+          "offset": 225,
+          "opcode": "stfld",
+          "operand": "Roguehalla.Net.OwnedSeatCheckpoint Roguehalla.Client.MatchClient/SeatBinding::Record"
+        },
+        {
+          "offset": 230,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 231,
+          "opcode": "ldloc.1",
+          "operand": null
+        },
+        {
+          "offset": 232,
+          "opcode": "callvirt",
+          "operand": "Roguehalla.Net.OwnedSeatCheckpoint Roguehalla.Net.SeatCheckpointWriteResult::get_Record()"
+        },
+        {
+          "offset": 237,
+          "opcode": "stfld",
+          "operand": "Roguehalla.Net.OwnedSeatCheckpoint Roguehalla.Client.MatchClient::_seatRecord"
+        },
+        {
+          "offset": 242,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 243,
+          "opcode": "ldstr",
+          "operand": ""
+        },
+        {
+          "offset": 248,
+          "opcode": "stfld",
+          "operand": "System.String Roguehalla.Client.MatchClient::_resumeStatus"
+        },
+        {
+          "offset": 253,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 254,
+          "opcode": "br.s",
+          "operand": "IL_011B"
+        },
+        {
+          "offset": 256,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 257,
+          "opcode": "ldloc.1",
+          "operand": null
+        },
+        {
+          "offset": 258,
+          "opcode": "callvirt",
+          "operand": "Roguehalla.Net.SeatCheckpointWriteStatus Roguehalla.Net.SeatCheckpointWriteResult::get_Status()"
+        },
+        {
+          "offset": 263,
+          "opcode": "ldc.i4.2",
+          "operand": null
+        },
+        {
+          "offset": 264,
+          "opcode": "beq.s",
+          "operand": "IL_0111"
+        },
+        {
+          "offset": 266,
+          "opcode": "ldstr",
+          "operand": "This browser could not save this run for reload. Keep this page open."
+        },
+        {
+          "offset": 271,
+          "opcode": "br.s",
+          "operand": "IL_0116"
+        },
+        {
+          "offset": 273,
+          "opcode": "ldstr",
+          "operand": "Run recovery is unavailable in this browser. Keep this page open."
+        },
+        {
+          "offset": 278,
+          "opcode": "stfld",
+          "operand": "System.String Roguehalla.Client.MatchClient::_resumeStatus"
+        },
+        {
+          "offset": 283,
+          "opcode": "ret",
+          "operand": null
+        }
+      ]
+    },
+    "connectGate": {
+      "method": "System.Boolean Roguehalla.Client.MatchClient::SeatResumeConnectAllowed(Roguehalla.Net.Session)",
+      "instructions": [
+        {
+          "offset": 0,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 1,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 2,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Client.MatchClient/SeatBinding Roguehalla.Client.MatchClient::_seatBinding"
+        },
+        {
+          "offset": 7,
+          "opcode": "stloc.0",
+          "operand": null
+        },
+        {
+          "offset": 8,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 9,
+          "opcode": "brfalse.s",
+          "operand": "IL_0016"
+        },
+        {
+          "offset": 11,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 12,
+          "opcode": "ldfld",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient/SeatBinding::Imported"
+        },
+        {
+          "offset": 17,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 18,
+          "opcode": "ceq",
+          "operand": null
+        },
+        {
+          "offset": 20,
+          "opcode": "br.s",
+          "operand": "IL_0017"
+        },
+        {
+          "offset": 22,
+          "opcode": "ldc.i4.1",
+          "operand": null
+        },
+        {
+          "offset": 23,
+          "opcode": "stloc.2",
+          "operand": null
+        },
+        {
+          "offset": 24,
+          "opcode": "ldloc.2",
+          "operand": null
+        },
+        {
+          "offset": 25,
+          "opcode": "brfalse.s",
+          "operand": "IL_0022"
+        },
+        {
+          "offset": 27,
+          "opcode": "ldc.i4.1",
+          "operand": null
+        },
+        {
+          "offset": 28,
+          "opcode": "stloc.3",
+          "operand": null
+        },
+        {
+          "offset": 29,
+          "opcode": "br",
+          "operand": "IL_010C"
+        },
+        {
+          "offset": 34,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 35,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Net.Session Roguehalla.Client.MatchClient/SeatBinding::Session"
+        },
+        {
+          "offset": 40,
+          "opcode": "ldarg.1",
+          "operand": null
+        },
+        {
+          "offset": 41,
+          "opcode": "bne.un.s",
+          "operand": "IL_0037"
+        },
+        {
+          "offset": 43,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 44,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 45,
+          "opcode": "call",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient::CurrentSeatBinding(Roguehalla.Client.MatchClient/SeatBinding)"
+        },
+        {
+          "offset": 50,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 51,
+          "opcode": "ceq",
+          "operand": null
+        },
+        {
+          "offset": 53,
+          "opcode": "br.s",
+          "operand": "IL_0038"
+        },
+        {
+          "offset": 55,
+          "opcode": "ldc.i4.1",
+          "operand": null
+        },
+        {
+          "offset": 56,
+          "opcode": "stloc.s",
+          "operand": "V_4"
+        },
+        {
+          "offset": 58,
+          "opcode": "ldloc.s",
+          "operand": "V_4"
+        },
+        {
+          "offset": 60,
+          "opcode": "brfalse.s",
+          "operand": "IL_0045"
+        },
+        {
+          "offset": 62,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 63,
+          "opcode": "stloc.3",
+          "operand": null
+        },
+        {
+          "offset": 64,
+          "opcode": "br",
+          "operand": "IL_010C"
+        },
+        {
+          "offset": 69,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 70,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 71,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Client.MatchClient/SeatPreparation Roguehalla.Client.MatchClient/SeatBinding::Owner"
+        },
+        {
+          "offset": 76,
+          "opcode": "ldc.i4.1",
+          "operand": null
+        },
+        {
+          "offset": 77,
+          "opcode": "call",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient::CurrentSeatOwner(Roguehalla.Client.MatchClient/SeatPreparation,System.Boolean)"
+        },
+        {
+          "offset": 82,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 83,
+          "opcode": "ceq",
+          "operand": null
+        },
+        {
+          "offset": 85,
+          "opcode": "stloc.s",
+          "operand": "V_5"
+        },
+        {
+          "offset": 87,
+          "opcode": "ldloc.s",
+          "operand": "V_5"
+        },
+        {
+          "offset": 89,
+          "opcode": "brfalse.s",
+          "operand": "IL_006E"
+        },
+        {
+          "offset": 91,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 92,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 93,
+          "opcode": "ldstr",
+          "operand": "The profile or connection changed. Load it again before resuming."
+        },
+        {
+          "offset": 98,
+          "opcode": "stfld",
+          "operand": "System.String Roguehalla.Client.MatchClient::_resumeStatus"
+        },
+        {
+          "offset": 103,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 104,
+          "opcode": "stloc.3",
+          "operand": null
+        },
+        {
+          "offset": 105,
+          "opcode": "br",
+          "operand": "IL_010C"
+        },
+        {
+          "offset": 110,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 111,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Net.OwnedSeatCheckpointStore Roguehalla.Client.MatchClient::_seatStore"
+        },
+        {
+          "offset": 116,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 117,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 118,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Client.MatchClient/SeatPreparation Roguehalla.Client.MatchClient/SeatBinding::Owner"
+        },
+        {
+          "offset": 123,
+          "opcode": "call",
+          "operand": "Roguehalla.Net.OwnedSeatCheckpointContext Roguehalla.Client.MatchClient::SeatContext(Roguehalla.Client.MatchClient/SeatPreparation)"
+        },
+        {
+          "offset": 128,
+          "opcode": "callvirt",
+          "operand": "Roguehalla.Net.SeatCheckpointReadResult Roguehalla.Net.OwnedSeatCheckpointStore::Read(Roguehalla.Net.OwnedSeatCheckpointContext)"
+        },
+        {
+          "offset": 133,
+          "opcode": "stloc.1",
+          "operand": null
+        },
+        {
+          "offset": 134,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 135,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 136,
+          "opcode": "call",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient::CurrentSeatBinding(Roguehalla.Client.MatchClient/SeatBinding)"
+        },
+        {
+          "offset": 141,
+          "opcode": "brfalse.s",
+          "operand": "IL_00A1"
+        },
+        {
+          "offset": 143,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 144,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 145,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Client.MatchClient/SeatPreparation Roguehalla.Client.MatchClient/SeatBinding::Owner"
+        },
+        {
+          "offset": 150,
+          "opcode": "ldc.i4.1",
+          "operand": null
+        },
+        {
+          "offset": 151,
+          "opcode": "call",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient::CurrentSeatOwner(Roguehalla.Client.MatchClient/SeatPreparation,System.Boolean)"
+        },
+        {
+          "offset": 156,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 157,
+          "opcode": "ceq",
+          "operand": null
+        },
+        {
+          "offset": 159,
+          "opcode": "br.s",
+          "operand": "IL_00A2"
+        },
+        {
+          "offset": 161,
+          "opcode": "ldc.i4.1",
+          "operand": null
+        },
+        {
+          "offset": 162,
+          "opcode": "stloc.s",
+          "operand": "V_6"
+        },
+        {
+          "offset": 164,
+          "opcode": "ldloc.s",
+          "operand": "V_6"
+        },
+        {
+          "offset": 166,
+          "opcode": "brfalse.s",
+          "operand": "IL_00AC"
+        },
+        {
+          "offset": 168,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 169,
+          "opcode": "stloc.3",
+          "operand": null
+        },
+        {
+          "offset": 170,
+          "opcode": "br.s",
+          "operand": "IL_010C"
+        },
+        {
+          "offset": 172,
+          "opcode": "ldloc.1",
+          "operand": null
+        },
+        {
+          "offset": 173,
+          "opcode": "callvirt",
+          "operand": "Roguehalla.Net.SeatCheckpointReadStatus Roguehalla.Net.SeatCheckpointReadResult::get_Status()"
+        },
+        {
+          "offset": 178,
+          "opcode": "brtrue.s",
+          "operand": "IL_00D1"
+        },
+        {
+          "offset": 180,
+          "opcode": "ldloc.1",
+          "operand": null
+        },
+        {
+          "offset": 181,
+          "opcode": "callvirt",
+          "operand": "Roguehalla.Net.OwnedSeatCheckpoint Roguehalla.Net.SeatCheckpointReadResult::get_Record()"
+        },
+        {
+          "offset": 186,
+          "opcode": "callvirt",
+          "operand": "System.String Roguehalla.Net.OwnedSeatCheckpoint::get_Revision()"
+        },
+        {
+          "offset": 191,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 192,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Net.OwnedSeatCheckpoint Roguehalla.Client.MatchClient/SeatBinding::Record"
+        },
+        {
+          "offset": 197,
+          "opcode": "callvirt",
+          "operand": "System.String Roguehalla.Net.OwnedSeatCheckpoint::get_Revision()"
+        },
+        {
+          "offset": 202,
+          "opcode": "call",
+          "operand": "System.Boolean System.String::op_Equality(System.String,System.String)"
+        },
+        {
+          "offset": 207,
+          "opcode": "br.s",
+          "operand": "IL_00D2"
+        },
+        {
+          "offset": 209,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 210,
+          "opcode": "stloc.s",
+          "operand": "V_7"
+        },
+        {
+          "offset": 212,
+          "opcode": "ldloc.s",
+          "operand": "V_7"
+        },
+        {
+          "offset": 214,
+          "opcode": "brfalse.s",
+          "operand": "IL_00E8"
+        },
+        {
+          "offset": 216,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 217,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 218,
+          "opcode": "ldstr",
+          "operand": "Verifying the saved run with the server\u2026"
+        },
+        {
+          "offset": 223,
+          "opcode": "stfld",
+          "operand": "System.String Roguehalla.Client.MatchClient::_resumeStatus"
+        },
+        {
+          "offset": 228,
+          "opcode": "ldc.i4.1",
+          "operand": null
+        },
+        {
+          "offset": 229,
+          "opcode": "stloc.3",
+          "operand": null
+        },
+        {
+          "offset": 230,
+          "opcode": "br.s",
+          "operand": "IL_010C"
+        },
+        {
+          "offset": 232,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 233,
+          "opcode": "ldloc.1",
+          "operand": null
+        },
+        {
+          "offset": 234,
+          "opcode": "callvirt",
+          "operand": "Roguehalla.Net.SeatCheckpointReadStatus Roguehalla.Net.SeatCheckpointReadResult::get_Status()"
+        },
+        {
+          "offset": 239,
+          "opcode": "brfalse.s",
+          "operand": "IL_00FE"
+        },
+        {
+          "offset": 241,
+          "opcode": "ldloc.1",
+          "operand": null
+        },
+        {
+          "offset": 242,
+          "opcode": "callvirt",
+          "operand": "Roguehalla.Net.SeatCheckpointReadStatus Roguehalla.Net.SeatCheckpointReadResult::get_Status()"
+        },
+        {
+          "offset": 247,
+          "opcode": "call",
+          "operand": "System.String Roguehalla.Client.MatchClient::SeatReadText(Roguehalla.Net.SeatCheckpointReadStatus)"
+        },
+        {
+          "offset": 252,
+          "opcode": "br.s",
+          "operand": "IL_0103"
+        },
+        {
+          "offset": 254,
+          "opcode": "ldstr",
+          "operand": "The saved run changed. Check again before resuming."
+        },
+        {
+          "offset": 259,
+          "opcode": "stfld",
+          "operand": "System.String Roguehalla.Client.MatchClient::_resumeStatus"
+        },
+        {
+          "offset": 264,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 265,
+          "opcode": "stloc.3",
+          "operand": null
+        },
+        {
+          "offset": 266,
+          "opcode": "br.s",
+          "operand": "IL_010C"
+        },
+        {
+          "offset": 268,
+          "opcode": "ldloc.3",
+          "operand": null
+        },
+        {
+          "offset": 269,
+          "opcode": "ret",
+          "operand": null
+        }
+      ]
+    },
+    "modeGate": {
+      "method": "System.Boolean Roguehalla.Client.MatchClient::SeatResumeModeAllowed(Roguehalla.Net.Session)",
+      "instructions": [
+        {
+          "offset": 0,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 1,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 2,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Client.MatchClient/SeatBinding Roguehalla.Client.MatchClient::_seatBinding"
+        },
+        {
+          "offset": 7,
+          "opcode": "stloc.0",
+          "operand": null
+        },
+        {
+          "offset": 8,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 9,
+          "opcode": "brfalse.s",
+          "operand": "IL_003F"
+        },
+        {
+          "offset": 11,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 12,
+          "opcode": "ldfld",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient/SeatBinding::Imported"
+        },
+        {
+          "offset": 17,
+          "opcode": "brfalse.s",
+          "operand": "IL_003F"
+        },
+        {
+          "offset": 19,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 20,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Net.Session Roguehalla.Client.MatchClient/SeatBinding::Session"
+        },
+        {
+          "offset": 25,
+          "opcode": "ldarg.1",
+          "operand": null
+        },
+        {
+          "offset": 26,
+          "opcode": "bne.un.s",
+          "operand": "IL_003C"
+        },
+        {
+          "offset": 28,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 29,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Net.Protocol.ServerMsg/Welcome Roguehalla.Client.MatchClient/SeatBinding::AttemptedWelcome"
+        },
+        {
+          "offset": 34,
+          "opcode": "ldarg.1",
+          "operand": null
+        },
+        {
+          "offset": 35,
+          "opcode": "callvirt",
+          "operand": "Roguehalla.Net.Protocol.ServerMsg/Welcome Roguehalla.Net.Session::get_Welcome()"
+        },
+        {
+          "offset": 40,
+          "opcode": "beq.s",
+          "operand": "IL_0039"
+        },
+        {
+          "offset": 42,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 43,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 44,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Client.MatchClient/SeatPreparation Roguehalla.Client.MatchClient/SeatBinding::Owner"
+        },
+        {
+          "offset": 49,
+          "opcode": "ldc.i4.1",
+          "operand": null
+        },
+        {
+          "offset": 50,
+          "opcode": "call",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient::CurrentSeatOwner(Roguehalla.Client.MatchClient/SeatPreparation,System.Boolean)"
+        },
+        {
+          "offset": 55,
+          "opcode": "br.s",
+          "operand": "IL_003A"
+        },
+        {
+          "offset": 57,
+          "opcode": "ldc.i4.1",
+          "operand": null
+        },
+        {
+          "offset": 58,
+          "opcode": "br.s",
+          "operand": "IL_003D"
+        },
+        {
+          "offset": 60,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 61,
+          "opcode": "br.s",
+          "operand": "IL_0040"
+        },
+        {
+          "offset": 63,
+          "opcode": "ldc.i4.1",
+          "operand": null
+        },
+        {
+          "offset": 64,
+          "opcode": "stloc.1",
+          "operand": null
+        },
+        {
+          "offset": 65,
+          "opcode": "br.s",
+          "operand": "IL_0043"
+        },
+        {
+          "offset": 67,
+          "opcode": "ldloc.1",
+          "operand": null
+        },
+        {
+          "offset": 68,
+          "opcode": "ret",
+          "operand": null
+        }
+      ]
+    },
+    "retireRuntime": {
+      "method": "System.Void Roguehalla.Client.MatchClient::RetireRuntime()",
+      "instructions": [
+        {
+          "offset": 0,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 1,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 2,
+          "opcode": "ldfld",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient::_runtimeRetired"
+        },
+        {
+          "offset": 7,
+          "opcode": "stloc.0",
+          "operand": null
+        },
+        {
+          "offset": 8,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 9,
+          "opcode": "brfalse.s",
+          "operand": "IL_000D"
+        },
+        {
+          "offset": 11,
+          "opcode": "br.s",
+          "operand": "IL_004D"
+        },
+        {
+          "offset": 13,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 14,
+          "opcode": "ldc.i4.1",
+          "operand": null
+        },
+        {
+          "offset": 15,
+          "opcode": "stfld",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient::_runtimeRetired"
+        },
+        {
+          "offset": 20,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 21,
+          "opcode": "ldc.i4.1",
+          "operand": null
+        },
+        {
+          "offset": 22,
+          "opcode": "stfld",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient::_destroying"
+        },
+        {
+          "offset": 27,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 28,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 29,
+          "opcode": "ldfld",
+          "operand": "System.Int64 Roguehalla.Client.MatchClient::_joinGeneration"
+        },
+        {
+          "offset": 34,
+          "opcode": "ldc.i4.1",
+          "operand": null
+        },
+        {
+          "offset": 35,
+          "opcode": "conv.i8",
+          "operand": null
+        },
+        {
+          "offset": 36,
+          "opcode": "add",
+          "operand": null
+        },
+        {
+          "offset": 37,
+          "opcode": "stfld",
+          "operand": "System.Int64 Roguehalla.Client.MatchClient::_joinGeneration"
+        },
+        {
+          "offset": 42,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 43,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 44,
+          "opcode": "call",
+          "operand": "System.Void Roguehalla.Client.MatchClient::CancelSeatPreparation(System.Boolean)"
+        },
+        {
+          "offset": 49,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 50,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 51,
+          "opcode": "ldc.i4.1",
+          "operand": null
+        },
+        {
+          "offset": 52,
+          "opcode": "ldc.i4.1",
+          "operand": null
+        },
+        {
+          "offset": 53,
+          "opcode": "call",
+          "operand": "System.Void Roguehalla.Client.MatchClient::CloseCurrentSession(System.Boolean,System.Boolean)"
+        },
+        {
+          "offset": 58,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 59,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 60,
+          "opcode": "call",
+          "operand": "Roguehalla.Net.AccountHubFlow Roguehalla.Client.MatchClient::get_AccountFlow()"
+        },
+        {
+          "offset": 65,
+          "opcode": "dup",
+          "operand": null
+        },
+        {
+          "offset": 66,
+          "opcode": "brtrue.s",
+          "operand": "IL_0047"
+        },
+        {
+          "offset": 68,
+          "opcode": "pop",
+          "operand": null
+        },
+        {
+          "offset": 69,
+          "opcode": "br.s",
+          "operand": "IL_004D"
+        },
+        {
+          "offset": 71,
+          "opcode": "call",
+          "operand": "System.Void Roguehalla.Net.AccountHubFlow::Cancel()"
+        },
+        {
+          "offset": 76,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 77,
+          "opcode": "ret",
+          "operand": null
+        }
+      ]
+    },
+    "closeCurrentSession": {
+      "method": "System.Void Roguehalla.Client.MatchClient::CloseCurrentSession(System.Boolean,System.Boolean)",
+      "instructions": [
+        {
+          "offset": 0,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 1,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 2,
+          "opcode": "call",
+          "operand": "Roguehalla.Net.Session Roguehalla.Client.MatchClient::get_Session()"
+        },
+        {
+          "offset": 7,
+          "opcode": "stloc.0",
+          "operand": null
+        },
+        {
+          "offset": 8,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 9,
+          "opcode": "ldfld",
+          "operand": "Roguehalla.Client.ArenaView Roguehalla.Client.MatchClient::Arena"
+        },
+        {
+          "offset": 14,
+          "opcode": "stloc.1",
+          "operand": null
+        },
+        {
+          "offset": 15,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 16,
+          "opcode": "ldfld",
+          "operand": "System.Int64 Roguehalla.Client.MatchClient::_joinGeneration"
+        },
+        {
+          "offset": 21,
+          "opcode": "stloc.2",
+          "operand": null
+        },
+        {
+          "offset": 22,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 23,
+          "opcode": "ldarg.2",
+          "operand": null
+        },
+        {
+          "offset": 24,
+          "opcode": "call",
+          "operand": "Roguehalla.Net.OwnedSeatCheckpoint Roguehalla.Client.MatchClient::TakeSeatBinding(System.Boolean)"
+        },
+        {
+          "offset": 29,
+          "opcode": "stloc.3",
+          "operand": null
+        },
+        {
+          "offset": 30,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 31,
+          "opcode": "call",
+          "operand": "Roguehalla.Client.MatchHud Roguehalla.Client.MatchClient::get_Hud()"
+        },
+        {
+          "offset": 36,
+          "opcode": "dup",
+          "operand": null
+        },
+        {
+          "offset": 37,
+          "opcode": "brtrue.s",
+          "operand": "IL_002A"
+        },
+        {
+          "offset": 39,
+          "opcode": "pop",
+          "operand": null
+        },
+        {
+          "offset": 40,
+          "opcode": "br.s",
+          "operand": "IL_0030"
+        },
+        {
+          "offset": 42,
+          "opcode": "call",
+          "operand": "System.Void Roguehalla.Client.MatchHud::UnbindTrainingSession()"
+        },
+        {
+          "offset": 47,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 48,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 49,
+          "opcode": "call",
+          "operand": "System.Void Roguehalla.Client.MatchClient::UnbindSettlementSession()"
+        },
+        {
+          "offset": 54,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 55,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 56,
+          "opcode": "ldnull",
+          "operand": null
+        },
+        {
+          "offset": 57,
+          "opcode": "call",
+          "operand": "System.Void Roguehalla.Client.MatchClient::set_Session(Roguehalla.Net.Session)"
+        },
+        {
+          "offset": 62,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 63,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 64,
+          "opcode": "ldnull",
+          "operand": null
+        },
+        {
+          "offset": 65,
+          "opcode": "stfld",
+          "operand": "Roguehalla.Net.MatchLaunchTarget Roguehalla.Client.MatchClient::_sessionTarget"
+        },
+        {
+          "offset": 70,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 71,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 72,
+          "opcode": "stfld",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient::_modeConfirmed"
+        },
+        {
+          "offset": 77,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 78,
+          "opcode": "ldnull",
+          "operand": null
+        },
+        {
+          "offset": 79,
+          "opcode": "cgt.un",
+          "operand": null
+        },
+        {
+          "offset": 81,
+          "opcode": "stloc.s",
+          "operand": "V_4"
+        },
+        {
+          "offset": 83,
+          "opcode": "ldloc.s",
+          "operand": "V_4"
+        },
+        {
+          "offset": 85,
+          "opcode": "brfalse.s",
+          "operand": "IL_0080"
+        },
+        {
+          "offset": 87,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 88,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 89,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 90,
+          "opcode": "ldfld",
+          "operand": "System.Action\u00601\u003CRoguehalla.Net.SessionState\u003E Roguehalla.Client.MatchClient::_boundLaunchState"
+        },
+        {
+          "offset": 95,
+          "opcode": "callvirt",
+          "operand": "System.Void Roguehalla.Net.Session::remove_StateChanged(System.Action\u00601\u003CRoguehalla.Net.SessionState\u003E)"
+        },
+        {
+          "offset": 100,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 101,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 102,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 103,
+          "opcode": "ldfld",
+          "operand": "System.Action\u00601\u003CRoguehalla.Net.Protocol.ServerMsg/Snapshot\u003E Roguehalla.Client.MatchClient::_boundLaunchSnapshot"
+        },
+        {
+          "offset": 108,
+          "opcode": "callvirt",
+          "operand": "System.Void Roguehalla.Net.Session::remove_SnapshotReceived(System.Action\u00601\u003CRoguehalla.Net.Protocol.ServerMsg/Snapshot\u003E)"
+        },
+        {
+          "offset": 113,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 114,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 115,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 116,
+          "opcode": "ldfld",
+          "operand": "System.Action Roguehalla.Client.MatchClient::_boundLaunchTimeline"
+        },
+        {
+          "offset": 121,
+          "opcode": "callvirt",
+          "operand": "System.Void Roguehalla.Net.Session::remove_TimelineReset(System.Action)"
+        },
+        {
+          "offset": 126,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 127,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 128,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 129,
+          "opcode": "ldnull",
+          "operand": null
+        },
+        {
+          "offset": 130,
+          "opcode": "stfld",
+          "operand": "System.Action\u00601\u003CRoguehalla.Net.SessionState\u003E Roguehalla.Client.MatchClient::_boundLaunchState"
+        },
+        {
+          "offset": 135,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 136,
+          "opcode": "ldnull",
+          "operand": null
+        },
+        {
+          "offset": 137,
+          "opcode": "stfld",
+          "operand": "System.Action\u00601\u003CRoguehalla.Net.Protocol.ServerMsg/Snapshot\u003E Roguehalla.Client.MatchClient::_boundLaunchSnapshot"
+        },
+        {
+          "offset": 142,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 143,
+          "opcode": "ldnull",
+          "operand": null
+        },
+        {
+          "offset": 144,
+          "opcode": "stfld",
+          "operand": "System.Action Roguehalla.Client.MatchClient::_boundLaunchTimeline"
+        },
+        {
+          "offset": 149,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 150,
+          "opcode": "call",
+          "operand": "System.Void Roguehalla.Client.MatchClient::UnbindPresentationSession()"
+        },
+        {
+          "offset": 155,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 156,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 157,
+          "opcode": "call",
+          "operand": "System.Void Roguehalla.Client.MatchClient::ResetPresentationTimeline()"
+        },
+        {
+          "offset": 162,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 163,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 164,
+          "opcode": "ldnull",
+          "operand": null
+        },
+        {
+          "offset": 165,
+          "opcode": "stfld",
+          "operand": "Roguehalla.Client.ArenaView Roguehalla.Client.MatchClient::Arena"
+        },
+        {
+          "offset": 170,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 171,
+          "opcode": "ldfld",
+          "operand": "System.Collections.Generic.List\u00601\u003CRoguehalla.Net.InterpActor\u003E Roguehalla.Client.MatchClient::_actors"
+        },
+        {
+          "offset": 176,
+          "opcode": "callvirt",
+          "operand": "System.Void System.Collections.Generic.List\u00601\u003CRoguehalla.Net.InterpActor\u003E::Clear()"
+        },
+        {
+          "offset": 181,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 182,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 183,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 184,
+          "opcode": "stfld",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient::_steering"
+        },
+        {
+          "offset": 189,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 190,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 191,
+          "opcode": "stfld",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient::_attackHeld"
+        },
+        {
+          "offset": 196,
+          "opcode": "ldloc.1",
+          "operand": null
+        },
+        {
+          "offset": 197,
+          "opcode": "ldnull",
+          "operand": null
+        },
+        {
+          "offset": 198,
+          "opcode": "call",
+          "operand": "System.Boolean UnityEngine.Object::op_Inequality(UnityEngine.Object,UnityEngine.Object)"
+        },
+        {
+          "offset": 203,
+          "opcode": "stloc.s",
+          "operand": "V_5"
+        },
+        {
+          "offset": 205,
+          "opcode": "ldloc.s",
+          "operand": "V_5"
+        },
+        {
+          "offset": 207,
+          "opcode": "brfalse.s",
+          "operand": "IL_00DD"
+        },
+        {
+          "offset": 209,
+          "opcode": "ldloc.1",
+          "operand": null
+        },
+        {
+          "offset": 210,
+          "opcode": "callvirt",
+          "operand": "UnityEngine.GameObject UnityEngine.Component::get_gameObject()"
+        },
+        {
+          "offset": 215,
+          "opcode": "call",
+          "operand": "System.Void Roguehalla.Client.MatchClient::DestroyOwnedArena(UnityEngine.GameObject)"
+        },
+        {
+          "offset": 220,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 221,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 222,
+          "opcode": "ldfld",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient::_destroying"
+        },
+        {
+          "offset": 227,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 228,
+          "opcode": "ceq",
+          "operand": null
+        },
+        {
+          "offset": 230,
+          "opcode": "stloc.s",
+          "operand": "V_6"
+        },
+        {
+          "offset": 232,
+          "opcode": "ldloc.s",
+          "operand": "V_6"
+        },
+        {
+          "offset": 234,
+          "opcode": "brfalse.s",
+          "operand": "IL_00FE"
+        },
+        {
+          "offset": 236,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 237,
+          "opcode": "call",
+          "operand": "Roguehalla.Client.MatchHud Roguehalla.Client.MatchClient::get_Hud()"
+        },
+        {
+          "offset": 242,
+          "opcode": "dup",
+          "operand": null
+        },
+        {
+          "offset": 243,
+          "opcode": "brtrue.s",
+          "operand": "IL_00F8"
+        },
+        {
+          "offset": 245,
+          "opcode": "pop",
+          "operand": null
+        },
+        {
+          "offset": 246,
+          "opcode": "br.s",
+          "operand": "IL_00FE"
+        },
+        {
+          "offset": 248,
+          "opcode": "call",
+          "operand": "System.Void Roguehalla.Client.MatchHud::ShowMenu()"
+        },
+        {
+          "offset": 253,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 254,
+          "opcode": "ldarg.2",
+          "operand": null
+        },
+        {
+          "offset": 255,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 256,
+          "opcode": "ceq",
+          "operand": null
+        },
+        {
+          "offset": 258,
+          "opcode": "stloc.s",
+          "operand": "V_7"
+        },
+        {
+          "offset": 260,
+          "opcode": "ldloc.s",
+          "operand": "V_7"
+        },
+        {
+          "offset": 262,
+          "opcode": "brfalse.s",
+          "operand": "IL_0110"
+        },
+        {
+          "offset": 264,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 265,
+          "opcode": "ldloc.3",
+          "operand": null
+        },
+        {
+          "offset": 266,
+          "opcode": "call",
+          "operand": "Roguehalla.Net.SeatCheckpointClearStatus Roguehalla.Client.MatchClient::ClearSeatRecord(Roguehalla.Net.OwnedSeatCheckpoint)"
+        },
+        {
+          "offset": 271,
+          "opcode": "pop",
+          "operand": null
+        },
+        {
+          "offset": 272,
+          "opcode": "ldarg.1",
+          "operand": null
+        },
+        {
+          "offset": 273,
+          "opcode": "brtrue.s",
+          "operand": "IL_0132"
+        },
+        {
+          "offset": 275,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 276,
+          "opcode": "ldnull",
+          "operand": null
+        },
+        {
+          "offset": 277,
+          "opcode": "call",
+          "operand": "System.Boolean UnityEngine.Object::op_Equality(UnityEngine.Object,UnityEngine.Object)"
+        },
+        {
+          "offset": 282,
+          "opcode": "brtrue.s",
+          "operand": "IL_0132"
+        },
+        {
+          "offset": 284,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 285,
+          "opcode": "ldfld",
+          "operand": "System.Boolean Roguehalla.Client.MatchClient::_destroying"
+        },
+        {
+          "offset": 290,
+          "opcode": "brtrue.s",
+          "operand": "IL_0132"
+        },
+        {
+          "offset": 292,
+          "opcode": "ldloc.2",
+          "operand": null
+        },
+        {
+          "offset": 293,
+          "opcode": "ldarg.0",
+          "operand": null
+        },
+        {
+          "offset": 294,
+          "opcode": "ldfld",
+          "operand": "System.Int64 Roguehalla.Client.MatchClient::_joinGeneration"
+        },
+        {
+          "offset": 299,
+          "opcode": "ceq",
+          "operand": null
+        },
+        {
+          "offset": 301,
+          "opcode": "ldc.i4.0",
+          "operand": null
+        },
+        {
+          "offset": 302,
+          "opcode": "ceq",
+          "operand": null
+        },
+        {
+          "offset": 304,
+          "opcode": "br.s",
+          "operand": "IL_0133"
+        },
+        {
+          "offset": 306,
+          "opcode": "ldc.i4.1",
+          "operand": null
+        },
+        {
+          "offset": 307,
+          "opcode": "stloc.s",
+          "operand": "V_8"
+        },
+        {
+          "offset": 309,
+          "opcode": "ldloc.s",
+          "operand": "V_8"
+        },
+        {
+          "offset": 311,
+          "opcode": "brfalse.s",
+          "operand": "IL_0147"
+        },
+        {
+          "offset": 313,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 314,
+          "opcode": "brtrue.s",
+          "operand": "IL_013E"
+        },
+        {
+          "offset": 316,
+          "opcode": "br.s",
+          "operand": "IL_0145"
+        },
+        {
+          "offset": 318,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 319,
+          "opcode": "call",
+          "operand": "System.Void Roguehalla.Net.Session::Detach()"
+        },
+        {
+          "offset": 324,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 325,
+          "opcode": "br.s",
+          "operand": "IL_0153"
+        },
+        {
+          "offset": 327,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 328,
+          "opcode": "brtrue.s",
+          "operand": "IL_014C"
+        },
+        {
+          "offset": 330,
+          "opcode": "br.s",
+          "operand": "IL_0153"
+        },
+        {
+          "offset": 332,
+          "opcode": "ldloc.0",
+          "operand": null
+        },
+        {
+          "offset": 333,
+          "opcode": "call",
+          "operand": "System.Void Roguehalla.Net.Session::Leave()"
+        },
+        {
+          "offset": 338,
+          "opcode": "nop",
+          "operand": null
+        },
+        {
+          "offset": 339,
+          "opcode": "ret",
+          "operand": null
+        }
+      ]
+    }
+  }
+}

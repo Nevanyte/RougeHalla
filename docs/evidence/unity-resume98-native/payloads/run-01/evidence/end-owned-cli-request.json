@@ -1,0 +1,20 @@
+{
+  "classification": "Root-authorized bounded interruption of owned CLI handoff, not an Editor crash verdict",
+  "verifiedPid": 43177,
+  "verifiedParent": 43174,
+  "verifiedStartUtc": "2026-11-09T18:35:42+00:00",
+  "exactProjectArgumentPrivatelyVerified": true,
+  "newEditorsBefore": [],
+  "startedUtc": "2026-11-09T18:51:49.142806+00:00",
+  "signals": [
+    {
+      "pid": 43177,
+      "signal": "SIGINT",
+      "utc": "2026-11-09T18:51:49.143199+00:00"
+    }
+  ],
+  "cliClosedOrExited": true,
+  "postState": null,
+  "newEditorsAfter": [],
+  "finishedUtc": "2026-11-09T18:51:50.210978+00:00"
+}

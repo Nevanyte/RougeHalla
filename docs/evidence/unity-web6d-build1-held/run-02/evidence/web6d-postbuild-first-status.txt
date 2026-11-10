@@ -1,0 +1,4 @@
+ M client-unity/UnityProject/Assets/Settings/RoguehallaPipeline.asset
+ M "client-unity/UnityProject/Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF - Fallback.asset"
+ M client-unity/UnityProject/Assets/UniversalRenderPipelineGlobalSettings.asset
+?? client-unity/UnityProject/ProjectSettings/PackageManagerSettings.asset

@@ -1,0 +1,66 @@
+--- frozen92e06f9/TrainingLayoutStage.cs
++++ resolver-only0970b817/TrainingLayoutStage.cs
+@@ -126,26 +126,51 @@
+     {
+         string repo=Directory.GetParent(Directory.GetParent(project).FullName).FullName;
+         string dotGit=Path.Combine(repo,".git"); string gitDir;
+-        if(Directory.Exists(dotGit)) gitDir=dotGit;
++        if(Directory.Exists(dotGit)) gitDir=Path.GetFullPath(dotGit);
+         else {
++            if(!File.Exists(dotGit)) throw new FileNotFoundException("Project .git entry is missing.",dotGit);
+             string marker=File.ReadAllText(dotGit).Trim(); const string prefix="gitdir:";
+-            if(!marker.StartsWith(prefix,StringComparison.Ordinal)) throw new InvalidOperationException("Project .git marker is not a worktree gitdir.");
++            if(!marker.StartsWith(prefix,StringComparison.Ordinal)) throw new InvalidOperationException("Project .git marker is not a gitdir file.");
+             string value=marker.Substring(prefix.Length).Trim();
++            if(value.Length==0) throw new InvalidOperationException("Project .git gitdir value is empty.");
+             gitDir=Path.GetFullPath(Path.IsPathRooted(value)?value:Path.Combine(repo,value));
+         }
++        if(!Directory.Exists(gitDir)) throw new DirectoryNotFoundException("Resolved project gitdir does not exist: "+gitDir);
++
++        string commonDir=gitDir;
++        string commonDirFile=Path.Combine(gitDir,"commondir");
++        if(File.Exists(commonDirFile)) {
++            string value=File.ReadAllText(commonDirFile).Trim();
++            if(value.Length==0) throw new InvalidOperationException("Git commondir file is empty.");
++            commonDir=Path.GetFullPath(Path.IsPathRooted(value)?value:Path.Combine(gitDir,value));
++            if(!Directory.Exists(commonDir)) throw new DirectoryNotFoundException("Resolved Git commondir does not exist: "+commonDir);
++        }
++
+         string head=File.ReadAllText(Path.Combine(gitDir,"HEAD")).Trim();
+-        if(!head.StartsWith("ref: ",StringComparison.Ordinal)) return head;
+-        string reference=head.Substring(5);
+-        string worktreeRef=Path.Combine(gitDir,"refs",reference.Replace('/',Path.DirectorySeparatorChar));
+-        if(File.Exists(worktreeRef)) return File.ReadAllText(worktreeRef).Trim();
+-        string commonDir=Directory.GetParent(Directory.GetParent(gitDir).FullName).FullName;
+-        string commonRef=Path.Combine(commonDir,"refs",reference.Replace('/',Path.DirectorySeparatorChar));
+-        if(File.Exists(commonRef)) return File.ReadAllText(commonRef).Trim();
++        if(!head.StartsWith("ref: ",StringComparison.Ordinal)) return ValidateGitObjectId(head);
++        string reference=head.Substring(5).Trim();
++        if(!reference.StartsWith("refs/",StringComparison.Ordinal) || reference.Contains(".."))
++            throw new InvalidOperationException("Git HEAD contains an invalid symbolic reference.");
++        string relativeRef=reference.Replace('/',Path.DirectorySeparatorChar);
++        string worktreeRef=Path.Combine(gitDir,relativeRef);
++        if(File.Exists(worktreeRef)) return ValidateGitObjectId(File.ReadAllText(worktreeRef).Trim());
++        string commonRef=Path.Combine(commonDir,relativeRef);
++        if(File.Exists(commonRef)) return ValidateGitObjectId(File.ReadAllText(commonRef).Trim());
++
+         string packed=Path.Combine(commonDir,"packed-refs");
+         if(File.Exists(packed)) foreach(string line in File.ReadAllLines(packed)) {
+-            if(line.Length>0 && line[0]!='#' && line[0]!='^') { var parts=line.Split(' '); if(parts.Length==2 && parts[1]==reference) return parts[0]; }
+-        }
+-        throw new FileNotFoundException("Could not resolve the frozen worktree HEAD ref.");
++            if(line.Length==0 || line[0]=='#' || line[0]=='^') continue;
++            int separator=line.IndexOf(' ');
++            if(separator>0 && string.Equals(line.Substring(separator+1).Trim(),reference,StringComparison.Ordinal))
++                return ValidateGitObjectId(line.Substring(0,separator).Trim());
++        }
++        throw new FileNotFoundException("Could not resolve the frozen worktree HEAD ref from worktree refs or common refs/packed-refs.");
++    }
++    static string ValidateGitObjectId(string value)
++    {
++        if(value==null || value.Length!=40) throw new InvalidDataException("Git HEAD ref did not resolve to a 40-character object ID.");
++        for(int i=0;i<value.Length;i++) if(!Uri.IsHexDigit(value[i])) throw new InvalidDataException("Git HEAD ref contains a non-hex object ID.");
++        return value.ToLowerInvariant();
+     }
+     static void AssertFrozenEnvironment()
+     {

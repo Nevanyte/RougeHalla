@@ -1,0 +1,35 @@
+{
+  "sourceCanonicalization": "57e166f46b35fb703e5f3c76914fcc4e8bf3191c",
+  "parent": "6d5d9340a6b9f425a17d7ea4488b49291fff3dc1",
+  "exactThree": [
+    {
+      "path": "client-unity/UnityProject/Assets/Settings/RoguehallaPipeline.asset",
+      "expectedBytes": 4411,
+      "expectedSha256": "35aab2e06292637cc288ffd981862f9abc9dc7647b3e14cde418588e97363e65",
+      "actualBytes": 4413,
+      "actualSha256": "ea26d6362d84b96ab37fdbbe03b92f7a723f35e05a5a306b586fc05730e5641c",
+      "firstBytesPrivatePath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/private/web6d-first-drift-01-RoguehallaPipeline.asset"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF - Fallback.asset",
+      "expectedBytes": 9359,
+      "expectedSha256": "1ed305335acc00607b80aaf22d1232f189b8aed773fa1d8bc66e96989aa751a9",
+      "actualBytes": 9748,
+      "actualSha256": "6792385c280302fc148141e7248f57fdab55b01366c31275e035a8fed3a4d850",
+      "firstBytesPrivatePath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/private/web6d-first-drift-02-LiberationSans SDF - Fallback.asset"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/UniversalRenderPipelineGlobalSettings.asset",
+      "expectedBytes": 21719,
+      "expectedSha256": "725624bcda3488d242383ef9e31befde45cb8eacc7001135da6e1a152258df00",
+      "actualBytes": 21730,
+      "actualSha256": "2458dd20ad332a72f08ff4620754d339a4a7bf814f73476332377852479fb014",
+      "firstBytesPrivatePath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/private/web6d-first-drift-03-UniversalRenderPipelineGlobalSettings.asset"
+    }
+  ],
+  "independentReviewSha256": "90d89a3ed940c08eb89961e42d5a8e8c650d4423236173eb5e0360e14a5ba3c8",
+  "remaining1281Pins": "PASS",
+  "firstBuildArtifact": "HELD, not source-exact",
+  "native98": "historical6dPASS unchanged; notrerun",
+  "next": "New1284pin freeze andONE build, pre/post exactsource/overlay/settings/scene/Baked; no further serialization allowance"
+}

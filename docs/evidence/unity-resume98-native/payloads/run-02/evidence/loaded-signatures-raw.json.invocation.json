@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "unity",
+    "command",
+    "script",
+    "run",
+    "--project-path",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/repo/client-unity/UnityProject",
+    "--caller",
+    "plugin",
+    "--skill",
+    "unity-cli",
+    "--format",
+    "json",
+    "--",
+    "--file",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/unity-resume98-isolated/run-02/Resume98MetadataObservers.cs",
+    "--entry",
+    "Resume98MethodSignatures.Run"
+  ],
+  "exitCode": 0,
+  "stderr": "",
+  "utc": "2026-11-09T19:02:50.963903+00:00",
+  "stdoutSha256": "dcc25dbc7215234a34d693d804f69de404c3ad272ad3937b681ec1afc51a5c81"
+}
