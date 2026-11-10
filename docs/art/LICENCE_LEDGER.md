@@ -1,0 +1,131 @@
+# Licence ledger: third-party files in the Unity project
+
+Scope: every non-code file under `client-unity/UnityProject/Assets` that is not original project work, as of branch `feature/unity-rework` (surveyed 2026-11-09 against the working tree and `git ls-files`: 353 non-C#, non-`.meta` files, all tracked, none local-only). Starting points: [`client-unity/THIRD_PARTY_ASSETS.md`](../../client-unity/THIRD_PARTY_ASSETS.md), [`AUDIO.md`](AUDIO.md), [`AUDIO_EXPANSION.md`](AUDIO_EXPANSION.md), [`ARMOR.md`](ARMOR.md), [`ASSET_EXPANSION.md`](ASSET_EXPANSION.md), [`PROP_CATALOG_IMPORT.md`](PROP_CATALOG_IMPORT.md), [`TYPOGRAPHY.md`](TYPOGRAPHY.md), the per-folder `asset-manifest.json` / `manifest.json` files and the captured Flare credits ledger (revision `61939e26d397b51c0c36da8cb861f89c8bf1d6db`, edited 2026-04-05T03:05:38Z). Licence names below are exactly what those records state; where a record states nothing for a file, the cell says so instead of inferring an author.
+
+This is an engineering record, not legal advice. Items marked **replace-later risk** are CC BY-SA and are the owner-accepted "may stay for now" set from `docs/prompts/UNITY_REWORK_FABLE.md` section 4.
+
+## Policy going forward
+
+| Kind | Allowed licences | Committed? |
+|---|---|---|
+| Art, audio | CC0, CC BY (credit the author; keep the attribution in the build) | Yes, committed, with a row in this ledger |
+| Fonts | SIL OFL 1.1 only (ship the OFL text and copyright notice) | Yes |
+| Unity Asset Store purchases | Asset Store EULA | Never. They live in git-ignored `client-unity/UnityProject/Assets/Licensed/` (already in `client-unity/UnityProject/.gitignore`; the folder does not exist yet). The ledger records pack name, version, store link and which files came from it. The project must build and run with the folder absent, using a free placeholder |
+| Anything else (CC BY-SA, CC BY-NC, GPL-only, "royalty-free" custom licences, unclear terms) | Not allowed for new additions. Nothing new may be derived from the Flare CC BY-SA assets | n/a |
+
+Every added file gets a row here in the same change that adds it.
+
+## Risk summary
+
+| Risk | Count / extent | Action |
+|---|---|---|
+| CC BY-SA 3.0 or later (**replace-later risk**): Flare art | 22 + 3 + 12 + 5 source PNGs, 3 tilesets (dungeon, cave, grassland), their definition `.txt` files, 88 derived PNGs and 42 candidate crops (205 MB under `Assets/Art/Derived`) | Keep for now. New art must not be derived from them. Replace environment, props, UI and effects first (sprites of characters and mobs are frozen for this effort) |
+| CC BY-SA 3.0: Flare audio | 12 clips: `battle_theme`, `dungeon_theme` (remaxim), `shoot` (remaxim), `goblin_hit`, `goblin_die` (MaximB), `melee_attack` (no author in ledger), `melee_attack_2`, `melee_attack_3`, `heal`, `burn`, `freeze`, `cave_wind_loop` (project default, no author) | Replace with CC0/CC BY (see `ASSET_SOURCING.md`). Music first: it is the most audible |
+| CC BY 3.0 attribution not shipped | Brandon Morris (Augmentality), Michel Baradari, artisticdude, plus art contributors (Blender Foundation, Lamoot, Hythlodaeus, TiZiana and others) | `Tools/build-web.sh` does not copy any Flare notice into `Build/Web/Licenses/`, and there is no in-game credits screen. CC BY requires attribution to travel with the work. See "Build notices" |
+| OFL notice for Cinzel Decorative not shipped | One file | `Tools/build-web.sh` copies the Liberation Sans OFL but not `OFL-CinzelDecorative.txt`. Add the copy line |
+| EmojiOne sprite sample: licence unverified | `EmojiOne.png`, `EmojiOne.asset`, `EmojiOne.json`; enabled as TMP default sprite asset with emoji support on | The only record is Unity's one-line note "review their licensing terms"; no licence text is in the repo and EmojiOne has changed licence between versions, so I could not establish that it is CC0/CC BY. Treat as not allowed until verified. Preferred fix: remove the sprite asset and the default-sprite reference if no `<sprite>` tags are used (none found in `Assets/Scripts`) |
+| Mixed-licence composite atlases | `tileset_dungeon.png`, `tileset_grassland.png` | Contain CC BY and public-domain renders (and, for grassland, two CC BY-SA textures) inside a CC BY-SA sheet. Handle as CC BY-SA as a whole |
+
+## Fonts and TextMesh Pro
+
+| Path or glob | What | Source | Author | Licence | Committed / local | Notes |
+|---|---|---|---|---|---|---|
+| `Assets/TextMesh Pro/Fonts/LiberationSans.ttf` | Body and HUD font | Unity's TextMesh Pro Essential Resources import (Liberation Fonts) | Digitized data (c) 2010 Google Corporation; (c) 2012 Red Hat, Inc. (reserved font name "Liberation") | SIL OFL 1.1 | Committed | OFL text in `Fonts/LiberationSans - OFL.txt`; the build copies it to `Build/Web/Licenses/LiberationSans-OFL.txt` |
+| `Assets/TextMesh Pro/Fonts/LiberationSans - OFL.txt` | Licence text for the above | same | same | n/a (licence text) | Committed | Shipped in build |
+| `Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF.asset`, `... - Fallback.asset`, `... - Drop Shadow.mat`, `... - Outline.mat` | Generated SDF atlas and materials for Liberation Sans | Generated by TMP from the font above | Derived from the font | SIL OFL 1.1 (derivative of the font) | Committed | Covered by the same OFL notice |
+| `Assets/Art/ThirdParty/Fonts/CinzelDecorative-Regular.ttf` | Display font for four HUD headings | `google/fonts` commit `86aced91de05cd4f96a06838124cca45be337b2b`, `ofl/cinzeldecorative/`; SHA-256 `5b862be3...330b10b8` | Natanael Gama (c) 2012; reserved font name "Cinzel" | SIL OFL 1.1 | Committed | **OFL notice is not copied into the build.** `Tools/build-web.sh` lines 56-61 copy only the MIT licence, Unity companion licence, Liberation Sans OFL and EmojiOne note. Fix: add `cp "$project/Assets/Art/ThirdParty/Fonts/OFL-CinzelDecorative.txt" "$project/Build/Web/Licenses/CinzelDecorative-OFL.txt"` |
+| `Assets/Art/ThirdParty/Fonts/OFL-CinzelDecorative.txt` | Licence text and copyright for Cinzel Decorative | same | same | n/a (licence text) | Committed | Must ship with the font in the build |
+| `Assets/Resources/Showcase/CinzelDecorative.asset` | Generated TMP SDF atlas of Cinzel Decorative | Generated in-project from the TTF | Derived from the font | SIL OFL 1.1 (derivative) | Committed | Under the OFL a modified version may not use the reserved name "Cinzel" as its primary name; the asset keeps the font's name. Low risk for a baked atlas, but worth a check when the font is next regenerated |
+| `Assets/TextMesh Pro/Shaders/**`, `Resources/TMP Settings.asset`, `Resources/Style Sheets/*`, `Resources/LineBreaking *.txt`, `License.Unity.md` | TextMesh Pro package resources (Essential Resources) | Unity `com.unity.ugui` / TextMesh Pro | Unity Technologies | Unity Companion License (see `License.Unity.md`) | Committed | Not art; permitted only for Unity-dependent projects, which this is. Build copies the licence to `Licenses/Unity-Companion.md` |
+| `Assets/TextMesh Pro/Sprites/EmojiOne.png`, `EmojiOne.json`, `Resources/Sprite Assets/EmojiOne.asset` | TMP sample emoji sprite sheet | Unity TMP Essential Resources; upstream <https://www.emojione.com/> | EmojiOne | **Not established.** Unity's note says only "review their licensing terms" | Committed | Licence unverified, not on the allowed list. `TMP Settings.asset` sets this as `m_defaultSpriteAsset` with `m_enableEmojiSupport: 1`. See Risk summary |
+| `Assets/TextMesh Pro/Sprites/EmojiOne Attribution.txt` | Unity's attribution note for the sheet | same | n/a | n/a | Committed | Shipped in build as `EmojiOne-Attribution.txt` |
+
+## Flare art: source files (CC BY-SA, replace-later risk)
+
+Source for all rows in this section: Flare: Empyrean Campaign, <https://github.com/flareteam/flare-game>, pinned commit `af6eee6d339ac98011864bfe89da837fe7769c28`; credits ledger <https://github.com/flareteam/flare-game/wiki/Credits>. Upstream states art is **CC BY-SA 3.0, later versions allowed**, unless the ledger lists a per-file exception. Unmodified originals are under `Raw/` with SHA-256 hashes in the manifests.
+
+| Path or glob (under `Assets/Art/ThirdParty/`) | What | Author | Licence | Committed / local | Notes |
+|---|---|---|---|---|---|
+| `Flare/Raw/images/avatar/male/*.png`, `.../female/*.png` (22 PNG) | Player base layers (head, chest, hands, legs, feet), plate armour layers (helm, cuirass, gauntlets, greaves, boots), shortsword | Not individually credited in the ledger; none inferred | CC BY-SA 3.0 or later (project default). **Replace-later risk** | Committed | Characters are frozen for this effort, so these stay |
+| `Flare/Raw/images/enemies/goblin.png`, `skeleton.png`; `Flare/Raw/images/npcs/knight.png` | Mob and NPC sheets | Not individually credited | CC BY-SA 3.0 or later. **Replace-later risk** | Committed | Frozen |
+| `Flare/Raw/images/tilesets/tileset_dungeon.png` (6.9 MB) | Dungeon tileset atlas | Flare project; ledger also credits Hythlodaeus (3D modeler, sarcophagus render, CC BY 3.0) and TiZiana (stone textures, CC BY 3.0) for parts rendered into the sheet | CC BY-SA 3.0 or later for the sheet. **Replace-later risk** | Committed | Environment art that clashes with the bright look; first to replace |
+| `Flare/Raw/animations/**/*.txt`, `Flare/Raw/tilesetdefs/*.txt` | Animation and tileset definition data | Flare project | CC BY-SA 3.0 or later (data) | Committed | Frame and anchor definitions |
+| `Flare/Raw/LICENSE.txt`, `Flare/Raw/CREDITS.txt` | Upstream licence text and credits | Flare project | n/a (licence texts) | Committed | Not shipped in the build |
+| `Flare/sprite-frame-metadata.json`, `Flare/armor-manifest.json` | Frame rectangles, anchors, layer map | Project-authored from Flare definitions | Repo licence for the JSON; frame data comes from Flare definitions | Committed | Keeps Flare provenance |
+| `FlareExpansion/Raw/images/avatar/male/*.png`, `.../female/*.png` (12 PNG) | Mage layers (boots, hood, skirt, sleeves, vest, staff) | Not individually credited | CC BY-SA 3.0 or later. **Replace-later risk** | Committed | Frozen |
+| `FlareExpansion/Raw/images/enemies/*.png` (5 PNG) | antlion, goblin_elite, skeleton_archer, skeleton_mage, zombie | Not individually credited | CC BY-SA 3.0 or later. **Replace-later risk** | Committed | Frozen |
+| `FlareExpansion/Raw/images/tilesets/tileset_cave.png` | Cave tileset atlas | Not individually credited | CC BY-SA 3.0 or later. **Replace-later risk** | Committed | Environment; replace |
+| `FlareExpansion/Raw/animations/**`, `Raw/tilesetdefs/tileset_cave.txt`, `CREDITS.md`, `CREDITS_CAPTURE.*`, `LICENSE.txt`, `asset-manifest.json` | Definitions, captured credits, licence, manifest | Flare project | CC BY-SA 3.0 or later / licence texts | Committed | |
+| `FlareProps/Raw/images/tilesets/tileset_grassland.png` | Grassland tileset atlas | Composite; credits: Blender Foundation (plants, CC BY 3.0), Lamoot (CC BY 3.0), Lattice, p0ss, Zuendholz (3D renders), Bart K (bark/straw textures, CC BY-SA 3.0, via OpenGameArt), Sindwiller (brick texture, CC BY-SA 3.0), TiZiana (CC BY 3.0), Yughues (rock textures, public domain). Exact terms per row in the captured ledger | CC BY-SA 3.0 or later for the sheet. **Replace-later risk** | Committed | Environment; replace |
+| `FlareProps/Raw/tilesetdefs/tileset_grassland.txt`, `Raw/CREDITS_CAPTURE.*`, `Raw/LICENSE.txt`, `asset-manifest.json`, `candidate-tiles.json` | Definition, captured credits, licence, manifest, crop list | Flare project / project-authored | as above | Committed | |
+| `FlareProps/Candidates/*.png` (42 PNG: 19 dungeon, 14 grassland, 9 cave) | Direct crops of the three atlases above | as the source atlas | CC BY-SA 3.0 or later. **Replace-later risk** | Committed | |
+
+## Flare art: derived files (CC BY-SA, share-alike travels with them)
+
+All generated by project tooling (`Assets/Editor/FlareCatalogImporter.cs` and related) from the Flare source above. They are adaptations, so they carry CC BY-SA 3.0 or later and the source credits. **Replace-later risk** for every row.
+
+| Path or glob (under `Assets/Art/Derived/`) | What | Source | Licence | Committed / local | Notes |
+|---|---|---|---|---|---|
+| `Flare/*.png` (6) | Composite actor atlases: hero, hero-female, knight, goblin, skeleton, props | `ThirdParty/Flare/Raw` layers | CC BY-SA 3.0 or later | Committed | Documented in `ARMOR.md` |
+| `FlareFullBase/Versions/ca4ea04cc36d8687/Actors/*.png` (5), `FlareFullBase/Catalog.asset`, `receipt.json` | Full-base actor atlases and catalogue | same | CC BY-SA 3.0 or later | Committed | `.asset` and JSON are project metadata |
+| `FlareExpansion/Actors/*.png` (7), `FlareExpansion/Environment/*.png` (12), `FlareExpansion/AssetReadiness.asset` | Mage and mob atlases; extracted cave floor, wall and prop tiles | `ThirdParty/FlareExpansion/Raw` | CC BY-SA 3.0 or later | Committed | Environment tiles first to replace |
+| `FlareProps/Tiles/*.png` (42), `FlareProps/ShowcasePropCatalog.asset` | Extracted dungeon, grassland and cave prop tiles | `ThirdParty/FlareProps` | CC BY-SA 3.0 or later (grassland tiles include CC BY-SA textures) | Committed | Environment; replace |
+| `ShowcaseLive/Atlases/*/*.png` (16), `ShowcaseLive/Catalog.asset`, `OriginalSourceCatalog.asset`, `receipt.json` | Baked runtime actor atlases | Derived atlases above | CC BY-SA 3.0 or later | Committed | These are what the live renderer draws |
+
+## Audio
+
+Source for all rows: Flare repository at the pinned commit, `mods/fantasycore/music` and `soundfx`; per-file credits from the captured ledger (also in each folder's `manifest.json` / `asset-manifest.json`). Files are unmodified. All paths under `Assets/Art/ThirdParty/`.
+
+| Path or glob | What | Author | Licence | Committed / local | Notes |
+|---|---|---|---|---|---|
+| `Flare/Audio/music/battle_theme.ogg` | Combat music | remaxim | CC BY-SA 3.0. **Replace-later risk** | Committed | |
+| `Flare/Audio/music/dungeon_theme.ogg` | Dungeon music | remaxim | CC BY-SA 3.0. **Replace-later risk** | Committed | |
+| `Flare/Audio/ambience/bird_twitter_loop.ogg` | Ambient birds | Chris Castiglione (alienistcog) | CC0 | Committed | |
+| `Flare/Audio/sfx/melee_attack.ogg` | Melee swing | None identified in the ledger | Project default CC BY-SA 3.0 (no per-file entry). **Replace-later risk** | Committed | |
+| `Flare/Audio/sfx/zombie_hit.ogg` | Hit | Ljudbank | Public Domain / CC0 | Committed | |
+| `Flare/Audio/sfx/inventory_book.ogg` | UI interaction | Cori Samuel | Public Domain / CC0 | Committed | |
+| `Flare/Audio/sfx/inventory_object.ogg` | Item pickup | Michel Baradari | CC BY 3.0 | Committed | Attribution required; not shipped |
+| `Flare/Audio/sfx/inventory_coins.ogg` | Coin pickup | artisticdude | Public Domain / CC BY 3.0 (ledger states both) | Committed | Treat as CC BY until the owner decides |
+| `FlareAudioExpansion/Raw/soundfx/melee_attack_2.ogg`, `melee_attack_3.ogg` | Melee swings | None identified | Project default CC BY-SA 3.0. **Replace-later risk** | Committed | |
+| `.../powers/shoot.ogg` | Arrow shot | remaxim | CC BY-SA 3.0. **Replace-later risk** | Committed | |
+| `.../powers/heal.ogg`, `burn.ogg`, `freeze.ogg` | Spell effects | None identified at these exact paths (root-level entries of the same name do not match) | Project default CC BY-SA 3.0. **Replace-later risk** | Committed | |
+| `.../enemies/goblin_hit.ogg`, `goblin_die.ogg` | Mob sounds | MaximB | CC BY-SA 3.0. **Replace-later risk** | Committed | |
+| `.../environment/cave_wind_loop.ogg` | Ambience loop | None identified | Project default CC BY-SA 3.0. **Replace-later risk** | Committed | |
+| `.../powers/block.ogg`, `shock.ogg`, `quake.ogg`, `shield.ogg`; `.../level_up.ogg` | Spell, UI and reward effects | Brandon Morris (Augmentality) | CC BY 3.0 | Committed | Attribution required; not shipped |
+| `.../enemies/antlion_hit.ogg` | Mob hit | Michel Baradari | CC BY 3.0 | Committed | Attribution required; not shipped |
+| `.../powers/fireball.ogg` | Spell effect | artisticdude | Public Domain / CC BY 3.0 | Committed | Treat as CC BY |
+| `.../powers/arrow_wall.ogg`, `.../flying_loot.ogg` | Effects | Iwan "qubodup" Gabovitch | Public Domain / CC0 | Committed | |
+| `.../enemies/skeleton_hit.ogg`, `skeleton_die.ogg`, `antlion_die.ogg`, `zombie_die.ogg`, `zombie_critdie.ogg` | Mob sounds | Ljudbank | Public Domain / CC0 | Committed | |
+| `.../inventory/inventory_potion.ogg` | Potion use | Stephan | Public Domain / CC0 | Committed | |
+| `Flare/Audio/NOTICE.txt`, `manifest.json`; `FlareAudioExpansion/LICENSE.txt`, `CREDITS_CAPTURE.*`, `asset-manifest.json`; `Derived/FlareAudioExpansion/ShowcaseAudioLibrary.asset` | Attribution notice, manifests, licence and credit captures, the Unity library asset that references the clips | Project-authored / Flare | n/a | Committed | The notice file is not shipped in the build |
+
+## Original project work (no third-party licence)
+
+For completeness, so a reader can see what the ledger intentionally leaves out. These are covered by the repository MIT licence (`LICENSE`, (c) 2026 RougeHalla contributors) unless noted.
+
+| Path or glob (under `Assets/`) | What | Notes |
+|---|---|---|
+| `Scripts/**`, `RoguehallaNet/**`, `Editor/**`, `Tests/**`, `Plugins/WebGL/*.jslib` | Project C# and JavaScript | Includes procedurally generated icon and identity sprites (`ShowcaseIconArt.cs`, `ShowcaseIdentityAssets.cs`): no external images |
+| `Resources/Shaders/RhVertexColor.shader`, `Resources/Showcase/` assets, materials, prefabs and `Audio.mixer` (Atmosphere, Catalog, Sprite materials, Torch prefabs) | Project shaders, materials, prefabs, audio mixer | No external textures referenced that are not listed above |
+| `Resources/Account/*.json` | Cosmetics and achievements data | Project data |
+| `Scenes/Main.unity`, `WebGLTemplates/Roguehalla/index.html`, `DefaultVolumeProfile.asset`, `UniversalRenderPipelineGlobalSettings.asset`, `Settings/*.asset` | Scene, WebGL page template, URP settings | URP assets are Unity-generated; the URP package itself is under Unity's package licence |
+
+## Build notices: what ships today
+
+`Tools/build-web.sh` writes `Build/Web/Licenses/` with: `Roguehalla-MIT.txt`, `Unity-Companion.md`, `LiberationSans-OFL.txt`, `EmojiOne-Attribution.txt`.
+
+Missing, and required to keep the current assets compliant:
+
+1. `CinzelDecorative-OFL.txt` (from `Assets/Art/ThirdParty/Fonts/OFL-CinzelDecorative.txt`): the OFL requires the copyright notice and licence to accompany redistributions.
+2. Flare attribution: the CC BY 3.0 and CC BY-SA 3.0 terms require credit to the author, a licence link and a change note. Ship `Flare/Raw/LICENSE.txt`, `Flare/Raw/CREDITS.txt`, `Flare/Audio/NOTICE.txt` and the captured credit files (or one consolidated `CREDITS.md` generated from this ledger) in `Licenses/`, plus a credits screen or link in the game.
+3. A decision on EmojiOne (remove, or document a verified licence).
+
+This task did not edit `build-web.sh` or any C#; the lines above are the change list for the coordinator.
+
+## Asset Store purchases
+
+None recorded. Format for future rows, to be added here (never committed to git, folder `client-unity/UnityProject/Assets/Licensed/`):
+
+| Pack name and version | Store link | Price paid | Files used (paths under `Assets/Licensed/`) | Free placeholder it replaces | Date |
+|---|---|---|---|---|---|
+| (none yet) | | | | | |

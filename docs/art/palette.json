@@ -1,0 +1,182 @@
+{
+  "schema": "roguehalla.palette.v1",
+  "colourSpace": "OKLCH [L 0..1, C 0..~0.37, h degrees]; authored values are exact, hex is derived by tools/art/palette-check.cjs",
+  "mutedRegion": "sentenced",
+  "thresholds": {
+    "bodyText": 4.5,
+    "largeText": 3.0,
+    "uiComponent": 3.0,
+    "actorContrast": 3.0,
+    "cvdMinDE": 0.07,
+    "grayMinDE": 0.05,
+    "legacyHueShiftDeg": 30,
+    "legacyMinChroma": 0.04,
+    "baseSecondaryContrast": 1.3,
+    "accentBaseContrast": 1.8,
+    "regionMinDL": 0.06,
+    "regionMinDC": 0.04,
+    "mutedChromaRatio": 0.6,
+    "mutedContrastKeep": 0.85
+  },
+  "inks": {
+    "dark": [0.18, 0.02, 265],
+    "light": [0.97, 0.015, 90]
+  },
+  "factions": {
+    "fire":      { "oklch": [0.74, 0.16, 38],  "legacy": "#FF7043", "region": "fire",      "shape": "Triangle with a pointed flame; split shoulders, twin horns", "icon": "axe",    "mark": "[F]" },
+    "sentenced": { "oklch": [0.67, 0.12, 300], "legacy": "#9575CD", "region": "sentenced", "shape": "Diamond with paired chain loops; faceted mantle",           "icon": "sword",  "mark": "[S]" },
+    "plague":    { "oklch": [0.82, 0.18, 130], "legacy": "#9CCC65", "region": "plague",    "shape": "Three linked lobes; ragged cowl with spores",               "icon": "bow",    "mark": "[P]" },
+    "frost":     { "oklch": [0.88, 0.075, 228], "legacy": "#4FC3F7", "region": "frost",     "shape": "Six-spoke crystal; angular plates, three-point crown",      "icon": "shield", "mark": "[I]" },
+    "holy":      { "oklch": [0.96, 0.10, 102], "legacy": "#FFF176", "region": "holy",      "shape": "Ring with cross and four diagonal rays; halo arch",         "icon": "wand",   "mark": "[H]" }
+  },
+  "regions": {
+    "fire": {
+      "faction": "fire",
+      "mood": "Under the mountain: warm volcanic ember light, dark basalt, glowing lava.",
+      "swatches": {
+        "base":      { "role": "ground, basalt and cooled lava rock",      "oklch": [0.38, 0.085, 38], "legacy": "#2D2622" },
+        "secondary": { "role": "obsidian walls, scorched trees, ash",       "oklch": [0.28, 0.060, 320], "legacy": "#5B4A66" },
+        "accent":    { "role": "lava, embers, forge glow (emissive)",       "oklch": [0.74, 0.178, 55], "legacy": "#FF6A1A" }
+      },
+      "light": {
+        "key":     [0.86, 0.095, 62],
+        "ambient": [0.50, 0.070, 32],
+        "shadow":  [0.24, 0.080, 12],
+        "fog":     [0.52, 0.090, 45]
+      }
+    },
+    "sentenced": {
+      "faction": "sentenced",
+      "mood": "Haunted farmland at harvest dusk: the one deliberately muted zone, hazy but readable.",
+      "swatches": {
+        "base":      { "role": "ground, dry straw and trodden field",       "oklch": [0.64, 0.030, 85], "legacy": "#3A3B42" },
+        "secondary": { "role": "weathered barn wood, fences, gallows",      "oklch": [0.38, 0.035, 60], "legacy": "#6E553A" },
+        "accent":    { "role": "judgment banners, violet lanterns",         "oklch": [0.44, 0.140, 300], "legacy": "#7E57C2" }
+      },
+      "light": {
+        "key":     [0.84, 0.070, 72],
+        "ambient": [0.55, 0.035, 290],
+        "shadow":  [0.32, 0.050, 305],
+        "fog":     [0.70, 0.030, 80]
+      }
+    },
+    "plague": {
+      "faction": "plague",
+      "mood": "Forgotten city: overgrown ruins, sickly teal-green, lots of greenery.",
+      "swatches": {
+        "base":      { "role": "ground, moss, grass and flooded paving",    "oklch": [0.58, 0.085, 170], "legacy": "#2A3326" },
+        "secondary": { "role": "ferns, ivy, ruin walls under vines",        "oklch": [0.36, 0.090, 150], "legacy": "#6D7F4A" },
+        "accent":    { "role": "toxic spore glow, bog bubbles (emissive)",  "oklch": [0.86, 0.200, 128], "legacy": "#B5E35A" }
+      },
+      "light": {
+        "key":     [0.90, 0.100, 150],
+        "ambient": [0.55, 0.070, 185],
+        "shadow":  [0.28, 0.050, 215],
+        "fog":     [0.66, 0.070, 170]
+      }
+    },
+    "frost": {
+      "faction": "frost",
+      "mood": "Frozen plains and ice lakes: cold blue-white with light snow in the air.",
+      "swatches": {
+        "base":      { "role": "ground, packed snow and lake ice",          "oklch": [0.88, 0.050, 232], "legacy": "#E3ECF2" },
+        "secondary": { "role": "blue glacier rock, ice walls, frozen reeds", "oklch": [0.66, 0.100, 240], "legacy": "#6F9FBD" },
+        "accent":    { "role": "aurora cyan, crystal glints (emissive)",    "oklch": [0.62, 0.128, 235], "legacy": "#4AA3DF" }
+      },
+      "light": {
+        "key":     [0.97, 0.015, 230],
+        "ambient": [0.78, 0.050, 245],
+        "shadow":  [0.52, 0.100, 275],
+        "fog":     [0.92, 0.025, 235]
+      }
+    },
+    "holy": {
+      "faction": "holy",
+      "mood": "Desert with oasis and garden pockets in golden sun.",
+      "swatches": {
+        "base":      { "role": "ground, sun-bleached sand and sandstone",   "oklch": [0.80, 0.095, 85], "legacy": "#E9DFC0" },
+        "secondary": { "role": "oasis and garden greenery, palms, lawns",   "oklch": [0.58, 0.130, 135] },
+        "accent":    { "role": "gilded trim, shrine gold",                  "oklch": [0.60, 0.120, 80], "legacy": "#D4AF37" }
+      },
+      "light": {
+        "key":     [0.93, 0.088, 90],
+        "ambient": [0.74, 0.070, 95],
+        "shadow":  [0.52, 0.090, 320],
+        "fog":     [0.86, 0.050, 85]
+      }
+    },
+    "coliseum": {
+      "faction": null,
+      "mood": "Neutral centre: warm limestone arena, burgundy banners, no region tint.",
+      "swatches": {
+        "base":      { "role": "arena floor and steps, limestone",          "oklch": [0.72, 0.025, 75], "legacy": "#4D4D4A" },
+        "secondary": { "role": "shadowed stone and timber",                 "oklch": [0.36, 0.030, 60] },
+        "accent":    { "role": "banners and cloth",                         "oklch": [0.46, 0.130, 10] }
+      },
+      "light": {
+        "key":     [0.95, 0.050, 85],
+        "ambient": [0.70, 0.030, 80],
+        "shadow":  [0.45, 0.050, 280],
+        "fog":     [0.82, 0.025, 80]
+      }
+    }
+  },
+  "ui": {
+    "panelAlpha": 0.94,
+    "tokens": {
+      "surface":       [0.22, 0.022, 255],
+      "raised":        [0.28, 0.026, 255],
+      "border":        [0.60, 0.035, 255],
+      "textPrimary":   [0.95, 0.015, 90],
+      "textSecondary": [0.80, 0.025, 250],
+      "accent":        [0.88, 0.120, 92],
+      "danger":        [0.74, 0.140, 22],
+      "success":       [0.82, 0.120, 150],
+      "warning":       [0.85, 0.100, 70]
+    },
+    "legacy": {
+      "surface": "#14181E",
+      "raised": "#1B2128",
+      "border": "#4A5563",
+      "textPrimary": "#E6E9ED",
+      "textSecondary": "#AEB7C2",
+      "accent": "#FFE082",
+      "danger": "#EF9A9A",
+      "success": "#A5D6A7",
+      "warning": "#FFCC80"
+    },
+    "pairs": [
+      { "fg": "ui.textPrimary",   "bg": "ui.surface", "kind": "body" },
+      { "fg": "ui.textPrimary",   "bg": "ui.raised",  "kind": "body" },
+      { "fg": "ui.textSecondary", "bg": "ui.surface", "kind": "body" },
+      { "fg": "ui.textSecondary", "bg": "ui.raised",  "kind": "body" },
+      { "fg": "ui.accent",        "bg": "ui.surface", "kind": "body" },
+      { "fg": "ui.accent",        "bg": "ui.raised",  "kind": "body" },
+      { "fg": "ui.danger",        "bg": "ui.surface", "kind": "body" },
+      { "fg": "ui.danger",        "bg": "ui.raised",  "kind": "body" },
+      { "fg": "ui.success",       "bg": "ui.surface", "kind": "body" },
+      { "fg": "ui.success",       "bg": "ui.raised",  "kind": "body" },
+      { "fg": "ui.warning",       "bg": "ui.surface", "kind": "body" },
+      { "fg": "ui.warning",       "bg": "ui.raised",  "kind": "body" },
+      { "fg": "ui.border",        "bg": "ui.surface", "kind": "ui" },
+      { "fg": "ui.border",        "bg": "ui.raised",  "kind": "ui" },
+      { "fg": "ui.surface",       "bg": "ui.accent",  "kind": "body" },
+      { "fg": "faction.fire",      "bg": "ui.surface", "kind": "body" },
+      { "fg": "faction.sentenced", "bg": "ui.surface", "kind": "body" },
+      { "fg": "faction.plague",    "bg": "ui.surface", "kind": "body" },
+      { "fg": "faction.frost",     "bg": "ui.surface", "kind": "body" },
+      { "fg": "faction.holy",      "bg": "ui.surface", "kind": "body" },
+      { "fg": "faction.fire",      "bg": "ui.raised",  "kind": "body" },
+      { "fg": "faction.sentenced", "bg": "ui.raised",  "kind": "body" },
+      { "fg": "faction.plague",    "bg": "ui.raised",  "kind": "body" },
+      { "fg": "faction.frost",     "bg": "ui.raised",  "kind": "body" },
+      { "fg": "faction.holy",      "bg": "ui.raised",  "kind": "body" },
+      { "fg": "ui.surface",       "bg": "faction.fire",      "kind": "body" },
+      { "fg": "ui.surface",       "bg": "faction.sentenced", "kind": "body" },
+      { "fg": "ui.surface",       "bg": "faction.plague",    "kind": "body" },
+      { "fg": "ui.surface",       "bg": "faction.frost",     "kind": "body" },
+      { "fg": "ui.surface",       "bg": "faction.holy",      "kind": "body" }
+    ]
+  },
+  "accepted": []
+}
