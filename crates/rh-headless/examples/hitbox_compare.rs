@@ -11,6 +11,12 @@
 //!
 //!   cargo run --release -p rh-headless --example hitbox_compare -- <map> <seed_from> <seed_to> [max_ticks] [modes]
 //!
+//! * mob spacing (ADR0024 addendum "Mob spacing"): for every engaged regional mob with another regional mob within
+//!   [`PACK`] u, its distance to the nearest one (mean, minimum, share under [`OVERLAP`] u, where two foot boxes overlap),
+//!   and the share of ticks with two engaged mobs within [`STACKED`] u of each other. Spacing is on exactly under
+//!   `archetypes` (`rh_sim::archetype::mob_spacing`); build with `--features rh-sim/mob-spacing-off` for the same seeds
+//!   with spacing off (the header line says which).
+//!
 //! `modes` is `both` (default), `legacy` or `archetypes`. A panic or a hang (a match that neither ends nor reaches
 //! `max_ticks`) is a failure of the run, so this doubles as the archetype-mode soak.
 use rh_headless::{Agent, AgentSpec, Env, EnvConfig};
@@ -41,6 +47,65 @@ pub fn live_config(hitboxes: HitboxMode) -> SimConfig {
         fill_seconds: 3.,
         hitboxes,
         ..SimConfig::default()
+    }
+}
+
+/// A neighbour within this many units makes an engaged mob part of a pack (it is measured).
+const PACK: f64 = 120.;
+/// Two mobs closer than this have overlapping foot boxes (10 u half-width each).
+const OVERLAP: f64 = 20.;
+/// Two mobs closer than this stand on top of each other.
+const STACKED: f64 = 8.;
+
+#[derive(Default)]
+struct Spacing {
+    samples: u64,
+    sum: f64,
+    min: Option<f64>,
+    overlapping: u64,
+    ticks_engaged: u64,
+    ticks_stacked: u64,
+}
+
+fn spacing_tick(sim: &rh_sim::Sim, out: &mut Spacing) {
+    use rh_sim::mob_runtime::MobKind;
+    let mobs: Vec<(bool, Vec2)> = sim
+        .mobs()
+        .iter()
+        .filter(|m| {
+            m.status == rh_sim::state::Status::Alive
+                && m.zombie.is_none()
+                && matches!(m.kind, MobKind::Regional | MobKind::Practice)
+        })
+        .map(|m| (m.engaged(), m.core.pos()))
+        .collect();
+    let engaged = mobs.iter().filter(|m| m.0).count();
+    if engaged >= 2 {
+        out.ticks_engaged += 1;
+    }
+    let mut stacked = false;
+    for (i, &(e, p)) in mobs.iter().enumerate() {
+        if !e {
+            continue;
+        }
+        let mut nearest = f64::INFINITY;
+        for (j, &(f, q)) in mobs.iter().enumerate() {
+            if i == j {
+                continue;
+            }
+            let d = hypot(p.x - q.x, p.y - q.y);
+            nearest = nearest.min(d);
+            stacked |= f && d < STACKED;
+        }
+        if nearest <= PACK {
+            out.samples += 1;
+            out.sum += nearest;
+            out.min = Some(out.min.map_or(nearest, |m: f64| m.min(nearest)));
+            out.overlapping += (nearest < OVERLAP) as u64;
+        }
+    }
+    if engaged >= 2 && stacked {
+        out.ticks_stacked += 1;
     }
 }
 
@@ -123,6 +188,7 @@ struct Mode {
     damage: BTreeMap<&'static str, f64>,
     // (class, weapon, homing, end reason) for misses and hits, to see why a shot class misses
     ends: BTreeMap<(&'static str, &'static str, bool, String), u64>,
+    spacing: Spacing,
 }
 
 fn weapon_name(w: WeaponId) -> &'static str {
@@ -263,6 +329,7 @@ fn run(arena: &rh_sim::Arena, mode: HitboxMode, seed: u64, max_ticks: u32, out: 
                 t.hits += landed as u64;
             }
         }
+        spacing_tick(&env.sim, &mut out.spacing);
         if p.terminated || p.truncated {
             break p;
         }
@@ -301,6 +368,17 @@ fn main() {
         results.push((mode, m));
     }
     for (mode, m) in &results {
+        let sp = &m.spacing;
+        println!(
+            "== {mode:?} spacing {}: engaged-in-pack samples {} meanNearest {:.1} minNearest {:.2} overlapShare(<{OVERLAP}) {:.3} ticksWith2+Engaged {} stackedTickShare(<{STACKED}) {:.3}",
+            if rh_sim::archetype::mob_spacing(&live_config(*mode)) { "on" } else { "off" },
+            sp.samples,
+            sp.sum / sp.samples.max(1) as f64,
+            sp.min.unwrap_or(f64::NAN),
+            sp.overlapping as f64 / sp.samples.max(1) as f64,
+            sp.ticks_engaged,
+            sp.ticks_stacked as f64 / sp.ticks_engaged.max(1) as f64,
+        );
         println!(
             "== {mode:?}: matches {} terminated {} truncated {} ticks {} (mean {:.0}) hits {} playerDeaths {} mobDeaths {}",
             m.matches,
