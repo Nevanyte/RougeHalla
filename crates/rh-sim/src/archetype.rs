@@ -69,6 +69,13 @@ pub enum HitboxMode {
     Archetypes,
 }
 
+/// Is mob spacing on for a match with this config (ADR0024 addendum "Mob spacing")? Exactly when the match plays with
+/// [`HitboxMode::Archetypes`]: one live switch. (The measurement-only `mob-spacing-off` build feature turns it off for
+/// an A/B on the same seeds; no production build has it.)
+pub fn mob_spacing(config: &crate::SimConfig) -> bool {
+    !cfg!(feature = "mob-spacing-off") && config.hitboxes == HitboxMode::Archetypes
+}
+
 /// A pair of half-extents (east-west, north-south).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Half {

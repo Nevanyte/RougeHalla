@@ -151,6 +151,13 @@ impl Mob {
             MobKind::QuestGiver => Identity::QuestGiver,
         })
     }
+    /// Is this mob fighting (its brain is in fight mode)? A read for tools and tests (rh-headless measurements); the sim
+    /// never sends it to a client.
+    pub fn engaged(&self) -> bool {
+        self.brain
+            .as_ref()
+            .is_some_and(|b| b.mode == BrainMode::Fight)
+    }
     pub(crate) fn returning(&self) -> bool {
         self.brain
             .as_ref()

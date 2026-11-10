@@ -28,6 +28,10 @@ schedule-trace = []
 # Scaling measurements past the real lobby cap (`Sim::synthetic`): used by rh-headless's scalebench only, never in a
 # production build.
 bench = []
+# Measurement only: turns the ADR0024 mob spacing off under `HitboxMode::Archetypes`, so rh-headless's hitbox_compare
+# can run the same seeds with spacing off and on (`--features rh-sim/mob-spacing-off`). No crate enables it; never in a
+# production build.
+mob-spacing-off = []
 
 [lints]
 workspace = true

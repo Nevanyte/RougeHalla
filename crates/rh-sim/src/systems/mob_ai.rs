@@ -238,6 +238,10 @@ pub(crate) fn think(cx: &mut Cx) {
             }
         }
     }
+    // Archetype hitboxes only (ADR0024 addendum "Mob spacing"): who stands where, read once; mobs only queue inputs below.
+    if super::mob_spacing::on(cx.k) {
+        super::mob_spacing::index(cx.w, &mut cx.s.mob_spacing);
+    }
     for i in 0..cx.w.mobs.len() {
         let m = &cx.w.mobs[i];
         if m.status != Status::Alive
@@ -360,7 +364,20 @@ fn fight(cx: &mut Cx, id: PlayerId, b: &mut Brain) {
     }
     match out.movement {
         crate::combat_policy::Move::Stop => {
-            if b.moving {
+            if let Some(to) = spacing_step(cx, id, from, at, weapon, mask) {
+                // Not `send`: the chase's repath clock and goal stay as they were, so the spacing step never delays or
+                // reorders a chase.
+                cx.propose(
+                    id,
+                    RawCommand::Move {
+                        x: to.x,
+                        y: to.y,
+                        seq: None,
+                    },
+                )
+                .expect("finite spacing step");
+                b.moving = true;
+            } else if b.moving {
                 cx.propose(id, RawCommand::Stop { seq: None }).unwrap();
                 b.moving = false;
             }
@@ -371,4 +388,38 @@ fn fight(cx: &mut Cx, id: PlayerId, b: &mut Brain) {
             }
         }
     }
+}
+
+/// The mob-spacing step of a mob whose policy wants it to stay put (`systems/mob_spacing.rs`): `None` under the legacy
+/// circle, alone, settled or with no room to move. A step stays in the policy's stop band round the target (so it neither
+/// wakes a chase nor a retreat), keeps line of sight with the policy's mask, stays inside the leash with the same margin a
+/// retreat uses, and walks a segment the mob's own foot box clears (the pathfinder's direct-path test).
+fn spacing_step(
+    cx: &Cx,
+    id: PlayerId,
+    from: Vec2,
+    at: Vec2,
+    weapon: crate::content::WeaponId,
+    mask: u8,
+) -> Option<Vec2> {
+    if !super::mob_spacing::on(cx.k) {
+        return None;
+    }
+    let m = cx.w.mobs.get(id)?;
+    let (camp, home, foot) = (m.camp, m.home, m.core.foot());
+    let p = crate::combat_policy::spacing(weapon, false);
+    let band = super::mob_spacing::Band {
+        lo: if p.retreat > 0. {
+            p.retreat + MOB_SPACING_BAND_SLACK
+        } else {
+            0.
+        },
+        hi: p.far - MOB_SPACING_BAND_SLACK,
+    };
+    let map = cx.k.collision_map(cx.w.rt.gates_locked);
+    super::mob_spacing::step(&cx.s.mob_spacing, id, from, at, band, |to| {
+        foot.segment_clear(map, from, to, MASK_MOVE)
+            && leash(cx.k, camp, home, to, MOB_LEASH_MARGIN)
+            && crate::geometry::has_line_of_sight(map, to, at, mask)
+    })
 }

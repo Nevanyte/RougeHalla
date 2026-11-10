@@ -470,4 +470,17 @@ content! {
     WALK_HINT_ICE_PROBE_U: f64 = 8.0, "u";
     WALK_HINT_SEGMENT_EPS_U: f64 = 1e-3, "u";
     WALK_HINT_WAYPOINT_SLACK_U: f64 = 1e-6, "u";
+
+    // ---- mob spacing (ADR0024 addendum "Mob spacing", owner 2026-11-10; HitboxMode::Archetypes only, systems/mob_spacing.rs) ----
+    /// Added to a mob's foot-box half-extent to make its personal-space radius: with the shared 10 x 6 foot box, two mobs
+    /// keep 40 u centre to centre, one foot-box width of ground between their foot boxes.
+    MOB_SPACING_MARGIN: f64 = 10.0, "u";
+    /// The longest step one think may order (about two ticks of walking).
+    MOB_SPACING_STEP_MAX: f64 = 16.0, "u";
+    /// A shorter step is not ordered: the pack counts as settled (no jitter).
+    MOB_SPACING_STEP_MIN: f64 = 1.0, "u";
+    /// A step stays this far inside the policy's stop band round the target, so it never wakes a chase or a retreat.
+    MOB_SPACING_BAND_SLACK: f64 = 8.0, "u";
+    /// The neighbour index's cell (the sum order of a step's push depends on it); at least the widest pair of rooms.
+    MOB_SPACING_CELL: f64 = 2. * TILE, "u";
 }
