@@ -253,6 +253,20 @@ const ATTRIBUTION_TOGGLES = [
   { name: 'ambient screen particles', flag: 'fx.ambient=0' },
   { name: 'particles', flag: 'fx.particles=0' },
   { name: 'render scale 0.75', flag: 'fx.scale=0.75' },
+  // render pass (docs/rework/RENDER_PLAN.md): one switch per effect
+  { name: 'analytic local lights (master)', flag: 'fx.locallights=0' },
+  { name: 'relief lighting', flag: 'fx.relief=0' },
+  { name: 'local wall shadows', flag: 'fx.lshadows=0' },
+  { name: 'light cookies', flag: 'fx.cookies=0' },
+  { name: 'gloss (specular)', flag: 'fx.gloss=0' },
+  { name: 'wind sway', flag: 'fx.wind=0' },
+  { name: 'cloud shadows', flag: 'fx.clouds=0' },
+  { name: 'water caustics', flag: 'fx.water=0' },
+  { name: 'fireflies', flag: 'fx.fireflies=0' },
+  { name: 'ember lights', flag: 'fx.emberlight=0' },
+  { name: 'wish and impact lights', flag: 'fx.fxlights=0' },
+  { name: 'trails and sparks', flag: 'fx.sparks=0' },
+  { name: 'max local lights 6', flag: 'fx.maxlights=6' },
 ];
 
 const median = a => percentile(a, .5);
