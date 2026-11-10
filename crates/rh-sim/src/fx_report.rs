@@ -58,6 +58,15 @@ impl BuildMarkCache {
     ) -> [Option<crate::kill_augments::KillStatKey>; 2] {
         if self.tick == Some(tick) {
             if let Ok(i) = self.rows.binary_search_by_key(&p.id, |(id, _)| *id) {
+                // Invariant that makes the cache exact: nothing changes a mark input of a seated player between the
+                // end-of-step refresh and the next step (every writer runs inside a step, and `Sim::with_cx`, the one
+                // out-of-step entry, must not edit the inputs). Checked against a direct computation in debug builds.
+                debug_assert_eq!(
+                    self.rows[i].1,
+                    crate::kill_augments::build_marks(p),
+                    "stale build-mark cache row for {:?} at tick {tick}",
+                    p.id
+                );
                 return self.rows[i].1;
             }
         }
