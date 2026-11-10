@@ -125,3 +125,23 @@ integration commit changes37 paths rather than the worker seal's38; all new modu
 one combined full `rh-policy --lib --nocapture` check at this exact integration, with the previously admitted Hand,
 Tactics, PathBudget, Potion and Strategy composition changes. Its raw receipt is `root-integrated-policy.log`; at this
 recording it is running and no pass is claimed. Target caches are not tracked.
+
+
+## Root combined verification result
+
+The combined dependency tree at code commit `721d04dabaa734f33835cd69bbb64385843d9a7d` passes **389/389** full
+`rh-policy --lib` tests, zero failures/ignored/filtered,217.50s test time /252.79s wall /exit0. The receipt includes
+all255 module cases/3259 operations,154 tactics cases/720 operations plus recreation,98 primary strategy cases/658
+operations plus4/48 supplement, and the previously admitted Memory/Hand/Path/Potion and legacy overlap tests.
+Subsequent `d0c920c6` changes only documentation; Root verified no code/toolchain/lockfile difference from `721d04da`.
+Formatting and strict default plus all-feature policy lint also pass (exit0;0.98s,37.16s and0.14s wall respectively).
+
+Commands, exact cwd/HEAD/environment, raw output and exits are preserved in
+[root-integrated-policy.log](root-integrated-policy.log) and
+[root-integrated-lint-format.log](root-integrated-lint-format.log). This is a full policy-library integration check,
+not a full workspace/Postgres/Claude/client or hosted acceptance gate. Full private Brain composition and fair/live
+activation still require their own implementation and proofs.
+
+- `root-integrated-policy.log`: 54573 bytes, SHA256 `37175fc5b1d281f35c1278b4cc5ddf6418e1b2ccdbbd7cbbecc81c96162772d1`.
+
+- `root-integrated-lint-format.log`: 1633 bytes, SHA256 `ed87dfafe6056bad93debbe51534b53808dc7cbe8a4ea0af4e8ba1badde0dde1`.
