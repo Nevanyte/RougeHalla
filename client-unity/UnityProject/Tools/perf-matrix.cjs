@@ -166,17 +166,17 @@ async function session(o, build, quality, zone, round) {
             uniform4fvFloatsPerFrame: (p.u4Floats || 0) / Math.max(1, fr.length), uniform4fvLengths: Object.fromEntries(Object.entries(p.u4Hist || {}).map(([k, v]) => [k, +(v / Math.max(1, fr.length)).toFixed(1)])),
             callsPerFrame: p.calls ? Object.fromEntries(Object.entries(p.calls).map(([k, v]) => [k, +((v - ((p.callsAt || {})[k] || 0)) / Math.max(1, fr.length)).toFixed(2)])) : null };
           p.frames.length = 0; p.gpuMs.length = 0; }
-        return { t, gl, actors: P.actors, region: P.region, x: P.x, y: P.y };
+        return { t, gl, actors: P.actors, region: P.region, x: P.x, y: P.y, row: P.row ? P.row.preset : null };
       });
       await sleep(150);
       const unity = await page.evaluate(() => window.__rhPerf.unity || null);
       const deltas = []; for (let i = 1; i < data.t.length; i++) deltas.push(data.t[i] - data.t[i - 1]);
       const cpu1 = browserCpu(), wall = (Date.now() - wall0) / 1000;
       const procCpu = cpu0 && cpu1 ? Object.fromEntries(Object.keys(cpu1).map(k => [k, +((cpu1[k] - cpu0[k]) / wall).toFixed(3)])) : null;   // cores busy during the window
-      const w = { kind, seconds, procCpu, gpuBusyBefore, stats: budget(deltas), unity, gl: data.gl, actors: data.actors, region: REGION_NAMES[data.region] || data.region, at: [data.x, data.y], load: [loadBefore, os.loadavg()[0]] };
+      const w = { kind, seconds, procCpu, gpuBusyBefore, stats: budget(deltas), unity, gl: data.gl, actors: data.actors, region: REGION_NAMES[data.region] || data.region, row: data.row, at: [data.x, data.y], load: [loadBefore, os.loadavg()[0]] };
       rec.windows.push(w);
       const c = w.unity && w.unity.cpu;
-      console.log(`  [${build.name} ${quality} ${zone} r${round}] ${kind.padEnd(8)} ${w.region || '-'} actors ${w.actors} p50 ${f(w.stats.p50Ms)} p95 ${f(w.stats.p95Ms)} p99 ${f(w.stats.p99Ms)} >6.94 ${f(w.stats.over694Pct)}% | unity frame ${c ? f(c.frame.mean) : '-'} scripts ${c ? f(c.scripts.mean) : '-'} render ${c ? f(c.render.mean) : '-'} | gc ${w.unity ? w.unity.gcBytesPerFrame : '-'} B/f | draws ${w.gl ? f(w.gl.drawsMean) : '-'} gpu ${w.gl && w.gl.gpuMean != null ? f(w.gl.gpuMean) : '-'} | gpuProc ${w.procCpu ? f(w.procCpu.gpu) : '-'} rend ${w.procCpu ? f(w.procCpu.renderer) : '-'} | load ${f(loadBefore)}`);
+      console.log(`  [${build.name} ${quality} ${zone} r${round}] ${kind.padEnd(8)} ${w.region || '-'} ${w.row || ''} actors ${w.actors} p50 ${f(w.stats.p50Ms)} p95 ${f(w.stats.p95Ms)} p99 ${f(w.stats.p99Ms)} >6.94 ${f(w.stats.over694Pct)}% | unity frame ${c ? f(c.frame.mean) : '-'} scripts ${c ? f(c.scripts.mean) : '-'} render ${c ? f(c.render.mean) : '-'} | gc ${w.unity ? w.unity.gcBytesPerFrame : '-'} B/f | draws ${w.gl ? f(w.gl.drawsMean) : '-'} gpu ${w.gl && w.gl.gpuMean != null ? f(w.gl.gpuMean) : '-'} | gpuProc ${w.procCpu ? f(w.procCpu.gpu) : '-'} rend ${w.procCpu ? f(w.procCpu.renderer) : '-'} | load ${f(loadBefore)}`);
       return w;
     };
     const hold = key => async seconds => { await page.keyboard.down(key); await sleep(seconds * 1000); await page.keyboard.up(key); };
