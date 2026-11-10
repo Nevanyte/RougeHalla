@@ -67,7 +67,13 @@ namespace Roguehalla.Editor
             PlayerSettings.WebGL.decompressionFallback = false;
             PlayerSettings.WebGL.template = "PROJECT:Roguehalla";
             PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.WebGL, true); // WebGL2 baseline
-            SetWebCodeOptimization(System.Environment.GetEnvironmentVariable("RH_WEB_CODE_OPTIMIZATION"));
+            // Runtime speed by default (measured: player scripts about half the main-thread time of BuildTimes, docs/rework/PERF_REPORT.md);
+            // RH_WEB_CODE_OPTIMIZATION overrides for experiments.
+            string codeOptimization = System.Environment.GetEnvironmentVariable("RH_WEB_CODE_OPTIMIZATION");
+            SetWebCodeOptimization(string.IsNullOrEmpty(codeOptimization) ? "RuntimeSpeed" : codeOptimization);
+            // WebAssembly 2023 (native wasm exceptions instead of JS invoke trampolines, SIMD, BigInt): smaller and slightly faster player
+            // (docs/rework/PERF_REPORT.md). RH_WEB_WASM2023=0 builds the old target for a comparison.
+            PlayerSettings.WebGL.wasm2023 = System.Environment.GetEnvironmentVariable("RH_WEB_WASM2023") != "0";
             // StreamingAssets are packed into Web.data on WebGL. The region audio must stay out of the first-load data and be fetched
             // on demand, so the folder is moved out of the project for the build and copied next to the player afterwards.
             RestoreAudioIfInterrupted();
@@ -78,13 +84,11 @@ namespace Roguehalla.Editor
             {
                 // Profiling builds only (RH_WEB_DEBUG_SYMBOLS=embedded): function names in the wasm so a browser CPU profile can attribute
                 // main-thread time. Restored right after the build, so ProjectSettings never keeps it.
-                var symbols = PlayerSettings.WebGL.debugSymbolMode; bool wasm2023 = PlayerSettings.WebGL.wasm2023;
+                var symbols = PlayerSettings.WebGL.debugSymbolMode;
                 if (System.Environment.GetEnvironmentVariable("RH_WEB_DEBUG_SYMBOLS") == "embedded") PlayerSettings.WebGL.debugSymbolMode = WebGLDebugSymbolMode.Embedded;
-                // Experiment switch (RH_WEB_WASM2023=1|0): the WebAssembly 2023 target (native wasm exceptions, SIMD, BigInt); restored after the build.
-                string w23 = System.Environment.GetEnvironmentVariable("RH_WEB_WASM2023"); if (w23 == "1" || w23 == "0") PlayerSettings.WebGL.wasm2023 = w23 == "1";
                 Debug.Log("WebGL wasm2023: " + PlayerSettings.WebGL.wasm2023 + ", exceptions: " + PlayerSettings.WebGL.exceptionSupport);
                 try { report = BuildPipeline.BuildPlayer(new BuildPlayerOptions { scenes = new[] { ScenePath }, locationPathName = "Build/Web", target = BuildTarget.WebGL, options = BuildOptions.None }); }
-                finally { PlayerSettings.WebGL.debugSymbolMode = symbols; PlayerSettings.WebGL.wasm2023 = wasm2023; }
+                finally { PlayerSettings.WebGL.debugSymbolMode = symbols; }
                 if (report.summary.result == BuildResult.Succeeded && moved) CopyAudio();
             }
             finally { if (moved) RestoreAudio(); }
