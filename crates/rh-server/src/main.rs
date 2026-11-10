@@ -2,6 +2,7 @@
 //!
 //!   cargo run --release -p rh-server -- --bind 127.0.0.1:7777 [--self-signed | --tls-cert cert.pem --tls-key key.pem]
 //!       [--runtime core|source-arena|training] (one configured profile per endpoint; source-arena requires --map)
+//!       [--hitboxes legacy|archetypes] (ADR0024; default legacy on every path; archetypes opts in to the measured boxes)
 //!       [--first-playable] (embedded small PvE/loot map; drain at4h, forced process stop by4h+180s)
 //!       [--control 127.0.0.1:7778] [--map parity/maps/seed1.map.json] [--max-rooms 16] [--fill-bots 8]
 //!       [--min-players 1] [--lobby-seconds 10] [--fill-seconds 3] [--auth dev|static:<file>]
@@ -464,9 +465,14 @@ async fn main() {
             .and_then(|v| v.parse::<f64>().ok())
             .unwrap_or(d)
     };
+    // `--hitboxes` takes effect on the core path too (ADR0024 review finding 9); a runtime parsed its own.
+    let core_hitboxes = rh_server::runtime::core_hitboxes(&args).unwrap_or_else(|e| {
+        eprintln!("[server] invalid hitbox settings: {e}");
+        std::process::exit(2);
+    });
     let sim = runtime.as_ref().map_or_else(
         || rh_sim::SimConfig {
-            hitboxes: Default::default(),
+            hitboxes: core_hitboxes,
             walk_hints: None,
             regen: false,
             quests: false,

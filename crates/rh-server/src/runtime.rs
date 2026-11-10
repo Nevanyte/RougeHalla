@@ -35,6 +35,13 @@ pub fn hitboxes_flag(
     }
 }
 
+/// The hitbox mode of the core binary (no `--runtime`, `--runtime core`, `--first-playable`): `--hitboxes` takes effect
+/// there too (review finding 9: it is never silently ignored), defaulting to the legacy circle. A bad value is a startup
+/// error, as it is with `--runtime`.
+pub fn core_hitboxes(args: &[String]) -> Result<rh_sim::archetype::HitboxMode, String> {
+    hitboxes_flag(args, rh_sim::archetype::HitboxMode::LegacyCircle)
+}
+
 fn value<'a>(args: &'a [String], flag: &str) -> Result<Option<&'a str>, String> {
     if args.iter().any(|a| a.starts_with(&format!("{flag}="))) {
         return Err(format!("use {flag} with a separate value"));
@@ -232,6 +239,28 @@ mod tests {
         assert_eq!(training.walk_hints, Some(true));
         assert!(training.training && training.dummies && !training.quests);
         assert_eq!(training.lifecycle, ArenaMode::Off);
+    }
+    #[test]
+    fn hitboxes_take_effect_on_the_core_path_too() {
+        use rh_sim::archetype::HitboxMode;
+        let args = |s: &str| s.split_whitespace().map(str::to_owned).collect::<Vec<_>>();
+        for base in ["", "--runtime core", "--first-playable"] {
+            assert!(parse(base).unwrap().is_none(), "{base}: the core path");
+            assert_eq!(core_hitboxes(&args(base)), Ok(HitboxMode::LegacyCircle), "{base}");
+            assert_eq!(
+                core_hitboxes(&args(&format!("{base} --hitboxes archetypes"))),
+                Ok(HitboxMode::Archetypes),
+                "{base}"
+            );
+            assert_eq!(
+                core_hitboxes(&args(&format!("{base} --hitboxes legacy"))),
+                Ok(HitboxMode::LegacyCircle),
+                "{base}"
+            );
+            for bad in ["--hitboxes boxes", "--hitboxes", "--hitboxes=archetypes"] {
+                assert!(core_hitboxes(&args(&format!("{base} {bad}"))).is_err(), "{base} {bad}");
+            }
+        }
     }
     #[test]
     fn every_runtime_defaults_to_the_legacy_circle_and_archetypes_opt_in() {
