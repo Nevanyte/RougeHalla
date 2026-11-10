@@ -198,7 +198,8 @@ impl RoomPathService {
         }
         match self.trip(from, to, borrowed) {
             None => Some(WalkAnswer {
-                dist: rh_sim::math::hypot(to.x - from.x, to.y - from.y) * STRAIGHT_FACTOR,
+                dist: rh_sim::mapgen::certify::source_hypot(to.x - from.x, to.y - from.y)
+                    * STRAIGHT_FACTOR,
                 exact: false,
             }),
             Some(t) => t.path.map(|_| WalkAnswer {
@@ -252,7 +253,7 @@ pub fn path_length(from: Vec2, points: &[Vec2]) -> f64 {
     let mut total = 0.;
     let mut at = from;
     for p in points {
-        total += rh_sim::math::hypot(at.x - p.x, at.y - p.y);
+        total += rh_sim::mapgen::certify::source_hypot(at.x - p.x, at.y - p.y);
         at = *p;
     }
     total

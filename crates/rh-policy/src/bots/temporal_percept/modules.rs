@@ -11,9 +11,18 @@ mod chests;
 mod choice;
 mod hazards;
 mod planning;
-mod registry;
-mod types;
+pub(super) mod registry;
+pub(super) mod types;
 mod wishes;
+
+// P-BOT-BRAIN-NATIVE-1 final interface lease: the private Brain composer imports the four actual builtin structs and
+// the caller-owned ordered registry/types/context surface from this facade. Their children/engines stay private and no
+// new module engine is registered.
+pub(super) use chests::ChestsModule;
+pub(super) use hazards::HazardsModule;
+pub(super) use planning::PlanningModule;
+pub(super) use registry::Registry;
+pub(super) use wishes::WishesModule;
 
 #[cfg(test)]
 mod catalog_tests;
@@ -24,8 +33,12 @@ mod planning_core_tests;
 #[cfg(test)]
 mod source_input;
 #[cfg(test)]
-mod source_reader;
+pub(super) mod source_reader;
 #[cfg(test)]
 mod source_tests;
 #[cfg(test)]
-mod source_trace;
+pub(super) mod source_trace;
+// One selected pure helper for the new Brain intake: the existing strict raw JSON parse (duplicate decoded keys,
+// depth bound, no trailing bytes). The component-specific typed reader itself stays private.
+#[cfg(test)]
+pub(super) use source_input::parse_raw;
