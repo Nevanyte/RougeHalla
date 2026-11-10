@@ -1,0 +1,15 @@
+{
+  "purpose": "CPU diagnostic only; paired performance run remains unchanged",
+  "controllerPid": 20975,
+  "startedUtc": "2026-11-10T03:08:55.126058+00:00",
+  "sampleAttempted": true,
+  "nativePid": 20976,
+  "ownershipVerified": true,
+  "sampleExit": 0,
+  "sampleStdoutTail": "",
+  "sampleStderrTail": "Sampling process 20976 for 10 seconds with 1 millisecond of run time between samples\nSampling completed, processing symbols...\nSample analysis of process 20976 written to file /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/native-m5-cpu-diagnostic-01/sample.txt\n",
+  "controllerExit": 0,
+  "controllerStdout": "{\"status\":\"CAPTURED_ONE_30S_NATIVE_BACKEND\",\"failure\":null,\"report\":\"/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/native-m5-cpu-diagnostic-01/run/report.json\"}\n",
+  "controllerStderr": "",
+  "endedUtc": "2026-11-10T03:09:54.787413+00:00"
+}

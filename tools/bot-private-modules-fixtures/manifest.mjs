@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import{createHash}from'node:crypto';
+import{readFileSync,writeFileSync}from'node:fs';
+import{fileURLToPath}from'node:url';
+import{dirname,resolve,join}from'node:path';
+const mode=process.argv[2]??'--check';assert(['--write','--check'].includes(mode));
+const root=resolve(dirname(fileURLToPath(import.meta.url)),'../..'),dir=join(root,'parity/policy/bot-private-modules'),read=p=>readFileSync(p),pin=p=>{const b=read(p);return{bytes:b.length,sha256:createHash('sha256').update(b).digest('hex')};};
+const source=JSON.parse(read(join(dir,'source.json'))),controls=JSON.parse(read(join(dir,'controls.json'))),coverage=JSON.parse(read(join(dir,'coverage.json')));
+assert.equal(controls.source.sha256,pin(join(dir,'source.json')).sha256);assert(controls.controls.every(c=>c.result==='KILL'||c.result==='NONKILL'));
+for(const[path,p]of Object.entries(source.profile.toolFiles))assert.deepEqual(pin(join(root,path)),p,path+': exact tool');
+const body={format:'rh-bot-private-modules-manifest/1',candidateStatus:'AUTHOR_PREPARED_UNSEALED_INDEPENDENT_REVIEW_REQUIRED',profile:source.profile,maps:source.maps.map(m=>({id:m.id,mapHashU32:m.mapHashU32,encodedValueSha256:createHash('sha256').update(JSON.stringify(m.value)).digest('hex')})),corpus:Object.fromEntries(['source.json','coverage.json','controls.json'].map(p=>[p,pin(join(dir,p))])),cases:source.cases.length,operations:source.cases.reduce((n,c)=>n+c.operations.length,0),semanticControls:controls.controls.filter(c=>c.result==='KILL').length,reachedAssertions:coverage.reachedAssertions,commentControl:controls.controls.find(c=>c.id==='comment-only'),restored:controls.restoredCases};
+const bytes=JSON.stringify(body,null,1)+'\n',path=join(dir,'manifest.json');if(mode==='--write')writeFileSync(path,bytes);else assert.equal(read(path).toString(),bytes);console.log(JSON.stringify({mode,file:path,...pin(path),cases:body.cases,operations:body.operations,semanticControls:body.semanticControls}));

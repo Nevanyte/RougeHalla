@@ -1,0 +1,14 @@
+{"cwd": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests", "head": "07babf29e6f3d65c7e0951f32359cb4e88ef6c88", "command": ["/Users/nevinmckinnon/.cargo/bin/cargo", "test", "-p", "rh-policy", "--lib", "bots::paths", "--locked", "--offline", "-j", "1"], "CARGO_TARGET_DIR": "target/root-strategy-notice-admission/build", "CARGO_INCREMENTAL": "0", "RUSTFLAGS": ""}
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests/crates/rh-policy)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 29.32s
+     Running unittests src/lib.rs (target/root-strategy-notice-admission/build/debug/deps/rh_policy-f90e85fbfc95e0da)
+
+running 3 tests
+test bots::paths::shared_budget_tests::two_services_share_one_caller_allowance_without_sharing_caches ... ok
+test bots::paths_parity_tests::the_path_service_matches_the_source_step_by_step ... ok
+test bots::paths::shared_budget_tests::the_borrowed_entries_replay_the_frozen_source_script ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 232 filtered out; finished in 0.00s
+
+
+exit=0 elapsed_seconds=30.02

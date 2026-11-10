@@ -81,3 +81,20 @@ profile-load/Training/movement/Leave check. Explicit Caddy MIME matching now ena
 no Unity/native rebuild was needed. Original shutdown remains **2026-11-10 03:50:21 UTC** (November9,20:50 Calgary).
 Hosted multiplayer, actual M5 Pro/legacy performance measurements and final cleanup/release checks remain open.
 Historical passing runs keep their recorded revisions and scopes.
+
+## First backend measurement, 2026-11-10
+
+The [paired full-map M5 Pro backend run](../evidence/m5-backend-first-pair/README.md) completes600 observed steps in30seconds
+on each backend with3ordinary players. Sampled Rust process cost is6.69% of one CPU/18.38–18.48MiB RSS; legacy is
+5.46%/191.58–191.88MiB. This is a memory saving, not a measured CPU speedup. CPU spans are the inner~29seconds;
+publication/storage/mechanics differ and other development work was active. No maximum-throughput, FPS, gameRTT or equal-view
+bandwidth claim follows. One separate native CPU trace identifies focused investigation candidates; no optimization is admitted yet.
+Unity/client work remains paused for Codex and owned by Claude. Original staging expiry/cleanup remains03:50:21UTC.
+
+## Temporary hosting window completed
+
+At the unchanged03:50:21UTC expiry, the guest initiated shutdown; termination was confirmed03:50:44UTC. The exact demo
+stack, disk, network interface, bucket, schedule and IAM resources are removed and independently checked; the sole test
+DNS record is deleted with a persisted empty-table screenshot. [Cleanup evidence](../evidence/calgary-demo-cleanup/README.md).
+**play.rougehalla.com is now offline**; local artifacts/services remain available. Current backend measurement and normal
+sourceCI evidence are recorded; Unity/FPS and the complete rendered legacy comparison remain Claude-owned and open.

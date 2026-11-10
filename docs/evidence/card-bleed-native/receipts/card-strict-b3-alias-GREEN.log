@@ -1,0 +1,12 @@
+254 |     pub(crate) fn node_bytes(&self) -> usize {
+    |                   ^^^^^^^^^^
+
+warning: `rh-sim` (lib test) generated 8 warnings (run `cargo fix --lib -p rh-sim --tests` to apply 5 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2m 05s
+     Running unittests src/lib.rs (target/debug/deps/rh_sim-aabb9bffeb4358ef)
+
+running 1 test
+test systems::card_bleed_feedback::tests::canonical_b3_map_aliases_and_duplicate_keys_are_refused_through_both_stored_paths ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 889 filtered out; finished in 0.22s
+

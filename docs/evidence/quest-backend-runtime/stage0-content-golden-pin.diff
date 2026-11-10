@@ -1,0 +1,13 @@
+diff --git a/crates/rh-sim/tests/content.rs b/crates/rh-sim/tests/content.rs
+index 0a881a56..46d484ad 100644
+--- a/crates/rh-sim/tests/content.rs
++++ b/crates/rh-sim/tests/content.rs
+@@ -519,7 +519,7 @@ fn hash_golden() {
+         content_hash()
+     );
+ }
+-const GOLDEN_CONTENT_HASH: u64 = 0x7c6a_633f_68c2_cc72;
++const GOLDEN_CONTENT_HASH: u64 = 0x8edd_862f_48ff_a100;
+ 
+ #[test]
+ fn every_registry_row_perturbs_the_hash() {

@@ -1,11 +1,11 @@
 # Roguehalla migration: remaining-work backlog
 
-Written for a team that has only this repository (no chat history). Stage 1 built the Rust foundation; everything below is
-what is left. Read first: [../CONTRACTS.md](../CONTRACTS.md) (invariants `C-*`), [../adr/README.md](../adr/README.md),
+Written for a team that has only this repository (no chat history). Stage 1 built the Rust foundation. This file retains both current work and historical planning rows;
+the latest MIGRATION checkpoint and backend workplan distinguish implemented work from actual remaining scope. Read first: [../CONTRACTS.md](../CONTRACTS.md) (invariants `C-*`), [../adr/README.md](../adr/README.md),
 [../../parity/README.md](../../parity/README.md), [../legacy/INVENTORY.md](../legacy/INVENTORY.md) (legacy systems and numbers,
 and section 9 "stale-doc discrepancies": the legacy `docs/legacy/CLAUDE_LEGACY.md` is a map, **code wins**).
 
-**What exists (do not re-plan it):** `rh-sim` slice (core layout: [ADR 0009](../adr/0009-core-layout.md) and `crates/rh-sim/README.md`) = lobby -> active -> ended, movement + A* pathfinding (exact legacy port),
+**Historical foundation inventory (superseded by the current checkpoint; do not re-plan these components):** `rh-sim` slice (core layout: [ADR 0009](../adr/0009-core-layout.md) and `crates/rh-sim/README.md`) = lobby -> active -> ended, movement + A* pathfinding (exact legacy port),
 fists/sword/shield/axe melee with zero-windup player swings and lag-compensated rewind, pickup/swap/drop, the damage ledger (PvP factor at card power 0,
 mitigation, PvP hit cap, simultaneous resolution, kill credit, bounty + announcements, GV, win bonus gate), leaving (MIA),
 observations (current sight only), replays and checkpoints; `rh-parity` (the legacy slice scenarios and 300 `findPath` queries match; `cargo run -p rh-parity --bin parity-report`);
@@ -16,11 +16,32 @@ actual Unity 6000.0.85f2 Web build and the selected MVP match loop verified, inc
 Initial loot discovery and all seven reliable views are integrated; broader content and cloud deployment remain open. The ported tick order is the table `schedule::PHASES` in `crates/rh-sim/src/schedule.rs` (run by `systems::update_active`); unported
 rows are `Pending("P-...")` entries there, named after the legacy rows, and [../CONTRACTS.md](../CONTRACTS.md) C-TICK describes them.
 
-## November9 coordinator checkpoint
+## Backend continuation (owner instruction, 2026-11-09 America/Edmonton)
+
+Remaining Rust gameplay, bots and quest backend preparation are active in a separate lane alongside Claude's
+Unity/networking effort. DeepSeek implements Rust; Sol/Luna handle most architecture, inventory, plans and independent
+review; Codex coordinates, admits changes and updates shared records. Work starts from committed backend `4151b3af`
+in `codex/backend-gameplay-quests`, leaving Claude's primary checkout and active branches untouched.
+
+Completed private admission: [P-BOT-MEMORY-ADMISSION-1](packets/P-BOT-MEMORY-ADMISSION-1.md), integrated as `8a2d3c6c`
+after independent review of DeepSeek `0ea1589a` and its new-base focused tests/lint. The
+[quest architecture](../coordination/QUEST_BACKEND_REWORK.md) and [P-QUEST-BACKEND-1](packets/P-QUEST-BACKEND-1.md)
+have frozen actual-source evidence (`c605f2fb`); Stage0 is independently admitted and integrated as `8a11520d` + `56843a8e`, with content `8edd862f48ffa100` and unchanged schemas. The behavior-preserving objective/reward extraction is independently admitted as `ad98c441` + `9debd3e2`. The repaired [notice continuation](packets/P-QUEST-NOTICE-CONTINUATION-1.md) is independently admitted as `51a43597` + `0085ff79`; Root's combined check passes6 new and1 unchanged test. Its six-case witness does not establish complete181-record transport or browser quest parity. The reviewed test-only [Room delivery proof](packets/P-QUEST-ROOM-DELIVERY-1.md) is now dispatched from `9ee84dfe` to `backend-quest-room-delivery`; native completion/Outbox/privacy evidence remains to be produced.
+[P-BOT-STRATEGY-1](packets/P-BOT-STRATEGY-1.md) is independently admitted through `2b05e607`; the later Send/mutable-goals composition bridge `96905908` is admitted as `04577169` + `030b3be8`. [P-BOT-TACTICS-1](packets/P-BOT-TACTICS-1.md) native `cdf5b70f` is admitted as `df62934a`, with154/720 source,238 author library tests and18 Root integrated focused tests. [P-BOT-MODULES-1](packets/P-BOT-MODULES-1.md) native `0c6dcee4` is independently admitted as `721d04da`:255/3259 source,24 intake negatives,28 semantic controls,354 author library tests and unchanged shared-engine overlaps/lint/format. Root's combined policy check at `721d04da` passes389/389, plus format and strict default/all-feature lint.
+
+Full Brain source `6aaa4c6d` is independently released as `5a5a28c6` + `8fa97f24`; the Hand feature gate `76f8a9aa` is admitted as `483c1490` + `2436ed80`. The separate [path allowance bridge](packets/P-BOT-PATH-BUDGET-1.md) `5d351cb5` is admitted as `07babf29` + `6b4dbfad`, with3 Root tests. The [native Brain plan review](../evidence/bot-brain-native-plan-review/README.md) requires exact service/module/config identity and all-command Memory.noteSent. Its final four-file interface lease is reviewed and Root-approved; full private Brain is dispatched at `c050d938` to isolated `backend-bot-brain-native`. No native Brain admission is claimed. Potion-fact proof `aa05af1c` is admitted as `ae29dc1b` with5 Root tests at `06833e40`, limited to actual Active samples and explicit Ended/missing-owner refusal. The fair activation plan is reviewed at `10e9a901`; missing publication/binding work remains open.
+
+Earned NPC bleed restore is independently admitted from `0be00f95` as `dedb8658`, with6 NPC and2 crash tests passing on Root's combined tree. Card feedback is still being implemented and reviewed in `backend-card-bleed-feedback`; its canonical amounts, viewer privacy, source comparison and measured capacity gates are not yet admitted. The morning instruction is backend development until **10:30am Edmonton November10 (17:30UTC)**, no Claude communication before then, followed by final merge/verification and the authorized `play.rougehalla.com` test deployment targeting11am. Standing owner approval applies; exact artifacts, the full client checklist and final Opus review remain required.
+Use the [reconciled workplan](../coordination/BACKEND_GAMEPLAY_WORKPLAN.md) for this lane's queue and scopes.
+Full live bot activation remains dependent on legitimate shared observations; no hidden-state shortcut,
+protocol change or new quest design is implied. Treat older broad completion/partial rows below as historical until
+reconciled with code and current evidence; neither a `Partial` comment nor an existing module alone establishes status.
+
+## Historical November9 coordinator checkpoint
 
 The [current migration checkpoint](../MIGRATION.md) supersedes the older version/status lists below:14/29/23/21/15/content7c6a633f68c2cc72. Native SlowStarter/complete MarkTax/PackLeader/readonly WalkHint and source timings are integrated with63 strict source cases and a derived native tape. Actual Training90 passes its frozen engine cut; layout/complete browser remain open. Pure owned-seat resume/checkpoint storage and private socket components are reviewed, with UI adoption/new-page proof and full fact/Brain activation still separate. Owner scope is the **full original port**, including durable regional hosting and matched M5 Pro performance; the earlier playable-core scope is historical. AWS login renewal is owner-deferred. Consult PROJECT_COORDINATION before allocating work; do not duplicate released components.
 
-## November 8 integration handoff
+## Historical November 8 integration handoff
 
 Use the superseding [migration checkpoint](../MIGRATION.md#consolidated-working-checkpoint-2026-11-08),
 [lead/worker ownership and priorities](../PROJECT_COORDINATION.md) and
@@ -161,7 +182,7 @@ Paths are relative to `packages/` unless they start with `crates/`, `docs/`, `de
 | P-CARDS-3 | Kill augments and mob stat stacks (`MOB_KILL_STACKS` 3) | P-CARDS-1; P-MOBS-1 actor/combat stages for runtime capture | Coarse | server/src/sim/killAugments.ts, mobStats.ts; shared/killAugments.ts, mobStats.ts; docs/MOB_PROGRESSION.md |
 | P-CONS-1 | Consumables: stored potions, wind emblems, 75 s cannons, `useConsumable` | P-LOOT-1 or P-COMBAT-4, P-MOBS-1 | Small potion storage/use/healing implemented with source/restore/headless/Unity proof; wind, other potions and cannons remain deferred | server/src/sim/consumables.ts; shared/consumables.ts |
 | P-TRADE-1 | Neutral traders and per-run stat exchanges, `trade` | P-CARDS-3 | Coarse | server/src/sim/traders.ts; shared/traders.ts |
-| P-QUEST-1 | K1 quests (20 defs, 10 known), accept, carriers, hidden offers, lifecycle | P-MOBS-1, P-CARDS-3, P-MAP-1 | Coarse | server/src/sim/quests.ts; shared/quests.ts; docs/quests.md |
+| P-QUEST-1 | K1 quests (20 defs, 10 known), accept, carriers, hidden offers, lifecycle | P-MOBS-1, P-CARDS-3, P-MAP-1 | Native lifecycle, givers, public actions and selected notices0/4 implemented/reviewed. Grand Tour mask repair admitted on backend lane; objective/reward extraction independently admitted in [P-QUEST-BACKEND-1](packets/P-QUEST-BACKEND-1.md). Notices1/2/3/5 repaired native consumer `e499d865` is independently admitted and integrated; complete public/Claude-owned client flow acceptance remains. Future quest design is not invented. | server/src/sim/quests.ts; shared/quests.ts; docs/quests.md |
 | P-VISION-1 | Vision: actual 30 s private trail, owned wards, restore, bushes (`bushConceals`) | P-MAP-1 (bush layer), P-NET-3 | Trail/bush/attack-exposure prerequisite implemented and reviewed; remaining producers/dynamic geometry in [packet](packets/P-VISION-1.md) | server/src/sim/vision.ts; shared/vision.ts, bushes.ts |
 | P-TERRAIN-1 | Hazards: ember burn, bog slow, ice slide (`walkFighter`), light heal; faction exemptions | P-MAP-1 (terrain layer), P-FACTION-1 | Bounded native kernel integrated/reviewed;20 born cases fully match and1 retains exact card-pool gap. Full packet INCOMPLETE: arena/training/full NPC/public-fact requirements remain. [Evidence](../evidence/stage2-terrain/README.md) | server/src/sim/terrainEffects.ts; shared/terrain.ts, walk.ts |
 | P-ARENA-1 | Planning phase + spawn deal from a private stream, coliseum schedule/teleport/gates, patience, sudden death | Complete map layers and bounded terrain kernel integrated | Bounded native authority integrated/reviewed: planning/deals, lifecycle, collision/history and native observers. Full packet INCOMPLETE: full card hooks/arena-owned projection, wire/client and durable shutdown/MIA; genuine Wish/refund prerequisite now separately passes. [Evidence](../evidence/stage2-arena-native/README.md) | server/src/sim/planning.ts, arena.ts, step.ts; shared/planning.ts, coliseum.ts, rules.ts |
@@ -174,10 +195,10 @@ Paths are relative to `packages/` unless they start with `crates/`, `docs/`, `de
 
 | ID | Outcome | Depends on | Status | Legacy owners |
 |---|---|---|---|---|
-| P-BOTS-1 | Human-like bot brain on `rh-policy` seats: perception from `Observation` only, tiers/personas, cadence | none (grows with Observation) | Ready packet | server/src/bots/brain/*, humanizer.ts, clicks.ts, tactics/ |
-| P-BOTS-2 | Wish module (`abilityPolicy`) | P-ABIL-1, P-BOTS-1 | Coarse | server/src/bots/abilityPolicy.ts, brain/modules/wishes.ts |
-| P-BOTS-3 | Planning, chest, hazard modules | P-ARENA-1, P-CARDS-2, P-TERRAIN-1, P-BOTS-1 | Coarse | server/src/bots/brain/modules/*, chestHunt.ts |
-| P-BOTS-4 | Mob hunting, build routes, camp farming, elite rules | P-MOBS-1, P-BOTS-1 | Coarse | server/src/bots/mobHunt.ts, brain/buildRoute.ts, strategy.ts, huntAdapter.ts |
+| P-BOTS-1 | Human-like bot brain on `rh-policy` seats: perception from `Observation` only, tiers/personas, cadence | none (grows with Observation) | Private Memory, Strategy, Tactics, Modules, Hand and required path/Strategy bridges are admitted; full Brain source is independently reproduced. Full Brain composition, fair public binding and live/headless outcomes remain; follow [current workplan](../coordination/BACKEND_GAMEPLAY_WORKPLAN.md), not the old reduced-brain proposal. | server/src/bots/brain/*, humanizer.ts, clicks.ts, tactics/ |
+| P-BOTS-2 | Wish module (`abilityPolicy`) | P-ABIL-1, P-BOTS-1 | The shared cast policy/slip core and complete private source-context adapter are independently admitted in [P-BOT-MODULES-1](packets/P-BOT-MODULES-1.md) as `721d04da`, preserving the five-Wish profile and unchanged overlaps. Full Brain and fair/live binding remain. | server/src/bots/abilityPolicy.ts, brain/modules/wishes.ts |
+| P-BOTS-3 | Planning, chest, hazard modules | P-ARENA-1, P-CARDS-2, P-TERRAIN-1, P-BOTS-1 | Complete private planning/chest/hazard modules, ChestHunter/card choice and shared planning/hazard cores are independently admitted as `721d04da` in [P-BOT-MODULES-1](packets/P-BOT-MODULES-1.md). Full Brain composition and fair/live binding remain. | server/src/bots/brain/modules/*, chestHunt.ts |
+| P-BOTS-4 | Mob hunting, build routes, camp farming, elite rules | P-MOBS-1, P-BOTS-1 | Full private strategy/hunter/tracker/route implementation is independently admitted through `2b05e607` in [P-BOT-STRATEGY-1](packets/P-BOT-STRATEGY-1.md); complete finite source/trace/intake gates pass. Complete tactics/Brain/live integration follows. | server/src/bots/mobHunt.ts, brain/buildRoute.ts, strategy.ts, huntAdapter.ts |
 | P-BOTS-5 | Learning stats store (`BotStatsStore`) off-tick, in Postgres not a file | P-PERSIST-2 | Coarse | server/src/bots/learning/ |
 | P-BOTS-6 | Tournament runner on `rh-headless` (per-tier win rates, Wilson intervals) | P-BOTS-1 | Coarse | server/src/bots/tournament/ |
 | P-BOTS-7 | Fill policy: `BOTS_FILL_TO`, persona/tier mix, arrival schedule, yield seat, bots never touch profiles/quests | P-BOTS-1 | Coarse | server/src/bots/BotManager.ts, callsigns.ts; crates/rh-server/src/director.rs (already fills) |

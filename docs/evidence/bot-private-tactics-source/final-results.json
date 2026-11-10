@@ -1,0 +1,314 @@
+{
+ "format": "rh-bot-private-tactics-source-author-results/1",
+ "status": "AUTHOR_EDITS_FROZEN_FOR_ROOT_INDEPENDENT_REVIEW_NOT_ADMITTED",
+ "recordedUtc": "2026-11-10T06:47:16.023867+00:00",
+ "cwd": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests",
+ "sourceBase": "10519519bd4d9a5b55b1bf3042500d20c7ff4ea0",
+ "headAtReceipt": "04987499972be06a39b21c4bf741b92390d135f9",
+ "commands": [
+  {
+   "command": "/usr/bin/time -p bash tools/bot-private-tactics-fixtures/capture.sh capture",
+   "cwd": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests",
+   "exit": 0,
+   "rawReceipt": "docs/evidence/bot-private-tactics-source/attempt-9.log",
+   "raw": {
+    "bytes": 680,
+    "sha256": "fc9593a572a0f7622224974100ffe72e8d811e363b5d8eebfb72da6b187ee5fd"
+   }
+  },
+  {
+   "command": "/usr/bin/time -p bash tools/bot-private-tactics-fixtures/controls.sh --write",
+   "cwd": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests",
+   "exit": 0,
+   "rawReceipt": "docs/evidence/bot-private-tactics-source/controls-attempt-4.log",
+   "raw": {
+    "bytes": 125633,
+    "sha256": "29fb7ee9e18625cac36d0de596b2e0e547a58803e6d33062b6d927601bd4e1dc"
+   }
+  },
+  {
+   "command": "/usr/bin/time -p bash tools/bot-private-tactics-fixtures/capture.sh --check",
+   "cwd": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests",
+   "exit": 0,
+   "rawReceipt": "docs/evidence/bot-private-tactics-source/fresh-check-attempt-3.log",
+   "raw": {
+    "bytes": 355,
+    "sha256": "af21e0be0d9dcf6386d2abe16ed25427e4d7f0ce6e22a6b4c9bbc314d0ac08da"
+   }
+  },
+  {
+   "command": "/usr/bin/time -p bash tools/bot-private-tactics-fixtures/controls.sh --check",
+   "cwd": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests",
+   "exit": 0,
+   "rawReceipt": "docs/evidence/bot-private-tactics-source/controls-check-attempt-1.log",
+   "raw": {
+    "bytes": 125633,
+    "sha256": "e4f4aed2af51149740c1084c99e964a5de6b43c768e40466ab71022f7c7fdae2"
+   }
+  },
+  {
+   "command": "node tools/bot-private-tactics-fixtures/verify.mjs",
+   "cwd": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests",
+   "exit": 0,
+   "rawReceipt": "docs/evidence/bot-private-tactics-source/verify-final.log",
+   "raw": {
+    "bytes": 144,
+    "sha256": "54a07008ac316d78e3c258c5968f0d285da328f70be0923cfb395ae306f7e734"
+   }
+  },
+  {
+   "command": "node tools/bot-private-tactics-fixtures/manifest.mjs --write",
+   "cwd": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests",
+   "exit": 0,
+   "rawReceipt": "docs/evidence/bot-private-tactics-source/manifest-write.log",
+   "raw": {
+    "bytes": 302,
+    "sha256": "b9737a3f94333dd90e7ac0b8a9b062642d270caeb42acd8cef331734e878515f"
+   }
+  },
+  {
+   "command": "node tools/bot-private-tactics-fixtures/manifest.mjs --check",
+   "cwd": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests",
+   "exit": 0,
+   "rawReceipt": "docs/evidence/bot-private-tactics-source/manifest-check.log",
+   "raw": {
+    "bytes": 302,
+    "sha256": "30eeb8c23f939c3883095bc4d46af28d69f73ca2436e904111652fc1e438bd98"
+   }
+  }
+ ],
+ "manifest": {
+  "bytes": 37387,
+  "sha256": "9f76406016d0ebc498b0a3a3ec7cad677fc43ecd40b530a963a57a7f3d6eb957"
+ },
+ "corpus": {
+  "source.json": {
+   "bytes": 11656923,
+   "sha256": "5d27d1b4522d386d4ede5f3064a28660dedff43e32a24ade264f4512e30fcfa8"
+  },
+  "coverage.json": {
+   "bytes": 1069183,
+   "sha256": "b43c64fea6c6da17faaccf578a1e4d6614c96e352f5f951fefafcca95ae68f77"
+  },
+  "controls.json": {
+   "bytes": 218643,
+   "sha256": "d9696bcd50de310224b947156948da6bf360cced93f910a7454cd2030c2202c2"
+  }
+ },
+ "cases": 154,
+ "operations": 720,
+ "goals": [
+  "farm",
+  "fight",
+  "flee",
+  "hold",
+  "hunt",
+  "idle",
+  "loot",
+  "module",
+  "roam"
+ ],
+ "statuses": [
+  "blocked",
+  "done",
+  "failed",
+  "running"
+ ],
+ "reachedAssertions": 16,
+ "rawNegatives": 17,
+ "semanticControls": 17,
+ "semanticCheck": "17KILL_0SURVIVED_BYTE_EXACT_CONTROLS",
+ "commentControl": "NONKILL",
+ "restoredCases": "BYTE_IDENTICAL",
+ "freshPinnedSourceAndCoverage": "BYTE_IDENTICAL",
+ "sourceFiles": 113,
+ "actualLoadedTsImports": 84,
+ "toolFiles": 13,
+ "mapCount": 5,
+ "initialFailures": "attempt-1 actual source empty test-path throw; controls-attempt-1 hold-cache survivor; controls-attempt-2 disposable corpus-pin ENOENT retained, none relabeled",
+ "openGates": [
+  "Root independent fresh-worktree pinned reproduction and source/numeric-path review",
+  "Root native error contract for explicit test-service empty path",
+  "Unisolated source paths explicitly listed in LEDGER.md",
+  "Strategy admission and full native implementation/reader/comparison/overlap/regressions",
+  "Brain/modules/earned fair facts/live validate+submit remain later"
+ ],
+ "files": {
+  "tools/bot-private-tactics-fixtures/README.md": {
+   "bytes": 4414,
+   "sha256": "46948b013efb0f5998815273fe8e8055d23685da8b3578ae7d7eb6ce6af87ee5"
+  },
+  "tools/bot-private-tactics-fixtures/builders.mts": {
+   "bytes": 3237,
+   "sha256": "a1f938ff10ea6adf47755594b4606fac0b27c504fc0f58515700ea7cd24eff29"
+  },
+  "tools/bot-private-tactics-fixtures/capture.mts": {
+   "bytes": 6222,
+   "sha256": "3c821cfe979e89ff74e7734ee916f677a13469485a7811dff363513d3f6d549e"
+  },
+  "tools/bot-private-tactics-fixtures/capture.sh": {
+   "bytes": 1090,
+   "sha256": "076ba45f97b0d3ad5c898b93d613ab9c4fb55afed7785a28018a4f199977b0f6"
+  },
+  "tools/bot-private-tactics-fixtures/cases.mts": {
+   "bytes": 28350,
+   "sha256": "25d1e601ac036f95d44a7a4045c95860655e39d4492cbf0dbc6dc23eb8ea4e44"
+  },
+  "tools/bot-private-tactics-fixtures/checks.mts": {
+   "bytes": 7159,
+   "sha256": "38bd8924cc153a7e8f58f992152c98881dd5b603fb2fb37d0cc8428f9db3251b"
+  },
+  "tools/bot-private-tactics-fixtures/codec.mts": {
+   "bytes": 1885,
+   "sha256": "18af593cc383869260002af50b52f74cec9f7ba94f0ebaf842fe9477ad48adc2"
+  },
+  "tools/bot-private-tactics-fixtures/controls.mjs": {
+   "bytes": 7802,
+   "sha256": "1d726e9394893693917e8cd4b0333661a884704219f02b4ee75e42b78f7c0596"
+  },
+  "tools/bot-private-tactics-fixtures/controls.sh": {
+   "bytes": 990,
+   "sha256": "e6ebbb05616bc9114bf0aab26039f31226cbe4e4966ec59835009a923f0265fd"
+  },
+  "tools/bot-private-tactics-fixtures/manifest.mjs": {
+   "bytes": 1988,
+   "sha256": "61dc28dc23bd3b7a768ba6f755342a0f4d61893d812038873926646ff9a8c3cc"
+  },
+  "tools/bot-private-tactics-fixtures/runner.mts": {
+   "bytes": 5725,
+   "sha256": "50a561fdca4334f1b397a8b49ade24b8ab11abe4b766cb6fa95917f6a068a356"
+  },
+  "tools/bot-private-tactics-fixtures/runtime.mts": {
+   "bytes": 1059,
+   "sha256": "84688275b6f09603e7c346e8927a24c339e522e867c22ab8118baad237df296d"
+  },
+  "tools/bot-private-tactics-fixtures/verify.mjs": {
+   "bytes": 15982,
+   "sha256": "6f49b33da32ddb7b4143a858fd64bc91a218690a657fdf1d43aff96e1a7b1227"
+  },
+  "parity/policy/bot-private-tactics/controls.json": {
+   "bytes": 218643,
+   "sha256": "d9696bcd50de310224b947156948da6bf360cced93f910a7454cd2030c2202c2"
+  },
+  "parity/policy/bot-private-tactics/coverage.json": {
+   "bytes": 1069183,
+   "sha256": "b43c64fea6c6da17faaccf578a1e4d6614c96e352f5f951fefafcca95ae68f77"
+  },
+  "parity/policy/bot-private-tactics/manifest.json": {
+   "bytes": 37387,
+   "sha256": "9f76406016d0ebc498b0a3a3ec7cad677fc43ecd40b530a963a57a7f3d6eb957"
+  },
+  "parity/policy/bot-private-tactics/source.json": {
+   "bytes": 11656923,
+   "sha256": "5d27d1b4522d386d4ede5f3064a28660dedff43e32a24ade264f4512e30fcfa8"
+  },
+  "docs/evidence/bot-private-tactics-source/LEDGER.md": {
+   "bytes": 16735,
+   "sha256": "a0399d3b91989d92793d737895d5e418b7e79fa914c875f7b978c4e0c2632b26"
+  },
+  "docs/evidence/bot-private-tactics-source/NATIVE_INPUT_GUIDE.md": {
+   "bytes": 4529,
+   "sha256": "09aab09f505b0e36b53999b7f3268803c19a3d0446c2705a3ee976707fb9dc92"
+  },
+  "docs/evidence/bot-private-tactics-source/NUMERICS.md": {
+   "bytes": 2825,
+   "sha256": "fd2111214ececbf7d1f9cf5610e45dbe41229053780773ea6a7fc16a0c82fd61"
+  },
+  "docs/evidence/bot-private-tactics-source/README.md": {
+   "bytes": 8944,
+   "sha256": "a6e0414e58a4d3f9e643789b83b57fbc1d24fbe6900f31297801d8459f7acc82"
+  },
+  "docs/evidence/bot-private-tactics-source/attempt-1.log": {
+   "bytes": 674,
+   "sha256": "fd144c88de0f053b6e704d2cc82b165d2df745d5cba81a95529b1aa4a7b70aac"
+  },
+  "docs/evidence/bot-private-tactics-source/attempt-2.log": {
+   "bytes": 646,
+   "sha256": "4a29e113891f80bb2bbafddeb73b9b69d7f135474b951ebc4317ee988ef0d6f5"
+  },
+  "docs/evidence/bot-private-tactics-source/attempt-3.log": {
+   "bytes": 646,
+   "sha256": "7fe9b0f26c953c4af1f2844cf7be38c6e86241f92c81ae71c0dc779efa92a42b"
+  },
+  "docs/evidence/bot-private-tactics-source/attempt-4.log": {
+   "bytes": 648,
+   "sha256": "ee6da4853cedadee27a624582ceb11416cb198fc0d08754eba88b2c6b3feb0dc"
+  },
+  "docs/evidence/bot-private-tactics-source/attempt-5.log": {
+   "bytes": 650,
+   "sha256": "d26326d63bdc2e6e82218c27aaa972241b584c5d8c6aa2a455688840ec93b6f7"
+  },
+  "docs/evidence/bot-private-tactics-source/attempt-6.log": {
+   "bytes": 650,
+   "sha256": "e27b2825509d68f0f043fceb175f0456e2dfc84ae7ef4fe15c6bc0510c81571c"
+  },
+  "docs/evidence/bot-private-tactics-source/attempt-7.log": {
+   "bytes": 650,
+   "sha256": "a46faf7560c330d4290f9e6a1bc574d33f2833da9b75b46df3dce5391096b8f9"
+  },
+  "docs/evidence/bot-private-tactics-source/attempt-8.log": {
+   "bytes": 650,
+   "sha256": "eaf671f7c5f22e52075d5bb8a32d3bd7a9da0d455d61996f8c1109220a683869"
+  },
+  "docs/evidence/bot-private-tactics-source/attempt-9.log": {
+   "bytes": 680,
+   "sha256": "fc9593a572a0f7622224974100ffe72e8d811e363b5d8eebfb72da6b187ee5fd"
+  },
+  "docs/evidence/bot-private-tactics-source/controls-attempt-1.log": {
+   "bytes": 124649,
+   "sha256": "7dd58426c3a16746601f7d04632cadf8506d368643f317ebf096c62dfa04d87c"
+  },
+  "docs/evidence/bot-private-tactics-source/controls-attempt-2.log": {
+   "bytes": 1301,
+   "sha256": "fb8c70c4732fd57c88f431d6c1d2db0496da8d9191fbe2499bc582243b76b15e"
+  },
+  "docs/evidence/bot-private-tactics-source/controls-attempt-3.log": {
+   "bytes": 124677,
+   "sha256": "08b0331352f5eea90ec7ec76b34e55b6023198b7d277280f27f15831855662ab"
+  },
+  "docs/evidence/bot-private-tactics-source/controls-attempt-4.log": {
+   "bytes": 125633,
+   "sha256": "29fb7ee9e18625cac36d0de596b2e0e547a58803e6d33062b6d927601bd4e1dc"
+  },
+  "docs/evidence/bot-private-tactics-source/controls-check-attempt-1.log": {
+   "bytes": 125633,
+   "sha256": "e4f4aed2af51149740c1084c99e964a5de6b43c768e40466ab71022f7c7fdae2"
+  },
+  "docs/evidence/bot-private-tactics-source/fresh-check-attempt-1.log": {
+   "bytes": 325,
+   "sha256": "e1d5acdc2a4519557556c39e6742944188cf412302e98547cc545fa5c4a543fb"
+  },
+  "docs/evidence/bot-private-tactics-source/fresh-check-attempt-2.log": {
+   "bytes": 355,
+   "sha256": "d2bbd68848ac6f41730b834d15e09682b42b29188aa874f2625144df9d4058cf"
+  },
+  "docs/evidence/bot-private-tactics-source/fresh-check-attempt-3.log": {
+   "bytes": 355,
+   "sha256": "af21e0be0d9dcf6386d2abe16ed25427e4d7f0ce6e22a6b4c9bbc314d0ac08da"
+  },
+  "docs/evidence/bot-private-tactics-source/manifest-check.log": {
+   "bytes": 302,
+   "sha256": "30eeb8c23f939c3883095bc4d46af28d69f73ca2436e904111652fc1e438bd98"
+  },
+  "docs/evidence/bot-private-tactics-source/manifest-write.log": {
+   "bytes": 302,
+   "sha256": "b9737a3f94333dd90e7ac0b8a9b062642d270caeb42acd8cef331734e878515f"
+  },
+  "docs/evidence/bot-private-tactics-source/static-audit.json": {
+   "bytes": 2098,
+   "sha256": "e13a849f48d8c5b23d0ebff9e73b87bc1d0fab3216c5185088e0fe76c59ff475"
+  },
+  "docs/evidence/bot-private-tactics-source/verify-attempt-1.log": {
+   "bytes": 144,
+   "sha256": "f58b51d342afb0201af94e6893df3df4e36880b8e6f57704c629fcb50c619933"
+  },
+  "docs/evidence/bot-private-tactics-source/verify-attempt-2.log": {
+   "bytes": 144,
+   "sha256": "b655f7e73833793ea697784612c9796ec044ab974f6fa696d7f5e47a1f076fd8"
+  },
+  "docs/evidence/bot-private-tactics-source/verify-final.log": {
+   "bytes": 144,
+   "sha256": "54a07008ac316d78e3c258c5968f0d285da328f70be0923cfb395ae306f7e734"
+  }
+ }
+}

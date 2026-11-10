@@ -1,0 +1,38 @@
+Pre-record tree (before the narrow 827422b5 derived authorization was executed) full `cargo test -p rh-sim
+--offline --locked -j 1 --no-fail-fast` failures. This is the genuine expected derived-layout mismatch receipt,
+not a source-golden failure: the unchanged 63-case ability SOURCE gate passed (exit 0) both before and after.
+
+1) lib: ability_hash_tape_matches_the_base
+   thread 'abilities::source_tests::hash_tape::ability_hash_tape_matches_the_base' panicked at
+   crates/rh-sim/src/abilities/source_tests/hash_tape.rs:48:5:
+   assertion `left == right` failed
+     left: String("rh-checkpoint/29")
+     right: "rh-checkpoint/30"
+   lib summary: 876 passed; 1 failed; 15 ignored; exit 1.
+
+2) tests/content.rs: hash_golden
+   thread 'hash_golden' panicked at crates/rh-sim/tests/content.rs:515:5:
+   assertion `left == right` failed: content_hash is now fa16f195dc22ef69
+     left: 18020856584915316585
+     right: 10294531860885119232
+   (old pinned GOLDEN_CONTENT_HASH 0x8edd_862f_48ff_a100; the derived value is 0xfa16_f195_dc22_ef69)
+
+3) tests/content.rs: every_const_in_the_source_tree_is_registered_or_explained
+   consts that are neither in the content! registry nor number-free nor in NON_GAMEPLAY: [
+     "systems/card_bleed_feedback/index.rs: NO_NODE (u32)",
+     "systems/card_bleed_feedback/index.rs: MAX_HEIGHT (usize)",
+     "systems/card_bleed_feedback/source_tests.rs: SOURCE_BYTES (usize)",
+     "systems/card_bleed_feedback/source_tests.rs: SOURCE_CASES (usize)",
+     "systems/card_bleed_feedback/source_tests.rs: SOURCE_ORDINARY_STEPS (usize)",
+     "systems/card_bleed_feedback.rs: VARIANTS (&'static[&'staticstr])",
+   ]
+   (repaired by Card-specific NON_GAMEPLAY registration reasons for the representation/test constants and by
+   making the tag-name list a function instead of a const)
+
+4) tests/hash_coverage.rs: the_serde_skips_are_exactly_the_documented_ones
+   a `#[serde(skip...)]` was added or removed: it is outside the checkpoint and the state hash; document it here
+     left:  {"map.rs": 3, "state.rs": 3, "statics.rs": 7, "systems/card_bleed_feedback.rs": 1}
+     right: {"map.rs": 3, "state.rs": 3, "statics.rs": 7}
+   (repaired by documenting the CardBleedReport derived pair index skip and its cold-rebuild reason)
+
+Full-suite raw log (private run path): /tmp/cardlogs/rhsim-full-3.log (pre-repair tree).

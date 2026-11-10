@@ -520,4 +520,11 @@ pub fn visit_content(mut word: impl FnMut(u64)) {
         word(u64::from(d.reward_gv));
         word(d.expires_at_sec.to_bits());
     }
+    // Stage0 domain revision: the tour-supply rule now consumes the stored visit mask, not its population count.
+    // Keep the twenty catalog rows and every preexisting fold word unchanged; append one text marker below.
+    let marker = "tour-supply/visited-region-mask/1";
+    word(marker.len() as u64);
+    for b in marker.bytes() {
+        word(u64::from(b));
+    }
 }

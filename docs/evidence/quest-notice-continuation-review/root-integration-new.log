@@ -1,0 +1,54 @@
+   Compiling libc v0.2.191
+   Compiling parking_lot_core v0.9.12
+   Compiling cfg-if v1.0.5
+   Compiling scopeguard v1.2.0
+   Compiling gimli v0.34.0
+   Compiling smallvec v1.16.4
+   Compiling adler2 v2.0.1
+   Compiling miniz_oxide v0.9.1
+   Compiling addr2line v0.27.1
+   Compiling lock_api v0.4.14
+   Compiling object v0.40.0
+   Compiling rustc-demangle v0.1.28
+   Compiling backtrace v0.3.77
+   Compiling parking_lot v0.12.5
+   Compiling rustc-hash v1.1.0
+   Compiling lazy_static v1.5.1
+   Compiling mintex v0.1.4
+   Compiling thousands v0.2.0
+   Compiling dhat v0.3.3
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests/crates/rh-sim)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 46s
+     Running unittests src/lib.rs (target/root-strategy-notice-admission/build/debug/deps/rh_sim-11f7df6587fb64ad)
+
+running 6 tests
+teleport-close-notices: source notices 3 / excluded 2 / events 5; native notices 3 / excluded 2 / events 5; previews 0
+test quests::notices_continuation_source_tests::case3_teleport_close_notices_real_producer_queue ... ok
+pickup-closed-guard: source notices 3 / excluded 2 / events 5; native notices 3 / excluded 1 / events 4; previews 1
+test quests::notices_continuation_source_tests::case1_pickup_closed_guard_real_box_guards ... ok
+expiry-cohort-order: source notices 12 / excluded 4 / events 16; native notices 12 / excluded 1 / events 13; previews 3
+test quests::notices_continuation_source_tests::case2_expiry_cohort_order_real_collect_turn_in ... ok
+
+thread 'quests::notices_continuation_source_tests::continuation_comparator_control_rejects_mutated_matched_run' (72115879) panicked at crates/rh-sim/src/quests/notices_continuation_source_tests.rs:278:5:
+assertion `left == right` failed: wrong recipient: first ordered Toast/Gv notice mismatch
+  left: [Notice { tick: 2, time: 100.0, kind: "toast", to: Some("p0"), text: "That quest is over", gv_id: None, amount: 0, reason: None }, Notice { tick: 2, time: 100.0, kind: "toast", to: Some("p0"), text: "Quest discovered: Thaw the Watch (Warden Sigur)", gv_id: None, amount: 0, reason: None }, Notice { tick: 3, time: 150.0, kind: "toast", to: Some("p0"), text: "Quest accepted: The Reliquary", gv_id: None, amount: 0, reason: None }]
+ right: [Notice { tick: 2, time: 100.0, kind: "toast", to: Some("p2"), text: "That quest is over", gv_id: None, amount: 0, reason: None }, Notice { tick: 2, time: 100.0, kind: "toast", to: Some("p0"), text: "Quest discovered: Thaw the Watch (Warden Sigur)", gv_id: None, amount: 0, reason: None }, Notice { tick: 3, time: 150.0, kind: "toast", to: Some("p0"), text: "Quest accepted: The Reliquary", gv_id: None, amount: 0, reason: None }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'quests::notices_continuation_source_tests::continuation_comparator_control_rejects_mutated_matched_run' (72115879) panicked at crates/rh-sim/src/quests/notices_continuation_source_tests.rs:278:5:
+assertion `left == right` failed: wrong order: first ordered Toast/Gv notice mismatch
+  left: [Notice { tick: 2, time: 100.0, kind: "toast", to: Some("p0"), text: "That quest is over", gv_id: None, amount: 0, reason: None }, Notice { tick: 2, time: 100.0, kind: "toast", to: Some("p0"), text: "Quest discovered: Thaw the Watch (Warden Sigur)", gv_id: None, amount: 0, reason: None }, Notice { tick: 3, time: 150.0, kind: "toast", to: Some("p0"), text: "Quest accepted: The Reliquary", gv_id: None, amount: 0, reason: None }]
+ right: [Notice { tick: 2, time: 100.0, kind: "toast", to: Some("p0"), text: "Quest discovered: Thaw the Watch (Warden Sigur)", gv_id: None, amount: 0, reason: None }, Notice { tick: 2, time: 100.0, kind: "toast", to: Some("p0"), text: "That quest is over", gv_id: None, amount: 0, reason: None }, Notice { tick: 3, time: 150.0, kind: "toast", to: Some("p0"), text: "Quest accepted: The Reliquary", gv_id: None, amount: 0, reason: None }]
+test quests::notices_continuation_source_tests::continuation_comparator_control_rejects_mutated_matched_run ... ok
+camp-and-publication-closure: source notices 7 / excluded 108 / events 115; native notices 7 / excluded 106 / events 113; previews 2
+test quests::notices_continuation_source_tests::case5_camp_publication_closure_real_region_kills ... ok
+
+thread 'quests::notices_continuation_source_tests::continuation_intake_controls_reject_unknown_action_and_wrong_binding' (72115880) panicked at crates/rh-sim/src/quests/notices_continuation_source_tests.rs:516:18:
+unconsumed source action unknownAction
+
+thread 'quests::notices_continuation_source_tests::continuation_intake_controls_reject_unknown_action_and_wrong_binding' (72115880) panicked at crates/rh-sim/src/quests/notices_continuation_source_tests.rs:180:28:
+typed source offer questZZ does not resolve
+test quests::notices_continuation_source_tests::continuation_intake_controls_reject_unknown_action_and_wrong_binding ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 847 filtered out; finished in 4.42s
+

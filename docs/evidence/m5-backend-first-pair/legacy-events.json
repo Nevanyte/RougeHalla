@@ -1,0 +1,1700 @@
+[
+  {
+    "window": "rendezvous",
+    "command": "move",
+    "seq": 1,
+    "atSeconds": 6.607841292,
+    "targets": [
+      {
+        "x": 2544,
+        "y": 2416
+      },
+      {
+        "x": 2576,
+        "y": 2704
+      },
+      {
+        "x": 2384,
+        "y": 2576
+      }
+    ],
+    "positions": [
+      {
+        "x": 1104,
+        "y": 4048,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 0,
+        "faction": "holy"
+      },
+      {
+        "x": 1456,
+        "y": 1136,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 0,
+        "faction": "holy"
+      },
+      {
+        "x": 656,
+        "y": 2992,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 0,
+        "faction": "holy"
+      }
+    ]
+  },
+  {
+    "window": "rendezvous",
+    "command": "stop",
+    "seq": 2,
+    "atSeconds": 21.236067334,
+    "positions": [
+      {
+        "x": 2544,
+        "y": 2416,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 1,
+        "faction": "holy"
+      },
+      {
+        "x": 2576,
+        "y": 2704,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 1,
+        "faction": "holy"
+      },
+      {
+        "x": 2384,
+        "y": 2576,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 1,
+        "faction": "holy"
+      }
+    ]
+  },
+  {
+    "window": "warmup",
+    "k": 0,
+    "seq": 3,
+    "atSeconds": 21.290116167,
+    "serverTimes": [
+      20050,
+      20050,
+      20050
+    ],
+    "positions": [
+      {
+        "x": 2544,
+        "y": 2416,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 2,
+        "faction": "holy"
+      },
+      {
+        "x": 2576,
+        "y": 2704,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 2,
+        "faction": "holy"
+      },
+      {
+        "x": 2384,
+        "y": 2576,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 2,
+        "faction": "holy"
+      }
+    ],
+    "command": "move",
+    "delta": [
+      64,
+      0
+    ]
+  },
+  {
+    "window": "warmup",
+    "k": 1,
+    "seq": 4,
+    "atSeconds": 22.28987925,
+    "serverTimes": [
+      21050,
+      21050,
+      21050
+    ],
+    "positions": [
+      {
+        "x": 2608,
+        "y": 2416,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 3,
+        "faction": "holy"
+      },
+      {
+        "x": 2640,
+        "y": 2704,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 3,
+        "faction": "holy"
+      },
+      {
+        "x": 2448,
+        "y": 2576,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 3,
+        "faction": "holy"
+      }
+    ],
+    "command": "stop",
+    "delta": null
+  },
+  {
+    "window": "warmup",
+    "k": 2,
+    "seq": 5,
+    "atSeconds": 23.288992459,
+    "serverTimes": [
+      22050,
+      22050,
+      22050
+    ],
+    "positions": [
+      {
+        "x": 2608,
+        "y": 2416,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 4,
+        "faction": "holy"
+      },
+      {
+        "x": 2640,
+        "y": 2704,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 4,
+        "faction": "holy"
+      },
+      {
+        "x": 2448,
+        "y": 2576,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 4,
+        "faction": "holy"
+      }
+    ],
+    "command": "move",
+    "delta": [
+      -64,
+      0
+    ]
+  },
+  {
+    "window": "warmup",
+    "k": 3,
+    "seq": 6,
+    "atSeconds": 24.289052292,
+    "serverTimes": [
+      23050,
+      23050,
+      23050
+    ],
+    "positions": [
+      {
+        "x": 2480,
+        "y": 2416,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 5,
+        "faction": "holy"
+      },
+      {
+        "x": 2512,
+        "y": 2704,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 5,
+        "faction": "holy"
+      },
+      {
+        "x": 2320,
+        "y": 2576,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 5,
+        "faction": "holy"
+      }
+    ],
+    "command": "stop",
+    "delta": null
+  },
+  {
+    "window": "warmup",
+    "k": 4,
+    "seq": 7,
+    "atSeconds": 25.290204709,
+    "serverTimes": [
+      24050,
+      24050,
+      24050
+    ],
+    "positions": [
+      {
+        "x": 2480,
+        "y": 2416,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 6,
+        "faction": "holy"
+      },
+      {
+        "x": 2512,
+        "y": 2704,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 6,
+        "faction": "holy"
+      },
+      {
+        "x": 2320,
+        "y": 2576,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 6,
+        "faction": "holy"
+      }
+    ],
+    "command": "move",
+    "delta": [
+      0,
+      64
+    ]
+  },
+  {
+    "window": "warmup",
+    "k": 5,
+    "seq": 8,
+    "atSeconds": 26.288931959,
+    "serverTimes": [
+      25050,
+      25050,
+      25050
+    ],
+    "positions": [
+      {
+        "x": 2544,
+        "y": 2480,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 7,
+        "faction": "holy"
+      },
+      {
+        "x": 2576,
+        "y": 2768,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 7,
+        "faction": "holy"
+      },
+      {
+        "x": 2384,
+        "y": 2640,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 7,
+        "faction": "holy"
+      }
+    ],
+    "command": "stop",
+    "delta": null
+  },
+  {
+    "window": "warmup",
+    "k": 6,
+    "seq": 9,
+    "atSeconds": 27.289161875,
+    "serverTimes": [
+      26050,
+      26050,
+      26050
+    ],
+    "positions": [
+      {
+        "x": 2544,
+        "y": 2480,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 8,
+        "faction": "holy"
+      },
+      {
+        "x": 2576,
+        "y": 2768,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 8,
+        "faction": "holy"
+      },
+      {
+        "x": 2384,
+        "y": 2640,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 8,
+        "faction": "holy"
+      }
+    ],
+    "command": "move",
+    "delta": [
+      0,
+      -64
+    ]
+  },
+  {
+    "window": "warmup",
+    "k": 7,
+    "seq": 10,
+    "atSeconds": 28.289887125,
+    "serverTimes": [
+      27050,
+      27050,
+      27050
+    ],
+    "positions": [
+      {
+        "x": 2544,
+        "y": 2352,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 9,
+        "faction": "holy"
+      },
+      {
+        "x": 2576,
+        "y": 2640,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 9,
+        "faction": "holy"
+      },
+      {
+        "x": 2384,
+        "y": 2512,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 9,
+        "faction": "holy"
+      }
+    ],
+    "command": "stop",
+    "delta": null
+  },
+  {
+    "window": "warmup",
+    "k": 8,
+    "seq": 11,
+    "atSeconds": 29.287779875,
+    "serverTimes": [
+      28050,
+      28050,
+      28050
+    ],
+    "positions": [
+      {
+        "x": 2544,
+        "y": 2352,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 10,
+        "faction": "holy"
+      },
+      {
+        "x": 2576,
+        "y": 2640,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 10,
+        "faction": "holy"
+      },
+      {
+        "x": 2384,
+        "y": 2512,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 10,
+        "faction": "holy"
+      }
+    ],
+    "command": "move",
+    "delta": [
+      0,
+      0
+    ]
+  },
+  {
+    "window": "warmup",
+    "k": 9,
+    "seq": 12,
+    "atSeconds": 30.28852875,
+    "serverTimes": [
+      29050,
+      29050,
+      29050
+    ],
+    "positions": [
+      {
+        "x": 2544,
+        "y": 2416,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 11,
+        "faction": "holy"
+      },
+      {
+        "x": 2576,
+        "y": 2704,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 11,
+        "faction": "holy"
+      },
+      {
+        "x": 2384,
+        "y": 2576,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 11,
+        "faction": "holy"
+      }
+    ],
+    "command": "stop",
+    "delta": null
+  },
+  {
+    "window": "measured",
+    "k": 0,
+    "seq": 13,
+    "atSeconds": 31.2943675,
+    "serverTimes": [
+      30050,
+      30050,
+      30050
+    ],
+    "positions": [
+      {
+        "x": 2544,
+        "y": 2416,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 12,
+        "faction": "holy"
+      },
+      {
+        "x": 2576,
+        "y": 2704,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 12,
+        "faction": "holy"
+      },
+      {
+        "x": 2384,
+        "y": 2576,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 12,
+        "faction": "holy"
+      }
+    ],
+    "command": "move",
+    "delta": [
+      64,
+      0
+    ]
+  },
+  {
+    "window": "measured",
+    "k": 1,
+    "seq": 14,
+    "atSeconds": 32.294357792,
+    "serverTimes": [
+      31050,
+      31050,
+      31050
+    ],
+    "positions": [
+      {
+        "x": 2608,
+        "y": 2416,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 13,
+        "faction": "holy"
+      },
+      {
+        "x": 2640,
+        "y": 2704,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 13,
+        "faction": "holy"
+      },
+      {
+        "x": 2448,
+        "y": 2576,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 13,
+        "faction": "holy"
+      }
+    ],
+    "command": "stop",
+    "delta": null
+  },
+  {
+    "window": "measured",
+    "k": 2,
+    "seq": 15,
+    "atSeconds": 33.294374375,
+    "serverTimes": [
+      32050,
+      32050,
+      32050
+    ],
+    "positions": [
+      {
+        "x": 2608,
+        "y": 2416,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 14,
+        "faction": "holy"
+      },
+      {
+        "x": 2640,
+        "y": 2704,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 14,
+        "faction": "holy"
+      },
+      {
+        "x": 2448,
+        "y": 2576,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 14,
+        "faction": "holy"
+      }
+    ],
+    "command": "move",
+    "delta": [
+      -64,
+      0
+    ]
+  },
+  {
+    "window": "measured",
+    "k": 3,
+    "seq": 16,
+    "atSeconds": 34.29317625,
+    "serverTimes": [
+      33050,
+      33050,
+      33050
+    ],
+    "positions": [
+      {
+        "x": 2480,
+        "y": 2416,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 15,
+        "faction": "holy"
+      },
+      {
+        "x": 2512,
+        "y": 2704,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 15,
+        "faction": "holy"
+      },
+      {
+        "x": 2320,
+        "y": 2576,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 15,
+        "faction": "holy"
+      }
+    ],
+    "command": "stop",
+    "delta": null
+  },
+  {
+    "window": "measured",
+    "k": 4,
+    "seq": 17,
+    "atSeconds": 35.294261417,
+    "serverTimes": [
+      34050,
+      34050,
+      34050
+    ],
+    "positions": [
+      {
+        "x": 2480,
+        "y": 2416,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 16,
+        "faction": "holy"
+      },
+      {
+        "x": 2512,
+        "y": 2704,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 16,
+        "faction": "holy"
+      },
+      {
+        "x": 2320,
+        "y": 2576,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 16,
+        "faction": "holy"
+      }
+    ],
+    "command": "move",
+    "delta": [
+      0,
+      64
+    ]
+  },
+  {
+    "window": "measured",
+    "k": 5,
+    "seq": 18,
+    "atSeconds": 36.294039042,
+    "serverTimes": [
+      35050,
+      35050,
+      35050
+    ],
+    "positions": [
+      {
+        "x": 2544,
+        "y": 2480,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 17,
+        "faction": "holy"
+      },
+      {
+        "x": 2576,
+        "y": 2768,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 17,
+        "faction": "holy"
+      },
+      {
+        "x": 2384,
+        "y": 2640,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 17,
+        "faction": "holy"
+      }
+    ],
+    "command": "stop",
+    "delta": null
+  },
+  {
+    "window": "measured",
+    "k": 6,
+    "seq": 19,
+    "atSeconds": 37.291986875,
+    "serverTimes": [
+      36050,
+      36050,
+      36050
+    ],
+    "positions": [
+      {
+        "x": 2544,
+        "y": 2480,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 18,
+        "faction": "holy"
+      },
+      {
+        "x": 2576,
+        "y": 2768,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 18,
+        "faction": "holy"
+      },
+      {
+        "x": 2384,
+        "y": 2640,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 18,
+        "faction": "holy"
+      }
+    ],
+    "command": "move",
+    "delta": [
+      0,
+      -64
+    ]
+  },
+  {
+    "window": "measured",
+    "k": 7,
+    "seq": 20,
+    "atSeconds": 38.292404959,
+    "serverTimes": [
+      37050,
+      37050,
+      37050
+    ],
+    "positions": [
+      {
+        "x": 2544,
+        "y": 2352,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 19,
+        "faction": "holy"
+      },
+      {
+        "x": 2576,
+        "y": 2640,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 19,
+        "faction": "holy"
+      },
+      {
+        "x": 2384,
+        "y": 2512,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 19,
+        "faction": "holy"
+      }
+    ],
+    "command": "stop",
+    "delta": null
+  },
+  {
+    "window": "measured",
+    "k": 8,
+    "seq": 21,
+    "atSeconds": 39.293999084,
+    "serverTimes": [
+      38050,
+      38050,
+      38050
+    ],
+    "positions": [
+      {
+        "x": 2544,
+        "y": 2352,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 20,
+        "faction": "holy"
+      },
+      {
+        "x": 2576,
+        "y": 2640,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 20,
+        "faction": "holy"
+      },
+      {
+        "x": 2384,
+        "y": 2512,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 20,
+        "faction": "holy"
+      }
+    ],
+    "command": "move",
+    "delta": [
+      64,
+      0
+    ]
+  },
+  {
+    "window": "measured",
+    "k": 9,
+    "seq": 22,
+    "atSeconds": 40.293769792,
+    "serverTimes": [
+      39050,
+      39050,
+      39050
+    ],
+    "positions": [
+      {
+        "x": 2608,
+        "y": 2416,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 21,
+        "faction": "holy"
+      },
+      {
+        "x": 2640,
+        "y": 2704,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 21,
+        "faction": "holy"
+      },
+      {
+        "x": 2448,
+        "y": 2576,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 21,
+        "faction": "holy"
+      }
+    ],
+    "command": "stop",
+    "delta": null
+  },
+  {
+    "window": "measured",
+    "k": 10,
+    "seq": 23,
+    "atSeconds": 41.293368792,
+    "serverTimes": [
+      40050,
+      40050,
+      40050
+    ],
+    "positions": [
+      {
+        "x": 2608,
+        "y": 2416,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 22,
+        "faction": "holy"
+      },
+      {
+        "x": 2640,
+        "y": 2704,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 22,
+        "faction": "holy"
+      },
+      {
+        "x": 2448,
+        "y": 2576,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 22,
+        "faction": "holy"
+      }
+    ],
+    "command": "move",
+    "delta": [
+      -64,
+      0
+    ]
+  },
+  {
+    "window": "measured",
+    "k": 11,
+    "seq": 24,
+    "atSeconds": 42.293894584,
+    "serverTimes": [
+      41050,
+      41050,
+      41050
+    ],
+    "positions": [
+      {
+        "x": 2480,
+        "y": 2416,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 23,
+        "faction": "holy"
+      },
+      {
+        "x": 2512,
+        "y": 2704,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 23,
+        "faction": "holy"
+      },
+      {
+        "x": 2320,
+        "y": 2576,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 23,
+        "faction": "holy"
+      }
+    ],
+    "command": "stop",
+    "delta": null
+  },
+  {
+    "window": "measured",
+    "k": 12,
+    "seq": 25,
+    "atSeconds": 43.293686792,
+    "serverTimes": [
+      42050,
+      42050,
+      42050
+    ],
+    "positions": [
+      {
+        "x": 2480,
+        "y": 2416,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 24,
+        "faction": "holy"
+      },
+      {
+        "x": 2512,
+        "y": 2704,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 24,
+        "faction": "holy"
+      },
+      {
+        "x": 2320,
+        "y": 2576,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 24,
+        "faction": "holy"
+      }
+    ],
+    "command": "move",
+    "delta": [
+      0,
+      64
+    ]
+  },
+  {
+    "window": "measured",
+    "k": 13,
+    "seq": 26,
+    "atSeconds": 44.293227792,
+    "serverTimes": [
+      43050,
+      43050,
+      43050
+    ],
+    "positions": [
+      {
+        "x": 2544,
+        "y": 2480,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 25,
+        "faction": "holy"
+      },
+      {
+        "x": 2576,
+        "y": 2768,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 25,
+        "faction": "holy"
+      },
+      {
+        "x": 2384,
+        "y": 2640,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 25,
+        "faction": "holy"
+      }
+    ],
+    "command": "stop",
+    "delta": null
+  },
+  {
+    "window": "measured",
+    "k": 14,
+    "seq": 27,
+    "atSeconds": 45.293724209,
+    "serverTimes": [
+      44050,
+      44050,
+      44050
+    ],
+    "positions": [
+      {
+        "x": 2544,
+        "y": 2480,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 26,
+        "faction": "holy"
+      },
+      {
+        "x": 2576,
+        "y": 2768,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 26,
+        "faction": "holy"
+      },
+      {
+        "x": 2384,
+        "y": 2640,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 26,
+        "faction": "holy"
+      }
+    ],
+    "command": "move",
+    "delta": [
+      0,
+      -64
+    ]
+  },
+  {
+    "window": "measured",
+    "k": 15,
+    "seq": 28,
+    "atSeconds": 46.292706209,
+    "serverTimes": [
+      45050,
+      45050,
+      45050
+    ],
+    "positions": [
+      {
+        "x": 2544,
+        "y": 2352,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 27,
+        "faction": "holy"
+      },
+      {
+        "x": 2576,
+        "y": 2640,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 27,
+        "faction": "holy"
+      },
+      {
+        "x": 2384,
+        "y": 2512,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 27,
+        "faction": "holy"
+      }
+    ],
+    "command": "stop",
+    "delta": null
+  },
+  {
+    "window": "measured",
+    "k": 16,
+    "seq": 29,
+    "atSeconds": 47.2934275,
+    "serverTimes": [
+      46050,
+      46050,
+      46050
+    ],
+    "positions": [
+      {
+        "x": 2544,
+        "y": 2352,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 28,
+        "faction": "holy"
+      },
+      {
+        "x": 2576,
+        "y": 2640,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 28,
+        "faction": "holy"
+      },
+      {
+        "x": 2384,
+        "y": 2512,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 28,
+        "faction": "holy"
+      }
+    ],
+    "command": "move",
+    "delta": [
+      64,
+      0
+    ]
+  },
+  {
+    "window": "measured",
+    "k": 17,
+    "seq": 30,
+    "atSeconds": 48.293474084,
+    "serverTimes": [
+      47050,
+      47050,
+      47050
+    ],
+    "positions": [
+      {
+        "x": 2608,
+        "y": 2416,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 29,
+        "faction": "holy"
+      },
+      {
+        "x": 2640,
+        "y": 2704,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 29,
+        "faction": "holy"
+      },
+      {
+        "x": 2448,
+        "y": 2576,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 29,
+        "faction": "holy"
+      }
+    ],
+    "command": "stop",
+    "delta": null
+  },
+  {
+    "window": "measured",
+    "k": 18,
+    "seq": 31,
+    "atSeconds": 49.293394667,
+    "serverTimes": [
+      48050,
+      48050,
+      48050
+    ],
+    "positions": [
+      {
+        "x": 2608,
+        "y": 2416,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 30,
+        "faction": "holy"
+      },
+      {
+        "x": 2640,
+        "y": 2704,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 30,
+        "faction": "holy"
+      },
+      {
+        "x": 2448,
+        "y": 2576,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 30,
+        "faction": "holy"
+      }
+    ],
+    "command": "move",
+    "delta": [
+      -64,
+      0
+    ]
+  },
+  {
+    "window": "measured",
+    "k": 19,
+    "seq": 32,
+    "atSeconds": 50.293004667,
+    "serverTimes": [
+      49050,
+      49050,
+      49050
+    ],
+    "positions": [
+      {
+        "x": 2480,
+        "y": 2416,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 31,
+        "faction": "holy"
+      },
+      {
+        "x": 2512,
+        "y": 2704,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 31,
+        "faction": "holy"
+      },
+      {
+        "x": 2320,
+        "y": 2576,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 31,
+        "faction": "holy"
+      }
+    ],
+    "command": "stop",
+    "delta": null
+  },
+  {
+    "window": "measured",
+    "k": 20,
+    "seq": 33,
+    "atSeconds": 51.292880584,
+    "serverTimes": [
+      50050,
+      50050,
+      50050
+    ],
+    "positions": [
+      {
+        "x": 2480,
+        "y": 2416,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 32,
+        "faction": "holy"
+      },
+      {
+        "x": 2512,
+        "y": 2704,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 32,
+        "faction": "holy"
+      },
+      {
+        "x": 2320,
+        "y": 2576,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 32,
+        "faction": "holy"
+      }
+    ],
+    "command": "move",
+    "delta": [
+      0,
+      64
+    ]
+  },
+  {
+    "window": "measured",
+    "k": 21,
+    "seq": 34,
+    "atSeconds": 52.29356075,
+    "serverTimes": [
+      51050,
+      51050,
+      51050
+    ],
+    "positions": [
+      {
+        "x": 2544,
+        "y": 2480,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 33,
+        "faction": "holy"
+      },
+      {
+        "x": 2576,
+        "y": 2768,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 33,
+        "faction": "holy"
+      },
+      {
+        "x": 2384,
+        "y": 2640,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 33,
+        "faction": "holy"
+      }
+    ],
+    "command": "stop",
+    "delta": null
+  },
+  {
+    "window": "measured",
+    "k": 22,
+    "seq": 35,
+    "atSeconds": 53.294165,
+    "serverTimes": [
+      52050,
+      52050,
+      52050
+    ],
+    "positions": [
+      {
+        "x": 2544,
+        "y": 2480,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 34,
+        "faction": "holy"
+      },
+      {
+        "x": 2576,
+        "y": 2768,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 34,
+        "faction": "holy"
+      },
+      {
+        "x": 2384,
+        "y": 2640,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 34,
+        "faction": "holy"
+      }
+    ],
+    "command": "move",
+    "delta": [
+      0,
+      -64
+    ]
+  },
+  {
+    "window": "measured",
+    "k": 23,
+    "seq": 36,
+    "atSeconds": 54.293005542,
+    "serverTimes": [
+      53050,
+      53050,
+      53050
+    ],
+    "positions": [
+      {
+        "x": 2544,
+        "y": 2352,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 35,
+        "faction": "holy"
+      },
+      {
+        "x": 2576,
+        "y": 2640,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 35,
+        "faction": "holy"
+      },
+      {
+        "x": 2384,
+        "y": 2512,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 35,
+        "faction": "holy"
+      }
+    ],
+    "command": "stop",
+    "delta": null
+  },
+  {
+    "window": "measured",
+    "k": 24,
+    "seq": 37,
+    "atSeconds": 55.292631542,
+    "serverTimes": [
+      54050,
+      54050,
+      54050
+    ],
+    "positions": [
+      {
+        "x": 2544,
+        "y": 2352,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 36,
+        "faction": "holy"
+      },
+      {
+        "x": 2576,
+        "y": 2640,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 36,
+        "faction": "holy"
+      },
+      {
+        "x": 2384,
+        "y": 2512,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 36,
+        "faction": "holy"
+      }
+    ],
+    "command": "move",
+    "delta": [
+      64,
+      0
+    ]
+  },
+  {
+    "window": "measured",
+    "k": 25,
+    "seq": 38,
+    "atSeconds": 56.293913084,
+    "serverTimes": [
+      55050,
+      55050,
+      55050
+    ],
+    "positions": [
+      {
+        "x": 2608,
+        "y": 2416,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 37,
+        "faction": "holy"
+      },
+      {
+        "x": 2640,
+        "y": 2704,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 37,
+        "faction": "holy"
+      },
+      {
+        "x": 2448,
+        "y": 2576,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 37,
+        "faction": "holy"
+      }
+    ],
+    "command": "stop",
+    "delta": null
+  },
+  {
+    "window": "measured",
+    "k": 26,
+    "seq": 39,
+    "atSeconds": 57.294376292,
+    "serverTimes": [
+      56050,
+      56050,
+      56050
+    ],
+    "positions": [
+      {
+        "x": 2608,
+        "y": 2416,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 38,
+        "faction": "holy"
+      },
+      {
+        "x": 2640,
+        "y": 2704,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 38,
+        "faction": "holy"
+      },
+      {
+        "x": 2448,
+        "y": 2576,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 38,
+        "faction": "holy"
+      }
+    ],
+    "command": "move",
+    "delta": [
+      -64,
+      0
+    ]
+  },
+  {
+    "window": "measured",
+    "k": 27,
+    "seq": 40,
+    "atSeconds": 58.293742542,
+    "serverTimes": [
+      57050,
+      57050,
+      57050
+    ],
+    "positions": [
+      {
+        "x": 2480,
+        "y": 2416,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 39,
+        "faction": "holy"
+      },
+      {
+        "x": 2512,
+        "y": 2704,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 39,
+        "faction": "holy"
+      },
+      {
+        "x": 2320,
+        "y": 2576,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 39,
+        "faction": "holy"
+      }
+    ],
+    "command": "stop",
+    "delta": null
+  },
+  {
+    "window": "measured",
+    "k": 28,
+    "seq": 41,
+    "atSeconds": 59.294075959,
+    "serverTimes": [
+      58050,
+      58050,
+      58050
+    ],
+    "positions": [
+      {
+        "x": 2480,
+        "y": 2416,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 40,
+        "faction": "holy"
+      },
+      {
+        "x": 2512,
+        "y": 2704,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 40,
+        "faction": "holy"
+      },
+      {
+        "x": 2320,
+        "y": 2576,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 40,
+        "faction": "holy"
+      }
+    ],
+    "command": "move",
+    "delta": [
+      0,
+      64
+    ]
+  },
+  {
+    "window": "measured",
+    "k": 29,
+    "seq": 42,
+    "atSeconds": 60.292067625,
+    "serverTimes": [
+      59050,
+      59050,
+      59050
+    ],
+    "positions": [
+      {
+        "x": 2544,
+        "y": 2480,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 41,
+        "faction": "holy"
+      },
+      {
+        "x": 2576,
+        "y": 2768,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 41,
+        "faction": "holy"
+      },
+      {
+        "x": 2384,
+        "y": 2640,
+        "status": "alive",
+        "hp": 1145,
+        "moveSeq": 41,
+        "faction": "holy"
+      }
+    ],
+    "command": "stop",
+    "delta": null
+  }
+]

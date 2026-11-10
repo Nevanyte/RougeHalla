@@ -1,0 +1,36 @@
+# Repair-round receipt identities (SHA-256) — current uncommitted candidate
+
+# worktree: /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-tactics
+# branch: codex/deepseek-private-tactics  HEAD: f252b8697cbff3afcee71711cf33db40c411399a
+# This file excludes itself from the listing; its own SHA-256 is reported with the final delivery.
+
+# Frozen corpus identities (recomputed, unchanged):
+5d27d1b4522d386d4ede5f3064a28660dedff43e32a24ade264f4512e30fcfa8  parity/policy/bot-private-tactics/source.json  (11656923 B)
+b43c64fea6c6da17faaccf578a1e4d6614c96e352f5f951fefafcca95ae68f77  parity/policy/bot-private-tactics/coverage.json  (1069183 B)
+9f76406016d0ebc498b0a3a3ec7cad677fc43ecd40b530a963a57a7f3d6eb957  parity/policy/bot-private-tactics/manifest.json  (37387 B)
+d9696bcd50de310224b947156948da6bf360cced93f910a7454cd2030c2202c2  parity/policy/bot-private-tactics/controls.json  (218643 B)
+
+# Evidence artifacts (final content; README/receipt identities regenerated after the last repair edits)
+87b9ee2e8454e9f3b0f1fbcac38848c0719cc6316b6b45e704d86307fd76519e  docs/evidence/bot-private-tactics-native/README.md  (23198 B)
+5313ccec5031b5805cd7d04efff663829f5d3e42acd09902fd1d6410f9ff9ed0  docs/evidence/bot-private-tactics-native/REPAIRS.md  (8280 B)
+9b46935ed9cd03fb6afe7c975ce8f1508fd487c3519c8fe967f9f678d42aab74  docs/evidence/bot-private-tactics-native/clippy-all-final.log  (198 B)
+a315ebfadf5ff62c9ac6149b10c39f885d7e357c12f5d044128f2ba0dacdc4ed  docs/evidence/bot-private-tactics-native/clippy-default-final.log  (212 B)
+a350e7215ca9f2383b270d41a9901507ee2da1250e48310111e9ad40ae7a3622  docs/evidence/bot-private-tactics-native/code-identity.txt  (156 B)
+a4f36637e927f3a56b7ca990b139afd6ad4a567655e90e5d53873d2013bd3197  docs/evidence/bot-private-tactics-native/corpus-identities.txt  (697 B)
+f45a0d89a3f9eb66f76a3815d6c60a7f60aea9cf9f2d9c657a6732d7dd6d205e  docs/evidence/bot-private-tactics-native/final-gate-exit-codes.txt  (4338 B)
+af3986f51c1b9488033fe23fca4f9790838e1620f776f6cf2d2e0b4c029af760  docs/evidence/bot-private-tactics-native/first-failures.md  (4483 B)
+7a418823969f07eaa7d905d46ef5957f81965170afae0fc3ca1beab7223c1d35  docs/evidence/bot-private-tactics-native/fmt-check.log  (461 B)
+b4634a5e684aae7bb8e57c23b95c9bd88c4bf0e744dfba7d52e126e8f631c803  docs/evidence/bot-private-tactics-native/focused-regressions-NOTE.md  (1260 B)
+dd6fc7ec5cce31a67b27ba4862e457ef7084b313b125114b5860708bbda2eb11  docs/evidence/bot-private-tactics-native/focused-regressions.log  (2918 B)
+5cbb2e801349ebd5e546932d2811543c98d2835356a55038cbbde328d3ae7cbf  docs/evidence/bot-private-tactics-native/full-regression-final.log  (25784 B)
+c01b3ca42d75d15069c0ea8c7ce97a1b96427ebc0a70c4e98f16bedfef2af919  docs/evidence/bot-private-tactics-native/regression-name-index.txt  (16215 B)
+1a742e48955a6ec2179ce0ba951f60971e015ff9bb5b6766895c9ef9fc55aa56  docs/evidence/bot-private-tactics-native/repair-clippy-all.log  (211 B)
+803f49081c16ac5434ca905fbea83a7f857c6ea60ae5c91b9dcca30c95843361  docs/evidence/bot-private-tactics-native/repair-clippy-default.log  (736 B)
+cdcfb6053a3cce52901e653bf210c57659ebd7f2bab7c6f2faaa7160a7c8580a  docs/evidence/bot-private-tactics-native/repair-fmt.log  (72 B)
+423173113fb164ca50a7d3bcde1c553b3db4e0378732ae2cf8b0d77cf2b09157  docs/evidence/bot-private-tactics-native/repair-focused.log  (3191 B)
+4e3c894ff098d5e20b9e153b1d0d0fa07b40e82cf23ae211994d70e5e7607472  docs/evidence/bot-private-tactics-native/repair-full-regression.log  (25996 B)
+24be54448a729b55dacb197144ee77132facf5c40dc73532927e1aa00fe336ca  docs/evidence/bot-private-tactics-native/repair-private-tactics.log  (9325 B)
+ce0c3ef1baa3603815ff0d5bc17451cbcced90b9f9ab7e9a8dc6c6eac027544f  docs/evidence/bot-private-tactics-native/source-coverage-reference.md  (17981 B)
+0a157e017e3d9552050b2404ddf0127de2f4551aca7047129e86af4587e350b7  docs/evidence/bot-private-tactics-native/source-inventory.txt  (2563 B)
+f021b8eb5fbe6ad98e6de4e87b500aa330c8564b66541d40cb110ea6a39404ed  docs/evidence/bot-private-tactics-native/tactics-run-nocapture.log  (8680 B)
+dc38932c5d45f35ab497890a73846df229b0c14d8258656e44c664f94063185b  docs/evidence/bot-private-tactics-native/tactics-tests-final.log  (4602 B)

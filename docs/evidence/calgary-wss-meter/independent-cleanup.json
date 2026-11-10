@@ -1,0 +1,24 @@
+{
+  "utc": "2026-11-10T03:30:17.428106+00:00",
+  "ownedNodePid": 43969,
+  "actualExecToolExit": 0,
+  "psExit": 1,
+  "psOutput": "",
+  "processAbsent": true,
+  "allOwnedSocketStates": [
+    3,
+    3,
+    3
+  ],
+  "finalPublicInfo": {
+    "protocol": 14,
+    "contentHash": "7c6a633f68c2cc72",
+    "state": "ready",
+    "rooms": 0,
+    "lobbies": 0,
+    "players": 1,
+    "resultsOk": 5,
+    "resultsFailed": 0,
+    "resultsRefused": 0
+  }
+}

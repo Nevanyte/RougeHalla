@@ -1,0 +1,109 @@
+# Repair-round private-tactics gate (post HOLD repairs, same test-only harness scope; production source unchanged)
+# cwd: /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-tactics
+# cargo: cargo 1.97.0 (c980f4866 2026-06-30)  rustc: rustc 1.97.0 (2d8144b78 2026-07-07)
+# target: /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-tactics/target  RUSTFLAGS=-C debuginfo=0 CARGO_INCREMENTAL=0
+# branch: codex/deepseek-private-tactics  HEAD: f252b8697cbff3afcee71711cf33db40c411399a
+
+$ cargo test -p rh-policy --lib --offline --locked -j 1 private_tactics -- --nocapture
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-tactics/crates/rh-policy)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 33.38s
+     Running unittests src/lib.rs (target/debug/deps/rh_policy-079cfe3908c47c5a)
+
+running 18 tests
+compat A bot-fight timings (overlap evidence): 90/90 available + 6/6 unavailable rows replayed through private kite::own_timings / 0 failures
+compat B case launch-draw-away-wait-relock: 8 rows, 1 decide draws
+compat C bot-fight directFight (overlap evidence): 1/1 frame replayed through the private Fight; 1 decide draws; 1 recorded path callbacks / 0 failures
+test bots::temporal_percept::tactics::compat_tests::private_tactics_compat_timings ... ok
+compat B case small-ready-jump-is-not-shot: 3 rows, 1 decide draws
+compat B case no-cooldown-left: 1 rows, 0 decide draws
+test bots::temporal_percept::tactics::compat_tests::private_tactics_compat_fight ... ok
+compat B case lost-move-900-boundary: 3 rows, 1 decide draws
+compat B case away-abandoned-3000-boundary: 4 rows, 1 decide draws
+compat B case cornered-no-away-point: 1 rows, 1 decide draws
+compat B bot-fight orbs (overlap evidence): 6/6 cases / 20/20 rows replayed through the private OrbWalk / 0 failures
+test bots::temporal_percept::tactics::compat_tests::private_tactics_compat_orbs ... ok
+compat E case ball-positive-and-decision-duplicate: 3 checks, 0 observe-only rows
+compat E case ball-false-dice-is-remembered: 2 checks, 0 observe-only rows
+compat E case real-observe-only-produces-step-not-new-incoming: 1 checks, 1 observe-only rows
+compat E case new-incoming-uses-reaction-lead-and-is-too-late: 1 checks, 0 observe-only rows
+compat E case lag-reduces-effective-course-time: 1 checks, 0 observe-only rows
+compat E case negative-lag-clamps-to-zero: 1 checks, 0 observe-only rows
+compat E case negative-lag-clamp-at-lead-boundary: 1 checks, 0 observe-only rows
+compat E case speed-below-floor: 1 checks, 0 observe-only rows
+compat E case speed-at-floor: 1 checks, 0 observe-only rows
+compat E case positive-arrow-dodge: 1 checks, 0 observe-only rows
+compat E case positive-offset-first-side-blocked: 1 checks, 0 observe-only rows
+compat E case negative-offset-first-side-blocked: 1 checks, 0 observe-only rows
+compat E case both-dodge-sides-blocked-remembers-yes: 2 checks, 0 observe-only rows
+compat E case public-hold-derived-lead-below-exact-above: 4 checks, 0 observe-only rows
+compat E case player-bow-positive: 1 checks, 0 observe-only rows
+compat E case wand-cue-positive-while-current-hand-is-sword: 1 checks, 0 observe-only rows
+compat E case known-null-faction-bow-source-fallback: 1 checks, 0 observe-only rows
+compat E case mob-bow-positive: 1 checks, 0 observe-only rows
+compat E case juke-first-side-blocked-uses-opposite: 1 checks, 0 observe-only rows
+compat E case juke-both-sides-blocked-remembers-yes: 2 checks, 0 observe-only rows
+compat E case normal-tier-positive-ball: 1 checks, 0 observe-only rows
+compat E case normal-tier-positive-bow: 1 checks, 0 observe-only rows
+compat E case easy-tier-real-dodge-dice: 1 checks, 0 observe-only rows
+compat E case easy-tier-has-no-juke-draw: 1 checks, 0 observe-only rows
+compat E case juke-false-dice-remembers-shot: 2 checks, 0 observe-only rows
+compat E case dodge-precedes-hold-and-juke-exact-public-hold-boundary: 5 checks, 0 observe-only rows
+compat E case players-then-mobs-then-wand-cue-order: 1 checks, 0 observe-only rows
+compat E case projectile-reentry-new-memory-stimulus-retains-reflex-decision: 3 checks, 0 observe-only rows
+compat E case shot-collection-skips-dead-empty-undrawn-own-and-unseen: 1 checks, 0 observe-only rows
+compat E case single48-order-includes-negative-projectile-and-shot-decisions: 4 checks, 0 observe-only rows
+compat E case window-1500-exact: 1 checks, 0 observe-only rows
+compat E case window-1501-is-refused: 1 checks, 0 observe-only rows
+compat E case due-equals-now-refused: 1 checks, 0 observe-only rows
+compat E case due-one-ms-future-accepted: 1 checks, 0 observe-only rows
+compat E case aim-range300-exact: 1 checks, 0 observe-only rows
+compat E case aim-range-over300: 1 checks, 0 observe-only rows
+compat E case aim-right-angle-excluded: 1 checks, 0 observe-only rows
+compat E case aim-right-angle-near-excluded: 1 checks, 0 observe-only rows
+compat E case aim-lateral60-nominal-binary64-outside: 1 checks, 0 observe-only rows
+compat E case aim-lateral60-exact-3-4-5: 1 checks, 0 observe-only rows
+compat E case aim-lateral-below60: 1 checks, 0 observe-only rows
+compat E case aim-lateral-over60: 1 checks, 0 observe-only rows
+compat E case aim-under1-bypasses-facing: 1 checks, 0 observe-only rows
+compat E case real-feint-memory-seed-0: 1 checks, 0 observe-only rows
+compat E case real-feint-memory-seed-1: 1 checks, 0 observe-only rows
+compat E case real-feint-memory-seed-2: 1 checks, 0 observe-only rows
+compat E case real-feint-memory-seed-3: 1 checks, 0 observe-only rows
+compat E case real-feint-memory-seed-7: 1 checks, 0 observe-only rows
+compat E case real-feint-memory-seed-42: 1 checks, 0 observe-only rows
+compat E Memory.observe re-derivation: 68 rows matched, 0 hard mismatches; max continuous geometry abs difference 0.0
+compat E bot-reflex (overlap evidence): 49/49 cases / 68/68 rows / 67/67 checks replayed through the private Reflexes (1 observe-only rows) / 0 failures
+test bots::temporal_percept::tactics::compat_tests::private_tactics_compat_reflex ... ok
+compat D overlap boundary: normalReflex compared on 47 rows, documented gaps 0
+compat D bot-fight cases (overlap evidence): 16/16 cases / 47/47 rows replayed through the private Tactics / 0 failures
+test bots::temporal_percept::tactics::compat_tests::private_tactics_compat_cases ... ok
+plain percept bridge decoded 67 bot-fight + 68 bot-reflex + 46 bot-sd percepts (2 legacy mobs)
+test bots::temporal_percept::tactics::source_decode::decode_smoke::private_tactics_plain_percept_bridge ... ok
+private-tactics decoded 5 maps / 154 cases / 720 operations: {"Fight": 3, "Orb": 8, "Reflex": 21, "Retreat": 2, "Tactics": 118, "World": 2}
+test bots::temporal_percept::tactics::source_decode::decode_smoke::private_tactics_decode_smoke ... ok
+private tactics source envelope: 154 cases / 720 operations / 70 knowledge draws per case / suites ["fight", "orb", "reflex", "retreat", "tactics", "world"] / maps ["open", "wall", "fence", "detour", "generated7"]
+private-tactics partial-replay non-advance control: reached runner resumed transcript exact
+test bots::temporal_percept::tactics::source_strict::tests::private_tactics_source_envelope_guard ... ok
+private-tactics changed-input control: native transcript changed
+private-tactics changed-expected-channel controls detected: 8
+test bots::temporal_percept::tactics::private_tactics_tests::private_tactics_partial_replay_resumes_exactly ... ok
+private-tactics object-order controls: tagged Memory + tagged callback argument order detected; plain envelope order excluded
+test bots::temporal_percept::tactics::private_tactics_tests::private_tactics_changed_input_changes_execution ... ok
+test bots::temporal_percept::tactics::private_tactics_tests::private_tactics_expected_channel_controls ... ok
+private-tactics coliseum walk-target controls: 3 direct declared endpoints bit-exact under 1e-9; computed crowded-slot target tolerated
+test bots::temporal_percept::tactics::private_tactics_tests::private_tactics_object_order_controls ... ok
+private-tactics specialized order controls: act-result root, intent, check-result root, callback event, paths.walk result, root Memory and tolerant derived point order all detected
+test bots::temporal_percept::tactics::private_tactics_tests::private_tactics_coliseum_walk_target_controls ... ok
+private-tactics typed-intake non-advance controls reached: 8 injected operations on a reached runner + 1 config intake
+test bots::temporal_percept::tactics::private_tactics_tests::private_tactics_specialized_order_controls ... ok
+test bots::temporal_percept::tactics::private_tactics_tests::private_tactics_source_typed_intake_non_advance ... ok
+PARITY_TOTAL private-tactics source parity: 154 cases / 720 operations / 0 failures
+test bots::temporal_percept::tactics::source_tests::private_tactics_source_parity ... ok
+PARITY_TOTAL private-tactics source recreate: 154 cases / 720 operations / 0 failures
+test bots::temporal_percept::tactics::source_tests::private_tactics_source_recreate_is_exact ... ok
+private tactics source reader controls: 17 rejected
+test bots::temporal_percept::tactics::source_strict::tests::private_tactics_source_reader_controls ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 220 filtered out; finished in 6.00s
+
+exit: 0

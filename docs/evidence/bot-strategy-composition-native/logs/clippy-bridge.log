@@ -1,0 +1,17 @@
+=== CLIPPY DEFAULT 2026-11-10T10:23:58Z ===
+    Checking serde_core v1.0.229
+    Checking serde v1.0.229
+    Checking libm v0.2.16
+    Checking ryu-js v1.0.3
+    Checking rh-sim v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-strategy-composition/crates/rh-sim)
+    Checking zmij v1.0.23
+    Checking rh-protocol v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-strategy-composition/crates/rh-protocol)
+    Checking itoa v1.0.18
+    Checking memchr v2.8.3
+    Checking serde_json v1.0.154
+    Checking rh-policy v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-strategy-composition/crates/rh-policy)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 11s
+=== CLIPPY DEFAULT EXIT: 0 ===
+=== CLIPPY ALL-FEATURES 2026-11-10T10:25:10Z ===
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.20s
+=== CLIPPY ALL EXIT: 0 ===

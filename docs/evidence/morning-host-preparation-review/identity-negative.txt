@@ -1,0 +1,5 @@
+exit_code=0
+ready accepted expected=14 returned=14.0 type=float
+ready accepted expected=1 returned=True type=bool
+28d21c3f907dc8902705eb6484477321c8113a39
+

@@ -1,0 +1,35 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-quest-runtime/crates/rh-sim)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 13.97s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/roguehalla-backend-20261109/target-quests/debug/deps/rh_sim-aabb9bffeb4358ef)
+
+running 6 tests
+expiry-cohort-order: source notices 12 / excluded 4 / events 16; native notices 12 / excluded 1 / events 13; previews 3
+test quests::notices_continuation_source_tests::case2_expiry_cohort_order_real_collect_turn_in ... ok
+pickup-closed-guard: source notices 3 / excluded 2 / events 5; native notices 3 / excluded 1 / events 4; previews 1
+test quests::notices_continuation_source_tests::case1_pickup_closed_guard_real_box_guards ... ok
+
+thread 'quests::notices_continuation_source_tests::continuation_comparator_control_rejects_mutated_matched_run' (71961603) panicked at crates/rh-sim/src/quests/notices_continuation_source_tests.rs:278:5:
+assertion `left == right` failed: wrong recipient: first ordered Toast/Gv notice mismatch
+  left: [Notice { tick: 2, time: 100.0, kind: "toast", to: Some("p0"), text: "That quest is over", gv_id: None, amount: 0, reason: None }, Notice { tick: 2, time: 100.0, kind: "toast", to: Some("p0"), text: "Quest discovered: Thaw the Watch (Warden Sigur)", gv_id: None, amount: 0, reason: None }, Notice { tick: 3, time: 150.0, kind: "toast", to: Some("p0"), text: "Quest accepted: The Reliquary", gv_id: None, amount: 0, reason: None }]
+ right: [Notice { tick: 2, time: 100.0, kind: "toast", to: Some("p2"), text: "That quest is over", gv_id: None, amount: 0, reason: None }, Notice { tick: 2, time: 100.0, kind: "toast", to: Some("p0"), text: "Quest discovered: Thaw the Watch (Warden Sigur)", gv_id: None, amount: 0, reason: None }, Notice { tick: 3, time: 150.0, kind: "toast", to: Some("p0"), text: "Quest accepted: The Reliquary", gv_id: None, amount: 0, reason: None }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'quests::notices_continuation_source_tests::continuation_comparator_control_rejects_mutated_matched_run' (71961603) panicked at crates/rh-sim/src/quests/notices_continuation_source_tests.rs:278:5:
+assertion `left == right` failed: wrong order: first ordered Toast/Gv notice mismatch
+  left: [Notice { tick: 2, time: 100.0, kind: "toast", to: Some("p0"), text: "That quest is over", gv_id: None, amount: 0, reason: None }, Notice { tick: 2, time: 100.0, kind: "toast", to: Some("p0"), text: "Quest discovered: Thaw the Watch (Warden Sigur)", gv_id: None, amount: 0, reason: None }, Notice { tick: 3, time: 150.0, kind: "toast", to: Some("p0"), text: "Quest accepted: The Reliquary", gv_id: None, amount: 0, reason: None }]
+ right: [Notice { tick: 2, time: 100.0, kind: "toast", to: Some("p0"), text: "Quest discovered: Thaw the Watch (Warden Sigur)", gv_id: None, amount: 0, reason: None }, Notice { tick: 2, time: 100.0, kind: "toast", to: Some("p0"), text: "That quest is over", gv_id: None, amount: 0, reason: None }, Notice { tick: 3, time: 150.0, kind: "toast", to: Some("p0"), text: "Quest accepted: The Reliquary", gv_id: None, amount: 0, reason: None }]
+teleport-close-notices: source notices 3 / excluded 2 / events 5; native notices 3 / excluded 2 / events 5; previews 0
+test quests::notices_continuation_source_tests::continuation_comparator_control_rejects_mutated_matched_run ... ok
+test quests::notices_continuation_source_tests::case3_teleport_close_notices_real_producer_queue ... ok
+camp-and-publication-closure: source notices 7 / excluded 108 / events 115; native notices 7 / excluded 106 / events 113; previews 2
+test quests::notices_continuation_source_tests::case5_camp_publication_closure_real_region_kills ... ok
+
+thread 'quests::notices_continuation_source_tests::continuation_intake_controls_reject_unknown_action_and_wrong_binding' (71961604) panicked at crates/rh-sim/src/quests/notices_continuation_source_tests.rs:516:18:
+unconsumed source action unknownAction
+
+thread 'quests::notices_continuation_source_tests::continuation_intake_controls_reject_unknown_action_and_wrong_binding' (71961604) panicked at crates/rh-sim/src/quests/notices_continuation_source_tests.rs:180:28:
+typed source offer questZZ does not resolve
+test quests::notices_continuation_source_tests::continuation_intake_controls_reject_unknown_action_and_wrong_binding ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 847 filtered out; finished in 3.47s
+

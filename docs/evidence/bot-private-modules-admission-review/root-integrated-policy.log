@@ -1,0 +1,526 @@
+{"cwd": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests", "head": "721d04dabaa734f33835cd69bbb64385843d9a7d", "command": ["/Users/nevinmckinnon/.cargo/bin/cargo", "test", "-p", "rh-policy", "--lib", "--locked", "--offline", "-j", "1", "--", "--nocapture"], "CARGO_TARGET_DIR": "target/root-strategy-notice-admission/build", "CARGO_INCREMENTAL": "0", "RUSTFLAGS": ""}
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests/crates/rh-policy)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 34.45s
+     Running unittests src/lib.rs (target/root-strategy-notice-admission/build/debug/deps/rh_policy-f90e85fbfc95e0da)
+
+running 389 tests
+test bots::bot::knowledge_repair_reset_tests::knowledge_repair_tag3_vectors_are_the_source_derived_ones ... ok
+test bots::bot::reset_stream_tests::source_vectors_cover_the_four_stream_tags ... ok
+test bots::bot::connected_tests::a_cleared_owner_from_another_viewer_is_not_this_bots_owner_loss ... ok
+test bots::bot::connected_tests::an_entitled_noncombat_lock_keeps_its_reference_without_creating_a_target_candidate ... ok
+test bots::bot::connected_tests::delivered_perception_keeps_source_absolute_ready_redacted_held_and_targetability_without_immunity ... ok
+test bots::bot::knowledge_repair_reset_tests::knowledge_repair_seat_tiers_still_draw_their_own_knowledge ... ok
+test bots::bot::connected_tests::raw_or_unavailable_owner_inputs_refuse_before_any_memory_brain_or_rng_advance ... ok
+test bots::delay::tests::the_stream_is_the_manager_seed_mixed_with_the_line_tag ... ok
+test bots::delay::tests::due_commands_leave_in_order_and_only_when_their_arrival_has_come ... ok
+test bots::brain::tests::channel_arbitration_preserves_first_extra_and_source_priority_rules ... ok
+test bots::brain::tests::goal_keys_cadence_cap_and_salient_conditions_are_the_source_conditions ... ok
+test bots::bot::connected_tests::rejected_duplicate_scene_does_not_advance_the_live_brain_memory_or_random_streams ... ok
+test bots::delivered::tests::adapter_preserves_owner_f32_precision_and_remote_code_grid ... ok
+test bots::bot::connected_tests::an_expired_cached_wish_goal_finishes_before_the_next_strategy_deadline ... ok
+test bots::delivered::tests::adapter_rejects_unsupported_codes_namespaces_and_malformed_frames ... ok
+test bots::bot::connected_tests::neutral_dummy_zombie_rows_never_become_enemy_or_regional_farm_goals ... ok
+test bots::fair_percept14::tests::connected::real_sync_accepted_intake_runs_memory_humanizer_and_normal_submit_without_fallback ... ok
+test bots::delivered::tests::adapter_reproduces_actual_js_decoding_and_current_rust_generated_golden_bits ... ok
+test bots::brain::tests::actual_source_arbitration_is_observed_before_humanizer_submission ... ok
+test bots::fair_percept14::tests::real_hidden_world_pair_has_equal_public_samples_and_player_memory ... ok
+test bots::delay::tests::the_delay_line_arrivals_are_the_actual_source_ones ... ok
+test bots::fair_percept14::tests::complete_owned_current14_sample_keeps_all_leaves_and_feeds_real_player_memory ... ok
+test bots::fair_percept14::tests::declared_neutral_actor_keeps_unarmed_current_row_without_joining_player_memory ... ok
+test bots::fair_percept14::tests::explicit_new_session_reset_is_atomic_and_old_receipts_cannot_rejoin ... ok
+test bots::fair_percept14::tests::omitted_update_retention_present_empty_and_authoritative_clears_stay_distinct ... ok
+test bots::bot::knowledge_repair_reset_tests::knowledge_repair_reset_uses_the_separate_tag3_stream ... ok
+test bots::fair_percept14::tests::unpublished_requirements_and_memory_limit_refuse_atomically_from_reached_state ... ok
+test bots::fair_percept14::tests::stale_cross_session_full_and_bad_projection_refuse_without_partial_commit ... ok
+test bots::brain::tests::actual_source_brain_coordinator_call_sequence_and_rng_trace ... ok
+test bots::bot::connected_tests::live_roam_uses_world_executor_and_never_exceeds_path_budget ... ok
+test bots::bot::reset_stream_tests::live_reset_keeps_knowledge_on_independent_tag3_and_does_not_consume_streams ... ok
+test bots::bot::connected_tests::same_observations_reset_cross_seat_and_hidden_rows_cannot_perturb_commands ... ok
+test bots::bot::reset_stream_tests::live_reset_is_cross_seat_deterministic_and_uses_low32_seed_domain ... ok
+test bots::fight::source_tests::actual_source_direct_exported_fight_uses_no_tactics_knowledge_draw ... ok
+test bots::fight::source_tests::sd_source_tests::reached_sd_cache_and_held_state_refuse_bad_health_atomically_and_reset_completely ... ok
+test bots::fight::source_tests::actual_source_orb_all_six_sequences_and_20_frames ... ok
+test bots::fight::source_tests::reset_after_source_orb_cycle_drops_engagement_beliefs_lock_and_timers_without_draws ... ok
+test bots::fight::source_tests::actual_source_tactics_all_sixteen_sequences_and_47_frames ... ok
+test bots::bot::reset_stream_tests::live_reset_installs_the_source_tag_streams_and_first_draws ... ok
+test bots::fight::source_tests::missing_owner_lock_bad_slot_clock_duplicate_rows_and_nonfinite_arena_are_atomic_refusals ... ok
+test bots::fight::source_tests::unavailable_facts_and_epoch_refuse_before_memory_or_rng_then_reset_drops_identity ... ok
+test bots::fight::source_tests::sd_source_tests::actual_source_sd_all_eight_sequences_and_46_frames ... ok
+test bots::humanizer::feature_tests::absent_features_and_present_full_membership_keep_the_old_hand ... ok
+test bots::humanizer::feature_tests::empty_membership_rejects_every_offer_before_any_hand_state_or_draw ... ok
+test bots::humanizer::feature_tests::lock_is_gated_by_its_mapped_target_type_not_the_attack_conversion ... ok
+test bots::humanizer::feature_tests::partial_membership_accepts_only_listed_command_types_and_preserves_arbitrary_strings ... ok
+test bots::humanizer::feature_tests::rejected_offer_preserves_earlier_accepted_pending_work ... ok
+test bots::humanizer::feature_tests::rejected_offers_do_not_draw_or_touch_hand_state ... ok
+test bots::bot::connected_tests::real_seat_validates_submits_and_repeats_identically_without_fallback ... ok
+reflex geometry: 10 angle + 27 course rows; max C-PARITY raw abs diff 0.0
+test bots::kite::reflex_geometry::tests::actual_source_geometry_rows_match ... ok
+test bots::kite::reflex_geometry::tests::from_self_exclusion_is_an_explicit_declared_fact ... ok
+test bots::kite::reflex_geometry::tests::nonfinite_facts_are_refused_before_computation ... ok
+test async_session_tests::a_real_late_worker_reply_cannot_cross_a_faulted_session ... ok
+test bots::kite::own_timings::tests::six_no_faction_results_are_none ... ok
+test bots::kite::own_timings::tests::actual_source_90_timing_rows_match_exactly ... ok
+test bots::kite::own_timings::tests::explicit_fists_are_supported_and_never_missing_inventory ... ok
+test bots::knowledge_parity_tests::captured_fight_odds_reproduce ... ok
+test bots::knowledge_parity_tests::captured_knowledge_constants ... ok
+test bots::knowledge_repair_tests::knowledge_repair_diagnostics_use_javascript_tofixed_semantics ... ok
+test bots::knowledge_repair_tests::knowledge_repair_explicit_null_player_probe_falls_back_to_the_first_player ... ok
+test bots::learning::tests::a_snapshot_is_enabled_and_zero_for_unknown_keys ... ok
+test bots::learning::tests::clone_and_equality_include_eviction_age ... ok
+test bots::learning::tests::a_duplicate_choice_key_counts_once_and_the_table_keeps_its_smallest_n ... ok
+test bots::learning::tests::count_precedes_age_and_a_removed_key_reenters_as_newest ... ok
+test bots::learning::tests::damaged_cells_and_keys_are_refused_or_dropped ... ok
+test bots::learning::tests::new_choices_take_summary_order_not_the_logged_sets_sorted_order ... ok
+test bots::learning::tests::replacing_a_cell_keeps_its_age_without_reordering ... ok
+test bots::learning::tests::signed_zero_counts_tie_like_javascript_numbers ... ok
+test bots::learning::tests::the_first_run_of_a_tier_says_nothing_and_the_second_does ... ok
+test bots::learning::tests::the_reference_constants_are_the_source_learn_object ... ok
+test bots::learning::tests::the_smoothed_mean_is_the_legacy_bias ... ok
+test bots::fair_percept14::tests::connected::real_async_accepted_intake_keeps_original_sample_clocks_and_validated_commands ... ok
+test bots::learning::tests::trim_evicts_the_oldest_equal_count_even_when_it_is_lexically_last ... ok
+test bots::learning::tests::void_draw_and_short_runs_follow_the_source_guards ... ok
+test bots::memory_prefix::tests::actual_source_memory_subset_reproduces_all_48_declared_frames ... ok
+test bots::memory_prefix::tests::actual_source_memory_stimuli_and_world_motion_sequences ... ok
+test bots::memory_prefix::tests::hidden_and_off_camera_rows_cannot_change_memory_or_consume_record_capacity ... ok
+test bots::memory_prefix::tests::lifecycle_and_capacity_refusals_are_atomic_and_explicit_reset_clears_memory ... ok
+test bots::memory_prefix::tests::unseen_disappearance_retains_prior_facts_and_npc_refs_never_enter_player_memory ... ok
+test bots::memory_prefix::tests::actual_source_note_sent_records_only_emitted_orders_and_casts_and_reset_clears_them ... ok
+test bots::mob_hunt_parity_tests::build_route_constants_goals_and_pure_rules_match_actual_source ... ok
+test bots::mob_hunt_parity_tests::retreat_point_matches_actual_source ... ok
+test bots::mob_hunt_parity_tests::mob_hunt_config_and_persona_derivation_match_actual_source ... ok
+test bots::learning::tests::source_operation_sequences_distinguish_runtime_order_from_sorted_restart ... ok
+test bots::mob_hunt_parity_tests::wants_mobs_matches_actual_source ... ok
+test bots::mob_hunt_parity_tests::weapon_edge_and_mob_weapon_rules_match_actual_source ... ok
+test bots::parity_tests::bot_core_distributions_match_source ... ok
+test bots::parity_tests::bot_core_clicks_match_source ... ok
+test bots::parity_tests::bot_core_humanizer_matches_source ... ok
+test bots::paths::shared_budget_tests::the_borrowed_entries_replay_the_frozen_source_script ... ok
+test bots::parity_tests::bot_core_map_solidity_matches_source ... ok
+test bots::paths::shared_budget_tests::two_services_share_one_caller_allowance_without_sharing_caches ... ok
+test bots::paths_parity_tests::the_path_service_matches_the_source_step_by_step ... ok
+test bots::parity_tests::bot_core_tier_and_persona_tables_match_source ... ok
+test bots::planning_parity_tests::a_seat_presses_ready_without_a_deal ... ok
+test bots::planning_parity_tests::a_seat_answers_a_deal_then_presses_ready ... ok
+test bots::planning_parity_tests::captured_planning_constants_pin_the_source_tables ... ok
+test bots::planning_parity_tests::mutants_of_the_planning_corpus_cannot_false_match ... ok
+test bots::knowledge_parity_tests::mutants_of_the_knowledge_corpus_cannot_false_match ... ok
+test bots::planning_parity_tests::captured_planning_cases_reproduce ... ok
+test bots::potion_fact_tests::comparator_controls_reject_wrong_count_deadline_and_sample_time_pairing ... ok
+test bots::potion_fact_tests::ended_phase_elapses_the_hot_deadline_outside_the_predicate_contract_and_restores ... ok
+test bots::hazards::source_core::tests::ordered_tests_prefer_clean_over_a_closer_not_bad_tile ... ok
+test bots::potion_fact_tests::real_non_ended_fighter_out_cleanup_clears_live_hot_mirrors_and_inventory ... ok
+test bots::potion_fact_tests::removed_owner_missing_inventory_stays_unavailable_and_mirrors_clear ... ok
+native aim diagnostic aim-lateral60-nominal-binary64-outside: d=208.80613017821102/406a19cbd183f785 bearing=0.2914567944778671/3fd2a73a661eaf06 diff=0.2914567944778671/3fd2a73a661eaf06 sin=0.28734788556634544/3fd263e862c542d5 lateral=60.00000000000001/404e000000000001
+native aim diagnostic aim-lateral60-exact-3-4-5: d=100.0/4059000000000000 bearing=0.6435011087932844/3fe4978fa3269ee1 diff=0.6435011087932844/3fe4978fa3269ee1 sin=0.6/3fe3333333333333 lateral=60.0/404e000000000000
+native aim diagnostic aim-lateral-below60: d=208.80612140905149/406a19cbbf200f69 bearing=0.29145665448897073/3fd2a739cfced430 diff=0.29145665448897073/3fd2a739cfced430 sin=0.28734775148129804/3fd263e7d2cc3e6f lateral=59.999969482421875/404dffff00000000
+native aim diagnostic aim-lateral-over60: d=208.8061389473746/406a19cbe3e7e02f bearing=0.2914569344667517/3fd2a73afc6e8908 diff=0.2914569344667517/3fd2a73afc6e8908 sin=0.2873480196513759/3fd263e8f2be460a lateral=60.000030517578125/404e000100000000
+actual source Reflexes: 49 sequences /68 frames /67 checks; exact discrete results, paths and RNG; maximum continuous abs difference 0.0
+test bots::potion_fact_tests::accepted_use_overlap_final_expiry_and_mid_hot_restore_continuation ... ok
+test bots::reflex::tests::all_actual_source_49_sequences_68_frames_complete_outputs_paths_and_streams ... ok
+test bots::reflex::tests::controls::nonfinite_and_late_unknown_facts_are_atomic_from_reached_state ... ok
+test bots::reflex::tests::controls::missing_complete_facts_refuse_before_reached_state_rng_paths_then_retry ... ok
+test bots::hazards::tests::absent_owner_or_arena_never_invents_a_hazard_frame_and_reset_drops_steps ... ok
+test bots::hazards::tests::unrelated_tick_index_and_training_fact_do_not_change_hazard_decisions ... ok
+test bots::temporal_percept::memory::source_tests::memory_expected_map_decoder_is_strict ... ok
+test bots::hazards::source_core::tests::around_chooses_the_tile_box_while_from_chooses_the_order ... ok
+test bots::hazards::source_core::tests::unknown_or_empty_faction_has_no_home_rule ... ok
+test bots::reflex::tests::controls::source_string_keys_preserve_timestamp_spelling_and_shared_cross_kind_equality ... ok
+test bots::temporal_percept::memory::source_tests::review_repair_death_event_time_control ... ok
+test bots::temporal_percept::memory::source_tests::review_repair_hit_clock_control ... ok
+test bots::temporal_percept::memory::source_tests::review_repair_pickup_state_positive_and_negative ... ok
+test bots::temporal_percept::memory::source_tests::review_repair_pickup_refusal_exact_matrix ... ok
+test bots::reflex::tests::controls::session_epoch_owner_refusal_and_reset_clear_real_choices_hold_and_counters ... ok
+test bots::temporal_percept::memory::source_tests::synthetic_memory_api_controls_are_labelled ... ok
+test bots::temporal_percept::memory::source_tests::review_repair_synthetic_note_sent_and_whereabouts_controls ... ok
+test bots::temporal_percept::memory::source_tests::review_repair_visible_never_dotted_mob_initializes_aux_positive ... ok
+test bots::hazards::source_core::tests::denied_accept_traverses_both_passes_in_source_order ... ok
+test bots::hazards::source_core::tests::accept_is_called_at_the_source_point_and_stops_at_first_success ... ok
+test bots::hazards::source_core::tests::stable_generation_order_breaks_equal_distance_ties ... ok
+test bots::temporal_percept::modules::chest_hunt::tests::birth_hold_boundary_is_strict_149_150 ... ok
+test bots::temporal_percept::modules::chest_hunt::tests::capture_matches_the_source_own_property_order ... ok
+test bots::temporal_percept::modules::chest_hunt::tests::fighting_only_leaves_for_a_chest_within_fight_walk ... ok
+test bots::temporal_percept::modules::chest_hunt::tests::stall_gives_up_at_3000_ms_of_walking ... ok
+test bots::temporal_percept::modules::chest_hunt::tests::stall_progress_needs_strictly_more_than_24 ... ok
+test bots::temporal_percept::modules::chest_hunt::tests::teleport_at_is_min_clock_and_nonpositive_means_none ... ok
+test bots::temporal_percept::modules::chest_hunt::tests::walk_cache_expires_at_250 ... ok
+test bots::temporal_percept::modules::chests::tests::a_blind_panel_is_not_read_and_a_reopen_resets_the_reading_clock ... ok
+test bots::temporal_percept::modules::chests::tests::a_changed_option_is_asked_again_at_most_three_times ... ok
+test bots::temporal_percept::modules::chests::tests::a_taken_card_is_counted_once_and_unlocks_the_conditional ... ok
+test bots::temporal_percept::modules::chests::tests::goals_score_the_pick_stop_and_the_fresh_hunt_walk ... ok
+test bots::temporal_percept::modules::chests::tests::act_reports_the_source_walk_wait_and_done_reasons ... ok
+test bots::temporal_percept::modules::chests::tests::same_option_retry_keeps_the_intent_and_the_window_is_4000 ... ok
+test bots::temporal_percept::modules::choice::tests::base_cards_deepen_and_new_stats_keep_the_source_weights ... ok
+test bots::hazards::tests::actual_source_public_ground_classification_reproduces ... ok
+test bots::temporal_percept::modules::choice::tests::boost_picks_are_capped_on_the_raw_build_count ... ok
+test bots::temporal_percept::modules::choice::tests::choose_option_first_of_equals_and_skips_taken_or_unusable ... ok
+test bots::temporal_percept::modules::choice::tests::costs_something_reads_the_actual_catalog_rows ... ok
+test bots::temporal_percept::modules::choice::tests::danger_risk_boundary_is_strict ... ok
+test bots::temporal_percept::modules::choice::tests::kill_augments_map_to_the_source_base_fits ... ok
+test bots::temporal_percept::modules::choice::tests::option_score_is_the_old_name_of_card_score ... ok
+test bots::hazards::tests::actual_source_hazard_fsm_and_adjustments_reproduce ... ok
+test bots::temporal_percept::modules::choice::tests::tradeoff_risk_boundary_is_strict ... ok
+test bots::temporal_percept::modules::controls_tests::choice_block_rules_and_unknown_ids_are_source_exact ... ok
+test bots::temporal_percept::modules::controls_tests::choice_boost_cap_reads_the_raw_build_count ... ok
+test bots::temporal_percept::modules::controls_tests::choice_costs_something_mult_and_cost_flag_vs_plain_stat ... ok
+test bots::temporal_percept::modules::controls_tests::choice_kill_augment_base_fit_matches_a_plain_base_card ... ok
+test bots::temporal_percept::modules::controls_tests::choice_risk_boundaries_are_strict ... ok
+test bots::temporal_percept::modules::controls_tests::choice_option_order_is_first_equal_and_skips_taken_entries ... ok
+test bots::temporal_percept::modules::controls_tests::hunter_birth_hold_boundary_is_149_150 ... ok
+test bots::temporal_percept::modules::controls_tests::hunter_fighting_walk_cap_is_384_385 ... ok
+test bots::temporal_percept::modules::controls_tests::hunter_in_range_pick_is_free_while_retreating ... ok
+test bots::temporal_percept::modules::controls_tests::hunter_interrupted_walk_time_is_not_added ... ok
+test bots::temporal_percept::modules::controls_tests::hunter_pick_margin_boundary_is_strict ... ok
+test bots::temporal_percept::modules::controls_tests::hunter_stall_gives_up_at_3000_logs_and_marks_done ... ok
+test bots::temporal_percept::modules::controls_tests::hunter_stall_progress_needs_strictly_more_than_24 ... ok
+test bots::temporal_percept::modules::controls_tests::hunter_uses_distinct_now_and_server_time_clocks ... ok
+test bots::temporal_percept::modules::controls_tests::planning_finite_learned_bias_changes_the_boon_pick_both_directions ... ok
+test bots::temporal_percept::modules::controls_tests::hunter_walk_cache_silence_249_recompute_250 ... ok
+test bots::temporal_percept::modules::controls_tests::planning_first_deal_schedules_at_the_event_time_and_only_once ... ok
+test bots::temporal_percept::modules::controls_tests::planning_no_deal_ready_is_at_1000ms ... ok
+test bots::temporal_percept::modules::controls_tests::planning_fractional_spawn_index_never_selects_a_camp_score ... ok
+test bots::temporal_percept::modules::controls_tests::registry_reset_policy_identity_and_wishes_never_reads_the_policy ... ok
+test bots::temporal_percept::modules::controls_tests::registry_default_order_replacement_and_enabled_filtering ... ok
+test bots::temporal_percept::modules::controls_tests::planning_read_boundary_three_asks_resend_and_settle ... ok
+test bots::temporal_percept::modules::controls_tests::planning_forced_lapse_picks_the_lapse_branch_and_ignores_nonfinite_bias ... ok
+test bots::knowledge_parity_tests::captured_knowledge_layer_reproduces ... ok
+test bots::knowledge_repair_tests::knowledge_repair_derive_and_brain_wiring_match_the_source ... ok
+test bots::temporal_percept::modules::hazards::tests::adjust_copies_after_first_redirect_and_keeps_order_priority_and_why ... ok
+test bots::temporal_percept::modules::hazards::tests::adjust_is_phase_and_coliseum_independent ... ok
+test bots::planning_parity_tests::captured_planning_helpers_reproduce ... ok
+test bots::temporal_percept::modules::catalog_tests::admitted_rule_tables_match_the_frozen_source_catalog ... ok
+test bots::temporal_percept::modules::catalog_tests::admitted_boost_and_kill_format_tables_match_the_frozen_source_catalog ... ok
+test bots::temporal_percept::modules::catalog_tests::admitted_wish_table_matches_the_frozen_source_ability_rows ... ok
+test bots::temporal_percept::modules::catalog_tests::admitted_static_card_catalog_matches_the_frozen_source_catalog ... ok
+test bots::temporal_percept::modules::hazards::tests::listed_hooks_and_enabled_match_the_source_module_object ... ok
+test bots::temporal_percept::modules::hazards::tests::classification_matches_the_source_surface_table ... ok
+test bots::temporal_percept::modules::hazards::tests::legacy_fsm_replay_matches_with_exact_callback_points ... ok
+test bots::temporal_percept::modules::hazards::tests::guards_return_before_any_collision_map_call ... ok
+test bots::temporal_percept::modules::hazards::tests::path_denial_traverses_both_passes_and_denies_every_accept ... ok
+test bots::temporal_percept::modules::planning_core_tests::learned_bias_applies_the_source_learn_clamp_and_sanitize ... ok
+test bots::temporal_percept::modules::planning_core_tests::per_cfg_tokens_isolate_source_state ... ok
+test bots::temporal_percept::modules::planning_core_tests::raw_source_spawn_index_keeps_captured_numbers_and_never_truncates ... ok
+test bots::temporal_percept::modules::hazards::tests::hold_coliseum_why_does_not_seek_light ... ok
+test bots::temporal_percept::modules::registry::send_assertions::new_private_module_layer_is_send ... ok
+test bots::temporal_percept::modules::planning_core_tests::schedule_and_transitions_match_the_old_public_wrapper ... ok
+test bots::temporal_percept::modules::planning_core_tests::shared_choices_draw_in_the_admitted_leaf_order ... ok
+test bots::temporal_percept::modules::hazards::tests::arrival_is_inclusive_at_twenty_units ... ok
+test bots::temporal_percept::modules::hazards::tests::per_cfg_identity_isolates_and_continues_state ... ok
+test bots::humanizer::feature_tests::source::sealed_source_hand_reader_rejects_malformed_declarations ... ok
+test bots::humanizer::feature_tests::source::sealed_source_hand_supplement_matches_all_profiles ... ok
+test bots::temporal_percept::modules::source_trace::tests::cast_intent_includes_present_unit_cast_facts_in_source_order ... ok
+test bots::temporal_percept::modules::source_trace::tests::cast_intent_omits_absent_unit_cast_facts ... ok
+test bots::temporal_percept::modules::source_trace::tests::chest_decision_and_inspect_results_match_the_source_literals ... ok
+test bots::temporal_percept::modules::source_trace::tests::compare_callbacks_reports_a_reordered_draw ... ok
+test bots::temporal_percept::modules::source_trace::tests::compare_draw_counts_is_exact_per_lane ... ok
+test bots::temporal_percept::modules::source_trace::tests::encode_enabled_modules_owns_builtin_and_token_keys_as_undefined ... ok
+test bots::temporal_percept::modules::source_trace::tests::encode_features_uses_the_source_field_order ... ok
+test bots::temporal_percept::modules::source_trace::tests::encode_goal_status_decision_and_module_output_use_source_order ... ok
+test bots::temporal_percept::modules::source_trace::tests::encode_hunt_config_pins_the_frozen_corpus_values ... ok
+test bots::temporal_percept::modules::source_trace::tests::encode_path_stats_uses_the_source_field_order ... ok
+test bots::temporal_percept::modules::source_trace::tests::first_difference_reports_the_bit_flipped_number_and_path ... ok
+test bots::temporal_percept::modules::source_trace::tests::hunter_own_is_an_ordered_source_instance ... ok
+test bots::temporal_percept::modules::source_trace::tests::intent_list_keeps_source_order ... ok
+test bots::temporal_percept::modules::source_trace::tests::lock_swap_pickup_stop_intents_match_source_literal_order ... ok
+test bots::temporal_percept::modules::source_trace::tests::log_recorders_own_the_runner_cfg_and_name ... ok
+test bots::temporal_percept::modules::source_trace::tests::memory_snapshot_against_an_admitted_memory_matches_the_empty_source_view ... ok
+test bots::temporal_percept::modules::source_trace::tests::move_intent_matches_source_literal_order ... ok
+test bots::temporal_percept::modules::source_trace::tests::nan_is_a_source_codec_sentinel_not_a_payload ... ok
+test bots::temporal_percept::modules::source_trace::tests::nested_callbacks_keep_the_source_runner_sequence ... ok
+test bots::temporal_percept::modules::source_trace::tests::ordered_same_is_order_sensitive_for_objects_and_maps ... ok
+test bots::temporal_percept::modules::source_trace::tests::plan_and_choose_messages_own_only_present_source_keys ... ok
+test bots::temporal_percept::modules::source_trace::tests::recorded_learned_records_the_raw_result_even_when_nonfinite ... ok
+test bots::temporal_percept::modules::source_trace::tests::stimulus_and_goal_decision_lists_keep_source_order ... ok
+test bots::temporal_percept::modules::source_trace::tests::stimulus_value_is_owned_only_when_present ... ok
+test bots::temporal_percept::modules::source_trace::tests::trace_rng_records_the_admitted_values_and_indices_in_order ... ok
+test bots::temporal_percept::modules::wishes::tests::absent_wish_slot_never_decides_and_keeps_the_source_reasons ... ok
+test bots::temporal_percept::modules::wishes::tests::armed_at_expiry_retains_the_origin_and_leg ... ok
+test bots::temporal_percept::modules::wishes::tests::def_guard_cases_observe_but_never_decide ... ok
+test bots::temporal_percept::modules::wishes::tests::done_reasons_are_nobody_cornered_and_running ... ok
+test bots::temporal_percept::modules::wishes::tests::easy_filter_and_the_single_availability_draw ... ok
+test bots::temporal_percept::modules::wishes::tests::hooks_inventory_and_enabled_gate_are_the_actual_source_object ... ok
+test bots::temporal_percept::modules::wishes::tests::nearest_enemy_ties_keep_the_first_source_row ... ok
+test bots::temporal_percept::modules::wishes::tests::peel_uses_the_real_velocity_or_memory_hit_chase_fact ... ok
+test bots::temporal_percept::modules::wishes::tests::real_lastcast_grace_pending_hidden_and_partial_retention ... ok
+test bots::temporal_percept::modules::wishes::tests::self_cast_arms_the_slip_step_first_then_the_walk ... ok
+test bots::temporal_percept::modules::wishes::tests::stimulus_priority_is_the_cast_stimuli_order ... ok
+test bots::temporal_percept::modules::wishes::tests::the_collision_map_is_the_real_path_service_view ... ok
+test bots::temporal_percept::modules::wishes::tests::two_cfg_tokens_isolate_state_and_the_same_token_continues ... ok
+test bots::temporal_percept::modules::wishes::tests::two_hard_cfg_tokens_isolate_the_armed_state_like_the_source_weakmap ... ok
+test bots::temporal_percept::modules::wishes::tests::unit_cast_intent_is_exactly_the_source_literal ... ok
+test bots::temporal_percept::modules::wishes::tests::unit_cast_los_targetability_and_mob_rules_are_source_exact ... ok
+test bots::temporal_percept::modules::hazards::tests::unknown_faction_has_no_home_rule_but_passes_the_null_guard ... ok
+test bots::temporal_percept::protection_cues_tests::protection_cues_map_controls_are_strict ... ok
+test bots::temporal_percept::protection_cues_tests::protection_cues_tagged_value_controls_are_strict ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_actual_admitted_memory_api_replay ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_actual_types_are_send_and_callbacks_share_state ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_adapter_catchup_and_release_controls ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_attacking_instances_are_independent ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_dead_self_returns_idle_without_candidates ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_farm_and_loot_candidates_are_real_choices ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_goal_union_and_keys ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_hysteresis_and_flee_priority_controls ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_loot_and_camp_candidates ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_module_enabled_order_and_utility_clamp ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_module_goals_forward_same_mutable_path_and_decide_services ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_route_tie_contest_and_replan ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_tracker_and_hunter_controls ... ok
+test bots::temporal_percept::modules::controls_tests::strict_reader_controls_reject_envelope_mutations ... ok
+test bots::temporal_percept::modules::source_input::tests::load_full_corpus ... ok
+test bots::temporal_percept::modules::source_input::tests::positive_case_per_suite ... ok
+test bots::temporal_percept::modules::source_input::tests::maps_validate_and_hashes_match ... ok
+test bots::temporal_percept::modules::controls_tests::strict_reader_positive_body_loads ... ok
+PARITY_TOTAL module-goal-key : 4 cases / 48 ops / 0 non-advance / 0 failures
+test bots::temporal_percept::strategy::source_tests::private_module_goal_key_source_parity ... ok
+PARITY_TOTAL bot-private-modules : 255 cases / 3259 ops (corpus 3259) / 0 failures
+test bots::temporal_percept::modules::source_tests::frozen_private_modules_source_replay ... ok
+test bots::temporal_percept::modules::controls_tests::strict_reader_controls_reject_duplicate_keys_and_tagged_values ... ok
+test bots::temporal_percept::modules::controls_tests::strict_reader_controls_reject_module_fact_mutations ... ok
+test bots::temporal_percept::strategy::source_tests::private_strategy_source_envelope_guard ... ok
+INTAKE_NON_ADVANCE strategy-decide-status: semantic rejection at shared checked entrypoint -> GoalStatus.state: unknown source status future
+PARITY_TOTAL route : 17 cases / 36 ops / 0 non-advance / 0 failures
+test bots::temporal_percept::strategy::source_tests::private_strategy_source_build_route_parity ... ok
+compat D overlap boundary: normalReflex compared on 47 rows, documented gaps 0
+compat D bot-fight cases (overlap evidence): 16/16 cases / 47/47 rows replayed through the private Tactics / 0 failures
+test bots::temporal_percept::tactics::compat_tests::private_tactics_compat_cases ... ok
+PARITY_TOTAL adapter : 9 cases / 67 ops / 0 non-advance / 0 failures
+compat C bot-fight directFight (overlap evidence): 1/1 frame replayed through the private Fight; 1 decide draws; 1 recorded path callbacks / 0 failures
+test bots::temporal_percept::tactics::compat_tests::private_tactics_compat_fight ... ok
+compat B case launch-draw-away-wait-relock: 8 rows, 1 decide draws
+compat B case small-ready-jump-is-not-shot: 3 rows, 1 decide draws
+compat B case no-cooldown-left: 1 rows, 0 decide draws
+compat B case lost-move-900-boundary: 3 rows, 1 decide draws
+compat B case away-abandoned-3000-boundary: 4 rows, 1 decide draws
+compat B case cornered-no-away-point: 1 rows, 1 decide draws
+compat B bot-fight orbs (overlap evidence): 6/6 cases / 20/20 rows replayed through the private OrbWalk / 0 failures
+test bots::temporal_percept::tactics::compat_tests::private_tactics_compat_orbs ... ok
+compat E case ball-positive-and-decision-duplicate: 3 checks, 0 observe-only rows
+compat E case ball-false-dice-is-remembered: 2 checks, 0 observe-only rows
+compat E case real-observe-only-produces-step-not-new-incoming: 1 checks, 1 observe-only rows
+compat E case new-incoming-uses-reaction-lead-and-is-too-late: 1 checks, 0 observe-only rows
+compat E case lag-reduces-effective-course-time: 1 checks, 0 observe-only rows
+compat E case negative-lag-clamps-to-zero: 1 checks, 0 observe-only rows
+compat E case negative-lag-clamp-at-lead-boundary: 1 checks, 0 observe-only rows
+compat E case speed-below-floor: 1 checks, 0 observe-only rows
+compat E case speed-at-floor: 1 checks, 0 observe-only rows
+compat E case positive-arrow-dodge: 1 checks, 0 observe-only rows
+compat E case positive-offset-first-side-blocked: 1 checks, 0 observe-only rows
+compat E case negative-offset-first-side-blocked: 1 checks, 0 observe-only rows
+compat E case both-dodge-sides-blocked-remembers-yes: 2 checks, 0 observe-only rows
+compat E case public-hold-derived-lead-below-exact-above: 4 checks, 0 observe-only rows
+compat E case player-bow-positive: 1 checks, 0 observe-only rows
+compat E case wand-cue-positive-while-current-hand-is-sword: 1 checks, 0 observe-only rows
+compat E case known-null-faction-bow-source-fallback: 1 checks, 0 observe-only rows
+compat E case mob-bow-positive: 1 checks, 0 observe-only rows
+compat E case juke-first-side-blocked-uses-opposite: 1 checks, 0 observe-only rows
+compat E case juke-both-sides-blocked-remembers-yes: 2 checks, 0 observe-only rows
+compat E case normal-tier-positive-ball: 1 checks, 0 observe-only rows
+compat E case normal-tier-positive-bow: 1 checks, 0 observe-only rows
+compat E case easy-tier-real-dodge-dice: 1 checks, 0 observe-only rows
+compat E case easy-tier-has-no-juke-draw: 1 checks, 0 observe-only rows
+compat E case juke-false-dice-remembers-shot: 2 checks, 0 observe-only rows
+compat E case dodge-precedes-hold-and-juke-exact-public-hold-boundary: 5 checks, 0 observe-only rows
+compat E case players-then-mobs-then-wand-cue-order: 1 checks, 0 observe-only rows
+compat E case projectile-reentry-new-memory-stimulus-retains-reflex-decision: 3 checks, 0 observe-only rows
+compat E case shot-collection-skips-dead-empty-undrawn-own-and-unseen: 1 checks, 0 observe-only rows
+compat E case single48-order-includes-negative-projectile-and-shot-decisions: 4 checks, 0 observe-only rows
+compat E case window-1500-exact: 1 checks, 0 observe-only rows
+compat E case window-1501-is-refused: 1 checks, 0 observe-only rows
+compat E case due-equals-now-refused: 1 checks, 0 observe-only rows
+compat E case due-one-ms-future-accepted: 1 checks, 0 observe-only rows
+compat E case aim-range300-exact: 1 checks, 0 observe-only rows
+compat E case aim-range-over300: 1 checks, 0 observe-only rows
+compat E case aim-right-angle-excluded: 1 checks, 0 observe-only rows
+compat E case aim-right-angle-near-excluded: 1 checks, 0 observe-only rows
+compat E case aim-lateral60-nominal-binary64-outside: 1 checks, 0 observe-only rows
+compat E case aim-lateral60-exact-3-4-5: 1 checks, 0 observe-only rows
+compat E case aim-lateral-below60: 1 checks, 0 observe-only rows
+compat E case aim-lateral-over60: 1 checks, 0 observe-only rows
+compat E case aim-under1-bypasses-facing: 1 checks, 0 observe-only rows
+compat E case real-feint-memory-seed-0: 1 checks, 0 observe-only rows
+compat E case real-feint-memory-seed-1: 1 checks, 0 observe-only rows
+compat E case real-feint-memory-seed-2: 1 checks, 0 observe-only rows
+compat E case real-feint-memory-seed-3: 1 checks, 0 observe-only rows
+compat E case real-feint-memory-seed-7: 1 checks, 0 observe-only rows
+compat E case real-feint-memory-seed-42: 1 checks, 0 observe-only rows
+compat E Memory.observe re-derivation: 68 rows matched, 0 hard mismatches; max continuous geometry abs difference 0.0
+compat E bot-reflex (overlap evidence): 49/49 cases / 68/68 rows / 67/67 checks replayed through the private Reflexes (1 observe-only rows) / 0 failures
+test bots::temporal_percept::tactics::compat_tests::private_tactics_compat_reflex ... ok
+compat A bot-fight timings (overlap evidence): 90/90 available + 6/6 unavailable rows replayed through private kite::own_timings / 0 failures
+test bots::temporal_percept::tactics::compat_tests::private_tactics_compat_timings ... ok
+test bots::temporal_percept::strategy::source_tests::private_strategy_source_hunt_adapter_parity ... ok
+test bots::temporal_percept::modules::controls_tests::strict_reader_controls_reject_observe_mutations ... ok
+PARITY_TOTAL hunter : 24 cases / 127 ops / 0 non-advance / 0 failures
+test bots::temporal_percept::strategy::source_tests::private_strategy_source_hunter_parity ... ok
+PARITY_TOTAL memory : 12 cases / 122 ops / 0 non-advance / 0 failures
+test bots::temporal_percept::strategy::source_tests::private_strategy_source_memory_parity ... ok
+test bots::temporal_percept::modules::source_input::tests::strict_raw_duplicate_keys_rejected ... ok
+PARITY_TOTAL tracker : 1 cases / 14 ops / 0 non-advance / 0 failures
+test bots::temporal_percept::strategy::source_tests::private_strategy_source_tracker_parity ... ok
+private-tactics changed-input control: native transcript changed
+private-tactics coliseum walk-target controls: 3 direct declared endpoints bit-exact under 1e-9; computed crowded-slot target tolerated
+test bots::temporal_percept::tactics::private_tactics_tests::private_tactics_changed_input_changes_execution ... ok
+test bots::temporal_percept::tactics::private_tactics_tests::private_tactics_coliseum_walk_target_controls ... ok
+plain percept bridge decoded 67 bot-fight + 68 bot-reflex + 46 bot-sd percepts (2 legacy mobs)
+test bots::temporal_percept::tactics::source_decode::decode_smoke::private_tactics_plain_percept_bridge ... ok
+private-tactics changed-expected-channel controls detected: 8
+test bots::temporal_percept::tactics::private_tactics_tests::private_tactics_expected_channel_controls ... ok
+private-tactics object-order controls: tagged Memory + tagged callback argument order detected; plain envelope order excluded
+test bots::temporal_percept::tactics::private_tactics_tests::private_tactics_object_order_controls ... ok
+private-tactics partial-replay non-advance control: reached runner resumed transcript exact
+test bots::temporal_percept::tactics::private_tactics_tests::private_tactics_partial_replay_resumes_exactly ... ok
+private-tactics decoded 5 maps / 154 cases / 720 operations: {"Fight": 3, "Orb": 8, "Reflex": 21, "Retreat": 2, "Tactics": 118, "World": 2}
+private-tactics specialized order controls: act-result root, intent, check-result root, callback event, paths.walk result, root Memory and tolerant derived point order all detected
+private-tactics typed-intake non-advance controls reached: 8 injected operations on a reached runner + 1 config intake
+test bots::temporal_percept::tactics::source_decode::decode_smoke::private_tactics_decode_smoke ... ok
+test bots::temporal_percept::tactics::private_tactics_tests::private_tactics_specialized_order_controls ... ok
+test bots::temporal_percept::tests::declared_attribution_is_strict_nearest_public_drawn_actor_and_persists_null ... ok
+test bots::temporal_percept::tests::declared_flight_course_retains_hidden_map_order_once_credit_end_and_done ... ok
+test bots::temporal_percept::tests::declared_death_pending_body_fade_and_extras_are_windowed_without_dropping_chests ... ok
+test bots::temporal_percept::tests::declared_flight_tombstones_have_source_insertion_lifetime_and_reflected_vanish ... ok
+test bots::temporal_percept::tests::declared_teleport_camera_scene_cut_and_strict_distance_guard ... ok
+test bots::temporal_percept::tests::declared_timestamp_replacement_late_ignore_and_velocity_use_exact_hundred_ms ... ok
+test bots::temporal_percept::tests::declared_tint_nearest_foe_strict_mob_tie_and_unknown_faction_are_distinct ... ok
+test bots::temporal_percept::tests::declared_undefined_body_payload_survives_reached_composition_without_null_or_omission ... ok
+test bots::temporal_percept::tests::declared_undefined_is_distinct_from_null_absence_and_a_tag_object ... ok
+test bots::temporal_percept::tests::declared_undefined_required_input_refuses_without_mutating_reached_ring ... ok
+test bots::temporal_percept::tests::declared_world_then_immediate_order_redaction_and_announcement_subject_lifetime ... ok
+test bots::temporal_percept::tests::declared_source_overflow_is_reported_not_claimed_as_safe_public_admission ... ok
+test bots::temporal_percept::tests::unavailable_nonfinite_and_failed_composition_leave_reached_state_unchanged ... ok
+test bots::view_parity_tests::captured_feature_detection_reproduces ... ok
+test bots::view_parity_tests::captured_message_copy_reproduces ... ok
+test bots::view_parity_tests::captured_window_helpers_reproduce ... ok
+test bots::view_parity_tests::mutants_of_the_perception_corpus_cannot_false_match ... ok
+test bots::wish::source_core::tests::arming_keeps_the_documented_legacy_fields_distinct ... ok
+test bots::wish::source_core::tests::legacy_slipping_keeps_its_inferred_clock_and_expiry_reset ... ok
+test bots::wish::source_core::tests::observe_draws_the_easy_gate_once_per_usable_edge_only ... ok
+test bots::wish::source_core::tests::retry_gate_is_exact_at_the_source_boundary ... ok
+test bots::wish::source_core::tests::slip_leg_keeps_a_young_unarrived_leg_and_rechooses_otherwise ... ok
+test bots::wish::source_core::tests::source_rank_of_follows_the_f64_source_rankof_contract ... ok
+test bots::wish::source_core::tests::source_slipping_keeps_from_and_leg_on_expiry ... ok
+test bots::wish::source_core::tests::the_away_search_tries_the_source_turns_and_lengths_in_order ... ok
+test bots::wish::source_core::tests::the_finite_profile_refuses_before_any_decision ... ok
+test bots::wish::source_core::tests::the_static_rows_through_the_source_core_equal_the_old_public_decision ... ok
+test bots::wish::source_core::tests::two_state_entries_are_independent ... ok
+test bots::wish_module_tests::a_hidden_bot_slips_away_and_locks_nobody ... ok
+test bots::wish_module_tests::a_normal_bot_engages_with_its_unit_wish_and_easy_never_does ... ok
+test bots::wish_module_tests::a_troubled_bot_casts_its_self_wish_through_the_policy_seat ... ok
+test bots::wish_module_tests::blocked_casting_late_and_absent_wishes_stay_uncast ... ok
+test bots::wish_module_tests::the_easy_filter_keeps_only_the_defensive_tags ... ok
+test bots::wish_module_tests::the_module_retries_only_after_the_rule_gap_and_forgets_an_old_hit ... ok
+test bots::wish_module_tests::the_same_staged_observation_decides_the_same_commands ... ok
+test bots::wish_module_tests::the_wish_view_is_a_fair_copy_of_the_observation_slot ... ok
+test bots::wish_parity_tests::every_captured_cast_decision_matches_the_source ... ok
+test bots::wish_parity_tests::hides_caster_matches_the_source_for_every_rank ... ok
+test bots::wish_parity_tests::the_block_bits_match_the_sim_status_bits ... ok
+test bots::wish_parity_tests::the_policy_constants_match_the_source ... ok
+test bots::wish_parity_tests::the_wish_rule_table_matches_the_source ... ok
+test bots::wish_parity_tests::the_wish_static_rows_match_the_source ... ok
+test bots::world_tactics::tests::actual_source_world_tactics_matches_every_declared_sequence_step ... ok
+test bots::world_tactics::tests::unsupported_coliseum_and_fight_goals_are_not_substituted_with_idle ... ok
+test delivery::collections::tests::actual_potions_camps_and_projectiles_commit_retain_clear_and_reconnect ... ok
+test bots::temporal_percept::tactics::private_tactics_tests::private_tactics_source_typed_intake_non_advance ... ok
+test delivery::collections::tests::collection_baselines_commit_after_enqueue_and_defer_flooded_resyncs ... ok
+test delivery::collections::tests::invalid_plan_walk_time_is_refused_rather_than_changed_to_absent ... ok
+test delivery::collections::tests::malformed_authoritative_collections_refuse_before_baseline_changes ... ok
+test delivery::collections::tests::quest_item_cross_refs_refuse_without_committing_and_empty_is_available ... ok
+test delivery::collections::tests::quest_projection_preserves_duplicate_labels_owner_facts_and_transactional_baselines ... ok
+test delivery::collections::tests::typed_trophy_rows_preserve_order_and_invalid_gain_refuses_without_commit ... ok
+test delivery::collections::trade_tests::trade_baseline_is_bitwise_transactional_and_unavailable_is_not_empty ... ok
+test delivery::collections::trade_tests::trade_projection_preserves_opaque_owner_facts_and_exact_inventory_labels ... ok
+test delivery::collections::trade_tests::unsupported_trade_views_and_inventory_refuse_without_advancing_forced_state ... ok
+test delivery_tests::actual_async_receiver_and_same_public_fallback_use_typed_sample_and_session_reply_tokens ... ok
+test delivery_tests::actual_human_bot_async_handshake_delivers_frame14_and_submits_real_nonempty_commands_without_fallback ... ok
+test delivery_tests::actual_prepared_target_has_same_quantized_scene_and_only_accepted_aliases_resolve ... ok
+test delivery_tests::async_failed_send_and_failed_fallback_do_not_accept_anything_but_successful_fallback_does_once ... ok
+test delivery_tests::data_constructor_is_not_acceptance_and_keeps_owner_unavailable_clear_held_distinct ... ok
+
+thread 'delivery_tests::fallback_append_then_panic_is_contained_and_never_reaches_either_driver' (73077636) panicked at crates/rh-policy/src/delivery_tests.rs:1281:40:
+fallback failed after appending a valid stop
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'delivery_tests::fallback_append_then_panic_is_contained_and_never_reaches_either_driver' (73077636) panicked at crates/rh-policy/src/delivery_tests.rs:1281:40:
+fallback failed after appending a valid stop
+
+thread 'delivery_tests::fallback_append_then_panic_is_contained_and_never_reaches_either_driver' (73077636) panicked at crates/rh-policy/src/delivery_tests.rs:1281:40:
+fallback failed after appending a valid stop
+
+thread 'delivery_tests::fallback_append_then_panic_is_contained_and_never_reaches_either_driver' (73077636) panicked at crates/rh-policy/src/delivery_tests.rs:1281:40:
+fallback failed after appending a valid stop
+test delivery_tests::fallback_append_then_panic_is_contained_and_never_reaches_either_driver ... ok
+test delivery_tests::fallback_append_then_refusal_never_reaches_sync_submit_or_queued_delivery ... ok
+test delivery_tests::frame14_keeps_all_five_final_quest_strings_owned_retained_and_replaced ... ok
+private tactics source envelope: 154 cases / 720 operations / 70 knowledge draws per case / suites ["fight", "orb", "reflex", "retreat", "tactics", "world"] / maps ["open", "wall", "fence", "detour", "generated7"]
+test delivery_tests::frame14_refuses_malformed_trade_update_without_mutating_retained_facts_or_tick ... ok
+test delivery_tests::frame14_requires_all_eleven_keys_including_explicit_trade_unavailable ... ok
+test delivery_tests::frame14_retains_exact_trade_order_bits_and_explicit_empty_or_unavailable_replacements ... ok
+test bots::temporal_percept::tactics::source_strict::tests::private_tactics_source_envelope_guard ... ok
+test delivery_tests::genuine_landed_attack_owner_result_survives_cadence_and_never_includes_another_seats_result ... ok
+test delivery_tests::full_async_queue_and_refused_fallback_preserve_next_alias_sample_and_carried_events ... ok
+test delivery_tests::identical_public_frames_do_not_make_fresh_session_npc_references_equal ... ok
+test delivery_tests::malformed_public_event_or_owner_clock_refuses_entire_candidate_without_advancing_baseline ... ok
+test delivery_tests::hidden_a_b_produce_equal_delivered_frames_and_human_commands_without_raw_fallback ... ok
+test delivery_tests::owner_loss_is_a_real_cleared_delivery_and_new_local_sessions_have_distinct_receipts ... ok
+test delivery_tests::owner14_shared_goldens_and_reconstructed_delta_chains_keep_every_clock_and_mirror_bit ... ok
+test delivery_tests::renewed_observer_drop_preserves_old_aliases_and_the_next_delivery_reuses_the_same_new_scene ... ok
+test delivery_tests::reconstructed_collections_keep_none_empty_retained_rows_and_refuse_dangling_or_unknown_updates_atomically ... ok
+test delivery_tests::sync_preflight_refusal_keeps_events_cadence_and_aliases_until_a_receiver_accepts ... ok
+test delivery_tests::successful_fallback_stop_is_valid_and_reaches_real_intake_in_both_drivers ... ok
+test frost_tests::frost_policy_receives_public_chill_and_moves_through_normal_intake ... ok
+test sentenced_projection_fault_tests::foreign_clone_fault_never_observes_decides_advances_or_submits_and_stays_failed ... ok
+test sentenced_temporal_tests::sentenced_synchronous_async_feed_retains_every_step ... ok
+test temporal_tests::fire_instant_and_delayed_sync_async_projection ... ok
+test temporal_tests::synchronous_and_async_feed_do_not_depend_on_decisions_or_raw_event_presence ... ok
+test tests::a_late_or_panicked_async_answer_uses_the_observed_fallback ... ok
+test tests::a_seat_refuses_a_policy_of_another_contract_or_observation_version ... ok
+test tests::an_async_seat_faults_and_plays_its_fallback_on_a_mismatch ... ok
+test tests::async_worker_and_fallback_resolve_only_actually_delivered_offers ... ok
+test tests::reset_receives_the_public_match_context ... ok
+test sentenced_projection_fault_tests::dense_mark_report_fault_never_issues_authority_or_calls_policy_or_fallback ... ok
+INTAKE_NON_ADVANCE strategy-observe-weapon: semantic rejection at shared checked entrypoint -> self.weapons[0]: unknown weapon laser
+test delivery::collections::tests::captured_plan_messages_project_field_for_field_into_state_key_8 ... ok
+PARITY_TOTAL strategy : 35 cases / 292 ops / 0 non-advance / 0 failures
+TRACE_NEGATIVE reversed raw Module.data order: detected
+TRACE_NEGATIVE changed nested raw Module.data value: detected
+TRACE_NEGATIVE judged-z tolerance: genuine judged delta passes; raw Module.data lookalike stays exact; out-of-bound judged delta fails
+TRACE_NEGATIVE evidence strategy-matrix-easy-farmer op1 op0: 7 callback events, own corruption channel negative own corruption
+test bots::temporal_percept::strategy::source_tests::private_strategy_source_strategy_parity ... ok
+test bots::temporal_percept::strategy::source_tests::private_strategy_source_trace_negatives ... ok
+PARITY_TOTAL private-tactics source parity: 154 cases / 720 operations / 0 failures
+test bots::temporal_percept::tactics::source_tests::private_tactics_source_parity ... ok
+READER_CONTROL rejected=33 labels=["unsupported tag", "extra tag field", "missing number tag value", "unknown number tag", "duplicate object key", "duplicate Map key", "duplicate signed-zero Map key", "duplicate Set value", "malformed Map pair", "malformed u8 pair", "u8 range", "negative u8", "untagged array", "callable input", "instance input", "array hole", "wrong format", "wrong method value format", "duplicate case id", "unsupported suite", "wrong suite/method", "empty/skipped suite", "empty case set", "malformed identity row", "malformed draw counts", "wrong/unknown weapon", "wrong slot", "wrong weapon array count", "unknown enum", "nonfinite forbidden declared fact", "missing consumed field", "declaration/input mismatch", "consistent declaration reaches semantic weapon validator"]
+test bots::temporal_percept::strategy::source_tests::private_strategy_source_reader_controls ... ok
+PARITY_TOTAL private-tactics source recreate: 154 cases / 720 operations / 0 failures
+private tactics source reader controls: 17 rejected
+test bots::temporal_percept::tactics::source_tests::private_tactics_source_recreate_is_exact ... ok
+test bots::temporal_percept::tactics::source_strict::tests::private_tactics_source_reader_controls ... ok
+test bots::temporal_percept::modules::source_input::tests::strict_negatives_reject_mutated_body ... ok
+INTAKE_NON_ADVANCE hunter-walk-kind: semantic rejection at shared checked entrypoint -> walk.kind: unknown declared walk descriptor future
+INTAKE_NON_ADVANCE hunter-malformed-mobs: semantic rejection at shared checked entrypoint -> hp: expected a finite number, got Str("not-a-number")
+INTAKE_NON_ADVANCE route-canfarm-kind: semantic rejection at shared checked entrypoint -> canFarm.kind: unknown descriptor future
+INTAKE_NON_ADVANCE memory-command-type: semantic rejection at shared checked entrypoint -> noteSent.cmd.type: unsupported source command future
+INTAKE_NON_ADVANCE tracker-malformed-mobs: semantic rejection at shared checked entrypoint -> kind: missing field kind
+INTAKE_NON_ADVANCE strategy-observe-weapon: semantic rejection at shared checked entrypoint -> self.weapons[0]: unknown weapon laser
+INTAKE_NON_ADVANCE memory/strategy+adapter+tracker+hunter+route: 8 semantic-intent rejections at the actual entrypoint advanced nothing
+test bots::temporal_percept::strategy::source_tests::private_strategy_source_intake_non_advance ... ok
+npc-continuity memory: rows=773 nonnull=771 nulls=2
+test bots::temporal_percept::memory::source_tests::actual_npc_continuity_memory_773_supported ... ok
+test bots::temporal_percept::memory::source_tests::actual_protection_cues_memory_2112_complete has been running for over 60 seconds
+test bots::temporal_percept::memory::source_tests::memory_container_undefined_is_not_null_over_real_rows has been running for over 60 seconds
+test bots::temporal_percept::memory::source_tests::memory_percept_reader_refuses_malformed_inputs has been running for over 60 seconds
+test bots::temporal_percept::memory::source_tests::review_repair_reader_controls_are_strict has been running for over 60 seconds
+test bots::temporal_percept::protection_cues_tests::actual_protection_cues_frames_compose_exact has been running for over 60 seconds
+test bots::temporal_percept::tests::earned_runner_actual_frames_replay_all_five_prefilter_schedules has been running for over 60 seconds
+actual source temporal frames=1549,prefilter=1541,startupNull=8,maxRawAbs=0.0; flight/fighter/event families not reached
+test bots::temporal_percept::tests::earned_runner_actual_frames_replay_all_five_prefilter_schedules ... ok
+test bots::temporal_percept::memory::source_tests::memory_percept_reader_refuses_malformed_inputs ... ok
+test bots::temporal_percept::memory::source_tests::review_repair_reader_controls_are_strict ... ok
+test bots::temporal_percept::memory::source_tests::memory_container_undefined_is_not_null_over_real_rows ... ok
+protection-cues memory: rows=2112 nonnull=2046 nulls=66 maps=10560 undefined=82
+test bots::temporal_percept::memory::source_tests::actual_protection_cues_memory_2112_complete ... ok
+protection-cues actual: frames=2112 nonnull=2046 null=66 max_raw_numeric_error=0.00000000000000000e0
+test bots::temporal_percept::protection_cues_tests::actual_protection_cues_frames_compose_exact ... ok
+
+test result: ok. 389 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 217.50s
+
+
+{"exit": 0, "wall_seconds": 252.79}

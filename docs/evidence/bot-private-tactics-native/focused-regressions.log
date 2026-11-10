@@ -1,0 +1,53 @@
+# Focused unchanged-component regressions relevant to the private tactics layer
+# Note: the final full-suite receipt below is the authoritative single run; these filters are separate
+# invocations for exact per-area counts. Overlapping filters are not independent extra coverage.
+# cwd: /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-tactics
+
+########## cargo test -p rh-policy --lib --offline --locked -j 1 "bots::fight::" ##########
+running 8 tests
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 228 filtered out; finished in 0.06s
+
+########## cargo test -p rh-policy --lib --offline --locked -j 1 "bots::reflex::" ##########
+running 5 tests
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 231 filtered out; finished in 0.06s
+
+########## cargo test -p rh-policy --lib --offline --locked -j 1 "bots::orbwalk::" ##########
+running 0 tests
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 236 filtered out; finished in 0.00s
+
+########## cargo test -p rh-policy --lib --offline --locked -j 1 "bots::world_tactics::" ##########
+running 2 tests
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 234 filtered out; finished in 0.03s
+
+########## cargo test -p rh-policy --lib --offline --locked -j 1 "bots::humanizer::" ##########
+running 0 tests
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 236 filtered out; finished in 0.00s
+
+########## cargo test -p rh-policy --lib --offline --locked -j 1 "temporal_percept::memory::source_tests::" ##########
+running 13 tests
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 223 filtered out; finished in 197.53s
+
+########## cargo test -p rh-policy --lib --offline --locked -j 1 "strategy::source_tests::" ##########
+running 11 tests
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 225 filtered out; finished in 15.39s
+
+########## cargo test -p rh-policy --lib --offline --locked -j 1 "bots::paths::" ##########
+running 0 tests
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 236 filtered out; finished in 0.00s
+
+########## cargo test -p rh-policy --lib --offline --locked -j 1 "bots::knowledge::" ##########
+running 0 tests
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 236 filtered out; finished in 0.00s
+
+########## cargo test -p rh-policy --lib --offline --locked -j 1 "bots::mob_hunt::" ##########
+running 0 tests
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 236 filtered out; finished in 0.00s
+
+########## cargo test -p rh-policy --lib --offline --locked -j 1 "bots::parity_tests::" ##########
+running 5 tests
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 231 filtered out; finished in 0.04s
+
+########## cargo test -p rh-policy --lib --offline --locked -j 1 "temporal_percept::tests::" ##########
+running 14 tests
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 222 filtered out; finished in 24.20s
+

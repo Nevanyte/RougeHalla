@@ -1,0 +1,22 @@
+=== DECLARED11+NEW 2026-11-10T10:23:22Z ===
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.37s
+     Running unittests src/lib.rs (target/strategy-composition-build/debug/deps/rh_policy-f90e85fbfc95e0da)
+
+running 13 tests
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_dead_self_returns_idle_without_candidates ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_goal_union_and_keys ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_loot_and_camp_candidates ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_module_enabled_order_and_utility_clamp ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_route_tie_contest_and_replan ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_attacking_instances_are_independent ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_actual_admitted_memory_api_replay ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_actual_types_are_send_and_callbacks_share_state ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_hysteresis_and_flee_priority_controls ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_tracker_and_hunter_controls ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_module_goals_forward_same_mutable_path_and_decide_services ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_farm_and_loot_candidates_are_real_choices ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_adapter_catchup_and_release_controls ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 222 filtered out; finished in 0.01s
+
+=== DECLARED13 EXIT: 0 ===

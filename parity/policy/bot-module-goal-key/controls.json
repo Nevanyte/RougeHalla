@@ -1,0 +1,64 @@
+{
+ "format": "rh-bot-module-goal-key-controls/1",
+ "source": {
+  "bytes": 1004072,
+  "sha256": "32836e03d47993fceec22fc7fb648e937d01b3e9b221da9499ea9e99d31efc0c"
+ },
+ "controls": [
+  {
+   "id": "preserve-negative-zero-miskey",
+   "result": "KILL",
+   "case": "negative-zero-positive-zero-collision",
+   "source": 1,
+   "mutant": 2,
+   "sourceSha256": "edf3ec7f0e2b68de24e52def86e046209cd53c98c598057d38baf810f1ec2116",
+   "mutantSha256": "a173ca634963d27956252a28272c62d957bd0e0d3b4fc18b1ed46767a3ae968c"
+  },
+  {
+   "id": "nonfinite-string-miskey",
+   "result": "KILL",
+   "case": "nonfinite-null-collision-and-current-reuse",
+   "source": 1,
+   "mutant": 4,
+   "sourceSha256": "edf3ec7f0e2b68de24e52def86e046209cd53c98c598057d38baf810f1ec2116",
+   "mutantSha256": "b1cd87b4f58af082b0202b724c4835ead470a2b2995cfd00e76d1219b6b99c72"
+  },
+  {
+   "id": "non-ecmascript-exponent-format",
+   "result": "KILL",
+   "case": "ecmascript-exponent-boundaries",
+   "source": [
+    "module:key:{\"v\":1e-7}",
+    "module:key:{\"v\":0.000001}",
+    "module:key:{\"v\":100000000000000000000}",
+    "module:key:{\"v\":1e+21}"
+   ],
+   "mutant": [
+    "module:key:{\"v\":1e-7}",
+    "module:key:{\"v\":1e-6}",
+    "module:key:{\"v\":1e20}",
+    "module:key:{\"v\":1e21}"
+   ],
+   "sourceSha256": "edf3ec7f0e2b68de24e52def86e046209cd53c98c598057d38baf810f1ec2116",
+   "mutantSha256": "5ce7473e10cae2d01526b4520436f16b1dfc067236932d8013f0d7a3db657e93"
+  },
+  {
+   "id": "undefined-object-value-becomes-null",
+   "result": "KILL",
+   "case": "undefined-object-array-distinction",
+   "source": 5,
+   "mutant": 7,
+   "sourceSha256": "edf3ec7f0e2b68de24e52def86e046209cd53c98c598057d38baf810f1ec2116",
+   "mutantSha256": "664ee533890063f89c69845dd622530a6fb1575634c2fa898cb27d206bb85b18"
+  },
+  {
+   "id": "comment-only",
+   "result": "NONKILL",
+   "cases": 4
+  }
+ ],
+ "restored": "ALL_FOUR_CASES_IDENTICAL",
+ "primary17": "UNCHANGED_BEFORE_AND_AFTER_EVERY_CAPTURE",
+ "canonicalPayload": "UNCHANGED",
+ "safety": "source patches only in unique disposable container directory; canonical /repo read-only; no primary helper or payload mutation"
+}

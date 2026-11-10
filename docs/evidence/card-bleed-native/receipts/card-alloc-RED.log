@@ -1,0 +1,10 @@
+test systems::card_bleed_feedback::tests::card_bleed_alloc ... card cold allocations (blocks): construct=95 clone=63 restore=1019 rebind=3; cold sims constructed 0 1 1
+
+thread 'systems::card_bleed_feedback::tests::card_bleed_alloc' (72634665) panicked at crates/rh-sim/src/systems/card_bleed_feedback/tests.rs:1294:5:
+first unseen pair after preparation allocated 1 blocks at tick 3
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+dhat: Total:     2,615,575 bytes in 1,347 blocks
+--
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 889 filtered out; finished in 1.68s
+
+error: test failed, to rerun pass `-p rh-sim --lib`

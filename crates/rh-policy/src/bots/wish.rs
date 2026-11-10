@@ -11,22 +11,41 @@
 //!   whether it is chasing) and the cast intent it emits through the ported humanizer (which supplies reaction time, hesitation
 //!   and a unit cast that can miss like a lock click).
 //!
-//! Deliberately narrowed (documented in docs/evidence/stage2-bots-2/README.md): the Swarm slip goal is not ported (it needs the
-//! legacy module-goal/tactics and services path layers that remain P-BOTS-1 remainder), so a hiding Wish is cast but the walk
-//! away is left to the bounded front end; line of sight and mob targetability are approximated from the fair view (visible
-//! means in sight; a visible mob is targetable), since the bounded view does not carry the client's los flags; and the
-//! gate-locked collision variant is not available to the policy's static view (the open map is used; the declared corpus keeps
-//! gates unlocked, and the sim's blink landing rule is already parity-pinned in P-ABIL-1).
-use crate::bots::kite::away_point;
+//! P-BOT-MODULES-1 share (Root-corrected lease): the cast policy and the availability/retry/armed-slip transition machine now
+//! have exactly one implementation in [`source_core`]; this file's public functions and `WishModule` are thin compatibility
+//! adapters over it. The private source module (`temporal_percept::modules::wishes`) enters the same core with the declared
+//! f64 rank, the declared opaque `AbilityDef`, the real collision map/gate flag and the real `Memory.lastCast`/hit facts.
+//!
+//! Deliberately narrowed for this public adapter (documented in docs/evidence/stage2-bots-2/README.md): the Swarm slip goal
+//! itself belongs to the private module/goal layer (this front end only walks away through `slip_intent`); line of sight and
+//! mob targetability are approximated from the fair view (visible means in sight; a visible mob is targetable), since the
+//! bounded view does not carry the client's los flags; and the gate-locked collision variant is not available to the policy's
+//! static view (the open map is used; the declared corpus keeps gates unlocked, and the sim's blink landing rule is already
+//! parity-pinned in P-ABIL-1). Those three are exactly the inputs the source module supplies for real.
 use crate::bots::paths::RoomPathService;
 use crate::bots::random::Rng;
 use crate::bots::types::{
-    Intent, IntentBody, IntentTiming, Percept, ServerMs, Stimulus, StimulusKind, TierId,
-    PRIORITY_COMBAT, PRIORITY_REFLEX,
+    Intent, IntentBody, IntentTiming, Percept, Stimulus, StimulusKind, TierId, PRIORITY_COMBAT,
+    PRIORITY_REFLEX,
 };
 use rh_sim::abilities::blink;
 use rh_sim::status_runtime::AbilityId;
 use rh_sim::{TileMap, Vec2};
+
+mod source_core;
+
+// The one shared source implementation, re-exported for the private source module adapter
+// (`temporal_percept::modules::wishes`). The public surface of this file stays what it was.
+#[allow(unused_imports)]
+// the tag-refusal entries are exposed for the private replay intake/tests
+pub(crate) use source_core::{
+    admit_ai_tag, admit_blocked_by, admit_ranks, cast_why as source_cast_why,
+    decide_cast as source_decide_cast, hides_caster as source_hides_caster,
+    rank_of as source_rank_of, DeclaredRank, DeclaredTargeting, HypotMode, SourceAbility,
+    SourceCastSituation, SourceRank, WishRefusal, WishStateCore, DONE_CORNERED, DONE_NOBODY,
+    DONE_NOT_SLIPPING, FAILED_UNKNOWN_GOAL, RUNNING_SLIPPING, SLIP_GOAL_MODE, SLIP_GOAL_MODULE,
+    SLIP_GOAL_WHY, SLIP_STEP_WHY, SLIP_UTILITY,
+};
 
 /// The own EFFECT_* bits the module reads (shared/status.ts): crowd control, and the casting bit the sim uses.
 pub const EFFECT_STUNNED: u16 = 1;
@@ -236,42 +255,61 @@ pub(crate) fn played_ai(def: &WishDef, tier: TierId) -> Option<&'static [AiInten
         Some(ai)
     }
 }
+/// The single static-row rank view over `WishRank` (the one rank a Wish has).
+fn static_rank(def: &WishDef) -> SourceRank {
+    SourceRank {
+        cast_ms: def.rank.cast_ms,
+        targeting: def.rank.targeting,
+        hides_caster: def
+            .rank
+            .effects
+            .iter()
+            .any(|e| matches!(e, PolicyEffect::HidesCaster)),
+        blink: blink_of(def.rank.effects),
+    }
+}
+/// The static `WISHES` row as the source-shaped borrowed ability the shared core consumes.
+fn static_ability<'a>(
+    def: &'a WishDef,
+    ai: &'a [AiIntent],
+    ranks: &'a [SourceRank],
+) -> SourceAbility<'a> {
+    SourceAbility {
+        name: def.name,
+        ai,
+        blocked_by: def.blocked_by,
+        ranks,
+    }
+}
 /// The cast to send for this Wish with this tag list (the Easy filter passes a narrowed list), or null.
+///
+/// Compatibility adapter: the static row becomes the source-shaped view and the one shared core decides. Its
+/// documented legacy inputs are kept exactly: the open map is both maps, the landing is unlocked even when the
+/// public `CastSituation.gates_locked` says otherwise, and its distances are the old `rh_sim::math::hypot`.
 pub fn decide_cast_with(
     def: &WishDef,
     ai: &[AiIntent],
     rank: u8,
     s: &CastSituation,
 ) -> Option<CastChoice> {
-    if s.me.effects & EFFECT_CASTING != 0 {
-        return None;
-    }
-    for blocked in def.blocked_by {
-        if s.me.effects & block_bit(*blocked) != 0 {
-            return None;
-        }
-    }
-    let r = wish_rank(def, rank);
-    for intent in ai {
-        let choice = match intent {
-            AiIntent::Escape => escape(r.targeting, r.effects, s),
-            AiIntent::Sustain => sustain(r.targeting, s),
-            AiIntent::Engage | AiIntent::Control => engage(r.targeting, r.effects, s),
-            AiIntent::Peel => peel(r.targeting, s),
-            AiIntent::Burst | AiIntent::Zone | AiIntent::Buff => None,
-        };
-        if choice.is_some() {
-            return choice;
-        }
-    }
-    None
+    let ranks = [static_rank(def)];
+    let ability = static_ability(def, ai, &ranks);
+    let situation = SourceCastSituation {
+        me: s.me,
+        foe: s.foe.clone(),
+        threat: s.threat.clone(),
+        map: s.map,
+        collision: s.map,
+        ring: s.ring,
+        gates_locked: false,
+        hypot: HypotMode::Legacy,
+    };
+    source_core::decide_cast(&ability, f64::from(rank), &situation)
 }
 /// Does casting this rank hide its caster from enemies (an effect that puts a hidden status on itself)?
 pub fn hides_caster(def: &WishDef, rank: u8) -> bool {
-    wish_rank(def, rank)
-        .effects
-        .iter()
-        .any(|e| matches!(e, PolicyEffect::HidesCaster))
+    let ranks = [static_rank(def)];
+    source_core::hides_caster(&ranks, f64::from(rank))
 }
 fn blink_of(effects: &[PolicyEffect]) -> Option<(f64, f64)> {
     effects.iter().find_map(|e| match e {
@@ -330,141 +368,6 @@ pub struct CastChoice {
     pub x: f64,
     pub y: f64,
     pub id: Option<String>,
-}
-fn self_choice(s: &CastSituation) -> CastChoice {
-    CastChoice {
-        x: s.me.x,
-        y: s.me.y,
-        id: None,
-    }
-}
-fn landing(s: &CastSituation, to: Vec2, max_dist: f64, min_dist: f64) -> Option<Vec2> {
-    let _ = (max_dist, min_dist);
-    blink::landing(
-        s.map,
-        s.map,
-        s.ring,
-        // The open map is the fair view's collision layer (see CastSituation.gates_locked).
-        false,
-        Vec2::new(s.me.x, s.me.y),
-        to,
-    )
-}
-fn escape(rule: TargetRule, effects: &[PolicyEffect], s: &CastSituation) -> Option<CastChoice> {
-    let m = s.me;
-    let trouble = (m.hp_frac < ESCAPE_HP_THREATENED
-        && s.threat
-            .as_ref()
-            .is_some_and(|t| t.d < ESCAPE_THREAT_DISTANCE))
-        || (m.hp_frac < ESCAPE_HP_HIT && m.recently_hit);
-    if !trouble {
-        return None;
-    }
-    if rule == TargetRule::Self_ {
-        return Some(self_choice(s));
-    }
-    if matches!(rule, TargetRule::Unit { .. }) {
-        return None;
-    }
-    let (fx, fy) = match (s.threat.as_ref(), s.foe.as_ref()) {
-        (Some(t), _) => (t.x, t.y),
-        (None, Some(f)) => (f.x, f.y),
-        (None, None) => return None,
-    };
-    let dx = m.x - fx;
-    let dy = m.y - fy;
-    let len = rh_sim::math::hypot(dx, dy);
-    if len.partial_cmp(&0.5) != Some(std::cmp::Ordering::Greater) {
-        return None;
-    }
-    let range = match rule {
-        TargetRule::Point { range, .. } => range,
-        _ => ESCAPE_DIR_RANGE,
-    };
-    let blink_effect = blink_of(effects);
-    let base = rh_sim::math::atan2(dy, dx);
-    for turn in ESCAPE_HEADINGS {
-        let to = Vec2::new(
-            m.x + rh_sim::math::cos(base + turn) * range,
-            m.y + rh_sim::math::sin(base + turn) * range,
-        );
-        if let Some((max_dist, min_dist)) = blink_effect {
-            if let Some(at) = landing(s, to, max_dist, min_dist) {
-                if rh_sim::math::hypot(at.x - fx, at.y - fy) > len + ESCAPE_GAIN {
-                    return Some(CastChoice {
-                        x: to.x,
-                        y: to.y,
-                        id: None,
-                    });
-                }
-            }
-        } else if turn == 0. {
-            return Some(CastChoice {
-                x: to.x,
-                y: to.y,
-                id: None,
-            });
-        }
-    }
-    None
-}
-fn sustain(rule: TargetRule, s: &CastSituation) -> Option<CastChoice> {
-    if s.me.hp_frac < SUSTAIN_HP && s.me.recently_hit && rule == TargetRule::Self_ {
-        Some(self_choice(s))
-    } else {
-        None
-    }
-}
-fn engage(rule: TargetRule, effects: &[PolicyEffect], s: &CastSituation) -> Option<CastChoice> {
-    let f = s.foe.as_ref()?;
-    if !f.targetable || f.mob {
-        return None;
-    }
-    match rule {
-        TargetRule::Unit { range, los, .. } => {
-            if (los && !f.los) || f.d > range - ENGAGE_RANGE_MARGIN {
-                return None;
-            }
-            Some(CastChoice {
-                x: f.x,
-                y: f.y,
-                id: Some(f.id.clone()),
-            })
-        }
-        TargetRule::Point { range, .. } => {
-            if f.d < ENGAGE_BLINK_MIN_DISTANCE || f.d > range - ENGAGE_RANGE_MARGIN {
-                return None;
-            }
-            let k = (f.d - ENGAGE_BLINK_STOP_SHORT).max(0.) / f.d;
-            let to = Vec2::new(s.me.x + (f.x - s.me.x) * k, s.me.y + (f.y - s.me.y) * k);
-            if let Some((max_dist, min_dist)) = blink_of(effects) {
-                landing(s, to, max_dist, min_dist)?;
-            }
-            Some(CastChoice {
-                x: to.x,
-                y: to.y,
-                id: None,
-            })
-        }
-        TargetRule::Self_ => None,
-    }
-}
-fn peel(rule: TargetRule, s: &CastSituation) -> Option<CastChoice> {
-    let t = s.threat.as_ref()?;
-    if !t.chasing || t.d > PEEL_DISTANCE || t.targetable == Some(false) {
-        return None;
-    }
-    if let TargetRule::Unit { range, .. } = rule {
-        if t.id.is_none() || t.los == Some(false) || t.d > range - ENGAGE_RANGE_MARGIN {
-            return None;
-        }
-        return Some(CastChoice {
-            x: t.x,
-            y: t.y,
-            id: t.id.clone(),
-        });
-    }
-    None
 }
 /// The cast to send for this Wish at this rank in this situation, or null. Intents are tried in the definition's order; the
 /// first that fires decides.
@@ -531,24 +434,17 @@ impl WishFoe {
     }
 }
 
-/// Per-bot Wish state (the legacy WeakMap entry): the availability edge, the Easy remember draw and the retry clock.
+/// Per-bot Wish state (the legacy WeakMap entry): the one shared availability/retry/slip transition machine plus the
+/// legacy wrapper's own observation-memory inputs. The shared machine's state lives in [`WishStateCore`]; this wrapper's
+/// compatibility inputs (the inferred sent-cast clock, the observed-hit map, the public static map) stay here.
 pub struct WishModule {
-    available: bool,
-    remembers: bool,
-    last_try_at: ServerMs,
+    state: WishStateCore,
     /// The time of the last hit taken, from observation events only (the legacy memory's mem.self.lastHitAt).
     last_hit_at: Option<f64>,
     /// Player hits on the bot, per rendered attacker key, newest last (bounded; the legacy mem.fighters hitMeAt).
     fighter_hits: Vec<(String, f64)>,
     map: Option<TileMap>,
     ring: Option<blink::Ring>,
-    /// A hiding Wish was decided at this time (None: none outstanding); its cast time and the time its cast showed in the bits.
-    armed_at: Option<f64>,
-    cast_ms: f64,
-    sent_at: Option<f64>,
-    /// Where the enemy the bot slips from last stood, and the slip's current leg.
-    from: Option<Vec2>,
-    leg: Option<(Vec2, f64)>,
 }
 impl Default for WishModule {
     fn default() -> Self {
@@ -558,18 +454,11 @@ impl Default for WishModule {
 impl WishModule {
     pub fn new() -> Self {
         Self {
-            available: false,
-            remembers: true,
-            last_try_at: f64::NEG_INFINITY,
+            state: WishStateCore::new(),
             last_hit_at: None,
             fighter_hits: Vec::new(),
             map: None,
             ring: None,
-            armed_at: None,
-            cast_ms: 0.,
-            sent_at: None,
-            from: None,
-            leg: None,
         }
     }
     /// Match start: independent state, and the public static map the landing search reads.
@@ -603,17 +492,15 @@ impl WishModule {
     }
     /// The availability edge and the Easy tier's remember draw (the legacy observe()).
     pub fn observe(&mut self, p: &Percept, tier: TierId, decide: &mut Rng) {
-        let now = p.extras.wish.as_ref().is_some_and(|w| usable(p, w));
-        if now && !self.available {
-            self.remembers = tier != TierId::Easy || decide.next_f64() < WISH_RULES.easy_remembers;
-        }
-        self.available = now;
+        let usable = p.extras.wish.as_ref().is_some_and(|w| usable(p, w));
+        self.state
+            .observe(usable, tier == TierId::Easy, &mut || decide.next_f64());
     }
     pub fn remembers(&self) -> bool {
-        self.remembers
+        self.state.remembers()
     }
     pub fn available(&self) -> bool {
-        self.available
+        self.state.available()
     }
     /// The cast intent for this think, if the module decides one. The front end's chosen foe is passed in; the threat is the
     /// nearest enemy player in the fair view.
@@ -650,10 +537,10 @@ impl WishModule {
     ) -> Option<Intent> {
         let view = p.extras.wish.as_ref()?;
         let def = wish_by_id(view.ability)?;
-        if !self.remembers
+        if !self.state.remembers()
             || !usable(p, view)
             || view.casting
-            || p.now - self.last_try_at < WISH_RULES.retry_ms
+            || !self.state.retry_ready(p.now, &WISH_RULES)
         {
             return None;
         }
@@ -661,25 +548,26 @@ impl WishModule {
         let (map, ring) = self.map.as_ref().zip(self.ring.as_ref())?;
         let s = cast_situation(p, self, foe, map, ring);
         let choice = decide_cast_with(def, ai, view.rank, &s)?;
-        self.last_try_at = p.now;
-        let rank = wish_rank(def, view.rank);
+        // The old public wrapper's rank is its public `u8` observation domain; the shared core is entered with that
+        // exact value (the source adapter, by contrast, keeps the declared f64 rank).
+        self.state.note_try(p.now);
+        let rank_view = wish_rank(def, view.rank);
         if hides_caster(def, view.rank) {
-            self.armed_at = Some(p.now);
-            self.cast_ms = rank.cast_ms;
-            self.sent_at = None;
-            self.leg = None;
-            self.from = s
+            let from = s
                 .threat
                 .as_ref()
                 .map(|t| Vec2::new(t.x, t.y))
                 .or_else(|| s.foe.as_ref().map(|f| Vec2::new(f.x, f.y)));
+            // Compatibility arm: the old wrapper's inferred cast clock is cleared and its slip origin is overwritten
+            // even by a null enemy (the source module keeps both rules through `arm_source`).
+            self.state.arm_legacy(p.now, rank_view.cast_ms, from);
         }
         let priority = if s.me.hp_frac < ESCAPE_HP_HIT {
             PRIORITY_REFLEX
         } else {
             PRIORITY_COMBAT
         };
-        let snap_radius = match rank.targeting {
+        let snap_radius = match rank_view.targeting {
             TargetRule::Unit { snap_radius, .. } => snap_radius,
             _ => TARGET_SNAP_RADIUS,
         };
@@ -699,36 +587,22 @@ impl WishModule {
         })
     }
 
-    /// Hidden, casting a hiding Wish, or having just decided to (the legacy slipping predicate): after the cast's time plus the
-    /// grace once the server shows the casting bit, the armed state is dropped.
+    /// Hidden, casting a hiding Wish, or having just decided to (the legacy slipping predicate, through the shared
+    /// state machine): its inferred cast clock starts at the first observed casting bit, and expiry clears the inferred
+    /// clock and the slip origin/leg (the documented legacy behavior; source keeps the origin through `slip_source`).
     pub fn slipping(&mut self, p: &Percept) -> bool {
-        if p.self_view.effects & EFFECT_HIDDEN != 0 {
-            return true;
-        }
-        let Some(armed) = self.armed_at else {
-            return false;
-        };
+        let hidden = p.self_view.effects & EFFECT_HIDDEN != 0;
         let casting = p.self_view.effects & EFFECT_CASTING != 0;
-        let keep = if let Some(sent) = self.sent_at {
-            casting || p.now < sent + self.cast_ms + WISH_RULES.slip_grace_ms
-        } else if casting {
-            self.sent_at = Some(p.now);
-            true
-        } else {
-            p.now < armed + WISH_RULES.slip_pending_ms
-        };
-        if !keep {
-            self.armed_at = None;
-            self.sent_at = None;
-            self.from = None;
-            self.leg = None;
-        }
-        keep
+        self.state
+            .slipping_legacy(p.now, hidden, casting, &WISH_RULES)
     }
 
     /// The module goal holds while slipping with somebody to slip from (the legacy goals() condition).
     pub fn goal_active(&mut self, p: &Percept) -> bool {
-        self.slipping(p) && (self.from.is_some() || p.fighters.iter().any(|f| f.status == "alive"))
+        self.slipping(p)
+            && self
+                .state
+                .slip_goal_holds(p.fighters.iter().any(|f| f.status == "alive"))
     }
 
     /// The walk away from the nearest enemy (or from where it last stood), re-chosen from where that is now once its leg has run
@@ -754,29 +628,18 @@ impl WishModule {
             .min_by(|a, b| a.2.total_cmp(&b.2))
             .map(|(x, y, _)| (x, y))
         {
-            self.from = Some(Vec2::new(x, y));
+            self.state.from = Some(Vec2::new(x, y));
         }
-        let from = self.from?;
-        let mut to = self.leg.and_then(|(leg_to, leg_at)| {
-            if p.now - leg_at < WISH_RULES.slip_keep_ms
-                && rh_sim::math::hypot(leg_to.x - self_at.x, leg_to.y - self_at.y)
-                    > WISH_RULES.slip_arrived_u
-            {
-                Some(leg_to)
-            } else {
-                None
-            }
-        });
-        if to.is_none() {
-            let point = away_point(paths, self_at, from, WISH_RULES.slip_step_u, 0.)?;
-            self.leg = Some((point, p.now));
-            to = Some(point);
-        }
+        let to = {
+            let mut clear = |a: Vec2, b: Vec2| paths.clear(a, b);
+            self.state
+                .slip_leg(p.now, self_at, &mut clear, &WISH_RULES, HypotMode::Legacy)?
+        };
         Some(Intent {
-            body: IntentBody::Move { to: to? },
+            body: IntentBody::Move { to },
             priority: PRIORITY_REFLEX,
             timing: timing_of(stimuli),
-            why: "slip away: hidden or about to be".into(),
+            why: SLIP_STEP_WHY.into(),
         })
     }
 }

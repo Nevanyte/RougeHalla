@@ -1,0 +1,12 @@
+{
+  "command": [
+    "bash",
+    "tools/bot-private-strategy-fixtures/capture.sh",
+    "--check"
+  ],
+  "cwd": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-strategy-source-review",
+  "head": "5ec31212b0082d650cbe15d58877e82ac2793060",
+  "startedUTC": "2026-11-10T05:52:57.847695+00:00",
+  "exit": 0,
+  "elapsedSeconds": 28.312526791
+}

@@ -1,0 +1,28 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-quest-runtime/crates/rh-sim)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 22.68s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/roguehalla-backend-20261109/target-quests/debug/deps/rh_sim-aabb9bffeb4358ef)
+
+running 2 tests
+
+thread 'quests::tour_supply_source_tests::case_frost_visit_frost_sentenced_expires_replays_both_status_path' (71004533) panicked at crates/rh-sim/src/quests/tour_supply_source_tests.rs:418:5:
+assertion `left == right` failed: grand-tour status at "ordinary-step-recheck-result"
+  left: "open"
+ right: "expired"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'quests::tour_supply_source_tests::case_frost_visit_fire_holy_stays_open_replays_both_status_path' (71004532) panicked at crates/rh-sim/src/quests/tour_supply_source_tests.rs:418:5:
+assertion `left == right` failed: grand-tour status at "ordinary-step-recheck-result"
+  left: "expired"
+ right: "open"
+test quests::tour_supply_source_tests::case_frost_visit_frost_sentenced_expires_replays_both_status_path ... FAILED
+test quests::tour_supply_source_tests::case_frost_visit_fire_holy_stays_open_replays_both_status_path ... FAILED
+
+failures:
+
+failures:
+    quests::tour_supply_source_tests::case_frost_visit_fire_holy_stays_open_replays_both_status_path
+    quests::tour_supply_source_tests::case_frost_visit_frost_sentenced_expires_replays_both_status_path
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 845 filtered out; finished in 1.13s
+
+error: test failed, to rerun pass `-p rh-sim --lib`

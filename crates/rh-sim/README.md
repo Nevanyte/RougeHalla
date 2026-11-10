@@ -68,7 +68,7 @@ reached with `Hx::pay_later` and typed `ledger::PayLater` variants. Inside the t
 
 ### Checkpoints
 
-`serde_json::to_value(&sim)` yields `{"format": "rh-checkpoint/30", "content_hash": ..., "build": ..., "statics": ..., "world": ...}` with the tag first.
+`serde_json::to_value(&sim)` yields `{"format": "rh-checkpoint/31", "content_hash": ..., "build": ..., "statics": ..., "world": ...}` with the tag first.
 `Sim::restore(deserializer)` (or plain `Deserialize`) rebuilds the derived map tables and starts with empty scratch; a
 missing tag, another tag or a payload without its parts is refused with a typed `CheckpointError`. So is a state the tick
 cannot survive (`CheckpointError::Malformed`): `next_id` at or below a seated or past player id, or at `u32::MAX`; a

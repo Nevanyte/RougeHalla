@@ -43,6 +43,8 @@ namespace Roguehalla.Client
               .Append(",\"practice\":").Append(_mc.ConfirmedPractice ? "true" : "false")
               .Append(",\"state\":\"").Append(s.State).Append("\",\"phase\":").Append(s.Phase.HasValue ? ((int)s.Phase.Value).ToString() : "-1")
               .Append(",\"result\":").Append(s.LastResult != null ? "true" : "false")
+              .Append(",\"windupRej\":").Append(HitZonePresenter.DiagWindupRejected).Append(",\"windupWait\":").Append(HitZonePresenter.DiagWindupWaited).Append(",\"windupWeapon\":").Append(HitZonePresenter.DiagWindupLastWeapon).Append(",\"windupMs\":").Append(HitZonePresenter.DiagWindupLastMs.ToString(System.Globalization.CultureInfo.InvariantCulture)).Append(",\"weaponRows\":").Append(Roguehalla.Net.Ui.WeaponShapes.Count)
+              .Append(",\"windupFx\":").Append(ArenaView.DiagWindupFx).Append(",\"windupDrawn\":").Append(HitZonePresenter.DiagWindupsStarted).Append(",\"critFx\":").Append(ArenaView.DiagCritFx).Append(",\"topStat\":").Append(ArenaView.DiagTopStat)
               .Append(",\"hitFx\":").Append(ArenaView.DiagHitFx).Append(",\"hitFxOnMe\":").Append(ArenaView.DiagHitFxOnMe)
               .Append(",\"lastAmountOnMe\":").Append(Num(ArenaView.DiagLastAmountOnMe)).Append(",\"lastPassiveOnMe\":").Append(ArenaView.DiagLastPassiveOnMe ? "true" : "false")
               .Append(",\"vignette\":").Append(_mc.Arena != null ? Num(_mc.Arena.DiagVignetteStrength) : "0").Append(",\"flashes\":").Append(_mc.Arena != null ? _mc.Arena.DiagFlashes : 0);

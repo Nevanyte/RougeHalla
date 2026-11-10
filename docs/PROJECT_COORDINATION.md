@@ -8,7 +8,28 @@ The owner asked to keep workers running and leave active branches until last dur
 The primary project checkout is the write location for `optimization_port`. The earlier managed checkout is a clean
 detached review snapshot; use `git worktree list` to resolve the authoritative path and keep future edits on the branch.
 
-## Current delivery: technical demo (owner decision, 2026-11-09)
+## Parallel backend lane (owner instruction, 2026-11-09 America/Edmonton)
+
+The owner asks Codex to manage remaining Rust gameplay, bots and quests while Claude handles Unity/networking.
+Use isolated branch `codex/backend-gameplay-quests` at backend base `4151b3af` for this lane's integration and plans.
+DeepSeek implements Rust; Sol owns quest architecture and implementation review; Luna owns inventory/work planning.
+Only the coordinator updates MIGRATION, CONTRACTS status and Cargo.lock. Do not edit Claude's checkout/branches,
+Unity assets/code, networking/protocol/decoders, hitbox work or room-crash repair. Future shared integration must be
+scoped and reviewed; no production/cloud actions are part of this lane.
+
+| Owner | Assignment | Status |
+|---|---|---|
+| DeepSeek Rust Port Worker | Private Memory admission, then [complete private strategy](backlog/packets/P-BOT-STRATEGY-1.md) in `codex/deepseek-private-strategy` at `d21552d3` | Memory integrated `8a2d3c6c`; strategy native candidate `f8dad023` locally gated, primary source transferred `36a3b2b9` and reviewed module-key supplement `d629e174`; strict source replay active |
+| DeepSeek Post Rust | [Quest backend packet](backlog/packets/P-QUEST-BACKEND-1.md) in `codex/deepseek-quest-backend`; Rust consumer/repair then objective/reward boundary | Stage0 independently released at `36564c33`, integrated `8a11520d` + `56843a8e`; Stage1 objective/reward extraction active with private baseline comparison |
+| Sol source author | [Quest architecture](coordination/QUEST_BACKEND_REWORK.md) and source regression, now complete strategy/Memory API source fixtures | Quest source `c605f2fb`, strategy primary `5ec31212` and separate module-key supplement `1d06f752` sealed |
+| Sol independent reviewer | Private Memory admission and strategy source/API coverage; later exact native quest review | Memory and primary strategy source RELEASE recorded; quest Stage0 and corrected card source RELEASE recorded; native card bounds/privacy design active; complete private tactics source capture active |
+| Luna | [Gameplay/bot workplan](coordination/BACKEND_GAMEPLAY_WORKPLAN.md), card source preparation and independent module-key source review | Module-key source RELEASE at `efd384f5`; corrected card source `570fe186` independently released at `a9a6615e`. Card Rust remains undispatched |
+| Codex project manager | Isolated worktrees, packet dispatch, independent review, integration and shared plans | Active |
+
+This supersedes the demo-only parking direction for backend work. Claude's Unity/networking work remains independent;
+the temporary hosted demo is already removed as recorded in MIGRATION.
+
+## Technical demo delivery record (owner decision, 2026-11-09)
 
 The [technical demo plan](coordination/TECHNICAL_DEMO.md) is the current scope: one presentable optimized Unity client,
 ordinary networked core match, bounded Calgary staging and actual M5 Pro speed/latency/resource measurements. Full

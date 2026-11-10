@@ -89,4 +89,14 @@ done
 for id in $(sed -n '/AllAudioIds/,/};/p' "$project/Assets/Scripts/View/Atmosphere/RegionAtmosphereTable.cs" | grep -o '"[a-z_]*"' | tr -d '"'); do
     [[ -s "$project/Build/Web/StreamingAssets/Audio/$id.mp3" ]] || { echo "BUILD CHECK FAILED: Build/Web/StreamingAssets/Audio/$id.mp3 is missing" >&2; exit 1; }
 done
+# A readable credits page (browsers download a raw .md): Licenses/index.html, dark, the Third-Party-Assets text and a link to every notice file.
+python3 - "$licenses" <<'PYCREDITS'
+import html, pathlib, sys
+d = pathlib.Path(sys.argv[1])
+body = (d / 'Third-Party-Assets.md').read_text(errors='replace')
+links = ''.join('<li><a href="%s">%s</a></li>' % (html.escape(f.name), html.escape(f.name)) for f in sorted(d.iterdir()) if f.is_file() and f.name != 'index.html')
+(d / 'index.html').write_text('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Credits and licences</title>'
+  '<style>body{background:#161b22;color:#dfe6ee;font:15px/1.5 system-ui,sans-serif;max-width:820px;margin:2rem auto;padding:0 1rem}a{color:#e2bc72}pre{white-space:pre-wrap;background:#0f1319;padding:1rem;border-radius:6px}h1{color:#e2bc72;font-weight:600}</style>'
+  '<h1>Credits and licences</h1><h2>Notice files</h2><ul>' + links + '</ul><h2>Third-party assets</h2><pre>' + html.escape(body) + '</pre>')
+PYCREDITS
 echo "Audio check: all streamed files present"
