@@ -16,16 +16,14 @@ draws, 111 Brain Knowledge calls, 40 reached assertions and 30 strict reader neg
 come from actual source constructors/methods. The frozen outputs are the expected comparison oracle for native replay;
 they must never be installed as native component state or fed back as native inputs.
 
-**No native dispatch is granted by this packet.** The feature-aware Hand seam is admitted at source candidate
-`76f8a9aadb7decfa4532c02f03403867d3816339`, integrated as `483c149018eb648b1d7904ab9d82cb297cf8a238`, with Root's
-binding review `2436ed80`. Tactics is independently admitted from `cdf5b70f` as `df62934a` after its documented repairs;
-Modules `0c6dcee4` is independently released and integrated as `721d04da`. The persistent callback/mutable-goal Strategy bridge in
-[P-BOT-STRATEGY-COMPOSITION-BRIDGE-1](P-BOT-STRATEGY-COMPOSITION-BRIDGE-1.md) and borrowed path-budget bridge in
-[P-BOT-PATH-BUDGET-1](P-BOT-PATH-BUDGET-1.md) are separately scoped. The path bridge is independently admitted from
-`5d351cb5` as `07babf29` + `6b4dbfad`; the reviewed Strategy bridge `96905908` is independently admitted as `04577169` + `030b3be8`. Root must verify
-the final combined dependency check and exact composition interface allocation before Brain dispatch. No crate-wide or blanket existing-file
-lease is proposed. Root assigns the clean base, target, exact path lease and dispatch after those gates; DeepSeek owns
-all Rust and tests.
+**Root native dispatch is now granted by the final allocation below.** Memory, full Strategy, Tactics, Modules,
+Hand, borrowed path allowance and Strategy Send/mutable-goals bridges are independently admitted. Modules `0c6dcee4`
+is integrated as `721d04da`; Strategy bridge `96905908` as `04577169`; Tactics `cdf5b70f` as `df62934a`;
+PathBudget `5d351cb5` as `07babf29`; Hand `76f8a9aa` as `483c1490`. Root's combined code at `721d04da` passes389
+policy-library tests, format, strict default/all-feature lint and the unchanged five-seed/two-run bounded headless
+soak. These are dependency checks, not full Brain admission. The final [interface review](../../evidence/bot-brain-composition-interfaces/README.md)
+is reviewed and approved by Root with its exact four-file lease below; it supersedes earlier provisional interface
+sketches. DeepSeek owns all Rust/tests. Root owns final sealing, independent admission and shared records.
 
 ## Source limits and separation
 
@@ -61,7 +59,7 @@ remain out of this packet.
 ### Strategy boundary
 
 Reuse `temporal_percept::strategy::engine::Strategy` and its full nine-way `strategy::types::Goal`/`StrategyContext`.
-Current `strategy.rs` declares both `engine` and `types` private and has no narrow Brain-facing re-export. Allocate only a
+Current `strategy.rs` keeps `engine` private and already exposes `types` to its parent; it has no narrow Brain-facing engine re-export. Allocate only a
 small bridge in that file: re-export the required `Strategy`/`StrategyOptions` from `engine`, and expose the existing
 `types` module (or a selected set of its types/traits) to its parent with `pub(super)`. Do not make the strategy engine or
 types public outside this private subsystem. Keep all strategy behavior and existing fixture tests unchanged.
@@ -69,8 +67,7 @@ types public outside this private subsystem. Keep all strategy behavior and exis
 Before production Brain dispatch, admit the separate Strategy composition bridge: persistent `AttackFn`/`LogFn` must
 use Send-compatible `Arc<dyn Fn... + Send + Sync>` handles, including the stored `HuntAdapter` options and
 `MobHunter` log callback/default; the existing `FeatureModule::goals` seam must accept `&mut StrategyContext` at the
-same module-goal call site. These are currently Rc callbacks and a shared context borrow, so the bridge is a real
-prerequisite, not a Brain-local workaround. Its plan is [P-BOT-STRATEGY-COMPOSITION-BRIDGE-1](P-BOT-STRATEGY-COMPOSITION-BRIDGE-1.md).
+same module-goal call site. That separate bridge is now admitted as `04577169`; preserve it instead of adding a Brain-local workaround. Its plan is [P-BOT-STRATEGY-COMPOSITION-BRIDGE-1](P-BOT-STRATEGY-COMPOSITION-BRIDGE-1.md).
 The later wrapper must forward the full current-tick module percept plus the same mutable `paths`, `decide`, and `lapse`
 services; preserve module order and release borrows before returning. Do not clone/reset/reseed a provider or implement
 a second module/Strategy engine. Any persistent module handle owned by the production policy must also be Send-safe and
@@ -101,14 +98,14 @@ module-goal frame and mutable path/RNG services, then releases all borrows befor
 `intents`, `act` and `adjust` take their own sequential borrows after Strategy returns. Never hold a guard across
 another module callback or a call into Strategy.
 
-For the wider `ModulePercept`, maintain Brain-owned ephemeral current-tick input scratch populated from the same typed
-Brain tick input before calling Strategy. During a wrapped module `goals` callback, construct `ModuleContext` from that
-scratch plus reborrows of the live shared Memory/Knowledge/path/RNG state; do not reconstruct missing extras from
-StrategyPercept, persist scratch as module state, or feed any component output into it. The mutable context bridge is
-what permits the source chests goal callback to call its real path closures. Clear/take the scratch after Strategy
-returns so a later callback cannot see a stale tick. Borrow scopes must release before path/Memory/RNG adapters leave
-the wrapper. If final sealed APIs cannot support this exact callback, stop and ask Root for the smallest specific
-signature bridge; do not duplicate the registry or component FSM.
+For the wider `ModulePercept`, use the final reviewed tick-local adapter arrangement: borrow the complete validated
+Brain frame/config/collision facts for the duration of Strategy's call, with temporary boxed goal adapters carrying
+an explicit object lifetime. Reborrow the same Memory/decide/lapse from StrategyContext and the same full path
+provider through its default-unavailable capability. Motor is only a stack-local short mutable reborrow shared by
+those temporary adapters. Drop every temporary context/guard before subsequent Memory/Tactics/module/Hand work.
+Do not persist borrowed scratch, reconstruct missing facts from StrategyPercept, clone/reseed providers or leak a tier.
+Missing full-path capability refuses composition before mutation. The exact arrangement and guard/identity rules in
+the final interface review supersede the earlier persistent-scratch sketch.
 
 This wrapper design must preserve source module singleton identity across Brain instances while keeping each source cfg
 identity and Brain-local guarded `bcfg` distinct. The mutable hook's module state stays in the actual shared object and
@@ -217,8 +214,7 @@ overlap evidence, not substitutes for full composition.
 Use the repository-pinned Rust toolchain and packet-owned target assigned by Root. Run focused Brain tests, affected
 component regression filters, format, strict default/all-feature policy lint, and required broader regression gates only
 as Root dispatches. Record exact HEAD, commands/cwd/environment, exits, counts and raw output under the new Brain native
-evidence directory. Independent reviewer must inspect the exact sealed code/evidence and rerun the declared gates before
-Root integrates. Do not update shared status or Cargo.lock.
+evidence directory. Independent reviewer must inspect the exact sealed code/evidence; Root runs the appropriate combined integration gates before final admission. Do not update shared status or Cargo.lock.
 
 ## Proposed later write scope and explicit non-scope
 
@@ -259,3 +255,55 @@ as existing component witnesses do. This does not authorize a production `Box::l
 with a TierId lookup, or an owned-tier Memory/Humanizer refactor. A broader runtime tier producer would need separate
 evidence and review; the present source callers do not require one. See the independently checked live call sites in
 [the Strategy composition review](../../evidence/bot-strategy-composition-admission-review/README.md).
+
+
+## Active Root implementation allocation (2026-11-10)
+
+Root approves the exact final interface proposal (SHA256
+`3c9fc0c5b7f29247f9c0bba53c68ca48b02afd2e3ea0f0bd203968f21fb2ae0f`) after inspecting the sealed APIs and its
+four-status Brain intake distinction. Work is isolated in
+`/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-brain-native`, branch
+`codex/deepseek-private-brain`, from the Root documentation-dispatch commit carrying this section (the exact clean
+commit is supplied in the worker prompt). Use its own `target-deepseek-private-brain`, pinned Rust1.97.0,
+locked/offline/jobs1; no permission mode expansion. Root seals scoped contents if the common Git directory is unwritable.
+
+Implement the full packet now, not just a plan. New Rust/tests may live only in
+`crates/rh-policy/src/bots/temporal_percept/brain.rs` and `brain/**`; evidence only in new
+`docs/evidence/bot-private-brain-native/**`. Existing-file edits are limited to:
+
+1. `crates/rh-policy/src/bots/temporal_percept.rs`: `mod brain;` only.
+2. `crates/rh-policy/src/bots/temporal_percept/strategy.rs`: parent-visible Strategy/StrategyOptions engine re-export.
+3. `crates/rh-policy/src/bots/temporal_percept/strategy/types.rs`: explicit `+ 'a` object lifetime on
+   `StrategyConfig.modules`; one object-safe `PathApi::module_paths` capability returning the mutable ModulePaths
+   view, default `None`. No existing caller behavior or engine/body/goal/RNG rewrite.
+4. `crates/rh-policy/src/bots/temporal_percept/modules.rs`: parent-facing types/registry and four actual builtin
+   struct exports; under cfg(test), generic source_reader/source_trace access and selected existing parse_raw export.
+   No component-specific typed-reader/body/domain changes.
+
+Put actual shared module-object host, guarded stable wrappers, same-service/budget adapters, complete Brain engine,
+checked four-status input, trace/comparison and tests in the new Brain paths. Preserve source original cfg versus
+per-Brain bcfg, original module versus wrapper identity, source list order/duplicates and equal-id fault sharing.
+Source hook failures preserve pre-throw state and later selected same-tick calls; never manufacture that behavior by
+poisoning/resetting the actual module. Native invariant failures remain distinct from represented source hook faults.
+No persistent Rc/RefCell graph, unsafe Send, whole-Brain lock, provider clone, new game rules, live activation or
+fair-publication shortcut. End remains nonterminating; weak-key reclamation is not established by this finite packet.
+
+The new Brain intake owns the complete source four-status domain including `lobby`; old Modules/Tactics readers
+accept only alive/dead/mia and stay unchanged. Reuse generic lossless codecs/actual-state encoders and existing checked
+Memory helpers where their exact contracts fit. Never relabel lobby, drop consumed fields or canonicalize custom tier
+values by id. All frozen source/tool/corpus/expectations remain immutable.
+
+Required final gates: complete31 histories/855 operations, Hand6/12 overlap, separately labelled32 Knowledge
+constructors/2240 draws and111 call bindings; all40 reached assertions mapped and30 strict negatives plus meaningful
+same-entrypoint semantic/atomic-nonadvance controls. Preserve exact source numeric/order policies and report the first
+real mismatch; no widening tolerance. Prove actual persistent Brain/host Send, full-context module-goal forwarding,
+same real chests service/cache/allowance, all RNG lane continuity, pre-mutation missing-capability refusal and the
+source guard/service/recreation identities. Run focused Brain gates, affected unchanged component source/overlap
+filters, full `cargo test -p rh-policy --lib`, format and strict default/all-feature policy lint. Record exact commands,
+cwd/env/HEAD/code hashes, exits/counts, raw first failures and final receipts. No unrelated workspace campaign or
+new source capture is required. Root's final combined tree will receive later workspace/client/hosting gates.
+
+Do not edit any other existing implementation, test helper, source tool/fixture, schema, Cargo.lock, dependency,
+shared status, Unity/network branch or live caller. For a concrete missing interface/compile obstruction, preserve the
+exact diagnostic and return its smallest function/signature hunk to Root; continue independent allowed work meanwhile.
+Do not contact Claude before10:30am Edmonton November10 (17:30UTC), and do not merge/push/deploy from this worker.
