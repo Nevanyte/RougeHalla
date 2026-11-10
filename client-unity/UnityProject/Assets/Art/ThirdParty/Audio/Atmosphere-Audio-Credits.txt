@@ -1,21 +1,21 @@
 Roguehalla region atmosphere audio (streamed from StreamingAssets/Audio, not part of the first-load data)
 
-All files were converted to OGG Vorbis, trimmed where long, given an equal-power loop crossfade at the seam and loudness normalised
+All files were converted to MP3 (the Unity WebGL player cannot load Ogg), trimmed where long, given an equal-power loop crossfade at the seam and loudness normalised
 (music -17 LUFS, ambience -26 LUFS). Source files were not otherwise altered.
 
 MUSIC
-music_fire.ogg       "Shrine to the Smoldering Volcano" by Mega Pixel Music Lab. Licence: Creative Commons Attribution 3.0 (CC BY 3.0),
+music_fire.mp3       "Shrine to the Smoldering Volcano" by Mega Pixel Music Lab. Licence: Creative Commons Attribution 3.0 (CC BY 3.0),
                      https://creativecommons.org/licenses/by/3.0/  Source: https://opengameart.org/content/shrine-to-the-smoldering-volcano
                      Licence elected from the page's list (CC-BY 3.0). Credit required: this notice. Trimmed to 110 s.
-music_sentenced.ogg  "MonsterVania - Ghost Land" by HydroGene. CC0 1.0. https://opengameart.org/content/monstervania-ghost-land
-music_plague.ogg     "Village Ruins" by isaiah658. CC0 1.0. https://opengameart.org/content/village-ruins
-music_frost.ogg      "Icy Realm - (Seven and Eight)" by cynicmusic (cynicmusic.com, pixelsphere.org). CC0 1.0. https://opengameart.org/content/icy-realm-seven-and-eight
-music_holy.ogg       "Desert theme" by yd. CC0 1.0. https://opengameart.org/content/desert-theme
-music_coliseum.ogg   "Battle Theme A" by cynicmusic (cynicmusic.com, pixelsphere.org). CC0 1.0. https://opengameart.org/content/battle-theme-a
+music_sentenced.mp3  "MonsterVania - Ghost Land" by HydroGene. CC0 1.0. https://opengameart.org/content/monstervania-ghost-land
+music_plague.mp3     "Village Ruins" by isaiah658. CC0 1.0. https://opengameart.org/content/village-ruins
+music_frost.mp3      "Icy Realm - (Seven and Eight)" by cynicmusic (cynicmusic.com, pixelsphere.org). CC0 1.0. https://opengameart.org/content/icy-realm-seven-and-eight
+music_holy.mp3       "Desert theme" by yd. CC0 1.0. https://opengameart.org/content/desert-theme
+music_coliseum.mp3   "Battle Theme A" by cynicmusic (cynicmusic.com, pixelsphere.org). CC0 1.0. https://opengameart.org/content/battle-theme-a
 
 AMBIENCE
-amb_frost.ogg        "wind whoosh loop" by SketchMan3. CC0 1.0. https://opengameart.org/content/wind-whoosh-loop
-amb_fire.ogg         "Lava Loop 4" by Fission9. CC0 1.0. https://freesound.org/s/474852/ (Freesound HQ preview)
-amb_plague.ogg       "Swamp Environment Audio" by LokiF. CC0 1.0. https://opengameart.org/content/swamp-environment-audio (swamp.ogg, 60 s excerpt)
-amb_sentenced.ogg    "Crickets Ambient Noise - loopable" by Wolfgang_. CC0 1.0. https://opengameart.org/content/crickets-ambient-noise-loopable
-amb_holy.ogg         "Looping Gentle Wind Ambience on an Open Desert Plain" by dhallcomposer. CC0 1.0. https://freesound.org/s/697217/ (Freesound HQ preview)
+amb_frost.mp3        "wind whoosh loop" by SketchMan3. CC0 1.0. https://opengameart.org/content/wind-whoosh-loop
+amb_fire.mp3         "Lava Loop 4" by Fission9. CC0 1.0. https://freesound.org/s/474852/ (Freesound HQ preview)
+amb_plague.mp3       "Swamp Environment Audio" by LokiF. CC0 1.0. https://opengameart.org/content/swamp-environment-audio (swamp.ogg, 60 s excerpt)
+amb_sentenced.mp3    "Crickets Ambient Noise - loopable" by Wolfgang_. CC0 1.0. https://opengameart.org/content/crickets-ambient-noise-loopable
+amb_holy.mp3         "Looping Gentle Wind Ambience on an Open Desert Plain" by dhallcomposer. CC0 1.0. https://freesound.org/s/697217/ (Freesound HQ preview)

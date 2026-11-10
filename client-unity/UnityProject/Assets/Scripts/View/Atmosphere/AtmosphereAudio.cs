@@ -13,7 +13,7 @@ namespace Roguehalla.Client
     /// </summary>
     public sealed class AtmosphereAudio
     {
-        public const string Folder = "Audio", Extension = ".ogg";
+        public const string Folder = "Audio", Extension = ".mp3";
         const int CacheLimit = 4; const float PrefetchEvery = 10f;
         readonly MonoBehaviour _host;
         readonly CrossfadeChannel _music = new CrossfadeChannel { FadeSeconds = 2f }, _ambience = new CrossfadeChannel { FadeSeconds = 2f };
@@ -90,12 +90,8 @@ namespace Roguehalla.Client
         IEnumerator Load(CrossfadeChannel ch, string id)
         {
             UnityWebRequest req = null; AudioClip clip = null; bool ok = false;
-            // The WebGL player decodes through the browser and rejects an explicit Ogg type ("Streaming of 'ogg' ... not supported").
-#if UNITY_WEBGL && !UNITY_EDITOR
-            const AudioType type = AudioType.UNKNOWN;
-#else
-            const AudioType type = AudioType.OGGVORBIS;
-#endif
+            // MP3, not Ogg: the Unity WebGL player rejects Ogg ("Streaming of 'ogg' on this platform is not supported") and decodes MP3 through the browser.
+            const AudioType type = AudioType.MPEG;
             try { req = UnityWebRequestMultimedia.GetAudioClip(UrlFor(id), type); }
             catch (System.Exception e) { Warn(id, e.Message); }
             if (req != null)

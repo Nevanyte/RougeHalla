@@ -108,7 +108,7 @@ namespace Roguehalla.Editor
         {
             const string destination = "Build/Web/StreamingAssets/Audio";
             Directory.CreateDirectory(destination);
-            foreach (var file in Directory.GetFiles(AudioAside, "*.ogg")) File.Copy(file, Path.Combine(destination, Path.GetFileName(file)), true);
+            foreach (var file in Directory.GetFiles(AudioAside, "*.mp3")) File.Copy(file, Path.Combine(destination, Path.GetFileName(file)), true);
         }
 
         static void CopyNotices()
