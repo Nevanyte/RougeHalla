@@ -88,7 +88,12 @@ namespace Roguehalla.Net.Protocol
         public WireRewardOption[] Options = Array.Empty<WireRewardOption>();
         public bool Picked, CanChoose;
     }
-    public struct WireProjectile { public byte Kind; public ushort X,Y,Facing; public uint? Owner; }
+    /// <summary>
+    /// Protocol 15 projectile track row: a viewer-scoped alias (<see cref="Track"/>, nonzero, ascending in the list) and a straight-line
+    /// ANCHOR, not the current position. X/Y are 1/8 u codes at sim tick <see cref="Tick"/>; Facing is a signed-turn code;
+    /// Speed is 1/8 u per second.
+    /// </summary>
+    public struct WireProjectile { public uint Track; public byte Kind; public ushort X,Y,Facing,Speed; public uint Tick; public uint? Owner; }
     public struct WireCamp { public byte MobType, Elite; public uint Alive; public byte State; public double ClearedAt, RespawnAt; }
     public struct WireBuild { public byte[] Cards, Boosts; }
     /// <summary>One resolved planning option: where it is, which zone and how long the walk takes.</summary>
@@ -462,7 +467,7 @@ namespace Roguehalla.Net.Protocol
                         item = chests; break;
                     case 7:
                         var projectiles = new ProjectilesState { Rows=new WireProjectile[Count(ref r,MaxRows)] };
-                        for(int j=0;j<projectiles.Rows.Length;j++) projectiles.Rows[j]=new WireProjectile {Kind=r.U8(),X=r.U16(),Y=r.U16(),Facing=r.U16(),Owner=ReadActor(ref r)};
+                        for(int j=0;j<projectiles.Rows.Length;j++) projectiles.Rows[j]=new WireProjectile {Track=r.Varint(),Kind=r.U8(),X=r.U16(),Y=r.U16(),Facing=r.U16(),Speed=r.U16(),Tick=r.Varint(),Owner=ReadActor(ref r)};
                         item=projectiles;break;
                     case 6:
                         var camps = new CampsState { Rows = new WireCamp[Count(ref r, MaxRows)] };
@@ -691,12 +696,13 @@ namespace Roguehalla.Net.Protocol
         internal override void Check()
         {
             Require(Rows!=null && Rows.Length<=MaxRows,"projectiles");
-            foreach(var p in Rows) Require(p.Kind<=1 && p.Owner!=0,"projectile");
+            uint last=0;
+            foreach(var p in Rows) { Require(p.Track!=0 && p.Kind<=1 && p.Owner!=0,"projectile"); Require(p.Track>last,"projectile tracks"); last=p.Track; }
         }
         internal override void Write(Writer w)
         {
             w.Varint((uint)Rows.Length);
-            foreach(var p in Rows) {w.U8(p.Kind);w.U16(p.X);w.U16(p.Y);w.U16(p.Facing);WriteActor(w,p.Owner);}
+            foreach(var p in Rows) {w.Varint(p.Track);w.U8(p.Kind);w.U16(p.X);w.U16(p.Y);w.U16(p.Facing);w.U16(p.Speed);w.Varint(p.Tick);WriteActor(w,p.Owner);}
         }
     }
 

@@ -21,6 +21,13 @@ namespace Roguehalla.Net
         byte _orderSeq;
         internal event Action<WireCommand> CastQueued;
         internal WireCommand LastMovementOrder { get; private set; }
+        /// <summary>
+        /// Protocol 15: the estimate of server sim ms at this instant (the Session supplies it from the ping clock). When it returns a
+        /// finite value, Move and AttackMove leave as MoveAt/AttackMoveAt carrying it; null (no clock sample yet) sends the plain orders.
+        /// The client never predicts the server's resulting walk credit.
+        /// </summary>
+        public Func<double?> OrderClock;
+        double? Stamp() { double? t = OrderClock == null ? null : OrderClock(); return t.HasValue && !double.IsNaN(t.Value) && !double.IsInfinity(t.Value) ? t : null; }
 
         /// <summary>Commands dropped because a value cannot be encoded (the server would refuse the whole frame).</summary>
         public int Dropped { get; private set; }
@@ -34,7 +41,8 @@ namespace Roguehalla.Net
         {
             if (!Finite(x) || !Finite(y)) { Dropped++; return 0; }
             byte s = NextOrderSeq();
-            LastMovementOrder = WireCommand.Move(x, y, s);
+            double? at = Stamp();
+            LastMovementOrder = at.HasValue ? WireCommand.MoveAt(x, y, s, at.Value) : WireCommand.Move(x, y, s);
             _queue.Add(LastMovementOrder);
             return s;
         }
@@ -66,7 +74,7 @@ namespace Roguehalla.Net
         }
 
         public void Target(uint actorRef) { if(actorRef==0) { Dropped++; return; } _queue.Add(WireCommand.Target(actorRef)); }
-        public byte AttackMove(float x,float y) { if(!Finite(x)||!Finite(y)) {Dropped++;return 0;} byte s=NextOrderSeq();LastMovementOrder=WireCommand.AttackMove(x,y,s);_queue.Add(LastMovementOrder);return s; }
+        public byte AttackMove(float x,float y) { if(!Finite(x)||!Finite(y)) {Dropped++;return 0;} byte s=NextOrderSeq();double? at=Stamp();LastMovementOrder=at.HasValue?WireCommand.AttackMoveAt(x,y,s,at.Value):WireCommand.AttackMove(x,y,s);_queue.Add(LastMovementOrder);return s; }
         public byte Stop()
         {
             byte s = NextOrderSeq();

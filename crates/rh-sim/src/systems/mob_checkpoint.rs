@@ -409,8 +409,7 @@ pub(crate) fn validate(
                     | crate::input::MoveCmd::MoveAt { .. }
                     | crate::input::MoveCmd::AttackMoveAt { .. }
             )
-        )
-        {
+        ) {
             return Err("unsupported mob input".into());
         }
         if p.statuses.cast.is_some()

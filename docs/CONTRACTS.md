@@ -481,9 +481,10 @@ See [adr/0007-determinism.md](adr/0007-determinism.md). `rh_sim::math` is the on
   ([P-VISION-1](backlog/packets/P-VISION-1.md)); independent visibility and leak checks are recorded in the Stage 2 evidence.
 
 ## C-NET: protocol and sessions
-- `crates/rh-protocol` v5 (`PROTOCOL_VERSION = 5`, [ADR 0012](adr/0012-combat-protocol-v5.md), building on ADR 0011), mirrored in
-  `client-unity/RoguehallaNet/Protocol`; golden vectors `protocol/fixtures/v5.json` (vectors for the current version only,
-  older fixtures are in Git history; regenerated with `cargo run -p rh-protocol --bin protocol-fixtures`). The Rust and C# suites and
+- `crates/rh-protocol` (`PROTOCOL_VERSION = 15`; the base is v5, [ADR 0012](adr/0012-combat-protocol-v5.md), building on ADR 0011, and the
+  paragraphs below that say v4 or v5 describe that base), mirrored in
+  `client-unity/RoguehallaNet/Protocol`; golden vectors `protocol/fixtures/v15.json` (older `v<N>.json` fixtures stay for the sealed
+  scene-candidate and history tests; regenerated with `cargo run -p rh-protocol --bin protocol-fixtures`). The Rust and C# suites and
   `tools/protocol-js/check-vectors.mjs` (the `probe.html` decoder) assert byte equality, malformed-frame rejection and replay of
   the delta chains. The `malformedServer` vectors cover Reject code 0, a reason that is not UTF-8, every MapBlob rule and the
   malformed deltas; code 12 (unnamed) is a valid server vector; all three decoders reject the malformed ones. The C# encoders
@@ -496,9 +497,20 @@ See [adr/0007-determinism.md](adr/0007-determinism.md). `rh_sim::math` is the on
   wire string carries a `u8` length: encoders **refuse** more than 255 bytes (`EncodeError::StringTooLong` in Rust, an
   `EncodeException` in C#, a throw in the JS probe) and never truncate; the server clips the diagnostic text of a Reject itself
   (`conn.rs` `clip_reason`, on a char boundary) before encoding.
+- **Protocol 15** ([ADR 0024](adr/0024-competitive-netcode-presentation-and-lag-fairness.md), Proposed): client commands `MoveAt` (19) and
+  `AttackMoveAt` (20) carry `x, y`, an optional order `seq` and a finite issue-time stamp `t`; the room clamps `t` like an attack's. A
+  snapshot actor (mask bit 10) and a delta actor (bit 13) may carry a ranged windup (`kind` 1 bow draw or 2 wand cast, start ms,
+  duration ms, and a u16 aim for a cast only). State key 7 is no longer anonymous positions: each row is `track` (a per-viewer alias,
+  nonzero, strictly ascending in the list), `kind`, `x`, `y`, `facing`, `speed`, `tick` (the anchor's tick) and `owner`; a client places a
+  flight at tick t >= anchor with `position + (cos f, sin f) * speed * (t - tick) * 0.05`. An alias is issued on a sighting, never reused
+  in the seat's observer, and dropped when the flight ends or leaves sight (re-entry gets a new one); the private launch id never
+  reaches the wire. The actor-delta mask gained `AD_STEP` (bit 3: x and y as one signed byte each, in 1/8 u steps from the base
+  actor, only for an actor in the base) and `AD_KIT` moved from bit 3 to bit 14 with its byte last (`AD_ALL` = 0x7fff); delta
+  facing is the high byte of the 16-bit code, and a Full snapshot still carries a u16. Rust, C# and the JS decoder refuse a bit the
+  version does not define, a step on a new actor or off the grid (`position_step`), and run `v15.json`.
 - **Presence masks (v4)**: every mask in a Snapshot or SnapshotDelta (the Full head, the Full actor mask, the Delta head and the
-  actor-delta mask) is a canonical LEB128 varint with append-only bit numbers. A bit is never renumbered, reused or
-  repurposed; adding a field takes the next free top bit, its codec arm in the three decoders, the writer, the trackers, a
+  actor-delta mask) is a canonical LEB128 varint with append-only bit numbers. Within a released version a bit is never renumbered, reused or
+  repurposed (the unreleased v15 moved `AD_KIT`, see Protocol 15); adding a field takes the next free top bit, its codec arm in the three decoders, the writer, the trackers, a
   vector and a `PROTOCOL_VERSION` bump. Decoders are strict per version: a bit the version does not define is refused
   (`BadField`), never skipped. Common fields sit in bits 0..6 so the usual head is one byte; rarely changing ones sit above and
   widen it (the Delta head's status bit is bit 14, a three-byte varint when set). The numbers are pinned by
@@ -547,7 +559,7 @@ See [adr/0007-determinism.md](adr/0007-determinism.md). `rh_sim::math` is the on
   unanswered Resync with the next refused delta after 2 s. Decoders refuse unknown bases and malformed deltas and never
   clamp. 908 -> 305 B/player/s at 8 players on the slice with v3 (1.048x wire Ir) and 285 with v4 (`wirebench`, seed-1 map, 8 bots, 2,400 ticks; wire Ir 1.0041x of v3; [sweep/README.md](sweep/README.md)).
 - Snapshot content (both frame kinds): no `server_ms` (decoders derive it as tick x `TICK_MS`); the self view is full
-  precision; remote actors are quantized (position on a 1/8 u grid, facing, hp as a percent, a per-actor varint field mask) and
+  precision; remote actors are quantized (position on a 1/8 u grid, facing on a 1/256-turn grid in deltas from v15, hp as a percent, a per-actor varint field mask) and
   encoded with varints (`crates/rh-protocol/src/quant.rs`, `encode.rs`, `delta.rs`). Quantization **refuses, never clamps**:
   a position outside the grid is `EncodeError::BadValue`, and the server refuses at startup an arena that does not fit
   (`wire::arena_fits`). `SnapshotData::build` applies every refusal of the encoders, off-grid positions included, so no

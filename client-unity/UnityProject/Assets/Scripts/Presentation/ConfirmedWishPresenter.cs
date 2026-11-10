@@ -32,12 +32,45 @@ namespace Roguehalla.Client
         readonly Stack<Cue> _pool = new Stack<Cue>(Capacity);
         static readonly string[] Glyphs = { "sigil3", "sigil2", "sigil1", "spark", "sigil4" };
         static readonly int[] Factions = { 3, 2, 1, 0, 4 };
+        // One provisional own telegraph, shown at the Wish press until any server Wish cue for that caster arrives (the
+        // confirmed cue then takes over) or its hold expires. Owned separately from the confirmed pool; no rule here.
+        const float ProvisionalAlpha = .55f;
+        Cue _provisional;
+        bool _provisionalLive;
+        uint _provisionalCaster;
+        double _provisionalUntil;
 
         public ConfirmedWishPresenter(Transform parent, SpriteActorPresenter actors) { _parent = parent; _actors = actors; }
         public int ActiveCount { get { return _active.Count; } }
 
+        /// <summary>
+        /// Shows the own Wish telegraph at the press (local time), for at most <paramref name="holdMs"/>. Any server Wish cue
+        /// for <paramref name="caster"/> replaces it; without one it disappears when the hold ends.
+        /// </summary>
+        public void Provisional(uint caster, byte ability, double holdMs)
+        {
+            if (caster == 0 || ability > 4 || !Finite(holdMs) || holdMs <= 0) return;
+            if (_provisional == null) _provisional = Create();
+            _provisional.Fact = new Fact { Kind = FxKind.WishStarted, Ability = ability, Caster = caster };
+            _provisionalCaster = caster;
+            _provisionalUntil = Time.realtimeSinceStartupAsDouble * 1000.0 + holdMs;
+            _provisionalLive = true;
+            _provisional.Root.SetActive(false);
+        }
+        public void CancelProvisional()
+        {
+            _provisionalLive = false;
+            if (_provisional == null) return;
+            _provisional.Root.SetActive(false);
+            foreach (var part in _provisional.Parts) part.enabled = false;
+        }
+
         public void Accept(WireFx source)
         {
+            // Any server Wish cue for the provisional caster confirms or refuses the press: the server's cue wins.
+            if (_provisionalLive && source != null && source.Caster.HasValue && source.Caster.Value == _provisionalCaster &&
+                (source.Kind == FxKind.WishStarted || source.Kind == FxKind.WishLanded || source.Kind == FxKind.WishEnded))
+                CancelProvisional();
             if (source == null || source.Ability > 4 || !Finite(source.EventTime) || source.EventTime < 0) return;
             if (source.Kind != FxKind.WishStarted && source.Kind != FxKind.WishLanded && source.Kind != FxKind.WishEnded) return;
             // The decoded record and its container may be recycled immediately after this callback.
@@ -92,14 +125,16 @@ namespace Roguehalla.Client
 
         public void Retain(HashSet<uint> membership)
         {
+            if (_provisionalLive && !membership.Contains(_provisionalCaster)) CancelProvisional();
             for (int i = _active.Count - 1; i >= 0; i--)
                 if (_active[i].Fact.Kind == FxKind.WishStarted && (!_active[i].Fact.Caster.HasValue || !membership.Contains(_active[i].Fact.Caster.Value))) Recycle(i);
         }
 
         public void Tick(double serverTimeMs)
         {
-            if (!Finite(serverTimeMs) || serverTimeMs < 0) return;
             bool reduced = ShowcaseSettings.Current != null && ShowcaseSettings.Current.ReducedMotion;
+            TickProvisional(reduced);
+            if (!Finite(serverTimeMs) || serverTimeMs < 0) return;
             for (int i = 0; i < _active.Count;)
             {
                 var cue = _active[i]; var fact = cue.Fact;
@@ -123,7 +158,19 @@ namespace Roguehalla.Client
 
         public void Reset()
         {
+            CancelProvisional();
             for (int i = _active.Count - 1; i >= 0; i--) Recycle(i);
+        }
+
+        void TickProvisional(bool reduced)
+        {
+            if (!_provisionalLive) return;
+            if (Time.realtimeSinceStartupAsDouble * 1000.0 > _provisionalUntil || !_actors.IsLiving(_provisionalCaster) ||
+                !_actors.TryPosition(_provisionalCaster, out var point)) { CancelProvisional(); return; }
+            _provisional.Root.SetActive(true);
+            Draw(_provisional, point, 0, reduced);
+            foreach (var part in _provisional.Parts)
+                if (part.enabled) { var c = part.color; c.a = ProvisionalAlpha; part.color = c; }
         }
 
         void Draw(Cue cue, Vector3 point, float progress, bool reduced)

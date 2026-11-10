@@ -11,7 +11,7 @@ namespace Roguehalla.Net.Protocol
         Malformed = 7, TooSlow = 8, ServerDraining = 9, NoSuchSession = 10, Kicked = 11,
     }
 
-    public enum CommandKind : byte { Move = 1, Stop = 2, Aim = 3, Attack = 4, Release = 5, Swap = 6, Pickup = 7, Choose = 8, UseConsumable = 9, Target = 10, AttackMove = 11, HuntTarget = 12, ConsumeCorpse = 13, Plan = 14, Train = 15, Cast = 16, QuestAccept = 17, Trade = 18 }
+    public enum CommandKind : byte { Move = 1, Stop = 2, Aim = 3, Attack = 4, Release = 5, Swap = 6, Pickup = 7, Choose = 8, UseConsumable = 9, Target = 10, AttackMove = 11, HuntTarget = 12, ConsumeCorpse = 13, Plan = 14, Train = 15, Cast = 16, QuestAccept = 17, Trade = 18, MoveAt = 19, AttackMoveAt = 20 }
 
     /// <summary>A client command. Only the fields of its Kind are meaningful.</summary>
     public sealed class WireCommand
@@ -29,7 +29,7 @@ namespace Roguehalla.Net.Protocol
         public sbyte Pick;
         public TradeKind TradeKind;
         public uint ActorRef;
-        /// <summary>Client render time in server ms (Attack, Release); lag compensation, clamped by the server.</summary>
+        /// <summary>Client time in server ms: render time for Attack/Release/Cast, or for MoveAt/AttackMoveAt (required) the estimate of server time when the order was issued (no render delay subtracted).</summary>
         public double? T;
         /// <summary>Planning option indexes (Plan): 0 or 1, indexes into this player's own private plan.</summary>
         public byte? Spawn, Boon;
@@ -68,6 +68,9 @@ namespace Roguehalla.Net.Protocol
             return new WireCommand { Kind = CommandKind.Trade, TradeKind = kind, Pick = (sbyte)pick };
         }
         public static WireCommand Move(float x, float y, byte? seq) { return new WireCommand { Kind = CommandKind.Move, X = x, Y = y, Seq = seq }; }
+        /// <summary>Protocol 15: a Move that carries the issue-time estimate of server sim ms (<paramref name="t"/>, finite). The server clamps it and may credit up to one tick of walk; the client never predicts that credit.</summary>
+        public static WireCommand MoveAt(float x, float y, byte? seq, double t) { return new WireCommand { Kind = CommandKind.MoveAt, X = x, Y = y, Seq = seq, T = t }; }
+        public static WireCommand AttackMoveAt(float x, float y, byte? seq, double t) { return new WireCommand { Kind = CommandKind.AttackMoveAt, X = x, Y = y, Seq = seq, T = t }; }
         public static WireCommand UseConsumable() { return new WireCommand { Kind = CommandKind.UseConsumable }; }
         public static WireCommand Target(uint actorRef) { if (actorRef == 0) throw new ArgumentException("actor reference"); return new WireCommand { Kind = CommandKind.Target, ActorRef = actorRef }; }
         public static WireCommand HuntTarget(uint actorRef) { if (actorRef == 0) throw new ArgumentException("hunt target"); return new WireCommand { Kind = CommandKind.HuntTarget, ActorRef = actorRef }; }
@@ -118,6 +121,8 @@ namespace Roguehalla.Net.Protocol
                             case 9: inp.Commands.Add(WireCommand.UseConsumable()); break;
                             case 10: { uint id=r.U32(); if(id==0) throw new DecodeException(DecodeError.BadField,"actor reference"); inp.Commands.Add(WireCommand.Target(id)); break; }
                             case 11: { float x=r.F32(),y=r.F32(); inp.Commands.Add(WireCommand.AttackMove(x,y,r.Flag()?r.U8():(byte?)null)); break; }
+                            case 19: { float x=r.F32(),y=r.F32(); byte? seq=r.Flag()?r.U8():(byte?)null; inp.Commands.Add(WireCommand.MoveAt(x,y,seq,r.F64())); break; }
+                            case 20: { float x=r.F32(),y=r.F32(); byte? seq=r.Flag()?r.U8():(byte?)null; inp.Commands.Add(WireCommand.AttackMoveAt(x,y,seq,r.F64())); break; }
                             case 12: { uint id=r.U32(); if(id==0) throw new DecodeException(DecodeError.BadField,"hunt target"); inp.Commands.Add(WireCommand.HuntTarget(id)); break; }
                             case 13: { uint id=r.U32(); if(id==0) throw new DecodeException(DecodeError.BadField,"corpse handle"); inp.Commands.Add(WireCommand.ConsumeCorpse(new PickupHandle(id))); break; }
                             case 14:
@@ -244,6 +249,10 @@ namespace Roguehalla.Net.Protocol
                         case CommandKind.ConsumeCorpse: if(!c.PickupRef.IsValid) throw new ArgumentException("corpse handle"); w.U32(c.PickupRef.Value); break;
                         case CommandKind.AttackMove:
                         case CommandKind.Move: w.F32(c.X); w.F32(c.Y); Opt(w, c.Seq); break;
+                        case CommandKind.MoveAt:
+                        case CommandKind.AttackMoveAt:
+                            if (!c.T.HasValue || double.IsNaN(c.T.Value) || double.IsInfinity(c.T.Value) || float.IsNaN(c.X) || float.IsInfinity(c.X) || float.IsNaN(c.Y) || float.IsInfinity(c.Y)) throw new ArgumentException("stamped move values must be finite");
+                            w.F32(c.X); w.F32(c.Y); Opt(w, c.Seq); w.F64(c.T.Value); break;
                         case CommandKind.Stop: Opt(w, c.Seq); break;
                         case CommandKind.Aim: w.F32(c.A); break;
                         case CommandKind.Attack:
@@ -294,6 +303,8 @@ namespace Roguehalla.Net.Protocol
                     case CommandKind.ConsumeCorpse: return 5;
                     case CommandKind.AttackMove:
                     case CommandKind.Move: return 9 + (c.Seq.HasValue ? 2 : 1);
+                    case CommandKind.MoveAt:
+                    case CommandKind.AttackMoveAt: return 9 + (c.Seq.HasValue ? 2 : 1) + 8;
                     case CommandKind.Stop: return 1 + (c.Seq.HasValue ? 2 : 1);
                     case CommandKind.Aim: return 5;
                     case CommandKind.Attack:
@@ -633,6 +644,61 @@ namespace Roguehalla.Net.Protocol
     }
 
     /// <summary>
+    /// Protocol 15: a visible remote actor's bow draw or wand cast in progress (presentation only; melee is never published).
+    /// <see cref="Kind"/> 0 = none. All times are server sim milliseconds on the same timeline as tick * 50. A draw has no aim
+    /// on the wire (<see cref="Aim"/> = 0); a cast carries the full 16-bit signed-turn code of its start aim.
+    /// </summary>
+    public struct WireWindup
+    {
+        public const byte None = 0, Draw = 1, Cast = 2;
+        public byte Kind;
+        public ushort Duration, Aim;
+        /// <summary>Server ms the windup began (floored).</summary>
+        public uint StartedAt;
+        public bool Active { get { return Kind != None; } }
+        /// <summary>Server ms of the release (StartedAt + Duration; a long double cannot overflow).</summary>
+        public double ReleaseAt { get { return (double)StartedAt + Duration; } }
+        /// <summary>The cast's start aim in radians (0 for a draw).</summary>
+        public float AimRadians { get { return Quant.DequantizeFacing(Aim); } }
+        /// <summary>Fraction of the windup elapsed at <paramref name="serverMs"/>, clamped to 0..1 (0 when none or zero length).</summary>
+        public float Progress(double serverMs)
+        {
+            if (Kind == None || Duration == 0) return 0f;
+            double f = (serverMs - StartedAt) / Duration;
+            return f <= 0 ? 0f : f >= 1 ? 1f : (float)f;
+        }
+
+        internal static WireWindup Read(ref Reader r, bool allowNone)
+        {
+            byte kind = r.U8();
+            var w = default(WireWindup);
+            if (kind == None && allowNone) return w;
+            if (kind != Draw && kind != Cast) throw new DecodeException(DecodeError.BadField, "windup");
+            w.Kind = kind; w.StartedAt = r.Varint();
+            uint duration = r.Varint();
+            if (duration > ushort.MaxValue) throw new DecodeException(DecodeError.BadField, "windup");
+            w.Duration = (ushort)duration;
+            if (kind == Cast) w.Aim = r.U16();
+            return w;
+        }
+
+        internal int Length(bool allowNone)
+        {
+            if (Kind == None) return allowNone ? 1 : 0;
+            return 1 + Writer.VarintLength(StartedAt) + Writer.VarintLength(Duration) + (Kind == Cast ? 2 : 0);
+        }
+
+        internal void Write(Writer w, bool allowNone)
+        {
+            if (Kind > Cast || (Kind == None && !allowNone) || (Kind == Draw && Aim != 0)) throw new ArgumentException("windup");
+            w.U8(Kind);
+            if (Kind == None) return;
+            w.Varint(StartedAt); w.Varint(Duration);
+            if (Kind == Cast) w.U16(Aim);
+        }
+    }
+
+    /// <summary>
     /// One visible actor. A value type: a snapshot's actors live inline in its array (no object per actor). The fields are
     /// declared widest first so the struct packs into 28 bytes (including v6 effects/displacement; v7 hunt fields); the wire order is fixed by <see cref="Read"/>/<see cref="Write"/>.
     /// X, Y and Facing are what the wire carries (quantized to 1/8 u and 2 pi / 65536).
@@ -641,7 +707,10 @@ namespace Roguehalla.Net.Protocol
     {
         public uint Id;
         public float X, Y, Facing;
+        /// <summary>Windup start (server ms); the rest of the windup is <see cref="WindupDuration"/>, <see cref="WindupAim"/>, <see cref="WindupKind"/>. Flat so the actor stays a small value.</summary>
+        public uint WindupStartedAt;
         public ushort Bounty;
+        public ushort WindupDuration, WindupAim;
         public byte Faction;
         /// <summary>hp fraction in hundredths (0..100).</summary>
         public byte HpPct;
@@ -651,9 +720,17 @@ namespace Roguehalla.Net.Protocol
         public ushort Effects;
         /// <summary>Authoritative per-observer barrier share.</summary>
         public byte BarrierPct, BarrierRingStep;
+        /// <summary>Protocol 15: 0 none, 1 bow draw, 2 wand cast (see <see cref="Windup"/>).</summary>
+        public byte WindupKind;
+        /// <summary>Protocol 15: the bow draw or wand cast in progress, if any (Kind 0 = none).</summary>
+        public WireWindup Windup
+        {
+            get { return new WireWindup { Kind = WindupKind, StartedAt = WindupStartedAt, Duration = WindupDuration, Aim = WindupAim }; }
+            set { WindupKind = value.Kind; WindupStartedAt = value.StartedAt; WindupDuration = value.Duration; WindupAim = value.Aim; }
+        }
 
-        // Full actor mask bits (append only): 0 kit, 1 hp, 2 status, 3 bounty, 4 kind. A varint.
-        internal const uint MKit = 1 << 0, MHp = 1 << 1, MStatus = 1 << 2, MBounty = 1 << 3, MKind = 1 << 4, MEffects = 1 << 5, MDisplace = 1 << 6, MMobType = 1 << 7, MSig = 1 << 8, MBarrier = 1 << 9, MKnown = MKit | MHp | MStatus | MBounty | MKind | MEffects | MDisplace | MMobType | MSig | MBarrier;
+        // Full actor mask bits (append only): 0 kit, 1 hp, 2 status, 3 bounty, 4 kind, ... 9 barrier, 10 windup (v15). A varint.
+        internal const uint MKit = 1 << 0, MHp = 1 << 1, MStatus = 1 << 2, MBounty = 1 << 3, MKind = 1 << 4, MEffects = 1 << 5, MDisplace = 1 << 6, MMobType = 1 << 7, MSig = 1 << 8, MBarrier = 1 << 9, MWindup = 1 << 10, MKnown = MKit | MHp | MStatus | MBounty | MKind | MEffects | MDisplace | MMobType | MSig | MBarrier | MWindup;
         internal const byte DefaultHpPct = 100;
 
         /// <summary>Only native quest givers use the reserved absent-identity kit and carry no regional type.</summary>
@@ -676,6 +753,7 @@ namespace Roguehalla.Net.Protocol
             if (MobTypeCode != 0) m |= MMobType;
             if (Sig != 0) m |= MSig;
             if (BarrierPct != 0 || BarrierRingStep != 0) m |= MBarrier;
+            if (WindupKind != 0) m |= MWindup;
             return m;
         }
 
@@ -685,7 +763,7 @@ namespace Roguehalla.Net.Protocol
         {
             uint m = Mask();
             return Writer.VarintLength(IdField(Id, first, prev)) + Writer.VarintLength(m) + 6 + ((m & MKit) != 0 ? 1 : 0) + ((m & MHp) != 0 ? 1 : 0)
-                + ((m & MStatus) != 0 ? 1 : 0) + ((m & MBounty) != 0 ? Writer.VarintLength(Bounty) : 0) + ((m & MKind) != 0 ? 1 : 0) + ((m & MEffects) != 0 ? 2 : 0) + ((m & MDisplace) != 0 ? 1 : 0) + ((m & MMobType) != 0 ? 1 : 0) + ((m & MSig) != 0 ? 1 : 0) + ((m & MBarrier) != 0 ? 2 : 0);
+                + ((m & MStatus) != 0 ? 1 : 0) + ((m & MBounty) != 0 ? Writer.VarintLength(Bounty) : 0) + ((m & MKind) != 0 ? 1 : 0) + ((m & MEffects) != 0 ? 2 : 0) + ((m & MDisplace) != 0 ? 1 : 0) + ((m & MMobType) != 0 ? 1 : 0) + ((m & MSig) != 0 ? 1 : 0) + ((m & MBarrier) != 0 ? 2 : 0) + ((m & MWindup) != 0 ? Windup.Length(false) : 0);
         }
 
         /// <summary>Reads one actor; the first has an absolute id, each later one the (non-zero) gap from <paramref name="prev"/>.</summary>
@@ -715,6 +793,7 @@ namespace Roguehalla.Net.Protocol
             a.Sig = (mask & MSig) != 0 ? r.U8() : (byte)0;
             if ((mask & MBarrier) != 0) { a.BarrierPct = r.U8(); a.BarrierRingStep = r.U8(); }
             if (a.BarrierPct > 100 || a.BarrierRingStep > 8) throw new DecodeException(DecodeError.BadField, "barrier");
+            if ((mask & MWindup) != 0) a.Windup = WireWindup.Read(ref r, false);
             if (!a.HasValidGiverIdentity) throw new DecodeException(DecodeError.BadField, "giver actor");
             return a;
         }
@@ -734,6 +813,7 @@ namespace Roguehalla.Net.Protocol
             if ((m & MMobType) != 0) w.U8(MobTypeCode);
             if ((m & MSig) != 0) w.U8(Sig);
             if ((m & MBarrier) != 0) { if (BarrierPct > 100 || BarrierRingStep > 8) throw new ArgumentException("barrier"); w.U8(BarrierPct); w.U8(BarrierRingStep); }
+            if ((m & MWindup) != 0) Windup.Write(w, false);
         }
     }
 
@@ -826,19 +906,30 @@ namespace Roguehalla.Net.Protocol
     }
 
     /// <summary>
-    /// One changed remote actor of a snapshot delta: <see cref="Mask"/> (bits <see cref="MX"/>..<see cref="MKind"/>, append only)
-    /// says which fields are carried; the others mean nothing. A NEW actor (not in the base) starts from the default actor and must
-    /// carry its position (<see cref="MNew"/>).
+    /// One changed remote actor of a snapshot delta (protocol 15 mask): <see cref="Mask"/> says which fields are carried; the
+    /// others mean nothing. A NEW actor (not in the base) starts from the default actor and must carry its position
+    /// (<see cref="MNew"/>) in absolute form. With <see cref="MStep"/> the carried X/Y are not positions: each holds one signed
+    /// step in 1/8 u (an i8 widened to a 16-bit pattern, see <see cref="StepOf"/>) added to the base actor's grid code.
+    /// <see cref="Facing"/> is a 16-bit code whose low byte is zero (the wire carries the high byte only).
     /// </summary>
     public struct ActorDelta
     {
-        public const uint MX = 1 << 0, MY = 1 << 1, MFacing = 1 << 2, MKit = 1 << 3, MHp = 1 << 4, MBounty = 1 << 5, MStatus = 1 << 6,
-            MKind = 1 << 7, MEffects = 1 << 8, MDisplace = 1 << 9, MMobType = 1 << 10, MSig = 1 << 11, MBarrier = 1 << 12, MAll = 0x1fff, MNew = MX | MY | MFacing;
+        public const uint MX = 1 << 0, MY = 1 << 1, MFacing = 1 << 2, MStep = 1 << 3, MHp = 1 << 4, MBounty = 1 << 5, MStatus = 1 << 6,
+            MKind = 1 << 7, MEffects = 1 << 8, MDisplace = 1 << 9, MMobType = 1 << 10, MSig = 1 << 11, MBarrier = 1 << 12, MWindup = 1 << 13, MKit = 1 << 14,
+            MAll = 0x7fff, MNew = MX | MY | MFacing;
         public uint Id;
         public uint Mask;
         public ushort X, Y, Facing;
         public byte Kit, HpPct, Status, Kind, DisplaceSeq, MobTypeCode, Sig, BarrierPct, BarrierRingStep;
         public ushort Bounty, Effects;
+        /// <summary>The windup after this delta; Kind 0 with <see cref="MWindup"/> set means it ended.</summary>
+        public WireWindup Windup;
+
+        /// <summary>The signed step an X/Y field holds under <see cref="MStep"/>.</summary>
+        public static int StepOf(ushort field) { return unchecked((short)field); }
+        internal static byte StepByte(ushort field) { int v = StepOf(field); if (v < -128 || v > 127) throw new ArgumentException("position step"); return unchecked((byte)(sbyte)v); }
+        /// <summary>A step (-128..127) as the X/Y field value.</summary>
+        public static ushort FieldOfStep(int step) { if (step < -128 || step > 127) throw new ArgumentOutOfRangeException(nameof(step)); return unchecked((ushort)(short)step); }
     }
 
     public enum EventKind : byte { Death = 1, Bounty = 2, MatchEnded = 3, Result = 4, PickupRefused = 5, ChestRefused = 6, PotionNotice = 7, WindEmblem = 8, CannonNotice = 9, Toast = 10 }
@@ -1282,10 +1373,11 @@ namespace Roguehalla.Net.Protocol
                     a.Id = prev;
                     a.Mask = r.Varint();
                     if ((a.Mask & ~ActorDelta.MAll) != 0) throw new DecodeException(DecodeError.BadField, "actor mask");
-                    if ((a.Mask & ActorDelta.MX) != 0) a.X = r.U16();
-                    if ((a.Mask & ActorDelta.MY) != 0) a.Y = r.U16();
-                    if ((a.Mask & ActorDelta.MFacing) != 0) a.Facing = r.U16();
-                    if ((a.Mask & ActorDelta.MKit) != 0) a.Kit = r.U8();
+                    bool step = (a.Mask & ActorDelta.MStep) != 0;
+                    if (step && (a.Mask & (ActorDelta.MX | ActorDelta.MY)) == 0) throw new DecodeException(DecodeError.BadField, "position step");
+                    if ((a.Mask & ActorDelta.MX) != 0) a.X = step ? ActorDelta.FieldOfStep(unchecked((sbyte)r.U8())) : r.U16();
+                    if ((a.Mask & ActorDelta.MY) != 0) a.Y = step ? ActorDelta.FieldOfStep(unchecked((sbyte)r.U8())) : r.U16();
+                    if ((a.Mask & ActorDelta.MFacing) != 0) a.Facing = (ushort)(r.U8() << 8);
                     if ((a.Mask & ActorDelta.MHp) != 0) { a.HpPct = r.U8(); if (a.HpPct > 100) throw new DecodeException(DecodeError.BadField, "hp_pct"); }
                     if ((a.Mask & ActorDelta.MBounty) != 0) a.Bounty = r.VarintU16("bounty");
                     if ((a.Mask & ActorDelta.MStatus) != 0) a.Status = r.Code(Wire.MaxStatusCode, "status");
@@ -1295,6 +1387,8 @@ namespace Roguehalla.Net.Protocol
                     if ((a.Mask & ActorDelta.MMobType) != 0) a.MobTypeCode = r.Code(30,"mob type");
                     if ((a.Mask & ActorDelta.MSig) != 0) a.Sig = r.U8();
                     if ((a.Mask & ActorDelta.MBarrier) != 0) { a.BarrierPct = r.U8(); a.BarrierRingStep = r.U8(); if (a.BarrierPct > 100 || a.BarrierRingStep > 8) throw new DecodeException(DecodeError.BadField, "barrier"); }
+                    if ((a.Mask & ActorDelta.MWindup) != 0) a.Windup = WireWindup.Read(ref r, true);
+                    if ((a.Mask & ActorDelta.MKit) != 0) a.Kit = r.U8();
                     d.Changed[i] = a;
                 }
                 d.DepartedCount = 0;
@@ -1373,10 +1467,11 @@ namespace Roguehalla.Net.Protocol
                     w.Varint(i == 0 ? a.Id : a.Id - Changed[i - 1].Id);
                     if ((a.Mask & ActorDelta.MMobType)!=0 && a.MobTypeCode>30) throw new ArgumentException("mob type");
                     w.Varint(a.Mask & ActorDelta.MAll);
-                    if ((a.Mask & ActorDelta.MX) != 0) w.U16(a.X);
-                    if ((a.Mask & ActorDelta.MY) != 0) w.U16(a.Y);
-                    if ((a.Mask & ActorDelta.MFacing) != 0) w.U16(a.Facing);
-                    if ((a.Mask & ActorDelta.MKit) != 0) w.U8(a.Kit);
+                    bool step = (a.Mask & ActorDelta.MStep) != 0;
+                    if (step && (a.Mask & (ActorDelta.MX | ActorDelta.MY)) == 0) throw new ArgumentException("position step");
+                    if ((a.Mask & ActorDelta.MX) != 0) { if (step) w.U8(ActorDelta.StepByte(a.X)); else w.U16(a.X); }
+                    if ((a.Mask & ActorDelta.MY) != 0) { if (step) w.U8(ActorDelta.StepByte(a.Y)); else w.U16(a.Y); }
+                    if ((a.Mask & ActorDelta.MFacing) != 0) { if ((a.Facing & 0xff) != 0) throw new ArgumentException("remote facing"); w.U8((byte)(a.Facing >> 8)); }
                     if ((a.Mask & ActorDelta.MHp) != 0) w.U8(a.HpPct);
                     if ((a.Mask & ActorDelta.MBounty) != 0) w.Varint(a.Bounty);
                     if ((a.Mask & ActorDelta.MStatus) != 0) w.U8(a.Status);
@@ -1386,6 +1481,8 @@ namespace Roguehalla.Net.Protocol
                     if ((a.Mask & ActorDelta.MMobType) != 0) w.U8(a.MobTypeCode);
                     if ((a.Mask & ActorDelta.MSig) != 0) w.U8(a.Sig);
                     if ((a.Mask & ActorDelta.MBarrier) != 0) { if (a.BarrierPct > 100 || a.BarrierRingStep > 8) throw new ArgumentException("barrier"); w.U8(a.BarrierPct); w.U8(a.BarrierRingStep); }
+                    if ((a.Mask & ActorDelta.MWindup) != 0) a.Windup.Write(w, true);
+                    if ((a.Mask & ActorDelta.MKit) != 0) w.U8(a.Kit);
                 }
                 if (DepartedCount > 0)
                 {

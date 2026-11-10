@@ -136,10 +136,14 @@ namespace Roguehalla.Net
             _t.Opened += OnOpened;
             _t.Received += OnReceived;
             _t.Closed += OnClosed;
+            Input.OrderClock = IssueMs;
             Input.CastQueued += command => { if (Motion != null) Motion.NoteNonMovementOrder(command, Now); };
         }
 
         double Now { get { return _o.Now(); } }
+
+        /// <summary>The estimate of server sim ms right now, stamped on a move order at the click (no render delay subtracted); null before the first pong.</summary>
+        double? IssueMs() { return Sync.HasSample ? (double?)Sync.ServerNowMs(Now) : null; }
 
         void Set(SessionState s)
         {

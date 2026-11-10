@@ -34,7 +34,7 @@ namespace Roguehalla.Net.Tests
             throw new KeyNotFoundException(name);
         }
 
-        [Test] public void FixtureIsProtocolV14() { Assert.AreEqual(14, Wire.ProtocolVersion); Assert.AreEqual(Wire.ProtocolVersion, Fixture().GetProperty("protocol").GetInt32()); }
+        [Test] public void FixtureIsProtocolV15() { Assert.AreEqual(15, Wire.ProtocolVersion); Assert.AreEqual(Wire.ProtocolVersion, Fixture().GetProperty("protocol").GetInt32()); }
 
         [TestCaseSource(nameof(ClientVectors))]
         public void ClientVectorRoundTripsByteForByte(string name, string hex)
@@ -305,7 +305,7 @@ namespace Roguehalla.Net.Tests
             Assert.AreEqual((ushort)2, s.Me.Kills); Assert.AreEqual((ushort)0, s.Me.Bounty); Assert.AreEqual((ushort)20, s.Me.Gv); Assert.AreEqual((byte)7, s.Me.MoveSeq);
             Assert.AreEqual(1, s.Actors.Length);
             var a = s.Actors[0];
-            Assert.AreEqual(1u, a.Id); Assert.AreEqual(456f, a.X); Assert.AreEqual(320f, a.Y); Assert.AreEqual(-0.99996376f, a.Facing); // -1 rad, quantized to 2 pi / 65536
+            Assert.AreEqual(1u, a.Id); Assert.AreEqual(456f, a.X); Assert.AreEqual(320f, a.Y); Assert.AreEqual(-1.0062914f, a.Facing); // -1 rad, quantized to the remote 8-bit grid (2 pi / 256)
             Assert.AreEqual((byte)87, a.HpPct); Assert.AreEqual((ushort)28, a.Bounty);
 
             var sp = Server<ServerMsg.Snapshot>("snapshot_spectator");
@@ -399,6 +399,22 @@ namespace Roguehalla.Net.Tests
                         Assert.AreEqual(it.GetProperty("victim").GetUInt32(), f.Victim); Assert.AreEqual(it.GetProperty("by").GetUInt32(), f.By);
                         Assert.AreEqual(it.GetProperty("amountBits").GetInt64(), (long)(uint)Bits(f.Amount));
                     }
+                }
+                return;
+            }
+            if (msg is ServerMsg.State tracksState && d.TryGetProperty("projectiles", out var expectedTracks))
+            {
+                Assert.AreEqual(d.GetProperty("tick").GetUInt32(), tracksState.Tick);
+                var rows = ((ProjectilesState)System.Array.Find(tracksState.Items, i => i is ProjectilesState)).Rows;
+                Assert.AreEqual(expectedTracks.GetArrayLength(), rows.Length);
+                for (int i = 0; i < rows.Length; i++)
+                {
+                    var e = expectedTracks[i]; var p = rows[i];
+                    Assert.AreEqual(e.GetProperty("track").GetUInt32(), p.Track); Assert.AreEqual(e.GetProperty("kind").GetByte(), p.Kind);
+                    Assert.AreEqual(e.GetProperty("x").GetUInt16(), p.X); Assert.AreEqual(e.GetProperty("y").GetUInt16(), p.Y);
+                    Assert.AreEqual(e.GetProperty("facing").GetUInt16(), p.Facing); Assert.AreEqual(e.GetProperty("speed").GetUInt16(), p.Speed);
+                    Assert.AreEqual(e.GetProperty("tick").GetUInt32(), p.Tick);
+                    var owner = e.GetProperty("owner"); Assert.AreEqual(owner.ValueKind == JsonValueKind.Null ? (uint?)null : owner.GetUInt32(), p.Owner);
                 }
                 return;
             }
@@ -699,6 +715,13 @@ namespace Roguehalla.Net.Tests
                 Assert.AreEqual(e.GetProperty("kind").GetByte(), a.Kind);
                 Assert.AreEqual(e.GetProperty("effects").GetUInt16(), a.Effects); Assert.AreEqual(e.GetProperty("displaceSeq").GetByte(), a.DisplaceSeq); Assert.AreEqual(e.GetProperty("mobTypeCode").GetByte(),a.MobTypeCode); Assert.AreEqual(e.GetProperty("sig").GetByte(),a.Sig);
                 Assert.AreEqual(e.GetProperty("barrierPct").GetByte(), a.BarrierPct); Assert.AreEqual(e.GetProperty("barrierRingStep").GetByte(), a.BarrierRingStep);
+                var wu = e.GetProperty("windup");
+                if (wu.ValueKind == JsonValueKind.Null) Assert.IsFalse(a.Windup.Active, "no windup");
+                else
+                {
+                    Assert.AreEqual(wu.GetProperty("kind").GetByte(), a.Windup.Kind); Assert.AreEqual(wu.GetProperty("startedAt").GetUInt32(), a.Windup.StartedAt);
+                    Assert.AreEqual(wu.GetProperty("duration").GetUInt16(), a.Windup.Duration); Assert.AreEqual(wu.GetProperty("aim").GetUInt16(), a.Windup.Aim);
+                }
             }
         }
 
@@ -724,6 +747,7 @@ namespace Roguehalla.Net.Tests
             switch (name)
             {
                 case "empty": case "truncated_snapshot": case "self_truncated": case "actor_count_without_actors": want = DecodeError.Truncated; break;
+                case "actor_windup_cast_truncated_aim": want = DecodeError.Truncated; break;
                 case "projectile_owner_flag": case "hit_bad_passive": case "wish_option_over_1": case "wish_fx_option_over_1": want = DecodeError.BadTag; break;
                 case "projectile_kind": case "projectile_owner_zero":
                 case "potion_notice_zero": case "potion_notice_unknown":
@@ -736,6 +760,8 @@ namespace Roguehalla.Net.Tests
                 case "owner_combat_nonfinite_mirror": case "owner_combat_fractional_mirror": case "owner_combat_below_min_mirror":
                 case "delta_owner_combat_option_unknown": case "delta_owner_combat_bad_lock": case "delta_owner_combat_zero_target": case "delta_owner_combat_nonfinite_mirror": case "delta_owner_combat_available_without_self":
                 case "actor_mob_type_over_30": case "delta_actor_mob_type_over_30":
+                case "actor_windup_kind_zero": case "actor_windup_kind_three": case "actor_windup_duration_over_u16": case "delta_actor_windup_kind_three":
+                case "projectile_track_zero": case "projectile_tracks_not_ascending": case "delta_actor_step_without_position":
                 case "snapshot_giver_kit_default": case "snapshot_giver_kit_half": case "snapshot_giver_kit_half_weapon": case "snapshot_giver_mob_type": want = DecodeError.BadField; break;
                 case "chest_bad_reason_zero": case "chest_bad_reason_unknown":
                 case "pickup_bad_reason_zero": case "pickup_bad_reason_unknown":
@@ -746,7 +772,7 @@ namespace Roguehalla.Net.Tests
                 case "state_truncated": case "state_reward_kill_truncated_key": case "state_reward_kill_truncated_gain":
                 case "cannon_notice_missing_seconds": want = DecodeError.Truncated; break;
                 case "overlong_varint": case "varint_past_u32": case "varint_too_long": case "head_overlong_varint": case "actor_mask_overlong_varint":
-                case "projectile_owner_overlong": case "delta_head_overlong_varint":
+                case "projectile_owner_overlong": case "delta_head_overlong_varint": case "projectile_tick_overlong":
                     want = DecodeError.BadVarint; break;
                 case "state_too_many_keys": case "state_too_many_props": case "state_too_many_fields": case "state_too_many_projectiles": case "state_too_many_camps": case "state_too_many_rewards": case "state_reward_options_too_many":
                 case "state_quest_roster_over_limit": case "state_quest_rows_over_limit": case "state_quest_participants_over_limit":
@@ -779,7 +805,7 @@ namespace Roguehalla.Net.Tests
                 case "delta_departed_empty": case "delta_departed_id_gap_zero":
                     want = DecodeError.BadField; break;
                 case "delta_too_many_actors": case "delta_departed_too_many": want = DecodeError.TooMany; break;
-                case "delta_truncated": want = DecodeError.Truncated; break;
+                case "delta_truncated": case "delta_actor_step_truncated": want = DecodeError.Truncated; break;
                 case "delta_trailing_byte": want = DecodeError.Trailing; break;
                 case "reject_code_zero": want = DecodeError.BadTag; break;
                 case "server_bad_utf8": case "state_trade_label_bad_utf8": want = DecodeError.BadUtf8; break;
@@ -904,7 +930,7 @@ namespace Roguehalla.Net.Tests
             var full = Server<ServerMsg.SnapshotDelta>("snapshot_delta");
             Assert.AreEqual(1000000u, full.Tick); Assert.AreEqual(999990u, full.BaseTick); Assert.IsTrue(full.HasPhase); Assert.AreEqual((byte)2, full.Phase);
             Assert.IsTrue(full.HasSelf); Assert.AreEqual(2, full.ChangedCount); Assert.AreEqual(2, full.DepartedCount);
-            Assert.AreEqual(70000u, full.Departed[1]); Assert.AreEqual(128u, full.Changed[1].Id); Assert.AreEqual(ActorDelta.MAll, full.Changed[1].Mask);
+            Assert.AreEqual(70000u, full.Departed[1]); Assert.AreEqual(128u, full.Changed[1].Id); Assert.AreEqual(ActorDelta.MAll & ~ActorDelta.MStep, full.Changed[1].Mask, "every field in absolute form");
         }
 
         [Test]

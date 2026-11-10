@@ -22,7 +22,7 @@
 </main>
 <script>
 "use strict";
-// ---- protocol v14 (mirror of crates/rh-protocol; tools/protocol-js/check-vectors.mjs holds this block to protocol/fixtures/v14.json) ----
+// ---- protocol v15 (mirror of crates/rh-protocol; tools/protocol-js/check-vectors.mjs holds this block to protocol/fixtures/v15.json) ----
 class W {
   constructor() { this.b = new Uint8Array(256); this.n = 0; this.v = new DataView(this.b.buffer); }
   need(k) { if (this.n + k > this.b.length) { const nb = new Uint8Array(this.b.length * 2 + k); nb.set(this.b); this.b = nb; this.v = new DataView(nb.buffer); } }
@@ -119,7 +119,7 @@ function checkTerrainAgainstCollision(collisionBuf, collision, terrainBuf, terra
     const take = Math.min(an, bn); an -= take; bn -= take; left -= take;
   }
 }
-const PROTOCOL = 14;
+const PROTOCOL = 15;
 const MAX_TICKET = 448;
 const MAX_QUEST_VIEW_BYTES = 24 * 1024;
 const MAX_TRADE_VIEW_BYTES = 2213;
@@ -139,7 +139,11 @@ function input(seq, cmds) {
   if (cmds.length > 16) throw new Error("too many commands");
   const w = new W(); w.u8(2); w.u32(seq); w.u16(cmds.length);
   for (const c of cmds) {
-    if (c.k === "move" || c.k === "attackMove") { w.u8(c.k === "move" ? 1 : 11); w.f32(c.x); w.f32(c.y); if (c.seq == null) w.u8(0); else { w.u8(1); w.u8(c.seq); } }
+    if (c.k === "moveAt" || c.k === "attackMoveAt") {
+      if (!Number.isFinite(c.x) || !Number.isFinite(c.y) || !Number.isFinite(Math.fround(c.x)) || !Number.isFinite(Math.fround(c.y)) || !Number.isFinite(c.t)) throw new Error("non-finite");
+      w.u8(c.k === "moveAt" ? 19 : 20); w.f32(c.x); w.f32(c.y); if (c.seq == null) w.u8(0); else { w.u8(1); w.u8(c.seq); } w.f64(c.t);
+    }
+    else if (c.k === "move" || c.k === "attackMove") { w.u8(c.k === "move" ? 1 : 11); w.f32(c.x); w.f32(c.y); if (c.seq == null) w.u8(0); else { w.u8(1); w.u8(c.seq); } }
     else if (c.k === "swap") { if (c.slot != null && c.slot !== 0 && c.slot !== 1) throw new Error("bad slot"); w.u8(6); if (c.slot == null) w.u8(0); else { w.u8(1); w.u8(c.slot); } }
     else if (c.k === "pickup") { if (!Number.isInteger(c.handle) || c.handle <= 0 || c.handle > 0xffffffff) throw new Error("bad container"); w.u8(7); w.u32(c.handle); }
     else if(c.k === "choose") { if(!Number.isInteger(c.handle) || c.handle<=0 || c.handle>0xffffffff || !Number.isInteger(c.pick) || c.pick < -1 || c.pick > 2) throw new Error("bad reward choice"); w.u8(8);w.u32(c.handle);w.u8(c.pick & 255); }
@@ -198,6 +202,11 @@ function decodeClient(buf) {
     for (let i = 0; i < n; i++) {
       const k = r.u8(); let c;
       if (k === 1 || k === 11) c = { k: k===1 ? "move" : "attackMove", x: finite(r.f32()), y: finite(r.f32()), seq: r.opt(() => r.u8()) };
+      else if (k === 19 || k === 20) {
+        // The stamp t is the client's server-time estimate at the click; the server clamps it (a non-finite t is a plain order there).
+        const x = finite(r.f32()), y = finite(r.f32()), seq = strictOpt(r, () => r.u8());
+        c = { k: k === 19 ? "moveAt" : "attackMoveAt", x, y, seq, t: r.f64() };
+      }
       else if(k === 9) c={k:"useConsumable"};
       else if(k === 10) {const actorRef=r.u32();if(!actorRef)throw new Error("bad actor reference");c={k:"target",actorRef};}
       else if(k === 12) {const actorRef=r.u32();if(!actorRef)throw new Error("bad hunt target");c={k:"huntTarget",actorRef};}
@@ -287,6 +296,17 @@ function readWish(r) {
     return { ability, startedAt, landsAt };
   });
   return { ability, readyAt, fullAt, maxCharges, rechargeMs, charges, nextChargeAt, cast };
+}
+// A visible remote actor's bow draw (kind 1) or wand cast (kind 2); presentation only. A draw has no aim on the wire (0 here).
+function readWindup(r) {
+  const kind = r.u8();
+  if (kind !== 1 && kind !== 2) throw new Error("bad windup");
+  return readWindupBody(r, kind);
+}
+function readWindupBody(r, kind) {
+  const startedAt = r.varint(), duration = r.varint();
+  if (duration > 65535) throw new Error("bad windup");
+  return { kind, startedAt, duration, aim: kind === 2 ? r.u16() : 0 };
 }
 function readOwnerBarrier(r) {
   const amount = r.f32(), ring = r.u8();
@@ -442,7 +462,7 @@ function decodeBody(r) {
       if (prev !== null) { id = prev + field; if (field === 0 || id > 0xffffffff) throw new Error("bad actor order"); }
       prev = id;
       const mask = r.varint();
-      if (mask & ~0x3ff) throw new Error("bad actor mask");
+      if (mask & ~0x7ff) throw new Error("bad actor mask");
       const x = dqPos(r.u16()), y = dqPos(r.u16()), facing = dqAngle(r.u16());
       let faction = 0, weapon = 0;
       if (mask & 1) { const k = r.u8(); faction = k & 15; weapon = k >> 4; }
@@ -453,7 +473,8 @@ function decodeBody(r) {
       const kind = (mask & 0x10) ? r.u8() : 0;
       const effects = (mask & 0x20) ? r.u16() : 0, displaceSeq = (mask & 0x40) ? r.u8() : 0, mobTypeCode=(mask & 0x80)?r.code(30,"mob type"):0,sig=(mask & 0x100)?r.u8():0;
       const barrier = (mask & 0x200) ? readActorBarrier(r) : { pct: 0, ring: 0 };
-      s.actors.push({ id, faction, x, y, facing, hpPct, status, weapon, bounty, kind, effects, displaceSeq, mobTypeCode, sig, barrierPct: barrier.pct, barrierRingStep: barrier.ring });
+      const windup = (mask & 0x400) ? readWindup(r) : null;
+      s.actors.push({ id, faction, x, y, facing, hpPct, status, weapon, bounty, kind, effects, displaceSeq, mobTypeCode, sig, barrierPct: barrier.pct, barrierRingStep: barrier.ring, windup });
     }
     if (head & 0x100000) s.ownerCombat = readOwnerCombat(r);
     return s;
@@ -500,12 +521,14 @@ function decodeBody(r) {
       if (prev !== null) { id = prev + field; if (field === 0 || id > 0xffffffff) throw new Error("bad actor order"); }
       prev = id;
       const mask = r.varint();
-      if (mask & ~0x1fff) throw new Error("bad actor mask");
+      if (mask & ~0x7fff) throw new Error("bad actor mask");
       const a = { id, mask };
-      if (mask & 1) a.x = r.u16();
-      if (mask & 2) a.y = r.u16();
-      if (mask & 4) a.facing = r.u16();
-      if (mask & 8) a.kit = r.u8();
+      // STEP (bit 3): each carried axis is one i8 step in 1/8 u from the base actor's grid code instead of an absolute u16.
+      const step = (mask & 8) !== 0;
+      if (step && (mask & 3) === 0) throw new Error("bad position step");
+      if (mask & 1) a.x = step ? (r.need(1), r.v.getInt8(r.p++)) : r.u16();
+      if (mask & 2) a.y = step ? (r.need(1), r.v.getInt8(r.p++)) : r.u16();
+      if (mask & 4) a.facing = r.u8() << 8;
       if (mask & 16) { a.hpPct = r.u8(); if (a.hpPct > 100) throw new Error("bad hp_pct"); }
       if (mask & 32) a.bounty = r.varintU16("bounty");
       if (mask & 64) a.status = r.code(3, "status");
@@ -515,6 +538,8 @@ function decodeBody(r) {
       if (mask & 1024) a.mobTypeCode=r.code(30,"mob type");
       if (mask & 2048) a.sig=r.u8();
       if (mask & 4096) { const barrier = readActorBarrier(r); a.barrierPct = barrier.pct; a.barrierRingStep = barrier.ring; }
+      if (mask & 8192) { const kind = r.u8(); if (kind === 0) a.windup = null; else if (kind === 1 || kind === 2) a.windup = readWindupBody(r, kind); else throw new Error("bad windup"); }
+      if (mask & 16384) a.kit = r.u8();
       d.changed.push(a);
     }
     if (head & 0x80) {
@@ -665,7 +690,11 @@ function readState(r) {
         value.push({ handle: h, x, y, expiresAt, options, picked: flag(), canChoose: flag() });
       }
     } else if(key===7) {
-      value=[];for(let j=0,k=count();j<k;j++)value.push({kind:r.code(1,"projectile"),x:r.u16(),y:r.u16(),facing:r.u16(),owner:actor()});
+      value=[];for(let j=0,k=count();j<k;j++){
+        const track = r.varint(); if (track === 0) throw new Error("bad projectile");
+        if (j > 0 && track <= value[j - 1].track) throw new Error("bad projectile tracks");
+        value.push({track,kind:r.code(1,"projectile"),x:r.u16(),y:r.u16(),facing:r.u16(),speed:r.u16(),tick:r.varint(),owner:actor()});
+      }
     } else if(key===6) {
       value=[];for(let j=0,k=count();j<k;j++){const c={mobType:r.code(29,"camp"),elite:r.code(30,"camp"),alive:r.varint(),state:r.code(2,"camp"),clearedAt:finite(r.f64()),respawnAt:finite(r.f64())};if(c.alive>512||c.clearedAt<0||c.respawnAt<c.clearedAt)throw new Error("bad camp");value.push(c);}
     } else if (key === 8) {
@@ -942,6 +971,12 @@ class Tracker {
         bi++;
       }
     };
+    // A step adds to the base actor's exact grid code (position * 8) and must stay on the u16 grid.
+    const stepPos = (base, step) => {
+      const code = Math.round(base * 8) + step;
+      if (code < 0 || code > 65535) throw refused("position_step");
+      return dqPos(code);
+    };
     const upd = (a, ch) => {
       const n = { ...a, id: ch.id };
       if (ch.mask & 64) n.status = ch.status;
@@ -951,10 +986,11 @@ class Tracker {
       if (ch.mask & 1024) n.mobTypeCode=ch.mobTypeCode;
       if (ch.mask & 2048) n.sig=ch.sig;
       if (ch.mask & 4096) { n.barrierPct = ch.barrierPct; n.barrierRingStep = ch.barrierRingStep; }
-      if (ch.mask & 1) n.x = dqPos(ch.x);
-      if (ch.mask & 2) n.y = dqPos(ch.y);
+      if (ch.mask & 1) n.x = ch.mask & 8 ? stepPos(a.x, ch.x) : dqPos(ch.x);
+      if (ch.mask & 2) n.y = ch.mask & 8 ? stepPos(a.y, ch.y) : dqPos(ch.y);
       if (ch.mask & 4) n.facing = dqAngle(ch.facing);
-      if (ch.mask & 8) { n.faction = ch.kit & 15; n.weapon = ch.kit >> 4; }
+      if (ch.mask & 8192) n.windup = ch.windup;
+      if (ch.mask & 16384) { n.faction = ch.kit & 15; n.weapon = ch.kit >> 4; }
       if (ch.mask & 16) n.hpPct = ch.hpPct;
       if (ch.mask & 32) n.bounty = ch.bounty;
       return n;
@@ -967,8 +1003,9 @@ class Tracker {
         bi++;
       } else {
         // A new actor starts from the default actor and must carry its position (bits 0..2).
+        if (ch.mask & 8) throw refused("position_step");
         if ((ch.mask & 7) !== 7) throw refused("incomplete_new_actor");
-        out.push(upd({ faction: 0, weapon: 0, hpPct: 100, status: 1, bounty: 0, kind: 0, effects: 0, displaceSeq: 0, mobTypeCode:0,sig:0,barrierPct:0,barrierRingStep:0 }, ch));
+        out.push(upd({ faction: 0, weapon: 0, hpPct: 100, status: 1, bounty: 0, kind: 0, effects: 0, displaceSeq: 0, mobTypeCode:0,sig:0,barrierPct:0,barrierRingStep:0,windup:null }, ch));
       }
     }
     flush(null);

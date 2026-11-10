@@ -37,6 +37,25 @@ namespace Roguehalla.Client
         readonly List<PendingFx> _scheduledFx = new List<PendingFx>(MaxScheduledFx);
         double _renderMs;
         bool _renderReady;
+        // The drawn timeline (Session.AttackRenderMs: render time plus the remote draw-ahead lead, never past the newest
+        // snapshot). Remote windups and projectile flights are placed on it so they meet the drawn remote players.
+        double _drawMs, _drawTick;
+        bool _drawReady;
+        // Remote ranged windups (protocol 15): the draw/cast clip is started once per windup when the drawn timeline
+        // enters it, and cut only if the server ends it well before its release. Presentation only; never a rule.
+        struct WindupShown { public uint StartedAt; public double ReleaseAt; public bool Live; }
+        readonly Dictionary<uint, WindupShown> _windups = new Dictionary<uint, WindupShown>(64);
+        readonly List<uint> _windupDrop = new List<uint>(16);
+        // Projectile flights keyed by the server's track alias, drawn every frame on the drawn timeline from their anchor
+        // (NetProjectileView.At). A track the server ended is kept only until the drawn timeline reaches the State that
+        // ended it (bounded like scheduled Fx), so it never outlives the server's end-of-track. A retarget anchored ahead of
+        // the drawn timeline keeps the previous line (Prev) until the drawn tick reaches the new anchor.
+        struct ShotTrack { public NetProjectileView View, Prev; public float OffX, OffY, LastX, LastY, EndedAt; public bool Drawn, Ended, HasPrev; public uint EndTick; }
+        const int MaxShots = 96;
+        const float ShotBlendSeconds = .08f, MaxShotHoldSeconds = .25f;
+        ShotTrack[] _shots = new ShotTrack[MaxShots], _shotsNext = new ShotTrack[MaxShots];
+        int _shotCount;
+        IReadOnlyList<NetProjectileView> _shotSource;
         bool _hasMembership;
         readonly List<Flash> _flashes = new List<Flash>();
         readonly Stack<Flash> _flashPool = new Stack<Flash>();
@@ -58,6 +77,8 @@ namespace Roguehalla.Client
         /// <summary>Starts the attack clip only (no flash, number or sound) for a press the server-sent readiness says will act now.</summary>
         public void ProvisionalAttackCue(uint id) { _actors.ConfirmedCue(id, FxKind.Swing); }
         public void CancelAttackCue(uint id) { _actors.CancelAttackCue(id); }
+        /// <summary>Own Wish telegraph at the press, until any server Wish cue for <paramref name="caster"/> or <paramref name="holdMs"/> (local) ends it.</summary>
+        public void ProvisionalWish(uint caster, AbilityId ability, double holdMs) { _wishes.Provisional(caster, (byte)ability, holdMs); }
 
         void Awake()
         {
@@ -144,6 +165,7 @@ namespace Roguehalla.Client
                 // from appearance or position; draw their latest typed public facts instead.
                 if (_hasMembership && a.Kind != ActorKind.Player) continue;
                 _actors.Present(a.Id, a.X, a.Y, a.Facing, a.HpPct, a.Faction, a.Status, a.Weapon, a.Kind, a.MobType, a.Effects, a.SourceSig, false, a.BarrierPct, a.BarrierRingStep);
+                if (_drawReady) PresentWindup(a.Id, a.Windup, _drawMs);
             }
             if (_hasMembership) PresentLatestNpcs();
             if (me != null && (!_hasMembership || _membership.Contains(me.Id)))
@@ -165,6 +187,11 @@ namespace Roguehalla.Client
             _sourceTimeMs = session != null ? session.ServerTimeMs : 0;
             _renderReady = session != null && session.Clock.Ready;
             _renderMs = _renderReady ? session.Clock.RenderMs : 0;
+            var latest = session != null ? session.Latest : null;
+            _drawReady = _renderReady && latest != null;
+            _drawMs = _drawReady ? session.AttackRenderMs : 0;
+            // Sim tick on the drawn timeline, anchored on the newest snapshot so a source-time override is respected.
+            _drawTick = _drawReady ? latest.Tick + (_drawMs - latest.ServerMs) / Wire.TickMs : 0;
             _latestMembership.Clear();
             if(session!=null && session.Snapshots.Count>0)
             {
@@ -183,6 +210,9 @@ namespace Roguehalla.Client
             }
             if(me!=null) _membership.Add(me.Id);
             _hasMembership=true; _actors.Retain(_membership);
+            _windupDrop.Clear();
+            foreach(var pair in _windups) if(!_membership.Contains(pair.Key)) _windupDrop.Add(pair.Key);
+            foreach(uint id in _windupDrop) _windups.Remove(id);
             _wishes.Retain(_membership);
             // This also runs after Poll/Present, before rendering, so new observer handles
             // are visible immediately and removed handles leave no cosmetic residue.
@@ -194,7 +224,33 @@ namespace Roguehalla.Client
         void PresentLatestNpcs()
         {
             foreach(var a in _latestNpcs)
+            {
                 _actors.Present(a.Id,a.X,a.Y,a.Facing,a.HpPct,a.Faction,a.Status,a.Weapon,a.Kind,a.MobType,a.Effects,a.SourceSig,false,a.BarrierPct,a.BarrierRingStep);
+                // NPCs are drawn at their newest delivered pose, so their windup uses the newest server time.
+                if(_drawReady) PresentWindup(a.Id,a.Windup,_sourceTimeMs);
+            }
+        }
+
+        /// <summary>
+        /// Shows a server-sent ranged windup (bow draw or wand cast) through the existing attack clip path at the moment the
+        /// given timeline (server sim ms, the clock of <see cref="WireWindup.StartedAt"/>) enters it. No hit, release or
+        /// projectile is implied: the arrow or bolt is drawn only from the server's projectile tracks.
+        /// </summary>
+        void PresentWindup(uint id, WireWindup w, double atMs)
+        {
+            bool has = _windups.TryGetValue(id, out var seen);
+            if (w.Active && atMs >= w.StartedAt && atMs < w.ReleaseAt)
+            {
+                if (has && seen.Live && seen.StartedAt == w.StartedAt) return;
+                _actors.ConfirmedCue(id, FxKind.Swing); // bow Shoot or wand Cast clip, chosen by the drawn weapon
+                _windups[id] = new WindupShown { StartedAt = w.StartedAt, ReleaseAt = w.ReleaseAt, Live = true };
+                return;
+            }
+            if (!has || !seen.Live || w.Active && w.StartedAt == seen.StartedAt) return;
+            // The shown windup is gone. Well before its release time the server cancelled it (stun, swap, death): cut the
+            // clip. Near the release it simply released (the sample may lead the release by up to a tick).
+            if (atMs < seen.ReleaseAt - 2 * Wire.TickMs) _actors.CancelAttackCue(id);
+            seen.Live = false; _windups[id] = seen;
         }
 
         public void PresentCollections(CollectionsView collections)
@@ -267,15 +323,100 @@ namespace Roguehalla.Client
                     if(_catalog!=null && _catalog.Chest!=null) {art.sprite=_catalog.Chest;art.transform.position=p;art.transform.localScale=Vector3.one*1.6f;}
                     if (chest.CanChoose) Prop("rune", p + new Vector3(0, 1), new Vector2(.3f, .4f), new Color(1, .85f, .46f), order + 2);
                 }
-                foreach (var shot in collections.Projectiles)
-                {
-                    var p = WorldPoint(shot.X, shot.Y); bool arrow = shot.Kind == ProjectileKind.Arrow;
-                    var r = Prop(arrow ? "spark" : "glow", p, arrow ? new Vector2(.6f, .14f) : new Vector2(.7f, .7f),
-                        arrow ? new Color(1.6f, 1.25f, .6f) : new Color(1.5f, .55f, 2), 29000);
-                    r.transform.rotation = Quaternion.Euler(0, 0, -shot.Facing * Mathf.Rad2Deg);
-                }
             }
+            SyncShots(collections);
+            DrawShots();
             for (int i = _used; i < _props.Count; i++) _props[i].gameObject.SetActive(false);
+        }
+
+        /// <summary>
+        /// Merges a newly applied projectile list (a complete replacement per State) into the drawn tracks, keyed by alias.
+        /// A changed line on a kept alias (a homing retarget) blends from the drawn point onto the new line; a missing alias
+        /// is the server's end-of-track. Runs only when the list instance changes; allocation-free.
+        /// </summary>
+        void SyncShots(CollectionsView collections)
+        {
+            var rows = collections != null ? collections.Projectiles : null;
+            if (ReferenceEquals(rows, _shotSource)) return;
+            _shotSource = rows;
+            uint endTick = collections != null ? collections.Tick : 0;
+            float now = Time.unscaledTime;
+            int n = 0;
+            if (rows != null)
+                for (int i = 0; i < rows.Count && n < MaxShots; i++)
+                {
+                    var v = rows[i];
+                    var s = new ShotTrack { View = v };
+                    int old = FindLiveShot(v.Track);
+                    if (old >= 0)
+                    {
+                        var o = _shots[old];
+                        s.OffX = o.OffX; s.OffY = o.OffY; s.LastX = o.LastX; s.LastY = o.LastY; s.Drawn = o.Drawn;
+                        s.Prev = o.Prev; s.HasPrev = o.HasPrev;
+                        bool retarget = o.View.X != v.X || o.View.Y != v.Y || o.View.Facing != v.Facing || o.View.Speed != v.Speed || o.View.Tick != v.Tick;
+                        // Keep drawing the line already on screen until the drawn timeline reaches the new anchor (DrawShots).
+                        if (retarget && o.Drawn && !o.HasPrev) { s.Prev = o.View; s.HasPrev = true; }
+                    }
+                    _shotsNext[n++] = s;
+                }
+            for (int i = 0; i < _shotCount && n < MaxShots; i++)
+            {
+                var o = _shots[i];
+                if (collections != null && collections.TryGetProjectile(o.View.Track, out _)) continue; // live (merged above)
+                if (!o.Ended) { o.Ended = true; o.EndTick = endTick; o.EndedAt = now; }
+                _shotsNext[n++] = o;
+            }
+            var swap = _shots; _shots = _shotsNext; _shotsNext = swap;
+            _shotCount = n;
+        }
+        int FindLiveShot(uint track)
+        {
+            for (int i = 0; i < _shotCount; i++) if (!_shots[i].Ended && _shots[i].View.Track == track) return i;
+            return -1;
+        }
+        /// <summary>A server line at the drawn tick (the library rule, never a local physics step).</summary>
+        void ShotLine(in NetProjectileView v, out float x, out float y)
+        {
+            if (_drawReady) v.At(_drawTick, out x, out y);
+            else { x = v.X; y = v.Y; }
+        }
+        void DrawShots()
+        {
+            const double MaxLeadTicks = MaxFxLeadMs / Wire.TickMs;
+            float now = Time.unscaledTime, decay = Mathf.Exp(-Time.unscaledDeltaTime / ShotBlendSeconds);
+            int keep = 0;
+            for (int i = 0; i < _shotCount; i++)
+            {
+                var s = _shots[i];
+                // An ended flight lasts until the drawn timeline reaches the State that ended it, within the Fx bounds.
+                if (s.Ended && (!_drawReady || _drawTick >= s.EndTick || s.EndTick - _drawTick > MaxLeadTicks || now - s.EndedAt > MaxShotHoldSeconds))
+                    continue;
+                s.OffX *= decay; s.OffY *= decay;
+                if (s.HasPrev && (!_drawReady || _drawTick >= s.View.Tick || s.View.Tick - _drawTick > MaxLeadTicks))
+                {
+                    // The drawn timeline reached the retarget: switch lines, blending from the drawn point.
+                    s.HasPrev = false;
+                    ShotLine(s.View, out float nx, out float ny);
+                    s.OffX = s.LastX - nx; s.OffY = s.LastY - ny;
+                }
+                // A new flight anchored ahead of the drawn timeline waits for it, so it leaves the bow when the drawn archer
+                // releases. One anchored in the past (lag compensation) appears at its current point on the line.
+                bool due = s.Drawn || !_drawReady || _drawTick >= s.View.Tick || s.View.Tick - _drawTick > MaxLeadTicks;
+                if (due)
+                {
+                    float x, y, facing;
+                    if (s.HasPrev) { ShotLine(s.Prev, out x, out y); facing = s.Prev.Facing; }
+                    else { ShotLine(s.View, out x, out y); facing = s.View.Facing; }
+                    x += s.OffX; y += s.OffY;
+                    s.LastX = x; s.LastY = y; s.Drawn = true;
+                    bool arrow = s.View.Kind == ProjectileKind.Arrow;
+                    var r = Prop(arrow ? "spark" : "glow", WorldPoint(x, y), arrow ? new Vector2(.6f, .14f) : new Vector2(.7f, .7f),
+                        arrow ? new Color(1.6f, 1.25f, .6f) : new Color(1.5f, .55f, 2), 29000);
+                    r.transform.rotation = Quaternion.Euler(0, 0, -facing * Mathf.Rad2Deg);
+                }
+                _shots[keep++] = s;
+            }
+            _shotCount = keep;
         }
         SpriteRenderer Prop(string sprite, Vector3 p, Vector2 scale, Color color, int order)
         {
@@ -349,6 +490,8 @@ namespace Roguehalla.Client
             _sourceTimeMs = serverTimeMs;
             _pendingFx.Clear();
             _scheduledFx.Clear();
+            _windups.Clear();
+            _shotCount = 0; _shotSource = null;
             _wishes.Reset();
             OwnCue?.Reset();
             for (int i = _flashes.Count - 1; i >= 0; i--)

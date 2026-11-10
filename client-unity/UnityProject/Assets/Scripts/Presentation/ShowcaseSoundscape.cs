@@ -5,7 +5,10 @@ using UnityEngine;
 
 namespace Roguehalla.Client
 {
-    /// <summary>Plays only server-delivered sound cues; it does not predict gameplay actions.</summary>
+    /// <summary>
+    /// Plays server-delivered sound cues. The one exception is the own melee swing sound, played at the click together with
+    /// the provisional own attack clip (<see cref="PlayOwnSwing"/>); it predicts no hit and no outcome.
+    /// </summary>
     public sealed class ShowcaseSoundscape : MonoBehaviour
     {
         const int SfxPoolSize = 8;
@@ -44,6 +47,27 @@ namespace Roguehalla.Client
         ShowcaseCatalog _catalog;
         ShowcaseAudio _configuredAudio;
         int _swingIndex, _hitIndex, _blockIndex, _wishIndex, _eventIndex, _deathIndex;
+        // The first server Swing for the own actor after a click-time swing sound is not played again (same window as
+        // OwnAttackCue.AbsorbWindowMs). Cleared when the provisional clip is cancelled or the timeline resets.
+        const double OwnSwingAbsorbSeconds = 1.5;
+        uint _ownSwingActor;
+        double _ownSwingUntil;
+
+        /// <summary>
+        /// Plays the own melee swing sound now, for an attack clip started at the click. Bow and wand get no server Swing
+        /// cue to move earlier, so they stay silent here.
+        /// </summary>
+        public void PlayOwnSwing(uint actor, WeaponId weapon)
+        {
+            if (actor == 0 || weapon == WeaponId.Bow || weapon == WeaponId.Wand) return;
+            if (_voices == null || _client == null || _client.Arena == null || !_client.Arena.IsObserved(actor)) return;
+            PlayCue(SwingCue((byte)weapon), Catalog != null ? Catalog.Swings : null, actor, _swingIndex++);
+            _ownSwingActor = actor;
+            _ownSwingUntil = Time.realtimeSinceStartupAsDouble + OwnSwingAbsorbSeconds;
+        }
+
+        /// <summary>The provisional clip was cut: the next server swing for this actor plays normally.</summary>
+        public void CancelOwnSwing() { _ownSwingActor = 0; }
 
         /// <summary>Call from bootstrap after adding this component to the match root.</summary>
         public void Initialize(MatchClient client)
@@ -182,6 +206,7 @@ namespace Roguehalla.Client
 
         public void ResetTransientCues()
         {
+            _ownSwingActor = 0;
             _pendingFxCount = 0;
             _pendingEventCount = 0;
             StopAllVoices();
@@ -189,6 +214,7 @@ namespace Roguehalla.Client
 
         void DetachSession()
         {
+            _ownSwingActor = 0;
             _pendingFxCount = 0;
             _pendingEventCount = 0;
             StopAllVoices();
@@ -269,6 +295,12 @@ namespace Roguehalla.Client
                 {
                     case FxKind.Swing:
                         if (!_client.Arena.IsObserved(cue.Actor)) continue;
+                        if (_ownSwingActor != 0 && cue.Actor == _ownSwingActor)
+                        {
+                            bool absorbed = Time.realtimeSinceStartupAsDouble <= _ownSwingUntil;
+                            _ownSwingActor = 0;
+                            if (absorbed) continue; // already heard at the click
+                        }
                         PlayCue(SwingCue(cue.Weapon), Catalog != null ? Catalog.Swings : null, cue.Actor, _swingIndex++);
                         break;
                     case FxKind.Hit:

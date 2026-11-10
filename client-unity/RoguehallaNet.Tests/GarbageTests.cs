@@ -109,9 +109,9 @@ namespace Roguehalla.Net.Tests
         {
             double withMe = DecodeGarbage(actors, true), spectator = DecodeGarbage(actors, false);
             TestContext.Progress.WriteLine("plain decode, {0} actors: {1} B with a self, {2} B without", actors, withMe, spectator);
-            // Snapshot object (64 B) + array header (24 B) + 32 B per actor (v12 barrier share); a self adds one 88 B object (wish and barrier owner facts). No reader object.
-            Assert.LessOrEqual(spectator, 32.0 * actors + 88);
-            Assert.LessOrEqual(withMe, 32.0 * actors + 176);
+            // Snapshot object (64 B) + array header (24 B) + 40 B per actor (v15 flat windup fields); a self adds one 88 B object (wish and barrier owner facts). No reader object.
+            Assert.LessOrEqual(spectator, 40.0 * actors + 88);
+            Assert.LessOrEqual(withMe, 40.0 * actors + 176);
         }
 
         /// <summary>Decode into the buffer's spare, as Session does. <paramref name="vary"/> alternates the actor count every
@@ -142,7 +142,7 @@ namespace Roguehalla.Net.Tests
             double steady = PooledGarbage(actors, false), varying = PooledGarbage(actors, true);
             TestContext.Progress.WriteLine("decode into spare, {0} actors: {1} B steady, {2} B when the count changes every snapshot", actors, steady, varying);
             Assert.AreEqual(0.0, steady);
-            Assert.LessOrEqual(varying, 32.0 * (actors + 1) + 64);
+            Assert.LessOrEqual(varying, 40.0 * (actors + 1) + 64);
         }
 
         [Test]
@@ -218,7 +218,7 @@ namespace Roguehalla.Net.Tests
             t.Deliver(Snap(BaseTick - 1, actors));
             var d = new ServerMsg.SnapshotDelta { Tick = BaseTick, BaseTick = BaseTick - 1, Phase = 1, HasSelf = true, ChangedCount = actors, Changed = new ActorDelta[actors] };
             d.Me = new SelfDelta { Mask = SelfDelta.FX | SelfDelta.FMoveSeq, X = 401, MoveSeq = 1 };
-            for (int k = 0; k < actors; k++) d.Changed[k] = new ActorDelta { Id = (uint)(2 * k + 1), Mask = ActorDelta.MX | ActorDelta.MFacing, X = (ushort)(800 + k), Facing = 5, Status = 1 };
+            for (int k = 0; k < actors; k++) d.Changed[k] = new ActorDelta { Id = (uint)(2 * k + 1), Mask = ActorDelta.MX | ActorDelta.MFacing, X = (ushort)(800 + k), Facing = 5 << 8, Status = 1 };
             var frame = d.Encode();
             Assert.AreEqual(0x87, frame[0]);
             Assert.AreEqual(1, frame[4], "the age is the byte after the three-byte tick");
@@ -423,9 +423,9 @@ namespace Roguehalla.Net.Tests
         {
             Assert.IsTrue(typeof(WireActor).IsValueType);
             Assert.IsFalse(typeof(WireSelf).IsValueType, "WireSelf stays a class: Snapshot.Me is null for a spectator");
-            Assert.AreEqual(32, System.Runtime.CompilerServices.Unsafe.SizeOf<WireActor>());
-            Assert.AreEqual(36, System.Runtime.CompilerServices.Unsafe.SizeOf<InterpActor>(),
-                "nullable remote faction/weapon add two data bytes and alignment; the raw wire actor stays 32 bytes");
+            Assert.AreEqual(40, System.Runtime.CompilerServices.Unsafe.SizeOf<WireActor>());
+            Assert.AreEqual(48, System.Runtime.CompilerServices.Unsafe.SizeOf<InterpActor>(),
+                "nullable remote faction/weapon add two data bytes and alignment; the raw wire actor is 40 bytes with the flat v15 windup");
         }
 
         [Test]

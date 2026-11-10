@@ -95,17 +95,18 @@ namespace Roguehalla.Net.Protocol
                 if (bi < _count && _actors[bi].Id == ch.Id)
                 {
                     if (di < d.DepartedCount && d.Departed[di] == ch.Id) throw new DeltaException("departed_and_changed", ch.Id.ToString());
-                    _next[o++] = Updated(_actors[bi], ch);
+                    _next[o++] = Updated(_actors[bi], ch, true);
                     bi++;
                 }
                 else
                 {
                     // A new actor starts from the default one: the fields it does not carry are at their defaults.
                     if ((ch.Mask & ActorDelta.MNew) != ActorDelta.MNew) throw new DeltaException("incomplete_new_actor", ch.Id.ToString());
+                    if ((ch.Mask & ActorDelta.MStep) != 0) throw new DeltaException("position_step", ch.Id.ToString()); // a step needs a base position
                     var fresh = default(WireActor);
                     fresh.HpPct = WireActor.DefaultHpPct;
                     fresh.Status = Wire.DefaultStatus;
-                    _next[o++] = Updated(fresh, ch);
+                    _next[o++] = Updated(fresh, ch, false);
                 }
             }
             Flush(d, 0, false, ref bi, ref di, ref o);
@@ -178,11 +179,20 @@ namespace Roguehalla.Net.Protocol
             }
         }
 
-        static WireActor Updated(WireActor a, ActorDelta ch)
+        /// <summary>The grid code a stepped axis lands on; the step must keep it on the u16 grid (the base code is exact).</summary>
+        static ushort Stepped(float basePos, ushort field, uint id)
+        {
+            int code = Quant.QuantizePos(basePos) + ActorDelta.StepOf(field);
+            if (code < 0 || code > ushort.MaxValue) throw new DeltaException("position_step", id.ToString());
+            return (ushort)code;
+        }
+
+        static WireActor Updated(WireActor a, ActorDelta ch, bool hasBase)
         {
             a.Id = ch.Id;
-            if ((ch.Mask & ActorDelta.MX) != 0) a.X = Quant.DequantizePos(ch.X);
-            if ((ch.Mask & ActorDelta.MY) != 0) a.Y = Quant.DequantizePos(ch.Y);
+            bool step = hasBase && (ch.Mask & ActorDelta.MStep) != 0;
+            if ((ch.Mask & ActorDelta.MX) != 0) a.X = Quant.DequantizePos(step ? Stepped(a.X, ch.X, ch.Id) : ch.X);
+            if ((ch.Mask & ActorDelta.MY) != 0) a.Y = Quant.DequantizePos(step ? Stepped(a.Y, ch.Y, ch.Id) : ch.Y);
             if ((ch.Mask & ActorDelta.MFacing) != 0) a.Facing = Quant.DequantizeFacing(ch.Facing);
             if ((ch.Mask & ActorDelta.MKit) != 0) { a.Faction = (byte)(ch.Kit & 0x0f); a.Weapon = (byte)(ch.Kit >> 4); }
             if ((ch.Mask & ActorDelta.MHp) != 0) a.HpPct = ch.HpPct;
@@ -194,6 +204,7 @@ namespace Roguehalla.Net.Protocol
             if ((ch.Mask & ActorDelta.MMobType) != 0) a.MobTypeCode = ch.MobTypeCode;
             if ((ch.Mask & ActorDelta.MSig) != 0) a.Sig = ch.Sig;
             if ((ch.Mask & ActorDelta.MBarrier) != 0) { a.BarrierPct = ch.BarrierPct; a.BarrierRingStep = ch.BarrierRingStep; }
+            if ((ch.Mask & ActorDelta.MWindup) != 0) a.Windup = ch.Windup;
             return a;
         }
 

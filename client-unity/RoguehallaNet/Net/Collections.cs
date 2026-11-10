@@ -10,7 +10,45 @@ namespace Roguehalla.Net
     public enum CardId : byte { SlowBurn, PocketSand, Siphon }
     public enum BoostId : byte { Ad, Ap, Armor, Shield, MaxHp, AttackSpeed, MoveSpeed, Lifesteal }
     public enum ProjectileKind : byte { Arrow=0,Ball=1 }
-    public struct NetProjectileView { public ProjectileKind Kind; public float X,Y,Facing; public uint? Owner; }
+    /// <summary>
+    /// One visible flight (protocol 15). <see cref="Track"/> is this viewer's alias for it: a new alias is a new flight
+    /// (<see cref="IsNew"/>), the same alias with a different line is a retarget such as a homing turn
+    /// (<see cref="Retargeted"/>), and a missing alias means the flight ended or left sight (a re-entry gets a NEW alias).
+    /// X/Y/Facing/<see cref="Tick"/> are the ANCHOR, never the current position: draw at <see cref="At"/> / <see cref="AtMs"/>.
+    /// Rows are ascending by Track. Presentation state only; no hit or range rule lives here.
+    /// </summary>
+    public struct NetProjectileView
+    {
+        public uint Track; public ProjectileKind Kind;
+        /// <summary>Anchor position (world units) and heading (radians) at <see cref="Tick"/>.</summary>
+        public float X, Y, Facing;
+        /// <summary>World units per second along <see cref="Facing"/>.</summary>
+        public float Speed;
+        /// <summary>The anchor's sim tick.</summary>
+        public uint Tick;
+        public uint? Owner;
+        /// <summary>The alias was not in the previous list (a flight entered sight).</summary>
+        public bool IsNew;
+        /// <summary>The alias was in the previous list on a different line (re-anchored in place).</summary>
+        public bool Retargeted;
+
+        /// <summary>Position at render tick <paramref name="tick"/> (fractional allowed; clamped so it never draws before the anchor).</summary>
+        public void At(double tick, out float x, out float y) { ProjectileFlight.At(X, Y, Facing, Speed, Tick, tick, out x, out y); }
+        /// <summary>Position at render time <paramref name="serverMs"/> on the sim clock (tick * 50).</summary>
+        public void AtMs(double serverMs, out float x, out float y) { ProjectileFlight.At(X, Y, Facing, Speed, Tick, serverMs / Wire.TickMs, out x, out y); }
+    }
+
+    /// <summary>The one projectile motion rule the wire defines: a straight line from the anchor, nothing else.</summary>
+    public static class ProjectileFlight
+    {
+        /// <summary>x = ax + cos(f) * speed * (t - tick) * 0.05 (and y with sin), for t clamped to at least the anchor tick.</summary>
+        public static void At(float ax, float ay, float facing, float speed, uint anchorTick, double tick, out float x, out float y)
+        {
+            double dt = tick > anchorTick ? (tick - anchorTick) * (Wire.TickMs / 1000.0) : 0.0;
+            x = (float)(ax + Math.Cos(facing) * speed * dt);
+            y = (float)(ay + Math.Sin(facing) * speed * dt);
+        }
+    }
     public struct CampView { public MobTypeId MobType; public MobTypeId? Elite; public uint Alive; public byte State; public double ClearedAt,RespawnAt; }
     public struct InventoryView { public byte ActiveSlot, PotionSmall, PotionLarge, PotionsHealing; public WeaponId? Slot0, Slot1; }
     public struct PropView
@@ -259,7 +297,16 @@ namespace Roguehalla.Net
         public IReadOnlyList<byte> Cards { get; private set; } = Array.Empty<byte>();
         public IReadOnlyList<byte> Boosts { get; private set; } = Array.Empty<byte>();
         public IReadOnlyList<CampView> Camps { get; private set; } = Array.Empty<CampView>();
+        /// <summary>Visible flight tracks, ascending by <see cref="NetProjectileView.Track"/> (always a <c>NetProjectileView[]</c>).</summary>
         public IReadOnlyList<NetProjectileView> Projectiles { get; private set; } = Array.Empty<NetProjectileView>();
+        /// <summary>Finds a track by its alias (binary search); false when that flight is not visible.</summary>
+        public bool TryGetProjectile(uint track, out NetProjectileView view)
+        {
+            var rows = (NetProjectileView[])Projectiles; int lo = 0, hi = rows.Length;
+            while (lo < hi) { int mid = lo + ((hi - lo) >> 1); if (rows[mid].Track < track) lo = mid + 1; else hi = mid; }
+            if (lo < rows.Length && rows[lo].Track == track) { view = rows[lo]; return true; }
+            view = default(NetProjectileView); return false;
+        }
         public bool HasBuild { get; private set; }
         public PlanView Plan { get; private set; }
         public ArenaView? Arena { get; private set; }
@@ -365,8 +412,18 @@ namespace Roguehalla.Net
                 }
                 else if(item is ProjectilesState projectiles)
                 {
+                    var prev=(NetProjectileView[])Projectiles;
                     var rows=new NetProjectileView[projectiles.Rows.Length];
-                    for(int i=0;i<rows.Length;i++) {var p=projectiles.Rows[i];rows[i]=new NetProjectileView {Kind=(ProjectileKind)p.Kind,X=Quant.DequantizePos(p.X),Y=Quant.DequantizePos(p.Y),Facing=Quant.DequantizeFacing(p.Facing),Owner=p.Owner};}
+                    int pi=0;
+                    for(int i=0;i<rows.Length;i++)
+                    {
+                        var p=projectiles.Rows[i];
+                        var v=new NetProjectileView {Track=p.Track,Kind=(ProjectileKind)p.Kind,X=Quant.DequantizePos(p.X),Y=Quant.DequantizePos(p.Y),Facing=Quant.DequantizeFacing(p.Facing),Speed=p.Speed/8f,Tick=p.Tick,Owner=p.Owner};
+                        while(pi<prev.Length && prev[pi].Track<v.Track) pi++; // both lists ascend by track
+                        if(pi<prev.Length && prev[pi].Track==v.Track) { var o=prev[pi]; v.Retargeted=o.X!=v.X||o.Y!=v.Y||o.Facing!=v.Facing||o.Speed!=v.Speed||o.Tick!=v.Tick; }
+                        else v.IsNew=true;
+                        rows[i]=v;
+                    }
                     Projectiles=rows;
                 }
                 else if(item is CampsState camps)

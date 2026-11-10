@@ -209,7 +209,10 @@ mod tests {
         let sim = source.sim();
         assert_eq!(sim.walk_hints, Some(true));
         assert!(sim.quests && sim.regen && sim.initial_loot && sim.faction_mode.fire_roam());
-        assert!(sim.lag_fairness, "a live source arena plays with lag fairness");
+        assert!(
+            sim.lag_fairness,
+            "a live source arena plays with lag fairness"
+        );
         assert_eq!(sim.abilities, abilities::Mode::Full);
         assert!(matches!(sim.lifecycle, ArenaMode::Source(_)));
         let training = parse("--runtime training").unwrap().unwrap().sim();

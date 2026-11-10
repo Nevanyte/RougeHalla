@@ -52,27 +52,54 @@ As built, and what to confirm:
 - Item 10 replaces the 1 s FIFO with a 50 ms token bucket plus `fq_codel`; the `tc` commands were not run on a host.
 - No number in this wave was measured on a real link. Item 2's metrics are the way to get them.
 
-## Wave 2: needs an owner decision first
+## Wave 2: owner-approved 2026-11-09 (decisions in [ADR 0024](adr/0024-competitive-netcode-presentation-and-lag-fairness.md), Proposed)
 
-| Change | Gain | Decision needed |
+Status key: **built** = in the tree with tests; **partly built** = some of the row; **deferred** = nothing built. "Built" never
+means measured: see the unverified list below.
+
+| Change | Status | What the code does |
 |---|---|---|
-| Cosmetic own-attack feedback at the click (swing clip, bow draw, Wish telegraph) | Own action shows at the click instead of after RTT plus up to 50 ms; the largest felt-latency win found | ADR 0008 and P-NET-1 say "do not predict attacks"; this is animation only, with no outcome predicted |
-| Bounded draw-ahead for remote players | About 40 to 50 ms less display latency for opponent movement | Soft conflict with "Unity holds no game rules"; presentation-only extrapolation |
-| Melee rewinds the attacker's own origin, but the attacker aims from the predicted position | Removes up to 17 to 50 u of self-position error on chase swings | Legacy parity of melee resolution |
-| Projectiles and abilities have no lag compensation | Ranged players at 100 ms RTT must lead by about 34 u while melee need not | Legacy parity; fairness policy |
-| RTT estimator rises slowly and rewind is capped by policy | Makes pong-delay abuse slower and bounded | Fairness policy (also slows adaptation for honest players whose link degrades) |
-| Order budget can drop a Release or Attack during sustained steering plus clicking | No silent loss of combat input when kiting | `rh-sim` intake change; replay determinism of old recordings |
-| Placement score fairness terms | Smaller worst pairwise RTT gap in a room | Placement policy |
+| Cosmetic own-attack feedback at the click (swing clip, bow draw, Wish telegraph) | built | `OwnAttackCue` starts the owner's attack clip on a press that server-sent readiness says will act at once, cuts it if server state rules the action out or no confirmation arrives within RTT + 100 ms (500 ms cap), and absorbs the first server Swing so the clip is not replayed. `MatchClient.StartOwnWishTelegraph` shows a provisional Wish telegraph until the server's cue replaces it; the melee swing sound moves to the click. Bow and wand get no sound early. Switches `OwnAttackFeedback`, `OwnWishTelegraph`. 13 C# tests cover the cue; the scene wiring and the telegraph have none. |
+| Bounded draw-ahead for remote players | built | `RemoteDraw` samples players 50 ms later than the render clock and extrapolates at most 50 ms and 10 u past the newest snapshot, only for a steadily walking live player, through a speed-capped follower; switch `MatchClient.DrawAhead`. Attack, Release and Cast carry `Session.AttackRenderMs` (render time plus the lead, never past the newest snapshot). Not done: wall clipping, any lead for mobs or NPCs, facing extrapolation. 11 C# tests. |
+| Melee rewinds the attacker's own origin, but the attacker aims from the predicted position | built | DEV-009: with `lag_fairness` a swing starts at the attacker's tick-start position; targets are still rewound. `lag_fairness.rs`. |
+| Projectiles and abilities have no lag compensation | built | DEV-010: a player's shot launches `lag - TICK_MS` back (at most 250 ms) and is flown to the clock at once. DEV-011: a unit-target Wish judges range and line of sight against the rewound target. Both are the identity at the one-tick baseline lag. A catching-up shot meets no other flight. |
+| RTT estimator rises slowly and rewind is capped by policy | deferred | Only the Wave 1 window and `MAX_REWIND_MS` (300 ms) apply. The estimator was not changed; `rtt.rs` gained only the clamp of the `MoveAt` stamp. |
+| Order budget can drop a Release or Attack during sustained steering plus clicking | deferred | No `rh-sim` intake change. |
+| Placement score fairness terms | deferred | No placement change. |
 
-## Wave 3: protocol bump (batch into one version)
+All four built server rows sit behind `SimConfig::lag_fairness`: off in `SimConfig::default`, parity, headless, recordings and
+tests; on in the live `rh-server` runtime profiles (`Settings::sim()`). Off, the config hashes as before the field existed, so no
+tape was re-recorded. The deviations are recorded as DEV-009 to DEV-012 in [DEVIATIONS.md](DEVIATIONS.md), still `pending`.
 
-| Change | Gain |
-|---|---|
-| Publish ranged windups to opponents | A 450 to 500 ms telegraph opponents do not get today |
-| Projectile identity and deterministic motion | About 90% fewer projectile bytes; smooth arrows at frame rate |
-| Delta-coded remote positions, 8-bit facing | About 37% of per-actor snapshot bytes |
-| Client send-time stamp on movement orders | Sub-tick ordering fairness, up to 50 ms of order timing |
-| Trim per-tick head and self-block redundancy | 3 to 8 bytes per tick |
+## Wave 3: protocol 15 (one bump; owner-approved)
+
+| Change | Status | What the code does |
+|---|---|---|
+| Publish ranged windups to opponents | built | Snapshot and delta actors carry a bow-draw or wand-cast windup (kind, start, duration, and the aim for a cast only) for actors the viewer sees. Melee swings are not published. `ArenaView.PresentWindup` starts the existing clip when the drawn timeline enters the windup and cuts it on a server cancel. |
+| Projectile identity and deterministic motion | built | State key 7 rows carry a per-viewer track alias and a straight-line anchor (tick, position, facing, speed). The server re-sends a row only on a sighting, an end, a loss of sight or a re-anchor beyond 0.5 u; rows with an NPC owner still change every tick. `ArenaView` draws each flight every frame with `NetProjectileView.At`. The projectile byte saving was not measured. |
+| Delta-coded remote positions, 8-bit facing | built | A changed actor's x and y go as one signed byte each when both fit, else absolute (`AD_STEP`); remote facing in deltas is 1 byte (Full snapshots keep a u16 that the encoder writes as a multiple of 256). Measured with `wirebench` (debug build, 8 bots, payload bytes only): typical 300 to 287 B/s, heavy scrum 619 to 542 B/s. The 37% estimate for a moving crowd was not measured (`--synthetic` was not run). |
+| Client send-time stamp on movement orders | partly built | `MoveAt` and `AttackMoveAt` (commands 19 and 20) carry the click time without the render delay; DEV-012 gives an idle walker up to one tick of credit. A moving walker, a direction change and Stop earn nothing. The C# sender stamps both orders once the first pong exists; the JS probe's helper still sends plain Move. |
+| Trim per-tick head and self-block redundancy | deferred | All four trims were judged not simple and lossless (tick and ack_input need the base to decode, ready_in_ms and the self facing echo risk display and reconcile errors). |
+
+Rust, C# (1004 tests at the last run) and the JS decoder (`probe.html`, `tools/protocol-js`) were all run against `v15.json`
+including malformed frames and delta chains. The earlier Rust-only checkpoint left clients unable to connect at 15; that is closed
+on the decoder side.
+
+### What is unverified
+
+- The Unity scene scripts (`MatchClient`, `ArenaView`, `ConfirmedWishPresenter`, `ShowcaseSoundscape`, `SpriteActorPresenter`) were
+  edited without a Unity editor and have not been compiled. The C# library under `RoguehallaNet` builds and its tests pass.
+- Nothing was measured on a real link. No input-to-photon, perceived-latency, hit-rate or real-network bandwidth number exists for
+  any row; the only byte figures are the `wirebench` runs named above. The `tools/latency` end-to-end run with the new
+  `attackClipStart` mark and the browser proof against protocol 15 were not run.
+- Balance. DEV-009 to DEV-012 were not run through a balance harness, and a lagged player's arrows now reach farther back than
+  before.
+- Visual quality of the draw-ahead blend-back, the provisional clip cut (there is no cross-fade), the Wish telegraph and the
+  windup and projectile drawing was judged from test bounds only, not by eye.
+- Whether opponents seeing a wand cast's start aim and a draw's release time is acceptable public information. It matches legacy.
+- Open edge cases noted by the packets: a rare double swing when an older Swing Fx is still in flight as a new press starts a
+  clip; a long bow windup can outlast its click-time clip; `OwnAttackCue.Update` checks for confirmation before it checks death,
+  stun and weapon change; the draw-ahead's walk cache is keyed by timestamp and cleared on Welcome, not on every source-clock cut.
 
 ## Wave 4: infrastructure and measurement
 

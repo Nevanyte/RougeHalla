@@ -19,6 +19,8 @@ namespace Roguehalla.Net
         public MobTypeId? MobType;
         public byte SourceSig;
         public byte BarrierPct, BarrierRingStep;
+        /// <summary>Protocol 15: the bow draw or wand cast this actor is performing (Kind 0 = none). Times are server ms; compare with the render time.</summary>
+        public WireWindup Windup;
     }
 
     /// <summary>
@@ -127,7 +129,7 @@ namespace Roguehalla.Net
             for (int i = 0; i < cur.Length; i++)
             {
                 ref readonly WireActor c = ref cur[i];
-                var o = new InterpActor { Id = c.Id, Faction = c.Kind == (byte)ActorKind.QuestGiver ? (FactionId?)null : (FactionId)c.Faction, HpPct = c.HpPct, Status = (ActorStatus)c.Status, Weapon = c.Kind == (byte)ActorKind.QuestGiver ? (WeaponId?)null : (WeaponId)c.Weapon, Bounty = c.Bounty, Effects=c.Effects, DisplaceSeq=c.DisplaceSeq, Kind=(ActorKind)c.Kind, MobType=c.MobTypeCode==0?(MobTypeId?)null:(MobTypeId)(c.MobTypeCode-1),SourceSig=c.Sig, BarrierPct=c.BarrierPct, BarrierRingStep=c.BarrierRingStep, X = c.X, Y = c.Y, Facing = c.Facing };
+                var o = new InterpActor { Id = c.Id, Faction = c.Kind == (byte)ActorKind.QuestGiver ? (FactionId?)null : (FactionId)c.Faction, HpPct = c.HpPct, Status = (ActorStatus)c.Status, Weapon = c.Kind == (byte)ActorKind.QuestGiver ? (WeaponId?)null : (WeaponId)c.Weapon, Bounty = c.Bounty, Effects=c.Effects, DisplaceSeq=c.DisplaceSeq, Kind=(ActorKind)c.Kind, MobType=c.MobTypeCode==0?(MobTypeId?)null:(MobTypeId)(c.MobTypeCode-1),SourceSig=c.Sig, BarrierPct=c.BarrierPct, BarrierRingStep=c.BarrierRingStep, Windup = c.Windup, X = c.X, Y = c.Y, Facing = c.Facing };
                 int k = -1;
                 if (merge)
                 {

@@ -64,7 +64,7 @@ fn walked_one_tick(stamp: Option<f64>) -> f64 {
     }
     s.step();
     let to = pos(&s, 1);
-    (to.x - from.x).hypot(to.y - from.y)
+    rh_sim::math::hypot(to.x - from.x, to.y - from.y)
 }
 
 /// A match of three players walking, stopping and attack-moving, each order either unstamped or carrying `stamp(s)`.
@@ -150,7 +150,11 @@ fn without_lag_fairness_every_stamp_is_the_unstamped_match_bit_for_bit() {
     let plain = scenario_with(legacy.clone(), |_| None);
     for ago in [TICK_MS, 20., 1e6] {
         let stamped = scenario_with(legacy.clone(), |s| Some(s.server_time() - ago));
-        assert_eq!(stamped.state_hash(), plain.state_hash(), "stamp {ago} ms old");
+        assert_eq!(
+            stamped.state_hash(),
+            plain.state_hash(),
+            "stamp {ago} ms old"
+        );
     }
     // The same stamps do earn credit with the flag on, so the scenario exercises it.
     let on = scenario(|s| Some(s.server_time() - TICK_MS));
@@ -254,7 +258,7 @@ fn stop_and_go_with_forged_stamps_never_outruns_walking() {
         s.step();
     }
     let to = pos(&s, 1);
-    let d = (to.x - from.x).hypot(to.y - from.y);
+    let d = rh_sim::math::hypot(to.x - from.x, to.y - from.y);
     // Walking without pause for the same time (plus the one idle tick that came before) covers at least as much.
     assert!(
         d <= tick * (ticks + 1) as f64 + 1e-9,
@@ -343,7 +347,8 @@ fn a_stamped_match_replays_and_restores_bit_for_bit() {
         sim.step();
         rec.stepped(&sim);
         let after = pos(&sim, 1);
-        credited |= (after.x - before.x).hypot(after.y - before.y) > 1.5 * walked_one_tick(None);
+        credited |= rh_sim::math::hypot(after.x - before.x, after.y - before.y)
+            > 1.5 * walked_one_tick(None);
     }
     assert!(credited, "the scenario exercises a credited walk");
     let (again, _) = run_replay(&rec.replay).expect("the stamped match replays");

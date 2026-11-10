@@ -31,6 +31,9 @@ namespace Roguehalla.Client
         /// <summary>Own attack clip at the click (presentation only; see OwnAttackCue). Never gates what is sent.</summary>
         public bool OwnAttackFeedback = true;
         readonly OwnAttackCue _ownCue = new OwnAttackCue();
+        /// <summary>Own Wish telegraph at the R press (presentation only), replaced by the server's cue or dropped unconfirmed.</summary>
+        public bool OwnWishTelegraph = true;
+        const double WishTelegraphSlackMs = 150, WishTelegraphCapMs = 600;
         const double SteerRepeatMs = 100;
         const float SteerAheadU = 64f;
         Vector2 _lastDir;
@@ -267,7 +270,11 @@ namespace Roguehalla.Client
             Session.RemoteDraw.Sample(Session.Clock.RenderMs, _actors);
             // Cut an unconfirmed own clip once server state rules the action out or confirmation is overdue.
             if (_ownCue.Update(NowMs(), Session.Me, Session.Latest != null ? Session.Latest.Phase : (byte)0, Session.ServerTimeMs) && Arena != null)
+            {
                 Arena.CancelAttackCue(Session.PlayerId);
+                var soundscape = GetComponent<ShowcaseSoundscape>();
+                if (soundscape != null) soundscape.CancelOwnSwing();
+            }
             if (_traceLatency && LatencyTrace.TakeTargetRequest()) TraceTargetScreens();
             if (Session.State == SessionState.InMatch)
             {
@@ -337,6 +344,7 @@ namespace Roguehalla.Client
                 uint target = haveCursor && mouse != null ? VisibleActorAt(mouse.position.ReadValue()) : 0;
                 byte seq = Session.CollectWishInput(true, blocked, haveCursor, sx, sy, target == 0 ? (uint?)null : target);
                 if (_traceLatency && seq != 0) LatencyTrace.Mark("sampleWish", Session.PlayerId, seq, sx, sy);
+                if (seq != 0 && OwnWishTelegraph) StartOwnWishTelegraph(now);
             }
             if (Hud == null || !Hud.ChestOwnsDigits)
             {
@@ -371,8 +379,25 @@ namespace Roguehalla.Client
                     Session.ServerTimeMs, sync.HasSample, sync.ServerNowMs(now), Math.Max(sync.RttMs, sync.LastRttMs)))
             {
                 Arena.ProvisionalAttackCue(me.Id);
+                // The melee swing sound moves to the click with the clip; the server's first Swing for it is not replayed.
+                var soundscape = GetComponent<ShowcaseSoundscape>();
+                if (soundscape != null) soundscape.PlayOwnSwing(me.Id, me.Weapon);
                 if (_traceLatency) LatencyTrace.Mark("attackClipStart", Session.PlayerId, 0, 0, 0);
             }
+        }
+
+        // Presentation only: the Wish order is already queued. The telegraph starts only on server-sent Wish readiness and is
+        // held for about one round trip; the server's own Wish cue (or its absence) decides what stays on screen.
+        void StartOwnWishTelegraph(double now)
+        {
+            var me = Session.Me;
+            var sync = Session.Sync;
+            if (Arena == null || me == null || !me.Wish.HasValue || !sync.HasSample) return;
+            var wish = me.Wish.Value;
+            if (wish.Cast.HasValue || wish.Charges == 0) return;
+            double rtt = Math.Max(sync.RttMs, sync.LastRttMs);
+            if (wish.ReadyAt > sync.ServerNowMs(now) + rtt / 2 + Wire.TickMs) return;
+            Arena.ProvisionalWish(me.Id, wish.Ability, Math.Min(WishTelegraphCapMs, rtt + WishTelegraphSlackMs));
         }
 
         void OrderMove(float x, float y)

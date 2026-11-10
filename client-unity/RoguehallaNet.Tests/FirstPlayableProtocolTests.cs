@@ -20,7 +20,7 @@ namespace Roguehalla.Net.Tests
         }
         [Test] public void ActorPaddingFullDeltaAndPresentationKeepMobIdentityAndSignature()
         {
-            Assert.AreEqual(32,Marshal.SizeOf<WireActor>());
+            Assert.AreEqual(40,Marshal.SizeOf<WireActor>());
             var first=new ServerMsg.Snapshot{Tick=1,Me=new WireSelf{Id=1,Sig=255},Actors=new[]{new WireActor{Id=2,Kind=1,MobTypeCode=30,Sig=254,HpPct=100,Status=1}}};
             var tracker=new SnapshotTracker();var full=(ServerMsg.Snapshot)tracker.Decode(first.Encode(),first.Encode().Length,null);
             Assert.AreEqual(255,full.Me.Sig);Assert.AreEqual(30,full.Actors[0].MobTypeCode);
@@ -50,12 +50,12 @@ namespace Roguehalla.Net.Tests
 
         [Test] public void ProjectileRowsPreserveOrderDuplicatesAndStrictOptionalOwners()
         {
-            var p=new WireProjectile{Kind=0,X=800,Y=900,Facing=12345,Owner=1};
-            var state=new ServerMsg.State{Items=new StateItem[]{new ProjectilesState{Rows=new[]{p,p,new WireProjectile{Kind=1,Owner=null}}}}};
+            var p=new WireProjectile{Track=1,Kind=0,X=800,Y=900,Facing=12345,Speed=2400,Tick=9,Owner=1};
+            var state=new ServerMsg.State{Items=new StateItem[]{new ProjectilesState{Rows=new[]{p,new WireProjectile{Track=2,Kind=0,X=800,Y=900,Facing=12345,Speed=2400,Tick=9,Owner=1},new WireProjectile{Track=3,Kind=1,Owner=null}}}}};
             var bytes=state.Encode();var rows=((ProjectilesState)((ServerMsg.State)ServerMsg.Decode(bytes)).Items[0]).Rows;
-            Assert.AreEqual(3,rows.Length);Assert.AreEqual(rows[0],rows[1]);Assert.IsNull(rows[2].Owner);
-            foreach(var bad in new[]{new WireProjectile{Kind=2},new WireProjectile{Owner=0}}) Assert.Throws<EncodeException>(()=>new ServerMsg.State{Items=new StateItem[]{new ProjectilesState{Rows=new[]{bad}}}}.Encode());
-            foreach(int index in new[]{5,12}) {var bad=(byte[])bytes.Clone();bad[index]=2;Assert.Throws<DecodeException>(()=>ServerMsg.Decode(bad));}
+            Assert.AreEqual(3,rows.Length);Assert.AreEqual(p,rows[0]);Assert.AreEqual(2u,rows[1].Track);Assert.AreEqual((ushort)2400,rows[1].Speed);Assert.AreEqual(9u,rows[1].Tick);Assert.AreEqual(3u,rows[2].Track);Assert.IsNull(rows[2].Owner);
+            foreach(var bad in new[]{new WireProjectile{Track=1,Kind=2},new WireProjectile{Track=1,Owner=0},new WireProjectile{Track=0}}) Assert.Throws<EncodeException>(()=>new ServerMsg.State{Items=new StateItem[]{new ProjectilesState{Rows=new[]{bad}}}}.Encode());
+            foreach(int index in new[]{6,16}) {var bad=(byte[])bytes.Clone();bad[index]=2;Assert.Throws<DecodeException>(()=>ServerMsg.Decode(bad));}
             for(int i=0;i<bytes.Length;i++){var cut=new byte[i];Array.Copy(bytes,cut,i);Assert.Throws<DecodeException>(()=>ServerMsg.Decode(cut));}
         }
     }

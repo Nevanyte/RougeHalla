@@ -1487,6 +1487,8 @@ const VALIDATED: &[(&str, &str)] = &[
 /// a swing is finished or cancelled by the step that ends it, a kill announcement is sent within its step).
 fn seeds(pat: &str) -> Vec<Value> {
     match pat {
+        // The lag-fairness flag writes off as `null` (no hash word, statics.rs); on is `true` and must change the hash.
+        "statics.config.lag_fairness" => vec![serde_json::json!(true)],
         "world.abilities" => {
             vec![serde_json::json!({"fields":[],"teleported_at":null,"dot":[],"dot_since":0.0})]
         }

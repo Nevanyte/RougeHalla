@@ -25,3 +25,8 @@ The later snapshot-only client correction is library-tested and still needs a fr
 **To confirm (packets P-UNITY-1/P-NET-1):** fresh current-source Web build, full browser matrix, flows, verified narrow
 prediction, frame time/loading/memory. The owner selected M5 Pro initially and requests maximum sustainable frame rate,
 not a 60 FPS stopping goal; Rust simulation/parity/headless completion comes before further visual expansion.
+
+**Amendment (proposed, [ADR0024](0024-competitive-netcode-presentation-and-lag-fairness.md), owner direction 2026-11-09):** the
+"do not predict attacks" rule now allows animation-only own-action feedback (the owner's attack clip, Wish telegraph and melee swing
+sound at the click, driven by server-sent readiness) and presentation-only draw-ahead of remote players. No outcome, hit, damage,
+projectile or cooldown is shown early, and Unity still holds no game rule.

@@ -1,6 +1,10 @@
 # Predicting players so ping feels faster
 
 Status: **research and plan, with Stage 0 and Stage 1 shipped, and Stage 2 built on branch `claude/draw-ahead`**. Only what "Shipped in this pass" lists is built.
+
+**Scope of this file.** Everything down to "Historical Rust / Unity measurement" is the TypeScript-era research and plan. The
+Rust server and Unity client as built are described in "Rust server and Unity client as built (protocol 15)" near the end; where
+the two disagree, that section and the code win. The Unity prediction never uses a learned model (R-ML).
 Local numbers come from `bench/predictBench.ts` bot runs on 2026-11-02 and a plain-JS cost microbenchmark. Sources
 are at the end.
 
@@ -417,6 +421,74 @@ Human factors:
 Local: `bench/predictBench.ts` on the branch where the harness was written, before its port to main, 2026-11-02.
 The cited set is 3 runs of 4 bots, 7,249 rows; the second set is 3 runs, 10,176 rows. The cost figures come from a
 plain-JS microbenchmark. Neither report is in the repository.
+
+## Rust server and Unity client as built (protocol 15)
+
+The rule at the top of this file still holds in a narrower form: Unity decides nothing that happens. The decisions are in
+[ADR 0008](adr/0008-unity-client.md) and [ADR 0024](adr/0024-competitive-netcode-presentation-and-lag-fairness.md) (Proposed); the
+row-by-row status is in [NETCODE_COMPETITIVE_PLAN.md](NETCODE_COMPETITIVE_PLAN.md). All client code named here is in
+`client-unity/RoguehallaNet/Net`, with the scene calls in `client-unity/UnityProject/Assets/Scripts`. The scene calls have not been
+compiled in a Unity editor, and no figure below was measured on a real link.
+
+### Own walk: reconcile and speed (`LocalMotion`)
+
+- An order plans the same A* path the server plans and walks it at `PLAYER_SPEED` (170 u/s) times the owner's speed multiplier. Nothing
+  here is sent; `Session` queues orders and `LocalMotion` only presents them.
+- **Speed multiplier.** The owner block's `speed_milli` divided by 1000 is the walk multiplier. A missing or non-finite value is 1.0, and
+  a positive value below 0.35 is raised to 0.35 (rh-sim `MOVE_MULT_FLOOR`). Windup, roots, slows and terrain are not guessed; a server
+  correction owns them. The mirror is checked against a C# server model and the protocol vectors, not against a Rust-generated vector
+  for a buffed walk.
+- **Reconcile is delay-aligned, not a comparison with the model's present.** The first sample that echoes a timing order (a start, a
+  stop or a turn over 12 degrees) measures that order's delay `D = sample time - 50 ms - order time`, clamped to -50..400 ms. Every
+  sample at source time T is compared with the model's pose at T - D. Sample times follow the source clock's spacing, so arrival jitter
+  is not error. A held key's same-direction repeats do not restart the measurement, and comparison does not wait for the order echo.
+- **Correction.** Over 96 u (model error, or the model error plus the visual offset) the model snaps to the server. Under it, the model
+  and its pose history shift by the error and the visual offset takes the opposite value, decaying with a 100 ms time constant. While
+  walking the offset may fall at most 70 u/s (plus 2 per unit beyond 20, at most 120 u/s), so a correction slows or hurries a walk and
+  never turns it round; at rest the cap is 255 u/s. While the pose being compared already follows an order the server has not applied,
+  the sample only bounds the lead (it snaps past 96 u plus the walk since that order). An order not echoed within 1 s is forgotten.
+- Death, revival and authoritative displacement discard the predicted path at once.
+
+### Orders (`InputSender`, `Session`)
+
+- Move and AttackMove leave at the click as `MoveAt` and `AttackMoveAt` (commands 19 and 20) once the first pong gives a clock sample,
+  stamped with the estimate of server time without any render delay; before the sample, or with a non-finite stamp, they leave as the
+  plain orders. The client does not predict the walk credit the server may grant (DEV-012) and its walk model is unchanged.
+- Aim is sent on change and re-sent every 100 ms (the server drops aim while stunned or target-locked).
+
+### Draw-ahead of remote players (`RemoteDraw`)
+
+- Presentation only, switch `MatchClient.DrawAhead` (default on; the class default is off, and off is exactly
+  `SnapshotBuffer.Sample`). Players are sampled 50 ms later than the render clock. Inside the buffer that is exact interpolation; past
+  the newest snapshot only a live player walking steadily is extrapolated, at the last segment's velocity, for at most 50 ms and 10 u.
+  No lead for a stopped player (step under 0.5 u per tick), a turn over about 45 degrees, any effect bit, a health drop, a
+  displacement, or fewer than three samples. Mobs, NPCs and facing are not drawn ahead.
+- The drawn pose follows that target through a per-actor follower capped at 255 u/s (80 u/s at rest). It snaps only on a cut, a
+  displacement or status change, a render-time jump over 250 ms or backwards, or an error over 32 u. No wall clipping: an overshoot of
+  up to 10 u into a wall is blended back. The server sends no walk hint on this wire; the legacy hint of the TypeScript version has no
+  counterpart.
+- **What it sends.** Attack, Release and Cast carry `Session.AttackRenderMs`: the render time advanced by the lead, never later than the
+  newest snapshot the client holds. It is up to 50 ms newer than before, so the player aims at the drawn pose and the server rewinds
+  to the same drawn time. The server still clamps it into the RTT-bounded window. A target drawn without lead (stopped, turned) is
+  tested at that time, so the drawn figure and the tested spot can differ by up to one tick of its motion; this was not measured.
+- Remote ranged windups and server projectile tracks are drawn on the same timeline: an actor's windup starts the existing clip when the
+  timeline enters it, and each flight is placed every frame from its server anchor.
+
+### Own-action feedback (`OwnAttackCue`, Wish telegraph, swing sound)
+
+- Animation only, and only for the local player. On an attack press, after the command is queued, the clip starts if the match is in
+  play, the player is alive with no stun or casting bit, a ping sample exists, and the server-sent readiness
+  (`Latest.ServerMs + ReadyInMs`) is no later than the estimated arrival of the press plus one tick. Otherwise nothing starts early.
+- A newer snapshot whose ready time is more than one tick past the press-time value confirms the attack (a melee Swing Fx also
+  confirms). An unconfirmed clip is cut on dead, stunned, casting, out of play, weapon change, no confirmation within RTT + 100 ms, or
+  the 500 ms cap. The first own server Swing after a started melee press does not restart the clip or repeat the swing sound; its flash
+  still shows. Held-attack repeats are not predicted.
+- The Wish telegraph is shown at the press (half transparent) when the owner block says a charge is ready, until the server's own Wish
+  cue for that caster replaces it or `min(600 ms, RTT + 150 ms)` passes.
+- Nothing about an outcome, projectile, damage number, flash or cooldown is shown early. Switches: `OwnAttackFeedback`,
+  `OwnWishTelegraph`.
+- Not done: a cross-fade when a clip is cut, and measurement with `tools/latency` (the `attackClipStart` trace mark exists but has not
+  been compared with the press frame).
 
 ## Historical Rust / Unity measurement — P-NET-1 Phase 0
 
