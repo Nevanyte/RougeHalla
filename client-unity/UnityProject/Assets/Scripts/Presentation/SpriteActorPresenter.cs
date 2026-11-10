@@ -15,7 +15,7 @@ namespace Roguehalla.Client
             public GameObject Root;
             public SpriteRenderer Body, Shadow, Halo, RuneBack, Rune, Hp, HpBack, Barrier, Weapon, Status;
             public ShowcaseIdentityOwner Identity;
-            public SpriteOutline OutBody, OutWeapon, OutHp, OutFoot, OutInsignia; // CONTRAST: adaptive neutral outlines (SpriteOutline.cs)
+            public SpriteOutline[] Plates; public SpriteOutline OutBody, OutWeapon, OutHp, OutFoot, OutInsignia; // CONTRAST: adaptive neutral outlines (SpriteOutline.cs)
             public SpriteRenderer[] BarrierRing;
             public SpriteRenderer[] StatusIcons;
             public SpriteRenderer[] SignatureIcons;
@@ -321,7 +321,7 @@ namespace Roguehalla.Client
             // CONTRAST: the dark rim and the pale halo are gone; the adaptive outline (SpriteOutline) is synced at the end of Present.
             int factionArt = faction.HasValue ? (int)faction.Value : -1;
             a.Identity.Present(factionArt,kind,mob,order,!dead,lift);
-            a.Shadow.sortingOrder = order - 9; // CONTRAST: one step lower, the footprint outline sits at order - 8
+            a.Shadow.sortingOrder = order - 8;
             AtmosphereShadows.ApplyActor(a.Shadow, x / 32f, y / 32f);
             a.Halo.sortingOrder = order - 7;
             // The ground mark is the foot box when the server delivered one (ADR0024): its outline spans the box, drawn on the squashed
@@ -424,11 +424,12 @@ namespace Roguehalla.Client
             {
                 bool darkGround = AtmosphereShadows.GroundIsDark(x / 32f, y / 32f);
                 float bodyAlpha = ActorOutlineModel.StateAlpha(dead, hiddenAlpha > 0f ? hiddenAlpha : 1f);
-                a.OutBody.Sync(order - 1, bodyAlpha, darkGround);
-                a.OutWeapon.Sync(a.Weapon.sortingOrder - 1, bodyAlpha, darkGround);
-                a.OutHp.Sync(a.HpBack.sortingOrder - 1, 1f, darkGround);
-                a.OutFoot.Sync(a.Halo.sortingOrder - 1, 1f, darkGround);
-                a.OutInsignia.Sync(a.RuneBack.sortingOrder - 1, 1f, darkGround);
+                a.OutBody.Sync(order, bodyAlpha, darkGround);
+                a.OutWeapon.Sync(a.Weapon.sortingOrder, bodyAlpha, darkGround);
+                a.OutHp.Sync(a.HpBack.sortingOrder, 1f, darkGround);
+                a.OutFoot.Sync(a.Halo.sortingOrder, 1f, darkGround);
+                a.OutInsignia.Sync(a.RuneBack.sortingOrder, 1f, darkGround);
+                SyncPlates(a, darkGround);
             }
             // Geometry for the overhead cluster; PresentIndicators adds the facts only the caller has.
             var fx = a.IndFacts; float barY = 1.8f + lift;
@@ -499,12 +500,30 @@ namespace Roguehalla.Client
             a.Light.Configure(Color.white, .2f, .3f, 2.4f, .5f, false, true);
             a.Ind = new OverheadIndicators(t);
             // CONTRAST: one adaptive neutral outline per figure and per gated marker (SpriteOutline.cs); faction identity stays in shape and in the colour inside.
-            a.OutBody = new SpriteOutline(a.Body, "Character contrast rim", ActorOutlineModel.Width, ActorOutlineModel.HaloRadius);
-            a.OutWeapon = new SpriteOutline(a.Weapon, "Equipped weapon cue outline", ActorOutlineModel.MarkerWidth);
-            a.OutHp = new SpriteOutline(a.HpBack, "Health and barrier track outline", ActorOutlineModel.MarkerWidth);
-            a.OutFoot = new SpriteOutline(a.Halo, "Faction footprint outline", ActorOutlineModel.MarkerWidth);
-            a.OutInsignia = new SpriteOutline(a.RuneBack, "Faction insignia backplate outline", ActorOutlineModel.MarkerWidth);
+            a.OutBody = new SpriteOutline(a.Body, "Character contrast rim", ActorOutlineModel.Width, ActorOutlineModel.TargetRatio);
+            a.OutWeapon = new SpriteOutline(a.Weapon, "Equipped weapon cue outline", ActorOutlineModel.MarkerWidth, ActorOutlineModel.MarkerTargetRatio);
+            a.OutHp = new SpriteOutline(a.HpBack, "Health and barrier track outline", ActorOutlineModel.MarkerWidth, ActorOutlineModel.MarkerTargetRatio);
+            a.OutFoot = new SpriteOutline(a.Halo, "Faction footprint outline", ActorOutlineModel.MarkerWidth, ActorOutlineModel.MarkerTargetRatio);
+            a.OutInsignia = new SpriteOutline(a.RuneBack, "Faction insignia backplate outline", ActorOutlineModel.MarkerWidth, ActorOutlineModel.MarkerTargetRatio);
+            // Every overhead plate, backer and ground ring (name, bounty, status, off-hand, Wish, stat marks, mark plate, signature, barrier ring steps, elite, lock, root, zone,
+            // immunity and roam rings, identity badges) gets the same thin adaptive hairline; the glyph or text inside stays as drawn.
+            var plates = new List<SpriteOutline>();
+            foreach (var r in t.GetComponentsInChildren<SpriteRenderer>(true))
+                if (NeedsStroke(r.gameObject.name)) plates.Add(new SpriteOutline(r, r.gameObject.name + " outline", ActorOutlineModel.MarkerWidth, ActorOutlineModel.MarkerTargetRatio));
+            a.Plates = plates.ToArray();
             return a;
+        }
+
+        static bool NeedsStroke(string n)
+        {
+            if (n == null || n.EndsWith(" outline") || n == "Character contrast rim" || n == "Authored character" || n == "Contact shadow" || n.StartsWith("Faction footprint") || n == "Faction mantle" || n.Contains("shade")) return false;
+            return n.IndexOf("plate", System.StringComparison.OrdinalIgnoreCase) >= 0 || n.IndexOf("backer", System.StringComparison.OrdinalIgnoreCase) >= 0 || n.IndexOf("ring", System.StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        void SyncPlates(Art a, bool dark)
+        {
+            var p = a.Plates; if (p == null) return;
+            for (int i = 0; i < p.Length; i++) p[i].SyncFollow(1f, dark);
         }
 
         static readonly Dictionary<ShowcaseCatalog.Appearance, float> HeadTops = new Dictionary<ShowcaseCatalog.Appearance, float>();
@@ -532,6 +551,7 @@ namespace Roguehalla.Client
             var fx = a.IndFacts; fx.Bounty = bounty; fx.HasSecondary = hasSecondary; fx.Secondary = secondary; fx.Locked = locked; if (effectsOverride >= 0) fx.Effects = (ushort)effectsOverride;
             fx.Hovered = hovered; fx.Hunted = hunted; fx.WishState = wishState; fx.WishAbility = wishAbility;
             a.IndFacts = fx; a.Ind.Update(in a.IndFacts);
+            SyncPlates(a, AtmosphereShadows.GroundIsDark(a.Root.transform.position.x, -a.Root.transform.position.y / ArenaView.GroundSquash));   // CONTRAST: plates were just updated
             if (a.Fade.Entering || a.Fade.Opacity < .999f) a.Ind.ApplyOpacity(a.Fade.Opacity);
         }
 

@@ -20,6 +20,7 @@ using UnityEngine;
 using UnityEngine.Rendering.Universal;
 using Roguehalla.Net;
 using Roguehalla.Net.Protocol;
+using Roguehalla.Net.Ui;
 #if UNITY_WEBGL && !UNITY_EDITOR
 using System.Runtime.InteropServices;
 #endif
@@ -216,7 +217,7 @@ namespace Roguehalla.Client
 
         void PresentRows(float walkProgress)
         {
-            _rows.Clear();
+            _rows.Clear(); SelfView me = null; float aim = 0f;
             foreach (var c in _page.Cells)
             {
                 float x = c.TileX * 32f, y = c.TileY * 32f;
@@ -226,11 +227,28 @@ namespace Roguehalla.Client
                     x -= Mathf.Cos(c.Facing) * back; y -= Mathf.Sin(c.Facing) * back;
                 }
                 var app = c.Appearance;
-                _rows.Add(new InterpActor
+                if (_cond == "local" && me == null && app.Kind == ActorKind.Player)
+                {
+                    // The local player's own presentation (mint bar, larger footprint, accent light): the first player cell of the page is drawn as `me`.
+                    me = new SelfView { Id = (uint)(1000 + c.Id), Faction = app.Faction ?? FactionId.Fire, Status = ActorStatus.Alive, Weapon = app.Weapon ?? WeaponId.Sword, Hp = 80, MaxHp = 100, X = x, Y = y, Facing = c.Facing };
+                    aim = c.Facing; continue;
+                }
+                var row = new InterpActor
                 {
                     Id = (uint)(1000 + c.Id), Faction = app.Faction, Status = ActorStatus.Alive, Weapon = app.Weapon, HpPct = 80, X = x, Y = y, Facing = c.Facing,
                     Kind = app.Kind, MobType = app.Mob
-                });
+                };
+                if (_cond == "marks")
+                {
+                    // Every overhead plate and ring the presenter can draw: statuses, bounty, off-hand weapon, build marks, Wish ready, immunity and roam rings, barrier bubble.
+                    int k = c.Id;
+                    ushort[] sets = { Indicators.Stunned | Indicators.Slowed, Indicators.Silenced | Indicators.Dot | Indicators.AntiHeal, Indicators.Haste | Indicators.Casting | Indicators.Rooted, Indicators.LastStand | Indicators.Zoned | Indicators.AttackSlowed };
+                    row.Effects = sets[k % sets.Length]; row.Bounty = (ushort)(40 + 15 * (k % 6)); row.OffhandWeapon = WeaponId.Bow;
+                    row.Flags = (byte)(WireIndicators.FlagWishReady | WireIndicators.FlagTeleportImmune | WireIndicators.FlagRoamReady | (app.Kind == ActorKind.Player ? 0 : WireIndicators.FlagEngaged));
+                    row.TopStat1 = StatKey.Ad; row.TopStat2 = StatKey.Armor; row.MarkTier = (byte)(1 + k % 4); row.Brand = 60; row.MarkTax = 20;
+                    if (app.Kind == ActorKind.Player) { row.BarrierPct = 50; row.BarrierRingStep = (byte)(1 + k % 8); }
+                }
+                _rows.Add(row);
             }
             if (_cond == "fade")
             {
@@ -238,7 +256,7 @@ namespace Roguehalla.Client
                 if (!_fadeStarted) { _fadeStarted = true; _fadeBase = Time.unscaledTime; _fadeNow = _fadeBase; }
                 else _fadeNow = _fadeBase + VisionFade.EnterSeconds * .5f;
             }
-            _arena.Present(_rows, null, null, 0f);
+            _arena.Present(_rows, me, null, aim);
             if (_cond == "flash" && _phase != Phase.Frozen)
             {
                 var fx = new ServerMsg.Fx();

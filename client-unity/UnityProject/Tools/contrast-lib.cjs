@@ -237,7 +237,7 @@ function analyzeCell({ width, height, lumNormal, lumGround, mask, rect }, opts =
     core: { p10: coreEdge.p10, min: coreEdge.min, median: coreEdge.median, sectors: coreEdge.valid }, rimShare: rimPx / sil.n };
   const bodyL = interiorVals.length ? median(interiorVals) : NaN;
   result.body = { ratio: Number.isFinite(bodyL) ? contrastRatio(bodyL, median(ringVals)) : NaN, ratioGround: Number.isFinite(bodyL) ? contrastRatio(bodyL, median(ringGround)) : NaN, interiorPx: interiorVals.length, luminance: bodyL, ringLuminance: median(ringVals) };
-  for (const [name, k] of [['hp', CLASS.HP], ['foot', CLASS.FOOT], ['insignia', CLASS.INSIGNIA]]) {
+  for (const [name, k] of [['hp', CLASS.HP], ['foot', CLASS.FOOT], ['insignia', CLASS.INSIGNIA], ['plates', CLASS.OTHER]]) {
     const mk = shapeOf(k);
     if (mk.n < o.minMarkerPixels) { result.markers[name] = null; continue; }
     const mr = regions(mk.m, occupied, w, h, o), mc = centroid(mk.m, w, h);

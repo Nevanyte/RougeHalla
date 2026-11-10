@@ -40,7 +40,7 @@ Shader "Roguehalla/ActorOutline"
         // Per renderer (MaterialPropertyBlock), deliberately outside UnityPerMaterial.
         float4 _SrcRect;   // u0, v0, du, dv: the source sprite's rectangle in its atlas
         float4 _Outline;   // x,y: margin around the sprite as a fraction of its size; z,w: stroke width in sprite-normalised units
-        float4 _Halo;      // x,y: halo radius in sprite-normalised units (0 = none), z: strength 0..1
+        float4 _Tone;      // x: target contrast ratio of this stroke against the ground just outside it
         float4 _SrcTexel;  // x,y: one source texel in sprite-normalised units
         float _Prior;      // 0 dark, 1 light: dead-zone tie break, and the whole decision when there is no sorting layer texture
         float _MaskMode;
@@ -52,7 +52,8 @@ Shader "Roguehalla/ActorOutline"
         float _RhOutlineFlip;   // tuning pages only: 1 flips the grab vertically
         float _RhOutlineRadius; // tuning pages only
         float _RhOutlineGain;  // set once per frame by SpriteOutline.PublishFrame: 2^post exposure of the grade
-        float4 _RhOutlineTune;   // set by SpriteOutline.PublishGlobals: light HDR value, dark value, crossover luminance, dead zone half width
+        float4 _RhOutlineTune;   // set by SpriteOutline.PublishGlobals: lightest tone floor (on-screen luminance), darkest tone, flip luminance, dead zone half width
+        float4 _RhOutlineTone;   // w: brightest the dark stroke may get (on-screen luminance)
 
         float SrcAlpha(float2 sp)
         {
@@ -174,14 +175,19 @@ Shader "Roguehalla/ActorOutline"
             return o;
         }
 
+        // HDR value that shows as the on-screen luminance L after the neutral tonemapper (identity below 0.74, then compressed: 1.5 shows as about 0.86).
+        float ToHdr(float L) { return L <= 0.74 ? L : lerp(0.74, 1.5, saturate((L - 0.74) / 0.12)); }
+
         half4 Frag(Varyings i) : SV_Target
         {
+            float srcA = SrcAlpha(i.uv);
             float dil = Dilate(i.uv, _Outline.zw);
             float fw = max(fwidth(dil), 0.12);
-            float cov = saturate((dil - 0.5) / fw + 0.5);
+            float covFull = saturate((dil - 0.5) / fw + 0.5);
             if (_MaskMode > 0.5)
             {
-                clip(cov * i.color.a - 0.5);
+                // The mask is the silhouette: the source (drawn by its own mask material) plus the stroke, so the stroke's mask covers the whole dilation.
+                clip(covFull * i.color.a - 0.5);
                 return half4(_MaskColor.rgb, 1);
             }
             if (_RhOutlineDebug > 3.5)
@@ -189,8 +195,10 @@ Shader "Roguehalla/ActorOutline"
                 float2 duv = i.screen.xy / i.screen.w; duv.y = _RhOutlineFlip > 0.5 ? 1.0 - duv.y : duv.y;
                 return half4(SAMPLE_TEXTURE2D_LOD(_CameraSortingLayerTexture, sampler_LinearClamp, duv, 0).rgb, 1);
             }
-            if (_Halo.z < 0.001) clip(cov - 0.002);
-            float light = _Prior;
+            // The stroke is drawn above the scene, so it must not cover its own source: only the ring outside the silhouette.
+            float cov = covFull * (1.0 - smoothstep(0.3, 0.8, srcA));
+            clip(cov - 0.002);
+            float light = _Prior, l = -1.0;
             if (_RhOutlineGrab > 0.5)
             {
                 // Outward direction of the silhouette here: away from the source alpha around the pixel.
@@ -200,7 +208,6 @@ Shader "Roguehalla/ActorOutline"
                     float s, c; sincos(0.7853982 * k, s, c);
                     out2 -= float2(c, s) * SrcAlpha(i.uv + float2(c, s) * rr);
                 }
-                float l;
                 if (dot(out2, out2) > 0.04)
                 {
                     float3 dOS = float3(out2.x / (1.0 + 2.0 * _Outline.x), out2.y / (1.0 + 2.0 * _Outline.y), 0.0);
@@ -209,36 +216,23 @@ Shader "Roguehalla/ActorOutline"
                     l = RingLuma(i.posWS, dWS);
                 }
                 else l = GroundLuma(i.screen.xy / i.screen.w);
-                // Hard choice per pixel; inside the dead zone the figure's own centre decides (one polarity per figure, never a speckled stroke).
+                // Hard polarity per pixel; inside the dead zone one polarity per figure decides (a stroke never speckles).
                 light = l < _RhOutlineTune.z - _RhOutlineTune.w ? 1.0 : (l > _RhOutlineTune.z + _RhOutlineTune.w ? 0.0 : i.figure);
             }
-            float3 dark = float3(_RhOutlineTune.y, _RhOutlineTune.y * 1.25, _RhOutlineTune.y * 2.0);
-            float3 lite = float3(_RhOutlineTune.x, _RhOutlineTune.x, _RhOutlineTune.x * 1.03);
-            float3 rgb = lerp(dark, lite, light);
+            // Tone: the stroke is only as strong as the ratio asks for (target _Tone.x against the ground just outside it), clamped, so on dark ground it is a soft
+            // light rim and on pale ground a soft dark one; with no grab the full strength stays.
+            float R = max(_Tone.x, 1.5), Ls;
+            if (l >= 0.0)
+                Ls = light > 0.5 ? clamp(R * (l + 0.05) - 0.05, _RhOutlineTune.x, 0.86) : clamp((l + 0.05) / R - 0.05, _RhOutlineTune.y, _RhOutlineTone.w);
+            else
+                Ls = light > 0.5 ? 0.86 : _RhOutlineTune.y;
+            float3 rgb = float3(ToHdr(Ls), ToHdr(Ls), ToHdr(Ls) * 1.02);
             if (_RhOutlineDebug > 0.5 && _RhOutlineGrab > 0.5)
             {
-                float ld = GroundLuma(i.screen.xy / i.screen.w);
+                float ld = max(l, 0.0);
                 rgb = _RhOutlineDebug < 1.5 ? (light > 0.5 ? float3(1, 0, 1) : float3(0, 1, 0)) : float3(ld, ld, ld) * 3.0;
-                if (_RhOutlineDebug < 1.5 && i.figure > 0.5) rgb.g = 0.5;
             }
-            float a = cov;
-            // Local calming halo (lever 2 of the contrast brief): only where the figure's stroke is light, i.e. on dark and mid ground (decided once per figure, so bright veins inside the halo are dimmed too), a soft darkening of the ground around the figure
-            // takes the edge off bright veins and glints that would sit next to a light stroke. Darkening only; never where the stroke is dark, so pale ground is never dimmed.
-            if (i.figure > 0.5 && _Halo.z > 0.001 && cov < 0.999)
-            {
-                float h = 0.0;
-                [unroll] for (int q = 0; q < 8; q++)
-                {
-                    float s, c; sincos(0.7853982 * q, s, c);
-                    h = max(h, 0.9 * SrcAlpha(i.uv + float2(c, s) * _Halo.xy * 0.5));
-                    h = max(h, 0.5 * SrcAlpha(i.uv + float2(c, s) * _Halo.xy));
-                }
-                float ha = h * _Halo.z;
-                a = max(cov, ha);
-                rgb = lerp(float3(0, 0, 0), rgb, saturate(cov / max(a, 1e-4)));
-                if (cov < 0.5) rgb = float3(0, 0, 0);
-            }
-            return half4(rgb, a * i.color.a);
+            return half4(rgb, cov * i.color.a);
         }
         ENDHLSL
 

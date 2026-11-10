@@ -89,7 +89,8 @@ namespace Roguehalla.Client.Tests
                 Assert.That(rim, Is.Not.Null, kinds[i] + " has the body outline");
                 Assert.That(rim.enabled, Is.True, kinds[i].ToString());
                 Assert.That(rim.sharedMaterial.shader.name, Is.EqualTo("Roguehalla/ActorOutline"));
-                Assert.That(rim.sortingOrder, Is.EqualTo(body.sortingOrder - 1), kinds[i] + ": drawn as part of the actor, one step under the body");
+                Assert.That(rim.sortingOrder, Is.EqualTo(body.sortingOrder), kinds[i] + ": sorts with its figure, among the strokes");
+                Assert.That(rim.sortingLayerID, Is.EqualTo(StrokeLayer.Id), kinds[i] + ": drawn in the Strokes layer, above whatever stands in front of the figure");
                 Assert.That(rim.color.a, Is.EqualTo(1f).Within(1e-4f), kinds[i] + ": opaque");
                 Assert.That(rim.transform.parent, Is.SameAs(body.transform));
                 Assert.That(rim.transform.localScale.x, Is.GreaterThan(0f));
@@ -106,9 +107,8 @@ namespace Roguehalla.Client.Tests
                 Assert.That(o.sharedMaterial.shader.name, Is.EqualTo("Roguehalla/ActorOutline"), name);
                 Assert.That(ContrastLabStage.ClassOf(name), Is.Not.EqualTo(ContrastLabStage.ClassOther), name + " is classified with its mark");
             }
-            var footprint = Find(root, "Faction footprint").sortingOrder; var shadow = Find(root, "Contact shadow").sortingOrder;
-            Assert.That(Find(root, "Faction footprint outline").sortingOrder, Is.GreaterThan(shadow), "the footprint outline never hides under the contact shadow");
-            Assert.That(Find(root, "Faction footprint outline").sortingOrder, Is.LessThan(footprint));
+            Assert.That(Find(root, "Faction footprint outline").sortingOrder, Is.EqualTo(Find(root, "Faction footprint").sortingOrder));
+            Assert.That(Find(root, "Faction footprint outline").sortingLayerID, Is.EqualTo(StrokeLayer.Id));
         }
 
         [Test] public void AMarkerOutlineFollowsItsMarkerOffAndOn()
@@ -174,29 +174,34 @@ namespace Roguehalla.Client.Tests
                 if (r.gameObject.name.EndsWith("outline") || r.gameObject.name == "Character contrast rim") Assert.That(r.enabled, Is.False, r.gameObject.name);
         }
 
-        [Test] public void WorldLayerTakesTheGroundAndLeavesPropsAndActors()
+        [Test] public void StrokesLayerSortsAfterDefaultAndEveryStrokeIsOnIt()
         {
-            Assert.That(WorldLayer.Exists, Is.True, "ProjectSettings/TagManager must declare the World layer");
-            Assert.That(WorldLayer.Id, Is.Not.EqualTo(0));
-            var ground = new GameObject("g").AddComponent<SpriteRenderer>(); ground.sortingOrder = -100;
-            var decal = new GameObject("d").AddComponent<SpriteRenderer>(); decal.sortingOrder = -39;
-            var prop = new GameObject("p").AddComponent<SpriteRenderer>(); prop.sortingOrder = 2300;
-            var actor = new GameObject("a").AddComponent<SpriteRenderer>(); actor.sortingOrder = 2400;
-            var root = new GameObject("root"); _objects.Add(root);
-            foreach (var r in new[] { ground, decal, prop, actor }) r.transform.SetParent(root.transform, false);
-            Assert.That(WorldLayer.Tag(root.transform), Is.EqualTo(2));
-            Assert.That(ground.sortingLayerID, Is.EqualTo(WorldLayer.Id)); Assert.That(decal.sortingLayerID, Is.EqualTo(WorldLayer.Id));
-            Assert.That(prop.sortingLayerID, Is.EqualTo(0)); Assert.That(actor.sortingLayerID, Is.EqualTo(0));
-            Assert.That(WorldLayer.Tag(root.transform), Is.EqualTo(0), "idempotent");
-            Assert.That(SortingLayer.GetLayerValueFromID(WorldLayer.Id), Is.LessThan(SortingLayer.GetLayerValueFromID(0)), "World sorts before Default");
+            Assert.That(StrokeLayer.Exists, Is.True, "ProjectSettings/TagManager must declare the Strokes layer");
+            Assert.That(SortingLayer.GetLayerValueFromID(StrokeLayer.Id), Is.GreaterThan(SortingLayer.GetLayerValueFromID(0)), "Strokes sorts after Default");
+            Present(41);
+            int strokes = 0;
+            foreach (var r in Root().GetComponentsInChildren<SpriteRenderer>(true))
+                if (r.gameObject.name.EndsWith(" outline") || r.gameObject.name == "Character contrast rim") { strokes++; Assert.That(r.sortingLayerID, Is.EqualTo(StrokeLayer.Id), r.gameObject.name); }
+            Assert.That(strokes, Is.GreaterThanOrEqualTo(30), "the body, the weapon cue, the three gated markers and every overhead plate and ring carry a stroke");
         }
 
-        [Test] public void RendererAssetGrabsTheCameraSortingLayerAfterWorld()
+        [Test] public void NoFilledPlateUnderTheFeet()
+        {
+            // The footprint is one light line (the faction colour); its dark and light companions are the adaptive strokes, so no black band and no filled plate.
+            for (int f = 0; f < 5; f++)
+            {
+                var px = FactionIndicators.GetFootprint(f).texture.GetPixels32(); int dark = 0, opaque = 0;
+                foreach (var c in px) { if (c.a > 200) { opaque++; if (c.r < 60 && c.g < 60 && c.b < 60) dark++; } }
+                Assert.That(dark, Is.EqualTo(0), "faction " + f); Assert.That(opaque, Is.GreaterThan(150));
+            }
+        }
+
+        [Test] public void RendererAssetGrabsTheCameraSortingLayerAfterDefault()
         {
 #if UNITY_EDITOR
             var so = new UnityEditor.SerializedObject(UnityEditor.AssetDatabase.LoadMainAssetAtPath("Assets/Settings/Roguehalla2DRenderer.asset"));
             Assert.That(so.FindProperty("m_UseCameraSortingLayersTexture").boolValue, Is.True);
-            Assert.That(so.FindProperty("m_CameraSortingLayersTextureBound").intValue, Is.EqualTo(WorldLayer.Id));
+            Assert.That(so.FindProperty("m_CameraSortingLayersTextureBound").intValue, Is.EqualTo(0), "bound to Default: the grab holds the scene as the stroke sits on it");
 #endif
         }
     }

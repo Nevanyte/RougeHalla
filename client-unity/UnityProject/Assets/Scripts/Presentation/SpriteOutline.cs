@@ -16,7 +16,7 @@ namespace Roguehalla.Client
         static Material _material;
         static readonly MaterialPropertyBlock Block = new MaterialPropertyBlock();
         static readonly int SrcTex = Shader.PropertyToID("_SrcTex"), SrcRect = Shader.PropertyToID("_SrcRect"), Outline = Shader.PropertyToID("_Outline"),
-            SrcTexel = Shader.PropertyToID("_SrcTexel"), HaloId = Shader.PropertyToID("_Halo"), Prior = Shader.PropertyToID("_Prior"), GrabFlag = Shader.PropertyToID("_RhOutlineGrab");
+            SrcTexel = Shader.PropertyToID("_SrcTexel"), ToneId = Shader.PropertyToID("_Tone"), Prior = Shader.PropertyToID("_Prior"), GrabFlag = Shader.PropertyToID("_RhOutlineGrab");
 
         /// <summary>Measurement switch (<c>?fx.outline=0|1</c>). The outline is readability: no quality preset ever turns it off.</summary>
         public static bool Enabled = true;
@@ -47,7 +47,7 @@ namespace Roguehalla.Client
                 if (url.Contains("fx.outline=1")) Enabled = true;
                 if (url.Contains("fx.outlinegrab=0")) SetGrabPass(false);
                 WidthScale = QueryFloat(url, "ol.width", 1f); LightHdr = QueryFloat(url, "ol.light", LightHdr); DarkLinear = QueryFloat(url, "ol.dark", DarkLinear);
-                Cross = QueryFloat(url, "ol.cross", Cross); GainScale = QueryFloat(url, "ol.gain", GainScale); HaloStrength = QueryFloat(url, "ol.halo", HaloStrength); RadiusScale = QueryFloat(url, "ol.r", 1f); Flip = QueryFloat(url, "ol.flip", 0f); DebugView = QueryFloat(url, "ol.debug", 0f);
+                Cross = QueryFloat(url, "ol.cross", Cross); GainScale = QueryFloat(url, "ol.gain", GainScale); ToneScale = QueryFloat(url, "ol.tone", 1f); RadiusScale = QueryFloat(url, "ol.r", 1f); Flip = QueryFloat(url, "ol.flip", 0f); DebugView = QueryFloat(url, "ol.debug", 0f);
                 int down = (int)QueryFloat(url, "ol.down", -1); if (down >= 0) SetGrabDownsampling(down); Dead = QueryFloat(url, "ol.dead", Dead);
             }
             PublishGlobals();
@@ -55,7 +55,7 @@ namespace Roguehalla.Client
 
         /// <summary>Tuning for measurement pages only (<c>?ol.width=1.2</c> scales the strokes; <c>ol.light</c>, <c>ol.dark</c>, <c>ol.cross</c>, <c>ol.dead</c> set the shader constants).</summary>
         public static float WidthScale = 1f, LightHdr = ActorOutlineModel.LightLinear, DarkLinear = ActorOutlineModel.DarkLinear, Cross = -1f, Dead = ActorOutlineModel.DeadZone;
-        static readonly int Tune = Shader.PropertyToID("_RhOutlineTune"), RadiusId = Shader.PropertyToID("_RhOutlineRadius"), FlipId = Shader.PropertyToID("_RhOutlineFlip"), DebugId = Shader.PropertyToID("_RhOutlineDebug");
+        static readonly int Tune = Shader.PropertyToID("_RhOutlineTune"), RadiusId = Shader.PropertyToID("_RhOutlineRadius"), FlipId = Shader.PropertyToID("_RhOutlineFlip"), DebugId = Shader.PropertyToID("_RhOutlineDebug"), ToneVec = Shader.PropertyToID("_RhOutlineTone");
 
         /// <summary>
         /// MEASUREMENT ONLY (<c>?fx.outlinegrab=0</c>, the perf harness): switches the 2D renderer's camera sorting layer grab off or on at run time (the renderer reads the
@@ -105,13 +105,13 @@ namespace Roguehalla.Client
             }
             catch (System.Exception e) { Debug.LogWarning("Outline grab downsampling switch unavailable: " + e.Message); }
         }
-        public static float RadiusScale = 1f, Flip = 0f, DebugView = 0f;
+        public static float RadiusScale = 1f, Flip = 0f, DebugView = 0f, ToneScale = 1f;
 
         public static void PublishGlobals()
         {
             Shader.SetGlobalFloat(GrabFlag, UseGrab ? 1f : 0f);
             float cross = Cross > 0f ? Cross : ActorOutlineModel.Threshold;
-            Shader.SetGlobalVector(Tune, new Vector4(LightHdr, DarkLinear, cross, Dead)); Shader.SetGlobalFloat(RadiusId, RadiusScale); Shader.SetGlobalFloat(FlipId, Flip); Shader.SetGlobalFloat(DebugId, DebugView);
+            Shader.SetGlobalVector(Tune, new Vector4(ActorOutlineModel.LightFloor, ActorOutlineModel.DarkLuma, cross, Dead)); Shader.SetGlobalVector(ToneVec, new Vector4(0, 0, 0, ActorOutlineModel.DarkCeil)); Shader.SetGlobalFloat(RadiusId, RadiusScale); Shader.SetGlobalFloat(FlipId, Flip); Shader.SetGlobalFloat(DebugId, DebugView);
         }
 
         static float QueryFloat(string url, string key, float fallback)
@@ -124,19 +124,18 @@ namespace Roguehalla.Client
         public readonly SpriteRenderer Quad;
         readonly SpriteRenderer _source;
         readonly Transform _t;
-        readonly float _width, _halo;
-        /// <summary>Strength of the calming halo (0 off); measurement pages can change it with <c>?ol.halo=</c>.</summary>
-        public static float HaloStrength = ActorOutlineModel.HaloStrength;
+        readonly float _width, _ratio;
         Sprite _sprite; Vector3 _scale; float _prior = -1f; bool _dirty;
 
         /// <param name="source">the sprite renderer to outline; the stroke is a child of it</param>
         /// <param name="name">name of the stroke object (the contrast lab classifies it by name: " outline" suffix, or the body's "Character contrast rim")</param>
         /// <param name="width">stroke width in world units</param>
-        public SpriteOutline(SpriteRenderer source, string name, float width, float halo = 0f)
+        public SpriteOutline(SpriteRenderer source, string name, float width, float ratio = ActorOutlineModel.TargetRatio)
         {
-            _source = source; _width = width; _halo = halo;
+            _source = source; _width = width; _ratio = ratio;
             Quad = ShowcaseSprites.Create(source.transform, name, "bar", 0, Color.white, Vector2.one, Vector3.zero, false);
             Quad.sharedMaterial = SharedMaterial != null ? SharedMaterial : ShowcaseSprites.Unlit;
+            if (StrokeLayer.Exists) Quad.sortingLayerID = StrokeLayer.Id;   // above the props, walls and figures that stand in front
             Quad.enabled = false; _t = Quad.transform;
         }
 
@@ -162,6 +161,9 @@ namespace Roguehalla.Client
             }
         }
 
+        /// <summary>Sync with the source's own sort order (plates whose owner rewrites the order every frame).</summary>
+        public void SyncFollow(float alpha, bool dark) { Sync(_source.sortingOrder, alpha, dark); }
+
         void Rebuild(Sprite sprite, Vector3 lossy, float prior)
         {
             var tex = sprite.texture; var r = sprite.textureRect;
@@ -169,8 +171,7 @@ namespace Roguehalla.Client
             float sx = r.width / ppu, sy = r.height / ppu;                       // sprite size in the source's local units
             float worldX = Mathf.Max(1e-4f, sx * Mathf.Abs(lossy.x)), worldY = Mathf.Max(1e-4f, sy * Mathf.Abs(lossy.y));
             float w = _width * WidthScale, wx = w / worldX, wy = w / worldY;                    // stroke width as a fraction of the sprite size
-            float hr = _halo * WidthScale, hx = hr / worldX, hy = hr / worldY;
-            float padX = wx + hx + .02f, padY = wy + hy + .02f;
+            float padX = wx + .02f, padY = wy + .02f;
             var pivot = sprite.pivot;                                            // pixels from the rect's lower left
             _t.localPosition = new Vector3((.5f - pivot.x / r.width) * sx, (.5f - pivot.y / r.height) * sy, 0f);
             _t.localScale = new Vector3(sx * (1f + 2f * padX), sy * (1f + 2f * padY), 1f);
@@ -179,7 +180,7 @@ namespace Roguehalla.Client
             Block.SetTexture(SrcTex, tex);
             Block.SetVector(SrcRect, new Vector4(r.x / tex.width, r.y / tex.height, r.width / tex.width, r.height / tex.height));
             Block.SetVector(Outline, new Vector4(padX, padY, wx, wy));
-            Block.SetVector(HaloId, new Vector4(hx, hy, _halo > 0f ? HaloStrength : 0f, 0));
+            Block.SetVector(ToneId, new Vector4(_ratio * ToneScale, 0, 0, 0));
             Block.SetVector(SrcTexel, new Vector4(1f / r.width, 1f / r.height, 0, 0));
             Block.SetFloat(Prior, prior);
             Quad.SetPropertyBlock(Block);

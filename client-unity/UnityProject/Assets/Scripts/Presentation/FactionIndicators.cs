@@ -6,8 +6,8 @@ namespace Roguehalla.Client
     public static class FactionIndicators
     {
         const int TextureSize = 128;
-        const float OuterStroke = .09f;
-        const float InnerStroke = .045f;
+        const float OuterStroke = .045f;
+        const float InnerStroke = .06f;
         static readonly Sprite[] Footprints = new Sprite[6];
 
         /// <summary>Returns one of five distinct outline-only ground marks, cached for the app lifetime.</summary>
@@ -42,12 +42,10 @@ namespace Roguehalla.Client
                 float distance = faction == 2 ? TrefoilDistance(u, v) : faction == 4
                     ? Mathf.Abs(new Vector2(u, v).magnitude - .72f)
                     : PolygonDistance(u, v, points);
-                byte alpha = (byte)Mathf.RoundToInt(Mathf.Clamp01((OuterStroke - distance) * TextureSize) * 238);
+                byte alpha = (byte)Mathf.RoundToInt(Mathf.Clamp01((OuterStroke - distance) * TextureSize) * 255);
                 if (alpha == 0) continue;
-                bool inner = distance <= InnerStroke;
-                pixels[y * TextureSize + x] = inner
-                    ? new Color32(255, 255, 255, alpha)
-                    : new Color32(0, 0, 0, alpha);
+                // One light line (the faction colour tints it); the dark and the light companion lines are the adaptive strokes (SpriteOutline), which pick their tone from the ground.
+                pixels[y * TextureSize + x] = new Color32(255, 255, 255, alpha);
             }
             texture.SetPixels32(pixels);
             texture.Apply(false, false);
