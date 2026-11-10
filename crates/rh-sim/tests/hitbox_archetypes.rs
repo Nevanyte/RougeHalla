@@ -272,9 +272,9 @@ fn melee_reach_is_even_north_and_south_between_unequal_archetypes() {
             assert_eq!(hit(&attack(&mut s, aim), 2), want, "aim {aim} d {d}");
         }
     }
-    // East-west the box half-width (17) adds instead; the legacy disc adds 12 in every direction.
+    // East-west the box half-width (16, the mage) adds instead; the legacy disc adds 12 in every direction.
     for (mode, extra) in [
-        (HitboxMode::Archetypes, 17.0),
+        (HitboxMode::Archetypes, 16.0),
         (HitboxMode::LegacyCircle, PLAYER_RADIUS),
     ] {
         for (d, want) in [(reach + extra - 0.5, true), (reach + extra + 0.5, false)] {
