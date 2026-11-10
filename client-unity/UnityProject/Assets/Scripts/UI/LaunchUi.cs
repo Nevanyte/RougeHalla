@@ -46,7 +46,10 @@ namespace Roguehalla.Client
             TextAlignmentOptions align = TextAlignmentOptions.MidlineLeft, bool bold = false, UiFontRole role = UiFontRole.Body, bool wrap = false)
         {
             var rect = HudUi.At(parent, name + "Box", x, y, w, h);
-            return HudUi.Label(rect, name, text, size, color, align, bold, role, wrap);
+            var label = HudUi.Label(rect, name, text, size, color, align, bold, role, wrap);
+            // The Cinzel asset has no ellipsis glyph; truncating avoids TextMeshPro falling back with a console warning.
+            if (role == UiFontRole.Display) label.overflowMode = TextOverflowModes.Truncate;
+            return label;
         }
 
         /// <summary>A tinted pictogram from <see cref="LaunchIcons"/>, centred in a size by size box whose top-left is (x, y).</summary>

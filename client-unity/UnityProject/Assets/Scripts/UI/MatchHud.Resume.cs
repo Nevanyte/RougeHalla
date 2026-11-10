@@ -31,19 +31,20 @@ namespace Roguehalla.Client
             _resumeButton = _launch.Resume;
             _launch.ResumeRequested = OpenResumeChooser;
 
-            _resumeOverlay = Panel(_root, "ResumeRunOverlay", 0, 0, 1, 1);
-            _resumeOverlay.GetComponent<UnityEngine.UI.Image>().color = UiTheme.Current.Scrim;
-            var dialog = Panel(_resumeOverlay, "ResumeRunDialog", .22f, .25f, .78f, .76f);
-            Text(dialog, "ResumeTitle", "RESUME A SAVED RUN", .07f, .83f, .80f, .97f, 24).color = ShowcasePalette.Gold;
-            _resumeCancel = Button(dialog, "ResumeCancel", "CLOSE", .82f, .84f, .95f, .96f, CloseResumeChooser);
-            _resumeHint = Text(dialog, "ResumeHint", "Resume checks this tab's saved run. A run may have ended. Load or sign in first.",
-                .07f, .67f, .93f, .82f, 16);
-            _resumeArena = Button(dialog, "ResumeArena", "RESUME ARENA", .07f, .43f, .48f, .61f,
-                () => StartResume(MatchLaunchMode.Arena));
-            _resumeTraining = Button(dialog, "ResumeTraining", "RESUME TRAINING", .52f, .43f, .93f, .61f,
-                () => StartResume(MatchLaunchMode.Training));
-            _forgetRun = Button(dialog, "ForgetSavedRun", "FORGET SAVED RUN", .07f, .19f, .48f, .36f, ForgetCurrentSavedRun);
-            _resumeStatusText = Text(dialog, "ResumeStatus", "", .52f, .17f, .93f, .38f, 15);
+            _resumeOverlay = ModalBackdrop("ResumeRunOverlay");
+            _resumeOverlay.gameObject.AddComponent<ModalDismissSurface>().Dismiss = CloseResumeChooser;
+            var theme = UiTheme.Current;
+            var dialog = ModalCard(_resumeOverlay, "ResumeRunDialog", 480f, 252f, "RESUME A SAVED RUN", CloseResumeChooser);
+            _resumeCancel = dialog.Find("ResumeRunDialogClose").GetComponent<UnityEngine.UI.Button>();
+            _resumeCancel.name = "ResumeCancel";
+            _resumeHint = LaunchUi.Text(dialog, "ResumeHint", 16f, 48f, 448f, 54f, "Resume checks this tab's saved run. A run may have ended. Load or sign in first.", 12.5f, theme.TextSecondary, TextAlignmentOptions.TopLeft, false, UiFontRole.Body, true);
+            _resumeArena = LaunchUi.Button(dialog, "ResumeArena", 16f, 112f, 218f, 46f, LaunchUi.Look.Primary, () => StartResume(MatchLaunchMode.Arena));
+            LaunchUi.Text(_resumeArena.transform, "Label", 0, 0, 218f, 46f, "RESUME ARENA", 14f, theme.OutlineDark, TextAlignmentOptions.Center, true);
+            _resumeTraining = LaunchUi.Button(dialog, "ResumeTraining", 246f, 112f, 218f, 46f, LaunchUi.Look.Raised, () => StartResume(MatchLaunchMode.Training));
+            LaunchUi.Text(_resumeTraining.transform, "Label", 0, 0, 218f, 46f, "RESUME TRAINING", 14f, theme.TextPrimary, TextAlignmentOptions.Center, true);
+            _forgetRun = LaunchUi.Button(dialog, "ForgetSavedRun", 16f, 180f, 200f, 40f, LaunchUi.Look.Raised, ForgetCurrentSavedRun);
+            LaunchUi.Text(_forgetRun.transform, "Label", 0, 0, 200f, 40f, "FORGET SAVED RUN", 12.5f, theme.TextPrimary, TextAlignmentOptions.Center, true);
+            _resumeStatusText = LaunchUi.Text(dialog, "ResumeStatus", 228f, 176f, 236f, 48f, "", 12.5f, theme.Warning, TextAlignmentOptions.MidlineLeft, false, UiFontRole.Body, true);
             _resumeOverlay.gameObject.SetActive(false);
         }
 

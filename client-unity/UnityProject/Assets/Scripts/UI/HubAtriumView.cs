@@ -35,7 +35,7 @@ namespace Roguehalla.Client
             public LaunchIcon Icon; public MapGlyph Shape;
             public float X, Y, W, H, StandX, StandY;
             public int Faction = -1; public HubDestination Destination; public bool IsDestination;
-            public bool Available = true, Solid; public string Reason = "";
+            public bool Available = true, Solid; public string Reason = "", OffHint = "Unavailable";
             public Button Button; public TMP_Text HintText; public Image IconImage; public Image SelectedMark;
         }
 
@@ -44,7 +44,6 @@ namespace Roguehalla.Client
         static readonly string[] KioskHints = { "Cosmetics", "Change your look", "Earned titles", "Your milestones", "Top this month" };
         static readonly LaunchIcon[] KioskIcons = { LaunchIcon.Shop, LaunchIcon.Wardrobe, LaunchIcon.Titles, LaunchIcon.Achievements, LaunchIcon.Leaderboard };
         static readonly Vector2[] PedestalSpots = { new Vector2(248, 456), new Vector2(348, 492), new Vector2(448, 504), new Vector2(548, 492), new Vector2(648, 456) };
-        static readonly Vector4[] Pillars = { new Vector4(300, 76, 32, 32), new Vector4(596, 76, 32, 32), new Vector4(790, 128, 32, 32), new Vector4(790, 452, 32, 32) };
 
         readonly List<Station> _stations = new List<Station>();
         RectTransform _area, _room, _avatar, _floorTint;
@@ -86,8 +85,10 @@ namespace Roguehalla.Client
             BuildShell(theme);
             BuildStations(theme);
             BuildAvatar(theme);
-            var promptBox = HudUi.Box(_area, "StationMessageBox", HudAnchor.BottomCenter, 0, 0, RoomW, 28f);
-            _prompt = HudUi.Label(promptBox, "StationMessage", DefaultHint, 13f, theme.TextSecondary, TextAlignmentOptions.Center, false, UiFontRole.Body, true);
+            var promptBox = HudUi.Box(_area, "StationMessageBox", HudAnchor.BottomCenter, 0, 0, 620f, 28f);
+            HudUi.Surface(promptBox, UiTheme.With(theme.Surface, .94f), 14f, theme.Border, false, false);
+            var promptText = HudUi.Inset(promptBox, "StationMessageInset", 12f, 0f, 12f, 0f);
+            _prompt = HudUi.Label(promptText, "StationMessage", DefaultHint, 13f, theme.TextPrimary, TextAlignmentOptions.Center, false, UiFontRole.Body, false);
             _prompt.name = "StationMessage";
             _motion = new HubAtriumMotion(Norm(448f, true), Norm(408f, false));
             _initialized = true;
@@ -109,15 +110,16 @@ namespace Roguehalla.Client
         public void ApplyArea(float x, float y, float width, float height)
         {
             if (_area == null) return;
-            HudUi.Place(_area, HudAnchor.TopLeft, x, y, width, height);
             float k = Mathf.Clamp(Mathf.Min(width / RoomW, (height - 36f) / RoomH), MinScale, MaxScale);
+            // The area hugs the scaled room plus its prompt line, so the prompt sits just under the room instead of at the window's foot.
+            HudUi.Place(_area, HudAnchor.TopLeft, x, y, width, Mathf.Min(height, RoomH * k + 36f));
             _room.anchorMin = _room.anchorMax = new Vector2(.5f, 1f);
             _room.pivot = new Vector2(.5f, 1f);
             _room.anchoredPosition = Vector2.zero;
             _room.sizeDelta = new Vector2(RoomW, RoomH);
             _room.localScale = new Vector3(k, k, 1f);
-            var box = (RectTransform)_prompt.transform.parent;
-            HudUi.Place(box, HudAnchor.BottomCenter, 0, 0, Mathf.Max(260f, width), 28f);
+            var box = (RectTransform)_prompt.transform.parent.parent;
+            HudUi.Place(box, HudAnchor.BottomCenter, 0, 0, Mathf.Min(620f, Mathf.Max(260f, width)), 28f);
         }
 
         public void SetVisible(bool visible)
@@ -196,12 +198,12 @@ namespace Roguehalla.Client
         }
 
         /// <summary>Whether the arena stairs and the training door can be used, with the reason shown when they cannot.</summary>
-        public void SetPlayAvailable(bool arena, string arenaReason, bool training, string trainingReason)
+        public void SetPlayAvailable(bool arena, string arenaReason, string arenaHint, bool training, string trainingReason, string trainingHint)
         {
             foreach (var s in _stations)
             {
-                if (s.Kind == Kind.Arena) { s.Available = arena; s.Reason = arenaReason ?? ""; RefreshStation(s); }
-                else if (s.Kind == Kind.Training) { s.Available = training; s.Reason = trainingReason ?? ""; RefreshStation(s); }
+                if (s.Kind == Kind.Arena) { s.Available = arena; s.Reason = arenaReason ?? ""; s.OffHint = arenaHint; RefreshStation(s); }
+                else if (s.Kind == Kind.Training) { s.Available = training; s.Reason = trainingReason ?? ""; s.OffHint = trainingHint; RefreshStation(s); }
             }
         }
 
@@ -212,7 +214,7 @@ namespace Roguehalla.Client
             var theme = UiTheme.Current;
             _avatarDisc.color = theme.FactionColor(_faction);
             _avatarShape.sprite = MapGlyphs.Sprite(LaunchCopy.Houses[_faction].Shape);
-            _floorTint.GetComponent<Image>().color = UiTheme.With(theme.FactionColor(_faction), .10f);
+            _floorTint.GetComponent<Image>().color = UiTheme.With(theme.FactionColor(_faction), .035f);
             foreach (var s in _stations) if (s.Kind == Kind.Pedestal) RefreshStation(s);
         }
 
@@ -221,9 +223,9 @@ namespace Roguehalla.Client
         void BuildShell(UiTheme theme)
         {
             var shell = HudUi.Inset(_room, "Walls", 0, 0, 0, 0);
-            HudUi.Surface(shell, UiTheme.With(theme.SurfaceRaised, .92f), 16f, theme.Border, false, true);
+            HudUi.Surface(shell, UiTheme.With(theme.SurfaceRaised, .97f), 16f, theme.Border, false, true);
             var floor = HudUi.At(_room, "Floor", Wall, Wall, RoomW - 2 * Wall, RoomH - 2 * Wall);
-            HudUi.Surface(floor, UiTheme.With(theme.SurfaceSunken, .72f), 8f, theme.Border, true, false);
+            HudUi.Surface(floor, UiTheme.With(theme.Surface, .90f), 8f, theme.Border, true, false);
             floor.gameObject.AddComponent<HubFloorPointer>().Owner = this;
             var tint = HudUi.Inset(floor, "FloorTint", 0, 0, 0, 0);
             var tintImage = tint.gameObject.AddComponent<Image>();
@@ -232,13 +234,6 @@ namespace Roguehalla.Client
             // Flagstone rules: faint seams so the floor reads as a floor rather than a flat panel.
             for (int i = 1; i < 8; i++) LaunchUi.Bar(floor, "SeamH" + i, 8f, i * (RoomH - 2 * Wall) / 8f, RoomW - 2 * Wall - 16f, 1f, UiTheme.With(theme.Border, .10f));
             for (int i = 1; i < 13; i++) LaunchUi.Bar(floor, "SeamV" + i, i * (RoomW - 2 * Wall) / 13f, 8f, 1f, RoomH - 2 * Wall - 16f, UiTheme.With(theme.Border, .08f));
-            for (int i = 0; i < Pillars.Length; i++)
-            {
-                var p = Pillars[i];
-                var rect = HudUi.At(_room, "Pillar" + i, p.x - p.z / 2f, p.y - p.w / 2f, p.z, p.w);
-                HudUi.Surface(rect, theme.SurfaceRaised, 5f, theme.Border, false, true);
-                _stations.Add(new Station { Kind = Kind.Pedestal, Id = "pillar" + i, X = p.x, Y = p.y, W = p.z, H = p.w, Solid = true, Faction = -2 });
-            }
         }
 
         void BuildStations(UiTheme theme)
@@ -398,7 +393,7 @@ namespace Roguehalla.Client
             if (s.IconImage != null) s.IconImage.color = s.Available ? (Color)theme.Accent : theme.TextSecondary;
             if (s.HintText != null)
             {
-                s.HintText.text = s.Available ? s.Hint : "Not available here";
+                s.HintText.text = s.Available ? s.Hint : (string.IsNullOrEmpty(s.OffHint) ? "Unavailable" : s.OffHint);
                 s.HintText.color = theme.TextSecondary;
             }
             if (!counters)

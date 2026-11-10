@@ -213,7 +213,7 @@ namespace Roguehalla.Client
         public void ShowMenu()
         {
             CloseResumeChooser();
-            Unbind(); CloseHubPanels(); _menu.gameObject.SetActive(true); _hud.gameObject.SetActive(false);
+            Unbind(); CloseHubPanels(); _menu.gameObject.SetActive(true); _hud.gameObject.SetActive(false); _focusCallsignPending = true;
             if (_launchMenuInput != null) _launchMenuInput.interactable = true;
             _rewards.gameObject.SetActive(false); _results.gameObject.SetActive(false); _settings.gameObject.SetActive(false);
             ClearOwnerPresentation("Awaiting server");

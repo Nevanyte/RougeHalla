@@ -89,7 +89,7 @@ namespace Roguehalla.Client.Tests
             Station("Arena").onClick.Invoke();
             Assert.That(plays, Is.EqualTo(1));
 
-            _view.SetPlayAvailable(false, "No arena server is set up for this page.", false, "Training isn't offered on this server.");
+            _view.SetPlayAvailable(false, "No arena server is set up for this page.", "Unavailable", false, "Training isn't offered on this server.", "Unavailable");
             Station("Arena").onClick.Invoke(); Station("Training").onClick.Invoke();
             Assert.That(plays, Is.EqualTo(1), "an unavailable arena never raises a request");
             Assert.That(trainings, Is.EqualTo(0));

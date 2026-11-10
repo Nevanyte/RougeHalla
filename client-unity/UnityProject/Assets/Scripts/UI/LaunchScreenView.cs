@@ -62,17 +62,38 @@ namespace Roguehalla.Client
             var theme = UiTheme.Current;
             Root = menuRoot;
             _veil = Fill(menuRoot, "Veil", UiTheme.With(theme.SurfaceSunken, 1f));
-            _scrim = Fill(menuRoot, "Scrim", UiTheme.With(theme.Scrim, .30f));
+            _scrim = Fill(menuRoot, "Scrim", UiTheme.With(theme.Scrim, .60f));
+            TopShade(menuRoot, "TopShade", .62f, UiTheme.With(theme.OutlineDark, .85f));
             var stage = new GameObject("LaunchStage", typeof(RectTransform), typeof(HudStage));
             stage.transform.SetParent(menuRoot, false);
             Stage = (RectTransform)stage.transform;
             StageScaler = stage.GetComponent<HudStage>();
             BuildHero(theme);
+            // The panel is built first so keyboard order reads callsign, record, faction, actions, then the room's stations.
+            BuildPanel(theme);
             Atrium = gameObject.AddComponent<HubAtriumView>();
             Atrium.Initialize(Stage, null);
-            BuildPanel(theme);
+            Atrium.SetFaction(_house);
             StageScaler.ViewportChanged += ApplyViewport;
             StageScaler.Relayout();
+        }
+
+        static Texture2D _ramp;
+        /// <summary>A dark gradient laid over the top of the vista so the wordmark reads on any region: opaque at the top edge, fading to nothing (generated, tinted by the Image colour).</summary>
+        static void TopShade(Transform parent, string name, float fromFraction, Color color)
+        {
+            if (_ramp == null)
+            {
+                _ramp = new Texture2D(1, 64, TextureFormat.RGBA32, false) { name = "Launch shade ramp", wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear, hideFlags = HideFlags.HideAndDontSave };
+                var px = new Color32[64];
+                for (int i = 0; i < 64; i++) { float t = i / 63f; px[i] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(255f * t * t)); }
+                _ramp.SetPixels32(px); _ramp.Apply(false, true); // row 0 is the bottom: transparent; the last row is the top: opaque
+            }
+            var rect = (RectTransform)new GameObject(name, typeof(RectTransform)).transform;
+            rect.SetParent(parent, false);
+            rect.anchorMin = new Vector2(0, fromFraction); rect.anchorMax = new Vector2(1, 1);
+            rect.offsetMin = rect.offsetMax = Vector2.zero;
+            var raw = rect.gameObject.AddComponent<RawImage>(); raw.texture = _ramp; raw.color = color; raw.raycastTarget = false;
         }
 
         static Image Fill(Transform parent, string name, Color color)
@@ -114,8 +135,8 @@ namespace Roguehalla.Client
             BuildRecord(theme, y);
             y += 64f;
 
-            Profile = Pill(Panel, "OpenProfileRecords", Pad, y, 148f, "PROFILE & RECORDS", LaunchIcon.Profile, () => ProfileRequested?.Invoke());
-            Resume = Pill(Panel, "ResumeRun", Pad + 156f, y, Inner - 156f, "RESUME…", LaunchIcon.Resume, () => ResumeRequested?.Invoke());
+            Profile = Pill(Panel, "OpenProfileRecords", Pad, y, 172f, "PROFILE & RECORDS", LaunchIcon.Profile, () => ProfileRequested?.Invoke());
+            Resume = Pill(Panel, "ResumeRun", Pad + 180f, y, Inner - 180f, "RESUME…", LaunchIcon.Resume, () => ResumeRequested?.Invoke());
             y += 42f;
 
             LaunchUi.Text(Panel, "FactionLabel", Pad, y, Inner, 14f, "CHOOSE YOUR FACTION", 11f, theme.TextSecondary, TextAlignmentOptions.MidlineLeft, true).characterSpacing = 1.5f;
@@ -137,8 +158,8 @@ namespace Roguehalla.Client
             Status = LaunchUi.Text(Panel, "AccountStatus", Pad, y, Inner, 34f, "", 12f, theme.Warning, TextAlignmentOptions.TopLeft, false, UiFontRole.Body, true);
             y += 40f;
 
-            Guide = Pill(Panel, "OpenGuide", Pad, y, 160f, "CHAMPIONS & WEAPONS", LaunchIcon.Guide, () => GuideRequested?.Invoke(), 11.5f);
-            SignIn = Pill(Panel, "SignInOptions", Pad + 168f, y, Inner - 168f, "SIGN-IN", LaunchIcon.Key, () => SignInRequested?.Invoke(), 11.5f);
+            Guide = Pill(Panel, "OpenGuide", Pad, y, 196f, "CHAMPIONS & WEAPONS", LaunchIcon.Guide, () => GuideRequested?.Invoke(), 11.5f);
+            SignIn = Pill(Panel, "SignInOptions", Pad + 204f, y, Inner - 204f, "SIGN-IN", LaunchIcon.Key, () => SignInRequested?.Invoke(), 11.5f);
             SetFaction(_house);
         }
 
@@ -228,6 +249,7 @@ namespace Roguehalla.Client
             _cancelMode = connecting;
             string training = connecting ? "CANCEL" : "TRAINING";
             if (TrainingLabel.text != training) TrainingLabel.text = training;
+            TrainingLabel.color = Training.interactable ? (Color)theme.TextPrimary : theme.TextSecondary;
         }
 
         /// <summary>Shows one explanatory line under the actions: a status (account or launch problem) wins over the availability reason.</summary>

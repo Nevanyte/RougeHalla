@@ -1,7 +1,9 @@
+using System;
 using Roguehalla.Net;
 using Roguehalla.Net.Ui;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 namespace Roguehalla.Client
 {
@@ -15,6 +17,7 @@ namespace Roguehalla.Client
         AccountHubSnapshot _accountShown;
         HubGuideView _hubGuide;
         LaunchScreenView _launch;
+        bool _focusCallsignPending = true;
         LaunchBackdrop _backdrop;
         HubProgressView _hubProgress;
         AccountRecoveryView _recovery;
@@ -47,22 +50,50 @@ namespace Roguehalla.Client
             _launch.Atrium.TrainingRequested = StartTraining;
             _launch.Atrium.FactionPicked = SetFaction;
             InitializeResumeMenu();
-            _signInBackdrop = Panel(_root, "SignInModal", 0, 0, 1, 1);
-            _signInBackdrop.GetComponent<UnityEngine.UI.Image>().color = UiTheme.Current.Scrim;
+            _signInBackdrop = ModalBackdrop("SignInModal");
             _signInBackdrop.gameObject.AddComponent<ModalDismissSurface>().Dismiss = () => SetSignInVisible(false);
-            _signIn = Panel(_signInBackdrop, "SignInOptions", .26f, .27f, .74f, .80f);
-            Text(_signIn, "SignInTitle", "SIGN-IN & ACCESS", .06f, .80f, .94f, .97f, 26).color = ShowcasePalette.Gold;
-            Text(_signIn, "KeyHint", "Existing callsign? Use its sign-in link or enter your ownership key.\nNew callsigns do not need an ownership key.", .06f, .62f, .94f, .79f, 16);
-            _ownershipKey = Input(_signIn, _client.PendingSignInKey, .06f, .47f, .94f, .60f);
-            _ownershipKey.name = "OwnershipKey"; _ownershipKey.characterLimit = 512; _ownershipKey.contentType = TMP_InputField.ContentType.Password;
-            Text(_signIn, "PasscodeHint", "Playtest access code, if required", .06f, .33f, .94f, .44f, 16);
-            _passcode = Input(_signIn, "", .06f, .20f, .94f, .32f);
-            _passcode.name = "PlaytestAccessCode"; _passcode.characterLimit = 256; _passcode.contentType = TMP_InputField.ContentType.Password;
-            Button(_signIn, "SignInDone", "DONE", .06f, .035f, .48f, .16f, () => SetSignInVisible(false));
-            Button(_signIn, "OpenRecovery", "RECOVERY KEY", .52f, .035f, .94f, .16f, OpenRecovery);
+            var theme = UiTheme.Current;
+            _signIn = ModalCard(_signInBackdrop, "SignInOptions", 440f, 300f, "SIGN-IN & ACCESS", () => SetSignInVisible(false));
+            LaunchUi.Text(_signIn, "KeyHint", 16f, 48f, 408f, 38f, "Already have a callsign? Open its sign-in link, or paste its ownership key below. A new callsign doesn't need a key.", 12.5f, theme.TextSecondary, TextAlignmentOptions.TopLeft, false, UiFontRole.Body, true);
+            LaunchUi.Text(_signIn, "OwnershipLabel", 16f, 94f, 408f, 14f, "OWNERSHIP KEY", 11f, theme.TextSecondary, TextAlignmentOptions.MidlineLeft, true).characterSpacing = 1.5f;
+            _ownershipKey = LaunchUi.Input(_signIn, "OwnershipKey", _client.PendingSignInKey, "paste your key", 16f, 112f, 408f, 36f, 512);
+            _ownershipKey.contentType = TMP_InputField.ContentType.Password;
+            LaunchUi.Text(_signIn, "PasscodeHint", 16f, 158f, 408f, 14f, "PLAYTEST ACCESS CODE, IF REQUIRED", 11f, theme.TextSecondary, TextAlignmentOptions.MidlineLeft, true).characterSpacing = 1.5f;
+            _passcode = LaunchUi.Input(_signIn, "PlaytestAccessCode", "", "access code", 16f, 176f, 408f, 36f, 256);
+            _passcode.contentType = TMP_InputField.ContentType.Password;
+            var recovery = LaunchUi.Button(_signIn, "OpenRecovery", 16f, 236f, 200f, 44f, LaunchUi.Look.Raised, OpenRecovery);
+            LaunchUi.Text(recovery.transform, "Label", 0, 0, 200f, 44f, "RECOVERY KEY", 13f, theme.TextPrimary, TextAlignmentOptions.Center, true);
+            var done = LaunchUi.Button(_signIn, "SignInDone", 224f, 236f, 200f, 44f, LaunchUi.Look.Primary, () => SetSignInVisible(false));
+            LaunchUi.Text(done.transform, "Label", 0, 0, 200f, 44f, "DONE", 14f, theme.OutlineDark, TextAlignmentOptions.Center, true);
             SetSignInVisible(false);
             _nickname.onValueChanged.AddListener(name => { _client.SelectProfile(name); _ownershipKey.text = ""; });
         }
+        /// <summary>A full-window scrim for a modal card; clicking it outside the card dismisses (the owner adds <see cref="ModalDismissSurface"/>).</summary>
+        RectTransform ModalBackdrop(string name)
+        {
+            var rect = Rect(_root, name, 0, 0, 1, 1);
+            var image = rect.gameObject.AddComponent<UnityEngine.UI.Image>(); image.color = UiTheme.Current.Scrim; image.raycastTarget = true;
+            return rect;
+        }
+
+        /// <summary>
+        /// A centred card in legacy HUD units (its own stage inside the backdrop): slate fill, gold Cinzel title, a close button top right.
+        /// The returned rect is the card; children are placed from its top-left in HUD units.
+        /// </summary>
+        RectTransform ModalCard(RectTransform backdrop, string name, float width, float height, string title, Action close)
+        {
+            var theme = UiTheme.Current;
+            var stageGo = new GameObject("ModalStage", typeof(RectTransform), typeof(HudStage));
+            stageGo.transform.SetParent(backdrop, false);
+            stageGo.GetComponent<HudStage>().Relayout();
+            var card = HudUi.Box(stageGo.transform, name, HudAnchor.Center, 0, 0, width, height);
+            HudUi.Surface(card, theme.Surface, theme.CornerRadiusLarge, theme.BorderStrong, true, true);
+            LaunchUi.Text(card, name + "Title", 16f, 12f, width - 64f, 30f, title, 20f, theme.Accent, TextAlignmentOptions.MidlineLeft, true, UiFontRole.Display).characterSpacing = 1.5f;
+            var x = LaunchUi.Button(card, name + "Close", width - 42f, 12f, 28f, 28f, LaunchUi.Look.Raised, () => close());
+            LaunchUi.Text(x.transform, "Label", 0, 0, 28f, 28f, "x", 15f, theme.TextPrimary, TextAlignmentOptions.Center, true);
+            return card;
+        }
+
         void StartRun()
         {
             if (_joinMatch == null || !_joinMatch.interactable) return;
@@ -124,6 +155,14 @@ namespace Roguehalla.Client
             _launch.Atrium.SetVisible(menu);
             _backdrop?.SetVisible(menu);
             if (!menu) return;
+            if (_focusCallsignPending && !AnyHubPanelVisible && !ResumeChooserVisible && !_signIn.gameObject.activeSelf && _nickname != null &&
+                string.IsNullOrEmpty(_nickname.text) && EventSystem.current != null && !(_client != null && _client.LaunchPending))
+            {
+                // A first visit with no callsign: put the cursor in the name field, the one thing needed before playing.
+                _focusCallsignPending = false;
+                EventSystem.current.SetSelectedGameObject(_nickname.gameObject);
+                _nickname.ActivateInputField();
+            }
             _launch.SetVeil(_backdrop == null ? 0f : 1f - _backdrop.Reveal);
             _launch.Atrium.ReadInput(!Typing && !_signIn.gameObject.activeSelf && !_settings.gameObject.activeSelf && !AnyHubPanelVisible &&
                 !_help.gameObject.activeSelf && !ResumeChooserVisible);
@@ -184,7 +223,8 @@ namespace Roguehalla.Client
             _joinTraining.interactable = pending || trainingReady;
             RefreshResumeMenu(state, busy, arena, training);
             _launch.SetPlay(pending ? "CONNECTING…" : "START RUN", ready, pending);
-            _launch.Atrium.SetPlayAvailable(ready, WhyNotPlay(account, callsignProblem, arena), trainingReady, WhyNotTraining(account, callsignProblem, training));
+            _launch.Atrium.SetPlayAvailable(ready, WhyNotPlay(account, callsignProblem, arena), callsignProblem != null ? "Type a callsign first" : "Unavailable",
+                trainingReady, WhyNotTraining(account, callsignProblem, training), "Unavailable");
 
             string reason = "";
             if (!pending && !busy)
