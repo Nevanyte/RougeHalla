@@ -1,6 +1,22 @@
 # Competitive netcode checkpoint: result and evidence
 
-Code SHA: (filled by coordinator)
+Code SHA: `c57a6aca` (branch `claude/peaceful-babbage-rtsgq6`; contains `optimization_port` at `e96f2a9c`). The commit that adds
+this paragraph changes this file only; it is the evidence SHA.
+
+Gates run by the coordinator on `c57a6aca` (2026-11-10):
+
+- `cargo fmt --all -- --check`: clean.
+- `cargo test --workspace --no-fail-fast` with Postgres from `tools/pgtest/start.sh`: 2144 passed, 0 failed, 16 ignored.
+- `cargo run -p rh-parity --bin parity-report`: 109 slice scenarios + 13 capture-only, 300 pathfinding queries, all MATCH.
+- `cargo run -p rh-protocol --bin protocol-fixtures`: `v15.json` regenerates with no diff.
+- `dotnet test client-unity/RoguehallaNet.Tests`: 1071 passed, 0 failed. `client-unity/sync-net.sh --check`: up to date.
+- `node tools/protocol-js/check-vectors.mjs`: 73 server vectors, 226 malformed, 29 chains, 52206 checks agree with `v15.json`.
+- `node tools/protocol-js/check-first-playable.mjs`: passed.
+
+Closed after the worker reports below were written (commit `606de2fc`): the 17 u target-only aim bound is asserted on every replay
+trace (measured maximum 12.47 u); the walk cache is also keyed on a snapshot-buffer revision, because replacing the newest snapshot at
+the same time did reuse the old walk (5.95 u lead along the old direction before the fix); the JS check requires the `truncated`
+reason for the new malformed cases; `rtt.rs` has a test that a stamp one lead past the newest snapshot is never clamped downward.
 
 Branch `claude/peaceful-babbage-rtsgq6`. This file is evidence only. Every result below is copied from the worker packet reports;
 the records author ran no cargo or dotnet. Synthetic timings and replay errors are not performance gains. Nothing was measured on a
@@ -121,6 +137,5 @@ press and a release are dropped but a free Aim still turns the seat (a dropped R
 - Balance not run (no harness); DEV-009 to DEV-012 stay `pending`.
 - JS probe move helper still sends plain Move; `tools/browser-proof` depends on it and was not run against 15.
 - Rust and JS rejection reasons for the 15 new malformed server names were not compared; the v15.json was not re-diffed by the consumers worker.
-- Whether the real frame loop delivers the own Swing Fx before `OwnAttackCue.Update` is not checked.
-- Rust test counts for the full workspace were not reported; focused tests are named above.
+- `MatchClient.Update` calls `session.Poll()` before `_ownCue.Update` (read, not compiled or run).
 - `lag_fairness` is on in live `rh-server` runtime profiles and off elsewhere; Root owns the final activation. ADR 0024 stays Proposed.
