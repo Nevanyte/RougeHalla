@@ -319,7 +319,17 @@ fn first_body(cx: &Cx, s: Stretch, t: f64) -> Option<(usize, Vec2)> {
         let at = p.position_at(t);
         let touch = match p.hull().body_box(at) {
             None => contact(s, at, reach),
-            Some(body) => segment_box_entry(up.a, up.b, body.grown(slack)),
+            // A raised start already inside the grown box (the shooter overlaps the target on screen, a reflection or a
+            // homing flight starting there) resolves this target with the legacy ground contact, so there is no knife
+            // edge on which side of the box centre the shot starts (review finding 3).
+            Some(body) => {
+                let grown = body.grown(slack);
+                if grown.contains(up.a) {
+                    contact(s, at, reach)
+                } else {
+                    segment_box_entry(up.a, up.b, grown)
+                }
+            }
         };
         if let Some(u) = touch {
             let candidate = (

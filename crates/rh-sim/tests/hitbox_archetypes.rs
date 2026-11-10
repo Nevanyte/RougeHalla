@@ -477,3 +477,62 @@ fn melee_boundary_sweep_has_no_flip_and_is_even_north_and_south() {
         }
     }
 }
+
+/// Fire one bow shot from `at` along `aim` at a hero target with feet at `target`; is the target hit?
+fn bow_hits(mode: HitboxMode, at: Vec2, aim: f64, target: Vec2) -> bool {
+    let ps = [
+        placement(1, FactionId::Fire, at, Some(WeaponId::Bow)),
+        placement(2, FactionId::Sentenced, target, None),
+    ];
+    let mut s = world(mode, &ps);
+    hit(&attack(&mut s, aim), 2)
+}
+
+/// Review finding 3: a shot whose raised start is already inside a target's (grown) body box resolves that target with
+/// the legacy ground contact (the swept ground segment against the feet, reach 12 + 7), not the box. Fired east, a target
+/// whose feet are 30 u south and 1 u east or west of the shooter is missed on both sides (the box rule hit one and missed
+/// the other); fired south, toward the target that overlaps the shooter, both are hit.
+#[test]
+fn a_point_blank_shot_does_not_flip_on_a_one_unit_offset() {
+    let at = east_lane(&practice_arena().map);
+    for dx in [1.0, -1.0] {
+        let target = Vec2::new(at.x + dx, at.y + 30.0);
+        assert!(
+            !bow_hits(HitboxMode::Archetypes, at, E, target),
+            "fired east, target at ({dx}, +30)"
+        );
+        assert!(
+            bow_hits(HitboxMode::Archetypes, at, S, target),
+            "fired south, target at ({dx}, +30)"
+        );
+    }
+}
+
+/// Review finding 3: sweeping the target across the shooter (every whole unit from 22 u west to 22 u east, the whole
+/// start-inside zone of a hero box grown by the arrow radius, half-width 23), at several distances south, the verdict
+/// never changes: fired east it always misses (the legacy ground track passes 20 u or more from the feet); fired south it
+/// hits exactly while the feet are within the legacy reach (|dx| <= 19) in both modes.
+#[test]
+fn a_lateral_sweep_through_the_start_inside_zone_has_no_single_unit_flip() {
+    let at = east_lane(&practice_arena().map);
+    let reach = PLAYER_RADIUS + 7.0;
+    for dy in [20.0, 30.0, 40.0] {
+        for k in -22..=22 {
+            let target = Vec2::new(at.x + k as f64, at.y + dy);
+            assert!(
+                !bow_hits(HitboxMode::Archetypes, at, E, target),
+                "fired east, target at ({k}, +{dy})"
+            );
+        }
+    }
+    for k in -22..=22 {
+        let target = Vec2::new(at.x + k as f64, at.y + 30.0);
+        for mode in [HitboxMode::Archetypes, HitboxMode::LegacyCircle] {
+            assert_eq!(
+                bow_hits(mode, at, S, target),
+                (k as f64).abs() <= reach,
+                "{mode:?} fired south, target at ({k}, +30)"
+            );
+        }
+    }
+}
