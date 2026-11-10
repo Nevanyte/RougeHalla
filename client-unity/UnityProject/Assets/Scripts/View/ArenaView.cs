@@ -15,6 +15,17 @@ namespace Roguehalla.Client
         public const float GroundSquash = .78f;
         public static Vector3 WorldPoint(float x, float y) { return new Vector3(x * Scale, -y * Scale * GroundSquash, 0); }
         public bool HasMap { get; private set; }
+        /// <summary>Region and terrain lookup for the lighting, particle and music systems; see <see cref="RegionMap"/>.</summary>
+        public RegionMap Regions { get; } = new RegionMap();
+        /// <summary>Region at a Unity world position (the space <see cref="WorldPoint"/> returns); None when the map has no region plane.</summary>
+        public RegionId RegionAt(Vector3 worldPos) { return Regions.RegionAt(worldPos); }
+        /// <summary>Region under the local player (debounced); None until the first position is known.</summary>
+        public RegionId LocalRegion { get { return Regions.LocalRegion; } }
+        /// <summary>Raised (previous, current) when the local player enters another region.</summary>
+        public event System.Action<RegionId, RegionId> LocalRegionChanged { add { Regions.LocalRegionChanged += value; } remove { Regions.LocalRegionChanged -= value; } }
+        RegionGround _regionGround; RegionWalls _regionWalls; RegionProps _regionProps;
+        /// <summary>Brightness multiplier for region ground and walls (they are lit by the same Light2D set as the actors).</summary>
+        public const float RegionExposure = 1f;
         SpriteActorPresenter _actors;
         ConfirmedWishPresenter _wishes;
         double _sourceTimeMs;
@@ -83,6 +94,8 @@ namespace Roguehalla.Client
         public void Build(MapBlob map)
         {
             if (HasMap) return;
+            Regions.Load(map);
+            if (map.Regions != null && map.Regions.Length == map.W * map.H) { BuildRegionMap(map); return; }
             float w = map.W, h = map.H * GroundSquash;
             for (int y = 0; y < map.H; y += 4) for (int x = 0; x < map.W; x += 4)
             {
@@ -117,6 +130,15 @@ namespace Roguehalla.Client
             HasMap = true;
             ApplyQuality();
         }
+        /// <summary>Region-aware map: one ground quad, row-batched walls and deterministic props. Used when the map carries the region plane.</summary>
+        void BuildRegionMap(MapBlob map)
+        {
+            _regionGround = RegionGround.Create(_mapRoot, map, RegionExposure);
+            _regionWalls = RegionWalls.Build(_mapRoot, map, RegionExposure);
+            _regionProps = RegionProps.Build(_mapRoot, map);
+            HasMap = true;
+            ApplyQuality();
+        }
         static float Hash(int x, int y) { unchecked { uint h = (uint)(x * 73856093 ^ y * 19349663); return (h & 255) / 255f; } }
 
         void AddLantern(Vector3 p, int order, int index)
@@ -143,16 +165,21 @@ namespace Roguehalla.Client
                 // from appearance or position; draw their latest typed public facts instead.
                 if (_hasMembership && a.Kind != ActorKind.Player) continue;
                 _actors.Present(a.Id, a.X, a.Y, a.Facing, a.HpPct, a.Faction, a.Status, a.Weapon, a.Kind, a.MobType, a.Effects, a.SourceSig, false, a.BarrierPct, a.BarrierRingStep);
+                if (_regionProps != null) _regionProps.NoteActor(WorldPoint(a.X, a.Y));
             }
             if (_hasMembership) PresentLatestNpcs();
             if (me != null && (!_hasMembership || _membership.Contains(me.Id)))
             {
                 bool initialized = motion != null && motion.Initialized;
                 OwnerVitalBars.Percent(me, out float healthPercent, out float barrierPercent);
-                _actors.Present(me.Id, initialized ? motion.DrawnX : me.X, initialized ? motion.DrawnY : me.Y, aimAngle, healthPercent,
+                float mx = initialized ? motion.DrawnX : me.X, my = initialized ? motion.DrawnY : me.Y;
+                _actors.Present(me.Id, mx, my, aimAngle, healthPercent,
                     me.Faction, me.Status, me.Weapon, ActorKind.Player, null, me.Effects, me.SelfSig, true, barrierPercent, me.BarrierRingStep);
+                Regions.UpdateLocal(mx, my, Time.unscaledTime);
+                if (_regionProps != null) _regionProps.NoteActor(WorldPoint(mx, my));
             }
             _actors.End();
+            if (_regionProps != null) _regionProps.Tick(Time.unscaledDeltaTime);
             ReleaseScheduledFx();
             UpdateEffects();
             _wishes.Tick(_sourceTimeMs);
@@ -193,7 +220,10 @@ namespace Roguehalla.Client
         void PresentLatestNpcs()
         {
             foreach(var a in _latestNpcs)
+            {
                 _actors.Present(a.Id,a.X,a.Y,a.Facing,a.HpPct,a.Faction,a.Status,a.Weapon,a.Kind,a.MobType,a.Effects,a.SourceSig,false,a.BarrierPct,a.BarrierRingStep);
+                if (_regionProps != null) _regionProps.NoteActor(WorldPoint(a.X, a.Y));
+            }
         }
 
         public void PresentCollections(CollectionsView collections)
@@ -461,6 +491,12 @@ namespace Roguehalla.Client
             foreach (var light in _lamps) { light.SetShadows(quality == ShowcaseQuality.High); light.ApplyQuality(); }
             if (_hasFollow) UpdateLampVisibility(_lastFollow);
         }
-        void OnDestroy() { if (ShowcaseSettings.Current != null) ShowcaseSettings.Current.Changed -= ApplyQuality; }
+        void OnDestroy()
+        {
+            if (ShowcaseSettings.Current != null) ShowcaseSettings.Current.Changed -= ApplyQuality;
+            if (_regionGround != null) _regionGround.Dispose();
+            if (_regionWalls != null) _regionWalls.Dispose();
+            if (_regionProps != null) _regionProps.Dispose();
+        }
     }
 }
