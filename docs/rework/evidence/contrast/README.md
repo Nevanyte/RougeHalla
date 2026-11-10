@@ -1,5 +1,25 @@
 # Character contrast: evidence (branch `rework/contrast`)
 
+## Current state, 2026-11-10: no line outline by default (owner decision), three-way comparison
+
+Owner: "I would prefer just to do no line outline at all at the risk of losing character/background contrast." The baked ground shadow is also gone from every actor sprite and our own contact and cast shadows ground the figure
+(see [../../CONTRAST_GATE.md](../../CONTRAST_GATE.md), top section). Everything below this section describes the previous adaptive 3 px outline and is historical; `CONTRAST.md`, `contrast.json` and `worst-after.jpg` in this folder are now the
+**no-outline** run (1920x1080, High, 931 cells, exit 1).
+
+| variant (page flag) | EDGE p10 >= 3.0 | markers >= 4.5 | what it costs / how it looks |
+|---|---:|---:|---|
+| none (default) | 62 / 931 | 1 / 931 | cleanest picture; figures on dark ground (Sentenced, Fire, Plague) have BODY medians 1.4 to 1.5 against the ground, readable by shape and light but not by contrast |
+| outline (`?fx.outline=1`, 1 px, softened, adaptive tone) | 428 / 931 | 8 / 931 | helps on dark and mid ground (Sentenced 79 / 90, Plague 160 / 212, Fire 128 / 242), nothing on bright snow and temple (Frost 41, Holy 11); a visible white line, doubled on the foot marker, white frames on plates |
+| rim (`?fx.rim=1`, nothing outside the sprite) | 251 / 931 | 0 / 931 | helps on dark ground, least visible, never adds a shape outside the figure; on bright ground it adds almost nothing |
+
+Captures (JPEG, a real bot match at 1080p High, hero running; 3x nearest filmstrips of 8 frames): [dark none](filmstrip-dark-none.jpg), [dark outline](filmstrip-dark-outline.jpg), [dark rim](filmstrip-dark-rim.jpg),
+[bright none](filmstrip-bright-none.jpg), [bright outline](filmstrip-bright-outline.jpg), [bright rim](filmstrip-bright-rim.jpg). One frame per zone, none | outline | rim side by side: [Sentenced](compare-sentenced.jpg), [Holy](compare-holy.jpg),
+[Frost](compare-frost.jpg), [Fire](compare-fire.jpg), [Plague](compare-plague.jpg). Default in-match frames: `match-*.jpg`. Worst cells of the no-outline run: [worst-after.jpg](worst-after.jpg).
+Caveat: the lab measures the silhouette contour as drawn, so the rim (inside the sprite) is measured as the figure's own edge; the strict numbers are comparable but a pass was never expected.
+
+---
+
+
 Owner requirement ([UNITY_REWORK_FABLE.md](../../../prompts/UNITY_REWORK_FABLE.md) section 4, "Character contrast is a hard gate"): an objective 3:1 between every character and the ground, landscape vivid, faction-coloured outlines **not** used.
 Design and definitions: [CONTRAST_GATE.md](../../CONTRAST_GATE.md) ("Branch `rework/contrast`"). Everything here was measured on the real WebGL build in headed Chromium on `ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro)`,
 on the merged tree (`feature/unity-rework` at `260efe8d`, render pass and audio included). Raw captures stay outside the repository.
