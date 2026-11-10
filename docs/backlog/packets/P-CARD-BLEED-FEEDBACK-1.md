@@ -2,11 +2,7 @@
 
 ## ID and outcome
 
-Implement the source `cardHooks.afterDamage` grouped feedback for card-owned DoT, including its 500 ms flush and final
-run-end flush. Bleed damage/status application already exists; this packet ports only the missing feedback accumulator
-and emission. The source event carries `weapon: null`; Rust's `Event::Hit` has compatible payload fields, but its delayed
-observer-eligibility behavior is not yet proven compatible. Do not select an accumulator/event representation until Sol
-has reviewed source and native temporal visibility semantics.
+Implement source-equivalent trusted card DoT grouping, 500 ms cadence and run-end flush, with a separately reviewed C-OBS public projection. Damage/status application already exists. The [independent timing/privacy review](../../evidence/card-bleed-feedback-design-review/README.md) confirms legacy stores no historical audience and broadcasts raw totals at flush. Contribution-tick entitlement is a deliberate native privacy extension under ADR0013, not legacy public-row parity. Generic delayed `Event::Hit` cannot safely publish the trusted total.
 
 This packet is **planned, not dispatched**. Root must review the state identity and source-capture plan before assigning
 implementation to DeepSeek. The proposed `state.rs` and `schedule.rs` leases may overlap Claude's active hitbox/crash
@@ -20,9 +16,8 @@ packet; root must reconcile those file scopes first. Do not reserve or edit thes
 - Source behavior must first be captured in a new immutable fixture corpus. Existing card-runtime fixtures do not establish
 periodic flush, ordered grouping and run-end semantics as one bounded source witness.
 - Delayed grouped feedback must preserve per-contribution visibility eligibility at the original hit time under C-OBS and
-  temporal reporting rules, rather than re-evaluating attacker visibility when the 500 ms batch flushes. Sol must inspect
-  source event delivery plus `FxProjector`, `fx_report`, actor-reference and publication ownership before the source/event
-  shape is selected.
+  temporal reporting rules. Use the original settled simulation report predicate, as a deliberate extension of ADR0013.
+  Source aggregate/cadence parity and native privacy controls are separate assertions. The review proposes Card contribution/flush domains in the existing projector; Root must still admit output classification, capacities and exact leases.
 - Adding accumulated report state to `World` changes serialized and hashed simulation state. Root must decide required
   checkpoint/replay/content identity treatment before code implementation. `Cargo.lock` is out of scope.
 
@@ -47,24 +42,13 @@ periodic flush, ordered grouping and run-end semantics as one bounded source wit
   `TickScratch`; restore/replay must preserve the next visible flush.
 - `crates/rh-sim/src/events.rs:150-156,255,309-313`, `crates/rh-sim/src/observe.rs:314-325`,
   `crates/rh-protocol/src/lib.rs:656-661`, `crates/rh-server/src/wire.rs:1243-1264`: candidate `Hit` payload and current
-  wire mapping. The event path uses visibility at projection time; Sol must establish how source preserves visibility for
-  delayed emissions and whether native `fx_report` can preserve per-contribution eligibility. Verify passive mapping too.
+  wire mapping. Generic delayed Hit uses flush-time eligibility. Legacy does not preserve contribution audiences; native `fx_report` needs an explicit Card domain. Source passive is absent/false, and must not be repurposed as a DoT discriminator.
 
 ## Source-capture ownership and privacy gate
 
-Sol/Luna own TypeScript source inspection, new capture tool and corpus; DeepSeek Rust must not edit `packages/**`, source
-tools, or the sealed fixture. Before selecting native storage/publication, Sol reviews:
+Sol/Luna own immutable source capture; DeepSeek owns native code. The completed static review releases source preparation only. Capture actual trusted raw grouping, addition/order, first-use/cadence, run-end/teleport/raid-reset and passive defaults. Native differential controls separately verify contribution-tick entitlement, unseen-source redaction before grouping, anonymous merging, later disappearance and fresh-session/restore history boundaries.
 
-- whether the legacy delayed FX records recipients/eligible observers when each DoT contribution lands or tests visibility
-  only at flush time;
-- whether eligibility is per hit contribution or per aggregated pair, including a viewer who sees the attacker only for
-  part of the 500 ms interval;
-- whether existing native `fx_report`/`FxProjector` can carry that timing without modifying `Event`, observation, or wire;
-- source equivalence for source-hidden-at-hit/source-visible-at-flush and source-visible-at-hit/source-hidden-at-flush,
-  using actual World steps and observer views.
-
-If exact privacy requires an event/publication/decoder change, return the bounded required design to root and stop this
-packet. Do not emit the aggregate through generic `Event::Hit` merely because its fields fit.
+The proposed minimal native design stores only trusted totals/cadence in World, and keeps historical viewer entitlement in the existing per-viewer projector. Add a distinct Card contribution/flush domain and either an explicitly server-only raw card event or a deliberately contracted internal diagnostic. The original write list below is provisional and incomplete for this extension; Root must allocate exact fx_report/projector/event/hash/restore hunks after capacity/output and Claude lease review. No native dispatch or wire/client change is authorized yet.
 
 ## New paths
 
@@ -115,10 +99,7 @@ with a refusal test. Preserve zero-allocation-per-step.
   A report object with no rows produces no FX. No report is created when no eligible card DoT has landed.
 - `runEnded` flushes all remaining rows in insertion order, then clears them and resets the report time as source does.
   Teleport does not flush or clear this report; source only clears the other pending block/deferred queues there.
-- Preserve viewer eligibility from each contribution's original hit tick, victim/source visibility and source event order;
-  never recompute an aggregate audience at the later flush without evidence that source does so. Preserve per-tick ordering
-  at the source-equivalent `afterDamage` location. Existing hit wire representation is conditional on the privacy review;
-  if it cannot carry correct eligibility, stop before wire/Unity changes.
+- Native public semantics deliberately differ from legacy broadcast: preserve each contribution's settled-tick eligibility through the existing projector, redact unseen sources before grouping and keep Card flush/reset boundaries separate from other domains. Preserve source-equivalent phase order for trusted totals. Existing public Hit output classification is still a Root/Claude contract decision; no wire/Unity edits belong here.
 
 ## Acceptance checks
 
@@ -130,9 +111,7 @@ with a refusal test. Preserve zero-allocation-per-step.
    an altered threshold or skipped run-end flush must also fail. Keep the original corpus immutable and prove the new
    capture `--check` is byte-identical.
 3. Native consumer drives the actual captured inputs through `validate` + `Sim::submit` and ordinary 50 ms steps, reaches
-   periodic and run-end flushes through their normal producer/schedule, and compares exact ordered hit feedback including
-   tick, victim, optional source, amount, recipient eligibility and passive semantics. Do not preinstall report state or
-   call the flush helper directly.
+   periodic and run-end flushes through their normal producer/schedule, and compares exact trusted raw grouping including tick, victim, source, amount/order and passive defaults. Native privacy controls separately establish intentionally different recipient outputs; do not demand legacy public-row equality. Do not preinstall report state or call the flush helper directly.
 4. Check teleports retain accumulated rows, report clear/reset behavior after flush, restore/checkpoint continuation
    across a partially accumulated interval, state-hash leaf coverage, malformed report-state refusal if applicable, and
    no observation/privacy leak. Keep source and native identity decision explicit in the handoff.
