@@ -1,0 +1,1512 @@
+diff --git a/crates/rh-policy/src/bots/hazards.rs b/crates/rh-policy/src/bots/hazards.rs
+index a51dd18b..5f38a35e 100644
+--- a/crates/rh-policy/src/bots/hazards.rs
++++ b/crates/rh-policy/src/bots/hazards.rs
+@@ -1,11 +1,18 @@
+ //! Source `brain/modules/hazards.ts`, over public map data and delivered owner facts only.
+ //! This independent module is not activated on seats: public hazard-mode admission and the
+ //! full brain goal/memory adapter remain separate. It proposes intents, never movement or damage.
+-use super::types::{Intent, IntentBody, IntentTiming, PRIORITY_GOAL};
+-use rh_sim::geometry::{circle_clear, segment_clear};
+-use rh_sim::{
+-    constants::PLAYER_RADIUS, map::MASK_MOVE, FactionId, Observation, Phase, Status, TileMap, Vec2,
+-};
++//!
++//! The classification/search and step/hold/expiry/arrival/throttle/light/adjust machinery lives once in the private
++//! fact/service-based core ([`source_core`]); this public wrapper is a compatibility adapter over it (an `Observation`
++//! and static map in, the same `Intent`s out) and the complete source feature module
++//! (`temporal_percept/modules/hazards.rs`) calls the same core from its earned private context.
++use super::types::Intent;
++// The legacy adapter tests (`hazards/tests.rs`) reach these two names through `use super::*`.
++#[allow(unused_imports)]
++use super::types::{IntentBody, IntentTiming};
++use rh_sim::{FactionId, Observation, Phase, Status, TileMap, Vec2};
++
++pub(crate) mod source_core;
+ 
+ pub const STEP_EVERY_MS: f64 = 600.;
+ pub const STILL_MS: f64 = 250.;
+@@ -33,100 +40,25 @@ pub struct Context<'a> {
+     pub reengage_hp: f64,
+     pub goal: Goal,
+ }
+-#[derive(Clone, Debug)]
+-struct Step {
+-    to: Vec2,
+-    at: f64,
+-    why: &'static str,
+-}
+ #[derive(Default)]
+ pub struct Hazards {
+-    step: Option<Step>,
++    step: Option<source_core::Step>,
+     last_step_at: Option<f64>,
+ }
+ fn dist(a: Vec2, b: Vec2) -> f64 {
+     rh_sim::math::hypot(a.x - b.x, a.y - b.y)
+ }
+-fn terrain_at(map: &TileMap, p: Vec2) -> u8 {
+-    let x = rh_sim::map::world_to_tile(p.x);
+-    let y = rh_sim::map::world_to_tile(p.y);
+-    if x < 0 || y < 0 || x >= i64::from(map.w) || y >= i64::from(map.h) {
+-        return 0;
+-    }
++/// The declared map's terrain layer; a layer-less map is source NONE ground (the pre-core public behavior).
++fn map_terrain(map: &TileMap) -> &[u8] {
+     map.layers()
+-        .map_or(0, |l| l.data().terrain[(y * i64::from(map.w) + x) as usize])
++        .map_or(&[], |layers| layers.data().terrain.as_slice())
+ }
+ /// Policy risk classification of the public art tile. No authoritative surface effect is applied.
+ pub fn burns(map: &TileMap, faction: FactionId, at: Vec2) -> bool {
+-    terrain_at(map, at) == 4 && faction != FactionId::Fire
++    source_core::burns(map, map_terrain(map), Some(faction), at)
+ }
+ pub fn bad(map: &TileMap, faction: FactionId, at: Vec2) -> bool {
+-    match terrain_at(map, at) {
+-        4 => faction != FactionId::Fire,
+-        5 => faction != FactionId::Plague,
+-        6 => faction != FactionId::Frost,
+-        _ => false,
+-    }
+-}
+-fn clean(map: &TileMap, faction: FactionId, at: Vec2) -> bool {
+-    if bad(map, faction, at) {
+-        return false;
+-    }
+-    let tile = rh_sim::constants::TILE;
+-    for (dx, dy) in [(tile, 0.), (-tile, 0.), (0., tile), (0., -tile)] {
+-        let p = Vec2::new(at.x + dx, at.y + dy);
+-        if circle_clear(map, p, 0., MASK_MOVE) && bad(map, faction, p) {
+-            return false;
+-        }
+-    }
+-    true
+-}
+-fn centre(x: i64, y: i64) -> Vec2 {
+-    let tile = rh_sim::constants::TILE;
+-    Vec2::new((x as f64 + 0.5) * tile, (y as f64 + 0.5) * tile)
+-}
+-fn nearest_tile(
+-    map: &TileMap,
+-    faction: FactionId,
+-    around: Vec2,
+-    tiles: i64,
+-    require_clear: Option<Vec2>,
+-) -> Option<Vec2> {
+-    let cx = rh_sim::map::world_to_tile(around.x);
+-    let cy = rh_sim::map::world_to_tile(around.y);
+-    let mut open = Vec::new();
+-    for dy in -tiles..=tiles {
+-        for dx in -tiles..=tiles {
+-            let p = centre(cx + dx, cy + dy);
+-            if circle_clear(map, p, PLAYER_RADIUS, MASK_MOVE) {
+-                open.push(p);
+-            }
+-        }
+-    }
+-    // JS stable Array.sort preserves dy/dx order on equal distances.
+-    open.sort_by(|a, b| dist(*a, around).total_cmp(&dist(*b, around)));
+-    for strict in [true, false] {
+-        for &p in &open {
+-            if (if strict {
+-                clean(map, faction, p)
+-            } else {
+-                !bad(map, faction, p)
+-            }) && require_clear
+-                .is_none_or(|from| segment_clear(map, from, p, PLAYER_RADIUS, MASK_MOVE))
+-            {
+-                return Some(p);
+-            }
+-        }
+-    }
+-    None
+-}
+-fn movement(step: &Step) -> Intent {
+-    Intent {
+-        body: IntentBody::Move { to: step.to },
+-        priority: PRIORITY_GOAL,
+-        timing: IntentTiming::Step {},
+-        why: step.why.into(),
+-    }
++    source_core::bad(map, map_terrain(map), Some(faction), at)
+ }
+ impl Hazards {
+     pub fn reset(&mut self) {
+@@ -138,66 +70,25 @@ impl Hazards {
+         let obs = ctx.observation;
+         let me = obs.me.as_ref()?;
+         let arena = obs.arena.as_ref()?;
+-        if obs.phase != Phase::Active || me.status != Status::Alive || arena.in_coliseum {
+-            return None;
+-        }
+-        let now = obs.server_time;
+-        let at = Vec2::new(me.x, me.y);
+-        if let Some(step) = &self.step {
+-            if now - step.at > HOLD_MS || dist(at, step.to) <= ARRIVE_U {
+-                self.step = None;
+-            } else {
+-                return Some(movement(step));
+-            }
+-        }
+-        let mut next = None;
+-        if ctx.goal != Goal::Loot
+-            && self
+-                .last_step_at
+-                .is_none_or(|last| now - last >= STEP_EVERY_MS)
+-            && burns(map, me.faction, at)
+-            && me.attack_target.is_none()
+-            && now - ctx.still_since >= STILL_MS
+-        {
+-            next = nearest_tile(map, me.faction, at, STEP_TILES, Some(at)).map(|to| Step {
+-                to,
+-                at: now,
+-                why: "step off the embers",
+-            });
+-            if next.is_some() {
+-                self.last_step_at = Some(now);
+-            }
+-        }
+-        if next.is_none()
+-            && matches!(ctx.goal, Goal::HoldAmbush | Goal::HoldWait)
+-            && me.max_hp > 0.
+-            && me.hp / me.max_hp < ctx.reengage_hp
+-            && !ctx.engaged
+-            && terrain_at(map, at) != 7
+-        {
+-            let cx = rh_sim::map::world_to_tile(at.x);
+-            let cy = rh_sim::map::world_to_tile(at.y);
+-            let mut best_d = f64::INFINITY;
+-            for dy in -LIGHT_TILES..=LIGHT_TILES {
+-                for dx in -LIGHT_TILES..=LIGHT_TILES {
+-                    let q = centre(cx + dx, cy + dy);
+-                    if terrain_at(map, q) != 7 || !circle_clear(map, q, PLAYER_RADIUS, MASK_MOVE) {
+-                        continue;
+-                    }
+-                    let d = dist(at, q);
+-                    if d < best_d && segment_clear(map, at, q, PLAYER_RADIUS, MASK_MOVE) {
+-                        best_d = d;
+-                        next = Some(Step {
+-                            to: q,
+-                            at: now,
+-                            why: "lie low in the light",
+-                        });
+-                    }
+-                }
+-            }
+-        }
+-        self.step = next;
+-        self.step.as_ref().map(movement)
++        let facts = source_core::Facts {
++            now: obs.server_time,
++            pos: Vec2::new(me.x, me.y),
++            status_alive: me.status == Status::Alive,
++            faction_present: true,
++            home: Some(me.faction),
++            hp: me.hp,
++            max_hp: me.max_hp,
++            attack_target: me.attack_target.is_some(),
++            phase_active: obs.phase == Phase::Active,
++            in_coliseum: arena.in_coliseum,
++            goal: ctx.goal,
++            engaged: ctx.engaged,
++            reengage_hp: ctx.reengage_hp,
++            still_since: ctx.still_since,
++        };
++        let services = source_core::MapService { map };
++        source_core::intents(self, &facts, &services, map_terrain(map), &dist)
++            .map(source_core::intent)
+     }
+     /// Source adjust pass: preserve nonmove/short intents and all priority/timing data.
+     /// This runs independently of phase/coliseum, just as the source adjust hook does.
+@@ -207,30 +98,31 @@ impl Hazards {
+         map: &TileMap,
+         intents: &'a [Intent],
+     ) -> std::borrow::Cow<'a, [Intent]> {
+-        let mut out = std::borrow::Cow::Borrowed(intents);
+         let Some(me) = observation
+             .me
+             .as_ref()
+             .filter(|me| me.status == Status::Alive)
+         else {
+-            return out;
++            return std::borrow::Cow::Borrowed(intents);
++        };
++        let facts = source_core::Facts {
++            now: observation.server_time,
++            pos: Vec2::new(me.x, me.y),
++            status_alive: true,
++            faction_present: true,
++            home: Some(me.faction),
++            hp: me.hp,
++            max_hp: me.max_hp,
++            attack_target: me.attack_target.is_some(),
++            phase_active: false,
++            in_coliseum: false,
++            goal: Goal::Other,
++            engaged: false,
++            reengage_hp: 0.,
++            still_since: 0.,
+         };
+-        let at = Vec2::new(me.x, me.y);
+-        for (k, intent) in intents.iter().enumerate() {
+-            let IntentBody::Move { to } = intent.body else {
+-                continue;
+-            };
+-            if dist(at, to) < REDIRECT_MIN_U || !bad(map, me.faction, to) {
+-                continue;
+-            }
+-            let Some(to) = nearest_tile(map, me.faction, to, REDIRECT_TILES, None) else {
+-                continue;
+-            };
+-            let changed = &mut out.to_mut()[k];
+-            changed.body = IntentBody::Move { to };
+-            changed.why.push_str(" (round the bad ground)");
+-        }
+-        out
++        let services = source_core::MapService { map };
++        source_core::adjust(&facts, &services, map_terrain(map), intents, &dist)
+     }
+ }
+ #[cfg(test)]
+diff --git a/crates/rh-policy/src/bots/planning.rs b/crates/rh-policy/src/bots/planning.rs
+index ebfb4aed..76cae36f 100644
+--- a/crates/rh-policy/src/bots/planning.rs
++++ b/crates/rh-policy/src/bots/planning.rs
+@@ -7,7 +7,7 @@
+ //! (shared/mobs.ts), campMatchup/nearestCamps (shared/planning.ts) and planSpawnScore/planPick (bots/mobHunt.ts). This file
+ //! is that pure layer plus the module state machine, so the pinned-container corpus can compare it value for value through
+ //! declared inputs. It reads no server state; the seat turns its intents into PublicCommand::Plan on the validated path.
+-use crate::bots::random::{pick_option, uniform, Rng};
++use crate::bots::random::Rng;
+ use crate::bots::types::{TierId, TierParams};
+ use rh_sim::constants::{
+     ELITE_DMG_MULT, ELITE_HP_MULT, ELITE_K, FIRE_BACKLASH, FIRE_BURN_DPS, FROST_SLOW,
+@@ -25,8 +25,8 @@ pub const PLAN_CAMPS: usize = 2;
+ /// A camp whose weapon makes the bot's useless counts this much of its matchup (mobHunt.ts).
+ pub const PLAN_USELESS_WEIGHT: f64 = 0.25;
+ /// The stats file weight/cap for a learned choice bias (types.ts LEARN.weight / LEARN.cap).
+-const LEARN_WEIGHT: f64 = 0.3;
+-const LEARN_CAP: f64 = 0.25;
++pub(crate) const LEARN_WEIGHT: f64 = 0.3;
++pub(crate) const LEARN_CAP: f64 = 0.25;
+ /// Source FACTIONS params that are the identity in the shipped sheet; mirrored so the reference duel is the code.
+ const MARK_AMP: f64 = 1.;
+ const MARK_TAX_KEEP: f64 = 1.;
+@@ -508,31 +508,15 @@ pub fn nearest_camps(map: &PlanMap, at: (f64, f64), n: usize) -> Vec<&PlanCamp>
+     camped.into_iter().take(n).map(|e| e.0).collect()
+ }
+ /// bots/mobHunt.ts planSpawnScore: the matchup of the PLAN_CAMPS camps nearest the spawn, each cut to
+-/// PLAN_USELESS_WEIGHT when the camp's weapon makes the bot's useless. -Infinity for an unknown pool index.
++/// PLAN_USELESS_WEIGHT when the camp's weapon makes the bot's useless. -Infinity for an unknown pool index. The i32
++/// public input is adapted into the raw-f64 source leaf; no source capture truncates before that leaf.
+ pub fn plan_spawn_score(
+     map: &PlanMap,
+     pool_index: i32,
+     faction: FactionId,
+     weapon: Option<WeaponId>,
+ ) -> f64 {
+-    let Ok(index) = usize::try_from(pool_index) else {
+-        return f64::NEG_INFINITY;
+-    };
+-    let Some(at) = map.spawn_pool.get(index) else {
+-        return f64::NEG_INFINITY;
+-    };
+-    let mut score = 0.;
+-    for camp in nearest_camps(map, (at.x, at.y), PLAN_CAMPS) {
+-        let share = camp_matchup(faction, camp);
+-        let useless =
+-            weapon.is_some_and(|w| crate::bots::mob_hunt::useless(w, region_weapon(camp.zone)));
+-        score += if useless {
+-            share * PLAN_USELESS_WEIGHT
+-        } else {
+-            share
+-        };
+-    }
+-    score
++    plan_spawn_score_raw(map, f64::from(pool_index), faction, weapon)
+ }
+ /// bots/mobHunt.ts planPick: the better free spawn of the two (0 on a tie), or -1 when both are taken/dealt none.
+ pub fn plan_pick(
+@@ -567,16 +551,12 @@ pub struct PlanLearned {
+     pub bias: Vec<(String, f64)>,
+ }
+ impl PlanLearned {
+-    fn of(&self, key: &str) -> f64 {
+-        if !self.enabled {
+-            return 0.;
+-        }
+-        let b = self
+-            .bias
++    /// The declared raw bias for a key (the source `learned.bias(key)` callback return, binary64 as declared).
++    pub(crate) fn lookup(&self, key: &str) -> f64 {
++        self.bias
+             .iter()
+             .find(|(k, _)| k == key)
+-            .map_or(0., |(_, v)| if v.is_finite() { *v } else { 0. });
+-        LEARN_WEIGHT * b.clamp(-LEARN_CAP, LEARN_CAP)
++            .map_or(0., |(_, v)| *v)
+     }
+ }
+ /// The private plan deal as the module reads it (shared PlanMessage): the server-resolved owner facts.
+@@ -629,162 +609,319 @@ pub struct PlanState {
+     pub done_at: Option<f64>,
+     pub ready_sent: bool,
+ }
+-/// The planning module: the state machine of brain/modules/planning.ts.
+-#[derive(Default)]
+-pub struct PlanModule {
+-    pub state: PlanState,
++
++// --------------------------------------------------------------------------------------- source shared transitions
++// Root corrected bridge allocation (2026-11-10): these are the leased shared seams. The old public `PlanModule` keeps
++// its typed `PlanDeal` input/fixtures as an adapter over the same transitions the source-shaped module uses.
++
++/// The private plan message as the source `readDeal` retains it: raw **finite binary64** spawns/pick/boon, literal-true
++/// taken flags and string-only boons. The source-form reader owns the coercion from the private event record; this type
++/// never narrows a captured number (a fractional/negative/out-of-range spawn index is preserved, not truncated).
++#[derive(Clone, Debug, Default, PartialEq)]
++pub(crate) struct SourcePlanDeal {
++    pub ends_at: f64,
++    pub spawns: [f64; 2],
++    pub taken: [bool; 2],
++    pub pick: f64,
++    pub boons: Vec<String>,
++    pub boon: f64,
+ }
+-impl PlanModule {
+-    pub fn new() -> Self {
+-        Self::default()
++
++/// The deal fields the shared plan transitions read. Source `num()` leaves absent/invalid as `-1` and `pick`/`boon` as
++/// `-1`, so both adapters supply the same accessor semantics without converting the source numbers.
++pub(crate) trait PlanDealView {
++    fn spawn(&self, k: usize) -> f64;
++    fn taken(&self, k: usize) -> bool;
++    fn pick(&self) -> f64;
++    fn boons(&self) -> &[String];
++    fn boon(&self) -> f64;
++}
++impl PlanDealView for PlanDeal {
++    fn spawn(&self, k: usize) -> f64 {
++        f64::from(self.spawns[k])
+     }
+-    /// A new run forgets the previous one's plan.
+-    pub fn reset(&mut self) {
+-        self.state = PlanState::default();
++    fn taken(&self, k: usize) -> bool {
++        self.taken[k]
+     }
+-    fn schedule(&mut self, now: f64, deal: &PlanDeal, tier: TierId, decide: &mut Rng) {
+-        let window = f64::max(1., deal.ends_at - now);
+-        let scale = f64::min(1., window / PLAN_SECONDS_MS);
+-        let ti = tier_index(tier);
+-        let (rlo, rhi) = PLAN_RULES.read[ti];
+-        let (slo, shi) = PLAN_RULES.settle[ti];
+-        self.state.read_until = now
+-            + f64::min(
+-                uniform(decide, rlo, rhi) * scale,
+-                PLAN_RULES.read_share * window,
+-            );
+-        self.state.settle_ms = uniform(decide, slo, shi) * scale;
+-        self.state.last_call = deal.ends_at
+-            - f64::min(
+-                PLAN_RULES.ready_before_ms,
+-                PLAN_RULES.ready_before_share * window,
+-            );
++    fn pick(&self) -> f64 {
++        f64::from(self.pick)
+     }
+-    /// Source observe(ctx): read the private plan message. The seat calls it once per decision tick with the current
+-    /// observation view (the server sends one when the deal is first dealt and whenever the owner facts change).
+-    pub fn observe(&mut self, now: f64, deal: Option<&PlanDeal>, tier: TierId, decide: &mut Rng) {
+-        let Some(deal) = deal else {
+-            return;
+-        };
+-        if self.state.deal.is_none() {
+-            self.schedule(now, deal, tier, decide);
+-        }
+-        self.state.deal = Some(deal.clone());
++    fn boons(&self) -> &[String] {
++        &self.boons
+     }
+-    /// Source intents(ctx): the plan message to send this decision, or None.
+-    #[allow(clippy::too_many_arguments)]
+-    pub fn intents(
+-        &mut self,
+-        now: f64,
+-        phase_planning: bool,
+-        tier: TierId,
+-        map: &PlanMap,
+-        faction: Option<FactionId>,
+-        weapon: Option<WeaponId>,
+-        learned: &PlanLearned,
+-        decide: &mut Rng,
+-        lapse: &mut Rng,
+-    ) -> Option<PlanIntent> {
+-        if !phase_planning {
+-            return None;
++    fn boon(&self) -> f64 {
++        f64::from(self.boon)
++    }
++}
++impl PlanDealView for SourcePlanDeal {
++    fn spawn(&self, k: usize) -> f64 {
++        self.spawns[k]
++    }
++    fn taken(&self, k: usize) -> bool {
++        self.taken[k]
++    }
++    fn pick(&self) -> f64 {
++        self.pick
++    }
++    fn boons(&self) -> &[String] {
++        &self.boons
++    }
++    fn boon(&self) -> f64 {
++        self.boon
++    }
++}
++
++/// The declared learned-bias callback view (source `LearnedBias`): enabled gate plus the argument-sensitive key
++/// lookup. The source LEARN weight/clamp and Number.isFinite sanitize are applied once, here.
++pub(crate) struct LearnedBiasView<'a> {
++    pub enabled: bool,
++    pub bias: &'a dyn Fn(&str) -> f64,
++}
++impl LearnedBiasView<'_> {
++    fn of(&self, key: &str) -> f64 {
++        if !self.enabled {
++            return 0.;
+         }
+-        let params = TierParams::by_id(tier);
+-        let st = &mut self.state;
+-        st.phase_at.get_or_insert(now);
+-        if st.ready_sent {
+-            return None;
++        learned_bias_of(self, key)
++    }
++}
++/// Source `biasOf`: `LEARN.weight * max(-LEARN.cap, min(LEARN.cap, Number.isFinite(b) ? b : 0))`.
++pub(crate) fn learned_bias_of(view: &LearnedBiasView<'_>, key: &str) -> f64 {
++    if !view.enabled {
++        return 0.;
++    }
++    let b = (view.bias)(key);
++    let finite = if b.is_finite() { b } else { 0. };
++    LEARN_WEIGHT * finite.clamp(-LEARN_CAP, LEARN_CAP)
++}
++
++/// One source `intents()` outcome before the adapter formats its source message and why.
++#[derive(Clone, Debug, PartialEq)]
++pub(crate) enum PlanDirective {
++    Spawn { option: usize, index: f64 },
++    Boon { option: usize, id: String },
++    Ready { why: ReadyWhy },
++}
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub(crate) enum ReadyWhy {
++    NoDeal,
++    Timer,
++    Choices,
++}
++
++/// Source `uniform(rng, lo, hi)` over a declared draw lane.
++fn uniform_draw(draw: &mut dyn FnMut() -> f64, lo: f64, hi: f64) -> f64 {
++    lo + (hi - lo) * draw()
++}
++/// Source `softmaxIndex` over a declared draw lane (exact draw/order/NaN behavior of the admitted random leaf).
++fn softmax_index_draw(draw: &mut dyn FnMut() -> f64, utilities: &[f64], temperature: f64) -> i32 {
++    let n = utilities.len();
++    if n == 0 {
++        return -1;
++    }
++    let mut best = 0usize;
++    for i in 1..n {
++        if utilities[i] > utilities[best] {
++            best = i;
+         }
+-        let ready = |st: &mut PlanState, why: &str| {
+-            st.ready_sent = true;
+-            Some(PlanIntent {
+-                spawn: None,
+-                boon: None,
+-                ready: Some(true),
+-                why: why.to_string(),
+-            })
+-        };
+-        let phase_at = st.phase_at.unwrap_or(now);
+-        let Some(deal) = st.deal.as_ref().cloned() else {
+-            return if now - phase_at >= PLAN_RULES.no_deal_ms {
+-                ready(st, "no deal came: ready, the server picks")
+-            } else {
+-                None
+-            };
+-        };
+-        if now >= st.last_call {
+-            return ready(st, "the timer is nearly out");
++    }
++    if temperature <= 0. || n == 1 {
++        return best as i32;
++    }
++    let top = utilities[best];
++    let weights: Vec<f64> = utilities
++        .iter()
++        .map(|u| rh_sim::math::exp((u - top) / temperature))
++        .collect();
++    let mut sum = 0.;
++    for w in &weights {
++        sum += w;
++    }
++    let mut r = draw() * sum;
++    for (i, w) in weights.iter().enumerate() {
++        r -= w;
++        if r <= 0. {
++            return i as i32;
+         }
+-        if now < st.read_until {
+-            return None;
++    }
++    best as i32
++}
++/// Source `pickOption` over declared decide/lapse lanes: the lapse stream is drawn first for n > 1 even at lapseP 0.
++fn pick_option_draw(
++    decide: &mut dyn FnMut() -> f64,
++    lapse: &mut dyn FnMut() -> f64,
++    utilities: &[f64],
++    temperature: f64,
++    lapse_p: f64,
++) -> i32 {
++    let n = utilities.len();
++    if n == 0 {
++        return -1;
++    }
++    if n > 1 {
++        let roll = lapse();
++        if roll < lapse_p {
++            let mut order: Vec<(f64, usize)> = utilities.iter().copied().zip(0..n).collect();
++            order.sort_by(|a, b| b.0.total_cmp(&a.0).then(a.1.cmp(&b.1)));
++            order.truncate(3);
++            let k = (f64::floor(lapse() * order.len() as f64) as usize).min(order.len() - 1);
++            return order[k].1 as i32;
+         }
+-        let free: Vec<usize> = (0..2)
+-            .filter(|&k| deal.spawns[k] >= 0 && !deal.taken[k])
+-            .collect();
+-        let may_ask = |a: Option<PlanAsk>| match a {
+-            None => true,
+-            Some(a) => {
+-                a.n < PLAN_RULES.max_asks && now - a.at >= PLAN_RULES.resend_ms + params.reaction.mu
+-            }
+-        };
+-        let spent_asks = |a: Option<PlanAsk>| match a {
+-            None => false,
+-            Some(a) => {
+-                a.n >= PLAN_RULES.max_asks
+-                    && now - a.at >= PLAN_RULES.resend_ms + params.reaction.mu
+-            }
++    }
++    softmax_index_draw(decide, utilities, temperature)
++}
++
++fn may_ask(now: f64, ask: Option<PlanAsk>, reaction_mu: f64) -> bool {
++    match ask {
++        None => true,
++        Some(a) => a.n < PLAN_RULES.max_asks && now - a.at >= PLAN_RULES.resend_ms + reaction_mu,
++    }
++}
++fn spent_asks(now: f64, ask: Option<PlanAsk>, reaction_mu: f64) -> bool {
++    match ask {
++        None => false,
++        Some(a) => a.n >= PLAN_RULES.max_asks && now - a.at >= PLAN_RULES.resend_ms + reaction_mu,
++    }
++}
++
++/// Source `schedule`: window scaling, the reading draw, the settling draw and the last-call instant. The schedule
++/// tables are indexed by the source `tier.id` (TierId); every other consumed tier value arrives as full TierParams.
++fn schedule(
++    source: &mut PlanState,
++    now: f64,
++    ends_at: f64,
++    tier: TierId,
++    decide: &mut dyn FnMut() -> f64,
++) {
++    let window = f64::max(1., ends_at - now);
++    let scale = f64::min(1., window / PLAN_SECONDS_MS);
++    let ti = tier_index(tier);
++    let (rlo, rhi) = PLAN_RULES.read[ti];
++    let (slo, shi) = PLAN_RULES.settle[ti];
++    source.read_until = now
++        + f64::min(
++            uniform_draw(decide, rlo, rhi) * scale,
++            PLAN_RULES.read_share * window,
++        );
++    source.settle_ms = uniform_draw(decide, slo, shi) * scale;
++    source.last_call = ends_at
++        - f64::min(
++            PLAN_RULES.ready_before_ms,
++            PLAN_RULES.ready_before_share * window,
++        );
++}
++
++/// Source `observe` scheduling half: only the first valid deal draws the schedule; later deals replace only the deal
++/// itself in the adapter. `first` is the adapter's `st.deal === null` fact.
++pub(crate) fn source_observe(
++    source: &mut PlanState,
++    now: f64,
++    first: bool,
++    ends_at: f64,
++    tier: TierId,
++    decide: &mut dyn FnMut() -> f64,
++) {
++    if first {
++        schedule(source, now, ends_at, tier, decide);
++    }
++}
++
++/// Source `intents`: the shared phase/no-deal/read/last-call/ask/resend/settle/ready transitions. The adapter owns the
++/// deal record (raw or typed), the phase fact, the source message/why formatting and the cfg identity.
++#[allow(clippy::too_many_arguments)]
++pub(crate) fn source_intents<D: PlanDealView + ?Sized>(
++    source: &mut PlanState,
++    now: f64,
++    phase_planning: bool,
++    params: &TierParams,
++    map: &PlanMap,
++    faction: Option<FactionId>,
++    weapon: Option<WeaponId>,
++    learned: &LearnedBiasView<'_>,
++    deal: Option<&D>,
++    decide: &mut dyn FnMut() -> f64,
++    lapse: &mut dyn FnMut() -> f64,
++) -> Option<PlanDirective> {
++    if !phase_planning {
++        return None;
++    }
++    source.phase_at.get_or_insert(now);
++    if source.ready_sent {
++        return None;
++    }
++    let ready = |state: &mut PlanState, why: ReadyWhy| {
++        state.ready_sent = true;
++        Some(PlanDirective::Ready { why })
++    };
++    let phase_at = source.phase_at.unwrap_or(now);
++    let Some(deal) = deal else {
++        return if now - phase_at >= PLAN_RULES.no_deal_ms {
++            ready(source, ReadyWhy::NoDeal)
++        } else {
++            None
+         };
+-        if deal.pick < 0 && !free.is_empty() && !spent_asks(st.spawn_ask) {
+-            if !may_ask(st.spawn_ask) {
+-                return None;
+-            }
+-            let k = choose_spawn(
+-                &deal, &free, map, faction, weapon, learned, params, decide, lapse,
+-            );
+-            let n = st.spawn_ask.map_or(0, |a| a.n) + 1;
+-            st.spawn_ask = Some(PlanAsk { at: now, n });
+-            let why = format!("spawn {} (option {})", deal.spawns[k], k);
+-            return Some(PlanIntent {
+-                spawn: Some(k as u8),
+-                boon: None,
+-                ready: None,
+-                why,
+-            });
+-        }
+-        if !deal.boons.is_empty() && deal.boon < 0 && !spent_asks(st.boon_ask) {
+-            if !may_ask(st.boon_ask) {
+-                return None;
+-            }
+-            let b = choose_boon(&deal, faction, learned, params, decide, lapse);
+-            let n = st.boon_ask.map_or(0, |a| a.n) + 1;
+-            st.boon_ask = Some(PlanAsk { at: now, n });
+-            let why = format!("boon {}", deal.boons[b]);
+-            return Some(PlanIntent {
+-                spawn: None,
+-                boon: Some(b as u8),
+-                ready: None,
+-                why,
+-            });
++    };
++    if now >= source.last_call {
++        return ready(source, ReadyWhy::Timer);
++    }
++    if now < source.read_until {
++        return None;
++    }
++    let free: Vec<usize> = (0..2)
++        .filter(|&k| deal.spawn(k) >= 0. && !deal.taken(k))
++        .collect();
++    if deal.pick() < 0.
++        && !free.is_empty()
++        && !spent_asks(now, source.spawn_ask, params.reaction.mu)
++    {
++        if !may_ask(now, source.spawn_ask, params.reaction.mu) {
++            return None;
+         }
+-        let done_at = *st.done_at.get_or_insert(now);
+-        if now >= done_at + st.settle_ms {
+-            return ready(st, "choices made");
++        let k = source_choose_spawn(
++            deal, &free, map, faction, weapon, learned, params, decide, lapse,
++        );
++        let n = source.spawn_ask.map_or(0, |a| a.n) + 1;
++        source.spawn_ask = Some(PlanAsk { at: now, n });
++        return Some(PlanDirective::Spawn {
++            option: k,
++            index: deal.spawn(k),
++        });
++    }
++    if !deal.boons().is_empty()
++        && deal.boon() < 0.
++        && !spent_asks(now, source.boon_ask, params.reaction.mu)
++    {
++        if !may_ask(now, source.boon_ask, params.reaction.mu) {
++            return None;
+         }
+-        None
++        let b = source_choose_boon(deal, faction, learned, params, decide, lapse);
++        let n = source.boon_ask.map_or(0, |a| a.n) + 1;
++        source.boon_ask = Some(PlanAsk { at: now, n });
++        return Some(PlanDirective::Boon {
++            option: b,
++            id: deal.boons()[b].clone(),
++        });
+     }
++    let done_at = *source.done_at.get_or_insert(now);
++    if now >= done_at + source.settle_ms {
++        return ready(source, ReadyWhy::Choices);
++    }
++    None
+ }
+-/// Source chooseSpawn: the better of the free spawns by planSpawnScore over PLAN_CAMPS (plus the learned state bias),
+-/// softened by the tier like any other choice. 0 on a tie.
++
++/// Source `chooseSpawn`: the better of the free spawns by `planSpawnScore` over PLAN_CAMPS plus the learned state bias,
++/// softened by the supplied full tier values (softmaxT / lapseP). One free spawn or no faction takes it with no draw.
+ #[allow(clippy::too_many_arguments)]
+-fn choose_spawn(
+-    deal: &PlanDeal,
++pub(crate) fn source_choose_spawn<D: PlanDealView + ?Sized>(
++    deal: &D,
+     free: &[usize],
+     map: &PlanMap,
+     faction: Option<FactionId>,
+     weapon: Option<WeaponId>,
+-    learned: &PlanLearned,
++    learned: &LearnedBiasView<'_>,
+     params: &TierParams,
+-    decide: &mut Rng,
+-    lapse: &mut Rng,
++    decide: &mut dyn FnMut() -> f64,
++    lapse: &mut dyn FnMut() -> f64,
+ ) -> usize {
+     let Some(faction) = faction else {
+         return free[0];
+@@ -795,37 +932,173 @@ fn choose_spawn(
+     let utilities: Vec<f64> = free
+         .iter()
+         .map(|&k| {
+-            let index = deal.spawns[k];
+-            let at = usize::try_from(index)
+-                .ok()
+-                .and_then(|i| map.spawn_pool.get(i));
+-            let zone = at.map(|s| s.zone);
+-            let bias = zone.map_or(0., |z| {
+-                learned.of(&format!("spawn|{}|{}", faction.as_str(), z.as_str()))
++            let index = deal.spawn(k);
++            let zone = plan_spawn_zone(map, index);
++            let bias = zone.map_or(0., |zone| {
++                learned.of(&format!("spawn|{}|{}", faction.as_str(), zone.as_str()))
+             });
+-            plan_spawn_score(map, index, faction, weapon) / PLAN_CAMPS as f64 + bias
++            plan_spawn_score_raw(map, index, faction, weapon) / PLAN_CAMPS as f64 + bias
+         })
+         .collect();
+-    let (pick, _) = pick_option(decide, lapse, &utilities, params.softmax_t, params.lapse_p);
+-    free[pick as usize]
++    let pick = pick_option_draw(decide, lapse, &utilities, params.softmax_t, params.lapse_p);
++    free[usize::try_from(pick).unwrap_or(0)]
+ }
+-/// Source chooseBoon: with nothing to go by but the bias a boon is the bot's whim (the stats file's favourite, else any).
+-fn choose_boon(
+-    deal: &PlanDeal,
++
++/// Source `chooseBoon`: with nothing to go by but the bias, the first two dealt boons are weighed on the supplied full
++/// tier values; index 0 unless softmax/lapse selects index 1.
++pub(crate) fn source_choose_boon<D: PlanDealView + ?Sized>(
++    deal: &D,
+     faction: Option<FactionId>,
+-    learned: &PlanLearned,
++    learned: &LearnedBiasView<'_>,
+     params: &TierParams,
+-    decide: &mut Rng,
+-    lapse: &mut Rng,
++    decide: &mut dyn FnMut() -> f64,
++    lapse: &mut dyn FnMut() -> f64,
+ ) -> usize {
+-    let dealt = deal.boons.iter().take(2);
++    let dealt: Vec<&String> = deal.boons().iter().take(2).collect();
+     let utilities: Vec<f64> = dealt
++        .iter()
+         .map(|id| faction.map_or(0., |f| learned.of(&format!("boon|{}|{}", f.as_str(), id))))
+         .collect();
+-    let (pick, _) = pick_option(decide, lapse, &utilities, params.softmax_t, params.lapse_p);
++    let pick = pick_option_draw(decide, lapse, &utilities, params.softmax_t, params.lapse_p);
+     if pick == 1 {
+         1
+     } else {
+         0
+     }
+ }
++
++/// The zone of a source `spawnPool[index]` read: only a nonnegative integral in-range index resolves an entry
++/// (JS array index); fractional/negative/out-of-range/NaN reads no entry, so no bias is added.
++pub(crate) fn plan_spawn_zone(map: &PlanMap, pool_index: f64) -> Option<Zone> {
++    let index = js_array_index(pool_index)?;
++    map.spawn_pool.get(index).map(|spawn| spawn.zone)
++}
++
++/// JS `map.spawnPool[index]` index validity: `-0` resolves 0; any other fractional/negative/non-finite/out-of-range
++/// value reads `undefined`.
++fn js_array_index(pool_index: f64) -> Option<usize> {
++    if !pool_index.is_finite() || pool_index.fract() != 0. || pool_index < 0. {
++        return None;
++    }
++    usize::try_from(pool_index as u64).ok()
++}
++
++/// Source `planSpawnScore` with the raw source index: an invalid array index has no entry and returns -Infinity; it is
++/// never truncated into the old i32 input.
++pub(crate) fn plan_spawn_score_raw(
++    map: &PlanMap,
++    pool_index: f64,
++    faction: FactionId,
++    weapon: Option<WeaponId>,
++) -> f64 {
++    let Some(index) = js_array_index(pool_index) else {
++        return f64::NEG_INFINITY;
++    };
++    let Some(at) = map.spawn_pool.get(index) else {
++        return f64::NEG_INFINITY;
++    };
++    let mut score = 0.;
++    for camp in nearest_camps(map, (at.x, at.y), PLAN_CAMPS) {
++        let share = camp_matchup(faction, camp);
++        let useless =
++            weapon.is_some_and(|w| crate::bots::mob_hunt::useless(w, region_weapon(camp.zone)));
++        score += if useless {
++            share * PLAN_USELESS_WEIGHT
++        } else {
++            share
++        };
++    }
++    score
++}
++
++// ------------------------------------------------------------------------------------------------------------ the module
++
++/// The planning module: the state machine of brain/modules/planning.ts.
++#[derive(Default)]
++pub struct PlanModule {
++    pub state: PlanState,
++}
++impl PlanModule {
++    pub fn new() -> Self {
++        Self::default()
++    }
++    /// A new run forgets the previous one's plan.
++    pub fn reset(&mut self) {
++        self.state = PlanState::default();
++    }
++    /// Source observe(ctx): read the private plan message. The seat calls it once per decision tick with the current
++    /// observation view (the server sends one when the deal is first dealt and whenever the owner facts change).
++    pub fn observe(&mut self, now: f64, deal: Option<&PlanDeal>, tier: TierId, decide: &mut Rng) {
++        let Some(deal) = deal else {
++            return;
++        };
++        let first = self.state.deal.is_none();
++        source_observe(&mut self.state, now, first, deal.ends_at, tier, &mut || {
++            decide.next_f64()
++        });
++        self.state.deal = Some(deal.clone());
++    }
++    /// Source intents(ctx): the plan message to send this decision, or None.
++    #[allow(clippy::too_many_arguments)]
++    pub fn intents(
++        &mut self,
++        now: f64,
++        phase_planning: bool,
++        tier: TierId,
++        map: &PlanMap,
++        faction: Option<FactionId>,
++        weapon: Option<WeaponId>,
++        learned: &PlanLearned,
++        decide: &mut Rng,
++        lapse: &mut Rng,
++    ) -> Option<PlanIntent> {
++        let params = TierParams::by_id(tier);
++        let learned_view = LearnedBiasView {
++            enabled: learned.enabled,
++            bias: &|key| learned.lookup(key),
++        };
++        let mut decide_draw = || decide.next_f64();
++        let mut lapse_draw = || lapse.next_f64();
++        let deal = self.state.deal.clone();
++        let directive = source_intents(
++            &mut self.state,
++            now,
++            phase_planning,
++            params,
++            map,
++            faction,
++            weapon,
++            &learned_view,
++            deal.as_ref(),
++            &mut decide_draw,
++            &mut lapse_draw,
++        )?;
++        Some(match directive {
++            PlanDirective::Spawn { option, .. } => {
++                let deal = self.state.deal.as_ref().expect("deal for spawn ask");
++                PlanIntent {
++                    spawn: Some(option as u8),
++                    boon: None,
++                    ready: None,
++                    why: format!("spawn {} (option {})", deal.spawns[option], option),
++                }
++            }
++            PlanDirective::Boon { option, id } => PlanIntent {
++                spawn: None,
++                boon: Some(option as u8),
++                ready: None,
++                why: format!("boon {id}"),
++            },
++            PlanDirective::Ready { why } => PlanIntent {
++                spawn: None,
++                boon: None,
++                ready: Some(true),
++                why: match why {
++                    ReadyWhy::NoDeal => "no deal came: ready, the server picks".to_string(),
++                    ReadyWhy::Timer => "the timer is nearly out".to_string(),
++                    ReadyWhy::Choices => "choices made".to_string(),
++                },
++            },
++        })
++    }
++}
+diff --git a/crates/rh-policy/src/bots/temporal_percept.rs b/crates/rh-policy/src/bots/temporal_percept.rs
+index 9d97a860..17f5f9b4 100644
+--- a/crates/rh-policy/src/bots/temporal_percept.rs
++++ b/crates/rh-policy/src/bots/temporal_percept.rs
+@@ -7,6 +7,7 @@
+ mod data;
+ mod input;
+ mod memory;
++mod modules;
+ mod strategy;
+ #[cfg(test)]
+ mod tests;
+diff --git a/crates/rh-policy/src/bots/temporal_percept/strategy.rs b/crates/rh-policy/src/bots/temporal_percept/strategy.rs
+index 020ccca4..14aac640 100644
+--- a/crates/rh-policy/src/bots/temporal_percept/strategy.rs
++++ b/crates/rh-policy/src/bots/temporal_percept/strategy.rs
+@@ -16,4 +16,4 @@ mod source_strict;
+ mod source_tests;
+ #[cfg(test)]
+ mod source_trace;
+-mod types;
++pub(super) mod types;
+diff --git a/crates/rh-policy/src/bots/wish.rs b/crates/rh-policy/src/bots/wish.rs
+index 34413ef3..5fa7a9dc 100644
+--- a/crates/rh-policy/src/bots/wish.rs
++++ b/crates/rh-policy/src/bots/wish.rs
+@@ -11,23 +11,42 @@
+ //!   whether it is chasing) and the cast intent it emits through the ported humanizer (which supplies reaction time, hesitation
+ //!   and a unit cast that can miss like a lock click).
+ //!
+-//! Deliberately narrowed (documented in docs/evidence/stage2-bots-2/README.md): the Swarm slip goal is not ported (it needs the
+-//! legacy module-goal/tactics and services path layers that remain P-BOTS-1 remainder), so a hiding Wish is cast but the walk
+-//! away is left to the bounded front end; line of sight and mob targetability are approximated from the fair view (visible
+-//! means in sight; a visible mob is targetable), since the bounded view does not carry the client's los flags; and the
+-//! gate-locked collision variant is not available to the policy's static view (the open map is used; the declared corpus keeps
+-//! gates unlocked, and the sim's blink landing rule is already parity-pinned in P-ABIL-1).
+-use crate::bots::kite::away_point;
++//! P-BOT-MODULES-1 share (Root-corrected lease): the cast policy and the availability/retry/armed-slip transition machine now
++//! have exactly one implementation in [`source_core`]; this file's public functions and `WishModule` are thin compatibility
++//! adapters over it. The private source module (`temporal_percept::modules::wishes`) enters the same core with the declared
++//! f64 rank, the declared opaque `AbilityDef`, the real collision map/gate flag and the real `Memory.lastCast`/hit facts.
++//!
++//! Deliberately narrowed for this public adapter (documented in docs/evidence/stage2-bots-2/README.md): the Swarm slip goal
++//! itself belongs to the private module/goal layer (this front end only walks away through `slip_intent`); line of sight and
++//! mob targetability are approximated from the fair view (visible means in sight; a visible mob is targetable), since the
++//! bounded view does not carry the client's los flags; and the gate-locked collision variant is not available to the policy's
++//! static view (the open map is used; the declared corpus keeps gates unlocked, and the sim's blink landing rule is already
++//! parity-pinned in P-ABIL-1). Those three are exactly the inputs the source module supplies for real.
+ use crate::bots::paths::RoomPathService;
+ use crate::bots::random::Rng;
+ use crate::bots::types::{
+-    Intent, IntentBody, IntentTiming, Percept, ServerMs, Stimulus, StimulusKind, TierId,
+-    PRIORITY_COMBAT, PRIORITY_REFLEX,
++    Intent, IntentBody, IntentTiming, Percept, Stimulus, StimulusKind, TierId, PRIORITY_COMBAT,
++    PRIORITY_REFLEX,
+ };
+ use rh_sim::abilities::blink;
+ use rh_sim::status_runtime::AbilityId;
+ use rh_sim::{TileMap, Vec2};
+ 
++mod source_core;
++
++// The one shared source implementation, re-exported for the private source module adapter
++// (`temporal_percept::modules::wishes`). The public surface of this file stays what it was.
++#[allow(unused_imports)]
++// the tag-refusal entries are exposed for the private replay intake/tests
++pub(crate) use source_core::{
++    admit_ai_tag, admit_blocked_by, admit_ranks, cast_why as source_cast_why,
++    decide_cast as source_decide_cast, hides_caster as source_hides_caster,
++    rank_of as source_rank_of, DeclaredRank, DeclaredTargeting, HypotMode, SourceAbility,
++    SourceCastSituation, SourceRank, WishRefusal, WishStateCore, DONE_CORNERED, DONE_NOBODY,
++    DONE_NOT_SLIPPING, FAILED_UNKNOWN_GOAL, RUNNING_SLIPPING, SLIP_GOAL_MODE, SLIP_GOAL_MODULE,
++    SLIP_GOAL_WHY, SLIP_STEP_WHY, SLIP_UTILITY,
++};
++
+ /// The own EFFECT_* bits the module reads (shared/status.ts): crowd control, and the casting bit the sim uses.
+ pub const EFFECT_STUNNED: u16 = 1;
+ pub const EFFECT_ROOTED: u16 = 2;
+@@ -236,42 +255,61 @@ pub(crate) fn played_ai(def: &WishDef, tier: TierId) -> Option<&'static [AiInten
+         Some(ai)
+     }
+ }
++/// The single static-row rank view over `WishRank` (the one rank a Wish has).
++fn static_rank(def: &WishDef) -> SourceRank {
++    SourceRank {
++        cast_ms: def.rank.cast_ms,
++        targeting: def.rank.targeting,
++        hides_caster: def
++            .rank
++            .effects
++            .iter()
++            .any(|e| matches!(e, PolicyEffect::HidesCaster)),
++        blink: blink_of(def.rank.effects),
++    }
++}
++/// The static `WISHES` row as the source-shaped borrowed ability the shared core consumes.
++fn static_ability<'a>(
++    def: &'a WishDef,
++    ai: &'a [AiIntent],
++    ranks: &'a [SourceRank],
++) -> SourceAbility<'a> {
++    SourceAbility {
++        name: def.name,
++        ai,
++        blocked_by: def.blocked_by,
++        ranks,
++    }
++}
+ /// The cast to send for this Wish with this tag list (the Easy filter passes a narrowed list), or null.
++///
++/// Compatibility adapter: the static row becomes the source-shaped view and the one shared core decides. Its
++/// documented legacy inputs are kept exactly: the open map is both maps, the landing is unlocked even when the
++/// public `CastSituation.gates_locked` says otherwise, and its distances are the old `rh_sim::math::hypot`.
+ pub fn decide_cast_with(
+     def: &WishDef,
+     ai: &[AiIntent],
+     rank: u8,
+     s: &CastSituation,
+ ) -> Option<CastChoice> {
+-    if s.me.effects & EFFECT_CASTING != 0 {
+-        return None;
+-    }
+-    for blocked in def.blocked_by {
+-        if s.me.effects & block_bit(*blocked) != 0 {
+-            return None;
+-        }
+-    }
+-    let r = wish_rank(def, rank);
+-    for intent in ai {
+-        let choice = match intent {
+-            AiIntent::Escape => escape(r.targeting, r.effects, s),
+-            AiIntent::Sustain => sustain(r.targeting, s),
+-            AiIntent::Engage | AiIntent::Control => engage(r.targeting, r.effects, s),
+-            AiIntent::Peel => peel(r.targeting, s),
+-            AiIntent::Burst | AiIntent::Zone | AiIntent::Buff => None,
+-        };
+-        if choice.is_some() {
+-            return choice;
+-        }
+-    }
+-    None
++    let ranks = [static_rank(def)];
++    let ability = static_ability(def, ai, &ranks);
++    let situation = SourceCastSituation {
++        me: s.me,
++        foe: s.foe.clone(),
++        threat: s.threat.clone(),
++        map: s.map,
++        collision: s.map,
++        ring: s.ring,
++        gates_locked: false,
++        hypot: HypotMode::Legacy,
++    };
++    source_core::decide_cast(&ability, f64::from(rank), &situation)
+ }
+ /// Does casting this rank hide its caster from enemies (an effect that puts a hidden status on itself)?
+ pub fn hides_caster(def: &WishDef, rank: u8) -> bool {
+-    wish_rank(def, rank)
+-        .effects
+-        .iter()
+-        .any(|e| matches!(e, PolicyEffect::HidesCaster))
++    let ranks = [static_rank(def)];
++    source_core::hides_caster(&ranks, f64::from(rank))
+ }
+ fn blink_of(effects: &[PolicyEffect]) -> Option<(f64, f64)> {
+     effects.iter().find_map(|e| match e {
+@@ -331,141 +369,6 @@ pub struct CastChoice {
+     pub y: f64,
+     pub id: Option<String>,
+ }
+-fn self_choice(s: &CastSituation) -> CastChoice {
+-    CastChoice {
+-        x: s.me.x,
+-        y: s.me.y,
+-        id: None,
+-    }
+-}
+-fn landing(s: &CastSituation, to: Vec2, max_dist: f64, min_dist: f64) -> Option<Vec2> {
+-    let _ = (max_dist, min_dist);
+-    blink::landing(
+-        s.map,
+-        s.map,
+-        s.ring,
+-        // The open map is the fair view's collision layer (see CastSituation.gates_locked).
+-        false,
+-        Vec2::new(s.me.x, s.me.y),
+-        to,
+-    )
+-}
+-fn escape(rule: TargetRule, effects: &[PolicyEffect], s: &CastSituation) -> Option<CastChoice> {
+-    let m = s.me;
+-    let trouble = (m.hp_frac < ESCAPE_HP_THREATENED
+-        && s.threat
+-            .as_ref()
+-            .is_some_and(|t| t.d < ESCAPE_THREAT_DISTANCE))
+-        || (m.hp_frac < ESCAPE_HP_HIT && m.recently_hit);
+-    if !trouble {
+-        return None;
+-    }
+-    if rule == TargetRule::Self_ {
+-        return Some(self_choice(s));
+-    }
+-    if matches!(rule, TargetRule::Unit { .. }) {
+-        return None;
+-    }
+-    let (fx, fy) = match (s.threat.as_ref(), s.foe.as_ref()) {
+-        (Some(t), _) => (t.x, t.y),
+-        (None, Some(f)) => (f.x, f.y),
+-        (None, None) => return None,
+-    };
+-    let dx = m.x - fx;
+-    let dy = m.y - fy;
+-    let len = rh_sim::math::hypot(dx, dy);
+-    if len.partial_cmp(&0.5) != Some(std::cmp::Ordering::Greater) {
+-        return None;
+-    }
+-    let range = match rule {
+-        TargetRule::Point { range, .. } => range,
+-        _ => ESCAPE_DIR_RANGE,
+-    };
+-    let blink_effect = blink_of(effects);
+-    let base = rh_sim::math::atan2(dy, dx);
+-    for turn in ESCAPE_HEADINGS {
+-        let to = Vec2::new(
+-            m.x + rh_sim::math::cos(base + turn) * range,
+-            m.y + rh_sim::math::sin(base + turn) * range,
+-        );
+-        if let Some((max_dist, min_dist)) = blink_effect {
+-            if let Some(at) = landing(s, to, max_dist, min_dist) {
+-                if rh_sim::math::hypot(at.x - fx, at.y - fy) > len + ESCAPE_GAIN {
+-                    return Some(CastChoice {
+-                        x: to.x,
+-                        y: to.y,
+-                        id: None,
+-                    });
+-                }
+-            }
+-        } else if turn == 0. {
+-            return Some(CastChoice {
+-                x: to.x,
+-                y: to.y,
+-                id: None,
+-            });
+-        }
+-    }
+-    None
+-}
+-fn sustain(rule: TargetRule, s: &CastSituation) -> Option<CastChoice> {
+-    if s.me.hp_frac < SUSTAIN_HP && s.me.recently_hit && rule == TargetRule::Self_ {
+-        Some(self_choice(s))
+-    } else {
+-        None
+-    }
+-}
+-fn engage(rule: TargetRule, effects: &[PolicyEffect], s: &CastSituation) -> Option<CastChoice> {
+-    let f = s.foe.as_ref()?;
+-    if !f.targetable || f.mob {
+-        return None;
+-    }
+-    match rule {
+-        TargetRule::Unit { range, los, .. } => {
+-            if (los && !f.los) || f.d > range - ENGAGE_RANGE_MARGIN {
+-                return None;
+-            }
+-            Some(CastChoice {
+-                x: f.x,
+-                y: f.y,
+-                id: Some(f.id.clone()),
+-            })
+-        }
+-        TargetRule::Point { range, .. } => {
+-            if f.d < ENGAGE_BLINK_MIN_DISTANCE || f.d > range - ENGAGE_RANGE_MARGIN {
+-                return None;
+-            }
+-            let k = (f.d - ENGAGE_BLINK_STOP_SHORT).max(0.) / f.d;
+-            let to = Vec2::new(s.me.x + (f.x - s.me.x) * k, s.me.y + (f.y - s.me.y) * k);
+-            if let Some((max_dist, min_dist)) = blink_of(effects) {
+-                landing(s, to, max_dist, min_dist)?;
+-            }
+-            Some(CastChoice {
+-                x: to.x,
+-                y: to.y,
+-                id: None,
+-            })
+-        }
+-        TargetRule::Self_ => None,
+-    }
+-}
+-fn peel(rule: TargetRule, s: &CastSituation) -> Option<CastChoice> {
+-    let t = s.threat.as_ref()?;
+-    if !t.chasing || t.d > PEEL_DISTANCE || t.targetable == Some(false) {
+-        return None;
+-    }
+-    if let TargetRule::Unit { range, .. } = rule {
+-        if t.id.is_none() || t.los == Some(false) || t.d > range - ENGAGE_RANGE_MARGIN {
+-            return None;
+-        }
+-        return Some(CastChoice {
+-            x: t.x,
+-            y: t.y,
+-            id: t.id.clone(),
+-        });
+-    }
+-    None
+-}
+ /// The cast to send for this Wish at this rank in this situation, or null. Intents are tried in the definition's order; the
+ /// first that fires decides.
+ pub fn decide_cast(def: &WishDef, rank: u8, s: &CastSituation) -> Option<CastChoice> {
+@@ -531,24 +434,17 @@ impl WishFoe {
+     }
+ }
+ 
+-/// Per-bot Wish state (the legacy WeakMap entry): the availability edge, the Easy remember draw and the retry clock.
++/// Per-bot Wish state (the legacy WeakMap entry): the one shared availability/retry/slip transition machine plus the
++/// legacy wrapper's own observation-memory inputs. The shared machine's state lives in [`WishStateCore`]; this wrapper's
++/// compatibility inputs (the inferred sent-cast clock, the observed-hit map, the public static map) stay here.
+ pub struct WishModule {
+-    available: bool,
+-    remembers: bool,
+-    last_try_at: ServerMs,
++    state: WishStateCore,
+     /// The time of the last hit taken, from observation events only (the legacy memory's mem.self.lastHitAt).
+     last_hit_at: Option<f64>,
+     /// Player hits on the bot, per rendered attacker key, newest last (bounded; the legacy mem.fighters hitMeAt).
+     fighter_hits: Vec<(String, f64)>,
+     map: Option<TileMap>,
+     ring: Option<blink::Ring>,
+-    /// A hiding Wish was decided at this time (None: none outstanding); its cast time and the time its cast showed in the bits.
+-    armed_at: Option<f64>,
+-    cast_ms: f64,
+-    sent_at: Option<f64>,
+-    /// Where the enemy the bot slips from last stood, and the slip's current leg.
+-    from: Option<Vec2>,
+-    leg: Option<(Vec2, f64)>,
+ }
+ impl Default for WishModule {
+     fn default() -> Self {
+@@ -558,18 +454,11 @@ impl Default for WishModule {
+ impl WishModule {
+     pub fn new() -> Self {
+         Self {
+-            available: false,
+-            remembers: true,
+-            last_try_at: f64::NEG_INFINITY,
++            state: WishStateCore::new(),
+             last_hit_at: None,
+             fighter_hits: Vec::new(),
+             map: None,
+             ring: None,
+-            armed_at: None,
+-            cast_ms: 0.,
+-            sent_at: None,
+-            from: None,
+-            leg: None,
+         }
+     }
+     /// Match start: independent state, and the public static map the landing search reads.
+@@ -603,17 +492,15 @@ impl WishModule {
+     }
+     /// The availability edge and the Easy tier's remember draw (the legacy observe()).
+     pub fn observe(&mut self, p: &Percept, tier: TierId, decide: &mut Rng) {
+-        let now = p.extras.wish.as_ref().is_some_and(|w| usable(p, w));
+-        if now && !self.available {
+-            self.remembers = tier != TierId::Easy || decide.next_f64() < WISH_RULES.easy_remembers;
+-        }
+-        self.available = now;
++        let usable = p.extras.wish.as_ref().is_some_and(|w| usable(p, w));
++        self.state
++            .observe(usable, tier == TierId::Easy, &mut || decide.next_f64());
+     }
+     pub fn remembers(&self) -> bool {
+-        self.remembers
++        self.state.remembers()
+     }
+     pub fn available(&self) -> bool {
+-        self.available
++        self.state.available()
+     }
+     /// The cast intent for this think, if the module decides one. The front end's chosen foe is passed in; the threat is the
+     /// nearest enemy player in the fair view.
+@@ -650,10 +537,10 @@ impl WishModule {
+     ) -> Option<Intent> {
+         let view = p.extras.wish.as_ref()?;
+         let def = wish_by_id(view.ability)?;
+-        if !self.remembers
++        if !self.state.remembers()
+             || !usable(p, view)
+             || view.casting
+-            || p.now - self.last_try_at < WISH_RULES.retry_ms
++            || !self.state.retry_ready(p.now, &WISH_RULES)
+         {
+             return None;
+         }
+@@ -661,25 +548,26 @@ impl WishModule {
+         let (map, ring) = self.map.as_ref().zip(self.ring.as_ref())?;
+         let s = cast_situation(p, self, foe, map, ring);
+         let choice = decide_cast_with(def, ai, view.rank, &s)?;
+-        self.last_try_at = p.now;
+-        let rank = wish_rank(def, view.rank);
++        // The old public wrapper's rank is its public `u8` observation domain; the shared core is entered with that
++        // exact value (the source adapter, by contrast, keeps the declared f64 rank).
++        self.state.note_try(p.now);
++        let rank_view = wish_rank(def, view.rank);
+         if hides_caster(def, view.rank) {
+-            self.armed_at = Some(p.now);
+-            self.cast_ms = rank.cast_ms;
+-            self.sent_at = None;
+-            self.leg = None;
+-            self.from = s
++            let from = s
+                 .threat
+                 .as_ref()
+                 .map(|t| Vec2::new(t.x, t.y))
+                 .or_else(|| s.foe.as_ref().map(|f| Vec2::new(f.x, f.y)));
++            // Compatibility arm: the old wrapper's inferred cast clock is cleared and its slip origin is overwritten
++            // even by a null enemy (the source module keeps both rules through `arm_source`).
++            self.state.arm_legacy(p.now, rank_view.cast_ms, from);
+         }
+         let priority = if s.me.hp_frac < ESCAPE_HP_HIT {
+             PRIORITY_REFLEX
+         } else {
+             PRIORITY_COMBAT
+         };
+-        let snap_radius = match rank.targeting {
++        let snap_radius = match rank_view.targeting {
+             TargetRule::Unit { snap_radius, .. } => snap_radius,
+             _ => TARGET_SNAP_RADIUS,
+         };
+@@ -699,36 +587,22 @@ impl WishModule {
+         })
+     }
+ 
+-    /// Hidden, casting a hiding Wish, or having just decided to (the legacy slipping predicate): after the cast's time plus the
+-    /// grace once the server shows the casting bit, the armed state is dropped.
++    /// Hidden, casting a hiding Wish, or having just decided to (the legacy slipping predicate, through the shared
++    /// state machine): its inferred cast clock starts at the first observed casting bit, and expiry clears the inferred
++    /// clock and the slip origin/leg (the documented legacy behavior; source keeps the origin through `slip_source`).
+     pub fn slipping(&mut self, p: &Percept) -> bool {
+-        if p.self_view.effects & EFFECT_HIDDEN != 0 {
+-            return true;
+-        }
+-        let Some(armed) = self.armed_at else {
+-            return false;
+-        };
++        let hidden = p.self_view.effects & EFFECT_HIDDEN != 0;
+         let casting = p.self_view.effects & EFFECT_CASTING != 0;
+-        let keep = if let Some(sent) = self.sent_at {
+-            casting || p.now < sent + self.cast_ms + WISH_RULES.slip_grace_ms
+-        } else if casting {
+-            self.sent_at = Some(p.now);
+-            true
+-        } else {
+-            p.now < armed + WISH_RULES.slip_pending_ms
+-        };
+-        if !keep {
+-            self.armed_at = None;
+-            self.sent_at = None;
+-            self.from = None;
+-            self.leg = None;
+-        }
+-        keep
++        self.state
++            .slipping_legacy(p.now, hidden, casting, &WISH_RULES)
+     }
+ 
+     /// The module goal holds while slipping with somebody to slip from (the legacy goals() condition).
+     pub fn goal_active(&mut self, p: &Percept) -> bool {
+-        self.slipping(p) && (self.from.is_some() || p.fighters.iter().any(|f| f.status == "alive"))
++        self.slipping(p)
++            && self
++                .state
++                .slip_goal_holds(p.fighters.iter().any(|f| f.status == "alive"))
+     }
+ 
+     /// The walk away from the nearest enemy (or from where it last stood), re-chosen from where that is now once its leg has run
+@@ -754,29 +628,18 @@ impl WishModule {
+             .min_by(|a, b| a.2.total_cmp(&b.2))
+             .map(|(x, y, _)| (x, y))
+         {
+-            self.from = Some(Vec2::new(x, y));
+-        }
+-        let from = self.from?;
+-        let mut to = self.leg.and_then(|(leg_to, leg_at)| {
+-            if p.now - leg_at < WISH_RULES.slip_keep_ms
+-                && rh_sim::math::hypot(leg_to.x - self_at.x, leg_to.y - self_at.y)
+-                    > WISH_RULES.slip_arrived_u
+-            {
+-                Some(leg_to)
+-            } else {
+-                None
+-            }
+-        });
+-        if to.is_none() {
+-            let point = away_point(paths, self_at, from, WISH_RULES.slip_step_u, 0.)?;
+-            self.leg = Some((point, p.now));
+-            to = Some(point);
++            self.state.from = Some(Vec2::new(x, y));
+         }
++        let to = {
++            let mut clear = |a: Vec2, b: Vec2| paths.clear(a, b);
++            self.state
++                .slip_leg(p.now, self_at, &mut clear, &WISH_RULES, HypotMode::Legacy)?
++        };
+         Some(Intent {
+-            body: IntentBody::Move { to: to? },
++            body: IntentBody::Move { to },
+             priority: PRIORITY_REFLEX,
+             timing: timing_of(stimuli),
+-            why: "slip away: hidden or about to be".into(),
++            why: SLIP_STEP_WHY.into(),
+         })
+     }
+ }

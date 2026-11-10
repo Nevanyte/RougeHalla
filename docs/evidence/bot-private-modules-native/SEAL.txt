@@ -1,0 +1,73 @@
+# P-BOT-MODULES-1 native Candidate seal receipt (git metadata not writable)
+
+This file is generated **last** and is excluded from `CANDIDATE-MANIFEST.sha256` (as is the manifest itself). It is the
+exact-content seal receipt for the scoped native candidate; Root seals the commit with Root's git access.
+
+- Worktree: `/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-modules`
+- Branch: `codex/deepseek-private-modules`
+- Base commit (frozen, clean dispatch HEAD): `9f74ff3e87461ff31f84720240455d6ef33f420b`
+- Toolchain: `rustc 1.97.0 (2d8144b78 2026-07-07)`, `cargo 1.97.0 (c980f4866 2026-06-30)`
+- Scoped-file manifest: `CANDIDATE-MANIFEST.sha256`, **SHA-256 `b4190e873ef02e02f8b2a8f625fbb06c29ce812662dc1c712aa491c0cc0286b8`**
+  (36 files, 1,005,160 bytes; per file SHA-256 + git blob SHA-1 + bytes + mode)
+- Tracked-file patch from base: `CANDIDATE-MODIFIED.patch`, SHA-256
+  `f06ebfdf84be98ca13aff4121d794173aa321ffb9ef9e7b9bcd3fc4742395400` (59,036 bytes; `git diff --binary`; five leased
+  existing files only — new files are covered by the manifest).
+
+## Frozen source pins (untouched)
+
+- Corpus `parity/policy/bot-private-modules/source.json`: 12,755,158 B SHA-256
+  `645e85f16adbea001f8d0e06a70b6e5d311864ed9691622c06b789c95578b012`
+- Coverage `50eaf16f…dea0af`, controls `dcc49cf8…d3980d`, manifest `fe8fe10f…5ab016`.
+- Root bridge allocation read from `de908f2b` (not cherry-picked/merged).
+
+## Gate results on the sealed tree
+
+Final frozen-tree verification run (after the last code edit and manifest generation; commands and env exactly as
+RUNS.md):
+
+```
+cargo test -p rh-policy --lib --locked --offline -j1
+=> exit 0 — test result: ok. 354 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 230.04s
+cargo test -p rh-policy --lib --locked --offline -j1 frozen_private_modules_source_replay -- --nocapture
+=> exit 0 — PARITY_TOTAL bot-private-modules : 255 cases / 3259 ops (corpus 3259) / 0 failures
+cargo clippy -p rh-policy --lib --tests --locked --offline -j1 -- -D warnings
+=> exit 0
+cargo clippy -p rh-policy --lib --tests --all-features --locked --offline -j1 -- -D warnings
+=> exit 0
+cargo fmt -p rh-policy -- --check
+=> exit 0
+```
+
+- strict intake negatives 24/24; native semantic controls 28/28; Send assertions 1/1
+- old overlaps unchanged (planning_parity 6, wish_parity 6, wish_module 8, old hazards 4, bot hand 17, Memory 13,
+  strategy source 11, parity 31, knowledge 4, paths 1, view 4, mob-hunt 5, knowledge-repair 3)
+- manifest verification: `awk '!/^#/ && NF {print $1"  "$5}' CANDIDATE-MANIFEST.sha256 | sha256sum -c -` → all 36 records
+  OK (checked on the sealed tree).
+
+## Why no commit object was created
+
+`git add`/index writes fail because the worktree gitdir is
+`/Users/nevinmckinnon/Documents/Projects/RogueHalla/.git/worktrees/backend-bot-modules`, outside the session workspace:
+
+```
+fatal: Unable to create '/Users/nevinmckinnon/Documents/Projects/RogueHalla/.git/worktrees/backend-bot-modules/index.lock': Operation not permitted
+```
+
+Per dispatch ("otherwise exact SHA/scoped files for Root sealing, no permission expansion") no elevated permission was
+requested. Root can seal either by committing these exact files from the worktree with Root's git access, or by applying
+`CANDIDATE-MODIFIED.patch` to base `9f74ff3e` and materialising the manifest-listed new files.
+
+## Verification commands (any holder of this worktree)
+
+```sh
+cd /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-modules
+# 1) every manifest record matches the worktree (sha256)
+awk '!/^#/ && NF {print $1"  "$5}' docs/evidence/bot-private-modules-native/CANDIDATE-MANIFEST.sha256 | sha256sum -c -
+# 2) git blob identities match (root can compare after staging)
+awk '!/^#/ && NF {print $5}' docs/evidence/bot-private-modules-native/CANDIDATE-MANIFEST.sha256 | xargs git hash-object
+# 3) tracked-file patch reproduces the five leased edits from the base content
+git apply --check docs/evidence/bot-private-modules-native/CANDIDATE-MODIFIED.patch   # run on base tree
+# 4) manifest content seal
+sha256sum docs/evidence/bot-private-modules-native/CANDIDATE-MANIFEST.sha256
+# expected: b4190e873ef02e02f8b2a8f625fbb06c29ce812662dc1c712aa491c0cc0286b8
+```
