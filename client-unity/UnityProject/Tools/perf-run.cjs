@@ -384,7 +384,7 @@ async function session(o, { seconds, uncapped, extraFlags = '', label, outDir, s
 
     // Measure the browser's real frame cadence for a moment (is the compositor really delivering 144 Hz?).
     rec.cadence = await page.evaluate(async () => {
-      const P = window.__rhPerf; P.reset(); await new Promise(r => setTimeout(r, 2500)); P.stop();
+      const P = window.__rhPerf; P.reset(); await new Promise(r => setTimeout(r, 1500)); P.stop();
       const s = P.stats(); P.reset(); P.resume();
       return { medianMs: s.p50Ms, p05Ms: null, hz: s.p50Ms ? 1000 / s.p50Ms : null, frames: s.count };
     });
