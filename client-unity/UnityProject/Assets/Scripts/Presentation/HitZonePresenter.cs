@@ -13,7 +13,7 @@ namespace Roguehalla.Client
 {
     public sealed class HitZonePresenter
     {
-        const int Arc = 24, Rings = 3, Order = 1235;
+        const int Arc = 24, Rings = 3, Order = 1999; // over the ground, its decor and the temple floor art (1235 vanished on the Holy floor, UI lab), under every actor (2000+)
         const float EdgeLight = 1.3f, EdgeDark = 2.8f; // sim units: a light hairline outside a dark one, so the extent reads on any ground (the fill alpha is unchanged)
         // base fan (centre + rings) + 2 outline strips (dark, light) each = arc strip + two side strips
         const int FanVerts = 1 + Rings * (Arc + 1), StripVerts = 2 * (Arc + 1) + 8, TotalVerts = FanVerts + 2 * StripVerts;
@@ -22,7 +22,7 @@ namespace Roguehalla.Client
         {
             public GameObject Go; public Mesh Mesh; public MeshRenderer Renderer;
             public Vector3[] V = new Vector3[TotalVerts]; public Color32[] C = new Color32[TotalVerts];
-            public bool Live; public float Start, Ox, Oy, Reach, Half, Angle;
+            public bool Live, Windup; public uint Owner; public float Start, Ox, Oy, Reach, Half, Angle, Ms;
         }
 
         readonly Transform _root;
@@ -32,6 +32,10 @@ namespace Roguehalla.Client
         readonly Dictionary<uint, byte> _archetype = new Dictionary<uint, byte>();
         WireArchetype[] _tableArray = System.Array.Empty<WireArchetype>();
         int[] _tris;
+        readonly Dictionary<uint, Zone> _windups = new Dictionary<uint, Zone>();
+        public delegate bool PositionOf(uint id, out float x, out float y);
+        /// <summary>Where a delivered actor stands now, sim units (the windup telegraph follows its attacker).</summary>
+        public PositionOf Position;
         public bool Enabled { get; private set; }
         public int LiveCount { get { return _zones.Count; } }
         public static bool DemoRequested { get; private set; }
@@ -67,36 +71,72 @@ namespace Roguehalla.Client
         /// <summary>A delivered swing. Returns true when a zone was started.</summary>
         public bool Swing(uint by, byte weapon, float x, float y, float angle, float now)
         {
+            CancelWindup(by);                                  // the swing lands: the telegraph gives way to the swing
             if (!Enabled || _contains == null || !_contains(by)) return false;
             if (!WeaponShapes.TryGet(weapon, out var shape)) return false;
             if (float.IsNaN(x + y + angle) || float.IsInfinity(x + y + angle)) return false;
             if (_zones.Count >= HitZoneModel.MaxZones) return false;
-            byte hull = 0, chest = 0;
-            if (_archetype.TryGetValue(by, out byte id)) { var row = WireArchetype.Find(_tableArray, id); if (row != null) { hull = row.Hull; chest = row.Chest; } }
             var z = _free.Count > 0 ? _free.Pop() : Create();
-            HitZoneModel.Origin(x, y, hull, chest, out z.Ox, out z.Oy);
+            Place(z, by, x, y);
             z.Reach = shape.Reach; z.Half = shape.HalfArc; z.Angle = angle; z.Start = now; z.Live = true;
             z.Go.SetActive(true); _zones.Add(z);
             Write(z, 0f, false);
             return true;
         }
 
+        void Place(Zone z, uint by, float x, float y)
+        {
+            byte hull = 0, chest = 0;
+            if (_archetype.TryGetValue(by, out byte id)) { var row = WireArchetype.Find(_tableArray, id); if (row != null) { hull = row.Hull; chest = row.Chest; } }
+            HitZoneModel.Origin(x, y, hull, chest, out z.Ox, out z.Oy);
+        }
+
+        /// <summary>
+        /// The enemy (or own) wind-up telegraph (B13): the weapon's real zone, drawn from the Windup fx until the swing lands, a Cancel or a Stagger.
+        /// The band sweeps once through the sector over the wind-up, so the player sees when the swing comes. Melee arcs only.
+        /// </summary>
+        public bool Windup(uint by, byte weapon, float angle, float ms, float now)
+        {
+            CancelWindup(by);
+            if (!Enabled || _contains == null || !_contains(by) || !(ms > 0f) || float.IsNaN(angle) || float.IsInfinity(angle)) return false;
+            if (!WeaponShapes.TryGet(weapon, out var shape) || _zones.Count >= HitZoneModel.MaxZones || Position == null || !Position(by, out float x, out float y)) return false;
+            var z = _free.Count > 0 ? _free.Pop() : Create();
+            Place(z, by, x, y);
+            z.Reach = shape.Reach; z.Half = shape.HalfArc; z.Angle = angle; z.Start = now; z.Live = true; z.Windup = true; z.Owner = by; z.Ms = ms;
+            z.Go.SetActive(true); _zones.Add(z); _windups[by] = z; Write(z, 0f, false);
+            return true;
+        }
+
+        public void CancelWindup(uint id)
+        {
+            if (!_windups.TryGetValue(id, out var z)) return;
+            _windups.Remove(id); int i = _zones.IndexOf(z); if (i >= 0) Release(i);
+        }
+
+        public bool WindupLive(uint id) { return _windups.ContainsKey(id); }
+
         public void Tick(float now, bool reduced)
         {
             for (int i = _zones.Count - 1; i >= 0; i--)
             {
                 var z = _zones[i]; float age = (now - z.Start) * 1000f;
+                if (z.Windup)
+                {
+                    if (!Indicators.WindupLive(age, z.Ms) || (_contains != null && !_contains(z.Owner))) { _windups.Remove(z.Owner); Release(i); continue; }
+                    if (Position != null && Position(z.Owner, out float wx, out float wy)) Place(z, z.Owner, wx, wy);
+                    Write(z, Indicators.WindupProgress(age, z.Ms) * HitZoneModel.SweepMs, reduced); continue;
+                }
                 if (!HitZoneModel.Alive(age)) { Release(i); continue; }
                 Write(z, age, reduced);
             }
         }
 
-        public void Clear() { for (int i = _zones.Count - 1; i >= 0; i--) Release(i); }
+        public void Clear() { _windups.Clear(); for (int i = _zones.Count - 1; i >= 0; i--) Release(i); }
 
         /// <summary>Drops a departed actor's bookkeeping and any zone it started is left to fade (it was drawn while delivered).</summary>
         public void Forget(uint id) { _archetype.Remove(id); }
 
-        void Release(int i) { var z = _zones[i]; _zones.RemoveAt(i); z.Live = false; z.Go.SetActive(false); _free.Push(z); }
+        void Release(int i) { var z = _zones[i]; _zones.RemoveAt(i); z.Live = false; z.Windup = false; z.Go.SetActive(false); _free.Push(z); }
 
         Zone Create()
         {
@@ -141,7 +181,7 @@ namespace Roguehalla.Client
             float fade = HitZoneModel.Fade(age), centre = HitZoneModel.BandCentre(age, reduced);
             int vi = 0;
             // Fan: centre then rings. The band lights the ring vertices it covers (a wedge following the weapon).
-            z.V[vi] = P(z.Ox, z.Oy); z.C[vi++] = White(HitZoneModel.BaseAlpha * .55f * fade);
+            z.V[vi] = P(z.Ox, z.Oy); z.C[vi++] = Tint(HitZoneModel.BaseAlpha * .55f * FillGain * fade);
             for (int r = 1; r <= Rings; r++)
             {
                 float rr = r / (float)Rings, radius = z.Reach * rr;
@@ -151,13 +191,13 @@ namespace Roguehalla.Client
                     HitZoneModel.ArcPoint(z.Ox, z.Oy, radius, z.Half, z.Angle, k, out float px, out float py);
                     z.V[vi] = P(px, py);
                     float a = HitZoneModel.BaseAlpha * (.6f + .4f * rr) + HitZoneModel.BandAlpha * HitZoneModel.BandWeight(k, centre) * rr;
-                    z.C[vi++] = White(a * fade);
+                    z.C[vi++] = Tint(a * FillGain * fade);
                 }
             }
             for (int s = 0; s < 2; s++)
             {
                 float w = s == 0 ? EdgeDark : EdgeLight;
-                Color32 col = s == 0 ? Dark(.6f * fade) : White(HitZoneModel.EdgeAlpha * fade);
+                Color32 col = s == 0 ? Dark(.9f * fade) : White(HitZoneModel.EdgeAlpha * fade);
                 for (int i = 0; i <= Arc; i++)
                 {
                     float k = i / (float)Arc;
@@ -177,6 +217,9 @@ namespace Roguehalla.Client
             z.Mesh.SetVertices(z.V); z.Mesh.SetColors(z.C);
         }
 
+        // The fill is a cool steel blue, not white: white at .1 alpha vanished on sand and snow (UI lab). A dark outer edge and a light inner edge outline it on any ground.
+        const float FillGain = 2.6f;
+        static Color32 Tint(float a) { return new Color32(0x6f, 0x9f, 0xd6, (byte)Mathf.RoundToInt(Mathf.Clamp01(a) * 255f)); }
         static Color32 White(float a) { return new Color32(255, 255, 255, (byte)Mathf.RoundToInt(Mathf.Clamp01(a) * 255f)); }
         static Color32 Dark(float a) { var d = UiTheme.Current.OutlineDark; return new Color32(d.r, d.g, d.b, (byte)Mathf.RoundToInt(Mathf.Clamp01(a) * 255f)); }
     }

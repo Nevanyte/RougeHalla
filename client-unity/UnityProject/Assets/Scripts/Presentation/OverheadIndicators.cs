@@ -12,6 +12,15 @@ namespace Roguehalla.Client
 {
     public sealed class OverheadIndicators
     {
+        /// <summary>The protocol 16 indicator facts of one fighter (ADR0026), all delivered: its name, the top two stat marks, the Sentenced mark, immunity, roam, engaged.</summary>
+        public struct Marks
+        {
+            public string Name;                   // display name (already "[BOT] name" for bots), null when unknown
+            public bool Immune, Roam, Engaged;
+            public byte Top1, Top2;               // StatKey codes, 0 none
+            public byte Tier, Brand, Tax;         // mark tier 0..4, brand 0..100, tax percent
+        }
+
         public struct Facts
         {
             public int Order;            // the actor's sorting order
@@ -30,6 +39,7 @@ namespace Roguehalla.Client
             public int WishState;                 // the local fighter's own Wish beside the name: 0 none, 1 ready, 2 recharging
             public byte WishAbility;              // AbilityId of that Wish (glyph shape)
             public int BarrierStep;               // barrier ring step 0..8 (the barrier bubble round the body)
+            public Marks M;                       // the protocol 16 indicator facts
             public byte Sig;                      // signature byte (TAXED / SUPPRESSED / EXEC BLOCKED text cues)
         }
 
@@ -181,11 +191,12 @@ namespace Roguehalla.Client
             Ground(_zone, zoned, f.Order - 5, new Vector2(1.5f, .78f), (Color)theme.Info, .9f);
 
             // Mob name (legacy 11 px grey, faint while calm; elite gold and bold).
-            bool wantName = f.Mob && !string.IsNullOrEmpty(f.Name);
+            string label = f.Mob ? f.Name : f.M.Name;
+            bool wantName = !string.IsNullOrEmpty(label);
             if (wantName)
             {
-                if (!ReferenceEquals(_nameText, f.Name)) { _name.text = f.Name; _nameText = f.Name; }
-                _nameBase = f.Elite ? (Color)theme.Accent : (Color)theme.TextSecondary;
+                if (!ReferenceEquals(_nameText, label)) { _name.text = label; _nameText = label; }
+                _nameBase = f.Elite ? (Color)theme.Accent : f.Local ? (Color)theme.Success : f.Mob ? (Color)theme.TextSecondary : (Color)theme.TextPrimary;
                 _nameBase.a = 1f; // hierarchy by colour, not faintness: the plate keeps every name above 4.5:1
                 var c = _nameBase; c.a *= _textFade; _name.color = c;
                 _name.fontStyle = f.Elite ? FontStyles.Bold : FontStyles.Normal;
@@ -221,7 +232,7 @@ namespace Roguehalla.Client
 
             // The local fighter's own Wish beside the name plate (legacy PlayerView.setWishIcon): a 15 px ability glyph, in the faction colour
             // when ready and grey while recharging, on the dark plate. Remote Wish state is not delivered, so nothing is drawn for others.
-            bool wish = f.Local && f.WishState != 0;
+            bool wish = f.WishState != 0;
             _wishBack.enabled = _wishIcon.enabled = wish;
             if (wish)
             {
@@ -235,13 +246,14 @@ namespace Roguehalla.Client
                 cursor += size + .08f;
             }
 
-            // Build row: the secondary weapon (the slot not in hand; fists when empty).
-            bool badge = f.HasSecondary;
+            // Build row (legacy PlayerView.drawBuildMarks): the secondary weapon at x -18, the top two invested stats at 0 and +18 (px), in 18 px dark squares.
+            bool badge = f.HasSecondary; int slots = (badge ? 1 : 0) + (f.M.Top1 != 0 ? 1 : 0) + (f.M.Top2 != 0 ? 1 : 0);
             _badgeBack.enabled = _badgeEdge.enabled = _badgeIcon.enabled = badge;
+            float pitch = 19f * Px, rowX = -(slots - 1) * .5f * pitch;
             if (badge)
             {
                 float size = 17f * Px, y = cursor + size * .5f;
-                var pos = new Vector3(0, y, 0);
+                var pos = new Vector3(rowX, y, 0);
                 _badgeEdge.transform.localPosition = pos; _badgeEdge.transform.localScale = new Vector3(size + .05f, size + .05f, 1);
                 _badgeEdge.color = (Color)theme.Border; _badgeEdge.sortingOrder = f.Order + 10;
                 _badgeBack.transform.localPosition = pos; _badgeBack.transform.localScale = new Vector3(size, size, 1);
@@ -249,7 +261,9 @@ namespace Roguehalla.Client
                 _badgeIcon.sprite = ShowcaseSprites.Get("weapon" + Mathf.Clamp((int)f.Secondary, 0, 5));
                 _badgeIcon.transform.localPosition = pos; _badgeIcon.transform.localScale = Vector3.one * (f.Secondary == WeaponId.Fists ? .55f : .62f);
                 _badgeIcon.color = (Color)theme.TextPrimary; _badgeIcon.sortingOrder = f.Order + 12;
+                rowX += pitch;
             }
+            _extras.StatMarks(in f, cursor + 17f * Px * .5f, rowX, pitch, theme);
 
             // The attack lock: a red double ring on the ground under the locked fighter, breathing slowly (legacy TargetRings). The hairline
             // edges are in the ring art, so the ring reads on any ground without getting brighter.

@@ -96,3 +96,27 @@ Found by the gallery and not fixable inside the client:
 - W15 edge threat glows are built but never fed in a real match (`MatchHud.UpdateEdgeThreatsStub`); the vision radius it said was missing is now delivered (`WireVision.Radius`).
 - W18: the client has no "Coliseum" timer or "sudden death" line; the arena clocks arrive (`ArenaView.SuddenDeathAt`) and nothing draws them.
 - Vision fades: the character body ignored its alpha (the actor shader omitted `unity_SpriteColor`), so only the plates faded and the body popped; one line in `RegionActorLit.shader`.
+
+
+## Phase 2: protocol 16 indicator facts (ADR 0026) and the loose ends
+
+Gallery cells (`evidence/uilab/<cell>__<ground>.jpg`, three grounds, all looked at) and real-match sightings (`ui-scenarios.cjs --scenario fight` against `rh-server` content hash `06e2cdab2889abc5`, bots; looked at). "Real" lists only what was actually seen on screen.
+
+| Indicator | Gallery cell | Judgement | Seen in a real match |
+|---|---|---|---|
+| Weapon hit zone (`Session.Weapons` into `WeaponShapes`) | HZ.sword, HZ.shield, HZ.axe, HZ.fists | right after two fixes: the white fill vanished on sand and snow (now a steel-blue fill with a dark and a light edge), and the zone sat under the Holy floor art (sort order 1235, now 1999, under every actor) | yes, own fists swing (`fight-frost/006-swing-hitzone`); sword, shield and axe not picked up in that run |
+| Enemy / own wind-up (B13) | F4.enemy-sword, F4.enemy-axe-late, F4.own | right: sector with a band that sweeps once over the wind-up, ends on the swing, Cancel or Stagger | no (no Windup fx reached the screen in the bot run) |
+| P2 / B3 names, `[BOT]` prefix | P2.name, P2.bot | right: plate, local one tinted green | yes, the own name |
+| B1 off-hand of remote players, B2 top stat marks | B1_B2.* | right: row of 18 px squares, weapon at -18, stats at 0 and +18, legacy colours | off-hand badge yes on a remote bot; stat marks no (none earned) |
+| P6 / B4 remote Wish ready / recharging | P6.remote-ready, P6.remote-recharging | right | yes (grey while recharging) |
+| P8 / B5 mark plate, tax text, G7 brand | P8.*, G7.* | right: pips by tier, `AS -N%` / `DMG -N%`, violet brand ring | no (no Sentenced mark) |
+| P13 / B7 immunity ring, P14 / B8 Fire roam | P13.immune, P14.roam | right | no |
+| M2 / B10 engaged mob shows its bar | M2.engaged, M2.calm100 | right | no |
+| F1 / B11 crit `N!`, F2 kind-coloured damage over time, F3 / B12 heal `+N` | F1.crit, F2.burn/disease/mark/backlash, F3.heal | numbers now rise beside the fighter (they overprinted the new overhead stack); small but readable on a plate | no (no crit, signature chunk or heal in the run) |
+| B12 camp-cleared cue | not drawn | the event carries only the camp index; the client holds no camp positions | no |
+| H3 / H4 champion HUD | n/a | developer wording removed: the panel shows attack speed and windup, move speed and the strongest stats; the mob-bonus row is left out | yes (`006-swing-hitzone`) |
+| W15 edge threat glows | W15 | fed in real matches now (`MatchHud.EdgeThreats.cs`, `WireVision.Radius`) | not captured: needs an enemy beyond the screen edge |
+| W18 Coliseum / sudden death line | not coverable (HUD) | added to the top strip: `Coliseum m:ss` (warn while the gates are locked), red `Coliseum - sudden death`; pure rule `Indicators.ArenaLine` is unit tested | not reached in a short run |
+| Credits and licences link (launch screen) | n/a | opens `Licenses/Third-Party-Assets.md` next to the page | not clicked in a browser |
+
+Still blocked on server data, not drawn (second tier deferred by the owner): W7 quest carrier flag, W10 camp buff badge, W11 camp patience outline, W12 camp wards, H3 per-hit damage and passive numbers, H4 mob bonuses.

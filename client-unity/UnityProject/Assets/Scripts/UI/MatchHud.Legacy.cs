@@ -205,8 +205,8 @@ namespace Roguehalla.Client
             _build = _extrasLabel;
             _buildHint = HudIconHint.Attach(_extrasToggle, _root, "B · Full build details\nClick to show cards and mob bonuses");
             _extrasBody = HudUi.At(_plateBody, "ExtrasBody", 0, y + 16, PlateInner, 62);
-            _cardsText = HudUi.Label(HudUi.At(_extrasBody, "Cards", 0, 0, PlateInner, 40), "Label", "Cards: none delivered", theme.SizeSmall, theme.TextPrimary, TextAlignmentOptions.TopLeft, wrap: true);
-            _mobText = HudUi.Label(HudUi.At(_extrasBody, "MobBonuses", 0, 42, PlateInner, 18), "Label", "Mob bonuses: none delivered", theme.SizeSmall, theme.TextSecondary, TextAlignmentOptions.TopLeft, wrap: true);
+            _cardsText = HudUi.Label(HudUi.At(_extrasBody, "Cards", 0, 0, PlateInner, 40), "Label", "Cards: none", theme.SizeSmall, theme.TextPrimary, TextAlignmentOptions.TopLeft, wrap: true);
+            _mobText = HudUi.Label(HudUi.At(_extrasBody, "MobBonuses", 0, 42, PlateInner, 18), "Label", "", theme.SizeSmall, theme.TextSecondary, TextAlignmentOptions.TopLeft, wrap: true);
             _extrasBody.gameObject.SetActive(false);
         }
 
@@ -217,8 +217,8 @@ namespace Roguehalla.Client
             for (int i = 0; i < view.Cards.Count; i++)
                 if (view.Cards[i] > 0) cards.Append(cards.Length > 0 ? " · " : "").Append(CardDisplayCatalog.Title((byte)i)).Append(" ×").Append(view.Cards[i]);
             Set(_cardsText, cards.Length > 0 ? "Cards: " + cards : view.HasBuild ? "Cards: none" : "Cards: awaiting server");
-            // The server delivers no mob-bonus table to the client yet, so this row stays a labelled placeholder.
-            Set(_mobText, "Mob bonuses: not delivered");
+            // No mob-bonus table is delivered, so the row is left out rather than shown as a placeholder.
+            if (_mobText != null && _mobText.gameObject.activeSelf) _mobText.gameObject.SetActive(false);
         }
 
         void ToggleExtras()
@@ -269,7 +269,7 @@ namespace Roguehalla.Client
             _damageHint = HudIconHint.Attach(focus, _root, DamageUnavailable);
         }
 
-        const string DamageUnavailable = "Combat overview\nAttack and passive numbers are not delivered by the server yet.\nRaw values are before target mitigation; this is not measured DPS.";
+        const string DamageUnavailable = "Combat overview\nAttack speed, windup and move speed as the server applies them.\nRaw values are before target mitigation; this is not measured DPS.";
 
         // ------------------------------------------------------------------ weapon bar (section 4)
 
@@ -427,11 +427,7 @@ namespace Roguehalla.Client
 
         // ------------------------------------------------------------------ stubs that need data the client does not receive
 
-        /// <summary>
-        /// Edge-threat glows toward visible enemies are built (EdgeThreatView + EdgeThreat.Compute) but not fed: the vision radius and the
-        /// ground-to-screen squash they need are not part of the delivered state, and a client constant would be a copied game rule.
-        /// </summary>
-        void UpdateEdgeThreatsStub() { _edgeThreats?.Show(null); }
+        // Edge-threat glows toward visible enemies are fed by MatchHud.EdgeThreats.cs (the vision radius is delivered, WireVision.Radius).
 
         // ------------------------------------------------------------------ per-frame presentation
 

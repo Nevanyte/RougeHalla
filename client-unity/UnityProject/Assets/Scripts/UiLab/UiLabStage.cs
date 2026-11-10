@@ -15,6 +15,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using Roguehalla.Net;
 using Roguehalla.Net.Protocol;
+using Roguehalla.Net.Ui;
 #if UNITY_WEBGL && !UNITY_EDITOR
 using System.Runtime.InteropServices;
 #endif
@@ -50,7 +51,7 @@ namespace Roguehalla.Client
         sealed class Run
         {
             public UiLabActor Spec; public UiLabCell Cell; public uint Id; public float X, Y;
-            public bool HitFired, DeathFired;
+            public bool HitFired, DeathFired, WindupFired, SwingFired, HealFired;
         }
         sealed class CellGeo { public UiLabCell Cell; public int Slot; public Vector2 TopLeft; }
         sealed class Caption { public TextMeshPro Text; public SpriteRenderer Plate; }
@@ -70,6 +71,7 @@ namespace Roguehalla.Client
         {
             _cam = cam; gameObject.name = ObjectName; _arena = arena;
             _map = UiLabMap.Build(); _arena.Build(_map);
+            SyntheticWeapons();
             _pages = UiLabCatalog.Build();
             float t;
             if (float.TryParse(Bootstrap.Query(search, "uilab.t", ""), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out t) && t >= 0f) _tOverride = t;
@@ -100,6 +102,14 @@ namespace Roguehalla.Client
             _edge = new EdgeThreatView(go.transform);
         }
 
+        /// <summary>SYNTHETIC weapon table for the gallery (no Welcome here): the Rust values of crates/rh-sim/src/content.rs, as a server would deliver them.</summary>
+        static void SyntheticWeapons()
+        {
+            float pi = Mathf.PI;
+            WeaponShapes.Set(new List<WeaponShape> { new WeaponShape { Weapon = 0, Kind = 1, Reach = 112f, HalfArc = pi / 4f }, new WeaponShape { Weapon = 1, Kind = 2 }, new WeaponShape { Weapon = 2, Kind = 2 },
+                new WeaponShape { Weapon = 3, Kind = 1, Reach = 96f, HalfArc = pi / 3f }, new WeaponShape { Weapon = 4, Kind = 1, Reach = 112f, HalfArc = pi / 2f }, new WeaponShape { Weapon = 5, Kind = 1, Reach = 72f, HalfArc = pi / 3f } });
+        }
+
         // ---- page control ---------------------------------------------------------------------------------------------------
 
         void SelectPage(int global, float settle)
@@ -111,7 +121,7 @@ namespace Roguehalla.Client
             _arena.ResetTransientPresentation(0); _arena.SetHover(0);
             BuildRuns(); BuildCollections(); BuildCaptions();
             float max = 0f;
-            foreach (var r in _runs) { max = Mathf.Max(max, r.Spec.AppearAge, r.Spec.LeaveAge, r.Spec.DieAge, r.Spec.HitAge); }
+            foreach (var r in _runs) { max = Mathf.Max(max, r.Spec.AppearAge, r.Spec.LeaveAge, r.Spec.DieAge, r.Spec.HitAge, r.Spec.SwingAge, r.Spec.WindupAge, r.Spec.HealAge); }
             _freeze = _tOverride >= 0f ? _tOverride : Mathf.Max(0f, max);
             _phase = Phase.Settle; _phaseStart = Time.unscaledTime; _settle = settle; _frozenFrames = 0;
             _publishedFor = -1; PublishNotReady();
@@ -153,6 +163,8 @@ namespace Roguehalla.Client
                 }
             }
             foreach (var r in _runs) { if (r.Spec.Hover) _hover = r.Id; }
+            var names = new Dictionary<uint, string>(); foreach (var r in _runs) if (!string.IsNullOrEmpty(r.Spec.Name)) names[r.Id] = Indicators.DisplayName(r.Spec.Name, r.Spec.Bot);
+            LegacyFacts.NameOverride = id => { string n; return names.TryGetValue(id, out n) ? n : null; };
         }
 
         void BuildCaptions()
@@ -302,7 +314,7 @@ namespace Roguehalla.Client
             DriveFrame(st);
         }
 
-        void ResetFired() { foreach (var r in _runs) { r.HitFired = false; r.DeathFired = false; } }
+        void ResetFired() { foreach (var r in _runs) { r.HitFired = r.DeathFired = r.WindupFired = r.SwingFired = r.HealFired = false; } }
 
         /// <summary>Feeds the real presentation path with the delivered facts at timeline time <paramref name="st"/> (negative: before every event).</summary>
         void DriveFrame(float st)
@@ -320,7 +332,7 @@ namespace Roguehalla.Client
                     _me = new SelfView
                     {
                         Id = MeId, Faction = a.Faction ?? FactionId.Fire, X = r.X, Y = r.Y, Facing = a.Facing, Hp = a.Hp, MaxHp = 100f, Status = ActorStatus.Alive, Weapon = a.Weapon ?? WeaponId.Sword,
-                        Bounty = a.Bounty, Effects = a.Effects, SelfSig = a.Sig, Barrier = a.Barrier, BarrierRingStep = a.BarrierRing,
+                        Bounty = a.Bounty, Effects = a.Effects, SelfSig = a.Sig, Barrier = a.Barrier, BarrierRingStep = a.BarrierRing, Flags = FlagsOf(a, false), TopStat1 = a.Top1, TopStat2 = a.Top2, MarkTier = a.Tier, Brand = a.Brand, MarkTax = a.Tax,
                         Wish = a.WishAbility == 255 ? (WishView?)null : new WishView { Ability = (AbilityId)a.WishAbility, ReadyAt = a.WishReady ? 0 : 1e9, RechargeMs = 45000, Charges = (byte)(a.WishReady ? 1 : 0), MaxCharges = 1 }
                     };
                     continue;
@@ -329,7 +341,8 @@ namespace Roguehalla.Client
                 _rows.Add(new InterpActor
                 {
                     Id = r.Id, Faction = a.Faction, Status = dead ? ActorStatus.Dead : ActorStatus.Alive, Weapon = a.Weapon, HpPct = a.HpPct, X = r.X, Y = r.Y, Facing = a.Facing,
-                    Bounty = a.Bounty, Effects = a.Effects, Kind = a.Kind, MobType = a.Mob, SourceSig = a.Sig, BarrierPct = a.BarrierPct, BarrierRingStep = a.BarrierRing
+                    Bounty = a.Bounty, Effects = a.Effects, Kind = a.Kind, MobType = a.Mob, SourceSig = a.Sig, BarrierPct = a.BarrierPct, BarrierRingStep = a.BarrierRing,
+                    Flags = FlagsOf(a, true), OffhandWeapon = a.Kind == ActorKind.Player ? (a.Second ?? WeaponId.Fists) : (WeaponId?)null, TopStat1 = a.Top1, TopStat2 = a.Top2, MarkTier = a.Tier, Brand = a.Brand, MarkTax = a.Tax
                 });
             }
             if (_me != null)
@@ -356,6 +369,16 @@ namespace Roguehalla.Client
                 foreach (var name in _hide) if (r.gameObject.name == name) r.forceRenderingOff = true;
         }
 
+        static byte FlagsOf(UiLabActor a, bool remote)
+        {
+            int f = 0;
+            if (remote ? a.RemoteWishReady : a.WishReady) f |= WireIndicators.FlagWishReady;
+            if (a.Engaged) f |= WireIndicators.FlagEngaged;
+            if (a.Immune) f |= WireIndicators.FlagTeleportImmune;
+            if (a.Roam) f |= WireIndicators.FlagRoamReady;
+            return (byte)f;
+        }
+
         void FireEvents(float st)
         {
             foreach (var r in _runs)
@@ -366,8 +389,25 @@ namespace Roguehalla.Client
                 {
                     r.HitFired = true;
                     var fx = new ServerMsg.Fx { Tick = 1 };
-                    fx.List.Add(new WireFx { Kind = FxKind.Hit, Victim = r.Id, By = a.HitByMe ? MeId : OtherId, Amount = a.HitAmount, Passive = a.HitPassive, X = r.X, Y = r.Y, A = 0f });
+                    if (a.SigKind != 0) fx.List.Add(new WireFx { Kind = FxKind.SigHit, Victim = r.Id, By = OtherId, Amount = a.HitAmount, HitKind = a.SigKind });
+                    else fx.List.Add(new WireFx { Kind = FxKind.Hit, Victim = r.Id, By = a.HitByMe ? MeId : OtherId, Amount = a.HitAmount, Passive = a.HitPassive, Critical = a.HitCrit, X = r.X, Y = r.Y, A = 0f });
                     _arena.ConfirmedFx(fx);
+                }
+                float swing = Age(a.SwingAge), wind = Age(a.WindupAge), heal = Age(a.HealAge);
+                if (wind >= 0f && !r.WindupFired && st >= _freeze - wind)
+                {
+                    r.WindupFired = true; var fx = new ServerMsg.Fx { Tick = 1 };
+                    fx.List.Add(new WireFx { Kind = FxKind.Windup, By = r.Id, Weapon = a.SwingWeapon, A = a.Facing, Ms = (ushort)a.WindupMs }); _arena.ConfirmedFx(fx);
+                }
+                if (swing >= 0f && !r.SwingFired && st >= _freeze - swing)
+                {
+                    r.SwingFired = true; var fx = new ServerMsg.Fx { Tick = 1 };
+                    fx.List.Add(new WireFx { Kind = FxKind.Swing, By = r.Id, Weapon = a.SwingWeapon, X = r.X, Y = r.Y, A = a.Facing }); _arena.ConfirmedFx(fx);
+                }
+                if (heal >= 0f && !r.HealFired && st >= _freeze - heal)
+                {
+                    r.HealFired = true; var fx = new ServerMsg.Fx { Tick = 1 };
+                    fx.List.Add(new WireFx { Kind = FxKind.Heal, Id = r.Id, Amount = a.HealAmount }); _arena.ConfirmedFx(fx);
                 }
                 if (die >= 0f && a.DeathMark && !r.DeathFired && st >= _freeze - die) { r.DeathFired = true; _arena.DiagDeathMark(r.X, r.Y); }
             }

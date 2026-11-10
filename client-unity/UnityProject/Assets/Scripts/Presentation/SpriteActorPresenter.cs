@@ -360,7 +360,7 @@ namespace Roguehalla.Client
             bool elite = false; string label = null;
             if (kind == ActorKind.RegionalMob && mob.HasValue && ShowcaseIdentityAssets.TryGetMobInfo(mob.Value, out var mobInfo)) { elite = mobInfo.Elite; label = mobInfo.DisplayName; }
             // A regional mob's bar shows when it is hurt (and always for an elite); the "fighting" case is not on the wire.
-            bool barOn = !dead && (kind != ActorKind.RegionalMob || Indicators.MobBarVisible(elite, false, hp, false));
+            bool barOn = !dead && (kind != ActorKind.RegionalMob || Indicators.MobBarVisible(elite, false, hp, false) || a.IndFacts.M.Engaged);
             a.Hp.enabled = barOn; a.HpBack.enabled = barOn;
             float barrierWidth = barrierShare * unitWidth;
             a.Barrier.transform.localScale = new Vector3(barrierWidth, .095f, 1);
@@ -533,6 +533,13 @@ namespace Roguehalla.Client
             fx.Hovered = hovered; fx.Hunted = hunted; fx.WishState = wishState; fx.WishAbility = wishAbility;
             a.IndFacts = fx; a.Ind.Update(in a.IndFacts);
             if (a.Fade.Entering || a.Fade.Opacity < .999f) a.Ind.ApplyOpacity(a.Fade.Opacity);
+        }
+
+        /// <summary>The protocol 16 indicator facts of an observed actor (names, stat marks, mark plate, immunity, roam, engaged); read on the next <see cref="PresentIndicators"/>.</summary>
+        public void PresentMarks(uint id, in OverheadIndicators.Marks marks)
+        {
+            if (!_active.TryGetValue(id, out var a)) return;
+            var fx = a.IndFacts; fx.M = marks; a.IndFacts = fx;
         }
 
         static string SignatureName(byte bit)
