@@ -37,10 +37,19 @@ open. Deferred content stays outside the demo critical path.
 The latest normal source CI runs42729941642 (`d265ab95`) and42727133953 (`112f8ec7`) both pass provenance, simulation,
 C# and card-source jobs but fail Rust's all-feature Clippy compile on the missing `RoomCmd::Input.received` test field.
 The one-line test repair is `2c665f6a`; Root's strict all-feature/all-target `rh-server` Clippy passes in25.97s, without
-running tests or rebuilding the release binary. Downstream skipped CI gates still need a fresh normal run.
+running tests or rebuilding the release binary. Fresh normal [CI42739863259](https://github.com/Nevanyte/RougeHalla/actions/runs/42739863259)
+at exact `388e35572f05f41e7cf0a16fb3d403a2fe4502ca` now passes all five jobs, including PostgreSQL lease tests,
+headless/source checks and the actual Chromium/WSS proof. This supersedes the earlier failed runs at their recorded cuts.
 Claude's newer `1f7c5460` is explicitly protocol15 WIP with missing C#/JS consumers and concrete bounded review
 findings. It is not merged or deployed. The [focused completion handoff](coordination/CLAUDE_NETCODE_CHECKPOINT_FINISH.md)
 preserves the approved speed direction and lists the actual interoperability/lifecycle/track/counterplay work.
+
+The finite M5 profiling runner is composed locally at `64327d70`:24 scoped Node controls and its exact frozen-B
+asset/dependency preflight pass. It enables the Chromium sandbox, excludes unsafe SwiftShader fallback and classifies
+the actual renderer. No actual frame-time run has occurred; the owner has been asked for explicit Playwright/foreground
+browser permission. The prepared runner uses one30s local-WS/three-seat/48×40 window, not a matched legacy comparison.
+A fresh isolated Phaser production build and the actual shared160×160 map identity guard also pass; those artifacts
+have not yet been served or measured. The common full-map comparison still needs actual controlled runs.
 
 The owner now prioritizes a complete visual/networked **technical demo as soon as possible** to measure Unity 2D and
 AWS/Rust speed. Full quests, every augment/elite reward, advanced bot parity and production completeness no longer block
