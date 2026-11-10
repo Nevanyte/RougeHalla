@@ -175,6 +175,11 @@ async function launchFlow(cfg, browser, errors, logs) {
   const diag = (extra = '') => `?server=${encodeURIComponent(wsUrl)}&profile=${profile()}&faction=3&diagnostic=1&token=t1&auto=0${extra}`;
   console.log(cfg.id, 'launch flow, scale', geo.s.toFixed(3), 'room scale', geo.k.toFixed(3));
 
+  if (process.env.RH_SHOTS_LAUNCH_SHORT === 'hub') {
+    const hubPage = await open(diag()); await shot(hubPage, 'hub'); await hubPage.context().close();
+    return;
+  }
+
   // 1. The normal player path: no query at all, then the same with a custom server (the owner-reported "unavailable" wording).
   let page = await open('');
   if (steps.has('launch-plain') || steps.has('launch')) await shot(page, 'first-visit');
@@ -193,6 +198,14 @@ async function launchFlow(cfg, browser, errors, logs) {
   await shot(page, 'callsign-typed');
   await click(page, geo.training, 900); await shot(page, 'training-unavailable');
   await page.context().close();
+  if (process.env.RH_SHOTS_LAUNCH_SHORT === '1') {
+    // Short flow (third UI pass): the hub room in the loopback hub and the account panels above, nothing else.
+    page = await open(diag());
+    await shot(page, 'hub');
+    await page.context().close();
+    fs.writeFileSync(path.join(outDir, `${tag}-${tag2}-console.log`), logs.join('\n') + '\n');
+    return;
+  }
 
   page = await open(`?server=${encodeURIComponent(wsUrl)}`);
   await shot(page, 'custom-server-link');
@@ -267,7 +280,7 @@ async function run(cfg) {
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
   // The callsign must be 2-16 of A-Z a-z 0-9 _ -
   const profile = `${tag.replace(/[^A-Za-z0-9]/g, '').slice(0, 4)}${cfg.w}d${cfg.dpr}${Math.random().toString(36).slice(2, 5)}`.slice(0, 16);
-  const url = `${baseUrl}?server=${encodeURIComponent(wsUrl)}&profile=${profile}&faction=3&diagnostic=1&token=t1`;
+  const url = `${baseUrl}?server=${encodeURIComponent(wsUrl)}&profile=${profile}&faction=${process.env.RH_SHOTS_FACTION || 3}&diagnostic=1&token=t1${process.env.RH_SHOTS_QUERY || ''}`;
   const s = legacyScale(cfg.w, cfg.h);
   const shot = async name => {
     const file = path.join(outDir, `${tag}-${cfg.id.replace('@', '-dpr')}-${name}.png`);
@@ -308,6 +321,37 @@ async function run(cfg) {
   if (steps.has('help')) { await page.keyboard.press('h'); await page.waitForTimeout(500); await shot('help'); await page.keyboard.press('h'); await page.waitForTimeout(300); }
   if (steps.has('map')) { await page.keyboard.down('Tab'); await page.waitForTimeout(700); await shot('map'); await page.keyboard.up('Tab'); await page.waitForTimeout(300); }
   if (steps.has('walk')) await walk(cfg, page, s, shot);
+  // Third UI pass: real-match captures. `fight` takes a burst of frames while the bots fight around the player (remote clusters, statuses,
+  // damage numbers); `mobaudit` prints the creature art create/destroy rate the page logged (?mob.audit=1, ?mob.continuity=0 for the old
+  // behaviour); `panels` opens the journal (J), Traders and Notices pages; `results` waits idle until the run ends and the results screen shows.
+  if (steps.has('fight')) {
+    // Walk toward the middle of the map first (right-click on the minimap, repeated) so the shots find the bots.
+    const target = (process.env.RH_SHOTS_FIGHT_TARGET || '0.5,0.5').split(',').map(Number);
+    const mini = minimapRect(cfg.w, cfg.h, s);
+    for (let k = 0; k < Number(process.env.RH_SHOTS_FIGHT_WALKS || 4); k++) {
+      await page.mouse.move(mini.x + mini.size * target[0], mini.y + mini.size * target[1]); await page.waitForTimeout(100);
+      await page.mouse.down({ button: 'right' }); await page.waitForTimeout(90); await page.mouse.up({ button: 'right' });
+      await page.waitForTimeout(6000);
+    }
+    const frames = Number(process.env.RH_SHOTS_FIGHT_FRAMES || 12);
+    for (let i = 0; i < frames; i++) { await page.waitForTimeout(Number(process.env.RH_SHOTS_FIGHT_GAP_MS || 2500)); await shot(`fight-${String(i).padStart(2, '0')}`); }
+  }
+  if (steps.has('panels')) {
+    await page.keyboard.press('j'); await page.waitForTimeout(900); await shot('panel-quests');
+    const pageTab = (i) => ({ x: cfg.w * (0.12 + 0.76 * (0.025 + i * 0.32 + 0.155)), y: cfg.h * (1 - (0.12 + 0.795 * 0.8625)) });
+    await page.mouse.click(pageTab(1).x, pageTab(1).y, { delay: 60 }); await page.waitForTimeout(700); await shot('panel-traders');
+    await page.mouse.click(pageTab(2).x, pageTab(2).y, { delay: 60 }); await page.waitForTimeout(700); await shot('panel-notices');
+    await page.keyboard.press('Escape'); await page.waitForTimeout(500);
+  }
+  if (steps.has('results')) {
+    const waits = Number(process.env.RH_SHOTS_RESULT_POLLS || 24);
+    for (let i = 0; i < waits; i++) { await page.waitForTimeout(Number(process.env.RH_SHOTS_RESULT_GAP_MS || 10000)); await shot(`results-wait-${String(i).padStart(2, '0')}`); }
+  }
+  if (steps.has('mobaudit')) {
+    const lines = logs.filter(l => l.includes('[mob.audit]'));
+    fs.writeFileSync(path.join(outDir, `${tag}-${cfg.id.replace('@', '-dpr')}-mob-audit.log`), lines.join('\n') + '\n');
+    console.log('  mob.audit lines', lines.length, lines.slice(-3).join(' | '));
+  }
   fs.writeFileSync(path.join(outDir, `${tag}-${cfg.id.replace('@', '-dpr')}-console.log`), logs.join('\n') + '\n');
   await browser.close();
   return errors;

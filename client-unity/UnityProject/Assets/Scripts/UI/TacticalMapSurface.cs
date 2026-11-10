@@ -160,6 +160,7 @@ namespace Roguehalla.Client
             var zoneColor = new Color[MapZones.Count + 1]; var zoneAlpha = new float[MapZones.Count + 1];
             for (int r = 1; r <= MapZones.Count; r++) { zoneColor[r] = theme.ZoneColor(r); zoneAlpha[r] = MapZones.TintAlpha(r, true); }
 
+            float[][] weights = hasRegions ? ZoneWeights.Bake(regions, w, h) : null;
             int tw = w * k, th = h * k;
             var texture = new Texture2D(tw, th, TextureFormat.RGBA32, true)
             {
@@ -176,16 +177,13 @@ namespace Roguehalla.Client
                     Color c = backing;
                     if (hasRegions)
                     {
-                        // Bilinear blend of the four nearest tiles' zone tints: soft borders instead of a tile staircase.
-                        double fx = tx - .5, fy = ty - .5; int x0 = (int)Math.Floor(fx), y0 = (int)Math.Floor(fy);
-                        float ax = (float)(fx - x0), ay = (float)(fy - y0);
+                        // The same blurred zone weights the world ground shader bakes (ZoneWeights): borders are a soft gradient about 1.5 tiles
+                        // wide at any angle, not a one-tile staircase.
                         float aSum = 0f, rr = 0f, gg = 0f, bb = 0f;
-                        for (int n = 0; n < 4; n++)
+                        for (int region = 1; region <= MapZones.Count; region++)
                         {
-                            int sx = Mathf.Clamp(x0 + (n & 1), 0, w - 1), sy = Mathf.Clamp(y0 + (n >> 1), 0, h - 1);
-                            float wgt = ((n & 1) == 0 ? 1f - ax : ax) * ((n >> 1) == 0 ? 1f - ay : ay);
-                            int region = regions[sy * w + sx];
-                            if (!MapZones.IsZone(region) || wgt <= 0f) continue;
+                            float wgt = ZoneWeights.Sample(weights[region], w, h, tx, ty);
+                            if (wgt <= 0.002f) continue;
                             float a = wgt * zoneAlpha[region];
                             aSum += a; rr += zoneColor[region].r * a; gg += zoneColor[region].g * a; bb += zoneColor[region].b * a;
                         }

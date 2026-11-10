@@ -5,6 +5,7 @@
 using TMPro;
 using UnityEngine;
 using Roguehalla.Net;
+using Roguehalla.Net.Protocol;
 using Roguehalla.Net.Ui;
 
 namespace Roguehalla.Client
@@ -25,11 +26,15 @@ namespace Roguehalla.Client
             public ushort Effects;
             public string Name;
             public bool Reduced;
+            public bool Hovered, Hunted;          // the fighter a click would lock (hover ring); the Sentenced hunt target (violet ring)
+            public int WishState;                 // the local fighter's own Wish beside the name: 0 none, 1 ready, 2 recharging
+            public byte WishAbility;              // AbilityId of that Wish (glyph shape)
         }
 
+        const float RingK = .86f / .80f; // GroundMarkArt rings sit at .80 of the sprite, the old generic ring at .86
         const float Px = .026f; // legacy px to actor-local units
         readonly Transform _t;
-        readonly SpriteRenderer _crown, _badgeBack, _badgeEdge, _badgeIcon, _lockOuter, _lockInner, _root, _zone, _numberBack, _nameBack;
+        readonly SpriteRenderer _hover, _hunt, _wishBack, _wishIcon, _crown, _badgeBack, _badgeEdge, _badgeIcon, _lockOuter, _lockInner, _root, _zone, _numberBack, _nameBack;
         readonly SpriteRenderer[] _glyphs = new SpriteRenderer[Indicators.StatusOrder.Length];
         readonly SpriteRenderer[] _backs = new SpriteRenderer[Indicators.StatusOrder.Length];
         readonly SpriteRenderer _lockDark;
@@ -53,11 +58,16 @@ namespace Roguehalla.Client
                 _backs[i] = Sprite(root, "Status plate " + GlyphKeys[i], ShowcaseSprites.Get("bar"), 8);
                 _glyphs[i] = Sprite(root, "Status " + GlyphKeys[i], IndicatorArt.Get(GlyphKeys[i]), 9);
             }
+            var t0 = UiTheme.Current;
             _lockDark = Sprite(root, "Attack lock ring shade", ShowcaseSprites.Get("ring"), -7);
-            _lockOuter = Sprite(root, "Attack lock ring", ShowcaseSprites.Get("ring"), -6);
-            _lockInner = Sprite(root, "Attack lock ring inner", ShowcaseSprites.Get("ring"), -6);
-            _root = Sprite(root, "Rooted ring", ShowcaseSprites.Get("ring"), -5);
-            _zone = Sprite(root, "Zoned ring", ShowcaseSprites.Get("ring"), -5);
+            _lockOuter = Sprite(root, "Attack lock ring", GroundMarkArt.Ring(t0.Danger, true), -6);
+            _lockInner = Sprite(root, "Attack lock ring inner", GroundMarkArt.Ring(t0.Danger, false, .016f), -6);
+            _hover = Sprite(root, "Hover ring", GroundMarkArt.Ring(t0.TextPrimary, false, .016f), -6);
+            _hunt = Sprite(root, "Sentenced hunt ring", GroundMarkArt.Ring(t0.FactionColor((int)FactionId.Sentenced), true), -6);
+            _root = Sprite(root, "Rooted ring", GroundMarkArt.Ring(t0.TextPrimary), -5);
+            _zone = Sprite(root, "Zoned ring", GroundMarkArt.Ring(t0.Info), -5);
+            _wishBack = Sprite(root, "Wish icon plate", ShowcaseSprites.Get("bar"), 11);
+            _wishIcon = Sprite(root, "Wish icon", IndicatorArt.Get("snow"), 12);
             _numberBack = Sprite(root, "Bounty number plate", ShowcaseSprites.Get("bar"), 11);
             _nameBack = Sprite(root, "Name plate", ShowcaseSprites.Get("bar"), 11);
             _number = Text(root, "Bounty number", 3.1f, FontStyles.Bold);
@@ -73,6 +83,10 @@ namespace Roguehalla.Client
             _outlined = new Material(font.material) { name = "Roguehalla / outlined world text" };
             _outlined.EnableKeyword("OUTLINE_ON");
             _outlined.SetFloat(ShaderUtilities.ID_OutlineWidth, .1f);
+            // Crisp when magnified (2x display): a harder distance-field edge and no softness on the face or the outline.
+            if (_outlined.HasProperty("_Sharpness")) _outlined.SetFloat("_Sharpness", .7f);
+            if (_outlined.HasProperty("_OutlineSoftness")) _outlined.SetFloat("_OutlineSoftness", 0f);
+            if (_outlined.HasProperty("_FaceDilate")) _outlined.SetFloat("_FaceDilate", .04f);
             _outlined.SetColor(ShaderUtilities.ID_OutlineColor, (Color)UiTheme.Current.OutlineDark);
             _outlinedFor = font;
             return _outlined;
@@ -99,7 +113,7 @@ namespace Roguehalla.Client
 
         public void HideAll()
         {
-            _crown.enabled = _badgeBack.enabled = _badgeEdge.enabled = _badgeIcon.enabled = _lockOuter.enabled = _lockInner.enabled = _root.enabled = _zone.enabled = _numberBack.enabled = _nameBack.enabled = false;
+            _hover.enabled = _hunt.enabled = _wishBack.enabled = _wishIcon.enabled = _crown.enabled = _badgeBack.enabled = _badgeEdge.enabled = _badgeIcon.enabled = _lockOuter.enabled = _lockInner.enabled = _root.enabled = _zone.enabled = _numberBack.enabled = _nameBack.enabled = false;
             foreach (var g in _glyphs) g.enabled = false;
             foreach (var b in _backs) b.enabled = false;
             _lockDark.enabled = false;
@@ -189,6 +203,22 @@ namespace Roguehalla.Client
             }
             else { _number.gameObject.SetActive(false); _numberBack.enabled = false; _bounty = -1; }
 
+            // The local fighter's own Wish beside the name plate (legacy PlayerView.setWishIcon): a 15 px ability glyph, in the faction colour
+            // when ready and grey while recharging, on the dark plate. Remote Wish state is not delivered, so nothing is drawn for others.
+            bool wish = f.Local && f.WishState != 0;
+            _wishBack.enabled = _wishIcon.enabled = wish;
+            if (wish)
+            {
+                float size = 15f * Px + .06f, y = cursor + size * .5f;
+                var pos = new Vector3(0, y, 0);
+                _wishBack.transform.localPosition = pos; _wishBack.transform.localScale = new Vector3(size + .06f, size + .06f, 1);
+                var wc = (Color)theme.OutlineDark; wc.a = 1f; _wishBack.color = wc; _wishBack.sortingOrder = f.Order + 11;
+                _wishIcon.sprite = IndicatorArt.Get(WishGlyph(f.WishAbility));
+                _wishIcon.transform.localPosition = pos; _wishIcon.transform.localScale = new Vector3(size, size, 1);
+                _wishIcon.color = f.WishState == 1 ? (Color)theme.FactionColor(WishFaction(f.WishAbility)) : (Color)theme.TextSecondary; _wishIcon.sortingOrder = f.Order + 12;
+                cursor += size + .08f;
+            }
+
             // Build row: the secondary weapon (the slot not in hand; fists when empty).
             bool badge = f.HasSecondary;
             _badgeBack.enabled = _badgeEdge.enabled = _badgeIcon.enabled = badge;
@@ -205,15 +235,26 @@ namespace Roguehalla.Client
                 _badgeIcon.color = (Color)theme.TextPrimary; _badgeIcon.sortingOrder = f.Order + 12;
             }
 
-            // The attack lock: a red double ring on the ground under the locked fighter, breathing slowly.
-            _lockOuter.enabled = _lockInner.enabled = _lockDark.enabled = f.Locked;
+            // The attack lock: a red double ring on the ground under the locked fighter, breathing slowly (legacy TargetRings). The hairline
+            // edges are in the ring art, so the ring reads on any ground without getting brighter.
+            _lockOuter.enabled = _lockInner.enabled = f.Locked; _lockDark.enabled = false;
             if (f.Locked)
             {
                 float breathe = f.Reduced ? 1f : 1f + .035f * Mathf.Sin(Time.unscaledTime * 2f * Mathf.PI / 1.7f);
-                _lockOuter.color = (Color)theme.Danger; _lockInner.color = new Color(theme.Danger.r / 255f, theme.Danger.g / 255f, theme.Danger.b / 255f, .75f);
-                _lockOuter.transform.localScale = new Vector3(1.55f * breathe, .8f * breathe, 1); _lockInner.transform.localScale = new Vector3(1.2f * breathe, .62f * breathe, 1);
-                _lockOuter.sortingOrder = _lockInner.sortingOrder = f.Order - 6; _lockDark.sortingOrder = f.Order - 7;
-                var lc = (Color)theme.OutlineDark; lc.a = .7f; _lockDark.color = lc; _lockDark.transform.localScale = new Vector3(1.66f * breathe, .86f * breathe, 1);
+                _lockOuter.color = Color.white; var ic = Color.white; ic.a = .75f; _lockInner.color = ic;
+                _lockOuter.transform.localScale = new Vector3(1.55f * breathe * RingK, .8f * breathe * RingK, 1); _lockInner.transform.localScale = new Vector3(1.2f * breathe * RingK, .62f * breathe * RingK, 1);
+                _lockOuter.sortingOrder = _lockInner.sortingOrder = f.Order - 6;
+            }
+            // Hover ring: the fighter a click would lock right now (not drawn over the lock ring); hunt ring: the Sentenced hunt target.
+            bool hover = f.Hovered && !f.Locked && !f.Local;
+            _hover.enabled = hover;
+            if (hover) { _hover.color = new Color(1, 1, 1, .9f); _hover.transform.localScale = new Vector3(1.4f * RingK, .72f * RingK, 1); _hover.sortingOrder = f.Order - 6; }
+            _hunt.enabled = f.Hunted && !f.Local;
+            if (_hunt.enabled)
+            {
+                float breathe = f.Reduced ? 1f : 1f + .03f * Mathf.Sin(Time.unscaledTime * 2f * Mathf.PI / 1.7f);
+                _hunt.color = Color.white; _hunt.sortingOrder = f.Order - 6;
+                _hunt.transform.localScale = new Vector3(1.7f * breathe * RingK, .86f * breathe * RingK, 1);
             }
         }
 
@@ -223,12 +264,21 @@ namespace Roguehalla.Client
             var c = (Color)theme.OutlineDark; c.a = 1f; r.color = c;
         }
 
+        static string WishGlyph(byte ability)
+        {
+            switch ((AbilityId)ability) { case AbilityId.Freeze: return "snow"; case AbilityId.Swarm: return "swarm"; case AbilityId.Trial: return "chain"; case AbilityId.Blaze: return "flame"; default: return "faststand"; }
+        }
+        static int WishFaction(byte ability)
+        {
+            switch ((AbilityId)ability) { case AbilityId.Freeze: return (int)FactionId.Frost; case AbilityId.Swarm: return (int)FactionId.Plague; case AbilityId.Trial: return (int)FactionId.Sentenced; case AbilityId.Blaze: return (int)FactionId.Fire; default: return (int)FactionId.Holy; }
+        }
+
         static int IndexOfBit(ushort bit) { for (int i = 0; i < Indicators.StatusOrder.Length; i++) if (Indicators.StatusOrder[i].Bit == bit) return i; return 0; }
 
         void Ground(SpriteRenderer r, bool on, int order, Vector2 size, Color color, float alpha)
         {
             r.enabled = on; if (!on) return;
-            color.a = alpha; r.color = color; r.sortingOrder = order; r.transform.localScale = new Vector3(size.x, size.y, 1);
+            color = Color.white; color.a = alpha; r.color = color; r.sortingOrder = order; r.transform.localScale = new Vector3(size.x * RingK, size.y * RingK, 1);
             r.transform.localPosition = new Vector3(0, .02f, 0);
         }
 
