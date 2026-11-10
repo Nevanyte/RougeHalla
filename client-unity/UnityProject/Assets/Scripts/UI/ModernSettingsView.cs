@@ -46,7 +46,7 @@ namespace Roguehalla.Client
             var theme = UiTheme.Current;
 
             _root = HudUi.Box(root, "ModernSettings", HudAnchor.TopRight, CardRight, CardTop, 320f, 400f);
-            HudUi.Surface(_root, theme.Surface, theme.CornerRadiusLarge, theme.Border, true);
+            HudUi.Surface(_root, theme.Surface, theme.CornerRadiusLarge, theme.AccentDim, true, true);
             HudUi.Label(HudUi.At(_root, "HeadingRow", CardPadSide, CardPadTop, 220, 20), "SettingsHeading", "SETTINGS", theme.SizeBody, theme.TextPrimary, bold: true).characterSpacing = 2f;
             _closeButton = HudUi.Button(_root, "CloseSettings", "x", HudAnchor.TopRight, 10f, 10f, 20f, 20f, CloseByUser, theme.SizeBody, theme.CornerRadiusSmall);
 
@@ -201,7 +201,7 @@ namespace Roguehalla.Client
         {
             var theme = UiTheme.Current;
             var row = ControlRow(label, RowHeight);
-            button = HudUi.Button(row, "Value", "", HudAnchor.MiddleRight, 0, 0, 140f, 24f, action, theme.SizeSmall, theme.CornerRadiusSmall);
+            button = HudUi.Button(row, "Value", " ", HudAnchor.MiddleRight, 0, 0, 140f, 24f, action, theme.SizeSmall, theme.CornerRadiusSmall);
             return button.GetComponentInChildren<TMP_Text>();
         }
 

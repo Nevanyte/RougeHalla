@@ -1,4 +1,10 @@
 mergeInto(LibraryManager.library, {
+  RhUi_CanvasCssWidth: function() {
+    var c = Module.canvas; return c && c.clientWidth > 0 ? c.clientWidth : window.innerWidth;
+  },
+  RhUi_CanvasCssHeight: function() {
+    var c = Module.canvas; return c && c.clientHeight > 0 ? c.clientHeight : window.innerHeight;
+  },
   RhUi_ConsumeSignInKey: function() {
     var fragment = new URLSearchParams(location.hash.slice(1));
     var keys = fragment.getAll("key");

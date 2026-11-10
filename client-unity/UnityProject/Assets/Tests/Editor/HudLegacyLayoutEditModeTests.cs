@@ -244,6 +244,110 @@ namespace Roguehalla.Client.Tests
             Assert.That(rewards.Bottom, Is.EqualTo(mm + 34f).Within(.01f)); Assert.That(rewards.Width, Is.EqualTo(248f).Within(.01f));
         }
 
+        /// <summary>Window in CSS px, device pixels per CSS px, and the scale the parent CanvasScaler applies to the whole tree.</summary>
+        static readonly object[] ScreenCases =
+        {
+            new object[] { new Vector2(1280, 800), 1f, .7027f },
+            new object[] { new Vector2(1280, 800), 1f, 1f },
+            new object[] { new Vector2(1280, 800), 2f, 1.4054f },
+            new object[] { new Vector2(1920, 1080), 1f, 1f },
+            new object[] { new Vector2(1920, 1080), 1f, .5f },
+            new object[] { new Vector2(2560, 1440), 1f, 1.3333f },
+            new object[] { new Vector2(2560, 1440), 1f, 2.5f },
+            new object[] { new Vector2(1366, 768), 1.5f, .8f },
+            new object[] { new Vector2(900, 700), 2f, 3f },
+        };
+
+        /// <summary>
+        /// Screen rect in device pixels, origin bottom-left. An overlay canvas root is centred on the screen, so the centre of the test
+        /// canvas (wherever Unity put it for the editor's own window) is the middle of the simulated device window.
+        /// </summary>
+        Rect ScreenRect(RectTransform r, Vector2 device)
+        {
+            var c = new Vector3[4]; r.GetWorldCorners(c);
+            var centre = _canvas.transform.position;
+            return Rect.MinMaxRect(c[0].x - centre.x + device.x / 2f, c[0].y - centre.y + device.y / 2f, c[2].x - centre.x + device.x / 2f, c[2].y - centre.y + device.y / 2f);
+        }
+
+        void LayoutScreen(Vector2 css, float ratio, float canvasScale)
+        {
+            // The CanvasScaler multiplies the root canvas by its scale factor; the stages must divide it out again.
+            _canvas.transform.localScale = new Vector3(canvasScale, canvasScale, 1f);
+            ((HudStage)Get("_stageScaler")).Apply(css.x, css.y, ratio, canvasScale);
+            ((HudStage)Get("_chromeScaler")).Apply(css.x, css.y, ratio, canvasScale);
+            _settings.SetVisible(true);
+            _settings.ApplyViewport(HudLayout.Viewport(css.x, css.y));
+        }
+
+        [TestCaseSource(nameof(ScreenCases))]
+        public void HudEdgesLandOnTheScreenEdgesAtAnyCanvasScaleAndPixelRatio(Vector2 css, float ratio, float canvasScale)
+        {
+            LayoutScreen(css, ratio, canvasScale);
+            var device = css * ratio;
+            // One HUD unit is legacy scale x one CSS px = that many device pixels.
+            float unit = HudLayout.Viewport(css.x, css.y).Scale * ratio;
+            const float tolerance = .05f;
+
+            var stage = ScreenRect(_stage, device);
+            Assert.That(stage.xMin, Is.EqualTo(0f).Within(tolerance), "the stage reaches the left screen edge");
+            Assert.That(stage.xMax, Is.EqualTo(device.x).Within(tolerance), "the stage reaches the right screen edge");
+            Assert.That(stage.yMin, Is.EqualTo(0f).Within(tolerance));
+            Assert.That(stage.yMax, Is.EqualTo(device.y).Within(tolerance));
+
+            var minimap = ScreenRect(_map.MinimapRoot, device);
+            Assert.That(device.x - minimap.xMax, Is.EqualTo(12f * unit).Within(tolerance), "minimap is 12 units from the right edge");
+            Assert.That(minimap.yMin, Is.EqualTo(12f * unit).Within(tolerance), "minimap is 12 units from the bottom edge");
+            Assert.That(minimap.width, Is.EqualTo(minimap.height).Within(tolerance));
+
+            var plate = ScreenRect(Child(_stage, "PlayerHUD/VitalsPanel"), device);
+            Assert.That(plate.xMin, Is.EqualTo(12f * unit).Within(tolerance));
+            Assert.That(device.y - plate.yMax, Is.EqualTo(10f * unit).Within(tolerance));
+            Assert.That(plate.width, Is.EqualTo(240f * unit).Within(tolerance));
+
+            foreach (string name in new[] { "Help", "Settings", "Fullscreen" })
+            {
+                var button = ScreenRect(Child(_chrome, name), device);
+                Assert.That(button.width, Is.EqualTo(30f * unit).Within(tolerance), name);
+                Assert.That(device.y - button.yMax, Is.EqualTo(10f * unit).Within(tolerance), name + " top");
+            }
+            var help = ScreenRect(Child(_chrome, "Help"), device);
+            Assert.That(device.x - help.xMax, Is.EqualTo(12f * unit).Within(tolerance), "help button is 12 units from the right edge");
+
+            var bar = ScreenRect(Child(_stage, "PlayerHUD/CombatActions"), device);
+            Assert.That(bar.center.x, Is.EqualTo(device.x / 2f).Within(tolerance), "weapon bar is centred on the screen");
+            Assert.That(bar.yMin, Is.EqualTo(14f * unit).Within(tolerance));
+        }
+
+        [Test]
+        public void AWindowWiderThanTwentyOneByNineGetsACentredStageStrip()
+        {
+            var css = new Vector2(3440, 1440);
+            LayoutScreen(css, 1f, 1.3f);
+            var stage = ScreenRect(_stage, css);
+            float width = Mathf.Floor(1440 * 21f / 9f);
+            Assert.That(stage.width, Is.EqualTo(width).Within(.05f));
+            Assert.That(stage.center.x, Is.EqualTo(css.x / 2f).Within(.05f));
+            var minimap = ScreenRect(_map.MinimapRoot, css);
+            Assert.That(stage.xMax - minimap.xMax, Is.EqualTo(12f * 1.5f).Within(.05f), "the minimap hugs the strip's edge, not the window's");
+        }
+
+        [Test]
+        public void StageDividesOutTheScalerFactorEvenWhenCanvasScaleFactorStillReadsOne()
+        {
+            // Regression: the first layout read Canvas.scaleFactor (still the default 1 before the CanvasScaler's first Update) and cached it,
+            // so the stage kept the parent canvas scale on top of its own and shrank toward the screen centre.
+            var scaler = _canvas.GetComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(Screen.width * 2f, Screen.height * 2f); scaler.matchWidthOrHeight = .5f;
+            Assert.That(_canvas.GetComponent<Canvas>().scaleFactor, Is.EqualTo(1f).Within(.0001f), "no CanvasScaler update has run in this test");
+            var stage = (HudStage)Get("_stageScaler");
+            stage.Relayout();
+            float expectedFactor = HudLayout.CanvasScalerFactor(Screen.width, Screen.height, scaler.referenceResolution.x, scaler.referenceResolution.y, .5f);
+            Assert.That(expectedFactor, Is.EqualTo(.5f).Within(.01f));
+            Assert.That(stage.transform.localScale.x * expectedFactor, Is.EqualTo(stage.PixelsPerUnit).Within(.001f), "local scale cancels the canvas scale");
+            Assert.That(stage.PixelsPerUnit, Is.EqualTo(stage.Viewport.Scale).Within(.001f), "one unit is the legacy scale in screen pixels at ratio 1");
+        }
+
         [Test]
         public void DeathLineIsCentredAndHiddenUntilTheOwnerDies()
         {
@@ -312,6 +416,8 @@ namespace Roguehalla.Client.Tests
                 var selectable = graphic.GetComponent<Selectable>();
                 // A white tint on sprite / texture / custom-mesh graphics is a multiplier, not a drawn colour.
                 bool tintOnly = graphic is RawImage || graphic is Image && ((Image)graphic).sprite != null || !(graphic is Image) && !(graphic is TMP_Text);
+                // A white highlight (the panel gloss) carries only an opacity.
+                bool whiteWash = graphic.color.r >= .999f && graphic.color.g >= .999f && graphic.color.b >= .999f;
                 if (selectable != null && selectable.targetGraphic == graphic && selectable.transition == Selectable.Transition.ColorTint)
                 {
                     // A colour-block button: the graphic is white and every state colour must be a theme token.
@@ -321,7 +427,7 @@ namespace Roguehalla.Client.Tests
                     if (graphic.color != Color.white && !theme.Owns(graphic.color)) bad.Add(Path(graphic) + " fill " + (Color32)graphic.color);
                     continue;
                 }
-                if (tintOnly && graphic.color == Color.white) continue;
+                if (tintOnly && whiteWash) continue;
                 if (!theme.Owns(graphic.color)) bad.Add(Path(graphic) + " " + (Color32)graphic.color);
             }
             Assert.That(bad, Is.Empty, "HUD graphics outside the theme:\n" + string.Join("\n", bad));

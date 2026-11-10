@@ -10,8 +10,7 @@ namespace Roguehalla.Client
     /// <summary>
     /// The single seam for the in-match HUD's look. Every colour, font, corner radius, border width and panel sprite the HUD uses is
     /// read from <see cref="Current"/>, so assigning a different theme (or editing these values) reskins the whole HUD.
-    /// The shipped values are a neutral, bright placeholder (parchment surfaces, dark ink text, WCAG 4.5:1 for text roles);
-    /// the real palette maps onto the same tokens later. No layout lives here.
+    /// The shipped values are the palette of docs/art/palette.json (WCAG 4.5:1 for every text role). No layout lives here.
     /// </summary>
     public sealed class UiTheme
     {
@@ -20,8 +19,8 @@ namespace Roguehalla.Client
 
         public static UiTheme Current
         {
-            get { return _current ?? (_current = Placeholder()); }
-            set { _current = value ?? Placeholder(); Changed?.Invoke(); }
+            get { return _current ?? (_current = Skin()); }
+            set { _current = value ?? Skin(); Changed?.Invoke(); }
         }
 
         // Surfaces.
@@ -44,13 +43,15 @@ namespace Roguehalla.Client
         public Color32 Success;          // healthy, ready, own gain
         public Color32 Warning;          // low-ish, amber states
         public Color32 Info;             // barrier / shield blue
+        public Color32 OutlineDark;      // 2 px outline ink for markers drawn over a bright world
+        public Color32 OutlineLight;     // outline ink over a dark world
         // The five faction accents (Fire, Sentenced, Plague, Frost, Holy). Used as text on Surface, so they hold 4.5:1.
         public Color32[] Faction = new Color32[5];
         // Build stat tints: Offense, Soul, Defense, Soul defense, Health, Attack speed, Move speed, Life steal.
         public Color32[] Stat = new Color32[8];
 
         // Font roles and sizes (HUD px = stage units).
-        public string BodyFontResource = "Fonts & Materials/LiberationSans SDF";
+        public string BodyFontResource = "Showcase/NunitoRegular";
         public string DisplayFontResource = "Showcase/CinzelDecorative";
         public float SizeDisplay = 44f;   // "YOU DIED"
         public float SizeHeading = 17f;   // card titles
@@ -99,7 +100,7 @@ namespace Roguehalla.Client
             yield return Surface; yield return SurfaceRaised; yield return SurfaceSunken; yield return SurfaceHover;
             yield return SurfaceSelected; yield return SurfaceDisabled; yield return Border; yield return BorderStrong;
             yield return Scrim; yield return TextPrimary; yield return TextSecondary; yield return Accent; yield return AccentDim;
-            yield return Danger; yield return Success; yield return Warning; yield return Info;
+            yield return Danger; yield return Success; yield return Warning; yield return Info; yield return OutlineDark; yield return OutlineLight;
             foreach (var c in Faction) yield return c;
             foreach (var c in Stat) yield return c;
         }
@@ -116,49 +117,40 @@ namespace Roguehalla.Client
 
         public static Color With(Color32 color, float alpha) { Color c = color; c.a = alpha; return c; }
 
-        /// <summary>Neutral, bright, readable stand-in until the palette lands: light parchment, dark ink.</summary>
-        public static UiTheme Placeholder()
+        /// <summary>
+        /// The shipped skin: slate-blue panels, warm-cream text and a gold accent from docs/art/palette.json. Every colour comes from
+        /// <see cref="UiPaletteTokens"/>, which tools/art/gen-ui-theme.cjs generates from that file (never hand-copied).
+        /// </summary>
+        public static UiTheme Skin()
         {
             var t = new UiTheme
             {
-                Surface = new Color32(244, 235, 214, 245),
-                SurfaceRaised = new Color32(252, 247, 233, 255),
-                SurfaceSunken = new Color32(226, 214, 187, 255),
-                SurfaceHover = new Color32(255, 243, 205, 255),
-                SurfaceSelected = new Color32(238, 214, 150, 255),
-                SurfaceDisabled = new Color32(214, 206, 188, 255),
-                Border = new Color32(122, 94, 56, 255),
-                BorderStrong = new Color32(138, 90, 18, 255),
-                Scrim = new Color32(38, 28, 18, 140),
-                TextPrimary = new Color32(38, 28, 18, 255),
-                TextSecondary = new Color32(84, 66, 44, 255),
-                Accent = new Color32(138, 90, 18, 255),
-                AccentDim = new Color32(190, 150, 70, 255),
-                Danger = new Color32(170, 40, 36, 255),
-                Success = new Color32(36, 110, 60, 255),
-                Warning = new Color32(150, 84, 0, 255),
-                Info = new Color32(24, 92, 150, 255),
-            };
-            t.Faction = new[]
-            {
-                new Color32(170, 52, 20, 255),   // Fire
-                new Color32(96, 56, 150, 255),   // Sentenced
-                new Color32(62, 106, 24, 255),   // Plague
-                new Color32(20, 96, 150, 255),   // Frost
-                new Color32(128, 94, 0, 255),    // Holy
-            };
-            t.Stat = new[]
-            {
-                new Color32(176, 72, 36, 255),   // Offense
-                new Color32(120, 72, 176, 255),  // Soul
-                new Color32(44, 108, 160, 255),  // Defense
-                new Color32(24, 120, 104, 255),  // Soul defense
-                new Color32(36, 130, 76, 255),   // Health
-                new Color32(160, 104, 16, 255),  // Attack speed
-                new Color32(20, 120, 150, 255),  // Move speed
-                new Color32(160, 64, 130, 255),  // Life steal
+                Surface = UiPaletteTokens.Surface,
+                SurfaceRaised = UiPaletteTokens.SurfaceRaised,
+                SurfaceSunken = UiPaletteTokens.SurfaceSunken,
+                SurfaceHover = UiPaletteTokens.SurfaceHover,
+                SurfaceSelected = UiPaletteTokens.SurfaceSelected,
+                SurfaceDisabled = UiPaletteTokens.SurfaceDisabled,
+                Border = UiPaletteTokens.Border,
+                BorderStrong = UiPaletteTokens.BorderStrong,
+                Scrim = UiPaletteTokens.Scrim,
+                TextPrimary = UiPaletteTokens.TextPrimary,
+                TextSecondary = UiPaletteTokens.TextSecondary,
+                Accent = UiPaletteTokens.Accent,
+                AccentDim = UiPaletteTokens.AccentDim,
+                Danger = UiPaletteTokens.Danger,
+                Success = UiPaletteTokens.Success,
+                Warning = UiPaletteTokens.Warning,
+                Info = UiPaletteTokens.Info,
+                OutlineDark = UiPaletteTokens.OutlineDark,
+                OutlineLight = UiPaletteTokens.OutlineLight,
+                Faction = (Color32[])UiPaletteTokens.Faction.Clone(),
+                Stat = (Color32[])UiPaletteTokens.Stat.Clone(),
             };
             return t;
         }
+
+        /// <summary>Kept for existing callers: the shipped skin.</summary>
+        public static UiTheme Placeholder() { return Skin(); }
     }
 }

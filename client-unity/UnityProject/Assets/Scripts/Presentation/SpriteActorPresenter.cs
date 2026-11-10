@@ -262,7 +262,7 @@ namespace Roguehalla.Client
             const float unitWidth = .85f;
             float width = healthShare * unitWidth;
             float totalTrackWidth = Mathf.Max(.98f, unitWidth * (healthShare + barrierShare) + .04f);
-            a.HpBack.transform.localScale = new Vector3(totalTrackWidth, .11f, 1);
+            a.HpBack.transform.localScale = new Vector3(totalTrackWidth + .06f, .145f, 1);
             a.HpBack.transform.localPosition = new Vector3(-.49f + totalTrackWidth / 2, 1.8f, 0);
             a.Hp.transform.localScale = new Vector3(width, .055f, 1);
             a.Hp.transform.localPosition = new Vector3(-.49f + width / 2, 1.8f, 0);
@@ -337,7 +337,7 @@ namespace Roguehalla.Client
             a.Identity.StandaloneFactionBadge = false; // The existing tested backed faction mark remains canonical here.
             a.RuneBack = ShowcaseSprites.Create(t, "Faction insignia backplate", "bar", 2, new Color(.008f, .012f, .022f, .96f), new Vector2(.46f, .46f), Vector3.zero, false);
             a.Rune = ShowcaseSprites.Create(t, "Faction insignia", "rune", 3, Color.white, Vector2.one, Vector3.zero, false);
-            a.HpBack = ShowcaseSprites.Create(t, "Health and barrier track", "bar", 4, new Color(.015f, .02f, .035f), new Vector2(.98f, .11f), new Vector3(0, 1.8f), false);
+            a.HpBack = ShowcaseSprites.Create(t, "Health and barrier track", "bar", 4, (Color)UiTheme.Current.OutlineDark, new Vector2(1.04f, .145f), new Vector3(0, 1.8f), false);
             a.Hp = ShowcaseSprites.Create(t, "Confirmed health", "bar", 5, Color.white, Vector2.one, Vector3.zero, false);
             a.Barrier = ShowcaseSprites.Create(t, "Confirmed barrier", "bar", 6, ShowcasePalette.Gold, Vector2.one, Vector3.zero, false);
             a.BarrierRing = new SpriteRenderer[8];

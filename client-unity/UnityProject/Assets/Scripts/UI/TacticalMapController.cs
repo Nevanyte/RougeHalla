@@ -103,7 +103,7 @@ namespace Roguehalla.Client
             // Legacy minimap: a square 12/12 from the bottom-right corner, no button strip, frame ring is the border (drawn rect = hit rect).
             var theme = UiTheme.Current;
             _miniRoot = HudUi.Box(hudStage ?? root, "Minimap", HudAnchor.BottomRight, 12f, 12f, 270f, 270f);
-            HudUi.Surface(_miniRoot, theme.SurfaceSunken, theme.CornerRadius, theme.Border, false);
+            HudUi.Surface(_miniRoot, theme.SurfaceSunken, theme.CornerRadius, theme.Border, false, true);
             var miniFrame = MythicUi.Rect(_miniRoot, "TerrainFrame", Vector2.zero, Vector2.one);
             _mini = miniFrame.gameObject.AddComponent<TacticalMapSurface>(); _mini.Initialize();
             _miniMarks = _mini.GetComponentInChildren<TacticalMapMarks>();

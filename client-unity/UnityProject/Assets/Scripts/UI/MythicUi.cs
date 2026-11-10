@@ -71,9 +71,11 @@ namespace Roguehalla.Client
             Color? fill = null, bool raycast = true)
         {
             var rect = Rect(parent, name, anchorMin, anchorMax);
-            var image = rect.gameObject.AddComponent<Image>();
-            image.color = fill ?? (Color)ShowcasePalette.Panel;
-            image.raycastTarget = raycast;
+            var color = fill ?? (Color)ShowcasePalette.Panel;
+            var theme = UiTheme.Current;
+            // A visible panel is a crisp rounded, framed card; a clear one stays a plain invisible hit area.
+            if (color.a > .05f) HudUi.Surface(rect, color, theme.CornerRadiusLarge, theme.Border, raycast, true);
+            else { var image = rect.gameObject.AddComponent<Image>(); image.color = color; image.raycastTarget = raycast; }
             return rect;
         }
 
@@ -118,27 +120,26 @@ namespace Roguehalla.Client
             UnityAction onClick, ButtonStyle style = ButtonStyle.Secondary, float fontSize = 16)
         {
             var rect = Rect(parent, name, anchorMin, anchorMax);
-            var image = rect.gameObject.AddComponent<Image>();
             var theme = UiTheme.Current;
-            image.sprite = UiSprites.Panel(theme); image.type = Image.Type.Sliced;
-            image.color = Color.white; // the colour block below supplies the visible fill
-            image.raycastTarget = true;
-            var button = rect.gameObject.AddComponent<Button>(); button.targetGraphic = image;
+            var image = HudUi.Surface(rect, Color.white, theme.CornerRadius, style == ButtonStyle.Primary ? theme.BorderStrong : theme.Border, true, style != ButtonStyle.Quiet);
+            var button = rect.gameObject.AddComponent<Button>(); button.targetGraphic = image; // the colour block below supplies the visible fill
             var minimum = rect.gameObject.AddComponent<LayoutElement>(); minimum.minWidth = 44; minimum.minHeight = 44;
             if (Mathf.Approximately(anchorMin.x, anchorMax.x) && Mathf.Approximately(rect.sizeDelta.x, 0)) rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, 44);
             if (Mathf.Approximately(anchorMin.y, anchorMax.y) && Mathf.Approximately(rect.sizeDelta.y, 0)) rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, 44);
-            Border(rect, style == ButtonStyle.Primary ? theme.BorderStrong : theme.Border, theme.BorderWidth);
             var colors = button.colors;
             colors.normalColor = style == ButtonStyle.Primary ? theme.AccentDim : style == ButtonStyle.Quiet ? theme.Surface : theme.SurfaceRaised;
-            colors.highlightedColor = theme.SurfaceHover;
-            colors.pressedColor = theme.SurfaceSelected;
-            colors.selectedColor = theme.SurfaceHover;
+            bool primary = style == ButtonStyle.Primary;
+            // Primary buttons are gold fills carrying dark ink; every other state keeps cream text on a dark fill.
+            colors.highlightedColor = primary ? theme.Accent : theme.SurfaceHover;
+            colors.pressedColor = primary ? theme.AccentDim : theme.SurfaceSelected;
+            colors.selectedColor = primary ? theme.Accent : theme.SurfaceHover;
             colors.disabledColor = theme.SurfaceDisabled; colors.fadeDuration = .08f;
             button.colors = colors;
             button.onClick.AddListener(onClick);
-            Text(rect, "Label", label, Vector2.zero, Vector2.one, fontSize,
-                ShowcasePalette.Text,
+            var caption = Text(rect, "Label", label, Vector2.zero, Vector2.one, fontSize,
+                primary ? (Color)theme.OutlineDark : (Color)ShowcasePalette.Text,
                 TextAlignmentOptions.Center);
+            if (primary) caption.fontStyle = FontStyles.Bold;
             return button;
         }
 
