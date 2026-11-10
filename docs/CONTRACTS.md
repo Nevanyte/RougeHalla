@@ -23,6 +23,8 @@ The [independent admission](evidence/quest-backend-admission-review/README.md) b
 including historical test-harness failures; it does not claim a new full-workspace run, complete quest parity, Claude
 client refresh or hosted release. Stage1 is a separate behavior-preserving objective/reward extraction.
 
+Private strategy candidate `8baad8f5` / receipts `71fa0d35` is **not admitted**: seven passing source-output suites do not yet enforce all captured callback/RNG/private-state traces or strict atomic input validation, and a shared callback flag crosses parallel cases. DeepSeek is repairing those review findings before a complete final gate. Tactics source candidate `54ff01a2` independently reproduces154 cases/720 methods with exact226-entry integrity (`c8d0a5e6`); this source-only result does not extend C-POLICY/C-OBS or activate live bots.
+
 ### November9 protocol14 composition (supersedes older identity/status addenda)
 
 The subsequent [native29 admission](evidence/native29-admission/README.md) identifies14/29/23/21/15/content7c6a633f68c2cc72, with63 strict source cases,21 content checks, derived native tape/checker and public-digest tests at their exact cuts. Private rules/state identities change; the default wire14 is unchanged. SlowStarter/MarkTax/PackLeader/readonly WalkHint preserve Rust authority, tick order and source phase semantics. The proven cold NPC-report buffer reserve preserves empty/incomplete/fresh-identity reports, with matched original/Clone/restore step/events/hash and0/0/0 warm allocations. Hash coverage and earlier restore/lint receipts are not relabelled as rerun at the final cut. Current BakedContent comes from actual canonical /info.

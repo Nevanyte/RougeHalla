@@ -26,9 +26,8 @@ in `codex/backend-gameplay-quests`, leaving Claude's primary checkout and active
 Completed private admission: [P-BOT-MEMORY-ADMISSION-1](packets/P-BOT-MEMORY-ADMISSION-1.md), integrated as `8a2d3c6c`
 after independent review of DeepSeek `0ea1589a` and its new-base focused tests/lint. The
 [quest architecture](../coordination/QUEST_BACKEND_REWORK.md) and [P-QUEST-BACKEND-1](packets/P-QUEST-BACKEND-1.md)
-have frozen actual-source evidence (`c605f2fb`); DeepSeek's native regression/minimal repair is dispatched before extraction.
-[P-BOT-STRATEGY-1](packets/P-BOT-STRATEGY-1.md) starts the complete private strategy/hunter/route closure with source
-Memory API witnesses and independent review. Source-derived native classes may progress in parallel after interface review; frozen source gates fixture comparison and admission.
+have frozen actual-source evidence (`c605f2fb`); Stage0 is independently admitted and integrated as `8a11520d` + `56843a8e`, with content `8edd862f48ffa100` and unchanged schemas. DeepSeek's separate behavior-preserving objective/reward extraction is active.
+[P-BOT-STRATEGY-1](packets/P-BOT-STRATEGY-1.md) candidate `8baad8f5` / receipts `71fa0d35` has seven green output suites, but independent review holds admission on omitted callback/RNG/private-state comparisons, permissive replay intake and cross-case callback state. Required repairs and a final complete regression gate are assigned to DeepSeek. [P-BOT-TACTICS-1](packets/P-BOT-TACTICS-1.md) source candidate `54ff01a2` independently reproduces154 cases/720 methods and226 pinned entries; finite semantic/numeric release and strategy admission precede native dispatch.
 Use the [reconciled workplan](../coordination/BACKEND_GAMEPLAY_WORKPLAN.md) for this lane's queue and scopes.
 Full live bot activation remains dependent on legitimate shared observations; no hidden-state shortcut,
 protocol change or new quest design is implied. Treat older broad completion/partial rows below as historical until
