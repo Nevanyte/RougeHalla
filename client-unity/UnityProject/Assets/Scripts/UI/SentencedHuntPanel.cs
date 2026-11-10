@@ -15,7 +15,7 @@ namespace Roguehalla.Client
     /// </summary>
     public sealed class SentencedHuntPanel : MonoBehaviour
     {
-        const float Width = 240f, Top = 150f, Left = 12f, RowH = 24f, MaxRows = 5;
+        const float Width = 240f, Top = 156f, Left = 12f, RowH = 24f, MaxRows = 5;
         RectTransform _root;
         TMP_Text _title, _status;
         readonly List<Button> _rows = new List<Button>();
@@ -79,7 +79,13 @@ namespace Roguehalla.Client
                 _rivals.Add(a);
                 if (me.HuntTarget.HasValue && a.Id == me.HuntTarget.Value) target = a;
             }
-            _rivals.Sort((x, y) => x.Id.CompareTo(y.Id));
+            // insertion sort by id (a handful of rivals): List<struct>.Sort needs generic code IL2CPP/WebGL may not have compiled
+            for (int i = 1; i < _rivals.Count; i++)
+            {
+                var key = _rivals[i]; int j = i - 1;
+                while (j >= 0 && _rivals[j].Id > key.Id) { _rivals[j + 1] = _rivals[j]; j--; }
+                _rivals[j + 1] = key;
+            }
             if (_pending != 0 && (me.HuntTarget == _pending || Time.unscaledTime - _pendingAt > 2.5f)) _pending = 0;
             var sig = new System.Text.StringBuilder().Append(me.HuntTarget.HasValue ? me.HuntTarget.Value : 0).Append('|').Append(me.HuntStacks).Append('|').Append(_pending);
             foreach (var r in _rivals) sig.Append('|').Append(r.Id).Append(',').Append(r.HpPct);

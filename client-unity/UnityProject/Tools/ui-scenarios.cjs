@@ -152,6 +152,7 @@ async function open(name, o = {}) {
   // non-diagnostic page whose account API is the in-memory account service of the training server itself.
   if (o.training) q += `&accountApi=${encodeURIComponent(new URL(TRAIN_WS).origin.replace('ws:', 'http:') + '/api')}&trainingServer=${encodeURIComponent(TRAIN_WS)}&server=${encodeURIComponent(WS)}`;
   else q += `&diagnostic=1&token=t1&server=${encodeURIComponent(WS)}&auto=${o.auto === 0 ? 0 : 1}`;
+  if (o.plain) q = '?scenario.probe=1&fx.quality=high'; // the ordinary player page: no diagnostic, no server, accounts shown as unreachable
   if (DEMO.includes('hitzone')) q += '&hitzone.demo=1';
   if (o.query) q += o.query;
   await page.goto(BASE + q, { waitUntil: 'load' });
@@ -174,8 +175,8 @@ const scenarios = {};
 const HOUSES = ['Fire', 'Sentenced', 'Plague', 'Frost', 'Holy'];
 
 // Every hub station and account panel, each closed with Escape; the button list before/after proves Escape closed it.
-scenarios.hub = async () => {
-  const run = await open('hub', { auto: 0 });
+scenarios.hub = async (variant) => {
+  const run = await open(variant === 'plain' ? 'hub-plain' : 'hub', { auto: 0, plain: variant === 'plain' });
   const g = launchGeometry(W, H);
   await run.snap('hub-room');
   const steps = [['counters', g.station.Counters], ['shop', g.station.Shop], ['wardrobe', g.station.Wardrobe], ['titles', g.station.Titles],
@@ -294,7 +295,14 @@ async function equipWeapon(run, want) {
     const p = await run.probe(); if (!p || !p.me) return false;
     if (p.me.weapon === want) return true;
     const prop = (p.props || []).filter(q => q.kind === 1 && (want < 0 || q.weapon === want)).map(q => ({ q, d: Math.hypot(q.x - p.me.x, q.y - p.me.y) })).sort((x, y) => x.d - y.d)[0];
-    if (!prop) { console.log('   no ground weapon', want, 'in view', (p.props || []).map(q => `${q.kind}/${q.weapon}`).join(' ')); return false; }
+    if (!prop) { // none delivered here: sweep the room with the keyboard until the server shows one
+      console.log('   no ground weapon', want, 'in view yet; searching');
+      for (const k of ['d', 'd', 's', 's', 'a', 'a', 'a', 'a', 'w', 'w', 'w', 'w', 'd', 'd']) {
+        await run.page.keyboard.down(k); await sleep(900); await run.page.keyboard.up(k);
+        const q = await run.probe(); if (q && (q.props || []).some(z => z.kind === 1 && (want < 0 || z.weapon === want))) break;
+      }
+      continue;
+    }
     for (let i = 0; i < 12; i++) {
       const pp = await run.probe(); if (Math.hypot(prop.q.x - pp.me.x, prop.q.y - pp.me.y) < 48) break;
       await stepToward(run, pp.me, prop.q.sx, prop.q.sy, 320);
@@ -465,10 +473,12 @@ scenarios['fade-creature'] = async (variant) => {
   console.log('  target', tgt.id, 'distance', Math.round(Math.hypot(tgt.x - p.me.x, tgt.y - p.me.y)));
   await run.snap('before-walk-away');
   const cast = new Cast(run); await cast.start();
-  const log = []; let gone = null; const t0 = Date.now(); const tid = tgt.id;
+  const log = []; let gone = null; const t0 = Date.now(); const track = { x: tgt.x, y: tgt.y };
   while (Date.now() - t0 < 40000) {
     p = await run.probe(); if (!p || !p.me) { await sleep(40); continue; }
-    const a = (p.actors || []).find(x => x.id === tid); const t = Date.now() - cast.t0;
+    // creature handles are renewed every snapshot, so follow it by type and position instead of by id
+    const near = (p.actors || []).filter(x => x.kind === 1 && x.mob === tgt.mob && Math.hypot(x.x - track.x, x.y - track.y) < 140).sort((u, v) => Math.hypot(u.x - track.x, u.y - track.y) - Math.hypot(v.x - track.x, v.y - track.y))[0];
+    const a = near; if (a) { track.x = a.x; track.y = a.y; } const t = Date.now() - cast.t0;
     log.push({ t, present: !!a, d: a ? Math.round(Math.hypot(a.x - p.me.x, a.y - p.me.y)) : null, me: [Math.round(p.me.x), Math.round(p.me.y)], sx: a && Math.round(a.sx), sy: a && Math.round(a.sy) });
     if (!a && gone === null) { gone = t; console.log('  creature left delivery at', t, 'ms; last distance', [...log].reverse().find(l => l.present)?.d); }
     if (gone !== null && t > gone + 1200) break;
@@ -495,22 +505,20 @@ scenarios['fade-creature'] = async (variant) => {
 scenarios['fade-player'] = async () => {
   const run = await open('fade-player', { faction: 3, query: '&vision.fadeDemo=1' });
   await startArena(run); await sleep(8000);
-  const cast = new Cast(run); await cast.start();
-  const log = []; const t0 = Date.now(); const known = new Set(); let events = 0;
-  while (Date.now() - t0 < Math.min(MINUTES, 3) * 60000 && events < 3) {
+  const cast = new Cast(run, 6000); await cast.start();
+  const t0 = Date.now(); let prev = new Map(); let events = 0; const deps = [];
+  while (Date.now() - t0 < Math.min(MINUTES, 4) * 60000 && events < 2) {
     const p = await run.probe(); if (!p || !p.me) { await sleep(40); continue; }
-    const t = Date.now() - cast.t0; const players = (p.actors || []).filter(a => a.kind === 0);
-    for (const a of players) { if (!known.has(a.id)) { known.add(a.id); } }
-    log.push({ t, ids: players.map(a => [a.id, Math.round(a.sx), Math.round(a.sy)]) });
-    await sleep(40);
+    const t = Date.now() - cast.t0; const cur = new Map((p.actors || []).filter(a => a.kind === 0 && a.status === 1).map(a => [a.id, a]));
+    for (const [id, a] of prev) if (!cur.has(id)) { // a living player stopped being delivered
+      events++; deps.push({ id, t, sx: Math.round(a.sx), sy: Math.round(a.sy) }); await sleep(1000);
+      cast.save(run.dir, 'fade' + events, t - 700, t + 1000); console.log('  departure', JSON.stringify(deps[deps.length - 1]));
+      await sleep(7000); break; // let the demo cycle pass before looking for the next
+    }
+    prev = cur; await sleep(40);
   }
   await cast.stop();
-  fs.writeFileSync(path.join(run.dir, 'fade-timeline.json'), JSON.stringify(log));
-  // find departures: an id present then absent for >=1 sample, while still alive
-  const dep = []; for (let i = 1; i < log.length; i++) for (const [id, sx, sy] of log[i - 1].ids) if (!log[i].ids.some(x => x[0] === id) && !dep.some(d => d.id === id && Math.abs(d.t - log[i].t) < 4000)) dep.push({ id, t: log[i].t, sx, sy });
-  console.log('  departures', JSON.stringify(dep.slice(0, 4)));
-  dep.slice(0, 2).forEach((d, k) => cast.save(run.dir, 'fade' + k, d.t - 400, d.t + 800));
-  fs.writeFileSync(path.join(run.dir, 'fade-meta.json'), JSON.stringify(dep));
+  fs.writeFileSync(path.join(run.dir, 'fade-meta.json'), JSON.stringify(deps));
   await run.finish();
 };
 
@@ -565,6 +573,52 @@ scenarios.vignette = async (variant) => {
   }
   await cast.stop(); fs.writeFileSync(path.join(run.dir, 'hits.json'), JSON.stringify(hits));
   await run.snap('final'); await run.finish();
+};
+
+// Death in the full map: the rolling screencast keeps the last 4 s, so the frames before and after the fall (death X, the dead body,
+// the death line, then the results card) are dumped after the fact.
+scenarios.death = async (variant) => {
+  const faction = FACTIONS[variant || 'sentenced'] ?? 1;
+  const run = await open('death-' + (variant || 'sentenced'), { faction });
+  await startArena(run); await sleep(6000);
+  const cast = new Cast(run, 5000); await cast.start();
+  const t0 = Date.now(); let fell = null;
+  while (Date.now() - t0 < MINUTES * 60000) {
+    const p = await run.probe(); if (!p || !p.me) { await sleep(50); continue; }
+    const now = Date.now() - cast.t0;
+    if (p.me.status !== 1 || p.result) { fell = { t: now, status: p.me.status, result: p.result, x: p.me.sx, y: p.me.sy }; break; }
+    const foes = (p.actors || []).filter(a => (a.kind === 1 || a.kind === 0) && a.status === 1).sort((a, b) => Math.hypot(a.sx - p.me.sx, a.sy - p.me.sy) - Math.hypot(b.sx - p.me.sx, b.sy - p.me.sy));
+    if (foes[0]) { const d = Math.hypot(foes[0].sx - p.me.sx, foes[0].sy - p.me.sy); if (d > 110) await stepToward(run, p.me, foes[0].sx, foes[0].sy, 250); else await run.leftClickAt(foes[0].sx, foes[0].sy - 10, 30); }
+    else await stepToward(run, p.me, 960 + 400, 540, 250);
+    await sleep(60);
+  }
+  if (fell) {
+    console.log('  fell', JSON.stringify(fell));
+    await sleep(2500); cast.save(run.dir, 'death', Math.max(0, fell.t - 3500), fell.t + 2200);
+    await run.snap('death-after-2s5');
+  }
+  await cast.stop(); await run.finish();
+};
+
+// Traders: walk to the nearest delivered merchant (the Tab map shows them), open the journal's Traders page and take a look at both kinds.
+scenarios.trader = async (variant) => {
+  const faction = FACTIONS[variant || 'plague'] ?? 2;
+  const run = await open('trader-' + (variant || 'plague'), { faction });
+  await startArena(run); await sleep(6000);
+  let p = await run.probe();
+  // the spawn is random: if no merchant is delivered, wander a little (merchants appear in the trade state once in sight)
+  for (let i = 0; i < 12 && !(p.merchants && p.merchants.length); i++) { await run.walkWorld(1500 + (i % 4) * 700, 1500 + Math.floor(i / 4) * 900); await sleep(5000); p = await run.probe(); }
+  console.log('  merchants', JSON.stringify(p.merchants));
+  if (p.merchants && p.merchants.length) {
+    const m = p.merchants[0]; await walkNear(run, m.x, m.y, 100, 60000);
+    p = await run.probe(); const mm = p.merchants && p.merchants[0]; if (mm) { const c = await run.css(mm.sx, mm.sy); await run.snap('trader-in-world', { crop: [c.x, c.y - 40, 420, 300], note: JSON.stringify(mm) }); }
+  }
+  await run.page.keyboard.press('j'); await sleep(900);
+  await run.clickUi('TradersTab', { wait: 900 }); await run.snap('traders-page');
+  const names = await run.uiNames(); console.log('  buttons', names.filter(n => /Merchant|Choice/.test(n)).join(','));
+  await run.clickUi('Merchant_0', { wait: 800 }); await run.snap('traders-merchant-selected');
+  await run.page.keyboard.press('Escape'); await sleep(700);
+  await run.finish();
 };
 
 const names = process.argv.slice(2).filter((a, i, all) => all[i - 1] === '--scenario').join(',').split(',').filter(Boolean);
