@@ -14,9 +14,13 @@ namespace Roguehalla.Client
     {
         public readonly int W, H;
         public readonly Color[] Px;
+        /// <summary>Pixel offset of the design origin: shapes are authored in design coordinates and land at design + origin, so a canvas can be larger than the art's nominal cell (padding for art that overhangs it).</summary>
+        public int OriginX, OriginY;
+        /// <summary>Size of the nominal cell the art is authored for (W and H are the real pixel size, larger when padded).</summary>
+        public int DesignW, DesignH;
         public static readonly Vector3 LightDir = new Vector3(-.55f, .62f, .56f).normalized;
 
-        public RegionCanvas(int w, int h) { W = w; H = h; Px = new Color[w * h]; }
+        public RegionCanvas(int w, int h) { W = w; H = h; DesignW = w; DesignH = h; Px = new Color[w * h]; }
 
         // ---- shape primitives (negative inside) -----------------------------------------------------------------------
         public static Sdf Circle(float cx, float cy, float r) { return (x, y) => Mathf.Sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy)) - r; }
@@ -120,11 +124,11 @@ namespace Roguehalla.Client
             const int B = 4;   // skip whole 4x4 blocks that are provably outside (the distance fields are 1-Lipschitz)
             for (int by = 0; by < H; by += B) for (int bx = 0; bx < W; bx += B)
             {
-                if (sdf(bx + B * .5f, by + B * .5f) > pad + B * .75f) continue;
+                if (sdf(bx + B * .5f - OriginX, by + B * .5f - OriginY) > pad + B * .75f) continue;
                 int ye = Mathf.Min(H, by + B), xe = Mathf.Min(W, bx + B);
                 for (int y = by; y < ye; y++) for (int x = bx; x < xe; x++)
                 {
-                    float px = x + .5f, py = y + .5f, s = sdf(px, py);
+                    float px = x + .5f - OriginX, py = y + .5f - OriginY, s = sdf(px, py);
                     if (s > pad) continue;
                     int i = y * W + x;
                     if (outline.HasValue)
@@ -144,7 +148,7 @@ namespace Roguehalla.Client
         {
             for (int y = 0; y < H; y++) for (int x = 0; x < W; x++)
             {
-                float dx = (x + .5f - cx) / rx, dy = (y + .5f - cy) / ry, r = Mathf.Sqrt(dx * dx + dy * dy);
+                float dx = (x + .5f - OriginX - cx) / rx, dy = (y + .5f - OriginY - cy) / ry, r = Mathf.Sqrt(dx * dx + dy * dy);
                 if (r >= 1f) continue;
                 float a = (1f - r) * (1f - r) * alpha * (r < .6f ? 1f : 1f);
                 Px[y * W + x] = Over(Px[y * W + x], Alpha(tint, a));
@@ -154,10 +158,11 @@ namespace Roguehalla.Client
         /// <summary>Soft additive-looking glow blended over (used for emissive accents).</summary>
         public void Glow(float cx, float cy, float r, Color c, float alpha)
         {
-            for (int y = Mathf.Max(0, (int)(cy - r)); y < Mathf.Min(H, (int)(cy + r) + 1); y++)
-                for (int x = Mathf.Max(0, (int)(cx - r)); x < Mathf.Min(W, (int)(cx + r) + 1); x++)
+            for (int y = Mathf.Max(0, (int)(cy - r) + OriginY); y < Mathf.Min(H, (int)(cy + r) + 1 + OriginY); y++)
+                for (int x = Mathf.Max(0, (int)(cx - r) + OriginX); x < Mathf.Min(W, (int)(cx + r) + 1 + OriginX); x++)
                 {
-                    float d = Mathf.Sqrt((x + .5f - cx) * (x + .5f - cx) + (y + .5f - cy) * (y + .5f - cy)) / r;
+                    float gx = x + .5f - OriginX - cx, gy = y + .5f - OriginY - cy;
+                    float d = Mathf.Sqrt(gx * gx + gy * gy) / r;
                     if (d >= 1f) continue;
                     float a = (1f - d) * (1f - d) * alpha;
                     Px[y * W + x] = Over(Px[y * W + x], Alpha(c, a));

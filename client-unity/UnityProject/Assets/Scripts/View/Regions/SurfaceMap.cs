@@ -45,6 +45,14 @@ namespace Roguehalla.Client
         {
             return SurfaceAtTile(Mathf.FloorToInt(world.x), Mathf.FloorToInt(-world.y / ArenaView.GroundSquash));
         }
+        /// <summary>True when the position is inside the generated Holy temple (ambience and footsteps can switch on it). World = Unity world space.</summary>
+        public bool InsideTemple(Vector3 world) { return InsideTempleTile(Mathf.FloorToInt(world.x), Mathf.FloorToInt(-world.y / ArenaView.GroundSquash)); }
+        /// <summary>Geometry, not surface: a real terrain tile (a patch of holy light) inside the temple is still inside the temple.</summary>
+        public bool InsideTempleTile(int tx, int ty)
+        {
+            for (int i = 0; i < _layers.Length; i++) { var t = _layers[i] as TempleLayout; if (t != null && t.InsideTempleTile(tx, ty)) return true; }
+            return false;
+        }
         public SurfaceKind SurfaceAt(Vector2 world) { return SurfaceAt(new Vector3(world.x, world.y, 0)); }
         /// <summary>Surface under a server-space position (32 units per tile).</summary>
         public SurfaceKind SurfaceAtServer(float sx, float sy) { return SurfaceAtTile(Mathf.FloorToInt(sx / 32f), Mathf.FloorToInt(sy / 32f)); }

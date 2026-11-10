@@ -35,6 +35,7 @@ namespace Roguehalla.Client
 
         static void RunInner()
         {
+            if (Arg("-atmPropPad", "1") == "0") RegionPropArt.DebugNoPadding = true;      // evidence only: paint props in their nominal cells like before the clipping fix
             string data = Arg("-atmData", ""), outDir = Arg("-atmOut", "/tmp/atm-out"); Directory.CreateDirectory(outDir);
             MapBlob map;
             string json = Arg("-atmMap", "");      // a rh-map/2 fixture (seed1.map.json or seed2.map.json); terrain effects on (mode All) unless -atmMode 0
@@ -54,13 +55,22 @@ namespace Roguehalla.Client
             typeof(ArenaView).GetMethod("Awake", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(arena, null);
             AtmosphereQuality.SetUrl(Arg("-atmUrl", "")); AtmosphereQuality.ApplyPreset(ShowcaseQuality.High, false);
             arena.Build(map);
+            if (Arg("-atmParticles", "1") == "0") { AtmosphereQuality.ParticleDensity = 0f; arena.Atmosphere.Particles.RefreshQuality(); }     // judge the ground without the haze
             int width = int.Parse(Arg("-atmW", "1920")), height = int.Parse(Arg("-atmH", "1080"));
             string spots = Arg("-atmSpots", "frost:108:127,fire:20:70,plague:42:116,holy:86:31,sentenced:132:62,coliseum:79:79");
             var rt = new RenderTexture(width, height, 24, RenderTextureFormat.ARGBHalf) { name = "capture" };
             foreach (var spot in spots.Split(','))
             {
-                var p = spot.Split(':'); if (p.Length < 3) continue;
-                float tx = float.Parse(p[1]), ty = float.Parse(p[2]);
+                var p = spot.Split(':'); if (p.Length < 2) continue;
+                float tx, ty;
+                if (p[1].StartsWith("@"))      // @art: the first prop placement of that art (e.g. @plague.tree), nearest the map centre
+                {
+                    var best = default(RegionProps.Placement); float bd = float.MaxValue; bool any = false;
+                    foreach (var pl in RegionProps.Scatter(map)) if (pl.Art == p[1].Substring(1)) { float d = Mathf.Abs(pl.X - map.W * .5f) + Mathf.Abs(pl.Y - map.H * .5f); if (d < bd) { bd = d; best = pl; any = true; } }
+                    if (!any) continue; tx = best.X; ty = best.Y + (p.Length > 2 ? float.Parse(p[2]) : 2.5f);
+                    Debug.Log("AtmospherePreviewCapture: " + p[1] + " at " + best.X + "," + best.Y);
+                }
+                else { if (p.Length < 3) continue; tx = float.Parse(p[1]); ty = float.Parse(p[2]); }
                 arena.Regions.SnapLocal(tx * 32f, ty * 32f);
                 var remote = new List<InterpActor>();
                 var faction = (FactionId)Mathf.Clamp(arena.Regions.LocalRegion == RegionId.Frost ? 3 : (int)arena.Regions.LocalRegion - 1, 0, 4);

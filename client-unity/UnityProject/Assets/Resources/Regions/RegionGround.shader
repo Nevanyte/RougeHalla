@@ -63,6 +63,7 @@ Shader "Roguehalla/RegionGround"
             TEXTURE2D(_TerA); SAMPLER(sampler_TerA);
             TEXTURE2D(_TerB); SAMPLER(sampler_TerB);
             TEXTURE2D(_PlgTex); SAMPLER(sampler_PlgTex);   // r shallow water, g grass, b water depth (Plague only)
+            TEXTURE2D(_TempleTex); SAMPLER(sampler_TempleTex);   // r = 1 on tiles of a temple pier block (point sampled, 1 texel per tile)
 
             #if USE_SHAPE_LIGHT_TYPE_0
             SHAPE_LIGHT(0)
@@ -100,8 +101,10 @@ Shader "Roguehalla/RegionGround"
             float4 _TerLight[8];
             float4 _TerGlow[8];
             float4 _Temple;        // x0, y0, size (tiles), w = 1 when a temple exists
-            float4 _TempleInfo;    // centre x, centre y, brazier count
-            float4 _TempleBraz[8]; // brazier tile positions
+            float4 _TempleInfo;    // great crossing x, y (an aisle intersection of the 6 tile pier grid), light count, apse radius
+            float4 _TempleGrid;    // south portal x, east portal y, west portal y, apse flat-edge y (-999 = none)
+            float4 _TempleStone;   // the building stone colour (shared with the pier skins and props)
+            float4 _TempleBraz[16]; // lamp and brazier tile positions (w = 1 brazier, 2 lamp)
             float4 _Coliseum;      // centre x, centre y, half extent (tiles), w = 1 when found
             static const float2 ShadowT = float2(0.827, 0.561);   // cast direction in tile space (x right, y down), the one sun
 
@@ -214,81 +217,257 @@ Shader "Roguehalla/RegionGround"
                 Ground r; r.col = c; r.emis = emis; return r;
             }
 
-            // ---- Holy temple floor (inlay tilework, carpet cross, medallion, steps, stained-glass light, brazier pools) ----------------
+            // ---- Holy temple: ONE hall seen from above with its roof removed -------------------------------------------------------------
+            // Plan (tile space, p = t - great crossing): a 6 tile structural grid; piers (3 x 3 blocks, drawn as walls) stand on its vertices, the open floor
+            // between them is a grid of 3 tile aisles. Nave (north-south) and cross axis (east-west) carry carpet runners to the medallion under the main
+            // "dome"; an apse with a stepped dais closes the north end; an open arcade on a stepped plinth runs round the edge with portals on the south,
+            // east and west axes. Light only: arches and vaults are ribs of light and shade on the floor, never geometry over actors.
+            float TLin(float d, float w) { return 1.0 - smoothstep(0.0, w, abs(d)); }
+            float TStar(float2 q, float n, float rIn, float rOut)      // > 0 inside an n-pointed star
+            {
+                float seg = 6.28318 / n; float a = abs(frac(atan2(q.y, q.x) / seg + 0.5) - 0.5) * 2.0;
+                return lerp(rOut, rIn, smoothstep(0.0, 1.0, a)) - length(q);
+            }
+            float TPier(float2 c) { return SAMPLE_TEXTURE2D_LOD(_TempleTex, sampler_TempleTex, c / _Map.xy, 0).r; }
+            float3 TGlass(float h)
+            {
+                return h < 0.25 ? _PalKey[5].rgb : h < 0.5 ? lerp(_PalSec[5].rgb, float3(0.25, 0.6, 0.85), 0.55) * 1.5 : h < 0.75 ? _PalAcc[6].rgb * 1.7 : lerp(_PalSec[4].rgb, float3(0.3, 0.45, 0.95), 0.4) * 1.3;
+            }
+
             void TempleSurface(float2 t, out float3 col, out float3 emis, out float inside)
             {
-                float2 p = t - _TempleInfo.xy; float hs = _Temple.z * 0.5; float2 ap = abs(p);
-                float dEdge = hs - max(ap.x, ap.y);
+                float2 p = t - _TempleInfo.xy; float2 ap = abs(p);
+                float S = _Temple.z;
+                float dW = t.x - _Temple.x, dE2 = _Temple.x + S - t.x, dN = t.y - _Temple.y, dS = _Temple.y + S - t.y;
+                float dEdge = min(min(dW, dE2), min(dN, dS));
                 inside = smoothstep(-0.03, 0.03, dEdge);
-                float3 sand = _PalBase[5].rgb, gold = _PalAcc[5].rgb, key = _PalKey[5].rgb, green = _PalSec[5].rgb;
-                float3 stoneL = lerp(sand, key, 0.40) * 1.05, stoneD = lerp(sand, key, 0.15) * 0.78, gilt = lerp(gold, key, 0.55);
                 float time = _Time.y;
+                float3 stone = _TempleStone.rgb;
+                float3 stoneL = lerp(stone, float3(1, 1, 1), 0.16), stoneD = stone * 0.74;
+                float3 keyE = _PalKey[5].rgb, giltE = lerp(_PalAcc[5].rgb, keyE, 0.5);                // emission: the raw palette values, added after lighting
+                float3 key = pow(keyE, 2.2), gilt = pow(giltE, 2.2), tileC = pow(_PalSec[5].rgb, 2.2);   // albedo: the palette is sRGB, the framebuffer linear (same as the wall atlas and props)
+                float2 sunPerp = float2(-ShadowT.y, ShadowT.x);
                 emis = 0;
-                // steps: three treads, risers shaded on the sides the camera sees
+
+                // nearest side, perimeter coordinate and the portal on that side (north has the apse instead of a portal)
+                bool horiz = min(dN, dS) <= min(dW, dE2);
+                float along = horiz ? t.x : t.y, alongC = horiz ? _TempleInfo.x : _TempleInfo.y;
+                float axis = horiz ? (dS <= dN ? _TempleGrid.x : -999.0) : (dE2 <= dW ? _TempleGrid.y : _TempleGrid.z);
+                float portalD = axis > -900.0 ? abs(along - axis) : 99.0;
+                float portalM = 1.0 - smoothstep(1.4, 1.8, portalD);
+
+                // ---- plinth: three treads, risers shaded on the sides the camera sees
                 float dd = clamp(dEdge, 0.0, 2.0999);
                 float kk = floor(dd / 0.7), ff = frac(dd / 0.7);
-                float facing = ap.y >= ap.x ? (p.y > 0.0 ? 1.0 : 0.12) : 0.55;
-                float riser = (1.0 - smoothstep(0.0, 0.30, ff)) * facing;
-                float nosing = 1.0 - smoothstep(0.0, 0.05, abs(ff - 0.30));
-                float3 stepCol = lerp(stoneD, stoneL, 0.35 + 0.22 * kk) * (0.80 + 0.10 * kk);
-                stepCol = lerp(stepCol, stepCol * 0.5, riser * 0.8) + nosing * 0.10 * key;
-                stepCol *= 0.96 + 0.08 * VNoise(t * 6.0);
-                // interior: polished one-tile checker with joints
-                float2 ti = floor(p), tl = frac(p);
-                float chk = fmod(abs(ti.x + ti.y), 2.0);
-                float3 fl = lerp(stoneL, stoneD, chk * 0.16 + 0.06 * H21(ti));
-                float joint = 1.0 - smoothstep(0.0, 0.035, min(min(tl.x, 1.0 - tl.x), min(tl.y, 1.0 - tl.y)));
-                fl = lerp(fl, stoneD * 0.7, joint * 0.4);
-                fl += key * 0.05 * smoothstep(0.5, 1.0, VNoise(p * 0.7 + 3.0));
-                // inlay: an 8-point star per 3-tile module
-                float2 m = frac(p / 3.0 + 0.5) - 0.5; float2 am = abs(m);
-                float2 rr = float2(m.x + m.y, m.x - m.y) * 0.7071;
-                float sq = min(max(am.x, am.y), max(abs(rr.x), abs(rr.y)));
-                float ringS = 1.0 - smoothstep(0.0, 0.014, abs(sq - 0.30));
-                float fillS = smoothstep(0.30, 0.27, sq);
-                fl = lerp(fl, lerp(green * 0.9, stoneL, 0.55), fillS * 0.40);
-                fl = lerp(fl, gilt, ringS * 0.6);
-                fl = lerp(fl, gilt, (1.0 - smoothstep(0.0, 0.03, length(m) - 0.09)) * 0.5);
-                float dia = 1.0 - smoothstep(0.0, 0.02, abs(am.x - 0.5) + abs(am.y - 0.5) - 0.17);
-                fl = lerp(fl, lerp(green, stoneL, 0.45), dia * 0.5);
-                // frieze border band inside the steps
-                float fr = smoothstep(2.1, 2.15, dEdge) * (1.0 - smoothstep(3.55, 3.6, dEdge));
-                float along = ap.y > ap.x ? p.x : p.y;
+                float facing = (horiz ? (dS <= dN ? 1.0 : 0.30) : 0.65);
+                float riser = (1.0 - smoothstep(0.30, 0.46, ff)) * facing;             // the riser face you see below each tread's outer lip
+                float nosing = 1.0 - smoothstep(0.0, 0.05, abs(ff - 0.46));
+                float3 stepCol = lerp(stoneD * 1.05, stoneL * 1.08, 0.40 + 0.22 * kk) * (0.88 + 0.08 * kk);
+                stepCol *= 1.0 - 0.10 * smoothstep(0.55, 1.0, ff) * 0.0;
+                stepCol = lerp(stepCol, stoneD * 0.52, riser * 0.88) + nosing * 0.10 * giltE;
+                stepCol *= 0.97 + 0.05 * VNoise(t * 3.0);
+
+                // ---- floor: polished large slabs, soft mottling (no noisy texture)
+                float2 sl = p / 1.5; float2 sf = frac(sl);
+                float3 fl = lerp(stoneL, stone, 0.25 + 0.6 * H21(floor(sl) + 7.3));
+                float jn = 1.0 - smoothstep(0.0, 0.035, min(min(sf.x, 1.0 - sf.x), min(sf.y, 1.0 - sf.y)));
+                fl = lerp(fl, stoneD, jn * 0.20);
+                fl *= 0.96 + 0.07 * VNoise(t * 0.8);
+                float hall = smoothstep(4.0, 4.3, dEdge);                       // everything structural lives inside the promenade
+
+                // ---- structural grid
+                float2 pl = (frac(p / 6.0) - 0.5) * 6.0;        // 0 at a pier centre, -3 / 3 on an aisle centre line
+                float2 pb = (frac(p / 6.0 + 0.5) - 0.5) * 6.0;  // 0 at a bay centre (aisle crossing)
+                float2 pcn = t - pl, bcn = t - pb;
+                float pierHere = TPier(pcn);
+                float rp = max(abs(pl.x), abs(pl.y));
+                float2 da = 3.0 - abs(pl);
+                // aisle centre lines (inlaid gold, glowing softly) and the apron round each pier
+                float aisleL = max(TLin(da.x, 0.035), TLin(da.y, 0.035));
+                float pulse = 0.5 + 0.5 * sin(time * 0.7 - length(p) * 0.35);
+                fl = lerp(fl, gilt * 0.92, aisleL * 0.42 * hall);
+                emis += giltE * aisleL * (0.035 + 0.05 * pulse) * hall;
+                fl *= 1.0 - 0.10 * (1.0 - smoothstep(1.5, 2.5, rp)) * pierHere * hall;
+                float ringP = TLin(rp - 1.95, 0.035) * pierHere;
+                fl = lerp(fl, gilt, ringP * 0.55 * hall); emis += giltE * ringP * 0.05 * hall;
+                // arch spans between neighbouring piers: a soffit strip across the gap, light on its rim, the cast shade falling away from the sun
+                {
+                    float gx = step(1.5, abs(pl.x)) * pierHere * TPier(pcn + float2(sign(pl.x) * 6.0, 0.0));
+                    float rowS = 1.0 - smoothstep(0.42, 0.52, abs(pl.y));
+                    float shdY = (pl.y > 0.0 ? 1.0 : 0.0) * (1.0 - smoothstep(0.5, 1.5, pl.y)) * smoothstep(0.42, 0.55, abs(pl.y));
+                    float key1 = TLin(abs(pl.x) - 3.0, 0.2) * (1.0 - smoothstep(0.0, 0.25, abs(pl.y)));
+                    float gy = step(1.5, abs(pl.y)) * pierHere * TPier(pcn + float2(0.0, sign(pl.y) * 6.0));
+                    float colS = 1.0 - smoothstep(0.42, 0.52, abs(pl.x));
+                    float shdX = (pl.x > 0.0 ? 1.0 : 0.0) * (1.0 - smoothstep(0.5, 1.5, pl.x)) * smoothstep(0.42, 0.55, abs(pl.x));
+                    float key2 = TLin(abs(pl.y) - 3.0, 0.2) * (1.0 - smoothstep(0.0, 0.25, abs(pl.x)));
+                    float arch = max(gx * rowS, gy * colS), shd = max(gx * shdY, gy * shdX);
+                    fl *= 1.0 - 0.075 * arch * hall;
+                    fl *= 1.0 - 0.16 * shd * hall;
+                    float rim = max(gx * TLin(abs(pl.y) - 0.5, 0.05), gy * TLin(abs(pl.x) - 0.5, 0.05));
+                    fl += key * 0.05 * rim * hall;
+                    fl = lerp(fl, gilt, max(gx * key1, gy * key2) * 0.7 * hall);
+                }
+                // groin ribs from each pier corner to the bay centre, and a small boss and rosette at the crossing
+                {
+                    float2 sg = float2(pb.x >= 0.0 ? 1.0 : -1.0, pb.y >= 0.0 ? 1.0 : -1.0);
+                    float pq = TPier(bcn + 3.0 * sg);
+                    float sd = (abs(pb.x) - abs(pb.y)) * 0.7071, rb = length(pb);
+                    float ribM = (1.0 - smoothstep(2.3, 2.6, rb)) * pq * hall;
+                    fl = lerp(fl, stoneD, TLin(sd, 0.07) * 0.30 * ribM);
+                    fl += key * 0.045 * TLin(abs(sd) - 0.26, 0.07) * ribM;
+                    float st = TStar(pb, 8.0, 0.5, 0.98);
+                    float ros = smoothstep(-0.02, 0.05, st) * hall;
+                    fl = lerp(fl, lerp(tileC * 0.9, stoneL, 0.62), ros * 0.45);
+                    fl = lerp(fl, gilt, TLin(st, 0.04) * 0.55 * hall);
+                    emis += giltE * TLin(st, 0.05) * 0.04 * hall * (0.6 + 0.4 * pulse);
+                }
+
+                // ---- promenade (behind the colonnade): dark gilt border lines, tile frieze, arcade bays
+                float prom = smoothstep(2.1, 2.2, dEdge) * (1.0 - smoothstep(3.9, 4.0, dEdge));
+                fl = lerp(fl, stoneD * 1.06, prom * 0.34);
+                fl = lerp(fl, gilt, (TLin(dEdge - 2.15, 0.04) + TLin(dEdge - 3.95, 0.035) + TLin(dEdge - 4.22, 0.03) * 0.6) * 0.6 * step(2.1, dEdge));
+                float frz = smoothstep(3.25, 3.3, dEdge) * (1.0 - smoothstep(3.65, 3.7, dEdge));
                 float zig = abs(frac(along / 1.5) - 0.5) * 2.0;
-                float3 frz = lerp(green * 0.9, gilt, step(zig, 0.45));
-                frz = lerp(frz, gilt, 1.0 - smoothstep(0.0, 0.05, abs(dEdge - 2.12)));
-                fl = lerp(fl, frz, fr);
-                // carpet cross
-                float across = min(ap.x, ap.y), alongC = max(ap.x, ap.y);
-                float carpet = step(across, 1.6) * step(3.0, alongC) * smoothstep(2.1, 2.2, dEdge);
-                float2 cg = frac(float2(across, alongC) / 0.8) - 0.5;
-                float3 cp = lerp(green * 0.95, stoneD, 0.30) * (0.9 + 0.12 * VNoise(float2(across, alongC) * 8.0));
-                cp = lerp(cp, gilt * 0.7, step(abs(cg.x) + abs(cg.y), 0.30) * step(across, 1.2) * 0.55);
-                cp = lerp(cp, gilt, step(1.40, across) * step(across, 1.55));
-                cp = lerp(cp, cp * 0.7, step(1.55, across));
-                fl = lerp(fl, cp, carpet);
-                // medallion
-                float r = length(p); float ang = atan2(p.y, p.x);
-                float medM = 1.0 - smoothstep(3.30, 3.38, r);
-                float3 med = lerp(stoneL * 1.05, lerp(green, stoneL, 0.5), 0.6 * smoothstep(0.35, 0.75, abs(sin(ang * 4.0)) * smoothstep(1.2, 1.6, r) * (1.0 - smoothstep(2.4, 2.7, r))));
-                med = lerp(med, gilt, (1.0 - smoothstep(0.0, 0.08, abs(r - 3.15))) + (1.0 - smoothstep(0.0, 0.05, abs(r - 2.55))) + (1.0 - smoothstep(0.0, 0.05, abs(r - 1.2))));
-                fl = lerp(fl, med, medM);
-                // stained-glass light cast on the floor by tall windows (pointed arches), drifting very slowly
-                float2 wq = p / 6.0 + 0.5; float2 wc = floor(wq); float2 fq = (frac(wq) - 0.5) * 6.0 - ShadowT * 1.2;
-                float halfW = 0.55 * (fq.y > -0.5 ? 1.0 : sqrt(saturate((fq.y + 1.4) / 0.9)));
-                float glass = (1.0 - smoothstep(0.0, 0.12, abs(fq.x) - halfW)) * step(-1.4, fq.y) * step(fq.y, 1.0);
-                float hsel = H21(wc + 3.7);
-                float3 gcol = hsel < 0.25 ? key : hsel < 0.5 ? _PalSec[5].rgb * 1.5 : hsel < 0.75 ? _PalAcc[6].rgb * 1.8 : _PalSec[4].rgb;
-                emis += gcol * glass * 0.13 * (0.75 + 0.25 * sin(time * 0.3 + hsel * 6.28));
-                // brazier pools
-                for (int b = 0; b < 8; b++)
+                fl = lerp(fl, lerp(tileC * 0.9, stoneL, 0.55), frz * (1.0 - smoothstep(0.30, 0.46, zig)) * 0.30);
+                emis += giltE * TLin(dEdge - 3.95, 0.05) * 0.04;
+                // arcade shade on the sides away from the sun (south and east), cool and even: the interior is in shade there
+                float awayD = min(dS, dE2);
+                fl *= 1.0 - 0.14 * (1.0 - smoothstep(2.5, 9.0, awayD)) * step(2.1, dEdge);
+                // sunlit arcade bays on the north and west sides: slanted shafts of coloured light running from each opening along the one sun direction
+                // (the two sides are computed separately so the corner has no seam)
+                [unroll] for (int sd = 0; sd < 2; sd++)
+                {
+                    bool isN = sd == 0;
+                    float depth = isN ? dN : dW, al = isN ? t.x : t.y, ac2 = isN ? _TempleInfo.x : _TempleInfo.y;
+                    float shift = (depth - 2.85) * (isN ? ShadowT.x / ShadowT.y : ShadowT.y / ShadowT.x);
+                    float qa = (frac((al - ac2 - shift) / 3.0 + 0.5) - 0.5) * 3.0;
+                    float bayId = floor((al - ac2 - shift) / 3.0 + 0.5);
+                    float shaft = (1.0 - smoothstep(0.62, 0.92, abs(qa))) * smoothstep(2.9, 3.4, depth) * (1.0 - smoothstep(6.5, 10.5, depth));
+                    float on = step(0.30, H21(float2(bayId, isN ? 3.0 : 9.0) + 2.7));
+                    float3 gc = TGlass(H21(float2(bayId, isN ? 5.0 : 11.0) + 1.3));
+                    float mullion = 1.0 - 0.5 * TLin(qa, 0.05);
+                    emis += gc * shaft * on * mullion * 0.12 * (0.8 + 0.2 * sin(time * 0.3 + bayId)) * inside;
+                    fl *= 1.0 + 0.05 * shaft * on;
+                }
+
+                // ---- carpet runners along the nave (south to the apse) and the cross axis
+                float apseOn = _TempleGrid.w > -900.0 ? 1.0 : 0.0;
+                float naveTop = apseOn > 0.5 ? _TempleGrid.w : _Temple.y + 2.1;
+                float runN = step(ap.x, 1.15) * step(naveTop, t.y) * step(2.1, dS);
+                float runC = step(ap.y, 1.15) * step(2.1, dW) * step(2.1, dE2);
+                float runner = max(runN, runC);
+                {
+                    float across = runN > 0.5 ? ap.x : ap.y, alongR = runN > 0.5 ? p.y : p.x;
+                    float2 cg = float2(across, (frac(alongR / 1.6) - 0.5) * 1.6);
+                    float3 cp = float3(0.09, 0.27, 0.27) * (0.92 + 0.10 * VNoise(float2(across, alongR) * 6.0));
+                    cp = lerp(cp, gilt * 0.7, step(abs(cg.x) * 1.0 + abs(cg.y) * 0.9, 0.42) * 0.40);
+                    cp = lerp(cp, gilt, TLin(across - 1.1, 0.03));
+                    cp = lerp(cp, gilt * 0.9, TLin(across - 0.95, 0.018) * 0.7);
+                    fl = lerp(fl, cp, runner * hall * smoothstep(0.0, 0.05, 1.15 - across));
+                    emis += giltE * (TLin(across - 1.1, 0.05) * (0.05 + 0.06 * pulse)) * runner * hall;
+                    // a slow glimmer travelling along the nave toward the apse
+                    float travel = smoothstep(0.85, 1.0, sin(alongR * 0.45 + time * (runN > 0.5 ? 0.8 : 0.5)));
+                    emis += giltE * TLin(across, 0.05) * travel * 0.07 * runner * hall;
+                }
+
+                // ---- large scale inlay organised on the axes: a great eight-pointed star (two squares) round the crossing, concentric borders inside the promenade
+                {
+                    float sq1 = max(ap.x, ap.y) - 8.6;
+                    float2 rr = float2(p.x + p.y, p.x - p.y) * 0.7071; float sq2 = max(abs(rr.x), abs(rr.y)) - 8.6;
+                    float su = min(sq1, sq2), si = max(sq1, sq2) + 5.4;
+                    fl = lerp(fl, lerp(tileC * 0.9, stoneL, 0.62), smoothstep(0.05, -0.05, su) * 0.16 * hall);
+                    float lines = (TLin(su, 0.045) + TLin(su + 0.32, 0.025) * 0.6 + TLin(si, 0.03) * 0.5) * hall;
+                    fl = lerp(fl, gilt, saturate(lines) * 0.5);
+                    emis += giltE * saturate(lines) * (0.035 + 0.05 * pulse);
+                    float cb = (TLin(dEdge - 5.3, 0.04) + TLin(dEdge - 5.65, 0.025) * 0.6) * hall;
+                    fl = lerp(fl, gilt, saturate(cb) * 0.5);
+                    emis += giltE * saturate(cb) * 0.04;
+                }
+
+                // ---- the great medallion under the main dome (the four nearest piers are its dome piers) and the pool of coloured light
+                {
+                    float r = length(p), ang = atan2(p.y, p.x);
+                    float mM = 1.0 - smoothstep(4.5, 4.62, r);
+                    float3 med = lerp(stoneL, stone, 0.25);
+                    float a16 = abs(frac(ang * 16.0 / 6.28318) - 0.5) * 2.0;
+                    float bandM = smoothstep(3.15, 3.25, r) * (1.0 - smoothstep(4.15, 4.25, r));
+                    med = lerp(med, lerp(tileC * 0.9, stoneL, 0.6), bandM * 0.42 * smoothstep(0.35, 0.65, a16));
+                    float s16 = TStar(p, 16.0, 1.9, 3.1), s8 = TStar(p, 8.0, 0.9, 2.1);
+                    med = lerp(med, lerp(gilt * 0.9, stoneL, 0.45), smoothstep(-0.02, 0.05, s16) * 0.42);
+                    med = lerp(med, lerp(tileC, stoneL, 0.5), smoothstep(-0.02, 0.05, s8) * 0.5);
+                    float lines = TLin(s16, 0.05) + TLin(s8, 0.04) + TLin(r - 4.45, 0.05) + TLin(r - 4.2, 0.03) * 0.6 + TLin(r - 1.0, 0.035);
+                    med = lerp(med, gilt, saturate(lines) * 0.8);
+                    fl = lerp(fl, med, mM);
+                    emis += giltE * saturate(lines) * mM * (0.10 + 0.08 * pulse);
+                    float2 pq2 = p - ShadowT * 1.5;
+                    float sector = floor(atan2(pq2.y, pq2.x) / 6.28318 * 8.0 + 8.0);
+                    float pool = (1.0 - smoothstep(0.4, 3.4, length(pq2))) * (1.0 - 0.55 * TLin(frac(atan2(pq2.y, pq2.x) / 6.28318 * 8.0), 0.05));
+                    emis += TGlass(H21(float2(sector, 4.0))) * pool * 0.11 * (0.85 + 0.15 * sin(time * 0.4));
+                }
+
+                // ---- apse at the north end: a stepped half-round dais, a gold arc and the carpet running to the niche
+                [branch] if (apseOn > 0.5)
+                {
+                    float2 q = t - float2(_TempleInfo.x, _TempleGrid.w); float r = length(q), R = _TempleInfo.w;
+                    float inA = smoothstep(R, R - 0.12, r) * (1.0 - smoothstep(0.0, 0.25, q.y));
+                    float k = r > R - 1.4 ? 0.0 : (r > R - 2.8 ? 1.0 : 2.0);
+                    float3 ac = lerp(stoneL, stone, 0.2 - 0.07 * k);
+                    ac = lerp(ac, ac * 0.6, (1.0 - smoothstep(0.0, 0.16, abs(r - (R - 1.4)))) * 0.5 + (1.0 - smoothstep(0.0, 0.16, abs(r - (R - 2.8)))) * 0.5);
+                    ac = lerp(ac, gilt, (TLin(r - (R - 1.28), 0.04) + TLin(r - (R - 2.68), 0.04) + TLin(r - (R - 4.0), 0.035) + TLin(r - R, 0.05)) * 0.7);
+                    float2 ar = float2(abs(q.x), q.y);
+                    float rug = step(ar.x, 1.15) * step(r, R - 0.6);
+                    ac = lerp(ac, float3(0.09, 0.27, 0.27), rug);
+                    ac = lerp(ac, gilt, rug * TLin(ar.x - 1.1, 0.03));
+                    ac *= 1.0 - 0.18 * smoothstep(R - 1.0, R, r);                      // the shadowed foot of the niche wall
+                    fl = lerp(fl, ac, inA);
+                    float2 pq = q - float2(0.0, -R * 0.55);
+                    emis += lerp(keyE, giltE, 0.5) * exp(-dot(pq, pq) * 0.07) * 0.09 * inA;
+                    emis += giltE * (TLin(r - (R - 4.0), 0.05) + TLin(r - R, 0.05) * 0.6) * (0.06 + 0.06 * pulse) * inA;
+                }
+
+                // ---- soft shafts of dusty light from the clerestory across the hall, along the one sun direction
+                {
+                    float perp = dot(p, sunPerp), alg = dot(p, ShadowT);
+                    float kf = floor(perp / 9.0 + 0.5); float lp = perp - 9.0 * kf;
+                    float onS = step(0.42, H21(float2(kf, 5.5)));
+                    float shaftM = (1.0 - smoothstep(0.5, 1.3, abs(lp))) * smoothstep(0.30, 0.62, VNoise(float2(kf * 3.7, alg * 0.07 + time * 0.01))) * onS * hall;
+                    float3 gcS = lerp(keyE, TGlass(H21(float2(kf, 8.0))), 0.35);
+                    emis += gcS * shaftM * 0.07;
+                    // dust motes drifting inside the shafts
+                    float2 dq = t * 4.2 + float2(time * 0.10, time * 0.06);
+                    float2 dc = floor(dq), df = frac(dq) - 0.5;
+                    float mote = step(0.955, H21(dc)) * smoothstep(0.30, 0.0, length(df + (H22(dc) - 0.5) * 0.4)) * (0.5 + 0.5 * sin(time * 1.3 + H21(dc + 3.0) * 6.28));
+                    emis += keyE * mote * shaftM * 0.45;
+                }
+                // stained-glass pools in some bays: a slanted window image displaced along the sun direction
+                {
+                    float2 bid = floor(bcn);
+                    float h = H21(bid + 3.1);
+                    float2 q2 = pb - ShadowT * 0.9;
+                    float aq = dot(q2, ShadowT), pq = dot(q2, sunPerp);
+                    float win = (1.0 - smoothstep(0.42, 0.58, abs(pq))) * (1.0 - smoothstep(1.1, 1.4, abs(aq - 0.2)));
+                    float notMain = step(5.0, length(bcn - _TempleInfo.xy));
+                    emis += TGlass(H21(bid + 8.0)) * win * step(0.45, h) * notMain * hall * (1.0 - 0.45 * TLin(pq, 0.04)) * 0.14;
+                }
+                // lamp and brazier pools
+                for (int b = 0; b < 16; b++)
                 {
                     if (b >= (int)_TempleInfo.z) break;
                     float2 dv = t - _TempleBraz[b].xy;
-                    float fk = 0.85 + 0.15 * sin(time * 7.0 + b * 2.3) * sin(time * 3.1 + b);
-                    emis += lerp(_PalAcc[1].rgb, key, 0.4) * exp(-dot(dv, dv) * 0.30) * 0.22 * fk;
+                    float fk = 0.88 + 0.12 * sin(time * 7.0 + b * 2.3) * sin(time * 3.1 + b);
+                    emis += lerp(_PalAcc[1].rgb, keyE, 0.4) * exp(-dot(dv, dv) * (_TempleBraz[b].w > 1.5 ? 0.45 : 0.30)) * (_TempleBraz[b].w > 1.5 ? 0.16 : 0.22) * fk;
                 }
+
+                // ---- portal threshold: a soft dark band just inside every portal, deepest at the sill, so stepping in from the sun feels like entering a building
+                float thr = (1.0 - smoothstep(2.0, 7.5, dEdge)) * (1.0 - smoothstep(2.6, 4.8, portalD)) * step(0.0, dEdge);
+                fl *= 1.0 - 0.26 * thr;
+                fl = lerp(fl, gilt, TLin(dEdge - 2.12, 0.035) * portalM * 0.8);
+                // portal treads carry the carpet out to the sand
+                float3 pc2 = float3(0.09, 0.27, 0.27); float pAcross = portalD;
+                stepCol = lerp(stepCol, pc2, step(pAcross, 1.15) * (axis > -900.0 ? 1.0 : 0.0) * (1.0 - riser * 0.5));
+                stepCol = lerp(stepCol, gilt, TLin(pAcross - 1.1, 0.03) * (axis > -900.0 ? 1.0 : 0.0));
                 col = dEdge < 2.1 ? stepCol : fl;
+                col *= 1.0 - 0.30 * (1.0 - smoothstep(0.0, 0.7, dEdge)) * step(0.0, dEdge);   // dark footing line where the plinth meets the sand
             }
 
             float3 ColiseumSand(float2 t, float3 c, float rn)
@@ -343,16 +522,23 @@ Shader "Roguehalla/RegionGround"
                     }
                 }
 
+                float templeIn = 0.0;                                   // 1 inside the temple floor: holy-light terrain is then drawn as a translucent pool on the stone so the inlay stays readable
                 [branch] if (_Temple.w > 0.5)
                 {
                     float3 tcol, temis; float tin;
-                    float2 pp = t - _TempleInfo.xy; float dE = _Temple.z * 0.5 - max(abs(pp.x), abs(pp.y));
-                    [branch] if (dE > -0.6)
+                    float tS = _Temple.z;
+                    float dE = min(min(t.x - _Temple.x, _Temple.x + tS - t.x), min(t.y - _Temple.y, _Temple.y + tS - t.y));
+                    [branch] if (dE > -3.2)
                     {
-                        TempleSurface(t, tcol, temis, tin);
-                        float outsideShade = (1.0 - tin) * smoothstep(-0.5, 0.0, dE) * (pp.y > 0.0 ? 0.35 : 0.12);
-                        col = lerp(col, tcol, tin) * (1.0 - outsideShade);
-                        emis = lerp(emis, temis, tin);
+                        TempleSurface(t, tcol, temis, tin); templeIn = tin;
+                        // cast shadow line of the plinth and arcade on the sand: the sun is north-west, so the shade falls to the south and east (a hint on the other sides)
+                        float oS = t.y - (_Temple.y + tS), oE = t.x - (_Temple.x + tS), oN = _Temple.y - t.y, oW = _Temple.x - t.x;
+                        float inX = smoothstep(_Temple.x - 0.5, _Temple.x + 2.5, t.x) * (1.0 - smoothstep(_Temple.x + tS + 1.5, _Temple.x + tS + 3.0, t.x));
+                        float inY = smoothstep(_Temple.y - 0.5, _Temple.y + 2.5, t.y) * (1.0 - smoothstep(_Temple.y + tS + 1.5, _Temple.y + tS + 3.0, t.y));
+                        float cast = 0.62 * (1.0 - smoothstep(0.0, 3.2, oS)) * step(0.0, oS) * inX + 0.55 * (1.0 - smoothstep(0.0, 2.8, oE)) * step(0.0, oE) * inY
+                                   + 0.07 * (1.0 - smoothstep(0.0, 0.9, max(oN, oW))) * step(0.0, max(oN, oW)) * inX * inY;
+                        col = lerp(col, tcol, tin) * (1.0 - cast * (1.0 - tin));
+                        emis = lerp(emis * (1.0 - cast * (1.0 - tin)), temis, tin);
                     }
                 }
 
@@ -453,6 +639,7 @@ Shader "Roguehalla/RegionGround"
                                 tc = lerp(tc, light, lip * 0.75);
                                 te = glow * (1.0 - smoothstep(0.0, 0.25, w.y)) * 0.15 * inner;
                             }
+                            if (kd == 7) m *= lerp(1.0, 0.5, templeIn);
                             col = lerp(col, tc, m);
                             emis = lerp(emis, te, m);
                         }

@@ -5,7 +5,7 @@ using Roguehalla.Net.Protocol;
 namespace Roguehalla.Client
 {
     /// <summary>A light site: a cluster of terrain tiles (lava, ice, bog, light) or a single lantern prop (Lantern = true, Kind None).</summary>
-    public struct TerrainCluster { public float X, Y; public int Count; public TerrainKind Kind; public bool Lantern; public float Lift; }
+    public struct TerrainCluster { public float X, Y; public int Count; public TerrainKind Kind; public bool Lantern; public float Lift; public bool TempleLamp; }
 
     /// <summary>
     /// Pure planner for terrain-generated accent lights. Clusters (one per 8x8-tile cell and terrain kind) are built once at map
@@ -40,6 +40,9 @@ namespace Roguehalla.Client
 
         /// <summary>Add one lantern prop as a light site (tile-space position; <paramref name="lift"/> raises the light to the lamp head, in world units).</summary>
         public void AddLantern(float tx, float ty, float lift) { _clusters.Add(new TerrainCluster { X = tx, Y = ty, Count = 1, Kind = TerrainKind.None, Lantern = true, Lift = lift }); }
+
+        /// <summary>Add a temple lamp stand as a light site (warm gold spec).</summary>
+        public void AddTempleLamp(float tx, float ty, float lift) { _clusters.Add(new TerrainCluster { X = tx, Y = ty, Count = 1, Kind = TerrainKind.None, Lantern = true, Lift = lift, TempleLamp = true }); }
 
         /// <summary>Indices of the clusters to light for a tile-space camera rect (x right, y down): inside rect + margin, best first, at most
         /// min(cap, result.Length). Returns how many were written.</summary>
@@ -83,6 +86,8 @@ namespace Roguehalla.Client
             _planner.Build(RegionMap.EffectiveTerrain(map), map.W, map.H);
             if (RegionAtmosphereTable.AccentFor(TerrainKind.None).Enabled && map.Regions != null)
                 foreach (var pl in RegionProps.Scatter(map)) if (pl.Art == "sent.lantern") _planner.AddLantern(pl.X, pl.Y, 1.05f);
+            var temple = TempleLayout.For(map);
+            if (temple.Found) foreach (var lamp in temple.Lamps) _planner.AddTempleLamp(lamp.x, lamp.y, .85f);
             _dirty = true; _lastCellX = int.MinValue;
         }
         public void MarkDirty() { _dirty = true; }
@@ -132,7 +137,7 @@ namespace Roguehalla.Client
             }
             if (free == null) return null;           // every slot busy fading out: pick this cluster up next re-plan
             var c = _planner.Clusters[cluster];
-            free.Cluster = cluster; free.C = c; free.Spec = RegionAtmosphereTable.AccentFor(c.Kind); free.Alpha = 0f; free.Phase = c.X * 1.7f + c.Y * 2.3f;
+            free.Cluster = cluster; free.C = c; free.Spec = c.TempleLamp ? RegionAtmosphereTable.TempleLamp : RegionAtmosphereTable.AccentFor(c.Kind); free.Alpha = 0f; free.Phase = c.X * 1.7f + c.Y * 2.3f;
             free.Light.transform.position = ArenaView.WorldPoint(c.X * 32f, c.Y * 32f) + new Vector3(0, c.Lift, -1);
             return free;
         }

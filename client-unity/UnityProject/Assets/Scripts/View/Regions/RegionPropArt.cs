@@ -13,11 +13,20 @@ namespace Roguehalla.Client
         public string Key; public Sprite Sprite; public float Width, Height;
         /// <summary>True when the sprite is tall enough to hide an actor standing just north of it (the fade rule applies).</summary>
         public bool Tall;
+        /// <summary>Transparent pixels between the opaque art (alpha above <see cref="RegionPropArt.EdgeAlpha"/>) and each side of the sprite cell. 0 means the art touches the edge and is clipped.</summary>
+        public int MarginLeft, MarginRight, MarginBottom, MarginTop;
+        /// <summary>Size of the cropped sprite in pixels. ExceededCell: the art reaches past its nominal cell (it used to be cut off there).</summary>
+        public int PixelWidth, PixelHeight; public bool ExceededCell;
+        public int MinMargin { get { return Mathf.Min(Mathf.Min(MarginLeft, MarginRight), Mathf.Min(MarginBottom, MarginTop)); } }
     }
 
     public static partial class RegionPropArt
     {
         public const int PixelsPerUnit = 64;
+        /// <summary>Alpha (0..1) above which a pixel counts as drawn when measuring a prop's margins (about 8 of 255: invisible fringe is ignored).</summary>
+        public const float EdgeAlpha = .03f;
+        /// <summary>Required transparent margin on every side of every prop cell, in atlas pixels.</summary>
+        public const int RequiredMargin = 2;
         static Dictionary<string, RegionPropSprite> _all;
         static Texture2D _atlas;
         public static Texture2D Atlas { get { Ensure(); return _atlas; } }
@@ -35,47 +44,72 @@ namespace Roguehalla.Client
             var defs = new List<Def>();
             AddFrost(defs); AddFire(defs); AddSentenced(defs); AddPlague(defs); AddHoly(defs); AddTemple(defs); AddColiseum(defs);
             // Shelf-pack into an atlas, growing the height if needed.
-            int atlasW = 1024, atlasH = 1024;
-            for (; ; )
-            {
-                if (TryPack(defs, atlasW, atlasH, out var rects)) { Build(defs, rects, atlasW, atlasH); return; }
-                atlasH *= 2;
-            }
+            Build(defs, 1024, 1024);
         }
 
-        static bool TryPack(List<Def> defs, int aw, int ah, out RectInt[] rects)
+        /// <summary>Art is painted on a canvas larger than its nominal cell (so overhanging canopies, glows and shadow tails are never cut off), then cropped to the opaque bounds plus <see cref="CropMargin"/>.</summary>
+        public const int PadSide = 44, PadTop = 44, PadBottom = 18, CropMargin = 3;
+        /// <summary>Evidence and A/B only (before/after captures of the clipping fix): paint each prop in its nominal cell, uncropped, as the atlas did before. Never set in the game.</summary>
+        public static bool DebugNoPadding;
+
+        static bool TryPack(RegionCanvas[] cvs, int aw, int ah, out RectInt[] rects)
         {
-            rects = new RectInt[defs.Count]; int x = 2, y = 2, rowH = 0;
-            for (int i = 0; i < defs.Count; i++)
+            rects = new RectInt[cvs.Length]; int x = 2, y = 2, rowH = 0;
+            for (int i = 0; i < cvs.Length; i++)
             {
-                int w = defs[i].W + 4, h = defs[i].H + 4;
+                int w = cvs[i].W + 4, h = cvs[i].H + 4;
                 if (x + w > aw) { x = 2; y += rowH; rowH = 0; }
                 if (y + h > ah) return false;
-                rects[i] = new RectInt(x + 2, y + 2, defs[i].W, defs[i].H); x += w; rowH = Mathf.Max(rowH, h);
+                rects[i] = new RectInt(x + 2, y + 2, cvs[i].W, cvs[i].H); x += w; rowH = Mathf.Max(rowH, h);
             }
             return true;
         }
 
-        static void Build(List<Def> defs, RectInt[] rects, int aw, int ah)
+        /// <summary>Paints one def on its padded canvas and returns the crop. <paramref name="pivot"/> is the foot in the cropped canvas (pixels).</summary>
+        static RegionCanvas PaintCropped(Def d, out Vector2 pivot, out int[] margins)
         {
+            int padS = DebugNoPadding ? 0 : PadSide, padT = DebugNoPadding ? 0 : PadTop, padB = DebugNoPadding ? 0 : PadBottom;
+            var full = new RegionCanvas(d.W + 2 * padS, d.H + padB + padT) { OriginX = padS, OriginY = padB, DesignW = d.W, DesignH = d.H };
+            d.Paint(full, d.Ground);
+            int x0 = full.W, x1 = -1, y0 = full.H, y1 = -1;
+            for (int y = 0; y < full.H; y++) for (int x = 0; x < full.W; x++)
+            {
+                if (full.Px[y * full.W + x].a <= EdgeAlpha) continue;
+                x0 = Mathf.Min(x0, x); x1 = Mathf.Max(x1, x); y0 = Mathf.Min(y0, y); y1 = Mathf.Max(y1, y);
+            }
+            if (x1 < 0) { x0 = 0; x1 = 0; y0 = 0; y1 = 0; }
+            int ax0 = x0, ax1 = x1, ay0 = y0, ay1 = y1;
+            if (DebugNoPadding) { x0 = 0; y0 = 0; x1 = full.W - 1; y1 = full.H - 1; ax0 = ax1 = ay0 = ay1 = 0; }
+            else { x0 = Mathf.Max(0, x0 - CropMargin); y0 = Mathf.Max(0, y0 - CropMargin); x1 = Mathf.Min(full.W - 1, x1 + CropMargin); y1 = Mathf.Min(full.H - 1, y1 + CropMargin); }
+            var cv = new RegionCanvas(x1 - x0 + 1, y1 - y0 + 1);
+            for (int y = 0; y < cv.H; y++) for (int x = 0; x < cv.W; x++) cv.Px[y * cv.W + x] = full.Px[(y + y0) * full.W + x + x0];
+            pivot = new Vector2(d.W * .5f + padS - x0, d.Ground + padB - y0);
+            // Margins are measured against the crop, but a crop that was limited by the padded canvas (art reaching its edge) reports 0: that art is clipped.
+            margins = new[] { ax0 - x0, x1 - ax1, ay0 - y0, y1 - ay1,
+                // 1 when the art reached beyond the nominal cell (it would have been cut off before the padded canvas existed)
+                (ax0 < padS || ax1 >= padS + d.W || ay1 >= padB + d.H || ay0 < padB - 3 ? 1 : 0) };
+            return cv;
+        }
+
+        static void Build(List<Def> defs, int aw0, int ah0)
+        {
+            var cvs = new RegionCanvas[defs.Count]; var pivots = new Vector2[defs.Count]; var margins = new int[defs.Count][];
+            for (int i = 0; i < defs.Count; i++) cvs[i] = PaintCropped(defs[i], out pivots[i], out margins[i]);
+            int aw = aw0, ah = ah0; RectInt[] rects;
+            while (!TryPack(cvs, aw, ah, out rects)) ah *= 2;
             var px = new Color32[aw * ah];
             _atlas = new Texture2D(aw, ah, TextureFormat.RGBA32, false, false) { name = "Region props atlas", filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
             _all = new Dictionary<string, RegionPropSprite>();
-            for (int i = 0; i < defs.Count; i++)
-            {
-                var d = defs[i];
-                var cv = new RegionCanvas(d.W, d.H);
-                d.Paint(cv, d.Ground);
-                cv.CopyTo(px, aw, rects[i].x, rects[i].y);
-            }
+            for (int i = 0; i < defs.Count; i++) cvs[i].CopyTo(px, aw, rects[i].x, rects[i].y);
             _atlas.SetPixelData(px, 0); _atlas.Apply(false, !Application.isEditor);
             for (int i = 0; i < defs.Count; i++)
             {
                 var d = defs[i];
-                var rect = new Rect(rects[i].x, rects[i].y, d.W, d.H);
-                var sprite = Sprite.Create(_atlas, rect, new Vector2(.5f, d.Ground / (float)d.H), PixelsPerUnit, 0, SpriteMeshType.FullRect);
+                var rect = new Rect(rects[i].x, rects[i].y, cvs[i].W, cvs[i].H);
+                var sprite = Sprite.Create(_atlas, rect, new Vector2(pivots[i].x / cvs[i].W, pivots[i].y / cvs[i].H), PixelsPerUnit, 0, SpriteMeshType.FullRect);
                 sprite.name = d.Key;
-                _all[d.Key] = new RegionPropSprite { Key = d.Key, Sprite = sprite, Width = d.W / (float)PixelsPerUnit, Height = (d.H - d.Ground) / (float)PixelsPerUnit, Tall = d.Tall };
+                _all[d.Key] = new RegionPropSprite { Key = d.Key, Sprite = sprite, Width = Mathf.Max(d.W, 2f * Mathf.Max(pivots[i].x, cvs[i].W - pivots[i].x)) / PixelsPerUnit, Height = (d.H - d.Ground) / (float)PixelsPerUnit, Tall = d.Tall,
+                    MarginLeft = margins[i][0], MarginRight = margins[i][1], MarginBottom = margins[i][2], MarginTop = margins[i][3], PixelWidth = cvs[i].W, PixelHeight = cvs[i].H, ExceededCell = margins[i][4] == 1 };
             }
         }
 
@@ -166,9 +200,9 @@ namespace Roguehalla.Client
                 int variant = v;
                 pine[v] = (c, gy) =>
                 {
-                    int tiers = variant == 0 ? 4 : 3; float cx = c.W / 2f + (variant == 1 ? 2f : 0f);
-                    float trunkH = 14f, treeH = c.H - gy - 6f;
-                    c.SoftShadow(cx + 6, gy + 2, c.W * .42f, 9f, .42f, Alpha(snowDeep, 1f));
+                    int tiers = variant == 0 ? 4 : 3; float cx = c.DesignW / 2f + (variant == 1 ? 2f : 0f);
+                    float trunkH = 14f, treeH = c.DesignH - gy - 6f;
+                    c.SoftShadow(cx + 6, gy + 2, c.DesignW * .42f, 9f, .42f, Alpha(snowDeep, 1f));
                     var trunk = Box(cx, gy + trunkH / 2f, 5f, trunkH / 2f + 1f, 1.5f);
                     c.Fill(trunk, Vertical(Shade(stone, .7f), Shade(stone, .38f), gy + trunkH, gy), Ink, 1.2f);
                     for (int t = 0; t < tiers; t++)
@@ -176,7 +210,7 @@ namespace Roguehalla.Client
                         float f = t / (float)(tiers - 1);
                         float by = gy + trunkH * .55f + (treeH - trunkH * .5f) * (t / (float)tiers) * .9f;
                         float th = (treeH - trunkH * .4f) * (.42f - .05f * t) + 6f;
-                        float bw = (c.W * .46f) * (1f - f * (variant == 0 ? .62f : .5f));
+                        float bw = (c.DesignW * .46f) * (1f - f * (variant == 0 ? .62f : .5f));
                         var pts = new List<Vector2> { new Vector2(cx + Mathf.Sin(t * 2.1f) * 1.2f, by + th), new Vector2(cx + bw, by + 2f) };
                         int scallops = 5;
                         for (int k = 1; k <= scallops; k++) { float u = k / (float)(scallops + 1); pts.Add(new Vector2(cx + bw - 2f * bw * u, by - (k % 2 == 0 ? 0f : 4.2f) + 2f)); }
@@ -210,13 +244,13 @@ namespace Roguehalla.Client
 
             Add(l, "frost.rock", 112, 84, 10, (c, gy) =>
             {
-                c.SoftShadow(c.W / 2f + 6, gy + 2, 44f, 8f, .38f, Alpha(snowDeep, 1f));
-                Rock(c, c.W / 2f - 9f, gy, 28f, 24f, 3, Shade(stone, .58f), stone, Mix(sec, snowLight, .35f), snow, .50f, Shade(stone, .38f));
-                Rock(c, c.W / 2f + 18f, gy, 18f, 15f, 8, Shade(stone, .58f), stone, Mix(sec, snowLight, .35f), snow, .45f, Shade(stone, .38f));
+                c.SoftShadow(c.DesignW / 2f + 6, gy + 2, 44f, 8f, .38f, Alpha(snowDeep, 1f));
+                Rock(c, c.DesignW / 2f - 9f, gy, 28f, 24f, 3, Shade(stone, .58f), stone, Mix(sec, snowLight, .35f), snow, .50f, Shade(stone, .38f));
+                Rock(c, c.DesignW / 2f + 18f, gy, 18f, 15f, 8, Shade(stone, .58f), stone, Mix(sec, snowLight, .35f), snow, .45f, Shade(stone, .38f));
             });
             Add(l, "frost.rock2", 96, 108, 10, (c, gy) =>
             {
-                c.SoftShadow(c.W / 2f + 6, gy + 2, 36f, 8f, .38f, Alpha(snowDeep, 1f));
+                c.SoftShadow(c.DesignW / 2f + 6, gy + 2, 36f, 8f, .38f, Alpha(snowDeep, 1f));
                 // Tall angular glacier boulder: faceted, snow on top.
                 var pts = new[] { new Vector2(30, gy), new Vector2(24, gy + 28), new Vector2(34, gy + 62), new Vector2(50, gy + 78), new Vector2(66, gy + 58), new Vector2(72, gy + 24), new Vector2(66, gy) };
                 var body = Poly(pts);
@@ -233,14 +267,14 @@ namespace Roguehalla.Client
                 int variant = v;
                 Add(l, v == 0 ? "frost.drift" : "frost.drift2", v == 0 ? 144 : 112, v == 0 ? 56 : 48, 8, (c, gy) =>
                 {
-                    float cx = c.W / 2f;
+                    float cx = c.DesignW / 2f;
                     var a = Ellipse(cx - 20 + variant * 10, gy + 8, 40, 16); var b = Ellipse(cx + 22 - variant * 12, gy + 6, 34, 12); var m = Ellipse(cx + 2, gy + 11, 30, 15);
                     var s = SmoothUnion(SmoothUnion(a, b, 8f), m, 8f);
-                    c.SoftShadow(cx + 6, gy, c.W * .42f, 7f, .22f, Alpha(snowDeep, 1f));
+                    c.SoftShadow(cx + 6, gy, c.DesignW * .42f, 7f, .22f, Alpha(snowDeep, 1f));
                     c.Fill(s, Toon(s, snowShade, snow, snowLight, 14f, .04f, 5 + variant, .06f), Alpha(snowDeep, .55f), 1.2f);
                     for (int k = 0; k < 6; k++)
                     {
-                        float x = 10 + RegionNoise.Hash01(k, 4, 9 + variant) * (c.W - 20), y = gy + 4 + RegionNoise.Hash01(k, 5, 9 + variant) * 14;
+                        float x = 10 + RegionNoise.Hash01(k, 4, 9 + variant) * (c.DesignW - 20), y = gy + 4 + RegionNoise.Hash01(k, 5, 9 + variant) * 14;
                         if (s(x, y) < -3f) c.Fill(Capsule(new Vector2(x - 1.6f, y), new Vector2(x + 1.6f, y), .6f, .6f), Flat(Alpha(Color.white, .9f)));
                     }
                 });
@@ -248,7 +282,7 @@ namespace Roguehalla.Client
 
             Add(l, "frost.shards", 112, 124, 10, (c, gy) =>
             {
-                float cx = c.W / 2f;
+                float cx = c.DesignW / 2f;
                 c.SoftShadow(cx + 4, gy + 1, 38f, 8f, .35f, Alpha(snowDeep, 1f));
                 c.Glow(cx, gy + 16, 42f, acc, .20f);
                 Color iceLight = Mix(baseC, Color.white, .75f), iceMid = Mix(acc, baseC, .30f), iceDark = Mix(acc, sec, .55f);
@@ -275,7 +309,7 @@ namespace Roguehalla.Client
 
             Add(l, "frost.reeds", 80, 92, 8, (c, gy) =>
             {
-                float cx = c.W / 2f;
+                float cx = c.DesignW / 2f;
                 c.SoftShadow(cx + 4, gy + 1, 26f, 5f, .25f, Alpha(snowDeep, 1f));
                 Color stem = Mix(baseC, sec, .55f), tip = Mix(baseC, Color.white, .8f);
                 Blades(c, cx - 8, gy, 6, 56, 20, 1.5f, Shade(stem, .85f), tip, 21, .5f);
@@ -293,7 +327,7 @@ namespace Roguehalla.Client
 
             Add(l, "frost.bush", 104, 80, 8, (c, gy) =>
             {
-                float cx = c.W / 2f;
+                float cx = c.DesignW / 2f;
                 c.SoftShadow(cx + 5, gy + 1, 38f, 7f, .35f, Alpha(snowDeep, 1f));
                 var lumps = new[] { (cx - 24f, gy + 16f, 17f), (cx + 22f, gy + 15f, 16f), (cx - 2f, gy + 24f, 22f), (cx - 38f, gy + 8f, 9f), (cx + 38f, gy + 8f, 9f) };
                 var all = new List<Sdf>();

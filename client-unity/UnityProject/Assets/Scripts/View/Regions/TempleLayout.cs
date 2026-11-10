@@ -1,4 +1,8 @@
-// Generated Holy temple (presentation only). The map generator already places a dense hall of 3 x 3 tile pillar blocks inside Holy;
+// Generated Holy temple (presentation only): ONE building seen from above with its roof removed. The footprint is a single hall:
+// the isolated 3 x 3 wall blocks are its great piers on a 6 tile structural grid, the open floor between them is a grid of 3 tile
+// aisles, an open colonnade with a stepped plinth runs round the edge (grand portals on the south, east and west axes, an apse with
+// a dais at the north end), and four towers mark the corners. Nothing here is a wall: the footprint edge crosses ordinary floor.
+// Detection: the map generator already places a dense hall of 3 x 3 tile pillar blocks inside Holy;
 // the client finds that hall from the collision tiles and the public region plane only (features are not on the wire), then grows a
 // square footprint around it that covers roughly 35 to 70 percent of the Holy region, as far as the terrain allows. Inside the
 // footprint the ground, the pillars, the steps and some props get a golden-temple skin; outside stays sand. Nothing here changes
@@ -8,6 +12,8 @@
 //   Contains(tx, ty)   tile is inside the footprint
 //   TryBlock(tx, ty)   tile belongs to a detected pillar block (column, row 0..2 inside the 3 x 3 block)
 //   WeightAt(tx, ty)   0..1 smooth "inside the temple" weight (interior lighting; edge transition about 4 tiles)
+//   InsideTemple(world) / SurfaceMap.InsideTemple(world)   the hook for ambience and footsteps
+//   Center, Portals, Apse*, Lamps, Props   the plan the ground shader, the props and the accent lights all read
 using System.Collections.Generic;
 using UnityEngine;
 using Roguehalla.Net.Protocol;
@@ -32,7 +38,30 @@ namespace Roguehalla.Client
         public int HolyInside { get; private set; }
         public int MapW { get; private set; }
         public float Coverage { get { return HolyTotal > 0 ? HolyInside / (float)HolyTotal : 0f; } }
-        public Vector2 Center { get { return new Vector2(X0 + Size * .5f, Y0 + Size * .5f); } }
+        /// <summary>Structural grid pitch: piers stand 6 tiles apart (3 tile block, 3 tile aisle).</summary>
+        public const float Pitch = 6f;
+        /// <summary>The great crossing: the aisle intersection of the structural grid nearest the footprint centre (under where a main dome would be). The nave runs north-south through it, the cross axis east-west.</summary>
+        public float CenterX { get; private set; }
+        public float CenterY { get; private set; }
+        public Vector2 Center { get { return new Vector2(CenterX, CenterY); } }
+        /// <summary>Phase of the pier lattice: pier centres lie at (PierPhaseX + 6 i, PierPhaseY + 6 j).</summary>
+        public float PierPhaseX { get { return CenterX + Pitch * .5f; } }
+        public float PierPhaseY { get { return CenterY + Pitch * .5f; } }
+        /// <summary>Apse: a half disc of <see cref="ApseRadius"/> centred on (CenterX, ApseY) opening south, at the north end of the nave (0 radius = none).</summary>
+        public float ApseRadius { get; private set; }
+        public float ApseY { get; private set; }
+        public enum Side : byte { South = 0, East = 1, West = 2 }
+        public struct Portal { public Side Side; public float Axis; public bool Open; }
+        /// <summary>Grand portals on the south, east and west axes (<see cref="Portal.Axis"/> = x for south, y for east and west). Index = (int)Side; Open false = none on that side.</summary>
+        public readonly Portal[] Portals = new Portal[3];
+        /// <summary>Lamp stands (tile-space foot positions): pooled accent lights are placed on these when the camera is near.</summary>
+        public readonly List<Vector2> Lamps = new List<Vector2>();
+        /// <summary>Prop keys that are tall enough to need the fade-near-actors rule (everything standing above the floor).</summary>
+        public static bool IsOverhead(string art) { return art != "temple.urn" && art != "temple.bench"; }
+
+        /// <summary>Is this server/world position inside the temple (a hook for ambience, footsteps and the like). World = Unity world space (x = tile, y = -tile * GroundSquash).</summary>
+        public bool InsideTemple(Vector3 world) { return Found && Contains(Mathf.FloorToInt(world.x), Mathf.FloorToInt(-world.y / ArenaView.GroundSquash)); }
+        public bool InsideTempleTile(int tx, int ty) { return Contains(tx, ty); }
         /// <summary>Why no temple was produced (empty when Found).</summary>
         public string Reason { get; private set; }
         /// <summary>Origins (top-left tile) of the pillar blocks inside the footprint.</summary>
@@ -207,37 +236,138 @@ namespace Roguehalla.Client
 
         void BuildDecor(MapBlob map)
         {
-            int w = map.W, h = map.H; var tiles = map.Tiles;
+            int w = map.W, h = map.H; var tiles = map.Tiles; var terrain = map.Terrain;
             int seed = unchecked((int)(map.LayerHash ^ (map.SemanticHash * 2654435761u)));
+            bool Walk(int x, int y)
+            {
+                if (x < 0 || y < 0 || x >= w || y >= h || tiles[y * w + x] != MapBlob.Floor) return false;
+                return terrain == null || terrain[y * w + x] == 0;
+            }
             bool Free(int x, int y, int r)
             {
-                for (int j = -r; j <= r; j++) for (int i = -r; i <= r; i++)
-                { int nx = x + i, ny = y + j; if (nx < 0 || ny < 0 || nx >= w || ny >= h || tiles[ny * w + nx] != MapBlob.Floor) return false; }
+                for (int j = -r; j <= r; j++) for (int i = -r; i <= r; i++) if (!Walk(x + i, y + j)) return false;
                 return true;
             }
+            // The great crossing: the aisle intersection nearest the footprint centre. Pier centres are at (pierX0 + 6 i), aisle centre lines halfway between.
+            float fcx = X0 + Size * .5f, fcy = Y0 + Size * .5f;
+            if (Pillars.Count > 0)
+            {
+                float Snap(float v, float pierC) { float aisle = Mathf.Repeat(pierC + Pitch * .5f, Pitch); return aisle + Pitch * Mathf.Round((v - aisle) / Pitch); }
+                CenterX = Snap(fcx, Pillars[0].x + 1.5f); CenterY = Snap(fcy, Pillars[0].y + 1.5f);
+            }
+            else { CenterX = fcx; CenterY = fcy; }
+            float cx = CenterX, cy = CenterY, x1 = X0 + Size, y1 = Y0 + Size;
+
+            // Apse at the north end (a half disc above the hall; radius limited by the room between the footprint edge and the first pier row).
+            float hallTop = Hall.y;
+            ApseRadius = Mathf.Clamp(hallTop - Y0 - 6f, 0f, 7f); if (ApseRadius < 4f) ApseRadius = 0f;
+            ApseY = Y0 + 3.4f + ApseRadius;
+
             // Corner towers (minaret-like), set in from the perimeter steps.
-            float inset = 1.6f;
-            float[] cxs = { X0 + inset, X0 + Size - inset, X0 + inset, X0 + Size - inset }, cys = { Y0 + inset, Y0 + inset, Y0 + Size - inset, Y0 + Size - inset };
-            for (int k = 0; k < 4; k++) Props.Add(new Decor { Art = "temple.minaret", X = cxs[k], Y = cys[k], Scale = 1f, Flip = k % 2 == 1, Bias = 0 });
-            // Domes over some pillar blocks: a gilded dome sitting on the block's cap (foot raised by the wall height in tile space).
+            float inset = 1.5f;
+            float[] txs = { X0 + inset, x1 - inset, X0 + inset, x1 - inset }, tys = { Y0 + inset, Y0 + inset, y1 - inset, y1 - inset };
+            for (int k = 0; k < 4; k++) Props.Add(new Decor { Art = "temple.minaret", X = txs[k], Y = tys[k], Scale = 1f, Flip = k % 2 == 1, Bias = 0 });
+
+            // Portals: the main axis first, then the neighbouring aisle lines if something solid is in the way.
+            int[] order = { 0, 1, -1, 2, -2 };
+            for (int side = 0; side < 3; side++)
+            {
+                var pt = new Portal { Side = (Side)side, Open = false };
+                foreach (int o in order)
+                {
+                    float axis = (side == 0 ? cx : cy) + o * Pitch; bool ok = true;
+                    for (int d = -1; d <= 1 && ok; d++) for (int depth = 1; depth <= 6 && ok; depth++)
+                    {
+                        int px, py;
+                        if (side == 0) { px = Mathf.FloorToInt(axis) + d; py = Mathf.FloorToInt(y1) - depth; }
+                        else if (side == 1) { px = Mathf.FloorToInt(x1) - depth; py = Mathf.FloorToInt(axis) + d; }
+                        else { px = X0 + depth - 1; py = Mathf.FloorToInt(axis) + d; }
+                        ok = Walk(px, py);
+                    }
+                    if (ok) { pt.Axis = axis; pt.Open = true; break; }
+                }
+                Portals[side] = pt;
+            }
+            bool NearPortal(float x, float y, float reach)
+            {
+                if (Portals[0].Open && y > y1 - 6f && Mathf.Abs(x - Portals[0].Axis) < reach) return true;
+                if (Portals[1].Open && x > x1 - 6f && Mathf.Abs(y - Portals[1].Axis) < reach) return true;
+                if (Portals[2].Open && x < X0 + 6f && Mathf.Abs(y - Portals[2].Axis) < reach) return true;
+                return false;
+            }
+            // Gate piers: two heavy jambs flanking every portal, set on the colonnade line.
+            const float colLine = 2.85f;
+            for (int side = 0; side < 3; side++)
+            {
+                if (!Portals[side].Open) continue; float a = Portals[side].Axis;
+                for (int sgn = -1; sgn <= 1; sgn += 2)
+                {
+                    float gx, gy;
+                    if (side == 0) { gx = a + sgn * 3.2f; gy = y1 - colLine; } else if (side == 1) { gx = x1 - colLine; gy = a + sgn * 3.2f; } else { gx = X0 + colLine; gy = a + sgn * 3.2f; }
+                    if (Walk(Mathf.FloorToInt(gx), Mathf.FloorToInt(gy))) Props.Add(new Decor { Art = "temple.gate", X = gx, Y = gy, Scale = 1f, Flip = sgn > 0, Bias = 0 });
+                }
+            }
+            // Colonnade: slim columns on the arcade line every 3 tiles, offset 1.5 from the grid so the arcade bays sit between them; open at the portals and corners.
+            for (int side = 0; side < 4; side++)
+            {
+                bool horiz = side < 2; float lo = (horiz ? X0 : Y0) + 4.5f, hi = (horiz ? x1 : y1) - 4.5f, ctr = horiz ? cx : cy;
+                for (float u = ctr + 1.5f - 3f * Mathf.Floor((ctr + 1.5f - lo) / 3f); u <= hi; u += 3f)
+                {
+                    float px = horiz ? u : (side == 2 ? X0 + colLine : x1 - colLine), py = horiz ? (side == 0 ? Y0 + colLine : y1 - colLine) : u;
+                    if (NearPortal(px, py, 3.8f) || !Walk(Mathf.FloorToInt(px), Mathf.FloorToInt(py))) continue;
+                    Props.Add(new Decor { Art = "temple.column", X = px, Y = py, Scale = 1f, Flip = ((int)(u / 3f) & 1) == 1, Bias = 0 });
+                }
+            }
+            // Mihrab niche behind the apse dais, with the dais flanked by two braziers and two screens.
+            if (ApseRadius > 0f)
+            {
+                float my = ApseY - ApseRadius + .9f;
+                if (Walk(Mathf.FloorToInt(cx), Mathf.FloorToInt(my))) Props.Add(new Decor { Art = "temple.mihrab", X = cx, Y = my, Scale = 1f, Flip = false, Bias = 0 });
+                foreach (int sg in new[] { -1, 1 })
+                {
+                    float bx = cx + sg * (ApseRadius * .55f), by = ApseY - ApseRadius * .55f;
+                    if (Walk(Mathf.FloorToInt(bx), Mathf.FloorToInt(by))) { Braziers.Add(new Vector2(Mathf.Floor(bx) + .5f, Mathf.Floor(by) + .5f)); Props.Add(new Decor { Art = "temple.brazier", X = Mathf.Floor(bx) + .5f, Y = Mathf.Floor(by) + .5f, Scale = 1f, Bias = 0 }); }
+                    float sx = cx + sg * (ApseRadius + 1.5f), sy = ApseY - 1.2f;
+                    if (Walk(Mathf.FloorToInt(sx), Mathf.FloorToInt(sy)) && !TryBlock(Mathf.FloorToInt(sx), Mathf.FloorToInt(sy), out _, out _)) Props.Add(new Decor { Art = "temple.screen", X = sx, Y = sy, Scale = 1f, Flip = sg > 0, Bias = 0 });
+                }
+            }
+            // Braziers just inside each portal.
+            for (int side = 0; side < 3; side++)
+            {
+                if (!Portals[side].Open) continue; float a = Portals[side].Axis;
+                foreach (int sg in new[] { -1, 1 })
+                {
+                    float bx, by;
+                    if (side == 0) { bx = a + sg * 2.3f; by = y1 - 5.6f; } else if (side == 1) { bx = x1 - 5.6f; by = a + sg * 2.3f; } else { bx = X0 + 5.6f; by = a + sg * 2.3f; }
+                    int tx = Mathf.FloorToInt(bx), ty = Mathf.FloorToInt(by);
+                    if (!Free(tx, ty, 0) || TryBlock(tx, ty, out _, out _) || Braziers.Count >= 8) continue;
+                    Braziers.Add(new Vector2(tx + .5f, ty + .5f));
+                    Props.Add(new Decor { Art = "temple.brazier", X = tx + .5f, Y = ty + .5f, Scale = 1f, Bias = 0 });
+                }
+            }
+            // Lamp stands on the aisle edges just south of some piers (each one is also a pooled accent light site), and a few urns and benches.
             foreach (var o in Pillars)
             {
-                if (RegionNoise.Hash01(o.x, o.y, seed + 41) > .38f) continue;
-                Props.Add(new Decor { Art = "temple.dome", X = o.x + 1.5f, Y = o.y + 1.5f - RegionWalls.WallHeight / ArenaView.GroundSquash, Scale = 1f, Flip = false, Bias = 26 });
+                float r = RegionNoise.Hash01(o.x, o.y, seed + 41);
+                if (r > .34f || Lamps.Count >= 10 || o.x - X0 < 4 || o.y - Y0 < 4 || X0 + Size - o.x < 8 || Y0 + Size - o.y < 8) continue;
+                float lx = o.x + (r < .17f ? .35f : 2.65f), ly = o.y + 3.6f; int tx = Mathf.FloorToInt(lx), ty = Mathf.FloorToInt(ly);
+                if (!Free(tx, ty, 0) || TryBlock(tx, ty, out _, out _)) continue;
+                Lamps.Add(new Vector2(lx, ly));
+                Props.Add(new Decor { Art = "temple.lamp", X = lx, Y = ly, Scale = 1f, Flip = r < .17f, Bias = 0 });
             }
-            // Braziers: the four axis points around the medallion, and mid-edge pairs just inside the steps. Only on free floor tiles.
-            var c = Center; float arm = Mathf.Round(Size * .22f);
-            var spots = new List<Vector2>
+            int urns = 0, benches = 0;
+            for (int side = 0; side < 4 && urns + benches < 14; side++)
             {
-                new Vector2(c.x - 4.5f, c.y - 4.5f), new Vector2(c.x + 4.5f, c.y - 4.5f), new Vector2(c.x - 4.5f, c.y + 4.5f), new Vector2(c.x + 4.5f, c.y + 4.5f),
-                new Vector2(c.x - arm, c.y), new Vector2(c.x + arm, c.y), new Vector2(c.x, c.y - arm), new Vector2(c.x - 2.6f, c.y + arm),
-            };
-            foreach (var s in spots)
-            {
-                int tx = Mathf.FloorToInt(s.x), ty = Mathf.FloorToInt(s.y);
-                if (!Free(tx, ty, 1) || (TryBlock(tx, ty, out _, out _)) || Braziers.Count >= 8) continue;
-                Braziers.Add(new Vector2(tx + .5f, ty + .5f));
-                Props.Add(new Decor { Art = "temple.brazier", X = tx + .5f, Y = ty + .5f, Scale = 1f, Flip = false, Bias = 0 });
+                bool horiz = side < 2; float lo = (horiz ? X0 : Y0) + 7f, hi = (horiz ? x1 : y1) - 7f;
+                for (float u = lo; u <= hi; u += 3f)
+                {
+                    float r = RegionNoise.Hash01((int)(u * 4f), side, seed + 77); if (r > .22f) continue;
+                    float inner = 4.6f; float px = horiz ? u : (side == 2 ? X0 + inner : x1 - inner), py = horiz ? (side == 0 ? Y0 + inner : y1 - inner) : u;
+                    int tx = Mathf.FloorToInt(px), ty = Mathf.FloorToInt(py);
+                    if (NearPortal(px, py, 4.5f) || !Free(tx, ty, 0) || TryBlock(tx, ty, out _, out _) || ApseRadius > 0f && Mathf.Abs(px - cx) < ApseRadius + 3f && py < ApseY + 1f) continue;
+                    bool bench = r < .11f; if (bench) benches++; else urns++;
+                    Props.Add(new Decor { Art = bench ? "temple.bench" : "temple.urn", X = tx + .5f, Y = ty + .5f, Scale = 1f, Flip = r < .05f, Bias = 0 });
+                }
             }
         }
     }

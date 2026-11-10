@@ -21,8 +21,44 @@ const baseUrl = process.env.RH_SHOTS_URL || 'http://127.0.0.1:8127/';
 const wsUrl = process.env.RH_SHOTS_WS || 'ws://127.0.0.1:7827/ws';
 const extra = process.env.RH_SHOTS_QUERY || '';
 const W = Number(opt('w', 1920)), H = Number(opt('h', 1080));
+const temple = opt('temple', '');       // "name:tileX:tileY,..." walk the hero to each tile (right-click on the minimap) and take a shot there (the Holy temple tour)
+const MAP_TILES = 160;
 
-const lumas = [];
+// Mirrors HudLayout.MinimapSize (user scale 1), in CSS px (same as hud-shots.cjs / vision-shots.cjs).
+function legacyScale(w, h) { const stageW = w / h <= 21 / 9 ? w : Math.floor(h * 21 / 9); return Math.min(1.5, Math.max(0.8, Math.min(stageW / 1280, h / 800))); }
+function minimapRect(w, h, s) {
+  const uiW = Math.floor(w / s), uiH = Math.floor(h / s);
+  const wanted = Math.min(312, Math.max(195, Math.round(uiH * 0.338)));
+  const room = Math.floor(uiW / 2 - 12 - 152);
+  const size = Math.round(Math.min(Math.min(wanted, Math.max(110, room)), uiW * 0.42, uiH * 0.6));
+  return { x: w - (12 + size) * s, y: h - (12 + size) * s, size: size * s };
+}
+// The hero's tile from the minimap's own player marker (light blue), averaged over its pixels; null when not visible.
+async function selfTile(page) {
+  const mini = minimapRect(W, H, legacyScale(W, H));
+  const buf = await page.screenshot({ clip: { x: mini.x, y: mini.y, width: mini.size, height: mini.size } });
+  return page.evaluate(async ([b64, size]) => {
+    const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
+    const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+    const d = g.getImageData(0, 0, c.width, c.height).data; let sx = 0, sy = 0, n = 0;
+    for (let i = 0; i < d.length; i += 4) if (Math.abs(d[i] - 137) <= 14 && Math.abs(d[i + 1] - 206) <= 14 && Math.abs(d[i + 2] - 246) <= 14) { const k = i / 4; sx += k % c.width; sy += Math.floor(k / c.width); n++; }
+    return n > 3 ? { tx: sx / n / c.width * 160, ty: sy / n / c.height * 160, n } : null;
+  }, [buf.toString('base64'), mini.size]);
+}
+// Right-click the minimap at a tile (the server walks the hero there); re-issued every 8 s until the hero is within 2.5 tiles or the time is up.
+async function walkTo(page, tx, ty, timeoutMs) {
+  const mini = minimapRect(W, H, legacyScale(W, H));
+  const click = async () => { await page.mouse.move(mini.x + mini.size * tx / MAP_TILES, mini.y + mini.size * ty / MAP_TILES); await page.waitForTimeout(150); await page.mouse.down({ button: 'right' }); await page.waitForTimeout(90); await page.mouse.up({ button: 'right' }); };
+  const t0 = Date.now(); let last = Date.now(), pos = null; await click();
+  while (Date.now() - t0 < timeoutMs) {
+    await page.waitForTimeout(1500); pos = await selfTile(page);
+    if (pos && Math.hypot(pos.tx - tx, pos.ty - ty) < 2.5) return pos;
+    if (Date.now() - last > 8000) { await click(); last = Date.now(); }
+  }
+  return pos;
+}
+
+const lumas = []; let regionNowGlobal = () => 'unknown';
 // Objective brightness check: Rec.709 luma of the sRGB pixels (0..1), computed in the page from the screenshot (downscaled to 480 wide).
 async function lumaStats(page, buf) {
   return page.evaluate(async b64 => {
@@ -62,7 +98,7 @@ async function session(faction, label, body) {
   const page = await context.newPage();
   const errors = [], logs = [], audio = [];
   let matchStart = 0;
-  let regionNow = 'unknown';
+  let regionNow = 'unknown'; regionNowGlobal = () => regionNow;
   page.on('console', m => { const t = m.text(); logs.push(`[${m.type()}] ${t}`); const r = /\[atmosphere\] region (\w+)/.exec(t); if (r) regionNow = r[1].toLowerCase(); if (m.type() === 'error') errors.push(t); });
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
   page.on('requestfinished', async r => {
@@ -111,10 +147,35 @@ async function session(faction, label, body) {
     });
     process.exit(0);
   }
-  if (!walk) for (const f of factions) {
+  if (!walk && !temple) for (const f of factions) {
     const { errors, audio } = await session(f, names[f], async (page, shot) => { await shot(`${names[f]}-1`); await page.waitForTimeout(4000); await shot(`${names[f]}-2`); });
     console.log(`  ${names[f]}: audio requests`, audio.map(a => `${a.url}@${a.afterMatchStartMs}ms`).join(', ') || 'none');
     if (errors.length) { failed = true; console.error(`  ${names[f]}: ${errors.length} console error(s):\n    ` + errors.slice(0, 6).join('\n    ')); }
+  }
+  if (temple) {
+    // The server picks the spawn at random among the options, so retry fresh matches until the hero starts near where the tour begins (RH_SHOTS_NEAR="x,y,radius" in tiles).
+    const faction = factions[0]; const near = (process.env.RH_SHOTS_NEAR || '').split(',').map(Number);
+    let done = false, errs = [];
+    for (let attempt = 0; attempt < Number(process.env.RH_SHOTS_ATTEMPTS || 8) && !done; attempt++) {
+      const { errors } = await session(faction, `temple-${names[faction]}`, async (page, shot) => {
+        const start = await selfTile(page); console.log(`  attempt ${attempt}: hero starts at`, start ? `${start.tx.toFixed(1)},${start.ty.toFixed(1)} (region ${regionNowGlobal()})` : 'unknown');
+        if (near.length === 3 && (!start || Math.hypot(start.tx - near[0], start.ty - near[1]) > near[2])) { console.log('  too far from the tour start, new match'); return; }
+        done = true; if (process.env.RH_SHOTS_PROBE) return;
+        const t0 = Date.now(); const budgetMs = Number(process.env.RH_SHOTS_BUDGET_MS || 200000);      // the raid ends about four minutes after it starts
+        for (const spec of temple.split(',')) {
+          if (Date.now() - t0 > budgetMs) { console.log('  out of time, skipping', spec); continue; }
+          const [name, x, y] = spec.split(':');
+          if (x === 'here') { await page.mouse.move(W / 2, H / 3); await page.waitForTimeout(900); await shot(name); continue; }      // shoot where the hero stands
+          const tx = Number(x), ty = Number(y);
+          const pos = await walkTo(page, tx, ty, Number(process.env.RH_SHOTS_WALK_MS || 60000));
+          console.log(`  ${name}: wanted ${tx},${ty} hero at`, pos ? `${pos.tx.toFixed(1)},${pos.ty.toFixed(1)}` : 'unknown');
+          await page.mouse.move(W / 2, H / 3); await page.waitForTimeout(1200);
+          await shot(name);
+        }
+      });
+      errs = errs.concat(errors);
+    }
+    if (errs.length) { failed = true; console.error(errs.slice(0, 6).join('\n')); }
   }
   if (walk) {
     const [f, key, secs] = walk.split(':'); const faction = Number(f);

@@ -1,0 +1,212 @@
+[
+ {
+  "shot": "F1-holy-a-spawn",
+  "region": "holy",
+  "mean": 0.519,
+  "p95": 0.753,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.483,
+    "darkEdge": 6.14,
+    "lightEdge": 0.97,
+    "contrast": 6.14
+   },
+   "bar": {
+    "ground": 0.476,
+    "darkEdge": 8.37,
+    "lightEdge": 1.24,
+    "contrast": 8.37
+   }
+  }
+ },
+ {
+  "shot": "F1-holy-b-centre",
+  "region": "holy",
+  "mean": 0.572,
+  "p95": 0.786,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.618,
+    "darkEdge": 4.92,
+    "lightEdge": 1.16,
+    "contrast": 4.92
+   },
+   "bar": {
+    "ground": 0.597,
+    "darkEdge": 8.29,
+    "lightEdge": 1.04,
+    "contrast": 8.29
+   }
+  }
+ },
+ {
+  "shot": "F1-holy-c-apse",
+  "region": "holy",
+  "mean": 0.549,
+  "p95": 0.798,
+  "clipped": 0.09,
+  "contrast": {
+   "sprite": {
+    "ground": 0.033,
+    "darkEdge": 1.32,
+    "lightEdge": 1,
+    "contrast": 1.32
+   },
+   "bar": {
+    "ground": 0.035,
+    "darkEdge": 1.38,
+    "lightEdge": 10.68,
+    "contrast": 10.68
+   }
+  }
+ },
+ {
+  "shot": "F2-holy-a-spawn",
+  "region": "holy",
+  "mean": 0.558,
+  "p95": 0.805,
+  "clipped": 0.05,
+  "contrast": {
+   "sprite": {
+    "ground": 0.495,
+    "darkEdge": 5.22,
+    "lightEdge": 1.23,
+    "contrast": 5.22
+   },
+   "bar": {
+    "ground": 0.36,
+    "darkEdge": 6.85,
+    "lightEdge": 1.46,
+    "contrast": 6.85
+   }
+  }
+ },
+ {
+  "shot": "F2-holy-b-portal",
+  "region": "holy",
+  "mean": 0.587,
+  "p95": 0.771,
+  "clipped": 0.05,
+  "contrast": {
+   "sprite": {
+    "ground": 0.364,
+    "darkEdge": 5.8,
+    "lightEdge": 0.93,
+    "contrast": 5.8
+   },
+   "bar": {
+    "ground": 0.338,
+    "darkEdge": 6.95,
+    "lightEdge": 0.99,
+    "contrast": 6.95
+   }
+  }
+ },
+ {
+  "shot": "F2-holy-c-outside",
+  "region": "holy",
+  "mean": 0.575,
+  "p95": 0.767,
+  "clipped": 0.05,
+  "contrast": {
+   "sprite": {
+    "ground": 0.437,
+    "darkEdge": 6.08,
+    "lightEdge": 1.26,
+    "contrast": 6.08
+   },
+   "bar": {
+    "ground": 0.337,
+    "darkEdge": 6.76,
+    "lightEdge": 1.54,
+    "contrast": 6.76
+   }
+  }
+ },
+ {
+  "shot": "F3-plague-a-plague",
+  "region": "plague",
+  "mean": 0.206,
+  "p95": 0.394,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.04,
+    "darkEdge": 1.63,
+    "lightEdge": 3.52,
+    "contrast": 3.52
+   },
+   "bar": {
+    "ground": 0.068,
+    "darkEdge": 2.24,
+    "lightEdge": 4.96,
+    "contrast": 4.96
+   }
+  }
+ },
+ {
+  "shot": "F3-plague-b-plague",
+  "region": "plague",
+  "mean": 0.207,
+  "p95": 0.389,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.042,
+    "darkEdge": 1.65,
+    "lightEdge": 3.47,
+    "contrast": 3.47
+   },
+   "bar": {
+    "ground": 0.081,
+    "darkEdge": 2.49,
+    "lightEdge": 4.46,
+    "contrast": 4.46
+   }
+  }
+ },
+ {
+  "shot": "G-holy-a-s2",
+  "region": "holy",
+  "mean": 0.526,
+  "p95": 0.745,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.402,
+    "darkEdge": 4.53,
+    "lightEdge": 1.1,
+    "contrast": 4.53
+   },
+   "bar": {
+    "ground": 0.307,
+    "darkEdge": 6.31,
+    "lightEdge": 1.39,
+    "contrast": 6.31
+   }
+  }
+ },
+ {
+  "shot": "G-holy-b-s2",
+  "region": "holy",
+  "mean": 0.528,
+  "p95": 0.747,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.404,
+    "darkEdge": 4.51,
+    "lightEdge": 1.1,
+    "contrast": 4.51
+   },
+   "bar": {
+    "ground": 0.308,
+    "darkEdge": 6.32,
+    "lightEdge": 1.39,
+    "contrast": 6.32
+   }
+  }
+ }
+]
