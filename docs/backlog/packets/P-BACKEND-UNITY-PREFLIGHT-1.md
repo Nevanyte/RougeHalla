@@ -57,3 +57,51 @@ After Root selects exact cuts and creates the isolated candidate:
 ## Exact lease still required
 
 This packet grants no write access. After Card and Quest Room admission and clean-cut review, Root should create the isolated worktree and issue DeepSeek a path-and-hunk lease covering only the shared version consumers that truly differ, the three existing Card/NPC/Quest test files needed for the focused proofs, and any generated native identity files only after the later recorder authorization. Keep primary, `optimization_port`, client files, Unity history, wire codecs, source fixtures/tools, and unrelated backend features outside that lease. Root owns cut selection, version reservation, merge operations, release, and deployment.
+
+## Active Root allocation — isolated preflight only (2026-11-10)
+
+This allocation supersedes the plan-only execution status above. Root approves the independently reviewed plan
+SHA256 `102e81e5bbd32fee13f40567da5c89e82e3f13fd1c1e56978e41ea9b8fa5e5d2`, frozen in `a9b21a0d`, and
+the exact [dispatch scope](../../evidence/backend-unity-preflight-plan-review/dispatch-scope.md).
+Card is admitted as `37a02542` with seven actual Root checks passing; Quest Room is admitted as `63dbe68a` with
+Root's5-test bridge and format passing. Source/private Brain implementation remains separate and active.
+
+Root selects clean primary `bb0c1cad790cbba729d3a8d8ddafe6abecc93eb8` for this local preflight. Its Rust/protocol/
+Cargo.lock bytes are unchanged since `e438c100` (verified read-only); subsequent surface/audio/client work is not
+an additional Rust lease. The backend parent is the Root commit containing this allocation, after `a9b21a0d`.
+Root creates branch `codex/backend-unity-preflight` at
+`/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-unity-preflight`, then begins an explicit
+`--no-commit --no-ff` merge of that fixed primary SHA. The worktree is intentionally in an unresolved merge state;
+it is not claimed clean/runnable before DeepSeek resolves the allocated hunks. Canonical `optimization_port`, primary,
+all Claude worktrees and original worker trees remain untouched. No push, final merge, client build or deployment.
+
+Root reserves **checkpoint31/replay25/OBS23/policy17 with wire16 unchanged** for this exact isolated union. Both
+parents still use30/24/22/16 for different semantics. Recheck later drift before final admission; this is not a claim
+that those formats are already deployed. Preserve both branches' gameplay, privacy, strict intake, cache and hash leaves.
+
+DeepSeek's initial write lease is EXACTLY the15 Rust paths and one JSON path in the dispatch-scope tables: five
+conflicted Rust paths, seven additional internal-version consumers, three existing selected-mode proof files, and
+`parity/abilities/hash-tape.json` solely as the exact stale backend placeholder initially. The regenerated preview at
+backend`c5f26d88`/primary`bb0c1cad` has tree`da0d42da6d0b0096969fe7a8319f85fe93beca0d` and the same six textual
+conflict paths as the reviewed preview. Root will record the actual merge state after worktree creation. No whole-file
+ours/theirs for Rust, generic defaulting, source-oracle change, hidden-state action, actor-mode flip after spawn, or
+new gameplay rule is allocated. Read and preserve the verified automatic union hunks; report any genuine compile/
+semantic obstruction outside these exact hunks with its function/path. Root retains git staging/merge completion.
+
+NEW sanitized evidence may be written only under `docs/evidence/backend-unity-preflight/`; build/test logs and private
+checkpoint transcripts otherwise stay outside Git. Do not edit shared status records, Cargo.lock, protocol vectors,
+client/Unity files, source fixtures/tools/manifests, the existing Brain implementation, or hosting scripts.
+
+Use the pinned Rust1.97 toolchain, offline/locked/jobs1, `CARGO_INCREMENTAL=0`, debug/test debug0 and an isolated
+`target-deepseek-backend-unity-preflight`. Execute all three real Archetypes proofs plus unchanged LegacyCircle
+ability63/Card7/390-step/NPC/Quest controls and the affected existing runtime/geometry/height/checkpoint/privacy/
+capacity filters. Run scoped format and strict default/all-feature all-target lint for `rh-sim`, `rh-policy`,
+`rh-server` and `rh-headless`; no full workspace/Postgres/browser campaign in this packet. Both-mode headless soak
+preservation remains required. Record exact commands/results rather than an inferred aggregate pass.
+
+The stale native tape and content golden are intentionally NOT pre-recorder acceptance prerequisites. Preserve any
+genuine mismatch. After final-semantic source and selected-mode producer gates pass, report those actual receipts
+promptly so Root can separately authorize ONLY the existing native recorder and single derived golden pin. Then
+run unchanged tape/content/hash-coverage admission. No tape fold splicing, source recapture or source expectation
+refresh. Finish a complete scoped manifest after final gates; Root seals only exact reviewed bytes and revalidates
+primary drift at the later handoff. No communication with Claude before17:30UTC/10:30am Edmonton.

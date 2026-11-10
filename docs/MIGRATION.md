@@ -17,6 +17,12 @@ browser/build evidence, final tests/licences, both reports or the final **Opus**
 Claude consuming it and rerunning the final client/server gates, then a squash of the completed Unity work and Opus
 review of the exact combined runtime/map/flags before AWS activation. No final release or Opus pass is claimed yet.
 
+Root is preparing an [independently reviewed isolated preflight](backlog/packets/P-BACKEND-UNITY-PREFLIGHT-1.md)
+before that handoff window, using fixed backend/primary commits in a separate worktree. It resolves version/merge
+seams and exercises the real NPC bleed, Card flush and Quest Room flows with Archetypes while retaining legacy
+source gates. It does not modify Claude's checkout, contact him early, merge into canonical branches, build Unity,
+or authorize release. Final primary drift, shared artifacts and all release gates are still reconciled after17:30UTC.
+
 Backend Card work reserves checkpoint30/replay24/OBS22/policy16 with unchanged wire14. Claude's separate hitbox work
 uses the same provisional numbers plus wire16; the second merge must renumber the combined identities (expected
 31/25/23/17, subject to final tree review), regenerate derived fixtures and build the server/client together. Never
