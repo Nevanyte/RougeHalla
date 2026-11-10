@@ -41,12 +41,14 @@ it inventories consumed facts and missing providers and authorizes no wire/publi
 
 **Current private composition work:** the [Brain plan review](evidence/bot-brain-native-plan-review/README.md)
 requires exact caller service/cache identity, all-command Memory.noteSent, Send-compatible persistent callbacks and
-mutable module-goal context before full native Brain dispatch. The independent borrowed path-allowance bridge is
-dispatched from `37403399` in isolated `backend-bot-path-budget`; the reviewed Strategy composition bridge is
-dispatched from `bed245bd` in `backend-bot-strategy-composition`. Tactics' first completed candidate remains HOLD for
-same-entrypoint intake/nonadvance, specialized tagged-object order and direct-endpoint exactness; DeepSeek is repairing
-those concrete review findings. Root accepts its real private full-tier Reflexes variance because the old TierId-only
-component cannot represent resolved source overrides; old Reflex overlap remains required. Modules and Card continue
+mutable module-goal context before full native Brain dispatch. The borrowed path-allowance bridge `5d351cb5` is
+independently admitted as `07babf29` + `6b4dbfad`, with Root's three integrated path tests passing. The reviewed Strategy
+composition bridge is dispatched from `bed245bd` in `backend-bot-strategy-composition`. Tactics is independently
+released at `cdf5b70f` and integrated as `df62934a`; [follow-up review](evidence/bot-private-tactics-admission-review/follow-up.md)
+clears same-entrypoint intake/nonadvance, specialized tagged-object order and direct-endpoint exactness. Author18 focused,
+154/720 source plus recreate/compatibility and238 full library pass with final lint/format. Root's integrated focused
+check is running. The accepted real private full-tier Reflexes variance preserves the old68-row overlap; the old
+TierId-only component cannot represent resolved source overrides. Modules and Card continue
 under their existing leases. The test-only potion-fact proof `aa05af1c` is independently admitted as `ae29dc1b`;
 [Root's integrated focused check](evidence/bot-potion-fact-admission-review/README.md) passes5. It verifies same-sample
 Active owner healing eligibility, overlap/expiry, cleanup and mid-HOT restore, with explicit Ended and missing-inventory

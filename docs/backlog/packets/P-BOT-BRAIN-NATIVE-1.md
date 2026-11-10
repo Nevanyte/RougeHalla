@@ -18,11 +18,11 @@ they must never be installed as native component state or fed back as native inp
 
 **No native dispatch is granted by this packet.** The feature-aware Hand seam is admitted at source candidate
 `76f8a9aadb7decfa4532c02f03403867d3816339`, integrated as `483c149018eb648b1d7904ab9d82cb297cf8a238`, with Root's
-binding review `2436ed80`. Tactics' native candidate remains **HOLD** pending its documented repair and independent
-review; Modules' native APIs remain **WIP**. The persistent callback/mutable-goal Strategy bridge in
+binding review `2436ed80`. Tactics is independently admitted from `cdf5b70f` as `df62934a` after its documented repairs;
+Modules' native APIs remain **WIP**. The persistent callback/mutable-goal Strategy bridge in
 [P-BOT-STRATEGY-COMPOSITION-BRIDGE-1](P-BOT-STRATEGY-COMPOSITION-BRIDGE-1.md) and borrowed path-budget bridge in
-[P-BOT-PATH-BUDGET-1](P-BOT-PATH-BUDGET-1.md) are not admissions. The path bridge is independently dispatched from
-`37403399` in `backend-bot-path-budget`; the Strategy bridge awaits its separate review/dispatch. Root must verify
+[P-BOT-PATH-BUDGET-1](P-BOT-PATH-BUDGET-1.md) are separately scoped. The path bridge is independently admitted from
+`5d351cb5` as `07babf29` + `6b4dbfad`; the reviewed Strategy bridge is dispatched from `bed245bd`. Root must verify
 and seal all remaining exact dependency commits/reviews before Brain dispatch. No crate-wide or blanket existing-file
 lease is proposed. Root assigns the clean base, target, exact path lease and dispatch after those gates; DeepSeek owns
 all Rust and tests.
