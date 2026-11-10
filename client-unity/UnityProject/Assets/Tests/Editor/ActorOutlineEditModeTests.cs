@@ -41,6 +41,29 @@ namespace Roguehalla.Client.Tests
         Transform Root(int index = 0) { int n = 0; for (int i = 0; i < _parent.childCount; i++) if (_parent.GetChild(i).name == "Observed actor" && n++ == index) return _parent.GetChild(i); return null; }
         static SpriteRenderer Find(Transform root, string name) { foreach (var r in root.GetComponentsInChildren<SpriteRenderer>(true)) if (r.gameObject.name == name) return r; return null; }
 
+        [Test] public void NoEnlargedOffsetOrStaticCopyOfTheBodyIsDrawn()
+        {
+            // Owner feedback: a faint delayed ghost copy behind the character. The only things behind the body are the stroke (a child of the body, same frame), the
+            // contact shadow and the footprint; there is no scaled or offset copy of the sprite and the faction mantle is off.
+            Present(40, faction: FactionId.Sentenced);
+            var root = Root(); var body = Find(root, "Authored character");
+            Assert.That(ShowcaseIdentityOwner.MantleEnabled, Is.False);
+            var mantle = Find(root, "Faction mantle"); Assert.That(mantle == null || !mantle.enabled, Is.True, "the faction silhouette behind the body is not drawn");
+            Assert.That(Find(root, "Character light rim"), Is.Null); Assert.That(Find(root, "Character contrast rim").transform.parent, Is.SameAs(body.transform));
+            foreach (var r in root.GetComponentsInChildren<SpriteRenderer>(true))
+                if (r.enabled && r != body && r.sprite == body.sprite && r.gameObject.name != "Authored character")
+                    Assert.Fail(r.gameObject.name + " draws the body's own sprite as a copy");
+            // the stroke follows the body's transform in the same frame: same parent chain, so identical position and rotation, and the sprite it rebuilds from is the body's
+            var rim = Find(root, "Character contrast rim");
+            Assert.That(rim.transform.rotation, Is.EqualTo(body.transform.rotation).Using(new QuaternionComparer()));
+        }
+
+        sealed class QuaternionComparer : System.Collections.Generic.IEqualityComparer<Quaternion>
+        {
+            public bool Equals(Quaternion a, Quaternion b) { return Quaternion.Angle(a, b) < .01f; }
+            public int GetHashCode(Quaternion q) { return q.GetHashCode(); }
+        }
+
         [Test] public void ShaderIsInTheBuildAndSupported()
         {
             var shader = Resources.Load<Shader>(SpriteOutline.ShaderPath);

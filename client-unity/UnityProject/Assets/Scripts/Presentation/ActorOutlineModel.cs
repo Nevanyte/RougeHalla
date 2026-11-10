@@ -20,7 +20,7 @@ namespace Roguehalla.Client
         /// <summary>Stroke width in world units (final size on screen: 60 px per unit at 1080p, so 3 px; 4 px at 1440p: the same share of the figure).</summary>
         public const float Width = .05f;
         /// <summary>Radius (world units) and peak opacity of the calming halo around a figure on dark and mid ground (see RhActorOutline.shader).</summary>
-        public const float HaloRadius = .34f, HaloStrength = .7f;
+        public const float HaloRadius = .16f, HaloStrength = .7f;
 
         /// <summary>Stroke width of marker outlines (hp track, footprint, insignia plate).</summary>
         public const float MarkerWidth = .04f;

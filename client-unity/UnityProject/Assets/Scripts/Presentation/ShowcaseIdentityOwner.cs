@@ -16,6 +16,8 @@ namespace Roguehalla.Client
         bool _configured;
         int _sortingBase = int.MinValue;
         public bool StandaloneFactionBadge { get; set; } = true;
+        /// <summary>The faction mantle silhouette behind a player's body. Off: it stuck out unevenly behind an animated body and read as a ghost copy.</summary>
+        public static bool MantleEnabled = false;
         /// <summary>The faction mantle renderer (the contrast outline attaches to it).</summary>
         public SpriteRenderer Mantle { get { EnsureRenderers(); return _mantle; } }
 
@@ -50,7 +52,9 @@ namespace Roguehalla.Client
             Sprite roleGlyph = knownMob ? ShowcaseIdentityAssets.GetRoleGlyph(role) : ShowcaseIdentityAssets.GetNeutralGlyph();
             Sprite eliteGlyph = elite && mobType.HasValue ? ShowcaseIdentityAssets.GetEliteGlyph(mobType.Value) : ShowcaseIdentityAssets.GetNeutralGlyph();
 
-            Set(_mantle, mantle, show && kind == ActorKind.Player, groundSortingOrder - 2);
+            // The static faction silhouette behind the body is gone: it did not animate with the figure, so it read as a second, fainter model. Faction identity is carried by
+            // the footprint, the insignia plate and the body tint (owner feedback; contrast brief).
+            Set(_mantle, mantle, show && kind == ActorKind.Player && MantleEnabled, groundSortingOrder - 2);
             Set(_factionBack, ShowcaseIdentityAssets.GetBadgeBackdrop(), show && StandaloneFactionBadge, groundSortingOrder + 4);
             Set(_factionGlyph, factionGlyph, show && StandaloneFactionBadge, groundSortingOrder + 5);
             Set(_roleBack, ShowcaseIdentityAssets.GetBadgeBackdrop(), show && knownMob, groundSortingOrder + 4);

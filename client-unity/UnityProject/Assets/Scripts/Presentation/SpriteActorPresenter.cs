@@ -15,7 +15,7 @@ namespace Roguehalla.Client
             public GameObject Root;
             public SpriteRenderer Body, Shadow, Halo, RuneBack, Rune, Hp, HpBack, Barrier, Weapon, Status;
             public ShowcaseIdentityOwner Identity;
-            public SpriteOutline OutBody, OutMantle, OutWeapon, OutHp, OutFoot, OutInsignia; // CONTRAST: adaptive neutral outlines (SpriteOutline.cs)
+            public SpriteOutline OutBody, OutWeapon, OutHp, OutFoot, OutInsignia; // CONTRAST: adaptive neutral outlines (SpriteOutline.cs)
             public SpriteRenderer[] BarrierRing;
             public SpriteRenderer[] StatusIcons;
             public SpriteRenderer[] SignatureIcons;
@@ -406,7 +406,6 @@ namespace Roguehalla.Client
                 bool darkGround = AtmosphereShadows.GroundIsDark(x / 32f, y / 32f);
                 float bodyAlpha = ActorOutlineModel.StateAlpha(dead, hiddenAlpha > 0f ? hiddenAlpha : 1f);
                 a.OutBody.Sync(order - 1, bodyAlpha, darkGround);
-                a.OutMantle.Sync(order - 3, bodyAlpha, darkGround);
                 a.OutWeapon.Sync(a.Weapon.sortingOrder - 1, bodyAlpha, darkGround);
                 a.OutHp.Sync(a.HpBack.sortingOrder - 1, 1f, darkGround);
                 a.OutFoot.Sync(a.Halo.sortingOrder - 1, 1f, darkGround);
@@ -482,7 +481,6 @@ namespace Roguehalla.Client
             // CONTRAST: one adaptive neutral outline per figure and per gated marker (SpriteOutline.cs); faction identity stays in shape and in the colour inside.
             a.OutBody = new SpriteOutline(a.Body, "Character contrast rim", ActorOutlineModel.Width, ActorOutlineModel.HaloRadius);
             a.OutWeapon = new SpriteOutline(a.Weapon, "Equipped weapon cue outline", ActorOutlineModel.MarkerWidth);
-            a.OutMantle = new SpriteOutline(a.Identity.Mantle, "Faction mantle outline", ActorOutlineModel.Width);
             a.OutHp = new SpriteOutline(a.HpBack, "Health and barrier track outline", ActorOutlineModel.MarkerWidth);
             a.OutFoot = new SpriteOutline(a.Halo, "Faction footprint outline", ActorOutlineModel.MarkerWidth);
             a.OutInsignia = new SpriteOutline(a.RuneBack, "Faction insignia backplate outline", ActorOutlineModel.MarkerWidth);

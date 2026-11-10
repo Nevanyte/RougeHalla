@@ -228,7 +228,6 @@ namespace Roguehalla.Client.Tests
             Assert.That(ContrastLabStage.ClassOf("Faction footprint outline"), Is.EqualTo(ContrastLabStage.ClassFootprint));
             Assert.That(ContrastLabStage.ClassOf("Faction insignia backplate outline"), Is.EqualTo(ContrastLabStage.ClassInsignia));
             Assert.That(ContrastLabStage.ClassOf("Equipped weapon cue outline"), Is.EqualTo(ContrastLabStage.ClassSilhouette));
-            Assert.That(ContrastLabStage.ClassOf("Faction mantle outline"), Is.EqualTo(ContrastLabStage.ClassSilhouette));
             Assert.That(ContrastLabStage.ClassOf("Contact shadow"), Is.EqualTo(ContrastLabStage.ClassShadow));
             Assert.That(ContrastLabStage.ClassOf("Health and barrier track"), Is.EqualTo(ContrastLabStage.ClassHp));
             Assert.That(ContrastLabStage.ClassOf("Confirmed health"), Is.EqualTo(ContrastLabStage.ClassHp));
