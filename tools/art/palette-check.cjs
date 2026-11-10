@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Reproducible palette report. No dependencies.
 //
-// Part 1 (legacy, unchanged): grayscale and CVD previews of the five faction Color32 tokens in ShowcasePalette.cs.
+// Part 1 (legacy report): grayscale and CVD previews of the five shipped faction Color32 tokens (UiPaletteTokens.cs).
 // Part 2 (new): reads docs/art/palette.json (colours authored in OKLCH) and checks gamut, WCAG 2.x contrast for every
 //   text/surface pair, region separation, the Sentenced "muted but readable" claim, faction-accent distance under
 //   colour-vision-deficiency simulation, and faction-accent-on-ground readability for every region.
@@ -41,11 +41,16 @@ function lab(rgb) {
 const rgbText = rgb => `#${rgb.map(x=>x.toString(16).padStart(2,'0')).join('').toUpperCase()}`;
 
 // ---------------------------------------------------------------------------------------------------------------
-// Part 1: legacy ShowcasePalette.cs report (behaviour unchanged).
+// Part 1: legacy faction-token report (same output; the tokens now live in the generated UiPaletteTokens.cs).
 // ---------------------------------------------------------------------------------------------------------------
 function legacyReport() {
-  const source = fs.readFileSync(path.join(root, 'client-unity/UnityProject/Assets/Scripts/Presentation/ShowcasePalette.cs'), 'utf8');
-  const factions = [...source.matchAll(/new Color32\((\d+),\s*(\d+),\s*(\d+),\s*\d+\),\s*\/\/\s*(\w+)/g)]
+  // The shipped faction tokens moved out of ShowcasePalette.cs (which now forwards to UiTheme) into the generated
+  // UiPaletteTokens.cs `Faction` array, so read that block: it is what the client actually draws with.
+  const tokensFile = 'client-unity/UnityProject/Assets/Scripts/UI/UiPaletteTokens.cs';
+  const source = fs.readFileSync(path.join(root, tokensFile), 'utf8');
+  const block = /Color32\[\]\s+Faction\s*=\s*\{([\s\S]*?)\};/.exec(source);
+  if (!block) throw new Error(`No Faction array found in ${tokensFile}`);
+  const factions = [...block[1].matchAll(/new Color32\((\d+),\s*(\d+),\s*(\d+),\s*\d+\),\s*\/\/\s*(\w+)/g)]
     .map(m => ({ name: m[4], rgb: m.slice(1, 4).map(Number) }));
   if (factions.length !== 5) throw new Error(`Expected 5 faction Color32 entries, found ${factions.length}`);
   function report(label, transform) {
@@ -58,7 +63,7 @@ function legacyReport() {
     for (const r of records) console.log(`${r.name.padEnd(13)} ${r.rgb.padEnd(10)} ${String(r.L).padStart(4)}  ${r.C}`);
     console.log('Pair ΔL* < 10: ' + (records.flatMap((a,i)=>records.slice(i+1).filter(b=>Math.abs(a.L-b.L)<10).map(b=>`${a.name}/${b.name} (${Math.abs(a.L-b.L).toFixed(1)})`)).join(', ') || 'none'));
   }
-  console.log('Palette input: ShowcasePalette.cs faction Color32 tokens');
+  console.log('Palette input: UiPaletteTokens.cs faction Color32 tokens (generated from docs/art/palette.json)');
   report('Grayscale (linear relative luminance)', rgb => { const y=.2126*linear(rgb[0])+.7152*linear(rgb[1])+.0722*linear(rgb[2]); const g=srgb(y); return [g,g,g]; });
   for (const [name,matrix] of Object.entries(matrices)) report(name, rgb => cvd(rgb,matrix));
   console.log('\nHue is only a supplemental cue: retain faction labels/marks and distinct silhouettes or insignia.');
