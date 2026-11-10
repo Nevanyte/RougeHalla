@@ -535,3 +535,73 @@ Review fixes (independent review of P-HB-0..9, branch `rework/hitbox`, 2026-11-1
     numbers). The run did find a rule bug: a homing ball whose raised start lies inside its own target's box orbited
     under the legacy fallback of change 15 (61 bot wand flights ended at range); its own target is now a hit at u = 0.
     The soaks (`tests/source_arena_soak.rs`, seeds 6, 17, 28, 42, 62) run in both modes.
+
+## Addendum: Mob spacing (owner direction 2026-11-10)
+
+Owner: "mobs tend to bunch up and stack on top of each other, give them some hit box room." Standing decisions kept: no
+body blocking between characters (players walk through each other and through mobs); bot and mob decision-making,
+target choice, aggro, timing and abilities unchanged; melee, projectiles and range checks unchanged.
+
+**Legacy.** `packages/server/src/sim/mobAI.ts` has no separation: a fighting mob moves to its target's position until
+its policy says stop, so a pack that arrives by one path stops on one spot. Spacing is a new behaviour, live mode only
+(DEVIATIONS DEV-011).
+
+**Mechanism.** One live switch: spacing is on exactly when `SimConfig::hitboxes = Archetypes`
+(`rh_sim::archetype::mob_spacing`); under `LegacyCircle` no spacing code runs. Each mob claims a personal-space disc of
+its foot box's larger half-extent plus `MOB_SPACING_MARGIN` (10 + 10 = 20 u with today's shared 10 x 6 foot box), so two
+mobs want 40 u centre to centre: one foot-box width of ground between their foot boxes. A look with a bigger foot box
+gets more room automatically; elites share their type's look and foot box today (the client does not draw them bigger),
+so they get the same room. In `mob_ai::fight`, when the combat policy says `Stop` (the mob is in its attack band with
+line of sight) and other mobs are inside its room, the mob queues one ordinary `Move` (validate + `Cx::submit`, C-INPUT)
+to `from + push`: the sum over those neighbours of half the overlap along the line between the two (each of a pair
+moves half), capped at `MOB_SPACING_STEP_MAX` (16 u) and pulled back into the policy's stop band round the target (melee
+`[0, far - MOB_SPACING_BAND_SLACK]`, ranged `[retreat + slack, far - slack]`), which turns an outward push into a slide
+round the target. The step must pass the mob's own foot-box segment test (the pathfinder's direct-path test), the leash
+with the retreat's margin, and line of sight to the target with the policy's mask; otherwise its half is tried, then
+nothing (the mob stays and overlaps: no deadlock). A step shorter than `MOB_SPACING_STEP_MIN` (1 u) is not ordered
+(settled, no jitter). Two mobs on the very same point split left and right of the line to the target by id. The step
+does not use the chase's `send`: the repath clock and goal are untouched, so a chase is never delayed or reordered;
+target, aim, hold/release and their timing are computed exactly as before.
+
+**Where in the tick.** Inside the existing `mobAI.thinkMobs` row: it builds a neighbour index once per call (positions do
+not change while mobs think; they only queue inputs), sorted by (cell, id) in `TickScratch::mob_spacing` (cells of
+`MOB_SPACING_CELL` = 64 u, at least the widest pair of rooms, so a query reads 3 x 3 cells; no per-tick allocation once
+the buffer has grown). No new schedule row; the tick order is untouched. The order is applied next tick by the inputs
+phase and walked by `movement.walk` like any other move.
+
+**Who.** Movers and neighbours: alive regional and practice mobs with a brain. Excluded: players (no body blocking),
+Plague zombies (owner companions with their own AI; they neither move for spacing nor count as neighbours), training
+dummies and quest givers (no fight brain).
+
+**Determinism (ADR0007).** Fixed iteration order (cell, id), no RNG, `crate::math` only; the index and the step are
+derived from the world each call and never stored, so the state hash, checkpoint and replay formats are unchanged. The
+five constants are registered in the content registry (content hash `026f083d8473fa4b` -> `e1e44438b219196f`).
+
+**Measured** (`rh-headless --example hitbox_compare`, archetypes, live source-arena config, 8 HumanBot seats, PvE; the
+same seeds with spacing off via the measurement-only feature `rh-sim/mob-spacing-off`). Spacing figures are over every
+tick and every engaged mob with another mob within 120 u: its nearest-mob distance; "overlap" is under 20 u (foot boxes
+overlap), "stacked ticks" are ticks with two engaged mobs within 8 u among ticks with two or more engaged.
+
+| run | mean nearest | overlap share | stacked ticks | player deaths | mob deaths | hits | mean match (ticks) | mob melee landed (sword / axe / shield) | mob ranged (bow / wand) |
+|---|---|---|---|---|---|---|---|---|---|
+| seed1 map, seeds 1-40, off | 50.7 | 0.186 | 0.153 | 270 | 758 | 43896 | 4326 | 1.000 / 0.999 / 1.000 | 0.924 / 0.488 |
+| seed1 map, seeds 1-40, on | 56.0 | 0.055 | 0.033 | 269 | 728 | 43502 | 4329 | 0.999 / 1.000 / 1.000 | 0.922 / 0.484 |
+| first-playable, seeds 0-62, off | 62.7 | 0.101 | 0.002 | 397 | 102 | 26421 | 7119 | 1.000 / 0.988 / - | 0.974 / 0.681 |
+| first-playable, seeds 0-62, on | 68.0 | 0.014 | 0.001 | 397 | 97 | 26546 | 7041 | 1.000 / 0.987 / - | 0.978 / 0.676 |
+
+The "off" seed1 row reproduces DEV-009's archetype numbers exactly. Minimum nearest distance is still about 0 in both
+modes: spacing acts only on a mob that is in its stop band, so mobs chasing along one path, and mobs squeezed where no
+step is clear, can still overlap. Difficulty barely moves (player deaths 270 -> 269; 4 % fewer mob deaths on the
+mob-dense map, within what a changed trajectory gives). Every match ended or reached the tick cap: no panic, no hang;
+the soak seeds 6, 17, 28, 42, 62 are among them, and `tests/source_arena_soak.rs` runs them in archetype mode.
+
+**Tests** (`crates/rh-sim/src/systems/mob_spacing.rs` unit tests, `mob_spacing_tests.rs`): eight axe mobs born in a 4 u
+clump on open floor end within the stop band, every one landing hits, every pair at least 34 u apart (85 % of 40: inside
+a pack a mob stops when the SUM of its neighbours' pushes is under 1 u, so opposite pushes can leave a few units of
+overlap; a lone pair settles within 2 u of 40) and spread over more than a quarter circle; the same pack under the legacy
+circle ends stacked (under 8 u); six wand mobs stay in `[retreat, far]` with room; a one-tile corridor dead end: the
+front of the queue reaches and hits, at least two mobs are in reach, and the queue comes to rest (zero movement over the
+last 3 s); a one-tile doorway: all eight mobs come through, hit and spread with room, then rest; at every tick every
+mob's foot box is clear of walls; the same run twice and a checkpoint restored mid-run give the same hash every tick;
+the legacy-circle pack run's state-hash fold equals the value pinned with the spacing code removed. The parity report
+is unchanged (109 slice scenarios + 13 capture-only, 300 pathfinding queries: all MATCH).
