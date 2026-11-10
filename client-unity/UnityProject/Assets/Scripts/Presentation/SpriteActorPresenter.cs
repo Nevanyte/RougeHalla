@@ -13,8 +13,9 @@ namespace Roguehalla.Client
         sealed class Art
         {
             public GameObject Root;
-            public SpriteRenderer Body, BodyRim, BodyGlow, Shadow, Halo, RuneBack, Rune, Hp, HpBack, Barrier, Weapon, Status;
+            public SpriteRenderer Body, Shadow, Halo, RuneBack, Rune, Hp, HpBack, Barrier, Weapon, Status;
             public ShowcaseIdentityOwner Identity;
+            public SpriteOutline OutBody, OutMantle, OutWeapon, OutHp, OutFoot, OutInsignia; // CONTRAST: adaptive neutral outlines (SpriteOutline.cs)
             public SpriteRenderer[] BarrierRing;
             public SpriteRenderer[] StatusIcons;
             public SpriteRenderer[] SignatureIcons;
@@ -61,7 +62,7 @@ namespace Roguehalla.Client
         };
         const int UnknownSignatureSlot = 5;
 
-        public SpriteActorPresenter(Transform parent, ShowcaseCatalog catalog) { _parent = parent; _catalog = catalog; }
+        public SpriteActorPresenter(Transform parent, ShowcaseCatalog catalog) { _parent = parent; _catalog = catalog; SpriteOutline.ConfigureFromUrl(Application.absoluteURL); /* CONTRAST */ }
         public bool Contains(uint id) { return _active.ContainsKey(id); }
         public int ActiveCount { get { return _active.Count; } }
         public bool IsLiving(uint id) { return _active.TryGetValue(id, out var art) && !art.Dead; }
@@ -284,27 +285,17 @@ namespace Roguehalla.Client
             }
             // Overheads follow the look's body height (Appearance.WorldHeight), so a tall or short look keeps its cluster just above its head.
             float headY = appearance != null && frames != null && frames.Length > 0 ? .08f + appearance.WorldHeight : 1.68f;
+            // CONTRAST: the overhead cluster clears the figure's real top (hat, horns, a raised bow), not only the catalog height, so a bar never cuts the head's contour.
+            if (appearance != null && frames != null && frames.Length > 0) headY = Mathf.Max(headY, HeadTop(appearance) + ActorOutlineModel.Width * 1.2f);
             float lift = headY - 1.68f; _sigLift = lift;
             a.Body.color = dead ? new Color(.4f, .43f, .48f, .65f) : Color.Lerp(Color.white, color, isMob ? .14f : .22f);
             if (!dead && a.WishTintAmount > 0f) a.Body.color = Color.Lerp(a.Body.color, a.WishTint, a.WishTintAmount);
             a.Body.sortingOrder = order;
             a.Body.transform.localRotation = Quaternion.Euler(0, 0, dead && (appearance==null || appearance.Death==null || appearance.Death.Length==0) ? 75 : 0);
-            a.BodyRim.sprite = a.Body.sprite;
-            a.BodyRim.transform.localPosition = a.Body.transform.localPosition + new Vector3(.01f,.005f);
-            a.BodyRim.transform.localRotation = a.Body.transform.localRotation;
-            a.BodyRim.transform.localScale = a.Body.transform.localScale * 1.045f;
-            a.BodyRim.sortingOrder = order-1;
-            a.BodyRim.color = new Color(.008f,.012f,.02f,dead ? .35f : .88f);
-            // Light outer rim outside the dark outline: dark characters stay separable on dark ground (the dark outline carries pale ground).
-            a.BodyGlow.sprite = a.Body.sprite;
-            a.BodyGlow.transform.localPosition = a.Body.transform.localPosition;
-            a.BodyGlow.transform.localRotation = a.Body.transform.localRotation;
-            a.BodyGlow.transform.localScale = a.Body.transform.localScale * 1.13f;
-            a.BodyGlow.sortingOrder = order - 3;
-            AtmosphereShadows.ApplyRim(a.BodyGlow, x / 32f, y / 32f, dead ? .4f : 1f);
+            // CONTRAST: the dark rim and the pale halo are gone; the adaptive outline (SpriteOutline) is synced at the end of Present.
             int factionArt = faction.HasValue ? (int)faction.Value : -1;
             a.Identity.Present(factionArt,kind,mob,order,!dead);
-            a.Shadow.sortingOrder = order - 8;
+            a.Shadow.sortingOrder = order - 9; // CONTRAST: one step lower, the footprint outline sits at order - 8
             AtmosphereShadows.ApplyActor(a.Shadow, x / 32f, y / 32f);
             a.Halo.sortingOrder = order - 7;
             // The ground mark is the foot box when the server delivered one (ADR0024): its outline spans the box, drawn on the squashed
@@ -400,8 +391,19 @@ namespace Roguehalla.Client
             a.Light.SetVisible(!dead && local);
             // A hidden fighter (Swarm) is not drawn for anyone else and faint for its owner (legacy PlayerView).
             float hiddenAlpha = Indicators.HiddenAlpha(effects, local);
-            if (hiddenAlpha > 0f && hiddenAlpha < 1f) { var bc = a.Body.color; bc.a *= hiddenAlpha; a.Body.color = bc; var rc = a.BodyRim.color; rc.a *= hiddenAlpha; a.BodyRim.color = rc; var gc = a.BodyGlow.color; gc.a *= hiddenAlpha; a.BodyGlow.color = gc; }
+            if (hiddenAlpha > 0f && hiddenAlpha < 1f) { var bc = a.Body.color; bc.a *= hiddenAlpha; a.Body.color = bc; }
             bool hideAll = hiddenAlpha <= 0f; if (a.Root.activeSelf == hideAll) a.Root.SetActive(!hideAll);
+            // CONTRAST: outlines last, once every source sprite, transform, enabled state and sort order is final for the frame.
+            {
+                bool darkGround = AtmosphereShadows.GroundIsDark(x / 32f, y / 32f);
+                float bodyAlpha = ActorOutlineModel.StateAlpha(dead, hiddenAlpha > 0f ? hiddenAlpha : 1f);
+                a.OutBody.Sync(order - 1, bodyAlpha, darkGround);
+                a.OutMantle.Sync(order - 3, bodyAlpha, darkGround);
+                a.OutWeapon.Sync(a.Weapon.sortingOrder - 1, bodyAlpha, darkGround);
+                a.OutHp.Sync(a.HpBack.sortingOrder - 1, 1f, darkGround);
+                a.OutFoot.Sync(a.Halo.sortingOrder - 1, 1f, darkGround);
+                a.OutInsignia.Sync(a.RuneBack.sortingOrder - 1, 1f, darkGround);
+            }
             // Geometry for the overhead cluster; PresentIndicators adds the facts only the caller has.
             var fx = a.IndFacts; float barY = 1.8f + lift;
             fx.Order = order; fx.HeadY = headY; fx.BarY = barY; fx.Dead = dead; fx.Local = local; fx.Mob = kind == ActorKind.RegionalMob || kind == ActorKind.TrainingDummy;
@@ -424,8 +426,6 @@ namespace Roguehalla.Client
             a.Shadow = ShowcaseSprites.Create(t, "Contact shadow", "shadow", 0, Color.white, new Vector2(1.2f, .45f), new Vector3(.13f, -.04f), false);
             a.Halo = ShowcaseSprites.Create(t, "Faction footprint", "ring", 1, Color.white, Vector2.one, Vector3.zero, false);
             a.Body = ShowcaseSprites.Create(t, "Authored character", "rune", 2, Color.white, Vector2.one, Vector3.zero);
-            a.BodyRim = ShowcaseSprites.Create(t, "Character contrast rim", "rune", 1, Color.black, Vector2.one, Vector3.zero, false);
-            a.BodyGlow = ShowcaseSprites.Create(t, "Character light rim", "rune", 0, Color.white, Vector2.one, Vector3.zero, false);
             a.Identity = ShowcaseIdentityOwner.Configure(t);
             a.Identity.StandaloneFactionBadge = false; // The existing tested backed faction mark remains canonical here.
             a.RuneBack = ShowcaseSprites.Create(t, "Faction insignia backplate", "bar", 2, new Color(.008f, .012f, .022f, .96f), new Vector2(.46f, .46f), Vector3.zero, false);
@@ -470,7 +470,25 @@ namespace Roguehalla.Client
             a.Light = ShowcaseSprites.CreateLight(t, "Observed local accent", new Vector3(0, .6f, -1));
             a.Light.Configure(Color.white, .2f, .3f, 2.4f, .5f, false, true);
             a.Ind = new OverheadIndicators(t);
+            // CONTRAST: one adaptive neutral outline per figure and per gated marker (SpriteOutline.cs); faction identity stays in shape and in the colour inside.
+            a.OutBody = new SpriteOutline(a.Body, "Character contrast rim", ActorOutlineModel.Width);
+            a.OutWeapon = new SpriteOutline(a.Weapon, "Equipped weapon cue outline", ActorOutlineModel.MarkerWidth);
+            a.OutMantle = new SpriteOutline(a.Identity.Mantle, "Faction mantle outline", ActorOutlineModel.Width);
+            a.OutHp = new SpriteOutline(a.HpBack, "Health and barrier track outline", ActorOutlineModel.MarkerWidth);
+            a.OutFoot = new SpriteOutline(a.Halo, "Faction footprint outline", ActorOutlineModel.MarkerWidth);
+            a.OutInsignia = new SpriteOutline(a.RuneBack, "Faction insignia backplate outline", ActorOutlineModel.MarkerWidth);
             return a;
+        }
+
+        static readonly Dictionary<ShowcaseCatalog.Appearance, float> HeadTops = new Dictionary<ShowcaseCatalog.Appearance, float>();
+        /// <summary>Height of the tallest idle or walk frame above the feet in actor units (cached per look; the sprites are trimmed to their opaque pixels).</summary>
+        static float HeadTop(ShowcaseCatalog.Appearance a)
+        {
+            if (HeadTops.TryGetValue(a, out float top)) return top;
+            float m = 0f;
+            foreach (var clip in new[] { a.Idle, a.Walk })
+                if (clip != null) foreach (var sp in clip) if (sp != null) m = Mathf.Max(m, sp.bounds.max.y);
+            top = .08f + m * a.WorldHeight; HeadTops[a] = top; return top;
         }
 
         float _sigLift;

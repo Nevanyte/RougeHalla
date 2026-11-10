@@ -16,6 +16,8 @@ namespace Roguehalla.Client
         bool _configured;
         int _sortingBase = int.MinValue;
         public bool StandaloneFactionBadge { get; set; } = true;
+        /// <summary>The faction mantle renderer (the contrast outline attaches to it).</summary>
+        public SpriteRenderer Mantle { get { EnsureRenderers(); return _mantle; } }
 
         /// <summary>Finds or creates a single owner directly below the actor's grounded root.</summary>
         public static ShowcaseIdentityOwner Configure(Transform groundedParent)
