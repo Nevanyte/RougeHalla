@@ -205,6 +205,8 @@ allocation. Separate new report/projector allocations from inherited producer al
 
 ## Numeric and regional restore probes — admission pending
 
+**Executed evidence update (`97b70395`):** all three [DeepSeek probes](../evidence/card-bleed-native-probes/README.md) now reach their intended semantic boundary. Probe1 yields an eligible +Infinity from an accepted generic status; Probe2 has4096 finite eligible rows in one actual pair and overflows its ordered fold at3596; Probe3 earns a real NPC bleed through Attack/Release and then receives `unsupported mob status domain`. Canonical probe Rust is restored and private source/receipts archived. The arithmetic recommendation below is not yet a Root decision; independent options review must settle the representation/admission contract before implementation.
+
 Static review found accepted-shape arithmetic risks, not runtime receipts: one `1e307` Dot can overflow `value*50` before
 division; 4096 distinct sourceless `1e306` Dot rows produce finite individual `5e304` contributions but their
 source-order same-pair sum reaches Infinity at prefix 3596. Finite HP does not cap those player-reported landed rows.
