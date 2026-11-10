@@ -1,0 +1,43 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/roguehalla-backend-20261109/target-quests/debug/deps/rh_sim-aabb9bffeb4358ef)
+
+running 35 tests
+test quests::giver_tests::source::neutral_giver_warm_alloc_uses_real_full_quest_constructor_and_restore ... ignored, dhat runs alone: neutral_giver_warm_alloc --ignored --test-threads=1
+test quests::giver_tests::neutral_giver_source_plans_select_existing_rows_for_valid_modes_and_keep_opt_outs ... ok
+test quests::giver_tests::neutral_giver_input_guard_preserves_a_real_regional_actor_with_a_borrowed_brain ... ok
+test quests::live_tests::accepting_through_the_input_door_starts_the_offer ... ok
+test quests::live_tests::kill_progress_hooks_and_the_camp_clear_recheck_close_impossible_offers ... ok
+test quests::live_tests::malformed_bot_acceptance_cannot_pick_up_or_block_human_turn_in ... ok
+test quests::live_tests::camp_clear_ignores_bots_when_deciding_whether_anyone_can_finish ... ok
+test quests::notice_tests::missing_runtime_is_silent_even_for_a_stunned_human ... ok
+test quests::live_tests::collect_tokens_and_the_turn_in_pay_the_two_reward_channels ... ok
+test quests::live_tests::bot_cannot_accept_or_discover_but_human_can_after_restore ... ok
+test quests::live_tests::hidden_offers_reveal_with_the_head_start_and_publish_their_pieces ... ok
+test quests::live_tests::an_accepted_offer_expires_after_its_deadline_and_lingers_then_sweeps ... ok
+test quests::tests::the_captured_catalog_rows_and_reward_rules_match_the_source ... ok
+test quests::giver_tests::neutral_giver_live_birth_and_inputs_have_real_identity_without_action_authority ... ok
+test quests::tests::the_captured_rosters_match_the_source_selection ... ok
+test quests::tests::the_captured_wording_matches_the_source ... ok
+test quests::giver_tests::neutral_giver_retirement_preserves_provenance_after_the_offer_is_swept ... ok
+test quests::giver_tests::neutral_giver_hidden_birth_restores_before_and_after_its_real_head_start ... ok
+test quests::giver_tests::neutral_giver_rejects_forged_identity_links_body_and_brain_without_restore_panics ... ok
+test quests::live_tests::malformed_bot_acceptance_cannot_take_fetch_parcel ... ok
+test quests::live_tests::the_fetch_parcel_rides_a_carrier_and_drops_on_death ... ok
+test quests::live_tests::the_teleport_and_run_end_hooks_close_every_open_offer ... ok
+test quests::live_tests::the_raid_start_spawns_the_source_roster_and_publishes_the_known_half ... ok
+test quests::notice_tests::private_and_room_toasts_obey_visibility_without_label_identity ... ok
+test quests::notice_tests::stale_closed_drop_has_no_new_parcel_or_announcement ... ok
+test quests::live_tests::the_quest_runtime_checkpoints_restores_and_perturbs_the_hash ... ok
+test quests::tour_supply_source_tests::case_frost_visit_fire_holy_stays_open_replays_both_status_path ... ok
+test quests::tour_supply_source_tests::case_frost_visit_frost_sentenced_expires_replays_both_status_path ... ok
+test quests::notices_source_tests::selected_parcel_and_run_end_cases_match_ordered_toast_gv_notices ... ok
+test quests::tests::the_captured_placements_match_the_source_on_the_pinned_maps ... ok
+test quests::giver_tests::neutral_giver_missing_runtime_rejects_only_a_world_that_really_spawned_quests ... ok
+test quests::giver_tests::neutral_giver_known_and_hidden_births_preserve_fractional_clock_offsets ... ok
+test quests::lifecycle_tests::the_captured_lifecycle_replays_through_the_input_door ... ok
+test quests::notice_tests::source_public::notices_match_all_fourteen_actual_public_source_action_cases ... ok
+test quests::giver_tests::source::all_eight_captured_source_giver_cases_use_real_inputs_and_runtime has been running for over 60 seconds
+test quests::giver_tests::source::all_eight_captured_source_giver_cases_use_real_inputs_and_runtime ... ok
+
+test result: ok. 34 passed; 0 failed; 1 ignored; 0 measured; 812 filtered out; finished in 84.41s
+

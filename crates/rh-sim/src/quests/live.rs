@@ -949,7 +949,7 @@ fn close_impossible(w: &mut World, only: Option<usize>, expired: &mut super::not
                     .visits
                     .iter()
                     .find(|(who, _)| *who == p.id)
-                    .map_or(0, |(_, mask)| mask.count_ones());
+                    .map_or(0, |(_, mask)| *mask);
                 let fresh = zones
                     .iter()
                     .enumerate()

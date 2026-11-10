@@ -24,6 +24,8 @@ pub mod roster;
 pub mod rules;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tour_supply_source_tests;
 
 pub use catalog::{Def, Kind, Tokens};
 pub use placement::Placement;
