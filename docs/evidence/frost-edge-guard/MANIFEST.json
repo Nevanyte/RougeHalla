@@ -1,0 +1,52 @@
+[
+  {
+    "path": "CHECKS.json",
+    "bytes": 610,
+    "sha256": "7851c66ced89e3ac1151d42691f2bd1e8dd0806f0d3456878ab76872dd780785"
+  },
+  {
+    "path": "README.md",
+    "bytes": 3604,
+    "sha256": "20068b9203621ac80b3d65d5a39f14c6d577b7a96aa596fc93e102e051330c84"
+  },
+  {
+    "path": "clippy-result.json",
+    "bytes": 240,
+    "sha256": "52a8709e9c55aa211ef1ffd89ac1cf7c27b06b0ece43c609e14e3a936b16df33"
+  },
+  {
+    "path": "clippy.log",
+    "bytes": 1013,
+    "sha256": "f7045244383c142bd63f5d1ed87bf521ee919c09044623b9862b6fd0c5043c23"
+  },
+  {
+    "path": "first-build-unrun.json",
+    "bytes": 595,
+    "sha256": "e31013ed877768255d4772ae259f379c4a56c693d9b2febc8689c7e899f4711a"
+  },
+  {
+    "path": "measurement-preparation.json",
+    "bytes": 1173,
+    "sha256": "1c7f72c55b4b040bfa297aa0f5c15d558eee9f95bb7038c679f44af3629f3766"
+  },
+  {
+    "path": "post-change-cleanup.json",
+    "bytes": 215,
+    "sha256": "6692a8cff8b469378ab02594a4d28c12f369625232c6b8c9d5b76382301347a3"
+  },
+  {
+    "path": "post-change-report.json",
+    "bytes": 86961,
+    "sha256": "9712bc9170e36e5ebcbe4e784d6573ce4831a842fc04a5c4ab3a91ba914db32d"
+  },
+  {
+    "path": "post-change-summary.json",
+    "bytes": 1083,
+    "sha256": "43ac29c58c40a459e330749fb57fcc728f2c1378f6c0ec85bc6a1a4ffe05d279"
+  },
+  {
+    "path": "release-build.json",
+    "bytes": 988,
+    "sha256": "3266dc0c528b8113fbe5f2149ca5bfbf7812d2544d758542e477d483cdf46c5e"
+  }
+]

@@ -22,6 +22,17 @@ or general regression claim. Both owned processes/listeners close independently.
 vision-trail/LOS and Frost/Sentenced scans for investigation; it changes no gameplay or prior measurement. Unity/FPS work remains
 paused. Normal source CI at `02551405` also finishes green (all five foundation jobs plus separate latency checks).
 
+The profiled [Frost guard reorder](evidence/frost-edge-guard/README.md) is now pushed at `9657cd56`:32 targeted tests,
+21content checks, format and strict all-feature/all-target lint pass. Its correct PostgreSQL-enabled Mac release captures
+another600steps/30s with all cleanup/result checks passing. Sampled CPU6.76% versus6.69% before establishes no CPU gain;
+no favorable retake or deployed artifact replacement follows. The original no-CPU-win comparison remains the baseline.
+
+The [actual Calgary WSS meter](evidence/calgary-wss-meter/README.md) now captures90 matched ordinary Ping/Pong samples
+in one30s/3player stationary Source window: applicationRTTmedian10.72ms/p9521.54ms/max24.60ms; incomingapplication
+payload3.68–5.99kB/s perclient (13.56kB/s total). These are Node protocol clients, not Unity/frame/input-to-visible timings;
+wire framing/admission are excluded. All owners stay alive/Active with600observed ticks, normal socket/process cleanup passes,
+and a later independent read settles publicSource0rooms/0players/6successfulresults,0failed/refused. Original shutdown unchanged.
+
 **Technical demo update 2026-11-10:** owner-authorized Claude Wave1/security and the reproduced stale-echo repair are
 composed at `fe0e2983`; 956 managed tests and 102 affected Rust tests pass at their recorded cuts. Web B
 `build_81371688fcdf` is the current local release: 14 files/107,046,886 bytes, manifest SHA
