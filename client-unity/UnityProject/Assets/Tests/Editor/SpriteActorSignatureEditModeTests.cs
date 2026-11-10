@@ -95,11 +95,12 @@ namespace Roguehalla.Client.Tests
             Present(1, (byte)(16 | 2), (ushort)1);
             AssertSignatureBit(2, true);
             AssertUnknown(true);
-            Assert.That(FindRenderer("Public status cue").enabled, Is.True, "existing effects status cue remains active");
-            Assert.That(FindRenderer("Public status bit 0").enabled, Is.True, "existing effect bit remains active");
+            // Effects are drawn by the per-status glyphs of OverheadIndicators now (OverheadIndicatorsEditModeTests); the generic cue is off
+            // and an effect bit never feeds the signature icons.
+            Assert.That(FindRenderer("Public status cue").enabled, Is.False, "the generic status cue is replaced by per-status glyphs");
+            Assert.That(FindRenderer("Public status bit 0").enabled, Is.False, "the generic effect bit icon is replaced by per-status glyphs");
             Assert.That(FindRenderer("Unknown signature backer").enabled, Is.True);
             Assert.That(FindRenderer(SignatureName(2)).transform.localPosition.y, Is.EqualTo(2.4f));
-            Assert.That(FindRenderer("Public status bit 0").transform.localPosition.y, Is.EqualTo(2f));
             Assert.That(FindRenderer("Confirmed health").transform.localPosition.y, Is.EqualTo(1.8f));
         }
 

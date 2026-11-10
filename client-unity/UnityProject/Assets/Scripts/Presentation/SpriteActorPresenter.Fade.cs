@@ -147,6 +147,7 @@ namespace Roguehalla.Client
                 r.color = c; f.Applied[i] = c;
             }
             f.Opacity = alpha;
+            art.Ind?.ApplyOpacity(alpha);
             Gather.Clear();
         }
 
