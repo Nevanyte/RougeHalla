@@ -6,12 +6,21 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 
 ## Current delivery scope: technical demo (owner decision, 2026-11-09)
 
-**Competitive update2026-11-10:** owner-authorized Claude Wave1/security plus the reproduced stale-echo repair are
-composed at `fe0e2983`.956 managed tests,102 affected Rust tests, format, strict server lint, sync/provenance and actual
-Unity Client/Net compilation pass. Actual performance improvement is not yet measured. The running local baseline
-remains Web18f/source1c44 and the optimized Mac binary SHA0b800a43: Source52060, Training52076, router51524. Its new
-HUD/Settings render correctly in ordinary Training; Source multiplayer is being exercised with three normal players.
-Calgary's bounded ephemeral stack/bootstrap are prepared separately and not yet deployed. Deferred content remains
+**Technical demo update 2026-11-10:** owner-authorized Claude Wave1/security and the reproduced stale-echo repair are
+composed at `fe0e2983`; 956 managed tests and 102 affected Rust tests pass at their recorded cuts. Web B
+`build_81371688fcdf` is the current local release: 14 files/107,046,886 bytes, manifest SHA
+`89aa154216996a7df694479d3efc990ffb73521de02dae143a15fa105b4a4455`. Its compiled Assets match canonical `3253da04`;
+the Mac release binary SHA `c30fc84f9b284d0212d2bbe0d13c3b7d894f098d6d93271072df6b8ad6f1dc28` serves Source PID 63281
+and Training PID 63295 through router PID 64050. 37 focused actual Editor cases pass across the retained runs; all five faction
+ability activations and a genuine three-player PvP kill/Trophy chosen-and-taken state now pass in the ordinary browser
+at 2560×1440/text 150%. Results capture is finishing. These are functional checks, not measured speedups.
+
+The new-source Linux artifact run 42729941646 at `d265ab95` passes; its strict verified native binary SHA is
+`dd7a208cc2b183268740a910d07db6aa7002260d6d1f9511cfaccf3e4791ce6d`. The temporary workflow trigger is removed at
+`bac4820f`. The first actual Calgary guest `i-0b2f4485d0491740e` failed `rh-demo-isolation.service` and terminated through
+the intended failure/poweroff path. CloudFormation completion did not establish readiness; no public hosted demo is
+claimed. Stage-specific diagnostics pass 17 offline checks, while the exact host failure remains unproved. Practice-domain
+DNS/TLS, hosted play, actual performance measurements and final release checks remain open. Deferred content remains
 outside the demo critical path.
 
 The owner now prioritizes a complete visual/networked **technical demo as soon as possible** to measure Unity 2D and

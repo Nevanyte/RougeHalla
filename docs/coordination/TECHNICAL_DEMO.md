@@ -59,10 +59,13 @@ alone is not grounds for rejection. Claude's completed Wave1 candidate is `aef6d
 `claude/peaceful-babbage-rtsgq6` (base76d170a1), including its earlier security commit. It still uses authoritative Rust
 and20Hz; changes include rewind allowances, server timing metrics, movement reconciliation/speed prediction, render
 timing, input coalescing and Unity feedback. Its claimed tests do not establish Unity compilation or real-link gains.
-Root is reviewing the server/client halves in parallel while the current demo baseline remains available. Proposed
+Root has reviewed and merged the server/client halves plus a reproduced stale-echo repair at `fe0e2983`. The current
+combined Web B and Mac release include them; actual link/performance gains remain unmeasured. Proposed
 later waves in `NETCODE_COMPETITIVE_PLAN.md` are separate implementation work, not already merged features.
 
-The demo is not yet complete: combined Web execution, real core-match acceptance, Calgary deployment and measurements
-remain open. The real Linux optimized artifact retry42720842809 passes; the temporary trigger is removed at4b423b41.
-The combined Settings/HUD focused14 cases pass across their retained runs after two fixture hierarchy corrections;
-one optimized Web build is next. Historical passing runs keep their recorded revisions and scopes.
+The optimized Web B build now runs locally, with all five faction ability activations and a real three-player PvP
+kill/Trophy choice reaching delivered chosen/taken state at 2560×1440/text 150%. The UI chat's build handoff is complete;
+art/networking are finishing normal results and cleanup. The new-source Linux artifact 42729941646 also passes, and its
+temporary trigger is removed at `bac4820f`. The first actual Calgary guest failed isolation and terminated safely; diagnostic
+changes pass 17 offline checks, without yet identifying the host cause. Public DNS/TLS, hosted play, actual M5 Pro/legacy
+measurements and final release checks remain open. Historical passing runs keep their recorded revisions and scopes.
