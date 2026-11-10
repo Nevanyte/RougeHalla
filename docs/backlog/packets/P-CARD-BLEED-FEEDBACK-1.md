@@ -1,186 +1,217 @@
 # P-CARD-BLEED-FEEDBACK-1: grouped card DoT hit feedback
 
-## Outcome and dispatch gate
+## Outcome and dispatch status
 
-Implement complete source-equivalent trusted card DoT grouping, first-use500ms cadence and run-end flush, with a
-separately admitted C-OBS Card projection. Damage/status application already exists. All Rust, readers and tests belong
-to DeepSeek. Sol/Luna owns immutable source/design/independent review; Root owns dispatch, identities, leases and
-integration. Claude retains networking/Unity ownership.
+Implement source-equivalent trusted card DoT aggregation/cadence/run-end behavior plus a separately admitted native
+settled-tick Card projection. Damage/status production already exists. All Rust, readers and tests belong to DeepSeek;
+Sol/Luna owns immutable source/design/independent review; Root owns dispatch, identity/version decisions, leases and
+integration; Claude retains networking/Unity ownership.
 
-This packet is **planned, not dispatched**. The concrete design, completed static growth/memory calculations and exact proposed hunk leases are in
-[CARD_BLEED_NATIVE_DESIGN.md](../../coordination/CARD_BLEED_NATIVE_DESIGN.md). Root must approve its capacity/memory
-calculation, the specific arithmetic/restore probe decision below, public feedback contract and final identity/file
-allocations before assigning an available Rust worker. No source recapture or native implementation is authorized by this update.
+**Planned, not dispatched. Numerical admission decision still pending.** The single current design is
+[CARD_BLEED_NATIVE_DESIGN.md](../../coordination/CARD_BLEED_NATIVE_DESIGN.md). It replaces that file's earlier
+per-status/E0 capacities and 44.60 MiB estimate with exact raw-pair sidecars, sparse U0/Q0 preparation, a bounded arena
+AVL index and the one-populated-flush model. `CARD_BLEED_REPORT_REVIEW.md` is historical design reasoning, not a second
+competing plan or native admission. Root must review the three DeepSeek numeric/restore probe receipts, choose the
+arithmetic admission treatment, approve output/privacy contract, estimates, final identities/leases and active
+Claude/worktree cut before assigning native implementation. The probes do not implement/report-index types and do not
+measure their layout or allocations.
 
 ## Released source dependency
 
-- Corrected source seal integration `570fe186`, independently reviewed transfer
-  `c76f8e46eebebd91a25c8cd7e4f1dd88ba4f4538`.
-- `parity/card-bleed-feedback/source.json`, format `rh-card-bleed-source/2`,7 cases/390 ordinary steps,410111 bytes,
+- Corrected source transfer `c76f8e46eebebd91a25c8cd7e4f1dd88ba4f4538`; integration source seal `570fe186`.
+- `parity/card-bleed-feedback/source.json`, `rh-card-bleed-source/2`, 7 cases/390 ordinary steps/410,111 bytes,
   SHA-256 `6b36256739bd473bc70ebd160a8632a26470ab8e4190f873026bd714e53d36ed`.
-- `parity/card-bleed-feedback/controls.json`,3191 bytes, SHA-256
+- `parity/card-bleed-feedback/controls.json`, 3,191 bytes, SHA-256
   `248a3be77749e9f966a9fff3ad6f7ba44ea4db4d3eddba3e0c9be9a71578fcd9`.
-- Source preparation manifest SHA-256 `9869a390c4f5a3ad939254d94e0ef44571397b653f3c10ec6e9d171d3bd29d8e`;
-  tools `tools/card-bleed-fixtures/**` and source preparation/review evidence are immutable.
-- Independent release: `docs/evidence/card-bleed-source-review/corrected/README.md`. The original held candidate and
-  HOLD evidence remain preserved; do not consume its incorrect six-row fresh-contribution count.
+- Preparation manifest SHA-256 `9869a390c4f5a3ad939254d94e0ef44571397b653f3c10ec6e9d171d3bd29d8e`; source/tools/evidence stay
+  immutable. Independent release: `docs/evidence/card-bleed-source-review/corrected/README.md`.
 
-Source /2 distinguishes `landedSnapshot` (retained scratch) from `processedLanded` using pre-dispatch active/nonvoided
-producer eligibility. The real ending tick7/350ms contains one fresh hit, five cumulative hits and a1.1180044891585073
-flush. The already-ended tick8/400ms retains scratch1 but processes0. Native consumer must drive scheduled producers,
-not install/replay expected landed rows. Setup/loadout/position/HP and explicit startRaid boundary are declared inputs,
-not claims of earned full-match reachability.
+Source `/2` separates `landedSnapshot` from `processedLanded` using actual pre-dispatch active/nonvoided producer
+eligibility. Tick 7/350 ms is the real ending active pass: five cumulative fresh hits flush `1.1180044891585073`. The
+already-ended tick 8/400 ms retains scratch 1 but processes 0. Consumer must drive actual inputs/producers, never install
+or replay retained snapshots. Inputs explicitly declare loadout/placement/HP and `startRaid` setup. Source witnesses
+ordered pair grouping, first-use 500 ms/empty intervals, early run-end, teleport retention, raid reset, reached Fire
+burn/backlash exclusion and no-card control. It does not establish all ability variants, anonymous pairs, arbitrary IDs,
+voided-active behavior or a separately invoked empty run-end hook. No recapture or optional capture campaign is needed.
 
-The witness covers ordered repeated/distinct pairs, first-use500ms/empty intervals, early natural run-end, teleport
-retention, raid reset, actual Fire burn/backlash exclusion and no-card control. It does not claim all ability-tagged
-variants, anonymous source pairs, arbitrary IDs, a voided-active scenario or separately invoked empty runEnded. Semantic
-controls kill per-contribution grouping, strict>500 and missing run-end; comment-only is NONKILL. Fresh pinned byte
-reproduction passed independently; no redundant capture/mutant sweep is required merely for native dispatch.
+## Trusted and public output contract
 
-## Source versus native public contract
+Legacy `cardHooks.ts` maintains a global insertion-ordered raw aggregate and has no historical viewer audiences. Native
+settled-tick entitlement/redaction is a deliberate ADR0013 privacy extension; it is not source parity.
 
-Legacy `cardHooks.ts` stores since plus insertion-ordered victim/by/amount totals and broadcasts raw aggregate FX at
-flush; no contribution audiences exist. [The design review](../../evidence/card-bleed-feedback-design-review/README.md)
-and ADR0013 distinguish source parity from deliberate native settled-tick entitlement.
+- World stores only trusted `CardBleedReport { since: Option<f64>, rows: ordered Vec<victim/by/amount> }`. Preserve the
+  source-ordered sequential binary64 pair fold and row insertion order. No viewer/history/visibility state is stored or
+  hashed into this leaf; capacity is derived and excluded from serialization/hash.
+- At the actual source flush, emit server-only raw `Event::CardBleedHit { victim, by: Option<PlayerId>, amount }` in
+  trusted row order for source comparison. It must remain `ServerOnly` in exhaustive visibility/classification and be
+  absent from `observe::to_seen`, stateless/raw observation and public event filtering.
+- `FxProjector` emits existing `SeenEvent::Hit { victim, by: redacted_source, amount, passive:false }` for positive
+  entitled Card buckets at the Card marker. Use existing ItemObserver/public-ID authority. No new SeenEvent/wire shape,
+  protocol codec, client or generated-code work; no Card/DoT/drip/weapon/ability/signature identity or legacy visual
+  equivalence is promised. Reuse of Hit still changes observation/policy knowledge semantics and requires Root's version
+  approval.
+- Per completed tick, use `sees(viewer,victim) || by == viewer`, redact unseen source before grouping, and merge
+  anonymous pairs. Entitlement remains from settled tick if actors later disappear; do not re-check at flush. ExactSum
+  public totals remain separate from trusted source f64.
 
-Use an explicit **server-only raw CardBleedHit Event** for trusted aggregate/source comparison, omitted by exhaustive
-Event visibility/class and stateless/raw observation conversion. Extend existing FxTickReport/FxProjector with Card
-Contribution/Flush/Reset operations and a distinct bucket domain. Public entitled output uses existing
-`SeenEvent::Hit { victim, by, amount, passive:false }`; never use delayed ordinary Event::Hit to publish private totals,
-repurpose passive, or invent signature/ability IDs. Existing Hit wire shape supplies bounded victim/source/amount damage
-feedback, without identifying a Card/DoT/drip or promising legacy visual behavior. No codec/Unity work is assigned.
+## Producer schedule and reset behavior
 
-Project each contribution using the settled source tick's existing sees(victim) OR by==viewer predicate. Redact unseen
-sources before grouping, merge anonymous contributions and use existing ExactSum/public-key ordering. Keep trusted
-ordered binary64 totals distinct. Eligibility survives later disappearance; do not re-filter at flush. Stateless previews
-never reconstruct entitlement from World. ItemObserver/public-ID authority and validate+Sim::submit remain unchanged.
+At existing `cards::after_damage`, scan only actual current `s.landed` in landed order. Eligibility is exactly
+`dot && ability == None && sig == None`; do not invent extra passive/weapon filters. First eligible hit initializes
+`since=now`; trusted matching raw pair adds in source order. At the source periodic point after stillness, if an existing
+report has aged 500 ms, record CardFlush at the exact current event index even for empty rows, emit nonempty trusted rows,
+clear rows retaining capacity and set `since=now`. No report means no flush marker/state creation.
 
-## Runtime behavior and state
+Replace only the pending runEnded `cardHooks.flushBleeds` link at its exact schedule position. At the existing GateAlways
+`cardHooks.resetAll` raid-start hook, reset World report to `None` and record CardReset. Legacy Reset is GateSignatures in
+the released core profile and cannot substitute. CardReset clears Card only; legacy resets/flushes retain existing domain
+behavior. Teleport retains Card rows/entitlement. No helper-direct test path.
 
-- World owns only `CardBleedReport { since: Option<f64>, rows: ordered Vec<victim/by/amount> }`; None represents absent
-  source report. Some with empty rows preserves periodic clock. Capacity is derived, not serialized/hashed. No viewer
-  history or visibility state enters World.
-- Actual current eligible landed rows are dottrue/abilityNone/sigNone. First hit initializes since=now, matching pair
-  amounts add without reordering, and every fresh contribution reaches the derived report domain.
-- At the existing card afterDamage source point after stillness, when now-since>=500, emit CardFlush marker and raw rows
-  in source order, then clear rows/set since=now. Empty existing reports retain their marker/clock behavior. Preserve
-  all unrelated card pass/splash ordering.
-- Replace pending runEnded `cardHooks.flushBleeds` at its exact existing schedule position. No direct flush-helper test
-  shortcut. Periodic plus run-end can both occur in one step, with domain limits validated before copying.
-- At GateAlways cardHooks.resetAll, clear trusted report to absent and emit CardReset. Existing signatures Reset is
-  gated off in the released core profile and is insufficient. Card reset/flush affects only Card; other domains retain
-  their behavior. Teleport does not clear/flush Card totals or entitlement. Repeated Ended/Lobby steps add no stale hits.
-- Clone/restore preserves trusted rows/cadence but renews report instance token; projectors reject foreign identity.
-  Fresh attach/reconnect starts after current tick without historical entitlement. Gaps discard old public buckets,
-  duplicates are idempotent, backward/invalid/overflow/bounds failure clears/disables until rebind. No partial public
-  prefix or fallback raw-total publication.
+The source has one active producer/landed pass. `updateActive` returns before active work for voided arenas; otherwise it
+clears landed, runs the ledger once, systems once (including Card afterDamage), then settles. An ending active tick's real
+pass is retained before runEnded. `cards::after_damage`'s Overkill splashes enter `w.deferred` for next tick, not another
+landed pass. Therefore at most one row-containing Card segment and one populated flush envelope exist per ordinary
+step. Preserve up to two CardFlush and one CardReset markers even when empty. A periodic populated flush makes the later
+runEnded flush empty; otherwise runEnded may populate it. Ended/voided steps must never re-read retained scratch.
 
-## Bounds and allocation gate
+## Exact pair sidecars, capacity and allocation model
 
-The design inventories real live players, regional birth/respawn, training dummy/practice lifetime births, companions,
-removed identities, status keys and generic restored rows. The eight-seat limit does not bound NPC victim count. Do not
-reuse fixed512/16 report assumptions or cap trusted rows by a public projector capacity.
+Do not emit one derived Card Op per status/contribution. Use separate preallocated exact producer and sealed-report
+sidecars, each with at most one row per actual raw `(victim, Option<by>)` in the current segment. A row stores raw key and
+ExactSum. Reserve a small range/segment Op at the true first contribution position, append distinct pairs in first
+occurrence order and exact-merge repeats. Finalize at CardFlush/CardReset/report end. Keep marker event index/order and
+empty marker behavior; never group across Card markers/ticks or move a marker based on hidden insertion order. An inline
+ExactSum in the shared Op is prohibited. Existing ExactSum needs a crate-private checked integer-limb merge (no
+intermediate rounding); tests must prove equivalence to direct exact additions and carry/round failure behavior.
 
-Live Hemorrhage merges same source/victim/tick and lasts2000ms (at most40 active tick keys), plus one Festering key;
-only players produce these card statuses. Generic restored Dot/status/deferred shapes are larger. Cold preparation must
-count actual initial eligible status/deferred edges E0 and existing report rows Q0, then add the checked live source/
-victim churn envelope from the actual arena/config. Preserve every previously accepted generic restore shape; no small
-static-bound admission tightening. The completed follow-up on backend `04987499972be06a39b21c4bf741b92390d135f9`
-uses P=max(8,current players), A0=all current actors and universal V=A0+14P+2R+150 for an accepted restored window,
-including hot Training/admin/owned-zombie churn. Pristine specialization is explicitly separate. Conservative new
-reservation estimates are0.84MiB player-only8,44.60MiB Full8/R204/no-dummies,18.30MiB pristine training8, and154.12MiB
-for the documented larger restore example. These are field-layout planning estimates, not native allocation receipts;
-exact formulas, assumptions and size measurement follow-up are in the design.
+Same raw pair in one sealed tick has identical settled entitlement/redaction, so exact coalescing preserves public rows.
+Different hidden raw sources can merge only after their source is redacted into the same anonymous public key. Keep
+source-trusted sequential f64 and derived exact public sums fully distinct.
 
-Pre-reserve trusted rows, scratch/report operations/events and projector buckets/output on construction/clone/restore;
-clear/retain capacity across flushes and rebind. Unsupported public representation fails explicitly without dropping
-trusted gameplay. Establish finite trusted sequential sums across all accepted restore/training values; finite individual
-amounts alone do not establish this. Preserve source arithmetic instead of clamping or changing sum order.
+Live unqualified Card DoT keys are player producers: Hemorrhage's `bleed:{tick}` lasts 2000 ms (at most 40 tick keys per
+source/victim) and Festering uses a reusable `festering` key, requiring a player's card/build. Ability/signature Dot has
+its own tag. This does not restrict accepted restored generic Dot shapes. Cold constructor/clone/restore preparation must
+inventory actual sparse state:
 
-Measure first/repeated windows, maximum admitted domain and clone/restore/rebind. Existing Hemorrhage creates per-tick
-formatted Arc status tags, so report reservation alone cannot prove whole-producer zero allocation. Distinguish newly
-introduced report/projector allocations from inherited status allocations, retain actual results and request separate
-Root scope for a demonstrated inherited blocker. No unsolicited status optimization belongs here.
+- `P = max(8,current player count)` for private prep; public viewer limit remains eight.
+- `A0 = all current restored fighters`; `R = checked sum of actual possible arena camp spots`.
+- `E0 = count of eligible initial no-ability Dot status rows plus eligible deferred Dot entries`; stale rows may remain
+  as a safe overestimate. `U0 = distinct eligible initial status/deferred landed raw pairs` keyed by full `(victim,by)`,
+  including `None`, after provenance validation. `U0 <= E0`; E0 remains relevant to numeric/status probes, not as a Card
+  report row capacity.
+- `Q0 = existing trusted report row count`, separately validated. Historical Q0 grants no fresh projector entitlement.
 
-## Proposed native paths and leases
+For arbitrary accepted restored state use `V=A0+14P+2R+150`, covering restored actors, future joins/dummies, regional
+respawns, lifetime practice births and companion churn. Do not tighten accepted restore shapes to force small capacity.
+Use pristine specializations only with proven prerequisites: player-only8 V=8; Full8/no dummies V=2P+2R=424 at R204;
+pristine training8 without earned corpses V=3P+150=174. Future live source growth is bounded by PV (at most 11 passes
+in the inclusive first 500 ms). The prepared capacities are:
 
-NEW mechanic/tests: `crates/rh-sim/src/systems/card_bleed_feedback.rs` and adjacent new test modules; NEW receipts:
-`docs/evidence/card-bleed-feedback/**`. Existing-file **hunks only**, as fully specified in the design:
+| Domain | Capacity |
+|---|---|
+| Derived exact raw-pair rows per step in each producer/sealed sidecar | `K = U0 + P*V` |
+| Trusted pending raw pairs/rows in one populated flush | `Q = Q0 + U0 + P*V` |
+| Card public buckets for one viewer / populated flush | `B = 2*U0 + (P+1)*V` |
+| Segment/markers | One populated segment; at most two CardFlush and one CardReset; preserve empty markers |
 
-- systems/mod.rs registration; World field/default in state.rs; source-phase call in cards/after_damage.rs; CardReset at
-  cards/runtime.rs reset_all; existing pending schedule run-end link.
-- events.rs server-only raw variant/classification; observe.rs raw exclusion and separately reserved version constant.
-- fx_report.rs Card operations/rebase/domain limits; fx_projector/mod.rs Card accumulation/markers/output/preparation,
-  reusing exact.rs; scratch.rs and narrow Sim/checkpoint cold preparation/validation.
-- Narrow regional-NPC Card Dot checkpoint admission hunk, only after the real producer/refusal probe below establishes
-  it; preserve existing accepted Blaze and generic-player status domains. No unrelated validator refactor.
-- Approved content marker visitor, reserved checkpoint/replay/observation/policy constants, exact native version
-  assertions, real hash-coverage/restore/allocation witnesses and focused schedule classification table if needed.
-- Root-controlled tests/content.rs golden and parity/abilities/hash-tape.json derived pins, only after actual existing
-  source cases execute and Root explicitly authorizes any native re-record. Existing63 legacy outputs remain immutable.
+No H-squared history matrix, row clamp/truncation, small universal cap, warm growth or silently dropped trusted rows.
+Unsupported public representation fails closed without capping trusted gameplay.
 
-Read-only primary recheck at `c99e69f0524c386dee1de4dd34ac65fc4847ae93` confirms selected shared files match4151b3af,
-except disjoint lower observe_with/tiles changes. Preserve those hunks exactly; Root rechecks active Claude leases at
-dispatch. No whole-file copy, public observation schema/codec/client, unrelated status/card rules, Cargo.lock, shared
-status, source fixtures/tools, merge/push or actual publication. Additional exhaustive Event consumer needs return its
-exact necessary hunk for Root allocation, not implicit scope expansion.
+Use distinct preallocated deterministic indexes for trusted World rows, the current exact segment and each viewer's public
+buckets. Recommended index is an arena AVL with two `usize` child indices, bounded height and full key comparison; node
+ordinal maps directly to stable row ordinal. Rotations only change index links, not row order; clear root/length but retain
+capacity. The segment's row-range start is its row offset. Avoid hot heap nodes/resizing HashMaps, packed 65-bit keys or
+aliasing `None` with a PlayerId. Clear public index whenever Card buckets are cleared/sorted; a separate Card Vec/index
+avoids stale indexes from legacy mixed-domain reorder operations.
 
-## Identity and derived pins
+For 64-bit static budgeting, exact row=320 B, trusted row=24 B, public bucket=320 B, Event/SeenEvent=256 B. These are
+field-layout estimates, not measured type sizes. Define `I(0)=0`; otherwise `I(N)=8*next_power_of_two(2*N)+8*N` bytes.
+It is an index budget envelope that covers the proposed 24-byte AVL node estimate (`I(N)>=24N`), not a physical table
+layout. Actual Rust sizes, AVL height/depth, checked/fallible capacity growth and allocations remain later implementation
+gates. With two exact sidecars, one populated flush envelope and eight public viewers:
 
-Planned, not reserved: checkpoint30/replay24 for new serialized/hashed state, OBS22/policy16 for changed public knowledge
-semantics under ADR0013, plus a new content marker (suggested `card-bleed-feedback/1`). Root must revalidate exact numbers
-against final union/Claude cut. Existing card catalog rows/fold words stay unchanged; marker placement is explicit.
+`N_new = 640K + 538Q + 4608B + I(K) + I(Q) + 8*I(B)`
 
-New World shape changes even absent-report hashes. Run all63 existing admitted ability source cases on final native code
-before Root-authorized native tape recorder; do not make metadata-only updates, rewrite source outputs, drop cases or
-record over a genuine source mismatch. Existing hash-coverage/checkpoint/refusal/version tests must cover new leaves and
-old-rule refusal. Search exact prepared union for all affected native assertions/pins; design lists current known paths.
+| Profile | U0/Q0 | K/Q/B | Index bytes | Static bytes / MiB |
+|---|---:|---:|---:|---:|
+| Player-only8 | 0/0 | 64/64/72 | 24,064 | 431,232 / 0.4113 |
+| Full8/R204 | 0/0 | 3,392/3,392/3,816 | 953,856 | 22,533,760 / 21.4899 |
+| Training8 | 0/0 | 1,392/1,392/1,566 | 450,176 | 9,306,080 / 8.8750 |
+| A0=256/R204/U0=4096/Q0=100 | 4096/100 | 11,504/11,604/16,526 | 5,961,120 | 95,718,440 / 91.2842 |
+| Same restore, U0=1/Q0=100 | 1/100 | 7,409/7,509/8,336 | 3,012,144 | 50,206,034 / 47.8802 |
 
-Protocol14 codec shape stays unchanged. Existing Rust/C#/JS golden decoders and publish/header compatibility still need
-joint integration verification. Any client-advertised version/generated fixture refresh belongs to a later Root/Claude
-lease, with no promise of new drip presentation in this packet.
+These are checked formula evaluations only. The 21.49 MiB Full8 figure replaces the old 44.60 MiB estimate because the
+revised model coalesces rows by segment pair and reserves one populated flush, while retaining empty markers. Excluded
+are fixed legacy reservations, status/tag allocations, vector headers and allocator rounding. No speedup or actual
+memory/allocation claim follows. DeepSeek measures report/projector and unchanged source producer separately after the
+native types exist; Hemorrhage's formatted Arc tag is an inherited allocation, so there is no whole-combat zero-allocation
+claim.
 
-## Concrete predispatch probes
+## Numeric and regional restore probes — pending Root decision
 
-The design's completed calculation finds a specific numeric hole in the accepted generic player-status shape: finite
-Dot value1e307 can overflow `value*50/1000` at multiplication;4096 distinct sourceless Dot tags at1e306 can produce
-finite individual5e304 rows whose source-ordered sum becomesInfinity at prefix3596. Finite HP does not cap the player's
-reported landed rows to actual applied HP. These are static accepted-shape counterexamples, pending actual restore/
-step confirmation, not native run receipts. Current C-DET forbids nonfinite World floats; public ExactSum refusal does
-not repair authoritative overflow. No arbitrary small count/value cap, sum reordering or tagged nonfinite workaround
-is authorized.
+Static calculations identify two potential accepted-shape arithmetic failures: `value=1e307` can overflow the existing
+`value*50/1000` multiply-before-divide; 4096 distinct sourceless `1e306` Dot rows produce finite individual `5e304`
+rows but the trusted same-pair f64 fold becomes Infinity at prefix 3596. Finite HP does not cap player-reported landed
+rows. C-DET forbids nonfinite World floats; ExactSum/public failure cannot repair trusted World overflow. These are not
+runtime receipts. Preserve source f64 order; no clamp, arbitrary safe-row cap, reordered fold, tagged nonfinite state or
+invented corrected expected answer is authorized. **Numerical admission decision is still pending.**
 
-Root assigns DeepSeek three disposable probes, with no production repair, exactly as specified under
-`Exact three-probe DeepSeek handoff` in the design:
+The separate assigned DeepSeek probe session is `/Users/nevinmckinnon/.codex/tools/roguehalla-backend-20261109/card-bleed-design-probe/repo`, branch `codex/deepseek-card-design-probes`, base `36564c33`. It owns only
+`docs/evidence/card-bleed-native-probes/**` and these three probes; no production change/report-index measurements:
 
-1. Actual baseline checkpoint→one sourceless Dot1e307→actual restore→one ordinary step; capture acceptance/refusal and
-   actual landed amount/finiteness/layout behavior.
-2. Same full reader/step with4096 unique sourceless tags at1e306; capture finite individual rows versus source-order
-   aggregate and print actual type sizes where accessible. Do not substitute ExactSum for the trusted diagnostic fold.
-3. Normal constructor/real card grant/validate+submit physical attack earns Hemorrhage Dot on a real regional NPC;
-   checkpoint restores before the hit, then capture current restore refusal with actual live Card status. The existing
-   `mob_checkpoint.rs` predicate admits only Full Blaze Dot; no installed expected status or expired/dead target shortcut.
+1. Actual normal training checkpoint baseline/roundtrip, add one valid sourceless `1e307` Dot to the probe checkpoint,
+   restore through the real reader, step ordinary 50 ms and record acceptance/refusal, landed amount/finiteness,
+   HP/status/events/layout.
+2. Same actual checkpoint path with 4096 unique sourceless `1e306` Dot tags; record actual rows/bits and source-order
+   ordinary binary64 fold/first nonfinite prefix. Print accessible existing sizes; never use ExactSum as trusted fold.
+3. Normal Sim, real Hemorrhage grant, validated physical Attack/Release earns `bleed:{tick}` on a live regional NPC.
+   Verify checkpoint works before hit, then capture the actual current checkpoint refusal for the source-produced live
+   Card status (expected current `unsupported mob status domain` in `systems/mob_checkpoint.rs`). No direct `on_hit`,
+   installed status, player-only target, dead/expired workaround, or validator weakening.
 
-After receipts, Root selects the smallest justified numeric admission treatment and allocates the source-backed
-regional Card Dot restore repair. Unsafe generic arithmetic must be addressed deliberately without excluding arbitrarily
-many safe rows or changing required ordered binary64 trusted sums. Public redacted sums deliberately remain exact.
-The current immediate next action is this evidence-producing probe task, not an unspecified audit or native report dispatch.
+Root chooses arithmetic admission and allocates any exact regional-NPC status restore hunk after those receipts,
+preserving existing Blaze/generic-player restore domains and safe accepted rows. The probes do not measure proposed
+Card report/index type sizes or warm allocations; those are later native implementation gates.
 
-## Acceptance
+## Identity, ownership and protected work
 
-1. Root reviews the completed bound/memory calculation and actual three-probe results, approves the selected small
-   arithmetic/restore treatment, output contract, identities and exact leases; DeepSeek gets
-   isolated clean branch/private target and pinned Rust1.97.0 locked/offline/jobs1 environment.
-2. Replay the immutable seven source input cases through real producers and ordinary50ms steps, comparing trusted raw
-   amount/pair/order/tick/cadence/reset/end behavior. Compare /2 freshness accurately; never install expected pending state.
-3. Separate native semantic controls prove settled hidden-history protection, pre-key redaction/anonymous permutation,
-   source/victim departure, IDs>8/NPCs, byself eligibility, cross-domain empty/nonempty markers, signatures-off reset,
-   teleport retention and normal repeated empty/Ended reports. No native public-row equality with legacy global broadcast.
-4. Mid-window checkpoint/replay/clone continues trusted totals while fresh projector/reconnect earns only later
-   entitlement; duplicates/gaps/backward/foreign/bounds/amount errors fail closed. Observation/publication schedules must
-   not change World hashes/gameplay. Raw/stateless observation never leaks totals or grants handles.
-5. New real hash/restore/warm witnesses plus affected card/status/report/projector/schedule/content/replay/version gates,
-   strict scoped Clippy and fmt pass on the exact seal, with raw first failures and terminal receipts. Root coordinates
-   wider decoder/publish/headless compatibility once for the admitted union; no broad unchanged suite repetition.
-6. Independent review releases exact source/native/identity seals separately. Source-only release is already complete;
-   it does not authorize native implementation, public activation or Unity/client work.
+Proposals only; Root revalidates/reserves against final integration and Claude cuts: checkpoint 29→30, replay 23→24,
+OBS 21→22, policy 15→16, and a new content visitor marker such as `card-bleed-feedback/1`. The World leaf changes hash
+even when absent; metadata-only updates are insufficient. Root authorizes a native tape re-record only after the final
+native consumer runs all 63 admitted ability source cases, preserving source comparisons and genuine failures. Protocol14
+codec shape stays unchanged; existing Rust/C#/JS decoder and publish/header checks remain required.
+
+After Root dispatch only, DeepSeek's native lease is limited to the new mechanic/test/evidence files and exact related
+hunks: `systems/mod.rs`; World/default/cold preparation in `state.rs`/`sim.rs`/checkpoint validation; actual producer in
+`cards/after_damage.rs`; GateAlways reset in `cards/runtime.rs`; exact pending run-ended schedule link; server-only Event
+and raw observation exclusion; `fx_report.rs`, `fx_projector/mod.rs`, private scratch/index capacities and checked
+ExactSum merge; new focused source/privacy/schedule/hash/restore/allocation tests; narrow content/version assertions.
+The regional NPC checkpoint admission hunk is separate and only allocated if probe 3 reaches the real refusal. Any
+additional exhaustive Event consumer must be returned to Root for an exact hunk lease, not assumed in scope.
+
+All source/tools/corpus/evidence, unrelated card/status rules, existing trusted f64 order, actor/wire/client paths beyond
+reserved contract versions, Claude networking/Unity leases, protocol fixtures, Cargo.lock, shared status and primary
+checkout remain protected. Root alone integrates, reserves identities, authorizes golden updates and edits shared status.
+No source-only release authorizes native implementation or public activation.
+
+## Acceptance after dispatch
+
+After probes and Root decisions, DeepSeek must:
+
+1. Replay all seven immutable source cases with actual producers/ordinary 50 ms steps; compare trusted rows/order/f64,
+   cadence, natural run-end/reset, and `/2` processed-vs-retained facts.
+2. Reach exact pair coalescing and test the one-segment/one-populated-flush premise; both empty/populated periodic and
+   runEnded markers; voided/Ended scratch retention; signatures-off reset; teleport retention; deferred adjacency; and
+   Card/legacy reset isolation.
+3. Prove settled entitlement, exact redaction-before-grouping, anonymous merges/permutations, hidden-history privacy,
+   source/victim departure, viewer-owned `by`, player/NPC IDs>8, and no raw/stateless leak or identity grant.
+4. Prove checked ExactSum merge/carry/round behavior, cold/rebind/clone/restore preparation, fresh post-attach entitlement,
+   duplicate/gap/backward/foreign/error fail-closed behavior, no partial output, actual type sizes and warmed allocations.
+   Observation cadence must not alter trusted World hashes/gameplay.
+5. Run focused affected card/status/report/projector/schedule, checkpoint/hash/content/replay/version, all 63 admitted
+   source ability cases, allocation witnesses, scoped lint/fmt; preserve raw failures/commands/runtime/exit receipts.
+   Root coordinates the joint decoder/publish/headless gate once on the admitted union.
+
+No native admission, universal memory cap, historical viewer audience in legacy source, all-ability coverage, full client
+animation parity, speedup or zero-allocation claim follows until Root reviews final code/evidence. Root alone integrates and
+updates shared status.
