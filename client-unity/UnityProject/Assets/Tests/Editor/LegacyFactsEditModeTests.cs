@@ -48,6 +48,21 @@ namespace Roguehalla.Client.Tests
             finally { Object.DestroyImmediate(root); }
         }
 
+        [Test] public void A_windup_that_arrives_before_its_fighter_is_drawn_starts_when_it_appears_but_not_after_a_third_of_a_second()
+        {
+            var root = new GameObject("zones"); bool here = false; var z = new HitZonePresenter(root.transform, id => here, "");
+            z.Position = (uint id, out float x, out float y) => { x = 300; y = 300; return here; };
+            WeaponShapes.Set(new List<WeaponShape> { new WeaponShape { Weapon = 0, Kind = 1, Reach = 112, HalfArc = .785f } });
+            try
+            {
+                Assert.IsFalse(z.Windup(7, 0, 0f, 600f, 10f)); z.Tick(10.1f, false); Assert.AreEqual(0, z.LiveCount);
+                here = true; z.Tick(10.2f, false); Assert.AreEqual(1, z.LiveCount, "the fighter appeared within the wait: the telegraph starts");
+                z.CancelWindup(7); here = false;
+                z.Windup(8, 0, 0f, 600f, 20f); here = true; z.Tick(20.5f, false); Assert.AreEqual(0, z.LiveCount, "too late: the swing is nearly here");
+            }
+            finally { Object.DestroyImmediate(root); }
+        }
+
         // ---- overhead facts --------------------------------------------------------------------------------------------------------------------
         [Test] public void A_player_name_shows_and_the_local_one_is_tinted()
         {
@@ -113,20 +128,21 @@ namespace Roguehalla.Client.Tests
         }
         [Test] public void The_credits_link_points_next_to_the_page()
         {
-            Assert.AreEqual("http://127.0.0.1:8287/Licenses/Third-Party-Assets.md", LaunchScreenView.CreditsUrl("http://127.0.0.1:8287/?diagnostic=1"));
-            Assert.AreEqual("Licenses/Third-Party-Assets.md", LaunchScreenView.CreditsUrl(""));
+            Assert.AreEqual("http://127.0.0.1:8287/Licenses/index.html", LaunchScreenView.CreditsUrl("http://127.0.0.1:8287/?diagnostic=1"));
+            Assert.AreEqual("Licenses/index.html", LaunchScreenView.CreditsUrl(""));
         }
-        [Test] public void Edge_glows_cover_living_creatures_and_fighters_but_not_the_local_one_or_hidden_ones()
+        [Test] public void Edge_dots_cover_living_other_players_that_are_off_screen_only()
         {
             var actors = new List<InterpActor> {
                 new InterpActor { Id = 1, Status = ActorStatus.Alive, Kind = ActorKind.Player, X = 0, Y = 0 },
-                new InterpActor { Id = 2, Status = ActorStatus.Alive, Kind = ActorKind.Player, X = 400, Y = 0 },
-                new InterpActor { Id = 3, Status = ActorStatus.Dead, Kind = ActorKind.RegionalMob, X = 400, Y = 0 },
-                new InterpActor { Id = 4, Status = ActorStatus.Alive, Kind = ActorKind.RegionalMob, X = 0, Y = 300 },
-                new InterpActor { Id = 5, Status = ActorStatus.Alive, Kind = ActorKind.Player, X = 100, Y = 0, Effects = Indicators.Hidden },
-                new InterpActor { Id = 6, Status = ActorStatus.Alive, Kind = ActorKind.QuestGiver, X = 50, Y = 50 } };
-            var into = new List<EdgeThreat>(); EdgeThreats.Collect(actors, 1, 0, 0, 1000, 600, 900, into, 24);
-            Assert.AreEqual(2, into.Count); Assert.AreEqual(1000f, into[0].X, .01f, "an enemy due east lands on the east edge"); Assert.AreEqual(400f, into[0].Distance, .01f);
+                new InterpActor { Id = 2, Status = ActorStatus.Alive, Kind = ActorKind.Player, X = 900, Y = 0 },
+                new InterpActor { Id = 3, Status = ActorStatus.Dead, Kind = ActorKind.Player, X = 900, Y = 0 },
+                new InterpActor { Id = 4, Status = ActorStatus.Alive, Kind = ActorKind.RegionalMob, X = 900, Y = 300 },
+                new InterpActor { Id = 5, Status = ActorStatus.Alive, Kind = ActorKind.Player, X = 100, Y = 0 },
+                new InterpActor { Id = 6, Status = ActorStatus.Alive, Kind = ActorKind.Player, X = 700, Y = 0, Effects = Indicators.Hidden } };
+            var into = new List<EdgeThreat>(); EdgeThreats.Collect(actors, 1, 0, 0, 1000, 600, 900, into, 24, 512f, 288f);
+            Assert.AreEqual(1, into.Count, "only player 2: 3 is dead, 4 is a creature, 5 is on screen, 6 is hidden");
+            Assert.AreEqual(1000f, into[0].X, .01f); Assert.AreEqual(900f, into[0].Distance, .01f);
         }
         [Test] public void A_windup_fx_starts_the_telegraph_and_a_cancel_ends_it()
         {
