@@ -4,7 +4,7 @@ use crate::constants::*;
 use crate::content::{staggers, Shape, WeaponId};
 use crate::events::Event;
 use crate::fighter::FighterIx;
-use crate::geometry::ray_blocked;
+use crate::geometry::{arc_hits_box, ray_blocked};
 use crate::map::MASK_MELEE;
 use crate::math::{angle_between, asin, atan2, hypot, Vec2};
 use crate::scratch::TickScratch;
@@ -109,7 +109,20 @@ fn resolve_swings(cx: &mut Cx) {
             } else {
                 w.core(ti).position_at(req.rewind_t)
             };
-            if !in_arc(origin, req.a, reach, half_arc, at, PLAYER_RADIUS) {
+            // ADR0024 Decision 5: a legacy circle is today's disc test; a body box is tested from the attacker's rewound
+            // feet raised by the TARGET's chest (the box centre), so reach is even north and south for every pair.
+            let hull = w.core(ti).hull();
+            let reached = match hull.body_box(at) {
+                None => in_arc(origin, req.a, reach, half_arc, at, PLAYER_RADIUS),
+                Some(body) => arc_hits_box(
+                    Vec2::new(origin.x, origin.y + hull.body_oy()),
+                    req.a,
+                    reach,
+                    half_arc,
+                    body,
+                ),
+            };
+            if !reached {
                 continue;
             }
             if ray_blocked(
