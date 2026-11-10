@@ -46,6 +46,7 @@ namespace Roguehalla.Client
         int _fxSwings, _fxHits;
         bool _attackHeld;
         bool _traceLatency;
+        uint _traceDraw;
         MatchLaunchTarget _sessionTarget;
         int _sessionFaction;
         long _sessionGeneration;
@@ -564,6 +565,10 @@ namespace Roguehalla.Client
                     LatencyTrace.Mark("presentSelf", Session.PlayerId, Session.Me.MoveSeq, Session.Motion.DrawnX, Session.Motion.DrawnY);
                     // Reconciliation counters: x = samples compared, y = summed model-versus-server error, moveSeq slot = snaps (the pull-back the server forced).
                     LatencyTrace.Mark("presentRecon", Session.PlayerId, Session.Motion.Snaps, Session.Motion.ReconSamples, Session.Motion.ReconErrSum);
+                    var oc = Session.Me.OwnerCombat;
+                    if (oc.HasValue && oc.Value.DrawStartedAt != 0 && oc.Value.DrawStartedAt != _traceDraw)
+                        LatencyTrace.Mark("ownDraw", Session.PlayerId, 0, oc.Value.DrawStartedAt, oc.Value.ReadyAt); // a bow draw began (the server's own fact)
+                    _traceDraw = oc.HasValue ? oc.Value.DrawStartedAt : 0;
                 }
                 foreach (var actor in _actors)
                     LatencyTrace.Mark("presentActor", actor.Id, 0, actor.X, actor.Y);

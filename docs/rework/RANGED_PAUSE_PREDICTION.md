@@ -1,8 +1,7 @@
 # Proposal: predict the ranged release pause (audit finding 3)
 
-Status: **implemented 2026-11-10 for wand and swing wind-ups (option B, from delivered facts); bow release is blocked on a missing
-server fact.** Owner approved ("we are trying to perfect the feel of the game"). See "Outcome" at the end; the original proposal below
-is kept for the reasoning. Source: `docs/rework/CONTROLS_AUDIT.md` F2 and section 3 item 1.
+Status: **implemented 2026-11-10 for the wand, the bow and swing wind-ups, from delivered facts, with no sim or wire change.** Owner
+approved ("we are trying to perfect the feel of the game"). See "Outcome" at the end; the original proposal above it is kept for the reasoning. Source: `docs/rework/CONTROLS_AUDIT.md` F2 and section 3 item 1.
 
 ## Problem
 
@@ -63,36 +62,41 @@ is held). The implementer will not start until the ADR amendment exists.
 
 ## Outcome (2026-11-10, branch `rework/pause`)
 
-**Chosen: B, generalised.** The client does not time an attack from a key press. It consumes the facts the server already delivers to
-the owner: the owner's `Windup` fx (ADR 0026: attacker, weapon, wait `ms`; sent in the tick the attack starts, so `tick time + ms` is the
-landing), the owner's `Stagger` and `Cancel` fx, and the self block's weapon and stun bit. `LocalMotion` places the pause on the
-server's 50 ms step grid (the walk of the step ending at tick T stops when `landsAt - 200 <= T < landsAt` for a wand, or
-`tick <= T < landsAt` for a swing) and maps it onto the model clock through the sample stamp and the measured order delay
-reconciliation already uses. The only rule constants added are `RangedReleasePauseMs = 200` and `TieEpsMs = 1e-6`, both pinned to the Rust values by
-`ranged_pause_v1.json`; `TickMs` and `PlayerSpeed` were already mirrored.
+**Chosen: B for the wand (consume the delivered `Windup`), A for the bow (derive the landing from the owner block), no sim or wire change.** The
+client does not time an attack from a key press. `LocalMotion` places the pause on the server's 50 ms step grid (the walk of the step
+ending at tick T stops when `landsAt - 200 <= T < landsAt`) and maps it onto the model clock through the sample stamp and the measured order delay
+reconciliation already uses.
 
-| Case | Covered | How it is proved |
-|---|---|---|
-| Wand release pause | **yes** | `ranged_pause_v1.json` cases `wand-single-shot`, `wand-held` (3 casts), `wand-rejected-cooldown` |
-| Swing wind-up | **yes, but a player swing has no wind-up** (`player_timings` gives melee 0 ms; only NPC swings and card-scaled windups are non-zero), so nothing visible changes | `sword-swing`: windup fx `ms = 0`, server never pauses |
-| Stagger during the cast | **yes** (fx `Stagger` ends the pause at its tick) | `wand-staggered`, `wand-staggered-in-pause` |
-| Weapon swap during the cast | **yes** (self block weapon change) | `wand-weapon-swap` |
-| Stun | by the self-block stun bit; **not vector-proved** (no stun can be produced from `rh-parity` without editing `rh-sim`); unit-tested only | `AStunInTheSelfBlockEndsThePause` |
-| `Cancel` fx (order-cancelled cast) | handled (pause ends the step before the cancel's tick, from the schedule order: inputs run before the multiplier); **not vector-proved** | none yet |
-| Roots (`root_until`) | **no**, unchanged; players have none without cards | none |
-| **Bow release pause** | **no: blocked.** The sim announces no `Windup` for a bow draw (`weapons.rs` `start_attack` sets `draw_started_at` only), and the owner block carries `draw_started_at` and `ready_at` but not the landing. The landing is `draw_started_at + min(BOW_WINDUP_MAX_S, BOW_WINDUP_INTERVAL_SHARE * interval)` scaled by the windup mirror: a rule the client must not hold. | `bow-single-shot` records a real 4-step server pause with no delivered fact; `ABowReleasePauseIsNotAnnouncedSoItIsNotMirrored` pins the gap |
+| Weapon | Delivered fact | Landing | Pinned by |
+|---|---|---|---|
+| Wand | owner `Windup` fx (`ms`, whole ms) | `fx tick time + ms` | `ranged_pause_v2.json` wand cases |
+| **Bow** | owner block `draw_started_at`, `ready_at` (u32 ms) | `draw_started_at + 1000 * min(0.5, 0.55 * (ready_at - draw_started_at) / 1000)` | bow cases; Rust test: 146 draw rows, derived vs server `lands_at`, worst 0.711 ms |
+| Swing | owner `Windup` fx | whole wait; a player swing has no wind-up (`ms = 0`) | `sword-swing` |
 
-**What would unblock the bow** (a separate reviewed change, not made here): the sim emitting `Event::Windup` for the bow too
-(`start_attack`, one line, `ms = lands_at - now`), or carrying the landing time in the owner combat block. The mirror already
-treats a `Bow` windup as a release, so no client change would be needed beyond regenerating `ranged_pause_v1.json`. Check ADR 0026 first:
-the telegraph would then also draw for bows.
+Rule constants added to `LocalMotion`: `RangedReleasePauseMs = 200`, `TieEpsMs = 1e-6`, `BowWindupMaxS = 0.5`,
+`BowWindupIntervalShare = 0.55`, each asserted equal to the Rust constant by the fixture (`TheRuleConstantsAreTheRustValues`).
 
-**Known residuals** (all bounded, none a snap): a cancel fact slower than the model's lead (stagger or swap arriving after the model has
-already paused) costs up to the part of the pause already reached; the wire rounds `ms` to whole milliseconds, so a landing within 0.5 ms
-above a step boundary can place the window one step (8.5 u) off; the first part of a melee-style wind-up is learned one link delay late.
-The numbers are in the ADR 0008 amendment.
+Ends early: the owner's `Stagger` fx (cast and swing only: a stagger does not cancel a bow draw and emits no fx for it, shown by
+`bow-staggered-mid-draw`), the owner's `Cancel` fx, a stun bit or a weapon change in the self block, and for a bow the draw clock returning to 0 before
+the shot lands. A draw under a windup scale above 1 is left unpredicted (the client does not hold that rule).
 
-**Browser measurement** (real Web build, `--first-playable` server on 127.0.0.1:7997, `Tools/pause-proof.cjs`, 24 shots each): bow with the mirror
-on, median pull-back 34.1 u per shot (max 53.3); with `?pausepredict=0`, median 34.0 u (max 34.5); walk-only baseline 0.15 u. Unchanged, because
-a bow draw delivers no `Windup` fx (0 seen). The wand could not be measured in a browser: the first-playable map has no wand and the practice room needs
-the PostgreSQL account service; its before/after numbers are the replay's (23 to 32 u drawn error and 8.5 u model-vs-server error at each pause sample, down to 0.00).
+Not covered: roots, slows, terrain. Stun and `Cancel` timing are not vector-proved (nothing in `rh-parity` can produce them without editing `rh-sim`).
+An attack-speed modifier is not vector-proved either (only faction rates reach the interval from `rh-parity`; the derivation reads the interval from the
+clocks, so it would carry one, but no vector shows it).
+
+**Residuals** (bounded, never a snap): a cancel fact slower than the model's lead costs up to the part of the pause already reached (for a mid-draw swap
+22 u at 100 ms RTT, against 8.5 u unpredicted); a draw shorter than the link (Plague's 0.28 s bow) is learned late and keeps part of the old error (7 to 10 u of
+39 to 42 u at 0 to 50 ms RTT); the u32 clocks can place a window one step off when the landing falls within about 1 ms above a step boundary.
+
+**Browser measurement** (real Web build, `--runtime source-arena` seed 1, 7 bots, weapons from the ground, `Tools/pause-proof.cjs`; pull-back = summed
+model-versus-server error in the 1.2 s after a press, counted only for shots the server confirmed; 40 shots per cell except wand off, 29):
+
+| Weapon | Mirror | Median per shot | Mean | Walking and clean shots |
+|---|---|---|---|---|
+| Bow | off (`?pausepredict=0`) | **34.0 u** | 32.1 | n=32: median 34.0, mean 33.9 |
+| Bow | on | **0 u** | 0.82 | n=24: median 0, mean 1.3 (max 17.0) |
+| Wand | off | **34.2 u** | 37.7 | n=15: median 34.2, mean 40.0 |
+| Wand | on | **0.17 u** | 4.35 | n=15: median 0.17, mean 0.9 (max 5.6) |
+
+Clean shots (no damage taken in the window): bow 39 of 40 off, 29 of 40 on; wand 21 of 29 off, 25 of 40 on. Shots hurt by a bot are included in the median
+and mean columns. The walk-only baseline is 0.0 to 0.9 u. The diagnostic switch is `?pausepredict=0` on a loopback page.

@@ -55,9 +55,12 @@ function launchGeometry(w, h) {
   await sleep(10000);
 
   const probe = () => page.evaluate(() => window.__rhProbe || null).catch(() => null);
-  const events = [];
+  const events = [], hpTrace = [];
   const timer = setInterval(async () => {
-    try { const e = await page.evaluate(() => { const t = window.__rhLatency; return t ? t.events.splice(0, t.events.length) : []; }); for (const x of e) events.push(x); } catch (_) { /* page closing */ }
+    try {
+      const e = await page.evaluate(() => { const t = window.__rhLatency; return t ? t.events.splice(0, t.events.length) : []; }); for (const x of e) events.push(x);
+      const h = await page.evaluate(() => { const pr = window.__rhProbe; return pr && pr.me ? { at: performance.now(), hp: pr.me.hp, st: pr.me.status, x: pr.me.x, y: pr.me.y } : null; }); if (h) hpTrace.push(h);
+    } catch (_) { /* page closing */ }
   }, 100);
 
   if (runtime === 'training') {
@@ -86,11 +89,17 @@ function launchGeometry(w, h) {
     await keyWalk(keys, ms);
   };
   // Equip: walk onto a ground weapon of the wanted kind and take it with F.
+  const minimapRect = () => { const sc = legacyScale(W, H), uiW = Math.floor(W / sc), uiH = Math.floor(H / sc); const wanted = Math.min(312, Math.max(195, Math.round(uiH * 0.338))), room = Math.floor(uiW / 2 - 12 - 152); const size = Math.round(Math.min(Math.min(wanted, Math.max(110, room)), uiW * 0.42, uiH * 0.6)); return { x: W - (12 + size) * sc, y: H - (12 + size) * sc, size: size * sc }; };
+  const walkWorld = async (x, y) => { const m = minimapRect(); await page.mouse.click(m.x + m.size * x / 5120, m.y + m.size * y / 5120, { button: 'right', delay: 80 }); };
+  // A big map: weapons lie in the world and only those in sight are delivered, so sweep the map with minimap walk orders until one shows.
+  const sweep = [[2560, 2560], [1500, 2500], [3600, 2500], [2560, 1500], [2560, 3600], [1400, 1400], [3700, 3700], [3700, 1400], [1400, 3700], [800, 2560], [4300, 2560], [2560, 800], [2560, 4300]];
+  let sweepAt = 0, lastSweep = 0;
   let equipped = false;
-  for (let attempt = 0; attempt < 60 && !equipped; attempt++) {
+  for (let attempt = 0; attempt < 400 && !equipped; attempt++) {
     p = await probe(); if (!p || !p.me) { await sleep(300); continue; }
     if (p.me.weapon === weaponWanted) { equipped = true; break; }
     const prop = (p.props || []).filter(z => z.kind === 1 && z.weapon === weaponWanted).map(z => ({ z, d: Math.hypot(z.x - p.me.x, z.y - p.me.y) })).sort((a, b) => a.d - b.d)[0];
+    if (!prop && runtime === 'arena') { if (Date.now() - lastSweep > 6000) { const t = sweep[sweepAt++ % sweep.length]; console.log(`  sweeping toward (${t[0]}, ${t[1]}); weapon props in view ${JSON.stringify((p.props || []).filter(z => z.kind === 1).map(z => z.weapon))}`); await walkWorld(t[0], t[1]); lastSweep = Date.now(); } await sleep(700); continue; }
     if (!prop) { if (attempt % 5 === 0) console.log(`  searching: me (${p.me.x.toFixed(0)}, ${p.me.y.toFixed(0)}) weapon props in view ${JSON.stringify((p.props || []).filter(z => z.kind === 1).map(z => z.weapon))}`); await keyWalk([['d', 'd', 's', 's', 'a', 'a', 'a', 'a', 'w', 'w', 'w', 'w', 'd', 'd'][attempt % 14]], 1500); continue; }
     console.log(`  going for ${WEAPON[weaponWanted]} at (${prop.z.x}, ${prop.z.y}), ${prop.d.toFixed(0)} u away`);
     for (let i = 0; i < 14; i++) {
@@ -143,7 +152,8 @@ function launchGeometry(w, h) {
   // baseline: 8 walking windows with no shot
   for (let i = 0; i < 8; i++) await walkAndMaybeShoot(false);
   let guard = 0;
-  while (presses.length < shotsWanted && guard++ < shotsWanted * 3) await walkAndMaybeShoot(true);
+  const firedNow = () => { const dr = events.filter(e => e.kind === 'ownDraw').length + events.filter(e => e.kind === 'ownWindup').length; return dr; };
+  while (firedNow() < shotsWanted && guard++ < shotsWanted * 6) await walkAndMaybeShoot(true);
   await sleep(1500);
   clearInterval(timer);
   try { const e = await page.evaluate(() => { const t = window.__rhLatency; return t ? t.events.splice(0, t.events.length) : []; }); for (const x of e) events.push(x); } catch (_) { /* ignore */ }
@@ -163,17 +173,28 @@ function launchGeometry(w, h) {
     const xs = errAt.filter(e => e.at >= t0 && e.at < t0 + len);
     return { sum: xs.reduce((a, e) => a + e.err, 0), max: xs.reduce((a, e) => Math.max(a, e.err), 0), n: xs.length };
   };
-  const per = presses.map(t => ({ t, ...windowStats(t, 1200) }));
+  // A shot "fired" when the server's own fact for it arrived (a bow draw start in the owner block, a wand Windup fx) within 400 ms of the press;
+  // "clean" when, in addition, the player took no damage and stayed alive over the window (a bot's hit can stagger or displace the walk).
+  const draws = events.filter(e => e.kind === 'ownDraw').map(e => e.at);
+  const factAt = [...windup.map(w => w.at), ...draws];
+  const hurt = (t0, len) => { const w = hpTrace.filter(h => h.at >= t0 - 100 && h.at <= t0 + len); if (w.length < 2) return false; return w.some(h => h.st !== 1) || Math.min(...w.map(h => h.hp)) < w[0].hp - 0.5; };
+  // "walking": the server position moved by more than 60 u in the 600 ms before the press and again in the 600 ms after it (the pause matters only to a walker).
+  const posAt = t => { let b = null; for (const h of hpTrace) if (h.at <= t) b = h; return b; };
+  const walking = t => { const a = posAt(t - 600), b = posAt(t), c = posAt(t + 600); return !!(a && b && c) && Math.hypot(b.x - a.x, b.y - a.y) > 60 && Math.hypot(c.x - b.x, c.y - b.y) > 20; };
+  const per = presses.map(t => ({ t, walking: walking(t), ...windowStats(t, 1200), fired: factAt.some(a => a >= t - 50 && a <= t + 400), hurt: hurt(t, 1200) }));
   const base0 = walkWindows.map(t => windowStats(t, 1200));
   const mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
   const median = a => { if (!a.length) return 0; const s = [...a].sort((x, y) => x - y); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+  const stat = a => ({ n: a.length, sumMean: +mean(a.map(x => x.sum)).toFixed(2), sumMedian: +median(a.map(x => x.sum)).toFixed(2), sumMax: +Math.max(0, ...a.map(x => x.sum)).toFixed(2), maxSampleMax: +Math.max(0, ...a.map(x => x.max)).toFixed(2) });
   const report = {
     weapon: WEAPON[weaponWanted], predict, runtime, shots: presses.length, ownWindupFx: windup.length, windupMs: windup.map(w => w.ms).slice(0, 5), staggerFx: stagger, cancelFx: cancel,
     reconSamples: errAt.length, snaps,
+    firedShots: per.filter(x => x.fired).length, firedAndClean: per.filter(x => x.fired && !x.hurt).length, firedButHurt: per.filter(x => x.fired && x.hurt).length,
+    firedPullBack: { all: stat(per.filter(x => x.fired)), clean: stat(per.filter(x => x.fired && !x.hurt)), walkingClean: stat(per.filter(x => x.fired && !x.hurt && x.walking)), walkingAll: stat(per.filter(x => x.fired && x.walking)), hurt: stat(per.filter(x => x.fired && x.hurt)) },
     shotWindow: { pullBackSumMean: +mean(per.map(x => x.sum)).toFixed(2), pullBackSumMedian: +median(per.map(x => x.sum)).toFixed(2), pullBackSumMax: +Math.max(...per.map(x => x.sum)).toFixed(2),
       maxSingleSampleMean: +mean(per.map(x => x.max)).toFixed(2), maxSingleSampleMax: +Math.max(...per.map(x => x.max)).toFixed(2), samplesPerShot: +mean(per.map(x => x.n)).toFixed(1) },
     walkOnlyBaseline: { windows: base0.length, pullBackSumMean: +mean(base0.map(x => x.sum)).toFixed(2), pullBackSumMedian: +median(base0.map(x => x.sum)).toFixed(2), maxSingleSampleMax: +Math.max(...base0.map(x => x.max)).toFixed(2) },
-    perShotSums: per.map(x => +x.sum.toFixed(1)),
+    perShot: per.map(x => ({ sum: +x.sum.toFixed(1), fired: x.fired, hurt: x.hurt, walking: x.walking })),
     consoleErrors: errors.length,
   };
   fs.writeFileSync(path.join(out, `pause-${WEAPON[weaponWanted]}-${predict ? 'on' : 'off'}.json`), JSON.stringify({ report, per, base0, errAt }, null, 1));
