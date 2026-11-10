@@ -325,7 +325,13 @@ fn first_body(cx: &Cx, s: Stretch, t: f64) -> Option<(usize, Vec2)> {
             Some(body) => {
                 let grown = body.grown(slack);
                 if grown.contains(up.a) {
-                    contact(s, at, reach)
+                    // ... except a homing flight's own target, which it is already inside: a hit. (The legacy contact
+                    // would never come within reach when the target's lift is 14 u or more, and the flight would orbit.)
+                    if pr.launch.target == Some(p.id) {
+                        Some(0.)
+                    } else {
+                        contact(s, at, reach)
+                    }
                 } else {
                     segment_box_entry(up.a, up.b, grown)
                 }
@@ -934,6 +940,37 @@ mod tests {
                 WeaponId::Shield => assert_eq!(after, original),
                 _ => unreachable!(),
             }
+        }
+    }
+
+    /// ADR0024 review finding 3 with homing (found by the P-HB-9 measurement, `hitbox_compare`): a homing ball whose
+    /// raised start is already inside its OWN target's box hits it. The legacy ground contact alone never would when the
+    /// target's lift is 14 u or more (an antlion under a player-height flight: the ground point homes 19 u south of the
+    /// feet), and the ball orbited until its time cap. Other bodies keep the legacy contact.
+    #[test]
+    fn a_homing_ball_starting_inside_its_targets_box_hits_it() {
+        // A non-homing ball from the same start, flying east: legacy ground contact, 25 u from the feet, misses.
+        for (target, v, want) in [
+            (Some(PlayerId(2)), Vec2::new(0., -380.), true),
+            (None, Vec2::new(380., 0.), false),
+        ] {
+            let mut sim = world(&[100., 400.], true);
+            sim.w.players[1].core.archetype = crate::archetype::ArchetypeId::ANTLION;
+            let feet = sim.w.players[1].pos();
+            seed(
+                &mut sim,
+                ProjectileKind::Ball,
+                PlayerId(1),
+                Vec2::new(feet.x, feet.y + 25.),
+                v,
+                target,
+            );
+            sim.w.projectiles[0].launch.height = crate::archetype::PLAYER_CHEST;
+            let mut events = Vec::new();
+            for _ in 0..80 {
+                events.extend(sim.step());
+            }
+            assert_eq!(ended(&events, ProjectileEnd::Hit), want, "{target:?}");
         }
     }
 
