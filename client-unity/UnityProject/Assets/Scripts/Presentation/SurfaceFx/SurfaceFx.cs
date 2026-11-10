@@ -136,19 +136,19 @@ namespace Roguehalla.Client
             if (SurfaceFxTable.IsWet(ev.Surface)) { if (AtmosphereQuality.SurfaceRipples) Footfall(ev, kind); return; }
             if (_tracks.Capacity == 0 || ev.Style == PrintStyle.None) return;
             Vector2 c = Ground(ev.X, ev.Y), d = new Vector2(ev.DirX, ev.DirY), sd = new Vector2(-d.y, d.x);
-            float s = ev.Size, len = .62f * s, wid = .34f * s;
+            float s = ev.Size, len = .84f * s, wid = .48f * s;
             int cell = SurfaceFxAtlas.Foot; float style = 0, life = TrackLife.Lifetime, fade = TrackLife.FadeSeconds;
             Color32 col; bool mirror = ev.Foot == 1;
             switch (ev.Style)
             {
-                case PrintStyle.Sand: col = Col(.30f, .21f, .12f, .62f); style = 1; break;
-                case PrintStyle.Snow: col = Col(.56f, .63f, .80f, .72f); style = 2; wid = .38f * s; break;
-                case PrintStyle.Mud: col = Col(.055f, .04f, .028f, .72f); style = 3; break;
-                case PrintStyle.Grass: col = Col(.10f, .18f, .06f, .30f); cell = SurfaceFxAtlas.GrassTrail; len = 1.45f * s; wid = .34f * s; mirror = false; break;
+                case PrintStyle.Sand: col = Col(.26f, .17f, .09f, .82f); style = 1; break;
+                case PrintStyle.Snow: col = Col(.50f, .58f, .78f, .9f); style = 2; wid = .54f * s; break;
+                case PrintStyle.Mud: col = Col(.05f, .035f, .025f, .88f); style = 3; break;
+                case PrintStyle.Grass: col = Col(.07f, .14f, .04f, .5f); cell = SurfaceFxAtlas.GrassTrail; len = 1.7f * s; wid = .5f * s; mirror = false; break;
                 case PrintStyle.Ash:
-                    cell = SurfaceFxAtlas.Scuff; len = .62f * s; wid = .46f * s; mirror = false;
-                    col = ev.Surface == FxSurface.Ember ? Col(.07f, .06f, .06f, .5f) : Col(.62f, .60f, .58f, .3f); break;
-                case PrintStyle.Wet: col = Col(.05f, .07f, .09f, .62f * ev.Wetness); style = 3; life = 3.2f; fade = 1.6f; break;
+                    cell = SurfaceFxAtlas.Scuff; len = .9f * s; wid = .7f * s; mirror = false;
+                    col = ev.Surface == FxSurface.Ember ? Col(.05f, .04f, .04f, .7f) : Col(.66f, .63f, .6f, .5f); break;
+                case PrintStyle.Wet: col = Col(.04f, .06f, .08f, .75f * ev.Wetness); style = 3; life = 3.2f; fade = 1.6f; break;
                 default: return;
             }
             Vector2 u = Vec(sd.x, sd.y) * wid, v = Vec(d.x, d.y) * len;
