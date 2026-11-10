@@ -287,7 +287,7 @@ namespace Roguehalla.Client
         }
 
         float _nextCensus, _nextBeat;
-        /// <summary>Debug only (?surfacefx=1): logs the local player's position and the nearest tile of each surface, so automated runs can steer to it.</summary>
+        /// <summary>Debug only (?surfacefx=1): logs the local player's position and the nearest interior tile of each surface, so automated runs can steer to it.</summary>
         void Census()
         {
             if (!DebugLog || !_haveLocal || _now < _nextCensus) return;
@@ -302,6 +302,10 @@ namespace Roguehalla.Client
             for (int ty = 0; ty < 200; ty++) for (int tx = 0; tx < 200; tx++)
             {
                 int k = (int)_surfaceAt(tx * 32f + 16f, ty * 32f + 16f); if (k <= 0 || k >= 16) continue;
+                // interior only: every tile within 3 of it is the same surface, so a run through it stays on that surface for a while
+                bool inside = true;
+                for (int oy = -3; oy <= 3 && inside; oy += 3) for (int ox = -3; ox <= 3 && inside; ox += 3) if ((int)_surfaceAt((tx + ox) * 32f + 16f, (ty + oy) * 32f + 16f) != k) inside = false;
+                if (!inside) continue;
                 float d = (tx - ltx) * (tx - ltx) + (ty - lty) * (ty - lty); if (d < best[k]) { best[k] = d; bx[k] = tx; by[k] = ty; }
             }
             var sb = new System.Text.StringBuilder("census local=" + (int)_localX + "," + (int)_localY + " under=" + _surfaceAt(_localX, _localY));
