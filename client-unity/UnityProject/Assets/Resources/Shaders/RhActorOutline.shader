@@ -78,31 +78,52 @@ Shader "Roguehalla/ActorOutline"
 
         float Luma(float3 c) { return dot(c, float3(0.2126, 0.7152, 0.0722)); }
 
-        // Ground luminance behind the stroke, robust and stable: thirteen taps of the (4x box filtered) grab over about 0.8 world units around the pixel, combined as
-        // a geometric mean. The mean of a ground made of bright veins on dark cells reads far too bright (the measurement compares against the MEDIAN of the ring);
-        // the geometric mean sits close to the median of such skewed grounds, and the wide footprint keeps the choice from flipping on every vein.
-        float TapLog(float2 uv)
+        // Ground luminance behind the stroke: the MEDIAN of thirteen taps of the (4x box filtered) grab within about 0.2 world units (3 to 12 pixels at 1080p) of the pixel.
+        // The gate compares the stroke with the median of the ground just outside it, so the polarity must follow the majority of the ground there: on a ground of bright
+        // veins over dark cells the mean reads bright and a geometric mean still leans on the veins, the median does not.
+        float TapLum(float2 uv)
         {
-            float3 c = SAMPLE_TEXTURE2D_LOD(_CameraSortingLayerTexture, sampler_LinearClamp, uv, 0).rgb;
-            return log(max(Luma(c), 0.004));
+            return Luma(SAMPLE_TEXTURE2D_LOD(_CameraSortingLayerTexture, sampler_LinearClamp, uv, 0).rgb);
         }
 
         float GroundLuma(float2 uv)
         {
             float unit = _ScreenParams.y / max(2.0 * unity_OrthoParams.y, 0.01);   // pixels per world unit
-            float2 px = 1.0 / _ScreenParams.xy;
-            float sum = TapLog(uv);
-            const float r0 = 0.16, r1 = 0.36, r2 = 0.62;
+            float2 px = unit / _ScreenParams.xy;
+            float v[13];
+            v[0] = TapLum(uv);
             [unroll] for (int k = 0; k < 4; k++)
             {
                 float s, c; sincos(1.5707963 * k, s, c);
-                sum += TapLog(uv + float2(c, s) * px * unit * r0);
+                v[1 + k] = TapLum(uv + float2(c, s) * px * 0.05);
                 float s1, c1; sincos(0.7853982 + 1.5707963 * k, s1, c1);
-                sum += TapLog(uv + float2(c1, s1) * px * unit * r1);
+                v[5 + k] = TapLum(uv + float2(c1, s1) * px * 0.11);
                 float s2, c2; sincos(0.3926991 + 1.5707963 * k, s2, c2);
-                sum += TapLog(uv + float2(c2, s2) * px * unit * r2);
+                v[9 + k] = TapLum(uv + float2(c2, s2) * px * 0.2);
             }
-            return exp(sum / 13.0) * max(_RhOutlineGain, 0.05);
+            float m = v[0];
+            [unroll] for (int i = 0; i < 13; i++)
+            {
+                int below = 0;
+                [unroll] for (int j = 0; j < 13; j++) below += (v[j] < v[i] || (v[j] == v[i] && j < i)) ? 1 : 0;
+                if (below == 6) m = v[i];
+            }
+            return m * max(_RhOutlineGain, 0.05);
+        }
+
+        // The figure's own ground, wide and slow (nine taps out to one world unit, geometric mean): the tie break inside the dead zone, stable from frame to frame on animated ground.
+        float FigureLuma(float2 uv)
+        {
+            float unit = _ScreenParams.y / max(2.0 * unity_OrthoParams.y, 0.01);
+            float2 px = unit / _ScreenParams.xy;
+            float sum = log(max(TapLum(uv), 0.004));
+            [unroll] for (int k = 0; k < 4; k++)
+            {
+                float s, c; sincos(1.5707963 * k, s, c);
+                sum += log(max(TapLum(uv + float2(c, s) * px * 0.5), 0.004));
+                sum += log(max(TapLum(uv + float2(s, -c) * px * 1.0), 0.004));
+            }
+            return exp(sum / 9.0) * max(_RhOutlineGain, 0.05);
         }
 
         // The vertex shader decides the figure's own polarity once per quad (four vertices), from the ground behind the object's centre.
@@ -115,7 +136,7 @@ Shader "Roguehalla/ActorOutline"
             o.color = v.color * unity_SpriteColor;
             o.screen = ComputeScreenPos(o.positionCS);
             float4 c = ComputeScreenPos(TransformObjectToHClip(float3(0, 0, 0)));
-            o.figure = _RhOutlineGrab > 0.5 ? (GroundLuma(c.xy / c.w) < _RhOutlineTune.z ? 1.0 : 0.0) : _Prior;
+            o.figure = _RhOutlineGrab > 0.5 ? (FigureLuma(c.xy / c.w) < _RhOutlineTune.z ? 1.0 : 0.0) : _Prior;
             return o;
         }
 

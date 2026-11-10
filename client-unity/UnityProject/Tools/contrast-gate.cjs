@@ -15,7 +15,7 @@ const os = require('node:os');
 const path = require('node:path');
 const lib = require('./contrast-lib.cjs');
 
-const OUT_COLUMNS = ['cfg', 'zone', 'surface', 'appearance', 'pose', 'facing', 'prop', 'propMode', 'clip', 'frame', 'purity', 'valid', 'edgeP10', 'edgeMin', 'edgeMedian', 'edgeGroundP10', 'edgeCoreP10', 'rimShare', 'body', 'bodyGround', 'hp', 'foot', 'insignia', 'edgePass', 'markerPass', 'overlap', 'reason'];
+const OUT_COLUMNS = ['cfg', 'zone', 'surface', 'appearance', 'pose', 'facing', 'prop', 'propMode', 'clip', 'frame', 'purity', 'valid', 'edgeP10', 'edgeMin', 'edgeMedian', 'edgeGroundP10', 'edgeCoreP10', 'rimShare', 'ringLum', 'contourLum', 'body', 'bodyGround', 'hp', 'foot', 'insignia', 'edgePass', 'markerPass', 'overlap', 'reason'];
 const r2 = v => (Number.isFinite(v) ? Math.round(v * 100) / 100 : null);
 
 function usage() {
@@ -138,7 +138,7 @@ function toCell(cfgName, c, res, opts) {
   const cell = {
     cfg: cfgName, zone: c.zone, surface: c.surface, appearance: c.appearance, pose: c.pose, facing: c.facing, prop: c.prop || '', propMode: c.propMode || '', clip: c.clip, frame: c.frame, purity: r2(c.purity),
     valid: !!res.valid, reason: res.reason || (res.valid && !markersMeasured ? 'a marker could not be measured' : ''),
-    edgeP10: res.valid ? r2(res.edge.p10) : null, edgeMin: res.valid ? r2(res.edge.min) : null, edgeMedian: res.valid ? r2(res.edge.median) : null, edgeGroundP10: res.valid ? r2(res.edge.ground.p10) : null, edgeCoreP10: res.valid ? r2(res.edge.core.p10) : null, rimShare: res.valid ? r2(res.edge.rimShare) : null,
+    edgeP10: res.valid ? r2(res.edge.p10) : null, edgeMin: res.valid ? r2(res.edge.min) : null, edgeMedian: res.valid ? r2(res.edge.median) : null, edgeGroundP10: res.valid ? r2(res.edge.ground.p10) : null, edgeCoreP10: res.valid ? r2(res.edge.core.p10) : null, rimShare: res.valid ? r2(res.edge.rimShare) : null, ringLum: res.valid ? Math.round(res.edge.ringMedian * 1000) / 1000 : null, contourLum: res.valid ? Math.round(res.edge.contourMedian * 1000) / 1000 : null,
     body: res.valid ? r2(res.body.ratio) : null, bodyGround: res.valid ? r2(res.body.ratioGround) : null,
     hp: r2(markerRatios[0]), foot: r2(markerRatios[1]), insignia: r2(markerRatios[2]), overlap: !!c.overlap,
   };
