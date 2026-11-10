@@ -23,6 +23,8 @@ namespace Roguehalla.Client
         public float VignetteIntensity, VignetteSmoothness; public Color VignetteColor;
         // Haze overlay (alpha = strength) and the region shadow colour (contact shadows, sun shadows)
         public Color Haze, ShadowTint;
+        // Volume: lift (shadow tint, w = amount) and gain (highlight tint, w = amount); identity is (1, 1, 1, 0). The painterly grade: lifted, tinted blacks and warm or cool highlights per zone.
+        public Vector4 Lift, Gain;
 
         public static AtmosphereParams Lerp(in AtmosphereParams a, in AtmosphereParams b, float t)
         {
@@ -41,6 +43,7 @@ namespace Roguehalla.Client
             o.VignetteSmoothness = Mathf.Lerp(a.VignetteSmoothness, b.VignetteSmoothness, t);
             o.VignetteColor = Color.Lerp(a.VignetteColor, b.VignetteColor, t);
             o.Haze = Color.Lerp(a.Haze, b.Haze, t); o.ShadowTint = Color.Lerp(a.ShadowTint, b.ShadowTint, t);
+            o.Lift = Vector4.Lerp(a.Lift, b.Lift, t); o.Gain = Vector4.Lerp(a.Gain, b.Gain, t);
             return o;
         }
     }
