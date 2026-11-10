@@ -91,7 +91,7 @@ namespace Roguehalla.Client.Tests
             var focusedGround = Ground(2, 200, 0);
             var focused = BuildPublicCollections(new[] { focusedGround }, 2);
             arena.PresentCollections(focused);
-            Assert.That(ActiveRendererCount(root), Is.EqualTo(3), "shadow, weapon cue and focused contact ring are presented");
+            Assert.That(ActiveRendererCount(root), Is.EqualTo(4), "shadow, weapon cue, and the focused gold ring with its soft fill are presented");
             arena.PresentCollections(BuildPublicCollections(Array.Empty<WireProp>()));
             Assert.That(ActiveRendererCount(root), Is.Zero, "a complete empty collection replacement clears pooled cues");
 

@@ -6,6 +6,7 @@ using UnityEngine.Rendering.Universal;
 using Roguehalla.Net;
 using Roguehalla.Net.Protocol;
 using TMPro;
+using Roguehalla.Net.Ui;
 
 namespace Roguehalla.Client
 {
@@ -37,6 +38,8 @@ namespace Roguehalla.Client
         bool _fadeDemo; uint _demoId; float _demoNext = 8f, _demoUntil;
         HitboxOverlay _overlay;
         HitZonePresenter _hitZones;
+        WorldMarks _worldMarks;
+        uint? _lockForNpc; InventoryView? _inventory; uint _localId; int _numberLane;
         WireArchetype[] _archetypes = System.Array.Empty<WireArchetype>();
         /// <summary>True when the <c>?hitboxes=1</c> debug overlay exists (never otherwise).</summary>
         public bool HitboxOverlayActive { get { return _overlay != null; } }
@@ -98,8 +101,8 @@ namespace Roguehalla.Client
             if (_actors != null) return _actors.TrySoundContext(id,out weapon,out faction,out kind,out type);
             weapon=default; faction=default; kind=default; type=null; return false;
         }
-        sealed class Flash { public SpriteRenderer Sprite; public TMP_Text Text; public uint Actor; public float Start, Duration; public Vector3 Position; public Color Color; public float Size; }
-        struct PendingFx { public FxKind Kind; public uint Subject; public float Amount; public double DueMs; public float QueuedAt; public float X, Y, A, CreatedAt; public byte Weapon; }
+        sealed class Flash { public SpriteRenderer Sprite; public TMP_Text Text; public uint Actor; public float Start, Duration; public Vector3 Position; public Color Color; public float Size; public Color TextColor; public float LaneX; }
+        struct PendingFx { public FxKind Kind; public uint Subject; public float Amount; public double DueMs; public float QueuedAt; public float X, Y, A, CreatedAt; public byte Weapon; public uint By; public bool Passive; }
 
         void Awake()
         {
@@ -113,6 +116,7 @@ namespace Roguehalla.Client
             if (HitboxOverlay.Enabled) _overlay = new HitboxOverlay(Child("Hitbox overlay"), _actors);
             _mapRoot = Child("Authoritative map artwork"); _propsRoot = Child("Observed collections"); _fxRoot = Child("Confirmed effects");
             _hitZones = new HitZonePresenter(Child("Melee hit zones"), id => _actors.Contains(id), UrlSearch());
+            _worldMarks = new WorldMarks(Child("World markers"));
             _wishes = new ConfirmedWishPresenter(_fxRoot, _actors);
             _wishFx = new WishFxPresenter(Child("Wish effects"), _actors);
             var global = Child("Ambient light");
@@ -216,7 +220,8 @@ namespace Roguehalla.Client
         public void Present(List<InterpActor> remote, SelfView me, LocalMotion motion, float aimAngle)
         {
             _actors.Begin();
-            uint mine = me != null ? me.Id : 0;
+            uint mine = me != null ? me.Id : 0; _localId = mine;
+            uint? lockTarget = me != null && me.OwnerCombat.HasValue && me.OwnerCombat.Value.Lock.Kind == OwnerLockKind.Held ? me.OwnerCombat.Value.Lock.Target : null; _lockForNpc = lockTarget;
             _wishFx.BeginFrame(); _wishFx.SetOwner(mine);
             foreach (var a in remote)
             {
@@ -226,6 +231,7 @@ namespace Roguehalla.Client
                 // from appearance or position; draw their latest typed public facts instead.
                 if (_hasMembership && a.Kind != ActorKind.Player) continue;
                 _actors.Present(a.Id, a.X, a.Y, a.Facing, a.HpPct, a.Faction, a.Status, a.Weapon, a.Kind, a.MobType, a.Effects, a.SourceSig, false, a.BarrierPct, a.BarrierRingStep, ArchetypeKey(a.Archetype), FootHx(a.Archetype), FootHy(a.Archetype));
+                _actors.PresentIndicators(a.Id, a.Bounty, false, WeaponId.Fists, lockTarget.HasValue && lockTarget.Value == a.Id);
                 _overlay?.NoteActor(a.Id, a.Archetype, (byte)a.Kind); _hitZones?.NoteActor(a.Id, a.Archetype);
                 _wishFx.NoteActor(a.Id, a.Kind, a.Effects, a.Status != ActorStatus.Dead && a.Status != ActorStatus.Mia);
                 if (_regionProps != null) _regionProps.NoteActor(WorldPoint(a.X, a.Y));
@@ -238,6 +244,8 @@ namespace Roguehalla.Client
                 float mx = initialized ? motion.DrawnX : me.X, my = initialized ? motion.DrawnY : me.Y;
                 _actors.Present(me.Id, mx, my, aimAngle, healthPercent,
                     me.Faction, me.Status, me.Weapon, ActorKind.Player, null, me.Effects, me.SelfSig, true, barrierPercent, me.BarrierRingStep, ArchetypeKey(me.Archetype), FootHx(me.Archetype), FootHy(me.Archetype));
+                var inv = _inventory; WeaponId? second = Indicators.SecondaryWeapon(inv.HasValue, inv.HasValue ? inv.Value.ActiveSlot : (byte)0, inv.HasValue ? inv.Value.Slot0 : null, inv.HasValue ? inv.Value.Slot1 : null);
+                _actors.PresentIndicators(me.Id, me.Bounty, second.HasValue, second ?? WeaponId.Fists, false);
                 _overlay?.NoteActor(me.Id, me.Archetype, (byte)ActorKind.Player); _hitZones?.NoteActor(me.Id, me.Archetype);
                 _wishFx.NoteActor(me.Id, ActorKind.Player, me.Effects, me.Status == ActorStatus.Alive);
                 Regions.UpdateLocal(mx, my, Time.unscaledTime);
@@ -345,6 +353,7 @@ namespace Roguehalla.Client
             foreach(var a in _latestNpcs)
             {
                 _actors.Present(a.Id,a.X,a.Y,a.Facing,a.HpPct,a.Faction,a.Status,a.Weapon,a.Kind,a.MobType,a.Effects,a.SourceSig,false,a.BarrierPct,a.BarrierRingStep,ArchetypeKey(a.Archetype), FootHx(a.Archetype), FootHy(a.Archetype));
+                _actors.PresentIndicators(a.Id, a.Bounty, false, WeaponId.Fists, _lockForNpc.HasValue && _lockForNpc.Value == a.Id);
                 _overlay?.NoteActor(a.Id, a.Archetype, (byte)a.Kind); _hitZones?.NoteActor(a.Id, a.Archetype);
                 if (_collectWishNotes) _wishFx.NoteActor(a.Id, a.Kind, a.Effects, a.Status != ActorStatus.Dead && a.Status != ActorStatus.Mia);
                 if (_regionProps != null) _regionProps.NoteActor(WorldPoint(a.X, a.Y));
@@ -353,7 +362,7 @@ namespace Roguehalla.Client
 
         public void PresentCollections(CollectionsView collections)
         {
-            _used = 0;
+            _used = 0; _inventory = collections != null ? collections.Inventory : null;
             if (collections == null) _wishFx.PresentAreas(null);
             if (collections != null)
             {
@@ -404,7 +413,7 @@ namespace Roguehalla.Client
                             }
                         }
                     }
-                    if (p.Focused) Prop("ring", position, new Vector2(1.25f, .65f), new Color(.9f, .95f, 1), order - 2);
+                    if (p.Focused) { Prop("glow", position, new Vector2(1.3f, .68f), new Color(ShowcasePalette.Gold.r / 255f, ShowcasePalette.Gold.g / 255f, ShowcasePalette.Gold.b / 255f, .16f), order - 3); Prop("ring", position, new Vector2(1.25f, .65f), (Color)ShowcasePalette.Gold, order - 2); }
                 }
                 foreach (var chest in collections.RewardChests)
                 {
@@ -429,7 +438,9 @@ namespace Roguehalla.Client
                 }
             }
             for (int i = _used; i < _props.Count; i++) _props[i].gameObject.SetActive(false);
+            _worldMarks.Update(collections, MarkVisible);
         }
+        bool MarkVisible(float x, float y) { var f = _visionFog != null ? _visionFog.Field : null; return f == null || !f.HasSample || !f.IsFogged((int)(x / 32f), (int)(y / 32f)); }
         /// <summary>Where a projectile with ground position (x, y) and height h (sim units) is drawn: the ground point raised h toward screen-up.</summary>
         public static Vector3 ProjectileDrawPoint(float x, float y, float height) { return WorldPoint(x, y - height); }
         /// <summary>Screen rotation of a sprite that points along the ground heading (sim radians, +y south): the ground is drawn squashed.</summary>
@@ -465,7 +476,7 @@ namespace Roguehalla.Client
                     continue;
                 }
                 uint subject = f.Kind == FxKind.Hit ? f.Victim : f.Kind == FxKind.Stagger || f.Kind == FxKind.Block ? f.Id : f.By;
-                var cue=new PendingFx{Kind=f.Kind,Subject=subject,Amount=f.Amount,X=f.X,Y=f.Y,A=f.A,Weapon=f.Weapon,CreatedAt=Time.unscaledTime};
+                var cue=new PendingFx{Kind=f.Kind,Subject=subject,Amount=f.Amount,X=f.X,Y=f.Y,A=f.A,Weapon=f.Weapon,By=f.By,Passive=f.Passive,CreatedAt=Time.unscaledTime};
                 bool own = owner != 0 && (subject == owner || f.By == owner || f.Victim == owner);
                 if (!own && _renderReady && dueMs > _renderMs && dueMs - _renderMs <= MaxFxLeadMs &&
                     _scheduledFx.Count < MaxScheduledFx && _actors.Contains(subject) && !IsLatestNpc(subject))
@@ -526,7 +537,15 @@ namespace Roguehalla.Client
                 flash.Color = f.Kind == FxKind.Block ? new Color(.65f, .85f, 2) : new Color(2, 1.4f, .6f);
                 flash.Sprite.gameObject.SetActive(true);
                 flash.Text.gameObject.SetActive(f.Kind==FxKind.Hit);
-                if(f.Kind==FxKind.Hit) flash.Text.text=Mathf.RoundToInt(f.Amount).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                if(f.Kind==FxKind.Hit)
+                {
+                    flash.Text.text=Mathf.RoundToInt(f.Amount).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    // Legacy FxView: red on me, gold by me, grey otherwise; 13 px + 1 per 40 damage (max +7); simultaneous numbers fan over 5 lanes.
+                    var theme = UiTheme.Current; var tone = Indicators.DamageColour(f.Subject, f.By, _localId);
+                    flash.TextColor = (Color)(tone == Indicators.DamageTone.OnMe ? theme.Danger : tone == Indicators.DamageTone.ByMe ? theme.Accent : theme.TextSecondary);
+                    flash.Text.fontSize = 3f * (f.Passive ? 11f : Indicators.DamageSize(f.Amount)) / 13f;
+                    flash.LaneX = Indicators.DamageLaneOffset(_numberLane++) * .026f;
+                }
                 _flashes.Add(flash);
         }
         void UpdateEffects()
@@ -541,7 +560,7 @@ namespace Roguehalla.Client
                 // Keep the silhouette readable even when confirmed hits overlap rapidly.
                 // Damage text retains its longer lifetime; the hollow impact rim fades quickly.
                 var c = f.Color; c.a = .55f * Mathf.Clamp01(1 - (Time.unscaledTime - f.Start) / .16f); f.Sprite.color = c;
-                f.Text.transform.position=f.Position+new Vector3(0,.7f+(reduced ? 0 : t*.35f),0); f.Text.color=new Color(1,.9f,.65f,1-t);
+                f.Text.transform.position=f.Position+new Vector3(f.LaneX,.7f+(reduced ? 0 : t*.35f),0); var tc=f.TextColor; tc.a=1-t; f.Text.color=tc;
             }
         }
         Flash CreateFlash()
@@ -549,7 +568,7 @@ namespace Roguehalla.Client
             var sprite=ShowcaseSprites.Create(_fxRoot,"Confirmed impact","ring",30000,Color.white,Vector2.one,Vector3.zero,false);
             var go=new GameObject("Confirmed damage amount");go.transform.SetParent(_fxRoot,false);
             var text=go.AddComponent<TextMeshPro>();text.font=TMP_Settings.defaultFontAsset;text.fontSize=3;text.alignment=TextAlignmentOptions.Center;
-            text.rectTransform.sizeDelta=new Vector2(3,1);text.GetComponent<MeshRenderer>().sortingOrder=30001;
+            text.fontSharedMaterial=OverheadIndicators.OutlinedMaterial(text.font);text.rectTransform.sizeDelta=new Vector2(3,1);text.GetComponent<MeshRenderer>().sortingOrder=30001;
             go.SetActive(false);
             return new Flash{Sprite=sprite,Text=text};
         }

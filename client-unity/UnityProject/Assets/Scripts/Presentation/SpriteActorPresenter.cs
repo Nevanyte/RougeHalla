@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.Rendering.Universal;
 using Roguehalla.Net;
 using Roguehalla.Net.Protocol;
+using Roguehalla.Net.Ui;
 
 namespace Roguehalla.Client
 {
@@ -36,6 +37,8 @@ namespace Roguehalla.Client
             public MobTypeId? MobType;
             public int Stamp;
             public readonly ActorFadeSlot Fade = new ActorFadeSlot(); // vision fade state (SpriteActorPresenter.Fade.cs)
+            public OverheadIndicators Ind; // overhead cluster and body marks (OverheadIndicators.cs)
+            public OverheadIndicators.Facts IndFacts;
         }
         readonly Transform _parent;
         readonly Dictionary<uint, Art> _active = new Dictionary<uint, Art>();
@@ -188,6 +191,7 @@ namespace Roguehalla.Client
             foreach (var icon in art.SignatureIcons) icon.enabled = false;
             foreach (var backing in art.SignatureBackers) backing.enabled = false;
             art.Barrier.enabled = false;
+            art.Ind.HideAll();
             foreach (var segment in art.BarrierRing) segment.enabled = false;
             art.UnknownSignature.enabled = false;
             art.UnknownSignatureBacker.enabled = false;
@@ -277,6 +281,9 @@ namespace Roguehalla.Client
                 a.Body.transform.localScale = new Vector3(.8f, 1.35f, 1);
                 a.Body.transform.localPosition = new Vector3(0, .55f, 0);
             }
+            // Overheads follow the look's body height (Appearance.WorldHeight), so a tall or short look keeps its cluster just above its head.
+            float headY = appearance != null && frames != null && frames.Length > 0 ? .08f + appearance.WorldHeight : 1.68f;
+            float lift = headY - 1.68f; _sigLift = lift;
             a.Body.color = dead ? new Color(.4f, .43f, .48f, .65f) : Color.Lerp(Color.white, color, isMob ? .14f : .22f);
             if (!dead && a.WishTintAmount > 0f) a.Body.color = Color.Lerp(a.Body.color, a.WishTint, a.WishTintAmount);
             a.Body.sortingOrder = order;
@@ -308,13 +315,13 @@ namespace Roguehalla.Client
             a.Halo.color = color;
             a.Halo.enabled = true;
             a.RuneBack.sortingOrder = order + 2;
-            a.RuneBack.transform.localPosition = new Vector3(-.72f, isMob ? 1.23f : 1.55f, 0);
+            a.RuneBack.transform.localPosition = new Vector3(-.72f, (isMob ? 1.23f : 1.55f) + lift, 0);
             a.RuneBack.transform.localScale = new Vector3(.46f, .46f, 1);
             a.RuneBack.color = new Color(.008f, .012f, .022f, .96f);
             a.Rune.sortingOrder = order + 3;
             bool knownFaction = faction.HasValue && factionArt >= 0 && factionArt < 5;
             a.Rune.sprite = ShowcaseSprites.Get(knownFaction ? "sigil" + factionArt : "rune");
-            a.Rune.transform.localPosition = new Vector3(-.72f, isMob ? 1.23f : 1.55f, 0);
+            a.Rune.transform.localPosition = new Vector3(-.72f, (isMob ? 1.23f : 1.55f) + lift, 0);
             a.Rune.transform.localRotation = Quaternion.identity;
             a.Rune.color = color;
             a.Rune.transform.localScale = new Vector3(.4f, .4f, 1);
@@ -325,22 +332,30 @@ namespace Roguehalla.Client
             float width = healthShare * unitWidth;
             float totalTrackWidth = Mathf.Max(.98f, unitWidth * (healthShare + barrierShare) + .04f);
             a.HpBack.transform.localScale = new Vector3(totalTrackWidth + .06f, .145f, 1);
-            a.HpBack.transform.localPosition = new Vector3(-.49f + totalTrackWidth / 2, 1.8f, 0);
+            a.HpBack.transform.localPosition = new Vector3(-.49f + totalTrackWidth / 2, 1.8f + lift, 0);
             a.Hp.transform.localScale = new Vector3(width, .055f, 1);
-            a.Hp.transform.localPosition = new Vector3(-.49f + width / 2, 1.8f, 0);
-            a.Hp.color = local ? new Color(.55f, .94f, .72f) : color;
-            a.Hp.enabled = !dead; a.HpBack.enabled = !dead;
+            a.Hp.transform.localPosition = new Vector3(-.49f + width / 2, 1.8f + lift, 0);
+            // Legacy FighterArt.HpBar: green above 50%, amber above 25%, red below; the barrier segment is the theme's barrier blue.
+            var tone = Indicators.Tone(hp); var theme = UiTheme.Current;
+            a.Hp.color = (Color)(tone == HpTone.Green ? theme.Success : tone == HpTone.Amber ? theme.Warning : theme.Danger);
+            bool elite = false; string label = null;
+            if (kind == ActorKind.RegionalMob && mob.HasValue && ShowcaseIdentityAssets.TryGetMobInfo(mob.Value, out var mobInfo)) { elite = mobInfo.Elite; label = mobInfo.DisplayName; }
+            // A regional mob's bar shows when it is hurt (and always for an elite); the "fighting" case is not on the wire.
+            bool barOn = !dead && (kind != ActorKind.RegionalMob || Indicators.MobBarVisible(elite, false, hp, false));
+            a.Hp.enabled = barOn; a.HpBack.enabled = barOn;
             float barrierWidth = barrierShare * unitWidth;
             a.Barrier.transform.localScale = new Vector3(barrierWidth, .095f, 1);
-            a.Barrier.transform.localPosition = new Vector3(-.49f + width + barrierWidth / 2, 1.8f, 0);
-            a.Barrier.color = (Color)ShowcasePalette.Gold;
-            a.Barrier.enabled = !dead && barrierWidth > 0;
+            a.Barrier.transform.localPosition = new Vector3(-.49f + width + barrierWidth / 2, 1.8f + lift, 0);
+            a.Barrier.color = (Color)theme.Info;
+            a.Barrier.enabled = barOn && barrierWidth > 0;
             int ringSteps = dead || (isMob && !neutral) ? 0 : Mathf.Clamp(barrierRingStep, (byte)0, (byte)8);
             for (int i = 0; i < a.BarrierRing.Length; i++)
             {
                 var segment = a.BarrierRing[i];
                 segment.enabled = i < ringSteps;
-                segment.color = (Color)ShowcasePalette.Gold;
+                float ringAngle = i * Mathf.PI / 4f - Mathf.PI / 2f;
+                segment.transform.localPosition = new Vector3(Mathf.Cos(ringAngle) * .19f, 2.18f + lift + Mathf.Sin(ringAngle) * .19f, 0);
+                segment.color = (Color)theme.Info;
                 segment.sortingOrder = order + 10;
             }
             a.Weapon.sortingOrder = order + 2;
@@ -351,13 +366,13 @@ namespace Roguehalla.Client
             a.Weapon.enabled = !dead && weapon.HasValue;
             byte unknownSignature = (byte)(signature & ~KnownSignatureMask);
             bool hasUnknownSignature = unknownSignature != 0;
-            a.Status.enabled = !dead && effects != 0;
+            a.Status.enabled = false; // the generic status cue is replaced by the per-status glyphs (OverheadIndicators)
             a.Status.sortingOrder = order + 6; a.Status.color = color;
             a.Status.transform.localPosition = new Vector3(.55f, 1.5f, 0);
             int shown = 0;
             for (int bit = 0; bit < a.StatusIcons.Length; bit++)
             {
-                var icon = a.StatusIcons[bit]; icon.enabled = !dead && (effects & (1 << bit)) != 0;
+                var icon = a.StatusIcons[bit]; icon.enabled = false;
                 if (!icon.enabled) continue;
                 icon.transform.localPosition = new Vector3(-.45f + shown++ * .16f, 2, 0);
                 icon.sortingOrder = order + 7;
@@ -382,6 +397,17 @@ namespace Roguehalla.Client
             a.UnknownSignatureBacker.sortingOrder = order + 7;
             a.Light.Configure(color, local ? .65f : .2f, .3f, 2.4f, .5f, false, true);
             a.Light.SetVisible(!dead && local);
+            // A hidden fighter (Swarm) is not drawn for anyone else and faint for its owner (legacy PlayerView).
+            float hiddenAlpha = Indicators.HiddenAlpha(effects, local);
+            if (hiddenAlpha > 0f && hiddenAlpha < 1f) { var bc = a.Body.color; bc.a *= hiddenAlpha; a.Body.color = bc; var rc = a.BodyRim.color; rc.a *= hiddenAlpha; a.BodyRim.color = rc; var gc = a.BodyGlow.color; gc.a *= hiddenAlpha; a.BodyGlow.color = gc; }
+            bool hideAll = hiddenAlpha <= 0f; if (a.Root.activeSelf == hideAll) a.Root.SetActive(!hideAll);
+            // Geometry for the overhead cluster; PresentIndicators adds the facts only the caller has.
+            var fx = a.IndFacts; float barY = 1.8f + lift;
+            fx.Order = order; fx.HeadY = headY; fx.BarY = barY; fx.Dead = dead; fx.Local = local; fx.Mob = kind == ActorKind.RegionalMob || kind == ActorKind.TrainingDummy;
+            fx.Elite = elite; fx.Dummy = kind == ActorKind.TrainingDummy; fx.HpPct = hp; fx.Effects = effects; fx.Name = fx.Mob ? (kind == ActorKind.TrainingDummy ? "Training dummy" : label) : null;
+            fx.SigTopY = (signature != 0 || ringSteps > 0) ? 2.62f + lift : barY;
+            fx.Reduced = reduced;
+            a.IndFacts = fx;
         }
 
         Art Create()
@@ -439,10 +465,24 @@ namespace Roguehalla.Client
             a.UnknownSignatureBacker.enabled = false;
             a.Light = ShowcaseSprites.CreateLight(t, "Observed local accent", new Vector3(0, .6f, -1));
             a.Light.Configure(Color.white, .2f, .3f, 2.4f, .5f, false, true);
+            a.Ind = new OverheadIndicators(t);
             return a;
         }
 
-        static Vector3 SignatureSlotPosition(int slot) { return new Vector3(-.9f + slot * .36f, 2.4f, 0); }
+        float _sigLift;
+        Vector3 SignatureSlotPosition(int slot) { return new Vector3(-.9f + slot * .36f, 2.4f + _sigLift, 0); }
+
+        /// <summary>
+        /// The delivered facts only the caller has (bounty, the local player's off-hand weapon, whether this actor is the attack lock), then the
+        /// overhead cluster is drawn. Called once per actor right after <see cref="Present"/>.
+        /// </summary>
+        public void PresentIndicators(uint id, int bounty, bool hasSecondary, WeaponId secondary, bool locked)
+        {
+            if (!_active.TryGetValue(id, out var a)) return;
+            var fx = a.IndFacts; fx.Bounty = bounty; fx.HasSecondary = hasSecondary; fx.Secondary = secondary; fx.Locked = locked;
+            a.IndFacts = fx; a.Ind.Update(in a.IndFacts);
+            if (a.Fade.Entering || a.Fade.Opacity < .999f) a.Ind.ApplyOpacity(a.Fade.Opacity);
+        }
 
         static string SignatureName(byte bit)
         {
