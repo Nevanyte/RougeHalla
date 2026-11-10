@@ -79,6 +79,12 @@ pub fn permanent_sqlstate(code: &str) -> bool {
 }
 
 impl Error {
+    /// True for SQLSTATE 55P03 (`lock_not_available`): a `FOR UPDATE NOWAIT` or lock timeout that met a row another
+    /// transaction holds. It means contention with another writer, not a database failure.
+    pub fn is_lock_contention(&self) -> bool {
+        matches!(self, Error::Db(sqlx::Error::Database(d)) if d.code().as_deref() == Some("55P03"))
+    }
+
     /// True when retrying the identical operation can never succeed because the data itself is rejected (invalid input,
     /// constraint or data-exception violation, decode failure). False for connection, I/O, pool, timeout, deadlock and
     /// similar trouble, which a retry may cure however long it takes.

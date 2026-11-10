@@ -67,6 +67,8 @@ pub fn server_args(
         public.to_string(),
         "--control".into(),
         control.to_string(),
+        // The load tool talks to its own throwaway server over loopback; rh-server requires this to run `--control` untokened.
+        "--control-insecure-loopback".into(),
         "--max-rooms".into(),
         sc.max_rooms.to_string(),
         "--min-players".into(),

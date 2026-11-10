@@ -16,7 +16,7 @@
 //!       [--lease-ttl-secs 120] [--lease-renew-secs 30] [--lease-db-timeout-secs 5]
 //!       [--result-spool <dir> [--result-spool-max 4096] [--result-dead-max 1024] [--result-retry-secs 900]]   (needs postgres + --database-url)
 //!
-//!       [--control 127.0.0.1:7778 [--control-token-file <file>]] [--require-admit [--admit-ttl-secs 60]]
+//!       [--control 127.0.0.1:7778 (--control-token-file <file> | --control-insecure-loopback)] [--require-admit [--admit-ttl-secs 60]]
 //!
 //! Hosted mode (docs/hosting/CONTROL_API.md): `--require-admit` admits a Hello only with an admit the hosting bridge posted to
 //! `/control/admit` (an extra check after the profile credential check; it never replaces it) and creates rooms only through
@@ -30,7 +30,17 @@
 //! PostgreSQL commit does. See docs/adr/0006-persistence.md, "Addendum: durable result handoff".
 //!
 //! Without TLS flags it serves plain ws:// (local development only; browsers on https pages require wss://).
-//! SIGTERM / Ctrl-C drain: no new admissions, active matches finish, then the process exits.
+//! SIGTERM / Ctrl-C drain: no new admissions, active matches finish, then the process exits. `--drain-max-secs N` (default 60,
+//! 0 = no cap) ends the matches still running after N seconds (seats closed out, earned results kept) and
+//! `--drain-write-wait-secs N` (default 25) bounds the wait for result writes: 60 + 25 stays inside systemd's default 90 s
+//! `TimeoutStopSec`, which the hosting units use.
+//!
+//! `--control` requires `--control-token-file <file>` (every control request then carries the bearer token) unless
+//! `--control-insecure-loopback` states that loopback alone is acceptable (local development, load tests).
+//!
+//! `--database-url` retries an unreachable database for `--db-connect-timeout-secs N` (default 60; 0 = one attempt) with
+//! exponential backoff, then exits 69 (schema migration failure: 70; schema newer than this binary: 78; bad flags: 2).
+//! Log lines never carry the connection string.
 
 use rh_server::api::{AccountApi, ApiConfig, CorsPolicy};
 use rh_server::director::{Director, DirectorConfig, LeasePolicy};
@@ -40,21 +50,160 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
+/// Exit codes the supervisor can act on (besides 2 = bad command line, 78 = schema newer than this binary).
+#[cfg(feature = "postgres")]
+const EXIT_DB_UNREACHABLE: i32 = 69; // EX_UNAVAILABLE: PostgreSQL did not accept a connection within the connect budget
+#[cfg(feature = "postgres")]
+const EXIT_DB_MIGRATE: i32 = 70; // EX_SOFTWARE: connected, but the schema migration failed
+
+/// The value of `name` when given: `Ok(None)` when absent, an error when the flag has no value after it.
+fn flag_value(args: &[String], name: &str) -> Result<Option<String>, String> {
+    match args.iter().position(|a| a == name) {
+        None => Ok(None),
+        Some(i) => args
+            .get(i + 1)
+            .filter(|v| !v.starts_with("--"))
+            .cloned()
+            .map(Some)
+            .ok_or_else(|| format!("{name} requires a value")),
+    }
+}
+
+/// `--db-connect-timeout-secs` (default 60; 0 = one attempt): how long startup keeps retrying an unreachable database.
+#[cfg(any(feature = "postgres", test))]
+fn db_connect_budget(args: &[String]) -> Result<Duration, String> {
+    match flag_value(args, "--db-connect-timeout-secs")? {
+        None => Ok(Duration::from_secs(60)),
+        Some(v) => v
+            .parse::<u64>()
+            .ok()
+            .filter(|n| *n <= 3600)
+            .map(Duration::from_secs)
+            .ok_or_else(|| "--db-connect-timeout-secs requires whole seconds, 0..=3600".into()),
+    }
+}
+
+/// Retries `op` with exponential backoff (`first_delay`, doubling, capped at `max_delay`) until it succeeds, `fatal` says the
+/// error cannot be cured by waiting, or `budget` is spent (one attempt when it is zero). The last error is returned.
+#[cfg(any(feature = "postgres", test))]
+async fn retry_with_backoff<T, E, Fut>(
+    budget: Duration,
+    first_delay: Duration,
+    max_delay: Duration,
+    fatal: impl Fn(&E) -> bool,
+    show: impl Fn(&E) -> String,
+    mut op: impl FnMut(u32) -> Fut,
+) -> Result<T, E>
+where
+    Fut: std::future::Future<Output = Result<T, E>>,
+    E: std::fmt::Display,
+{
+    let started = tokio::time::Instant::now();
+    let mut delay = first_delay;
+    let mut attempt = 0u32;
+    loop {
+        attempt += 1;
+        match op(attempt).await {
+            Ok(v) => return Ok(v),
+            Err(e) => {
+                let left = budget.saturating_sub(started.elapsed());
+                if fatal(&e) || left.is_zero() {
+                    return Err(e);
+                }
+                let wait = delay.min(left);
+                eprintln!(
+                    "[server] database not reachable (attempt {attempt}): {}; retrying in {}ms ({}s of budget left)",
+                    show(&e),
+                    wait.as_millis(),
+                    left.as_secs()
+                );
+                tokio::time::sleep(wait).await;
+                delay = (delay * 2).min(max_delay);
+            }
+        }
+    }
+}
+
+/// Removes the connection string, and its password and user, from text that is about to be logged. sqlx messages normally
+/// carry none of them, but the log must never depend on that.
+#[cfg(any(feature = "postgres", test))]
+fn redact_secrets(text: &str, url: &[&str]) -> String {
+    let mut out = text.to_string();
+    for u in url {
+        if u.is_empty() {
+            continue;
+        }
+        out = out.replace(u, "<database-url>");
+        if let Some((_, rest)) = u.split_once("://") {
+            if let Some((cred, _)) = rest.split_once('@') {
+                let mut parts = cred.splitn(2, ':');
+                let user = parts.next().unwrap_or("");
+                if let Some(pw) = parts.next().filter(|p| !p.is_empty()) {
+                    out = out.replace(pw, "<redacted>");
+                }
+                if user.len() > 2 {
+                    out = out.replace(user, "<user>");
+                }
+            }
+        }
+    }
+    out
+}
+
 /// `--database-url`: profiles, credentials, session leases and results in PostgreSQL (feature `postgres`).
 #[cfg(feature = "postgres")]
 async fn durable(url: &str, args: &[String]) -> (Persistence, Auth) {
+    let budget = db_connect_budget(args).unwrap_or_else(|e| {
+        eprintln!("[server] invalid database settings: {e}");
+        std::process::exit(2);
+    });
     // The startup schema gate: a database whose `schema_compat.min_binary` is above this binary (an older server meeting a
     // newer, incompatible schema during a rollout) is refused here, with a plain message and a non-zero exit, before the
-    // server takes a single connection.
-    let store = match rh_persist::Store::connect(url).await {
+    // server takes a single connection. An unreachable database is retried with backoff for the connect budget, then the
+    // process exits with `EXIT_DB_UNREACHABLE` and a line that carries no connection string.
+    // sqlx's own pool keeps retrying a refused connection for 30 s inside one `connect`; each attempt is cut at a third of the
+    // budget (1..=10 s) so the retries and the budget are real.
+    let per_attempt = (budget / 3).clamp(Duration::from_secs(1), Duration::from_secs(10));
+    let store = match retry_with_backoff(
+        budget,
+        Duration::from_millis(500),
+        Duration::from_secs(8),
+        |e: &rh_persist::Error| matches!(e, rh_persist::Error::SchemaTooNew { .. }),
+        |e: &rh_persist::Error| redact_secrets(&e.to_string(), &[url]),
+        |_| async move {
+            tokio::time::timeout(per_attempt, rh_persist::Store::connect(url))
+                .await
+                .unwrap_or_else(|_| {
+                    Err(rh_persist::Error::Invalid(format!(
+                        "no answer within {}s",
+                        per_attempt.as_secs()
+                    )))
+                })
+        },
+    )
+    .await
+    {
         Ok(s) => Arc::new(s),
         Err(e @ rh_persist::Error::SchemaTooNew { .. }) => {
             eprintln!("rh-server: {e}");
             std::process::exit(78);
         }
-        Err(e) => panic!("connect to PostgreSQL: {e}"),
+        Err(e) => {
+            eprintln!(
+                "[server] ERROR event=database_unreachable budget_secs={} detail={:?} action=exit code={EXIT_DB_UNREACHABLE}",
+                budget.as_secs(),
+                redact_secrets(&e.to_string(), &[url])
+            );
+            std::process::exit(EXIT_DB_UNREACHABLE);
+        }
     };
-    store.migrate().await.expect("migrate");
+    if let Err(e) = store.migrate().await {
+        eprintln!(
+            "[server] ERROR event=database_migrate_failed detail={:?} action=exit code={EXIT_DB_MIGRATE}",
+            redact_secrets(&e.to_string(), &[url])
+        );
+        std::process::exit(EXIT_DB_MIGRATE);
+    }
     let owner =
         arg(args, "--instance-id").unwrap_or_else(|| format!("rh-server-{}", std::process::id()));
     (
@@ -265,10 +414,11 @@ struct HostedSettings {
 }
 
 fn hosted_settings(args: &[String]) -> Result<HostedSettings, String> {
-    const KNOWN: [&str; 4] = [
+    const KNOWN: [&str; 5] = [
         "--require-admit",
         "--admit-ttl-secs",
         "--control-token-file",
+        "--control-insecure-loopback",
         "--control",
     ];
     for a in args.iter().skip(1) {
@@ -313,10 +463,61 @@ fn hosted_settings(args: &[String]) -> Result<HostedSettings, String> {
             "--require-admit and --control-token-file need --control (the control listener)".into(),
         );
     }
+    // The control listener can create and end rooms, kick players and drain the process. Loopback is not an authentication
+    // boundary on a shared host (any local process, or an SSRF in a sibling service, reaches it), so a token is required
+    // unless the operator says, explicitly, that loopback alone is acceptable (local development, load tests).
+    let insecure = args.iter().any(|a| a == "--control-insecure-loopback");
+    if args.iter().any(|a| a == "--control") && token.is_none() && !insecure {
+        return Err(
+            "--control needs --control-token-file <file> (control requests then carry `Authorization: Bearer <token>`); \
+             pass --control-insecure-loopback to run the control API unauthenticated on loopback (development only)"
+                .into(),
+        );
+    }
+    if insecure && !args.iter().any(|a| a == "--control") {
+        return Err("--control-insecure-loopback needs --control".into());
+    }
     Ok(HostedSettings {
         require_admit,
         admit_ttl,
         token,
+    })
+}
+
+/// Drain bounds. The hosting stack stops the process with systemd's default `TimeoutStopSec` (90 s: `render.py` and
+/// `bootstrap.py` set none for `rh-server`), then SIGKILL. The defaults leave the result-write wait inside that window:
+/// 60 s of drain + up to 25 s of writes = 85 s. A longer grace (container platforms often give 120 s+) can raise both.
+const DEFAULT_DRAIN_MAX: Duration = Duration::from_secs(60);
+const DEFAULT_DRAIN_WRITE_WAIT: Duration = Duration::from_secs(25);
+
+struct DrainSettings {
+    /// After this long the remaining rooms are ended (results kept); `None` waits for the matches without a cap.
+    max: Option<Duration>,
+    /// How long the exit waits for result writes still in flight.
+    write_wait: Duration,
+}
+
+fn drain_settings(args: &[String]) -> Result<DrainSettings, String> {
+    let secs = |name: &str, default: Duration, zero_ok: bool| -> Result<Duration, String> {
+        match flag_value(args, name)? {
+            None => Ok(default),
+            Some(v) => v
+                .parse::<u64>()
+                .ok()
+                .filter(|n| (*n > 0 || zero_ok) && *n <= 86_400)
+                .map(Duration::from_secs)
+                .ok_or_else(|| {
+                    format!(
+                        "{name} requires whole seconds, {}..=86400",
+                        u8::from(!zero_ok)
+                    )
+                }),
+        }
+    };
+    let max = secs("--drain-max-secs", DEFAULT_DRAIN_MAX, true)?;
+    Ok(DrainSettings {
+        max: (!max.is_zero()).then_some(max),
+        write_wait: secs("--drain-write-wait-secs", DEFAULT_DRAIN_WRITE_WAIT, false)?,
     })
 }
 
@@ -769,6 +970,11 @@ async fn main() {
         });
     }
 
+    let drain = drain_settings(&args).unwrap_or_else(|e| {
+        eprintln!("[server] invalid drain settings: {e}");
+        std::process::exit(2);
+    });
+    let (drain_max, write_wait) = (drain.max, drain.write_wait);
     let shutdown_director = director.clone();
     tokio::spawn(async move {
         // SIGTERM is how a container platform (and the hosting bridge) asks a process to stop; Ctrl-C is SIGINT.
@@ -785,8 +991,11 @@ async fn main() {
         }
         #[cfg(not(unix))]
         tokio::select! { _ = tokio::signal::ctrl_c() => {}, _ = service_deadline(profile_enabled.then_some(process_started+FIRST_PLAYABLE_LIFETIME)) => {} }
-        eprintln!("[server] draining: no new admissions; active matches finish");
-        shutdown_director.drain().await;
+        eprintln!(
+            "[server] draining: no new admissions; active matches finish (cap: {})",
+            drain_max.map_or("none".to_string(), |d| format!("{}s", d.as_secs()))
+        );
+        shutdown_director.drain_within(drain_max).await;
     });
 
     lifecycle.ready();
@@ -800,7 +1009,7 @@ async fn main() {
     tokio::spawn(async move {
         lc.terminated.notified().await;
         // Results still being written survive the shutdown (bounded: a dead database cannot hold the process forever).
-        if !writes.wait_for_writes(Duration::from_secs(150)).await {
+        if !writes.wait_for_writes(write_wait).await {
             eprintln!("[server] exiting with result writes still pending");
         }
         let shutdown = || h2.graceful_shutdown(Some(Duration::from_secs(5)));
@@ -996,6 +1205,7 @@ mod tests {
             "rh-server",
             "--control",
             "127.0.0.1:1",
+            "--control-insecure-loopback",
             "--require-admit",
             "--admit-ttl-secs",
             "30",
@@ -1022,6 +1232,164 @@ mod tests {
         ] {
             assert!(hosted_settings(&args(&bad)).is_err(), "{bad:?}");
         }
+    }
+
+    #[test]
+    fn a_control_listener_needs_a_token_or_an_explicit_insecure_loopback_flag() {
+        let refused = hosted_settings(&args(&["rh-server", "--control", "127.0.0.1:1"]))
+            .err()
+            .expect("refused");
+        assert!(
+            refused.contains("--control-token-file")
+                && refused.contains("--control-insecure-loopback"),
+            "{refused}"
+        );
+        let dir = std::env::temp_dir().join(format!("rh-ctl-token-unit-{}", std::process::id()));
+        std::fs::write(&dir, "tok\n").unwrap();
+        let token = hosted_settings(&args(&[
+            "rh-server",
+            "--control",
+            "127.0.0.1:1",
+            "--control-token-file",
+            dir.to_str().unwrap(),
+        ]))
+        .unwrap();
+        assert_eq!(token.token.as_deref(), Some("tok"));
+        let _ = std::fs::remove_file(&dir);
+        assert!(hosted_settings(&args(&[
+            "rh-server",
+            "--control",
+            "127.0.0.1:1",
+            "--control-insecure-loopback"
+        ]))
+        .unwrap()
+        .token
+        .is_none());
+        // The opt-out means nothing without a control listener, and no control listener means no requirement.
+        assert!(hosted_settings(&args(&["rh-server", "--control-insecure-loopback"])).is_err());
+        assert!(hosted_settings(&args(&["rh-server", "--bind", "x"])).is_ok());
+    }
+
+    #[test]
+    fn drain_and_database_budget_flags_parse_with_safe_defaults() {
+        let d = drain_settings(&args(&["rh-server"])).unwrap();
+        assert_eq!(d.max, Some(Duration::from_secs(60)));
+        assert_eq!(d.write_wait, Duration::from_secs(25));
+        assert!(
+            d.max.unwrap() + d.write_wait < Duration::from_secs(90),
+            "inside systemd's default TimeoutStopSec"
+        );
+        let d = drain_settings(&args(&[
+            "rh-server",
+            "--drain-max-secs",
+            "0",
+            "--drain-write-wait-secs",
+            "5",
+        ]))
+        .unwrap();
+        assert_eq!((d.max, d.write_wait), (None, Duration::from_secs(5)));
+        for bad in [
+            vec!["rh-server", "--drain-max-secs", "x"],
+            vec!["rh-server", "--drain-max-secs", "-1"],
+            vec!["rh-server", "--drain-write-wait-secs", "0"],
+            vec!["rh-server", "--drain-max-secs"],
+            vec!["rh-server", "--drain-max-secs", "86401"],
+        ] {
+            assert!(drain_settings(&args(&bad)).is_err(), "{bad:?}");
+        }
+        assert_eq!(
+            db_connect_budget(&args(&["rh-server"])).unwrap(),
+            Duration::from_secs(60)
+        );
+        assert_eq!(
+            db_connect_budget(&args(&["rh-server", "--db-connect-timeout-secs", "0"])).unwrap(),
+            Duration::ZERO
+        );
+        assert!(
+            db_connect_budget(&args(&["rh-server", "--db-connect-timeout-secs", "abc"])).is_err()
+        );
+        assert!(
+            db_connect_budget(&args(&["rh-server", "--db-connect-timeout-secs", "3601"])).is_err()
+        );
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn the_connect_retry_backs_off_then_succeeds_or_gives_up_within_its_budget() {
+        let (ms, no_show) = (Duration::from_millis, |e: &String| e.clone());
+        let not_fatal = |_: &String| false;
+        // Two failures, then success: backoff 100, 200.
+        let t0 = tokio::time::Instant::now();
+        let tries = std::cell::Cell::new(0u32);
+        let got = retry_with_backoff(
+            Duration::from_secs(60),
+            ms(100),
+            ms(800),
+            not_fatal,
+            no_show,
+            |n| {
+                tries.set(n);
+                async move {
+                    if n < 3 {
+                        Err(format!("down {n}"))
+                    } else {
+                        Ok(n)
+                    }
+                }
+            },
+        )
+        .await;
+        assert_eq!(got, Ok(3));
+        assert_eq!(t0.elapsed(), ms(300));
+        // Never reachable: stops when the budget is spent, with the last error, and does not overshoot it.
+        let t0 = tokio::time::Instant::now();
+        let got: Result<(), String> = retry_with_backoff(
+            Duration::from_secs(2),
+            ms(500),
+            ms(1000),
+            not_fatal,
+            no_show,
+            |n| async move { Err(format!("down {n}")) },
+        )
+        .await;
+        assert!(got.unwrap_err().starts_with("down "));
+        assert_eq!(t0.elapsed(), Duration::from_secs(2));
+        // Budget zero is one attempt; a fatal error is never retried.
+        let tries = std::cell::Cell::new(0u32);
+        let got: Result<(), String> =
+            retry_with_backoff(Duration::ZERO, ms(100), ms(100), not_fatal, no_show, |n| {
+                tries.set(n);
+                async move { Err("x".to_string()) }
+            })
+            .await;
+        assert!(got.is_err() && tries.get() == 1);
+        let tries = std::cell::Cell::new(0u32);
+        let got: Result<(), String> = retry_with_backoff(
+            Duration::from_secs(60),
+            ms(100),
+            ms(100),
+            |_| true,
+            no_show,
+            |n| {
+                tries.set(n);
+                async move { Err("schema".to_string()) }
+            },
+        )
+        .await;
+        assert!(got.is_err() && tries.get() == 1);
+    }
+
+    #[test]
+    fn logged_database_errors_never_carry_the_connection_string_or_password() {
+        let url = "postgres://rh_admin:s3cr3t-pw@db.internal:5432/roguehalla";
+        let msg = format!("error connecting to {url} (user rh_admin, password s3cr3t-pw): refused");
+        let out = redact_secrets(&msg, &[url]);
+        for leak in ["s3cr3t-pw", "rh_admin", "db.internal", "postgres://"] {
+            assert!(!out.contains(leak), "{leak} leaked: {out}");
+        }
+        assert_eq!(
+            redact_secrets("connection refused", &[url]),
+            "connection refused"
+        );
     }
 
     #[cfg(feature = "postgres")]

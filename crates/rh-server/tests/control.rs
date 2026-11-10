@@ -779,6 +779,7 @@ async fn health_reports_the_capability_the_bridge_checks_and_no_secret() {
     let h = h.json();
     assert_eq!(h["v"], 1);
     assert_eq!(h["state"], "ready");
+    assert_eq!(h["roomCrashes"], json!({"total": 0, "last": null}));
     assert_eq!(
         h["control"],
         json!({"v":1,"requireAdmit":true,"maxRooms":1,"admitTtlMs":60000})
@@ -1170,8 +1171,63 @@ mod binary {
     }
 
     #[test]
+    fn a_control_listener_without_a_token_is_refused_unless_loopback_is_stated_explicitly() {
+        let c = format!("127.0.0.1:{}", free_port());
+        let (code, err) = fails(&["--bind", "127.0.0.1:0", "--control", &c]);
+        assert_eq!(code, Some(2), "{err}");
+        assert!(
+            err.contains("invalid hosting settings") && err.contains("--control-token-file"),
+            "{err}"
+        );
+        assert!(err.contains("--control-insecure-loopback"), "{err}");
+    }
+
+    /// An unreachable database: bounded retry, then a distinct exit code and a log line without the connection string.
+    #[cfg(feature = "postgres")]
+    #[test]
+    fn an_unreachable_database_exits_69_after_its_budget_and_never_logs_the_password() {
+        let started = std::time::Instant::now();
+        let url = format!(
+            "postgres://rh_admin:hunter2-secret@127.0.0.1:{}/roguehalla",
+            free_port()
+        );
+        let (code, err) = fails(&[
+            "--bind",
+            "127.0.0.1:0",
+            "--database-url",
+            &url,
+            "--db-connect-timeout-secs",
+            "2",
+        ]);
+        assert_eq!(code, Some(69), "{err}");
+        assert!(err.contains("event=database_unreachable"), "{err}");
+        assert!(err.contains("retrying"), "retried before giving up: {err}");
+        for leak in ["hunter2-secret", "rh_admin", &url] {
+            assert!(!err.contains(leak), "{leak} leaked: {err}");
+        }
+        assert!(started.elapsed() < std::time::Duration::from_secs(30));
+        // `0` means one attempt.
+        let (code, err) = fails(&[
+            "--bind",
+            "127.0.0.1:0",
+            "--database-url",
+            &url,
+            "--db-connect-timeout-secs",
+            "0",
+        ]);
+        assert_eq!(code, Some(69), "{err}");
+        assert!(!err.contains("retrying"), "{err}");
+    }
+
+    #[test]
     fn a_non_loopback_control_address_is_refused() {
-        let (code, err) = fails(&["--bind", "127.0.0.1:0", "--control", "0.0.0.0:0"]);
+        let (code, err) = fails(&[
+            "--bind",
+            "127.0.0.1:0",
+            "--control",
+            "0.0.0.0:0",
+            "--control-insecure-loopback",
+        ]);
         assert_ne!(code, Some(0), "{err}");
         assert!(err.contains("loopback"), "{err}");
         let (code, err) = fails(&[
@@ -1179,6 +1235,7 @@ mod binary {
             "127.0.0.1:0",
             "--control",
             "192.0.2.1:7778",
+            "--control-insecure-loopback",
             "--require-admit",
         ]);
         assert_ne!(code, Some(0), "{err}");

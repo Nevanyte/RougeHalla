@@ -972,6 +972,8 @@ async fn health(State(c): State<Ctl>) -> Response {
             "metrics": crate::metrics::process().json(),
             "results": d.result_metrics(),
             "control": d.control_info(),
+            // Rooms whose task panicked since start, and the latest one: the operator's alert hook (not in public `/info`).
+            "roomCrashes": d.crash_info(),
         }),
     )
 }
