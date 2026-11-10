@@ -17,15 +17,17 @@ Only the coordinator updates MIGRATION, CONTRACTS status and Cargo.lock. Do not 
 Unity assets/code, networking/protocol/decoders, hitbox work or room-crash repair. Future shared integration must be
 scoped and reviewed; no production/cloud actions are part of this lane.
 
-| Owner | Initial assignment | Status |
+| Owner | Assignment | Status |
 |---|---|---|
-| DeepSeek Rust Port Worker | Rebase existing repaired private Memory onto current backend in `codex/deepseek-bot-memory`; scoped source tests and lint | Dispatched; no admission yet |
-| DeepSeek Post Rust | [Quest backend packet](backlog/packets/P-QUEST-BACKEND-1.md) in `codex/deepseek-quest-backend`; Rust consumer/repair then objective/reward boundary | Preparing; source capture pending |
-| Sol quest architect | [Quest architecture](coordination/QUEST_BACKEND_REWORK.md), then source-backed tour-supply regression | Architecture prepared; source capture in progress |
-| Luna inventory | [Gameplay/bot workplan](coordination/BACKEND_GAMEPLAY_WORKPLAN.md), source/architecture cross-check and bleed-feedback packet | Inventory prepared; bounded follow-up in progress |
+| DeepSeek Rust Port Worker | Private Memory admission, then [complete private strategy](backlog/packets/P-BOT-STRATEGY-1.md) in `codex/deepseek-private-strategy` at `d21552d3` | Memory seal `0ea1589a` reviewed and integrated as `8a2d3c6c`; strategy source preparation active |
+| DeepSeek Post Rust | [Quest backend packet](backlog/packets/P-QUEST-BACKEND-1.md) in `codex/deepseek-quest-backend`; Rust consumer/repair then objective/reward boundary | Frozen source transferred as `a3d8e8d4`; Stage0 dispatched, Stage1 awaits review |
+| Sol source author | [Quest architecture](coordination/QUEST_BACKEND_REWORK.md) and source regression, now complete strategy/Memory API source fixtures | Quest source sealed `c605f2fb`; strategy source tooling/capture active |
+| Sol independent reviewer | Private Memory admission and strategy source/API coverage; later exact native quest review | Memory RELEASE recorded; strategy source review active |
+| Luna inventory | [Gameplay/bot workplan](coordination/BACKEND_GAMEPLAY_WORKPLAN.md), source/architecture cross-check and bleed-feedback packet | Prepared; bleed Rust work remains undispatched pending temporal privacy/state leases |
 | Codex project manager | Isolated worktrees, packet dispatch, independent review, integration and shared plans | Active |
 
-This supersedes the demo-only parking direction for backend work. Claude's demo remains independently active.
+This supersedes the demo-only parking direction for backend work. Claude's Unity/networking work remains independent;
+the temporary hosted demo is already removed as recorded in MIGRATION.
 
 ## Technical demo delivery record (owner decision, 2026-11-09)
 

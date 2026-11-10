@@ -16,14 +16,24 @@ Work is isolated on `codex/backend-gameplay-quests`, based on the latest committ
 cloud or production changes belong to this lane. The existing backend lead checkout's untracked plague regression
 and evidence are preserved. Integration into `optimization_port` follows reviewed scoped changes, not branch replacement.
 
-Initial work: Sol has prepared the [quest backend architecture](coordination/QUEST_BACKEND_REWORK.md) and
-[ordered tour-supply repair/extraction packet](backlog/packets/P-QUEST-BACKEND-1.md). Its unchanged-source capture is
-in preparation; the second DeepSeek session is inspecting the Rust work while it waits for frozen source evidence.
+Private Memory is independently reviewed and integrated on this lane as `8a2d3c6c` (DeepSeek seal `0ea1589a`).
+The five code files exactly preserve the repaired `3e3178b9` implementation; new-base Memory27, prefix6 and protection4
+filters pass (overlapping coverage), as do format and strict default/all-feature policy lint. The
+[independent review](evidence/backend-bot-memory-admission-review/README.md) retains actual-source and synthetic-control
+limits. This remains a private component, with no live bot activation or new observation/publication surface.
+
+Sol's [quest architecture](coordination/QUEST_BACKEND_REWORK.md) and
+[ordered repair/extraction packet](backlog/packets/P-QUEST-BACKEND-1.md) are prepared. Source seal `c605f2fb` captures
+both actual Grand Tour supply outcomes, with bytechecks, semantic mutation and comment/restoration controls passing.
+The [frozen evidence](evidence/quest-tour-supply/README.md) is transferred to DeepSeek's quest worktree as `a3d8e8d4`;
+native regression/minimal repair is dispatched. The approved content semantics marker must accompany the real rule
+repair; schema versions remain unchanged. Objective/reward extraction follows independent repair admission.
+
 Luna's [workplan](coordination/BACKEND_GAMEPLAY_WORKPLAN.md) reconciles remaining gameplay/bot work against code.
-DeepSeek has received
-[P-BOT-MEMORY-ADMISSION-1](backlog/packets/P-BOT-MEMORY-ADMISSION-1.md) in its dedicated
-`codex/deepseek-bot-memory` worktree, reusing the preserved `3e3178b9` repair. It is dispatched, not yet reviewed or
-integrated. No new test result or full bot/quest completion is claimed by this planning update.
+[P-BOT-STRATEGY-1](backlog/packets/P-BOT-STRATEGY-1.md) now starts actual-source Memory API/full strategy/hunter/route
+capture and independent source review. DeepSeek's next prepared branch is `codex/deepseek-private-strategy` at
+`d21552d3`; native implementation waits for the frozen source handoff. No complete bot, complete quest parity,
+integration-union test, deployment or Claude client acceptance is claimed.
 
 ## Technical demo delivery record (owner decision, 2026-11-09)
 

@@ -23,9 +23,12 @@ Unity/networking effort. DeepSeek implements Rust; Sol/Luna handle most architec
 review; Codex coordinates, admits changes and updates shared records. Work starts from committed backend `4151b3af`
 in `codex/backend-gameplay-quests`, leaving Claude's primary checkout and active branches untouched.
 
-First dispatched packet: [P-BOT-MEMORY-ADMISSION-1](packets/P-BOT-MEMORY-ADMISSION-1.md), reusing the existing private
-Memory repair rather than rewriting it. The [quest architecture](../coordination/QUEST_BACKEND_REWORK.md) and
-[P-QUEST-BACKEND-1](packets/P-QUEST-BACKEND-1.md) are prepared; source evidence is being captured before the Rust repair.
+Completed private admission: [P-BOT-MEMORY-ADMISSION-1](packets/P-BOT-MEMORY-ADMISSION-1.md), integrated as `8a2d3c6c`
+after independent review of DeepSeek `0ea1589a` and its new-base focused tests/lint. The
+[quest architecture](../coordination/QUEST_BACKEND_REWORK.md) and [P-QUEST-BACKEND-1](packets/P-QUEST-BACKEND-1.md)
+have frozen actual-source evidence (`c605f2fb`); DeepSeek's native regression/minimal repair is dispatched before extraction.
+[P-BOT-STRATEGY-1](packets/P-BOT-STRATEGY-1.md) starts the complete private strategy/hunter/route closure with source
+Memory API witnesses and independent review. Native implementation waits for its frozen source handoff.
 Use the [reconciled workplan](../coordination/BACKEND_GAMEPLAY_WORKPLAN.md) for this lane's queue and scopes.
 Full live bot activation remains dependent on legitimate shared observations; no hidden-state shortcut,
 protocol change or new quest design is implied. Treat older broad completion/partial rows below as historical until

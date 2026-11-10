@@ -1,5 +1,9 @@
 # P-BOT-MEMORY-ADMISSION-1: admit the existing private Memory implementation
 
+**Admitted:** worker seal `0ea1589a37cdcf957195fe4955a917e644c4b88e`, integrated on the isolated backend lane as
+`8a2d3c6c`. [Independent review](../../evidence/backend-bot-memory-admission-review/README.md) releases the exact private
+component after new-base focused tests and lint; live/full-bot boundaries remain open. Next: [P-BOT-STRATEGY-1](P-BOT-STRATEGY-1.md).
+
 ## Outcome and dependencies
 
 Owner instruction, November 9, 2026 (America/Edmonton): resume remaining Rust gameplay, bots and quests in parallel
