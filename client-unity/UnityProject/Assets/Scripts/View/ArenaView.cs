@@ -291,6 +291,8 @@ namespace Roguehalla.Client
             int i = ability == AbilityId.Blaze ? 0 : ability == AbilityId.Trial ? 1 : ability == AbilityId.Swarm ? 2 : ability == AbilityId.Freeze ? 3 : 4;
             return ShowcasePalette.Faction(i);
         }
+        /// <summary>Presentation-only swing at the owner's click; see <see cref="SpriteActorPresenter.LocalAttackCue"/>.</summary>
+        public void LocalAttackCue(uint id) { _actors.LocalAttackCue(id); }
         public void ConfirmedFx(ServerMsg.Fx fx) { ConfirmedFx(fx, 0, double.NaN); }
         /// <summary>
         /// Cues on a remote player drawn by interpolation wait until render time reaches <paramref name="dueMs"/> (source ms

@@ -340,6 +340,7 @@ namespace Roguehalla.Client
                     else
                     {
                         Session.Input.Attack(_aimAngle, Session.Clock.RenderMs); _attackHeld = true;
+                        Arena?.LocalAttackCue(Session.PlayerId);
                         if (mouse.leftButton.wasReleasedThisFrame)
                         {
                             Session.Input.Release(_aimAngle, Session.Clock.RenderMs); _attackHeld = false;

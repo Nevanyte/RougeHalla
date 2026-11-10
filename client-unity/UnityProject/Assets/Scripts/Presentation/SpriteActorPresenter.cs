@@ -25,6 +25,7 @@ namespace Roguehalla.Client
             public float AttackUntil;
             public GaitState Gait;
             public float StampTime;
+            public bool LocalCue;
             public float AttackAt, HitAt, BlockAt, DeadAt, HitUntil, BlockUntil;
             public bool Dead, HoldDeathFrame;
             public WeaponId? WeaponId;
@@ -69,6 +70,7 @@ namespace Roguehalla.Client
                 a.AttackUntil = a.HitUntil = a.BlockUntil = 0;
                 a.Gait.Reset();
                 a.AttackAt = a.HitAt = a.BlockAt = a.DeadAt = 0;
+                a.LocalCue = false;
                 a.HoldDeathFrame = a.Dead;
             }
         }
@@ -77,12 +79,28 @@ namespace Roguehalla.Client
             if (_active.TryGetValue(id, out var art)) { position = art.Root.transform.position; return true; }
             position = default; return false;
         }
+        /// <summary>
+        /// Cosmetic swing at the moment of the owner's click, before the server answers. It carries no rule: hit, damage and
+        /// cooldown come only from the server. The clip simply ends if the server never confirms; the first confirmed swing
+        /// within <see cref="LocalCueWindow"/> adopts it instead of restarting it.
+        /// </summary>
+        public void LocalAttackCue(uint id)
+        {
+            if (!_active.TryGetValue(id, out var art) || art.Dead || !art.WeaponId.HasValue) return;
+            float now = Time.unscaledTime;
+            if (art.AttackUntil > now && !art.LocalCue) return; // a confirmed swing is already playing
+            art.AttackAt = now; art.LocalCue = true;
+            art.AttackUntil = now + ClipDuration(AttackFrames(art.Appearance, art.WeaponId.Value, out float fps), fps, .32f);
+        }
+        const float LocalCueWindow = .6f;
         public void ConfirmedCue(uint id, FxKind kind)
         {
             if (!_active.TryGetValue(id,out var art)) return;
             float now=Time.unscaledTime;
             if(kind==FxKind.Swing && art.WeaponId.HasValue)
             {
+                if(art.LocalCue && now-art.AttackAt<LocalCueWindow) { art.LocalCue=false; return; }
+                art.LocalCue=false;
                 art.AttackAt=now;
                 var clip=AttackFrames(art.Appearance,art.WeaponId.Value,out float fps);
                 art.AttackUntil=now+ClipDuration(clip,fps,.32f);
