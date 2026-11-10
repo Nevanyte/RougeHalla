@@ -44,6 +44,10 @@ float RhShadowVis(float2 p, float2 l, float k)
     return smoothstep(0.0, 1.0, saturate(res));
 }
 
+// Headroom of an already lit pixel: 1 while its brightest channel is below about 0.55, falling to 0 at 1.05. Local lights add through this, so a light
+// never blows out a surface that is already bright (sunlit sand, snow, the temple floor): they shape and warm it, and add fully where it is dark.
+float RhHeadroom(float3 litRgb) { return saturate((1.05 - max(litRgb.r, max(litRgb.g, litRgb.b))) * 2.0); }
+
 // True when any light's radius reaches this point: lets the caller skip normals and everything else far from light.
 bool RhAnyLight(float2 pt)
 {

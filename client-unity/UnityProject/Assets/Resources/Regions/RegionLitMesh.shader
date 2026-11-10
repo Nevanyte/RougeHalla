@@ -95,7 +95,8 @@ Shader "Roguehalla/RegionLitMesh"
                         n.xy += float2(-(lR - lL), (lU - lD)) * 1.8;
                         float3 dif, spc;
                         RhLocalLights(pt, normalize(n), 0.16, 16.0, 0.0, 1.0, 0.0, dif, spc);
-                        lit.rgb += main.rgb * _Exposure * dif * main.a + spc * main.a;
+                        float hr = RhHeadroom(lit.rgb);
+                        lit.rgb += (main.rgb * _Exposure * dif * hr + spc * saturate(hr + 0.3)) * main.a;
                     }
                 }
                 return lit;

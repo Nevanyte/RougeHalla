@@ -96,7 +96,8 @@ Shader "Roguehalla/ActorLit"
                         float3 n = normalize(float3(tilt, 1.0));
                         float3 dif, spc;
                         RhLocalLights(pt, n, 0.0, 12.0, 0.0, 0.0, 0.30, dif, spc);
-                        lit.rgb += (main.rgb * dif * 0.8 + spc) * main.a * inner;
+                        float hr = RhHeadroom(lit.rgb);
+                        lit.rgb += (main.rgb * dif * 0.8 * hr + spc * saturate(hr + 0.3)) * main.a * inner;
                     }
                 }
                 return lit;

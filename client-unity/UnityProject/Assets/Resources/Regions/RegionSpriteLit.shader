@@ -122,7 +122,8 @@ Shader "Roguehalla/RegionSpriteLit"
                         float2 tilt = float2(-(aR - aL) * 0.9 - (lR - lL) * 1.4, (aU - aD) * 0.9 + (lU - lD) * 1.4);   // tile space: y is down
                         float3 dif, spc;
                         RhLocalLights(pt, normalize(float3(tilt, 1.0)), 0.10, 14.0, 0.8, 1.0, 0.0, dif, spc);
-                        lit.rgb += albedo * dif * main.a + spc * main.a;
+                        float hr = RhHeadroom(lit.rgb);
+                        lit.rgb += (albedo * dif * hr + spc * saturate(hr + 0.3)) * main.a;
                     }
                 }
                 return lit;

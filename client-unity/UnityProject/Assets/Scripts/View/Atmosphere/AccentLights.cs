@@ -106,7 +106,7 @@ namespace Roguehalla.Client
         /// <summary>Output gain by site kind: lava is huge and already glows through the ground shader (low gain); lanterns and temple lamps need more to read on their floors.</summary>
         public static float GainFor(in TerrainCluster c)
         {
-            if (c.TempleLamp) return 1.0f;
+            if (c.TempleLamp) return .6f;
             if (c.Lantern) return .6f;
             switch (c.Kind) { case TerrainKind.Lava: return .24f; case TerrainKind.Ice: return .5f; case TerrainKind.Bog: return .45f; case TerrainKind.Light: return .5f; default: return AnalyticGain; }
         }
