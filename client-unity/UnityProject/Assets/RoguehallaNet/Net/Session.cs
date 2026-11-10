@@ -497,6 +497,13 @@ namespace Roguehalla.Net
                         if (_hasMe) Motion.OnSnapshot(snap.Me, now, snap.AckInput, snap.ServerMs,
                             _me.OwnerCombat.HasValue ? _me.OwnerCombat.Value.SpeedMilli : (double?)null);
                         else Motion.Clear();
+                        // A bow draw has no fx: its start and interval are in the owner block (clock shift: an epoch cut overrides the tick time).
+                        if (_hasMe && snap.OwnerCombat != null)
+                        {
+                            double shift = snap.ServerMs - snap.Tick * (double)Wire.TickMs;
+                            Motion.NoteOwnerDraw(snap.ServerMs, snap.OwnerCombat.DrawStartedAt == 0 ? 0 : snap.OwnerCombat.DrawStartedAt + shift,
+                                snap.OwnerCombat.ReadyAt + shift, snap.OwnerCombat.WindupMilli);
+                        }
                     }
                     if (sourceCut)
                     {
@@ -526,7 +533,31 @@ namespace Roguehalla.Net
                 return;
             }
             var fx = msg as ServerMsg.Fx;
-            if (fx != null && FxReceived != null) FxReceived(fx);
+            if (fx != null)
+            {
+                if (Motion != null) NoteOwnAttackFx(fx);
+                if (FxReceived != null) FxReceived(fx);
+            }
+        }
+
+        /// <summary>
+        /// The owner's own attack telegraph facts feed the walk mirror's attack pause (<see cref="LocalMotion.NoteOwnWindup"/>). Only
+        /// fx whose actor is this seat count; the tick an fx was sent in is its server time.
+        /// </summary>
+        void NoteOwnAttackFx(ServerMsg.Fx fx)
+        {
+            uint me = PlayerId;
+            if (me == 0) return;
+            // The same source clock the snapshot stamps use (an epoch cut overrides the tick-derived time).
+            var latest = Latest;
+            double tickMs = latest != null ? latest.ServerMs + ((double)fx.Tick - latest.Tick) * Wire.TickMs : fx.Tick * (double)Wire.TickMs;
+            for (int i = 0; i < fx.List.Count; i++)
+            {
+                var f = fx.List[i];
+                if (f.Kind == FxKind.Windup && f.By == me) Motion.NoteOwnWindup(tickMs, f.Ms, f.Weapon);
+                else if (f.Kind == FxKind.Stagger && f.Id == me) Motion.NoteOwnStagger(tickMs);
+                else if (f.Kind == FxKind.Cancel && f.Id == me) Motion.NoteOwnCancel(tickMs);
+            }
         }
 
         /// <summary>

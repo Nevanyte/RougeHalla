@@ -46,6 +46,7 @@ namespace Roguehalla.Client
         int _fxSwings, _fxHits;
         bool _attackHeld;
         bool _traceLatency;
+        uint _traceDraw;
         MatchLaunchTarget _sessionTarget;
         int _sessionFaction;
         long _sessionGeneration;
@@ -269,6 +270,13 @@ namespace Roguehalla.Client
             // Fx of tick T happened in step T: interpolated remote poses reach it when render time reaches snapshot T's
             // source time. Anchor on the newest snapshot so a source-time override (epoch cut) is respected.
             var s = _presentationSession ?? Session;
+            if (s != null && _traceLatency)
+                foreach (var f in fx.List)
+                {   // Opt-in trace: the owner's attack telegraph facts the walk mirror consumes.
+                    if (f.Kind == FxKind.Windup && f.By == s.PlayerId) LatencyTrace.Mark("ownWindup", s.PlayerId, f.Weapon, f.Ms, fx.Tick);
+                    else if (f.Kind == FxKind.Stagger && f.Id == s.PlayerId) LatencyTrace.Mark("ownStagger", s.PlayerId, 0, 0, fx.Tick);
+                    else if (f.Kind == FxKind.Cancel && f.Id == s.PlayerId) LatencyTrace.Mark("ownCancel", s.PlayerId, 0, 0, fx.Tick);
+                }
             if (s != null && InputLatencyProbe.Enabled)
                 foreach (var f in fx.List)
                 {   // Dev flag ?inputlat=1: confirmed swings and hits by the local player (shots versus hits for the aim proof).
@@ -288,6 +296,7 @@ namespace Roguehalla.Client
             if (_sessionTarget != null && !CurrentLaunchTarget(_sessionTarget, _sessionFaction))
             { RefuseLaunch("The connection changed. Start your run again."); return; }
             _traceLatency = LatencyTrace.Enabled;
+            if (PausePredictionOff && session.Motion != null) session.Motion.PredictAttackPause = false;
             if (_traceLatency) LatencyTrace.Mark("frameStart", Session.PlayerId, 0, 0, 0);
             session.Poll();
             if (!ReferenceEquals(Session, session)) return;
@@ -552,7 +561,15 @@ namespace Roguehalla.Client
             if (_traceLatency)
             {
                 if (Session.Me != null && Session.Motion != null)
+                {
                     LatencyTrace.Mark("presentSelf", Session.PlayerId, Session.Me.MoveSeq, Session.Motion.DrawnX, Session.Motion.DrawnY);
+                    // Reconciliation counters: x = samples compared, y = summed model-versus-server error, moveSeq slot = snaps (the pull-back the server forced).
+                    LatencyTrace.Mark("presentRecon", Session.PlayerId, Session.Motion.Snaps, Session.Motion.ReconSamples, Session.Motion.ReconErrSum);
+                    var oc = Session.Me.OwnerCombat;
+                    if (oc.HasValue && oc.Value.DrawStartedAt != 0 && oc.Value.DrawStartedAt != _traceDraw)
+                        LatencyTrace.Mark("ownDraw", Session.PlayerId, 0, oc.Value.DrawStartedAt, oc.Value.ReadyAt); // a bow draw began (the server's own fact)
+                    _traceDraw = oc.HasValue ? oc.Value.DrawStartedAt : 0;
+                }
                 foreach (var actor in _actors)
                     LatencyTrace.Mark("presentActor", actor.Id, 0, actor.X, actor.Y);
             }
