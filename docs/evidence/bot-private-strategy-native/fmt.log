@@ -1,0 +1,5 @@
+=== fmt
+sourceHead=d21552d34966cd4a3ffd10d931b3543c269cf5d2
+cwd=/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-strategy
+command=cargo fmt -p rh-policy -- --check
+EXIT=0

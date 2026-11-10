@@ -2,7 +2,7 @@
 //! Declared source-method data only: no World, Sim, RNG, public/wire or live dispatch. Time is the Percept clock.
 //! Retained ordered state is kept in insertion order (never sorted); all twelve source folds run in source order.
 
-mod source_input;
+pub(super) mod source_input;
 #[cfg(test)]
 mod source_tests;
 

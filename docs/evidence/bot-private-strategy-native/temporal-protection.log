@@ -1,0 +1,32 @@
+=== temporal-protection
+sourceHead=d21552d34966cd4a3ffd10d931b3543c269cf5d2
+cwd=/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-strategy
+target=/Users/nevinmckinnon/.codex/tools/roguehalla-backend-20261109/target-strategy
+command=cargo test -p rh-policy --lib protection_cues --locked --offline -- --nocapture
+warning: variable does not need to be mutable
+   --> crates/rh-policy/src/bots/temporal_percept/strategy/private_strategy_tests.rs:819:9
+    |
+819 |     let mut ctx2 = StrategyContext {
+    |         ----^^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `rh-policy` (lib test) generated 1 warning (run `cargo fix --lib -p rh-policy --tests` to apply 1 suggestion)
+    Finished `test` profile [unoptimized] target(s) in 0.06s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/roguehalla-backend-20261109/target-strategy/debug/deps/rh_policy-c3fa0ee46865b1ea)
+
+running 4 tests
+test bots::temporal_percept::protection_cues_tests::protection_cues_tagged_value_controls_are_strict ... ok
+test bots::temporal_percept::protection_cues_tests::protection_cues_map_controls_are_strict ... ok
+test bots::temporal_percept::memory::source_tests::actual_protection_cues_memory_2112_complete has been running for over 60 seconds
+test bots::temporal_percept::protection_cues_tests::actual_protection_cues_frames_compose_exact has been running for over 60 seconds
+protection-cues memory: rows=2112 nonnull=2046 nulls=66 maps=10560 undefined=82
+test bots::temporal_percept::memory::source_tests::actual_protection_cues_memory_2112_complete ... ok
+protection-cues actual: frames=2112 nonnull=2046 null=66 max_raw_numeric_error=0.00000000000000000e0
+test bots::temporal_percept::protection_cues_tests::actual_protection_cues_frames_compose_exact ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 204 filtered out; finished in 74.99s
+
+EXIT=0
