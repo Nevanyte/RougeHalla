@@ -289,12 +289,16 @@ namespace Roguehalla.Client
             // Camera first: the cursor ground point read by ReadInput must use this frame's camera, or aim is a frame stale.
             FollowCamera();
             if (_traceLatency && LatencyTrace.TakeTargetRequest()) TraceTargetScreens();
+            bool probe = InputLatencyProbe.Enabled && Session.Motion != null && Session.Motion.Initialized && Session.Me != null;
+            if (probe && Session.State == SessionState.InMatch && (Hud == null || !Hud.BlocksKeyboardInput))
+                InputLatencyProbe.BeginFrame(Keyboard.current, NowMs(), Session.Motion.DrawnX, Session.Motion.DrawnY, Session.Me.X, Session.Me.Y);
             if (Session.State == SessionState.InMatch)
             {
                 ReadInput();
                 Session.FlushInput();
             }
             Present();
+            if (probe) InputLatencyProbe.EndFrame(NowMs(), Session.Motion.DrawnX, Session.Motion.DrawnY, Session.Me.X, Session.Me.Y);
         }
 
         void ReadInput()

@@ -184,6 +184,8 @@
 
     <script>
       const canvas = document.querySelector("#unity-canvas");
+      // Right-click is the move order: keep the browser menu from opening (and stealing canvas focus) over the game.
+      canvas.addEventListener("contextmenu", (event) => event.preventDefault());
       const loadingBar = document.querySelector("#unity-loading-bar");
       const progressTrack = document.querySelector("#unity-progress-track");
       const progressFill = document.querySelector("#unity-progress-bar-full");
