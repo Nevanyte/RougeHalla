@@ -47,6 +47,7 @@ Shader "Roguehalla/ActorOutline"
         float _RhOutlineGrab; // global, set by ActorOutline: 1 when _CameraSortingLayerTexture is valid this frame
 
         // Mirrors ActorOutlineModel.cs; SpriteOutline.PublishGlobals writes them (tunable in a page with ?ol.light=, ol.dark=, ol.cross=, ol.dead=).
+        float _RhOutlineRadius; // tuning pages only
         float _RhOutlineGain;  // set once per frame by SpriteOutline.PublishFrame: 2^post exposure of the grade
         float4 _RhOutlineTune;   // set by SpriteOutline.PublishGlobals: light HDR value, dark value, crossover luminance, dead zone half width
 
@@ -89,7 +90,7 @@ Shader "Roguehalla/ActorOutline"
         float GroundLuma(float2 uv)
         {
             float unit = _ScreenParams.y / max(2.0 * unity_OrthoParams.y, 0.01);   // pixels per world unit
-            float2 px = unit / _ScreenParams.xy;
+            float2 px = unit * max(_RhOutlineRadius, 0.01) / _ScreenParams.xy;
             float v[13];
             v[0] = TapLum(uv);
             [unroll] for (int k = 0; k < 4; k++)
