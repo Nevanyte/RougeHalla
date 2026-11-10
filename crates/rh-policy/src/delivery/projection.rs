@@ -463,6 +463,61 @@ pub fn wire_archetypes() -> Vec<rh_protocol::WireArchetype> {
         .collect()
 }
 
+/// The vision rule's parameters as a Welcome carries them (protocol 16): the sim's constants and, when the map has
+/// layers, the exact coliseum rectangle `rh_sim::vision` reveals. All public facts (build constants and public map
+/// metadata). The rect of a validated map lies inside it; one that would not fit the wire is a server bug.
+pub fn wire_vision(map: &rh_sim::TileMap) -> rh_protocol::WireVision {
+    use rh_sim::constants::{MASK_SIGHT, TILE, VISION_RADIUS, VISION_TRAIL_MS, VISION_UPDATE_MS};
+    let coliseum = map.layers().map(|l| l.coliseum().rect).and_then(|r| {
+        let tiles = |v: i64| u16::try_from(v).expect("a validated coliseum rect fits the wire");
+        (r.w > 0 && r.h > 0).then(|| rh_protocol::WireRect {
+            x: tiles(i64::from(r.x)),
+            y: tiles(i64::from(r.y)),
+            w: tiles(i64::from(r.w)),
+            h: tiles(i64::from(r.h)),
+        })
+    });
+    rh_protocol::WireVision {
+        version: rh_protocol::VISION_RULES_VERSION,
+        tile: TILE,
+        radius: VISION_RADIUS,
+        trail_ms: VISION_TRAIL_MS,
+        update_ms: VISION_UPDATE_MS,
+        sight_mask: MASK_SIGHT,
+        coliseum,
+    }
+}
+
+#[cfg(test)]
+mod vision_block_tests {
+    /// The block the server sends is valid, carries the sim's constants, and names exactly the rectangle
+    /// `rh_sim::vision` reveals (the seed-1 source map has a coliseum; the practice arena has no layers).
+    #[test]
+    fn the_wire_vision_block_is_the_sim_rule() {
+        use rh_sim::constants::{MASK_SIGHT, TILE, VISION_RADIUS, VISION_TRAIL_MS, VISION_UPDATE_MS};
+        let practice = super::wire_vision(&rh_sim::arenas::practice_arena().map);
+        assert_eq!(practice.fault(), None);
+        assert_eq!(practice.coliseum, None);
+        assert_eq!(
+            (practice.version, practice.tile, practice.radius, practice.trail_ms, practice.update_ms, practice.sight_mask),
+            (1, TILE, VISION_RADIUS, VISION_TRAIL_MS, VISION_UPDATE_MS, MASK_SIGHT)
+        );
+        let doc: serde_json::Value =
+            serde_json::from_slice(include_bytes!("../../../../parity/arena/source.json")).unwrap();
+        let export: rh_sim::mapdata::MapExport = serde_json::from_value(doc["map"]["export"].clone()).unwrap();
+        let arena = export.validate().unwrap().into_arena().unwrap();
+        let v = super::wire_vision(&arena.map);
+        let rect = arena.map.layers().unwrap().coliseum().rect;
+        let r = v.coliseum.expect("the source map has a coliseum");
+        assert_eq!(
+            (i64::from(r.x), i64::from(r.y), i64::from(r.w), i64::from(r.h)),
+            (i64::from(rect.x), i64::from(rect.y), i64::from(rect.w), i64::from(rect.h))
+        );
+        assert!(v.fits(arena.map.w as u16, arena.map.h as u16));
+        assert_eq!(v.fault(), None);
+    }
+}
+
 #[cfg(test)]
 mod archetype_table_tests {
     #[test]

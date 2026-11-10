@@ -1147,8 +1147,16 @@ impl Frame for ServerMsg {
     fn encoded_len(&self) -> usize {
         match self {
             ServerMsg::Welcome {
-                archetypes, map, ..
-            } => WELCOME_HEADER_LEN + crate::archetype::table_len(archetypes) + map.encoded_len(),
+                archetypes,
+                vision,
+                map,
+                ..
+            } => {
+                WELCOME_HEADER_LEN
+                    + crate::archetype::table_len(archetypes)
+                    + vision.encoded_len()
+                    + map.encoded_len()
+            }
             ServerMsg::Reject { reason, .. } => 1 + 2 + str_len(reason),
             ServerMsg::Snapshot {
                 tick,
@@ -1190,10 +1198,19 @@ impl Frame for ServerMsg {
     fn check(&self, len: usize) -> Result<(), EncodeError> {
         match self {
             ServerMsg::Welcome {
-                archetypes, map, ..
+                archetypes,
+                vision,
+                map,
+                ..
             } => {
                 if let Some(why) = crate::archetype::table_fault(archetypes) {
                     return Err(EncodeError::BadValue(why));
+                }
+                if let Some(why) = vision.fault() {
+                    return Err(EncodeError::BadValue(why));
+                }
+                if !vision.fits(map.w, map.h) {
+                    return Err(EncodeError::BadValue("vision"));
                 }
                 map.check()?
             }
@@ -1380,6 +1397,7 @@ impl Frame for ServerMsg {
                 tick,
                 server_ms,
                 archetypes,
+                vision,
                 map,
             } => {
                 WelcomeHeader {
@@ -1394,6 +1412,7 @@ impl Frame for ServerMsg {
                 }
                 .write(w);
                 crate::archetype::write_table(w, archetypes);
+                vision.write(w);
                 map.write(w);
             }
             ServerMsg::Reject { code, reason } => {
@@ -1667,18 +1686,23 @@ impl WelcomeHeader {
     }
 }
 
-/// A Welcome frame with a pre-encoded map: the same bytes as `ServerMsg::Welcome { .., archetypes, map }.encode()`, without
-/// RLE encoding (or cloning) the map per joining player. One allocation of the exact size. `archetypes` must pass
-/// [`crate::archetype::table_fault`] (the server's table is a build constant, checked by its tests).
+/// A Welcome frame with a pre-encoded map: the same bytes as `ServerMsg::Welcome { .., archetypes, vision, map }.encode()`,
+/// without RLE encoding (or cloning) the map per joining player. One allocation of the exact size. `archetypes` must pass
+/// [`crate::archetype::table_fault`] and `vision` [`WireVision::fault`] (the server builds both from build constants and
+/// the validated map, checked by its tests).
 pub fn encode_welcome(
     h: &WelcomeHeader,
     archetypes: &[WireArchetype],
+    vision: &WireVision,
     map: &EncodedMap,
     mode: GroundMode,
 ) -> Vec<u8> {
     debug_assert_eq!(crate::archetype::table_fault(archetypes), None);
+    debug_assert_eq!(vision.fault(), None);
+    debug_assert!(vision.fits(map.w(), map.h()));
     let len = WELCOME_HEADER_LEN
         + crate::archetype::table_len(archetypes)
+        + vision.encoded_len()
         + map.encoded_len_for_mode(mode);
     debug_assert!(
         len <= MAX_SERVER_FRAME,
@@ -1687,6 +1711,7 @@ pub fn encode_welcome(
     let mut w = Writer::with_capacity(len);
     h.write(&mut w);
     crate::archetype::write_table(&mut w, archetypes);
+    vision.write(&mut w);
     map.write_with_mode(&mut w, mode);
     w.finish()
 }
@@ -1695,6 +1720,7 @@ pub fn encode_welcome(
 pub fn encode_welcome_into(
     h: &WelcomeHeader,
     archetypes: &[WireArchetype],
+    vision: &WireVision,
     map: &EncodedMap,
     mode: GroundMode,
     out: &mut Vec<u8>,
@@ -1702,14 +1728,22 @@ pub fn encode_welcome_into(
     if let Some(why) = crate::archetype::table_fault(archetypes) {
         return Err(EncodeError::BadValue(why));
     }
+    if let Some(why) = vision.fault() {
+        return Err(EncodeError::BadValue(why));
+    }
+    if !vision.fits(map.w(), map.h()) {
+        return Err(EncodeError::BadValue("vision"));
+    }
     let len = WELCOME_HEADER_LEN
         + crate::archetype::table_len(archetypes)
+        + vision.encoded_len()
         + map.encoded_len_for_mode(mode);
     frame_size(len, MAX_SERVER_FRAME)?;
     let mut w = Writer::from_vec(std::mem::take(out));
     w.reserve(len);
     h.write(&mut w);
     crate::archetype::write_table(&mut w, archetypes);
+    vision.write(&mut w);
     map.write_with_mode(&mut w, mode);
     *out = w.finish();
     Ok(len)

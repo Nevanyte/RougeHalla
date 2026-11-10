@@ -33,6 +33,7 @@ fn decoded(assets: &MapAssets, mode: GroundMode) -> MapBlob {
     let bytes = encode_welcome(
         &header(),
         super::archetype_table(),
+        &rh_policy::delivery::projection::wire_vision(&assets.arena.map),
         &assets.welcome_map,
         mode,
     );

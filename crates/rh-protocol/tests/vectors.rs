@@ -216,7 +216,9 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
             | "snapshot_giver_mob_type" => BadField("giver actor"),
             "actor_bounty_over_u16" => BadField("bounty"),
             "delta_age_zero" | "delta_age_over_max" | "delta_age_past_tick" => BadField("base age"),
-            "delta_head_field_without_present_bit" => BadField("head"),
+            "delta_head_field_without_present_bit" | "delta_head_archetype_without_present_bit" => {
+                BadField("head")
+            }
             "delta_self_status_over_3" => BadField("status"),
             "delta_actor_id_gap_zero" => BadField("actor order"),
             "delta_actor_hp_over_100" => BadField("hp_pct"),
@@ -246,7 +248,21 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
             "welcome_trailing" => Trailing(1),
             "welcome_archetype_order" => BadField("archetype order"),
             "welcome_archetype_hull" => BadField("archetype hull"),
-            "welcome_archetype_zero_box" => BadField("archetype"),
+            "welcome_archetype_zero_box"
+            | "welcome_archetype_key_long"
+            | "welcome_archetype_key_ascii" => BadField("archetype"),
+            "welcome_archetype_count" => BadField("archetype count"),
+            "welcome_archetype_truncated" | "welcome_vision_truncated" => Truncated,
+            "welcome_vision_version_zero"
+            | "welcome_vision_tile_zero"
+            | "welcome_vision_radius_nan"
+            | "welcome_vision_radius_negative"
+            | "welcome_vision_trail_negative"
+            | "welcome_vision_update_infinite"
+            | "welcome_vision_mask_zero"
+            | "welcome_vision_coliseum_flag"
+            | "welcome_vision_coliseum_empty"
+            | "welcome_vision_coliseum_outside" => BadField("vision"),
             other => panic!("no expectation for {other}"),
         }
     };

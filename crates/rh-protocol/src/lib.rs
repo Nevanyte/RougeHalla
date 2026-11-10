@@ -141,6 +141,7 @@
 //! than [`MAX_ACTORS`] actors, an oversized frame, a bad map): the codec never clamps or drops what the observation chose.
 
 pub mod archetype;
+pub mod vision;
 pub mod codec;
 mod encode;
 pub mod ground;
@@ -162,6 +163,7 @@ pub use state::{
 };
 
 pub use archetype::{WireArchetype, WireHull};
+pub use vision::{WireRect, WireVision, VISION_RULES_VERSION};
 pub use codec::{DecodeError, EncodeError, Reader, Writer};
 pub use delta::{
     ActorDelta, ConnEncoder, DeltaError, FrameKind, QActor, SelfDelta, SnapshotData, SnapshotDelta,
@@ -717,6 +719,8 @@ pub enum ServerMsg {
         server_ms: f64,
         /// The hitbox archetype table (protocol 16, ADR0024), between the header and the map.
         archetypes: Vec<archetype::WireArchetype>,
+        /// The vision rule's parameters (protocol 16), after the archetype table and before the map.
+        vision: vision::WireVision,
         /// The canonical public map (server-sent; clients never generate it): docs/adr/0003-canonical-map.md.
         map: map::MapBlob,
     },
@@ -1334,18 +1338,35 @@ impl ServerMsg {
         }
         let mut r = Reader::new(frame);
         let msg = match r.u8()? {
-            T_WELCOME => ServerMsg::Welcome {
-                protocol: r.u16()?,
-                content_hash: r.u64()?,
-                match_id: r.array16()?,
-                player_id: r.u32()?,
-                session: r.array16()?,
-                tick_rate: r.u8()?,
-                tick: r.u32()?,
-                server_ms: r.f64()?,
-                archetypes: archetype::read_table(&mut r)?,
-                map: map::MapBlob::read(&mut r)?,
-            },
+            T_WELCOME => {
+                let protocol = r.u16()?;
+                let content_hash = r.u64()?;
+                let match_id = r.array16()?;
+                let player_id = r.u32()?;
+                let session = r.array16()?;
+                let tick_rate = r.u8()?;
+                let tick = r.u32()?;
+                let server_ms = r.f64()?;
+                let archetypes = archetype::read_table(&mut r)?;
+                let vision = vision::WireVision::read(&mut r)?;
+                let map = map::MapBlob::read(&mut r)?;
+                if !vision.fits(map.w, map.h) {
+                    return Err(DecodeError::BadField("vision"));
+                }
+                ServerMsg::Welcome {
+                    protocol,
+                    content_hash,
+                    match_id,
+                    player_id,
+                    session,
+                    tick_rate,
+                    tick,
+                    server_ms,
+                    archetypes,
+                    vision,
+                    map,
+                }
+            }
             T_REJECT => {
                 // Any code above 0 decodes (unnamed ones as `Unknown`); 0 is not a code.
                 let code = r.u16()?;

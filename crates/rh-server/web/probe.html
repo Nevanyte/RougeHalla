@@ -367,12 +367,24 @@ function readArchetypes(r) {
   }
   return rows;
 }
+// Protocol 16: the vision rule's parameters (public constants and map metadata), between the archetype table and the map.
+function readVision(r) {
+  const version = r.u8(), tile = r.f64(), radius = r.f64(), trailMs = r.f64(), updateMs = r.f64(), sightMask = r.u8();
+  const flag = r.u8();
+  if (flag > 1) throw new Error("bad vision");
+  const coliseum = flag ? { x: r.u16(), y: r.u16(), w: r.u16(), h: r.u16() } : null;
+  const within = (v, lo, hi, open) => Number.isFinite(v) && v <= hi && (open ? v > lo : v >= lo);
+  if (version === 0 || !within(tile, 0, 1024, true) || !within(radius, 0, 1e6, true) || !within(trailMs, 0, 1e9, false)
+    || !within(updateMs, 0, 1e6, true) || sightMask === 0 || (coliseum && (coliseum.w === 0 || coliseum.h === 0))) throw new Error("bad vision");
+  return { version, tile, radius, trailMs, updateMs, sightMask, coliseum };
+}
 function decodeBody(r) {
   const tag = r.u8();
   if (tag === 0x81) {
     const m = { t: "welcome", protocol: r.u16(), content: r.u64(), match: r.bytes(16), player: r.u32(), session: r.bytes(16), tickRate: r.u8(), tick: r.u32(), serverMs: r.f64() };
     // Protocol 16 (ADR0024): the hitbox archetype table sits between the header and the map.
     m.archetypes = readArchetypes(r);
+    m.vision = readVision(r);
     // Preflight a copied bounded suffix first. No decoded plane allocation occurs until every byte,
     // run, domain, terrain/collision relation, and hash in the complete map has been checked.
     const p = cursor(r.v, r.p, r.limit);
@@ -421,6 +433,8 @@ function decodeBody(r) {
     const tiles = fillPlane(p.v, collision, n);
     const terrainBytes = terrain ? fillPlane(p.v, terrain, n) : null;
     const regionBytes = regions ? fillPlane(p.v, regions, n) : null;
+    const c = m.vision.coliseum;
+    if (c && (c.x + c.w > w || c.y + c.h > h)) throw new Error("bad vision");
     r.p = mapEnd;
     m.map = { w, h, tiles, hash, terrain: terrainBytes, regions: regionBytes, terrainMode, semanticHash, contextHash };
     return m;

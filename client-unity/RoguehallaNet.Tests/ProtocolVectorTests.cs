@@ -264,6 +264,33 @@ namespace Roguehalla.Net.Tests
         }
 
         [Test]
+        public void WelcomeCarriesTheVisionBlockRustWrote()
+        {
+            foreach (var v in Fixture().GetProperty("server").EnumerateArray())
+            {
+                string name = v.GetProperty("name").GetString();
+                if (!name.StartsWith("welcome")) continue;
+                var w = (ServerMsg.Welcome)ServerMsg.Decode(Util.FromHex(v.GetProperty("hex").GetString()));
+                var want = v.GetProperty("decoded").GetProperty("vision");
+                Assert.AreEqual(want.GetProperty("version").GetInt32(), w.Vision.Version, name);
+                Assert.AreEqual(want.GetProperty("tile").GetDouble(), w.Vision.Tile, name);
+                Assert.AreEqual(want.GetProperty("radius").GetDouble(), w.Vision.Radius, name);
+                Assert.AreEqual(want.GetProperty("trailMs").GetDouble(), w.Vision.TrailMs, name);
+                Assert.AreEqual(want.GetProperty("updateMs").GetDouble(), w.Vision.UpdateMs, name);
+                Assert.AreEqual(want.GetProperty("sightMask").GetInt32(), w.Vision.SightMask, name);
+                var c = want.GetProperty("coliseum");
+                Assert.AreEqual(c.ValueKind != System.Text.Json.JsonValueKind.Null, w.Vision.HasColiseum, name);
+                if (w.Vision.HasColiseum)
+                    Assert.AreEqual((c.GetProperty("x").GetInt32(), c.GetProperty("y").GetInt32(), c.GetProperty("w").GetInt32(), c.GetProperty("h").GetInt32()),
+                        ((int)w.Vision.ColiseumX, (int)w.Vision.ColiseumY, (int)w.Vision.ColiseumW, (int)w.Vision.ColiseumH), name);
+                CollectionAssert.AreEqual(Util.FromHex(v.GetProperty("hex").GetString()), w.Encode(), name);
+            }
+            var sample = (ServerMsg.Welcome)ServerMsg.Decode(Util.FromHex(SrvHex("welcome")));
+            Assert.IsTrue(sample.Vision.HasColiseum);
+            Assert.AreEqual((1, 1, 2, 1), ((int)sample.Vision.ColiseumX, (int)sample.Vision.ColiseumY, (int)sample.Vision.ColiseumW, (int)sample.Vision.ColiseumH));
+        }
+
+        [Test]
         public void MapWithWrongHashOrRunsIsRejected()
         {
             var good = ServerMsg.Decode(Util.FromHex(SrvHex("welcome")));
@@ -790,7 +817,7 @@ namespace Roguehalla.Net.Tests
                 case "state_trade_merchant_out_of_range":
                 case "delta_actor_status_over_3":
                 case "actor_id_gap_zero": case "actor_id_overflow": case "actor_hp_over_100": case "actor_bounty_over_u16":
-                case "delta_age_zero": case "delta_age_over_max": case "delta_age_past_tick": case "delta_head_field_without_present_bit":
+                case "delta_age_zero": case "delta_age_over_max": case "delta_age_past_tick": case "delta_head_field_without_present_bit": case "delta_head_archetype_without_present_bit":
                 case "delta_self_status_over_3": case "delta_actor_id_gap_zero": case "delta_actor_hp_over_100": case "delta_actor_bounty_over_u16":
                 case "delta_departed_empty": case "delta_departed_id_gap_zero":
                     want = DecodeError.BadField; break;
@@ -808,7 +835,12 @@ namespace Roguehalla.Net.Tests
                     want = DecodeError.BadMap; break;
                 case "map_ext_mode": want = DecodeError.BadField; break;
                 case "welcome_trailing": want = DecodeError.Trailing; break;
-                case "welcome_archetype_order": case "welcome_archetype_hull": case "welcome_archetype_zero_box": want = DecodeError.BadField; break;
+                case "welcome_archetype_order": case "welcome_archetype_hull": case "welcome_archetype_zero_box":
+                case "welcome_archetype_count": case "welcome_archetype_key_long": case "welcome_archetype_key_ascii": want = DecodeError.BadField; break;
+                case "welcome_archetype_truncated": case "welcome_vision_truncated": want = DecodeError.Truncated; break;
+                case "welcome_vision_version_zero": case "welcome_vision_tile_zero": case "welcome_vision_radius_nan": case "welcome_vision_radius_negative":
+                case "welcome_vision_trail_negative": case "welcome_vision_update_infinite": case "welcome_vision_mask_zero": case "welcome_vision_coliseum_flag":
+                case "welcome_vision_coliseum_empty": case "welcome_vision_coliseum_outside": want = DecodeError.BadField; break;
                 default: throw new KeyNotFoundException("no expectation for " + name);
             }
             Assert.AreEqual(want, Assert.Throws<DecodeException>(() => ServerMsg.Decode(Util.FromHex(hex)), name).Error, name);

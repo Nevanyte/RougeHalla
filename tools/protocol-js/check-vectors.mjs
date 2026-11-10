@@ -451,6 +451,9 @@ for (const v of fx.server) {
     if (!d.map) throw new Error(`${n} missing Rust-decoded map`);
     // Protocol 16: the hitbox archetype table decodes to exactly the Rust rows.
     eqJson(m.archetypes, d.archetypes, `${n} archetype table`);
+    // Protocol 16: the vision block decodes to exactly the Rust values.
+    eqJson(m.vision, d.vision, `${n} vision block`);
+    if (m.vision.coliseum) groundMapCoverage.visionColiseum = true;
     if (m.archetypes.length) groundMapCoverage.archetypeTables = (groundMapCoverage.archetypeTables ?? 0) + 1;
     const e = d.map, s = m.map;
     eq(s.w, e.w, `${n} map.w`); eq(s.h, e.h, `${n} map.h`);
@@ -550,6 +553,12 @@ if (!groundMapCoverage.presentZero) throw new Error("missing Rust Welcome presen
 // The JS decoder reports a reason as an Error message (RangeError for a read past the end).
 const reason = {
   welcome_archetype_order:/archetype order/,welcome_archetype_hull:/archetype hull/,welcome_archetype_zero_box:/bad archetype/,
+  welcome_archetype_count:/archetype count/,welcome_archetype_key_long:/bad archetype$/,welcome_archetype_key_ascii:/bad archetype$/,welcome_archetype_truncated:/./,
+  delta_head_archetype_without_present_bit:/head/,
+  welcome_vision_version_zero:/bad vision/,welcome_vision_tile_zero:/bad vision/,welcome_vision_radius_nan:/bad vision/,
+  welcome_vision_radius_negative:/bad vision/,welcome_vision_trail_negative:/bad vision/,welcome_vision_update_infinite:/bad vision/,
+  welcome_vision_mask_zero:/bad vision/,welcome_vision_coliseum_flag:/bad vision/,welcome_vision_coliseum_empty:/bad vision/,
+  welcome_vision_coliseum_outside:/bad vision/,welcome_vision_truncated:/./,
   state_too_many_projectiles:/too many/,projectile_kind:/projectile/,projectile_owner_zero:/handle/,projectile_owner_flag:/option/,projectile_owner_overlong:/varint/,
   potion_notice_zero:/potion notice/,potion_notice_unknown:/potion notice/,state_too_many_camps:/too many/,
   cannon_notice_zero:/cannon notice/,cannon_notice_unknown:/cannon notice/,cannon_notice_bad_seconds:/cannon notice/,cannon_notice_seconds_over:/cannon notice/,cannon_notice_missing_seconds:/./,
@@ -821,6 +830,17 @@ if (version >= 14) {
   for (const name of ["owner_combat_retain_and_clear", "owner_combat_owner_loss_clears",
     "owner_combat_redundant_unavailable_without_self", "owner_combat_dangling_delta_refused"]) {
     if (!fx.chains.some(c => c.name === name)) throw new Error(`missing Rust-generated ${name} chain`);
+  }
+}
+
+if (version >= 16) {
+  // ADR0024 review finding 6: a delta that sets the self archetype (head bit 25), and the Welcome table refusals.
+  if (!fx.chains.some(c => c.name === "self_archetype_delta")) throw new Error("missing Rust-generated self_archetype_delta chain");
+  if (!groundMapCoverage.visionColiseum) throw new Error("missing a Rust Welcome with a coliseum vision rectangle");
+  for (const name of ["welcome_archetype_count", "welcome_archetype_key_long", "welcome_archetype_key_ascii",
+    "welcome_archetype_truncated", "delta_head_archetype_without_present_bit", "welcome_vision_version_zero",
+    "welcome_vision_coliseum_outside", "welcome_vision_truncated"]) {
+    if (!fx.malformedServer.some(v => v.name === name)) throw new Error(`missing Rust-generated ${name} control`);
   }
 }
 

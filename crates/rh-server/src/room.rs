@@ -588,6 +588,7 @@ impl Room {
                 server_ms: self.sim.server_time(),
             },
             archetype_table(),
+            &rh_policy::delivery::projection::wire_vision(&self.sim.arena().map),
             &self.welcome_map,
             crate::public_ground::mode(self.sim.config().hazards),
         )

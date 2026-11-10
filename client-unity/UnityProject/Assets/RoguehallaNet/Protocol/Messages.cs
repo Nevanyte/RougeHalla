@@ -920,12 +920,16 @@ namespace Roguehalla.Net.Protocol
             switch (r.U8())
             {
                 case TWelcome:
-                    msg = new Welcome
+                {
+                    var welcome = new Welcome
                     {
                         Protocol = r.U16(), ContentHash = r.U64(), MatchId = r.Array16(), PlayerId = r.U32(), Session = r.Array16(),
-                        TickRate = r.U8(), Tick = r.U32(), ServerMs = r.F64(), Archetypes = WireArchetype.ReadTable(ref r), Map = MapBlob.Read(ref r),
+                        TickRate = r.U8(), Tick = r.U32(), ServerMs = r.F64(), Archetypes = WireArchetype.ReadTable(ref r), Vision = WireVision.Read(ref r), Map = MapBlob.Read(ref r),
                     };
+                    if (!welcome.Vision.Fits(welcome.Map.W, welcome.Map.H)) throw new DecodeException(DecodeError.BadField, "vision");
+                    msg = welcome;
                     break;
+                }
                 case TReject:
                 {
                     ushort code = r.U16();
@@ -1050,15 +1054,19 @@ namespace Roguehalla.Net.Protocol
             public double ServerMs;
             /// <summary>The hitbox archetype table (protocol 16, ADR0024): between the header and the map. Rows by ascending id.</summary>
             public WireArchetype[] Archetypes = Array.Empty<WireArchetype>();
+            /// <summary>The vision rule's parameters (protocol 16): after the archetype table, before the map.</summary>
+            public WireVision Vision = new WireVision();
             public MapBlob Map;
 
             public override byte[] Encode()
             {
                 var table = Archetypes ?? Array.Empty<WireArchetype>();
-                var w = new Writer(60 + WireArchetype.TableLength(table) + Map.EncodedLength);
+                var vision = Vision ?? new WireVision();
+                var w = new Writer(60 + WireArchetype.TableLength(table) + vision.Length() + Map.EncodedLength);
                 w.U8(TWelcome); w.U16(Protocol); w.U64(ContentHash); w.Bytes(MatchId); w.U32(PlayerId); w.Bytes(Session);
                 w.U8(TickRate); w.U32(Tick); w.F64(ServerMs);
                 WireArchetype.WriteTable(w, table);
+                vision.Write(w);
                 Map.Write(w);
                 return w.Finish();
             }

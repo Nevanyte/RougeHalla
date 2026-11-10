@@ -72,6 +72,8 @@ namespace Roguehalla.Net
         public MapBlob Map { get { return Welcome == null ? null : Welcome.Map; } }
         /// <summary>The hitbox archetype table of this server (protocol 16, ADR0024), empty before the Welcome.</summary>
         public Protocol.WireArchetype[] Archetypes { get { return Welcome == null || Welcome.Archetypes == null ? System.Array.Empty<Protocol.WireArchetype>() : Welcome.Archetypes; } }
+        /// <summary>The vision rule's parameters the server sent (protocol 16), or null before a Welcome.</summary>
+        public Protocol.WireVision Vision { get { return Welcome == null ? null : Welcome.Vision; } }
         public uint PlayerId { get { return Welcome == null ? 0 : Welcome.PlayerId; } }
         readonly SelfView _me = new SelfView();
         bool _hasMe;
