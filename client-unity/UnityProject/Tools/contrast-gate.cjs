@@ -116,7 +116,7 @@ async function runConfig(chromium, size, quality, opts, log) {
           cfg.cells.push(cell);
           considerWorst(opts, cell, res, cap.shot, size);
         }
-        log(`  ${zone} page ${p + 1}/${pageCount} (${cap.state.kind} ${cap.state.surface || cap.state.prop}): ${cap.state.cells.length} cells`);
+        log(`  ${zone} page ${p + 1}/${pageCount} (${cap.state.kind} ${cap.state.surface || cap.state.prop}): ${cap.state.cells.length} cells, frames far ${cons.far.toFixed(3)} inside ${cons.inside.toFixed(2)}`);
       }
     }
     cfg.consoleErrors = errors.slice(0, 20);

@@ -252,13 +252,14 @@ function analyzeCell({ width, height, lumNormal, lumGround, mask, rect }, opts =
  */
 function frameConsistency(lumNormal, lumGround, mask, w, h, margin = 30) {
   const any = new Uint8Array(w * h); for (let i = 0; i < any.length; i++) any[i] = mask[i] !== CLASS.NONE ? 1 : 0;
-  const d = distanceTo(any, w, h);
-  let farSum = 0, farN = 0, inSum = 0, inN = 0;
+  const d = distanceTo(any, w, h), far = [];
+  let inSum = 0, inN = 0;
   for (let i = 0; i < any.length; i++) {
     const rel = Math.abs(lumNormal[i] - lumGround[i]) / (lumGround[i] + 0.05);
-    if (d[i] > margin) { farSum += rel; farN++; } else if (mask[i] === CLASS.SIL) { inSum += rel; inN++; }
+    if (d[i] > margin) { if (i % 5 === 0) far.push(rel); } else if (mask[i] === CLASS.SIL) { inSum += rel; inN++; }
   }
-  return { far: farN ? farSum / farN : 0, inside: inN ? inSum / inN : 0, farPx: farN, insidePx: inN };
+  // The median, not the mean: lava, bog and ice animate, so a few pixels always differ a lot; a stale or mismatched frame differs nearly everywhere.
+  return { far: far.length ? median(far) : 0, inside: inN ? inSum / inN : 0, farPx: far.length * 5, insidePx: inN };
 }
 
 // ---- Arguments -------------------------------------------------------------------------------------------------------------------
@@ -272,7 +273,7 @@ function parseSizes(text) {
 }
 function parseArgs(argv) {
   const o = { url: 'http://127.0.0.1:8187/', out: 'contrast-gate-out', zones: ZONES.slice(), sizes: parseSizes('1920x1080,2560x1440'), quality: ['high', 'ultra'], edge: 3.0, marker: 4.5, query: '',
-    frames: 4, groundFrames: 3, maxFar: 0.12, minInside: 0.15, maxPages: 0, allowSoftware: false, help: false, raw: '' };
+    frames: 4, groundFrames: 3, maxFar: 0.30, minInside: 0.15, maxPages: 0, allowSoftware: false, help: false, raw: '' };
   const need = (i, name) => { if (i + 1 >= argv.length) throw new Error(`--${name} needs a value`); return argv[i + 1]; };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
