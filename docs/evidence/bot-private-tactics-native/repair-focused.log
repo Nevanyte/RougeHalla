@@ -1,0 +1,63 @@
+
+########## cargo test -p rh-policy --lib --offline --locked -j 1 private_tactics_compat ##########
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.26s
+     Running unittests src/lib.rs (target/debug/deps/rh_policy-079cfe3908c47c5a)
+
+running 5 tests
+test bots::temporal_percept::tactics::compat_tests::private_tactics_compat_fight ... ok
+test bots::temporal_percept::tactics::compat_tests::private_tactics_compat_orbs ... ok
+test bots::temporal_percept::tactics::compat_tests::private_tactics_compat_timings ... ok
+test bots::temporal_percept::tactics::compat_tests::private_tactics_compat_cases ... ok
+test bots::temporal_percept::tactics::compat_tests::private_tactics_compat_reflex ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 233 filtered out; finished in 0.05s
+
+exit: 0
+
+########## cargo test -p rh-policy --lib --offline --locked -j 1 private_tactics_source ##########
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.17s
+     Running unittests src/lib.rs (target/debug/deps/rh_policy-079cfe3908c47c5a)
+
+running 5 tests
+test bots::temporal_percept::tactics::source_strict::tests::private_tactics_source_envelope_guard ... ok
+test bots::temporal_percept::tactics::private_tactics_tests::private_tactics_source_typed_intake_non_advance ... ok
+test bots::temporal_percept::tactics::source_tests::private_tactics_source_parity ... ok
+test bots::temporal_percept::tactics::source_tests::private_tactics_source_recreate_is_exact ... ok
+test bots::temporal_percept::tactics::source_strict::tests::private_tactics_source_reader_controls ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 233 filtered out; finished in 4.33s
+
+exit: 0
+
+########## cargo test -p rh-policy --lib --offline --locked -j 1 private_tactics_source_reader_controls ##########
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.16s
+     Running unittests src/lib.rs (target/debug/deps/rh_policy-079cfe3908c47c5a)
+
+running 1 test
+test bots::temporal_percept::tactics::source_strict::tests::private_tactics_source_reader_controls ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 237 filtered out; finished in 3.00s
+
+exit: 0
+
+########## cargo test -p rh-policy --lib --offline --locked -j 1 private_tactics_source_envelope_guard ##########
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running unittests src/lib.rs (target/debug/deps/rh_policy-079cfe3908c47c5a)
+
+running 1 test
+test bots::temporal_percept::tactics::source_strict::tests::private_tactics_source_envelope_guard ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 237 filtered out; finished in 1.29s
+
+exit: 0
+
+########## cargo test -p rh-policy --lib --offline --locked -j 1 private_tactics_decode_smoke ##########
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
+     Running unittests src/lib.rs (target/debug/deps/rh_policy-079cfe3908c47c5a)
+
+running 1 test
+test bots::temporal_percept::tactics::source_decode::decode_smoke::private_tactics_decode_smoke ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 237 filtered out; finished in 0.82s
+
+exit: 0

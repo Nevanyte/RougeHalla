@@ -8,6 +8,7 @@ mod data;
 mod input;
 mod memory;
 mod strategy;
+mod tactics;
 #[cfg(test)]
 mod tests;
 

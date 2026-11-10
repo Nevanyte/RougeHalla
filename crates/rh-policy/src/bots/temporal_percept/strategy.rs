@@ -16,4 +16,4 @@ mod source_strict;
 mod source_tests;
 #[cfg(test)]
 mod source_trace;
-mod types;
+pub(super) mod types;
