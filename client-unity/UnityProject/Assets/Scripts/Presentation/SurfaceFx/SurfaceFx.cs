@@ -160,7 +160,7 @@ namespace Roguehalla.Client
             var r = SurfaceFxAtlas.Rect(cell); if (mirror) { float t = r.x; r.x = r.z; r.z = t; }
             _tracks.Add(c, u, v, r, col, _now, life, fade, 1f, 1f, style, SunWorld);
             PrintsEmitted++;
-            LogLine("print surface=" + sf + " style=" + ev.Style + " actor=" + Kind(ev) + " foot=" + ev.Foot);
+            LogLine("print surface=" + sf + " style=" + ev.Style + " actor=" + Kind(ev) + " foot=" + ev.Foot + " at=" + (int)ev.X + "," + (int)ev.Y);
         }
 
         // ---- water and bog ----
@@ -277,7 +277,7 @@ namespace Roguehalla.Client
             float sfx = ShowcaseSettings.Current != null ? ShowcaseSettings.Current.SfxVolume : .85f;
             int voice = AtmosphereQuality.Audio ? _steps.Play(sound, gain, pan, dist, sfx, _now) : -1;
             if (voice >= 0) StepsPlayed++;
-            LogLine("step surface=" + ev.Surface + " sound=" + sound + " actor=" + Kind(ev) + " dist=" + dist.ToString("0.0") + " gain=" + gain.ToString("0.00") + " voice=" + voice);
+            LogLine("step surface=" + ev.Surface + " sound=" + sound + " actor=" + Kind(ev) + " at=" + (int)ev.X + "," + (int)ev.Y + " dist=" + dist.ToString("0.0") + " gain=" + gain.ToString("0.00") + " voice=" + voice);
         }
 
         static string Kind(in FootEvent ev) { return ev.Local ? "Local" : ev.Mob ? "Mob" : "Player"; }
@@ -291,12 +291,16 @@ namespace Roguehalla.Client
             return n;
         }
 
-        float _nextCensus;
+        float _nextCensus, _nextBeat;
         /// <summary>Debug only (?surfacefx=1): logs the local player's position and the nearest tile of each surface, so automated runs can steer to it.</summary>
         void Census()
         {
             if (!DebugLog || !_haveLocal || _now < _nextCensus) return;
             _nextCensus = _now + 6f;
+            try { CensusNow(); } catch (Exception e) { LogLine("census failed: " + e.Message); }
+        }
+        void CensusNow()
+        {
             var best = new float[16]; var bx = new int[16]; var by = new int[16];
             for (int i = 0; i < best.Length; i++) best[i] = float.MaxValue;
             int ltx = (int)(_localX / 32f), lty = (int)(_localY / 32f);
@@ -322,9 +326,10 @@ namespace Roguehalla.Client
                 float h = cam.orthographicSize + 1.5f, w = cam.orthographicSize * cam.aspect + 1.5f; var p = cam.transform.position;
                 view = new Vector4(p.x - w, p.y - h, p.x + w, p.y + h); cull = true;
             }
-            Census();
             _tracks.Flush(_now, view, cull);
             _fluids.Flush(_now, view, cull);
+            if (DebugLog && _now >= _nextBeat) { _nextBeat = _now + 5f; LogLine("beat prints=" + PrintsEmitted + " drawn=" + _tracks.LastDrawn + " cap=" + _tracks.Capacity + " recycled=" + _tracks.Recycled + " ripples=" + RipplesEmitted + " fluidsDrawn=" + _fluids.LastDrawn + " steps=" + StepsPlayed + "/" + StepsRequested + " walkers=" + _tracker.WalkerCount); }
+            Census();
         }
 
         /// <summary>Drops every mark and tracker state (a new match or a clock cut).</summary>
