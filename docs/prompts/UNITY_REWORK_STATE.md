@@ -18,30 +18,24 @@ Read this first after any context reset. Direction: [UNITY_REWORK_FABLE.md](UNIT
 All under `/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/`. Remove each after merging into `feature/unity-rework`.
 | Worktree | Branch | Owner | Scope | Status |
 |---|---|---|---|---|
-| `rework-hitbox` | `rework/hitbox` | Opus | ADR 0024 packets P-HB-0..6 and the P-HB-9 server flag (Rust, protocol 16, C#/JS codecs) | running |
-| `rework-sim-crash` | `rework/sim-crash` | Opus | reproduce headlessly and fix the second room panic (`state.rs:1149`, stale fighter index), audit the family, regression tests | running |
-| `rework-wish-fx` | `rework/wish-fx` | Sonnet | animation and VFX for the five Wishes (Freeze, Swarm, Trial, Blaze Step, Last Stand), HUD Wish tile, SFX (ports 7857/8157) | running |
+| `rework-hitbox` | `rework/hitbox` | Opus | ADR 0024 packets P-HB-0..6 + P-HB-9 flags; protocol 16, obs 22, checkpoint 30, replay 24, policy 16, content `d9479b6612616984` | DONE at `c54c7a18`, NOT merged: waiting on the Opus review, then merge (expect rh-sim conflicts with the crash fixes) |
+| (review, no worktree) | reads `rework/hitbox` | Opus, high | independent review of the hitbox diff `8f677cb5..c54c7a18` and crash fixes `2bfdc57b`, `a1f1d129` | running |
+| `rework-wish-fx` | `rework/wish-fx` | Sonnet | animation and VFX for the five Wishes, HUD Wish tile, SFX (ports 7857/8157) | running |
 | `rework-vision` | `rework/vision` | Sonnet | fog of war mirroring the Rust sight rule (golden vectors `sight_v1.json`), fade on leaving/entering sight, minimap/Tab map visibility (ports 7867/8167) | running |
-| `rework-atmosphere` | `rework/atmosphere` | Sonnet | region lighting/post, snow and other screen particles, per-region music from StreamingAssets, `AtmosphereQuality` switchboard (ports 7827/8127) | running |
+| `rework-regions2` | `rework/regions2` | Sonnet | SurfaceMap (first commit), Holy temple, Plague mud/grass/shallow water, Fire dark basalt, Sentenced black tiles, contrast >= 3:1 / 4.5:1, coliseum props, TerrainMode honesty (ports 7877/8177) | running |
 
-Merged and removed: `rework/controls` (`73f3df89`), `rework/hud`, `rework/skin`, `rework/regions`, `rework/perf` (`29fc2045`), `rework/map-hud` (Tab map, zone tint, right-click minimap walk, crisp icons; EditMode 311/311, C# 1021), `rework/launch` (launch screen + hub; EditMode 340/340 on its branch, C# 1022). Launch weak spots for a later UI pass: shop/wardrobe/progress/guide panels still old look; results panel never captured; room empty at 2560; reshoot after the shortened other-site message.
+Merged and removed: `rework/controls`, `rework/hud`, `rework/skin`, `rework/regions`, `rework/perf`, `rework/map-hud`, `rework/sim-crash`, `rework/launch`, `rework/atmosphere` (merge `2ffe468d`; EditMode 369/369, C# 1022, palette-check 396/396 after fixing the checker's token source).
 
-Perf baseline (pre-rework visuals, 2560x1440 @ 144 Hz verified): High and Ultra both p50 6.90 / p95 7.50 / p99 7.80 ms, worst-1% 127.8 fps, 0 dropped frames. The literal "p95 <= 6.94 ms" criterion cannot pass under vsync (rAF timestamps jitter about +-1.5 ms around the 6.94 ms cadence). Decision to make at Gate 2: judge pacing by dropped frames at 144 Hz plus a vsync-off headroom measurement (p95 <= 6.94 ms uncapped). Only dynamic lights cost clearly above noise (about 0.9 ms). Build: 102.4 MB raw, 48.1 MB gzip, 41.0 MB brotli. EditMode after the fix: 217/217 on the perf branch. Tool: `node client-unity/UnityProject/Tools/perf-run.cjs --quality ultra --region frost --seconds 60 --url ... --server ... --out <dir> [--attribution]`.
+Queue (start as slots free, max 4 agents):
+1. After the hitbox review: fix findings, merge `rework/hitbox`, rebuild server + client at protocol 16, then **P-HB-7** (C# `Footprint`, `LocalMotion` own foot box, tests against `pathfinding_v2.json` / `server_walk_v2.json`) and **P-HB-8** (Unity chest aim in `MatchClient`, projectiles drawn at height, sprite from archetype key, delete Unity `MobLooks`, debug box overlay). Then rest of P-HB-9: parity-report label + guard test, headless balance verdict both modes, bot hit-rate check. `tools/unity-browser-reload-proof` pins the old content hash.
+2. **Surface effects** (after `feat(view): SurfaceMap` exists on `rework/regions2`; cherry-pick it to the feature branch first): footprints in sand and snow, ripples/wake in shallow water and bog, footstep sounds per surface. Only for delivered (in-sight) actors.
+3. If the vision agent says so: vision parameters into Welcome inside protocol 16.
+4. **UI pass 3**: station panels (shop, wardrobe, progress, guide) still old look; results screen never captured; Tab-map zone-border staircase; `[]` glyph in weapon-counter labels; pedestal arc; hub room empty at 2560; re-shoot the launch screen now that lighting is merged; chest and trader screens (Gate 3).
+5. Ranged-release pause prediction (`docs/rework/RANGED_PAUSE_PREDICTION.md`): architect review, Rust vectors, then C#.
+6. Performance: `perf-run.cjs` at 2560x1440 with everything merged, attribution table; decide the pass rule (dropped frames at 144 Hz + vsync-off headroom). `HardMaxLights` is 6 while the Ultra row asks for 12.
+7. Gate 2 report once hitboxes are live in the browser.
 
-Known open crash: `state.rs:1149` index out of bounds still panics rooms on the full map with bots even with `2bfdc57b`.
-
-Follow-ups owed after merges:
-- Wire `AtmosphereQuality` to the perf branch's `Quality` API.
-- P-HB-7 (C# foot-box prediction) and P-HB-8 (Unity chest aim, projectile height, sprite from archetype, debug box overlay) after `rework/hitbox` merges.
-- Opus review of every `rh-sim` change (hitbox branch plus the `attack_started` crash fix `2bfdc57b`, which still needs a regression test).
-- HUD weak spots from the skin pass: low-res icons, hub near-black cells, letterboxed planning map, uncaptured death line/chest/toasts.
-- Regions weak spots: coliseum has no props, bog pools dark, terrain surfaces drawn even when terrain mode is Off, wall torches dropped on region maps, two unexplained "ERROR: Shader" console lines.
-- Ranged-release pause prediction (`docs/rework/RANGED_PAUSE_PREDICTION.md`) needs architect review then Rust vectors.
-- Join URLs must use the literal host 127.0.0.1 (with `localhost` the diagnostic join can be refused).
-
-Unity EditMode baseline on unmodified code: 217 tests, 143 pass, 74 fail (73 "More than one global light", 1 BuildDrawer). The perf agent owns fixing these.
-
-Server crash found and fixed (`2bfdc57b`): Plague zombie raised mid-tick overran the `attack_started` scratch in `frost::after_weapons`; rooms died about 105 s into full-map bot matches. Any server built before that commit will crash the same way.
+Known gaps from the lighting pass (assigned to `rework/regions2`): Holy clips 2.1-2.6% (> 2% aim); Fire ground still reads saturated orange in `fire-lava-glow.png`; Sentenced flagstones read medium purple-grey; sprite-edge contrast as low as 2.7:1 (Sentenced) and bars 3.6-4.3:1 (Plague/Fire); mobs unmeasured; 2560x1440 cost unmeasured. Audio: eleven MP3s (8.7 MB, CC0 except Fire's music CC BY 3.0) under StreamingAssets, fetched after match start; never listened to.
 
 ## Gate 1 inputs
 | Item | Status | Output |
