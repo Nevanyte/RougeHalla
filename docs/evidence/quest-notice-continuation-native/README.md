@@ -1,87 +1,82 @@
-# Quest notice continuation — bounded cases1/2/3/5
+# Quest notice continuation — repaired hold candidate
 
-Status: IMPLEMENTED / FOUR FROZEN CASES + CONTROLS PASS / UNCHANGED 0/4 PASS / FMT+STRICT CLIPPY PASS.
-This is the native continuation consumer for the frozen six-case quest-notice corpus, not 181-record transport parity.
+Status: HOLD ITEMS REPAIRED / SIX FOCUSED TESTS + UNCHANGED 0/4 PASS / DEFAULT+ALL-FEATURE LINT AND FMT PASS.
+Bounded six-case Toast/GV + entitled-preview witness only; no 181-record transport parity.
 
-## Identity and scope
+## Identity / scope
 
-- Base: 7c18d051e380ffbba8911bed6ba6ded34b932aca (Stage1 admitted composition plus docs transfer).
-- Frozen corpus: parity/quest-notices/source.json, 1,154,229 bytes,
-  SHA256 a20d751e88cb16765cf2aa3ef856765a0d3321d8e25eb6e41c6722cdf9a99244 (unchanged).
-- Changed only:
-  - NEW crates/rh-sim/src/quests/notices_continuation_source_tests.rs (24,829 B,
-    SHA256 5efd6fb274da0cd85482de8e7fb8c2e12d105e34a85bfdf3b056b5d3096aef0e)
-  - one cfg(test) declaration in quests/mod.rs (SHA256 81bf78251b30a62ca73c78337c10cb2da7a71f88b00be92fa825f14869853bb1)
-  - systems/coliseum.rs visibility-only hunk fn teleport -> pub(crate) fn teleport
-    (SHA256 8c19c892399dbcea475a5b9b8bcbfefc9d1bbefb67a805f6fecbcb78e9dff688)
-  - this evidence directory.
-- Existing quests/notices_source_tests.rs cases0/4, source/tools/corpora, production quest/objectives/rewards/
-  live/catalog/rules, versions, pins, Cargo.lock, clients and shared status are untouched.
+- Base for this follow-up: b4aa87f8791c3a2586cc1402461f7b003d530212 (prior candidate); initial packet base
+  7c18d051e380ffbba8911bed6ba6ded34b932aca.
+- Frozen source unchanged: parity/quest-notices/source.json 1,154,229 B,
+  SHA256 a20d751e88cb16765cf2aa3ef856765a0d3321d8e25eb6e41c6722cdf9a99244.
+- New consumer final: 31,960 B,
+  SHA256 91ed449b81039d6f28c56cb44497a366bc0ddc054c3ab09df3029b5c99fed026.
+- cfg(test) module registration unchanged from b4aa87f8:
+  81bf78251b30a62ca73c78337c10cb2da7a71f88b00be92fa825f14869853bb1.
+- Approved visibility-only coliseum hunk unchanged:
+  8c19c892399dbcea475a5b9b8bcbfefc9d1bbefb67a805f6fecbcb78e9dff688.
+- Existing cases0/4 consumer, frozen source/tools, production quest/objectives/rewards/live/catalog/rules,
+  versions, pins, Cargo.lock, clients and shared status are untouched.
 
-## Actual boundaries and guards
+## Repaired controls
 
-Each test is separately selectable and uses the real normal constructor, captured map/seeds/config/salts and
-typed seats, with strict action dispatch in tick/sequence/actionCount order. Unknown actions and unresolved typed
-ids panic rather than being skipped or cast.
+- Unknown-action control now constructs and starts the real raid and rejects through the actual apply_action path.
+- Wrong-binding control first proves the real active state/quest runtime and a known valid offer binding, submits a
+  valid acceptance through apply_action, then injects questZZ through the same path and requires its intended typed
+  resolution failure.
+- Comparator control runs a clean real case2 expectation and confirms exact equality, then feeds the SAME ordered
+  comparator a recipient-mutated copy and a reordered copy; both must fail. No synthetic-only Notice assert_ne remains.
 
-- Case1 pickup-closed-guard: only the declared staleClosedStatus/restoreOpenForSibling/staleCarrier writes are
-  accepted, each after checking the real produced quest7l box/item still exists. Real pickup/accept go through
-  validate+submit. Final guard confirms c7n and its quest item are retained. NONCANONICAL diagnostic defense only.
-- Case2 expiry-cohort-order: real accepted Shards collection and three token pickups through validate+submit;
-  before the two explicit 50ms deadline-only nudges the test checks progress=3/accepted. The target step produces
-  discovery -> aggregate 2-expiry -> quest GV -> farm notice -> owner completion -> room completion, all compared.
-- Case3 teleport-close-notices: real native systems::coliseum::teleport is called at the declared between-step
-  boundary. Before: 10 published Open. Producer event vector is captured immediately: aggregate "10 quests
-  expired" precedes Event::Teleported. After: zero published Open, ten expired offers, hidden removed, unknown0.
-  The following ordinary step has no replay of the producer queue.
-- Case5 camp-and-publication-closure: actual mob_life::hurt + ledger::pay_all whole-region producer passes,
-  selecting living mobs by catalog type.zone. Fire 44->0 and Frost 41->0 with retained threat-derived paths;
-  explicit 50ms grand-tour deadline and HP1000 are declared. Real 4s Cinder Cull publication, prepublication
-  accept refusal, Thaw the Watch publication-before-aggregate-expiry, and both same-step closures are exercised.
+## Repaired reached-state guards
 
-Exact ordered Toast/Gv fields (tick/time, kind, recipient/privacy, text, GV actor/amount/reason) are compared for
-the selected cases. Retained/excluded counts (source vs native):
-- case1: notices 3 vs 3; source events 5/excluded2 vs native 4/excluded1; previews1
-- case2: notices 12 vs 12; source16/excluded4 vs native13/excluded1; previews3
-- case3: notices 3 vs 3; source5/excluded2 vs native5/excluded2; previews0
-- case5: notices 7 vs 7; source115/excluded108 vs native113/excluded106; previews2
-The non-notice event-class differences are reported, not forced into equality; there is no 181-record parity claim.
-Each source questReveal is checked against the entitled owner's actual prepared QuestView (definition/giver/expiry)
-and the absence of that hidden definition from the relevant public source boundary and from every foreign human.
+- Case1 captures the actual produced c7n item UID and box/quest binding before diagnostic writes; after the declared
+  stale-closed, sibling restore, real acceptance, diagnostic carrier and silent real pickup, it asserts the same UID/
+  box survives and checks Expired status/carrierNone then Open/accepted/p1 carrier at the frozen applied/tick
+  boundaries. Silent final pickup adds no notice.
+- Case3 before producer asserts actual 10 published Open + 10 hidden/20 total; immediately after asserts 10
+  specifically Expired with closed_at at producer time, hidden0, unknown0, and aggregate Toast before Teleported.
+  The next ordinary step retains expired state; no producer queue is replayed (exact notice vector).
+- Case2 checks real accepted/progress3 before EITHER 50ms deadline nudge (applied8), and final Done/Expired/Open/
+  unpublished offer facts including closedAt300.
+- Case5 reads actual state at frozen actionCount boundaries: Cinder Cull published/Open at 82/2, Expired/closedAt4150
+  at 83/3; Frost Open/unpublished at 84/4-85/5; at 164/7 grand-tour and Frost both published/Expired/closedAt8200,
+  Cinder retains closedAt4150. Real Fire44->0 / Frost41->0 producers and retained threat remain.
 
-Reader/intake controls: unknown source action is rejected; wrong typed quest id is rejected; a recipient-mutated
-notice comparator is proven unequal. All controls pass.
+## Counts / views
 
-## Commands / environment / exits
+Ordered Toast/Gv retained/excluded (source vs native): case1 3/3 notices, 5/4 events; case2 12/12, 16/13;
+case3 3/3, 5/5; case5 7/7, 115/113. Non-notice class differences are reported, not forced. Preview counts 1/3/0/2;
+each reveal checks entitled owner definition/giver/expiry and hidden-definition absence from the relevant public
+boundary and from every foreign human.
 
-All run in cwd /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-quest-runtime with:
-PATH=$HOME/.cargo/bin:$PATH; CARGO_TARGET_DIR=~/.codex/tools/roguehalla-backend-20261109/target-quests;
-CARGO_BUILD_JOBS=1; CARGO_NET_OFFLINE=true; flags --locked --offline.
+## Commands / exits (cwd backend-quest-runtime; private target; jobs1; locked/offline)
 
-- cargo test -p rh-sim --lib quests::notices_continuation_source_tests -- --nocapture
-  final: 5 passed, 0 failed; exit0 (final-four-cases.log)
-- cargo test -p rh-sim --lib quests::notices_source_tests::selected_parcel_and_run_end_cases_match_ordered_toast_gv_notices
-  final: 1 passed, 0 failed; exit0 (existing-cases-0-4.log)
-- cargo clippy -p rh-sim --all-targets --all-features -- -D warnings: exit0 (clippy-all.log)
-- cargo fmt -p rh-sim -- --check: exit0, empty output (fmt-check.log)
+- cargo test -p rh-sim --lib quests::notices_continuation_source_tests -- --nocapture:
+  final 6 passed, 0 failed; exit0 (final-four-cases.log).
+- cargo test -p rh-sim --lib quests::notices_source_tests::selected_parcel_and_run_end_cases_match_ordered_toast_gv_notices:
+  1 passed, 0 failed; exit0 (existing-cases-0-4.log).
+- cargo clippy -p rh-sim --all-targets -- -D warnings (default features): exit0 (clippy-default.log).
+- cargo clippy -p rh-sim --all-targets --all-features -- -D warnings: exit0 (clippy-all.log).
+- cargo fmt -p rh-sim -- --check: exit0, empty output (fmt-check.log).
 
-Toolchain was queried after the runs (not embedded by Cargo output): cargo 1.97.0 (c980f4866), active
-1.97.0-aarch64-apple-darwin overridden by worktree rust-toolchain.toml, rustc 1.97.0 (2d8144b78), binary
-2d8144b7880597b6e6d3dfd63a9a9efae3f533d3.
+PATH prepended $HOME/.cargo/bin; CARGO_TARGET_DIR=~/.codex/tools/roguehalla-backend-20261109/target-quests;
+CARGO_BUILD_JOBS=1; CARGO_NET_OFFLINE=true. Toolchain queried after runs (not embedded by Cargo output):
+cargo/rustc 1.97.0 (c980f4866/2d8144b78), active toolchain overridden by worktree rust-toolchain.toml.
 
-## Preserved first failures
+## Preserved first failures (corrected honesty)
 
-- first-compile-run.log: first real run; 3 cases passed, case2 preview boundary and case5 later-publication
-  assertion failed, control test was malformed. This is a real first failure, preserved.
-- second-run.log: case2 pickup progress and case5 public-frame boundary + malformed control remained; preserved.
-- clippy-firstfailure-raw.log: first strict clippy failure (unused copied helpers + bool assert).
-- fmt-firstfailure-raw.log: first fmt failure after clippy cleanup.
-- No private checkpoint/state/transcript content is included in this evidence.
+- first-compile-run.log: actual first run 3 passed/2 failed: case2 missing preview source-frame boundary,
+  malformed active/control path; case5 passed in that run.
+- second-run.log: 3 passed/2 failed: case2 pre-nudge progress observed2, case5 overbroad future-public-frame
+  assertion; control passed. These led to the corrected frozen boundary/sequence.
+- clippy-firstfailure-raw.log: unused copied helpers + bool assert.
+- fmt-firstfailure-raw.log: formatting after clippy cleanup.
+- An intermediate guard-failure raw log was overwritten before preservation; it is not reconstructed or claimed.
+No private checkpoint/state/transcript content is committed.
 
 ## Limits
 
-Bounded six-case Toast/GV + entitled-preview witness only. Case1 is noncanonical diagnostic state; case2/5
-deadline nudges prove order not natural 300s duration; case3 is a direct producer boundary, not patience-timer
-reach or full movement/immunity parity; case5 is inline whole-region producer, not ordinary sword clearing.
-No full 181-record transport, client/Unity delivery, new design/persistence, source-integrity rewrite or
-identity/version change is claimed. Root owns integration/admission; card/NPC worker is untouched.
+Bounded Toast/GV + entitled-preview witness only. Case1 is noncanonical diagnostic state; case2/5 deadline nudges
+prove order not natural300s duration; case3 is direct producer, not timer/spatial/immunity parity; case5 is inline
+whole-region producer, not ordinary sword clearing. No client/Unity delivery, persistence, new design, identity
+change or 181-record parity claim. Root owns integration/admission.

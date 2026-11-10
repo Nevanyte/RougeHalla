@@ -187,6 +187,100 @@ fn container_has_quest(s: &Sim, container: u32, quest: u32) -> bool {
     })
 }
 
+fn container_item_uid(s: &Sim, container: u32) -> u64 {
+    s.w.containers
+        .iter()
+        .find(|c| c.id == container)
+        .and_then(|c| c.items.first())
+        .map(|i| i.uid)
+        .unwrap_or_else(|| panic!("missing actual quest box {container}"))
+}
+
+fn offer_facts(s: &Sim, quest: &str) -> (bool, crate::quests::live::Status, f64) {
+    let oi = offer_index(s, quest);
+    let offer = &s.w.quests.as_ref().unwrap().offers[oi];
+    (offer.published, offer.status, offer.closed_at)
+}
+
+fn assert_named_offer(
+    s: &Sim,
+    quest: &str,
+    published: bool,
+    status: crate::quests::live::Status,
+    closed_at: f64,
+) {
+    let (actual_published, actual_status, actual_closed) = offer_facts(s, quest);
+    assert_eq!(actual_published, published, "{quest}: published");
+    assert_eq!(actual_status, status, "{quest}: status");
+    assert_eq!(actual_closed, closed_at, "{quest}: closedAt");
+}
+
+fn case1_guard(s: &Sim, uid: u64, applied: usize) {
+    let box_id = source_container_id("c7n");
+    assert_eq!(
+        container_item_uid(s, box_id),
+        uid,
+        "case1 same item UID retained"
+    );
+    let quest_id = source_quest_id("quest7l");
+    assert!(
+        container_has_quest(s, box_id, quest_id),
+        "case1 same box/quest binding retained"
+    );
+    let (_, status, _) = offer_facts(s, "quest7l");
+    let accepted = {
+        let oi = offer_index(s, "quest7l");
+        s.w.quests.as_ref().unwrap().offers[oi]
+            .accepted
+            .contains(&bind(s, "p0"))
+    };
+    let carrier = {
+        let oi = offer_index(s, "quest7l");
+        s.w.quests.as_ref().unwrap().offers[oi].carrier
+    };
+    let tick = s.tick();
+    match applied {
+        1 if tick == 1 => assert_eq!(status, crate::quests::live::Status::Expired),
+        3 if tick == 2 => assert_eq!(status, crate::quests::live::Status::Expired),
+        6 if tick == 3 => {
+            assert!(accepted, "case1 real acceptance before diagnostic carrier");
+            assert_eq!(carrier, None);
+            assert_eq!(status, crate::quests::live::Status::Open);
+        }
+        7 if tick == 3 => {
+            assert_eq!(carrier, Some(bind(s, "p1")));
+            assert_eq!(status, crate::quests::live::Status::Open);
+        }
+        9 if tick == 4 => {
+            assert_eq!(carrier, Some(bind(s, "p1")));
+            assert_eq!(status, crate::quests::live::Status::Open);
+        }
+        _ => {}
+    }
+}
+
+fn case5_boundary(s: &Sim, tick: u32) {
+    use crate::quests::live::Status;
+    match tick {
+        82 => assert_named_offer(s, "quest7k", true, Status::Open, 0.),
+        83 => assert_named_offer(s, "quest7k", true, Status::Expired, 4150.),
+        84 | 85 => assert_named_offer(s, "quest84", false, Status::Open, 0.),
+        164 => {
+            assert_named_offer(s, "quest6y", true, Status::Expired, 8200.);
+            assert_named_offer(s, "quest7k", true, Status::Expired, 4150.);
+            assert_named_offer(s, "quest84", true, Status::Expired, 8200.);
+        }
+        _ => {}
+    }
+}
+
+fn compare_notices(native: &[Notice], source: &[Notice], label: &str) {
+    assert_eq!(
+        native, source,
+        "{label}: first ordered Toast/Gv notice mismatch"
+    );
+}
+
 fn record_produced(s: &Sim, events: &[Event], notices: &mut Vec<Notice>, total: &mut usize) {
     let tick = s.tick();
     let time = s.w.server_time;
@@ -311,6 +405,17 @@ fn apply_action(s: &mut Sim, a: &V, notices: &mut Vec<Notice>, total: &mut usize
                     10,
                     "case3 ten published Open before teleport"
                 );
+                let offers_before = s.w.quests.as_ref().unwrap().offers.len();
+                let hidden_before =
+                    s.w.quests
+                        .as_ref()
+                        .unwrap()
+                        .offers
+                        .iter()
+                        .filter(|o| !o.published)
+                        .count();
+                assert_eq!(offers_before, 20, "case3 actual20 offers before");
+                assert_eq!(hidden_before, 10, "case3 ten hidden before");
                 let mut produced = Vec::new();
                 let mut fx = crate::fx_report::TickFx::default();
                 crate::systems::coliseum::teleport(
@@ -339,6 +444,20 @@ fn apply_action(s: &mut Sim, a: &V, notices: &mut Vec<Notice>, total: &mut usize
                         .count(),
                     0,
                     "case3 hidden offers must be removed silently"
+                );
+                let offers_after = &s.w.quests.as_ref().unwrap().offers;
+                assert_eq!(offers_after.len(), 10, "case3 ten published expired after");
+                assert_eq!(
+                    offers_after
+                        .iter()
+                        .filter(|o| o.status == crate::quests::live::Status::Expired)
+                        .count(),
+                    10,
+                    "case3 ten specifically Expired after"
+                );
+                assert!(
+                    offers_after.iter().all(|o| o.closed_at == s.w.server_time),
+                    "case3 expired offers closed at producer time"
                 );
                 record_produced(s, &produced, notices, total);
             }
@@ -489,6 +608,9 @@ fn run(case: &V) -> RunOutcome {
         );
     }
     let frames = case["frames"].as_array().unwrap();
+    let case1_uid = (name == "pickup-closed-guard")
+        .then(|| container_item_uid(&sim, source_container_id("c7n")));
+    let mut case1_notices_before_final = None;
     let mut applied = 0usize;
     for a in case["actions"].as_array().unwrap() {
         let tick = a["tick"].as_u64().unwrap() as u32;
@@ -496,18 +618,14 @@ fn run(case: &V) -> RunOutcome {
             let ev = sim.step();
             record_produced(&sim, &ev, &mut notices, &mut total_events);
             capture_previews(case, &sim, &mut previews);
+            if name == "camp-and-publication-closure" {
+                case5_boundary(&sim, sim.tick());
+            }
+            if let Some(uid) = case1_uid {
+                case1_guard(&sim, uid, applied);
+            }
         }
-        apply_action(&mut sim, a, &mut notices, &mut total_events);
-        applied += 1;
-        if name == "pickup-closed-guard" {
-            let box_id = source_container_id("c7n");
-            let quest_id = source_quest_id("quest7l");
-            assert!(
-                container_has_quest(&sim, box_id, quest_id),
-                "case1 box/item retained after action {applied}"
-            );
-        }
-        if name == "expiry-cohort-order" && applied == 9 {
+        if name == "expiry-cohort-order" && applied == 8 {
             let oi = offer_index(&sim, "quest75");
             let offer = &sim.w.quests.as_ref().unwrap().offers[oi];
             assert!(offer.accepted.contains(&bind(&sim, "p0")));
@@ -518,8 +636,19 @@ fn run(case: &V) -> RunOutcome {
                     .find(|(id, _)| *id == bind(&sim, "p0"))
                     .map_or(0, |(_, n)| *n),
                 3,
-                "case2 three real token pickups before expiry order setup"
+                "case2 three real token pickups before either deadline nudge"
             );
+        }
+        apply_action(&mut sim, a, &mut notices, &mut total_events);
+        applied += 1;
+        if applied == 9 {
+            case1_notices_before_final = case1_uid.map(|_| notices.len());
+        }
+        if name == "camp-and-publication-closure" {
+            case5_boundary(&sim, sim.tick());
+        }
+        if let Some(uid) = case1_uid {
+            case1_guard(&sim, uid, applied);
         }
     }
     let last_tick = frames.last().unwrap()["tick"].as_u64().unwrap() as u32;
@@ -527,6 +656,20 @@ fn run(case: &V) -> RunOutcome {
         let ev = sim.step();
         record_produced(&sim, &ev, &mut notices, &mut total_events);
         capture_previews(case, &sim, &mut previews);
+        if name == "camp-and-publication-closure" {
+            case5_boundary(&sim, sim.tick());
+        }
+    }
+    if let (Some(uid), Some(before)) = (case1_uid, case1_notices_before_final) {
+        case1_guard(&sim, uid, 9);
+        assert_eq!(
+            notices.len(),
+            before,
+            "case1 silent final pickup adds no notice"
+        );
+    }
+    if name == "camp-and-publication-closure" {
+        case5_boundary(&sim, last_tick);
     }
     RunOutcome {
         sim,
@@ -564,10 +707,7 @@ fn compare_case(index: usize) {
         outcome.total_events,
         outcome.previews.len()
     );
-    assert_eq!(
-        outcome.notices, source_notices,
-        "{name}: first ordered Toast/Gv notice mismatch"
-    );
+    compare_notices(&outcome.notices, &source_notices, name);
     assert_eq!(
         outcome.previews.len(),
         source_reveals.len(),
@@ -599,22 +739,31 @@ fn compare_case(index: usize) {
         assert!(!preview.foreign_visible, "{name}: foreign preview absence");
     }
     if name == "teleport-close-notices" {
-        assert_eq!(outcome.sim.w.quests.as_ref().unwrap().offers.len(), 10);
-        assert!(outcome
-            .sim
-            .w
-            .quests
-            .as_ref()
-            .unwrap()
-            .offers
-            .iter()
-            .all(|o| o.status != crate::quests::live::Status::Open));
+        let offers = &outcome.sim.w.quests.as_ref().unwrap().offers;
+        assert_eq!(offers.len(), 10);
+        assert_eq!(
+            offers
+                .iter()
+                .filter(|o| o.status == crate::quests::live::Status::Expired)
+                .count(),
+            10
+        );
+        assert!(offers.iter().all(|o| o.published));
         assert!(outcome.sim.w.rt.gates_locked);
-        let teleported = outcome
+        assert!(outcome
             .notices
             .iter()
-            .any(|n| n.text == "10 quests expired");
-        assert!(teleported, "case3 aggregate expiry toast retained");
+            .any(|n| n.text == "10 quests expired"));
+    }
+    if name == "expiry-cohort-order" {
+        use crate::quests::live::Status;
+        assert_named_offer(&outcome.sim, "quest75", true, Status::Done, 300.);
+        assert_named_offer(&outcome.sim, "quest6y", true, Status::Expired, 300.);
+        assert_named_offer(&outcome.sim, "quest72", true, Status::Expired, 300.);
+        assert_named_offer(&outcome.sim, "quest70", false, Status::Open, 0.);
+    }
+    if name == "camp-and-publication-closure" {
+        case5_boundary(&outcome.sim, 164);
     }
     if name == "pickup-closed-guard" {
         assert!(container_has_quest(
@@ -649,32 +798,67 @@ fn case5_camp_publication_closure_real_region_kills() {
 fn continuation_intake_controls_reject_unknown_action_and_wrong_binding() {
     let c = corpus();
     let case = &c["cases"][1];
+    // Real raid-start state: quest runtime exists and a known valid binding resolves through the same path.
     let mut sim = construct(case);
-    let mut notices = Vec::new();
-    let mut total = 0usize;
+    let _ = sim.step();
+    assert_eq!(sim.phase(), crate::Phase::Active);
+    assert!(sim.w.quests.is_some());
+    assert!(offer_index(&sim, "quest75") < sim.w.quests.as_ref().unwrap().offers.len());
+    let p0 = bind(&sim, "p0");
+    place(&mut sim, p0, 816., 272.);
+    let valid = serde_json::json!({"kind":"input","actor":"p0","type":"questAccept","payload":{"quest":"quest75"}});
+    let mut valid_notices = Vec::new();
+    let mut valid_total = 0usize;
+    apply_action(&mut sim, &valid, &mut valid_notices, &mut valid_total);
     let unknown = serde_json::json!({"kind":"unknownAction"});
     let rejected = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        apply_action(&mut sim, &unknown, &mut notices, &mut total);
+        let mut local = construct(case);
+        let _ = local.step();
+        apply_action(&mut local, &unknown, &mut Vec::new(), &mut 0usize);
     }));
     assert!(rejected.is_err(), "unknown source action must be rejected");
     let wrong = serde_json::json!({"kind":"input","actor":"p0","type":"questAccept","payload":{"quest":"questZZ"}});
     let rejected = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         let mut local = construct(case);
+        let _ = local.step();
         let mut local_notices = Vec::new();
         let mut local_total = 0usize;
         apply_action(&mut local, &wrong, &mut local_notices, &mut local_total);
     }));
     assert!(
         rejected.is_err(),
-        "wrong typed offer binding must be rejected"
+        "known-active world must reject only the wrong typed offer binding"
     );
-    let source = case["events"]
+}
+
+#[test]
+fn continuation_comparator_control_rejects_mutated_matched_run() {
+    let c = corpus();
+    let case = &c["cases"][1];
+    let outcome = run(case);
+    let source: Vec<Notice> = case["events"]
         .as_array()
         .unwrap()
         .iter()
-        .find_map(source_notice)
-        .expect("source notice");
+        .filter_map(source_notice)
+        .collect();
+    compare_notices(&outcome.notices, &source, "control positive");
     let mut wrong_recipient = source.clone();
-    wrong_recipient.to = Some("p2".into());
-    assert_ne!(wrong_recipient, source, "recipient comparator must matter");
+    wrong_recipient[0].to = Some("p2".into());
+    let rejected = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        compare_notices(&outcome.notices, &wrong_recipient, "wrong recipient");
+    }));
+    assert!(
+        rejected.is_err(),
+        "ordered comparator must reject recipient change"
+    );
+    let mut wrong_order = source.clone();
+    wrong_order.swap(0, 1);
+    let rejected = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        compare_notices(&outcome.notices, &wrong_order, "wrong order");
+    }));
+    assert!(
+        rejected.is_err(),
+        "ordered comparator must reject reordered notices"
+    );
 }
