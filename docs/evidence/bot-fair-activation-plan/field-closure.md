@@ -108,3 +108,13 @@ identity; event times and missing event kinds; and per-session NPC continuity. F
 proof, field optionality, protocol/observation version impact, golden vectors and Unity decoder ownership. Do not count
 WIP protocol 16 fields or invent equivalent facts from positions/status. Continue to treat path/map/Features as explicit
 server-owned static setup and the bot's only output path as `validate` + `Sim::submit`.
+
+
+## Read-only primary protocol-16 delta (2026-11-10)
+
+The [independent merged-primary inventory](../bot-fair-activation-primary16-delta/README.md) binds clean
+`feature/unity-rework` at `feaae8e474b857bb03515913d95d6fde913c8e1a`. Its actual new providers are static hitbox
+metadata, Welcome sight-rule parameters and visible projectile current height. The static vision configuration is now
+available; none supplies the missing dynamic remote cues, minimap/NPC history, projectile course/event times, owner
+mob-kill fact or redacted lock identity listed above. No unmerged Wave3 producer is counted. This is read-only evidence
+for the post-10:30am coordination; no Claude contact or publication/activation implementation occurred.
