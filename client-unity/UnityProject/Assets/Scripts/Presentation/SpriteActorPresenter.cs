@@ -471,7 +471,7 @@ namespace Roguehalla.Client
             a.Light.Configure(Color.white, .2f, .3f, 2.4f, .5f, false, true);
             a.Ind = new OverheadIndicators(t);
             // CONTRAST: one adaptive neutral outline per figure and per gated marker (SpriteOutline.cs); faction identity stays in shape and in the colour inside.
-            a.OutBody = new SpriteOutline(a.Body, "Character contrast rim", ActorOutlineModel.Width);
+            a.OutBody = new SpriteOutline(a.Body, "Character contrast rim", ActorOutlineModel.Width, ActorOutlineModel.HaloRadius);
             a.OutWeapon = new SpriteOutline(a.Weapon, "Equipped weapon cue outline", ActorOutlineModel.MarkerWidth);
             a.OutMantle = new SpriteOutline(a.Identity.Mantle, "Faction mantle outline", ActorOutlineModel.Width);
             a.OutHp = new SpriteOutline(a.HpBack, "Health and barrier track outline", ActorOutlineModel.MarkerWidth);

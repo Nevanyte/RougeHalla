@@ -40,6 +40,7 @@ Shader "Roguehalla/ActorOutline"
         // Per renderer (MaterialPropertyBlock), deliberately outside UnityPerMaterial.
         float4 _SrcRect;   // u0, v0, du, dv: the source sprite's rectangle in its atlas
         float4 _Outline;   // x,y: margin around the sprite as a fraction of its size; z,w: stroke width in sprite-normalised units
+        float4 _Halo;      // x,y: halo radius in sprite-normalised units (0 = none), z: strength 0..1
         float4 _SrcTexel;  // x,y: one source texel in sprite-normalised units
         float _Prior;      // 0 dark, 1 light: dead-zone tie break, and the whole decision when there is no sorting layer texture
         float _MaskMode;
@@ -151,7 +152,7 @@ Shader "Roguehalla/ActorOutline"
                 clip(cov * i.color.a - 0.5);
                 return half4(_MaskColor.rgb, 1);
             }
-            clip(cov - 0.002);
+            if (_Halo.z < 0.001) clip(cov - 0.002);
             float light = _Prior;
             if (_RhOutlineGrab > 0.5)
             {
@@ -161,7 +162,24 @@ Shader "Roguehalla/ActorOutline"
             }
             float3 dark = float3(_RhOutlineTune.y, _RhOutlineTune.y * 1.25, _RhOutlineTune.y * 2.0);
             float3 lite = float3(_RhOutlineTune.x, _RhOutlineTune.x, _RhOutlineTune.x * 1.03);
-            return half4(lerp(dark, lite, light), cov * i.color.a);
+            float3 rgb = lerp(dark, lite, light);
+            float a = cov;
+            // Local calming halo (lever 2 of the contrast brief): only where the stroke is light, i.e. on dark and mid ground, a soft darkening of the ground around the figure
+            // takes the edge off bright veins and glints that would sit next to a light stroke. Darkening only; never where the stroke is dark, so pale ground is never dimmed.
+            if (light > 0.5 && _Halo.z > 0.001 && cov < 0.999)
+            {
+                float h = 0.0;
+                [unroll] for (int q = 0; q < 8; q++)
+                {
+                    float s, c; sincos(0.7853982 * q, s, c);
+                    h = max(h, 0.9 * SrcAlpha(i.uv + float2(c, s) * _Halo.xy * 0.5));
+                    h = max(h, 0.5 * SrcAlpha(i.uv + float2(c, s) * _Halo.xy));
+                }
+                float ha = h * _Halo.z;
+                a = max(cov, ha);
+                rgb = lerp(float3(0, 0, 0), rgb, saturate(cov / max(a, 1e-4)));
+            }
+            return half4(rgb, a * i.color.a);
         }
         ENDHLSL
 
