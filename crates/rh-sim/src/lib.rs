@@ -8,6 +8,7 @@
 #![allow(clippy::neg_cmp_op_on_partial_ord)]
 
 pub mod abilities;
+pub mod archetype;
 mod actor_refs;
 pub mod arenas;
 pub mod checkpoint;

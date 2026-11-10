@@ -135,7 +135,7 @@ fn source_helper_command(sim: &mut Sim, command: &Value, map: &mut BTreeMap<Stri
                 spec["at"]["x"].as_f64().unwrap(),
                 spec["at"]["y"].as_f64().unwrap(),
             );
-            let id = crate::systems::mobs::place_dummy(&mut sim.w, at, 0., false);
+            let id = crate::systems::mobs::place_dummy(&mut sim.w, at, 0., false, sim.k.config.hitboxes);
             source_helper_bind(map, command, id);
         }
         "helper-placeMob" => {
@@ -153,7 +153,7 @@ fn source_helper_command(sim: &mut Sim, command: &Value, map: &mut BTreeMap<Stri
             // defaults; native's available catalog constructor has practice provenance and its role HP. This adapter
             // proves only that the same faction/recipient kind participates in Frost. It does not compare HP, catalog,
             // camp provenance, weapon, runtime AI or restore admission for these three synthetic recipient births.
-            let id = crate::systems::mobs::place_practice_mob(&mut sim.w, ty, false, 101, at, 0.);
+            let id = crate::systems::mobs::place_practice_mob(&mut sim.w, ty, false, 101, at, 0., sim.k.config.hitboxes);
             source_helper_bind(map, command, id);
         }
         "helper-raiseOrGrowZombie" => {

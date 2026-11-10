@@ -140,6 +140,17 @@ impl Keyed for Mob {
     }
 }
 impl Mob {
+    /// What decides this actor's hitbox archetype (ADR0024), or `None` for a malformed record (a regional actor without a
+    /// catalog type).
+    pub(crate) fn identity(&self) -> Option<crate::archetype::Identity> {
+        use crate::archetype::Identity;
+        Some(match self.kind {
+            _ if self.zombie.is_some() => Identity::Zombie,
+            MobKind::Regional | MobKind::Practice => Identity::Mob(self.mob_type?),
+            MobKind::Dummy => Identity::Dummy,
+            MobKind::QuestGiver => Identity::QuestGiver,
+        })
+    }
     pub(crate) fn returning(&self) -> bool {
         self.brain
             .as_ref()
@@ -153,6 +164,7 @@ impl Mob {
     }
 
     /// A Plague-owned companion, with no regional catalog type.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn zombie(
         provenance: &ActorProvenance,
         owner: PlayerId,
@@ -161,6 +173,7 @@ impl Mob {
         max_hp: f64,
         now: f64,
         owner_displace_seq: u8,
+        hitboxes: crate::archetype::HitboxMode,
     ) -> Self {
         debug_assert!(matches!(provenance.origin, ActorOrigin::Zombie { .. }));
         let id = provenance.id;
@@ -195,6 +208,7 @@ impl Mob {
                 modifiers: crate::modifiers::Runtime::default(),
                 card_dot_crit: None,
                 motion: Motion::default(),
+                archetype: crate::archetype::assign(hitboxes, crate::archetype::Identity::Zombie),
                 inputs: InputQueue::default(),
             },
             kind: MobKind::Regional,
@@ -226,6 +240,7 @@ impl Mob {
         hp: f64,
         faction: crate::fighter::FighterAffiliation,
         weapon: Option<WeaponId>,
+        archetype: crate::archetype::ArchetypeId,
     ) -> FighterCore {
         let mut history = History::default();
         history.reset(Sample {
@@ -258,10 +273,17 @@ impl Mob {
             modifiers: crate::modifiers::Runtime::default(),
             card_dot_crit: None,
             motion: Motion::default(),
+            archetype,
             inputs: InputQueue::default(),
         }
     }
-    pub(crate) fn born(provenance: &ActorProvenance, at: Vec2, facing: f64, now: f64) -> Self {
+    pub(crate) fn born(
+        provenance: &ActorProvenance,
+        at: Vec2,
+        facing: f64,
+        now: f64,
+        hitboxes: crate::archetype::HitboxMode,
+    ) -> Self {
         let origin = &provenance.origin;
         let serial = origin
             .birth_serial()
@@ -336,10 +358,17 @@ impl Mob {
             }
         };
         let id = provenance.id;
+        let identity = match (kind, mob_type) {
+            (MobKind::Regional | MobKind::Practice, Some(t)) => crate::archetype::Identity::Mob(t),
+            (MobKind::Dummy, _) => crate::archetype::Identity::Dummy,
+            (MobKind::QuestGiver, _) => crate::archetype::Identity::QuestGiver,
+            _ => unreachable!("a typed regional birth has a catalog type"),
+        };
+        let archetype = crate::archetype::assign(hitboxes, identity);
         Self {
             brain: matches!(kind, MobKind::Regional | MobKind::Practice).then(Brain::default),
             last_hit_at: 0.,
-            core: Self::core(id, at, facing, now, hp, faction, weapon),
+            core: Self::core(id, at, facing, now, hp, faction, weapon, archetype),
             kind,
             mob_type,
             elite,
@@ -430,7 +459,7 @@ mod neutral_tests {
                 def: 0,
             },
         };
-        let m = Mob::born(&origin, Vec2::new(200., 300.), 1.25, 100.);
+        let m = Mob::born(&origin, Vec2::new(200., 300.), 1.25, 100., crate::archetype::HitboxMode::LegacyCircle);
         assert_eq!(m.kind, MobKind::QuestGiver);
         assert_eq!(m.core.faction_id(), None);
         assert!(m.brain.is_none());

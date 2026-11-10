@@ -23,6 +23,7 @@ it through `Sim::submit` and `Sim::step` (or `Sim::step_into`, the allocation-fr
 | `vision.rs` | A living viewer sees the first wall face and live activity on its own revealed tiles for 30 seconds. Immutable-map origins refresh at 100 ms intervals. Actor/prop projections, catch-up events and pickup feedback read the same frozen trail. |
 | `item_view.rs` | Per-seat item observations and exact pickup offers. `ItemObserver::prepare_into` stages a full observation and commits handles only on delivery. Retired batches have 20 ticks of grace. |
 | `input.rs` | `PublicCommand` (observer proposal), `RawCommand` (trusted resolved/fixture input), `validate`, and `Command`, an opaque type: it is built only by `validate` or by decoding, which validates again and refuses a command validation would change, so a replay cannot inject an unvalidated command (C-INPUT). Also the order budget and the per-fighter queue. |
+| `archetype.rs` | ADR0024 hitbox archetypes: `ArchetypeId`, `HitboxMode` (`SimConfig::hitboxes`, default `LegacyCircle`), the measured `ARCHETYPES` table (foot box for walls and paths, body box and chest for hits), `assign(mode, identity)` (the one writer of `FighterCore::archetype`). Data and pure functions only: no system, no schedule row. The geometric primitives (`Footprint`, `box_clear`, `arc_hits_box`, `segment_box_entry`) are in `geometry.rs`. |
 | `observe.rs`, `replay.rs`, `rng.rs`, `map.rs`, `geometry.rs`, `pathfind.rs`, `content.rs`, `constants.rs`, `math.rs`, `arenas.rs` | Unchanged in role: the C-OBS filter, command validation and budgets, the replay recorder/runner, the RNG, collision, A*, tables. |
 
 ### Systems over a borrow-split `Cx`
@@ -66,7 +67,7 @@ reached with `Hx::pay_later` and typed `ledger::PayLater` variants. Inside the t
 
 ### Checkpoints
 
-`serde_json::to_value(&sim)` yields `{"format": "rh-checkpoint/7", "content_hash": ..., "build": ..., "statics": ..., "world": ...}` with the tag first.
+`serde_json::to_value(&sim)` yields `{"format": "rh-checkpoint/30", "content_hash": ..., "build": ..., "statics": ..., "world": ...}` with the tag first.
 `Sim::restore(deserializer)` (or plain `Deserialize`) rebuilds the derived map tables and starts with empty scratch; a
 missing tag, another tag or a payload without its parts is refused with a typed `CheckpointError`. So is a state the tick
 cannot survive (`CheckpointError::Malformed`): `next_id` at or below a seated or past player id, or at `u32::MAX`; a

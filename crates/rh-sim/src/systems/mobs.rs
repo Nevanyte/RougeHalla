@@ -171,7 +171,7 @@ pub(super) fn spawn_camp(k: &MatchStatic, w: &mut World, ci: usize) {
                 elite: member.elite,
             },
         };
-        let mob = Mob::born(&provenance, at, facing, w.server_time);
+        let mob = Mob::born(&provenance, at, facing, w.server_time, k.config.hitboxes);
         w.actor_history.push(provenance);
         w.mobs.push(mob);
     }
@@ -429,6 +429,7 @@ pub(crate) fn validate(
             Vec2::new(p.x, p.y),
             facing,
             f64::from(*born_tick) * crate::constants::TICK_MS,
+            k.config.hitboxes,
         );
         let c = &m.core;
         if !c.weapon.aim.is_finite() || !(0. ..=w.server_time).contains(&c.weapon.aim_at) {
@@ -489,6 +490,7 @@ pub(crate) fn place_practice_mob(
     camp: u32,
     at: Vec2,
     facing: f64,
+    hitboxes: crate::archetype::HitboxMode,
 ) -> PlayerId {
     let serial = w.next_entity_id();
     let id = PlayerId(w.next_id);
@@ -503,7 +505,7 @@ pub(crate) fn place_practice_mob(
             elite,
         },
     };
-    let mut mob = Mob::born(&provenance, at, facing, w.server_time);
+    let mut mob = Mob::born(&provenance, at, facing, w.server_time, hitboxes);
     mob.core
         .signature
         .chillers
@@ -515,7 +517,13 @@ pub(crate) fn place_practice_mob(
 
 /// Adds a training dummy (`sim/mobs.ts` `addMob` with kind dummy): no faction, no camp, no catalog type, never dies.
 /// Used by `mobs.spawnTraining` only.
-pub(crate) fn place_dummy(w: &mut World, at: Vec2, facing: f64, shield: bool) -> PlayerId {
+pub(crate) fn place_dummy(
+    w: &mut World,
+    at: Vec2,
+    facing: f64,
+    shield: bool,
+    hitboxes: crate::archetype::HitboxMode,
+) -> PlayerId {
     let serial = w.next_entity_id();
     let id = PlayerId(w.next_id);
     w.next_id = w.next_id.checked_add(1).expect("actor id exhausted");
@@ -527,7 +535,7 @@ pub(crate) fn place_dummy(w: &mut World, at: Vec2, facing: f64, shield: bool) ->
             shield,
         },
     };
-    let mob = Mob::born(&provenance, at, facing, w.server_time);
+    let mob = Mob::born(&provenance, at, facing, w.server_time, hitboxes);
     w.actor_history.push(provenance);
     w.mobs.push(mob);
     id

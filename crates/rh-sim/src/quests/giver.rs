@@ -38,6 +38,7 @@ pub(super) fn birth(k: &MatchStatic, w: &mut World, oi: usize) {
         at,
         crate::math::atan2(centre.y - at.y, centre.x - at.x),
         w.server_time,
+        k.config.hitboxes,
     );
     w.actor_history.push(provenance);
     w.mobs.push(mob);
@@ -285,7 +286,7 @@ pub(crate) fn validate(k: &MatchStatic, w: &World) -> Result<(), String> {
             return Err("orphan live quest giver".into());
         };
         let facing = crate::math::atan2(centre.y - p.at.y, centre.x - p.at.x);
-        let expected = Mob::born(row, p.at, facing, born);
+        let expected = Mob::born(row, p.at, facing, born, k.config.hitboxes);
         let c = &m.core;
         let h = c.body.history.as_slice();
         let count = ((w.tick - born_tick) as usize + 1)

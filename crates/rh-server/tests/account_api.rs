@@ -95,6 +95,7 @@ async fn rig_with_pause(cfg: ApiConfig, pause: Option<Arc<AcquirePause>>) -> Rig
     store.migrate().await.unwrap();
     let dcfg = DirectorConfig::new(
         rh_sim::SimConfig {
+            hitboxes: Default::default(),
             walk_hints: None,
             regen: false,
             quests: false,

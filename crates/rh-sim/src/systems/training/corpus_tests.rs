@@ -68,6 +68,7 @@ fn config(kind: &str) -> SimConfig {
         pvp_rules: true,
         weapon_specials: true,
         faction_mode: FactionMode::Off,
+        hitboxes: crate::archetype::HitboxMode::LegacyCircle,
     }
 }
 

@@ -20,7 +20,7 @@ use serde::ser::{SerializeStruct, Serializer};
 use std::fmt;
 
 /// The tag every checkpoint carries. Bump it when the layout of `statics` or `world` changes incompatibly.
-pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/29";
+pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/30";
 
 /// How far past the map edge a fighter, waypoint or spawn may be and still restore (real states stay inside the map).
 const COORD_MARGIN: f64 = 1024.0;
@@ -266,6 +266,22 @@ pub(crate) fn valid_ranged_packet(packet: crate::state::Packet, weapon: WeaponId
 
 /// The invariants the tick relies on and the serde shape cannot express. A state that breaks one would panic (or silently
 /// misbehave) a few steps later, so a checkpoint carrying it is refused here instead.
+fn archetype_ok(
+    got: crate::archetype::ArchetypeId,
+    want: crate::archetype::ArchetypeId,
+) -> Result<(), String> {
+    if got.get().is_none() {
+        return Err(format!("unknown hitbox archetype {}", got.0));
+    }
+    if got != want {
+        return Err(format!(
+            "hitbox archetype {} differs from the assigned {}",
+            got.0, want.0
+        ));
+    }
+    Ok(())
+}
+
 fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
     // Validate actor classes before any player-only facade or faction/brain consumer can run.
     if w.players.iter().any(|p| p.core.faction_id().is_none()) {
@@ -292,6 +308,21 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
         if regional != m.brain.is_some() {
             return Err("actor brain capability mismatch".into());
         }
+    }
+    // ADR0024: every fighter's hitbox row is the one its constructor assigns for this match's mode and identity.
+    for p in &w.players {
+        let want = crate::archetype::assign(
+            k.config.hitboxes,
+            crate::archetype::Identity::Player(p.core.vitals.faction),
+        );
+        archetype_ok(p.core.archetype, want)?;
+    }
+    for m in &w.mobs {
+        let identity = m.identity().ok_or("actor lacks a hitbox identity")?;
+        archetype_ok(
+            m.core.archetype,
+            crate::archetype::assign(k.config.hitboxes, identity),
+        )?;
     }
     crate::quests::giver::validate(k, w)?;
     crate::systems::arena_validation::validate(k, w)?;
@@ -523,6 +554,8 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
             || pr.reflections > crate::constants::MAX_ARROW_REFLECTIONS
             || (st.reflected && weapon != WeaponId::Bow)
             || (pr.halved && weapon != WeaponId::Wand)
+            || !st.height.is_finite()
+            || st.height < 0.
             || !(0. ..=range).contains(&st.range)
             || !(0. ..=st.range).contains(&pr.traveled)
             || !near(st.origin.x, st.origin.y)

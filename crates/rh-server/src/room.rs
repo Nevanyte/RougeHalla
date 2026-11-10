@@ -2011,6 +2011,7 @@ mod tests {
         RoomConfig {
             sim: SimConfig {
                 walk_hints: None,
+                hitboxes: Default::default(),
                 regen: false,
                 training: false,
                 dummies: false,
@@ -3138,6 +3139,7 @@ mod tests {
         RoomConfig {
             sim: SimConfig {
                 walk_hints: None,
+                hitboxes: Default::default(),
                 regen: false,
                 quests: false,
                 consumables: true,

@@ -159,6 +159,7 @@ pub(crate) fn raise_or_grow(k: &MatchStatic, w: &mut World, owner_id: PlayerId) 
                 max_hp,
                 w.server_time,
                 w.players[owner_ix].motion.displace_seq,
+                k.config.hitboxes,
             );
             w.actor_history.push(provenance);
             w.mobs.push(z);

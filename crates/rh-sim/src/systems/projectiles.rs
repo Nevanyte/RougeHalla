@@ -94,6 +94,7 @@ pub(crate) fn spawn(cx: &mut Cx) {
             time: cx.w.server_time,
             range,
             target: req.target,
+            height: owner.hull().chest,
         };
         launch(
             cx.w,
@@ -436,6 +437,8 @@ fn reflect(cx: &mut Cx, s: Stretch, t: f64, victim: usize, at: Vec2) {
         time: t,
         range,
         target: None,
+        // The drawn arrow does not jump: it keeps the incoming height.
+        height: pr.launch.height,
     };
     let mut packet = pr.packet;
     packet.raw *= ARROW_REFLECT_SHARE;
@@ -674,6 +677,7 @@ mod tests {
             target,
             range,
             reflected: false,
+            height: 0.,
         };
         launch(
             &mut sim.w,

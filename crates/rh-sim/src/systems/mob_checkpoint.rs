@@ -256,6 +256,7 @@ pub(crate) fn validate(
             crate::Vec2::new(at.x, at.y),
             crate::math::atan2(d.y - at.y, d.x - at.x),
             f64::from(*born_tick) * TICK_MS,
+            k.config.hitboxes,
         );
         if m.camp != *camp
             || m.mob_type != Some(*mob_type)

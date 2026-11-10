@@ -13,6 +13,7 @@ use std::sync::Arc;
 async fn start() -> (std::net::SocketAddr, Arc<Lifecycle>) {
     let cfg = DirectorConfig::new(
         rh_sim::SimConfig {
+            hitboxes: Default::default(),
             walk_hints: None,
             regen: false,
             quests: false,

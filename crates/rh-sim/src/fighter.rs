@@ -4,7 +4,7 @@
 //! one of its components), so a new kind of fighter is a new wrapper around the same core, not a copy of the systems.
 //!
 //! The components own their data only; the rules live in `systems/`. All of it is plain data that serializes, hashes and
-//! checkpoints (the composed layout is `rh-checkpoint/29`).
+//! checkpoints (the composed layout is `rh-checkpoint/30`).
 
 use crate::content::{FactionId, WeaponId};
 use crate::input::{InputQueue, OrderBudget};
@@ -138,6 +138,8 @@ pub struct FighterCore {
     /// Player card runtime; the status ticker shares the source one-roll-per-tick cache.
     pub card_dot_crit: Option<crate::status_runtime::DotCritState>,
     pub motion: Motion,
+    /// The hitbox row (ADR0024), written once by the constructor through [`crate::archetype::assign`]; never changes.
+    pub archetype: crate::archetype::ArchetypeId,
     pub(crate) inputs: InputQueue,
 }
 
@@ -148,6 +150,18 @@ impl FighterCore {
 
     pub fn pos(&self) -> Vec2 {
         Vec2::new(self.body.x, self.body.y)
+    }
+
+    /// The hitbox row (ADR0024).
+    #[inline]
+    pub fn hull(&self) -> &'static crate::archetype::Archetype {
+        self.archetype.row()
+    }
+
+    /// What the fighter occupies for walls and paths.
+    #[inline]
+    pub fn foot(&self) -> crate::geometry::Footprint {
+        self.hull().foot()
     }
 
     /// The weapon in hand: the item in the active slot, or fists.

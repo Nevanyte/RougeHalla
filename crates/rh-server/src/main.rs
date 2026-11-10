@@ -466,6 +466,7 @@ async fn main() {
     };
     let sim = runtime.as_ref().map_or_else(
         || rh_sim::SimConfig {
+            hitboxes: Default::default(),
             walk_hints: None,
             regen: false,
             quests: false,

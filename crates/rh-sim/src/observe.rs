@@ -1076,6 +1076,7 @@ mod tests {
             time: 50.,
             range: 640.,
             target: None,
+            height: 0.,
         };
         vec![
             Event::RaidStarted,
@@ -1179,6 +1180,7 @@ mod tests {
             crate::Vec2::new(200., 300.),
             1.25,
             0.,
+            crate::archetype::HitboxMode::LegacyCircle,
         );
         let view = mob_view(&sim.w, &mob).unwrap();
         assert_eq!(view.kind, ActorKind::QuestGiver);

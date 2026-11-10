@@ -640,7 +640,10 @@ impl Player {
         faction: FactionId,
         spot: Vec2,
         hp: f64,
+        hitboxes: crate::archetype::HitboxMode,
     ) -> Self {
+        let archetype =
+            crate::archetype::assign(hitboxes, crate::archetype::Identity::Player(faction.into()));
         Self {
             stocks: Default::default(),
             card_runtime: None,
@@ -697,6 +700,7 @@ impl Player {
                 modifiers: Default::default(),
                 card_dot_crit: None,
                 motion: Motion::default(),
+                archetype,
                 inputs: InputQueue::default(),
             },
             seat: Seat {
@@ -795,6 +799,10 @@ pub struct ProjectileLaunch {
     pub time: f64,
     pub range: f64,
     pub target: Option<PlayerId>,
+    /// How far above its ground position (north, -y) the flight is (ADR0024): the shooter's archetype chest at launch (0
+    /// under the legacy circle); a reflected arrow keeps the incoming height. Walls test the ground position, bodies the
+    /// raised one. Finite and non-negative.
+    pub height: f64,
 }
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct Projectile {

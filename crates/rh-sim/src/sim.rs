@@ -389,7 +389,7 @@ impl Sim {
                     join_ordinal: join_index as u32,
                 },
             });
-        let mut player = Player::joining(id, profile, bot, faction, spot, hp);
+        let mut player = Player::joining(id, profile, bot, faction, spot, hp, self.k.config.hitboxes);
         player.seat.picked_faction = picked_faction;
         self.w.players.push(player);
         crate::systems::frost::prepare(&self.k, &mut self.w)

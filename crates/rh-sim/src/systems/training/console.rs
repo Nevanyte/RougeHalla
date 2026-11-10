@@ -335,7 +335,7 @@ fn camp(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, ix: FighterIx, id: 
     for at in &spots {
         let facing = atan2(from.y - at.y, from.x - at.x);
         // placeMob writes `camp + 1` to MobState.camp; the console passes `ref - 1`, so the mob's camp is the ref itself.
-        mobs::place_practice_mob(w, id, ty.elite, camp_ref, *at, facing);
+        mobs::place_practice_mob(w, id, ty.elite, camp_ref, *at, facing, k.config.hitboxes);
     }
     if let Some(run) = w.practice.as_mut() {
         run.spawned += spots.len() as u32;
