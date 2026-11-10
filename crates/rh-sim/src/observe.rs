@@ -17,7 +17,7 @@ use crate::sim::{Event, Phase, PlayerId, Sim, Status};
 use crate::state::Player;
 use crate::vision::{actor_with, scene_line_blocked};
 
-pub const OBSERVATION_VERSION: u16 = 22;
+pub const OBSERVATION_VERSION: u16 = 23;
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SelfView {
@@ -57,6 +57,55 @@ pub struct SelfView {
     pub plague_zombie: Option<PlayerId>,
     /// The own hitbox row (ADR0024): public, derived from the kind and faction.
     pub archetype: crate::archetype::ArchetypeId,
+    /// The own overhead indicator facts (ADR0026); the off-hand is in the owner's inventory and is left `None` here.
+    pub facts: IndicatorFacts,
+}
+
+/// What legacy drew over a fighter's head and around its body from public synced state (ADR0026). Every field is a
+/// verdict, never a clock, a magnitude or a build list: an observer learns exactly what the legacy client drew.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct IndicatorFacts {
+    /// The weapon in the slot that is not in hand (a player's second slot); `None` for an empty slot and for non-players.
+    pub offhand: Option<WeaponId>,
+    /// The top two invested stats (legacy build marks, [`crate::kill_augments::build_marks`]); players only.
+    pub build_marks: [Option<crate::kill_augments::KillStatKey>; 2],
+    /// The player's Wish is ready (legacy `renderT >= wishReadyAt` outside the lobby); never the time.
+    pub wish_ready: bool,
+    /// A regional mob is fighting: its attack cooldown runs or its bow is drawn (legacy MobView `fighting`).
+    pub engaged: bool,
+    /// The legacy teleport-immunity ring is up: the immunity deadline is at most `IMMUNITY_MS` (1.5 s) away.
+    pub teleport_immune: bool,
+    /// Fire's charged roaming burst is armed (legacy `roamReady`).
+    pub roam_ready: bool,
+}
+
+impl IndicatorFacts {
+    /// A player's facts at `now`. `wish` says whether the match runs Wishes at all.
+    fn player(p: &Player, now: f64, wish: bool) -> Self {
+        let w = &p.weapon;
+        Self {
+            offhand: if w.slot == 0 { w.weapon1 } else { w.weapon0 },
+            build_marks: crate::kill_augments::build_marks(p),
+            wish_ready: wish && p.status != Status::Lobby && now >= p.stocks.wish_ready_at,
+            engaged: false,
+            teleport_immune: teleport_ring(p.vitals.immune_until, now),
+            roam_ready: p.roam.ready,
+        }
+    }
+    /// A mob's facts at `now`: only the fighting verdict applies (legacy MobView draws no second slot, build, Wish, roam
+    /// or immunity ring for a mob).
+    fn mob(core: &crate::fighter::FighterCore, regional: bool, now: f64) -> Self {
+        Self {
+            engaged: regional && (core.weapon.draw_started_at > 0. || core.weapon.ready_at > now),
+            ..Self::default()
+        }
+    }
+}
+
+/// Legacy PlayerView draws the shield ring while `0 < immuneUntil - renderT <= TELEPORT_IMMUNITY_MS`.
+fn teleport_ring(immune_until: f64, now: f64) -> bool {
+    let left = immune_until - now;
+    left > 0. && left <= crate::systems::coliseum::IMMUNITY_MS
 }
 
 /// Native actor identity; public protocol tags are checked by the server adapter.
@@ -100,6 +149,8 @@ pub struct ActorView {
     pub bounty: u32,
     /// The hitbox row (ADR0024): public, derived from the kind, faction and catalog mob type.
     pub archetype: crate::archetype::ArchetypeId,
+    /// The overhead indicator facts (ADR0026), only ever on a delivered actor row.
+    pub facts: IndicatorFacts,
 }
 
 /// An event the observer could perceive.
@@ -741,6 +792,14 @@ pub(crate) fn observe_with(
             corpse_stacks: u16::from(p.farm.corpse_stacks()),
             plague_zombie: crate::systems::plague_zombies::zombie_of(&sim.w, p.id),
             archetype: p.archetype,
+            facts: IndicatorFacts {
+                offhand: None,
+                ..IndicatorFacts::player(
+                    p,
+                    now,
+                    sim.k.config.abilities == crate::abilities::Mode::Full,
+                )
+            },
         })
     } else {
         None
@@ -754,6 +813,7 @@ pub(crate) fn observe_with(
         let (ax, ay) = (m.body.x, m.body.y);
         // Use the same actor verdict as the event-only pass; the table memoizes direct lines only.
         out.visible.reserve(sim.players().len());
+        let wish = sim.k.config.abilities == crate::abilities::Mode::Full;
         // Decided once per observation: a viewer that moved takes the plain traversal with no table in the loop.
         let probing = match &mut cache {
             Some(c) => c.probing(m.id, ax, ay),
@@ -794,6 +854,7 @@ pub(crate) fn observe_with(
                     weapon: Some(o.active_weapon()),
                     bounty: o.credit.bounty,
                     archetype: o.archetype,
+                    facts: IndicatorFacts::player(o, now, wish),
                 });
             }
         }
@@ -811,7 +872,7 @@ pub(crate) fn observe_with(
                 wards,
             ) && !crate::status_runtime::hidden(&mob.core.statuses.instances, now)
             {
-                out.visible.push(mob_view(&sim.w, mob)?);
+                out.visible.push(mob_view(&sim.w, mob, now)?);
             }
         }
     }
@@ -1000,7 +1061,7 @@ pub fn try_public_snapshot(sim: &Sim) -> Result<PublicSnapshot, crate::OfferErro
         mobs: sim
             .mobs()
             .iter()
-            .map(|mob| mob_view(&sim.w, mob))
+            .map(|mob| mob_view(&sim.w, mob, sim.server_time()))
             .collect::<Result<_, _>>()?,
         camps: sim.camp_rosters().to_vec(),
         tick: sim.tick(),
@@ -1020,6 +1081,7 @@ pub fn public_snapshot(sim: &Sim) -> PublicSnapshot {
 fn mob_view(
     w: &crate::state::World,
     mob: &crate::mob_runtime::Mob,
+    now: f64,
 ) -> Result<ActorView, crate::OfferError> {
     let core = &mob.core;
     let vitals = public_vitals(core.vitals.hp, core.vitals.max_hp, 0.)?;
@@ -1060,6 +1122,15 @@ fn mob_view(
         weapon: (mob.kind != crate::mob_runtime::MobKind::QuestGiver).then(|| core.active_weapon()),
         bounty: 0,
         archetype: core.archetype,
+        facts: IndicatorFacts::mob(
+            core,
+            mob.zombie.is_none()
+                && matches!(
+                    mob.kind,
+                    crate::mob_runtime::MobKind::Regional | crate::mob_runtime::MobKind::Practice
+                ),
+            now,
+        ),
     })
 }
 
@@ -1189,7 +1260,7 @@ mod tests {
             0.,
             crate::archetype::HitboxMode::LegacyCircle,
         );
-        let view = mob_view(&sim.w, &mob).unwrap();
+        let view = mob_view(&sim.w, &mob, sim.server_time()).unwrap();
         assert_eq!(view.kind, ActorKind::QuestGiver);
         assert_eq!(view.faction, crate::fighter::FighterAffiliation::Neutral);
         assert_eq!(view.weapon, None);
@@ -1256,3 +1327,7 @@ mod barrier_tests;
 #[cfg(test)]
 #[path = "observe/quest_gv_tests.rs"]
 mod quest_gv_tests;
+
+#[cfg(test)]
+#[path = "observe/indicator_tests.rs"]
+mod indicator_tests;

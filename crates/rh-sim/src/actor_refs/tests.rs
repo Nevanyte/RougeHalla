@@ -123,6 +123,10 @@ fn cycle_pair() -> (Sim, Sim) {
     for i in 0..2 {
         b.w.players[i].vitals.hp = a.w.players[i].vitals.hp;
         b.w.players[i].body.facing = a.w.players[i].body.facing;
+        // ADR0026: the overhead build marks are public, so the earned mob stats (farm rows and their fold) are part of
+        // the declared public scene too.
+        b.w.players[i].farm = a.w.players[i].farm;
+        b.w.players[i].core.modifiers = a.w.players[i].core.modifiers.clone();
     }
     place(&mut a, PlayerId(3), Vec2::new(80., 112.));
     place(&mut b, PlayerId(3), Vec2::new(80., 112.));

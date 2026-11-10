@@ -220,6 +220,26 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
                 BadField("head")
             }
             "delta_self_status_over_3" => BadField("status"),
+            // Protocol 16, ADR0026: indicator facts.
+            "delta_head_flags_without_present_bit" => BadField("head"),
+            "self_flags_unknown_bit"
+            | "actor_flags_unknown_bit"
+            | "delta_self_flags_unknown_bit"
+            | "delta_actor_flags_unknown_bit" => BadField("flags"),
+            "self_build_marks_repeated"
+            | "actor_build_marks_key_over_9"
+            | "actor_build_marks_second_without_first"
+            | "actor_build_marks_repeated"
+            | "delta_self_build_marks_key_over_9"
+            | "delta_actor_build_marks_repeated" => BadField("build marks"),
+            "self_mark_tier_over_4"
+            | "actor_mark_tier_over_4"
+            | "actor_mark_brand_over_100"
+            | "actor_mark_tax_over_100"
+            | "delta_self_mark_brand_over_100"
+            | "delta_actor_mark_tier_over_4" => BadField("mark"),
+            "actor_offhand_over_16" | "delta_actor_offhand_over_16" => BadField("offhand"),
+            "actor_mark_truncated" => Truncated,
             "delta_actor_id_gap_zero" => BadField("actor order"),
             "delta_actor_hp_over_100" => BadField("hp_pct"),
             "delta_actor_bounty_over_u16" => BadField("bounty"),

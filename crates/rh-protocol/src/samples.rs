@@ -12,7 +12,10 @@ use crate::state::{
     MAX_QUEST_ROWS, MAX_QUEST_VIEW_BYTES, MAX_REWARD_CHESTS, MAX_VISIBLE_FIELDS, MAX_VISIBLE_PROPS,
 };
 use crate::*;
-use crate::{AM_BOUNTY, AM_HP, AM_KIND, AM_KIT, AM_MOB_TYPE, AM_STATUS};
+use crate::{
+    AM_BOUNTY, AM_BUILD_MARKS, AM_FLAGS, AM_HP, AM_KIND, AM_KIT, AM_MARK, AM_MOB_TYPE, AM_OFFHAND,
+    AM_STATUS, HM_BUILD_MARKS, HM_FLAGS, HM_MARK,
+};
 
 // The aim of -3.1415927 is deliberate: an f32 at the -PI edge of the angle range.
 #[allow(clippy::approx_constant)]
@@ -1284,6 +1287,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     barrier_pct: 11,
                     barrier_ring_step: 2,
                     archetype: 1,
+                    ..WireActor::default()
                 }],
             },
         ),
@@ -1945,6 +1949,91 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                         weapon: 0,
                         bounty: 0,
                         kind: 255,
+                        ..WireActor::default()
+                    },
+                ],
+            },
+        ),
+        // Protocol 16, ADR0026: indicator facts on the self (flags, build marks, mark plate) and on actors (flags, off-hand,
+        // build marks, mark plate): every flag bit, the largest stat key, an explicit fists off-hand (code 6), a lone first
+        // mark, the mark plate's maxima and an engaged mob.
+        (
+            "snapshot_indicator_facts",
+            ServerMsg::Snapshot {
+                training: false,
+                owner_combat: None,
+                tick: 77,
+                server_time: snapshot_server_ms(77),
+                phase: 1,
+                ack_input: 5,
+                me: Some(WireSelf {
+                    id: 5,
+                    faction: 1,
+                    x: 100.0,
+                    y: 200.0,
+                    hp: 800.0,
+                    max_hp: 1000.0,
+                    status: 1,
+                    flags: ACTOR_FLAG_WISH_READY
+                        | ACTOR_FLAG_TELEPORT_IMMUNE
+                        | ACTOR_FLAG_ROAM_READY,
+                    build_marks: 1 | (3 << 4),
+                    mark_tier: 2,
+                    brand: 50,
+                    mark_tax: 15,
+                    ..WireSelf::default()
+                }),
+                actors: vec![
+                    WireActor {
+                        id: 6,
+                        faction: 4,
+                        x: 120.0,
+                        y: 210.0,
+                        hp_pct: 90,
+                        status: 1,
+                        weapon: 0,
+                        flags: ACTOR_FLAG_WISH_READY,
+                        offhand: 2,
+                        build_marks: 9 | (5 << 4),
+                        mark_tier: 4,
+                        brand: 100,
+                        mark_tax: 100,
+                        ..WireActor::default()
+                    },
+                    WireActor {
+                        id: 7,
+                        faction: 2,
+                        x: 130.0,
+                        y: 210.0,
+                        hp_pct: 100,
+                        status: 1,
+                        weapon: 3,
+                        offhand: 6,
+                        build_marks: 4,
+                        ..WireActor::default()
+                    },
+                    WireActor {
+                        id: 40,
+                        faction: 3,
+                        x: 160.0,
+                        y: 220.0,
+                        hp_pct: 100,
+                        status: 1,
+                        weapon: 4,
+                        kind: 1,
+                        mob_type_code: 3,
+                        flags: ACTOR_FLAG_ENGAGED,
+                        ..WireActor::default()
+                    },
+                    WireActor {
+                        id: 41,
+                        faction: 0,
+                        x: 170.0,
+                        y: 220.0,
+                        hp_pct: 100,
+                        status: 1,
+                        weapon: 1,
+                        flags: ACTOR_FLAGS_KNOWN,
                         ..WireActor::default()
                     },
                 ],
@@ -3574,7 +3663,35 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
             snapshot_bytes(0x0002, &[], 0, &[]),
         ),
         // Bit 13 is not a field of this version: a mask bit a decoder does not know is refused, never skipped.
-        ("head_unknown_bit", snapshot_bytes(1 << 22, &[], 0, &[])),
+        ("head_unknown_bit", snapshot_bytes(1 << 25, &[], 0, &[])),
+        // Protocol 16, ADR0026: the self's indicator facts are checked like an actor's.
+        (
+            "self_flags_unknown_bit",
+            snapshot_bytes(
+                1 | HM_FLAGS,
+                &[vec![1], vec![0; 12], vec![1], vec![0x10]].concat(),
+                0,
+                &[],
+            ),
+        ),
+        (
+            "self_build_marks_repeated",
+            snapshot_bytes(
+                1 | HM_BUILD_MARKS,
+                &[vec![1], vec![0; 12], vec![1], vec![0x22]].concat(),
+                0,
+                &[],
+            ),
+        ),
+        (
+            "self_mark_tier_over_4",
+            snapshot_bytes(
+                1 | HM_MARK,
+                &[vec![1], vec![0; 12], vec![1], vec![5, 0, 0]].concat(),
+                0,
+                &[],
+            ),
+        ),
         ("wish_ability_over_4", {
             let mut w = valid_wish();
             w[0] = 5;
@@ -3725,7 +3842,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ("actor_count_without_actors", snapshot_bytes(0, &[], 1, &[])),
         (
             "actor_reserved_mask_bit",
-            snapshot_bytes(0, &[], 1, &actor_bytes(0x800, &[])),
+            snapshot_bytes(0, &[], 1, &actor_bytes(1 << 15, &[])),
         ),
         (
             "actor_id_gap_zero",
@@ -3777,7 +3894,44 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         // Kind and status/displacement bits are known; bit 9 is not.
         (
             "actor_unknown_mask_bit_after_kind",
-            snapshot_bytes(0, &[], 1, &actor_bytes(1 << 11, &[])),
+            snapshot_bytes(0, &[], 1, &actor_bytes(1 << 16, &[])),
+        ),
+        // Protocol 16, ADR0026: actor indicator facts out of range.
+        (
+            "actor_flags_unknown_bit",
+            snapshot_bytes(0, &[], 1, &actor_bytes(AM_FLAGS, &[0x10])),
+        ),
+        (
+            "actor_offhand_over_16",
+            snapshot_bytes(0, &[], 1, &actor_bytes(AM_OFFHAND, &[17])),
+        ),
+        (
+            "actor_build_marks_key_over_9",
+            snapshot_bytes(0, &[], 1, &actor_bytes(AM_BUILD_MARKS, &[10])),
+        ),
+        (
+            "actor_build_marks_second_without_first",
+            snapshot_bytes(0, &[], 1, &actor_bytes(AM_BUILD_MARKS, &[0x30])),
+        ),
+        (
+            "actor_build_marks_repeated",
+            snapshot_bytes(0, &[], 1, &actor_bytes(AM_BUILD_MARKS, &[0x33])),
+        ),
+        (
+            "actor_mark_tier_over_4",
+            snapshot_bytes(0, &[], 1, &actor_bytes(AM_MARK, &[5, 0, 0])),
+        ),
+        (
+            "actor_mark_brand_over_100",
+            snapshot_bytes(0, &[], 1, &actor_bytes(AM_MARK, &[1, 101, 0])),
+        ),
+        (
+            "actor_mark_tax_over_100",
+            snapshot_bytes(0, &[], 1, &actor_bytes(AM_MARK, &[1, 25, 101])),
+        ),
+        (
+            "actor_mark_truncated",
+            snapshot_bytes(0, &[], 1, &actor_bytes(AM_MARK, &[1, 25])),
         ),
         (
             "actor_hp_over_100",
@@ -4145,6 +4299,7 @@ fn wa(id: u32, x: f32, y: f32, hp_pct: u8, status: u8) -> WireActor {
         barrier_pct: 0,
         barrier_ring_step: 0,
         archetype: (id % 13) as u8,
+        ..WireActor::default()
     }
 }
 
@@ -4173,6 +4328,7 @@ fn chain_self(x: f32) -> WireSelf {
         barrier: 0.0,
         barrier_ring_step: 0,
         archetype: 3,
+        ..WireSelf::default()
     }
 }
 
@@ -4342,6 +4498,89 @@ pub fn chain_samples() -> Vec<(&'static str, Vec<ChainStep>)> {
             prior = Some(data);
         }
         chains.push(("self_archetype_delta", steps));
+    }
+    // Protocol 16, ADR0026: indicator facts arrive with a new actor, change in deltas (delta actor bits 14..=17, self head
+    // bits 26..=28) and are not resent while unchanged; a cleared fact returns to its default.
+    {
+        let mut encoder = ConnEncoder::new();
+        let mut tracker = SnapshotTracker::new();
+        let mut steps = Vec::new();
+        let mut prior: Option<SnapshotData> = None;
+        // (tick, actor flags, off-hand, build marks, mark, self flags, self marks)
+        #[allow(clippy::type_complexity)]
+        let script: [(u32, u8, u8, u8, [u8; 3], u8, u8); 5] = [
+            (
+                1,
+                ACTOR_FLAG_WISH_READY,
+                2,
+                0x31,
+                [0; 3],
+                ACTOR_FLAG_WISH_READY,
+                0x21,
+            ),
+            (
+                2,
+                ACTOR_FLAG_WISH_READY,
+                2,
+                0x31,
+                [0; 3],
+                ACTOR_FLAG_WISH_READY,
+                0x21,
+            ),
+            (3, 0, 0, 0x31, [1, 25, 10], 0, 0x21),
+            (
+                4,
+                ACTOR_FLAG_ROAM_READY,
+                5,
+                0x13,
+                [1, 25, 10],
+                ACTOR_FLAG_TELEPORT_IMMUNE,
+                0x08,
+            ),
+            (5, 0, 0, 0, [0; 3], 0, 0),
+        ];
+        for (tick, flags, offhand, marks, mark, self_flags, self_marks) in script {
+            let mut me = chain_self(400.0);
+            me.flags = self_flags;
+            me.build_marks = self_marks;
+            me.mark_tier = mark[0];
+            me.brand = mark[1];
+            me.mark_tax = mark[2];
+            let mut a = wa(2, 10., 20., 100, 1);
+            a.flags = flags;
+            a.offhand = offhand;
+            a.build_marks = marks;
+            [a.mark_tier, a.brand, a.mark_tax] = mark;
+            let mob = WireActor {
+                kind: 1,
+                mob_type_code: 7,
+                flags: if tick % 2 == 0 { ACTOR_FLAG_ENGAGED } else { 0 },
+                ..wa(9, 50., 60., 100, 1)
+            };
+            let data = snap(tick, 1, tick, Some(me), &[a, mob]);
+            let (frame, kind) = encoder.encode_frame(data.clone());
+            if let Some(base) = prior.as_ref() {
+                assert_eq!(kind, FrameKind::Delta);
+                let d = delta::diff(base, &data).unwrap();
+                if tick == 2 {
+                    assert!(
+                        d.changed.iter().all(|c| c.q.id != 2),
+                        "unchanged facts are not resent"
+                    );
+                }
+                assert_eq!(ServerMsg::SnapshotDelta(d).encode(), frame);
+            } else {
+                assert_eq!(kind, FrameKind::Full);
+            }
+            let got = tracker.decode(&frame).expect("indicator facts apply");
+            assert_eq!(got, data.decoded());
+            steps.push(ChainStep {
+                frame,
+                outcome: ChainOutcome::Applied(got),
+            });
+            prior = Some(data);
+        }
+        chains.push(("indicator_facts_delta", steps));
     }
     {
         let mut encoder = ConnEncoder::new();
@@ -5232,7 +5471,40 @@ pub fn malformed_deltas() -> Vec<(&'static str, Vec<u8>)> {
             delta_bytes(10, 1, delta::DH_ARCHETYPE, &[3, 0]),
         ),
         // Bit 25 is not a field of this version; bit 24 carries owner combat.
-        ("delta_head_unknown_bit", delta_bytes(10, 1, 1 << 26, &[0])),
+        ("delta_head_unknown_bit", delta_bytes(10, 1, 1 << 29, &[0])),
+        // Protocol 16, ADR0026: self and actor indicator facts in a delta.
+        (
+            "delta_head_flags_without_present_bit",
+            delta_bytes(10, 1, delta::DH_FLAGS, &[1, 0]),
+        ),
+        (
+            "delta_self_flags_unknown_bit",
+            delta_bytes(10, 1, DH_PRESENT | delta::DH_FLAGS, &[0x20, 0]),
+        ),
+        (
+            "delta_self_build_marks_key_over_9",
+            delta_bytes(10, 1, DH_PRESENT | delta::DH_BUILD_MARKS, &[0x1a, 0]),
+        ),
+        (
+            "delta_self_mark_brand_over_100",
+            delta_bytes(10, 1, DH_PRESENT | delta::DH_MARK, &[1, 200, 0, 0]),
+        ),
+        (
+            "delta_actor_flags_unknown_bit",
+            delta_bytes(10, 1, 0, &[1, 5, 0x80, 0x80, 0x01, 0x10]),
+        ),
+        (
+            "delta_actor_offhand_over_16",
+            delta_bytes(10, 1, 0, &[1, 5, 0x80, 0x80, 0x02, 17]),
+        ),
+        (
+            "delta_actor_build_marks_repeated",
+            delta_bytes(10, 1, 0, &[1, 5, 0x80, 0x80, 0x04, 0x44]),
+        ),
+        (
+            "delta_actor_mark_tier_over_4",
+            delta_bytes(10, 1, 0, &[1, 5, 0x80, 0x80, 0x08, 9, 0, 0]),
+        ),
         (
             "delta_owner_combat_option_unknown",
             delta_owner(2, &[], false),
@@ -5266,10 +5538,10 @@ pub fn malformed_deltas() -> Vec<(&'static str, Vec<u8>)> {
             delta_bytes(10, 1, DH_PRESENT | DH_STATUS, &[4, 0]),
         ),
         ("delta_phase_over_3", delta_bytes(10, 1, DH_PHASE, &[4, 0])),
-        // Actor delta bit 14 is not a field of this version.
+        // Actor delta bit 18 is not a field of this version.
         (
             "delta_actor_mask_unknown_bit",
-            delta_bytes(10, 1, 0, &[1, 1, 0x80, 0x80, 0x01]),
+            delta_bytes(10, 1, 0, &[1, 1, 0x80, 0x80, 0x10]),
         ),
         (
             "delta_actor_status_over_3",
@@ -5409,7 +5681,7 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
     let me = match me {
         None => "null".to_string(),
         Some(s) => format!(
-            "{{\"id\": {}, \"faction\": {}, \"xBits\": {}, \"yBits\": {}, \"facingBits\": {}, \"hpBits\": {}, \"maxHpBits\": {}, \"status\": {}, \"weapon\": {}, \"readyInMs\": {}, \"kills\": {}, \"bounty\": {}, \"gv\": {}, \"moveSeq\": {}, \"effects\": {}, \"displaceSeq\": {}, \"sig\": {}, \"huntTarget\": {}, \"huntStacks\": {}, \"wish\": {}, \"barrierBits\": {}, \"barrierRingStep\": {}, \"archetype\": {}}}",
+            "{{\"id\": {}, \"faction\": {}, \"xBits\": {}, \"yBits\": {}, \"facingBits\": {}, \"hpBits\": {}, \"maxHpBits\": {}, \"status\": {}, \"weapon\": {}, \"readyInMs\": {}, \"kills\": {}, \"bounty\": {}, \"gv\": {}, \"moveSeq\": {}, \"effects\": {}, \"displaceSeq\": {}, \"sig\": {}, \"huntTarget\": {}, \"huntStacks\": {}, \"wish\": {}, \"barrierBits\": {}, \"barrierRingStep\": {}, \"archetype\": {}, \"flags\": {}, \"buildMarks\": {}, \"markTier\": {}, \"brand\": {}, \"markTax\": {}}}",
             s.id,
             s.faction,
             bits(s.x),
@@ -5432,14 +5704,19 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
             json_wish(s.wish),
             bits(s.barrier),
             s.barrier_ring_step,
-            s.archetype
+            s.archetype,
+            s.flags,
+            s.build_marks,
+            s.mark_tier,
+            s.brand,
+            s.mark_tax
         ),
     };
     let actors: Vec<String> = actors
         .iter()
         .map(|a| {
             format!(
-                "{{\"id\": {}, \"faction\": {}, \"xBits\": {}, \"yBits\": {}, \"facingBits\": {}, \"hpPct\": {}, \"status\": {}, \"weapon\": {}, \"bounty\": {}, \"kind\": {}, \"effects\": {}, \"displaceSeq\": {}, \"mobTypeCode\": {}, \"sig\": {}, \"barrierPct\": {}, \"barrierRingStep\": {}, \"archetype\": {}}}",
+                "{{\"id\": {}, \"faction\": {}, \"xBits\": {}, \"yBits\": {}, \"facingBits\": {}, \"hpPct\": {}, \"status\": {}, \"weapon\": {}, \"bounty\": {}, \"kind\": {}, \"effects\": {}, \"displaceSeq\": {}, \"mobTypeCode\": {}, \"sig\": {}, \"barrierPct\": {}, \"barrierRingStep\": {}, \"archetype\": {}, \"flags\": {}, \"offhand\": {}, \"buildMarks\": {}, \"markTier\": {}, \"brand\": {}, \"markTax\": {}}}",
                 a.id,
                 a.faction,
                 bits(a.x),
@@ -5450,7 +5727,7 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
                 a.weapon,
                 a.bounty,
                 a.kind, a.effects, a.displace_seq, a.mob_type_code, a.sig, a.barrier_pct, a.barrier_ring_step,
-                a.archetype
+                a.archetype, a.flags, a.offhand, a.build_marks, a.mark_tier, a.brand, a.mark_tax
             )
         })
         .collect();

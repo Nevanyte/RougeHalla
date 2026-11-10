@@ -85,6 +85,10 @@
 //!   per actor (the observation sorts them by id; ids must strictly ascend): id varint (the first actor's id, then the gap
 //!     from the previous one), mask varint, x u16, y u16, facing u16, then per mask bit: 0 kit u8 (default 0)
 //!     1 hp_pct u8 (default 100)  2 status u8 0..=3 (default 1)  3 bounty varint (0)  4 kind u8 (0 = player)  5 effects u16 (0)  6 displacement u8 (0)  7 mob_type_code u8 (0..=30)  8 sig u8 (0)  9 barrier_pct u8 + ring step u8
+//!     10 archetype u8  11 indicator flags u8  12 off-hand u8 (0 empty, weapon + 1)  13 build marks u8 (two 4-bit stat keys)
+//!     14 mark plate: tier u8, brand u8, tax u8 (protocol 16; ADR0024, ADR0026)
+//!   protocol 16 head bits: 20 owner combat (after the actors)  21 archetype u8  22 indicator flags u8  23 build marks u8
+//!     24 mark plate (tier, brand, tax), self fields in bit order after the barrier pair
 //! SnapshotDelta 0x87, tick varint, base_age varint (tick - base tick, 1..=MAX_DELTA_AGE), ack_input varint, head varint
 //!   head bits  0 a self follows (its id is the base's)   1 x   2 y   3 facing   4 move_seq   5 hp   6 ready_in_ms
 //!              7 a departed list follows   8 phase   9 max_hp   10 kit   11 kills   12 bounty   13 gv   14 status   15 effects u16   16 displacement u8   17 sig u8
@@ -96,6 +100,8 @@
 //!   changed_count varint (<= MAX_ACTORS), then per changed actor, ascending by id: id varint (the first's id, then the gap),
 //!     mask varint, then per mask bit: 0 x u16  1 y u16  2 facing u16  3 kit u8  4 hp_pct u8  5 bounty varint  6 status u8
 //!     7 kind u8  8 effects u16  9 displacement u8  10 mob_type_code u8 (0..=30)  11 sig u8. A NEW actor (not in the base) starts from the default actor and must carry bits 0..=2 (its position).
+//!     Protocol 16: delta head bits 24 owner combat, 25 archetype, 26 indicator flags, 27 build marks, 28 mark plate; actor delta
+//!     bits 12 barrier pair, 13 archetype, 14 indicator flags, 15 off-hand, 16 build marks, 17 mark plate (ADR0024, ADR0026).
 //!   [departed_count varint (1..=MAX_ACTORS), then the ids: the first's id, then gaps]    only with head bit 7
 //! ```
 //!
@@ -408,6 +414,61 @@ pub struct WireSelf {
     pub barrier_ring_step: u8,
     /// The own hitbox archetype id (protocol 16, ADR0024); the row is in the Welcome's archetype table.
     pub archetype: u8,
+    /// The own indicator flags (protocol 16, ADR0026): [`ACTOR_FLAG_WISH_READY`], [`ACTOR_FLAG_TELEPORT_IMMUNE`],
+    /// [`ACTOR_FLAG_ROAM_READY`] (a self is never [`ACTOR_FLAG_ENGAGED`]).
+    pub flags: u8,
+    /// The own overhead build marks, packed as [`WireActor::build_marks`].
+    pub build_marks: u8,
+    /// The own Sentenced mark plate: tier 0..=4, brand 0..=100, mark tax percent 0..=100 (as on an actor).
+    pub mark_tier: u8,
+    pub brand: u8,
+    pub mark_tax: u8,
+}
+
+/// Indicator flag bits (protocol 16, ADR0026), on actors and the self. Verdicts only, never a clock.
+/// The player's Wish is ready (legacy `wishReadyAt` passed, outside the lobby).
+pub const ACTOR_FLAG_WISH_READY: u8 = 1 << 0;
+/// A regional mob is fighting: its attack cooldown runs or its bow is drawn (legacy MobView `fighting`).
+pub const ACTOR_FLAG_ENGAGED: u8 = 1 << 1;
+/// The teleport-immunity ring is up (at most 1.5 s of immunity left, legacy `immuneUntil`).
+pub const ACTOR_FLAG_TELEPORT_IMMUNE: u8 = 1 << 2;
+/// Fire's charged roaming burst is armed (legacy `roamReady`).
+pub const ACTOR_FLAG_ROAM_READY: u8 = 1 << 3;
+/// Every flag bit a decoder accepts; any other bit is refused.
+pub const ACTOR_FLAGS_KNOWN: u8 = 0x0f;
+/// Largest off-hand code: 0 an empty second slot, else the weapon code + 1.
+pub const MAX_OFFHAND_CODE: u8 = MAX_KIT_CODE + 1;
+/// Largest build-mark stat key: 0 none, 1..=9 = ad, ap, damage, health, attack speed, armor, mr, speed, leech.
+pub const MAX_STAT_KEY: u8 = 9;
+/// Largest Sentenced mark tier.
+pub const MAX_MARK_TIER: u8 = 4;
+
+/// A packed build-mark byte is valid: two keys 0..=9 (first in the low nibble), the second only after a first, never equal.
+pub fn build_marks_valid(v: u8) -> bool {
+    let (first, second) = (v & 0x0f, v >> 4);
+    first <= MAX_STAT_KEY
+        && second <= MAX_STAT_KEY
+        && (second == 0 || (first != 0 && first != second))
+}
+
+/// The first reason a decoder refuses these indicator facts (ADR0026), or None. `mark` is (tier, brand, tax).
+pub fn indicator_fault(
+    offhand: u8,
+    build_marks: u8,
+    mark: [u8; 3],
+    flags: u8,
+) -> Option<&'static str> {
+    if offhand > MAX_OFFHAND_CODE {
+        Some("offhand")
+    } else if !build_marks_valid(build_marks) {
+        Some("build marks")
+    } else if mark[0] > MAX_MARK_TIER || mark[1] > 100 || mark[2] > 100 {
+        Some("mark")
+    } else if flags & !ACTOR_FLAGS_KNOWN != 0 {
+        Some("flags")
+    } else {
+        None
+    }
 }
 
 /// Owner-only action lock state. This is display data, not a capability to target or act.
@@ -515,6 +576,17 @@ pub struct WireActor {
     pub barrier_ring_step: u8,
     /// Hitbox archetype id (protocol 16, ADR0024); 0 is the legacy circle. The row is in the Welcome's archetype table.
     pub archetype: u8,
+    /// Indicator flags (protocol 16, ADR0026): `ACTOR_FLAG_*` bits.
+    pub flags: u8,
+    /// The weapon in a player's second slot, the one not in hand: 0 empty (legacy draws fists), else weapon code + 1.
+    pub offhand: u8,
+    /// A player's top two invested stats (legacy build marks): first key in the low nibble, second in the high one, each
+    /// 0 none or 1..=9 (ad, ap, damage, health, attack speed, armor, mr, speed, leech). Keys only, never scores.
+    pub build_marks: u8,
+    /// Sentenced mark plate: tier 0..=4, brand 0..=100, mark tax percent 0..=100 (all zero when unmarked).
+    pub mark_tier: u8,
+    pub brand: u8,
+    pub mark_tax: u8,
 }
 
 impl WireActor {
@@ -1031,7 +1103,14 @@ pub(crate) const HM_SERVER_TIME: u32 = 1 << 19;
 pub(crate) const HM_OWNER_COMBAT: u32 = 1 << 20;
 /// The self's hitbox archetype id (protocol 16): a byte after the barrier pair.
 pub(crate) const HM_ARCHETYPE: u32 = 1 << 21;
+/// Indicator facts of the self (protocol 16, ADR0026): flags u8, build marks u8, mark plate (tier, brand, tax) u8 x3.
+pub(crate) const HM_FLAGS: u32 = 1 << 22;
+pub(crate) const HM_BUILD_MARKS: u32 = 1 << 23;
+pub(crate) const HM_MARK: u32 = 1 << 24;
 pub(crate) const HM_SELF_BITS: u32 = 0x03ff
+    | HM_FLAGS
+    | HM_BUILD_MARKS
+    | HM_MARK
     | HM_EFFECTS
     | HM_DISPLACE
     | HM_SIG
@@ -1056,7 +1135,16 @@ pub(crate) const AM_SIG: u32 = 1 << 8;
 pub(crate) const AM_BARRIER: u32 = 1 << 9;
 /// Hitbox archetype id (protocol 16): one byte after the barrier pair.
 pub(crate) const AM_ARCHETYPE: u32 = 1 << 10;
+/// Indicator facts (protocol 16, ADR0026): flags u8, off-hand u8, build marks u8, mark plate (tier, brand, tax) u8 x3.
+pub(crate) const AM_FLAGS: u32 = 1 << 11;
+pub(crate) const AM_OFFHAND: u32 = 1 << 12;
+pub(crate) const AM_BUILD_MARKS: u32 = 1 << 13;
+pub(crate) const AM_MARK: u32 = 1 << 14;
 pub(crate) const AM_KNOWN: u32 = AM_ARCHETYPE
+    | AM_FLAGS
+    | AM_OFFHAND
+    | AM_BUILD_MARKS
+    | AM_MARK
     | AM_KIT
     | AM_HP
     | AM_STATUS
@@ -1161,8 +1249,27 @@ fn read_self(r: &mut Reader, mask: u32) -> Result<WireSelf, DecodeError> {
         (0.0, 0)
     };
     let archetype = if mask & HM_ARCHETYPE != 0 { r.u8()? } else { 0 };
+    let flags = if mask & HM_FLAGS != 0 { r.u8()? } else { 0 };
+    let build_marks = if mask & HM_BUILD_MARKS != 0 {
+        r.u8()?
+    } else {
+        0
+    };
+    let mark = if mask & HM_MARK != 0 {
+        [r.u8()?, r.u8()?, r.u8()?]
+    } else {
+        [0; 3]
+    };
+    if let Some(why) = indicator_fault(0, build_marks, mark, flags) {
+        return Err(DecodeError::BadField(why));
+    }
     Ok(WireSelf {
         archetype,
+        flags,
+        build_marks,
+        mark_tier: mark[0],
+        brand: mark[1],
+        mark_tax: mark[2],
         effects,
         displace_seq,
         sig,
@@ -1317,8 +1424,29 @@ fn read_actor(r: &mut Reader, prev: Option<u32>) -> Result<WireActor, DecodeErro
         (DEFAULT_BARRIER_PCT, DEFAULT_BARRIER_RING_STEP)
     };
     let archetype = if mask & AM_ARCHETYPE != 0 { r.u8()? } else { 0 };
+    let flags = if mask & AM_FLAGS != 0 { r.u8()? } else { 0 };
+    let offhand = if mask & AM_OFFHAND != 0 { r.u8()? } else { 0 };
+    let build_marks = if mask & AM_BUILD_MARKS != 0 {
+        r.u8()?
+    } else {
+        0
+    };
+    let mark = if mask & AM_MARK != 0 {
+        [r.u8()?, r.u8()?, r.u8()?]
+    } else {
+        [0; 3]
+    };
+    if let Some(why) = indicator_fault(offhand, build_marks, mark, flags) {
+        return Err(DecodeError::BadField(why));
+    }
     Ok(WireActor {
         archetype,
+        flags,
+        offhand,
+        build_marks,
+        mark_tier: mark[0],
+        brand: mark[1],
+        mark_tax: mark[2],
         mob_type_code,
         effects,
         displace_seq,

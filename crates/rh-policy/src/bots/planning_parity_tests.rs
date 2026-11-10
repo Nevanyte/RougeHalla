@@ -430,6 +430,7 @@ fn planning_me(faction: FactionId) -> rh_sim::observe::SelfView {
         bounty: 0,
         gv: 0,
         move_seq: 0,
+        facts: Default::default(),
     }
 }
 

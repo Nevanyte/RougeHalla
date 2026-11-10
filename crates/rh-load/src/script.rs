@@ -350,6 +350,7 @@ mod tests {
             move_seq: 0,
             hunt_target: None,
             hunt_stacks: 0,
+            ..Default::default()
         };
         let actor = |id, x, status| rh_protocol::WireActor {
             archetype: Default::default(),
@@ -369,6 +370,7 @@ mod tests {
             weapon: 0,
             bounty: 0,
             kind: 0,
+            ..Default::default()
         };
         let v = view_of(
             Some(&me),

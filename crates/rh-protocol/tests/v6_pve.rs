@@ -110,6 +110,7 @@ fn maximum_full_records_and_reference_delta_preserve_new_scalars() {
         wish: None,
         barrier: 0.0,
         barrier_ring_step: 0,
+        ..Default::default()
     };
     let actor = WireActor {
         archetype: Default::default(),
@@ -129,6 +130,7 @@ fn maximum_full_records_and_reference_delta_preserve_new_scalars() {
         sig: 255,
         barrier_pct: 0,
         barrier_ring_step: 0,
+        ..Default::default()
     };
     let data = SnapshotData::build(u32::MAX, 3, u32::MAX, Some(me), [actor].into_iter()).unwrap();
     let mut fast = vec![];

@@ -53,8 +53,41 @@ pub fn sat16(v: u32) -> u16 {
     v.min(u16::MAX as u32) as u16
 }
 
+/// The indicator flag byte of a fighter's facts (ADR0026): `rh_protocol::ACTOR_FLAG_*`.
+pub fn indicator_flags(f: &rh_sim::observe::IndicatorFacts) -> u8 {
+    (if f.wish_ready {
+        rh_protocol::ACTOR_FLAG_WISH_READY
+    } else {
+        0
+    }) | (if f.engaged {
+        rh_protocol::ACTOR_FLAG_ENGAGED
+    } else {
+        0
+    }) | (if f.teleport_immune {
+        rh_protocol::ACTOR_FLAG_TELEPORT_IMMUNE
+    } else {
+        0
+    }) | (if f.roam_ready {
+        rh_protocol::ACTOR_FLAG_ROAM_READY
+    } else {
+        0
+    })
+}
+
+/// The packed build-mark byte (ADR0026): the first key in the low nibble, the second in the high one, each the
+/// `KillStatKey` index + 1 (0 none).
+pub fn build_marks(f: &rh_sim::observe::IndicatorFacts) -> u8 {
+    let code = |k: Option<rh_sim::kill_augments::KillStatKey>| k.map_or(0, |k| k.index() as u8 + 1);
+    code(f.build_marks[0]) | code(f.build_marks[1]) << 4
+}
+
 pub fn wire_self(m: &rh_sim::observe::SelfView) -> WireSelf {
     WireSelf {
+        flags: indicator_flags(&m.facts),
+        build_marks: build_marks(&m.facts),
+        mark_tier: m.mark_tier,
+        brand: m.brand,
+        mark_tax: m.mark_tax,
         archetype: m.archetype.0,
         sig: m.sig,
         effects: m.effects,
@@ -114,6 +147,12 @@ pub fn actor_supported(a: &ActorView) -> Result<(u8, u8, u8), &'static str> {
 pub fn wire_actor(a: &ActorView) -> Result<WireActor, &'static str> {
     let (kind, faction, weapon) = actor_supported(a)?;
     Ok(WireActor {
+        flags: indicator_flags(&a.facts),
+        offhand: a.facts.offhand.map_or(0, |w| w.code() + 1),
+        build_marks: build_marks(&a.facts),
+        mark_tier: a.mark_tier,
+        brand: a.brand,
+        mark_tax: a.mark_tax,
         archetype: a.archetype.0,
         sig: a.sig,
         mob_type_code: a.mob_type.map_or(0, |id| id as u8 + 1),

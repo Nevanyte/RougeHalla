@@ -992,6 +992,7 @@ mod tests {
             status: Status::Alive,
             weapon: Some(rh_sim::content::WeaponId::ALL[2]),
             bounty: 3,
+            facts: Default::default(),
         }
     }
 

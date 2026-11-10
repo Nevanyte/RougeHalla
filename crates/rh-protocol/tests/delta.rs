@@ -72,6 +72,7 @@ fn actor(id: u32, rng: &mut Rng) -> WireActor {
         kind: if id % 7 == 0 { 2 } else { 0 },
         barrier_pct: 0,
         barrier_ring_step: 0,
+        ..Default::default()
     }
 }
 
@@ -100,6 +101,7 @@ fn me(id: u32, rng: &mut Rng) -> WireSelf {
         wish: None,
         barrier: 0.0,
         barrier_ring_step: 0,
+        ..Default::default()
     }
 }
 
@@ -614,6 +616,7 @@ fn deltas_that_do_not_apply_are_refused_and_change_nothing() {
             kind: 0,
             barrier_pct: 0,
             barrier_ring_step: 0,
+            ..Default::default()
         })];
         d.departed.clear();
     });

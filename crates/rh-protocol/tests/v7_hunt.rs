@@ -26,6 +26,7 @@ fn self_view() -> WireSelf {
         wish: None,
         barrier: 0.0,
         barrier_ring_step: 0,
+        ..Default::default()
     }
 }
 
