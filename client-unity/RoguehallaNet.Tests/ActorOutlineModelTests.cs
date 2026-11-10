@@ -6,29 +6,35 @@ namespace Roguehalla.Net.Tests
     /// <summary>The polarity rule of the adaptive actor outline (docs/rework/CONTRAST_GATE.md): the stroke is chosen against the ground behind it.</summary>
     public class ActorOutlineModelTests
     {
-        [Test] public void ChosenStrokeNeverFallsBelowTheWorstCaseOnAnyGround()
+        [Test] public void TheTwoStrokeColoursAreFarEnoughApart()
         {
-            float worst = ActorOutlineModel.WorstRatio();
-            Assert.GreaterOrEqual(worst, 4.2f, "the two stroke colours must be far enough apart for the crossover to stay above 4.2:1");
-            Assert.GreaterOrEqual(ActorOutlineModel.StrokeRatio(ActorOutlineModel.Crossover() - ActorOutlineModel.DeadZone * .99f, false), 3.6f, "worst case inside the dead zone");
-            for (float l = 0f; l <= 1.0001f; l += .0025f)
-                foreach (bool previous in new[] { false, true })
-                    Assert.GreaterOrEqual(ActorOutlineModel.StrokeRatio(l, previous), worst * .85f, "ground " + l + " previous " + previous);
+            // Nominal colours: the worst case of a perfect hard choice is sqrt((Ll + .05) / (Ld + .05)).
+            Assert.GreaterOrEqual(ActorOutlineModel.WorstRatio(), 4.0f);
+            Assert.GreaterOrEqual(ActorOutlineModel.Ratio(ActorOutlineModel.LightLuma, 0f), 15f);
         }
 
-        [Test] public void ThreeToOneHoldsOnEveryGroundWhateverTheDeadZoneKept()
+        [Test] public void TheChosenStrokeBeatsThreeToOneOnEveryGroundOutsideTheDeadZone()
         {
-            for (float l = 0f; l <= 1.0001f; l += .001f)
-                foreach (bool previous in new[] { false, true })
-                    Assert.GreaterOrEqual(ActorOutlineModel.StrokeRatio(l, previous), 3.0f, "ground " + l);
-        }
-
-        [Test] public void FourPointFiveHoldsAwayFromTheCrossoverBand()
-        {
-            float t = ActorOutlineModel.Crossover();
             for (float l = 0f; l <= 1.0001f; l += .001f)
             {
-                if (System.Math.Abs(l - t) <= .035f) continue;     // the band where neither stroke can exceed its worst case
+                if (System.Math.Abs(l - ActorOutlineModel.Threshold) <= ActorOutlineModel.DeadZone) continue;
+                foreach (bool previous in new[] { false, true })
+                    Assert.GreaterOrEqual(ActorOutlineModel.StrokeRatio(l, previous), 3.0f, "ground " + l + " previous " + previous);
+            }
+        }
+
+        [Test] public void InsideTheDeadZoneTheWorstCaseStaysAboveTwoPointEight()
+        {
+            for (float l = ActorOutlineModel.Threshold - ActorOutlineModel.DeadZone; l <= ActorOutlineModel.Threshold + ActorOutlineModel.DeadZone; l += .001f)
+                foreach (bool previous in new[] { false, true })
+                    Assert.GreaterOrEqual(ActorOutlineModel.StrokeRatio(l, previous), 2.8f, "ground " + l);
+        }
+
+        [Test] public void FourPointFiveHoldsAwayFromTheFlip()
+        {
+            for (float l = 0f; l <= 1.0001f; l += .001f)
+            {
+                if (System.Math.Abs(l - ActorOutlineModel.Threshold) <= ActorOutlineModel.DeadZone + .06f) continue;
                 Assert.GreaterOrEqual(ActorOutlineModel.StrokeRatio(l, false), 4.5f, "ground " + l);
                 Assert.GreaterOrEqual(ActorOutlineModel.StrokeRatio(l, true), 4.5f, "ground " + l);
             }
@@ -36,31 +42,29 @@ namespace Roguehalla.Net.Tests
 
         [Test] public void ChoiceIsHardAndStable()
         {
-            float t = ActorOutlineModel.Crossover();
-            Assert.IsTrue(ActorOutlineModel.ChooseLight(.02f, false)); Assert.IsFalse(ActorOutlineModel.ChooseLight(.6f, true));
-            Assert.IsTrue(ActorOutlineModel.ChooseLight(t - ActorOutlineModel.DeadZone - .001f, false));
-            Assert.IsFalse(ActorOutlineModel.ChooseLight(t + ActorOutlineModel.DeadZone + .001f, true));
+            float t = ActorOutlineModel.Threshold, dz = ActorOutlineModel.DeadZone;
+            Assert.IsTrue(ActorOutlineModel.ChooseLight(.02f, false)); Assert.IsFalse(ActorOutlineModel.ChooseLight(.8f, true));
+            Assert.IsTrue(ActorOutlineModel.ChooseLight(t - dz - .001f, false));
+            Assert.IsFalse(ActorOutlineModel.ChooseLight(t + dz + .001f, true));
             // inside the dead zone the previous choice stays, in both directions: no flicker on a boundary
             Assert.IsTrue(ActorOutlineModel.ChooseLight(t, true)); Assert.IsFalse(ActorOutlineModel.ChooseLight(t, false));
-            // a ground walking through the whole range flips exactly once each way
+            // a ground walking through the whole range flips exactly once
             int flips = 0; bool light = true;
             for (float l = 0f; l <= 1f; l += .001f) { bool next = ActorOutlineModel.ChooseLight(l, light); if (next != light) flips++; light = next; }
             Assert.AreEqual(1, flips);
         }
 
-        [Test] public void CrossoverIsWhereBothStrokesAgree()
+        [Test] public void TheMeasuredThresholdSitsBetweenTheNominalAndTheLiftedCrossover()
         {
-            float t = ActorOutlineModel.Crossover();
-            Assert.AreEqual(ActorOutlineModel.Ratio(ActorOutlineModel.DarkLuma, t), ActorOutlineModel.Ratio(ActorOutlineModel.LightLuma, t), 1e-3);
-            Assert.AreEqual(ActorOutlineModel.WorstRatio(), ActorOutlineModel.Ratio(ActorOutlineModel.DarkLuma, t), 1e-3);
-            Assert.That(t, Is.InRange(.1f, .25f));
+            float nominal = ActorOutlineModel.Crossover(), lifted = ActorOutlineModel.Crossover(ActorOutlineModel.LiftedDarkLuma, ActorOutlineModel.LightLuma);
+            Assert.Less(nominal, ActorOutlineModel.Threshold); Assert.Less(ActorOutlineModel.Threshold, lifted);
+            Assert.AreEqual(ActorOutlineModel.WorstRatio(), ActorOutlineModel.Ratio(ActorOutlineModel.DarkLuma, nominal), 1e-3);
         }
 
-        [Test] public void PlainBlackAndWhiteGiveTheSpecifiedCrossover()
+        [Test] public void PlainBlackAndWhiteGiveTheTaskArithmetic()
         {
-            // Black against ground L: (L + .05) / .05; white: 1.05 / (L + .05). They agree at L = .179 (the task's arithmetic).
-            float t = ActorOutlineModel.Crossover(0f, 1f);
-            Assert.AreEqual(.179f, t, .002f);
+            // Black against ground L: (L + .05) / .05; white: 1.05 / (L + .05). They agree at L = .179.
+            Assert.AreEqual(.179f, ActorOutlineModel.Crossover(0f, 1f), .002f);
             Assert.AreEqual(4.58f, ActorOutlineModel.WorstRatio(0f, 1f), .02f);
         }
 

@@ -110,7 +110,7 @@ namespace Roguehalla.Client
         public static void PublishGlobals()
         {
             Shader.SetGlobalFloat(GrabFlag, UseGrab ? 1f : 0f);
-            float cross = Cross > 0f ? Cross : ActorOutlineModel.Crossover();
+            float cross = Cross > 0f ? Cross : ActorOutlineModel.Threshold;
             Shader.SetGlobalVector(Tune, new Vector4(LightHdr, DarkLinear, cross, Dead)); Shader.SetGlobalFloat(RadiusId, RadiusScale); Shader.SetGlobalFloat(FlipId, Flip); Shader.SetGlobalFloat(DebugId, DebugView);
         }
 

@@ -7,7 +7,7 @@ namespace Roguehalla.Client
     /// The "World" sorting layer: the ground and everything that is drawn flat under the props (ground quad, surface prints and ripples, decals,
     /// every renderer whose sort order is below <see cref="MaxOrder"/>, which includes the ambient dust and the behind-actor particles at order 1500). It sorts before "Default", which holds props, walls, actors and effects
     /// with their depth interleaving untouched, and the 2D renderer's Camera Sorting Layer Texture is grabbed once after it
-    /// (Roguehalla2DRenderer.asset: bound = World, 4x box downsample). The actor outline reads that texture to learn the ground behind it.
+    /// (Roguehalla2DRenderer.asset: bound = World, full resolution). The actor outline reads that texture to learn the ground behind it.
     /// Moving the ground below Default changes no drawing order (it already sorted first by sort order).
     /// </summary>
     public static class WorldLayer

@@ -13,14 +13,14 @@ namespace Roguehalla.Client
         /// <summary>Relative luminance the dark stroke shows on screen (near black, a touch of blue so it reads as ink rather than a hole).</summary>
         public const float DarkLuma = .004f;
         /// <summary>Relative luminance the light stroke shows on screen. HDR input of the shader is higher (see <see cref="LightLinear"/>) because the neutral tonemapper compresses it.</summary>
-        public const float LightLuma = .94f;
+        public const float LightLuma = .86f;
         /// <summary>Linear colour the shader writes for the dark and the light stroke (the light one is a little above 1 to land at <see cref="LightLuma"/> after tonemapping; it is a few pixels wide so it does not visibly bloom).</summary>
         public const float DarkLinear = .004f, LightLinear = 1.5f;
 
         /// <summary>Stroke width in world units (final size on screen: 60 px per unit at 1080p, so 3 px; 4 px at 1440p: the same share of the figure).</summary>
         public const float Width = .05f;
         /// <summary>Radius (world units) and peak opacity of the calming halo around a figure on dark and mid ground (see RhActorOutline.shader).</summary>
-        public const float HaloRadius = .34f, HaloStrength = .55f;
+        public const float HaloRadius = .34f, HaloStrength = .7f;
 
         /// <summary>Stroke width of marker outlines (hp track, footprint, insignia plate).</summary>
         public const float MarkerWidth = .04f;
@@ -30,7 +30,16 @@ namespace Roguehalla.Client
         /// <summary>WCAG contrast ratio of two relative luminances.</summary>
         public static float Ratio(float a, float b) { float hi = Math.Max(a, b), lo = Math.Min(a, b); return (hi + .05f) / (lo + .05f); }
 
-        /// <summary>Ground luminance at which the dark and the light stroke give the same ratio.</summary>
+        /// <summary>
+        /// Ground luminance (as the shader estimates it from the camera sorting layer texture, scaled by the post exposure) at which the stroke flips from dark to light.
+        /// Measured with the contrast lab: a dark stroke is not black on screen in a bright, glowing zone (bloom and haze lift it to about .05 to .07), so the flip sits
+        /// above the crossover of the nominal colours and below the crossover of the lifted ones. Ice (final luminance about .27) must stay dark, Plague bog (about .11) light.
+        /// </summary>
+        public const float Threshold = .24f;
+        /// <summary>The dark stroke's luminance on screen in the glowing zones (Fire lava, Holy light), after bloom and haze.</summary>
+        public const float LiftedDarkLuma = .07f;
+
+        /// <summary>Ground luminance at which the dark and the light stroke give the same ratio (for the given on-screen luminances).</summary>
         public static float Crossover(float darkLuma = DarkLuma, float lightLuma = LightLuma)
         {
             return (float)Math.Sqrt((darkLuma + .05) * (lightLuma + .05)) - .05f;
@@ -48,7 +57,7 @@ namespace Roguehalla.Client
         /// </summary>
         public static bool ChooseLight(float groundLuma, bool previousLight, float deadZone = DeadZone)
         {
-            float t = Crossover();
+            float t = Threshold;
             if (groundLuma < t - deadZone) return true;
             if (groundLuma > t + deadZone) return false;
             return previousLight;

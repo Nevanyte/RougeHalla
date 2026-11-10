@@ -39,7 +39,7 @@ namespace Roguehalla.Client
         }
 
         /// <summary>True when the ground estimate is below the outline crossover (the stroke would be light).</summary>
-        public static bool GroundIsDark(float tileX, float tileY) { return GroundLumaLinear(tileX, tileY) < ActorOutlineModel.Crossover(); }
+        public static bool GroundIsDark(float tileX, float tileY) { return GroundLumaLinear(tileX, tileY) < ActorOutlineModel.Threshold; }
 
         public static void ApplyActor(SpriteRenderer shadow, float tileX, float tileY)
         {
