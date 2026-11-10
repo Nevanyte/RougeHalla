@@ -112,7 +112,7 @@ namespace Roguehalla.Client
             for(int i=0;i<3;i++) _fog.Add(ShowcaseSprites.Create(transform,"Layered ambient haze","glow",29990,
                 new Color(.22f,.32f,.48f,.075f),new Vector2(20,5),Vector3.zero,false));
             _atmos.Bind(this, _ambient, _volume, ApplyHaze);
-            _surfaceFx = SurfaceFx.Create(this); // SURFACE-FX HOOK 2/3
+            _surfaceFx = SurfaceFx.Create(this); _actors.Fx = _surfaceFx; // SURFACE-FX HOOK 2/3
             if (ShowcaseSettings.Current != null) ShowcaseSettings.Current.Changed += ApplyQuality;
             ApplyQuality();
         }

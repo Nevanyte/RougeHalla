@@ -93,12 +93,7 @@ namespace Roguehalla.Client
             _fluids.SetCap(AtmosphereQuality.SurfaceRipples ? AtmosphereQuality.SurfaceFluidCap : 0);
         }
 
-        /// <summary>Hook target. Called by the actor presenter for every delivered actor, every present.</summary>
-        public static void NoteActor(uint id, float x, float y, ActorKind kind, bool local, bool dead, float lookHeight, bool walking, float phase, int walkFrames)
-        {
-            var fx = Current; if (fx != null) fx.Note(id, x, y, kind, local, dead, lookHeight, walking, phase, walkFrames);
-        }
-
+        /// <summary>Hook target: the actor presenter calls this for every delivered actor, every present (and for nothing else).</summary>
         public void Note(uint id, float x, float y, ActorKind kind, bool local, bool dead, float lookHeight, bool walking, float phase, int walkFrames)
         {
             _now = Clock();

@@ -38,6 +38,7 @@ namespace Roguehalla.Client
             public readonly ActorFadeSlot Fade = new ActorFadeSlot(); // vision fade state (SpriteActorPresenter.Fade.cs)
         }
         readonly Transform _parent;
+        public SurfaceFx Fx; // SURFACE-FX HOOK: set by the owning ArenaView, so cues go to the arena that presents
         readonly Dictionary<uint, Art> _active = new Dictionary<uint, Art>();
         readonly Stack<Art> _pool = new Stack<Art>();
         readonly List<uint> _remove = new List<uint>();
@@ -374,7 +375,7 @@ namespace Roguehalla.Client
             a.Light.Configure(color, local ? .65f : .2f, .3f, 2.4f, .5f, false, true);
             a.Light.SetVisible(!dead && local);
             // SURFACE-FX HOOK: delivered actors only (see SurfaceFx); prints, ripples and footsteps come from here and nowhere else.
-            SurfaceFx.NoteActor(id, x, y, kind, local, dead, appearance != null ? appearance.WorldHeight : 1.6f, a.Gait.Walking, a.Gait.Phase, appearance != null && appearance.Walk != null ? appearance.Walk.Length / 8 : 0);
+            if (Fx != null) Fx.Note(id, x, y, kind, local, dead, appearance != null ? appearance.WorldHeight : 1.6f, a.Gait.Walking, a.Gait.Phase, appearance != null && appearance.Walk != null ? appearance.Walk.Length / 8 : 0);
         }
 
         Art Create()
