@@ -180,6 +180,11 @@ Shader "Roguehalla/ActorOutline"
                 clip(cov * i.color.a - 0.5);
                 return half4(_MaskColor.rgb, 1);
             }
+            if (_RhOutlineDebug > 3.5)
+            {
+                float2 duv = i.screen.xy / i.screen.w; duv.y = _RhOutlineFlip > 0.5 ? 1.0 - duv.y : duv.y;
+                return half4(SAMPLE_TEXTURE2D_LOD(_CameraSortingLayerTexture, sampler_LinearClamp, duv, 0).rgb, 1);
+            }
             if (_Halo.z < 0.001) clip(cov - 0.002);
             float light = _Prior;
             if (_RhOutlineGrab > 0.5)
