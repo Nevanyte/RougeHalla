@@ -13,6 +13,6 @@ This compact snapshot binds presentation assets to the existing IDs in `docs/art
 
 ## Verification boundary
 
-The current Unity EditMode checkpoint reports **62 passed, 0 failed**. Domain-reload evidence records 12 appearances, 3,008 persistent sprites and 24 non-null audio variants. The native Unity proof used protocol 13: one input pass recorded three hits; a separate pass recorded zero hits. The retained [native camera capture](evidence/live-integration-2026-11-08/native-combat.png) is from the actual Unity client camera, not a browser capture. A submitted Wish input produced no Wish FX in that proof.
+The current Unity EditMode checkpoint reports **62 passed, 0 failed**. Domain-reload evidence records 12 appearances, 3,008 persistent sprites and 24 non-null audio variants. The native Unity proof used protocol 13: one input pass recorded three hits; a separate pass recorded zero hits. The retained [native camera capture](evidence/live-integration-2026-11-08/native-combat.jpg) is from the actual Unity client camera, not a browser capture. A submitted Wish input produced no Wish FX in that proof.
 
 No new Web build, browser proof, final audio-mix acceptance, or physical performance acceptance is claimed here. Live world placement and UI use remain separate integration work. Audio gain candidates are awaiting context playback review.

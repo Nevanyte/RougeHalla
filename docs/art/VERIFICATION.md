@@ -70,6 +70,6 @@ test logs, browser reports and captures. Portable [evidence summary](evidence/su
 Asset preparation and live acceptance are tracked separately in [COVERAGE.md](COVERAGE.md). Missing authoritative facts
 stay in the existing [readiness inventory](../unity/PRESENTATION_CONTRACT.md); this report does not change coordinator status.
 
-Maximum text size (1.50) was exercised through the real slider at a 2560×1440 backbuffer. Visual review of the settings panel and active HUD found no clipped labels or controls; captures are in `evidence/text-150-settings.png` and `evidence/text-150-hud.png`.
+Maximum text size (1.50) was exercised through the real slider at a 2560×1440 backbuffer. Visual review of the settings panel and active HUD found no clipped labels or controls; captures are in `evidence/text-150-settings.jpg` and `evidence/text-150-hud.jpg`.
 
 Final impact-art review passed: the brief hollow rim preserves character silhouettes and health bars during overlapping confirmed cues. The text-size captures were made before that impact-only change; the UI source is unchanged.

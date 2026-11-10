@@ -17,8 +17,8 @@ Raw 2560×1440 RGB PNG captures are retained outside the repository at:
 
 | Capture | SHA-256 | Bytes |
 | --- | --- | ---: |
-| `normals-accurate.png` (relief maps) | `13d77241b4ef31684349c63d3756ce22545bf67cacb7ae7805afaa1ad927c691` | 4,051,047 |
-| `normals-flat-unique-primary.png` (flat maps, cloned primary) | `8352691e9c6a917f0145ee3b8a4245f727d1832a11f7d06a9d02bacbe1a26853` | 4,042,374 |
+| `normals-accurate.jpg` (relief maps) | `13d77241b4ef31684349c63d3756ce22545bf67cacb7ae7805afaa1ad927c691` | 4,051,047 |
+| `normals-flat-unique-primary.jpg` (flat maps, cloned primary) | `8352691e9c6a917f0145ee3b8a4245f727d1832a11f7d06a9d02bacbe1a26853` | 4,042,374 |
 
 Decoded comparison used Pillow and NumPy on the PNG RGB pixels, with absolute per-channel differences:
 
@@ -26,7 +26,7 @@ Decoded comparison used Pillow and NumPy on the PNG RGB pixels, with absolute pe
 - Mean absolute difference: R 0.2151, G 0.1644, B 0.1069; overall RGB MAE 0.1621 and RMSE 0.7544 (8-bit channel units).
 - Absolute-difference percentiles across channel samples: median 0, p95 1, p99 3, maximum 25.
 
-The earlier `normals-flat-control.png` reused the primary texture and is byte-for-byte identical to `normals-accurate.png` (same SHA-256). It is not a valid control: Unity reused cached secondary texture state. The cloned-primary capture is the valid flat-map comparison.
+The earlier `normals-flat-control.jpg` reused the primary texture and is byte-for-byte identical to `normals-accurate.jpg` (same SHA-256). It is not a valid control: Unity reused cached secondary texture state. The cloned-primary capture is the valid flat-map comparison.
 
 ## Historical forced-light experiment
 
@@ -42,8 +42,8 @@ The 2560×1440 RGB captures are retained in that evidence directory:
 
 | Capture | SHA-256 | Bytes |
 | --- | --- | ---: |
-| `repair-normals-relief.png` | `cc1d5b6ff57fa27d0144f8646c35ad342588d0f19db25e8bbedf9a6843852dd9` | 4,049,818 |
-| `repair-normals-flat.png` | `1f26d77c3d2bc77ef6cfb01dcf76898be9806d0035f3282950c671b0cbe9d15d` | 4,041,975 |
+| `repair-normals-relief.jpg` | `cc1d5b6ff57fa27d0144f8646c35ad342588d0f19db25e8bbedf9a6843852dd9` | 4,049,818 |
+| `repair-normals-flat.jpg` | `1f26d77c3d2bc77ef6cfb01dcf76898be9806d0035f3282950c671b0cbe9d15d` | 4,041,975 |
 
 Pillow/NumPy RGB pixel comparison found 442,688 / 3,686,400 pixels differ (12.0087%). Per-channel mean absolute difference was R 0.2141, G 0.1631, B 0.1060; overall RGB MAE was 0.1611 and RMSE 0.7533 (8-bit channel units). Absolute-difference percentiles across channel samples: median 0, p95 1, p99 3, maximum 25. This is small pixel-level evidence that relief normals affect the world render under the staged shipped light configuration.
 

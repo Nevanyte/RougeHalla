@@ -13,7 +13,7 @@ This record separates the current repair candidate from the previously accepted 
 
 ## Browser and content evidence
 
-`repair-web/showcase-web.json` records **19/19 browser outcomes passing**, with no page or decoder errors. The saved live match records duration 76 seconds, BloodSaint, result place 4 of 5, and result tick 1581. Its `potion-notice.png` was inspected by the parent and shows the exact native HUD text **“Already at full health”**.
+`repair-web/showcase-web.json` records **19/19 browser outcomes passing**, with no page or decoder errors. The saved live match records duration 76 seconds, BloodSaint, result place 4 of 5, and result tick 1581. Its `potion-notice.jpg` was inspected by the parent and shows the exact native HUD text **“Already at full health”**.
 
 The public-content census is a lower-bound record of facts retained in each Socket/Welcome segment, not a claim of full content coverage. The initial segment, resumed segment and short fresh-rejoin segment stay separate:
 

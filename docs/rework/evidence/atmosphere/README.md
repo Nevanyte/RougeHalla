@@ -4,8 +4,8 @@ Browser shots: headed Chromium, 1920x1080, the real Unity Web build against `rh-
 quality downgrade cannot change the look. Produced by `client-unity/UnityProject/Tools/atmosphere-shots.cjs` (luma and character-contrast
 metrics are computed from each screenshot, per shot, in `luma-*.json`). Editor shots in `editor/` come from the batch harness
 `AtmospherePreviewCapture` (same ArenaView, real URP 2D pipeline, no HUD). The spawn region is the server's choice, so the file names carry
-no reliable region; view the pictures. Named copies: `sentenced-gothic.png`, `holy-golden-sand.png`, `plague-marsh-rays.png`,
-`frost-snow-ice.png`, `fire-lava-glow.png`; Fire far from lava and the Frost to Plague border are in `editor/`. `walk-*-border-0N.png` is a
+no reliable region; view the pictures. Named copies: `sentenced-gothic.jpg`, `holy-golden-sand.jpg`, `plague-marsh-rays.jpg`,
+`frost-snow-ice.jpg`, `fire-lava-glow.jpg`; Fire far from lava and the Frost to Plague border are in `editor/`. `walk-*-border-0N.jpg` is a
 walk across the Sentenced to Holy border (the light grades continuously over about 3 tiles). Console logs: no errors in any run.
 
 ## Brightness (mean luma, Rec.709 of sRGB, 0..1; HUD included in the browser numbers)

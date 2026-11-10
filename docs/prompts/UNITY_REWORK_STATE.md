@@ -37,7 +37,7 @@ Queue (start as slots free, max 4 agents):
 6. Performance: `perf-run.cjs` at 2560x1440 with everything merged, attribution table; decide the pass rule (dropped frames at 144 Hz + vsync-off headroom). `HardMaxLights` is 6 while the Ultra row asks for 12.
 7. Gate 2 report once hitboxes are live in the browser.
 
-Known gaps from the lighting pass (assigned to `rework/regions2`): Holy clips 2.1-2.6% (> 2% aim); Fire ground still reads saturated orange in `fire-lava-glow.png`; Sentenced flagstones read medium purple-grey; sprite-edge contrast as low as 2.7:1 (Sentenced) and bars 3.6-4.3:1 (Plague/Fire); mobs unmeasured; 2560x1440 cost unmeasured. Audio: eleven MP3s (8.7 MB, CC0 except Fire's music CC BY 3.0) under StreamingAssets, fetched after match start; never listened to.
+Known gaps from the lighting pass (assigned to `rework/regions2`): Holy clips 2.1-2.6% (> 2% aim); Fire ground still reads saturated orange in `fire-lava-glow.jpg`; Sentenced flagstones read medium purple-grey; sprite-edge contrast as low as 2.7:1 (Sentenced) and bars 3.6-4.3:1 (Plague/Fire); mobs unmeasured; 2560x1440 cost unmeasured. Audio: eleven MP3s (8.7 MB, CC0 except Fire's music CC BY 3.0) under StreamingAssets, fetched after match start; never listened to.
 
 ## Gate 1 inputs
 | Item | Status | Output |
