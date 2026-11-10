@@ -111,6 +111,13 @@ namespace Roguehalla.Client
             return t;
         }
 
+        /// <summary>World rectangle of the shown mob name plate (valid when <see cref="NameShown"/>), for the presenter's overlap pass.</summary>
+        public Rect NameRect { get; private set; }
+        public bool NameShown => _name.gameObject.activeSelf;
+        public bool NameElite { get; private set; }
+        /// <summary>Hides this frame's name plate (another creature's plate already occupies the spot). Update shows it again next frame.</summary>
+        public void SuppressName() { _name.gameObject.SetActive(false); _nameBack.enabled = false; }
+
         public void HideAll()
         {
             _hover.enabled = _hunt.enabled = _wishBack.enabled = _wishIcon.enabled = _crown.enabled = _badgeBack.enabled = _badgeEdge.enabled = _badgeIcon.enabled = _lockOuter.enabled = _lockInner.enabled = _root.enabled = _zone.enabled = _numberBack.enabled = _nameBack.enabled = false;
@@ -180,6 +187,8 @@ namespace Roguehalla.Client
                 _name.transform.localPosition = new Vector3(0, cursor + .14f, 0);
                 _name.GetComponent<MeshRenderer>().sortingOrder = f.Order + 12;
                 Plate(_nameBack, new Vector3(0, cursor + .14f + .02f, 0), _name.preferredWidth + .14f, .27f, f.Order + 11, theme);
+                float k = _t.lossyScale.x; float w = (_name.preferredWidth + .14f) * k, h = .27f * k;
+                NameRect = new Rect(_t.position.x - w * .5f, _t.position.y + (cursor + .16f) * k - h * .5f, w, h); NameElite = f.Elite;
                 cursor += .36f;
             }
             else { _name.gameObject.SetActive(false); _nameBack.enabled = false; }

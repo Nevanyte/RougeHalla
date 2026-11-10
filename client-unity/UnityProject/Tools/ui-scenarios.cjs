@@ -273,36 +273,62 @@ scenarios.training = async (variant) => {
   await run.finish();
 };
 
-// Spawn a camp next to the player, fight it with hover / lock / damage numbers, and watch the bounty and corpses.
+// Walk onto a ground weapon prop and take it with F (the practice room has all five lying on the floor).
+async function equipWeapon(run, want) {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const p = await run.probe(); if (!p || !p.me) return false;
+    if (p.me.weapon === want) return true;
+    const prop = (p.props || []).filter(q => q.kind === 1 && (want < 0 || q.weapon === want)).map(q => ({ q, d: Math.hypot(q.x - p.me.x, q.y - p.me.y) })).sort((x, y) => x.d - y.d)[0];
+    if (!prop) { console.log('   no ground weapon', want, 'in view', (p.props || []).map(q => `${q.kind}/${q.weapon}`).join(' ')); return false; }
+    for (let i = 0; i < 12; i++) {
+      const pp = await run.probe(); if (Math.hypot(prop.q.x - pp.me.x, prop.q.y - pp.me.y) < 48) break;
+      await run.rightClickAt(prop.q.sx, prop.q.sy); await sleep(500);
+      const np = (await run.probe()).props.find(q => q.kind === 1 && Math.hypot(q.x - prop.q.x, q.y - prop.q.y) < 4); if (np) { prop.q.sx = np.sx; prop.q.sy = np.sy; }
+    }
+    await run.page.keyboard.press('f'); await sleep(700);
+  }
+  const p = await run.probe(); return p && p.me && p.me.weapon === want;
+}
+
+// Spawn a camp, take a weapon, fight with hover / lock / damage numbers; every trigger snaps the instant the server confirms it
+// (a target's hp dropped, own hp dropped, a lock was set, a creature carries a status).
 scenarios['training-fight'] = async (variant) => {
   const faction = FACTIONS[variant || 'frost'] ?? 3;
-  const run = await open('tfight-' + (variant || 'frost'), { training: true, auto: 0, faction });
+  const weaponWanted = +opt('weapon', 2); // 0 sword, 1 bow, 2 wand, 3 shield, 4 axe
+  const run = await open('tfight-' + (variant || 'frost') + '-w' + weaponWanted, { training: true, auto: 0, faction });
   const start = await startTraining(run); if (!start || !start.practice) { console.log('  training not confirmed'); await run.snap('not-training'); await run.finish(); return; }
-  await spawnCamp(run, +(opt('mob', 0)));
-  await consoleClose(run);
-  await sleep(2500);
-  let p = await run.probe();
-  console.log('  after camp: actors', (p.actors || []).map(a => `${a.kind}/${a.mob}@${Math.round(a.sx)},${Math.round(a.sy)}`).join(' '));
-  await run.snap('camp-spawned');
-  const caps = { hover: 2, lock: 3, nums: 6, status: 4, hurt: 2, corpse: 3, bounty: 2 }; const got = {}; const cap = k => (got[k] = (got[k] || 0) + 1) <= caps[k];
-  const t0 = Date.now(); let lastHp = null;
+  const got0 = await equipWeapon(run, weaponWanted); console.log('  weapon equipped', got0);
+  await run.snap('weapon-equipped');
+  await spawnCamp(run, +(opt('mob', 0))); await consoleClose(run); await sleep(1500);
+  const caps = { hover: 2, lock: 3, nums: 8, status: 4, hurt: 3, corpse: 3, bounty: 2, hit: 4 }; const got = {}; const cap = k => (got[k] = (got[k] || 0) + 1) <= caps[k];
+  const t0 = Date.now(); let lastHp = null; const lastTargetHp = new Map(); let lastSnap = 0;
   while (Date.now() - t0 < MINUTES * 60000) {
-    p = await run.probe(); if (!p || !p.me) { await sleep(300); continue; }
+    const p = await run.probe(); if (!p || !p.me) { await sleep(200); continue; }
     const me = p.me; const here = await run.css(me.sx, me.sy);
     if (lastHp !== null && me.hp < lastHp - 1 && cap('hurt')) await run.snap('hurt-vignette', { note: `hp ${lastHp}->${me.hp}/${me.maxHp}` });
     lastHp = me.hp;
     if (me.bounty > 0 && cap('bounty')) await run.snap('bounty-self', { crop: [here.x, here.y - 60, 360, 260], note: 'bounty ' + me.bounty });
     if (me.status === 2) { await run.snap('death'); await sleep(1500); await run.snap('death-later'); break; }
-    const mobs = (p.actors || []).filter(a => a.kind !== 0 && a.status === 1).map(a => ({ a, d: Math.hypot(a.sx - me.sx, a.sy - me.sy) })).sort((x, y) => x.d - y.d);
     const corpse = (p.props || []).find(q => q.kind === 4); if (corpse && cap('corpse')) { const c = await run.css(corpse.sx, corpse.sy); await run.snap('corpse', { crop: [c.x, c.y, 360, 260] }); }
-    if (!mobs.length) { if (Date.now() - t0 > 40000 || got.nums) break; await sleep(500); continue; }
-    const m = mobs[0].a, c = await run.css(m.sx, m.sy);
-    if (m.effects || m.sig) if (cap('status')) await run.snap('mob-status', { crop: [c.x, c.y - 30, 360, 260], note: `effects ${m.effects} sig ${m.sig}` });
-    if (cap('hover')) { await run.hoverAt(m.sx, m.sy); await sleep(250); await run.snap('hover-ring', { crop: [c.x, c.y - 20, 360, 260] }); }
-    await run.leftClickAt(m.sx, m.sy, 120);
-    if (cap('lock')) { await sleep(120); await run.snap('lock-ring', { crop: [c.x, c.y - 20, 360, 260] }); }
-    for (let k = 0; k < 5; k++) { await run.page.mouse.click(c.x, c.y, { delay: 40 }); await sleep(200); if (k === 2 && cap('nums')) await run.snap('damage-numbers', { crop: [c.x, c.y - 40, 420, 300] }); }
+    const foes = (p.actors || []).filter(a => a.kind !== 0 && a.kind !== 4 && a.status === 1).map(a => ({ a, d: Math.hypot(a.sx - me.sx, a.sy - me.sy) })).sort((x, y) => x.d - y.d);
+    for (const f of foes) { // any creature whose hp just dropped: its damage number is on screen right now
+      const prev = lastTargetHp.get(f.a.id); lastTargetHp.set(f.a.id, f.a.hp);
+      if (prev !== undefined && f.a.hp < prev && Date.now() - lastSnap > 350 && cap('nums')) { lastSnap = Date.now(); const fc = await run.css(f.a.sx, f.a.sy); await run.snap('damage-numbers', { crop: [fc.x, fc.y - 40, 420, 300], note: `hp ${prev}->${f.a.hp} kind ${f.a.kind}` }); }
+    }
+    if (!foes.length) { if (Date.now() - t0 > 60000) break; await sleep(400); continue; }
+    const locked = me.lock >= 0 ? foes.find(f => f.a.id === me.lock) : null;
+    const tgt = locked || foes.find(f => f.a.kind !== 3) || foes[0];
+    const m = tgt.a, c = await run.css(m.sx, m.sy);
+    if ((m.effects || m.sig) && cap('status')) await run.snap('mob-status', { crop: [c.x, c.y - 30, 360, 260], note: `effects ${m.effects} sig ${m.sig}` });
+    if (tgt.d > 560) { await run.rightClickAt(m.sx, m.sy); await sleep(700); continue; } // approach (also pulls an idle camp)
+    if (got.hover < caps.hover) { cap('hover'); await run.hoverAt(m.sx, m.sy); await sleep(250); await run.snap('hover-ring', { crop: [c.x, c.y - 20, 360, 260] }); }
+    await run.leftClickAt(m.sx, m.sy, 40);
+    if (DEMO.includes('hitzone') && cap('hit')) { await sleep(60); await run.snap('swing-hitzone', { crop: [here.x, here.y, 560, 400] }); }
+    const p2 = await run.probe();
+    if (p2 && p2.me && p2.me.lock >= 0 && cap('lock')) { const lk = p2.actors.find(a => a.id === p2.me.lock); const lc = lk ? await run.css(lk.sx, lk.sy) : c; await run.snap('lock-ring', { crop: [lc.x, lc.y - 20, 360, 260], note: 'lock ' + p2.me.lock }); }
+    await sleep(100);
   }
+  console.log('  triggers hit:', JSON.stringify(got));
   await run.snap('final');
   await run.finish();
 };
@@ -392,6 +418,113 @@ scenarios.quest = async (variant) => {
   p = await run.probe(); const g3 = p.actors && p.actors.find(a => a.kind === 4);
   if (g3) { const c3 = await run.css(g3.sx, g3.sy); await run.snap('giver-accepted-mark-clear', { crop: [c3.x, c3.y - 40, 420, 300] }); }
   await run.snap('world-after-accept');
+  await run.finish();
+};
+
+// ---- vision fade: a real departure, recorded with the CDP screencast (display-rate frames) -----------------------------------------------------
+class Cast {
+  constructor(run) { this.run = run; this.frames = []; this.t0 = Date.now(); }
+  async start() {
+    this.cdp = await this.run.ctx.newCDPSession(this.run.page);
+    this.cdp.on('Page.screencastFrame', async f => { this.frames.push({ t: Date.now() - this.t0, data: f.data }); try { await this.cdp.send('Page.screencastFrameAck', { sessionId: f.sessionId }); } catch (_) { } });
+    await this.cdp.send('Page.startScreencast', { format: 'jpeg', quality: 80, everyNthFrame: 1 });
+  }
+  async stop() { try { await this.cdp.send('Page.stopScreencast'); } catch (_) { } }
+  save(dir, stem, from, to, crop) { // frames within [from, to] ms on this recorder's clock
+    const out = []; let k = 0;
+    for (const f of this.frames) if (f.t >= from && f.t <= to) { const file = path.join(dir, `${stem}-${String(k++).padStart(2, '0')}-t${f.t}.jpg`); fs.writeFileSync(file, Buffer.from(f.data, 'base64')); out.push(file); }
+    return out;
+  }
+}
+
+// Staging: a creature sits in sight, the player walks directly away until it leaves what the server delivers; the screencast records
+// the whole walk and the probe timestamps the moment the creature's id disappears from the delivered actors.
+scenarios['fade-creature'] = async (variant) => {
+  const run = await open('fade-creature', { training: true, auto: 0, faction: FACTIONS[variant || 'frost'] ?? 3 });
+  const start = await startTraining(run); if (!start || !start.practice) { console.log('  training not confirmed'); await run.finish(); return; }
+  await spawnCamp(run, +(opt('mob', 0))); await consoleClose(run); await sleep(1500);
+  let p = await run.probe();
+  let tgt = (p.actors || []).filter(a => a.kind === 1).sort((a, b) => Math.hypot(a.x - p.me.x, a.y - p.me.y) - Math.hypot(b.x - p.me.x, b.y - p.me.y))[0];
+  if (!tgt) { console.log('  no creature in sight'); await run.snap('no-creature'); await run.finish(); return; }
+  console.log('  target', tgt.id, 'distance', Math.round(Math.hypot(tgt.x - p.me.x, tgt.y - p.me.y)));
+  await run.snap('before-walk-away');
+  const cast = new Cast(run); await cast.start();
+  const log = []; let gone = null; const t0 = Date.now(); const tid = tgt.id;
+  while (Date.now() - t0 < 40000) {
+    p = await run.probe(); if (!p || !p.me) { await sleep(40); continue; }
+    const a = (p.actors || []).find(x => x.id === tid); const t = Date.now() - cast.t0;
+    log.push({ t, present: !!a, d: a ? Math.round(Math.hypot(a.x - p.me.x, a.y - p.me.y)) : null, me: [Math.round(p.me.x), Math.round(p.me.y)], sx: a && Math.round(a.sx), sy: a && Math.round(a.sy) });
+    if (!a && gone === null) { gone = t; console.log('  creature left delivery at', t, 'ms; last distance', [...log].reverse().find(l => l.present)?.d); }
+    if (gone !== null && t > gone + 1200) break;
+    // walk directly away (screen direction from the creature through the player), re-issued twice a second
+    const last = [...log].reverse().find(l => l.present);
+    if (Math.floor(t / 500) !== Math.floor((t - 60) / 500)) {
+      const ref = a || (last && { sx: last.sx, sy: last.sy }); if (ref) { const dx = p.me.sx - ref.sx, dy = p.me.sy - ref.sy, n = Math.hypot(dx, dy) || 1; await run.rightClickAt(p.me.sx + dx / n * 500, p.me.sy + dy / n * 360); }
+    }
+    await sleep(30);
+  }
+  await cast.stop();
+  fs.writeFileSync(path.join(run.dir, 'fade-timeline.json'), JSON.stringify(log));
+  if (gone !== null) {
+    const files = cast.save(run.dir, 'fade', gone - 500, gone + 900);
+    const last = [...log].reverse().find(l => l.present);
+    console.log('  fade frames', files.length, 'last seen at', last && [last.sx, last.sy]);
+    fs.writeFileSync(path.join(run.dir, 'fade-meta.json'), JSON.stringify({ goneAtMs: gone, lastSeen: last, frames: files.map(f => path.basename(f)) }));
+  } else console.log('  the creature never left delivery within the walk');
+  await run.finish();
+};
+
+// The player counterpart: the harness cannot make a bot leave, so the opt-in `vision.fadeDemo=1` flag withholds the nearest remote player for
+// 2.5 s every 6 s (the client then sees exactly what a real departure looks like: the actor stops being delivered).
+scenarios['fade-player'] = async () => {
+  const run = await open('fade-player', { faction: 3, query: '&vision.fadeDemo=1' });
+  await startArena(run); await sleep(8000);
+  const cast = new Cast(run); await cast.start();
+  const log = []; const t0 = Date.now(); const known = new Set(); let events = 0;
+  while (Date.now() - t0 < Math.min(MINUTES, 3) * 60000 && events < 3) {
+    const p = await run.probe(); if (!p || !p.me) { await sleep(40); continue; }
+    const t = Date.now() - cast.t0; const players = (p.actors || []).filter(a => a.kind === 0);
+    for (const a of players) { if (!known.has(a.id)) { known.add(a.id); } }
+    log.push({ t, ids: players.map(a => [a.id, Math.round(a.sx), Math.round(a.sy)]) });
+    await sleep(40);
+  }
+  await cast.stop();
+  fs.writeFileSync(path.join(run.dir, 'fade-timeline.json'), JSON.stringify(log));
+  // find departures: an id present then absent for >=1 sample, while still alive
+  const dep = []; for (let i = 1; i < log.length; i++) for (const [id, sx, sy] of log[i - 1].ids) if (!log[i].ids.some(x => x[0] === id) && !dep.some(d => d.id === id && Math.abs(d.t - log[i].t) < 4000)) dep.push({ id, t: log[i].t, sx, sy });
+  console.log('  departures', JSON.stringify(dep.slice(0, 4)));
+  dep.slice(0, 2).forEach((d, k) => cast.save(run.dir, 'fade' + k, d.t - 400, d.t + 800));
+  fs.writeFileSync(path.join(run.dir, 'fade-meta.json'), JSON.stringify(dep));
+  await run.finish();
+};
+
+// The Tab map at this window size (run once per resolution): the counters block must fit its column.
+scenarios.tabmap = async () => {
+  const run = await open('tabmap-' + W + 'x' + H, { faction: 3 });
+  await startArena(run); await sleep(7000);
+  await run.page.keyboard.down('Tab'); await sleep(900);
+  await run.snap('tab-map');
+  await run.page.keyboard.up('Tab'); await sleep(400);
+  await run.finish();
+};
+
+// Escape on every in-match panel: the button list before, with the panel open, and after Escape must match (the panel really closed).
+scenarios['escape-match'] = async () => {
+  const run = await open('escape-match', { faction: 3 });
+  await startArena(run); await sleep(7000);
+  const report = [];
+  const tryPanel = async (name, open) => {
+    const before = await run.uiNames(); await open(); await sleep(900);
+    const during = await run.uiNames(); await run.snap('open-' + name);
+    await run.page.keyboard.press('Escape'); await sleep(800);
+    const after = await run.uiNames(); await run.snap('after-escape-' + name);
+    report.push({ name, opened: JSON.stringify(before) !== JSON.stringify(during), closedByEscape: JSON.stringify(before.sort()) === JSON.stringify(after.sort()), before: before.length, during: during.length, after: after.length });
+  };
+  await tryPanel('help', () => run.page.keyboard.press('h'));
+  await tryPanel('settings', () => run.clickUi('Settings', { wait: 600 }));
+  await tryPanel('journal', () => run.page.keyboard.press('j'));
+  await tryPanel('build', () => run.page.keyboard.press('b'));
+  fs.writeFileSync(path.join(run.dir, 'escape-report.json'), JSON.stringify(report, null, 1)); console.log(report);
   await run.finish();
 };
 

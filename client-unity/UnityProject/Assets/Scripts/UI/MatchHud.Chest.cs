@@ -75,7 +75,7 @@ namespace Roguehalla.Client
         }
 
         /// <summary>Roman tier of a card title ("Offense II" -> "II"), or empty.</summary>
-        internal static string TierOf(string title)
+        public static string TierOf(string title)
         {
             if (string.IsNullOrEmpty(title)) return "";
             int space = title.LastIndexOf(' ');
@@ -83,7 +83,7 @@ namespace Roguehalla.Client
             return tail == "I" || tail == "II" || tail == "III" || tail == "IV" || tail == "V" ? tail : "";
         }
 
-        static string BoostLabel(BoostId id) { int i = (int)id; return i >= 0 && i < BoostNames.Length ? BoostNames[i] : id.ToString(); }
+        public static string BoostLabel(BoostId id) { int i = (int)id; return i >= 0 && i < BoostNames.Length ? BoostNames[i] : id.ToString(); }
 
         /// <summary>Per frame: the countdown and its bar follow the server's deadline (the part of the panel that is not cached by signature).</summary>
         void RefreshChestClock(RewardChestView chest)

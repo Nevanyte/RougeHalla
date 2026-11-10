@@ -125,10 +125,13 @@ namespace Roguehalla.Client
             int i = _scaledText.IndexOf(label); if (i >= 0) _textBaseSize[i] = size;
             label.fontSize = size * _showcaseSettings.TextScale; label.fontSizeMin = label.fontSize * .75f; label.fontSizeMax = label.fontSize;
         }
+        SentencedHuntPanel _huntPanel;
+        public SentencedHuntPanel HuntPanel => _huntPanel;
         void InitializeFeatures()
         {
             InitializeHubGuides();
             _drawer = gameObject.AddComponent<BuildDrawer>(); _drawer.Initialize(_root, RefreshHeaderActionsVisibility);
+            _huntPanel = gameObject.AddComponent<SentencedHuntPanel>(); _huntPanel.Initialize(_hud);
             _uiPrefs = new UiDisplayPreferences();
             _map = gameObject.AddComponent<TacticalMapController>(); _map.Initialize(_client, _root, _uiPrefs, _stage);
             _modernSettings = gameObject.AddComponent<ModernSettingsView>();
