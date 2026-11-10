@@ -59,7 +59,7 @@ namespace Roguehalla.Client
             {
                 case "Authored character": case "Character contrast rim": case "Faction mantle": case "Equipped weapon cue": return ClassSilhouette;
                 case "Character light rim": return ClassRim;
-                case "Contact shadow": return ClassShadow;
+                case "Contact shadow": case "Cast shadow": return ClassShadow;
                 case "Faction footprint": return ClassFootprint;
                 case "Health and barrier track": case "Confirmed health": case "Confirmed barrier": return ClassHp;
                 case "Faction insignia backplate": case "Faction insignia": case "Faction badge backplate": case "Faction badge glyph":

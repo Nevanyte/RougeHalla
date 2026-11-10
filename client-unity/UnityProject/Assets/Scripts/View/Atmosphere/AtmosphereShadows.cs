@@ -41,10 +41,41 @@ namespace Roguehalla.Client
         /// <summary>True when the ground estimate is below the outline crossover (the stroke would be light).</summary>
         public static bool GroundIsDark(float tileX, float tileY) { return GroundLumaLinear(tileX, tileY) < ActorOutlineModel.Threshold; }
 
-        public static void ApplyActor(SpriteRenderer shadow, float tileX, float tileY)
+        /// <summary>Multiplier of the ground shadow sprite's own opacity profile (its core peaks at .8; the renderer alpha stays between .9 and 1). Tunable on measurement pages with <c>?sh.a=</c>, size with <c>?sh.s=</c>.</summary>
+        public static float CoreAlpha = 1f, SizeScale = 1f;
+        static bool _tuned;
+        static void Tune()
+        {
+            if (_tuned) return; _tuned = true;
+            string u; try { u = Application.absoluteURL; } catch (System.Exception) { return; }
+            if (string.IsNullOrEmpty(u)) return;
+            CoreAlpha = Query(u, "sh.a", CoreAlpha); SizeScale = Query(u, "sh.s", SizeScale);
+        }
+        static float Query(string url, string key, float fallback)
+        {
+            int i = url.IndexOf(key + "=", System.StringComparison.Ordinal); if (i < 0) return fallback;
+            i += key.Length + 1; int j = i; while (j < url.Length && url[j] != '&' && url[j] != '#') j++;
+            return float.TryParse(url.Substring(i, j - i), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float v) ? v : fallback;
+        }
+
+        /// <summary>Length and depth of the contact shadow in actor-local units (the look's foot box, widened a little), and of the cast shadow (that, stretched along the sun by the zone's sun strength and shadow length).</summary>
+        public static void BlobSize(float footWidth, float footDepth, float sunStrength, float lengthFactor, out float length, out float depth)
+        {
+            float baseL = footWidth > 0f ? Mathf.Max(.55f, footWidth * 1.45f) : ContactLength, baseD = footDepth > 0f ? Mathf.Max(.28f, footDepth * 1.7f) : ContactWidth;
+            length = baseL + ActorHeight * .85f * Mathf.Clamp01(sunStrength) * Mathf.Max(0f, lengthFactor) * .55f;
+            depth = baseD;
+        }
+
+        /// <param name="shadow">the contact shadow: a firm soft ellipse under the feet, sized to the look's foot box, never stretched (it is what stops a figure floating)</param>
+        /// <param name="cast">the cast shadow: the same ellipse stretched along the one sun direction by the zone's sun, softer and half as strong; may be null</param>
+        /// <param name="footWidth">the look's foot box width in actor-local units (0: unknown, fixed contact size)</param>
+        /// <param name="footDepth">the look's foot box depth, already squashed to the ground plane (0: unknown)</param>
+        public static void ApplyActor(SpriteRenderer shadow, float tileX, float tileY, float footWidth = 0f, float footDepth = 0f, SpriteRenderer cast = null)
         {
             if (shadow == null) return;
-            float strength = 0f, length = 0f; Color tint = new Color(1f, 1f, 1f, 1f);
+            Tune();
+            float strength = 0f, length = 0f;
+            Color zone = new Color(.2f, .24f, .34f, 1f);   // the shadow's own colour when no zone is known: a cool near-black
             if (AtmosphereQuality.Shadows && AtmosphereQuality.SunLighting && Field != null && Field.Ready)
             {
                 Field.Sample(tileX, tileY, W);
@@ -56,17 +87,25 @@ namespace Roguehalla.Client
                     tr += p.ShadowTint.r * w; tg += p.ShadowTint.g * w; tb += p.ShadowTint.b * w;
                 }
                 float m = Mathf.Max(.001f, Mathf.Max(tr, Mathf.Max(tg, tb)));
-                tint = new Color(Mathf.Lerp(1f, tr / m, .55f), Mathf.Lerp(1f, tg / m, .55f), Mathf.Lerp(1f, tb / m, .55f), 1f);
+                zone = new Color(Mathf.Lerp(.2f, tr / m, .55f), Mathf.Lerp(.24f, tg / m, .55f), Mathf.Lerp(.34f, tb / m, .55f), 1f);
             }
-            float len = BlobLength(strength, length);
-            float stretch = Mathf.Clamp01((len - ContactLength) / 1.4f);
-            var tr2 = shadow.transform;
-            tr2.localScale = new Vector3(len, Mathf.Lerp(ContactWidth, ContactWidth * .85f, stretch), 1f);
+            float baseL = footWidth > 0f ? Mathf.Max(.55f, footWidth * SizeScale * 1.45f) : ContactLength;
+            BlobSize(footWidth * SizeScale, footDepth * SizeScale, strength, length, out float len, out float depth);
+            float stretch = Mathf.Clamp01((len - baseL) / 1.0f);
+            // Contact: centred just below the pivot, not rotated, the foot box's size.
+            var tc = shadow.transform;
+            tc.localScale = new Vector3(baseL, depth, 1f); tc.localRotation = Quaternion.identity; tc.localPosition = new Vector3(.03f, -.05f, 0f);
+            // Colour: a near-black, tinted by the zone (a seventh of its tint, so it stays a shadow); alpha stays between .9 and 1 (the sprite's profile carries the opacity, peak .8).
+            var rgb = new Color(zone.r * .14f, zone.g * .14f, zone.b * .14f, 1f);
+            rgb.a = Mathf.Clamp01(CoreAlpha) * .95f; shadow.color = rgb;
+            if (cast == null) return;
+            var tr2 = cast.transform;
+            cast.enabled = stretch > .02f;
+            tr2.localScale = new Vector3(len, depth * Mathf.Lerp(1f, .8f, stretch), 1f);
             tr2.localRotation = Quaternion.Euler(0f, 0f, AngleDeg * stretch);
-            float shift = (len - ContactLength) * .46f;
-            tr2.localPosition = new Vector3(.13f + Dir.x * shift, -.04f + Dir.y * shift, 0f);
-            tint.a = Mathf.Lerp(.85f, 1f, stretch);
-            shadow.color = tint;
+            float shift = (len - baseL) * .46f;
+            tr2.localPosition = new Vector3(.03f + Dir.x * shift, -.05f + Dir.y * shift, 0f);
+            rgb.a = Mathf.Clamp01(CoreAlpha) * .55f * Mathf.Clamp01(stretch * 2f); cast.color = rgb;
         }
     }
 }

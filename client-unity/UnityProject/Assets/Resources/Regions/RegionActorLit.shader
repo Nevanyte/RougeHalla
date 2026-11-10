@@ -35,6 +35,10 @@ Shader "Roguehalla/ActorLit"
 
             TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
             TEXTURE2D(_MaskTex); SAMPLER(sampler_MaskTex);
+            TEXTURE2D(_CameraSortingLayerTexture);   // the ground under the actors (only while ?fx.rim=1 or ?fx.outline=1 turns the grab on)
+            float _RhRim;          // global: 1 with ?fx.rim=1 (SpriteOutline.PublishGlobals), else 0 and nothing below runs
+            float _RhOutlineGrab;  // global: 1 when _CameraSortingLayerTexture is valid
+            float _RhOutlineGain;  // global: 2^post exposure of the grade, the grab is taken before the post stack
 
             #if USE_SHAPE_LIGHT_TYPE_0
             SHAPE_LIGHT(0)
@@ -99,6 +103,32 @@ Shader "Roguehalla/ActorLit"
                         float hr = RhHeadroom(lit.rgb);
                         lit.rgb += (main.rgb * dif * 0.8 * hr + spc * saturate(hr + 0.05)) * main.a * inner;
                     }
+                }
+                // Opt-in rim (?fx.rim=1, owner variant): nothing is drawn outside the sprite. The body's own outermost 1 to 2 opaque screen pixels are lightened on dark
+                // ground and darkened on bright ground, soft toward the inside, to a tone and not to white or black. The ground is the grab (ground and props, no actors).
+                [branch] if (_RhRim > 0.5)
+                {
+                    float2 q1 = px * 1.0, q2 = px * 2.0;
+                    float m1 = min(min(min(SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv + float2(q1.x, 0)).a, SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv - float2(q1.x, 0)).a),
+                                       min(SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv + float2(0, q1.y)).a, SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv - float2(0, q1.y)).a)),
+                                   min(min(SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv + q1 * 0.707).a, SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv - q1 * 0.707).a),
+                                       min(SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv + float2(q1.x, -q1.y) * 0.707).a, SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv + float2(-q1.x, q1.y) * 0.707).a)));
+                    float m2 = min(min(SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv + float2(q2.x, 0)).a, SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv - float2(q2.x, 0)).a),
+                                   min(SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv + float2(0, q2.y)).a, SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv - float2(0, q2.y)).a));
+                    float edge = saturate(max(1.0 - smoothstep(0.35, 0.95, m1), 0.5 * (1.0 - smoothstep(0.35, 0.95, m2)))) * smoothstep(0.4, 0.9, main.a);
+                    float k = 0.5;   // 0 dark ground, 1 bright ground
+                    [branch] if (_RhOutlineGrab > 0.5)
+                    {
+                        float2 uvs = i.lightingUV; float2 stp = 5.0 / _ScreenParams.xy;
+                        float3 g = SAMPLE_TEXTURE2D_LOD(_CameraSortingLayerTexture, sampler_LinearClamp, uvs, 0).rgb
+                                 + SAMPLE_TEXTURE2D_LOD(_CameraSortingLayerTexture, sampler_LinearClamp, uvs + float2(stp.x, 0), 0).rgb + SAMPLE_TEXTURE2D_LOD(_CameraSortingLayerTexture, sampler_LinearClamp, uvs - float2(stp.x, 0), 0).rgb
+                                 + SAMPLE_TEXTURE2D_LOD(_CameraSortingLayerTexture, sampler_LinearClamp, uvs + float2(0, stp.y), 0).rgb + SAMPLE_TEXTURE2D_LOD(_CameraSortingLayerTexture, sampler_LinearClamp, uvs - float2(0, stp.y), 0).rgb;
+                        float L = dot(g * 0.2, lw) * max(_RhOutlineGain, 0.05);
+                        k = smoothstep(0.20, 0.32, L);
+                    }
+                    float3 pale = float3(0.80, 0.84, 0.92);
+                    lit.rgb = lerp(lit.rgb, max(lit.rgb, pale), (1.0 - k) * edge * 0.65);
+                    lit.rgb *= 1.0 - k * edge * 0.62;
                 }
                 return lit;
             }

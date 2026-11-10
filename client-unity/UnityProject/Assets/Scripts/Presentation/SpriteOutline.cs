@@ -18,7 +18,7 @@ namespace Roguehalla.Client
         static readonly int SrcTex = Shader.PropertyToID("_SrcTex"), SrcRect = Shader.PropertyToID("_SrcRect"), Outline = Shader.PropertyToID("_Outline"),
             UvMapId = Shader.PropertyToID("_UvMap"), Src2TexId = Shader.PropertyToID("_Src2Tex"), Src2RectId = Shader.PropertyToID("_Src2Rect"), Src2TexelId = Shader.PropertyToID("_Src2Texel"),
             ToSrc2Id = Shader.PropertyToID("_ToSrc2"), Src2ModeId = Shader.PropertyToID("_Src2Mode"),
-            SrcTexel = Shader.PropertyToID("_SrcTexel"), ToneId = Shader.PropertyToID("_Tone"), Prior = Shader.PropertyToID("_Prior"), GrabFlag = Shader.PropertyToID("_RhOutlineGrab");
+            SrcTexel = Shader.PropertyToID("_SrcTexel"), ToneId = Shader.PropertyToID("_Tone"), Prior = Shader.PropertyToID("_Prior"), GrabFlag = Shader.PropertyToID("_RhOutlineGrab"), RimFlag = Shader.PropertyToID("_RhRim");
 
         /// <summary>
         /// Owner decision 2026-11-10: NO line outline on characters by default (contrast risk accepted). <c>?fx.outline=1</c> brings the opt-in 1 px variant back (figures, weapon cue, foot marker, plates).
@@ -129,7 +129,7 @@ namespace Roguehalla.Client
 
         public static void PublishGlobals()
         {
-            Shader.SetGlobalFloat(GrabFlag, UseGrab ? 1f : 0f);
+            Shader.SetGlobalFloat(GrabFlag, UseGrab ? 1f : 0f); Shader.SetGlobalFloat(RimFlag, Rim ? 1f : 0f);
             float cross = Cross > 0f ? Cross : ActorOutlineModel.Threshold;
             Shader.SetGlobalVector(Tune, new Vector4(ActorOutlineModel.LightFloor, ActorOutlineModel.DarkLuma, cross, Dead)); Shader.SetGlobalVector(ToneVec, new Vector4(0, 0, 0, ActorOutlineModel.DarkCeil)); Shader.SetGlobalFloat(RadiusId, RadiusScale); Shader.SetGlobalFloat(FlipId, Flip); Shader.SetGlobalFloat(DebugId, DebugView);
         }
