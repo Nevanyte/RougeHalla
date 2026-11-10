@@ -109,6 +109,12 @@ source string identity; test non-ASCII IDs. Preserve Infinity/-Infinity sentinel
 values, signed zero, binary64 operation order and source-compatible math where required. Do not route these values through
 wire quantization or f32. No tolerance may hide changed goal, target, expiry, timer, candidate order or RNG consumption.
 
+### Scoped numeric admission decision
+
+Root permits source freeze with every numeric value retained unrounded. Preserve exact Memory outputs, declared inputs,
+RNG values/count/order, tags, collection/callback order, identities, discrete decisions and pure arithmetic clocks/timers.
+The existing bot-core `1e-9 * max(1, abs(source))` contract may apply only to explicitly identified Gaussian/transcendental-derived continuous leaves; the existing parity `2e-6` absolute bound may apply only to explicitly identified continuous geometry/hypot-derived leaves and route estimates. The source evidence must enumerate each logical field and derivation. Native comparator path whitelists require independent review before admission; no blanket numeric epsilon, approximate module utility, expiration boundary or output-driven exception is authorized. Exact branch outcomes still bind all boundary cases. Explicit computed geometry callback arguments may use the same geometry rule; declared/discrete callback arguments remain exact. These inherited contracts never justify rounding or changing the frozen source values.
+
 ## Acceptance checks
 
 1. **Freeze actual-source Memory API witness.** Execute unchanged createMemory/observe/noteSent/recordChoice/whereabouts
