@@ -80,12 +80,18 @@ pub struct IndicatorFacts {
 }
 
 impl IndicatorFacts {
-    /// A player's facts at `now`. `wish` says whether the match runs Wishes at all.
-    fn player(p: &Player, now: f64, wish: bool) -> Self {
+    /// A player's facts at `now`. `wish` says whether the match runs Wishes at all; `build_marks` are the player's
+    /// marks this tick ([`crate::fx_report::BuildMarkCache`]).
+    fn player(
+        p: &Player,
+        now: f64,
+        wish: bool,
+        build_marks: [Option<crate::kill_augments::KillStatKey>; 2],
+    ) -> Self {
         let w = &p.weapon;
         Self {
             offhand: if w.slot == 0 { w.weapon1 } else { w.weapon0 },
-            build_marks: crate::kill_augments::build_marks(p),
+            build_marks,
             wish_ready: wish && p.status != Status::Lobby && now >= p.stocks.wish_ready_at,
             engaged: false,
             teleport_immune: teleport_ring(p.vitals.immune_until, now),
@@ -847,6 +853,7 @@ pub(crate) fn observe_with(
                     p,
                     now,
                     sim.k.config.abilities == crate::abilities::Mode::Full,
+                    sim.projection.marks.of(p, sim.tick()),
                 )
             },
         })
@@ -904,7 +911,12 @@ pub(crate) fn observe_with(
                     weapon: Some(o.active_weapon()),
                     bounty: o.credit.bounty,
                     archetype: o.archetype,
-                    facts: IndicatorFacts::player(o, now, wish),
+                    facts: IndicatorFacts::player(
+                        o,
+                        now,
+                        wish,
+                        sim.projection.marks.of(o, sim.tick()),
+                    ),
                 });
             }
         }

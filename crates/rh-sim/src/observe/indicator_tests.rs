@@ -131,16 +131,16 @@ fn wish_ready_is_a_verdict_of_the_ready_time_and_engaged_reads_the_mob_clocks() 
     let now = sim.server_time();
     let p = &mut sim.w.players[1];
     p.stocks.wish_ready_at = now + 1.;
-    assert!(!IndicatorFacts::player(p, now, true).wish_ready);
+    assert!(!IndicatorFacts::player(p, now, true, [None; 2]).wish_ready);
     p.stocks.wish_ready_at = now;
-    assert!(IndicatorFacts::player(p, now, true).wish_ready);
+    assert!(IndicatorFacts::player(p, now, true, [None; 2]).wish_ready);
     assert!(
-        !IndicatorFacts::player(p, now, false).wish_ready,
+        !IndicatorFacts::player(p, now, false, [None; 2]).wish_ready,
         "no Wishes in this match"
     );
     p.status = Status::Lobby;
     assert!(
-        !IndicatorFacts::player(p, now, true).wish_ready,
+        !IndicatorFacts::player(p, now, true, [None; 2]).wish_ready,
         "legacy shows no Wish in the lobby"
     );
     let core = &mut sim.w.players[1].core;
@@ -249,4 +249,32 @@ fn the_roster_lists_every_seated_player_for_every_viewer_and_nothing_else() {
     sim.w.players[1].seat.name = "renamed".into();
     observe_into(&sim, sim.w.players[0].id, &[], &mut out);
     assert_eq!(out.roster[1].name, "renamed");
+}
+
+#[test]
+fn build_marks_are_read_from_the_per_tick_cache_and_equal_a_direct_computation() {
+    let mut sim = world(true);
+    let (owner, rival) = (sim.w.players[0].id, sim.w.players[1].id);
+    sim.w.players[1].kill_stats.add(KillStatKey::Ap, 30.);
+    sim.step();
+    let tick = sim.tick();
+    let direct = crate::kill_augments::build_marks(sim.player(rival).unwrap());
+    assert_eq!(
+        sim.projection.marks.of(sim.player(rival).unwrap(), tick),
+        direct
+    );
+    let row = observe(&sim, owner, &[])
+        .visible
+        .into_iter()
+        .find(|a| a.id == rival)
+        .unwrap();
+    assert_eq!(row.facts.build_marks, direct);
+    // A clone or restore starts without the cache and computes the same marks.
+    let copy = sim.clone();
+    let row = observe(&copy, owner, &[])
+        .visible
+        .into_iter()
+        .find(|a| a.id == rival)
+        .unwrap();
+    assert_eq!(row.facts.build_marks, direct);
 }

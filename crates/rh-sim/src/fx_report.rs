@@ -19,13 +19,54 @@ use crate::{Event, PlayerId, Sim};
 pub(crate) struct Projection {
     pub(crate) identity: Arc<()>,
     pub(crate) report: FxTickReport,
+    /// Every player's overhead build marks (ADR0026) as of the end of the last step, so observations read them once per
+    /// player per tick instead of once per viewer and visible player. Derived, never hashed or checkpointed; empty after
+    /// a clone or a restore until the next step (observers then compute them directly).
+    pub(crate) marks: BuildMarkCache,
+}
+/// See [`Projection::marks`]. Rows ascend by player id; the buffer is reused (no allocation while the seats are steady).
+#[derive(Debug, Default)]
+pub(crate) struct BuildMarkCache {
+    tick: Option<u32>,
+    rows: Vec<(PlayerId, [Option<crate::kill_augments::KillStatKey>; 2])>,
+}
+impl BuildMarkCache {
+    fn refresh(&mut self, w: &crate::state::World) {
+        self.rows.clear();
+        self.rows.extend(
+            w.players
+                .iter()
+                .map(|p| (p.id, crate::kill_augments::build_marks(p))),
+        );
+        if !self.rows.is_sorted_by_key(|(id, _)| *id) {
+            self.rows.sort_unstable_by_key(|(id, _)| *id);
+        }
+        self.tick = Some(w.tick);
+    }
+    /// The cached marks of `p` when they belong to `tick`, else computed now.
+    pub(crate) fn of(
+        &self,
+        p: &crate::state::Player,
+        tick: u32,
+    ) -> [Option<crate::kill_augments::KillStatKey>; 2] {
+        if self.tick == Some(tick) {
+            if let Ok(i) = self.rows.binary_search_by_key(&p.id, |(id, _)| *id) {
+                return self.rows[i].1;
+            }
+        }
+        crate::kill_augments::build_marks(p)
+    }
 }
 impl Projection {
     pub(crate) fn empty_at(tick: u32) -> Self {
         let identity = Arc::new(());
         let mut report = FxTickReport::empty(identity.clone());
         report.tick = tick;
-        Self { report, identity }
+        Self {
+            report,
+            identity,
+            marks: BuildMarkCache::default(),
+        }
     }
     /// Cold Clone/restore preparation for the actual NPC domain. Keep the
     /// fresh report empty/incomplete; no visibility or ownership facts are copied.
@@ -109,6 +150,7 @@ impl Sim {
         &self.projection.report
     }
     pub(crate) fn finish_fx_report(&mut self, events: &[Event], offset: usize) {
+        self.projection.marks.refresh(&self.w);
         let r = &mut self.projection.report;
         r.identity = self.projection.identity.clone();
         r.tick = self.w.tick;
