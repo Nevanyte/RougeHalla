@@ -20,15 +20,20 @@ function normalizeHash(value) {
 
 function validateIdentities(identities) {
   const build = identities?.build, server = identities?.server;
+  const hasArchiveHash = build?.archiveSha256 !== undefined;
+  const hasManifestHash = build?.manifestSha256 !== undefined;
+  const buildSha = hasArchiveHash ? build.archiveSha256 : build?.manifestSha256;
   if (!build || !server || build.protocol !== PROTOCOL || server.protocol !== PROTOCOL ||
-      !HEX64.test(String(build.archiveSha256 || '').toLowerCase()) ||
+      hasArchiveHash === hasManifestHash || !HEX64.test(String(buildSha || '').toLowerCase()) ||
       !HEX64.test(String(server.binarySha256 || '').toLowerCase())) {
-    throw new TypeError('explicit P14 build archive and native binary identities are required');
+    throw new TypeError('explicit P14 build artifact and native binary identities are required');
   }
   const buildHash = normalizeHash(build.contentHash), serverHash = normalizeHash(server.contentHash);
   if (!buildHash || !serverHash || buildHash !== serverHash) throw new TypeError('build/server P14 content identities must match');
+  const buildIdentity = { protocol: PROTOCOL, contentHash: buildHash };
+  buildIdentity[hasArchiveHash ? 'archiveSha256' : 'manifestSha256'] = String(buildSha).toLowerCase();
   return Object.freeze({
-    build: Object.freeze({ protocol: PROTOCOL, contentHash: buildHash, archiveSha256: build.archiveSha256.toLowerCase() }),
+    build: Object.freeze(buildIdentity),
     server: Object.freeze({ protocol: PROTOCOL, contentHash: serverHash, binarySha256: server.binarySha256.toLowerCase() }),
   });
 }
@@ -46,6 +51,23 @@ function sampleStats(values) {
   const sorted = values.filter(Number.isFinite).sort((a, b) => a - b);
   const at = p => sorted.length ? sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * p) - 1)] : null;
   return { samples: sorted.length, p50: at(.50), p95: at(.95), p99: at(.99), max: sorted.length ? sorted.at(-1) : null };
+}
+
+function projectGpuMetrics(contexts, rawSamples) {
+  const webglContext = Array.isArray(contexts) && contexts.length > 0;
+  const timerQuery = webglContext ? contexts[0]?.timerQuery === true : null;
+  const samples = Array.isArray(rawSamples) ? rawSamples.filter(Number.isFinite) : [];
+  let unavailableReason = null;
+  if (!webglContext) unavailableReason = 'webgl2_context_unavailable';
+  else if (!timerQuery) unavailableReason = 'timer_query_extension_unavailable';
+  else if (samples.length === 0) unavailableReason = 'no_valid_timer_query_samples';
+  return {
+    availability: { webglContext, timerQuery, validSampleCount: samples.length, unavailableReason },
+    metric: timerQuery && samples.length ? {
+      alignment: 'UNALIGNED: the unchanged hook may resolve queries issued before measurement began; not a strict measurement-window distribution.',
+      rawSamples: samples, summary: sampleStats(samples),
+    } : null,
+  };
 }
 
 function uniqueRafIntervals(frames) {
@@ -78,6 +100,11 @@ function observerInitScript(webglHook) {
     const p = window.__rhProfile;
     if (!p) throw new Error('WebGL profile hook did not initialize');
     p.rafFrames = []; p.longTasks = []; p.resourceSamples = []; p.collecting = false; p.overflow = false;
+    p.hiddenDuringMeasurement = false; p.focusLostDuringMeasurement = false;
+    document.addEventListener('visibilitychange', () => {
+      if (p.collecting && document.visibilityState !== 'visible') p.hiddenDuringMeasurement = true;
+    });
+    window.addEventListener('blur', () => { if (p.collecting) p.focusLostDuringMeasurement = true; });
     const cap = (array, value, max) => { if (array.length < max) array.push(value); else p.overflow = true; };
     const raf = window.requestAnimationFrame.bind(window);
     window.requestAnimationFrame = function(callback) {
@@ -114,6 +141,8 @@ function observerInitScript(webglHook) {
     p.beginMeasurement = function() {
       if (p.collecting) throw new Error('measurement already active');
       p.frames = []; p.gpuMs = []; p.gpuDisjoint = 0; p.rafFrames = []; p.longTasks = []; p.resourceSamples = [];
+      p.hiddenDuringMeasurement = document.visibilityState !== 'visible';
+      p.focusLostDuringMeasurement = typeof document.hasFocus === 'function' && !document.hasFocus();
       p.overflow = false; p.collecting = true; p.measurementStart = performance.now();
       return p.measurementStart;
     };
@@ -124,6 +153,7 @@ function observerInitScript(webglHook) {
         gpuMs: p.gpuMs, gpuDisjoint: p.gpuDisjoint, contexts: p.contexts, buffersCreated: p.buffersCreated,
         buffersDeleted: p.buffersDeleted, longTasks: p.longTasks, longTaskAvailable: p.longTaskAvailable,
         resourceSamples: p.resourceSamples, resourceObserverAvailable: p.resourceObserverAvailable,
+        hiddenDuringMeasurement: p.hiddenDuringMeasurement, focusLostDuringMeasurement: p.focusLostDuringMeasurement,
         overflow: p.overflow, visibility: document.visibilityState, devicePixelRatio: devicePixelRatio };
     };
   })();`;
@@ -137,6 +167,19 @@ function gateSnapshot(welcome, snapshot) {
     playerId: snapshot.me.id, matchId: welcome.matchId });
 }
 
+function projectPublicPlan(tracker) {
+  const plan = tracker?.collections?.get(8);
+  if (plan == null) return null;
+  return { pick: plan.pick, ready: plan.ready, taken: [...plan.taken], spawns: [...plan.spawns], endsAt: plan.endsAt };
+}
+
+function projectPublicOwner(snapshot) {
+  const me = snapshot?.me;
+  if (!me) return null;
+  return { id: me.id, status: me.status, phase: snapshot.phase, training: snapshot.training,
+    x: me.x, y: me.y, tick: snapshot.tick, serverMs: snapshot.serverMs };
+}
+
 async function attachHubProfiler(page, { identities, probeHtmlPath = CODEC_PATH, webglHookPath = DEFAULT_HOOK } = {}) {
   if (!page || typeof page.addInitScript !== 'function' || typeof page.on !== 'function' || typeof page.evaluate !== 'function') {
     throw new TypeError('attachHubProfiler requires an approved Playwright page handle');
@@ -148,11 +191,11 @@ async function attachHubProfiler(page, { identities, probeHtmlPath = CODEC_PATH,
 
   const state = { welcome: null, snapshotGate: null, snapshotObservedAt: null, tracker: new codec.Tracker(), measurement: false,
     errors: [], sentBytes: 0, receivedBytes: 0, rttObserverMs: [], pings: new Map(), droppedPings: 0,
-    activeSocket: null, socketOpen: false, socketWelcomeReady: false, sockets: new Map(), pageListeners: [] };
+    publicOwner: null, activeSocket: null, socketOpen: false, socketWelcomeReady: false, sockets: new Map(), pageListeners: [] };
   const fail = code => { if (!state.errors.includes(code)) state.errors.push(code); };
   const onSocket = socket => {
-    const onSent = frame => observeFrame('sent', frame.payload);
-    const onReceived = frame => observeFrame('received', frame.payload);
+    const onSent = frame => observeFrame(socket, 'sent', frame.payload);
+    const onReceived = frame => observeFrame(socket, 'received', frame.payload);
     const onClose = () => {
       if (state.activeSocket === socket) state.socketOpen = false;
       if (state.measurement) fail('websocket_closed_during_measurement');
@@ -166,9 +209,11 @@ async function attachHubProfiler(page, { identities, probeHtmlPath = CODEC_PATH,
     state.sockets.set(socket, { onSent, onReceived, onClose, onError });
     if (state.measurement) fail('websocket_replaced_during_measurement');
     state.activeSocket = socket; state.socketOpen = true; state.socketWelcomeReady = false;
-    state.snapshotGate = null; state.snapshotObservedAt = null;
+    state.welcome = null; state.snapshotGate = null; state.snapshotObservedAt = null; state.publicOwner = null;
+    state.tracker.reset();
   };
-  function observeFrame(direction, payload) {
+  function observeFrame(socket, direction, payload) {
+    if (socket !== state.activeSocket) return;
     const bytes = bytesFromFrame(payload);
     if (!bytes || bytes.length === 0) return;
     if (state.measurement) {
@@ -186,7 +231,7 @@ async function attachHubProfiler(page, { identities, probeHtmlPath = CODEC_PATH,
       } catch { fail('ping_decode'); }
       return;
     }
-    if (direction !== 'received' || (tag !== 0x81 && tag !== 0x82 && tag !== 0x83 && tag !== 0x87 && tag !== 0x86)) return;
+    if (direction !== 'received' || (tag !== 0x81 && tag !== 0x82 && tag !== 0x83 && tag !== 0x86 && tag !== 0x87 && tag !== 0x88)) return;
     try {
       const message = codec.decode(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
       if (message.t === 'welcome') {
@@ -194,7 +239,7 @@ async function attachHubProfiler(page, { identities, probeHtmlPath = CODEC_PATH,
         const contentHash = message.content.toString(16).padStart(16, '0');
         const matchId = hex(message.match);
         state.tracker.apply(message); // Reset baseline; session bytes are not retained.
-        state.snapshotGate = null; state.snapshotObservedAt = null;
+        state.snapshotGate = null; state.snapshotObservedAt = null; state.publicOwner = null;
         state.welcome = { protocol: message.protocol, contentHash, player: message.player, matchId,
           tickRate: message.tickRate, map: { width: message.map.w, height: message.map.h, collisionHash: message.map.hash,
             terrainMode: message.map.terrainMode, semanticHash: message.map.semanticHash, contextHash: message.map.contextHash } };
@@ -204,9 +249,12 @@ async function attachHubProfiler(page, { identities, probeHtmlPath = CODEC_PATH,
         if (state.measurement) fail('welcome_changed_during_measurement');
       } else if (message.t === 'reject') {
         fail('server_reject');
+      } else if (message.t === 'state') {
+        state.tracker.apply(message);
       } else if (message.t === 'snapshot' || message.t === 'delta') {
         const applied = state.tracker.apply(message);
         if (applied?.t === 'snapshot') {
+          state.publicOwner = projectPublicOwner(applied);
           const projected = { phase: applied.phase, training: applied.training, tick: applied.tick, me: applied.me };
           state.snapshotGate = gateSnapshot(state.welcome && { ...state.welcome, expectedContentHash: pinned.server.contentHash }, projected);
           state.snapshotObservedAt = performance.now();
@@ -233,6 +281,8 @@ async function attachHubProfiler(page, { identities, probeHtmlPath = CODEC_PATH,
     identities: pinned,
     get publicWelcome() { return state.welcome && { ...state.welcome, map: { ...state.welcome.map } }; },
     get activeGate() { return state.snapshotGate && { ...state.snapshotGate }; },
+    get publicOwner() { return state.publicOwner && { ...state.publicOwner }; },
+    get publicPlan() { return projectPublicPlan(state.tracker); },
     begin() {
       if (ended || state.measurement) throw new Error('profile collector is closed or already measuring');
       if (state.errors.length) throw new Error(`profile collector has errors: ${state.errors[0]}`);
@@ -264,23 +314,30 @@ async function attachHubProfiler(page, { identities, probeHtmlPath = CODEC_PATH,
       if (!state.snapshotGate || state.snapshotObservedAt === null || performance.now() - state.snapshotObservedAt > ACTIVE_GATE_MAX_AGE_MS) {
         fail('active_gate_stale_or_missing_at_end');
       }
+      if (raw.hiddenDuringMeasurement) fail('document_hidden_during_measurement');
+      if (raw.focusLostDuringMeasurement) fail('window_focus_lost_during_measurement');
       const intervals = uniqueRafIntervals(raw.rafFrames);
+      if (!intervals.length) fail('no_unique_raf_intervals');
       const fps = intervals.map(ms => ms > 0 ? 1000 / ms : null).filter(Number.isFinite);
+      const gpu = projectGpuMetrics(raw.contexts, raw.gpuMs);
+      const webgl = { contexts: raw.contexts, gpuAvailability: gpu.availability,
+        drawFrames: raw.drawFrames, drawCount: sampleStats(raw.drawFrames.map(f => f.draws)),
+        instances: sampleStats(raw.drawFrames.map(f => f.instances)), gpuDisjoint: raw.gpuDisjoint,
+        buffers: { createdDuringPage: raw.buffersCreated, deletedDuringPage: raw.buffersDeleted } };
+      if (gpu.metric) webgl.gpuElapsedMs = gpu.metric;
       return {
         status: state.errors.length || raw.overflow ? 'INCOMPLETE' : 'CAPTURED',
         identities: pinned,
         publicWelcome: this.publicWelcome,
         gate: this.activeGate,
-        window: { durationMs: raw.durationMs, visibility: raw.visibility, devicePixelRatio: raw.devicePixelRatio },
+        publicOwner: this.publicOwner,
+        window: { durationMs: raw.durationMs, visibility: raw.visibility, hiddenDuringMeasurement: raw.hiddenDuringMeasurement,
+          focusLostDuringMeasurement: raw.focusLostDuringMeasurement, devicePixelRatio: raw.devicePixelRatio },
         raf: { rawCallbacks: raw.rafFrames, uniqueTimestampFrameTimeMs: sampleStats(intervals),
           fpsFromUniqueTimestamps: sampleStats(fps), callbackCpuMs: sampleStats(raw.rafFrames.map(f => f.callbackMs)) },
-        webgl: { contexts: raw.contexts, drawFrames: raw.drawFrames, drawCount: sampleStats(raw.drawFrames.map(f => f.draws)),
-          instances: sampleStats(raw.drawFrames.map(f => f.instances)),
-          gpuElapsedMs: { alignment: 'UNALIGNED: the unchanged hook may resolve queries issued before measurement began; not a strict measurement-window distribution.',
-            rawSamples: raw.gpuMs, summary: sampleStats(raw.gpuMs) },
-          gpuDisjoint: raw.gpuDisjoint, timerQueryAvailable: !!raw.contexts?.[0]?.timerQuery,
-          buffers: { createdDuringPage: raw.buffersCreated, deletedDuringPage: raw.buffersDeleted } },
-        memory: { jsHeapBytes: sampleStats(raw.rafFrames.map(f => f.jsHeapBytes)), wasmBytes: sampleStats(raw.rafFrames.map(f => f.wasmBytes)) },
+        webgl,
+        memory: { rawSamples: raw.rafFrames.map(({ time, jsHeapBytes, wasmBytes }) => ({ time, jsHeapBytes, wasmBytes })),
+          jsHeapBytes: sampleStats(raw.rafFrames.map(f => f.jsHeapBytes)), wasmBytes: sampleStats(raw.rafFrames.map(f => f.wasmBytes)) },
         longTasks: { available: raw.longTaskAvailable, raw: raw.longTasks, durationMs: sampleStats(raw.longTasks.map(t => t.duration)) },
         resources: { observerAvailable: raw.resourceObserverAvailable, raw: raw.resourceSamples,
           transferBytes: raw.resourceSamples.reduce((n, r) => n + r.transferSize, 0),
@@ -292,7 +349,7 @@ async function attachHubProfiler(page, { identities, probeHtmlPath = CODEC_PATH,
         notes: ['Observer callback RTT is measured between Playwright frame callbacks; it is not the Unity Session RttSample.',
           'WebSocket byte counts are application payload bytes, not TLS, TCP, retransmission or network-interface bytes.',
           'RAF intervals include browser pacing. callbackMs is observer-wrapped synchronous callback time, not Unity PlayerLoop or total browser CPU.',
-          'GPU timer values are retained raw but unaligned because the unchanged WebGL hook can resolve pre-window queries; they are not a strict measurement-window statistic. Missing/disjoint values are not zero.',
+          'GPU timer metrics are present only when a WebGL2 timer-query extension and valid samples are observed. Present samples are raw but unaligned because the unchanged hook can resolve pre-window queries; they are not a strict measurement-window statistic. Missing/disjoint values are not zero.',
           'WebGL buffer counters are page-lifetime counts because the unchanged shared hook does not expose resettable baselines.'],
       };
     },
@@ -302,9 +359,11 @@ async function attachHubProfiler(page, { identities, probeHtmlPath = CODEC_PATH,
         socket.off?.('framesent', listeners.onSent); socket.off?.('framereceived', listeners.onReceived);
         socket.off?.('close', listeners.onClose); socket.off?.('socketerror', listeners.onError);
       }
-      state.sockets.clear(); state.pings.clear(); state.tracker.reset(); ended = true;
+      state.sockets.clear(); state.pings.clear(); state.tracker.reset(); state.publicOwner = null;
+      state.snapshotGate = null; state.snapshotObservedAt = null; state.welcome = null; ended = true;
     },
   });
 }
 
-module.exports = { attachHubProfiler, sampleStats, uniqueRafIntervals, validateIdentities, gateSnapshot, protocolCodec };
+module.exports = { attachHubProfiler, sampleStats, uniqueRafIntervals, validateIdentities, gateSnapshot,
+  projectGpuMetrics, projectPublicOwner, projectPublicPlan, protocolCodec };
