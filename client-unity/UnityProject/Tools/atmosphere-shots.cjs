@@ -148,7 +148,18 @@ async function session(faction, label, body) {
     process.exit(0);
   }
   if (!walk && !temple) for (const f of factions) {
-    const { errors, audio } = await session(f, names[f], async (page, shot) => { await shot(`${names[f]}-1`); await page.waitForTimeout(4000); await shot(`${names[f]}-2`); });
+    const variants = (process.env.RH_SHOTS_VARIANTS || '').split(';').filter(Boolean);       // "name:fx.a=0&fx.b=0;name2:..." needs &perf=1 in RH_SHOTS_QUERY: flips switches live in the same match, so the pixels compare 1:1
+    const { errors, audio } = await session(f, names[f], async (page, shot) => {
+      if (variants.length) {
+        for (const v of variants) {
+          const [vn, flags = ''] = v.split(':');
+          await page.evaluate(fl => window.unityInstance.SendMessage('Frame-time recorder', 'SetFlags', fl), flags);
+          await page.waitForTimeout(1800); await shot(`${names[f]}-${vn}`);
+        }
+        return;
+      }
+      await shot(`${names[f]}-1`); await page.waitForTimeout(4000); await shot(`${names[f]}-2`);
+    });
     console.log(`  ${names[f]}: audio requests`, audio.map(a => `${a.url}@${a.afterMatchStartMs}ms`).join(', ') || 'none');
     if (errors.length) { failed = true; console.error(`  ${names[f]}: ${errors.length} console error(s):\n    ` + errors.slice(0, 6).join('\n    ')); }
   }

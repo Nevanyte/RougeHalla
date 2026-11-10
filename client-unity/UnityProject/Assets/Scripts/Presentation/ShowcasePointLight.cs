@@ -60,6 +60,16 @@ namespace Roguehalla.Client
             light.falloffIntensity = falloff; light.shadowsEnabled = shadows;
         }
 
+        /// <summary>Light blend style: 0 lights everything (the old flat look); 2 ("Multiply with Mask") lights only sprites that carry a mask, i.e. actors,
+        /// because the region ground, walls and props pass mask 0 and take these lights from the analytic field instead (RhLocalLights.hlsl).</summary>
+        public void SetBlendStyle(int style)
+        {
+            BlendStyle = style;
+            if (_disabled != null) _disabled.blendStyleIndex = style;
+            if (_accurate != null) _accurate.blendStyleIndex = style;
+        }
+        public int BlendStyle { get; private set; }
+
         public void SetShadows(bool shadows)
         {
             if (_disabled != null) _disabled.shadowsEnabled = shadows;

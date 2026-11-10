@@ -70,6 +70,10 @@ namespace Roguehalla.Client
             ShowcaseQuality? preset; bool adaptive; QualityOverrides overrides;
             QualityFlags.Parse(query ?? "", out preset, out adaptive, out overrides);
             if (ShowcaseSettings.Current != null) ShowcaseSettings.Current.SetOverrides(overrides);
+            // The render-pass switches (fx.relief, fx.wind, ...) live in AtmosphereQuality: page URL first, the harness flags after (later keys win).
+            string page = ""; try { page = Application.absoluteURL ?? ""; } catch (System.Exception) { }
+            string extra = string.IsNullOrEmpty(query) ? "" : (page.IndexOf('?') >= 0 ? "&" : "?") + query;
+            AtmosphereQuality.SetUrl(page + extra); AtmosphereQuality.RefreshFromSettings();
         }
 
         void PublishRow()

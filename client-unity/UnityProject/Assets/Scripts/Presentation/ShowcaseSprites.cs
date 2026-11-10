@@ -11,6 +11,20 @@ namespace Roguehalla.Client
         static readonly List<Object> Owned = new List<Object>();
         public static Material Lit { get; private set; }
         public static Material Unlit { get; private set; }
+        static Material _actorLit;
+        /// <summary>Lit sprite for characters: the stock lit look plus the analytic local lights (diffuse and rim). Falls back to <see cref="Lit"/> when the shader is missing.</summary>
+        public static Material ActorLit
+        {
+            get
+            {
+                Initialize();
+                if (_actorLit != null) return _actorLit;
+                var shader = Resources.Load<Shader>("Regions/RegionActorLit");
+                if (shader == null) return Lit;
+                _actorLit = new Material(shader) { name = "Roguehalla / lit characters" }; Owned.Add(_actorLit);
+                return _actorLit;
+            }
+        }
 
         public static void Initialize()
         {

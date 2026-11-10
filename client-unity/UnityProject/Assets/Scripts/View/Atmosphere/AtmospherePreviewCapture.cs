@@ -53,7 +53,9 @@ namespace Roguehalla.Client
             cam.allowHDR = true; camGo.AddComponent<UniversalAdditionalCameraData>().renderPostProcessing = true;
             var arenaGo = new GameObject("Arena"); var arena = arenaGo.AddComponent<ArenaView>();
             typeof(ArenaView).GetMethod("Awake", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(arena, null);
-            AtmosphereQuality.SetUrl(Arg("-atmUrl", "")); AtmosphereQuality.ApplyPreset(ShowcaseQuality.High, false);
+            AtmosphereQuality.SetUrl(Arg("-atmUrl", ""));
+            var preset = Arg("-atmQuality", "ultra") == "high" ? ShowcaseQuality.High : Arg("-atmQuality", "ultra") == "medium" ? ShowcaseQuality.Medium : Arg("-atmQuality", "ultra") == "low" ? ShowcaseQuality.Low : ShowcaseQuality.Ultra;
+            AtmosphereQuality.ApplyPreset(preset, false);
             arena.Build(map);
             if (Arg("-atmParticles", "1") == "0") { AtmosphereQuality.ParticleDensity = 0f; arena.Atmosphere.Particles.RefreshQuality(); }     // judge the ground without the haze
             int width = int.Parse(Arg("-atmW", "1920")), height = int.Parse(Arg("-atmH", "1080"));
@@ -79,6 +81,14 @@ namespace Roguehalla.Client
                         X = (tx + 3.5f - i * 2.6f) * 32f, Y = (ty + 2.2f + i * .8f) * 32f, Facing = i * 1.2f, Kind = ActorKind.Player });
                 var me = new SelfView { Id = 1, Faction = faction, X = tx * 32f, Y = ty * 32f, Hp = 900, MaxHp = 985, Weapon = WeaponId.Sword, Status = ActorStatus.Alive };
                 arena.Present(remote, me, null, 0.4f);
+                // -atmFx 1: stage the lights a Wish cast and a hit would add (evidence only), so the scene light can be judged without a match.
+                if (Arg("-atmFx", "0") == "1")
+                {
+                    var hero = ArenaView.WorldPoint(tx * 32f, ty * 32f);
+                    LocalLightField.FlashWorld(hero + new Vector3(3.2f, -.4f, 0), 1f, 5.2f, new Color(.6f, .8f, 1f), 2.6f, 60f);     // a Freeze landing
+                    LocalLightField.FlashWorld(hero + new Vector3(-3.4f, .6f, 0), .8f, 3.4f, new Color(1f, .75f, .4f), 2.0f, 60f);    // a hit
+                    LocalLightField.FlashWorld(hero + new Vector3(0f, -3.0f, 0), .9f, 4.4f, new Color(.7f, .45f, 1f), 1.4f, 60f);          // a travelling bolt
+                }
                 arena.Follow(cam, tx * 32f, ty * 32f);
                 for (int k = 0; k < 4; k++) arena.Atmosphere.OnFollow(cam, 1f);     // converge the eased light/fades (no frames run in batch mode)
                 cam.targetTexture = rt;

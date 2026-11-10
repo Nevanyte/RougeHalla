@@ -432,6 +432,7 @@ namespace Roguehalla.Client
             a.Shadow = ShowcaseSprites.Create(t, "Contact shadow", "shadow", 0, Color.white, new Vector2(1.2f, .45f), new Vector3(.13f, -.04f), false);
             a.Halo = ShowcaseSprites.Create(t, "Faction footprint", "ring", 1, Color.white, Vector2.one, Vector3.zero, false);
             a.Body = ShowcaseSprites.Create(t, "Authored character", "rune", 2, Color.white, Vector2.one, Vector3.zero);
+            a.Body.sharedMaterial = ShowcaseSprites.ActorLit;      // render pass (fx.actorlights): characters are lit by the analytic local lights, with a rim on the lit edge
             a.BodyRim = ShowcaseSprites.Create(t, "Character contrast rim", "rune", 1, Color.black, Vector2.one, Vector3.zero, false);
             a.BodyGlow = ShowcaseSprites.Create(t, "Character light rim", "rune", 0, Color.white, Vector2.one, Vector3.zero, false);
             a.Identity = ShowcaseIdentityOwner.Configure(t);
