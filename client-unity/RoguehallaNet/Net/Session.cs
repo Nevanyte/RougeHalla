@@ -74,6 +74,9 @@ namespace Roguehalla.Net
         /// <summary>The own footprint for walls and paths: the self archetype's foot (ADR0024), the 12 u disc with no table.</summary>
         public Footprint OwnFoot { get { return Footprint.For(Archetypes, _me.Archetype); } }
 
+        /// <summary>The own chest height in sim units (projectiles leave from here; 0 with no table or on the legacy row).</summary>
+        public double OwnChest { get { return ChestAim.ChestOf(Archetypes, _me.Archetype); } }
+
         public Protocol.WireArchetype[] Archetypes { get { return Welcome == null || Welcome.Archetypes == null ? System.Array.Empty<Protocol.WireArchetype>() : Welcome.Archetypes; } }
         public uint PlayerId { get { return Welcome == null ? 0 : Welcome.PlayerId; } }
         readonly SelfView _me = new SelfView();

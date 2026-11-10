@@ -333,7 +333,9 @@ namespace Roguehalla.Client
             bool haveCursor = !blocked && mouse != null && Cam != null && Arena != null && Arena.ScreenToServer(Cam, mouse.position.ReadValue(), out sx, out sy);
             if (haveCursor)
             {
-                _aimAngle = Mathf.Atan2(sy - myY, sx - myX);
+                // Projectiles are simulated on the ground and drawn raised by the shooter's chest: aim at the cursor's ground point
+                // shifted that far toward screen-down so the drawn shot leaves the chest and passes through the cursor (ChestAim).
+                _aimAngle = (float)ChestAim.Angle(myX, myY, sx, sy, Session.OwnChest);
                 Session.Input.Aim(_aimAngle);
                 if (mouse.leftButton.wasPressedThisFrame)
                 {
@@ -393,7 +395,7 @@ namespace Roguehalla.Client
             if (keyX != 0 || keyY != 0)
             {
                 var dir = new Vector2(keyX, keyY);
-                bool have = Session.Map != null && KeyboardSteer.TryGoal(_steerPathfinder, Session.Map, myX, myY, keyX, keyY, out _steerGoalX, out _steerGoalY);
+                bool have = Session.Map != null && KeyboardSteer.TryGoal(_steerPathfinder, Session.Map, myX, myY, keyX, keyY, Session.OwnFoot, out _steerGoalX, out _steerGoalY);
                 if (have)
                 {
                     if (!_steering || dir != _lastDir || now - _lastSteer >= SteerRepeatMs)

@@ -9,7 +9,7 @@ namespace Roguehalla.Net
     /// archetype table in the Welcome (<see cref="FromArchetype"/>); the client keeps no table of its own. With no table, an
     /// unknown id or the legacy row the footprint is the 12 u disc, exactly the behaviour before protocol 16.
     /// </summary>
-    public readonly struct Footprint
+    public readonly struct Footprint : System.IEquatable<Footprint>
     {
         /// <summary>rh-sim <c>PLAYER_RADIUS</c>: the legacy disc, and the fallback when the server sends no table.</summary>
         public const double LegacyRadius = 12.0;
@@ -40,6 +40,10 @@ namespace Roguehalla.Net
         public static Footprint For(WireArchetype[] table, byte id) { return FromArchetype(WireArchetype.Find(table, id)); }
 
         public static implicit operator Footprint(double radius) { return Disc(radius); }
+
+        public bool Equals(Footprint o) { return IsBox == o.IsBox && Hx == o.Hx && Hy == o.Hy; }
+        public override bool Equals(object o) { return o is Footprint && Equals((Footprint)o); }
+        public override int GetHashCode() { unchecked { return (IsBox ? 1 : 0) ^ (Hx.GetHashCode() * 397) ^ Hy.GetHashCode(); } }
 
         public override string ToString() { return IsBox ? "Box(" + Hx + ", " + Hy + ")" : "Disc(" + Hx + ")"; }
     }
