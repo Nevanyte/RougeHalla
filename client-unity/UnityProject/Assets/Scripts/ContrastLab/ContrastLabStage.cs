@@ -52,6 +52,8 @@ namespace Roguehalla.Client
         /// <summary>The renderer-name to mask class table (names come from SpriteActorPresenter.Create and ShowcaseIdentityOwner).</summary>
         public static int ClassOf(string name)
         {
+            // The adaptive outline of a marker or of the mantle is part of that mark ("<mark> outline"); the body's stroke is "Character contrast rim".
+            if (name != null && name.EndsWith(" outline")) name = name.Substring(0, name.Length - " outline".Length);
             switch (name)
             {
                 case "Authored character": case "Character contrast rim": case "Faction mantle": case "Equipped weapon cue": return ClassSilhouette;
@@ -86,7 +88,7 @@ namespace Roguehalla.Client
         readonly List<InterpActor> _rows = new List<InterpActor>();
         readonly List<Live> _live = new List<Live>();
         readonly Dictionary<SpriteRenderer, Material> _origMaterial = new Dictionary<SpriteRenderer, Material>();
-        Material[] _maskMats;
+        Material[] _maskMats, _outlineMaskMats;
         UniversalAdditionalCameraData _camData;
         Color _origBackground; int _origCulling;
         readonly List<GameObject> _layerScratch = new List<GameObject>();
@@ -113,10 +115,18 @@ namespace Roguehalla.Client
             _plan = ContrastLabPlanner.Plan(map, _arena.Surfaces, _apps, options);
             var shader = Resources.Load<Shader>("ContrastLab/RhContrastMask");
             _maskMats = new Material[ClassColors.Length];
+            _outlineMaskMats = new Material[ClassColors.Length];
+            var outlineShader = SpriteOutline.SharedMaterial != null ? SpriteOutline.SharedMaterial.shader : null;
             for (int i = 0; i < _maskMats.Length; i++)
             {
                 _maskMats[i] = new Material(shader) { name = "Contrast lab mask " + i };
                 _maskMats[i].SetColor("_MaskColor", (Color)ClassColors[i]);
+                // The adaptive outline rebuilds its own silhouette in the shader, so its mask material is the same shader in mask mode.
+                if (outlineShader != null)
+                {
+                    _outlineMaskMats[i] = new Material(outlineShader) { name = "Contrast lab outline mask " + i };
+                    _outlineMaskMats[i].SetFloat("_MaskMode", 1f); _outlineMaskMats[i].SetColor("_MaskColor", (Color)ClassColors[i]);
+                }
             }
 #if UNITY_WEBGL && !UNITY_EDITOR
             RhContrastLab_Init();
@@ -300,7 +310,8 @@ namespace Roguehalla.Client
                     int cls = live.Classes[i];
                     if (cls == ClassShadow) { sr.forceRenderingOff = true; continue; }
                     _origMaterial[sr] = sr.sharedMaterial;
-                    sr.sharedMaterial = _maskMats[cls];
+                    bool outline = sr.sharedMaterial != null && SpriteOutline.SharedMaterial != null && sr.sharedMaterial.shader == SpriteOutline.SharedMaterial.shader && _outlineMaskMats[cls] != null;
+                    sr.sharedMaterial = outline ? _outlineMaskMats[cls] : _maskMats[cls];
                 }
         }
 
@@ -317,7 +328,7 @@ namespace Roguehalla.Client
         [Serializable] sealed class StateJson
         {
             public int version = 1, ack; public bool ready; public string mode, zone, kind, surface, prop, quality, row;
-            public int page, pageCount, totalPages, screenW, screenH, unplaced; public float orthoSize; public bool reducedMotion;
+            public int page, pageCount, totalPages, screenW, screenH, unplaced; public float orthoSize; public bool reducedMotion, grab, outline, outlineGrab;
             public string[] zones, notes, unreachable; public int[] zonePageCounts; public string[] modes;
             public List<CellJson> cells = new List<CellJson>();
         }
@@ -330,7 +341,7 @@ namespace Roguehalla.Client
             {
                 ready = ready, ack = _cmdSeq, mode = ModeName(_mode), zone = ContrastLabMap.ZoneName(ContrastLabMap.Zones[Mathf.Max(0, _zoneIndex)]),
                 page = _pageIndex, pageCount = _zonePages.Count, totalPages = _plan.Pages.Count, screenW = Screen.width, screenH = Screen.height,
-                orthoSize = _cam.orthographicSize, reducedMotion = ShowcaseSettings.Current != null && ShowcaseSettings.Current.ReducedMotion,
+                orthoSize = _cam.orthographicSize, grab = Shader.GetGlobalTexture("_CameraSortingLayerTexture") != null, outline = SpriteOutline.Enabled, outlineGrab = SpriteOutline.UseGrab, reducedMotion = ShowcaseSettings.Current != null && ShowcaseSettings.Current.ReducedMotion,
                 quality = ShowcaseSettings.Current != null ? ShowcaseSettings.Current.EffectiveQuality.ToString() : "?", row = Quality.Row.Name,
                 unplaced = _plan.Unplaced, notes = _plan.Notes.ToArray(), unreachable = _unreachable.ToArray(), modes = new[] { "normal", "no-actors", "mask" },
                 kind = _page != null ? _page.Kind : "", surface = _page != null ? _page.Surface.ToString() : "", prop = _page != null ? _page.Prop ?? "" : ""
@@ -393,6 +404,7 @@ namespace Roguehalla.Client
         void OnDestroy()
         {
             if (_maskMats != null) foreach (var m in _maskMats) if (m != null) Destroy(m);
+            if (_outlineMaskMats != null) foreach (var m in _outlineMaskMats) if (m != null) Destroy(m);
         }
     }
 }

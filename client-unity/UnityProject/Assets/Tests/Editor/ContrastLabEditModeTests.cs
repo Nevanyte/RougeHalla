@@ -178,10 +178,30 @@ namespace Roguehalla.Client.Tests
         {
             foreach (var page in _plan.Pages)
             {
+                if (page.Kind == "seam") continue;   // a seam page is framed on the border of two zone blocks on purpose
                 int x0 = ContrastLabMap.ZoneIndex(page.Zone) * ContrastLabMap.BlockW;
                 Assert.That(page.ViewTile.x - 16f, Is.GreaterThanOrEqualTo(x0)); Assert.That(page.ViewTile.x + 16f, Is.LessThanOrEqualTo(x0 + ContrastLabMap.BlockW));
                 Assert.That(page.ViewTile.y - 11.5f, Is.GreaterThanOrEqualTo(0)); Assert.That(page.ViewTile.y + 11.5f, Is.LessThanOrEqualTo(ContrastLabMap.BlockH));
             }
+        }
+
+        [Test]
+        public void BoundaryPagesStraddleRealSurfaceChangesAndZoneSeams()
+        {
+            var edgeNames = new HashSet<string>();
+            foreach (var page in _plan.Pages)
+            {
+                if (page.Kind != "edge" && page.Kind != "seam") continue;
+                Assert.That(page.Cells.Count, Is.EqualTo(12)); Assert.That(page.Prop, Is.Not.Empty);
+                foreach (var c in page.Cells) { Assert.That(c.Prop, Is.EqualTo(page.Prop)); Assert.That(c.PropMode, Does.StartWith("straddle")); }
+                if (page.Kind == "edge") edgeNames.Add(page.Prop);
+            }
+            Assert.That(edgeNames.Contains("edge:Basalt|Lava") || edgeNames.Contains("edge:Lava|Basalt"), Is.True, "the lava edge: " + string.Join(",", edgeNames));
+            Assert.That(_plan.Pages.FindAll(p => p.Kind == "seam").Count, Is.EqualTo(ContrastLabMap.Zones.Length - 1));
+            foreach (var zone in new[] { RegionId.Plague, RegionId.Frost, RegionId.Holy, RegionId.Fire })
+                Assert.That(_plan.ForZone(zone).FindAll(p => p.Kind == "edge"), Is.Not.Empty, zone + " has a surface change to straddle");
+            var off = ContrastLabPlanner.Plan(_map, _surfaces, _apps, new LabOptions { Boundaries = false });
+            Assert.That(off.Pages.FindAll(p => p.Kind == "edge" || p.Kind == "seam"), Is.Empty);
         }
 
         [Test]
@@ -204,6 +224,11 @@ namespace Roguehalla.Client.Tests
             Assert.That(ContrastLabStage.ClassOf("Authored character"), Is.EqualTo(ContrastLabStage.ClassSilhouette));
             Assert.That(ContrastLabStage.ClassOf("Character contrast rim"), Is.EqualTo(ContrastLabStage.ClassSilhouette));
             Assert.That(ContrastLabStage.ClassOf("Character light rim"), Is.EqualTo(ContrastLabStage.ClassRim));
+            Assert.That(ContrastLabStage.ClassOf("Health and barrier track outline"), Is.EqualTo(ContrastLabStage.ClassHp));
+            Assert.That(ContrastLabStage.ClassOf("Faction footprint outline"), Is.EqualTo(ContrastLabStage.ClassFootprint));
+            Assert.That(ContrastLabStage.ClassOf("Faction insignia backplate outline"), Is.EqualTo(ContrastLabStage.ClassInsignia));
+            Assert.That(ContrastLabStage.ClassOf("Equipped weapon cue outline"), Is.EqualTo(ContrastLabStage.ClassSilhouette));
+            Assert.That(ContrastLabStage.ClassOf("Faction mantle outline"), Is.EqualTo(ContrastLabStage.ClassSilhouette));
             Assert.That(ContrastLabStage.ClassOf("Contact shadow"), Is.EqualTo(ContrastLabStage.ClassShadow));
             Assert.That(ContrastLabStage.ClassOf("Health and barrier track"), Is.EqualTo(ContrastLabStage.ClassHp));
             Assert.That(ContrastLabStage.ClassOf("Confirmed health"), Is.EqualTo(ContrastLabStage.ClassHp));

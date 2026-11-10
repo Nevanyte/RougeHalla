@@ -269,6 +269,16 @@ function frameConsistency(lumNormal, lumGround, mask, w, h, margin = 30) {
   return { far: far.length ? median(far) : 0, inside: inN ? inSum / inN : 0, farPx: far.length * 5, insidePx: inN };
 }
 
+// ---- Cell kinds -------------------------------------------------------------------------------------------------------------------
+
+/** 'ground' (plain surface), 'props' (in front of / beside a prop), 'edge' (straddling a surface change) or 'seam' (straddling two zones). */
+function cellKind(prop) {
+  if (!prop) return 'ground';
+  if (String(prop).startsWith('edge:')) return 'edge';
+  if (String(prop).startsWith('seam:')) return 'seam';
+  return 'props';
+}
+
 // ---- Arguments -------------------------------------------------------------------------------------------------------------------
 
 const ZONES = ['fire', 'sentenced', 'plague', 'frost', 'holy', 'coliseum'];
@@ -312,5 +322,5 @@ function parseArgs(argv) {
 
 module.exports = {
   linearise, relativeLuminance, encodeSrgb, contrastRatio, luminancePlane, median, percentile, decodePng, encodePng, CLASS, CLASS_NAMES, classifyMaskPixel, decodeMask,
-  distanceTo, erode, dilate, regions, centroid, sectorOf, sectorContrast, analyzeCell, frameConsistency, parseArgs, parseSizes, ZONES, DEFAULTS,
+  distanceTo, erode, dilate, regions, centroid, sectorOf, sectorContrast, analyzeCell, frameConsistency, cellKind, parseArgs, parseSizes, ZONES, DEFAULTS,
 };

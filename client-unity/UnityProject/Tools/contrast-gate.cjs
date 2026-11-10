@@ -184,7 +184,7 @@ function buildMarkdown(result, opts) {
     }
     L.push('');
   }
-  L.push('## Props (character in front of / beside the zone\'s most common props)', '', '| zone | prop | mode | cells | EDGE p10 pass | worst EDGE p10 | worst appearance | markers pass |', '|---|---|---|---:|---:|---:|---|---:|');
+  L.push('## Props, boundaries and seams (in front of / beside the zone\'s most common props; straddling a surface change `edge:A|B` or a zone seam `seam:a|b`)', '', '| zone | prop | mode | cells | EDGE p10 pass | worst EDGE p10 | worst appearance | markers pass |', '|---|---|---|---:|---:|---:|---|---:|');
   for (const zone of zones) for (const [key, cs] of groupBy(cells.filter(c => c.zone === zone && c.prop), c => c.prop + '|' + c.propMode)) {
     const [prop, mode] = key.split('|'), worst = cs.filter(c => c.valid).sort((a, b) => a.edgeP10 - b.edgeP10)[0];
     L.push(`| ${zone} | ${prop} | ${mode} | ${cs.length} | ${cs.filter(c => c.edgePass).length} | ${worst ? fmt(worst.edgeP10) : 'n/a'} | ${worst ? worst.appearance : ''} | ${cs.filter(c => c.markerPass).length} |`);
@@ -335,9 +335,9 @@ function printSummary(result, opts) {
   for (const cfg of result.configs) {
     console.log(`\n${cfg.name} (${cfg.gpu})`);
     for (const zone of [...new Set(cfg.cells.map(c => c.zone))]) {
-      const cs = cfg.cells.filter(c => c.zone === zone && !c.prop), ps = cfg.cells.filter(c => c.zone === zone && c.prop);
-      const bodies = stat(cs.map(c => c.body));
-      console.log(`  ${zone.padEnd(10)} ground ${String(cs.filter(c => c.edgePass).length).padStart(3)}/${String(cs.length).padEnd(3)} props ${String(ps.filter(c => c.edgePass).length).padStart(3)}/${String(ps.length).padEnd(3)} markers ${String(cfg.cells.filter(c => c.zone === zone && c.markerPass).length).padStart(3)}/${cs.length + ps.length}  body med ${fmt(bodies && bodies.median)}`);
+      const kind = k => cfg.cells.filter(c => c.zone === zone && lib.cellKind(c.prop) === k), cs = kind('ground'), ps = kind('props'), es = kind('edge').concat(kind('seam'));
+      const bodies = stat(cs.map(c => c.body)), all = cs.length + ps.length + es.length;
+      console.log(`  ${zone.padEnd(10)} ground ${String(cs.filter(c => c.edgePass).length).padStart(3)}/${String(cs.length).padEnd(3)} props ${String(ps.filter(c => c.edgePass).length).padStart(3)}/${String(ps.length).padEnd(3)} edges ${String(es.filter(c => c.edgePass).length).padStart(3)}/${String(es.length).padEnd(3)} markers ${String(cfg.cells.filter(c => c.zone === zone && c.markerPass).length).padStart(3)}/${all}  body med ${fmt(bodies && bodies.median)}`);
     }
     if (cfg.consoleErrors && cfg.consoleErrors.length) console.log(`  console errors: ${cfg.consoleErrors.length}`);
   }
