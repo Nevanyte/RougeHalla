@@ -31,15 +31,19 @@ struct Rig {
 }
 
 async fn rig(edge: EdgeConfig, limits: HttpLimits) -> Rig {
-    let lifecycle = Arc::new(Lifecycle::default());
     let tokens = [("alice", "alice-token"), ("bob", "bob-token")]
         .iter()
         .map(|(c, t)| (c.to_string(), t.to_string()))
         .collect();
+    rig_with_auth(edge, limits, Auth::Static(tokens)).await
+}
+
+async fn rig_with_auth(edge: EdgeConfig, limits: HttpLimits, auth: Auth) -> Rig {
+    let lifecycle = Arc::new(Lifecycle::default());
     let director = Director::new(
         DirectorConfig::new(Default::default(), rh_sim::arenas::practice_arena()),
         Arc::new(Persistence::memory()),
-        Arc::new(Auth::Static(tokens)),
+        Arc::new(auth),
         lifecycle.clone(),
     );
     let app = rh_server::public_router_with_api_guarded(
@@ -104,6 +108,17 @@ async fn open(addr: SocketAddr, headers: &[(&str, &str)]) -> Result<Socket, u16>
 
 /// Sends a Hello and returns the Reject code, or `None` for a Welcome.
 async fn hello(sock: &mut Socket, callsign: &str, ticket: &str) -> Option<RejectCode> {
+    hello_reason(sock, callsign, ticket)
+        .await
+        .map(|(code, _)| code)
+}
+
+/// [`hello`] with the Reject reason.
+async fn hello_reason(
+    sock: &mut Socket,
+    callsign: &str,
+    ticket: &str,
+) -> Option<(RejectCode, String)> {
     sock.send(Message::Binary(
         ws::hello(callsign, ticket, None).encode().into(),
     ))
@@ -119,7 +134,7 @@ async fn hello(sock: &mut Socket, callsign: &str, ticket: &str) -> Option<Reject
         };
         match track.decode(&b).expect("frames decode") {
             rh_protocol::ServerMsg::Welcome { .. } => return None,
-            rh_protocol::ServerMsg::Reject { code, .. } => return Some(code),
+            rh_protocol::ServerMsg::Reject { code, reason } => return Some((code, reason)),
             _ => {}
         }
     }
@@ -369,6 +384,79 @@ async fn slow_or_silent_http_clients_are_disconnected_by_the_header_timeout() {
             Some(Ok(Message::Ping(_) | Message::Pong(_))) => {}
             other => panic!("the upgraded socket ended after the header timeout: {other:?}"),
         }
+    }
+    r.handle.shutdown();
+}
+
+#[tokio::test]
+async fn behind_a_declared_proxy_requests_without_one_forwarded_address_share_a_capped_bucket() {
+    let r = rig(
+        proxied(EdgeConfig {
+            max_per_ip: 2,
+            ..EdgeConfig::default()
+        }),
+        HttpLimits::default(),
+    )
+    .await;
+    // From the loopback proxy peer: no header, an unparsable one, then a repeated one (raw request, two header lines).
+    let a = open(r.public, &[]).await.unwrap();
+    let b = open(r.public, &[("x-forwarded-for", "not-an-ip")])
+        .await
+        .unwrap();
+    assert_eq!(open(r.public, &[]).await.err(), Some(429));
+    let mut raw = tokio::net::TcpStream::connect(r.public).await.unwrap();
+    raw.write_all(
+        b"GET /ws HTTP/1.1\r\nHost: x\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Version: 13\r\n\
+          Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nX-Forwarded-For: 198.51.100.1\r\nX-Forwarded-For: 198.51.100.2\r\n\r\n",
+    )
+    .await
+    .unwrap();
+    let mut head = [0u8; 12];
+    raw.read_exact(&mut head).await.unwrap();
+    assert_eq!(
+        &head, b"HTTP/1.1 429",
+        "a repeated header counts as unresolved"
+    );
+    // A client whose address the proxy did forward is unaffected.
+    assert!(open(r.public, &[("x-forwarded-for", "198.51.100.9")])
+        .await
+        .is_ok());
+    drop((a, b));
+    r.handle.shutdown();
+}
+
+/// A credential store that cannot answer is not a bad credential: the client is told to retry, and the address's failed
+/// sign-in budget is untouched (an outage must not lock players out for a minute after it ends).
+#[cfg(feature = "postgres")]
+#[tokio::test]
+async fn a_credential_store_outage_is_not_counted_as_failed_sign_ins() {
+    let Ok(url) = std::env::var("DATABASE_URL") else {
+        if std::env::var("RH_SKIP_PG_TESTS").as_deref() == Ok("1") {
+            eprintln!("SKIPPED: RH_SKIP_PG_TESTS=1");
+            return;
+        }
+        panic!("DATABASE_URL is not set (eval \"$(tools/pgtest/start.sh)\")");
+    };
+    let store = Arc::new(rh_persist::Store::connect(&url).await.unwrap());
+    store.pool().close().await;
+    let r = rig_with_auth(
+        proxied(EdgeConfig {
+            auth_fails_per_minute: 1,
+            ..EdgeConfig::default()
+        }),
+        HttpLimits::default(),
+        Auth::Postgres(store),
+    )
+    .await;
+    let from = [("x-forwarded-for", "203.0.113.5")];
+    for attempt in 0..4 {
+        let mut s = open(r.public, &from).await.unwrap();
+        let (code, reason) = hello_reason(&mut s, "alice", "alice-token").await.unwrap();
+        assert_eq!(code, RejectCode::RateLimited, "attempt {attempt}");
+        assert!(
+            reason.contains("storage unavailable"),
+            "attempt {attempt}: {reason} (not the failed-sign-in throttle)"
+        );
     }
     r.handle.shutdown();
 }

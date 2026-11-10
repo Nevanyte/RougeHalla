@@ -35,9 +35,18 @@ added** (`"hyper-util"` in rh-server's dependency list); no new package, no vers
 | `--insecure-dev-auth` | off | accept dev auth on a publicly exposed listener |
 | `--insecure-self-signed` | off | accept `--self-signed` on a publicly exposed listener |
 
-A loopback client address (local tooling, or a proxy not configured with `--client-ip-header`) is exempt from the per-address
-caps (capping it would cap the whole server); the global pending cap still applies. Unknown `--ws-*`, `--http-*` and
-`--insecure-*` flags are refused at startup.
+Client-address keying: without `--client-ip-header`, a loopback client address (local tooling) is exempt from the
+per-address caps (capping it would cap the whole server). **With `--client-ip-header` configured, an address that still
+resolves to loopback/unspecified** (header missing, repeated, unparsable, or naming loopback) **is not exempt**: all such
+requests count under one shared key (`edge::UNRESOLVED`, `::`) for the concurrent cap, the connect bucket and the failed-Hello
+throttle, so stripping the header cannot bypass the limits (review follow-up 1). The global pending cap applies to every
+request. Unknown `--ws-*`, `--http-*` and `--insecure-*` flags are refused at startup.
+
+Credential-store outage (review follow-up 2): `Persistence::authenticate` and `Auth::verify` now return `Err` when the store
+cannot answer (`verify_token_id` / `profile_id` errors, previously folded into "bad credentials"). The Hello is refused
+`RateLimited` with "server busy, storage unavailable; try again shortly" (the same honest existing code the resilience branch
+uses for a lease outage; no wire change), the store error goes to the rate-limited log only, and it is **not** counted
+against the address's failed sign-in budget (only `BadCredentials` is).
 
 ## Exact production flag set
 
@@ -88,17 +97,19 @@ listener (0.0.0.0:...); pass --database-url or --auth static:<file>, or --insecu
 | `hosting/placement/probe/local-proof.mjs` | `/info` `state`; cross-origin `/ping`; `--self-signed` / `--tls-cert` on 127.0.0.1 | loopback with no origin list: `/ping` stays `*` |
 | `tools/staging-native-artifact/produce.py` + `component.py` | the full 11-key `/info` | **changed**: starts the server with `--control 127.0.0.1:<port>`, reads the counters from `/control/info` and requires the public `/info` to equal its identity+state; `component.py` and the manifest format unchanged; `test_produce.py` updated (25 tests pass) |
 | `tools/staging-full-runtime/run-runtime.py` | database + `--api-cors-origins https://rougehalla.com` + proxy header | unaffected (page origin is `https://rougehalla.com`) |
-| `hosting/glbridge` `serverArgs` | `--bind 0.0.0.0:<port>`, auth from extra args | dev auth there now needs `--insecure-dev-auth`: added to `tests/bridge_e2e.rs` (ignored test) and `hosting/scripts/fleet-local/fleet.mjs` |
+| `hosting/glbridge` `serverArgs` | `--bind 0.0.0.0:<port>`, auth from extra args | dev auth there now needs `--insecure-dev-auth`: added to `tests/bridge_e2e.rs` (ignored test), `hosting/scripts/fleet-local/fleet.mjs`, `hosting/scripts/docker-smoke.sh` and the `hosting/README.md` docker example; README gains a public-deployment checklist (real credentials, `--ws-origins`/`--api-cors-origins` for the Unity WebGL origin, proxy header, no `--self-signed`) |
+| `crates/rh-load` (`runner.rs` sampler and final report) | `players`, `lobbies` and the final info object from public `/info` | **changed**: reads `/control/info` on the control address it already starts the server with (`--control`; after the resilience merge also `--control-insecure-loopback`, which that branch adds to `server.rs`); works for TLS runs too (control is plain HTTP) |
 | `hosting/staging-mvp` | dev auth on 127.0.0.1 behind Caddy, no proxy header, no origins | still starts (not detectable as exposed); see open points |
 
 ## Gates
 
 | Gate | Result |
 |---|---|
-| `cargo test -p rh-server` | 369 passed, 0 failed, 2 ignored |
-| `cargo test -p rh-server --features postgres` (pgtest cluster) | 440 passed, 0 failed, 4 ignored |
-| `cargo clippy -p rh-server --all-targets -- -D warnings` (default and `--all-features`) | clean |
-| `cargo fmt -p rh-server --check` | clean |
+| `cargo test -p rh-server` | 371 passed, 0 failed, 2 ignored (369 at f46ad7cc, before the review follow-up) |
+| `cargo test -p rh-server --features postgres` (pgtest cluster) | 443 passed, 0 failed, 4 ignored (440 at f46ad7cc) |
+| `cargo test -p rh-load` | 39 passed, 0 failed (smoke now asserts `/control/info` counters in the report and series) |
+| `cargo clippy -p rh-server -p rh-load --all-targets -- -D warnings` (default and `--all-features`) | clean |
+| `cargo fmt -p rh-server -p rh-load --check` | clean |
 | `python3 -B -m unittest discover -s hosting/technical-demo -p 'test_*.py'` | 27 OK |
 | `python3 -B -m unittest discover -s tools/staging-native-artifact -p 'test_*.py'` | 25 OK |
 
@@ -111,13 +122,23 @@ after 3 bad tickets while another address signs in, slowloris: silent / dripped 
 timeout while an upgraded socket outlives it, and 3 binary refusals). Mutation check: with the first-request deadline disabled
 (`3600 s`), `slow_or_silent_http_clients_are_disconnected_by_the_header_timeout` fails.
 
+Review follow-up tests: `edge::tests::behind_a_declared_proxy_an_unresolved_address_shares_one_capped_bucket` (missing,
+repeated, unparsable, loopback-naming header and no peer all share one capped key, failed Hellos too; loopback stays exempt
+without a header); `tests/edge.rs` `behind_a_declared_proxy_requests_without_one_forwarded_address_share_a_capped_bucket` (real
+listener: no header, unparsable, raw repeated header -> 429) and `a_credential_store_outage_is_not_counted_as_failed_sign_ins`
+(postgres feature: closed pool, budget 1 failure/minute, four Hellos all answered `RateLimited` "storage unavailable", never the
+throttle). Mutation check: mapping the store error back to `BadCredentials` makes the outage test fail.
+
 ## Open points for the coordinator
 
 * `docs/CONTRACTS.md` (not edited here, coordinator-owned) still describes `snapshotRefusals`/`frameRefusals`/`closedRooms`
   step stats and `resultsRefused` as carried by `/info`; they are now on `/control/info`. `docs/hosting/OBSERVABILITY.md` is updated.
-* `hosting/staging-mvp` runs dev auth behind Caddy on a loopback bind without `--client-ip-header`; the server cannot tell that
-  it is public, so it still starts, its `/ws` accepts any origin, and every client counts as loopback (per-address caps off).
-  Adding `--client-ip-header x-forwarded-for --trusted-proxies 127.0.0.1` there would make it refuse dev auth (intended).
+* **Known gap: `hosting/staging-mvp`** (files not edited here) runs rh-server with dev auth on `127.0.0.1:7777` behind Caddy
+  **without** `--client-ip-header`. The server cannot tell it is public, so: dev auth is still allowed (any callsign, any
+  ticket), `/ws` accepts any browser origin, and every player arrives from the loopback proxy peer and is exempt from the
+  per-address WebSocket limits and the failed-Hello throttle (only the global pending cap applies). Fix on that host: add
+  `--client-ip-header x-forwarded-for --trusted-proxies 127.0.0.1 --api-cors-origins https://<page origin>` (it will then
+  refuse dev auth, as intended, until it gets real credentials or an explicit `--insecure-dev-auth`).
 * `hosting/glbridge` binds `0.0.0.0` without auth flags of its own; a real fleet must pass `--database-url` (or `--auth static:`)
   in the bridge's extra args, otherwise rh-server now exits 2 at startup.
 * `tools/staging-native-artifact` runs a reviewed harness against a selected source commit: a new harness against a source

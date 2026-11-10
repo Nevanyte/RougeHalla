@@ -10,10 +10,12 @@
 //!   within the header timeout, and hyper bounds the header read of every HTTP/1 request (which also ends an idle keep-alive).
 //!
 //! Client address: the forwarded-address rules of the account API ([`crate::api`], one implementation). Per-address caps are
-//! keyed by [`limit_key`] (IPv6 by /64). A loopback client address is exempt from the per-address caps: it is either the
-//! operator's own tooling or a reverse proxy whose clients this process cannot tell apart (pass `--client-ip-header` and
-//! `--trusted-proxies` behind one), and capping it would cap the whole server. The global pending cap still applies to it.
-//! Every per-address cap of 0 is off. State is per process.
+//! keyed by [`limit_key`] (IPv6 by /64). Without a forwarded-address header configured, a loopback client address is exempt
+//! from the per-address caps: it is the operator's own tooling (or a proxy that was not declared, whose clients this process
+//! cannot tell apart; capping it would cap the whole server). With `--client-ip-header` configured, an address that still
+//! resolves to loopback or unspecified (the header missing, repeated or unparsable, or naming loopback) is NOT exempt: every
+//! such request counts under one shared [`UNRESOLVED`] key, so stripping the header cannot bypass the caps (fail closed). The
+//! global pending cap applies to every request. Every per-address cap of 0 is off. State is per process.
 
 use crate::api::limits::{limit_key, AddressWindowLimiter, KeyedBuckets};
 use axum::http::{header, HeaderMap, HeaderName, HeaderValue, StatusCode};
@@ -22,7 +24,7 @@ use axum_server::accept::Accept;
 use std::collections::HashMap;
 use std::future::Future;
 use std::io;
-use std::net::{IpAddr, Ipv4Addr};
+use std::net::IpAddr;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
@@ -43,6 +45,9 @@ pub const DEFAULT_WS_AUTH_FAILS_PER_MINUTE: u32 = 10;
 pub const DEFAULT_WS_AUTH_FAILS_PER_MINUTE_ALL: u32 = 0;
 /// How long a client has to send a request's headers (also: to decide its HTTP version after the connection is accepted).
 pub const DEFAULT_HTTP_HEADER_TIMEOUT: Duration = Duration::from_secs(10);
+/// The one shared key of requests whose client address could not be resolved although a forwarded-address header is
+/// configured (module docs). `::` is never a real client's address.
+pub const UNRESOLVED: IpAddr = IpAddr::V6(std::net::Ipv6Addr::UNSPECIFIED);
 
 fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
     m.lock().unwrap_or_else(|p| p.into_inner())
@@ -179,15 +184,21 @@ impl EdgeGuard {
         )
     }
 
-    /// The per-address key, or `None` for an address the per-address caps do not apply to (module docs).
-    fn key(ip: IpAddr) -> Option<IpAddr> {
+    /// The per-address key, or `None` for an address the per-address caps do not apply to (module docs): a loopback or
+    /// unspecified address is exempt only when no forwarded-address header is configured; with one configured it counts
+    /// under the shared [`UNRESOLVED`] key.
+    pub fn key(&self, ip: IpAddr) -> Option<IpAddr> {
         let k = limit_key(ip);
-        (!(k.is_loopback() || k == IpAddr::V4(Ipv4Addr::UNSPECIFIED))).then_some(k)
+        if !(k.is_loopback() || k.is_unspecified()) {
+            return Some(k);
+        }
+        self.cfg.client_ip_header.is_some().then_some(UNRESOLVED)
     }
 
-    /// Open sockets currently counted for `ip`'s key.
+    /// Open sockets currently counted under `ip`'s key.
     pub fn open_for(&self, ip: IpAddr) -> usize {
-        Self::key(ip).map_or(0, |k| lock(&self.open).get(&k).copied().unwrap_or(0))
+        self.key(ip)
+            .map_or(0, |k| lock(&self.open).get(&k).copied().unwrap_or(0))
     }
 
     /// The checks before a WebSocket upgrade, in order: origin (403), the global pending cap (503), the per-address
@@ -209,13 +220,15 @@ impl EdgeGuard {
                 Err(_) => return Err(WsRefusal::Pending),
             },
         };
+        let limit = self.key(ip);
         let mut ticket = WsTicket {
             guard: self.clone(),
             ip,
+            limit,
             counted: None,
             pending,
         };
-        if let Some(key) = Self::key(ip) {
+        if let Some(key) = limit {
             {
                 let mut open = lock(&self.open);
                 let n = open.entry(key).or_insert(0);
@@ -294,13 +307,15 @@ impl IntoResponse for WsRefusal {
 pub struct WsTicket {
     guard: Arc<EdgeGuard>,
     ip: IpAddr,
+    /// The per-address key this socket counts under (`None`: exempt).
+    limit: Option<IpAddr>,
     counted: Option<IpAddr>,
     pending: Option<OwnedSemaphorePermit>,
 }
 
 /// A failed-credential slot reserved by [`WsTicket::hello_attempt`] (`None`: nothing reserved).
 #[must_use]
-pub struct HelloAttempt(Option<Instant>);
+pub struct HelloAttempt(Option<(IpAddr, Instant)>);
 
 impl WsTicket {
     pub fn client_ip(&self) -> IpAddr {
@@ -311,21 +326,21 @@ impl WsTicket {
     /// throttle check and the count in one step, so concurrent bad tickets cannot all pass), or how long to wait. A resume
     /// presents no credential and reserves nothing.
     pub fn hello_attempt(&self, resuming: bool) -> Result<HelloAttempt, Duration> {
-        if resuming || EdgeGuard::key(self.ip).is_none() {
+        let Some(key) = self.limit.filter(|_| !resuming) else {
             return Ok(HelloAttempt(None));
-        }
+        };
         let now = Instant::now();
         self.guard
             .auth_fails
-            .reserve(self.ip, now)
-            .map(|()| HelloAttempt(Some(now)))
+            .reserve(key, now)
+            .map(|()| HelloAttempt(Some((key, now))))
     }
 
     /// The Hello was answered: the reserved slot is kept only when the credentials were refused, and the socket no longer
     /// counts as pending.
     pub fn hello_done(&mut self, attempt: HelloAttempt, credentials_refused: bool) {
-        if let (Some(at), false) = (attempt.0, credentials_refused) {
-            self.guard.auth_fails.refund(self.ip, at);
+        if let (Some((key, at)), false) = (attempt.0, credentials_refused) {
+            self.guard.auth_fails.refund(key, at);
         }
         self.pending = None;
     }
@@ -526,6 +541,7 @@ pub fn configure_http<E>(b: &mut hyper_util::server::conn::auto::Builder<E>, lim
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::net::Ipv4Addr;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     fn public(last: u8) -> IpAddr {
@@ -686,15 +702,19 @@ mod tests {
 
     #[test]
     fn loopback_is_exempt_from_per_address_caps_but_forwarded_addresses_are_not() {
+        let lo = Some(IpAddr::V4(Ipv4Addr::LOCALHOST));
+        let local = guard(EdgeConfig {
+            max_per_ip: 1,
+            ..EdgeConfig::default()
+        });
+        let _held: Vec<_> = (0..5)
+            .map(|_| local.admit_ws(lo, &HeaderMap::new()).ok().unwrap())
+            .collect();
         let g = guard(EdgeConfig {
             max_per_ip: 1,
             client_ip_header: Some(HeaderName::from_static("x-forwarded-for")),
             ..EdgeConfig::default()
         });
-        let lo = Some(IpAddr::V4(Ipv4Addr::LOCALHOST));
-        let _held: Vec<_> = (0..5)
-            .map(|_| g.admit_ws(lo, &HeaderMap::new()).ok().unwrap())
-            .collect();
         let mut fwd = HeaderMap::new();
         fwd.insert("x-forwarded-for", HeaderValue::from_static("198.51.100.7"));
         let t = g.admit_ws(lo, &fwd).ok().unwrap();
@@ -707,6 +727,60 @@ mod tests {
         // An untrusted peer cannot choose its address with the header.
         let t2 = g.admit_ws(Some(public(4)), &fwd).ok().unwrap();
         assert_eq!(t2.client_ip(), public(4));
+    }
+
+    #[test]
+    fn behind_a_declared_proxy_an_unresolved_address_shares_one_capped_bucket() {
+        let g = guard(EdgeConfig {
+            max_per_ip: 2,
+            auth_fails_per_minute: 2,
+            client_ip_header: Some(HeaderName::from_static("x-forwarded-for")),
+            ..EdgeConfig::default()
+        });
+        let lo = Some(IpAddr::V4(Ipv4Addr::LOCALHOST));
+        let mut dup = HeaderMap::new();
+        dup.append("x-forwarded-for", HeaderValue::from_static("198.51.100.1"));
+        dup.append("x-forwarded-for", HeaderValue::from_static("198.51.100.2"));
+        let mut junk = HeaderMap::new();
+        junk.insert("x-forwarded-for", HeaderValue::from_static("not-an-ip"));
+        let mut names_loopback = HeaderMap::new();
+        names_loopback.insert("x-forwarded-for", HeaderValue::from_static("127.0.0.1"));
+        // Missing, repeated, unparsable or loopback-naming header: all one bucket, capped like any address.
+        let a = g.admit_ws(lo, &HeaderMap::new()).ok().unwrap();
+        let b = g.admit_ws(lo, &dup).ok().unwrap();
+        assert_eq!(g.admit_ws(lo, &junk).err(), Some(WsRefusal::PerAddress));
+        assert_eq!(
+            g.admit_ws(lo, &names_loopback).err(),
+            Some(WsRefusal::PerAddress)
+        );
+        assert_eq!(
+            g.admit_ws(None, &HeaderMap::new()).err(),
+            Some(WsRefusal::PerAddress)
+        );
+        assert_eq!(g.open_for(Ipv4Addr::LOCALHOST.into()), 2);
+        // Failed credentials of unresolved requests count together too.
+        let (mut a, mut b) = (a, b);
+        let failed = a.hello_attempt(false).unwrap();
+        a.hello_done(failed, true);
+        let failed = b.hello_attempt(false).unwrap();
+        b.hello_done(failed, true);
+        assert!(
+            a.hello_attempt(false).is_err(),
+            "two failures from different unresolved requests fill the shared bucket"
+        );
+        // A properly forwarded address is still its own key.
+        let mut fwd = HeaderMap::new();
+        fwd.insert("x-forwarded-for", HeaderValue::from_static("198.51.100.7"));
+        assert!(g.admit_ws(lo, &fwd).is_ok());
+        drop((a, b));
+        // Without a configured header, loopback stays exempt (local tooling).
+        let local = guard(EdgeConfig {
+            max_per_ip: 1,
+            ..EdgeConfig::default()
+        });
+        let _held: Vec<_> = (0..4)
+            .map(|_| local.admit_ws(lo, &HeaderMap::new()).ok().unwrap())
+            .collect();
     }
 
     #[test]
