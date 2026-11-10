@@ -68,19 +68,35 @@ namespace Roguehalla.Client
             }
         }
 
+        /// <summary>
+        /// Sentenced ground: SQUARE dungeon flagstones (its own pattern, not the cracked cells Fire and Plague use). 4 x 4 one-tile slabs per 4-tile
+        /// period in offset courses, dark grout, worn rounded edges, and now and then a cracked, missing or mossy slab. A new region pattern
+        /// goes in exactly like this: one static function per region filling height, detail (r), secondary mask (g) and accent (b), added to
+        /// the switch in Build above; the ground shader only blends the baked layers.
+        /// </summary>
         static void Sentenced(float[] h, float[] r, float[] g, float[] b)
         {
+            const int N = 4;
             for (int y = 0; y < Size; y++) for (int x = 0; x < Size; x++)
             {
                 float u = U(x), v = U(y);
-                float warp = (Fbm(u, v, 3, 3, 8) - .5f) * .025f;
-                float row = .5f + .5f * Mathf.Sin((v + warp) * Mathf.PI * 2f * 6f);        // harvest furrows, 1.5 per tile
-                float straw = PeriodicXY(u * 40f, v * 24f, 40, 24, 17) * .6f + PeriodicXY(u * 20f, v * 12f, 20, 12, 19) * .4f;
-                float patch = SmoothStep(.55f, .75f, Fbm(u, v, 3, 3, 12)) * .6f;
+                float fv = v * N; int row = Mathf.FloorToInt(fv); float cy = fv - row;
+                float fu = u * N; int col = Mathf.FloorToInt(fu); float cx = fu - col;   // straight grid of square slabs
+                col = ((col % N) + N) % N;
+                float edge = Mathf.Min(Mathf.Min(cx, 1f - cx), Mathf.Min(cy, 1f - cy));
+                float grout = 1f - SmoothStep(.035f, .085f, edge);                       // dark joints
+                float worn = 1f - SmoothStep(.08f, .26f, edge);                          // chamfered, worn edge
+                float cellId = RegionNoise.Hash01(col, row, 211);
+                float tone = .52f + cellId * .26f;
+                float cracked = cellId > .94f ? 1f : 0f, missing = cellId < .05f ? 1f : 0f, mossy = (cellId > .55f && cellId < .66f) ? 1f : 0f;
+                float diag = Mathf.Abs((cx - .5f) * .8f + (cy - .5f) * .6f + (RegionNoise.Hash01(col, row, 7) - .5f) * .4f);
+                float crack = cracked * (1f - SmoothStep(.0f, .028f, diag)) * (1f - SmoothStep(.34f, .5f, Mathf.Max(Mathf.Abs(cx - .5f), Mathf.Abs(cy - .5f))));
+                float grain = Fbm(u, v, 48, 3, 5) - .5f, wearN = Fbm(u, v, 6, 3, 21) - .5f;
                 int i = y * Size + x;
-                h[i] = row * .6f + straw * .15f;
-                r[i] = .50f + row * .08f + (straw - .5f) * .26f;
-                g[i] = patch * (.65f + .35f * Periodic(u * 24f, v * 24f, 24, 5));
+                float pit = missing * (1f - grout);
+                h[i] = (1f - grout) * .7f - worn * .15f - crack * .35f - pit * .5f;
+                r[i] = Mathf.Clamp01((tone + wearN * .18f + grain * .14f) * (1f - grout * .5f - worn * .1f - crack * .5f - pit * .5f));
+                g[i] = Mathf.Clamp01(mossy * SmoothStep(.15f, .55f, Fbm(u, v, 12, 3, 33) + worn * .3f) * .3f);
                 b[i] = 0f;
             }
         }

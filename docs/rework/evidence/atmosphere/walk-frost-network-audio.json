@@ -1,0 +1,37 @@
+[
+ {
+  "url": "StreamingAssets/Audio/amb_fire.mp3",
+  "status": 200,
+  "afterMatchStartMs": 234
+ },
+ {
+  "url": "StreamingAssets/Audio/music_fire.mp3",
+  "status": 200,
+  "afterMatchStartMs": 234
+ },
+ {
+  "url": "StreamingAssets/Audio/music_coliseum.mp3",
+  "status": 200,
+  "afterMatchStartMs": 252
+ },
+ {
+  "url": "StreamingAssets/Audio/music_frost.mp3",
+  "status": 200,
+  "afterMatchStartMs": 448
+ },
+ {
+  "url": "StreamingAssets/Audio/amb_frost.mp3",
+  "status": 200,
+  "afterMatchStartMs": 448
+ },
+ {
+  "url": "StreamingAssets/Audio/music_plague.mp3",
+  "status": 200,
+  "afterMatchStartMs": 21473
+ },
+ {
+  "url": "StreamingAssets/Audio/amb_plague.mp3",
+  "status": 200,
+  "afterMatchStartMs": 21473
+ }
+]

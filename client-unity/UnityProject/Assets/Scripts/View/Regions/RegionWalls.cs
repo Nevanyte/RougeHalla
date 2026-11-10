@@ -28,6 +28,8 @@ namespace Roguehalla.Client
         readonly List<Vector3> _v = new List<Vector3>(4096);
         readonly List<Vector2> _uv = new List<Vector2>(4096);
         readonly List<Color32> _c = new List<Color32>(4096);
+        readonly List<Vector2> _k = new List<Vector2>(4096);   // uv2.x = surface kind for the sun term: 0 top, 1 south face, 4 unlit decal
+        float _kind;
         readonly List<int> _t = new List<int>(8192);
 
         void Quad(Vector3 a, Vector3 b, Vector3 c, Vector3 d, Vector2 uva, Vector2 uvb, Vector2 uvc, Vector2 uvd, Color32 col)
@@ -35,6 +37,7 @@ namespace Roguehalla.Client
             int i = _v.Count;
             _v.Add(a); _v.Add(b); _v.Add(c); _v.Add(d); _uv.Add(uva); _uv.Add(uvb); _uv.Add(uvc); _uv.Add(uvd);
             _c.Add(col); _c.Add(col); _c.Add(col); _c.Add(col);
+            var kd = new Vector2(_kind, 0); _k.Add(kd); _k.Add(kd); _k.Add(kd); _k.Add(kd);
             _t.Add(i); _t.Add(i + 1); _t.Add(i + 2); _t.Add(i); _t.Add(i + 2); _t.Add(i + 3);
         }
         /// <summary>Axis aligned quad with the cell mapped upright (v up).</summary>
@@ -79,7 +82,7 @@ namespace Roguehalla.Client
 
             for (int y = 0; y < h; y++) for (int chunk = 0; chunk < w; chunk += ChunkTiles)
             {
-                _v.Clear(); _uv.Clear(); _c.Clear(); _t.Clear();
+                _v.Clear(); _uv.Clear(); _c.Clear(); _t.Clear(); _k.Clear(); _kind = 0f;
                 for (int x = chunk; x < Mathf.Min(w, chunk + ChunkTiles); x++)
                 {
                     byte tile = tiles[y * w + x]; if (tile == MapBlob.Floor) continue;
@@ -96,16 +99,16 @@ namespace Roguehalla.Client
                     if (tile == MapBlob.Low)
                     {
                         // Fences and low walls: one full-width cell, joined with neighbours. Contact shadow under it.
-                        Rect(px0, py - .26f, px1, py + .02f, contact, new Color32(255, 255, 255, 190));
+                        _kind = 4f; Rect(px0, py - .26f, px1, py + .02f, contact, new Color32(255, 255, 255, 190)); _kind = 1f;
                         Rect(px0 - .004f, py - 6f / RegionWallAtlas.TileW, px1 + .004f, py - 6f / RegionWallAtlas.TileW + RegionWallAtlas.LowH / (float)RegionWallAtlas.TileW,
                             set.Low[v % RegionWallAtlas.LowVariants], col);
-                        continue;
+                        _kind = 0f; continue;
                     }
                     bool southSolid = Solid(x, y + 1);
                     if (!southSolid)
                     {
-                        Rect(px0 - .04f, py - .30f, px1 + .04f, py + .04f, contact, new Color32(255, 255, 255, 255));
-                        Rect(px0 - .003f, py, px1 + .003f, py + WallHeight + .02f, set.Face[v % RegionWallAtlas.FaceVariants], col);
+                        _kind = 4f; Rect(px0 - .04f, py - .30f, px1 + .04f, py + .04f, contact, new Color32(255, 255, 255, 255));
+                        _kind = 1f; Rect(px0 - .003f, py, px1 + .003f, py + WallHeight + .02f, set.Face[v % RegionWallAtlas.FaceVariants], col); _kind = 0f;
                     }
                     float ty0 = py + WallHeight, ty1 = ty0 + TopHeight;
                     Rect(px0 - .003f, ty0, px1 + .003f, ty1, set.Top[(v / 3) % RegionWallAtlas.TopVariants], col);
@@ -123,7 +126,7 @@ namespace Roguehalla.Client
                 }
                 if (_v.Count == 0) continue;
                 var mesh = new Mesh { name = "Region walls row " + y + " chunk " + chunk / ChunkTiles, indexFormat = UnityEngine.Rendering.IndexFormat.UInt16 };
-                mesh.SetVertices(_v); mesh.SetUVs(0, _uv); mesh.SetColors(_c); mesh.SetTriangles(_t, 0); mesh.RecalculateBounds();
+                mesh.SetVertices(_v); mesh.SetUVs(0, _uv); mesh.SetColors(_c); mesh.SetUVs(2, _k); mesh.SetTriangles(_t, 0); mesh.RecalculateBounds();
                 _owned.Add(mesh);
                 var go = new GameObject("Walls row " + y + " x" + chunk); go.transform.SetParent(root.transform, false);
                 go.AddComponent<MeshFilter>().sharedMesh = mesh;

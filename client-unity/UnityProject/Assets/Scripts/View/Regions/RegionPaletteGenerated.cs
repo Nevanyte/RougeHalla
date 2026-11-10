@@ -32,17 +32,17 @@ namespace Roguehalla.Client
                 new[] { 0.52f, 0.09f, 45f }, // Fog
             },
             new[] { // 2 sentenced
-                new[] { 0.64f, 0.03f, 85f }, // Base
-                new[] { 0.38f, 0.035f, 60f }, // Secondary
-                new[] { 0.44f, 0.14f, 300f }, // Accent
+                new[] { 0.36f, 0.022f, 292f }, // Base
+                new[] { 0.22f, 0.03f, 70f }, // Secondary
+                new[] { 0.62f, 0.13f, 300f }, // Accent
                 new[] { 0.84f, 0.07f, 72f }, // Key
                 new[] { 0.55f, 0.035f, 290f }, // Ambient
                 new[] { 0.32f, 0.05f, 305f }, // Shadow
                 new[] { 0.7f, 0.03f, 80f }, // Fog
             },
             new[] { // 3 plague
-                new[] { 0.58f, 0.085f, 170f }, // Base
-                new[] { 0.36f, 0.09f, 150f }, // Secondary
+                new[] { 0.52f, 0.085f, 170f }, // Base
+                new[] { 0.3f, 0.07f, 150f }, // Secondary
                 new[] { 0.86f, 0.2f, 128f }, // Accent
                 new[] { 0.9f, 0.1f, 150f }, // Key
                 new[] { 0.55f, 0.07f, 185f }, // Ambient
@@ -59,9 +59,9 @@ namespace Roguehalla.Client
                 new[] { 0.92f, 0.025f, 235f }, // Fog
             },
             new[] { // 5 holy
-                new[] { 0.8f, 0.095f, 85f }, // Base
+                new[] { 0.68f, 0.105f, 80f }, // Base
                 new[] { 0.58f, 0.13f, 135f }, // Secondary
-                new[] { 0.6f, 0.12f, 80f }, // Accent
+                new[] { 0.44f, 0.09f, 80f }, // Accent
                 new[] { 0.93f, 0.088f, 90f }, // Key
                 new[] { 0.74f, 0.07f, 95f }, // Ambient
                 new[] { 0.52f, 0.09f, 320f }, // Shadow
@@ -99,17 +99,17 @@ namespace Roguehalla.Client
                 new Color32(147, 87, 59, 255), // Fog
             },
             new[] { // 2 sentenced
-                new Color32(149, 139, 120, 255), // Base
-                new Color32(80, 62, 47, 255), // Secondary
-                new Color32(96, 59, 147, 255), // Accent
+                new Color32(61, 59, 72, 255), // Base
+                new Color32(36, 24, 10, 255), // Secondary
+                new Color32(147, 114, 200, 255), // Accent
                 new Color32(231, 196, 153, 255), // Key
                 new Color32(113, 110, 133, 255), // Ambient
                 new Color32(57, 44, 71, 255), // Shadow
                 new Color32(168, 157, 138, 255), // Fog
             },
             new[] { // 3 plague
-                new Color32(62, 139, 115, 255), // Base
-                new Color32(13, 74, 34, 255), // Secondary
+                new Color32(42, 121, 97, 255), // Base
+                new Color32(13, 55, 26, 255), // Secondary
                 new Color32(171, 232, 65, 255), // Accent
                 new Color32(174, 241, 187, 255), // Key
                 new Color32(59, 127, 119, 255), // Ambient
@@ -126,9 +126,9 @@ namespace Roguehalla.Client
                 new Color32(213, 232, 243, 255), // Fog
             },
             new[] { // 5 holy
-                new Color32(218, 185, 117, 255), // Base
+                new Color32(186, 145, 70, 255), // Base
                 new Color32(87, 139, 53, 255), // Secondary
-                new Color32(165, 119, 16, 255), // Accent
+                new Color32(108, 76, 2, 255), // Accent
                 new Color32(255, 230, 164, 255), // Key
                 new Color32(184, 171, 120, 255), // Ambient
                 new Color32(128, 87, 137, 255), // Shadow

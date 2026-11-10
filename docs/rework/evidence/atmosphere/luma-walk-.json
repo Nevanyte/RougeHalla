@@ -1,0 +1,170 @@
+[
+ {
+  "shot": "walk-frost-border-00",
+  "region": "frost",
+  "mean": 0.61,
+  "p95": 0.793,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.522,
+    "darkEdge": 6.01,
+    "lightEdge": 0.98,
+    "contrast": 6.01
+   },
+   "bar": {
+    "ground": 0.493,
+    "darkEdge": 9.52,
+    "lightEdge": 1.2,
+    "contrast": 9.52
+   }
+  }
+ },
+ {
+  "shot": "walk-frost-border-01",
+  "region": "frost",
+  "mean": 0.618,
+  "p95": 0.794,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.569,
+    "darkEdge": 8.34,
+    "lightEdge": 1.07,
+    "contrast": 8.34
+   },
+   "bar": {
+    "ground": 0.57,
+    "darkEdge": 9.93,
+    "lightEdge": 1.08,
+    "contrast": 9.93
+   }
+  }
+ },
+ {
+  "shot": "walk-frost-border-02",
+  "region": "frost",
+  "mean": 0.63,
+  "p95": 0.795,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.555,
+    "darkEdge": 8.93,
+    "lightEdge": 1.06,
+    "contrast": 8.93
+   },
+   "bar": {
+    "ground": 0.554,
+    "darkEdge": 10.33,
+    "lightEdge": 1.06,
+    "contrast": 10.33
+   }
+  }
+ },
+ {
+  "shot": "walk-frost-border-03",
+  "region": "frost",
+  "mean": 0.624,
+  "p95": 0.795,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.566,
+    "darkEdge": 8.96,
+    "lightEdge": 1.09,
+    "contrast": 8.96
+   },
+   "bar": {
+    "ground": 0.573,
+    "darkEdge": 10.07,
+    "lightEdge": 1.06,
+    "contrast": 10.07
+   }
+  }
+ },
+ {
+  "shot": "walk-frost-border-04",
+  "region": "frost",
+  "mean": 0.578,
+  "p95": 0.793,
+  "clipped": 0.03,
+  "contrast": {
+   "sprite": {
+    "ground": 0.562,
+    "darkEdge": 8.95,
+    "lightEdge": 1.02,
+    "contrast": 8.95
+   },
+   "bar": {
+    "ground": 0.546,
+    "darkEdge": 9.64,
+    "lightEdge": 1.13,
+    "contrast": 9.64
+   }
+  }
+ },
+ {
+  "shot": "walk-plague-border-05",
+  "region": "plague",
+  "mean": 0.494,
+  "p95": 0.795,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.524,
+    "darkEdge": 8.73,
+    "lightEdge": 1.05,
+    "contrast": 8.73
+   },
+   "bar": {
+    "ground": 0.489,
+    "darkEdge": 9.31,
+    "lightEdge": 1.26,
+    "contrast": 9.31
+   }
+  }
+ },
+ {
+  "shot": "walk-plague-border-06",
+  "region": "plague",
+  "mean": 0.457,
+  "p95": 0.84,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.173,
+    "darkEdge": 3.75,
+    "lightEdge": 1.75,
+    "contrast": 3.75
+   },
+   "bar": {
+    "ground": 0.18,
+    "darkEdge": 4.37,
+    "lightEdge": 2.62,
+    "contrast": 4.37
+   }
+  }
+ },
+ {
+  "shot": "walk-plague-border-07",
+  "region": "plague",
+  "mean": 0.385,
+  "p95": 0.566,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.212,
+    "darkEdge": 4.41,
+    "lightEdge": 1.71,
+    "contrast": 4.41
+   },
+   "bar": {
+    "ground": 0.187,
+    "darkEdge": 4.51,
+    "lightEdge": 2.55,
+    "contrast": 4.51
+   }
+  }
+ }
+]

@@ -117,14 +117,15 @@ namespace Roguehalla.Client
                         if (id > .74f) c = Mix(c, edge, crack * .85f);
                         break;
                     }
-                    case WallStyle.Timber:
+                    case WallStyle.Timber:      // gothic masonry cap: dark slabs, hairline cracks, a worn chamfer
                     {
-                        float plank = Mathf.Floor(v * 5f); float pv = v * 5f - plank;
-                        float tone = RegionNoise.Hash01((int)plank, 1, seed);
-                        float g = N(u + tone, v, 6, seed + 3);
-                        c = Mix(Mix(top, face, .4f), top, tone * .8f);
-                        c = Shade(c, .88f + g * .22f + grain * .04f);
-                        c = Mix(c, Shade(face, .45f), 1f - SmoothU(Mathf.Min(pv, 1f - pv), 0f, .05f));
+                        RegionNoise.Worley(u, v, 2, seed, out float f1, out float e, out float id);
+                        float joint = 1f - SmoothU(e, 0f, .06f);
+                        c = Mix(Mix(top, face, .35f), Mix(top, Color.white, .08f), id * .8f);
+                        c = Shade(c, .88f + soft * .2f + grain * .05f);
+                        c = Mix(c, Shade(face, .4f), joint * .7f);
+                        float chip = SmoothU(N(u, v, 10, seed + 7), .72f, .86f);
+                        c = Mix(c, Shade(top, .7f), chip * .35f);
                         break;
                     }
                     case WallStyle.Ruin:
@@ -216,17 +217,32 @@ namespace Roguehalla.Client
                         c = Mix(c, Mix(edge, Color.white, .15f), seam * hot * SmoothU(N(u, v, 6, seed + 3), .35f, .7f) * .9f);
                         break;
                     }
-                    case WallStyle.Timber:
+                    case WallStyle.Timber:      // dark gothic masonry: ashlar courses, buttress pilasters, blind pointed arches
                     {
-                        float planks = 8f; float ru = u * planks; float col = Mathf.Floor(ru); float fx = ru - col;
-                        float tone = RegionNoise.Hash01((int)col, 1, seed);
-                        float g = N(u * 1f, v * 3f + tone * 5f, 8, seed + 2);
-                        c = Mix(Shade(face, .8f), Mix(face, top, .5f), tone);
-                        c = Shade(c, vert * (.86f + g * .26f) + grain * .04f);
-                        c = Mix(c, Shade(face, .36f), 1f - SmoothU(Mathf.Min(fx, 1f - fx), 0f, .08f));
-                        // iron nails
-                        float nailY = Mathf.Abs(v - .25f) < .03f || Mathf.Abs(v - .75f) < .03f ? 1f : 0f; float nailX = Mathf.Abs(fx - .5f) < .1f ? 1f : 0f;
-                        if (nailY * nailX > 0) c = Mix(c, new Color(.14f, .13f, .13f), .8f);
+                        float rows = 3f, rv = v * rows; float row = Mathf.Floor(rv); float fy = rv - row;
+                        float ru = (u + (row % 2 == 0 ? 0f : .25f)) * 2f; float col = Mathf.Floor(ru); float fx = ru - col;
+                        float e = Mathf.Min(Mathf.Min(fx, 1f - fx) * .55f, Mathf.Min(fy, 1f - fy));
+                        float tone = RegionNoise.Hash01((int)col + (int)row * 5, 2, seed);
+                        c = Shade(Mix(Shade(face, .86f), Shade(face, 1.16f), tone), vert + grain * .05f);
+                        c = Mix(c, Shade(face, .42f), 1f - SmoothU(e, 0f, .05f));
+                        // buttress pilasters at both edges: chamfered, lighter on the lit side
+                        float ed = Mathf.Min(u, 1f - u);
+                        float butt = 1f - SmoothU(ed, .085f, .105f);
+                        c = Mix(c, Shade(face, u < .5f ? 1.35f : .78f), butt * .9f);
+                        c = Mix(c, Shade(face, .3f), (1f - SmoothU(Mathf.Abs(ed - .095f), 0f, .012f)) * .8f);
+                        // a blind pointed arch recess in some tiles
+                        if (RegionNoise.Hash01(variant, 4, seed) > .35f)
+                        {
+                            float ax = Mathf.Abs(u - .5f); float apex = .74f - ax * 1.9f;
+                            bool inside = ax < .2f && v > .1f && v < apex;
+                            float rimD = Mathf.Min(.2f - ax, apex - v);
+                            if (inside) c = Mix(Shade(face, .5f), Shade(c, .62f), SmoothU(rimD, 0f, .05f) * .0f + .35f);
+                            float line = 1f - SmoothU(Mathf.Abs(rimD), 0f, .022f);
+                            if (ax < .22f && v > .08f && v < apex + .03f) c = Mix(c, u < .5f ? Shade(face, 1.4f) : Shade(face, .28f), line * .75f);
+                        }
+                        // stained base and a moulding line under the cap
+                        c = Mix(c, Shade(face, .55f), SmoothU(.2f - v, 0f, .2f) * .5f);
+                        c = Mix(c, Shade(face, 1.3f), (1f - SmoothU(Mathf.Abs(v - .86f), 0f, .02f)) * .55f);
                         break;
                     }
                     case WallStyle.Ruin:
@@ -286,16 +302,34 @@ namespace Roguehalla.Client
             float baseY = 6f, bodyH = 36f;       // full-width block: face height ~0.28 tile, then a cap
             if (style == WallStyle.Timber)
             {
-                // Fence: two posts and rails with picket gaps (see-through), continuous across tiles.
-                Color wood = th.WallFace, woodL = Mix(wood, th.WallTop, .5f), woodD = Shade(wood, .55f);
-                for (int k = 0; k < 6; k++)
+                // Graveyard fence: wrought-iron railings with spear finials between stone posts (see-through), or, on some tiles, a low
+                // crumbling stone wall. Continuous across tiles (bars repeat every 8 px; the 128 px tile ends on a post).
+                Color iron = Mix(new Color(.09f, .09f, .12f), th.AccentSrgb, .12f), ironL = Mix(iron, Color.white, .22f);
+                Color stone = Mix(th.WallFace, th.WallTop, .4f), stoneL = Mix(stone, Color.white, .25f), stoneD = Shade(stone, .5f);
+                if (variant % 3 == 2)
                 {
-                    float x = 10f + k * 21.5f; float h = 52f + RegionNoise.Hash01(k, 1, seed) * 8f;
-                    var pk = Poly(new Vector2(x - 6, baseY + 24), new Vector2(x - 6, baseY + h - 7), new Vector2(x, baseY + h + 3), new Vector2(x + 6, baseY + h - 7), new Vector2(x + 6, baseY + 24));
-                    cv.Fill(pk, Split(x, woodL, wood, 3f), Ink, 1.1f);
+                    int n = 9; var pts = new System.Collections.Generic.List<Vector2> { new Vector2(0, baseY) };
+                    for (int k = 0; k <= n; k++) pts.Add(new Vector2(k * 128f / n, baseY + 26f + RegionNoise.Hash01(k + variant * 5, 3, seed) * 22f));
+                    pts.Add(new Vector2(128, baseY));
+                    var wall = Poly(pts.ToArray());
+                    cv.Fill(wall, Toon(wall, stoneD, stone, stoneL, 10f, .12f, seed), Ink, 1.3f);
+                    for (int k = 0; k < 3; k++) cv.Fill(Intersect(wall, Box(64, baseY + 10f + k * 14f, 66f, .7f)), Flat(Alpha(stoneD, .8f)));
+                    for (int k = 0; k < 7; k++) cv.Fill(Intersect(wall, Box(10f + k * 18f + (k % 2) * 6f, baseY + 20f, .7f, 10f)), Flat(Alpha(stoneD, .7f)));
+                    return cv;
                 }
-                foreach (float ry in new[] { 40f, 58f }) cv.Fill(Box(64, baseY + ry, 66, 3.6f), Toon(Box(64, baseY + ry, 66, 3.6f), woodD, wood, woodL, 3f, .08f, seed), Ink, 1.1f);
-                foreach (float px in new[] { 6f, 122f }) { var post = Box(px, baseY + 36, 5.5f, 38f, 1.5f); cv.Fill(post, Toon(post, woodD, wood, woodL, 5f, .1f, seed), Ink, 1.2f); }
+                for (int k = 0; k < 16; k++)
+                {
+                    float x = 4f + k * 8f; float top2 = baseY + 52f + RegionNoise.Hash01(k, 1, seed) * 3f;
+                    var bar = Box(x, baseY + 28f, 1.1f, 26f); cv.Fill(bar, Flat(iron), null);
+                    var spear = Poly(new Vector2(x - 2.4f, top2 - 1f), new Vector2(x, top2 + 9f), new Vector2(x + 2.4f, top2 - 1f), new Vector2(x, top2 - 3f));
+                    cv.Fill(spear, Split(x, ironL, iron, 1f), Ink, .9f);
+                }
+                foreach (float ry in new[] { 20f, 44f }) cv.Fill(Box(64, baseY + ry, 66, 1.8f), Flat(ironL), Ink, .9f);
+                foreach (float px in new[] { 4f, 124f })
+                {
+                    var post = Box(px, baseY + 30f, 5.5f, 31f, 1.5f); cv.Fill(post, Toon(post, stoneD, stone, stoneL, 5f, .1f, seed), Ink, 1.2f);
+                    var cap = Box(px, baseY + 62f, 7.5f, 4f, 1f); cv.Fill(cap, Toon(cap, stoneD, stoneL, Mix(stoneL, Color.white, .3f), 3f), Ink, 1.1f);
+                }
                 return cv;
             }
             Color mossC = th.SecondarySrgbColor();

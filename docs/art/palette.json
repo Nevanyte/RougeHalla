@@ -47,11 +47,11 @@
     },
     "sentenced": {
       "faction": "sentenced",
-      "mood": "Haunted farmland at harvest dusk: the one deliberately muted zone, hazy but readable.",
+      "mood": "Gothic graveyard and crypt-yard under a hazy dusk: the one deliberately muted zone, desaturated violet-grey, hazy but readable.",
       "swatches": {
-        "base":      { "role": "ground, dry straw and trodden field",       "oklch": [0.64, 0.030, 85], "legacy": "#3A3B42" },
-        "secondary": { "role": "weathered barn wood, fences, gallows",      "oklch": [0.38, 0.035, 60], "legacy": "#6E553A" },
-        "accent":    { "role": "judgment banners, violet lanterns",         "oklch": [0.44, 0.140, 300], "legacy": "#7E57C2" }
+        "base":      { "role": "ground: worn dark flagstones, cobbles, bare earth", "oklch": [0.36, 0.022, 292], "legacy": "#3A3B42" },
+        "secondary": { "role": "gothic masonry, iron railings, dead grass, gallows", "oklch": [0.22, 0.030, 70], "legacy": "#6E553A" },
+        "accent":    { "role": "judgment banners, violet lanterns",         "oklch": [0.62, 0.13, 300], "legacy": "#7E57C2" }
       },
       "light": {
         "key":     [0.84, 0.070, 72],
@@ -64,8 +64,8 @@
       "faction": "plague",
       "mood": "Forgotten city: overgrown ruins, sickly teal-green, lots of greenery.",
       "swatches": {
-        "base":      { "role": "ground, moss, grass and flooded paving",    "oklch": [0.58, 0.085, 170], "legacy": "#2A3326" },
-        "secondary": { "role": "ferns, ivy, ruin walls under vines",        "oklch": [0.36, 0.090, 150], "legacy": "#6D7F4A" },
+        "base":      { "role": "ground, moss, grass and flooded paving",    "oklch": [0.52, 0.085, 170], "legacy": "#2A3326" },
+        "secondary": { "role": "ferns, ivy, ruin walls under vines",        "oklch": [0.30, 0.070, 150], "legacy": "#6D7F4A" },
         "accent":    { "role": "toxic spore glow, bog bubbles (emissive)",  "oklch": [0.86, 0.200, 128], "legacy": "#B5E35A" }
       },
       "light": {
@@ -94,9 +94,9 @@
       "faction": "holy",
       "mood": "Desert with oasis and garden pockets in golden sun.",
       "swatches": {
-        "base":      { "role": "ground, sun-bleached sand and sandstone",   "oklch": [0.80, 0.095, 85], "legacy": "#E9DFC0" },
+        "base":      { "role": "ground, rich golden sand and sandstone",   "oklch": [0.68, 0.105, 80], "legacy": "#E9DFC0" },
         "secondary": { "role": "oasis and garden greenery, palms, lawns",   "oklch": [0.58, 0.130, 135] },
-        "accent":    { "role": "gilded trim, shrine gold",                  "oklch": [0.60, 0.120, 80], "legacy": "#D4AF37" }
+        "accent":    { "role": "gilded trim, shrine gold",                  "oklch": [0.44, 0.09, 80], "legacy": "#D4AF37" }
       },
       "light": {
         "key":     [0.93, 0.088, 90],

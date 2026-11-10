@@ -12,7 +12,7 @@ namespace Roguehalla.Client
         sealed class Art
         {
             public GameObject Root;
-            public SpriteRenderer Body, BodyRim, Shadow, Halo, RuneBack, Rune, Hp, HpBack, Barrier, Weapon, Status;
+            public SpriteRenderer Body, BodyRim, BodyGlow, Shadow, Halo, RuneBack, Rune, Hp, HpBack, Barrier, Weapon, Status;
             public ShowcaseIdentityOwner Identity;
             public SpriteRenderer[] BarrierRing;
             public SpriteRenderer[] StatusIcons;
@@ -238,9 +238,17 @@ namespace Roguehalla.Client
             a.BodyRim.transform.localScale = a.Body.transform.localScale * 1.045f;
             a.BodyRim.sortingOrder = order-1;
             a.BodyRim.color = new Color(.008f,.012f,.02f,dead ? .35f : .88f);
+            // Light outer rim outside the dark outline: dark characters stay separable on dark ground (the dark outline carries pale ground).
+            a.BodyGlow.sprite = a.Body.sprite;
+            a.BodyGlow.transform.localPosition = a.Body.transform.localPosition;
+            a.BodyGlow.transform.localRotation = a.Body.transform.localRotation;
+            a.BodyGlow.transform.localScale = a.Body.transform.localScale * 1.13f;
+            a.BodyGlow.sortingOrder = order - 3;
+            AtmosphereShadows.ApplyRim(a.BodyGlow, x / 32f, y / 32f, dead ? .4f : 1f);
             int factionArt = faction.HasValue ? (int)faction.Value : -1;
             a.Identity.Present(factionArt,kind,mob,order,!dead);
             a.Shadow.sortingOrder = order - 8;
+            AtmosphereShadows.ApplyActor(a.Shadow, x / 32f, y / 32f);
             a.Halo.sortingOrder = order - 7;
             a.Halo.transform.localScale = new Vector3(local ? 1.05f : .9f, .48f, 1);
             a.Halo.sprite = FactionIndicators.GetFootprint(factionArt);
@@ -334,6 +342,7 @@ namespace Roguehalla.Client
             a.Halo = ShowcaseSprites.Create(t, "Faction footprint", "ring", 1, Color.white, Vector2.one, Vector3.zero, false);
             a.Body = ShowcaseSprites.Create(t, "Authored character", "rune", 2, Color.white, Vector2.one, Vector3.zero);
             a.BodyRim = ShowcaseSprites.Create(t, "Character contrast rim", "rune", 1, Color.black, Vector2.one, Vector3.zero, false);
+            a.BodyGlow = ShowcaseSprites.Create(t, "Character light rim", "rune", 0, Color.white, Vector2.one, Vector3.zero, false);
             a.Identity = ShowcaseIdentityOwner.Configure(t);
             a.Identity.StandaloneFactionBadge = false; // The existing tested backed faction mark remains canonical here.
             a.RuneBack = ShowcaseSprites.Create(t, "Faction insignia backplate", "bar", 2, new Color(.008f, .012f, .022f, .96f), new Vector2(.46f, .46f), Vector3.zero, false);

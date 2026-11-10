@@ -1,0 +1,212 @@
+[
+ {
+  "shot": "r1-sentenced-fire-1",
+  "region": "sentenced",
+  "mean": 0.206,
+  "p95": 0.336,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.048,
+    "darkEdge": 1.49,
+    "lightEdge": 3.74,
+    "contrast": 3.74
+   },
+   "bar": {
+    "ground": 0.04,
+    "darkEdge": 1.69,
+    "lightEdge": 6.51,
+    "contrast": 6.51
+   }
+  }
+ },
+ {
+  "shot": "r1-sentenced-fire-2",
+  "region": "sentenced",
+  "mean": 0.206,
+  "p95": 0.336,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.05,
+    "darkEdge": 1.53,
+    "lightEdge": 3.36,
+    "contrast": 3.36
+   },
+   "bar": {
+    "ground": 0.04,
+    "darkEdge": 1.69,
+    "lightEdge": 3.51,
+    "contrast": 3.51
+   }
+  }
+ },
+ {
+  "shot": "r1-fire-sentenced-1",
+  "region": "fire",
+  "mean": 0.235,
+  "p95": 0.667,
+  "clipped": 0.03,
+  "contrast": {
+   "sprite": {
+    "ground": 0.05,
+    "darkEdge": 1.77,
+    "lightEdge": 3.09,
+    "contrast": 3.09
+   },
+   "bar": {
+    "ground": 0.059,
+    "darkEdge": 1.99,
+    "lightEdge": 5.63,
+    "contrast": 5.63
+   }
+  }
+ },
+ {
+  "shot": "r1-fire-sentenced-2",
+  "region": "fire",
+  "mean": 0.235,
+  "p95": 0.676,
+  "clipped": 0.03,
+  "contrast": {
+   "sprite": {
+    "ground": 0.05,
+    "darkEdge": 1.79,
+    "lightEdge": 3.05,
+    "contrast": 3.05
+   },
+   "bar": {
+    "ground": 0.058,
+    "darkEdge": 1.99,
+    "lightEdge": 5.64,
+    "contrast": 5.64
+   }
+  }
+ },
+ {
+  "shot": "r1-sentenced-plague-1",
+  "region": "sentenced",
+  "mean": 0.214,
+  "p95": 0.352,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.061,
+    "darkEdge": 1.46,
+    "lightEdge": 2.68,
+    "contrast": 2.68
+   },
+   "bar": {
+    "ground": 0.048,
+    "darkEdge": 1.8,
+    "lightEdge": 6.09,
+    "contrast": 6.09
+   }
+  }
+ },
+ {
+  "shot": "r1-sentenced-plague-2",
+  "region": "sentenced",
+  "mean": 0.214,
+  "p95": 0.352,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.06,
+    "darkEdge": 1.47,
+    "lightEdge": 2.69,
+    "contrast": 2.69
+   },
+   "bar": {
+    "ground": 0.048,
+    "darkEdge": 1.81,
+    "lightEdge": 6.08,
+    "contrast": 6.08
+   }
+  }
+ },
+ {
+  "shot": "r1-fire-frost-1",
+  "region": "fire",
+  "mean": 0.359,
+  "p95": 0.772,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.056,
+    "darkEdge": 1.7,
+    "lightEdge": 5.91,
+    "contrast": 5.91
+   },
+   "bar": {
+    "ground": 0.066,
+    "darkEdge": 2.19,
+    "lightEdge": 5.16,
+    "contrast": 5.16
+   }
+  }
+ },
+ {
+  "shot": "r1-fire-frost-2",
+  "region": "fire",
+  "mean": 0.359,
+  "p95": 0.772,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.055,
+    "darkEdge": 1.87,
+    "lightEdge": 3.68,
+    "contrast": 3.68
+   },
+   "bar": {
+    "ground": 0.065,
+    "darkEdge": 2.18,
+    "lightEdge": 5.22,
+    "contrast": 5.22
+   }
+  }
+ },
+ {
+  "shot": "r1-sentenced-holy-1",
+  "region": "sentenced",
+  "mean": 0.207,
+  "p95": 0.339,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.05,
+    "darkEdge": 1.46,
+    "lightEdge": 4.55,
+    "contrast": 4.55
+   },
+   "bar": {
+    "ground": 0.037,
+    "darkEdge": 1.63,
+    "lightEdge": 6.87,
+    "contrast": 6.87
+   }
+  }
+ },
+ {
+  "shot": "r1-sentenced-holy-2",
+  "region": "sentenced",
+  "mean": 0.208,
+  "p95": 0.339,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.049,
+    "darkEdge": 1.34,
+    "lightEdge": 5.94,
+    "contrast": 5.94
+   },
+   "bar": {
+    "ground": 0.038,
+    "darkEdge": 1.64,
+    "lightEdge": 6.78,
+    "contrast": 6.78
+   }
+  }
+ }
+]

@@ -81,6 +81,7 @@ Shader "Roguehalla/RegionGround"
                 half _Exposure;
                 half _Debug;
             CBUFFER_END
+            #include "RhSun.hlsl"
             // x = map width (tiles), y = map height, z = vertical squash, w = seconds scale
             float4 _Map;
             // Region table, index = wire region id 0..7 (7 unused). Colours are linear-agnostic sRGB bytes as 0..1.
@@ -161,6 +162,18 @@ Shader "Roguehalla/RegionGround"
             half4 Frag(Varyings i) : SV_Target
             {
                 float2 t = float2(i.world.x, -i.world.y / _Map.z);
+                float2 tSun = t;
+                // Heat shimmer: ground near lava wobbles slowly (cheap UV warp, only while the switch is on).
+                [branch] if (_RhSwitch.w > 0.5)
+                {
+                    float2 lu = t / _Map.xy; float2 o1 = float2(1.4, 0) / _Map.xy, o2 = float2(0, 1.4) / _Map.xy;
+                    float prox = SAMPLE_TEXTURE2D_LOD(_TerA, sampler_TerA, lu, 0).r + SAMPLE_TEXTURE2D_LOD(_TerA, sampler_TerA, lu + o1, 0).r
+                               + SAMPLE_TEXTURE2D_LOD(_TerA, sampler_TerA, lu - o1, 0).r + SAMPLE_TEXTURE2D_LOD(_TerA, sampler_TerA, lu + o2, 0).r
+                               + SAMPLE_TEXTURE2D_LOD(_TerA, sampler_TerA, lu - o2, 0).r;
+                    float amp = smoothstep(0.08, 0.7, prox * 0.2);
+                    float tm = _Time.y;
+                    t += amp * 0.04 * float2(sin(t.y * 7.0 + tm * 3.1) + sin(t.x * 5.0 - tm * 2.3), cos(t.x * 6.0 + tm * 2.7) + sin(t.y * 4.0 + tm * 1.9));
+                }
                 // Ragged, noise-warped region borders on top of the blurred weight textures.
                 float2 warp = (float2(VNoise(t * 0.55 + 7.3), VNoise(t * 0.55 + 91.7)) - 0.5) * 1.6;
                 float2 ruv = (t + warp) / _Map.xy;
@@ -210,7 +223,7 @@ Shader "Roguehalla/RegionGround"
                                 float chan = 1.0 - smoothstep(0.0, 0.34, w.y);
                                 float heat = saturate(chan * 1.25 + inner * 0.45 + (Fbm(t * 3.0 + time * 0.2) - 0.5) * 0.35);
                                 tc = lerp(deep, light, saturate(heat * 1.1));
-                                te = glow * (heat * heat * 1.3 + 0.25 * inner) * (0.85 + 0.15 * sin(time * 1.5 + q.x * 2.0));
+                                te = glow * (heat * heat * 0.85 + 0.15 * inner) * (0.85 + 0.15 * sin(time * 1.5 + q.x * 2.0));   // a glowing material with crust detail, not a white sheet
                                 tc = lerp(tc, deep * 0.5, (1.0 - heat) * 0.5);
                             }
                             else if (kd == 6)       // ice: glassy cyan sheet, pale frozen shore, cracks and moving glints
@@ -224,6 +237,21 @@ Shader "Roguehalla/RegionGround"
                                 tc = lerp(tc, float3(0.95, 0.99, 1.0), crack * 0.40);
                                 float glint = pow(saturate(VNoise(t * 3.2 + float2(time * 0.35, 0))), 14.0) * 1.4;
                                 te = glow * (crack * 0.10 + glint * 0.55);
+                                // Translucency: a darker, blurred, parallax-shifted layer beneath (cracks and bubbles at depth),
+                                // a fresnel-like sheen toward the screen edge and sun glints.
+                                [branch] if (_RhSwitch.z > 0.5)
+                                {
+                                    float2 tb = t * 0.55 + (t - _RhCam.xy) * 0.07 + float2(Fbm(t * 0.3 + 2.0), Fbm(t * 0.3 + 8.0)) * 0.8;
+                                    float2 w2 = Worley(tb);
+                                    float deepCrack = 1.0 - smoothstep(0.0, 0.10, w2.y);
+                                    float bubbles = smoothstep(0.80, 0.95, VNoise(tb * 5.0 + 3.0));
+                                    float3 under = lerp(deep * 0.6, deep * 0.3, Fbm(tb * 0.7)) + float3(0.55, 0.8, 0.95) * (deepCrack * 0.22 + bubbles * 0.18);
+                                    float depthMask = saturate(inner * 1.4);
+                                    tc = lerp(tc, under, 0.42 * depthMask);
+                                    float fres = pow(saturate(length(t - _RhCam.xy) / 13.0), 2.0);
+                                    tc += float3(0.55, 0.75, 0.95) * fres * 0.2 * depthMask;
+                                    te += glow * pow(saturate(VNoise(t * 7.0 + float2(time * 0.6, -time * 0.4))), 22.0) * 2.4 * depthMask;
+                                }
                             }
                             else if (kd == 5)       // bog: murky water with slow ripples and rising bubbles
                             {
@@ -233,6 +261,10 @@ Shader "Roguehalla/RegionGround"
                                 float bub = step(0.93, H21(bc)) * smoothstep(0.17, 0.10, length(bf + (H22(bc) - 0.5) * 0.3)) * (0.5 + 0.5 * sin(time * 2.0 + H21(bc + 3.0) * 6.28));
                                 te = glow * bub * 0.9;
                                 tc += bub * glow * 0.4;
+                                // Sickly pulse: the whole bog breathes a slow green glow (feeds bloom), brighter toward the middle.
+                                float breathe = 0.5 + 0.5 * sin(time * 1.15 + t.x * 0.45 + t.y * 0.38);
+                                te += glow * saturate(inner + 0.15) * (0.16 + 0.22 * breathe);
+                                tc += glow * 0.10 * saturate(inner + 0.2);
                             }
                             else if (kd == 4)       // embers: charred ground with pulsing glowing cracks
                             {
@@ -267,6 +299,11 @@ Shader "Roguehalla/RegionGround"
                     }
                 }
 
+                // One sun: region-blended colour and strength per pixel, and the baked cast-shadow mask (walls and props).
+                float sunStr; float3 shMul;
+                float3 sunM = RhSunMul(i.world, 0.65, sunStr, shMul);
+                float shade = SAMPLE_TEXTURE2D_LOD(_RhShadowMask, sampler_RhShadowMask, tSun / _Map.xy, 0).r * sunStr * _RhSwitch.y;
+                col *= sunM * lerp(float3(1, 1, 1), shMul, saturate(shade));
                 SurfaceData2D surfaceData;
                 InputData2D inputData;
                 InitializeSurfaceData(col * _Exposure, 1.0, half4(1, 1, 1, 1), half3(0, 0, 1), surfaceData);

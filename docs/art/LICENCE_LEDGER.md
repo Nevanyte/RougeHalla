@@ -131,3 +131,25 @@ None recorded. Format for future rows, to be added here (never committed to git,
 | Pack name and version | Store link | Price paid | Files used (paths under `Assets/Licensed/`) | Free placeholder it replaces | Date |
 |---|---|---|---|---|---|
 | (none yet) | | | | | |
+
+## Region atmosphere audio (streamed, not in the first-load data)
+
+Added on `rework/atmosphere`. Files live in `client-unity/UnityProject/Assets/StreamingAssets/Audio/`; `RhBuild.BuildWeb` moves the folder out of the project while Unity packs `Web.data` and copies it to `Build/Web/StreamingAssets/Audio/` afterwards, so the player fetches them on demand (`AtmosphereAudio`, UnityWebRequestMultimedia) after the match starts. Retrieved 2026-11-09. Licences were read from each item's own page (OpenGameArt "License(s)" field; Freesound licence link) before download. Processing: ffmpeg 7.1 (libmp3lame, 112 kbps stereo music / 64 kbps mono ambience, 44.1 kHz; MP3 rather than Ogg because the Unity WebGL player rejects Ogg with "Streaming of 'ogg' on this platform is not supported"), loop crossfade 1.5-3 s, EBU R128 two-pass loudnorm to -17 LUFS (music) and -26 LUFS (ambience), true peak -1.5 dBTP. Credit text ships as `Licenses/Atmosphere-Audio-Credits.txt`.
+
+| Path (under `Assets/StreamingAssets/Audio/`) | Title | Author | Source URL | Licence | Bytes | Notes |
+|---|---|---|---|---|---|---|
+| `music_fire.mp3` | Shrine to the Smoldering Volcano | Mega Pixel Music Lab | https://opengameart.org/content/shrine-to-the-smoldering-volcano | **CC BY 3.0** (elected; page also lists CC-BY-SA 3.0, GPL 3.0/2.0, OGA-BY 3.0) | 1,499,106 | Attribution required and shipped. Trimmed 3:12 to 1:47 |
+| `music_sentenced.mp3` | MonsterVania - Ghost Land | HydroGene | https://opengameart.org/content/monstervania-ghost-land | CC0 | 766,214 | |
+| `music_plague.mp3` | Village Ruins | isaiah658 | https://opengameart.org/content/village-ruins | CC0 | 1,499,106 | Trimmed 2:24 to 1:47 |
+| `music_frost.mp3` | Icy Realm - (Seven and Eight) | cynicmusic | https://opengameart.org/content/icy-realm-seven-and-eight | CC0 | 1,107,792 | |
+| `music_holy.mp3` | Desert theme | yd | https://opengameart.org/content/desert-theme | CC0 | 1,336,729 | Very quiet source (-31 LUFS), normalised |
+| `music_coliseum.mp3` | Battle Theme A | cynicmusic | https://opengameart.org/content/battle-theme-a | CC0 | 1,301,620 | |
+| `amb_frost.mp3` | wind whoosh loop | SketchMan3 | https://opengameart.org/content/wind-whoosh-loop | CC0 | 36,196 | Only 6 s source: repetition will be audible |
+| `amb_fire.mp3` | Lava Loop 4 | Fission9 | https://freesound.org/s/474852/ | CC0 | 300,973 | Freesound HQ preview mp3 (originals need a login) |
+| `amb_plague.mp3` | Swamp Environment Audio | LokiF | https://opengameart.org/content/swamp-environment-audio | CC0 | 464,604 | 60 s excerpt (from 20 s); source is very quiet and was boosted about 15 dB |
+| `amb_sentenced.mp3` | Crickets Ambient Noise - loopable | Wolfgang_ | https://opengameart.org/content/crickets-ambient-noise-loopable | CC0 | 80,500 | 11 s source |
+| `amb_holy.mp3` | Looping Gentle Wind Ambience on an Open Desert Plain | dhallcomposer | https://freesound.org/s/697217/ | CC0 | 313,930 | Freesound HQ preview mp3 |
+
+Not listened to (no audio output available to the author): fit to each region is judged from the source descriptions only. The existing Flare CC BY-SA beds stay as the fallback until a streamed track is audible, then are muted (`ShowcaseSoundscape.LegacyMusicMuted`).
+
+Other additions on this branch carry no third-party files: all atmosphere textures (soft flakes, motes, embers, spores, light shafts) are generated in code (`AtmosphereTextures`), and the shaders and shadow bake are original.

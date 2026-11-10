@@ -1,0 +1,17 @@
+[
+ {
+  "url": "StreamingAssets/Audio/music_fire.mp3",
+  "status": 200,
+  "afterMatchStartMs": 1234
+ },
+ {
+  "url": "StreamingAssets/Audio/amb_fire.mp3",
+  "status": 200,
+  "afterMatchStartMs": 1234
+ },
+ {
+  "url": "StreamingAssets/Audio/music_coliseum.mp3",
+  "status": 200,
+  "afterMatchStartMs": 1246
+ }
+]

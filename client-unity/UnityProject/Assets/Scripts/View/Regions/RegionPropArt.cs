@@ -373,68 +373,105 @@ namespace Roguehalla.Client
             });
         }
 
-        // ---- sentenced (muted harvest dusk) -----------------------------------------------------------------------------------
+        // ---- sentenced (gothic crypt-yard, muted dusk) ----------------------------------------------------------------------------
 
         static void AddSentenced(List<Def> l)
         {
-            Color straw = Mix(P(2, 0), P(2, 3), .55f), wood = Mix(P(2, 1), P(2, 3), .15f), accent = P(2, 2), shadow = P(2, 5);
-            Color strawLight = Mix(straw, Color.white, .30f), strawDark = Shade(straw, .62f), woodDark = Shade(wood, .55f), woodLight = Mix(wood, straw, .35f);
-            Add(l, "sent.hay", 96, 84, 8, (c, gy) =>
+            Color baseC = P(2, 0), second = P(2, 1), accent = P(2, 2), key = P(2, 3), shadow = P(2, 5);
+            Color stone = Mix(baseC, second, .3f), stoneL = Mix(stone, Color.white, .22f), stoneD = Shade(stone, .55f);
+            Color moss = Mix(stone, P(3, 1), .45f), mossL = Mix(moss, Color.white, .15f);
+            Color wood = Mix(second, shadow, .2f), woodD = Shade(wood, .55f), woodL = Mix(wood, baseC, .3f);
+            Color iron = Mix(new Color(.09f, .09f, .12f), accent, .15f), ironL = Mix(iron, Color.white, .25f);
+            Color grassD = Shade(Mix(second, baseC, .5f), 1.0f), grassL = Mix(second, baseC, .85f);
+            Add(l, "sent.tomb", 80, 96, 8, (c, gy) =>
             {
-                c.SoftShadow(52, gy + 1, 38f, 7f, .35f, Alpha(shadow, 1f));
-                var body = Box(48, gy + 24, 34, 22, 14);
-                c.Fill(body, Toon(body, strawDark, straw, strawLight, 16f, .14f, 5, .12f), Alpha(woodDark, .9f), 1.5f);
-                for (int k = 0; k < 7; k++) c.Fill(Intersect(body, Capsule(new Vector2(18 + k * 10, gy + 6), new Vector2(20 + k * 10, gy + 44), .7f, .5f)), Flat(Alpha(strawDark, .55f)));
-                c.Fill(Intersect(body, Box(48, gy + 24, 34, 2.4f)), Flat(Alpha(woodDark, .9f)));
-                var end = Ellipse(76, gy + 24, 9, 21);
-                c.Fill(end, (x, y, d) => Mix(strawLight, strawDark, Mathf.Abs(((x - 76) * (x - 76) + (y - gy - 24) * (y - gy - 24) * .05f) % 17f) / 17f), Alpha(woodDark, .9f), 1.2f);
+                float cx = 40; c.SoftShadow(cx + 4, gy + 1, 22f, 5f, .38f, Alpha(shadow, 1f));
+                var plinth = Box(cx, gy + 5, 17, 5, 1.5f); c.Fill(plinth, Toon(plinth, stoneD, stone, stoneL, 4f, .1f, 3), Ink, 1.2f);
+                var slab = Union(Box(cx, gy + 28, 13, 24, 1.5f), Circle(cx, gy + 51, 13));
+                c.Fill(slab, Toon(slab, stoneD, stone, stoneL, 12f, .14f, 7), Ink, 1.4f);
+                for (int k = 0; k < 3; k++) c.Fill(Intersect(slab, Box(cx, gy + 44 - k * 7f, 7f - k * 1.2f, .9f)), Flat(Alpha(stoneD, .85f)));
+                c.Fill(Intersect(slab, Box(cx, gy + 14, 13, 5f)), Toon(slab, Shade(moss, .7f), moss, mossL, 6f, .2f, 5), null);
+                c.Fill(Capsule(new Vector2(cx - 4, gy + 40), new Vector2(cx + 2, gy + 30), .6f, .5f), Flat(Alpha(stoneD, .7f)));
             });
-            Add(l, "sent.wheat", 80, 88, 8, (c, gy) =>
+            Add(l, "sent.cross", 80, 104, 8, (c, gy) =>
             {
-                c.SoftShadow(40, gy + 1, 24f, 5f, .25f, Alpha(shadow, 1f));
-                Color st = Mix(straw, P(2, 1), .15f), head = Mix(straw, Color.white, .18f);
-                Blades(c, 40, gy, 12, 64, 34, 1.3f, Shade(st, .85f), head, 14, .5f);
-                for (int k = 0; k < 7; k++)
-                {
-                    float x = 40 + (k / 6f - .5f) * 28f, y = gy + 52 + RegionNoise.Hash01(k, 3, 15) * 12f;
-                    var ear = Ellipse(x, y, 2.4f, 6f);
-                    c.Fill(ear, Toon(ear, strawDark, straw, strawLight, 3f), Alpha(woodDark, .8f), 1f);
-                }
+                float cx = 40; c.SoftShadow(cx + 5, gy + 1, 22f, 5f, .38f, Alpha(shadow, 1f));
+                var plinth = Box(cx, gy + 5, 14, 5, 1.5f); c.Fill(plinth, Toon(plinth, stoneD, stone, stoneL, 4f, .1f, 4), Ink, 1.2f);
+                var cross = Union(Box(cx, gy + 36, 4.4f, 30, .8f), Box(cx, gy + 52, 14, 4.4f, .8f));
+                c.Fill(cross, Toon(cross, stoneD, stone, stoneL, 6f, .14f, 9), Ink, 1.4f);
+                var ring = Subtract(Circle(cx, gy + 52, 11), Circle(cx, gy + 52, 7.2f)); c.Fill(ring, Toon(ring, stoneD, stone, stoneL, 3f, .1f, 2), Ink, 1.1f);
+                c.Fill(Intersect(cross, Box(cx, gy + 14, 6, 6)), Toon(cross, Shade(moss, .7f), moss, mossL, 5f, .2f, 6), null);
+            });
+            Add(l, "sent.slab", 112, 56, 6, (c, gy) =>
+            {
+                c.SoftShadow(58, gy + 1, 40f, 6f, .32f, Alpha(shadow, 1f));
+                var top = Poly(new Vector2(14, gy + 8), new Vector2(86, gy + 8), new Vector2(100, gy + 22), new Vector2(28, gy + 22));
+                var front = Poly(new Vector2(14, gy + 8), new Vector2(86, gy + 8), new Vector2(86, gy + 1), new Vector2(14, gy + 1));
+                c.Fill(front, Flat(stoneD), Ink, 1.1f); c.Fill(top, Toon(top, Shade(stone, .85f), stone, stoneL, 20f, .12f, 11), Ink, 1.3f);
+                c.Fill(Capsule(new Vector2(57, gy + 11), new Vector2(57, gy + 20), 1.2f, 1.2f), Flat(Alpha(stoneD, .85f)));
+                c.Fill(Capsule(new Vector2(52, gy + 17), new Vector2(63, gy + 17), 1.2f, 1.2f), Flat(Alpha(stoneD, .85f)));
+                c.Fill(Capsule(new Vector2(34, gy + 14), new Vector2(40, gy + 17), 1.6f, .8f), Flat(Alpha(moss, .9f)));
+            });
+            Add(l, "sent.lantern", 72, 132, 8, (c, gy) =>
+            {
+                float cx = 36; c.SoftShadow(cx + 3, gy + 1, 14f, 4f, .35f, Alpha(shadow, 1f));
+                Color glow = Mix(key, accent, .25f);
+                c.Glow(cx, gy + 98, 34f, glow, .42f);
+                var post = Box(cx, gy + 46, 2.4f, 48); c.Fill(post, Split(cx, ironL, iron, 1f), Ink, 1.1f);
+                var foot = Box(cx, gy + 4, 7, 4, 1); c.Fill(foot, Toon(foot, stoneD, stone, stoneL, 3f), Ink, 1.1f);
+                c.Fill(Capsule(new Vector2(cx, gy + 84), new Vector2(cx + 13, gy + 92), 1.4f, 1.4f), Flat(iron), Ink, .9f);
+                float lx = cx + 13;
+                var cage = Poly(new Vector2(lx - 6, gy + 86), new Vector2(lx + 6, gy + 86), new Vector2(lx + 8, gy + 104), new Vector2(lx - 8, gy + 104));
+                c.Fill(cage, (x, y, d) => Mix(Mix(key, Color.white, .35f), glow, Mathf.Clamp01((Mathf.Abs(x - lx) + Mathf.Abs(y - gy - 95)) / 12f)), Ink, 1.2f);
+                foreach (float bx in new[] { -4f, 0f, 4f }) c.Fill(Capsule(new Vector2(lx + bx, gy + 86), new Vector2(lx + bx * 1.3f, gy + 104), .6f, .6f), Flat(iron));
+                var roof = Poly(new Vector2(lx - 10, gy + 104), new Vector2(lx + 10, gy + 104), new Vector2(lx, gy + 114)); c.Fill(roof, Flat(iron), Ink, 1f);
+            });
+            Add(l, "sent.urn", 64, 84, 6, (c, gy) =>
+            {
+                float cx = 32; c.SoftShadow(cx + 3, gy + 1, 18f, 4f, .35f, Alpha(shadow, 1f));
+                var ped = Box(cx, gy + 6, 12, 6, 1.5f); c.Fill(ped, Toon(ped, stoneD, stone, stoneL, 4f, .1f, 8), Ink, 1.2f);
+                var urn = Union(Ellipse(cx, gy + 28, 11, 15), Box(cx, gy + 45, 6, 3.5f), Ellipse(cx, gy + 50, 9, 3f));
+                c.Fill(urn, Toon(urn, stoneD, stone, stoneL, 11f, .12f, 12), Ink, 1.3f);
+                c.Fill(Intersect(urn, Box(cx, gy + 30, 14, 1.2f)), Flat(Alpha(stoneD, .8f)));
+            });
+            Add(l, "sent.gargoyle", 84, 104, 8, (c, gy) =>
+            {
+                float cx = 42; c.SoftShadow(cx + 4, gy + 1, 24f, 5f, .38f, Alpha(shadow, 1f));
+                var plinth = Box(cx, gy + 7, 16, 7, 1.5f); c.Fill(plinth, Toon(plinth, stoneD, stone, stoneL, 4f, .1f, 13), Ink, 1.2f);
+                var body = Ellipse(cx, gy + 28, 12, 15); c.Fill(body, Toon(body, stoneD, stone, stoneL, 10f, .14f, 14), Ink, 1.4f);
+                var wingL = Poly(new Vector2(cx - 8, gy + 34), new Vector2(cx - 30, gy + 58), new Vector2(cx - 22, gy + 30), new Vector2(cx - 10, gy + 22));
+                var wingR = Poly(new Vector2(cx + 8, gy + 34), new Vector2(cx + 30, gy + 58), new Vector2(cx + 22, gy + 30), new Vector2(cx + 10, gy + 22));
+                c.Fill(wingL, Toon(wingL, stoneD, Shade(stone, .9f), stone, 8f), Ink, 1.2f); c.Fill(wingR, Toon(wingR, stoneD, Shade(stone, .9f), stone, 8f), Ink, 1.2f);
+                var head = Circle(cx, gy + 48, 8.5f); c.Fill(head, Toon(head, stoneD, stone, stoneL, 8f, .12f, 15), Ink, 1.3f);
+                c.Fill(Poly(new Vector2(cx - 7, gy + 54), new Vector2(cx - 11, gy + 64), new Vector2(cx - 3, gy + 56)), Flat(stoneD), Ink, 1f);
+                c.Fill(Poly(new Vector2(cx + 7, gy + 54), new Vector2(cx + 11, gy + 64), new Vector2(cx + 3, gy + 56)), Flat(stoneD), Ink, 1f);
+                c.Fill(Circle(cx - 3, gy + 49, 1.4f), Flat(Alpha(accent, 1f))); c.Fill(Circle(cx + 3, gy + 49, 1.4f), Flat(Alpha(accent, 1f)));
+            });
+            Add(l, "sent.deadgrass", 80, 60, 6, (c, gy) =>
+            {
+                c.SoftShadow(40, gy + 1, 22f, 4f, .22f, Alpha(shadow, 1f));
+                Blades(c, 40, gy, 11, 40, 26, 1.2f, grassD, grassL, 10, .7f);
             });
             Add(l, "sent.scarecrow", 96, 148, 8, (c, gy) =>
-            {
+            {   // a lone gallows-side scarecrow: the one rural remnant (the Gallows is a landmark here)
                 float cx = 48; c.SoftShadow(cx + 5, gy + 1, 24f, 5f, .35f, Alpha(shadow, 1f));
-                var pole = Box(cx, gy + 54, 2.6f, 56); c.Fill(pole, Vertical(woodLight, woodDark, gy + 110, gy), Ink, 1.2f);
-                var arms = Capsule(new Vector2(cx - 32, gy + 78), new Vector2(cx + 32, gy + 82), 2.4f, 2.4f); c.Fill(arms, Flat(woodLight), Ink, 1.2f);
+                var pole = Box(cx, gy + 54, 2.6f, 56); c.Fill(pole, Vertical(woodL, woodD, gy + 110, gy), Ink, 1.2f);
+                var arms = Capsule(new Vector2(cx - 32, gy + 78), new Vector2(cx + 32, gy + 82), 2.4f, 2.4f); c.Fill(arms, Flat(woodL), Ink, 1.2f);
                 var tunic = Poly(new Vector2(cx - 14, gy + 82), new Vector2(cx + 14, gy + 84), new Vector2(cx + 18, gy + 40), new Vector2(cx + 8, gy + 34), new Vector2(cx - 4, gy + 40), new Vector2(cx - 16, gy + 36));
-                c.Fill(tunic, Toon(tunic, Shade(woodDark, .9f), Mix(wood, straw, .2f), woodLight, 8f, .15f, 5), Ink, 1.3f);
-                c.Fill(Intersect(tunic, Box(cx, gy + 62, 20, 2.2f)), Flat(Alpha(accent, .9f)));
-                foreach (float sx in new[] { -36f, 36f }) for (int k = 0; k < 4; k++) c.Fill(Capsule(new Vector2(cx + sx - Mathf.Sign(sx) * 4, gy + 80), new Vector2(cx + sx + Mathf.Sign(sx) * 5 + k * 1.5f * Mathf.Sign(sx), gy + 72 - k * 3), 1.3f, .6f), Flat(strawLight), Ink, .8f);
-                var head = Circle(cx, gy + 98, 11);
-                c.Fill(head, Toon(head, Shade(straw, .6f), Mix(straw, wood, .2f), strawLight, 10f, .1f, 9), Ink, 1.4f);
-                c.Fill(Circle(cx - 4, gy + 100, 1.6f), Flat(Ink)); c.Fill(Circle(cx + 4, gy + 100, 1.6f), Flat(Ink));
-                var brim = Ellipse(cx, gy + 107, 18, 4.2f); c.Fill(brim, Toon(brim, woodDark, wood, woodLight, 4f), Ink, 1.2f);
-                var crown = Box(cx, gy + 116, 9, 8, 3); c.Fill(crown, Toon(crown, woodDark, wood, woodLight, 6f), Ink, 1.2f);
-                c.Fill(Capsule(new Vector2(cx + 10, gy + 81), new Vector2(cx + 20, gy + 66), 3f, 1f), Flat(Alpha(accent, .9f)));
+                c.Fill(tunic, Toon(tunic, Shade(woodD, .9f), wood, woodL, 8f, .15f, 5), Ink, 1.3f);
+                var head = Circle(cx, gy + 98, 11); c.Fill(head, Toon(head, Shade(grassD, .8f), grassL, Mix(grassL, Color.white, .2f), 10f, .1f, 9), Ink, 1.4f);
+                var brim = Ellipse(cx, gy + 107, 18, 4.2f); c.Fill(brim, Toon(brim, woodD, wood, woodL, 4f), Ink, 1.2f);
+                var crown = Box(cx, gy + 116, 9, 8, 3); c.Fill(crown, Toon(crown, woodD, wood, woodL, 6f), Ink, 1.2f);
             }, true);
             Add(l, "sent.deadtree", 112, 168, 8, (c, gy) =>
             {
                 float cx = 56; c.SoftShadow(cx + 6, gy + 1, 26f, 6f, .35f, Alpha(shadow, 1f));
-                Color bark = Shade(Mix(wood, shadow, .25f), .85f), barkLight = Mix(bark, straw, .18f);
+                Color bark = Shade(Mix(wood, shadow, .3f), .8f), barkLight = Mix(bark, baseC, .2f);
                 var tree = Union(Capsule(new Vector2(cx, gy), new Vector2(cx + 2, gy + 70), 8, 5), Capsule(new Vector2(cx + 2, gy + 64), new Vector2(cx - 26, gy + 122), 4.5f, 1.6f),
                                  Capsule(new Vector2(cx + 2, gy + 68), new Vector2(cx + 28, gy + 118), 4f, 1.4f), Capsule(new Vector2(cx - 2, gy + 90), new Vector2(cx + 8, gy + 142), 3f, 1.2f),
                                  Capsule(new Vector2(cx - 14, gy + 98), new Vector2(cx - 38, gy + 106), 2.5f, 1f), Capsule(new Vector2(cx + 16, gy + 96), new Vector2(cx + 40, gy + 104), 2.3f, 1f));
                 c.Fill(tree, Toon(tree, Shade(bark, .6f), bark, barkLight, 6f, .14f, 8, .25f), Ink, 1.5f);
             }, true);
-            Add(l, "sent.barrel", 64, 72, 8, (c, gy) =>
-            {
-                c.SoftShadow(34, gy + 1, 22f, 5f, .35f, Alpha(shadow, 1f));
-                var body = Poly(new Vector2(14, gy), new Vector2(11, gy + 26), new Vector2(14, gy + 52), new Vector2(46, gy + 52), new Vector2(49, gy + 26), new Vector2(46, gy));
-                c.Fill(body, (x, y, d) => Mix(Mix(woodLight, wood, Mathf.Clamp01((x - 14f) / 32f)), woodDark, Mathf.Clamp01((x - 30f) / 24f)), Ink, 1.4f);
-                foreach (float by in new[] { 8f, 26f, 44f }) c.Fill(Intersect(body, Box(30, gy + by, 24, 2.6f)), Flat(Shade(wood, .38f)));
-                for (int k = 0; k < 4; k++) c.Fill(Intersect(body, Capsule(new Vector2(18 + k * 8, gy + 2), new Vector2(18 + k * 8, gy + 50), .5f, .5f)), Flat(Alpha(woodDark, .5f)));
-                var top = Ellipse(30, gy + 52, 17, 5); c.Fill(top, Toon(top, woodDark, wood, woodLight, 4f), Ink, 1.2f);
-            });
         }
 
         // ---- plague (forgotten city, overgrown) ----------------------------------------------------------------------------------
