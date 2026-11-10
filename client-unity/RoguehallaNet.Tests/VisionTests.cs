@@ -27,6 +27,50 @@ namespace Roguehalla.Net.Tests
         static double C(int tile) { return (tile + 0.5) * 32; }
 
         [Test]
+        public void Delivered_values_are_used_and_defaults_apply_without_a_block()
+        {
+            var d = new VisionRule(Open());
+            Assert.AreEqual(VisionRule.DefaultRadius, d.Radius); Assert.AreEqual(VisionRule.DefaultTile, d.Tile);
+            Assert.AreEqual(VisionRule.DefaultTrailMs, d.TrailMs); Assert.AreEqual(VisionRule.DefaultUpdateMs, d.UpdateMs);
+            Assert.IsTrue(d.Usable);
+            var narrow = new VisionRule(Open(), new WireVision { Radius = 300, TrailMs = 5000, UpdateMs = 250 });
+            Assert.AreEqual(300, narrow.Radius); Assert.AreEqual(5000, narrow.TrailMs); Assert.AreEqual(250, narrow.UpdateMs);
+            Assert.IsTrue(d.RevealsTile(C(10), C(10), 25, 10), "900 sees 15 tiles away");
+            Assert.IsFalse(narrow.RevealsTile(C(10), C(10), 25, 10), "300 does not");
+            Assert.IsTrue(narrow.RevealsTile(C(10), C(10), 15, 10));
+        }
+
+        [Test]
+        public void Delivered_sight_mask_and_coliseum_rect_are_used()
+        {
+            var t = Open();
+            t.Tiles[10 * W + 12] = 2; // low cover: does not block with mask 1
+            Assert.IsTrue(new VisionRule(t).RevealsTile(C(10), C(10), 14, 10));
+            Assert.IsFalse(new VisionRule(t, new WireVision { SightMask = 3 }).RevealsTile(C(10), C(10), 14, 10));
+            var regions = new byte[W * H];
+            for (int y = 10; y < 20; y++) for (int x = 10; x < 20; x++) regions[y * W + x] = VisionRule.RegionColiseum;
+            var map = new MapBlob(W, H, new byte[W * H], null, regions, MapBlob.GroundTerrainOff);
+            var rule = new VisionRule(map, new WireVision { HasColiseum = true, ColiseumX = 2, ColiseumY = 3, ColiseumW = 4, ColiseumH = 5 });
+            rule.ColiseumRect(out int x0, out int y0, out int w, out int h);
+            Assert.AreEqual((2, 3, 4, 5), (x0, y0, w, h));
+            new VisionRule(map).ColiseumRect(out x0, out y0, out w, out h);
+            Assert.AreEqual((10, 10, 10, 10), (x0, y0, w, h), "no delivered rect: region-6 bounding box");
+            Assert.IsTrue(new VisionRule(map, new WireVision()).HasColiseum, "a block without a rect still falls back to the plane");
+        }
+
+        [Test]
+        public void An_unknown_version_or_bad_numbers_make_the_rule_unusable()
+        {
+            Assert.IsFalse(new VisionRule(Open(), new WireVision { Version = 2 }).Usable);
+            Assert.IsFalse(new VisionRule(Open(), new WireVision { Radius = 0 }).Usable);
+            Assert.IsFalse(new VisionRule(Open(), new WireVision { Radius = double.NaN }).Usable);
+            Assert.IsFalse(new VisionRule(Open(), new WireVision { Tile = -1 }).Usable);
+            Assert.IsFalse(new VisionRule(Open(), new WireVision { UpdateMs = double.PositiveInfinity }).Usable);
+            Assert.IsFalse(new VisionRule(Open(), new WireVision { TrailMs = double.NaN }).Usable);
+            Assert.IsTrue(new VisionRule(Open(), new WireVision()).Usable);
+        }
+
+        [Test]
         public void A_wall_hides_the_far_side_but_its_first_face_is_seen()
         {
             var rule = new VisionRule(Split());

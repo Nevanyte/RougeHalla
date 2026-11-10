@@ -98,14 +98,24 @@ namespace Roguehalla.Client
         public int Width { get { return _rule != null ? _rule.Width : 0; } }
         public int Height { get { return _rule != null ? _rule.Height : 0; } }
 
-        public void Configure(MapBlob map)
+        bool _warned;
+
+        /// <summary>Builds the fog for <paramref name="map"/> from the server's delivered <paramref name="vision"/> (null: the mirrored
+        /// defaults). Rules this client cannot mirror (unknown version, bad numbers) leave no fog at all, with one console warning.</summary>
+        public void Configure(MapBlob map, WireVision vision = null)
         {
             if (map == null || map.W <= 0 || map.H <= 0) return;
             long key = ((long)map.W << 40) ^ ((long)map.H << 20) ^ map.LayerHash;
             if (key == _mapKey && _field != null) return;
             Dispose(false);
             _mapKey = key;
-            _rule = new VisionRule(map);
+            _rule = new VisionRule(map, vision);
+            if (!_rule.Usable)
+            {
+                if (!_warned) { _warned = true; Debug.LogWarning("[vision] the server's vision rules (version " + vision.Version + ") are not ones this client mirrors; fog of war is off."); }
+                _rule = null;
+                return;
+            }
             _field = new VisionField(_rule);
             _mask = new FogMask(map.W, map.H);
             _pix = new Color32[map.W * map.H];
@@ -172,8 +182,8 @@ namespace Roguehalla.Client
             bool wasActive = _active;
             _active = true;
             _field.Update(ox, oy, serverMs);
-            _meX = (float)(ox / 32.0); _meY = (float)(oy / 32.0);
-            if (DebugRadiusTiles > 0f) { float nx = (float)(ox / 32.0), ny = (float)(oy / 32.0); if (Mathf.Abs(nx - _debugX) > .25f || Mathf.Abs(ny - _debugY) > .25f) { _debugX = nx; _debugY = ny; _textureDirty = true; } }
+            _meX = (float)(ox / _rule.Tile); _meY = (float)(oy / _rule.Tile);
+            if (DebugRadiusTiles > 0f) { float nx = (float)(ox / _rule.Tile), ny = (float)(oy / _rule.Tile); if (Mathf.Abs(nx - _debugX) > .25f || Mathf.Abs(ny - _debugY) > .25f) { _debugX = nx; _debugY = ny; _textureDirty = true; } }
             if (_field.TakeDirty(out int x0, out int y0, out int x1, out int y1)) { _mask.Rebuild(_field, x0, y0, x1, y1); _textureDirty = true; UpdatesDone++; }
             _clearCount = actors != null ? actors.CollectClearings(_clearings) : 0;
             ulong sig = 1469598103934665603UL;
