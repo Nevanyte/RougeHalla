@@ -1,0 +1,37 @@
+# Final scoped manifest — P-QUEST-ROOM-DELIVERY-1 worker receipt
+# generated: 2026-11-10T11:33:36Z (UTC)
+# worktree: /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-quest-room-delivery
+# branch: codex/deepseek-quest-room-delivery
+# base HEAD: 9ee84dfe3fa35cfdefc4b6cabaf4b9091db6a24c
+# toolchain: cargo 1.97.0 / rustc 1.97.0
+# env: CARGO_INCREMENTAL=0 CARGO_TARGET_DIR=target-deepseek-quest-room-delivery CARGO_NET_OFFLINE=true CARGO_BUILD_JOBS=1; cargo --offline --locked -j 1
+# git status --porcelain=v2:
+1 .M N... 100644 100644 100644 1cf18408bb217f3d84649a67fa0cd873bd39d3cc 1cf18408bb217f3d84649a67fa0cd873bd39d3cc crates/rh-server/src/quest_bridge_tests.rs
+? docs/evidence/quest-public-completion-room-delivery/
+? target-deepseek-quest-room-delivery/
+# git diff --stat / --numstat:
+ crates/rh-server/src/quest_bridge_tests.rs | 790 +++++++++++++++++++++++++++++
+ 1 file changed, 790 insertions(+)
+790	0	crates/rh-server/src/quest_bridge_tests.rs
+# scoped candidate existing-file SHA256:
+3a02b4097a583c8662bd06d54a6979836c469139cf369f32aad281f419fe0b6b  crates/rh-server/src/quest_bridge_tests.rs
+# evidence file SHA256 (self-referential manifest files excluded):
+aa2b807801cc222dd46ca1b0212f894dee8245db54f7e01ab27d1c69b430dcb8  docs/evidence/quest-public-completion-room-delivery/logs/01-focused-proof.log
+44d6bf3e425e0eb217cfc136be767e75d6c64738e100b5a8fcd540acba36b56c  docs/evidence/quest-public-completion-room-delivery/logs/02-quest-bridge-regressions.log
+3fbe6cc2e86ea105fc7e67b1da59e851b99ef57db1a0fe643516bee4a5eba877  docs/evidence/quest-public-completion-room-delivery/logs/03-fmt-check.log
+f07111d3c75cff2ee69e7d2ff392d737fab1f1ceb72ae6d94de945227de6fe79  docs/evidence/quest-public-completion-room-delivery/logs/04-clippy-default.log
+3ce92b93698098b4dc288e7fc3f13a651ee04a5633ee36b0737eecb8540e4a1f  docs/evidence/quest-public-completion-room-delivery/logs/05-clippy-all-features.log
+8d9d6cb6345f906e63358423915a799b7bc89ed3653712739ad4f1e5922137d1  docs/evidence/quest-public-completion-room-delivery/logs/06-focused-proof-repeat.log
+0ba300e1c358bda89cdca8ccf573a27fc9a0cfebacab1a0dba2bc32b315b2fd9  docs/evidence/quest-public-completion-room-delivery/logs/07-identity.log
+b3628eafb767f4d3d2f57274079c4fc734856cc5958ac7e59efe7819193824b5  docs/evidence/quest-public-completion-room-delivery/logs/08-fresh-target-rebuild.log
+4c0be648f62f135652a24493f5de5a441d69a042d321bac292efb2831d0a18fa  docs/evidence/quest-public-completion-room-delivery/logs/clippy-firstfailure-all-features.log
+8ebb9ce3dc7b84412a694b5a817514169924f770c73c08cae9f794d1c5eba89e  docs/evidence/quest-public-completion-room-delivery/logs/clippy-firstfailure-default.log
+3c124c00a6ad7989f88e9f907aabbcd4336de766bf7d4083f5742a94306265dd  docs/evidence/quest-public-completion-room-delivery/logs/first-failure-objectives-assert.log
+c292a5d6e6136ac9f8fc1c66c1b02b5ae9737c9a419f5329c112f47f2a660118  docs/evidence/quest-public-completion-room-delivery/README.md
+33bf1b525637560ee30de590a7f1376ce886feed3d7591ec7071cf80e61d54be  docs/evidence/quest-public-completion-room-delivery/working-tree.diff
+# target/build cache present in worktree but NOT part of this manifest or seal:
+target-deepseek-quest-room-delivery
+# frozen read-only witnesses (unchanged):
+977450a6e0e1a1fcc3bd135edf7ebe6291f10d4da7aef98a44fc76b5886bd978  parity/quest-room-feedback/source.json
+039d4e058fa914f42080f1c55d8640cc508c5b4745504930ca3db49579adc8b4  parity/quest-giver/source.json
+6ff324e134127d9c84a4f4383965f11e08a108fbe306424b1547795265adf6f5  parity/arena/source.json
