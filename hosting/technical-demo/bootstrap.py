@@ -309,7 +309,9 @@ def ready(port, expected):
             if route == '/readyz':
                 require(data.get('ok') is True and data.get('state') == 'ready' and data.get('storage') == 'ok', 'storage not ready')
             else:
-                require(data.get('protocol') == expected['protocol'] and data.get('contentHash') == expected['content_hash'], 'native identity')
+                protocol = data.get('protocol')
+                require(type(protocol) is int and 1 <= protocol <= 65535, 'native protocol')
+                require(protocol == expected['protocol'] and data.get('contentHash') == expected['content_hash'], 'native identity')
         finally:
             conn.close()
 

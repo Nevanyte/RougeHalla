@@ -77,13 +77,21 @@ class Offline(unittest.TestCase):
                                                             side_effect=lambda host, p, timeout: Connection(good)):
                 bootstrap.ready(port, expected)
 
+        malformed_or_stale = (
+            (expected, {'protocol': C['protocol'] - 1, 'contentHash': C['content_hash']}),
+            (expected, {'protocol': C['protocol'], 'contentHash': '0' * 16}),
+            (expected, {'protocol': float(C['protocol']), 'contentHash': C['content_hash']}),
+            ({'protocol': 1, 'content_hash': C['content_hash']}, {'protocol': True, 'contentHash': C['content_hash']}),
+            (expected, {'protocol': 65536, 'contentHash': C['content_hash']}),
+            (expected, {'contentHash': C['content_hash']}),
+        )
         for port in (7777, 7779):
-            for payload in ({'protocol': C['protocol'] - 1, 'contentHash': C['content_hash']},
-                            {'protocol': C['protocol'], 'contentHash': '0' * 16}):
+            for expected_identity, payload in malformed_or_stale:
                 conn = Connection(payload)
-                with self.subTest(port=port, payload=payload), mock.patch.object(bootstrap.http.client, 'HTTPConnection', return_value=conn):
+                with self.subTest(port=port, expected=expected_identity, payload=payload), \
+                        mock.patch.object(bootstrap.http.client, 'HTTPConnection', return_value=conn):
                     with self.assertRaises(ValueError):
-                        bootstrap.ready(port, expected)
+                        bootstrap.ready(port, expected_identity)
                     self.assertTrue(conn.closed)
 
     def test_good_extract_exclusive(self):
