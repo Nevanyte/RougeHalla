@@ -497,6 +497,13 @@ namespace Roguehalla.Net
                         if (_hasMe) Motion.OnSnapshot(snap.Me, now, snap.AckInput, snap.ServerMs,
                             _me.OwnerCombat.HasValue ? _me.OwnerCombat.Value.SpeedMilli : (double?)null);
                         else Motion.Clear();
+                        // A bow draw has no fx: its start and interval are in the owner block (clock shift: an epoch cut overrides the tick time).
+                        if (_hasMe && snap.OwnerCombat != null)
+                        {
+                            double shift = snap.ServerMs - snap.Tick * (double)Wire.TickMs;
+                            Motion.NoteOwnerDraw(snap.ServerMs, snap.OwnerCombat.DrawStartedAt == 0 ? 0 : snap.OwnerCombat.DrawStartedAt + shift,
+                                snap.OwnerCombat.ReadyAt + shift, snap.OwnerCombat.WindupMilli);
+                        }
                     }
                     if (sourceCut)
                     {

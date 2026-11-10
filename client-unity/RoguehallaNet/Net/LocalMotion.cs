@@ -81,6 +81,8 @@ namespace Roguehalla.Net
         public const double RangedReleasePauseMs = 200.0;
         /// <summary>rh-sim <c>TIE_EPS_MS</c>: a landing within this of a step counts as that step's. Pinned by <c>ranged_pause_v1.json</c>.</summary>
         public const double TieEpsMs = 1e-6;
+        /// <summary>rh-sim <c>BOW_WINDUP_MAX_S</c> and <c>BOW_WINDUP_INTERVAL_SHARE</c>: a player bow shot lands <c>min(max, share * interval)</c> seconds after its draw starts. Pinned by <c>ranged_pause_v2.json</c>.</summary>
+        public const double BowWindupMaxS = 0.5, BowWindupIntervalShare = 0.55;
 
         /// <summary>A stalled frame walks at most this much (legacy <c>MAX_FRAME_MS</c>); it can never tunnel through a wall.</summary>
         const double MaxStepMs = 100.0;
@@ -135,7 +137,10 @@ namespace Roguehalla.Net
         // At most one attack is in flight; a few slots keep a window whose shot just landed while the next is announced.
         const int PauseSlots = 4;
         readonly double[] _pauseFrom = new double[PauseSlots], _pauseUntil = new double[PauseSlots];
+        // A bow draw is not cancelled by a stagger (rh-sim stagger_cancel leaves a Draw alone); a cast or swing is.
+        readonly bool[] _pauseDraw = new bool[PauseSlots];
         int _pauseCount;
+        uint _lastDraw;
         int _lastWeapon = -1;
 
         // Model pose history (local ms, x, y), oldest first in a fixed ring: where the model was, for delay alignment.
@@ -356,6 +361,7 @@ namespace Roguehalla.Net
             _stepClock = true;
             _hasStamp = false; // the source clock was cut: the next sample re-anchors the sample time base
             _pauseCount = 0;   // and server-time windows from the old clock mean nothing
+            _lastDraw = 0;
         }
 
         /// <summary>
@@ -392,7 +398,7 @@ namespace Roguehalla.Net
             double stamp = SampleStamp(nowMs, serverMs);
             NoteEcho(me.MoveSeq, stamp, ackInput);
             bool alive = me.Status == 1;
-            if (!alive) _pauseCount = 0;
+            if (!alive) { _pauseCount = 0; _lastDraw = 0; }
             NoteSelfAttackFacts(me, serverMs);
             bool hardCut = Initialized && (me.DisplaceSeq != _displaceSeq || !alive || !_alive);
             // Echo before advancing the clock: an acknowledgement at the expiry boundary is not a lost order.
@@ -451,7 +457,7 @@ namespace Roguehalla.Net
             bool stunned = (me.Effects & 1) != 0;
             bool changed = _lastWeapon >= 0 && _lastWeapon != me.Weapon;
             _lastWeapon = me.Weapon;
-            if ((stunned || changed) && _pauseCount > 0 && serverMs.HasValue && PredictAttackPause) EndPauseAt(serverMs.Value - TickMs);
+            if ((stunned || changed) && _pauseCount > 0 && serverMs.HasValue && PredictAttackPause) EndPauseAt(serverMs.Value - TickMs, true);
         }
 
         /// <summary>Clears the presented self, any pending order and the walk (a snapshot without this player, or a fresh Welcome).</summary>
@@ -481,6 +487,7 @@ namespace Roguehalla.Net
             _align = 0;
             _hasStamp = false;
             _pauseCount = 0;
+            _lastDraw = 0;
             _lastWeapon = -1;
             Snaps = 0;
             ExpiredOrders = 0;
@@ -510,15 +517,49 @@ namespace Roguehalla.Net
         public void NoteOwnWindup(double tickMs, double waitMs, byte weapon)
         {
             if (!PredictAttackPause || !_hasStamp || double.IsNaN(tickMs) || double.IsNaN(waitMs) || waitMs < 0) return;
-            double landsAt = tickMs + waitMs;
-            double landStep = CeilStep(landsAt);            // the first step whose tick has the shot landed (weapons run before movement)
             bool release = weapon == (byte)WeaponId.Bow || weapon == (byte)WeaponId.Wand;
+            PlacePause(tickMs, tickMs + waitMs, release, weapon == (byte)WeaponId.Bow);
+        }
+
+        /// <summary>
+        /// The owner block of the sample at server time <paramref name="tickMs"/>: a bow draw has no fx, but the block carries
+        /// <paramref name="drawStartedAt"/> (0 when no draw is pending) and <paramref name="readyAt"/> (the next attack), both in the
+        /// sample's own clock (the caller adds the clock shift). The draw's interval is their difference and the shot lands
+        /// <c>min(BowWindupMaxS, BowWindupIntervalShare * interval)</c> after it starts (rh-sim <c>player_timings</c>), then the
+        /// same release pause as a wand applies. A windup mirror above 1 (<paramref name="windupMilli"/>) scales that wait by a rule
+        /// the client does not hold, so the draw is left unpredicted. A draw clock that returns to 0 before the shot lands is a
+        /// cancelled draw (swap, stun, death), whatever the cause: the pause ends the step before.
+        /// </summary>
+        public void NoteOwnerDraw(double tickMs, double drawStartedAt, double readyAt, double windupMilli)
+        {
+            if (!PredictAttackPause || !_hasStamp) return;
+            uint draw = (uint)drawStartedAt;
+            if (draw != 0)
+            {
+                if (draw == _lastDraw) return;
+                _lastDraw = draw;
+                double interval = (readyAt - drawStartedAt) / 1000.0;
+                if (!(interval > 0) || windupMilli > 1000.0) return;
+                double wait = Math.Min(BowWindupMaxS, BowWindupIntervalShare * interval) * 1000.0;
+                PlacePause(tickMs, drawStartedAt + wait, true, true);
+            }
+            else if (_lastDraw != 0)
+            {
+                _lastDraw = 0;
+                EndPauseAt(tickMs - TickMs, true);
+            }
+        }
+
+        void PlacePause(double tickMs, double landsAt, bool release, bool draw)
+        {
+            double landStep = CeilStep(landsAt);            // the first step whose tick has the shot landed (weapons run before movement)
             double firstStep = release ? Math.Max(tickMs, CeilStep(landsAt - RangedReleasePauseMs)) : tickMs;
             double from = firstStep - TickMs, until = landStep - TickMs;
             if (!(until > from)) return;
             if (_pauseCount == PauseSlots) DropPauseSlot(0);
             _pauseFrom[_pauseCount] = from;
             _pauseUntil[_pauseCount] = until;
+            _pauseDraw[_pauseCount] = draw;
             _pauseCount++;
         }
 
@@ -526,18 +567,19 @@ namespace Roguehalla.Net
         /// The owner's <c>Stagger</c> fx at server time <paramref name="tickMs"/>: the cast or swing is cancelled by the ledger, after
         /// that tick's movement multiplier was read, so the step ending at the stagger's own tick is still stopped.
         /// </summary>
-        public void NoteOwnStagger(double tickMs) { if (PredictAttackPause) EndPauseAt(tickMs); }
+        public void NoteOwnStagger(double tickMs) { if (PredictAttackPause) EndPauseAt(tickMs, false); }
 
         /// <summary>
         /// The owner's <c>Cancel</c> fx at server time <paramref name="tickMs"/>: the order that cancelled the attack ran in the
         /// input phase, before that tick's multiplier was read, so the step ending at the cancel's tick walks.
         /// </summary>
-        public void NoteOwnCancel(double tickMs) { if (PredictAttackPause) EndPauseAt(tickMs - TickMs); }
+        public void NoteOwnCancel(double tickMs) { if (PredictAttackPause) EndPauseAt(tickMs - TickMs, true); }
 
-        void EndPauseAt(double untilMs)
+        void EndPauseAt(double untilMs, bool includeDraws)
         {
             for (int i = _pauseCount - 1; i >= 0; i--)
             {
+                if (_pauseDraw[i] && !includeDraws) continue;
                 if (_pauseUntil[i] > untilMs) _pauseUntil[i] = untilMs;
                 if (!(_pauseUntil[i] > _pauseFrom[i])) DropPauseSlot(i);
             }
@@ -545,7 +587,7 @@ namespace Roguehalla.Net
 
         void DropPauseSlot(int i)
         {
-            for (int j = i + 1; j < _pauseCount; j++) { _pauseFrom[j - 1] = _pauseFrom[j]; _pauseUntil[j - 1] = _pauseUntil[j]; }
+            for (int j = i + 1; j < _pauseCount; j++) { _pauseFrom[j - 1] = _pauseFrom[j]; _pauseUntil[j - 1] = _pauseUntil[j]; _pauseDraw[j - 1] = _pauseDraw[j]; }
             _pauseCount--;
         }
 
@@ -561,7 +603,7 @@ namespace Roguehalla.Net
         }
 
         /// <summary>Drops every held attack pause (death, a cut source clock, a new Welcome).</summary>
-        public void ClearAttackPause() { _pauseCount = 0; }
+        public void ClearAttackPause() { _pauseCount = 0; _lastDraw = 0; }
 
         static double CeilStep(double ms) { return Math.Ceiling((ms - TieEpsMs) / TickMs) * TickMs; }
 

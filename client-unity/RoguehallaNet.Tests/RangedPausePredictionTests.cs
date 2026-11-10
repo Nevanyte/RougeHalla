@@ -8,7 +8,7 @@ using Roguehalla.Net.Protocol;
 namespace Roguehalla.Net.Tests
 {
     /// <summary>
-    /// The attack movement pause (ADR 0008 amendment 2026-11-10) replayed from the Rust truth. <c>protocol/fixtures/ranged_pause_v1.json</c>
+    /// The attack movement pause (ADR 0008 amendment 2026-11-10) replayed from the Rust truth. <c>protocol/fixtures/ranged_pause_v2.json</c>
     /// is written by <c>crates/rh-parity/tests/ranged_pause_golden.rs</c> from the real sim: one walking fighter attacking in several
     /// ways, per 50 ms tick the server's position and whether the tick moved it, and ONLY the facts the owner's observation delivers
     /// (its Windup, Cancel and Stagger fx, weapon and effects). This replays those facts through the real <see cref="Session"/>
@@ -48,7 +48,7 @@ namespace Roguehalla.Net.Tests
             get
             {
                 if (_fixture == null)
-                    _fixture = JsonDocument.Parse(File.ReadAllText(Path.Combine(Util.RepoRoot(), "protocol/fixtures/ranged_pause_v1.json")));
+                    _fixture = JsonDocument.Parse(File.ReadAllText(Path.Combine(Util.RepoRoot(), "protocol/fixtures/ranged_pause_v2.json")));
                 return _fixture.RootElement;
             }
         }
@@ -128,6 +128,7 @@ namespace Roguehalla.Net.Tests
                         {
                             Tick = SourceTick(nextServerTick), Phase = 1, Me = SelfAt(rows[k], xs[k], ys[k], (byte)(k > 0 ? 1 : 0)),
                             AckInput = k > 0 ? 1u : 0u,
+                            OwnerCombat = OwnerAt(rows[k], SourceTick(nextServerTick) * Tick - rows[k].GetProperty("t").GetDouble()),
                         });
                     }
                     sentRow = k;
@@ -159,6 +160,19 @@ namespace Roguehalla.Net.Tests
                 foreach (var fx in rows[k].GetProperty("fx").EnumerateArray()) if (fx.GetProperty("kind").GetString() == "windup") result.WindupFx++;
             }
             return result;
+        }
+
+        /// <summary>The owner block a row delivers, its clocks moved into the replay's clock by <paramref name="shift"/> (null: no block).</summary>
+        static WireOwnerCombat OwnerAt(JsonElement row, double shift)
+        {
+            var o = row.GetProperty("owner");
+            if (o.ValueKind != JsonValueKind.Object) return null;
+            uint draw = o.GetProperty("drawStartedAt").GetUInt32();
+            return new WireOwnerCombat
+            {
+                DrawStartedAt = draw == 0 ? 0 : (uint)(draw + shift), ReadyAt = (uint)(o.GetProperty("readyAt").GetUInt32() + shift),
+                AsMilli = o.GetProperty("asMilli").GetDouble(), WindupMilli = o.GetProperty("windupMilli").GetDouble(), SpeedMilli = o.GetProperty("speedMilli").GetDouble(),
+            };
         }
 
         static WireSelf SelfAt(JsonElement row, double x, double y, byte seq)
@@ -193,7 +207,8 @@ namespace Roguehalla.Net.Tests
         static readonly string[] AllCases =
         {
             "wand-single-shot", "wand-held", "wand-rejected-cooldown", "wand-staggered", "wand-staggered-in-pause",
-            "wand-weapon-swap", "bow-single-shot", "sword-swing",
+            "wand-weapon-swap", "bow-single-shot", "bow-held", "bow-holy-faction", "bow-plague-faction", "bow-frost-faction",
+            "bow-rejected-cooldown", "bow-staggered-mid-draw", "bow-weapon-swap-mid-draw", "bow-weapon-swap-early-draw", "sword-swing",
         };
 
         // ----------------------------------------------------------------------------------------------------------------
@@ -205,6 +220,8 @@ namespace Roguehalla.Net.Tests
             var k = Fixture.GetProperty("constants");
             Assert.AreEqual(k.GetProperty("rangedReleasePauseMs").GetDouble(), LocalMotion.RangedReleasePauseMs, "RANGED_RELEASE_PAUSE_MS");
             Assert.AreEqual(k.GetProperty("tieEpsMs").GetDouble(), LocalMotion.TieEpsMs, "TIE_EPS_MS");
+            Assert.AreEqual(k.GetProperty("bowWindupMaxS").GetDouble(), LocalMotion.BowWindupMaxS, "BOW_WINDUP_MAX_S");
+            Assert.AreEqual(k.GetProperty("bowWindupIntervalShare").GetDouble(), LocalMotion.BowWindupIntervalShare, "BOW_WINDUP_INTERVAL_SHARE");
             Assert.AreEqual(k.GetProperty("tickMs").GetDouble(), LocalMotion.TickMs, "TICK_MS");
             Assert.AreEqual(k.GetProperty("playerSpeed").GetDouble(), LocalMotion.PlayerSpeed, "PLAYER_SPEED");
         }
@@ -217,7 +234,7 @@ namespace Roguehalla.Net.Tests
         {
             var rows = Case(name).GetProperty("rows");
             var m = new LocalMotion(Map());
-            var windows = new List<double>();
+            var result = new List<(int, bool, bool)>();
             for (int k = 0; k < rows.GetArrayLength(); k++)
             {
                 var row = rows[k];
@@ -232,13 +249,12 @@ namespace Roguehalla.Net.Tests
                     }
                 }
                 m.OnSnapshot(SelfAt(row, row.GetProperty("x").GetDouble(), row.GetProperty("y").GetDouble(), 0), tick, null, tick);
-            }
-            var result = new List<(int, bool, bool)>();
-            for (int k = 1; k < rows.GetArrayLength(); k++)
-            {
-                var mult = rows[k].GetProperty("moveMult");
-                if (mult.ValueKind != JsonValueKind.Number) continue;
-                result.Add((k, mult.GetInt32() == 0, m.AttackPauseStops(rows[k].GetProperty("t").GetDouble())));
+                var own = OwnerAt(row, 0);
+                if (own != null) m.NoteOwnerDraw(tick, own.DrawStartedAt, own.ReadyAt, own.WindupMilli);
+                // What the mirror says about the step ending at this row's tick, right after the row's facts: the step is already
+                // decided server side, so every fact that changes it (a stagger or swap at this very tick included) is in by now.
+                var mult = row.GetProperty("moveMult");
+                if (k > 0 && mult.ValueKind == JsonValueKind.Number) result.Add((k, mult.GetInt32() == 0, m.AttackPauseStops(tick)));
             }
             return result;
         }
@@ -249,6 +265,15 @@ namespace Roguehalla.Net.Tests
         [TestCase("wand-staggered")]
         [TestCase("wand-staggered-in-pause")]
         [TestCase("wand-weapon-swap")]
+        [TestCase("bow-single-shot")]
+        [TestCase("bow-held")]
+        [TestCase("bow-holy-faction")]
+        [TestCase("bow-plague-faction")]
+        [TestCase("bow-frost-faction")]
+        [TestCase("bow-rejected-cooldown")]
+        [TestCase("bow-staggered-mid-draw")]
+        [TestCase("bow-weapon-swap-mid-draw")]
+        [TestCase("bow-weapon-swap-early-draw")]
         [TestCase("sword-swing")]
         public void TheMirrorStopsExactlyTheStepsTheServerStopped(string name)
         {
@@ -257,21 +282,45 @@ namespace Roguehalla.Net.Tests
                 Assert.AreEqual(p.server, p.mirror, name + ": row " + p.row + " the server " + (p.server ? "stopped" : "walked") + " but the mirror " + (p.mirror ? "stops" : "walks"));
             int stopped = 0;
             foreach (var p in placed) if (p.server) stopped++;
-            if (name == "sword-swing" || name == "wand-staggered") Assert.AreEqual(0, stopped, name + ": nothing to stop");
+            if (name == "sword-swing" || name == "wand-staggered" || name == "bow-weapon-swap-early-draw") Assert.AreEqual(0, stopped, name + ": nothing to stop");
             else Assert.GreaterOrEqual(stopped, 1, name + ": the case must contain a server pause");
         }
 
         [Test]
-        public void ABowReleasePauseIsNotAnnouncedSoItIsNotMirrored()
+        public void TheBowLandingDerivedFromTheOwnerBlockIsTheServers()
         {
-            // KNOWN GAP, pinned: the sim announces no Windup for a bow draw and the self block carries no landing time, so the
-            // client has no delivered fact that places a bow release. When the sim announces it, this test fails and the mirror
-            // (which already treats a Bow windup as a release) starts covering it; update the ADR then.
-            var placed = Place("bow-single-shot");
-            int server = 0, mirror = 0;
-            foreach (var p in placed) { if (p.server) server++; if (p.mirror) mirror++; }
-            Assert.AreEqual(4, server, "the server stops the walk for the last 200 ms of the draw");
-            Assert.AreEqual(0, mirror, "the mirror has no fact to place it");
+            // Only the owner block's clocks and the two mirrored constants: the shot lands min(max, share * interval) after the draw
+            // starts. The block's clocks are whole milliseconds, so the derivation is within about a millisecond of the server's own.
+            int draws = 0; double worst = 0;
+            foreach (var c in Fixture.GetProperty("cases").EnumerateArray())
+            {
+                if (c.GetProperty("weapon").GetInt32() != (int)WeaponId.Bow) continue;
+                foreach (var row in c.GetProperty("rows").EnumerateArray())
+                {
+                    var own = row.GetProperty("owner");
+                    var truth = row.GetProperty("truthLandsAt");
+                    if (own.ValueKind != JsonValueKind.Object || truth.ValueKind != JsonValueKind.Number) continue;
+                    double draw = own.GetProperty("drawStartedAt").GetUInt32(), ready = own.GetProperty("readyAt").GetUInt32();
+                    double derived = draw + 1000.0 * Math.Min(LocalMotion.BowWindupMaxS, LocalMotion.BowWindupIntervalShare * (ready - draw) / 1000.0);
+                    worst = Math.Max(worst, Math.Abs(derived - truth.GetDouble()));
+                    Assert.LessOrEqual(Math.Abs(derived - truth.GetDouble()), 1.5, c.GetProperty("name").GetString() + " row " + row.GetProperty("row").GetInt32());
+                    draws++;
+                }
+            }
+            Assert.Greater(draws, 30);
+            TestContext.Progress.WriteLine("bow landing derived from the owner block: " + draws + " rows, worst error " + worst.ToString("F3") + " ms");
+        }
+
+        [Test]
+        public void ADrawAtAWindupScaleAboveOneIsLeftUnpredicted()
+        {
+            var m = new LocalMotion(Map());
+            m.OnSnapshot(new WireSelf { Id = Me, X = 100, Y = 100, Hp = 1, MaxHp = 1, Status = 1, Weapon = 1 }, 1000, null, 1000);
+            m.NoteOwnerDraw(1000, 1000, 1854, 1500.0);   // a windup mirror above 1 scales the wait by a rule the client does not hold
+            Assert.AreEqual(0, m.AttackPauseWindows);
+            m.NoteOwnerDraw(1050, 0, 1854, 1500.0);
+            m.NoteOwnerDraw(1100, 1100, 1954, 1000.0);
+            Assert.AreEqual(1, m.AttackPauseWindows);
         }
 
         [Test]
@@ -401,13 +450,59 @@ namespace Roguehalla.Net.Tests
             }
         }
 
-        [Test]
-        public void ABowReleaseIsStillPulledBackUntilTheServerAnnouncesIt()
+        [TestCase("bow-single-shot", 0.0)]
+        [TestCase("bow-single-shot", 50.0)]
+        [TestCase("bow-single-shot", 100.0)]
+        [TestCase("bow-single-shot", 150.0)]
+        [TestCase("bow-held", 0.0)]
+        [TestCase("bow-held", 100.0)]
+        [TestCase("bow-held", 150.0)]
+        [TestCase("bow-holy-faction", 50.0)]
+        [TestCase("bow-frost-faction", 50.0)]
+        [TestCase("bow-frost-faction", 150.0)]
+        [TestCase("bow-staggered-mid-draw", 100.0)]
+        [TestCase("bow-rejected-cooldown", 100.0)]
+        public void AWalkingBowShotIsNotPulledBack(string name, double rtt)
         {
-            var on = Replay("bow-single-shot", 50, 50, true);
-            var off = Replay("bow-single-shot", 50, 50, false);
-            Assert.AreEqual(off.MaxOnTickError, on.MaxOnTickError, 1e-9, "no windup fx: the mirror cannot act");
-            Assert.GreaterOrEqual(on.MaxOnTickError, 2 * TickWalk, "the old error remains for a bow");
+            var on = Replay(name, rtt / 2, rtt / 2, true);
+            var off = Replay(name, rtt / 2, rtt / 2, false);
+            TestContext.Progress.WriteLine(name + " rtt " + rtt + ": " + on.MaxOnTickError.ToString("F3") + " u with the mirror, " + off.MaxOnTickError.ToString("F2")
+                + " without; model-vs-server " + on.ReconMaxErr.ToString("F2") + " vs " + off.ReconMaxErr.ToString("F2"));
+            Assert.LessOrEqual(on.MaxOnTickError, LeadTolerance, name);
+            Assert.AreEqual(0, on.Snaps);
+            Assert.Less(on.ReconMaxErr, LocalMotion.ReconCorrectionU);
+            Assert.GreaterOrEqual(off.MaxOnTickError, 2 * TickWalk, name + ": the control shows the old error");
+            Assert.GreaterOrEqual(off.ReconMaxErr, TickWalk - 0.01);
+        }
+
+        [TestCase("bow-plague-faction", 0.0)]
+        [TestCase("bow-plague-faction", 50.0)]
+        public void ADrawShorterThanTheLinkIsLearnedLateButStillHelps(string name, double rtt)
+        {
+            // A 277 ms interval: the whole 152 ms draw is a pause, and it is learned when the first snapshot of the draw arrives.
+            var on = Replay(name, rtt / 2, rtt / 2, true);
+            var off = Replay(name, rtt / 2, rtt / 2, false);
+            TestContext.Progress.WriteLine(name + " rtt " + rtt + ": " + on.MaxOnTickError.ToString("F3") + " u with the mirror, " + off.MaxOnTickError.ToString("F2") + " without");
+            Assert.LessOrEqual(on.MaxOnTickError, off.MaxOnTickError + 0.05);
+            Assert.AreEqual(0, on.Snaps);
+        }
+
+        [TestCase("bow-weapon-swap-mid-draw", 0.0)]
+        [TestCase("bow-weapon-swap-mid-draw", 50.0)]
+        [TestCase("bow-weapon-swap-mid-draw", 100.0)]
+        [TestCase("bow-weapon-swap-early-draw", 0.0)]
+        [TestCase("bow-weapon-swap-early-draw", 50.0)]
+        [TestCase("bow-weapon-swap-early-draw", 100.0)]
+        public void ASwapDuringADrawEndsItsPauseAtTheSwap(string name, double rtt)
+        {
+            var on = Replay(name, rtt / 2, rtt / 2, true);
+            var off = Replay(name, rtt / 2, rtt / 2, false);
+            TestContext.Progress.WriteLine(name + " rtt " + rtt + ": " + on.MaxOnTickError.ToString("F2") + " u with the mirror, " + off.MaxOnTickError.ToString("F2") + " without");
+            // The swap fact is slower than the model's lead once the link is slow: the model has paused for the part of the pause
+            // it had reached (the documented price of predicting from the draw). Bounded by the pause, never a snap.
+            if (rtt <= 50) Assert.LessOrEqual(on.MaxOnTickError, off.MaxOnTickError + 0.05, "not worse than the unpredicted walk on a fast link");
+            Assert.LessOrEqual(on.MaxOnTickError, 4 * TickWalk + 0.01);
+            Assert.AreEqual(0, on.Snaps);
         }
 
         [Test, Explicit("prints the measurement table")]
