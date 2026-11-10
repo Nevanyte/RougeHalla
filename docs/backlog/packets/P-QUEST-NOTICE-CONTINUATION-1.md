@@ -6,6 +6,8 @@ Consume frozen quest-notice cases1/2/3/5 through correspondingly honest native b
 
 Plan only: no capture, Rust implementation or execution is authorized by this draft. Root reviews/dispatches after the quest Stage1 extraction seal is admitted and allocates isolated branches. Stage1 production expectations stay unchanged. All Rust, including tests and any approved visibility hunk, is DeepSeek-owned; Sol/Luna prepare source/evidence and independent review. Never edit Claude's primary checkout or active strategy work. Root alone edits shared status/identity allocations/Cargo.lock.
 
+**Root readiness decision (2026-11-10):** [independent plan/source review](../../evidence/quest-notice-continuation-plan-review/README.md), committed at `cef8d83d`, finds all four frozen cases feasible without a new capture. Root approves the exact `fn teleport` → `pub(crate) fn teleport` visibility-only hunk described below for the eventual DeepSeek dispatch. No wrapper or other production edit is allocated. The packet is ready pending Stage1 admission and an exact clean worker base; this note does not start implementation.
+
 ## Immutable evidence and indexing
 
 Use **zero-based** case indices throughout; older prose headings1–6 are one-based.
