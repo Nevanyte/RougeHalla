@@ -4,6 +4,35 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Backend/Unity union checkpoint (2026-11-10)
+
+Branch `integration/backend-unity-union`, head `f6432ea9`. Merge `1319260b` combines the Unity primary `fbf6bb20`
+(`feature/unity-rework`) with the backend `40999db1` (`codex/backend-gameplay-quests`). The private Brain (`codex/deepseek-private-brain`
+`decf068f` + `15b41709`) and the host bundle packager (`codex/morning-host-bundle` `1f15f608`) were merged afterwards. Three
+Archetypes composition proofs were added (NPC earned bleed checkpoint, Card public flush, Quest Room earned completion), commit `9ca1122e`.
+
+- **Union identities:** protocol 16 (unchanged by these merges), observation 24, checkpoint `rh-checkpoint/31`, replay
+  `rh-replay/25`, policy contract 18, content hash `a2d1022ebe713382`.
+- **Superseded:** the provisional identities in the morning direction and parallel-lane paragraphs below (checkpoint 30 / replay 24 /
+  observation 22 / policy 16, and the expected 31/25/23/17) and the protocol14 lane identities. Kept as history.
+- **Gates at `f6432ea9`:** `cargo test --workspace` (Postgres) 2505 passed, 0 failed, 21 ignored; `parity-report` all MATCH (111);
+  clippy `-D warnings` clean; fmt clean; `dotnet test` 1241 passed; JS vectors v16 54205 checks pass; `source_arena_soak` run twice
+  identical; `source_soak` seeds 6-10 (legacy and archetypes) run twice, byte-identical.
+- **Private Brain (`P-BOT-BRAIN-NATIVE-1`):** 31 histories / 855 operations exact; Hand 6/12; Knowledge 32/2240/111; 38 focused tests.
+  Independent Sonnet review: LAND WITH NOTES. The Brain is private only and is **not wired to live bots**; fair live activation
+  (`P-BOT-FAIR-ACTIVATION-1`) remains open.
+- **Union merge review:** independent Sonnet review LAND WITH NOTES (no lost hunks, all new serialized fields present, identities
+  consistent, wire unchanged).
+- **Known pre-existing failure:** `tools/protocol-js/check-first-playable.mjs` ("bad projectile", missing projectile height byte).
+  It fails identically on the Unity primary.
+- **Not done:** refreshing the union against later Unity-lane commits; Unity WebGL build from the combined tree and browser proof;
+  final combined-tree review; the `play.rougehalla.com` test deployment.
+- **Branches:** nothing pushed. `optimization_port` and `feature/unity-rework` are unmoved.
+- **Lane stall and handover:** the Codex/DeepSeek backend lane stalled (out of credits) on 2026-11-10. Claude (coordinator) completed
+  workplan items 5 and 7 with Sonnet/Haiku sub-agents.
+- **Evidence:** [backend-unity-union](evidence/backend-unity-union/README.md),
+  [bot-private-brain-native](evidence/bot-private-brain-native/README.md).
+
 ## Morning release direction (owner instruction, 2026-11-10 America/Edmonton)
 
 Continue backend development until **10:30am Edmonton on November10 (17:30UTC)**. Do not communicate with Claude

@@ -12,6 +12,14 @@ revision; [sweep/README.md](sweep/README.md) says which (H-sim and H-server-2 ha
 
 ## Status table
 
+### Union identities (2026-11-10)
+
+On `integration/backend-unity-union` (head `f6432ea9`, merge `1319260b`) the current identities are: protocol 16 (unchanged by
+the merges), observation 24, checkpoint `rh-checkpoint/31`, replay `rh-replay/25`, policy contract 18, content hash
+`a2d1022ebe713382`. Gates and limits are in [MIGRATION.md](MIGRATION.md#backendunity-union-checkpoint-2026-11-10).
+The per-row validation cuts below name their own revisions and identities and are kept as history; they are not re-validated
+at the union head.
+
 ### Parallel backend lane admission (2026-11-10)
 
 Card bleed feedback is independently released from exact worker seal `8d06e5e8` and integrated as `37a02542`.
@@ -21,7 +29,7 @@ checks and separately run scoped allocation profilers. C-TICK retains the actual
 order. C-OBS keeps raw tagged B3 totals server-only, applies settled entitlement and redaction before grouping/errors,
 and publishes checked finite existing Hit events with no partial failure output. Accepted history grants no fresh
 viewer entitlement; legacy512 non-Card and checked Q+T0 history bounds remain separate. C-DET now identifies
-protocol14/checkpoint30/replay24/OBS22/policy16/content`fa16f195dc22ef69` on this isolated lane. Root's actual combined
+protocol14/checkpoint30/replay24/OBS22/policy16/content`fa16f195dc22ef69` on this isolated lane (superseded by the union identities above). Root's actual combined
 Card29, both CI-feature allocation tests, NPC6, ability63, tape, content21 and format pass. The later primary/hitbox
 union is separate; no final client, hosting or complete-port acceptance is implied.
 
