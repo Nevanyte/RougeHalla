@@ -2,13 +2,14 @@
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {readFileSync,writeFileSync} from 'node:fs';
+import {dirname,join} from 'node:path';
 import * as S from '@raid/shared';
 import {addPlayer,step as worldStep} from '../../packages/server/src/sim/step.ts';
 import {createWorld} from '../../packages/server/src/sim/world.ts';
 import {enqueueClientMessage} from '../../packages/server/src/sim/inputs.ts';
 import {combatant} from '../../packages/server/src/sim/combatant.ts';
 import {grantCard} from '../../packages/server/src/sim/chests.ts';
-import {startRaid} from '../../packages/server/src/sim/arena.ts';
+import {startRaid} from '../../packages/server/src/sim/step.ts';
 import {cases} from './cases.mts';
 
 assert.equal(process.version,'v22.23.4');
@@ -76,34 +77,49 @@ function build(input:any){
 const sourceFiles=['packages/server/src/sim/cardHooks.ts','packages/server/src/sim/world.ts','packages/server/src/sim/step.ts','packages/server/src/sim/arena.ts','packages/server/src/sim/inputs.ts','packages/server/src/sim/chests.ts','packages/shared/src/constants.ts'];
 const harnessFiles=['tools/card-bleed-fixtures/capture.mts','tools/card-bleed-fixtures/cases.mts','tools/card-bleed-fixtures/capture.sh'];
 const provenance={baseRevision:'4151b3af',runtime:'Node.js22.23.4 Linuxamd64',image:'node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292',fixedStepMs:50,sourceInputs:sourceFiles.map(path=>({path,sha256:sourceBytes(path)})),harnessInputs:harnessFiles.map(path=>({path,sha256:sourceBytes(path)})),oracle:'all expected rows/events below are emitted by unchanged source; no expected report state is supplied and flushBleeds is never called'};
-const captured=cases.map(build);
+const captured:any[]=[];let activeInput:any=null;
+function persistFailure(error:any){
+  if(process.argv[2]==='--check')return;
+  const outputPath=process.env.RH_CARD_BLEED_OUTPUT??'parity/card-bleed/source.json';
+  const diagnostic={format:'rh-card-bleed-unadmitted-diagnostic/1',status:'UNADMITTED',failure:{name:error?.name??'Error',message:String(error?.message??error),stack:String(error?.stack??'')},failingCase:activeInput?.name??null,failingInput:activeInput,provenance,capturedCases:captured};
+  writeFileSync(join(dirname(outputPath),'UNADMITTED.json'),JSON.stringify(diagnostic)+'\n');
+}
+try {
+for(const input of cases){activeInput=input;captured.push(build(input));}
 const named=(name:string)=>captured.find(c=>c.name===name)!;
 const pairs=named('ordered-pairs-and-repeat-pair');
+activeInput=pairs.input;
 assert(pairs.cardContributions.length>0,'ordered-pairs case reached actual card DoT');
 assert(new Set(pairs.cardContributions.map(h=>JSON.stringify([h.victim,h.by]))).size>=2,'ordered-pairs case reached multiple actual pairs');
 assert(new Set(pairs.cardContributions.map(h=>JSON.stringify([h.victim,h.by]))).size<pairs.cardContributions.length,'ordered-pairs case repeats a pair contribution');
 const periodic=named('first-use-clock-periodic-and-empty-interval');
+activeInput=periodic.input;
 assert(periodic.cardContributions.length>0,'periodic case reached actual card DoT');
 assert(periodic.cardFx.length>0,'periodic case emitted source card feedback');
 assert.equal(periodic.cardFx[0].time-periodic.cardContributions[0].time,500,'first-use report clock flushes at the source 500 ms boundary');
 assert(periodic.final.time-periodic.cardContributions.at(-1).time>=500,'periodic case crosses an empty post-expiry interval');
 const ended=named('run-ended-before-periodic-window');
+activeInput=ended.input;
 assert.equal(ended.final.phase,'ended','run-ended case ended through ordinary settle');
 assert(ended.cardContributions.length>0&&ended.cardFx.length>0,'run-ended case has a real contribution and flush');
 assert(ended.cardFx.at(-1).time-ended.cardContributions[0].time<500,'run-ended feedback precedes the periodic boundary');
 const teleported=named('teleport-retains-partial-report');
+activeInput=teleported.input;
 const teleportRow=teleported.trace.find(r=>r.inColiseum===true);
 assert(teleportRow,'teleport case reached the ordinary coliseum transition');
 assert(teleported.cardContributions.some(h=>h.time<teleportRow.time),'teleport case accumulated a pre-teleport card contribution');
 assert(teleported.cardFx.some(h=>h.time>teleportRow.time),'teleport case emitted the retained report after teleport');
 const reset=named('raid-start-clears-partial-report');
+activeInput=reset.input;
 const resetRow=reset.trace.find(r=>r.label.endsWith('source-startRaid'))!;
 assert(reset.cardContributions.some(h=>h.time<resetRow.time),'raid reset began with an actual partial report');
 assert(reset.cardFx.every(h=>h.time>resetRow.time),'raid reset did not emit a pre-reset report');
 const noncard=named('card-dot-excludes-signature-and-ability-dot');
+activeInput=noncard.input;
 assert(noncard.cardContributions.length>0,'mixed-dot case reached card DoT');
-assert(noncard.trace.some(r=>r.landed.some((h:any)=>h.dot===true&&(!absent(h.ability)||!absent(h.sig)))),'mixed-dot case reached an actual non-card DoT producer');
+assert(noncard.trace.some(r=>r.landed.some((h:any)=>h.sig==='burn'||(h.dot===true&&!absent(h.ability)))),'mixed-dot case reached an actual non-card signature/ability DoT producer');
 const control=named('no-card-dot-control');
+activeInput=control.input;
 assert.equal(control.cardContributions.length,0,'no-card control has no card-owned landed DoT');
 assert.equal(control.cardFx.length,0,'no-card control has no card-only feedback');
 const output={format:'rh-card-bleed-source/1',provenance,cases:captured};
@@ -111,3 +127,4 @@ const bytes=JSON.stringify(output)+'\n',path=process.env.RH_CARD_BLEED_OUTPUT??'
 if(process.argv[2]==='--check')assert.equal(readFileSync(path,'utf8'),bytes,'one canonical unchanged-source recapture');
 else writeFileSync(path,bytes);
 console.log(JSON.stringify({cases:output.cases.length,ordinarySteps:output.cases.reduce((n,c)=>n+c.ordinarySteps,0),bytes:Buffer.byteLength(bytes),sha256:hash(bytes)}));
+}catch(error){persistFailure(error);throw error;}

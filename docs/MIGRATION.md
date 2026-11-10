@@ -26,14 +26,23 @@ Sol's [quest architecture](coordination/QUEST_BACKEND_REWORK.md) and
 [ordered repair/extraction packet](backlog/packets/P-QUEST-BACKEND-1.md) are prepared. Source seal `c605f2fb` captures
 both actual Grand Tour supply outcomes, with bytechecks, semantic mutation and comment/restoration controls passing.
 The [frozen evidence](evidence/quest-tour-supply/README.md) is transferred to DeepSeek's quest worktree as `a3d8e8d4`;
-native regression/minimal repair is dispatched. The approved content semantics marker must accompany the real rule
-repair; schema versions remain unchanged. Objective/reward extraction follows independent repair admission.
+the native consumer now reaches both intended status reds and both greens after the stored-mask fix. The [independent review](evidence/quest-backend-admission-review/README.md) confirms corrected constructor/identity/event plumbing and retained actual reward attribution. Final source-profile settings, the approved content marker/pin and sealed gates remain under review. Schema versions stay unchanged; objective/reward extraction follows Stage0 admission.
 
 Luna's [workplan](coordination/BACKEND_GAMEPLAY_WORKPLAN.md) reconciles remaining gameplay/bot work against code.
-[P-BOT-STRATEGY-1](backlog/packets/P-BOT-STRATEGY-1.md) now starts actual-source Memory API/full strategy/hunter/route
-capture and independent source review. DeepSeek's next prepared branch is `codex/deepseek-private-strategy` at
-`d21552d3`; source-derived native classes may progress in parallel after interface review; frozen source gates fixture comparison and admission. No complete bot, complete quest parity,
-integration-union test, deployment or Claude client acceptance is claimed.
+DeepSeek's private strategy/hunter/tracker/route candidate `f8dad023` passes10 declared controls, the28-test Memory filter
+(overlapping coverage), focused regressions, format and both strict lint modes. It is **not admitted** before actual-source comparison.
+The immutable [primary source witness](evidence/bot-private-strategy-source/README.md) `5ec31212` has98 cases/658 calls,
+all nine goal families and19 semantic controls. [Independent fresh-checkout reproduction](evidence/bot-private-strategy-source-review/README.md)
+passes exact source/coverage bytes and the pinned-runtime verifier; all17 files remain unchanged. Root transferred it as
+`36a3b2b9` to `codex/deepseek-private-strategy`; strict reader/native replay work is active. A separate four-case module
+JSON-key supplement `1d06f752` is sealed and awaits independent reproduction; it does not alter the primary corpus.
+
+Card feedback has a prepared source harness and retained [unadmitted diagnostic attempts](evidence/card-bleed-source-preparation/ATTEMPT-4.md).
+Actual card/Fire contributions are reached, but the corrected classification guard is not rerun and canonical capture/
+controls are not complete. The [privacy review](evidence/card-bleed-feedback-design-review/README.md) separates legacy
+trusted totals from the deliberate native temporal-visibility extension. Card Rust dispatch still needs public-output,
+capacity/identity and Claude shared-file lease decisions. No complete bot/quest parity, integration-union test,
+deployment or Claude client acceptance is claimed.
 
 ## Technical demo delivery record (owner decision, 2026-11-09)
 

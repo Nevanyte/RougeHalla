@@ -49,8 +49,9 @@ add('raid-start-clears-partial-report',[
 // Fire signature damage and card bleed coexist in the actual full producer profile. The raw card case consists only
 // of source hit FX with neither signature nor ability metadata; other source DoT feedback stays distinguishable.
 add('card-dot-excludes-signature-and-ability-dot',[
-  P('fire',300,320,['hemorrhage']), P('holy',335,320),
-], [step(attack('p0')), span(55), step(release('p0')), span(15)],
+  P('holy',300,320,['hemorrhage']), P('fire',335,320),
+  P('fire',300,400), P('holy',335,400),
+], [step(attack('p0'),attack('p2')), span(55), step(release('p0'),release('p2')), span(15)],
   {profile:'full',config:{pvpRules:true}});
 
 // A no-card control reaches the same ordinary world/step path but has no card-owned DoT producer.

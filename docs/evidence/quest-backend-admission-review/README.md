@@ -125,3 +125,59 @@ those assertions. Earlier failure receipts must remain intact while harness bugs
 nor a reader/notice/constructor failure substitutes for the required pre-fix status red. Do not relax source expectations,
 skip the opposite case, clear threat or widen the production repair to make harness setup pass. Final independent
 admission requires the corrected immutable code seal and actual red/green receipts; this checkpoint remains pending.
+
+## Meaningful two-direction native regression reached
+
+Latest read-only checkpoint is consumer28,589 bytes, SHA-256
+`3ced3fb6937765cfed0404ab073f49fee2eca301034295b0e5ae472ca5983dcb`, with repaired live.rs SHA-256
+`296c6511ba6f82ba41de86181dedb7c9518568a5052cb8d5cbf3c77c0fa0890c`. These are unsealed working blobs, not an
+admission revision. No tests or source capture were run by reviewer. At inspection, the production diff is only
+`mask.count_ones()`→`*mask`; the approved appended catalog identity marker is not yet present, and focused broader gates
+are still running. Stage1 remains unreleased.
+
+Read actual newly available worker logs:
+
+- `stage0-red-both.log`: two independently named cases compile and each reaches the exact final
+  `grand-tour status at "ordinary-step-recheck-result"` failure. Fire/Holy case gives native Expired versus source Open;
+  Frost/Sentenced gives native Open versus source Expired. Both fail at the intended status, not constructor, reader,
+  action or notice setup;0 pass/2 fail,1.02s test execution. Earlier captured frames are checked by the actual consumer
+  before reaching this final comparison. The old unrelated harness failures are not reclassified as these reds.
+- `stage0-green-both.log`: after the stored-mask repair, both cases pass,2 pass/0 fail,1.08s. These are the focused
+  author-run results at this checkpoint, not a sealed final candidate/workspace result.
+- `stage0-pre-marker-quest-suite.log`: the broader quest batch is still in progress at inspection; read individual
+  source/lifecycle/giver/notice passes without promoting a nonterminal log to a complete gate.
+
+Earlier material consumer issues are source-inspected as resolved:
+
+1. Normal Sim constructor/add_player/first step replaces reset_active and installs no captured constructor-output pose,
+   HP, loadout or quest state. All recorded human pose checks are enabled in compare_frame. Source spawn assignment
+   draws world.random, so native Secrets.spawn_seed is mapped from actual randomSeed12; source diagnostic spawnSeed0
+   is correctly not used as that random stream. Retain this constructor-adapter explanation in final evidence.
+2. mobHp reads its real top-level x/y. Source mob aliases bind to retained ActorOrigin birth serial, with actual
+   type/catalog-zone/elite/one-based-source versus zero-based-native camp and pose checks before setup/kill. Nearest
+   interchangeable sibling selection is gone. The source action's designated Frost kill still uses validate+submit.
+3. Actual supply derives from mob_type catalog zone, matching close_impossible's domain; region/type/elite/camp+1 live
+   composition is compared to captured brain-region supply. Every wiped actor is independently birth-bound and validated.
+4. Public visitedRegions string/absent-zero is parsed as source membership, distinctly from native internal mask. Native
+   actual masks/progress/standing-human facts remain compared; case0-only hardcoded12/6 source assertions are removed,
+   while native per-frame GV/stacks comparisons against both cases remain intact.
+5. Giver comparison now probes real store presence/standing state, and listed quest containers are checked for real
+   existence as well as count. Existing giver::retire actually removes the taken actor ID; it is unchanged by this repair.
+6. The helper holds actual direct mob-producer events for the next step. Sim::step returns the step's events, whereas
+   take_events only drains the outside-step pending queue. Current step_holding records returned events and prepends
+   held producer output before the ordinary step, preserving source world.events' returned-step envelope.
+
+The last case0 notice mismatch was representation/plumbing: native camp potion feedback is typed PotionNotice, while
+source emits a Toast. Current native_notice maps that actual notice through the existing notice.message() to source
+Toast recipient/text; it does not synthesize a reward or derive a fake notice from expected JSON. Exact ordered
+tick/time/recipient/event payload comparison remains, and both cases now pass. Together with the single production
+mask-line diff, this supports a repaired test boundary, not an out-of-scope gameplay change. Potion/farm attribution
+still follows retained threat and real inline payouts, as required by the additive source clarification.
+
+One source-profile question remains for coordinator disposition: native test config still defaults lifecycle, abilities
+and hazards Off although createGameWorld installs them and captured config declares Source3600s/no-planning timers.
+All actual250ms captured facts pass, and those delayed clocks are not reached, but that is a bounded matched trajectory,
+not proof of complete constructor/config equivalence. Map available modes explicitly or document an authorized finite
+profile deviation; do not silently describe ignored source fields as validated. No wider production edit is needed to
+state this limit. Final marker, completed gates, exact command/environment/code binding and immutable seal are still
+required before Stage0 release.

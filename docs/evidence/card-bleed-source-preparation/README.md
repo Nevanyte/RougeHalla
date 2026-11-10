@@ -1,5 +1,7 @@
 # Card bleed source preparation
 
+Current follow-up: attempts1–4 are retained. Attempt4 reaches actual card and Fire signature damage but fails an overly restrictive classification guard; its full trace is unadmitted. The corrected guard is not rerun, no canonical source corpus exists, and mutation/bytecheck/review gates remain open. See [ATTEMPT-4](ATTEMPT-4.md). The preparation-only description below is historical.
+
 This is an **unrun source-capture harness draft** for P-CARD-BLEED-FEEDBACK-1, prepared on base `4151b3af`. No source
 capture, Docker run, build, or test was performed in this preparation task. It does not create or install
 `parity/card-bleed/source.json`; source parity remains unproved until the capture and independent review complete.

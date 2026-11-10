@@ -19,11 +19,11 @@ scoped and reviewed; no production/cloud actions are part of this lane.
 
 | Owner | Assignment | Status |
 |---|---|---|
-| DeepSeek Rust Port Worker | Private Memory admission, then [complete private strategy](backlog/packets/P-BOT-STRATEGY-1.md) in `codex/deepseek-private-strategy` at `d21552d3` | Memory seal `0ea1589a` reviewed and integrated as `8a2d3c6c`; strategy source preparation active |
-| DeepSeek Post Rust | [Quest backend packet](backlog/packets/P-QUEST-BACKEND-1.md) in `codex/deepseek-quest-backend`; Rust consumer/repair then objective/reward boundary | Frozen source transferred as `a3d8e8d4`; Stage0 dispatched, Stage1 awaits review |
-| Sol source author | [Quest architecture](coordination/QUEST_BACKEND_REWORK.md) and source regression, now complete strategy/Memory API source fixtures | Quest source sealed `c605f2fb`; strategy source tooling/capture active |
-| Sol independent reviewer | Private Memory admission and strategy source/API coverage; later exact native quest review | Memory RELEASE recorded; strategy source review active |
-| Luna inventory | [Gameplay/bot workplan](coordination/BACKEND_GAMEPLAY_WORKPLAN.md), source/architecture cross-check and bleed-feedback packet | Prepared; bleed Rust work remains undispatched pending temporal privacy/state leases |
+| DeepSeek Rust Port Worker | Private Memory admission, then [complete private strategy](backlog/packets/P-BOT-STRATEGY-1.md) in `codex/deepseek-private-strategy` at `d21552d3` | Memory integrated `8a2d3c6c`; strategy native candidate `f8dad023` locally gated, primary source transferred `36a3b2b9`; strict source replay active |
+| DeepSeek Post Rust | [Quest backend packet](backlog/packets/P-QUEST-BACKEND-1.md) in `codex/deepseek-quest-backend`; Rust consumer/repair then objective/reward boundary | Both intended status reds and both greens reached; final profile/content/seal gates pending; Stage1 awaits release |
+| Sol source author | [Quest architecture](coordination/QUEST_BACKEND_REWORK.md) and source regression, now complete strategy/Memory API source fixtures | Quest source `c605f2fb`, strategy primary `5ec31212` and separate module-key supplement `1d06f752` sealed |
+| Sol independent reviewer | Private Memory admission and strategy source/API coverage; later exact native quest review | Memory and primary strategy source RELEASE recorded; native quest review active |
+| Luna | [Gameplay/bot workplan](coordination/BACKEND_GAMEPLAY_WORKPLAN.md), card source preparation and independent module-key source review | Card draft/failed traces preserved; supplement reproduction active. Card Rust remains undispatched |
 | Codex project manager | Isolated worktrees, packet dispatch, independent review, integration and shared plans | Active |
 
 This supersedes the demo-only parking direction for backend work. Claude's Unity/networking work remains independent;
