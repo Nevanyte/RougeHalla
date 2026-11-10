@@ -15,14 +15,14 @@
 <body>
 <main>
   <h1>Roguehalla protocol probe</h1>
-  <p>A browser client for protocol v14 over the browser WebSocket API (the transport a Unity Web build uses). It is a test
+  <p>A browser client for protocol v16 over the browser WebSocket API (the transport a Unity Web build uses). It is a test
   harness for Stage 1, not the game client. Click to walk; hold Space to attack toward the cursor.</p>
   <canvas id="c" width="960" height="640"></canvas>
   <pre id="s">connecting…</pre>
 </main>
 <script>
 "use strict";
-// ---- protocol v14 (mirror of crates/rh-protocol; tools/protocol-js/check-vectors.mjs holds this block to protocol/fixtures/v14.json) ----
+// ---- protocol v16 (mirror of crates/rh-protocol; tools/protocol-js/check-vectors.mjs holds this block to protocol/fixtures/v16.json) ----
 class W {
   constructor() { this.b = new Uint8Array(256); this.n = 0; this.v = new DataView(this.b.buffer); }
   need(k) { if (this.n + k > this.b.length) { const nb = new Uint8Array(this.b.length * 2 + k); nb.set(this.b); this.b = nb; this.v = new DataView(nb.buffer); } }
