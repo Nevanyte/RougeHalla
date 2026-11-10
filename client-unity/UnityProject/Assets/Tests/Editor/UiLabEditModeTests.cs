@@ -188,7 +188,7 @@ namespace Roguehalla.Client.Tests
             _arena.RetainObservedActors(none, null); _arena.Present(none, null, null, 0f);             // it left sight: a ghost starts at full opacity
             Assert.AreEqual(1f, root.Find("Authored character").GetComponent<SpriteRenderer>().color.a, .01f);
             t += VisionFade.ExitSeconds * .5f; _arena.RetainObservedActors(none, null); _arena.Present(none, null, null, 0f);
-            float body = root.Find("Authored character").GetComponent<SpriteRenderer>().color.a, rim = root.Find("Character contrast rim").GetComponent<SpriteRenderer>().color.a, bar = root.Find("Confirmed health").GetComponent<SpriteRenderer>().color.a;
+            float body = root.Find("Authored character").GetComponent<SpriteRenderer>().color.a, rim = root.Find("Authored character").Find("Character contrast rim").GetComponent<SpriteRenderer>().color.a   /* the adaptive stroke is a child of the body (rework/contrast) */, bar = root.Find("Confirmed health").GetComponent<SpriteRenderer>().color.a;
             Assert.AreEqual(.5f, body, .05f, "body half way through the fade");
             Assert.Less(rim, .88f * .6f, "the dark outline fades with it"); Assert.AreEqual(.5f, bar, .1f);
         }

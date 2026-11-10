@@ -60,6 +60,7 @@ namespace Roguehalla.Client
         public int Facings = 2;          // 1 to 8
         public int PropArts = 2;         // props pages stamp about PropArts x (number of looks) cells near the zone's most common props (0 = none)
         public int PageCells = 30;
+        public bool Boundaries = true;   // edge pages (a figure straddling a surface change) and zone-seam pages
     }
 
     public sealed class LabPlan
@@ -241,8 +242,110 @@ namespace Roguehalla.Client
                     if (purityFloor < 1f) plan.Notes.Add(label + ": patch is mixed, cells sit on at least " + Mathf.RoundToInt(purityFloor * 100) + "% pure ground");
                 }
                 PropPages(plan, surfaces, zone, x0, zonePlacements, appearances, options, ref pageIndex, ref nextId);
+                if (options.Boundaries) EdgePages(plan, map, surfaces, zone, x0, appearances, ref pageIndex, ref nextId);
             }
+            if (options.Boundaries) SeamPages(plan, map, surfaces, appearances, ref nextId);
             return plan;
+        }
+
+        // ---- boundaries: a figure straddling a surface change (lava edge, ice edge, temple threshold, mud and bog) or a zone seam -------------------------
+
+        const float EdgeRowPitch = 4.2f, EdgeColPitch = 3.0f;
+        static readonly float[] StraddleOffsets = { -1.35f, 0f, 1.35f };
+
+        sealed class Run { public bool Vertical; public int Line, From, To; public SurfaceKind A, B; public int Length { get { return To - From + 1; } } }
+
+        static bool CleanBand(MapBlob map, int x, int y)
+        {
+            for (int dy = -2; dy <= 2; dy++) for (int dx = -2; dx <= 2; dx++) if (ContrastLabMap.TileAt(map, x + dx, y + dy) != MapBlob.Floor) return false;
+            return true;
+        }
+
+        /// <summary>The longest straight run of every surface pair that meets inside a zone block, in both orientations (deterministic order).</summary>
+        static List<Run> BoundaryRuns(MapBlob map, SurfaceMap surfaces, int x0)
+        {
+            var best = new SortedDictionary<string, Run>(StringComparer.Ordinal);
+            int xa = x0 + 6, xb = x0 + ContrastLabMap.BlockW - 6, ya = 6, yb = ContrastLabMap.BlockH - 6;
+            // vertical boundary lines: the surface changes between tile x - 1 and x
+            for (int x = xa; x < xb; x++)
+            {
+                Run run = null;
+                for (int y = ya; y <= yb; y++)
+                {
+                    SurfaceKind a = SurfaceKind.None, b = SurfaceKind.None; bool ok = y < yb && CleanBand(map, x, y);
+                    if (ok) { a = surfaces.SurfaceAtTile(x - 1, y); b = surfaces.SurfaceAtTile(x, y); ok = a != b && a != SurfaceKind.None && b != SurfaceKind.None; }
+                    if (ok && run != null && run.A == a && run.B == b) { run.To = y; continue; }
+                    if (run != null) Keep(best, run);
+                    run = ok ? new Run { Vertical = true, Line = x, From = y, To = y, A = a, B = b } : null;
+                }
+            }
+            // horizontal boundary lines: the surface changes between tile y - 1 and y
+            for (int y = ya; y < yb; y++)
+            {
+                Run run = null;
+                for (int x = xa; x <= xb; x++)
+                {
+                    SurfaceKind a = SurfaceKind.None, b = SurfaceKind.None; bool ok = x < xb && CleanBand(map, x, y);
+                    if (ok) { a = surfaces.SurfaceAtTile(x, y - 1); b = surfaces.SurfaceAtTile(x, y); ok = a != b && a != SurfaceKind.None && b != SurfaceKind.None; }
+                    if (ok && run != null && run.A == a && run.B == b) { run.To = x; continue; }
+                    if (run != null) Keep(best, run);
+                    run = ok ? new Run { Vertical = false, Line = y, From = x, To = x, A = a, B = b } : null;
+                }
+            }
+            return new List<Run>(best.Values);
+        }
+
+        static void Keep(SortedDictionary<string, Run> best, Run r)
+        {
+            if (r.Length < 15) return;
+            string key = (r.Vertical ? "v|" : "h|") + r.A + "|" + r.B;
+            if (!best.TryGetValue(key, out var old) || r.Length > old.Length) best[key] = r;
+        }
+
+        static void EdgePages(LabPlan plan, MapBlob map, SurfaceMap surfaces, RegionId zone, int x0, IList<LabAppearance> apps, ref int pageIndex, ref int nextId)
+        {
+            int rot = ContrastLabMap.ZoneIndex(zone) * 5;
+            foreach (var run in BoundaryRuns(map, surfaces, x0))
+            {
+                var page = new LabPage { Zone = zone, Index = pageIndex++, Kind = "edge" };
+                string name = "edge:" + run.A + "|" + run.B; float mid = (run.From + run.To) * .5f;
+                int k = 0;
+                for (int row = 0; row < 4; row++)
+                    for (int col = 0; col < 3; col++, k++)
+                    {
+                        float off = StraddleOffsets[col], along = mid + (row - 1.5f) * (run.Vertical ? EdgeRowPitch : EdgeColPitch);
+                        // vertical line: figures spread across it; horizontal line: the line crosses the chest (a figure is about a tile tall on the squashed ground)
+                        float tx = run.Vertical ? run.Line + off : along, ty = run.Vertical ? along : run.Line + 1.0f + off * .6f;
+                        AddEdgeCell(page, surfaces, zone, apps, k, rot++, tx, ty, name, run.Vertical ? "straddle-v" : "straddle-h", ref nextId);
+                    }
+                page.Prop = name; page.Surface = page.Cells[0].Surface;
+                Frame(page, x0); plan.Pages.Add(page);
+            }
+        }
+
+        static void AddEdgeCell(LabPage page, SurfaceMap surfaces, RegionId zone, IList<LabAppearance> apps, int k, int rot, float tx, float ty, string prop, string mode, ref int nextId)
+        {
+            bool walk = (k / 3) % 2 == 1;
+            page.Cells.Add(new LabCell { Id = nextId++, Zone = zone, Surface = surfaces.SurfaceAtTile(Mathf.FloorToInt(tx), Mathf.FloorToInt(ty)), Appearance = apps[rot % apps.Count],
+                Pose = walk ? LabPose.Walk : LabPose.Idle, FacingIndex = k % 2, Facing = Facing(k % 2), TileX = tx, TileY = ty, Prop = prop, PropMode = mode });
+        }
+
+        /// <summary>One page per pair of neighbouring zones: figures on the seam, where the two zones' light and ground blend.</summary>
+        static void SeamPages(LabPlan plan, MapBlob map, SurfaceMap surfaces, IList<LabAppearance> apps, ref int nextId)
+        {
+            for (int z = 0; z + 1 < ContrastLabMap.Zones.Length; z++)
+            {
+                var zone = ContrastLabMap.Zones[z]; float bx = (z + 1) * ContrastLabMap.BlockW, cy = 20f;
+                var page = new LabPage { Zone = zone, Index = plan.ForZone(zone).Count, Kind = "seam" };
+                string name = "seam:" + ContrastLabMap.ZoneName(zone) + "|" + ContrastLabMap.ZoneName(ContrastLabMap.Zones[z + 1]);
+                int k = 0, rot = z * 3 + 1;
+                for (int row = 0; row < 4; row++)
+                    for (int col = 0; col < 3; col++, k++)
+                        AddEdgeCell(page, surfaces, zone, apps, k, rot++, bx + (col - 1) * 3.2f, cy + (row - 1.5f) * EdgeRowPitch, name, "straddle-v", ref nextId);
+                page.Prop = name; page.Surface = page.Cells[0].Surface;
+                page.ViewTile = new Vector2(bx, cy - 1.5f);
+                plan.Pages.Add(page);
+            }
         }
 
         struct Tuple { public LabAppearance App; public LabPose Pose; public int Facing; }

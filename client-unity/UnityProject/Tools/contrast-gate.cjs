@@ -5,7 +5,7 @@
 //
 //   node client-unity/UnityProject/Tools/contrast-gate.cjs --url http://127.0.0.1:8187/ --out /tmp/contrast
 //        [--zones fire,holy] [--sizes 1920x1080,2560x1440] [--quality high,ultra] [--edge 3.0] [--marker 4.5]
-//        [--query "facings=4&props=3"] [--frames 4] [--ground-frames 3] [--max-pages 2] [--allow-software]
+//        [--query "facings=4&props=3"] [--only Ember:1,Bog] [--frames 4] [--ground-frames 3] [--max-pages 2] [--allow-software]
 //   node client-unity/UnityProject/Tools/contrast-gate.cjs --compare runA/contrast.json runB/contrast.json     (run-to-run difference)
 //
 // Writes <out>/contrast.json (every cell), <out>/CONTRAST.md (tables), <out>/worst.jpg (24 lowest-EDGE cells, annotated); prints a summary;
@@ -15,7 +15,7 @@ const os = require('node:os');
 const path = require('node:path');
 const lib = require('./contrast-lib.cjs');
 
-const OUT_COLUMNS = ['cfg', 'zone', 'surface', 'appearance', 'pose', 'facing', 'prop', 'propMode', 'clip', 'frame', 'purity', 'valid', 'edgeP10', 'edgeMin', 'edgeMedian', 'edgeGroundP10', 'edgeCoreP10', 'rimShare', 'body', 'bodyGround', 'hp', 'foot', 'insignia', 'edgePass', 'markerPass', 'overlap', 'reason'];
+const OUT_COLUMNS = ['cfg', 'zone', 'surface', 'appearance', 'pose', 'facing', 'prop', 'propMode', 'clip', 'frame', 'purity', 'valid', 'edgeP10', 'edgeMin', 'edgeMedian', 'edgeGroundP10', 'edgeCoreP10', 'rimShare', 'ringLum', 'contourLum', 'body', 'bodyGround', 'hp', 'foot', 'insignia', 'edgePass', 'markerPass', 'overlap', 'reason'];
 const r2 = v => (Number.isFinite(v) ? Math.round(v * 100) / 100 : null);
 
 function usage() {
@@ -88,6 +88,7 @@ async function runConfig(chromium, size, quality, opts, log) {
     if (state.reducedMotion) throw new Error('reduced motion is on: the walking pose would not play');
     if (state.unreachable && state.unreachable.length) throw new Error('catalog keys the presenter cannot pick: ' + state.unreachable.join(','));
     const cfg = { name: `${size.width}x${size.height}/${quality}`, width: size.width, height: size.height, quality, gpu, row: state.row, orthoSize: state.orthoSize, notes: state.notes, unplaced: state.unplaced, pages: {}, cells: [] };
+    const seen = {};
     for (const zone of opts.zones) {
       const zi = state.zones.indexOf(zone);
       let pageCount = state.zonePageCounts[zi];
@@ -96,6 +97,12 @@ async function runConfig(chromium, size, quality, opts, log) {
       for (let p = 0; p < pageCount; p++) {
         await page.evaluate(([z, n]) => window.__rhContrastLab.setZone(z, n), [zone, p]);
         state = await waitReady(page);
+        if (opts.only) {
+          const key = [String(state.surface || '').toLowerCase(), String(state.kind || '').toLowerCase()].find(k => opts.only.has(k));
+          if (key === undefined) { log(`  ${zone} page ${p + 1}/${pageCount} skipped (--only)`); continue; }
+          const cap1 = opts.only.get(key); seen[key] = (seen[key] || 0) + 1;
+          if (cap1 > 0 && seen[key] > cap1) { log(`  ${zone} page ${p + 1}/${pageCount} skipped (--only ${key}:${cap1})`); continue; }
+        }
         let cap, cons, attempt = 0;
         for (;;) {
           cap = await capturePage(page, size, opts, `${cfg.name.replace('/', '-')}-${zone}-${p}`);
@@ -131,7 +138,7 @@ function toCell(cfgName, c, res, opts) {
   const cell = {
     cfg: cfgName, zone: c.zone, surface: c.surface, appearance: c.appearance, pose: c.pose, facing: c.facing, prop: c.prop || '', propMode: c.propMode || '', clip: c.clip, frame: c.frame, purity: r2(c.purity),
     valid: !!res.valid, reason: res.reason || (res.valid && !markersMeasured ? 'a marker could not be measured' : ''),
-    edgeP10: res.valid ? r2(res.edge.p10) : null, edgeMin: res.valid ? r2(res.edge.min) : null, edgeMedian: res.valid ? r2(res.edge.median) : null, edgeGroundP10: res.valid ? r2(res.edge.ground.p10) : null, edgeCoreP10: res.valid ? r2(res.edge.core.p10) : null, rimShare: res.valid ? r2(res.edge.rimShare) : null,
+    edgeP10: res.valid ? r2(res.edge.p10) : null, edgeMin: res.valid ? r2(res.edge.min) : null, edgeMedian: res.valid ? r2(res.edge.median) : null, edgeGroundP10: res.valid ? r2(res.edge.ground.p10) : null, edgeCoreP10: res.valid ? r2(res.edge.core.p10) : null, rimShare: res.valid ? r2(res.edge.rimShare) : null, ringLum: res.valid ? Math.round(res.edge.ringMedian * 1000) / 1000 : null, contourLum: res.valid ? Math.round(res.edge.contourMedian * 1000) / 1000 : null,
     body: res.valid ? r2(res.body.ratio) : null, bodyGround: res.valid ? r2(res.body.ratioGround) : null,
     hp: r2(markerRatios[0]), foot: r2(markerRatios[1]), insignia: r2(markerRatios[2]), overlap: !!c.overlap,
   };
@@ -184,7 +191,7 @@ function buildMarkdown(result, opts) {
     }
     L.push('');
   }
-  L.push('## Props (character in front of / beside the zone\'s most common props)', '', '| zone | prop | mode | cells | EDGE p10 pass | worst EDGE p10 | worst appearance | markers pass |', '|---|---|---|---:|---:|---:|---|---:|');
+  L.push('## Props, boundaries and seams (in front of / beside the zone\'s most common props; straddling a surface change `edge:A|B` or a zone seam `seam:a|b`)', '', '| zone | prop | mode | cells | EDGE p10 pass | worst EDGE p10 | worst appearance | markers pass |', '|---|---|---|---:|---:|---:|---|---:|');
   for (const zone of zones) for (const [key, cs] of groupBy(cells.filter(c => c.zone === zone && c.prop), c => c.prop + '|' + c.propMode)) {
     const [prop, mode] = key.split('|'), worst = cs.filter(c => c.valid).sort((a, b) => a.edgeP10 - b.edgeP10)[0];
     L.push(`| ${zone} | ${prop} | ${mode} | ${cs.length} | ${cs.filter(c => c.edgePass).length} | ${worst ? fmt(worst.edgeP10) : 'n/a'} | ${worst ? worst.appearance : ''} | ${cs.filter(c => c.markerPass).length} |`);
@@ -335,9 +342,9 @@ function printSummary(result, opts) {
   for (const cfg of result.configs) {
     console.log(`\n${cfg.name} (${cfg.gpu})`);
     for (const zone of [...new Set(cfg.cells.map(c => c.zone))]) {
-      const cs = cfg.cells.filter(c => c.zone === zone && !c.prop), ps = cfg.cells.filter(c => c.zone === zone && c.prop);
-      const bodies = stat(cs.map(c => c.body));
-      console.log(`  ${zone.padEnd(10)} ground ${String(cs.filter(c => c.edgePass).length).padStart(3)}/${String(cs.length).padEnd(3)} props ${String(ps.filter(c => c.edgePass).length).padStart(3)}/${String(ps.length).padEnd(3)} markers ${String(cfg.cells.filter(c => c.zone === zone && c.markerPass).length).padStart(3)}/${cs.length + ps.length}  body med ${fmt(bodies && bodies.median)}`);
+      const kind = k => cfg.cells.filter(c => c.zone === zone && lib.cellKind(c.prop) === k), cs = kind('ground'), ps = kind('props'), es = kind('edge').concat(kind('seam'));
+      const bodies = stat(cs.map(c => c.body)), all = cs.length + ps.length + es.length;
+      console.log(`  ${zone.padEnd(10)} ground ${String(cs.filter(c => c.edgePass).length).padStart(3)}/${String(cs.length).padEnd(3)} props ${String(ps.filter(c => c.edgePass).length).padStart(3)}/${String(ps.length).padEnd(3)} edges ${String(es.filter(c => c.edgePass).length).padStart(3)}/${String(es.length).padEnd(3)} markers ${String(cfg.cells.filter(c => c.zone === zone && c.markerPass).length).padStart(3)}/${all}  body med ${fmt(bodies && bodies.median)}`);
     }
     if (cfg.consoleErrors && cfg.consoleErrors.length) console.log(`  console errors: ${cfg.consoleErrors.length}`);
   }

@@ -21,25 +21,25 @@ namespace Roguehalla.Client
             return ContactLength + ActorHeight * .85f * Mathf.Clamp01(sunStrength) * Mathf.Max(0f, lengthFactor);
         }
 
-        /// <summary>Pure: rim opacity for a ground of the given relative luminance (0 black .. 1 white): strong on dark ground, faint on light ground.</summary>
-        public static float RimAlpha(float groundLuma) { return Mathf.Lerp(.2f, 1f, 1f - Mathf.Clamp01(groundLuma * 1.5f)); }
-
-        /// <summary>Character separation: the soft light rim outside the dark outline, tuned to the ground under the actor (palette base luminance blended by region weights).</summary>
-        public static void ApplyRim(SpriteRenderer rim, float tileX, float tileY, float scale)
+        /// <summary>
+        /// CPU estimate of the lit ground's linear relative luminance at a tile: the region palette's base colour (blended by region weights)
+        /// under the ambient and the sun. It is only the tie break inside the outline's dead zone and the fallback when the camera sorting layer
+        /// texture is unavailable; the real decision is made per pixel against the rendered ground (RhActorOutline.shader).
+        /// </summary>
+        public static float GroundLumaLinear(float tileX, float tileY)
         {
-            if (rim == null) return;
-            float luma = .5f;
-            if (Field != null && Field.Ready)
+            if (Field == null || !Field.Ready) return .2f;
+            Field.Sample(tileX, tileY, W); float luma = 0f;
+            for (int k = 0; k < RegionField.Regions; k++)
             {
-                Field.Sample(tileX, tileY, W); luma = 0f;
-                for (int k = 0; k < RegionField.Regions; k++)
-                { var c = RegionPaletteGenerated.Srgb[k + 1][RegionPaletteGenerated.Base]; luma += W[k] * (.2126f * c.r + .7152f * c.g + .0722f * c.b) / 255f; }
+                var c = RegionPaletteGenerated.Srgb[k + 1][RegionPaletteGenerated.Base];
+                luma += W[k] * ActorOutlineModel.Luma(Mathf.GammaToLinearSpace(c.r / 255f), Mathf.GammaToLinearSpace(c.g / 255f), Mathf.GammaToLinearSpace(c.b / 255f));
             }
-            float dark = 1f - Mathf.Clamp01(luma * 1.5f);
-            rim.transform.localScale *= 1f + .07f * dark;          // a slightly wider light rim on dark ground (the presenter resets the scale every frame)
-            float boost = 1f + 1.3f * dark * dark;                      // HDR rim on dark ground: the sprite is lit by the zone light, so a plain white rim is only about L 0.3 there
-            rim.color = new Color(.97f * boost, .98f * boost, boost, RimAlpha(luma) * Mathf.Clamp01(scale));
+            return luma * ActorOutlineModel.LitFactor;
         }
+
+        /// <summary>True when the ground estimate is below the outline crossover (the stroke would be light).</summary>
+        public static bool GroundIsDark(float tileX, float tileY) { return GroundLumaLinear(tileX, tileY) < ActorOutlineModel.Threshold; }
 
         public static void ApplyActor(SpriteRenderer shadow, float tileX, float tileY)
         {
