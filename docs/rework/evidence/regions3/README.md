@@ -84,7 +84,7 @@ not the body.
 
 ## Not done / weak
 
-- The apse and the mihrab are only in Editor frames (the browser raid ended before the hero got there); the browser frames are one match each on seed1 plus one seed2 frame (see below if present).
+- The apse and the mihrab are only in Editor frames (the browser raid ended before the hero got there); the browser frames are seed1 matches plus one seed2 frame (`browser/seed2-west-portal-hero.jpg`: hero at the west portal, mean luma 0.53, clipped 0.04%, edge 4.53, bar 6.31; there the piers stand flush on the boundary and act as the temple wall).
 - On seed1 the west portal is not on the cross axis (a real building stands in front of it), so the west carpet runs into that building's wall.
 - Piers are the engine's low wall blocks (0.67 tile face): they read as massive masonry piers with engaged columns, but they are not tall. Hanging lamps and chandelier rings were not drawn (they would hide actors); the light they would give is on the floor.
 - Mobs measured are the ones that happened to be in frame (brown and silver-armoured); no contrast-lab run (the tool had not landed). Shader cost in the temple was not profiled in the browser.

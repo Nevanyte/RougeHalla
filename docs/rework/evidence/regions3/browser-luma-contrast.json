@@ -166,5 +166,47 @@
     "contrast": 4.46
    }
   }
+ },
+ {
+  "shot": "G-holy-a-s2",
+  "region": "holy",
+  "mean": 0.526,
+  "p95": 0.745,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.402,
+    "darkEdge": 4.53,
+    "lightEdge": 1.1,
+    "contrast": 4.53
+   },
+   "bar": {
+    "ground": 0.307,
+    "darkEdge": 6.31,
+    "lightEdge": 1.39,
+    "contrast": 6.31
+   }
+  }
+ },
+ {
+  "shot": "G-holy-b-s2",
+  "region": "holy",
+  "mean": 0.528,
+  "p95": 0.747,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.404,
+    "darkEdge": 4.51,
+    "lightEdge": 1.1,
+    "contrast": 4.51
+   },
+   "bar": {
+    "ground": 0.308,
+    "darkEdge": 6.32,
+    "lightEdge": 1.39,
+    "contrast": 6.32
+   }
+  }
  }
 ]
