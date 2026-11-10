@@ -90,7 +90,7 @@ When DeepSeek seals Stage0, inspect exact allowed-file diff and verify:
 ## Current disposition
 
 Source witness: **accepted for this bounded regression, with additive attribution clarification**. Native Stage0:
-**pending candidate and meaningful red/green evidence**. Stage1: **not released**. Further source execution is not needed
+**final-profile red/green accepted; final pin/gates/seal pending**, as detailed below. Stage1: **not released**. Further source execution is not needed
 solely to repeat the immutable receipts reviewed here; any actual discrepancy must retain its own evidence.
 
 ## Unsealed native consumer review checkpoint
@@ -181,3 +181,72 @@ not proof of complete constructor/config equivalence. Map available modes explic
 profile deviation; do not silently describe ignored source fields as validated. No wider production edit is needed to
 state this limit. Final marker, completed gates, exact command/environment/code binding and immutable seal are still
 required before Stage0 release.
+
+## Final source-profile review; admission remains pending
+
+Read-only review now binds the Stage0 code sealed as `4fb5714e93386b6e7daa08ab3bf405888331c263` (previously
+inspected seal `337fe38018cd3350ab2f7da25abe4838779908d8` had the same four code blobs). The author is preparing
+the allocated metadata pin and remaining gates; this is not the final admission seal. Reviewer ran no native tests,
+source captures or recorders. Every file hash/length in `STAGE0-RECEIPTS.json`'s changedFiles, frozenSource and receipts
+groups was independently checked against actual files and matched.
+
+| Code file under `crates/rh-sim/src/quests/` | Bytes | SHA-256 |
+|---|---:|---|
+| `live.rs` |35593|`296c6511ba6f82ba41de86181dedb7c9518568a5052cb8d5cbf3c77c0fa0890c`|
+| `catalog.rs` |15522|`f643669b656958c36ac0950f46fd0b764ab96a2dab68d1c081b57076c2f90153`|
+| `mod.rs` |1195|`3c635b9b920ed6b9e0178deefb0b31c0806aaab6db45a7091e6b3e3e12cd7afe`|
+| `tour_supply_source_tests.rs` |33247|`75630470254cacf38e3280571c4303ae95dbeb25d8a976b5e5f7f302dd51c31b`|
+
+The earlier source-profile gap is resolved in the consumer: Source lifecycle plan0/no first patience/no coliseum
+schedule with patience/minimum/sudden3600, Full abilities, Map hazards, Pve mobs, quests enabled, PvP/training/dummies
+disabled, signaturesfalse mapped to FactionMode Off, walk hintsfalse, initial loottrue and default consumablestrue.
+Normal constructors and source randomSeed12 spawn-stream mapping remain, with all actual pose checks enabled. The
+consumer retains actual birth-identity/pose/camp checks, regional supply, real actor/container retirement, typed public
+visited membership, internal mask/progress, real producer event plumbing and exact ordered returned-step notices.
+`input.initial` remains constructor-output diagnostics; no expected quest/pose/reward state is installed.
+
+Final-profile receipts supersede the prior limited-profile qualification:
+
+- `stage0-profile-red-original-predicate.log`: both named cases reach the intended status comparison at ordinary
+  tick5/250: Fire/Holy native Expired versus source Open; Frost/Sentenced native Open versus source Expired. Two fail,
+  no unrelated earlier assertion substituted. Test execution1.13s.
+- `stage0-profile-green-final.log`: the same full-profile consumer with stored-mask predicate passes both cases,
+  2 passed/0 failed,1.27s. This includes the retained-threat potion/farm reward facts and exact notices; no new gameplay
+  change was introduced for the earlier representation/plumbing mismatch.
+- `stage0-final-quest-gate.log`:34 passed/0 failed/1 ignored,87.71s. The existing ignored dhat allocation test remains
+  explicitly unexecuted; this receipt is not an all-features/full-workspace claim.
+
+Production scope is minimal. `live.rs` only replaces `mask.count_ones()` with `*mask`. Removing the seven appended
+marker lines from current `catalog.rs` reproduces the original file byte-for-byte: all20 rows and every prior fold word
+are unchanged. The marker uses the approved length-u64 then UTF8-byte-u64 pattern after the old fold;
+`quests/1` registry and protocol/checkpoint/replay/observation/policy shapes are unchanged. New content identity is
+`8edd862f48ffa100`.
+
+### Allocated metadata pin and exact remaining gates
+
+Root has allocated only `parity/abilities/hash-tape.json`'s `contentHash` from `7c6a633f68c2cc72` to
+`8edd862f48ffa100`. The current unsealed diff is exactly that one-line substitution; all63 case folds/ticks and other
+metadata are unchanged. This is justified by the approved content marker. The ability harness disables quests, no
+World/state layout changed, and state_hash's static seed hashes config+arena rather than contentHash. Thus existing
+case folds should survive; the ordinary checker must prove this. The expected-failure receipt stops at the metadata
+assertion before `digests()`, so it does not yet establish unchanged folds. Never run `record_ability_hash_tape` or
+rerecord/retune case entries to pass this boundary.
+
+The remaining narrow commands, with the author's existing pinned toolchain/private target/jobs1/offline environment,
+are below. Existing completed focused quest results need not be repeated without a code change.
+
+```sh
+cargo test -p rh-sim --lib abilities::source_tests::hash_tape::ability_hash_tape_matches_the_base --locked --offline -- --exact
+cargo test -p rh-sim --all-features --lib quest_view:: --locked --offline -- --test-threads=1
+cargo test -p rh-sim --test checkpoint a_checkpoint_names_its_content_and_build_and_refuses_other_content --locked --offline -- --exact
+cargo test -p rh-sim --test replay a_replay_names_its_build_and_a_file_without_the_new_keys_still_verifies --locked --offline -- --exact
+cargo clippy -p rh-sim --all-targets --all-features --locked --offline -- -D warnings
+cargo fmt --all -- --check
+```
+
+The existing checkpoint test verifies typed ContentMismatch even before malformed payload decoding; the existing
+replay test verifies content mismatch before replay execution. Production already performs both early comparisons.
+These selected guards plus the changed content identity cover the rule-version refusal; no new schema or state-leaf
+perturbation test is warranted for this no-layout-change repair. Require terminal raw receipts, the final exact seal,
+the pin-only diff and unchanged source/tool hashes before Stage0 RELEASE. Stage1 remains gated. Shared checkpoint,
+source corpus/tools and other production paths have no review authorization to change.
