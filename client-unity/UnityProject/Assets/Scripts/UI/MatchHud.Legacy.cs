@@ -114,6 +114,8 @@ namespace Roguehalla.Client
             bool inMatch = _session != null && _session.State == SessionState.InMatch;
             bool showBanner = !_hud.gameObject.activeSelf ? false : !inMatch || (_client != null && _client.LaunchPending);
             if (_session != null && (_session.State == SessionState.Reconnecting || _session.State == SessionState.Rejected || _session.State == SessionState.Failed)) showBanner = true;
+            // While the launch screen is up its own status line carries connection progress and failures.
+            if (_menu != null && _menu.gameObject.activeSelf) showBanner = false;
             if (_bannerPill.gameObject.activeSelf != showBanner) _bannerPill.gameObject.SetActive(showBanner);
             bool phase = !showBanner && _hud.gameObject.activeSelf && _phaseStrip != null && !string.IsNullOrEmpty(_phaseStrip.text);
             if (_phasePill.gameObject.activeSelf != phase) _phasePill.gameObject.SetActive(phase);

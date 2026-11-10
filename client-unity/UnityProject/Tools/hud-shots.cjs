@@ -3,6 +3,9 @@
 //
 //   node client-unity/UnityProject/Tools/hud-shots.cjs [--out docs/rework/evidence/hud] [--prefix skin] [--only 1280x800@1]
 //        [--steps hub,planning,match,settings,help,map,walk] [--headless]
+//   Launch flow (the opening screen, hub, faction picks, stations, sign-in, connecting, failure, play-to-planning, return to menu):
+//   node client-unity/UnityProject/Tools/hud-shots.cjs --steps launch --out docs/rework/evidence/launch --prefix launch
+//   It also needs an unreachable-port check and the Playwright WebSocket router (Playwright >= 1.48).
 //
 // Needs the Rust server and the served Web build (see docs/rework/evidence/hud/README.md for the commands):
 //   RH_SHOTS_URL    default http://127.0.0.1:8117/
@@ -113,6 +116,142 @@ async function walk(cfg, page, s, shot) {
   fs.writeFileSync(path.join(outDir, `${tag}-${tag2}-walk.json`), JSON.stringify(result, null, 2) + '\n');
 }
 
+
+// ---- launch flow ---------------------------------------------------------------------------------------------------------------
+// Click targets for the launch screen come from the same unit maths as LaunchScreenView: a 330 unit panel docked at (12, 12), the
+// hub room (896 x 576 legacy px) centred in the area right of it and below the wordmark, scaled to fit (HubAtriumView.ApplyArea).
+const PANEL = { x: 12, y: 12, w: 330, pad: 14 };
+const PANEL_ROWS = { callsign: 32, load: 32, profile: 142, faction: 202, play: 466, guide: 562 };
+const KIOSKS = ['Shop', 'Wardrobe', 'Titles', 'Achievements', 'Leaderboard'];
+const HOUSES = ['Fire', 'Sentenced', 'Plague', 'Frost', 'Holy'];
+function launchGeometry(cfg) {
+  const s = legacyScale(cfg.w, cfg.h);
+  const uiW = cfg.w / s, uiH = cfg.h / s;
+  const areaX = 354, areaTop = 120, areaW = Math.max(300, uiW - 354 - 12), areaH = Math.max(300, uiH - 120 - 12);
+  const k = Math.min(1.4, Math.max(0.45, Math.min(areaW / 896, (areaH - 36) / 576)));
+  const roomLeft = areaX + (areaW - 896 * k) / 2;
+  const unit = (ux, uy) => ({ x: ux * s, y: uy * s });
+  const panel = (px, py) => unit(PANEL.x + px, PANEL.y + py);
+  const room = (rx, ry) => unit(roomLeft + rx * k, areaTop + ry * k);
+  return {
+    s, k, panel, room,
+    callsign: panel(PANEL.pad + 116, PANEL_ROWS.callsign + 18),
+    load: panel(PANEL.pad + 240 + 36, PANEL_ROWS.load + 18),
+    profile: panel(PANEL.pad + 74, PANEL_ROWS.profile + 16),
+    resume: panel(PANEL.pad + 156 + 73, PANEL_ROWS.profile + 16),
+    house: i => panel(PANEL.pad + 151, PANEL_ROWS.faction + i * 52 + 24),
+    play: panel(PANEL.pad + 95, PANEL_ROWS.play + 24),
+    training: panel(PANEL.pad + 198 + 52, PANEL_ROWS.play + 24),
+    guide: panel(PANEL.pad + 80, PANEL_ROWS.guide + 16),
+    signIn: panel(PANEL.pad + 168 + 67, PANEL_ROWS.guide + 16),
+    station: { Counters: room(448, 288), Arena: room(448, 66), Training: room(786, 288), Shop: room(128, 96), Wardrobe: room(128, 174), Titles: room(128, 252),
+      Achievements: room(128, 330), Leaderboard: room(128, 408), Fire: room(248, 456), Sentenced: room(348, 492), Plague: room(448, 504), Frost: room(548, 492), Holy: room(648, 456) },
+  };
+}
+
+async function launchFlow(cfg, browser, errors, logs) {
+  const tag2 = cfg.id.replace('@', '-dpr');
+  const geo = launchGeometry(cfg);
+  const boot = Number(process.env.RH_SHOTS_BOOT_MS || 12000);
+  const contexts = [];
+  const open = async (query, setup) => {
+    const context = await browser.newContext({ viewport: { width: cfg.w, height: cfg.h }, deviceScaleFactor: cfg.dpr });
+    contexts.push(context);
+    const page = await context.newPage();
+    page.on('console', m => { const t = m.text(); logs.push(`[${m.type()}] ${t}`); if (m.type() === 'error') errors.push(t); });
+    page.on('pageerror', e => errors.push('pageerror: ' + e.message));
+    if (setup) await setup(page);
+    await page.goto(baseUrl + query, { waitUntil: 'load' });
+    await page.waitForSelector('canvas', { timeout: 60000 });
+    await page.waitForTimeout(boot);
+    return page;
+  };
+  const shot = async (page, name) => {
+    const file = path.join(outDir, `${tag}-${tag2}-${name}.png`);
+    await page.screenshot({ path: file }); console.log('  wrote', path.relative(repo, file));
+  };
+  const click = async (page, p, wait = 700) => { await page.mouse.click(p.x, p.y, { delay: 60 }); await page.waitForTimeout(wait); };
+  const profile = () => `${tag.replace(/[^A-Za-z0-9]/g, '').slice(0, 4)}${cfg.w}d${cfg.dpr}${Math.random().toString(36).slice(2, 5)}`.slice(0, 16);
+  const diag = (extra = '') => `?server=${encodeURIComponent(wsUrl)}&profile=${profile()}&faction=3&diagnostic=1&token=t1&auto=0${extra}`;
+  console.log(cfg.id, 'launch flow, scale', geo.s.toFixed(3), 'room scale', geo.k.toFixed(3));
+
+  // 1. The normal player path: no query at all, then the same with a custom server (the owner-reported "unavailable" wording).
+  let page = await open('');
+  if (steps.has('launch-plain') || steps.has('launch')) await shot(page, 'first-visit');
+  await click(page, geo.station.Fire); await page.waitForTimeout(1500);
+  // Stations in the plain case need the account API, which the static test server does not serve: the panels still open.
+  for (const name of ['Counters', ...KIOSKS]) {
+    await click(page, geo.station[name], 3200);
+    await shot(page, 'station-' + name.toLowerCase());
+    await page.keyboard.press('Escape'); await page.waitForTimeout(500);
+  }
+  await click(page, geo.profile, 900); await shot(page, 'profile-records'); await page.keyboard.press('Escape'); await page.waitForTimeout(500);
+  await click(page, geo.guide, 900); await shot(page, 'champions-guide'); await page.keyboard.press('Escape'); await page.waitForTimeout(500);
+  await click(page, geo.resume, 900); await shot(page, 'resume'); await page.keyboard.press('Escape'); await page.waitForTimeout(500);
+  await click(page, geo.signIn, 900); await shot(page, 'signin'); await page.keyboard.press('Escape'); await page.waitForTimeout(500);
+  await click(page, geo.callsign, 300); await page.keyboard.type('Ash_Warden', { delay: 40 }); await page.waitForTimeout(400);
+  await shot(page, 'callsign-typed');
+  await click(page, geo.training, 900); await shot(page, 'training-unavailable');
+  await page.context().close();
+
+  page = await open(`?server=${encodeURIComponent(wsUrl)}`);
+  await shot(page, 'custom-server-link');
+  await click(page, geo.play, 900); await shot(page, 'custom-server-play-blocked');
+  await page.context().close();
+
+  // 2. Diagnostic (loopback) hub: faction picks, keyboard focus, then play.
+  page = await open(diag());
+  await shot(page, 'hub');
+  for (let i = 0; i < 5; i++) { await click(page, geo.house(i), 1800); await shot(page, 'faction-' + HOUSES[i].toLowerCase()); }
+  await click(page, geo.house(3), 1500);
+  await page.keyboard.press('Tab'); await page.keyboard.press('Tab'); await page.keyboard.press('Tab'); await page.waitForTimeout(500);
+  await shot(page, 'keyboard-focus');
+  for (let i = 0; i < 9; i++) await page.keyboard.press('Tab');
+  await page.waitForTimeout(500); await shot(page, 'keyboard-focus-actions');
+  await page.mouse.click(geo.room(448, 400).x, geo.room(448, 400).y); // neutral floor click, clears focus
+  // Walk with the keyboard and press E at a station.
+  await page.keyboard.press('Escape');
+  await page.keyboard.down('w'); await page.waitForTimeout(1100); await page.keyboard.up('w'); await page.waitForTimeout(400);
+  await shot(page, 'walking-near-counters');
+  await page.keyboard.press('e'); await page.waitForTimeout(1200); await shot(page, 'e-opens-station');
+  await page.keyboard.press('Escape'); await page.waitForTimeout(500);
+  await click(page, geo.training, 900); await shot(page, 'training-disabled-reason');
+  await page.context().close();
+
+  // 3. Connecting: the socket opens but the server never answers, so the launch stays pending.
+  page = await open(diag(), async p => { await p.routeWebSocket(/\/ws$/, () => { /* never forwarded: the server stays silent */ }); });
+  await click(page, geo.play, 1800); await shot(page, 'connecting');
+  await click(page, geo.training, 1200); await shot(page, 'cancelled');
+  await page.context().close();
+
+  // 4. A server that cannot be reached.
+  const dead = baseUrl + `?server=${encodeURIComponent('ws://127.0.0.1:9/ws')}&profile=${profile()}&faction=1&diagnostic=1&token=t1&auto=0`;
+  const ctx = await browser.newContext({ viewport: { width: cfg.w, height: cfg.h }, deviceScaleFactor: cfg.dpr }); contexts.push(ctx);
+  page = await ctx.newPage();
+  page.on('console', m => { const t = m.text(); logs.push(`[${m.type()}] ${t}`); if (m.type() === 'error' && !/WebSocket|ws:\/\/127\.0\.0\.1:9|ERR_CONNECTION/i.test(t)) errors.push(t); });
+  page.on('pageerror', e => errors.push('pageerror: ' + e.message));
+  await page.goto(dead, { waitUntil: 'load' }); await page.waitForSelector('canvas', { timeout: 60000 }); await page.waitForTimeout(boot);
+  await click(page, geo.play, 4500); await shot(page, 'connection-failed');
+  await ctx.close();
+
+  // 5. The primary action reaches planning and a match, then Leave returns to the menu.
+  page = await open(diag());
+  await click(page, geo.play, Number(process.env.RH_SHOTS_PLAN_MS || 9000)); await shot(page, 'play-planning');
+  const s = geo.s, uiW = cfg.w / s, uiH = cfg.h / s;
+  await page.keyboard.press('1'); await page.waitForTimeout(600);
+  const pSide = Math.min(780, Math.max(260, Math.floor(Math.min(uiH - 44 - 12 - 124, uiW - 340 - 24 - 12 - 8))));
+  const pFrame = pSide + 8, pTotal = pFrame + 12 + 340, pColH = 40 + 12 + pFrame + 12 + 52;
+  const pBx = Math.floor((uiW - pTotal) / 2), pBy = Math.max(44, Math.floor((uiH - pColH) / 2 + 11));
+  await page.mouse.click((pBx + pFrame + 12 + 12 + 158) * s, (pBy + 12 + 23) * s, { delay: 80 });
+  await page.waitForTimeout(Number(process.env.RH_SHOTS_MATCH_MS || 9000)); await shot(page, 'play-match');
+  await page.mouse.click(cfg.w - (12 + 36 + 15) * s, (10 + 15) * s, { delay: 60 }); await page.waitForTimeout(700); // settings gear
+  await page.mouse.click(cfg.w - 258.5 * s, 676 * s, { delay: 60 }); await page.waitForTimeout(2500);               // Leave match
+  await shot(page, 'return-to-menu');
+  await click(page, geo.play, Number(process.env.RH_SHOTS_PLAN_MS || 9000)); await shot(page, 'play-again-planning');
+  await page.context().close();
+  fs.writeFileSync(path.join(outDir, `${tag}-${tag2}-console.log`), logs.join('\n') + '\n');
+}
+
 async function run(cfg) {
   const browser = await chromium.launch({ headless: args.includes('--headless'), args: ['--use-gl=angle', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader'] });
   const context = await browser.newContext({ viewport: { width: cfg.w, height: cfg.h }, deviceScaleFactor: cfg.dpr });
@@ -136,6 +275,7 @@ async function run(cfg) {
   };
   const clickStage = async (fromRight, fromTop, w = 0, h = 0) => { await page.mouse.click(cfg.w - (fromRight + w / 2) * s, (fromTop + h / 2) * s, { delay: 60 }); await page.waitForTimeout(500); };
   fs.mkdirSync(outDir, { recursive: true });
+  if (steps.has('launch')) { await context.close(); await launchFlow(cfg, browser, errors, logs); await browser.close(); return errors; }
   console.log(cfg.id, 'scale', s.toFixed(3));
   if (steps.has('hub')) {
     // The hub and menu (not auto-joined): they share the theme, so check they are not broken by it.

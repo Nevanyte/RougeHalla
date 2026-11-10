@@ -4,6 +4,12 @@ namespace Roguehalla.Net
 {
     public enum MatchLaunchMode { Arena, Training }
 
+    /// <summary>
+    /// Why a destination is unavailable, for player-facing wording only. It mirrors the policy's own verdict and never feeds a decision:
+    /// availability is still decided solely by <see cref="MatchLaunchTarget.Available"/>.
+    /// </summary>
+    public enum LaunchUnavailableKind { None, NotConfigured, NoAccountService, BadAddress, OtherSite }
+
     /// <summary>A typed configured destination. Availability is independent per mode; URL strings are never included in errors.</summary>
     public sealed class MatchLaunchTarget
     {
@@ -11,12 +17,16 @@ namespace Roguehalla.Net
         public string Url { get; }
         public bool Available { get; }
         public string UnavailableReason { get; }
+        /// <summary>UI-facing: which part of the policy refused this destination (None when it is available).</summary>
+        public LaunchUnavailableKind Kind { get; }
 
-        internal MatchLaunchTarget(MatchLaunchMode mode, string url, bool available, string unavailableReason)
+        internal MatchLaunchTarget(MatchLaunchMode mode, string url, bool available, string unavailableReason,
+            LaunchUnavailableKind kind = LaunchUnavailableKind.NotConfigured)
         {
             Mode = mode;
             Url = url ?? string.Empty;
             Available = available && !string.IsNullOrWhiteSpace(Url);
+            Kind = Available ? LaunchUnavailableKind.None : kind;
             UnavailableReason = Available ? string.Empty :
                 string.IsNullOrWhiteSpace(unavailableReason) ? "This launch target is unavailable." : unavailableReason;
         }
@@ -54,9 +64,19 @@ namespace Roguehalla.Net
         {
             string label = mode == MatchLaunchMode.Training ? "Training" : "Arena";
             string unavailable = label + " is unavailable for this connection.";
-            if (string.IsNullOrWhiteSpace(url) || endpoint == null ||
-                AccountConnectionPolicy.CheckOwnedTarget(endpoint, url) != AccountConnectionFailure.None)
-                return new MatchLaunchTarget(mode, string.Empty, false, unavailable);
+            var kind = LaunchUnavailableKind.None;
+            if (string.IsNullOrWhiteSpace(url)) kind = LaunchUnavailableKind.NotConfigured;
+            else if (endpoint == null) kind = LaunchUnavailableKind.NoAccountService;
+            else
+                switch (AccountConnectionPolicy.CheckOwnedTarget(endpoint, url))
+                {
+                    case AccountConnectionFailure.None: break;
+                    case AccountConnectionFailure.OriginMismatch: kind = LaunchUnavailableKind.OtherSite; break;
+                    case AccountConnectionFailure.MissingAccountEndpoint: kind = LaunchUnavailableKind.NoAccountService; break;
+                    default: kind = LaunchUnavailableKind.BadAddress; break;
+                }
+            if (kind != LaunchUnavailableKind.None)
+                return new MatchLaunchTarget(mode, string.Empty, false, unavailable, kind);
 
             return new MatchLaunchTarget(mode, url, true, string.Empty);
         }
