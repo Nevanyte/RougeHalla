@@ -101,7 +101,8 @@ pub(crate) struct Band {
 /// neither the step nor its half passes `ok` (a wall, the leash, lost line of sight: the mob stays and overlaps rather
 /// than deadlock). The step is the sum over the neighbours inside the room of half the overlap along the line between
 /// the two (each of a pair moves half), capped at [`MOB_SPACING_STEP_MAX`] and pulled back into `band` round the target,
-/// which turns an outward push into a slide round the target.
+/// which turns an outward push into a slide round the target, then capped again (the whole step is never longer than
+/// [`MOB_SPACING_STEP_MAX`]). A mob inside `band.lo` (its policy wanted a retreat it could not find) gets `None`.
 pub(crate) fn step(
     index: &[Entry],
     id: PlayerId,
@@ -111,6 +112,12 @@ pub(crate) fn step(
     ok: impl Fn(Vec2) -> bool,
 ) -> Option<Vec2> {
     if band.hi <= band.lo {
+        return None;
+    }
+    let r_from = hypot(from.x - target.x, from.y - target.y);
+    // Inside the retreat line the policy wanted out and could not find a way (its search failed, so it said Stop):
+    // spacing never carries out the retreat it refused.
+    if r_from < band.lo {
         return None;
     }
     let me = index.iter().find(|e| e.id == id)?;
@@ -157,6 +164,20 @@ pub(crate) fn step(
         to = Vec2::new(target.x + rx * band.hi / r, target.y + ry * band.hi / r);
     } else if r < band.lo && r > 1e-9 {
         to = Vec2::new(target.x + rx * band.lo / r, target.y + ry * band.lo / r);
+    }
+    // The clamp can lengthen the step (a mob between the band edge and its far line is pulled inward too): cap again.
+    let (sx, sy) = (to.x - from.x, to.y - from.y);
+    let len = hypot(sx, sy);
+    if len > MOB_SPACING_STEP_MAX {
+        to = Vec2::new(
+            from.x + sx * MOB_SPACING_STEP_MAX / len,
+            from.y + sy * MOB_SPACING_STEP_MAX / len,
+        );
+        // On the segment from `from` (r_from <= its far line) to a point inside the band: never farther out than either
+        // end. Only the retreat side can dip, by a hair, inside `lo`; then the mob stays.
+        if hypot(to.x - target.x, to.y - target.y) < band.lo {
+            return None;
+        }
     }
     for c in [to, Vec2::new((from.x + to.x) / 2., (from.y + to.y) / 2.)] {
         if hypot(c.x - from.x, c.y - from.y) < MOB_SPACING_STEP_MIN {
@@ -259,6 +280,31 @@ mod tests {
         let a = step(&ix, PlayerId(1), ix[0].at, t, band, |_| true).unwrap();
         assert!(hypot(a.x - t.x, a.y - t.y) <= 90. + 1e-9);
         assert!(a.x < 1000.);
+    }
+
+    #[test]
+    fn a_step_never_exceeds_the_cap_after_the_band_clamp() {
+        // A melee mob between its band edge (90) and its far line, pushed sideways by a near-coincident neighbour: the
+        // clamp pulls the step inward, and the step is still at most MOB_SPACING_STEP_MAX long.
+        let t = Vec2::new(1000., 1000.);
+        let from = Vec2::new(1000., 901.);
+        let ix = sorted(vec![entry(1, 1001., 901.), entry(2, 1000., 901.)]);
+        let band = Band { lo: 0., hi: 90. };
+        let to = step(&ix, PlayerId(2), from, t, band, |_| true).expect("a step");
+        let len = hypot(to.x - from.x, to.y - from.y);
+        assert!(len <= MOB_SPACING_STEP_MAX + 1e-9, "step {len}");
+    }
+
+    #[test]
+    fn spacing_never_carries_out_a_retreat_the_policy_refused() {
+        // A bow mob 100 u from its target (inside its retreat line: the policy said Stop because its retreat search
+        // failed) with an overlapping neighbour: no step at all, never the 128 u walk out to the band.
+        let t = Vec2::new(1000., 1000.);
+        let from = Vec2::new(1000., 900.);
+        let ix = sorted(vec![entry(1, 1000., 900.), entry(2, 1010., 900.)]);
+        let band = Band { lo: 228., hi: 392. };
+        assert_eq!(step(&ix, PlayerId(1), from, t, band, |_| true), None);
+        assert_eq!(step(&ix, PlayerId(2), Vec2::new(1010., 900.), t, band, |_| true), None);
     }
 
     #[test]
