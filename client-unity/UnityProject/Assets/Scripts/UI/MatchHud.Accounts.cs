@@ -35,6 +35,7 @@ namespace Roguehalla.Client
             _launch.Build(_menu);
             _backdrop = gameObject.AddComponent<LaunchBackdrop>();
             _backdrop.Initialize(_client.Cam, _client);
+            _launch.SetRecordEmpty(_client.IsDiagnostic ? "Diagnostic session: accounts are off for this loopback test." : "Load a callsign to see its record, or just play to claim it.");
             _nickname = _launch.Callsign; _nickname.text = _client.Profile;
             _loadProfile = _launch.Load; _joinMatch = _launch.Play; _joinTraining = _launch.Training;
             _profileSummary = _launch.RecordText; _launchInfo = _launch.Reason; _accountStatus = _launch.Status;
@@ -87,7 +88,7 @@ namespace Roguehalla.Client
             stageGo.transform.SetParent(backdrop, false);
             stageGo.GetComponent<HudStage>().Relayout();
             var card = HudUi.Box(stageGo.transform, name, HudAnchor.Center, 0, 0, width, height);
-            HudUi.Surface(card, theme.Surface, theme.CornerRadiusLarge, theme.BorderStrong, true, true);
+            HudUi.Surface(card, UiTheme.With(theme.Surface, 1f), theme.CornerRadiusLarge, theme.BorderStrong, true, true);
             LaunchUi.Text(card, name + "Title", 16f, 12f, width - 64f, 30f, title, 20f, theme.Accent, TextAlignmentOptions.MidlineLeft, true, UiFontRole.Display).characterSpacing = 1.5f;
             var x = LaunchUi.Button(card, name + "Close", width - 42f, 12f, 28f, 28f, LaunchUi.Look.Raised, () => close());
             LaunchUi.Text(x.transform, "Label", 0, 0, 28f, 28f, "x", 15f, theme.TextPrimary, TextAlignmentOptions.Center, true);
@@ -152,7 +153,7 @@ namespace Roguehalla.Client
         {
             if (_launch == null) return;
             bool menu = _menu.gameObject.activeSelf;
-            _launch.Atrium.SetVisible(menu);
+            _launch.Atrium.SetVisible(menu && !AnyHubPanelVisible); // hub panels get the vista to themselves
             _backdrop?.SetVisible(menu);
             if (!menu) return;
             if (_focusCallsignPending && !AnyHubPanelVisible && !ResumeChooserVisible && !_signIn.gameObject.activeSelf && _nickname != null &&
@@ -222,8 +223,8 @@ namespace Roguehalla.Client
             _joinMatch.interactable = ready;
             _joinTraining.interactable = pending || trainingReady;
             RefreshResumeMenu(state, busy, arena, training);
-            _launch.SetPlay(pending ? "CONNECTING…" : "START RUN", ready, pending);
-            _launch.Atrium.SetPlayAvailable(ready, WhyNotPlay(account, callsignProblem, arena), callsignProblem != null ? "Type a callsign first" : "Unavailable",
+            _launch.SetPlay(pending ? "JOINING" : "START RUN", ready, pending);
+            _launch.Atrium.SetPlayAvailable(ready, WhyNotPlay(account, callsignProblem, arena), callsignProblem != null && arena.Available ? "Type a callsign first" : "Unavailable",
                 trainingReady, WhyNotTraining(account, callsignProblem, training), "Unavailable");
 
             string reason = "";
@@ -260,14 +261,14 @@ namespace Roguehalla.Client
         static string WhyNotPlay(bool account, string callsignProblem, MatchLaunchTarget arena)
         {
             if (!account) return "Accounts aren't reachable from this page. Reload, or open the game from its main address.";
-            if (callsignProblem != null) return callsignProblem;
-            return arena.Available ? "" : LaunchCopy.UnavailableText(MatchLaunchMode.Arena, arena);
+            if (!arena.Available) return LaunchCopy.UnavailableText(MatchLaunchMode.Arena, arena);
+            return callsignProblem ?? "";
         }
         static string WhyNotTraining(bool account, string callsignProblem, MatchLaunchTarget training)
         {
             if (!account) return "Accounts aren't reachable from this page. Reload, or open the game from its main address.";
-            if (callsignProblem != null) return callsignProblem;
-            return training.Available ? "" : LaunchCopy.UnavailableText(MatchLaunchMode.Training, training);
+            if (!training.Available) return LaunchCopy.UnavailableText(MatchLaunchMode.Training, training);
+            return callsignProblem ?? "";
         }
         static string AccountFailureText(AccountFailure failure)
         {
