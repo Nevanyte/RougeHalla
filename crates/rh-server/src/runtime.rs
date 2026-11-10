@@ -1,4 +1,4 @@
-//! Explicit endpoint configuration. Protocol 14 Hello carries no room mode: each process hosts one profile.
+//! Explicit endpoint configuration. The protocol Hello carries no room mode: each process hosts one profile.
 use rh_sim::{abilities, mob_runtime::MobMode, terrain, Arena, ArenaMode, FactionMode, SimConfig};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -16,6 +16,23 @@ pub struct Settings {
     pub max_rooms: usize,
     pub lobby_seconds: f64,
     pub fill_seconds: f64,
+    /// ADR0024 (P-HB-9): live runtimes play with the measured archetype hitboxes; `--hitboxes legacy` keeps the 12 u circle.
+    /// Every other configuration (tests, parity, headless, the core binary) stays `LegacyCircle`.
+    pub hitboxes: rh_sim::archetype::HitboxMode,
+}
+
+/// `--hitboxes legacy|archetypes` (default archetypes for a live runtime).
+pub fn hitboxes_flag(
+    args: &[String],
+    default: rh_sim::archetype::HitboxMode,
+) -> Result<rh_sim::archetype::HitboxMode, String> {
+    use rh_sim::archetype::HitboxMode;
+    match value(args, "--hitboxes")? {
+        None => Ok(default),
+        Some("legacy") => Ok(HitboxMode::LegacyCircle),
+        Some("archetypes") => Ok(HitboxMode::Archetypes),
+        Some(_) => Err("--hitboxes must be legacy or archetypes".into()),
+    }
 }
 
 fn value<'a>(args: &'a [String], flag: &str) -> Result<Option<&'a str>, String> {
@@ -112,6 +129,7 @@ impl Settings {
             max_rooms: seats("--max-rooms", 16, 1, usize::MAX)?,
             lobby_seconds: seconds("--lobby-seconds", if training { 0. } else { 30. })?,
             fill_seconds: seconds("--fill-seconds", if training { 0. } else { 5. })?,
+            hitboxes: hitboxes_flag(args, rh_sim::archetype::HitboxMode::Archetypes)?,
         };
         if training && (settings.lobby_seconds != 0. || settings.fill_seconds != 0.) {
             return Err("training requires zero lobby and fill seconds".into());
@@ -145,6 +163,7 @@ impl Settings {
             min_players: self.min_players,
             lobby_seconds: self.lobby_seconds,
             fill_seconds: self.fill_seconds,
+            hitboxes: self.hitboxes,
             ..SimConfig::default()
         }
     }

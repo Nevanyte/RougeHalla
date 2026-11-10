@@ -199,11 +199,13 @@ spawn, placement and AI clearance at 12 u. A table test asserts `fx^2 + fy^2 <= 
   wedge, it must cross the wedge boundary inside the disc.
 - **Where it runs.** `melee.rs:112` dispatches on hull. `Circle` keeps `in_arc(.., PLAYER_RADIUS)`. The wall ray
   (`:115-124`) and the shield-facing test (`:145-151`) stay feet-to-feet. Reach and arc constants are unchanged.
-- **Proposed height rule: the target's chest.** Measure from the attacker's rewound feet raised by the **target's**
-  chest, `o = origin + (0, oy_t)`. That is the same as testing the feet against the target box centred on the target's
-  feet, and it is even north and south for every pair of archetypes. For equal archetypes (every same-look PvP fight) it
-  equals the literal "attacker's chest". The direction's literal rule fails its own stated purpose for unequal sizes
-  (Context, finding 4). **Owner confirmation needed.** The fallback is one line: `oy_a` instead of `oy_t`.
+- **Decided height rule: the target's chest** (coordinator ruling 2026-11-09). Measure from the attacker's rewound feet
+  raised by the **target's** chest, `o = origin + (0, oy_t)`. That is the same as testing the feet against the target box
+  centred on the target's feet, and it is even north and south for every pair of archetypes. For equal archetypes (every
+  same-look PvP fight) it equals the literal "attacker's chest". This **replaces the owner direction's "attacker's
+  chest"** wording, because the literal rule fails the direction's own stated purpose (reach even in all directions) for
+  unequal sizes (Context, finding 4). **Flagged for the owner**: the fallback is one line, `oy_a` instead of `oy_t`
+  (`systems/melee.rs`).
 - **Ball interception.** Under this rule `meet_balls` (`projectiles.rs:526-574`) needs no change, because both ends are
   raised by the same height. Under the literal rule its origin would rise by `c_a` and the ball by its own height.
 
@@ -412,3 +414,41 @@ Order: 0 and 2 can run with 1. Then 3, 4 and 5 (disjoint files). Then 6. Then 7 
    notice it.
 10. **Rounded corners.** The grown box over-reaches a true rounded box by at most `slack * (sqrt(2) - 1)` (2.9 u for
     arrows) at the corners. Recommendation: accept it; it keeps the test sqrt-free.
+
+## Changes during implementation
+
+Recorded by the implementer of P-HB-0 to P-HB-6 and the P-HB-9 flags (branch `rework/hitbox`). Each is the smallest
+sound choice where the code disagreed with the text above.
+
+1. **Protocol number 16** (coordinator ruling), not 15.
+2. **Melee height: the target's chest** (coordinator ruling, Decision 5 now states it). It replaces the owner direction's
+   "attacker's chest" and is flagged for the owner; the fallback is one line in `systems/melee.rs`.
+3. **Archetype `key` is the Unity catalog appearance key verbatim** (`hero-female`, `mob-goblin-elite`, ...). The table in
+   Decision 2 writes underscored names; Unity looks sprites up by the catalog key, so the key must match it. Row 0 keeps
+   `legacy_circle` (no art).
+4. **Rounding rule made exact (P-HB-0).** "Rounded with top + below even" is: round both to whole units; when the sum is
+   odd, lower `below` by one. This reproduces all 12 boxed rows (`tools/hitbox-measure/measure.mjs --check`).
+5. **Wire bit numbers moved.** The text predates bits that are now taken: Full head bit 20 is owner combat and Delta head
+   bit 24 is owner combat, Delta actor bit 12 is barrier. The archetype uses **Full head bit 21, Delta head bit 25, Full
+   actor bit 10, Delta actor bit 13**. Projectile rows append `height u8` after the owner.
+6. **The Welcome table sits between the header and the map, not after it.** `MapBlob::read` requires the map to end the
+   frame (a trailer is `Trailing`). Layout: `count u8`, rows `id u8, key str, hull u8, r u8 | fx fy bx by u8 ox oy i8,
+   chest u8` (at most 32 rows, keys at most 24 printable ASCII bytes). A Welcome built with no table carries one zero byte.
+7. **`Pathfinder::find_path(_into)` take `impl Into<Footprint>`** (`f64` converts to `Footprint::Disc`), so every existing
+   radius caller compiles unchanged and the disc path is the same evaluation. Movers use `plan_foot_path_into` with their
+   own foot; `plan_path(_into)` stay the 12 u disc (training placement reachability).
+8. **`Mob::born`, `Mob::zombie` and `Player::joining` take the `HitboxMode`** and call `archetype::assign`; restore
+   recomputes and compares (players in `check_world`, mobs and givers through the existing "expected birth" comparisons).
+9. **The scene-candidate experiment** (`rh_protocol::scene_candidate`, C# `SceneCandidate`) was pinned to protocol 14; its
+   guard now accepts 14 or 16. Its committed fixtures (`protocol/fixtures/scene-candidate/*14.json`) are unchanged
+   because its synthetic scenes carry no archetype, height or Welcome.
+10. **The policy delivery context checks the current protocol** (`FrameContext14.protocol == PROTOCOL_VERSION`) instead of
+    the literal 14; the `*14` type names are kept.
+11. **The native ability hash tape** (`parity/abilities/hash-tape.json`, a rebindable native regression tape, not a
+    legacy capture) is re-recorded: P-HB-1 changes the World layout (`FighterCore.archetype`, `ProjectileLaunch.height`,
+    `SimConfig.hitboxes` in the statics digest), `contentHash` and the checkpoint tag; P-HB-6 changes
+    `observationVersion`. Every tick count is unchanged, and after P-HB-1 no fold changes again (P-HB-3 to P-HB-6 leave
+    every legacy state hash of the 63 cases identical).
+12. **Live default.** `rh-server --runtime source-arena|training` defaults to `Archetypes` with `--hitboxes legacy` as the
+    escape hatch; the core binary, tests, parity, benches and `rh-headless` (`--hitboxes`, default `legacy`) stay
+    `LegacyCircle`. DEVIATIONS rule 3 still requires the P-HB-9 harness verdict before this ships.
