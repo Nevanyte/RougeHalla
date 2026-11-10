@@ -20,8 +20,9 @@ scoped and reviewed; no production/cloud actions are part of this lane.
 | Owner | Initial assignment | Status |
 |---|---|---|
 | DeepSeek Rust Port Worker | Rebase existing repaired private Memory onto current backend in `codex/deepseek-bot-memory`; scoped source tests and lint | Dispatched; no admission yet |
-| Sol quest architect | Extensible deterministic quest backend boundaries and source-backed tour-supply regression packet | In progress |
-| Luna inventory | Verify remaining gameplay/bots against source and preserved candidates; record dependency/ownership plan | In progress |
+| DeepSeek Post Rust | [Quest backend packet](backlog/packets/P-QUEST-BACKEND-1.md) in `codex/deepseek-quest-backend`; Rust consumer/repair then objective/reward boundary | Preparing; source capture pending |
+| Sol quest architect | [Quest architecture](coordination/QUEST_BACKEND_REWORK.md), then source-backed tour-supply regression | Architecture prepared; source capture in progress |
+| Luna inventory | [Gameplay/bot workplan](coordination/BACKEND_GAMEPLAY_WORKPLAN.md), source/architecture cross-check and bleed-feedback packet | Inventory prepared; bounded follow-up in progress |
 | Codex project manager | Isolated worktrees, packet dispatch, independent review, integration and shared plans | Active |
 
 This supersedes the demo-only parking direction for backend work. Claude's demo remains independently active.

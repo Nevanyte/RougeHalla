@@ -24,8 +24,10 @@ review; Codex coordinates, admits changes and updates shared records. Work start
 in `codex/backend-gameplay-quests`, leaving Claude's primary checkout and active branches untouched.
 
 First dispatched packet: [P-BOT-MEMORY-ADMISSION-1](packets/P-BOT-MEMORY-ADMISSION-1.md), reusing the existing private
-Memory repair rather than rewriting it. Quest architecture and a source-backed tour feasibility regression are being
-specified. Full live bot activation remains dependent on legitimate shared observations; no hidden-state shortcut,
+Memory repair rather than rewriting it. The [quest architecture](../coordination/QUEST_BACKEND_REWORK.md) and
+[P-QUEST-BACKEND-1](packets/P-QUEST-BACKEND-1.md) are prepared; source evidence is being captured before the Rust repair.
+Use the [reconciled workplan](../coordination/BACKEND_GAMEPLAY_WORKPLAN.md) for this lane's queue and scopes.
+Full live bot activation remains dependent on legitimate shared observations; no hidden-state shortcut,
 protocol change or new quest design is implied. Treat older broad completion/partial rows below as historical until
 reconciled with code and current evidence; neither a `Partial` comment nor an existing module alone establishes status.
 

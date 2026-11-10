@@ -16,8 +16,11 @@ Work is isolated on `codex/backend-gameplay-quests`, based on the latest committ
 cloud or production changes belong to this lane. The existing backend lead checkout's untracked plague regression
 and evidence are preserved. Integration into `optimization_port` follows reviewed scoped changes, not branch replacement.
 
-Initial work: Sol is designing the quest backend boundary and a source-backed tour-supply correction; Luna is
-reconciling the remaining gameplay/bot inventory against current code. DeepSeek has received
+Initial work: Sol has prepared the [quest backend architecture](coordination/QUEST_BACKEND_REWORK.md) and
+[ordered tour-supply repair/extraction packet](backlog/packets/P-QUEST-BACKEND-1.md). Its unchanged-source capture is
+in preparation; the second DeepSeek session is inspecting the Rust work while it waits for frozen source evidence.
+Luna's [workplan](coordination/BACKEND_GAMEPLAY_WORKPLAN.md) reconciles remaining gameplay/bot work against code.
+DeepSeek has received
 [P-BOT-MEMORY-ADMISSION-1](backlog/packets/P-BOT-MEMORY-ADMISSION-1.md) in its dedicated
 `codex/deepseek-bot-memory` worktree, reusing the preserved `3e3178b9` repair. It is dispatched, not yet reviewed or
 integrated. No new test result or full bot/quest completion is claimed by this planning update.
