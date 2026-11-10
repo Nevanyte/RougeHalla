@@ -1,0 +1,231 @@
+{
+  "cwd": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests",
+  "head": "37a0254209855424b4782298eba037d916e3ce06",
+  "toolchain": "cargo 1.97.0 (c980f4866 2026-06-30)",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests/target/root-strategy-notice-admission/build",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_BUILD_JOBS": "1",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "RUSTFLAGS": "",
+    "RH_CARD_ALLOC_DIRECTORY": "/var/folders/f1/zlvpzngj3kbb95dxk8svy1y00000gn/T/rh-root-card-alloc-hwmmrlbb"
+  }
+}
+
+COMMAND ["/Users/nevinmckinnon/.cargo/bin/cargo", "test", "-p", "rh-sim", "--locked", "--offline", "-j", "1", "--lib", "card_bleed", "--", "--nocapture"]
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.27
+   Compiling libc v0.2.191
+   Compiling serde_core v1.0.229
+   Compiling parking_lot_core v0.9.12
+   Compiling zmij v1.0.23
+   Compiling cfg-if v1.0.5
+   Compiling memchr v2.8.3
+   Compiling syn v3.0.9
+   Compiling serde v1.0.229
+   Compiling adler2 v2.0.1
+   Compiling smallvec v1.16.4
+   Compiling serde_json v1.0.154
+   Compiling gimli v0.34.0
+   Compiling scopeguard v1.2.0
+   Compiling lock_api v0.4.14
+   Compiling addr2line v0.27.1
+   Compiling miniz_oxide v0.9.1
+   Compiling serde_derive v1.0.229
+   Compiling object v0.40.0
+   Compiling rustc-demangle v0.1.28
+   Compiling itoa v1.0.18
+   Compiling libm v0.2.16
+   Compiling backtrace v0.3.77
+   Compiling parking_lot v0.12.5
+   Compiling lazy_static v1.5.1
+   Compiling rustc-hash v1.1.0
+   Compiling mintex v0.1.4
+   Compiling thousands v0.2.0
+   Compiling dhat v0.3.3
+   Compiling ryu-js v1.0.3
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 2m 19s
+     Running unittests src/lib.rs (target/root-strategy-notice-admission/build/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 31 tests
+test systems::card_bleed_feedback::tests::card_bleed_alloc ... ignored, allocation profiler must run alone: cargo test -p rh-sim --lib card_bleed_alloc -- --ignored --test-threads=1
+test systems::card_bleed_feedback::tests::card_bleed_alloc_public_output ... ignored, allocation profiler must run alone: cargo test -p rh-sim --lib card_bleed_alloc_public_output -- --ignored --test-threads=1
+measured Card layout (bytes):
+  CardBleedAmount: 16
+  CardBleedBucket: 32
+  CardBleedReport: 72
+  CardExactRow: 288
+  CardSegment: 56
+  PairIndex: 32
+  PairIndex node: 28
+  fx_report::Op: 48
+  Event: 104
+  SeenEvent: 80
+  FxTickReport: 192
+  ExactSum: 272
+  PlayerId: 4
+  PairIndex node measured 28 bytes (planning estimate 24)
+test systems::card_bleed_feedback::index::tests::reset_retains_the_arena_and_reinserts_row_ordinals ... ok
+test systems::card_bleed_feedback::index::tests::keys_are_full_pairs_and_none_never_aliases_an_id ... ok
+test systems::card_bleed_feedback::tests::capacity_representation_refuses_unrepresentable_or_overflowing_bounds_without_allocating ... ok
+test systems::card_bleed_feedback::tests::report_validation_rejects_incoherent_clock_rows_provenance_and_duplicates ... ok
+test systems::card_bleed_feedback::tests::exact_sidecar_classifications_and_exact_merge_have_no_intermediate_rounding ... ok
+test systems::card_bleed_feedback::tests::first_insertion_order_append_and_exact_pair_identity_are_preserved ... ok
+test systems::card_bleed_feedback::tests::flush_emits_rows_in_order_clears_rows_retains_capacity_and_restarts_clock ... ok
+test systems::card_bleed_feedback::tests::source_periodic_interval_is_inclusive_500_ms_and_needs_a_report ... ok
+test systems::card_bleed_feedback::tests::b3_serde_roundtrips_canonical_finite_bits_and_tags ... ok
+player-only8 capacities: pristine=true V=8 P=8 A0=8 R=0 U0=0 Q0=0 K=64 Q=64 B=72
+test systems::card_bleed_feedback::tests::source_ordered_finite_fold_preserves_rounding_and_classifies_overflow_and_nan ... ok
+test systems::card_bleed_feedback::tests::strict_intake_rejects_malformed_ambiguous_and_nonfinite_payloads ... ok
+test systems::card_bleed_feedback::tests::eligible_bucket_with_both_local_classifications_fails_with_invalid_amount ... ok
+test systems::card_bleed_feedback::tests::card_bleed_hit_is_server_only_and_never_projected_by_to_seen ... ok
+test systems::card_bleed_feedback::index::tests::ascending_descending_and_permuted_inserts_find_the_same_rows_and_bound_height ... ok
+test systems::card_bleed_feedback::tests::synthetic_carry_failure_state_keeps_a_later_source_invalid_classification_local ... ok
+test systems::card_bleed_feedback::tests::the_real_gate_always_raid_start_records_one_card_reset_marker ... ok
+test systems::card_bleed_feedback::tests::cold_clone_restore_and_attach_prepare_the_actual_capacity_set ... ok
+test systems::card_bleed_feedback::tests::serialized_pending_card_history_extends_the_prepared_boundary ... ok
+test systems::card_bleed_feedback::tests::an_accepted_fractional_clock_records_a_real_card_report_and_restores_continuation ... ok
+test systems::card_bleed_feedback::tests::valid_trusted_report_and_pending_raw_rows_restore_with_exact_bits_and_a_rebuilt_index ... ok
+test systems::card_bleed_feedback::tests::prepared_public_output_beyond_the_legacy_output_constant_uses_the_actual_projector ... ok
+general PvE example: pristine=false V=882 P=8 A0=212 R=204 U0=0 Q0=0 K=7056 Q=7056 B=7938
+generic Full8 card-owned ACTUAL prepared capacity ledger (non-overlapping; T0=0):
+  trusted report rows: Vec<CardBleedBucket> actual capacity: capacity=7056 bytes/unit=32 total=225792
+  trusted report derived index: arena node capacity: capacity=7056 bytes/unit=28 total=197568
+  producer exact segment rows: Vec<CardExactRow> actual capacity: capacity=7056 bytes/unit=288 total=2032128
+  producer exact segment derived index: arena node capacity: capacity=7056 bytes/unit=28 total=197568
+  sealed report Card rows: Vec<CardExactRow> actual capacity: capacity=7056 bytes/unit=288 total=2032128
+  sealed report events: Vec<Event> total actual capacity: capacity=7568 bytes/unit=104 total=787072
+  sealed report wish_points: Vec actual capacity: capacity=7568 bytes/unit=2 total=15136
+  8 viewer Card bucket vectors: summed actual Vec<CardBucket> capacity: capacity=63504 bytes/unit=288 total=18289152
+  8 viewer Card derived indexes: summed arena node capacity: capacity=63504 bytes/unit=28 total=1778112
+  8 viewer owned outputs: summed actual Vec<SeenEvent> capacity: capacity=75536 bytes/unit=80 total=6042880
+  card-owned actual prepared capacity total: 31597536 B
+  conservative planning allowance N_new: 46991264 B (separate; not added)
+  unchanged legacy baseline inside the enlarged buffers (separate): 1016832 B
+  test-only transparent Card observer buffers (excluded from ledger): 6042880 B
+  actual prepared caps: report.events=7568 wish=7568 card_event_limit=7056 card_rows=7056 segment_rows=7056 segment_index=7056 trusted_rows=7056 trusted_index=7056 viewer_event_cap=75536 viewer_bucket_cap=63504 viewer_index_cap=63504 viewer_card_limit=7938
+test systems::card_bleed_feedback::tests::measured_card_type_sizes_and_index_height_are_reported ... ok
+test systems::card_bleed_feedback::tests::strict_pending_event_intake_rejects_the_same_malformed_domain ... ok
+test systems::card_bleed_feedback::tests::strict_report_intake_rejects_noncanonical_amounts_and_invariant_violations ... ok
+test systems::card_bleed_feedback::tests::canonical_b3_map_aliases_and_duplicate_keys_are_refused_through_both_stored_paths ... ok
+test systems::card_bleed_feedback::source_tests::a_wrong_valued_extra_card_row_is_rejected_by_the_actual_public_comparator ... ok
+test systems::card_bleed_feedback::source_tests::the_seven_immutable_source_histories_reproduce_trusted_rows_and_cadence ... ok
+test systems::card_bleed_feedback::source_tests::the_source_cases_reach_grouping_cadence_run_end_reset_teleport_and_exclusion ... ok
+historical baseline: rows=600 Q=7656 T0=0 raw-history-envelope=7656 sealed events cap=8168 wish cap=8168 projector capacity=9442
+test systems::card_bleed_feedback::tests::a_restored_historical_card_report_over_the_legacy_event_cap_flushes_without_refusing_a_fresh_viewer ... ok
+
+test result: ok. 29 passed; 0 failed; 2 ignored; 0 measured; 875 filtered out; finished in 0.29s
+
+
+RESULT {"check": 1, "exit": 0, "wall_seconds": 146.465}
+
+COMMAND ["/Users/nevinmckinnon/.cargo/bin/cargo", "test", "-p", "rh-sim", "--locked", "--offline", "-j", "1", "--lib", "--features", "trusted-status-probes", "card_bleed_alloc", "--", "--ignored", "--test-threads=1", "--nocapture"]
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 1m 25s
+     Running unittests src/lib.rs (target/root-strategy-notice-admission/build/debug/deps/rh_sim-0ad75f2b040c28b6)
+
+running 2 tests
+test systems::card_bleed_feedback::tests::card_bleed_alloc ... card cold allocations (blocks): construct=98 clone=66 restore=1022 rebind=6; cold sims constructed 0 1 1
+card past-prepared-bound growth blocks: 2
+card allocation witness: first_pair tick 3 allocs 0, second_pair tick 43 allocs 0, repeated 20 steps allocs 0, prepared Q=64 index=64 K=64
+dhat: Total:     3,519,325 bytes in 1,438 blocks
+dhat: At t-gmax: 2,739,028 bytes in 378 blocks
+dhat: At t-end:  2,739,028 bytes in 378 blocks
+dhat: The data has been saved to /var/folders/f1/zlvpzngj3kbb95dxk8svy1y00000gn/T/rh-root-card-alloc-hwmmrlbb/rh-card-bleed-alloc.json, and is viewable with dhat/dh_view.html
+ok
+test systems::card_bleed_feedback::tests::card_bleed_alloc_public_output ... card public-output allocation witness: rows=2104 legacy_constant=1504 prepared_output_capacity=9442 feed_alloc_blocks=0
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 920 filtered out; finished in 0.38s
+
+
+RESULT {"check": 2, "exit": 0, "wall_seconds": 91.761}
+
+COMMAND ["/Users/nevinmckinnon/.cargo/bin/cargo", "test", "-p", "rh-sim", "--locked", "--offline", "-j", "1", "--lib", "mob_checkpoint::bleed_tests", "--", "--nocapture"]
+    Finished `test` profile [unoptimized] target(s) in 0.13s
+     Running unittests src/lib.rs (target/root-strategy-notice-admission/build/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 6 tests
+test systems::mob_checkpoint::bleed_tests::producer_forward_duration_operation_accepts_the_binary64_counterexample ... ok
+DEPARTURE phase=Active server=100 player_present=false known_actor=true bleed_present=true
+test systems::mob_checkpoint::bleed_tests::earned_bleed_restores_under_an_accepted_fractional_clock_without_tick_time_equality ... ok
+test systems::mob_checkpoint::bleed_tests::earned_bleed_restores_under_an_accepted_large_clock_preserving_producer_duration ... ok
+test systems::mob_checkpoint::bleed_tests::earned_bleed_restores_after_source_departure_through_retained_known_history ... ok
+test systems::mob_checkpoint::bleed_tests::malformed_earned_bleed_shapes_refuse_at_status_domain_predicate ... ok
+test systems::mob_checkpoint::bleed_tests::earned_hemorrhage_bleed_on_regional_npc_restores_and_continues ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 900 filtered out; finished in 2.92s
+
+
+RESULT {"check": 3, "exit": 0, "wall_seconds": 3.139}
+
+COMMAND ["/Users/nevinmckinnon/.cargo/bin/cargo", "test", "-p", "rh-sim", "--locked", "--offline", "-j", "1", "--lib", "frozen_full_source_all_63_cases", "--", "--nocapture"]
+    Finished `test` profile [unoptimized] target(s) in 0.07s
+     Running unittests src/lib.rs (target/root-strategy-notice-admission/build/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 1 test
+case "base-player-holy-real-reset-and-continuation"
+case "base-player-fire-real-reset-and-continuation"
+case "base-player-plague-real-reset-and-continuation"
+case "base-player-frost-real-reset-and-continuation"
+case "base-player-sentenced-real-reset-and-continuation"
+P-ABIL-1 FULL: 0 named prerequisite cases remain:
+
+test abilities::source_tests::frozen_full_source_all_63_cases ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 905 filtered out; finished in 15.35s
+
+
+RESULT {"check": 4, "exit": 0, "wall_seconds": 15.506}
+
+COMMAND ["/Users/nevinmckinnon/.cargo/bin/cargo", "test", "-p", "rh-sim", "--locked", "--offline", "-j", "1", "--lib", "ability_hash_tape_matches_the_base", "--", "--nocapture"]
+    Finished `test` profile [unoptimized] target(s) in 0.12s
+     Running unittests src/lib.rs (target/root-strategy-notice-admission/build/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 1 test
+test abilities::source_tests::hash_tape::ability_hash_tape_matches_the_base ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 905 filtered out; finished in 11.01s
+
+
+RESULT {"check": 5, "exit": 0, "wall_seconds": 11.23}
+
+COMMAND ["/Users/nevinmckinnon/.cargo/bin/cargo", "test", "-p", "rh-sim", "--locked", "--offline", "-j", "1", "--test", "content"]
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 21.38s
+     Running tests/content.rs (target/root-strategy-notice-admission/build/debug/deps/content-507fd2a384d05cbb)
+
+running 21 tests
+test a_second_declaration_of_a_registered_name_is_a_stray ... ok
+test hash_golden ... ok
+test registry_is_well_formed ... ok
+test stagger_rule_is_registered_data ... ok
+test hash_is_stable_and_derived_from_the_registry ... ok
+test camp_rules_move_the_content_hash ... ok
+test landmark_search_rules_move_the_content_hash ... ok
+test removing_renaming_or_reordering_a_row_perturbs_the_hash ... ok
+test attempt_prefix_rules_move_the_content_hash ... ok
+test fixed_map_geometry_and_pillar_data_move_the_content_hash ... ok
+test stagger_rule_moves_the_hash ... ok
+test zone_partition_rules_move_the_content_hash ... ok
+test landmark_guard_rules_move_the_content_hash ... ok
+test landmark_support_rules_move_the_content_hash ... ok
+test signature_identity_and_dot_classification_move_the_content_hash ... ok
+test every_bush_rule_moves_the_content_hash ... ok
+test numbers_missing_from_the_hash_at_the_base_now_move_it ... ok
+test every_spawn_rule_moves_the_content_hash ... ok
+test the_formerly_inline_numbers_are_used_by_name ... ok
+test every_const_in_the_source_tree_is_registered_or_explained ... ok
+test every_registry_row_perturbs_the_hash ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.45s
+
+
+RESULT {"check": 6, "exit": 0, "wall_seconds": 23.024}
+
+COMMAND ["/Users/nevinmckinnon/.cargo/bin/cargo", "fmt", "-p", "rh-sim", "--", "--check"]
+
+RESULT {"check": 7, "exit": 0, "wall_seconds": 2.078}

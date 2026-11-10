@@ -42,7 +42,8 @@ are in [MIGRATION.md](../MIGRATION.md#morning-release-direction-owner-instructio
   all integration targets green); final focused29 Card/28 projector and separately executed allocation controls pass.
   Source7/390 steps and ability63 remain unchanged. The real2104-output synthetic flush measures0 allocation blocks;
   eight-viewer actual reservations are accounted separately from planning and total live heap. Root's integrated
-  focused checks are running. NPC deduplicates; no Unity/wire16 union or hosted acceptance is implied.
+  Card29, both CI-feature allocator tests, NPC6, ability63, tape, content21 and format pass. NPC deduplicates;
+  no Unity/wire16 union or hosted acceptance is implied.
 - **Release remains separate:** backend/Unity composition, actual final browser acceptance, reports/licences,
   exact runtime/artifacts, Opus review and authorized AWS test deployment follow the owner window above. No complete
   port, full private bot activation, final performance or hosted release is implied by these component checks.

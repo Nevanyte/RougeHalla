@@ -62,7 +62,9 @@ the measured flush. Eight actual viewer reservations total31,597,536 bytes for t
 legacy baseline, not a whole-process heap claim. The general capacity is approved; no smaller pristine estimate is
 claimed. Identity is14/30/24/22/16/content`fa16f195dc22ef69`; derived tape/pin refresh followed the genuine final-semantic
 source gate. An unverified standalone15.60s timing was withdrawn without changing raw evidence. Root's focused combined
-checks are running; the later hitbox/Unity union still needs distinct internal identities and its own gates.
+checks now pass at `37a02542`: Card29, both isolated allocators with CI features, NPC6, ability63 consumer, native tape,
+content21 and format, with actual0-block public flush. The later hitbox/Unity union still needs distinct internal
+identities and its own gates.
 The test-only potion-fact proof `aa05af1c` is independently admitted as `ae29dc1b`;
 [Root's integrated focused check](evidence/bot-potion-fact-admission-review/README.md) passes5. It verifies same-sample
 Active owner healing eligibility, overlap/expiry, cleanup and mid-HOT restore, with explicit Ended and missing-inventory

@@ -150,5 +150,11 @@ Root reverified all57 manifest hashes and sealed the exact58 files as
 `37a0254209855424b4782298eba037d916e3ce06`. The three byte-identical already-admitted NPC files deduplicate,
 leaving55 changed files on the integration commit. Among manifest paths, the only integrated difference from the
 worker seal is the pre-existing `systems/mod.rs` fighter_churn_tests registration, preserved by the automatic merge.
-No whole-file replacement or manual Rust rewrite occurred. Root's focused integrated source/projection/allocation/
-NPC/content/tape checks are running separately; their result will be recorded when the actual commands finish.
+No whole-file replacement or manual Rust rewrite occurred. Root then executed the focused integration checks at
+`37a02542`: Card29 pass/2 separately selected ignores; BOTH Card allocation tests pass with the actual CI
+`trusted-status-probes` feature set and serial test threads; NPC bleed6 pass; unchanged ability63 consumer1 pass
+(15.35s test time); native tape checker1 pass; content21 pass; scoped format exit0. All seven commands exit0.
+The real2104-output flush again measures0 blocks, as do first/second prepared pairs and20 repeated producer steps.
+The [raw Root receipt](root-integrated-check.log) records exact command arrays, target/environment, HEAD and individual
+exits/times; SHA256 `7d14150a682478de3222cd65135efeaecf36c5e3dcec85c75937931717747d4b`.
+This is an actual focused combined-backend run, not another full simulation/workspace or primary/hitbox union run.
