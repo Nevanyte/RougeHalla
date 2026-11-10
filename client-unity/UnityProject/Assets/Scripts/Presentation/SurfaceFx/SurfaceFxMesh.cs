@@ -16,6 +16,7 @@ namespace Roguehalla.Client
         [StructLayout(LayoutKind.Sequential)]
         struct V { public Vector3 P; public Color32 C; public Vector2 Uv; public Vector4 A; public Vector4 B; public Vector2 Sun; }   // Unity's fixed attribute order: position, colour, then texcoords
 
+        static readonly Bounds Big = new Bounds(Vector3.zero, new Vector3(100000f, 100000f, 10f));   // marks are culled on the CPU; the renderer must never cull the batch
         readonly Mesh _mesh;
         readonly MeshRenderer _renderer;
         readonly V[] _quad = new V[4];
@@ -103,7 +104,8 @@ namespace Roguehalla.Client
             if (n == 0) return;
             const MeshUpdateFlags f = MeshUpdateFlags.DontRecalculateBounds | MeshUpdateFlags.DontValidateIndices | MeshUpdateFlags.DontNotifyMeshUsers;
             _mesh.SetIndexBufferData(_indices, 0, 0, n * 6, f);
-            _mesh.SetSubMesh(0, new SubMeshDescriptor(0, n * 6, MeshTopology.Triangles), f);
+            _mesh.SetSubMesh(0, new SubMeshDescriptor(0, n * 6, MeshTopology.Triangles) { bounds = Big }, f);
+            _mesh.bounds = Big;
         }
 
         public void Destroy() { if (_mesh != null) Object.Destroy(_mesh); if (_renderer != null) Object.Destroy(_renderer.gameObject); }
