@@ -86,7 +86,7 @@ namespace Roguehalla.Client.Tests
             _presenter.ConfirmedCue(3, FxKind.Hit);
             var root = _parent.Find("Observed actor");
             object art = ActiveArt(3);
-            Set(art, "MovingUntil", 123f); Set(art, "AttackUntil", 124f);
+            Set(art, "AttackUntil", 124f);
             Set(art, "HitUntil", 125f); Set(art, "BlockUntil", 126f);
             Set(art, "AttackAt", 1f); Set(art, "HitAt", 2f); Set(art, "BlockAt", 3f); Set(art, "DeadAt", 4f);
 
@@ -97,7 +97,7 @@ namespace Roguehalla.Client.Tests
             Assert.That(Find("Confirmed barrier").enabled, Is.True);
             Assert.That(Find("Confirmed barrier").transform.localScale.x, Is.EqualTo(.425f).Within(.0001f));
             Assert.That(Get<bool>(art, "Dead"), Is.False);
-            foreach (string field in new[] { "MovingUntil", "AttackUntil", "HitUntil", "BlockUntil", "AttackAt", "HitAt", "BlockAt", "DeadAt" })
+            foreach (string field in new[] { "AttackUntil", "HitUntil", "BlockUntil", "AttackAt", "HitAt", "BlockAt", "DeadAt" })
                 Assert.That(Get<float>(art, field), Is.Zero, field);
 
             Present(3, 0, 0, 0, ActorStatus.Dead);
