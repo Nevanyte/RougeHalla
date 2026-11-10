@@ -220,7 +220,9 @@ namespace Roguehalla.Client
                     int ti = 0;
                     while (ti < tuples.Count && points.Count > 0)
                     {
-                        var chosen = TakeCluster(points, options.PageCells);
+                        // Balanced pages (52 cells become 26 + 26, not 30 + 22), each inside one view window.
+                        int remaining = tuples.Count - ti, pagesLeft = Mathf.CeilToInt(remaining / (float)options.PageCells), cap = Mathf.CeilToInt(remaining / (float)pagesLeft);
+                        var chosen = TakeCluster(points, cap);
                         if (chosen.Count == 0) break;
                         var page = new LabPage { Zone = zone, Index = pageIndex++, Kind = "surface", Surface = surface };
                         chosen.Sort((a, b) => { int c = a.y.CompareTo(b.y); return c != 0 ? c : a.x.CompareTo(b.x); });

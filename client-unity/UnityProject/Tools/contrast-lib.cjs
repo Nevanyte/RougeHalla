@@ -254,7 +254,7 @@ function parseSizes(text) {
 }
 function parseArgs(argv) {
   const o = { url: 'http://127.0.0.1:8187/', out: 'contrast-gate-out', zones: ZONES.slice(), sizes: parseSizes('1920x1080,2560x1440'), quality: ['high', 'ultra'], edge: 3.0, marker: 4.5, query: '',
-    frames: 4, groundFrames: 3, maxPages: 0, allowSoftware: false, help: false, headless: false };
+    frames: 4, groundFrames: 3, maxPages: 0, allowSoftware: false, help: false, raw: '' };
   const need = (i, name) => { if (i + 1 >= argv.length) throw new Error(`--${name} needs a value`); return argv[i + 1]; };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -270,6 +270,7 @@ function parseArgs(argv) {
       case '--frames': o.frames = Number(need(i++, 'frames')); break;
       case '--ground-frames': o.groundFrames = Number(need(i++, 'ground-frames')); break;
       case '--max-pages': o.maxPages = Number(need(i++, 'max-pages')); break;
+      case '--raw': o.raw = require('node:path').resolve(need(i++, 'raw')); break;
       case '--allow-software': o.allowSoftware = true; break;
       case '--help': case '-h': o.help = true; break;
       default: throw new Error(`unknown option ${a}`);

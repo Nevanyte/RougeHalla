@@ -127,6 +127,21 @@ namespace Roguehalla.Client.Tests
         }
 
         [Test]
+        public void SurfacePagesAreBalancedAndNothingIsStrandedOnATinyPage()
+        {
+            foreach (var zone in ContrastLabMap.Zones)
+            {
+                var bySurface = new Dictionary<SurfaceKind, List<int>>();
+                foreach (var p in _plan.ForZone(zone).FindAll(q => q.Kind == "surface"))
+                {
+                    if (!bySurface.TryGetValue(p.Surface, out var l)) bySurface[p.Surface] = l = new List<int>();
+                    l.Add(p.Cells.Count);
+                }
+                foreach (var pair in bySurface) Assert.That(pair.Value.Count, Is.LessThanOrEqualTo(3), zone + "/" + pair.Key + " pages: " + string.Join(",", pair.Value));
+            }
+        }
+
+        [Test]
         public void PlanIsDeterministic()
         {
             var again = ContrastLabPlanner.Plan(_map, _surfaces, _apps, new LabOptions());

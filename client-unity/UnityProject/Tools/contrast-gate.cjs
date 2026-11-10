@@ -29,7 +29,7 @@ async function waitReady(page, timeout = 180000) {
   return page.evaluate(() => JSON.parse(JSON.stringify(window.__rhContrastLab.state)));
 }
 
-async function shot(page) { return lib.decodePng(await page.screenshot({ type: 'png' })); }
+async function shot(page) { const png = await page.screenshot({ type: 'png' }); const img = lib.decodePng(png); img.png = png; return img; }
 
 function addInto(acc, plane) { for (let i = 0; i < acc.length; i++) acc[i] += plane[i]; }
 function meanOf(acc, n) { const out = new Float32Array(acc.length); for (let i = 0; i < out.length; i++) out[i] = acc[i] / n; return out; }
@@ -40,7 +40,7 @@ function cropRgba(img, x0, y0, w, h) {
   return out;
 }
 
-async function capturePage(page, size, opts) {
+async function capturePage(page, size, opts, tag) {
   const n = size.width * size.height;
   // normal: several frames, luminance averaged (ambient dust, haze, snow and lights keep moving; the actors are frozen)
   const accN = new Float32Array(n); let lastShot = null;
@@ -55,6 +55,11 @@ async function capturePage(page, size, opts) {
   for (let i = 0; i < opts.groundFrames; i++) { const s = await shot(page); addInto(accG, lib.luminancePlane(s.data, size.width, size.height)); if (i + 1 < opts.groundFrames) await page.waitForTimeout(200); }
   await waitReadyAfter(page, 'mask');
   const m = await shot(page);
+  if (opts.raw) {
+    fs.mkdirSync(opts.raw, { recursive: true });
+    fs.writeFileSync(path.join(opts.raw, `${tag}-normal.png`), lastShot.png); fs.writeFileSync(path.join(opts.raw, `${tag}-mask.png`), m.png);
+    fs.writeFileSync(path.join(opts.raw, `${tag}-state.json`), JSON.stringify(state));
+  }
   return { state, lumNormal: meanOf(accN, opts.frames), lumGround: meanOf(accG, opts.groundFrames), mask: lib.decodeMask(m.data, size.width, size.height), shot: lastShot };
 }
 
@@ -91,7 +96,7 @@ async function runConfig(chromium, size, quality, opts, log) {
       for (let p = 0; p < pageCount; p++) {
         await page.evaluate(([z, n]) => window.__rhContrastLab.setZone(z, n), [zone, p]);
         state = await waitReady(page);
-        const cap = await capturePage(page, size, opts);
+        const cap = await capturePage(page, size, opts, `${cfg.name.replace('/', '-')}-${zone}-${p}`);
         const scale = cap.shot.width / (cap.state.screenW || size.width);
         for (const c of cap.state.cells) {
           const rect = { x: c.x * scale, y: c.y * scale, w: c.w * scale, h: c.h * scale };
@@ -217,7 +222,7 @@ async function writeWorstSheet(chromium, opts, file) {
         lines: [`${c.zone} / ${c.surface}${c.prop ? ' / ' + c.prop + ' ' + c.propMode : ''}`, `${c.appearance}  ${c.pose} ${c.facing}  ${c.cfg}`, `EDGE p10 ${fmt(c.edgeP10)}  min ${fmt(c.edgeMin)}  med ${fmt(c.edgeMedian)}`, `BODY ${fmt(c.body)}  hp ${fmt(c.hp)} foot ${fmt(c.foot)} ins ${fmt(c.insignia)}${c.valid ? '' : '  UNMEASURED'}`] };
     });
     const jpeg = await page.evaluate(async ({ tiles, edge }) => {
-      const cols = 6, tw = 250, imgH = 250, th = imgH + 66, rows = Math.ceil(tiles.length / cols);
+      const cols = 6, tw = 330, imgH = 280, th = imgH + 66, rows = Math.ceil(tiles.length / cols);
       const cv = document.createElement('canvas'); cv.width = cols * tw; cv.height = rows * th + 28; const g = cv.getContext('2d');
       g.fillStyle = '#101216'; g.fillRect(0, 0, cv.width, cv.height); g.font = '12px sans-serif';
       g.fillStyle = '#ddd'; g.fillText(`Lowest EDGE cells (EDGE gate ${edge}). Left half: the cell as rendered. Right half: contour sectors (red below the gate, green at or above) and the ground ring (blue).`, 6, 18);
@@ -226,7 +231,7 @@ async function writeWorstSheet(chromium, opts, file) {
         const x0 = (i % cols) * tw, y0 = 28 + Math.floor(i / cols) * th;
         const draw = (data, dx) => {
           const c = document.createElement('canvas'); c.width = t.w; c.height = t.h; c.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(data), t.w, t.h), 0, 0);
-          const s = Math.min((tw / 2 - 4) / t.w, imgH / t.h, 1.6); g.imageSmoothingEnabled = false; g.drawImage(c, x0 + dx + 2, y0 + 2, t.w * s, t.h * s);
+          const s = Math.min((tw / 2 - 4) / t.w, imgH / t.h, 2); g.imageSmoothingEnabled = false; g.drawImage(c, x0 + dx + 2, y0 + 2, t.w * s, t.h * s);
         };
         g.fillStyle = '#000'; g.fillRect(x0 + 1, y0 + 1, tw - 2, imgH);
         draw(bytes(t.rgba), 0); if (t.viz) draw(bytes(t.viz), tw / 2);
