@@ -129,7 +129,24 @@ pub fn wire_actor(a: &ActorView) -> Result<WireActor, &'static str> {
         kind,
         barrier_pct: hp_pct(a.barrier_frac),
         barrier_ring_step: a.barrier_ring_step,
+        windup: a.windup.as_ref().map(wire_windup),
     })
+}
+
+/// Protocol 15 windup: whole server milliseconds (start floored, release rounded up) and the cast's aim code.
+pub fn wire_windup(w: &rh_sim::observe::WindupView) -> rh_protocol::WireWindup {
+    let started_at = w.started_at.floor().max(0.) as u32;
+    rh_protocol::WireWindup {
+        kind: match w.kind {
+            rh_sim::observe::WindupKind::Draw => rh_protocol::WINDUP_DRAW,
+            rh_sim::observe::WindupKind::Cast => rh_protocol::WINDUP_CAST,
+        },
+        started_at,
+        duration: (w.lands_at.ceil() - f64::from(started_at)).clamp(0., f64::from(u16::MAX)) as u16,
+        aim: w
+            .a
+            .map_or(0, |a| rh_protocol::quant::quantize_facing(a as f32)),
+    }
 }
 
 fn ability_code(ability: rh_sim::status_runtime::AbilityId) -> u8 {

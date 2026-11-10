@@ -112,6 +112,7 @@ async fn a_match_over_websockets_banks_results_once_in_postgres() {
         ..DirectorConfig::new(
             SimConfig {
                 walk_hints: None,
+                lag_fairness: false,
                 regen: false,
                 quests: false,
                 training: false,
@@ -376,6 +377,7 @@ async fn an_mia_leave_is_banked_under_its_fence() {
         ..DirectorConfig::new(
             SimConfig {
                 walk_hints: None,
+                lag_fairness: false,
                 regen: false,
                 quests: false,
                 training: false,

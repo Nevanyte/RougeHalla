@@ -29,6 +29,12 @@ pub(crate) fn submit(w: &mut World, id: PlayerId, cmd: Command) -> Result<(), Re
     if !actor_accepts_input(w, id) {
         return Err(Reject::UnsupportedActorAction);
     }
+    // Only a player's order earns walk credit; any other actor's stamped order queues as the plain order.
+    let cmd = if w.is_player(ix) {
+        cmd
+    } else {
+        cmd.unstamped()
+    };
     let zombie = w.mobs.get(id).is_some_and(|m| m.zombie.is_some());
     if !w.is_player(ix)
         && !zombie
@@ -50,6 +56,12 @@ pub(crate) fn submit_unbudgeted(w: &mut World, id: PlayerId, cmd: Command) -> Re
     if !actor_accepts_input(w, id) {
         return Err(Reject::UnsupportedActorAction);
     }
+    // Only a player's order earns walk credit; any other actor's stamped order queues as the plain order.
+    let cmd = if w.is_player(ix) {
+        cmd
+    } else {
+        cmd.unstamped()
+    };
     let zombie = w.mobs.get(id).is_some_and(|m| m.zombie.is_some());
     if !w.is_player(ix)
         && !zombie
@@ -67,6 +79,7 @@ pub(crate) fn submit_unbudgeted(w: &mut World, id: PlayerId, cmd: Command) -> Re
 /// victim's hits.
 pub(crate) fn action_order(cx: &mut Cx) {
     let Cx { k, w, s, .. } = cx;
+    s.walk_credit.clear();
     // The join order (slot order), shuffled in place by the secret order; a slot's rank is its place in the result.
     s.action_order.clear();
     s.action_order.extend(0..w.players.len() as u32);
@@ -123,7 +136,11 @@ fn apply_inputs(cx: &mut Cx, ix: FighterIx) {
         }
         if k == move_before.min(n) {
             if let Some(mv) = mv {
+                let credit = walk_credit(cx.k.hazards.slip, cx.w.core(ix), mv, now);
                 apply_move(cx.w.core_mut(ix), map, cx.pf, &mut cx.s.path, mv);
+                if credit > 0.0 && !cx.s.path.is_empty() {
+                    cx.s.walk_credit.push((cx.w.core(ix).id, credit));
+                }
             }
         }
         if k == aim_before.min(n)
@@ -165,6 +182,34 @@ fn action_id(cmd: &ActionCmd) -> Option<ActionId> {
     })
 }
 
+/// The walk credit (ms) a stamped order earns: how long before this tick's walk began (`now - TICK_MS`) the client says
+/// it issued the order, held to `[0, TICK_MS]`. It is earned only by a walker that stood still through the whole previous
+/// tick (no path, no slide, its last two history samples and its position equal), so the credited span is time it really
+/// spent idle and the walk never covers more ground than walking from the stamp would have: crediting a moving fighter
+/// would count the same time twice. A map with slippery terrain earns none (a credited tick would read as a faster
+/// velocity when a slide begins). An unstamped order earns 0, so it changes nothing.
+fn walk_credit(slip_map: bool, p: &FighterCore, mv: MoveCmd, now: f64) -> f64 {
+    use crate::constants::TICK_MS;
+    let t = match mv {
+        MoveCmd::MoveAt { t, .. } | MoveCmd::AttackMoveAt { t, .. } => t,
+        MoveCmd::Move { .. } | MoveCmd::AttackMove { .. } | MoveCmd::Stop { .. } => return 0.0,
+    };
+    if slip_map || !p.motion.path.is_empty() || p.motion.slip.is_some() {
+        return 0.0;
+    }
+    let [.., a, b] = p.body.history.as_slice() else {
+        return 0.0;
+    };
+    let idle = a.t == now - 2.0 * TICK_MS
+        && b.t == now - TICK_MS
+        && (a.x, a.y) == (b.x, b.y)
+        && (p.body.x, p.body.y) == (b.x, b.y);
+    if !idle {
+        return 0.0;
+    }
+    (now - TICK_MS - t).clamp(0.0, TICK_MS)
+}
+
 fn apply_move(
     p: &mut FighterCore,
     map: &TileMap,
@@ -180,7 +225,10 @@ fn apply_move(
             out.clear();
             (true, seq)
         }
-        MoveCmd::Move { x, y, seq } | MoveCmd::AttackMove { x, y, seq } => {
+        MoveCmd::Move { x, y, seq }
+        | MoveCmd::AttackMove { x, y, seq }
+        | MoveCmd::MoveAt { x, y, seq, .. }
+        | MoveCmd::AttackMoveAt { x, y, seq, .. } => {
             plan_path_into(pf, map, from, Vec2::new(x, y), out);
             (false, seq)
         }
@@ -190,7 +238,7 @@ fn apply_move(
         p.motion.path.set_from(out);
     }
     p.weapon.targeting.attack_move = match mv {
-        MoveCmd::AttackMove { x, y, .. }
+        MoveCmd::AttackMove { x, y, .. } | MoveCmd::AttackMoveAt { x, y, .. }
             if !out.is_empty()
                 || crate::math::hypot(x - from.x, y - from.y)
                     <= crate::constants::ATTACK_MOVE_ARRIVAL =>

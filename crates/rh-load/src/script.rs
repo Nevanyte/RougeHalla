@@ -367,6 +367,7 @@ mod tests {
             weapon: 0,
             bounty: 0,
             kind: 0,
+            windup: None,
         };
         let v = view_of(
             Some(&me),

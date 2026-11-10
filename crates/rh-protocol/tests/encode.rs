@@ -23,6 +23,7 @@ fn actor(i: u32) -> WireActor {
         kind: (i % 3) as u8,
         barrier_pct: 0,
         barrier_ring_step: 0,
+        windup: None,
     }
 }
 
@@ -260,6 +261,18 @@ fn other_lists_and_sizes_decoders_reject_are_refused() {
             a: f32::NEG_INFINITY,
             t: None,
         },
+        WireCommand::MoveAt {
+            x: 1.0,
+            y: 2.0,
+            seq: None,
+            t: f64::INFINITY,
+        },
+        WireCommand::AttackMoveAt {
+            x: f32::NAN,
+            y: 2.0,
+            seq: Some(1),
+            t: 0.0,
+        },
     ] {
         let m = ClientMsg::Input {
             seq: 1,
@@ -275,6 +288,23 @@ fn other_lists_and_sizes_decoders_reject_are_refused() {
     w.u8(3);
     w.f32(f32::NAN);
     assert_eq!(ClientMsg::decode(&w.finish()), Err(DecodeError::NonFinite));
+    // A stamped order (protocol 15, command 19) with a non-finite stamp, and one whose required stamp is missing.
+    let mut w = Writer::default();
+    w.u8(0x02);
+    w.u32(1);
+    w.u16(1);
+    w.u8(19);
+    w.f32(1.0);
+    w.f32(2.0);
+    w.u8(0);
+    let truncated = w.finish().to_vec();
+    assert!(
+        ClientMsg::decode(&truncated).is_err(),
+        "the stamp is required"
+    );
+    let mut stamped = truncated.clone();
+    stamped.extend_from_slice(&f64::NAN.to_le_bytes());
+    assert_eq!(ClientMsg::decode(&stamped), Err(DecodeError::NonFinite));
     let ping = ClientMsg::Ping {
         nonce: 1,
         client_ms: f64::NAN,

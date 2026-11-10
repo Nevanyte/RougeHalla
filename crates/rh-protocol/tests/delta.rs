@@ -1,5 +1,5 @@
 //! Protocol v3 snapshot deltas: the writer's encoder and the client's tracker, held to each other and to the Full frame.
-use rh_protocol::delta::{diff, AD_ALL, AD_X, AD_Y, DH_X, MIN_FORCED_FULL_TICKS};
+use rh_protocol::delta::{diff, AD_ALL, AD_STEP, AD_X, AD_Y, DH_X, MIN_FORCED_FULL_TICKS};
 use rh_protocol::*;
 
 struct Rng(u64);
@@ -23,17 +23,17 @@ impl Rng {
 #[test]
 fn a_delta_of_hundreds_of_changed_actors_has_a_two_byte_count_and_applies() {
     let crowd = |t: u32, shift: f32, gone: u32, extra: u32| -> SnapshotData {
-        let mut rng = Rng(5);
         let mut actors: Vec<WireActor> = (0..400u32)
             .filter(|i| i % 50 != gone)
             .map(|i| {
-                let mut a = actor(i * 2 + 1, &mut rng);
+                // Each actor's other fields are the same in both frames, so only its position (and arrival) changes.
+                let mut a = actor(i * 2 + 1, &mut Rng(5 + u64::from(i)));
                 a.x = 100.0 + i as f32 + shift;
                 a
             })
             .collect();
         for k in 0..extra {
-            actors.push(actor(2_000 + k, &mut rng));
+            actors.push(actor(2_000 + k, &mut Rng(5)));
         }
         SnapshotData::build(t, 1, 0, None, actors.into_iter()).unwrap()
     };
@@ -71,6 +71,7 @@ fn actor(id: u32, rng: &mut Rng) -> WireActor {
         kind: if id % 7 == 0 { 2 } else { 0 },
         barrier_pct: 0,
         barrier_ring_step: 0,
+        windup: None,
     }
 }
 
@@ -550,7 +551,10 @@ fn base_and_delta(
 
 #[test]
 fn deltas_that_do_not_apply_are_refused_and_change_nothing() {
-    let all = |q: QActor| ActorDelta { mask: AD_ALL, q };
+    let all = |q: QActor| ActorDelta {
+        mask: AD_ALL & !AD_STEP,
+        q,
+    };
     let (t, r) = base_and_delta(|d| d.base_tick = 9);
     assert_eq!(
         r,
@@ -611,6 +615,7 @@ fn deltas_that_do_not_apply_are_refused_and_change_nothing() {
             kind: 0,
             barrier_pct: 0,
             barrier_ring_step: 0,
+            windup: Default::default(),
         })];
         d.departed.clear();
     });
@@ -694,7 +699,7 @@ fn a_delta_cannot_grow_the_actor_list_past_max_actors() {
         ack_input: 0,
         me: None,
         changed: vec![ActorDelta {
-            mask: AD_ALL,
+            mask: AD_ALL & !AD_STEP,
             q: QActor {
                 id: 100_000,
                 status: 1,
@@ -910,4 +915,161 @@ fn a_resync_flood_costs_one_forced_full_frame_per_interval() {
             "a pending request waits at most the interval: {fulls:?}"
         );
     }
+}
+
+/// Protocol 15 position steps: random walks whose per-tick moves straddle the i8 edge (+127 / -128 steps of 1/8 u), jump
+/// across the map (teleports), hug both grid edges, skip ticks, and are interrupted by a forced Full frame and a fresh client.
+/// Every frame is the reference writer's bytes, resolves to exactly what the Full frame of that tick decodes to (the same
+/// grid values an absolute encoding gives, no drift), and the steps really are used.
+#[test]
+fn position_steps_equal_the_absolute_chain_through_walks_teleports_and_resyncs() {
+    let mut rng = Rng(77);
+    let mut pos: Vec<(f32, f32)> = (0..12)
+        .map(|_| (rng.below(5000) as f32 + 0.3, rng.below(5000) as f32 + 0.7))
+        .collect();
+    pos[0] = (0.0, 0.0);
+    pos[1] = (8191.875, 8191.875);
+    let mut enc = ConnEncoder::new();
+    let mut tracker = SnapshotTracker::new();
+    let mut prior: Option<SnapshotData> = None;
+    let (mut stepped, mut absolute) = (0usize, 0usize);
+    let mut tick = 1u32;
+    let mut f = Vec::new();
+    for round in 0..400 {
+        tick += 1 + if rng.chance(10) {
+            rng.below(4) as u32
+        } else {
+            0
+        };
+        for (i, p) in pos.iter_mut().enumerate() {
+            if rng.chance(8) {
+                *p = (rng.below(65535) as f32 / 8.0, rng.below(65535) as f32 / 8.0);
+            } else if i > 1 || rng.chance(50) {
+                walk_axis(&mut rng, &mut p.0);
+                if rng.chance(70) {
+                    walk_axis(&mut rng, &mut p.1);
+                }
+            }
+        }
+        let actors: Vec<WireActor> = pos
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| !(*i == 11 && round % 40 > 30)) // actor 11 comes and goes
+            .map(|(i, p)| {
+                let mut a = actor(i as u32 + 1, &mut Rng(9 + i as u64));
+                a.x = p.0;
+                a.y = p.1;
+                a.facing = (round as f32) * 0.037 * (i as f32 + 1.0) % 6.0 - 3.0;
+                a
+            })
+            .collect();
+        let data = SnapshotData::build(tick, 1, round, None, actors.into_iter()).unwrap();
+        if round % 97 == 50 {
+            enc.request_full();
+        }
+        if round == 200 {
+            // A client that reconnects mid-walk: a fresh tracker and a fresh writer start from a Full frame.
+            tracker = SnapshotTracker::new();
+            enc = ConnEncoder::new();
+            prior = None;
+        }
+        f.clear();
+        let kind = enc.encode(data.clone(), &mut f);
+        if kind == FrameKind::Delta {
+            let want = diff(prior.as_ref().unwrap(), &data).expect("a delta");
+            for c in &want.changed {
+                if c.mask & AD_STEP != 0 {
+                    stepped += 1;
+                } else if c.mask & (AD_X | AD_Y) != 0 {
+                    absolute += 1;
+                }
+            }
+            assert_eq!(f, ServerMsg::SnapshotDelta(want).encode(), "round {round}");
+        }
+        let got = tracker.decode(&f).unwrap();
+        assert_eq!(got, data.decoded(), "round {round}");
+        // And the Full frame of the same snapshot decodes to the same actors, bit for bit.
+        let mut full = Vec::new();
+        data.encode_full_into(&mut full);
+        assert_eq!(ServerMsg::decode(&full).unwrap(), data.decoded());
+        prior = Some(data);
+    }
+    assert!(stepped > 500, "steps are used: {stepped}");
+    assert!(absolute > 100, "the escape to absolute is used: {absolute}");
+}
+
+/// The step form is exactly as wide as the edge says and a moving, turning actor costs 5 bytes (id, mask, dx, dy, facing).
+#[test]
+fn a_step_is_one_byte_per_axis_and_falls_back_to_absolute_beyond_the_i8_edge() {
+    let at = |tick, x: f32| {
+        let mut a = actor(1, &mut Rng(4));
+        a.x = x;
+        a.y = 50.0;
+        a.facing = 0.0;
+        SnapshotData::build(tick, 1, 0, None, std::iter::once(a)).unwrap()
+    };
+    let base = at(1, 100.0);
+    let size = |x: f32| {
+        let d = diff(&base, &at(2, x)).unwrap();
+        assert_eq!(d.changed.len(), 1);
+        (
+            d.changed[0].mask,
+            ServerMsg::SnapshotDelta(d).encode().len(),
+        )
+    };
+    let (m127, n127) = size(100.0 + 127.0 / 8.0);
+    let (m128, n128) = size(100.0 + 128.0 / 8.0);
+    let (mm128, nm128) = size(100.0 - 128.0 / 8.0);
+    let (mm129, nm129) = size(100.0 - 129.0 / 8.0);
+    assert_eq!((m127 & AD_STEP != 0, mm128 & AD_STEP != 0), (true, true));
+    assert_eq!((m128 & AD_STEP != 0, mm129 & AD_STEP != 0), (false, false));
+    assert_eq!(n128, n127 + 1);
+    assert_eq!(nm129, nm128 + 1);
+}
+
+/// An encoder is refused a step that does not fit `i8`, or that carries no position.
+#[test]
+fn a_malformed_step_is_refused_by_the_encoder() {
+    let delta = |mask: u32, x: u16| {
+        ServerMsg::SnapshotDelta(SnapshotDelta {
+            training: false,
+            owner_combat: None,
+            tick: 11,
+            server_time: 550.0,
+            base_tick: 10,
+            phase: None,
+            ack_input: 0,
+            me: None,
+            changed: vec![ActorDelta {
+                mask,
+                q: QActor {
+                    id: 1,
+                    x,
+                    ..QActor::default()
+                },
+            }],
+            departed: vec![],
+        })
+        .try_encode()
+    };
+    assert!(delta(AD_STEP | AD_X, 127).is_ok());
+    assert!(delta(AD_STEP | AD_X, (-128i16) as u16).is_ok());
+    assert!(delta(AD_STEP | AD_X, 128).is_err());
+    assert!(delta(AD_STEP | AD_X, (-129i16) as u16).is_err());
+    assert!(delta(AD_STEP, 0).is_err());
+}
+
+/// One axis of a random walk, in grid steps, with the i8 edge over-represented.
+fn walk_axis(rng: &mut Rng, v: &mut f32) {
+    let steps: i64 = match rng.below(10) {
+        0 => 0,
+        1 => 127,
+        2 => -128,
+        3 => 128,
+        4 => -129,
+        5 => rng.below(2000) as i64 - 1000, // beyond the edge, but short of a teleport
+        _ => rng.below(120) as i64 - 60,
+    };
+    let q = (f64::from(*v) * 8.0).round() as i64 + steps;
+    *v = (q.clamp(0, 65535) as f32) / 8.0;
 }

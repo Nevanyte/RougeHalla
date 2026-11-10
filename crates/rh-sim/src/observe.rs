@@ -96,6 +96,42 @@ pub struct ActorView {
     pub status: Status,
     pub weapon: Option<WeaponId>,
     pub bounty: u32,
+    /// A ranged windup in progress (protocol 15). Absent from the serialized form when none, so older records still read.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub windup: Option<WindupView>,
+}
+
+/// What a visible actor's ranged windup shows (legacy: the public bow `drawStartedAt` and the wand `windup` fx). Never the
+/// lock target, the packet or the outcome; the aim only for a cast, as the legacy fx showed it.
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct WindupView {
+    pub kind: WindupKind,
+    pub started_at: f64,
+    pub lands_at: f64,
+    /// The cast's aim when it began; None for a bow draw (it follows the actor's public facing).
+    pub a: Option<f64>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum WindupKind {
+    Draw,
+    Cast,
+}
+
+/// The ranged windup a fighter shows: a bow draw or a wand cast in progress. A melee swing's windup is not published.
+fn windup_of(core: &crate::fighter::FighterCore) -> Option<WindupView> {
+    let a = core.weapon.action?;
+    let (kind, aim) = match a.kind {
+        crate::state::ActionKind::Swing => return None,
+        crate::state::ActionKind::Draw => (WindupKind::Draw, None),
+        crate::state::ActionKind::Cast => (WindupKind::Cast, Some(a.a)),
+    };
+    Some(WindupView {
+        kind,
+        started_at: a.started_at,
+        lands_at: a.lands_at,
+        a: aim,
+    })
 }
 
 /// An event the observer could perceive.
@@ -788,6 +824,7 @@ pub(crate) fn observe_with(
                     status: o.status,
                     weapon: Some(o.active_weapon()),
                     bounty: o.credit.bounty,
+                    windup: (o.status == Status::Alive).then(|| windup_of(o)).flatten(),
                 });
             }
         }
@@ -1053,6 +1090,9 @@ fn mob_view(
         status: mob.status,
         weapon: (mob.kind != crate::mob_runtime::MobKind::QuestGiver).then(|| core.active_weapon()),
         bounty: 0,
+        windup: (mob.status == Status::Alive)
+            .then(|| windup_of(core))
+            .flatten(),
     })
 }
 
@@ -1247,3 +1287,7 @@ mod barrier_tests;
 #[cfg(test)]
 #[path = "observe/quest_gv_tests.rs"]
 mod quest_gv_tests;
+
+#[cfg(test)]
+#[path = "observe/windup_tests.rs"]
+mod windup_tests;

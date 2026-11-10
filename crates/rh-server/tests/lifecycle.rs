@@ -46,6 +46,7 @@ fn arena() -> Arena {
 fn sim_config() -> SimConfig {
     SimConfig {
         walk_hints: None,
+        lag_fairness: false,
         regen: false,
         quests: false,
         training: false,
@@ -435,6 +436,7 @@ async fn room_heap_probe() {
     // One human closes the lobby on the first step: the next admission opens a room of its own.
     let sim = SimConfig {
         walk_hints: None,
+        lag_fairness: false,
         regen: false,
         quests: false,
         training: false,

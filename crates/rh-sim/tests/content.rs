@@ -42,6 +42,7 @@ const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
     ("projectile_view.rs", "MAX_VISIBLE_PROJECTILES", "complete public projectile representation capacity; never read by game rules"),
     ("projectile_view.rs", "PROJECTILE_ROW_BYTES_MAX", "complete public projectile representation capacity; never read by game rules"),
     ("projectile_view.rs", "PROJECTILE_VIEW_BYTES_MAX", "complete public projectile representation capacity; never read by game rules"),
+    ("projectile_view.rs", "TRACK_TOLERANCE", "presentation re-anchor threshold for viewer projectile tracks; never read by game rules"),
     ("actor_refs.rs", "NPC_REFERENCE_BLOCK", "observer presentation block capacity, not a gameplay number"),
     ("actor_refs.rs", "NPC_REFERENCE_BASE", "disjoint non-reused presentation reference namespace, not a game rule"),
     ("cards/catalog.rs", "ALL", "the 80 source card ids in wire order (identifiers only); the definitions live in the catalog table"),

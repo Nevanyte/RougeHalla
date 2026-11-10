@@ -47,6 +47,7 @@ fn small_arena() -> Arena {
 async fn a_live_match_replays_and_its_bots_decide_identically_headless() {
     let sim = SimConfig {
         walk_hints: None,
+        lag_fairness: false,
         regen: false,
         quests: false,
         training: false,

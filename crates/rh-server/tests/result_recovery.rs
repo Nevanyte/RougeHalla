@@ -140,6 +140,7 @@ fn director_with(
         ..DirectorConfig::new(
             SimConfig {
                 walk_hints: None,
+                lag_fairness: false,
                 regen: false,
                 quests: false,
                 training: false,

@@ -2011,6 +2011,7 @@ mod tests {
         RoomConfig {
             sim: SimConfig {
                 walk_hints: None,
+                lag_fairness: false,
                 regen: false,
                 training: false,
                 dummies: false,
@@ -3138,6 +3139,7 @@ mod tests {
         RoomConfig {
             sim: SimConfig {
                 walk_hints: None,
+                lag_fairness: false,
                 regen: false,
                 quests: false,
                 consumables: true,
@@ -3380,6 +3382,50 @@ mod tests {
         assert_eq!(metrics.rewind_clamp_excess[3].load(Ordering::Relaxed), 1);
         assert!(room.wake(start + tick * 3));
         assert_eq!(metrics.input_age_us.count(), 1, "an input is aged once");
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_forged_move_stamp_is_clamped_counted_and_still_walks() {
+        let start = Instant::now();
+        let tick = Duration::from_millis(50);
+        let (reports, _rx) = mpsc::unbounded_channel();
+        let metrics: &'static Metrics = Box::leak(Box::new(Metrics::new()));
+        let mut room = training_room(start, reports).with_metrics(metrics);
+        let out = Arc::new(Outbox::default());
+        let joined = room
+            .join(
+                "practice".into(),
+                Some(FactionId::Holy),
+                out.clone(),
+                1,
+                1,
+                None,
+            )
+            .expect("one seat");
+        for k in 1..=3 {
+            assert!(room.wake(start + tick * k));
+        }
+        let from = room.sim.player(joined.player).unwrap().pos();
+        room.handle(
+            RoomCmd::Input {
+                received: std::time::Instant::now(),
+                player: joined.player,
+                conn: 1,
+                seq: 1,
+                commands: vec![rh_protocol::WireCommand::MoveAt {
+                    x: (from.x + 300.0) as f32,
+                    y: from.y as f32,
+                    seq: Some(1),
+                    t: -1.0e9,
+                }],
+            },
+            start + tick * 3,
+        );
+        assert!(room.wake(start + tick * 4));
+        assert_eq!(metrics.rewind_clamps_old.load(Ordering::Relaxed), 1);
+        assert_eq!(metrics.rewind_clamps_future.load(Ordering::Relaxed), 0);
+        let to = room.sim.player(joined.player).unwrap().pos();
+        assert!(to.x > from.x, "the clamped order was submitted and walked");
     }
 
     #[tokio::test(start_paused = true)]

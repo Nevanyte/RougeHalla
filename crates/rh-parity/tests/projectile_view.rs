@@ -81,20 +81,39 @@ fn source_flight_records_project_without_ids_and_restore_identically() {
                 let angle = number("vy").atan2(number("vx")) as f32;
                 let facing = ((f64::from(angle) / (std::f64::consts::TAU / 65536.)).round() as i64
                     & 65535) as u16;
-                expected.push(ProjectileView {
-                    kind,
-                    x: q(x),
-                    y: q(y),
+                expected.push((
+                    match kind {
+                        ProjectileKind::Arrow => 0,
+                        ProjectileKind::Ball => 1,
+                    },
+                    q(x),
+                    q(y),
                     facing,
                     owner,
-                });
+                ));
             }
-            expected.sort_unstable_by_key(key);
-            assert_eq!(out.projectiles, expected, "{name} tick{}", t.tick);
+            expected.sort_unstable();
+            // Protocol 15 adds a viewer track and a straight-line anchor; the source facts are the current rows.
+            let current = |rows: &[ProjectileView]| {
+                let mut keys: Vec<_> = rows.iter().map(key).collect();
+                keys.sort_unstable();
+                keys
+            };
+            assert_eq!(current(&out.projectiles), expected, "{name} tick{}", t.tick);
+            for p in &out.projectiles {
+                // The anchor a client extrapolates lands on the source's straight-flight point (1/8 u codes).
+                let (ax, ay) = p.anchor.at(f64::from(sim.tick()));
+                let (dx, dy) = (ax - f64::from(p.x) / 8., ay - f64::from(p.y) / 8.);
+                assert!(
+                    (dx * dx + dy * dy).sqrt() <= rh_sim::projectile_view::TRACK_TOLERANCE + 0.125,
+                    "{name} tick{} anchor drift",
+                    t.tick
+                );
+            }
             if let Some(s) = &restored {
                 let mut other = Observation::default();
                 b.observe_into(s, &[], &mut other, None).unwrap();
-                assert_eq!(out.projectiles, other.projectiles);
+                assert_eq!(current(&out.projectiles), current(&other.projectiles));
             }
             if restored.is_none() && !out.projectiles.is_empty() {
                 restored = Some(Sim::restore(serde_json::to_value(&sim).unwrap()).unwrap());

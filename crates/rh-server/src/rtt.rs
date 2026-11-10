@@ -38,7 +38,11 @@
 //! `note_lag` cap). A client that delays its Pongs can already raise `smoothed_rtt_ms` to the ceiling and the window to
 //! `MAX_REWIND_MS`, at no input cost; a forged `t` outside the window is clamped to its edge.
 //!
-//! The clamp applies per `Attack`/`Release` command and to an optional Wish render-time claim at admission. Wish effects
+//! The clamp applies per `Attack`/`Release` command, to an optional Wish render-time claim at admission, and to the
+//! issue-time stamp of a `MoveAt`/`AttackMoveAt` order (protocol 15). That stamp is the client's server-time estimate
+//! WITHOUT its interpolation delay, so an honest one sits nearer `now_apply` than an attack's `t`; the simulation turns it
+//! into at most one tick of walk credit for a walker that stood idle (`rh_sim::systems::inputs`), so the clamp here bounds
+//! the claim and counts forgeries, and the tick cap in the simulation bounds what any claim can buy. Wish effects
 //! are not rewound; the latter is retained only as bounded input metadata. A held attack keeps its legacy press-time lag
 //! until another `Attack`/`Release` command arrives.
 
@@ -181,6 +185,14 @@ pub fn clamp_render_time(
                 clamped,
             )
         }
+        PublicCommand::MoveAt { x, y, seq, t } if t.is_finite() => {
+            let c = clamp_rewind_t(t, now_apply, allowed_ms);
+            (PublicCommand::MoveAt { x, y, seq, t: c }, c != t)
+        }
+        PublicCommand::AttackMoveAt { x, y, seq, t } if t.is_finite() => {
+            let c = clamp_rewind_t(t, now_apply, allowed_ms);
+            (PublicCommand::AttackMoveAt { x, y, seq, t: c }, c != t)
+        }
         other => (other, false),
     }
 }
@@ -208,6 +220,7 @@ fn render_time(cmd: PublicCommand) -> Option<f64> {
         PublicCommand::Attack { t, .. }
         | PublicCommand::Release { t, .. }
         | PublicCommand::Cast { t, .. } => t,
+        PublicCommand::MoveAt { t, .. } | PublicCommand::AttackMoveAt { t, .. } => Some(t),
         _ => None,
     }
 }
@@ -455,7 +468,56 @@ mod tests {
             now_apply,
             allowed,
         );
-        assert!(!clamped, "movement is never rewritten");
+        assert!(!clamped, "an unstamped order is never rewritten");
+    }
+
+    #[test]
+    fn stamped_move_orders_are_clamped_into_the_same_window_and_counted() {
+        let (now_apply, allowed) = (1_000.0, 160.0);
+        let mv = |t| PublicCommand::MoveAt {
+            x: 1.0,
+            y: 2.0,
+            seq: Some(3),
+            t,
+        };
+        let am = |t| PublicCommand::AttackMoveAt {
+            x: 1.0,
+            y: 2.0,
+            seq: None,
+            t,
+        };
+        assert_eq!(
+            clamp_render_time(mv(-1e12), now_apply, allowed),
+            (mv(840.0), true)
+        );
+        assert_eq!(
+            clamp_render_time(mv(9e15), now_apply, allowed),
+            (mv(1_000.0), true)
+        );
+        assert_eq!(
+            clamp_render_time(mv(930.0), now_apply, allowed),
+            (mv(930.0), false)
+        );
+        assert_eq!(
+            clamp_render_time(am(0.0), now_apply, allowed),
+            (am(840.0), true)
+        );
+        assert_eq!(
+            clamp_render_time(am(975.5), now_apply, allowed),
+            (am(975.5), false)
+        );
+        let mut stats = RewindClampStats::default();
+        let mut rtt = RttEstimator::new();
+        rtt.sample(20.0);
+        let (bounded, clamped) = clamp_render_time_noted(mv(0.0), now_apply, &rtt, &mut stats);
+        assert!(clamped);
+        assert_eq!(bounded, mv(now_apply - rtt.allowed_rewind_ms()));
+        assert_eq!(
+            stats.old_edge.count, 1,
+            "a forged stamp shows up in the clamp telemetry"
+        );
+        clamp_render_time_noted(mv(5_000.0), now_apply, &rtt, &mut stats);
+        assert_eq!(stats.future_edge.count, 1);
     }
 
     #[test]

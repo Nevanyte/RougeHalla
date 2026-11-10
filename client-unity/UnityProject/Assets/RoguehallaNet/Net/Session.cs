@@ -107,6 +107,10 @@ namespace Roguehalla.Net
 
         public readonly SnapshotBuffer Snapshots = new SnapshotBuffer();
         public readonly RenderClock Clock = new RenderClock();
+        /// <summary>Bounded draw-ahead of remote players. Off unless the client sets <c>Enabled</c>; <see cref="AttackRenderMs"/> follows it.</summary>
+        public readonly RemoteDraw RemoteDraw;
+        /// <summary>The render time attacks and casts report to the server: <see cref="RenderClock.RenderMs"/>, advanced by the draw-ahead lead when that is on.</summary>
+        public double AttackRenderMs { get { return RemoteDraw.AttackTime(Clock.RenderMs); } }
         public readonly ClockSync Sync = new ClockSync();
         public readonly InputSender Input = new InputSender();
         public readonly CollectionsView Collections = new CollectionsView();
@@ -125,6 +129,7 @@ namespace Roguehalla.Net
         public Session(ITransport transport, SessionOptions options)
         {
             _t = transport;
+            RemoteDraw = new RemoteDraw(Snapshots);
             _o = options;
             _initialResume = options.InitialResume;
             _resuming = _initialResume != null;
@@ -195,7 +200,7 @@ namespace Roguehalla.Net
         {
             if (!pressed || uiOwnsInput || !hasGroundPoint || State != SessionState.InMatch ||
                 Latest == null || Latest.Phase != 1 || Me == null || Me.Status != ActorStatus.Alive) return 0;
-            return Cast(0, x, y, actorRef, Clock.RenderMs);
+            return Cast(0, x, y, actorRef, AttackRenderMs);
         }
 
         public void Leave()
@@ -545,6 +550,7 @@ namespace Roguehalla.Net
             _attempt = 0;
             // A fresh Welcome restarts the timelines: a resume may land after a long gap, with a new map object.
             Snapshots.Clear();
+            RemoteDraw.Reset();
             Collections.Reset();
             Input.ClearPending();
             Latest = null;

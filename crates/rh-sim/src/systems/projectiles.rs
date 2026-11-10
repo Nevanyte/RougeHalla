@@ -23,6 +23,8 @@ pub(crate) struct Spawn {
     pub packet: Packet,
     /// The launch came from an armed Fire attack (the source's armed-packet mark).
     pub roam_armed: bool,
+    /// The shooter's view lag when the shot landed (`WeaponState::lag_ms`), read only under lag fairness.
+    pub lag_ms: f64,
 }
 #[derive(Clone, Copy, Debug)]
 struct Swept {
@@ -73,12 +75,18 @@ fn launch(
 }
 
 pub(crate) fn spawn(cx: &mut Cx) {
-    for req in cx.s.flight.spawns.drain(..) {
+    let mut spawns = core::mem::take(&mut cx.s.flight.spawns);
+    for req in spawns.drain(..) {
         let Some(owner) = cx.w.actor(req.owner) else {
             continue;
         };
         let Shape::Projectile { speed, range } = weapon(req.weapon).shape else {
             continue;
+        };
+        let back = if cx.k.config.lag_fairness {
+            catch_up_ms(req.lag_ms)
+        } else {
+            0.
         };
         let start = ProjectileLaunch {
             id: 0,
@@ -91,10 +99,11 @@ pub(crate) fn spawn(cx: &mut Cx) {
             reflected: false,
             origin: owner.pos(),
             velocity: Vec2::new(cos(req.aim) * speed, sin(req.aim) * speed),
-            time: cx.w.server_time,
+            time: cx.w.server_time - back,
             range,
             target: req.target,
         };
+        let first = cx.w.projectiles.len();
         launch(
             cx.w,
             &mut cx.s.flight.swept,
@@ -104,6 +113,46 @@ pub(crate) fn spawn(cx: &mut Cx) {
             req.roam_armed,
             0,
         );
+        if back > 0. {
+            catch_up(cx, first, back);
+        }
+    }
+    cx.s.flight.spawns = spawns;
+}
+
+/// Lag fairness: how far back a shot is launched, in whole sub-steps. The one-tick lag every command carries is the
+/// legacy present (a shot launches at the clock, as melee's tick-start origin), so only the lag beyond it is caught up,
+/// and never more than the melee rewind cap allows. Zero at the baseline lag: the legacy launch exactly.
+fn catch_up_ms(lag_ms: f64) -> f64 {
+    let extra = MAX_REWIND_MS.min(lag_ms) - TICK_MS;
+    (extra / PROJECTILE_SUBSTEP_MS).floor().max(0.) * PROJECTILE_SUBSTEP_MS
+}
+
+/// Lag fairness: flies a just-launched shot (and any reflection it makes) from its back-dated launch up to the clock,
+/// sub-step by sub-step with the ordinary stretch, wall and body tests. Bodies and homing are sampled at each sub-step's
+/// past time (`position_at`), i.e. where the shooter saw them, never older than the rewind cap; walls are the current
+/// map, as for melee. The flight meets no other flight while catching up (balls delete arrows from the next sweep on).
+/// It ends at the clock with `time == server_time`, as every settled flight does.
+fn catch_up(cx: &mut Cx, first: usize, back: f64) {
+    let now = cx.w.server_time;
+    let steps = (back / PROJECTILE_SUBSTEP_MS).round() as u32;
+    for k in 1..=steps {
+        let t = now - PROJECTILE_SUBSTEP_MS * f64::from(steps - k);
+        for i in first..cx.w.projectiles.len() {
+            if cx.s.flight.swept[i].ended || cx.w.projectiles[i].time >= t {
+                continue;
+            }
+            match stretch(cx.w, i, t, cx.k.collision_map(cx.w.rt.gates_locked)) {
+                Ok((s, v)) => {
+                    cx.w.projectiles[i].velocity = v;
+                    advance(cx, s, t);
+                }
+                Err(reason) => {
+                    let p = &mut cx.w.projectiles[i];
+                    end(p, &mut cx.s.flight.swept[i], cx.ev, p.pos, reason);
+                }
+            }
+        }
     }
 }
 

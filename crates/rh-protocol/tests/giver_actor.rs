@@ -22,6 +22,7 @@ fn actor(kind: u8, faction: u8, weapon: u8, mob_type_code: u8) -> WireActor {
         sig: 29,
         barrier_pct: 11,
         barrier_ring_step: 2,
+        windup: None,
     }
 }
 

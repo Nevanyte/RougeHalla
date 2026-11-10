@@ -81,6 +81,7 @@ impl From<&SimSpec> for SimConfig {
     fn from(spec: &SimSpec) -> Self {
         Self {
             walk_hints: None,
+            lag_fairness: false,
             regen: false,
             min_players: spec.min_players,
             lobby_seconds: spec.lobby_seconds,

@@ -93,6 +93,11 @@ namespace Roguehalla.Client
                 art.BlockAt=now;art.BlockUntil=now+ClipDuration(art.Appearance?.Block,art.Appearance!=null ? art.Appearance.BlockFPS : 10,.2f);
             }
         }
+        /// <summary>Ends an attack clip early (a provisional own clip the server did not confirm); the next Present draws idle/walk.</summary>
+        public void CancelAttackCue(uint id)
+        {
+            if (_active.TryGetValue(id, out var art)) art.AttackUntil = 0;
+        }
         static float ClipDuration(Sprite[] clip,float fps,float fallback)
         { return clip!=null && clip.Length>0 ? clip.Length/8f/Mathf.Max(1,fps) : fallback; }
         static Sprite[] AttackFrames(ShowcaseCatalog.Appearance a,WeaponId weapon,out float fps)

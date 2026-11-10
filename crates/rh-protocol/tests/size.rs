@@ -27,6 +27,7 @@ fn slice_actors(n: u32, tick: u32) -> Vec<WireActor> {
             kind: 0,
             barrier_pct: 0,
             barrier_ring_step: 0,
+            windup: None,
         })
         .collect()
 }

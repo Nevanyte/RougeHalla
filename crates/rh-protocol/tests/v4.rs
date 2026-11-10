@@ -48,6 +48,7 @@ fn actor(id: u32) -> WireActor {
         kind: 0,
         barrier_pct: 0,
         barrier_ring_step: 0,
+        windup: None,
     }
 }
 
@@ -286,13 +287,13 @@ fn an_empty_state_retains_the_snapshot_and_unknown_keys_are_refused() {
 /// A mask bit the version does not define is refused in every mask, never skipped, and a non-canonical varint head is too.
 #[test]
 fn undefined_mask_bits_are_refused_never_skipped() {
-    // A Full head with bit 21, a Full actor mask with bit 10, a delta head with bit 28, a delta actor mask with bit 13.
+    // A Full head with bit 21, a Full actor mask with bit 11, a delta head with bit 28, a delta actor mask with bit 15.
     let full_head_bit = [0x83, 1, 0, 0x80, 0x80, 0x80, 0x01, 0];
     assert_eq!(
         ServerMsg::decode(&full_head_bit),
         Err(DecodeError::BadField("head"))
     );
-    let actor_bit = [0x83, 1, 0, 0, 1, 1, 0x80, 8, 0, 0, 0, 0, 0, 0];
+    let actor_bit = [0x83, 1, 0, 0, 1, 1, 0x80, 16, 0, 0, 0, 0, 0, 0];
     assert_eq!(
         ServerMsg::decode(&actor_bit),
         Err(DecodeError::BadField("actor mask"))
@@ -302,7 +303,7 @@ fn undefined_mask_bits_are_refused_never_skipped() {
         ServerMsg::decode(&delta_head_bit),
         Err(DecodeError::BadField("head"))
     );
-    let delta_actor_bit = [0x87, 10, 1, 0, 0, 1, 1, 0x80, 0x40];
+    let delta_actor_bit = [0x87, 10, 1, 0, 0, 1, 1, 0x80, 0x80, 0x02];
     assert_eq!(
         ServerMsg::decode(&delta_actor_bit),
         Err(DecodeError::BadField("actor mask"))
@@ -350,7 +351,7 @@ fn delta_head_and_actor_delta_bit_numbers_are_pinned() {
         (AD_X, 0),
         (AD_Y, 1),
         (AD_FACING, 2),
-        (AD_KIT, 3),
+        (AD_STEP, 3),
         (AD_HP, 4),
         (AD_BOUNTY, 5),
         (AD_STATUS, 6),
@@ -360,9 +361,11 @@ fn delta_head_and_actor_delta_bit_numbers_are_pinned() {
         (AD_MOB_TYPE, 10),
         (AD_SIG, 11),
         (AD_BARRIER, 12),
+        (AD_WINDUP, 13),
+        (AD_KIT, 14),
     ];
     for (c, bit) in ad {
         assert_eq!(c, 1u32 << bit, "actor-delta bit {bit}");
     }
-    assert_eq!(AD_ALL, 0x1fff);
+    assert_eq!(AD_ALL, 0x7fff);
 }

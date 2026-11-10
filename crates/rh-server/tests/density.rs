@@ -31,6 +31,7 @@ fn room_cfg() -> RoomConfig {
     RoomConfig {
         sim: SimConfig {
             walk_hints: None,
+            lag_fairness: false,
             regen: false,
             quests: false,
             training: false,

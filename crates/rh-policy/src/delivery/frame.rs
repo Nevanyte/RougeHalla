@@ -289,7 +289,7 @@ impl Frame14 {
         events: Vec<EventBatch>,
         fx: Vec<FxBatch>,
     ) -> Result<Self, DeliveryError> {
-        if context.protocol != 14 || context.protocol != rh_protocol::PROTOCOL_VERSION {
+        if context.protocol != 15 || context.protocol != rh_protocol::PROTOCOL_VERSION {
             return Err(DeliveryError::Protocol);
         }
         if !collections.complete() {

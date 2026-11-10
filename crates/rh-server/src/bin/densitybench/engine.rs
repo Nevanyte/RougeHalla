@@ -206,6 +206,7 @@ pub async fn run(o: &Opts, check_frames: bool) -> Report {
     let assets = MapAssets::new(o.arena.clone()).expect("map encodes");
     let sim = SimConfig {
         walk_hints: None,
+        lag_fairness: false,
         regen: false,
         quests: false,
         training: false,

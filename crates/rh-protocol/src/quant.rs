@@ -80,6 +80,22 @@ pub fn quantize_facing(a: f32) -> u16 {
     (round_half_away(t) & 0xffff) as u16
 }
 
+/// Protocol 15: a REMOTE actor's facing is the top 8 bits of the 16-bit code (step 2 pi / 256 = 1.41 degrees, error at most
+/// 0.70 degree). It is kept as a `u16` with the low byte zero, so [`dequantize_facing`] decodes it unchanged and the wire
+/// carries only the high byte; the self view, swing angles, windup aims and projectile facings keep the full 16 bits.
+pub const FACING_REMOTE_STEP: f64 = TAU / 256.0;
+
+/// An angle in radians to the remote 8-bit code, as a `u16` with the low byte zero (wraps modulo 2 pi; NaN and infinities
+/// are 0). Ties go away from zero, as [`quantize_facing`].
+#[inline]
+pub fn quantize_facing_remote(a: f32) -> u16 {
+    let t = (a as f64) / FACING_REMOTE_STEP;
+    if !t.is_finite() {
+        return 0;
+    }
+    ((round_half_away(t) & 0xff) as u16) << 8
+}
+
 /// The angle a code stands for, in `[-pi, pi)`.
 #[inline]
 pub fn dequantize_facing(q: u16) -> f32 {
@@ -89,6 +105,32 @@ pub fn dequantize_facing(q: u16) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn remote_facing_is_the_nearest_of_256_codes() {
+        for k in 0..256u32 {
+            let q = (k as u16) << 8;
+            // The angle a code stands for maps back to the code, and a quarter step either side stays on it.
+            let a = dequantize_facing(q);
+            assert_eq!(quantize_facing_remote(a), q, "code {k}");
+            for d in [-0.25f64, 0.25] {
+                let v = (a as f64 + d * FACING_REMOTE_STEP) as f32;
+                assert_eq!(quantize_facing_remote(v), q, "code {k} {d}");
+            }
+        }
+        let mut a = -7.0f32;
+        while a < 7.0 {
+            let back = dequantize_facing(quantize_facing_remote(a)) as f64;
+            let mut d = (back - a as f64).rem_euclid(TAU);
+            if d > TAU / 2.0 {
+                d -= TAU;
+            }
+            assert!(d.abs() <= FACING_REMOTE_STEP / 2.0 + 1e-6, "{a} -> {back}");
+            a += 0.0013;
+        }
+        assert_eq!(quantize_facing_remote(f32::NAN), 0);
+        assert_eq!(quantize_facing_remote(f32::INFINITY), 0);
+    }
 
     #[test]
     fn the_step_is_the_finest_power_of_two_that_fits_the_world() {

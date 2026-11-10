@@ -140,6 +140,7 @@ fn observation(
             status: Status::Alive,
             weapon: Some(WeaponId::Sword),
             bounty: 0,
+            windup: None,
         });
         if recent_hit {
             o.events.push(SeenEvent::Hit {

@@ -81,6 +81,10 @@ fn resolve_swings(cx: &mut Cx) {
         }
         // The attacker stands, so it is one of `bodies` (ascending slots).
         let origin = match shared.then(|| bodies.binary_search(&ai)) {
+            // Lag fairness: the attacker aimed from its own predicted present, so the swing starts where it stood when
+            // the swing landed (the tick-start sample, the legacy origin at the one-tick baseline lag); only the
+            // targets are rewound by the attacker's lag.
+            _ if k.config.lag_fairness => w.core(ai).position_at(w.server_time - TICK_MS),
             Some(Ok(k)) => rewound[k],
             _ => w.core(ai).position_at(req.rewind_t),
         };

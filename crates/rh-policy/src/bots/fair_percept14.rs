@@ -231,7 +231,7 @@ impl FairPerceptRing14 {
     ) -> Result<Vec<PlayerSight>, Refusal14> {
         require(frame, required)?;
         let context = frame.context();
-        if context.protocol != 14 {
+        if context.protocol != 15 {
             return Err(Refusal14::Protocol);
         }
         if context.epoch != self.epoch {

@@ -15,7 +15,10 @@ pub(crate) struct Landing {
     pub origin: Vec2,
     pub to: Option<Vec2>,
 }
-fn unit_valid(cx: &Cx, ix: FighterIx, target: PlayerId, range: f64) -> bool {
+/// `lag_ms` is the cast's clamped view lag. Under lag fairness the range and line of sight are judged against the target
+/// rewound by it (where the caster saw it, as a melee swing judges its targets); vision stays the present check, so a
+/// rewind never reaches an unseen target. At the one-tick baseline lag the rewound position is the present one.
+fn unit_valid(cx: &Cx, ix: FighterIx, target: PlayerId, range: f64, lag_ms: f64) -> bool {
     let Some(j) = cx.w.fighter_idx(target) else {
         return false;
     };
@@ -43,14 +46,14 @@ fn unit_valid(cx: &Cx, ix: FighterIx, target: PlayerId, range: f64) -> bool {
     } else {
         crate::vision::point_visible(map, viewer, t.pos(), cx.w.tick, wards)
     };
+    let at = if cx.k.config.lag_fairness && lag_ms > crate::constants::TICK_MS {
+        t.position_at(now - lag_ms)
+    } else {
+        t.pos()
+    };
     visible
-        && crate::math::hypot(t.body.x - c.body.x, t.body.y - c.body.y) <= range + a::RANGE_SLACK
-        && crate::geometry::has_line_of_sight(
-            map.current(),
-            c.pos(),
-            t.pos(),
-            crate::map::MASK_SIGHT,
-        )
+        && crate::math::hypot(at.x - c.body.x, at.y - c.body.y) <= range + a::RANGE_SLACK
+        && crate::geometry::has_line_of_sight(map.current(), c.pos(), at, crate::map::MASK_SIGHT)
 }
 fn blink(cx: &Cx, from: Vec2, point: Vec2) -> Option<Vec2> {
     a::blink::landing(
@@ -106,9 +109,11 @@ pub(crate) fn handle(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
         return;
     }
     let point = Vec2::new(x, y);
+    let lag_ms =
+        (now - t.unwrap_or(now)).clamp(crate::constants::TICK_MS, crate::constants::MAX_REWIND_MS);
     let target = match def.target {
         Target::Unit(range) => {
-            let Some(id) = id.filter(|id| unit_valid(cx, ix, *id, range)) else {
+            let Some(id) = id.filter(|id| unit_valid(cx, ix, *id, range, lag_ms)) else {
                 return;
             };
             Some(id)
@@ -171,8 +176,7 @@ pub(crate) fn handle(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
             point,
             previous_ready_at,
             previous_full_at,
-            lag_ms: (now - t.unwrap_or(now))
-                .clamp(crate::constants::TICK_MS, crate::constants::MAX_REWIND_MS),
+            lag_ms,
         }),
     };
     p.statuses.cast = Some(cast);
@@ -235,7 +239,10 @@ pub(crate) fn land(cx: &mut Cx) {
         let mut ok =
             cx.w.standing(ix) && !rt::cast_blocked(&cx.w.core(ix).statuses, now, a::CANCELLED_BY);
         if let Target::Unit(range) = def.target {
-            ok = ok && detail.target.is_some_and(|t| unit_valid(cx, ix, t, range));
+            ok = ok
+                && detail
+                    .target
+                    .is_some_and(|t| unit_valid(cx, ix, t, range, detail.lag_ms));
         }
         let origin = cx.w.core(ix).pos();
         let to = if ok && def.target == Target::Point {

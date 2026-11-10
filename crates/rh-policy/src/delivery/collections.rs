@@ -431,14 +431,18 @@ fn projectiles(observation: &Observation) -> Vec<WireProjectile> {
     observation
         .projectiles
         .iter()
+        // Protocol 15: the row is the track's anchor, so a straight flight's row stays equal and is not re-sent.
         .map(|p| WireProjectile {
+            track: p.track,
             kind: match p.kind {
                 rh_sim::ProjectileKind::Arrow => 0,
                 rh_sim::ProjectileKind::Ball => 1,
             },
-            x: p.x,
-            y: p.y,
-            facing: p.facing,
+            x: p.anchor.x,
+            y: p.anchor.y,
+            facing: p.anchor.facing,
+            speed: p.anchor.speed,
+            tick: p.anchor.tick,
             owner: p.owner.map(|id| id.0),
         })
         .collect()
@@ -800,14 +804,25 @@ mod tests {
             cleared_at: 0.,
             respawn_at: 0.,
         });
+        let anchor = rh_sim::projectile_view::ProjectileAnchor {
+            tick: 0,
+            x: 800,
+            y: 900,
+            facing: 12345,
+            speed: 3040,
+        };
         let flight = rh_sim::ProjectileView {
+            track: 1,
             kind: rh_sim::ProjectileKind::Ball,
             x: 800,
             y: 900,
             facing: 12345,
+            speed: 3040,
+            anchor,
             owner: Some(rh_sim::PlayerId(0x8000_0201)),
         };
-        obs.projectiles.extend([flight, flight]);
+        obs.projectiles
+            .extend([flight, rh_sim::ProjectileView { track: 2, ..flight }]);
         let pending = publisher.prepare(&obs, false, false, false).unwrap();
         let first = pending.frame.clone().unwrap();
         let ServerMsg::State { items, .. } = ServerMsg::decode(&first).unwrap() else {
@@ -829,7 +844,7 @@ mod tests {
             matches!(&items[5],StateItem::Camps(v) if v[0].mob_type==0 && v[0].elite==Some(29) && v[0].alive==2)
         );
         assert!(
-            matches!(&items[6],StateItem::Projectiles(v) if v.len()==2 && v[0]==v[1] && v[0].kind==1 && v[0].owner==Some(0x8000_0201))
+            matches!(&items[6],StateItem::Projectiles(v) if v.len()==2 && v[0].track==1 && v[1]==WireProjectile{track:2,..v[0]} && v[0].kind==1 && v[0].speed==3040 && v[0].owner==Some(0x8000_0201))
         );
         drop(pending);
         assert_eq!(
@@ -845,6 +860,22 @@ mod tests {
             .unwrap()
             .frame
             .is_none());
+        // Protocol 15: a flight still on its anchored line moves without a reliable State update.
+        for p in &mut obs.projectiles {
+            p.x += 19;
+        }
+        assert!(publisher
+            .prepare(&obs, false, false, false)
+            .unwrap()
+            .frame
+            .is_none());
+        // A re-anchored track (a homing turn) is re-sent.
+        obs.projectiles[0].anchor.tick = 1;
+        assert!(publisher
+            .prepare(&obs, false, false, false)
+            .unwrap()
+            .frame
+            .is_some());
         obs.tick = 1;
         obs.camps.clear();
         obs.projectiles.clear();
@@ -884,10 +915,13 @@ mod tests {
         let expected = publisher.prepare(&good, false, false, false).unwrap().frame;
         let mut invalid = Observation::default();
         invalid.projectiles.push(rh_sim::ProjectileView {
+            track: 1,
             kind: rh_sim::ProjectileKind::Arrow,
             x: 0,
             y: 0,
             facing: 0,
+            speed: 0,
+            anchor: Default::default(),
             owner: Some(rh_sim::PlayerId(0)),
         });
         assert!(publisher.prepare(&invalid, false, false, false).is_err());

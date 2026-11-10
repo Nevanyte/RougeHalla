@@ -9,6 +9,8 @@
 //! * `contacts`, `dealt`: rewritten by their signature pass before use.
 //! * `standing`, `mults`: written by `movement:multipliers`, read by `movement:walk` and `movement:recordHistory`, which
 //!   empties them (the fighters standing when the multipliers were read, and each one's move speed this tick);
+//! * `walk_credit`: cleared by the action order, filled by the inputs phase (a stamped order that starts an idle walker),
+//!   read and cleared by `movement:walk` in the same tick;
 //! * `melee`, `ledger`, `downed_this_tick`: filled and drained within one active tick, empty at the end of every step (asserted in debug builds, with `slot_head`/`slot_tail`: all `NONE` between ledger passes);
 //! * `bodies`, `victims`, `ledger_mults`, `entry_next`, `entry_rank`, `idxs`, `amounts`, `order`, `hits`, `alive`, `path`: the working lists of one
 //!   system call, cleared by the system before it fills them and never read by another.
@@ -57,6 +59,8 @@ pub(crate) struct TickScratch {
     pub(crate) standing: Vec<FighterIx>,
     /// Their move multipliers, aligned with `standing`: every one is read before anyone moves.
     pub(crate) mults: Vec<f64>,
+    /// The extra walk time (ms, `0 < c <= TICK_MS`) a stamped order earned this tick, by fighter id (`systems::inputs`).
+    pub(crate) walk_credit: Vec<(PlayerId, f64)>,
     /// Melee swings that landed this tick, resolved after movement (rewound).
     pub(crate) melee: Vec<MeleeReq>,
     pub(crate) flight: crate::systems::projectiles::FlightScratch,
@@ -127,6 +131,7 @@ impl Default for TickScratch {
             camps_at_pass_start: Vec::with_capacity(p),
             standing: Vec::with_capacity(p),
             mults: Vec::with_capacity(p),
+            walk_credit: Vec::with_capacity(p),
             melee: Vec::with_capacity(p),
             flight: Default::default(),
             ledger: Vec::with_capacity(hits),

@@ -95,7 +95,7 @@ fn snapshot(f: &Frame14) -> ServerMsg {
 }
 fn context(viewer: u32, sample: u64) -> FrameContext14 {
     FrameContext14 {
-        protocol: 14,
+        protocol: 15,
         epoch: Epoch(1),
         sample: SampleId(sample),
         viewer: PlayerRef::new(viewer).unwrap(),
@@ -285,7 +285,7 @@ fn data_constructor_is_not_acceptance_and_keeps_owner_unavailable_clear_held_dis
 }
 
 fn golden() -> serde_json::Value {
-    serde_json::from_str(include_str!("../../../protocol/fixtures/v14.json")).unwrap()
+    serde_json::from_str(include_str!("../../../protocol/fixtures/v15.json")).unwrap()
 }
 fn unhex(s: &str) -> Vec<u8> {
     s.as_bytes()
@@ -1542,7 +1542,7 @@ fn actual_human_bot_async_handshake_delivers_frame14_and_submits_real_nonempty_c
             .expect("real delegated HumanBot callback ack");
         assert_eq!((context.sample, context.epoch), (token.sample, token.epoch));
         assert_eq!(context.viewer, PlayerRef::new(1).unwrap());
-        assert_eq!(context.protocol, 14);
+        assert_eq!(context.protocol, 15);
         real_output.extend(commands);
         samples += 1;
         // Ack is issued before the worker posts its reply. Yield to that real sender until poll

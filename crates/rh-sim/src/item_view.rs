@@ -220,6 +220,7 @@ pub struct ItemObserver {
     actors: Vec<PlayerId>,
     staged_actors: Vec<PlayerId>,
     vision: crate::vision::TileVisionCache,
+    projectiles: crate::projectile_view::ProjectileTracks,
 }
 
 impl ItemObserver {
@@ -239,6 +240,7 @@ impl ItemObserver {
             actors: Vec::new(),
             staged_actors: Vec::new(),
             vision: Default::default(),
+            projectiles: Default::default(),
         }
     }
 
@@ -256,6 +258,7 @@ impl ItemObserver {
             actor_refs: self.actor_refs.renewed(),
             rewards: self.rewards.renewed(),
             quests: self.quests.renewed(),
+            projectiles: self.projectiles.renewed(),
             ..Self::new(self.viewer)
         }
     }
@@ -274,8 +277,11 @@ impl ItemObserver {
             crate::quest_view::QuestObserver::new(self.viewer),
         );
         quests.reconnect();
+        let mut projectiles = std::mem::take(&mut self.projectiles);
+        projectiles.reconnect();
         let next = self.next;
         *self = Self::new(self.viewer);
+        self.projectiles = projectiles;
         self.next = next;
         self.rewards = rewards;
         self.quests = quests;
@@ -511,7 +517,7 @@ impl ItemObserver {
         if !earlier.is_empty() {
             out.events.splice(0..0, earlier.iter().cloned());
         }
-        crate::projectile_view::project(sim, self.viewer, out)?;
+        crate::projectile_view::project(sim, self.viewer, out, &mut self.projectiles)?;
         let raw_combat = crate::owner_combat::public_bridge::prepare(sim, self.viewer, out)?;
         let actors = self.actor_refs.stage(sim, out)?;
         out.owner_combat = raw_combat.map(|group| {
@@ -717,6 +723,7 @@ impl PreparedOffer<'_> {
         s.rewards.commit_stage(self.rewards);
         s.quests.commit_stage(self.quests);
         s.actor_refs.commit(self.actors);
+        s.projectiles.commit();
         std::mem::swap(&mut s.actors, &mut s.staged_actors);
         if self.absent {
             // A permanently removed viewer may be sampled again in the departure tick. No handle is

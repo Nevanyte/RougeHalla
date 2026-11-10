@@ -96,6 +96,7 @@ async fn rig_with_pause(cfg: ApiConfig, pause: Option<Arc<AcquirePause>>) -> Rig
     let dcfg = DirectorConfig::new(
         rh_sim::SimConfig {
             walk_hints: None,
+            lag_fairness: false,
             regen: false,
             quests: false,
             training: false,

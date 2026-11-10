@@ -127,6 +127,7 @@ fn maximum_full_records_and_reference_delta_preserve_new_scalars() {
         sig: 255,
         barrier_pct: 0,
         barrier_ring_step: 0,
+        windup: None,
     };
     let data = SnapshotData::build(u32::MAX, 3, u32::MAX, Some(me), [actor].into_iter()).unwrap();
     let mut fast = vec![];
@@ -173,33 +174,55 @@ fn maximum_full_records_and_reference_delta_preserve_new_scalars() {
 }
 
 #[test]
-fn projectile_rows_preserve_duplicates_and_strict_owner_bounds() {
+fn projectile_tracks_are_strictly_ascending_with_strict_owner_bounds() {
     let row = WireProjectile {
+        track: 1,
         kind: 1,
         x: u16::MAX,
         y: 0,
         facing: u16::MAX,
+        speed: u16::MAX,
+        tick: u32::MAX,
         owner: Some(u32::MAX),
+    };
+    let rows = |owner| -> Vec<WireProjectile> {
+        (0..512u32)
+            .map(|i| WireProjectile {
+                track: u32::MAX - 511 + i,
+                owner,
+                ..row
+            })
+            .collect()
     };
     for owner in [None, Some(1), Some(u32::MAX)] {
         let msg = ServerMsg::State {
             tick: 1,
-            items: vec![StateItem::Projectiles(vec![
-                WireProjectile { owner, ..row };
-                512
-            ])],
+            items: vec![StateItem::Projectiles(rows(owner))],
         };
         let bytes = msg.encode();
         assert_eq!(bytes.len(), msg.encoded_len());
         assert_eq!(ServerMsg::decode(&bytes), Ok(msg));
     }
+    let mut too_many = rows(None);
+    too_many.insert(
+        0,
+        WireProjectile {
+            track: 1,
+            owner: None,
+            ..row
+        },
+    );
     for rows in [
         vec![WireProjectile { kind: 2, ..row }],
         vec![WireProjectile {
             owner: Some(0),
             ..row
         }],
-        vec![row; 513],
+        vec![WireProjectile { track: 0, ..row }],
+        // Two rows of one track, or a track out of order: a track names one flight.
+        vec![row, row],
+        vec![WireProjectile { track: 2, ..row }, row],
+        too_many,
     ] {
         let mut out = vec![77];
         assert!(ServerMsg::State {
@@ -212,7 +235,10 @@ fn projectile_rows_preserve_duplicates_and_strict_owner_bounds() {
     }
     let msg = ServerMsg::State {
         tick: 1,
-        items: vec![StateItem::Projectiles(vec![row, row])],
+        items: vec![StateItem::Projectiles(vec![
+            row,
+            WireProjectile { track: 2, ..row },
+        ])],
     };
     let bytes = msg.encode();
     for end in 0..bytes.len() {

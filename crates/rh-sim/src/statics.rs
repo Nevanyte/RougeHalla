@@ -240,6 +240,13 @@ pub struct SimConfig {
     /// Explicit source installer override. None preserves the existing foundation/Training preset.
     #[serde(default)]
     pub walk_hints: Option<bool>,
+    /// Lag fairness (the lag-fairness rows of docs/DEVIATIONS.md, owner-approved netcode Wave 2): a melee swing starts from where the
+    /// attacker stood when it landed, not a rewound past position; a player's shot catches up its lag beyond one tick
+    /// against rewound bodies; a unit-target cast checks range and line of sight against the rewound target. Each is
+    /// the identity at the one-tick baseline lag. Unset or false: legacy, so the parity harness, recordings and
+    /// headless runs keep their behaviour. The live server turns it on.
+    #[serde(default)]
+    pub lag_fairness: bool,
 }
 
 fn default_wish_lock() -> f64 {
@@ -275,6 +282,7 @@ impl Default for SimConfig {
             training: false,
             dummies: false,
             walk_hints: None,
+            lag_fairness: false,
         }
     }
 }

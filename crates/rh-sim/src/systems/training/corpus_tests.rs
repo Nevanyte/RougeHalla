@@ -51,6 +51,7 @@ fn config(kind: &str) -> SimConfig {
     SimConfig {
         // The immutable source recipe explicitly installs signatures/walkHints off.
         walk_hints: Some(false),
+        lag_fairness: false,
         regen: false,
         quests: false,
         consumables: false,

@@ -23,7 +23,9 @@ pub struct Limits {
 }
 impl Limits {
     pub fn check(self) -> Result<Self> {
-        if crate::PROTOCOL_VERSION != 14
+        // Pinned to the live protocol it carries records of: re-review the experiment on every bump. Protocol 15 only
+        // added fields (actor windup, projectile tracks) that its recorded v14 frames never set or leave empty.
+        if crate::PROTOCOL_VERSION != 15
             || self.body_bytes == 0
             || self.body_bytes > i32::MAX as usize
             || self.retained_body_bytes < self.body_bytes

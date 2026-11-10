@@ -21,6 +21,7 @@ fn actor(i: u32) -> WireActor {
         kind: (i % 3) as u8,
         barrier_pct: 0,
         barrier_ring_step: 0,
+        windup: None,
     }
 }
 

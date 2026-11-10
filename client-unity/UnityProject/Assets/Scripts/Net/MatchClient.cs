@@ -17,6 +17,8 @@ namespace Roguehalla.Client
         /// <summary>-1 = server default.</summary>
         public int Faction = -1;
         public bool AutoJoin;
+        /// <summary>Bounded presentation-only draw-ahead of remote players (see RemoteDraw); attack render times follow it.</summary>
+        public bool DrawAhead = true;
         public MatchHud Hud { get; private set; }
         public ArenaView Arena;
         public Camera Cam;
@@ -26,6 +28,9 @@ namespace Roguehalla.Client
         Func<ITransport> _transportFactory = TransportFactory.Create;
         readonly List<InterpActor> _actors = new List<InterpActor>();
         readonly List<InterpActor> _targetActors = new List<InterpActor>();
+        /// <summary>Own attack clip at the click (presentation only; see OwnAttackCue). Never gates what is sent.</summary>
+        public bool OwnAttackFeedback = true;
+        readonly OwnAttackCue _ownCue = new OwnAttackCue();
         const double SteerRepeatMs = 100;
         const float SteerAheadU = 64f;
         Vector2 _lastDir;
@@ -81,6 +86,7 @@ namespace Roguehalla.Client
             _actors.Clear(); _steering = false; _attackHeld = false;
             var arena = new GameObject("Arena").AddComponent<ArenaView>();
             Arena = arena;
+            _ownCue.Reset(); arena.OwnCue = _ownCue;
             var transport = _transportFactory();
             if (_destroying || generation != _joinGeneration)
             {
@@ -158,7 +164,7 @@ namespace Roguehalla.Client
             _boundLaunchState = null; _boundLaunchSnapshot = null; _boundLaunchTimeline = null;
             UnbindPresentationSession(); ResetPresentationTimeline();
             Arena = null;
-            _actors.Clear(); _steering = false; _attackHeld = false;
+            _actors.Clear(); _steering = false; _attackHeld = false; _ownCue.Reset();
             if (oldArena != null) DestroyOwnedArena(oldArena.gameObject);
             if (!_destroying) Hud?.ShowMenu();
             // Retired-session callbacks may synchronously start another launch. All old
@@ -192,7 +198,7 @@ namespace Roguehalla.Client
             if (!focused) Hud?.ReleaseUiFocusForWindowLoss();
             else Hud?.RestoreUiFocusAfterWindowGain();
             if (focused || Session == null || Session.State != SessionState.InMatch) return;
-            if (_attackHeld) Session.Input.Release(_aimAngle, Session.Clock.RenderMs);
+            if (_attackHeld) Session.Input.Release(_aimAngle, Session.AttackRenderMs);
             if (_steering) Session.OrderStop();
             bool queued = _attackHeld || _steering;
             _attackHeld = _steering = false;
@@ -257,7 +263,11 @@ namespace Roguehalla.Client
             if (!ReferenceEquals(Session, session) || !LaunchVerified) return;
             if (Session.State != SessionState.InMatch && Session.State != SessionState.Ended) return;
             if (Arena != null && !Arena.HasMap && Session.Map != null) Arena.Build(Session.Map);
-            Session.Snapshots.Sample(Session.Clock.RenderMs, _actors);
+            Session.RemoteDraw.Enabled = DrawAhead;
+            Session.RemoteDraw.Sample(Session.Clock.RenderMs, _actors);
+            // Cut an unconfirmed own clip once server state rules the action out or confirmation is overdue.
+            if (_ownCue.Update(NowMs(), Session.Me, Session.Latest != null ? Session.Latest.Phase : (byte)0, Session.ServerTimeMs) && Arena != null)
+                Arena.CancelAttackCue(Session.PlayerId);
             if (_traceLatency && LatencyTrace.TakeTargetRequest()) TraceTargetScreens();
             if (Session.State == SessionState.InMatch)
             {
@@ -278,14 +288,14 @@ namespace Roguehalla.Client
             // Release is always forwarded, even if the pointer moved onto a panel after pressing.
             if (_attackHeld && mouse != null && mouse.leftButton.wasReleasedThisFrame)
             {
-                Session.Input.Release(_aimAngle, Session.Clock.RenderMs); _attackHeld = false;
+                Session.Input.Release(_aimAngle, Session.AttackRenderMs); _attackHeld = false;
             }
             bool keyboardBlocked = Hud != null && Hud.BlocksKeyboardInput;
             bool blocked = Hud != null && Hud.BlocksPointerInput;
             // Opening a map/menu cancels a held attack immediately; release is never swallowed by UI capture.
             if ((keyboardBlocked || Hud != null && Hud.TacticalMap != null && Hud.TacticalMap.PointerBlocked) && _attackHeld)
             {
-                Session.Input.Release(_aimAngle, Session.Clock.RenderMs); _attackHeld = false;
+                Session.Input.Release(_aimAngle, Session.AttackRenderMs); _attackHeld = false;
             }
             if (keyboardBlocked)
             {
@@ -306,10 +316,11 @@ namespace Roguehalla.Client
                         Session.Input.Target(target);
                     else
                     {
-                        Session.Input.Attack(_aimAngle, Session.Clock.RenderMs); _attackHeld = true;
+                        Session.Input.Attack(_aimAngle, Session.AttackRenderMs); _attackHeld = true;
+                        if (OwnAttackFeedback) StartOwnAttackCue(now);
                         if (mouse.leftButton.wasReleasedThisFrame)
                         {
-                            Session.Input.Release(_aimAngle, Session.Clock.RenderMs); _attackHeld = false;
+                            Session.Input.Release(_aimAngle, Session.AttackRenderMs); _attackHeld = false;
                         }
                     }
                 }
@@ -349,6 +360,19 @@ namespace Roguehalla.Client
                 }
             }
             else if (_steering) { OrderStop(); _steering = false; }
+        }
+
+        // Presentation only: the Attack above is already queued whatever this decides. The clip starts only on server-sent readiness.
+        void StartOwnAttackCue(double now)
+        {
+            var me = Session.Me;
+            var sync = Session.Sync;
+            if (Arena != null && me != null && _ownCue.TryStart(now, me, Session.Latest != null ? Session.Latest.Phase : (byte)0,
+                    Session.ServerTimeMs, sync.HasSample, sync.ServerNowMs(now), Math.Max(sync.RttMs, sync.LastRttMs)))
+            {
+                Arena.ProvisionalAttackCue(me.Id);
+                if (_traceLatency) LatencyTrace.Mark("attackClipStart", Session.PlayerId, 0, 0, 0);
+            }
         }
 
         void OrderMove(float x, float y)

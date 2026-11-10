@@ -52,7 +52,12 @@ namespace Roguehalla.Client
             weapon=default; faction=default; kind=default; type=null; return false;
         }
         sealed class Flash { public SpriteRenderer Sprite; public TMP_Text Text; public uint Actor; public float Start, Duration; public Vector3 Position; public Color Color; public float Size; }
-        struct PendingFx { public FxKind Kind; public uint Subject; public float Amount; public double DueMs; public float QueuedAt; }
+        struct PendingFx { public FxKind Kind; public uint Subject; public float Amount; public double DueMs; public float QueuedAt; public bool NoClip; }
+        /// <summary>Own provisional attack clip state (set by MatchClient). Only used to avoid replaying a clip already started at the click.</summary>
+        public OwnAttackCue OwnCue;
+        /// <summary>Starts the attack clip only (no flash, number or sound) for a press the server-sent readiness says will act now.</summary>
+        public void ProvisionalAttackCue(uint id) { _actors.ConfirmedCue(id, FxKind.Swing); }
+        public void CancelAttackCue(uint id) { _actors.CancelAttackCue(id); }
 
         void Awake()
         {
@@ -306,6 +311,9 @@ namespace Roguehalla.Client
                 uint subject = f.Kind == FxKind.Hit ? f.Victim : f.Kind == FxKind.Stagger || f.Kind == FxKind.Block ? f.Id : f.By;
                 var cue=new PendingFx{Kind=f.Kind,Subject=subject,Amount=f.Amount};
                 bool own = owner != 0 && (subject == owner || f.By == owner || f.Victim == owner);
+                // The own clip already started at the click: the server's swing keeps its flash but does not restart the clip.
+                if (f.Kind == FxKind.Swing && own && subject == owner && OwnCue != null &&
+                    OwnCue.AbsorbServerSwing(Time.realtimeSinceStartupAsDouble * 1000.0)) cue.NoClip = true;
                 if (!own && _renderReady && dueMs > _renderMs && dueMs - _renderMs <= MaxFxLeadMs &&
                     _scheduledFx.Count < MaxScheduledFx && _actors.Contains(subject) && !IsLatestNpc(subject))
                 {
@@ -342,6 +350,7 @@ namespace Roguehalla.Client
             _pendingFx.Clear();
             _scheduledFx.Clear();
             _wishes.Reset();
+            OwnCue?.Reset();
             for (int i = _flashes.Count - 1; i >= 0; i--)
             {
                 var flash = _flashes[i];
@@ -354,7 +363,7 @@ namespace Roguehalla.Client
         void PresentFx(PendingFx f)
         {
                 if (!_actors.TryPosition(f.Subject, out var p)) return;
-                _actors.ConfirmedCue(f.Subject,f.Kind);
+                if (!f.NoClip) _actors.ConfirmedCue(f.Subject,f.Kind);
                 if (_flashes.Count >= 48) return;
                 var flash = _flashPool.Count > 0 ? _flashPool.Pop() : CreateFlash();
                 flash.Actor = f.Subject; flash.Position = p + new Vector3(0, .65f); flash.Start = Time.unscaledTime; flash.Duration = f.Kind==FxKind.Hit ? .55f : .2f;

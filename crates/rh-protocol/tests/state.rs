@@ -283,6 +283,7 @@ fn scalar_status_changes_and_clears_survive_full_and_fast_delta_paths() {
             displace_seq: 1,
             barrier_pct: 0,
             barrier_ring_step: 0,
+            windup: None,
         })
         .collect();
     let first = SnapshotData::build(10, 1, 0, Some(me), actors.clone().into_iter()).unwrap();

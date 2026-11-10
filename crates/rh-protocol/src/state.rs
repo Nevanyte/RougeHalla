@@ -873,35 +873,52 @@ pub struct WireCamp {
     pub cleared_at: f64,
     pub respawn_at: f64,
 }
-/// Visible projectile fact, with no global projectile ID.
+/// A visible projectile as a viewer-scoped track (protocol 15), never a global projectile ID.
+///
+/// `track` is this viewer's own alias: issued (from 1, never reused while the connection's observer lives) only when the
+/// flight enters this viewer's sight, dropped when it leaves it, so it says nothing about flights the viewer never saw. The
+/// row is an ANCHOR, not the current position: the flight was at (`x`, `y`) / 8 u at `tick` and moves in a straight line
+/// at `speed` / 8 u/s along `facing` (signed-turn code), i.e. at tick `t >= tick` it is at
+/// `x/8 + cos(f) * speed/8 * (t - tick) * 0.05`, `y/8 + sin(f) * speed/8 * (t - tick) * 0.05`. The anchor is re-sent (the
+/// same track) only when the flight leaves that line (a homing turn); the row disappears when the flight ends or leaves
+/// sight. An anchor is never older than the flight's entry into this viewer's sight.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct WireProjectile {
+    pub track: u32,
     pub kind: u8,
     pub x: u16,
     pub y: u16,
     pub facing: u16,
+    pub speed: u16,
+    pub tick: u32,
     pub owner: Option<u32>,
 }
 impl WireProjectile {
     fn valid(&self) -> bool {
-        self.kind <= 1 && self.owner != Some(0)
+        self.track != 0 && self.kind <= 1 && self.owner != Some(0)
     }
     fn len(&self) -> usize {
-        8 + self.owner.map_or(0, varint_len)
+        varint_len(self.track) + 9 + varint_len(self.tick) + 1 + self.owner.map_or(0, varint_len)
     }
     fn write(&self, w: &mut Writer) {
+        w.varint(self.track);
         w.u8(self.kind);
         w.u16(self.x);
         w.u16(self.y);
         w.u16(self.facing);
+        w.u16(self.speed);
+        w.varint(self.tick);
         w.opt(self.owner.as_ref(), |w, id| w.varint(*id));
     }
     fn read(r: &mut Reader<'_>) -> Result<Self, DecodeError> {
         let v = Self {
+            track: r.varint()?,
             kind: r.u8()?,
             x: r.u16()?,
             y: r.u16()?,
             facing: r.u16()?,
+            speed: r.u16()?,
+            tick: r.varint()?,
             owner: r.opt(Reader::varint)?,
         };
         if v.valid() {
@@ -1745,7 +1762,9 @@ impl StateItem {
                         max: 512,
                     });
                 }
-                if !value.iter().all(WireProjectile::valid) {
+                if !value.iter().all(WireProjectile::valid)
+                    || value.windows(2).any(|w| w[1].track <= w[0].track)
+                {
                     return Err(EncodeError::BadValue("projectile"));
                 }
             }
@@ -1911,9 +1930,13 @@ impl StateItem {
                 if n > 512 {
                     return Err(DecodeError::TooMany(n));
                 }
-                let mut rows = Vec::with_capacity(n);
+                let mut rows: Vec<WireProjectile> = Vec::with_capacity(n);
                 for _ in 0..n {
-                    rows.push(WireProjectile::read(r)?);
+                    let row = WireProjectile::read(r)?;
+                    if rows.last().is_some_and(|last| row.track <= last.track) {
+                        return Err(DecodeError::BadField("projectile tracks"));
+                    }
+                    rows.push(row);
                 }
                 Self::Projectiles(rows)
             }

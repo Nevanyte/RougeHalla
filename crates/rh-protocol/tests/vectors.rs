@@ -65,7 +65,16 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
             | "cannon_notice_seconds_over" => BadField("cannon notice"),
             "cannon_notice_missing_seconds" => Truncated,
             "state_too_many_camps" | "state_too_many_projectiles" => TooMany(0),
-            "projectile_kind" | "projectile_owner_zero" => BadField("projectile"),
+            "projectile_kind" | "projectile_owner_zero" | "projectile_track_zero" => {
+                BadField("projectile")
+            }
+            "projectile_tracks_not_ascending" => BadField("projectile tracks"),
+            "projectile_tick_overlong" => BadVarint,
+            "actor_windup_kind_zero"
+            | "actor_windup_kind_three"
+            | "actor_windup_duration_over_u16"
+            | "delta_actor_windup_kind_three" => BadField("windup"),
+            "actor_windup_cast_truncated_aim" => Truncated,
             "projectile_owner_flag" => BadTag(2),
             "projectile_owner_overlong" => BadVarint,
             "camp_mob_type"
@@ -208,6 +217,8 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
             "actor_reserved_mask_bit"
             | "actor_unknown_mask_bit_after_kind"
             | "delta_actor_mask_unknown_bit" => BadField("actor mask"),
+            "delta_actor_step_without_position" => BadField("position step"),
+            "delta_actor_step_truncated" => Truncated,
             "actor_id_gap_zero" | "actor_id_overflow" => BadField("actor order"),
             "actor_hp_over_100" => BadField("hp_pct"),
             "snapshot_giver_kit_default"

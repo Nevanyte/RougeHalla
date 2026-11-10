@@ -170,6 +170,21 @@ pub enum PublicCommand {
     },
     /// The practice console (accepted only by a training world; validated again by `validate`).
     Train(TrainRaw),
+    /// [`PublicCommand::Move`] stamped with `t`, the client's estimate of the server sim time (ms) at which the order was
+    /// issued (clamped by the server). It can start an idle walker up to one tick earlier (`systems::inputs`).
+    MoveAt {
+        x: f64,
+        y: f64,
+        seq: Option<u8>,
+        t: f64,
+    },
+    /// [`PublicCommand::AttackMove`] with the same issue-time stamp as [`PublicCommand::MoveAt`].
+    AttackMoveAt {
+        x: f64,
+        y: f64,
+        seq: Option<u8>,
+        t: f64,
+    },
 }
 
 /// Trusted fixture/replay-side proposal. Public seats use [`PublicCommand`].
@@ -249,6 +264,19 @@ pub enum RawCommand {
     Train(TrainRaw),
     /// A nonzero public handle did not resolve at intake. Still spends the normal budget.
     MissingPickup,
+    /// A Move stamped with its issue time (see [`PublicCommand::MoveAt`]); a non-finite stamp validates as a plain Move.
+    MoveAt {
+        x: f64,
+        y: f64,
+        seq: Option<u8>,
+        t: f64,
+    },
+    AttackMoveAt {
+        x: f64,
+        y: f64,
+        seq: Option<u8>,
+        t: f64,
+    },
 }
 
 /// A validated command: points finite and clamped to the world, angles finite and wrapped. Opaque on purpose: the only
@@ -266,6 +294,14 @@ impl Command {
     /// The practice console is the one action a training world adds (the source's `train` handler).
     pub(crate) fn is_train(&self) -> bool {
         matches!(self.0, Kind::Train(_))
+    }
+    /// The same order without its issue-time stamp (an actor that is not a player gets no walk credit).
+    pub(crate) fn unstamped(self) -> Command {
+        match self.0 {
+            Kind::MoveAt { x, y, seq, .. } => Command(Kind::Move { x, y, seq }),
+            Kind::AttackMoveAt { x, y, seq, .. } => Command(Kind::AttackMove { x, y, seq }),
+            _ => self,
+        }
     }
     pub(crate) fn is_foundation_movement(self) -> bool {
         matches!(
@@ -343,6 +379,19 @@ enum Kind {
     },
     MissingPickup,
     Train(TrainCommand),
+    // Appended: the variants before keep their indices, so every existing command hashes and serializes as before.
+    MoveAt {
+        x: f64,
+        y: f64,
+        seq: Option<u8>,
+        t: f64,
+    },
+    AttackMoveAt {
+        x: f64,
+        y: f64,
+        seq: Option<u8>,
+        t: f64,
+    },
 }
 
 impl PublicCommand {
@@ -412,6 +461,8 @@ impl PublicCommand {
             Self::Release { a, t } => RawCommand::Release { a, t },
             Self::Swap { slot } => RawCommand::Swap { slot },
             Self::Train(raw) => RawCommand::Train(raw),
+            Self::MoveAt { x, y, seq, t } => RawCommand::MoveAt { x, y, seq, t },
+            Self::AttackMoveAt { x, y, seq, t } => RawCommand::AttackMoveAt { x, y, seq, t },
         })
     }
 }
@@ -456,6 +507,8 @@ impl Kind {
             Kind::Attack { a, t } => RawCommand::Attack { a, t },
             Kind::Release { a, t } => RawCommand::Release { a, t },
             Kind::Train(cmd) => RawCommand::Train(cmd.raw()),
+            Kind::MoveAt { x, y, seq, t } => RawCommand::MoveAt { x, y, seq, t },
+            Kind::AttackMoveAt { x, y, seq, t } => RawCommand::AttackMoveAt { x, y, seq, t },
         }
     }
 }
@@ -656,14 +709,51 @@ pub fn validate(raw: RawCommand) -> Result<Command, Reject> {
             t: time(t),
         },
         RawCommand::Train(raw) => Kind::Train(validate_train(raw)?),
+        RawCommand::MoveAt { x, y, seq, t } => {
+            let (x, y) = clamp_pt(x, y)?;
+            match time(Some(t)) {
+                Some(t) => Kind::MoveAt { x, y, seq, t },
+                None => Kind::Move { x, y, seq },
+            }
+        }
+        RawCommand::AttackMoveAt { x, y, seq, t } => {
+            let (x, y) = clamp_pt(x, y)?;
+            match time(Some(t)) {
+                Some(t) => Kind::AttackMoveAt { x, y, seq, t },
+                None => Kind::AttackMove { x, y, seq },
+            }
+        }
     }))
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) enum MoveCmd {
-    AttackMove { x: f64, y: f64, seq: Option<u8> },
-    Move { x: f64, y: f64, seq: Option<u8> },
-    Stop { seq: Option<u8> },
+    AttackMove {
+        x: f64,
+        y: f64,
+        seq: Option<u8>,
+    },
+    Move {
+        x: f64,
+        y: f64,
+        seq: Option<u8>,
+    },
+    Stop {
+        seq: Option<u8>,
+    },
+    // Appended (existing variants keep their hash/checkpoint encoding): an order with its validated issue-time stamp.
+    MoveAt {
+        x: f64,
+        y: f64,
+        seq: Option<u8>,
+        t: f64,
+    },
+    AttackMoveAt {
+        x: f64,
+        y: f64,
+        seq: Option<u8>,
+        t: f64,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -793,6 +883,18 @@ impl InputQueue {
             same(
                 RawCommand::AttackMove { x, y, seq },
                 Kind::AttackMove { x, y, seq },
+            )?;
+        }
+        if let Some(MoveCmd::MoveAt { x, y, seq, t }) = self.mv {
+            same(
+                RawCommand::MoveAt { x, y, seq, t },
+                Kind::MoveAt { x, y, seq, t },
+            )?;
+        }
+        if let Some(MoveCmd::AttackMoveAt { x, y, seq, t }) = self.mv {
+            same(
+                RawCommand::AttackMoveAt { x, y, seq, t },
+                Kind::AttackMoveAt { x, y, seq, t },
             )?;
         }
         if let Some(a) = self.aim {
@@ -988,6 +1090,14 @@ impl InputQueue {
             }
             Kind::Attack { a, t } => return self.push_action(ActionCmd::Attack { a, t }),
             Kind::Release { a, t } => return self.push_action(ActionCmd::Release { a, t }),
+            Kind::MoveAt { x, y, seq, t } => {
+                self.mv = Some(MoveCmd::MoveAt { x, y, seq, t });
+                self.move_before = self.actions.len();
+            }
+            Kind::AttackMoveAt { x, y, seq, t } => {
+                self.mv = Some(MoveCmd::AttackMoveAt { x, y, seq, t });
+                self.move_before = self.actions.len();
+            }
         }
         Ok(())
     }

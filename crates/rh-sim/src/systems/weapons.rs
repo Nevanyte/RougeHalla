@@ -242,6 +242,7 @@ fn land(cx: &mut Cx, ix: FighterIx, act: PendingAction) {
                 aim,
                 packet: act.packet,
                 roam_armed: act.roam_armed,
+                lag_ms: p.weapon.lag_ms,
             });
             p.weapon.draw_started_at = 0.0;
         }

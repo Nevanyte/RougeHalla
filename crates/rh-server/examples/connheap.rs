@@ -49,6 +49,7 @@ async fn server(args: &[String], conns: usize, secs: u64) {
     };
     let sim = rh_sim::SimConfig {
         walk_hints: None,
+        lag_fairness: false,
         regen: false,
         quests: false,
         training: false,

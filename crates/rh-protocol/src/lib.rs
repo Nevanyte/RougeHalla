@@ -53,6 +53,20 @@
 //! Blaze requires anchor and destination together or neither; other abilities cannot carry a destination, and a Landed record
 //! must identify a caster or carry geometry. Fx event times and durations are source f64 values, not tick-derived.
 //!
+//! Protocol 15 adds two public presentation facts, both viewer-scoped (docs/NETCODE_COMPETITIVE_PLAN.md Wave 3). A remote
+//! actor carries a ranged windup ([`WireWindup`]: Full actor bit 10, actor-delta bit 13 whose kind byte 0 ends it) only while
+//! the viewer sees it drawing a bow (kind 1, no aim) or casting a wand (kind 2, the aim it began with). State key 7 rows are
+//! viewer-local projectile TRACKS ([`WireProjectile`]): a nonzero alias issued when the flight enters this viewer's sight
+//! (strictly ascending in the list, never reused, never a launch id) and a straight-line anchor (position, facing, speed,
+//! tick), so the list changes only on a sighting, an end, a loss of sight or a re-anchor, and the client moves each flight
+//! at frame rate.
+//!
+//! Protocol 15 also adds MoveAt (command 19) and AttackMoveAt (command 20): the Move/AttackMove payload followed by a
+//! required finite f64 `t`, the client's estimate of the server sim time (ms) at which it issued the order (the render
+//! clock's server-time estimate WITHOUT the interpolation delay). The server clamps `t` into the connection's RTT-bounded
+//! render-time window; the simulation lets it start a walker that stood idle through the previous tick up to one tick
+//! (50 ms) earlier, and ignores it otherwise. Move (1), AttackMove (11) and Stop (2) are unchanged.
+//!
 //! Protocol 11 combines the independent branch additions. Commands 12 HuntTarget, 13 ConsumeCorpse,
 //! 14 Plan and 15 Train are distinct. Events 8 WindEmblem, 9 CannonNotice and 10 Toast are distinct.
 //! Props 4 Corpse, 5 WindEmblem and 6 Cannon are distinct. Actor kinds: 0 player, 1 regional mob,
@@ -83,8 +97,9 @@
 //!      17 Wish owner record (ability, ready_at, optional full_at, max_charges, recharge_ms, charges, optional next_charge_at, optional cast)
 //!      18 barrier f32 + ring step u8; then phase u8 0..=3 with head bit 10 (default 1), then optional global source time f64]
 //!   per actor (the observation sorts them by id; ids must strictly ascend): id varint (the first actor's id, then the gap
-//!     from the previous one), mask varint, x u16, y u16, facing u16, then per mask bit: 0 kit u8 (default 0)
+//!     from the previous one), mask varint, x u16, y u16, facing u16 (v15 writers send a multiple of 256, the 8-bit remote facing; readers accept any code), then per mask bit: 0 kit u8 (default 0)
 //!     1 hp_pct u8 (default 100)  2 status u8 0..=3 (default 1)  3 bounty varint (0)  4 kind u8 (0 = player)  5 effects u16 (0)  6 displacement u8 (0)  7 mob_type_code u8 (0..=30)  8 sig u8 (0)  9 barrier_pct u8 + ring step u8
+//!     10 windup (v15): kind u8 1 draw / 2 cast, started_at varint (server ms), duration varint (ms, <= 65535), aim u16 (cast only)
 //! SnapshotDelta 0x87, tick varint, base_age varint (tick - base tick, 1..=MAX_DELTA_AGE), ack_input varint, head varint
 //!   head bits  0 a self follows (its id is the base's)   1 x   2 y   3 facing   4 move_seq   5 hp   6 ready_in_ms
 //!              7 a departed list follows   8 phase   9 max_hp   10 kit   11 kills   12 bounty   13 gv   14 status   15 effects u16   16 displacement u8   17 sig u8
@@ -94,8 +109,12 @@
 //!      hunt target varint (zero clears), hunt stacks varint, Wish strict optional record, barrier f32 + ring step u8]   self bits need bit 0
 //!   [phase u8 (0..=3) with bit 8, then optional source time f64 with bit 23: the delta clock is absolute and never inherited from the base]
 //!   changed_count varint (<= MAX_ACTORS), then per changed actor, ascending by id: id varint (the first's id, then the gap),
-//!     mask varint, then per mask bit: 0 x u16  1 y u16  2 facing u16  3 kit u8  4 hp_pct u8  5 bounty varint  6 status u8
-//!     7 kind u8  8 effects u16  9 displacement u8  10 mob_type_code u8 (0..=30)  11 sig u8. A NEW actor (not in the base) starts from the default actor and must carry bits 0..=2 (its position).
+//!     mask varint, then per mask bit (v15 order): 0 x  1 y  (u16 each, or i8 each when bit 3 is set)  2 facing u8 (top byte of the angle code)
+//!     3 STEP (no data: x and y, whichever bits 0/1 carry, are signed i8 steps of 1/8 u added to the base actor's grid position;
+//!     needs bit 0 or 1; illegal for a NEW actor)  4 hp_pct u8  5 bounty varint  6 status u8
+//!     7 kind u8  8 effects u16  9 displacement u8  10 mob_type_code u8 (0..=30)  11 sig u8  12 barrier_pct u8 + ring step u8
+//!     13 windup (v15): kind u8 (0 = the windup ended; 1/2 then the same fields as the Full record)  14 kit u8
+//!     A NEW actor (not in the base) starts from the default actor and must carry bits 0..=2 (its absolute position).
 //!   [departed_count varint (1..=MAX_ACTORS), then the ids: the first's id, then gaps]    only with head bit 7
 //! ```
 //!
@@ -119,7 +138,7 @@
 //! announcements) and Fx (droppable). Anything else the client needs to KEEP (collections, match-level state) is KEYED STATE:
 //! `State 0x88, tick varint, count varint, then per item [key varint][record]`, the latest value per key, the record layout
 //! defined by the key. Keys are unique and ascending: 1 self inventory, 2 props/focus, 3 visible fields,
-//! 4 reward offers, 5 self build, 6 camp summaries, 7 visible projectiles, 8 the viewer's own plan, 9 the public arena
+//! 4 reward offers, 5 self build, 6 camp summaries, 7 visible projectile tracks (v15), 8 the viewer's own plan, 9 the public arena
 //! lifecycle, 10 the viewer's quest view (explicitly unavailable when disabled).
 //! Each is a complete replacement; missing keys retain their last value. Module [`state`]
 //! defines strict bounds and record layouts. Welcome (join and resume) is followed by all eleven keys, even empty,
@@ -169,7 +188,7 @@ pub use encode::{encode_welcome, encode_welcome_into, WelcomeHeader, WELCOME_HEA
 pub use ground::GroundMode;
 
 /// Bump on any incompatible change (a new tag or field in an existing message). Both ends refuse another major version.
-pub const PROTOCOL_VERSION: u16 = 14;
+pub const PROTOCOL_VERSION: u16 = 15;
 /// Milliseconds per server tick (20 Hz). A Snapshot carries `tick` only: its server time is `tick * TICK_MS` exactly.
 pub const TICK_MS: u32 = 50;
 
@@ -337,6 +356,22 @@ pub enum WireCommand {
         kind: WireTradeKind,
         pick: u8,
     },
+    /// Protocol 15, tag 19: [`WireCommand::Move`] plus `t`, the client's estimate of the server sim time (ms) at which it
+    /// issued the order (its render clock WITHOUT the interpolation delay; clamped server side). Body: the Move payload,
+    /// then a required finite f64.
+    MoveAt {
+        x: f32,
+        y: f32,
+        seq: Option<u8>,
+        t: f64,
+    },
+    /// Protocol 15, tag 20: [`WireCommand::AttackMove`] with the same stamp and layout as [`WireCommand::MoveAt`].
+    AttackMoveAt {
+        x: f32,
+        y: f32,
+        seq: Option<u8>,
+        t: f64,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -470,6 +505,64 @@ pub struct WireWishCast {
     pub lands_at: f64,
 }
 
+/// Protocol 15: a visible remote actor's ranged windup in progress (the legacy public bow `drawStartedAt` and wand
+/// `windup` fx). Kind 1 is a bow draw (no aim: the draw follows the actor's public facing), kind 2 a wand cast with the
+/// aim it started with. Times are server milliseconds: `started_at` floored, `duration` the whole milliseconds from it to
+/// the release (rounded up). Presentation only: the release itself, its target and its outcome stay on the server.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct WireWindup {
+    /// 1 bow draw, 2 wand cast. 0 is "none" and is never inside a present record.
+    pub kind: u8,
+    pub started_at: u32,
+    pub duration: u16,
+    /// Cast only: the aim angle code ([`quant::quantize_facing`]); 0 for a draw.
+    pub aim: u16,
+}
+
+/// Windup kind codes.
+pub const WINDUP_DRAW: u8 = 1;
+pub const WINDUP_CAST: u8 = 2;
+
+impl WireWindup {
+    /// A present record: a known kind, and an aim only on a cast.
+    pub fn valid(&self) -> bool {
+        match self.kind {
+            WINDUP_DRAW => self.aim == 0,
+            WINDUP_CAST => true,
+            _ => false,
+        }
+    }
+    /// Bytes of a present record after its mask bit (or after the delta's kind byte for kind 0).
+    pub(crate) fn len(&self) -> usize {
+        1 + codec::varint_len(self.started_at)
+            + codec::varint_len(u32::from(self.duration))
+            + 2 * usize::from(self.kind == WINDUP_CAST)
+    }
+    pub(crate) fn write(&self, w: &mut Writer) {
+        w.u8(self.kind);
+        w.varint(self.started_at);
+        w.varint(u32::from(self.duration));
+        if self.kind == WINDUP_CAST {
+            w.u16(self.aim);
+        }
+    }
+    /// The fields after an already-read nonzero kind byte.
+    pub(crate) fn read_after_kind(r: &mut Reader, kind: u8) -> Result<Self, DecodeError> {
+        if kind != WINDUP_DRAW && kind != WINDUP_CAST {
+            return Err(DecodeError::BadField("windup"));
+        }
+        let started_at = r.varint()?;
+        let duration = varint_u16(r, "windup")?;
+        let aim = if kind == WINDUP_CAST { r.u16()? } else { 0 };
+        Ok(Self {
+            kind,
+            started_at,
+            duration,
+            aim,
+        })
+    }
+}
+
 /// A public, quantized point carried by a Wish cue.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct WirePoint {
@@ -503,15 +596,17 @@ pub struct WireActor {
     pub barrier_pct: u8,
     /// Source-derived barrier ring step in 0..=8.
     pub barrier_ring_step: u8,
+    /// Protocol 15: the actor's ranged windup, only while one is in progress.
+    pub windup: Option<WireWindup>,
 }
 
 impl WireActor {
-    /// What a client decodes after this actor went over the wire (positions to 1/8 u, facing to 2 pi / 65536).
+    /// What a client decodes after this actor went over the wire (positions to 1/8 u, facing to 2 pi / 256).
     pub fn quantized(&self) -> WireActor {
         WireActor {
             x: quant::dequantize_pos(quant::quantize_pos(self.x)),
             y: quant::dequantize_pos(quant::quantize_pos(self.y)),
-            facing: quant::dequantize_facing(quant::quantize_facing(self.facing)),
+            facing: quant::dequantize_facing(quant::quantize_facing_remote(self.facing)),
             ..*self
         }
     }
@@ -777,6 +872,8 @@ const C_PLAN: u8 = 14;
 const C_CAST: u8 = 16;
 const C_QUEST_ACCEPT: u8 = 17;
 const C_TRADE: u8 = 18;
+const C_MOVE_AT: u8 = 19;
+const C_ATTACK_MOVE_AT: u8 = 20;
 
 impl ClientMsg {
     /// The protocol version a Hello frame announces, read from its first three bytes (`[0x01][protocol u16]`) and nothing
@@ -959,6 +1056,18 @@ impl ClientMsg {
                         C_STOP => WireCommand::Stop {
                             seq: r.opt(|r| r.u8())?,
                         },
+                        C_MOVE_AT => WireCommand::MoveAt {
+                            x: r.f32()?,
+                            y: r.f32()?,
+                            seq: r.opt(|r| r.u8())?,
+                            t: r.f64()?,
+                        },
+                        C_ATTACK_MOVE_AT => WireCommand::AttackMoveAt {
+                            x: r.f32()?,
+                            y: r.f32()?,
+                            seq: r.opt(|r| r.u8())?,
+                            t: r.f64()?,
+                        },
                         C_AIM => WireCommand::Aim { a: r.f32()? },
                         C_ATTACK => WireCommand::Attack {
                             a: r.f32()?,
@@ -1032,7 +1141,11 @@ pub(crate) const AM_DISPLACE: u32 = 1 << 6;
 pub(crate) const AM_MOB_TYPE: u32 = 1 << 7;
 pub(crate) const AM_SIG: u32 = 1 << 8;
 pub(crate) const AM_BARRIER: u32 = 1 << 9;
-pub(crate) const AM_KNOWN: u32 = AM_KIT
+/// Protocol 15: a ranged windup record follows ([`WireWindup`]: kind u8 1..=2, started_at varint, duration varint, aim u16
+/// on a cast).
+pub(crate) const AM_WINDUP: u32 = 1 << 10;
+pub(crate) const AM_KNOWN: u32 = AM_WINDUP
+    | AM_KIT
     | AM_HP
     | AM_STATUS
     | AM_BOUNTY
@@ -1289,7 +1402,14 @@ fn read_actor(r: &mut Reader, prev: Option<u32>) -> Result<WireActor, DecodeErro
     } else {
         (DEFAULT_BARRIER_PCT, DEFAULT_BARRIER_RING_STEP)
     };
+    let windup = if mask & AM_WINDUP != 0 {
+        let kind = r.u8()?;
+        Some(WireWindup::read_after_kind(r, kind)?)
+    } else {
+        None
+    };
     Ok(WireActor {
+        windup,
         mob_type_code,
         effects,
         displace_seq,

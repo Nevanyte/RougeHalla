@@ -17,8 +17,8 @@
 
 use super::{
     actor_looks_bad, giver_actor_fault, head_len, head_word, id_field, kit, list, owner_combat_len,
-    self_len, snapshot_fault, write_owner_combat, write_snapshot_head, Fixed, SnapshotHeader,
-    MAX_ACTOR_LEN,
+    self_len, snapshot_fault, write_owner_combat, write_snapshot_head, write_windup, Fixed,
+    SnapshotHeader, MAX_ACTOR_LEN, MAX_WINDUP_LEN,
 };
 use crate::codec::{varint_len, DecodeError, EncodeError, Reader, Writer};
 use crate::*;
@@ -82,7 +82,9 @@ pub const DH_TRAINING: u32 = 1 << 20;
 pub const AD_X: u32 = 1 << 0;
 pub const AD_Y: u32 = 1 << 1;
 pub const AD_FACING: u32 = 1 << 2;
-pub const AD_KIT: u32 = 1 << 3;
+/// Protocol 15: x and y, whichever of bits 0 and 1 are set, are signed `i8` steps of 1/8 u from the base actor's position
+/// instead of absolute `u16` grid positions (the decoded position is the same grid value either way). Has no data of its own.
+pub const AD_STEP: u32 = 1 << 3;
 pub const AD_HP: u32 = 1 << 4;
 pub const AD_BOUNTY: u32 = 1 << 5;
 pub const AD_STATUS: u32 = 1 << 6;
@@ -94,7 +96,11 @@ pub const AD_MOB_TYPE: u32 = 1 << 10;
 pub const AD_SIG: u32 = 1 << 11;
 /// Source barrier share and ring pair (protocol 12).
 pub const AD_BARRIER: u32 = 1 << 12;
-pub const AD_ALL: u32 = 0x1fff;
+/// Protocol 15: the ranged windup changed. A kind byte follows: 0 ends it, 1/2 carry the [`WireWindup`] fields.
+pub const AD_WINDUP: u32 = 1 << 13;
+/// Protocol 15: moved up from bit 3 so the bits a moving actor sets (x y facing step hp) stay in the one-byte mask.
+pub const AD_KIT: u32 = 1 << 14;
+pub const AD_ALL: u32 = 0x7fff;
 /// What a new actor (one the base does not hold) must carry: its position. Every other field starts at its default.
 pub const AD_NEW: u32 = AD_X | AD_Y | AD_FACING;
 
@@ -110,7 +116,7 @@ const MAX_SELF_DELTA: usize = 20 + 1 + 2 + 9 + 1 + 1 + 1 + 2 + 1 + 1 + 5 + 3 + 5
 const MAX_DELTA_HEAD: usize =
     1 + 5 + 1 + 5 + 5 + MAX_SELF_DELTA + 8 + 3 + 1 + 1 + 5 + 8 + 8 + 8 + 8;
 /// Largest changed-actor record: id 5, mask 2, x/y/facing 6, kit/hp, bounty 3, status/kind, effects 2, displacement/mob type/sig.
-const MAX_ACTOR_DELTA: usize = 5 + 2 + 6 + 1 + 1 + 3 + 1 + 1 + 2 + 1 + 1 + 1 + 2;
+const MAX_ACTOR_DELTA: usize = 5 + 3 + 6 + 1 + 1 + 3 + 1 + 1 + 2 + 1 + 1 + 1 + 2 + MAX_WINDUP_LEN;
 
 fn optional_f64_bits_equal(a: Option<f64>, b: Option<f64>) -> bool {
     match (a, b) {
@@ -152,7 +158,7 @@ pub struct QActor {
     /// Position on the 1/8 u grid ([`quant::quantize_pos`]).
     pub x: u16,
     pub y: u16,
-    /// Angle code ([`quant::quantize_facing`]).
+    /// Remote angle code ([`quant::quantize_facing_remote`]): the 8-bit code in the high byte, the low byte always 0.
     pub facing: u16,
     /// Faction in the low nibble, weapon in the high one.
     pub kit: u8,
@@ -167,6 +173,8 @@ pub struct QActor {
     pub mob_type_code: u8,
     pub barrier_pct: u8,
     pub barrier_ring_step: u8,
+    /// Protocol 15 windup; kind 0 means none (every other field then 0).
+    pub windup: WireWindup,
 }
 
 impl QActor {
@@ -187,6 +195,12 @@ impl QActor {
         sig: 0,
         barrier_pct: 0,
         barrier_ring_step: 0,
+        windup: WireWindup {
+            kind: 0,
+            started_at: 0,
+            duration: 0,
+            aim: 0,
+        },
     };
 
     /// `a` checked and quantized: the first reason a decoder would reject the actor on its own (a faction, weapon or status over
@@ -208,7 +222,7 @@ impl QActor {
             id: a.id,
             x: quant::quantize_pos(a.x),
             y: quant::quantize_pos(a.y),
-            facing: quant::quantize_facing(a.facing),
+            facing: quant::quantize_facing_remote(a.facing),
             kit: kit(a.faction, a.weapon),
             hp_pct: a.hp_pct,
             status: a.status,
@@ -220,6 +234,7 @@ impl QActor {
             sig: a.sig,
             barrier_pct: a.barrier_pct,
             barrier_ring_step: a.barrier_ring_step,
+            windup: a.windup.unwrap_or_default(),
         }
     }
 
@@ -242,6 +257,7 @@ impl QActor {
             sig: self.sig,
             barrier_pct: self.barrier_pct,
             barrier_ring_step: self.barrier_ring_step,
+            windup: (self.windup.kind != 0).then_some(self.windup),
         }
     }
 
@@ -279,6 +295,9 @@ impl QActor {
         if self.barrier_pct != 0 || self.barrier_ring_step != 0 {
             m |= AM_BARRIER;
         }
+        if self.windup.kind != 0 {
+            m |= AM_WINDUP;
+        }
         m
     }
 
@@ -302,6 +321,11 @@ impl QActor {
             + (self.mob_type_code != 0) as usize
             + (self.sig != 0) as usize
             + 2 * (self.barrier_pct != 0 || self.barrier_ring_step != 0) as usize
+            + if self.windup.kind != 0 {
+                self.windup.len()
+            } else {
+                0
+            }
     }
 }
 
@@ -345,6 +369,9 @@ fn write_full_actor(out: &mut Writer, q: &QActor, prev: Option<u32>) {
     if m & AM_BARRIER != 0 {
         w.u8(q.barrier_pct);
         w.u8(q.barrier_ring_step);
+    }
+    if m & AM_WINDUP != 0 {
+        write_windup(&mut w, &q.windup);
     }
     w.put(out);
 }
@@ -855,7 +882,6 @@ fn actor_delta_mask(p: &QActor, q: &QActor) -> u32 {
     (p.x != q.x) as u32
         | ((p.y != q.y) as u32) << 1
         | ((p.facing != q.facing) as u32) << 2
-        | ((p.kit != q.kit) as u32) << 3
         | ((p.hp_pct != q.hp_pct) as u32) << 4
         | ((p.bounty != q.bounty) as u32) << 5
         | ((p.status != q.status) as u32) << 6
@@ -866,6 +892,34 @@ fn actor_delta_mask(p: &QActor, q: &QActor) -> u32 {
         | ((p.sig != q.sig) as u32) << 11
         | ((p.barrier_pct != q.barrier_pct || p.barrier_ring_step != q.barrier_ring_step) as u32)
             << 12
+        | ((p.windup != q.windup) as u32) << 13
+        | ((p.kit != q.kit) as u32) << 14
+}
+
+/// The `i8` steps (in 1/8 u) from `p`'s grid position to `q`'s for the position bits of `mask`, when every carried component
+/// fits: the wire then sends [`AD_STEP`] and one byte per component instead of two. The decoded position is `q`'s exactly.
+#[inline]
+fn position_steps(p: &QActor, q: &QActor, mask: u32) -> Option<(i8, i8)> {
+    if mask & (AD_X | AD_Y) == 0 {
+        return None;
+    }
+    let dx = if mask & AD_X != 0 {
+        i8::try_from(i32::from(q.x) - i32::from(p.x)).ok()?
+    } else {
+        0
+    };
+    let dy = if mask & AD_Y != 0 {
+        i8::try_from(i32::from(q.y) - i32::from(p.y)).ok()?
+    } else {
+        0
+    };
+    Some((dx, dy))
+}
+
+/// `base` moved by the step `step` (an `i16` holding an `i8` value), if that stays on the grid.
+#[inline]
+fn stepped(base: u16, step: u16) -> Option<u16> {
+    u16::try_from(i32::from(base) + i32::from(step as i16)).ok()
 }
 
 /// The mask of a NEW actor: its position, and every other field that is not the default.
@@ -924,30 +978,34 @@ fn write_delta(
             departed.push(b[i].id);
             i += 1;
         }
-        let mask = if i < b.len() && b[i].id == q.id {
+        let (mask, steps) = if i < b.len() && b[i].id == q.id {
             let m = actor_delta_mask(&b[i], q);
+            let steps = position_steps(&b[i], q, m);
             i += 1;
             if m == 0 {
                 continue;
             }
-            m
+            (m | if steps.is_some() { AD_STEP } else { 0 }, steps)
         } else {
-            new_actor_mask(q)
+            (new_actor_mask(q), None)
         };
         let mut w = Fixed::<MAX_ACTOR_DELTA>::new();
         w.varint(if changed == 0 { q.id } else { q.id - last });
         w.varint(mask);
         if mask & AD_X != 0 {
-            w.u16(q.x);
+            match steps {
+                Some((dx, _)) => w.u8(dx as u8),
+                None => w.u16(q.x),
+            }
         }
         if mask & AD_Y != 0 {
-            w.u16(q.y);
+            match steps {
+                Some((_, dy)) => w.u8(dy as u8),
+                None => w.u16(q.y),
+            }
         }
         if mask & AD_FACING != 0 {
-            w.u16(q.facing);
-        }
-        if mask & AD_KIT != 0 {
-            w.u8(q.kit);
+            w.u8((q.facing >> 8) as u8);
         }
         if mask & AD_HP != 0 {
             w.u8(q.hp_pct);
@@ -976,6 +1034,16 @@ fn write_delta(
         if mask & AD_BARRIER != 0 {
             w.u8(q.barrier_pct);
             w.u8(q.barrier_ring_step);
+        }
+        if mask & AD_WINDUP != 0 {
+            if q.windup.kind == 0 {
+                w.u8(0);
+            } else {
+                write_windup(&mut w, &q.windup);
+            }
+        }
+        if mask & AD_KIT != 0 {
+            w.u8(q.kit);
         }
         put(out, &w);
         last = q.id;
@@ -1267,8 +1335,9 @@ impl SelfDelta {
     }
 }
 
-/// One changed remote actor of a delta: `mask` (bits [`AD_X`]..[`AD_KIND`]) says which fields of `q` are carried; the others
-/// are zero and mean nothing.
+/// One changed remote actor of a delta: `mask` (bits [`AD_X`]..[`AD_KIT`]) says which fields of `q` are carried; the others
+/// are zero and mean nothing. With [`AD_STEP`] set, `q.x` and `q.y` (where carried) hold the signed step from the base
+/// actor's grid position, as an `i16` bit pattern, not a position.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ActorDelta {
     pub mask: u32,
@@ -1279,11 +1348,23 @@ impl ActorDelta {
     /// This delta applied to the actor `base` (a decoded actor).
     pub fn apply(&self, base: &WireActor) -> WireActor {
         let mut a = *base;
+        // A step is added to the base's grid position (exact: the base came from the grid). `merge` has checked that it
+        // stays on the grid; applied directly, an off-grid result saturates.
+        let step = self.mask & AD_STEP != 0;
+        let place = |base: f32, v: u16| {
+            let q = if step {
+                let b = quant::quantize_pos(base);
+                stepped(b, v).unwrap_or(if (v as i16) < 0 { 0 } else { u16::MAX })
+            } else {
+                v
+            };
+            quant::dequantize_pos(q)
+        };
         if self.mask & AD_X != 0 {
-            a.x = quant::dequantize_pos(self.q.x);
+            a.x = place(base.x, self.q.x);
         }
         if self.mask & AD_Y != 0 {
-            a.y = quant::dequantize_pos(self.q.y);
+            a.y = place(base.y, self.q.y);
         }
         if self.mask & AD_FACING != 0 {
             a.facing = quant::dequantize_facing(self.q.facing);
@@ -1319,6 +1400,9 @@ impl ActorDelta {
         if self.mask & AD_BARRIER != 0 {
             a.barrier_pct = self.q.barrier_pct;
             a.barrier_ring_step = self.q.barrier_ring_step;
+        }
+        if self.mask & AD_WINDUP != 0 {
+            a.windup = (self.q.windup.kind != 0).then_some(self.q.windup);
         }
         a
     }
@@ -1364,12 +1448,15 @@ pub fn diff(base: &SnapshotData, cur: &SnapshotData) -> Option<SnapshotDelta> {
     for q in c {
         match b.binary_search_by_key(&q.id, |p| p.id) {
             Ok(i) => {
-                let mask = actor_delta_mask(&b[i], q);
+                let mut mask = actor_delta_mask(&b[i], q);
                 if mask != 0 {
-                    changed.push(ActorDelta {
-                        mask,
-                        q: mask_fields(q, mask),
-                    });
+                    let mut fields = mask_fields(q, mask);
+                    if let Some((dx, dy)) = position_steps(&b[i], q, mask) {
+                        mask |= AD_STEP;
+                        fields.x = i16::from(dx) as u16;
+                        fields.y = i16::from(dy) as u16;
+                    }
+                    changed.push(ActorDelta { mask, q: fields });
                 }
             }
             Err(_) => {
@@ -1468,6 +1555,11 @@ fn mask_fields(q: &QActor, mask: u32) -> QActor {
             q.barrier_ring_step
         } else {
             0
+        },
+        windup: if mask & AD_WINDUP != 0 {
+            q.windup
+        } else {
+            WireWindup::default()
         },
     }
 }
@@ -1578,17 +1670,23 @@ pub(crate) fn write_message(w: &mut Writer, d: &SnapshotDelta) {
         w.varint(id_field(a.q.id, prev));
         prev = Some(a.q.id);
         w.varint(a.mask & AD_ALL);
+        let step = a.mask & AD_STEP != 0;
         if a.mask & AD_X != 0 {
-            w.u16(a.q.x);
+            if step {
+                w.u8(a.q.x as u8);
+            } else {
+                w.u16(a.q.x);
+            }
         }
         if a.mask & AD_Y != 0 {
-            w.u16(a.q.y);
+            if step {
+                w.u8(a.q.y as u8);
+            } else {
+                w.u16(a.q.y);
+            }
         }
         if a.mask & AD_FACING != 0 {
-            w.u16(a.q.facing);
-        }
-        if a.mask & AD_KIT != 0 {
-            w.u8(a.q.kit);
+            w.u8((a.q.facing >> 8) as u8);
         }
         if a.mask & AD_HP != 0 {
             w.u8(a.q.hp_pct);
@@ -1617,6 +1715,16 @@ pub(crate) fn write_message(w: &mut Writer, d: &SnapshotDelta) {
         if a.mask & AD_BARRIER != 0 {
             w.u8(a.q.barrier_pct);
             w.u8(a.q.barrier_ring_step);
+        }
+        if a.mask & AD_WINDUP != 0 {
+            if a.q.windup.kind == 0 {
+                w.u8(0);
+            } else {
+                a.q.windup.write(w);
+            }
+        }
+        if a.mask & AD_KIT != 0 {
+            w.u8(a.q.kit);
         }
     }
     if !d.departed.is_empty() {
@@ -1689,6 +1797,12 @@ pub(crate) fn message_check(d: &SnapshotDelta) -> Result<(), EncodeError> {
         if a.mask & !AD_ALL != 0 {
             return bad("actor mask");
         }
+        if a.mask & AD_STEP != 0 {
+            let fits = |bit, v: u16| a.mask & bit == 0 || i8::try_from(v as i16).is_ok();
+            if a.mask & (AD_X | AD_Y) == 0 || !fits(AD_X, a.q.x) || !fits(AD_Y, a.q.y) {
+                return bad("position step");
+            }
+        }
         if a.mask & AD_STATUS != 0 && a.q.status > MAX_STATUS_CODE {
             return bad("status");
         }
@@ -1700,6 +1814,9 @@ pub(crate) fn message_check(d: &SnapshotDelta) -> Result<(), EncodeError> {
         }
         if a.mask & AD_BARRIER != 0 && (a.q.barrier_pct > 100 || a.q.barrier_ring_step > 8) {
             return bad("barrier");
+        }
+        if a.mask & AD_WINDUP != 0 && a.q.windup != WireWindup::default() && !a.q.windup.valid() {
+            return bad("windup");
         }
         if prev.is_some_and(|p| a.q.id <= p) {
             return bad("actor order");
@@ -1839,21 +1956,30 @@ pub(crate) fn read_snapshot_delta(r: &mut Reader) -> Result<SnapshotDelta, Decod
         if mask & !AD_ALL != 0 {
             return Err(DecodeError::BadField("actor mask"));
         }
+        let step = mask & AD_STEP != 0;
+        if step && mask & (AD_X | AD_Y) == 0 {
+            return Err(DecodeError::BadField("position step"));
+        }
         let mut q = QActor {
             id,
             ..QActor::default()
         };
         if mask & AD_X != 0 {
-            q.x = r.u16()?;
+            q.x = if step {
+                i16::from(r.u8()? as i8) as u16
+            } else {
+                r.u16()?
+            };
         }
         if mask & AD_Y != 0 {
-            q.y = r.u16()?;
+            q.y = if step {
+                i16::from(r.u8()? as i8) as u16
+            } else {
+                r.u16()?
+            };
         }
         if mask & AD_FACING != 0 {
-            q.facing = r.u16()?;
-        }
-        if mask & AD_KIT != 0 {
-            q.kit = r.u8()?;
+            q.facing = u16::from(r.u8()?) << 8;
         }
         if mask & AD_HP != 0 {
             q.hp_pct = r.u8()?;
@@ -1888,6 +2014,15 @@ pub(crate) fn read_snapshot_delta(r: &mut Reader) -> Result<SnapshotDelta, Decod
             if q.barrier_pct > 100 || q.barrier_ring_step > 8 {
                 return Err(DecodeError::BadField("barrier"));
             }
+        }
+        if mask & AD_WINDUP != 0 {
+            let kind = r.u8()?;
+            if kind != 0 {
+                q.windup = WireWindup::read_after_kind(r, kind)?;
+            }
+        }
+        if mask & AD_KIT != 0 {
+            q.kit = r.u8()?;
         }
         changed.push(ActorDelta { mask, q });
     }
@@ -1957,6 +2092,8 @@ pub enum DeltaError {
     /// A reconstructed kind-4 actor does not carry the contextual Neutral/None tuple.
     InvalidGiverActor(u32),
     InvalidOwnerCombat,
+    /// A position step on a new actor, or one that leaves the 1/8 u grid.
+    PositionStep(u32),
 }
 
 impl DeltaError {
@@ -1972,6 +2109,7 @@ impl DeltaError {
             DeltaError::TooManyActors(_) => "too_many_actors",
             DeltaError::InvalidGiverActor(_) => "giver_actor",
             DeltaError::InvalidOwnerCombat => "owner_combat",
+            DeltaError::PositionStep(_) => "position_step",
         }
     }
 }
@@ -2210,11 +2348,23 @@ impl SnapshotTracker {
                 if di < dep.len() && dep[di] == ch.q.id {
                     return Err(DeltaError::DepartedAndChanged(ch.q.id));
                 }
+                if ch.mask & AD_STEP != 0 {
+                    let on_grid = |bit, v: u16, at: f32| {
+                        ch.mask & bit == 0 || stepped(quant::quantize_pos(at), v).is_some()
+                    };
+                    if !on_grid(AD_X, ch.q.x, base[bi].x) || !on_grid(AD_Y, ch.q.y, base[bi].y) {
+                        return Err(DeltaError::PositionStep(ch.q.id));
+                    }
+                }
                 out.push(ch.apply(&base[bi]));
                 bi += 1;
             } else {
                 if ch.mask & AD_NEW != AD_NEW {
                     return Err(DeltaError::IncompleteNewActor(ch.q.id));
+                }
+                if ch.mask & AD_STEP != 0 {
+                    // A step needs a base position; a new actor has none.
+                    return Err(DeltaError::PositionStep(ch.q.id));
                 }
                 // A new actor starts from the default one: the fields it does not carry are at their defaults.
                 let start = QActor {

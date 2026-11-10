@@ -4,8 +4,9 @@
 //! held to the same quantization, not just to the same bytes.
 
 use crate::delta::{
-    AD_ALL, AD_BOUNTY, AD_HP, AD_KIND, AD_KIT, AD_NEW, AD_STATUS, AD_X, DH_DEPARTED, DH_GV, DH_HP,
-    DH_KILLS, DH_MOVE_SEQ, DH_OWNER_COMBAT, DH_PHASE, DH_PRESENT, DH_STATUS, DH_X, DH_Y,
+    AD_ALL, AD_BOUNTY, AD_HP, AD_KIND, AD_KIT, AD_NEW, AD_STATUS, AD_STEP, AD_X, AD_Y, DH_DEPARTED,
+    DH_GV, DH_HP, DH_KILLS, DH_MOVE_SEQ, DH_OWNER_COMBAT, DH_PHASE, DH_PRESENT, DH_STATUS, DH_X,
+    DH_Y,
 };
 use crate::map::MapBlob;
 use crate::state::{
@@ -210,6 +211,27 @@ pub fn client_samples() -> Vec<(&'static str, ClientMsg)> {
                 ],
             },
         ),
+        // Protocol 15: the issue-time stamped orders (commands 19 and 20).
+        (
+            "input_stamped_moves",
+            ClientMsg::Input {
+                seq: 43,
+                commands: vec![
+                    WireCommand::MoveAt {
+                        x: 1234.5,
+                        y: -0.25,
+                        seq: Some(8),
+                        t: 98765.25,
+                    },
+                    WireCommand::AttackMoveAt {
+                        x: 0.5,
+                        y: 2047.75,
+                        seq: None,
+                        t: 0.125,
+                    },
+                ],
+            },
+        ),
         (
             "ping",
             ClientMsg::Ping {
@@ -390,13 +412,25 @@ fn state_sample() -> ServerMsg {
             }]),
             StateItem::Projectiles(vec![
                 WireProjectile {
+                    track: 1,
                     kind: 0,
                     x: 800,
                     y: 900,
                     facing: 12345,
-                    owner: Some(1)
-                };
-                2
+                    speed: 3040,
+                    tick: 200,
+                    owner: Some(1),
+                },
+                WireProjectile {
+                    track: 2,
+                    kind: 0,
+                    x: 800,
+                    y: 900,
+                    facing: 12345,
+                    speed: 3040,
+                    tick: 200,
+                    owner: Some(1),
+                },
             ]),
             StateItem::Plan(None),
             StateItem::Arena(None),
@@ -668,10 +702,13 @@ fn state_all_max_budget() -> ServerMsg {
         .collect();
     let projectiles = (0..512)
         .map(|i| WireProjectile {
+            track: u32::MAX - 511 + i,
             kind: 1,
             x: u16::MAX,
             y: u16::MAX,
             facing: u16::MAX,
+            speed: u16::MAX,
+            tick: u32::MAX,
             owner: Some(u32::MAX - i),
         })
         .collect();
@@ -1169,7 +1206,65 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     sig: 29,
                     barrier_pct: 11,
                     barrier_ring_step: 2,
+                    windup: None,
                 }],
+            },
+        ),
+        (
+            // Protocol 15: a bow draw (no aim) and a wand cast (aim code) on two visible actors, plus one at rest.
+            "snapshot_windups",
+            ServerMsg::Snapshot {
+                training: false,
+                owner_combat: None,
+                tick: 40,
+                server_time: snapshot_server_ms(40),
+                phase: 1,
+                ack_input: 3,
+                me: None,
+                actors: vec![
+                    WireActor {
+                        id: 2,
+                        faction: 1,
+                        weapon: 3,
+                        x: 100.5,
+                        y: 200.25,
+                        facing: 1.0,
+                        hp_pct: 100,
+                        status: 1,
+                        windup: Some(WireWindup {
+                            kind: WINDUP_DRAW,
+                            started_at: 1950,
+                            duration: 550,
+                            aim: 0,
+                        }),
+                        ..WireActor::default()
+                    },
+                    WireActor {
+                        id: 3,
+                        faction: 2,
+                        weapon: 4,
+                        x: 300.0,
+                        y: 40.0,
+                        facing: -2.0,
+                        hp_pct: 64,
+                        status: 1,
+                        windup: Some(WireWindup {
+                            kind: WINDUP_CAST,
+                            started_at: u32::MAX,
+                            duration: u16::MAX,
+                            aim: 0xfedc,
+                        }),
+                        ..WireActor::default()
+                    },
+                    WireActor {
+                        id: 4,
+                        x: 8.0,
+                        y: 8.0,
+                        hp_pct: 100,
+                        status: 1,
+                        ..WireActor::default()
+                    },
+                ],
             },
         ),
         (
@@ -1922,7 +2017,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                         },
                     },
                     ActorDelta {
-                        mask: AD_ALL,
+                        mask: AD_ALL & !AD_STEP,
                         q: QActor {
                             sig: 0,
                             mob_type_code: 0,
@@ -3080,21 +3175,39 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ),
         ("potion_notice_unknown", vec![0x84, 0, 0, 0, 0, 1, 0, 7, 11]),
         ("state_too_many_projectiles", vec![0x88, 0, 1, 7, 0x81, 4]),
+        // Protocol 15 rows: track varint, kind, x, y, facing, speed (u16 each), anchor tick varint, optional owner.
         (
             "projectile_kind",
-            vec![0x88, 0, 1, 7, 1, 2, 0, 0, 0, 0, 0, 0, 0],
+            vec![0x88, 0, 1, 7, 1, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         ),
         (
             "projectile_owner_zero",
-            vec![0x88, 0, 1, 7, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+            vec![0x88, 0, 1, 7, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
         ),
         (
             "projectile_owner_flag",
-            vec![0x88, 0, 1, 7, 1, 0, 0, 0, 0, 0, 0, 0, 2],
+            vec![0x88, 0, 1, 7, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
         ),
         (
             "projectile_owner_overlong",
-            vec![0x88, 0, 1, 7, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0x81, 0],
+            vec![
+                0x88, 0, 1, 7, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0x81, 0,
+            ],
+        ),
+        (
+            "projectile_track_zero",
+            vec![0x88, 0, 1, 7, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        ),
+        (
+            "projectile_tracks_not_ascending",
+            vec![
+                0x88, 0, 1, 7, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0,
+            ],
+        ),
+        (
+            "projectile_tick_overlong",
+            vec![0x88, 0, 1, 7, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x80, 0, 0],
         ),
         ("state_too_many_camps", vec![0x88, 0, 1, 6, 0x81, 4]),
         ("camp_mob_type", camp_bytes(30, 0, 0, 0, 0., 0.)),
@@ -3294,7 +3407,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ("actor_count_without_actors", snapshot_bytes(0, &[], 1, &[])),
         (
             "actor_reserved_mask_bit",
-            snapshot_bytes(0, &[], 1, &actor_bytes(0x400, &[])),
+            snapshot_bytes(0, &[], 1, &actor_bytes(0x800, &[])),
         ),
         (
             "actor_id_gap_zero",
@@ -3343,10 +3456,27 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
             "actor_mask_overlong_varint",
             snapshot_bytes(0, &[], 1, &[1, 0x80, 0x00, 0, 0, 0, 0, 0, 0]),
         ),
-        // Kind and status/displacement bits are known; bit 9 is not.
+        // Bits 0..=10 are known (10 is the protocol-15 windup); bit 11 is not.
         (
             "actor_unknown_mask_bit_after_kind",
-            snapshot_bytes(0, &[], 1, &actor_bytes(1 << 10, &[])),
+            snapshot_bytes(0, &[], 1, &actor_bytes(1 << 11, &[])),
+        ),
+        // A present windup record carries kind 1 (draw) or 2 (cast) only.
+        (
+            "actor_windup_kind_zero",
+            snapshot_bytes(0, &[], 1, &actor_bytes(1 << 10, &[0, 0, 0])),
+        ),
+        (
+            "actor_windup_kind_three",
+            snapshot_bytes(0, &[], 1, &actor_bytes(1 << 10, &[3, 0, 0, 0, 0])),
+        ),
+        (
+            "actor_windup_duration_over_u16",
+            snapshot_bytes(0, &[], 1, &actor_bytes(1 << 10, &[1, 0, 0x80, 0x80, 0x04])),
+        ),
+        (
+            "actor_windup_cast_truncated_aim",
+            snapshot_bytes(0, &[], 1, &actor_bytes(1 << 10, &[2, 0, 0, 0])),
         ),
         (
             "actor_hp_over_100",
@@ -3673,6 +3803,7 @@ fn wa(id: u32, x: f32, y: f32, hp_pct: u8, status: u8) -> WireActor {
         kind: 0,
         barrier_pct: 0,
         barrier_ring_step: 0,
+        windup: None,
     }
 }
 
@@ -3807,6 +3938,114 @@ pub fn chain_samples() -> Vec<(&'static str, Vec<ChainStep>)> {
             prior = Some(data);
         }
         chains.push(("union_training_hunt_clear", steps));
+    }
+
+    // Protocol 15 position steps through the real writer: i8 steps at their edges (+127, -128 step; +128, -129 absolute), one
+    // axis alone, both axes (one out of range makes both absolute), facing alone (no step), an actor at the grid edge and an
+    // arrival. Every frame is the reference writer's bytes and resolves to the exact Full snapshot.
+    {
+        let mut encoder = ConnEncoder::new();
+        let mut tracker = SnapshotTracker::new();
+        let mut prior: Option<SnapshotData> = None;
+        let mut steps = Vec::new();
+        let grid = |q: u16| f32::from(q) / 8.0;
+        // (tick, actor 1 x grid code, y grid code, facing, actor 2 x grid code, actor 3 present)
+        for (tick, x, y, facing, edge, third) in [
+            (1u32, 800u16, 800u16, 0.5f32, 65535u16, false),
+            (2, 800 + 127, 800, 0.5, 65534, false),
+            (3, 800 + 127 + 128, 800, 0.5, 65534, false),
+            (4, 800 + 127, 800, 0.5, 65534, true),
+            (5, 800 - 2, 800, 0.5, 65534, true),
+            (6, 800 - 2, 801, 0.5, 65534, true),
+            (7, 800 + 3, 801 - 127, 0.5, 65534, true),
+            (8, 800 + 4, 801 + 73, 0.5, 65534, true),
+            (9, 800 + 4, 801 + 73, 2.5, 65534, true),
+        ] {
+            let mut actors = vec![
+                wa(1, grid(x), grid(y), 100, 1),
+                wa(2, grid(edge), 0.0, 100, 1),
+            ];
+            actors[0].facing = facing;
+            if third {
+                actors.push(wa(3, 7.0, 9.0, 100, 1));
+            }
+            let data = snap(tick, 1, tick, Some(chain_self(400.0)), &actors);
+            let (frame, kind) = encoder.encode_frame(data.clone());
+            assert_eq!(
+                kind,
+                if tick == 1 {
+                    FrameKind::Full
+                } else {
+                    FrameKind::Delta
+                }
+            );
+            if let Some(base) = &prior {
+                let reference = ServerMsg::SnapshotDelta(delta::diff(base, &data).unwrap());
+                assert_eq!(reference.encode(), frame, "fast and reference step agree");
+            }
+            let got = tracker.decode(&frame).unwrap();
+            assert_eq!(got, data.decoded());
+            steps.push(ChainStep {
+                frame,
+                outcome: ChainOutcome::Applied(got),
+            });
+            prior = Some(data);
+        }
+        chains.push(("position_steps", steps));
+    }
+
+    // Protocol 15 windups through the real writer: a draw starts, is pushed later (a chill), turns into nothing, and a cast
+    // appears on a new actor in the same delta.
+    {
+        let mut encoder = ConnEncoder::new();
+        let mut tracker = SnapshotTracker::new();
+        let mut steps = Vec::new();
+        let draw = |started_at| WireWindup {
+            kind: WINDUP_DRAW,
+            started_at,
+            duration: 550,
+            aim: 0,
+        };
+        for (tick, first, second) in [
+            (20, None, None),
+            (21, Some(draw(1000)), None),
+            (22, Some(draw(1013)), None),
+            (
+                23,
+                None,
+                Some(WireWindup {
+                    kind: WINDUP_CAST,
+                    started_at: 1150,
+                    duration: 450,
+                    aim: 0x4000,
+                }),
+            ),
+        ] {
+            let mut actors = vec![wa(1, 10., 20., 100, 1)];
+            actors[0].windup = first;
+            if second.is_some() {
+                let mut other = wa(6, 50., 60., 90, 1);
+                other.windup = second;
+                actors.push(other);
+            }
+            let data = snap(tick, 1, tick, Some(chain_self(1.)), &actors);
+            let (frame, kind) = encoder.encode_frame(data.clone());
+            assert_eq!(
+                kind,
+                if tick == 20 {
+                    FrameKind::Full
+                } else {
+                    FrameKind::Delta
+                }
+            );
+            let got = tracker.decode(&frame).unwrap();
+            assert_eq!(got, data.decoded());
+            steps.push(ChainStep {
+                frame,
+                outcome: ChainOutcome::Applied(got),
+            });
+        }
+        chains.push(("windup_lifecycle", steps));
     }
 
     {
@@ -4445,6 +4684,53 @@ pub fn chain_samples() -> Vec<(&'static str, Vec<ChainStep>)> {
         },
         "incomplete_new_actor",
     ));
+    // A position step needs a base position: a new actor cannot carry one.
+    chains.push(refusal(
+        "delta_step_on_new_actor",
+        SnapshotDelta {
+            changed: vec![ActorDelta {
+                mask: AD_NEW | AD_STEP,
+                q: QActor {
+                    id: 7,
+                    x: 3,
+                    y: 2,
+                    status: 1,
+                    ..QActor::default()
+                },
+            }],
+            ..empty_delta()
+        },
+        "position_step",
+    ));
+    // A step that would leave the 1/8 u grid (actor 1 sits at x = 100 u, so 800 - 128 is fine, but a base near zero is not).
+    {
+        let near_zero = snap(
+            10,
+            1,
+            4,
+            Some(chain_self(400.0)),
+            &[wa(1, 5.0, 100.0, 100, 1)],
+        );
+        let mut t = SnapshotTracker::new();
+        let base = applied(&mut t, full_frame(&near_zero));
+        let bad = refused(
+            &mut t,
+            delta_message(SnapshotDelta {
+                changed: vec![ActorDelta {
+                    mask: AD_STEP | AD_X,
+                    q: QActor {
+                        id: 1,
+                        x: (-100i16) as u16,
+                        ..QActor::default()
+                    },
+                }],
+                ..empty_delta()
+            }),
+            "position_step",
+        );
+        let ok = applied(&mut t, delta_message(empty_delta()));
+        chains.push(("delta_step_off_grid", vec![base, bad, ok]));
+    }
     // More than MAX_ACTORS after applying: a base of MAX_ACTORS actors and one new one.
     {
         let crowd512: Vec<WireActor> = (0..MAX_ACTORS as u32)
@@ -4757,10 +5043,34 @@ pub fn malformed_deltas() -> Vec<(&'static str, Vec<u8>)> {
             delta_bytes(10, 1, DH_PRESENT | DH_STATUS, &[4, 0]),
         ),
         ("delta_phase_over_3", delta_bytes(10, 1, DH_PHASE, &[4, 0])),
-        // Actor delta bit 13 is not a field of this version.
+        // Actor delta bit 15 is not a field of this version (13 is the protocol-15 windup, 14 the kit).
         (
             "delta_actor_mask_unknown_bit",
-            delta_bytes(10, 1, 0, &[1, 1, 0x80, 0x40]),
+            delta_bytes(10, 1, 0, &[1, 1, 0x80, 0x80, 0x02]),
+        ),
+        // A position step (bit 3) with neither x nor y to step, and a step cut short.
+        (
+            "delta_actor_step_without_position",
+            delta_bytes(
+                10,
+                1,
+                0,
+                &[vec![1], record(1, AD_STEP | AD_HP, &[100])].concat(),
+            ),
+        ),
+        (
+            "delta_actor_step_truncated",
+            delta_bytes(
+                10,
+                1,
+                0,
+                &[vec![1], record(1, AD_STEP | AD_X | AD_Y, &[5])].concat(),
+            ),
+        ),
+        // A windup delta's kind byte is 0 (ended), 1 or 2.
+        (
+            "delta_actor_windup_kind_three",
+            delta_bytes(10, 1, 0, &[1, 1, 0x80, 0x40, 3, 0, 0, 0, 0]),
         ),
         (
             "delta_actor_status_over_3",
@@ -4929,7 +5239,7 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
         .iter()
         .map(|a| {
             format!(
-                "{{\"id\": {}, \"faction\": {}, \"xBits\": {}, \"yBits\": {}, \"facingBits\": {}, \"hpPct\": {}, \"status\": {}, \"weapon\": {}, \"bounty\": {}, \"kind\": {}, \"effects\": {}, \"displaceSeq\": {}, \"mobTypeCode\": {}, \"sig\": {}, \"barrierPct\": {}, \"barrierRingStep\": {}}}",
+                "{{\"id\": {}, \"faction\": {}, \"xBits\": {}, \"yBits\": {}, \"facingBits\": {}, \"hpPct\": {}, \"status\": {}, \"weapon\": {}, \"bounty\": {}, \"kind\": {}, \"effects\": {}, \"displaceSeq\": {}, \"mobTypeCode\": {}, \"sig\": {}, \"barrierPct\": {}, \"barrierRingStep\": {}, \"windup\": {}}}",
                 a.id,
                 a.faction,
                 bits(a.x),
@@ -4939,7 +5249,11 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
                 a.status,
                 a.weapon,
                 a.bounty,
-                a.kind, a.effects, a.displace_seq, a.mob_type_code, a.sig, a.barrier_pct, a.barrier_ring_step
+                a.kind, a.effects, a.displace_seq, a.mob_type_code, a.sig, a.barrier_pct, a.barrier_ring_step,
+                a.windup.map_or("null".to_string(), |w| format!(
+                    "{{\"kind\": {}, \"startedAt\": {}, \"duration\": {}, \"aim\": {}}}",
+                    w.kind, w.started_at, w.duration, w.aim
+                ))
             )
         })
         .collect();
@@ -4948,6 +5262,38 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
         server_time,
         actors.join(", "),
         json_owner_combat(*owner_combat),
+    )
+}
+
+/// Protocol 15: the projectile tracks (State key 7) of a State frame, field by field.
+fn decoded_projectile_state_json(m: &ServerMsg) -> String {
+    let ServerMsg::State { tick, items } = m else {
+        unreachable!("only State frames carry projectile tracks")
+    };
+    let rows: Vec<String> = items
+        .iter()
+        .filter_map(|item| match item {
+            StateItem::Projectiles(rows) => Some(rows),
+            _ => None,
+        })
+        .flatten()
+        .map(|p| {
+            format!(
+                "{{\"track\": {}, \"kind\": {}, \"x\": {}, \"y\": {}, \"facing\": {}, \"speed\": {}, \"tick\": {}, \"owner\": {}}}",
+                p.track,
+                p.kind,
+                p.x,
+                p.y,
+                p.facing,
+                p.speed,
+                p.tick,
+                p.owner.map_or("null".to_string(), |v| v.to_string())
+            )
+        })
+        .collect();
+    format!(
+        "{{\"tick\": {tick}, \"projectiles\": [{}]}}",
+        rows.join(", ")
     )
 }
 
@@ -5166,6 +5512,9 @@ pub fn manifest() -> String {
             }
             ServerMsg::State { .. } if name.starts_with("state_trade_") => {
                 format!(", \"decoded\": {}", decoded_trade_state_json(&decoded))
+            }
+            ServerMsg::State { .. } if *name == "state_all" => {
+                format!(", \"decoded\": {}", decoded_projectile_state_json(&decoded))
             }
             ServerMsg::State { .. } if name.starts_with("state_quests_") => {
                 format!(", \"decoded\": {}", decoded_quest_state_json(&decoded))

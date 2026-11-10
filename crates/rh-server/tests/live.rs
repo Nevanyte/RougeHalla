@@ -98,6 +98,7 @@ struct Server {
 async fn start(arena: Arena, tweak: impl FnOnce(&mut DirectorConfig)) -> Server {
     let sim = SimConfig {
         walk_hints: None,
+        lag_fairness: false,
         regen: false,
         quests: false,
         training: false,

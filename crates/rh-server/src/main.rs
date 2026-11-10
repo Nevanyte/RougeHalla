@@ -467,6 +467,7 @@ async fn main() {
     let sim = runtime.as_ref().map_or_else(
         || rh_sim::SimConfig {
             walk_hints: None,
+            lag_fairness: false,
             regen: false,
             quests: false,
             training: false,

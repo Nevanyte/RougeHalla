@@ -65,6 +65,18 @@ pub fn command(c: WireCommand) -> rh_sim::PublicCommand {
         },
         WireCommand::Plan { spawn, boon, ready } => Public::Plan { spawn, boon, ready },
         WireCommand::Stop { seq } => Public::Stop { seq },
+        WireCommand::MoveAt { x, y, seq, t } => Public::MoveAt {
+            x: f64::from(x),
+            y: f64::from(y),
+            seq,
+            t,
+        },
+        WireCommand::AttackMoveAt { x, y, seq, t } => Public::AttackMoveAt {
+            x: f64::from(x),
+            y: f64::from(y),
+            seq,
+            t,
+        },
         WireCommand::Aim { a } => Public::Aim { a: a as f64 },
         WireCommand::Attack { a, t } => Public::Attack { a: a as f64, t },
         WireCommand::Release { a, t } => Public::Release { a: a as f64, t },
@@ -169,6 +181,24 @@ fn same_view(a: &ActorView, b: &ActorView) -> bool {
         && a.displace_seq == b.displace_seq
         && a.kind == b.kind
         && a.mob_type == b.mob_type
+        && windup_bits_equal(a.windup, b.windup)
+}
+
+/// Protocol 15 windups compared bitwise, like the other float fields of [`same_view`].
+fn windup_bits_equal(
+    a: Option<rh_sim::observe::WindupView>,
+    b: Option<rh_sim::observe::WindupView>,
+) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(a), Some(b)) => {
+            a.kind == b.kind
+                && a.started_at.to_bits() == b.started_at.to_bits()
+                && a.lands_at.to_bits() == b.lands_at.to_bits()
+                && a.a.map(f64::to_bits) == b.a.map(f64::to_bits)
+        }
+        _ => false,
+    }
 }
 
 /// Highest actor id (exclusive) [`ActorMemo`] remembers; an actor with a higher id is converted every time.
@@ -991,7 +1021,67 @@ mod tests {
             status: Status::Alive,
             weapon: Some(rh_sim::content::WeaponId::ALL[2]),
             bounty: 3,
+            windup: None,
         }
+    }
+
+    /// Protocol 15: a draw carries whole milliseconds and no aim, a cast its aim code; both survive the Full frame.
+    #[test]
+    fn windups_map_to_whole_milliseconds_and_a_cast_aim_only() {
+        use rh_sim::observe::{WindupKind, WindupView};
+        let draw = ActorView {
+            windup: Some(WindupView {
+                kind: WindupKind::Draw,
+                started_at: 1950.5,
+                lands_at: 2500.25,
+                a: None,
+            }),
+            ..view(5)
+        };
+        let cast = ActorView {
+            windup: Some(WindupView {
+                kind: WindupKind::Cast,
+                started_at: 3000.,
+                lands_at: 3450.,
+                a: Some(-1.5),
+            }),
+            ..view(6)
+        };
+        let wd = wire_actor(&draw).unwrap().windup.unwrap();
+        assert_eq!(
+            wd,
+            rh_protocol::WireWindup {
+                kind: rh_protocol::WINDUP_DRAW,
+                started_at: 1950,
+                duration: 551,
+                aim: 0,
+            }
+        );
+        let wc = wire_actor(&cast).unwrap().windup.unwrap();
+        assert_eq!(
+            (wc.kind, wc.started_at, wc.duration),
+            (rh_protocol::WINDUP_CAST, 3000, 450)
+        );
+        assert_eq!(wc.aim, rh_protocol::quant::quantize_facing(-1.5));
+        assert_eq!(wire_actor(&view(7)).unwrap().windup, None);
+        let data = SnapshotData::build(
+            3,
+            1,
+            0,
+            None,
+            [draw, cast]
+                .iter()
+                .map(|a| checked_actor(a).unwrap())
+                .map(|q| q.to_wire()),
+        )
+        .unwrap();
+        let mut frame = Vec::new();
+        data.encode_full_into(&mut frame);
+        let ServerMsg::Snapshot { actors, .. } = ServerMsg::decode(&frame).unwrap() else {
+            panic!("a Full snapshot")
+        };
+        assert_eq!(actors[0].windup, Some(wd));
+        assert_eq!(actors[1].windup, Some(wc));
     }
 
     /// The memo is a cache of a pure function: whatever it holds, `get` is what a fresh conversion gives, for a hit, for every
@@ -1031,6 +1121,26 @@ mod tests {
                 "weapon",
                 Box::new(|a| a.weapon = Some(rh_sim::content::WeaponId::ALL[4])),
             ),
+            (
+                "windup",
+                Box::new(|a| {
+                    a.windup = Some(rh_sim::observe::WindupView {
+                        kind: rh_sim::observe::WindupKind::Cast,
+                        started_at: 1000.,
+                        lands_at: 1450.,
+                        a: Some(0.25),
+                    })
+                }),
+            ),
+            (
+                "windup pushed",
+                Box::new(|a| {
+                    if let Some(w) = &mut a.windup {
+                        w.lands_at = 1463.5;
+                    }
+                }),
+            ),
+            ("windup ended", Box::new(|a| a.windup = None)),
             ("zero", Box::new(|a| a.x = 0.0)),
             ("negative zero", Box::new(|a| a.x = -0.0)),
             ("off the grid", Box::new(|a| a.x = 1.0e9)),
@@ -1129,7 +1239,8 @@ mod tests {
         );
         // 1/16 u from the grid, plus the f32 rounding of the sim's f64 position (under 0.001 at 5120 u).
         assert!(worst_pos <= 0.0626, "position error {worst_pos}");
-        assert!(worst_facing <= 4.9e-5, "facing error {worst_facing}");
+        // Remote facing is 8 bits (protocol 15): half of 2 pi / 256.
+        assert!(worst_facing <= 0.01228, "facing error {worst_facing}");
     }
 
     /// `hp_pct` is the `round` expression it replaced for every fraction a match produces, ties and edges included.
@@ -1202,7 +1313,7 @@ mod tests {
     #[test]
     fn omitted_effect_announcements_leave_frames_and_redaction_unchanged() {
         use rh_sim::status_runtime::{AbilityId, StatusKind};
-        assert_eq!(rh_protocol::PROTOCOL_VERSION, 14);
+        assert_eq!(rh_protocol::PROTOCOL_VERSION, 15);
         let env = seed1_match(1);
         let id = env.sim.players()[0].id;
         let mut publisher = Publisher::default();

@@ -73,6 +73,7 @@ fn ring(fixed_actors: Option<usize>) -> Vec<SnapshotData> {
                 kind: 0,
                 barrier_pct: 0,
                 barrier_ring_step: 0,
+                windup: None,
             });
             SnapshotData::build(100 + i, 1, i * 3, Some(me), actors).expect("a legal snapshot")
         })

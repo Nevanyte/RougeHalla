@@ -120,6 +120,9 @@ fn command_len(c: &WireCommand) -> usize {
         WireCommand::Move { seq, .. } | WireCommand::AttackMove { seq, .. } => {
             1 + 8 + opt_len(seq.is_some(), 1)
         }
+        WireCommand::MoveAt { seq, .. } | WireCommand::AttackMoveAt { seq, .. } => {
+            1 + 8 + opt_len(seq.is_some(), 1) + 8
+        }
         WireCommand::Stop { seq } => 1 + opt_len(seq.is_some(), 1),
         WireCommand::Aim { .. } => 1 + 4,
         WireCommand::Attack { t, .. } | WireCommand::Release { t, .. } => {
@@ -145,6 +148,9 @@ fn command_finite(c: &WireCommand) -> bool {
     match *c {
         WireCommand::Move { x, y, .. } | WireCommand::AttackMove { x, y, .. } => {
             x.is_finite() && y.is_finite()
+        }
+        WireCommand::MoveAt { x, y, t, .. } | WireCommand::AttackMoveAt { x, y, t, .. } => {
+            x.is_finite() && y.is_finite() && t.is_finite()
         }
         WireCommand::Stop { .. }
         | WireCommand::Swap { .. }
@@ -319,6 +325,20 @@ impl Frame for ClientMsg {
                             w.f32(x);
                             w.f32(y);
                             w.opt(seq.as_ref(), |w, s| w.u8(*s));
+                        }
+                        WireCommand::MoveAt { x, y, seq, t } => {
+                            w.u8(C_MOVE_AT);
+                            w.f32(x);
+                            w.f32(y);
+                            w.opt(seq.as_ref(), |w, s| w.u8(*s));
+                            w.f64(t);
+                        }
+                        WireCommand::AttackMoveAt { x, y, seq, t } => {
+                            w.u8(C_ATTACK_MOVE_AT);
+                            w.f32(x);
+                            w.f32(y);
+                            w.opt(seq.as_ref(), |w, s| w.u8(*s));
+                            w.f64(t);
                         }
                         WireCommand::Stop { seq } => {
                             w.u8(C_STOP);
@@ -768,7 +788,9 @@ impl<const N: usize> Fixed<N> {
 const MAX_HEAD_LEN: usize =
     1 + 5 + 5 + 3 + 5 + 12 + 4 + 1 + 4 + 2 + 9 + 1 + 1 + 2 + 1 + 1 + 1 + 5 + 5 + 3 + 55 + 5 + 8;
 /// Largest actor: id 5, mask 2, x/y/facing 6, kit/hp/status, bounty 3, kind, effects 2, displacement, mob type, sig, barrier pair.
-const MAX_ACTOR_LEN: usize = 5 + 2 + 6 + 1 + 1 + 1 + 3 + 1 + 2 + 1 + 1 + 1 + 2;
+const MAX_ACTOR_LEN: usize = 5 + 2 + 6 + 1 + 1 + 1 + 3 + 1 + 2 + 1 + 1 + 1 + 2 + MAX_WINDUP_LEN;
+/// A windup record: kind, started_at (5), duration (3), aim (2).
+const MAX_WINDUP_LEN: usize = 1 + 5 + 3 + 2;
 
 /// Writes the self record for the head word `m` ([`head_word`] of `s`), fields in bit order.
 #[inline]
@@ -865,6 +887,9 @@ fn actor_mask(a: &WireActor) -> u32 {
     if a.barrier_pct != DEFAULT_BARRIER_PCT || a.barrier_ring_step != DEFAULT_BARRIER_RING_STEP {
         m |= AM_BARRIER;
     }
+    if a.windup.is_some() {
+        m |= AM_WINDUP;
+    }
     m
 }
 
@@ -889,6 +914,7 @@ fn actor_len(a: &WireActor, prev: Option<u32>) -> usize {
         + (m & AM_MOB_TYPE != 0) as usize
         + (m & AM_SIG != 0) as usize
         + 2 * (m & AM_BARRIER != 0) as usize
+        + a.windup.map_or(0, |w| w.len())
 }
 
 /// The id as written: the first actor's absolute id, then the gap to the previous one (the observation sorts by id, so a
@@ -937,6 +963,9 @@ fn snapshot_fault(phase: u8, me: Option<&WireSelf>, actors: &[WireActor]) -> Opt
         if a.barrier_pct > 100 || a.barrier_ring_step > 8 {
             return Some("barrier");
         }
+        if a.windup.is_some_and(|w| !w.valid()) {
+            return Some("windup");
+        }
         if !quant::pos_in_range(a.x) || !quant::pos_in_range(a.y) {
             return Some("position");
         }
@@ -958,6 +987,7 @@ fn actor_looks_bad(a: &WireActor, prev: Option<u32>) -> bool {
         || a.hp_pct > 100
         || a.barrier_pct > 100
         || a.barrier_ring_step > 8
+        || a.windup.is_some_and(|w| !w.valid())
         || !(quant::pos_in_range(a.x) && quant::pos_in_range(a.y))
         || prev.is_some_and(|p| a.id <= p)
 }
@@ -989,7 +1019,7 @@ fn write_actor(out: &mut Writer, a: &WireActor, prev: Option<u32>) {
     w.varint(m);
     w.u16(quant::quantize_pos(a.x));
     w.u16(quant::quantize_pos(a.y));
-    w.u16(quant::quantize_facing(a.facing));
+    w.u16(quant::quantize_facing_remote(a.facing));
     if m & AM_KIT != 0 {
         w.u8(kit(a.faction, a.weapon));
     }
@@ -1021,7 +1051,21 @@ fn write_actor(out: &mut Writer, a: &WireActor, prev: Option<u32>) {
         w.u8(a.barrier_pct);
         w.u8(a.barrier_ring_step);
     }
+    if let Some(windup) = a.windup {
+        write_windup(&mut w, &windup);
+    }
     w.put(out);
+}
+
+/// A present windup record into a fixed actor buffer (the same bytes as [`WireWindup::write`]).
+#[inline(always)]
+fn write_windup<const N: usize>(w: &mut Fixed<N>, windup: &WireWindup) {
+    w.u8(windup.kind);
+    w.varint(windup.started_at);
+    w.varint(u32::from(windup.duration));
+    if windup.kind == WINDUP_CAST {
+        w.u16(windup.aim);
+    }
 }
 
 /// Exact size of a Snapshot frame.

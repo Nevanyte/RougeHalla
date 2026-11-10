@@ -41,12 +41,19 @@ pub(crate) fn multipliers(cx: &mut Cx) {
     }
 }
 
-/// System (legacy step.walkFighter): every standing fighter walks its path at its tick speed, in join order.
+/// System (legacy step.walkFighter): every standing fighter walks its path at its tick speed, in join order. A fighter
+/// whose stamped order earned walk credit this tick (`systems::inputs::walk_credit`) walks the tick plus that credit in the
+/// same ordinary walk; everyone else (every unstamped order) walks exactly `TICK_MS`, as legacy does.
 pub(crate) fn walk(cx: &mut Cx) {
     let Cx { k, w, s, pf, .. } = cx;
     for (&ix, &mult) in s.standing.iter().zip(&s.mults) {
-        walk_one(k, w, ix, pf, TICK_MS, None, mult);
+        let dt = match s.walk_credit.iter().find(|(id, _)| *id == w.core(ix).id) {
+            Some(&(_, credit)) => TICK_MS + credit,
+            None => TICK_MS,
+        };
+        walk_one(k, w, ix, pf, dt, None, mult);
     }
+    s.walk_credit.clear();
 }
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn walk_one(
