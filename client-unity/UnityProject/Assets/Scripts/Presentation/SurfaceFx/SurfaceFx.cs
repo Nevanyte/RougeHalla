@@ -142,7 +142,7 @@ namespace Roguehalla.Client
             switch (ev.Style)
             {
                 case PrintStyle.Sand: col = Col(.20f, .12f, .06f, .92f); style = 1; break;
-                case PrintStyle.Snow: col = Col(.50f, .58f, .78f, .9f); style = 2; wid = .74f * s; break;
+                case PrintStyle.Snow: col = Col(.30f, .40f, .62f, .95f); style = 2; wid = .74f * s; break;
                 case PrintStyle.Mud: col = Col(.05f, .035f, .025f, .88f); style = 3; break;
                 case PrintStyle.Grass: col = Col(.07f, .14f, .04f, .5f); cell = SurfaceFxAtlas.GrassTrail; len = 1.7f * s; wid = .5f * s; mirror = false; break;
                 case PrintStyle.Ash:

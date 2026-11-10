@@ -89,14 +89,14 @@ Shader "Roguehalla/SurfaceFx"
                     if (style == 1) col = col * (0.8 + 0.3 * h0) * (1.0 + 0.7 * lit - 0.5 * shadow);
                     else if (style == 2)
                     {
-                        col = lerp(col, float3(0.95, 0.97, 1.0), lit * 0.9);
-                        col = lerp(col, float3(0.32, 0.42, 0.62), shadow * 0.6);
+                        col = lerp(col, float3(0.95, 0.97, 1.0), lit * 0.8);
+                        col = lerp(col, float3(0.16, 0.24, 0.45), shadow * 0.7);
                         alpha = saturate(i.color.a * (mask * 0.85 + lit * 0.5) * fade);
                     }
                     else
                     {
                         float gl = lit * (1.0 - saturate(age / 1.4)) * _RhFxGlisten;
-                        col += gl * float3(0.55, 0.6, 0.65);
+                        col += gl * float3(0.32, 0.36, 0.4);
                     }
                 }
                 clip(alpha - 0.004);
