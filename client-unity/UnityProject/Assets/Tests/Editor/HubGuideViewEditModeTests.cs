@@ -90,7 +90,12 @@ namespace Roguehalla.Client.Tests
             {
                 var card = guide.Content.Find("Card_" + i);
                 Assert.IsNotNull(card, "Expected the guide card for " + expected[i]);
-                StringAssert.Contains(expected[i], card.Find("Title").GetComponent<TMPro.TMP_Text>().text);
+                // A faction card leads with its generated pictogram (no bracket mark): the title sits in the Head row beside the icon.
+                var title = card.Find("Head/Title") ?? card.Find("Title");
+                StringAssert.Contains(expected[i], title.GetComponent<TMPro.TMP_Text>().text);
+                StringAssert.DoesNotContain("[", title.GetComponent<TMPro.TMP_Text>().text);
+                Assert.IsNotNull(card.Find("Head/FactionIcon"), "faction pictogram on the card for " + expected[i]);
+                Assert.IsNotNull(guide.Content.Find("FactionChoices/Faction_" + expected[i] + "/FactionIcon"), "faction pictogram on the button for " + expected[i]);
             }
             var fire = guide.Content.Find("FactionChoices/Faction_Fire").GetComponent<Button>();
             fire.onClick.Invoke();

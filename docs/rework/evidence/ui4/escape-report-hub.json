@@ -1,0 +1,72 @@
+[
+ {
+  "name": "counters",
+  "buttonsBefore": 28,
+  "buttonsOpen": 26,
+  "buttonsAfterEscape": 28,
+  "escapeRestoredButtons": true
+ },
+ {
+  "name": "shop",
+  "buttonsBefore": 28,
+  "buttonsOpen": 28,
+  "buttonsAfterEscape": 28,
+  "escapeRestoredButtons": true
+ },
+ {
+  "name": "wardrobe",
+  "buttonsBefore": 28,
+  "buttonsOpen": 28,
+  "buttonsAfterEscape": 28,
+  "escapeRestoredButtons": true
+ },
+ {
+  "name": "titles",
+  "buttonsBefore": 28,
+  "buttonsOpen": 28,
+  "buttonsAfterEscape": 28,
+  "escapeRestoredButtons": true
+ },
+ {
+  "name": "achievements",
+  "buttonsBefore": 28,
+  "buttonsOpen": 28,
+  "buttonsAfterEscape": 28,
+  "escapeRestoredButtons": true
+ },
+ {
+  "name": "leaderboard",
+  "buttonsBefore": 28,
+  "buttonsOpen": 28,
+  "buttonsAfterEscape": 28,
+  "escapeRestoredButtons": true
+ },
+ {
+  "name": "records",
+  "buttonsBefore": 28,
+  "buttonsOpen": 19,
+  "buttonsAfterEscape": 28,
+  "escapeRestoredButtons": true
+ },
+ {
+  "name": "guide",
+  "buttonsBefore": 28,
+  "buttonsOpen": 26,
+  "buttonsAfterEscape": 28,
+  "escapeRestoredButtons": true
+ },
+ {
+  "name": "resume",
+  "buttonsBefore": 28,
+  "buttonsOpen": 28,
+  "buttonsAfterEscape": 28,
+  "escapeRestoredButtons": true
+ },
+ {
+  "name": "signin",
+  "buttonsBefore": 28,
+  "buttonsOpen": 31,
+  "buttonsAfterEscape": 28,
+  "escapeRestoredButtons": true
+ }
+]

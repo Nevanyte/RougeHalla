@@ -175,6 +175,24 @@ namespace Roguehalla.Client
             {
                 Evict(id);
             }
+            SuppressOverlappingNames();
+        }
+        // Creature names of a tight camp overprint each other ("Miasma WitchMiasma Witch"): the plate of the creature in front (lower on
+        // screen) and any elite's keeps its place, a plate that would cover a kept one is hidden for the frame.
+        readonly List<Art> _nameOrder = new List<Art>();
+        void SuppressOverlappingNames()
+        {
+            _nameOrder.Clear();
+            foreach (var pair in _active) { var ind = pair.Value.Ind; if (ind != null && ind.NameShown) _nameOrder.Add(pair.Value); }
+            if (_nameOrder.Count < 2) return;
+            _nameOrder.Sort((a, b) =>
+            {
+                int e = b.Ind.NameElite.CompareTo(a.Ind.NameElite); if (e != 0) return e;
+                return a.Ind.NameRect.center.y.CompareTo(b.Ind.NameRect.center.y); // lower y (more negative, further down the screen) first
+            });
+            for (int i = 1; i < _nameOrder.Count; i++)
+                for (int j = 0; j < i; j++)
+                    if (_nameOrder[j].Ind.NameShown && _nameOrder[j].Ind.NameRect.Overlaps(_nameOrder[i].Ind.NameRect)) { _nameOrder[i].Ind.SuppressName(); break; }
         }
         public void Retain(HashSet<uint> membership)
         {

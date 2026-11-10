@@ -154,6 +154,7 @@ namespace Roguehalla.Client
             RefreshPlayerFlows();
             _orderedNotices?.SetRecentVisible(_session != null && WorldHudVisible);
             _orderedNotices?.Refresh();
+            _huntPanel?.Refresh(_session, _session != null && WorldHudVisible && !PlayerFlowVisible);
         }
         void RefreshJournalLauncher()
         {

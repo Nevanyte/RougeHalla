@@ -1,0 +1,34 @@
+[
+ {
+  "name": "help",
+  "opened": true,
+  "closedByEscape": true,
+  "before": 20,
+  "during": 6,
+  "after": 20
+ },
+ {
+  "name": "settings",
+  "opened": true,
+  "closedByEscape": true,
+  "before": 20,
+  "during": 18,
+  "after": 20
+ },
+ {
+  "name": "journal",
+  "opened": true,
+  "closedByEscape": true,
+  "before": 20,
+  "during": 15,
+  "after": 20
+ },
+ {
+  "name": "build",
+  "opened": true,
+  "closedByEscape": true,
+  "before": 20,
+  "during": 9,
+  "after": 20
+ }
+]
