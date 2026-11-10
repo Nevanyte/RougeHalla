@@ -17,6 +17,15 @@
 //!       [--result-spool <dir> [--result-spool-max 4096] [--result-dead-max 1024] [--result-retry-secs 900]]   (needs postgres + --database-url)
 //!
 //!       [--control 127.0.0.1:7778 [--control-token-file <file>]] [--require-admit [--admit-ttl-secs 60]]
+//!       [--ws-origins '*'|origin,origin (default: --api-cors-origins)] [--ws-max-per-ip 16] [--ws-connect-burst 20]
+//!       [--ws-connect-per-second 2] [--ws-max-pending 256] [--ws-auth-fails-per-minute 10]
+//!       [--ws-auth-fails-per-minute-all 0] [--http-header-timeout-secs 10] (public edge, src/edge.rs; 0 disables a limit)
+//!       [--insecure-dev-auth] [--insecure-self-signed]
+//!
+//! Public exposure (a non-loopback `--bind`, or `--client-ip-header`, which means a reverse proxy forwards public traffic):
+//! the server refuses to start with dev auth (no `--database-url`, `--auth` absent or `dev`: any callsign with any ticket)
+//! unless `--insecure-dev-auth` is passed, and refuses `--self-signed` unless `--insecure-self-signed` is passed. With an
+//! empty origin list `/ws` accepts any browser origin only when not publicly exposed; otherwise browser origins are refused.
 //!
 //! Hosted mode (docs/hosting/CONTROL_API.md): `--require-admit` admits a Hello only with an admit the hosting bridge posted to
 //! `/control/admit` (an extra check after the profile credential check; it never replaces it) and creates rooms only through
@@ -34,6 +43,7 @@
 
 use rh_server::api::{AccountApi, ApiConfig, CorsPolicy};
 use rh_server::director::{Director, DirectorConfig, LeasePolicy};
+use rh_server::edge::{EdgeConfig, HttpLimits, OriginPolicy};
 use rh_server::hosting::Lifecycle;
 use rh_server::persist::{Auth, Persistence};
 use std::net::SocketAddr;
@@ -406,6 +416,164 @@ fn api_config(args: &[String]) -> Result<ApiConfig, String> {
     Ok(cfg)
 }
 
+/// Whether this process serves public traffic: a non-loopback bind, or a forwarded-address header (a reverse proxy in front
+/// of a loopback bind forwards public clients).
+fn publicly_exposed(args: &[String], bind: SocketAddr) -> bool {
+    !bind.ip().is_loopback() || args.iter().any(|a| a == "--client-ip-header")
+}
+
+/// What the startup checks of a publicly exposed process decided; `warnings` are printed before serving.
+#[derive(Debug, Default)]
+struct Exposure {
+    public: bool,
+    warnings: Vec<String>,
+}
+
+/// Refuses settings that are unsafe on a public listener unless explicitly accepted: dev auth (`--insecure-dev-auth`) and the
+/// generated self-signed certificate (`--insecure-self-signed`). Also refuses ambiguous TLS flags and misspelt `--insecure-*`
+/// flags (a typo must not silently keep an insecure default).
+fn exposure_check(args: &[String], bind: SocketAddr) -> Result<Exposure, String> {
+    const KNOWN: [&str; 2] = ["--insecure-dev-auth", "--insecure-self-signed"];
+    for a in args.iter().skip(1) {
+        if a.starts_with("--insecure") && !KNOWN.contains(&a.as_str()) {
+            return Err(format!("unknown flag {a} (did you mean one of {KNOWN:?}?)"));
+        }
+    }
+    let flag = |k: &str| args.iter().any(|a| a == k);
+    let public = publicly_exposed(args, bind);
+    let mut warnings = vec![];
+    let dev_auth = arg(args, "--database-url").is_none()
+        && matches!(arg(args, "--auth").as_deref(), None | Some("dev"));
+    if dev_auth && public {
+        if !flag("--insecure-dev-auth") {
+            return Err(format!(
+                "refusing to start: dev auth (any callsign is accepted with any ticket) on a publicly exposed listener \
+                 ({bind}{}); pass --database-url or --auth static:<file>, or --insecure-dev-auth to accept this deliberately",
+                if bind.ip().is_loopback() { ", behind --client-ip-header" } else { "" }
+            ));
+        }
+        warnings.push(format!(
+            "INSECURE: --insecure-dev-auth: {bind} accepts ANY callsign with ANY ticket; never use this for real players"
+        ));
+    }
+    let self_signed = flag("--self-signed");
+    let (cert, key) = (arg(args, "--tls-cert"), arg(args, "--tls-key"));
+    if cert.is_some() != key.is_some()
+        || (cert.is_none() && (flag("--tls-cert") || flag("--tls-key")))
+    {
+        return Err("--tls-cert and --tls-key must be given together, each with a file".into());
+    }
+    if self_signed && cert.is_some() {
+        return Err("--self-signed and --tls-cert/--tls-key are exclusive".into());
+    }
+    if self_signed && public {
+        if !flag("--insecure-self-signed") {
+            return Err(format!(
+                "refusing to start: --self-signed on a publicly exposed listener ({bind}) serves a throwaway certificate \
+                 for localhost that no browser trusts; pass --tls-cert/--tls-key, or --insecure-self-signed to accept this"
+            ));
+        }
+        warnings.push(format!(
+            "INSECURE: --insecure-self-signed: {bind} serves a generated localhost certificate; clients cannot verify it"
+        ));
+    }
+    if (flag("--insecure-dev-auth") && !(dev_auth && public))
+        || (flag("--insecure-self-signed") && !(self_signed && public))
+    {
+        warnings
+            .push("an --insecure-* flag was given but has no effect with these settings".into());
+    }
+    Ok(Exposure { public, warnings })
+}
+
+/// The public edge settings (`--ws-*`, `--http-header-timeout-secs`). The client-address rules come from the account API's
+/// `--client-ip-header`/`--trusted-proxies` (one parse, one trust rule). `--ws-origins` defaults to `--api-cors-origins`; an
+/// empty list means any origin when not publicly exposed and no browser origin otherwise.
+fn edge_settings(
+    args: &[String],
+    api: &ApiConfig,
+    public: bool,
+) -> Result<(EdgeConfig, HttpLimits, Vec<String>), String> {
+    const KNOWN: [&str; 7] = [
+        "--ws-origins",
+        "--ws-max-per-ip",
+        "--ws-connect-burst",
+        "--ws-connect-per-second",
+        "--ws-max-pending",
+        "--ws-auth-fails-per-minute",
+        "--ws-auth-fails-per-minute-all",
+    ];
+    for a in args.iter().skip(1) {
+        if (a.starts_with("--ws-") && !KNOWN.contains(&a.as_str()))
+            || (a.starts_with("--http-") && a != "--http-header-timeout-secs")
+        {
+            return Err(format!("unknown flag {a}"));
+        }
+    }
+    let int = |name: &str, default: u32| -> Result<u32, String> {
+        match args.iter().position(|a| a == name) {
+            None => Ok(default),
+            Some(i) => args
+                .get(i + 1)
+                .and_then(|v| v.parse().ok())
+                .ok_or_else(|| format!("{name} requires a non-negative whole number")),
+        }
+    };
+    let d = EdgeConfig::default();
+    let mut warnings = vec![];
+    let listed = match arg(args, "--ws-origins") {
+        Some(list) if !list.starts_with("--") => OriginPolicy::parse(&list),
+        Some(_) => return Err("--ws-origins requires '*' or a comma list of origins".into()),
+        None if args.iter().any(|a| a == "--ws-origins") => {
+            return Err("--ws-origins requires '*' or a comma list of origins".into())
+        }
+        None => match &api.cors {
+            CorsPolicy::Any => OriginPolicy::Any,
+            CorsPolicy::Origins(list) => OriginPolicy::Only(list.clone()),
+        },
+    };
+    let origins = match listed {
+        OriginPolicy::Only(list) if list.is_empty() && !public => OriginPolicy::Any,
+        OriginPolicy::Only(list) if list.is_empty() => {
+            warnings.push(
+                "no --ws-origins/--api-cors-origins on a publicly exposed listener: browsers cannot open /ws \
+                 (non-browser clients still can)"
+                    .into(),
+            );
+            OriginPolicy::Only(list)
+        }
+        OriginPolicy::Any if public => {
+            warnings
+                .push("/ws accepts any browser origin on a publicly exposed listener ('*')".into());
+            OriginPolicy::Any
+        }
+        other => other,
+    };
+    let cfg = EdgeConfig {
+        origins,
+        client_ip_header: api.client_ip_header.clone(),
+        trusted_proxies: api.trusted_proxies.clone(),
+        max_per_ip: int("--ws-max-per-ip", d.max_per_ip as u32)? as usize,
+        connect_burst: f64::from(int("--ws-connect-burst", d.connect_burst as u32)?),
+        connect_per_second: f64::from(int("--ws-connect-per-second", d.connect_per_second as u32)?),
+        max_pending: int("--ws-max-pending", d.max_pending as u32)? as usize,
+        auth_fails_per_minute: int("--ws-auth-fails-per-minute", d.auth_fails_per_minute)?,
+        auth_fails_per_minute_all: int(
+            "--ws-auth-fails-per-minute-all",
+            d.auth_fails_per_minute_all,
+        )?,
+    };
+    let default_secs = HttpLimits::default().header_read_timeout.as_secs() as u32;
+    let secs = int("--http-header-timeout-secs", default_secs)?;
+    if !(1..=300).contains(&secs) {
+        return Err("--http-header-timeout-secs must be 1..=300".into());
+    }
+    let limits = HttpLimits {
+        header_read_timeout: Duration::from_secs(u64::from(secs)),
+    };
+    Ok((cfg, limits, warnings))
+}
+
 #[tokio::main]
 async fn main() {
     let process_started = tokio::time::Instant::now();
@@ -443,6 +611,10 @@ async fn main() {
         .unwrap_or_else(|| "127.0.0.1:7777".into())
         .parse()
         .expect("--bind");
+    let exposure = exposure_check(&args, bind).unwrap_or_else(|e| {
+        eprintln!("[server] {e}");
+        std::process::exit(2);
+    });
     let arena = if let Some(runtime) = &runtime {
         runtime.arena().unwrap_or_else(|e| {
             eprintln!("[server] invalid runtime map: {e}");
@@ -672,6 +844,14 @@ async fn main() {
         eprintln!("[server] invalid account API settings: {e}");
         std::process::exit(2);
     });
+    let (edge_cfg, http_limits, edge_warnings) = edge_settings(&args, &api_cfg, exposure.public)
+        .unwrap_or_else(|e| {
+            eprintln!("[server] invalid edge settings: {e}");
+            std::process::exit(2);
+        });
+    for w in exposure.warnings.iter().chain(&edge_warnings) {
+        eprintln!("[server] warning: {w}");
+    }
     #[cfg(feature = "postgres")]
     let account = match &auth {
         Auth::Postgres(store) => AccountApi::postgres(store.clone(), api_cfg),
@@ -742,7 +922,11 @@ async fn main() {
     // the background against the database: an outage delays the replay, never startup or a tick.
     #[cfg(feature = "postgres")]
     director.recover_spooled();
-    let app = rh_server::public_router_with_api(director.clone(), account);
+    let app = rh_server::public_router_with_api_guarded(
+        director.clone(),
+        account,
+        rh_server::edge::EdgeGuard::new(edge_cfg),
+    );
 
     if let Some(control) = arg(&args, "--control") {
         let addr: SocketAddr = control.parse().expect("--control");
@@ -845,9 +1029,16 @@ async fn main() {
         rh_sim::content::content_hash()
     );
     // The one shared serve path (TCP_NODELAY on plain and TLS sockets); the live tests run the same function.
-    rh_server::serve(bind, tls, app, handle)
-        .await
-        .expect("server");
+    rh_server::serve_with_limits(
+        bind,
+        tls,
+        app,
+        handle,
+        rh_server::NoDelay::new(),
+        http_limits,
+    )
+    .await
+    .expect("server");
     eprintln!("[server] terminated");
 }
 
@@ -1049,6 +1240,195 @@ mod tests {
             vec!["--result-spool", "d", "--result-retry-secs", "x"],
         ] {
             assert!(spool_settings(&args(&bad)).is_err(), "{bad:?}");
+        }
+    }
+
+    fn bind(s: &str) -> SocketAddr {
+        s.parse().unwrap()
+    }
+
+    #[test]
+    fn dev_auth_is_refused_on_a_public_listener_unless_explicitly_accepted() {
+        let lo = bind("127.0.0.1:7777");
+        let any = bind("0.0.0.0:7777");
+        let v6 = bind("[::]:7777");
+        // Local development and every test harness: loopback, no proxy header.
+        let e = exposure_check(&args(&["rh-server"]), lo).unwrap();
+        assert!(!e.public && e.warnings.is_empty());
+        assert!(exposure_check(&args(&["rh-server", "--auth", "dev"]), bind("[::1]:1")).is_ok());
+        for public in [any, v6, bind("10.0.0.5:7777")] {
+            for dev in [vec!["rh-server"], vec!["rh-server", "--auth", "dev"]] {
+                let err = exposure_check(&args(&dev), public).unwrap_err();
+                assert!(err.contains("--insecure-dev-auth"), "{err}");
+            }
+        }
+        // Behind a reverse proxy (forwarded-address header) a loopback bind is public too.
+        assert!(exposure_check(
+            &args(&["rh-server", "--client-ip-header", "x-forwarded-for"]),
+            lo
+        )
+        .is_err());
+        // Real credentials on a public bind are fine.
+        for ok in [
+            vec!["rh-server", "--database-url", "postgres://x"],
+            vec!["rh-server", "--auth", "static:/etc/tokens"],
+            vec![
+                "rh-server",
+                "--auth",
+                "dev",
+                "--database-url",
+                "postgres://x",
+            ],
+        ] {
+            let e = exposure_check(&args(&ok), any).unwrap();
+            assert!(e.public && e.warnings.is_empty(), "{ok:?}");
+        }
+        let e = exposure_check(&args(&["rh-server", "--insecure-dev-auth"]), any).unwrap();
+        assert!(e.warnings[0].starts_with("INSECURE"), "{:?}", e.warnings);
+        for typo in ["--insecure-devauth", "--insecure", "--insecure-dev-auth=1"] {
+            assert!(
+                exposure_check(&args(&["rh-server", typo]), lo).is_err(),
+                "{typo}"
+            );
+        }
+        let unused = exposure_check(&args(&["rh-server", "--insecure-dev-auth"]), lo).unwrap();
+        assert_eq!(
+            unused.warnings.len(),
+            1,
+            "an unneeded --insecure flag is called out"
+        );
+    }
+
+    #[test]
+    fn self_signed_tls_is_refused_on_a_public_listener_and_tls_flags_must_pair() {
+        let lo = bind("127.0.0.1:7443");
+        let any = bind("0.0.0.0:7443");
+        let db = ["--database-url", "postgres://x"];
+        let with = |extra: &[&str]| {
+            let mut v = vec!["rh-server"];
+            v.extend_from_slice(&db);
+            v.extend_from_slice(extra);
+            args(&v)
+        };
+        assert!(exposure_check(&with(&["--self-signed"]), lo).is_ok());
+        let err = exposure_check(&with(&["--self-signed"]), any).unwrap_err();
+        assert!(err.contains("--insecure-self-signed"), "{err}");
+        let e = exposure_check(&with(&["--self-signed", "--insecure-self-signed"]), any).unwrap();
+        assert!(e.warnings[0].starts_with("INSECURE"));
+        assert!(exposure_check(&with(&["--tls-cert", "c.pem", "--tls-key", "k.pem"]), any).is_ok());
+        for bad in [
+            vec!["--tls-cert", "c.pem"],
+            vec!["--tls-key", "k.pem"],
+            vec!["--tls-cert"],
+            vec!["--self-signed", "--tls-cert", "c.pem", "--tls-key", "k.pem"],
+        ] {
+            assert!(exposure_check(&with(&bad), lo).is_err(), "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn edge_flags_default_and_ws_origins_follow_the_api_cors_origins() {
+        let api = api_config(&args(&[
+            "rh-server",
+            "--api-cors-origins",
+            "https://play.rougehalla.com",
+            "--client-ip-header",
+            "x-forwarded-for",
+            "--trusted-proxies",
+            "127.0.0.1",
+        ]))
+        .unwrap();
+        let (cfg, limits, warnings) = edge_settings(&args(&["rh-server"]), &api, true).unwrap();
+        assert_eq!(
+            cfg.origins,
+            OriginPolicy::Only(vec!["https://play.rougehalla.com".into()])
+        );
+        assert_eq!(cfg.client_ip_header.as_ref().unwrap(), "x-forwarded-for");
+        assert_eq!(
+            cfg.trusted_proxies,
+            vec!["127.0.0.1".parse::<std::net::IpAddr>().unwrap()]
+        );
+        assert_eq!(cfg.max_per_ip, rh_server::edge::DEFAULT_WS_MAX_PER_IP);
+        assert_eq!(cfg.max_pending, rh_server::edge::DEFAULT_WS_MAX_PENDING);
+        assert_eq!(cfg.auth_fails_per_minute, 10);
+        assert_eq!(cfg.auth_fails_per_minute_all, 0);
+        assert_eq!(limits.header_read_timeout, Duration::from_secs(10));
+        assert!(warnings.is_empty());
+
+        let (cfg, limits, _) = edge_settings(
+            &args(&[
+                "rh-server",
+                "--ws-origins",
+                "https://a.example,https://b.example/",
+                "--ws-max-per-ip",
+                "0",
+                "--ws-connect-burst",
+                "5",
+                "--ws-connect-per-second",
+                "1",
+                "--ws-max-pending",
+                "32",
+                "--ws-auth-fails-per-minute",
+                "3",
+                "--ws-auth-fails-per-minute-all",
+                "100",
+                "--http-header-timeout-secs",
+                "4",
+            ]),
+            &api,
+            true,
+        )
+        .unwrap();
+        assert_eq!(
+            cfg.origins,
+            OriginPolicy::Only(vec!["https://a.example".into(), "https://b.example".into()])
+        );
+        assert_eq!(
+            (
+                cfg.max_per_ip,
+                cfg.connect_burst,
+                cfg.connect_per_second,
+                cfg.max_pending
+            ),
+            (0, 5.0, 1.0, 32)
+        );
+        assert_eq!(
+            (cfg.auth_fails_per_minute, cfg.auth_fails_per_minute_all),
+            (3, 100)
+        );
+        assert_eq!(limits.header_read_timeout, Duration::from_secs(4));
+    }
+
+    #[test]
+    fn an_empty_origin_list_is_permissive_only_when_not_publicly_exposed() {
+        let api = ApiConfig::default();
+        let (local, _, w) = edge_settings(&args(&["rh-server"]), &api, false).unwrap();
+        assert_eq!(local.origins, OriginPolicy::Any);
+        assert!(w.is_empty());
+        let (public, _, w) = edge_settings(&args(&["rh-server"]), &api, true).unwrap();
+        assert_eq!(public.origins, OriginPolicy::Only(vec![]));
+        assert_eq!(w.len(), 1);
+        let (star, _, w) =
+            edge_settings(&args(&["rh-server", "--ws-origins", "*"]), &api, true).unwrap();
+        assert_eq!(star.origins, OriginPolicy::Any);
+        assert_eq!(w.len(), 1, "a public '*' is called out");
+    }
+
+    #[test]
+    fn edge_flags_refuse_typos_and_bad_values() {
+        let api = ApiConfig::default();
+        for bad in [
+            vec!["rh-server", "--ws-max-per-address", "4"],
+            vec!["rh-server", "--ws-origin", "https://a.example"],
+            vec!["rh-server", "--http-header-timeout", "4"],
+            vec!["rh-server", "--ws-max-per-ip", "-1"],
+            vec!["rh-server", "--ws-max-pending", "x"],
+            vec!["rh-server", "--ws-origins"],
+            vec!["rh-server", "--ws-origins", "--bind"],
+            vec!["rh-server", "--http-header-timeout-secs", "0"],
+            vec!["rh-server", "--http-header-timeout-secs", "301"],
+        ] {
+            assert!(edge_settings(&args(&bad), &api, false).is_err(), "{bad:?}");
         }
     }
 

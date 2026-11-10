@@ -864,6 +864,7 @@ pub fn router(director: Arc<Director>, opts: ControlOptions) -> Router {
         .route("/control/leave", post(leave))
         .route("/control/end", post(end))
         .route("/control/rooms", get(rooms))
+        .route("/control/info", get(info))
         .layer(middleware::from_fn_with_state(state.clone(), authorize))
         .with_state(state)
 }
@@ -999,6 +1000,12 @@ async fn drain(State(c): State<Ctl>, body: Body) -> Response {
 
 async fn rooms(State(c): State<Ctl>) -> Response {
     reply(StatusCode::OK, c.director.control_rooms())
+}
+
+/// The operator counters that used to be on the public `/info` (rooms, lobbies, players, results, the last closed rooms),
+/// with the same keys.
+async fn info(State(c): State<Ctl>) -> Response {
+    reply(StatusCode::OK, c.director.info())
 }
 
 fn check_gsid(id: &str) -> Result<(), CtlError> {

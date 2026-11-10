@@ -61,9 +61,20 @@ impl Auth {
     pub async fn verify(&self, profile: &str, ticket: &[u8]) -> bool {
         match self {
             Auth::Dev => true,
-            Auth::Static(m) => m
-                .get(&profile.to_ascii_lowercase())
-                .is_some_and(|t| t.as_bytes() == ticket),
+            // Both sides hashed to fixed-length digests and compared in constant time: the time does not depend on where a
+            // guess first differs from the token (nor on its length), and an unknown callsign does the same work.
+            Auth::Static(m) => {
+                use sha2::{Digest, Sha256};
+                let given: [u8; 32] = Sha256::digest(ticket).into();
+                let want: [u8; 32] = match m.get(&profile.to_ascii_lowercase()) {
+                    Some(t) => Sha256::digest(t.as_bytes()).into(),
+                    None => {
+                        let _ = crate::api::limits::ct_eq(&given, &[0u8; 32]);
+                        return false;
+                    }
+                };
+                crate::api::limits::ct_eq(&given, &want)
+            }
             #[cfg(feature = "postgres")]
             Auth::Postgres(store) => match std::str::from_utf8(ticket) {
                 Ok(token) => store.verify_token(profile, token).await.unwrap_or(false),
@@ -788,5 +799,34 @@ pub mod pg {
                 .to_owned()
             }),
         }
+    }
+}
+
+#[cfg(test)]
+mod static_auth_tests {
+    use super::Auth;
+
+    #[tokio::test]
+    async fn static_tokens_match_exactly_and_case_insensitively_by_callsign() {
+        let auth = Auth::Static(
+            [("alice".to_string(), "s3cret-token".to_string())]
+                .into_iter()
+                .collect(),
+        );
+        assert!(auth.verify("alice", b"s3cret-token").await);
+        assert!(auth.verify("ALICE", b"s3cret-token").await);
+        for wrong in [
+            &b"s3cret-tokeN"[..],
+            b"s3cret-toke",
+            b"s3cret-token ",
+            b"",
+            b"\xff\xfe",
+        ] {
+            assert!(!auth.verify("alice", wrong).await, "{wrong:?}");
+        }
+        assert!(
+            !auth.verify("bob", b"s3cret-token").await,
+            "unknown callsign"
+        );
     }
 }

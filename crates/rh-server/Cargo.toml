@@ -35,6 +35,9 @@ getrandom = "0.2"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["float_roundtrip"] }
 futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+# Already in the tree through axum-server (same version): named directly only for the listener's hyper timer (`TokioTimer`),
+# without which hyper applies no HTTP/1 header read timeout (edge::configure_http).
+hyper-util = { version = "0.1", features = ["server-auto", "tokio"] }
 
 [dev-dependencies]
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres"] }

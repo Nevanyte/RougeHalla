@@ -1301,6 +1301,18 @@ impl Director {
         }
     }
 
+    /// The public `/info`: what a client, a deploy check or a probe needs (protocol, content hash, the coarse lifecycle state)
+    /// and nothing about load. The full [`Director::info`] (rooms, players, results, closed rooms) is served on the loopback
+    /// control listener only (`GET /control/info`).
+    pub fn public_info(&self) -> serde_json::Value {
+        serde_json::json!({
+            "protocol": PROTOCOL_VERSION,
+            "contentHash": format!("{:016x}", rh_sim::content::content_hash()),
+            "state": self.lifecycle.state_name(),
+        })
+    }
+
+    /// The operator view (`GET /control/info`, loopback): the public identity plus room, player and result counters.
     pub fn info(&self) -> serde_json::Value {
         let inner = self.inner.lock().expect("director");
         let lobbies = inner

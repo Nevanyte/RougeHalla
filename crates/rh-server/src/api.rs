@@ -336,11 +336,28 @@ pub(crate) fn log_internal(route: &str, e: &dyn std::fmt::Display) {
 // ---- edge layer -----------------------------------------------------------------------------------------------
 
 fn client_ip(cfg: &ApiConfig, peer: Option<IpAddr>, headers: &HeaderMap) -> IpAddr {
+    resolve_client_ip(
+        cfg.client_ip_header.as_ref(),
+        &cfg.trusted_proxies,
+        peer,
+        headers,
+    )
+}
+
+/// The one forwarded-address trust rule of the public listener (module docs, "Peer address and proxies"), shared by the
+/// account API and the WebSocket edge guard ([`crate::edge`]): the configured header is read only from a loopback or listed
+/// proxy peer, a repeated header counts as absent and a comma list uses its last entry.
+pub(crate) fn resolve_client_ip(
+    header: Option<&HeaderName>,
+    trusted_proxies: &[IpAddr],
+    peer: Option<IpAddr>,
+    headers: &HeaderMap,
+) -> IpAddr {
     let peer = peer.unwrap_or(IpAddr::V4(Ipv4Addr::UNSPECIFIED));
-    let Some(name) = &cfg.client_ip_header else {
+    let Some(name) = header else {
         return peer;
     };
-    if !(peer.is_loopback() || cfg.trusted_proxies.contains(&peer)) {
+    if !(peer.is_loopback() || trusted_proxies.contains(&peer)) {
         return peer;
     }
     let mut values = headers.get_all(name).iter();
