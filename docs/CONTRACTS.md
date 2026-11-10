@@ -12,6 +12,17 @@ revision; [sweep/README.md](sweep/README.md) says which (H-sim and H-server-2 ha
 
 ## Status table
 
+### Parallel backend lane admission (2026-11-10)
+
+On isolated `codex/backend-gameplay-quests`, the reviewed Grand Tour stored-mask repair is integrated as `8a11520d` +
+`56843a8e`, from DeepSeek seals `4fb5714e` + `36564c33`. C-PARITY includes both actual-source supply outcomes, intended
+opposite pre-fix failures, repaired Source-profile consumers and retained real rewards/ordered notices. C-DET identifies
+content `8edd862f48ffa100` through the approved appended semantics marker; both old-content checkpoint/replay refusal
+checks pass. Protocol14/checkpoint29/replay23/OBS21/policy15 shapes and all63 ability-tape case folds are unchanged.
+The [independent admission](evidence/quest-backend-admission-review/README.md) binds exact code, source and scoped gates,
+including historical test-harness failures; it does not claim a new full-workspace run, complete quest parity, Claude
+client refresh or hosted release. Stage1 is a separate behavior-preserving objective/reward extraction.
+
 ### November9 protocol14 composition (supersedes older identity/status addenda)
 
 The subsequent [native29 admission](evidence/native29-admission/README.md) identifies14/29/23/21/15/content7c6a633f68c2cc72, with63 strict source cases,21 content checks, derived native tape/checker and public-digest tests at their exact cuts. Private rules/state identities change; the default wire14 is unchanged. SlowStarter/MarkTax/PackLeader/readonly WalkHint preserve Rust authority, tick order and source phase semantics. The proven cold NPC-report buffer reserve preserves empty/incomplete/fresh-identity reports, with matched original/Clone/restore step/events/hash and0/0/0 warm allocations. Hash coverage and earlier restore/lint receipts are not relabelled as rerun at the final cut. Current BakedContent comes from actual canonical /info.
