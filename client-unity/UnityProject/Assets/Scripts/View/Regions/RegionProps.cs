@@ -24,7 +24,7 @@ namespace Roguehalla.Client
         readonly List<int> _active = new List<int>(64);
         readonly Dictionary<int, List<int>> _tallByCell = new Dictionary<int, List<int>>();
         readonly List<Object> _owned = new List<Object>();
-        GameObject _root;
+        GameObject _root; Material _material;
         public int Count { get { return _props.Count; } }
 
         /// <summary>The deterministic placement list, separated from rendering so tests can run it without a GPU.</summary>
@@ -97,6 +97,9 @@ namespace Roguehalla.Client
         void Create(Transform parent, MapBlob map)
         {
             _root = new GameObject("Region props (deterministic, decorative)"); _root.transform.SetParent(parent, false);
+            var litShader = Resources.Load<Shader>("Regions/RegionSpriteLit");
+            _material = litShader != null ? new Material(litShader) { name = "Roguehalla / region props (sun lit)" } : ShowcaseSprites.Lit;
+            if (litShader != null) _owned.Add(_material);
             var placements = Scatter(map);
             foreach (var pl in placements)
             {
@@ -104,7 +107,7 @@ namespace Roguehalla.Client
                 var go = new GameObject(pl.Art); go.transform.SetParent(_root.transform, false);
                 Vector3 foot = ArenaView.WorldPoint(pl.X * 32f, pl.Y * 32f);
                 go.transform.localPosition = foot; go.transform.localScale = new Vector3(pl.Flip ? -pl.Scale : pl.Scale, pl.Scale, 1f);
-                var sr = go.AddComponent<SpriteRenderer>(); sr.sprite = art.Sprite; sr.sharedMaterial = ShowcaseSprites.Lit;
+                var sr = go.AddComponent<SpriteRenderer>(); sr.sprite = art.Sprite; sr.sharedMaterial = _material;
                 sr.sortingOrder = 2000 + Mathf.RoundToInt(pl.Y * 32f * .5f);
                 var prop = new Prop { Renderer = sr, FootX = foot.x, FootY = foot.y, HalfW = art.Width * .5f * pl.Scale * .8f, Height = art.Height * pl.Scale, Tall = art.Tall, Alpha = 1f, MarkFrame = -10, Base = Color.white };
                 int index = _props.Count; _props.Add(prop);
