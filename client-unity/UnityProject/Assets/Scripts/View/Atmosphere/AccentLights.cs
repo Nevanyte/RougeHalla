@@ -79,6 +79,8 @@ namespace Roguehalla.Client
         public const float AnalyticGain = .62f;
         /// <summary>How many of the nearest analytic lights cast wall shadows (measured: the lantern zone pays for every shadowing light per pixel).</summary>
         public const int ShadowLights = 5;
+        /// <summary>How many of the nearest lights carry a cookie pattern.</summary>
+        public const int CookieLights = 6;
         sealed class Slot { public ShowcasePointLight Light; public int Cluster = -1, Rank = 99; public float Alpha; public bool Wanted; public int ShadowSlot = -1; public TerrainCluster C; public AccentLightSpec Spec; public float Phase; public Vector3 Pos; }
         readonly Slot[] _slots = new Slot[LocalLightField.Max];
         readonly int[] _pick = new int[LocalLightField.Max];
@@ -166,6 +168,7 @@ namespace Roguehalla.Client
                 if (analytic && s.Rank < AtmosphereQuality.EffectiveLocalLights)
                 {
                     Shape(s.C, out float h, out int cookie, out bool shadow);
+                    if (s.Rank >= CookieLights) cookie = LocalLightField.CookieNone;       // patterns (an atan2 per pixel) only on the nearest lights: far ones are faint anyway
                     int slotArg = -1;
                     if (shadow && s.Rank < ShadowLights && ShadowAtlas != null && AtmosphereQuality.LocalShadows)      // only the nearest few lights cast wall shadows, from the baked atlas
                     {
