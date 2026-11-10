@@ -11,7 +11,7 @@ namespace Roguehalla.Client
     /// (<c>EffectiveQuality</c>, <c>ReducedMotion</c>); <see cref="Apply"/> is the entry point a future Quality API calls.
     /// URL query overrides always win over a preset: <c>?fx.particles=0</c> (density multiplier, 0 off), <c>?fx.lights=0</c>
     /// (accent light cap, 0 off), <c>?fx.post=0</c>, <c>?fx.bloom=0</c>, <c>?fx.grading=0</c>, <c>?fx.vignette=0</c>,
-    /// <c>?fx.haze=0</c>, <c>?fx.audio=0</c>, <c>?fx.sun=0</c>, <c>?fx.shadows=0</c>, <c>?fx.ice=0</c>, <c>?fx.shimmer=0</c>, <c>?fx.brightness=0.9</c>, <c>?fx.rays=0</c>. Presentation only: nothing here reads or changes game state.
+    /// <c>?fx.haze=0</c>, <c>?fx.audio=0</c>, <c>?fx.sun=0</c>, <c>?fx.shadows=0</c>, <c>?fx.ice=0</c>, <c>?fx.shimmer=0</c>, <c>?fx.brightness=0.9</c>, <c>?fx.rays=0</c>, <c>?fx.quality=high</c>. Presentation only: nothing here reads or changes game state.
     /// </summary>
     public static class AtmosphereQuality
     {
@@ -46,14 +46,14 @@ namespace Roguehalla.Client
         public static bool HeatShimmer = true;
         /// <summary>Light shafts (god rays) in Holy and Plague: cheap pre-baked soft quads aligned with the one sun direction. Off for reduced motion with the other particles.</summary>
         public static bool Rays = true;
-        /// <summary>Single world-brightness scalar (1 = as authored): multiplies the global light, so ground, walls, props and actors move together. Clamped 0.4 to 1.6; <c>?fx.brightness=0.9</c>, <c>?fx.rays=0</c>.</summary>
+        /// <summary>Single world-brightness scalar (1 = as authored): multiplies the global light, so ground, walls, props and actors move together. Clamped 0.4 to 1.6; <c>?fx.brightness=0.9</c>, <c>?fx.rays=0</c>, <c>?fx.quality=high</c>.</summary>
         public static float WorldBrightness = 1f;
         public const float MinBrightness = .4f, MaxBrightness = 1.6f;
 
         /// <summary>Raised after any change made through this class, so effects re-read the switchboard (not per frame).</summary>
         public static event Action Changed;
 
-        static float? _ovParticles; static int? _ovLights; static float? _ovBrightness; static bool? _ovRays; static bool? _ovPost, _ovBloom, _ovGrading, _ovVignette, _ovHaze, _ovAudio, _ovSun, _ovShadows, _ovIce, _ovShimmer;
+        static float? _ovParticles; static int? _ovLights; static ShowcaseQuality? _ovQuality; static float? _ovBrightness; static bool? _ovRays; static bool? _ovPost, _ovBloom, _ovGrading, _ovVignette, _ovHaze, _ovAudio, _ovSun, _ovShadows, _ovIce, _ovShimmer;
 
         public static int EffectiveMaxLights { get { return DynamicLights ? Mathf.Clamp(MaxDynamicLights, 0, HardMaxLights) : 0; } }
         public static bool ParticlesEnabled { get { return ParticleDensity > .001f; } }
@@ -88,13 +88,19 @@ namespace Roguehalla.Client
         public static void RefreshFromSettings()
         {
             var s = ShowcaseSettings.Current;
-            ApplyPreset(s != null ? s.EffectiveQuality : ShowcaseQuality.High, s != null && s.ReducedMotion);
+            ApplyPreset(_ovQuality ?? (s != null ? s.EffectiveQuality : ShowcaseQuality.High), s != null && s.ReducedMotion);
+        }
+
+        /// <summary>The quality the world is currently drawn at (a <c>?fx.quality=</c> override wins).</summary>
+        public static ShowcaseQuality EffectiveQuality()
+        {
+            var s = ShowcaseSettings.Current; return _ovQuality ?? (s != null ? s.EffectiveQuality : ShowcaseQuality.High);
         }
 
         /// <summary>Parse <c>fx.*</c> query overrides from a page URL (empty or null clears them) and re-apply.</summary>
         public static void SetUrl(string url)
         {
-            _ovParticles = null; _ovLights = null; _ovBrightness = null; _ovRays = null; _ovPost = _ovBloom = _ovGrading = _ovVignette = _ovHaze = _ovAudio = _ovSun = _ovShadows = _ovIce = _ovShimmer = null;
+            _ovParticles = null; _ovLights = null; _ovBrightness = null; _ovRays = null; _ovQuality = null; _ovPost = _ovBloom = _ovGrading = _ovVignette = _ovHaze = _ovAudio = _ovSun = _ovShadows = _ovIce = _ovShimmer = null;
             ParseOverrides(url);
             ApplyOverrides();
             Raise();
@@ -125,6 +131,9 @@ namespace Roguehalla.Client
                     case "fx.lights":
                         if (int.TryParse(value, out int n)) _ovLights = Mathf.Clamp(n, 0, HardMaxLights);
                         else _ovLights = flag ? (int?)null : 0;
+                        break;
+                    case "fx.quality":     // force a preset regardless of the adaptive setting (evidence and A/B runs): low, medium or high
+                        if (value == "low") _ovQuality = ShowcaseQuality.Low; else if (value == "medium") _ovQuality = ShowcaseQuality.Medium; else if (value == "high") _ovQuality = ShowcaseQuality.High;
                         break;
                     case "fx.post": _ovPost = flag; break;
                     case "fx.rays": _ovRays = flag; break;

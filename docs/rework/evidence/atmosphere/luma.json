@@ -1,62 +1,62 @@
 [
  {
   "shot": "frost-1",
-  "mean": 0.276,
-  "p95": 0.646,
-  "clipped": 0.03
+  "mean": 0.661,
+  "p95": 0.905,
+  "clipped": 5.55
  },
  {
   "shot": "frost-2",
-  "mean": 0.276,
-  "p95": 0.65,
-  "clipped": 0.03
+  "mean": 0.662,
+  "p95": 0.907,
+  "clipped": 5.84
  },
  {
   "shot": "fire-1",
-  "mean": 0.607,
-  "p95": 0.827,
-  "clipped": 0.04
+  "mean": 0.295,
+  "p95": 0.687,
+  "clipped": 0.03
  },
  {
   "shot": "fire-2",
-  "mean": 0.607,
-  "p95": 0.826,
+  "mean": 0.296,
+  "p95": 0.69,
   "clipped": 0.04
  },
  {
   "shot": "plague-1",
-  "mean": 0.47,
-  "p95": 0.691,
+  "mean": 0.417,
+  "p95": 0.67,
   "clipped": 0.04
  },
  {
   "shot": "plague-2",
-  "mean": 0.47,
-  "p95": 0.691,
+  "mean": 0.418,
+  "p95": 0.67,
   "clipped": 0.04
  },
  {
   "shot": "holy-1",
-  "mean": 0.261,
-  "p95": 0.583,
-  "clipped": 0.03
+  "mean": 0.505,
+  "p95": 0.698,
+  "clipped": 0.05
  },
  {
   "shot": "holy-2",
-  "mean": 0.261,
-  "p95": 0.582,
-  "clipped": 0.03
+  "mean": 0.506,
+  "p95": 0.699,
+  "clipped": 0.05
  },
  {
   "shot": "sentenced-1",
-  "mean": 0.53,
-  "p95": 0.786,
-  "clipped": 0.04
+  "mean": 0.642,
+  "p95": 0.872,
+  "clipped": 0.54
  },
  {
   "shot": "sentenced-2",
-  "mean": 0.53,
-  "p95": 0.786,
-  "clipped": 0.04
+  "mean": 0.64,
+  "p95": 0.872,
+  "clipped": 0.57
  }
 ]
