@@ -49,6 +49,8 @@ namespace Roguehalla.Client
 
         /// <summary>Art is painted on a canvas larger than its nominal cell (so overhanging canopies, glows and shadow tails are never cut off), then cropped to the opaque bounds plus <see cref="CropMargin"/>.</summary>
         public const int PadSide = 44, PadTop = 44, PadBottom = 18, CropMargin = 3;
+        /// <summary>Evidence and A/B only (before/after captures of the clipping fix): paint each prop in its nominal cell, uncropped, as the atlas did before. Never set in the game.</summary>
+        public static bool DebugNoPadding;
 
         static bool TryPack(RegionCanvas[] cvs, int aw, int ah, out RectInt[] rects)
         {
@@ -66,7 +68,8 @@ namespace Roguehalla.Client
         /// <summary>Paints one def on its padded canvas and returns the crop. <paramref name="pivot"/> is the foot in the cropped canvas (pixels).</summary>
         static RegionCanvas PaintCropped(Def d, out Vector2 pivot, out int[] margins)
         {
-            var full = new RegionCanvas(d.W + 2 * PadSide, d.H + PadBottom + PadTop) { OriginX = PadSide, OriginY = PadBottom, DesignW = d.W, DesignH = d.H };
+            int padS = DebugNoPadding ? 0 : PadSide, padT = DebugNoPadding ? 0 : PadTop, padB = DebugNoPadding ? 0 : PadBottom;
+            var full = new RegionCanvas(d.W + 2 * padS, d.H + padB + padT) { OriginX = padS, OriginY = padB, DesignW = d.W, DesignH = d.H };
             d.Paint(full, d.Ground);
             int x0 = full.W, x1 = -1, y0 = full.H, y1 = -1;
             for (int y = 0; y < full.H; y++) for (int x = 0; x < full.W; x++)
@@ -76,14 +79,15 @@ namespace Roguehalla.Client
             }
             if (x1 < 0) { x0 = 0; x1 = 0; y0 = 0; y1 = 0; }
             int ax0 = x0, ax1 = x1, ay0 = y0, ay1 = y1;
-            x0 = Mathf.Max(0, x0 - CropMargin); y0 = Mathf.Max(0, y0 - CropMargin); x1 = Mathf.Min(full.W - 1, x1 + CropMargin); y1 = Mathf.Min(full.H - 1, y1 + CropMargin);
+            if (DebugNoPadding) { x0 = 0; y0 = 0; x1 = full.W - 1; y1 = full.H - 1; ax0 = ax1 = ay0 = ay1 = 0; }
+            else { x0 = Mathf.Max(0, x0 - CropMargin); y0 = Mathf.Max(0, y0 - CropMargin); x1 = Mathf.Min(full.W - 1, x1 + CropMargin); y1 = Mathf.Min(full.H - 1, y1 + CropMargin); }
             var cv = new RegionCanvas(x1 - x0 + 1, y1 - y0 + 1);
             for (int y = 0; y < cv.H; y++) for (int x = 0; x < cv.W; x++) cv.Px[y * cv.W + x] = full.Px[(y + y0) * full.W + x + x0];
-            pivot = new Vector2(d.W * .5f + PadSide - x0, d.Ground + PadBottom - y0);
+            pivot = new Vector2(d.W * .5f + padS - x0, d.Ground + padB - y0);
             // Margins are measured against the crop, but a crop that was limited by the padded canvas (art reaching its edge) reports 0: that art is clipped.
             margins = new[] { ax0 - x0, x1 - ax1, ay0 - y0, y1 - ay1,
                 // 1 when the art reached beyond the nominal cell (it would have been cut off before the padded canvas existed)
-                (ax0 < PadSide || ax1 >= PadSide + d.W || ay1 >= PadBottom + d.H || ay0 < PadBottom - 3 ? 1 : 0) };
+                (ax0 < padS || ax1 >= padS + d.W || ay1 >= padB + d.H || ay0 < padB - 3 ? 1 : 0) };
             return cv;
         }
 
