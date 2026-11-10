@@ -19,11 +19,11 @@ they must never be installed as native component state or fed back as native inp
 **No native dispatch is granted by this packet.** The feature-aware Hand seam is admitted at source candidate
 `76f8a9aadb7decfa4532c02f03403867d3816339`, integrated as `483c149018eb648b1d7904ab9d82cb297cf8a238`, with Root's
 binding review `2436ed80`. Tactics is independently admitted from `cdf5b70f` as `df62934a` after its documented repairs;
-Modules' native APIs remain **WIP**. The persistent callback/mutable-goal Strategy bridge in
+Modules `0c6dcee4` is independently released and integrated as `721d04da`. The persistent callback/mutable-goal Strategy bridge in
 [P-BOT-STRATEGY-COMPOSITION-BRIDGE-1](P-BOT-STRATEGY-COMPOSITION-BRIDGE-1.md) and borrowed path-budget bridge in
 [P-BOT-PATH-BUDGET-1](P-BOT-PATH-BUDGET-1.md) are separately scoped. The path bridge is independently admitted from
-`5d351cb5` as `07babf29` + `6b4dbfad`; the reviewed Strategy bridge is dispatched from `bed245bd`. Root must verify
-and seal all remaining exact dependency commits/reviews before Brain dispatch. No crate-wide or blanket existing-file
+`5d351cb5` as `07babf29` + `6b4dbfad`; the reviewed Strategy bridge `96905908` is independently admitted as `04577169` + `030b3be8`. Root must verify
+the final combined dependency check and exact composition interface allocation before Brain dispatch. No crate-wide or blanket existing-file
 lease is proposed. Root assigns the clean base, target, exact path lease and dispatch after those gates; DeepSeek owns
 all Rust and tests.
 
@@ -248,3 +248,14 @@ If any required component is unsealed, a shared core would need duplication, the
 preserve legacy cache/search semantics, an identity or RNG boundary cannot be represented, or a source/native mismatch
 is found: stop before disguising
 the gap with defaults or an out-of-scope edit; keep the exact red evidence and ask Root to allocate the smallest bridge.
+
+
+## Root tier lifetime decision (2026-11-10)
+
+The actual source BotManager/BotClient select canonical `TIERS` entries; native `TierParams::by_id` returns the same
+kind of static table reference. The private Brain may accept the caller's canonical `&'static TierParams` and reuse
+existing Memory/Humanizer constructors. Finite custom source profiles may use test-only fixture-owned static storage,
+as existing component witnesses do. This does not authorize a production `Box::leak`, replacing supplied full profiles
+with a TierId lookup, or an owned-tier Memory/Humanizer refactor. A broader runtime tier producer would need separate
+evidence and review; the present source callers do not require one. See the independently checked live call sites in
+[the Strategy composition review](../../evidence/bot-strategy-composition-admission-review/README.md).

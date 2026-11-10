@@ -93,3 +93,35 @@ actual receipts for:
 Even a successful exact-seal review is limited to this private source-module layer. Full `createBrain` composition,
 public fair-fact publication, validate+submit activation, headless/live execution, and Unity/network behavior remain
 separate work and admission gates.
+
+## Final exact-seal follow-up — 2026-11-10
+
+**Disposition: RELEASE the bounded private Modules candidate at `0c6dcee4f649336a9b4c422d0c6068e19e96344e` for Root admission/integration.** This supersedes the pre-seal HOLD above, which was specifically an incomplete-evidence HOLD. It does not claim Brain composition, fair publication, live/headless activation, or full-game parity.
+
+### Seal and manifest verification
+
+The commit parent is the declared clean dispatch base `9f74ff3e87461ff31f84720240455d6ef33f420b`. The tracked candidate contains 38 paths: the five leased existing files and the packet-owned new files/evidence. The only worktree status entries are the seven untracked `target-*` build caches called out in the dispatch; they are excluded from the commit and manifest.
+
+I independently checked all 36 manifest entries against the frozen candidate worktree: SHA-256, Git blob SHA-1, byte count, and filesystem mode match. Manifest SHA-256 is `b4190e873ef02e02f8b2a8f625fbb06c29ce812662dc1c712aa491c0cc0286b8`; the binary patch for the five existing files matches SHA-256 `f06ebfdf84be98ca13aff4121d794173aa321ffb9ef9e7b9bcd3fc4742395400`; the `SEAL.txt` digest is `b619cddd04946707a1b94ed6a8fbd7344aad90fc0cb96225d18b27f64bbfe37a`. The final tracked delta matches that patch hash. The frozen corpus remains 12,755,158 bytes / SHA-256 `645e85f16adbea001f8d0e06a70b6e5d311864ed9691622c06b789c95578b012`.
+
+### Final code/evidence delta review
+
+The final code retains the shared-engine design reviewed pre-seal: old planning/Wish/hazard wrappers and private modules route through the same transition cores, and only the two allocated module/type visibility lines are added outside those shared-engine files. The final manifest confirms the reviewed `planning.rs`, `wish/source_core.rs`, `hazards/source_core.rs`, module registry, and source replay harness identities. The registry is `Send` through its persistent `Arc<dyn Fn + Send + Sync>` callbacks; pointer-identity and Send assertions are present, without `unsafe impl` or a non-Send wrapper. Its custom-enabled callback transcript is appended after the registry operation; the corpus-specific justification remains accurate because those enabled operations have no interleaved callback source in the operation.
+
+The final harness keeps expected result/context/hunter/callback values as post-operation comparisons; native state is constructed from declared inputs, fresh per-case modules/registry/hunter, declared Memory/Knowledge/map/path services, and per-cfg RNG streams. Source replay totals are hard-checked before execution. The strict reader and semantic controls are separate: 24 intake negatives and 28 native semantic controls, with the declared native profile limits and unproved paths retained in LEDGER/CONTROLS rather than advertised as general support.
+
+The final frozen-tree receipts record 255 cases / 3,259 operations with zero mismatches, 354 `rh-policy` lib tests passing, 24/24 strict intake negatives, 28 semantic controls, Send assertion, old overlap filters, formatting, and default/all-feature clippy all exiting zero. RUNS.md preserves the earlier first failures and repairs. I reviewed the code, manifest and receipts read-only; I did not run Rust tests or recapture source. Root's command receipts remain the execution authority.
+
+### Limits preserved
+
+This release only covers the private source-module layer and its shared engine bridges. Explicit limits remain: unsupported future/custom ability shapes, source throws outside the finite method profile, and any other declared unproved paths in LEDGER. No full `createBrain` composition, fair Observation/FrameRing publication, validated live/headless driver, persistent learning lifecycle, client/wire behavior, or whole-game parity is established by this candidate.
+
+
+## Root integration receipt
+
+Exact independently released seal `0c6dcee4f649336a9b4c422d0c6068e19e96344e` integrates cleanly as
+`721d04dabaa734f33835cd69bbb64385843d9a7d`. The already-present Strategy types visibility hunk is identical, so the
+integration commit changes37 paths rather than the worker seal's38; all new module/core code is preserved. Root starts
+one combined full `rh-policy --lib --nocapture` check at this exact integration, with the previously admitted Hand,
+Tactics, PathBudget, Potion and Strategy composition changes. Its raw receipt is `root-integrated-policy.log`; at this
+recording it is running and no pass is claimed. Target caches are not tracked.
