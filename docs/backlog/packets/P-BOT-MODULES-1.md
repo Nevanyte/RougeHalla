@@ -2,6 +2,8 @@
 
 ## Outcome and authority
 
+**Root source admission (2026-11-10):** immutable `faba1278` is integrated as `d48b79bf`, with independent final reproduction/review admitted at `63f6fda8`. Final source/coverage bytes,24 strict reader negatives,26 semantic kills and comment/restoration/manifest checks pass. See [final review](../../evidence/bot-private-modules-source-review/final-review.md). Native bridges remain separately undispatched; raw nonfinite Plan inputs remain outside this finite source profile.
+
 **Root source-only dispatch (2026-11-10):** Sol is assigned the three new source/tool/evidence directories below in clean `codex/bot-private-modules-source`, `/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-modules-source`, at exact `bd40fa2a274184b8748b005af78e18e74802f7ae`. This explicitly starts source preparation under the packet's immutable-source and independent-review rules. Native implementation, existing-engine bridge hunks and public activation remain undispatched. Root integrates the separately sealed candidate after review.
 
 Source preparation is authorized above. The native architecture and bridge leases remain proposals; Root allocates an
