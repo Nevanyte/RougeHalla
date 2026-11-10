@@ -1,0 +1,2 @@
+{"cases":154,"operations":720,"readerControls":17,"bytes":11656923,"sha256":"5d27d1b4522d386d4ede5f3064a28660dedff43e32a24ade264f4512e30fcfa8"}
+{"mode":"--check","file":"/repo/parity/policy/bot-private-tactics/manifest.json","bytes":37387,"sha256":"9f76406016d0ebc498b0a3a3ec7cad677fc43ecd40b530a963a57a7f3d6eb957","cases":154,"operations":720,"semanticControls":17}
