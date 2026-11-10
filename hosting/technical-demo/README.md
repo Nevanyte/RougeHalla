@@ -5,8 +5,10 @@ ca-west-1**, practice `play.rougehalla.com`, and an original absolute UTC deadli
 more than three hours ahead. Eleven stdlib bootstrap controls and seven PyYAML
 stack controls pass. The first two actual guests terminated before application
 readiness; the second guest proves the NFT syntax error documented below. The
-corrected rules now pass an actual Ubuntu NFT parser check. Complete installation,
-TLS and browser readiness still require a fresh actual guest.
+corrected rules pass an actual Ubuntu NFT parser check. Fixed guest03 now passes
+installation/native storage readiness, actual isolation/shaping, valid public TLS
+and an ordinary browser profile-load/Training/movement/Leave check. The fixed
+shutdown remains 2026-11-10 03:50:21 UTC; this is an ephemeral demo.
 
 The root URL redirects to `index.html` with the ordinary same-origin Training
 endpoint selected, so both Arena and Practice are available without operator setup.
@@ -238,9 +240,11 @@ precompressed suffix handling remain unchanged. The old exact Caddyfile and
 bootstrap are retained in the coordinator's content-encoding-fix receipt for
 Root's rollback. This source preparation does not reload a server or prove
 compressed byte counts, cold-load duration, CPU cost or public game performance.
-Root must validate the exact new Caddyfile with the installed binary before its
-single graceful reload, then inspect actual GET response encoding/size under
-normal TLS. No restart, timer, NFT, gameplay or cloud change occurred here.
+Root has now validated the exact new Caddyfile with the installed binary and
+completed one graceful reload. Actual normal-TLS GET headers confirm gzip on
+both WASM/data responses. Full compressed transfer size and load-time improvement
+remain unmeasured. No restart, timer, NFT, gameplay or cloud-resource change was
+needed for this correction; previous bootstrap/userdata receipts stay unchanged.
 
 Caddy syntax references: [encode response matcher](https://caddyserver.com/docs/caddyfile/directives/encode)
 and [response-header matching](https://caddyserver.com/docs/caddyfile/response-matchers).

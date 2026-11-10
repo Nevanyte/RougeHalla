@@ -69,6 +69,10 @@ later waves in `NETCODE_COMPETITIVE_PLAN.md` are separate implementation work, n
 The optimized Web B build now runs locally, with all five faction ability activations and a real three-player PvP
 kill/Trophy choice reaching delivered chosen/taken state at 2560×1440/text 150%. The UI chat's build handoff is complete;
 art/networking are finishing normal results and cleanup. The new-source Linux artifact 42729941646 also passes, and its
-temporary trigger is removed at `bac4820f`. The first actual Calgary guest failed isolation and terminated safely; diagnostic
-changes pass 17 offline checks, without yet identifying the host cause. Public DNS/TLS, hosted play, actual M5 Pro/legacy
-measurements and final release checks remain open. Historical passing runs keep their recorded revisions and scopes.
+temporary trigger is removed at `bac4820f`. The first two Calgary guests terminated safely; the second proves the NFT
+syntax error. The multiline fix passes an actual Ubuntu parser, and fixed guest `i-00b97e48b4e5c4f31` now passes real
+native/storage/isolation/shaping checks. **https://play.rougehalla.com is live** with valid TLS and a real browser
+profile-load/Training/movement/Leave check. Explicit Caddy MIME matching now enables gzip on actual WASM/data GETs;
+no Unity/native rebuild was needed. Original shutdown remains **2026-11-10 03:50:21 UTC** (November9,20:50 Calgary).
+Hosted multiplayer, actual M5 Pro/legacy performance measurements and final cleanup/release checks remain open.
+Historical passing runs keep their recorded revisions and scopes.

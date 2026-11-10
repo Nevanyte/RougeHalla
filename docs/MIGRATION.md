@@ -19,10 +19,18 @@ The new-source Linux artifact run 42729941646 at `d265ab95` passes; its strict v
 `dd7a208cc2b183268740a910d07db6aa7002260d6d1f9511cfaccf3e4791ce6d`. The temporary workflow trigger is removed at
 `bac4820f`. The first actual Calgary guest `i-0b2f4485d0491740e` failed `rh-demo-isolation.service` and terminated through
 the intended failure/poweroff path. CloudFormation completion did not establish readiness; no public hosted demo is
-claimed. The diagnostic replacement proves an NFT parser error between the chain/table closing braces; a multiline
-repair is in progress. The owner specified **play.rougehalla.com** for staging, while **play.roguehalla.com** remains
-untouched production. DNS/TLS, hosted play, actual performance measurements and final release checks remain open. Deferred content remains
-outside the demo critical path.
+claimed by those failed attempts. The multiline repair reproduces old NFT syntax failure and passes the actual Ubuntu
+parser. Fixed guest `i-00b97e48b4e5c4f31` now passes native/storage readiness, exact binary identity, actual NFT and
+8mbit/fq_codel checks. **https://play.rougehalla.com is live** with valid public TLS. Root's actual hosted browser check
+passes ordinary profile load, Training join,400ms Right movement and normal Leave to the menu. Production
+**play.roguehalla.com** remains untouched. The original fixed shutdown is **2026-11-10 03:50:21 UTC** (November9,
+20:50:21 Calgary). This is an ephemeral demo, not retained progression hosting.
+
+An observed cold-load issue is corrected by the explicit response MIME matcher at `9859f700`: the installed Caddy
+validates and gracefully reloads the exact candidate, and actual normal-TLS GETs now return gzip for both WASM/data
+where the earlier requests did not. Unity/native artifacts remain unchanged; compressed transfer size and load-time
+improvement are not yet measured. Hosted multiplayer, final frame-time/latency/legacy comparison and cleanup/release
+checks remain open. Deferred content stays outside the demo critical path.
 
 The owner now prioritizes a complete visual/networked **technical demo as soon as possible** to measure Unity 2D and
 AWS/Rust speed. Full quests, every augment/elite reward, advanced bot parity and production completeness no longer block
