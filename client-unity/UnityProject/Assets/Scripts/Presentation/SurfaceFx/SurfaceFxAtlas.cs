@@ -39,8 +39,8 @@ namespace Roguehalla.Client
             {
                 case Foot:
                 {
-                    float sole = 1f - Ell(u, v, .5f, .36f, .21f, .30f), toe = 1f - Ell(u, v, .5f + .02f * (v - .7f), .74f, .17f, .15f);
-                    float heel = 1f - Ell(u, v, .5f, .12f, .12f, .09f);
+                    float sole = 1f - Ell(u, v, .5f, .37f, .33f, .31f), toe = 1f - Ell(u, v, .5f + .03f * (v - .7f), .76f, .27f, .17f);
+                    float heel = 1f - Ell(u, v, .5f, .1f, .2f, .1f);
                     float f = Mathf.Max(sole, Mathf.Max(toe, heel * .9f));
                     h = Smooth(0f, .5f, f); a = Smooth(0f, .16f, f); break;
                 }
