@@ -142,7 +142,7 @@ impl Keyed for Mob {
 impl Mob {
     /// What decides this actor's hitbox archetype (ADR0024), or `None` for a malformed record (a regional actor without a
     /// catalog type).
-    pub(crate) fn identity(&self) -> Option<crate::archetype::Identity> {
+    pub fn identity(&self) -> Option<crate::archetype::Identity> {
         use crate::archetype::Identity;
         Some(match self.kind {
             _ if self.zombie.is_some() => Identity::Zombie,

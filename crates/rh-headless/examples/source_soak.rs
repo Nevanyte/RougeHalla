@@ -1,7 +1,9 @@
 //! Soak: bot-only matches on a full rh-map/2 map with the live `--runtime source-arena` SimConfig (factions incl. Plague,
 //! PvE mobs, quests, initial loot, source lifecycle). Panics surface the room-killing crash family.
 //!
-//!   cargo run --release -p rh-headless --example source_soak -- <map> <seed_from> <seed_to> [max_ticks]
+//!   cargo run --release -p rh-headless --example source_soak -- <map> <seed_from> <seed_to> [max_ticks] [legacy|archetypes]
+//!
+//! The last argument is the ADR0024 hitbox mode (default `legacy`; `archetypes` is the opt-in `--hitboxes archetypes`).
 use rh_headless::{Agent, AgentSpec, Env, EnvConfig};
 use rh_sim::{
     abilities, mob_runtime::MobMode, terrain, ArenaMode, FactionId, FactionMode, SimConfig,
@@ -12,6 +14,11 @@ fn main() {
     let arena = rh_headless::load_arena(&a[1]).unwrap();
     let (from, to): (u64, u64) = (a[2].parse().unwrap(), a[3].parse().unwrap());
     let max_ticks: u32 = a.get(4).map_or(12_000, |v| v.parse().unwrap());
+    let hitboxes = match a.get(5).map(String::as_str) {
+        None | Some("legacy") => rh_sim::archetype::HitboxMode::LegacyCircle,
+        Some("archetypes") => rh_sim::archetype::HitboxMode::Archetypes,
+        Some(other) => panic!("the hitbox mode must be legacy or archetypes, not {other:?}"),
+    };
     for seed in from..to {
         let cfg = SimConfig {
             walk_hints: Some(true),
@@ -27,6 +34,7 @@ fn main() {
             min_players: 1,
             lobby_seconds: 5.,
             fill_seconds: 3.,
+            hitboxes,
             ..SimConfig::default()
         };
         let agents = (0..8)
@@ -65,7 +73,7 @@ fn main() {
             }
         };
         println!(
-            "seed {seed}: ticks {ticks} terminated {} truncated {} maxMobs {max_mobs} maxZombies {zombies} hash {:016x}",
+            "seed {seed} ({hitboxes:?}): ticks {ticks} terminated {} truncated {} maxMobs {max_mobs} maxZombies {zombies} hash {:016x}",
             out.terminated,
             out.truncated,
             env.sim.state_hash()
