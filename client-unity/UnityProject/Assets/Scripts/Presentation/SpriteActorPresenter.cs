@@ -52,15 +52,15 @@ namespace Roguehalla.Client
         const float ActorVisualScale = 1.2f;
         /// <summary>The faction footprint outline sits at this fraction of the sprite's half-size (FactionIndicators textures).</summary>
         const float FootprintOutline = .72f;
-        const byte KnownSignatureMask = 1 | 2 | 4 | 8 | 64;
+        const byte KnownSignatureMask = 1 | 2 | 4 | 8 | 16 | 32 | 64; // 16 (taxed) and 32 (suppressed) are named by text cues (OverheadExtras), not icons
         static readonly byte[] SignatureBits = { 1, 2, 4, 8, 64 };
         static readonly string[] SignatureSpriteKeys = { "sigil3", "spark", "sigil2", "weapon0", "sigil4" };
+        // Legacy SignatureArt colours: icy e1f5fe, burning ff7043, diseased b2d96c, execute c6ff00, exec-blocked pale grey; glyphs from IndicatorArt.
         static readonly Color[] SignatureColors =
         {
-            ShowcasePalette.Faction((int)FactionId.Frost), ShowcasePalette.Faction((int)FactionId.Fire),
-            ShowcasePalette.Faction((int)FactionId.Plague), ShowcasePalette.Faction((int)FactionId.Sentenced),
-            ShowcasePalette.MutedText
+            new Color32(0xe1, 0xf5, 0xfe, 255), new Color32(0xff, 0x70, 0x43, 255), new Color32(0xb2, 0xd9, 0x6c, 255), new Color32(0xc6, 0xff, 0x00, 255), new Color32(0xcf, 0xd8, 0xdc, 255)
         };
+        static readonly string[] SignatureGlyphs = { "snow", "flame", "droplet", "skull", "skull" };
         const int UnknownSignatureSlot = 5;
 
         public SpriteActorPresenter(Transform parent, ShowcaseCatalog catalog) { _parent = parent; _catalog = catalog; SpriteOutline.ConfigureFromUrl(Application.absoluteURL); /* CONTRAST */ }
@@ -176,6 +176,24 @@ namespace Roguehalla.Client
             {
                 Evict(id);
             }
+            SuppressOverlappingNames();
+        }
+        // Creature names of a tight camp overprint each other ("Miasma WitchMiasma Witch"): the plate of the creature in front (lower on
+        // screen) and any elite's keeps its place, a plate that would cover a kept one is hidden for the frame.
+        readonly List<Art> _nameOrder = new List<Art>();
+        void SuppressOverlappingNames()
+        {
+            _nameOrder.Clear();
+            foreach (var pair in _active) { var ind = pair.Value.Ind; if (ind != null && ind.NameShown) _nameOrder.Add(pair.Value); }
+            if (_nameOrder.Count < 2) return;
+            _nameOrder.Sort((a, b) =>
+            {
+                int e = b.Ind.NameElite.CompareTo(a.Ind.NameElite); if (e != 0) return e;
+                return a.Ind.NameRect.center.y.CompareTo(b.Ind.NameRect.center.y); // lower y (more negative, further down the screen) first
+            });
+            for (int i = 1; i < _nameOrder.Count; i++)
+                for (int j = 0; j < i; j++)
+                    if (_nameOrder[j].Ind.NameShown && _nameOrder[j].Ind.NameRect.Overlaps(_nameOrder[i].Ind.NameRect)) { _nameOrder[i].Ind.SuppressName(); break; }
         }
         public void Retain(HashSet<uint> membership)
         {
@@ -302,7 +320,7 @@ namespace Roguehalla.Client
             a.Body.transform.localRotation = Quaternion.Euler(0, 0, dead && (appearance==null || appearance.Death==null || appearance.Death.Length==0) ? 75 : 0);
             // CONTRAST: the dark rim and the pale halo are gone; the adaptive outline (SpriteOutline) is synced at the end of Present.
             int factionArt = faction.HasValue ? (int)faction.Value : -1;
-            a.Identity.Present(factionArt,kind,mob,order,!dead);
+            a.Identity.Present(factionArt,kind,mob,order,!dead,lift);
             a.Shadow.sortingOrder = order - 9; // CONTRAST: one step lower, the footprint outline sits at order - 8
             AtmosphereShadows.ApplyActor(a.Shadow, x / 32f, y / 32f);
             a.Halo.sortingOrder = order - 7;
@@ -315,6 +333,7 @@ namespace Roguehalla.Client
             a.Halo.color = color;
             a.Halo.enabled = true;
             a.RuneBack.sortingOrder = order + 2;
+            a.RuneBack.enabled = a.Rune.enabled = !dead; // a dead fighter keeps no insignia plate floating beside nothing
             a.RuneBack.transform.localPosition = new Vector3(-.72f, (isMob ? 1.23f : 1.55f) + lift, 0);
             a.RuneBack.transform.localScale = new Vector3(.46f, .46f, 1);
             a.RuneBack.color = new Color(.008f, .012f, .022f, .96f);
@@ -352,7 +371,7 @@ namespace Roguehalla.Client
             for (int i = 0; i < a.BarrierRing.Length; i++)
             {
                 var segment = a.BarrierRing[i];
-                segment.enabled = i < ringSteps;
+                segment.enabled = false; // the barrier is the legacy bubble round the body (OverheadExtras), not ticks above the head
                 float ringAngle = i * Mathf.PI / 4f - Mathf.PI / 2f;
                 segment.transform.localPosition = new Vector3(Mathf.Cos(ringAngle) * .19f, 2.18f + lift + Mathf.Sin(ringAngle) * .19f, 0);
                 segment.color = (Color)theme.Info;
@@ -416,7 +435,7 @@ namespace Roguehalla.Client
             fx.Order = order; fx.HeadY = headY; fx.BarY = barY; fx.Dead = dead; fx.Local = local; fx.Mob = kind == ActorKind.RegionalMob || kind == ActorKind.TrainingDummy;
             fx.Elite = elite; fx.Dummy = kind == ActorKind.TrainingDummy; fx.HpPct = hp; fx.Effects = effects; fx.Name = fx.Mob ? (kind == ActorKind.TrainingDummy ? "Training dummy" : label) : null;
             fx.SigTopY = (signature != 0 || ringSteps > 0) ? 2.62f + lift : barY;
-            fx.Reduced = reduced;
+            fx.Reduced = reduced; fx.BarrierStep = ringSteps; fx.Sig = signature;
             a.IndFacts = fx;
             // SURFACE-FX HOOK: delivered actors only (see SurfaceFx); prints, ripples and footsteps come from here and nowhere else.
             // A fighter that is hidden from this viewer (not drawn at all) leaves no prints, ripples or footsteps either.
@@ -466,6 +485,7 @@ namespace Roguehalla.Client
                     ShowcasePalette.Panel, new Vector2(.34f, .34f), Vector3.zero, false);
                 a.SignatureIcons[i] = ShowcaseSprites.Create(t, SignatureName(SignatureBits[i]), SignatureSpriteKeys[i], 8,
                     SignatureColors[i], new Vector2(.3f, .3f), Vector3.zero, false);
+                a.SignatureIcons[i].sprite = IndicatorArt.Get(SignatureGlyphs[i]);
             }
             a.UnknownSignatureBacker = ShowcaseSprites.Create(t, "Unknown signature backer", "bar", 7,
                 ShowcasePalette.Panel, new Vector2(.34f, .34f), Vector3.zero, false);

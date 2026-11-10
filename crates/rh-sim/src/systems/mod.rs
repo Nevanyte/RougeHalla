@@ -124,6 +124,11 @@ pub(crate) mod buffs;
 
 pub(crate) mod mob_ai;
 
+pub(crate) mod mob_spacing;
+
+#[cfg(test)]
+mod mob_spacing_tests;
+
 pub(crate) mod mob_life;
 
 pub(crate) mod mob_checkpoint;

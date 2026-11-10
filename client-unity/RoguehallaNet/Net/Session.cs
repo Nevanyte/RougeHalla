@@ -80,6 +80,8 @@ namespace Roguehalla.Net
         public Protocol.WireArchetype[] Archetypes { get { return Welcome == null || Welcome.Archetypes == null ? System.Array.Empty<Protocol.WireArchetype>() : Welcome.Archetypes; } }
         /// <summary>The vision rule's parameters the server sent (protocol 16), or null before a Welcome.</summary>
         public Protocol.WireVision Vision { get { return Welcome == null ? null : Welcome.Vision; } }
+        /// <summary>The weapon table of this server (protocol 16): each weapon's hit shape, empty before the Welcome.</summary>
+        public Protocol.WireWeapon[] Weapons { get { return Welcome == null || Welcome.Weapons == null ? System.Array.Empty<Protocol.WireWeapon>() : Welcome.Weapons; } }
         public uint PlayerId { get { return Welcome == null ? 0 : Welcome.PlayerId; } }
         readonly SelfView _me = new SelfView();
         bool _hasMe;
@@ -120,6 +122,11 @@ namespace Roguehalla.Net
         public readonly ClockSync Sync = new ClockSync();
         public readonly InputSender Input = new InputSender();
         public readonly CollectionsView Collections = new CollectionsView();
+        /// <summary>The match roster (State key 12, protocol 16, ADR0026): names and bot flags of everyone seated, ascending by id;
+        /// empty before the key arrives.</summary>
+        public System.Collections.Generic.IReadOnlyList<RosterEntry> Roster { get { return Collections.Roster; } }
+        /// <summary>The roster name of actor <paramref name="id"/>, or null when unknown (not seated, or the roster has not arrived).</summary>
+        public string RosterName(uint id) { return Collections.RosterName(id); }
         public LocalMotion Motion { get; private set; }
 
         public event Action<SessionState> StateChanged;

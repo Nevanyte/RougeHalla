@@ -484,6 +484,7 @@ fn run(
     let welcome = ServerMsg::Welcome {
         archetypes: rh_server::room::archetype_table().to_vec(),
         vision: rh_policy::delivery::projection::wire_vision(&src.sim().arena().map),
+        weapons: rh_server::room::weapon_table().to_vec(),
         protocol: rh_protocol::PROTOCOL_VERSION,
         content_hash: rh_sim::content::content_hash(),
         match_id: [0; 16],

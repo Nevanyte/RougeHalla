@@ -814,6 +814,7 @@ mod tests {
             amount: 3.,
             weapon: Some(WeaponId::Sword),
             passive: false,
+            critical: false,
         }];
         let mut seat = ItemObserver::new(viewer);
         let mut o = Observation::default();

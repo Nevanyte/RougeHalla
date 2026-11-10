@@ -284,7 +284,7 @@ fn events(w: &World, events: &[Event]) -> Vec<Value> {
         Event::MarkNotice{recipient,notice}=>json!({"type":"toast","to":label(w,*recipient),"text":notice.message()}),
         Event::Windup{by,weapon,a,ms}=>json!({"type":"fx","fx":{"kind":"windup","by":label(w,*by),"weapon":weapon.as_str(),"a":a,"ms":ms}}),
         Event::Swing{by,weapon,x,y,a}=>json!({"type":"fx","fx":{"kind":"swing","by":label(w,*by),"weapon":weapon.as_str(),"x":x,"y":y,"a":a}}),
-        Event::Hit{victim,by,amount,weapon,passive}=>{let mut fx=json!({"kind":"hit","id":label(w,*victim),"by":by.map(|id|label(w,id)),"amount":amount,"weapon":weapon.map(|w|w.as_str())});if *passive{fx["passive"]=json!(true);}json!({"type":"fx","fx":fx})},
+        Event::Hit{victim,by,amount,weapon,passive, critical: _ }=>{let mut fx=json!({"kind":"hit","id":label(w,*victim),"by":by.map(|id|label(w,id)),"amount":amount,"weapon":weapon.map(|w|w.as_str())});if *passive{fx["passive"]=json!(true);}json!({"type":"fx","fx":fx})},
         Event::SignatureHit{victim,by,sig,weapon,amount}=>json!({"type":"fx","fx":{"kind":"hit","id":label(w,*victim),"by":label(w,*by),"sig":sig.as_str(),"weapon":weapon.map(|w|w.as_str()),"amount":amount}}),
         _=>panic!("unexpected native event; do not thin actual tape: {e:?}"),
     }).collect()

@@ -112,6 +112,7 @@ async fn a_match_over_websockets_banks_results_once_in_postgres() {
         ..DirectorConfig::new(
             SimConfig {
                 hitboxes: Default::default(),
+                mob_spacing: Default::default(),
                 walk_hints: None,
                 regen: false,
                 quests: false,
@@ -377,6 +378,7 @@ async fn an_mia_leave_is_banked_under_its_fence() {
         ..DirectorConfig::new(
             SimConfig {
                 hitboxes: Default::default(),
+                mob_spacing: Default::default(),
                 walk_hints: None,
                 regen: false,
                 quests: false,

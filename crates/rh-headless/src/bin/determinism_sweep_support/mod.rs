@@ -82,6 +82,7 @@ impl From<&SimSpec> for SimConfig {
         Self {
             walk_hints: None,
             hitboxes: Default::default(),
+            mob_spacing: Default::default(),
             regen: false,
             min_players: spec.min_players,
             lobby_seconds: spec.lobby_seconds,
@@ -1237,6 +1238,7 @@ mod tests {
             amount,
             weapon: Some(WeaponId::Fists),
             passive: false,
+            critical: false,
         })
         .unwrap()
     }

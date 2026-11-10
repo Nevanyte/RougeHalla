@@ -42,6 +42,7 @@ namespace Roguehalla.Client
         // Champion combat HUD.
         RectTransform _championHud;
         TMP_Text _championName;
+        UnityEngine.UI.Image _championIcon;
         readonly TMP_Text[] _championValue = new TMP_Text[3], _championScaling = new TMP_Text[3];
         bool _championWanted, _barWanted;
         // Death line, glows, chrome, top-centre and toast pills.
@@ -246,7 +247,8 @@ namespace Roguehalla.Client
             var theme = UiTheme.Current;
             _championHud = _damagePanel = HudUi.Box(_hud, "ChampionCombatHud", HudAnchor.BottomLeft, ChampionLeft, ChampionBottom, 250f, ChampionHeight);
             HudUi.Surface(_championHud, Tone(theme.Surface, .94f), 7f, theme.Border, true, true);
-            _championName = HudUi.Label(HudUi.At(_championHud, "Head", 8, 6, 150, 16), "Champion", "Champion", 12f, theme.TextPrimary, bold: true);
+            _championIcon = LaunchUi.FactionShape(_championHud, "FactionIcon", 4, 8f, 7f, 14f, theme.TextPrimary);
+            _championName = HudUi.Label(HudUi.At(_championHud, "Head", 26, 6, 130, 16), "Champion", "Champion", 12f, theme.TextPrimary, bold: true);
             _damageWeapon = HudUi.Label(HudUi.At(_championHud, "Weapon", 150, 8, 92, 14), "Weapon", "—", theme.SizeTiny, theme.Accent, TextAlignmentOptions.MidlineRight);
             string[] labels = { "Attack", "Passive", "Wish" };
             for (int i = 0; i < 3; i++)
@@ -414,7 +416,9 @@ namespace Roguehalla.Client
         void CreateDeathLine()
         {
             var theme = UiTheme.Current;
-            var box = HudUi.Box(_hud, "DeathLine", HudAnchor.Center, 0, 0, 640f, 64f);
+            var box = HudUi.Box(_hud, "DeathLine", HudAnchor.Center, 0, 0, 380f, 64f);
+            // An opaque dark plate: red letters over bright sand or snow read as pale pink without one (marker contrast, 4.5:1 on any ground).
+            HudUi.Surface(box, UiTheme.With(theme.OutlineDark, .9f), 10f, theme.Danger, false, false);
             _deathLine = HudUi.Label(box, "Label", "YOU DIED", theme.SizeDisplay, theme.Danger, TextAlignmentOptions.Center, true, UiFontRole.Display);
             _deathLine.characterSpacing = 6f;
             _deathLine.outlineWidth = .22f; _deathLine.outlineColor = theme.OutlineDark; // legible over any ground
@@ -442,7 +446,7 @@ namespace Roguehalla.Client
             _championWanted = alive && _session != null && (_session.Phase == MatchPhase.Active || practice);
             if (_deathLine != null)
             {
-                bool dead = me != null && me.Status == ActorStatus.Dead && _session != null && _session.LastResult == null && !practice;
+                bool dead = me != null && me.Status == ActorStatus.Dead && _session != null && !_results.gameObject.activeSelf && !practice;
                 var box = _deathLine.transform.parent.gameObject;
                 if (box.activeSelf != dead) box.SetActive(dead);
             }
@@ -465,8 +469,9 @@ namespace Roguehalla.Client
             }
             if (_championName != null)
             {
-                Set(_championName, ShowcasePalette.GetFactionMark((int)me.Faction) + " " + ShowcasePalette.GetFactionName((int)me.Faction));
+                Set(_championName, ShowcasePalette.GetFactionName((int)me.Faction));
                 _championName.color = theme.FactionColor((int)me.Faction);
+                if (_championIcon != null) { _championIcon.sprite = MapGlyphs.Sprite(LaunchCopy.Houses[Mathf.Clamp((int)me.Faction, 0, 4)].Shape); _championIcon.color = theme.FactionColor((int)me.Faction); }
             }
             // Wish row of the champion HUD: the ability name and stock the server delivered.
             if (_championValue[2] != null)

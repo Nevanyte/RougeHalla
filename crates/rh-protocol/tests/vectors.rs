@@ -106,7 +106,12 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
                 Truncated
             }
             "pickup_bad_reason_zero" | "pickup_bad_reason_unknown" => BadField("combat"),
-            "hit_bad_passive" => BadTag(2),
+            "hit_flags_unknown_bit" => BadField("hit flags"),
+            "fx_windup_weapon_over_15" => BadField("windup weapon"),
+            "fx_sig_hit_kind_zero" | "fx_sig_hit_kind_6" | "fx_sig_hit_kind_21" => {
+                BadField("hit kind")
+            }
+            "fx_windup_truncated" | "fx_heal_truncated" | "camp_cleared_truncated" => Truncated,
             "unknown_tag" | "client_tag_from_server" => BadTag(0),
             "trailing_byte" => Trailing(0),
             "overlong_varint"
@@ -182,6 +187,14 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
             | "state_trade_stats_over_limit"
             | "state_trade_merchants_over_limit" => TooMany(0),
             "state_reward_card_id_80" => BadField("reward id"),
+            "state_roster_count_over_32" => BadField("roster count"),
+            "state_roster_id_zero" | "state_roster_order" => BadField("roster order"),
+            "state_roster_flags_unknown" => BadField("roster flags"),
+            "state_roster_name_empty" | "state_roster_name_long" | "state_roster_name_control" => {
+                BadField("roster name")
+            }
+            "state_roster_name_utf8" => BadUtf8,
+            "state_roster_truncated" => Truncated,
             "state_reward_kind_unknown" => BadField("reward kind"),
             "state_reward_kill_key_unknown" => BadField("reward key"),
             "state_reward_kill_gain_zero"
@@ -220,6 +233,26 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
                 BadField("head")
             }
             "delta_self_status_over_3" => BadField("status"),
+            // Protocol 16, ADR0026: indicator facts.
+            "delta_head_flags_without_present_bit" => BadField("head"),
+            "self_flags_unknown_bit"
+            | "actor_flags_unknown_bit"
+            | "delta_self_flags_unknown_bit"
+            | "delta_actor_flags_unknown_bit" => BadField("flags"),
+            "self_build_marks_repeated"
+            | "actor_build_marks_key_over_9"
+            | "actor_build_marks_second_without_first"
+            | "actor_build_marks_repeated"
+            | "delta_self_build_marks_key_over_9"
+            | "delta_actor_build_marks_repeated" => BadField("build marks"),
+            "self_mark_tier_over_4"
+            | "actor_mark_tier_over_4"
+            | "actor_mark_brand_over_100"
+            | "actor_mark_tax_over_100"
+            | "delta_self_mark_brand_over_100"
+            | "delta_actor_mark_tier_over_4" => BadField("mark"),
+            "actor_offhand_over_16" | "delta_actor_offhand_over_16" => BadField("offhand"),
+            "actor_mark_truncated" => Truncated,
             "delta_actor_id_gap_zero" => BadField("actor order"),
             "delta_actor_hp_over_100" => BadField("hp_pct"),
             "delta_actor_bounty_over_u16" => BadField("bounty"),
@@ -263,6 +296,21 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
             | "welcome_vision_coliseum_flag"
             | "welcome_vision_coliseum_empty"
             | "welcome_vision_coliseum_outside" => BadField("vision"),
+            "welcome_weapon_count" => BadField("weapon count"),
+            "welcome_weapon_truncated" => Truncated,
+            "welcome_weapon_kind" => BadField("weapon kind"),
+            "welcome_weapon_order" | "welcome_weapon_duplicate_id" => BadField("weapon order"),
+            "welcome_weapon_reach_nan"
+            | "welcome_weapon_speed_infinite"
+            | "welcome_weapon_radius_negative"
+            | "welcome_weapon_reach_over_max"
+            | "welcome_weapon_arc_half_arc_over_pi"
+            | "welcome_weapon_arc_half_arc_zero"
+            | "welcome_weapon_arc_reach_zero"
+            | "welcome_weapon_arc_speed"
+            | "welcome_weapon_projectile_speed_zero"
+            | "welcome_weapon_projectile_half_arc"
+            | "welcome_weapon_none_values" => BadField("weapon"),
             other => panic!("no expectation for {other}"),
         }
     };

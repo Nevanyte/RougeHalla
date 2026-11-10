@@ -378,6 +378,39 @@ function readVision(r) {
     || !within(updateMs, 0, 1e6, true) || sightMask === 0 || (coliseum && (coliseum.w === 0 || coliseum.h === 0))) throw new Error("bad vision");
   return { version, tile, radius, trailMs, updateMs, sightMask, coliseum };
 }
+// Protocol 16: the weapon table (each weapon's hit shape from the sim content), between the vision block and the map:
+// count u8, then per row id u8, kind u8 (0 none, 1 arc, 2 projectile), reach f64, halfArc f64, speed f64, radius f64.
+function readWeapons(r) {
+  const n = r.u8();
+  if (n > 32) throw new Error("bad weapon count");
+  const rows = [];
+  for (let i = 0; i < n; i++) {
+    const id = r.u8(), kind = r.u8();
+    if (kind > 2) throw new Error("bad weapon kind");
+    rows.push({ id, kind, reach: r.f64(), halfArc: r.f64(), speed: r.f64(), radius: r.f64() });
+  }
+  const ok = (v) => Number.isFinite(v) && v >= 0 && v <= 1e6;
+  for (const w of rows) {
+    if (![w.reach, w.halfArc, w.speed, w.radius].every(ok)) throw new Error("bad weapon");
+    const fits = w.kind === 0 ? w.reach === 0 && w.halfArc === 0 && w.speed === 0 && w.radius === 0
+      : w.kind === 1 ? w.reach > 0 && w.halfArc > 0 && w.halfArc <= Math.PI && w.speed === 0 && w.radius === 0
+      : w.reach > 0 && w.speed > 0 && w.halfArc === 0;
+    if (!fits) throw new Error("bad weapon");
+  }
+  for (let i = 1; i < n; i++) if (rows[i].id <= rows[i - 1].id) throw new Error("bad weapon order");
+  return rows;
+}
+// Protocol 16 (ADR0026) indicator facts, checked in the Rust order: off-hand code 0..=16 (0 empty, else weapon + 1), build
+// marks (first stat key in the low nibble, second in the high one, each 0 none or 1..=9; a second needs a first and differs
+// from it), the mark plate (tier 0..=4, brand and tax 0..=100) and the flags (bit 0 wish ready, 1 engaged, 2 teleport
+// immune, 3 roam ready).
+function checkIndicators(offhand, buildMarks, markTier, brand, markTax, flags) {
+  const first = buildMarks & 15, second = buildMarks >> 4;
+  if (offhand > 16) throw new Error("bad offhand");
+  if (first > 9 || second > 9 || (second !== 0 && (first === 0 || first === second))) throw new Error("bad build marks");
+  if (markTier > 4 || brand > 100 || markTax > 100) throw new Error("bad mark");
+  if (flags & ~15) throw new Error("bad flags");
+}
 function decodeBody(r) {
   const tag = r.u8();
   if (tag === 0x81) {
@@ -385,6 +418,7 @@ function decodeBody(r) {
     // Protocol 16 (ADR0024): the hitbox archetype table sits between the header and the map.
     m.archetypes = readArchetypes(r);
     m.vision = readVision(r);
+    m.weapons = readWeapons(r);
     // Preflight a copied bounded suffix first. No decoded plane allocation occurs until every byte,
     // run, domain, terrain/collision relation, and hash in the complete map has been checked.
     const p = cursor(r.v, r.p, r.limit);
@@ -447,8 +481,8 @@ function decodeBody(r) {
   if (tag === 0x83) {
     const tick = r.varint(), ack = r.varint(), head = r.varint();
     // Append-only varint head: bits 17/18 are Wish/barrier, bit 19 overrides tick*50, bit 20 is owner combat, bit 21 the
-    // self's hitbox archetype (protocol 16).
-    if ((head & ~0x3fffff) !== 0 || ((head & 1) === 0 && (head & (0xfbff | 0x60000 | 0x200000)) !== 0)) throw new Error("bad head");
+    // self's hitbox archetype, bits 22..=24 the self's indicator flags, build marks and mark plate (protocol 16).
+    if ((head & ~0x1ffffff) !== 0 || ((head & 1) === 0 && (head & (0xfbff | 0x60000 | 0x200000 | 0x1c00000)) !== 0)) throw new Error("bad head");
     const s = { t: "snapshot", tick, serverMs: tick * 50, phase: 1, ack, training: (head & 0x10000) !== 0, me: null, actors: [], ownerCombat: null };
     if (head & 1) {
       const id = r.varint(), x = r.f32(), y = r.f32(), facing = r.f32();
@@ -468,7 +502,11 @@ function decodeBody(r) {
       const wish = (head & 0x20000) ? readWish(r) : null;
       const barrier = (head & 0x40000) ? readOwnerBarrier(r) : { amount: 0, ring: 0 };
       const archetype = (head & 0x200000) ? r.u8() : 0;
-      s.me = { id, faction, x, y, facing, hp, maxHp, status, weapon, readyIn, kills, bounty, gv, moveSeq, effects, displaceSeq, sig, huntTarget, huntStacks, wish, barrierBits: barrier.amount, barrierRingStep: barrier.ring, archetype };
+      const flags = (head & 0x400000) ? r.u8() : 0, buildMarks = (head & 0x800000) ? r.u8() : 0;
+      let markTier = 0, brand = 0, markTax = 0;
+      if (head & 0x1000000) { markTier = r.u8(); brand = r.u8(); markTax = r.u8(); }
+      checkIndicators(0, buildMarks, markTier, brand, markTax, flags);
+      s.me = { id, faction, x, y, facing, hp, maxHp, status, weapon, readyIn, kills, bounty, gv, moveSeq, effects, displaceSeq, sig, huntTarget, huntStacks, wish, barrierBits: barrier.amount, barrierRingStep: barrier.ring, archetype, flags, buildMarks, markTier, brand, markTax };
     }
     if (head & 0x400) s.phase = r.code(3, "phase");
     if (head & 0x80000) s.serverMs = nonnegative(r.f64(), "server time");
@@ -481,7 +519,7 @@ function decodeBody(r) {
       if (prev !== null) { id = prev + field; if (field === 0 || id > 0xffffffff) throw new Error("bad actor order"); }
       prev = id;
       const mask = r.varint();
-      if (mask & ~0x7ff) throw new Error("bad actor mask");
+      if (mask & ~0x7fff) throw new Error("bad actor mask");
       const x = dqPos(r.u16()), y = dqPos(r.u16()), facing = dqAngle(r.u16());
       let faction = 0, weapon = 0;
       if (mask & 1) { const k = r.u8(); faction = k & 15; weapon = k >> 4; }
@@ -493,7 +531,12 @@ function decodeBody(r) {
       const effects = (mask & 0x20) ? r.u16() : 0, displaceSeq = (mask & 0x40) ? r.u8() : 0, mobTypeCode=(mask & 0x80)?r.code(30,"mob type"):0,sig=(mask & 0x100)?r.u8():0;
       const barrier = (mask & 0x200) ? readActorBarrier(r) : { pct: 0, ring: 0 };
       const archetype = (mask & 0x400) ? r.u8() : 0;
-      s.actors.push({ id, faction, x, y, facing, hpPct, status, weapon, bounty, kind, effects, displaceSeq, mobTypeCode, sig, barrierPct: barrier.pct, barrierRingStep: barrier.ring, archetype });
+      // Protocol 16 (ADR0026): bits 11 flags, 12 off-hand, 13 build marks, 14 mark plate (tier, brand, tax).
+      const flags = (mask & 0x800) ? r.u8() : 0, offhand = (mask & 0x1000) ? r.u8() : 0, buildMarks = (mask & 0x2000) ? r.u8() : 0;
+      let markTier = 0, brand = 0, markTax = 0;
+      if (mask & 0x4000) { markTier = r.u8(); brand = r.u8(); markTax = r.u8(); }
+      checkIndicators(offhand, buildMarks, markTier, brand, markTax, flags);
+      s.actors.push({ id, faction, x, y, facing, hpPct, status, weapon, bounty, kind, effects, displaceSeq, mobTypeCode, sig, barrierPct: barrier.pct, barrierRingStep: barrier.ring, archetype, flags, offhand, buildMarks, markTier, brand, markTax });
     }
     if (head & 0x100000) s.ownerCombat = readOwnerCombat(r);
     return s;
@@ -504,8 +547,8 @@ function decodeBody(r) {
     if (age < 1 || age > 64 || age > tick) throw new Error("bad base age");
     const ack = r.varint(), head = r.varint();
     // Append-only varint head: bits 21/22 are self Wish/barrier, bit 23 overrides time, bit 24 replaces owner combat, bit 25
-    // is the self's hitbox archetype (protocol 16).
-    if ((head & ~0x3ffffff) !== 0 || ((head & 1) === 0 && (head & (0xffe7e | 0x600000 | 0x2000000)) !== 0)) throw new Error("bad head");
+    // is the self's hitbox archetype, bits 26..=28 the self's indicator flags, build marks and mark plate (protocol 16).
+    if ((head & ~0x1fffffff) !== 0 || ((head & 1) === 0 && (head & (0xffe7e | 0x600000 | 0x2000000 | 0x1c000000)) !== 0)) throw new Error("bad head");
     const d = { t: "delta", tick, baseTick: tick - age, serverMs: tick * 50, phase: null, ack, training: (head & 0x100000) !== 0, me: null, changed: [], departed: [] };
     if (head & 1) {
       const m = head & 0xffe7e, s = { mask: m };
@@ -529,6 +572,10 @@ function decodeBody(r) {
       if (head & 0x200000) s.wish = strictOpt(r, () => readWish(r));
       if (head & 0x400000) { const barrier = readOwnerBarrier(r); s.barrierBits = barrier.amount; s.barrierRingStep = barrier.ring; }
       if (head & 0x2000000) s.archetype = r.u8();
+      if (head & 0x4000000) s.flags = r.u8();
+      if (head & 0x8000000) s.buildMarks = r.u8();
+      if (head & 0x10000000) { s.markTier = r.u8(); s.brand = r.u8(); s.markTax = r.u8(); }
+      checkIndicators(0, s.buildMarks ?? 0, s.markTier ?? 0, s.brand ?? 0, s.markTax ?? 0, s.flags ?? 0);
       d.me = s;
     }
     if (head & 0x100) d.phase = r.code(3, "phase");
@@ -542,7 +589,7 @@ function decodeBody(r) {
       if (prev !== null) { id = prev + field; if (field === 0 || id > 0xffffffff) throw new Error("bad actor order"); }
       prev = id;
       const mask = r.varint();
-      if (mask & ~0x3fff) throw new Error("bad actor mask");
+      if (mask & ~0x3ffff) throw new Error("bad actor mask");
       const a = { id, mask };
       if (mask & 1) a.x = r.u16();
       if (mask & 2) a.y = r.u16();
@@ -558,6 +605,12 @@ function decodeBody(r) {
       if (mask & 2048) a.sig=r.u8();
       if (mask & 4096) { const barrier = readActorBarrier(r); a.barrierPct = barrier.pct; a.barrierRingStep = barrier.ring; }
       if (mask & 8192) a.archetype = r.u8();
+      // Protocol 16 (ADR0026): bits 14 flags, 15 off-hand, 16 build marks, 17 mark plate.
+      if (mask & 0x4000) a.flags = r.u8();
+      if (mask & 0x8000) a.offhand = r.u8();
+      if (mask & 0x10000) a.buildMarks = r.u8();
+      if (mask & 0x20000) { a.markTier = r.u8(); a.brand = r.u8(); a.markTax = r.u8(); }
+      checkIndicators(a.offhand ?? 0, a.buildMarks ?? 0, a.markTier ?? 0, a.brand ?? 0, a.markTax ?? 0, a.flags ?? 0);
       d.changed.push(a);
     }
     if (head & 0x80) {
@@ -599,6 +652,8 @@ function decodeBody(r) {
         else e.events.push({k:"cannonNotice",code});
       }
       else if(k === 10) e.events.push({k:"toast",text:r.str()});
+      // Protocol 16 (ADR0026): a camp was cleared (its index in the map's camp list).
+      else if (k === 11) e.events.push({ k: "campCleared", camp: r.u16() });
       else throw new Error("bad event");
     }
     return e;
@@ -609,7 +664,8 @@ function decodeBody(r) {
     for (let i = 0; i < n; i++) {
       const k = r.u8();
       if (k === 1) { const by = r.varint(), weapon = r.u8(); f.fx.push({ k: "swing", by, weapon, x: dqPos(r.u16()), y: dqPos(r.u16()), a: dqAngle(r.u16()) }); }
-      else if (k === 2) { const victim = r.varint(), by = r.varint(); f.fx.push({ k: "hit", victim, by, amount: r.f32(), passive: r.opt(() => true) !== null }); }
+      // Protocol 16 (ADR0026): the hit's last byte is flags (bit 0 passive, bit 1 critical); other bits are refused.
+      else if (k === 2) { const victim = r.varint(), by = r.varint(), amount = r.f32(), flags = r.code(3, "hit flags"); f.fx.push({ k: "hit", victim, by, amount, passive: (flags & 1) !== 0, critical: (flags & 2) !== 0 }); }
       else if (k === 3) f.fx.push({ k: "block", id: r.varint(), by: r.varint(), weapon: r.u8() });
       else if (k === 4) f.fx.push({ k: "stagger", id: r.varint() });
       else if (k === 5) f.fx.push({ k: "teleport" });
@@ -632,6 +688,15 @@ function decodeBody(r) {
         const ability = readAbility(r), reason = r.code(2, "Wish end reason");
         f.fx.push({ k: "castEnded", eventTime, caster, ability, reason });
       }
+      // Protocol 16 (ADR0026): windup telegraph (angle quantized as a swing's), its cancel, signature/ability damage, heals.
+      else if (k === 9) { const by = r.varint(), weapon = r.code(15, "windup weapon"); f.fx.push({ k: "windup", by, weapon, a: dqAngle(r.u16()), ms: r.u16() }); }
+      else if (k === 10) f.fx.push({ k: "cancel", id: r.varint() });
+      else if (k === 11) {
+        const victim = r.varint(), by = r.varint(), kind = r.u8();
+        if (!((kind >= 1 && kind <= 5) || (kind >= 16 && kind <= 20))) throw new Error("bad hit kind");
+        f.fx.push({ k: "sigHit", victim, by, kind, amount: r.f32() });
+      }
+      else if (k === 12) { const id = r.varint(); f.fx.push({ k: "heal", id, amount: r.f32() }); }
       else throw new Error("bad fx");
     }
     return f;
@@ -643,9 +708,30 @@ function decodeBody(r) {
   throw new Error("unknown tag " + tag);
 }
 
+// Protocol 16 (ADR0026) State key 12, the roster (names and bot flags of everyone seated): count u8 (at most 32), rows
+// strictly ascending by id: id varint (nonzero), flags u8 (0, or 1 bot), name (u8 length, 1..=24 UTF-8 bytes, no control
+// character).
+function readRoster(r) {
+  const n = r.u8();
+  if (n > 32) throw new Error("bad roster count");
+  const rows = []; let last = 0;
+  for (let i = 0; i < n; i++) {
+    const id = r.varint();
+    if (!id) throw new Error("bad roster id");
+    if (id <= last) throw new Error("bad roster order");
+    last = id;
+    const flags = r.u8();
+    if (flags > 1) throw new Error("bad roster flags");
+    const len = r.u8(), raw = r.bytes(len);
+    let name; try { name = UTF8.decode(raw); } catch { throw new Error("bad utf-8"); }
+    if (len < 1 || len > 24 || /[\u0000-\u001f\u007f-\u009f]/.test(name)) throw new Error("bad roster name");
+    rows.push({ id, bot: flags === 1, name });
+  }
+  return rows;
+}
 // Complete replacements. Decode the entire frame before a collection consumer changes retained state.
 function readState(r) {
-  const n = r.varint(); if (n > 11) throw new Error("too many state keys");
+  const n = r.varint(); if (n > 12) throw new Error("too many state keys");
   const flag = () => r.opt(() => true) !== null;
   const strictBool = (what) => { const v = r.u8(); if (v > 1) throw new Error("bad " + what); return v === 1; };
   const finite = (x) => { if (!Number.isFinite(x)) throw new Error("bad field"); return x; };
@@ -655,7 +741,7 @@ function readState(r) {
   const count = () => { const v = r.varint(); if (v > 512) throw new Error("too many state rows"); return v; };
   const items = []; let previous = 0;
   for (let i = 0; i < n; i++) {
-    const key = r.varint(); if (key <= previous || key > 11) throw new Error("bad state key"); previous = key;
+    const key = r.varint(); if (key <= previous || key > 12) throw new Error("bad state key"); previous = key;
     let value;
     if (key === 1) value = r.opt(() => ({ activeSlot: r.code(1, "active slot"), slots: [weapon(), weapon()], potionSmall: r.code(5, "potion count"), potionLarge: r.code(5, "potion count"), potionsHealing: r.code(3, "potion count") }));
     else if (key === 2) {
@@ -746,6 +832,7 @@ function readState(r) {
       });
     } else if (key === 10) value = readQuests(r, strictBool, finite, handle);
     else if (key === 11) value = readTrade(r, strictBool);
+    else if (key === 12) value = readRoster(r);
     else value = r.opt(() => ({ cards: Array.from(r.bytes(80)), boosts: Array.from(r.bytes(8)) }));
     items.push({ key, value });
   }
@@ -995,6 +1082,10 @@ class Tracker {
       if (ch.mask & 2048) n.sig=ch.sig;
       if (ch.mask & 4096) { n.barrierPct = ch.barrierPct; n.barrierRingStep = ch.barrierRingStep; }
       if (ch.mask & 8192) n.archetype = ch.archetype;
+      if (ch.mask & 0x4000) n.flags = ch.flags;
+      if (ch.mask & 0x8000) n.offhand = ch.offhand;
+      if (ch.mask & 0x10000) n.buildMarks = ch.buildMarks;
+      if (ch.mask & 0x20000) { n.markTier = ch.markTier; n.brand = ch.brand; n.markTax = ch.markTax; }
       if (ch.mask & 1) n.x = dqPos(ch.x);
       if (ch.mask & 2) n.y = dqPos(ch.y);
       if (ch.mask & 4) n.facing = dqAngle(ch.facing);
@@ -1012,7 +1103,7 @@ class Tracker {
       } else {
         // A new actor starts from the default actor and must carry its position (bits 0..2).
         if ((ch.mask & 7) !== 7) throw refused("incomplete_new_actor");
-        out.push(upd({ faction: 0, weapon: 0, hpPct: 100, status: 1, bounty: 0, kind: 0, effects: 0, displaceSeq: 0, mobTypeCode:0,sig:0,barrierPct:0,barrierRingStep:0,archetype:0 }, ch));
+        out.push(upd({ faction: 0, weapon: 0, hpPct: 100, status: 1, bounty: 0, kind: 0, effects: 0, displaceSeq: 0, mobTypeCode:0,sig:0,barrierPct:0,barrierRingStep:0,archetype:0,flags:0,offhand:0,buildMarks:0,markTier:0,brand:0,markTax:0 }, ch));
       }
     }
     flush(null);
@@ -1044,6 +1135,9 @@ class Tracker {
       if (Object.prototype.hasOwnProperty.call(d, "wish")) s.wish = d.wish;
       if (Object.prototype.hasOwnProperty.call(d, "barrierBits")) { s.barrierBits = d.barrierBits; s.barrierRingStep = d.barrierRingStep; }
       if (Object.prototype.hasOwnProperty.call(d, "archetype")) s.archetype = d.archetype;
+      if (Object.prototype.hasOwnProperty.call(d, "flags")) s.flags = d.flags;
+      if (Object.prototype.hasOwnProperty.call(d, "buildMarks")) s.buildMarks = d.buildMarks;
+      if (Object.prototype.hasOwnProperty.call(d, "markTier")) { s.markTier = d.markTier; s.brand = d.brand; s.markTax = d.markTax; }
       me = s;
     }
     // Replacement is transactional with the reconstructed owner and actor scene.

@@ -24,6 +24,7 @@ fn actor(i: u32) -> WireActor {
         kind: (i % 3) as u8,
         barrier_pct: 0,
         barrier_ring_step: 0,
+        ..Default::default()
     }
 }
 
@@ -52,6 +53,7 @@ fn me() -> WireSelf {
         wish: None,
         barrier: 0.0,
         barrier_ring_step: 0,
+        ..Default::default()
     }
 }
 
@@ -291,6 +293,7 @@ fn other_lists_and_sizes_decoders_reject_are_refused() {
                 by: 2,
                 amount: 3.0,
                 passive: false,
+                critical: false,
             };
             u16::MAX as usize + 1
         ],
@@ -316,6 +319,7 @@ fn other_lists_and_sizes_decoders_reject_are_refused() {
                 by: 2,
                 amount: 3.0,
                 passive: false,
+                critical: false,
             };
             40_000
         ],
@@ -356,6 +360,7 @@ fn welcome(map: MapBlob) -> ServerMsg {
         server_ms: h.server_ms,
         archetypes: rh_protocol::samples::sample_archetypes(),
         vision: rh_protocol::WireVision::default(),
+        weapons: rh_protocol::samples::sample_weapons(),
         map,
     }
 }
@@ -399,6 +404,7 @@ fn a_pre_encoded_map_gives_the_same_welcome() {
             &welcome_header(),
             &rh_protocol::samples::sample_archetypes(),
             &rh_protocol::WireVision::default(),
+            &rh_protocol::samples::sample_weapons(),
             &pre,
             mode,
         );
@@ -410,6 +416,7 @@ fn a_pre_encoded_map_gives_the_same_welcome() {
                 &welcome_header(),
                 &rh_protocol::samples::sample_archetypes(),
                 &rh_protocol::WireVision::default(),
+                &rh_protocol::samples::sample_weapons(),
                 &pre,
                 mode,
                 &mut out
@@ -435,6 +442,7 @@ fn cached_static_map_is_content_bound_while_mode_is_per_welcome() {
         &welcome_header(),
         &[],
         &rh_protocol::WireVision::default(),
+        &[],
         &cached,
         GroundMode::Off,
     );
@@ -442,6 +450,7 @@ fn cached_static_map_is_content_bound_while_mode_is_per_welcome() {
         &welcome_header(),
         &[],
         &rh_protocol::WireVision::default(),
+        &[],
         &cached,
         GroundMode::All,
     );
@@ -613,6 +622,7 @@ fn a_welcome_refuses_a_malformed_archetype_table() {
         &welcome_header(),
         &good,
         &rh_protocol::WireVision::default(),
+        &[],
         &pre,
         GroundMode::Off,
     );
@@ -647,6 +657,7 @@ fn a_welcome_refuses_a_malformed_archetype_table() {
             &welcome_header(),
             &bad,
             &rh_protocol::WireVision::default(),
+            &[],
             &pre,
             GroundMode::Off,
             &mut out
@@ -657,6 +668,7 @@ fn a_welcome_refuses_a_malformed_archetype_table() {
             &welcome_header(),
             &[],
             &rh_protocol::WireVision::default(),
+            &[],
             &pre,
             GroundMode::Off,
         );
@@ -687,7 +699,7 @@ fn a_welcome_carries_the_vision_block_and_refuses_a_malformed_one() {
         }),
         ..WireVision::default()
     };
-    let bytes = encode_welcome(&welcome_header(), &[], &good, &pre, GroundMode::Off);
+    let bytes = encode_welcome(&welcome_header(), &[], &good, &[], &pre, GroundMode::Off);
     let ServerMsg::Welcome { vision, .. } = ServerMsg::decode(&bytes).unwrap() else {
         panic!("welcome")
     };
@@ -729,6 +741,7 @@ fn a_welcome_carries_the_vision_block_and_refuses_a_malformed_one() {
                 &welcome_header(),
                 &[],
                 &bad,
+                &[],
                 &pre,
                 GroundMode::Off,
                 &mut out
@@ -747,11 +760,12 @@ fn a_welcome_carries_the_vision_block_and_refuses_a_malformed_one() {
             server_ms: 0.0,
             archetypes: Vec::new(),
             vision: bad,
+            weapons: Vec::new(),
             map: map.clone(),
         };
         assert!(msg.try_encode().is_err(), "{bad:?}");
         // Forge the frame: the decoder refuses it too.
-        let mut forged = encode_welcome(&welcome_header(), &[], &d, &pre, GroundMode::Off);
+        let mut forged = encode_welcome(&welcome_header(), &[], &d, &[], &pre, GroundMode::Off);
         let mut block = Writer::default();
         rh_protocol::vision::write_vision_for_tests(&mut block, &bad);
         let at = rh_protocol::WELCOME_HEADER_LEN + 1;
@@ -760,5 +774,213 @@ fn a_welcome_carries_the_vision_block_and_refuses_a_malformed_one() {
             block.finish(),
         );
         assert!(ServerMsg::decode(&forged).is_err(), "{bad:?}");
+    }
+}
+
+/// Protocol 16: the weapon table round-trips, the pre-encoded path writes it exactly, and the encoder refuses a table a
+/// decoder would refuse (each fault: count, kind, a value out of range, a value that does not fit its kind, order).
+#[test]
+fn a_welcome_carries_the_weapon_table_and_refuses_a_malformed_one() {
+    use rh_protocol::weapon::{table_fault, table_len, WEAPON_ROW_LEN};
+    use rh_protocol::{WireVision, WireWeapon, MAX_WEAPONS};
+    let map = MapBlob::new(4, 3, vec![0; 12]);
+    let pre = map.pre_encode().unwrap();
+    let good = rh_protocol::samples::sample_weapons();
+    assert_eq!(table_fault(&good), None);
+    assert_eq!(table_len(&good), 1 + good.len() * WEAPON_ROW_LEN);
+    let d = WireVision::default();
+    let bytes = encode_welcome(&welcome_header(), &[], &d, &good, &pre, GroundMode::Off);
+    let ServerMsg::Welcome { weapons, .. } = ServerMsg::decode(&bytes).unwrap() else {
+        panic!("welcome")
+    };
+    assert_eq!(weapons, good);
+    let (sword, bow, none) = (good[0], good[1], good[6]);
+    let with = |i: usize, row: WireWeapon| {
+        let mut t = good.clone();
+        t[i] = row;
+        t
+    };
+    let pi = std::f64::consts::PI;
+    let mut unordered = good.clone();
+    unordered.swap(2, 3);
+    let cases: Vec<(&str, Vec<WireWeapon>)> = vec![
+        (
+            "weapon count",
+            (0..=MAX_WEAPONS as u8)
+                .map(|id| WireWeapon { id, ..sword })
+                .collect(),
+        ),
+        ("weapon kind", with(0, WireWeapon { kind: 3, ..sword })),
+        ("weapon order", unordered),
+        ("weapon order", with(1, WireWeapon { id: 0, ..bow })),
+        (
+            "weapon",
+            with(
+                0,
+                WireWeapon {
+                    reach: f64::NAN,
+                    ..sword
+                },
+            ),
+        ),
+        (
+            "weapon",
+            with(
+                1,
+                WireWeapon {
+                    speed: f64::INFINITY,
+                    ..bow
+                },
+            ),
+        ),
+        (
+            "weapon",
+            with(
+                1,
+                WireWeapon {
+                    radius: -1.0,
+                    ..bow
+                },
+            ),
+        ),
+        (
+            "weapon",
+            with(
+                1,
+                WireWeapon {
+                    reach: 1.0e6 + 1.0,
+                    ..bow
+                },
+            ),
+        ),
+        (
+            "weapon",
+            with(
+                0,
+                WireWeapon {
+                    half_arc: pi + 1e-9,
+                    ..sword
+                },
+            ),
+        ),
+        (
+            "weapon",
+            with(
+                0,
+                WireWeapon {
+                    half_arc: 0.0,
+                    ..sword
+                },
+            ),
+        ),
+        (
+            "weapon",
+            with(
+                0,
+                WireWeapon {
+                    reach: 0.0,
+                    ..sword
+                },
+            ),
+        ),
+        (
+            "weapon",
+            with(
+                0,
+                WireWeapon {
+                    speed: 1.0,
+                    ..sword
+                },
+            ),
+        ),
+        (
+            "weapon",
+            with(
+                0,
+                WireWeapon {
+                    radius: 1.0,
+                    ..sword
+                },
+            ),
+        ),
+        ("weapon", with(1, WireWeapon { speed: 0.0, ..bow })),
+        ("weapon", with(1, WireWeapon { reach: 0.0, ..bow })),
+        (
+            "weapon",
+            with(
+                1,
+                WireWeapon {
+                    half_arc: 0.1,
+                    ..bow
+                },
+            ),
+        ),
+        ("weapon", with(6, WireWeapon { speed: 1.0, ..none })),
+    ];
+    // The edges are valid: a half arc of exactly PI, a projectile with no contact radius, values of exactly 1e6.
+    for ok in [
+        with(
+            0,
+            WireWeapon {
+                half_arc: pi,
+                ..sword
+            },
+        ),
+        with(1, WireWeapon { radius: 0.0, ..bow }),
+        with(
+            1,
+            WireWeapon {
+                reach: 1.0e6,
+                speed: 1.0e6,
+                radius: 1.0e6,
+                ..bow
+            },
+        ),
+    ] {
+        assert_eq!(table_fault(&ok), None);
+    }
+    for (why, bad) in cases {
+        assert_eq!(table_fault(&bad), Some(why), "{bad:?}");
+        let mut out = Vec::new();
+        assert_eq!(
+            encode_welcome_into(
+                &welcome_header(),
+                &[],
+                &d,
+                &bad,
+                &pre,
+                GroundMode::Off,
+                &mut out
+            ),
+            Err(EncodeError::BadValue(why)),
+            "{bad:?}"
+        );
+        assert!(out.is_empty());
+        let msg = ServerMsg::Welcome {
+            protocol: rh_protocol::PROTOCOL_VERSION,
+            content_hash: 1,
+            match_id: [0; 16],
+            player_id: 1,
+            session: [0; 16],
+            tick_rate: 20,
+            tick: 0,
+            server_ms: 0.0,
+            archetypes: Vec::new(),
+            vision: d,
+            weapons: bad.clone(),
+            map: map.clone(),
+        };
+        assert!(msg.try_encode().is_err(), "{bad:?}");
+        // Forge the frame: the decoder refuses it too, for the same reason.
+        let mut forged = encode_welcome(&welcome_header(), &[], &d, &[], &pre, GroundMode::Off);
+        let mut table = Writer::default();
+        rh_protocol::samples::write_weapon_table_for_tests(&mut table, &bad);
+        let at = rh_protocol::WELCOME_HEADER_LEN + 1 + rh_protocol::vision::VISION_BLOCK_LEN;
+        forged.splice(at..at + 1, table.finish());
+        assert_eq!(
+            ServerMsg::decode(&forged),
+            Err(rh_protocol::DecodeError::BadField(why)),
+            "{bad:?}"
+        );
     }
 }

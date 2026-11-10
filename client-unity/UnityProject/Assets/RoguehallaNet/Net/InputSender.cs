@@ -122,6 +122,13 @@ namespace Roguehalla.Net
             _queue.Add(WireCommand.QuestAccept(handle));
         }
 
+        /// <summary>Queues the Sentenced hunt target (a delivered actor id); whether the hunt is allowed stays a server decision.</summary>
+        public void HuntTarget(uint actorId)
+        {
+            if (actorId == 0) { Dropped++; return; }
+            _queue.Add(WireCommand.HuntTarget(actorId));
+        }
+
         /// <summary>Queues a fixed merchant kind and choice index; availability and eligibility remain server decisions.</summary>
         public void Trade(TradeKind kind, byte pick)
         {

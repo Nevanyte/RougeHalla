@@ -19,9 +19,6 @@ namespace Roguehalla.Client
 
         static readonly string[] FactionNames = { "Fire", "Sentenced", "Plague", "Frost", "Holy" };
 
-        // ASCII-safe labels remain distinct if a platform font lacks the decorative glyph.
-        static readonly string[] FactionMarks = { "[F]", "[S]", "[P]", "[I]", "[H]" };
-
         public static Color32 Faction(int faction)
         {
             return UiTheme.Current.FactionColor(faction);
@@ -30,11 +27,6 @@ namespace Roguehalla.Client
         public static string GetFactionName(int faction)
         {
             return faction >= 0 && faction < FactionNames.Length ? FactionNames[faction] : "Unknown";
-        }
-
-        public static string GetFactionMark(int faction)
-        {
-            return faction >= 0 && faction < FactionMarks.Length ? FactionMarks[faction] : "[?]";
         }
 
         /// <summary>WCAG 2.1 relative-luminance contrast ratio, useful for UI palette checks.</summary>

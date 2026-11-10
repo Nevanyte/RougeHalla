@@ -1338,6 +1338,38 @@ mod tests {
         }
     }
 
+    /// ADR0026 review: a pending `Hit` (critical or not) is world state; it keeps the hash layout rules (no skipped field,
+    /// so both flags hash the same word count), round-trips a checkpoint and changes the hash with the flag.
+    #[test]
+    fn a_pending_hit_keeps_the_layout_and_round_trips_with_its_critical_flag() {
+        use crate::{Event, PlayerId, WeaponId};
+        let mut hashes = Vec::new();
+        for critical in [false, true] {
+            let mut a = sim();
+            a.w.pending_events.push(Event::Hit {
+                victim: PlayerId(1),
+                by: Some(PlayerId(2)),
+                amount: 12.5,
+                weapon: Some(WeaponId::Sword),
+                passive: false,
+                critical,
+            });
+            a.check_layout()
+                .expect("a pending Hit keeps the hash layout");
+            let json = serde_json::to_value(&a).unwrap();
+            assert_eq!(
+                json.to_string().contains("\"critical\":true"),
+                critical,
+                "the flag is always serialized"
+            );
+            let b = Sim::restore(json).expect("the checkpoint restores");
+            assert_eq!(b.w.pending_events, a.w.pending_events);
+            assert_eq!(b.state_hash(), a.state_hash());
+            hashes.push(a.state_hash());
+        }
+        assert_ne!(hashes[0], hashes[1], "the flag is part of the state hash");
+    }
+
     #[test]
     fn a_pending_action_the_slice_cannot_land_is_refused() {
         let action = |kind: &str, weapon: &str| {

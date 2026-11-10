@@ -53,8 +53,41 @@ pub fn sat16(v: u32) -> u16 {
     v.min(u16::MAX as u32) as u16
 }
 
+/// The indicator flag byte of a fighter's facts (ADR0026): `rh_protocol::ACTOR_FLAG_*`.
+pub fn indicator_flags(f: &rh_sim::observe::IndicatorFacts) -> u8 {
+    (if f.wish_ready {
+        rh_protocol::ACTOR_FLAG_WISH_READY
+    } else {
+        0
+    }) | (if f.engaged {
+        rh_protocol::ACTOR_FLAG_ENGAGED
+    } else {
+        0
+    }) | (if f.teleport_immune {
+        rh_protocol::ACTOR_FLAG_TELEPORT_IMMUNE
+    } else {
+        0
+    }) | (if f.roam_ready {
+        rh_protocol::ACTOR_FLAG_ROAM_READY
+    } else {
+        0
+    })
+}
+
+/// The packed build-mark byte (ADR0026): the first key in the low nibble, the second in the high one, each the
+/// `KillStatKey` index + 1 (0 none).
+pub fn build_marks(f: &rh_sim::observe::IndicatorFacts) -> u8 {
+    let code = |k: Option<rh_sim::kill_augments::KillStatKey>| k.map_or(0, |k| k.index() as u8 + 1);
+    code(f.build_marks[0]) | code(f.build_marks[1]) << 4
+}
+
 pub fn wire_self(m: &rh_sim::observe::SelfView) -> WireSelf {
     WireSelf {
+        flags: indicator_flags(&m.facts),
+        build_marks: build_marks(&m.facts),
+        mark_tier: m.mark_tier,
+        brand: m.brand,
+        mark_tax: m.mark_tax,
         archetype: m.archetype.0,
         sig: m.sig,
         effects: m.effects,
@@ -114,6 +147,12 @@ pub fn actor_supported(a: &ActorView) -> Result<(u8, u8, u8), &'static str> {
 pub fn wire_actor(a: &ActorView) -> Result<WireActor, &'static str> {
     let (kind, faction, weapon) = actor_supported(a)?;
     Ok(WireActor {
+        flags: indicator_flags(&a.facts),
+        offhand: a.facts.offhand.map_or(0, |w| w.code() + 1),
+        build_marks: build_marks(&a.facts),
+        mark_tier: a.mark_tier,
+        brand: a.brand,
+        mark_tax: a.mark_tax,
         archetype: a.archetype.0,
         sig: a.sig,
         mob_type_code: a.mob_type.map_or(0, |id| id as u8 + 1),
@@ -307,7 +346,12 @@ pub fn to_wire(e: &SeenEvent) -> Wire {
                 _ => None,
             },
         }),
-        SeenEvent::MobArmed { .. } | SeenEvent::CampCleared { .. } => Wire::Omitted,
+        SeenEvent::MobArmed { .. } => Wire::Omitted,
+        // ADR0026: the legacy camp-clear ring cue (public: the sim declares the event to everyone).
+        SeenEvent::CampCleared { camp } => match u16::try_from(camp) {
+            Ok(camp) => Wire::Event(WireEvent::CampCleared { camp }),
+            Err(_) => Wire::Refused("camp"),
+        },
         // Protocol 8 owner-only practice-console notice (the publisher routes it to its owner's connection only).
         SeenEvent::Toast { ref text } => Wire::Event(WireEvent::Toast { text: text.clone() }),
         SeenEvent::WindEmblem => Wire::Event(WireEvent::WindEmblem),
@@ -350,12 +394,51 @@ pub fn to_wire(e: &SeenEvent) -> Wire {
             weapon: weapon.code(),
         }),
         SeenEvent::Stagger { id } => Wire::Fx(WireFx::Stagger { id: id.0 }),
-        // Protocol 6 carries target commands but has no cancellation telegraph.
-        SeenEvent::AttackCancelled { .. } => Wire::Omitted,
-        SeenEvent::SignatureHit { .. } | SeenEvent::Heal { .. } => Wire::Omitted,
-        // Scalar effects and fields have snapshot transport; these distinct event telegraphs
-        // remain omitted until their own compatible messages are defined.
-        SeenEvent::AbilityHit { .. } | SeenEvent::StatusApplied { .. } => Wire::Omitted,
+        // ADR0026: the cancel ends the windup telegraph; signature/ability chunks and heals carry the legacy damage-number
+        // kinds. Each reaches exactly the observers the sim's own visibility admitted.
+        SeenEvent::AttackCancelled { id } => Wire::Fx(WireFx::Cancel { id: id.0 }),
+        SeenEvent::SignatureHit {
+            victim,
+            by,
+            sig,
+            amount,
+            ..
+        } => Wire::Fx(WireFx::SigHit {
+            victim: victim.0,
+            by: by.map_or(WIRE_NO_SOURCE, |b| b.0),
+            kind: match sig {
+                rh_sim::factions::SignatureKind::Burn => rh_protocol::HIT_KIND_BURN,
+                rh_sim::factions::SignatureKind::Disease => rh_protocol::HIT_KIND_DISEASE,
+                rh_sim::factions::SignatureKind::Backlash => rh_protocol::HIT_KIND_BACKLASH,
+                rh_sim::factions::SignatureKind::Mark => rh_protocol::HIT_KIND_MARK,
+            },
+            amount: amount as f32,
+        }),
+        SeenEvent::AbilityHit {
+            victim,
+            by,
+            ability,
+            amount,
+        } => Wire::Fx(WireFx::SigHit {
+            victim: victim.0,
+            by: by.map_or(WIRE_NO_SOURCE, |b| b.0),
+            kind: rh_protocol::HIT_KIND_ABILITY + ability_code(ability),
+            amount: amount as f32,
+        }),
+        SeenEvent::Heal { id, amount } => Wire::Fx(WireFx::Heal {
+            id: id.0,
+            amount: amount as f32,
+        }),
+        // Scalar effects and fields have snapshot transport; the status telegraph remains omitted until its own
+        // compatible message is defined.
+        SeenEvent::StatusApplied { .. } => Wire::Omitted,
+        SeenEvent::Windup { by, weapon, a, ms } => Wire::Fx(WireFx::Windup {
+            by: by.0,
+            weapon: weapon.code(),
+            a: a as f32,
+            // Whole milliseconds; a NaN or negative wait is 0, a longer one saturates.
+            ms: ms.clamp(0.0, f64::from(u16::MAX)).round() as u16,
+        }),
         SeenEvent::CastEnded {
             event_time,
             id,
@@ -398,13 +481,87 @@ pub fn to_wire(e: &SeenEvent) -> Wire {
             by,
             amount,
             passive,
+            critical,
         } => Wire::Fx(WireFx::Hit {
             victim: victim.0,
             by: by.map_or(WIRE_NO_SOURCE, |b| b.0),
             amount: amount as f32,
             passive,
+            critical,
         }),
     }
+}
+
+/// The characters of `name` the roster keeps (ADR0026): control characters dropped, cut to at most
+/// [`rh_protocol::state::MAX_ROSTER_NAME`] bytes on a character boundary. Seat names are already server-owned (Hello
+/// callsigns, generated bot names), so this only guards the wire bound.
+fn roster_chars(name: &str) -> impl Iterator<Item = char> + '_ {
+    let mut used = 0;
+    name.chars()
+        .filter(|c| !c.is_control())
+        .take_while(move |c| {
+            used += c.len_utf8();
+            used <= rh_protocol::state::MAX_ROSTER_NAME
+        })
+}
+
+/// A display name as the roster carries it: [`roster_chars`], or "?" when nothing is left.
+pub fn roster_name(name: &str) -> String {
+    let out: String = roster_chars(name).collect();
+    if out.is_empty() {
+        "?".to_string()
+    } else {
+        out
+    }
+}
+
+/// Whether `wire` is what [`roster_name`] makes of `raw`, without allocating (a name that needed cleaning is compared
+/// every tick per connection).
+fn roster_name_matches(wire: &str, raw: &str) -> bool {
+    if wire == raw {
+        return true;
+    }
+    let mut cleaned = roster_chars(raw).peekable();
+    if cleaned.peek().is_none() {
+        return wire == "?";
+    }
+    cleaned.eq(wire.chars())
+}
+
+/// The rows a roster carries: the observation's (ascending by id) cut to the lowest
+/// [`rh_protocol::state::MAX_ROSTER`] ids, so an oversized match can never make the whole State frame refuse.
+fn roster_rows(seen: &[rh_sim::observe::RosterRow]) -> &[rh_sim::observe::RosterRow] {
+    debug_assert!(
+        seen.len() <= rh_protocol::state::MAX_ROSTER,
+        "a match seats at most {} players on the roster",
+        rh_protocol::state::MAX_ROSTER
+    );
+    &seen[..seen.len().min(rh_protocol::state::MAX_ROSTER)]
+}
+
+/// Whether the committed wire roster still equals the observation's (no allocation).
+pub fn roster_equal(
+    wire: &[rh_protocol::WireRosterRow],
+    seen: &[rh_sim::observe::RosterRow],
+) -> bool {
+    let seen = roster_rows(seen);
+    wire.len() == seen.len()
+        && wire
+            .iter()
+            .zip(seen)
+            .all(|(w, s)| w.id == s.id.0 && w.bot == s.bot && roster_name_matches(&w.name, &s.name))
+}
+
+/// The observation's roster as State key 12 rows (the lowest [`rh_protocol::state::MAX_ROSTER`] ids).
+pub fn wire_roster(seen: &[rh_sim::observe::RosterRow]) -> Vec<rh_protocol::WireRosterRow> {
+    roster_rows(seen)
+        .iter()
+        .map(|s| rh_protocol::WireRosterRow {
+            id: s.id.0,
+            bot: s.bot,
+            name: roster_name(&s.name),
+        })
+        .collect()
 }
 
 pub fn result(r: &RunResult) -> WireResult {
@@ -485,6 +642,77 @@ pub fn wire_vision(map: &rh_sim::TileMap) -> rh_protocol::WireVision {
         update_ms: VISION_UPDATE_MS,
         sight_mask: MASK_SIGHT,
         coliseum,
+    }
+}
+
+/// The projectile body-contact radius the sim uses for `w`'s flights (`rh_sim::systems::projectiles`: the bow looses arrows
+/// that meet a body grown by `ARROW_RADIUS`; every other ranged weapon fires balls grown by `RANGED_SLACK`). The weapon to
+/// projectile-kind rule is private to the sim, so it is mirrored here and pinned by the test below.
+fn projectile_contact_radius(w: rh_sim::WeaponId) -> f64 {
+    use rh_sim::constants::{ARROW_RADIUS, RANGED_SLACK};
+    if w == rh_sim::WeaponId::Bow {
+        ARROW_RADIUS
+    } else {
+        RANGED_SLACK
+    }
+}
+
+/// The weapon table a Welcome carries (protocol 16): one row per `rh_sim::WeaponId::ALL` (wire id `code()`), built from the
+/// sim content's hit shapes, so a client draws the true melee sector or projectile reach without a hand copy. All public
+/// content constants (no C-OBS concern). A shape that would not fit the wire is a server bug (the test holds it).
+pub fn wire_weapons() -> Vec<rh_protocol::WireWeapon> {
+    use rh_sim::content::{weapon, Shape};
+    rh_sim::WeaponId::ALL
+        .into_iter()
+        .map(|w| match weapon(w).shape {
+            Shape::Arc { reach, half_arc } => rh_protocol::WireWeapon {
+                id: w.code(),
+                kind: rh_protocol::WEAPON_KIND_ARC,
+                reach,
+                half_arc,
+                speed: 0.0,
+                radius: 0.0,
+            },
+            Shape::Projectile { speed, range } => rh_protocol::WireWeapon {
+                id: w.code(),
+                kind: rh_protocol::WEAPON_KIND_PROJECTILE,
+                reach: range,
+                half_arc: 0.0,
+                speed,
+                radius: projectile_contact_radius(w),
+            },
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod weapon_table_tests {
+    /// Every weapon has exactly one row, in wire order, carrying the sim content's shape; the table passes the decoder's
+    /// checks; arrows (bow) and balls (wand) carry the contact radius their flights use.
+    #[test]
+    fn the_wire_weapon_table_is_the_sim_content() {
+        use rh_sim::content::{weapon, Shape};
+        use rh_sim::WeaponId;
+        let wire = super::wire_weapons();
+        assert_eq!(rh_protocol::weapon::table_fault(&wire), None);
+        assert_eq!(wire.len(), WeaponId::ALL.len());
+        for (row, w) in wire.iter().zip(WeaponId::ALL) {
+            assert_eq!(row.id, w.code());
+            assert_eq!(WeaponId::from_code(row.id), Some(w));
+            match weapon(w).shape {
+                Shape::Arc { reach, half_arc } => assert_eq!(
+                    (row.kind, row.reach, row.half_arc, row.speed, row.radius),
+                    (rh_protocol::WEAPON_KIND_ARC, reach, half_arc, 0.0, 0.0)
+                ),
+                Shape::Projectile { speed, range } => assert_eq!(
+                    (row.kind, row.reach, row.half_arc, row.speed),
+                    (rh_protocol::WEAPON_KIND_PROJECTILE, range, 0.0, speed)
+                ),
+            }
+        }
+        let radius = |w: WeaponId| wire[usize::from(w.code())].radius;
+        assert_eq!(radius(WeaponId::Bow), rh_sim::constants::ARROW_RADIUS);
+        assert_eq!(radius(WeaponId::Wand), rh_sim::constants::RANGED_SLACK);
     }
 }
 
@@ -588,5 +816,102 @@ mod archetype_table_tests {
                 _ => panic!("hull kind differs for {}", a.key),
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod roster_tests {
+    use super::*;
+
+    #[test]
+    fn roster_names_are_bounded_printable_and_never_empty() {
+        assert_eq!(roster_name("Wren"), "Wren");
+        assert_eq!(roster_name("a\u{7}b\nc"), "abc");
+        assert_eq!(roster_name(""), "?");
+        assert_eq!(roster_name("\u{1}"), "?");
+        let long = "\u{e9}".repeat(20); // 40 bytes
+        let cut = roster_name(&long);
+        assert_eq!(
+            cut.len(),
+            24,
+            "cut on a character boundary at the byte bound"
+        );
+        assert!(rh_protocol::state::roster_name_valid(&cut));
+    }
+
+    /// Release builds cut an oversized roster to the lowest ids instead of refusing the whole State frame (debug builds
+    /// assert, since no match seats that many players).
+    #[test]
+    fn an_oversized_roster_is_cut_to_the_lowest_ids_deterministically() {
+        let seen: Vec<_> = (1..=40)
+            .map(|i| rh_sim::observe::RosterRow {
+                id: rh_sim::PlayerId(i),
+                name: format!("p{i}"),
+                bot: i % 2 == 0,
+            })
+            .collect();
+        let cut = std::panic::catch_unwind(|| wire_roster(&seen));
+        if cfg!(debug_assertions) {
+            assert!(cut.is_err(), "debug builds assert the seat bound");
+            // The cut itself, without the assertion.
+            let rows = &seen[..rh_protocol::state::MAX_ROSTER];
+            let wire: Vec<_> = rows
+                .iter()
+                .map(|s| rh_protocol::WireRosterRow {
+                    id: s.id.0,
+                    bot: s.bot,
+                    name: roster_name(&s.name),
+                })
+                .collect();
+            assert_eq!(wire.last().unwrap().id, 32);
+            assert!(rh_protocol::ServerMsg::State {
+                tick: 1,
+                items: vec![rh_protocol::StateItem::Roster(wire)],
+            }
+            .try_encode()
+            .is_ok());
+        } else {
+            let wire = cut.unwrap();
+            assert_eq!(wire.len(), rh_protocol::state::MAX_ROSTER);
+            assert_eq!(wire.last().unwrap().id, 32, "the lowest ids are kept");
+            assert!(roster_equal(&wire, &seen));
+        }
+    }
+
+    #[test]
+    fn the_wire_roster_matches_the_observation_until_it_changes() {
+        let seen = vec![
+            rh_sim::observe::RosterRow {
+                id: rh_sim::PlayerId(1),
+                name: "Wren".into(),
+                bot: false,
+            },
+            rh_sim::observe::RosterRow {
+                id: rh_sim::PlayerId(2),
+                name: "x".repeat(40),
+                bot: true,
+            },
+        ];
+        let wire = wire_roster(&seen);
+        assert!(roster_equal(&wire, &seen));
+        let mut changed = seen.clone();
+        changed[0].bot = true;
+        assert!(!roster_equal(&wire, &changed));
+        assert!(!roster_equal(&wire, &seen[..1]));
+        changed = seen.clone();
+        changed[1].name = "y".repeat(40);
+        assert!(
+            !roster_equal(&wire, &changed),
+            "a cleaned name is still compared"
+        );
+        for raw in ["Wren", "", "\u{1}", "a\u{7}b", &"\u{e9}".repeat(20)] {
+            assert!(roster_name_matches(&roster_name(raw), raw), "{raw:?}");
+        }
+        assert!(rh_protocol::ServerMsg::State {
+            tick: 1,
+            items: vec![rh_protocol::StateItem::Roster(wire)],
+        }
+        .try_encode()
+        .is_ok());
     }
 }

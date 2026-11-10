@@ -57,7 +57,7 @@ Shader "Roguehalla/ActorLit"
             {
                 Varyings o = (Varyings)0;
                 o.positionCS = TransformObjectToHClip(v.positionOS);
-                o.uv = v.uv; o.color = v.color;
+                o.uv = v.uv; o.color = v.color * unity_SpriteColor;   // as the stock lit sprite: SpriteRenderer.color reaches the body through unity_SpriteColor (vision fades and tints; UI lab finding)
                 o.world = TransformObjectToWorld(v.positionOS).xy;
                 o.lightingUV = half2(ComputeScreenPos(o.positionCS / o.positionCS.w).xy);
                 return o;

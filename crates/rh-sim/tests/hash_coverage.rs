@@ -632,6 +632,34 @@ fn wish_states() -> Vec<(&'static str, Sim)> {
     out
 }
 
+/// The measurement-only `SimConfig::mob_spacing = Off` (ADR0024 addendum "Mob spacing"): the one config value that
+/// serializes as a string; restoring it as `null` (`Auto`) must change the hash, so an A/B run never passes for a live one.
+fn mob_spacing_off_state() -> (&'static str, Sim) {
+    let mut sim = Sim::reset_active(
+        SimConfig {
+            mob_spacing: rh_sim::archetype::MobSpacing::Off,
+            ..Default::default()
+        },
+        practice_arena(),
+        Secrets::from_seed(73),
+        &[Placement {
+            profile: "hash-spacing".into(),
+            faction: FactionId::Holy,
+            bot: false,
+            at: Vec2::new(400., 320.),
+            hp: None,
+            weapon0: None,
+            weapon1: None,
+        }],
+    );
+    sim.step();
+    assert_eq!(
+        serde_json::to_value(&sim).unwrap()["statics"]["config"]["mob_spacing"],
+        serde_json::json!("off")
+    );
+    ("mob spacing off (measurement A/B)", sim)
+}
+
 /// Admitted Training worlds produce their hints through ordinary validated movement.
 /// None inherits Training's enabled preset; explicit false and true remain distinct config tags.
 fn produced_walk_hint_states() -> Vec<(&'static str, Sim)> {
@@ -841,6 +869,7 @@ fn scenarios() -> Vec<(&'static str, Sim)> {
     );
     states.extend(declared);
     states.extend(produced_walk_hint_states());
+    states.push(mob_spacing_off_state());
     states.extend([
         ("source planning", source_planning),
         ("source active timer", source_active),

@@ -58,6 +58,7 @@ pub struct CollectionView {
     pub(crate) arena: Option<WireArena>,
     pub(crate) quests: Option<WireQuestView>,
     pub(crate) trade: Option<WireTradeView>,
+    pub(crate) roster: Vec<rh_protocol::WireRosterRow>,
     pub(crate) tick: u32,
 }
 impl CollectionView {
@@ -95,6 +96,10 @@ impl CollectionView {
     pub fn trade(&self) -> Option<&WireTradeView> {
         self.trade.as_ref()
     }
+    /// The seated players (State key 12, ADR0026).
+    pub fn roster(&self) -> &[rh_protocol::WireRosterRow] {
+        &self.roster
+    }
     pub fn tick(&self) -> u32 {
         self.tick
     }
@@ -123,6 +128,7 @@ impl CollectionView {
                 StateItem::Arena(v) => next.arena = *v,
                 StateItem::Quests(v) => next.quests = v.clone(),
                 StateItem::Trade(v) => next.trade = v.clone(),
+                StateItem::Roster(v) => next.roster = v.clone(),
             }
         }
         rh_protocol::validate_quest_props(&next.props, next.quests.as_ref())?;

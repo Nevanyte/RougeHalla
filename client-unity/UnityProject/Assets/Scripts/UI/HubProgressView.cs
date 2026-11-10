@@ -85,7 +85,9 @@ namespace Roguehalla.Client
             if (root == null) throw new ArgumentNullException(nameof(root));
             _initialized = true; _owner = owner; _flow = owner != null ? owner.Flow : null; _api = owner != null ? owner.Api : null;
             _closeCallback = close;
-            _root = MythicUi.Panel(root, "HubProgressOverlay", Vector2.zero, Vector2.one, UiTheme.Current.Scrim);
+            // The overlay only catches outside clicks: it does not dim, so the launch panel beside the docked card keeps its colours.
+            _root = MythicUi.Rect(root, "HubProgressOverlay", Vector2.zero, Vector2.one);
+            var shade = _root.gameObject.AddComponent<UnityEngine.UI.Image>(); shade.color = UiTheme.With(UiTheme.Current.Scrim, 0f); shade.raycastTarget = true;
             var dismiss = _root.gameObject.AddComponent<ModalDismissSurface>(); dismiss.Dismiss = CloseByUser;
             _card = MythicUi.Panel(_root, "HubProgressCard", new Vector2(.09f, .055f), new Vector2(.91f, .945f), ShowcasePalette.Panel);
             MythicUi.Text(_card, "ProgressTitle", "RECORDS", new Vector2(.035f, .925f), new Vector2(.68f, .995f), 27, ShowcasePalette.Gold, heading: true);

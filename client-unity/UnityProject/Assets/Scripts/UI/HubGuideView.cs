@@ -169,7 +169,7 @@ namespace Roguehalla.Client
             _overlay = MythicUi.Rect(_root, "HubGuideOverlay", Vector2.zero, Vector2.one);
             var backdrop = MythicUi.Rect(_overlay, "Backdrop", Vector2.zero, Vector2.one);
             var shade = backdrop.gameObject.AddComponent<Image>();
-            shade.color = UiTheme.Current.Scrim; shade.raycastTarget = true;
+            shade.color = UiTheme.With(UiTheme.Current.Scrim, 0f); shade.raycastTarget = true; // no dim: the launch panel stays lit
             var backdropButton = backdrop.gameObject.AddComponent<Button>();
             backdropButton.targetGraphic = shade;
             backdropButton.onClick.AddListener(() => SetVisible(false));
@@ -237,13 +237,17 @@ namespace Roguehalla.Client
             for (int i = 0; i < Factions.Length; i++)
             {
                 int index = i;
-                _factionButtons[i] = MythicUi.Button(row, "Faction_" + Factions[i], ShowcasePalette.GetFactionMark(i) + "  " + Factions[i], Vector2.zero, Vector2.one, () => SelectFaction(index));
+                _factionButtons[i] = MythicUi.Button(row, "Faction_" + Factions[i], "      " + Factions[i], Vector2.zero, Vector2.one, () => SelectFaction(index));
+                // The generated faction pictogram replaces the old bracket mark; it sits left of the name.
+                var icon = LaunchUi.FactionShape(_factionButtons[i].transform, "FactionIcon", i, 0f, 0f, 20f, UiTheme.Current.FactionColor(i));
+                icon.rectTransform.anchorMin = icon.rectTransform.anchorMax = new Vector2(0f, .5f);
+                icon.rectTransform.pivot = new Vector2(.5f, .5f); icon.rectTransform.anchoredPosition = new Vector2(20f, 0f);
             }
             UpdateFactionButtons();
             for (int i = 0; i < Factions.Length; i++)
             {
                 string text = Roles[i] + "\nPassive · " + PassiveSummaries[i] + "\nWish · " + Wishes[i] + " — " + WishSummaries[i];
-                AddCard(ShowcasePalette.GetFactionMark(i) + "  " + Factions[i] + "   ·   " + Passives[i], text, 184, ShowcasePalette.Faction(i));
+                AddCard(Factions[i] + "   ·   " + Passives[i], text, 184, ShowcasePalette.Faction(i), i);
             }
         }
 
@@ -298,18 +302,33 @@ namespace Roguehalla.Client
             ConfigureLayoutChild(intro.GetComponent<RectTransform>(), 52);
         }
 
-        void AddCard(string title, string body, float height, Color titleColor)
-        { AddCardTo(_content, "Card_" + (_cardSequence++), title, body, height, titleColor); }
+        void AddCard(string title, string body, float height, Color titleColor, int factionIcon = -1)
+        { AddCardTo(_content, "Card_" + (_cardSequence++), title, body, height, titleColor, factionIcon); }
 
-        void AddCardTo(Transform parent, string objectName, string title, string body, float height, Color titleColor)
+        void AddCardTo(Transform parent, string objectName, string title, string body, float height, Color titleColor, int factionIcon = -1)
         {
             var card = MythicUi.Panel(parent, objectName, Vector2.zero, Vector2.one, ShowcasePalette.PanelRaised, true);
             ConfigureLayoutChild(card, height);
             var group = card.gameObject.AddComponent<VerticalLayoutGroup>();
             group.spacing = 4; group.padding = new RectOffset(12, 12, 9, 8); group.childControlWidth = true; group.childForceExpandWidth = true; group.childControlHeight = false; group.childForceExpandHeight = false;
+            Transform headingParent = card;
+            if (factionIcon >= 0)
+            {
+                // Faction cards lead with the generated faction pictogram instead of a bracket mark.
+                var head = CreateLayoutItem(card, "Head", 28);
+                var icon = LaunchUi.FactionShape(head, "FactionIcon", factionIcon, 0f, 4f, 20f, titleColor);
+                icon.rectTransform.anchorMin = icon.rectTransform.anchorMax = new Vector2(0f, .5f);
+                icon.rectTransform.pivot = new Vector2(0f, .5f); icon.rectTransform.anchoredPosition = new Vector2(0f, 0f);
+                var named = MythicUi.Text(head, "Title", title, Vector2.zero, Vector2.one, 19, titleColor);
+                named.fontStyle = FontStyles.Bold; named.rectTransform.offsetMin = new Vector2(28f, 0f);
+                headingParent = null;
+            }
+            if (headingParent != null)
+            {
             var heading = MythicUi.Text(card, "Title", title, Vector2.zero, Vector2.one, 19, titleColor);
             heading.fontStyle = FontStyles.Bold;
             ConfigureLayoutChild(heading.GetComponent<RectTransform>(), 28);
+            }
             var description = MythicUi.Text(card, "Description", body, Vector2.zero, Vector2.one, 15, ShowcasePalette.Text);
             description.enableWordWrapping = true;
             ConfigureLayoutChild(description.GetComponent<RectTransform>(), height - 48);

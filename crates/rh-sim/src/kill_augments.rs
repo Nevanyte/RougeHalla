@@ -4,9 +4,9 @@
 //! factor). The trophy rides the chest `choose` action (`sim/chests.ts` delegates the owner check here).
 //!
 //! Two source-only inputs remain explicitly out of this slice and are recorded in
-//! `docs/evidence/stage2-cards-3/README.md`: the `campsCleared` counter (P-MOBS-2's camp-clear heal owns it; it contributes
-//! 0 to the readability leech score until then) and the public transport of trophy/kill-stat facts (coordinator-owned; the
-//! wire projection filters kill-augment options).
+//! `docs/evidence/stage2-cards-3/README.md`: Holy's camp-lifesteal term of the readability leech score (the sim counts
+//! camp clears but has no such passive, so the term is 0; ADR0026 records the deviation) and the public transport of
+//! trophy/kill-stat facts (coordinator-owned; the wire projection filters kill-augment options).
 use crate::cards::CardRow;
 use crate::stat_fold::{EffectKind, EffectRow, EffectStat, FlatStat};
 
@@ -209,16 +209,89 @@ pub fn text(a: KillAugment) -> (String, String) {
 }
 
 /// The victim's readable investment scores (source `combatReadability(...).investedStats` with `lasting: true`, the
-/// one scoring mode the trophy roll reads). `campsCleared` is 0 here until P-MOBS-2 ports the camp-clear counter; it only
-/// feeds Holy's camp-lifesteal term, which is 0 at 0 clears.
+/// one scoring mode the trophy roll reads). Legacy's leech term also adds Holy's camp lifesteal
+/// (`holyCampLifestealOf(campClears)`); the Rust sim counts camp clears (`Player.camps_cleared`) but has no Holy
+/// camp-lifesteal passive, so that term is 0 here and in [`build_marks`] (a known deviation, pinned by
+/// `build_marks_tests`).
 pub fn invested_stats(p: &crate::state::Player) -> Vec<(KillStatKey, f64)> {
-    use crate::stat_fold::{ChestBoostStat, StatKey};
-    let build = &p.build;
-    let faction = p.faction();
-    let m = p.modifiers.mirrors();
-    let base_hp = crate::content::faction(faction).hp;
     let (farm_rows, farm_len) = p.farm.rows();
-    let kill = &p.kill_stats;
+    let scores = invested_scores(&Readable::of(p, &farm_rows[..farm_len]), true);
+    let mut out: Vec<(KillStatKey, f64)> = KillStatKey::ALL
+        .into_iter()
+        .map(|k| (k, scores[k.index()]))
+        .filter(|(_, score)| *score > 0.01)
+        .collect();
+    out.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+    out
+}
+
+/// The overhead build marks a player shows to anyone who sees it (legacy `PlayerView.drawBuildMarks`: the first two of
+/// `combatReadability(p).investedStats` in display mode, i.e. not `lasting`). Keys only, in descending score order with
+/// the source's stable tie-break (the earlier key in [`KillStatKey::ALL`] wins a tie); `None` where fewer than two scores
+/// pass the source's `> 0.01` threshold. Computed from the sim's own folds; allocation-free (observation hot path).
+pub fn build_marks(p: &crate::state::Player) -> [Option<KillStatKey>; 2] {
+    let (farm_rows, farm_len) = p.farm.rows();
+    top_two(&invested_scores(
+        &Readable::of(p, &farm_rows[..farm_len]),
+        false,
+    ))
+}
+
+/// The two best scores above the source threshold; strict comparisons keep the earlier key on a tie (a stable sort).
+fn top_two(scores: &[f64; 9]) -> [Option<KillStatKey>; 2] {
+    let mut best: [Option<(KillStatKey, f64)>; 2] = [None, None];
+    for key in KillStatKey::ALL {
+        let score = scores[key.index()];
+        if !(score > 0.01) {
+            continue;
+        }
+        match best {
+            [None, _] => best[0] = Some((key, score)),
+            [Some((_, first)), _] if score > first => {
+                best[1] = best[0];
+                best[0] = Some((key, score));
+            }
+            [_, None] => best[1] = Some((key, score)),
+            [_, Some((_, second))] if score > second => best[1] = Some((key, score)),
+            _ => {}
+        }
+    }
+    best.map(|b| b.map(|(key, _)| key))
+}
+
+/// The public inputs of the source `combatReadability` scores (a `ReadableFighter`): the build, the decoded stat
+/// mirrors, max hp, the farm rows (mob stats and kill stats as folded) and the stored kill stats.
+pub(crate) struct Readable<'a> {
+    pub(crate) build: &'a crate::cards::Build,
+    pub(crate) faction: crate::FactionId,
+    pub(crate) mirrors: crate::stat_fold::StatMirrors,
+    pub(crate) max_hp: f64,
+    pub(crate) farm_rows: &'a [EffectRow<'static>],
+    pub(crate) kill: &'a KillStats,
+}
+impl<'a> Readable<'a> {
+    pub(crate) fn of(p: &'a crate::state::Player, farm_rows: &'a [EffectRow<'static>]) -> Self {
+        Self {
+            build: &p.build,
+            faction: p.faction(),
+            mirrors: p.modifiers.mirrors(),
+            max_hp: p.vitals.max_hp,
+            farm_rows,
+            kill: &p.kill_stats,
+        }
+    }
+}
+
+/// Source `combatReadability` scores, indexed by [`KillStatKey::index`]; `lasting` is the source option of that name.
+pub(crate) fn invested_scores(r: &Readable, lasting: bool) -> [f64; 9] {
+    use crate::stat_fold::{ChestBoostStat, StatKey};
+    let build = r.build;
+    let faction = r.faction;
+    let m = r.mirrors;
+    let base_hp = crate::content::faction(faction).hp;
+    let farm_rows = r.farm_rows;
+    let farm_len = farm_rows.len();
+    let kill = r.kill;
     let mut card_lifesteal = 0.;
     let mut generic_damage = kill.get(KillStatKey::Damage);
     let mut cards_as = 0.;
@@ -322,22 +395,22 @@ pub fn invested_stats(p: &crate::state::Player) -> Vec<(KillStatKey, f64)> {
     scores[KillStatKey::Ap.index()] = m.ap_bonus / 12.;
     scores[KillStatKey::Damage.index()] = generic_damage / 0.01;
     scores[KillStatKey::Health.index()] = if base_hp > 0. {
-        (p.vitals.max_hp / base_hp - 1.).max(0.) / 0.09
+        (r.max_hp / base_hp - 1.).max(0.) / 0.09
     } else {
         0.
     };
-    scores[KillStatKey::AttackSpeed.index()] = (m.as_mult - 1.).max(0.).min(permanent_as) / 0.09;
-    scores[KillStatKey::Speed.index()] = (m.speed_mult - 1.).max(0.).min(permanent_move) / 0.06;
+    // Source: `lasting` caps the live mirror by the lasting investments; the display reads the mirror alone.
+    let (as_cap, move_cap) = if lasting {
+        (permanent_as, permanent_move)
+    } else {
+        (f64::INFINITY, f64::INFINITY)
+    };
+    scores[KillStatKey::AttackSpeed.index()] = (m.as_mult - 1.).max(0.).min(as_cap) / 0.09;
+    scores[KillStatKey::Speed.index()] = (m.speed_mult - 1.).max(0.).min(move_cap) / 0.06;
     scores[KillStatKey::Armor.index()] = m.armor_bonus.max(0.) / 15.;
     scores[KillStatKey::Mr.index()] = m.shield_bonus.max(0.) / 15.;
     scores[KillStatKey::Leech.index()] = leech / 0.05;
-    let mut out: Vec<(KillStatKey, f64)> = KillStatKey::ALL
-        .into_iter()
-        .map(|k| (k, scores[k.index()]))
-        .filter(|(_, score)| *score > 0.01)
-        .collect();
-    out.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-    out
+    scores
 }
 
 /// Source `rollKillAugments`: the victim's top three investments as trophy options (fewer when it had fewer).
@@ -446,6 +519,8 @@ pub(crate) fn grant(
     true
 }
 
+#[cfg(test)]
+mod build_marks_tests;
 #[cfg(test)]
 mod format_consumer;
 #[cfg(test)]

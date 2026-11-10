@@ -535,3 +535,153 @@ Review fixes (independent review of P-HB-0..9, branch `rework/hitbox`, 2026-11-1
     numbers). The run did find a rule bug: a homing ball whose raised start lies inside its own target's box orbited
     under the legacy fallback of change 15 (61 bot wand flights ended at range); its own target is now a hit at u = 0.
     The soaks (`tests/source_arena_soak.rs`, seeds 6, 17, 28, 42, 62) run in both modes.
+
+## Addendum: Mob spacing (owner direction 2026-11-10; revised after review 2026-11-10)
+
+Owner: "mobs tend to bunch up and stack on top of each other, give them some hit box room." Standing decisions kept: no
+body blocking between characters (players walk through each other and through mobs); bot and mob decision-making,
+target choice, aggro, timing and abilities unchanged; melee, projectiles and range checks unchanged.
+
+**Legacy.** `packages/server/src/sim/mobAI.ts` has no separation: a fighting mob moves to its target's position until
+its policy says stop, so a pack that arrives by one path stops on one spot. Spacing is a new behaviour, live mode only
+(DEVIATIONS DEV-011).
+
+**Switch.** Spacing is on when `SimConfig::hitboxes = Archetypes` and `SimConfig::mob_spacing = Auto` (the default;
+`rh_sim::archetype::mob_spacing`); under `LegacyCircle` no spacing code runs. `MobSpacing::Off` is the measurement-only
+A/B (`rh-headless --example hitbox_compare ... spacing`): `Auto` serializes as `null` and adds nothing to the statics
+digest (every hash and pin from before the field is unchanged), `Off` is the string `"off"` and is folded into the
+digest, so into the state hash, every checkpoint and every replay; `rh_server::wire::profile_supported` refuses to host
+it. No cargo feature changes spacing (`--all-features` builds behave like normal builds).
+
+**Room.** Each mob claims a personal-space disc of its foot box's larger half-extent plus `MOB_SPACING_MARGIN` (10 + 10 =
+20 u with today's shared 10 x 6 foot box), so two mobs want 40 u centre to centre. A look with a bigger foot box gets
+more room automatically; elites share their type's look and foot box today, so they get the same room. Movers and
+neighbours: alive regional and practice mobs with a brain. Excluded: players (no body blocking), Plague zombies (owner
+companions with their own AI), training dummies and quest givers (no fight brain).
+
+**Standing still (the policy said `Stop`).** Mobs think one after another (store order) and read a neighbour index
+built once per `mobAI.thinkMobs` call, in which a mob walking a spacing step stands where that step ends; a mob that
+orders a step moves its own entry there, so later mobs see where it is going. A step is ordered only when it lowers the
+mob's share of the pack's energy (the sum over pairs of the squared depth to which two rooms overlap) by at least
+`MOB_SPACING_STEP_MIN`^2: a coordinate descent. The energy cannot go below zero, so after the last outside change (a
+chase, an arrival, a death, a step that ends elsewhere than ordered) a pack of any size orders at most (energy /
+`STEP_MIN`^2) more steps and comes to rest; a mob with no room left keeps its overlap quietly (no deadlock). The squares
+make evening out the gaps along a chain of mobs pay, so a crowd spreads round its target instead of staying piled on the
+side it came from. Candidates: the push (the sum over neighbours inside the room of the overlap along the line between
+the two, capped at `MOB_SPACING_STEP_MAX` = 16 u), its half, and the push turned by +-90, +-45 and +-135 degrees (a mob
+squeezed between two others on a line gains nothing along it). Each candidate is pulled back into the policy's stop band
+round the target (melee `[0, far - MOB_SPACING_BAND_SLACK]`, ranged `[retreat + slack, far - slack]`) and capped at
+`MOB_SPACING_STEP_MAX` again, so no step is longer than 16 u; the lowest-energy candidate that gains enough and passes
+the mob's own foot-box segment test (the pathfinder's direct-path test), the leash with the retreat's margin and line
+of sight to the target with the policy's mask is ordered as one `Move` (validate + `Cx::submit`, C-INPUT). A mob inside
+its band's `lo` (its policy wanted a retreat it could not find) gets no step: spacing never carries out a retreat. Two
+mobs on the very same point split left and right of the line to the target by id. Cost and churn bounds: a mob walking
+a spacing step gets no new order until it arrives (one `Move`, one path search per step); a mob that cannot move this
+tick (rooted, casting, winding a swing; a stunned mob does not think at all) gets none; a mob looks for a step on one
+tick in `MOB_SPACING_LOOK_TICKS` = 4, staggered by id. The step does not use the chase's `send`: the repath clock and
+chase goal are untouched.
+
+**Chasing (the policy said `Move::Point` and it is a chase, not a retreat).** The chase order's goal is shifted
+sideways (across the line from the mob to the goal) away from the pack-mates inside the mob's room: by the whole
+overlap, summed (ahead/behind or coincident: lower id left, higher id right), capped at 16 u, then scaled by the
+distance to the goal over two rooms, so the heading turns by at most atan(16/40) = 22 degrees and the shift shrinks to
+nothing as the mob closes in (a melee mob entering its band at about 95 u is shifted at most 38 u: it still walks into
+its band and stops; no circling). The shifted goal must clear the mob's foot box, be reachable from the plain goal in a
+straight line with that foot box (same side of every wall and corner), see the target with the policy's mask and lie
+inside the leash; otherwise the plain goal (a doorway or corridor: overlap where there is no room). It goes through the
+same `send` on the same repath clock: no extra orders and no extra path searches. Retreats are never shifted.
+
+**Where in the tick.** Inside the existing `mobAI.thinkMobs` row; no new schedule row, the tick order is untouched. The
+index lives in `TickScratch::mob_spacing` (cells of `MOB_SPACING_CELL` = 64 u, at least two rooms plus one step, so a
+query reads 3 x 3 cells; no per-tick allocation once the buffer has grown). Orders apply next tick through the inputs
+phase and are walked by `movement.walk` like any other move.
+
+**Determinism (ADR0007).** Fixed iteration order (store order for thinking, (cell, id) in the index), no RNG,
+`crate::math` only; the index and the steps are derived from the world each call and never stored, so the state hash,
+checkpoint and replay formats are unchanged (the `Off` switch aside). Six constants are registered in the content
+registry; with `MOB_SPACING_LOOK_TICKS` the content hash is `06e2cdab2889abc5` (was `e1e44438b219196f`; before spacing
+`026f083d8473fa4b`).
+
+**What the tests prove** (`crates/rh-sim/src/systems/mob_spacing.rs` unit tests and `mob_spacing_tests.rs`; axe
+`emberImp` practice mobs woken on one stationary player unless said otherwise; every pack test asserts at every tick that
+every foot box is clear of walls):
+* Rest: packs of 20, 30, 40 and 200 on open floor order zero `Move`s, walk 0 u and run zero path searches over ticks
+  800-1000, and every mob of each pack lands hits; measured, the last spacing step falls on tick 171-175 and at most 43
+  steps fall in one tick (200 mobs). "Comes to rest" means exactly that: no order and no movement over that window.
+* Spread: eight mobs end inside the stop band with every pair at least 34 u apart (85 % of 40), over more than a quarter
+  circle, all hitting; six wand mobs stay inside `[retreat, far]` with room; a pack of 12 with four elites, and packs of
+  12 on an ice patch and in a bog (the seed1 map with a 20 x 20 tile terrain patch, hazards on) spread to 34 u, all hit,
+  and order no step over their last 100 ticks.
+* Held crowds: twelve mobs born overlapping and rooted (or stunned, Frost's Freeze) order no step and run no path search
+  while held, then spread to 34 u and rest.
+* Chasing: ten mobs chasing a player who walks a loop inside their leash for 60 s: ticks with two mobs under 8 u fall
+  from 1.00 to 0.55 overall and from 0.97 to 0.41 among ticks with two or more mobs walking a chase path (spacing off
+  vs on, same run); every mob still hits, first hits on ticks 51-54 instead of 48-49; a pack chasing through a one-tile
+  doorway and up a one-tile corridor to its dead end: every mob hits at the far end, first hits within 2 ticks of
+  spacing off, and path searches stay within the plain run's plus one per spacing step.
+* Corridor dead end and doorway with a stationary target: no deadlock, the pack hits, then rests (0 u over 3 s).
+* Unit: the step never exceeds 16 u after the band clamp, never moves a mob inside `band.lo`, needs no index entry of the
+  mob's own, sidesteps a squeeze on a line, orders nothing that does not lower the energy, and the index stays sorted
+  when an entry moves.
+* Identity: `Off` is in the digest and survives a checkpoint, `Auto` adds nothing to it, a config without the field
+  reads as `Auto`, every build (any features) spaces an archetype match, the server refuses `Off`; the same run twice and
+  a checkpoint restored mid-run give the same hash every tick; the legacy-circle pack run's state-hash fold equals the
+  value pinned with the spacing code removed. The parity report is unchanged (109 slice scenarios + 13 capture-only, 300
+  pathfinding queries: all MATCH).
+
+Not proven: a pack in a pocket of a crowd may keep some overlap where a better arrangement exists farther round the
+ring (the descent is local); stacking among mobs hugging a moving player is reduced, not removed.
+
+**Measured** (`rh-headless --example hitbox_compare <map> <from> <to> 12000 archetypes-nospacing` and `... archetypes`,
+release, live source-arena config, 8 HumanBot seats, PvE, the same seeds; HEAD 4340e37e). Over every tick and every
+engaged mob with another mob within 120 u: mean nearest-mob distance and the share under 20 u (foot boxes overlap);
+"stacked engaged" is the share of ticks with two engaged mobs within 8 u among ticks with two or more engaged; "stacked
+chasing" the same among mobs walking a chase path. Spacing steps and path searches (every A* search, players' too) are
+per tick.
+
+| run | mean nearest | overlap share | stacked engaged | stacked chasing | player deaths | mob deaths | hits | mean match (ticks) | mob melee landed (sword / axe / fists) | mob ranged (bow / wand) | spacing steps / tick (mean, max) | path searches / tick (mean, max) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| seed1 map, seeds 1-40, off | 50.7 | 0.186 | 0.153 | 0.039 | 270 | 758 | 43896 | 4326 | 1.000 / 0.999 / 0.107 | 0.924 / 0.488 | 0, 0 | 0.014, 5 |
+| seed1 map, seeds 1-40, on | 55.0 | 0.072 | 0.046 | 0.029 | 267 | 806 | 44239 | 4164 | 1.000 / 1.000 / 0.106 | 0.922 / 0.487 | 0.008, 2 | 0.015, 5 |
+| first-playable, seeds 0-62, off | 62.7 | 0.101 | 0.002 | 0.003 | 397 | 102 | 26421 | 7119 | 1.000 / 0.988 / 0.331 | 0.974 / 0.681 | 0, 0 | 0.002, 2 |
+| first-playable, seeds 0-62, on | 64.4 | 0.053 | 0.001 | 0.003 | 396 | 97 | 26423 | 7199 | 1.000 / 0.987 / 0.303 | 0.974 / 0.674 | 0.000, 1 | 0.001, 2 |
+
+Both "off" rows reproduce the spacing-off rows measured before the review exactly (the runtime switch is the same A/B
+as the old build feature). On the mob-dense seed1 map stacked-engaged ticks fall 0.153 -> 0.046 and stacked-chasing ticks 0.039 -> 0.029; player deaths 270 -> 267, mob deaths 758 -> 806 (+6 %), mean match 4326 -> 4164 ticks: within what a changed trajectory gives on 40 matches, not a balance verdict. Minimum nearest distance is still about 0 in both modes (mobs squeezed where no step is clear, a mob passing another). Every match ended or reached the tick cap: no panic, no hang. The soak seeds 6,
+17, 28, 42 and 62 (`source_soak ... archetypes`) also ran clean; `tests/source_arena_soak.rs` runs them in archetype mode.
+
+Cost (`spacing_tick_cost`, ignored test, release, 200 axe mobs on one player, a whole tick, best of three on a loaded
+machine): standing (settled) 0.55 -> 0.62 ms, chasing a walking player 0.41 -> 0.50 ms (spacing off -> on).
+
+## Addendum: Weapon shapes in the Welcome (coordinator addition to protocol 16, 2026-11-10)
+
+The client draws a weapon hit-zone indicator (a translucent sector of the area a melee swing can hit). The swing's
+origin and angle already travel in the `Swing` fx; the per-weapon shape did not, and the client must not keep a hand
+copy. Protocol 16 has not shipped, so the Welcome grows once more, like the archetype table and the vision block.
+
+**Layout.** Right after the vision block and before the map (the map reader refuses trailing bytes): `count u8` (at most
+`MAX_WEAPONS` = 32, checked before allocating), then fixed 34-byte rows `id u8, kind u8, reach f64, half_arc f64,
+speed f64, radius f64`, ids strictly ascending. `id` is `WeaponId::code()` (sword 0, bow 1, wand 2, shield 3, axe 4,
+fists 5). `kind`: 0 no hit shape (all four values 0; reserved), 1 melee arc (`reach` sim units > 0, `0 < half_arc <= pi`
+radians, speed and radius 0), 2 projectile (`reach` = maximum range > 0, `speed` sim units/s > 0, `half_arc` 0, `radius`
+= the flight's body-contact radius: `ARROW_RADIUS` 7 for the bow's arrows, `RANGED_SLACK` 2 for the wand's balls).
+Every value is finite and within 0..=1e6. Fixed-size rows keep the table append-friendly (a new kind is a new number).
+Rust (`rh_protocol::weapon::table_fault`, encoder and decoder), C# and JS refuse anything else with `weapon count`,
+`weapon kind`, `weapon` or `weapon order`, without panic or over-allocation. The server builds the rows from
+`rh_sim::content::weapon(w).shape` (`rh_policy::delivery::projection::wire_weapons`), never by hand.
+
+**Members.** Rust `ServerMsg::Welcome { weapons: Vec<WireWeapon> }`; C# `Protocol.WireWeapon { Id, Kind, Reach, HalfArc,
+Speed, Radius }` (constants `KindNone`, `KindArc`, `KindProjectile`; `WireWeapon.Find(rows, id)`), `ServerMsg.Welcome.Weapons`
+and `Session.Weapons` (empty before a Welcome); JS `m.weapons = [{id, kind, reach, halfArc, speed, radius}]`.
+
+**What it covers.** The static shape of each weapon, which is all the sim uses: melee reads `weapon(w).shape` for every
+swing (`melee.rs`), projectiles take speed and range from it at launch. No card, status or modifier changes a weapon's
+reach, arc, range, speed or contact radius at runtime, so the table is exact, not a base value. Not covered: per-flight
+state (a reflected flight keeps only its remaining range), wand splash, abilities with their own shapes, and the hit
+test's margins: a melee target is hit when its BODY touches the sector (the body box under `Archetypes`, measured from
+the attacker's feet raised by the target's body centre; the 12 u disc plus `ARC_EPS` under the legacy circle), and a
+flight meets a body grown by `radius`. A sector drawn from `reach` and `half_arc` at the swing's origin is the nominal
+arc the rule tests against; the client should not add margins of its own.
+
+**C-OBS: none.** Every value is a public content constant (already folded into the content hash through `content.rs`);
+the table is the same for every viewer and match. The content hash does not move.

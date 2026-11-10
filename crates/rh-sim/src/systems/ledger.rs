@@ -930,6 +930,7 @@ fn apply_victim(
                     amount: amounts[j],
                     weapon: e.weapon,
                     passive: e.passive,
+                    critical: e.critical,
                 });
             }
             crate::hooks::fire(

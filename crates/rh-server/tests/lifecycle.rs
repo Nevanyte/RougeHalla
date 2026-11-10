@@ -46,6 +46,7 @@ fn arena() -> Arena {
 fn sim_config() -> SimConfig {
     SimConfig {
         hitboxes: Default::default(),
+        mob_spacing: Default::default(),
         walk_hints: None,
         regen: false,
         quests: false,
@@ -366,15 +367,22 @@ fn legacy_welcome(room_welcome: &[u8], arena: &Arena) -> Vec<u8> {
         server_ms,
         archetypes,
         vision,
+        weapons,
         map,
     } = ServerMsg::decode(room_welcome).expect("a Welcome")
     else {
         panic!("not a Welcome")
     };
     assert_eq!(map.tiles, arena.map.tiles, "the map the sim plays on");
+    assert_eq!(
+        weapons,
+        rh_server::room::weapon_table(),
+        "the room's Welcome carries the sim content's weapon table"
+    );
     ServerMsg::Welcome {
         archetypes,
         vision,
+        weapons,
         protocol,
         content_hash,
         match_id,
@@ -440,6 +448,7 @@ async fn room_heap_probe() {
     // One human closes the lobby on the first step: the next admission opens a room of its own.
     let sim = SimConfig {
         hitboxes: Default::default(),
+        mob_spacing: Default::default(),
         walk_hints: None,
         regen: false,
         quests: false,

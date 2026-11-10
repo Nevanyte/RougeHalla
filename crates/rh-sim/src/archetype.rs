@@ -69,6 +69,55 @@ pub enum HitboxMode {
     Archetypes,
 }
 
+/// Is mob spacing on for a match with this config (ADR0024 addendum "Mob spacing")? When the match plays with
+/// [`HitboxMode::Archetypes`] and its config leaves spacing at [`MobSpacing::Auto`] (every live profile: the server
+/// refuses [`MobSpacing::Off`]). No build feature changes it.
+pub fn mob_spacing(config: &crate::SimConfig) -> bool {
+    config.hitboxes == HitboxMode::Archetypes && config.mob_spacing == MobSpacing::Auto
+}
+
+/// `SimConfig::mob_spacing`: `Auto` (on exactly under [`HitboxMode::Archetypes`]) or `Off` (measurement only: the same
+/// seeds with spacing off, for an A/B; never hosted). Serialized as nothing for `Auto` (JSON `null`; the hashing
+/// serializer folds no word for a unit), so a config that leaves spacing alone has the statics digest, state hashes,
+/// checkpoints and replays it had before the field existed; `Off` is the string `"off"`, folded into all of them, so a
+/// run with spacing off can never pass for one with it on.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum MobSpacing {
+    #[default]
+    Auto,
+    Off,
+}
+
+impl serde::Serialize for MobSpacing {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        match self {
+            Self::Auto => s.serialize_unit(),
+            Self::Off => s.serialize_str("off"),
+        }
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for MobSpacing {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        match Option::<String>::deserialize(d)?.as_deref() {
+            None => Ok(Self::Auto),
+            Some("off") => Ok(Self::Off),
+            Some(other) => Err(serde::de::Error::custom(format!(
+                "mob_spacing must be null or \"off\", not {other:?}"
+            ))),
+        }
+    }
+}
+
+/// What mob spacing did in the last `mobAI.thinkMobs` call (measurement only: [`crate::Sim::mob_spacing_diagnostics`]).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct SpacingDiagnostics {
+    /// Spacing steps ordered (each a `Move`, so a path search next tick).
+    pub steps: u32,
+    /// Chase orders whose goal was offset by the spacing push.
+    pub chase_offsets: u32,
+}
+
 /// A pair of half-extents (east-west, north-south).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Half {
@@ -327,6 +376,54 @@ pub(crate) fn visit_content(mut word: impl FnMut(u64)) {
 mod tests {
     use super::*;
     use crate::constants::TILE;
+
+    #[test]
+    fn every_build_spaces_an_archetype_match() {
+        // No cargo feature turns spacing off: `--all-features` builds (CI clippy, the mutant runs) behave like normal ones.
+        let cfg = crate::SimConfig {
+            hitboxes: HitboxMode::Archetypes,
+            ..Default::default()
+        };
+        assert!(mob_spacing(&cfg));
+        assert!(!mob_spacing(&crate::SimConfig::default()));
+        assert!(!mob_spacing(&crate::SimConfig {
+            mob_spacing: MobSpacing::Off,
+            ..cfg
+        }));
+    }
+
+    #[test]
+    fn spacing_off_is_in_the_config_identity_and_auto_adds_nothing() {
+        let arena = crate::arenas::practice_arena();
+        let digest = |c: crate::SimConfig| {
+            crate::statics::MatchStatic::new(c, arena.clone(), crate::Secrets::from_seed(1)).digest
+        };
+        let on = crate::SimConfig {
+            hitboxes: HitboxMode::Archetypes,
+            ..Default::default()
+        };
+        let off = crate::SimConfig {
+            mob_spacing: MobSpacing::Off,
+            ..on.clone()
+        };
+        // Off moves the digest (so the state hash, and what replays and checkpoints check).
+        assert_ne!(digest(on.clone()), digest(off.clone()));
+        // Auto serializes as null and hashes as nothing: a config written before the field existed reads back as Auto
+        // with the same digest.
+        let mut json = serde_json::to_value(&on).unwrap();
+        assert_eq!(json["mob_spacing"], serde_json::Value::Null);
+        json.as_object_mut().unwrap().remove("mob_spacing");
+        let old: crate::SimConfig = serde_json::from_value(json).unwrap();
+        assert_eq!(old, on);
+        assert_eq!(digest(old), digest(on));
+        // Off round-trips.
+        let back: crate::SimConfig =
+            serde_json::from_value(serde_json::to_value(&off).unwrap()).unwrap();
+        assert_eq!(back, off);
+        let mut bad = serde_json::to_value(&off).unwrap();
+        bad["mob_spacing"] = "on".into();
+        assert!(serde_json::from_value::<crate::SimConfig>(bad).is_err());
+    }
 
     #[test]
     fn the_table_keeps_its_invariants() {

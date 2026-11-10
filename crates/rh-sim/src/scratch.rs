@@ -10,7 +10,7 @@
 //! * `standing`, `mults`: written by `movement:multipliers`, read by `movement:walk` and `movement:recordHistory`, which
 //!   empties them (the fighters standing when the multipliers were read, and each one's move speed this tick);
 //! * `melee`, `ledger`, `downed_this_tick`: filled and drained within one active tick, empty at the end of every step (asserted in debug builds, with `slot_head`/`slot_tail`: all `NONE` between ledger passes);
-//! * `bodies`, `victims`, `ledger_mults`, `entry_next`, `entry_rank`, `idxs`, `amounts`, `order`, `hits`, `alive`, `path`: the working lists of one
+//! * `bodies`, `victims`, `ledger_mults`, `entry_next`, `entry_rank`, `idxs`, `amounts`, `order`, `hits`, `alive`, `path`, `mob_spacing`, `spacing_diag`: the working lists of one
 //!   system call, cleared by the system before it fills them and never read by another.
 //!
 //! Every buffer is cleared, never taken, so its capacity survives across ticks: after the first few ticks a step allocates
@@ -97,6 +97,12 @@ pub(crate) struct TickScratch {
     pub(crate) alive: Vec<PlayerId>,
     /// A path search's output, copied into the fighter's path when the order replaces it.
     pub(crate) path: Vec<Vec2>,
+    /// The mob-spacing neighbour index (`systems/mob_spacing.rs`, archetype hitboxes only): rebuilt by `mobAI.thinkMobs`
+    /// before its mobs think and read only by that call.
+    pub(crate) mob_spacing: Vec<crate::systems::mob_spacing::Entry>,
+    /// Diagnostics of the last `mobAI.thinkMobs` call (zeroed at its start; read only by measurement tools through
+    /// [`crate::Sim::mob_spacing_diagnostics`]): never part of a decision, a checkpoint or the state hash.
+    pub(crate) spacing_diag: crate::archetype::SpacingDiagnostics,
     /// The fighter whose inputs are being applied: its queue, drained here so the handlers can borrow the world.
     pub(crate) drained: Drained,
 }
@@ -152,6 +158,8 @@ impl Default for TickScratch {
             hits: Vec::with_capacity(p),
             alive: Vec::with_capacity(p),
             path: Vec::with_capacity(64),
+            mob_spacing: Vec::new(),
+            spacing_diag: Default::default(),
             drained: Drained::default(),
         }
     }
@@ -194,7 +202,7 @@ impl TickScratch {
     /// passes (a stale link would corrupt the next pass). Not checked, because each is cleared by its own system before
     /// it is filled and never read by another, so what it holds after a step is dead: `action_order`, `rank` and
     /// `bounty_at_tick_start` (rewritten at the start of every active tick), `bodies`, `victims`, `ledger_mults`,
-    /// `entry_next`, `entry_rank`, `idxs`, `amounts`, `ledger_raws`, `order`, `hits`, `alive`, `path` and `drained`.
+    /// `entry_next`, `entry_rank`, `idxs`, `amounts`, `ledger_raws`, `order`, `hits`, `alive`, `path`, `mob_spacing`, `spacing_diag` and `drained`.
     pub(crate) fn is_settled(&self) -> bool {
         self.mark_tax_next.is_empty()
             && self.cast_landings.is_empty()

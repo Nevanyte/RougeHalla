@@ -448,6 +448,7 @@ impl OutcomeDigest {
                 amount,
                 weapon,
                 passive,
+                critical: _,
             } => {
                 self.s("hit");
                 self.w(victim.0 as u64);

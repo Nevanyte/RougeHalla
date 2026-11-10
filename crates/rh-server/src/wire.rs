@@ -107,6 +107,12 @@ pub fn command(c: WireCommand) -> rh_sim::PublicCommand {
 /// Protocol 14 carries neutral quest givers, private quest/trade/plan state and the training bit. Configuration
 /// admission still refuses a training/arena combination: training has no quests, planning or arena lifecycle.
 pub fn profile_supported(config: &rh_sim::SimConfig) -> Result<(), rh_protocol::EncodeError> {
+    // Measurement only (rh-headless hitbox_compare's A/B): a hosted match never turns mob spacing off.
+    if config.mob_spacing != rh_sim::archetype::MobSpacing::Auto {
+        return Err(rh_protocol::EncodeError::BadValue(
+            "mob spacing off is a measurement-only setting",
+        ));
+    }
     if config.training && (config.quests || config.lifecycle != rh_sim::ArenaMode::Off) {
         return Err(rh_protocol::EncodeError::BadValue(
             "training cannot host quests or arena lifecycle",
@@ -992,6 +998,7 @@ mod tests {
             status: Status::Alive,
             weapon: Some(rh_sim::content::WeaponId::ALL[2]),
             bounty: 3,
+            facts: Default::default(),
         }
     }
 
@@ -1210,29 +1217,15 @@ mod tests {
         let baseline = publisher.frames(&env.sim, id, 7, &[], &mut Vec::new(), &[]);
         assert!(baseline.important.is_none() && baseline.fx.is_none());
         for by in [None, Some(id)] {
-            // These are already-observed carry events, the input boundary of this wire adapter.
-            let omitted = vec![
-                SeenEvent::AbilityHit {
-                    victim: id,
-                    by,
-                    ability: AbilityId::Blaze,
-                    amount: 3.,
-                },
-                SeenEvent::StatusApplied {
-                    id,
-                    by,
-                    kind: StatusKind::Hidden,
-                    ms: 500.,
-                },
-                SeenEvent::SignatureHit {
-                    victim: id,
-                    by,
-                    sig: rh_sim::factions::SignatureKind::Burn,
-                    weapon: None,
-                    amount: 3.,
-                },
-                SeenEvent::Heal { id, amount: 3. },
-            ];
+            // These are already-observed carry events, the input boundary of this wire adapter. Ability and signature
+            // chunks and heals have their own fx since ADR0026 (see `indicator_fx_follow_the_observed_events`).
+            let _ = AbilityId::Blaze;
+            let omitted = vec![SeenEvent::StatusApplied {
+                id,
+                by,
+                kind: StatusKind::Hidden,
+                ms: 500.,
+            }];
             let mut carry = omitted.clone();
             let frames = publisher.frames(&env.sim, id, 7, &[], &mut carry, &[]);
             assert!(carry.is_empty());
@@ -1246,6 +1239,7 @@ mod tests {
                 by,
                 amount: 2.,
                 passive: true,
+                critical: false,
             });
             let frames = publisher.frames(&env.sim, id, 7, &[], &mut carry, &[]);
             assert!(frames.important.is_none() && frames.refused.is_none());
@@ -1257,6 +1251,7 @@ mod tests {
                     by: by.map_or(WIRE_NO_SOURCE, |p| p.0),
                     amount: 2.,
                     passive: true,
+                    critical: false,
                 }],
             }
             .try_encode()
@@ -1281,6 +1276,7 @@ mod tests {
                 by: None,
                 amount: 3.0,
                 passive,
+                critical: false,
             };
             assert_eq!(e.class(), Class::Fx);
             assert!(
@@ -1304,11 +1300,11 @@ mod tests {
         ));
         assert!(matches!(
             to_wire(&SeenEvent::AttackCancelled { id }),
-            Wire::Omitted
+            Wire::Fx(WireFx::Cancel { id: 2 })
         ));
         assert!(matches!(
             to_wire(&SeenEvent::Heal { id, amount: 1.0 }),
-            Wire::Omitted
+            Wire::Fx(WireFx::Heal { id: 2, amount }) if amount == 1.0
         ));
         for by in [None, Some(PlayerId(1))] {
             for kind in rh_sim::status_runtime::STATUS_KINDS {
@@ -1322,7 +1318,10 @@ mod tests {
                     Wire::Omitted
                 ));
             }
-            for ability in rh_sim::status_runtime::AbilityId::ALL {
+            for (code, ability) in rh_sim::status_runtime::AbilityId::ALL
+                .into_iter()
+                .enumerate()
+            {
                 assert!(matches!(
                     to_wire(&SeenEvent::AbilityHit {
                         victim: id,
@@ -1330,7 +1329,9 @@ mod tests {
                         ability,
                         amount: 10.
                     }),
-                    Wire::Omitted
+                    Wire::Fx(WireFx::SigHit { victim: 2, by: b, kind, .. })
+                        if kind == rh_protocol::HIT_KIND_ABILITY + code as u8
+                            && b == by.map_or(WIRE_NO_SOURCE, |p| p.0)
                 ));
             }
         }
@@ -1358,6 +1359,12 @@ mod tests {
             .into_iter()
             .flat_map(|by| rh_sim::factions::SignatureKind::ALL.map(|sig| (by, sig)))
         {
+            let want = match sig {
+                rh_sim::factions::SignatureKind::Burn => rh_protocol::HIT_KIND_BURN,
+                rh_sim::factions::SignatureKind::Disease => rh_protocol::HIT_KIND_DISEASE,
+                rh_sim::factions::SignatureKind::Backlash => rh_protocol::HIT_KIND_BACKLASH,
+                rh_sim::factions::SignatureKind::Mark => rh_protocol::HIT_KIND_MARK,
+            };
             assert!(matches!(
                 to_wire(&SeenEvent::SignatureHit {
                     victim: id,
@@ -1366,7 +1373,40 @@ mod tests {
                     weapon: Some(rh_sim::WeaponId::Axe),
                     amount: 10.
                 }),
-                Wire::Omitted
+                Wire::Fx(WireFx::SigHit { kind, amount, .. }) if kind == want && amount == 10.0
+            ));
+        }
+        // ADR0026: the windup telegraph keeps its attacker, weapon and angle; its wait is whole milliseconds, saturated.
+        for (ms, want) in [(350.4, 350), (-5.0, 0), (f64::NAN, 0), (1e9, u16::MAX)] {
+            assert!(matches!(
+                to_wire(&SeenEvent::Windup {
+                    by: id,
+                    weapon: rh_sim::WeaponId::Axe,
+                    a: 0.5,
+                    ms
+                }),
+                Wire::Fx(WireFx::Windup { by: 2, weapon, a, ms: got })
+                    if weapon == rh_sim::WeaponId::Axe.code() && a == 0.5 && got == want
+            ));
+        }
+        assert!(matches!(
+            to_wire(&SeenEvent::CampCleared { camp: 7 }),
+            Wire::Event(WireEvent::CampCleared { camp: 7 })
+        ));
+        assert!(matches!(
+            to_wire(&SeenEvent::CampCleared { camp: 70_000 }),
+            Wire::Refused("camp")
+        ));
+        for critical in [false, true] {
+            assert!(matches!(
+                to_wire(&SeenEvent::Hit {
+                    victim: id,
+                    by: None,
+                    amount: 3.0,
+                    passive: false,
+                    critical,
+                }),
+                Wire::Fx(WireFx::Hit { critical: c, .. }) if c == critical
             ));
         }
         for (reason, code) in [
@@ -1943,5 +1983,19 @@ mod tests {
         };
         assert!(observation_supported(&obs).is_ok());
         assert!(profile_supported(&rh_sim::SimConfig::default()).is_ok());
+    }
+
+    #[test]
+    fn mob_spacing_off_is_never_hosted() {
+        let live = rh_sim::SimConfig {
+            hitboxes: rh_sim::archetype::HitboxMode::Archetypes,
+            ..Default::default()
+        };
+        assert!(profile_supported(&live).is_ok());
+        assert!(profile_supported(&rh_sim::SimConfig {
+            mob_spacing: rh_sim::archetype::MobSpacing::Off,
+            ..live
+        })
+        .is_err());
     }
 }

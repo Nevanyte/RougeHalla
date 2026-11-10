@@ -62,7 +62,14 @@ pub const DH_SERVER_TIME: u32 = 1 << 23;
 pub const DH_OWNER_COMBAT: u32 = 1 << 24;
 /// The self's hitbox archetype id changed (protocol 16): one byte after the barrier pair.
 pub const DH_ARCHETYPE: u32 = 1 << 25;
+/// The self's indicator facts changed (protocol 16, ADR0026): flags u8, build marks u8, mark plate (tier, brand, tax).
+pub const DH_FLAGS: u32 = 1 << 26;
+pub const DH_BUILD_MARKS: u32 = 1 << 27;
+pub const DH_MARK: u32 = 1 << 28;
 pub const DH_FIELDS: u32 = 0x7e7e
+    | DH_FLAGS
+    | DH_BUILD_MARKS
+    | DH_MARK
     | DH_EFFECTS
     | DH_DISPLACE
     | DH_SIG
@@ -99,7 +106,12 @@ pub const AD_SIG: u32 = 1 << 11;
 pub const AD_BARRIER: u32 = 1 << 12;
 /// Hitbox archetype id (protocol 16). An entity's archetype never changes, so only a new actor carries it.
 pub const AD_ARCHETYPE: u32 = 1 << 13;
-pub const AD_ALL: u32 = 0x3fff;
+/// Indicator facts (protocol 16, ADR0026): flags u8, off-hand u8, build marks u8, mark plate (tier, brand, tax) u8 x3.
+pub const AD_FLAGS: u32 = 1 << 14;
+pub const AD_OFFHAND: u32 = 1 << 15;
+pub const AD_BUILD_MARKS: u32 = 1 << 16;
+pub const AD_MARK: u32 = 1 << 17;
+pub const AD_ALL: u32 = 0x3_ffff;
 /// What a new actor (one the base does not hold) must carry: its position. Every other field starts at its default.
 pub const AD_NEW: u32 = AD_X | AD_Y | AD_FACING;
 
@@ -110,12 +122,15 @@ const MIN_ACTOR: usize = 1 + 1 + 6;
 
 /// Largest self delta after the head: x, y, facing, hp, max_hp (4 each), kit, ready (2), kills, bounty, gv (3 each),
 /// move_seq, status, phase, effects (2), displacement, sig.
-const MAX_SELF_DELTA: usize = 20 + 1 + 2 + 9 + 1 + 1 + 1 + 2 + 1 + 1 + 5 + 3 + 56 + 5 + 1;
+const MAX_SELF_DELTA: usize =
+    20 + 1 + 2 + 9 + 1 + 1 + 1 + 2 + 1 + 1 + 5 + 3 + 56 + 5 + 1 + 1 + 1 + 3;
 /// Largest delta head: tag, tick (5), age, ack (5), head (1 placeholder), the self delta, the changed count (3).
 const MAX_DELTA_HEAD: usize =
     1 + 5 + 1 + 5 + 5 + MAX_SELF_DELTA + 8 + 3 + 1 + 1 + 5 + 8 + 8 + 8 + 8;
-/// Largest changed-actor record: id 5, mask 2, x/y/facing 6, kit/hp, bounty 3, status/kind, effects 2, displacement/mob type/sig.
-const MAX_ACTOR_DELTA: usize = 5 + 2 + 6 + 1 + 1 + 3 + 1 + 1 + 2 + 1 + 1 + 1 + 2 + 1;
+/// Largest changed-actor record: id 5, mask 3, x/y/facing 6, kit/hp, bounty 3, status/kind, effects 2, displacement/mob type/sig,
+/// barrier pair, archetype, flags, off-hand, build marks, mark plate 3.
+const MAX_ACTOR_DELTA: usize =
+    5 + 3 + 6 + 1 + 1 + 3 + 1 + 1 + 2 + 1 + 1 + 1 + 2 + 1 + 1 + 1 + 1 + 3;
 
 fn optional_f64_bits_equal(a: Option<f64>, b: Option<f64>) -> bool {
     match (a, b) {
@@ -173,6 +188,12 @@ pub struct QActor {
     pub barrier_pct: u8,
     pub barrier_ring_step: u8,
     pub archetype: u8,
+    /// Indicator facts (ADR0026): `ACTOR_FLAG_*` bits, the off-hand code, the packed build marks and the mark plate
+    /// (tier, brand, tax).
+    pub flags: u8,
+    pub offhand: u8,
+    pub build_marks: u8,
+    pub mark: [u8; 3],
 }
 
 impl QActor {
@@ -194,6 +215,10 @@ impl QActor {
         barrier_pct: 0,
         barrier_ring_step: 0,
         archetype: 0,
+        flags: 0,
+        offhand: 0,
+        build_marks: 0,
+        mark: [0; 3],
     };
 
     /// `a` checked and quantized: the first reason a decoder would reject the actor on its own (a faction, weapon or status over
@@ -228,6 +253,10 @@ impl QActor {
             barrier_pct: a.barrier_pct,
             barrier_ring_step: a.barrier_ring_step,
             archetype: a.archetype,
+            flags: a.flags,
+            offhand: a.offhand,
+            build_marks: a.build_marks,
+            mark: [a.mark_tier, a.brand, a.mark_tax],
         }
     }
 
@@ -251,6 +280,12 @@ impl QActor {
             barrier_pct: self.barrier_pct,
             barrier_ring_step: self.barrier_ring_step,
             archetype: self.archetype,
+            flags: self.flags,
+            offhand: self.offhand,
+            build_marks: self.build_marks,
+            mark_tier: self.mark[0],
+            brand: self.mark[1],
+            mark_tax: self.mark[2],
         }
     }
 
@@ -291,6 +326,18 @@ impl QActor {
         if self.archetype != 0 {
             m |= AM_ARCHETYPE;
         }
+        if self.flags != 0 {
+            m |= AM_FLAGS;
+        }
+        if self.offhand != 0 {
+            m |= AM_OFFHAND;
+        }
+        if self.build_marks != 0 {
+            m |= AM_BUILD_MARKS;
+        }
+        if self.mark != [0; 3] {
+            m |= AM_MARK;
+        }
         m
     }
 
@@ -315,6 +362,10 @@ impl QActor {
             + (self.sig != 0) as usize
             + 2 * (self.barrier_pct != 0 || self.barrier_ring_step != 0) as usize
             + (self.archetype != 0) as usize
+            + (self.flags != 0) as usize
+            + (self.offhand != 0) as usize
+            + (self.build_marks != 0) as usize
+            + 3 * (self.mark != [0; 3]) as usize
     }
 }
 
@@ -361,6 +412,18 @@ fn write_full_actor(out: &mut Writer, q: &QActor, prev: Option<u32>) {
     }
     if m & AM_ARCHETYPE != 0 {
         w.u8(q.archetype);
+    }
+    if m & AM_FLAGS != 0 {
+        w.u8(q.flags);
+    }
+    if m & AM_OFFHAND != 0 {
+        w.u8(q.offhand);
+    }
+    if m & AM_BUILD_MARKS != 0 {
+        w.u8(q.build_marks);
+    }
+    if m & AM_MARK != 0 {
+        w.bytes(q.mark);
     }
     w.put(out);
 }
@@ -883,6 +946,10 @@ fn actor_delta_mask(p: &QActor, q: &QActor) -> u32 {
         | ((p.barrier_pct != q.barrier_pct || p.barrier_ring_step != q.barrier_ring_step) as u32)
             << 12
         | ((p.archetype != q.archetype) as u32) << 13
+        | ((p.flags != q.flags) as u32) << 14
+        | ((p.offhand != q.offhand) as u32) << 15
+        | ((p.build_marks != q.build_marks) as u32) << 16
+        | ((p.mark != q.mark) as u32) << 17
 }
 
 /// The mask of a NEW actor: its position, and every other field that is not the default.
@@ -997,6 +1064,18 @@ fn write_delta(
         if mask & AD_ARCHETYPE != 0 {
             w.u8(q.archetype);
         }
+        if mask & AD_FLAGS != 0 {
+            w.u8(q.flags);
+        }
+        if mask & AD_OFFHAND != 0 {
+            w.u8(q.offhand);
+        }
+        if mask & AD_BUILD_MARKS != 0 {
+            w.u8(q.build_marks);
+        }
+        if mask & AD_MARK != 0 {
+            w.bytes(q.mark);
+        }
         put(out, &w);
         last = q.id;
         changed += 1;
@@ -1030,8 +1109,8 @@ fn write_delta(
     if head < 0x80 {
         out[start + head_at] = head as u8;
     } else {
-        // Protocol 14 adds head bits through 24, so the canonical head can be four bytes.
-        let mut v = [0u8; 4];
+        // Protocol 16 adds head bits through 28 (ADR0026), so the canonical head can be five bytes.
+        let mut v = [0u8; 5];
         let n = varint_len(head);
         for (k, b) in v[..n].iter_mut().enumerate() {
             *b = (head >> (7 * k)) as u8 & 0x7f | if k + 1 < n { 0x80 } else { 0 };
@@ -1142,6 +1221,19 @@ fn write_self_delta(f: &mut Fixed<MAX_DELTA_HEAD>, b: &WireSelf, c: &WireSelf) -
         m |= DH_ARCHETYPE;
         f.u8(c.archetype);
     }
+    if c.flags != b.flags {
+        m |= DH_FLAGS;
+        f.u8(c.flags);
+    }
+    if c.build_marks != b.build_marks {
+        m |= DH_BUILD_MARKS;
+        f.u8(c.build_marks);
+    }
+    let mark = [c.mark_tier, c.brand, c.mark_tax];
+    if mark != [b.mark_tier, b.brand, b.mark_tax] {
+        m |= DH_MARK;
+        f.bytes(mark);
+    }
     m
 }
 
@@ -1173,6 +1265,10 @@ pub struct SelfDelta {
     pub barrier: f32,
     pub barrier_ring_step: u8,
     pub archetype: u8,
+    pub flags: u8,
+    pub build_marks: u8,
+    /// Tier, brand, tax.
+    pub mark: [u8; 3],
 }
 
 impl SelfDelta {
@@ -1244,6 +1340,15 @@ impl SelfDelta {
         if m & DH_ARCHETYPE != 0 {
             s.archetype = self.archetype;
         }
+        if m & DH_FLAGS != 0 {
+            s.flags = self.flags;
+        }
+        if m & DH_BUILD_MARKS != 0 {
+            s.build_marks = self.build_marks;
+        }
+        if m & DH_MARK != 0 {
+            [s.mark_tier, s.brand, s.mark_tax] = self.mark;
+        }
         s
     }
 
@@ -1292,6 +1397,17 @@ impl SelfDelta {
                 0
             },
             archetype: if keep(DH_ARCHETYPE) { c.archetype } else { 0 },
+            flags: if keep(DH_FLAGS) { c.flags } else { 0 },
+            build_marks: if keep(DH_BUILD_MARKS) {
+                c.build_marks
+            } else {
+                0
+            },
+            mark: if keep(DH_MARK) {
+                [c.mark_tier, c.brand, c.mark_tax]
+            } else {
+                [0; 3]
+            },
         }
     }
 }
@@ -1351,6 +1467,18 @@ impl ActorDelta {
         }
         if self.mask & AD_ARCHETYPE != 0 {
             a.archetype = self.q.archetype;
+        }
+        if self.mask & AD_FLAGS != 0 {
+            a.flags = self.q.flags;
+        }
+        if self.mask & AD_OFFHAND != 0 {
+            a.offhand = self.q.offhand;
+        }
+        if self.mask & AD_BUILD_MARKS != 0 {
+            a.build_marks = self.q.build_marks;
+        }
+        if self.mask & AD_MARK != 0 {
+            [a.mark_tier, a.brand, a.mark_tax] = self.q.mark;
         }
         a
     }
@@ -1506,6 +1634,14 @@ fn mask_fields(q: &QActor, mask: u32) -> QActor {
         } else {
             0
         },
+        flags: if mask & AD_FLAGS != 0 { q.flags } else { 0 },
+        offhand: if mask & AD_OFFHAND != 0 { q.offhand } else { 0 },
+        build_marks: if mask & AD_BUILD_MARKS != 0 {
+            q.build_marks
+        } else {
+            0
+        },
+        mark: if mask & AD_MARK != 0 { q.mark } else { [0; 3] },
     }
 }
 
@@ -1605,6 +1741,15 @@ pub(crate) fn write_message(w: &mut Writer, d: &SnapshotDelta) {
         if m & DH_ARCHETYPE != 0 {
             w.u8(s.archetype);
         }
+        if m & DH_FLAGS != 0 {
+            w.u8(s.flags);
+        }
+        if m & DH_BUILD_MARKS != 0 {
+            w.u8(s.build_marks);
+        }
+        if m & DH_MARK != 0 {
+            w.bytes(&s.mark);
+        }
     }
     if let Some(p) = d.phase {
         w.u8(p);
@@ -1660,6 +1805,18 @@ pub(crate) fn write_message(w: &mut Writer, d: &SnapshotDelta) {
         }
         if a.mask & AD_ARCHETYPE != 0 {
             w.u8(a.q.archetype);
+        }
+        if a.mask & AD_FLAGS != 0 {
+            w.u8(a.q.flags);
+        }
+        if a.mask & AD_OFFHAND != 0 {
+            w.u8(a.q.offhand);
+        }
+        if a.mask & AD_BUILD_MARKS != 0 {
+            w.u8(a.q.build_marks);
+        }
+        if a.mask & AD_MARK != 0 {
+            w.bytes(&a.q.mark);
         }
     }
     if !d.departed.is_empty() {
@@ -1721,6 +1878,9 @@ pub(crate) fn message_check(d: &SnapshotDelta) -> Result<(), EncodeError> {
         {
             return bad("barrier");
         }
+        if let Some(why) = self_indicator_fault(s) {
+            return bad(why);
+        }
     }
     if let Some(Some(owner)) = d.owner_combat {
         if d.me.is_none() || !owner.valid() {
@@ -1743,6 +1903,9 @@ pub(crate) fn message_check(d: &SnapshotDelta) -> Result<(), EncodeError> {
         }
         if a.mask & AD_BARRIER != 0 && (a.q.barrier_pct > 100 || a.q.barrier_ring_step > 8) {
             return bad("barrier");
+        }
+        if let Some(why) = actor_delta_indicator_fault(a) {
+            return bad(why);
         }
         if prev.is_some_and(|p| a.q.id <= p) {
             return bad("actor order");
@@ -1825,7 +1988,30 @@ fn read_self_delta(r: &mut Reader, mask: u32) -> Result<SelfDelta, DecodeError> 
     if mask & DH_ARCHETYPE != 0 {
         s.archetype = r.u8()?;
     }
+    if mask & DH_FLAGS != 0 {
+        s.flags = r.u8()?;
+    }
+    if mask & DH_BUILD_MARKS != 0 {
+        s.build_marks = r.u8()?;
+    }
+    if mask & DH_MARK != 0 {
+        s.mark = [r.u8()?, r.u8()?, r.u8()?];
+    }
+    if let Some(why) = self_indicator_fault(&s) {
+        return Err(DecodeError::BadField(why));
+    }
     Ok(s)
+}
+
+/// The carried indicator facts of a self delta as a decoder checks them (ADR0026); fields outside the mask are zero.
+fn self_indicator_fault(s: &SelfDelta) -> Option<&'static str> {
+    crate::indicator_fault(0, s.build_marks, s.mark, s.flags)
+}
+
+/// The carried indicator facts of an actor delta as a decoder checks them (ADR0026); fields outside the mask are zero.
+fn actor_delta_indicator_fault(a: &ActorDelta) -> Option<&'static str> {
+    let q = mask_fields(&a.q, a.mask);
+    crate::indicator_fault(q.offhand, q.build_marks, q.mark, q.flags)
 }
 
 /// An id that is absolute for the first of a list and a non-zero gap after (so ids strictly ascend).
@@ -1937,6 +2123,21 @@ pub(crate) fn read_snapshot_delta(r: &mut Reader) -> Result<SnapshotDelta, Decod
         }
         if mask & AD_ARCHETYPE != 0 {
             q.archetype = r.u8()?;
+        }
+        if mask & AD_FLAGS != 0 {
+            q.flags = r.u8()?;
+        }
+        if mask & AD_OFFHAND != 0 {
+            q.offhand = r.u8()?;
+        }
+        if mask & AD_BUILD_MARKS != 0 {
+            q.build_marks = r.u8()?;
+        }
+        if mask & AD_MARK != 0 {
+            q.mark = [r.u8()?, r.u8()?, r.u8()?];
+        }
+        if let Some(why) = crate::indicator_fault(q.offhand, q.build_marks, q.mark, q.flags) {
+            return Err(DecodeError::BadField(why));
         }
         changed.push(ActorDelta { mask, q });
     }

@@ -64,6 +64,28 @@ namespace Roguehalla.Client.Tests
         }
 
         [Test]
+        public void AnIdenticalTradeReplacementKeepsTheRowsAndStillSendsThroughTheCurrentView()
+        {
+            WireTradeView Make() => Available(
+                merchants: new[] { new WireMerchant { Kind = TradeKind.Stats, X = 1, Y = 2, Name = "The Ledger" } },
+                offers: new[] { new WireTradeOffer { Cost = TradeStat.Ad, CostValue = .25, Gain = TradeStat.Ap, GainValue = .5, Label = "One" } });
+            DeliverTrade(Make()); _view.Refresh(); _view.SetVisible(true);
+            Assert.IsTrue(_view.SelectMerchant(0));
+            var rowBefore = _canvas.transform.Find("TraderDialog/MerchantPanel/MerchantList/Merchant_0");
+            var choiceBefore = ChoiceContent().Find("Choice_0");
+            Assert.IsNotNull(rowBefore); Assert.IsNotNull(choiceBefore);
+
+            DeliverTrade(Make()); _view.Refresh(); // the same content in a new view object, as every state frame delivers it
+            Assert.AreSame(rowBefore, _canvas.transform.Find("TraderDialog/MerchantPanel/MerchantList/Merchant_0"), "rows are not rebuilt for identical content");
+            Assert.AreSame(choiceBefore, ChoiceContent().Find("Choice_0"));
+            Assert.IsTrue(_view.TryTrade(TradeKind.Stats, 0), "a held row still acts through the current view");
+
+            var changed = Make(); changed.Offers = new[] { new WireTradeOffer { Cost = TradeStat.Ad, CostValue = 1, Gain = TradeStat.Ap, GainValue = 2, Label = "Different" } };
+            DeliverTrade(changed); _view.Refresh();
+            Assert.That(ChoiceLabel(0).text, Does.Contain("Different"), "changed content is rebuilt");
+        }
+
+        [Test]
         public void DuplicateMerchantRowsLabelsAndSignedStatDeltasRenderInSourceOrder()
         {
             var value = Available(
@@ -93,13 +115,14 @@ namespace Roguehalla.Client.Tests
             Assert.That(ChoiceLabel(0).text, Does.Contain("Same offer"));
             Assert.That(ChoiceLabel(1).text, Does.Contain("Same offer"));
             Assert.That(ChoiceLabel(2).text, Does.Contain("Third offer"));
-            Assert.That(ChoiceLabel(0).text, Does.Contain("Cost 0.25 Ad  →  Gain 0.5 Ap"));
-            Assert.AreEqual("Ad  -1.25", ChoiceContent().Find("AppliedStat_0").GetComponent<TMP_Text>().text);
-            Assert.AreEqual("Ad  0.5", ChoiceContent().Find("AppliedStat_1").GetComponent<TMP_Text>().text);
-            Assert.AreEqual("MaxHp  -12", ChoiceContent().Find("AppliedStat_2").GetComponent<TMP_Text>().text);
+            Assert.That(ChoiceLabel(0).text, Does.Contain("Same offer"));
+            Assert.That(ChoiceLabel(0).text, Does.Not.Contain("Costs"), "no raw cost/gain numbers beside the server label");
+            Assert.AreEqual("AD  -1.25", ChoiceContent().Find("AppliedStat_0").GetComponent<TMP_Text>().text);
+            Assert.AreEqual("AD  0.5", ChoiceContent().Find("AppliedStat_1").GetComponent<TMP_Text>().text);
+            Assert.AreEqual("max HP  -12", ChoiceContent().Find("AppliedStat_2").GetComponent<TMP_Text>().text);
 
             Assert.IsTrue(_view.SelectMerchant(1));
-            StringAssert.Contains("X 91.75 · Y 44.5", _canvas.transform.Find("TraderDialog/OfferPanel/DetailSummary").GetComponent<TMP_Text>().text);
+            StringAssert.Contains("Choose one permanent exchange for this run", _canvas.transform.Find("TraderDialog/OfferPanel/DetailSummary").GetComponent<TMP_Text>().text);
         }
 
         [Test]

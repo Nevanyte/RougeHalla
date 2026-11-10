@@ -332,6 +332,7 @@ fn instant_report(
         amount: 4.,
         weapon: Some(WeaponId::Sword),
         passive: false,
+        critical: false,
     });
     if reverse_hidden {
         r.events.insert(

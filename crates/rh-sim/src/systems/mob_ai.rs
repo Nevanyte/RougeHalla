@@ -220,6 +220,7 @@ fn give_up(cx: &mut Cx, id: PlayerId, b: &mut Brain) {
     home(cx, id, b);
 }
 pub(crate) fn think(cx: &mut Cx) {
+    cx.s.spacing_diag = Default::default();
     if !enabled(cx.w) {
         return;
     }
@@ -237,6 +238,10 @@ pub(crate) fn think(cx: &mut Cx) {
                 }
             }
         }
+    }
+    // Archetype hitboxes only (ADR0024 addendum "Mob spacing"): who stands where, read once; mobs only queue inputs below.
+    if super::mob_spacing::on(cx.k) {
+        super::mob_spacing::index(cx.w, &mut cx.s.mob_spacing);
     }
     for i in 0..cx.w.mobs.len() {
         let m = &cx.w.mobs[i];
@@ -359,16 +364,141 @@ fn fight(cx: &mut Cx, id: PlayerId, b: &mut Brain) {
         b.holding = false;
     }
     match out.movement {
-        crate::combat_policy::Move::Stop => {
-            if b.moving {
-                cx.propose(id, RawCommand::Stop { seq: None }).unwrap();
-                b.moving = false;
+        crate::combat_policy::Move::Stop => match spacing_step(cx, id, b, from, at, weapon, mask) {
+            Spaced::Step(to) => {
+                // Not `send`: the chase's repath clock and goal stay as they were, so the spacing step never delays or
+                // reorders a chase.
+                cx.propose(
+                    id,
+                    RawCommand::Move {
+                        x: to.x,
+                        y: to.y,
+                        seq: None,
+                    },
+                )
+                .expect("finite spacing step");
+                b.moving = true;
+                cx.s.spacing_diag.steps += 1;
+                // The mobs that think after this one see where it is going.
+                super::mob_spacing::relocate(&mut cx.s.mob_spacing, id, from, to);
             }
-        }
+            // One order (one path search) per step: the mob walks it out before it looks again.
+            Spaced::Walking => {}
+            Spaced::No => {
+                if b.moving {
+                    cx.propose(id, RawCommand::Stop { seq: None }).unwrap();
+                    b.moving = false;
+                }
+            }
+        },
         crate::combat_policy::Move::Point(to) => {
             if due(b, phase, now) {
-                send(cx, id, b, to)
+                // A chase's goal fans out by the spacing push (same order, same repath clock); a retreat is the
+                // policy's own.
+                let goal = if out.chase {
+                    chase_goal(cx, id, from, to, at, mask)
+                } else {
+                    to
+                };
+                send(cx, id, b, goal)
             }
         }
+    }
+}
+
+/// What mob spacing does for a mob whose policy wants it to stay put (`systems/mob_spacing.rs`).
+enum Spaced {
+    /// Nothing: the legacy circle, alone, settled, no room to move, or the mob cannot move this tick.
+    No,
+    /// The mob is still walking the spacing step it was given: no new order until it arrives.
+    Walking,
+    /// A new step.
+    Step(Vec2),
+}
+
+/// The mob-spacing step of a mob whose policy wants it to stay put. A step stays in the policy's stop band round the
+/// target (so it neither wakes a chase nor a retreat), keeps line of sight with the policy's mask, stays inside the leash
+/// with the same margin a retreat uses, and walks a segment the mob's own foot box clears (the pathfinder's direct-path
+/// test).
+fn spacing_step(
+    cx: &Cx,
+    id: PlayerId,
+    b: &Brain,
+    from: Vec2,
+    at: Vec2,
+    weapon: crate::content::WeaponId,
+    mask: u8,
+) -> Spaced {
+    if !super::mob_spacing::on(cx.k) {
+        return Spaced::No;
+    }
+    let Some(m) = cx.w.mobs.get(id) else {
+        return Spaced::No;
+    };
+    if super::mob_spacing::walking(m, b.goal).is_some() {
+        return Spaced::Walking;
+    }
+    // A mob that cannot move this tick (rooted, casting, winding a swing) gets no order: a Move it cannot walk would
+    // only cost a path search. It looks again once it can.
+    let now = cx.w.server_time;
+    if super::weapons::move_multiplier(&m.core, now) == 0.
+        || crate::status_runtime::cannot_move(&m.core.statuses, now)
+    {
+        return Spaced::No;
+    }
+    // One look in MOB_SPACING_LOOK_TICKS ticks, staggered by id: a packed crowd with no room left would otherwise re-weigh
+    // every candidate every tick.
+    if (u64::from(cx.w.tick) + u64::from(id.0)) % u64::from(MOB_SPACING_LOOK_TICKS) != 0 {
+        return Spaced::No;
+    }
+    let (camp, home, foot, room) = (m.camp, m.home, m.core.foot(), super::mob_spacing::room(m));
+    let p = crate::combat_policy::spacing(weapon, false);
+    let band = super::mob_spacing::Band {
+        lo: if p.retreat > 0. {
+            p.retreat + MOB_SPACING_BAND_SLACK
+        } else {
+            0.
+        },
+        hi: p.far - MOB_SPACING_BAND_SLACK,
+    };
+    let map = cx.k.collision_map(cx.w.rt.gates_locked);
+    super::mob_spacing::step(&cx.s.mob_spacing, id, room, from, at, band, |to| {
+        foot.segment_clear(map, from, to, MASK_MOVE)
+            && leash(cx.k, camp, home, to, MOB_LEASH_MARGIN)
+            && crate::geometry::has_line_of_sight(map, to, at, mask)
+    })
+    .map_or(Spaced::No, Spaced::Step)
+}
+
+/// The goal of a chase order (`systems/mob_spacing.rs` [`super::mob_spacing::lateral`]): the policy's point `to`,
+/// shifted sideways (across the line from the mob to `to`) away from the pack-mates inside the mob's room, so a pack
+/// chasing along one line fans out instead of running in one file. The shift turns the heading by at most about 22
+/// degrees and shrinks with the distance left, so the mob still walks into its band and stops there (no circling). The
+/// shifted goal
+/// must clear the mob's foot box, be reachable in a straight line from `to` with that foot box (same side of every wall
+/// and corner), see the target with the policy's mask and lie inside the leash; otherwise the plain goal (a doorway or
+/// a corridor: overlap where there is no room). Not under the legacy circle.
+fn chase_goal(cx: &mut Cx, id: PlayerId, from: Vec2, to: Vec2, at: Vec2, mask: u8) -> Vec2 {
+    if !super::mob_spacing::on(cx.k) {
+        return to;
+    }
+    let Some(m) = cx.w.mobs.get(id) else {
+        return to;
+    };
+    let (camp, home, foot, room) = (m.camp, m.home, m.core.foot(), super::mob_spacing::room(m));
+    let Some(off) = super::mob_spacing::lateral(&cx.s.mob_spacing, id, room, from, to) else {
+        return to;
+    };
+    let goal = Vec2::new(to.x + off.x, to.y + off.y);
+    let map = cx.k.collision_map(cx.w.rt.gates_locked);
+    if foot.clear(map, goal, MASK_MOVE)
+        && foot.segment_clear(map, to, goal, MASK_MOVE)
+        && crate::geometry::has_line_of_sight(map, goal, at, mask)
+        && leash(cx.k, camp, home, goal, 0.)
+    {
+        cx.s.spacing_diag.chase_offsets += 1;
+        goal
+    } else {
+        to
     }
 }

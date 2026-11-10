@@ -29,6 +29,8 @@ namespace Roguehalla.Client
             public bool Hovered, Hunted;          // the fighter a click would lock (hover ring); the Sentenced hunt target (violet ring)
             public int WishState;                 // the local fighter's own Wish beside the name: 0 none, 1 ready, 2 recharging
             public byte WishAbility;              // AbilityId of that Wish (glyph shape)
+            public int BarrierStep;               // barrier ring step 0..8 (the barrier bubble round the body)
+            public byte Sig;                      // signature byte (TAXED / SUPPRESSED / EXEC BLOCKED text cues)
         }
 
         const float RingK = .86f / .80f; // GroundMarkArt rings sit at .80 of the sprite, the old generic ring at .86
@@ -39,6 +41,7 @@ namespace Roguehalla.Client
         readonly SpriteRenderer[] _backs = new SpriteRenderer[Indicators.StatusOrder.Length];
         readonly SpriteRenderer _lockDark;
         readonly TextMeshPro _number, _name;
+        readonly OverheadExtras _extras;      // barrier bubble, elite rings and star, signature text cues (OverheadExtras.cs)
         readonly Indicators.StatusLayer[] _layers = new Indicators.StatusLayer[Indicators.StatusOrder.Length];
         int _bounty = -1; string _nameText;
         float _textFade = 1f;
@@ -72,6 +75,7 @@ namespace Roguehalla.Client
             _nameBack = Sprite(root, "Name plate", ShowcaseSprites.Get("bar"), 11);
             _number = Text(root, "Bounty number", 3.1f, FontStyles.Bold);
             _name = Text(root, "Name", 2.5f, FontStyles.Normal);
+            _extras = new OverheadExtras(root);
             HideAll();
         }
 
@@ -111,6 +115,13 @@ namespace Roguehalla.Client
             return t;
         }
 
+        /// <summary>World rectangle of the shown mob name plate (valid when <see cref="NameShown"/>), for the presenter's overlap pass.</summary>
+        public Rect NameRect { get; private set; }
+        public bool NameShown => _name.gameObject.activeSelf;
+        public bool NameElite { get; private set; }
+        /// <summary>Hides this frame's name plate (another creature's plate already occupies the spot). Update shows it again next frame.</summary>
+        public void SuppressName() { _name.gameObject.SetActive(false); _nameBack.enabled = false; }
+
         public void HideAll()
         {
             _hover.enabled = _hunt.enabled = _wishBack.enabled = _wishIcon.enabled = _crown.enabled = _badgeBack.enabled = _badgeEdge.enabled = _badgeIcon.enabled = _lockOuter.enabled = _lockInner.enabled = _root.enabled = _zone.enabled = _numberBack.enabled = _nameBack.enabled = false;
@@ -119,12 +130,13 @@ namespace Roguehalla.Client
             _lockDark.enabled = false;
             _number.gameObject.SetActive(false); _name.gameObject.SetActive(false);
             _bounty = -1; _nameText = null; _textFade = 1f;
+            if (_extras != null) _extras.HideAll();
         }
 
         /// <summary>Vision fade for text, which is not a SpriteRenderer: scales the alpha written by Update.</summary>
         public void ApplyOpacity(float alpha)
         {
-            _textFade = alpha;
+            _textFade = alpha; _extras.ApplyOpacity(alpha);
             if (_number.gameObject.activeSelf) { var c = _numberBase; c.a *= alpha; _number.color = c; }
             if (_name.gameObject.activeSelf) { var c = _nameBase; c.a *= alpha; _name.color = c; }
         }
@@ -134,6 +146,7 @@ namespace Roguehalla.Client
             if (f.Dead) { HideAll(); return; }
             var theme = UiTheme.Current;
             float cursor = f.SigTopY + .08f;
+            _extras.Update(in f, theme);
 
             // Statuses: ground rings at the feet, glyph badges in one row above the bar in legacy draw order.
             int n = Indicators.StatusLayers(f.Effects, _layers);
@@ -180,9 +193,12 @@ namespace Roguehalla.Client
                 _name.transform.localPosition = new Vector3(0, cursor + .14f, 0);
                 _name.GetComponent<MeshRenderer>().sortingOrder = f.Order + 12;
                 Plate(_nameBack, new Vector3(0, cursor + .14f + .02f, 0), _name.preferredWidth + .14f, .27f, f.Order + 11, theme);
+                float k = _t.lossyScale.x; float w = (_name.preferredWidth + .14f) * k, h = .27f * k;
+                NameRect = new Rect(_t.position.x - w * .5f, _t.position.y + (cursor + .16f) * k - h * .5f, w, h); NameElite = f.Elite;
                 cursor += .36f;
             }
             else { _name.gameObject.SetActive(false); _nameBack.enabled = false; }
+            cursor = _extras.EliteStar(in f, cursor, theme);
 
             // Bounty crown and number, scaled with the bounty (legacy 1x to 1.5x at 150).
             bool crown = Indicators.CrownVisible(f.Bounty, true);
@@ -198,7 +214,7 @@ namespace Roguehalla.Client
                 _number.gameObject.SetActive(true);
                 _number.transform.localPosition = new Vector3(0, cursor + 22f * Px * s + .04f, 0);
                 _number.GetComponent<MeshRenderer>().sortingOrder = f.Order + 12;
-                Plate(_numberBack, new Vector3(0, cursor + 22f * Px * s + .02f + .16f, 0), _number.preferredWidth + .14f, .31f, f.Order + 11, theme);
+                Plate(_numberBack, new Vector3(0, cursor + 22f * Px * s + .04f, 0), _number.preferredWidth + .14f, .3f, f.Order + 11, theme);
                 cursor += 22f * Px * s + .44f;
             }
             else { _number.gameObject.SetActive(false); _numberBack.enabled = false; _bounty = -1; }

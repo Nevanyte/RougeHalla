@@ -461,7 +461,8 @@ fn validate_body(meta: Meta, body: &[u8], limits: Limits) -> Result<()> {
             ) if *tick == meta.tick && server_time.to_bits() == meta.source_time.to_bits() => {}
             (1, ServerMsg::State { tick, items })
                 if *tick == meta.tick
-                    && items.len() == 11
+                    // The experiment predates key 12 (ADR0026 roster): a complete scene is keys 1..=11, or 1..=12.
+                    && (items.len() == 11 || items.len() == crate::state::MAX_STATE_KEYS)
                     && items
                         .iter()
                         .enumerate()

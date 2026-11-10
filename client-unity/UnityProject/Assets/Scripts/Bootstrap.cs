@@ -73,6 +73,13 @@ namespace Roguehalla.Client
                 return;
             }
 
+            // Serverless indicator gallery (the UI lab: synthetic view data through the real presenters). Reachable only with ?uilab=1.
+            if (UiLabStage.Requested(s))
+            {
+                new GameObject("UI lab").AddComponent<UiLabStage>().Initialize(cam, s);
+                return;
+            }
+
             if (Query(s, "preview", "0") == "1")
             {
                 new GameObject("Presentation study").AddComponent<ShowcasePreview>().Initialize(cam);
@@ -100,6 +107,8 @@ namespace Roguehalla.Client
             int faction; if (int.TryParse(Query(s, "faction", "4"), out faction)) mc.Faction = faction;
             // Synthetic joins require explicit loopback diagnostics. Ordinary profile/token/auto queries never bypass ownership.
             mc.AutoJoin = mc.IsDiagnostic && Query(s, "auto", "1") == "1";
+            // Diagnostics only: a loopback page may ask for the read-only state mirror the UI scenario harness steers by.
+            if (Query(s, "scenario.probe", "0") == "1" && pageUri != null && pageUri.IsLoopback) go.AddComponent<ScenarioProbe>().Initialize(mc);
         }
     }
 }

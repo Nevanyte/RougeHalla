@@ -27,9 +27,9 @@ namespace Roguehalla.Net.Tests
 
         static int ExtensionOffset(byte[] frame, uint collisionRuns)
         {
-            // Protocol 16: the header is followed by the (here empty, one-byte) archetype table and the vision block (no
-            // coliseum), then the map.
-            int offset = 61 + WireVision.BlockLength + 12 + 3 * checked((int)collisionRuns);
+            // Protocol 16: the header is followed by the (here empty, one-byte) archetype table, the vision block (no
+            // coliseum) and the (here empty, one-byte) weapon table, then the map.
+            int offset = 61 + WireVision.BlockLength + 1 + 12 + 3 * checked((int)collisionRuns);
             return offset + 4;
         }
 
@@ -102,7 +102,7 @@ namespace Roguehalla.Net.Tests
         public void RejectsUnknownOrTamperedGroundHeaderFields(int relativeOffset)
         {
             var frame = Welcome(new MapBlob(4, 3, BasicTiles(), new byte[12], new byte[12])).Encode();
-            uint collisionRuns = ReadU32(frame, 69 + WireVision.BlockLength);
+            uint collisionRuns = ReadU32(frame, 69 + WireVision.BlockLength + 1);
             int extension = ExtensionOffset(frame, collisionRuns);
             if (relativeOffset == 0) frame[extension] = 2;
             else if (relativeOffset == 1) frame[extension + relativeOffset] |= 0x80;
@@ -116,7 +116,7 @@ namespace Roguehalla.Net.Tests
         {
             var map = new MapBlob(4, 3, BasicTiles(), new byte[12], new byte[12]);
             byte[] valid = Welcome(map).Encode();
-            uint collisionRuns = ReadU32(valid, 69 + WireVision.BlockLength);
+            uint collisionRuns = ReadU32(valid, 69 + WireVision.BlockLength + 1);
             int extension = ExtensionOffset(valid, collisionRuns);
             uint extensionLength = ReadU32(valid, extension - 4);
 

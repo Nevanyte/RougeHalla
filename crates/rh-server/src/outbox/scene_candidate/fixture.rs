@@ -60,7 +60,7 @@ fn native() -> Vec<Vec<u8>> {
             false,
         )
         .unwrap();
-    let state_bytes = state.frame.as_ref().unwrap().clone();
+    let state_bytes = experiment_state(state.frame.as_ref().unwrap());
     let (snapshot, kind) = rh_protocol::ConnEncoder::new().encode_frame(frames.snapshot.unwrap());
     assert_eq!(kind, rh_protocol::FrameKind::Full);
     let mut result = vec![snapshot, state_bytes];
@@ -121,7 +121,7 @@ fn native_training() -> Vec<Vec<u8>> {
             false,
         )
         .unwrap();
-    let state_bytes = state.frame.as_ref().unwrap().clone();
+    let state_bytes = experiment_state(state.frame.as_ref().unwrap());
     let (snapshot, kind) = rh_protocol::ConnEncoder::new().encode_frame(frames.snapshot.unwrap());
     assert_eq!(kind, rh_protocol::FrameKind::Full);
     let mut result = vec![snapshot, state_bytes];
@@ -367,4 +367,14 @@ pub fn document() -> serde_json::Value {
         }
     }
     serde_json::json!({"format":"rh-scene-candidate14-experiment/1","profile":"SYNTHETIC-small47-not-product-capacity","base":"986f44dfd9a61eb769700adc476fc8b9e9aa8011","protocol":14,"limits":{"bodyBytes":limits.body_bytes,"retainedBodyBytes":limits.retained_body_bytes,"partBytes":limits.part_bytes,"parts":limits.parts,"frames":limits.frames,"frameBytes":limits.frame_bytes},"cases":cases})
+}
+
+/// The experiment's committed scenes predate State key 12 (the ADR0026 roster): its State frame keeps keys 1..=11 so the
+/// committed scene-candidate fixtures and their C# reader stay byte-stable.
+fn experiment_state(frame: &[u8]) -> Vec<u8> {
+    let ServerMsg::State { tick, mut items } = ServerMsg::decode(frame).unwrap() else {
+        panic!("state")
+    };
+    items.retain(|item| !matches!(item, rh_protocol::StateItem::Roster(_)));
+    ServerMsg::State { tick, items }.try_encode().unwrap()
 }

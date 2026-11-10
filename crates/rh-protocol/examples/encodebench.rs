@@ -50,6 +50,7 @@ fn ring(fixed_actors: Option<usize>) -> Vec<SnapshotData> {
                 wish: None,
                 barrier: 0.0,
                 barrier_ring_step: 0,
+                ..Default::default()
             };
             let actors = (0..n).map(|k| WireActor {
                 archetype: Default::default(),
@@ -75,6 +76,7 @@ fn ring(fixed_actors: Option<usize>) -> Vec<SnapshotData> {
                 kind: 0,
                 barrier_pct: 0,
                 barrier_ring_step: 0,
+                ..Default::default()
             });
             SnapshotData::build(100 + i, 1, i * 3, Some(me), actors).expect("a legal snapshot")
         })

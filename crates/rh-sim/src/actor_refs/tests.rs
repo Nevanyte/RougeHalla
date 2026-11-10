@@ -123,7 +123,13 @@ fn cycle_pair() -> (Sim, Sim) {
     for i in 0..2 {
         b.w.players[i].vitals.hp = a.w.players[i].vitals.hp;
         b.w.players[i].body.facing = a.w.players[i].body.facing;
+        // ADR0026: the overhead build marks are public, so the earned mob stats (farm rows and their fold) are part of
+        // the declared public scene too.
+        b.w.players[i].farm = a.w.players[i].farm;
+        b.w.players[i].core.modifiers = a.w.players[i].core.modifiers.clone();
     }
+    // Edited between steps: the end-of-step build-mark cache no longer describes `b`.
+    b.projection.marks.invalidate();
     place(&mut a, PlayerId(3), Vec2::new(80., 112.));
     place(&mut b, PlayerId(3), Vec2::new(80., 112.));
     Sim::restore(serde_json::to_value(&a).unwrap()).unwrap();
@@ -175,12 +181,14 @@ fn actual_hidden_respawn_history_does_not_change_scene_references_or_fx() {
         by: Some(PlayerId(3)),
         amount: 2.,
         passive: false,
+        critical: false,
     }];
     let eb = [SeenEvent::Hit {
         victim: b.mobs()[0].core.id,
         by: Some(PlayerId(3)),
         amount: 2.,
         passive: false,
+        critical: false,
     }];
     oa.prepare_with_seen(&a, &[], &ea, &mut aa, None)
         .unwrap()
@@ -302,6 +310,7 @@ fn all_actor_fields_use_one_projection_and_reference_bounds_fail_closed() {
         by: Some(PlayerId(99)),
         amount: 1.,
         passive: false,
+        critical: false,
     });
     let mut refs = ActorRefs::default();
     let stage = refs.stage(&s, &raw).unwrap();
@@ -317,7 +326,8 @@ fn all_actor_fields_use_one_projection_and_reference_bounds_fail_closed() {
             victim: reference,
             by: None,
             amount: 1.,
-            passive: false
+            passive: false,
+            critical: false,
         }]
     );
     refs.next = u64::from(u32::MAX) + 1 - 2 * NPC_REFERENCE_BLOCK;

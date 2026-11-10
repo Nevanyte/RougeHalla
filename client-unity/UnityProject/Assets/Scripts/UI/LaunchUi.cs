@@ -70,6 +70,13 @@ namespace Roguehalla.Client
             return image;
         }
 
+        /// <summary>The faction's generated pictogram (the shape its launch card carries), tinted by <paramref name="color"/>.</summary>
+        public static Image FactionShape(Transform parent, string name, int faction, float x, float y, float size, Color color)
+        {
+            int i = faction >= 0 && faction < LaunchCopy.Houses.Length ? faction : 0;
+            return Shape(parent, name, LaunchCopy.Houses[i].Shape, x, y, size, color);
+        }
+
         /// <summary>A tinted weapon glyph from <see cref="MythicUi"/>.</summary>
         public static Image Weapon(Transform parent, string name, MythicGlyph glyph, float x, float y, float size, Color color)
         {
