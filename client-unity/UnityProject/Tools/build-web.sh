@@ -60,3 +60,20 @@ cp "$project/../../LICENSE" "$project/Build/Web/Licenses/Roguehalla-MIT.txt"
 cp "$project/Assets/TextMesh Pro/License.Unity.md" "$project/Build/Web/Licenses/Unity-Companion.md"
 cp "$project/Assets/TextMesh Pro/Fonts/LiberationSans - OFL.txt" "$project/Build/Web/Licenses/LiberationSans-OFL.txt"
 cp "$project/Assets/TextMesh Pro/Sprites/EmojiOne Attribution.txt" "$project/Build/Web/Licenses/EmojiOne-Attribution.txt"
+# Every required third-party notice ships with the player (docs/art/LICENCE_LEDGER.md, "Build notices"). A missing source
+# file fails the script: a licence notice that cannot be copied must not be skipped silently.
+third_party="$project/Assets/Art/ThirdParty"
+cp "$third_party/Fonts/OFL-CinzelDecorative.txt" "$project/Build/Web/Licenses/CinzelDecorative-OFL.txt"
+mkdir -p "$project/Build/Web/Licenses/Flare"
+flare_notice() { cp "$third_party/$1" "$project/Build/Web/Licenses/Flare/$2"; }
+flare_notice Flare/Raw/LICENSE.txt Flare-LICENSE.txt
+flare_notice Flare/Raw/CREDITS.txt Flare-CREDITS.txt
+flare_notice Flare/Audio/NOTICE.txt Flare-Audio-NOTICE.txt
+flare_notice FlareExpansion/LICENSE.txt FlareExpansion-LICENSE.txt
+flare_notice FlareExpansion/CREDITS.md FlareExpansion-CREDITS.md
+flare_notice FlareExpansion/CREDITS_CAPTURE.txt FlareExpansion-CREDITS_CAPTURE.txt
+flare_notice FlareProps/Raw/LICENSE.txt FlareProps-LICENSE.txt
+flare_notice FlareProps/Raw/CREDITS_CAPTURE.txt FlareProps-CREDITS_CAPTURE.txt
+flare_notice FlareAudioExpansion/LICENSE.txt FlareAudioExpansion-LICENSE.txt
+flare_notice FlareAudioExpansion/CREDITS_CAPTURE.txt FlareAudioExpansion-CREDITS_CAPTURE.txt
+cp "$project/../THIRD_PARTY_ASSETS.md" "$project/Build/Web/Licenses/Flare/THIRD_PARTY_ASSETS.md"

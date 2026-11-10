@@ -22,7 +22,7 @@ Every added file gets a row here in the same change that adds it.
 | CC BY-SA 3.0 or later (**replace-later risk**): Flare art | 22 + 3 + 12 + 5 source PNGs, 3 tilesets (dungeon, cave, grassland), their definition `.txt` files, 88 derived PNGs and 42 candidate crops (205 MB under `Assets/Art/Derived`) | Keep for now. New art must not be derived from them. Replace environment, props, UI and effects first (sprites of characters and mobs are frozen for this effort) |
 | CC BY-SA 3.0: Flare audio | 12 clips: `battle_theme`, `dungeon_theme` (remaxim), `shoot` (remaxim), `goblin_hit`, `goblin_die` (MaximB), `melee_attack` (no author in ledger), `melee_attack_2`, `melee_attack_3`, `heal`, `burn`, `freeze`, `cave_wind_loop` (project default, no author) | Replace with CC0/CC BY (see `ASSET_SOURCING.md`). Music first: it is the most audible |
 | CC BY 3.0 attribution not shipped | Brandon Morris (Augmentality), Michel Baradari, artisticdude, plus art contributors (Blender Foundation, Lamoot, Hythlodaeus, TiZiana and others) | `Tools/build-web.sh` does not copy any Flare notice into `Build/Web/Licenses/`, and there is no in-game credits screen. CC BY requires attribution to travel with the work. See "Build notices" |
-| OFL notice for Cinzel Decorative not shipped | One file | `Tools/build-web.sh` copies the Liberation Sans OFL but not `OFL-CinzelDecorative.txt`. Add the copy line |
+| OFL notice for Cinzel Decorative | One file | Now shipped as `Licenses/CinzelDecorative-OFL.txt` by `Tools/build-web.sh` |
 | EmojiOne sprite sample: licence unverified | `EmojiOne.png`, `EmojiOne.asset`, `EmojiOne.json`; enabled as TMP default sprite asset with emoji support on | The only record is Unity's one-line note "review their licensing terms"; no licence text is in the repo and EmojiOne has changed licence between versions, so I could not establish that it is CC0/CC BY. Treat as not allowed until verified. Preferred fix: remove the sprite asset and the default-sprite reference if no `<sprite>` tags are used (none found in `Assets/Scripts`) |
 | Mixed-licence composite atlases | `tileset_dungeon.png`, `tileset_grassland.png` | Contain CC BY and public-domain renders (and, for grassland, two CC BY-SA textures) inside a CC BY-SA sheet. Handle as CC BY-SA as a whole |
 
@@ -112,15 +112,12 @@ For completeness, so a reader can see what the ledger intentionally leaves out. 
 
 ## Build notices: what ships today
 
-`Tools/build-web.sh` writes `Build/Web/Licenses/` with: `Roguehalla-MIT.txt`, `Unity-Companion.md`, `LiberationSans-OFL.txt`, `EmojiOne-Attribution.txt`.
+`Tools/build-web.sh` writes `Build/Web/Licenses/` with: `Roguehalla-MIT.txt`, `Unity-Companion.md`, `LiberationSans-OFL.txt`, `EmojiOne-Attribution.txt`, `CinzelDecorative-OFL.txt`, and a `Flare/` folder holding the Flare licence and credit files (`Flare-LICENSE.txt`, `Flare-CREDITS.txt`, `Flare-Audio-NOTICE.txt`, the FlareExpansion, FlareProps and FlareAudioExpansion licence and captured-credit files) plus `THIRD_PARTY_ASSETS.md`. The script fails if any of these source files is missing.
 
-Missing, and required to keep the current assets compliant:
+Still open:
 
-1. `CinzelDecorative-OFL.txt` (from `Assets/Art/ThirdParty/Fonts/OFL-CinzelDecorative.txt`): the OFL requires the copyright notice and licence to accompany redistributions.
-2. Flare attribution: the CC BY 3.0 and CC BY-SA 3.0 terms require credit to the author, a licence link and a change note. Ship `Flare/Raw/LICENSE.txt`, `Flare/Raw/CREDITS.txt`, `Flare/Audio/NOTICE.txt` and the captured credit files (or one consolidated `CREDITS.md` generated from this ledger) in `Licenses/`, plus a credits screen or link in the game.
-3. A decision on EmojiOne (remove, or document a verified licence).
-
-This task did not edit `build-web.sh` or any C#; the lines above are the change list for the coordinator.
+1. A credits screen or link in the game for the CC BY / CC BY-SA attribution (the files ship with the build, but nothing in the UI points to them).
+2. A decision on EmojiOne. The only record in the repository is Unity's one-line note ("review their licensing terms"); no licence text or version is present, so its terms cannot be confirmed from the repo. It stays in place until the owner decides (remove, or document a verified licence).
 
 ## Asset Store purchases
 
