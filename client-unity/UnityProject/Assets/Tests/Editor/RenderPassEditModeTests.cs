@@ -42,12 +42,12 @@ namespace Roguehalla.Client.Tests
 
         [Test] public void EveryRenderPassHasItsOwnUrlSwitch()
         {
-            string[] keys = { "locallights", "relief", "lshadows", "cookies", "gloss", "wind", "clouds", "water", "fireflies", "emberlight", "fxlights", "sparks", "actorlights", "painterly" };
+            string[] keys = { "locallights", "relief", "lshadows", "cookies", "gloss", "wind", "clouds", "water", "fireflies", "emberlight", "fxlights", "sparks", "actorlights" };
             System.Func<bool>[] get =
             {
                 () => AtmosphereQuality.LocalLights, () => AtmosphereQuality.Relief, () => AtmosphereQuality.LocalShadows, () => AtmosphereQuality.Cookies, () => AtmosphereQuality.Gloss,
                 () => AtmosphereQuality.Wind, () => AtmosphereQuality.Clouds, () => AtmosphereQuality.Water, () => AtmosphereQuality.Fireflies, () => AtmosphereQuality.EmberLight,
-                () => AtmosphereQuality.FxLights, () => AtmosphereQuality.Sparks, () => AtmosphereQuality.ActorLights, () => AtmosphereQuality.Painterly,
+                () => AtmosphereQuality.FxLights, () => AtmosphereQuality.Sparks, () => AtmosphereQuality.ActorLights,
             };
             for (int i = 0; i < keys.Length; i++)
             {
@@ -55,6 +55,9 @@ namespace Roguehalla.Client.Tests
                 Assert.IsFalse(get[i](), keys[i] + " off");
                 for (int j = 0; j < keys.Length; j++) if (j != i) Assert.IsTrue(get[j](), keys[j] + " unaffected by " + keys[i]);
             }
+            Assert.IsFalse(AtmosphereQuality.Painterly, "the painterly grade is held off by default (it lifted luma and cost marker contrast)");
+            AtmosphereQuality.SetUrl("http://x/?fx.painterly=1"); AtmosphereQuality.ApplyPreset(ShowcaseQuality.Ultra, false); Assert.IsTrue(AtmosphereQuality.Painterly);
+            AtmosphereQuality.SetUrl(""); AtmosphereQuality.ApplyPreset(ShowcaseQuality.Ultra, false);
             Assert.IsFalse(AtmosphereQuality.Tonemap, "the tonemap is held off by default (it cost contrast in the bright zones)");
             AtmosphereQuality.SetUrl("http://x/?fx.tonemap=1"); AtmosphereQuality.ApplyPreset(ShowcaseQuality.Ultra, false); Assert.IsTrue(AtmosphereQuality.Tonemap);
             AtmosphereQuality.SetUrl("http://x/?fx.maxlights=3"); AtmosphereQuality.ApplyPreset(ShowcaseQuality.Ultra, false);

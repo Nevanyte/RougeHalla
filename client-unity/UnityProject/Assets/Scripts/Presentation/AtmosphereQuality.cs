@@ -81,8 +81,8 @@ namespace Roguehalla.Client
         public static bool Sparks = true;
         /// <summary>Characters are lit by the analytic lights too (soft diffuse and a rim on the lit edge), and the Light2D twins are no longer needed.</summary>
         public static bool ActorLights = true;
-        /// <summary>Painterly grade: lifted tinted blacks, warm or cool highlights and a soft neutral tonemap on top of the zone grade.</summary>
-        public static bool Painterly = true;
+        /// <summary>Painterly grade: lifted tinted blacks and warm or cool highlights on top of the zone grade. Held OFF in every preset: measured in the browser it lifted mean luma by about 30% in Fire and cost bar and marker contrast (docs/rework/evidence/render/README.md); <c>?fx.painterly=1</c> opts in while the lift values are re-tuned.</summary>
+        public static bool Painterly = false;
         /// <summary>Soft neutral tonemap on top of the painterly grade. Held OFF in every preset: the contrast gate measured it lowering marker and body contrast in the bright zones (docs/rework/evidence/render/README.md).</summary>
         public static bool Tonemap = false;
         /// <summary>Characters take their light from the analytic field (and the accent Light2D twins stay off).</summary>
@@ -105,7 +105,7 @@ namespace Roguehalla.Client
         {
             bool low = q == ShowcaseQuality.Low, med = q == ShowcaseQuality.Medium, high = q == ShowcaseQuality.High, ultra = q == ShowcaseQuality.Ultra;
             LocalLights = !low; Relief = !low; LocalShadows = ultra || high; Cookies = high || ultra; Gloss = high || ultra;
-            ActorLights = !low; Painterly = !low; Tonemap = false; Wind = !low; Clouds = !low; Water = high || ultra; Fireflies = ultra; EmberLight = ultra || high; FxLights = !low; Sparks = !low;
+            ActorLights = !low; Painterly = false; Tonemap = false; Wind = !low; Clouds = !low; Water = high || ultra; Fireflies = ultra; EmberLight = ultra || high; FxLights = !low; Sparks = !low;
             MaxLocalLights = low ? 0 : med ? 6 : high ? 12 : 20;
             for (int i = 0; i < _ovPass.Length; i++) if (_ovPass[i].HasValue) SetPass((Pass)i, _ovPass[i].Value);
             if (_ovMaxLocal.HasValue) MaxLocalLights = Mathf.Clamp(_ovMaxLocal.Value, 0, HardMaxLocalLights);
