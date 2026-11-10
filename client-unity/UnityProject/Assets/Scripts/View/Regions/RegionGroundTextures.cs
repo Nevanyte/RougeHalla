@@ -96,7 +96,7 @@ namespace Roguehalla.Client
                 float pit = missing * (1f - grout);
                 h[i] = (1f - grout) * .7f - worn * .15f - crack * .35f - pit * .5f;
                 r[i] = Mathf.Clamp01((tone + wearN * .18f + grain * .14f) * (1f - grout * .5f - worn * .1f - crack * .5f - pit * .5f));
-                g[i] = Mathf.Clamp01(mossy * SmoothStep(.15f, .55f, Fbm(u, v, 12, 3, 33) + worn * .3f) * .45f);
+                g[i] = Mathf.Clamp01(mossy * SmoothStep(.15f, .55f, Fbm(u, v, 12, 3, 33) + worn * .3f) * .3f);
                 b[i] = 0f;
             }
         }

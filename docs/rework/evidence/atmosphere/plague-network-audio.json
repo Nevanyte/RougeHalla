@@ -2,26 +2,16 @@
  {
   "url": "StreamingAssets/Audio/music_fire.mp3",
   "status": 200,
-  "afterMatchStartMs": 1038
+  "afterMatchStartMs": 103
  },
  {
   "url": "StreamingAssets/Audio/amb_fire.mp3",
   "status": 200,
-  "afterMatchStartMs": 1038
+  "afterMatchStartMs": 103
  },
  {
   "url": "StreamingAssets/Audio/music_coliseum.mp3",
   "status": 200,
-  "afterMatchStartMs": 1050
- },
- {
-  "url": "StreamingAssets/Audio/amb_holy.mp3",
-  "status": 200,
-  "afterMatchStartMs": 1246
- },
- {
-  "url": "StreamingAssets/Audio/music_holy.mp3",
-  "status": 200,
-  "afterMatchStartMs": 1248
+  "afterMatchStartMs": 122
  }
 ]
