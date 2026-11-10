@@ -93,13 +93,13 @@ namespace Roguehalla.Client.Tests
             Assert.That(ChoiceLabel(0).text, Does.Contain("Same offer"));
             Assert.That(ChoiceLabel(1).text, Does.Contain("Same offer"));
             Assert.That(ChoiceLabel(2).text, Does.Contain("Third offer"));
-            Assert.That(ChoiceLabel(0).text, Does.Contain("Cost 0.25 Ad  →  Gain 0.5 Ap"));
-            Assert.AreEqual("Ad  -1.25", ChoiceContent().Find("AppliedStat_0").GetComponent<TMP_Text>().text);
-            Assert.AreEqual("Ad  0.5", ChoiceContent().Find("AppliedStat_1").GetComponent<TMP_Text>().text);
-            Assert.AreEqual("MaxHp  -12", ChoiceContent().Find("AppliedStat_2").GetComponent<TMP_Text>().text);
+            Assert.That(ChoiceLabel(0).text, Does.Contain("Costs 0.25 AD  ·  Gives 0.5 AP"));
+            Assert.AreEqual("AD  -1.25", ChoiceContent().Find("AppliedStat_0").GetComponent<TMP_Text>().text);
+            Assert.AreEqual("AD  0.5", ChoiceContent().Find("AppliedStat_1").GetComponent<TMP_Text>().text);
+            Assert.AreEqual("max HP  -12", ChoiceContent().Find("AppliedStat_2").GetComponent<TMP_Text>().text);
 
             Assert.IsTrue(_view.SelectMerchant(1));
-            StringAssert.Contains("X 91.75 · Y 44.5", _canvas.transform.Find("TraderDialog/OfferPanel/DetailSummary").GetComponent<TMP_Text>().text);
+            StringAssert.Contains("Choose one permanent exchange for this run", _canvas.transform.Find("TraderDialog/OfferPanel/DetailSummary").GetComponent<TMP_Text>().text);
         }
 
         [Test]

@@ -42,6 +42,7 @@ namespace Roguehalla.Client
         // Champion combat HUD.
         RectTransform _championHud;
         TMP_Text _championName;
+        UnityEngine.UI.Image _championIcon;
         readonly TMP_Text[] _championValue = new TMP_Text[3], _championScaling = new TMP_Text[3];
         bool _championWanted, _barWanted;
         // Death line, glows, chrome, top-centre and toast pills.
@@ -246,7 +247,8 @@ namespace Roguehalla.Client
             var theme = UiTheme.Current;
             _championHud = _damagePanel = HudUi.Box(_hud, "ChampionCombatHud", HudAnchor.BottomLeft, ChampionLeft, ChampionBottom, 250f, ChampionHeight);
             HudUi.Surface(_championHud, Tone(theme.Surface, .94f), 7f, theme.Border, true, true);
-            _championName = HudUi.Label(HudUi.At(_championHud, "Head", 8, 6, 150, 16), "Champion", "Champion", 12f, theme.TextPrimary, bold: true);
+            _championIcon = LaunchUi.FactionShape(_championHud, "FactionIcon", 4, 8f, 7f, 14f, theme.TextPrimary);
+            _championName = HudUi.Label(HudUi.At(_championHud, "Head", 26, 6, 130, 16), "Champion", "Champion", 12f, theme.TextPrimary, bold: true);
             _damageWeapon = HudUi.Label(HudUi.At(_championHud, "Weapon", 150, 8, 92, 14), "Weapon", "—", theme.SizeTiny, theme.Accent, TextAlignmentOptions.MidlineRight);
             string[] labels = { "Attack", "Passive", "Wish" };
             for (int i = 0; i < 3; i++)
@@ -465,8 +467,9 @@ namespace Roguehalla.Client
             }
             if (_championName != null)
             {
-                Set(_championName, ShowcasePalette.GetFactionMark((int)me.Faction) + " " + ShowcasePalette.GetFactionName((int)me.Faction));
+                Set(_championName, ShowcasePalette.GetFactionName((int)me.Faction));
                 _championName.color = theme.FactionColor((int)me.Faction);
+                if (_championIcon != null) { _championIcon.sprite = MapGlyphs.Sprite(LaunchCopy.Houses[Mathf.Clamp((int)me.Faction, 0, 4)].Shape); _championIcon.color = theme.FactionColor((int)me.Faction); }
             }
             // Wish row of the champion HUD: the ability name and stock the server delivered.
             if (_championValue[2] != null)

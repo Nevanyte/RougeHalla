@@ -28,6 +28,9 @@ namespace Roguehalla.Client
         UnityEngine.UI.ScrollRect _historyScroll, _recentScroll;
         Action _onClose;
         ulong _version = 1, _historyVersion, _recentVersion, _cachedVersion;
+        /// <summary>The recent-notices card over the play area shows for this long after the newest notice; the full list stays in the Notices page.</summary>
+        public const float RecentSeconds = 8f;
+        float _recentHideAt;
         string _cachedText;
         public RectTransform Root => _root;
         public bool IsVisible => _root != null && _root.gameObject.activeSelf;
@@ -52,7 +55,7 @@ namespace Roguehalla.Client
         public void SetVisible(bool visible) { if (_root != null) { _root.gameObject.SetActive(visible); Refresh(); } }
         public void SetRecentVisible(bool visible)
         {
-            if (_recentRoot != null) _recentRoot.gameObject.SetActive(visible && _entries.Count != 0);
+            if (_recentRoot != null) _recentRoot.gameObject.SetActive(visible && _entries.Count != 0 && Time.unscaledTime < _recentHideAt);
             if (visible) Refresh();
         }
         public void Clear()
@@ -76,7 +79,7 @@ namespace Roguehalla.Client
                 if (_history.Length != 0) _history.Append('\n');
                 _history.Append(_entries.Count).Append(" · ").Append(text);
             }
-            if (_entries.Count != before) _version++;
+            if (_entries.Count != before) { _version++; _recentHideAt = Time.unscaledTime + RecentSeconds; }
             Refresh();
         }
         public void Refresh()

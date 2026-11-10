@@ -286,7 +286,7 @@ namespace Roguehalla.Client
                 {
                     var delta = view.Stats[i];
                     var line = MythicUi.Text(_choiceContent, "AppliedStat_" + i,
-                        delta.Stat + "  " + FormatDouble(delta.Value), new Vector2(.02f, 1f), new Vector2(.98f, 1f), 13,
+                        StatName(delta.Stat) + "  " + FormatDouble(delta.Value), new Vector2(.02f, 1f), new Vector2(.98f, 1f), 13,
                         ShowcasePalette.MutedText);
                     var lineRect = line.rectTransform;
                     lineRect.pivot = new Vector2(.5f, 1f); lineRect.anchorMin = new Vector2(0, 1); lineRect.anchorMax = new Vector2(1, 1);
@@ -309,8 +309,8 @@ namespace Roguehalla.Client
                         byte capturedPick = pick; var capturedSession = _session; uint capturedEpoch = _boundEpoch;
                         int capturedGeneration = _renderGeneration, capturedMerchant = _selectedMerchant;
                         var offer = offers[pick];
-                        string quote = "Cost " + FormatDouble(offer.CostValue) + " " + offer.Cost + "  →  Gain " +
-                            FormatDouble(offer.GainValue) + " " + offer.Gain;
+                        string quote = "Costs " + FormatDouble(offer.CostValue) + " " + StatName(offer.Cost) + "  ·  Gives " +
+                            FormatDouble(offer.GainValue) + " " + StatName(offer.Gain);
                         string label = (pick + 1).ToString(CultureInfo.InvariantCulture) + " · " + offer.Label + "\n" + quote;
                         var button = CreateChoiceButton(pick, label, () => TryTradeBound(capturedSession, capturedEpoch, view,
                             capturedGeneration, capturedMerchant, TradeKind.Stats, capturedPick));
@@ -499,17 +499,13 @@ namespace Roguehalla.Client
         {
             if (view == null || !view.Available || index < 0 || index >= view.Merchants.Count) return;
             var merchant = view.Merchants[index];
-            string summary = MerchantPosition(merchant);
-            if (merchant.Kind == TradeKind.Barter)
-            {
-                summary += !view.BarterReadyAt.HasValue ? " · Barter timing is decided by the server."
-                    : _session == null || _session.Latest == null ? " · Server deadline · waiting for server time"
-                    : " · " + DeadlineCopy(view.BarterReadyAt.Value, _session.ServerTimeMs);
-            }
-            else if (merchant.Kind == TradeKind.Stats)
-            {
-                summary += view.TradeUsed ? " · Stat trade used this run." : " · Saved stat offers · exact delivered values";
-            }
+            // Legacy wording (traderPanel.ts): what the trader does, no map coordinates.
+            string summary = merchant.Kind == TradeKind.Barter
+                ? "Trade the weapon in your hand, or exchange a small potion for a weapon. One trade every 5 seconds."
+                : view.TradeUsed ? "Your stat trade is complete for this run."
+                : "Choose one permanent exchange for this run. These offers reflect your current stats.";
+            if (merchant.Kind == TradeKind.Barter && view.BarterReadyAt.HasValue && _session != null && _session.Latest != null)
+                summary += " " + DeadlineCopy(view.BarterReadyAt.Value, _session.ServerTimeMs);
             Set(_detailSummary, summary);
             _lastServerTime = _session == null ? 0 : _session.ServerTimeMs;
             _lastHadServerTime = _session != null && _session.Latest != null;
@@ -527,9 +523,9 @@ namespace Roguehalla.Client
         static string DeadlineCopy(double deadline, double serverTime)
         {
             double remaining = Math.Max(0d, deadline - serverTime);
-            if (remaining <= 0d) return "Server deadline reached · awaiting state";
+            if (remaining <= 0d) return "Barter ready.";
             double seconds = Math.Ceiling(remaining / 100d) / 10d;
-            return "Server deadline · " + seconds.ToString("0.0", CultureInfo.InvariantCulture) + "s";
+            return "Next barter in " + seconds.ToString("0.0", CultureInfo.InvariantCulture) + "s.";
         }
 
         void Close()
@@ -540,15 +536,25 @@ namespace Roguehalla.Client
 
         static string MerchantLabel(MerchantView merchant)
         {
-            return merchant.Name + "\n" + merchant.Kind + " · X " + FormatDouble(merchant.X) + "  Y " + FormatDouble(merchant.Y);
+            return merchant.Name + "\n" + (merchant.Kind == TradeKind.Barter ? "Weapon barter" : "Stat trader");
         }
 
-        static string MerchantPosition(MerchantView merchant)
+        static string StatName(TradeStat stat)
         {
-            return "X " + FormatDouble(merchant.X) + " · Y " + FormatDouble(merchant.Y);
+            switch (stat)
+            {
+                case TradeStat.MaxHp: return "max HP";
+                case TradeStat.Ad: return "AD";
+                case TradeStat.Ap: return "AP";
+                case TradeStat.AttackSpeed: return "attack speed";
+                case TradeStat.MoveSpeed: return "move speed";
+                case TradeStat.Armor: return "armor";
+                case TradeStat.Shield: return "shield";
+                default: return stat.ToString();
+            }
         }
 
-        static string FormatDouble(double value) { return value.ToString("G", CultureInfo.InvariantCulture); }
+        static string FormatDouble(double value) { return Math.Round(value, 2).ToString("0.##", CultureInfo.InvariantCulture); }
         static string StateCopy(SessionState state)
         {
             switch (state)
