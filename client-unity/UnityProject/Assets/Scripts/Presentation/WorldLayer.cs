@@ -16,6 +16,7 @@ namespace Roguehalla.Client
         public const int MaxOrder = 1800;
 
         static readonly System.Collections.Generic.List<Renderer> Scratch = new System.Collections.Generic.List<Renderer>(256);
+        static readonly System.Collections.Generic.HashSet<int> Rejected = new System.Collections.Generic.HashSet<int>();
 
         public static int Id { get { return SortingLayer.NameToID(Name); } }
         public static bool Exists { get { return SortingLayer.IsValid(Id); } }
@@ -28,7 +29,10 @@ namespace Roguehalla.Client
             root.GetComponentsInChildren(true, Scratch);
             foreach (var r in Scratch)
             {
-                if (r.sortingOrder >= MaxOrder || r.sortingLayerID == id || NotWorld(r)) continue;
+                if (r.sortingOrder >= MaxOrder || r.sortingLayerID == id) continue;
+                int key = r.GetInstanceID();
+                if (Rejected.Contains(key)) continue;
+                if (NotWorld(r)) { Rejected.Add(key); continue; }   // text and actor parts stay off the layer for good: never re-walk their parents (each Transform.name read allocates)
                 r.sortingLayerID = id; n++;
             }
             Scratch.Clear();

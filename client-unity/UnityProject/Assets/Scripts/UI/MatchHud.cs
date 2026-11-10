@@ -236,6 +236,11 @@ namespace Roguehalla.Client
         }
         void LateUpdate()
         {
+            var pmHud = PerfMarks.Begin();
+            HudLateUpdate(); PerfMarks.End(PerfMarks.Sec.Hud, pmHud);
+        }
+        void HudLateUpdate()
+        {
             TickFeatures();
             TickWishTileMotion();
             RefreshSettlementRow();
@@ -262,6 +267,12 @@ namespace Roguehalla.Client
             Set(_banner, banner); Set(_plateStatus, banner); _bannerState = _session.State; _bannerPhase = phase; _bannerAttempt = _session.ReconnectAttempt;
             }
             if (_client != null && _client.LaunchPending) return;
+            var pmOwner = PerfMarks.Begin();
+            HudOwnerRefresh(banner);
+            PerfMarks.End(PerfMarks.Sec.HudOwner, pmOwner);
+        }
+        void HudOwnerRefresh(string banner)
+        {
             Set(_notice, _feedback);
             var me = _session.Me;
             if (me == null)

@@ -199,6 +199,11 @@ namespace Roguehalla.Client
 
         void Update()
         {
+            var pmAudio = PerfMarks.Begin();
+            AudioUpdate(); PerfMarks.End(PerfMarks.Sec.Soundscape, pmAudio);
+        }
+        void AudioUpdate()
+        {
             if (_audio == null) return;
             // Region audio is requested only once the match runs and the local player's region has been known for a moment (RegionAudioGate):
             // never during launch, planning or results, and never from a placeholder first fix.

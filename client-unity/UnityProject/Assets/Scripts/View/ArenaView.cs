@@ -97,7 +97,7 @@ namespace Roguehalla.Client
         public RegionAtmosphere Atmosphere { get { return _atmos; } }
         void ApplyHaze(Color c) { _fogColor = c; for (int i = 0; i < _fog.Count; i++) if (_fog[i] != null) _fog[i].color = c; }
         int _used;
-        float _nextWorldTag;
+        float _nextWorldTag, _forcedWorldTag; int _worldTagCount = -1;
         Vector3 _lastFollow;
         float _smoothX, _smoothY;
         bool _smoothValid;
@@ -107,6 +107,8 @@ namespace Roguehalla.Client
         /// <summary>Observed actors currently presented (perf recorder context).</summary>
         public int ObservedActorCount { get { return _actors != null ? _actors.ActiveCount : 0; } }
         public bool IsObserved(uint id) { return _actors != null && _actors.Contains(id); }
+        /// <summary>The local player's drawn position in sim units (perf recorder context); false before the first local frame.</summary>
+        public bool TryLocalPosition(out float x, out float y) { x = _localX; y = _localY; return _haveLocal; }
         public bool TrySoundContext(uint id, out WeaponId weapon, out FactionId faction, out ActorKind kind, out MobTypeId? type)
         {
             if (_actors != null) return _actors.TrySoundContext(id,out weapon,out faction,out kind,out type);
@@ -243,7 +245,15 @@ namespace Roguehalla.Client
 
         public void Present(List<InterpActor> remote, SelfView me, LocalMotion motion, float aimAngle)
         {
-            if (Time.unscaledTime >= _nextWorldTag) { _nextWorldTag = Time.unscaledTime + 1f; WorldLayer.Tag(transform); } // CONTRAST: layers created later (particles, decals) join the World layer within a second
+            // CONTRAST: layers created later (particles, decals) join the World layer within a second. The walk over every renderer of the
+            // arena (thousands) runs only when the hierarchy grew or shrank since the last one, and at least every 10 s (a renderer added to an
+            // existing object): a full walk every second was a periodic main-thread hitch.
+            if (Time.unscaledTime >= _nextWorldTag)
+            {
+                _nextWorldTag = Time.unscaledTime + 1f; int count = transform.hierarchyCount;
+                if (count != _worldTagCount || Time.unscaledTime >= _forcedWorldTag) { _worldTagCount = count; _forcedWorldTag = Time.unscaledTime + 10f; WorldLayer.Tag(transform); }
+            }
+            var pmActors = PerfMarks.Begin();
             _actors.Begin(); ActorField.Begin();      // render pass: presented actors for the surface shaders
             uint mine = me != null ? me.Id : 0; _localId = mine;
             _huntTarget = me != null ? me.HuntTarget : null; _haveLocal = me != null;
@@ -282,14 +292,21 @@ namespace Roguehalla.Client
                 if (_regionProps != null) _regionProps.NoteActor(WorldPoint(mx, my));
                 ActorField.Note(WorldPoint(mx, my));
             }
-            _actors.End();
+            _actors.End(); PerfMarks.End(PerfMarks.Sec.Actors, pmActors);
+            if (_flushPendingInPresent) FlushPendingFx();      // cues that waited for their subject (RetainObservedActors with presentFollows)
+            var pm = PerfMarks.Begin();
             if (_surfaceFx != null) _surfaceFx.Tick(Time.unscaledDeltaTime); // SURFACE-FX HOOK 3/3
+            PerfMarks.End(PerfMarks.Sec.SurfaceFx, pm); pm = PerfMarks.Begin();
             _actors.StepFades(); TickVision();
+            PerfMarks.End(PerfMarks.Sec.Vision, pm); pm = PerfMarks.Begin();
             if (_regionProps != null) _regionProps.Tick(Time.unscaledDeltaTime);
+            PerfMarks.End(PerfMarks.Sec.Props, pm); pm = PerfMarks.Begin();
             ReleaseScheduledFx();
             UpdateEffects();
+            PerfMarks.End(PerfMarks.Sec.Effects, pm); pm = PerfMarks.Begin();
             _wishes.Tick(_sourceTimeMs);
             _wishFx.Tick(_sourceTimeMs, Time.unscaledDeltaTime);
+            PerfMarks.End(PerfMarks.Sec.WishFx, pm);
             _hitZones?.Tick(Time.unscaledTime, ShowcaseSettings.Current != null && ShowcaseSettings.Current.ReducedMotion);
         }
 
@@ -298,7 +315,9 @@ namespace Roguehalla.Client
         public void DiagDeathMark(float simX, float simY) { _worldIndicators.AddDeath(simX, simY, Time.unscaledTime, MarkVisible); }
 
         /// <summary>Latest membership wins over delayed interpolation, before the frame is rendered.</summary>
-        public void RefreshVisibility(Session session)
+        /// <param name="presentFollows">The caller runs <see cref="Present"/> in this same frame (the match loop does): the creatures,
+        /// effects and fades are then drawn once, by Present, instead of twice (see <see cref="RetainObservedActors(List{InterpActor}, SelfView, bool)"/>).</param>
+        public void RefreshVisibility(Session session, bool presentFollows = false)
         {
             _archetypes = session != null ? session.Archetypes : System.Array.Empty<WireArchetype>();
             _hitZones?.SetTable(_archetypes); LegacyFacts.SyncWeapons(session != null ? session.Weapons : null);
@@ -311,11 +330,18 @@ namespace Roguehalla.Client
             if(session!=null && session.Snapshots.Count>0)
             {
                 session.Snapshots.Sample(session.Snapshots.NewestMs,_latestMembership);
-                RetainObservedActors(_latestMembership,session.Me);
+                RetainObservedActors(_latestMembership,session.Me,presentFollows);
             }
-            else RetainObservedActors(_latestMembership,null); // Welcome/resume resets the observation timeline.
+            else RetainObservedActors(_latestMembership,null,presentFollows); // Welcome/resume resets the observation timeline.
         }
-        public void RetainObservedActors(List<InterpActor> current,SelfView me)
+        public void RetainObservedActors(List<InterpActor> current,SelfView me) { RetainObservedActors(current, me, false); }
+        /// <summary>
+        /// With <paramref name="presentFollows"/> the latest creatures, the pending cues, the effects and the fades are left to the
+        /// <see cref="Present"/> that follows in the same frame (it draws all of them again anyway): presenting every creature twice a
+        /// frame cost more than all the other presenters together. The pending cues are flushed by Present right after it has drawn
+        /// the creatures, so a cue still finds its newly delivered subject before the frame is rendered.
+        /// </summary>
+        public void RetainObservedActors(List<InterpActor> current,SelfView me,bool presentFollows)
         {
             _membership.Clear(); _latestNpcs.Clear();
             if (_fadeDemo) UpdateFadeDemo(current, me);
@@ -329,13 +355,20 @@ namespace Roguehalla.Client
             _hasMembership=true; _actors.Retain(_membership);
             _wishes.Retain(_membership);
             _wishFx.Retain(_membership);
+            if (presentFollows) { _flushPendingInPresent = true; return; }
             // This also runs after Poll/Present, before rendering, so new observer handles
             // are visible immediately and removed handles leave no cosmetic residue.
             PresentLatestNpcs();
-            foreach(var fx in _pendingFx) PresentFx(fx);
-            _pendingFx.Clear();
+            FlushPendingFx();
             UpdateEffects();
             _actors.StepFades();
+        }
+        bool _flushPendingInPresent;
+        void FlushPendingFx()
+        {
+            _flushPendingInPresent = false;
+            foreach(var fx in _pendingFx) PresentFx(fx);
+            _pendingFx.Clear();
         }
         void UpdateFadeDemo(List<InterpActor> current, SelfView me)
         {
@@ -416,6 +449,7 @@ namespace Roguehalla.Client
 
         public void PresentCollections(CollectionsView collections)
         {
+            var pmCollections = PerfMarks.Begin();
             _used = 0; _inventory = collections != null ? collections.Inventory : null;
             if (collections == null) _wishFx.PresentAreas(null);
             if (collections != null)
@@ -503,6 +537,7 @@ namespace Roguehalla.Client
             for (int i = _used; i < _props.Count; i++) _props[i].gameObject.SetActive(false);
             _worldMarks.Update(collections, MarkVisible);
             _worldIndicators.Update(collections, _sourceTimeMs, _haveLocal, _localX, _localY, Time.unscaledTime, MarkVisible);
+            PerfMarks.End(PerfMarks.Sec.Collections, pmCollections);
         }
         /// <summary>The own Wish beside the name: 0 none (no faction Wish, or in the lobby), 1 ready, 2 recharging (legacy PlayerView.setWishIcon).</summary>
         int WishState(SelfView me)
@@ -702,7 +737,9 @@ namespace Roguehalla.Client
             _lastFollow = p; _hasFollow = true;
             _camCenter = cam.transform.position; _camHalf = cam.orthographic ? new Vector2(cam.orthographicSize * cam.aspect, cam.orthographicSize) : new Vector2(12, 9);
             UpdateLampVisibility(p);
+            var pmAtmos = PerfMarks.Begin();
             if (_atmos != null) _atmos.OnFollow(cam, Time.unscaledDeltaTime);
+            PerfMarks.End(PerfMarks.Sec.Atmosphere, pmAtmos);
             bool ambient = Quality.AmbientParticles && Quality.Particles > 0f;
             bool motion = ShowcaseSettings.Current == null || !ShowcaseSettings.Current.ReducedMotion;
             int moteLimit = ambient ? Mathf.Min(_motes.Count, Mathf.CeilToInt(_motes.Count * Mathf.Min(1f, Quality.Particles))) : 0;
