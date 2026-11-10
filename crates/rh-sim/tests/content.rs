@@ -153,6 +153,10 @@ const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
     ("rng.rs", "LEGACY_12", "test vector captured from the legacy generator"),
     ("rng.rs", "LEGACY_0", "test vector captured from the legacy generator"),
     ("schedule.rs", "CAP", "bound of the test-only schedule trace buffer; not a rule"),
+    ("vision/golden.rs", "BLOCKED_QUERIES", "sample count of the test-only sight golden generator (cfg(test)); never read by the simulation"),
+    ("vision/golden.rs", "REVEAL_ORIGINS", "sample count of the test-only sight golden generator (cfg(test)); never read by the simulation"),
+    ("vision/golden.rs", "REVEAL_SPAN", "tile window each reveal sample covers in the test-only sight golden generator; the rule itself is VISION_RADIUS in the registry"),
+    ("vision/golden.rs", "A", "base64 alphabet used to pack the golden file; an encoding table, not a rule"),
 ];
 
 /// Rules that are tables rather than scalar rows: they are folded by `content_hash` directly (see content.rs). As
