@@ -31,10 +31,23 @@ is active from the earlier expired demo.
 
 **Full Brain source update:** candidate `6aaa4c6d` is independently released and integrated as `5a5a28c6` + `8fa97f24`.
 Fresh pinned capture/coverage, semantic controls and strict reader/manifest reproduction pass; all244 protected files
-remain unchanged. The source is transferred to the narrow Hand worker as `90b191b3`. This closes the pending source
-review described below; full native composition and live activation remain open. The new
-[fair activation plan](backlog/packets/P-BOT-FAIR-ACTIVATION-1.md), committed at `10ddaac0`, inventories actual consumed
-facts and missing providers. It is undergoing independent plan review and authorizes no wire/publication change.
+remain unchanged. This closes the pending source review described below; full native composition and live activation remain open.
+The feature-aware Hand gate is independently admitted from `76f8a9aa` as `483c1490` + `2436ed80`:
+6 source profiles/12 operations, 8 focused tests, 13 reader controls and two real compiled mutation controls pass;
+the author full policy run passes228. Root verifies the complete integrated code/input/toolchain tree equals the
+tested worker tree, rather than claiming another execution. [Review](evidence/bot-hand-feature-review/preseal-review.md).
+The [fair activation plan](backlog/packets/P-BOT-FAIR-ACTIVATION-1.md) is independently reviewed at `10e9a901`;
+it inventories consumed facts and missing providers and authorizes no wire/publication change.
+
+**Current private composition work:** the [Brain plan review](evidence/bot-brain-native-plan-review/README.md)
+requires exact caller service/cache identity, all-command Memory.noteSent, Send-compatible persistent callbacks and
+mutable module-goal context before full native Brain dispatch. The independent borrowed path-allowance bridge is
+dispatched from `37403399` in isolated `backend-bot-path-budget`. Tactics' first completed candidate remains HOLD for
+same-entrypoint intake/nonadvance, specialized tagged-object order and direct-endpoint exactness; DeepSeek is repairing
+those concrete review findings. Root accepts its real private full-tier Reflexes variance because the old TierId-only
+component cannot represent resolved source overrides; old Reflex overlap remains required. Modules and Card continue
+under their existing leases. The test-only potion-fact candidate `aa05af1c` is sealed for independent review, not yet
+admitted. No full Brain or live bot activation is implied.
 
 ## Parallel backend completion lane (owner instruction, 2026-11-09 America/Edmonton)
 
