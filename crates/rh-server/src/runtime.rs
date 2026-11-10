@@ -16,12 +16,12 @@ pub struct Settings {
     pub max_rooms: usize,
     pub lobby_seconds: f64,
     pub fill_seconds: f64,
-    /// ADR0024 (P-HB-9): live runtimes play with the measured archetype hitboxes; `--hitboxes legacy` keeps the 12 u circle.
-    /// Every other configuration (tests, parity, headless, the core binary) stays `LegacyCircle`.
+    /// ADR0024 (P-HB-9): every runtime defaults to the legacy 12 u circle; `--hitboxes archetypes` opts in to the measured
+    /// boxes. The default flips only after the Unity client work and the balance verdict (DEVIATIONS rule 3).
     pub hitboxes: rh_sim::archetype::HitboxMode,
 }
 
-/// `--hitboxes legacy|archetypes` (default archetypes for a live runtime).
+/// `--hitboxes legacy|archetypes` (every caller passes `LegacyCircle` as the default today).
 pub fn hitboxes_flag(
     args: &[String],
     default: rh_sim::archetype::HitboxMode,
@@ -129,7 +129,7 @@ impl Settings {
             max_rooms: seats("--max-rooms", 16, 1, usize::MAX)?,
             lobby_seconds: seconds("--lobby-seconds", if training { 0. } else { 30. })?,
             fill_seconds: seconds("--fill-seconds", if training { 0. } else { 5. })?,
-            hitboxes: hitboxes_flag(args, rh_sim::archetype::HitboxMode::Archetypes)?,
+            hitboxes: hitboxes_flag(args, rh_sim::archetype::HitboxMode::LegacyCircle)?,
         };
         if training && (settings.lobby_seconds != 0. || settings.fill_seconds != 0.) {
             return Err("training requires zero lobby and fill seconds".into());
@@ -232,6 +232,23 @@ mod tests {
         assert_eq!(training.walk_hints, Some(true));
         assert!(training.training && training.dummies && !training.quests);
         assert_eq!(training.lifecycle, ArenaMode::Off);
+    }
+    #[test]
+    fn every_runtime_defaults_to_the_legacy_circle_and_archetypes_opt_in() {
+        use rh_sim::archetype::HitboxMode;
+        for args in ["--runtime source-arena --map x", "--runtime training"] {
+            let got = parse(args).unwrap().unwrap();
+            assert_eq!(got.sim().hitboxes, HitboxMode::LegacyCircle, "{args}");
+            let opted = parse(&format!("{args} --hitboxes archetypes"))
+                .unwrap()
+                .unwrap();
+            assert_eq!(opted.sim().hitboxes, HitboxMode::Archetypes, "{args}");
+            let legacy = parse(&format!("{args} --hitboxes legacy")).unwrap().unwrap();
+            assert_eq!(legacy.sim().hitboxes, HitboxMode::LegacyCircle, "{args}");
+            for bad in ["--hitboxes boxes", "--hitboxes", "--hitboxes=archetypes"] {
+                assert!(parse(&format!("{args} {bad}")).is_err(), "{args} {bad}");
+            }
+        }
     }
     #[test]
     fn source_maps_require_complete_valid_metadata() {
