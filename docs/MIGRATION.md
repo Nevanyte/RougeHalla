@@ -52,10 +52,18 @@ TierId-only component cannot represent resolved source overrides. Modules `0c6dc
 integrated as `721d04da`; all255 source histories/3259 operations,24 intake negatives,28 semantic controls,354 author
 library tests and required unchanged overlaps/lint/format pass at the sealed worker cut. The [final review](evidence/bot-private-modules-admission-review/README.md)
 verifies all36 manifest entries and the exact shared planning/Wish/hazard cores. Root's full combined policy test passes389/389 at `721d04da`, including all admitted bot dependencies; format and strict default/all-feature lint also pass. The unchanged release headless soak also passes five seeds twice each, up to6000ticks, with no panic and matching results; termination or truncation is accepted, using the existing HumanBot. The final [Brain interface review](evidence/bot-brain-composition-interfaces/README.md) is approved by Root; full private Brain implementation is dispatched from `c050d938` to `codex/deepseek-private-brain` in isolated `backend-bot-brain-native`, with exactly four existing-file interface hunks and new Brain paths. No native Brain pass or live activation is claimed.
-Card remains on its [bounded pre-seal capacity HOLD](evidence/card-bleed-native-review/final-review.md): separate private
-historical rows from the legacy512 non-Card bound, include accepted pending Card inventory, prepare all owned buffers
-cold and check actual u32 index representability. Its unchanged63-case ability source gate genuinely passed; only derived
-native tape/content refresh is separately authorized after final semantic changes pass that source gate again. The test-only potion-fact proof `aa05af1c` is independently admitted as `ae29dc1b`;
+Card is independently [released](evidence/card-bleed-native-review/admission-review.md), sealed by Root as `8d06e5e8`
+and integrated as `37a02542`. The exact58-file candidate closes the earlier capacity/privacy/strict-intake HOLDs;
+the three already-admitted NPC files deduplicate on integration, and the existing fighter-churn test registration is
+preserved. Author source7/390 ordinary steps and unchanged ability63 pass; full simulation exits0 with881 library
+passes/15 ignored and all integration targets green. Final test-only strengthening passes29 Card tests,28 projector
+tests and both separately executed allocation profilers; a real2104-output synthetic projection allocates0 blocks in
+the measured flush. Eight actual viewer reservations total31,597,536 bytes for the listed containers, including their
+legacy baseline, not a whole-process heap claim. The general capacity is approved; no smaller pristine estimate is
+claimed. Identity is14/30/24/22/16/content`fa16f195dc22ef69`; derived tape/pin refresh followed the genuine final-semantic
+source gate. An unverified standalone15.60s timing was withdrawn without changing raw evidence. Root's focused combined
+checks are running; the later hitbox/Unity union still needs distinct internal identities and its own gates.
+The test-only potion-fact proof `aa05af1c` is independently admitted as `ae29dc1b`;
 [Root's integrated focused check](evidence/bot-potion-fact-admission-review/README.md) passes5. It verifies same-sample
 Active owner healing eligibility, overlap/expiry, cleanup and mid-HOT restore, with explicit Ended and missing-inventory
 refusal; it does not establish a runner or all nonactive phases. No full Brain or live bot activation is implied. The next independently reviewed [quest Room-delivery proof](backlog/packets/P-QUEST-ROOM-DELIVERY-1.md)

@@ -36,12 +36,13 @@ are in [MIGRATION.md](../MIGRATION.md#morning-release-direction-owner-instructio
   `0085ff79`. Their real producer, diagnostic/direct-producer and comparison limits stay explicit. The independently reviewed [completion-through-Room/Outbox/decode proof](../backlog/packets/P-QUEST-ROOM-DELIVERY-1.md)
   is dispatched from `9ee84dfe` to isolated `backend-quest-room-delivery`; no literal181-record equality or browser proof is
   claimed. Future quest design is not invented by these architecture seams.
-- **Card feedback still under implementation/review:** source `570fe186` is independently released as `a9a6615e`
-  (7 histories/390 steps). NPC bleed restore is separately admitted as `dedb8658`. DeepSeek's Card worker at
-  `03ec330b` is closing the [cold-capacity HOLD](../evidence/card-bleed-native-review/final-review.md): private raw
-  history versus legacy512, accepted pending Card count, complete cold-owned buffers and real u32 ordinal domain.
-  The unchanged63-ability source gate passes after the repair; final full simulation/identity/evidence gates and
-  independent native seal review remain. The old21.5675MiB planning estimate is not a measured generic Full8 claim.
+- **Card feedback independently admitted:** Root sealed DeepSeek's exact58-file candidate as `8d06e5e8` and
+  integrated it as `37a02542`; [final review](../evidence/card-bleed-native-review/admission-review.md) closes the
+  historical capacity/privacy/strict-intake HOLDs. Author full simulation exits0 (881 library passes/15 ignored,
+  all integration targets green); final focused29 Card/28 projector and separately executed allocation controls pass.
+  Source7/390 steps and ability63 remain unchanged. The real2104-output synthetic flush measures0 allocation blocks;
+  eight-viewer actual reservations are accounted separately from planning and total live heap. Root's integrated
+  focused checks are running. NPC deduplicates; no Unity/wire16 union or hosted acceptance is implied.
 - **Release remains separate:** backend/Unity composition, actual final browser acceptance, reports/licences,
   exact runtime/artifacts, Opus review and authorized AWS test deployment follow the owner window above. No complete
   port, full private bot activation, final performance or hosted release is implied by these component checks.

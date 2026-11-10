@@ -14,6 +14,16 @@ revision; [sweep/README.md](sweep/README.md) says which (H-sim and H-server-2 ha
 
 ### Parallel backend lane admission (2026-11-10)
 
+Card bleed feedback is independently released from exact worker seal `8d06e5e8` and integrated as `37a02542`.
+The [admission review](evidence/card-bleed-native-review/admission-review.md) binds source7 histories/390 ordinary
+steps, unchanged ability63, full simulation881/0/15 ignored plus all integration targets, final29 Card/28 projector
+checks and separately run scoped allocation profilers. C-TICK retains the actual producer/periodic/run-end/reset
+order. C-OBS keeps raw tagged B3 totals server-only, applies settled entitlement and redaction before grouping/errors,
+and publishes checked finite existing Hit events with no partial failure output. Accepted history grants no fresh
+viewer entitlement; legacy512 non-Card and checked Q+T0 history bounds remain separate. C-DET now identifies
+protocol14/checkpoint30/replay24/OBS22/policy16/content`fa16f195dc22ef69` on this isolated lane. Root's combined checks
+and the later primary/hitbox union are separate; no final client, hosting or complete-port acceptance is implied.
+
 On isolated `codex/backend-gameplay-quests`, the reviewed Grand Tour stored-mask repair is integrated as `8a11520d` +
 `56843a8e`, from DeepSeek seals `4fb5714e` + `36564c33`. C-PARITY includes both actual-source supply outcomes, intended
 opposite pre-fix failures, repaired Source-profile consumers and retained real rewards/ordered notices. C-DET identifies
