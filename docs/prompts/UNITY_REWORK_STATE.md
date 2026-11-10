@@ -98,6 +98,12 @@ Nothing is called done until the coordinator has seen it in a real browser build
 - [ ] Licences: ledger complete; every notice in the build; EmojiOne resolved; audio attributions shipped.
 - [ ] Gate 2 and Gate 3 reports written; `optimization_port` merged into the branch and re-verified; owner approves Gate 3; merge (squash); Opus final review of the combined tree against the real deploy command.
 
+## Deferred to a later development cycle (owner decisions, 2026-11-10)
+Carry these into the Gate 3 report and the handback note; do not build them now.
+- **Bot stand-off (owner: "note it as a later wanted change").** Fill bots run onto their target's exact position and chase it (no fighter-to-fighter collision), so a melee bot overlaps the player and reads as a doubled model (measured: a bot within 3-4 u of the hero seconds after match start in 3 of 5 probe runs). Wanted later: bots stop at about weapon reach. It is a bot-brain change (`crates/rh-policy/src/bots`, backend lane), to be done like mob spacing: Archetypes mode only, legacy parity untouched, independent review. Bots keep overlapping for the beta.
+- **Second-tier indicators (owner: "can be delayed until later. For now an emoji or simply copying old indicators will suffice for beta").** No server work for B14-B19 (quest carrier flag, camp buff badge, camp patience outline, camp wards, champion HUD attack/passive numbers, own mob bonuses). For the beta: simple client-side stand-ins where the client already has the data, otherwise leave the row out cleanly; the HUD must not print "not delivered".
+- **Server-side lingering tracks** (ADR 0025, design only): tracks stay client-side for now.
+
 ## Defects found by the coordinator on the merged build (not yet assigned unless stated)
 - Audio: match start always requests `music_fire.mp3`, `amb_fire.mp3`, `music_coliseum.mp3` whatever the spawn zone (initial region defaults before `LocalRegion` is known); the region audio code (`AtmosphereAudio.cs`: `clip.length` on a clip still loading, `Play()` retried while not playing) produces repeated `FMOD returns error code 78 ... getSystemObject / getSoftwareFormat` and "Trying to get length of sound which is not loaded yet" log lines (103 triples in one 25 s run).
 - Contrast (SUPERSEDED by the lab baseline: the gate fails everywhere under the strict statistic; see `rework/contrast`): Plague-faction character on Plague grass measured 2.83 to 2.89:1 at the edge (`d-plague-plague` capture); `f-plague-border-03` 2.91. Gate is 3:1.
