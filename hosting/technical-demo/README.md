@@ -126,10 +126,13 @@ the fill target is eight total players, normally one human plus seven bots.
 The first seat sets the 10-second lobby deadline; reaching the one-human minimum
 shortens it to at most three remaining seconds, with missing bots filled before
 lobby close. Training remains solo/immediate with no bots and one room. Both
-retain `--bot-learning off`. No gameplay edits or unsupported `--hitboxes` flag
-are added to the current protocol14 runtime. After Claude handoff, Root must
-validate the final exact-tree runtime, exported map, flags and merged hitbox
-defaults against the reviewed artifact; this preparation is not that proof.
+retain `--bot-learning off`. These launch scripts do not pass a `--hitboxes`
+override. The current integration runtime is still protocol 14; it does not gain
+that parser option until the reviewed union is integrated. The incoming primary
+protocol-16 runtime implements `--hitboxes` overrides and defaults live Source
+and Training to Archetypes, while bare-core `SimConfig` remains LegacyCircle.
+After union, verify the parser, live default, exported map and flags against the
+exact combined binary and reviewed artifact; this preparation is not that proof.
 Source starts first (its
 normal migrations), then Training. Caddy is started only after both actual
 `/readyz` objects report ok/ready/storage-ok and both `/info` objects match the

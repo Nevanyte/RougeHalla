@@ -79,8 +79,9 @@ The current checkpoint above supersedes the pending/active language in this orig
 **Current worker assignments (2026-11-10):** DeepSeek's complete private Brain remains active in
 `backend-bot-brain-native` (base `c050d938`). Card and Quest Room workers are complete and independently admitted as
 `37a02542` and `63dbe68a`; their Root integration checks pass. Memory, Strategy, Tactics, Modules, Hand, PathBudget,
-Potion proof, quest notices and NPC restore are also integrated. Sol/Luna review the isolated Unity/backend preflight
-plan and release preparation; it will use fixed commits without modifying Claude's checkout. Workers retain Workspace
+Potion proof, quest notices and NPC restore are also integrated. DeepSeek's isolated Unity/backend preflight is
+visibly running after12:03UTC dispatch, on backend`cf9a4a9e` with intentional uncommitted merge of fixed primary
+`bb0c1cad`. Sol/Luna review the candidate and release preparation without modifying Claude's checkout. Workers retain Workspace
 Write and isolated targets. No worker may communicate with Claude before17:30UTC/10:30am Edmonton.
 
 - **Root:** select current base and feature order; decide fair-publication facts, public identities and whether a card FX can use existing encoding; review isolated DeepSeek changes; update only shared `MIGRATION.md`, `CONTRACTS.md`, and `Cargo.lock` when required.

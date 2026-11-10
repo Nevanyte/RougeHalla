@@ -17,8 +17,9 @@ browser/build evidence, final tests/licences, both reports or the final **Opus**
 Claude consuming it and rerunning the final client/server gates, then a squash of the completed Unity work and Opus
 review of the exact combined runtime/map/flags before AWS activation. No final release or Opus pass is claimed yet.
 
-Root is preparing an [independently reviewed isolated preflight](backlog/packets/P-BACKEND-UNITY-PREFLIGHT-1.md)
-before that handoff window, using fixed backend/primary commits in a separate worktree. It resolves version/merge
+Root has dispatched the [independently reviewed isolated preflight](backlog/packets/P-BACKEND-UNITY-PREFLIGHT-1.md)
+to DeepSeek in `backend-unity-preflight` at12:03UTC, before that handoff window. The intentional uncommitted merge
+uses backend`cf9a4a9e` and fixed primary`bb0c1cad`; the worker is visibly running, with no acceptance result yet. It resolves version/merge
 seams and exercises the real NPC bleed, Card flush and Quest Room flows with Archetypes while retaining legacy
 source gates. It does not modify Claude's checkout, contact him early, merge into canonical branches, build Unity,
 or authorize release. Final primary drift, shared artifacts and all release gates are still reconciled after17:30UTC.
