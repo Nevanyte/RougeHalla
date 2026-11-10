@@ -409,3 +409,71 @@ fn the_disc_footprint_path_is_the_radius_path_bit_for_bit() {
     }
     assert!(boxed_differs > 0, "the foot box changes some paths");
 }
+
+/// Review finding 2: an attacker standing inside the target's body box (the raised origin is inside it) is resolved with
+/// the legacy arc test against the target's feet, so the facing-independent zone is legacy's 12 u disc and a swing aimed
+/// south does not hit a target 20, 30 or 34 u north of the attacker (directly behind). In front, at the same distances,
+/// it hits.
+#[test]
+fn melee_misses_a_target_behind_the_attacker_inside_its_box() {
+    let map = practice_arena().map;
+    let at = open_spot(&map, sword_reach() + 90.0);
+    let swing = |aim: f64, target: Vec2| {
+        let ps = [
+            placement(1, FactionId::Fire, at, Some(WeaponId::Sword)),
+            placement(2, FactionId::Sentenced, target, None),
+        ];
+        let mut s = world(HitboxMode::Archetypes, &ps);
+        hit(&attack(&mut s, aim), 2)
+    };
+    for d in [20.0, 30.0, 34.0] {
+        let north = Vec2::new(at.x, at.y - d);
+        let south = Vec2::new(at.x, at.y + d);
+        assert!(!swing(S, north), "aim south, target {d} u north (behind)");
+        assert!(!swing(N, south), "aim north, target {d} u south (behind)");
+        assert!(swing(N, north), "aim north, target {d} u north (in front)");
+        assert!(swing(S, south), "aim south, target {d} u south (in front)");
+    }
+}
+
+/// Review finding 2: sweeping a hero target straight out in front of a hero attacker, north and south, the hit set is one
+/// interval [0, reach + 35] with no flip at the box boundary (35 u, where the legacy test hands over to the box test),
+/// and the same both ways; straight behind, only legacy's 12 u disc hits, in both modes.
+#[test]
+fn melee_boundary_sweep_has_no_flip_and_is_even_north_and_south() {
+    let map = practice_arena().map;
+    let reach = sword_reach();
+    let at = open_spot(&map, reach + 90.0);
+    let hero_by = 35.0;
+    for (aim, back, sign) in [(N, S, -1.0), (S, N, 1.0)] {
+        let mut d = 0.0;
+        while d <= reach + hero_by + 4.0 {
+            let target = Vec2::new(at.x, at.y + sign * d);
+            let ps = [
+                placement(1, FactionId::Fire, at, Some(WeaponId::Sword)),
+                placement(2, FactionId::Sentenced, target, None),
+            ];
+            let mut s = world(HitboxMode::Archetypes, &ps);
+            assert_eq!(
+                hit(&attack(&mut s, aim), 2),
+                d <= reach + hero_by,
+                "in front, aim {aim}, d {d}"
+            );
+            if d <= 60.0 {
+                for mode in [HitboxMode::Archetypes, HitboxMode::LegacyCircle] {
+                    let mut s = world(mode, &ps);
+                    assert_eq!(
+                        hit(&attack(&mut s, back), 2),
+                        d <= PLAYER_RADIUS,
+                        "{mode:?} behind, aim {back}, d {d}"
+                    );
+                }
+            }
+            d += if (hero_by - 3.0..=hero_by + 3.0).contains(&d) {
+                0.5
+            } else {
+                3.0
+            };
+        }
+    }
+}
