@@ -3,7 +3,7 @@
 // Real-browser measurement of the attack pause mirror (docs/rework/RANGED_PAUSE_PREDICTION.md): the local player walks and shoots with a
 // bow or a wand, and the pull-back the server forces on the predicted walk is read from the opt-in latency trace (window.__rhLatency).
 //
-//   node client-unity/UnityProject/Tools/pause-proof.cjs --weapon 2 --predict 1 --shots 24 [--runtime arena|training]
+//   node client-unity/UnityProject/Tools/pause-proof.cjs --weapon 2 --predict 1 --shots 24 [--runtime arena|fp|training]   (fp: the --first-playable server, Holy only, weapons on the floor)
 //        [--url http://127.0.0.1:8297/] [--ws ws://127.0.0.1:7997/ws] [--faction 0..4] [--out /tmp/pause-proof] [--rtt 0]
 //
 // weapon: 1 bow, 2 wand. predict: 1 is the build's default, 0 loads the page with ?pausepredict=0 (loopback diagnostics only), which is the
@@ -47,9 +47,9 @@ function launchGeometry(w, h) {
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
   await page.addInitScript(() => { window.__rhLatency = { events: [], recording: true }; });
   const profile = `pz${weaponWanted}${predict ? 'p' : 'n'}${Math.random().toString(36).slice(2, 8)}`.slice(0, 16);
-  let q = `?profile=${profile}&faction=${faction}&scenario.probe=1&fx.quality=low&diagnostic=1&token=t1&pausepredict=${predict ? 1 : 0}`;
-  if (runtime === 'training') q += `&accountApi=${encodeURIComponent(new URL(ws).origin.replace('ws:', 'http:') + '/api')}&trainingServer=${encodeURIComponent(ws)}&server=${encodeURIComponent(ws)}&auto=0`;
-  else q += `&server=${encodeURIComponent(ws)}&auto=1`;
+  let q = `?profile=${profile}&faction=${faction}&scenario.probe=1&fx.quality=low&pausepredict=${predict ? 1 : 0}`;
+  if (runtime === 'training') q += `&accountApi=${encodeURIComponent(new URL(ws).origin.replace('ws:', 'http:') + '/api')}&trainingServer=${encodeURIComponent(ws)}&server=${encodeURIComponent(ws)}&auto=0`; // the practice page is an ordinary page (training is refused in diagnostic mode)
+  else q += `&diagnostic=1&token=t1&server=${encodeURIComponent(ws)}&auto=1`;
   await page.goto(base + q, { waitUntil: 'load' });
   await page.waitForSelector('canvas', { timeout: 120000 });
   await sleep(10000);
@@ -63,7 +63,7 @@ function launchGeometry(w, h) {
   if (runtime === 'training') {
     const g = launchGeometry(W, H);
     await page.mouse.click(g.training.x, g.training.y, { delay: 80 });
-  } else {
+  } else if (runtime === 'arena') {
     await page.keyboard.press('1'); await sleep(600);
     const s = legacyScale(W, H), uiW = W / s, uiH = H / s;
     const pSide = Math.min(780, Math.max(260, Math.floor(Math.min(uiH - 44 - 12 - 124, uiW - 340 - 24 - 12 - 8))));
@@ -73,7 +73,8 @@ function launchGeometry(w, h) {
   }
   let p = null;
   for (let i = 0; i < 360 && !(p && p.me && p.session !== false && p.state === 'InMatch'); i++) { await sleep(250); p = await probe(); }
-  if (!p || !p.me) throw new Error('never reached the match: ' + JSON.stringify(p && { state: p.state }));
+  if (!p || !p.me) await page.screenshot({ path: path.join(out, 'not-in-match.png') });
+  if (!p || !p.me) throw new Error('never reached the match: ' + JSON.stringify(p && { state: p.state, session: p.session, training: p.training, ui: (p.ui || []).map(u => u.n).slice(0, 20) }));
   console.log(`in match: state ${p.state} me ${JSON.stringify({ x: p.me.x, y: p.me.y, weapon: p.me.weapon })} props ${(p.props || []).filter(z => z.kind === 1).length} weapon props`);
   await sleep(2500);
 
@@ -86,11 +87,12 @@ function launchGeometry(w, h) {
   };
   // Equip: walk onto a ground weapon of the wanted kind and take it with F.
   let equipped = false;
-  for (let attempt = 0; attempt < 40 && !equipped; attempt++) {
+  for (let attempt = 0; attempt < 60 && !equipped; attempt++) {
     p = await probe(); if (!p || !p.me) { await sleep(300); continue; }
     if (p.me.weapon === weaponWanted) { equipped = true; break; }
     const prop = (p.props || []).filter(z => z.kind === 1 && z.weapon === weaponWanted).map(z => ({ z, d: Math.hypot(z.x - p.me.x, z.y - p.me.y) })).sort((a, b) => a.d - b.d)[0];
-    if (!prop) { await keyWalk([['d', 's', 'a', 'w'][attempt % 4]], 1200); continue; }
+    if (!prop) { if (attempt % 5 === 0) console.log(`  searching: me (${p.me.x.toFixed(0)}, ${p.me.y.toFixed(0)}) weapon props in view ${JSON.stringify((p.props || []).filter(z => z.kind === 1).map(z => z.weapon))}`); await keyWalk([['d', 'd', 's', 's', 'a', 'a', 'a', 'a', 'w', 'w', 'w', 'w', 'd', 'd'][attempt % 14]], 1500); continue; }
+    console.log(`  going for ${WEAPON[weaponWanted]} at (${prop.z.x}, ${prop.z.y}), ${prop.d.toFixed(0)} u away`);
     for (let i = 0; i < 14; i++) {
       const pp = await probe(); const near = (pp.props || []).find(z => z.kind === 1 && Math.hypot(z.x - prop.z.x, z.y - prop.z.y) < 6);
       if (!near || Math.hypot(near.x - pp.me.x, near.y - pp.me.y) < 44) break;
