@@ -1,0 +1,112 @@
+{
+  "utc": "2026-11-10T06:59:28.201976+00:00",
+  "reviewWorktree": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-strategy-native-review",
+  "head": "71fa0d35b9dc82404d2f3f6c88cec7ad3d218445",
+  "nativeCode": "8baad8f583512213679d38372c3cc8911c793401",
+  "initialImplementation": "f8dad023937d28f6716e426d86a95e4566c5da2a",
+  "base": "d21552d34966cd4a3ffd10d931b3543c269cf5d2",
+  "gitStatus": "",
+  "reviewerExecutedNativeTests": false,
+  "files": [
+    {
+      "path": "crates/rh-policy/src/bots/temporal_percept.rs",
+      "bytes": 27268,
+      "sha256": "676a7c68add46df0d919f2a5dab83086a4a0e2bdf934874d69b742f95ba3044a"
+    },
+    {
+      "path": "crates/rh-policy/src/bots/temporal_percept/memory.rs",
+      "bytes": 62184,
+      "sha256": "3a9a156ac24843f84eb5667ac7c7fa5e3c37abd706b63b277b884a33973fa8b8"
+    },
+    {
+      "path": "crates/rh-policy/src/bots/temporal_percept/strategy.rs",
+      "bytes": 502,
+      "sha256": "edb07eb0dfe82213a3f7b9758e086168a01d6a6ce212cfc2f2df0dfc3833e959"
+    },
+    {
+      "path": "crates/rh-policy/src/bots/temporal_percept/strategy/build_route.rs",
+      "bytes": 9595,
+      "sha256": "2ba16118de88401b51ec361961bb71820d77f613702daba9516ef9117628dc71"
+    },
+    {
+      "path": "crates/rh-policy/src/bots/temporal_percept/strategy/engine.rs",
+      "bytes": 60051,
+      "sha256": "4405443ded72e4b83fbb4f4426dc60a37db2cef000204e08657520822c21fa35"
+    },
+    {
+      "path": "crates/rh-policy/src/bots/temporal_percept/strategy/hunt_adapter.rs",
+      "bytes": 10496,
+      "sha256": "1d91eda1dfd63e7dd5e4bf578ba556e7fead99f34f9657b3e0a48847195de96a"
+    },
+    {
+      "path": "crates/rh-policy/src/bots/temporal_percept/strategy/mob_hunt.rs",
+      "bytes": 18372,
+      "sha256": "f262db9c2bf0a90cfb19dccf36403436cadf7326ea178532ed7dd15ffed1907d"
+    },
+    {
+      "path": "crates/rh-policy/src/bots/temporal_percept/strategy/private_strategy_tests.rs",
+      "bytes": 25154,
+      "sha256": "f41f3478eb61356c36cdf65fd7dd1d8513d21163b8c68dfd9607bab2fc6f55c1"
+    },
+    {
+      "path": "crates/rh-policy/src/bots/temporal_percept/strategy/source_reader.rs",
+      "bytes": 14719,
+      "sha256": "b8c4f5f22ae25bf3db4b06e17f0e2ab08f5ae1dc2f9fec56c8db4d6b1579a1b1"
+    },
+    {
+      "path": "crates/rh-policy/src/bots/temporal_percept/strategy/source_tests.rs",
+      "bytes": 110227,
+      "sha256": "a07056dfc5688bed78951b0429c3afa5298319769c75bb31c8ad03abf63aeffb"
+    },
+    {
+      "path": "crates/rh-policy/src/bots/temporal_percept/strategy/types.rs",
+      "bytes": 20857,
+      "sha256": "974668810608f7c61f87f98f15a5cf630e3304cd7ce1d01870554b80746114fd"
+    },
+    {
+      "path": "parity/policy/bot-private-strategy/source.json",
+      "bytes": 12263237,
+      "sha256": "3a3ae0d498cc3933b5eee11c5be995f267f4a76530379ad7c73a934082125d8d"
+    },
+    {
+      "path": "parity/policy/bot-private-strategy/coverage.json",
+      "bytes": 1981587,
+      "sha256": "a560ee78a81e9f851933aafda5d42fe566a0e72d346d74f51d15a1a1890d6e12"
+    },
+    {
+      "path": "parity/policy/bot-private-strategy/controls.json",
+      "bytes": 8143,
+      "sha256": "ad9b789f8c40c922ac221c6e5eef7a483037383d23b3b8624b6fea774fd4877b"
+    },
+    {
+      "path": "parity/policy/bot-module-goal-key/source.json",
+      "bytes": 1004072,
+      "sha256": "32836e03d47993fceec22fc7fb648e937d01b3e9b221da9499ea9e99d31efc0c"
+    },
+    {
+      "path": "parity/policy/bot-module-goal-key/controls.json",
+      "bytes": 2121,
+      "sha256": "363d55cec2c42233249e920545863f0e749f5ddb2e0fc9b7e58816c4f6c81f4e"
+    },
+    {
+      "path": "docs/evidence/bot-private-strategy-native/source-six-final.log",
+      "bytes": 1267,
+      "sha256": "1dca466079cedecb745b76bb3bdce708baea7261178288718356ddb6ba11f06e"
+    },
+    {
+      "path": "docs/evidence/bot-private-strategy-native/focused-strategy.log",
+      "bytes": 2006,
+      "sha256": "8430c1970e900b587d8687b1a0067d91591cb68b20b24694ee3dd703ca67ede1"
+    },
+    {
+      "path": "docs/evidence/bot-private-strategy-native/private-strategy-final.log",
+      "bytes": 7875,
+      "sha256": "779d9eb7165950c477195b79b3295226ce2f20f603fe80223365b4681f687b79"
+    },
+    {
+      "path": "docs/evidence/bot-private-strategy-native/memory-final-regression.log",
+      "bytes": 4575,
+      "sha256": "29cd87adb3d99ea53797dbe98f98a7f566c01d0aeb488924b284facf8b3264de"
+    }
+  ]
+}
