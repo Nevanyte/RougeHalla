@@ -21,6 +21,7 @@ All under `/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/`. Remov
 | `rework-hitbox` | `rework/hitbox` | Opus | ADR 0024 packets P-HB-0..6 and the P-HB-9 server flag (Rust, protocol 16, C#/JS codecs) | running |
 | `rework-sim-crash` | `rework/sim-crash` | Opus | reproduce headlessly and fix the second room panic (`state.rs:1149`, stale fighter index), audit the family, regression tests | running |
 | `rework-wish-fx` | `rework/wish-fx` | Sonnet | animation and VFX for the five Wishes (Freeze, Swarm, Trial, Blaze Step, Last Stand), HUD Wish tile, SFX (ports 7857/8157) | running |
+| `rework-vision` | `rework/vision` | Sonnet | fog of war mirroring the Rust sight rule (golden vectors `sight_v1.json`), fade on leaving/entering sight, minimap/Tab map visibility (ports 7867/8167) | running |
 | `rework-atmosphere` | `rework/atmosphere` | Sonnet | region lighting/post, snow and other screen particles, per-region music from StreamingAssets, `AtmosphereQuality` switchboard (ports 7827/8127) | running |
 
 Merged and removed: `rework/controls` (`73f3df89`), `rework/hud`, `rework/skin`, `rework/regions`, `rework/perf` (`29fc2045`), `rework/map-hud` (Tab map, zone tint, right-click minimap walk, crisp icons; EditMode 311/311, C# 1021), `rework/launch` (launch screen + hub; EditMode 340/340 on its branch, C# 1022). Launch weak spots for a later UI pass: shop/wardrobe/progress/guide panels still old look; results panel never captured; room empty at 2560; reshoot after the shortened other-site message.
@@ -84,6 +85,8 @@ Further owner messages (same day), all relayed to the agents named:
 
 - Tuning: Plague greens darker (deep fern/moss); Sentenced tiles black/dark grey, not light grey; character-versus-ground contrast is a hard requirement in every zone (outline + rim, measured per region). -> atmosphere agent.
 - Wishes need animation (missed in the plan): find assets or build them. -> `rework/wish-fx`. Added to `UNITY_REWORK_FABLE.md` scope.
+
+- Vision: characters pop out of sight in one frame behind walls and nothing on screen shows line of sight. Owner wants a fog of war aligned with the Rust vision system and a subtle exit from vision. -> `rework/vision`. Rust: `VISION_RADIUS` 900 u, `sight.rs`/`vision.rs`/`observe.rs`; legacy `RaidVision.ts`. If vision parameters need to reach the client, add them to Welcome inside the protocol 16 bump (after `rework/hitbox` merges), not as a second bump.
 
 ## Facts found while orienting (differ from the prompt's section 3)
 - The full five-region map is **160 x 160**, not 136 x 136: `crates/rh-sim/src/mapdata/fixtures/seed1.map.json` and `seed2.map.json` (rh-map/2, 4,936 tiles per region, 50 camps, terrain kinds 1-7, 86 features). Serve with `rh-server --runtime source-arena --map <file>`.
