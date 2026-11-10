@@ -14,7 +14,7 @@ namespace Roguehalla.Client
     public sealed class SurfaceFxMesh
     {
         [StructLayout(LayoutKind.Sequential)]
-        struct V { public Vector3 P; public Vector2 Uv; public Vector4 A; public Vector4 B; public Vector2 Sun; public Color32 C; }
+        struct V { public Vector3 P; public Color32 C; public Vector2 Uv; public Vector4 A; public Vector4 B; public Vector2 Sun; }   // Unity's fixed attribute order: position, colour, then texcoords
 
         readonly Mesh _mesh;
         readonly MeshRenderer _renderer;
@@ -40,11 +40,11 @@ namespace Roguehalla.Client
             _mesh = new Mesh { name = name }; _mesh.MarkDynamic();
             _mesh.SetVertexBufferParams(capacity * 4,
                 new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3),
+                new VertexAttributeDescriptor(VertexAttribute.Color, VertexAttributeFormat.UNorm8, 4),
                 new VertexAttributeDescriptor(VertexAttribute.TexCoord0, VertexAttributeFormat.Float32, 2),
                 new VertexAttributeDescriptor(VertexAttribute.TexCoord1, VertexAttributeFormat.Float32, 4),
                 new VertexAttributeDescriptor(VertexAttribute.TexCoord2, VertexAttributeFormat.Float32, 4),
-                new VertexAttributeDescriptor(VertexAttribute.TexCoord3, VertexAttributeFormat.Float32, 2),
-                new VertexAttributeDescriptor(VertexAttribute.Color, VertexAttributeFormat.UNorm8, 4));
+                new VertexAttributeDescriptor(VertexAttribute.TexCoord3, VertexAttributeFormat.Float32, 2));
             _mesh.SetIndexBufferParams(capacity * 6, IndexFormat.UInt16);
             _mesh.subMeshCount = 1;
             _mesh.bounds = new Bounds(Vector3.zero, new Vector3(100000f, 100000f, 10f));

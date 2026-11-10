@@ -56,7 +56,9 @@ namespace Roguehalla.Client
         {
             var root = new GameObject("Surface effects").transform; root.SetParent(arena.transform, false);
             var fx = new SurfaceFx(root, (x, y) => arena.Surfaces.SurfaceAtServer(x, y));
-            try { DebugLog = Application.absoluteURL != null && Application.absoluteURL.Contains("surfacefx=1"); } catch (Exception) { }
+            string url = ""; try { url = Application.absoluteURL ?? ""; } catch (Exception) { }
+            DebugLog = url.IndexOf("surfacefx=1", StringComparison.OrdinalIgnoreCase) >= 0;
+            Debug.Log("[surfacefx] ready debug=" + DebugLog + " urlLength=" + url.Length);
             Current = fx;
             return fx;
         }
@@ -86,6 +88,7 @@ namespace Roguehalla.Client
 
         void ApplyQuality()
         {
+            if (_root == null) { AtmosphereQuality.Changed -= ApplyQuality; return; }   // the arena that owned this was destroyed
             _tracks.SetCap(AtmosphereQuality.SurfaceTrackCap);
             _fluids.SetCap(AtmosphereQuality.SurfaceRipples ? AtmosphereQuality.SurfaceFluidCap : 0);
         }
