@@ -84,6 +84,7 @@ void RhLocalLights(float2 pt, float3 n, float gloss, float shin, float shadowAmt
         float4 lc = _RhLC[i];
         float a2 = saturate((1.0 - dScr / lp.w) * 1.3);
         float att = a2 * a2 * (3.0 - 2.0 * a2);
+        if (att < 0.012) continue;                       // the faint rim of a light: not worth a shadow trace or a cookie
         float3 ln = normalize(float3(dv, lp.z));
         float diff = clamp(1.0 + (dot(n, ln) - ln.z) * relief, 0.3, 1.7);
         float cid = floor(lc.a);

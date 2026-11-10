@@ -99,6 +99,14 @@ Shader "Roguehalla/RegionSpriteLit"
                 InitializeSurfaceData(main.rgb, main.a, half4(0, 0, 0, 0), half3(0, 0, 1), surfaceData);   // mask 0: see RegionLitMesh.shader
                 InitializeInputData(i.uv, i.lightingUV, inputData);
                 half4 lit = CombinedShapeLightShared(surfaceData, inputData);
+                // Emissive paint: bright, saturated pixels (lantern glass and flame, crystals, vents, glowing fungus) glow a little on their own, so they carry
+                // the bloom threshold at night; white snow and pale stone are not saturated and stay as they are.
+                [branch] if (_RhLI.x > 0.5)
+                {
+                    float mx = max(albedo.r, max(albedo.g, albedo.b)), mn = min(albedo.r, min(albedo.g, albedo.b));
+                    float em = smoothstep(0.62, 0.92, mx) * smoothstep(0.32, 0.62, (mx - mn) / max(mx, 0.01));
+                    lit.rgb += albedo * em * 0.55 * main.a;
+                }
                 [branch] if (_RhLI.x > 0.5)
                 {
                     float2 pt = float2(i.world.x, -i.world.y / _RhMapInfo.z);

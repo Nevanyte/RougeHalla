@@ -69,7 +69,7 @@ namespace Roguehalla.Client
         readonly Bank[] _banks = { new Bank(), new Bank() };
         readonly List<Object> _owned = new List<Object>();
         Transform _root; int _active = -1; ParticlePresetId _desired = ParticlePresetId.None;
-        bool _raysApplied = true;
+        bool _raysApplied = true, _windApplied = true;
         float _density = 1f, _gustClock, _camHalfW = 13f, _camHalfH = 9f;
 
         public ParticlePresetId Desired { get { return _desired; } }
@@ -200,7 +200,7 @@ namespace Roguehalla.Client
         {
             var target = AtmosphereQuality.ParticlesEnabled ? _desired : ParticlePresetId.None;
             var current = _active >= 0 && _banks[_active].Active ? _banks[_active].Preset : ParticlePresetId.None;
-            if (target == current && _active >= 0 && _banks[_active].Active && _raysApplied == AtmosphereQuality.Rays)
+            if (target == current && _active >= 0 && _banks[_active].Active && _raysApplied == AtmosphereQuality.Rays && _windApplied == AtmosphereQuality.Wind)
             {   // same preset: only density may have changed
                 var bank = _banks[_active]; var specs = ParticlePresets.Get(target); bank.Target = 1f;
                 for (int i = 0; i < specs.Length; i++) if (bank.Layers[i].InUse) { var main = bank.Layers[i].Ps.main; main.maxParticles = Mathf.Max(1, ParticlePresets.LayerBudget(specs[i], _density)); var em = bank.Layers[i].Ps.emission; em.rateOverTime = specs[i].Rate * Mathf.Min(_density, AtmosphereQuality.MaxParticleDensity); }
@@ -214,13 +214,13 @@ namespace Roguehalla.Client
             for (int i = 0; i < ParticlePresets.MaxLayers; i++) ReleaseLayer(nb.Layers[i]);
             var layers = ParticlePresets.Get(target);
             float longest = 0f;
-            for (int i = 0; i < layers.Length; i++) { if (layers[i].Texture == "shaft" && !AtmosphereQuality.Rays) continue; Configure(nb, nb.Layers[i], layers[i], i); longest = Mathf.Max(longest, layers[i].LifeMax); }
+            for (int i = 0; i < layers.Length; i++) { if ((layers[i].Texture == "shaft" && !AtmosphereQuality.Rays) || (layers[i].WindDriven && !AtmosphereQuality.Wind)) continue; Configure(nb, nb.Layers[i], layers[i], i); longest = Mathf.Max(longest, layers[i].LifeMax); }
             for (int i = 0; i < layers.Length; i++)
             {
                 if (!nb.Layers[i].InUse) continue;   // prewarm so the layer is already full as it fades in
                 nb.Layers[i].Ps.Simulate(longest * .9f, false, true, true); nb.Layers[i].Ps.Play(false);
             }
-            _raysApplied = AtmosphereQuality.Rays; nb.Preset = target; nb.Active = true; nb.Target = 1f; nb.Alpha = instant ? 1f : 0f; nb.AppliedAlpha = -1f; SetBankAlpha(nb, nb.Alpha);
+            _raysApplied = AtmosphereQuality.Rays; _windApplied = AtmosphereQuality.Wind; nb.Preset = target; nb.Active = true; nb.Target = 1f; nb.Alpha = instant ? 1f : 0f; nb.AppliedAlpha = -1f; SetBankAlpha(nb, nb.Alpha);
             _active = idle;
         }
 

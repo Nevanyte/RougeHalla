@@ -283,6 +283,41 @@ namespace Roguehalla.Client.Tests
             sparks.Hit(Vector3.zero, true, ref rng); Assert.Greater(sparks.Live, 0, "sparks are a separate switch"); Assert.AreEqual(0, LocalLightField.LiveFlashes);
         }
 
+        // ---- falling leaves ride the wind switch ----------------------------------------------------------------------------------------------
+        [Test] public void FallingLeavesExistInPlagueAndHolyAndFollowTheWindSwitch()
+        {
+            foreach (var id in new[] { ParticlePresetId.Spores, ParticlePresetId.Pollen })
+            {
+                bool any = false; foreach (var l in ParticlePresets.Get(id)) if (l.WindDriven) { any = true; Assert.AreEqual("chaff", l.Texture); Assert.IsFalse(l.AboveActors, "leaves never fall over characters"); }
+                Assert.IsTrue(any, id + " has leaves"); Assert.LessOrEqual(ParticlePresets.Layers(id), ParticlePresets.MaxLayers);
+            }
+            int on = ParticlePresets.Budget(ParticlePresetId.Spores, 1f);
+            AtmosphereQuality.SetUrl("http://x/?fx.wind=0"); AtmosphereQuality.ApplyPreset(ShowcaseQuality.Ultra, false);
+            Assert.Less(ParticlePresets.Budget(ParticlePresetId.Spores, 1f), on, "no wind, no leaves");
+        }
+
+        // ---- no per-frame managed allocation ------------------------------------------------------------------------------------------------
+        [Test] public void TheRenderPassAllocatesNothingPerFrame()
+        {
+            var arena = Arena(out var cam); Frame(arena, cam, 30f, 30f, 8);
+            var parent = new GameObject("sparks"); _objects.Add(parent); var sparks = new CombatSparks(parent.transform); uint rng = 11;
+            var shots = new List<NetProjectileView> { new NetProjectileView { Kind = ProjectileKind.Arrow, X = 900, Y = 900, Owner = 3 } };
+            var life = arena.Atmosphere.Life; var lights = arena.Atmosphere.Lights;
+            for (int i = 0; i < 20; i++) { LocalLightField.Begin(20); LocalLightField.AddFlashes(.016f); lights.Tick(30f, 30f, 12f, 9f, .016f, i * .016f); life.Tick(.016f, i * .016f, 30f, 30f, 12f, 9f, 0f, 1f, lights.Planner); LocalLightField.Push(true, true, true, true, true); ActorField.Begin(); ActorField.Note(Vector3.zero); ActorField.Push(30f, 30f); sparks.Observe((uint)i, shots, Vector3.zero, 12, 9, ref rng); }      // warm up (first calls may JIT or size pools)
+            long before = System.GC.GetAllocatedBytesForCurrentThread();
+            for (int i = 0; i < 200; i++)
+            {
+                float t = 2f + i * .016f;
+                LocalLightField.Begin(20); LocalLightField.Stage(30, 30, 1, 3, 1, 1, 1); LocalLightField.Flash(31, 31, 1, 3, Color.white, 1f, .2f); LocalLightField.AddFlashes(.016f);
+                lights.Tick(30f, 30f, 12f, 9f, .016f, t); life.Tick(.016f, t, 30f, 30f, 12f, 9f, 0f, 1f, lights.Planner);
+                LocalLightField.Push(true, true, true, true, true);
+                ActorField.Begin(); ActorField.Note(Vector3.zero); ActorField.Note(Vector3.one); ActorField.Push(30f, 30f);
+                sparks.Trail(Vector3.zero, Vector3.left, Color.white, .1f); sparks.Burst(Vector3.zero, Color.white, 3, 2f, .1f, ref rng); sparks.Observe((uint)(100 + i), shots, Vector3.zero, 12, 9, ref rng);
+            }
+            long grown = System.GC.GetAllocatedBytesForCurrentThread() - before;
+            Assert.LessOrEqual(grown, 4096, "200 frames of light field, accent and living lights, actor field and sparks allocated " + grown + " bytes");
+        }
+
         // ---- the passive floor and the ordering never depend on these effects -----------------------------------------------------------
         [Test] public void PassiveLightFloorAndOrderingIgnoreEveryRenderPass()
         {

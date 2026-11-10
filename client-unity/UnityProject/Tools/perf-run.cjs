@@ -128,7 +128,7 @@ function displayMatchesTarget(d) {
 
 const DEFAULTS = {
   quality: 'ultra', region: 'frost', seconds: 60, warmup: 8, url: 'http://127.0.0.1:8107/', server: 'ws://127.0.0.1:7807/ws',
-  out: null, attribution: false, attribSeconds: 5, attribRounds: 3, flags: '', uncapped: false, fullscreen: true, profile: 'perf1',
+  out: null, amplify: 0, only: '', attribution: false, attribSeconds: 5, attribRounds: 3, flags: '', uncapped: false, fullscreen: true, profile: 'perf1',
   token: 't1', width: TARGET.width, height: TARGET.height, headless: false, planningTimeout: 90, playwright: null,
 };
 
@@ -166,6 +166,8 @@ function parseArgs(argv) {
       case '--out': o.out = next(); break;
       case '--flags': o.flags = next().replace(/^[?&]/, ''); break;
       case '--attribution': o.attribution = true; break;
+      case '--amplify': o.amplify = num('--amplify', next(), 1, 2); break;      // attribution at a render scale (fx.scale) so pixel-bound costs rise above the noise; divide the cost by scale squared
+      case '--only': o.only = next(); break;                                       // comma list of fx keys (e.g. relief,lshadows): attribute only those toggles
       case '--attrib-seconds': o.attribSeconds = num('--attrib-seconds', next(), 2, 600); break;
       case '--attrib-rounds': o.attribRounds = num('--attrib-rounds', next(), 1, 20); break;
       case '--uncapped': o.uncapped = true; break;
@@ -266,6 +268,8 @@ const ATTRIBUTION_TOGGLES = [
   { name: 'ember lights', flag: 'fx.emberlight=0' },
   { name: 'wish and impact lights', flag: 'fx.fxlights=0' },
   { name: 'trails and sparks', flag: 'fx.sparks=0' },
+  { name: 'characters lit by the field (actor lights)', flag: 'fx.actorlights=0' },
+  { name: 'painterly grade (lift, gain, tonemap)', flag: 'fx.painterly=0' },
   { name: 'max local lights 6', flag: 'fx.maxlights=6' },
 ];
 
@@ -430,7 +434,8 @@ async function session(o, { seconds, uncapped, extraFlags = '', label, outDir, s
  */
 async function attributeEffects(page, o, rec, { toggles, rounds, windowSeconds, budgetSeconds }) {
   const setFlags = flag => page.evaluate(f => window.unityInstance.SendMessage('Frame-time recorder', 'SetFlags', f), flag);
-  const settle = 0.4, plan = attributionRound(toggles);
+  const settle = 0.4;
+  const plan = attributionRound(toggles).map(st => o.amplify > 1 ? { ...st, flag: (st.flag ? st.flag + '&' : '') + 'fx.scale=' + o.amplify } : st);
   const roundSeconds = plan.length * (windowSeconds + settle);
   const started = Date.now();
   rec.attributionWindows = [];
@@ -608,7 +613,9 @@ async function attribution(o, outDir, info, main_) {
   const BUDGET = 48, GROUP = 3;     // seconds of windows per live match, effects per match
   const windows = [], recs = [];
   let shots = true;
-  for (const group of chunk(ATTRIBUTION_TOGGLES, GROUP)) {
+  const only = o.only ? o.only.split(',').map(x => 'fx.' + x.replace(/^fx\./, '') + '=') : null;
+  const toggles = only ? ATTRIBUTION_TOGGLES.filter(t => only.some(k => t.flag.startsWith(k))) : ATTRIBUTION_TOGGLES;
+  for (const group of chunk(toggles, GROUP)) {
     let done = 0, guard = 0;
     while (done < o.attribRounds && guard++ < o.attribRounds + 3) {
       console.log(`attribution: ${group.map(t => t.name).join(', ')} (rounds ${done + 1}..${o.attribRounds})`);
