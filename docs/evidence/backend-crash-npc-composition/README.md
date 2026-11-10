@@ -11,7 +11,7 @@ Cwd `/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gamepl
 `/Users/nevinmckinnon/.cargo/bin/cargo`, Rust1.97.0, locked/offline tests, jobs1, incremental0.
 Worktree-local shared Root target `target/root-strategy-notice-admission/build`.
 
-- Initial `cargo test -p rh-sim --lib systems::fighter_churn_tests --locked --offline -- --nocapture`:
+- Initial `rh-sim` lib filter `systems::fighter_churn_tests` (locked/offline):
   2PASS/0FAIL,853filtered,test0.03s,wall98.52s. This compiled before the NPC merge and is scoped to that cut.
 - `cargo test --release -p rh-headless --test source_arena_soak --locked --offline -- --ignored`:
   1PASS/0FAIL,test42.28s,wall309.23s. Release compilation followed the NPC integration. It exercises five historically

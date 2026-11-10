@@ -1,0 +1,14 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests/crates/rh-sim)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 44s
+     Running unittests src/lib.rs (target/root-strategy-notice-admission/build/debug/deps/rh_sim-11f7df6587fb64ad)
+
+running 6 tests
+test systems::mob_checkpoint::bleed_tests::producer_forward_duration_operation_accepts_the_binary64_counterexample ... ok
+test systems::mob_checkpoint::bleed_tests::earned_bleed_restores_after_source_departure_through_retained_known_history ... ok
+test systems::mob_checkpoint::bleed_tests::earned_bleed_restores_under_an_accepted_large_clock_preserving_producer_duration ... ok
+test systems::mob_checkpoint::bleed_tests::earned_bleed_restores_under_an_accepted_fractional_clock_without_tick_time_equality ... ok
+test systems::mob_checkpoint::bleed_tests::malformed_earned_bleed_shapes_refuse_at_status_domain_predicate ... ok
+test systems::mob_checkpoint::bleed_tests::earned_hemorrhage_bleed_on_regional_npc_restores_and_continues ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 855 filtered out; finished in 3.40s
+
