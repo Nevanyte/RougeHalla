@@ -101,6 +101,8 @@ namespace Roguehalla.Client
             mc.AccountApi = Query(s, "accountApi", Application.isEditor ? "http://127.0.0.1:7777/api" : "");
             mc.Profile = Query(s, "profile", PlayerPrefs.GetString("rh.ui.profile", ""));
             mc.DiagnosticRequested = Query(s, "diagnostic", "0") == "1";
+            // Diagnostics only: ?pausepredict=0 turns the attack pause mirror off, which is how the browser measurement shows the old pull-back.
+            mc.PausePredictionOff = mc.IsDiagnostic && Query(s, "pausepredict", "1") == "0";
             mc.Token = mc.IsDiagnostic ? Query(s, "token", "") : "";
             mc.PendingSignInKey = mc.IsDiagnostic ? "" : UiBrowserStorage.ConsumeSignInKey();
             ulong hash; if (ulong.TryParse(Query(s, "hash", BakedContent.Hash.ToString(System.Globalization.CultureInfo.InvariantCulture)), out hash)) mc.ContentHash = hash;

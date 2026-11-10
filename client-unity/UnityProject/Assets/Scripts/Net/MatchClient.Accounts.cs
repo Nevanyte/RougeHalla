@@ -10,6 +10,8 @@ namespace Roguehalla.Client
         public string PageUrl = "", AccountApi = "", PendingSignInKey = "";
         public string TrainingUrl = "";
         public bool DiagnosticRequested;
+        /// <summary>Loopback diagnostics only (<c>?pausepredict=0</c>): the walk does not mirror the server attack pause.</summary>
+        public bool PausePredictionOff;
         public AccountCoordinator AccountOwner { get; private set; }
         public AccountHubFlow AccountFlow => AccountOwner != null ? AccountOwner.Flow : null;
         public string AccountUiError { get; private set; } = "";

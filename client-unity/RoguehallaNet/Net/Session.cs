@@ -541,7 +541,9 @@ namespace Roguehalla.Net
         {
             uint me = PlayerId;
             if (me == 0) return;
-            double tickMs = fx.Tick * (double)Wire.TickMs;
+            // The same source clock the snapshot stamps use (an epoch cut overrides the tick-derived time).
+            var latest = Latest;
+            double tickMs = latest != null ? latest.ServerMs + ((double)fx.Tick - latest.Tick) * Wire.TickMs : fx.Tick * (double)Wire.TickMs;
             for (int i = 0; i < fx.List.Count; i++)
             {
                 var f = fx.List[i];
