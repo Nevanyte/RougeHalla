@@ -64,65 +64,50 @@ namespace Roguehalla.Client.Tests
             _priorEventSystem = null; _priorSelection = null;
         }
 
-        [TestCase(1f)]
-        [TestCase(1.5f)]
-        public void SettingsRowsUseDeclaredHeightAndReachBothScrollEnds(float requestedTextScale)
+        [TestCase(1280f, 800f, 320f)]
+        [TestCase(1707f, 960f, 320f)]
+        [TestCase(300f, 800f, 276f)]   // narrow overlay: min(320, uiW - 24)
+        public void CardIsAnchoredTopRightAtLegacyWidthAndCapsItsHeight(float uiW, float uiH, float width)
         {
+            var card = _view.Root;
+            _view.ApplyViewport(new HudViewport(1f, uiW, uiH));
+            Assert.That(card.anchorMin, Is.EqualTo(new Vector2(1, 1)));
+            Assert.That(card.anchorMax, Is.EqualTo(new Vector2(1, 1)));
+            Assert.That(card.anchoredPosition, Is.EqualTo(new Vector2(-12, -48)), "top 48, right 12");
+            Assert.That(card.sizeDelta.x, Is.EqualTo(width).Within(.01f));
+            Assert.That(card.sizeDelta.y, Is.LessThanOrEqualTo(uiH - 60f + .01f), "max-height is uiH - 60");
+        }
+
+        [Test]
+        public void ShortWindowScrollsTheBodyToBothEnds()
+        {
+            _view.ApplyViewport(new HudViewport(1f, 1280f, 400f));
             var content = (RectTransform)_canvasObject.transform.Find("ModernSettings/SettingsScroll/Viewport/SettingsContent");
             Assert.That(content, Is.Not.Null);
             var scroll = content.GetComponentInParent<UnityEngine.UI.ScrollRect>();
-            Assert.That(scroll, Is.Not.Null);
             Assert.That(scroll.content, Is.SameAs(content));
             Assert.That(scroll.viewport.GetComponent<UnityEngine.UI.RectMask2D>(), Is.Not.Null);
-
             Rebuild(content);
-            var rows = new RectTransform[content.childCount];
-            for (int i = 0; i < content.childCount; i++) rows[i] = (RectTransform)content.GetChild(i);
-            Assert.That(rows.Length, Is.EqualTo(12), "all settings controls belong to the scroll content");
-            var textScaleSlider = rows[2].Find("Slider").GetComponent<UnityEngine.UI.Slider>();
-            var textScaleCaption = rows[2].Find("Value").GetComponent<TMPro.TMP_Text>();
-            float originalSourceScale = _source.TextScale;
-            float originalSliderValue = textScaleSlider.value;
-            string originalCaption = textScaleCaption.text;
+            Assert.That(_view.Root.sizeDelta.y, Is.EqualTo(340f).Within(.01f), "uiH 400 - 60");
+            Assert.That(content.rect.height, Is.GreaterThan(scroll.viewport.rect.height), "real scrollable overflow");
+            var firstRow = (RectTransform)content.GetChild(0);
+            var lastRow = (RectTransform)content.GetChild(content.childCount - 1);
 
-            // Exercise user text scaling on actual TMP descendants without calling the persistent settings API.
-            MythicUi.ApplyTextScale(_view.Root, requestedTextScale);
-            Rebuild(content);
-            var firstLabel = rows[0].Find("SettingLabel").GetComponent<TMPro.TMP_Text>();
-            Assert.That(firstLabel.fontSizeMax, Is.EqualTo(24f * requestedTextScale).Within(.01f),
-                "the real TMP label receives the requested scale without a font/raster assertion");
+            scroll.verticalNormalizedPosition = 1f; Rebuild(content);
+            var viewportBounds = new UnityEngine.Rect(Vector2.zero, scroll.viewport.rect.size); viewportBounds.center = scroll.viewport.rect.center;
+            Assert.That(Contains(viewportBounds, BoundsIn(firstRow, scroll.viewport)), Is.True, "first section is reachable at the top");
+            Assert.That(Overlaps(viewportBounds, BoundsIn(lastRow, scroll.viewport)), Is.False, "footer is clipped at the top");
+            scroll.verticalNormalizedPosition = 0f; Rebuild(content);
+            Assert.That(Contains(viewportBounds, BoundsIn(lastRow, scroll.viewport)), Is.True, "footer is reachable at the bottom");
+        }
 
-            for (int i = 0; i < rows.Length; i++)
-                Assert.That(rows[i].rect.height, Is.EqualTo(72f).Within(.1f), "each row uses its declared preferred height");
-
-            for (int i = 0; i < rows.Length - 1; i++)
-            {
-                var current = BoundsIn(rows[i], content);
-                var next = BoundsIn(rows[i + 1], content);
-                Assert.That(current.yMin - next.yMax, Is.EqualTo(8f).Within(.15f), "rows keep the configured vertical gap without overlap");
-            }
-
-            Assert.That(content.rect.height, Is.EqualTo(972f).Within(.25f), "12 rows + 11 gaps + top/bottom padding determine content extent");
-            Assert.That(content.rect.height, Is.GreaterThan(scroll.viewport.rect.height), "the viewport must have real scrollable overflow");
-
-            scroll.verticalNormalizedPosition = 1f;
-            Rebuild(content);
-            var viewportBounds = new UnityEngine.Rect(Vector2.zero, scroll.viewport.rect.size);
-            viewportBounds.center = scroll.viewport.rect.center;
-            var firstAtTop = BoundsIn(rows[0], scroll.viewport);
-            var lastAtTop = BoundsIn(rows[rows.Length - 1], scroll.viewport);
-            Assert.That(Contains(viewportBounds, firstAtTop), Is.True, "the first settings row is reachable at the top");
-            Assert.That(Overlaps(viewportBounds, lastAtTop), Is.False, "the final row is clipped below the top viewport");
-
-            scroll.verticalNormalizedPosition = 0f;
-            Rebuild(content);
-            var firstAtBottom = BoundsIn(rows[0], scroll.viewport);
-            var lastAtBottom = BoundsIn(rows[rows.Length - 1], scroll.viewport);
-            Assert.That(Contains(viewportBounds, lastAtBottom), Is.True, "the final settings row is reachable at the bottom");
-            Assert.That(Overlaps(viewportBounds, firstAtBottom), Is.False, "the first row scrolls out above the bottom viewport");
-            Assert.That(_source.TextScale, Is.EqualTo(originalSourceScale), "layout stress does not change the in-memory setting");
-            Assert.That(textScaleSlider.value, Is.EqualTo(originalSliderValue), "layout and scroll do not move the slider");
-            Assert.That(textScaleCaption.text, Is.EqualTo(originalCaption), "layout and scroll preserve the value caption");
+        [Test]
+        public void CardHasTheLegacySectionsAndControls()
+        {
+            string all = string.Join("|", System.Array.ConvertAll(_view.Root.GetComponentsInChildren<TMPro.TMP_Text>(true), t => t.text));
+            foreach (string expected in new[] { "DISPLAY", "EFFECTS", "READOUT", "MAP", "Fullscreen", "Alt+Enter does the same.", "Reduced motion",
+                "Show FPS", "Show ping", "Show route", "Minimap size", "75", "100", "125", "150", "200", "Saved in this browser.", "Reset to defaults" })
+                StringAssert.Contains(expected, all);
         }
 
         static void Rebuild(RectTransform content)

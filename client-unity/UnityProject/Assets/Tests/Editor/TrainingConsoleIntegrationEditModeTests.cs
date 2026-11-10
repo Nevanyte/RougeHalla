@@ -607,7 +607,7 @@ namespace Roguehalla.Client.Tests
                     });
                     f.Snapshot(training: true, tick: 1, serverMs: 50);
                     Invoke(f.Hud, "LateUpdate");
-                    Assert.That(f.Hud.transform.Find("MatchUI/Rewards").gameObject.activeSelf, Is.True,
+                    Assert.That(HudTestPaths.Find(f.Hud.transform, "MatchUI/Rewards").gameObject.activeSelf, Is.True,
                         "the decoded chest snapshot presents three eligible server options before opening a panel");
                     Assert.That(f.Console.SetOpen(true), Is.True);
                     EventSystem.current.SetSelectedGameObject(null); // Exercise the normal pointer-owned, unfocused console policy.
@@ -687,15 +687,15 @@ namespace Roguehalla.Client.Tests
             {
                 await f.JoinReady(MatchLaunchMode.Training); f.Welcome(); f.Snapshot(training: true);
                 Assert.That(f.Console.SetOpen(true), Is.True);
-                var settings = f.Hud.transform.Find("MatchUI/Settings").GetComponent<Button>();
+                var settings = HudTestPaths.Find(f.Hud.transform, "MatchUI/Settings").GetComponent<Button>();
                 settings.onClick.Invoke();
-                Assert.That(f.Hud.transform.Find("MatchUI/ModernSettings").gameObject.activeSelf, Is.True);
+                Assert.That(HudTestPaths.Find(f.Hud.transform, "MatchUI/ModernSettings").gameObject.activeSelf, Is.True);
                 Assert.That(f.Console.IsOpen, Is.False);
                 Assert.That(f.Console.ActionsAvailable, Is.False, "a higher modal revokes the Training console binding");
                 var session = f.Client.Session;
                 f.Press(Key.Escape); f.Hud.ReadUiInput(); f.Hud.ReadUiInput();
                 Assert.That(f.Client.Session, Is.SameAs(session), "re-reading the settings Escape edge cannot leave the underlying Training session");
-                Assert.That(f.Hud.transform.Find("MatchUI/ModernSettings").gameObject.activeSelf, Is.False);
+                Assert.That(HudTestPaths.Find(f.Hud.transform, "MatchUI/ModernSettings").gameObject.activeSelf, Is.False);
                 Assert.That(f.Console.ActionsAvailable, Is.False, "closing a higher modal still waits for a new accepted snapshot");
                 f.ReleaseKeys();
                 f.Snapshot(training: true, tick: 2, serverMs: 75);

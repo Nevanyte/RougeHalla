@@ -54,26 +54,22 @@ namespace Roguehalla.Client.Tests
         }
 
         [Test]
-        public void VitalsAndDamagePanelsShareWidthAndOwnerLossClearsWeaponAndUnavailableValues()
+        public void ChampionHudSitsBottomLeftAndOwnerLossClearsWeaponAndUnavailableValues()
         {
             var vitals = (RectTransform)GetField("_vitalsPanel");
-            var damage = (RectTransform)GetField("_damagePanel");
-            Assert.That(vitals.anchorMin.x, Is.EqualTo(damage.anchorMin.x).Within(.0001f));
-            Assert.That(vitals.anchorMax.x, Is.EqualTo(damage.anchorMax.x).Within(.0001f));
-            Assert.That(vitals.anchorMax.y - vitals.anchorMin.y,
-                Is.EqualTo(damage.anchorMax.y - damage.anchorMin.y).Within(.0001f), "the stacked panels have matching height");
-            Assert.That(vitals.anchorMin.y, Is.GreaterThan(damage.anchorMax.y), "health panel sits above damage output");
+            var champion = (RectTransform)GetField("_damagePanel");
+            Assert.That(vitals.anchorMin, Is.EqualTo(new Vector2(0, 1)), "legacy: the HUD plate is top-left");
+            Assert.That(champion.anchorMin, Is.EqualTo(Vector2.zero), "legacy: the champion combat HUD is bottom-left");
 
             var me = new SelfView { Hp = 70, MaxHp = 100, Weapon = WeaponId.Bow, Status = ActorStatus.Alive };
             Invoke("RefreshOwnerPresentation", me, 1000d);
             Assert.That(((TMP_Text)GetField("_damageWeapon")).text, Is.EqualTo("Bow"));
-            Assert.That(((TMP_Text)GetField("_damageHit")).text, Is.EqualTo("— /hit"));
-            Assert.That(((TMP_Text)GetField("_damageRate")).text, Is.EqualTo("— /s"));
+            Assert.That(((TMP_Text)GetField("_damageHit")).text, Is.EqualTo("—"), "no combat projection is delivered yet");
+            Assert.That(((TMP_Text)GetField("_damageRate")).text, Is.EqualTo("not delivered"));
 
             Invoke("ClearOwnerPresentation", "Awaiting server");
             Assert.That(((TMP_Text)GetField("_damageWeapon")).text, Is.EqualTo("—"), "the previous owner's weapon is removed");
-            Assert.That(((TMP_Text)GetField("_damageHit")).text, Is.EqualTo("— /hit"));
-            Assert.That(((TMP_Text)GetField("_damageRate")).text, Is.EqualTo("— /s"));
+            Assert.That(((TMP_Text)GetField("_damageHit")).text, Is.EqualTo("—"));
         }
 
         [Test]
@@ -82,7 +78,7 @@ namespace Roguehalla.Client.Tests
             var details = (RectTransform)GetField("_wishDetails");
             var summary = (TMP_Text)GetField("_wishSummary");
             var hint = (HudIconHint)GetField("_wishHint");
-            var wishButton = _root.transform.Find("PlayerHUD/CombatActions/WishInfo").GetComponent<Button>();
+            var wishButton = _root.transform.Find("HudStage/PlayerHUD/CombatActions/WishTile").GetComponent<Button>();
             var wishImage = wishButton.transform.Find("WishIcon").GetComponent<Image>();
             Assert.That(wishImage.enabled && wishImage.sprite != null, Is.True, "wish action has a visible semantic icon");
             Assert.That(details.gameObject.activeSelf, Is.False, "the permanent top-right Wish paragraph is inactive");
@@ -96,7 +92,7 @@ namespace Roguehalla.Client.Tests
             };
             Invoke("RefreshOwnerPresentation", me, 5000d);
 
-            Assert.That(summary.text, Is.EqualTo("R · 1/2 · 0.5s"));
+            Assert.That(summary.text, Is.EqualTo("1/2 · 0.5s"));
             StringAssert.Contains("Blaze", hint.Text);
             StringAssert.Contains("Next charge in 2.0s", hint.Text);
             StringAssert.Contains("Casting Blaze · 1.5s", hint.Text);

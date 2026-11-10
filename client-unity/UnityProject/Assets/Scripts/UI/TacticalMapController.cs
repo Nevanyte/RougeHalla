@@ -55,7 +55,7 @@ namespace Roguehalla.Client
         public bool PointerBlocked => IsOpen || IsPeeking;
         public Vector2 PeekAt => _miniGesture.PeekPoint.HasValue ? new Vector2((float)_miniGesture.PeekPoint.Value.X, (float)_miniGesture.PeekPoint.Value.Y) : Vector2.zero;
 
-        public void Initialize(MatchClient client, Transform root, UiDisplayPreferences preferences = null)
+        public void Initialize(MatchClient client, Transform root, UiDisplayPreferences preferences = null, Transform hudStage = null)
         {
             _client = client;
             _prefs = preferences ?? new UiDisplayPreferences();
@@ -100,12 +100,14 @@ namespace Roguehalla.Client
             MythicUi.Button(_panel, "UndoRoute", "UNDO", new Vector2(.715f, .09f), new Vector2(.84f, .17f), () => { _route.Undo(); _routeStorageDirty = true; _nextPath = _nextPaint = 0; });
             MythicUi.Button(_panel, "ClearRoute", "CLEAR", new Vector2(.855f, .09f), new Vector2(.98f, .17f), () => { _route.Clear(); _routeStorageDirty = true; _nextPath = _nextPaint = 0; });
             _status = MythicUi.Text(_panel, "MapStatus", "", new Vector2(.025f, .005f), new Vector2(.98f, .075f), 17, ShowcasePalette.MutedText);
-            _miniRoot = MythicUi.Panel(root, "Minimap", new Vector2(.705f, .018f), new Vector2(.985f, .378f), Color.clear);
-            var miniFrame = MythicUi.Rect(_miniRoot, "TerrainFrame", new Vector2(.04f, .18f), new Vector2(.96f, .96f));
+            // Legacy minimap: a square 12/12 from the bottom-right corner, no button strip, frame ring is the border (drawn rect = hit rect).
+            var theme = UiTheme.Current;
+            _miniRoot = HudUi.Box(hudStage ?? root, "Minimap", HudAnchor.BottomRight, 12f, 12f, 270f, 270f);
+            HudUi.Surface(_miniRoot, theme.SurfaceSunken, theme.CornerRadius, theme.Border, false);
+            var miniFrame = MythicUi.Rect(_miniRoot, "TerrainFrame", Vector2.zero, Vector2.one);
             _mini = miniFrame.gameObject.AddComponent<TacticalMapSurface>(); _mini.Initialize();
             _miniMarks = _mini.GetComponentInChildren<TacticalMapMarks>();
             _mini.Pressed = MinimapPress; _mini.Dragged = MinimapDrag; _mini.PointerReleased = MinimapRelease; _mini.Aborted = ReleaseMinimap;
-            MythicUi.Button(_miniRoot, "OpenMap", "TAB · MAP", new Vector2(.04f, .02f), new Vector2(.96f, .15f), () => SetOpen(!IsOpen), fontSize: 14);
             _panel.gameObject.SetActive(false); _miniRoot.gameObject.SetActive(false);
         }
 
@@ -138,13 +140,14 @@ namespace Roguehalla.Client
         }
         public void SetToggleMode(bool value) { _prefs.SetMapToggle(value); ReleaseTransient(); }
         public void SetShowRoute(bool value) { _prefs.SetShowRoute(value); _nextPaint = 0; }
-        public void SetMinimapScale(float value)
+        /// <summary>Sizes the minimap by the legacy formula for the laid-out HUD (units) and the user's minimap scale setting.</summary>
+        public void ApplyViewport(HudViewport viewport, float userScale)
         {
-            if (_miniRoot == null) return;
-            value = Mathf.Clamp(value, .85f, 1.25f);
-            _miniRoot.anchorMin = new Vector2(.985f - .28f * value, .018f);
-            _miniRoot.anchorMax = new Vector2(.985f, .018f + .36f * value);
+            if (_miniRoot == null || viewport.UiWidth <= 0f) return;
+            float size = HudLayout.MinimapSize(viewport.UiWidth, viewport.UiHeight, userScale);
+            _miniRoot.sizeDelta = new Vector2(size, size);
         }
+        public RectTransform MinimapRoot => _miniRoot;
         public void SetMinimapSuppressed(bool suppressed)
         {
             if (_minimapSuppressed == suppressed) return;

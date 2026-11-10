@@ -36,8 +36,9 @@ namespace Roguehalla.Client
             _orderedNotices = gameObject.AddComponent<OrderedNoticeFeed>();
             _orderedNotices.Initialize(_root, ClosePlayerFlows);
             AddPlayerFlowTabs(_questJournal.Root); AddPlayerFlowTabs(_traderDialog.Root); AddPlayerFlowTabs(_orderedNotices.Root);
-            _journalButton = MythicUi.Button(_root, "Journal", "J · JOURNAL", new Vector2(.315f, .855f), new Vector2(.395f, .915f),
-                () => ShowPlayerFlow(DefaultPlayerFlowPage), fontSize: 14);
+            // Legacy launcher: left 12, bottom 12, small 11 px button; the journal itself is only re-skinned.
+            _journalButton = HudUi.Button(_stage, "Journal", "Quests · J", HudAnchor.BottomLeft, QuestLauncherLeft, QuestLauncherBottom, 84f, 22f,
+                () => ShowPlayerFlow(DefaultPlayerFlowPage), UiTheme.Current.SizeSmall, 5f);
             _journalButton.gameObject.SetActive(false);
         }
         void AddPlayerFlowTabs(Transform root)
@@ -159,7 +160,7 @@ namespace Roguehalla.Client
             if (_journalButton == null) return;
             _journalButton.gameObject.SetActive(PlayerFlowLauncherAllowed && !PlayerFlowVisible);
             var label = _journalButton.GetComponentInChildren<TMP_Text>(true);
-            string value = _map?.IsPlanning == true ? "J · QUESTS" : "J · JOURNAL";
+            const string value = "Quests · J";
             if (label.text != value) label.text = value;
         }
     }

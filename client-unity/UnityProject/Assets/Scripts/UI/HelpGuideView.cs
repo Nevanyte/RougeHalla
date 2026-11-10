@@ -177,25 +177,39 @@ namespace Roguehalla.Client
         public Button ControlsTab => _controlsTab;
         public Button MechanicsTab => _mechanicsTab;
 
+        /// <summary>
+        /// Legacy help card (LEGACY_LAYOUT.md 11.2): a dimmed scrim over the HUD stage holding a centred card, width min(560, uiW - 24),
+        /// max height uiH - 24, with a header (title + close) and two tabs. Clicking outside, H, Esc or the x closes it.
+        /// </summary>
         public void Initialize(Transform root, Action close)
         {
             if (_initialized) throw new InvalidOperationException("HelpGuideView is already initialized.");
             if (root == null) throw new ArgumentNullException(nameof(root));
             _initialized = true; _close = close;
-            _root = MythicUi.Panel(root, "HelpGuideOverlay", Vector2.zero, Vector2.one, new Color32(3, 7, 12, 224));
+            var theme = UiTheme.Current;
+            _root = HudUi.Inset(root, "ControlsHelp", 0, 0, 0, 0);
+            _root.gameObject.AddComponent<Image>().color = theme.Scrim;
             var dismiss = _root.gameObject.AddComponent<ModalDismissSurface>(); dismiss.Dismiss = CloseByUser;
-            _card = MythicUi.Panel(_root, "HelpGuideCard", new Vector2(.105f, .055f), new Vector2(.895f, .945f), ShowcasePalette.Panel);
-            MythicUi.Text(_card, "HelpTitle", "FIELD GUIDE", new Vector2(.035f, .925f), new Vector2(.73f, .995f), 27, ShowcasePalette.Gold);
-            _closeButton = MythicUi.Button(_card, "CloseHelp", "CLOSE · H / ESC", new Vector2(.76f, .925f), new Vector2(.965f, .99f), CloseByUser, MythicUi.ButtonStyle.Quiet);
-            _controlsTab = MythicUi.Button(_card, "ControlsTab", "CONTROLS", new Vector2(.035f, .865f), new Vector2(.49f, .925f), () => ShowTab(HelpGuideTab.Controls), MythicUi.ButtonStyle.Primary);
-            _mechanicsTab = MythicUi.Button(_card, "MechanicsTab", "MECHANICS", new Vector2(.51f, .865f), new Vector2(.965f, .925f), () => ShowTab(HelpGuideTab.Mechanics));
-            _controlsScroll = CreateTextScroll(_card, "ControlsScroll", new Vector2(.035f, .075f), new Vector2(.965f, .85f), out _controlsText);
-            _mechanicsScroll = CreateTextScroll(_card, "MechanicsScroll", new Vector2(.035f, .075f), new Vector2(.965f, .85f), out _mechanicsText);
+            _card = HudUi.Box(_root, "HelpGuideCard", HudAnchor.Center, 0, 0, CardWidth, 640f);
+            HudUi.Surface(_card, theme.Surface, theme.CornerRadiusLarge, theme.Border, true);
+            HudUi.Label(HudUi.At(_card, "TitleRow", 20, 16, 400, 24), "HelpTitle", "CONTROLS & GUIDE", theme.SizeHeading, theme.TextPrimary, bold: true, role: UiFontRole.Display).characterSpacing = 2f;
+            _closeButton = HudUi.Button(_card, "HelpClose", "x", HudAnchor.TopRight, 16f, 14f, 24f, 24f, CloseByUser, theme.SizeBody, theme.CornerRadiusSmall);
+            _controlsTab = HudUi.Button(_card, "ControlsTab", "Controls", HudAnchor.TopLeft, 20f, 50f, 110f, 26f, () => ShowTab(HelpGuideTab.Controls), theme.SizeBody, theme.CornerRadiusSmall);
+            _mechanicsTab = HudUi.Button(_card, "MechanicsTab", "Mechanics", HudAnchor.TopLeft, 136f, 50f, 110f, 26f, () => ShowTab(HelpGuideTab.Mechanics), theme.SizeBody, theme.CornerRadiusSmall);
+            _controlsScroll = CreateTextScroll(_card, "ControlsScroll", out _controlsText);
+            _mechanicsScroll = CreateTextScroll(_card, "MechanicsScroll", out _mechanicsText);
             _controlsText.text = FormatControls(HelpGuideContent.Controls);
             _mechanicsText.text = FormatMechanics(HelpGuideContent.Mechanics);
-            SetBodyFont(_controlsText); SetBodyFont(_mechanicsText);
             ShowTab(HelpGuideTab.Controls);
             SetVisible(false);
+        }
+
+        const float CardWidth = 560f;
+        /// <summary>Width min(560, uiW - 24), height up to uiH - 24 (the card scrolls inside).</summary>
+        public void ApplyViewport(HudViewport viewport)
+        {
+            if (_card == null) return;
+            _card.sizeDelta = new Vector2(HudLayout.HelpWidth(viewport.UiWidth), Mathf.Max(240f, Mathf.Min(viewport.UiHeight - 24f, 700f)));
         }
 
         public void SetVisible(bool visible)
@@ -224,38 +238,30 @@ namespace Roguehalla.Client
         static void SetTabStyle(Button button, bool selected)
         {
             if (button == null) return;
-            var colors = button.colors;
-            colors.normalColor = selected ? ShowcasePalette.GoldDim : ShowcasePalette.PanelRaised;
-            colors.highlightedColor = ShowcasePalette.PanelStroke;
-            colors.selectedColor = selected ? ShowcasePalette.GoldDim : ShowcasePalette.PanelStroke;
-            button.colors = colors;
-            var image = button.targetGraphic as Image;
-            if (image != null) image.color = Color.white;
+            var theme = UiTheme.Current;
+            HudUi.ApplyColors(button, selected ? theme.SurfaceSelected : theme.SurfaceRaised);
+            HudUi.SetFrame((RectTransform)button.transform, selected ? theme.BorderStrong : theme.Border);
             var label = button.GetComponentInChildren<TMP_Text>();
-            if (label != null) label.color = selected ? ShowcasePalette.Text : ShowcasePalette.MutedText;
+            if (label != null) { label.color = selected ? theme.TextPrimary : theme.TextSecondary; label.fontStyle = selected ? FontStyles.Bold : FontStyles.Normal; }
         }
 
-        static ScrollRect CreateTextScroll(Transform parent, string name, Vector2 min, Vector2 max, out TMP_Text text)
+        static ScrollRect CreateTextScroll(Transform parent, string name, out TMP_Text text)
         {
-            var frame = MythicUi.Rect(parent, name, min, max);
+            var theme = UiTheme.Current;
+            var frame = HudUi.Inset(parent, name, 20, 86, 20, 14);
             var scroll = frame.gameObject.AddComponent<ScrollRect>();
             scroll.horizontal = false; scroll.vertical = true; scroll.movementType = ScrollRect.MovementType.Clamped;
-            scroll.scrollSensitivity = 42; scroll.inertia = true;
+            scroll.scrollSensitivity = 30; scroll.inertia = true;
             var viewport = MythicUi.Rect(frame, "Viewport", Vector2.zero, Vector2.one);
-            var mask = viewport.gameObject.AddComponent<Image>(); mask.color = new Color(1, 1, 1, .012f); mask.raycastTarget = true;
+            var mask = viewport.gameObject.AddComponent<Image>(); mask.color = Color.clear; mask.raycastTarget = true;
             viewport.gameObject.AddComponent<RectMask2D>();
-            text = MythicUi.Text(viewport, "Content", "", new Vector2(.02f, 1), new Vector2(.98f, 1), 16, ShowcasePalette.Text);
-            text.rectTransform.pivot = new Vector2(.5f, 1); text.enableAutoSizing = false;
-            text.alignment = TextAlignmentOptions.TopLeft; text.enableWordWrapping = true; text.richText = true;
+            text = HudUi.Label(viewport, "Content", "", theme.SizeBody, theme.TextPrimary, TextAlignmentOptions.TopLeft, wrap: true);
+            text.rectTransform.anchorMin = new Vector2(0, 1); text.rectTransform.anchorMax = new Vector2(1, 1); text.rectTransform.pivot = new Vector2(.5f, 1);
+            text.rectTransform.offsetMin = text.rectTransform.offsetMax = Vector2.zero;
+            text.richText = true; text.overflowMode = TextOverflowModes.Overflow;
             text.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
             scroll.viewport = viewport; scroll.content = text.rectTransform;
             return scroll;
-        }
-
-        static void SetBodyFont(TMP_Text text)
-        {
-            var font = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF");
-            if (font != null) text.font = font;
         }
 
         static string FormatControls(IReadOnlyList<HelpGuideSection> sections)
@@ -263,7 +269,7 @@ namespace Roguehalla.Client
             var output = new StringBuilder();
             foreach (var section in sections)
             {
-                output.Append("<size=130%><color=#EDC77B><b>").Append(Escape(section.Title)).Append("</b></color></size>\n\n");
+                output.Append("<size=130%><color=" + Hex(UiTheme.Current.Accent) + "><b>").Append(Escape(section.Title)).Append("</b></color></size>\n\n");
                 foreach (var entry in section.Entries)
                     output.Append("<b>").Append(Escape(entry.Keys)).Append("</b>   ").Append(Escape(entry.Description)).Append("\n\n");
                 output.Append("\n");
@@ -276,15 +282,16 @@ namespace Roguehalla.Client
             var output = new StringBuilder();
             foreach (var section in sections)
             {
-                output.Append("<size=130%><color=#EDC77B><b>").Append(Escape(section.Title)).Append("</b></color></size>\n\n");
+                output.Append("<size=130%><color=" + Hex(UiTheme.Current.Accent) + "><b>").Append(Escape(section.Title)).Append("</b></color></size>\n\n");
                 foreach (var entry in section.Entries)
                     output.Append("<b>").Append(Escape(entry.Term)).Append("</b>   ").Append(Escape(entry.Description)).Append("\n\n");
                 output.Append("\n");
             }
-            output.Append("<color=#B5C2D2>These descriptions explain the terms shown in the interface. All choices and outcomes are decided by the server.</color>");
+            output.Append("<color=" + Hex(UiTheme.Current.TextSecondary) + ">These descriptions explain the terms shown in the interface. All choices and outcomes are decided by the server.</color>");
             return output.ToString();
         }
 
+        static string Hex(Color32 c) { return "#" + c.r.ToString("X2") + c.g.ToString("X2") + c.b.ToString("X2"); }
         static string Escape(string text) => (text ?? "").Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");
     }
 }

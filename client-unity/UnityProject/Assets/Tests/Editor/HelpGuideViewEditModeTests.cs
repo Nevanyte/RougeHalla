@@ -56,7 +56,7 @@ public sealed class HelpGuideViewEditModeTests
             Assert.That(view.Root.Find("HelpGuideCard/MechanicsScroll").gameObject.activeSelf, Is.True);
             view.ControlsTab.onClick.Invoke();
             Assert.That(view.CurrentTab, Is.EqualTo(HelpGuideTab.Controls));
-            var close = view.Root.Find("HelpGuideCard/CloseHelp").GetComponent<Button>();
+            var close = view.Root.Find("HelpGuideCard/HelpClose").GetComponent<Button>();
             close.onClick.Invoke();
             Assert.That(view.IsVisible, Is.False);
             Assert.That(closes, Is.EqualTo(1));
