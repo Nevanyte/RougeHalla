@@ -20,8 +20,8 @@ Strict gate, 1920x1080, High, the whole matrix (931 cells: 13 looks on every sur
 
 | variant | EDGE p10 >= 3.0 | markers all >= 4.5 | verdict |
 |---|---:|---:|---|
-| baseline `d6f18dce` (before the adaptive outline) | 0 / 702 | about 9% | FAIL |
-| adaptive outline (3 px, previous branch tip) | about 90% of plain ground | about 86% | FAIL on Fire ember, Plague bog |
+| baseline `d6f18dce` (full matrix, 4 configs) | 0 / 2,808 | 265 / 2,808 | FAIL |
+| adaptive 3 px outline (previous branch state, full matrix, 4 configs) | 3,339 / 3,724 | 3,204 / 3,724 | FAIL (Fire ember, Plague bog) |
 | **none (default now)** | **62 / 931** (Fire 1 / 242, Sentenced 0 / 90, Plague 2 / 212, Frost 41 / 166, Holy 9 / 166, Coliseum 9 / 55) | **1 / 931** | **FAIL** |
 | outline (`fx.outline=1`) | OUTLINE_EDGE | OUTLINE_MARK | OUTLINE_VERDICT |
 | rim (`fx.rim=1`) | RIM_EDGE | RIM_MARK | RIM_VERDICT |

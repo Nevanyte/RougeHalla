@@ -211,8 +211,11 @@ Shader "Roguehalla/ActorOutline"
         {
             float srcA = FigAlpha(i.uv);
             float dil = Dilate(i.uv, _Outline.zw);
-            float fw = max(fwidth(dil), 0.12);
-            float covFull = saturate((dil - 0.5) / fw + 0.5);
+            // The source is drawn smaller than its texels (a figure is about 100 px tall on screen), so a single binary dilation aliases into dashes: the coverage is the mean of four
+            // rotated-grid samples a quarter of a screen pixel apart (five levels of antialiasing), which keeps a 1 px stroke even and unbroken.
+            float2 ddu = ddx(i.uv) * 0.25, ddv = ddy(i.uv) * 0.25;
+            float covFull = 0.25 * (step(0.5, Dilate(i.uv + ddu + ddv * 0.5, _Outline.zw)) + step(0.5, Dilate(i.uv - ddu - ddv * 0.5, _Outline.zw))
+                                  + step(0.5, Dilate(i.uv - ddu * 0.5 + ddv, _Outline.zw)) + step(0.5, Dilate(i.uv + ddu * 0.5 - ddv, _Outline.zw)));
             if (_MaskMode > 0.5)
             {
                 // The mask is the silhouette: the source (drawn by its own mask material) plus the stroke, so the stroke's mask covers the whole dilation.
