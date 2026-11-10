@@ -92,3 +92,36 @@ When DeepSeek seals Stage0, inspect exact allowed-file diff and verify:
 Source witness: **accepted for this bounded regression, with additive attribution clarification**. Native Stage0:
 **pending candidate and meaningful red/green evidence**. Stage1: **not released**. Further source execution is not needed
 solely to repeat the immutable receipts reviewed here; any actual discrepancy must retain its own evidence.
+
+## Unsealed native consumer review checkpoint
+
+This subsection records an inspected WIP, **not a sealed candidate release**. Exact new consumer bytes inspected:
+`crates/rh-sim/src/quests/tour_supply_source_tests.rs`,24,881 bytes, SHA-256
+`dda975e7782134e52c5a7b278792b991f06b3ed1cd7b9d310d4ec2449d966489`, in backend-quest-runtime on base
+`4151b3af` + transferred source `a3d8e8d4`. No native test was run by reviewer while author changed code. Root reports
+initial compile success and first runtime notice-count failure; a meaningful two-direction status red has not yet been
+reviewed. `live.rs`/catalog repair was not present at this checkpoint. Line numbers below bind this exact WIP only.
+
+Root's earlier comments already addressed separate case tests, exact ordered notices, final pending events, a vacuous
+`||true` assertion and a placeholder def.len ID. The inspected checkpoint now has separate two case functions, full
+notice-prefix comparison and `step_holding` that drains pending producer events before the next ordinary step; the
+vacuous/placeholder code is gone. These are source-inspected improvements, not verified runtime results.
+
+Remaining substantive findings delivered to Root for author correction in consolidated batches:
+
+| WIP location | Finding and required boundary |
+|---|---|
+|213, mobHp action|Reader uses `mob.at.x/y`, but this frozen action's `mob` has top-level `x/y`. Wipe targets use nested `at`. Distinguish the two actual source action shapes; do not change frozen data to fit a shared assumed schema.|
+|173–201, mob binding|Source camp is one-based MobState.camp; native regional mob.camp is zero-based. Direct equality binds the wrong camp. Nearest matching sibling ignores the captured source actor ID and permits unconstrained distance mismatch. Bind actual retained birth identity (existing giver source consumer's base36 ActorOrigin pattern), then validate recorded type/region/kind/elite/camp/position before changing HP or killing. Do not choose a different live sibling merely because it makes the case advance.|
+|120–151, bootstrap|reset_active overrides min_players to placement human count, applies captured post-spawn initial poses/HP/history/loadout and discards first-step events. Source records those initial values as constructor outputs, rather than declaring corresponding override actions. Use recorded config/seed/seats through normal constructor/add_player/first-step, or obtain a documented coordinator decision for a bounded placement/bootstrap deviation before claiming constructor parity. No quest state was directly installed here; the concern is silent substitution of the source starting process.|
+|101–118, config|Source lifecycle3600s/no-planning, abilities and terrain installers exist in createGameWorld; current native defaults leave lifecycle/abilities/hazards Off. They may not fire in250ms, but this is an ignored configuration boundary. Map available source switches/profile explicitly, preserving signaturesfalse and no new gameplay edits. Report a genuine constructor/profile mismatch separately.|
+|403–436, live supply|Counts/composition use core.faction_id while close_impossible derives zones from mob_type catalog; no stable mob identity is compared. Compare the actual regional-alive domain and type.zone that drives the rule, prove equality to captured brain.region, and bind exact source actor identities. A new region/type/elite/rawcamp tuple comparison helps but retains the one-based camp error and can still validate a different predicate than the production rule.|
+|355–356,389–390, retirement|giver.is_some and stored container-ID count do not establish actual actor/container existence as source giverPresent does. Verify the bound giver exists before closure and is retired afterward, and relevant quest containers' real presence/retirement rather than a stale ID/pointer. Preserve full offer-row comparison; no need redundant count-only tests.|
+|471, visited representation|Root independently identified the source schema: quests.ts writes visitedRegions as `[...seen].join(",")`; capture defaults missing to numeric0. Treating every captured human.visitedRegions as u64 panics once it becomes `"frost"`. Keep the source string/public representation distinct from the native internal mask. Real visits array already provides membership; compare mask8 to actual Frost membership and source projection as its proper typed representation.|
+|437–443, pre-recheck checks|Unconditional source-only assertions require captured p0 mob GV12/stacks6 for both cases. Case1 legitimately has6/3, so these checks would fail before the target status for an unrelated reason. Use case-specific frozen facts or omit redundant source-only hardcoding; retain the real native GV/stat comparisons against every frame and both outcome paths.|
+
+The new main quest comparisons do check actual human progress, acceptance, internal visit rows and reward facts; keep
+those assertions. Earlier failure receipts must remain intact while harness bugs are repaired. Neither compile success
+nor a reader/notice/constructor failure substitutes for the required pre-fix status red. Do not relax source expectations,
+skip the opposite case, clear threat or widen the production repair to make harness setup pass. Final independent
+admission requires the corrected immutable code seal and actual red/green receipts; this checkpoint remains pending.
