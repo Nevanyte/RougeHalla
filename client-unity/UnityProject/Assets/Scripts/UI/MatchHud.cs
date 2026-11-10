@@ -469,43 +469,17 @@ namespace Roguehalla.Client
         static RectTransform Panel(Transform parent, string name, float x0, float y0, float x1, float y1)
         {
             var r = Rect(parent, name, x0, y0, x1, y1);
-            var image = r.gameObject.AddComponent<UnityEngine.UI.Image>(); image.color = MythicUi.Backdrop(ShowcasePalette.Panel); image.raycastTarget = true;
-            MythicUi.Border(r, new Color32(126, 96, 51, 220));
-            if (name == "JoinMenu" || name == "PlayerHUD" || name == "Rewards" || name == "Results" || name == "SettingsPanel")
-                AddCornerOrnaments(r);
+            HudUi.Surface(r, ShowcasePalette.Panel, UiTheme.Current.CornerRadius, UiTheme.Current.Border);
             return r;
         }
 
-        static void AddCornerOrnaments(RectTransform panel)
-        {
-            // Fine, non-interactive corner strokes frame the panels without covering content or stealing clicks.
-            const float length = .026f, thickness = .0025f;
-            AddOrnament(panel, "OrnamentTLH", 0, 1 - thickness, length, 1);
-            AddOrnament(panel, "OrnamentTLV", 0, 1 - length, thickness, 1);
-            AddOrnament(panel, "OrnamentTRH", 1 - length, 1 - thickness, 1, 1);
-            AddOrnament(panel, "OrnamentTRV", 1 - thickness, 1 - length, 1, 1);
-            AddOrnament(panel, "OrnamentBLH", 0, 0, length, thickness);
-            AddOrnament(panel, "OrnamentBLV", 0, 0, thickness, length);
-            AddOrnament(panel, "OrnamentBRH", 1 - length, 0, 1, thickness);
-            AddOrnament(panel, "OrnamentBRV", 1 - thickness, 0, 1, length);
-        }
-
-        static void AddOrnament(Transform parent, string name, float x0, float y0, float x1, float y1)
-        {
-            var rect = Rect(parent, name, x0, y0, x1, y1);
-            var image = rect.gameObject.AddComponent<UnityEngine.UI.Image>();
-            image.color = new Color32(156, 119, 62, 225);
-            image.raycastTarget = false;
-        }
         TMP_Text Text(Transform parent, string name, string text, float x0, float y0, float x1, float y1, int size)
         {
             size = Mathf.RoundToInt(size * 1.5f);
             var r = Rect(parent, name, x0, y0, x1, y1);
             var label = r.gameObject.AddComponent<TextMeshProUGUI>();
             bool decorativeTitle = name == "Title" || name == "RewardTitle" || name == "ResultsTitle" || name == "SettingsTitle";
-            var bodyFont = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF");
-            var titleFont = decorativeTitle ? Resources.Load<TMP_FontAsset>("Showcase/CinzelDecorative") : null;
-            label.font = titleFont != null ? titleFont : bodyFont != null ? bodyFont : TMP_Settings.defaultFontAsset;
+            label.font = UiTheme.Current.Font(decorativeTitle ? UiFontRole.Display : UiFontRole.Body);
             label.text = text; label.fontSize = size * (_showcaseSettings != null ? _showcaseSettings.TextScale : 1f); label.color = ShowcasePalette.Text;
             if (decorativeTitle) label.characterSpacing = 2.0f;
             label.alignment = TextAlignmentOptions.MidlineLeft; label.raycastTarget = false; label.richText = false;
@@ -516,17 +490,18 @@ namespace Roguehalla.Client
         UnityEngine.UI.Button Button(Transform parent, string name, string text, float x0, float y0, float x1, float y1, UnityEngine.Events.UnityAction action)
         {
             var r = Panel(parent, name, x0, y0, x1, y1);
+            var theme = UiTheme.Current;
             var background = r.GetComponent<UnityEngine.UI.Image>();
-            background.color = MythicUi.Backdrop(Color.white);
+            background.color = Color.white; // the colour block supplies the visible fill
             var button = r.gameObject.AddComponent<UnityEngine.UI.Button>();
             button.targetGraphic = background; button.onClick.AddListener(action);
             var label = Text(r, "Label", text, .04f, .05f, .96f, .95f, 20); label.alignment = TextAlignmentOptions.Center;
             var colors = button.colors;
-            colors.normalColor = ShowcasePalette.PanelRaised;
-            colors.highlightedColor = new Color32(73, 67, 52, 255);
-            colors.selectedColor = new Color32(86, 70, 46, 255);
-            colors.pressedColor = new Color32(96, 69, 31, 255);
-            colors.disabledColor = new Color32(37, 43, 51, 255);
+            colors.normalColor = theme.SurfaceRaised;
+            colors.highlightedColor = theme.SurfaceHover;
+            colors.selectedColor = theme.SurfaceHover;
+            colors.pressedColor = theme.SurfaceSelected;
+            colors.disabledColor = theme.SurfaceDisabled;
             colors.fadeDuration = .12f;
             button.colors = colors;
             return button;

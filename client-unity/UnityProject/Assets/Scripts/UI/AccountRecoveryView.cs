@@ -26,7 +26,7 @@ namespace Roguehalla.Client
         public void Initialize(Transform parent, AccountHubFlow flow, RecoveryKeyReader reader)
         {
             _flow = flow; _readKey = reader;
-            _root = MythicUi.Panel(parent, "AccountRecoveryOverlay", Vector2.zero, Vector2.one, new Color32(3, 7, 12, 235));
+            _root = MythicUi.Panel(parent, "AccountRecoveryOverlay", Vector2.zero, Vector2.one, UiTheme.Current.Scrim);
             _root.gameObject.AddComponent<ModalDismissSurface>().Dismiss = () => SetVisible(false);
             var card = MythicUi.Panel(_root, "RecoveryCard", new Vector2(.18f, .20f), new Vector2(.82f, .83f));
             MythicUi.Text(card, "Heading", "RECOVER YOUR CALLSIGN", new Vector2(.05f, .83f), new Vector2(.95f, .98f), 25, ShowcasePalette.Gold);

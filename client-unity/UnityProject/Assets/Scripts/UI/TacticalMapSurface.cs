@@ -50,8 +50,8 @@ namespace Roguehalla.Client
                 for (int x = 0; x < map.W; x++)
                 {
                     byte tile = map.Tiles[y * map.W + x];
-                    pixels[(map.H - 1 - y) * map.W + x] = tile == MapBlob.Wall ? new Color32(117, 137, 159, 255) :
-                        tile == MapBlob.Low ? new Color32(126, 113, 82, 255) : new Color32(16, 27, 37, 200);
+                    pixels[(map.H - 1 - y) * map.W + x] = tile == MapBlob.Wall ? UiTheme.Current.Border :
+                        tile == MapBlob.Low ? UiTheme.Current.AccentDim : UiTheme.Current.SurfaceSunken;
                 }
             _texture.SetPixels32(pixels); _texture.Apply(false, true); _terrain.texture = _texture;
             var fit = GetComponent<AspectRatioFitter>() ?? gameObject.AddComponent<AspectRatioFitter>();

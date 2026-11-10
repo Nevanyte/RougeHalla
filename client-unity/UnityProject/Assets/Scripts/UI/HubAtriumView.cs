@@ -222,7 +222,7 @@ namespace Roguehalla.Client
 
         void BuildFloor()
         {
-            _floor = MythicUi.Panel(_panel, "AtriumFloor", new Vector2(.035f, .115f), new Vector2(.965f, .535f), new Color32(12, 18, 26, 255), false);
+            _floor = MythicUi.Panel(_panel, "AtriumFloor", new Vector2(.035f, .115f), new Vector2(.965f, .535f), ShowcasePalette.Background, false);
             var rail = MythicUi.Panel(_floor, "FloorDivider", new Vector2(.035f, .5f), new Vector2(.965f, .505f), ShowcasePalette.PanelStroke, false);
             _stationButtons = new Button[StationCount];
             _stationLabels = new TMP_Text[StationCount];

@@ -53,7 +53,7 @@ namespace Roguehalla.Client
             _launchInfo = Text(_menu, "LaunchAvailability", "", .06f, .005f, .94f, .06f, 13);
             _accountStatus = Text(_root, "AccountStatus", "", .025f, .09f, .95f, .16f, 17);
             _signInBackdrop = Panel(_root, "SignInModal", 0, 0, 1, 1);
-            _signInBackdrop.GetComponent<UnityEngine.UI.Image>().color = new Color32(3, 7, 12, 220);
+            _signInBackdrop.GetComponent<UnityEngine.UI.Image>().color = UiTheme.Current.Scrim;
             _signInBackdrop.gameObject.AddComponent<ModalDismissSurface>().Dismiss = () => SetSignInVisible(false);
             _signIn = Panel(_signInBackdrop, "SignInOptions", .26f, .27f, .74f, .80f);
             Text(_signIn, "SignInTitle", "SIGN-IN & ACCESS", .06f, .80f, .94f, .97f, 26).color = ShowcasePalette.Gold;
