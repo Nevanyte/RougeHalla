@@ -1,0 +1,985 @@
+{
+  "utc": "2026-11-10T09:24:12.245247+00:00",
+  "cwd": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-brain-source-review",
+  "head": "6aaa4c6d33dad8a47ab7957b41d420fa78954af6",
+  "status": "",
+  "files": {
+    "package-lock.json": {
+      "bytes": 153409,
+      "sha256": "991869bdfbbefb6874220500197c61db302a4d2b2603dfc2288fd7032ce1d481"
+    },
+    "package.json": {
+      "bytes": 2247,
+      "sha256": "9da8ab00050db3ec14c083365ab0c3a5b8986e38fd13c086b2913249d531422c"
+    },
+    "packages/client/package.json": {
+      "bytes": 430,
+      "sha256": "05f2c477239869cf8879ea6b94ca490aa9717ba28e58712bb6bbe8cb0313b3e3"
+    },
+    "packages/client/tsconfig.json": {
+      "bytes": 149,
+      "sha256": "c101d39672c0d5e91b35160566e6e85bae9fe7490b694c729b5bb4fe12daf88a"
+    },
+    "packages/server/package.json": {
+      "bytes": 981,
+      "sha256": "d4965c850237876a64a02cd1c7c554f1a64d97392344cae3b63d4bd688e2f7b8"
+    },
+    "packages/server/src/bots/BotClient.ts": {
+      "bytes": 19195,
+      "sha256": "5f1f7b533c74b53c29adb2e586811a31de68f3dd858255c3c3e1a4c471aadd0c"
+    },
+    "packages/server/src/bots/BotManager.ts": {
+      "bytes": 23579,
+      "sha256": "06f2e2957c1528a838777c54d505ce4a7fc402ee6bb11b38e171761a205e3fae"
+    },
+    "packages/server/src/bots/abilityPolicy.ts": {
+      "bytes": 7564,
+      "sha256": "e892cff2eba225520aac5730365f5df800a3971734a6c1d63c0d02a084b298ec"
+    },
+    "packages/server/src/bots/brain/brain.ts": {
+      "bytes": 15843,
+      "sha256": "e5068026aba10f5bfe85d806b33cb76c4fc7e4408a958d87703dc1f3a391f800"
+    },
+    "packages/server/src/bots/brain/buildRoute.ts": {
+      "bytes": 12930,
+      "sha256": "fbe819cc2b36da50c7b01b0e4c40cf77c5c27286e6b5c69d76bc24e862af4f5e"
+    },
+    "packages/server/src/bots/brain/clicks.ts": {
+      "bytes": 7808,
+      "sha256": "0fa8b26cd9a31359fa184b0ca99f4c18d768606a09e2b27312c21d6e46a8a823"
+    },
+    "packages/server/src/bots/brain/frames.ts": {
+      "bytes": 20904,
+      "sha256": "aa8fcb62e8039d37d3c9f6cb000687fbfea61e12ab50805dfe45dae06119d6c6"
+    },
+    "packages/server/src/bots/brain/humanizer.ts": {
+      "bytes": 19502,
+      "sha256": "650519070f2580783e0e4c595950c1e41a35bf66f0f846f763eb5e4fb464f09b"
+    },
+    "packages/server/src/bots/brain/huntAdapter.ts": {
+      "bytes": 9197,
+      "sha256": "0dac45d23811dbb72a8e8e5aa888e563a616f1fba255cde516176278e70c027d"
+    },
+    "packages/server/src/bots/brain/knowledge.ts": {
+      "bytes": 4351,
+      "sha256": "5709954e5f8d65411ff5606b4b337b5cfc19af163833cd1f147279affd9ce263"
+    },
+    "packages/server/src/bots/brain/memory.ts": {
+      "bytes": 35038,
+      "sha256": "29c2086be936ec867ddec97c2e4442b86acdbf1255e55de001e73892f7b128a8"
+    },
+    "packages/server/src/bots/brain/modules/chests.ts": {
+      "bytes": 15286,
+      "sha256": "aa620dcb3dcd5be08442af1517f761cd4dbaa769efc986f465c31a50a8bfddef"
+    },
+    "packages/server/src/bots/brain/modules/hazards.ts": {
+      "bytes": 9190,
+      "sha256": "6211aeb02f795965e62036135fbbba0460f38688b7f54f97135db17da6101779"
+    },
+    "packages/server/src/bots/brain/modules/index.ts": {
+      "bytes": 1988,
+      "sha256": "7d22ea88b1c59d9248af35a6c25a0860e422cedeb7c0e883e84ad630d7cebf78"
+    },
+    "packages/server/src/bots/brain/modules/planning.ts": {
+      "bytes": 9178,
+      "sha256": "66a75aa8f29216d428151e680792388ac4f587f762d2cb822b59b546f63fb51b"
+    },
+    "packages/server/src/bots/brain/modules/wishes.ts": {
+      "bytes": 14893,
+      "sha256": "61eade3cca61d17c533bcb2a1033e4489d5b11e496e88a8f245b4427b5f399fa"
+    },
+    "packages/server/src/bots/brain/perception.ts": {
+      "bytes": 36755,
+      "sha256": "059dba28d67a588be8b9f491cd69a242e841545a3b1863ce798da2e3f085390a"
+    },
+    "packages/server/src/bots/brain/random.ts": {
+      "bytes": 3261,
+      "sha256": "a23fb8d369ffced9e30719706b12eb5ec65afb14da16429a7cdc9dbc7e3f92f7"
+    },
+    "packages/server/src/bots/brain/runner.ts": {
+      "bytes": 3695,
+      "sha256": "345b94151ba4185736269acd782385a66d24cfaa50dafd75900cfad944c66164"
+    },
+    "packages/server/src/bots/brain/services.ts": {
+      "bytes": 5725,
+      "sha256": "be3f915c4788b8e8406b6739d364fb3957935903555c26168c5892f93f7567fb"
+    },
+    "packages/server/src/bots/brain/strategy.ts": {
+      "bytes": 47427,
+      "sha256": "edf3ec7f0e2b68de24e52def86e046209cd53c98c598057d38baf810f1ec2116"
+    },
+    "packages/server/src/bots/brain/tactics.ts": {
+      "bytes": 6342,
+      "sha256": "64804de4b29e87fdc12bdf7e2df65d69573293c7db5fdae08c6c11dcc4ae08ef"
+    },
+    "packages/server/src/bots/brain/tactics/fight.ts": {
+      "bytes": 20356,
+      "sha256": "10a9aeb45b69c9635072213fefbcfe7aa40fd113773f7cf2b254594ae8204a50"
+    },
+    "packages/server/src/bots/brain/tactics/kite.ts": {
+      "bytes": 17088,
+      "sha256": "b7ceff483d51fe1d58d79ef34562e28a079027623527f11264c21439c2b6e2be"
+    },
+    "packages/server/src/bots/brain/tactics/world.ts": {
+      "bytes": 13075,
+      "sha256": "076e5d6bdfc8d565fb6704cc1635e690064aff1e0fc55ab52454901c259742e6"
+    },
+    "packages/server/src/bots/brain/types.ts": {
+      "bytes": 57792,
+      "sha256": "12b3cae05bcde760cd642b9c5eb9919bfc47189882c81258994c9f1122d3d361"
+    },
+    "packages/server/src/bots/brain/vision.ts": {
+      "bytes": 4865,
+      "sha256": "e4418c5bbd8e9d8e3c21e3b1b9b8f677c947d178f812c9d634934c6c8c92f34c"
+    },
+    "packages/server/src/bots/callsigns.ts": {
+      "bytes": 2353,
+      "sha256": "5ce870d6764b49cdbbfa1b35946b4ce1bf18eaf25904529133dcf97b1f911a84"
+    },
+    "packages/server/src/bots/chestHunt.ts": {
+      "bytes": 20997,
+      "sha256": "49a5a01326e65646d29bff87c3adb35373fe0a086325f8080877414f796e8760"
+    },
+    "packages/server/src/bots/learning/BotStatsStore.ts": {
+      "bytes": 12380,
+      "sha256": "3241143a09e1a3cd66f469afcba0e8b7a24b2198ad87142b1daf300f16e6b1fa"
+    },
+    "packages/server/src/bots/mobHunt.ts": {
+      "bytes": 27077,
+      "sha256": "88fc22040e62b1bc5226c37c16095032533df1e104dee0b27fdcb671c33fe6ff"
+    },
+    "packages/server/src/bots/runBots.ts": {
+      "bytes": 13923,
+      "sha256": "b6f32f3fa28a1900697d792279d4de40e6be93f9f06061844685f50747874f08"
+    },
+    "packages/server/src/bots/tournament/game.ts": {
+      "bytes": 14076,
+      "sha256": "6cf76bd30fea8f983c5d38c69a5f7bad04364b1576bf4080ed0d474cfebe828e"
+    },
+    "packages/server/src/bots/tournament/headlessRoom.ts": {
+      "bytes": 9611,
+      "sha256": "f9f7dd89539463daf3d27d3fe167e07e27ad2c41333a898f4292c742a99888ec"
+    },
+    "packages/server/src/bots/tournament/report.ts": {
+      "bytes": 22049,
+      "sha256": "a9b800f6d09d11cce235f76dd45de4aaf7215250e25ba3f1f341f6667682066c"
+    },
+    "packages/server/src/bots/tournament/runTournament.ts": {
+      "bytes": 11772,
+      "sha256": "a9bc0035fe6f2ccde1fe7377907f70c92a7f0108e3580e108971a55d8fb6230f"
+    },
+    "packages/server/src/bots/tournament/tune.ts": {
+      "bytes": 2172,
+      "sha256": "007860163619a75ece5ebaf682b0d2d684d81a293dc10ecd61f9054c11367974"
+    },
+    "packages/server/src/bots/tournament/worker.ts": {
+      "bytes": 7385,
+      "sha256": "234924c85030238fd933e0e6ba439226128364309fa2d47256caf78dc85f809f"
+    },
+    "packages/server/tsconfig.json": {
+      "bytes": 153,
+      "sha256": "38a209200ba0dde3bbaeee8df1e29755aa35b63c588367da486b31a83b90cd15"
+    },
+    "packages/shared/package.json": {
+      "bytes": 427,
+      "sha256": "6e9c040348c50e0ad5043ec4cb9b4206f68f29cf4eeb4dec5f635f37a6f87f35"
+    },
+    "packages/shared/src/abilities.ts": {
+      "bytes": 16589,
+      "sha256": "95ef39376a9d9f40cc529a0f7300700a97427050628941e801aaa1e299862518"
+    },
+    "packages/shared/src/achievements.ts": {
+      "bytes": 7472,
+      "sha256": "c80dbded6e1ea5eb79dc0f25378d9a45fbe41865a8298bf9fc5f2eeafdd46a34"
+    },
+    "packages/shared/src/blink.ts": {
+      "bytes": 7936,
+      "sha256": "e5582562556f530fd99ec9bf8e506fa144805f666c09f4359aefb98ee9171f15"
+    },
+    "packages/shared/src/bushes.ts": {
+      "bytes": 6087,
+      "sha256": "ac64ce414134376d27b7b4819d59096e66edd01d82958e873d57348a79d85910"
+    },
+    "packages/shared/src/cards.ts": {
+      "bytes": 34091,
+      "sha256": "4a51376a1ce3a79f417e32ce7ae8d7eb37142da5e49f59c3a2c89d48b11ae1e3"
+    },
+    "packages/shared/src/championPassives.ts": {
+      "bytes": 1337,
+      "sha256": "d7e0ecdc8b9cbffc8463f40b9c564019431b14744f5948bf89eefb2505fbf6df"
+    },
+    "packages/shared/src/chestBoosts.ts": {
+      "bytes": 4652,
+      "sha256": "60b50c685dacdfdbc2861fdc9f80a900845c5cc0af0b77741527cfb8da51fa81"
+    },
+    "packages/shared/src/coliseum.ts": {
+      "bytes": 8403,
+      "sha256": "48fc2fa156e70ff6520019605017939298144960d8871a748ef18aadbbf0c0e1"
+    },
+    "packages/shared/src/combatReadability.ts": {
+      "bytes": 8406,
+      "sha256": "206f707658ee37f22d9aae403449003487e474220442e1cb178c8af85bfe8833"
+    },
+    "packages/shared/src/constants.ts": {
+      "bytes": 46007,
+      "sha256": "51ce4dd800ec868abee525fb1ae375688066f336972a7da878644df1235924e7"
+    },
+    "packages/shared/src/consumables.ts": {
+      "bytes": 1974,
+      "sha256": "1ffd882c4b44fed9c20743e671050fc4044706c17e2c36c365952eafc3bd3606"
+    },
+    "packages/shared/src/cosmetics.ts": {
+      "bytes": 11625,
+      "sha256": "7513ea6b3cbc51072863ccb6ef568d96797f9239c8073f99d2a33ef3aab7b873"
+    },
+    "packages/shared/src/detMath.ts": {
+      "bytes": 874,
+      "sha256": "a806636428155920a0c1c8675cd84d896057993d4d6ff7b9b4623daa5a312b15"
+    },
+    "packages/shared/src/effectText.ts": {
+      "bytes": 9977,
+      "sha256": "da22ddb275748104b8f7e11888c1c52c569463bcf165c8efc943cd42f7f0050f"
+    },
+    "packages/shared/src/effects.ts": {
+      "bytes": 18193,
+      "sha256": "859ac817f16a8334865abf103b783fae76b5525d0e90dc407bddf921810f415b"
+    },
+    "packages/shared/src/factions.ts": {
+      "bytes": 14039,
+      "sha256": "aa0cebf1c17af17b64bc1e020c4613ab10788ec66d82a72232aef8915d5403f3"
+    },
+    "packages/shared/src/fireRoam.ts": {
+      "bytes": 1058,
+      "sha256": "ddf7a5372e3d223b86eb7f0408960908f2c4d4f7c6172fc5e65284ab1c4b8edb"
+    },
+    "packages/shared/src/fxCodec.ts": {
+      "bytes": 24844,
+      "sha256": "db2080230ad1b3702e37d3e339384e4a071ef899a8203026e20038a3a2b0f0ba"
+    },
+    "packages/shared/src/geometry.ts": {
+      "bytes": 7899,
+      "sha256": "b1a91a65281f8642b1779b81764768569311966ab493941101a2f988cfdc1f5d"
+    },
+    "packages/shared/src/glossary.ts": {
+      "bytes": 7261,
+      "sha256": "0c8871be2726d6a63700e2f6ba39a454992258189f276ad1ed87b8601150a5fb"
+    },
+    "packages/shared/src/gridOps.ts": {
+      "bytes": 2375,
+      "sha256": "76587ddd597a2a6ecc05561427dd89b986b6f86026ffedc56848e1b03bb52493"
+    },
+    "packages/shared/src/gridTopology.ts": {
+      "bytes": 12464,
+      "sha256": "deb2710d114cd669854a082c06bafe518f5ef750249722f89ede83a27d42d328"
+    },
+    "packages/shared/src/hpView.ts": {
+      "bytes": 2020,
+      "sha256": "40ec081fdb8adb245dca088a21f1aef18fa8dbf9d991581f16baf99606508cc3"
+    },
+    "packages/shared/src/index.ts": {
+      "bytes": 1564,
+      "sha256": "2a78a73307372ea1a5ffe753f2f16fb11386c124100455f45339fe985b01dfcb"
+    },
+    "packages/shared/src/interactions.ts": {
+      "bytes": 8524,
+      "sha256": "72aa41c26f8254e00d4956ba57d804471e80b924b55529d016efa6e7d4ecef11"
+    },
+    "packages/shared/src/interp.ts": {
+      "bytes": 20983,
+      "sha256": "83cf2ac2359058b1e0497e636f83e36b1d60c97e13f81e15e6edf39d8f231eb4"
+    },
+    "packages/shared/src/killAugments.ts": {
+      "bytes": 4382,
+      "sha256": "82641061ad98878f7fb209e72f490447034f5ddf36d149990e206fa83a548244"
+    },
+    "packages/shared/src/map.ts": {
+      "bytes": 21022,
+      "sha256": "35caac04108a3bd0e1d880a9502f14bdccb3a9a17d262cba335c3d6436995eed"
+    },
+    "packages/shared/src/mapWire.ts": {
+      "bytes": 402,
+      "sha256": "b52863f757b829ab9a36582cc11e95aea4c0902fd979df5d40bcb5889bba04eb"
+    },
+    "packages/shared/src/mapgen.ts": {
+      "bytes": 57619,
+      "sha256": "975591aed836a345c4efd957ced95a478638e6e870fe8ea9bb8740526ef06d10"
+    },
+    "packages/shared/src/mark.ts": {
+      "bytes": 4403,
+      "sha256": "44870381fa48b9c8f65f180ff74995725644d7264df5b069a3c43c2291540661"
+    },
+    "packages/shared/src/messages.ts": {
+      "bytes": 30329,
+      "sha256": "f7f3b4eb6bb32c54bb97a7d3a8e2ba613b0aff0495a0f20c09fd6d36c797fe80"
+    },
+    "packages/shared/src/mobStats.ts": {
+      "bytes": 7296,
+      "sha256": "94034887302346dcd070ff2fa774ae0e4f71933b549964f53be13389be087d5b"
+    },
+    "packages/shared/src/mobs.ts": {
+      "bytes": 15613,
+      "sha256": "3b567c08363d8d4f1e9a897240b3d99d5b8ded7757b6809a4b534b63d72b5522"
+    },
+    "packages/shared/src/mods.ts": {
+      "bytes": 23134,
+      "sha256": "10e9dcd3d7417c4fe85d1c36ef33afe5abf7a5703a59b42a3a825a66aa4efaff"
+    },
+    "packages/shared/src/pathfind.ts": {
+      "bytes": 11003,
+      "sha256": "300caa48788f84bdc780befe8c50db41c2c0b2be520d3fb43a7f91e16de424d9"
+    },
+    "packages/shared/src/plagueCorpses.ts": {
+      "bytes": 3584,
+      "sha256": "cd85318857ba38853385c3ce9560b8674266b71b0b1555017953c7a41080378d"
+    },
+    "packages/shared/src/planning.ts": {
+      "bytes": 5249,
+      "sha256": "8d52b212f6fec391359787cf9d81b8fa31a067ea839a2b9ccadc58c059027cb2"
+    },
+    "packages/shared/src/policies.ts": {
+      "bytes": 13185,
+      "sha256": "3a08aef58ae780bb2417781e735ff75c310de08db43b47a742714bcf94619fbd"
+    },
+    "packages/shared/src/propKinds.ts": {
+      "bytes": 2990,
+      "sha256": "431d70881377a8059960f053dc9452946cc0e942d212c92765bacb8a063027ee"
+    },
+    "packages/shared/src/quests.ts": {
+      "bytes": 37136,
+      "sha256": "99c4fdfeae5e2a9eb3e0894f56ae1cd3db7eea760c5c09df695685e250800bba"
+    },
+    "packages/shared/src/rewards.ts": {
+      "bytes": 8894,
+      "sha256": "cc19d6d0a7be390a9574a1f88b6b5241ac0885c3720b4ca3fe17d1d450f3a601"
+    },
+    "packages/shared/src/rng.ts": {
+      "bytes": 2115,
+      "sha256": "412bdcee4a5adcb6163bff3561cb4a07eff423dc7e30e9ba0694cb41b05b1bec"
+    },
+    "packages/shared/src/rosters.ts": {
+      "bytes": 4469,
+      "sha256": "0f544537f1ea1517345efd44bc3d4a4ee7d5bffd52a13cb084cc9693ec6f297d"
+    },
+    "packages/shared/src/rules.ts": {
+      "bytes": 6532,
+      "sha256": "c5822091cdc711e53086a6f2f8649c53c1d709009649a0a65c005096774893b7"
+    },
+    "packages/shared/src/schema.ts": {
+      "bytes": 21469,
+      "sha256": "245486da649ea5bc5d8b9b0d5d75f3e860fc8f153574fa2b9ee091dcb52e99cb"
+    },
+    "packages/shared/src/sentencedHunt.ts": {
+      "bytes": 1184,
+      "sha256": "a606dd94905114562d14d13c09f6c59586a60a70e9a02da49285d886305ce561"
+    },
+    "packages/shared/src/signatureShares.ts": {
+      "bytes": 1078,
+      "sha256": "e6996931487dde9d4e3f71481a9da996f7500fbcd2148f7924ed730a78eba1a4"
+    },
+    "packages/shared/src/signatures.ts": {
+      "bytes": 9370,
+      "sha256": "0a6befbb5a6fe9870b13a540d72235085c491668c8cae3674fa8faf89816e191"
+    },
+    "packages/shared/src/status.ts": {
+      "bytes": 4682,
+      "sha256": "98a0570d7620e424d9d522356fe378a6af049109d8af0342be0ecff970310df7"
+    },
+    "packages/shared/src/styler.ts": {
+      "bytes": 7309,
+      "sha256": "314805a5a6cd9074763c9e555e48e7145c7ed7c87f265876c3712e4837abc51c"
+    },
+    "packages/shared/src/telemetry.ts": {
+      "bytes": 28458,
+      "sha256": "3310df401408a2a4a893a40febe40dda72afe20a13898e6f63620a127d2ba8e2"
+    },
+    "packages/shared/src/terrain.ts": {
+      "bytes": 21947,
+      "sha256": "5ee4fe11e793f83f3d095720ba1156a186c5c7704e864f2cad74503ab13a07d6"
+    },
+    "packages/shared/src/traders.ts": {
+      "bytes": 2434,
+      "sha256": "6b0fb339c3988c253a4162bdd70ae0d3be13f2d066cbdf10168c5b6d1345d1d3"
+    },
+    "packages/shared/src/training.ts": {
+      "bytes": 1879,
+      "sha256": "8cf8332e7083fa801407bb2bfd911f2ca008029c1a7ad16cf6bd9bc6935ccc58"
+    },
+    "packages/shared/src/vision.ts": {
+      "bytes": 12457,
+      "sha256": "f9d026e5c3e8932502f147d6f2ce5d11625845faf07a9dec734b595db76521db"
+    },
+    "packages/shared/src/walk.ts": {
+      "bytes": 15362,
+      "sha256": "0d33c95623a6d11fa21a9e58b308eed8cb0150b24d65b592877c5f9e2b5a0020"
+    },
+    "packages/shared/src/weapons.ts": {
+      "bytes": 15391,
+      "sha256": "2f22f037502fe63fae6b47f20408cfd35ebc72bfea081194ae8d18cfc21df99b"
+    },
+    "packages/shared/src/wheel.ts": {
+      "bytes": 3618,
+      "sha256": "e16388b4aa07cb1ab60c4ac5859879eaad0eb686f50e625a7917cad34e275466"
+    },
+    "packages/shared/src/zoneStyle/context.ts": {
+      "bytes": 30206,
+      "sha256": "8a87c8c930a11c2f1c83b3afe9384586a24f41690dd77a78f1c35b0f69a19dfb"
+    },
+    "packages/shared/src/zoneStyle/features.ts": {
+      "bytes": 40831,
+      "sha256": "f0d987fc114394e514c0b9e194b219aa1f8f3429a0fa141c7b6181e6d87ee983"
+    },
+    "packages/shared/src/zoneStyle/gallows.ts": {
+      "bytes": 37047,
+      "sha256": "0edb95a89d06fc6b0f60a6dc85da41613177362679c03e2073f2be24bbe186e4"
+    },
+    "packages/shared/src/zoneStyle/hook.ts": {
+      "bytes": 3970,
+      "sha256": "56eeba0fb5019dc5dd02e8fd76059c6f82ede6cfa2aa46c763ecf63b619bc668"
+    },
+    "packages/shared/src/zoneStyle/index.ts": {
+      "bytes": 1629,
+      "sha256": "6ada1628cfd571cfda3616155e0dc0a047976d9056e467b521c68a6a44f6d673"
+    },
+    "packages/shared/src/zoneStyle/kit.ts": {
+      "bytes": 17138,
+      "sha256": "dc69161c080b9474a873d12ac194d876b78285a1ae2cdb7eb24cb86b30337e16"
+    },
+    "packages/shared/src/zoneStyle/landmarks.ts": {
+      "bytes": 30532,
+      "sha256": "ad18e32099ceafc1b88fa33a2225ef2c02508ac6fa4a58c1a91473f0be4c6587"
+    },
+    "packages/shared/src/zoneStyle/propKinds.ts": {
+      "bytes": 809,
+      "sha256": "6a139d0727ab392512d427507ee3b027f67860734d56eea7db8085add24003b9"
+    },
+    "packages/shared/src/zoneStyle/rime.ts": {
+      "bytes": 40601,
+      "sha256": "d25714c3b647392a03662b33082b48de2c7ec2933755501fe55260c2a1daa19a"
+    },
+    "packages/shared/src/zoneStyle/sanctum.ts": {
+      "bytes": 24977,
+      "sha256": "dd2da40c09a1a5dc5fdbd6e45b568d2b4ada831a0e195e86fd0ab64f49b7babd"
+    },
+    "packages/shared/src/zoneStyle/scale.ts": {
+      "bytes": 1361,
+      "sha256": "b8e055707f98dfa104233c1ceebd99358b9b3b5ae8e9fe001d9174806ca6a07e"
+    },
+    "packages/shared/src/zoneStyle/scorch.ts": {
+      "bytes": 51569,
+      "sha256": "52b324dd4dfc9a77986a9ffdcb9704041a2d3608e6e61e9af98b0f697fd2f02a"
+    },
+    "packages/shared/src/zoneStyle/styleZones.ts": {
+      "bytes": 10113,
+      "sha256": "9c328903541ae1e15ca473b288c788b5a2ebb55e8974a639c6215c7c804cbc36"
+    },
+    "packages/shared/src/zoneStyle/types.ts": {
+      "bytes": 15681,
+      "sha256": "193b6f57c1e76ea6f8249a316fc8898191682937493fbbce7beb3a0ffb26c33e"
+    },
+    "packages/shared/src/zoneStyle/warren.ts": {
+      "bytes": 30968,
+      "sha256": "bdb057ebaf226fbe803403cc338d38f50c154c276a30fcb652b5229741a9ddcc"
+    },
+    "packages/shared/src/zones.ts": {
+      "bytes": 49948,
+      "sha256": "aa91d0c2b8d7b1957d6e28e29289c9dfa58ac6d4c8475b647445370fbcaeb814"
+    },
+    "packages/shared/tsconfig.json": {
+      "bytes": 124,
+      "sha256": "e81b194f96f35e0d1e9e8069998a30740b08703e085bb7d0f92922d7b6d06193"
+    },
+    "parity/policy/README.md": {
+      "bytes": 963,
+      "sha256": "44c322abc2100fa3c6e04c891033b84c296194d42aa177f923330de8f51f2dc5"
+    },
+    "parity/policy/bot-addbot.json": {
+      "bytes": 71284,
+      "sha256": "d93b2aabc793774f542778d19b1ed7f42e4650131322e553c6affa99335f9718"
+    },
+    "parity/policy/bot-brain-prefix/source.json": {
+      "bytes": 171435,
+      "sha256": "a7674d96747e9a9c70c9a6c0b3bdc6b33717b32bd8c7be25f734d28d769de839"
+    },
+    "parity/policy/bot-core.json": {
+      "bytes": 261273,
+      "sha256": "0f4e4be52d9eff432f19cfe3b9942976d3aae9e1a0ec1ec7760f45335f4b25be"
+    },
+    "parity/policy/bot-fight/source.json": {
+      "bytes": 467672,
+      "sha256": "197fe5d24b6b34822a3ef76e2999d422e6127bbda1e8dfda0ba0af3ee5e2785e"
+    },
+    "parity/policy/bot-fill.json": {
+      "bytes": 182698,
+      "sha256": "70dfdee77e21cfce302fd77f21229947f9c46c1d9c3b85d02c4fb0c047aede24"
+    },
+    "parity/policy/bot-hazards.json": {
+      "bytes": 1630726,
+      "sha256": "748efe3d43fc7eb11e17024f9ab8702603629f376a776a3ba2319d7dbe1396d9"
+    },
+    "parity/policy/bot-knowledge-repair.json": {
+      "bytes": 88019,
+      "sha256": "a97293e2ec3e8a9e5e0dcac985c4b80b84f21caa447390931c00ad39ba40266b"
+    },
+    "parity/policy/bot-knowledge.json": {
+      "bytes": 284773,
+      "sha256": "872e154cc226fdb974b075a7650580b702c1fd14513dae0906dd959f1c97fce6"
+    },
+    "parity/policy/bot-memory-subset.json": {
+      "bytes": 39873,
+      "sha256": "40d29e352be25e91039bf4007b7395f985593facf7359422ab110a90cec0aa94"
+    },
+    "parity/policy/bot-mob-hunt.json": {
+      "bytes": 148378,
+      "sha256": "22ac53ca86ab0b24f317c1ca59d07f82a0c6e4bba96d6064617edbe70315e43b"
+    },
+    "parity/policy/bot-module-goal-key/controls.json": {
+      "bytes": 2121,
+      "sha256": "363d55cec2c42233249e920545863f0e749f5ddb2e0fc9b7e58816c4f6c81f4e"
+    },
+    "parity/policy/bot-module-goal-key/source.json": {
+      "bytes": 1004072,
+      "sha256": "32836e03d47993fceec22fc7fb648e937d01b3e9b221da9499ea9e99d31efc0c"
+    },
+    "parity/policy/bot-perception.json": {
+      "bytes": 21260,
+      "sha256": "378b0a073ad9b474df5eedbadffa6ef257661cd2f5d74afc2393b5e8447a5782"
+    },
+    "parity/policy/bot-planning.json": {
+      "bytes": 76615,
+      "sha256": "e1eb015e88e4967d929f4bd9d8d182736fe0d3dae5cac059d899c91b795bf975"
+    },
+    "parity/policy/bot-private-brain/controls.json": {
+      "bytes": 20336,
+      "sha256": "13a366f62aef962352656817843a15d9ff222af3c93641d609e35a34b45b1307"
+    },
+    "parity/policy/bot-private-brain/coverage.json": {
+      "bytes": 2136299,
+      "sha256": "c4ea7643d5dd16432f8788a8bd22ebe0bb6bdee45fa89902588e7f39d51a4c21"
+    },
+    "parity/policy/bot-private-brain/manifest.json": {
+      "bytes": 57523,
+      "sha256": "f51b0f3a8766e613acef9263d1537fcc27ce03de1db40918da6ac11441161927"
+    },
+    "parity/policy/bot-private-brain/source.json": {
+      "bytes": 22020382,
+      "sha256": "ed054bfd2663f4aa64d08f517295d07459c4543b92cae99c0356fb0d14ae3943"
+    },
+    "parity/policy/bot-private-modules/controls.json": {
+      "bytes": 1403852,
+      "sha256": "dcc49cf88f2588715363c1077641efd5b5a9bcee5eb0882044c9e7dd4ad3980d"
+    },
+    "parity/policy/bot-private-modules/coverage.json": {
+      "bytes": 1832252,
+      "sha256": "50eaf16f47330f9a232b0cda066f9d3eae7fc413b7e0a7120c8557fd19dea0af"
+    },
+    "parity/policy/bot-private-modules/manifest.json": {
+      "bytes": 5566949,
+      "sha256": "fe8fe10f8b1123cb456b7b805ebc67efbd6538c76a769b74cc2cb3f8435ab016"
+    },
+    "parity/policy/bot-private-modules/source.json": {
+      "bytes": 12755158,
+      "sha256": "645e85f16adbea001f8d0e06a70b6e5d311864ed9691622c06b789c95578b012"
+    },
+    "parity/policy/bot-private-strategy/controls.json": {
+      "bytes": 8143,
+      "sha256": "ad9b789f8c40c922ac221c6e5eef7a483037383d23b3b8624b6fea774fd4877b"
+    },
+    "parity/policy/bot-private-strategy/coverage.json": {
+      "bytes": 1981587,
+      "sha256": "a560ee78a81e9f851933aafda5d42fe566a0e72d346d74f51d15a1a1890d6e12"
+    },
+    "parity/policy/bot-private-strategy/source.json": {
+      "bytes": 12263237,
+      "sha256": "3a3ae0d498cc3933b5eee11c5be995f267f4a76530379ad7c73a934082125d8d"
+    },
+    "parity/policy/bot-private-tactics/controls.json": {
+      "bytes": 218643,
+      "sha256": "d9696bcd50de310224b947156948da6bf360cced93f910a7454cd2030c2202c2"
+    },
+    "parity/policy/bot-private-tactics/coverage.json": {
+      "bytes": 1069183,
+      "sha256": "b43c64fea6c6da17faaccf578a1e4d6614c96e352f5f951fefafcca95ae68f77"
+    },
+    "parity/policy/bot-private-tactics/manifest.json": {
+      "bytes": 37387,
+      "sha256": "9f76406016d0ebc498b0a3a3ec7cad677fc43ecd40b530a963a57a7f3d6eb957"
+    },
+    "parity/policy/bot-private-tactics/source.json": {
+      "bytes": 11656923,
+      "sha256": "5d27d1b4522d386d4ede5f3064a28660dedff43e32a24ade264f4512e30fcfa8"
+    },
+    "parity/policy/bot-protection-cues/README.md": {
+      "bytes": 743,
+      "sha256": "6e0e98f1db083cf6e83262b7f7ce39bb1a87a1d68cac8208d8b87e6bf79bd6f1"
+    },
+    "parity/policy/bot-protection-cues/source.json": {
+      "bytes": 45079140,
+      "sha256": "0a8af4c8dee518e5e6bc6b31c3445dc2e5ab61e889810a830642381d9cf92e6e"
+    },
+    "parity/policy/bot-public-facts/source.json": {
+      "bytes": 119213,
+      "sha256": "0819c53f1eabbf875849cdc0d2be7479bde7013527d980fd38e0c4b20072f260"
+    },
+    "parity/policy/bot-reflex/source.json": {
+      "bytes": 401512,
+      "sha256": "af347b767a11a12613a7bfe66dbcc4964e30d419e6fed7b007103a56015f7411"
+    },
+    "parity/policy/bot-runtime.json": {
+      "bytes": 73184,
+      "sha256": "6479be3df339f4b367dd9edb8a2fcd9f22ee26bc0370920f40fd21edf25f6cc3"
+    },
+    "parity/policy/bot-sd/source.json": {
+      "bytes": 418550,
+      "sha256": "55e8565e6a896b91deb49cdd8e290f568dec8013a1af4ac3eb72aec56bb65f7c"
+    },
+    "parity/policy/bot-tactics.json": {
+      "bytes": 22987,
+      "sha256": "eee99102ed65c580dfe82e696e32fb9887d7ebc66e935349e43d9bd1ba909a5f"
+    },
+    "parity/policy/bot-tournament.json": {
+      "bytes": 302231,
+      "sha256": "5d8f1fff55038787e8732d6373d789ba1877c9a1c04cf5d5d5e7c1e9d5182310"
+    },
+    "parity/policy/bot-wish.json": {
+      "bytes": 69712,
+      "sha256": "08e3b1bdde30fc1f500db5bcd7f0ba884919b0e6fb5942f2eed6354f0980e65a"
+    },
+    "parity/policy/npc-continuity/source.json": {
+      "bytes": 13952630,
+      "sha256": "15c3dbc1f5d718859413e8dbb9891602dd49870f10dae4f12dc3152e2c57de96"
+    },
+    "parity/policy/npc-runner-callsite/source.json": {
+      "bytes": 30636484,
+      "sha256": "0c9344109283d2cf848c83892924071e9277f163d79e69e3c634c3d19c7f4a58"
+    },
+    "parity/policy/owner-combat-continuation/human-projection.json": {
+      "bytes": 1160798,
+      "sha256": "b21e041e4b043c945928955ff9548ee54e1528d682fbdd66fdf5dbff5eb5324d"
+    },
+    "parity/policy/owner-combat-continuation/producer.json": {
+      "bytes": 1011285,
+      "sha256": "6edf61838c6ff65afae7878f929afb832896cb1a9f031b8d7273babdbe51d096"
+    },
+    "parity/policy/owner-combat-farm/source.json": {
+      "bytes": 1250830,
+      "sha256": "9cbb71b162a6bf36b5b4445cd4ca4bb5ab5e3c6559279467153e9ee9d7a62228"
+    },
+    "parity/policy/owner-combat/boundaries.json": {
+      "bytes": 41479,
+      "sha256": "6b040642ad184405b9c924cb10821fb3d174a6a539b802d5d9597500ee427e60"
+    },
+    "parity/policy/owner-combat/human-projection.json": {
+      "bytes": 2970805,
+      "sha256": "d5774fdbc6e058152d74330d204b02d0b328aa49d574caf8051944af14da4abf"
+    },
+    "parity/policy/owner-combat/producer.json": {
+      "bytes": 2483560,
+      "sha256": "399758fd97403383c57c8e0395f9196d4d6ad23afa2ee57e7c5396bce6911ba2"
+    },
+    "parity/policy/percept-witness/availability.json": {
+      "bytes": 41581,
+      "sha256": "ba009e3407a257467bddbcbc1db7712ea5d6a5627e164709c55a98489a723b40"
+    },
+    "parity/policy/percept-witness/run-summary.json": {
+      "bytes": 274260,
+      "sha256": "a383ca2317fb6c3e58046b2983165df4981eb89de1c852f2e24123a119a8c08e"
+    },
+    "parity/policy/percept-witness/windup-path.json": {
+      "bytes": 45974,
+      "sha256": "704b928cee21b46ca0cfc776ba74e13ff674ec81da8bd1401fabca71e73daf07"
+    },
+    "parity/policy/reflex-geometry/source.json": {
+      "bytes": 17502,
+      "sha256": "e54c4dd38bde3de17672f5bb563d49365f65ed6892cd09169898fd8b0426ecba"
+    },
+    "tools/bot-brain-prefix-fixtures/capture.mts": {
+      "bytes": 10584,
+      "sha256": "d150117a98f921ea10915b3827dae31909fb3c0afe25cd8b5da11e91de30cc4a"
+    },
+    "tools/bot-brain-prefix-fixtures/capture.sh": {
+      "bytes": 931,
+      "sha256": "45e3c1f490db490ee66d031e695ff2198c4565e984318b9caa52c0666fae1a74"
+    },
+    "tools/bot-brain-prefix-fixtures/run-mutants.py": {
+      "bytes": 3559,
+      "sha256": "1a469cf43561ac66dabd593b6cbab7e653399298195e5aaff8813c622f9d3bb1"
+    },
+    "tools/bot-module-goal-key-fixtures/README.md": {
+      "bytes": 4164,
+      "sha256": "a9aaae860ebf66448b772d55115b968578622c7e69a55c40080a33ad003e4a84"
+    },
+    "tools/bot-module-goal-key-fixtures/capture.mts": {
+      "bytes": 6766,
+      "sha256": "2c830d85d76af013c2475637620d6f62da6eae9414d4b0c9530d650a006be892"
+    },
+    "tools/bot-module-goal-key-fixtures/capture.sh": {
+      "bytes": 1224,
+      "sha256": "aeda6f3b82013a443b1015468f9c99ce1a4fbb4d2fcbc5a907c58219c210373d"
+    },
+    "tools/bot-module-goal-key-fixtures/cases.mts": {
+      "bytes": 2913,
+      "sha256": "ccdca51617193678d7ca0f350724e2086b62b87c9063692139d67c9a794e8745"
+    },
+    "tools/bot-module-goal-key-fixtures/controls.mjs": {
+      "bytes": 4814,
+      "sha256": "39a0403689fa628089ce7f10c33fbff21ee477106e8494fca069469febfb2856"
+    },
+    "tools/bot-module-goal-key-fixtures/controls.sh": {
+      "bytes": 1026,
+      "sha256": "f0abc7eee4b3c0a86e537084aecaa8a74262a3355975f4f449567c4e4dfd3ec4"
+    },
+    "tools/bot-module-goal-key-fixtures/verify.mjs": {
+      "bytes": 1716,
+      "sha256": "24b421e850675d43193476d7843b43d037fa22a55d38030cf85237e859383be3"
+    },
+    "tools/bot-private-brain-fixtures/README.md": {
+      "bytes": 6257,
+      "sha256": "39f1c1005ae3934611158847cb9d2b536137bcd5df55c5855a14b171bd5f26fa"
+    },
+    "tools/bot-private-brain-fixtures/builders.mts": {
+      "bytes": 4697,
+      "sha256": "99d5cf45f0a9d7c997a39475564592fa81bec839b72160277083b98ebaf80769"
+    },
+    "tools/bot-private-brain-fixtures/capture.mts": {
+      "bytes": 8503,
+      "sha256": "478ea86f3573a71ad406fec34a70e79875fe812ccdeb89069aed7205243b99f1"
+    },
+    "tools/bot-private-brain-fixtures/capture.sh": {
+      "bytes": 1080,
+      "sha256": "c8d66f27802422a7c44d756a28eefe8301d046c735a24ec9bc73fe57ecea088e"
+    },
+    "tools/bot-private-brain-fixtures/cases.mts": {
+      "bytes": 16222,
+      "sha256": "c32a6ac47825a70ff26d57658d67f9ff7027025c96f7e5c0fc7313fd7444f464"
+    },
+    "tools/bot-private-brain-fixtures/checks.mts": {
+      "bytes": 17535,
+      "sha256": "b24c542e0aa78c6bdd9c66bea85b8a02dd6c919f26b875bcc95516f9c2a0cb63"
+    },
+    "tools/bot-private-brain-fixtures/codec.mts": {
+      "bytes": 1885,
+      "sha256": "18af593cc383869260002af50b52f74cec9f7ba94f0ebaf842fe9477ad48adc2"
+    },
+    "tools/bot-private-brain-fixtures/controls.mjs": {
+      "bytes": 9755,
+      "sha256": "5cb5d8e8931635180c676b83949f591e70a03d4a92bbbfe3a8cf2d754742cdbc"
+    },
+    "tools/bot-private-brain-fixtures/controls.sh": {
+      "bytes": 1061,
+      "sha256": "75293a537c662970802ca34300ac472238fa72fc56b553e63be804de730f7fc9"
+    },
+    "tools/bot-private-brain-fixtures/hand.mts": {
+      "bytes": 2513,
+      "sha256": "841a361040741048ce3eb21c03319d5e173d839d8cccfa2d329ef977267bd7c9"
+    },
+    "tools/bot-private-brain-fixtures/manifest.mjs": {
+      "bytes": 2529,
+      "sha256": "4da6405519c7ad4bd5f365dcdcead10d1a153c7441f08c3686a491e4ed4eb23f"
+    },
+    "tools/bot-private-brain-fixtures/runner.mts": {
+      "bytes": 12525,
+      "sha256": "f03564262e9a087fa42060b19b7bbf6918eb210b80b4110d7adf8ef92438fc07"
+    },
+    "tools/bot-private-brain-fixtures/runtime.mts": {
+      "bytes": 2291,
+      "sha256": "564e818a19778f0cbde8afba8cdfd4c7f9532ccd02f17e560be288c291db5784"
+    },
+    "tools/bot-private-brain-fixtures/value-reader.mjs": {
+      "bytes": 10542,
+      "sha256": "5a8cb69db8a9ebc0174f28df084adc89b2b4e505d390f3d895dc3a76dbef5f2b"
+    },
+    "tools/bot-private-brain-fixtures/verify.mjs": {
+      "bytes": 17240,
+      "sha256": "c634fa702e07921cc814cff8c8283d7b25e9e532e6eb58ea7e9911375c3ca348"
+    },
+    "tools/bot-private-modules-fixtures/builders.mts": {
+      "bytes": 4262,
+      "sha256": "2b6cc1ae153642667a27a0601d827f9699b9e007677c0480cf6154c222119090"
+    },
+    "tools/bot-private-modules-fixtures/capture.mts": {
+      "bytes": 6428,
+      "sha256": "76c86f9bd92209b4c847f6c7669b07f8ded0ed35b764dd53ed1407ed3f941011"
+    },
+    "tools/bot-private-modules-fixtures/capture.sh": {
+      "bytes": 1090,
+      "sha256": "3b7eb1355e036f9aa4695fd5c8275a6fe00bf9f726e236f86a52839d759d9d4e"
+    },
+    "tools/bot-private-modules-fixtures/cases.mts": {
+      "bytes": 27911,
+      "sha256": "43b421cbcff812a5bbc60aff8167139b2ffedf500e1e1613b2fa666524af5853"
+    },
+    "tools/bot-private-modules-fixtures/checks.mts": {
+      "bytes": 11289,
+      "sha256": "5ac1deeda262034ab45905c9eba8362886ae31a051bb596e5079d3654cdfd04f"
+    },
+    "tools/bot-private-modules-fixtures/codec.mts": {
+      "bytes": 1885,
+      "sha256": "18af593cc383869260002af50b52f74cec9f7ba94f0ebaf842fe9477ad48adc2"
+    },
+    "tools/bot-private-modules-fixtures/controls.mjs": {
+      "bytes": 8148,
+      "sha256": "88045c673380c219b0c7f9fea0ddd896984c507725f04eadd6b3173b56b541d3"
+    },
+    "tools/bot-private-modules-fixtures/controls.sh": {
+      "bytes": 974,
+      "sha256": "ca1e42bfebc0e537912862012912456c140699ae12b2891c5585d7e591d4a1be"
+    },
+    "tools/bot-private-modules-fixtures/manifest.mjs": {
+      "bytes": 1988,
+      "sha256": "9f4a7202f98e9e94061a14083e9181ceba02e01a430b304a6736f648e64bc5c0"
+    },
+    "tools/bot-private-modules-fixtures/runner.mts": {
+      "bytes": 8340,
+      "sha256": "acf62fe08e4c8c8269cf2cbfba32a3e2e27ca1d783c67ae711a9d8bdf35e1baf"
+    },
+    "tools/bot-private-modules-fixtures/runtime.mts": {
+      "bytes": 1579,
+      "sha256": "59b99ce9d25cc041286782d47c0c6826d478ef18674d3d8ca3d20bd9f0ce7ca5"
+    },
+    "tools/bot-private-modules-fixtures/verify.mjs": {
+      "bytes": 26645,
+      "sha256": "11861c29a1a537e1edccbc1e1e5461be296e45c8375ec464c88934e7c119c2d2"
+    },
+    "tools/bot-private-strategy-fixtures/README.md": {
+      "bytes": 11589,
+      "sha256": "525fbf0a34aa5dbeb98d87367add0648e86370c79039a5f3eaaae91cedc35618"
+    },
+    "tools/bot-private-strategy-fixtures/builders.mts": {
+      "bytes": 5498,
+      "sha256": "365037fc8612f6d17f0afb925d74b09489b59d67e4ca4f87051dbe3a16afa951"
+    },
+    "tools/bot-private-strategy-fixtures/capture.mts": {
+      "bytes": 7937,
+      "sha256": "565c76ce3b2c9e9abdae1b2ab510025b1ad05e1f621aac4cf735e7e52bb56178"
+    },
+    "tools/bot-private-strategy-fixtures/capture.sh": {
+      "bytes": 1248,
+      "sha256": "8812aab60267d56969499ded07fb4e9854c6a693791717b49982b6d3f41ef4a1"
+    },
+    "tools/bot-private-strategy-fixtures/checks.mts": {
+      "bytes": 8853,
+      "sha256": "14e004a0d0f5676a4bc9adeb34a1748b36327b797fbbb360655f4c9dc7d1d4fb"
+    },
+    "tools/bot-private-strategy-fixtures/codec.mts": {
+      "bytes": 1885,
+      "sha256": "18af593cc383869260002af50b52f74cec9f7ba94f0ebaf842fe9477ad48adc2"
+    },
+    "tools/bot-private-strategy-fixtures/controls.mjs": {
+      "bytes": 10113,
+      "sha256": "4f4448b327c3c9f62d645f4de963dc72c8d517ed9d5cde65861ee66d15c069f0"
+    },
+    "tools/bot-private-strategy-fixtures/controls.sh": {
+      "bytes": 1031,
+      "sha256": "bffe1e0aa2618cfde8a3ab4a64afad95373536aae0c4ca230546aeb0f979ca4e"
+    },
+    "tools/bot-private-strategy-fixtures/dependency-cases.mts": {
+      "bytes": 13922,
+      "sha256": "302c569153d4ee8837d6b7fa906e602b447151d1a89559048552715ae6b5c313"
+    },
+    "tools/bot-private-strategy-fixtures/memory-cases.mts": {
+      "bytes": 10800,
+      "sha256": "0b99a20971b0dd543ae4d84dd436a8c71a9daec9db3db06e7575df7bc4d1e687"
+    },
+    "tools/bot-private-strategy-fixtures/runner.mts": {
+      "bytes": 10725,
+      "sha256": "3fa93e0880580f4504a7ea8c531c2131558a9e4657d1909a735c826a7883dedd"
+    },
+    "tools/bot-private-strategy-fixtures/runtime.mts": {
+      "bytes": 1102,
+      "sha256": "f2872875e1e4e3f459a20263bd16f6316a87193869dfec15380b85bd64b7d77b"
+    },
+    "tools/bot-private-strategy-fixtures/strategy-cases.mts": {
+      "bytes": 15634,
+      "sha256": "bd4302bdae455737a5d80f37cf0352f4201818248dc407d9fc86076149b40993"
+    },
+    "tools/bot-private-strategy-fixtures/verify.mjs": {
+      "bytes": 9762,
+      "sha256": "781f8a37c8c918918a0e2ef32616e64bcb34d1fb23f69f3eb45cb2796f50adc1"
+    },
+    "tools/bot-private-tactics-fixtures/README.md": {
+      "bytes": 4414,
+      "sha256": "46948b013efb0f5998815273fe8e8055d23685da8b3578ae7d7eb6ce6af87ee5"
+    },
+    "tools/bot-private-tactics-fixtures/builders.mts": {
+      "bytes": 3237,
+      "sha256": "a1f938ff10ea6adf47755594b4606fac0b27c504fc0f58515700ea7cd24eff29"
+    },
+    "tools/bot-private-tactics-fixtures/capture.mts": {
+      "bytes": 6222,
+      "sha256": "3c821cfe979e89ff74e7734ee916f677a13469485a7811dff363513d3f6d549e"
+    },
+    "tools/bot-private-tactics-fixtures/capture.sh": {
+      "bytes": 1090,
+      "sha256": "076ba45f97b0d3ad5c898b93d613ab9c4fb55afed7785a28018a4f199977b0f6"
+    },
+    "tools/bot-private-tactics-fixtures/cases.mts": {
+      "bytes": 28350,
+      "sha256": "25d1e601ac036f95d44a7a4045c95860655e39d4492cbf0dbc6dc23eb8ea4e44"
+    },
+    "tools/bot-private-tactics-fixtures/checks.mts": {
+      "bytes": 7159,
+      "sha256": "38bd8924cc153a7e8f58f992152c98881dd5b603fb2fb37d0cc8428f9db3251b"
+    },
+    "tools/bot-private-tactics-fixtures/codec.mts": {
+      "bytes": 1885,
+      "sha256": "18af593cc383869260002af50b52f74cec9f7ba94f0ebaf842fe9477ad48adc2"
+    },
+    "tools/bot-private-tactics-fixtures/controls.mjs": {
+      "bytes": 7802,
+      "sha256": "1d726e9394893693917e8cd4b0333661a884704219f02b4ee75e42b78f7c0596"
+    },
+    "tools/bot-private-tactics-fixtures/controls.sh": {
+      "bytes": 990,
+      "sha256": "e6ebbb05616bc9114bf0aab26039f31226cbe4e4966ec59835009a923f0265fd"
+    },
+    "tools/bot-private-tactics-fixtures/manifest.mjs": {
+      "bytes": 1988,
+      "sha256": "61dc28dc23bd3b7a768ba6f755342a0f4d61893d812038873926646ff9a8c3cc"
+    },
+    "tools/bot-private-tactics-fixtures/runner.mts": {
+      "bytes": 5725,
+      "sha256": "50a561fdca4334f1b397a8b49ade24b8ab11abe4b766cb6fa95917f6a068a356"
+    },
+    "tools/bot-private-tactics-fixtures/runtime.mts": {
+      "bytes": 1059,
+      "sha256": "84688275b6f09603e7c346e8927a24c339e522e867c22ab8118baad237df296d"
+    },
+    "tools/bot-private-tactics-fixtures/verify.mjs": {
+      "bytes": 15982,
+      "sha256": "6f49b33da32ddb7b4143a858fd64bc91a218690a657fdf1d43aff96e1a7b1227"
+    },
+    "tools/knowledge-repair-fixtures/README.md": {
+      "bytes": 2549,
+      "sha256": "d7664a729e0cbf879de6b4cef6705e231a4989b754e4b72d35ebef637d81ad1f"
+    },
+    "tools/knowledge-repair-fixtures/capture.mts": {
+      "bytes": 11829,
+      "sha256": "958872a86840d871c708342ef342e6b9edc09f81d235157c616fb3cd725a163e"
+    },
+    "tools/knowledge-repair-fixtures/capture.sh": {
+      "bytes": 1462,
+      "sha256": "0ecf6274cb053fbcb9d2c9119f979a1ece32df9cbc12e1aab9b15dce0ae7bb10"
+    },
+    "tools/knowledge-repair-fixtures/mutants/01-old-decision-stream-wiring.patch": {
+      "bytes": 609,
+      "sha256": "b83dfa2e3b7c0048be79a2a9d494762ef26112631b90369f19bf022cf12901fc"
+    },
+    "tools/knowledge-repair-fixtures/mutants/02-rust-decimal-diagnostic.patch": {
+      "bytes": 804,
+      "sha256": "fd9f07b1be95a8fefe9deedd8bcb71d897bce4f6001756c2f91de4b1479a9f4a"
+    },
+    "tools/knowledge-repair-fixtures/mutants/03-explicit-null-not-missing.patch": {
+      "bytes": 831,
+      "sha256": "8fa27d56ae09708619a43da5b9b7ff37870797be069c44feb30b400604f95ce6"
+    },
+    "tools/knowledge-repair-fixtures/run-mutants.sh": {
+      "bytes": 1350,
+      "sha256": "9e1279bfc3af76e48a70a04a7c1b1c3260932403978ef6b318e59e774447104f"
+    },
+    "tsconfig.base.json": {
+      "bytes": 410,
+      "sha256": "017575ec3101f44df43b5a7cc850779582650d9e01a2090b7e311b213b98ef88"
+    }
+  },
+  "nodeModulesEntries": []
+}
