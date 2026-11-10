@@ -54,6 +54,7 @@ namespace Roguehalla.Client
 
         public SpriteActorPresenter(Transform parent, ShowcaseCatalog catalog) { _parent = parent; _catalog = catalog; }
         public bool Contains(uint id) { return _active.ContainsKey(id); }
+        public int ActiveCount { get { return _active.Count; } }
         public bool IsLiving(uint id) { return _active.TryGetValue(id, out var art) && !art.Dead; }
         public bool TrySoundContext(uint id, out WeaponId weapon, out FactionId faction, out ActorKind kind, out MobTypeId? type)
         {

@@ -67,6 +67,7 @@ namespace Roguehalla.Client
             _sfxVolume = Mathf.Clamp01(PlayerPrefs.GetFloat(SfxKey, .85f));
             ApplyRow();
             PublishSettings();
+            PerfRecorder.StartIfRequested(PageSearch());
         }
 
         /// <summary>Query string of the hosting page (WebGL), or empty.</summary>

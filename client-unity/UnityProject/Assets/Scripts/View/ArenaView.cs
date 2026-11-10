@@ -49,6 +49,8 @@ namespace Roguehalla.Client
         /// <summary>Legacy CameraFollow constants: tau 35 ms, cut over 256 u or after a gap of more than 250 ms.</summary>
         const float FollowTauSeconds = .035f, FollowCutUnits = 256f, FollowMaxDt = .25f;
         bool _hasFollow;
+        /// <summary>Observed actors currently presented (perf recorder context).</summary>
+        public int ObservedActorCount { get { return _actors != null ? _actors.ActiveCount : 0; } }
         public bool IsObserved(uint id) { return _actors != null && _actors.Contains(id); }
         public bool TrySoundContext(uint id, out WeaponId weapon, out FactionId faction, out ActorKind kind, out MobTypeId? type)
         {
