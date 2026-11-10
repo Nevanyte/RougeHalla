@@ -22,7 +22,9 @@ namespace Roguehalla.Client
             public ShowcasePointLight Light;
             public ShowcaseCatalog.Appearance Appearance;
             public Vector3 LastPosition;
-            public float MovingUntil, AttackUntil;
+            public float AttackUntil;
+            public GaitState Gait;
+            public float StampTime;
             public float AttackAt, HitAt, BlockAt, DeadAt, HitUntil, BlockUntil;
             public bool Dead, HoldDeathFrame;
             public WeaponId? WeaponId;
@@ -64,7 +66,8 @@ namespace Roguehalla.Client
             foreach (var pair in _active)
             {
                 var a = pair.Value;
-                a.MovingUntil = a.AttackUntil = a.HitUntil = a.BlockUntil = 0;
+                a.AttackUntil = a.HitUntil = a.BlockUntil = 0;
+                a.Gait.Reset();
                 a.AttackAt = a.HitAt = a.BlockAt = a.DeadAt = 0;
                 a.HoldDeathFrame = a.Dead;
             }
@@ -138,13 +141,24 @@ namespace Roguehalla.Client
             if (!_active.TryGetValue(id, out var a))
             {
                 a = _pool.Count > 0 ? _pool.Pop() : Create(); _active.Add(id, a);
-                a.Root.SetActive(true); a.LastPosition = ArenaView.WorldPoint(x, y); a.MovingUntil = a.AttackUntil = 0;
+                a.Root.SetActive(true); a.LastPosition = ArenaView.WorldPoint(x, y); a.AttackUntil = 0;
+                a.Gait.Reset(); a.StampTime = Time.unscaledTime;
                 a.HitUntil=a.BlockUntil=0;a.Dead=false;a.HoldDeathFrame=false;
             }
             a.Stamp = _stamp;
             var position = ArenaView.WorldPoint(x, y);
-            if ((position - a.LastPosition).sqrMagnitude > .000001f) a.MovingUntil = Time.unscaledTime + .12f;
-            a.LastPosition = position; a.Root.transform.position = position;
+            // Gait reads displacement only (presentation). Present can run twice in a frame for NPCs: a zero-dt call leaves
+            // LastPosition alone so the next real frame still sees the whole displacement.
+            float gaitNow = Time.unscaledTime, gaitDt = gaitNow - a.StampTime;
+            if (gaitDt > 1e-4f)
+            {
+                float dxs = (position.x - a.LastPosition.x) / ArenaView.Scale;
+                float dys = -(position.y - a.LastPosition.y) / (ArenaView.Scale * ArenaView.GroundSquash);
+                float walkFps = a.Appearance != null ? a.Appearance.WalkFPS : 10f;
+                Gait.Advance(ref a.Gait, dxs, dys, gaitDt, facing, walkFps, local ? 0f : .12f);
+                a.StampTime = gaitNow; a.LastPosition = position;
+            }
+            a.Root.transform.position = position;
             int order = 2000 + Mathf.RoundToInt(y * .5f);
             bool neutral = kind == ActorKind.QuestGiver;
             Color color = faction.HasValue ? ShowcasePalette.Faction((int)faction.Value) : ShowcasePalette.MutedText;
@@ -162,7 +176,7 @@ namespace Roguehalla.Client
             var appearance = a.Appearance;
             Sprite[] frames=appearance?.Idle;
             float fps=appearance!=null ? appearance.IdleFPS : 10;
-            float elapsed=Time.unscaledTime;bool loop=true;
+            float elapsed=Time.unscaledTime;bool loop=true,walkPhase=false;
             if(appearance!=null)
             {
                 if(dead && appearance.Death!=null && appearance.Death.Length>0)
@@ -173,8 +187,8 @@ namespace Roguehalla.Client
                 { frames=appearance.Hit;fps=appearance.HitFPS;elapsed-=a.HitAt;loop=false; }
                 else if(a.AttackUntil>Time.unscaledTime && weapon.HasValue)
                 { frames=AttackFrames(appearance,weapon.Value,out fps);elapsed-=a.AttackAt;loop=false; }
-                else if(a.MovingUntil>Time.unscaledTime && appearance.Walk.Length>0)
-                { frames=appearance.Walk;fps=appearance.WalkFPS; }
+                else if(a.Gait.Walking && appearance.Walk.Length>0)
+                { frames=appearance.Walk;fps=appearance.WalkFPS;walkPhase=true; }
             }
             if (frames != null && frames.Length > 0)
             {
@@ -182,9 +196,9 @@ namespace Roguehalla.Client
                 int count = frames.Length / 8;
                 // Flare: SW,W,NW,N,NE,E,SE,S; server facing zero is screen east.
                 int direction = ((Mathf.RoundToInt(facing / (Mathf.PI / 4)) + 5) % 8 + 8) % 8;
-                int rawFrame=Mathf.Max(0,Mathf.FloorToInt(elapsed*Mathf.Max(1,fps)));
+                int rawFrame=walkPhase ? 0 : Mathf.Max(0,Mathf.FloorToInt(elapsed*Mathf.Max(1,fps)));
                 int frame = dead && a.HoldDeathFrame ? count - 1 :
-                    reduced ? (dead ? count-1 : 0) : loop ? rawFrame%Mathf.Max(1,count) : Mathf.Min(count-1,rawFrame);
+                    reduced ? (dead ? count-1 : 0) : walkPhase ? Gait.FrameIndex(a.Gait.Phase,count) : loop ? rawFrame%Mathf.Max(1,count) : Mathf.Min(count-1,rawFrame);
                 a.Body.sprite = frames[Mathf.Min(frames.Length - 1, direction * count + frame)];
                 float height = appearance.WorldHeight;
                 a.Body.transform.localScale = Vector3.one * height;
