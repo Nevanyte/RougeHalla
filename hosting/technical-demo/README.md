@@ -3,8 +3,8 @@
 This new preparation is for one **fresh x86-64 Ubuntu 24.04 instance in
 ca-west-1**, practice `rougehalla.com`, and an original absolute UTC deadline no
 more than three hours ahead. No installer, package manager, AWS SDK, host probe,
-service, or cloud operation has been executed by preparing these files. Seven
-stdlib offline controls pass; this is not a tested Ubuntu installation.
+service, or cloud operation has been executed by preparing these files. Ten stdlib bootstrap controls and seven PyYAML stack controls pass; this is not
+a tested Ubuntu installation.
 
 `bootstrap.py` intentionally avoids the older host executor's custom AMI,
 retained preformatted volume, backup bucket, age tools and recovery contracts.
@@ -124,7 +124,8 @@ not that ACME completed, the public site loaded or a genuine match succeeded.
 
 ## Boot-persistent interface egress shaping
 
-The enabled isolation oneshot runs nft first, then `bootstrap.py shape`, before
+The enabled isolation oneshot runs `bootstrap.py isolate`: nft first, then the
+same internal shape sequence, before
 app/Caddy startup. That command checks the original expiry, reads IPv4 and IPv6
 default routes with fixed `ip -json` argv, refuses malformed/absent IPv4 defaults
 or multiple/unsafe NICs, then applies one root TBF on the unique default ENI:
@@ -137,7 +138,8 @@ This shapes the entire interface's outgoing IPv4/IPv6 traffic, including public
 Web, SSM and SDK/admin traffic. Any ip/tc failure fails isolation and requests
 poweroff; app/Caddy cannot start through the declared unit dependencies. The
 unit reapplies on boot, while the original absolute deadline remains unchanged.
-There is no child qdisc, no hard 50ms queue claim, no byte quota/counter store,
+A per-flow fq_codel child follows the TBF; the parent latency is not a hard
+queue-delay bound with that child. There is no hard50ms claim or byte quota/counter store,
 and **no 2GiB promise**. The earlier 2GiB quota request was superseded by Root's
 8mbit instruction before any quota implementation.
 
@@ -152,8 +154,43 @@ ceiling; reboot does not renew TTL. Actual kernel/ENI shaping remains unrun.
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s hosting/technical-demo -p test_offline.py -v
 ```
 
-Seven tests cover expiry boundaries, config refusal, real tar good/exclusive write,
+Ten bootstrap tests cover expiry boundaries, config refusal, real tar good/exclusive write,
 traversal/link/FIFO/unknown/duplicate refusal, wrong hash, the exact TBF argv and route/ordering refusals, and critical rendered
 ordering/route/unit properties. They do not emulate a host or claim cloud-ready
 activation. Root should independently review first, then own the single bounded
 actual launch/readiness/browser attempt and its cleanup evidence.
+
+## First isolation failure and diagnostic-only continuation
+
+First actual instance `i-0b2f4485d0491740e` terminated through the intended
+failure→poweroff path. Its original rendered user data, gzip and private console
+remain unchanged in the coordinator's `calgary-demo-launch-01` receipt. Console
+proves `rh-demo-isolation.service` failed, but not whether NFT or the later
+route/TBF/fq_codel command failed. SSM process startup was not Online readiness.
+This diagnostic patch does not claim that underlying fault is repaired.
+
+The isolation unit now runs one Python wrapper preserving the exact order:
+NFT load, expiry guard, IPv4/IPv6 default-route reads, route/domain guard, TBF,
+then fq_codel. Existing rejection, timeout, fixed expiry and OnFailure poweroff
+remain. Only this unit sends diagnostics to journal+console. Each step emits
+fixed `RH_DEMO_ISOLATION` stage/event/numeric-status JSON and flushes it before
+propagating failure. Allowed identifiers are `nft-load`, `guard`, `route-v4`,
+`route-v6`, `tbf`, `fq_codel`; `guard` covers both expiry and route selection.
+Known NFT/IP/TC failures alone may include at most2048 stderr bytes, converted
+to a single printable ASCII field. No argv, environment, config, route stdout,
+SDK credentials, application or SQL logs are emitted. Known-command stderr is
+captured transiently by subprocess and only its bounded prefix is retained;
+this is not a general untrusted-program output-capture service.
+
+The unchanged renderer embeds the exact new bootstrap bytes; regenerate and
+independently pin new script/gzip inputs before any separately approved launch.
+Old launch receipts are never overwritten or relabeled. Root reviews/commits
+this patch and owns all host/cloud actions; no replacement launch occurred in
+these offline checks.
+
+`test_offline.py` now has10 controls (the previous7 plus three diagnostics
+controls), and unchanged `test_stack.py` has7: **17 offline PASS**. These include
+mocked real helper call order, NFT failure preventing later work, parent/route
+refusals, numeric missing-executable/timeout status, stderr/control-byte bounds,
+no stdout/error-argument leaks, and rejection of unsupported diagnostic commands.
+They do not execute nft/ip/tc, package installation, Linux services or cloud APIs.

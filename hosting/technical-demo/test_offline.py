@@ -7,6 +7,10 @@ from pathlib import Path
 import tarfile
 import tempfile
 import unittest
+from unittest import mock
+from contextlib import redirect_stderr
+import subprocess
+import bootstrap
 from bootstrap import config, unpack, caddy_config, app_unit, shaper_command, isolation_unit
 from render import render
 
@@ -84,13 +88,81 @@ class Offline(unittest.TestCase):
             with self.subTest(v4=bad4, v6=bad6), self.assertRaises(ValueError):
                 shaper_command(bad4, bad6)
         unit = isolation_unit()
-        self.assertLess(unit.index('ExecStart=/usr/sbin/nft'), unit.index('bootstrap.py shape'))
+        self.assertIn('bootstrap.py isolate', unit)
+        self.assertIn('StandardOutput=journal+console', unit)
+        self.assertIn('StandardError=journal+console', unit)
         self.assertIn('After=network-online.target rh-demo-expiry.timer', unit)
         self.assertIn('Requires=rh-demo-expiry.timer', unit)
         self.assertIn('Type=oneshot', unit)
         self.assertIn('OnFailure=rh-demo-poweroff.service', unit)
         self.assertIn('WantedBy=multi-user.target', unit)
         self.assertIn('Before=rh-demo-source.service rh-demo-training.service caddy.service', unit)
+
+    def test_isolation_stages_preserve_command_order_without_real_execution(self):
+        calls = []
+        def fake(args, **kwargs):
+            calls.append(args)
+            if args[0] == '/usr/sbin/ip':
+                data = b'[{"dst":"default","dev":"ens5"}]' if '-4' in args else b'[]'
+                return subprocess.CompletedProcess(args, 0, data, b'')
+            return subprocess.CompletedProcess(args, 0, b'', b'')
+        log = io.StringIO()
+        with mock.patch.object(bootstrap, 'guard'), mock.patch.object(bootstrap.subprocess, 'run', side_effect=fake), redirect_stderr(log):
+            bootstrap.isolate()
+        self.assertEqual(calls, [('/usr/sbin/nft', '-f', '/etc/rh-demo.nft'),
+            ('/usr/sbin/ip', '-json', '-4', 'route', 'show', 'default'),
+            ('/usr/sbin/ip', '-json', '-6', 'route', 'show', 'default'),
+            shaper_command([{'dst': 'default', 'dev': 'ens5'}], []),
+            ('/usr/sbin/tc', 'qdisc', 'replace', 'dev', 'ens5', 'parent', '1:1', 'handle', '10:',
+             'fq_codel', 'limit', '512', 'target', '5ms', 'interval', '100ms')])
+        rows = [json.loads(x.removeprefix('RH_DEMO_ISOLATION ')) for x in log.getvalue().splitlines()]
+        self.assertEqual([x['stage'] for x in rows if x['event'] == 'ok'],
+                         ['nft-load', 'guard', 'route-v4', 'route-v6', 'guard', 'tbf', 'fq_codel'])
+        self.assertTrue(all(x['status'] == 0 for x in rows))
+
+    def test_isolation_first_failure_stops_and_logs_only_bounded_stderr(self):
+        log = io.StringIO()
+        failed = subprocess.CompletedProcess((), 7, b'NEVER-LOG-STDOUT', b'bad\n\x1b\r' + b'x' * 5000)
+        with mock.patch.object(bootstrap.subprocess, 'run', return_value=failed) as run, \
+                mock.patch.object(bootstrap, 'guard') as guard, redirect_stderr(log):
+            with self.assertRaises(subprocess.CalledProcessError): bootstrap.isolate()
+        run.assert_called_once(); guard.assert_not_called()
+        rows = [json.loads(x.removeprefix('RH_DEMO_ISOLATION ')) for x in log.getvalue().splitlines()]
+        self.assertEqual([(x['stage'], x['event'], x['status']) for x in rows],
+                         [('nft-load', 'start', 0), ('nft-load', 'fail', 7)])
+        self.assertEqual(len(rows[-1]['stderr']), 2048)
+        self.assertTrue(all(32 <= ord(c) <= 126 for c in rows[-1]['stderr']))
+        self.assertNotIn('NEVER-LOG-STDOUT', log.getvalue())
+
+    def test_shape_parse_parent_guard_and_timeout_refusals_are_not_bypassed(self):
+        for failure in ('route-v4', 'tbf', 'guard'):
+            log = io.StringIO(); calls = []
+            def fake(args, **kwargs):
+                calls.append(args)
+                if args[0] == '/usr/sbin/ip':
+                    if failure == 'route-v4': return subprocess.CompletedProcess(args, 0, b'NOT-JSON-PRIVATE', b'')
+                    data = b'[]' if failure == 'guard' or '-6' in args else b'[{"dst":"default","dev":"ens5"}]'
+                    return subprocess.CompletedProcess(args, 0, data, b'')
+                return subprocess.CompletedProcess(args, 9, b'', b'parent failed')
+            with self.subTest(failure=failure), mock.patch.object(bootstrap, 'guard'), \
+                    mock.patch.object(bootstrap.subprocess, 'run', side_effect=fake), redirect_stderr(log):
+                with self.assertRaises((ValueError, subprocess.CalledProcessError)): bootstrap.shape()
+            rows = [json.loads(x.removeprefix('RH_DEMO_ISOLATION ')) for x in log.getvalue().splitlines()]
+            self.assertEqual(rows[-1]['stage'], failure)
+            self.assertEqual(rows[-1]['event'], 'fail')
+            self.assertFalse(any('fq_codel' in args for args in calls))
+            self.assertNotIn('NOT-JSON-PRIVATE', log.getvalue())
+        for error, status in ((FileNotFoundError(2, 'PRIVATE-PATH'), 2),
+                              (subprocess.TimeoutExpired('PRIVATE-ARGV', 5), 124)):
+            log = io.StringIO()
+            with mock.patch.object(bootstrap.subprocess, 'run', side_effect=error), redirect_stderr(log):
+                with self.assertRaises(type(error)): bootstrap.isolate()
+            last = json.loads(log.getvalue().splitlines()[-1].removeprefix('RH_DEMO_ISOLATION '))
+            self.assertEqual(last['status'], status)
+            self.assertNotIn('PRIVATE-', log.getvalue())
+        with mock.patch.object(bootstrap.subprocess, 'run') as run:
+            with self.assertRaises(ValueError): bootstrap.isolation_command('nft-load', ('/usr/bin/psql',))
+            run.assert_not_called()
 
     def test_templates(self):
         # Render with a fresh absolute expiry, never executes the resulting shell.

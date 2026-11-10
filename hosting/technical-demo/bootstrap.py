@@ -104,24 +104,78 @@ def shaper_command(ipv4, ipv6):
             'tbf', 'rate', '8mbit', 'burst', '512kb', 'latency', '500ms')
 
 
+ISOLATION_STAGES = frozenset(('nft-load', 'guard', 'route-v4', 'route-v6', 'tbf', 'fq_codel'))
+
+
+def isolation_step(stage, action):
+    """Fixed operational metadata only; never log argv, config, stdout or exception text."""
+    require(stage in ISOLATION_STAGES, 'diagnostic stage')
+    def emit(event, status, stderr=b''):
+        row = {'stage': stage, 'event': event, 'status': status}
+        if stderr:
+            # These commands read only fixed public NFT/routing/qdisc inputs. One ASCII
+            # line, at most 2048 retained stderr bytes; control characters cannot forge rows.
+            row['stderr'] = ''.join(chr(b) if 32 <= b <= 126 else ' ' for b in stderr[:2048])
+        print('RH_DEMO_ISOLATION ' + json.dumps(row, ensure_ascii=True), file=sys.stderr, flush=True)
+    emit('start', 0)
+    try:
+        result = action()
+    except subprocess.CalledProcessError as error:
+        emit('fail', error.returncode, error.stderr or b'')
+        raise
+    except subprocess.TimeoutExpired as error:
+        emit('fail', 124, error.stderr or b'')
+        raise
+    except OSError as error:
+        emit('fail', error.errno if type(error.errno) is int else 1)
+        raise
+    except Exception:
+        emit('fail', 1)
+        raise
+    emit('ok', 0)
+    return result
+
+
+def isolation_command(stage, args, capture=False, timeout=120):
+    # Never reuse this diagnostic path for SDK, packages, app, SQL or credential commands.
+    executables = {'nft-load': '/usr/sbin/nft', 'route-v4': '/usr/sbin/ip',
+                   'route-v6': '/usr/sbin/ip', 'tbf': '/usr/sbin/tc', 'fq_codel': '/usr/sbin/tc'}
+    require(args and executables.get(stage) == args[0], 'diagnostic command')
+    result = subprocess.run(args, check=False, env=ENV, timeout=timeout,
+                            stdout=subprocess.PIPE if capture else subprocess.DEVNULL,
+                            stderr=subprocess.PIPE)
+    if result.returncode:
+        raise subprocess.CalledProcessError(result.returncode, args, stderr=result.stderr[:2048])
+    return result.stdout
+
+
 def shape():
-    guard()
+    isolation_step('guard', guard)
     routes = []
-    for family in ('-4', '-6'):
-        result = subprocess.run(('/usr/sbin/ip', '-json', family, 'route', 'show', 'default'),
-                                check=True, capture_output=True, env=ENV, timeout=5)
-        require(len(result.stdout) <= 65536, 'route output bound')
-        routes.append(json.loads(result.stdout))
-    parent = shaper_command(*routes)
-    run(*parent)  # Nonzero tc exit fails the isolation unit before app/Caddy.
+    for family, stage in (('-4', 'route-v4'), ('-6', 'route-v6')):
+        def read_route():
+            raw = isolation_command(stage, ('/usr/sbin/ip', '-json', family, 'route', 'show', 'default'),
+                                    capture=True, timeout=5)
+            require(len(raw) <= 65536, 'route output bound')
+            return json.loads(raw)
+        routes.append(isolation_step(stage, read_route))
+    parent = isolation_step('guard', lambda: shaper_command(*routes))
+    isolation_step('tbf', lambda: isolation_command('tbf', parent))
     # Per-flow scheduling keeps bulk page transfers from monopolizing the parent FIFO.
     # TBF's latency option is not a hard queue-delay bound once this child is installed.
-    run('/usr/sbin/tc', 'qdisc', 'replace', 'dev', parent[4], 'parent', '1:1', 'handle', '10:',
-        'fq_codel', 'limit', '512', 'target', '5ms', 'interval', '100ms')
+    isolation_step('fq_codel', lambda: isolation_command('fq_codel',
+        ('/usr/sbin/tc', 'qdisc', 'replace', 'dev', parent[4], 'parent', '1:1', 'handle', '10:',
+         'fq_codel', 'limit', '512', 'target', '5ms', 'interval', '100ms')))
+
+
+def isolate():
+    isolation_step('nft-load', lambda: isolation_command('nft-load',
+        ('/usr/sbin/nft', '-f', '/etc/rh-demo.nft')))
+    shape()
 
 
 def isolation_unit():
-    return '[Unit]\nWants=network-online.target\nAfter=network-online.target rh-demo-expiry.timer\nRequires=rh-demo-expiry.timer\nBefore=rh-demo-source.service rh-demo-training.service caddy.service\nOnFailure=rh-demo-poweroff.service\n[Service]\nType=oneshot\nExecStart=/usr/sbin/nft -f /etc/rh-demo.nft\nExecStart=/usr/bin/python3 -I /usr/local/lib/rh-demo/bootstrap.py shape\nRemainAfterExit=yes\n[Install]\nWantedBy=multi-user.target\n'
+    return '[Unit]\nWants=network-online.target\nAfter=network-online.target rh-demo-expiry.timer\nRequires=rh-demo-expiry.timer\nBefore=rh-demo-source.service rh-demo-training.service caddy.service\nOnFailure=rh-demo-poweroff.service\n[Service]\nType=oneshot\nExecStart=/usr/bin/python3 -I /usr/local/lib/rh-demo/bootstrap.py isolate\nStandardOutput=journal+console\nStandardError=journal+console\nRemainAfterExit=yes\n[Install]\nWantedBy=multi-user.target\n'
 
 
 def write(path, body, mode=0o644):
@@ -334,6 +388,8 @@ if __name__ == '__main__':
             guard()
         elif sys.argv[1:] == ['shape']:
             shape()
+        elif sys.argv[1:] == ['isolate']:
+            isolate()
         elif sys.argv[1:] == ['ready']:
             guard()
             ready(7777)
