@@ -19,12 +19,23 @@ All under `/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/`. Remov
 | Worktree | Branch | Owner | Scope | Status |
 |---|---|---|---|---|
 | `rework-hitbox` | `rework/hitbox` | Opus | ADR 0024 packets P-HB-0..6 and the P-HB-9 server flag (Rust, protocol 16, C#/JS codecs) | running |
-| `rework-hud` | `rework/hud` | Sonnet | theme seam, legacy canvas scale, in-match HUD at legacy layout | running |
-| `rework-regions` | `rework/regions` | Sonnet | region ground/props/terrain from `MapBlob.Regions`, Frost first, `RegionAt` API | running |
-| `rework-perf` | `rework/perf` | Sonnet | Ultra preset + Quality API, `?perf=1` recorder, `perf-run.cjs`, build size, licence notices, EditMode global-light failures | running |
-| `rework-controls` | merged at `73f3df89`, worktree removed | | | done |
+| `rework-perf` | `rework/perf` | Sonnet | Ultra preset + Quality API, `?perf=1` recorder, `perf-run.cjs`, build size, licence notices, EditMode global-light failures (ports 7807/8107) | running |
+| `rework-atmosphere` | `rework/atmosphere` | Sonnet | region lighting/post, snow and other screen particles, per-region music from StreamingAssets, `AtmosphereQuality` switchboard (ports 7827/8127) | running |
+
+Merged and removed: `rework/controls` (`73f3df89`), `rework/hud`, `rework/skin`, `rework/regions`.
+
+Follow-ups owed after merges:
+- Wire `AtmosphereQuality` to the perf branch's `Quality` API.
+- P-HB-7 (C# foot-box prediction) and P-HB-8 (Unity chest aim, projectile height, sprite from archetype, debug box overlay) after `rework/hitbox` merges.
+- Opus review of every `rh-sim` change (hitbox branch plus the `attack_started` crash fix `2bfdc57b`, which still needs a regression test).
+- HUD weak spots from the skin pass: low-res icons, hub near-black cells, letterboxed planning map, uncaptured death line/chest/toasts.
+- Regions weak spots: coliseum has no props, bog pools dark, terrain surfaces drawn even when terrain mode is Off, wall torches dropped on region maps, two unexplained "ERROR: Shader" console lines.
+- Ranged-release pause prediction (`docs/rework/RANGED_PAUSE_PREDICTION.md`) needs architect review then Rust vectors.
+- Join URLs must use the literal host 127.0.0.1 (with `localhost` the diagnostic join can be refused).
 
 Unity EditMode baseline on unmodified code: 217 tests, 143 pass, 74 fail (73 "More than one global light", 1 BuildDrawer). The perf agent owns fixing these.
+
+Server crash found and fixed (`2bfdc57b`): Plague zombie raised mid-tick overran the `attack_started` scratch in `frost::after_weapons`; rooms died about 105 s into full-map bot matches. Any server built before that commit will crash the same way.
 
 ## Gate 1 inputs
 | Item | Status | Output |
