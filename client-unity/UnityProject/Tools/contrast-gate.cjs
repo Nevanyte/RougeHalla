@@ -96,11 +96,22 @@ async function runConfig(chromium, size, quality, opts, log) {
       for (let p = 0; p < pageCount; p++) {
         await page.evaluate(([z, n]) => window.__rhContrastLab.setZone(z, n), [zone, p]);
         state = await waitReady(page);
-        const cap = await capturePage(page, size, opts, `${cfg.name.replace('/', '-')}-${zone}-${p}`);
+        let cap, cons, attempt = 0;
+        for (;;) {
+          cap = await capturePage(page, size, opts, `${cfg.name.replace('/', '-')}-${zone}-${p}`);
+          cons = lib.frameConsistency(cap.lumNormal, cap.lumGround, cap.mask, size.width, size.height);
+          if (cons.far <= opts.maxFar && cons.inside >= opts.minInside) break;
+          if (++attempt > 2) break;
+          log(`  frames disagree (far ${cons.far.toFixed(3)}, inside ${cons.inside.toFixed(3)}); retrying`);
+          await page.evaluate(([z, n]) => window.__rhContrastLab.setZone(z, n), [zone, p]); state = await waitReady(page);
+        }
+        const consistent = cons.far <= opts.maxFar && cons.inside >= opts.minInside;
+        cfg.consistency = cfg.consistency || { maxFar: 0, minInside: 1e9 };
+        cfg.consistency.maxFar = Math.max(cfg.consistency.maxFar, cons.far); cfg.consistency.minInside = Math.min(cfg.consistency.minInside, cons.inside);
         const scale = cap.shot.width / (cap.state.screenW || size.width);
         for (const c of cap.state.cells) {
           const rect = { x: c.x * scale, y: c.y * scale, w: c.w * scale, h: c.h * scale };
-          const res = c.found && c.w > 0 ? lib.analyzeCell({ width: size.width, height: size.height, lumNormal: cap.lumNormal, lumGround: cap.lumGround, mask: cap.mask, rect }, { debug: true }) : { valid: false, reason: 'actor not found or has no drawn pixels', markers: {} };
+          const res = !consistent ? { valid: false, reason: `frames disagree (far ${cons.far.toFixed(3)}, inside ${cons.inside.toFixed(3)})`, markers: {} } : c.found && c.w > 0 ? lib.analyzeCell({ width: size.width, height: size.height, lumNormal: cap.lumNormal, lumGround: cap.lumGround, mask: cap.mask, rect }, { debug: true }) : { valid: false, reason: 'actor not found or has no drawn pixels', markers: {} };
           const cell = toCell(cfg.name, c, res, opts);
           cfg.cells.push(cell);
           considerWorst(opts, cell, res, cap.shot, size);
@@ -200,7 +211,7 @@ function buildJson(result, opts) {
     tool: 'contrast-gate', version: 1, generated: result.generated, url: opts.url,
     thresholds: { edge: opts.edge, marker: opts.marker, edgeStatistic: 'p10 of 16 angular contour-sector contrast ratios (absolute min and median also reported)', contourPx: 2, ringPx: [3, 12], sectors: 16 },
     frames: { normal: opts.frames, ground: opts.groundFrames },
-    configs: result.configs.map(c => ({ name: c.name, width: c.width, height: c.height, quality: c.quality, gpu: c.gpu, qualityRow: c.row, orthoSize: c.orthoSize, pages: c.pages, cells: c.cells.length, unplaced: c.unplaced, consoleErrors: c.consoleErrors })),
+    configs: result.configs.map(c => ({ name: c.name, width: c.width, height: c.height, quality: c.quality, gpu: c.gpu, qualityRow: c.row, orthoSize: c.orthoSize, consistency: c.consistency, pages: c.pages, cells: c.cells.length, unplaced: c.unplaced, consoleErrors: c.consoleErrors })),
     summary: result.summary,
     columns: OUT_COLUMNS, strings, note: 'string columns hold indexes into "strings" (-1 = empty); booleans are 0/1; ratios are WCAG contrast ratios',
     cells: rows,

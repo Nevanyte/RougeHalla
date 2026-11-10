@@ -134,8 +134,10 @@ namespace Roguehalla.Client
             if (zoneIndex != _zoneIndex) { _zoneIndex = zoneIndex; _zonePages = _plan.ForZone(ContrastLabMap.Zones[zoneIndex]); }
             _pageIndex = _zonePages.Count == 0 ? 0 : Mathf.Clamp(pageIndex, 0, _zonePages.Count - 1);
             _page = _zonePages.Count == 0 ? null : _zonePages[_pageIndex];
+            // Undo whatever the previous page's render mode did to its (pooled, soon reused) actors and to the camera, then start clean.
+            _mode = LabMode.Normal; ApplyMode();
             _live.Clear(); _origMaterial.Clear();
-            _mode = LabMode.Normal; _modeDirty = true; _modeFrames = 0;
+            _modeDirty = true; _modeFrames = 0;
             _phase = Phase.Settle; _phaseStart = Time.unscaledTime; _settleSeconds = settle;
             _publishedFor = -1;
             PublishNotReady();

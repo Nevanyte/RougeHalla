@@ -171,6 +171,19 @@ test('an unmeasurable cell is reported invalid, never silently passed', () => {
   assert.equal(res.valid, false); assert.match(res.reason, /silhouette mask/);
 });
 
+// ---- frame consistency ---------------------------------------------------------------------------------------------------------------
+
+test('frame consistency: matching frames are consistent, a stale ground frame is caught', () => {
+  const f = discFrame();
+  const same = L.frameConsistency(f.lumNormal, f.lumGround, f.mask, f.width, f.height);
+  assert.ok(same.far < 1e-6, `far ${same.far}`);
+  assert.ok(same.inside > 1, `inside ${same.inside}`);                 // (0.5 - 0.1) / (0.1 + 0.05) = 2.67 where the actor is
+  const stale = L.frameConsistency(f.lumNormal.map(v => v * 0.5), f.lumGround, f.mask, f.width, f.height);
+  assert.ok(stale.far > 0.2, `far ${stale.far}`);
+  const flat = L.frameConsistency(f.lumGround, f.lumGround, f.mask, f.width, f.height);   // actors missing from the normal frame
+  assert.ok(flat.inside < 1e-6);
+});
+
 // ---- arguments -------------------------------------------------------------------------------------------------------------------------
 
 test('parseArgs defaults match the gate definition', () => {

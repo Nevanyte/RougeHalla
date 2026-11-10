@@ -243,6 +243,24 @@ function analyzeCell({ width, height, lumNormal, lumGround, mask, rect }, opts =
   return result;
 }
 
+// ---- Frame consistency ------------------------------------------------------------------------------------------------------------
+
+/**
+ * Guard against stale or mismatched captures. The normal and no-actors frames must agree away from the actors (only ambient motion differs),
+ * and the normal frame must differ from the ground frame where the mask says a silhouette is. Returns mean relative differences:
+ * far = |normal - ground| / (ground + 0.05) over pixels more than `margin` px from any mask pixel; inside = the same over silhouette pixels.
+ */
+function frameConsistency(lumNormal, lumGround, mask, w, h, margin = 30) {
+  const any = new Uint8Array(w * h); for (let i = 0; i < any.length; i++) any[i] = mask[i] !== CLASS.NONE ? 1 : 0;
+  const d = distanceTo(any, w, h);
+  let farSum = 0, farN = 0, inSum = 0, inN = 0;
+  for (let i = 0; i < any.length; i++) {
+    const rel = Math.abs(lumNormal[i] - lumGround[i]) / (lumGround[i] + 0.05);
+    if (d[i] > margin) { farSum += rel; farN++; } else if (mask[i] === CLASS.SIL) { inSum += rel; inN++; }
+  }
+  return { far: farN ? farSum / farN : 0, inside: inN ? inSum / inN : 0, farPx: farN, insidePx: inN };
+}
+
 // ---- Arguments -------------------------------------------------------------------------------------------------------------------
 
 const ZONES = ['fire', 'sentenced', 'plague', 'frost', 'holy', 'coliseum'];
@@ -254,7 +272,7 @@ function parseSizes(text) {
 }
 function parseArgs(argv) {
   const o = { url: 'http://127.0.0.1:8187/', out: 'contrast-gate-out', zones: ZONES.slice(), sizes: parseSizes('1920x1080,2560x1440'), quality: ['high', 'ultra'], edge: 3.0, marker: 4.5, query: '',
-    frames: 4, groundFrames: 3, maxPages: 0, allowSoftware: false, help: false, raw: '' };
+    frames: 4, groundFrames: 3, maxFar: 0.12, minInside: 0.15, maxPages: 0, allowSoftware: false, help: false, raw: '' };
   const need = (i, name) => { if (i + 1 >= argv.length) throw new Error(`--${name} needs a value`); return argv[i + 1]; };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -286,5 +304,5 @@ function parseArgs(argv) {
 
 module.exports = {
   linearise, relativeLuminance, encodeSrgb, contrastRatio, luminancePlane, median, percentile, decodePng, encodePng, CLASS, CLASS_NAMES, classifyMaskPixel, decodeMask,
-  distanceTo, erode, dilate, regions, centroid, sectorOf, sectorContrast, analyzeCell, parseArgs, parseSizes, ZONES, DEFAULTS,
+  distanceTo, erode, dilate, regions, centroid, sectorOf, sectorContrast, analyzeCell, frameConsistency, parseArgs, parseSizes, ZONES, DEFAULTS,
 };
