@@ -1,7 +1,7 @@
 /** Capture only outputs from the unchanged TypeScript World/CardRuntime producer. */
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {readFileSync,writeFileSync} from 'node:fs';
+import {readFileSync,readdirSync,writeFileSync} from 'node:fs';
 import {dirname,join} from 'node:path';
 import * as S from '@raid/shared';
 import {addPlayer,step as worldStep} from '../../packages/server/src/sim/step.ts';
@@ -74,13 +74,14 @@ function build(input:any){
   return{name:input.name,input,trace:rows,cardContributions,cardFx,final:{tick:w.state.tick,time:w.state.serverTime,phase:w.state.phase,winner:w.state.winner},ordinarySteps:rows.filter(r=>/^action-\d+(?:-step-\d+)?$/.test(r.label)).length+1};
 }
 
-const sourceFiles=['packages/server/src/sim/cardHooks.ts','packages/server/src/sim/world.ts','packages/server/src/sim/step.ts','packages/server/src/sim/arena.ts','packages/server/src/sim/inputs.ts','packages/server/src/sim/chests.ts','packages/shared/src/constants.ts'];
-const harnessFiles=['tools/card-bleed-fixtures/capture.mts','tools/card-bleed-fixtures/cases.mts','tools/card-bleed-fixtures/capture.sh'];
+function filesBelow(root:string):string[]{return readdirSync(root,{withFileTypes:true}).flatMap(entry=>{const path=`${root}/${entry.name}`;return entry.isDirectory()?filesBelow(path):/\.(ts|mts|mjs|json|sh)$/.test(path)?[path]:[];}).sort();}
+const sourceFiles=[...filesBelow('packages/shared/src'),...filesBelow('packages/server/src/sim'),'packages/server/src/rooms/FxChannel.ts','package.json','package-lock.json','tsconfig.base.json','packages/server/package.json','packages/shared/package.json'].sort();
+const harnessFiles=filesBelow('tools/card-bleed-fixtures');
 const provenance={baseRevision:'4151b3af',runtime:'Node.js22.23.4 Linuxamd64',image:'node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292',fixedStepMs:50,sourceInputs:sourceFiles.map(path=>({path,sha256:sourceBytes(path)})),harnessInputs:harnessFiles.map(path=>({path,sha256:sourceBytes(path)})),oracle:'all expected rows/events below are emitted by unchanged source; no expected report state is supplied and flushBleeds is never called'};
 const captured:any[]=[];let activeInput:any=null;
 function persistFailure(error:any){
   if(process.argv[2]==='--check')return;
-  const outputPath=process.env.RH_CARD_BLEED_OUTPUT??'parity/card-bleed/source.json';
+  const outputPath=process.env.RH_CARD_BLEED_OUTPUT??'parity/card-bleed-feedback/source.json';
   const diagnostic={format:'rh-card-bleed-unadmitted-diagnostic/1',status:'UNADMITTED',failure:{name:error?.name??'Error',message:String(error?.message??error),stack:String(error?.stack??'')},failingCase:activeInput?.name??null,failingInput:activeInput,provenance,capturedCases:captured};
   writeFileSync(join(dirname(outputPath),'UNADMITTED.json'),JSON.stringify(diagnostic)+'\n');
 }
@@ -98,6 +99,7 @@ assert(periodic.cardContributions.length>0,'periodic case reached actual card Do
 assert(periodic.cardFx.length>0,'periodic case emitted source card feedback');
 assert.equal(periodic.cardFx[0].time-periodic.cardContributions[0].time,500,'first-use report clock flushes at the source 500 ms boundary');
 assert(periodic.final.time-periodic.cardContributions.at(-1).time>=500,'periodic case crosses an empty post-expiry interval');
+assert(periodic.cardFx.every(h=>h.time<=periodic.cardContributions.at(-1).time+500),'empty periodic intervals emit no card feedback');
 const ended=named('run-ended-before-periodic-window');
 activeInput=ended.input;
 assert.equal(ended.final.phase,'ended','run-ended case ended through ordinary settle');
@@ -113,6 +115,8 @@ const reset=named('raid-start-clears-partial-report');
 activeInput=reset.input;
 const resetRow=reset.trace.find(r=>r.label.endsWith('source-startRaid'))!;
 assert(reset.cardContributions.some(h=>h.time<resetRow.time),'raid reset began with an actual partial report');
+assert(reset.cardContributions.every(h=>h.time<=resetRow.time),'raid reset trace has no post-reset bleed contributions');
+assert(reset.final.time-resetRow.time>=500,'raid reset case crosses the old report window after reset');
 assert(reset.cardFx.every(h=>h.time>resetRow.time),'raid reset did not emit a pre-reset report');
 const noncard=named('card-dot-excludes-signature-and-ability-dot');
 activeInput=noncard.input;
@@ -123,7 +127,7 @@ activeInput=control.input;
 assert.equal(control.cardContributions.length,0,'no-card control has no card-owned landed DoT');
 assert.equal(control.cardFx.length,0,'no-card control has no card-only feedback');
 const output={format:'rh-card-bleed-source/1',provenance,cases:captured};
-const bytes=JSON.stringify(output)+'\n',path=process.env.RH_CARD_BLEED_OUTPUT??'parity/card-bleed/source.json';
+const bytes=JSON.stringify(output)+'\n',path=process.env.RH_CARD_BLEED_OUTPUT??'parity/card-bleed-feedback/source.json';
 if(process.argv[2]==='--check')assert.equal(readFileSync(path,'utf8'),bytes,'one canonical unchanged-source recapture');
 else writeFileSync(path,bytes);
 console.log(JSON.stringify({cases:output.cases.length,ordinarySteps:output.cases.reduce((n,c)=>n+c.ordinarySteps,0),bytes:Buffer.byteLength(bytes),sha256:hash(bytes)}));

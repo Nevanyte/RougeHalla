@@ -15,8 +15,8 @@ function add(name:string,players:any[],actions:any[],extra:any={}) {
 
 // Distinct actors create real Hemorrhage statuses. Equal-pair refreshes should retain the first pair slot.
 add('ordered-pairs-and-repeat-pair',[
-  P('holy',300,320,['hemorrhage']), P('fire',300,350,['hemorrhage']),
-  P('fire',335,320), P('holy',335,350),
+  P('holy',300,320,['hemorrhage']), P('holy',300,400,['hemorrhage']),
+  P('fire',335,320), P('fire',335,400),
 ], [
   step(attack('p0'),attack('p1')), span(45),
   step(release('p0'),release('p1')), span(12),

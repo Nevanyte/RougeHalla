@@ -5,7 +5,7 @@ MODE=${1-capture}
 case "$MODE" in capture|--check) ;; *) exit 2 ;; esac
 REPO=$(cd "$(dirname "$0")/../.." && pwd)
 if [ "$MODE" = "--check" ]; then
-  OUTPUT=${RH_CARD_BLEED_DIRECTORY:-$REPO/parity/card-bleed}
+  OUTPUT=${RH_CARD_BLEED_DIRECTORY:-$REPO/parity/card-bleed-feedback}
   [ -f "$OUTPUT/source.json" ] || { echo "Missing card-bleed source corpus" >&2; exit 1; }
   OUTPUT=$(cd "$OUTPUT" && pwd)
   OUTPUT_MOUNT="type=bind,src=$OUTPUT,dst=/out,readonly"
