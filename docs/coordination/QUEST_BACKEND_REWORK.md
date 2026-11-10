@@ -40,7 +40,7 @@ The current branch substitutes `1` and incorrectly marks Fire visited instead:
 | Fire + Holy | Two fresh regions: offer remains possible | Fire treated as visited: prematurely expires |
 | Frost + Sentenced | One fresh region: offer is impossible | Both treated as fresh: wrongly survives |
 
-Both outcomes are now captured in source seal `c605f2fb`, with immutable bytechecks and semantic controls; see [source evidence](../evidence/quest-tour-supply/README.md). Native repair remains under development. The source witness must reach these
+Both outcomes are now captured in source seal `c605f2fb`, with immutable bytechecks and semantic controls; see [source evidence](../evidence/quest-tour-supply/README.md). The native repair and both content pins are now independently released at `36564c33` and integrated in the backend lane as `8a11520d` + `56843a8e`; the separate objective/reward extraction is active. The source witness must reach these
 situations in an actual `createGameWorld` and ordinary 50ms `step`, with acceptance through the normal input queue,
 a visit earned through the real kill path and camp recheck produced by real camp deaths. It must not install progress,
 visits, `recheck`, status or expected expiry. A declared batch through the existing real `killMob` producer is acceptable
