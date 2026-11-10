@@ -1,0 +1,53 @@
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Brain Knowledge equals actual tag3 dependency
++ actual - expected
+
++ {
++   '$': 'object',
++   entries: [
++     [
++       'edge',
++       0
++     ],
++     [
++       'score',
++       0
++     ],
++     [
++       'known',
++       true
++     ],
++     [
++       'why',
++       'known 0.00, hp lead 0.00'
++     ]
++   ]
++ }
+- undefined
+
+    at <anonymous> (/capture/runner.mts:145:14)
+    at Array.map (<anonymous>)
+    at <anonymous> (/capture/runner.mts:132:70)
+    at Array.flatMap (<anonymous>)
+    at knowledgeDependency (/capture/runner.mts:132:16)
+    at <anonymous> (/capture/capture.mts:52:221) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: {
+    '$': 'object',
+    entries: [
+      [ 'edge', 0 ],
+      [ 'score', 0 ],
+      [ 'known', true ],
+      [ 'why', 'known 0.00, hp lead 0.00' ]
+    ]
+  },
+  expected: undefined,
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}
+
+Node.js v22.23.4

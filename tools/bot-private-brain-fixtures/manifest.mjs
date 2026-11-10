@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
+import {readFileSync,writeFileSync} from 'node:fs';
+import {dirname,resolve,join} from 'node:path';
+import {fileURLToPath} from 'node:url';
+const mode=process.argv[2]??'--check';assert(['--write','--check'].includes(mode));
+const root=resolve(dirname(fileURLToPath(import.meta.url)),'../..'),dir=join(root,'parity/policy/bot-private-brain');
+const read=p=>readFileSync(p),pin=p=>{const b=read(p);return{bytes:b.length,sha256:createHash('sha256').update(b).digest('hex')};};
+const source=JSON.parse(read(join(dir,'source.json'))),coverage=JSON.parse(read(join(dir,'coverage.json'))),controls=JSON.parse(read(join(dir,'controls.json')));
+assert.equal(controls.source.sha256,pin(join(dir,'source.json')).sha256);
+for(const category of ['sourceInventory','configFiles','protectedFiles','toolFiles'])for(const [p,h]of Object.entries(source.profile[category]))assert.deepEqual(pin(join(root,p)),h,category+': '+p);
+assert(controls.controls.every(c=>c.result===(c.expectedResult??'NONKILL')));
+const body={format:'rh-bot-private-brain-manifest/1',candidateStatus:'SOURCE_AUTHOR_SEAL_INDEPENDENT_FRESH_REPRODUCTION_REQUIRED',profile:source.profile,corpus:Object.fromEntries(['source.json','coverage.json','controls.json'].map(p=>[p,pin(join(dir,p))])),maps:source.maps.map(m=>({id:m.id,mapHashU32:m.mapHashU32,encodedSha256:createHash('sha256').update(JSON.stringify(m.value)).digest('hex')})),cases:source.cases.length,operations:source.cases.reduce((n,c)=>n+c.operations.length,0),handProfiles:source.handSupplement.length,handOperations:source.handSupplement.reduce((n,c)=>n+c.operations.length,0),knowledgeDependencies:source.knowledgeDependencies.length,reachedAssertions:coverage.reached.assertions.length,readerControls:coverage.readerControls.length,instrumentationChecks:coverage.instrumentationChecks.length,semanticKills:controls.controls.filter(c=>c.result==='KILL').length,survivingControls:controls.controls.filter(c=>c.result==='SURVIVED').map(c=>c.id),commentOnly:controls.controls.find(c=>c.id==='comment-only'),restoredCases:controls.restoredCases};
+const bytes=JSON.stringify(body,null,1)+'\n',path=join(dir,'manifest.json');if(mode==='--write')writeFileSync(path,bytes);else assert.equal(read(path).toString(),bytes);
+console.log(JSON.stringify({mode,...pin(path),cases:body.cases,operations:body.operations,reached:body.reachedAssertions,readerControls:body.readerControls,kills:body.semanticKills,survivors:body.survivingControls}));

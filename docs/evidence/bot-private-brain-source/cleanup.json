@@ -1,0 +1,20 @@
+{
+  "ownedContainerAbsent": true,
+  "firstCleanupAttempt": "Python assertion on a captured command exit failed; the per-command stdout/stderr from that attempt were not retained. No cleanup success is inferred from that attempt.",
+  "subsequentExplicitStop": {
+    "exit": 1,
+    "stderr": "Error response from daemon: No such container: e9ae1161552e4b4194176bc59201d4a7b32fc853b25c15f375471651c0c8df42"
+  },
+  "independentAbsenceCheck": {
+    "command": [
+      "docker",
+      "ps",
+      "-aq",
+      "--filter",
+      "id=e9ae1161552e4b4194176bc59201d4a7b32fc853b25c15f375471651c0c8df42"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+  }
+}

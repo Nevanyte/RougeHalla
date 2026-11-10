@@ -1,0 +1,21 @@
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+
+  assert(rows.some((o:any)=>s(o).retreats>0))
+
+    at <anonymous> (/capture/checks.mts:23:216)
+    at check (/capture/checks.mts:10:78)
+    at reachedChecks (/capture/checks.mts:23:45)
+    at <anonymous> (/capture/capture.mts:55:50) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v22.23.4

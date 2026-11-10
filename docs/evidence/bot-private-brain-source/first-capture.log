@@ -1,0 +1,3 @@
+docker: Error response from daemon: failed to create task for container: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: error mounting "tmpfs" to rootfs at "/repo/node_modules": create mountpoint for /repo/node_modules mount: make mountpoint "/repo/node_modules": mkdirat /var/lib/docker/rootfs/overlayfs/36877962cfc3f5e5199f428f23ba789a4d8a0b9742f74b4c990297d5a09340ff/repo/node_modules: read-only file system
+
+Run 'docker run --help' for more information
