@@ -79,3 +79,8 @@ for required in Roguehalla-MIT.txt Unity-Companion.md LiberationSans-OFL.txt Emo
     FlareExpansion-CREDITS.md FlareProps-LICENSE.txt FlareAudioExpansion-LICENSE.txt; do
     [[ -s "$licenses/$required" ]] || { echo "Missing required licence notice: $required" >&2; exit 1; }
 done
+# Every streamed audio file the client requests (ids in RegionAtmosphereTable.AllAudioIds) must sit where the player fetches it.
+for id in $(sed -n '/AllAudioIds/,/};/p' "$project/Assets/Scripts/View/Atmosphere/RegionAtmosphereTable.cs" | grep -o '"[a-z_]*"' | tr -d '"'); do
+    [[ -s "$project/Build/Web/StreamingAssets/Audio/$id.mp3" ]] || { echo "BUILD CHECK FAILED: Build/Web/StreamingAssets/Audio/$id.mp3 is missing" >&2; exit 1; }
+done
+echo "Audio check: all streamed files present"

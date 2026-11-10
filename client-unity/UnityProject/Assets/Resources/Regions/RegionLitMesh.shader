@@ -48,6 +48,7 @@ Shader "Roguehalla/RegionLitMesh"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/2D/Include/CombinedShapeLightShared.hlsl"
 
             #include "RhSun.hlsl"
+            #include "RhLocalLights.hlsl"
             CBUFFER_START(UnityPerMaterial)
                 half _Exposure;
             CBUFFER_END
@@ -69,15 +70,36 @@ Shader "Roguehalla/RegionLitMesh"
                 clip(main.a - 0.004);
                 // Surface kind (mesh uv3.x): 0 flat top, 1 south face, 2 west edge, 3 east edge, 4 unlit decal (contact shadows).
                 float kind = i.world.z;
+                float2 o = (abs(float2(ddx(i.uv.x), ddy(i.uv.y))) + 1e-5) * 1.3;      // derivative outside the light branch (well defined)
                 float ndl = kind < 0.5 ? 0.65 : kind < 1.5 ? 0.0 : kind < 2.5 ? 0.55 : 0.0;
                 float sunStr; float3 shMul;
                 float3 sunM = kind > 3.5 ? float3(1, 1, 1) : RhSunMul(i.world.xy, ndl, sunStr, shMul);
                 main.rgb *= sunM;
                 SurfaceData2D surfaceData;
                 InputData2D inputData;
-                InitializeSurfaceData(main.rgb * _Exposure, main.a, half4(1, 1, 1, 1), half3(0, 0, 1), surfaceData);
+                // mask = 0: the "with Mask" light blend styles (the accent point lights while the analytic local lights are on) do not light this surface
+                // a second time; RhLocalLights.hlsl lights it per pixel instead. With the field off those lights use style 0 and light it as before.
+                InitializeSurfaceData(main.rgb * _Exposure, main.a, half4(0, 0, 0, 0), half3(0, 0, 1), surfaceData);
                 InitializeInputData(i.uv, i.lightingUV, inputData);
-                return CombinedShapeLightShared(surfaceData, inputData);
+                half4 lit = CombinedShapeLightShared(surfaceData, inputData);
+                [branch] if (kind < 3.5 && _RhLI.x > 0.5)
+                {
+                    float2 pt = float2(i.world.x, -i.world.y / _RhMapInfo.z);
+                    [branch] if (RhAnyLight(pt))
+                    {
+                        // Wall relief: the face normal by surface kind plus a bump from the painted luma (mortar lines, chips, cracks).
+                        float3 n = kind < 0.5 ? float3(0, 0, 1) : kind < 1.5 ? float3(0, 0.80, 0.60) : kind < 2.5 ? float3(-0.70, 0, 0.714) : float3(0.70, 0, 0.714);
+                        float3 lw = float3(0.2126, 0.7152, 0.0722);
+                        float lR = dot(SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv + float2(o.x, 0)).rgb, lw), lL = dot(SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv - float2(o.x, 0)).rgb, lw);
+                        float lU = dot(SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv + float2(0, o.y)).rgb, lw), lD = dot(SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv - float2(0, o.y)).rgb, lw);
+                        n.xy += float2(-(lR - lL), (lU - lD)) * 1.8;
+                        float3 dif, spc;
+                        RhLocalLights(pt, normalize(n), 0.16, 16.0, 0.0, 1.0, 0.0, dif, spc);
+                        float hr = RhHeadroom(lit.rgb);
+                        lit.rgb += (main.rgb * _Exposure * dif * hr + spc * saturate(hr + 0.05)) * main.a;
+                    }
+                }
+                return lit;
             }
             ENDHLSL
         }

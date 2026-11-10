@@ -243,6 +243,7 @@ namespace Roguehalla.Client
             float born = reduced ? 1f : WishFxModel.EaseOut(WishFxModel.Phase(now, f.StartedAt, 300));
             float fade = Mathf.Clamp01(rem * 8f);
             float pulse = WishFxModel.Pulse(t, 1.6f, reduced);
+            WishLight(c + new Vector3(0, .3f, 0), .9f, r * born * 1.3f + 1.4f, Mix(g, Color.white, .2f), (.6f + .15f * pulse) * fade);
             Ring(WishFxArt.Disc, c, r * born, A(Mix(g, Color.black, .45f), (.24f + .06f * pulse) * fade), GroundOrder);
             SafeRing(WishFxArt.Dashed, c, r * born, A(Mix(g, Color.white, .2f), .85f * fade), RingOrder);
             Ring(WishFxArt.Hairline, c, r * born, A(g, .55f * fade), RingOrder + 1);
@@ -263,6 +264,28 @@ namespace Roguehalla.Client
         }
 
         int OrderAt(Vector3 c, int i) { return OrderOf(c) + 2 + (i % 3); }
+
+        // ---- scene light (render pass, switch fx.fxlights): every Wish emits real light into the analytic local-light field, in its own colour ----
+        static bool LightsOn { get { return AtmosphereQuality.AnalyticLights && AtmosphereQuality.FxLights; } }
+        static void WishLight(Vector3 world, float height, float radius, Color col, float intensity)
+        {
+            if (LightsOn && intensity > .01f) LocalLightField.StageWorld(world, height, radius, col, intensity);
+        }
+        void CueLight(in Cue c, float p, bool fire)
+        {
+            var ab = (AbilityId)c.Ability; Color col = Mix(Fac(WishFxModel.FactionIndex(ab)), Color.white, .25f);
+            Vector3 pos;
+            if (c.Type == CueType.Windup) { if (!Pos(c.Caster, out pos)) return; WishLight(pos, .9f, 2.6f, col, .45f + 1.1f * p); return; }
+            if (c.Type == CueType.Landing)
+            {
+                if (!c.HasAnchor) return;
+                pos = W(c.X, c.Y);
+                if (fire) LocalLightField.FlashWorld(pos, 1.0f, 5.2f, col, 2.6f, .5f);
+                WishLight(pos, .9f, 3.4f, col, 1.1f * (1f - p)); return;
+            }
+            if (!Pos(c.Target, out pos) && !Pos(c.Caster, out pos)) return;      // shatter, radiant and break end effects sit on an actor the client is drawing
+            if (fire) LocalLightField.FlashWorld(pos, .9f, 3.6f, col, 2.1f, .4f);
+        }
 
         void Fly(Vector3 p, float rotRad, float size, Color col, int order, float fade, float t, int i)
         {
@@ -291,6 +314,7 @@ namespace Roguehalla.Client
             float full = f.CircleRadius * S;
             float born = reduced ? 1f : WishFxModel.EaseOut(WishFxModel.Phase(now, f.StartedAt, 350));
             float r = full * born; float el = f.Elapsed(now); float fade = Mathf.Clamp01((1f - el) * 8f);
+            WishLight(c, .9f, r * 1.3f + 1.2f, Mix(v, Color.white, .25f), .6f * fade);
             Ring(WishFxArt.Disc, c, r, A(Deep(v, 1f), .24f * fade), GroundOrder);
             Ring(WishFxArt.Disc, c, r, A(v, .05f * fade), GroundOrder + 1);
             SafeRing(WishFxArt.Dashed, c, r, A(Mix(v, Color.white, .3f), .95f * fade), RingOrder, .7f);
@@ -309,6 +333,12 @@ namespace Roguehalla.Client
             float band = TrailBandThickness(f);
             DrawTrailBand(a, b, band, f.TrailHalfWidth * S, Deep(fire, 1f), .85f * life, GroundOrder + 4);
             Vector3 d = b - a; float len = d.magnitude;
+            if (LightsOn)      // a fire path lights its length: the ends and the middle, flickering
+            {
+                Color fl = Mix(fire, new Color(1f, .8f, .4f), .4f); float fk = (1.05f + .3f * WishFxModel.Pulse(t, 4.3f, reduced)) * life;
+                WishLight(Vector3.Lerp(a, b, .0f) + new Vector3(0, .25f, 0), .6f, 2.8f, fl, fk); WishLight(Vector3.Lerp(a, b, .5f) + new Vector3(0, .25f, 0), .6f, 2.8f + len * .3f, fl, fk);
+                WishLight(Vector3.Lerp(a, b, 1f) + new Vector3(0, .25f, 0), .6f, 2.8f, fl, fk);
+            }
             Drawn(f, (a + b) * .5f, b, new Vector2(len, band));
             if (len < .01f) return;
             Line(WishFxArt.Beam, a, b, band * 1.5f, A(Mix(fire, new Color(1f, .85f, .4f), .2f), (.6f + .2f * WishFxModel.Pulse(t, .5f, reduced)) * life), GroundOrder + 6);
@@ -414,6 +444,7 @@ namespace Roguehalla.Client
                     case CueType.Radiant: DrawRadiant(c, p, reduced, fire); break;
                     case CueType.Break: DrawBreak(c, p, reduced, fire); break;
                 }
+                if (LightsOn) CueLight(c, p, fire);
             }
         }
 

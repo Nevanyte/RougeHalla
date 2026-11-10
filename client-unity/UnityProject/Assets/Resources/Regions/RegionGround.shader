@@ -58,6 +58,7 @@ Shader "Roguehalla/RegionGround"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/2D/Include/LightingUtility.hlsl"
 
             TEXTURE2D_ARRAY(_GroundTex); SAMPLER(sampler_GroundTex);
+            TEXTURE2D_ARRAY(_GroundNrm); SAMPLER(sampler_GroundNrm);   // rg = baked surface tilt (tile space), b = gloss; same layers and mapping as _GroundTex
             TEXTURE2D(_RegA); SAMPLER(sampler_RegA);
             TEXTURE2D(_RegB); SAMPLER(sampler_RegB);
             TEXTURE2D(_TerA); SAMPLER(sampler_TerA);
@@ -85,6 +86,7 @@ Shader "Roguehalla/RegionGround"
                 half _Debug;
             CBUFFER_END
             #include "RhSun.hlsl"
+            #include "RhLocalLights.hlsl"
             // x = map width (tiles), y = map height, z = vertical squash, w = seconds scale
             float4 _Map;
             // Region table, index = wire region id 0..7 (7 unused). Colours are linear-agnostic sRGB bytes as 0..1.
@@ -138,7 +140,7 @@ Shader "Roguehalla/RegionGround"
                 return float2(d1, d2 - d1);
             }
 
-            struct Ground { float3 col; float3 emis; };
+            struct Ground { float3 col; float3 emis; float th; float thw; };   // th/thw: procedural surface height (tiles) and its weight, for derivative normals
 
             Ground ShadeRegion(int id, int layer, float2 t, float macro, float pocketN)
             {
@@ -166,7 +168,7 @@ Shader "Roguehalla/RegionGround"
                 e += accC * g.b * par2.y * (0.75 + 0.25 * sin(_Time.y * 1.4 + t.x * 0.4 + t.y * 0.3));
                 // B-channel glints twinkle white (frost glitter, sand shimmer).
                 c += g.b * par2.w * (0.5 + 0.5 * sin(_Time.y * 2.3 + t.x * 7.0 + t.y * 5.0)) * float3(0.9, 0.97, 1.0);
-                Ground r; r.col = c; r.emis = e; return r;
+                Ground r; r.col = c; r.emis = e; r.th = 0; r.thw = 0; return r;
             }
 
 
@@ -191,7 +193,7 @@ Shader "Roguehalla/RegionGround"
                 float3 c = lerp(mud, grass, gr);
                 float shore = (1.0 - w) * smoothstep(0.12, 0.34, plg.x + edgeN);   // wet, darker bank around the water
                 c = lerp(c, c * 0.5, shore * 0.75);
-                float3 emis = 0;
+                float3 emis = 0; float thv = 0;
                 [branch] if (w > 0.002)
                 {
                     float2 flow = float2(time * 0.05, -time * 0.03);
@@ -206,6 +208,27 @@ Shader "Roguehalla/RegionGround"
                     float gl = pow(saturate(VNoise(float2(dot(t, perp) * 3.6, dot(t, ShadowT) * 11.0) + flow * 4.0)), 18.0);
                     float ray = smoothstep(0.62, 0.95, VNoise(float2(dot(t, perp) * 0.42 + time * 0.03, dot(t, ShadowT) * 0.07)));
                     float rip = 0.5 + 0.5 * sin(dot(t, float2(1.7, 1.1)) * 3.0 + VNoise(t * 1.3) * 6.0 - time * 0.9);
+                    thv = (rip - 0.5) * 0.045 + (VNoise(t * 2.3 + flow * 3.0) - 0.5) * 0.04;      // water surface height: ripples take the local lights as moving glints
+                    [branch] if (_RhFx.x > 0.5)
+                    {
+                        // Caustics: a bright net of light crawling over the bed, bent by the ripples, strongest in the shallows.
+                        float2 cq = t * 2.4 + float2(sin(time * 0.55 + t.y * 1.4), cos(time * 0.47 + t.x * 1.2)) * 0.5 + (VNoise(t * 1.9 - flow * 6.0) - 0.5) * 0.6;
+                        float2 w1 = Worley(cq), w2 = Worley(cq * 1.65 + 4.0 - time * 0.07);
+                        float caus = pow(saturate(1.0 - w1.y * 4.5), 2.0) * 0.75 + pow(saturate(1.0 - w2.y * 4.5), 2.0) * 0.55;
+                        water += keyC * caus * 0.34 * (1.0 - depthT * 0.55);
+                        // Wade ripples from SurfaceFx (delivered actors only): expanding rings bend the surface, so lights and the sun glint on them.
+                        int nr = (int)_RhFx.y;
+                        [loop] for (int q = 0; q < 6; q++)
+                        {
+                            if (q >= nr) break;
+                            float4 rp = _RhRip[q]; float age = _RhFxNow - rp.z;
+                            if (age < 0.0 || age > rp.w) continue;
+                            float rad = _RhRipB[q].x * 0.5 * saturate(age / (rp.w * 0.6)), dd = distance(t, rp.xy), fdr = 1.0 - age / rp.w;
+                            float ringw = exp(-pow((dd - rad) * 4.5, 2.0)) * fdr;
+                            thv += sin((dd - rad) * 20.0) * ringw * 0.06;
+                            water += keyC * ringw * 0.10;
+                        }
+                    }
                     water *= 0.92 + 0.12 * rip;
                     water += keyC * 0.11 * rip * depthT;                                                    // faint sky sheen
                     float lip = (1.0 - smoothstep(0.0, 0.22, plg.x + edgeN - 0.40));                        // darker wet edge line
@@ -214,7 +237,7 @@ Shader "Roguehalla/RegionGround"
                     c = lerp(c, water, w);
                     emis += we * w;
                 }
-                Ground r; r.col = c; r.emis = emis; return r;
+                Ground r; r.col = c; r.emis = emis; r.th = thv; r.thw = w; return r;
             }
 
             // ---- Holy temple: ONE hall seen from above with its roof removed -------------------------------------------------------------
@@ -485,6 +508,9 @@ Shader "Roguehalla/RegionGround"
             {
                 float2 t = float2(i.world.x, -i.world.y / _Map.z);
                 float2 tSun = t;
+                float2 gdx = ddx(tSun * 0.25), gdy = ddy(tSun * 0.25);
+                bool locLit = _RhLI.x > 0.5 && RhAnyLight(tSun);          // any analytic local light reaches this pixel
+                float2 gTilt = 0; float gGloss = 0, thH = 0, thW = 0;
                 // Heat shimmer: ground near lava wobbles slowly (cheap UV warp, only while the switch is on).
                 [branch] if (_RhSwitch.w > 0.5)
                 {
@@ -519,6 +545,12 @@ Shader "Roguehalla/RegionGround"
                         if (k2 == 5) g.col = ColiseumSand(t, g.col, VNoise(t * 3.0));
                         float wk = wgt[k2] / tot;
                         col += g.col * wk; emis += g.emis * wk;
+                        thH += g.th * wk; thW += g.thw * wk;
+                        [branch] if (locLit)
+                        {
+                            float4 nr = SAMPLE_TEXTURE2D_ARRAY_GRAD(_GroundNrm, sampler_GroundNrm, tSun * 0.25, k2, gdx, gdy);
+                            gTilt += (nr.rg * 2.0 - 1.0) * wk; gGloss += nr.b * wk;
+                        }
                     }
                 }
 
@@ -559,7 +591,7 @@ Shader "Roguehalla/RegionGround"
                             float m = smoothstep(0.34, 0.46, cv + edgeNoise);
                             float inner = saturate((cv + edgeNoise - 0.5) * 2.2);       // 0 at the shore, 1 deep inside
                             float3 deep = _TerDeep[kd].rgb, light = _TerLight[kd].rgb, glow = _TerGlow[kd].rgb;
-                            float3 tc = deep; float3 te = 0;
+                            float3 tc = deep; float3 te = 0; float hh = 0, gl = 0.15;
                             float time = _Time.y;
                             if (kd == 1)            // lava: dark crust over warped molten channels
                             {
@@ -570,6 +602,7 @@ Shader "Roguehalla/RegionGround"
                                 tc = lerp(deep, light, saturate(heat * 1.1));
                                 te = glow * (heat * heat * 0.85 + 0.15 * inner) * (0.85 + 0.15 * sin(time * 1.5 + q.x * 2.0));   // a glowing material with crust detail, not a white sheet
                                 tc = lerp(tc, deep * 0.5, (1.0 - heat) * 0.5);
+                                hh = (1.0 - heat) * 0.07; gl = 0.30;
                             }
                             else if (kd == 6)       // ice: glassy cyan sheet, pale frozen shore, cracks and moving glints
                             {
@@ -582,6 +615,7 @@ Shader "Roguehalla/RegionGround"
                                 tc = lerp(tc, float3(0.95, 0.99, 1.0), crack * 0.40);
                                 float glint = pow(saturate(VNoise(t * 3.2 + float2(time * 0.35, 0))), 14.0) * 1.4;
                                 te = glow * (crack * 0.10 + glint * 0.55);
+                                hh = streak * 0.025 - crack * 0.045; gl = 1.0;
                                 // Translucency: a darker, blurred, parallax-shifted layer beneath (cracks and bubbles at depth),
                                 // a fresnel-like sheen toward the screen edge and sun glints.
                                 [branch] if (_RhSwitch.z > 0.5)
@@ -611,6 +645,7 @@ Shader "Roguehalla/RegionGround"
                                 float breathe = 0.5 + 0.5 * sin(time * 1.15 + t.x * 0.45 + t.y * 0.38);
                                 te = glow * (crustLine * 0.16 + bub * 0.8 + saturate(inner + 0.2) * (0.07 + 0.12 * breathe));
                                 tc += bub * glow * 0.35;
+                                hh = bub * 0.05 + (1.0 - crustLine) * 0.03; gl = 0.45;
                             }
                             else if (kd == 4)       // embers: charred ground with pulsing glowing cracks
                             {
@@ -620,6 +655,7 @@ Shader "Roguehalla/RegionGround"
                                 tc = deep * (0.75 + 0.5 * Fbm(t * 2.0));
                                 te = glow * crack * pulse * 1.5 + glow * 0.06;
                                 tc = lerp(tc, light, crack * 0.6);
+                                hh = -crack * 0.05; gl = 0.12;
                             }
                             else if (kd == 7)       // light: warm sanctified ground, concentric shimmer and slow sparks
                             {
@@ -630,6 +666,7 @@ Shader "Roguehalla/RegionGround"
                                 float2 sc = floor(t * 3.0); float2 sf = frac(t * 3.0) - 0.5 - (H22(sc) - 0.5) * 0.5;
                                 float sp = step(0.55, H21(sc + 7.0)) * smoothstep(0.16, 0.0, length(sf)) * (0.5 + 0.5 * sin(time * 2.4 + H21(sc) * 30.0));
                                 te += glow * sp * 1.1;
+                                gl = 0.25;
                             }
                             else                    // crevasse: deep blue-black fissure with a pale lip
                             {
@@ -638,10 +675,12 @@ Shader "Roguehalla/RegionGround"
                                 tc = lerp(deep, deep * 0.35, inner);
                                 tc = lerp(tc, light, lip * 0.75);
                                 te = glow * (1.0 - smoothstep(0.0, 0.25, w.y)) * 0.15 * inner;
+                                hh = -inner * 0.12; gl = 0.5;
                             }
                             if (kd == 7) m *= lerp(1.0, 0.5, templeIn);
                             col = lerp(col, tc, m);
                             emis = lerp(emis, te, m);
+                            thH = lerp(thH, hh, m); thW = lerp(thW, 1.0, m); gGloss = lerp(gGloss, gl, m);
                         }
                     }
                 }
@@ -660,15 +699,28 @@ Shader "Roguehalla/RegionGround"
                 // One sun: region-blended colour and strength per pixel, and the baked cast-shadow mask (walls and props).
                 float sunStr; float3 shMul;
                 float3 sunM = RhSunMul(i.world, 0.65, sunStr, shMul);
+                float3 albedo = col;
                 float shade = SAMPLE_TEXTURE2D_LOD(_RhShadowMask, sampler_RhShadowMask, tSun / _Map.xy, 0).r * sunStr * _RhSwitch.y;
                 col *= sunM * lerp(float3(1, 1, 1), shMul, saturate(shade));
                 SurfaceData2D surfaceData;
                 InputData2D inputData;
-                InitializeSurfaceData(col * _Exposure, 1.0, half4(1, 1, 1, 1), half3(0, 0, 1), surfaceData);
+                // mask = 0: the "with Mask" light blend styles (accent point lights while the analytic local lights are on) skip this surface; see RhLocalLights.hlsl.
+                InitializeSurfaceData(col * _Exposure, 1.0, half4(0, 0, 0, 0), half3(0, 0, 1), surfaceData);
                 InitializeInputData(i.world, i.lightingUV, inputData);
                 half4 lit = CombinedShapeLightShared(surfaceData, inputData);
                 if (_Debug > 0.5) lit = half4(col, 1);
                 lit.rgb += emis;
+                float dtx = ddx(tSun.x), dty = ddy(tSun.y);
+                float2 gT = float2(ddx(thH) / (abs(dtx) > 1e-6 ? dtx : 1e-6), ddy(thH) / (abs(dty) > 1e-6 ? dty : 1e-6));   // derivative normal of the procedural heights
+                [branch] if (locLit)
+                {
+                    float2 tilt = lerp(gTilt, -gT, saturate(thW));
+                    float3 dif, spc;
+                    float gloss = max(gGloss, templeIn * 0.3);
+                    RhLocalLights(tSun, normalize(float3(tilt, 1.0)), gloss, 12.0 + 40.0 * saturate(gloss), 1.0, 1.0, 0.0, dif, spc);
+                    float hr = RhHeadroom(lit.rgb);
+                    lit.rgb += albedo * _Exposure * dif * hr + spc * saturate(hr + 0.05);
+                }
                 lit.a = 1;
                 return lit;
             }
