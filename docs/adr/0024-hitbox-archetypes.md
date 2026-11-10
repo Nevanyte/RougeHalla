@@ -605,3 +605,36 @@ last 3 s); a one-tile doorway: all eight mobs come through, hit and spread with 
 mob's foot box is clear of walls; the same run twice and a checkpoint restored mid-run give the same hash every tick;
 the legacy-circle pack run's state-hash fold equals the value pinned with the spacing code removed. The parity report
 is unchanged (109 slice scenarios + 13 capture-only, 300 pathfinding queries: all MATCH).
+
+## Addendum: Weapon shapes in the Welcome (coordinator addition to protocol 16, 2026-11-10)
+
+The client draws a weapon hit-zone indicator (a translucent sector of the area a melee swing can hit). The swing's
+origin and angle already travel in the `Swing` fx; the per-weapon shape did not, and the client must not keep a hand
+copy. Protocol 16 has not shipped, so the Welcome grows once more, like the archetype table and the vision block.
+
+**Layout.** Right after the vision block and before the map (the map reader refuses trailing bytes): `count u8` (at most
+`MAX_WEAPONS` = 32, checked before allocating), then fixed 34-byte rows `id u8, kind u8, reach f64, half_arc f64,
+speed f64, radius f64`, ids strictly ascending. `id` is `WeaponId::code()` (sword 0, bow 1, wand 2, shield 3, axe 4,
+fists 5). `kind`: 0 no hit shape (all four values 0; reserved), 1 melee arc (`reach` sim units > 0, `0 < half_arc <= pi`
+radians, speed and radius 0), 2 projectile (`reach` = maximum range > 0, `speed` sim units/s > 0, `half_arc` 0, `radius`
+= the flight's body-contact radius: `ARROW_RADIUS` 7 for the bow's arrows, `RANGED_SLACK` 2 for the wand's balls).
+Every value is finite and within 0..=1e6. Fixed-size rows keep the table append-friendly (a new kind is a new number).
+Rust (`rh_protocol::weapon::table_fault`, encoder and decoder), C# and JS refuse anything else with `weapon count`,
+`weapon kind`, `weapon` or `weapon order`, without panic or over-allocation. The server builds the rows from
+`rh_sim::content::weapon(w).shape` (`rh_policy::delivery::projection::wire_weapons`), never by hand.
+
+**Members.** Rust `ServerMsg::Welcome { weapons: Vec<WireWeapon> }`; C# `Protocol.WireWeapon { Id, Kind, Reach, HalfArc,
+Speed, Radius }` (constants `KindNone`, `KindArc`, `KindProjectile`; `WireWeapon.Find(rows, id)`), `ServerMsg.Welcome.Weapons`
+and `Session.Weapons` (empty before a Welcome); JS `m.weapons = [{id, kind, reach, halfArc, speed, radius}]`.
+
+**What it covers.** The static shape of each weapon, which is all the sim uses: melee reads `weapon(w).shape` for every
+swing (`melee.rs`), projectiles take speed and range from it at launch. No card, status or modifier changes a weapon's
+reach, arc, range, speed or contact radius at runtime, so the table is exact, not a base value. Not covered: per-flight
+state (a reflected flight keeps only its remaining range), wand splash, abilities with their own shapes, and the hit
+test's margins: a melee target is hit when its BODY touches the sector (the body box under `Archetypes`, measured from
+the attacker's feet raised by the target's body centre; the 12 u disc plus `ARC_EPS` under the legacy circle), and a
+flight meets a body grown by `radius`. A sector drawn from `reach` and `half_arc` at the swing's origin is the nominal
+arc the rule tests against; the client should not add margins of its own.
+
+**C-OBS: none.** Every value is a public content constant (already folded into the content hash through `content.rs`);
+the table is the same for every viewer and match. The content hash does not move.
