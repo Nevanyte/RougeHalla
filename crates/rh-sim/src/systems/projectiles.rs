@@ -7,7 +7,7 @@ use super::{
 };
 use crate::constants::*;
 use crate::content::{weapon, Shape};
-use crate::geometry::{ray_blocked, raycast};
+use crate::geometry::{ray_blocked, raycast, segment_box_entry};
 use crate::math::{angle_between, atan2, cos, hypot, sin, sqrt, Vec2};
 use crate::state::{
     Packet, Phase, Projectile, ProjectileEnd, ProjectileKind, ProjectileLaunch, World,
@@ -149,7 +149,12 @@ fn stretch(
         else {
             return Err(ProjectileEnd::Destroyed);
         };
-        let at = target.position_at(t);
+        let mut at = target.position_at(t);
+        // ADR0024: the raised flight point heads for the target's body centre (the identity under the legacy circle).
+        let lift = target.hull().body_oy() + pr.launch.height;
+        if lift != 0. {
+            at.y += lift;
+        }
         let dx = at.x - pr.pos.x;
         let dy = at.y - pr.pos.y;
         let d = hypot(dx, dy);
@@ -195,18 +200,28 @@ fn stretch(
     ))
 }
 
-fn closest(ball: Stretch, arrow: Stretch) -> (Vec2, Vec2) {
+/// The stretch as flown at `height` above its ground position (north, -y); the stretch itself at height 0.
+fn raised(s: Stretch, height: f64) -> Stretch {
+    if height == 0. {
+        return s;
+    }
+    Stretch {
+        a: Vec2::new(s.a.x, s.a.y - height),
+        b: Vec2::new(s.b.x, s.b.y - height),
+        ..s
+    }
+}
+fn closest(ball: Stretch, arrow: Stretch) -> f64 {
     let rx = ball.a.x - arrow.a.x;
     let ry = ball.a.y - arrow.a.y;
     let vx = (ball.b.x - ball.a.x) - (arrow.b.x - arrow.a.x);
     let vy = (ball.b.y - ball.a.y) - (arrow.b.y - arrow.a.y);
     let vv = vx * vx + vy * vy;
-    let u = if vv > 0. {
+    if vv > 0. {
         (-(rx * vx + ry * vy) / vv).clamp(0., 1.)
     } else {
         1.
-    };
-    (between(ball.a, ball.b, u), between(arrow.a, arrow.b, u))
+    }
 }
 fn delete_arrows(cx: &mut Cx) {
     let f = &mut cx.s.flight;
@@ -225,8 +240,18 @@ fn delete_arrows(cx: &mut Cx) {
             {
                 continue;
             }
-            let (a, b) = closest(*ball, *arrow);
-            if distance(a, b) <= BALL_ARROW_RADIUS
+            // ADR0024: the two flights meet at their raised positions; the occlusion ray and the end point stay at ground.
+            let (up_ball, up_arrow) = (
+                raised(*ball, cx.w.projectiles[bi].launch.height),
+                raised(*arrow, pr.launch.height),
+            );
+            let u = closest(up_ball, up_arrow);
+            let (a, b) = (between(ball.a, ball.b, u), between(arrow.a, arrow.b, u));
+            let (ra, rb) = (
+                between(up_ball.a, up_ball.b, u),
+                between(up_arrow.a, up_arrow.b, u),
+            );
+            if distance(ra, rb) <= BALL_ARROW_RADIUS
                 && !ray_blocked(
                     cx.k.collision_map(cx.w.rt.gates_locked),
                     a.x,
@@ -273,12 +298,14 @@ fn contact(s: Stretch, at: Vec2, reach: f64) -> Option<f64> {
 
 fn first_body(cx: &Cx, s: Stretch, t: f64) -> Option<(usize, Vec2)> {
     let pr = &cx.w.projectiles[s.index];
-    let reach = PLAYER_RADIUS
-        + if pr.launch.kind == ProjectileKind::Arrow {
-            ARROW_RADIUS
-        } else {
-            RANGED_SLACK
-        };
+    let slack = if pr.launch.kind == ProjectileKind::Arrow {
+        ARROW_RADIUS
+    } else {
+        RANGED_SLACK
+    };
+    let reach = PLAYER_RADIUS + slack;
+    // ADR0024 Decision 4: a body box is met by the flight raised to its height, against the box grown by the slack.
+    let up = raised(s, pr.launch.height);
     let mut best = None::<(f64, f64, u32, usize)>;
     for i in 0..cx.w.fighter_count() {
         let ix = crate::fighter::FighterIx::of_slot(i);
@@ -290,7 +317,11 @@ fn first_body(cx: &Cx, s: Stretch, t: f64) -> Option<(usize, Vec2)> {
             continue;
         }
         let at = p.position_at(t);
-        if let Some(u) = contact(s, at, reach) {
+        let touch = match p.hull().body_box(at) {
+            None => contact(s, at, reach),
+            Some(body) => segment_box_entry(up.a, up.b, body.grown(slack)),
+        };
+        if let Some(u) = touch {
             let candidate = (
                 u,
                 distance(s.a, at),
@@ -729,7 +760,11 @@ mod tests {
             len: (bx - ax).abs(),
             stop: None,
         };
-        let (a, b) = closest(s(300., 304.), s(311., 302.));
+        let u = closest(s(300., 304.), s(311., 302.));
+        let (a, b) = (
+            between(Vec2::new(300., 272.), Vec2::new(304., 272.), u),
+            between(Vec2::new(311., 272.), Vec2::new(302., 272.), u),
+        );
         assert!((a.x - b.x).abs() < 1e-10);
         assert_eq!(contact(s(318., 327.), Vec2::new(320., 272.), 19.), Some(0.));
         assert_eq!(contact(s(318., 309.), Vec2::new(320., 272.), 19.), None);
