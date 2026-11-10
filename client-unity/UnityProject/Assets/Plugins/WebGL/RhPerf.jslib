@@ -65,8 +65,23 @@ mergeInto(LibraryManager.library, {
     var P = window.__rhPerf; if (!P) return;
     P.actors = actors | 0; P.preset = preset | 0;
   },
+  // Region id of the local player (RegionId: 0 none, 1 fire .. 5 holy, 6 coliseum) and its position in sim units.
+  RhPerf_SetPlace: function (region, x, y) {
+    var P = window.__rhPerf; if (!P) return;
+    P.region = region | 0; P.x = x | 0; P.y = y | 0;
+  },
   RhPerf_SetRow: function (json) {
     var P = window.__rhPerf; if (!P) return;
     try { P.row = JSON.parse(UTF8ToString(json)); } catch (_) { P.row = null; }
+  },
+  // Unity-side counts for the last window (PerfRecorder.Snapshot), published only on request.
+  RhPerf_SetUnity: function (json) {
+    var P = window.__rhPerf; if (!P) return;
+    try { P.unity = JSON.parse(UTF8ToString(json)); } catch (e) { P.unity = { error: String(e) }; }
+  },
+  // Scene census (PerfRecorder.Census), on request only.
+  RhPerf_SetCensus: function (json) {
+    var P = window.__rhPerf; if (!P) return;
+    try { P.census = JSON.parse(UTF8ToString(json)); } catch (e) { P.census = { error: String(e) }; }
   }
 });
