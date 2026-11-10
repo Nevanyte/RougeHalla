@@ -185,6 +185,22 @@ namespace Roguehalla.Client.Tests
             Assert.That(strokes, Is.GreaterThanOrEqualTo(30), "the body, the weapon cue, the three gated markers and every overhead plate and ring carry a stroke");
         }
 
+        [Test] public void OverheadPlatesLeaveTheGrabAndTheBodyStaysInDefault()
+        {
+            Present(42, ActorKind.Player, hp: 60);
+            var root = Root();
+            foreach (var name in new[] { "Health and barrier track", "Confirmed health", "Faction insignia backplate", "Faction insignia", "Name plate", "Status plate flame" })
+            {
+                var r = Find(root, name); Assert.That(r, Is.Not.Null, name);
+                Assert.That(r.sortingLayerID, Is.EqualTo(StrokeLayer.Id), name + ": an overhead plate is not part of the ground a stroke is judged against");
+            }
+            foreach (var name in new[] { "Authored character", "Faction footprint", "Contact shadow", "Barrier bubble", "Hover ring" })
+            {
+                var r = Find(root, name); Assert.That(r, Is.Not.Null, name);
+                Assert.That(r.sortingLayerID, Is.EqualTo(0), name + ": bodies, ground marks and rings stay in Default, under the strokes");
+            }
+        }
+
         [Test] public void NoFilledPlateUnderTheFeet()
         {
             // The footprint is one light line (the faction colour); its dark and light companions are the adaptive strokes, so no black band and no filled plate.

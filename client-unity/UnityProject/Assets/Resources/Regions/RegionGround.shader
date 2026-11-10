@@ -653,11 +653,11 @@ Shader "Roguehalla/RegionGround"
                                 float2 w = Worley(t * 1.5 + Fbm(t * 0.8) * 1.5);
                                 float crack = 1.0 - smoothstep(0.0, 0.16, w.y);
                                 // Contrast pass (docs/rework/evidence/contrast): the cracks keep their hue and their pulse but their luminance range is calmer, so a fighter's
-                                // edge reads against them (was pulse 0.65 + 0.35 sin, emission x 1.5, crack colour mix 0.6).
+                                // edge reads against them (was pulse 0.65 + 0.35 sin, emission x 1.5, crack colour mix 0.6; now emission x 0.6, mix 0.3).
                                 float pulse = 0.72 + 0.28 * sin(time * 1.7 + w.x * 9.0 + H21(floor(t)) * 6.28);
                                 tc = deep * (0.75 + 0.5 * Fbm(t * 2.0));
-                                te = glow * crack * pulse * 0.95 + glow * 0.06;
-                                tc = lerp(tc, light, crack * 0.4);
+                                te = glow * crack * pulse * 0.6 + glow * 0.06;
+                                tc = lerp(tc, light, crack * 0.3);
                                 hh = -crack * 0.05; gl = 0.12;
                             }
                             else if (kd == 7)       // light: warm sanctified ground, concentric shimmer and slow sparks

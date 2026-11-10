@@ -37,7 +37,9 @@ namespace Roguehalla.Client
         public static float ToneRatioAt(float groundLuma, bool light, float ratio) { return Ratio(ToneLuma(groundLuma, light, ratio), groundLuma); }
 
         /// <summary>Stroke width of marker outlines (hp track, footprint, insignia plate).</summary>
-        public const float MarkerWidth = .028f;
+        public const float MarkerWidth = .042f;
+        /// <summary>The footprint is a hairline of its own on the ground: its stroke is wider, so it still reads on the brightest grounds (lava, sand) where haze lifts a dark line.</summary>
+        public const float FootWidth = .056f;
 
         /// <summary>WCAG relative luminance of linear RGB.</summary>
         public static float Luma(float r, float g, float b) { return .2126f * r + .7152f * g + .0722f * b; }

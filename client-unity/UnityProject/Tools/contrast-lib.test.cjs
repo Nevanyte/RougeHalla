@@ -229,3 +229,14 @@ test('cellKind separates plain ground, props, edges and seams', () => {
   assert.equal(L.cellKind(''), 'ground'); assert.equal(L.cellKind(null), 'ground'); assert.equal(L.cellKind('fire.rocks'), 'props');
   assert.equal(L.cellKind('edge:Basalt|Lava'), 'edge'); assert.equal(L.cellKind('seam:fire|sentenced'), 'seam');
 });
+
+test('fillHoles closes enclosed gaps (text glyphs in a plate) and leaves open notches', () => {
+  const w = 8, h = 8, m = new Uint8Array(w * h);
+  for (let y = 1; y < 7; y++) for (let x = 1; x < 7; x++) m[y * w + x] = 1;
+  m[3 * w + 3] = 0; m[3 * w + 4] = 0;          // an enclosed hole
+  m[1 * w + 6] = 0; m[0 * w + 6] = 0;          // a notch open to the border
+  const n = L.fillHoles(m, w, h);
+  assert.equal(m[3 * w + 3], 1); assert.equal(m[3 * w + 4], 1);
+  assert.equal(m[1 * w + 6], 0, 'the open notch stays open');
+  assert.equal(n, 35);
+});

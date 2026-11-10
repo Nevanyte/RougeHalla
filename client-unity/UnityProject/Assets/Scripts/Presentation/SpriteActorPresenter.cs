@@ -503,7 +503,7 @@ namespace Roguehalla.Client
             a.OutBody = new SpriteOutline(a.Body, "Character contrast rim", ActorOutlineModel.Width, ActorOutlineModel.TargetRatio);
             a.OutWeapon = new SpriteOutline(a.Weapon, "Equipped weapon cue outline", ActorOutlineModel.MarkerWidth, ActorOutlineModel.MarkerTargetRatio);
             a.OutHp = new SpriteOutline(a.HpBack, "Health and barrier track outline", ActorOutlineModel.MarkerWidth, ActorOutlineModel.MarkerTargetRatio);
-            a.OutFoot = new SpriteOutline(a.Halo, "Faction footprint outline", ActorOutlineModel.MarkerWidth, ActorOutlineModel.MarkerTargetRatio);
+            a.OutFoot = new SpriteOutline(a.Halo, "Faction footprint outline", ActorOutlineModel.FootWidth, ActorOutlineModel.MarkerTargetRatio);
             a.OutInsignia = new SpriteOutline(a.RuneBack, "Faction insignia backplate outline", ActorOutlineModel.MarkerWidth, ActorOutlineModel.MarkerTargetRatio);
             // Every overhead plate, backer and ground ring (name, bounty, status, off-hand, Wish, stat marks, mark plate, signature, barrier ring steps, elite, lock, root, zone,
             // immunity and roam rings, identity badges) gets the same thin adaptive hairline; the glyph or text inside stays as drawn.
