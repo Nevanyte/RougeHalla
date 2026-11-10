@@ -80,9 +80,11 @@ namespace Roguehalla.Client
                 Sdf frame = (x, y) => arch(x, y) - 7f;
                 c.Fill(frame, Toon(frame, giltD, gilt, giltL, 5f), Ink, 1.2f);
                 c.Fill(arch, (x, y, d) => Mix(Mix(Shade(green, .9f), giltD, .35f), Shade(green, .3f), Mathf.Clamp01((y - gy - 10) / 190f)), Alpha(Ink, .9f), 1.3f);
-                c.Fill(Intersect(arch, Capsule(new Vector2(cx, gy + 22), new Vector2(cx, gy + 170), 1.2f, 1.2f)), Flat(Alpha(giltL, .65f)));
-                c.Fill(Intersect(arch, Box(cx, gy + 100, 28, 1.1f)), Flat(Alpha(giltL, .5f)));
-                c.Fill(Circle(cx, gy + 130, 12), Flat(Alpha(Mix(giltL, Color.white, .3f), .22f)), Alpha(giltL, .7f), 1f);
+                // two nested pointed-arch outlines (tilework) and a glowing orb of light under the apex; no crossing lines
+                c.Fill(Subtract(Grow(arch, -9f), Grow(arch, -10.8f)), Flat(Alpha(giltL, .6f)));
+                c.Fill(Subtract(Grow(arch, -19f), Grow(arch, -20.2f)), Flat(Alpha(giltL, .4f)));
+                c.Fill(Circle(cx, gy + 132, 11), Flat(Alpha(Mix(giltL, Color.white, .35f), .30f)), Alpha(giltL, .75f), 1f);
+                c.Fill(Intersect(arch, Box(cx, gy + 30, 30, 5, 2)), Flat(Alpha(giltL, .25f)));
                 foreach (int sg in new[] { -1, 1 })
                 {
                     var col = Box(cx + sg * 62, gy + 108, 9, 92, 2); c.Fill(col, Toon(col, stoneD, stoneM, stoneL, 7f, .05f, 33 + sg), Ink, 1.2f);
