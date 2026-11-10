@@ -67,6 +67,7 @@ namespace Roguehalla.Editor
             PlayerSettings.WebGL.decompressionFallback = false;
             PlayerSettings.WebGL.template = "PROJECT:Roguehalla";
             PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.WebGL, true); // WebGL2 baseline
+            SetWebCodeOptimization(System.Environment.GetEnvironmentVariable("RH_WEB_CODE_OPTIMIZATION"));
             // StreamingAssets are packed into Web.data on WebGL. The region audio must stay out of the first-load data and be fetched
             // on demand, so the folder is moved out of the project for the build and copied next to the player afterwards.
             RestoreAudioIfInterrupted();
@@ -75,7 +76,15 @@ namespace Roguehalla.Editor
             BuildReport report;
             try
             {
-                report = BuildPipeline.BuildPlayer(new BuildPlayerOptions { scenes = new[] { ScenePath }, locationPathName = "Build/Web", target = BuildTarget.WebGL, options = BuildOptions.None });
+                // Profiling builds only (RH_WEB_DEBUG_SYMBOLS=embedded): function names in the wasm so a browser CPU profile can attribute
+                // main-thread time. Restored right after the build, so ProjectSettings never keeps it.
+                var symbols = PlayerSettings.WebGL.debugSymbolMode; bool wasm2023 = PlayerSettings.WebGL.wasm2023;
+                if (System.Environment.GetEnvironmentVariable("RH_WEB_DEBUG_SYMBOLS") == "embedded") PlayerSettings.WebGL.debugSymbolMode = WebGLDebugSymbolMode.Embedded;
+                // Experiment switch (RH_WEB_WASM2023=1|0): the WebAssembly 2023 target (native wasm exceptions, SIMD, BigInt); restored after the build.
+                string w23 = System.Environment.GetEnvironmentVariable("RH_WEB_WASM2023"); if (w23 == "1" || w23 == "0") PlayerSettings.WebGL.wasm2023 = w23 == "1";
+                Debug.Log("WebGL wasm2023: " + PlayerSettings.WebGL.wasm2023 + ", exceptions: " + PlayerSettings.WebGL.exceptionSupport);
+                try { report = BuildPipeline.BuildPlayer(new BuildPlayerOptions { scenes = new[] { ScenePath }, locationPathName = "Build/Web", target = BuildTarget.WebGL, options = BuildOptions.None }); }
+                finally { PlayerSettings.WebGL.debugSymbolMode = symbols; PlayerSettings.WebGL.wasm2023 = wasm2023; }
                 if (report.summary.result == BuildResult.Succeeded && moved) CopyAudio();
             }
             finally { if (moved) RestoreAudio(); }
@@ -84,6 +93,30 @@ namespace Roguehalla.Editor
                 throw new BuildFailedException("WebGL build failed: " + report.summary.result);
             VerifyAudio();
             CopyNotices();
+        }
+
+        /// <summary>
+        /// The Web build profile's "Code Optimization" (BuildTimes, RuntimeSpeed, RuntimeSpeedLTO, DiskSize, DiskSizeLTO). It lives in the
+        /// per-machine Library (EditorUserBuildSettings), not in ProjectSettings, so a cloned Library silently decides how fast the player's
+        /// WebAssembly is; the build sets it explicitly. Set through reflection because the type ships in the WebGL support module.
+        /// </summary>
+        static void SetWebCodeOptimization(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return;
+            foreach (var asm in System.AppDomain.CurrentDomain.GetAssemblies())
+            {
+                if (!asm.GetName().Name.StartsWith("UnityEditor.WebGL")) continue;
+                System.Type[] types; try { types = asm.GetTypes(); } catch (System.Reflection.ReflectionTypeLoadException e) { types = e.Types; }
+                foreach (var t in types)
+                {
+                    var p = t?.GetProperty("codeOptimization", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                    if (p == null || !p.PropertyType.IsEnum || !p.CanWrite) continue;
+                    p.SetValue(null, System.Enum.Parse(p.PropertyType, value));
+                    Debug.Log("WebGL code optimization: " + p.GetValue(null) + " (" + t.FullName + ")");
+                    return;
+                }
+            }
+            throw new BuildFailedException("Cannot set the WebGL code optimization to " + value + ": property not found");
         }
 
         /// <summary>Fails the build when a streamed audio file the client requests is missing from Build/Web (the browser would 404 it).</summary>
