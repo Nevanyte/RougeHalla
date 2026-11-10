@@ -802,6 +802,8 @@ struct Kite {
     searches: f64,
     /// Chase goals offset.
     offsets: u32,
+    /// Spacing steps per tick (mean): each is one Move, so at most one path search.
+    steps: f64,
 }
 
 /// Is `m` walking a chase path (its path ends at its brain's chase goal)?
@@ -840,6 +842,7 @@ fn kite(
     let mut late = std::collections::BTreeSet::new();
     let (mut stacked, mut counted, mut stacked_chasing, mut ticks_chasing, mut offsets) =
         (0, 0, 0, 0, 0);
+    let mut steps = 0u32;
     let searches = sim.pf.searches;
     for t in 0..ticks {
         if t % 60 == 0 {
@@ -871,6 +874,7 @@ fn kite(
             }
         }
         offsets += sim.mob_spacing_diagnostics().chase_offsets;
+        steps += sim.mob_spacing_diagnostics().steps;
         if t >= 200 {
             counted += 1;
             if min_pair(&mobs(&sim)) < 8. {
@@ -904,6 +908,7 @@ fn kite(
         late_hitters: late.len(),
         searches: (sim.pf.searches - searches) as f64 / f64::from(ticks),
         offsets,
+        steps: f64::from(steps) / f64::from(ticks),
     }
 }
 
@@ -947,7 +952,7 @@ fn a_chasing_pack_fans_out() {
     report("kite off", &off);
     report("kite on ", &on);
     // Stacking (two mobs under 8 u) drops: among chasing mobs to at most half, overall to at most 60 % (measured
-    // 2026-11-10: 0.97 -> 0.32 and 1.00 -> 0.42; the rest is a pack hugging a moving player, crossing round it).
+    // 2026-11-10: 0.97 -> 0.41 and 1.00 -> 0.55; the rest is a pack hugging a moving player, crossing round it).
     assert!(
         on.stacked * 5 <= off.stacked * 3,
         "{} vs {}",
@@ -990,12 +995,13 @@ fn a_chasing_pack_fans_out() {
         last(&on),
         last(&off)
     );
-    // No extra path searches: the offset rides on the chase's own orders.
+    // No extra path searches for the chase: beyond the plain run's, at most one per spacing step.
     assert!(
-        on.searches <= off.searches * 1.1 + 0.05,
-        "{} vs {}",
+        on.searches <= off.searches + on.steps + 1e-9,
+        "{} vs {} + {}",
         on.searches,
-        off.searches
+        off.searches,
+        on.steps
     );
 }
 
@@ -1029,11 +1035,13 @@ fn funnel(arena: fn() -> Arena, pts: &[Vec2], from: Vec2, n: usize) {
         last(&on),
         last(&off)
     );
+    // No extra path searches for the chase: beyond the plain run's, at most one per spacing step.
     assert!(
-        on.searches <= off.searches * 1.1 + 0.05,
-        "{} vs {}",
+        on.searches <= off.searches + on.steps + 1e-9,
+        "{} vs {} + {}",
         on.searches,
-        off.searches
+        off.searches,
+        on.steps
     );
 }
 
@@ -1063,4 +1071,77 @@ fn a_chasing_pack_follows_up_a_corridor() {
         centre(4, 10),
         6,
     );
+}
+
+/// Cost of a whole tick with 200 axe mobs on one player, spacing off versus on, standing (after 300 ticks to settle) and
+/// chasing (a player walking a loop). Measurement only: `cargo test --release -p rh-sim --lib spacing_tick_cost --
+/// --ignored --nocapture`.
+#[test]
+#[ignore]
+fn spacing_tick_cost() {
+    use crate::archetype::MobSpacing;
+    fn time(spacing: MobSpacing, walk: bool) -> (f64, f64, f64) {
+        let pts = [
+            centre(46, 30),
+            centre(52, 30),
+            centre(52, 42),
+            centre(28, 42),
+            centre(28, 18),
+            centre(52, 18),
+        ];
+        let mut sim = pack(
+            HitboxMode::Archetypes,
+            big_room(),
+            pts[0],
+            centre(36, 30),
+            200,
+            "emberImp",
+        );
+        let mut cfg = sim.k.config.clone();
+        cfg.mob_spacing = spacing;
+        sim.k = crate::statics::MatchStatic::new(cfg, sim.k.arena.clone(), sim.k.secrets.clone());
+        let mut spent = std::time::Duration::ZERO;
+        let (mut steps, mut searches) = (0u64, 0u64);
+        for t in 0..500u32 {
+            if walk && t % 60 == 0 {
+                let p = pts[(t / 60) as usize % pts.len()];
+                sim.submit(
+                    PlayerId(1),
+                    crate::input::validate(crate::input::RawCommand::Move {
+                        x: p.x,
+                        y: p.y,
+                        seq: None,
+                    })
+                    .unwrap(),
+                )
+                .unwrap();
+            }
+            let s0 = sim.pf.searches;
+            let t0 = std::time::Instant::now();
+            sim.step();
+            if t >= 300 {
+                spent += t0.elapsed();
+                steps += u64::from(sim.mob_spacing_diagnostics().steps);
+                searches += sim.pf.searches - s0;
+            }
+        }
+        (
+            spent.as_secs_f64() * 1000. / 200.,
+            steps as f64 / 200.,
+            searches as f64 / 200.,
+        )
+    }
+    for walk in [false, true] {
+        for spacing in [MobSpacing::Off, MobSpacing::Auto] {
+            // Best of three against the machine's noise.
+            let runs: Vec<(f64, f64, f64)> = (0..3).map(|_| time(spacing, walk)).collect();
+            let best = runs.iter().map(|r| r.0).fold(f64::INFINITY, f64::min);
+            eprintln!(
+                "cost {} {spacing:?}: {best:.3} ms/tick, spacing steps/tick {:.2}, path searches/tick {:.2}",
+                if walk { "chasing " } else { "standing" },
+                runs[0].1,
+                runs[0].2
+            );
+        }
+    }
 }

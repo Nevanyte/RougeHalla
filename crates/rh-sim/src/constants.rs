@@ -483,4 +483,7 @@ content! {
     MOB_SPACING_BAND_SLACK: f64 = 8.0, "u";
     /// The neighbour index's cell (the sum order of a step's push depends on it); at least the widest pair of rooms.
     MOB_SPACING_CELL: f64 = 2. * TILE, "u";
+    /// A mob that stays put looks for a spacing step on one tick in this many (staggered by id): a crowd with no room
+    /// left re-weighs its candidates a quarter as often. At most 150 ms of delay before a step.
+    MOB_SPACING_LOOK_TICKS: u32 = 4, "ticks";
 }

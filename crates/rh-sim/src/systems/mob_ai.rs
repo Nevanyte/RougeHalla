@@ -446,6 +446,11 @@ fn spacing_step(
     {
         return Spaced::No;
     }
+    // One look in MOB_SPACING_LOOK_TICKS ticks, staggered by id: a packed crowd with no room left would otherwise re-weigh
+    // every candidate every tick.
+    if (u64::from(cx.w.tick) + u64::from(id.0)) % u64::from(MOB_SPACING_LOOK_TICKS) != 0 {
+        return Spaced::No;
+    }
     let (camp, home, foot, room) = (m.camp, m.home, m.core.foot(), super::mob_spacing::room(m));
     let p = crate::combat_policy::spacing(weapon, false);
     let band = super::mob_spacing::Band {
