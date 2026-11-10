@@ -108,7 +108,7 @@ namespace Roguehalla.Client
             if (!_configured || !isActiveAndEnabled) return;
             bool reducedMotion = _settings != null && _settings.ReducedMotion;
             ShowcaseQuality quality = _settings != null ? _settings.EffectiveQuality : ShowcaseQuality.High;
-            int rate = quality == ShowcaseQuality.High ? 3 : quality == ShowcaseQuality.Medium ? 1 : 0;
+            int rate = Mathf.RoundToInt(3f * Quality.Particles); // High 3, Medium 1, Low 0, Ultra 4
 
             if (_particles != null)
             {
@@ -120,7 +120,7 @@ namespace Roguehalla.Client
                 }
             }
             if (_light != null)
-                _light.SetVisible(_optionalLight && !reducedMotion && quality == ShowcaseQuality.High);
+                _light.SetVisible(_optionalLight && !reducedMotion && quality >= ShowcaseQuality.High && Quality.DynamicLights > 0);
         }
 
         SpriteRenderer CreateSprite(string objectName, Sprite sprite, int order, Color color,

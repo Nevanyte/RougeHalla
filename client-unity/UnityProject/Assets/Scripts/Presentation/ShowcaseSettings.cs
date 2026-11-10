@@ -1,11 +1,10 @@
 using System;
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
 namespace Roguehalla.Client
 {
-    public enum ShowcaseQuality { Low, Medium, High }
-    public enum ShowcaseQualityMode { Adaptive, Manual }
-
     /// <summary>Presentation-only options. Settings survive arena/session replacement and persist locally.</summary>
     public sealed class ShowcaseSettings : MonoBehaviour
     {
@@ -20,19 +19,17 @@ namespace Roguehalla.Client
         const string MusicKey = "roguehalla.showcase.music";
         const string AmbienceKey = "roguehalla.showcase.ambience";
         const string SfxKey = "roguehalla.showcase.sfx";
-        const float DowngradeCpuMs = 8.5f;
-        const float UpgradeCpuMs = 6.0f;
-        const float DowngradeHoldSeconds = 2.0f;
-        const float UpgradeHoldSeconds = 8.0f;
 
         static ShowcaseSettings _current;
         ShowcaseQualityMode _qualityMode;
         ShowcaseQuality _manualQuality, _effectiveQuality;
         bool _reducedMotion;
         float _textScale, _musicVolume, _ambienceVolume, _sfxVolume;
-        float _overBudgetSeconds, _underBudgetSeconds;
-        float _cpuEmaMs;
-        bool _hasTiming;
+        // Adaptive mode: the controller (pure C#, unit-tested) owns the decision; URL flags may pin a preset or
+        // override single effects for cost attribution (?quality=ultra&fx.bloom=0, see QualityFlags).
+        AdaptiveQualityController _adaptive;
+        QualityOverrides _overrides;
+        float _originalRenderScale = -1f;
         bool _prefsDirty;
         float _prefsSaveIn;
 
@@ -56,14 +53,29 @@ namespace Roguehalla.Client
             if (_current != null && _current != this) { Destroy(this); return; }
             _current = this;
             _qualityMode = (ShowcaseQualityMode)Mathf.Clamp(PlayerPrefs.GetInt(QualityModeKey, (int)ShowcaseQualityMode.Adaptive), 0, 1);
-            _manualQuality = (ShowcaseQuality)Mathf.Clamp(PlayerPrefs.GetInt(ManualQualityKey, (int)ShowcaseQuality.High), 0, 2);
+            _manualQuality = QualityTable.Clamp(PlayerPrefs.GetInt(ManualQualityKey, (int)ShowcaseQuality.High));
             _effectiveQuality = _manualQuality;
+            ShowcaseQuality? urlPreset; bool urlAdaptive;
+            QualityFlags.Parse(PageSearch(), out urlPreset, out urlAdaptive, out _overrides);
+            if (urlPreset.HasValue) { _qualityMode = ShowcaseQualityMode.Manual; _manualQuality = _effectiveQuality = urlPreset.Value; }
+            else if (urlAdaptive) { _qualityMode = ShowcaseQualityMode.Adaptive; }
+            if (_qualityMode == ShowcaseQualityMode.Adaptive) _adaptive = new AdaptiveQualityController(_effectiveQuality);
             _reducedMotion = PlayerPrefs.GetInt(ReducedMotionKey, 0) != 0;
             _textScale = Mathf.Clamp(PlayerPrefs.GetFloat(TextScaleKey, 1f), .85f, 1.5f);
             _musicVolume = Mathf.Clamp01(PlayerPrefs.GetFloat(MusicKey, .72f));
             _ambienceVolume = Mathf.Clamp01(PlayerPrefs.GetFloat(AmbienceKey, .62f));
             _sfxVolume = Mathf.Clamp01(PlayerPrefs.GetFloat(SfxKey, .85f));
+            ApplyRow();
             PublishSettings();
+        }
+
+        /// <summary>Query string of the hosting page (WebGL), or empty.</summary>
+        static string PageSearch()
+        {
+            string url = Application.absoluteURL;
+            if (string.IsNullOrEmpty(url)) return "";
+            int q = url.IndexOf('?');
+            return q < 0 ? "" : url.Substring(q);
         }
 
         void Update()
@@ -73,56 +85,48 @@ namespace Roguehalla.Client
                 _prefsSaveIn -= Time.unscaledDeltaTime;
                 if (_prefsSaveIn <= 0f) SavePreferences();
             }
-            if (_qualityMode != ShowcaseQualityMode.Adaptive) return;
+            if (_qualityMode != ShowcaseQualityMode.Adaptive || _adaptive == null) return;
             FrameTimingManager.CaptureFrameTimings();
-            if (FrameTimingManager.GetLatestTimings(1, _frameTimings) == 0) return;
-
-            // WebGL exposes CPU timings but not GPU timings. Use main-thread work only so
-            // browser VSync/present waiting does not falsely force the user to Low quality.
-            float cpuMs = (float)_frameTimings[0].cpuMainThreadFrameTime;
-            if (cpuMs <= 0f || float.IsNaN(cpuMs) || float.IsInfinity(cpuMs)) return;
-            _cpuEmaMs = _hasTiming ? Mathf.Lerp(_cpuEmaMs, cpuMs, .12f) : cpuMs;
-            _hasTiming = true;
-            float elapsed = Mathf.Max(Time.unscaledDeltaTime, 0f);
-            if (_cpuEmaMs > DowngradeCpuMs)
+            float cpuMs = 0f;
+            // WebGL exposes CPU timings but not GPU timings. cpuMs is main-thread work only, so browser VSync/present
+            // waiting does not falsely force the user down; the controller also watches missed refreshes.
+            if (FrameTimingManager.GetLatestTimings(1, _frameTimings) != 0)
             {
-                _overBudgetSeconds += elapsed; _underBudgetSeconds = 0f;
-                if (_overBudgetSeconds >= DowngradeHoldSeconds)
-                {
-                    SetEffective((ShowcaseQuality)Mathf.Max((int)_effectiveQuality - 1, (int)ShowcaseQuality.Low));
-                    _overBudgetSeconds = 0f;
-                }
+                cpuMs = (float)_frameTimings[0].cpuMainThreadFrameTime;
+                if (float.IsNaN(cpuMs) || float.IsInfinity(cpuMs)) cpuMs = 0f;
             }
-            else if (_cpuEmaMs < UpgradeCpuMs)
-            {
-                _underBudgetSeconds += elapsed; _overBudgetSeconds = 0f;
-                if (_underBudgetSeconds >= UpgradeHoldSeconds)
-                {
-                    SetEffective((ShowcaseQuality)Mathf.Min((int)_effectiveQuality + 1, (int)ShowcaseQuality.High));
-                    _underBudgetSeconds = 0f;
-                }
-            }
-            else { _underBudgetSeconds = _overBudgetSeconds = 0f; }
+            float dt = Mathf.Max(Time.unscaledDeltaTime, 0f);
+            if (_adaptive.Update(dt, dt * 1000f, cpuMs)) SetEffective(_adaptive.Current);
         }
 
         void OnDestroy()
         {
-            if (_current == this) _current = null;
+            if (_current == this)
+            {
+                _current = null;
+                Quality.Reset();
+#if !UNITY_EDITOR
+                RestoreRenderScale();
+#endif
+            }
         }
 
+        /// <summary>Adaptive -> Ultra -> High -> Medium -> Low -> Adaptive.</summary>
         public void CycleQuality()
         {
             if (_qualityMode == ShowcaseQualityMode.Adaptive)
             {
                 _qualityMode = ShowcaseQualityMode.Manual;
-                _manualQuality = ShowcaseQuality.High;
+                _manualQuality = ShowcaseQuality.Ultra;
             }
+            else if (_manualQuality == ShowcaseQuality.Ultra) _manualQuality = ShowcaseQuality.High;
             else if (_manualQuality == ShowcaseQuality.High) _manualQuality = ShowcaseQuality.Medium;
             else if (_manualQuality == ShowcaseQuality.Medium) _manualQuality = ShowcaseQuality.Low;
             else _qualityMode = ShowcaseQualityMode.Adaptive;
             PlayerPrefs.SetInt(QualityModeKey, (int)_qualityMode);
             PlayerPrefs.SetInt(ManualQualityKey, (int)_manualQuality);
             SavePreferences();
+            _adaptive = _qualityMode == ShowcaseQualityMode.Adaptive ? new AdaptiveQualityController(_manualQuality) : null;
             if (_qualityMode == ShowcaseQualityMode.Adaptive) SetEffective(_manualQuality);
             else NotifyChanged();
         }
@@ -181,7 +185,30 @@ namespace Roguehalla.Client
             NotifyChanged();
         }
 
-        void NotifyChanged() { PublishSettings(); if (Changed != null) Changed(); }
+        void NotifyChanged() { ApplyRow(); PublishSettings(); if (Changed != null) Changed(); }
+
+        /// <summary>Publishes the effective preset (plus URL overrides) to <see cref="Quality"/> and applies render scale.</summary>
+        void ApplyRow()
+        {
+            Quality.Set(EffectiveQuality, _overrides);
+#if !UNITY_EDITOR
+            // The pipeline asset is shared and persistent in the Editor, so only players change it.
+            var pipeline = GraphicsSettings.currentRenderPipeline as UniversalRenderPipelineAsset;
+            if (pipeline != null)
+            {
+                if (_originalRenderScale < 0f) _originalRenderScale = pipeline.renderScale;
+                pipeline.renderScale = Quality.RenderScale;
+            }
+#endif
+        }
+
+#if !UNITY_EDITOR
+        void RestoreRenderScale()
+        {
+            var pipeline = GraphicsSettings.currentRenderPipeline as UniversalRenderPipelineAsset;
+            if (pipeline != null && _originalRenderScale > 0f) pipeline.renderScale = _originalRenderScale;
+        }
+#endif
 
         void PublishSettings()
         {

@@ -160,7 +160,9 @@ namespace Roguehalla.Client.Tests
             AssertVariantShadows(torches, false);
 
             settings.CycleQuality(); // Low -> Adaptive, still at the last effective tier.
-            settings.CycleQuality(); // Adaptive -> manual High
+            settings.CycleQuality(); // Adaptive -> manual Ultra
+            Assert.That(settings.EffectiveQuality, Is.EqualTo(ShowcaseQuality.Ultra));
+            settings.CycleQuality(); // Ultra -> manual High
             arena.Follow(camera, 256, 256);
             Assert.That(settings.EffectiveQuality, Is.EqualTo(ShowcaseQuality.High));
             Assert.That(CountEnabledLights(torches), Is.EqualTo(6));
