@@ -478,6 +478,14 @@ pub(crate) trait PathApi {
     fn los(&self, a: Vec2, b: Vec2) -> bool;
     #[allow(dead_code)] // source PathService surface; the strategy itself does not need clear in this closure
     fn clear(&self, a: Vec2, b: Vec2) -> bool;
+    /// The complete module-goal path capability (P-BOT-BRAIN-NATIVE-1 final interface lease): a composed Brain path
+    /// adapter also implements the richer module `ModulePaths` surface and returns it here so a module goals callback
+    /// can reborrow the same actual service/allowance (`path`, `collision_map`, chest/row arguments). Standalone
+    /// adapters keep the source's narrower strategy surface and default to `None`; a composer that needs the richer
+    /// capability must check it before any mutation and refuse, never guess an answer.
+    fn module_paths(&mut self) -> Option<&mut dyn super::super::modules::types::ModulePaths> {
+        None
+    }
 }
 impl PathApi for RoomPathService {
     fn walk(&mut self, from: Vec2, to: Vec2) -> Option<WalkAnswer> {
@@ -523,7 +531,10 @@ pub(crate) struct StrategyConfig<'a> {
     pub map: &'a StrategyMap,
     pub features: &'a Features,
     pub learned: &'a dyn LearnedBias,
-    pub modules: &'a [Box<dyn FeatureModule>],
+    /// The module-goal callbacks for this decision. The explicit object lifetime lets the Brain composer build
+    /// temporary boxed adapters that borrow the current validated tick frame and the same mutable services; existing
+    /// static fixture modules still fit. The box address is not source wrapper identity.
+    pub modules: &'a [Box<dyn FeatureModule + 'a>],
 }
 
 pub(crate) struct StrategyContext<'a> {
