@@ -31,6 +31,8 @@ namespace Roguehalla.Client
         readonly Transform _t;
         readonly SpriteRenderer _crown, _badgeBack, _badgeEdge, _badgeIcon, _lockOuter, _lockInner, _root, _zone, _numberBack, _nameBack;
         readonly SpriteRenderer[] _glyphs = new SpriteRenderer[Indicators.StatusOrder.Length];
+        readonly SpriteRenderer[] _backs = new SpriteRenderer[Indicators.StatusOrder.Length];
+        readonly SpriteRenderer _lockDark;
         readonly TextMeshPro _number, _name;
         readonly Indicators.StatusLayer[] _layers = new Indicators.StatusLayer[Indicators.StatusOrder.Length];
         int _bounty = -1; string _nameText;
@@ -46,7 +48,12 @@ namespace Roguehalla.Client
             _badgeBack = Sprite(root, "Secondary weapon backer", ShowcaseSprites.Get("bar"), 9);
             _badgeEdge = Sprite(root, "Secondary weapon edge", ShowcaseSprites.Get("bar"), 8);
             _badgeIcon = Sprite(root, "Secondary weapon icon", ShowcaseSprites.Get("weapon0"), 10);
-            for (int i = 0; i < _glyphs.Length; i++) _glyphs[i] = Sprite(root, "Status " + GlyphKeys[i], IndicatorArt.Get(GlyphKeys[i]), 9);
+            for (int i = 0; i < _glyphs.Length; i++)
+            {
+                _backs[i] = Sprite(root, "Status plate " + GlyphKeys[i], ShowcaseSprites.Get("bar"), 8);
+                _glyphs[i] = Sprite(root, "Status " + GlyphKeys[i], IndicatorArt.Get(GlyphKeys[i]), 9);
+            }
+            _lockDark = Sprite(root, "Attack lock ring shade", ShowcaseSprites.Get("ring"), -7);
             _lockOuter = Sprite(root, "Attack lock ring", ShowcaseSprites.Get("ring"), -6);
             _lockInner = Sprite(root, "Attack lock ring inner", ShowcaseSprites.Get("ring"), -6);
             _root = Sprite(root, "Rooted ring", ShowcaseSprites.Get("ring"), -5);
@@ -94,6 +101,8 @@ namespace Roguehalla.Client
         {
             _crown.enabled = _badgeBack.enabled = _badgeEdge.enabled = _badgeIcon.enabled = _lockOuter.enabled = _lockInner.enabled = _root.enabled = _zone.enabled = _numberBack.enabled = _nameBack.enabled = false;
             foreach (var g in _glyphs) g.enabled = false;
+            foreach (var b in _backs) b.enabled = false;
+            _lockDark.enabled = false;
             _number.gameObject.SetActive(false); _name.gameObject.SetActive(false);
             _bounty = -1; _nameText = null; _textFade = 1f;
         }
@@ -115,7 +124,7 @@ namespace Roguehalla.Client
             // Statuses: ground rings at the feet, glyph badges in one row above the bar in legacy draw order.
             int n = Indicators.StatusLayers(f.Effects, _layers);
             bool rooted = false, zoned = false; int shown = 0;
-            for (int i = 0; i < _glyphs.Length; i++) _glyphs[i].enabled = false;
+            for (int i = 0; i < _glyphs.Length; i++) { _glyphs[i].enabled = false; _backs[i].enabled = false; }
             for (int i = 0; i < n; i++)
             {
                 ushort bit = _layers[i].Bit;
@@ -135,6 +144,9 @@ namespace Roguehalla.Client
                 g.transform.localPosition = new Vector3(x0 + slot * .34f, rowY, 0);
                 g.transform.localScale = new Vector3(.3f, .3f, 1);
                 g.sortingOrder = f.Order + 9;
+                var back = _backs[idx]; back.enabled = true; back.sortingOrder = f.Order + 8;
+                back.transform.localPosition = g.transform.localPosition; back.transform.localScale = new Vector3(.33f, .33f, 1);
+                var bc = (Color)theme.OutlineDark; bc.a = .93f; back.color = bc;
                 slot++;
             }
             if (shown > 0) cursor = Mathf.Max(cursor, rowY + .22f);
@@ -194,13 +206,14 @@ namespace Roguehalla.Client
             }
 
             // The attack lock: a red double ring on the ground under the locked fighter, breathing slowly.
-            _lockOuter.enabled = _lockInner.enabled = f.Locked;
+            _lockOuter.enabled = _lockInner.enabled = _lockDark.enabled = f.Locked;
             if (f.Locked)
             {
                 float breathe = f.Reduced ? 1f : 1f + .035f * Mathf.Sin(Time.unscaledTime * 2f * Mathf.PI / 1.7f);
                 _lockOuter.color = (Color)theme.Danger; _lockInner.color = new Color(theme.Danger.r / 255f, theme.Danger.g / 255f, theme.Danger.b / 255f, .75f);
                 _lockOuter.transform.localScale = new Vector3(1.55f * breathe, .8f * breathe, 1); _lockInner.transform.localScale = new Vector3(1.2f * breathe, .62f * breathe, 1);
-                _lockOuter.sortingOrder = _lockInner.sortingOrder = f.Order - 6;
+                _lockOuter.sortingOrder = _lockInner.sortingOrder = f.Order - 6; _lockDark.sortingOrder = f.Order - 7;
+                var lc = (Color)theme.OutlineDark; lc.a = .7f; _lockDark.color = lc; _lockDark.transform.localScale = new Vector3(1.66f * breathe, .86f * breathe, 1);
             }
         }
 
