@@ -1,0 +1,93 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="27de860a-487e-4ada-8b74-26f6a371d4b4" name="@Nevins-MacBook-Pro-273 2026-11-09 17:59:28" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-11-09T17:59:28.2057700-06:00" queuing="2026-11-09T17:59:28.2057700-06:00" start="2026-11-09T17:59:27.7953390-06:00" finish="2026-11-09T17:59:28.2083560-06:00" />
+  <TestSettings name="default" id="c8677294-24c4-402f-90c7-909a70f77123">
+    <Deployment runDeploymentRoot="_Nevins-MacBook-Pro-273_2026-11-09_17_59_28" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="f07d4c70-1957-4121-88db-d5b91c6837fb" testId="f2da26e6-e261-74bc-769e-94d2d3095dc5" testName="StaleHeldByteCannotRetireOrRealignTheQueuedMovement(True)" computerName="Nevins-MacBook-Pro-273" duration="00:00:00.0005730" startTime="2026-11-09T17:59:28.1534050-06:00" endTime="2026-11-09T17:59:28.1539780-06:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="f07d4c70-1957-4121-88db-d5b91c6837fb">
+      <Output>
+        <ErrorInfo>
+          <Message>  A stale byte echo must not consume NEW order-alignment state while the sent-frame gate refuses it
+Assert.That(actual, Is.EqualTo(expected).Within(delta))
+  Expected: 117.0d +/- 9.9999999999999995E-07d
+  But was:  113.65550994873047d
+  Off by:   3.3444900512695312d
+</Message>
+          <StackTrace>   at NUnit.Framework.Legacy.ClassicAssert.AssertDoublesAreEqual(Double expected, Double actual, Double delta, String message, Object[] args)
+   at NUnit.Framework.Legacy.ClassicAssert.AreEqual(Double expected, Double actual, Double delta, String message, Object[] args)
+   at Roguehalla.Net.Tests.PredictionEchoOrderTests.StaleHeldByteCannotRetireOrRealignTheQueuedMovement(Boolean sent) in /Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/client-unity/RoguehallaNet.Tests/PredictionEchoOrderTests.cs:line 77
+   at InvokeStub_PredictionEchoOrderTests.StaleHeldByteCannotRetireOrRealignTheQueuedMovement(Object, Span`1)
+
+1)    at NUnit.Framework.Legacy.ClassicAssert.AssertDoublesAreEqual(Double expected, Double actual, Double delta, String message, Object[] args)
+   at NUnit.Framework.Legacy.ClassicAssert.AreEqual(Double expected, Double actual, Double delta, String message, Object[] args)
+   at Roguehalla.Net.Tests.PredictionEchoOrderTests.StaleHeldByteCannotRetireOrRealignTheQueuedMovement(Boolean sent) in /Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/client-unity/RoguehallaNet.Tests/PredictionEchoOrderTests.cs:line 77
+   at InvokeStub_PredictionEchoOrderTests.StaleHeldByteCannotRetireOrRealignTheQueuedMovement(Object, Span`1)
+
+</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="8460352e-3268-4fc1-bc67-02045aaafef1" testId="d9aad6a7-1a1d-26fd-599e-59ccfca33243" testName="MatchingByteWithItsFreshSentFrameAcknowledgesAndKeepsTheWalk" computerName="Nevins-MacBook-Pro-273" duration="00:00:00.0007090" startTime="2026-11-09T17:59:28.1423400-06:00" endTime="2026-11-09T17:59:28.1430490-06:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="8460352e-3268-4fc1-bc67-02045aaafef1" />
+    <UnitTestResult executionId="4b33c3c0-62ed-4904-a681-bcd16dcac83a" testId="a7f7b06d-1cf7-ef02-8706-9b3cd9b64c23" testName="AValidPriorSentMotionStillReconcilesWhileTheNewerMoveIsPending" computerName="Nevins-MacBook-Pro-273" duration="00:00:00.0175740" startTime="2026-11-09T17:59:28.1243030-06:00" endTime="2026-11-09T17:59:28.1418590-06:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="4b33c3c0-62ed-4904-a681-bcd16dcac83a" />
+    <UnitTestResult executionId="90301c5f-f959-429c-af68-d91500b62d77" testId="8615acb9-3344-0839-e546-18fc9123eb04" testName="StaleHeldByteCannotRetireOrRealignTheQueuedMovement(False)" computerName="Nevins-MacBook-Pro-273" duration="00:00:00.0102700" startTime="2026-11-09T17:59:28.1430740-06:00" endTime="2026-11-09T17:59:28.1533440-06:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="90301c5f-f959-429c-af68-d91500b62d77">
+      <Output>
+        <ErrorInfo>
+          <Message>  A stale byte echo must not consume NEW order-alignment state while the sent-frame gate refuses it
+Assert.That(actual, Is.EqualTo(expected).Within(delta))
+  Expected: 117.0d +/- 9.9999999999999995E-07d
+  But was:  113.65550994873047d
+  Off by:   3.3444900512695312d
+</Message>
+          <StackTrace>   at NUnit.Framework.Legacy.ClassicAssert.AssertDoublesAreEqual(Double expected, Double actual, Double delta, String message, Object[] args)
+   at NUnit.Framework.Legacy.ClassicAssert.AreEqual(Double expected, Double actual, Double delta, String message, Object[] args)
+   at Roguehalla.Net.Tests.PredictionEchoOrderTests.StaleHeldByteCannotRetireOrRealignTheQueuedMovement(Boolean sent) in /Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/client-unity/RoguehallaNet.Tests/PredictionEchoOrderTests.cs:line 77
+
+1)    at NUnit.Framework.Legacy.ClassicAssert.AssertDoublesAreEqual(Double expected, Double actual, Double delta, String message, Object[] args)
+   at NUnit.Framework.Legacy.ClassicAssert.AreEqual(Double expected, Double actual, Double delta, String message, Object[] args)
+   at Roguehalla.Net.Tests.PredictionEchoOrderTests.StaleHeldByteCannotRetireOrRealignTheQueuedMovement(Boolean sent) in /Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/client-unity/RoguehallaNet.Tests/PredictionEchoOrderTests.cs:line 77
+
+</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="MatchingByteWithItsFreshSentFrameAcknowledgesAndKeepsTheWalk" storage="/users/nevinmckinnon/documents/projects/roguehalla-bot-own-timings/client-unity/roguehallanet.tests/bin/debug/net8.0/roguehallanet.tests.dll" id="d9aad6a7-1a1d-26fd-599e-59ccfca33243">
+      <Execution id="8460352e-3268-4fc1-bc67-02045aaafef1" />
+      <TestMethod codeBase="/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/client-unity/RoguehallaNet.Tests/bin/Debug/net8.0/RoguehallaNet.Tests.dll" adapterTypeName="executor://nunit3testexecutor/" className="Roguehalla.Net.Tests.PredictionEchoOrderTests" name="MatchingByteWithItsFreshSentFrameAcknowledgesAndKeepsTheWalk" />
+    </UnitTest>
+    <UnitTest name="StaleHeldByteCannotRetireOrRealignTheQueuedMovement(False)" storage="/users/nevinmckinnon/documents/projects/roguehalla-bot-own-timings/client-unity/roguehallanet.tests/bin/debug/net8.0/roguehallanet.tests.dll" id="8615acb9-3344-0839-e546-18fc9123eb04">
+      <Execution id="90301c5f-f959-429c-af68-d91500b62d77" />
+      <TestMethod codeBase="/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/client-unity/RoguehallaNet.Tests/bin/Debug/net8.0/RoguehallaNet.Tests.dll" adapterTypeName="executor://nunit3testexecutor/" className="Roguehalla.Net.Tests.PredictionEchoOrderTests" name="StaleHeldByteCannotRetireOrRealignTheQueuedMovement(False)" />
+    </UnitTest>
+    <UnitTest name="AValidPriorSentMotionStillReconcilesWhileTheNewerMoveIsPending" storage="/users/nevinmckinnon/documents/projects/roguehalla-bot-own-timings/client-unity/roguehallanet.tests/bin/debug/net8.0/roguehallanet.tests.dll" id="a7f7b06d-1cf7-ef02-8706-9b3cd9b64c23">
+      <Execution id="4b33c3c0-62ed-4904-a681-bcd16dcac83a" />
+      <TestMethod codeBase="/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/client-unity/RoguehallaNet.Tests/bin/Debug/net8.0/RoguehallaNet.Tests.dll" adapterTypeName="executor://nunit3testexecutor/" className="Roguehalla.Net.Tests.PredictionEchoOrderTests" name="AValidPriorSentMotionStillReconcilesWhileTheNewerMoveIsPending" />
+    </UnitTest>
+    <UnitTest name="StaleHeldByteCannotRetireOrRealignTheQueuedMovement(True)" storage="/users/nevinmckinnon/documents/projects/roguehalla-bot-own-timings/client-unity/roguehallanet.tests/bin/debug/net8.0/roguehallanet.tests.dll" id="f2da26e6-e261-74bc-769e-94d2d3095dc5">
+      <Execution id="f07d4c70-1957-4121-88db-d5b91c6837fb" />
+      <TestMethod codeBase="/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/client-unity/RoguehallaNet.Tests/bin/Debug/net8.0/RoguehallaNet.Tests.dll" adapterTypeName="executor://nunit3testexecutor/" className="Roguehalla.Net.Tests.PredictionEchoOrderTests" name="StaleHeldByteCannotRetireOrRealignTheQueuedMovement(True)" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="f2da26e6-e261-74bc-769e-94d2d3095dc5" executionId="f07d4c70-1957-4121-88db-d5b91c6837fb" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="d9aad6a7-1a1d-26fd-599e-59ccfca33243" executionId="8460352e-3268-4fc1-bc67-02045aaafef1" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="a7f7b06d-1cf7-ef02-8706-9b3cd9b64c23" executionId="4b33c3c0-62ed-4904-a681-bcd16dcac83a" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="8615acb9-3344-0839-e546-18fc9123eb04" executionId="90301c5f-f959-429c-af68-d91500b62d77" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Failed">
+    <Counters total="4" executed="4" passed="2" failed="2" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>NUnit Adapter 4.6.0.0: Test execution started
+Running selected tests in /Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/client-unity/RoguehallaNet.Tests/bin/Debug/net8.0/RoguehallaNet.Tests.dll
+   NUnit3TestExecutor discovered 4 of 4 NUnit test cases using Current Discovery mode, Non-Explicit run
+NUnit Adapter 4.6.0.0: Test execution complete
+</StdOut>
+    </Output>
+  </ResultSummary>
+</TestRun>

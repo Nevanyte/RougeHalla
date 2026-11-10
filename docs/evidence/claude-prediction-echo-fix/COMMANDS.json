@@ -1,0 +1,83 @@
+{
+  "format": "rh-prediction-echo-fix-commands/1",
+  "cwd": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings",
+  "environmentSetup": "source /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-env.sh",
+  "environment": {
+    "DOTNET_CLI_TELEMETRY_OPTOUT": "1",
+    "DOTNET_SKIP_FIRST_TIME_EXPERIENCE": "1",
+    "DOTNET_NOLOGO": "1"
+  },
+  "steps": [
+    {
+      "name": "offline-restore",
+      "argv": [
+        "dotnet",
+        "restore",
+        "client-unity/RoguehallaNet.Tests/RoguehallaNet.Tests.csproj",
+        "--source",
+        "/Users/nevinmckinnon/.nuget/packages",
+        "-p:NuGetAudit=false",
+        "--disable-parallel"
+      ],
+      "exit": 0,
+      "log": "logs/offline-restore.log",
+      "sourceOnly": "existing local package cache; no remote source/audit/install/new dependency"
+    },
+    {
+      "name": "first-red",
+      "argv": [
+        "dotnet",
+        "test",
+        "client-unity/RoguehallaNet.Tests/RoguehallaNet.Tests.csproj",
+        "--no-restore",
+        "--filter",
+        "FullyQualifiedName~PredictionEchoOrderTests",
+        "--logger",
+        "trx;LogFileName=first-red.trx",
+        "--results-directory",
+        "docs/evidence/claude-prediction-echo-fix/results/first-red"
+      ],
+      "source": "b2032ffea7271774bab3d351506ce480a5e18ab9",
+      "exit": 1,
+      "log": "logs/first-red.log",
+      "trx": "results/first-red/first-red.trx"
+    },
+    {
+      "name": "focused-green",
+      "argv": [
+        "dotnet",
+        "test",
+        "client-unity/RoguehallaNet.Tests/RoguehallaNet.Tests.csproj",
+        "--no-restore",
+        "--filter",
+        "FullyQualifiedName~PredictionEchoOrderTests",
+        "--logger",
+        "trx;LogFileName=focused-green.trx",
+        "--results-directory",
+        "docs/evidence/claude-prediction-echo-fix/results/focused-green"
+      ],
+      "source": "0bfe80f462be9eac02b67d3e8f89962dc3e3602a",
+      "exit": 0,
+      "log": "logs/focused-green.log",
+      "trx": "results/focused-green/focused-green.trx"
+    },
+    {
+      "name": "full-managed",
+      "argv": [
+        "dotnet",
+        "test",
+        "client-unity/RoguehallaNet.Tests/RoguehallaNet.Tests.csproj",
+        "--no-restore",
+        "--no-build",
+        "--logger",
+        "trx;LogFileName=full-managed.trx",
+        "--results-directory",
+        "docs/evidence/claude-prediction-echo-fix/results/full-managed"
+      ],
+      "source": "0bfe80f462be9eac02b67d3e8f89962dc3e3602a",
+      "exit": 0,
+      "log": "logs/full-managed.log",
+      "trx": "results/full-managed/full-managed.trx"
+    }
+  ]
+}
