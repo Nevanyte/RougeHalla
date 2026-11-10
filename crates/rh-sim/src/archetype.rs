@@ -76,6 +76,15 @@ pub fn mob_spacing(config: &crate::SimConfig) -> bool {
     !cfg!(feature = "mob-spacing-off") && config.hitboxes == HitboxMode::Archetypes
 }
 
+/// What mob spacing did in the last `mobAI.thinkMobs` call (measurement only: [`crate::Sim::mob_spacing_diagnostics`]).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct SpacingDiagnostics {
+    /// Spacing steps ordered (each a `Move`, so a path search next tick).
+    pub steps: u32,
+    /// Chase orders whose goal was offset by the spacing push.
+    pub chase_offsets: u32,
+}
+
 /// A pair of half-extents (east-west, north-south).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Half {

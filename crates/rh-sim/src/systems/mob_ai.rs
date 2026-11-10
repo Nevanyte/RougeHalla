@@ -220,6 +220,7 @@ fn give_up(cx: &mut Cx, id: PlayerId, b: &mut Brain) {
     home(cx, id, b);
 }
 pub(crate) fn think(cx: &mut Cx) {
+    cx.s.spacing_diag = Default::default();
     if !enabled(cx.w) {
         return;
     }
@@ -363,8 +364,8 @@ fn fight(cx: &mut Cx, id: PlayerId, b: &mut Brain) {
         b.holding = false;
     }
     match out.movement {
-        crate::combat_policy::Move::Stop => {
-            if let Some(to) = spacing_step(cx, id, from, at, weapon, mask) {
+        crate::combat_policy::Move::Stop => match spacing_step(cx, id, b, from, at, weapon, mask) {
+            Spaced::Step(to) => {
                 // Not `send`: the chase's repath clock and goal stay as they were, so the spacing step never delays or
                 // reorders a chase.
                 cx.propose(
@@ -377,11 +378,19 @@ fn fight(cx: &mut Cx, id: PlayerId, b: &mut Brain) {
                 )
                 .expect("finite spacing step");
                 b.moving = true;
-            } else if b.moving {
-                cx.propose(id, RawCommand::Stop { seq: None }).unwrap();
-                b.moving = false;
+                cx.s.spacing_diag.steps += 1;
+                // The mobs that think after this one see where it is going.
+                super::mob_spacing::relocate(&mut cx.s.mob_spacing, id, from, to);
             }
-        }
+            // One order (one path search) per step: the mob walks it out before it looks again.
+            Spaced::Walking => {}
+            Spaced::No => {
+                if b.moving {
+                    cx.propose(id, RawCommand::Stop { seq: None }).unwrap();
+                    b.moving = false;
+                }
+            }
+        },
         crate::combat_policy::Move::Point(to) => {
             if due(b, phase, now) {
                 send(cx, id, b, to)
@@ -390,22 +399,38 @@ fn fight(cx: &mut Cx, id: PlayerId, b: &mut Brain) {
     }
 }
 
-/// The mob-spacing step of a mob whose policy wants it to stay put (`systems/mob_spacing.rs`): `None` under the legacy
-/// circle, alone, settled or with no room to move. A step stays in the policy's stop band round the target (so it neither
-/// wakes a chase nor a retreat), keeps line of sight with the policy's mask, stays inside the leash with the same margin a
-/// retreat uses, and walks a segment the mob's own foot box clears (the pathfinder's direct-path test).
+/// What mob spacing does for a mob whose policy wants it to stay put (`systems/mob_spacing.rs`).
+enum Spaced {
+    /// Nothing: the legacy circle, alone, settled or no room to move.
+    No,
+    /// The mob is still walking the spacing step it was given: no new order until it arrives.
+    Walking,
+    /// A new step.
+    Step(Vec2),
+}
+
+/// The mob-spacing step of a mob whose policy wants it to stay put. A step stays in the policy's stop band round the
+/// target (so it neither wakes a chase nor a retreat), keeps line of sight with the policy's mask, stays inside the leash
+/// with the same margin a retreat uses, and walks a segment the mob's own foot box clears (the pathfinder's direct-path
+/// test).
 fn spacing_step(
     cx: &Cx,
     id: PlayerId,
+    b: &Brain,
     from: Vec2,
     at: Vec2,
     weapon: crate::content::WeaponId,
     mask: u8,
-) -> Option<Vec2> {
+) -> Spaced {
     if !super::mob_spacing::on(cx.k) {
-        return None;
+        return Spaced::No;
     }
-    let m = cx.w.mobs.get(id)?;
+    let Some(m) = cx.w.mobs.get(id) else {
+        return Spaced::No;
+    };
+    if super::mob_spacing::walking(m, b.goal).is_some() {
+        return Spaced::Walking;
+    }
     let (camp, home, foot, room) = (m.camp, m.home, m.core.foot(), super::mob_spacing::room(m));
     let p = crate::combat_policy::spacing(weapon, false);
     let band = super::mob_spacing::Band {
@@ -422,4 +447,5 @@ fn spacing_step(
             && leash(cx.k, camp, home, to, MOB_LEASH_MARGIN)
             && crate::geometry::has_line_of_sight(map, to, at, mask)
     })
+    .map_or(Spaced::No, Spaced::Step)
 }

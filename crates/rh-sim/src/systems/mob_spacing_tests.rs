@@ -391,3 +391,144 @@ fn the_axe_band_fits_a_ring_of_the_pack() {
     let ring = 2. * std::f64::consts::PI * (reach * NPC_MELEE_FAR_SHARE - MOB_SPACING_BAND_SLACK);
     assert!(ring / want_apart() >= 8., "{ring}");
 }
+
+// ---- review 2026-11-10: big packs come to rest (finding 1) ----
+
+/// A walled 80 x 60 open room: room for a pack of 200.
+fn big_room() -> Arena {
+    let mut rows = Vec::new();
+    for y in 0..60 {
+        let mut r = String::new();
+        for x in 0..80 {
+            r.push(if x == 0 || y == 0 || x == 79 || y == 59 {
+                '#'
+            } else {
+                '.'
+            });
+        }
+        rows.push(r);
+    }
+    arena(&rows.iter().map(String::as_str).collect::<Vec<_>>())
+}
+
+/// Mobs with a Move queued for the next tick (with a stationary target, every one is a spacing step: the policy has no
+/// chase to order).
+fn queued_moves(sim: &Sim) -> usize {
+    sim.w
+        .mobs
+        .iter()
+        .filter(|m| matches!(m.core.inputs.mv, Some(crate::input::MoveCmd::Move { .. })))
+        .count()
+}
+
+struct Rest {
+    /// Moves queued on each tick of the whole run (settling and the measured window): chase orders and spacing steps.
+    moves: Vec<usize>,
+    /// Spacing steps ordered on each tick.
+    steps: Vec<u32>,
+    /// Distance walked by all mobs over the whole run, and over the measured window.
+    walked: f64,
+    walked_window: f64,
+    /// Path searches over the measured window.
+    searches: u64,
+    /// Mobs that hit the target.
+    hitters: usize,
+}
+
+/// `n` mobs of `kind` woken on a stationary player on open floor; `settle` ticks, then `window` measured ticks.
+fn rest(n: usize, kind: &str, settle: u32, window: u32) -> Rest {
+    let target = centre(40, 30);
+    let mut sim = pack(
+        HitboxMode::Archetypes,
+        big_room(),
+        target,
+        centre(25, 30),
+        n,
+        kind,
+    );
+    let mut hitters = std::collections::BTreeSet::new();
+    let (mut moves, mut steps) = (Vec::new(), Vec::new());
+    let (mut walked, mut walked_window) = (0., 0.);
+    let mut searches = 0;
+    let mut last = mobs(&sim);
+    for t in 0..settle + window {
+        if t == settle {
+            searches = sim.pf.searches;
+        }
+        hitters.extend(run(&mut sim, 1));
+        moves.push(queued_moves(&sim));
+        steps.push(sim.mob_spacing_diagnostics().steps);
+        let now = mobs(&sim);
+        for (a, b) in last.iter().zip(&now) {
+            let d = hypot(a.1.x - b.1.x, a.1.y - b.1.y);
+            walked += d;
+            if t >= settle {
+                walked_window += d;
+            }
+        }
+        last = now;
+    }
+    Rest {
+        moves,
+        steps,
+        walked,
+        walked_window,
+        searches: sim.pf.searches - searches,
+        hitters: hitters.len(),
+    }
+}
+
+/// A settled pack: no Move at all over the 200-tick window after 800 ticks, nothing walked, no path search; every mob
+/// got its hits in (spacing never holds a mob out of reach).
+fn assert_rest(n: usize) {
+    let r = rest(n, "emberImp", 800, 200);
+    let window = &r.moves[800..];
+    let total: usize = r.moves.iter().sum();
+    let steps: u32 = r.steps.iter().sum();
+    eprintln!(
+        "rest {n}: Moves queued over 1000 ticks {total} (max {} in one tick), spacing steps {steps} (max {} in one \
+         tick, last on tick {:?}), last tick with a Move {:?}, walked {:.0} u ({:.1} u per mob), window: Moves {}, \
+         walked {:.3} u, path searches {}, hitters {}",
+        r.moves.iter().max().unwrap(),
+        r.steps.iter().max().unwrap(),
+        r.steps.iter().rposition(|&m| m > 0),
+        r.moves.iter().rposition(|&m| m > 0),
+        r.walked,
+        r.walked / n as f64,
+        window.iter().sum::<usize>(),
+        r.walked_window,
+        r.searches,
+        r.hitters
+    );
+    assert_eq!(
+        window.iter().sum::<usize>(),
+        0,
+        "{n} mobs: Moves per tick {window:?}"
+    );
+    assert!(
+        r.walked_window < 1e-9,
+        "{n} mobs walked {} u",
+        r.walked_window
+    );
+    assert_eq!(r.searches, 0, "{n} mobs: path searches");
+    assert_eq!(r.hitters, n, "{n} mobs: every one attacks");
+}
+#[test]
+fn a_pack_of_20_comes_to_rest() {
+    assert_rest(20);
+}
+
+#[test]
+fn a_pack_of_30_comes_to_rest() {
+    assert_rest(30);
+}
+
+#[test]
+fn a_pack_of_40_comes_to_rest() {
+    assert_rest(40);
+}
+
+#[test]
+fn a_pack_of_200_comes_to_rest() {
+    assert_rest(200);
+}
