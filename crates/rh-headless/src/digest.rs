@@ -463,6 +463,16 @@ impl OutcomeDigest {
                     self.s("passive");
                 }
             }
+            Event::CardBleedHit { victim, by, amount } => {
+                // Trusted/private behaviour fingerprint only: the new discriminated raw Card row folds its
+                // canonical B3 tag and finite bits. Special tags are never decoded to an f64 and this digest
+                // never reaches a policy or client observation.
+                self.s("card_bleed_hit");
+                self.w(victim.0.into());
+                self.opt(by.map(|p| p.0.into()));
+                self.w(amount.tag());
+                self.w(amount.finite_bits().unwrap_or(0));
+            }
             Event::ProjectileLaunched(p) => {
                 self.s("projectile");
                 self.flight(p);

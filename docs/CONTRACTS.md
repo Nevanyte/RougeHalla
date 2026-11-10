@@ -12,6 +12,46 @@ revision; [sweep/README.md](sweep/README.md) says which (H-sim and H-server-2 ha
 
 ## Status table
 
+### Parallel backend lane admission (2026-11-10)
+
+Card bleed feedback is independently released from exact worker seal `8d06e5e8` and integrated as `37a02542`.
+The [admission review](evidence/card-bleed-native-review/admission-review.md) binds source7 histories/390 ordinary
+steps, unchanged ability63, full simulation881/0/15 ignored plus all integration targets, final29 Card/28 projector
+checks and separately run scoped allocation profilers. C-TICK retains the actual producer/periodic/run-end/reset
+order. C-OBS keeps raw tagged B3 totals server-only, applies settled entitlement and redaction before grouping/errors,
+and publishes checked finite existing Hit events with no partial failure output. Accepted history grants no fresh
+viewer entitlement; legacy512 non-Card and checked Q+T0 history bounds remain separate. C-DET now identifies
+protocol14/checkpoint30/replay24/OBS22/policy16/content`fa16f195dc22ef69` on this isolated lane. Root's actual combined
+Card29, both CI-feature allocation tests, NPC6, ability63, tape, content21 and format pass. The later primary/hitbox
+union is separate; no final client, hosting or complete-port acceptance is implied.
+
+The [bounded Quest Room delivery proof](evidence/quest-public-completion-room-review/admission-review.md) is released
+from `47bf5c0b` and integrated as `63dbe68a`. C-INPUT/C-OBS are exercised through real joined seats, issued handles,
+accepted moves/pickups, ordinary Room wakes/carry/Outboxes and complete decoded owner4/foreign1 completion Toasts.
+The test-only addition preserves production and the four old tests; Root's combined5-test module and format pass.
+Its labelled active-Sim bootstrap/LegacyCircle route is not hosted startup, browser, all181-record parity or new
+Archetypes-mode acceptance. No wire, rule, reward or host change is made by this proof.
+
+On isolated `codex/backend-gameplay-quests`, the reviewed Grand Tour stored-mask repair is integrated as `8a11520d` +
+`56843a8e`, from DeepSeek seals `4fb5714e` + `36564c33`. C-PARITY includes both actual-source supply outcomes, intended
+opposite pre-fix failures, repaired Source-profile consumers and retained real rewards/ordered notices. C-DET identifies
+content `8edd862f48ffa100` through the approved appended semantics marker; both old-content checkpoint/replay refusal
+checks pass. Protocol14/checkpoint29/replay23/OBS21/policy15 shapes and all63 ability-tape case folds are unchanged.
+The [independent admission](evidence/quest-backend-admission-review/README.md) binds exact code, source and scoped gates,
+including historical test-harness failures; it does not claim a new full-workspace run, complete quest parity, Claude
+client refresh or hosted release. Stage1 is independently admitted here as `ad98c441` + `9debd3e2`: four-file objective/reward extraction, exact12-case/35-frame original/Clone/restore continuations, unchanged rules/state identities and scoped preservation gates. The [Stage1 review](evidence/quest-backend-stage1-review/README.md) binds the final no-op formatting/conversion delta and documents recovered invocation metadata limits. The remaining four bounded notice consumers are now independently admitted from `e499d865` as `51a43597` + `0085ff79`; [follow-up review](evidence/quest-notice-continuation-review/followup.md) verifies real binding/comparator controls and reached item/offer/closure state. Author6 new tests and unchanged cases0/4 pass with default/all-feature lint/format; Root also passes6 new +1 unchanged tests and format on combined integration `2b05e607`. All six bounded cases preserve diagnostic/direct-producer/order-only limits: no181-record transport parity, persistent observer/browser proof or future quest redesign is claimed.
+
+Complete private Strategy is independently admitted from `9bde4438` through integration `2b05e607`; [final review](evidence/bot-private-strategy-admission-review/intake-followup-review.md) clears all earlier typed-error, checked-dispatch and numeric-ancestry HOLDs. The unchanged98-case/658-operation primary and4-case/48-call supplement retain full callback/RNG/private-state comparisons;33 reader controls and8 exact semantic rejection/non-advance paths pass. Author source11/declared11 and both strict lints/format pass; Root's integrated strategy filter passes22. Older output-only/intake HOLD evidence remains historical. This is finite private component parity, not a new C-OBS/publication contract or full live C-POLICY admission.
+
+Tactics source `54ff01a2` independently reproduces154 cases/720 methods and226 pinned entries. Modules source `faba1278` is independently reproduced/admitted at `63f6fda8` (255 cases/3259 operations,36 reaches,24 reader negatives and26 semantic kills). Full Brain source `6aaa4c6d` is now independently reproduced/released as `5a5a28c6` + `8fa97f24`:31 histories/855 operations,6 Hand profiles/12 calls,40 reaches,30 reader controls,23 semantic kills and one intentional survivor. All244 protected file hashes remain unchanged. The feature-aware Hand gate `76f8a9aa` is independently admitted as `483c1490` + `2436ed80`; source6/12, focused8, reader13 and two compiled controls pass, with author full-policy228 and exact integrated code/input/toolchain equality. Native Tactics `cdf5b70f` is independently admitted as `df62934a` (154/720 source,238 author library tests,18 Root focused tests); native Modules `0c6dcee4` is admitted as `721d04da` (255/3259 source,354 author library tests and reviewed shared-core overlaps). Strategy Send/mutable-goals `96905908` is admitted as `04577169`; external path allowance `5d351cb5` is admitted as `07babf29`. Root's combined policy check at `721d04da` passes389/389, with format and strict default/all-feature lint. Full composition and fair live/headless binding remain separate required work. The independently reviewed field-closure plan (`10e9a901`) identifies missing published facts but changes no C-OBS/C-NET contract. No hidden-state input or public activation is authorized by these private witnesses.
+
+The narrow earned regional NPC bleed restore repair `0be00f95` is independently released and integrated as `dedb8658`.
+It admits the real producer shape using retained player provenance and forward duration arithmetic, without inventing
+clock/tick equality, changing combat, or imposing a magnitude cap. Six author tests, relevant Card/status/checkpoint
+and PvE overlaps, strict default/all-feature lint and format pass at their recorded cut; Root's [final composition check](evidence/backend-crash-npc-composition/README.md) passes6 NPC +2 crash tests and format; the separate five-seed/two-run release soak passes its bounded no-panic/determinism contract (termination or truncation). The last constructed binary64 predicate example is not claimed as an installed-status witness.
+[Follow-up review](evidence/npc-bleed-restore-review/followup.md) preserves historical HOLDs and scope. The morning release
+is owner-authorized, but no final C-HOST/whole-port acceptance follows from component admissions.
+
 ### November9 protocol14 composition (supersedes older identity/status addenda)
 
 The subsequent [native29 admission](evidence/native29-admission/README.md) identifies14/29/23/21/15/content7c6a633f68c2cc72, with63 strict source cases,21 content checks, derived native tape/checker and public-digest tests at their exact cuts. Private rules/state identities change; the default wire14 is unchanged. SlowStarter/MarkTax/PackLeader/readonly WalkHint preserve Rust authority, tick order and source phase semantics. The proven cold NPC-report buffer reserve preserves empty/incomplete/fresh-identity reports, with matched original/Clone/restore step/events/hash and0/0/0 warm allocations. Hash coverage and earlier restore/lint receipts are not relabelled as rerun at the final cut. Current BakedContent comes from actual canonical /info.

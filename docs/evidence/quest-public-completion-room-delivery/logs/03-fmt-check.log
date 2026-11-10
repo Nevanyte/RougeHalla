@@ -1,0 +1,10 @@
+# command: cargo fmt -p rh-server -- --check
+# cwd: /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-quest-room-delivery
+# HEAD: 9ee84dfe3fa35cfdefc4b6cabaf4b9091db6a24c
+# env: CARGO_INCREMENTAL=0 CARGO_TARGET_DIR=target-deepseek-quest-room-delivery CARGO_NET_OFFLINE=true CARGO_BUILD_JOBS=1
+# PATH: /Users/nevinmckinnon/.cargo/bin first
+# cargo: cargo 1.97.0 (c980f4866 2026-06-30)
+# rustc: rustc 1.97.0 (2d8144b78 2026-07-07)
+# started: 2026-11-10T11:33:09Z
+# exit: 0
+# finished: 2026-11-10T11:33:10Z

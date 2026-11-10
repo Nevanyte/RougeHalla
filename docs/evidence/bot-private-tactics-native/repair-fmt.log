@@ -1,0 +1,3 @@
+# Repair-round format check
+$ cargo fmt -p rh-policy -- --check
+exit: 0

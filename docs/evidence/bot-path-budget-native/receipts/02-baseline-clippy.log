@@ -1,0 +1,21 @@
+== baseline clippy (default then all-features) started: 2026-11-10T10:07:39Z
+== cwd: /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-path-budget
+== target: /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-path-budget/target/path-budget-build
+    Checking serde_core v1.0.229
+    Checking libm v0.2.16
+    Checking ryu-js v1.0.3
+    Checking zmij v1.0.23
+    Checking itoa v1.0.18
+    Checking rh-protocol v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-path-budget/crates/rh-protocol)
+    Checking serde v1.0.229
+    Checking rh-sim v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-path-budget/crates/rh-sim)
+    Checking memchr v2.8.3
+    Checking serde_json v1.0.154
+    Checking rh-policy v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-path-budget/crates/rh-policy)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 25.43s
+== default-feature exit: 0
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.07s
+== all-feature exit: 0
+== default exit: 0
+== all-feature exit: 0
+== finished: 2026-11-10T10:08:05Z

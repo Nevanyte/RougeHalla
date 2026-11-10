@@ -1,0 +1,798 @@
+diff --git a/crates/rh-server/src/quest_bridge_tests.rs b/crates/rh-server/src/quest_bridge_tests.rs
+index 1cf18408..9ab7b277 100644
+--- a/crates/rh-server/src/quest_bridge_tests.rs
++++ b/crates/rh-server/src/quest_bridge_tests.rs
+@@ -511,3 +511,793 @@ fn quest_bridge_preview_hidden_and_closed_refs_never_accept() {
+     assert_eq!(closed.state, rh_sim::quest_view::RowState::Expired);
+     assert!(!closed.can_accept);
+ }
++
++// P-QUEST-ROOM-DELIVERY-1: one bounded component proof — a genuinely earned native `shards-frost` completion carried
++// through the ordinary Room wake/publication path into two joined seats' real Outboxes and decoded as a client decodes
++// them. The active-Sim swap below is an explicitly labelled deterministic component fixture, NOT the hosted
++// lobby/startup path. The Source runtime profile already enables quests (`Settings::sim` sets `quests: !training`); the
++// shared bridge `cfg` starts quest-disabled only because it is a component fixture. No production profile, wire, rule,
++// source corpus or host configuration is changed or claimed by this test.
++
++use rh_protocol::{
++    SnapshotTracker, StateItem, WireCommand, WireEvent, WirePropKind, WireProps, WireQuestRow,
++    WireQuestView, WireSelf,
++};
++use rh_sim::quests::catalog::DEFINITION as QUEST_DEFINITION;
++use rh_sim::quests::live::Status as QuestStatus;
++use rh_sim::{ItemObserver, Placement, Vec2};
++
++/// One joined seat's real Outbox decoded the way a client decodes it: every frame goes through the protocol
++/// [`SnapshotTracker`] (Full and delta snapshots alike) and reliable collection keys are kept as the latest complete
++/// replacement. Every derived action fact in this proof comes from this delivered surface.
++struct QuestRoomSeat {
++    out: Arc<Outbox>,
++    tracker: SnapshotTracker,
++    quests: Option<WireQuestView>,
++    props: Option<WireProps>,
++    me: Option<WireSelf>,
++    ack_input: u32,
++    snapshot_tick: Option<u32>,
++    /// The Events frames decoded since the last wake (the actual completion window's decoded delivery).
++    events: Vec<(u32, Vec<WireEvent>)>,
++}
++
++impl QuestRoomSeat {
++    fn new(out: Arc<Outbox>) -> Self {
++        Self {
++            out,
++            tracker: SnapshotTracker::new(),
++            quests: None,
++            props: None,
++            me: None,
++            ack_input: 0,
++            snapshot_tick: None,
++            events: Vec::new(),
++        }
++    }
++
++    /// Drain and decode this wake's real frames. A delta snapshot is applied against the tracker's base exactly as the
++    /// browser client applies it; the decoded delivery (never a hand-built event batch) is the proof subject.
++    fn drain(&mut self) {
++        self.events.clear();
++        let mut frames = Vec::new();
++        let drained = self.out.drain_into(&mut frames);
++        assert_eq!(
++            drained.close, None,
++            "the component proof seat's delivery path stays open"
++        );
++        for frame in &frames {
++            let message = self
++                .tracker
++                .decode(frame)
++                .expect("the client decodes the real Room publication stream");
++            match message {
++                ServerMsg::State { items, .. } => {
++                    for item in items {
++                        match item {
++                            StateItem::Quests(view) => self.quests = view,
++                            StateItem::Props(props) => self.props = Some(props),
++                            _ => {}
++                        }
++                    }
++                }
++                ServerMsg::Snapshot {
++                    tick,
++                    ack_input,
++                    me,
++                    ..
++                } => {
++                    self.snapshot_tick = Some(tick);
++                    self.ack_input = ack_input;
++                    self.me = me;
++                }
++                ServerMsg::Events { tick, events } => self.events.push((tick, events)),
++                _ => {}
++            }
++        }
++    }
++
++    fn row(&self, def: &str) -> Option<&WireQuestRow> {
++        self.quests.as_ref()?.rows.iter().find(|row| row.def == def)
++    }
++
++    fn self_at(&self) -> Option<(f64, f64)> {
++        self.me.map(|me| (f64::from(me.x), f64::from(me.y)))
++    }
++
++    fn event_toasts(&self) -> Vec<(u32, String)> {
++        self.events
++            .iter()
++            .flat_map(|(tick, events)| {
++                events.iter().filter_map(move |event| match event {
++                    WireEvent::Toast { text } => Some((*tick, text.clone())),
++                    _ => None,
++                })
++            })
++            .collect()
++    }
++}
++
++/// A correctly sequenced, typed ordinary Room input from one joined seat. `Room::handle` performs the
++/// resolve/validate/submit intake itself; the test never submits to the Sim directly.
++fn quest_room_input(
++    room: &mut Room,
++    player: PlayerId,
++    conn: u64,
++    seq: u32,
++    commands: Vec<WireCommand>,
++    at: Instant,
++) {
++    room.handle(
++        RoomCmd::Input {
++            received: std::time::Instant::now(),
++            player,
++            conn,
++            seq,
++            commands,
++        },
++        at,
++    );
++}
++
++/// One ordinary fixed-50 ms Room wake, then drain both real Outboxes. This helper is the only advancement the proof
++/// allows: `Room::wake` runs the due Sim steps, feeds each completed `FxTickReport` into the seat's `FxProjector` and
++/// appends the viewer-filtered events into the seat carry, then publishes through the Room Publisher into the Outboxes.
++fn quest_room_wake(
++    room: &mut Room,
++    at: &mut Instant,
++    tick: Duration,
++    owner: &mut QuestRoomSeat,
++    foreign: &mut QuestRoomSeat,
++) {
++    *at += tick;
++    assert!(room.wake(*at), "the component proof room stays open");
++    assert_eq!(
++        room.frame_refusals, 0,
++        "the Room encoder refused no scheduled frame"
++    );
++    assert_eq!(
++        room.snapshot_refusals, 0,
++        "the Room snapshot encoder refused nothing"
++    );
++    for human in &room.humans {
++        assert_eq!(
++            human.fx.tick(),
++            room.sim().tick(),
++            "the wake fed the seat FxTickReport into its projector through the completed tick"
++        );
++    }
++    owner.drain();
++    foreign.drain();
++    assert_eq!(
++        owner.snapshot_tick,
++        Some(room.sim().tick()),
++        "the owner's delivered snapshot is stamped at the completed tick"
++    );
++    assert_eq!(
++        foreign.snapshot_tick,
++        Some(room.sim().tick()),
++        "the foreign seat's delivered snapshot is stamped at the completed tick"
++    );
++}
++
++/// The frozen legacy Room-method witness rows shown to one source viewer: its own `client` sends plus the one actual
++/// public broadcast call (no invented fanout and no recipient property on the wire Toast).
++fn quest_room_oracle_toasts(receiver: &serde_json::Value, viewer: &str) -> Vec<String> {
++    receiver["rows"]
++        .as_array()
++        .expect("oracle rows")
++        .iter()
++        .filter_map(|row| {
++            let route = row["route"].as_str().expect("oracle route");
++            let shown = route == "broadcast" || (route == "client" && row["recipient"] == viewer);
++            shown.then(|| {
++                assert_eq!(row["type"], "toast");
++                row["payload"]["text"]
++                    .as_str()
++                    .expect("oracle toast text")
++                    .to_string()
++            })
++        })
++        .collect()
++}
++
++/// The longest bounded ordinary walk the proof allows per leg; a real producer/reach gap must fail loudly here rather
++/// than be papered over. The accepted offer's own 180 s deadline is much tighter than this outer test bound.
++const QUEST_ROOM_WALK_TICKS: usize = 2_400;
++const QUEST_ROOM_RETURN_TICKS: usize = 1_400;
++
++/// Closed native `RowState` wire codes from `WireQuestRow::state`.
++const WIRE_ROW_OPEN: u8 = 1;
++const WIRE_ROW_DONE: u8 = 2;
++const WIRE_ROW_EXPIRED: u8 = 3;
++
++#[tokio::test(start_paused = true)]
++async fn quest_room_earned_shards_completion_delivers_exact_owner_and_foreign_toasts() {
++    let tick = Duration::from_millis(50);
++    let declared_owner_name = "name0";
++    let declared_foreign_name = "name1";
++
++    // 1. Inspect ONLY the newly generated native offer set. The deterministic seed-7 Source-arena genesis is the same
++    //    component recipe the existing quest bridge tests use; the selected offer must be the actually produced
++    //    published Open `shards-frost` row, never an installed or substituted offer.
++    let genesis = quest_bridge_sim(None);
++    let genesis_runtime = quest_bridge_runtime(&genesis);
++    let genesis_offer = genesis_runtime
++        .offers
++        .iter()
++        .find(|offer| {
++            offer.published
++                && offer.status == QuestStatus::Open
++                && QUEST_DEFINITION[offer.def as usize].id == "shards-frost"
++        })
++        .expect("the deterministic native genesis produces a published Open shards-frost offer");
++    let def = &QUEST_DEFINITION[genesis_offer.def as usize];
++    assert_eq!(def.id, "shards-frost");
++    assert_eq!(def.kind, rh_sim::quests::catalog::Kind::Collect);
++    assert_eq!(def.count, 3);
++    assert_eq!(genesis_offer.tokens.len(), def.token_spawns as usize);
++    let giver_at = genesis_offer.at;
++
++    // 2. Two actually joined human seats with distinct connections and real Outboxes, plus the deterministic component
++    //    bootstrap: one declared initial Placement at the actual generated giver (the only setup geometry) and one
++    //    foreign placement. Both per-seat projectors and action observers are rebound to the swapped Sim BEFORE any
++    //    handle or action is issued. This is a labelled component fixture, not the hosted lobby/startup path.
++    let assets = MapAssets::new(source_arena()).unwrap();
++    let mut config = cfg(tick);
++    assert!(
++        !config.sim.quests,
++        "the shared bridge cfg is quest-disabled only as a component fixture; the Source runtime profile enables quests"
++    );
++    config.arena = assets.arena.clone();
++    config.welcome_map = assets.welcome_map.clone();
++    let (reports, _reports) = mpsc::unbounded_channel();
++    let start = Instant::now();
++    let mut room = Room::new([0x51; 16], config, reports, start);
++    let owner_out = Arc::new(Outbox::default());
++    let foreign_out = Arc::new(Outbox::default());
++    let owner_join = room
++        .join(
++            declared_owner_name.into(),
++            Some(FactionId::Holy),
++            owner_out.clone(),
++            1,
++            1,
++            None,
++        )
++        .unwrap();
++    let foreign_join = room
++        .join(
++            declared_foreign_name.into(),
++            Some(FactionId::Fire),
++            foreign_out.clone(),
++            2,
++            2,
++            None,
++        )
++        .unwrap();
++    assert_eq!(owner_join.player, PlayerId(1));
++    assert_eq!(foreign_join.player, PlayerId(2));
++    let foreign_at = assets.arena.spawns[1];
++    let active = Sim::reset_active(
++        SimConfig {
++            quests: true,
++            pvp_rules: false,
++            ..cfg(tick).sim
++        },
++        assets.arena.clone(),
++        Secrets::from_seed(7),
++        &[
++            Placement {
++                profile: declared_owner_name.into(),
++                faction: FactionId::Holy,
++                bot: false,
++                at: giver_at,
++                hp: None,
++                weapon0: None,
++                weapon1: None,
++            },
++            Placement {
++                profile: declared_foreign_name.into(),
++                faction: FactionId::Fire,
++                bot: false,
++                at: foreign_at,
++                hp: None,
++                weapon0: None,
++                weapon1: None,
++            },
++        ],
++    );
++    assert_eq!(active.phase(), Phase::Active);
++    assert!(
++        active.config().quests,
++        "the labelled deterministic component fixture runs with the Source quest rule enabled"
++    );
++    room.sim = active;
++    for human in &mut room.humans {
++        human.fx.rebind(&room.sim, human.player);
++        human.items = ItemObserver::new(human.player);
++        human.carry.clear();
++    }
++    let mut owner_seat = QuestRoomSeat::new(owner_out);
++    let mut foreign_seat = QuestRoomSeat::new(foreign_out);
++    let mut at = start;
++    let mut seq = 0u32;
++    let mut move_seq = 0u8;
++
++    // 3. First ordinary wake publishes the actual current QuestView/Props. The owner's issued QuestHandle comes from
++    //    that decoded delivery; the declared initial placement is the actual generated giver spot.
++    quest_room_wake(&mut room, &mut at, tick, &mut owner_seat, &mut foreign_seat);
++    let initial = owner_seat
++        .row("shards-frost")
++        .expect("the actual produced shards-frost row is delivered to the owner");
++    let handle = initial.handle;
++    assert_eq!(initial.state, WIRE_ROW_OPEN, "the delivered row is Open");
++    assert!(
++        initial.can_accept,
++        "the actual generated offer is acceptable"
++    );
++    assert_eq!(
++        owner_seat.self_at().expect("delivered self view"),
++        (giver_at.x, giver_at.y),
++        "the single declared bootstrap Placement is at the actual generated giver"
++    );
++    let runtime = quest_bridge_runtime(&room.sim);
++    assert_eq!(
++        runtime
++            .offers
++            .iter()
++            .find(|offer| offer.id == genesis_offer.id)
++            .expect("the generated offer id survives the component bootstrap")
++            .status,
++        QuestStatus::Open
++    );
++
++    // 4. Accept through the ordinary typed Room input door and wait for the delivered accepted row.
++    seq += 1;
++    quest_room_input(
++        &mut room,
++        owner_join.player,
++        1,
++        seq,
++        vec![quest_bridge_accept(handle)],
++        at,
++    );
++    let mut accepted = false;
++    for _ in 0..8 {
++        quest_room_wake(&mut room, &mut at, tick, &mut owner_seat, &mut foreign_seat);
++        if owner_seat
++            .row("shards-frost")
++            .is_some_and(|row| row.owner_accepted)
++        {
++            accepted = true;
++            break;
++        }
++    }
++    assert!(
++        accepted,
++        "Room resolve/validate/submit accepted the delivered handle"
++    );
++    let accept_wake_toasts = owner_seat.event_toasts();
++    assert!(
++        accept_wake_toasts
++            .iter()
++            .any(|(_, text)| *text == format!("Quest accepted: {}", def.name)),
++        "the real quest accept producer's owner notice was delivered"
++    );
++    assert!(
++        foreign_seat.event_toasts().is_empty(),
++        "the foreign seat never receives the owner's accept notice"
++    );
++    let row = owner_seat
++        .row("shards-frost")
++        .expect("accepted current row");
++    assert_eq!(row.owner_progress, 0);
++    assert!(!row.owner_ready);
++    eprintln!(
++        "quest room proof: accepted shards-frost handle {} at native tick {}",
++        handle.get(),
++        room.sim().tick()
++    );
++
++    // 5. Earn the three objective units through accepted Move/Pickup Room inputs and one ordinary wake per 50 ms slot.
++    //    Targets are the currently delivered objective navigation facts; pickup handles are the currently delivered
++    //    props; no private pose, hidden container id, progress, reward, event or carry is installed anywhere.
++    let mut pickups = 0u32;
++    let mut delivered_pickup_handles = Vec::new();
++    while pickups < def.count {
++        let target = {
++            let view = owner_seat
++                .quests
++                .as_ref()
++                .expect("delivered quest view while earning objectives");
++            let objectives: Vec<Vec2> = view
++                .objectives
++                .iter()
++                .filter(|objective| objective.quest == handle)
++                .map(|objective| Vec2::new(objective.at.x, objective.at.y))
++                .collect();
++            assert_eq!(
++                objectives.len(),
++                def.token_spawns as usize - pickups as usize,
++                "the accepted owner is delivered exactly the remaining entitled objective cues"
++            );
++            let (from_x, from_y) = owner_seat.self_at().expect("delivered self position");
++            objectives
++                .into_iter()
++                .min_by(|a, b| {
++                    let da = (a.x - from_x) * (a.x - from_x) + (a.y - from_y) * (a.y - from_y);
++                    let db = (b.x - from_x) * (b.x - from_x) + (b.y - from_y) * (b.y - from_y);
++                    da.total_cmp(&db)
++                })
++                .expect("an entitled objective cue")
++        };
++        seq += 1;
++        let move_input_seq = seq;
++        move_seq = move_seq.wrapping_add(1);
++        let expected_move_seq = move_seq;
++        quest_room_input(
++            &mut room,
++            owner_join.player,
++            1,
++            seq,
++            vec![WireCommand::Move {
++                x: target.x as f32,
++                y: target.y as f32,
++                seq: Some(move_seq),
++            }],
++            at,
++        );
++        let mut advanced = false;
++        for step in 0..QUEST_ROOM_WALK_TICKS {
++            quest_room_wake(&mut room, &mut at, tick, &mut owner_seat, &mut foreign_seat);
++            if step == 0 {
++                assert_eq!(
++                    owner_seat.ack_input, move_input_seq,
++                    "the joined seat's snapshot acknowledges the accepted Move input"
++                );
++                assert_eq!(
++                    owner_seat.me.expect("delivered self view").move_seq,
++                    expected_move_seq,
++                    "the ordinary accepted Move was applied by the native fighter"
++                );
++            }
++            let progress = owner_seat
++                .row("shards-frost")
++                .expect("current delivered row while earning objectives")
++                .owner_progress;
++            if progress > pickups {
++                let expected_notice = format!("{}: {}/{}", def.name, progress, def.count);
++                assert!(
++                    owner_seat
++                        .event_toasts()
++                        .iter()
++                        .any(|(_, text)| *text == expected_notice),
++                    "the native pickup producer delivered its progress notice"
++                );
++                pickups = progress;
++                eprintln!(
++                    "quest room proof: pickup {pickups}/{} delivered at native tick {}",
++                    def.count,
++                    room.sim().tick()
++                );
++                advanced = true;
++                break;
++            }
++            // When the current delivered props expose the quest pickup cue at the current delivered position, submit the
++            // ordinary typed Pickup with that issued handle. Refusals are ordinary native producer answers and retry.
++            let cue = owner_seat
++                .self_at()
++                .zip(owner_seat.props.as_ref())
++                .and_then(|((from_x, from_y), props)| {
++                    props.rows.iter().find(|prop| {
++                        matches!(
++                            prop.kind,
++                            WirePropKind::QuestItem { quest, fetch: false } if quest == handle
++                        ) && {
++                            let px = f64::from(rh_protocol::quant::dequantize_pos(prop.x));
++                            let py = f64::from(rh_protocol::quant::dequantize_pos(prop.y));
++                            (from_x - px) * (from_x - px) + (from_y - py) * (from_y - py)
++                                <= 48.0 * 48.0
++                        }
++                    })
++                });
++            if let Some(cue) = cue {
++                delivered_pickup_handles.push(cue.handle.get());
++                seq += 1;
++                quest_room_input(
++                    &mut room,
++                    owner_join.player,
++                    1,
++                    seq,
++                    vec![WireCommand::Pickup { handle: cue.handle }],
++                    at,
++                );
++            }
++        }
++        assert!(
++            advanced,
++            "the accepted Move reached the delivered objective and the native pickup producer advanced progress"
++        );
++    }
++    let row = owner_seat
++        .row("shards-frost")
++        .expect("delivered row after the third pickup");
++    assert_eq!(row.owner_progress, def.count);
++    assert!(
++        row.owner_ready,
++        "the delivered view marks the native objective complete"
++    );
++    assert!(
++        owner_seat
++            .quests
++            .as_ref()
++            .expect("delivered quest view")
++            .objectives
++            .iter()
++            .all(|objective| objective.quest != handle),
++        "no ground objective cue remains after the earned pickups"
++    );
++    seq += 1;
++    move_seq = move_seq.wrapping_add(1);
++    let expected_return_seq = move_seq;
++    let giver = row.giver;
++    quest_room_input(
++        &mut room,
++        owner_join.player,
++        1,
++        seq,
++        vec![WireCommand::Move {
++            x: giver.x as f32,
++            y: giver.y as f32,
++            seq: Some(move_seq),
++        }],
++        at,
++    );
++
++    // 6. The ordinary automatic turn-in completes on a normal wake. Bind its tick from the unmodified native
++    //    `last_events` producer batch; never from the frozen source tick/provenance row.
++    let mut completion_tick = None;
++    for step in 0..QUEST_ROOM_RETURN_TICKS {
++        quest_room_wake(&mut room, &mut at, tick, &mut owner_seat, &mut foreign_seat);
++        if step == 0 {
++            assert_eq!(
++                owner_seat.me.expect("delivered self view").move_seq,
++                expected_return_seq,
++                "the ordinary accepted return Move was applied by the native fighter"
++            );
++        }
++        let produced_completion = room.last_events.iter().any(|event| {
++            matches!(
++                event,
++                Event::Gv {
++                    id,
++                    reason: rh_sim::results::GvReason::Quest,
++                    ..
++                } if *id == owner_join.player
++            )
++        });
++        if produced_completion {
++            completion_tick = Some(room.sim().tick());
++            break;
++        }
++        if owner_seat
++            .row("shards-frost")
++            .is_some_and(|row| row.state == WIRE_ROW_EXPIRED)
++        {
++            panic!(
++                "the accepted shards-frost offer expired at native tick {} before the return turn-in",
++                room.sim().tick()
++            );
++        }
++    }
++    let completion_tick =
++        completion_tick.expect("the accepted native turn-in produced real quest completion");
++    let completion_ms = room.sim().server_time();
++    assert_eq!(
++        completion_ms,
++        f64::from(completion_tick) * TICK_MS,
++        "the native completion time is the running room's own clock"
++    );
++    assert_ne!(
++        completion_tick, 8,
++        "source tick 8 / 400 ms is provenance only and is never forced on the native clock"
++    );
++
++    // 7. The sealed legacy Room-method completion witness: ordered owner private sends + the one public broadcast call.
++    let oracle_text = std::fs::read_to_string(concat!(
++        env!("CARGO_MANIFEST_DIR"),
++        "/../../parity/quest-room-feedback/source.json"
++    ))
++    .expect("parity/quest-room-feedback/source.json");
++    let oracle: serde_json::Value = serde_json::from_str(&oracle_text).expect("oracle json");
++    assert_eq!(oracle["format"], "rh-quest-room-feedback/1");
++    assert_eq!(
++        oracle["input"]["sha256"],
++        "039d4e058fa914f42080f1c55d8640cc508c5b4745504930ca3db49579adc8b4"
++    );
++    assert_eq!(
++        oracle["input"]["rawEventsSha256"],
++        "6e40908a3cf563b1d5778b185129c829218af6fd80c903a8a1605552563e7a26"
++    );
++    assert_eq!(oracle["input"]["caseName"], "completion-retirement");
++    assert_eq!(oracle["input"]["frameLabel"], "turned-in");
++    // Provenance of the captured projection input, not a clock this test is allowed to impose.
++    assert_eq!(oracle["input"]["tick"], 8);
++    assert_eq!(oracle["input"]["time"], 400);
++    let witness = &oracle["receivers"][0];
++    assert_eq!(witness["name"], "genuine-completion-batch-human-receiver");
++    assert_eq!(
++        witness["rows"][0]["recipient"], "p0",
++        "the witness owner alias bound below to the declared native owner name"
++    );
++    let expected_owner = quest_room_oracle_toasts(witness, "p0");
++    let expected_foreign = quest_room_oracle_toasts(witness, "p1");
++    assert_eq!(expected_owner.len(), 4, "the witness owner has four toasts");
++    assert_eq!(
++        expected_foreign.len(),
++        1,
++        "the foreign viewer hears only the public toast"
++    );
++    assert_eq!(
++        expected_owner[3], expected_foreign[0],
++        "the only foreign row is the public broadcast"
++    );
++    assert_eq!(
++        expected_foreign[0],
++        format!("{declared_owner_name} completed quest: {}", def.name),
++        "explicit source p0/name0 -> declared native owner name binding"
++    );
++
++    // 8. Raw native producer batch (unmodified `room.last_events`): the actual completion step is exactly the quest GV
++    //    plus the three notice producers, in source order. One native quest GV producer row, its protocol notice appears
++    //    only through the observation mapping (never a duplicated world Toast), and the raw rows stay distinct from the
++    //    decoded wire rows.
++    let raw = room.last_events.as_slice();
++    assert_eq!(
++        raw.len(),
++        4,
++        "the completion step's unmodified native producer batch is the quest GV plus three notices"
++    );
++    let quest_gv: Vec<&Event> = raw
++        .iter()
++        .filter(|event| {
++            matches!(
++                event,
++                Event::Gv {
++                    reason: rh_sim::results::GvReason::Quest,
++                    ..
++                }
++            )
++        })
++        .collect();
++    assert_eq!(quest_gv.len(), 1, "one native quest GV producer event");
++    let Event::Gv { id, amount, .. } = *quest_gv[0] else {
++        unreachable!("filtered quest GV")
++    };
++    assert_eq!(id, owner_join.player);
++    assert_eq!(amount, u32::from(def.reward_gv));
++    let gv_text = format!("+{amount} GV (quest)");
++    assert!(
++        raw.iter()
++            .all(|event| !matches!(event, Event::Toast { text, .. } if *text == gv_text)),
++        "the observation mapping never duplicates the native GV producer as a world Toast"
++    );
++    let raw_toasts: Vec<&str> = raw
++        .iter()
++        .filter_map(|event| match event {
++            Event::Toast { text, .. } => Some(text.as_str()),
++            _ => None,
++        })
++        .collect();
++    assert_eq!(
++        raw_toasts,
++        vec![
++            expected_owner[1].as_str(),
++            expected_owner[2].as_str(),
++            expected_owner[3].as_str()
++        ],
++        "native owner farm notice, owner completion notice, then the public notice, in source order"
++    );
++
++    // 9. Decode the actual completion-window Events from both real Outboxes at the actual native completion tick and
++    //    compare the complete ordered Toast subsequences: no membership filtering, no extra row, no missing row.
++    assert_eq!(
++        owner_seat.events.len(),
++        1,
++        "one ordinary wake publishes the owner's completion window"
++    );
++    assert_eq!(
++        foreign_seat.events.len(),
++        1,
++        "one ordinary wake publishes the foreign completion window"
++    );
++    let (owner_tick, owner_events) = &owner_seat.events[0];
++    let (foreign_tick, foreign_events) = &foreign_seat.events[0];
++    assert_eq!(*owner_tick, completion_tick);
++    assert_eq!(*foreign_tick, completion_tick);
++    assert_eq!(
++        owner_events.len(),
++        expected_owner.len(),
++        "no extra decoded owner row in the completion window"
++    );
++    assert_eq!(
++        foreign_events.len(),
++        expected_foreign.len(),
++        "no extra decoded foreign row in the completion window"
++    );
++    let owner_toasts: Vec<String> = owner_events
++        .iter()
++        .map(|event| match event {
++            WireEvent::Toast { text } => text.clone(),
++            other => panic!("unexpected decoded owner completion event {other:?}"),
++        })
++        .collect();
++    let foreign_toasts: Vec<String> = foreign_events
++        .iter()
++        .map(|event| match event {
++            WireEvent::Toast { text } => text.clone(),
++            other => panic!("unexpected decoded foreign completion event {other:?}"),
++        })
++        .collect();
++    assert_eq!(owner_toasts, expected_owner);
++    assert_eq!(foreign_toasts, expected_foreign);
++    assert_eq!(
++        owner_toasts.iter().filter(|text| **text == gv_text).count(),
++        1,
++        "the owner protocol notice appears exactly once through the observation mapping"
++    );
++    assert!(
++        owner_seat
++            .row("shards-frost")
++            .expect("completion row delivered")
++            .owner_completed,
++        "the delivered completion row binds the owner as the recorded completion actor"
++    );
++
++    // 10. Corroborate the native typed completion state in the running Room (never a substitute for the delivery).
++    let completed = quest_bridge_runtime(&room.sim);
++    let offer = completed
++        .offers
++        .iter()
++        .find(|offer| offer.id == genesis_offer.id)
++        .expect("the completed offer is the actual generated offer");
++    assert_eq!(offer.status, QuestStatus::Done);
++    assert_eq!(offer.done_by, Some(owner_join.player));
++    assert!(offer.accepted.contains(&owner_join.player));
++    assert!(!offer.accepted.contains(&foreign_join.player));
++    assert_eq!(
++        room.sim()
++            .player(owner_join.player)
++            .expect("owner native player")
++            .credit
++            .gv_parts
++            .quest,
++        u32::from(def.reward_gv)
++    );
++    let (reward_stat, reward_stacks) = rh_sim::quests::rules::reward_stats(def);
++    assert_eq!(
++        room.sim()
++            .player(owner_join.player)
++            .expect("owner native player")
++            .farm
++            .count(reward_stat),
++        reward_stacks
++    );
++    let delivered = owner_seat.row("shards-frost").expect("completion row");
++    assert_eq!(
++        delivered.state, WIRE_ROW_DONE,
++        "the delivered row is the closed Done code"
++    );
++    assert_eq!(
++        delivered.done_by.as_deref(),
++        Some(declared_owner_name),
++        "the delivered done_by binds the declared native owner name"
++    );
++    eprintln!(
++        "quest room proof: native completion tick {completion_tick} ({completion_ms} ms), \
++         quest handle {}, delivered pickup handles {delivered_pickup_handles:?}, \
++         owner toasts {owner_toasts:?}, foreign toasts {foreign_toasts:?}",
++        handle.get()
++    );
++}

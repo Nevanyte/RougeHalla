@@ -14,6 +14,7 @@ pub(crate) mod camp_heal;
 pub(crate) mod cannons;
 #[cfg(test)]
 mod cannons_source_tests;
+pub(crate) mod card_bleed_feedback;
 pub(crate) mod consumables;
 #[cfg(test)]
 #[path = "consumables_source_tests.rs"]

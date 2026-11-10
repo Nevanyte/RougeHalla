@@ -1,0 +1,7 @@
+# Repair-round clippy default (HOLD repairs; test-only harness/comparator changes)
+# cwd: /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-tactics  target: /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-tactics/target
+# cargo: cargo 1.97.0 (c980f4866 2026-06-30)  rustc: rustc 1.97.0 (2d8144b78 2026-07-07)  branch: codex/deepseek-private-tactics  HEAD: f252b8697cbff3afcee71711cf33db40c411399a
+$ cargo clippy -p rh-policy --lib --tests --locked --offline -j 1 -- -D warnings
+    Checking rh-policy v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-tactics/crates/rh-policy)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 6.56s
+exit: 0

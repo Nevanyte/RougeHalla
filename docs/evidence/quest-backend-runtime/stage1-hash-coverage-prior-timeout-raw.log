@@ -1,0 +1,7 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.04s
+     Running tests/hash_coverage.rs (/Users/nevinmckinnon/.codex/tools/roguehalla-backend-20261109/target-quests/debug/deps/hash_coverage-a49e69b4003ed351)
+
+running 10 tests
+test a_deferred_queue_and_every_roster_name_are_hashed ... ok
+test derived_blink_ring_clone_and_restore_preserve_actual_locked_casts ... ok
+test every_serialized_leaf_of_a_match_changes_the_state_hash ... 

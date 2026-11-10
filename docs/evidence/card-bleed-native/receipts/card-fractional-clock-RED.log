@@ -1,0 +1,8 @@
+running 2 tests
+test systems::card_bleed_feedback::tests::an_accepted_fractional_clock_records_a_real_card_report_and_restores_continuation ... FAILED
+test systems::mob_checkpoint::bleed_tests::earned_bleed_restores_under_an_accepted_fractional_clock_without_tick_time_equality ... FAILED
+thread 'systems::card_bleed_feedback::tests::an_accepted_fractional_clock_records_a_real_card_report_and_restores_continuation' (72389548) panicked at crates/rh-sim/src/systems/card_bleed_feedback/tests.rs:991:10:
+a producer-earned fractional Card report restores: Malformed("RED: unproven fixed-grid constraint")
+thread 'systems::mob_checkpoint::bleed_tests::earned_bleed_restores_under_an_accepted_fractional_clock_without_tick_time_equality' (72389549) panicked at crates/rh-sim/src/systems/mob_checkpoint/bleed_tests.rs:559:22:
+earned regional NPC bleed restores under the accepted declared clock: Malformed("RED: unproven fixed-grid constraint")
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 886 filtered out; finished in 0.25s

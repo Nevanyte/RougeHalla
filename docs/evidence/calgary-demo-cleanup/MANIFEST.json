@@ -1,0 +1,37 @@
+[
+  {
+    "path": "DNS_CLEANUP.json",
+    "bytes": 948,
+    "sha256": "968301938cd958932acc83f19fc7b01b8a8286b9571a18229dba8a7733af5fa0"
+  },
+  {
+    "path": "EXPIRY_WAIT.json",
+    "bytes": 555,
+    "sha256": "874838998cf6ef9e190d992e75f86f1476fcff9510ca1e0ea690d7b69420a5ee"
+  },
+  {
+    "path": "PRE_TEARDOWN.json",
+    "bytes": 5274,
+    "sha256": "866e3d2c018492aa5e496be59e191f91f788bdf146f6f9b127f01677ca1d496c"
+  },
+  {
+    "path": "README.md",
+    "bytes": 2226,
+    "sha256": "7497c4658a827148eba0743e11029bbdf0196c004a5427dd6df1e5262e5f56c0"
+  },
+  {
+    "path": "TEARDOWN.json",
+    "bytes": 8085,
+    "sha256": "2001572cdf6b9589ec7a23c4aa978976e30b0a19508693acf4572cc4d31828f2"
+  },
+  {
+    "path": "VERIFICATION.json",
+    "bytes": 3609,
+    "sha256": "8b66c72942e2358fc7fac81d6495d1a700390b024525a61308d6eace1f4757f4"
+  },
+  {
+    "path": "teardown.py",
+    "bytes": 3214,
+    "sha256": "974b243463cbf60cdd36816f42c09d11bdccfbf09e4a31cb9148b6449fa51236"
+  }
+]

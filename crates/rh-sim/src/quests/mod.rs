@@ -17,13 +17,19 @@ mod live_tests;
 mod notice_tests;
 mod notices;
 #[cfg(test)]
+mod notices_continuation_source_tests;
+#[cfg(test)]
 mod notices_source_tests;
+pub(crate) mod objectives;
 pub(crate) use notices::quest_gv_text;
 pub mod placement;
+pub(crate) mod rewards;
 pub mod roster;
 pub mod rules;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tour_supply_source_tests;
 
 pub use catalog::{Def, Kind, Tokens};
 pub use placement::Placement;

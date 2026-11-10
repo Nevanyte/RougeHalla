@@ -1,0 +1,11 @@
+{
+  "purpose": "One unprofiled post-NPC-memo measurement",
+  "referenceControllerSha256": "3810a6bb9d201a227571a6d069bc3f64cb3613cb0f4e490bb7cd5ba4f56d095f",
+  "controllerSha256": "c2da28c52b834be0a29d41f294b7177c20aae83894d5b8654cca46466f2019a5",
+  "delta": "Only frozen binary path/hash; same map/workload/Node/helper/codec/P14/content/actor gates/cleanup",
+  "baselineNativeCpuOneCorePercent": 6.758462011454414,
+  "newHead": "85e2d7c2a80d03792e9c544ae8f708e524e8e9c8",
+  "newBinarySha256": "903b701de6530f2aa5a495b9d60b47457814c0c1d61d080bd07c89b3116cf7fd",
+  "sameCompilerPostgresReleaseProfile": true,
+  "limitations": "One run, ambient RNG/spawn history and active workstation load may differ. Not a maximum-capacity or full client/legacy equivalence proof."
+}

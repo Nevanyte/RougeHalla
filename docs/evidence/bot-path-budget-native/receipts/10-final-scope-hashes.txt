@@ -1,0 +1,33 @@
+== final scope/hash receipt 2026-11-10T10:10:23Z
+pwd: /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-path-budget
+branch: codex/deepseek-path-budget
+base HEAD: 374033999c3aa9bd4cfc1e002d243786879c4a7b
+cargo: cargo 1.97.0 (c980f4866 2026-06-30)
+rustc: rustc 1.97.0 (2d8144b78 2026-07-07)
+toolchain: [toolchain] channel = "1.97.0" components = ["rustfmt", "clippy"] 
+CARGO_HOME=unset RUSTUP_HOME=unset RUSTFLAGS=unset CARGO_TARGET_DIR=/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-path-budget/target/path-budget-build
+git status --porcelain:
+ M crates/rh-policy/src/bots/paths.rs
+?? crates/rh-policy/src/bots/paths/
+?? docs/evidence/bot-path-budget-native/
+git diff --check exit: 0
+changed and referenced file SHA-256:
+5080560d0d18fd0678e63a404e99a31a930aea47ed06bc75bf832694a1c7d273  crates/rh-policy/src/bots/paths.rs
+05094723de942f61d9b4a9f980d75182b6e230604d47a8ce933e23e37f68ac1c  crates/rh-policy/src/bots/paths/shared_budget_tests.rs
+4d80b7472c104afe2551a8ac98921637a8148d09a293bbd2b011b408ab740ca2  crates/rh-policy/src/bots/paths_parity_tests.rs
+eee99102ed65c580dfe82e696e32fb9887d7ebc66e935349e43d9bd1ba909a5f  parity/policy/bot-tactics.json
+b14507716b80f1c0b85f7298b380b3c9146917134d9361c1bb408062782c0b22  Cargo.lock
+frozen fixture profile identity (from the fixture itself):
+format: rh-bot-paths-source/1
+captureSha256: 030c00d5e120f5ddaa982144961386cc1b1a83ee968e5701712a625422e74685
+sourceTree: ea34d1c010d96ed47804929e98cea06e3b8dc27b184d4ceb8d0e7b4a7f747f18
+tool: 434131a25beeecd03ae1cb6082c51219ecfd7c142cc6a96fdd8575ef385d04b8
+budgetPerTick: 3
+sourceFiles:
+  packages/server/src/bots/brain/services.ts be3f915c4788b8e8406b6739d364fb3957935903555c26168c5892f93f7567fb
+  packages/server/src/bots/brain/tactics/kite.ts b7ceff483d51fe1d58d79ef34562e28a079027623527f11264c21439c2b6e2be
+  packages/server/src/bots/brain/types.ts 12b3cae05bcde760cd642b9c5eb9919bfc47189882c81258994c9f1122d3d361
+  packages/server/src/bots/mobHunt.ts 88fc22040e62b1bc5226c37c16095032533df1e104dee0b27fdcb671c33fe6ff
+  packages/shared/src/pathfind.ts 300caa48788f84bdc780befe8c50db41c2c0b2be520d3fb43a7f91e16de424d9
+  packages/shared/src/geometry.ts b1a91a65281f8642b1779b81764768569311966ab493941101a2f988cfdc1f5d
+  packages/shared/src/map.ts 35caac04108a3bd0e1d880a9502f14bdccb3a9a17d262cba335c3d6436995eed

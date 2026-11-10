@@ -1,0 +1,128 @@
+{
+  "utc": "2026-11-10T03:47:17.900846+00:00",
+  "mode": "READ_ONLY_PRE_TEARDOWN",
+  "account": "048226733033",
+  "stackResourcesMatchExactManifest": true,
+  "stackResources": [
+    {
+      "StackName": "rougehalla-demo-20261110-002345",
+      "StackId": "arn:aws:cloudformation:ca-west-1:048226733033:stack/rougehalla-demo-20261110-002345/fe50c0b0-dc9c-11f1-b8d4-0e5d601fba41",
+      "LogicalResourceId": "BundleBucket",
+      "PhysicalResourceId": "rougehalla-demo-048226733033-20261110-002345",
+      "ResourceType": "AWS::S3::Bucket",
+      "Timestamp": "2026-11-10T00:30:33.709000+00:00",
+      "ResourceStatus": "CREATE_COMPLETE",
+      "DriftInformation": {
+        "StackResourceDriftStatus": "NOT_CHECKED"
+      }
+    },
+    {
+      "StackName": "rougehalla-demo-20261110-002345",
+      "StackId": "arn:aws:cloudformation:ca-west-1:048226733033:stack/rougehalla-demo-20261110-002345/fe50c0b0-dc9c-11f1-b8d4-0e5d601fba41",
+      "LogicalResourceId": "BundleTransportPolicy",
+      "PhysicalResourceId": "rougehalla-demo-048226733033-20261110-002345",
+      "ResourceType": "AWS::S3::BucketPolicy",
+      "Timestamp": "2026-11-10T00:30:35.816000+00:00",
+      "ResourceStatus": "CREATE_COMPLETE",
+      "DriftInformation": {
+        "StackResourceDriftStatus": "NOT_CHECKED"
+      }
+    },
+    {
+      "StackName": "rougehalla-demo-20261110-002345",
+      "StackId": "arn:aws:cloudformation:ca-west-1:048226733033:stack/rougehalla-demo-20261110-002345/fe50c0b0-dc9c-11f1-b8d4-0e5d601fba41",
+      "LogicalResourceId": "DemoHost",
+      "PhysicalResourceId": "i-00b97e48b4e5c4f31",
+      "ResourceType": "AWS::EC2::Instance",
+      "Timestamp": "2026-11-10T01:36:23.265000+00:00",
+      "ResourceStatus": "UPDATE_COMPLETE",
+      "DriftInformation": {
+        "StackResourceDriftStatus": "NOT_CHECKED"
+      }
+    },
+    {
+      "StackName": "rougehalla-demo-20261110-002345",
+      "StackId": "arn:aws:cloudformation:ca-west-1:048226733033:stack/rougehalla-demo-20261110-002345/fe50c0b0-dc9c-11f1-b8d4-0e5d601fba41",
+      "LogicalResourceId": "ExpiryRole",
+      "PhysicalResourceId": "rougehalla-demo-20261110-002345-ExpiryRole-YPaZY8p7rTPj",
+      "ResourceType": "AWS::IAM::Role",
+      "Timestamp": "2026-11-10T01:36:40.502000+00:00",
+      "ResourceStatus": "UPDATE_COMPLETE",
+      "DriftInformation": {
+        "StackResourceDriftStatus": "NOT_CHECKED"
+      }
+    },
+    {
+      "StackName": "rougehalla-demo-20261110-002345",
+      "StackId": "arn:aws:cloudformation:ca-west-1:048226733033:stack/rougehalla-demo-20261110-002345/fe50c0b0-dc9c-11f1-b8d4-0e5d601fba41",
+      "LogicalResourceId": "ExpirySchedule",
+      "PhysicalResourceId": "rougehalla-demo-20261110-002345-ExpirySchedule-YE6HHV8YPBES",
+      "ResourceType": "AWS::Scheduler::Schedule",
+      "Timestamp": "2026-11-10T01:36:42.861000+00:00",
+      "ResourceStatus": "UPDATE_COMPLETE",
+      "DriftInformation": {
+        "StackResourceDriftStatus": "NOT_CHECKED"
+      }
+    },
+    {
+      "StackName": "rougehalla-demo-20261110-002345",
+      "StackId": "arn:aws:cloudformation:ca-west-1:048226733033:stack/rougehalla-demo-20261110-002345/fe50c0b0-dc9c-11f1-b8d4-0e5d601fba41",
+      "LogicalResourceId": "HostProfile",
+      "PhysicalResourceId": "rougehalla-demo-20261110-002345-HostProfile-A3sECyk1557D",
+      "ResourceType": "AWS::IAM::InstanceProfile",
+      "Timestamp": "2026-11-10T00:33:03.686000+00:00",
+      "ResourceStatus": "CREATE_COMPLETE",
+      "DriftInformation": {
+        "StackResourceDriftStatus": "NOT_CHECKED"
+      }
+    },
+    {
+      "StackName": "rougehalla-demo-20261110-002345",
+      "StackId": "arn:aws:cloudformation:ca-west-1:048226733033:stack/rougehalla-demo-20261110-002345/fe50c0b0-dc9c-11f1-b8d4-0e5d601fba41",
+      "LogicalResourceId": "HostRole",
+      "PhysicalResourceId": "rougehalla-demo-20261110-002345-HostRole-slDuhaf3A01r",
+      "ResourceType": "AWS::IAM::Role",
+      "Timestamp": "2026-11-10T00:30:51.876000+00:00",
+      "ResourceStatus": "CREATE_COMPLETE",
+      "DriftInformation": {
+        "StackResourceDriftStatus": "NOT_CHECKED"
+      }
+    },
+    {
+      "StackName": "rougehalla-demo-20261110-002345",
+      "StackId": "arn:aws:cloudformation:ca-west-1:048226733033:stack/rougehalla-demo-20261110-002345/fe50c0b0-dc9c-11f1-b8d4-0e5d601fba41",
+      "LogicalResourceId": "HostSecurityGroup",
+      "PhysicalResourceId": "sg-09efff57af48ba4f8",
+      "ResourceType": "AWS::EC2::SecurityGroup",
+      "Timestamp": "2026-11-10T00:30:29.836000+00:00",
+      "ResourceStatus": "CREATE_COMPLETE",
+      "DriftInformation": {
+        "StackResourceDriftStatus": "NOT_CHECKED"
+      }
+    }
+  ],
+  "bucketVersioning": {},
+  "objectListing": {
+    "IsTruncated": false,
+    "Contents": [
+      {
+        "Key": "technical-demo/reviewed-demo.tar",
+        "LastModified": "2026-11-10T00:50:22+00:00",
+        "ETag": "\"f8b825b83823b15831b9a8f4a464cbd6\"",
+        "ChecksumAlgorithm": [
+          "SHA256"
+        ],
+        "ChecksumType": "FULL_OBJECT",
+        "Size": 124395520,
+        "StorageClass": "STANDARD"
+      }
+    ],
+    "Name": "rougehalla-demo-048226733033-20261110-002345",
+    "Prefix": "",
+    "MaxKeys": 1000,
+    "EncodingType": "url",
+    "KeyCount": 1
+  },
+  "multipartUploads": [],
+  "writesExecuted": false
+}

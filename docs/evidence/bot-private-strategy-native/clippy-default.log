@@ -1,0 +1,8 @@
+=== clippy-default
+sourceHead=d21552d34966cd4a3ffd10d931b3543c269cf5d2
+cwd=/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-strategy
+target=/Users/nevinmckinnon/.codex/tools/roguehalla-backend-20261109/target-strategy
+command=cargo clippy -p rh-policy --lib --tests --locked --offline -- -D warnings
+    Checking rh-policy v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-strategy/crates/rh-policy)
+    Finished `dev` profile [unoptimized] target(s) in 7.09s
+EXIT=0

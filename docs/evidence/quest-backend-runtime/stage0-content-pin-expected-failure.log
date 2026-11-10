@@ -1,0 +1,23 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/roguehalla-backend-20261109/target-quests/debug/deps/rh_sim-aabb9bffeb4358ef)
+
+running 1 test
+test abilities::source_tests::hash_tape::ability_hash_tape_matches_the_base ... FAILED
+
+failures:
+
+---- abilities::source_tests::hash_tape::ability_hash_tape_matches_the_base stdout ----
+
+thread 'abilities::source_tests::hash_tape::ability_hash_tape_matches_the_base' (71014478) panicked at crates/rh-sim/src/abilities/source_tests/hash_tape.rs:49:5:
+assertion `left == right` failed
+  left: String("7c6a633f68c2cc72")
+ right: "8edd862f48ffa100"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    abilities::source_tests::hash_tape::ability_hash_tape_matches_the_base
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 846 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p rh-sim --lib`

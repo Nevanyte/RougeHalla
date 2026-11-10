@@ -1,0 +1,68 @@
+{
+  "format": "frost9657-ci-terminal/1",
+  "observedUTC": "2026-11-10 03:49:32 UTC",
+  "repository": "Nevanyte/RougeHalla",
+  "branch": "optimization_port",
+  "source": "9657cd565396a7a5a7190fe66fec3efe885f47f3",
+  "run": {
+    "id": 42748359516,
+    "url": "https://github.com/Nevanyte/RougeHalla/actions/runs/42748359516",
+    "status": "completed",
+    "conclusion": "success",
+    "updatedUTC": "2026-11-10T03:48:27Z",
+    "attempt": 1,
+    "event": "push"
+  },
+  "outcome": "CONFIRMED_COMPLETED_SUCCESS",
+  "jobs": [
+    {
+      "id": 129605784980,
+      "name": "provenance",
+      "url": "https://github.com/Nevanyte/RougeHalla/actions/runs/42748359516/job/129605784980",
+      "status": "completed",
+      "conclusion": "success",
+      "firstFailure": null
+    },
+    {
+      "id": 129605991852,
+      "name": "card-runtime-source",
+      "url": "https://github.com/Nevanyte/RougeHalla/actions/runs/42748359516/job/129605991852",
+      "status": "completed",
+      "conclusion": "success",
+      "firstFailure": null
+    },
+    {
+      "id": 129605991960,
+      "name": "rust",
+      "url": "https://github.com/Nevanyte/RougeHalla/actions/runs/42748359516/job/129605991960",
+      "status": "completed",
+      "conclusion": "success",
+      "firstFailure": null
+    },
+    {
+      "id": 129605992003,
+      "name": "csharp",
+      "url": "https://github.com/Nevanyte/RougeHalla/actions/runs/42748359516/job/129605992003",
+      "status": "completed",
+      "conclusion": "success",
+      "firstFailure": null
+    },
+    {
+      "id": 129605992030,
+      "name": "simulation",
+      "url": "https://github.com/Nevanyte/RougeHalla/actions/runs/42748359516/job/129605992030",
+      "status": "completed",
+      "conclusion": "success",
+      "firstFailure": null
+    }
+  ],
+  "browserProof": {
+    "name": "Browser proof (Chromium over WSS)",
+    "status": "completed",
+    "conclusion": "success",
+    "number": 80,
+    "started_at": "2026-11-10T03:47:15Z",
+    "completed_at": "2026-11-10T03:48:22Z"
+  },
+  "scope": "Actual workflow and all five job conclusions independently confirmed by GitHub GET; no inference from completed steps. Prior watch/failure receipts unchanged. No rerun/dispatch/build/source/Git/Unity/service/cloud/DNS actions."
+}

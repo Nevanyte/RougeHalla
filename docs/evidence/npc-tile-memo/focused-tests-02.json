@@ -1,0 +1,16 @@
+{
+  "args": [
+    "cargo",
+    "test",
+    "--locked",
+    "--offline",
+    "-p",
+    "rh-sim",
+    "--lib",
+    "npc_cache_tests"
+  ],
+  "exit": 0,
+  "seconds": 47.405545208,
+  "utc": "2026-11-10T04:13:13.970288+00:00",
+  "correction": "Only NPC test fixture status belongs to Mob, not FighterCore; production source unchanged."
+}

@@ -1,0 +1,17 @@
+== baseline scope 2026-11-10T10:06:05Z
+pwd: /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-path-budget
+git HEAD: 374033999c3aa9bd4cfc1e002d243786879c4a7b
+branch: codex/deepseek-path-budget
+git status --porcelain:
+?? docs/evidence/bot-path-budget-native/
+rustc: rustc 1.97.0 (2d8144b78 2026-07-07)
+cargo: cargo 1.97.0 (c980f4866 2026-06-30)
+rustup toolchain: [toolchain]
+channel = "1.97.0"
+components = ["rustfmt", "clippy"]
+carbo env CARGO_HOME=unset RUSTUP_HOME=unset
+target: /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-path-budget/target/path-budget-build
+file hashes:
+1a25bae35dc5a3533dfeb8b0eb95e26f5a487c9fc9bef63e674554bc78a077b4  crates/rh-policy/src/bots/paths.rs
+4d80b7472c104afe2551a8ac98921637a8148d09a293bbd2b011b408ab740ca2  crates/rh-policy/src/bots/paths_parity_tests.rs
+eee99102ed65c580dfe82e696e32fb9887d7ebc66e935349e43d9bd1ba909a5f  parity/policy/bot-tactics.json

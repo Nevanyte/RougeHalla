@@ -1,0 +1,16 @@
+generic Full8 card-owned ACTUAL prepared capacity ledger (non-overlapping; T0=0):
+  trusted report rows: Vec<CardBleedBucket> actual capacity: capacity=7056 bytes/unit=32 total=225792
+  trusted report derived index: arena node capacity: capacity=7056 bytes/unit=28 total=197568
+  producer exact segment rows: Vec<CardExactRow> actual capacity: capacity=7056 bytes/unit=288 total=2032128
+  producer exact segment derived index: arena node capacity: capacity=7056 bytes/unit=28 total=197568
+  sealed report Card rows: Vec<CardExactRow> actual capacity: capacity=7056 bytes/unit=288 total=2032128
+  sealed report events: Vec<Event> total actual capacity: capacity=7568 bytes/unit=104 total=787072
+  sealed report wish_points: Vec actual capacity: capacity=7568 bytes/unit=2 total=15136
+  8 viewer Card bucket vectors: summed actual Vec<CardBucket> capacity: capacity=63504 bytes/unit=288 total=18289152
+  8 viewer Card derived indexes: summed arena node capacity: capacity=63504 bytes/unit=28 total=1778112
+  8 viewer owned outputs: summed actual Vec<SeenEvent> capacity: capacity=75536 bytes/unit=80 total=6042880
+  card-owned actual prepared capacity total: 31597536 B
+  conservative planning allowance N_new: 46991264 B (separate; not added)
+  unchanged legacy baseline inside the enlarged buffers (separate): 1016832 B
+  test-only transparent Card observer buffers (excluded from ledger): 6042880 B
+  actual prepared caps: report.events=7568 wish=7568 card_event_limit=7056 card_rows=7056 segment_rows=7056 segment_index=7056 trusted_rows=7056 trusted_index=7056 viewer_event_cap=75536 viewer_bucket_cap=63504 viewer_index_cap=63504 viewer_card_limit=7938

@@ -1,0 +1,31 @@
+{
+  "head": "9657cd565396a7a5a7190fe66fec3efe885f47f3",
+  "args": [
+    "cargo",
+    "build",
+    "--release",
+    "--locked",
+    "--offline",
+    "-p",
+    "rh-server",
+    "--features",
+    "postgres",
+    "--bin",
+    "rh-server"
+  ],
+  "exit": 0,
+  "seconds": 71.447661125,
+  "endedUtc": "2026-11-10T03:20:08.963223+00:00",
+  "sourceCleanAtStart": true,
+  "compilerSha256": "09219fe31aa8f6f71454ff1973eef92d7473f89018693a77cdcfabb2758a9fb6",
+  "profile": {
+    "jobs": 4,
+    "incremental": 0,
+    "releaseDebug": 1
+  },
+  "featuresMatchOriginalDemo": true,
+  "earlierPreparationRefusal": "Original compiler.txt includes rustc and cargo versions; first byte-check omitted cargo version and refused before build. Combined identity now matches.",
+  "binary": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/frost-edge-guard-01/postgres-build-01/rh-server",
+  "bytes": 16388552,
+  "sha256": "4d44bf51354d4f1b5fcd392c2bf904e65f83873acfbc1caff22991705101cae0"
+}

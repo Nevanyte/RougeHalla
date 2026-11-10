@@ -1,0 +1,13 @@
+{
+  "sourcePath": "crates/rh-sim/src/systems/frost.rs",
+  "sourceSha256": "2308a5f9f88f01229439b1e40f8bd7c90b9990e97c495b01e3f0328eba76446f",
+  "change": "Pure structural source predicate evaluated only after cheap forward-edge guards",
+  "executedFrostTests": 32,
+  "ignoredPreexistingUnitAllocationCases": 2,
+  "contentTests": 21,
+  "formatExit": 0,
+  "clippyExit": 0,
+  "performanceStatus": "CAPTURED_ONE_POST_CHANGE_RUN_NO_CPU_IMPROVEMENT_DEMONSTRATED",
+  "scope": "Rust only; no Unity/client changes or builds",
+  "nativeBinarySha256": "4d44bf51354d4f1b5fcd392c2bf904e65f83873acfbc1caff22991705101cae0"
+}

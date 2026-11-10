@@ -1,0 +1,38 @@
+{
+ "format": "rh-bot-module-goal-key-evidence/1",
+ "sourceOnly": true,
+ "counts": {
+  "cases": 4,
+  "methodCalls": 48,
+  "reachedAssertions": 4,
+  "semanticControlsKilled": 4,
+  "comment": "NONKILL",
+  "restored": "ALL_FOUR_CASES_IDENTICAL",
+  "primary17": "UNCHANGED"
+ },
+ "files": {
+  "docs/evidence/bot-module-goal-key-source/FROZEN_MANIFEST.json": {
+   "bytes": 1585,
+   "sha256": "fc8f67be6e2153bd1d90ff1cd0b02467698ca35385bf29dd1c1b7bc4c6377d97"
+  },
+  "docs/evidence/bot-module-goal-key-source/README.md": {
+   "bytes": 6237,
+   "sha256": "0b902dc6542d095c7bb2271e944e642eba41f1a552cc8cc7bb636c336222fc7a"
+  },
+  "docs/evidence/bot-module-goal-key-source/logs/capture-final.log": {
+   "bytes": 529,
+   "sha256": "146ebd709db0d0bafcd118544460cf774e391993d9a4c4bcd73214c0f614b22b",
+   "lines": 6
+  },
+  "docs/evidence/bot-module-goal-key-source/logs/controls-final.log": {
+   "bytes": 1738,
+   "sha256": "6b9b7ea026bdb8292bb9e76ca57cc3148e4fddc91c6356b5de32107c14e50d02",
+   "lines": 9
+  },
+  "docs/evidence/bot-module-goal-key-source/logs/verify-final.log": {
+   "bytes": 1284,
+   "sha256": "19b4d903107c1bb0cba061d0f80b9f5c440828c1cc9d8e7299f85675366a9071",
+   "lines": 5
+  }
+ }
+}

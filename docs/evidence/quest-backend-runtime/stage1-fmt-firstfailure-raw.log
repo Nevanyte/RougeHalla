@@ -1,0 +1,75 @@
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-quest-runtime/crates/rh-sim/src/quests/live.rs:426:
+             .iter()
+             .find(|(who, _)| *who == *killer)
+             .map_or(0, |(_, seen)| *seen);
+-        let change = objective.advance(Credited::Mob { zone: *zone, elite: *elite }, have, mask);
++        let change = objective.advance(
++            Credited::Mob {
++                zone: *zone,
++                elite: *elite,
++            },
++            have,
++            mask,
++        );
+         let q = hx.w.quests.as_mut().unwrap();
+         let offer = &mut q.offers[oi];
+         match change {
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-quest-runtime/crates/rh-sim/src/quests/live.rs:1019:
+     }
+     Ok(())
+ }
++
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-quest-runtime/crates/rh-sim/src/quests/mod.rs:11:
+ #[cfg(test)]
+ mod lifecycle_tests;
+ pub mod live;
+-pub(crate) mod objectives;
+ #[cfg(test)]
+ mod live_tests;
+ #[cfg(test)]
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-quest-runtime/crates/rh-sim/src/quests/mod.rs:19:
+ mod notices;
+ #[cfg(test)]
+ mod notices_source_tests;
++pub(crate) mod objectives;
+ pub(crate) use notices::quest_gv_text;
+ pub mod placement;
+-pub mod roster;
+ pub(crate) mod rewards;
++pub mod roster;
+ pub mod rules;
+ #[cfg(test)]
+ mod tests;
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-quest-runtime/crates/rh-sim/src/quests/objectives.rs:56:
+     /// progress/region matching. A cap is a no-op, never a write of zero or a new row.
+     pub(crate) fn advance(&self, credited: Credited, current: u32, mask: u8) -> Advance {
+         match (self.kind, credited) {
+-            (ObjectiveKind::Kill, Credited::Player) if self.players => count_step(current, self.count),
++            (ObjectiveKind::Kill, Credited::Player) if self.players => {
++                count_step(current, self.count)
++            }
+             (ObjectiveKind::Kill, Credited::Mob { zone, elite }) if !self.players => {
+                 if self.elite && !elite {
+                     return Advance::None;
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-quest-runtime/crates/rh-sim/src/quests/objectives.rs:66:
+                     let progress = self.count.min(u32::from(visits.count_ones()));
+                     return Advance::Tour { visits, progress };
+                 }
+-                if self.region.is_none_or(|region| region.code() == zone.code()) {
++                if self
++                    .region
++                    .is_none_or(|region| region.code() == zone.code())
++                {
+                     count_step(current, self.count)
+                 } else {
+                     Advance::None
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-quest-runtime/crates/rh-sim/src/quests/rewards.rs:4:
+ use super::rules;
+ use crate::events::Event;
+ use crate::mob_catalog::MobTypeId;
+-use crate::statics::MatchStatic;
+ use crate::state::{PlayerId, World};
++use crate::statics::MatchStatic;
+ 
+ #[derive(Clone, Copy, Debug)]
+ pub(crate) struct Plan {

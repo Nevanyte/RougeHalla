@@ -1,0 +1,22 @@
+# command: cargo test -p rh-server --lib --offline --locked -j 1 room::quest_bridge_tests
+# cwd: /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-quest-room-delivery
+# HEAD: 9ee84dfe3fa35cfdefc4b6cabaf4b9091db6a24c
+# env: CARGO_INCREMENTAL=0 CARGO_TARGET_DIR=target-deepseek-quest-room-delivery CARGO_NET_OFFLINE=true CARGO_BUILD_JOBS=1
+# PATH: /Users/nevinmckinnon/.cargo/bin first
+# cargo: cargo 1.97.0 (c980f4866 2026-06-30)
+# rustc: rustc 1.97.0 (2d8144b78 2026-07-07)
+# started: 2026-11-10T11:32:59Z
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.18s
+     Running unittests src/lib.rs (target-deepseek-quest-room-delivery/debug/deps/rh_server-64c4598d12265375)
+
+running 5 tests
+test room::quest_bridge_tests::quest_bridge_wire_bounds_cover_the_native_domain ... ok
+test room::quest_bridge_tests::quest_bridge_room_failed_enqueue_accept_resync_and_resume ... ok
+test room::quest_bridge_tests::quest_bridge_preview_hidden_and_closed_refs_never_accept ... ok
+test room::quest_bridge_tests::quest_room_earned_shards_completion_delivers_exact_owner_and_foreign_toasts ... ok
+test room::quest_bridge_tests::quest_bridge_native_token_and_parcel_keep_the_existing_pickup_door ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 218 filtered out; finished in 8.45s
+
+# exit: 0
+# finished: 2026-11-10T11:33:09Z

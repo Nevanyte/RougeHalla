@@ -291,7 +291,6 @@ impl ItemObserver {
         let Some(me) = sim.player(self.viewer) else {
             return Ok(());
         };
-        self.vision.begin(sim, me, self.sampled.is_some());
         let from = me.pos();
         let map = sim.collision_view();
         let wards = crate::vision::WardSight::of_sim(sim);
@@ -458,6 +457,11 @@ impl ItemObserver {
         if self.sampled.is_some_and(|t| t > tick) {
             return Err(OfferError::EarlierTick);
         }
+        // NPC observation also uses this memo when candidates are unchanged in this tick.
+        // Revalidate the actual arena and trail on every preparation, including discarded offers.
+        if let Some(me) = sim.player(self.viewer) {
+            self.vision.begin(sim, me, self.sampled.is_some());
+        }
         let mut changed = false;
         let absent = sim.player(self.viewer).is_none();
         if absent {
@@ -475,7 +479,14 @@ impl ItemObserver {
         if changed && self.next + self.scratch.len() as u64 > u32::MAX as u64 + 1 {
             return Err(OfferError::HandlesExhausted);
         }
-        crate::observe::observe_with(sim, self.viewer, events, out, cache)?;
+        crate::observe::observe_with_tiles(
+            sim,
+            self.viewer,
+            events,
+            out,
+            cache,
+            Some(&mut self.vision),
+        )?;
         if sim.w.quests.is_some() && sim.player(self.viewer).is_some_and(|p| !p.seat.bot) {
             out.quests = Some(quest_view);
         }

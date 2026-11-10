@@ -1,0 +1,8 @@
+Training generated unit: byte-identical to29a7d597
+Training unit SHA256: 67a635bfe4ae472d09b1a4c85ba083d13795046c3a3baa80b0597796e2bf2d81
+Source
+ExecStartPre=+/usr/bin/python3 -I /usr/local/lib/rh-demo/bootstrap.py guard
+ExecStart=/opt/rougehalla-demo/rh-server --runtime source-arena --bind 127.0.0.1:7777 --instance-id offline-review-source-arena --map /opt/rougehalla-demo/source-map.json --result-spool /var/lib/rougehalla-demo/spool --min-players 1 --fill-bots 8 --max-rooms 1 --lobby-seconds 10 --fill-seconds 3 --database-url postgresql://rougehalla@localhost/roguehalla?host=/run/rh-demo-pg --bot-learning off --api-cors-origins https://play.rougehalla.com --client-ip-header x-forwarded-for --trusted-proxies 127.0.0.1
+Training
+ExecStartPre=+/usr/bin/python3 -I /usr/local/lib/rh-demo/bootstrap.py guard
+ExecStart=/opt/rougehalla-demo/rh-server --runtime training --bind 127.0.0.1:7779 --instance-id offline-review-training --min-players 1 --fill-bots 0 --max-rooms 1 --lobby-seconds 0 --fill-seconds 0 --database-url postgresql://rougehalla@localhost/roguehalla?host=/run/rh-demo-pg --bot-learning off --api-cors-origins https://play.rougehalla.com --client-ip-header x-forwarded-for --trusted-proxies 127.0.0.1

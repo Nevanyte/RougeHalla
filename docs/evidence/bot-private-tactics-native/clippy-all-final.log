@@ -1,0 +1,4 @@
+# clippy all-features
+$ cargo clippy -p rh-policy --lib --tests --all-features --locked --offline -j 1 -- -D warnings
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.19s
+exit: 0

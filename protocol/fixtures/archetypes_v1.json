@@ -297,7 +297,7 @@
     "zombie": 12
   },
   "axes": "sim units; +x east, +y south (north is -y); the body box is centred at feet + bodyOffset; chest = -bodyOffset.y",
-  "contentHash": "06e2cdab2889abc5",
+  "contentHash": "a2d1022ebe713382",
   "format": "rh-hitbox-archetypes/1",
   "source": "crates/rh-sim/src/archetype.rs (ADR0024); the live client reads the same table from the protocol-16 Welcome"
 }

@@ -36,8 +36,10 @@ use std::time::{Duration, Instant};
 /// Version 16 (protocol 16, observation 22) adds actor/self hitbox archetype ids and projectile heights (ADR0024).
 /// Version 17 (protocol 16, observation 23) adds the legacy indicator facts (ADR0026): actor/self indicator flags, off-hand,
 /// build marks and mark plate, windup/cancel/heal/signature-hit fx with hit kinds and crits, and the match roster.
+/// Version 18 (protocol 16, observation 24) unions the Card bleed public `Hit` projection (backend, OBS 22 knowledge change)
+/// with the version 17 indicator facts.
 /// Explicit native compatibility policies retain their separately declared input kind.
-pub const POLICY_CONTRACT_VERSION: u16 = 17;
+pub const POLICY_CONTRACT_VERSION: u16 = 18;
 
 /// Everything a policy may know about a match before its first observation, all of it public static data (the map
 /// and spawn points), never match state. Never a [`rh_sim::Secrets`] value and never the sim itself (C-OBS, C-RNG, C-POLICY).
@@ -1846,7 +1848,7 @@ mod frost_tests {
         assert!(seen
             .iter()
             .all(|o| o.version == rh_sim::OBSERVATION_VERSION));
-        assert_eq!(POLICY_CONTRACT_VERSION, 17);
+        assert_eq!(POLICY_CONTRACT_VERSION, 18);
     }
 }
 

@@ -1,0 +1,10 @@
+{
+  "sourceSha256": "e490a5bd49a0ed16c46a12ded554a30634eb9ef5b3f4885f8b6b4058f23edef5",
+  "reviewedSha256": "57f0a846e54b2918fdee85178fa410d9a42c44e279f2480e7f118813826b973d",
+  "changes": [
+    "Require exact P14Ping13/Pong21 binary byte lengths before existing codec (decoder lacks final Pong length check).",
+    "Require public1room/3players at both measured boundaries; preserve any other user presence as incomplete, never stop their session."
+  ],
+  "originalRun": "UNRUN",
+  "scope": "No live network/claims yet; existinghelper/probe unchanged"
+}

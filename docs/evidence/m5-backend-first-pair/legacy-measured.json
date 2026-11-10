@@ -1,0 +1,77 @@
+{
+  "startNs": "3294428379747833",
+  "endNs": "3294458379360500",
+  "startServerTime": 30050,
+  "endServerTime": 60050,
+  "observedSteps": 600,
+  "observedStepSource": "same-room seat0 normally delivered serverTime delta/50ms",
+  "windowWakeDelta": 600,
+  "windowReanchorDelta": 0,
+  "before": {
+    "serverBuild": "7ce408ee96760c6ebb7fcb985c1a1edefba4794789da8adde1103aa377c19f30",
+    "tick": {
+      "wakes": 601,
+      "zeroStepPct": 0,
+      "doubleStepPct": 0,
+      "catchupReanchors": 0,
+      "lateMsP50": 2,
+      "lateMsP95": 4,
+      "workMs": {
+        "p50": 2.35,
+        "p95": 3.65,
+        "p99": 4.59,
+        "max": 25.22,
+        "samples": 601
+      }
+    },
+    "rssMiB": 192,
+    "cpuSeconds": 3
+  },
+  "after": {
+    "serverBuild": "7ce408ee96760c6ebb7fcb985c1a1edefba4794789da8adde1103aa377c19f30",
+    "tick": {
+      "wakes": 1201,
+      "zeroStepPct": 0,
+      "doubleStepPct": 0,
+      "catchupReanchors": 0,
+      "lateMsP50": 2,
+      "lateMsP95": 4,
+      "workMs": {
+        "p50": 2.35,
+        "p95": 3.41,
+        "p99": 4.14,
+        "max": 25.22,
+        "samples": 1201
+      }
+    },
+    "rssMiB": 192,
+    "cpuSeconds": 5
+  },
+  "finalPositions": [
+    {
+      "x": 2544,
+      "y": 2480,
+      "status": "alive",
+      "hp": 1145,
+      "moveSeq": 42,
+      "faction": "holy"
+    },
+    {
+      "x": 2576,
+      "y": 2768,
+      "status": "alive",
+      "hp": 1145,
+      "moveSeq": 42,
+      "faction": "holy"
+    },
+    {
+      "x": 2384,
+      "y": 2640,
+      "status": "alive",
+      "hp": 1145,
+      "moveSeq": 42,
+      "faction": "holy"
+    }
+  ],
+  "tickBoundary": "workMs is rolling last2400 steppingWAKES allroomlife, not isolated30s steps; no quantile subtraction"
+}

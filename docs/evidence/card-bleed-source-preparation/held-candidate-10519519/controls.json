@@ -1,0 +1,124 @@
+{
+ "format": "rh-card-bleed-source-controls/1",
+ "source": {
+  "bytes": 289141,
+  "sha256": "6bd92fff24f2825d708962e24d971adcc0161e271777a8c4bc35681254865af5"
+ },
+ "controls": [
+  {
+   "name": "one-row-per-contribution",
+   "result": "KILL",
+   "file": "packages/server/src/sim/cardHooks.ts",
+   "sourceSha256": "46905d00f5841c216dca43d31a8e97f7d27ef2b826b92406a6110334b50081c1",
+   "mutantSha256": "1cbd85584cf44d0009ad87b8ebd2434900c925df492367b383d7659eaa72b137",
+   "case": "ordered-pairs-and-repeat-pair",
+   "sourceFx": 10,
+   "mutantFx": 282,
+   "firstSource": [
+    {
+     "tick": 13,
+     "time": 650,
+     "fx": {
+      "kind": "hit",
+      "id": "p2",
+      "by": "p0",
+      "amount": 2.6832107739804183,
+      "weapon": null
+     }
+    },
+    {
+     "tick": 13,
+     "time": 650,
+     "fx": {
+      "kind": "hit",
+      "id": "p3",
+      "by": "p1",
+      "amount": 2.6832107739804183,
+      "weapon": null
+     }
+    }
+   ],
+   "firstMutant": [
+    {
+     "tick": 13,
+     "time": 650,
+     "fx": {
+      "kind": "hit",
+      "id": "p2",
+      "by": "p0",
+      "amount": 0.22360089783170145,
+      "weapon": null
+     }
+    },
+    {
+     "tick": 13,
+     "time": 650,
+     "fx": {
+      "kind": "hit",
+      "id": "p3",
+      "by": "p1",
+      "amount": 0.22360089783170145,
+      "weapon": null
+     }
+    },
+    {
+     "tick": 13,
+     "time": 650,
+     "fx": {
+      "kind": "hit",
+      "id": "p2",
+      "by": "p0",
+      "amount": 0.22360089783170145,
+      "weapon": null
+     }
+    },
+    {
+     "tick": 13,
+     "time": 650,
+     "fx": {
+      "kind": "hit",
+      "id": "p3",
+      "by": "p1",
+      "amount": 0.22360089783170145,
+      "weapon": null
+     }
+    }
+   ]
+  },
+  {
+   "name": "strictly-greater-than-500",
+   "result": "KILL",
+   "file": "packages/server/src/sim/cardHooks.ts",
+   "sourceSha256": "46905d00f5841c216dca43d31a8e97f7d27ef2b826b92406a6110334b50081c1",
+   "mutantSha256": "8c75908a02f065374cbc2c68b6d5936d765cd94f4cd798991b75705130c4f415",
+   "case": "first-use-clock-periodic-and-empty-interval",
+   "sourceBoundaryMs": 500,
+   "mutantBoundaryMs": 550,
+   "guard": "first-use report clock flushes at the source 500 ms boundary\n\n550 !== 500\n"
+  },
+  {
+   "name": "skip-run-ended-flush",
+   "result": "KILL",
+   "file": "packages/server/src/sim/cardHooks.ts",
+   "sourceSha256": "46905d00f5841c216dca43d31a8e97f7d27ef2b826b92406a6110334b50081c1",
+   "mutantSha256": "ba00e207d55674d85cfba3905da889a65d178d17333d0895f7f8b55c1a21414e",
+   "case": "run-ended-before-periodic-window",
+   "phase": "ended",
+   "contributions": 6,
+   "feedback": 0,
+   "guard": "run-ended case has a real contribution and flush"
+  },
+  {
+   "name": "comment-only",
+   "result": "NONKILL",
+   "file": "packages/server/src/sim/cardHooks.ts",
+   "sourceSha256": "46905d00f5841c216dca43d31a8e97f7d27ef2b826b92406a6110334b50081c1",
+   "mutantSha256": "9f65b781dd0e0d3b23b1da882b37fe60f1b708b1f5438e0fc8e2cef15364f872",
+   "cases": 7,
+   "transcriptsEqual": true
+  }
+ ],
+ "restored": "FULL_CORPUS_IDENTICAL",
+ "immutableOriginal": "PASS",
+ "safety": "mutants and outputs exist only in one unique disposable container copy; /repo and canonical source.json read-only"
+}

@@ -1,0 +1,12 @@
+{"cwd": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests", "head": "20e9c72d8cb21be3907fcc9e438e751033829273", "code_head": "721d04dabaa734f33835cd69bbb64385843d9a7d", "command": ["/Users/nevinmckinnon/.cargo/bin/cargo", "test", "--release", "-p", "rh-headless", "--test", "source_arena_soak", "--locked", "--offline", "-j", "1", "--", "--ignored"], "CARGO_TARGET_DIR": "target/root-strategy-notice-admission/build", "CARGO_INCREMENTAL": "0", "RUSTFLAGS": ""}
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests/crates/rh-policy)
+   Compiling rh-headless v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests/crates/rh-headless)
+    Finished `release` profile [optimized + debuginfo] target(s) in 2m 01s
+     Running tests/source_arena_soak.rs (target/root-strategy-notice-admission/build/release/deps/source_arena_soak-e24fabbbce2d2cb7)
+
+running 1 test
+test full_map_bot_matches_with_zombie_churn_run_to_completion_deterministically ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 33.34s
+
+{"exit": 0, "wall_seconds": 155.47}

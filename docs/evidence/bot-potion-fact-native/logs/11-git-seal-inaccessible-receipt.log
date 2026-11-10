@@ -1,0 +1,106 @@
+# Git seal attempt - metadata inaccessible under the session file policy (actual)
+
+Workspace: /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-potion-fact
+Git dir:   /Users/nevinmckinnon/Documents/Projects/RogueHalla/.git/worktrees/backend-bot-potion-fact (outside the workspace)
+Date UTC:  Tue Nov 10 09:55:12 UTC 2026
+
+## actual attempted commands and results
+
+$ git add crates/rh-policy/src/bots/potion_fact_tests.rs crates/rh-policy/src/bots/mod.rs docs/evidence/bot-potion-fact-native/README.md docs/evidence/bot-potion-fact-native/MANIFEST.json
+$ for f in docs/evidence/bot-potion-fact-native/logs/*.log; do git add -f "$f"; done
+fatal: Unable to create '/Users/nevinmckinnon/Documents/Projects/RogueHalla/.git/worktrees/backend-bot-potion-fact/index.lock': Operation not permitted
+(repeated once per attempted add; no index change, no commit and no lock retained)
+
+$ git commit -q -m "Prove accepted owner potion healing predicate (P-BOT-POTION-FACT-1)"
+fatal: Unable to create .../index.lock: Operation not permitted
+
+## resulting repository state
+$ git rev-parse HEAD
+3e2d902821dc74ba0ebd003f5a3a95c92d2eb5c5
+HEAD is unchanged at the clean start commit. No permission or ownership was changed.
+
+$ git status --porcelain -uall
+ M crates/rh-policy/src/bots/mod.rs
+?? crates/rh-policy/src/bots/potion_fact_tests.rs
+?? docs/evidence/bot-potion-fact-native/MANIFEST.json
+?? docs/evidence/bot-potion-fact-native/README.md
+
+$ git status --porcelain -uall --ignored | grep bot-potion-fact-native
+?? docs/evidence/bot-potion-fact-native/MANIFEST.json
+?? docs/evidence/bot-potion-fact-native/README.md
+!! docs/evidence/bot-potion-fact-native/logs/00-environment-and-identities.log
+!! docs/evidence/bot-potion-fact-native/logs/01-first-focused-compile-failure.log
+!! docs/evidence/bot-potion-fact-native/logs/02-first-format-check-failure.log
+!! docs/evidence/bot-potion-fact-native/logs/03-first-strict-clippy-failure.log
+!! docs/evidence/bot-potion-fact-native/logs/04-first-proof-assertion-failure.log
+!! docs/evidence/bot-potion-fact-native/logs/04-focused-potion-fact-tests.log
+!! docs/evidence/bot-potion-fact-native/logs/05-delivery-overlap.log
+!! docs/evidence/bot-potion-fact-native/logs/06-trade-inventory-overlap.log
+!! docs/evidence/bot-potion-fact-native/logs/07-fair-percept14-overlap.log
+!! docs/evidence/bot-potion-fact-native/logs/08-fmt-check.log
+!! docs/evidence/bot-potion-fact-native/logs/09-clippy-default-all-targets.log
+!! docs/evidence/bot-potion-fact-native/logs/10-clippy-all-features-all-targets.log
+!! docs/evidence/bot-potion-fact-native/logs/11-git-seal-inaccessible-receipt.log
+
+## exact Root seal commands
+# Add only the owned paths; *.log is gitignored repository-wide, so the exact receipts are force-added by path.
+git add crates/rh-policy/src/bots/potion_fact_tests.rs \
+  crates/rh-policy/src/bots/mod.rs \
+  docs/evidence/bot-potion-fact-native/README.md \
+  docs/evidence/bot-potion-fact-native/MANIFEST.json
+git add -f docs/evidence/bot-potion-fact-native/logs/00-environment-and-identities.log \
+  docs/evidence/bot-potion-fact-native/logs/01-first-focused-compile-failure.log \
+  docs/evidence/bot-potion-fact-native/logs/02-first-format-check-failure.log \
+  docs/evidence/bot-potion-fact-native/logs/03-first-strict-clippy-failure.log \
+  docs/evidence/bot-potion-fact-native/logs/04-first-proof-assertion-failure.log \
+  docs/evidence/bot-potion-fact-native/logs/04-focused-potion-fact-tests.log \
+  docs/evidence/bot-potion-fact-native/logs/05-delivery-overlap.log \
+  docs/evidence/bot-potion-fact-native/logs/06-trade-inventory-overlap.log \
+  docs/evidence/bot-potion-fact-native/logs/07-fair-percept14-overlap.log \
+  docs/evidence/bot-potion-fact-native/logs/08-fmt-check.log \
+  docs/evidence/bot-potion-fact-native/logs/09-clippy-default-all-targets.log \
+  docs/evidence/bot-potion-fact-native/logs/10-clippy-all-features-all-targets.log \
+  docs/evidence/bot-potion-fact-native/logs/11-git-seal-inaccessible-receipt.log
+# then commit. Nothing under target/ is part of the seal.
+
+## final sha256, bytes (exact seal set; MANIFEST and this receipt list each other only as metadata)
+
+a97e9c75bc850906dd106cca4b6a0951895ad91076cef85af21db94b0b0cc401  33878 bytes  crates/rh-policy/src/bots/potion_fact_tests.rs
+fd6c1badbe0fbedd065950f1a509fb8c4000431e5158005cea20b962b7def9a3  2982 bytes  crates/rh-policy/src/bots/mod.rs
+efa62c6427174277dbdb3f2cd2f7b5dfd67293e53d03c87b10cd776e3b2a3317  11761 bytes  docs/evidence/bot-potion-fact-native/README.md
+b81f5699d892ff882f8c84316cd1a4b9abe84e3e86ca15115f82a08d9ee2a86e  17336 bytes  docs/evidence/bot-potion-fact-native/MANIFEST.json
+5517805dbe651f3790889ae7dbc2a786350ae267f262017c4fcb56b1affe6d26  2329 bytes  docs/evidence/bot-potion-fact-native/logs/00-environment-and-identities.log
+7fddb5c534464b2631f659482416209678fec037c871ab43e604bcaee04d694c  1233 bytes  docs/evidence/bot-potion-fact-native/logs/01-first-focused-compile-failure.log
+929ce00797206bac474c8443c9ed9df794b039b64405ddec4e8e6e7dacc7fd39  1404 bytes  docs/evidence/bot-potion-fact-native/logs/02-first-format-check-failure.log
+46140790c0919a6729cfb44aff35eed59e77163f9fb329633e5af6df35c2abdc  1562 bytes  docs/evidence/bot-potion-fact-native/logs/03-first-strict-clippy-failure.log
+f64abe0eb7c6b556ac6f002edd544b659cdc06210acf46482cf6d5fc1adcaa8b  1814 bytes  docs/evidence/bot-potion-fact-native/logs/04-first-proof-assertion-failure.log
+fc9f0b54f2f976814e66b311efcdb61e04a88e32e2240f26fe88581dfeaececb  934 bytes  docs/evidence/bot-potion-fact-native/logs/04-focused-potion-fact-tests.log
+1e96753f95bf6114e4721b7561f9391fdb2d7b1be8aa16a8664ecd7d393c17c3  4102 bytes  docs/evidence/bot-potion-fact-native/logs/05-delivery-overlap.log
+ea8c9664d129340aaf80343eecb6abf8968124b207c47934ae0ae32c8dabccc9  1057 bytes  docs/evidence/bot-potion-fact-native/logs/06-trade-inventory-overlap.log
+5226a5e024e136852d273dd7a5b85a8fbc6e034ad8255442bd264e3383a426f6  1458 bytes  docs/evidence/bot-potion-fact-native/logs/07-fair-percept14-overlap.log
+2f5b2aaff9a7e7752e6691d94e4b574320bf5c3af4c5adb24cd70b9368e9209b  43 bytes  docs/evidence/bot-potion-fact-native/logs/08-fmt-check.log
+c9e1e3430c2198a8fc3f88ecf45fdccf31b354ab94a0baaf0aac5ac0cd50f7f3  294 bytes  docs/evidence/bot-potion-fact-native/logs/09-clippy-default-all-targets.log
+6ea449195edb4bb1a15cdfc327aabd03a8edd3521f213e4f75fa8019fed36bbf  175 bytes  docs/evidence/bot-potion-fact-native/logs/10-clippy-all-features-all-targets.log
+
+## mod.rs diff (the only existing-file edit: the single cfg(test) registration)
+diff --git a/crates/rh-policy/src/bots/mod.rs b/crates/rh-policy/src/bots/mod.rs
+index 32519c6c..5963ae45 100644
+--- a/crates/rh-policy/src/bots/mod.rs
++++ b/crates/rh-policy/src/bots/mod.rs
+@@ -45,6 +45,8 @@ mod paths_parity_tests;
+ #[cfg(test)]
+ mod planning_parity_tests;
+ #[cfg(test)]
++mod potion_fact_tests;
++#[cfg(test)]
+ mod view_parity_tests;
+ #[cfg(test)]
+ mod wish_module_tests;
+
+## new test module identity and scope checks
+$ wc -l crates/rh-policy/src/bots/potion_fact_tests.rs
+     861 crates/rh-policy/src/bots/potion_fact_tests.rs
+$ git diff --stat
+ crates/rh-policy/src/bots/mod.rs | 2 ++
+ 1 file changed, 2 insertions(+)
+No production, Cargo.toml/Cargo.lock, protocol, fixture, Unity, schema or shared-status path appears above or in git status.
