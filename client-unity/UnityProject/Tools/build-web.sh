@@ -34,7 +34,8 @@ version = next(line.split(':', 1)[1].strip() for line in
 result = json.loads(subprocess.check_output(['unity', 'editors', '--installed', '--format', 'json']))
 if not result.get('success'):
     raise SystemExit('Cannot list installed Editors')
-match = next((e for e in result['data'] if e['version'] == version), None)
+editors = result['data']['items'] if isinstance(result['data'], dict) else result['data']
+match = next((e for e in editors if e['version'] == version), None)
 if match is None:
     raise SystemExit(f'Install Unity {version} with Web Build Support first')
 location = pathlib.Path(match['location'])
