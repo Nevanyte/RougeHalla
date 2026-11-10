@@ -132,6 +132,8 @@ fn step_weapon(cx: &mut Cx, ix: FighterIx) {
         start_attack(p, now, cx.ev, weapon, tm, packet);
         let id = p.id;
         if cx.k.config.faction_mode.frost() {
+            // Cover a fighter raised mid-tick after the last reserve point (see frost::after_weapons).
+            cx.s.reserve_actors(cx.w.fighter_count());
             cx.s.attack_started[ix.slot()] = true;
         }
         crate::hooks::fire(
