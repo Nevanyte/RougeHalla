@@ -36,6 +36,7 @@ namespace Roguehalla.Client
         // sending it, so the exit and entry fades can be captured on screen. It goes through the real departure path; it never runs by default.
         bool _fadeDemo; uint _demoId; float _demoNext = 8f, _demoUntil;
         HitboxOverlay _overlay;
+        HitZonePresenter _hitZones;
         WireArchetype[] _archetypes = System.Array.Empty<WireArchetype>();
         /// <summary>True when the <c>?hitboxes=1</c> debug overlay exists (never otherwise).</summary>
         public bool HitboxOverlayActive { get { return _overlay != null; } }
@@ -98,7 +99,7 @@ namespace Roguehalla.Client
             weapon=default; faction=default; kind=default; type=null; return false;
         }
         sealed class Flash { public SpriteRenderer Sprite; public TMP_Text Text; public uint Actor; public float Start, Duration; public Vector3 Position; public Color Color; public float Size; }
-        struct PendingFx { public FxKind Kind; public uint Subject; public float Amount; public double DueMs; public float QueuedAt; }
+        struct PendingFx { public FxKind Kind; public uint Subject; public float Amount; public double DueMs; public float QueuedAt; public float X, Y, A, CreatedAt; public byte Weapon; }
 
         void Awake()
         {
@@ -111,6 +112,7 @@ namespace Roguehalla.Client
             _fadeDemo = Application.absoluteURL != null && Application.absoluteURL.Contains("vision.fadeDemo=1");
             if (HitboxOverlay.Enabled) _overlay = new HitboxOverlay(Child("Hitbox overlay"), _actors);
             _mapRoot = Child("Authoritative map artwork"); _propsRoot = Child("Observed collections"); _fxRoot = Child("Confirmed effects");
+            _hitZones = new HitZonePresenter(Child("Melee hit zones"), id => _actors.Contains(id), UrlSearch());
             _wishes = new ConfirmedWishPresenter(_fxRoot, _actors);
             _wishFx = new WishFxPresenter(Child("Wish effects"), _actors);
             var global = Child("Ambient light");
@@ -129,6 +131,7 @@ namespace Roguehalla.Client
             if (ShowcaseSettings.Current != null) ShowcaseSettings.Current.Changed += ApplyQuality;
             ApplyQuality();
         }
+        static string UrlSearch() { string url = Application.absoluteURL ?? ""; int q = url.IndexOf('?'); return q >= 0 ? url.Substring(q) : ""; }
         Transform Child(string name) { var go = new GameObject(name); go.transform.SetParent(transform, false); return go.transform; }
 
         public void Build(MapBlob map, WireVision vision = null)
@@ -223,7 +226,7 @@ namespace Roguehalla.Client
                 // from appearance or position; draw their latest typed public facts instead.
                 if (_hasMembership && a.Kind != ActorKind.Player) continue;
                 _actors.Present(a.Id, a.X, a.Y, a.Facing, a.HpPct, a.Faction, a.Status, a.Weapon, a.Kind, a.MobType, a.Effects, a.SourceSig, false, a.BarrierPct, a.BarrierRingStep, ArchetypeKey(a.Archetype), FootHx(a.Archetype), FootHy(a.Archetype));
-                _overlay?.NoteActor(a.Id, a.Archetype, (byte)a.Kind);
+                _overlay?.NoteActor(a.Id, a.Archetype, (byte)a.Kind); _hitZones?.NoteActor(a.Id, a.Archetype);
                 _wishFx.NoteActor(a.Id, a.Kind, a.Effects, a.Status != ActorStatus.Dead && a.Status != ActorStatus.Mia);
                 if (_regionProps != null) _regionProps.NoteActor(WorldPoint(a.X, a.Y));
             }
@@ -235,7 +238,7 @@ namespace Roguehalla.Client
                 float mx = initialized ? motion.DrawnX : me.X, my = initialized ? motion.DrawnY : me.Y;
                 _actors.Present(me.Id, mx, my, aimAngle, healthPercent,
                     me.Faction, me.Status, me.Weapon, ActorKind.Player, null, me.Effects, me.SelfSig, true, barrierPercent, me.BarrierRingStep, ArchetypeKey(me.Archetype), FootHx(me.Archetype), FootHy(me.Archetype));
-                _overlay?.NoteActor(me.Id, me.Archetype, (byte)ActorKind.Player);
+                _overlay?.NoteActor(me.Id, me.Archetype, (byte)ActorKind.Player); _hitZones?.NoteActor(me.Id, me.Archetype);
                 _wishFx.NoteActor(me.Id, ActorKind.Player, me.Effects, me.Status == ActorStatus.Alive);
                 Regions.UpdateLocal(mx, my, Time.unscaledTime);
                 if (_regionProps != null) _regionProps.NoteActor(WorldPoint(mx, my));
@@ -247,12 +250,14 @@ namespace Roguehalla.Client
             UpdateEffects();
             _wishes.Tick(_sourceTimeMs);
             _wishFx.Tick(_sourceTimeMs, Time.unscaledDeltaTime);
+            _hitZones?.Tick(Time.unscaledTime, ShowcaseSettings.Current != null && ShowcaseSettings.Current.ReducedMotion);
         }
 
         /// <summary>Latest membership wins over delayed interpolation, before the frame is rendered.</summary>
         public void RefreshVisibility(Session session)
         {
             _archetypes = session != null ? session.Archetypes : System.Array.Empty<WireArchetype>();
+            _hitZones?.SetTable(_archetypes);
             if (_atmos != null) _atmos.SetMatchActive(session != null && session.Phase == MatchPhase.Active);
             _sourceTimeMs = session != null ? session.ServerTimeMs : 0;
             BindVisionSession(session);
@@ -340,7 +345,7 @@ namespace Roguehalla.Client
             foreach(var a in _latestNpcs)
             {
                 _actors.Present(a.Id,a.X,a.Y,a.Facing,a.HpPct,a.Faction,a.Status,a.Weapon,a.Kind,a.MobType,a.Effects,a.SourceSig,false,a.BarrierPct,a.BarrierRingStep,ArchetypeKey(a.Archetype), FootHx(a.Archetype), FootHy(a.Archetype));
-                _overlay?.NoteActor(a.Id, a.Archetype, (byte)a.Kind);
+                _overlay?.NoteActor(a.Id, a.Archetype, (byte)a.Kind); _hitZones?.NoteActor(a.Id, a.Archetype);
                 if (_collectWishNotes) _wishFx.NoteActor(a.Id, a.Kind, a.Effects, a.Status != ActorStatus.Dead && a.Status != ActorStatus.Mia);
                 if (_regionProps != null) _regionProps.NoteActor(WorldPoint(a.X, a.Y));
             }
@@ -460,7 +465,7 @@ namespace Roguehalla.Client
                     continue;
                 }
                 uint subject = f.Kind == FxKind.Hit ? f.Victim : f.Kind == FxKind.Stagger || f.Kind == FxKind.Block ? f.Id : f.By;
-                var cue=new PendingFx{Kind=f.Kind,Subject=subject,Amount=f.Amount};
+                var cue=new PendingFx{Kind=f.Kind,Subject=subject,Amount=f.Amount,X=f.X,Y=f.Y,A=f.A,Weapon=f.Weapon,CreatedAt=Time.unscaledTime};
                 bool own = owner != 0 && (subject == owner || f.By == owner || f.Victim == owner);
                 if (!own && _renderReady && dueMs > _renderMs && dueMs - _renderMs <= MaxFxLeadMs &&
                     _scheduledFx.Count < MaxScheduledFx && _actors.Contains(subject) && !IsLatestNpc(subject))
@@ -498,7 +503,7 @@ namespace Roguehalla.Client
             _pendingFx.Clear();
             _scheduledFx.Clear();
             _wishes.Reset();
-            _wishFx.Reset();
+            _wishFx.Reset(); _hitZones?.Clear();
             _actors.CancelFades(); _visionFog.Reset();
             for (int i = _flashes.Count - 1; i >= 0; i--)
             {
@@ -513,6 +518,7 @@ namespace Roguehalla.Client
         {
                 if (!_actors.TryPosition(f.Subject, out var p)) return;
                 _actors.ConfirmedCue(f.Subject,f.Kind);
+                if (f.Kind == FxKind.Swing && Time.unscaledTime - f.CreatedAt < .35f) _hitZones.Swing(f.Subject, f.Weapon, f.X, f.Y, f.A, Time.unscaledTime);
                 if (_flashes.Count >= 48) return;
                 var flash = _flashPool.Count > 0 ? _flashPool.Pop() : CreateFlash();
                 flash.Actor = f.Subject; flash.Position = p + new Vector3(0, .65f); flash.Start = Time.unscaledTime; flash.Duration = f.Kind==FxKind.Hit ? .55f : .2f;
