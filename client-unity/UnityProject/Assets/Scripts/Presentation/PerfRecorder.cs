@@ -82,6 +82,8 @@ namespace Roguehalla.Client
             ShowcaseQuality? preset; bool adaptive; QualityOverrides overrides;
             QualityFlags.Parse(query ?? "", out preset, out adaptive, out overrides);
             // CONTRAST measurement switches (never a preset): the adaptive outline and the camera sorting layer grab it reads.
+            LocalLightField.CullToView = !(query ?? "").Contains("fx.lightcull=0");     // light culling/sorting A/B (LocalLightField.CullAndSort)
+            ArenaView.LegacyNumberFade = (query ?? "").Contains("fx.numberfade=0");     // damage-number fade A/B (ArenaView.SetNumberAlpha)
             SpriteOutline.Enabled = !(query ?? "").Contains("fx.outline=0"); SpriteOutline.SetGrabPass(!(query ?? "").Contains("fx.outlinegrab=0"));
             if (ShowcaseSettings.Current != null) ShowcaseSettings.Current.SetOverrides(overrides);
             // The render-pass switches (fx.relief, fx.wind, ...) live in AtmosphereQuality: page URL first, the harness flags after (later keys win).
@@ -218,7 +220,7 @@ namespace Roguehalla.Client
         {
             PerfMarks.Reset();
             _gcBytes = 0; _gcFrames = 0; _gcBase = System.GC.CollectionCount(0); _tmpChanges = 0; _lastHeap = System.GC.GetTotalMemory(false);
-            _layoutQueue = _graphicQueue = 0; _layoutMax = _graphicMax = 0;
+            _layoutQueue = _graphicQueue = 0; _layoutMax = _graphicMax = 0; LocalLightField.ResetStats();
             for (int i = 0; i < _counters.Count; i++) { var c = _counters[i]; c.Sum = 0; c.Max = 0; _counters[i] = c; }
             _instanceIdBase = NewInstanceId();
             _windowStart = Time.realtimeSinceStartup;
@@ -242,6 +244,9 @@ namespace Roguehalla.Client
             sb.Append("},\"gcBytesPerFrame\":").Append((_gcBytes / Mathf.Max(1, _gcFrames)).ToString("0", inv))
               .Append(",\"gcCollections\":").Append(System.GC.CollectionCount(0) - _gcBase)
               .Append(",\"heapBytes\":").Append(System.GC.GetTotalMemory(false))
+              .Append(",\"adaptive\":").Append(ShowcaseSettings.Current != null ? ShowcaseSettings.Current.AdaptiveDebug : "null")
+              .Append(",\"lightsOfferedPerFrame\":").Append((LocalLightField.StatOffered / (float)Mathf.Max(1, LocalLightField.StatFrames)).ToString("0.##", inv))
+              .Append(",\"lightsUploadedPerFrame\":").Append((LocalLightField.StatUploaded / (float)Mathf.Max(1, LocalLightField.StatFrames)).ToString("0.##", inv))
               .Append(",\"tmpRebuildsPerSecond\":").Append((_tmpChanges / seconds).ToString("0.#", inv))
               .Append(",\"uiLayoutQueueMean\":").Append(_layoutQ == null ? "null" : (_layoutQueue / frames).ToString("0.##", inv))
               .Append(",\"uiGraphicQueueMean\":").Append(_graphicQ == null ? "null" : (_graphicQueue / frames).ToString("0.##", inv))

@@ -214,9 +214,10 @@ async function session(o, build, quality, zone, round) {
     await page.keyboard.press('Escape'); await sleep(500);
     if (ZONE_TARGET[zone] && !o.anyZone) {   // walk there with the keyboard (the minimap is a local view): steer toward the zone centroid until the local region is the zone
       const [tx, ty, rid] = ZONE_TARGET[zone]; const t0 = Date.now(); let reached = false, last = null, stuckAt = Date.now(), detour = null;
-      const held = new Set(); const setKeys = async keys => { for (const k of [...held]) if (!keys.includes(k)) { await page.keyboard.up(k); held.delete(k); } for (const k of keys) if (!held.has(k)) { await page.keyboard.down(k); held.add(k); } };
-      while (Date.now() - t0 < 75000) {
+      const trace = []; let nextTrace = 0; const held = new Set(); const setKeys = async keys => { for (const k of [...held]) if (!keys.includes(k)) { await page.keyboard.up(k); held.delete(k); } for (const k of keys) if (!held.has(k)) { await page.keyboard.down(k); held.add(k); } };
+      while (Date.now() - t0 < 120000) {
         const p = await page.evaluate(() => ({ r: window.__rhPerf.region, x: window.__rhPerf.x, y: window.__rhPerf.y }));
+        if (Date.now() >= nextTrace) { trace.push([Math.round((Date.now() - t0) / 1000), Math.round(p.x), Math.round(p.y), p.r]); nextTrace = Date.now() + 5000; }
         if (p.r === rid) { reached = true; break; }
         if (last && Math.hypot(p.x - last.x, p.y - last.y) > 24) { last = p; stuckAt = Date.now(); } else if (!last) last = p;
         if (Date.now() - stuckAt > 1200 && !detour) { detour = { until: Date.now() + 1500, keys: Math.random() < .5 ? ['w', 'a'] : ['s', 'd'] }; stuckAt = Date.now(); }
@@ -229,7 +230,7 @@ async function session(o, build, quality, zone, round) {
       }
       if (reached) await sleep(1200);   // a little further in
       await setKeys([]);
-      if (!reached) rec.notes.push('did not reach ' + zone);
+      rec.walkTrace = trace; if (!reached) rec.notes.push('did not reach ' + zone + ' (trace s,x,y,region: ' + JSON.stringify(trace) + ')');
     }
     await sleep(2500);
     let first = true;
