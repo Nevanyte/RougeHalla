@@ -14,7 +14,8 @@ namespace Roguehalla.Client
         CanvasGroup _launchMenuInput;
         AccountHubSnapshot _accountShown;
         HubGuideView _hubGuide;
-        HubAtriumView _atrium;
+        LaunchScreenView _launch;
+        LaunchBackdrop _backdrop;
         HubProgressView _hubProgress;
         AccountRecoveryView _recovery;
         HubCosmeticsView _hubCosmetics;
@@ -24,34 +25,28 @@ namespace Roguehalla.Client
 
         void CreateJoinMenu()
         {
-            _menu = Panel(_root, "JoinMenu", .015f, .17f, .35f, .91f);
+            // The launch screen (legacy menu panel + hub room, see LaunchScreenView) lives in its own legacy-unit stage under JoinMenu.
+            _menu = Rect(_root, "JoinMenu", 0, 0, 1, 1);
             _launchMenuInput = _menu.gameObject.AddComponent<CanvasGroup>();
-            Text(_menu, "Title", "ROGUEHALLA", .06f, .90f, .94f, .99f, 28).color = ShowcasePalette.Gold;
-            Button(_menu, "OpenProfileRecords", "PROFILE & RECORDS", .06f, .82f, .57f, .90f, () => OpenProgress(HubProgressTab.Profile));
+            _launch = gameObject.AddComponent<LaunchScreenView>();
+            _launch.Build(_menu);
+            _backdrop = gameObject.AddComponent<LaunchBackdrop>();
+            _backdrop.Initialize(_client.Cam, _client);
+            _nickname = _launch.Callsign; _nickname.text = _client.Profile;
+            _loadProfile = _launch.Load; _joinMatch = _launch.Play; _joinTraining = _launch.Training;
+            _profileSummary = _launch.RecordText; _launchInfo = _launch.Reason; _accountStatus = _launch.Status;
+            _launch.LoadRequested = () => _client.OpenProfile(_nickname.text, OwnershipKey, PlaytestPasscode);
+            _launch.ProfileRequested = () => OpenProgress(HubProgressTab.Profile);
+            _launch.SignInRequested = () => SetSignInVisible(true);
+            _launch.GuideRequested = () => { CloseHubPanels(); _hubGuide.ShowTab(HubGuideView.GuideTab.Champions); };
+            _launch.PlayRequested = StartRun;
+            _launch.TrainingRequested = StartTraining;
+            _launch.CancelRequested = () => _client.Leave();
+            _launch.FactionChosen = SetFaction;
+            _launch.Atrium.PlayRequested = StartRun;
+            _launch.Atrium.TrainingRequested = StartTraining;
+            _launch.Atrium.FactionPicked = SetFaction;
             InitializeResumeMenu();
-            _nickname = Input(_menu, _client.Profile, .06f, .72f, .68f, .81f);
-            _loadProfile = Button(_menu, "LoadProfile", "LOAD", .71f, .72f, .94f, .81f,
-                () => _client.OpenProfile(_nickname.text, OwnershipKey, PlaytestPasscode));
-            _profileSummary = Text(_menu, "ProfileSummary", "Enter a callsign to load or claim it.\nYour saved ownership stays on this device.", .06f, .54f, .94f, .71f, 16);
-            _factionLabel = Text(_menu, "Faction", "", .06f, .46f, .94f, .53f, 17);
-            for (int i = 0; i < Factions.Length; i++)
-            {
-                int selected = i;
-                float x = .06f + i % 2 * .46f, y = .37f - i / 2 * .09f;
-                var button = Button(_menu, "Faction" + Factions[i], ShowcasePalette.GetFactionMark(i) + " " + Factions[i], x, y, x + .42f, y + .08f, () => SetFaction(selected));
-                button.GetComponentInChildren<TMP_Text>().color = ShowcasePalette.Faction(i);
-            }
-            Button(_menu, "SignInOptions", "SIGN-IN OPTIONS", .52f, .19f, .94f, .27f, () => SetSignInVisible(true));
-            _joinMatch = Button(_menu, "Join", "START RUN", .06f, .065f, .48f, .16f, () =>
-            {
-                _showcaseAudio?.UnlockFromUserGesture(); _client.Join(_nickname.text, _faction, MatchLaunchMode.Arena);
-            });
-            _joinTraining = Button(_menu, "JoinTraining", "TRAINING", .52f, .065f, .94f, .16f, () =>
-            {
-                _showcaseAudio?.UnlockFromUserGesture(); _client.Join(_nickname.text, _faction, MatchLaunchMode.Training);
-            });
-            _launchInfo = Text(_menu, "LaunchAvailability", "", .06f, .005f, .94f, .06f, 13);
-            _accountStatus = Text(_root, "AccountStatus", "", .025f, .09f, .95f, .16f, 17);
             _signInBackdrop = Panel(_root, "SignInModal", 0, 0, 1, 1);
             _signInBackdrop.GetComponent<UnityEngine.UI.Image>().color = UiTheme.Current.Scrim;
             _signInBackdrop.gameObject.AddComponent<ModalDismissSurface>().Dismiss = () => SetSignInVisible(false);
@@ -67,6 +62,16 @@ namespace Roguehalla.Client
             Button(_signIn, "OpenRecovery", "RECOVERY KEY", .52f, .035f, .94f, .16f, OpenRecovery);
             SetSignInVisible(false);
             _nickname.onValueChanged.AddListener(name => { _client.SelectProfile(name); _ownershipKey.text = ""; });
+        }
+        void StartRun()
+        {
+            if (_joinMatch == null || !_joinMatch.interactable) return;
+            _showcaseAudio?.UnlockFromUserGesture(); _client.Join(_nickname.text, _faction, MatchLaunchMode.Arena);
+        }
+        void StartTraining()
+        {
+            if (_joinTraining == null || !_joinTraining.interactable) return;
+            _showcaseAudio?.UnlockFromUserGesture(); _client.Join(_nickname.text, _faction, MatchLaunchMode.Training);
         }
         // The pending menu keeps Leave available in the global header while preventing
         // controls from reaching a destination that has not delivered its mode fact.
@@ -94,7 +99,7 @@ namespace Roguehalla.Client
             _recovery = gameObject.AddComponent<AccountRecoveryView>(); _recovery.Initialize(_root, _client.AccountFlow, ReadRecoveryKey);
             _hubProgress = gameObject.AddComponent<HubProgressView>(); _hubProgress.Initialize(_root, _client.AccountOwner);
             _hubCosmetics = gameObject.AddComponent<HubCosmeticsView>(); _hubCosmetics.Initialize(_root, _client.AccountOwner);
-            _atrium = gameObject.AddComponent<HubAtriumView>(); _atrium.Initialize(_root, destination =>
+            _launch.Atrium.SetStationHandler(destination =>
             {
                 if (!_menu.gameObject.activeSelf || _signIn.gameObject.activeSelf || _settings.gameObject.activeSelf) return;
                 CloseHubPanels();
@@ -107,19 +112,20 @@ namespace Roguehalla.Client
                 else if (destination == HubDestination.Wardrobe) OpenCosmetics(HubCosmeticsTab.Wardrobe);
                 else if (destination == HubDestination.Titles) OpenCosmetics(HubCosmeticsTab.Titles);
             });
-            _atrium.SetFaction(_faction);
+            _launch.Atrium.SetFaction(_faction);
             bool services = _client.AccountOwner?.Api != null;
             foreach (var destination in new[] { HubDestination.Shop, HubDestination.Wardrobe, HubDestination.Titles, HubDestination.Achievements, HubDestination.Leaderboard })
-                _atrium.SetStationAvailable(destination, services, services ? "Open " + destination + "." : "Account services are unavailable for this connection.");
-            var close = _root.Find("HubAtrium/CloseAtrium"); if (close != null) close.gameObject.SetActive(false);
+                _launch.Atrium.SetStationAvailable(destination, services, services ? "" : "This needs your account, which isn't available from this page.");
         }
         void TickHubAtrium()
         {
-            if (_atrium == null) return;
+            if (_launch == null) return;
             bool menu = _menu.gameObject.activeSelf;
-            _atrium.SetVisible(menu);
+            _launch.Atrium.SetVisible(menu);
+            _backdrop?.SetVisible(menu);
             if (!menu) return;
-            _atrium.ReadInput(!Typing && !_signIn.gameObject.activeSelf && !_settings.gameObject.activeSelf && !AnyHubPanelVisible &&
+            _launch.SetVeil(_backdrop == null ? 0f : 1f - _backdrop.Reveal);
+            _launch.Atrium.ReadInput(!Typing && !_signIn.gameObject.activeSelf && !_settings.gameObject.activeSelf && !AnyHubPanelVisible &&
                 !_help.gameObject.activeSelf && !ResumeChooserVisible);
         }
 
@@ -153,7 +159,7 @@ namespace Roguehalla.Client
 
         void RefreshAccountMenu()
         {
-            if (_client == null || _profileSummary == null) return;
+            if (_client == null || _launch == null) return;
             var state = _client.AccountFlow?.Snapshot;
             if (!ReferenceEquals(state, _accountShown))
             {
@@ -161,46 +167,78 @@ namespace Roguehalla.Client
                 if (state?.Profile != null)
                 {
                     var p = state.Profile;
-                    _profileSummary.text = p.Name + "\nGV " + p.Gv.ToString("N0") + " · Lifetime " + p.GvLifetime.ToString("N0") +
-                        "\nRuns " + p.Runs + " · Wins " + p.Wins + " · Draws " + p.Draws + "\nDeaths " + p.Deaths + " · Kills " + p.Kills;
+                    _launch.SetRecord(p.Gv.ToString("N0"), "Lifetime " + p.GvLifetime.ToString("N0") + "\nRuns " + p.Runs + " · Wins " + p.Wins + " · Kills " + p.Kills);
                 }
-                else _profileSummary.text = "Enter a callsign to load or claim it.\nYour saved ownership stays on this device.";
+                else _launch.SetRecordEmpty("Load a callsign to see its record, or just play to claim it.");
             }
             bool busy = (state != null && state.Busy) || _client.ResumeBusy;
+            bool pending = _client.LaunchPending;
             _loadProfile.interactable = !busy && !_client.IsDiagnostic;
             var arena = _client.LaunchTarget(MatchLaunchMode.Arena);
             var training = _client.LaunchTarget(MatchLaunchMode.Training);
             bool account = _client.IsDiagnostic || _client.AccountFlow != null;
-            _joinMatch.interactable = !busy && !_client.LaunchPending && account && arena.Available;
-            _joinTraining.interactable = !busy && !_client.LaunchPending && !_client.IsDiagnostic && account && training.Available;
+            string callsignProblem = _client.IsDiagnostic ? null : LaunchCopy.CallsignProblem(_nickname.text);
+            bool ready = !busy && !pending && account && arena.Available && callsignProblem == null;
+            bool trainingReady = !busy && !pending && !_client.IsDiagnostic && account && training.Available && callsignProblem == null;
+            _joinMatch.interactable = ready;
+            _joinTraining.interactable = pending || trainingReady;
             RefreshResumeMenu(state, busy, arena, training);
-            string launchInfo = !arena.Available ? arena.UnavailableReason : !training.Available ? training.UnavailableReason :
-                "Arena run or solo Training · last destination: " + _client.SelectedLaunchMode;
-            if (_launchInfo.text != launchInfo) _launchInfo.text = launchInfo;
+            _launch.SetPlay(pending ? "CONNECTING…" : "START RUN", ready, pending);
+            _launch.Atrium.SetPlayAvailable(ready, WhyNotPlay(account, callsignProblem, arena), trainingReady, WhyNotTraining(account, callsignProblem, training));
+
+            string reason = "";
+            if (!pending && !busy)
+            {
+                reason = WhyNotPlay(account, callsignProblem, arena);
+                if (reason.Length == 0 && !training.Available) reason = LaunchCopy.UnavailableText(MatchLaunchMode.Training, training);
+                if (reason.Length == 0 && !_client.IsDiagnostic) reason = "Training is a private practice room. Nothing is recorded.";
+            }
             string status = _client.AccountUiError;
             string resumeStatus = _client.ResumeStatus ?? "";
             if (!string.IsNullOrEmpty(resumeStatus)) status = resumeStatus;
+            if (string.IsNullOrEmpty(status) && pending) status = LaunchCopy.PendingText(_client.SelectedLaunchMode);
+            if (string.IsNullOrEmpty(status) && _session != null && !pending)
+                status = LaunchCopy.SessionFailureText(_session.State, _session.RejectReason);
             if (string.IsNullOrEmpty(status) && state != null)
             {
                 if (busy) status = state.State == AccountHubState.PreparingJoin ? "Checking your profile and joining…" : state.State == AccountHubState.Refreshing ? "Refreshing your profile…" : "Loading your profile…";
-                else if (state.ConnectionFailure != AccountConnectionFailure.None) status = "The account and match server addresses do not match. Check the connection settings.";
+                else if (state.ConnectionFailure != AccountConnectionFailure.None) status = "The account service and the game server aren't on the same site. Open the game from its main address.";
                 else if (state.Failure != AccountFailure.None && state.Failure != AccountFailure.Cancelled) status = AccountFailureText(state.Failure);
-                else if (state.Recovery == AccountCredentialRecovery.PageLifetimeOnly) status = "This browser could not save your ownership. Open Sign-in options → Recovery key and save it before closing this page.";
-                else if (state.Profile != null) status = "Profile loaded. Choose a faction and start your run.";
+                else if (state.Recovery == AccountCredentialRecovery.PageLifetimeOnly) status = "This browser couldn't save your ownership. Open Sign-in → Recovery key and save it before closing this page.";
+                else if (state.Profile != null) status = "Profile loaded. Pick a faction and start your run.";
             }
-            if (_accountStatus.text != status) _accountStatus.text = status;
-            _accountStatus.gameObject.SetActive(_menu.gameObject.activeSelf);
+            _launch.SetMessages(status, reason);
+            if (_launch.Status.color != StatusTone(status, pending, busy)) _launch.Status.color = StatusTone(status, pending, busy);
+        }
+        Color StatusTone(string status, bool pending, bool busy)
+        {
+            var theme = UiTheme.Current;
+            if (pending || busy) return theme.TextPrimary;
+            if (status != null && status.StartsWith("Profile loaded")) return theme.Success;
+            return theme.Warning;
+        }
+        static string WhyNotPlay(bool account, string callsignProblem, MatchLaunchTarget arena)
+        {
+            if (!account) return "Accounts aren't reachable from this page. Reload, or open the game from its main address.";
+            if (callsignProblem != null) return callsignProblem;
+            return arena.Available ? "" : LaunchCopy.UnavailableText(MatchLaunchMode.Arena, arena);
+        }
+        static string WhyNotTraining(bool account, string callsignProblem, MatchLaunchTarget training)
+        {
+            if (!account) return "Accounts aren't reachable from this page. Reload, or open the game from its main address.";
+            if (callsignProblem != null) return callsignProblem;
+            return training.Available ? "" : LaunchCopy.UnavailableText(MatchLaunchMode.Training, training);
         }
         static string AccountFailureText(AccountFailure failure)
         {
             switch (failure)
             {
                 case AccountFailure.InvalidName: return "Use 2–16 letters, numbers, underscores or hyphens for your callsign.";
-                case AccountFailure.Taken: return "This callsign needs its owner's sign-in key. Sign in or choose another name.";
-                case AccountFailure.PasscodeRequired: return "A playtest access code is required. Open Sign-in options.";
+                case AccountFailure.Taken: return "This callsign belongs to someone else. Sign in with its key, or pick another name.";
+                case AccountFailure.PasscodeRequired: return "A playtest access code is required. Open Sign-in and enter it.";
                 case AccountFailure.RateLimited: return "Too many attempts. Wait a moment, then try again.";
-                case AccountFailure.Unreadable: return "The profile response could not be read. Please try again.";
-                default: return "The profile service is unavailable. Please try again.";
+                case AccountFailure.Unreadable: return "The account service sent something unreadable. Please try again.";
+                default: return "Couldn't reach the account service. Check your connection and try again.";
             }
         }
     }

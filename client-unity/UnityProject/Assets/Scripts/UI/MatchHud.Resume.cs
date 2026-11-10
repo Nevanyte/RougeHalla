@@ -28,7 +28,8 @@ namespace Roguehalla.Client
 
         void InitializeResumeMenu()
         {
-            _resumeButton = Button(_menu, "ResumeRun", "RESUME…", .60f, .82f, .94f, .90f, OpenResumeChooser);
+            _resumeButton = _launch.Resume;
+            _launch.ResumeRequested = OpenResumeChooser;
 
             _resumeOverlay = Panel(_root, "ResumeRunOverlay", 0, 0, 1, 1);
             _resumeOverlay.GetComponent<UnityEngine.UI.Image>().color = UiTheme.Current.Scrim;

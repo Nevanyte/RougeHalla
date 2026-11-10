@@ -19,7 +19,7 @@ namespace Roguehalla.Client
         RectTransform _root, _stage, _chromeStage, _menu, _hud, _rewards, _results, _settings;
         HudStage _stageScaler, _chromeScaler;
         TMP_InputField _nickname;
-        TMP_Text _factionLabel, _banner, _vitals, _build, _wishCard, _rewardTitle, _resultTitle, _resultText, _notice;
+        TMP_Text _banner, _vitals, _build, _wishCard, _rewardTitle, _resultTitle, _resultText, _notice;
         RectTransform _healthBarFill, _barrierBarFill;
         readonly UnityEngine.UI.Button[] _options = new UnityEngine.UI.Button[3];
         readonly UnityEngine.UI.Button[] _headerActions = new UnityEngine.UI.Button[3];
@@ -111,10 +111,9 @@ namespace Roguehalla.Client
         {
             _faction = value;
             _client?.SelectFaction(value);
-            _atrium?.SetFaction(value);
+            _launch?.SetFaction(value);
+            _backdrop?.FocusFaction(value);
             _hubGuide?.SetFaction(value);
-            _factionLabel.text = "FACTION  " + ShowcasePalette.GetFactionMark(value) + "  " + Factions[value].ToUpperInvariant();
-            _factionLabel.color = ShowcasePalette.Faction(value);
         }
 
         void ToggleSettings()
@@ -295,7 +294,7 @@ namespace Roguehalla.Client
                 ClosePlayerFlows();
                 _results.gameObject.SetActive(true); _rewards.gameObject.SetActive(false);
             }
-            if ((_session.State == SessionState.Failed || _session.State == SessionState.Rejected || _session.State == SessionState.Ended) && _session.LastResult == null && !PlayerFlowVisible)
+            if ((_session.State == SessionState.Failed || _session.State == SessionState.Rejected || _session.State == SessionState.Ended) && _session.LastResult == null && !PlayerFlowVisible && !_menu.gameObject.activeSelf)
             {
                 _resultText.text = banner + "\nNo authoritative result received.";
                 _resultTitle.color = ShowcasePalette.Warning;
