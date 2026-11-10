@@ -22,7 +22,8 @@ the source-backed boundary and concrete F0/F1 closure needed before any full liv
    `FairPercept14` wrapper preserves all current groups and flags unavailable facts; its existing gaps include immunity,
    remote bow draw, wand cues, flight courses, NPC/item continuity and interpolation. The current public
    `bots::perception::Perception` is intentionally a much smaller adapter and collapses actor keys to `p{id}`/`n{id}`.
-   It cannot be promoted as the full source consumer without a new typed, identity-preserving temporal composer.
+   It cannot be promoted as the full source consumer without a typed accepted-frame composer that reuses the already
+   admitted private `temporal_percept::Ring` core; do not implement another FrameRing.
 2. **Do not fill source gaps from `Sim` or absent protocol fields.** Source `Percept` has separate `now` and `viewT`,
    temporal fighters/mobs/containers/projectiles/minimap/events/extras/features, and the Brain's admitted components
    consume actual Memory and service feedback. A required owner/combat/inventory group may be absent; `Fact` and
@@ -42,13 +43,26 @@ the source-backed boundary and concrete F0/F1 closure needed before any full liv
    HOT update, for the same-sample exact `source_time`; ended frames are outside live Brain ticks and can retain elapsed
    deadlines. This does not produce the absolute deadline. Require producer-boundary controls for start, overlap,
    final expiry, and same-time evaluation before relying on the predicate; preserve missing inventory as unavailable.
+   Adapter acceptance includes BotManager delay-queue admission; a later simulation refusal does not roll the retry clock
+   back. Unsupported messages and adapter/queue refusals do not advance it.
 6. **Learning can reuse existing pure and durable code.** `Brain.end` can remain pure; existing `BotRunFacts` currently
    omits Brain choice list, while `LiveLearning` already writes off-tick to Postgres. Extend this existing adapter only
    if needed, after actual resolved result, and keep training/headless store behavior unchanged. No ML or new store.
 7. **Hosted Source proposal is exact but not runtime-verified here.** For one-owner start, use `--min-players 1`; `--fill-bots 8`
-   is target total occupancy. Proposed flags are `--max-rooms 1 --lobby-seconds 10 --fill-seconds 3
-   --hitboxes archetypes`, alongside the final reviewed map and artifact. Verify these flags and the final binary after
-   merge; current host binary support is not asserted.
+   is target total occupancy. Proposed flags are `--max-rooms 1 --lobby-seconds 10 --fill-seconds 3`, alongside the final
+   reviewed map and artifact. No unsupported `--hitboxes` flag is added; the intended merged branch defaults archetypes.
+   Verify flags/defaults against the final exact-tree binary after merge; merged runtime proof is not asserted.
+
+8. **Owner closure remains open for two exact source-consumed facts.** Strategy reads `self.mobKills`, absent from
+   current protocol14; require source-equivalent accepted-history proof or an entitled owner provider, not default0 or
+   unused `mobStats`. A held-but-redacted owner lock already publishes held-ness but not identity; Memory/Brain/hand
+   consume both. Preserve `Held { target: None }` as an unresolved binding gate, not a fabricated Clear/null target.
+   Owner draw/ready/milli modifiers already exist in `WireOwnerCombat`; power is derivable from required accepted Build
+   and the pinned card-tier catalog. Mob bow draw is consumed by Tactics.kite over fighters and mobs.
+9. **Separate actual MatchStart from seat/static config.** Existing MatchStart contains owner, policy seed, arena,
+   content/observation identities and tick period. Tier/persona come from seat/policy configuration; Features requires
+   explicit reviewed public static setup. These are not missing per-frame publication fields. Private Brain composition
+   remains separate from the unresolved live-binding facts, and Brain alone owns stamped/released `noteSent` updates.
 
 ## Plan boundary
 
