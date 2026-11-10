@@ -1,0 +1,62 @@
+{
+  "status": "CAPTURED_ONE_30S_NATIVE_BACKEND",
+  "measurementWallSeconds": 30.002691749999997,
+  "sampleSpanSeconds": 28.999605458,
+  "sampledCpuSeconds": 1.2799999999999998,
+  "percentOneCpu": 4.413853153463823,
+  "rssMiBMin": 18.484375,
+  "rssMiBMax": 18.609375,
+  "clockDeltas": [
+    {
+      "tick": 600,
+      "serverMs": 30000
+    },
+    {
+      "tick": 600,
+      "serverMs": 30000
+    },
+    {
+      "tick": 600,
+      "serverMs": 30000
+    }
+  ],
+  "wholeRoom": [
+    {
+      "ticks": 1204,
+      "stepUsP50": 1279,
+      "stepUsP99": 3071,
+      "stepUsMax": 5677,
+      "lateWakes": 0,
+      "droppedSteps": 0,
+      "bytesOut": 1373954,
+      "bytesEnqueuedTotal": 1377734,
+      "fxDropped": 0,
+      "snapshotsSkipped": 0,
+      "snapshotsFull": 39,
+      "snapshotsDelta": 3570,
+      "snapshotBytesSent": 1339932,
+      "snapshotRefusals": 0,
+      "frameRefusals": 0,
+      "crashed": false
+    }
+  ],
+  "results": {
+    "resultsOk": 3,
+    "resultsFailed": 0,
+    "resultsRefused": 0
+  },
+  "baselineCpuPercent": 6.758462011454414,
+  "cpuPointEstimateChangePercent": -34.69145574861394,
+  "scope": "Game-server process only; one unprofiled local run per code cut, ambient RNG/spawn history/background load differ; not maximum capacity or statistically established general speedup.",
+  "cleanup": {
+    "utc": "2026-11-10T04:20:13.826017+00:00",
+    "nativePid": 96277,
+    "actualExecToolExit": 0,
+    "psExit": 1,
+    "psOutput": "",
+    "listenerExit": 1,
+    "listeners": [],
+    "pass": true,
+    "controllerStatus": "CAPTURED_ONE_30S_NATIVE_BACKEND"
+  }
+}

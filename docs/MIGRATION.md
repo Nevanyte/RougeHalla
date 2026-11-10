@@ -14,6 +14,15 @@ completed demo window. Local builds/services/user data and worker WIP remain int
 is now terminal SUCCESS across all five jobs. Client/FPS/complete rendered legacy comparison remains with Claude under
 the owner-imposed Codex Unity pause; this cleanup does not complete that remaining performance gate.
 
+**NPC observation cache update, 2026-11-10 04:20 UTC:** private ItemObserver tile-history memo reuse now covers NPC
+observations, preserving fresh LOS/ward/hidden predicates and existing cache sizing. Four new native differential controls,
+20vision tests, the existing zero-warm-allocation pressure check,21content checks, full-faction headless PvE, strict rh-sim
+lint and format pass. The [exact release measurement](evidence/npc-tile-memo/README.md) delivers600ticks/30s with sampled
+processCPU4.41% of one core versus6.76% before, RSS18.48–18.61MiB and all normal result/cleanup checks passing.
+This is a34.7% lower point reading from one run; differing spawn/reveal history and ambient/background work prevent attributing
+all of it to the cache or claiming a general speedup. No world/wire/content/Unity field changed. The source cut85e2d7c2 is
+locally verified and awaits its own normalCI; the prior9657CI remains green at its recorded cut.
+
 **Unity ownership change, 2026-11-10:** the owner has paused all Codex Unity development and assigned it to Claude.
 Unity code/assets/builds, client profiling and browser/Editor work are stopped. Root continues Rust/backend/AWS
 coordination. The one approved local benchmark attempt ended before measurement with
