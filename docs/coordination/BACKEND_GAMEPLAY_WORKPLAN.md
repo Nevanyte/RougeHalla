@@ -34,8 +34,10 @@ are in [MIGRATION.md](../MIGRATION.md#morning-release-direction-owner-instructio
 - **Quest backend architecture and bounded parity admitted:** stored-mask repair `8a11520d` + `56843a8e`, behavior-
   preserving objective/reward extraction `ad98c441` + `9debd3e2`, and all six bounded notice/view cases `51a43597` +
   `0085ff79`. Their real producer, diagnostic/direct-producer and comparison limits stay explicit. The independently reviewed [completion-through-Room/Outbox/decode proof](../backlog/packets/P-QUEST-ROOM-DELIVERY-1.md)
-  is dispatched from `9ee84dfe` to isolated `backend-quest-room-delivery`; no literal181-record equality or browser proof is
-  claimed. Future quest design is not invented by these architecture seams.
+  is now independently admitted from `47bf5c0b` as `63dbe68a`, with Root's5-test combined module and format passing.
+  Real accepted travel/pickups/return produce exact owner4/foreign1 decoded completion Toasts. Its labelled bootstrap
+  uses LegacyCircle; no literal181-record equality, hosted startup, Archetypes route or browser proof is claimed.
+  Future quest design is not invented by these architecture seams.
 - **Card feedback independently admitted:** Root sealed DeepSeek's exact58-file candidate as `8d06e5e8` and
   integrated it as `37a02542`; [final review](../evidence/card-bleed-native-review/admission-review.md) closes the
   historical capacity/privacy/strict-intake HOLDs. Author full simulation exits0 (881 library passes/15 ignored,
@@ -72,12 +74,12 @@ The current checkpoint above supersedes the pending/active language in this orig
 
 ## Ownership and dependency notes
 
-**Current worker assignments (2026-11-10):** DeepSeek owns active Card feedback in `backend-card-bleed-feedback`
-(base `03ec330b`), complete private Brain in `backend-bot-brain-native` (base `c050d938`), and the bounded
-quest Room-delivery proof in `backend-quest-room-delivery` (base `9ee84dfe`). Memory, Strategy,
-Tactics, Modules, Hand, PathBudget, Potion proof, quest notices and NPC restore workers are complete; their exact reviewed
-seals are integrated. Sol/Luna handle independent native review and remaining fair-fact equivalence analysis. All workers
-retain Workspace Write and isolated targets. No worker may communicate with Claude before17:30UTC/10:30am Edmonton.
+**Current worker assignments (2026-11-10):** DeepSeek's complete private Brain remains active in
+`backend-bot-brain-native` (base `c050d938`). Card and Quest Room workers are complete and independently admitted as
+`37a02542` and `63dbe68a`; their Root integration checks pass. Memory, Strategy, Tactics, Modules, Hand, PathBudget,
+Potion proof, quest notices and NPC restore are also integrated. Sol/Luna review the isolated Unity/backend preflight
+plan and release preparation; it will use fixed commits without modifying Claude's checkout. Workers retain Workspace
+Write and isolated targets. No worker may communicate with Claude before17:30UTC/10:30am Edmonton.
 
 - **Root:** select current base and feature order; decide fair-publication facts, public identities and whether a card FX can use existing encoding; review isolated DeepSeek changes; update only shared `MIGRATION.md`, `CONTRACTS.md`, and `Cargo.lock` when required.
 - **DeepSeek Rust:** bounded Rust mechanics and fixture-driven policy work in isolated branches, with exact base, exclusive file list, immutable source corpus, focused affected checks, raw evidence and explicit limits. Do not merge or change shared status records. The repository documents branch/PR handoffs in `docs/agent-prompts/5_Codex_Rust_Handoff_To_DeepSeek.md` and records work in `docs/evidence/deepseek-rust/PROGRESS.md`; that handoff prompt contains older stop-new-packets guidance, superseded here by the current owner instruction and root's packet/runtime dispatch. No repository script/tool or credential was invoked.

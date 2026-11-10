@@ -21,8 +21,16 @@ checks and separately run scoped allocation profilers. C-TICK retains the actual
 order. C-OBS keeps raw tagged B3 totals server-only, applies settled entitlement and redaction before grouping/errors,
 and publishes checked finite existing Hit events with no partial failure output. Accepted history grants no fresh
 viewer entitlement; legacy512 non-Card and checked Q+T0 history bounds remain separate. C-DET now identifies
-protocol14/checkpoint30/replay24/OBS22/policy16/content`fa16f195dc22ef69` on this isolated lane. Root's combined checks
-and the later primary/hitbox union are separate; no final client, hosting or complete-port acceptance is implied.
+protocol14/checkpoint30/replay24/OBS22/policy16/content`fa16f195dc22ef69` on this isolated lane. Root's actual combined
+Card29, both CI-feature allocation tests, NPC6, ability63, tape, content21 and format pass. The later primary/hitbox
+union is separate; no final client, hosting or complete-port acceptance is implied.
+
+The [bounded Quest Room delivery proof](evidence/quest-public-completion-room-review/admission-review.md) is released
+from `47bf5c0b` and integrated as `63dbe68a`. C-INPUT/C-OBS are exercised through real joined seats, issued handles,
+accepted moves/pickups, ordinary Room wakes/carry/Outboxes and complete decoded owner4/foreign1 completion Toasts.
+The test-only addition preserves production and the four old tests; Root's combined5-test module and format pass.
+Its labelled active-Sim bootstrap/LegacyCircle route is not hosted startup, browser, all181-record parity or new
+Archetypes-mode acceptance. No wire, rule, reward or host change is made by this proof.
 
 On isolated `codex/backend-gameplay-quests`, the reviewed Grand Tour stored-mask repair is integrated as `8a11520d` +
 `56843a8e`, from DeepSeek seals `4fb5714e` + `36564c33`. C-PARITY includes both actual-source supply outcomes, intended

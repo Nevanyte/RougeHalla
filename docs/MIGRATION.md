@@ -68,11 +68,15 @@ identities and its own gates.
 The test-only potion-fact proof `aa05af1c` is independently admitted as `ae29dc1b`;
 [Root's integrated focused check](evidence/bot-potion-fact-admission-review/README.md) passes5. It verifies same-sample
 Active owner healing eligibility, overlap/expiry, cleanup and mid-HOT restore, with explicit Ended and missing-inventory
-refusal; it does not establish a runner or all nonactive phases. No full Brain or live bot activation is implied. The next independently reviewed [quest Room-delivery proof](backlog/packets/P-QUEST-ROOM-DELIVERY-1.md)
-is dispatched at `9ee84dfe` to isolated `backend-quest-room-delivery`: real completion through accepted movement,
-pickups and ordinary Room wakes, per-viewer Fx carry/Outboxes and decoded Toast privacy/order/tick. Its sole existing
-file lease is additive `quest_bridge_tests.rs` tests; no production or hosting change. Current Source runtime already
-enables quests; the older disabled Room test fixture is not a universal profile gate.
+refusal; it does not establish a runner or all nonactive phases. No full Brain or live bot activation is implied.
+The [quest Room-delivery proof](evidence/quest-public-completion-room-review/admission-review.md) is independently
+released, sealed as `47bf5c0b` and integrated as `63dbe68a`: real completion through issued handles, accepted movement,
+pickups and ordinary Room wakes, actual per-viewer carry/Outboxes and complete decoded owner4/foreign1 Toast vectors.
+The one790-line additive test/helper change preserves all old tests and production behavior. Author focused/module,
+format and both strict lints pass; Root's actual combined5-test module and format pass, with native completion at
+1386/69300ms. This is a labelled active-Sim component bootstrap and LegacyCircle proof, not hosted startup, browser,
+all181-source-record or new live-mode acceptance. Source runtime already enables quests; the older disabled Room
+test fixture is not a universal profile gate.
 
 ## Parallel backend completion lane (owner instruction, 2026-11-09 America/Edmonton)
 
