@@ -58,6 +58,11 @@ can add it as one more byte).
 **Bleed hit kind: reserved, never sent.** The sim does not emit card bleed chunks yet (`cardHooks.flushBleeds` is a
 pending link, P-CARDS-1), so `HIT_KIND_BLEED = 5` is reserved and decoders accept it.
 
+**Holy camp lifesteal in the build marks: a known deviation.** Legacy's leech score adds `holyCampLifestealOf(campClears)`
+(0.005 per eligible camp clear). The Rust sim counts camp clears but has no Holy camp-lifesteal passive, so its leech score
+omits the term; `parity/build-marks/legacy.json` case `holy_camp_clears` pins the gap (the Rust marks equal legacy at zero
+clears). Nothing was invented. Proposed DEVIATIONS row in the branch report.
+
 **Camp-clear heal: not a heal in Rust.** The Rust camp clear pays a potion (`systems::camp_heal`), so no heal carries a
 camp index; the legacy ring is driven by the camp-clear event instead.
 
@@ -109,8 +114,15 @@ Golden vectors: `protocol/fixtures/v16.json` regenerated, with `snapshot_indicat
 - `OBSERVATION_VERSION` 22 -> 23 (`ActorView/SelfView.facts`, `SeenEvent::Windup`, `SeenEvent::Hit.critical`,
   `Observation.roster`).
 - `POLICY_CONTRACT_VERSION` 16 -> 17 (policies decode the same frames).
-- Checkpoint and replay formats unchanged: nothing persistent moved. `Event::Hit.critical` is serialized only when true
-  (`skip_serializing_if`), and events are not part of checkpoints or replays. The ability hash tape rebinds
+- Checkpoint and replay format strings unchanged (`rh-checkpoint/30`, `rh-replay/24`), with one honest caveat: events
+  between steps (`World.pending_events`) ARE world state, serialized into checkpoints and folded into the state hash, so
+  `Event::Hit.critical` is always serialized (`#[serde(default)]`, no `skip_serializing_if`, which the hash layout
+  forbids; review fix). A checkpoint whose pending events hold a `Hit` therefore serializes and hashes one more field.
+  `default` restores checkpoints written before the field. No committed checkpoint, replay or hash golden holds a
+  pending `Hit` (the queue carries a leave's result and Wish cues; the repository's goldens were searched and the full
+  suite, including the replay and hash-coverage tests and the ability hash tape, passes unchanged), so no committed
+  bytes move. Replays record inputs and per-tick hashes, not events. A test pins that a pending `Hit`, critical or not,
+  keeps `check_layout`, round-trips a checkpoint and changes the hash with the flag. The ability hash tape rebinds
   `observationVersion` only.
 - Content hash unchanged: no content constant was added (the score divisors already lived in `kill_augments`).
 
@@ -119,6 +131,9 @@ Golden vectors: `protocol/fixtures/v16.json` regenerated, with `snapshot_indicat
 - Unity can draw the secondary-weapon and build marks, the Wish icon state, the mark plate, the immunity ring, the roam
   glow, the mob fighting state, damage numbers by kind with crits, heal numbers, the camp-clear ring, windup telegraphs and
   names, all from server facts.
+- Build marks are computed once per player per tick at the end of the step (`fx_report::BuildMarkCache`, derived, never
+  hashed or checkpointed; a clone or restore computes them directly until the next step).
+- The roster carries at most 32 rows; a larger seat count is cut to the lowest ids (debug builds assert).
 - Bots and policies receive the same frames; their perception reads only `WireFx::Hit` and is unchanged, so bot
   behaviour and goldens do not move.
 - Bandwidth (`cargo run --release -p rh-server --bin wirebench -- --scenario all`, 8 bots, 2400 ticks, base `d8b61da6`

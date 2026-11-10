@@ -153,9 +153,10 @@ pub enum Event {
         amount: f64,
         weapon: Option<WeaponId>,
         passive: bool,
-        /// A critical strike (legacy hit fx `crit`): presentation only, the amount already includes it. Left out of the
-        /// serialized form when false, so every pre-existing record reads and writes unchanged.
-        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        /// A critical strike (legacy hit fx `crit`): presentation only, the amount already includes it. Always serialized
+        /// (a pending event is world state, and the state hash forbids skipped fields); `default` reads records written
+        /// before the field existed.
+        #[serde(default)]
         critical: bool,
     },
     Block {
