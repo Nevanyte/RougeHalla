@@ -309,6 +309,50 @@ fn fit(from: Vec2, to: Vec2, target: Vec2, band: Band) -> Option<Vec2> {
     (hypot(to.x - from.x, to.y - from.y) >= MOB_SPACING_STEP_MIN).then_some(to)
 }
 
+/// The sideways shift of a chasing mob's goal (`mob_ai::chase_goal`): across the line from `from` to `goal`, away from
+/// every pack-mate inside the mob's room by the whole overlap (a mob directly ahead or behind, or on the very same
+/// point, sends the lower id left and the higher id right), summed and capped at [`MOB_SPACING_STEP_MAX`], then scaled
+/// by the distance to the goal over the wanted spacing (two rooms): the heading turns by at most
+/// atan([`MOB_SPACING_STEP_MAX`] / 2 x room), 22 degrees with today's rooms, and the shift shrinks as the mob closes in
+/// (no circling: a melee mob entering its band at about 95 u is shifted at most 38 u). Pack-mates on both sides cancel
+/// out (the middle of a pack runs straight). `None` when the sum is under [`MOB_SPACING_STEP_MIN`] or the goal is where
+/// the mob stands. Read from the same index as the steps; it moves no entry (a chase order changes
+/// where a mob heads, not where it stands).
+pub(crate) fn lateral(
+    index: &[Entry],
+    id: PlayerId,
+    room: f64,
+    from: Vec2,
+    goal: Vec2,
+) -> Option<Vec2> {
+    let (gx, gy) = (goal.x - from.x, goal.y - from.y);
+    let g = hypot(gx, gy);
+    if g < 1e-9 {
+        return None;
+    }
+    // Left of the heading.
+    let (lx, ly) = (-gy / g, gx / g);
+    let mut side = 0.;
+    near(index, id, room, from, |e, d, need| {
+        let across = (from.x - e.at.x) * lx + (from.y - e.at.y) * ly;
+        let sign = if across.abs() > 1e-9 {
+            across.signum()
+        } else if id < e.id {
+            1.
+        } else {
+            -1.
+        };
+        side += sign * (need - d);
+    });
+    if side.abs() < MOB_SPACING_STEP_MIN {
+        return None;
+    }
+    // The push measured against the wanted spacing (two rooms) turns the heading: by at most atan(STEP_MAX / 2 x room)
+    // (22 degrees with today's rooms), so the shift shrinks with the distance left and vanishes on arrival.
+    let s = side.clamp(-MOB_SPACING_STEP_MAX, MOB_SPACING_STEP_MAX) * g / (2. * room);
+    Some(Vec2::new(lx * s, ly * s))
+}
+
 /// Two mobs on the very same point: the lower id steps to the left of the line to the target, the higher to the right
 /// (east and west when the target is on the same point too). A fixed rule, no randomness.
 fn apart(me: PlayerId, other: PlayerId, from: Vec2, target: Vec2) -> (f64, f64) {

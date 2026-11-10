@@ -784,3 +784,283 @@ fn spacing_off_runs_without_spacing_and_survives_a_checkpoint() {
     assert_eq!(back.k.config.mob_spacing, crate::archetype::MobSpacing::Off);
     assert_eq!(back.state_hash(), sim.state_hash());
 }
+
+// ---- review 2026-11-10: spacing while chasing (finding 2) ----
+
+struct Kite {
+    /// Ticks (after the first 200) with two mobs under 8 u apart, and ticks counted.
+    stacked: u32,
+    ticks: u32,
+    /// The same, counting only pairs of chasing mobs (walking a chase path), over ticks with two or more chasing.
+    stacked_chasing: u32,
+    ticks_chasing: u32,
+    /// Each mob's first hit on the player (tick), if any.
+    first_hit: Vec<Option<u32>>,
+    /// Mobs that hit the player in the last third of the run.
+    late_hitters: usize,
+    /// Path searches per tick (mean).
+    searches: f64,
+    /// Chase goals offset.
+    offsets: u32,
+}
+
+/// Is `m` walking a chase path (its path ends at its brain's chase goal)?
+fn chasing(m: &crate::mob_runtime::Mob) -> bool {
+    let (Some(end), Some(goal)) = (
+        m.core.motion.path.as_slice().last(),
+        m.brain.as_ref().and_then(|b| b.goal),
+    ) else {
+        return false;
+    };
+    hypot(end.x - goal.x, end.y - goal.y) <= MOB_SPACING_STEP_MIN
+}
+
+/// `n` mobs of `kind` woken on a player who walks a loop of waypoints round a big room, a new one every 60 ticks.
+fn kite(
+    spacing: crate::archetype::MobSpacing,
+    arena: Arena,
+    waypoints: &[Vec2],
+    from: Vec2,
+    n: usize,
+    ticks: u32,
+) -> Kite {
+    let mut sim = pack(
+        HitboxMode::Archetypes,
+        arena,
+        waypoints[0],
+        from,
+        n,
+        "emberImp",
+    );
+    let mut cfg = sim.k.config.clone();
+    cfg.mob_spacing = spacing;
+    sim.k = crate::statics::MatchStatic::new(cfg, sim.k.arena.clone(), sim.k.secrets.clone());
+    let ids: Vec<PlayerId> = mobs(&sim).iter().map(|m| m.0).collect();
+    let mut first_hit = vec![None; ids.len()];
+    let mut late = std::collections::BTreeSet::new();
+    let (mut stacked, mut counted, mut stacked_chasing, mut ticks_chasing, mut offsets) =
+        (0, 0, 0, 0, 0);
+    let searches = sim.pf.searches;
+    for t in 0..ticks {
+        if t % 60 == 0 {
+            let p = waypoints[(t / 60) as usize % waypoints.len()];
+            sim.submit(
+                PlayerId(1),
+                crate::input::validate(crate::input::RawCommand::Move {
+                    x: p.x,
+                    y: p.y,
+                    seq: None,
+                })
+                .unwrap(),
+            )
+            .unwrap();
+        }
+        for e in sim.step() {
+            if let crate::events::Event::Hit {
+                victim: PlayerId(1),
+                by: Some(by),
+                ..
+            } = e
+            {
+                if let Some(i) = ids.iter().position(|&id| id == by) {
+                    first_hit[i].get_or_insert(t);
+                    if t >= ticks * 2 / 3 {
+                        late.insert(i);
+                    }
+                }
+            }
+        }
+        offsets += sim.mob_spacing_diagnostics().chase_offsets;
+        if t >= 200 {
+            counted += 1;
+            if min_pair(&mobs(&sim)) < 8. {
+                stacked += 1;
+            }
+            let ch: Vec<(PlayerId, Vec2)> = sim
+                .w
+                .mobs
+                .iter()
+                .filter(|m| {
+                    m.status == Status::Alive
+                        && m.kind == crate::mob_runtime::MobKind::Practice
+                        && chasing(m)
+                })
+                .map(|m| (m.core.id, m.core.pos()))
+                .collect();
+            if ch.len() >= 2 {
+                ticks_chasing += 1;
+                if min_pair(&ch) < 8. {
+                    stacked_chasing += 1;
+                }
+            }
+        }
+    }
+    Kite {
+        stacked,
+        ticks: counted,
+        stacked_chasing,
+        ticks_chasing,
+        first_hit,
+        late_hitters: late.len(),
+        searches: (sim.pf.searches - searches) as f64 / f64::from(ticks),
+        offsets,
+    }
+}
+
+fn open_kite(spacing: crate::archetype::MobSpacing) -> Kite {
+    // A square loop round the pack's home (12 tiles out: inside its 24-tile leash), a new waypoint every 3 s: the player
+    // keeps walking, the pack keeps chasing, catching up and hitting.
+    let pts = [
+        centre(46, 30),
+        centre(52, 30),
+        centre(52, 42),
+        centre(28, 42),
+        centre(28, 18),
+        centre(52, 18),
+    ];
+    kite(spacing, big_room(), &pts, centre(30, 30), 10, 1200)
+}
+
+fn report(label: &str, k: &Kite) {
+    let mut hits: Vec<u32> = k.first_hit.iter().flatten().copied().collect();
+    hits.sort_unstable();
+    eprintln!(
+        "{label}: stacked {}/{} ({:.3}), stacked while chasing {}/{} ({:.3}), first hits {hits:?} (missing {}), late hitters {}, path searches/tick {:.3}, chase offsets {}",
+        k.stacked,
+        k.ticks,
+        f64::from(k.stacked) / f64::from(k.ticks.max(1)),
+        k.stacked_chasing,
+        k.ticks_chasing,
+        f64::from(k.stacked_chasing) / f64::from(k.ticks_chasing.max(1)),
+        k.first_hit.iter().filter(|h| h.is_none()).count(),
+        k.late_hitters,
+        k.searches,
+        k.offsets
+    );
+}
+
+#[test]
+fn a_chasing_pack_fans_out() {
+    use crate::archetype::MobSpacing;
+    let off = open_kite(MobSpacing::Off);
+    let on = open_kite(MobSpacing::Auto);
+    report("kite off", &off);
+    report("kite on ", &on);
+    // Stacking (two mobs under 8 u) drops: among chasing mobs to at most half, overall to at most 60 % (measured
+    // 2026-11-10: 0.97 -> 0.32 and 1.00 -> 0.42; the rest is a pack hugging a moving player, crossing round it).
+    assert!(
+        on.stacked * 5 <= off.stacked * 3,
+        "{} vs {}",
+        on.stacked,
+        off.stacked
+    );
+    assert!(
+        f64::from(on.stacked_chasing) / f64::from(on.ticks_chasing)
+            <= 0.5 * f64::from(off.stacked_chasing) / f64::from(off.ticks_chasing),
+        "{} / {} vs {} / {}",
+        on.stacked_chasing,
+        on.ticks_chasing,
+        off.stacked_chasing,
+        off.ticks_chasing
+    );
+    // Every mob still reaches and hits, about as soon as without spacing.
+    assert!(
+        on.first_hit.iter().all(Option::is_some),
+        "{:?}",
+        on.first_hit
+    );
+    let mean = |k: &Kite| {
+        k.first_hit
+            .iter()
+            .flatten()
+            .map(|&t| f64::from(t))
+            .sum::<f64>()
+            / k.first_hit.len() as f64
+    };
+    let last = |k: &Kite| k.first_hit.iter().flatten().copied().max().unwrap();
+    assert!(
+        mean(&on) <= mean(&off) * 1.25 + 20.,
+        "{} vs {}",
+        mean(&on),
+        mean(&off)
+    );
+    assert!(
+        last(&on) <= last(&off) + 60,
+        "{} vs {}",
+        last(&on),
+        last(&off)
+    );
+    // No extra path searches: the offset rides on the chase's own orders.
+    assert!(
+        on.searches <= off.searches * 1.1 + 0.05,
+        "{} vs {}",
+        on.searches,
+        off.searches
+    );
+}
+
+/// A pack chasing through a one-tile doorway into the next room, and up a one-tile corridor to its dead end: every mob
+/// gets through and hits (the shifted goal falls back to the plain one where the walls leave no room), about as soon as
+/// without spacing, with no more path searches.
+fn funnel(arena: fn() -> Arena, pts: &[Vec2], from: Vec2, n: usize) {
+    use crate::archetype::MobSpacing;
+    let off = kite(MobSpacing::Off, arena(), pts, from, n, 600);
+    let on = kite(MobSpacing::Auto, arena(), pts, from, n, 600);
+    report("funnel off", &off);
+    report("funnel on ", &on);
+    let hit = |k: &Kite| k.first_hit.iter().filter(|h| h.is_some()).count();
+    assert_eq!(
+        hit(&on),
+        hit(&off),
+        "{:?} vs {:?}",
+        on.first_hit,
+        off.first_hit
+    );
+    // The whole pack followed the player to the end of the walk and fights there.
+    assert_eq!(
+        on.late_hitters, n,
+        "{} vs {}",
+        on.late_hitters, off.late_hitters
+    );
+    let last = |k: &Kite| k.first_hit.iter().flatten().copied().max().unwrap_or(0);
+    assert!(
+        last(&on) <= last(&off) + 40,
+        "{} vs {}",
+        last(&on),
+        last(&off)
+    );
+    assert!(
+        on.searches <= off.searches * 1.1 + 0.05,
+        "{} vs {}",
+        on.searches,
+        off.searches
+    );
+}
+
+#[test]
+fn a_chasing_pack_funnels_through_a_doorway() {
+    // The player walks from the west room through the doorway into the east room and on; the pack follows.
+    funnel(
+        doorway,
+        &[
+            centre(10, 10),
+            centre(20, 10),
+            centre(26, 6),
+            centre(26, 14),
+            centre(20, 10),
+        ],
+        centre(4, 10),
+        8,
+    );
+}
+
+#[test]
+fn a_chasing_pack_follows_up_a_corridor() {
+    // The player walks from the room up the one-tile corridor to its dead end; the pack queues behind.
+    funnel(
+        corridor,
+        &[centre(10, 10), centre(18, 10), centre(24, 10)],
+        centre(4, 10),
+        6,
+    );
+}

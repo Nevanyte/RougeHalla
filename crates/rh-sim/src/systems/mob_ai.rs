@@ -393,7 +393,14 @@ fn fight(cx: &mut Cx, id: PlayerId, b: &mut Brain) {
         },
         crate::combat_policy::Move::Point(to) => {
             if due(b, phase, now) {
-                send(cx, id, b, to)
+                // A chase's goal fans out by the spacing push (same order, same repath clock); a retreat is the
+                // policy's own.
+                let goal = if out.chase {
+                    chase_goal(cx, id, from, to, at, mask)
+                } else {
+                    to
+                };
+                send(cx, id, b, goal)
             }
         }
     }
@@ -456,4 +463,37 @@ fn spacing_step(
             && crate::geometry::has_line_of_sight(map, to, at, mask)
     })
     .map_or(Spaced::No, Spaced::Step)
+}
+
+/// The goal of a chase order (`systems/mob_spacing.rs` [`super::mob_spacing::lateral`]): the policy's point `to`,
+/// shifted sideways (across the line from the mob to `to`) away from the pack-mates inside the mob's room, so a pack
+/// chasing along one line fans out instead of running in one file. The shift turns the heading by at most about 22
+/// degrees and shrinks with the distance left, so the mob still walks into its band and stops there (no circling). The
+/// shifted goal
+/// must clear the mob's foot box, be reachable in a straight line from `to` with that foot box (same side of every wall
+/// and corner), see the target with the policy's mask and lie inside the leash; otherwise the plain goal (a doorway or
+/// a corridor: overlap where there is no room). Not under the legacy circle.
+fn chase_goal(cx: &mut Cx, id: PlayerId, from: Vec2, to: Vec2, at: Vec2, mask: u8) -> Vec2 {
+    if !super::mob_spacing::on(cx.k) {
+        return to;
+    }
+    let Some(m) = cx.w.mobs.get(id) else {
+        return to;
+    };
+    let (camp, home, foot, room) = (m.camp, m.home, m.core.foot(), super::mob_spacing::room(m));
+    let Some(off) = super::mob_spacing::lateral(&cx.s.mob_spacing, id, room, from, to) else {
+        return to;
+    };
+    let goal = Vec2::new(to.x + off.x, to.y + off.y);
+    let map = cx.k.collision_map(cx.w.rt.gates_locked);
+    if foot.clear(map, goal, MASK_MOVE)
+        && foot.segment_clear(map, to, goal, MASK_MOVE)
+        && crate::geometry::has_line_of_sight(map, goal, at, mask)
+        && leash(cx.k, camp, home, goal, 0.)
+    {
+        cx.s.spacing_diag.chase_offsets += 1;
+        goal
+    } else {
+        to
+    }
 }
