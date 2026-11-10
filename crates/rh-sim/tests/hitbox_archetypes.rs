@@ -536,3 +536,61 @@ fn a_lateral_sweep_through_the_start_inside_zone_has_no_single_unit_flip() {
         }
     }
 }
+
+/// Review finding 4: a checkpoint's projectile height must be one this match's mode can launch: exactly 0 under the
+/// legacy circle, one of the table's chest values under archetypes. Anything else is refused at restore (a legacy flight
+/// at 30 would home and meet balls differently; 300 or 30.5 would fail every observation's projection).
+#[test]
+fn restore_refuses_a_projectile_height_the_mode_cannot_launch() {
+    let at = east_lane(&practice_arena().map);
+    for (mode, own, good, bad) in [
+        (HitboxMode::LegacyCircle, 0.0, &[][..], &[30.0, -0.0, 0.5, 300.0][..]),
+        (
+            HitboxMode::Archetypes,
+            30.0,
+            &[21.0, 11.0][..],
+            &[0.0, 25.0, 30.5, 300.0, -30.0][..],
+        ),
+    ] {
+        let ps = [placement(1, FactionId::Fire, at, Some(WeaponId::Bow))];
+        let mut s = world(mode, &ps);
+        order(&mut s, 1, RawCommand::Attack { a: E, t: None });
+        let mut launched = false;
+        for i in 0..40 {
+            if i == 20 {
+                order(&mut s, 1, RawCommand::Release { a: E, t: None });
+            }
+            launched |= s
+                .step()
+                .iter()
+                .any(|e| matches!(e, Event::ProjectileLaunched(_)));
+            if launched {
+                break;
+            }
+        }
+        assert!(launched, "{mode:?}: the bow fired");
+        let json = serde_json::to_value(&s).unwrap();
+        let with_height = |h: f64| {
+            let mut j = json.clone();
+            let flight = j["world"]["projectiles"]
+                .as_array_mut()
+                .and_then(|p| p.first_mut())
+                .expect("a projectile in flight");
+            let slot = find_key(flight, "height").expect("height is checkpointed");
+            assert_eq!(slot.as_f64(), Some(own), "{mode:?}");
+            *slot = serde_json::json!(h);
+            j
+        };
+        assert_eq!(
+            Sim::restore(with_height(own)).unwrap().state_hash(),
+            s.state_hash(),
+            "{mode:?}: the launched height restores"
+        );
+        for &h in good {
+            assert!(Sim::restore(with_height(h)).is_ok(), "{mode:?} height {h}");
+        }
+        for &h in bad {
+            assert!(Sim::restore(with_height(h)).is_err(), "{mode:?} height {h} is refused");
+        }
+    }
+}

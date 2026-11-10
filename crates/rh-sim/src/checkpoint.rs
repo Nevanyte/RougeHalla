@@ -554,8 +554,9 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
             || pr.reflections > crate::constants::MAX_ARROW_REFLECTIONS
             || (st.reflected && weapon != WeaponId::Bow)
             || (pr.halved && weapon != WeaponId::Wand)
-            || !st.height.is_finite()
-            || st.height < 0.
+            // ADR0024 (review finding 4): a height this match's mode can produce, so a restored flight never meets,
+            // homes or projects differently from one the tick launched.
+            || !crate::archetype::valid_height(k.config.hitboxes, st.height)
             || !(0. ..=range).contains(&st.range)
             || !(0. ..=st.range).contains(&pr.traveled)
             || !near(st.origin.x, st.origin.y)

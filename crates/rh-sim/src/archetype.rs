@@ -195,6 +195,17 @@ impl Archetype {
     }
 }
 
+/// Is `h` a projectile height a match in `mode` can launch? Exactly 0 (positive zero) under the legacy circle; one of
+/// the boxed rows' `chest` values under archetypes. A checkpoint carrying any other height is refused.
+pub fn valid_height(mode: HitboxMode, h: f64) -> bool {
+    match mode {
+        HitboxMode::LegacyCircle => h.to_bits() == 0f64.to_bits(),
+        HitboxMode::Archetypes => ARCHETYPES
+            .iter()
+            .any(|r| matches!(r.hull, Hull::Boxes { .. }) && r.chest == h),
+    }
+}
+
 /// What decides a fighter's archetype: public facts only (its kind, its faction, its catalog mob type).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Identity {
