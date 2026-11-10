@@ -11,3 +11,7 @@
 *.user
 .vs/
 .idea/
+
+# Purchased Unity Asset Store content: local only, never committed (public repo)
+/Assets/Licensed/
+/Assets/Licensed.meta
