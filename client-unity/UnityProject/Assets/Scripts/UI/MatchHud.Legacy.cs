@@ -416,7 +416,9 @@ namespace Roguehalla.Client
         void CreateDeathLine()
         {
             var theme = UiTheme.Current;
-            var box = HudUi.Box(_hud, "DeathLine", HudAnchor.Center, 0, 0, 640f, 64f);
+            var box = HudUi.Box(_hud, "DeathLine", HudAnchor.Center, 0, 0, 380f, 64f);
+            // An opaque dark plate: red letters over bright sand or snow read as pale pink without one (marker contrast, 4.5:1 on any ground).
+            HudUi.Surface(box, UiTheme.With(theme.OutlineDark, .9f), 10f, theme.Danger, false, false);
             _deathLine = HudUi.Label(box, "Label", "YOU DIED", theme.SizeDisplay, theme.Danger, TextAlignmentOptions.Center, true, UiFontRole.Display);
             _deathLine.characterSpacing = 6f;
             _deathLine.outlineWidth = .22f; _deathLine.outlineColor = theme.OutlineDark; // legible over any ground

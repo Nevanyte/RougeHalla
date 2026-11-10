@@ -481,7 +481,12 @@ scenarios['fade-creature'] = async (variant) => {
     const cand = (p.actors || []).filter(x => x.kind === 1 && x.mob === tgt.mob && Math.hypot(x.x - track.x, x.y - track.y) < 160).sort((u, v) => Math.hypot(u.x - track.x, u.y - track.y) - Math.hypot(v.x - track.x, v.y - track.y))[0];
     const t = Date.now() - cast.t0; if (cand) { track.x = cand.x; track.y = cand.y; }
     log.push({ t, present: !!cand, d: cand ? Math.round(Math.hypot(cand.x - p.me.x, cand.y - p.me.y)) : null, sx: cand && Math.round(cand.sx), sy: cand && Math.round(cand.sy) });
-    if (!cand && gone === null) { gone = t; console.log('  creature left delivery at', t, 'ms; last distance', [...log].reverse().find(l => l.present)?.d); await sleep(1300); break; }
+    const seen = [...log].reverse().find(l => l.present);
+    if (!cand && gone === null && seen && seen.d < 450) { // it vanished close by (died, or the track hopped): follow the nearest creature instead
+      const other = (p.actors || []).filter(x => x.kind === 1 && x.status === 1).sort((u, v) => Math.hypot(u.x - p.me.x, u.y - p.me.y) - Math.hypot(v.x - p.me.x, v.y - p.me.y))[0];
+      if (other) { tgt = other; track.x = other.x; track.y = other.y; log.length = 0; }
+    }
+    else if (!cand && gone === null) { gone = t; console.log('  creature left delivery at', t, 'ms; last distance', seen && seen.d); await sleep(1300); break; }
     if (Date.now() - lastWalk > 3500) { // straight away from the creature, as far as the map allows
       const dx = p.me.x - track.x, dy = p.me.y - track.y, n = Math.hypot(dx, dy) || 1;
       await run.walkWorld(Math.max(150, Math.min(4950, p.me.x + dx / n * 2500)), Math.max(150, Math.min(4950, p.me.y + dy / n * 2500))); lastWalk = Date.now();

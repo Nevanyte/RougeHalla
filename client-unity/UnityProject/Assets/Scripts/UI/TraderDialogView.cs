@@ -224,6 +224,13 @@ namespace Roguehalla.Client
             return true;
         }
 
+        /// <summary>Rows that appear with a server update take their fill at once: a fade from the white graphic read as a pale grey box.</summary>
+        static void Instant(UnityEngine.UI.Button button)
+        {
+            var colors = button.colors; colors.fadeDuration = 0f; button.colors = colors;
+            if (button.targetGraphic is UnityEngine.UI.Image image) image.canvasRenderer.SetColor(colors.normalColor);
+        }
+
         static string TradeSignature(TradeView v)
         {
             if (v == null) return "null";
@@ -255,6 +262,7 @@ namespace Roguehalla.Client
                 {
                     if (IsCurrentView(capturedSession, capturedEpoch, viewRef.View, capturedGeneration)) SelectMerchant(capturedIndex);
                 }, MythicUi.ButtonStyle.Secondary, 13);
+                Instant(button);
                 var rect = (RectTransform)button.transform;
                 rect.pivot = new Vector2(.5f, 1f); rect.anchorMin = new Vector2(0, 1); rect.anchorMax = new Vector2(1, 1);
                 rect.sizeDelta = new Vector2(0, MerchantRowHeight);
@@ -355,6 +363,7 @@ namespace Roguehalla.Client
         {
             var button = MythicUi.Button(_choiceContent, "Choice_" + pick, label,
                 new Vector2(0, 1), new Vector2(1, 1), action, MythicUi.ButtonStyle.Secondary, 14);
+            Instant(button);
             var rect = (RectTransform)button.transform;
             rect.pivot = new Vector2(.5f, 1f); rect.anchorMin = new Vector2(0, 1); rect.anchorMax = new Vector2(1, 1);
             rect.sizeDelta = new Vector2(0, ChoiceRowHeight);
