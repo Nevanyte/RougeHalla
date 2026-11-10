@@ -8,7 +8,7 @@ namespace Roguehalla.Client
     public static class RegionPocket
     {
         /// <summary>Mask value where secondary greenery starts in each region (see RegionThemes ground parameters).</summary>
-        public const float PlagueThreshold = .46f, HolyThreshold = .54f;
+        public const float PlagueThreshold = .46f, HolyThreshold = .50f;
 
         /// <summary>0..1 mask at a tile coordinate (fractional allowed); about 0.5 on average, stretched for contrast.</summary>
         public static float At(float tx, float ty)
