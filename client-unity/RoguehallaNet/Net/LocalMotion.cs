@@ -121,6 +121,9 @@ namespace Roguehalla.Net
         readonly byte[] _ordSeq = new byte[OrderRingSize];
         readonly double[] _ordAt = new double[OrderRingSize];
         readonly bool[] _ordTiming = new bool[OrderRingSize];
+        readonly WireCommand[] _ordCommand = new WireCommand[OrderRingSize];
+        readonly uint[] _ordFrame = new uint[OrderRingSize];
+        readonly bool[] _ordSent = new bool[OrderRingSize];
         int _ordStart, _ordCount;
         // The measured delay of the last timing order: a sample at time T is compared with the model at T - _align.
         double _align;
@@ -225,7 +228,7 @@ namespace Roguehalla.Net
                 RecordPose();
             }
             else ClearPath();
-            NoteOrder(seq, nowMs, timing);
+            NoteOrder(seq, nowMs, timing, order);
         }
 
         /// <summary>Records a stop order: the predicted walk ends now and waits for the stop's echo. Sequence 0 is ignored.</summary>
@@ -245,7 +248,7 @@ namespace Roguehalla.Net
             ClearPath();
             MarkStepClock(nowMs);
             if (Initialized) RecordPose();
-            NoteOrder(seq, nowMs, true);
+            NoteOrder(seq, nowMs, true, order);
         }
 
         /// <summary>
@@ -275,6 +278,15 @@ namespace Roguehalla.Net
 
         internal void MovementOrderSent(WireCommand command, uint frame)
         {
+            // A later held-key repeat may already be newest when an earlier motion's echo
+            // arrives. Keep the actual sent-frame proof per order, not only for the newest one.
+            for (int n = 0; n < _ordCount; n++)
+            {
+                int i = (_ordStart + n) % OrderRingSize;
+                if (_ordCommand[i] == null || !ReferenceEquals(_ordCommand[i], command)) continue;
+                _ordFrame[i] = frame;
+                _ordSent[i] = true;
+            }
             if (!ReferenceEquals(_movementOrder, command)) return;
             _movementSent = true;
             _movementFrame = frame;
@@ -331,7 +343,7 @@ namespace Roguehalla.Net
         {
             if (me == null) { Clear(); return; }
             double stamp = SampleStamp(nowMs, serverMs);
-            NoteEcho(me.MoveSeq, stamp);
+            NoteEcho(me.MoveSeq, stamp, ackInput);
             bool alive = me.Status == 1;
             bool hardCut = Initialized && (me.DisplaceSeq != _displaceSeq || !alive || !_alive);
             // Echo before advancing the clock: an acknowledgement at the expiry boundary is not a lost order.
@@ -524,13 +536,16 @@ namespace Roguehalla.Net
             return stamp;
         }
 
-        void NoteOrder(byte seq, double nowMs, bool timing)
+        void NoteOrder(byte seq, double nowMs, bool timing, WireCommand command)
         {
             if (_ordCount == OrderRingSize) { _ordStart = (_ordStart + 1) % OrderRingSize; _ordCount--; }
             int i = (_ordStart + _ordCount) % OrderRingSize;
             _ordSeq[i] = seq;
             _ordAt[i] = nowMs;
             _ordTiming[i] = timing;
+            _ordCommand[i] = command;
+            _ordFrame[i] = 0;
+            _ordSent[i] = false;
             _ordCount++;
         }
 
@@ -538,13 +553,18 @@ namespace Roguehalla.Net
         /// An echo of order <paramref name="seq"/> covers it and every earlier order (the server applies them in order). The first
         /// echo of a timing order measures the delay samples are aligned with.
         /// </summary>
-        void NoteEcho(byte seq, double stamp)
+        void NoteEcho(byte seq, double stamp, uint? ackInput)
         {
             if (seq == 0) return;
             for (int n = _ordCount - 1; n >= 0; n--)
             {
                 int i = (_ordStart + n) % OrderRingSize;
                 if (_ordSeq[i] != seq) continue;
+                // The reused byte alone is not an input receipt. Do not change alignment or
+                // retire ANY covered order until this exact command was sent and its frame
+                // was acknowledged. Direct method callers without AckInput retain that API.
+                if (ackInput.HasValue && (!_ordSent[i] ||
+                    unchecked((int)(ackInput.Value - _ordFrame[i])) < 0)) return;
                 if (_ordTiming[i])
                     _align = Math.Max(DelayMinMs, Math.Min(DelayMaxMs, stamp - TickMs - _ordAt[i]));
                 _ordStart = (i + 1) % OrderRingSize;
