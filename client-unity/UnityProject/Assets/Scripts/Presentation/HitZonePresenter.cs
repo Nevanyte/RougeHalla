@@ -97,9 +97,26 @@ namespace Roguehalla.Client
         /// </summary>
         public bool Windup(uint by, byte weapon, float angle, float ms, float now)
         {
-            CancelWindup(by);
-            if (!Enabled || _contains == null || !_contains(by) || !(ms > 0f) || float.IsNaN(angle) || float.IsInfinity(angle)) return false;
+            CancelWindup(by); DiagWindupLastWeapon = weapon; DiagWindupLastMs = ms;
+            if (!Enabled || !(ms > 0f) || float.IsNaN(angle) || float.IsInfinity(angle) || !WeaponShapes.TryGet(weapon, out _)) { DiagWindupRejected++; return false; }
+            if (_contains == null || !_contains(by) || Position == null || !Position(by, out _, out _))
+            {
+                // A creature's observer handle may arrive a frame after its fx: wait up to a third of a second for the fighter to be drawn.
+                DiagWindupWaited++;
+                if (_waiting.Count < 16) _waiting.Add(new Waiting { By = by, Weapon = weapon, Angle = angle, Ms = ms, At = now });
+                return false;
+            }
+            return Start(by, weapon, angle, ms, now);
+        }
+
+        struct Waiting { public uint By; public byte Weapon; public float Angle, Ms, At; }
+        readonly List<Waiting> _waiting = new List<Waiting>();
+        public static int DiagWindupsStarted, DiagWindupRejected, DiagWindupWaited; public static int DiagWindupLastWeapon; public static float DiagWindupLastMs;
+
+        bool Start(uint by, byte weapon, float angle, float ms, float now)
+        {
             if (!WeaponShapes.TryGet(weapon, out var shape) || _zones.Count >= HitZoneModel.MaxZones || Position == null || !Position(by, out float x, out float y)) return false;
+            DiagWindupsStarted++;
             var z = _free.Count > 0 ? _free.Pop() : Create();
             Place(z, by, x, y);
             z.Reach = shape.Reach; z.Half = shape.HalfArc; z.Angle = angle; z.Start = now; z.Live = true; z.Windup = true; z.Owner = by; z.Ms = ms;
@@ -109,6 +126,7 @@ namespace Roguehalla.Client
 
         public void CancelWindup(uint id)
         {
+            for (int w = _waiting.Count - 1; w >= 0; w--) if (_waiting[w].By == id) _waiting.RemoveAt(w);
             if (!_windups.TryGetValue(id, out var z)) return;
             _windups.Remove(id); int i = _zones.IndexOf(z); if (i >= 0) Release(i);
         }
@@ -117,6 +135,12 @@ namespace Roguehalla.Client
 
         public void Tick(float now, bool reduced)
         {
+            for (int w = _waiting.Count - 1; w >= 0; w--)
+            {
+                var q = _waiting[w]; float waited = (now - q.At) * 1000f;
+                if (waited > 330f || waited >= q.Ms) { _waiting.RemoveAt(w); continue; }
+                if (_contains != null && _contains(q.By) && Position != null && Position(q.By, out _, out _)) { _waiting.RemoveAt(w); Start(q.By, q.Weapon, q.Angle, q.Ms - waited, now); }
+            }
             for (int i = _zones.Count - 1; i >= 0; i--)
             {
                 var z = _zones[i]; float age = (now - z.Start) * 1000f;
