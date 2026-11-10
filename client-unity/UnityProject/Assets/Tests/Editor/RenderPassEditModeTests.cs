@@ -55,6 +55,8 @@ namespace Roguehalla.Client.Tests
                 Assert.IsFalse(get[i](), keys[i] + " off");
                 for (int j = 0; j < keys.Length; j++) if (j != i) Assert.IsTrue(get[j](), keys[j] + " unaffected by " + keys[i]);
             }
+            Assert.IsFalse(AtmosphereQuality.Tonemap, "the tonemap is held off by default (it cost contrast in the bright zones)");
+            AtmosphereQuality.SetUrl("http://x/?fx.tonemap=1"); AtmosphereQuality.ApplyPreset(ShowcaseQuality.Ultra, false); Assert.IsTrue(AtmosphereQuality.Tonemap);
             AtmosphereQuality.SetUrl("http://x/?fx.maxlights=3"); AtmosphereQuality.ApplyPreset(ShowcaseQuality.Ultra, false);
             Assert.AreEqual(3, AtmosphereQuality.EffectiveLocalLights);
             AtmosphereQuality.SetUrl("http://x/?fx.maxlights=999"); AtmosphereQuality.ApplyPreset(ShowcaseQuality.Ultra, false);

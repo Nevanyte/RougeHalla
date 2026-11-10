@@ -215,7 +215,7 @@ namespace Roguehalla.Client
             _ca.active = grade; _ca.postExposure.Override(p.PostExposure); _ca.contrast.Override(p.Contrast); _ca.saturation.Override(p.Saturation); _ca.colorFilter.Override(p.ColorFilter);
             bool paint = grade && AtmosphereQuality.Painterly;
             if (_lgg != null) { _lgg.active = paint; _lgg.lift.Override(p.Lift); _lgg.gain.Override(p.Gain); }
-            if (_tone != null) _tone.active = paint;
+            if (_tone != null) _tone.active = paint && AtmosphereQuality.Tonemap;
             _split.active = grade; _split.shadows.Override(p.SplitShadows); _split.highlights.Override(p.SplitHighlights); _split.balance.Override(p.SplitBalance);
             _bloom.active = AtmosphereQuality.Bloom; _bloom.threshold.Override(p.BloomThreshold); _bloom.intensity.Override(p.BloomIntensity); _bloom.scatter.Override(p.BloomScatter); _bloom.tint.Override(p.BloomTint);
             _vig.active = AtmosphereQuality.Vignette; _vig.intensity.Override(p.VignetteIntensity); _vig.smoothness.Override(p.VignetteSmoothness); _vig.color.Override(p.VignetteColor);

@@ -83,6 +83,8 @@ namespace Roguehalla.Client
         public static bool ActorLights = true;
         /// <summary>Painterly grade: lifted tinted blacks, warm or cool highlights and a soft neutral tonemap on top of the zone grade.</summary>
         public static bool Painterly = true;
+        /// <summary>Soft neutral tonemap on top of the painterly grade. Held OFF in every preset: the contrast gate measured it lowering marker and body contrast in the bright zones (docs/rework/evidence/render/README.md).</summary>
+        public static bool Tonemap = false;
         /// <summary>Characters take their light from the analytic field (and the accent Light2D twins stay off).</summary>
         public static bool ActorsAnalytic { get { return AnalyticLights && ActorLights; } }
         /// <summary>Cap on analytic local lights in view.</summary>
@@ -95,7 +97,7 @@ namespace Roguehalla.Client
         public static event Action Changed;
 
         // render-pass overrides, indexed like the Pass enum below
-        enum Pass { LocalLights, Relief, LShadows, Cookies, Gloss, Wind, Clouds, Water, Fireflies, EmberLight, FxLights, Sparks, ActorLights, Painterly, Count }
+        enum Pass { LocalLights, Relief, LShadows, Cookies, Gloss, Wind, Clouds, Water, Fireflies, EmberLight, FxLights, Sparks, ActorLights, Painterly, Tonemap, Count }
         static readonly bool?[] _ovPass = new bool?[(int)Pass.Count]; static int? _ovMaxLocal;
 
         /// <summary>Per-preset defaults of the render-pass switches (Ultra: everything).</summary>
@@ -103,7 +105,7 @@ namespace Roguehalla.Client
         {
             bool low = q == ShowcaseQuality.Low, med = q == ShowcaseQuality.Medium, high = q == ShowcaseQuality.High, ultra = q == ShowcaseQuality.Ultra;
             LocalLights = !low; Relief = !low; LocalShadows = ultra || high; Cookies = high || ultra; Gloss = high || ultra;
-            ActorLights = !low; Painterly = !low; Wind = !low; Clouds = !low; Water = high || ultra; Fireflies = ultra; EmberLight = ultra || high; FxLights = !low; Sparks = !low;
+            ActorLights = !low; Painterly = !low; Tonemap = false; Wind = !low; Clouds = !low; Water = high || ultra; Fireflies = ultra; EmberLight = ultra || high; FxLights = !low; Sparks = !low;
             MaxLocalLights = low ? 0 : med ? 6 : high ? 12 : 20;
             for (int i = 0; i < _ovPass.Length; i++) if (_ovPass[i].HasValue) SetPass((Pass)i, _ovPass[i].Value);
             if (_ovMaxLocal.HasValue) MaxLocalLights = Mathf.Clamp(_ovMaxLocal.Value, 0, HardMaxLocalLights);
@@ -116,7 +118,7 @@ namespace Roguehalla.Client
             {
                 case Pass.LocalLights: LocalLights = v; break; case Pass.Relief: Relief = v; break; case Pass.LShadows: LocalShadows = v; break; case Pass.Cookies: Cookies = v; break;
                 case Pass.Gloss: Gloss = v; break; case Pass.Wind: Wind = v; break; case Pass.Clouds: Clouds = v; break; case Pass.Water: Water = v; break;
-                case Pass.ActorLights: ActorLights = v; break; case Pass.Painterly: Painterly = v; break; case Pass.Fireflies: Fireflies = v; break; case Pass.EmberLight: EmberLight = v; break; case Pass.FxLights: FxLights = v; break; case Pass.Sparks: Sparks = v; break;
+                case Pass.ActorLights: ActorLights = v; break; case Pass.Painterly: Painterly = v; break; case Pass.Tonemap: Tonemap = v; break; case Pass.Fireflies: Fireflies = v; break; case Pass.EmberLight: EmberLight = v; break; case Pass.FxLights: FxLights = v; break; case Pass.Sparks: Sparks = v; break;
             }
         }
 
@@ -254,6 +256,7 @@ namespace Roguehalla.Client
                     case "fx.fxlights": _ovPass[(int)Pass.FxLights] = flag; break;
                     case "fx.sparks": _ovPass[(int)Pass.Sparks] = flag; break;
                     case "fx.actorlights": _ovPass[(int)Pass.ActorLights] = flag; break;
+                    case "fx.tonemap": _ovPass[(int)Pass.Tonemap] = flag; break;
                     case "fx.painterly": _ovPass[(int)Pass.Painterly] = flag; break;
                     case "fx.maxlights": if (int.TryParse(value, out int ml)) _ovMaxLocal = Mathf.Clamp(ml, 0, HardMaxLocalLights); break;
                 }
