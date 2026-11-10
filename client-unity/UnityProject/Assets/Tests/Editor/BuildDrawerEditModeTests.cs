@@ -204,6 +204,17 @@ namespace Roguehalla.Client.Tests
             Canvas.ForceUpdateCanvases();
             Assert.That(_drawer.Scroll.verticalNormalizedPosition, Is.Not.EqualTo(beforeWheel), "wheel dispatch moves the real content");
 
+            // The wheel moved the content, so the card that was inside the viewport before it may now be scrolled
+            // out (the probe card was picked from the pre-scroll layout). Pick again from the post-scroll layout.
+            viewportBounds = ScreenBounds(viewport);
+            visibleButton = null;
+            foreach (var candidate in cards)
+            {
+                var bounds = ScreenBounds((RectTransform)candidate.transform);
+                if (!RectTransformUtility.RectangleContainsScreenPoint(viewport, bounds.center)) continue;
+                if (candidate.GetComponent<UnityEngine.UI.Image>().Raycast(bounds.center, null)) { visibleButton = candidate; break; }
+            }
+            Assert.That(visibleButton, Is.Not.Null, "a card remains inside the viewport after the wheel event");
             var selectionBounds = ScreenBounds((RectTransform)visibleButton.transform);
             pointer.position = selectionBounds.center; pointer.button = PointerEventData.InputButton.Left;
             Assert.That(RectTransformUtility.RectangleContainsScreenPoint(viewport, pointer.position), Is.True);
