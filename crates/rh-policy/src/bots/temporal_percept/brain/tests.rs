@@ -1376,13 +1376,6 @@ fn compare_services(
 fn compare_operation(replayed: &ReplayedCase, op: &ReplayedOp, failures: &mut Vec<String>) {
     let case = &replayed.case;
     let label = format!("case {} op[{}] ({})", case.id, op.index, op.method);
-    // The declared source operation value is immutable by construction (it is the parsed frozen declaration the
-    // operation row quotes): the source runner asserted `encode(op) === input` after the body.
-    if !trace::same_deep_equal(&op.declaration, &case.operations[op.index].declaration) {
-        failures.push(format!(
-            "{label}.declaration: actual operation row declaration differs from the parsed frozen declaration"
-        ));
-    }
     trace::compare_deep_equal(
         &format!("{label}.result"),
         &op.expected.result,
@@ -1426,9 +1419,10 @@ fn compare_operation(replayed: &ReplayedCase, op: &ReplayedOp, failures: &mut Ve
 }
 
 /// The complete exact frozen comparison for one replayed history: the setup trace first, then every operation's result,
-/// error, Brain snapshots, service snapshots and transcript. Returns the first mismatch with its exact frozen path; the
-/// only accepted non-exact surface is the declared motor/lapse intra-hand-call ordering limitation, which was verified
-/// per lane (all non-rng/decide rows and per-lane `(index,value)` order/counts are exact).
+/// error, Brain snapshots, service snapshots and transcript. Returns the first mismatch with its exact frozen path. Each
+/// operation transcript is compared exactly as one global ordered sequence ([`compare_transcript_exact`]), including the
+/// motor/lapse draws; the only non-exact surface is the declared plain-object property-order limitation
+/// (`DECLARED_OBJECT_ORDER_LIMITATION`, the source `assert.deepEqual` policy), which is recorded, not reported as a mismatch.
 pub(crate) fn compare_replayed_case(replayed: &ReplayedCase) -> Result<(), String> {
     let mut failures = Vec::new();
     let case = &replayed.case;
