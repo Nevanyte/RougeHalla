@@ -751,3 +751,36 @@ fn a_pack_on_ice_spreads_and_rests() {
 fn a_pack_in_a_bog_spreads_and_rests() {
     terrain_pack(5);
 }
+
+// ---- review 2026-11-10: the A/B switch (finding 5) ----
+
+/// `MobSpacing::Off` (the measurement-only A/B) runs an archetype match without spacing, and a checkpoint keeps it off.
+#[test]
+fn spacing_off_runs_without_spacing_and_survives_a_checkpoint() {
+    let target = centre(20, 12);
+    let mut sim = pack(
+        HitboxMode::Archetypes,
+        open_room(),
+        target,
+        centre(6, 12),
+        8,
+        "emberImp",
+    );
+    // Same pack, spacing off: rebuild the statics with the switch (the world is untouched).
+    let mut cfg = sim.k.config.clone();
+    cfg.mob_spacing = crate::archetype::MobSpacing::Off;
+    let on_hash = sim.state_hash();
+    sim.k = crate::statics::MatchStatic::new(cfg, sim.k.arena.clone(), sim.k.secrets.clone());
+    assert_ne!(sim.state_hash(), on_hash, "the switch is in the state hash");
+    let mut steps = 0;
+    for _ in 0..240 {
+        run(&mut sim, 1);
+        steps += sim.mob_spacing_diagnostics().steps;
+    }
+    assert_eq!(steps, 0);
+    assert!(sim.s.mob_spacing.is_empty(), "the index is never built");
+    assert!(min_pair(&mobs(&sim)) < 8., "{}", min_pair(&mobs(&sim)));
+    let back = Sim::restore(serde_json::to_value(&sim).unwrap()).unwrap();
+    assert_eq!(back.k.config.mob_spacing, crate::archetype::MobSpacing::Off);
+    assert_eq!(back.state_hash(), sim.state_hash());
+}

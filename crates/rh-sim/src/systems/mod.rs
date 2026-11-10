@@ -126,8 +126,7 @@ pub(crate) mod mob_ai;
 
 pub(crate) mod mob_spacing;
 
-// The measurement-only `mob-spacing-off` build has no spacing to test.
-#[cfg(all(test, not(feature = "mob-spacing-off")))]
+#[cfg(test)]
 mod mob_spacing_tests;
 
 pub(crate) mod mob_life;

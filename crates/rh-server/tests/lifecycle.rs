@@ -46,6 +46,7 @@ fn arena() -> Arena {
 fn sim_config() -> SimConfig {
     SimConfig {
         hitboxes: Default::default(),
+        mob_spacing: Default::default(),
         walk_hints: None,
         regen: false,
         quests: false,
@@ -447,6 +448,7 @@ async fn room_heap_probe() {
     // One human closes the lobby on the first step: the next admission opens a room of its own.
     let sim = SimConfig {
         hitboxes: Default::default(),
+        mob_spacing: Default::default(),
         walk_hints: None,
         regen: false,
         quests: false,

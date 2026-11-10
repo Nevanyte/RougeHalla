@@ -14,13 +14,15 @@
 //! * mob spacing (ADR0024 addendum "Mob spacing"): for every engaged regional mob with another regional mob within
 //!   [`PACK`] u, its distance to the nearest one (mean, minimum, share under [`OVERLAP`] u, where two foot boxes overlap),
 //!   and the share of ticks with two engaged mobs within [`STACKED`] u of each other. Spacing is on exactly under
-//!   `archetypes` (`rh_sim::archetype::mob_spacing`); build with `--features rh-sim/mob-spacing-off` for the same seeds
-//!   with spacing off (the header line says which).
+//!   `archetypes` (`rh_sim::archetype::mob_spacing`); the mode `archetypes-nospacing` runs the same seeds with
+//!   `SimConfig::mob_spacing = Off` (measurement only; recorded in the config and so the state hash; the server refuses
+//!   it). The header line says which.
 //!
-//! `modes` is `both` (default), `legacy` or `archetypes`. A panic or a hang (a match that neither ends nor reaches
+//! `modes` is `both` (default), `legacy`, `archetypes`, `archetypes-nospacing` or `spacing` (archetypes with spacing
+//! off, then on). A panic or a hang (a match that neither ends nor reaches
 //! `max_ticks`) is a failure of the run, so this doubles as the archetype-mode soak.
 use rh_headless::{Agent, AgentSpec, Env, EnvConfig};
-use rh_sim::archetype::{assign, HitboxMode, Identity, ARCHETYPES};
+use rh_sim::archetype::{assign, HitboxMode, Identity, MobSpacing, ARCHETYPES};
 use rh_sim::events::Event;
 use rh_sim::fighter::FighterAffiliation;
 use rh_sim::math::{angle_between, atan2, hypot};
@@ -30,8 +32,9 @@ use rh_sim::{
 };
 use std::collections::{BTreeMap, HashMap};
 
-pub fn live_config(hitboxes: HitboxMode) -> SimConfig {
+pub fn live_config((hitboxes, spacing): (HitboxMode, MobSpacing)) -> SimConfig {
     SimConfig {
+        mob_spacing: spacing,
         walk_hints: Some(true),
         regen: true,
         quests: true,
@@ -204,7 +207,13 @@ fn weapon_name(w: WeaponId) -> &'static str {
     }
 }
 
-fn run(arena: &rh_sim::Arena, mode: HitboxMode, seed: u64, max_ticks: u32, out: &mut Mode) {
+fn run(
+    arena: &rh_sim::Arena,
+    mode: (HitboxMode, MobSpacing),
+    seed: u64,
+    max_ticks: u32,
+    out: &mut Mode,
+) {
     let agents = (0..8)
         .map(|i| AgentSpec {
             profile: format!("bot{i}"),
@@ -353,11 +362,20 @@ fn main() {
     let arena = rh_headless::load_arena(&a[1]).unwrap();
     let (from, to): (u64, u64) = (a[2].parse().unwrap(), a[3].parse().unwrap());
     let max_ticks: u32 = a.get(4).map_or(12_000, |v| v.parse().unwrap());
-    let modes: Vec<HitboxMode> = match a.get(5).map(String::as_str) {
-        None | Some("both") => vec![HitboxMode::LegacyCircle, HitboxMode::Archetypes],
-        Some("legacy") => vec![HitboxMode::LegacyCircle],
-        Some("archetypes") => vec![HitboxMode::Archetypes],
-        Some(other) => panic!("modes must be both, legacy or archetypes, not {other:?}"),
+    let (legacy, on, off) = (
+        (HitboxMode::LegacyCircle, MobSpacing::Auto),
+        (HitboxMode::Archetypes, MobSpacing::Auto),
+        (HitboxMode::Archetypes, MobSpacing::Off),
+    );
+    let modes: Vec<(HitboxMode, MobSpacing)> = match a.get(5).map(String::as_str) {
+        None | Some("both") => vec![legacy, on],
+        Some("legacy") => vec![legacy],
+        Some("archetypes") => vec![on],
+        Some("archetypes-nospacing") => vec![off],
+        Some("spacing") => vec![off, on],
+        Some(other) => panic!(
+            "modes must be both, legacy, archetypes, archetypes-nospacing or spacing, not {other:?}"
+        ),
     };
     let mut results = Vec::new();
     for &mode in &modes {

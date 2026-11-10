@@ -2027,6 +2027,7 @@ mod tests {
             sim: SimConfig {
                 walk_hints: None,
                 hitboxes: Default::default(),
+                mob_spacing: Default::default(),
                 regen: false,
                 training: false,
                 dummies: false,
@@ -3155,6 +3156,7 @@ mod tests {
             sim: SimConfig {
                 walk_hints: None,
                 hitboxes: Default::default(),
+                mob_spacing: Default::default(),
                 regen: false,
                 quests: false,
                 consumables: true,

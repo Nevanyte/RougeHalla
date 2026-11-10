@@ -244,6 +244,12 @@ pub struct SimConfig {
     /// measured archetype boxes (the live server opts in). Recorded in the statics digest and replay identity.
     #[serde(default)]
     pub hitboxes: crate::archetype::HitboxMode,
+    /// Mob spacing (ADR0024 addendum "Mob spacing"): `Auto` (the default: on exactly under `Archetypes`) or `Off`, the
+    /// measurement-only A/B of `rh-headless --example hitbox_compare`, which the server refuses to host
+    /// (`rh_server::wire::profile_supported`). `Off` is recorded in the statics digest, so in the state hash, every
+    /// checkpoint and every replay; `Auto` adds nothing to the digest (every hash from before the field is unchanged).
+    #[serde(default)]
+    pub mob_spacing: crate::archetype::MobSpacing,
 }
 
 fn default_wish_lock() -> f64 {
@@ -280,6 +286,7 @@ impl Default for SimConfig {
             dummies: false,
             walk_hints: None,
             hitboxes: crate::archetype::HitboxMode::LegacyCircle,
+            mob_spacing: crate::archetype::MobSpacing::Auto,
         }
     }
 }
