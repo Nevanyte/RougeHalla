@@ -17,6 +17,9 @@ namespace Roguehalla.Client
         public bool HasMap { get; private set; }
         /// <summary>Region and terrain lookup for the lighting, particle and music systems; see <see cref="RegionMap"/>.</summary>
         public RegionMap Regions { get; } = new RegionMap();
+        /// <summary>"What is the character standing on" (snow, sand, mud, shallow water, bog...); see <see cref="SurfaceMap"/>.</summary>
+        public SurfaceMap Surfaces { get { return _surfaces ?? (_surfaces = new SurfaceMap(Regions)); } }
+        SurfaceMap _surfaces;
         /// <summary>Region at a Unity world position (the space <see cref="WorldPoint"/> returns); None when the map has no region plane.</summary>
         public RegionId RegionAt(Vector3 worldPos) { return Regions.RegionAt(worldPos); }
         /// <summary>Region under the local player (debounced); None until the first position is known.</summary>
