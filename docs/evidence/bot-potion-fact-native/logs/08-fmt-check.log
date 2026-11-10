@@ -1,0 +1,2 @@
+$ cargo fmt -p rh-policy -- --check
+exit=0

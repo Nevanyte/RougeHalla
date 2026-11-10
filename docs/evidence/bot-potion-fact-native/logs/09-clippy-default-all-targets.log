@@ -1,0 +1,4 @@
+$ cargo clippy --offline --locked -j 8 -p rh-policy --all-targets -- -D warnings
+    Checking rh-policy v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-potion-fact/crates/rh-policy)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.66s
+exit=0

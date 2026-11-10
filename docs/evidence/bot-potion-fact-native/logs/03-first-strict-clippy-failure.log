@@ -1,0 +1,22 @@
+# First strict Clippy failure (preserved)
+#
+# Actual first invocation (both default and all-features modes failed identically):
+#   cargo clippy --offline --locked -j 8 -p rh-policy --all-targets -- -D warnings
+#   cargo clippy --offline --locked -j 8 -p rh-policy --all-targets --all-features -- -D warnings
+# Result: exit 101 in both modes. This was a lint failure in the NEW test module, not a proof failure.
+#
+# Repair: replaced the negated partial-order comparison with the finite-value `<=` predicate
+# (the trusted serialized HOT deadline is finite by the checkpoint validator). The recorded final
+# runs (logs/09-*.log and logs/10-*.log) exit 0.
+#
+# Captured terminal excerpt (identical for both modes):
+error: the use of negated comparison operators on partially ordered types produces code that is hard to read and refactor, please consider using the `partial_cmp` method instead, to make it clear that the two values could be incomparable
+   --> crates/rh-policy/src/bots/potion_fact_tests.rs:355:45
+    |
+355 |             if sample.hots.iter().any(|hot| !(hot.next > frame.source_time())) {
+    |                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.97.0/index.html#neg_cmp_op_on_partial_ord
+    = note: `-D clippy::neg-cmp-op-on-partial-ord` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::neg_cmp_op_on_partial_ord)]`
+error: could not compile `rh-policy` (lib test) due to 1 previous error

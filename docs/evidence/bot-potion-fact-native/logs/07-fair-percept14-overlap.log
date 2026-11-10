@@ -1,0 +1,18 @@
+$ cargo test --offline --locked -j 8 -p rh-policy --lib fair_percept -- --test-threads=1
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running unittests src/lib.rs (target/potion-fact-build/debug/deps/rh_policy-214e2d42634828c3)
+
+running 9 tests
+test bots::fair_percept14::tests::complete_owned_current14_sample_keeps_all_leaves_and_feeds_real_player_memory ... ok
+test bots::fair_percept14::tests::connected::real_async_accepted_intake_keeps_original_sample_clocks_and_validated_commands ... ok
+test bots::fair_percept14::tests::connected::real_sync_accepted_intake_runs_memory_humanizer_and_normal_submit_without_fallback ... ok
+test bots::fair_percept14::tests::declared_neutral_actor_keeps_unarmed_current_row_without_joining_player_memory ... ok
+test bots::fair_percept14::tests::explicit_new_session_reset_is_atomic_and_old_receipts_cannot_rejoin ... ok
+test bots::fair_percept14::tests::omitted_update_retention_present_empty_and_authoritative_clears_stay_distinct ... ok
+test bots::fair_percept14::tests::real_hidden_world_pair_has_equal_public_samples_and_player_memory ... ok
+test bots::fair_percept14::tests::stale_cross_session_full_and_bad_projection_refuse_without_partial_commit ... ok
+test bots::fair_percept14::tests::unpublished_requirements_and_memory_limit_refuse_atomically_from_reached_state ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 216 filtered out; finished in 0.02s
+
+exit=0
