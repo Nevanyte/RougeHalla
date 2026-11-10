@@ -1,0 +1,85 @@
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-strategy/crates/rh-policy)
+warning: unused variable: `cfg`
+    --> crates/rh-policy/src/bots/temporal_percept/strategy/source_tests.rs:2378:32
+     |
+2378 | fn preflight_decide(op: &SVal, cfg: &SourceConfig) -> R<()> {
+     |                                ^^^ help: if this is intentional, prefix it with an underscore: `_cfg`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `method`
+    --> crates/rh-policy/src/bots/temporal_percept/strategy/source_tests.rs:3489:17
+     |
+3489 |             let method = text(&op, "method").expect("mob-tracker method");
+     |                 ^^^^^^ help: if this is intentional, prefix it with an underscore: `_method`
+
+warning: unused variable: `method`
+    --> crates/rh-policy/src/bots/temporal_percept/strategy/source_tests.rs:3553:17
+     |
+3553 |             let method = text(&op, "method").expect("mob-hunter method");
+     |                 ^^^^^^ help: if this is intentional, prefix it with an underscore: `_method`
+
+warning: unused variable: `method`
+    --> crates/rh-policy/src/bots/temporal_percept/strategy/source_tests.rs:3617:17
+     |
+3617 |             let method = text(&op, "method").expect("build-route method");
+     |                 ^^^^^^ help: if this is intentional, prefix it with an underscore: `_method`
+
+warning: unused variable: `method`
+    --> crates/rh-policy/src/bots/temporal_percept/strategy/source_tests.rs:3680:17
+     |
+3680 |             let method = text(&op, "method").expect("memory-api method");
+     |                 ^^^^^^ help: if this is intentional, prefix it with an underscore: `_method`
+
+warning: unused variable: `empty_modules`
+    --> crates/rh-policy/src/bots/temporal_percept/strategy/source_tests.rs:3739:13
+     |
+3739 |         let empty_modules: Vec<Box<dyn super::types::FeatureModule>> = Vec::new();
+     |             ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_empty_modules`
+
+warning: unused variable: `method`
+    --> crates/rh-policy/src/bots/temporal_percept/strategy/source_tests.rs:3764:17
+     |
+3764 |             let method = text(&op, "method").expect("hunt-adapter method");
+     |                 ^^^^^^ help: if this is intentional, prefix it with an underscore: `_method`
+
+warning: `rh-policy` (lib test) generated 7 warnings (run `cargo fix --lib -p rh-policy --tests` to apply 7 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 22.22s
+     Running unittests src/lib.rs (target/strategy-admission-repair/debug/deps/rh_policy-f90e85fbfc95e0da)
+
+running 11 tests
+INTAKE_NON_ADVANCE strategy-decide-status: semantic rejection at shared checked entrypoint -> GoalStatus.state: unknown source status future
+PARITY_TOTAL tracker : 1 cases / 14 ops / 0 non-advance / 0 failures
+test bots::temporal_percept::strategy::source_tests::private_strategy_source_tracker_parity ... ok
+test bots::temporal_percept::strategy::source_tests::private_strategy_source_envelope_guard ... ok
+PARITY_TOTAL module-goal-key : 4 cases / 48 ops / 0 non-advance / 0 failures
+PARITY_TOTAL route : 17 cases / 36 ops / 0 non-advance / 0 failures
+PARITY_TOTAL adapter : 9 cases / 67 ops / 0 non-advance / 0 failures
+test bots::temporal_percept::strategy::source_tests::private_module_goal_key_source_parity ... ok
+test bots::temporal_percept::strategy::source_tests::private_strategy_source_hunt_adapter_parity ... ok
+test bots::temporal_percept::strategy::source_tests::private_strategy_source_build_route_parity ... ok
+PARITY_TOTAL memory : 12 cases / 122 ops / 0 non-advance / 0 failures
+test bots::temporal_percept::strategy::source_tests::private_strategy_source_memory_parity ... ok
+PARITY_TOTAL hunter : 24 cases / 127 ops / 0 non-advance / 0 failures
+test bots::temporal_percept::strategy::source_tests::private_strategy_source_hunter_parity ... ok
+PARITY_TOTAL strategy : 35 cases / 292 ops / 0 non-advance / 0 failures
+TRACE_NEGATIVE reversed raw Module.data order: detected
+TRACE_NEGATIVE changed nested raw Module.data value: detected
+TRACE_NEGATIVE judged-z tolerance: genuine judged delta passes; raw Module.data lookalike stays exact; out-of-bound judged delta fails
+TRACE_NEGATIVE evidence strategy-matrix-easy-farmer op1 op0: 7 callback events, own corruption channel negative own corruption
+INTAKE_NON_ADVANCE strategy-observe-weapon: semantic rejection at shared checked entrypoint -> self.weapons[0]: unknown weapon laser
+test bots::temporal_percept::strategy::source_tests::private_strategy_source_strategy_parity ... ok
+test bots::temporal_percept::strategy::source_tests::private_strategy_source_trace_negatives ... ok
+READER_CONTROL rejected=33 labels=["unsupported tag", "extra tag field", "missing number tag value", "unknown number tag", "duplicate object key", "duplicate Map key", "duplicate signed-zero Map key", "duplicate Set value", "malformed Map pair", "malformed u8 pair", "u8 range", "negative u8", "untagged array", "callable input", "instance input", "array hole", "wrong format", "wrong method value format", "duplicate case id", "unsupported suite", "wrong suite/method", "empty/skipped suite", "empty case set", "malformed identity row", "malformed draw counts", "wrong/unknown weapon", "wrong slot", "wrong weapon array count", "unknown enum", "nonfinite forbidden declared fact", "missing consumed field", "declaration/input mismatch", "consistent declaration reaches semantic weapon validator"]
+test bots::temporal_percept::strategy::source_tests::private_strategy_source_reader_controls ... ok
+INTAKE_NON_ADVANCE hunter-walk-kind: semantic rejection at shared checked entrypoint -> walk.kind: unknown declared walk descriptor future
+INTAKE_NON_ADVANCE hunter-malformed-mobs: semantic rejection at shared checked entrypoint -> hp: expected a finite number, got Str("not-a-number")
+INTAKE_NON_ADVANCE route-canfarm-kind: semantic rejection at shared checked entrypoint -> canFarm.kind: unknown descriptor future
+INTAKE_NON_ADVANCE memory-command-type: semantic rejection at shared checked entrypoint -> noteSent.cmd.type: unsupported source command future
+INTAKE_NON_ADVANCE tracker-malformed-mobs: semantic rejection at shared checked entrypoint -> kind: missing field kind
+INTAKE_NON_ADVANCE strategy-observe-weapon: semantic rejection at shared checked entrypoint -> self.weapons[0]: unknown weapon laser
+INTAKE_NON_ADVANCE memory/strategy+adapter+tracker+hunter+route: 8 semantic-intent rejections at the actual entrypoint advanced nothing
+test bots::temporal_percept::strategy::source_tests::private_strategy_source_intake_non_advance ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 209 filtered out; finished in 7.11s
+

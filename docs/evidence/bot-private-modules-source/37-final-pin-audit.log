@@ -1,0 +1,6 @@
+{"section":"actualRuntimeImports","count":88,"result":"FINAL_PIN_EXACT"}
+{"section":"sourceInventory","count":113,"result":"FINAL_PIN_EXACT"}
+{"section":"configFiles","count":9,"result":"FINAL_PIN_EXACT"}
+{"section":"compatibilityCorpora","count":7,"result":"FINAL_PIN_EXACT"}
+{"section":"toolFiles","count":12,"result":"FINAL_PIN_EXACT"}
+{"formattingCleanSourceSha256":"645e85f16adbea001f8d0e06a70b6e5d311864ed9691622c06b789c95578b012","coverageSha256":"50eaf16f47330f9a232b0cda066f9d3eae7fc413b7e0a7120c8557fd19dea0af","controlsSha256":"dcc49cf88f2588715363c1077641efd5b5a9bcee5eb0882044c9e7dd4ad3980d","manifestSha256":"fe8fe10f8b1123cb456b7b805ebc67efbd6538c76a769b74cc2cb3f8435ab016"}

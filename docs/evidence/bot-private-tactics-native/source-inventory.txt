@@ -1,0 +1,28 @@
+# Private tactics native source inventory (branch codex/deepseek-private-tactics, HEAD f252b8697cbff3afcee71711cf33db40c411399a)
+# Regenerated after the HOLD-repair harness edits; supersedes the stale pre-repair inventory.
+# bytes  sha256  path  lines
+10587  6a35ab1de5fb1192e2aeb909af309e70b5d07bf9ad15ed6bd30d1cb0ab33e178  crates/rh-policy/src/bots/temporal_percept/tactics.rs  315
+74818  40770fd93c7ee7381074121f90d330277c3855fd781524933e52f7c454c20ca8  crates/rh-policy/src/bots/temporal_percept/tactics/compat_tests.rs  1922
+34271  0ae967703a6dd2e45d1180dd5dbc20e29c75b25c9cf665fcaa37eadf9558a5da  crates/rh-policy/src/bots/temporal_percept/tactics/fight.rs  982
+24199  bdc0f2c8e3e3f909f80bfd4f7dfeb8067f218ec5b390c06217661adf266015dd  crates/rh-policy/src/bots/temporal_percept/tactics/kite.rs  714
+46786  75cb5d45516ac27aedbab76c295e9dafc9cafca7ae543026a51f850cf2a78159  crates/rh-policy/src/bots/temporal_percept/tactics/private_tactics_tests.rs  1156
+102379  20bb5654b5e51ed51d40e2251c412f8da632381cf8cc8e6eef277dc018af7ab7  crates/rh-policy/src/bots/temporal_percept/tactics/source_decode.rs  2883
+9758  957e700c18f3c10c99c39c68fa0bc5ac2cb7a28463e552ca1cf1a8c29c89207e  crates/rh-policy/src/bots/temporal_percept/tactics/source_memory_encoder.rs  266
+14719  b8c4f5f22ae25bf3db4b06e17f0e2ab08f5ae1dc2f9fec56c8db4d6b1579a1b1  crates/rh-policy/src/bots/temporal_percept/tactics/source_reader.rs  384
+91831  e2129702c4da9882f2efaf14e77263787bafc99f59e4291eee3e0aa4481f4e81  crates/rh-policy/src/bots/temporal_percept/tactics/source_strict.rs  2820
+38999  fe04aab922ac15a30ef8d7133e58cf8d50e8b64336c038f247525b8918d56435  crates/rh-policy/src/bots/temporal_percept/tactics/source_tests.rs  1012
+56524  d2f5cd80929c73a9be6864e6c67857a76835e68fd7a7ddc1e7d5acd6d70e4a93  crates/rh-policy/src/bots/temporal_percept/tactics/source_trace.rs  1649
+24559  b2b01a2e818970dd883aede6fc0450bf1232c1353a3a02cdcce70361131b30be  crates/rh-policy/src/bots/temporal_percept/tactics/types.rs  792
+24500  3d6e3f3921922a4d6faa34d2bd656e63126ab499865474a70505f214ade62014  crates/rh-policy/src/bots/temporal_percept/tactics/world.rs  652
+
+# Existing-file hunks (allowed only)
+diff --git a/crates/rh-policy/src/bots/temporal_percept/strategy.rs b/crates/rh-policy/src/bots/temporal_percept/strategy.rs
+index 020ccca4..14aac640 100644
+--- a/crates/rh-policy/src/bots/temporal_percept/strategy.rs
++++ b/crates/rh-policy/src/bots/temporal_percept/strategy.rs
+@@ -16,4 +16,4 @@ mod source_strict;
+ mod source_tests;
+ #[cfg(test)]
+ mod source_trace;
+-mod types;
++pub(super) mod types;

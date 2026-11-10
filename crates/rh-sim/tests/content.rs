@@ -107,7 +107,13 @@ const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
     ("mapgen/landmarks/templates/mod.rs", "DOOR", "internal parsed-cell role encoding, not a geometry tunable"),
     ("mapgen/landmarks/templates/mod.rs", "NOOK", "internal parsed-cell role encoding, not a geometry tunable"),
     ("mapgen/landmarks/templates/mod.rs", "LIGHT", "internal parsed-cell role encoding, not a geometry tunable"),
-    ("fx_report.rs", "FX_REPORT_EVENTS_MAX", "sealed projection report capacity; unsupported scenes fail explicitly, never changes gameplay"),
+    ("systems/card_bleed_feedback/index.rs", "NO_NODE", "derived Card pair-index child-link sentinel (u32::MAX); representation, never a game rule"),
+    ("systems/card_bleed_feedback/index.rs", "MAX_HEIGHT", "derived Card pair-index arena AVL path bound; representation, never a game rule"),
+    ("systems/card_bleed_feedback.rs", "MAX_INDEXED_ROWS", "derived Card index u32 ordinal-domain bound used only for representation refusal; never gameplay"),
+    ("systems/card_bleed_feedback/source_tests.rs", "SOURCE_BYTES", "cfg(test)-only frozen Card source corpus byte-count integrity pin; never gameplay"),
+    ("systems/card_bleed_feedback/source_tests.rs", "SOURCE_CASES", "cfg(test)-only frozen Card source corpus case-count integrity pin; never gameplay"),
+    ("systems/card_bleed_feedback/source_tests.rs", "SOURCE_ORDINARY_STEPS", "cfg(test)-only frozen Card source corpus step-count integrity pin; never gameplay"),
+    ("fx_report.rs", "FX_REPORT_EVENTS_MAX", "sealed projection report capacity for the legacy non-Card event bound; the private Card history envelope is separately cold-prepared and checked, never a game rule"),
     ("fx_report.rs", "ABILITY_CONTRIBUTIONS_MAX", "checked sealed-report representation capacity for temporal ability contributions; unsupported scenes fail explicitly rather than changing rules"),
     ("fx_report.rs", "FX_REPORT_OPS_MAX", "derived per-step projection operation capacity, not a rule"),
     ("fx_report.rs", "FX_PUBLIC_BUCKETS_MAX", "bounded viewer-local public report storage, never read by gameplay"),
@@ -543,7 +549,7 @@ fn hash_golden() {
         content_hash()
     );
 }
-const GOLDEN_CONTENT_HASH: u64 = 0x06e2_cdab_2889_abc5;
+const GOLDEN_CONTENT_HASH: u64 = 0xa2d1_022e_be71_3382;
 
 #[test]
 fn every_registry_row_perturbs_the_hash() {

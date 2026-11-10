@@ -1,0 +1,5 @@
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-quest-runtime/crates/rh-sim/src/quests/notices_continuation_source_tests.rs:678:
+     wrong_recipient.to = Some("p2".into());
+     assert_ne!(wrong_recipient, source, "recipient comparator must matter");
+ }
++

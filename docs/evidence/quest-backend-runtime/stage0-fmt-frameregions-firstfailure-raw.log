@@ -1,0 +1,5 @@
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-quest-runtime/crates/rh-sim/src/quests/tour_supply_source_tests.rs:972:
+     let doc = load();
+     replay_case(&doc["cases"][1]);
+ }
++

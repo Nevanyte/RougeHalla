@@ -1,0 +1,22 @@
+{
+  "head": "9657cd565396a7a5a7190fe66fec3efe885f47f3",
+  "args": [
+    "cargo",
+    "build",
+    "--release",
+    "--locked",
+    "--offline",
+    "-p",
+    "rh-server",
+    "--bin",
+    "rh-server"
+  ],
+  "exit": 0,
+  "seconds": 66.383556,
+  "endedUtc": "2026-11-10T03:17:52.127736+00:00",
+  "sourceCleanAtStart": true,
+  "binary": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/frost-edge-guard-01/rh-server",
+  "bytes": 11111000,
+  "sha256": "0d75f962cf72bddafa32da1738fd9f9e304595963ef0e425da64b38eea9646fe",
+  "admission": "UNRUN_FEATURE_MISMATCH_NO_POSTGRES"
+}

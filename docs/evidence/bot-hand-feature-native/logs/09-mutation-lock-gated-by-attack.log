@@ -1,0 +1,29 @@
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-hand-feature/crates/rh-policy)
+    Finished `test` profile [unoptimized] target(s) in 21.33s
+     Running unittests src/lib.rs (target/debug/deps/rh_policy-c3fa0ee46865b1ea)
+
+running 6 tests
+test bots::humanizer::feature_tests::empty_membership_rejects_every_offer_before_any_hand_state_or_draw ... ok
+test bots::humanizer::feature_tests::rejected_offers_do_not_draw_or_touch_hand_state ... ok
+test bots::humanizer::feature_tests::rejected_offer_preserves_earlier_accepted_pending_work ... ok
+test bots::humanizer::feature_tests::partial_membership_accepts_only_listed_command_types_and_preserves_arbitrary_strings ... ok
+test bots::humanizer::feature_tests::absent_features_and_present_full_membership_keep_the_old_hand ... ok
+test bots::humanizer::feature_tests::lock_is_gated_by_its_mapped_target_type_not_the_attack_conversion ... FAILED
+
+failures:
+
+---- bots::humanizer::feature_tests::lock_is_gated_by_its_mapped_target_type_not_the_attack_conversion stdout ----
+
+thread 'bots::humanizer::feature_tests::lock_is_gated_by_its_mapped_target_type_not_the_attack_conversion' (72485870) panicked at crates/rh-policy/src/bots/humanizer/feature_tests.rs:357:5:
+assertion `left == right` failed
+  left: []
+ right: [Attack, Release]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    bots::humanizer::feature_tests::lock_is_gated_by_its_mapped_target_type_not_the_attack_conversion
+
+test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 220 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p rh-policy --lib`

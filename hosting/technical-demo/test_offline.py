@@ -15,7 +15,7 @@ from bootstrap import config, unpack, caddy_config, app_unit, shaper_command, is
 from render import render
 
 NOW = dt.datetime(2026, 11, 9, tzinfo=dt.timezone.utc)
-C = dict(bucket='demo-private', key='one.tar', sha256='0'*64, region='ca-west-1', expires_at='2026-11-09T03:00:00Z', domain='play.rougehalla.com', run_id='demo-1')
+C = dict(bucket='demo-private', key='one.tar', sha256='0'*64, region='ca-west-1', expires_at='2026-11-09T12:00:00Z', domain='play.rougehalla.com', run_id='demo-1', protocol=14, content_hash='7c6a633f68c2cc72')
 
 
 def archive(path, extras=(), edit=None):
@@ -36,15 +36,63 @@ def archive(path, extras=(), edit=None):
 class Offline(unittest.TestCase):
     def test_expiry(self):
         config(json.dumps(C), NOW)
-        for stamp in ('2026-11-09T00:00:00Z', '2026-11-09T03:00:01Z', '2026-11-09T03:00:00+00:00'):
+        for stamp in ('2026-11-09T00:00:00Z', '2026-11-09T12:00:01Z', '2026-11-09T12:00:00+00:00'):
             with self.subTest(stamp=stamp), self.assertRaises(ValueError):
                 config(json.dumps(dict(C, expires_at=stamp)), NOW)
 
     def test_config_boundary(self):
         for key, value in [('domain', 'other.com'), ('domain', 'rougehalla.com'),
-                           ('domain', 'roguehalla.com'), ('domain', 'play.roguehalla.com'), ('region', 'us-east-1'), ('run_id', 'x;bad'), ('sha256', False), ('key', '../bad')]:
+                           ('domain', 'roguehalla.com'), ('domain', 'play.roguehalla.com'), ('region', 'us-east-1'), ('run_id', 'x;bad'), ('sha256', False), ('key', '../bad'),
+                           ('protocol', True), ('protocol', 0), ('protocol', 65536), ('content_hash', '7C6A633F68C2CC72'), ('content_hash', '7c6a633f68c2cc7')]:
             with self.subTest(key=key), self.assertRaises(ValueError):
                 config(json.dumps(dict(C, **{key: value})), NOW)
+        for key in ('protocol', 'content_hash'):
+            missing = dict(C)
+            del missing[key]
+            with self.subTest(missing=key), self.assertRaises(ValueError):
+                config(json.dumps(missing), NOW)
+
+    def test_ready_requires_both_configured_artifact_identities(self):
+        expected = {'protocol': C['protocol'], 'content_hash': C['content_hash']}
+
+        class Response:
+            status = 200
+            def __init__(self, value): self.value = value
+            def read(self, limit):
+                self.asserted_limit = limit
+                return json.dumps(self.value).encode()
+
+        class Connection:
+            def __init__(self, payload): self.payload = payload; self.closed = False; self.route = None
+            def request(self, method, route): self.route = route
+            def getresponse(self):
+                if self.route == '/readyz':
+                    return Response({'ok': True, 'state': 'ready', 'storage': 'ok'})
+                return Response(self.payload)
+            def close(self): self.closed = True
+
+        good = {'protocol': C['protocol'], 'contentHash': C['content_hash']}
+        for port in (7777, 7779):
+            with self.subTest(port=port), mock.patch.object(bootstrap.http.client, 'HTTPConnection',
+                                                            side_effect=lambda host, p, timeout: Connection(good)):
+                bootstrap.ready(port, expected)
+
+        malformed_or_stale = (
+            (expected, {'protocol': C['protocol'] - 1, 'contentHash': C['content_hash']}),
+            (expected, {'protocol': C['protocol'], 'contentHash': '0' * 16}),
+            (expected, {'protocol': float(C['protocol']), 'contentHash': C['content_hash']}),
+            ({'protocol': 1, 'content_hash': C['content_hash']}, {'protocol': True, 'contentHash': C['content_hash']}),
+            (expected, {'protocol': 65536, 'contentHash': C['content_hash']}),
+            (expected, {'contentHash': C['content_hash']}),
+        )
+        for port in (7777, 7779):
+            for expected_identity, payload in malformed_or_stale:
+                conn = Connection(payload)
+                with self.subTest(port=port, expected=expected_identity, payload=payload), \
+                        mock.patch.object(bootstrap.http.client, 'HTTPConnection', return_value=conn):
+                    with self.assertRaises(ValueError):
+                        bootstrap.ready(port, expected_identity)
+                    self.assertTrue(conn.closed)
 
     def test_good_extract_exclusive(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -182,7 +230,7 @@ class Offline(unittest.TestCase):
 
     def test_templates(self):
         # Render with a fresh absolute expiry, never executes the resulting shell.
-        live = dict(C, expires_at=(dt.datetime.now(dt.timezone.utc)+dt.timedelta(hours=2)).strftime('%Y-%m-%dT%H:%M:%SZ'))
+        live = dict(C, expires_at=(dt.datetime.now(dt.timezone.utc)+dt.timedelta(hours=12)).strftime('%Y-%m-%dT%H:%M:%SZ'))
         text = render(json.dumps(live).encode(), b'# reviewed script')
         self.assertLess(text.index('enable --now rh-demo-expiry.timer'), text.index('start --no-block rh-demo-setup.service'))
         self.assertIn('TimeoutStartSec=600', text)

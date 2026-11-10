@@ -1,0 +1,129 @@
+{
+  "capturedUtc": "2026-11-10T03:04:14.382508+00:00",
+  "machine": "Mac17,9",
+  "cpu": "Apple M5 Pro",
+  "physicalMemoryBytes": 68719476736,
+  "backgroundTop20": [
+    {
+      "pid": 11369,
+      "percentCpuLifetimeEstimate": 100.0,
+      "rssKiB": 24224,
+      "executable": "/Users/nevinmckinnon/Documents/Projects/RogueHalla/target/debug/deps/frost-c8266e4b3e509f90"
+    },
+    {
+      "pid": 410,
+      "percentCpuLifetimeEstimate": 45.1,
+      "rssKiB": 156800,
+      "executable": "/System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer"
+    },
+    {
+      "pid": 70070,
+      "percentCpuLifetimeEstimate": 31.3,
+      "rssKiB": 347312,
+      "executable": "/System/Library/PrivateFrameworks/MediaAnalysis.framework/Versions/A/mediaanalysisd"
+    },
+    {
+      "pid": 83236,
+      "percentCpuLifetimeEstimate": 10.9,
+      "rssKiB": 1185760,
+      "executable": "/Applications/Claude.app/Contents/Frameworks/Claude Helper (Renderer).app/Contents/MacOS/Claude Helper (Renderer)"
+    },
+    {
+      "pid": 10548,
+      "percentCpuLifetimeEstimate": 8.9,
+      "rssKiB": 173456,
+      "executable": "/usr/libexec/spotlightknowledged.updater"
+    },
+    {
+      "pid": 83221,
+      "percentCpuLifetimeEstimate": 8.1,
+      "rssKiB": 131840,
+      "executable": "/Applications/Claude.app/Contents/Frameworks/Claude Helper.app/Contents/MacOS/Claude Helper"
+    },
+    {
+      "pid": 69615,
+      "percentCpuLifetimeEstimate": 6.7,
+      "rssKiB": 106016,
+      "executable": "/System/Library/PrivateFrameworks/CoreSuggestions.framework/Versions/A/Support/suggestd"
+    },
+    {
+      "pid": 10301,
+      "percentCpuLifetimeEstimate": 6.0,
+      "rssKiB": 192720,
+      "executable": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/map-styled-bench/npm-cache/_npx/361c55be1121897e/node_modules/node/bin/node"
+    },
+    {
+      "pid": 83246,
+      "percentCpuLifetimeEstimate": 5.4,
+      "rssKiB": 105344,
+      "executable": "/Applications/Claude.app/Contents/Frameworks/Claude Helper.app/Contents/MacOS/Claude Helper"
+    },
+    {
+      "pid": 666,
+      "percentCpuLifetimeEstimate": 4.7,
+      "rssKiB": 100448,
+      "executable": "/System/Library/PrivateFrameworks/IDS.framework/identityservicesd.app/Contents/MacOS/identityservicesd"
+    },
+    {
+      "pid": 70120,
+      "percentCpuLifetimeEstimate": 4.2,
+      "rssKiB": 60672,
+      "executable": "/usr/libexec/coreduetd"
+    },
+    {
+      "pid": 8575,
+      "percentCpuLifetimeEstimate": 3.5,
+      "rssKiB": 1953264,
+      "executable": "/Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Versions/157.0.8103.39/Helpers/Codex (Aperitif Renderer).app/Contents/MacOS/Codex (Aperitif Renderer)"
+    },
+    {
+      "pid": 379,
+      "percentCpuLifetimeEstimate": 3.4,
+      "rssKiB": 24960,
+      "executable": "/System/Library/PrivateFrameworks/ApplePushService.framework/apsd"
+    },
+    {
+      "pid": 70149,
+      "percentCpuLifetimeEstimate": 3.2,
+      "rssKiB": 69584,
+      "executable": "/System/Library/PrivateFrameworks/IMDPersistence.framework/XPCServices/IMDPersistenceAgent.xpc/Contents/MacOS/IMDPersistenceAgent"
+    },
+    {
+      "pid": 28400,
+      "percentCpuLifetimeEstimate": 2.9,
+      "rssKiB": 146864,
+      "executable": "/System/Applications/Messages.app/Contents/MacOS/Messages"
+    },
+    {
+      "pid": 70065,
+      "percentCpuLifetimeEstimate": 2.4,
+      "rssKiB": 126144,
+      "executable": "/System/Library/Frameworks/Contacts.framework/Support/contactsd"
+    },
+    {
+      "pid": 710,
+      "percentCpuLifetimeEstimate": 1.8,
+      "rssKiB": 37920,
+      "executable": "/System/Library/PrivateFrameworks/IMCore.framework/imagent.app/Contents/MacOS/imagent"
+    },
+    {
+      "pid": 8483,
+      "percentCpuLifetimeEstimate": 1.8,
+      "rssKiB": 834336,
+      "executable": "/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex"
+    },
+    {
+      "pid": 337,
+      "percentCpuLifetimeEstimate": 1.6,
+      "rssKiB": 60176,
+      "executable": "/usr/libexec/logd"
+    },
+    {
+      "pid": 8422,
+      "percentCpuLifetimeEstimate": 1.3,
+      "rssKiB": 186736,
+      "executable": "/Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Versions/157.0.8103.39/Helpers/Codex (Aperitif).app/Contents/MacOS/Codex (Aperitif)"
+    }
+  ],
+  "limitation": "Other applications and Rust tests were active. This is a bounded live-workstation observation, not isolated capacity."
+}

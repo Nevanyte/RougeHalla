@@ -1,0 +1,9 @@
+{
+  "kind": "after-explicit-config-expansion",
+  "sourceSha256": "e3a2a4b19a119811aff94222704e2512c1ac51229b88ad7e337f5ef5caff0406",
+  "previousSourceSha256": "0237d6fd7fa786b7ba14801b7411ce1db37138f885fa9faefbd765eb29443e70",
+  "behaviorProjectionSha256": "e66054836d9a2e235a93139bb21a27fa8647a32c57b6c43f47c04a43335bd2db",
+  "equality": "BYTE_IDENTICAL maps/catalog/all initial/setup/operations; excluded resolved config declarations only",
+  "cases": 254,
+  "operations": 3255
+}

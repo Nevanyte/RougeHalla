@@ -1,0 +1,2 @@
+{"mode":"--write","file":"source.json","bytes":22025839,"sha256":"eb8e54e90703f2b0569023b6190e7b8ca617fecfe6b3a5c0f4db87bf6391d748","cases":31,"operations":855}
+{"mode":"--write","file":"coverage.json","bytes":2127712,"sha256":"cbcd5ddda57989ae991c21f0efb870abf98be2dd5ff5caa28fc37cd782b6e4c1","cases":31,"operations":855}

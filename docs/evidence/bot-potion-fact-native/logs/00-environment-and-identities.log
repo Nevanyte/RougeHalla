@@ -1,0 +1,53 @@
+# P-BOT-POTION-FACT-1 environment and identities
+$ pwd
+/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-potion-fact
+$ date -u
+Tue Nov 10 09:52:39 UTC 2026
+$ git rev-parse --abbrev-ref HEAD
+codex/deepseek-potion-fact
+$ git rev-parse HEAD
+3e2d902821dc74ba0ebd003f5a3a95c92d2eb5c5
+$ git status --porcelain
+ M crates/rh-policy/src/bots/mod.rs
+?? crates/rh-policy/src/bots/potion_fact_tests.rs
+$ cargo --version
+cargo 1.97.0 (c980f4866 2026-06-30)
+$ rustc --version
+rustc 1.97.0 (2d8144b78 2026-07-07)
+$ cargo fmt --version
+rustfmt 1.9.0-stable (2d8144b788 2026-07-07)
+$ cargo clippy --version
+clippy 0.1.97 (2d8144b788 2026-07-07)
+$ uname -a
+Darwin Nevins-MacBook-Pro-273.local 25.6.0 Darwin Kernel Version 25.6.0: Sat Jul 11 15:27:04 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T6050 arm64
+$ sw_vers
+ProductName:		macOS
+ProductVersion:		26.6.1
+BuildVersion:		25G76
+$ sysctl -n machdep.cpu.brand_string
+Apple M5 Pro
+$ sysctl -n hw.ncpu
+18
+$ CARGO_TARGET_DIR=/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-potion-fact/target/potion-fact-build
+$ rust-toolchain.toml:
+[toolchain]
+channel = "1.97.0"
+components = ["rustfmt", "clippy"]
+$ sha256 source runner.ts:
+345b94151ba4185736269acd782385a66d24cfaa50dafd75900cfad944c66164  packages/server/src/bots/brain/runner.ts
+$ git hash-object runner.ts:
+bcdec2aa29c27f99d73f55d42e9bf4e8531f8083
+$ sha256 field-closure.md:
+78ee42941509bb726d065d1f9f73508f965e7db64eefec139553ecc83fad1dd3  docs/evidence/bot-fair-activation-plan/field-closure.md
+$ sha256 systems/potions.rs:
+5d13e52ba5745ddff6858c3f468c1bc6978ce32784b88eec9ac11413c6730244  crates/rh-sim/src/systems/potions.rs
+$ sha256 sim potions/mod.rs:
+1a0ae34200390dbbfeac5a68f159805c78b8c9081b7dc03e66943cf40f1fa2fe  crates/rh-sim/src/potions/mod.rs
+$ sha256 delivery/session.rs:
+0fdb84eed7bbddc16d3309efe28c68afd57a23eced4f013264fcc0a16a866f2b  crates/rh-policy/src/delivery/session.rs
+$ sha256 delivery/frame.rs:
+b302f57410d8a222fa91059817af276c62c2c365eecef204380d64e50d332d3a  crates/rh-policy/src/delivery/frame.rs
+$ sha256 delivery/collections.rs:
+c771402a2fdd0640cfc066619c9c0aef1c791f38c38e8e921b1fe67f555c7693  crates/rh-policy/src/delivery/collections.rs
+$ sha256 item_view.rs:
+d50df8818f6452daabff622c7ca8a68775ac248074add143c6805bf7e6c6f5a7  crates/rh-sim/src/item_view.rs

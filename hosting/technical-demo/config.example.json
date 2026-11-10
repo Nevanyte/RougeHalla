@@ -5,5 +5,7 @@
   "region": "ca-west-1",
   "expires_at": "ROOT-REPLACE-ABSOLUTE-UTC",
   "domain": "play.rougehalla.com",
-  "run_id": "root-replace"
+  "run_id": "root-replace",
+  "protocol": 0,
+  "content_hash": "ROOT-REPLACE-EXACT-16-LOWERCASE-HEX"
 }

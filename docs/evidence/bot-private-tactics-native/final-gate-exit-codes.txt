@@ -1,0 +1,44 @@
+# Final gate invocations and completion codes (cwd = worktree root, pinned environment)
+#
+# Environment used for every command:
+#   PATH="$HOME/.cargo/bin:$PATH"
+#   CARGO_TARGET_DIR=/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-tactics/target
+#   RUSTFLAGS="-C debuginfo=0"  CARGO_INCREMENTAL=0
+#   --locked --offline -j 1
+#   rustc 1.97.0 (2d8144b78 2026-07-07) / cargo 1.97.0 (c980f4866 2026-06-30)
+#   branch codex/deepseek-private-tactics, HEAD f252b8697cbff3afcee71711cf33db40c411399a (uncommitted candidate)
+#
+# Command (exact)                                                          completion code / authoritative result line
+cargo fmt -p rh-policy -- --check                                           0 (exit: 0 in fmt-check.log)
+cargo clippy -p rh-policy --lib --tests --locked --offline -j 1 -- -D warnings 0 (exit: 0 in clippy-default-final.log)
+cargo clippy -p rh-policy --lib --tests --all-features --locked --offline -j 1 -- -D warnings 0 (exit: 0 in clippy-all-final.log)
+cargo test -p rh-policy --lib --offline --locked -j 1 private_tactics        0 (16 passed / 0 failed; tactics-tests-final.log)
+cargo test -p rh-policy --lib --offline --locked -j 1 private_tactics_compat 0 (5 passed / 0 failed; tactics-tests-final.log)
+cargo test -p rh-policy --lib --offline --locked -j 1 private_tactics_source 0 (5 passed / 0 failed; tactics-tests-final.log)
+cargo test -p rh-policy --lib --offline --locked -j 1 private_tactics_source_reader_controls 0 (1 passed; 17 rejected printed)
+cargo test -p rh-policy --lib --offline --locked -j 1 private_tactics_source_envelope_guard 0 (1 passed; 154/720/70 printed)
+cargo test -p rh-policy --lib --offline --locked -j 1 private_tactics_decode_smoke 0 (1 passed; 5 maps/154 cases/720 ops printed)
+cargo test -p rh-policy --lib --offline --locked -j 1 "bots::fight::"        0 (8 passed)
+cargo test -p rh-policy --lib --offline --locked -j 1 "bots::reflex::"       0 (5 passed)
+cargo test -p rh-policy --lib --offline --locked -j 1 "bots::world_tactics::" 0 (2 passed)
+cargo test -p rh-policy --lib --offline --locked -j 1 "bots::parity_tests::" 0 (5 passed)
+cargo test -p rh-policy --lib --offline --locked -j 1 "temporal_percept::memory::source_tests::" 0 (13 passed; 197.53 s)
+cargo test -p rh-policy --lib --offline --locked -j 1 "strategy::source_tests::" 0 (11 passed)
+cargo test -p rh-policy --lib --offline --locked -j 1 "temporal_percept::tests::" 0 (14 passed)
+cargo test -p rh-policy --lib --offline --locked -j 1                       0 (236 passed / 0 failed; 246.84 s; full-regression-final.log)
+#
+# Notes: focused filters are separate invocations for exact per-area counts and overlap with the full run; they are not
+# presented as independent extra coverage. The first-failure history (red) is retained in first-failures.md and binds the
+# final green above. No command was retried after the final source freeze (only evidence documents were written).
+
+# ---- After the Root HOLD-repair round (test-only harness/comparator/decoder changes; production source unchanged) ----
+cargo fmt -p rh-policy -- --check                                           0 (exit: 0 in repair-fmt.log)
+cargo clippy -p rh-policy --lib --tests --locked --offline -j 1 -- -D warnings 0 (exit: 0 in repair-clippy-default.log)
+cargo clippy -p rh-policy --lib --tests --all-features --locked --offline -j 1 -- -D warnings 0 (exit: 0 in repair-clippy-all.log)
+cargo test -p rh-policy --lib --offline --locked -j 1 private_tactics -- --nocapture 0 (18 passed / 0 failed, 6.00 s; repair-private-tactics.log)
+cargo test -p rh-policy --lib --offline --locked -j 1 private_tactics_compat 0 (5 passed / 0 failed; repair-focused.log)
+cargo test -p rh-policy --lib --offline --locked -j 1 private_tactics_source 0 (5 passed / 0 failed; repair-focused.log)
+cargo test -p rh-policy --lib --offline --locked -j 1 private_tactics_source_reader_controls 0 (1 passed; 17 rejected printed)
+cargo test -p rh-policy --lib --offline --locked -j 1 private_tactics_source_envelope_guard 0 (1 passed; 154/720/70 printed)
+cargo test -p rh-policy --lib --offline --locked -j 1 private_tactics_decode_smoke 0 (1 passed; 5 maps/154 cases/720 ops printed)
+cargo test -p rh-policy --lib --offline --locked -j 1                        0 (238 passed / 0 failed, 234.41 s; repair-full-regression.log)

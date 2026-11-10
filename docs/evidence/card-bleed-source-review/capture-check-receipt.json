@@ -1,0 +1,6 @@
+{
+  "command": "bash tools/card-bleed-fixtures/capture.sh --check",
+  "cwd": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-card-source-review",
+  "exitCode": 0,
+  "finishedUtc": "2026-11-10T06:21:12.495333+00:00"
+}

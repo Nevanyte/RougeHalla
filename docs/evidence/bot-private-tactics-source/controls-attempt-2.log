@@ -1,0 +1,23 @@
+{"raw":{"id":"mate-radius","status":1,"stdout":"","stderr":"node:fs:1746\n  const stats = binding.stat(\n                        ^\n\nError: ENOENT: no such file or directory, stat '/tmp/rh-private-tactics-controls-cuHC36/source/parity/policy/bot-fight/source.json'\n    at statSync (node:fs:1746:25)\n    at pin (/capture/capture.mts:16:90)\n    at <anonymous> (/capture/capture.mts:35:196)\n    at Array.map (<anonymous>)\n    at <anonymous> (/capture/capture.mts:35:186) {\n  errno: -2,\n  code: 'ENOENT',\n  syscall: 'stat',\n  path: '/tmp/rh-private-tactics-controls-cuHC36/source/parity/policy/bot-fight/source.json'\n}\n\nNode.js v22.23.4\n"}}
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: mate-radius: capture/decoder failure is not a semantic kill
+
+1 !== 0
+
+    at run (file:///capture/controls.mjs:30:441)
+    at file:///capture/controls.mjs:31:253
+    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:681:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 1,
+  expected: 0,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v22.23.4

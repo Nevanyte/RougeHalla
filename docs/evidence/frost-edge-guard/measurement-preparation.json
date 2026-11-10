@@ -1,0 +1,15 @@
+{
+  "purpose": "One post-change backend measurement; preserve original unprofiled paired run",
+  "controllerSource": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/native-m5-backend-prepare-02/run-root-reviewed.mjs",
+  "controllerSourceSha256": "40f360c2d28f56ae527953b775dac6e0cea372b2d7d97277f524554b83f95c18",
+  "controllerSha256": "3810a6bb9d201a227571a6d069bc3f64cb3613cb0f4e490bb7cd5ba4f56d095f",
+  "delta": "Only frozen binary path/hash plus exact unchanged helper/probe paths rooted in isolatedoptimization_port worktree",
+  "newBinarySha256": "4d44bf51354d4f1b5fcd392c2bf904e65f83873acfbc1caff22991705101cae0",
+  "newHead": "9657cd565396a7a5a7190fe66fec3efe885f47f3",
+  "sameCompiler": true,
+  "samePostgresFeature": true,
+  "sameReleaseDebug": 1,
+  "buildJobsDifference": "original1/current4; no codegen-unit/LTO/opt-level override",
+  "rustSourceDiffFromOriginalDemo": " crates/rh-server/tests/lease_conformance.rs | 1 +\n crates/rh-sim/src/systems/frost.rs          | 5 ++---\n 2 files changed, 3 insertions(+), 3 deletions(-)\n",
+  "sampling": "No sampler attached; same workload/actors/gates/cleanup; no changes to input timings"
+}

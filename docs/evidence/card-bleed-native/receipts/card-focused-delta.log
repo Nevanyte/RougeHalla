@@ -1,0 +1,37 @@
+=== serialized_pending_card_history ===
+running 1 test
+test systems::card_bleed_feedback::tests::serialized_pending_card_history_extends_the_prepared_boundary ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 897 filtered out; finished in 0.01s
+=== a_restored_historical_card_report ===
+running 1 test
+test systems::card_bleed_feedback::tests::a_restored_historical_card_report_over_the_legacy_event_cap_flushes_without_refusing_a_fresh_viewer ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 897 filtered out; finished in 0.61s
+=== prepared_public_output_beyond ===
+running 1 test
+test systems::card_bleed_feedback::tests::prepared_public_output_beyond_the_legacy_output_constant_uses_the_actual_projector ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 897 filtered out; finished in 0.06s
+=== measured_card_type_sizes ===
+running 1 test
+test systems::card_bleed_feedback::tests::measured_card_type_sizes_and_index_height_are_reported ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 897 filtered out; finished in 0.07s
+=== capacity_representation_refuses ===
+running 1 test
+test systems::card_bleed_feedback::tests::capacity_representation_refuses_unrepresentable_or_overflowing_bounds_without_allocating ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 897 filtered out; finished in 0.00s
+=== cold_clone_restore_and_attach ===
+running 1 test
+test systems::card_bleed_feedback::tests::cold_clone_restore_and_attach_prepare_the_actual_capacity_set ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 897 filtered out; finished in 0.04s
+=== card module ===
+
+test result: ok. 29 passed; 0 failed; 2 ignored; 0 measured; 867 filtered out; finished in 1.13s
+
+=== projector ===
+
+test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 870 filtered out; finished in 0.04s
+
+test systems::card_bleed_feedback::tests::card_bleed_alloc_public_output ... card public-output allocation witness: rows=2104 legacy_constant=1504 prepared_output_capacity=9442 feed_alloc_blocks=0
+ok
+--
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 897 filtered out; finished in 0.12s
+

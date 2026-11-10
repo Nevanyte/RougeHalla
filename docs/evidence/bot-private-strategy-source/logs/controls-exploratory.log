@@ -1,0 +1,21 @@
+command: bash tools/bot-private-strategy-fixtures/controls.sh --write
+cwd: /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests
+exit: 0
+raw stdout/stderr:
+{"id":"dedup-equal-strict","result":"KILL","case":"strategy-dedup-equal-and-higher-retains-slot","source":"first","mutant":"equal-must-lose"}
+{"id":"hysteresis-margin","result":"KILL","case":"strategy-modules-dedup-tie-hysteresis-status","source":1,"mutant":2}
+{"id":"exclusion-expiry-inclusive","result":"KILL","case":"strategy-modules-dedup-tie-hysteresis-status","source":false,"mutant":true}
+{"id":"pursuit-progress-strict","result":"KILL","case":"strategy-pursuit-progress-timeout-hit-release","source":300000,"mutant":300500}
+{"id":"pursuit-hit-release","result":"KILL","case":"strategy-pursuit-progress-timeout-hit-release","source":null,"mutant":"追跡😀"}
+{"id":"loot-budget-strict","result":"KILL","case":"strategy-loot-skip-budget-expiry-and-counters","source":false,"mutant":true}
+{"id":"appraisal-cache-expiry","result":"KILL","case":"strategy-appraisal-third-party-aged-memory","source":12,"mutant":8}
+{"id":"module-callback-order","result":"KILL","case":"strategy-modules-dedup-tie-hysteresis-status","source":["module.off.enabled","module.missing.enabled","module.declared.enabled","module.declared.goals"],"mutant":["module.declared.enabled","module.declared.goals","module.missing.enabled","module.off.enabled"]}
+{"id":"adapter-catchup-cap","result":"KILL","case":"adapter-catchup-5000","source":1,"mutant":0}
+{"id":"adapter-release-real-near-player","result":"KILL","case":"strategy-learned-opener-choice-and-hunt-release","source":null,"mutant":"meal"}
+{"id":"adapter-seed-source-home","result":"KILL","case":"adapter-walks-and-source-home-hard","source":692,"mutant":772}
+{"id":"tracker-rise-strict","result":"KILL","case":"tracker-home-rise-expiry-removal","source":false,"mutant":true}
+{"id":"hunter-ban-expiry","result":"KILL","case":"hunter-rising-drop-ban-expiry","source":false,"mutant":true}
+{"id":"route-contest-inclusive","result":"KILL","case":"route-contest-player320-boundary","source":1,"mutant":0}
+{"id":"route-lower-index-tie","result":"KILL","case":"route-exact-tie-true","source":0,"mutant":1}
+{"id":"route-replan-inclusive","result":"KILL","case":"route-stolen-unplanned-sticky-broken-replan","source":3,"mutant":2}
+{"semanticControls":16,"commentOnly":"NONKILL","restored":"PASS","bytes":6972,"sha256":"7cac8cf8a7e8dbd9d2b7a924f1a87803ac5a631cebf5986343884d6206b2c4db"}

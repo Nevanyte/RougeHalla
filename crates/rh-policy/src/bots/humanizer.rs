@@ -13,6 +13,7 @@ use crate::bots::types::{
     IntentTiming, LockTarget, Percept, Stimulus, StimulusKind, TierParams, TimedCommand,
     CHANNEL_ORDER, COMMAND_TYPES, HUMANIZER_RULES, TARGET_SNAP_RADIUS,
 };
+use crate::bots::view::Features;
 use std::collections::BTreeMap;
 
 /// The bot's own HUD is this far behind its orders (downlink, uplink, a tick): an order this recent may not show yet.
@@ -80,6 +81,10 @@ const CH_INDEX: [usize; 5] = [0, 1, 2, 3, 4];
 pub struct Humanizer {
     tier: &'static TierParams,
     map: BotMap,
+    /// The source's optional message-type membership (`humanizer.ts` HumanizerConfig.features.messageTypes), captured
+    /// once at construction and never mutated. `None` is the absent-features hand `new` has always built; `Some` drops
+    /// offers whose mapped command type is not listed (source offer checks this before all hand work).
+    message_types: Option<Vec<String>>,
     pending: [Option<Pending>; 5],
     decision_due: Vec<(String, f64)>,
     last_sent: [Option<LastSent>; 5],
@@ -95,9 +100,22 @@ pub struct Humanizer {
 
 impl Humanizer {
     pub fn new(tier: &'static TierParams, map: BotMap) -> Self {
+        Self::build(tier, map, None)
+    }
+
+    /// The source's feature-aware constructor (`humanizer.ts` createHumanizer `cfg.features`). The server's command-type
+    /// membership is copied once and stays immutable; `offer` drops any intent whose mapped command type is not listed
+    /// there, at the very start of offer (before alreadyLocked/pending/repeat/delay/RNG work). `new` is the source's
+    /// absent features and keeps the old hand exactly.
+    pub fn with_features(tier: &'static TierParams, map: BotMap, features: &Features) -> Self {
+        Self::build(tier, map, Some(features.message_types.clone()))
+    }
+
+    fn build(tier: &'static TierParams, map: BotMap, message_types: Option<Vec<String>>) -> Self {
         Self {
             tier,
             map,
+            message_types,
             pending: [None, None, None, None, None],
             decision_due: Vec::new(),
             last_sent: [None, None, None, None, None],
@@ -279,6 +297,20 @@ impl Humanizer {
         let now = ctx.p.now;
         let ch = intent.kind().channel();
         let ci = Self::idx(ch);
+        // Source humanizer.ts offer, first statement after the channel lookup:
+        // `if (cfg.features && !cfg.features.messageTypes.includes(COMMAND_TYPE[intent.kind])) return;`
+        // It runs before alreadyLocked, the pending/repeat arbitration, the decision clock and every RNG draw, so a
+        // dropped offer leaves the whole hand untouched. The checked type is the intent's mapped COMMAND_TYPE (a lock
+        // is "target"), never the command a later non-wand lock conversion emits ("attack").
+        if let Some(message_types) = &self.message_types {
+            let command_type = intent.kind().command_type().as_str();
+            if !message_types
+                .iter()
+                .any(|message_type| message_type.as_str() == command_type)
+            {
+                return;
+            }
+        }
         if intent.kind() == IntentKind::Lock {
             if let IntentBody::Lock { target, .. } = &intent.body {
                 if self.already_locked(target, ctx.p, now) {
@@ -770,3 +802,9 @@ pub fn decision_key(i: &Intent) -> String {
         IntentTiming::Timed { due } => format!("t|{}|{}", i.kind().as_str(), due),
     }
 }
+
+/// Focused source-behavior tests for the hand's optional feature gate (`humanizer.ts` HumanizerConfig.features and
+/// COMMAND_TYPE), plus the strict intake/comparison of the sealed direct-hand source supplement (six profiles/twelve
+/// real calls). New directory only; no other engine is touched.
+#[cfg(test)]
+mod feature_tests;

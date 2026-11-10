@@ -1,0 +1,1210 @@
+{
+  "status": "CAPTURED_ONE_30S_PUBLIC_WSS_WINDOW",
+  "startedUtc": "2026-11-10T03:29:10.519Z",
+  "ownedNodePid": 43969,
+  "actualOrigin": "https://play.rougehalla.com",
+  "actualSocket": "wss://play.rougehalla.com/ws",
+  "adapter": "Fixed virtual-origin dependency injection only; no loopback listener/proxy. All redirects refused.",
+  "protocol": 14,
+  "contentHash": "7c6a633f68c2cc72",
+  "inputs": [
+    [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/root-backend-integration-01/repo/tools/unity-browser-reload-proof/normal-companion.mjs",
+      "a7daa256907d23e6c392e368e5a9797af928405ab373bd48deecc5abd773bef9"
+    ],
+    [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/root-backend-integration-01/repo/crates/rh-server/web/probe.html",
+      "b6ef4b4b12aa2e1844c823a11ee18ef1cdd7f062942cd207e5207cd356d38dd7"
+    ],
+    [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/root-backend-integration-01/repo/protocol/fixtures/v14.json",
+      "9012167a320419d04d62aa340276d7fbc5181a60ea818554f278a62d26b1b336"
+    ]
+  ],
+  "meters": [
+    {
+      "seat": 1,
+      "incoming": {
+        "bytes": 116747,
+        "frames": 807,
+        "tags": {
+          "132": 1,
+          "134": 30,
+          "135": 600,
+          "136": 176
+        },
+        "bytesPerSecond": 3891.5440199559603
+      },
+      "outgoing": {
+        "bytes": 390,
+        "frames": 30,
+        "tags": {
+          "3": 30
+        },
+        "bytesPerSecond": 12.99992434737359
+      },
+      "sentWindowPings": 30,
+      "rtts": [
+        {
+          "nonce": 6,
+          "clientMs": 6438.613,
+          "sentAtMs": 6438.61975,
+          "receivedAtMs": 6448.219666,
+          "rttMs": 9.606665999999677,
+          "sendToReceiveMs": 9.599916000000121,
+          "serverMs": 6050
+        },
+        {
+          "nonce": 7,
+          "clientMs": 7439.814666,
+          "sentAtMs": 7439.825791,
+          "receivedAtMs": 7448.951416,
+          "rttMs": 9.136749999999665,
+          "sendToReceiveMs": 9.125624999999673,
+          "serverMs": 7050
+        },
+        {
+          "nonce": 8,
+          "clientMs": 8441.299625,
+          "sentAtMs": 8441.308458,
+          "receivedAtMs": 8449.913916,
+          "rttMs": 8.614290999999866,
+          "sendToReceiveMs": 8.605457999999999,
+          "serverMs": 8050
+        },
+        {
+          "nonce": 9,
+          "clientMs": 9441.600791,
+          "sentAtMs": 9441.608208,
+          "receivedAtMs": 9460.954833,
+          "rttMs": 19.354041999999026,
+          "sendToReceiveMs": 19.34662500000013,
+          "serverMs": 9050
+        },
+        {
+          "nonce": 10,
+          "clientMs": 10442.694083,
+          "sentAtMs": 10442.699916,
+          "receivedAtMs": 10451.924666,
+          "rttMs": 9.230583000000479,
+          "sendToReceiveMs": 9.224750000001222,
+          "serverMs": 10050
+        },
+        {
+          "nonce": 11,
+          "clientMs": 11444.621375,
+          "sentAtMs": 11444.631875,
+          "receivedAtMs": 11460.960083,
+          "rttMs": 16.338707999999315,
+          "sendToReceiveMs": 16.328208000000814,
+          "serverMs": 11050
+        },
+        {
+          "nonce": 12,
+          "clientMs": 12446.503208,
+          "sentAtMs": 12446.511625,
+          "receivedAtMs": 12467.93025,
+          "rttMs": 21.427041999999346,
+          "sendToReceiveMs": 21.418625000000247,
+          "serverMs": 12050
+        },
+        {
+          "nonce": 13,
+          "clientMs": 13446.948583,
+          "sentAtMs": 13446.956833,
+          "receivedAtMs": 13464.918208,
+          "rttMs": 17.969624999999724,
+          "sendToReceiveMs": 17.961374999998952,
+          "serverMs": 13050
+        },
+        {
+          "nonce": 14,
+          "clientMs": 14447.982,
+          "sentAtMs": 14447.988416,
+          "receivedAtMs": 14472.580875,
+          "rttMs": 24.59887499999968,
+          "sendToReceiveMs": 24.592458999999508,
+          "serverMs": 14050
+        },
+        {
+          "nonce": 15,
+          "clientMs": 15449.012583,
+          "sentAtMs": 15449.020333,
+          "receivedAtMs": 15470.176791,
+          "rttMs": 21.164208000000144,
+          "sendToReceiveMs": 21.156457999999475,
+          "serverMs": 15050
+        },
+        {
+          "nonce": 16,
+          "clientMs": 16450.241625,
+          "sentAtMs": 16450.249083,
+          "receivedAtMs": 16468.029875,
+          "rttMs": 17.788250000001426,
+          "sendToReceiveMs": 17.780792000001384,
+          "serverMs": 16050
+        },
+        {
+          "nonce": 17,
+          "clientMs": 17450.436291,
+          "sentAtMs": 17450.442666,
+          "receivedAtMs": 17460.924166,
+          "rttMs": 10.487874999998894,
+          "sendToReceiveMs": 10.481500000001688,
+          "serverMs": 17050
+        },
+        {
+          "nonce": 18,
+          "clientMs": 18451.27475,
+          "sentAtMs": 18451.281541,
+          "receivedAtMs": 18461.980125,
+          "rttMs": 10.70537499999773,
+          "sendToReceiveMs": 10.698583999997936,
+          "serverMs": 18050
+        },
+        {
+          "nonce": 19,
+          "clientMs": 19451.727041,
+          "sentAtMs": 19451.734833,
+          "receivedAtMs": 19467.603708,
+          "rttMs": 15.876667000000452,
+          "sendToReceiveMs": 15.868875000000116,
+          "serverMs": 19050
+        },
+        {
+          "nonce": 20,
+          "clientMs": 20452.429333,
+          "sentAtMs": 20452.436708,
+          "receivedAtMs": 20470.108958,
+          "rttMs": 17.67962500000067,
+          "sendToReceiveMs": 17.67224999999962,
+          "serverMs": 20050
+        },
+        {
+          "nonce": 21,
+          "clientMs": 21453.282958,
+          "sentAtMs": 21453.290875,
+          "receivedAtMs": 21473.24025,
+          "rttMs": 19.957291999999143,
+          "sendToReceiveMs": 19.949375000000146,
+          "serverMs": 21050
+        },
+        {
+          "nonce": 22,
+          "clientMs": 22453.378083,
+          "sentAtMs": 22453.387,
+          "receivedAtMs": 22468.123083,
+          "rttMs": 14.744999999998981,
+          "sendToReceiveMs": 14.73608299999978,
+          "serverMs": 22050
+        },
+        {
+          "nonce": 23,
+          "clientMs": 23453.867625,
+          "sentAtMs": 23453.876125,
+          "receivedAtMs": 23464.871833,
+          "rttMs": 11.004208000002109,
+          "sendToReceiveMs": 10.995708000002196,
+          "serverMs": 23050
+        },
+        {
+          "nonce": 24,
+          "clientMs": 24455.336291,
+          "sentAtMs": 24455.3445,
+          "receivedAtMs": 24465.883541,
+          "rttMs": 10.547249999999622,
+          "sendToReceiveMs": 10.539040999999997,
+          "serverMs": 24050
+        },
+        {
+          "nonce": 25,
+          "clientMs": 25455.454458,
+          "sentAtMs": 25455.460541,
+          "receivedAtMs": 25464.896291,
+          "rttMs": 9.44183300000077,
+          "sendToReceiveMs": 9.435750000000553,
+          "serverMs": 25050
+        },
+        {
+          "nonce": 26,
+          "clientMs": 26454.976125,
+          "sentAtMs": 26454.983208,
+          "receivedAtMs": 26466.107708,
+          "rttMs": 11.1315829999985,
+          "sendToReceiveMs": 11.12449999999808,
+          "serverMs": 26050
+        },
+        {
+          "nonce": 27,
+          "clientMs": 27455.289958,
+          "sentAtMs": 27455.296708,
+          "receivedAtMs": 27464.990958,
+          "rttMs": 9.700999999997293,
+          "sendToReceiveMs": 9.694249999996828,
+          "serverMs": 27050
+        },
+        {
+          "nonce": 28,
+          "clientMs": 28456.530958,
+          "sentAtMs": 28456.537625,
+          "receivedAtMs": 28465.817625,
+          "rttMs": 9.286667000000307,
+          "sendToReceiveMs": 9.279999999998836,
+          "serverMs": 28050
+        },
+        {
+          "nonce": 29,
+          "clientMs": 29456.934166,
+          "sentAtMs": 29456.941666,
+          "receivedAtMs": 29468.845041,
+          "rttMs": 11.910875000001397,
+          "sendToReceiveMs": 11.903375000001688,
+          "serverMs": 29050
+        },
+        {
+          "nonce": 30,
+          "clientMs": 30457.663625,
+          "sentAtMs": 30457.672208,
+          "receivedAtMs": 30467.8095,
+          "rttMs": 10.145874999998341,
+          "sendToReceiveMs": 10.137291999999434,
+          "serverMs": 30050
+        },
+        {
+          "nonce": 31,
+          "clientMs": 31458.159375,
+          "sentAtMs": 31458.166625,
+          "receivedAtMs": 31468.89425,
+          "rttMs": 10.73487500000192,
+          "sendToReceiveMs": 10.727624999999534,
+          "serverMs": 31050
+        },
+        {
+          "nonce": 32,
+          "clientMs": 32458.153375,
+          "sentAtMs": 32458.161958,
+          "receivedAtMs": 32467.823291,
+          "rttMs": 9.66991599999892,
+          "sendToReceiveMs": 9.661333000000013,
+          "serverMs": 32050
+        },
+        {
+          "nonce": 33,
+          "clientMs": 33458.179333,
+          "sentAtMs": 33458.187416,
+          "receivedAtMs": 33468.732375,
+          "rttMs": 10.55304199999955,
+          "sendToReceiveMs": 10.544958999998926,
+          "serverMs": 33050
+        },
+        {
+          "nonce": 34,
+          "clientMs": 34458.15075,
+          "sentAtMs": 34458.159416,
+          "receivedAtMs": 34467.981833,
+          "rttMs": 9.831082999997307,
+          "sendToReceiveMs": 9.822416999995767,
+          "serverMs": 34050
+        },
+        {
+          "nonce": 35,
+          "clientMs": 35458.162708,
+          "sentAtMs": 35458.169208,
+          "receivedAtMs": 35468.739625,
+          "rttMs": 10.576916999998502,
+          "sendToReceiveMs": 10.570417000002635,
+          "serverMs": 35050
+        }
+      ],
+      "pendingWindowAtEnd": 0,
+      "rttSummary": {
+        "count": 30,
+        "minMs": 8.614290999999866,
+        "medianMs": 10.70537499999773,
+        "p95Ms": 21.164208000000144,
+        "maxMs": 24.59887499999968
+      }
+    },
+    {
+      "seat": 2,
+      "incoming": {
+        "bytes": 110449,
+        "frames": 821,
+        "tags": {
+          "132": 1,
+          "134": 30,
+          "135": 600,
+          "136": 190
+        },
+        "bytesPerSecond": 3681.6119083155527
+      },
+      "outgoing": {
+        "bytes": 390,
+        "frames": 30,
+        "tags": {
+          "3": 30
+        },
+        "bytesPerSecond": 12.99992434737359
+      },
+      "sentWindowPings": 30,
+      "rtts": [
+        {
+          "nonce": 6,
+          "clientMs": 6591.37225,
+          "sentAtMs": 6591.380166,
+          "receivedAtMs": 6600.131666,
+          "rttMs": 8.759415999999874,
+          "sendToReceiveMs": 8.751500000000306,
+          "serverMs": 6200
+        },
+        {
+          "nonce": 7,
+          "clientMs": 7591.908125,
+          "sentAtMs": 7591.915666,
+          "receivedAtMs": 7601.193208,
+          "rttMs": 9.285082999999759,
+          "sendToReceiveMs": 9.277541999999812,
+          "serverMs": 7200
+        },
+        {
+          "nonce": 8,
+          "clientMs": 8592.612041,
+          "sentAtMs": 8592.620333,
+          "receivedAtMs": 8602.106333,
+          "rttMs": 9.494291999999405,
+          "sendToReceiveMs": 9.485999999998967,
+          "serverMs": 8200
+        },
+        {
+          "nonce": 9,
+          "clientMs": 9594.460083,
+          "sentAtMs": 9594.466875,
+          "receivedAtMs": 9611.104833,
+          "rttMs": 16.644749999999476,
+          "sendToReceiveMs": 16.637957999999344,
+          "serverMs": 9200
+        },
+        {
+          "nonce": 10,
+          "clientMs": 10594.591708,
+          "sentAtMs": 10594.600666,
+          "receivedAtMs": 10616.128458,
+          "rttMs": 21.5367499999993,
+          "sendToReceiveMs": 21.527791999998954,
+          "serverMs": 10200
+        },
+        {
+          "nonce": 11,
+          "clientMs": 11595.88125,
+          "sentAtMs": 11595.888375,
+          "receivedAtMs": 11609.89425,
+          "rttMs": 14.01299999999901,
+          "sendToReceiveMs": 14.005874999998923,
+          "serverMs": 11200
+        },
+        {
+          "nonce": 12,
+          "clientMs": 12596.238625,
+          "sentAtMs": 12596.248083,
+          "receivedAtMs": 12610.114625,
+          "rttMs": 13.876000000000204,
+          "sendToReceiveMs": 13.866541999999754,
+          "serverMs": 12200
+        },
+        {
+          "nonce": 13,
+          "clientMs": 13597.114833,
+          "sentAtMs": 13597.122208,
+          "receivedAtMs": 13613.291416,
+          "rttMs": 16.17658300000039,
+          "sendToReceiveMs": 16.169207999999344,
+          "serverMs": 13200
+        },
+        {
+          "nonce": 14,
+          "clientMs": 14598.398583,
+          "sentAtMs": 14598.407333,
+          "receivedAtMs": 14616.363583,
+          "rttMs": 17.965000000000146,
+          "sendToReceiveMs": 17.95625000000109,
+          "serverMs": 14200
+        },
+        {
+          "nonce": 15,
+          "clientMs": 15598.589375,
+          "sentAtMs": 15598.603166,
+          "receivedAtMs": 15609.056791,
+          "rttMs": 10.467416000001322,
+          "sendToReceiveMs": 10.453625000000102,
+          "serverMs": 15200
+        },
+        {
+          "nonce": 16,
+          "clientMs": 16598.962791,
+          "sentAtMs": 16598.97175,
+          "receivedAtMs": 16620.109125,
+          "rttMs": 21.146333999997296,
+          "sendToReceiveMs": 21.13737499999843,
+          "serverMs": 16200
+        },
+        {
+          "nonce": 17,
+          "clientMs": 17600.022166,
+          "sentAtMs": 17600.030791,
+          "receivedAtMs": 17615.066,
+          "rttMs": 15.04383400000006,
+          "sendToReceiveMs": 15.035208999997849,
+          "serverMs": 17200
+        },
+        {
+          "nonce": 18,
+          "clientMs": 18600.136291,
+          "sentAtMs": 18600.144041,
+          "receivedAtMs": 18614.04,
+          "rttMs": 13.903709000001982,
+          "sendToReceiveMs": 13.895959000001312,
+          "serverMs": 18200
+        },
+        {
+          "nonce": 19,
+          "clientMs": 19600.728,
+          "sentAtMs": 19600.735666,
+          "receivedAtMs": 19623.40125,
+          "rttMs": 22.673249999999825,
+          "sendToReceiveMs": 22.66558399999849,
+          "serverMs": 19200
+        },
+        {
+          "nonce": 20,
+          "clientMs": 20602.555166,
+          "sentAtMs": 20602.563208,
+          "receivedAtMs": 20624.064875,
+          "rttMs": 21.50970900000175,
+          "sendToReceiveMs": 21.501667000000452,
+          "serverMs": 20200
+        },
+        {
+          "nonce": 21,
+          "clientMs": 21602.616458,
+          "sentAtMs": 21602.625625,
+          "receivedAtMs": 21626.859166,
+          "rttMs": 24.242707999997947,
+          "sendToReceiveMs": 24.233540999997786,
+          "serverMs": 21200
+        },
+        {
+          "nonce": 22,
+          "clientMs": 22604.124875,
+          "sentAtMs": 22604.133208,
+          "receivedAtMs": 22627.060833,
+          "rttMs": 22.93595799999821,
+          "sendToReceiveMs": 22.927625000000262,
+          "serverMs": 22200
+        },
+        {
+          "nonce": 23,
+          "clientMs": 23605.185541,
+          "sentAtMs": 23605.193666,
+          "receivedAtMs": 23615.248791,
+          "rttMs": 10.063250000002881,
+          "sendToReceiveMs": 10.05512500000259,
+          "serverMs": 23200
+        },
+        {
+          "nonce": 24,
+          "clientMs": 24606.0765,
+          "sentAtMs": 24606.084125,
+          "receivedAtMs": 24616.018958,
+          "rttMs": 9.942458000001352,
+          "sendToReceiveMs": 9.934832999999344,
+          "serverMs": 24200
+        },
+        {
+          "nonce": 25,
+          "clientMs": 25607.196166,
+          "sentAtMs": 25607.203291,
+          "receivedAtMs": 25616.993875,
+          "rttMs": 9.797708999998576,
+          "sendToReceiveMs": 9.79058399999849,
+          "serverMs": 25200
+        },
+        {
+          "nonce": 26,
+          "clientMs": 26608.263208,
+          "sentAtMs": 26608.270583,
+          "receivedAtMs": 26617.980583,
+          "rttMs": 9.717375000000175,
+          "sendToReceiveMs": 9.709999999999127,
+          "serverMs": 26200
+        },
+        {
+          "nonce": 27,
+          "clientMs": 27609.296875,
+          "sentAtMs": 27609.303791,
+          "receivedAtMs": 27621.04225,
+          "rttMs": 11.745374999998603,
+          "sendToReceiveMs": 11.738459000000148,
+          "serverMs": 27200
+        },
+        {
+          "nonce": 28,
+          "clientMs": 28610.025333,
+          "sentAtMs": 28610.034083,
+          "receivedAtMs": 28617.974625,
+          "rttMs": 7.949291999997513,
+          "sendToReceiveMs": 7.940542000000278,
+          "serverMs": 28200
+        },
+        {
+          "nonce": 29,
+          "clientMs": 29610.827708,
+          "sentAtMs": 29610.835416,
+          "receivedAtMs": 29620.829416,
+          "rttMs": 10.00170799999978,
+          "sendToReceiveMs": 9.993999999998778,
+          "serverMs": 29200
+        },
+        {
+          "nonce": 30,
+          "clientMs": 30612.208458,
+          "sentAtMs": 30612.217875,
+          "receivedAtMs": 30622.291416,
+          "rttMs": 10.082957999999053,
+          "sendToReceiveMs": 10.073541000001569,
+          "serverMs": 30250
+        },
+        {
+          "nonce": 31,
+          "clientMs": 31612.790333,
+          "sentAtMs": 31612.797291,
+          "receivedAtMs": 31630.921583,
+          "rttMs": 18.131249999998545,
+          "sendToReceiveMs": 18.124292000000423,
+          "serverMs": 31250
+        },
+        {
+          "nonce": 32,
+          "clientMs": 32613.877333,
+          "sentAtMs": 32613.884916,
+          "receivedAtMs": 32622.329791,
+          "rttMs": 8.452457999999751,
+          "sendToReceiveMs": 8.444875000001048,
+          "serverMs": 32250
+        },
+        {
+          "nonce": 33,
+          "clientMs": 33614.641291,
+          "sentAtMs": 33614.648208,
+          "receivedAtMs": 33625.417583,
+          "rttMs": 10.776292000002286,
+          "sendToReceiveMs": 10.769375000003492,
+          "serverMs": 33250
+        },
+        {
+          "nonce": 34,
+          "clientMs": 34615.169458,
+          "sentAtMs": 34615.176208,
+          "receivedAtMs": 34623.813541,
+          "rttMs": 8.644083000006503,
+          "sendToReceiveMs": 8.637333000006038,
+          "serverMs": 34250
+        },
+        {
+          "nonce": 35,
+          "clientMs": 35615.0275,
+          "sentAtMs": 35615.033083,
+          "receivedAtMs": 35624.828416,
+          "rttMs": 9.800916000000143,
+          "sendToReceiveMs": 9.79533299999457,
+          "serverMs": 35250
+        }
+      ],
+      "pendingWindowAtEnd": 0,
+      "rttSummary": {
+        "count": 30,
+        "minMs": 7.949291999997513,
+        "medianMs": 10.776292000002286,
+        "p95Ms": 22.673249999999825,
+        "maxMs": 24.242707999997947
+      }
+    },
+    {
+      "seat": 3,
+      "incoming": {
+        "bytes": 179647,
+        "frames": 986,
+        "tags": {
+          "132": 1,
+          "134": 30,
+          "135": 600,
+          "136": 355
+        },
+        "bytesPerSecond": 5988.198485211855
+      },
+      "outgoing": {
+        "bytes": 390,
+        "frames": 30,
+        "tags": {
+          "3": 30
+        },
+        "bytesPerSecond": 12.99992434737359
+      },
+      "sentWindowPings": 30,
+      "rtts": [
+        {
+          "nonce": 6,
+          "clientMs": 6735.671791,
+          "sentAtMs": 6735.678833,
+          "receivedAtMs": 6744.265291,
+          "rttMs": 8.593499999999949,
+          "sendToReceiveMs": 8.586457999999766,
+          "serverMs": 6350
+        },
+        {
+          "nonce": 7,
+          "clientMs": 7736.060083,
+          "sentAtMs": 7736.065625,
+          "receivedAtMs": 7745.274666,
+          "rttMs": 9.214582999999948,
+          "sendToReceiveMs": 9.20904100000007,
+          "serverMs": 7350
+        },
+        {
+          "nonce": 8,
+          "clientMs": 8736.34025,
+          "sentAtMs": 8736.349833,
+          "receivedAtMs": 8744.274416,
+          "rttMs": 7.934166000000914,
+          "sendToReceiveMs": 7.924582999999984,
+          "serverMs": 8350
+        },
+        {
+          "nonce": 9,
+          "clientMs": 9736.585125,
+          "sentAtMs": 9736.591625,
+          "receivedAtMs": 9747.448416,
+          "rttMs": 10.863290999999663,
+          "sendToReceiveMs": 10.856791000000158,
+          "serverMs": 9350
+        },
+        {
+          "nonce": 10,
+          "clientMs": 10737.479625,
+          "sentAtMs": 10737.487458,
+          "receivedAtMs": 10754.262416,
+          "rttMs": 16.782790999999634,
+          "sendToReceiveMs": 16.77495799999997,
+          "serverMs": 10350
+        },
+        {
+          "nonce": 11,
+          "clientMs": 11738.5075,
+          "sentAtMs": 11738.515708,
+          "receivedAtMs": 11759.221833,
+          "rttMs": 20.714332999999897,
+          "sendToReceiveMs": 20.706124999998792,
+          "serverMs": 11350
+        },
+        {
+          "nonce": 12,
+          "clientMs": 12739.221416,
+          "sentAtMs": 12739.228,
+          "receivedAtMs": 12760.674333,
+          "rttMs": 21.452917000000525,
+          "sendToReceiveMs": 21.446333000001687,
+          "serverMs": 12350
+        },
+        {
+          "nonce": 13,
+          "clientMs": 13739.743958,
+          "sentAtMs": 13739.751375,
+          "receivedAtMs": 13757.171791,
+          "rttMs": 17.427833000001556,
+          "sendToReceiveMs": 17.42041600000084,
+          "serverMs": 13350
+        },
+        {
+          "nonce": 14,
+          "clientMs": 14740.841291,
+          "sentAtMs": 14740.848416,
+          "receivedAtMs": 14762.236458,
+          "rttMs": 21.395166999998764,
+          "sendToReceiveMs": 21.388041999998677,
+          "serverMs": 14350
+        },
+        {
+          "nonce": 15,
+          "clientMs": 15741.777541,
+          "sentAtMs": 15741.785125,
+          "receivedAtMs": 15757.269916,
+          "rttMs": 15.49237499999981,
+          "sendToReceiveMs": 15.48479099999895,
+          "serverMs": 15350
+        },
+        {
+          "nonce": 16,
+          "clientMs": 16741.966791,
+          "sentAtMs": 16741.971583,
+          "receivedAtMs": 16758.225041,
+          "rttMs": 16.25825000000259,
+          "sendToReceiveMs": 16.253458000002865,
+          "serverMs": 16350
+        },
+        {
+          "nonce": 17,
+          "clientMs": 17742.85375,
+          "sentAtMs": 17742.861,
+          "receivedAtMs": 17763.198166,
+          "rttMs": 20.34441599999991,
+          "sendToReceiveMs": 20.337165999997524,
+          "serverMs": 17350
+        },
+        {
+          "nonce": 18,
+          "clientMs": 18744.4005,
+          "sentAtMs": 18744.40775,
+          "receivedAtMs": 18764.210958,
+          "rttMs": 19.810457999999926,
+          "sendToReceiveMs": 19.803208000001177,
+          "serverMs": 18350
+        },
+        {
+          "nonce": 19,
+          "clientMs": 19745.362541,
+          "sentAtMs": 19745.370125,
+          "receivedAtMs": 19767.850666,
+          "rttMs": 22.488124999999854,
+          "sendToReceiveMs": 22.480540999997174,
+          "serverMs": 19350
+        },
+        {
+          "nonce": 20,
+          "clientMs": 20744.872541,
+          "sentAtMs": 20744.879458,
+          "receivedAtMs": 20756.310416,
+          "rttMs": 11.437874999999622,
+          "sendToReceiveMs": 11.430958000000828,
+          "serverMs": 20350
+        },
+        {
+          "nonce": 21,
+          "clientMs": 21745.981875,
+          "sentAtMs": 21745.990458,
+          "receivedAtMs": 21760.668875,
+          "rttMs": 14.68699999999808,
+          "sendToReceiveMs": 14.678416999999172,
+          "serverMs": 21350
+        },
+        {
+          "nonce": 22,
+          "clientMs": 22746.505291,
+          "sentAtMs": 22746.512416,
+          "receivedAtMs": 22756.255208,
+          "rttMs": 9.749916999997367,
+          "sendToReceiveMs": 9.74279199999728,
+          "serverMs": 22350
+        },
+        {
+          "nonce": 23,
+          "clientMs": 23747.321083,
+          "sentAtMs": 23747.32825,
+          "receivedAtMs": 23757.188541,
+          "rttMs": 9.867458000000624,
+          "sendToReceiveMs": 9.86029100000087,
+          "serverMs": 23350
+        },
+        {
+          "nonce": 24,
+          "clientMs": 24748.266708,
+          "sentAtMs": 24748.273458,
+          "receivedAtMs": 24756.133041,
+          "rttMs": 7.8663330000017595,
+          "sendToReceiveMs": 7.859583000001294,
+          "serverMs": 24350
+        },
+        {
+          "nonce": 25,
+          "clientMs": 25749.400625,
+          "sentAtMs": 25749.408833,
+          "receivedAtMs": 25759.845375,
+          "rttMs": 10.444750000002387,
+          "sendToReceiveMs": 10.436541999999463,
+          "serverMs": 25350
+        },
+        {
+          "nonce": 26,
+          "clientMs": 26749.84225,
+          "sentAtMs": 26749.849791,
+          "receivedAtMs": 26761.031,
+          "rttMs": 11.188749999997526,
+          "sendToReceiveMs": 11.18120899999849,
+          "serverMs": 26350
+        },
+        {
+          "nonce": 27,
+          "clientMs": 27751.61975,
+          "sentAtMs": 27751.644166,
+          "receivedAtMs": 27761.16075,
+          "rttMs": 9.540999999997439,
+          "sendToReceiveMs": 9.516584000000876,
+          "serverMs": 27350
+        },
+        {
+          "nonce": 28,
+          "clientMs": 28753.234791,
+          "sentAtMs": 28753.243166,
+          "receivedAtMs": 28762.108875,
+          "rttMs": 8.874084000002767,
+          "sendToReceiveMs": 8.865709000001516,
+          "serverMs": 28350
+        },
+        {
+          "nonce": 29,
+          "clientMs": 29754.222583,
+          "sentAtMs": 29754.230666,
+          "receivedAtMs": 29763.076541,
+          "rttMs": 8.853957999999693,
+          "sendToReceiveMs": 8.845874999999069,
+          "serverMs": 29350
+        },
+        {
+          "nonce": 30,
+          "clientMs": 30754.381208,
+          "sentAtMs": 30754.388583,
+          "receivedAtMs": 30764.09775,
+          "rttMs": 9.716542000001937,
+          "sendToReceiveMs": 9.709167000000889,
+          "serverMs": 30350
+        },
+        {
+          "nonce": 31,
+          "clientMs": 31754.839041,
+          "sentAtMs": 31754.845541,
+          "receivedAtMs": 31764.21775,
+          "rttMs": 9.378709000000526,
+          "sendToReceiveMs": 9.372209000001021,
+          "serverMs": 31350
+        },
+        {
+          "nonce": 32,
+          "clientMs": 32755.795708,
+          "sentAtMs": 32755.802,
+          "receivedAtMs": 32764.071125,
+          "rttMs": 8.275416999997105,
+          "sendToReceiveMs": 8.269124999998894,
+          "serverMs": 32350
+        },
+        {
+          "nonce": 33,
+          "clientMs": 33756.736833,
+          "sentAtMs": 33756.743541,
+          "receivedAtMs": 33767.097666,
+          "rttMs": 10.36083299999882,
+          "sendToReceiveMs": 10.354124999998021,
+          "serverMs": 33350
+        },
+        {
+          "nonce": 34,
+          "clientMs": 34757.395875,
+          "sentAtMs": 34757.404416,
+          "receivedAtMs": 34768.11425,
+          "rttMs": 10.71837499999674,
+          "sendToReceiveMs": 10.709834000001138,
+          "serverMs": 34350
+        },
+        {
+          "nonce": 35,
+          "clientMs": 35758.067125,
+          "sentAtMs": 35758.075416,
+          "receivedAtMs": 35767.050958,
+          "rttMs": 8.983832999998413,
+          "sendToReceiveMs": 8.975542000000132,
+          "serverMs": 35350
+        }
+      ],
+      "pendingWindowAtEnd": 0,
+      "rttSummary": {
+        "count": 30,
+        "minMs": 7.8663330000017595,
+        "medianMs": 10.444750000002387,
+        "p95Ms": 21.395166999998764,
+        "maxMs": 22.488124999999854
+      }
+    }
+  ],
+  "cleanup": {
+    "beforeLeave": [
+      {
+        "connected": true,
+        "errors": [],
+        "rejectCodes": [],
+        "player": 1,
+        "phase": 1,
+        "training": false,
+        "faction": 4,
+        "hp": 1145,
+        "status": 1,
+        "tick": 719,
+        "serverMs": 35950
+      },
+      {
+        "connected": true,
+        "errors": [],
+        "rejectCodes": [],
+        "player": 2,
+        "phase": 1,
+        "training": false,
+        "faction": 4,
+        "hp": 1145,
+        "status": 1,
+        "tick": 719,
+        "serverMs": 35950
+      },
+      {
+        "connected": true,
+        "errors": [],
+        "rejectCodes": [],
+        "player": 3,
+        "phase": 1,
+        "training": false,
+        "faction": 4,
+        "hp": 1145,
+        "status": 1,
+        "tick": 719,
+        "serverMs": 35950
+      }
+    ],
+    "normalLeave": [
+      {
+        "status": "fulfilled",
+        "report": {
+          "profile": "wm0_20e02eca",
+          "playerId": 1,
+          "protocol": 14,
+          "contentHash": "7c6a633f68c2cc72",
+          "connected": false,
+          "counters": {
+            "snapshots": 719,
+            "states": 182,
+            "eventFrames": 1,
+            "fxFrames": 0,
+            "sentInputs": 2
+          },
+          "errorCodes": [],
+          "rejectCodes": [
+            11
+          ],
+          "lastTick": 719
+        }
+      },
+      {
+        "status": "fulfilled",
+        "report": {
+          "profile": "wm1_20e02eca",
+          "playerId": 2,
+          "protocol": 14,
+          "contentHash": "7c6a633f68c2cc72",
+          "connected": false,
+          "counters": {
+            "snapshots": 716,
+            "states": 195,
+            "eventFrames": 1,
+            "fxFrames": 0,
+            "sentInputs": 2
+          },
+          "errorCodes": [],
+          "rejectCodes": [
+            11
+          ],
+          "lastTick": 719
+        }
+      },
+      {
+        "status": "fulfilled",
+        "report": {
+          "profile": "wm2_20e02eca",
+          "playerId": 3,
+          "protocol": 14,
+          "contentHash": "7c6a633f68c2cc72",
+          "connected": false,
+          "counters": {
+            "snapshots": 713,
+            "states": 360,
+            "eventFrames": 2,
+            "fxFrames": 0,
+            "sentInputs": 2
+          },
+          "errorCodes": [],
+          "rejectCodes": [
+            11
+          ],
+          "lastTick": 719
+        }
+      }
+    ],
+    "socketStates": [
+      3,
+      3,
+      3
+    ],
+    "allOwnedSocketsClosed": true,
+    "finalPublicInfo": {
+      "protocol": 14,
+      "contentHash": "7c6a633f68c2cc72",
+      "state": "ready",
+      "rooms": 0,
+      "lobbies": 0,
+      "players": 1,
+      "resultsOk": 5,
+      "resultsFailed": 0,
+      "resultsRefused": 0
+    }
+  },
+  "limits": [
+    "Only application binary message payload bytes during actual window; excludes Hello/Welcome/map/setup/Leave and all TCP/TLS/WebSocket framing/control overhead.",
+    "Outgoing bytes count successful native WebSocket.send acceptance, not proven kernel write/delivery.",
+    "RTT is matched unchanged helper1Hz application Ping/Pong; includes WSS/server queue and endpoint event loops; not HTTP ping, clock offset or input-to-visible latency.",
+    "No extra Ping, gameplay stimulus or hidden/private world query. Stationary public Source scene; one run, ambient load/death may refuse.",
+    "Per-window mixed-frame byte rates include ordinary Ping/Pong. Node/client runtime is not Unity/browser transport performance."
+  ],
+  "initialInfo": {
+    "protocol": 14,
+    "contentHash": "7c6a633f68c2cc72",
+    "state": "ready",
+    "rooms": 0,
+    "lobbies": 0,
+    "players": 0,
+    "resultsOk": 3,
+    "resultsFailed": 0,
+    "resultsRefused": 0
+  },
+  "publicMatchId": "90e7d9e7e72c05d8aff63cc8a8c95e1b",
+  "publicMap": {
+    "w": 48,
+    "h": 40,
+    "collisionHash": 477571931,
+    "semanticHash": 2604271623,
+    "contextHash": 2263180347
+  },
+  "beforeWindowInfo": {
+    "protocol": 14,
+    "contentHash": "7c6a633f68c2cc72",
+    "state": "ready",
+    "rooms": 1,
+    "lobbies": 0,
+    "players": 3,
+    "resultsOk": 3,
+    "resultsFailed": 0,
+    "resultsRefused": 0
+  },
+  "windowStartOwners": [
+    {
+      "connected": true,
+      "errors": [],
+      "rejectCodes": [],
+      "player": 1,
+      "phase": 1,
+      "training": false,
+      "faction": 4,
+      "hp": 1145,
+      "status": 1,
+      "tick": 118,
+      "serverMs": 5900
+    },
+    {
+      "connected": true,
+      "errors": [],
+      "rejectCodes": [],
+      "player": 2,
+      "phase": 1,
+      "training": false,
+      "faction": 4,
+      "hp": 1145,
+      "status": 1,
+      "tick": 118,
+      "serverMs": 5900
+    },
+    {
+      "connected": true,
+      "errors": [],
+      "rejectCodes": [],
+      "player": 3,
+      "phase": 1,
+      "training": false,
+      "faction": 4,
+      "hp": 1145,
+      "status": 1,
+      "tick": 118,
+      "serverMs": 5900
+    }
+  ],
+  "windowStartedUtc": "2026-11-10T03:29:16.738Z",
+  "windowActualMs": 30000.174584000004,
+  "windowEndOwners": [
+    {
+      "connected": true,
+      "errors": [],
+      "rejectCodes": [],
+      "player": 1,
+      "phase": 1,
+      "training": false,
+      "faction": 4,
+      "hp": 1145,
+      "status": 1,
+      "tick": 718,
+      "serverMs": 35900
+    },
+    {
+      "connected": true,
+      "errors": [],
+      "rejectCodes": [],
+      "player": 2,
+      "phase": 1,
+      "training": false,
+      "faction": 4,
+      "hp": 1145,
+      "status": 1,
+      "tick": 718,
+      "serverMs": 35900
+    },
+    {
+      "connected": true,
+      "errors": [],
+      "rejectCodes": [],
+      "player": 3,
+      "phase": 1,
+      "training": false,
+      "faction": 4,
+      "hp": 1145,
+      "status": 1,
+      "tick": 718,
+      "serverMs": 35900
+    }
+  ],
+  "aggregate": {
+    "incomingBytes": 406843,
+    "outgoingBytes": 1170,
+    "rttSummary": {
+      "count": 90,
+      "minMs": 7.8663330000017595,
+      "medianMs": 10.71837499999674,
+      "p95Ms": 21.5367499999993,
+      "maxMs": 24.59887499999968
+    },
+    "incomingBytesPerSecond": 13561.354413483368,
+    "outgoingBytesPerSecond": 38.99977304212077
+  },
+  "afterWindowInfo": {
+    "protocol": 14,
+    "contentHash": "7c6a633f68c2cc72",
+    "state": "ready",
+    "rooms": 1,
+    "lobbies": 0,
+    "players": 3,
+    "resultsOk": 3,
+    "resultsFailed": 0,
+    "resultsRefused": 0
+  },
+  "finishedUtc": "2026-11-10T03:29:46.812Z",
+  "ownedNodeExitExpected": 0
+}

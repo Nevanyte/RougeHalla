@@ -1,0 +1,15 @@
+{
+  "args": [
+    "cargo",
+    "test",
+    "--locked",
+    "--offline",
+    "-p",
+    "rh-sim",
+    "--lib",
+    "npc_cache_tests"
+  ],
+  "exit": 101,
+  "seconds": 25.310911166,
+  "utc": "2026-11-10T04:11:32.768758+00:00"
+}

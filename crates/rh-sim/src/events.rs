@@ -1,8 +1,13 @@
 //! What a step reports.
 
 use crate::content::WeaponId;
+
 use crate::results::{GvReason, RunResult};
 use crate::state::PlayerId;
+/// The trusted Card amount domain travels with the raw server-only `CardBleedHit` diagnostic. Re-exported from
+/// the published event surface so trusted consumers (the parity comparator's dedicated Card witness, the
+/// headless behaviour fingerprint) can match the typed tagged amount without any float decode.
+pub use crate::systems::card_bleed_feedback::CardBleedAmount;
 
 /// A private legacy pickup toast.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -117,6 +122,14 @@ pub enum Event {
         sig: crate::factions::SignatureKind,
         weapon: Option<WeaponId>,
         amount: f64,
+    },
+    /// The trusted raw Card bleed flush (source `flushBleeds`): one typed row per stored raw pair, in trusted
+    /// insertion order. This is a server-only source-comparison diagnostic, never a public hit: the settled
+    /// public projection is the separately admitted per-viewer `SeenEvent::Hit` path.
+    CardBleedHit {
+        victim: PlayerId,
+        by: Option<PlayerId>,
+        amount: CardBleedAmount,
     },
     RaidStarted,
     PlanningStarted,
@@ -279,6 +292,7 @@ impl Event {
             | Event::MarkNotice { .. }
             | Event::PlagueNotice { .. }
             | Event::SignatureHit { .. }
+            | Event::CardBleedHit { .. }
             | Event::ProjectileLaunched(_)
             | Event::ProjectileEnded { .. }
             | Event::RaidStarted
@@ -326,6 +340,7 @@ impl Event {
             | Event::MarkNotice { .. }
             | Event::PlagueNotice { .. }
             | Event::SignatureHit { .. }
+            | Event::CardBleedHit { .. }
             | Event::ProjectileLaunched(_)
             | Event::ProjectileEnded { .. }
             | Event::RaidStarted

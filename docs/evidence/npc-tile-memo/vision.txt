@@ -1,0 +1,26 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/backend-cpu-target/debug/deps/rh_sim-11f7df6587fb64ad)
+
+running 20 tests
+test vision::arena_tests::reveal_validation_rejects_impossible_same_tick_sequences ... ok
+test vision::arena_tests::every_new_persisted_reveal_fact_changes_identity ... ok
+test vision::tests::the_first_wall_face_is_visible_but_corner_squeezes_and_floor_beyond_it_are_not ... ok
+test vision::arena_tests::tile_cache_consumes_same_tick_new_reveal_and_checks_tail_geometry ... ok
+test vision::tests::trail_uses_tile_centres_and_exclusive_expiry_not_an_actors_remembered_position ... ok
+test vision::arena_tests::a_cached_negative_cell_sees_the_second_reveal_of_its_tick ... ok
+test vision::tests::the_stagger_and_an_authoritative_early_query_obey_the_same_update_throttle ... ok
+test vision::npc_cache_tests::tile_memo_keeps_precise_same_tile_los_and_invalid_point_fallback ... ok
+test vision::tests::reconnect_refreshes_only_the_due_viewer_without_a_public_read ... ok
+test vision::npc_cache_tests::npc_tile_memo_keeps_same_tick_movement_hidden_and_death_checks_fresh ... ok
+test vision::npc_cache_tests::npc_tile_memo_matches_raw_through_stationary_tail_and_exclusive_expiry ... ok
+test vision::arena_tests::restore_rejects_a_lone_open_reveal_with_second_ordinal ... ok
+test vision::tests::discarded_projection_cannot_reuse_a_different_private_trail ... ok
+test vision::npc_cache_tests::npc_prepare_revalidates_same_tick_discarded_history_and_cold_lifecycle ... ok
+test vision::tests::malformed_vision_history_is_refused_on_restore ... ok
+test vision::tests::bootstrap_discovery_grants_current_actors_props_and_attribution_until_expiry_but_never_hand_reach ... ok
+test vision::ward_tests::the_comparison_is_bound_to_the_ward_owner_and_expiry ... ok
+test vision::ward_tests::captured_camp_ward_producer_and_sight_match_the_source ... ok
+test vision::arena_tests::source_vision_helper_retains_expiries_across_same_tick_geometry_changes ... ok
+test vision::arena_tests::persistent_tile_cache_reuses_source_helper_queries_without_changing_the_leaf_answer ... ok
+
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 825 filtered out; finished in 1.14s

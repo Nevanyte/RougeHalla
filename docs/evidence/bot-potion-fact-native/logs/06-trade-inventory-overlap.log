@@ -1,0 +1,15 @@
+$ cargo test --offline --locked -j 8 -p rh-policy --lib trade -- --test-threads=1
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.07s
+     Running unittests src/lib.rs (target/potion-fact-build/debug/deps/rh_policy-214e2d42634828c3)
+
+running 6 tests
+test delivery::collections::trade_tests::trade_baseline_is_bitwise_transactional_and_unavailable_is_not_empty ... ok
+test delivery::collections::trade_tests::trade_projection_preserves_opaque_owner_facts_and_exact_inventory_labels ... ok
+test delivery::collections::trade_tests::unsupported_trade_views_and_inventory_refuse_without_advancing_forced_state ... ok
+test delivery_tests::frame14_refuses_malformed_trade_update_without_mutating_retained_facts_or_tick ... ok
+test delivery_tests::frame14_requires_all_eleven_keys_including_explicit_trade_unavailable ... ok
+test delivery_tests::frame14_retains_exact_trade_order_bits_and_explicit_empty_or_unavailable_replacements ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 219 filtered out; finished in 0.08s
+
+exit=0

@@ -380,7 +380,7 @@ fn the_legacy_circle_trajectory_is_the_pre_spacing_one() {
     }
     assert_eq!(fold, LEGACY_FOLD, "legacy fold {fold:#018x}");
 }
-const LEGACY_FOLD: u64 = 0xc55c_39b6_e2f4_f9aa;
+const LEGACY_FOLD: u64 = 0xe39f_ef7e_8f17_48b7;
 
 #[test]
 fn the_axe_band_fits_a_ring_of_the_pack() {

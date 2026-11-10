@@ -1,0 +1,25 @@
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.27
+   Compiling serde_core v1.0.229
+   Compiling syn v3.0.9
+   Compiling libm v0.2.16
+   Compiling serde v1.0.229
+   Compiling serde_derive v1.0.229
+   Compiling zmij v1.0.23
+   Compiling ryu-js v1.0.3
+   Compiling serde_json v1.0.154
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests/crates/rh-sim)
+   Compiling rh-protocol v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests/crates/rh-protocol)
+   Compiling memchr v2.8.3
+   Compiling itoa v1.0.18
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests/crates/rh-policy)
+   Compiling rh-headless v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests/crates/rh-headless)
+    Finished `release` profile [optimized + debuginfo] target(s) in 4m 26s
+     Running tests/source_arena_soak.rs (target/root-strategy-notice-admission/build/release/deps/source_arena_soak-e24fabbbce2d2cb7)
+
+running 1 test
+test full_map_bot_matches_with_zombie_churn_run_to_completion_deterministically ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 42.28s
+

@@ -1,0 +1,8 @@
+== command: /Users/nevinmckinnon/.cargo/bin/cargo fmt -p rh-policy -- --check
+== cwd: /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-path-budget
+== cargo: cargo 1.97.0 (c980f4866 2026-06-30)
+== rustc: rustc 1.97.0 (2d8144b78 2026-07-07)
+== target: /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-path-budget/target/path-budget-build
+== started: 2026-11-10T10:09:44Z
+== exit: 0
+== finished: 2026-11-10T10:09:45Z

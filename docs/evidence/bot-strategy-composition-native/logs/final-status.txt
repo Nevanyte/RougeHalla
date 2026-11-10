@@ -1,0 +1,64 @@
+=== FINAL STATUS 2026-11-10T10:27:36Z ===
+ M crates/rh-policy/src/bots/temporal_percept/strategy/engine.rs
+ M crates/rh-policy/src/bots/temporal_percept/strategy/mob_hunt.rs
+ M crates/rh-policy/src/bots/temporal_percept/strategy/private_strategy_tests.rs
+ M crates/rh-policy/src/bots/temporal_percept/strategy/source_tests.rs
+ M crates/rh-policy/src/bots/temporal_percept/strategy/source_trace.rs
+ M crates/rh-policy/src/bots/temporal_percept/strategy/types.rs
+?? docs/evidence/bot-strategy-composition-native/
+
+=== DIFF NAME-ONLY ===
+crates/rh-policy/src/bots/temporal_percept/strategy/engine.rs
+crates/rh-policy/src/bots/temporal_percept/strategy/mob_hunt.rs
+crates/rh-policy/src/bots/temporal_percept/strategy/private_strategy_tests.rs
+crates/rh-policy/src/bots/temporal_percept/strategy/source_tests.rs
+crates/rh-policy/src/bots/temporal_percept/strategy/source_trace.rs
+crates/rh-policy/src/bots/temporal_percept/strategy/types.rs
+
+=== DIFF FILES IN candidate.diff ===
+diff --git a/crates/rh-policy/src/bots/temporal_percept/strategy/engine.rs b/crates/rh-policy/src/bots/temporal_percept/strategy/engine.rs
+diff --git a/crates/rh-policy/src/bots/temporal_percept/strategy/mob_hunt.rs b/crates/rh-policy/src/bots/temporal_percept/strategy/mob_hunt.rs
+diff --git a/crates/rh-policy/src/bots/temporal_percept/strategy/private_strategy_tests.rs b/crates/rh-policy/src/bots/temporal_percept/strategy/private_strategy_tests.rs
+diff --git a/crates/rh-policy/src/bots/temporal_percept/strategy/source_tests.rs b/crates/rh-policy/src/bots/temporal_percept/strategy/source_tests.rs
+diff --git a/crates/rh-policy/src/bots/temporal_percept/strategy/source_trace.rs b/crates/rh-policy/src/bots/temporal_percept/strategy/source_trace.rs
+diff --git a/crates/rh-policy/src/bots/temporal_percept/strategy/types.rs b/crates/rh-policy/src/bots/temporal_percept/strategy/types.rs
+
+=== LIVE DIFF SHA VS SAVED ===
+live  8b796701fbe99f3548a61b05a5da53921c41a31827316beea40c53e5c298983e
+saved 8b796701fbe99f3548a61b05a5da53921c41a31827316beea40c53e5c298983e
+
+=== CURRENT CHANGED FILE HASHES (should equal receipt) ===
+f8e8118c72e50b87cd0fc599d2e30bb292530d620df0378b6fd11d579e83bad9  crates/rh-policy/src/bots/temporal_percept/strategy/types.rs
+320fea0c1e38d983b57bc69601b032a0146900d6bf9f7709f3dbe41c91f3c8a4  crates/rh-policy/src/bots/temporal_percept/strategy/mob_hunt.rs
+72250e13ca557f0e1d3bb324085ba7eee4ffb2e9bd6347fd61fa87ee4301870d  crates/rh-policy/src/bots/temporal_percept/strategy/engine.rs
+825b6b52d9685bc090cfa1887041536a33c2388eea4aa358cdd76be88d457023  crates/rh-policy/src/bots/temporal_percept/strategy/source_trace.rs
+b1b09a5a21268ecb2a7b5068cb03a989bf931f76ec77d3c28b97f1ac6c9d165b  crates/rh-policy/src/bots/temporal_percept/strategy/private_strategy_tests.rs
+9e02d64df68ff3609c365cd4e04cb8651649c7c3203e119fc94ab2a5b2b7ebdb  crates/rh-policy/src/bots/temporal_percept/strategy/source_tests.rs
+
+=== EVIDENCE DIR ===
+docs/evidence/bot-strategy-composition-native/:
+total 80
+drwxr-xr-x@   5 nevinmckinnon  staff    160 Nov 10 04:27 .
+drwxr-xr-x@ 335 nevinmckinnon  staff  10720 Nov 10 04:18 ..
+-rw-r--r--@   1 nevinmckinnon  staff  24578 Nov 10 04:26 candidate.diff
+drwxr-xr-x@  16 nevinmckinnon  staff    512 Nov 10 04:27 logs
+-rw-------@   1 nevinmckinnon  staff  11744 Nov 10 04:27 README.md
+
+docs/evidence/bot-strategy-composition-native/logs/:
+total 136
+drwxr-xr-x@ 16 nevinmckinnon  staff   512 Nov 10 04:27 .
+drwxr-xr-x@  5 nevinmckinnon  staff   160 Nov 10 04:27 ..
+-rw-r--r--@  1 nevinmckinnon  staff  2510 Nov 10 04:19 baseline-declared11.log
+-rw-r--r--@  1 nevinmckinnon  staff  1022 Nov 10 04:18 baseline-head.txt
+-rw-r--r--@  1 nevinmckinnon  staff  4368 Nov 10 04:20 baseline-source11.log
+-rw-r--r--@  1 nevinmckinnon  staff  1693 Nov 10 04:22 build-1.log
+-rw-r--r--@  1 nevinmckinnon  staff   386 Nov 10 04:23 build-2.log
+-rw-r--r--@  1 nevinmckinnon  staff   949 Nov 10 04:25 clippy-bridge.log
+-rw-r--r--@  1 nevinmckinnon  staff  1977 Nov 10 04:23 declared13-bridge.log
+-rw-r--r--@  1 nevinmckinnon  staff  1926 Nov 10 04:27 final-candidate-hashes.txt
+-rw-r--r--@  1 nevinmckinnon  staff  2919 Nov 10 04:27 final-status.txt
+-rw-r--r--@  1 nevinmckinnon  staff  6504 Nov 10 04:26 final-tests.log
+-rw-r--r--@  1 nevinmckinnon  staff   130 Nov 10 04:23 fmt-apply.log
+-rw-r--r--@  1 nevinmckinnon  staff  3248 Nov 10 04:23 fmt-check-1.log
+-rw-r--r--@  1 nevinmckinnon  staff  1040 Nov 10 04:26 scope-checks.txt
+-rw-r--r--@  1 nevinmckinnon  staff  4366 Nov 10 04:23 source11-bridge.log

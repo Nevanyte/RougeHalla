@@ -1,0 +1,8 @@
+{
+  "command": "git diff --cached --check",
+  "exit": 2,
+  "stdout": "tools/bot-private-modules-fixtures/checks.mts:28: trailing whitespace.\n+ \n",
+  "classification": "author formatting failure, not semantic KILL",
+  "rawReceipt": "31-whitespace-check-failure.log.gz",
+  "note": "Raw text retained compressed so its literal trailing-space excerpt is not edited by formatting checks."
+}

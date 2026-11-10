@@ -1,0 +1,15 @@
+import {join} from 'node:path';
+import {pathToFileURL} from 'node:url';
+export const ROOT = process.env.RH_BOT_STRATEGY_SOURCE_ROOT ?? '/repo';
+export const source = (path: string): Promise<any> => import(pathToFileURL(join(ROOT, path)).href);
+export const shared = await source('packages/shared/src/index.ts');
+export const mapgen = await source('packages/shared/src/mapgen.ts');
+export const mapWire = await source('packages/shared/src/mapWire.ts');
+export const types = await source('packages/server/src/bots/brain/types.ts');
+export const memory = await source('packages/server/src/bots/brain/memory.ts');
+export const strategy = await source('packages/server/src/bots/brain/strategy.ts');
+export const adapter = await source('packages/server/src/bots/brain/huntAdapter.ts');
+export const hunt = await source('packages/server/src/bots/mobHunt.ts');
+export const route = await source('packages/server/src/bots/brain/buildRoute.ts');
+export const knowledge = await source('packages/server/src/bots/brain/knowledge.ts');
+export const random = await source('packages/server/src/bots/brain/random.ts');

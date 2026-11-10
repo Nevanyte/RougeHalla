@@ -1,0 +1,30 @@
+# First format-check failure (preserved)
+#
+# Actual first invocation:
+#   cargo fmt -p rh-policy -- --check
+# Result: exit 1 with formatting differences in the NEW module (lines truncated in the captured terminal
+# tail; the complete diff was not retained). This was the pre-format state of a NEW file only.
+#
+# Repair: `cargo fmt -p rh-policy`; the recorded final check (logs/08-fmt-check.log) exits 0.
+#
+# Captured terminal excerpt:
++    let (restored_mid_sample, restored_mid_derived) = check(
++        &continuation,
++        &restored_mid,
++        "restored mid-HOT continuation",
++    );
+     assert!(restored_mid_derived);
+     assert_eq!(restored_mid.frame().tick(), mid.frame().tick());
+     assert_f64_bits_eq(
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-potion-fact/crates/rh-policy/src/bots/potion_fact_tests.rs:536:
+     step_until(&mut seat, last_end_at);
+     let last_end = seat.accept();
+     let (last_end_sample, last_end_derived) = check(&seat, &last_end, "last HOT final expiry");
+-    assert!(!last_end_derived, "the last HOT expiring turns healing false");
++    assert!(
++        !last_end_derived,
++        "the last HOT expiring turns healing false"
++    );
+     assert_eq!(accepted_owner_healing_count(last_end.frame()), Ok(0));
+     assert!(last_end_sample.hots.is_empty());
+     assert_eq!(owner_of(&last_end_sample).potions_healing, 0);

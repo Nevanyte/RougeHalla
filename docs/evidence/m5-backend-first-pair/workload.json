@@ -1,0 +1,50 @@
+{
+  "format": "rh-backend-paired-workload/1",
+  "mapSha256": "b4eda2bad334c781510696cdd0b9811166d9c9b2c6c0750a22a2092a5113a7f1",
+  "mapSize": [
+    160,
+    160
+  ],
+  "bases": [
+    {
+      "x": 2544,
+      "y": 2416
+    },
+    {
+      "x": 2576,
+      "y": 2704
+    },
+    {
+      "x": 2384,
+      "y": 2576
+    }
+  ],
+  "selection": "before any run, choose tile centers nearest map center with an all-floor5x5 square and >=192u mutual spacing; use ONLY normally public collision geometry",
+  "setup": "ordinary Move/Stop to assigned shared base; <=60s; no teleport/private state; setupseq1,2",
+  "warmupSeconds": 10,
+  "measurementSeconds": 30,
+  "commandCadenceMs": 1000,
+  "moveOffsets": [
+    [
+      64,
+      0
+    ],
+    [
+      -64,
+      0
+    ],
+    [
+      0,
+      64
+    ],
+    [
+      0,
+      -64
+    ]
+  ],
+  "warmupReturnOnEvent": 8,
+  "warmupSeqStart": 3,
+  "measurementSeqStart": 13,
+  "privateGameRngInstalled": false,
+  "scope": "backend-only ordinary protocol seats; no Unity/browser/profile work"
+}

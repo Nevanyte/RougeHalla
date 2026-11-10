@@ -1,0 +1,53 @@
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-hand-feature/crates/rh-policy)
+    Finished `test` profile [unoptimized] target(s) in 21.13s
+     Running unittests src/lib.rs (target/debug/deps/rh_policy-c3fa0ee46865b1ea)
+
+running 6 tests
+test bots::humanizer::feature_tests::partial_membership_accepts_only_listed_command_types_and_preserves_arbitrary_strings ... ok
+test bots::humanizer::feature_tests::absent_features_and_present_full_membership_keep_the_old_hand ... ok
+test bots::humanizer::feature_tests::rejected_offers_do_not_draw_or_touch_hand_state ... FAILED
+test bots::humanizer::feature_tests::empty_membership_rejects_every_offer_before_any_hand_state_or_draw ... FAILED
+test bots::humanizer::feature_tests::rejected_offer_preserves_earlier_accepted_pending_work ... FAILED
+test bots::humanizer::feature_tests::lock_is_gated_by_its_mapped_target_type_not_the_attack_conversion ... FAILED
+
+failures:
+
+---- bots::humanizer::feature_tests::rejected_offers_do_not_draw_or_touch_hand_state stdout ----
+
+thread 'bots::humanizer::feature_tests::rejected_offers_do_not_draw_or_touch_hand_state' (72483975) panicked at crates/rh-policy/src/bots/humanizer/feature_tests.rs:476:5:
+assertion `left == right` failed
+  left: HumanizerStats { commands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], reactions: {}, target_clicks: 0, click_missed: 0, click_wrong: 0, hesitations: 1, lapses: 0, throttled: 0, superseded: 0, apm_peak: 0 }
+ right: HumanizerStats { commands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], reactions: {}, target_clicks: 0, click_missed: 0, click_wrong: 0, hesitations: 0, lapses: 0, throttled: 0, superseded: 0, apm_peak: 0 }
+
+---- bots::humanizer::feature_tests::empty_membership_rejects_every_offer_before_any_hand_state_or_draw stdout ----
+
+thread 'bots::humanizer::feature_tests::empty_membership_rejects_every_offer_before_any_hand_state_or_draw' (72483971) panicked at crates/rh-policy/src/bots/humanizer/feature_tests.rs:323:5:
+assertion `left == right` failed
+  left: Rng { state: 4103143726 }
+ right: Rng { state: 21 }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- bots::humanizer::feature_tests::rejected_offer_preserves_earlier_accepted_pending_work stdout ----
+
+thread 'bots::humanizer::feature_tests::rejected_offer_preserves_earlier_accepted_pending_work' (72483974) panicked at crates/rh-policy/src/bots/humanizer/feature_tests.rs:530:5:
+assertion `left == right` failed
+  left: HumanizerStats { commands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], reactions: {}, target_clicks: 0, click_missed: 0, click_wrong: 0, hesitations: 0, lapses: 0, throttled: 0, superseded: 1, apm_peak: 0 }
+ right: HumanizerStats { commands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], reactions: {}, target_clicks: 0, click_missed: 0, click_wrong: 0, hesitations: 0, lapses: 0, throttled: 0, superseded: 0, apm_peak: 0 }
+
+---- bots::humanizer::feature_tests::lock_is_gated_by_its_mapped_target_type_not_the_attack_conversion stdout ----
+
+thread 'bots::humanizer::feature_tests::lock_is_gated_by_its_mapped_target_type_not_the_attack_conversion' (72483972) panicked at crates/rh-policy/src/bots/humanizer/feature_tests.rs:379:5:
+assertion `left == right` failed
+  left: Rng { state: 1199730176 }
+ right: Rng { state: 33 }
+
+
+failures:
+    bots::humanizer::feature_tests::empty_membership_rejects_every_offer_before_any_hand_state_or_draw
+    bots::humanizer::feature_tests::lock_is_gated_by_its_mapped_target_type_not_the_attack_conversion
+    bots::humanizer::feature_tests::rejected_offer_preserves_earlier_accepted_pending_work
+    bots::humanizer::feature_tests::rejected_offers_do_not_draw_or_touch_hand_state
+
+test result: FAILED. 2 passed; 4 failed; 0 ignored; 0 measured; 220 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p rh-policy --lib`

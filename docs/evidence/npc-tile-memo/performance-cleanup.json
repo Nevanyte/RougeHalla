@@ -1,0 +1,11 @@
+{
+  "utc": "2026-11-10T04:20:13.826017+00:00",
+  "nativePid": 96277,
+  "actualExecToolExit": 0,
+  "psExit": 1,
+  "psOutput": "",
+  "listenerExit": 1,
+  "listeners": [],
+  "pass": true,
+  "controllerStatus": "CAPTURED_ONE_30S_NATIVE_BACKEND"
+}

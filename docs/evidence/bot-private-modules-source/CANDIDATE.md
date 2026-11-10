@@ -1,0 +1,14 @@
+# Author candidate seal
+
+Source author Sol completed this bounded P-BOT-MODULES-1 candidate on branch `codex/bot-private-modules-source` from exact base `bd40fa2a274184b8748b005af78e18e74802f7ae`. Root independently reviews/reproduces this cut before source admission and any native dispatch. The manifest retains `AUTHOR_PREPARED_UNSEALED_INDEPENDENT_REVIEW_REQUIRED`; an author commit does not confer admission.
+
+- source.json: 12755158 bytes; SHA256 `645e85f16adbea001f8d0e06a70b6e5d311864ed9691622c06b789c95578b012`.
+- coverage.json: 1832252 bytes; SHA256 `50eaf16f47330f9a232b0cda066f9d3eae7fc413b7e0a7120c8557fd19dea0af`.
+- controls.json: 1403852 bytes; SHA256 `dcc49cf88f2588715363c1077641efd5b5a9bcee5eb0882044c9e7dd4ad3980d`.
+- manifest.json: 5566949 bytes; SHA256 `fe8fe10f8b1123cb456b7b805ebc67efbd6538c76a769b74cc2cb3f8435ab016`.
+
+Final checks: 255 cases / 3259 operations; 36 actual reached predicates; 24 strict reader negatives; 26/26 semantic controls KILL, comment NONKILL and restored full histories byte-identical. Logs32/33 own the final formatting-clean capture plus fresh-process and separate fresh Docker/read-only-output source+coverage checks. Log34 proves every map/catalog/config/initial/setup/input/result/state/callback byte unchanged outside one tool-file whitespace pin; it rebinds only the control envelope source SHA256. All26 raw KILL receipts and comment/restored proof are inherited unchanged from log26, with exact base source/controls retained as31-control-base-*.json.gz. Logs35/36 own final strict conversion/manifest write+check. No semantic control rerun is claimed after this formatting-only change. No additional optional combinations followed the bounded clock/history corrections.
+
+Finite scope: 8 exact maps (seven64×64 arenas and one160×160 generated7); at most160 operations and2 cfg objects per case; 218 real cfg lifetimes and15260 actual Knowledge setup draws. Suites:11 choice,39 Hunter,34 chests,24 planning,95 Wishes,51 hazards,1 registry. Exact Runtime imports88 / conservative source files113 / configs+lock9 / compatibility corpora7 / tool files12 are pinned; log30 checks source/import/config/compatibility inventories and log36 verifies all final tool pins after the explicit one-byte formatting change recorded in34. Source callbacks/stats/draws are offline evidence and never public observations/UI.
+
+All writes are only the new tools/corpus/evidence directories. Source/old tools/corpora, Rust, locks, shared status, client/network and Claude work are unchanged. No host npm install, merge, push, cloud or permissions change. Limitations and later Brain/live work remain explicit in LEDGER.md/HANDOFF.md; no tolerance was fitted or approved. First failures and the first surviving control are tracked, with previous successful cuts distinguished in RUNS.md.

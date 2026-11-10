@@ -45,6 +45,8 @@ mod paths_parity_tests;
 #[cfg(test)]
 mod planning_parity_tests;
 #[cfg(test)]
+mod potion_fact_tests;
+#[cfg(test)]
 mod view_parity_tests;
 #[cfg(test)]
 mod wish_module_tests;

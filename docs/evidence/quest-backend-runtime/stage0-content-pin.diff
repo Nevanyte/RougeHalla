@@ -1,0 +1,13 @@
+diff --git a/parity/abilities/hash-tape.json b/parity/abilities/hash-tape.json
+index b6a7e874..4b123d71 100644
+--- a/parity/abilities/hash-tape.json
++++ b/parity/abilities/hash-tape.json
+@@ -255,7 +255,7 @@
+     }
+   },
+   "checkpoint": "rh-checkpoint/29",
+-  "contentHash": "7c6a633f68c2cc72",
++  "contentHash": "8edd862f48ffa100",
+   "format": "rh-ability-hash-tape/2",
+   "note": "63 admitted source cases executed without catch-and-drop; native digests rebound for the combined layout, not legacy expected gameplay",
+   "observationVersion": 21

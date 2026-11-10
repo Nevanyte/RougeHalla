@@ -20,7 +20,7 @@ use serde::ser::{SerializeStruct, Serializer};
 use std::fmt;
 
 /// The tag every checkpoint carries. Bump it when the layout of `statics` or `world` changes incompatibly.
-pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/30";
+pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/31";
 
 /// How far past the map edge a fighter, waypoint or spawn may be and still restore (real states stay inside the map).
 const COORD_MARGIN: f64 = 1024.0;
@@ -239,6 +239,14 @@ impl<'de> Visitor<'de> for CheckpointVisitor<'_> {
         }
         let mut projection = crate::fx_report::Projection::empty_at(w.tick);
         projection.prepare_mobs(w.mobs.len());
+        // Cold Card preparation rebuilds the derived trusted pair index from the validated rows and reserves the
+        // exact sidecars/public bounds for this accepted state; a state the representation cannot prepare is
+        // refused here instead of silently under-reserving the first step.
+        if let Err(why) =
+            crate::systems::card_bleed_feedback::prepare(&k, &mut w, &mut scratch, &mut projection)
+        {
+            return Err(self.refuse(CheckpointError::Malformed(why)));
+        }
         Ok(Sim {
             projection,
             k,
@@ -431,9 +439,24 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
             u32::MAX as f64 * TICK_MS
         ));
     }
+    // The trusted Card report and any serialized server-only raw Card rows must be a coherent, canonically
+    // valid B3 state: actual retained actor provenance, unique complete raw pairs and report clock/state
+    // invariants. The typed amount deserializer already rejected tags/payloads/finite-domain violations.
+    w.card_bleed
+        .validate(w.server_time, &|id| w.known_actor(id))?;
     // Between-step cancellation is queued before the next clock advance. Its required producer time must survive
     // restore verbatim; accepting a default or a future/nonfinite value would fabricate the eventual public cue time.
     for (i, event) in w.pending_events.iter().enumerate() {
+        if let crate::Event::CardBleedHit { victim, by, .. } = event {
+            for id in [Some(*victim), *by].into_iter().flatten() {
+                if !w.known_actor(id) {
+                    return Err(format!(
+                        "pending CardBleedHit {i}: actor {} has no retained provenance",
+                        id.0
+                    ));
+                }
+            }
+        }
         let event_time = match event {
             crate::Event::CastStarted { event_time, .. }
             | crate::Event::CastLanded { event_time, .. }

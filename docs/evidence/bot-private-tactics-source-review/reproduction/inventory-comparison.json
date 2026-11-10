@@ -1,0 +1,18 @@
+{
+  "format": "rh-bot-private-tactics-review-inventory-comparison/1",
+  "before": {
+    "path": "before.json",
+    "phase": "before",
+    "manifestSha256": "9f76406016d0ebc498b0a3a3ec7cad677fc43ecd40b530a963a57a7f3d6eb957",
+    "entries": 226,
+    "mismatches": 0
+  },
+  "after": {
+    "path": "after.json",
+    "phase": "after",
+    "manifestSha256": "9f76406016d0ebc498b0a3a3ec7cad677fc43ecd40b530a963a57a7f3d6eb957",
+    "entries": 226,
+    "mismatches": 0
+  },
+  "completeInventoryIdentical": true
+}

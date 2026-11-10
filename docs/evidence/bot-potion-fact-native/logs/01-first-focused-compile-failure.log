@@ -1,0 +1,27 @@
+# First focused-compile failure (preserved)
+#
+# Actual first compile invocation:
+#   cargo test --offline --locked -j 8 -p rh-policy --lib potion_fact_tests -- --nocapture --test-threads=1
+# Result: exit 101. This was a test-module compile error, not a runtime/proof failure. The excerpt below
+# is the captured terminal tail of that invocation (the full compiler log was not retained).
+#
+# Repair: derived `PartialEq` on the test-only `TrustedHot` mirror row in the NEW module.
+
+error[E0369]: binary operation `==` cannot be applied to type `Vec<TrustedHot>`
+   --> crates/rh-policy/src/bots/potion_fact_tests.rs:598:5
+    |
+598 |     assert_eq!(restored_last_end_sample.hots, last_end_sample.hots);
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `Vec<TrustedHot>`
+    = note: an implementation of `PartialEq` might be missing for `TrustedHot`
+   --> crates/rh-policy/src/bots/potion_fact_tests.rs:163:1
+    |
+163 | struct TrustedHot {
+    ^^^^^^^^^^^^^^^^^ must implement `PartialEq`
+help: consider annotating `TrustedHot` with `#[derive(PartialEq)]`
+    |
+163 + #[derive(PartialEq)]
+164 | struct TrustedHot {
+    |
+error: could not compile `rh-policy` (lib test) due to 1 previous error

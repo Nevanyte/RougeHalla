@@ -7,7 +7,7 @@
 //! (shared/mobs.ts), campMatchup/nearestCamps (shared/planning.ts) and planSpawnScore/planPick (bots/mobHunt.ts). This file
 //! is that pure layer plus the module state machine, so the pinned-container corpus can compare it value for value through
 //! declared inputs. It reads no server state; the seat turns its intents into PublicCommand::Plan on the validated path.
-use crate::bots::random::{pick_option, uniform, Rng};
+use crate::bots::random::Rng;
 use crate::bots::types::{TierId, TierParams};
 use rh_sim::constants::{
     ELITE_DMG_MULT, ELITE_HP_MULT, ELITE_K, FIRE_BACKLASH, FIRE_BURN_DPS, FROST_SLOW,
@@ -25,8 +25,8 @@ pub const PLAN_CAMPS: usize = 2;
 /// A camp whose weapon makes the bot's useless counts this much of its matchup (mobHunt.ts).
 pub const PLAN_USELESS_WEIGHT: f64 = 0.25;
 /// The stats file weight/cap for a learned choice bias (types.ts LEARN.weight / LEARN.cap).
-const LEARN_WEIGHT: f64 = 0.3;
-const LEARN_CAP: f64 = 0.25;
+pub(crate) const LEARN_WEIGHT: f64 = 0.3;
+pub(crate) const LEARN_CAP: f64 = 0.25;
 /// Source FACTIONS params that are the identity in the shipped sheet; mirrored so the reference duel is the code.
 const MARK_AMP: f64 = 1.;
 const MARK_TAX_KEEP: f64 = 1.;
@@ -508,31 +508,15 @@ pub fn nearest_camps(map: &PlanMap, at: (f64, f64), n: usize) -> Vec<&PlanCamp> 
     camped.into_iter().take(n).map(|e| e.0).collect()
 }
 /// bots/mobHunt.ts planSpawnScore: the matchup of the PLAN_CAMPS camps nearest the spawn, each cut to
-/// PLAN_USELESS_WEIGHT when the camp's weapon makes the bot's useless. -Infinity for an unknown pool index.
+/// PLAN_USELESS_WEIGHT when the camp's weapon makes the bot's useless. -Infinity for an unknown pool index. The i32
+/// public input is adapted into the raw-f64 source leaf; no source capture truncates before that leaf.
 pub fn plan_spawn_score(
     map: &PlanMap,
     pool_index: i32,
     faction: FactionId,
     weapon: Option<WeaponId>,
 ) -> f64 {
-    let Ok(index) = usize::try_from(pool_index) else {
-        return f64::NEG_INFINITY;
-    };
-    let Some(at) = map.spawn_pool.get(index) else {
-        return f64::NEG_INFINITY;
-    };
-    let mut score = 0.;
-    for camp in nearest_camps(map, (at.x, at.y), PLAN_CAMPS) {
-        let share = camp_matchup(faction, camp);
-        let useless =
-            weapon.is_some_and(|w| crate::bots::mob_hunt::useless(w, region_weapon(camp.zone)));
-        score += if useless {
-            share * PLAN_USELESS_WEIGHT
-        } else {
-            share
-        };
-    }
-    score
+    plan_spawn_score_raw(map, f64::from(pool_index), faction, weapon)
 }
 /// bots/mobHunt.ts planPick: the better free spawn of the two (0 on a tie), or -1 when both are taken/dealt none.
 pub fn plan_pick(
@@ -567,16 +551,12 @@ pub struct PlanLearned {
     pub bias: Vec<(String, f64)>,
 }
 impl PlanLearned {
-    fn of(&self, key: &str) -> f64 {
-        if !self.enabled {
-            return 0.;
-        }
-        let b = self
-            .bias
+    /// The declared raw bias for a key (the source `learned.bias(key)` callback return, binary64 as declared).
+    pub(crate) fn lookup(&self, key: &str) -> f64 {
+        self.bias
             .iter()
             .find(|(k, _)| k == key)
-            .map_or(0., |(_, v)| if v.is_finite() { *v } else { 0. });
-        LEARN_WEIGHT * b.clamp(-LEARN_CAP, LEARN_CAP)
+            .map_or(0., |(_, v)| *v)
     }
 }
 /// The private plan deal as the module reads it (shared PlanMessage): the server-resolved owner facts.
@@ -629,6 +609,410 @@ pub struct PlanState {
     pub done_at: Option<f64>,
     pub ready_sent: bool,
 }
+
+// --------------------------------------------------------------------------------------- source shared transitions
+// Root corrected bridge allocation (2026-11-10): these are the leased shared seams. The old public `PlanModule` keeps
+// its typed `PlanDeal` input/fixtures as an adapter over the same transitions the source-shaped module uses.
+
+/// The private plan message as the source `readDeal` retains it: raw **finite binary64** spawns/pick/boon, literal-true
+/// taken flags and string-only boons. The source-form reader owns the coercion from the private event record; this type
+/// never narrows a captured number (a fractional/negative/out-of-range spawn index is preserved, not truncated).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub(crate) struct SourcePlanDeal {
+    pub ends_at: f64,
+    pub spawns: [f64; 2],
+    pub taken: [bool; 2],
+    pub pick: f64,
+    pub boons: Vec<String>,
+    pub boon: f64,
+}
+
+/// The deal fields the shared plan transitions read. Source `num()` leaves absent/invalid as `-1` and `pick`/`boon` as
+/// `-1`, so both adapters supply the same accessor semantics without converting the source numbers.
+pub(crate) trait PlanDealView {
+    fn spawn(&self, k: usize) -> f64;
+    fn taken(&self, k: usize) -> bool;
+    fn pick(&self) -> f64;
+    fn boons(&self) -> &[String];
+    fn boon(&self) -> f64;
+}
+impl PlanDealView for PlanDeal {
+    fn spawn(&self, k: usize) -> f64 {
+        f64::from(self.spawns[k])
+    }
+    fn taken(&self, k: usize) -> bool {
+        self.taken[k]
+    }
+    fn pick(&self) -> f64 {
+        f64::from(self.pick)
+    }
+    fn boons(&self) -> &[String] {
+        &self.boons
+    }
+    fn boon(&self) -> f64 {
+        f64::from(self.boon)
+    }
+}
+impl PlanDealView for SourcePlanDeal {
+    fn spawn(&self, k: usize) -> f64 {
+        self.spawns[k]
+    }
+    fn taken(&self, k: usize) -> bool {
+        self.taken[k]
+    }
+    fn pick(&self) -> f64 {
+        self.pick
+    }
+    fn boons(&self) -> &[String] {
+        &self.boons
+    }
+    fn boon(&self) -> f64 {
+        self.boon
+    }
+}
+
+/// The declared learned-bias callback view (source `LearnedBias`): enabled gate plus the argument-sensitive key
+/// lookup. The source LEARN weight/clamp and Number.isFinite sanitize are applied once, here.
+pub(crate) struct LearnedBiasView<'a> {
+    pub enabled: bool,
+    pub bias: &'a dyn Fn(&str) -> f64,
+}
+impl LearnedBiasView<'_> {
+    fn of(&self, key: &str) -> f64 {
+        if !self.enabled {
+            return 0.;
+        }
+        learned_bias_of(self, key)
+    }
+}
+/// Source `biasOf`: `LEARN.weight * max(-LEARN.cap, min(LEARN.cap, Number.isFinite(b) ? b : 0))`.
+pub(crate) fn learned_bias_of(view: &LearnedBiasView<'_>, key: &str) -> f64 {
+    if !view.enabled {
+        return 0.;
+    }
+    let b = (view.bias)(key);
+    let finite = if b.is_finite() { b } else { 0. };
+    LEARN_WEIGHT * finite.clamp(-LEARN_CAP, LEARN_CAP)
+}
+
+/// One source `intents()` outcome before the adapter formats its source message and why.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum PlanDirective {
+    Spawn { option: usize, index: f64 },
+    Boon { option: usize, id: String },
+    Ready { why: ReadyWhy },
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ReadyWhy {
+    NoDeal,
+    Timer,
+    Choices,
+}
+
+/// Source `uniform(rng, lo, hi)` over a declared draw lane.
+fn uniform_draw(draw: &mut dyn FnMut() -> f64, lo: f64, hi: f64) -> f64 {
+    lo + (hi - lo) * draw()
+}
+/// Source `softmaxIndex` over a declared draw lane (exact draw/order/NaN behavior of the admitted random leaf).
+fn softmax_index_draw(draw: &mut dyn FnMut() -> f64, utilities: &[f64], temperature: f64) -> i32 {
+    let n = utilities.len();
+    if n == 0 {
+        return -1;
+    }
+    let mut best = 0usize;
+    for i in 1..n {
+        if utilities[i] > utilities[best] {
+            best = i;
+        }
+    }
+    if temperature <= 0. || n == 1 {
+        return best as i32;
+    }
+    let top = utilities[best];
+    let weights: Vec<f64> = utilities
+        .iter()
+        .map(|u| rh_sim::math::exp((u - top) / temperature))
+        .collect();
+    let mut sum = 0.;
+    for w in &weights {
+        sum += w;
+    }
+    let mut r = draw() * sum;
+    for (i, w) in weights.iter().enumerate() {
+        r -= w;
+        if r <= 0. {
+            return i as i32;
+        }
+    }
+    best as i32
+}
+/// Source `pickOption` over declared decide/lapse lanes: the lapse stream is drawn first for n > 1 even at lapseP 0.
+fn pick_option_draw(
+    decide: &mut dyn FnMut() -> f64,
+    lapse: &mut dyn FnMut() -> f64,
+    utilities: &[f64],
+    temperature: f64,
+    lapse_p: f64,
+) -> i32 {
+    let n = utilities.len();
+    if n == 0 {
+        return -1;
+    }
+    if n > 1 {
+        let roll = lapse();
+        if roll < lapse_p {
+            let mut order: Vec<(f64, usize)> = utilities.iter().copied().zip(0..n).collect();
+            order.sort_by(|a, b| b.0.total_cmp(&a.0).then(a.1.cmp(&b.1)));
+            order.truncate(3);
+            let k = (f64::floor(lapse() * order.len() as f64) as usize).min(order.len() - 1);
+            return order[k].1 as i32;
+        }
+    }
+    softmax_index_draw(decide, utilities, temperature)
+}
+
+fn may_ask(now: f64, ask: Option<PlanAsk>, reaction_mu: f64) -> bool {
+    match ask {
+        None => true,
+        Some(a) => a.n < PLAN_RULES.max_asks && now - a.at >= PLAN_RULES.resend_ms + reaction_mu,
+    }
+}
+fn spent_asks(now: f64, ask: Option<PlanAsk>, reaction_mu: f64) -> bool {
+    match ask {
+        None => false,
+        Some(a) => a.n >= PLAN_RULES.max_asks && now - a.at >= PLAN_RULES.resend_ms + reaction_mu,
+    }
+}
+
+/// Source `schedule`: window scaling, the reading draw, the settling draw and the last-call instant. The schedule
+/// tables are indexed by the source `tier.id` (TierId); every other consumed tier value arrives as full TierParams.
+fn schedule(
+    source: &mut PlanState,
+    now: f64,
+    ends_at: f64,
+    tier: TierId,
+    decide: &mut dyn FnMut() -> f64,
+) {
+    let window = f64::max(1., ends_at - now);
+    let scale = f64::min(1., window / PLAN_SECONDS_MS);
+    let ti = tier_index(tier);
+    let (rlo, rhi) = PLAN_RULES.read[ti];
+    let (slo, shi) = PLAN_RULES.settle[ti];
+    source.read_until = now
+        + f64::min(
+            uniform_draw(decide, rlo, rhi) * scale,
+            PLAN_RULES.read_share * window,
+        );
+    source.settle_ms = uniform_draw(decide, slo, shi) * scale;
+    source.last_call = ends_at
+        - f64::min(
+            PLAN_RULES.ready_before_ms,
+            PLAN_RULES.ready_before_share * window,
+        );
+}
+
+/// Source `observe` scheduling half: only the first valid deal draws the schedule; later deals replace only the deal
+/// itself in the adapter. `first` is the adapter's `st.deal === null` fact.
+pub(crate) fn source_observe(
+    source: &mut PlanState,
+    now: f64,
+    first: bool,
+    ends_at: f64,
+    tier: TierId,
+    decide: &mut dyn FnMut() -> f64,
+) {
+    if first {
+        schedule(source, now, ends_at, tier, decide);
+    }
+}
+
+/// Source `intents`: the shared phase/no-deal/read/last-call/ask/resend/settle/ready transitions. The adapter owns the
+/// deal record (raw or typed), the phase fact, the source message/why formatting and the cfg identity.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn source_intents<D: PlanDealView + ?Sized>(
+    source: &mut PlanState,
+    now: f64,
+    phase_planning: bool,
+    params: &TierParams,
+    map: &PlanMap,
+    faction: Option<FactionId>,
+    weapon: Option<WeaponId>,
+    learned: &LearnedBiasView<'_>,
+    deal: Option<&D>,
+    decide: &mut dyn FnMut() -> f64,
+    lapse: &mut dyn FnMut() -> f64,
+) -> Option<PlanDirective> {
+    if !phase_planning {
+        return None;
+    }
+    source.phase_at.get_or_insert(now);
+    if source.ready_sent {
+        return None;
+    }
+    let ready = |state: &mut PlanState, why: ReadyWhy| {
+        state.ready_sent = true;
+        Some(PlanDirective::Ready { why })
+    };
+    let phase_at = source.phase_at.unwrap_or(now);
+    let Some(deal) = deal else {
+        return if now - phase_at >= PLAN_RULES.no_deal_ms {
+            ready(source, ReadyWhy::NoDeal)
+        } else {
+            None
+        };
+    };
+    if now >= source.last_call {
+        return ready(source, ReadyWhy::Timer);
+    }
+    if now < source.read_until {
+        return None;
+    }
+    let free: Vec<usize> = (0..2)
+        .filter(|&k| deal.spawn(k) >= 0. && !deal.taken(k))
+        .collect();
+    if deal.pick() < 0.
+        && !free.is_empty()
+        && !spent_asks(now, source.spawn_ask, params.reaction.mu)
+    {
+        if !may_ask(now, source.spawn_ask, params.reaction.mu) {
+            return None;
+        }
+        let k = source_choose_spawn(
+            deal, &free, map, faction, weapon, learned, params, decide, lapse,
+        );
+        let n = source.spawn_ask.map_or(0, |a| a.n) + 1;
+        source.spawn_ask = Some(PlanAsk { at: now, n });
+        return Some(PlanDirective::Spawn {
+            option: k,
+            index: deal.spawn(k),
+        });
+    }
+    if !deal.boons().is_empty()
+        && deal.boon() < 0.
+        && !spent_asks(now, source.boon_ask, params.reaction.mu)
+    {
+        if !may_ask(now, source.boon_ask, params.reaction.mu) {
+            return None;
+        }
+        let b = source_choose_boon(deal, faction, learned, params, decide, lapse);
+        let n = source.boon_ask.map_or(0, |a| a.n) + 1;
+        source.boon_ask = Some(PlanAsk { at: now, n });
+        return Some(PlanDirective::Boon {
+            option: b,
+            id: deal.boons()[b].clone(),
+        });
+    }
+    let done_at = *source.done_at.get_or_insert(now);
+    if now >= done_at + source.settle_ms {
+        return ready(source, ReadyWhy::Choices);
+    }
+    None
+}
+
+/// Source `chooseSpawn`: the better of the free spawns by `planSpawnScore` over PLAN_CAMPS plus the learned state bias,
+/// softened by the supplied full tier values (softmaxT / lapseP). One free spawn or no faction takes it with no draw.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn source_choose_spawn<D: PlanDealView + ?Sized>(
+    deal: &D,
+    free: &[usize],
+    map: &PlanMap,
+    faction: Option<FactionId>,
+    weapon: Option<WeaponId>,
+    learned: &LearnedBiasView<'_>,
+    params: &TierParams,
+    decide: &mut dyn FnMut() -> f64,
+    lapse: &mut dyn FnMut() -> f64,
+) -> usize {
+    let Some(faction) = faction else {
+        return free[0];
+    };
+    if free.len() == 1 {
+        return free[0];
+    }
+    let utilities: Vec<f64> = free
+        .iter()
+        .map(|&k| {
+            let index = deal.spawn(k);
+            let zone = plan_spawn_zone(map, index);
+            let bias = zone.map_or(0., |zone| {
+                learned.of(&format!("spawn|{}|{}", faction.as_str(), zone.as_str()))
+            });
+            plan_spawn_score_raw(map, index, faction, weapon) / PLAN_CAMPS as f64 + bias
+        })
+        .collect();
+    let pick = pick_option_draw(decide, lapse, &utilities, params.softmax_t, params.lapse_p);
+    free[usize::try_from(pick).unwrap_or(0)]
+}
+
+/// Source `chooseBoon`: with nothing to go by but the bias, the first two dealt boons are weighed on the supplied full
+/// tier values; index 0 unless softmax/lapse selects index 1.
+pub(crate) fn source_choose_boon<D: PlanDealView + ?Sized>(
+    deal: &D,
+    faction: Option<FactionId>,
+    learned: &LearnedBiasView<'_>,
+    params: &TierParams,
+    decide: &mut dyn FnMut() -> f64,
+    lapse: &mut dyn FnMut() -> f64,
+) -> usize {
+    let dealt: Vec<&String> = deal.boons().iter().take(2).collect();
+    let utilities: Vec<f64> = dealt
+        .iter()
+        .map(|id| faction.map_or(0., |f| learned.of(&format!("boon|{}|{}", f.as_str(), id))))
+        .collect();
+    let pick = pick_option_draw(decide, lapse, &utilities, params.softmax_t, params.lapse_p);
+    if pick == 1 {
+        1
+    } else {
+        0
+    }
+}
+
+/// The zone of a source `spawnPool[index]` read: only a nonnegative integral in-range index resolves an entry
+/// (JS array index); fractional/negative/out-of-range/NaN reads no entry, so no bias is added.
+pub(crate) fn plan_spawn_zone(map: &PlanMap, pool_index: f64) -> Option<Zone> {
+    let index = js_array_index(pool_index)?;
+    map.spawn_pool.get(index).map(|spawn| spawn.zone)
+}
+
+/// JS `map.spawnPool[index]` index validity: `-0` resolves 0; any other fractional/negative/non-finite/out-of-range
+/// value reads `undefined`.
+fn js_array_index(pool_index: f64) -> Option<usize> {
+    if !pool_index.is_finite() || pool_index.fract() != 0. || pool_index < 0. {
+        return None;
+    }
+    usize::try_from(pool_index as u64).ok()
+}
+
+/// Source `planSpawnScore` with the raw source index: an invalid array index has no entry and returns -Infinity; it is
+/// never truncated into the old i32 input.
+pub(crate) fn plan_spawn_score_raw(
+    map: &PlanMap,
+    pool_index: f64,
+    faction: FactionId,
+    weapon: Option<WeaponId>,
+) -> f64 {
+    let Some(index) = js_array_index(pool_index) else {
+        return f64::NEG_INFINITY;
+    };
+    let Some(at) = map.spawn_pool.get(index) else {
+        return f64::NEG_INFINITY;
+    };
+    let mut score = 0.;
+    for camp in nearest_camps(map, (at.x, at.y), PLAN_CAMPS) {
+        let share = camp_matchup(faction, camp);
+        let useless =
+            weapon.is_some_and(|w| crate::bots::mob_hunt::useless(w, region_weapon(camp.zone)));
+        score += if useless {
+            share * PLAN_USELESS_WEIGHT
+        } else {
+            share
+        };
+    }
+    score
+}
+
+// ------------------------------------------------------------------------------------------------------------ the module
+
 /// The planning module: the state machine of brain/modules/planning.ts.
 #[derive(Default)]
 pub struct PlanModule {
@@ -642,33 +1026,16 @@ impl PlanModule {
     pub fn reset(&mut self) {
         self.state = PlanState::default();
     }
-    fn schedule(&mut self, now: f64, deal: &PlanDeal, tier: TierId, decide: &mut Rng) {
-        let window = f64::max(1., deal.ends_at - now);
-        let scale = f64::min(1., window / PLAN_SECONDS_MS);
-        let ti = tier_index(tier);
-        let (rlo, rhi) = PLAN_RULES.read[ti];
-        let (slo, shi) = PLAN_RULES.settle[ti];
-        self.state.read_until = now
-            + f64::min(
-                uniform(decide, rlo, rhi) * scale,
-                PLAN_RULES.read_share * window,
-            );
-        self.state.settle_ms = uniform(decide, slo, shi) * scale;
-        self.state.last_call = deal.ends_at
-            - f64::min(
-                PLAN_RULES.ready_before_ms,
-                PLAN_RULES.ready_before_share * window,
-            );
-    }
     /// Source observe(ctx): read the private plan message. The seat calls it once per decision tick with the current
     /// observation view (the server sends one when the deal is first dealt and whenever the owner facts change).
     pub fn observe(&mut self, now: f64, deal: Option<&PlanDeal>, tier: TierId, decide: &mut Rng) {
         let Some(deal) = deal else {
             return;
         };
-        if self.state.deal.is_none() {
-            self.schedule(now, deal, tier, decide);
-        }
+        let first = self.state.deal.is_none();
+        source_observe(&mut self.state, now, first, deal.ends_at, tier, &mut || {
+            decide.next_f64()
+        });
         self.state.deal = Some(deal.clone());
     }
     /// Source intents(ctx): the plan message to send this decision, or None.
@@ -685,147 +1052,53 @@ impl PlanModule {
         decide: &mut Rng,
         lapse: &mut Rng,
     ) -> Option<PlanIntent> {
-        if !phase_planning {
-            return None;
-        }
         let params = TierParams::by_id(tier);
-        let st = &mut self.state;
-        st.phase_at.get_or_insert(now);
-        if st.ready_sent {
-            return None;
-        }
-        let ready = |st: &mut PlanState, why: &str| {
-            st.ready_sent = true;
-            Some(PlanIntent {
+        let learned_view = LearnedBiasView {
+            enabled: learned.enabled,
+            bias: &|key| learned.lookup(key),
+        };
+        let mut decide_draw = || decide.next_f64();
+        let mut lapse_draw = || lapse.next_f64();
+        let deal = self.state.deal.clone();
+        let directive = source_intents(
+            &mut self.state,
+            now,
+            phase_planning,
+            params,
+            map,
+            faction,
+            weapon,
+            &learned_view,
+            deal.as_ref(),
+            &mut decide_draw,
+            &mut lapse_draw,
+        )?;
+        Some(match directive {
+            PlanDirective::Spawn { option, .. } => {
+                let deal = self.state.deal.as_ref().expect("deal for spawn ask");
+                PlanIntent {
+                    spawn: Some(option as u8),
+                    boon: None,
+                    ready: None,
+                    why: format!("spawn {} (option {})", deal.spawns[option], option),
+                }
+            }
+            PlanDirective::Boon { option, id } => PlanIntent {
+                spawn: None,
+                boon: Some(option as u8),
+                ready: None,
+                why: format!("boon {id}"),
+            },
+            PlanDirective::Ready { why } => PlanIntent {
                 spawn: None,
                 boon: None,
                 ready: Some(true),
-                why: why.to_string(),
-            })
-        };
-        let phase_at = st.phase_at.unwrap_or(now);
-        let Some(deal) = st.deal.as_ref().cloned() else {
-            return if now - phase_at >= PLAN_RULES.no_deal_ms {
-                ready(st, "no deal came: ready, the server picks")
-            } else {
-                None
-            };
-        };
-        if now >= st.last_call {
-            return ready(st, "the timer is nearly out");
-        }
-        if now < st.read_until {
-            return None;
-        }
-        let free: Vec<usize> = (0..2)
-            .filter(|&k| deal.spawns[k] >= 0 && !deal.taken[k])
-            .collect();
-        let may_ask = |a: Option<PlanAsk>| match a {
-            None => true,
-            Some(a) => {
-                a.n < PLAN_RULES.max_asks && now - a.at >= PLAN_RULES.resend_ms + params.reaction.mu
-            }
-        };
-        let spent_asks = |a: Option<PlanAsk>| match a {
-            None => false,
-            Some(a) => {
-                a.n >= PLAN_RULES.max_asks
-                    && now - a.at >= PLAN_RULES.resend_ms + params.reaction.mu
-            }
-        };
-        if deal.pick < 0 && !free.is_empty() && !spent_asks(st.spawn_ask) {
-            if !may_ask(st.spawn_ask) {
-                return None;
-            }
-            let k = choose_spawn(
-                &deal, &free, map, faction, weapon, learned, params, decide, lapse,
-            );
-            let n = st.spawn_ask.map_or(0, |a| a.n) + 1;
-            st.spawn_ask = Some(PlanAsk { at: now, n });
-            let why = format!("spawn {} (option {})", deal.spawns[k], k);
-            return Some(PlanIntent {
-                spawn: Some(k as u8),
-                boon: None,
-                ready: None,
-                why,
-            });
-        }
-        if !deal.boons.is_empty() && deal.boon < 0 && !spent_asks(st.boon_ask) {
-            if !may_ask(st.boon_ask) {
-                return None;
-            }
-            let b = choose_boon(&deal, faction, learned, params, decide, lapse);
-            let n = st.boon_ask.map_or(0, |a| a.n) + 1;
-            st.boon_ask = Some(PlanAsk { at: now, n });
-            let why = format!("boon {}", deal.boons[b]);
-            return Some(PlanIntent {
-                spawn: None,
-                boon: Some(b as u8),
-                ready: None,
-                why,
-            });
-        }
-        let done_at = *st.done_at.get_or_insert(now);
-        if now >= done_at + st.settle_ms {
-            return ready(st, "choices made");
-        }
-        None
-    }
-}
-/// Source chooseSpawn: the better of the free spawns by planSpawnScore over PLAN_CAMPS (plus the learned state bias),
-/// softened by the tier like any other choice. 0 on a tie.
-#[allow(clippy::too_many_arguments)]
-fn choose_spawn(
-    deal: &PlanDeal,
-    free: &[usize],
-    map: &PlanMap,
-    faction: Option<FactionId>,
-    weapon: Option<WeaponId>,
-    learned: &PlanLearned,
-    params: &TierParams,
-    decide: &mut Rng,
-    lapse: &mut Rng,
-) -> usize {
-    let Some(faction) = faction else {
-        return free[0];
-    };
-    if free.len() == 1 {
-        return free[0];
-    }
-    let utilities: Vec<f64> = free
-        .iter()
-        .map(|&k| {
-            let index = deal.spawns[k];
-            let at = usize::try_from(index)
-                .ok()
-                .and_then(|i| map.spawn_pool.get(i));
-            let zone = at.map(|s| s.zone);
-            let bias = zone.map_or(0., |z| {
-                learned.of(&format!("spawn|{}|{}", faction.as_str(), z.as_str()))
-            });
-            plan_spawn_score(map, index, faction, weapon) / PLAN_CAMPS as f64 + bias
+                why: match why {
+                    ReadyWhy::NoDeal => "no deal came: ready, the server picks".to_string(),
+                    ReadyWhy::Timer => "the timer is nearly out".to_string(),
+                    ReadyWhy::Choices => "choices made".to_string(),
+                },
+            },
         })
-        .collect();
-    let (pick, _) = pick_option(decide, lapse, &utilities, params.softmax_t, params.lapse_p);
-    free[pick as usize]
-}
-/// Source chooseBoon: with nothing to go by but the bias a boon is the bot's whim (the stats file's favourite, else any).
-fn choose_boon(
-    deal: &PlanDeal,
-    faction: Option<FactionId>,
-    learned: &PlanLearned,
-    params: &TierParams,
-    decide: &mut Rng,
-    lapse: &mut Rng,
-) -> usize {
-    let dealt = deal.boons.iter().take(2);
-    let utilities: Vec<f64> = dealt
-        .map(|id| faction.map_or(0., |f| learned.of(&format!("boon|{}|{}", f.as_str(), id))))
-        .collect();
-    let (pick, _) = pick_option(decide, lapse, &utilities, params.softmax_t, params.lapse_p);
-    if pick == 1 {
-        1
-    } else {
-        0
     }
 }

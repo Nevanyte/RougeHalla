@@ -1,0 +1,48 @@
+{
+ "format": "rh-quest-tour-supply-receipts/1",
+ "sourceOnly": true,
+ "results": {
+  "sourceCases": 2,
+  "capturedFrames": 10,
+  "recordedActions": 18,
+  "retainedNotices": 7,
+  "frozenCaptureWrite": 0,
+  "frozenCaptureBytecheckExits": [
+   0,
+   0
+  ],
+  "semanticMutants": 1,
+  "semanticOutcomePathsKilled": 2,
+  "commentOnly": "NONKILL",
+  "restoredWholeCorpus": "BYTE_IDENTICAL",
+  "immutableOriginalControl": "PASS",
+  "readOnlyControlReceiptCheckExit": 0
+ },
+ "files": {
+  "parity/quest-tour-supply/source.json": {
+   "bytes": 638109,
+   "sha256": "0bb63ed402b411d4f9bf23381fa162e64e08f5704905f974e3920c982fae5714"
+  },
+  "parity/quest-tour-supply/controls.json": {
+   "bytes": 1260,
+   "sha256": "64d9b5e50b61964853ae95d0d4b057392b83e344d3874731003dc914e0b601db"
+  },
+  "parity/quest-tour-supply/manifest.json": {
+   "bytes": 1228,
+   "sha256": "a6a248677ffba39439e035e9c0dac8b76a6600d30d03d0526d9f9dd0f409cb37"
+  },
+  "parity/quest-tour-supply/README.md": {
+   "bytes": 1606,
+   "sha256": "51984de34bfe22d16e8cd054a828386d19b92c4b5a932da996b2ceaf644d91cd"
+  },
+  "docs/evidence/quest-tour-supply/README.md": {
+   "bytes": 7422,
+   "sha256": "60330163c7725a04c366cef8cfcafbd3b05d23463c2c737b2a4843bcc9309b3f"
+  },
+  "docs/evidence/quest-tour-supply/logs/control-receipt-check.log": {
+   "bytes": 1445,
+   "sha256": "4632fd13ba503421026f7a79996f4960929679fb8b484f383160ef067ed89501",
+   "lines": 48
+  }
+ }
+}

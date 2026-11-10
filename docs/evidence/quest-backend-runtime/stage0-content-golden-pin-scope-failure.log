@@ -1,0 +1,24 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-quest-runtime/crates/rh-sim)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.95s
+     Running tests/content.rs (/Users/nevinmckinnon/.codex/tools/roguehalla-backend-20261109/target-quests/debug/deps/content-ca348d12f78c3d21)
+
+running 1 test
+test hash_golden ... FAILED
+
+failures:
+
+---- hash_golden stdout ----
+
+thread 'hash_golden' (71062489) panicked at crates/rh-sim/tests/content.rs:515:5:
+assertion `left == right` failed: content_hash is now 8edd862f48ffa100
+  left: 10294531860885119232
+ right: 8965087132226079858
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    hash_golden
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 20 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p rh-sim --test content`

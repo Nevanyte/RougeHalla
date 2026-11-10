@@ -1,0 +1,434 @@
+{
+  "packet": "P-BOT-POTION-FACT-1",
+  "kind": "test-only native producer/accepted-frame proof (no production change)",
+  "status": "complete for the bounded packet; see README.md for scope and limits",
+  "start": {
+    "worktree": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-potion-fact",
+    "branch": "codex/deepseek-potion-fact",
+    "commit": "3e2d902821dc74ba0ebd003f5a3a95c92d2eb5c5",
+    "clean": true
+  },
+  "toolchain": {
+    "cargo": "cargo 1.97.0 (c980f4866 2026-06-30)",
+    "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+    "rustfmt": "rustfmt 1.9.0-stable (2d8144b788)",
+    "clippy": "clippy 0.1.97 (2d8144b788)",
+    "pinned_by": "rust-toolchain.toml channel 1.97.0",
+    "host": "Apple M5 Pro 18 logical CPUs, macOS 26.6.1 arm64",
+    "isolated_target": "<worktree>/target/potion-fact-build (git-ignored; never sealed)",
+    "flags": "--offline --locked -j 8 (test/clippy); test threads 1"
+  },
+  "owned_changed_paths": [
+    "crates/rh-policy/src/bots/potion_fact_tests.rs (NEW test-only module)",
+    "crates/rh-policy/src/bots/mod.rs (single added #[cfg(test)] mod potion_fact_tests; registration)",
+    "docs/evidence/bot-potion-fact-native/** (NEW evidence directory)"
+  ],
+  "sealed_files": [
+    {
+      "path": "crates/rh-policy/src/bots/potion_fact_tests.rs",
+      "sha256": "a97e9c75bc850906dd106cca4b6a0951895ad91076cef85af21db94b0b0cc401",
+      "bytes": 33878
+    },
+    {
+      "path": "crates/rh-policy/src/bots/mod.rs",
+      "sha256": "fd6c1badbe0fbedd065950f1a509fb8c4000431e5158005cea20b962b7def9a3",
+      "bytes": 2982
+    },
+    {
+      "path": "docs/evidence/bot-potion-fact-native/README.md",
+      "sha256": "efa62c6427174277dbdb3f2cd2f7b5dfd67293e53d03c87b10cd776e3b2a3317",
+      "bytes": 11761
+    },
+    {
+      "path": "docs/evidence/bot-potion-fact-native/logs/00-environment-and-identities.log",
+      "sha256": "5517805dbe651f3790889ae7dbc2a786350ae267f262017c4fcb56b1affe6d26",
+      "bytes": 2329
+    },
+    {
+      "path": "docs/evidence/bot-potion-fact-native/logs/01-first-focused-compile-failure.log",
+      "sha256": "7fddb5c534464b2631f659482416209678fec037c871ab43e604bcaee04d694c",
+      "bytes": 1233
+    },
+    {
+      "path": "docs/evidence/bot-potion-fact-native/logs/02-first-format-check-failure.log",
+      "sha256": "929ce00797206bac474c8443c9ed9df794b039b64405ddec4e8e6e7dacc7fd39",
+      "bytes": 1404
+    },
+    {
+      "path": "docs/evidence/bot-potion-fact-native/logs/03-first-strict-clippy-failure.log",
+      "sha256": "46140790c0919a6729cfb44aff35eed59e77163f9fb329633e5af6df35c2abdc",
+      "bytes": 1562
+    },
+    {
+      "path": "docs/evidence/bot-potion-fact-native/logs/04-first-proof-assertion-failure.log",
+      "sha256": "f64abe0eb7c6b556ac6f002edd544b659cdc06210acf46482cf6d5fc1adcaa8b",
+      "bytes": 1814
+    },
+    {
+      "path": "docs/evidence/bot-potion-fact-native/logs/04-focused-potion-fact-tests.log",
+      "sha256": "fc9f0b54f2f976814e66b311efcdb61e04a88e32e2240f26fe88581dfeaececb",
+      "bytes": 934
+    },
+    {
+      "path": "docs/evidence/bot-potion-fact-native/logs/05-delivery-overlap.log",
+      "sha256": "1e96753f95bf6114e4721b7561f9391fdb2d7b1be8aa16a8664ecd7d393c17c3",
+      "bytes": 4102
+    },
+    {
+      "path": "docs/evidence/bot-potion-fact-native/logs/06-trade-inventory-overlap.log",
+      "sha256": "ea8c9664d129340aaf80343eecb6abf8968124b207c47934ae0ae32c8dabccc9",
+      "bytes": 1057
+    },
+    {
+      "path": "docs/evidence/bot-potion-fact-native/logs/07-fair-percept14-overlap.log",
+      "sha256": "5226a5e024e136852d273dd7a5b85a8fbc6e034ad8255442bd264e3383a426f6",
+      "bytes": 1458
+    },
+    {
+      "path": "docs/evidence/bot-potion-fact-native/logs/08-fmt-check.log",
+      "sha256": "2f5b2aaff9a7e7752e6691d94e4b574320bf5c3af4c5adb24cd70b9368e9209b",
+      "bytes": 43
+    },
+    {
+      "path": "docs/evidence/bot-potion-fact-native/logs/09-clippy-default-all-targets.log",
+      "sha256": "c9e1e3430c2198a8fc3f88ecf45fdccf31b354ab94a0baaf0aac5ac0cd50f7f3",
+      "bytes": 294
+    },
+    {
+      "path": "docs/evidence/bot-potion-fact-native/logs/10-clippy-all-features-all-targets.log",
+      "sha256": "6ea449195edb4bb1a15cdfc327aabd03a8edd3521f213e4f75fa8019fed36bbf",
+      "bytes": 175
+    }
+  ],
+  "consumed_or_observed_files": [
+    {
+      "path": "docs/backlog/packets/P-BOT-POTION-FACT-1.md",
+      "sha256": "abf112df75890b9110d31db91c1849d1a2f3a798b721f2a11d19732daee1b1df",
+      "bytes": 6484
+    },
+    {
+      "path": "docs/backlog/README.md",
+      "sha256": "dd8ce688894ce4f106e6de1ca082da1a04302a70954ceec6f5028caaa9f3603c",
+      "bytes": 51986
+    },
+    {
+      "path": "docs/MIGRATION.md",
+      "sha256": "8832f0ea5d4f03320250b7046de191f933247a85ff3762dae266f4142681a0c6",
+      "bytes": 180971
+    },
+    {
+      "path": "docs/REQUIREMENTS.md",
+      "sha256": "45f4a590c36bae776ed213297b2468cdbda0edc788946c670c04335923fb51c4",
+      "bytes": 11434
+    },
+    {
+      "path": "docs/CONTRACTS.md",
+      "sha256": "fa443c1a2993cbe8a5b21d3a575d84d85d5db1c7c724d62a40412de4114ada61",
+      "bytes": 93103
+    },
+    {
+      "path": "docs/adr/README.md",
+      "sha256": "18f2bca59b475acbe8bec3d823a0ec9178911a711755ceebdd3804e448634288",
+      "bytes": 4983
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "dc4d3419623e36248545bfb8eed8d40991a4597a3858080418fdf0b3eaeae404",
+      "bytes": 2740
+    },
+    {
+      "path": "packages/server/src/bots/brain/runner.ts",
+      "sha256": "345b94151ba4185736269acd782385a66d24cfaa50dafd75900cfad944c66164",
+      "bytes": 3695
+    },
+    {
+      "path": "docs/evidence/bot-fair-activation-plan/field-closure.md",
+      "sha256": "78ee42941509bb726d065d1f9f73508f965e7db64eefec139553ecc83fad1dd3",
+      "bytes": 24634
+    },
+    {
+      "path": "crates/rh-sim/src/systems/potions.rs",
+      "sha256": "5d13e52ba5745ddff6858c3f468c1bc6978ce32784b88eec9ac11413c6730244",
+      "bytes": 7178
+    },
+    {
+      "path": "crates/rh-sim/src/potions/mod.rs",
+      "sha256": "1a0ae34200390dbbfeac5a68f159805c78b8c9081b7dc03e66943cf40f1fa2fe",
+      "bytes": 2780
+    },
+    {
+      "path": "crates/rh-sim/src/item_view.rs",
+      "sha256": "d50df8818f6452daabff622c7ca8a68775ac248074add143c6805bf7e6c6f5a7",
+      "bytes": 47493
+    },
+    {
+      "path": "crates/rh-sim/src/observe.rs",
+      "sha256": "8a1919fda25026667b13e4d47db5d5171fbbf915e099441e04205a30692c0fad",
+      "bytes": 44336
+    },
+    {
+      "path": "crates/rh-sim/src/sim.rs",
+      "sha256": "37b534423c488135935de8345fd6db67367c00146d7f68f6e6933f75153b6fd6",
+      "bytes": 20325
+    },
+    {
+      "path": "crates/rh-sim/src/state.rs",
+      "sha256": "49681f56c85d5df9126f74600da18db20908919362cc8f12d96d39f205340f15",
+      "bytes": 51994
+    },
+    {
+      "path": "crates/rh-sim/src/checkpoint.rs",
+      "sha256": "5d6c7c471083d33bf6a8f97446263a4e1f7288f60c4ff41a96d0515f4f74b1a8",
+      "bytes": 73111
+    },
+    {
+      "path": "crates/rh-sim/src/input.rs",
+      "sha256": "9908dc148d50b97ed23c7caeba6f8c183b5974017b162f62f9351c8a02938f84",
+      "bytes": 42183
+    },
+    {
+      "path": "crates/rh-sim/src/schedule.rs",
+      "sha256": "2f25cfe152524c5a544ef63971dede05101fbf85b5bda9ccd8c59e4c482036c6",
+      "bytes": 81015
+    },
+    {
+      "path": "crates/rh-sim/src/lifecycle.rs",
+      "sha256": "be70f0558f9bd08fd8856cfd0d914189bb799233b9a85c29ebdd0b556eb4c297",
+      "bytes": 2532
+    },
+    {
+      "path": "crates/rh-sim/src/systems/settle.rs",
+      "sha256": "6962a4622c194e5775d046c2580d99ca9ad17b352921b0fb53b199bb0730cff8",
+      "bytes": 9398
+    },
+    {
+      "path": "crates/rh-sim/src/systems/consumables.rs",
+      "sha256": "3baf7f7681e1dbe47619228d9a6a39ec0e0959b44a98768f03593e2a2a38e2ed",
+      "bytes": 843
+    },
+    {
+      "path": "crates/rh-sim/src/systems/potions_tests.rs",
+      "sha256": "81b7680f60a7f5e81c1fad4a3c3a4fa76879d8f869686017fdd66dc3edaa2949",
+      "bytes": 13587
+    },
+    {
+      "path": "crates/rh-sim/src/arenas.rs",
+      "sha256": "30c29358131ecd5f7a8bb86e745e34328ef489de52810d6885d646ee96670651",
+      "bytes": 2544
+    },
+    {
+      "path": "crates/rh-sim/src/constants.rs",
+      "sha256": "c2509efa533645c2728178c6a47f9c2ba7e326eb2fdd3e8336869851d3cb61a1",
+      "bytes": 21623
+    },
+    {
+      "path": "crates/rh-sim/src/statics.rs",
+      "sha256": "a13f4a9b085734e77e40d487c365c172c775102fe366793bc1de273c8646a3e4",
+      "bytes": 11489
+    },
+    {
+      "path": "crates/rh-sim/src/fighter.rs",
+      "sha256": "f94bb4045b6d8e4a76b3e0d7975a557c5aa043c118ad7dafff805b4d1791f44b",
+      "bytes": 12802
+    },
+    {
+      "path": "crates/rh-sim/src/systems/arena_validation.rs",
+      "sha256": "2e5f41a4b0dc27e9a03211ca554e3707445f4b5365b0f2e51ad1c6dca047beb6",
+      "bytes": 8071
+    },
+    {
+      "path": "crates/rh-sim/src/systems/arena_rules.rs",
+      "sha256": "4e74a6a31508052ba34635f68079c6be0ef9e956ecc64c228cab511ad02424c4",
+      "bytes": 8321
+    },
+    {
+      "path": "crates/rh-policy/src/lib.rs",
+      "sha256": "452cabdba98394a751a69b2760d2c67bf5cbca72f00de7cb7b19485a6ce93dfa",
+      "bytes": 72288
+    },
+    {
+      "path": "crates/rh-policy/src/bots/delivered.rs",
+      "sha256": "7166c40bfe1c7668553ad42f48a40ef38cfcf539a36f46fb6d43a837267d6680",
+      "bytes": 9964
+    },
+    {
+      "path": "crates/rh-policy/src/bots/fair_percept14/tests.rs",
+      "sha256": "d31b35cf64f2713e59d64754cb4be708b6c813b748bb038c4e5847aa0a333185",
+      "bytes": 18020
+    },
+    {
+      "path": "crates/rh-policy/src/delivery/mod.rs",
+      "sha256": "391c945279183360c48450e606658d5d9cae25335bf79cab507512f174fbcb42",
+      "bytes": 418
+    },
+    {
+      "path": "crates/rh-policy/src/delivery/session.rs",
+      "sha256": "0fdb84eed7bbddc16d3309efe28c68afd57a23eced4f013264fcc0a16a866f2b",
+      "bytes": 5375
+    },
+    {
+      "path": "crates/rh-policy/src/delivery/frame.rs",
+      "sha256": "b302f57410d8a222fa91059817af276c62c2c365eecef204380d64e50d332d3a",
+      "bytes": 14804
+    },
+    {
+      "path": "crates/rh-policy/src/delivery/collections.rs",
+      "sha256": "c771402a2fdd0640cfc066619c9c0aef1c791f38c38e8e921b1fe67f555c7693",
+      "bytes": 52379
+    },
+    {
+      "path": "crates/rh-policy/src/delivery/projection.rs",
+      "sha256": "40fe4f243ebb67c9f7489d7ac2ba05b1900f7b82bdeae39e3001c1cd48e6bdd6",
+      "bytes": 15316
+    },
+    {
+      "path": "crates/rh-policy/src/delivery_tests.rs",
+      "sha256": "1b195a1226d7cbc9fbc2d3ae2cb1d21a1d40ae79403bc2da0ea0eb8195dde71e",
+      "bytes": 53382
+    },
+    {
+      "path": "crates/rh-policy/clippy.toml",
+      "sha256": "c17a389e01379089a8653aeccd9d0445076377774d47d73c08a7a284cd1fff09",
+      "bytes": 1535
+    },
+    {
+      "path": "crates/rh-policy/Cargo.toml",
+      "sha256": "a1b6c5225400b95c1f45a73eb2fb49d0d123ab0d37d90b23d945d1fd91e6c894",
+      "bytes": 478
+    },
+    {
+      "path": "Cargo.toml",
+      "sha256": "324339553924942eb5c8f034e73b8269735a07a4223a783f3cc3805beb220855",
+      "bytes": 431
+    },
+    {
+      "path": "Cargo.lock",
+      "sha256": "b14507716b80f1c0b85f7298b380b3c9146917134d9361c1bb408062782c0b22",
+      "bytes": 66555
+    },
+    {
+      "path": "rust-toolchain.toml",
+      "sha256": "404f81071062a23f245fc19302d4d0e68185bea2e4d31c520790ddd40d467fc0",
+      "bytes": 66
+    },
+    {
+      "path": "crates/rh-protocol/src/state.rs",
+      "sha256": "dc2e8db3f61777887fbbca44e857fc486ec37cf74538ec8b4af92fecb07db882",
+      "bytes": 65917
+    },
+    {
+      "path": "crates/rh-protocol/src/delta.rs",
+      "sha256": "6026bb5f8e384bffd20fe9b5c132d0ff631978e96a95c26760163f1f90459ed9",
+      "bytes": 76027
+    },
+    {
+      "path": "crates/rh-protocol/src/lib.rs",
+      "sha256": "d1258e9c3bd9911a32d0cbdce375c2a0a9ca8f3d792a8b368e382833cc3e896c",
+      "bytes": 66060
+    }
+  ],
+  "runs": [
+    {
+      "log": "logs/04-focused-potion-fact-tests.log",
+      "command": "cargo test --offline --locked -j 8 -p rh-policy --lib potion_fact_tests -- --test-threads=1",
+      "exit": 0,
+      "result": "5 passed; 0 failed; 0 ignored; 220 filtered out"
+    },
+    {
+      "log": "logs/05-delivery-overlap.log",
+      "command": "cargo test --offline --locked -j 8 -p rh-policy --lib delivery -- --test-threads=1",
+      "exit": 0,
+      "result": "33 passed; 0 failed"
+    },
+    {
+      "log": "logs/06-trade-inventory-overlap.log",
+      "command": "cargo test --offline --locked -j 8 -p rh-policy --lib trade -- --test-threads=1",
+      "exit": 0,
+      "result": "6 passed; 0 failed"
+    },
+    {
+      "log": "logs/07-fair-percept14-overlap.log",
+      "command": "cargo test --offline --locked -j 8 -p rh-policy --lib fair_percept -- --test-threads=1",
+      "exit": 0,
+      "result": "9 passed; 0 failed"
+    },
+    {
+      "log": "logs/08-fmt-check.log",
+      "command": "cargo fmt -p rh-policy -- --check",
+      "exit": 0,
+      "result": "clean"
+    },
+    {
+      "log": "logs/09-clippy-default-all-targets.log",
+      "command": "cargo clippy --offline --locked -j 8 -p rh-policy --all-targets -- -D warnings",
+      "exit": 0,
+      "result": "clean"
+    },
+    {
+      "log": "logs/10-clippy-all-features-all-targets.log",
+      "command": "cargo clippy --offline --locked -j 8 -p rh-policy --all-targets --all-features -- -D warnings",
+      "exit": 0,
+      "result": "clean"
+    }
+  ],
+  "proved_invariant": "At accepted non-Ended (validated Active) samples, accepted owner inventory potions_healing > 0 iff the trusted serialized owner healing_until > the accepted frame source_time; accepted count equals the trusted HOT-row count; non-Empty HOT rows have last.next > source_time and healing_until == last.next + (left-1)*DEFINITION.step_ms; empty rows have count and deadline zero. Ended frames are excluded explicitly; missing inventory stays unavailable.",
+  "source_predicate": {
+    "file": "packages/server/src/bots/brain/runner.ts",
+    "lines": "29-35",
+    "sha256": "345b94151ba4185736269acd782385a66d24cfaa50dafd75900cfad944c66164",
+    "git_blob": "bcdec2aa29c27f99d73f55d42e9bf4e8531f8083",
+    "consumed_form": "(me.healingUntil ?? 0) <= now (i.e. healingUntil > now means healing in progress)"
+  },
+  "static_domain": {
+    "producer": "crates/rh-sim/src/systems/potions.rs",
+    "duration_constant": "crates/rh-sim/src/potions/mod.rs DEFINITION { heal_ms: 5000, step_ms: 500, concurrent: 3, cap: 5, small_share: 0.25, large_share: 0.4 }",
+    "validator": "systems/potions.rs:157-204 enforces the count/deadline identity for non-Empty HOTs and both-zero mirrors with no HOT row; phase Ended exempts elapsed HOT next times"
+  },
+  "first_failures_preserved": [
+    {
+      "log": "logs/01-first-focused-compile-failure.log",
+      "stage": "test module compile",
+      "repair": "derive PartialEq on test-only TrustedHot mirror row"
+    },
+    {
+      "log": "logs/02-first-format-check-failure.log",
+      "stage": "cargo fmt --check",
+      "repair": "cargo fmt -p rh-policy"
+    },
+    {
+      "log": "logs/03-first-strict-clippy-failure.log",
+      "stage": "strict default/all-feature Clippy",
+      "repair": "finite-value <= instead of negated partial-order comparison"
+    },
+    {
+      "log": "logs/04-first-proof-assertion-failure.log",
+      "stage": "proof test assertion (test-side sample clock target)",
+      "repair": "elapsed Ended child sample targeted admitted_deadline + TICK_MS, not + DEFINITION.step_ms; assertion then pinned the accepted tick"
+    }
+  ],
+  "counterexamples": [],
+  "missing_public_api": [],
+  "not_claimed": [
+    "no runner implementation, potion retry clock, adapter queue acceptance vs later simulation refusal",
+    "no public/wire/observation field or live bot activation",
+    "no reconstruction of an absolute deadline from the boolean",
+    "declared baseline stock/hp is setup, not earned loot/combat gameplay",
+    "finite trajectories only; no campaign, clone/hash campaign or full-workspace run",
+    "no production, other existing engine/test file, source fixture, protocol, Unity, dependency/lock, shared status or permission change",
+    "nothing under target/ is sealed"
+  ],
+  "seal_notes": [
+    "Repository .gitignore ignores *.log; the exact evidence logs under docs/evidence/bot-potion-fact-native/logs/ must be force-added by explicit path, not scratch/build output.",
+    "Git metadata is outside the workspace-write policy; the seal was not committed by this session. logs/11-git-seal-inaccessible-receipt.log preserves the actual failure and final hashes for Root.",
+    "logs/11-git-seal-inaccessible-receipt.log is created after MANIFEST.json and lists MANIFEST.json's final hash; MANIFEST does not list itself or log 11."
+  ],
+  "seal": {
+    "git_metadata_writable": false,
+    "actual_failure": "git add/commit: Unable to create /Users/nevinmckinnon/Documents/Projects/RogueHalla/.git/worktrees/backend-bot-potion-fact/index.lock: Operation not permitted",
+    "head_unchanged": "3e2d902821dc74ba0ebd003f5a3a95c92d2eb5c5",
+    "commit_created": false,
+    "permissions_changed": false,
+    "receipt_for_root": "logs/11-git-seal-inaccessible-receipt.log",
+    "root_action": "git add the two owned Rust paths and README.md/MANIFEST.json; force-add logs/00-11 by exact path (*.log is gitignored); commit. MANIFEST excludes logs/11 and itself from hashed membership; logs/11 lists final hashes of everything else."
+  }
+}

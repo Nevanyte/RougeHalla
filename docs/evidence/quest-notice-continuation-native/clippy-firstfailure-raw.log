@@ -1,0 +1,32 @@
+    Checking rh-sim v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-quest-runtime/crates/rh-sim)
+error: function `native_open_offers` is never used
+   --> crates/rh-sim/src/quests/notices_continuation_source_tests.rs:400:4
+    |
+400 | fn native_open_offers(sim: &Sim) -> usize {
+    |    ^^^^^^^^^^^^^^^^^^
+    |
+    = note: `-D dead-code` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[expect(dead_code)]` or `#[allow(dead_code)]`
+
+error: function `source_open_offers` is never used
+   --> crates/rh-sim/src/quests/notices_continuation_source_tests.rs:409:4
+    |
+409 | fn source_open_offers(frame: &V) -> usize {
+    |    ^^^^^^^^^^^^^^^^^^
+
+error: used `assert_eq!` with a literal bool
+   --> crates/rh-sim/src/quests/notices_continuation_source_tests.rs:627:9
+    |
+627 |         assert_eq!(outcome.sim.w.rt.gates_locked, true);
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.97.0/index.html#bool_assert_comparison
+    = note: `-D clippy::bool-assert-comparison` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::bool_assert_comparison)]`
+help: replace it with `assert!(..)`
+    |
+627 -         assert_eq!(outcome.sim.w.rt.gates_locked, true);
+627 +         assert!(outcome.sim.w.rt.gates_locked);
+    |
+
+error: could not compile `rh-sim` (lib test) due to 3 previous errors

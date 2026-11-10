@@ -50,6 +50,10 @@ pub(crate) fn reset_player(p: &mut crate::state::Player) {
 
 pub(crate) fn reset_all(hx: &mut crate::hooks::Hx, args: &crate::hooks::HookArgs) {
     if *args == crate::hooks::HookArgs::RaidStarted {
+        // Source cardHooks.resetAll also deletes the world's bleed report (GateAlways in the released core
+        // profile; the legacy signature Reset is a different gate). It clears only the Card domain and records
+        // the CardReset marker; teleport does not touch the report.
+        crate::systems::card_bleed_feedback::reset(hx);
         for p in &mut hx.w.players {
             reset_player(p);
         }

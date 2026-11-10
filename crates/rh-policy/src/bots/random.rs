@@ -50,9 +50,100 @@ impl Rng {
         t ^ (t >> 14)
     }
     pub fn next_f64(&mut self) -> f64 {
-        f64::from(self.next_u32()) / 4_294_967_296.
+        let value = f64::from(self.next_u32()) / 4_294_967_296.;
+        // Root-granted test-only draw observer bridge (2026-11-10, review SHA256 3f2cc11b...): one notification of the
+        // already-computed value at its real draw site. Production representation/arithmetic/derives are unchanged; the
+        // observer is a scoped thread-local registration used only by the new private Brain/Hand evidence tests.
+        #[cfg(test)]
+        notify_draw(self, value);
+        value
     }
 }
+
+/// Root-granted test-only draw observer scope (see `docs/evidence/bot-private-brain-native/ROOT-BRIDGE-GRANT.md`): a
+/// thread-local registry keyed by the actual `Rng` instance address, bound only for one synchronous Hand call. Identity
+/// comparison is address-only (a stored pointer is never dereferenced); the registry borrow is released before the
+/// recorder sink runs; a RAII scope restores the previous registration including on unwind. Production builds have no
+/// observer, no extra field and no extra state.
+#[cfg(test)]
+pub(crate) mod draw_observer {
+    use super::Rng;
+    use std::cell::RefCell;
+
+    /// One actual lane binding: the `Rng` instance address and the sink that receives each returned draw.
+    pub(crate) type DrawBinding = (usize, Box<dyn FnMut(f64)>);
+    /// One registered lane: the actual `Rng` instance address and its sink (taken out while the sink runs).
+    type Registration = Vec<(usize, Option<Box<dyn FnMut(f64)>>)>;
+
+    thread_local! {
+        /// The active registration for this thread only. `None` means no observer installed.
+        static ACTIVE: RefCell<Option<Registration>> = RefCell::new(None);
+    }
+
+    /// One scoped registration; dropping it restores whatever registration was active before (including on unwind).
+    pub(crate) struct DrawScope {
+        previous: Option<Registration>,
+    }
+
+    impl Drop for DrawScope {
+        fn drop(&mut self) {
+            let previous = self.previous.take();
+            ACTIVE.with(|active| {
+                *active.borrow_mut() = previous;
+            });
+        }
+    }
+
+    /// Bind the actual lane instances to sinks for one synchronous caller scope. The addresses are identity keys only;
+    /// the instances themselves stay in place for the duration of the borrowed call. A nested/parallel scope keeps its
+    /// own thread-local registration and the outer registration is restored afterwards.
+    pub(crate) fn scope_draws(registrations: Vec<DrawBinding>) -> DrawScope {
+        let registrations: Registration = registrations
+            .into_iter()
+            .map(|(address, sink)| (address, Some(sink)))
+            .collect();
+        let previous = ACTIVE.with(|active| active.borrow_mut().replace(registrations));
+        DrawScope { previous }
+    }
+
+    /// The one notification from `Rng::next_f64`: find the registered lane by the actual instance address, take the
+    /// sink out of the registry (releasing the registry borrow) and only then invoke it with the real returned value.
+    pub(crate) fn notify(rng: &Rng, value: f64) {
+        let address = rng as *const Rng as usize;
+        let taken = ACTIVE.with(|active| {
+            let mut active = active.borrow_mut();
+            let registrations = active.as_mut()?;
+            let index = registrations
+                .iter()
+                .position(|(key, sink)| *key == address && sink.is_some())?;
+            registrations[index].1.take()
+        });
+        if let Some(mut sink) = taken {
+            sink(value);
+            // Restore the sink for further draws only if this same registration is still the active one (the scope
+            // guard may already have been dropped by an unwind path while callbacks were running).
+            ACTIVE.with(|active| {
+                let mut active = active.borrow_mut();
+                if let Some(registrations) = active.as_mut() {
+                    if let Some((_, slot)) = registrations
+                        .iter_mut()
+                        .find(|(key, sink)| *key == address && sink.is_none())
+                    {
+                        *slot = Some(sink);
+                    }
+                }
+            });
+        }
+    }
+}
+
+#[cfg(test)]
+fn notify_draw(rng: &Rng, value: f64) {
+    draw_observer::notify(rng, value);
+}
+
+#[cfg(test)]
+mod draw_trace_tests;
 
 /// A 32-bit seed for one stream (source BotManager.ts `mix`): the seed mixed with a tag (a murmur finaliser), so no
 /// two streams of a manager march in step.

@@ -150,7 +150,7 @@ pub(crate) fn settle(
         teleport(k, w, ev, fx, stats);
     }
 }
-fn teleport(
+pub(crate) fn teleport(
     k: &MatchStatic,
     w: &mut World,
     ev: &mut Vec<Event>,

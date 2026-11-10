@@ -17,7 +17,7 @@ use crate::sim::{Event, Phase, PlayerId, Sim, Status};
 use crate::state::Player;
 use crate::vision::{actor_with, scene_line_blocked};
 
-pub const OBSERVATION_VERSION: u16 = 23;
+pub const OBSERVATION_VERSION: u16 = 24;
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SelfView {
@@ -531,6 +531,7 @@ fn to_seen(e: &Event, can_see: &impl Fn(PlayerId) -> bool, points: [bool; 2]) ->
         | Event::MarkNotice { .. }
         | Event::PlagueNotice { .. }
         | Event::SignatureHit { .. }
+        | Event::CardBleedHit { .. }
         | Event::ProjectileLaunched(_)
         | Event::ProjectileEnded { .. }
         | Event::RaidStarted
@@ -785,12 +786,24 @@ fn public_vitals(hp: f64, max_hp: f64, barrier: f64) -> Result<PublicVitals, cra
     })
 }
 
+#[cfg(test)]
 pub(crate) fn observe_with(
     sim: &Sim,
     viewer: PlayerId,
     events: &[Event],
     out: &mut Observation,
+    cache: Option<&mut SightCache>,
+) -> Result<(), crate::OfferError> {
+    observe_with_tiles(sim, viewer, events, out, cache, None)
+}
+
+pub(crate) fn observe_with_tiles(
+    sim: &Sim,
+    viewer: PlayerId,
+    events: &[Event],
+    out: &mut Observation,
     mut cache: Option<&mut SightCache>,
+    mut tiles: Option<&mut crate::vision::TileVisionCache>,
 ) -> Result<(), crate::OfferError> {
     // Raw observations never retain a previously prepared owner group, even on failure.
     out.owner_combat = None;
@@ -926,14 +939,19 @@ pub(crate) fn observe_with(
     if let Some(me) = me {
         let wards = crate::vision::WardSight::of_sim(sim);
         for mob in sim.mobs() {
-            if crate::vision::point_visible(
-                sim.collision_view(),
-                me,
-                mob.core.pos(),
-                sim.tick(),
-                wards,
-            ) && !crate::status_runtime::hidden(&mob.core.statuses.instances, now)
-            {
+            let visible = match tiles.as_deref_mut() {
+                Some(tiles) => {
+                    tiles.sees(sim.collision_view(), me, mob.core.pos(), sim.tick(), wards)
+                }
+                None => crate::vision::point_visible(
+                    sim.collision_view(),
+                    me,
+                    mob.core.pos(),
+                    sim.tick(),
+                    wards,
+                ),
+            };
+            if visible && !crate::status_runtime::hidden(&mob.core.statuses.instances, now) {
                 out.visible.push(mob_view(&sim.w, mob, now)?);
             }
         }

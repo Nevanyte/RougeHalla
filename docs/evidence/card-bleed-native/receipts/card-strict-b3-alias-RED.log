@@ -1,0 +1,20 @@
+     Running unittests src/lib.rs (target/debug/deps/rh_sim-aabb9bffeb4358ef)
+
+running 1 test
+test systems::card_bleed_feedback::tests::canonical_b3_map_aliases_and_duplicate_keys_are_refused_through_both_stored_paths ... FAILED
+
+failures:
+
+---- systems::card_bleed_feedback::tests::canonical_b3_map_aliases_and_duplicate_keys_are_refused_through_both_stored_paths stdout ----
+
+thread 'systems::card_bleed_feedback::tests::canonical_b3_map_aliases_and_duplicate_keys_are_refused_through_both_stored_paths' (72472911) panicked at crates/rh-sim/src/systems/card_bleed_feedback/tests.rs:1403:13:
+report: accepted map-null positive infinity alias "amount":{"PositiveInfinity":null}
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    systems::card_bleed_feedback::tests::canonical_b3_map_aliases_and_duplicate_keys_are_refused_through_both_stored_paths
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 889 filtered out; finished in 0.05s
+
+error: test failed, to rerun pass `-p rh-sim --lib`

@@ -1,0 +1,13 @@
+test_deterministic_tar_ignores_input_mtime_and_walk_order (test_bundle.BundleTests) ... ok
+test_expanded_member_count_manifest_and_archive_bounds_refuse_before_write (test_bundle.BundleTests) ... ok
+test_missing_index_bad_map_and_wrong_elf_refuse (test_bundle.BundleTests) ... ok
+test_output_collision_and_tar_receipt_collision_refuse (test_bundle.BundleTests) ... ok
+test_special_server_input_refuses (test_bundle.BundleTests) ... ok
+test_symlink_and_unsafe_web_inputs_refuse (test_bundle.BundleTests) ... ok
+test_tar_manifest_metadata_and_existing_consumer (test_bundle.BundleTests) ... ok
+test_unreadable_web_traversal_does_not_silently_omit_files (test_bundle.BundleTests) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.056s
+
+OK
