@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using Roguehalla.Net;
 
 namespace Roguehalla.Client
 {
@@ -119,7 +120,13 @@ namespace Roguehalla.Client
             }
         }
 
-        static float? _ovParticles; static int? _ovLights; static ShowcaseQuality? _ovQuality; static float? _ovBrightness; static bool? _ovRays; static bool? _ovPost, _ovBloom, _ovGrading, _ovVignette, _ovHaze, _ovAudio, _ovSun, _ovShadows, _ovIce, _ovShimmer;
+        // Surface effects (SurfaceFx): lingering prints, water/bog ripples and wakes, surface footsteps. ?fx.tracks=0, ?fx.ripples=0, ?fx.footsteps=0, ?fx.glisten=0.
+        /// <summary>Print pool capacity (0 = no prints).</summary>
+        public static int SurfaceTrackCap = SurfaceFxQuality.MaxTracks;
+        public static int SurfaceFluidCap = SurfaceFxQuality.MaxFluids;
+        public static bool SurfaceRipples = true, SurfaceFootsteps = true, SurfaceGlisten = true;
+
+        static float? _ovParticles; static int? _ovLights; static ShowcaseQuality? _ovQuality; static float? _ovBrightness; static bool? _ovRays; static bool? _ovTracks, _ovRipples, _ovFootsteps, _ovGlisten; static bool? _ovPost, _ovBloom, _ovGrading, _ovVignette, _ovHaze, _ovAudio, _ovSun, _ovShadows, _ovIce, _ovShimmer;
 
         public static int EffectiveMaxLights { get { return DynamicLights ? Mathf.Clamp(MaxDynamicLights, 0, HardMaxLights) : 0; } }
         public static bool ParticlesEnabled { get { return ParticleDensity > .001f; } }
@@ -139,6 +146,7 @@ namespace Roguehalla.Client
         /// <summary>Preset values for the three existing quality levels. Reduced motion switches screen particles off.</summary>
         public static void ApplyPreset(ShowcaseQuality quality, bool reducedMotion)
         {
+            SetSurfaceFx((int)quality, reducedMotion);
             switch (quality)
             {
                 case ShowcaseQuality.Low:
@@ -159,11 +167,18 @@ namespace Roguehalla.Client
             if (_ovQuality.HasValue) { ApplyPreset(_ovQuality.Value, reduced); return; }
             // The Quality row (QualityModel: Low / Medium / High / Ultra plus ?fx.* per-effect overrides) is the source of truth.
             var preset = Quality.Preset;
+            SetSurfaceFx((int)preset, reduced);
             bool low = preset == ShowcaseQuality.Low, medium = preset == ShowcaseQuality.Medium;
             Apply(reduced ? 0f : Quality.Particles, Quality.DynamicLights > 0, Quality.DynamicLights,
                 Quality.AnyPostProcessing, Quality.Bloom, Quality.ColorGrading, Quality.Vignette,
                 haze: !low, audio: true, sun: true, shadows: Quality.Shadows, ice: !low, shimmer: !low && !medium, rays: !low);
             ApplyPasses(preset); if (reduced) CalmMotion(); Raise();
+        }
+
+        static void SetSurfaceFx(int preset, bool reducedMotion)
+        {
+            var sw = SurfaceFxQuality.Decide(preset, reducedMotion);
+            SurfaceTrackCap = sw.TrackCap; SurfaceFluidCap = sw.FluidCap; SurfaceRipples = sw.Ripples; SurfaceFootsteps = sw.Footsteps; SurfaceGlisten = sw.Glisten;
         }
 
         /// <summary>The quality the world is currently drawn at (a <c>?fx.quality=</c> override wins).</summary>
@@ -176,7 +191,7 @@ namespace Roguehalla.Client
         public static void SetUrl(string url)
         {
             for (int i = 0; i < _ovPass.Length; i++) _ovPass[i] = null; _ovMaxLocal = null;
-            _ovParticles = null; _ovLights = null; _ovBrightness = null; _ovRays = null; _ovQuality = null; _ovPost = _ovBloom = _ovGrading = _ovVignette = _ovHaze = _ovAudio = _ovSun = _ovShadows = _ovIce = _ovShimmer = null;
+            _ovParticles = null; _ovLights = null; _ovBrightness = null; _ovRays = null; _ovQuality = null; _ovTracks = _ovRipples = _ovFootsteps = _ovGlisten = null; _ovPost = _ovBloom = _ovGrading = _ovVignette = _ovHaze = _ovAudio = _ovSun = _ovShadows = _ovIce = _ovShimmer = null;
             ParseOverrides(url);
             ApplyOverrides();
             Raise();
@@ -211,6 +226,10 @@ namespace Roguehalla.Client
                     case "fx.quality":     // force a preset regardless of the adaptive setting (evidence and A/B runs): low, medium or high
                         if (value == "low") _ovQuality = ShowcaseQuality.Low; else if (value == "medium") _ovQuality = ShowcaseQuality.Medium; else if (value == "high") _ovQuality = ShowcaseQuality.High; else if (value == "ultra") _ovQuality = ShowcaseQuality.Ultra;
                         break;
+                    case "fx.tracks": _ovTracks = flag; break;
+                    case "fx.ripples": _ovRipples = flag; break;
+                    case "fx.footsteps": _ovFootsteps = flag; break;
+                    case "fx.glisten": _ovGlisten = flag; break;
                     case "fx.post": _ovPost = flag; break;
                     case "fx.rays": _ovRays = flag; break;
                     case "fx.bloom": _ovBloom = flag; break;
@@ -247,6 +266,10 @@ namespace Roguehalla.Client
             if (_ovRays.HasValue) Rays = _ovRays.Value;
             if (_ovBrightness.HasValue) WorldBrightness = _ovBrightness.Value;
             if (_ovLights.HasValue) { MaxDynamicLights = _ovLights.Value; DynamicLights = _ovLights.Value > 0; }
+            if (_ovTracks.HasValue) SurfaceTrackCap = _ovTracks.Value ? Math.Max(SurfaceTrackCap, SurfaceFxQuality.MaxTracks) : 0;
+            if (_ovRipples.HasValue) { SurfaceRipples = _ovRipples.Value; if (SurfaceRipples) SurfaceFluidCap = Math.Max(SurfaceFluidCap, SurfaceFxQuality.MaxFluids); }
+            if (_ovFootsteps.HasValue) SurfaceFootsteps = _ovFootsteps.Value;
+            if (_ovGlisten.HasValue) SurfaceGlisten = _ovGlisten.Value;
             if (_ovPost.HasValue) PostProcessing = _ovPost.Value;
             if (_ovBloom.HasValue) Bloom = _ovBloom.Value;
             if (_ovGrading.HasValue) Grading = _ovGrading.Value;

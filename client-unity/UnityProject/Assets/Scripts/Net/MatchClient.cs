@@ -292,7 +292,7 @@ namespace Roguehalla.Client
             Hud?.ReadUiInput();
             if (!ReferenceEquals(Session, session) || !LaunchVerified) return;
             if (Session.State != SessionState.InMatch && Session.State != SessionState.Ended) return;
-            if (Arena != null && !Arena.HasMap && Session.Map != null) Arena.Build(Session.Map);
+            if (Arena != null && !Arena.HasMap && Session.Map != null) Arena.Build(Session.Map, Session.Vision);
             Session.Snapshots.Sample(Session.Clock.RenderMs, _actors);
             // Camera first: the cursor ground point read by ReadInput must use this frame's camera, or aim is a frame stale.
             FollowCamera();

@@ -10,25 +10,26 @@ namespace Roguehalla.Net
     /// and can only dim: a delivered actor is always drawn, whatever this says (see <see cref="FogMask.Compose"/>).
     /// <para>
     /// MIRRORED CONSTANTS. The values below are copies of rh-sim constants. <c>protocol/fixtures/sight_v1.json</c> carries the
-    /// Rust values and <c>SightGoldenTests</c> asserts every one of them equal, so a drift fails a test. They belong in the Welcome
-    /// message (protocol 16); until then this is the only place that names them.
+    /// Rust values and <c>SightGoldenTests</c> asserts every one of them equal, so a drift fails a test. Protocol 16 delivers the live
+    /// values in the Welcome (<see cref="WireVision"/>); these are only the defaults when none arrive.
     /// </para>
     /// </summary>
     public sealed class VisionRule
     {
         // ---- MIRRORED FROM rh-sim/src/constants.rs (asserted by sight_v1.json) -------------------------------------------
+        // Defaults, used only when the server delivers no vision block (an older server or a fixture without one).
         /// <summary>VISION_RADIUS (u).</summary>
-        public const double Radius = 900.0;
+        public const double DefaultRadius = 900.0;
         /// <summary>TILE (u).</summary>
-        public const double Tile = 32.0;
+        public const double DefaultTile = 32.0;
         /// <summary>VISION_TRAIL_MS: a revealed tile stays visible this long after the last time the eyes reached it.</summary>
-        public const double TrailMs = 30000.0;
+        public const double DefaultTrailMs = 30000.0;
         /// <summary>VISION_UPDATE_MS: the trail takes a sample at most this often.</summary>
-        public const double UpdateMs = 100.0;
+        public const double DefaultUpdateMs = 100.0;
         /// <summary>TICK_MS (1000 / TICK_RATE).</summary>
         public const double TickMs = 50.0;
         /// <summary>MASK_SIGHT: tile-class bits that block sight. Only the wall class (1) has bit 0; LOW cover (2) does not.</summary>
-        public const byte SightMask = 0x01;
+        public const byte DefaultSightMask = 0x01;
         /// <summary>BUSH_REVEAL_RADIUS (u) and BUSH_REVEAL_MS: bush concealment is per actor, not per tile (not mirrored in the fog).</summary>
         public const double BushRevealRadius = 64.0;
         public const double BushRevealMs = 1000.0;
@@ -36,18 +37,44 @@ namespace Roguehalla.Net
         public const byte RegionColiseum = 6;
         // -------------------------------------------------------------------------------------------------------------------
 
+        /// <summary>The only rules version this client mirrors.</summary>
+        public const byte SupportedVersion = 1;
+
         readonly MapBlob _map;
         readonly int _w, _h;
+        /// <summary>Effective values: the delivered ones, or the defaults when none were delivered.</summary>
+        public double Radius { get; private set; }
+        public double Tile { get; private set; }
+        public double TrailMs { get; private set; }
+        public double UpdateMs { get; private set; }
+        public byte SightMask { get; private set; }
+        /// <summary>False when the delivered rules are not ones this client can mirror (unknown version, or a non-finite or
+        /// non-positive radius, tile or period): the fog must then be off, never a guess.</summary>
+        public bool Usable { get; private set; }
         readonly int _coliseumX, _coliseumY, _coliseumW, _coliseumH;
 
-        public VisionRule(MapBlob map)
+        static bool Good(double v) { return double.IsFinite(v) && v > 0.0; }
+
+        public VisionRule(MapBlob map, WireVision vision = null)
         {
             _map = map ?? throw new ArgumentNullException(nameof(map));
             _w = map.W; _h = map.H;
+            Radius = DefaultRadius; Tile = DefaultTile; TrailMs = DefaultTrailMs; UpdateMs = DefaultUpdateMs; SightMask = DefaultSightMask;
+            Usable = true;
+            if (vision != null)
+            {
+                Radius = vision.Radius; Tile = vision.Tile; TrailMs = vision.TrailMs; UpdateMs = vision.UpdateMs; SightMask = vision.SightMask;
+                Usable = vision.Version == SupportedVersion && Good(Radius) && Good(Tile) && Good(UpdateMs)
+                    && double.IsFinite(TrailMs) && TrailMs >= 0.0;
+            }
             // The server reveals the coliseum's whole rectangle to anyone standing in it. The wire carries the region plane, not
-            // the rectangle, so take the bounding box of the coliseum tiles (the golden asserts it equals the server's rectangle).
+            // the rectangle, so take the bounding box of the coliseum tiles (the golden asserts it equals the server's rectangle). A delivered rectangle wins over this.
             _coliseumX = _coliseumY = _coliseumW = _coliseumH = 0;
-            if (map.Regions != null && map.Regions.Length == _w * _h)
+            if (vision != null && vision.HasColiseum)
+            {
+                _coliseumX = vision.ColiseumX; _coliseumY = vision.ColiseumY; _coliseumW = vision.ColiseumW; _coliseumH = vision.ColiseumH;
+            }
+            else if (map.Regions != null && map.Regions.Length == _w * _h)
             {
                 int x0 = int.MaxValue, y0 = int.MaxValue, x1 = -1, y1 = -1;
                 for (int y = 0; y < _h; y++)
@@ -78,13 +105,13 @@ namespace Roguehalla.Net
         }
 
         /// <summary>vision.rs <c>in_radius</c>.</summary>
-        public static bool InRadius(double ax, double ay, double bx, double by)
+        public bool InRadius(double ax, double ay, double bx, double by)
         {
             double dx = bx - ax, dy = by - ay;
             return dx * dx + dy * dy <= Radius * Radius;
         }
 
-        static long TileOf(double v) { return (long)Math.Floor(v / Tile); }
+        long TileOf(double v) { return (long)Math.Floor(v / Tile); }
 
         /// <summary>
         /// vision.rs <c>scene_line_blocked</c> (legacy hasVisionLineOfSight), operation for operation: the first wall face is
@@ -115,7 +142,7 @@ namespace Roguehalla.Net
             return false;
         }
 
-        static double Crossing(long at, long sign, double start, double d)
+        double Crossing(long at, long sign, double start, double d)
         {
             if (sign == 0) return double.PositiveInfinity;
             return ((at + (sign > 0 ? 1 : 0)) * Tile - start) / d;
@@ -200,7 +227,7 @@ namespace Roguehalla.Net
             if (!double.IsFinite(ox + oy + nowMs)) return false;
             // A clock that went backwards is a new timeline: start over rather than keep stamps from a later one.
             if (nowMs < _lastSampleMs) Reset();
-            if (nowMs - _lastSampleMs >= VisionRule.UpdateMs) Sample(ox, oy, nowMs);
+            if (nowMs - _lastSampleMs >= _rule.UpdateMs) Sample(ox, oy, nowMs);
             if (nowMs >= _minExpiry) Expire(nowMs);
             return _dirty;
         }
@@ -208,7 +235,7 @@ namespace Roguehalla.Net
         void Sample(double ox, double oy, double nowMs)
         {
             _lastSampleMs = nowMs;
-            double until = nowMs + VisionRule.TrailMs;
+            double until = nowMs + _rule.TrailMs;
             if (!(ox == _lastOx && oy == _lastOy)) ComputeReach(ox, oy);
             _lastOx = ox; _lastOy = oy;
             for (int k = 0; k < _lastRevealedCount; k++)
@@ -223,8 +250,8 @@ namespace Roguehalla.Net
         void ComputeReach(double ox, double oy)
         {
             _lastRevealedCount = 0;
-            int span = (int)Math.Ceiling(VisionRule.Radius / VisionRule.Tile) + 1;
-            int cx = (int)Math.Floor(ox / VisionRule.Tile), cy = (int)Math.Floor(oy / VisionRule.Tile);
+            int span = (int)Math.Ceiling(_rule.Radius / _rule.Tile) + 1;
+            int cx = (int)Math.Floor(ox / _rule.Tile), cy = (int)Math.Floor(oy / _rule.Tile);
             int x0 = Math.Max(0, cx - span), x1 = Math.Min(_w - 1, cx + span), y0 = Math.Max(0, cy - span), y1 = Math.Min(_h - 1, cy + span);
             // Standing in the coliseum reveals all of it, including tiles outside the radius box.
             if (_rule.HasColiseum)

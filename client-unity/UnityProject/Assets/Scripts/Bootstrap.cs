@@ -66,6 +66,13 @@ namespace Roguehalla.Client
             }
 #endif
 
+            // Serverless contrast lab (measurement stage for the character-contrast gate). Reachable only with ?contrastlab=1.
+            if (ContrastLabStage.Requested(s))
+            {
+                new GameObject("Contrast lab").AddComponent<ContrastLabStage>().Initialize(cam, s);
+                return;
+            }
+
             if (Query(s, "preview", "0") == "1")
             {
                 new GameObject("Presentation study").AddComponent<ShowcasePreview>().Initialize(cam);
