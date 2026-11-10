@@ -567,6 +567,7 @@ namespace Roguehalla.Client
             ApplyRewardsAnchor();
             _modernSettings?.ApplyViewport(viewport);
             _helpGuide?.ApplyViewport(viewport);
+            _hubCosmetics?.ApplyViewport(viewport); _hubProgress?.ApplyViewport(viewport); _hubGuide?.ApplyViewport(viewport);
         }
 
         void ApplyRewardsAnchor()

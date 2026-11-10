@@ -28,8 +28,8 @@ namespace Roguehalla.Client
             Material = new Material(shader) { name = "Roguehalla / region ground" };
             _owned.Add(Material);
 
-            var ground = RegionGroundTextures.Build(); _owned.Add(ground);
-            Material.SetTexture("_GroundTex", ground);
+            var ground = RegionGroundTextures.Build(out var groundNormals); _owned.Add(ground); _owned.Add(groundNormals);
+            Material.SetTexture("_GroundTex", ground); Material.SetTexture("_GroundNrm", groundNormals);
 
             int w = map.W, h = map.H;
             var regionA = new Color32[w * RegionTexelsPerTile * h * RegionTexelsPerTile];

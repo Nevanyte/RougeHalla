@@ -72,6 +72,10 @@ namespace Roguehalla.Client
             // CONTRAST measurement switches (never a preset): the adaptive outline and the camera sorting layer grab it reads.
             SpriteOutline.Enabled = !(query ?? "").Contains("fx.outline=0"); SpriteOutline.SetGrabPass(!(query ?? "").Contains("fx.outlinegrab=0"));
             if (ShowcaseSettings.Current != null) ShowcaseSettings.Current.SetOverrides(overrides);
+            // The render-pass switches (fx.relief, fx.wind, ...) live in AtmosphereQuality: page URL first, the harness flags after (later keys win).
+            string page = ""; try { page = Application.absoluteURL ?? ""; } catch (System.Exception) { }
+            string extra = string.IsNullOrEmpty(query) ? "" : (page.IndexOf('?') >= 0 ? "&" : "?") + query;
+            AtmosphereQuality.SetUrl(page + extra); AtmosphereQuality.RefreshFromSettings();
         }
 
         void PublishRow()

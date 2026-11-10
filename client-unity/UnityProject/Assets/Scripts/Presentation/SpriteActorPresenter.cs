@@ -40,6 +40,7 @@ namespace Roguehalla.Client
             public readonly ActorFadeSlot Fade = new ActorFadeSlot(); // vision fade state (SpriteActorPresenter.Fade.cs)
             public OverheadIndicators Ind; // overhead cluster and body marks (OverheadIndicators.cs)
             public OverheadIndicators.Facts IndFacts;
+            public MobLook Look; // what a creature looked like when last presented (MobContinuity)
         }
         readonly Transform _parent;
         public SurfaceFx Fx; // SURFACE-FX HOOK: set by the owning ArenaView, so cues go to the arena that presents
@@ -189,6 +190,7 @@ namespace Roguehalla.Client
         }
         void Release(Art art)
         {
+            if (IsCreature(art.Fade.Kind)) MobArt.Destroyed++;
             art.Light.SetVisible(false);
             foreach (var icon in art.SignatureIcons) icon.enabled = false;
             foreach (var backing in art.SignatureBackers) backing.enabled = false;
@@ -207,12 +209,18 @@ namespace Roguehalla.Client
         {
             if (!_active.TryGetValue(id, out var a))
             {
-                a = _pool.Count > 0 ? _pool.Pop() : Create(); _active.Add(id, a);
-                a.Root.SetActive(true); a.LastPosition = ArenaView.WorldPoint(x, y); a.AttackUntil = 0;
-                a.Gait.Reset(); a.StampTime = Time.unscaledTime;
-                a.HitUntil=a.BlockUntil=0;a.Dead=false;a.HoldDeathFrame=false;a.WishUntil=0;a.WishTintAmount=0;
-                BeginEnter(a, local, kind);
+                if (!local && IsCreature(kind) && TryContinue(id, kind, faction, mob, archetypeKey, x, y, out a)) _active.Add(id, a); // a renewed handle
+                else
+                {
+                    a = _pool.Count > 0 ? _pool.Pop() : Create(); _active.Add(id, a);
+                    a.Root.SetActive(true); a.LastPosition = ArenaView.WorldPoint(x, y); a.AttackUntil = 0;
+                    a.Gait.Reset(); a.StampTime = Time.unscaledTime;
+                    a.HitUntil=a.BlockUntil=0;a.Dead=false;a.HoldDeathFrame=false;a.WishUntil=0;a.WishTintAmount=0;
+                    if (IsCreature(kind)) MobArt.Created++;
+                    BeginEnter(a, local, kind);
+                }
             }
+            if (IsCreature(kind)) a.Look = LookOf(kind, faction, mob, archetypeKey);
             a.Stamp = _stamp; a.Fade.Note(id, local, status, kind);
             var position = ArenaView.WorldPoint(x, y);
             // Gait reads displacement only (presentation). Present can run twice in a frame for NPCs: a zero-dt call leaves
@@ -426,6 +434,7 @@ namespace Roguehalla.Client
             a.Shadow = ShowcaseSprites.Create(t, "Contact shadow", "shadow", 0, Color.white, new Vector2(1.2f, .45f), new Vector3(.13f, -.04f), false);
             a.Halo = ShowcaseSprites.Create(t, "Faction footprint", "ring", 1, Color.white, Vector2.one, Vector3.zero, false);
             a.Body = ShowcaseSprites.Create(t, "Authored character", "rune", 2, Color.white, Vector2.one, Vector3.zero);
+            a.Body.sharedMaterial = ShowcaseSprites.ActorLit;      // render pass (fx.actorlights): characters are lit by the analytic local lights, with a rim on the lit edge
             a.Identity = ShowcaseIdentityOwner.Configure(t);
             a.Identity.StandaloneFactionBadge = false; // The existing tested backed faction mark remains canonical here.
             a.RuneBack = ShowcaseSprites.Create(t, "Faction insignia backplate", "bar", 2, new Color(.008f, .012f, .022f, .96f), new Vector2(.46f, .46f), Vector3.zero, false);
@@ -498,10 +507,12 @@ namespace Roguehalla.Client
         /// The delivered facts only the caller has (bounty, the local player's off-hand weapon, whether this actor is the attack lock), then the
         /// overhead cluster is drawn. Called once per actor right after <see cref="Present"/>.
         /// </summary>
-        public void PresentIndicators(uint id, int bounty, bool hasSecondary, WeaponId secondary, bool locked, int effectsOverride = -1)
+        public void PresentIndicators(uint id, int bounty, bool hasSecondary, WeaponId secondary, bool locked, int effectsOverride = -1,
+            bool hovered = false, bool hunted = false, int wishState = 0, byte wishAbility = 0)
         {
             if (!_active.TryGetValue(id, out var a)) return;
             var fx = a.IndFacts; fx.Bounty = bounty; fx.HasSecondary = hasSecondary; fx.Secondary = secondary; fx.Locked = locked; if (effectsOverride >= 0) fx.Effects = (ushort)effectsOverride;
+            fx.Hovered = hovered; fx.Hunted = hunted; fx.WishState = wishState; fx.WishAbility = wishAbility;
             a.IndFacts = fx; a.Ind.Update(in a.IndFacts);
             if (a.Fade.Entering || a.Fade.Opacity < .999f) a.Ind.ApplyOpacity(a.Fade.Opacity);
         }

@@ -40,6 +40,10 @@ namespace Roguehalla.Client
                 case "query": return new[] { Line(3.2f, 7.8f, 8.6f, 8.6f, 4.8f, 12, 3.8f, 15.4f, 4.8f, 16.2f, 8.6f, 12, 12.8f, 12, 15.6f), Disc(12, 19.8f, 2.4f) };
                 case "diamond": return new[] { Poly(12, 2, 21.5f, 12, 12, 22, 2.5f, 12) };
                 case "coin": return new[] { Disc(12, 12, 8.5f) };
+                case "xmark": return new[] { Line(3.4f, 3.5f, 3.5f, 20.5f, 20.5f), Line(3.4f, 20.5f, 3.5f, 3.5f, 20.5f) };
+                case "crate": return new[] { Poly(3.5f, 7, 20.5f, 7, 20.5f, 20, 3.5f, 20), Line(2.4f, 8, 7, 8, 2.5f), Line(2.4f, 8, 2.5f, 16, 2.5f), Line(2.4f, 16, 2.5f, 16, 7) };
+                case "snow": return new[] { Line(2.6f, 12, 2.5f, 12, 21.5f), Line(2.6f, 3.6f, 7.2f, 20.4f, 16.8f), Line(2.6f, 3.6f, 16.8f, 20.4f, 7.2f), Ring(12, 12, 4f, 2f) };
+                case "swarm": return new[] { Disc(12, 6.5f, 4f), Disc(6, 17, 4f), Disc(18, 17, 4f) };
                 case "pip": return new[] { Disc(12, 12, 6f) };
                 default: return new[] { Disc(12, 12, 6f) };
             }

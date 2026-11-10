@@ -122,6 +122,9 @@ namespace Roguehalla.Client
             UpdateGridLayout();
         }
 
+        /// <summary>Docks the panel in the shared hub panel area for the current window (see <see cref="HubPanelDock"/>).</summary>
+        public void ApplyViewport(HudViewport viewport) { HubPanelDock.Apply(_panel, viewport); }
+
         public bool HandleEscape()
         {
             if (!IsVisible) return false;
@@ -155,9 +158,10 @@ namespace Roguehalla.Client
         void Build()
         {
             _panel = MythicUi.Panel(_root, "HubCosmeticsPanel", new Vector2(.37f, .17f), new Vector2(.98f, .87f), ShowcasePalette.Panel, true);
-            _heading = MythicUi.Text(_panel, "CosmeticsHeading", "ACCOUNT COSMETICS", new Vector2(.03f, .91f), new Vector2(.72f, .99f), 27, ShowcasePalette.Gold);
+            _heading = MythicUi.Text(_panel, "CosmeticsHeading", "ACCOUNT COSMETICS", new Vector2(.03f, .91f), new Vector2(.72f, .99f), 27, ShowcasePalette.Gold, heading: true);
+            MythicUi.Rule(_panel, "HeadingRule", new Vector2(.035f, .905f), new Vector2(.40f, .908f));
             _wallet = MythicUi.Text(_panel, "Wallet", "PROFILE · refreshing", new Vector2(.035f, .84f), new Vector2(.69f, .91f), 18, ShowcasePalette.Text);
-            _close = MythicUi.Button(_panel, "CloseCosmetics", "CLOSE  ×", new Vector2(.84f, .92f), new Vector2(.975f, .99f), () => SetVisible(false), MythicUi.ButtonStyle.Quiet);
+            _close = MythicUi.Button(_panel, "CloseCosmetics", "CLOSE  ×", new Vector2(.84f, .92f), new Vector2(.975f, .99f), () => SetVisible(false), MythicUi.ButtonStyle.Secondary);
             _refresh = MythicUi.Button(_panel, "RefreshProfile", "REFRESH PROFILE", new Vector2(.70f, .84f), new Vector2(.975f, .91f), RefreshProfile, MythicUi.ButtonStyle.Secondary);
             _tabButtons = new Button[3];
             string[] labels = { "SHOP", "WARDROBE", "TITLES" };
@@ -394,8 +398,7 @@ namespace Roguehalla.Client
             for (int i = 0; i < _tabButtons.Length; i++)
             {
                 bool selected = i == (int)_tab;
-                var image = _tabButtons[i].GetComponent<Image>();
-                image.color = selected ? MythicUi.SelectedFill : ShowcasePalette.PanelRaised;
+                MythicUi.Select(_tabButtons[i], selected);
                 var text = _tabButtons[i].GetComponentInChildren<TMP_Text>();
                 if (text != null) text.color = selected ? ShowcasePalette.Text : ShowcasePalette.MutedText;
             }
@@ -405,11 +408,12 @@ namespace Roguehalla.Client
         {
             var card = NewCard("Cosmetic_" + SafeName(item.Id));
             AddAccent(card, item);
-            MythicUi.Text(card, "ItemName", item.Name, new Vector2(.045f, .77f), new Vector2(.96f, .96f), 21, ShowcasePalette.Text).fontStyle = FontStyles.Bold;
+            // Rows top to bottom (no overlap): accent or colour sample, name, category, details, then state and the action below.
+            MythicUi.Text(card, "ItemName", item.Name, new Vector2(.045f, .66f), new Vector2(.96f, .84f), 21, ShowcasePalette.Text).fontStyle = FontStyles.Bold;
             string category = SlotLabel(item.Slot);
-            MythicUi.Text(card, "ItemCategory", category, new Vector2(.045f, .64f), new Vector2(.96f, .78f), 13, ShowcasePalette.MutedText);
+            MythicUi.Text(card, "ItemCategory", category, new Vector2(.045f, .55f), new Vector2(.96f, .66f), 13, ShowcasePalette.MutedText);
             var info = CatalogDetails(item);
-            MythicUi.Text(card, "CatalogDetails", info, new Vector2(.045f, .29f), new Vector2(.96f, .64f), 15, ShowcasePalette.Text);
+            MythicUi.Text(card, "CatalogDetails", info, new Vector2(.045f, .29f), new Vector2(.96f, .55f), 15, ShowcasePalette.Text);
 
             bool owned = profile != null && _owned.Contains(item.Id);
             bool equipped = profile != null && _equipped.TryGetValue(item.Slot, out var current) && current == item.Id;
@@ -491,9 +495,9 @@ namespace Roguehalla.Client
             if (item != null && item.Color.HasValue)
             {
                 Color32 color = ToColor(item.Color.Value);
-                var swatch = MythicUi.Rect(card, "CatalogColorSample", new Vector2(.045f, .80f), new Vector2(.075f, .93f));
+                var swatch = MythicUi.Rect(card, "CatalogColorSample", new Vector2(.045f, .87f), new Vector2(.085f, .96f));
                 var image = swatch.gameObject.AddComponent<Image>(); image.color = color; image.raycastTarget = false;
-                MythicUi.Text(card, "CatalogColorLabel", "COLOR PREVIEW", new Vector2(.08f, .80f), new Vector2(.36f, .93f), 11, ShowcasePalette.MutedText);
+                MythicUi.Text(card, "CatalogColorLabel", "COLOR PREVIEW", new Vector2(.10f, .86f), new Vector2(.50f, .96f), 11, ShowcasePalette.MutedText);
             }
             else
             {

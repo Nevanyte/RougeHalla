@@ -88,8 +88,8 @@ namespace Roguehalla.Client
             _root = MythicUi.Panel(root, "HubProgressOverlay", Vector2.zero, Vector2.one, UiTheme.Current.Scrim);
             var dismiss = _root.gameObject.AddComponent<ModalDismissSurface>(); dismiss.Dismiss = CloseByUser;
             _card = MythicUi.Panel(_root, "HubProgressCard", new Vector2(.09f, .055f), new Vector2(.91f, .945f), ShowcasePalette.Panel);
-            MythicUi.Text(_card, "ProgressTitle", "RECORDS", new Vector2(.035f, .925f), new Vector2(.68f, .995f), 27, ShowcasePalette.Gold);
-            _close = MythicUi.Button(_card, "CloseProgress", "CLOSE · ESC", new Vector2(.76f, .925f), new Vector2(.965f, .99f), CloseByUser, MythicUi.ButtonStyle.Quiet);
+            MythicUi.Text(_card, "ProgressTitle", "RECORDS", new Vector2(.035f, .925f), new Vector2(.68f, .995f), 27, ShowcasePalette.Gold, heading: true);
+            _close = MythicUi.Button(_card, "CloseProgress", "CLOSE · ESC", new Vector2(.76f, .925f), new Vector2(.965f, .99f), CloseByUser, MythicUi.ButtonStyle.Secondary);
             string[] tabNames = { "PROFILE", "ACHIEVEMENTS", "LEADERBOARD" };
             for (int i = 0; i < _tabs.Length; i++)
             {
@@ -106,6 +106,9 @@ namespace Roguehalla.Client
             if (_flow != null) { _selectedName = _flow.Snapshot.SelectedName; _flow.Changed += OnFlowChanged; }
             Show(HubProgressTab.Profile); SetVisible(false);
         }
+
+        /// <summary>Docks the card in the shared hub panel area for the current window (see <see cref="HubPanelDock"/>).</summary>
+        public void ApplyViewport(HudViewport viewport) { HubPanelDock.Apply(_card, viewport); }
 
         public void Show(HubProgressTab tab)
         {

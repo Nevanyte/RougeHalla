@@ -213,7 +213,8 @@ namespace Roguehalla.Client
                     rowIndex % 2 == 0 ? ShowcasePalette.PanelRaised : ShowcasePalette.Panel);
                 var le = root.gameObject.AddComponent<UnityEngine.UI.LayoutElement>(); le.minHeight = 62; le.preferredHeight = 70;
                 var button = root.gameObject.AddComponent<UnityEngine.UI.Button>(); button.targetGraphic = root.GetComponent<UnityEngine.UI.Image>();
-                var colors = button.colors; colors.normalColor = ShowcasePalette.PanelRaised; colors.highlightedColor = MythicUi.HoverFill;
+                root.GetComponent<UnityEngine.UI.Image>().color = Color.white; // the colour block below is the fill (a token times a token painted rows black)
+                var colors = button.colors; colors.normalColor = rowIndex % 2 == 0 ? ShowcasePalette.PanelRaised : ShowcasePalette.Panel; colors.highlightedColor = MythicUi.HoverFill;
                 colors.selectedColor = MythicUi.SelectedFill; button.colors = colors;
                 var label = MythicUi.Text(root, "QuestRowLabel", "", Vector2.zero, Vector2.one, 14, ShowcasePalette.Text);
                 label.margin = new Vector4(12, 5, 8, 5); label.alignment = TextAlignmentOptions.MidlineLeft;

@@ -40,6 +40,8 @@ namespace Roguehalla.Client
         HitboxOverlay _overlay;
         HitZonePresenter _hitZones;
         WorldMarks _worldMarks;
+        WorldIndicators _worldIndicators; HurtVignette _vignette;
+        uint _hoverId; uint? _huntTarget; float _selfMaxHp = 100f, _localX, _localY; bool _haveLocal; int _wishState; byte _wishAbility;
         uint? _lockForNpc; InventoryView? _inventory; uint _localId; int _numberLane;
         WireArchetype[] _archetypes = System.Array.Empty<WireArchetype>();
         /// <summary>True when the <c>?hitboxes=1</c> debug overlay exists (never otherwise).</summary>
@@ -54,6 +56,7 @@ namespace Roguehalla.Client
         /// <summary>Foot box half-extents (sim units) of an archetype, 0 for a circle hull, an unknown id or no table.</summary>
         float FootHx(byte id) { var r = WireArchetype.Find(_archetypes, id); return r != null && r.Hull == 1 ? r.Fx : 0f; }
         float FootHy(byte id) { var r = WireArchetype.Find(_archetypes, id); return r != null && r.Hull == 1 ? r.Fy : 0f; }
+        CombatSparks _sparks; uint _sparkRng = 2463534242u; float _nextTrail; Vector3 _camCenter; Vector2 _camHalf = new Vector2(12, 9);     // render pass: trails, impact sparks, hit lights
         ConfirmedWishPresenter _wishes;
         WishFxPresenter _wishFx;
         bool _collectWishNotes;
@@ -119,8 +122,10 @@ namespace Roguehalla.Client
             _mapRoot = Child("Authoritative map artwork"); _propsRoot = Child("Observed collections"); _fxRoot = Child("Confirmed effects");
             _hitZones = new HitZonePresenter(Child("Melee hit zones"), id => _actors.Contains(id), UrlSearch());
             _worldMarks = new WorldMarks(Child("World markers"));
+            _worldIndicators = new WorldIndicators(Child("World indicators")); _vignette = new HurtVignette();
             _wishes = new ConfirmedWishPresenter(_fxRoot, _actors);
             _wishFx = new WishFxPresenter(Child("Wish effects"), _actors);
+            _sparks = new CombatSparks(Child("Combat sparks"));
             var global = Child("Ambient light");
             _ambient = global.gameObject.AddComponent<Light2D>(); _ambient.lightType = Light2D.LightType.Global;
             _ambient.color = new Color(.81f, .83f, .9f); _ambient.intensity = .86f;
@@ -232,8 +237,10 @@ namespace Roguehalla.Client
         public void Present(List<InterpActor> remote, SelfView me, LocalMotion motion, float aimAngle)
         {
             if (Time.unscaledTime >= _nextWorldTag) { _nextWorldTag = Time.unscaledTime + 1f; WorldLayer.Tag(transform); } // CONTRAST: layers created later (particles, decals) join the World layer within a second
-            _actors.Begin();
+            _actors.Begin(); ActorField.Begin();      // render pass: presented actors for the surface shaders
             uint mine = me != null ? me.Id : 0; _localId = mine;
+            _huntTarget = me != null ? me.HuntTarget : null; _haveLocal = me != null;
+            if (me != null) { _selfMaxHp = me.MaxHp; _wishState = WishState(me); _wishAbility = me.Wish.HasValue ? (byte)me.Wish.Value.Ability : (byte)0; }
             uint? lockTarget = me != null && me.OwnerCombat.HasValue && me.OwnerCombat.Value.Lock.Kind == OwnerLockKind.Held ? me.OwnerCombat.Value.Lock.Target : null; _lockForNpc = lockTarget;
             _wishFx.BeginFrame(); _wishFx.SetOwner(mine);
             foreach (var a in remote)
@@ -244,10 +251,11 @@ namespace Roguehalla.Client
                 // from appearance or position; draw their latest typed public facts instead.
                 if (_hasMembership && a.Kind != ActorKind.Player) continue;
                 _actors.Present(a.Id, a.X, a.Y, a.Facing, a.HpPct, a.Faction, a.Status, a.Weapon, a.Kind, a.MobType, a.Effects, a.SourceSig, false, a.BarrierPct, a.BarrierRingStep, ArchetypeKey(a.Archetype), FootHx(a.Archetype), FootHy(a.Archetype));
-                _actors.PresentIndicators(a.Id, a.Bounty, false, WeaponId.Fists, lockTarget.HasValue && lockTarget.Value == a.Id);
+                _actors.PresentIndicators(a.Id, a.Bounty, false, WeaponId.Fists, lockTarget.HasValue && lockTarget.Value == a.Id, -1, a.Id == _hoverId, _huntTarget.HasValue && _huntTarget.Value == a.Id);
                 _overlay?.NoteActor(a.Id, a.Archetype, (byte)a.Kind); _hitZones?.NoteActor(a.Id, a.Archetype);
                 _wishFx.NoteActor(a.Id, a.Kind, a.Effects, a.Status != ActorStatus.Dead && a.Status != ActorStatus.Mia);
                 if (_regionProps != null) _regionProps.NoteActor(WorldPoint(a.X, a.Y));
+                ActorField.Note(WorldPoint(a.X, a.Y));
             }
             if (_hasMembership) { _collectWishNotes = true; PresentLatestNpcs(); _collectWishNotes = false; }
             if (me != null && (!_hasMembership || _membership.Contains(me.Id)))
@@ -259,11 +267,13 @@ namespace Roguehalla.Client
                     me.Faction, me.Status, me.Weapon, ActorKind.Player, null, me.Effects, me.SelfSig, true, barrierPercent, me.BarrierRingStep, ArchetypeKey(me.Archetype), FootHx(me.Archetype), FootHy(me.Archetype));
                 var inv = _inventory; WeaponId? second = Indicators.SecondaryWeapon(inv.HasValue, inv.HasValue ? inv.Value.ActiveSlot : (byte)0, inv.HasValue ? inv.Value.Slot0 : null, inv.HasValue ? inv.Value.Slot1 : null);
                 if (IndicatorDemo) DemoIndicators(me.Id, second);
-                else _actors.PresentIndicators(me.Id, me.Bounty, second.HasValue, second ?? WeaponId.Fists, false);
+                else _actors.PresentIndicators(me.Id, me.Bounty, second.HasValue, second ?? WeaponId.Fists, false, -1, false, false, _wishState, _wishAbility);
+                _localX = mx; _localY = my;
                 _overlay?.NoteActor(me.Id, me.Archetype, (byte)ActorKind.Player); _hitZones?.NoteActor(me.Id, me.Archetype);
                 _wishFx.NoteActor(me.Id, ActorKind.Player, me.Effects, me.Status == ActorStatus.Alive);
                 Regions.UpdateLocal(mx, my, Time.unscaledTime);
                 if (_regionProps != null) _regionProps.NoteActor(WorldPoint(mx, my));
+                ActorField.Note(WorldPoint(mx, my));
             }
             _actors.End();
             if (_surfaceFx != null) _surfaceFx.Tick(Time.unscaledDeltaTime); // SURFACE-FX HOOK 3/3
@@ -354,7 +364,14 @@ namespace Roguehalla.Client
         void OnVisionEvents(ServerMsg.Events message)
         {
             if (message == null) return;
-            foreach (var ev in message.List) if (ev.Kind == EventKind.Death) _actors.NoteDeath(ev.Id);
+            foreach (var ev in message.List)
+            {
+                if (ev.Kind != EventKind.Death) continue;
+                _actors.NoteDeath(ev.Id);
+                // The death X lies where a delivered player was last drawn (legacy FxView.decal); creatures leave none.
+                if (_actors.TryPosition(ev.Id, out var pos) && _actors.TrySoundContext(ev.Id, out _, out _, out var kind, out _) && kind == ActorKind.Player)
+                    _worldIndicators.AddDeath(pos.x / Scale, -pos.y / (Scale * GroundSquash), Time.unscaledTime, MarkVisible);
+            }
         }
         /// <summary>CONTRAST LAB ONLY: drives the fog of war with the local player parked at a server position (the lab has no session). Never called by the game.</summary>
         public void LabFogTick(bool on, float serverX, float serverY) { _visionFog.Tick(on, serverX, serverY, 0, _actors); }
@@ -370,10 +387,11 @@ namespace Roguehalla.Client
             foreach(var a in _latestNpcs)
             {
                 _actors.Present(a.Id,a.X,a.Y,a.Facing,a.HpPct,a.Faction,a.Status,a.Weapon,a.Kind,a.MobType,a.Effects,a.SourceSig,false,a.BarrierPct,a.BarrierRingStep,ArchetypeKey(a.Archetype), FootHx(a.Archetype), FootHy(a.Archetype));
-                _actors.PresentIndicators(a.Id, a.Bounty, false, WeaponId.Fists, _lockForNpc.HasValue && _lockForNpc.Value == a.Id);
+                _actors.PresentIndicators(a.Id, a.Bounty, false, WeaponId.Fists, _lockForNpc.HasValue && _lockForNpc.Value == a.Id, -1, a.Id == _hoverId, _huntTarget.HasValue && _huntTarget.Value == a.Id);
                 _overlay?.NoteActor(a.Id, a.Archetype, (byte)a.Kind); _hitZones?.NoteActor(a.Id, a.Archetype);
                 if (_collectWishNotes) _wishFx.NoteActor(a.Id, a.Kind, a.Effects, a.Status != ActorStatus.Dead && a.Status != ActorStatus.Mia);
                 if (_regionProps != null) _regionProps.NoteActor(WorldPoint(a.X, a.Y));
+                ActorField.Note(WorldPoint(a.X, a.Y));
             }
         }
 
@@ -418,6 +436,11 @@ namespace Roguehalla.Client
                     {
                         string sprite = p.Kind == PropAppearance.Chest ? "chest" : p.Kind == PropAppearance.Body || p.Kind == PropAppearance.Corpse ? "stone" : "rune";
                         var art = Prop(sprite, position + new Vector3(0, .22f), new Vector2(.78f, p.Kind == PropAppearance.Body ? .3f : .6f), Color.white, order);
+                        if (p.Kind == PropAppearance.Corpse)
+                        {
+                            // The Plague corpse: a generated diseased puddle with pale bones (legacy PlagueCorpseView.paint), flat on the ground.
+                            art.sprite = GroundMarkArt.Puddle(); art.transform.position = position; art.transform.localScale = new Vector3(1.32f, 1.32f * .5f * GroundSquash / .78f, 1); art.sortingOrder = order - 2;
+                        }
                         if (p.Kind == PropAppearance.Chest)
                         {
                             if (_catalog != null && _catalog.Chest != null) { art.sprite = _catalog.Chest; art.transform.position = position; art.transform.localScale = Vector3.one * 1.3f; }
@@ -437,9 +460,11 @@ namespace Roguehalla.Client
                     var p = WorldPoint(chest.X, chest.Y); int order = 2000 + Mathf.RoundToInt(chest.Y * .5f);
                     Prop("glow", p, new Vector2(2, 1), new Color(1, .67f, .2f, chest.Picked ? .08f : .35f), order - 2);
                     var art=Prop("chest", p + new Vector3(0, .25f), new Vector2(.9f, .8f), chest.Picked ? new Color(.48f, .48f, .48f) : Color.white, order);
+                    { var ac = art.color; ac.a = WorldIndicatorRules.RewardAlpha((float)((chest.ExpiresAt - _sourceTimeMs) / 1000d)); art.color = ac; } // gone before the server removes it (ContainerView.rewardAlpha)
                     if(_catalog!=null && _catalog.Chest!=null) {art.sprite=_catalog.Chest;art.transform.position=p;art.transform.localScale=Vector3.one*1.6f;}
                     if (chest.CanChoose) Prop("rune", p + new Vector3(0, 1), new Vector2(.3f, .4f), new Color(1, .85f, .46f), order + 2);
                 }
+                bool trailTick = Time.unscaledTime >= _nextTrail; if (trailTick) _nextTrail = Time.unscaledTime + .025f;
                 foreach (var shot in collections.Projectiles)
                 {
                     // ADR0024: the ground track is (X, Y); the shot is DRAWN raised by its delivered height (the shooter's chest at launch,
@@ -452,17 +477,36 @@ namespace Roguehalla.Client
                         arrow ? new Color(1.6f, 1.25f, .6f) : new Color(1.5f, .55f, 2), 29000);
                     r.transform.rotation = Quaternion.Euler(0, 0, ProjectileScreenAngleDeg(shot.Facing));
                     _overlay?.NoteShot(shot.X, shot.Y, shot.Height);
+                    ProjectileFx(p, shot.Facing, arrow, trailTick);      // render pass: trail puffs and a small travelling light
                 }
+                _sparks.Observe(collections.Tick, collections.Projectiles, _camCenter, _camHalf.x, _camHalf.y, ref _sparkRng);
             }
             for (int i = _used; i < _props.Count; i++) _props[i].gameObject.SetActive(false);
             _worldMarks.Update(collections, MarkVisible);
+            _worldIndicators.Update(collections, _sourceTimeMs, _haveLocal, _localX, _localY, Time.unscaledTime, MarkVisible);
+        }
+        /// <summary>The own Wish beside the name: 0 none (no faction Wish, or in the lobby), 1 ready, 2 recharging (legacy PlayerView.setWishIcon).</summary>
+        int WishState(SelfView me)
+        {
+            if (!me.Wish.HasValue || me.Status == ActorStatus.Lobby) return 0;
+            var w = me.Wish.Value;
+            return _sourceTimeMs >= w.ReadyAt && w.Charges > 0 ? 1 : 2;
+        }
+        /// <summary>UI-facing: the fighter a click would lock right now (pointer pick), 0 for none. Set by the match client each frame.</summary>
+        public void SetHover(uint actorId) { _hoverId = actorId; }
+        void ProjectileFx(Vector3 p, float facing, bool arrow, bool trailTick)
+        {
+            float a = ProjectileScreenAngleDeg(facing) * Mathf.Deg2Rad;
+            var back = new Vector3(-Mathf.Cos(a), -Mathf.Sin(a), 0);
+            if (trailTick) _sparks.Trail(p + back * .12f, back, arrow ? new Color(2f, 1.4f, .6f) : new Color(1.6f, .6f, 2.2f), arrow ? .11f : .2f);
+            if (AtmosphereQuality.AnalyticLights && AtmosphereQuality.FxLights) LocalLightField.StageWorld(p, .6f, arrow ? 2.0f : 2.6f, arrow ? new Color(1f, .75f, .4f) : new Color(.7f, .4f, 1f), arrow ? .55f : 1.1f);
         }
         bool MarkVisible(float x, float y) { var f = _visionFog != null ? _visionFog.Field : null; return f == null || !f.HasSample || !f.IsFogged((int)(x / 32f), (int)(y / 32f)); }
         /// <summary>Where a projectile with ground position (x, y) and height h (sim units) is drawn: the ground point raised h toward screen-up.</summary>
         public static Vector3 ProjectileDrawPoint(float x, float y, float height) { return WorldPoint(x, y - height); }
         /// <summary>Screen rotation of a sprite that points along the ground heading (sim radians, +y south): the ground is drawn squashed.</summary>
         public static float ProjectileScreenAngleDeg(float facing) { return Mathf.Atan2(-Mathf.Sin(facing) * GroundSquash, Mathf.Cos(facing)) * Mathf.Rad2Deg; }
-        void LateUpdate() { if (_overlay != null) _overlay.Draw(_archetypes); }
+        void LateUpdate() { if (_overlay != null) _overlay.Draw(_archetypes); _vignette?.Tick(Time.unscaledTime, ShowcaseSettings.Current != null && ShowcaseSettings.Current.ReducedMotion); }
         SpriteRenderer Prop(string sprite, Vector3 p, Vector2 scale, Color color, int order)
         {
             SpriteRenderer r;
@@ -492,6 +536,7 @@ namespace Roguehalla.Client
                     _wishFx.Accept(f);
                     continue;
                 }
+                if (f.Kind == FxKind.Hit && f.Victim == _localId && _localId != 0 && !f.Passive) _vignette.Hit(f.Amount, _selfMaxHp, Time.unscaledTime); // legacy screenFeedback: real hits only
                 uint subject = f.Kind == FxKind.Hit ? f.Victim : f.Kind == FxKind.Stagger || f.Kind == FxKind.Block ? f.Id : f.By;
                 var cue=new PendingFx{Kind=f.Kind,Subject=subject,Amount=f.Amount,X=f.X,Y=f.Y,A=f.A,Weapon=f.Weapon,By=f.By,Passive=f.Passive,CreatedAt=Time.unscaledTime};
                 bool own = owner != 0 && (subject == owner || f.By == owner || f.Victim == owner);
@@ -531,7 +576,7 @@ namespace Roguehalla.Client
             _pendingFx.Clear();
             _scheduledFx.Clear();
             _wishes.Reset();
-            _wishFx.Reset(); _hitZones?.Clear();
+            _wishFx.Reset(); _hitZones?.Clear(); _worldIndicators?.Clear(); _vignette?.Clear();
             _actors.CancelFades(); _visionFog.Reset();
             for (int i = _flashes.Count - 1; i >= 0; i--)
             {
@@ -539,13 +584,14 @@ namespace Roguehalla.Client
                 flash.Sprite.gameObject.SetActive(false); flash.Text.gameObject.SetActive(false);
                 _flashes.RemoveAt(i); _flashPool.Push(flash);
             }
-            _actors.ResetTransientTimers();
+            _actors.ResetTransientTimers(); _sparks.Clear();
         }
 
         void PresentFx(PendingFx f)
         {
                 if (!_actors.TryPosition(f.Subject, out var p)) return;
                 _actors.ConfirmedCue(f.Subject,f.Kind);
+                if (f.Kind == FxKind.Hit || f.Kind == FxKind.Block) _sparks.Hit(p, f.Kind == FxKind.Block, ref _sparkRng);      // render pass: hit sparks and light
                 if (f.Kind == FxKind.Swing && Time.unscaledTime - f.CreatedAt < .35f) _hitZones.Swing(f.Subject, f.Weapon, f.X, f.Y, f.A, Time.unscaledTime);
                 if (_flashes.Count >= 48) return;
                 var flash = _flashPool.Count > 0 ? _flashPool.Pop() : CreateFlash();
@@ -614,6 +660,7 @@ namespace Roguehalla.Client
             var p = WorldPoint(serverX, serverY); cam.transform.position = new Vector3(p.x, p.y + 1.5f, -30);
             cam.transform.rotation = Quaternion.identity;
             _lastFollow = p; _hasFollow = true;
+            _camCenter = cam.transform.position; _camHalf = cam.orthographic ? new Vector2(cam.orthographicSize * cam.aspect, cam.orthographicSize) : new Vector2(12, 9);
             UpdateLampVisibility(p);
             if (_atmos != null) _atmos.OnFollow(cam, Time.unscaledDeltaTime);
             bool ambient = Quality.AmbientParticles && Quality.Particles > 0f;
@@ -669,6 +716,7 @@ namespace Roguehalla.Client
         {
             if (ShowcaseSettings.Current != null) ShowcaseSettings.Current.Changed -= ApplyQuality;
             if (_visionSession != null) _visionSession.EventsReceived -= OnVisionEvents;
+            if (_vignette != null) _vignette.Dispose();
             if (_visionFog != null) _visionFog.Dispose();
             if (_regionGround != null) _regionGround.Dispose();
             if (_regionWalls != null) _regionWalls.Dispose();
