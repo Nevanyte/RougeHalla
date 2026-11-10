@@ -5,7 +5,7 @@
 //
 //   node perf-run.cjs --quality ultra --region frost --seconds 60 --url http://127.0.0.1:8107/ \
 //        --server ws://127.0.0.1:7807/ws --out docs/rework/evidence/perf-baseline/ultra
-//   node perf-run.cjs --attribution --quality ultra     # rerun short windows with one effect off at a time
+//   node perf-run.cjs --attribution --quality ultra     # in one live match: interleaved windows, one effect off at a time
 //
 // Target (docs/prompts/UNITY_REWORK_FABLE.md section 4): p95 frame time <= 6.94 ms and the worst 1% of frames at or
 // above 120 fps (mean of the slowest 1% <= 8.33 ms), on a verified 2560x1440 @ 144 Hz display. If the display cannot
@@ -128,7 +128,7 @@ function displayMatchesTarget(d) {
 
 const DEFAULTS = {
   quality: 'ultra', region: 'frost', seconds: 60, warmup: 8, url: 'http://127.0.0.1:8107/', server: 'ws://127.0.0.1:7807/ws',
-  out: null, attribution: false, attribSeconds: 15, flags: '', uncapped: false, fullscreen: true, profile: 'perf1',
+  out: null, attribution: false, attribSeconds: 5, attribRounds: 3, flags: '', uncapped: false, fullscreen: true, profile: 'perf1',
   token: 't1', width: TARGET.width, height: TARGET.height, headless: false, planningTimeout: 90, playwright: null,
 };
 
@@ -166,7 +166,8 @@ function parseArgs(argv) {
       case '--out': o.out = next(); break;
       case '--flags': o.flags = next().replace(/^[?&]/, ''); break;
       case '--attribution': o.attribution = true; break;
-      case '--attrib-seconds': o.attribSeconds = num('--attrib-seconds', next(), 3, 600); break;
+      case '--attrib-seconds': o.attribSeconds = num('--attrib-seconds', next(), 2, 600); break;
+      case '--attrib-rounds': o.attribRounds = num('--attrib-rounds', next(), 1, 20); break;
       case '--uncapped': o.uncapped = true; break;
       case '--no-fullscreen': o.fullscreen = false; break;
       case '--headless': o.headless = true; break;
@@ -254,14 +255,49 @@ const ATTRIBUTION_TOGGLES = [
   { name: 'render scale 0.75', flag: 'fx.scale=0.75' },
 ];
 
-/** Cost of each effect: the baseline minus the same window with that effect off (positive = the effect costs time). */
-function attributionTable(baseline, variants) {
-  const rows = variants.map(v => ({
-    effect: v.name, flag: v.flag,
-    meanMsSaved: baseline.meanMs - v.stats.meanMs, p50MsSaved: baseline.p50Ms - v.stats.p50Ms, p95MsSaved: baseline.p95Ms - v.stats.p95Ms,
-    meanMs: v.stats.meanMs, p95Ms: v.stats.p95Ms, frames: v.stats.count,
+const median = a => percentile(a, .5);
+
+/** One round for a group of effects: baseline, effect 1 off, baseline, effect 2 off, ..., ending on a baseline. */
+function attributionRound(toggles) {
+  const plan = [{ effect: null, flag: '' }];
+  for (const t of toggles) { plan.push({ effect: t.name, flag: t.flag }); plan.push({ effect: null, flag: '' }); }
+  return plan;
+}
+
+/** Split a list into groups of at most n (a match is short, so each live match only covers a few effects). */
+function chunk(list, n) {
+  const out = [];
+  for (let i = 0; i < list.length; i += n) out.push(list.slice(i, i + n));
+  return out;
+}
+
+/**
+ * Cost of each effect from windows measured in one live match: for every (round, effect) the window with the effect off
+ * is compared with the baseline window measured just before it. Positive = the effect costs that many ms per frame.
+ * windows: [{round, effect|null, flag, stats}] in schedule order. noiseMs is the median absolute difference between
+ * consecutive baseline windows (what a no-op toggle would show), so small costs can be told from noise.
+ */
+function attributionFromWindows(windows) {
+  const pairs = new Map();
+  const baselines = [];
+  let lastBase = null;
+  for (const w of windows) {
+    if (w.effect === null) { if (lastBase) baselines.push(Math.abs(w.stats.meanMs - lastBase.stats.meanMs)); lastBase = w; continue; }
+    if (!lastBase) continue;
+    if (!pairs.has(w.effect)) pairs.set(w.effect, { effect: w.effect, flag: w.flag, mean: [], p50: [], p95: [], offMean: [], baseMean: [] });
+    const e = pairs.get(w.effect);
+    e.mean.push(lastBase.stats.meanMs - w.stats.meanMs); e.p50.push(lastBase.stats.p50Ms - w.stats.p50Ms);
+    e.p95.push(lastBase.stats.p95Ms - w.stats.p95Ms); e.offMean.push(w.stats.meanMs); e.baseMean.push(lastBase.stats.meanMs);
+  }
+  const noiseMs = baselines.length ? median(baselines) : null;
+  const rows = [...pairs.values()].map(e => ({
+    effect: e.effect, flag: e.flag, rounds: e.mean.length,
+    meanMsSaved: median(e.mean), p50MsSaved: median(e.p50), p95MsSaved: median(e.p95),
+    minMeanMsSaved: Math.min(...e.mean), maxMeanMsSaved: Math.max(...e.mean),
+    baselineMeanMs: median(e.baseMean), effectOffMeanMs: median(e.offMean),
+    clearOfNoise: noiseMs !== null && Math.abs(median(e.mean)) > 2 * noiseMs && Math.min(...e.mean) * Math.max(...e.mean) > 0,
   }));
-  return rows.sort((a, b) => b.meanMsSaved - a.meanMsSaved);
+  return { rows: rows.sort((x, y) => y.meanMsSaved - x.meanMsSaved), noiseMs };
 }
 
 // ----------------------------------------------------------------------------------------------- browser driving
@@ -293,7 +329,7 @@ async function fetchInfo(server) {
 }
 
 /** One browser session: launch, join, plan, warm up, record `seconds`. Returns everything measured. */
-async function session(o, { seconds, uncapped, extraFlags = '', label, outDir, screenshots, refreshHz = 0 }) {
+async function session(o, { seconds, uncapped, extraFlags = '', label, outDir, screenshots, refreshHz = 0, attribute = null, warmupOverride = null }) {
   const chromium = loadPlaywright(o);
   o._profile = null; // a fresh callsign per browser session
   const args = ['--use-angle=metal', '--enable-gpu-rasterization', '--ignore-gpu-blocklist', '--enable-features=Metal',
@@ -355,9 +391,10 @@ async function session(o, { seconds, uncapped, extraFlags = '', label, outDir, s
     rec.measuredHz = rec.cadence.hz;
 
     rec.loadAvgBefore = os.loadavg();
-    await sleep(Math.max(0, o.warmup) * 1000);
+    await sleep(Math.max(0, warmupOverride !== null ? warmupOverride : o.warmup) * 1000);
     if (screenshots) await shot(page, outDir, `${label}-before.png`, rec);
 
+    if (attribute) { await attributeEffects(page, o, rec, attribute); return rec; }
     await page.evaluate(hz => { if (hz) window.__rhPerf.setRefreshHz(hz); window.__rhPerf.reset(); }, refreshHz);
     const startedAt = Date.now();
     await runTimeline(page, o, seconds, rec);
@@ -370,6 +407,37 @@ async function session(o, { seconds, uncapped, extraFlags = '', label, outDir, s
     rec.userAgent = rec.gpu.userAgent; rec.browserVersion = browser.version();
     return rec;
   } finally { await browser.close().catch(() => {}); }
+}
+
+/**
+ * Toggle effects inside the live match (unityInstance.SendMessage -> PerfRecorder.SetFlags) and measure interleaved windows.
+ * Runs whole rounds of `toggles` while the time budget and the connection last (a bot match is only about 80 s long).
+ * Returns the number of rounds completed.
+ */
+async function attributeEffects(page, o, rec, { toggles, rounds, windowSeconds, budgetSeconds }) {
+  const setFlags = flag => page.evaluate(f => window.unityInstance.SendMessage('Frame-time recorder', 'SetFlags', f), flag);
+  const settle = 0.4, plan = attributionRound(toggles);
+  const roundSeconds = plan.length * (windowSeconds + settle);
+  const started = Date.now();
+  rec.attributionWindows = [];
+  rec.roundsDone = 0;
+  for (let round = 0; round < rounds; round++) {
+    if ((Date.now() - started) / 1000 + roundSeconds > budgetSeconds) break;
+    for (const step of plan) {
+      if (rec.netStates.some(s => /Rejected|Closed|Ended/.test(s.text))) { rec.notes.push('match ended during attribution'); await setFlags('').catch(() => {}); return; }
+      await setFlags(step.flag);
+      await sleep(settle * 1000);           // let lights, volume and particles settle on the new row
+      await page.evaluate(() => window.__rhPerf.reset());
+      await runTimeline(page, o, windowSeconds, rec);
+      const data = await page.evaluate(() => { const P = window.__rhPerf; const t = P.timestamps(); P.stop(); P.resume(); return { t, row: P.row }; });
+      const deltas = []; for (let i = 1; i < data.t.length; i++) deltas.push(data.t[i] - data.t[i - 1]);
+      const stats = frameStats(deltas);
+      rec.attributionWindows.push({ ...step, round, stats, row: data.row });
+      console.log(`  ${step.effect ? step.effect + ' off' : 'baseline'}: mean ${stats.meanMs.toFixed(2)} ms  p95 ${stats.p95Ms.toFixed(2)} ms`);
+    }
+    rec.roundsDone = round + 1;
+  }
+  await setFlags('');
 }
 
 async function shot(page, outDir, name, rec) {
@@ -523,20 +591,38 @@ async function main(argv) {
 }
 
 async function attribution(o, outDir, info, main_) {
-  const base = await session(o, { outDir, screenshots: true, seconds: o.attribSeconds, uncapped: true, label: 'attrib-baseline' });
-  const baseSum = summariseRun(base, { verified: false });
-  const variants = [];
-  for (const t of ATTRIBUTION_TOGGLES) {
-    console.log(`attribution: ${t.name} off (${t.flag})`);
-    const rec = await session(o, { outDir, screenshots: false, seconds: o.attribSeconds, uncapped: true, extraFlags: t.flag,
-      label: 'attrib-' + t.flag.replace(/[^a-z0-9]+/gi, '_') });
-    variants.push({ ...t, stats: summariseRun(rec, { verified: false }).stats, errors: rec.errors.length });
+  const BUDGET = 48, GROUP = 3;     // seconds of windows per live match, effects per match
+  const windows = [], recs = [];
+  let shots = true;
+  for (const group of chunk(ATTRIBUTION_TOGGLES, GROUP)) {
+    let done = 0, guard = 0;
+    while (done < o.attribRounds && guard++ < o.attribRounds + 3) {
+      console.log(`attribution: ${group.map(t => t.name).join(', ')} (rounds ${done + 1}..${o.attribRounds})`);
+      const rec = await session(o, { outDir, screenshots: shots, seconds: 0, uncapped: true, label: 'attribution', warmupOverride: 4,
+        attribute: { toggles: group, rounds: o.attribRounds - done, windowSeconds: o.attribSeconds, budgetSeconds: BUDGET } });
+      shots = false; recs.push(rec);
+      // The match legitimately ends (and the socket closes) after the last window; only a session that never reached a
+      // populated match, or measured nothing, is discarded.
+      const actorMax = Math.max(0, ...rec.actorSamples.filter(Number.isFinite));
+      if (!(rec.planning && rec.planning.inMatchSeen) || !(actorMax > 0) || !(rec.attributionWindows && rec.attributionWindows.length)) {
+        console.log('  session discarded: never reached a populated match or no windows measured'); continue;
+      }
+      for (const w of rec.attributionWindows) windows.push({ ...w, round: w.round + done, session: recs.length });
+      done += rec.roundsDone || 0;
+    }
   }
-  const baseValidity = validateRun(base, baseSum);
-  if (!baseValidity.valid) throw new Error('attribution baseline is not a valid run: ' + baseValidity.problems.join('; '));
-  return { kind: 'attribution', rec: base, sum: baseSum, vsyncOff: true,
-    table: attributionTable(baseSum.stats, variants), variants,
-    verdict: { verdict: 'ATTRIBUTION (vsync off; costs are frame-time differences, not a target claim)' } };
+  const rec = recs[0];
+  const baseStats = windows.filter(w => w.effect === null).map(w => w.stats);
+  const mid = key => median(baseStats.map(s => s[key]));
+  const sum = { stats: { count: baseStats.reduce((x, s) => x + s.count, 0), meanMs: mid('meanMs'), p50Ms: mid('p50Ms'), p95Ms: mid('p95Ms'), p99Ms: mid('p99Ms'),
+    maxMs: baseStats.length ? Math.max(...baseStats.map(s => s.maxMs)) : null, worst1PctMeanMs: mid('worst1PctMeanMs'), worst1PctFps: 1000 / mid('worst1PctMeanMs') } };
+  const actors = recs.flatMap(r => r.actorSamples).filter(Number.isFinite).sort((a, b) => a - b);
+  sum.actors = { samples: actors.length, p50: percentile(actors, .5), max: actors.length ? actors[actors.length - 1] : null, min: actors[0] ?? null };
+  rec.timestamps = [];
+  rec.notes.push(`${recs.length} live matches; ${windows.length} windows`);
+  const table = windows.length ? attributionFromWindows(windows) : { rows: [], noiseMs: null };
+  return { kind: 'attribution', rec, sum, vsyncOff: true, table: table.rows, noiseMs: table.noiseMs, windows,
+    verdict: { verdict: windows.length ? 'ATTRIBUTION (vsync off, interleaved windows within live matches; costs are frame-time differences, not a target claim)' : 'INVALID RUN: no attribution windows were measured' } };
 }
 
 const r3 = v => (typeof v === 'number' ? Math.round(v * 1000) / 1000 : v);
@@ -565,10 +651,11 @@ function writeOutputs(o, outDir, info, sys, result) {
       'A scripted walk-and-attack loop against server bots is representative of a fight only to the extent bots engage; see run.actors and run.wire for activity evidence.',
     ],
   };
-  if (result.kind === 'attribution') { report.attribution = { baseline: stripStats(sum.stats), rows: result.table.map(stripStats2) }; }
+  if (result.kind === 'attribution') { report.attribution = { baselineMedians: stripStats(sum.stats), noiseMs: r3(result.noiseMs), rounds: o.attribRounds, windowSeconds: o.attribSeconds,
+    rows: result.table.map(stripStats2), windows: result.windows.map(w => ({ round: w.round, effect: w.effect, flag: w.flag, stats: stripStats(w.stats) })) }; }
   function stripStats2(r) { return Object.fromEntries(Object.entries(r).map(([k, v]) => [k, r3(v)])); }
   fs.writeFileSync(path.join(outDir, 'report.json'), JSON.stringify(report, null, 2) + '\n');
-  fs.writeFileSync(path.join(outDir, 'frames.csv'), toCsv(rec.timestamps));
+  if (rec.timestamps.length) fs.writeFileSync(path.join(outDir, 'frames.csv'), toCsv(rec.timestamps));
   printSummary(report, result, outDir);
 }
 
@@ -579,8 +666,8 @@ function printSummary(report, result, outDir) {
   if (s.droppedFrames !== undefined) console.log(`dropped frames (> 1.5 x ${f(1000 / s.refreshHz)} ms): ${s.droppedFrames} (${f(s.droppedPct)}%)`);
   console.log(`actors on screen p50 ${result.sum.actors.p50} max ${result.sum.actors.max}; wire frames ${report.run.wire.framesReceived}`);
   if (result.kind === 'attribution') {
-    console.log('\nEffect cost (baseline minus effect-off, vsync off; positive = the effect costs this much per frame)');
-    for (const r of result.table) console.log(`  ${r.effect.padEnd(32)} mean ${f(r.meanMsSaved).padStart(7)} ms   p95 ${f(r.p95MsSaved).padStart(7)} ms   (${r.flag})`);
+    console.log(`\nEffect cost: adjacent-baseline minus effect-off, median of ${result.table[0] ? result.table[0].rounds : 0} rounds, vsync off (positive = the effect costs this much per frame). Noise floor (baseline vs baseline): ${f(result.noiseMs)} ms`);
+    for (const r of result.table) console.log(`  ${r.effect.padEnd(30)} mean ${f(r.meanMsSaved).padStart(7)} ms [${f(r.minMeanMsSaved)}..${f(r.maxMeanMsSaved)}]  p95 ${f(r.p95MsSaved).padStart(7)} ms  ${r.clearOfNoise ? 'clear of noise' : 'within noise'}  (${r.flag})`);
   } else {
     const c = result.verdict.checks;
     console.log(`p95 <= ${TARGET.p95Ms} ms: ${c.p95.pass ? 'yes' : 'NO'}   worst 1% >= ${TARGET.worst1PctFps} fps (<= ${TARGET.worst1PctMs} ms): ${c.worst1Pct.pass ? 'yes' : 'NO'}`);
@@ -593,7 +680,7 @@ function printSummary(report, result, outDir) {
 }
 
 module.exports = { validateRun, profileFor, smoothDeltas, TARGET, REGIONS, percentile, worstOnePercentMean, frameStats, evaluate, parseDisplays, displayMatchesTarget, parseArgs,
-  buildPageUrl, buildTimeline, toCsv, attributionTable, ATTRIBUTION_TOGGLES, planningPoint };
+  buildPageUrl, buildTimeline, toCsv, ATTRIBUTION_TOGGLES, planningPoint, attributionRound, chunk, attributionFromWindows };
 
 if (require.main === module) {
   main(process.argv.slice(2)).then(code => { process.exitCode = code; }, e => { console.error(e.stack || e.message); process.exitCode = 2; });

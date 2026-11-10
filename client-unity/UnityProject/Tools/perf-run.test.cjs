@@ -128,15 +128,27 @@ test('toCsv writes index, timestamp and delta', () => {
   assert.equal(csv.length, 4);
 });
 
-test('attributionTable ranks effects by the mean frame time they cost', () => {
-  const base = { meanMs: 5, p50Ms: 5, p95Ms: 6 };
-  const rows = P.attributionTable(base, [
-    { name: 'a', flag: 'x=0', stats: { meanMs: 4.9, p50Ms: 4.9, p95Ms: 5.9, count: 10 } },
-    { name: 'b', flag: 'y=0', stats: { meanMs: 3.5, p50Ms: 3.5, p95Ms: 4, count: 10 } },
-    { name: 'c', flag: 'z=0', stats: { meanMs: 5.1, p50Ms: 5.1, p95Ms: 6, count: 10 } }]);
-  assert.deepEqual(rows.map(r => r.effect), ['b', 'a', 'c']);
-  near(rows[0].meanMsSaved, 1.5); near(rows[0].p95MsSaved, 2); assert.ok(rows[2].meanMsSaved < 0);
+test('an attribution round puts a baseline before every effect and ends on a baseline; groups are small', () => {
+  const toggles = [{ name: 'a', flag: 'fx.a=0' }, { name: 'b', flag: 'fx.b=0' }];
+  const plan = P.attributionRound(toggles);
+  assert.deepEqual(plan.map(p => p.effect), [null, 'a', null, 'b', null]);
+  for (let i = 0; i < plan.length; i++) if (plan[i].effect) assert.equal(plan[i - 1].effect, null);
+  assert.deepEqual(P.chunk([1, 2, 3, 4, 5, 6, 7], 3), [[1, 2, 3], [4, 5, 6], [7]]);
   assert.ok(P.ATTRIBUTION_TOGGLES.every(t => /^fx\.[a-z]+=/.test(t.flag)));
+});
+
+test('attributionFromWindows pairs each effect with its adjacent baseline and reports the noise floor', () => {
+  const w = (round, effect, mean, p95) => ({ round, effect, flag: effect ? effect + '=0' : '', stats: { meanMs: mean, p50Ms: mean, p95Ms: p95, count: 100 } });
+  const windows = [];
+  for (let r = 0; r < 3; r++) {
+    windows.push(w(r, null, 5.0 + r * 0.05, 6), w(r, 'big', 3.5 + r * 0.05, 4), w(r, null, 5.0, 6), w(r, 'tiny', 4.97, 6), w(r, null, 5.02, 6), w(r, 'neg', 5.1, 6.1));
+  }
+  const { rows, noiseMs } = P.attributionFromWindows(windows);
+  assert.deepEqual(rows.map(r => r.effect), ['big', 'tiny', 'neg']);
+  near(rows[0].meanMsSaved, 1.5, 1e-9); near(rows[0].p95MsSaved, 2); assert.equal(rows[0].rounds, 3); assert.equal(rows[0].clearOfNoise, true);
+  assert.equal(rows[1].clearOfNoise, false, 'a 0.03 ms difference is inside the noise');
+  assert.ok(rows[2].meanMsSaved < 0);
+  assert.ok(noiseMs > 0 && noiseMs < 0.1);
 });
 
 test('planning anchors land inside the planning rail', () => {
