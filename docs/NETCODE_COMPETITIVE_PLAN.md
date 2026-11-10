@@ -74,7 +74,7 @@ means measured: see the unverified list below.
 | Melee rewinds the attacker's own origin, but the attacker aims from the predicted position | built | DEV-009: with `lag_fairness` a swing starts at the attacker's tick-start position; targets are still rewound. `lag_fairness.rs`. |
 | Projectiles and abilities have no lag compensation | built | DEV-010: a player's shot launches `lag - TICK_MS` back (at most 250 ms) and is flown to the clock at once. DEV-011: a unit-target Wish judges range and line of sight against the rewound target. Both are the identity at the one-tick baseline lag. A catching-up shot meets the flights still live at the clock (see "What a catching-up projectile meets"). |
 | RTT estimator rises slowly and rewind is capped by policy | deferred | Only the Wave 1 window and `MAX_REWIND_MS` (300 ms) apply. The estimator was not changed; `rtt.rs` gained only the clamp of the `MoveAt` stamp. |
-| Order budget can drop a Release or Attack during sustained steering plus clicking | deferred | No `rh-sim` intake change. |
+| Order budget can drop a Release or Attack during sustained steering plus clicking | built (client side) | No `rh-sim` intake change and no wire change. The C# `InputSender` mirrors the seat's bucket (`OrderBudgetModel`: 30 burst, 15/s, Aim free, 1.5-token safety margin for tick rounding and arrival jitter) and holds a command the server would drop, in order, until a token is back; queued movement orders collapse to the newest; a press held over 200 ms is withdrawn with its release unless an earlier press is held on the server. A held movement key repeats every 100 ms with room and slows to at most 200 ms (never past 60% of the time to reach its 64 u steering point) when fewer than 6 tokens remain. `rh-server` counts the remaining refusals (`intakeRefusals` on the health JSON). See "Order governor" below. |
 | Placement score fairness terms | deferred | No placement change. |
 
 All four built server rows sit behind `SimConfig::lag_fairness`: off in `SimConfig::default`, parity, headless, recordings and
@@ -109,6 +109,40 @@ heading, which is approximate and has no test). The rule is the sweep's `delete_
 deleted and the ball weakened (x0.6). Flights that already ended are not met: a recorded hit stays. One measured case this cannot fix:
 a ball lagged 300 ms spawns in a tick whose sweep already let the baseline arrow hit the victim (48.5 damage). That outcome is left as
 it is and is a Root policy decision (DEV-010). No state, checkpoint or hash field was added; the code runs only with catch-up above zero.
+
+### Order governor (Wave 2 follow-up, 2026-11-10)
+
+The problem: a held movement key re-sent its Move every 100 ms (10 tokens/s), each turn and each click cost more (a click is two
+tokens), and the seat refills 15 tokens/s. A strafing archer drained the 30-token burst in seconds; after that the server silently
+dropped presses and releases, and a dropped Release left the bow shooting until a later Release got through (the seat-boundary test
+`an_exhausted_order_budget_drops_presses_and_releases_but_not_aim` pins that server behaviour, which is unchanged).
+
+What changed, all on the client except the counters:
+
+- `OrderBudgetModel` (C#) mirrors `rh-sim` `OrderBudget`; a test reads `ORDER_BURST` and `ORDER_PER_SECOND` from `constants.rs`.
+- `InputSender.Flush` sends in queue order while the model has 1 + 1.5 tokens; the first command that does not fit waits with
+  everything after it. Aim is free and always leaves. `Governed = false` restores the old send-everything behaviour.
+- Movement orders still queued are replaced by a newer one (the server keeps only the newest per tick anyway). Prediction already
+  copes with an order that is never echoed.
+- A press that waited over 200 ms is withdrawn, with its queued release or the next release the button sends, unless an earlier
+  press is held on the server (then the release still goes).
+- `SteerPacing` (used by `MatchClient`) keeps the 100 ms repeat while the budget keeps 6 tokens past the margin (7 while the trigger
+  is held) and otherwise repeats at min(200 ms, 60% of 64 u at the current speed), floored at 100 ms.
+- `rh-server` adds `intakeRefusals.overBudget`, `.overBudgetPressOrRelease` and `.queueFull` to the process metrics: a nonzero
+  over-budget count on a real link means the client model is off.
+
+Measured on a synthetic model only (C# `OrderGovernorTests`: 60 frames/s, frames reach a C# copy of the server bucket 30 to 90 ms
+later in order and are applied at the 50 ms tick; 20 s per seed, 8 seeds):
+
+| Scenario | Ungoverned (old) | Governed |
+|---|---|---|
+| Strafing archer (turn every 150 to 350 ms, click every 140 to 260 ms) | 17 to 24 server drops per run, 0 to 3 presses and 4 to 7 releases; longest held trigger 350 to 950 ms | 0 drops, 0 commands held (the pacing alone keeps it under budget); longest trigger 150 to 200 ms |
+| Frantic (turn every 90 to 170 ms, click every 80 to 170 ms) | 192 to 223 drops, 26 to 41 presses and 52 to 69 releases; longest trigger 550 to 900 ms | 0 drops; 368 to 382 holds; 4 to 10 of about 142 presses withdrawn; longest trigger 150 to 200 ms |
+
+Limits: the model starts full on a new `Session`, so after a resume onto a partly drained seat, or after a stall that let the
+server bucket cap at 30 while the client kept spending, the server can still drop commands (the new counters show it). A held press
+waits up to 200 ms. The steering pacing and the `MatchClient` hook are Unity scene code and were not compiled. Nothing was measured on
+a real link.
 
 ## Wave 3: protocol 15 (one bump; owner-approved)
 

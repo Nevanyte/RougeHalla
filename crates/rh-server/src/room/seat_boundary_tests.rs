@@ -13,6 +13,7 @@ use rh_sim::constants::ORDER_BURST;
 use rh_sim::events::Event;
 use rh_sim::status_runtime::{AbilityId, CastEndReason, StatusKind};
 use rh_sim::{Placement, ProjectileEnd, Vec2, WeaponId};
+use std::sync::atomic::Ordering;
 
 const TICK: Duration = Duration::from_millis(50);
 
@@ -56,6 +57,8 @@ struct Rig {
     next_seq: [u32; 2],
     /// (sim time of the step, event), in order.
     log: Vec<(f64, Event)>,
+    /// This rig's own counters (the process-wide ones are shared by every test running in parallel).
+    metrics: &'static crate::metrics::Metrics,
 }
 
 impl Rig {
@@ -64,7 +67,7 @@ impl Rig {
         let (reports, _rx) = mpsc::unbounded_channel();
         let now = Instant::now();
         let sim = live_sim(fair);
-        let mut room = Room::new(
+        let room = Room::new(
             [5; 16],
             RoomConfig {
                 sim: sim.clone(),
@@ -81,6 +84,9 @@ impl Rig {
             reports,
             now,
         );
+        let metrics: &'static crate::metrics::Metrics =
+            Box::leak(Box::new(crate::metrics::Metrics::new()));
+        let mut room = room.with_metrics(metrics);
         let outs = [Arc::new(Outbox::default()), Arc::new(Outbox::default())];
         let mut player = [PlayerId(0); 2];
         for i in 0..2 {
@@ -116,6 +122,7 @@ impl Rig {
             player,
             next_seq: [1; 2],
             log: Vec::new(),
+            metrics,
         };
         // One idle wake delivers each seat its first observation (the references a later command may name).
         rig.step();
@@ -740,6 +747,14 @@ fn a_burst_of_presses_in_one_tick_admits_six_and_charges_all_ten() {
         assert_eq!(r.budget(0).0, ORDER_BURST);
         r.input(0, (1..=10).map(|k| press(k as f32 * 0.1, None)).collect());
         assert_eq!(
+            (
+                r.metrics.intake_queue_full.load(Ordering::Relaxed),
+                r.metrics.intake_over_budget.load(Ordering::Relaxed),
+            ),
+            (4, 0),
+            "fair {fair}: the four presses past the tick queue are counted, none over budget"
+        );
+        assert_eq!(
             r.budget(0).0,
             ORDER_BURST - 10.0,
             "fair {fair}: dropped presses were charged too"
@@ -845,8 +860,18 @@ fn an_exhausted_order_budget_drops_presses_and_releases_but_not_aim() {
         drain(&mut r, 30);
         assert_eq!(r.budget(0).0, 0.0);
         r.input(0, vec![press(2.5, None), WireCommand::Aim { a: 2.0 }]);
+        let m = r.metrics;
+        assert_eq!(
+            (
+                m.intake_over_budget.load(Ordering::Relaxed),
+                m.intake_over_budget_trigger.load(Ordering::Relaxed),
+                m.intake_queue_full.load(Ordering::Relaxed),
+            ),
+            (1, 1, 0),
+            "fair {fair}: the dropped press is counted, the free Aim is not"
+        );
         r.steps(20);
-        assert_eq!(r.budget(0).0 < 1.0, true);
+        assert!(r.budget(0).0 < 1.0);
         assert_eq!(
             r.windups(0) + r.swings(0) + r.launches(0).len(),
             0,
@@ -873,6 +898,11 @@ fn an_exhausted_order_budget_drops_presses_and_releases_but_not_aim() {
         drain(&mut r, 29);
         r.input(0, vec![release(0.0)]);
         assert!(r.budget(0).0 < 1.0, "fair {fair}: {:?}", r.budget(0));
+        assert_eq!(
+            r.metrics.intake_over_budget_trigger.load(Ordering::Relaxed),
+            1,
+            "fair {fair}: the dropped release is counted as a press-or-release refusal"
+        );
         r.steps(40);
         let shots = r.launches(0).len();
         assert!(

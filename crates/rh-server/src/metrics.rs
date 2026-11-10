@@ -242,6 +242,38 @@ pub struct Metrics {
     pub rewind_clamp_excess: [Counter; 4],
     /// The largest excess seen, in whole milliseconds (rounded up).
     pub rewind_clamp_excess_max_ms: AtomicU32,
+    /// Human commands the sim refused at intake because the seat's order budget was empty (rh-sim `Reject::OverBudget`),
+    /// and how many of those were an Attack press or a Release (a dropped Release leaves the trigger held). The client's
+    /// order governor holds commands to keep these at zero; a nonzero count on a real link means its model is off.
+    pub intake_over_budget: Counter,
+    pub intake_over_budget_trigger: Counter,
+    /// Human commands refused because the seat already queued MAX_ACTIONS_PER_TICK actions this tick (`Reject::QueueFull`).
+    pub intake_queue_full: Counter,
+}
+
+/// The intake refusals of one Input message, folded into the process counters at once (see [`Metrics::note_intake_refusals`]).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct IntakeRefusals {
+    pub over_budget: u64,
+    pub over_budget_trigger: u64,
+    pub queue_full: u64,
+}
+
+impl IntakeRefusals {
+    /// Counts one refused command; `trigger` says whether it was an Attack press or a Release. Validation refusals
+    /// (bad target, non-finite, ...) are not network effects and are not counted here.
+    pub fn note(&mut self, why: rh_sim::Reject, trigger: bool) {
+        match why {
+            rh_sim::Reject::OverBudget => {
+                self.over_budget += 1;
+                if trigger {
+                    self.over_budget_trigger += 1;
+                }
+            }
+            rh_sim::Reject::QueueFull => self.queue_full += 1,
+            _ => {}
+        }
+    }
 }
 
 impl Default for Metrics {
@@ -270,6 +302,9 @@ impl Metrics {
             rewind_clamps_future: Counter::new(),
             rewind_clamp_excess: [const { Counter::new() }; 4],
             rewind_clamp_excess_max_ms: AtomicU32::new(0),
+            intake_over_budget: Counter::new(),
+            intake_over_budget_trigger: Counter::new(),
+            intake_queue_full: Counter::new(),
         }
     }
 
@@ -329,6 +364,19 @@ impl Metrics {
         );
     }
 
+    /// Folds one Input message's intake refusals into the process counters (nothing is touched when there were none).
+    pub fn note_intake_refusals(&self, r: &IntakeRefusals) {
+        for (c, v) in [
+            (&self.intake_over_budget, r.over_budget),
+            (&self.intake_over_budget_trigger, r.over_budget_trigger),
+            (&self.intake_queue_full, r.queue_full),
+        ] {
+            if v > 0 {
+                c.fetch_add(v, Ordering::Relaxed);
+            }
+        }
+    }
+
     pub fn json(&self) -> serde_json::Value {
         let n = |a: &AtomicU64| a.load(Ordering::Relaxed);
         serde_json::json!({
@@ -353,6 +401,11 @@ impl Metrics {
                 "excessMsLe100": n(&self.rewind_clamp_excess[2]),
                 "excessMsGt100": n(&self.rewind_clamp_excess[3]),
                 "excessMsMax": self.rewind_clamp_excess_max_ms.load(Ordering::Relaxed),
+            },
+            "intakeRefusals": {
+                "overBudget": n(&self.intake_over_budget),
+                "overBudgetPressOrRelease": n(&self.intake_over_budget_trigger),
+                "queueFull": n(&self.intake_queue_full),
             },
             "rssBytes": rss_bytes(),
             "note": "histogram quantiles are bucket upper bounds (at most 25% above the true value, never below); max is exact",
@@ -510,6 +563,23 @@ mod tests {
         assert_eq!(j["admitToSeatMs"]["count"], 5);
         assert!(j["admitToSeatMs"]["p50"].as_u64().unwrap() >= 40);
         assert_eq!(m.admit_to_seat_ms.max(), u64::from(u32::MAX));
+    }
+
+    #[test]
+    fn intake_refusals_count_budget_and_queue_drops_only() {
+        let m = Metrics::new();
+        let mut r = IntakeRefusals::default();
+        m.note_intake_refusals(&r); // nothing to fold
+        r.note(rh_sim::Reject::OverBudget, true);
+        r.note(rh_sim::Reject::OverBudget, false);
+        r.note(rh_sim::Reject::QueueFull, true);
+        r.note(rh_sim::Reject::NonFinite, true); // a validation refusal is not a network drop
+        m.note_intake_refusals(&r);
+        m.note_intake_refusals(&r);
+        let j = m.json();
+        assert_eq!(j["intakeRefusals"]["overBudget"], 4);
+        assert_eq!(j["intakeRefusals"]["overBudgetPressOrRelease"], 2);
+        assert_eq!(j["intakeRefusals"]["queueFull"], 2);
     }
 
     #[test]

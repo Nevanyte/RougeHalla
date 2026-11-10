@@ -34,8 +34,6 @@ namespace Roguehalla.Client
         /// <summary>Own Wish telegraph at the R press (presentation only), replaced by the server's cue or dropped unconfirmed.</summary>
         public bool OwnWishTelegraph = true;
         const double WishTelegraphSlackMs = 150, WishTelegraphCapMs = 600;
-        const double SteerRepeatMs = 100;
-        const float SteerAheadU = 64f;
         Vector2 _lastDir;
         double _lastSteer;
         bool _steering;
@@ -381,9 +379,12 @@ namespace Roguehalla.Client
             if (dir != Vector2.zero)
             {
                 dir.Normalize();
-                if (!_steering || dir != _lastDir || now - _lastSteer >= SteerRepeatMs)
+                // A held key re-sends at the full rate while the order budget has room, slower when it runs low (never so slow
+                // that the walk reaches the steering point), so presses and releases keep their tokens in a long fight.
+                double repeatMs = SteerPacing.RepeatIntervalMs(Session.Input.SteerRepeatHasRoom(now), m.SpeedMultiplier);
+                if (!_steering || dir != _lastDir || now - _lastSteer >= repeatMs)
                 {
-                    OrderMove(myX + dir.x * SteerAheadU, myY + dir.y * SteerAheadU);
+                    OrderMove(myX + dir.x * SteerPacing.AheadU, myY + dir.y * SteerPacing.AheadU);
                     _lastDir = dir; _lastSteer = now; _steering = true;
                 }
             }

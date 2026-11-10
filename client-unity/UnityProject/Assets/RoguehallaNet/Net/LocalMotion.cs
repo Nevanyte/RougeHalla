@@ -148,6 +148,8 @@ namespace Roguehalla.Net
 
         /// <summary>True from an order until the server's <c>move_seq</c> echo (or the one-second expiry) clears it.</summary>
         public bool OrderPending { get { return _pending; } }
+        /// <summary>The owner's published move-speed multiplier (<c>speed_milli / 1000</c>), 1.0 without an owner block.</summary>
+        public double SpeedMultiplier { get { return _speedMult; } }
 
         /// <summary>Reconciliations that found an error past <see cref="SnapDistance"/> and moved the model to the server.</summary>
         public int Snaps { get; private set; }

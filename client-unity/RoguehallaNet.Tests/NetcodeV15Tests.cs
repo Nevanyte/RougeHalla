@@ -15,13 +15,14 @@ namespace Roguehalla.Net.Tests
         [Test]
         public void MovesCarryTheIssueTimeOnlyWhenTheClockHasASample()
         {
-            var plain = new InputSender();
+            // Stamping only: ungoverned, so queued movement orders are not collapsed to the newest (OrderGovernorTests).
+            var plain = new InputSender { Governed = false };
             plain.Move(1, 2); plain.AttackMove(3, 4);
             var f = plain.Flush(0)[0].Commands;
             Assert.AreEqual(CommandKind.Move, f[0].Kind); Assert.AreEqual(CommandKind.AttackMove, f[1].Kind);
 
             double? clock = 12345.5;
-            var stamped = new InputSender { OrderClock = () => clock };
+            var stamped = new InputSender { OrderClock = () => clock, Governed = false };
             byte s1 = stamped.Move(1, 2); byte s2 = stamped.AttackMove(3, 4);
             clock = null; stamped.Move(5, 6);
             clock = double.NaN; stamped.Move(7, 8);

@@ -269,7 +269,8 @@ namespace Roguehalla.Net.Tests
         [Test]
         public void FramesCarryAtMostSixteenCommandsAndSequencesIncrease()
         {
-            var s = new InputSender();
+            // Packing only: ungoverned, so 40 commands in one flush are not held for the order budget (OrderGovernorTests).
+            var s = new InputSender { Governed = false };
             for (int i = 0; i < 40; i++) s.Attack(0.5f, 1000 + i);
             var frames = s.Flush(0);
             CollectionAssert.AreEqual(new[] { 16, 16, 8 }, frames.Select(f => f.Commands.Count).ToArray());

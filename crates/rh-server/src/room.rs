@@ -715,7 +715,13 @@ impl Room {
                     let now_apply = self.sim.server_time() + TICK_MS;
                     let mut accepted = 0u32;
                     let mut clamps = RewindClampStats::default();
+                    let mut refused = metrics::IntakeRefusals::default();
                     for c in commands {
+                        let trigger = matches!(
+                            c,
+                            rh_protocol::WireCommand::Attack { .. }
+                                | rh_protocol::WireCommand::Release { .. }
+                        );
                         let (proposal, clamped) = clamp_render_time_noted(
                             wire::command(c),
                             now_apply,
@@ -731,12 +737,14 @@ impl Room {
                         let resolved = self.humans[index].items.resolve(&self.sim, proposal);
                         if let Ok(cmd) = resolved {
                             self.record(ReplayInput::Command { player, cmd });
-                            if self.sim.submit(player, cmd).is_ok() {
-                                accepted += 1;
+                            match self.sim.submit(player, cmd) {
+                                Ok(()) => accepted += 1,
+                                Err(why) => refused.note(why, trigger),
                             }
                         }
                     }
                     self.metrics.note_rewind_clamps(&clamps);
+                    self.metrics.note_intake_refusals(&refused);
                     // The training idle clock runs on ACCEPTED inputs (a rejected/no-op command does not keep the room up).
                     if accepted > 0 {
                         self.last_input_at = Some(now);
