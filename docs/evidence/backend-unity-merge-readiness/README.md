@@ -158,3 +158,12 @@ Already covered elsewhere and not reopened: Card B3/numeric/privacy design and i
 NPC producer-shaped restore admission; F0/F1 fair bot provider/activation gaps; Source/Training fill/expiry hosting
 preparation; existing v16 client hitbox/vision evidence. Their scope limits persist. ADR0025 lingering tracks is design
 only at51cf1c35 and does not authorize adding another runtime mechanic to this union.
+
+## Root subsequent commit observation (2026-11-10,11:36UTC)
+
+Read-only monitoring now finds clean primary `e438c10020361451a6ab2ee8d177462dd543373d`, after `ae953573` committed
+the generated content bake. The actual runtime diff changes LIVE_DEFAULT_HITBOXES to Archetypes and adjusts all
+three expectation sites identified above, preserving bare core LegacyCircle and explicit overrides. This resolves
+the earlier default-flip implementation gap; preserve it in the isolated preflight rather than rewriting it. This
+observation is not a new combined-runtime/browser test result. The internal version/content union decisions and final
+artifact gates remain open. No Claude contact occurred; the17:30UTC communication boundary remains in force.
