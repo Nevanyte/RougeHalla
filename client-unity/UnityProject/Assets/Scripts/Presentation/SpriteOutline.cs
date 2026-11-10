@@ -47,7 +47,7 @@ namespace Roguehalla.Client
                 if (url.Contains("fx.outline=1")) Enabled = true;
                 if (url.Contains("fx.outlinegrab=0")) SetGrabPass(false);
                 WidthScale = QueryFloat(url, "ol.width", 1f); LightHdr = QueryFloat(url, "ol.light", LightHdr); DarkLinear = QueryFloat(url, "ol.dark", DarkLinear);
-                Cross = QueryFloat(url, "ol.cross", Cross); Dead = QueryFloat(url, "ol.dead", Dead);
+                Cross = QueryFloat(url, "ol.cross", Cross); GainScale = QueryFloat(url, "ol.gain", GainScale); Dead = QueryFloat(url, "ol.dead", Dead);
             }
             PublishGlobals();
         }
@@ -73,6 +73,23 @@ namespace Roguehalla.Client
             }
             catch (System.Exception e) { Debug.LogWarning("Outline grab switch unavailable: " + e.Message); }
         }
+
+        static readonly int GainId = Shader.PropertyToID("_RhOutlineGain");
+        static int _gainFrame = -1;
+
+        /// <summary>Once per frame: the grab is taken before the post-processing stack, so the shader scales it by the current post exposure to estimate the luminance the player sees.</summary>
+        public static void PublishFrame()
+        {
+            if (_gainFrame == Time.frameCount) return;
+            _gainFrame = Time.frameCount;
+            float gain = 1f;
+            var stack = UnityEngine.Rendering.VolumeManager.instance == null ? null : UnityEngine.Rendering.VolumeManager.instance.stack;
+            var ca = stack == null ? null : stack.GetComponent<UnityEngine.Rendering.Universal.ColorAdjustments>();
+            if (ca != null && ca.active) gain = Mathf.Pow(2f, ca.postExposure.value);
+            Shader.SetGlobalFloat(GainId, gain * GainScale);
+        }
+        /// <summary>Extra gain for tuning pages (<c>?ol.gain=</c>).</summary>
+        public static float GainScale = 1f;
 
         public static void PublishGlobals()
         {
@@ -111,6 +128,7 @@ namespace Roguehalla.Client
         /// </summary>
         public void Sync(int order, float alpha, bool dark)
         {
+            PublishFrame();
             var sprite = _source.sprite;
             bool on = Enabled && _source.enabled && sprite != null && alpha > 0f && SharedMaterial != null;
             if (Quad.enabled != on) Quad.enabled = on;

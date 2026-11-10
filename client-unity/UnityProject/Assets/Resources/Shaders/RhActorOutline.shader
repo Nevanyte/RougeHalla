@@ -47,6 +47,7 @@ Shader "Roguehalla/ActorOutline"
         float _RhOutlineGrab; // global, set by ActorOutline: 1 when _CameraSortingLayerTexture is valid this frame
 
         // Mirrors ActorOutlineModel.cs; SpriteOutline.PublishGlobals writes them (tunable in a page with ?ol.light=, ol.dark=, ol.cross=, ol.dead=).
+        float _RhOutlineGain;  // set once per frame by SpriteOutline.PublishFrame: 2^post exposure of the grade
         float4 _RhOutlineTune;   // set by SpriteOutline.PublishGlobals: light HDR value, dark value, crossover luminance, dead zone half width
 
         float SrcAlpha(float2 sp)
@@ -101,7 +102,7 @@ Shader "Roguehalla/ActorOutline"
                 float s2, c2; sincos(0.3926991 + 1.5707963 * k, s2, c2);
                 sum += TapLog(uv + float2(c2, s2) * px * unit * r2);
             }
-            return exp(sum / 13.0);
+            return exp(sum / 13.0) * max(_RhOutlineGain, 0.05);
         }
 
         // The vertex shader decides the figure's own polarity once per quad (four vertices), from the ground behind the object's centre.

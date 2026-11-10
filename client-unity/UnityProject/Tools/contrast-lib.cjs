@@ -288,9 +288,15 @@ function parseSizes(text) {
     return { width: +m[1], height: +m[2] };
   });
 }
+/** `Ember:1,Bog` -> Map(surface or page kind -> max pages (0 = all)): the gate then visits only those pages (quick tuning runs). */
+function parseOnly(text) {
+  const m = new Map();
+  for (const part of text.split(',').map(s => s.trim()).filter(Boolean)) { const [k, n] = part.split(':'); m.set(k.toLowerCase(), n === undefined ? 0 : Number(n)); }
+  return m;
+}
 function parseArgs(argv) {
   const o = { url: 'http://127.0.0.1:8187/', out: 'contrast-gate-out', zones: ZONES.slice(), sizes: parseSizes('1920x1080,2560x1440'), quality: ['high', 'ultra'], edge: 3.0, marker: 4.5, query: '',
-    frames: 4, groundFrames: 3, maxFar: 0.30, minInside: 0.15, maxPages: 0, allowSoftware: false, help: false, raw: '' };
+    frames: 4, groundFrames: 3, maxFar: 0.30, minInside: 0.15, maxPages: 0, only: null, allowSoftware: false, help: false, raw: '' };
   const need = (i, name) => { if (i + 1 >= argv.length) throw new Error(`--${name} needs a value`); return argv[i + 1]; };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -306,6 +312,7 @@ function parseArgs(argv) {
       case '--frames': o.frames = Number(need(i++, 'frames')); break;
       case '--ground-frames': o.groundFrames = Number(need(i++, 'ground-frames')); break;
       case '--max-pages': o.maxPages = Number(need(i++, 'max-pages')); break;
+      case '--only': o.only = parseOnly(need(i++, 'only')); break;
       case '--raw': o.raw = require('node:path').resolve(need(i++, 'raw')); break;
       case '--allow-software': o.allowSoftware = true; break;
       case '--help': case '-h': o.help = true; break;
@@ -322,5 +329,5 @@ function parseArgs(argv) {
 
 module.exports = {
   linearise, relativeLuminance, encodeSrgb, contrastRatio, luminancePlane, median, percentile, decodePng, encodePng, CLASS, CLASS_NAMES, classifyMaskPixel, decodeMask,
-  distanceTo, erode, dilate, regions, centroid, sectorOf, sectorContrast, analyzeCell, frameConsistency, cellKind, parseArgs, parseSizes, ZONES, DEFAULTS,
+  distanceTo, erode, dilate, regions, centroid, sectorOf, sectorContrast, analyzeCell, frameConsistency, cellKind, parseOnly, parseArgs, parseSizes, ZONES, DEFAULTS,
 };

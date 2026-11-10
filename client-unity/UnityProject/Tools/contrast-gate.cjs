@@ -5,7 +5,7 @@
 //
 //   node client-unity/UnityProject/Tools/contrast-gate.cjs --url http://127.0.0.1:8187/ --out /tmp/contrast
 //        [--zones fire,holy] [--sizes 1920x1080,2560x1440] [--quality high,ultra] [--edge 3.0] [--marker 4.5]
-//        [--query "facings=4&props=3"] [--frames 4] [--ground-frames 3] [--max-pages 2] [--allow-software]
+//        [--query "facings=4&props=3"] [--only Ember:1,Bog] [--frames 4] [--ground-frames 3] [--max-pages 2] [--allow-software]
 //   node client-unity/UnityProject/Tools/contrast-gate.cjs --compare runA/contrast.json runB/contrast.json     (run-to-run difference)
 //
 // Writes <out>/contrast.json (every cell), <out>/CONTRAST.md (tables), <out>/worst.jpg (24 lowest-EDGE cells, annotated); prints a summary;
@@ -88,6 +88,7 @@ async function runConfig(chromium, size, quality, opts, log) {
     if (state.reducedMotion) throw new Error('reduced motion is on: the walking pose would not play');
     if (state.unreachable && state.unreachable.length) throw new Error('catalog keys the presenter cannot pick: ' + state.unreachable.join(','));
     const cfg = { name: `${size.width}x${size.height}/${quality}`, width: size.width, height: size.height, quality, gpu, row: state.row, orthoSize: state.orthoSize, notes: state.notes, unplaced: state.unplaced, pages: {}, cells: [] };
+    const seen = {};
     for (const zone of opts.zones) {
       const zi = state.zones.indexOf(zone);
       let pageCount = state.zonePageCounts[zi];
@@ -96,6 +97,12 @@ async function runConfig(chromium, size, quality, opts, log) {
       for (let p = 0; p < pageCount; p++) {
         await page.evaluate(([z, n]) => window.__rhContrastLab.setZone(z, n), [zone, p]);
         state = await waitReady(page);
+        if (opts.only) {
+          const key = [String(state.surface || '').toLowerCase(), String(state.kind || '').toLowerCase()].find(k => opts.only.has(k));
+          if (key === undefined) { log(`  ${zone} page ${p + 1}/${pageCount} skipped (--only)`); continue; }
+          const cap1 = opts.only.get(key); seen[key] = (seen[key] || 0) + 1;
+          if (cap1 > 0 && seen[key] > cap1) { log(`  ${zone} page ${p + 1}/${pageCount} skipped (--only ${key}:${cap1})`); continue; }
+        }
         let cap, cons, attempt = 0;
         for (;;) {
           cap = await capturePage(page, size, opts, `${cfg.name.replace('/', '-')}-${zone}-${p}`);

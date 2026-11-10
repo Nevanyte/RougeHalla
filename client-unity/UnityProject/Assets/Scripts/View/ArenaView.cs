@@ -88,6 +88,7 @@ namespace Roguehalla.Client
         public RegionAtmosphere Atmosphere { get { return _atmos; } }
         void ApplyHaze(Color c) { _fogColor = c; for (int i = 0; i < _fog.Count; i++) if (_fog[i] != null) _fog[i].color = c; }
         int _used;
+        float _nextWorldTag;
         Vector3 _lastFollow;
         float _smoothX, _smoothY;
         bool _smoothValid;
@@ -230,6 +231,7 @@ namespace Roguehalla.Client
 
         public void Present(List<InterpActor> remote, SelfView me, LocalMotion motion, float aimAngle)
         {
+            if (Time.unscaledTime >= _nextWorldTag) { _nextWorldTag = Time.unscaledTime + 1f; WorldLayer.Tag(transform); } // CONTRAST: layers created later (particles, decals) join the World layer within a second
             _actors.Begin();
             uint mine = me != null ? me.Id : 0; _localId = mine;
             uint? lockTarget = me != null && me.OwnerCombat.HasValue && me.OwnerCombat.Value.Lock.Kind == OwnerLockKind.Held ? me.OwnerCombat.Value.Lock.Target : null; _lockForNpc = lockTarget;
