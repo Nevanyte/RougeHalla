@@ -35,11 +35,17 @@ Shader "Roguehalla/ActorOutline"
 
         TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
         TEXTURE2D(_SrcTex); SAMPLER(sampler_SrcTex);
+        TEXTURE2D(_Src2Tex); SAMPLER(sampler_Src2Tex);
         TEXTURE2D(_CameraSortingLayerTexture);   // sampler_LinearClamp comes from the URP core library
 
         // Per renderer (MaterialPropertyBlock), deliberately outside UnityPerMaterial.
         float4 _SrcRect;   // u0, v0, du, dv: the source sprite's rectangle in its atlas
         float4 _Outline;   // x,y: margin around the sprite as a fraction of its size; z,w: stroke width in sprite-normalised units
+        float4 _UvMap;     // sprite-normalised uv of the source = (quad uv - 0.5) * xy + zw (the quad covers the source and, for a union, its companion, plus the stroke margin)
+        float4 _Src2Rect;  // the companion sprite's rectangle in its atlas
+        float4 _Src2Texel;
+        float4x4 _ToSrc2;  // source sprite-normalised uv -> companion sprite-normalised uv
+        float _Src2Mode;   // 0 none; 1 union (the companion is part of the silhouette: one stroke around both); 2 cut (no stroke where the companion is drawn)
         float4 _Tone;      // x: target contrast ratio of this stroke against the ground just outside it
         float4 _SrcTexel;  // x,y: one source texel in sprite-normalised units
         float _Prior;      // 0 dark, 1 light: dead-zone tie break, and the whole decision when there is no sorting layer texture
@@ -63,20 +69,36 @@ Shader "Roguehalla/ActorOutline"
             return a * inside.x * inside.y;
         }
 
+        float Src2Alpha(float2 sp)
+        {
+            float2 q = mul(_ToSrc2, float4(sp, 0.0, 1.0)).xy;
+            float2 inside = step(0.0, q) * step(q, 1.0);
+            float2 c = clamp(q, 0.5 * _Src2Texel.xy, 1.0 - 0.5 * _Src2Texel.xy);
+            return SAMPLE_TEXTURE2D(_Src2Tex, sampler_Src2Tex, _Src2Rect.xy + c * _Src2Rect.zw).a * inside.x * inside.y;
+        }
+        // The figure's silhouette: the source, and its companion (the held weapon) when the stroke is one for both.
+        float FigAlpha(float2 sp)
+        {
+            float a = SrcAlpha(sp);
+            return (_Src2Mode > 0.5 && _Src2Mode < 1.5) ? max(a, Src2Alpha(sp)) : a;
+        }
+        // Everything of this figure that hides ground (silhouette plus a cutting companion): a ground tap there is not ground.
+        float OccAlpha(float2 sp) { return _Src2Mode > 0.5 ? max(SrcAlpha(sp), Src2Alpha(sp)) : SrcAlpha(sp); }
+
         // Disc dilation of the source alpha by the stroke width: 12 taps on the rim, 6 on a half-width ring, plus the centre.
         float Dilate(float2 sp, float2 w)
         {
-            float a = SrcAlpha(sp);
+            float a = FigAlpha(sp);
             const float k = 0.5235988;   // 30 degrees
             [unroll] for (int i = 0; i < 12; i++)
             {
                 float s, c; sincos(k * i, s, c);
-                a = max(a, SrcAlpha(sp + float2(c, s) * w));
+                a = max(a, FigAlpha(sp + float2(c, s) * w));
             }
             [unroll] for (int j = 0; j < 6; j++)
             {
                 float s, c; sincos(k * 0.5 + 1.0471976 * j, s, c);
-                a = max(a, SrcAlpha(sp + float2(c, s) * w * 0.5));
+                a = max(a, FigAlpha(sp + float2(c, s) * w * 0.5));
             }
             return a;
         }
@@ -124,7 +146,7 @@ Shader "Roguehalla/ActorOutline"
             float pxw = 2.0 * max(unity_OrthoParams.y, 0.01) / _ScreenParams.y;     // world units per pixel
             float3 latWS = float3(-dirWS.y, dirWS.x, 0.0);
             float v[15];
-            float2 uvScale = 1.0 + 2.0 * _Outline.xy;
+            float2 uvScale = _UvMap.xy;
             int nValid = 0;
             [unroll] for (int a = 0; a < 3; a++)
                 [unroll] for (int b = 0; b < 5; b++)
@@ -133,7 +155,7 @@ Shader "Roguehalla/ActorOutline"
                     float4 cs = ComputeScreenPos(TransformWorldToHClip(pWS + off));
                     float2 duv = TransformWorldToObjectDir(off).xy * uvScale;
                     // A tap that lands on the figure's own body (a thin arm, a notch) is not ground: the grab holds the whole scene, the gate's ring does not hold the body.
-                    float own = SrcAlpha(uv + duv);
+                    float own = OccAlpha(uv + duv);
                     v[a * 5 + b] = own > 0.3 ? -1.0 : TapLum(cs.xy / cs.w);
                     nValid += own > 0.3 ? 0 : 1;
                 }
@@ -174,8 +196,7 @@ Shader "Roguehalla/ActorOutline"
         {
             Varyings o = (Varyings)0;
             o.positionCS = TransformObjectToHClip(v.positionOS);
-            float2 pad = _Outline.xy;
-            o.uv = v.uv * (1.0 + 2.0 * pad) - pad;   // sprite-normalised: 0..1 is the source sprite
+                o.uv = (v.uv - 0.5) * _UvMap.xy + _UvMap.zw;   // sprite-normalised: 0..1 is the source sprite
             o.color = v.color * unity_SpriteColor;
             o.screen = ComputeScreenPos(o.positionCS);
             o.posWS = TransformObjectToWorld(v.positionOS);
@@ -188,14 +209,14 @@ Shader "Roguehalla/ActorOutline"
 
         half4 Frag(Varyings i) : SV_Target
         {
-            float srcA = SrcAlpha(i.uv);
+            float srcA = FigAlpha(i.uv);
             float dil = Dilate(i.uv, _Outline.zw);
             float fw = max(fwidth(dil), 0.12);
             float covFull = saturate((dil - 0.5) / fw + 0.5);
             if (_MaskMode > 0.5)
             {
                 // The mask is the silhouette: the source (drawn by its own mask material) plus the stroke, so the stroke's mask covers the whole dilation.
-                clip(covFull * i.color.a - 0.5);
+                clip(covFull * ((_Src2Mode > 1.5) ? 1.0 - smoothstep(0.3, 0.8, Src2Alpha(i.uv)) : 1.0) * i.color.a - 0.5);
                 return half4(_MaskColor.rgb, 1);
             }
             if (_RhOutlineDebug > 3.5)
@@ -205,6 +226,7 @@ Shader "Roguehalla/ActorOutline"
             }
             // The stroke is drawn above the scene, so it must not cover its own source: only the ring outside the silhouette.
             float cov = covFull * (1.0 - smoothstep(0.3, 0.8, srcA));
+            if (_Src2Mode > 1.5) cov *= 1.0 - smoothstep(0.3, 0.8, Src2Alpha(i.uv));   // a cutting companion (the body over the footprint) is never stroked over
             clip(cov - 0.002);
             float light = _Prior, l = -1.0, lLo = -1.0, lHi = -1.0;
             if (_RhOutlineGrab > 0.5)
@@ -214,11 +236,11 @@ Shader "Roguehalla/ActorOutline"
                 [unroll] for (int k = 0; k < 8; k++)
                 {
                     float s, c; sincos(0.7853982 * k, s, c);
-                    out2 -= float2(c, s) * SrcAlpha(i.uv + float2(c, s) * rr);
+                    out2 -= float2(c, s) * FigAlpha(i.uv + float2(c, s) * rr);
                 }
                 if (dot(out2, out2) > 0.04)
                 {
-                    float3 dOS = float3(out2.x / (1.0 + 2.0 * _Outline.x), out2.y / (1.0 + 2.0 * _Outline.y), 0.0);
+                    float3 dOS = float3(out2.x / _UvMap.x, out2.y / _UvMap.y, 0.0);
                     float3 dWS = TransformObjectToWorldDir(dOS);
                     dWS.z = 0.0; dWS = normalize(dWS);
                     l = RingLuma(i.posWS, i.uv, dWS, lLo, lHi);

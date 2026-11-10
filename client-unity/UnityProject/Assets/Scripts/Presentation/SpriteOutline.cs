@@ -16,12 +16,21 @@ namespace Roguehalla.Client
         static Material _material;
         static readonly MaterialPropertyBlock Block = new MaterialPropertyBlock();
         static readonly int SrcTex = Shader.PropertyToID("_SrcTex"), SrcRect = Shader.PropertyToID("_SrcRect"), Outline = Shader.PropertyToID("_Outline"),
+            UvMapId = Shader.PropertyToID("_UvMap"), Src2TexId = Shader.PropertyToID("_Src2Tex"), Src2RectId = Shader.PropertyToID("_Src2Rect"), Src2TexelId = Shader.PropertyToID("_Src2Texel"),
+            ToSrc2Id = Shader.PropertyToID("_ToSrc2"), Src2ModeId = Shader.PropertyToID("_Src2Mode"),
             SrcTexel = Shader.PropertyToID("_SrcTexel"), ToneId = Shader.PropertyToID("_Tone"), Prior = Shader.PropertyToID("_Prior"), GrabFlag = Shader.PropertyToID("_RhOutlineGrab");
 
-        /// <summary>Measurement switch (<c>?fx.outline=0|1</c>). The outline is readability: no quality preset ever turns it off.</summary>
-        public static bool Enabled = true;
-        /// <summary>True when the camera sorting layer texture decides the polarity; false uses the CPU prior (also forced by <c>?fx.outlinegrab=0</c>).</summary>
-        public static bool UseGrab = true;
+        /// <summary>
+        /// Owner decision 2026-11-10: NO line outline on characters by default (contrast risk accepted). <c>?fx.outline=1</c> brings the opt-in 1 px variant back (figures, weapon cue, foot marker, plates).
+        /// No quality preset ever touches it.
+        /// </summary>
+        public static bool Enabled = false;
+        /// <summary>Opt-in <c>?fx.rim=1</c>: the sprite's own outermost opaque pixels are lightened/darkened (RegionActorLit). It also needs the ground polarity, so it shares the grab.</summary>
+        public static bool Rim = false;
+        /// <summary>True when the camera sorting layer texture decides the polarity; false uses the CPU prior. The grab itself is only taken while an opt-in variant is on (<see cref="WantGrab"/>).</summary>
+        public static bool UseGrab = false;
+        /// <summary>The grab is wanted only when an opt-in variant reads it.</summary>
+        public static bool WantGrab { get { return Enabled || Rim; } }
 
         /// <summary>The shared outline material (null when the shader is missing from the build).</summary>
         public static Material SharedMaterial
@@ -45,12 +54,23 @@ namespace Roguehalla.Client
             {
                 if (url.Contains("fx.outline=0")) Enabled = false;
                 if (url.Contains("fx.outline=1")) Enabled = true;
-                if (url.Contains("fx.outlinegrab=0")) SetGrabPass(false);
+                if (url.Contains("fx.rim=1")) Rim = true;
+                if (url.Contains("fx.rim=0")) Rim = false;
+                ApplyGrab(!url.Contains("fx.outlinegrab=0"));
                 WidthScale = QueryFloat(url, "ol.width", 1f); LightHdr = QueryFloat(url, "ol.light", LightHdr); DarkLinear = QueryFloat(url, "ol.dark", DarkLinear);
                 Cross = QueryFloat(url, "ol.cross", Cross); GainScale = QueryFloat(url, "ol.gain", GainScale); ToneScale = QueryFloat(url, "ol.tone", 1f); RadiusScale = QueryFloat(url, "ol.r", 1f); Flip = QueryFloat(url, "ol.flip", 0f); DebugView = QueryFloat(url, "ol.debug", 0f);
                 int down = (int)QueryFloat(url, "ol.down", -1); if (down >= 0) SetGrabDownsampling(down); Dead = QueryFloat(url, "ol.dead", Dead);
             }
+            else ApplyGrab(true);
             PublishGlobals();
+        }
+
+        /// <summary>The camera sorting layer grab (a full-frame HDR copy) is OFF unless an opt-in variant reads it; when it is on, it is taken at half resolution (only the ground polarity is needed).</summary>
+        public static void ApplyGrab(bool allowed)
+        {
+            bool on = allowed && WantGrab;
+            SetGrabPass(on);
+            if (on) SetGrabDownsampling(1);
         }
 
         /// <summary>Tuning for measurement pages only (<c>?ol.width=1.2</c> scales the strokes; <c>ol.light</c>, <c>ol.dark</c>, <c>ol.cross</c>, <c>ol.dead</c> set the shader constants).</summary>
@@ -126,6 +146,7 @@ namespace Roguehalla.Client
         readonly Transform _t;
         readonly float _width, _ratio;
         Sprite _sprite; Vector3 _scale; float _prior = -1f; bool _dirty;
+        SpriteRenderer _comp; bool _compUnion, _compWas;
 
         /// <param name="source">the sprite renderer to outline; the stroke is a child of it</param>
         /// <param name="name">name of the stroke object (the contrast lab classifies it by name: " outline" suffix, or the body's "Character contrast rim")</param>
@@ -137,6 +158,18 @@ namespace Roguehalla.Client
             Quad.sharedMaterial = SharedMaterial != null ? SharedMaterial : ShowcaseSprites.Unlit;
             if (StrokeLayer.Exists) Quad.sortingLayerID = StrokeLayer.Id;   // above the props, walls and figures that stand in front
             Quad.enabled = false; _t = Quad.transform;
+        }
+
+        /// <summary>
+        /// A second sprite of the same figure that this stroke must account for: with <paramref name="union"/> the stroke is one line around both sprites (the body and its held weapon: a pixel
+        /// is stroked once and never over the other part); otherwise it is cut wherever the companion is drawn (the footprint's stroke never crosses the body standing on it).
+        /// </summary>
+        public void SetCompanion(SpriteRenderer other, bool union) { _comp = other; _compUnion = union; }
+
+        static Matrix4x4 Norm(Sprite sp)
+        {
+            var r = sp.textureRect; var pv = sp.pivot; float ppu = sp.pixelsPerUnit;
+            return Matrix4x4.TRS(new Vector3(pv.x / r.width, pv.y / r.height, 0f), Quaternion.identity, new Vector3(ppu / r.width, ppu / r.height, 1f));
         }
 
         /// <summary>
@@ -154,17 +187,19 @@ namespace Roguehalla.Client
             var c = Quad.color; if (c.a != alpha || c.r != 1f) { Quad.color = new Color(1f, 1f, 1f, alpha); }
             var scale = _source.transform.lossyScale;
             float prior = dark ? 1f : 0f;
-            if (!ReferenceEquals(sprite, _sprite) || scale != _scale || prior != _prior)
+            bool comp = _comp != null && _comp.enabled && _comp.sprite != null && _comp.color.a > 0f;
+            // With a companion the geometry follows the other sprite's pose too: rebuilt every frame from the current frame only (no history).
+            if (!ReferenceEquals(sprite, _sprite) || scale != _scale || prior != _prior || comp || _compWas)
             {
-                _sprite = sprite; _scale = scale; _prior = prior;
-                Rebuild(sprite, scale, prior);
+                _sprite = sprite; _scale = scale; _prior = prior; _compWas = comp;
+                Rebuild(sprite, scale, prior, comp ? _comp : null);
             }
         }
 
         /// <summary>Sync with the source's own sort order (plates whose owner rewrites the order every frame).</summary>
         public void SyncFollow(float alpha, bool dark) { Sync(_source.sortingOrder, alpha, dark); }
 
-        void Rebuild(Sprite sprite, Vector3 lossy, float prior)
+        void Rebuild(Sprite sprite, Vector3 lossy, float prior, SpriteRenderer comp)
         {
             var tex = sprite.texture; var r = sprite.textureRect;
             float ppu = sprite.pixelsPerUnit;
@@ -173,13 +208,47 @@ namespace Roguehalla.Client
             float w = _width * WidthScale, wx = w / worldX, wy = w / worldY;                    // stroke width as a fraction of the sprite size
             float padX = wx + .02f, padY = wy + .02f;
             var pivot = sprite.pivot;                                            // pixels from the rect's lower left
-            _t.localPosition = new Vector3((.5f - pivot.x / r.width) * sx, (.5f - pivot.y / r.height) * sy, 0f);
-            _t.localScale = new Vector3(sx * (1f + 2f * padX), sy * (1f + 2f * padY), 1f);
+            // The quad covers the source (and, for a union, the companion) plus the stroke margin, in the source's local units.
+            float minX = -pivot.x / ppu, minY = -pivot.y / ppu, maxX = minX + sx, maxY = minY + sy;
+            Matrix4x4 toComp = Matrix4x4.identity; bool union = comp != null && _compUnion;
+            if (comp != null)
+            {
+                var c2 = comp.sprite; var rc = c2.textureRect; float ppu2 = c2.pixelsPerUnit; var pv2 = c2.pivot;
+                var w1 = _source.transform.localToWorldMatrix; var w2 = comp.transform.localToWorldMatrix;
+                toComp = Norm(c2) * w2.inverse * w1 * Norm(sprite).inverse;
+                if (union)
+                {
+                    float cminX = -pv2.x / ppu2, cminY = -pv2.y / ppu2, cmaxX = cminX + rc.width / ppu2, cmaxY = cminY + rc.height / ppu2;
+                    var toMain = w1.inverse * w2;
+                    for (int k = 0; k < 4; k++)
+                    {
+                        var p = toMain.MultiplyPoint3x4(new Vector3((k & 1) == 0 ? cminX : cmaxX, (k & 2) == 0 ? cminY : cmaxY, 0f));
+                        if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x; if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+                    }
+                }
+            }
+            float mx = padX * sx, my = padY * sy;
+            minX -= mx; maxX += mx; minY -= my; maxY += my;
+            float bw = maxX - minX, bh = maxY - minY, cx = .5f * (minX + maxX), cy = .5f * (minY + maxY);
+            float mainMinX = -pivot.x / ppu, mainMinY = -pivot.y / ppu;
+            _t.localPosition = new Vector3(cx, cy, 0f);
+            _t.localScale = new Vector3(bw, bh, 1f);
             _t.localRotation = Quaternion.identity;
             Block.Clear();
             Block.SetTexture(SrcTex, tex);
             Block.SetVector(SrcRect, new Vector4(r.x / tex.width, r.y / tex.height, r.width / tex.width, r.height / tex.height));
             Block.SetVector(Outline, new Vector4(padX, padY, wx, wy));
+            Block.SetVector(UvMapId, new Vector4(bw / sx, bh / sy, (cx - mainMinX) / sx, (cy - mainMinY) / sy));
+            if (comp != null)
+            {
+                var c2 = comp.sprite; var rc = c2.textureRect; var t2 = c2.texture;
+                Block.SetTexture(Src2TexId, t2);
+                Block.SetVector(Src2RectId, new Vector4(rc.x / t2.width, rc.y / t2.height, rc.width / t2.width, rc.height / t2.height));
+                Block.SetVector(Src2TexelId, new Vector4(1f / rc.width, 1f / rc.height, 0, 0));
+                Block.SetMatrix(ToSrc2Id, toComp);
+                Block.SetFloat(Src2ModeId, union ? 1f : 2f);
+            }
+            else Block.SetFloat(Src2ModeId, 0f);
             Block.SetVector(ToneId, new Vector4(_ratio * ToneScale, 0, 0, 0));
             Block.SetVector(SrcTexel, new Vector4(1f / r.width, 1f / r.height, 0, 0));
             Block.SetFloat(Prior, prior);

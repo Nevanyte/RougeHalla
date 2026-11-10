@@ -231,13 +231,26 @@ namespace Roguehalla.Client.Tests
             }
         }
 
-        [Test] public void RendererAssetGrabsTheCameraSortingLayerAfterDefault()
+        [Test] public void RendererAssetKeepsTheCameraSortingLayerGrabOffAndAtHalfResolution()
         {
-#if UNITY_EDITOR
-            var so = new UnityEditor.SerializedObject(UnityEditor.AssetDatabase.LoadMainAssetAtPath("Assets/Settings/Roguehalla2DRenderer.asset"));
-            Assert.That(so.FindProperty("m_UseCameraSortingLayersTexture").boolValue, Is.True);
-            Assert.That(so.FindProperty("m_CameraSortingLayersTextureBound").intValue, Is.EqualTo(0), "bound to Default: the grab holds the scene as the stroke sits on it");
-#endif
+            // Read the file, not the loaded asset: other tests switch the grab on in memory (SetGrabPass writes the renderer data).
+            string yaml = System.IO.File.ReadAllText("Assets/Settings/Roguehalla2DRenderer.asset");
+            Assert.That(yaml, Does.Contain("m_UseCameraSortingLayersTexture: 0"), "no outline by default: nothing reads the full-frame HDR copy");
+            Assert.That(yaml, Does.Contain("m_CameraSortingLayerDownsamplingMethod: 1"), "when ?fx.outline=1 or ?fx.rim=1 turns it on it is a 2x downsample");
+            Assert.That(yaml, Does.Contain("m_CameraSortingLayersTextureBound: 0"), "bound to Default: the grab holds the scene as the stroke sits on it");
+        }
+
+        [Test] public void NoLineOutlineAndNoGrabByDefaultAndTheSwitchesBringThemBack()
+        {
+            SpriteOutline.Enabled = false; SpriteOutline.Rim = false;
+            SpriteOutline.ConfigureFromUrl("http://127.0.0.1:8267/?x=1");
+            Assert.That(SpriteOutline.Enabled, Is.False); Assert.That(SpriteOutline.Rim, Is.False); Assert.That(SpriteOutline.WantGrab, Is.False); Assert.That(SpriteOutline.UseGrab, Is.False);
+            SpriteOutline.ConfigureFromUrl("http://127.0.0.1:8267/?fx.outline=1");
+            Assert.That(SpriteOutline.Enabled, Is.True); Assert.That(SpriteOutline.WantGrab, Is.True);
+            SpriteOutline.Enabled = false;
+            SpriteOutline.ConfigureFromUrl("http://127.0.0.1:8267/?fx.rim=1");
+            Assert.That(SpriteOutline.Rim, Is.True); Assert.That(SpriteOutline.WantGrab, Is.True);
+            SpriteOutline.Rim = false; SpriteOutline.Enabled = false; SpriteOutline.ConfigureFromUrl("http://127.0.0.1:8267/"); SpriteOutline.ApplyGrab(true); SpriteOutline.Enabled = true;   // leave the in-memory renderer asset as it is on disk (grab off)
         }
     }
 }

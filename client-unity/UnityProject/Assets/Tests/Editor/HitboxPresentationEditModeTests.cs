@@ -277,7 +277,9 @@ namespace Roguehalla.Client.Tests
                 if (Mathf.Abs(topErr) > 2f) failures.Add(row.Key + " top error " + topErr);
                 if (Mathf.Abs(belowErr) > 2f) failures.Add(row.Key + " below error " + belowErr);
                 // The skeleton's Idle frames hold a two-handed weapon wider than its body; its box takes the knight's width on purpose.
-                if (row.Key != "skeleton" && Mathf.Abs(halfErr) > 2f) failures.Add(row.Key + " half-width error " + halfErr);
+                // The baked ground shadow is gone from every actor frame (owner decision 2026-11-10): the figure itself is 2 to 7 sim units narrower than the width this table
+                // was fitted to while the shadow widened the sprite bounds. The sprite must still not overhang its box (+2), and may be at most 8 narrower (worst today: hero-female, -6.7).
+                if (row.Key != "skeleton" && (halfErr > 2f || halfErr < -8f)) failures.Add(row.Key + " half-width error " + halfErr);
                 if (Mathf.Abs(Median(centreNS)) > CentreTolerance) failures.Add(row.Key + " centre-x " + Median(centreNS));
             }
             Debug.Log("sprite fit (median over Idle frames, sim units; error in brackets)\n" + string.Join("\n", lines));
