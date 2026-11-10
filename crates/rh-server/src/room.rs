@@ -295,6 +295,12 @@ pub fn archetype_table() -> &'static [rh_protocol::WireArchetype] {
     TABLE.get_or_init(rh_policy::delivery::projection::wire_archetypes)
 }
 
+/// The weapon table every Welcome carries (protocol 16): built once from the sim content's weapon shapes.
+pub fn weapon_table() -> &'static [rh_protocol::WireWeapon] {
+    static TABLE: std::sync::OnceLock<Vec<rh_protocol::WireWeapon>> = std::sync::OnceLock::new();
+    TABLE.get_or_init(rh_policy::delivery::projection::wire_weapons)
+}
+
 /// What every room of one map shares: the immutable arena and its Welcome map blob, RLE-encoded once. The director builds
 /// one per map; a room only clones the `Arc`s.
 #[derive(Clone)]
@@ -589,6 +595,7 @@ impl Room {
             },
             archetype_table(),
             &rh_policy::delivery::projection::wire_vision(&self.sim.arena().map),
+            weapon_table(),
             &self.welcome_map,
             crate::public_ground::mode(self.sim.config().hazards),
         )
@@ -2020,6 +2027,7 @@ mod tests {
             sim: SimConfig {
                 walk_hints: None,
                 hitboxes: Default::default(),
+                mob_spacing: Default::default(),
                 regen: false,
                 training: false,
                 dummies: false,
@@ -3148,6 +3156,7 @@ mod tests {
             sim: SimConfig {
                 walk_hints: None,
                 hitboxes: Default::default(),
+                mob_spacing: Default::default(),
                 regen: false,
                 quests: false,
                 consumables: true,

@@ -98,6 +98,7 @@ struct Server {
 async fn start(arena: Arena, tweak: impl FnOnce(&mut DirectorConfig)) -> Server {
     let sim = SimConfig {
         hitboxes: Default::default(),
+        mob_spacing: Default::default(),
         walk_hints: None,
         regen: false,
         quests: false,

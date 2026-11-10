@@ -107,6 +107,12 @@ pub fn command(c: WireCommand) -> rh_sim::PublicCommand {
 /// Protocol 14 carries neutral quest givers, private quest/trade/plan state and the training bit. Configuration
 /// admission still refuses a training/arena combination: training has no quests, planning or arena lifecycle.
 pub fn profile_supported(config: &rh_sim::SimConfig) -> Result<(), rh_protocol::EncodeError> {
+    // Measurement only (rh-headless hitbox_compare's A/B): a hosted match never turns mob spacing off.
+    if config.mob_spacing != rh_sim::archetype::MobSpacing::Auto {
+        return Err(rh_protocol::EncodeError::BadValue(
+            "mob spacing off is a measurement-only setting",
+        ));
+    }
     if config.training && (config.quests || config.lifecycle != rh_sim::ArenaMode::Off) {
         return Err(rh_protocol::EncodeError::BadValue(
             "training cannot host quests or arena lifecycle",
@@ -1943,5 +1949,19 @@ mod tests {
         };
         assert!(observation_supported(&obs).is_ok());
         assert!(profile_supported(&rh_sim::SimConfig::default()).is_ok());
+    }
+
+    #[test]
+    fn mob_spacing_off_is_never_hosted() {
+        let live = rh_sim::SimConfig {
+            hitboxes: rh_sim::archetype::HitboxMode::Archetypes,
+            ..Default::default()
+        };
+        assert!(profile_supported(&live).is_ok());
+        assert!(profile_supported(&rh_sim::SimConfig {
+            mob_spacing: rh_sim::archetype::MobSpacing::Off,
+            ..live
+        })
+        .is_err());
     }
 }

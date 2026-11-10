@@ -378,6 +378,28 @@ function readVision(r) {
     || !within(updateMs, 0, 1e6, true) || sightMask === 0 || (coliseum && (coliseum.w === 0 || coliseum.h === 0))) throw new Error("bad vision");
   return { version, tile, radius, trailMs, updateMs, sightMask, coliseum };
 }
+// Protocol 16: the weapon table (each weapon's hit shape from the sim content), between the vision block and the map:
+// count u8, then per row id u8, kind u8 (0 none, 1 arc, 2 projectile), reach f64, halfArc f64, speed f64, radius f64.
+function readWeapons(r) {
+  const n = r.u8();
+  if (n > 32) throw new Error("bad weapon count");
+  const rows = [];
+  for (let i = 0; i < n; i++) {
+    const id = r.u8(), kind = r.u8();
+    if (kind > 2) throw new Error("bad weapon kind");
+    rows.push({ id, kind, reach: r.f64(), halfArc: r.f64(), speed: r.f64(), radius: r.f64() });
+  }
+  const ok = (v) => Number.isFinite(v) && v >= 0 && v <= 1e6;
+  for (const w of rows) {
+    if (![w.reach, w.halfArc, w.speed, w.radius].every(ok)) throw new Error("bad weapon");
+    const fits = w.kind === 0 ? w.reach === 0 && w.halfArc === 0 && w.speed === 0 && w.radius === 0
+      : w.kind === 1 ? w.reach > 0 && w.halfArc > 0 && w.halfArc <= Math.PI && w.speed === 0 && w.radius === 0
+      : w.reach > 0 && w.speed > 0 && w.halfArc === 0;
+    if (!fits) throw new Error("bad weapon");
+  }
+  for (let i = 1; i < n; i++) if (rows[i].id <= rows[i - 1].id) throw new Error("bad weapon order");
+  return rows;
+}
 function decodeBody(r) {
   const tag = r.u8();
   if (tag === 0x81) {
@@ -385,6 +407,7 @@ function decodeBody(r) {
     // Protocol 16 (ADR0024): the hitbox archetype table sits between the header and the map.
     m.archetypes = readArchetypes(r);
     m.vision = readVision(r);
+    m.weapons = readWeapons(r);
     // Preflight a copied bounded suffix first. No decoded plane allocation occurs until every byte,
     // run, domain, terrain/collision relation, and hash in the complete map has been checked.
     const p = cursor(r.v, r.p, r.limit);

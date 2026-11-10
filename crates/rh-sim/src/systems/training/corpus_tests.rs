@@ -69,6 +69,7 @@ fn config(kind: &str) -> SimConfig {
         weapon_specials: true,
         faction_mode: FactionMode::Off,
         hitboxes: crate::archetype::HitboxMode::LegacyCircle,
+        mob_spacing: Default::default(),
     }
 }
 

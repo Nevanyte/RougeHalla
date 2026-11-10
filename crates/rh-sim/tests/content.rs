@@ -39,6 +39,10 @@ const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
     ("systems/terrain/source_tests.rs", "FIXTURE_FNV", "test-only actual-source witness integrity pin; not read by gameplay"),
     ("systems/mob_life/mob_lifecycle_tests.rs", "SEATS", "cfg(test)-only declared seat count of the captured mobile lifecycle scenario; never read by gameplay"),
     ("systems/mob_life/mob_lifecycle_tests.rs", "DIGITS", "cfg(test)-only base-36 label alphabet for comparing captured actor ids; not gameplay policy"),
+    ("systems/mob_spacing.rs", "STRIDE", "row stride of the mob-spacing index's cell key (cy * STRIDE + cx), far above any map's cell count; it orders nothing that MOB_SPACING_CELL does not already order"),
+    ("systems/mob_spacing.rs", "CANDIDATES", "length of mob_spacing::step's fixed table of candidate steps (the push, its half and six turns of it): the size of an array, as the code's own algorithm, not a tuning value"),
+    ("systems/mob_spacing.rs", "GAIN_MIN", "derived: the square of the registered MOB_SPACING_STEP_MIN (the least a spacing step must lower a mob's squared overlap); no value of its own"),
+    ("systems/mob_spacing_tests.rs", "LEGACY_FOLD", "cfg(test)-only pinned state-hash fold of the pre-spacing legacy-circle pack run; never read by gameplay"),
     ("projectile_view.rs", "MAX_VISIBLE_PROJECTILES", "complete public projectile representation capacity; never read by game rules"),
     ("projectile_view.rs", "PROJECTILE_ROW_BYTES_MAX", "complete public projectile representation capacity; never read by game rules"),
     ("projectile_view.rs", "PROJECTILE_VIEW_BYTES_MAX", "complete public projectile representation capacity; never read by game rules"),
@@ -539,7 +543,7 @@ fn hash_golden() {
         content_hash()
     );
 }
-const GOLDEN_CONTENT_HASH: u64 = 0x026f_083d_8473_fa4b;
+const GOLDEN_CONTENT_HASH: u64 = 0x06e2_cdab_2889_abc5;
 
 #[test]
 fn every_registry_row_perturbs_the_hash() {

@@ -55,6 +55,8 @@ pub(crate) enum Move {
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Decision {
     pub movement: Move,
+    /// `movement` is a chase (out of the band or out of sight), not a retreat.
+    pub chase: bool,
     pub aim: f64,
     pub hold: bool,
 }
@@ -142,7 +144,8 @@ pub(crate) fn decide(input: Input, walkable: impl Fn(Vec2, Vec2) -> bool) -> Dec
         atan2(to_hit.y - origin.y, to_hit.x - origin.x)
     };
     let d = hypot(to_move.x - from.x, to_move.y - from.y);
-    let movement = if !los || d > p.far {
+    let chase = !los || d > p.far;
+    let movement = if chase {
         Move::Point(to_move)
     } else if d < p.retreat {
         let away = atan2(from.y - to_move.y, from.x - to_move.x);
@@ -178,6 +181,7 @@ pub(crate) fn decide(input: Input, walkable: impl Fn(Vec2, Vec2) -> bool) -> Dec
     };
     Decision {
         movement,
+        chase,
         aim,
         hold: los && reach <= p.attack,
     }

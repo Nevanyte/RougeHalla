@@ -140,6 +140,7 @@ fn director_with(
         ..DirectorConfig::new(
             SimConfig {
                 hitboxes: Default::default(),
+                mob_spacing: Default::default(),
                 walk_hints: None,
                 regen: false,
                 quests: false,

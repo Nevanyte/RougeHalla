@@ -143,6 +143,16 @@ impl Sim {
     pub fn mobs(&self) -> &[crate::mob_runtime::Mob] {
         self.w.mobs.as_slice()
     }
+    /// What mob spacing did in the last step's mob think (measurement only; zero under the legacy circle). Tick scratch:
+    /// never part of a checkpoint or the state hash, zero after a restore.
+    pub fn mob_spacing_diagnostics(&self) -> crate::archetype::SpacingDiagnostics {
+        self.s.spacing_diag
+    }
+    /// Path searches run since this sim was built or restored (measurement only; a restore starts at the count of the
+    /// sim it was cloned from, or zero).
+    pub fn path_searches(&self) -> u64 {
+        self.pf.searches
+    }
     pub fn plague_corpses(&self) -> &[crate::state::PlagueCorpse] {
         &self.w.plague_corpses
     }

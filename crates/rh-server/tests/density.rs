@@ -31,6 +31,7 @@ fn room_cfg() -> RoomConfig {
     RoomConfig {
         sim: SimConfig {
             hitboxes: Default::default(),
+            mob_spacing: Default::default(),
             walk_hints: None,
             regen: false,
             quests: false,

@@ -47,6 +47,7 @@ fn small_arena() -> Arena {
 async fn a_live_match_replays_and_its_bots_decide_identically_headless() {
     let sim = SimConfig {
         hitboxes: Default::default(),
+        mob_spacing: Default::default(),
         walk_hints: None,
         regen: false,
         quests: false,

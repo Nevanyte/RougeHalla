@@ -41,6 +41,7 @@ async fn start(tls: bool) -> Started {
     let _ = rustls::crypto::ring::default_provider().install_default();
     let sim = SimConfig {
         hitboxes: Default::default(),
+        mob_spacing: Default::default(),
         walk_hints: None,
         regen: false,
         quests: false,

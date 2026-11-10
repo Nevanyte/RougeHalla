@@ -454,6 +454,9 @@ for (const v of fx.server) {
     // Protocol 16: the vision block decodes to exactly the Rust values.
     eqJson(m.vision, d.vision, `${n} vision block`);
     if (m.vision.coliseum) groundMapCoverage.visionColiseum = true;
+    // Protocol 16: the weapon table decodes to exactly the Rust rows (doubles compared exactly).
+    exactJson(m.weapons, d.weapons, `${n} weapon table`);
+    for (const w of m.weapons) groundMapCoverage.weaponKinds = (groundMapCoverage.weaponKinds ?? new Set()).add(w.kind);
     if (m.archetypes.length) groundMapCoverage.archetypeTables = (groundMapCoverage.archetypeTables ?? 0) + 1;
     const e = d.map, s = m.map;
     eq(s.w, e.w, `${n} map.w`); eq(s.h, e.h, `${n} map.h`);
@@ -559,6 +562,12 @@ const reason = {
   welcome_vision_radius_negative:/bad vision/,welcome_vision_trail_negative:/bad vision/,welcome_vision_update_infinite:/bad vision/,
   welcome_vision_mask_zero:/bad vision/,welcome_vision_coliseum_flag:/bad vision/,welcome_vision_coliseum_empty:/bad vision/,
   welcome_vision_coliseum_outside:/bad vision/,welcome_vision_truncated:/./,
+  welcome_weapon_count:/bad weapon count/,welcome_weapon_truncated:/./,welcome_weapon_kind:/bad weapon kind/,
+  welcome_weapon_order:/bad weapon order/,welcome_weapon_duplicate_id:/bad weapon order/,welcome_weapon_reach_nan:/bad weapon$/,
+  welcome_weapon_speed_infinite:/bad weapon$/,welcome_weapon_radius_negative:/bad weapon$/,welcome_weapon_reach_over_max:/bad weapon$/,
+  welcome_weapon_arc_half_arc_over_pi:/bad weapon$/,welcome_weapon_arc_half_arc_zero:/bad weapon$/,welcome_weapon_arc_reach_zero:/bad weapon$/,
+  welcome_weapon_arc_speed:/bad weapon$/,welcome_weapon_projectile_speed_zero:/bad weapon$/,welcome_weapon_projectile_half_arc:/bad weapon$/,
+  welcome_weapon_none_values:/bad weapon$/,
   state_too_many_projectiles:/too many/,projectile_kind:/projectile/,projectile_owner_zero:/handle/,projectile_owner_flag:/option/,projectile_owner_overlong:/varint/,
   potion_notice_zero:/potion notice/,potion_notice_unknown:/potion notice/,state_too_many_camps:/too many/,
   cannon_notice_zero:/cannon notice/,cannon_notice_unknown:/cannon notice/,cannon_notice_bad_seconds:/cannon notice/,cannon_notice_seconds_over:/cannon notice/,cannon_notice_missing_seconds:/./,
@@ -839,9 +848,13 @@ if (version >= 16) {
   if (!groundMapCoverage.visionColiseum) throw new Error("missing a Rust Welcome with a coliseum vision rectangle");
   for (const name of ["welcome_archetype_count", "welcome_archetype_key_long", "welcome_archetype_key_ascii",
     "welcome_archetype_truncated", "delta_head_archetype_without_present_bit", "welcome_vision_version_zero",
-    "welcome_vision_coliseum_outside", "welcome_vision_truncated"]) {
+    "welcome_vision_coliseum_outside", "welcome_vision_truncated", "welcome_weapon_count", "welcome_weapon_truncated",
+    "welcome_weapon_kind", "welcome_weapon_order", "welcome_weapon_reach_nan", "welcome_weapon_arc_half_arc_over_pi",
+    "welcome_weapon_arc_reach_zero", "welcome_weapon_projectile_speed_zero"]) {
     if (!fx.malformedServer.some(v => v.name === name)) throw new Error(`missing Rust-generated ${name} control`);
   }
+  // The Rust Welcomes put every weapon kind (none, arc, projectile) on the wire.
+  for (const kind of [0, 1, 2]) if (!groundMapCoverage.weaponKinds?.has(kind)) throw new Error(`missing a Rust Welcome weapon row of kind ${kind}`);
 }
 
 console.log(`JS decoder agrees with protocol/fixtures/v${version}.json: ${fx.server.length} server vectors, ${fx.malformedServer.length} malformed, ${fx.chains.length} chains, ${checks} checks`);
