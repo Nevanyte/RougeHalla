@@ -164,7 +164,7 @@ async function run(cfg) {
   await page.mouse.click(ready.x, ready.y, { delay: 80 });
   await page.waitForTimeout(Number(process.env.RH_SHOTS_MATCH_MS || 12000));
   if (steps.has('match')) await shot('match');
-  if (steps.has('settings')) { await clickStage(12 + 36, 10, 30, 30); await shot('settings'); await clickStage(12 + 36, 10, 30, 30); }
+  if (steps.has('settings')) { await clickStage(12 + 36, 10, 30, 30); await shot('settings'); await clickStage(12 + 36, 10, 30, 30); await page.keyboard.press('Escape'); await page.waitForTimeout(300); }
   if (steps.has('help')) { await page.keyboard.press('h'); await page.waitForTimeout(500); await shot('help'); await page.keyboard.press('h'); await page.waitForTimeout(300); }
   if (steps.has('map')) { await page.keyboard.down('Tab'); await page.waitForTimeout(700); await shot('map'); await page.keyboard.up('Tab'); await page.waitForTimeout(300); }
   if (steps.has('walk')) await walk(cfg, page, s, shot);

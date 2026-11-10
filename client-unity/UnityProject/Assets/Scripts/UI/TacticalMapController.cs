@@ -160,10 +160,10 @@ namespace Roguehalla.Client
             foreach (var node in _counterGuide.WheelRoot.GetComponentsInChildren<UnityEngine.UI.Button>(true))
             {
                 ((RectTransform)node.transform).sizeDelta = new Vector2(68f, 26f);
-                foreach (var t in node.GetComponentsInChildren<TMP_Text>(true)) { t.enableAutoSizing = false; t.fontSize = 11f; }
+                foreach (var t in node.GetComponentsInChildren<TMP_Text>(true)) FixSize(t, 11f);
             }
             var legendText = _counterGuide.LegendRoot.GetComponentInChildren<TMP_Text>();
-            legendText.text = "Arrows point to the weapon each one counters. + advantage, ! threat."; legendText.enableAutoSizing = false; legendText.fontSize = 10f;
+            legendText.text = "Arrows point to the weapon each one counters. + advantage, ! threat."; FixSize(legendText, 10f);
             _questHeading = HudUi.Label(_counterRail, "QuestHeading", "QUESTS & TRADERS", 13f, theme.Accent, TextAlignmentOptions.TopLeft, false, UiFontRole.Display);
             _questsText = MythicUi.ScrollText(_counterRail, "QuestList", "", Vector2.zero, Vector2.one, 7.7f);
             _questScroll = (RectTransform)_questsText.transform.parent.parent;
@@ -211,6 +211,14 @@ namespace Roguehalla.Client
             var r8 = row("Walk target (right-click)"); GlyphImage(r8, "Icon", MapGlyph.Ring, theme.Success, 12f, 14f, 3f);
         }
 
+        /// <summary>Pins a Mythic text to an exact HUD size (its MythicTextScale would otherwise re-apply a larger base).</summary>
+        static void FixSize(TMP_Text t, float size)
+        {
+            t.enableAutoSizing = false; t.fontSize = size;
+            var scale = t.GetComponent<MythicTextScale>();
+            if (scale != null) { scale.BaseSize = size; scale.Apply(1f); }
+        }
+
         float TextScale() { var s = ShowcaseSettings.Current; return s != null ? Mathf.Clamp(s.TextScale, 1f, 1.5f) : 1f; }
 
         /// <summary>Gives the panel the stage's size and scale, so its children use legacy HUD units.</summary>
@@ -233,7 +241,7 @@ namespace Roguehalla.Client
             var L = _layout = MapScreenLayout.Compute(size.x, size.y, mode, ts);
             bool tab = mode == MapScreenMode.Tab;
             var theme = UiTheme.Current;
-            _scrim.color = UiTheme.With(theme.OutlineDark, tab ? .5f : .84f);
+            _scrim.color = UiTheme.With(theme.OutlineDark, tab ? .72f : .84f);
             Put(_titleRect, L.Title); Put(_frameRect, L.Frame);
             _close.gameObject.SetActive(tab); _timer.gameObject.SetActive(!tab); _planBar.gameObject.SetActive(!tab);
             _planBar.sizeDelta = new Vector2(L.Title.W, 3f);
@@ -413,7 +421,7 @@ namespace Roguehalla.Client
                 _routePlan = _route.PlanAhead(_bound.Map, new RouteGeometry(Tile, Pathfinder.PlayerRadius, PreviewSpeed), plan == null && me != null ? new RoutePoint(me.X, me.Y) : _route.Start);
                 _routePoints = _routePlan.Points;
                 _routeText.text = (_route.Waypoints.Count - _route.NextIndex) + "/12 stops · " + (_routePlan.Start.HasValue ? _routePlan.EtaSeconds.ToString("0") + "s base-speed walk" : "choose a spawn for ETA") +
-                    (_routePlan.Unreachable.Count > 0 ? " · " + _routePlan.Unreachable.Count + " unreachable" : "") + "\nClick map to add; click an upcoming stop to remove.";
+                    (_routePlan.Unreachable.Count > 0 ? " · " + _routePlan.Unreachable.Count + " unreachable" : "") + "\nClick the map to add a stop.";
             }
             SaveRoute();
             _large.Present(_bound, ShowRoute ? _routePoints : null); _mini.Present(_bound, ShowRoute ? _routePoints : null);
