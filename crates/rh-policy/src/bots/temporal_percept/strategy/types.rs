@@ -631,21 +631,36 @@ pub(crate) fn js_number(value: f64) -> String {
     if !value.is_finite() {
         return "null".into();
     }
-    if value.fract() == 0. && value.abs() < 9.007_199_254_740_992e15 {
-        return format!("{}", value as i64);
+    let abs = value.abs();
+    // ECMAScript Number::toString uses ordinary decimal notation for [1e-6, 1e21), scientific outside.
+    if abs < 1e-6 {
+        return js_exponent(value);
     }
-    let mut text = format!("{value}");
-    if let Some((base, exp)) = text.split_once(['e', 'E']) {
-        let exp: i32 = exp.parse().unwrap_or(0);
-        text = format!(
-            "{base}e{}{:02}",
-            if exp >= 0 { "+" } else { "-" },
-            exp.abs()
-        );
+    if abs >= 1e21 {
+        return js_exponent(value);
     }
+    if value.fract() == 0. {
+        return format!("{value:.0}");
+    }
+    // Shortest round-trip decimal representation; Rust's Display emits the same significant digits as ECMAScript.
+    let text = format!("{value}");
     text
 }
 
+fn js_exponent(value: f64) -> String {
+    // Rust's lower-exp form is shortest round-trip; ECMAScript adds an explicit '+' for non-negative exponents.
+    let text = format!("{value:e}");
+    if let Some((mantissa, exponent)) = text.split_once('e') {
+        let exponent: i32 = exponent.parse().unwrap_or(0);
+        if exponent >= 0 {
+            format!("{mantissa}e+{exponent}")
+        } else {
+            format!("{mantissa}e{exponent}")
+        }
+    } else {
+        text
+    }
+}
 pub(crate) fn js_json_string(value: &str) -> String {
     let mut out = String::with_capacity(value.len() + 2);
     out.push('"');

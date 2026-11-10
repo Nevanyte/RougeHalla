@@ -234,3 +234,67 @@ list/radius, not a reconstructed stub.
   \`parity/policy/bot-module-goal-key/source.json\`) has not been separately consumed by a strict native test yet. The
   primary 98-case reader/parity does not wait for it; full general module-key parity remains a separate supplement task.
 - No live/public Brain/Unity/network/sim/dependency/shared-status/source edits were made.
+
+## FROZEN SOURCE PARITY - COMPLETE (primary 98/658 + supplement 4/48)
+
+Root's two strategy path mismatches are diagnosed and repaired inside this lease. The cause was the test/service
+adapter, not an outside shared path implementation: the source runner's path policy is a declared service. The native
+harness now constructs the actual generated seed7 TileMap from the frozen map's tiles and uses the real rh_sim
+Pathfinder::find_path + path_length for kind:source, and the coordinate-block policy now falls through to the declared
+straight-distance factor for non-blocked points (blocked points still return null). No source path service was replaced
+with a stub and no source/case/tool was edited.
+
+### Exact frozen identities rechecked on disk
+
+- primary source.json 12,263,237 bytes, SHA256 3a3ae0d498cc3933b5eee11c5be995f267f4a76530379ad7c73a934082125d8d
+- primary coverage.json 1,981,587 bytes, SHA256 a560ee78a81e9f851933aafda5d42fe566a0e72d346d74f51d15a1a1890d6e12
+- primary FROZEN_MANIFEST.json 2,862 bytes, SHA256 8ca988c39466a8536a5e8aba6190619b1fbe7f4c862b0f2822f5093164445e24
+- supplement source.json 1,004,072 bytes, SHA256 32836e03d47993fceec22fc7fb648e937d01b3e9b221da9499ea9e99d31efc0c
+- supplement FROZEN_MANIFEST.json 1,585 bytes, SHA256 fc8f67be6e2153bd1d90ff1cd0b02467698ca35385bf29dd1c1b7bc4c6377d97
+
+### Actual captured totals replayed
+
+Primary six suites, all passing:
+- memory-api 122 operations (12 cases)
+- strategy 292 operations (35 cases)
+- mob-tracker 14 operations (1 case)
+- mob-hunter 127 operations (24 cases)
+- hunt-adapter 67 operations (9 cases)
+- build-route 36 operations (17 cases)
+- Total: 98 cases / 658 operations, zero first-mismatch failures.
+
+Supplement (rh-bot-module-goal-key-source/1), all passing:
+- 4 cases / 48 operations, using the primary generated7 map binding and the actual native Strategy/Module/JSON-key path.
+  Raw signed zero, NaN, +Infinity, -Infinity, null, omitted Undefined object keys, array-Undefined-to-null, object
+  insertion order and ECMAScript exponent boundaries are retained. No supplement expected value is native input.
+
+### Comparison policy (explicit, for independent review)
+
+source_reader::same compares schema record objects by key (record field order is not a source value), while ordered
+Maps/Sets/arrays and all tagged numeric bits remain exact. Raw Module.data objects are compared by same_raw, which
+preserves object entry order, and primary/supplement strategy decisions + state.candidates use the goal-aware
+same_goal / same_decision path so module data order is never normalized away. The supplement additionally compares the
+native Goal through its source JSON key/full-goal retention and catches the -0/NaN/Infinity/null collisions. No blanket
+epsilon is applied: all recorded primary and supplement values currently compare exactly; the reviewed Gaussian/geometry
+tolerance whitelist was not needed or activated for these cases.
+
+### Final gates (packet target, jobs 1, locked/offline)
+
+- six primary suites + supplement filter: 7 tests passed, 0 failed, exit 0 (98/658 primary, 4/48 supplement)
+- existing admitted Memory regression filter: 29 passed, 0 failed, exit 0 (run once for this final gate)
+- cargo fmt -p rh-policy -- --check: exit 0
+- strict default Clippy: exit 0
+- strict --all-features Clippy: exit 0
+
+Raw logs: source-six-final.log, memory-final-regression.log, clippy-default-final.log, clippy-all-final.log,
+fmt-final.log; earlier first-mismatch receipts (source-*-first-mismatches.log, source-parity-final-wip.log,
+path-trace-first-mismatch.log) remain preserved. The earlier WIP checkpoint 23561203 is retained as history; this section
+supersedes only its parity status, not its old receipts.
+
+### Remaining admitted limits
+
+Still private finite method parity only: no live/public BotVision/Brain/tactics/reflex/module/learning integration or
+headless/live outcome claim; the supplement covers the enumerated four histories, not arbitrary JSON.stringify
+(toJSON/prototypes/cycles/BigInt/exotic nested-number fuzz); initial static/module-initializer V8 coverage and every
+unwitnessed source branch remain uncovered; HuntAdapter closure storage is bound by continuation effects, not direct
+reflection; no source/corpus/tool/Unity/network/sim/dependency/shared-status edit and no merge/push.

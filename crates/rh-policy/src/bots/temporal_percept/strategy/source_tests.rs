@@ -316,6 +316,7 @@ struct SourceConfig {
     id: String,
     map: StrategyMap,
     memory_camps: Vec<super::super::memory::CampGeom>,
+    tile_map: Option<rh_sim::TileMap>,
     features: Features,
     path: PathSpec,
     learned: LearnedMap,
@@ -532,6 +533,13 @@ fn parse_config(config: &SVal, maps: &Value) -> R<SourceConfig> {
         .and_then(|m| m.get("value"))
         .ok_or_else(|| "map value missing".to_string())?;
     let map_value = source_reader::parse(raw, "map")?;
+    let tile_map = match map_value.optional("tiles") {
+        Some(SVal::U8(tiles)) => Some(
+            rh_sim::TileMap::new(map.width as u32, map.height as u32, tiles.clone())
+                .map_err(|e| format!("map tiles: {e:?}"))?,
+        ),
+        _ => None,
+    };
     let mut memory_camps = Vec::new();
     for c in arr(&map_value, "camps")? {
         let geom = super::super::memory::CampGeom {
@@ -576,6 +584,7 @@ fn parse_config(config: &SVal, maps: &Value) -> R<SourceConfig> {
         id,
         map,
         memory_camps,
+        tile_map,
         features,
         path,
         learned,
@@ -949,6 +958,7 @@ fn private_strategy_source_tracker_parity() {
             operations += 1;
         }
     }
+    eprintln!("PARITY_TOTAL tracker parity : {}", operations);
     assert!(
         failures.is_empty(),
         "tracker parity {operations} ops; first failures:\n{}",
@@ -1069,6 +1079,7 @@ fn private_strategy_source_hunter_parity() {
             operations += 1;
         }
     }
+    eprintln!("PARITY_TOTAL hunter parity : {}", operations);
     assert!(
         failures.is_empty(),
         "hunter parity {operations} ops; first failures:\n{}",
@@ -1162,6 +1173,7 @@ fn private_strategy_source_build_route_parity() {
             operations += 1;
         }
     }
+    eprintln!("PARITY_TOTAL route parity : {}", operations);
     assert!(
         failures.is_empty(),
         "route parity {operations} ops; first failures:\n{}",
@@ -1877,6 +1889,7 @@ fn private_strategy_source_memory_parity() {
             operations += 1;
         }
     }
+    eprintln!("PARITY_TOTAL memory parity : {}", operations);
     assert!(
         failures.is_empty(),
         "memory parity {operations} ops; first failures:\n{}",
@@ -2024,6 +2037,8 @@ fn parse_strategy_percept(input: &SVal, _cfg: &SourceConfig) -> R<StrategyPercep
 
 struct PathHarness {
     spec: PathSpec,
+    source_map: Option<rh_sim::TileMap>,
+    finder: rh_sim::pathfind::Pathfinder,
     calls: Vec<(Vec2, Vec2)>,
 }
 impl super::types::PathApi for PathHarness {
@@ -2032,11 +2047,28 @@ impl super::types::PathApi for PathHarness {
         match &self.spec {
             PathSpec::Null => None,
             PathSpec::CoordinateBlock { min_x, max_x } if to.x >= *min_x && to.x <= *max_x => None,
+            PathSpec::CoordinateBlock { .. } => Some(WalkAnswer {
+                dist: rh_sim::math::hypot(to.x - from.x, to.y - from.y),
+                exact: true,
+            }),
+            PathSpec::Source => {
+                let map = self.source_map.as_ref()?;
+                let path = self
+                    .finder
+                    .find_path(map, from, to, rh_sim::constants::PLAYER_RADIUS);
+                if path.is_empty() {
+                    None
+                } else {
+                    Some(WalkAnswer {
+                        dist: crate::bots::paths::path_length(from, &path),
+                        exact: true,
+                    })
+                }
+            }
             PathSpec::Open { factor, exact } => Some(WalkAnswer {
                 dist: rh_sim::math::hypot(to.x - from.x, to.y - from.y) * factor,
                 exact: *exact,
             }),
-            _ => None,
         }
     }
     fn los(&self, _a: Vec2, _b: Vec2) -> bool {
@@ -2309,6 +2341,8 @@ fn private_strategy_source_hunt_adapter_parity() {
         let harness_cfg = harness_config(&cfg);
         let mut paths = PathHarness {
             spec: cfg.path.clone(),
+            source_map: cfg.tile_map.clone(),
+            finder: rh_sim::pathfind::Pathfinder::default(),
             calls: Vec::new(),
         };
         let opts = super::hunt_adapter::HuntAdapterOptions {
@@ -2454,6 +2488,7 @@ fn private_strategy_source_hunt_adapter_parity() {
             operations += 1;
         }
     }
+    eprintln!("PARITY_TOTAL adapter parity : {}", operations);
     assert!(
         failures.is_empty(),
         "adapter parity {operations} ops; first failures:\n{}",
@@ -2488,6 +2523,8 @@ fn private_strategy_source_strategy_parity() {
         let harness_cfg = harness_config(&cfg);
         let mut paths = PathHarness {
             spec: cfg.path.clone(),
+            source_map: cfg.tile_map.clone(),
+            finder: rh_sim::pathfind::Pathfinder::default(),
             calls: Vec::new(),
         };
         let mut strategy = Strategy::new(StrategyOptions {
@@ -2610,9 +2647,305 @@ fn private_strategy_source_strategy_parity() {
             operations += 1;
         }
     }
+    eprintln!("PARITY_TOTAL strategy parity : {}", operations);
     assert!(
         failures.is_empty(),
         "strategy parity {operations} ops; first failures:\n{}",
+        failures
+            .iter()
+            .take(10)
+            .cloned()
+            .collect::<Vec<_>>()
+            .join("\n")
+    );
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+// Additive module-goal-key supplement (4 histories / 48 calls)
+
+fn same_raw(a: &SVal, b: &SVal) -> bool {
+    match (a, b) {
+        (SVal::Obj(x), SVal::Obj(y)) => {
+            x.len() == y.len()
+                && x.iter()
+                    .zip(y)
+                    .all(|((ka, va), (kb, vb))| ka == kb && same_raw(va, vb))
+        }
+        (SVal::Arr(x), SVal::Arr(y)) => {
+            x.len() == y.len() && x.iter().zip(y).all(|(a, b)| same_raw(a, b))
+        }
+        (SVal::Map(x), SVal::Map(y)) => {
+            x.len() == y.len()
+                && x.iter()
+                    .zip(y)
+                    .all(|((ka, va), (kb, vb))| same_raw(ka, kb) && same_raw(va, vb))
+        }
+        _ => source_reader::same(a, b),
+    }
+}
+
+fn same_goal(a: &SVal, b: &SVal) -> bool {
+    let (SVal::Obj(ax), SVal::Obj(bx)) = (a, b) else {
+        return source_reader::same(a, b);
+    };
+    let field = |entries: &[(String, SVal)], name: &str| {
+        entries
+            .iter()
+            .find(|(k, _)| k == name)
+            .map(|(_, v)| v.clone())
+    };
+    match (field(ax, "kind"), field(bx, "kind")) {
+        (Some(SVal::Str(k1)), Some(SVal::Str(k2))) if k1 == "module" && k2 == "module" => {
+            ax.len() == bx.len()
+                && ax.iter().all(|(k, v)| {
+                    bx.iter().find(|(bk, _)| bk == k).is_some_and(|(_, bv)| {
+                        if k == "data" {
+                            same_raw(v, bv)
+                        } else {
+                            source_reader::same(v, bv)
+                        }
+                    })
+                })
+        }
+        _ => source_reader::same(a, b),
+    }
+}
+
+fn same_goal_decision(a: &SVal, b: &SVal) -> bool {
+    let (SVal::Obj(ax), SVal::Obj(bx)) = (a, b) else {
+        return source_reader::same(a, b);
+    };
+    ax.len() == bx.len()
+        && ax.iter().all(|(k, v)| {
+            bx.iter().find(|(bk, _)| bk == k).is_some_and(|(_, bv)| {
+                if k == "goal" {
+                    same_goal(v, bv)
+                } else {
+                    source_reader::same(v, bv)
+                }
+            })
+        })
+}
+
+fn compare_strategy_ordered(
+    label: &str,
+    expected: &SVal,
+    actual: &SVal,
+    failures: &mut Vec<String>,
+) {
+    if !same_goal_decision(expected, actual) {
+        failures.push(format!("{label}: expected={expected:?} actual={actual:?}"));
+    }
+}
+
+fn compare_strategy_state_ordered(
+    label: &str,
+    expected: &SVal,
+    actual: &SVal,
+    failures: &mut Vec<String>,
+) {
+    let (SVal::Obj(exp), SVal::Obj(act)) = (expected, actual) else {
+        failures.push(format!("{label}: non-object state"));
+        return;
+    };
+    for (name, ev) in exp {
+        let Some((_, av)) = act.iter().find(|(k, _)| k == name) else {
+            failures.push(format!("{label}.{name}: missing"));
+            continue;
+        };
+        match name.as_str() {
+            "candidates" => {
+                let (SVal::Arr(ea), SVal::Arr(aa)) = (ev, av) else {
+                    failures.push(format!("{label}.candidates: not arrays"));
+                    continue;
+                };
+                if ea.len() != aa.len() {
+                    failures.push(format!(
+                        "{label}.candidates: length {} != {}",
+                        ea.len(),
+                        aa.len()
+                    ));
+                    continue;
+                }
+                for (i, (e, a)) in ea.iter().zip(aa).enumerate() {
+                    if !same_goal_decision(e, a) {
+                        failures.push(format!("{label}.candidates[{i}]: mismatch"));
+                    }
+                }
+            }
+            _ => {
+                if !source_reader::same(ev, av) {
+                    failures.push(format!("{label}.{name}: expected={ev:?} actual={av:?}"));
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn private_module_goal_key_source_parity() {
+    let supplement: Value = {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../parity/policy/bot-module-goal-key/source.json");
+        serde_json::from_str(&std::fs::read_to_string(path).expect("module goal-key source.json"))
+            .expect("valid supplement JSON")
+    };
+    let primary = load_source();
+    let maps = &primary["maps"];
+    let mut failures = Vec::new();
+    let mut operations = 0usize;
+    let mut cases_seen = 0usize;
+    for case in supplement["cases"].as_array().expect("supplement cases") {
+        if case["suite"] != "strategy" {
+            continue;
+        }
+        cases_seen += 1;
+        let config = sv(&case["config"]);
+        let cfg = parse_config(&config, maps).unwrap();
+        SOURCE_ATTACKING.store(
+            cfg.attacking.unwrap_or(false),
+            std::sync::atomic::Ordering::Relaxed,
+        );
+        let mut mem = create_memory(&cfg);
+        let mut percept: Option<StrategyPercept> = None;
+        let know = knowledge_for(&cfg);
+        let harness_cfg = harness_config(&cfg);
+        let mut paths = PathHarness {
+            spec: cfg.path.clone(),
+            source_map: cfg.tile_map.clone(),
+            finder: rh_sim::pathfind::Pathfinder::default(),
+            calls: Vec::new(),
+        };
+        let mut strategy = Strategy::new(StrategyOptions {
+            attacking: cfg.attacking.map(|_| source_attacking as fn() -> bool),
+            log: None,
+        });
+        let mut decide_rng = OverrideRng::new(cfg.seed, cfg.random_decide.clone());
+        let mut lapse_rng = OverrideRng::new(cfg.seed + 2, cfg.random_lapse.clone());
+        let mut last_goal = Goal::Idle;
+        for (index, op) in case["operations"].as_array().unwrap().iter().enumerate() {
+            let op = sv(op);
+            let method = text(&op, "method").unwrap();
+            let input = op.optional("input").cloned().unwrap_or(SVal::Undefined);
+            let expected = op.optional("result").cloned().unwrap_or(SVal::Undefined);
+            let actual = match method.as_str() {
+                "observe" => {
+                    let mp = parse_memory_percept(&input, &cfg.features).unwrap();
+                    let stimuli = mem.observe(&mp).unwrap();
+                    percept = Some(parse_strategy_percept(&input, &cfg).unwrap());
+                    source_reader::arr(stimuli.iter().map(encode_stimulus).collect())
+                }
+                "recordChoice" => {
+                    mem.record_choice(input.string("choice").unwrap());
+                    SVal::Undefined
+                }
+                "decide" => {
+                    let p = percept.as_ref().unwrap();
+                    let declaration = field(&op, "declaration").unwrap();
+                    let previous = matches!(declaration.optional("current"), Some(SVal::Str(s)) if s == "$previous");
+                    let current = if previous {
+                        last_goal.clone()
+                    } else {
+                        parse_goal(field(&input, "current").unwrap()).unwrap()
+                    };
+                    let status = parse_status(field(&input, "status").unwrap()).unwrap();
+                    let env = declaration.optional("env").cloned();
+                    let modules = modules_for(&cfg, env.as_ref());
+                    let cfg_ctx = StrategyConfig {
+                        id: cfg.id.clone(),
+                        seed: cfg.seed,
+                        tier: &harness_cfg.tier,
+                        persona: &harness_cfg.persona,
+                        map: &harness_cfg.map,
+                        features: &harness_cfg.features,
+                        learned: &harness_cfg.learned,
+                        modules: &modules,
+                    };
+                    let mut ctx = StrategyContext {
+                        cfg: &cfg_ctx,
+                        p,
+                        mem: &mem,
+                        know: &know,
+                        paths: &mut paths,
+                        decide: &mut decide_rng,
+                        lapse: &mut lapse_rng,
+                        engaged: boolv(&input, "engaged").unwrap(),
+                    };
+                    let out = strategy.decide(&mut ctx, &current, &status);
+                    last_goal = out.goal.clone();
+                    let encoded = encode_goal_decision(&out);
+                    if let Some(exp_identity) = op.optional("identity") {
+                        let act_identity = obj(vec![(
+                            "returnedCurrentGoal",
+                            bool_sv(strategy.last_returned_current()),
+                        )]);
+                        compare(
+                            &format!("{} op{index} decide identity", case["id"]),
+                            exp_identity,
+                            &act_identity,
+                            &mut failures,
+                        );
+                    }
+                    encoded
+                }
+                other => panic!("unsupported supplement method {other}"),
+            };
+            compare_strategy_ordered(
+                &format!("{} op{index} {method}", case["id"]),
+                &expected,
+                &actual,
+                &mut failures,
+            );
+            if let Some(exp_state) = op.optional("state").cloned() {
+                compare_strategy_state_ordered(
+                    &format!("{} op{index} {method} state", case["id"]),
+                    &exp_state,
+                    &encode_strategy_state(&strategy.state()),
+                    &mut failures,
+                );
+            }
+            if let Some(exp_plan) = op.optional("plan").cloned() {
+                compare(
+                    &format!("{} op{index} {method} plan", case["id"]),
+                    &exp_plan,
+                    &encode_plan(&strategy.plan()),
+                    &mut failures,
+                );
+            }
+            if let Some(exp_stats) = op.optional("huntStats").cloned() {
+                compare(
+                    &format!("{} op{index} {method} stats", case["id"]),
+                    &exp_stats,
+                    &encode_hunt_stats(&strategy.hunt_stats()),
+                    &mut failures,
+                );
+            }
+            if let Some(exp_target) = op.optional("huntTarget").cloned() {
+                let act = strategy
+                    .hunt_target()
+                    .map(|s| source_reader::s(&s))
+                    .unwrap_or(SVal::Null);
+                compare(
+                    &format!("{} op{index} {method} target", case["id"]),
+                    &exp_target,
+                    &act,
+                    &mut failures,
+                );
+            }
+            let expected_memory = op.optional("memory").cloned().unwrap_or(SVal::Undefined);
+            compare_memory(
+                &format!("{} op{index} {method}", case["id"]),
+                &expected_memory,
+                &encode_memory(&mem),
+                &mut failures,
+            );
+            operations += 1;
+        }
+    }
+    eprintln!("PARITY_TOTAL module-goal-key parity : {}", operations);
+    assert!(
+        failures.is_empty(),
+        "module-goal-key parity {cases_seen} cases/{operations} ops; first failures:\n{}",
         failures
             .iter()
             .take(10)
