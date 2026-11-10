@@ -1,0 +1,19 @@
+{
+  "method": "WCAG 2.x: (L1+0.05)/(L2+0.05). Sprite window (64 x 100 px around the character) darkest/lightest 5% against the median luminance of the ground ring 14 to 60 px around it; bars: the hp bar window the same way. Same definition as atmosphere-shots.cjs, applied by hand (contrast.py) to every visible character in a frame. 1920 x 1080, ?fx.quality=high. body = median of the whole sprite window against the ground (not part of the gate).",
+  "gates": { "silhouetteEdge": 3.0, "hpBar": 4.5 },
+  "holy-medallion-hero-and-mobs.jpg": {
+    "hero on the great medallion": { "ground": 0.621, "edge": 4.94, "body": 1.02 },
+    "mob 1 on carpet": { "ground": 0.519, "edge": 5.64 }, "mob 2 on carpet": { "ground": 0.520, "edge": 7.01 }, "mob 3 on carpet": { "ground": 0.533, "edge": 7.72 },
+    "mob 4 beside carpet (floor)": { "ground": 0.438, "edge": 4.90 }, "mob 5 beside carpet (floor)": { "ground": 0.448, "edge": 5.60 },
+    "hp bars (hero, mobs)": [8.29, 6.86, 8.36, 9.08]
+  },
+  "holy-cross-aisle-hero-beside-pier.jpg": { "hero on carpet beside a pier": { "ground": 0.482, "edge": 6.14, "body": 1.32 }, "hp bar": 8.37 },
+  "holy-mobs-on-floor-and-carpet.jpg": {
+    "hero on carpet": { "ground": 0.497, "edge": 5.24, "body": 1.32 },
+    "silver-armoured mob 1 on pale floor": { "ground": 0.540, "edge": 8.84 }, "mob 2 on pale floor": { "ground": 0.545, "edge": 7.63 }, "mob 3 on pale floor": { "ground": 0.534, "edge": 8.81 },
+    "hp bars": [8.66, 8.56, 6.85]
+  },
+  "holy-portal-threshold.jpg": { "hero in the threshold band on the carpet": { "ground": 0.367, "edge": 5.83, "body": 1.31 }, "hp bar": 6.93 },
+  "holy-outside-plinth-arcade.jpg": { "hero on sand": { "ground": 0.437, "edge": 6.08 }, "mob on sand 1": { "ground": 0.279, "edge": 5.43 }, "mob on sand 2": { "ground": 0.372, "edge": 7.05 }, "hp bar": 6.76 },
+  "plague (hero, F3 shots, no change to Plague ground)": { "sprite edge": [3.52, 3.47], "hp bar": [4.96, 4.46], "note": "regions2 measured Plague bars at 6.8 to 7.8 in other frames; a bright diagonal sun ray crosses the hero's bar window in these two frames. Plague ground and lighting were not touched by this pass." }
+}
