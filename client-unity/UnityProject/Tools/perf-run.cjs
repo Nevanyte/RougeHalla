@@ -44,6 +44,20 @@ function worstOnePercentMean(deltas) {
   return sum / n;
 }
 
+/** Average of every k consecutive deltas (a sliding window): cancels rAF timestamp jitter, keeps real drops. */
+function smoothDeltas(deltas, k) {
+  const out = [];
+  let sum = 0;
+  for (let i = 0; i < deltas.length; i++) {
+    sum += deltas[i];
+    if (i >= k) sum -= deltas[i - k];
+    if (i >= k - 1) out.push(sum / k);
+  }
+  return out;
+}
+
+const SMOOTH_FRAMES = 4;
+
 /** Frame-time statistics from rAF deltas in ms. refreshHz (when known) sets the dropped-frame threshold. */
 function frameStats(deltas, refreshHz) {
   const d = deltas.filter(Number.isFinite);
@@ -56,6 +70,8 @@ function frameStats(deltas, refreshHz) {
     worst1PctMeanMs: worstMean, worst1PctFps: 1000 / worstMean,
     avgFps: 1000 / (sum / d.length),
   };
+  const sm = smoothDeltas(d, SMOOTH_FRAMES);
+  if (sm.length) out.smooth = { frames: SMOOTH_FRAMES, p50Ms: percentile(sm, .5), p95Ms: percentile(sm, .95), p99Ms: percentile(sm, .99), maxMs: percentile(sm, 1) };
   if (refreshHz > 0) {
     const limit = (1000 / refreshHz) * 1.5;
     out.refreshHz = refreshHz; out.droppedLimitMs = limit; out.droppedFrames = d.filter(x => x > limit).length;
@@ -78,7 +94,16 @@ function evaluate(stats, { displayVerified, vsyncOff = false } = {}) {
   if (!stats.count) verdict = 'FAIL';
   else if (claimable) verdict = meets ? 'PASS' : 'FAIL';
   else verdict = meets ? 'PROVISIONAL (numbers meet the criteria, target not claimed)' : 'PROVISIONAL (numbers miss the criteria)';
-  return { verdict, meetsNumbers: meets, claimable, checks };
+  // rAF timestamps jitter by about +-1.5 ms around the true cadence, so with a mean of exactly one refresh interval roughly
+  // half of all deltas exceed it and the literal p95 <= refresh criterion fails even with zero dropped frames. The pacing
+  // read-out is therefore reported beside the literal verdict: no dropped frames, mean at the refresh interval, and the
+  // 4-frame-averaged p95 within 2% of it. It never changes the verdict.
+  const refreshMs = stats.refreshHz > 0 ? 1000 / stats.refreshHz : null;
+  const pacing = refreshMs && stats.smooth ? {
+    droppedFrames: stats.droppedFrames, meanMs: stats.meanMs, smoothP95Ms: stats.smooth.p95Ms, smoothMaxMs: stats.smooth.maxMs,
+    clean: stats.droppedFrames === 0 && stats.meanMs <= refreshMs * 1.01 && stats.smooth.p95Ms <= refreshMs * 1.02,
+  } : null;
+  return { verdict, meetsNumbers: meets, claimable, checks, pacing };
 }
 
 /** Display line from `system_profiler SPDisplaysDataType` text -> [{name, main, width, height, refreshHz}]. */
@@ -528,6 +553,7 @@ function printSummary(report, result, outDir) {
   } else {
     const c = result.verdict.checks;
     console.log(`p95 <= ${TARGET.p95Ms} ms: ${c.p95.pass ? 'yes' : 'NO'}   worst 1% >= ${TARGET.worst1PctFps} fps (<= ${TARGET.worst1PctMs} ms): ${c.worst1Pct.pass ? 'yes' : 'NO'}`);
+    if (result.verdict.pacing) { const pc = result.verdict.pacing; console.log(`pacing (jitter-robust, informational): ${pc.clean ? 'clean' : 'NOT clean'} - dropped ${pc.droppedFrames}, mean ${f(pc.meanMs)} ms, 4-frame-average p95 ${f(pc.smoothP95Ms)} ms, max ${f(pc.smoothMaxMs)} ms`); }
     console.log(`display verified (2560x1440 @ 144 Hz): ${result.displayInfo.verified ? 'yes' : 'NO - ' + result.displayInfo.reason}${result.vsyncOff ? '; vsync off' : ''}`);
   }
   console.log(`\n${result.verdict.verdict}`);
@@ -535,7 +561,7 @@ function printSummary(report, result, outDir) {
   console.log(`report: ${path.join(outDir, 'report.json')}`);
 }
 
-module.exports = { TARGET, REGIONS, percentile, worstOnePercentMean, frameStats, evaluate, parseDisplays, displayMatchesTarget, parseArgs,
+module.exports = { smoothDeltas, TARGET, REGIONS, percentile, worstOnePercentMean, frameStats, evaluate, parseDisplays, displayMatchesTarget, parseArgs,
   buildPageUrl, buildTimeline, toCsv, attributionTable, ATTRIBUTION_TOGGLES, planningPoint };
 
 if (require.main === module) {

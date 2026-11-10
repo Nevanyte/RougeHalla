@@ -145,3 +145,24 @@ test('planning anchors land inside the planning rail', () => {
   assert.ok(spawn.fy < ready.fy, 'Spawn is above Ready on screen');
   assert.ok(ready.fy > 0.4 && ready.fy < 0.8);
 });
+
+test('smoothDeltas averages sliding windows and keeps real drops visible', () => {
+  assert.deepEqual(P.smoothDeltas([1, 3, 5, 7], 2), [2, 4, 6]);
+  assert.deepEqual(P.smoothDeltas([1, 2], 3), []);
+  const jittery = Array.from({ length: 400 }, (_, i) => 6.944 + (i % 2 ? 1.2 : -1.2));
+  const s = P.frameStats(jittery, 144);
+  assert.ok(s.p95Ms > 6.94, 'literal p95 fails on pure jitter');
+  assert.ok(s.smooth.p95Ms < 6.95, 'the smoothed series cancels it');
+  const withDrop = jittery.slice(); withDrop[200] = 13.9;
+  assert.ok(P.frameStats(withDrop, 144).smooth.maxMs > 8);
+});
+
+test('pacing read-out is informational and never rescues a literal FAIL', () => {
+  const jittery = Array.from({ length: 1000 }, (_, i) => 6.9444 + (i % 2 ? 1.2 : -1.2));
+  const stats = P.frameStats(jittery, 144);
+  const v = P.evaluate(stats, { displayVerified: true });
+  assert.equal(v.verdict, 'FAIL');
+  assert.equal(v.pacing.clean, true);
+  const dropped = P.frameStats(jittery.map((x, i) => (i % 100 === 0 ? 14 : x)), 144);
+  assert.equal(P.evaluate(dropped, { displayVerified: true }).pacing.clean, false);
+});
