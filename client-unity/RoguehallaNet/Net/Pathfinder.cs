@@ -97,13 +97,19 @@ namespace Roguehalla.Net
         /// </summary>
         public PathPoint[] FindPath(MapBlob map, double fromX, double fromY, double toX, double toY)
         {
-            return FindPath(map, fromX, fromY, toX, toY, PlayerRadius);
+            return FindPath(map, fromX, fromY, toX, toY, Footprint.Disc(PlayerRadius));
         }
 
-        /// <summary>As <see cref="FindPath(MapBlob,double,double,double,double)"/> with an explicit body radius.</summary>
+        /// <summary>As <see cref="FindPath(MapBlob,double,double,double,double)"/> with an explicit body radius (a disc).</summary>
         public PathPoint[] FindPath(MapBlob map, double fromX, double fromY, double toX, double toY, double radius)
         {
-            Plan(map, fromX, fromY, toX, toY, radius);
+            return FindPath(map, fromX, fromY, toX, toY, Footprint.Disc(radius));
+        }
+
+        /// <summary>As the radius form with an explicit footprint (a disc, or an archetype's foot box, ADR0024).</summary>
+        public PathPoint[] FindPath(MapBlob map, double fromX, double fromY, double toX, double toY, Footprint foot)
+        {
+            Plan(map, fromX, fromY, toX, toY, foot);
             var result = new PathPoint[_outLen];
             Array.Copy(_out, result, _outLen);
             return result;
@@ -115,8 +121,14 @@ namespace Roguehalla.Net
         /// </summary>
         public int FindPath(MapBlob map, double fromX, double fromY, double toX, double toY, double radius, PathPoint[] destination)
         {
+            return FindPath(map, fromX, fromY, toX, toY, Footprint.Disc(radius), destination);
+        }
+
+        /// <summary>The allocation-free form with an explicit footprint.</summary>
+        public int FindPath(MapBlob map, double fromX, double fromY, double toX, double toY, Footprint foot, PathPoint[] destination)
+        {
             if (destination == null) throw new ArgumentNullException(nameof(destination));
-            Plan(map, fromX, fromY, toX, toY, radius);
+            Plan(map, fromX, fromY, toX, toY, foot);
             if (_outLen > destination.Length)
                 throw new ArgumentException("destination holds " + destination.Length + " waypoints, the path needs " + _outLen, nameof(destination));
             Array.Copy(_out, destination, _outLen);
@@ -129,15 +141,31 @@ namespace Roguehalla.Net
         /// </summary>
         public bool SegmentClear(MapBlob map, double ax, double ay, double bx, double by, double radius)
         {
+            return SegmentClear(map, ax, ay, bx, by, Footprint.Disc(radius));
+        }
+
+        /// <summary>
+        /// <see cref="SegmentClear(MapBlob,double,double,double,double,double)"/> for a footprint: the mirror of
+        /// <c>Footprint::segment_clear</c> (a disc is the same evaluation as above; a box is <c>segment_box_clear</c>).
+        /// </summary>
+        public bool SegmentClear(MapBlob map, double ax, double ay, double bx, double by, Footprint foot)
+        {
             Prepare(map);
-            if (!CircleClear(ax, ay, radius) || !CircleClear(bx, by, radius)) return false;
-            return SegmentRaysClear(new PathPoint(ax, ay), new PathPoint(bx, by), radius);
+            if (!FootClear(ax, ay, foot) || !FootClear(bx, by, foot)) return false;
+            return SegmentRaysClear(new PathPoint(ax, ay), new PathPoint(bx, by), foot);
+        }
+
+        /// <summary>Does the footprint at (x, y) overlap no wall or LOW tile? Read-only (<c>Footprint::clear</c>, MASK_MOVE).</summary>
+        public bool Clear(MapBlob map, double x, double y, Footprint foot)
+        {
+            Prepare(map);
+            return FootClear(x, y, foot);
         }
 
         // ----------------------------------------------------------------------------------------------------------------
         // Planning (find_path_into)
 
-        void Plan(MapBlob map, double fromX, double fromY, double toX, double toY, double radius)
+        void Plan(MapBlob map, double fromX, double fromY, double toX, double toY, Footprint foot)
         {
             _outLen = 0;
             Prepare(map);
@@ -161,7 +189,7 @@ namespace Roguehalla.Net
                 if (!SnapToFloor(toX, toY, out gx, out gy)) return;
                 target = new PathPoint(TileToCenter(gx), TileToCenter(gy));
             }
-            if (!goalInWall) target = ClampClear(target, gx, gy, radius);
+            if (!goalInWall) target = ClampClear(target, gx, gy, foot);
 
             // The end discs of from and target are pure functions of the map: evaluated at most once per query.
             bool? fromClear = null;
@@ -169,13 +197,13 @@ namespace Roguehalla.Net
             if (!startInWall)
             {
                 // segment_clear(from, target): the disc at from, the disc at target, then the rays.
-                bool a = CircleClear(fromX, fromY, radius);
+                bool a = FootClear(fromX, fromY, foot);
                 fromClear = a;
                 if (a)
                 {
-                    bool b = CircleClear(target.X, target.Y, radius);
+                    bool b = FootClear(target.X, target.Y, foot);
                     targetClear = b;
-                    if (b && SegmentRaysClear(new PathPoint(fromX, fromY), target, radius))
+                    if (b && SegmentRaysClear(new PathPoint(fromX, fromY), target, foot))
                     {
                         AddOut(target);
                         return;
@@ -228,16 +256,16 @@ namespace Roguehalla.Net
                     bool anchorClear;
                     if (anchorJ >= 0)
                     {
-                        anchorClear = Disc(anchorJ, radius);
+                        anchorClear = Disc(anchorJ, foot);
                     }
                     else
                     {
-                        if (!fromClear.HasValue) fromClear = CircleClear(fromX, fromY, radius);
+                        if (!fromClear.HasValue) fromClear = FootClear(fromX, fromY, foot);
                         anchorClear = fromClear.Value;
                     }
                     if (anchorClear
-                        && Disc(j, radius)
-                        && SegmentRaysClear(anchor, CandAt(j), radius))
+                        && Disc(j, foot)
+                        && SegmentRaysClear(anchor, CandAt(j), foot))
                     {
                         break;
                     }
@@ -251,10 +279,10 @@ namespace Roguehalla.Net
             }
         }
 
-        bool Disc(int j, double radius)
+        bool Disc(int j, Footprint foot)
         {
             if (_candClear[j] == DiscUnknown)
-                _candClear[j] = CircleClear(_candX[j], _candY[j], radius) ? DiscClear : DiscBlocked;
+                _candClear[j] = FootClear(_candX[j], _candY[j], foot) ? DiscClear : DiscBlocked;
             return _candClear[j] == DiscClear;
         }
 
@@ -500,20 +528,46 @@ namespace Roguehalla.Net
             return false;
         }
 
-        PathPoint ClampClear(PathPoint p, long gx, long gy, double radius)
+        PathPoint ClampClear(PathPoint p, long gx, long gy, Footprint foot)
         {
-            if (CircleClear(p.X, p.Y, radius)) return p;
+            if (FootClear(p.X, p.Y, foot)) return p;
+            // x by the footprint's east-west half-extent, y by its north-south one (both the radius for a disc).
+            double rx = foot.Hx, ry = foot.Hy;
             double x0 = (double)gx * Tile;
             double y0 = (double)gy * Tile;
             double x = p.X;
             double y = p.Y;
-            if (Blocked(gx - 1, gy)) x = Max(x, x0 + radius);
-            if (Blocked(gx + 1, gy)) x = Min(x, x0 + Tile - radius);
-            if (Blocked(gx, gy - 1)) y = Max(y, y0 + radius);
-            if (Blocked(gx, gy + 1)) y = Min(y, y0 + Tile - radius);
+            if (Blocked(gx - 1, gy)) x = Max(x, x0 + rx);
+            if (Blocked(gx + 1, gy)) x = Min(x, x0 + Tile - rx);
+            if (Blocked(gx, gy - 1)) y = Max(y, y0 + ry);
+            if (Blocked(gx, gy + 1)) y = Min(y, y0 + Tile - ry);
             var clamped = new PathPoint(x, y);
-            if (CircleClear(clamped.X, clamped.Y, radius)) return clamped;
+            if (FootClear(clamped.X, clamped.Y, foot)) return clamped;
             return new PathPoint(TileToCenter(gx), TileToCenter(gy));
+        }
+
+        /// <summary><c>Footprint::clear</c>: the legacy disc test, or the foot box test.</summary>
+        bool FootClear(double x, double y, Footprint foot)
+        {
+            return foot.IsBox ? BoxClear(x, y, foot.Hx, foot.Hy) : CircleClear(x, y, foot.Hx);
+        }
+
+        /// <summary>
+        /// Does the box [x-hx, x+hx] x [y-hy, y+hy] overlap no wall or LOW tile? (box_clear, MASK_MOVE.) A tile counts only when it
+        /// overlaps the box's open interior, so touching a wall face is clear; out of bounds is blocked.
+        /// </summary>
+        bool BoxClear(double px, double py, double hx, double hy)
+        {
+            if (!Finite(px + py + hx + hy)) return false;
+            if (hx <= 0.0 || hy <= 0.0) return !Blocked(FloorI64(px / Tile), FloorI64(py / Tile));
+            long i0 = FloorI64((px - hx) / Tile);
+            long i1 = CeilI64((px + hx) / Tile) - 1;
+            long j0 = FloorI64((py - hy) / Tile);
+            long j1 = CeilI64((py + hy) / Tile) - 1;
+            for (long j = j0; j <= j1; j++)
+                for (long i = i0; i <= i1; i++)
+                    if (Blocked(i, j)) return false;
+            return true;
         }
 
         /// <summary>Does a disc of radius at (cx, cy) overlap no wall or LOW tile? (circle_clear, MASK_MOVE)</summary>
@@ -549,6 +603,28 @@ namespace Roguehalla.Net
         }
 
         byte NavAt(long tx, long ty) { return _nav[(int)(ty * _w + tx)]; }
+
+        /// <summary>The ray part of <c>Footprint::segment_clear</c> (both end footprints known clear).</summary>
+        bool SegmentRaysClear(PathPoint a, PathPoint b, Footprint foot)
+        {
+            return foot.IsBox ? SegmentBoxRaysClear(a, b, foot.Hx, foot.Hy) : SegmentRaysClear(a, b, foot.Hx);
+        }
+
+        /// <summary>
+        /// segment_box_rays_clear: the centre ray, then the two silhouette-corner rays. For motion with dx*dy >= 0 the corners are
+        /// (+hx, -hy) and (-hx, +hy), otherwise (+hx, +hy) and (-hx, -hy).
+        /// </summary>
+        bool SegmentBoxRaysClear(PathPoint a, PathPoint b, double hx, double hy)
+        {
+            if (RayBlocked(a.X, a.Y, b.X, b.Y)) return false;
+            double dx = b.X - a.X;
+            double dy = b.Y - a.Y;
+            if ((dx == 0.0 && dy == 0.0) || hx <= 0.0 || hy <= 0.0) return true;
+            double ox, oy;
+            if (dx * dy >= 0.0) { ox = hx; oy = -hy; } else { ox = hx; oy = hy; }
+            return !RayBlocked(a.X + ox, a.Y + oy, b.X + ox, b.Y + oy)
+                && !RayBlocked(a.X - ox, a.Y - oy, b.X - ox, b.Y - oy);
+        }
 
         /// <summary>The ray part of segment_clear: the centre ray and the side rays (both end discs known clear).</summary>
         bool SegmentRaysClear(PathPoint a, PathPoint b, double radius)

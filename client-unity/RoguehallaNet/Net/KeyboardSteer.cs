@@ -19,6 +19,13 @@ namespace Roguehalla.Net
         public static bool TryGoal(Pathfinder pf, MapBlob map, double originX, double originY, int keyX, int keyY,
             out double goalX, out double goalY)
         {
+            return TryGoal(pf, map, originX, originY, keyX, keyY, Footprint.Legacy, out goalX, out goalY);
+        }
+
+        /// <summary>As above for the mover's own footprint (its archetype's foot box, ADR0024).</summary>
+        public static bool TryGoal(Pathfinder pf, MapBlob map, double originX, double originY, int keyX, int keyY, Footprint foot,
+            out double goalX, out double goalY)
+        {
             goalX = originX; goalY = originY;
             if (pf == null || map == null || (keyX == 0 && keyY == 0)) return false;
             keyX = Math.Sign(keyX); keyY = Math.Sign(keyY);
@@ -31,7 +38,7 @@ namespace Roguehalla.Net
                 for (double d = AheadMax; d >= AheadMin; d -= AheadStep)
                 {
                     double gx = originX + hx * d, gy = originY + hy * d;
-                    if (pf.SegmentClear(map, originX, originY, gx, gy, Pathfinder.PlayerRadius)) { goalX = gx; goalY = gy; return true; }
+                    if (pf.SegmentClear(map, originX, originY, gx, gy, foot)) { goalX = gx; goalY = gy; return true; }
                 }
             }
             return false;

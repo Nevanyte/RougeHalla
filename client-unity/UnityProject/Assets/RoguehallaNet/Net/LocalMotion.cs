@@ -83,6 +83,7 @@ namespace Roguehalla.Net
         bool _alive;
         byte _displaceSeq;
         readonly Pathfinder _pathfinder = new Pathfinder();
+        Footprint _foot = Footprint.Legacy;
 
         // Authoritative self, as last accepted (wire floats, widened for path and smoothing arithmetic).
         double _simX, _simY;
@@ -468,11 +469,17 @@ namespace Roguehalla.Net
             }
         }
 
+        /// <summary>
+        /// The own footprint the walk plans with (ADR0024): the foot box of the self archetype from the Welcome table, or the 12 u
+        /// disc (the default) when the server sent no table or the legacy row. It applies to paths planned from now on.
+        /// </summary>
+        public Footprint Foot { get { return _foot; } set { _foot = value; } }
+
         void PlanFrom(double fromX, double fromY)
         {
             _walkFromX = fromX;
             _walkFromY = fromY;
-            _path = _map == null ? NoPath : _pathfinder.FindPath(_map, fromX, fromY, _goalX, _goalY);
+            _path = _map == null ? NoPath : _pathfinder.FindPath(_map, fromX, fromY, _goalX, _goalY, _foot);
             _pathIndex = 0;
         }
 
