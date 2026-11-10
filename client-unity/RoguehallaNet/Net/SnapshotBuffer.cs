@@ -21,6 +21,23 @@ namespace Roguehalla.Net
         public byte BarrierPct, BarrierRingStep;
         /// <summary>Hitbox archetype id (protocol 16, ADR0024); look the row up in <see cref="Session.Archetypes"/>.</summary>
         public byte Archetype;
+        /// <summary>Indicator flags (protocol 16, ADR0026): bit 0 Wish ready, bit 1 engaged (mobs), bit 2 teleport-immunity ring up,
+        /// bit 3 roam ready. Use the derived properties below. Discrete: copied from the newer snapshot.</summary>
+        public byte Flags;
+        /// <summary>A player's Wish is ready now (legacy coloured Wish icon).</summary>
+        public bool WishReady { get { return (Flags & WireIndicators.FlagWishReady) != 0; } }
+        /// <summary>A regional mob is fighting (its attack cooldown runs or its bow is drawn).</summary>
+        public bool Engaged { get { return (Flags & WireIndicators.FlagEngaged) != 0; } }
+        /// <summary>The teleport-immunity ring is up (at most 1.5 s of immunity left).</summary>
+        public bool TeleportImmune { get { return (Flags & WireIndicators.FlagTeleportImmune) != 0; } }
+        /// <summary>A Fire player's roaming burst is armed.</summary>
+        public bool RoamReady { get { return (Flags & WireIndicators.FlagRoamReady) != 0; } }
+        /// <summary>The weapon in a player's second slot (the one not in hand); null for an empty slot (legacy draws fists).</summary>
+        public WeaponId? OffhandWeapon;
+        /// <summary>A player's top two invested stats (legacy build marks), most invested first; null when none.</summary>
+        public StatKey? TopStat1, TopStat2;
+        /// <summary>Sentenced mark plate: tier 0..4, brand 0..100, mark tax percent 0..100 (all zero when unmarked).</summary>
+        public byte MarkTier, Brand, MarkTax;
     }
 
     /// <summary>
@@ -129,7 +146,9 @@ namespace Roguehalla.Net
             for (int i = 0; i < cur.Length; i++)
             {
                 ref readonly WireActor c = ref cur[i];
-                var o = new InterpActor { Id = c.Id, Faction = c.Kind == (byte)ActorKind.QuestGiver ? (FactionId?)null : (FactionId)c.Faction, HpPct = c.HpPct, Status = (ActorStatus)c.Status, Weapon = c.Kind == (byte)ActorKind.QuestGiver ? (WeaponId?)null : (WeaponId)c.Weapon, Bounty = c.Bounty, Effects=c.Effects, DisplaceSeq=c.DisplaceSeq, Kind=(ActorKind)c.Kind, MobType=c.MobTypeCode==0?(MobTypeId?)null:(MobTypeId)(c.MobTypeCode-1),SourceSig=c.Sig, BarrierPct=c.BarrierPct, BarrierRingStep=c.BarrierRingStep, Archetype=c.Archetype, X = c.X, Y = c.Y, Facing = c.Facing };
+                var o = new InterpActor { Id = c.Id, Faction = c.Kind == (byte)ActorKind.QuestGiver ? (FactionId?)null : (FactionId)c.Faction, HpPct = c.HpPct, Status = (ActorStatus)c.Status, Weapon = c.Kind == (byte)ActorKind.QuestGiver ? (WeaponId?)null : (WeaponId)c.Weapon, Bounty = c.Bounty, Effects=c.Effects, DisplaceSeq=c.DisplaceSeq, Kind=(ActorKind)c.Kind, MobType=c.MobTypeCode==0?(MobTypeId?)null:(MobTypeId)(c.MobTypeCode-1),SourceSig=c.Sig, BarrierPct=c.BarrierPct, BarrierRingStep=c.BarrierRingStep, Archetype=c.Archetype,
+                    Flags = c.Flags, OffhandWeapon = IndicatorFacts.Offhand(c.Offhand), TopStat1 = IndicatorFacts.TopStat1(c.BuildMarks), TopStat2 = IndicatorFacts.TopStat2(c.BuildMarks),
+                    MarkTier = c.MarkTier, Brand = c.Brand, MarkTax = c.MarkTax, X = c.X, Y = c.Y, Facing = c.Facing };
                 int k = -1;
                 if (merge)
                 {

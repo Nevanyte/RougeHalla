@@ -24,6 +24,7 @@ fn actor(i: u32) -> WireActor {
         kind: (i % 3) as u8,
         barrier_pct: 0,
         barrier_ring_step: 0,
+        ..Default::default()
     }
 }
 
@@ -52,6 +53,7 @@ fn me() -> WireSelf {
         wish: None,
         barrier: 0.0,
         barrier_ring_step: 0,
+        ..Default::default()
     }
 }
 
@@ -291,6 +293,7 @@ fn other_lists_and_sizes_decoders_reject_are_refused() {
                 by: 2,
                 amount: 3.0,
                 passive: false,
+                critical: false,
             };
             u16::MAX as usize + 1
         ],
@@ -316,6 +319,7 @@ fn other_lists_and_sizes_decoders_reject_are_refused() {
                 by: 2,
                 amount: 3.0,
                 passive: false,
+                critical: false,
             };
             40_000
         ],

@@ -99,7 +99,10 @@ fn reference(
                     _ => None,
                 },
             }),
-            SeenEvent::MobArmed { .. } | SeenEvent::CampCleared { .. } => {}
+            SeenEvent::MobArmed { .. } => {}
+            SeenEvent::CampCleared { camp } => events.push(WireEvent::CampCleared {
+                camp: u16::try_from(camp).unwrap(),
+            }),
             SeenEvent::Toast { ref text } => events.push(WireEvent::Toast { text: text.clone() }),
             SeenEvent::ChestRefused { reason } => events.push(WireEvent::ChestRefused {
                 reason: match reason {
@@ -145,11 +148,19 @@ fn reference(
                 by,
                 amount,
                 passive,
+                critical,
             } => fx.push(WireFx::Hit {
                 victim: victim.0,
                 by: by.map_or(u32::MAX, |b| b.0),
                 amount: amount as f32,
                 passive,
+                critical,
+            }),
+            SeenEvent::Windup { by, weapon, a, ms } => fx.push(WireFx::Windup {
+                by: by.0,
+                weapon: weapon.code(),
+                a: a as f32,
+                ms: ms.clamp(0.0, 65535.0).round() as u16,
             }),
             SeenEvent::Block { id, by, weapon } => fx.push(WireFx::Block {
                 id: id.0,
@@ -157,12 +168,45 @@ fn reference(
                 weapon: weapon.code(),
             }),
             SeenEvent::Stagger { id } => fx.push(WireFx::Stagger { id: id.0 }),
-            SeenEvent::AttackCancelled { .. } => {} // No cancel telegraph in protocol 7.
-            SeenEvent::SignatureHit { .. } | SeenEvent::Heal { .. } => {} // No heal effect in protocol 7.
+            SeenEvent::AttackCancelled { id } => fx.push(WireFx::Cancel { id: id.0 }),
+            SeenEvent::Heal { id, amount } => fx.push(WireFx::Heal {
+                id: id.0,
+                amount: amount as f32,
+            }),
+            SeenEvent::SignatureHit {
+                victim,
+                by,
+                sig,
+                amount,
+                ..
+            } => fx.push(WireFx::SigHit {
+                victim: victim.0,
+                by: by.map_or(u32::MAX, |b| b.0),
+                kind: match sig {
+                    rh_sim::factions::SignatureKind::Burn => 1,
+                    rh_sim::factions::SignatureKind::Disease => 2,
+                    rh_sim::factions::SignatureKind::Backlash => 3,
+                    rh_sim::factions::SignatureKind::Mark => 4,
+                },
+                amount: amount as f32,
+            }),
+            SeenEvent::AbilityHit {
+                victim,
+                by,
+                ability,
+                amount,
+            } => fx.push(WireFx::SigHit {
+                victim: victim.0,
+                by: by.map_or(u32::MAX, |b| b.0),
+                kind: 16
+                    + rh_sim::status_runtime::AbilityId::ALL
+                        .iter()
+                        .position(|a| *a == ability)
+                        .unwrap() as u8,
+                amount: amount as f32,
+            }),
             // Scalar status/fields are transported; these separate event telegraphs remain omitted.
-            SeenEvent::AbilityHit { .. }
-            | SeenEvent::CastEnded { .. }
-            | SeenEvent::StatusApplied { .. } => {}
+            SeenEvent::CastEnded { .. } | SeenEvent::StatusApplied { .. } => {}
             SeenEvent::PickupRefused { reason } => events.push(WireEvent::PickupRefused {
                 reason: match reason {
                     rh_sim::PickupRefusal::Blocked => 1,

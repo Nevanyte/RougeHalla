@@ -430,6 +430,7 @@ fn event_len(e: &WireEvent) -> usize {
             1 + 3 + 2 + 1 + r.killed_by.as_deref().map_or(0, str_len) + 4 + 4 + 4 + 1
         }
         WireEvent::Toast { text } => 1 + str_len(text),
+        WireEvent::CampCleared { .. } => 1 + 2,
     }
 }
 
@@ -439,6 +440,10 @@ fn fx_len(f: &WireFx) -> usize {
         WireFx::Stagger { id } => 1 + varint_len(*id),
         WireFx::Swing { by, .. } => 1 + varint_len(*by) + 1 + 6,
         WireFx::Hit { victim, by, .. } => 1 + varint_len(*victim) + varint_len(*by) + 5,
+        WireFx::Windup { by, .. } => 1 + varint_len(*by) + 1 + 2 + 2,
+        WireFx::Cancel { id } => 1 + varint_len(*id),
+        WireFx::SigHit { victim, by, .. } => 1 + varint_len(*victim) + varint_len(*by) + 1 + 4,
+        WireFx::Heal { id, .. } => 1 + varint_len(*id) + 4,
         WireFx::Teleport => 1,
         WireFx::WishStarted {
             caster,
@@ -563,6 +568,15 @@ fn head_word(
     }
     if s.archetype != 0 {
         m |= HM_ARCHETYPE;
+    }
+    if s.flags != 0 {
+        m |= HM_FLAGS;
+    }
+    if s.build_marks != 0 {
+        m |= HM_BUILD_MARKS;
+    }
+    if s.mark_tier != 0 || s.brand != 0 || s.mark_tax != 0 {
+        m |= HM_MARK;
     }
     m
 }
@@ -694,6 +708,9 @@ fn self_len(s: &WireSelf, mask: u32) -> usize {
     if mask & HM_ARCHETYPE != 0 {
         n += 1;
     }
+    n += (mask & HM_FLAGS != 0) as usize
+        + (mask & HM_BUILD_MARKS != 0) as usize
+        + 3 * (mask & HM_MARK != 0) as usize;
     n
 }
 
@@ -771,11 +788,37 @@ impl<const N: usize> Fixed<N> {
 }
 
 /// Largest Snapshot head including protocol-12 Wish, barrier, and source-clock override groups.
-const MAX_HEAD_LEN: usize =
-    1 + 5 + 5 + 3 + 5 + 12 + 4 + 1 + 4 + 2 + 9 + 1 + 1 + 2 + 1 + 1 + 1 + 5 + 5 + 3 + 55 + 5 + 8 + 1;
-/// Largest actor: id 5, mask 2, x/y/facing 6, kit/hp/status, bounty 3, kind, effects 2, displacement, mob type, sig, barrier pair,
-/// archetype.
-const MAX_ACTOR_LEN: usize = 5 + 2 + 6 + 1 + 1 + 1 + 3 + 1 + 2 + 1 + 1 + 1 + 2 + 1;
+const MAX_HEAD_LEN: usize = 1
+    + 5
+    + 5
+    + 3
+    + 5
+    + 12
+    + 4
+    + 1
+    + 4
+    + 2
+    + 9
+    + 1
+    + 1
+    + 2
+    + 1
+    + 1
+    + 1
+    + 5
+    + 5
+    + 3
+    + 55
+    + 5
+    + 8
+    + 1
+    + 1
+    + 1
+    + 3;
+/// Largest actor: id 5, mask 3, x/y/facing 6, kit/hp/status, bounty 3, kind, effects 2, displacement, mob type, sig, barrier pair,
+/// archetype, flags, off-hand, build marks, mark plate 3.
+pub(crate) const MAX_ACTOR_LEN: usize =
+    5 + 3 + 6 + 1 + 1 + 1 + 3 + 1 + 2 + 1 + 1 + 1 + 2 + 1 + 1 + 1 + 1 + 3;
 
 /// Writes the self record for the head word `m` ([`head_word`] of `s`), fields in bit order.
 #[inline]
@@ -839,6 +882,15 @@ fn write_self(w: &mut Fixed<MAX_HEAD_LEN>, m: u32, s: &WireSelf) {
     if m & HM_ARCHETYPE != 0 {
         w.u8(s.archetype);
     }
+    if m & HM_FLAGS != 0 {
+        w.u8(s.flags);
+    }
+    if m & HM_BUILD_MARKS != 0 {
+        w.u8(s.build_marks);
+    }
+    if m & HM_MARK != 0 {
+        w.bytes([s.mark_tier, s.brand, s.mark_tax]);
+    }
 }
 
 /// The actor mask of `a`: a bit for every field that differs from its default.
@@ -878,6 +930,18 @@ fn actor_mask(a: &WireActor) -> u32 {
     if a.archetype != 0 {
         m |= AM_ARCHETYPE;
     }
+    if a.flags != 0 {
+        m |= AM_FLAGS;
+    }
+    if a.offhand != 0 {
+        m |= AM_OFFHAND;
+    }
+    if a.build_marks != 0 {
+        m |= AM_BUILD_MARKS;
+    }
+    if a.mark_tier != 0 || a.brand != 0 || a.mark_tax != 0 {
+        m |= AM_MARK;
+    }
     m
 }
 
@@ -903,6 +967,10 @@ fn actor_len(a: &WireActor, prev: Option<u32>) -> usize {
         + (m & AM_SIG != 0) as usize
         + 2 * (m & AM_BARRIER != 0) as usize
         + (m & AM_ARCHETYPE != 0) as usize
+        + (m & AM_FLAGS != 0) as usize
+        + (m & AM_OFFHAND != 0) as usize
+        + (m & AM_BUILD_MARKS != 0) as usize
+        + 3 * (m & AM_MARK != 0) as usize
 }
 
 /// The id as written: the first actor's absolute id, then the gap to the previous one (the observation sorts by id, so a
@@ -933,6 +1001,14 @@ fn snapshot_fault(phase: u8, me: Option<&WireSelf>, actors: &[WireActor]) -> Opt
         if s.wish.is_some_and(|wish| !wish_owner_valid(&wish)) {
             return Some("wish");
         }
+        if let Some(f) = indicator_fault(
+            0,
+            s.build_marks,
+            [s.mark_tier, s.brand, s.mark_tax],
+            s.flags,
+        ) {
+            return Some(f);
+        }
     }
     let mut prev: Option<u32> = None;
     for a in actors {
@@ -950,6 +1026,9 @@ fn snapshot_fault(phase: u8, me: Option<&WireSelf>, actors: &[WireActor]) -> Opt
         }
         if a.barrier_pct > 100 || a.barrier_ring_step > 8 {
             return Some("barrier");
+        }
+        if let Some(f) = actor_indicator_fault(a) {
+            return Some(f);
         }
         if !quant::pos_in_range(a.x) || !quant::pos_in_range(a.y) {
             return Some("position");
@@ -972,8 +1051,20 @@ fn actor_looks_bad(a: &WireActor, prev: Option<u32>) -> bool {
         || a.hp_pct > 100
         || a.barrier_pct > 100
         || a.barrier_ring_step > 8
+        || actor_indicator_fault(a).is_some()
         || !(quant::pos_in_range(a.x) && quant::pos_in_range(a.y))
         || prev.is_some_and(|p| a.id <= p)
+}
+
+/// The actor's indicator facts as a decoder checks them (ADR0026).
+#[inline(always)]
+fn actor_indicator_fault(a: &WireActor) -> Option<&'static str> {
+    indicator_fault(
+        a.offhand,
+        a.build_marks,
+        [a.mark_tier, a.brand, a.mark_tax],
+        a.flags,
+    )
 }
 
 /// A QuestGiver actor has one contextual sentinel tuple. Other actor kinds and Self retain the full four-bit domains.
@@ -1037,6 +1128,18 @@ fn write_actor(out: &mut Writer, a: &WireActor, prev: Option<u32>) {
     }
     if m & AM_ARCHETYPE != 0 {
         w.u8(a.archetype);
+    }
+    if m & AM_FLAGS != 0 {
+        w.u8(a.flags);
+    }
+    if m & AM_OFFHAND != 0 {
+        w.u8(a.offhand);
+    }
+    if m & AM_BUILD_MARKS != 0 {
+        w.u8(a.build_marks);
+    }
+    if m & AM_MARK != 0 {
+        w.bytes([a.mark_tier, a.brand, a.mark_tax]);
     }
     w.put(out);
 }
@@ -1335,6 +1438,12 @@ impl Frame for ServerMsg {
                                 && ability <= 4
                                 && reason <= 2
                         }
+                        WireFx::Windup { weapon, .. } if weapon > MAX_KIT_CODE => {
+                            return Err(EncodeError::BadValue("windup weapon"));
+                        }
+                        WireFx::SigHit { kind, .. } if !hit_kind_valid(kind) => {
+                            return Err(EncodeError::BadValue("hit kind"));
+                        }
                         _ => true,
                     };
                     if !good {
@@ -1489,6 +1598,10 @@ impl Frame for ServerMsg {
                             w.u8(10);
                             w.str(text);
                         }
+                        WireEvent::CampCleared { camp } => {
+                            w.u8(11);
+                            w.u16(*camp);
+                        }
                         WireEvent::PickupRefused { reason } => {
                             w.u8(5);
                             w.u8(*reason);
@@ -1603,12 +1716,41 @@ impl Frame for ServerMsg {
                             by,
                             amount,
                             passive,
+                            critical,
                         } => {
                             w.u8(2);
                             w.varint(victim);
                             w.varint(by);
                             w.f32(amount);
-                            w.u8(passive as u8);
+                            w.u8(passive as u8 | (critical as u8) << 1);
+                        }
+                        WireFx::Windup { by, weapon, a, ms } => {
+                            w.u8(9);
+                            w.varint(by);
+                            w.u8(weapon);
+                            w.u16(quant::quantize_facing(a));
+                            w.u16(ms);
+                        }
+                        WireFx::Cancel { id } => {
+                            w.u8(10);
+                            w.varint(id);
+                        }
+                        WireFx::SigHit {
+                            victim,
+                            by,
+                            kind,
+                            amount,
+                        } => {
+                            w.u8(11);
+                            w.varint(victim);
+                            w.varint(by);
+                            w.u8(kind);
+                            w.f32(amount);
+                        }
+                        WireFx::Heal { id, amount } => {
+                            w.u8(12);
+                            w.varint(id);
+                            w.f32(amount);
                         }
                     }
                 }

@@ -158,6 +158,9 @@ namespace Roguehalla.Net.Protocol
                 }
                 if (d.HasBarrier) { me.Barrier = d.Barrier; me.BarrierRingStep = d.BarrierRingStep; }
                 if (d.HasArchetype) me.Archetype = d.Archetype;
+                if (d.HasFlags) me.Flags = d.Flags;
+                if (d.HasBuildMarks) me.BuildMarks = d.BuildMarks;
+                if (d.HasMark) { me.MarkTier = d.MarkTier; me.Brand = d.Brand; me.MarkTax = d.MarkTax; }
                 _me.CopyFrom(me);
                 s.Me = me;
             }
@@ -196,6 +199,10 @@ namespace Roguehalla.Net.Protocol
             if ((ch.Mask & ActorDelta.MSig) != 0) a.Sig = ch.Sig;
             if ((ch.Mask & ActorDelta.MBarrier) != 0) { a.BarrierPct = ch.BarrierPct; a.BarrierRingStep = ch.BarrierRingStep; }
             if ((ch.Mask & ActorDelta.MArchetype) != 0) a.Archetype = ch.Archetype;
+            if ((ch.Mask & ActorDelta.MFlags) != 0) a.Flags = ch.Flags;
+            if ((ch.Mask & ActorDelta.MOffhand) != 0) a.Offhand = ch.Offhand;
+            if ((ch.Mask & ActorDelta.MBuildMarks) != 0) a.BuildMarks = ch.BuildMarks;
+            if ((ch.Mask & ActorDelta.MMark) != 0) { a.MarkTier = ch.MarkTier; a.Brand = ch.Brand; a.MarkTax = ch.MarkTax; }
             return a;
         }
 

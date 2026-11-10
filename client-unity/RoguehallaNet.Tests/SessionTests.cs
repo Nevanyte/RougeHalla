@@ -57,6 +57,39 @@ namespace Roguehalla.Net.Tests
         }
 
         [Test]
+        public void SelfIndicatorFactsAndTheRosterReachTheSessionViews()
+        {
+            CollectionAssert.IsEmpty(_s.Roster); Assert.IsNull(_s.RosterName(3));
+            ToMatch();
+            _t.Deliver(new ServerMsg.Snapshot { Tick = 2, Me = new WireSelf { Id = 3, Status = 1, MaxHp = 10, Hp = 10,
+                Flags = WireIndicators.FlagWishReady | WireIndicators.FlagRoamReady, BuildMarks = 0x72, MarkTier = 3, Brand = 75, MarkTax = 40 } });
+            var me = _s.Me;
+            Assert.IsTrue(me.WishReady); Assert.IsTrue(me.RoamReady); Assert.IsFalse(me.TeleportImmune);
+            Assert.AreEqual(StatKey.Ap, me.TopStat1); Assert.AreEqual(StatKey.Mr, me.TopStat2);
+            Assert.AreEqual((3, 75, 40), (me.MarkTier, me.Brand, me.MarkTax));
+
+            _t.Deliver(new ServerMsg.State { Tick = 2, Items = new StateItem[] { new RosterState { Rows = new[] {
+                new WireRosterRow { Id = 3, Name = "Ásgeir" }, new WireRosterRow { Id = 9, Name = "bot-9", Bot = true } } } } });
+            Assert.AreEqual(2, _s.Roster.Count);
+            Assert.AreEqual((3u, "Ásgeir", false), (_s.Roster[0].Id, _s.Roster[0].Name, _s.Roster[0].Bot));
+            Assert.IsTrue(_s.Roster[1].Bot);
+            Assert.AreEqual("bot-9", _s.RosterName(9)); Assert.IsNull(_s.RosterName(4));
+            Assert.IsFalse(_s.Collections.HasFullState, "the roster alone is not the full keyed state");
+
+            // The encoder refuses what the decoder refuses.
+            foreach (var bad in new[] {
+                new WireRosterRow[] { new WireRosterRow { Id = 0, Name = "a" } },
+                new WireRosterRow[] { new WireRosterRow { Id = 2, Name = "a" }, new WireRosterRow { Id = 2, Name = "b" } },
+                new WireRosterRow[] { new WireRosterRow { Id = 1, Name = "" } },
+                new WireRosterRow[] { new WireRosterRow { Id = 1, Name = new string('x', 25) } },
+                new WireRosterRow[] { new WireRosterRow { Id = 1, Name = "a\nb" } } })
+                Assert.Throws<EncodeException>(() => new ServerMsg.State { Items = new StateItem[] { new RosterState { Rows = bad } } }.Encode());
+            var tooMany = new WireRosterRow[33];
+            for (int i = 0; i < tooMany.Length; i++) tooMany[i] = new WireRosterRow { Id = (uint)i + 1, Name = "p" };
+            Assert.Throws<EncodeException>(() => new ServerMsg.State { Items = new StateItem[] { new RosterState { Rows = tooMany } } }.Encode());
+        }
+
+        [Test]
         public void UpdatePingsOncePerIntervalAndPongFeedsTheClockSync()
         {
             ToMatch();

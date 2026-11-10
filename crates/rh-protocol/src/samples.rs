@@ -9,10 +9,14 @@ use crate::delta::{
 };
 use crate::map::MapBlob;
 use crate::state::{
-    MAX_QUEST_ROWS, MAX_QUEST_VIEW_BYTES, MAX_REWARD_CHESTS, MAX_VISIBLE_FIELDS, MAX_VISIBLE_PROPS,
+    MAX_QUEST_ROWS, MAX_QUEST_VIEW_BYTES, MAX_REWARD_CHESTS, MAX_ROSTER_NAME, MAX_VISIBLE_FIELDS,
+    MAX_VISIBLE_PROPS,
 };
 use crate::*;
-use crate::{AM_BOUNTY, AM_HP, AM_KIND, AM_KIT, AM_MOB_TYPE, AM_STATUS};
+use crate::{
+    AM_BOUNTY, AM_BUILD_MARKS, AM_FLAGS, AM_HP, AM_KIND, AM_KIT, AM_MARK, AM_MOB_TYPE, AM_OFFHAND,
+    AM_STATUS, HM_BUILD_MARKS, HM_FLAGS, HM_MARK,
+};
 
 // The aim of -3.1415927 is deliberate: an f32 at the -PI edge of the angle range.
 #[allow(clippy::approx_constant)]
@@ -990,6 +994,42 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                 ],
             },
         ),
+        // Protocol 16, ADR0026: State key 12, the roster (a multi-byte id gap, a bot, a 24-byte name, non-ASCII text).
+        (
+            "state_roster",
+            ServerMsg::State {
+                tick: 210,
+                items: vec![StateItem::Roster(vec![
+                    WireRosterRow {
+                        id: 1,
+                        bot: false,
+                        name: "Wren".into(),
+                    },
+                    WireRosterRow {
+                        id: 2,
+                        bot: true,
+                        name: "bot-Ashen_7".into(),
+                    },
+                    WireRosterRow {
+                        id: 300,
+                        bot: false,
+                        name: "x".repeat(MAX_ROSTER_NAME),
+                    },
+                    WireRosterRow {
+                        id: 301,
+                        bot: true,
+                        name: "S\u{f8}ren".into(),
+                    },
+                ])],
+            },
+        ),
+        (
+            "state_roster_empty",
+            ServerMsg::State {
+                tick: 211,
+                items: vec![StateItem::Roster(vec![])],
+            },
+        ),
         (
             "state_trade_available",
             ServerMsg::State {
@@ -1284,6 +1324,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     barrier_pct: 11,
                     barrier_ring_step: 2,
                     archetype: 1,
+                    ..WireActor::default()
                 }],
             },
         ),
@@ -1573,6 +1614,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                         by: u32::MAX,
                         amount: 4.0,
                         passive: true,
+                        critical: false,
                     },
                 ],
             },
@@ -1582,6 +1624,91 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
             ServerMsg::Fx {
                 tick: 777,
                 fx: vec![WireFx::Teleport],
+            },
+        ),
+        // Protocol 16, ADR0026: the windup telegraph (quantized angle, multi-byte attacker id), its cancel, a critical
+        // passive hit, signature/ability chunks of every kind class, a redacted source and heals.
+        (
+            "fx_indicators",
+            ServerMsg::Fx {
+                tick: 901,
+                fx: vec![
+                    WireFx::Windup {
+                        by: 70_000,
+                        weapon: 0,
+                        a: -2.5,
+                        ms: 350,
+                    },
+                    WireFx::Windup {
+                        by: 3,
+                        weapon: 4,
+                        a: 3.1415927,
+                        ms: u16::MAX,
+                    },
+                    WireFx::Cancel { id: 70_000 },
+                    WireFx::Hit {
+                        victim: 2,
+                        by: 3,
+                        amount: 61.5,
+                        passive: false,
+                        critical: true,
+                    },
+                    WireFx::Hit {
+                        victim: 3,
+                        by: 2,
+                        amount: 7.25,
+                        passive: true,
+                        critical: true,
+                    },
+                    WireFx::SigHit {
+                        victim: 2,
+                        by: 3,
+                        kind: HIT_KIND_BURN,
+                        amount: 12.0,
+                    },
+                    WireFx::SigHit {
+                        victim: 2,
+                        by: u32::MAX,
+                        kind: HIT_KIND_DISEASE,
+                        amount: 3.5,
+                    },
+                    WireFx::SigHit {
+                        victim: 3,
+                        by: 2,
+                        kind: HIT_KIND_BACKLASH,
+                        amount: 20.0,
+                    },
+                    WireFx::SigHit {
+                        victim: 3,
+                        by: 2,
+                        kind: HIT_KIND_MARK,
+                        amount: 40.0,
+                    },
+                    WireFx::SigHit {
+                        victim: 3,
+                        by: 2,
+                        kind: HIT_KIND_ABILITY + 4,
+                        amount: 9.0,
+                    },
+                    WireFx::Heal {
+                        id: 3,
+                        amount: 14.75,
+                    },
+                    WireFx::Heal {
+                        id: 128,
+                        amount: 0.5,
+                    },
+                ],
+            },
+        ),
+        (
+            "events_camp_cleared",
+            ServerMsg::Events {
+                tick: 902,
+                events: vec![
+                    WireEvent::CampCleared { camp: 0 },
+                    WireEvent::CampCleared { camp: 511 },
+                ],
             },
         ),
         (
@@ -1950,6 +2077,91 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                 ],
             },
         ),
+        // Protocol 16, ADR0026: indicator facts on the self (flags, build marks, mark plate) and on actors (flags, off-hand,
+        // build marks, mark plate): every flag bit, the largest stat key, an explicit fists off-hand (code 6), a lone first
+        // mark, the mark plate's maxima and an engaged mob.
+        (
+            "snapshot_indicator_facts",
+            ServerMsg::Snapshot {
+                training: false,
+                owner_combat: None,
+                tick: 77,
+                server_time: snapshot_server_ms(77),
+                phase: 1,
+                ack_input: 5,
+                me: Some(WireSelf {
+                    id: 5,
+                    faction: 1,
+                    x: 100.0,
+                    y: 200.0,
+                    hp: 800.0,
+                    max_hp: 1000.0,
+                    status: 1,
+                    flags: ACTOR_FLAG_WISH_READY
+                        | ACTOR_FLAG_TELEPORT_IMMUNE
+                        | ACTOR_FLAG_ROAM_READY,
+                    build_marks: 1 | (3 << 4),
+                    mark_tier: 2,
+                    brand: 50,
+                    mark_tax: 15,
+                    ..WireSelf::default()
+                }),
+                actors: vec![
+                    WireActor {
+                        id: 6,
+                        faction: 4,
+                        x: 120.0,
+                        y: 210.0,
+                        hp_pct: 90,
+                        status: 1,
+                        weapon: 0,
+                        flags: ACTOR_FLAG_WISH_READY,
+                        offhand: 2,
+                        build_marks: 9 | (5 << 4),
+                        mark_tier: 4,
+                        brand: 100,
+                        mark_tax: 100,
+                        ..WireActor::default()
+                    },
+                    WireActor {
+                        id: 7,
+                        faction: 2,
+                        x: 130.0,
+                        y: 210.0,
+                        hp_pct: 100,
+                        status: 1,
+                        weapon: 3,
+                        offhand: 6,
+                        build_marks: 4,
+                        ..WireActor::default()
+                    },
+                    WireActor {
+                        id: 40,
+                        faction: 3,
+                        x: 160.0,
+                        y: 220.0,
+                        hp_pct: 100,
+                        status: 1,
+                        weapon: 4,
+                        kind: 1,
+                        mob_type_code: 3,
+                        flags: ACTOR_FLAG_ENGAGED,
+                        ..WireActor::default()
+                    },
+                    WireActor {
+                        id: 41,
+                        faction: 0,
+                        x: 170.0,
+                        y: 220.0,
+                        hp_pct: 100,
+                        status: 1,
+                        weapon: 1,
+                        flags: ACTOR_FLAGS_KNOWN,
+                        ..WireActor::default()
+                    },
+                ],
+            },
+        ),
         // A zero max_hp (a varint 0) and a hp of -0.0 (bits preserved: the hp bit is set, as the bit patterns differ).
         (
             "snapshot_zero_hp",
@@ -2112,6 +2324,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                         by: 1,
                         amount: 17.690966,
                         passive: false,
+                        critical: false,
                     },
                 ],
             },
@@ -2134,6 +2347,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                         by: u32::MAX,
                         amount: 0.5,
                         passive: false,
+                        critical: false,
                     },
                 ],
             },
@@ -3549,7 +3763,35 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ("empty", vec![]),
         ("unknown_tag", vec![0x7f]),
         ("client_tag_from_server", vec![0x01]),
-        ("hit_bad_passive", vec![0x85, 0, 1, 2, 1, 2, 0, 0, 0, 0, 2]),
+        // Protocol 16, ADR0026: the hit's flags byte (bit 0 passive, bit 1 critical) refuses any other bit.
+        (
+            "hit_flags_unknown_bit",
+            vec![0x85, 0, 1, 2, 1, 2, 0, 0, 0, 0, 4],
+        ),
+        // Windup: by 1, weapon 16 (over the 4-bit code), angle, ms.
+        (
+            "fx_windup_weapon_over_15",
+            vec![0x85, 0, 1, 9, 1, 16, 0, 0, 0, 0],
+        ),
+        ("fx_windup_truncated", vec![0x85, 0, 1, 9, 1, 2, 0, 0, 0]),
+        // Signature hit: victim 1, by 2, kind, amount.
+        (
+            "fx_sig_hit_kind_zero",
+            vec![0x85, 0, 1, 11, 1, 2, 0, 0, 0, 0, 0],
+        ),
+        (
+            "fx_sig_hit_kind_6",
+            vec![0x85, 0, 1, 11, 1, 2, 6, 0, 0, 0, 0],
+        ),
+        (
+            "fx_sig_hit_kind_21",
+            vec![0x85, 0, 1, 11, 1, 2, 21, 0, 0, 0, 0],
+        ),
+        ("fx_heal_truncated", vec![0x85, 0, 1, 12, 1, 0, 0, 0]),
+        (
+            "camp_cleared_truncated",
+            vec![0x84, 0, 0, 0, 0, 1, 0, 11, 0],
+        ),
         ("pickup_bad_reason_zero", vec![0x84, 0, 0, 0, 0, 1, 0, 5, 0]),
         (
             "pickup_bad_reason_unknown",
@@ -3574,7 +3816,35 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
             snapshot_bytes(0x0002, &[], 0, &[]),
         ),
         // Bit 13 is not a field of this version: a mask bit a decoder does not know is refused, never skipped.
-        ("head_unknown_bit", snapshot_bytes(1 << 22, &[], 0, &[])),
+        ("head_unknown_bit", snapshot_bytes(1 << 25, &[], 0, &[])),
+        // Protocol 16, ADR0026: the self's indicator facts are checked like an actor's.
+        (
+            "self_flags_unknown_bit",
+            snapshot_bytes(
+                1 | HM_FLAGS,
+                &[vec![1], vec![0; 12], vec![1], vec![0x10]].concat(),
+                0,
+                &[],
+            ),
+        ),
+        (
+            "self_build_marks_repeated",
+            snapshot_bytes(
+                1 | HM_BUILD_MARKS,
+                &[vec![1], vec![0; 12], vec![1], vec![0x22]].concat(),
+                0,
+                &[],
+            ),
+        ),
+        (
+            "self_mark_tier_over_4",
+            snapshot_bytes(
+                1 | HM_MARK,
+                &[vec![1], vec![0; 12], vec![1], vec![5, 0, 0]].concat(),
+                0,
+                &[],
+            ),
+        ),
         ("wish_ability_over_4", {
             let mut w = valid_wish();
             w[0] = 5;
@@ -3725,7 +3995,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ("actor_count_without_actors", snapshot_bytes(0, &[], 1, &[])),
         (
             "actor_reserved_mask_bit",
-            snapshot_bytes(0, &[], 1, &actor_bytes(0x800, &[])),
+            snapshot_bytes(0, &[], 1, &actor_bytes(1 << 15, &[])),
         ),
         (
             "actor_id_gap_zero",
@@ -3777,7 +4047,44 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         // Kind and status/displacement bits are known; bit 9 is not.
         (
             "actor_unknown_mask_bit_after_kind",
-            snapshot_bytes(0, &[], 1, &actor_bytes(1 << 11, &[])),
+            snapshot_bytes(0, &[], 1, &actor_bytes(1 << 16, &[])),
+        ),
+        // Protocol 16, ADR0026: actor indicator facts out of range.
+        (
+            "actor_flags_unknown_bit",
+            snapshot_bytes(0, &[], 1, &actor_bytes(AM_FLAGS, &[0x10])),
+        ),
+        (
+            "actor_offhand_over_16",
+            snapshot_bytes(0, &[], 1, &actor_bytes(AM_OFFHAND, &[17])),
+        ),
+        (
+            "actor_build_marks_key_over_9",
+            snapshot_bytes(0, &[], 1, &actor_bytes(AM_BUILD_MARKS, &[10])),
+        ),
+        (
+            "actor_build_marks_second_without_first",
+            snapshot_bytes(0, &[], 1, &actor_bytes(AM_BUILD_MARKS, &[0x30])),
+        ),
+        (
+            "actor_build_marks_repeated",
+            snapshot_bytes(0, &[], 1, &actor_bytes(AM_BUILD_MARKS, &[0x33])),
+        ),
+        (
+            "actor_mark_tier_over_4",
+            snapshot_bytes(0, &[], 1, &actor_bytes(AM_MARK, &[5, 0, 0])),
+        ),
+        (
+            "actor_mark_brand_over_100",
+            snapshot_bytes(0, &[], 1, &actor_bytes(AM_MARK, &[1, 101, 0])),
+        ),
+        (
+            "actor_mark_tax_over_100",
+            snapshot_bytes(0, &[], 1, &actor_bytes(AM_MARK, &[1, 25, 101])),
+        ),
+        (
+            "actor_mark_truncated",
+            snapshot_bytes(0, &[], 1, &actor_bytes(AM_MARK, &[1, 25])),
         ),
         (
             "actor_hp_over_100",
@@ -3789,7 +4096,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ),
         // Fx: a count past u16, a bad item tag.
         ("fx_too_many", vec![0x85, 0, 0x80, 0x80, 0x04]),
-        ("fx_bad_tag", vec![0x85, 0, 1, 9]),
+        ("fx_bad_tag", vec![0x85, 0, 1, 13]),
         // State: key zero is undefined; truncated and trailing bytes remain invalid.
         ("chest_bad_reason_zero", vec![0x84, 0, 0, 0, 0, 1, 0, 6, 0]),
         (
@@ -3822,7 +4129,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ("state_reward_kill_truncated_gain", reward_frame(1, &[3, 0])),
         ("state_reward_options_too_many", reward_frame(4, &[])),
         ("state_plan_negative_deadline", negative_plan),
-        ("state_unknown_key", vec![0x88, 0, 1, 12]),
+        ("state_unknown_key", vec![0x88, 0, 1, 13]),
         ("state_quest_status_unknown", quest_bad_status),
         ("state_quest_flags_unknown", quest_bad_flags),
         ("state_quest_visited_unknown", quest_bad_visited),
@@ -3932,7 +4239,39 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ),
         ("state_duplicate_key", vec![0x88, 0, 2, 1, 0, 1, 0]),
         ("state_key_order", vec![0x88, 0, 2, 3, 0, 1, 0]),
-        ("state_too_many_keys", vec![0x88, 0, 12]),
+        ("state_too_many_keys", vec![0x88, 0, 13]),
+        // Protocol 16, ADR0026: State key 12, the roster.
+        ("state_roster_count_over_32", vec![0x88, 0, 1, 12, 33]),
+        (
+            "state_roster_id_zero",
+            vec![0x88, 0, 1, 12, 1, 0, 0, 1, b'a'],
+        ),
+        (
+            "state_roster_order",
+            vec![0x88, 0, 1, 12, 2, 5, 0, 1, b'a', 5, 0, 1, b'b'],
+        ),
+        (
+            "state_roster_flags_unknown",
+            vec![0x88, 0, 1, 12, 1, 1, 2, 1, b'a'],
+        ),
+        ("state_roster_name_empty", vec![0x88, 0, 1, 12, 1, 1, 0, 0]),
+        ("state_roster_name_long", {
+            let mut v = vec![0x88, 0, 1, 12, 1, 1, 0, 25];
+            v.extend_from_slice(&[b'a'; 25]);
+            v
+        }),
+        (
+            "state_roster_name_control",
+            vec![0x88, 0, 1, 12, 1, 1, 0, 2, b'a', 0x07],
+        ),
+        (
+            "state_roster_name_utf8",
+            vec![0x88, 0, 1, 12, 1, 1, 0, 1, 0xff],
+        ),
+        (
+            "state_roster_truncated",
+            vec![0x88, 0, 1, 12, 1, 1, 0, 3, b'a'],
+        ),
         ("state_too_many_props", vec![0x88, 0, 1, 2, 0x81, 4]),
         ("state_too_many_fields", vec![0x88, 0, 1, 3, 0x81, 4]),
         ("state_too_many_rewards", vec![0x88, 0, 1, 4, 0x81, 4]),
@@ -4145,6 +4484,7 @@ fn wa(id: u32, x: f32, y: f32, hp_pct: u8, status: u8) -> WireActor {
         barrier_pct: 0,
         barrier_ring_step: 0,
         archetype: (id % 13) as u8,
+        ..WireActor::default()
     }
 }
 
@@ -4173,6 +4513,7 @@ fn chain_self(x: f32) -> WireSelf {
         barrier: 0.0,
         barrier_ring_step: 0,
         archetype: 3,
+        ..WireSelf::default()
     }
 }
 
@@ -4342,6 +4683,105 @@ pub fn chain_samples() -> Vec<(&'static str, Vec<ChainStep>)> {
             prior = Some(data);
         }
         chains.push(("self_archetype_delta", steps));
+    }
+    // Protocol 16, ADR0026: indicator facts arrive with a new actor, change in deltas (delta actor bits 14..=17, self head
+    // bits 26..=28) and are not resent while unchanged; a cleared fact returns to its default.
+    {
+        let mut encoder = ConnEncoder::new();
+        let mut tracker = SnapshotTracker::new();
+        let mut steps = Vec::new();
+        let mut prior: Option<SnapshotData> = None;
+        // (tick, actor flags, off-hand, build marks, mark, self flags, self marks)
+        #[allow(clippy::type_complexity)]
+        let script: [(u32, u8, u8, u8, [u8; 3], u8, u8); 7] = [
+            (
+                1,
+                ACTOR_FLAG_WISH_READY,
+                2,
+                0x31,
+                [0; 3],
+                ACTOR_FLAG_WISH_READY,
+                0x21,
+            ),
+            (
+                2,
+                ACTOR_FLAG_WISH_READY,
+                2,
+                0x31,
+                [0; 3],
+                ACTOR_FLAG_WISH_READY,
+                0x21,
+            ),
+            (3, 0, 0, 0x31, [1, 25, 10], 0, 0x21),
+            (
+                4,
+                ACTOR_FLAG_ROAM_READY,
+                5,
+                0x13,
+                [1, 25, 10],
+                ACTOR_FLAG_TELEPORT_IMMUNE,
+                0x08,
+            ),
+            (5, 0, 0, 0, [0; 3], 0, 0),
+            // Tick 6: actor 2 departs. Tick 7: it returns inside a delta as a NEW actor with every fact set (delta actor
+            // bits 14..=17 on the new-actor path).
+            (6, 0, 0, 0, [0; 3], 0, 0),
+            (
+                7,
+                ACTOR_FLAGS_KNOWN,
+                MAX_OFFHAND_CODE,
+                0x98,
+                [MAX_MARK_TIER, 100, 100],
+                ACTOR_FLAG_WISH_READY,
+                0x12,
+            ),
+        ];
+        for (tick, flags, offhand, marks, mark, self_flags, self_marks) in script {
+            let mut me = chain_self(400.0);
+            me.flags = self_flags;
+            me.build_marks = self_marks;
+            me.mark_tier = mark[0];
+            me.brand = mark[1];
+            me.mark_tax = mark[2];
+            let mut a = wa(2, 10., 20., 100, 1);
+            a.flags = flags;
+            a.offhand = offhand;
+            a.build_marks = marks;
+            [a.mark_tier, a.brand, a.mark_tax] = mark;
+            let mob = WireActor {
+                kind: 1,
+                mob_type_code: 7,
+                flags: if tick % 2 == 0 { ACTOR_FLAG_ENGAGED } else { 0 },
+                ..wa(9, 50., 60., 100, 1)
+            };
+            let data = if tick == 6 {
+                snap(tick, 1, tick, Some(me), &[mob])
+            } else {
+                snap(tick, 1, tick, Some(me), &[a, mob])
+            };
+            let (frame, kind) = encoder.encode_frame(data.clone());
+            if let Some(base) = prior.as_ref() {
+                assert_eq!(kind, FrameKind::Delta);
+                let d = delta::diff(base, &data).unwrap();
+                if tick == 2 {
+                    assert!(
+                        d.changed.iter().all(|c| c.q.id != 2),
+                        "unchanged facts are not resent"
+                    );
+                }
+                assert_eq!(ServerMsg::SnapshotDelta(d).encode(), frame);
+            } else {
+                assert_eq!(kind, FrameKind::Full);
+            }
+            let got = tracker.decode(&frame).expect("indicator facts apply");
+            assert_eq!(got, data.decoded());
+            steps.push(ChainStep {
+                frame,
+                outcome: ChainOutcome::Applied(got),
+            });
+            prior = Some(data);
+        }
+        chains.push(("indicator_facts_delta", steps));
     }
     {
         let mut encoder = ConnEncoder::new();
@@ -5232,7 +5672,40 @@ pub fn malformed_deltas() -> Vec<(&'static str, Vec<u8>)> {
             delta_bytes(10, 1, delta::DH_ARCHETYPE, &[3, 0]),
         ),
         // Bit 25 is not a field of this version; bit 24 carries owner combat.
-        ("delta_head_unknown_bit", delta_bytes(10, 1, 1 << 26, &[0])),
+        ("delta_head_unknown_bit", delta_bytes(10, 1, 1 << 29, &[0])),
+        // Protocol 16, ADR0026: self and actor indicator facts in a delta.
+        (
+            "delta_head_flags_without_present_bit",
+            delta_bytes(10, 1, delta::DH_FLAGS, &[1, 0]),
+        ),
+        (
+            "delta_self_flags_unknown_bit",
+            delta_bytes(10, 1, DH_PRESENT | delta::DH_FLAGS, &[0x20, 0]),
+        ),
+        (
+            "delta_self_build_marks_key_over_9",
+            delta_bytes(10, 1, DH_PRESENT | delta::DH_BUILD_MARKS, &[0x1a, 0]),
+        ),
+        (
+            "delta_self_mark_brand_over_100",
+            delta_bytes(10, 1, DH_PRESENT | delta::DH_MARK, &[1, 200, 0, 0]),
+        ),
+        (
+            "delta_actor_flags_unknown_bit",
+            delta_bytes(10, 1, 0, &[1, 5, 0x80, 0x80, 0x01, 0x10]),
+        ),
+        (
+            "delta_actor_offhand_over_16",
+            delta_bytes(10, 1, 0, &[1, 5, 0x80, 0x80, 0x02, 17]),
+        ),
+        (
+            "delta_actor_build_marks_repeated",
+            delta_bytes(10, 1, 0, &[1, 5, 0x80, 0x80, 0x04, 0x44]),
+        ),
+        (
+            "delta_actor_mark_tier_over_4",
+            delta_bytes(10, 1, 0, &[1, 5, 0x80, 0x80, 0x08, 9, 0, 0]),
+        ),
         (
             "delta_owner_combat_option_unknown",
             delta_owner(2, &[], false),
@@ -5266,10 +5739,10 @@ pub fn malformed_deltas() -> Vec<(&'static str, Vec<u8>)> {
             delta_bytes(10, 1, DH_PRESENT | DH_STATUS, &[4, 0]),
         ),
         ("delta_phase_over_3", delta_bytes(10, 1, DH_PHASE, &[4, 0])),
-        // Actor delta bit 14 is not a field of this version.
+        // Actor delta bit 18 is not a field of this version.
         (
             "delta_actor_mask_unknown_bit",
-            delta_bytes(10, 1, 0, &[1, 1, 0x80, 0x80, 0x01]),
+            delta_bytes(10, 1, 0, &[1, 1, 0x80, 0x80, 0x10]),
         ),
         (
             "delta_actor_status_over_3",
@@ -5409,7 +5882,7 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
     let me = match me {
         None => "null".to_string(),
         Some(s) => format!(
-            "{{\"id\": {}, \"faction\": {}, \"xBits\": {}, \"yBits\": {}, \"facingBits\": {}, \"hpBits\": {}, \"maxHpBits\": {}, \"status\": {}, \"weapon\": {}, \"readyInMs\": {}, \"kills\": {}, \"bounty\": {}, \"gv\": {}, \"moveSeq\": {}, \"effects\": {}, \"displaceSeq\": {}, \"sig\": {}, \"huntTarget\": {}, \"huntStacks\": {}, \"wish\": {}, \"barrierBits\": {}, \"barrierRingStep\": {}, \"archetype\": {}}}",
+            "{{\"id\": {}, \"faction\": {}, \"xBits\": {}, \"yBits\": {}, \"facingBits\": {}, \"hpBits\": {}, \"maxHpBits\": {}, \"status\": {}, \"weapon\": {}, \"readyInMs\": {}, \"kills\": {}, \"bounty\": {}, \"gv\": {}, \"moveSeq\": {}, \"effects\": {}, \"displaceSeq\": {}, \"sig\": {}, \"huntTarget\": {}, \"huntStacks\": {}, \"wish\": {}, \"barrierBits\": {}, \"barrierRingStep\": {}, \"archetype\": {}, \"flags\": {}, \"buildMarks\": {}, \"markTier\": {}, \"brand\": {}, \"markTax\": {}}}",
             s.id,
             s.faction,
             bits(s.x),
@@ -5432,14 +5905,19 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
             json_wish(s.wish),
             bits(s.barrier),
             s.barrier_ring_step,
-            s.archetype
+            s.archetype,
+            s.flags,
+            s.build_marks,
+            s.mark_tier,
+            s.brand,
+            s.mark_tax
         ),
     };
     let actors: Vec<String> = actors
         .iter()
         .map(|a| {
             format!(
-                "{{\"id\": {}, \"faction\": {}, \"xBits\": {}, \"yBits\": {}, \"facingBits\": {}, \"hpPct\": {}, \"status\": {}, \"weapon\": {}, \"bounty\": {}, \"kind\": {}, \"effects\": {}, \"displaceSeq\": {}, \"mobTypeCode\": {}, \"sig\": {}, \"barrierPct\": {}, \"barrierRingStep\": {}, \"archetype\": {}}}",
+                "{{\"id\": {}, \"faction\": {}, \"xBits\": {}, \"yBits\": {}, \"facingBits\": {}, \"hpPct\": {}, \"status\": {}, \"weapon\": {}, \"bounty\": {}, \"kind\": {}, \"effects\": {}, \"displaceSeq\": {}, \"mobTypeCode\": {}, \"sig\": {}, \"barrierPct\": {}, \"barrierRingStep\": {}, \"archetype\": {}, \"flags\": {}, \"offhand\": {}, \"buildMarks\": {}, \"markTier\": {}, \"brand\": {}, \"markTax\": {}}}",
                 a.id,
                 a.faction,
                 bits(a.x),
@@ -5450,7 +5928,7 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
                 a.weapon,
                 a.bounty,
                 a.kind, a.effects, a.displace_seq, a.mob_type_code, a.sig, a.barrier_pct, a.barrier_ring_step,
-                a.archetype
+                a.archetype, a.flags, a.offhand, a.build_marks, a.mark_tier, a.brand, a.mark_tax
             )
         })
         .collect();
@@ -5565,8 +6043,21 @@ fn decoded_fx_json(m: &ServerMsg) -> String {
                 bits(y),
                 bits(a)
             ),
-            WireFx::Hit { victim, by, amount, passive } => format!(
-                "{{\"k\": \"hit\", \"victim\": {victim}, \"by\": {by}, \"passive\": {passive}, \"amountBits\": {}}}",
+            WireFx::Hit { victim, by, amount, passive, critical } => format!(
+                "{{\"k\": \"hit\", \"victim\": {victim}, \"by\": {by}, \"passive\": {passive}, \"critical\": {critical}, \"amountBits\": {}}}",
+                bits(amount)
+            ),
+            WireFx::Windup { by, weapon, a, ms } => format!(
+                "{{\"k\": \"windup\", \"by\": {by}, \"weapon\": {weapon}, \"aBits\": {}, \"ms\": {ms}}}",
+                bits(a)
+            ),
+            WireFx::Cancel { id } => format!("{{\"k\": \"cancel\", \"id\": {id}}}"),
+            WireFx::SigHit { victim, by, kind, amount } => format!(
+                "{{\"k\": \"sigHit\", \"victim\": {victim}, \"by\": {by}, \"kind\": {kind}, \"amountBits\": {}}}",
+                bits(amount)
+            ),
+            WireFx::Heal { id, amount } => format!(
+                "{{\"k\": \"heal\", \"id\": {id}, \"amountBits\": {}}}",
                 bits(amount)
             ),
             WireFx::Teleport => "{\"k\": \"teleport\"}".to_owned(),

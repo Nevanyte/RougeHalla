@@ -167,6 +167,7 @@ pub(crate) fn canon(e: &Event, sim: &Sim) -> Option<Value> {
             amount,
             weapon,
             passive,
+            critical: _,
         } => {
             // `by` None is the legacy SUDDEN_DEATH_KILLER string ("sudden death"); `weapon` None is the legacy null
             // (ability / card damage chunks). The packet that ports sudden death fixes its weapon.

@@ -117,6 +117,7 @@ fn observation(
         bounty: 0,
         gv: 0,
         move_seq: 0,
+        facts: Default::default(),
     });
     if let Some((x, y)) = enemy {
         o.visible.push(ActorView {
@@ -142,6 +143,7 @@ fn observation(
             status: Status::Alive,
             weapon: Some(WeaponId::Sword),
             bounty: 0,
+            facts: Default::default(),
         });
         if recent_hit {
             o.events.push(SeenEvent::Hit {
@@ -149,6 +151,7 @@ fn observation(
                 by: Some(ENEMY),
                 amount: 40.,
                 passive: false,
+                critical: false,
             });
         }
     } else if recent_hit {
@@ -157,6 +160,7 @@ fn observation(
             by: None,
             amount: 40.,
             passive: false,
+            critical: false,
         });
     }
     o

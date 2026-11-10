@@ -34,8 +34,10 @@ use std::time::{Duration, Instant};
 /// Version 7 adds player Frost chilled bits and the resulting attack/movement clocks.
 /// Version 15 requires accepted decoded public frames for HumanBot, scoped references and transactional handoff.
 /// Version 16 (protocol 16, observation 22) adds actor/self hitbox archetype ids and projectile heights (ADR0024).
+/// Version 17 (protocol 16, observation 23) adds the legacy indicator facts (ADR0026): actor/self indicator flags, off-hand,
+/// build marks and mark plate, windup/cancel/heal/signature-hit fx with hit kinds and crits, and the match roster.
 /// Explicit native compatibility policies retain their separately declared input kind.
-pub const POLICY_CONTRACT_VERSION: u16 = 16;
+pub const POLICY_CONTRACT_VERSION: u16 = 17;
 
 /// Everything a policy may know about a match before its first observation, all of it public static data (the map
 /// and spawn points), never match state. Never a [`rh_sim::Secrets`] value and never the sim itself (C-OBS, C-RNG, C-POLICY).
@@ -1844,7 +1846,7 @@ mod frost_tests {
         assert!(seen
             .iter()
             .all(|o| o.version == rh_sim::OBSERVATION_VERSION));
-        assert_eq!(POLICY_CONTRACT_VERSION, 16);
+        assert_eq!(POLICY_CONTRACT_VERSION, 17);
     }
 }
 

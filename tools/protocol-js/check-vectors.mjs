@@ -341,6 +341,8 @@ function checkSnapshot(m, d, n) {
       eq(bits(s.barrierBits), e.barrierBits, `${n} me.barrierBits`);
       eq(s.barrierRingStep, e.barrierRingStep, `${n} me.barrierRingStep`);
       eq(s.archetype, e.archetype, `${n} me.archetype`);
+      // Protocol 16 (ADR0026): the self's indicator facts.
+      for (const k of ["flags", "buildMarks", "markTier", "brand", "markTax"]) eq(s[k], e[k], `${n} me.${k}`);
     }
     eqJson(m.ownerCombat ?? null, d.ownerCombat ?? null, `${n} ownerCombat`);
     eq(m.actors.length, d.actors.length, `${n} actors`);
@@ -351,6 +353,8 @@ function checkSnapshot(m, d, n) {
       eq(s.barrierPct, e.barrierPct, `${n} actor ${i}.barrierPct`);
       eq(s.barrierRingStep, e.barrierRingStep, `${n} actor ${i}.barrierRingStep`);
       eq(s.archetype, e.archetype, `${n} actor ${i}.archetype`);
+      // Protocol 16 (ADR0026): the actor's indicator facts.
+      for (const k of ["flags", "offhand", "buildMarks", "markTier", "brand", "markTax"]) eq(s[k], e[k], `${n} actor ${i}.${k}`);
     });
 }
 
@@ -397,6 +401,7 @@ if (version >= 14) {
 }
 
 const wishFxCoverage = new Set();
+const fxIndicatorCoverage = new Set();
 const groundMapCoverage = { modes: new Set(), presence: new Set(), names: new Set(), presentZero: false };
 const wishBarrierCoverage = {
   fullDefault: false, fullReset: false, deltaWishClear: false, deltaSelfBarrierClear: false,
@@ -445,7 +450,14 @@ for (const v of fx.server) {
         }
       }
       else if (e.k === "castEnded") for (const k of ["eventTime", "caster", "ability", "reason"]) eq(s[k], e[k], `${n} fx ${i}.${k}`);
-      else { eq(s.passive, e.passive, `${n} passive`); eq(s.victim, e.victim, `${n} victim`); eq(s.by, e.by, `${n} by`); eq(bits(s.amount), e.amountBits, `${n} amount`); }
+      // Protocol 16 (ADR0026): windup, cancel, signature/ability hit and heal.
+      else if (e.k === "windup") { eq(s.by, e.by, `${n} fx ${i}.by`); eq(s.weapon, e.weapon, `${n} fx ${i}.weapon`); eq(bits(s.a), e.aBits, `${n} fx ${i}.a`); eq(s.ms, e.ms, `${n} fx ${i}.ms`); }
+      else if (e.k === "cancel") eq(s.id, e.id, `${n} fx ${i}.id`);
+      else if (e.k === "sigHit") { for (const k of ["victim", "by", "kind"]) eq(s[k], e[k], `${n} fx ${i}.${k}`); eq(bits(s.amount), e.amountBits, `${n} fx ${i}.amount`); }
+      else if (e.k === "heal") { eq(s.id, e.id, `${n} fx ${i}.id`); eq(bits(s.amount), e.amountBits, `${n} fx ${i}.amount`); }
+      else if (e.k === "hit") { eq(s.passive, e.passive, `${n} passive`); eq(s.critical, e.critical, `${n} critical`); eq(s.victim, e.victim, `${n} victim`); eq(s.by, e.by, `${n} by`); eq(bits(s.amount), e.amountBits, `${n} amount`); }
+      else throw new Error(`${n} fx ${i}: no JS check for Rust fx kind ${e.k}`);
+      fxIndicatorCoverage.add(e.k);
     });
   } else if (m.t === "welcome") {
     if (!d.map) throw new Error(`${n} missing Rust-decoded map`);
@@ -574,7 +586,7 @@ const reason = {
   camp_mob_type:/camp/,camp_elite:/camp/,camp_alive:/camp/,camp_state:/camp/,camp_negative_time:/camp/,camp_nonfinite_time:/field/,camp_time_order:/camp/,
   actor_mob_type_over_30:/mob type/,delta_actor_mob_type_over_30:/mob type/,
   chest_bad_reason_zero: /chest reason/, chest_bad_reason_unknown: /chest reason/,
-  hit_bad_passive: /bad option/, pickup_bad_reason_zero: /bad field/, pickup_bad_reason_unknown: /bad field/,
+  hit_flags_unknown_bit: /hit flags/, pickup_bad_reason_zero: /bad field/, pickup_bad_reason_unknown: /bad field/,
   empty: /./, truncated_snapshot: /./, self_truncated: /./, actor_count_without_actors: /./,
   unknown_tag: /unknown tag/, client_tag_from_server: /unknown tag/, trailing_byte: /trailing/,
   overlong_varint: /varint/, varint_past_u32: /varint/, varint_too_long: /varint/,
@@ -650,6 +662,19 @@ const reason = {
   wish_fx_option_over_1: /bad option/, wish_fx_blaze_one_point: /bad Wish landing geometry/,
   wish_fx_nonblaze_destination: /bad Wish landing geometry/, wish_fx_anonymous_landed_target: /bad anonymous Wish landing/,
   wish_fx_anonymous_landed_no_target: /bad anonymous Wish landing/, wish_fx_end_reason_over_2: /bad Wish end reason/,
+  // Protocol 16 (ADR0026) indicator facts.
+  self_flags_unknown_bit: /bad flags/, self_build_marks_repeated: /bad build marks/, self_mark_tier_over_4: /bad mark$/,
+  actor_flags_unknown_bit: /bad flags/, actor_offhand_over_16: /bad offhand/, actor_build_marks_key_over_9: /bad build marks/,
+  actor_build_marks_second_without_first: /bad build marks/, actor_build_marks_repeated: /bad build marks/,
+  actor_mark_tier_over_4: /bad mark$/, actor_mark_brand_over_100: /bad mark$/, actor_mark_tax_over_100: /bad mark$/, actor_mark_truncated: /./,
+  delta_head_flags_without_present_bit: /head/, delta_self_flags_unknown_bit: /bad flags/, delta_self_build_marks_key_over_9: /bad build marks/,
+  delta_self_mark_brand_over_100: /bad mark$/, delta_actor_flags_unknown_bit: /bad flags/, delta_actor_offhand_over_16: /bad offhand/,
+  delta_actor_build_marks_repeated: /bad build marks/, delta_actor_mark_tier_over_4: /bad mark$/,
+  fx_windup_weapon_over_15: /windup weapon/, fx_sig_hit_kind_zero: /hit kind/, fx_sig_hit_kind_6: /hit kind/, fx_sig_hit_kind_21: /hit kind/,
+  fx_windup_truncated: /./, fx_heal_truncated: /./, camp_cleared_truncated: /./,
+  state_roster_count_over_32: /roster count/, state_roster_id_zero: /roster id/, state_roster_order: /roster order/,
+  state_roster_flags_unknown: /roster flags/, state_roster_name_empty: /roster name/, state_roster_name_long: /roster name/,
+  state_roster_name_control: /roster name/, state_roster_name_utf8: /utf-8/, state_roster_truncated: /./,
 };
 for (const v of fx.malformedServer) {
   const want = reason[v.name];
@@ -855,6 +880,37 @@ if (version >= 16) {
   }
   // The Rust Welcomes put every weapon kind (none, arc, projectile) on the wire.
   for (const kind of [0, 1, 2]) if (!groundMapCoverage.weaponKinds?.has(kind)) throw new Error(`missing a Rust Welcome weapon row of kind ${kind}`);
+
+  // ADR0026: the indicator facts. The Full snapshot, the delta chain and the fx vector were compared field by field above;
+  // here they must exist and carry every new field nonzero somewhere.
+  const factsChain = fx.chains.find(c => c.name === "indicator_facts_delta");
+  if (!factsChain) throw new Error("missing Rust-generated indicator_facts_delta chain");
+  // Review: actor 2 departs, then returns inside a delta as a new actor with every fact set (delta bits 14..=17).
+  const factSteps = factsChain.steps.map(step => step.decoded?.actors ?? []);
+  const gone = factSteps.findIndex(actors => !actors.some(a => a.id === 2));
+  const back = factSteps.findIndex((actors, i) => i > gone && actors.some(a => a.id === 2 && a.flags === 15 && a.offhand === 16 && a.buildMarks === 0x98 && a.markTier === 4 && a.brand === 100 && a.markTax === 100));
+  if (gone < 1 || back < 0) throw new Error("indicator_facts_delta lacks the departure and the all-facts return");
+  for (const name of ["snapshot_indicator_facts", "fx_indicators", "events_camp_cleared", "state_roster"]) {
+    if (!fx.server.some(v => v.name === name)) throw new Error(`missing Rust-generated ${name} vector`);
+  }
+  const facts = decode(bytes(fx.server.find(v => v.name === "snapshot_indicator_facts").hex));
+  for (const k of ["flags", "buildMarks", "markTier", "brand", "markTax"]) if (!facts.me?.[k]) throw new Error(`snapshot_indicator_facts lacks a nonzero me.${k}`);
+  for (const k of ["flags", "offhand", "buildMarks", "markTier", "brand", "markTax"]) {
+    if (!facts.actors.some(a => a[k])) throw new Error(`snapshot_indicator_facts lacks a nonzero actor ${k}`);
+  }
+  for (const k of ["windup", "cancel", "hit", "sigHit", "heal"]) if (!fxIndicatorCoverage.has(k)) throw new Error(`missing Rust-generated ${k} fx`);
+  const fxFacts = decode(bytes(fx.server.find(v => v.name === "fx_indicators").hex)).fx;
+  if (!fxFacts.some(f => f.k === "hit" && f.critical)) throw new Error("fx_indicators lacks a critical hit");
+  const campEvents = decode(bytes(fx.server.find(v => v.name === "events_camp_cleared").hex)).events;
+  eqJson(campEvents, [{ k: "campCleared", camp: 0 }, { k: "campCleared", camp: 511 }], "events_camp_cleared camps");
+  const roster = decode(bytes(fx.server.find(v => v.name === "state_roster").hex)).items.find(item => item.key === 12)?.value;
+  eqJson(roster, [{ id: 1, bot: false, name: "Wren" }, { id: 2, bot: true, name: "bot-Ashen_7" },
+    { id: 300, bot: false, name: "x".repeat(24) }, { id: 301, bot: true, name: "Søren" }], "state_roster rows");
+  if (!fx.server.some(v => v.name === "state_roster_empty")) throw new Error("missing Rust-generated state_roster_empty vector");
+  eqJson(decode(bytes(fx.server.find(v => v.name === "state_roster_empty").hex)).items.find(item => item.key === 12)?.value, [], "state_roster_empty rows");
+  for (const name of Object.keys(reason).filter(k => /^(self|actor|delta_self|delta_actor)_(flags|offhand|build_marks|mark)|^delta_head_flags|^hit_flags|^fx_(windup|sig_hit|heal)|^camp_cleared|^state_roster/.test(k))) {
+    if (!fx.malformedServer.some(v => v.name === name)) throw new Error(`missing Rust-generated ${name} control`);
+  }
 }
 
 console.log(`JS decoder agrees with protocol/fixtures/v${version}.json: ${fx.server.length} server vectors, ${fx.malformedServer.length} malformed, ${fx.chains.length} chains, ${checks} checks`);

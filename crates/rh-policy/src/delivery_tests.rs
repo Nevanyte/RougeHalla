@@ -507,13 +507,24 @@ fn frame14_requires_all_eleven_keys_including_explicit_trade_unavailable() {
             items: vec![StateItem::Trade(None)],
         })
         .unwrap();
+    // ADR0026: key 12, the roster, is required too.
+    assert!(
+        !state.complete(),
+        "keys 1..11 cannot imply receipt of key 12"
+    );
+    state
+        .apply(&ServerMsg::State {
+            tick: 2,
+            items: vec![StateItem::Roster(c.roster.clone())],
+        })
+        .unwrap();
     assert!(state.complete());
     let f = Frame14::from_reconstructed(context(1, 1), snapshot(&original), state, vec![], vec![])
         .unwrap();
     assert!(matches!(f.trade(), Fact::Delivered(None)));
     assert!(
-        ServerMsg::decode(&[0x88, 0x01, 0x01, 12, 0]).is_err(),
-        "State 12 is still unknown"
+        ServerMsg::decode(&[0x88, 0x01, 0x01, 13, 0]).is_err(),
+        "State 13 is still unknown"
     );
 }
 

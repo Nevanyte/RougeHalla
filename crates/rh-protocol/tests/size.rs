@@ -28,6 +28,7 @@ fn slice_actors(n: u32, tick: u32) -> Vec<WireActor> {
             kind: 0,
             barrier_pct: 0,
             barrier_ring_step: 0,
+            ..Default::default()
         })
         .collect()
 }
@@ -64,6 +65,7 @@ fn snapshot(n: u32, tick: u32) -> ServerMsg {
             wish: None,
             barrier: 0.0,
             barrier_ring_step: 0,
+            ..Default::default()
         }),
         actors: slice_actors(n, tick),
     }
@@ -97,4 +99,72 @@ fn the_most_the_wire_allows_still_decodes_and_every_actor_is_at_least_8_bytes() 
     assert_eq!(actors.len(), MAX_ACTORS);
     let fixed = snapshot(0, 5).encode().len();
     assert!((b.len() - fixed) >= 8 * MAX_ACTORS);
+}
+
+/// ADR0026: a busy match where every remote actor carries every indicator fact at once (all flags, an off-hand, two build
+/// marks, the full mark plate) next to every older field still fits the frame limit, as a Full frame and as a delta that
+/// changes every field of every actor; the fixed per-record buffers (`MAX_ACTOR_LEN`, `MAX_ACTOR_DELTA`) hold the largest
+/// record (an overflow would panic in the encoder).
+#[test]
+fn a_busy_match_with_every_indicator_fact_stays_within_the_frame_bounds() {
+    let actor = |id: u32, flip: bool| WireActor {
+        id,
+        faction: 15 - flip as u8,
+        x: 8191.875,
+        y: 8191.875,
+        facing: if flip { 1.0 } else { -1.0 },
+        hp_pct: if flip { 1 } else { 99 },
+        status: 3 - flip as u8,
+        weapon: 15,
+        bounty: u16::MAX - flip as u16,
+        kind: if flip { 3 } else { 2 },
+        effects: u16::MAX - flip as u16,
+        displace_seq: 255 - flip as u8,
+        sig: 255 - flip as u8,
+        mob_type_code: 30 - flip as u8,
+        barrier_pct: 100 - flip as u8,
+        barrier_ring_step: 8 - flip as u8,
+        archetype: 255 - flip as u8,
+        flags: ACTOR_FLAGS_KNOWN ^ flip as u8,
+        offhand: MAX_OFFHAND_CODE - flip as u8,
+        build_marks: if flip { 0x98 } else { 0x89 },
+        mark_tier: MAX_MARK_TIER - flip as u8,
+        brand: 100 - flip as u8,
+        mark_tax: 100 - flip as u8,
+    };
+    let me = |flip: bool| WireSelf {
+        id: u32::MAX,
+        flags: if flip {
+            ACTOR_FLAG_WISH_READY
+        } else {
+            ACTOR_FLAG_ROAM_READY
+        },
+        build_marks: if flip { 0x12 } else { 0x21 },
+        mark_tier: 4,
+        brand: 100 - flip as u8,
+        mark_tax: 100,
+        ..Default::default()
+    };
+    // Ids spaced so every gap is a multi-byte varint.
+    let actors = |flip: bool| -> Vec<WireActor> {
+        (0..MAX_ACTORS as u32)
+            .map(|k| actor(1 + k * 1_000_000, flip))
+            .collect()
+    };
+    let base = SnapshotData::build(10, 1, 4, Some(me(false)), actors(false).into_iter()).unwrap();
+    let mut full = Vec::new();
+    base.encode_full_into(&mut full);
+    assert!(full.len() <= MAX_SERVER_FRAME, "{} bytes", full.len());
+    let cur = SnapshotData::build(11, 1, 5, Some(me(true)), actors(true).into_iter()).unwrap();
+    let d = delta::diff(&base, &cur).unwrap();
+    let moved = delta::AD_X | delta::AD_Y;
+    assert!(d
+        .changed
+        .iter()
+        .all(|a| a.mask & !moved == delta::AD_ALL & !moved));
+    let frame = ServerMsg::SnapshotDelta(d).encode();
+    assert!(frame.len() <= MAX_SERVER_FRAME, "{} bytes", frame.len());
+    let mut tracker = SnapshotTracker::new();
+    tracker.decode(&full).unwrap();
+    assert_eq!(tracker.decode(&frame).unwrap(), cur.decoded());
 }

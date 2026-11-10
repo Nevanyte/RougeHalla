@@ -804,6 +804,7 @@ fn source_event(e: &Event) -> Value {
             amount,
             weapon,
             passive,
+            critical: _,
         } => {
             assert!(!passive);
             json!({"type":"fx","fx":{"kind":"hit","id":label(*victim),"by":by.map(label),"amount":amount,"weapon":weapon.map(|w|w.as_str())}})

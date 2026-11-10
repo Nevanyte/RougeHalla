@@ -651,6 +651,7 @@ mod tests {
             amount,
             weapon: Some(rh_sim::WeaponId::Fists),
             passive: false,
+            critical: false,
         };
         let one = |events: &[Event]| {
             let mut d = digest::OutcomeDigest::new();
@@ -663,6 +664,7 @@ mod tests {
             amount: 10.0,
             weapon: None,
             passive: false,
+            critical: false,
         };
         assert_ne!(one(&[hit(10.0)]), one(std::slice::from_ref(&free)));
         assert_eq!(

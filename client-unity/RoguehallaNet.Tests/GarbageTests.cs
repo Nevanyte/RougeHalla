@@ -109,9 +109,10 @@ namespace Roguehalla.Net.Tests
         {
             double withMe = DecodeGarbage(actors, true), spectator = DecodeGarbage(actors, false);
             TestContext.Progress.WriteLine("plain decode, {0} actors: {1} B with a self, {2} B without", actors, withMe, spectator);
-            // Snapshot object (64 B) + array header (24 B) + 32 B per actor (v12 barrier share); a self adds one 88 B object (wish and barrier owner facts). No reader object.
-            Assert.LessOrEqual(spectator, 32.0 * actors + 88);
-            Assert.LessOrEqual(withMe, 32.0 * actors + 176);
+            // Snapshot object (64 B) + array header (24 B) + 40 B per actor (v12 barrier share; v16 archetype and ADR0026 indicator facts);
+            // a self adds one 88 B object (wish and barrier owner facts, indicator facts). No reader object.
+            Assert.LessOrEqual(spectator, 40.0 * actors + 88);
+            Assert.LessOrEqual(withMe, 40.0 * actors + 176);
         }
 
         /// <summary>Decode into the buffer's spare, as Session does. <paramref name="vary"/> alternates the actor count every
@@ -142,7 +143,7 @@ namespace Roguehalla.Net.Tests
             double steady = PooledGarbage(actors, false), varying = PooledGarbage(actors, true);
             TestContext.Progress.WriteLine("decode into spare, {0} actors: {1} B steady, {2} B when the count changes every snapshot", actors, steady, varying);
             Assert.AreEqual(0.0, steady);
-            Assert.LessOrEqual(varying, 32.0 * (actors + 1) + 64);
+            Assert.LessOrEqual(varying, 40.0 * (actors + 1) + 64);
         }
 
         [Test]
@@ -423,9 +424,10 @@ namespace Roguehalla.Net.Tests
         {
             Assert.IsTrue(typeof(WireActor).IsValueType);
             Assert.IsFalse(typeof(WireSelf).IsValueType, "WireSelf stays a class: Snapshot.Me is null for a spectator");
-            Assert.AreEqual(32, System.Runtime.CompilerServices.Unsafe.SizeOf<WireActor>());
-            Assert.AreEqual(36, System.Runtime.CompilerServices.Unsafe.SizeOf<InterpActor>(),
-                "nullable remote faction/weapon add two data bytes and alignment; the raw wire actor stays 32 bytes");
+            // 31 data bytes through protocol 16's archetype, plus the six ADR0026 indicator bytes, padded to 40.
+            Assert.AreEqual(40, System.Runtime.CompilerServices.Unsafe.SizeOf<WireActor>());
+            Assert.AreEqual(48, System.Runtime.CompilerServices.Unsafe.SizeOf<InterpActor>(),
+                "nullable remote faction/weapon/off-hand/top stats add data bytes and alignment over the 40-byte wire actor");
         }
 
         [Test]

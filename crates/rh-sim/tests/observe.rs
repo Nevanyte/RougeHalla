@@ -421,6 +421,7 @@ fn a_hidden_hit_or_kill_source_is_redacted_at_its_step_on_every_player_path() {
                 amount: 5.0,
                 weapon: Some(rh_sim::WeaponId::Shield),
                 passive: true,
+                critical: false,
             },
             Event::Death {
                 id: victim,
@@ -437,6 +438,7 @@ fn a_hidden_hit_or_kill_source_is_redacted_at_its_step_on_every_player_path() {
                 by,
                 amount: 5.0,
                 passive: true,
+                critical: false,
             },
             SeenEvent::Death { id: victim, by },
         ]
