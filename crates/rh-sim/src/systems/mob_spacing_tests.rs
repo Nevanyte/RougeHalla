@@ -770,7 +770,7 @@ fn spacing_off_runs_without_spacing_and_survives_a_checkpoint() {
     let mut cfg = sim.k.config.clone();
     cfg.mob_spacing = crate::archetype::MobSpacing::Off;
     let on_hash = sim.state_hash();
-    sim.k = crate::statics::MatchStatic::new(cfg, sim.k.arena.clone(), sim.k.secrets.clone());
+    sim.k = crate::statics::MatchStatic::new(cfg, sim.k.arena.clone(), sim.k.secrets);
     assert_ne!(sim.state_hash(), on_hash, "the switch is in the state hash");
     let mut steps = 0;
     for _ in 0..240 {
@@ -836,7 +836,7 @@ fn kite(
     );
     let mut cfg = sim.k.config.clone();
     cfg.mob_spacing = spacing;
-    sim.k = crate::statics::MatchStatic::new(cfg, sim.k.arena.clone(), sim.k.secrets.clone());
+    sim.k = crate::statics::MatchStatic::new(cfg, sim.k.arena.clone(), sim.k.secrets);
     let ids: Vec<PlayerId> = mobs(&sim).iter().map(|m| m.0).collect();
     let mut first_hit = vec![None; ids.len()];
     let mut late = std::collections::BTreeSet::new();
@@ -1078,6 +1078,8 @@ fn a_chasing_pack_follows_up_a_corridor() {
 /// --ignored --nocapture`.
 #[test]
 #[ignore]
+// A wall clock for a measurement-only test; the sim itself never reads one.
+#[allow(clippy::disallowed_methods, clippy::disallowed_types)]
 fn spacing_tick_cost() {
     use crate::archetype::MobSpacing;
     fn time(spacing: MobSpacing, walk: bool) -> (f64, f64, f64) {
@@ -1099,7 +1101,7 @@ fn spacing_tick_cost() {
         );
         let mut cfg = sim.k.config.clone();
         cfg.mob_spacing = spacing;
-        sim.k = crate::statics::MatchStatic::new(cfg, sim.k.arena.clone(), sim.k.secrets.clone());
+        sim.k = crate::statics::MatchStatic::new(cfg, sim.k.arena.clone(), sim.k.secrets);
         let mut spent = std::time::Duration::ZERO;
         let (mut steps, mut searches) = (0u64, 0u64);
         for t in 0..500u32 {
