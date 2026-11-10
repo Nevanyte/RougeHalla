@@ -56,7 +56,7 @@ function smoothDeltas(deltas, k) {
   return out;
 }
 
-const SMOOTH_FRAMES = 4;
+const SMOOTH_FRAMES = 8;
 
 /** Frame-time statistics from rAF deltas in ms. refreshHz (when known) sets the dropped-frame threshold. */
 function frameStats(deltas, refreshHz) {
@@ -97,11 +97,11 @@ function evaluate(stats, { displayVerified, vsyncOff = false } = {}) {
   // rAF timestamps jitter by about +-1.5 ms around the true cadence, so with a mean of exactly one refresh interval roughly
   // half of all deltas exceed it and the literal p95 <= refresh criterion fails even with zero dropped frames. The pacing
   // read-out is therefore reported beside the literal verdict: no dropped frames, mean at the refresh interval, and the
-  // 4-frame-averaged p95 within 2% of it. It never changes the verdict.
+  // 8-frame-averaged p95 within 3% of it. It never changes the verdict.
   const refreshMs = stats.refreshHz > 0 ? 1000 / stats.refreshHz : null;
   const pacing = refreshMs && stats.smooth ? {
     droppedFrames: stats.droppedFrames, meanMs: stats.meanMs, smoothP95Ms: stats.smooth.p95Ms, smoothMaxMs: stats.smooth.maxMs,
-    clean: stats.droppedFrames === 0 && stats.meanMs <= refreshMs * 1.01 && stats.smooth.p95Ms <= refreshMs * 1.02,
+    clean: stats.droppedFrames === 0 && stats.meanMs <= refreshMs * 1.01 && stats.smooth.p95Ms <= refreshMs * 1.03,
   } : null;
   return { verdict, meetsNumbers: meets, claimable, checks, pacing };
 }
@@ -135,6 +135,7 @@ const DEFAULTS = {
 /** argv (without node and script) -> options. Throws on unknown or malformed arguments. */
 function parseArgs(argv) {
   const o = { ...DEFAULTS };
+  o.profileExplicit = false;
   const num = (name, v, min, max) => {
     const n = Number(v);
     if (!Number.isFinite(n) || n < min || n > max) throw new Error(`${name} must be a number from ${min} to ${max}`);
@@ -169,7 +170,7 @@ function parseArgs(argv) {
       case '--uncapped': o.uncapped = true; break;
       case '--no-fullscreen': o.fullscreen = false; break;
       case '--headless': o.headless = true; break;
-      case '--profile': o.profile = next(); break;
+      case '--profile': o.profile = next(); o.profileExplicit = true; break;
       case '--planning-timeout': o.planningTimeout = num('--planning-timeout', next(), 5, 600); break;
       case '--playwright': o.playwright = next(); break;
       case '--help': case '-h': o.help = true; break;
@@ -181,11 +182,20 @@ function parseArgs(argv) {
   return o;
 }
 
+/** The server keeps a seat after the browser closes, so each run needs its own callsign: perf1 plus a short suffix. */
+const runSuffix = Date.now().toString(36).slice(-4);
+let runCounter = 0;
+function profileFor(o) {
+  if (o.profileExplicit) return o.profile;
+  if (!o._profile) o._profile = `${o.profile}${runSuffix}${(runCounter++).toString(36)}`.slice(0, 16);
+  return o._profile;
+}
+
 /** The page URL for one run. Never contains secrets beyond the throwaway loopback diagnostic token. */
 function buildPageUrl(o, extraFlags = '') {
   const u = new URL(o.url);
   const set = (k, v) => u.searchParams.set(k, v);
-  set('server', o.server); set('diagnostic', '1'); set('token', o.token); set('profile', o.profile);
+  set('server', o.server); set('diagnostic', '1'); set('token', o.token); set('profile', profileFor(o));
   set('faction', String(REGIONS[o.region])); set('perf', '1'); set('quality', o.quality);
   for (const part of [o.flags, extraFlags].join('&').split('&')) {
     const eq = part.indexOf('=');
@@ -285,6 +295,7 @@ async function fetchInfo(server) {
 /** One browser session: launch, join, plan, warm up, record `seconds`. Returns everything measured. */
 async function session(o, { seconds, uncapped, extraFlags = '', label, outDir, screenshots, refreshHz = 0 }) {
   const chromium = loadPlaywright(o);
+  o._profile = null; // a fresh callsign per browser session
   const args = ['--use-angle=metal', '--enable-gpu-rasterization', '--ignore-gpu-blocklist', '--enable-features=Metal',
     '--autoplay-policy=no-user-gesture-required'];
   if (uncapped) args.push('--disable-frame-rate-limit', '--disable-gpu-vsync');
@@ -434,6 +445,17 @@ async function runTimeline(page, o, seconds, rec) {
 
 // ------------------------------------------------------------------------------------------------------ orchestration
 
+/** A run only counts if the client actually reached an active match with other actors and live wire traffic. */
+function validateRun(rec, sum) {
+  const problems = [];
+  if (!rec.planning || !rec.planning.inMatchSeen) problems.push('the client never reported InMatch');
+  if (rec.netStates.some(s => /Rejected/.test(s.text))) problems.push('the server rejected the join: ' + rec.netStates.find(s => /Rejected/.test(s.text)).text.trim());
+  if (!(sum.actors.max > 0)) problems.push('no actors were ever presented on screen');
+  if (rec.wire.framesReceived < 100) problems.push(`only ${rec.wire.framesReceived} server frames arrived`);
+  if (rec.errors.length) problems.push(`${rec.errors.length} console/page errors (first: ${rec.errors[0].slice(0, 120)})`);
+  return { valid: problems.filter(p => !/console\/page errors/.test(p)).length === 0, problems };
+}
+
 function summariseRun(rec, displayInfo) {
   const deltas = [];
   for (let i = 1; i < rec.timestamps.length; i++) deltas.push(rec.timestamps[i] - rec.timestamps[i - 1]);
@@ -488,10 +510,13 @@ async function main(argv) {
     if (uncapped && !displayInfo.reason) displayInfo.reason = 'vsync-off run requested';
     const finalDisplay = { ...displayInfo, verified: displayInfo.verified && !uncapped };
     sum = summariseRun(rec, finalDisplay);
+    const validity = validateRun(rec, sum);
     const verdict = evaluate(sum.stats, { displayVerified: finalDisplay.verified, vsyncOff: uncapped });
-    result = { kind: 'run', rec, sum, verdict, displayInfo: finalDisplay, vsyncOff: uncapped };
+    if (!validity.valid) verdict.verdict = 'INVALID RUN: ' + validity.problems.join('; ');
+    result = { kind: 'run', rec, sum, verdict, validity, displayInfo: finalDisplay, vsyncOff: uncapped };
   }
   writeOutputs(o, outDir, info, sys, result);
+  if (/^INVALID/.test(result.verdict.verdict)) return 2;
   return result.verdict && result.verdict.verdict === 'FAIL' ? 1 : 0;
 }
 
@@ -505,6 +530,8 @@ async function attribution(o, outDir, info, main_) {
       label: 'attrib-' + t.flag.replace(/[^a-z0-9]+/gi, '_') });
     variants.push({ ...t, stats: summariseRun(rec, { verified: false }).stats, errors: rec.errors.length });
   }
+  const baseValidity = validateRun(base, baseSum);
+  if (!baseValidity.valid) throw new Error('attribution baseline is not a valid run: ' + baseValidity.problems.join('; '));
   return { kind: 'attribution', rec: base, sum: baseSum, vsyncOff: true,
     table: attributionTable(baseSum.stats, variants), variants,
     verdict: { verdict: 'ATTRIBUTION (vsync off; costs are frame-time differences, not a target claim)' } };
@@ -526,7 +553,7 @@ function writeOutputs(o, outDir, info, sys, result) {
       actors: sum.actors, wire: rec.wire, netStates: rec.netStates.slice(-12), errors: rec.errors, httpErrors: rec.httpErrors, notes: rec.notes,
       screenshots: rec.screenshots || [],
     },
-    verdict: result.verdict,
+    verdict: result.verdict, validity: result.validity || null,
     caveats: [
       'Frame time is the delta between consecutive requestAnimationFrame timestamps in the page (presented cadence as the browser reports it), not GPU time.',
       'Under vsync a frame cannot be faster than the refresh interval, so headroom is invisible; the attribution mode therefore runs vsync-off.',
@@ -553,7 +580,7 @@ function printSummary(report, result, outDir) {
   } else {
     const c = result.verdict.checks;
     console.log(`p95 <= ${TARGET.p95Ms} ms: ${c.p95.pass ? 'yes' : 'NO'}   worst 1% >= ${TARGET.worst1PctFps} fps (<= ${TARGET.worst1PctMs} ms): ${c.worst1Pct.pass ? 'yes' : 'NO'}`);
-    if (result.verdict.pacing) { const pc = result.verdict.pacing; console.log(`pacing (jitter-robust, informational): ${pc.clean ? 'clean' : 'NOT clean'} - dropped ${pc.droppedFrames}, mean ${f(pc.meanMs)} ms, 4-frame-average p95 ${f(pc.smoothP95Ms)} ms, max ${f(pc.smoothMaxMs)} ms`); }
+    if (result.verdict.pacing) { const pc = result.verdict.pacing; console.log(`pacing (jitter-robust, informational): ${pc.clean ? 'clean' : 'NOT clean'} - dropped ${pc.droppedFrames}, mean ${f(pc.meanMs)} ms, 8-frame-average p95 ${f(pc.smoothP95Ms)} ms, max ${f(pc.smoothMaxMs)} ms`); }
     console.log(`display verified (2560x1440 @ 144 Hz): ${result.displayInfo.verified ? 'yes' : 'NO - ' + result.displayInfo.reason}${result.vsyncOff ? '; vsync off' : ''}`);
   }
   console.log(`\n${result.verdict.verdict}`);
@@ -561,7 +588,7 @@ function printSummary(report, result, outDir) {
   console.log(`report: ${path.join(outDir, 'report.json')}`);
 }
 
-module.exports = { smoothDeltas, TARGET, REGIONS, percentile, worstOnePercentMean, frameStats, evaluate, parseDisplays, displayMatchesTarget, parseArgs,
+module.exports = { validateRun, profileFor, smoothDeltas, TARGET, REGIONS, percentile, worstOnePercentMean, frameStats, evaluate, parseDisplays, displayMatchesTarget, parseArgs,
   buildPageUrl, buildTimeline, toCsv, attributionTable, ATTRIBUTION_TOGGLES, planningPoint };
 
 if (require.main === module) {

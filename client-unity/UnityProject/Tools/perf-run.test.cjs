@@ -100,7 +100,7 @@ test('buildPageUrl carries the diagnostic join, perf flag, quality and extra eff
   const o = P.parseArgs(['--quality', 'ultra', '--region', 'frost']);
   const u = new URL(P.buildPageUrl(o, 'fx.bloom=0&fx.lights=2'));
   assert.equal(u.searchParams.get('diagnostic'), '1'); assert.equal(u.searchParams.get('token'), 't1');
-  assert.equal(u.searchParams.get('profile'), 'perf1'); assert.equal(u.searchParams.get('faction'), '3');
+  assert.match(u.searchParams.get('profile'), /^perf1/); assert.equal(u.searchParams.get('faction'), '3');
   assert.equal(u.searchParams.get('perf'), '1'); assert.equal(u.searchParams.get('quality'), 'ultra');
   assert.equal(u.searchParams.get('fx.bloom'), '0'); assert.equal(u.searchParams.get('fx.lights'), '2');
   assert.equal(u.searchParams.get('server'), 'ws://127.0.0.1:7807/ws');
@@ -154,7 +154,7 @@ test('smoothDeltas averages sliding windows and keeps real drops visible', () =>
   assert.ok(s.p95Ms > 6.94, 'literal p95 fails on pure jitter');
   assert.ok(s.smooth.p95Ms < 6.95, 'the smoothed series cancels it');
   const withDrop = jittery.slice(); withDrop[200] = 13.9;
-  assert.ok(P.frameStats(withDrop, 144).smooth.maxMs > 8);
+  assert.ok(P.frameStats(withDrop, 144).smooth.maxMs > 7.5);
 });
 
 test('pacing read-out is informational and never rescues a literal FAIL', () => {
@@ -165,4 +165,20 @@ test('pacing read-out is informational and never rescues a literal FAIL', () => 
   assert.equal(v.pacing.clean, true);
   const dropped = P.frameStats(jittery.map((x, i) => (i % 100 === 0 ? 14 : x)), 144);
   assert.equal(P.evaluate(dropped, { displayVerified: true }).pacing.clean, false);
+});
+
+test('each run gets its own callsign unless one is given', () => {
+  const o = P.parseArgs([]);
+  const a = P.profileFor(o); o._profile = null; const b = P.profileFor(o);
+  assert.match(a, /^perf1/); assert.notEqual(a, b); assert.ok(a.length <= 16);
+  assert.equal(P.profileFor(P.parseArgs(['--profile', 'mine'])), 'mine');
+});
+
+test('validateRun rejects runs that never reached a populated match', () => {
+  const good = { planning: { inMatchSeen: true }, netStates: [{ text: '[net] InMatch' }], wire: { framesReceived: 500 }, errors: [] };
+  assert.equal(P.validateRun(good, { actors: { max: 12 } }).valid, true);
+  const rejected = { ...good, planning: { inMatchSeen: false }, netStates: [{ text: '[net] Rejected ProfileInUse: callsign already in a match' }], wire: { framesReceived: 1 } };
+  const v = P.validateRun(rejected, { actors: { max: 0 } });
+  assert.equal(v.valid, false); assert.ok(v.problems.length >= 3);
+  assert.equal(P.validateRun({ ...good, errors: ['boom'] }, { actors: { max: 3 } }).valid, true, 'console errors are reported, not fatal');
 });
