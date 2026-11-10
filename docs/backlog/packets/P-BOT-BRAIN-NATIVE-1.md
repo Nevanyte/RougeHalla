@@ -86,8 +86,7 @@ the shared source Goal/decision/status types and owns its actual registry/module
 Memory, Knowledge, path service and source RNG objects into each component's required context in call order; avoid
 translating goals through a second enum or duplicating component-owned state.
 
-The Modules registry currently materializes `EnabledModule` descriptors, and its hook types are mutable; its native
-interfaces remain WIP. Strategy's `FeatureModule` receiver remains `&self`, but the admitted bridge will make its
+The Modules registry currently materializes `EnabledModule` descriptors, and its hook types are mutable; its native interfaces are now sealed and reviewed. Strategy's `FeatureModule` receiver remains `&self`, but the admitted bridge will make its
 `goals` context `&mut StrategyContext`, enabling the adapter to borrow the live mutable tick services. After the final
 APIs are sealed, use Send-owned identity-preserving handles/arena entries for the same actual module objects shared by
 caller/registry lifetime and each Brain's Strategy wrappers. Do not store `Rc<RefCell<dyn SourceModule>>` in the
