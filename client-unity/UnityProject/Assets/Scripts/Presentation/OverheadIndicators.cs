@@ -207,7 +207,7 @@ namespace Roguehalla.Client
         static void Plate(SpriteRenderer r, Vector3 at, float w, float h, int order, UiTheme theme)
         {
             r.enabled = true; r.sortingOrder = order; r.transform.localPosition = at; r.transform.localScale = new Vector3(w, h, 1);
-            var c = (Color)theme.OutlineDark; c.a = .78f; r.color = c;
+            var c = (Color)theme.OutlineDark; c.a = .93f; r.color = c;
         }
 
         static int IndexOfBit(ushort bit) { for (int i = 0; i < Indicators.StatusOrder.Length; i++) if (Indicators.StatusOrder[i].Bit == bit) return i; return 0; }
