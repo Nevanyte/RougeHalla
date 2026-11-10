@@ -1,0 +1,55 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-quest-runtime/crates/rh-sim)
+error[E0432]: unresolved import `super::objectives`
+ --> crates/rh-sim/src/quests/live.rs:7:12
+  |
+7 | use super::objectives::{Advance, Credited, Objective};
+  |            ^^^^^^^^^^ could not find `objectives` in `super`
+
+error[E0432]: unresolved import `super::rewards`
+ --> crates/rh-sim/src/quests/live.rs:8:12
+  |
+8 | use super::rewards::{self, Plan};
+  |            ^^^^^^^ could not find `rewards` in `super`
+
+error[E0308]: mismatched types
+   --> crates/rh-sim/src/quests/live.rs:422:38
+    |
+422 |             .find(|(who, _)| *who == killer)
+    |                              ----    ^^^^^^ expected `PlayerId`, found `&PlayerId`
+    |                              |
+    |                              expected because this is `state::PlayerId`
+    |
+help: consider dereferencing the borrow
+    |
+422 |             .find(|(who, _)| *who == *killer)
+    |                                      +
+
+error[E0308]: mismatched types
+   --> crates/rh-sim/src/quests/live.rs:427:38
+    |
+427 |             .find(|(who, _)| *who == killer)
+    |                              ----    ^^^^^^ expected `PlayerId`, found `&PlayerId`
+    |                              |
+    |                              expected because this is `state::PlayerId`
+    |
+help: consider dereferencing the borrow
+    |
+427 |             .find(|(who, _)| *who == *killer)
+    |                                      +
+
+error[E0308]: mismatched types
+   --> crates/rh-sim/src/quests/live.rs:475:42
+    |
+475 |                 .find(|(who, _)| *who == by)
+    |                                  ----    ^^ expected `PlayerId`, found `&PlayerId`
+    |                                  |
+    |                                  expected because this is `state::PlayerId`
+    |
+help: consider dereferencing the borrow
+    |
+475 |                 .find(|(who, _)| *who == *by)
+    |                                          +
+
+Some errors have detailed explanations: E0308, E0432.
+For more information about an error, try `rustc --explain E0308`.
+error: could not compile `rh-sim` (lib test) due to 5 previous errors

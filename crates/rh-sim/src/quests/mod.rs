@@ -18,8 +18,10 @@ mod notice_tests;
 mod notices;
 #[cfg(test)]
 mod notices_source_tests;
+pub(crate) mod objectives;
 pub(crate) use notices::quest_gv_text;
 pub mod placement;
+pub(crate) mod rewards;
 pub mod roster;
 pub mod rules;
 #[cfg(test)]

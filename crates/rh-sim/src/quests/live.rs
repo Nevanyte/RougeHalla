@@ -4,6 +4,8 @@
 //!
 //! Givers are real neutral actors linked by typed identity; public quest transport and notices remain coordinator-owned.
 use super::catalog::{self, Kind};
+use super::objectives::{Advance, Credited, Objective};
+use super::rewards::{self, Plan};
 use super::{placement, roster, rules};
 use crate::constants::*;
 use crate::events::Event;
@@ -87,20 +89,17 @@ fn tie_rank(k: &MatchStatic, w: &World, id: PlayerId) -> u32 {
     crate::rng::Mulberry32::new(h).next_u32()
 }
 
-fn bump(offer: &mut Offer, id: PlayerId, by: u32) {
-    let count = catalog::DEFINITION[offer.def as usize].count;
-    let now = offer
-        .progress
-        .iter()
-        .find(|(who, _)| *who == id)
-        .map_or(0, |(_, n)| *n);
-    if now >= count {
-        return;
-    }
-    let next = now.saturating_add(by).min(count);
+fn write_progress(offer: &mut Offer, id: PlayerId, next: u32) {
     match offer.progress.iter_mut().find(|(who, _)| *who == id) {
         Some((_, n)) => *n = next,
         None => offer.progress.push((id, next)),
+    }
+}
+
+fn write_visits(offer: &mut Offer, id: PlayerId, mask: u8) {
+    match offer.visits.iter_mut().find(|(who, _)| *who == id) {
+        Some((_, seen)) => *seen = mask,
+        None => offer.visits.push((id, mask)),
     }
 }
 
@@ -112,14 +111,13 @@ fn is_ready(offer: &Offer, id: PlayerId) -> bool {
     if !accepted(offer, id) {
         return false;
     }
-    if catalog::DEFINITION[offer.def as usize].kind == Kind::Fetch {
-        return offer.carrier == Some(id);
-    }
-    offer
+    let def = &catalog::DEFINITION[offer.def as usize];
+    let progress = offer
         .progress
         .iter()
         .find(|(who, _)| *who == id)
-        .is_some_and(|(_, n)| *n >= catalog::DEFINITION[offer.def as usize].count)
+        .map_or(0, |(_, n)| *n);
+    Objective::lower(def).ready(progress, offer.carrier, id)
 }
 
 fn add_quest_container(w: &mut World, at: Vec2, quest_id: u32) -> u32 {
@@ -328,32 +326,6 @@ fn takes_part(w: &World, id: PlayerId) -> bool {
     w.player(id).is_some_and(|p: &Player| !p.seat.bot)
 }
 
-fn gv_quest(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, i: usize, gv: u16) {
-    if crate::schedule::Gates::of(k).training {
-        return;
-    }
-    let room = QUEST_GV_CAP.saturating_sub(w.players[i].credit.gv_parts.quest);
-    let amount = u32::from(gv).min(room);
-    if amount == 0 {
-        return;
-    }
-    let p = &mut w.players[i];
-    p.credit.gv_parts.quest = p.credit.gv_parts.quest.saturating_add(amount);
-    p.credit.gv = p
-        .credit
-        .gv_parts
-        .kills
-        .saturating_add(p.credit.gv_parts.mobs)
-        .saturating_add(p.credit.gv_parts.bounty)
-        .saturating_add(p.credit.gv_parts.quest);
-    let id = p.id;
-    ev.push(Event::Gv {
-        id,
-        amount,
-        reason: crate::results::GvReason::Quest,
-    });
-}
-
 fn complete(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, oi: usize, id: PlayerId) {
     let Some(def_index) = quests(w).map(|q| q.offers[oi].def as usize) else {
         return;
@@ -368,16 +340,7 @@ fn complete(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, oi: usize, id: 
         q.offers[oi].status = Status::Done;
         q.offers[oi].done_by = Some(id);
     }
-    gv_quest(k, w, ev, i, def.reward_gv);
-    let (stat, stacks) = rules::reward_stats(def);
-    let gained = crate::modifiers::grant_mob_stat(k, w, id, stat, stacks);
-    if gained > 0 {
-        super::notices::owner(
-            ev,
-            id,
-            crate::modifiers::farm_text::grant_notice(stat, gained, w.players[i].farm.count(stat)),
-        );
-    }
+    rewards::apply(k, w, ev, i, id, Plan::lower(def));
     super::notices::owner(ev, id, format!("Quest complete: {}", def.name));
     super::notices::room(
         ev,
@@ -436,7 +399,6 @@ pub(crate) fn on_mob_killed(hx: &mut crate::hooks::Hx, args: &crate::hooks::Hook
     if hx.w.phase != crate::state::Phase::Active || !standing(hx.w, *killer) {
         return;
     }
-    let zone_code = zone.code(); // 0-based faction code
     let Some(q) = quests(hx.w) else { return };
     let n = q.offers.len();
     for oi in 0..n {
@@ -453,29 +415,34 @@ pub(crate) fn on_mob_killed(hx: &mut crate::hooks::Hx, args: &crate::hooks::Hook
         if def.elite && !*elite {
             continue;
         }
-        if def.tour > 0 {
-            let bit = 1u8 << zone_code;
-            let q = hx.w.quests.as_mut().unwrap();
-            let offer = &mut q.offers[oi];
-            let entry = match offer.visits.iter_mut().find(|(who, _)| who == killer) {
-                Some((_, seen)) => seen,
-                None => {
-                    offer.visits.push((*killer, 0));
-                    &mut offer.visits.last_mut().unwrap().1
-                }
-            };
-            *entry |= bit;
-            let seen = entry.count_ones();
-            let count = catalog::DEFINITION[offer.def as usize].count;
-            let entry = offer.progress.iter_mut().find(|(who, _)| who == killer);
-            let next = seen.min(count);
-            match entry {
-                Some((_, n)) => *n = next,
-                None => offer.progress.push((*killer, next)),
+        let objective = Objective::lower(def);
+        let have = offer
+            .progress
+            .iter()
+            .find(|(who, _)| *who == *killer)
+            .map_or(0, |(_, n)| *n);
+        let mask = offer
+            .visits
+            .iter()
+            .find(|(who, _)| *who == *killer)
+            .map_or(0, |(_, seen)| *seen);
+        let change = objective.advance(
+            Credited::Mob {
+                zone: *zone,
+                elite: *elite,
+            },
+            have,
+            mask,
+        );
+        let q = hx.w.quests.as_mut().unwrap();
+        let offer = &mut q.offers[oi];
+        match change {
+            Advance::None => {}
+            Advance::Count(next) => write_progress(offer, *killer, next),
+            Advance::Tour { visits, progress } => {
+                write_visits(offer, *killer, visits);
+                write_progress(offer, *killer, progress);
             }
-        } else if def.elite || def.region.is_none_or(|region| region.code() == zone_code) {
-            let q = hx.w.quests.as_mut().unwrap();
-            bump(&mut q.offers[oi], *killer, 1);
         }
     }
 }
@@ -509,8 +476,16 @@ pub(crate) fn on_player_killed(hx: &mut crate::hooks::Hx, args: &crate::hooks::H
             && def.players
             && offer.accepted.contains(by)
         {
+            let have = offer
+                .progress
+                .iter()
+                .find(|(who, _)| *who == *by)
+                .map_or(0, |(_, n)| *n);
+            let change = Objective::lower(def).advance(Credited::Player, have, 0);
             let q = hx.w.quests.as_mut().unwrap();
-            bump(&mut q.offers[oi], *by, 1);
+            if let Advance::Count(next) = change {
+                write_progress(&mut q.offers[oi], *by, next);
+            }
         }
     }
 }
@@ -750,7 +725,10 @@ pub(crate) fn pickup(cx: &mut Cx, ix: crate::fighter::FighterIx, container_ix: u
         );
         return;
     }
-    bump(&mut cx.w.quests.as_mut().unwrap().offers[offer], id, 1);
+    let change = Objective::lower(def).advance(Credited::Collect, have, 0);
+    if let Advance::Count(next) = change {
+        write_progress(&mut cx.w.quests.as_mut().unwrap().offers[offer], id, next);
+    }
     let cid = cx.w.containers[container_ix].id;
     if let Some(q) = quests_mut(cx.w) {
         q.offers[offer].containers.retain(|x| *x != cid);
@@ -943,26 +921,12 @@ fn close_impossible(w: &mut World, only: Option<usize>, expired: &mut super::not
                 .iter()
                 .find(|(who, _)| *who == p.id)
                 .map_or(0, |(_, n)| *n);
-            let need = def.count.saturating_sub(have);
-            if def.tour > 0 {
-                let seen = offer
-                    .visits
-                    .iter()
-                    .find(|(who, _)| *who == p.id)
-                    .map_or(0, |(_, mask)| *mask);
-                let fresh = zones
-                    .iter()
-                    .enumerate()
-                    .filter(|(i, n)| **n > 0 && (seen & (1 << i)) == 0)
-                    .count() as u32;
-                possible |= fresh >= need;
-            } else if def.elite {
-                possible |= elites >= need;
-            } else if let Some(region) = def.region {
-                possible |= zones[usize::from(region.code())] >= need;
-            } else {
-                possible |= zones.iter().sum::<u32>() >= need;
-            }
+            let mask = offer
+                .visits
+                .iter()
+                .find(|(who, _)| *who == p.id)
+                .map_or(0, |(_, mask)| *mask);
+            possible |= Objective::lower(def).supply_possible(have, mask, &zones, elites);
         }
         if !anyone {
             continue;
