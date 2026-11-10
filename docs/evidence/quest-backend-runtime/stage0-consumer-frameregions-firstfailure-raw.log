@@ -1,0 +1,9 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-quest-runtime/crates/rh-sim)
+error[E0425]: cannot find value `FRAME_REGIONS` in this scope
+   --> crates/rh-sim/src/quests/tour_supply_source_tests.rs:701:19
+    |
+701 |     for region in FRAME_REGIONS {
+    |                   ^^^^^^^^^^^^^ not found in this scope
+
+For more information about this error, try `rustc --explain E0425`.
+error: could not compile `rh-sim` (lib test) due to 1 previous error

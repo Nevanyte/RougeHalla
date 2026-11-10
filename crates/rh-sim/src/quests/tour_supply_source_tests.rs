@@ -12,7 +12,6 @@ const CORPUS: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../parity/quest-tour-supply/source.json"
 );
-const FRAME_REGIONS: [&str; 5] = ["fire", "sentenced", "plague", "frost", "holy"];
 
 fn load() -> serde_json::Value {
     let text = std::fs::read_to_string(CORPUS).expect("frozen tour-supply source corpus");
@@ -461,7 +460,7 @@ fn native_containers_present(sim: &Sim, offer: &super::live::Offer) -> bool {
         .all(|id| sim.w.containers.iter().any(|c| c.id == *id))
 }
 fn visits_from_mask(mask: u8) -> Vec<String> {
-    FRAME_REGIONS
+    ["fire", "sentenced", "plague", "frost", "holy"]
         .iter()
         .enumerate()
         .filter(|(i, _)| mask & (1 << i) != 0)
@@ -683,7 +682,7 @@ fn compare_frame(
         compare_offer(case, frame, sim, source);
     }
     let mut supply = std::collections::BTreeMap::new();
-    for region in FRAME_REGIONS {
+    for region in ["fire", "sentenced", "plague", "frost", "holy"] {
         supply.insert(region.to_string(), 0u64);
     }
     for m in sim
@@ -699,7 +698,7 @@ fn compare_frame(
             *supply.entry(def.zone.as_str().to_string()).or_insert(0) += 1;
         }
     }
-    for region in FRAME_REGIONS {
+    for region in ["fire", "sentenced", "plague", "frost", "holy"] {
         assert_eq!(
             supply[region],
             frame["supply"][region].as_u64().unwrap(),
@@ -924,7 +923,7 @@ fn replay_case(case: &serde_json::Value) {
     let step_holding =
         |sim: &mut Sim, pending: &mut Vec<Event>, notices: &mut Vec<serde_json::Value>| {
             if !pending.is_empty() {
-                sim.w.pending_events.extend(pending.drain(..));
+                sim.w.pending_events.append(pending);
             }
             let ev = sim.step();
             let tick = sim.w.tick;

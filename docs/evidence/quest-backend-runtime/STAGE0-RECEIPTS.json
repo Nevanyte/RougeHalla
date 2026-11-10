@@ -1,9 +1,11 @@
 {
-  "format": "rh-quest-backend-stage0-receipt/1",
-  "status": "STAGE0_LOCAL_GREEN_CONTENT_PIN_PENDING_ROOT",
-  "baseCommit": "4151b3af597cc06d1b3b77f4e3e21cc9906b6a86",
+  "format": "rh-quest-backend-stage0-pin-gate-receipt/1",
+  "status": "STAGE0_PINNED_REQUIRED_GATES_GREEN_STAGE1_NOT_STARTED",
+  "branch": "codex/deepseek-quest-backend",
+  "stage0Commit": "4fb5714e93386b6e7daa08ab3bf405888331c263",
   "sourceOnlyCommit": "a3d8e8d499d38bcb5972bceb6e85a8bab1f1d619",
-  "frozenSource": {
+  "baseCommit": "4151b3af597cc06d1b3b77f4e3e21cc9906b6a86",
+  "frozenSourceUnchanged": {
     "parity/quest-tour-supply/source.json": {
       "bytes": 638109,
       "sha256": "0bb63ed402b411d4f9bf23381fa162e64e08f5704905f974e3920c982fae5714"
@@ -11,113 +13,137 @@
     "parity/quest-tour-supply/controls.json": {
       "bytes": 1260,
       "sha256": "64d9b5e50b61964853ae95d0d4b057392b83e344d3874731003dc914e0b601db"
-    },
-    "parity/quest-tour-supply/manifest.json": {
-      "bytes": 1228,
-      "sha256": "a6a248677ffba39439e035e9c0dac8b76a6600d30d03d0526d9f9dd0f409cb37"
     }
   },
-  "changedFiles": {
-    "crates/rh-sim/src/quests/live.rs": {
-      "sha256": "296c6511ba6f82ba41de86181dedb7c9518568a5052cb8d5cbf3c77c0fa0890c",
-      "change": "stored visit mask instead of mask.count_ones()"
-    },
-    "crates/rh-sim/src/quests/catalog.rs": {
-      "sha256": "f643669b656958c36ac0950f46fd0b764ab96a2dab68d1c081b57076c2f90153",
-      "change": "append tour-supply/visited-region-mask/1 marker after unchanged20-row fold"
-    },
-    "crates/rh-sim/src/quests/mod.rs": {
-      "sha256": "3c635b9b920ed6b9e0178deefb0b31c0806aaab6db45a7091e6b3e3e12cd7afe",
-      "change": "register source consumer test module"
-    },
-    "crates/rh-sim/src/quests/tour_supply_source_tests.rs": {
-      "sha256": "75630470254cacf38e3280571c4303ae95dbeb25d8a976b5e5f7f302dd51c31b",
-      "bytes": 33247,
-      "change": "new frozen native source consumer"
-    }
-  },
-  "contentIdentity": {
-    "previous": "7c6a633f68c2cc72",
-    "resulting": "8edd862f48ffa100",
-    "marker": "tour-supply/visited-region-mask/1",
-    "fold": "length as u64 then each UTF-8 byte as u64, after unchanged 20 catalog rows",
-    "pinHunkNeededNotEdited": {
-      "file": "parity/abilities/hash-tape.json",
+  "pins": {
+    "contentHashPrevious": "7c6a633f68c2cc72",
+    "contentHashFinal": "8edd862f48ffa100",
+    "parity/abilities/hash-tape.json": {
       "line": 258,
-      "old": "7c6a633f68c2cc72",
-      "new": "8edd862f48ffa100"
+      "bytes": 7002,
+      "sha256": "9df7ffb87d81062d513257f17efe6e003fab047fc62d0177e7f8396e1ca3d4c4",
+      "change": "contentHash only",
+      "diff": "stage0-content-pin.diff",
+      "diffSha256": "a5ceeef6fd28e2a65499b67ec520a76a50b1c787948cb64c477e46b3175c0fbe"
+    },
+    "crates/rh-sim/tests/content.rs": {
+      "line": 522,
+      "bytes": 57502,
+      "sha256": "5e8c9de391b2d5b5a21ec1e3acb80dd4ede7b8c547847a73415573abf874e190",
+      "change": "GOLDEN_CONTENT_HASH value only",
+      "diff": "stage0-content-golden-pin.diff",
+      "diffSha256": "d5c1bc825822ef363793f170c07960ab84967a3fadb0904650afbf56c9bc6a91"
+    },
+    "noCaseFoldTicksSchemaOrOtherCorpusEdit": true,
+    "recordAbilityHashTapeWasNotRun": true
+  },
+  "changedTestSource": {
+    "crates/rh-sim/src/quests/tour_supply_source_tests.rs": {
+      "bytes": 33259,
+      "sha256": "49d52fe6e354e4c07add25f4be6fa112cc9c8f1c59a5483e70ded82b2eeec264"
     }
   },
-  "sourceProfileMapping": {
-    "lifecycle": "ArenaMode::Source(plan0, firstPatience None, no coliseum schedule, patience3600/min3600/sudden3600)",
-    "abilities": "Full",
-    "hazards": "Map",
-    "mob_mode": "Pve",
-    "quests": true,
-    "pvp_rules": false,
-    "training": false,
-    "dummies": false,
-    "faction_mode": "Off (signatures:false)",
-    "walk_hints": false,
-    "initial_loot": true,
-    "consumables": "default true",
-    "spawnSeedMapping": "native spawn_seed = captured randomSeed12 because source startRaid shuffled player assignment draws source world.random; captured spawnSeed0 is not that stream",
-    "notifications": "Event::PotionNotice.message -> source toast envelope for ordered comparison"
-  },
-  "receipts": {
-    "docs/evidence/quest-backend-runtime/stage0-red-both.log": {
-      "bytes": 1673,
-      "sha256": "feefea577bdda71d8c671c18ed7430f213311653749c54051b8b8f682b96d539",
-      "result": "prior limited profile: both exact status reds"
+  "gates": [
+    {
+      "name": "hash-tape-63",
+      "command": "cargo test -p rh-sim --lib abilities::source_tests::hash_tape::ability_hash_tape_matches_the_base --locked --offline",
+      "result": "1 passed, 0 failed; all63 unchanged cases",
+      "raw": "stage0-pin-hash-tape.log",
+      "rawSha256": "5feb04aff4d87b28bdc6f8347d4a56100a9b7d26b3f4368eba83fed763f6fe08"
     },
-    "docs/evidence/quest-backend-runtime/stage0-green-both.log": {
-      "bytes": 683,
-      "sha256": "c4ae1d604688bc47a11874fa3c643704e8f36bc9d7028f1de841ed3fe24285bf",
-      "result": "prior limited profile: both green"
+    {
+      "name": "content-full",
+      "command": "cargo test -p rh-sim --test content --locked --offline",
+      "result": "21 passed, 0 failed",
+      "raw": "stage0-content-full-gate.log",
+      "rawSha256": "d5f503bffc4e9bb695521d592d6e0955f7d7afa65f8574a045b71ee1f1e081b1"
     },
-    "docs/evidence/quest-backend-runtime/stage0-pre-marker-quest-suite.log": {
-      "bytes": 3965,
-      "sha256": "665fae1710f88f462cd9ef97d3140e62d803d5546d2800da9c020e9a8d819034",
-      "result": "34 passed,1 ignored pre-marker"
+    {
+      "name": "quest-view",
+      "command": "cargo test -p rh-sim --lib quest_view:: --locked --offline",
+      "result": "26 passed, 0 failed",
+      "raw": "stage0-quest-view-gate.log",
+      "rawSha256": "54aea243fd666353eda1488637f99c93b6fc7efbfa07d52da703c2c204978bbc"
     },
-    "docs/evidence/quest-backend-runtime/stage0-profile-red-original-predicate.log": {
-      "sha256": "2678d3984ab462acedbc10c9b7c1112aaf2cad1636ab3505a8a451ee3a182ddd",
-      "result": "final profile, original predicate: case0 expired vs open; case1 open vs expired",
-      "bytes": 1673
+    {
+      "name": "checkpoint-content-mismatch",
+      "command": "cargo test -p rh-sim --test checkpoint a_checkpoint_names_its_content_and_build_and_refuses_other_content --locked --offline",
+      "result": "1 passed, 0 failed",
+      "raw": "stage0-checkpoint-content-mismatch.log",
+      "rawSha256": "8c645dff2c886030d424aac904fe2dc1b46e049e83ea48fb80950ea6a4ff90cf"
     },
-    "docs/evidence/quest-backend-runtime/stage0-profile-green-final.log": {
-      "sha256": "7978badd91a5bd66b1807b8e7b267e76d5bc7b55aa25062c412eddaf3a21d961",
-      "result": "final profile, stored mask: both pass",
-      "bytes": 683
+    {
+      "name": "replay-content-mismatch",
+      "command": "cargo test -p rh-sim --test replay a_replay_names_its_build_and_a_file_without_the_new_keys_still_verifies --locked --offline",
+      "result": "1 passed, 0 failed",
+      "raw": "stage0-replay-content-mismatch.log",
+      "rawSha256": "780d352d06ab407ddad27175f38a8265a2b6af965ab30f708a196cbabbef27c8"
     },
-    "docs/evidence/quest-backend-runtime/stage0-profile-green.log": {
-      "sha256": "767508f9f32c0c2bb18c76d7132db66b193cf6da59236cab5f4de25dcdc125b1",
-      "result": "full profile green before final red/green sequence",
-      "bytes": 683
+    {
+      "name": "clippy-all-targets-all-features",
+      "command": "cargo clippy -p rh-sim --all-targets --all-features --locked --offline -- -D warnings",
+      "result": "exit0",
+      "raw": "stage0-clippy-all.log",
+      "rawSha256": "593d041f9cee9e93c9608e118fd81ab6426c946ba389ccc0a913a9244ff4cff5",
+      "bytes": 199
     },
-    "docs/evidence/quest-backend-runtime/stage0-final-quest-gate.log": {
-      "sha256": "f3c108746904aa4d580ae357d9b9609578c080bb37ba0f9fc45db51c9a0c2b30",
-      "result": "34 passed,1 ignored,0 failed",
-      "bytes": 3965
+    {
+      "name": "fmt-scoped",
+      "command": "cargo fmt -p rh-sim -- --check",
+      "result": "exit0, empty output",
+      "raw": "stage0-fmt-check.log",
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
     },
-    "docs/evidence/quest-backend-runtime/stage0-content-pin-expected-failure.log": {
+    {
+      "name": "final-two-case-consumer",
+      "command": "cargo test -p rh-sim --lib quests::tour_supply_source_tests --locked --offline",
+      "result": "2 passed, 0 failed",
+      "raw": "stage0-profile-green-final.log",
+      "rawSha256": "7649d4e7aacf68f5b8bbc915d69eeba1a37b963e3a8d0397aaf0e6f0ccc08a82"
+    }
+  ],
+  "preservedOriginalFailures": {
+    "stage0-content-pin-expected-failure.log": {
       "sha256": "1c88a8f6fe8e0bbafe9c4449d5afd5c9c2d39a50ed9828740edd8c468c3b894a",
-      "result": "expected old contentHash pin failure; not edited",
-      "bytes": 1001
+      "meaning": "old hash-tape contentHash pin failure"
+    },
+    "stage0-content-golden-pin-scope-failure.log": {
+      "sha256": "7f98de3e04a8dd179dd27d87cff3b527ce4acece42c2063abbaea6c7cee6cde1",
+      "meaning": "old content.rs GOLDEN_CONTENT_HASH failure before authorized edit"
+    },
+    "stage0-clippy-frameregions-firstfailure-raw.log": {
+      "sha256": "2ab7bb78f2bee036bf6e83906ff432aa2c83f5329f65f97400c117feed699776",
+      "meaning": "transient remaining FRAME_REGIONS compile failure"
+    },
+    "stage0-fmt-frameregions-firstfailure-raw.log": {
+      "sha256": "f9bc56fa01082726e8d79c68f1f704591686cdef3ec68de655da8f0c9edbbf6b",
+      "meaning": "same transient compile state fmt failure"
+    },
+    "stage0-consumer-frameregions-firstfailure-raw.log": {
+      "sha256": "5371b2db87df5eb2e2f58db8c35fdbc1e012db597625e51a359e7b5ff8decfe9",
+      "meaning": "same transient compile state final consumer failure"
+    },
+    "stage0-fmt-postcontent-firstfailure-raw.log": {
+      "sha256": "f9bc56fa01082726e8d79c68f1f704591686cdef3ec68de655da8f0c9edbbf6b",
+      "meaning": "post-content trailing-newline fmt failure before format"
     }
   },
-  "commands": {
+  "historicalFailuresRawNotRecoverable": [
+    "First strict clippy failure: clippy::extend_with_drain at tour_supply_source_tests.rs:927; raw log overwritten by later PASS, not reconstructed.",
+    "First full content-target failure: every_const_in_the_source_tree_is_registered_or_explained for top-level FRAME_REGIONS const; raw log overwritten by later PASS, not reconstructed."
+  ],
+  "oldGreenLogRecoverableFromStage0Commit": "stage0-profile-green-final.log at 4fb5714e93386b6e7daa08ab3bf405888331c263",
+  "commandsCommonEnv": {
     "target": "/Users/nevinmckinnon/.codex/tools/roguehalla-backend-20261109/target-quests",
-    "env": "PATH=$HOME/.cargo/bin:$PATH CARGO_TARGET_DIR=... CARGO_BUILD_JOBS=1 CARGO_NET_OFFLINE=true",
-    "consumer": "cargo test -p rh-sim --lib quests::tour_supply_source_tests --locked --offline",
-    "questGate": "cargo test -p rh-sim --lib quests:: --locked --offline",
-    "format": "cargo fmt --all -- --check (PASS)"
+    "env": "PATH=$HOME/.cargo/bin:$PATH CARGO_TARGET_DIR=target CARGO_BUILD_JOBS=1 CARGO_NET_OFFLINE=true",
+    "lockedOffline": true
   },
   "limits": [
-    "Stage1 not started",
-    "content-pin/case-fold admission Root-owned",
-    "no Cargo.lock/shared status/wire/version change",
-    "frozen fixture/tools unchanged",
+    "Stage1 NOT STARTED pending independent release",
+    "no schema/public/client/Unity/Claude/shared-status/Cargo.lock edit",
+    "no frozen fixture/tool edit",
+    "no heavy unchanged suite/all-map rerun",
     "no merge/push"
   ]
 }

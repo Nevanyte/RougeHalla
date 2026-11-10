@@ -1,7 +1,7 @@
 # Quest backend Stage0 — source tour-supply repair
 
-Status: STAGE0 IMPLEMENTED AND LOCALLY GREEN; CONTENT-PIN ADMISSION PENDING ROOT. Frozen source and tools
-are unchanged. Stage1 is not started.
+Status: STAGE0 IMPLEMENTED, PINNED, AND FULLY GREEN ON THE REQUESTED GATES. Frozen source and tools are
+unchanged. Stage1 remains not started pending independent release.
 
 ## Identity and scope
 
@@ -90,3 +90,9 @@ was edited. Stage0 remains separate from any Stage1 objective/reward extraction.
 Content-pin admission and any case-fold re-record remain Root-owned. No wire/version/Cargo.lock/shared status
 edit, Stage1 extraction, Unity/network/protocol/World/checkpoint change, merge/push or native/live disclosure.
 The frozen source fixture/tools remain byte-identical.
+
+## Follow-up pin/gate seal
+
+See STAGE0-PIN-GATES.md for the exact hash-tape and content-golden one-line diffs, full content21,
+tape63, quest_view26, checkpoint/replay ContentMismatch, strict clippy/fmt, final consumer, raw receipts,
+historical overwritten-failure notes, and limits. Resulting content hash is 8edd862f48ffa100.
