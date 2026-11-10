@@ -109,15 +109,20 @@ inside their block, and the lab is unreachable without `?contrastlab=1`).
 Covered: the grid above on plain ground, and looks standing in front of and beside the zone's props: the two most common tall arts (trees, spires, columns, pillars, scarecrows) and the two most common low arts (grass, tombstones, rocks, drifts, ferns), taken in turns, one idle south-facing look per prop instance (the art table does not flag tombstones as tall, so they count as low). Prop density
 is high, so neighbouring props are part of the picture, and cells are only kept apart from each other.
 
+Also covered (conditions, run with `--query "cond=..."`; the default matrix is the plain pages only):
+
+* `cond=local`: the first player cell of a page is drawn as the local player (mint hp bar, larger footprint, accent light). Gated like any other cell.
+* `cond=marks`: every overhead plate and ring the presenter can draw at once, around and over each figure: statuses, bounty crown and number, off-hand weapon, build (stat) marks, Wish ready icon, mark plate, signature slots and cue, elite star and rings, barrier bubble and ring steps, teleport-immunity and roam-ready rings. The silhouette, hp track, footprint and insignia are not measurable there by construction (rings and the bubble cover the body), so this condition gates the **plates** marker alone: the outline of the union of every plate and ring (mask class OTHER, holes closed so the glyphs of a name or a number are not counted as edges), vs the ground ring, median >= 4.5. Cells whose silhouette cannot be segmented are reported as unmeasured.
+* `cond=fog`, `cond=fade`, `cond=flash`: see the evidence README.
+
 Not covered (say so when quoting a pass):
 
-* Combat effects, Wish effects, telegraphs, hit flashes, damage numbers, status icons and signature icons: none are drawn in the lab. Their 4.5:1 requirement needs its own cells.
-* Fog of war over actors, fade in and fade out, and anything that dims or hides an actor (none exists in the lab, none is simulated).
-* The local player's own presentation (mint hp bar, larger footprint, accent light): every lab actor is a remote. Faction colours are covered through `hero`, `hero@sentenced`, `mage`,
-  `hero-female`, `mage-female` and the mob looks.
-* Name and level text: the presenter draws none today. If a label is added it needs a marker class in `ContrastLabStage.ClassOf` and the mask shader.
-* Dead actors, barrier rings, held-weapon variety beyond sword, wand and bow, other animation frames than the one frozen (idle frames vary between runs; see the baseline), 8-way facings beyond the two measured.
-* Zone borders (a view straddling two zones blends their lighting; the lab keeps the whole view inside one zone), the live match camera offset, and anything driven by real vision or network state.
+* **Dead actors** are exempt on purpose: a dead fighter is drawn at 0.65 opacity as a faded corpse, keeps a stroke at 0.6 alpha (`ActorOutlineModel.StateAlpha`, tested) and is not an actor a player must pick out; no lab cell draws one.
+* **The melee hit zone** (`HitZonePresenter`) is not drawn in the lab. Its sector edge is a dark line (`EdgeDarkAlpha` .9 of the theme ink) beside a light line (`HitZoneModel.EdgeAlpha` .6 white): the better of the two reads at least 3.1:1 on every ground and 4.5:1 below 0.12 and above 0.4 ground luminance, proved by `TheHitZoneEdgeReadsOnEveryGround` (a bound by construction, not a screenshot measurement). The wind-up telegraph is the same edge pair.
+* Combat effects, Wish effects, hit flashes, damage numbers beyond the `cond=flash` frame, and signature icons beyond the `cond=marks` plates.
+* Barrier bubble and ring steps are drawn by `cond=marks` but only as part of the plates marker; their own contrast on the gated body is not isolated.
+* Held-weapon variety beyond sword, wand and bow, other animation frames than the one frozen (idle frames vary between runs; see the baseline), 8-way facings beyond the two measured.
+* Zone borders are covered by the `seam` pages (two zone blocks side by side), not by the camera offset of a live match or anything driven by real vision or network state.
 * HUD, minimap, Tab map and overlays: all hidden. The lab measures the world layer only.
 * Ambient motion is averaged, not frozen: dust, snow and haze in front of an actor are in the numbers but their position differs per frame.
 

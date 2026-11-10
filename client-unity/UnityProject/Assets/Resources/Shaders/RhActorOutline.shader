@@ -168,22 +168,8 @@ Shader "Roguehalla/ActorOutline"
             return m * g;
         }
 
-        // The figure's own ground, wide and slow (nine taps out to one world unit, geometric mean): the tie break inside the dead zone, stable from frame to frame on animated ground.
-        float FigureLuma(float2 uv)
-        {
-            float unit = _ScreenParams.y / max(2.0 * unity_OrthoParams.y, 0.01);
-            float2 px = unit / _ScreenParams.xy;
-            float sum = log(max(TapLum(uv), 0.004));
-            [unroll] for (int k = 0; k < 4; k++)
-            {
-                float s, c; sincos(1.5707963 * k, s, c);
-                sum += log(max(TapLum(uv + float2(c, s) * px * 0.5), 0.004));
-                sum += log(max(TapLum(uv + float2(s, -c) * px * 1.0), 0.004));
-            }
-            return exp(sum / 9.0) * max(_RhOutlineGain, 0.05);
-        }
-
-        // The vertex shader decides the figure's own polarity once per quad (four vertices), from the ground behind the object's centre.
+        // The figure's own polarity (the tie break inside the dead zone) is the CPU's ground estimate at its position (_Prior, set by SpriteOutline.Sync): the grab holds the whole
+        // scene including the figure itself, so a wide sample of it around the figure's centre would read the figure's own body, not its ground.
         Varyings Vert(Attributes v)
         {
             Varyings o = (Varyings)0;
@@ -193,8 +179,7 @@ Shader "Roguehalla/ActorOutline"
             o.color = v.color * unity_SpriteColor;
             o.screen = ComputeScreenPos(o.positionCS);
             o.posWS = TransformObjectToWorld(v.positionOS);
-            float4 c = ComputeScreenPos(TransformObjectToHClip(float3(0, 0, 0)));
-            o.figure = _RhOutlineGrab > 0.5 ? (FigureLuma(c.xy / c.w) < _RhOutlineTune.z ? 1.0 : 0.0) : _Prior;
+            o.figure = _Prior;
             return o;
         }
 
