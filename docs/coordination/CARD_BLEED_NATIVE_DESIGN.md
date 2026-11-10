@@ -1,6 +1,6 @@
 # Card bleed native design — pending dispatch
 
-**Status: planned, not dispatched. Root approved B3 typed Card amounts; production dispatch still requires reconciled capacity, identity/version, shared-file leases and final Claude/worktree review.** This is the single current native design for P-CARD-BLEED-FEEDBACK-1. It incorporates the static representation and capacity review in [CARD_BLEED_REPORT_REVIEW.md](CARD_BLEED_REPORT_REVIEW.md), which remains historical reasoning rather than a competing plan. The older per-status/E0 memory model is superseded. The three DeepSeek numeric/restore probes and Sol review are linked below; they do not implement report/index types or measure their sizes/allocations. All Rust/tests/probes belong to DeepSeek. Root owns dispatch, identity/version decisions, leases and integration. No source recapture or native implementation is authorized by this design alone.
+**Status: ready for isolated worker assignment, not dispatched. Root approves the output/privacy contract, B3 typed amounts, provisional capacity plan, identities and narrow leases at the recorded cuts below; recheck the current cut when assigning the worker.** This is the single current native design for P-CARD-BLEED-FEEDBACK-1. It incorporates the static representation and capacity review in [CARD_BLEED_REPORT_REVIEW.md](CARD_BLEED_REPORT_REVIEW.md), which remains historical reasoning rather than a competing plan. The older per-status/E0 memory model is superseded. The three DeepSeek numeric/restore probes and Sol review are linked below; they do not implement report/index types or measure their sizes/allocations. All Rust/tests/probes belong to DeepSeek. Root owns dispatch, identity/version decisions, leases and integration. No source recapture or native implementation is authorized by this design alone.
 
 ## Frozen source and contract
 
@@ -27,7 +27,7 @@ Legacy `cardHooks.ts` stores ordered raw victim/source totals and publishes a gl
 audiences do not exist in that source. Native settled-tick entitlement/redaction is a deliberate ADR0013 privacy
 extension, not source parity. Preserve the trusted global aggregate separately from public per-viewer projection.
 
-Two outputs are planned, subject to Root approval:
+Root approves these two outputs under the recorded isolated-lane reservation:
 
 1. Server-only `Event::CardBleedHit { victim, by: Option<PlayerId>, amount: CardBleedAmount }`, once per trusted raw pair at flush in source
    insertion order. Exhaustive event visibility/classification remains `ServerOnly`; `observe::to_seen` returns none.
@@ -37,8 +37,8 @@ Two outputs are planned, subject to Root approval:
    wire mapping remain the identity authority. The payload conveys bounded victim/source/amount feedback only; it adds
    no Card/DoT/drip, weapon, ability or signature identity and promises no legacy drip animation or Unity equivalence.
 
-Codec shape is unchanged; reuse of `Hit` still changes observation/policy knowledge semantics and requires Root's
-contract/version decision. No Unity/network/client change is in this worker's scope.
+Codec shape is unchanged; reuse of `Hit` changes observation/policy knowledge semantics under the Root-approved
+OBS/policy reservation below. No Unity/network/client change is in this worker's scope.
 
 ## Trusted report, cadence and scheduled producers
 
@@ -188,12 +188,12 @@ The [DeepSeek probes](../evidence/card-bleed-native-probes/README.md), evidence 
 
 Root approved B3 for trusted Card reporting: `CardBleedAmount = Finite(nonnegative finite f64, preserving source-observable bits including -0) | PositiveInfinity | NotANumber`. This narrowly represents the reached landed multiplication and ordered Card aggregation outcomes without storing IEEE nonfinite floats. Preserve first insertion/order and every ordinary finite sequential `+=`; finite overflow transitions to PositiveInfinity, NaN is absorbing. Do not clamp, reorder, change producer arithmetic, add a generic restore magnitude threshold, or send special numbers over the wire. `CardBleedHit` remains a server-only typed diagnostic. This does not establish safe arithmetic outside Card reporting or change generic accepted statuses.
 
-For public projection, keep each derived raw-pair source-invalid and checked-ExactSum-overflow classification local until settled eligibility and source redaction are known. An unentitled invalid/overflowing pair must not poison a viewer. An eligible nonfinite source amount uses existing typed `InvalidAmount`; an eligible checked exact accumulation/merge/rounding overflow uses `Overflow`. Both fail that viewer closed without partial output. No IEEE NaN/Infinity is serialized as a float, emitted publicly, or converted to JSON null. B3 is approved. Production dispatch still requires capacity/layout plan reconciliation, identity/version decisions, shared-file lease checks and Root authorization.
+For public projection, keep each derived raw-pair source-invalid and checked-ExactSum-overflow classification local until settled eligibility and source redaction are known. An unentitled invalid/overflowing pair must not poison a viewer. An eligible nonfinite source amount uses existing typed `InvalidAmount`; an eligible checked exact accumulation/merge/rounding overflow uses `Overflow`. Both fail that viewer closed without partial output. No IEEE NaN/Infinity is serialized as a float, emitted publicly, or converted to JSON null. B3 is approved. The plan, identities and narrow leases are approved at the recorded cuts below; production dispatch still requires a clean worker assignment and fresh cut check.
 
 The three probes are complete; their receipts and Sol's review are linked above. They do not measure proposed report/index sizes or warmed allocations. Those remain later native implementation gates. The separate narrow NPC checkpoint repair is proposed in [P-NPC-BLEED-RESTORE-1](../backlog/packets/P-NPC-BLEED-RESTORE-1.md); its exact predicate must be checked against actual producer fields and checkpoint clock/history semantics before dispatch.
 ## Planned identities, ownership and write leases
 
-All identities below are **proposals only; Root must revalidate/reserve against the final union/Claude cut at dispatch**:
+Root reserves the following identities at integration `ecaba4e0` / primary `3eea4656`; revalidate the current cut at dispatch and union:
 checkpoint 29→30 for serialized/hash state, replay 23→24, OBS 21→22 and policy 15→16 for changed knowledge semantics
 under ADR0013, plus a new content visitor marker such as `card-bleed-feedback/1`. Existing protocol14 codec shape stays
 unchanged. A new World leaf changes hashes even when absent; metadata-only pin edits are insufficient. Root authorizes
@@ -217,8 +217,7 @@ or public behavior.
 
 ## Acceptance and dispatch gate
 
-Before implementation Root must reconcile layout/capacity, approve output and
-privacy contract, capacity calculation and numerical bounds, exact identities/leases, and allocate an isolated clean Rust
+Before implementation Root must recheck the current source/shared-file cut and assign the approved plan to an isolated clean Rust
 branch/private target with pinned offline toolchain. Then DeepSeek must:
 
 1. Replay all seven immutable source inputs via real scheduled producers and ordinary fixed 50 ms steps, comparing

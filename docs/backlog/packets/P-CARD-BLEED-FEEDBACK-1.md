@@ -7,7 +7,7 @@ settled-tick Card projection. Damage/status production already exists. All Rust,
 Sol/Luna owns immutable source/design/independent review; Root owns dispatch, identity/version decisions, leases and
 integration; Claude retains networking/Unity ownership.
 
-**Planned, not dispatched. Root approved B3 typed Card amounts.** The single current design is [CARD_BLEED_NATIVE_DESIGN.md](../../coordination/CARD_BLEED_NATIVE_DESIGN.md). It replaces the earlier per-status/E0 capacities and 44.60 MiB estimate with exact raw-pair sidecars, sparse U0/Q0 preparation, bounded arena AVL indexes, one populated flush and explicit tagged-amount planning allowances. `CARD_BLEED_REPORT_REVIEW.md` is historical reasoning, not a competing plan. Root must still reconcile actual-layout measurement gates, output/privacy contract, identities/leases and the active Claude/worktree cut before assigning native implementation. Numeric evidence is linked in the design; those probes do not implement report/index types or measure their layout/allocations.
+**Ready for isolated worker assignment, not dispatched. Root approves B3, output/privacy, provisional capacity, identities and narrow leases at the recorded cuts below.** The single current design is [CARD_BLEED_NATIVE_DESIGN.md](../../coordination/CARD_BLEED_NATIVE_DESIGN.md). It replaces the earlier per-status/E0 capacities and 44.60 MiB estimate with exact raw-pair sidecars, sparse U0/Q0 preparation, bounded arena AVL indexes, one populated flush and explicit tagged-amount planning allowances. `CARD_BLEED_REPORT_REVIEW.md` is historical reasoning, not a competing plan. Root must recheck the active Claude/worktree cut and assign a clean worker branch; actual layout/allocation measurements are native acceptance gates. Numeric evidence is linked in the design; those probes do not implement report/index types or measure their layout/allocations.
 
 ## Released source dependency
 
@@ -40,7 +40,7 @@ settled-tick entitlement/redaction is a deliberate ADR0013 privacy extension; it
 - `FxProjector` emits existing `SeenEvent::Hit { victim, by: redacted_source, amount, passive:false }` for positive
   entitled Card buckets at the Card marker. Use existing ItemObserver/public-ID authority. No new SeenEvent/wire shape,
   protocol codec, client or generated-code work; no Card/DoT/drip/weapon/ability/signature identity or legacy visual
-  equivalence is promised. Reuse of Hit still changes observation/policy knowledge semantics and requires Root's version
+  equivalence is promised. Reuse of Hit changes observation/policy knowledge semantics under the reserved version
   approval.
 - Per completed tick, use `sees(viewer,victim) || by == viewer`, redact unseen source before grouping, and merge
   anonymous pairs. Entitlement remains from settled tick if actors later disappear; do not re-check at flush. ExactSum
