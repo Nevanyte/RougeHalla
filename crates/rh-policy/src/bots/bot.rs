@@ -1,16 +1,18 @@
 //! The human-like seat: a Policy that reads only accepted Frame14 (C-OBS), decides through the ported hand, and proposes
 //! through the one validated input path (C-INPUT). docs/BOTS.md 4 describes the legacy layers; this is the bounded core
 //! slice: observed-player memory -> source scheduling/world goals -> the ported humanizer -> PublicCommands.
-//! Candidate selection and combat remain the bounded compatibility front end. Full source memory,
-//! FrameRing, strategy scoring and fight/reflex/loot executors remain pending.
+//! Candidate selection and combat remain the bounded compatibility front end. The loot (world.ts actLoot) and reward
+//! chest (chests.ts) executors run through bots::loot on the frame's own delivered handles. Full source memory,
+//! FrameRing, strategy scoring and fight/reflex executors remain pending.
 use crate::bots::brain::{merge_intents, Brain, Goal, Output, Status as GoalStatus};
 use crate::bots::clicks::BotMap;
 use crate::bots::delivered::{Epoch, PlayerRef};
 use crate::bots::humanizer::{Context, Humanizer};
 use crate::bots::knowledge::Knowledge;
+use crate::bots::loot::{Loot, View as LootView};
 use crate::bots::memory_prefix::{Memory, OwnerSight, Scene, MAX_RECORDS};
 use crate::bots::paths::{PathBudget, RoomPathService};
-use crate::bots::perception::Perception;
+use crate::bots::perception::{LootFacts, Perception};
 use crate::bots::planning::{PlanDeal, PlanLearned, PlanMap, PlanModule};
 use crate::bots::random::{derive, Rng};
 use crate::bots::types::{
@@ -101,6 +103,11 @@ pub struct HumanBot {
     plan_learned: PlanLearned,
     /// The Knowledge layer: the counter wheels this bot knows and its fixed mob-share errors, drawn once at reset.
     knowledge: Option<Knowledge>,
+    /// The loot/choice executor (world.ts actLoot, strategy.ts loot, chests.ts).
+    loot: Loot,
+    /// The latest observation's prop and reward-chest rows with the handles that observation delivered: the only source
+    /// of a Pickup/Choose handle (a key absent from it is dropped, never guessed).
+    facts: LootFacts,
 }
 
 impl HumanBot {
@@ -129,6 +136,8 @@ impl HumanBot {
             plan_map: PlanMap::default(),
             plan_learned: PlanLearned::default(),
             knowledge: None,
+            loot: Loot::new(),
+            facts: LootFacts::default(),
         }
     }
     pub fn tier(&self) -> TierId {
@@ -371,6 +380,8 @@ impl Policy for HumanBot {
         self.planning.reset();
         self.plan_map = PlanMap::from_arena(&m.arena);
         self.plan_learned = PlanLearned::default();
+        self.loot.reset();
+        self.facts = LootFacts::default();
         // Source brain.ts 141-147: the Knowledge layer has its own stream, mulberry32(derive(cfg.seed, 3)); the
         // decision stream is untouched, so the first decision draw is the decision stream's first draw.
         self.knowledge = Some(Knowledge::create(
@@ -546,6 +557,7 @@ impl HumanBot {
         self.ids = frame.ids;
         let frame_hit_at = frame.hit_at;
         let frame_fighter_hits = frame.fighter_hits;
+        self.facts = frame.loot;
         let p = frame.percept;
         self.wish.absorb_hits(frame_hit_at, &frame_fighter_hits);
         if p.self_view.max_hp > 0. {
@@ -580,14 +592,56 @@ impl HumanBot {
             paths.set_frame(p.now, p.hud.gates_locked);
         }
         self.wish.observe(&p, self.tier, &mut self.decide);
+        let toasts: Vec<String> = obs
+            .events
+            .iter()
+            .flat_map(|b| &b.events)
+            .filter_map(|e| match e {
+                rh_protocol::WireEvent::Toast { text } => Some(text.clone()),
+                _ => None,
+            })
+            .collect();
+        let self_key = crate::bots::perception::player_key(PlayerId(owner.id));
+        let (tier_id, persona_id) = (self.tier, self.persona);
+        self.loot.observe(&loot_view(
+            &p,
+            &self.facts,
+            &toasts,
+            &self_key,
+            still_since,
+            tier_id,
+            persona_id,
+        ));
         let active = p.self_view.status == "alive" && p.hud.phase == "active";
         let mut intents = Vec::new();
         if active {
             let slip_active = self.wish.goal_active(&p);
             let mut changed = false;
             if self.brain.strategy_due(p.now, &stimuli) {
+                self.loot.settle(&self.brain.goal, self.brain.status, p.now);
+                // Bounded compatibility order: a reward chest (chests.ts goals), then a loot detour (strategy.ts loot),
+                // then the front end's fight/farm/roam. Both loot candidates stand down while the owner is engaged.
+                let looting = if slip_active {
+                    None
+                } else {
+                    let v = loot_view(
+                        &p,
+                        &self.facts,
+                        &toasts,
+                        &self_key,
+                        still_since,
+                        tier_id,
+                        persona_id,
+                    );
+                    self.paths
+                        .as_mut()
+                        .and_then(|paths| self.loot.chest_goal(&v, paths))
+                        .or_else(|| self.loot.loot_goal(&v))
+                };
                 let goal = if slip_active {
                     Goal::WishSlip
+                } else if let Some(goal) = looting {
+                    goal
                 } else {
                     self.choose_goal(&p)
                 };
@@ -604,9 +658,11 @@ impl HumanBot {
                     return;
                 };
                 let module_goal = matches!(self.brain.goal, Goal::WishSlip);
+                // The chests module goal runs its own act() alone (brain.ts act: a module goal takes no other module's intents).
+                let chest_goal = matches!(self.brain.goal, Goal::Chest { .. });
                 // A cached source module goal finishes through act(), even before the next
                 // strategy deadline. An expired/cornered slip must not pin the retained goal.
-                let extra = if module_goal && !slip_active {
+                let extra = if (module_goal && !slip_active) || chest_goal {
                     vec![]
                 } else {
                     self.wish.intents(
@@ -637,18 +693,36 @@ impl HumanBot {
                         attacking: false,
                     }
                 } else {
-                    let world = self.world.act(
-                        &self.brain.goal,
-                        WorldContext {
-                            now: p.now,
-                            at: rh_sim::Vec2::new(p.self_view.x, p.self_view.y),
-                            still_since,
-                        },
-                        |a, b| paths.walk(a, b).is_some(),
+                    let v = loot_view(
+                        &p,
+                        &self.facts,
+                        &toasts,
+                        &self_key,
+                        still_since,
+                        tier_id,
+                        persona_id,
                     );
+                    let world = match &self.brain.goal {
+                        Goal::Loot { container } => Some(self.loot.act_loot(container, &v, paths)),
+                        Goal::Chest { chest } => Some(self.loot.act_chest(chest, &v, paths)),
+                        goal => self.world.act(
+                            goal,
+                            WorldContext {
+                                now: p.now,
+                                at: rh_sim::Vec2::new(p.self_view.x, p.self_view.y),
+                                still_since,
+                            },
+                            |a, b| paths.walk(a, b).is_some(),
+                        ),
+                    };
                     let mut base =
                         world.unwrap_or_else(|| self.compatibility_tactics(&p, &stimuli));
-                    base.intents = merge_intents(base.intents, extra);
+                    if !chest_goal {
+                        // The chests module's intents hook: the one `choose`, whatever the bot is doing.
+                        let mut extra = extra;
+                        extra.extend(self.loot.intents(&self.brain.goal, &v));
+                        base.intents = merge_intents(base.intents, extra);
+                    }
                     base
                 };
                 self.brain.acted(p.now, &output, tier, &mut self.decide);
@@ -734,10 +808,70 @@ impl HumanBot {
                 });
             }
             C::Plan { spawn, boon, ready } => out.push(PublicCommand::Plan { spawn, boon, ready }),
-            // Frame14 retains item/chest handles. Connecting their source loot executors is still
-            // pending; the compatibility front end never invents a handle from a row index.
-            C::Pickup { .. } | C::Choose { .. } => {}
+            // A container/chest key resolves only to the handle the latest accepted observation delivered for that
+            // public row; an unknown key is dropped, never guessed (and never a row index).
+            C::Pickup { container_id } => {
+                if let Some(handle) = self
+                    .facts
+                    .props
+                    .iter()
+                    .find(|p| p.key == container_id)
+                    .and_then(|p| rh_sim::PickupHandle::new(p.handle.get()))
+                {
+                    out.push(PublicCommand::Pickup { handle });
+                }
+            }
+            C::Choose { chest, pick, .. } => {
+                if let Some(handle) =
+                    self.facts
+                        .chests
+                        .iter()
+                        .find(|c| c.key == chest)
+                        .and_then(|c| {
+                            rh_sim::reward_chests::RewardChestHandle::from_wire(c.handle.get())
+                        })
+                {
+                    out.push(PublicCommand::Choose { handle, pick });
+                }
+            }
         }
+    }
+}
+
+/// The loot/choice executor's view of one accepted percept (plain borrows; no state handle).
+fn loot_view<'a>(
+    p: &'a Percept,
+    facts: &'a LootFacts,
+    toasts: &'a [String],
+    self_key: &'a str,
+    still_since: f64,
+    tier: TierId,
+    persona: PersonaId,
+) -> LootView<'a> {
+    LootView {
+        now: p.now,
+        at: rh_sim::Vec2::new(p.self_view.x, p.self_view.y),
+        alive: p.self_view.status == "alive",
+        active: p.hud.phase == "active",
+        hp: p.self_view.hp,
+        max_hp: p.self_view.max_hp,
+        effects: p.self_view.effects,
+        weapons: p.self_view.weapons,
+        slot: p.self_view.slot,
+        faction: p.self_view.faction,
+        self_key,
+        fighters: &p.fighters,
+        mobs: &p.mobs,
+        facts,
+        gates_locked: p.hud.gates_locked,
+        toasts,
+        still_since,
+        engaged: matches!(
+            p.self_view.owner_lock,
+            Some(crate::bots::types::OwnerLock::Held { .. })
+        ),
+        persona: PersonaParams::by_id(persona),
+        tier: TierParams::by_id(tier),
     }
 }
 
@@ -828,5 +962,7 @@ mod knowledge_repair_reset_tests {
 
 #[cfg(test)]
 mod connected_tests;
+#[cfg(test)]
+mod loot_seat_tests;
 #[cfg(test)]
 mod reset_stream_tests;

@@ -111,6 +111,81 @@ pub struct Frame {
     /// Player-originated hits on the owner in this observation: the rendered attacker key and the time (the wish module keeps
     /// the per-fighter memory the legacy brain had, so a melee fighter on the bot can count as chasing).
     pub fighter_hits: Vec<(String, f64)>,
+    /// The loot/choice executor's public facts of THIS observation: each prop row and reward chest under its stable
+    /// public key, with the handle this frame actually delivered for it (never a row index), and the arena clocks.
+    pub loot: LootFacts,
+}
+
+/// What a container holds as the bot can tell (legacy ContainerSeen.weapon: a WeaponId, `null`, or `undefined`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Contents {
+    Weapon(BotWeapon),
+    Empty,
+    Unknown,
+}
+
+/// One delivered prop row as the legacy seeContainers draws it, keyed by its public cue and bound to this frame's handle.
+#[derive(Clone, Debug, PartialEq)]
+pub struct PropRef {
+    /// The rendered container key (the percept's ContainerView id): position and kind, stable across handle renewals.
+    pub key: String,
+    /// The handle this frame delivered for the row (handles renew on any cue change; resolve at emit time only).
+    pub handle: rh_protocol::PickupHandle,
+    pub kind: &'static str,
+    pub at: rh_sim::Vec2,
+    pub closed: bool,
+    pub contents: Contents,
+    /// The server's focus row (what F takes).
+    pub interactable: bool,
+}
+
+/// One delivered reward chest under its stable public key, bound to this frame's handle.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ChestRef {
+    pub key: String,
+    pub handle: rh_protocol::RewardChestHandle,
+    pub at: rh_sim::Vec2,
+    pub expires_at: f64,
+    /// Legacy lifeMs: CHEST_SECONDS for a camp chest, KILL_AUG_SECONDS for the owner's Trophy.
+    pub life_ms: f64,
+    /// The source option ids, only while the panel would be open (legacy `options`, else null).
+    pub options: Option<Vec<String>>,
+    /// Who took each option while readable: "" free, the owner's key for its own pick, "?" for anyone else.
+    pub taken_by: Vec<String>,
+    pub picked: bool,
+}
+
+/// The public facts the loot/choice executor reads from one observation.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct LootFacts {
+    pub props: Vec<PropRef>,
+    pub chests: Vec<ChestRef>,
+    /// The owner's own cards row (legacy `self.build`, id -> count), when delivered.
+    pub build: Option<Vec<(String, f64)>>,
+    pub raid_started_at: f64,
+    pub patience_ends_at: Option<f64>,
+    pub in_coliseum: bool,
+}
+
+/// Legacy CHEST_RANGE less CHEST_PANEL_SLACK: the panel (and so the cards) is open within this of the owner.
+pub const CHEST_PANEL_RANGE: f64 = 96. - 8.;
+
+/// The source option id of a wire reward option (cards.ts ids, `boost:*`, `kill:<key>:<gain>`).
+pub fn reward_option_id(id: &rh_protocol::WireRewardId) -> String {
+    match *id {
+        rh_protocol::WireRewardId::Card(i) => rh_sim::cards::CardId::ALL
+            .get(usize::from(i))
+            .map_or_else(String::new, |c| c.as_str().to_owned()),
+        rh_protocol::WireRewardId::Boost(i) => rh_sim::reward_chests::BoostId::ALL
+            .get(usize::from(i))
+            .map_or_else(String::new, |b| b.as_str().to_owned()),
+        rh_protocol::WireRewardId::Kill { key, gain } => {
+            rh_sim::kill_augments::encode(rh_sim::kill_augments::KillAugment {
+                key: rh_sim::kill_augments::KillStatKey::ALL[key as usize],
+                gain,
+            })
+        }
+    }
 }
 
 /// The attention box (TierParams.attention.central), used to mark a stimulus central or peripheral.
@@ -196,45 +271,148 @@ impl Perception {
             ids.push((rendered.clone(), rh_sim::PlayerId(a.id)));
             seen_now.push(rendered);
         }
+        // Containers as the legacy seeContainers draws them (closed/contents), keyed by the public cue (position and
+        // kind) so a goal survives the observer's handle renewals; the handle is only this frame's binding.
+        let focus = obs.collections.props.focus.as_ref();
+        let weapon_of = |code: u8| decoded_weapon(code).and_then(|w| BotWeapon::parse(w.as_str()));
         let mut containers = Vec::new();
-        for (i, prop) in obs.collections.props.rows.iter().enumerate() {
-            let kind = match prop.kind {
-                rh_protocol::WirePropKind::Ground(_) => "ground",
-                rh_protocol::WirePropKind::Chest { .. } => "chest",
-                rh_protocol::WirePropKind::Body { .. } => "body",
-                rh_protocol::WirePropKind::Cannon { .. } => "cannon",
-                rh_protocol::WirePropKind::Corpse { .. } => "corpse",
-                rh_protocol::WirePropKind::WindEmblem => "consumable",
+        let mut props = Vec::new();
+        for prop in &obs.collections.props.rows {
+            let (kind, tag) = match prop.kind {
+                rh_protocol::WirePropKind::Ground(w) => ("ground", format!("g{w}")),
+                rh_protocol::WirePropKind::Chest { .. } => ("chest", "c".to_owned()),
+                rh_protocol::WirePropKind::Body { .. } => ("body", "b".to_owned()),
+                rh_protocol::WirePropKind::Cannon { .. } => ("cannon", "n".to_owned()),
+                rh_protocol::WirePropKind::Corpse { .. } => ("corpse", "x".to_owned()),
+                rh_protocol::WirePropKind::WindEmblem => ("consumable", "w".to_owned()),
                 rh_protocol::WirePropKind::QuestItem { .. } => continue,
             };
+            let key = format!("c{}_{}_{tag}", prop.x, prop.y);
+            let at = rh_sim::Vec2::new(f64::from(prop.x) / 8., f64::from(prop.y) / 8.);
+            let interactable = focus.is_some_and(|f| f.handle == prop.handle);
+            let (closed, contents) = if interactable {
+                // The interaction target: what F takes (a body's first weapon is its focus hint).
+                let named = match prop.kind {
+                    rh_protocol::WirePropKind::Ground(w) => weapon_of(w),
+                    _ => focus.and_then(|f| f.body_hint).and_then(weapon_of),
+                };
+                (true, named.map_or(Contents::Unknown, Contents::Weapon))
+            } else {
+                match &prop.kind {
+                    rh_protocol::WirePropKind::Ground(w) => match weapon_of(*w) {
+                        Some(w) => (true, Contents::Weapon(w)),
+                        None => (false, Contents::Empty),
+                    },
+                    rh_protocol::WirePropKind::Body { .. } => {
+                        // A body reads empty only when standing at it lights nothing up.
+                        let reach = rh_sim::math::hypot(at.x - self_at.x, at.y - self_at.y)
+                            <= rh_sim::constants::INTERACT_RANGE;
+                        if reach && focus.is_none() {
+                            (false, Contents::Empty)
+                        } else {
+                            (true, Contents::Unknown)
+                        }
+                    }
+                    rh_protocol::WirePropKind::Chest { open: true } => (false, Contents::Empty),
+                    rh_protocol::WirePropKind::Chest { open: false } => (true, Contents::Unknown),
+                    _ => (false, Contents::Empty),
+                }
+            };
             containers.push(ContainerView {
-                id: format!("c{i}"),
+                id: key.clone(),
                 kind: kind.into(),
-                x: f64::from(prop.x) / 8.,
-                y: f64::from(prop.y) / 8.,
-                interactable: obs
-                    .collections
-                    .props
-                    .focus
-                    .as_ref()
-                    .is_some_and(|f| f.handle == prop.handle),
+                x: at.x,
+                y: at.y,
+                interactable,
+            });
+            props.push(PropRef {
+                key,
+                handle: prop.handle,
+                kind,
+                at,
+                closed,
+                contents,
+                interactable,
             });
         }
+        let alive_owner = me.status == 1;
+        let mut chest_refs = Vec::new();
         let chests = obs
             .collections
             .reward_chests
             .iter()
-            .enumerate()
-            .map(|(i, c)| RewardChestView {
-                id: format!("r{i}"),
-                x: f64::from(c.x) / 8.,
-                y: f64::from(c.y) / 8.,
-                expires_at: c.expires_at,
-                options: c
-                    .can_choose
-                    .then(|| c.options.iter().map(|o| format!("{:?}", o.id)).collect()),
+            .map(|c| {
+                let at = rh_sim::Vec2::new(f64::from(c.x) / 8., f64::from(c.y) / 8.);
+                let key = format!("r{}_{}_{}", c.x, c.y, c.expires_at.to_bits());
+                // The cards show only while the panel is open: the server's own pick admission (reach, sight, not
+                // picked, out of the birth hold) and the client panel's range.
+                let open = alive_owner
+                    && c.can_choose
+                    && rh_sim::math::hypot(at.x - self_at.x, at.y - self_at.y) <= CHEST_PANEL_RANGE;
+                let options: Option<Vec<String>> =
+                    open.then(|| c.options.iter().map(|o| reward_option_id(&o.id)).collect());
+                let taken_by = if open {
+                    c.options
+                        .iter()
+                        .map(|o| match o.taken_by {
+                            Some(by) if by == me.id => player_key(rh_sim::PlayerId(by)),
+                            Some(_) => "?".to_owned(),
+                            None if o.taken => "?".to_owned(),
+                            None => String::new(),
+                        })
+                        .collect()
+                } else {
+                    Vec::new()
+                };
+                let trophy = c
+                    .options
+                    .iter()
+                    .any(|o| matches!(o.id, rh_protocol::WireRewardId::Kill { .. }));
+                chest_refs.push(ChestRef {
+                    key: key.clone(),
+                    handle: c.handle,
+                    at,
+                    expires_at: c.expires_at,
+                    life_ms: if trophy { 30_000. } else { 15_000. },
+                    options: options.clone(),
+                    taken_by,
+                    picked: c.picked,
+                });
+                RewardChestView {
+                    id: key,
+                    x: at.x,
+                    y: at.y,
+                    expires_at: c.expires_at,
+                    options,
+                }
             })
             .collect();
+        let build = obs.collections.build.as_ref().map(|b| {
+            let mut out: Vec<(String, f64)> = Vec::new();
+            for (card, n) in rh_sim::cards::CardId::ALL.iter().zip(b.cards.iter()) {
+                if *n > 0 {
+                    out.push((card.as_str().to_owned(), f64::from(*n)));
+                }
+            }
+            for (boost, n) in rh_sim::reward_chests::BoostId::ALL
+                .iter()
+                .zip(b.boosts.iter())
+            {
+                if *n > 0 {
+                    out.push((boost.as_str().to_owned(), f64::from(*n)));
+                }
+            }
+            out
+        });
+        let arena = obs.collections.arena.as_ref();
+        let loot = LootFacts {
+            props,
+            chests: chest_refs,
+            build,
+            raid_started_at: arena.map_or(0., |a| a.raid_started_at),
+            patience_ends_at: arena.and_then(|a| a.patience_ends_at),
+            in_coliseum: arena.is_some_and(|a| a.in_coliseum),
+        };
         // Missing inventory/group is unavailable, never inferred fists, clear lock or now+remaining.
         let inventory = obs.collections.inventory.as_ref()?;
         let combat = obs.owner_combat.as_ref()?;
@@ -366,6 +544,7 @@ impl Perception {
             stimuli,
             hit_at,
             fighter_hits,
+            loot,
         })
     }
 
