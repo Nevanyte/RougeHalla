@@ -1,0 +1,12 @@
+{
+ "matches": 18,
+ "samples": 3464334,
+ "clientFog": 2719,
+ "covered": 0,
+ "delivered_samples_agree_pct": 99.922,
+ "real_arrivals": 26,
+ "real_arrivals_client_fog": 7,
+ "real_departures": 9,
+ "real_departures_client_fog": 1,
+ "note": "demo1/demo2 contain forced (vision.fadeDemo) departures and arrivals; they are excluded from the arrival and departure counts"
+}

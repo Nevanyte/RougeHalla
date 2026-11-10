@@ -30,6 +30,11 @@ namespace Roguehalla.Client
         /// <summary>Brightness multiplier for region ground and walls (they are lit by the same Light2D set as the actors).</summary>
         public const float RegionExposure = 1f;
         SpriteActorPresenter _actors;
+        VisionFog _visionFog;     // fog of war layer (VisionFog.cs); presentation only
+        Session _visionSession;
+        // Diagnostics only (url flag vision.fadeDemo=1): every 6 s the nearest remote player is withheld for 2.5 s, as if the server stopped
+        // sending it, so the exit and entry fades can be captured on screen. It goes through the real departure path; it never runs by default.
+        bool _fadeDemo; uint _demoId; float _demoNext = 8f, _demoUntil;
         ConfirmedWishPresenter _wishes;
         WishFxPresenter _wishFx;
         bool _collectWishNotes;
@@ -86,6 +91,10 @@ namespace Roguehalla.Client
             ShowcaseSprites.Initialize();
             _catalog = Resources.Load<ShowcaseCatalog>("Showcase/Catalog");
             _actors = new SpriteActorPresenter(transform, _catalog);
+            _visionFog = new VisionFog(transform); _actors.Delivered = _membership; _actors.OnDeparted = _visionFog.AuditDeparture; _actors.OnArrived = _visionFog.AuditArrival;
+            _visionFog.AuditLog = Application.absoluteURL != null && Application.absoluteURL.Contains("vision.audit=1");
+            _visionFog.DebugRadiusTiles = DebugRadiusFlag(Application.absoluteURL);
+            _fadeDemo = Application.absoluteURL != null && Application.absoluteURL.Contains("vision.fadeDemo=1");
             _mapRoot = Child("Authoritative map artwork"); _propsRoot = Child("Observed collections"); _fxRoot = Child("Confirmed effects");
             _wishes = new ConfirmedWishPresenter(_fxRoot, _actors);
             _wishFx = new WishFxPresenter(Child("Wish effects"), _actors);
@@ -112,6 +121,7 @@ namespace Roguehalla.Client
             if (HasMap) return;
             Regions.Load(map);
             if (_atmos != null) _atmos.OnMapBuilt(map);
+            _visionFog.Configure(map);
             if (map.Regions != null && map.Regions.Length == map.W * map.H) { BuildRegionMap(map); return; }
             float w = map.W, h = map.H * GroundSquash;
             for (int y = 0; y < map.H; y += 4) for (int x = 0; x < map.W; x += 4)
@@ -214,6 +224,7 @@ namespace Roguehalla.Client
                 if (_regionProps != null) _regionProps.NoteActor(WorldPoint(mx, my));
             }
             _actors.End();
+            _actors.StepFades(); TickVision();
             if (_regionProps != null) _regionProps.Tick(Time.unscaledDeltaTime);
             ReleaseScheduledFx();
             UpdateEffects();
@@ -226,6 +237,7 @@ namespace Roguehalla.Client
         {
             if (_atmos != null) _atmos.SetMatchActive(session != null && session.Phase == MatchPhase.Active);
             _sourceTimeMs = session != null ? session.ServerTimeMs : 0;
+            BindVisionSession(session);
             _renderReady = session != null && session.Clock.Ready;
             _renderMs = _renderReady ? session.Clock.RenderMs : 0;
             _latestMembership.Clear();
@@ -239,8 +251,10 @@ namespace Roguehalla.Client
         public void RetainObservedActors(List<InterpActor> current,SelfView me)
         {
             _membership.Clear(); _latestNpcs.Clear();
+            if (_fadeDemo) UpdateFadeDemo(current, me);
             foreach(var actor in current)
             {
+                if (_demoId != 0 && actor.Id == _demoId) continue;
                 _membership.Add(actor.Id);
                 if(actor.Kind != ActorKind.Player) _latestNpcs.Add(actor);
             }
@@ -254,6 +268,54 @@ namespace Roguehalla.Client
             foreach(var fx in _pendingFx) PresentFx(fx);
             _pendingFx.Clear();
             UpdateEffects();
+            _actors.StepFades();
+        }
+        void UpdateFadeDemo(List<InterpActor> current, SelfView me)
+        {
+            float now = Time.unscaledTime;
+            if (_demoId != 0 && now >= _demoUntil) { _demoId = 0; _demoNext = now + 3.5f; }
+            if (_demoId != 0 || now < _demoNext || me == null || !_actors.ExitFadesAllowed) return;
+            float best = float.MaxValue; uint pick = 0;
+            foreach (var a in current)
+            {
+                if (a.Kind != ActorKind.Player || a.Status != ActorStatus.Alive) continue;
+                float dx = a.X - me.X, dy = a.Y - me.Y, d = dx * dx + dy * dy;
+                if (d < best && d < 12f * 32 * 12f * 32) { best = d; pick = a.Id; }
+            }
+            if (pick != 0) { _demoId = pick; _demoUntil = now + 2.5f; }
+        }
+        static float DebugRadiusFlag(string url)
+        {
+            const string key = "vision.debugRadius=";
+            int i = url == null ? -1 : url.IndexOf(key, System.StringComparison.Ordinal);
+            if (i < 0) return 0f;
+            int j = i + key.Length, k = j;
+            while (k < url.Length && (char.IsDigit(url[k]) || url[k] == '.')) k++;
+            return float.TryParse(url.Substring(j, k - j), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float v) ? v : 0f;
+        }
+        // ---- vision hooks: exit/entry fades and the fog layer (presentation only) ----
+        void BindVisionSession(Session session)
+        {
+            if (!ReferenceEquals(session, _visionSession))
+            {
+                if (_visionSession != null) _visionSession.EventsReceived -= OnVisionEvents;
+                _visionSession = session;
+                if (_visionSession != null) _visionSession.EventsReceived += OnVisionEvents;
+            }
+            // A departing actor fades only while a raid is running; elsewhere (lobby, planning, results) it just goes.
+            _actors.ExitFadesAllowed = session != null && session.State == SessionState.InMatch && session.Phase == MatchPhase.Active;
+        }
+        void OnVisionEvents(ServerMsg.Events message)
+        {
+            if (message == null) return;
+            foreach (var ev in message.List) if (ev.Kind == EventKind.Death) _actors.NoteDeath(ev.Id);
+        }
+        void TickVision()
+        {
+            var s = _visionSession;
+            bool on = HasMap && s != null && s.State == SessionState.InMatch && s.Phase == MatchPhase.Active && !s.Training
+                && s.Me != null && s.Me.Status == ActorStatus.Alive;
+            _visionFog.Tick(on, on ? s.Me.X : 0, on ? s.Me.Y : 0, s != null ? s.ServerTimeMs : 0, _actors);
         }
         void PresentLatestNpcs()
         {
@@ -406,6 +468,7 @@ namespace Roguehalla.Client
             _scheduledFx.Clear();
             _wishes.Reset();
             _wishFx.Reset();
+            _actors.CancelFades(); _visionFog.Reset();
             for (int i = _flashes.Count - 1; i >= 0; i--)
             {
                 var flash = _flashes[i];
@@ -519,6 +582,7 @@ namespace Roguehalla.Client
             // (volume enable, bloom, grading, sun, shadows, lights, particles) and applies ?fx.* overrides.
             AtmosphereQuality.RefreshFromSettings();
             if (_atmos != null) _atmos.SetAmbientBase(AtmosphereQuality.PostProcessing ? .36f : .3f);   // near-constant base for every quality (no tonemapping at Low, so a little less)
+            if (_visionFog != null) _visionFog.ApplyQuality();   // fog is information: presets only change its softness
             foreach (var glow in _lampGlows) glow.enabled = Quality.DynamicLights > 0;
             foreach (var light in _lamps) { light.SetShadows(Quality.Shadows); light.ApplyQuality(); }
             if (_hasFollow) UpdateLampVisibility(_lastFollow);
@@ -530,6 +594,8 @@ namespace Roguehalla.Client
         void OnDestroy()
         {
             if (ShowcaseSettings.Current != null) ShowcaseSettings.Current.Changed -= ApplyQuality;
+            if (_visionSession != null) _visionSession.EventsReceived -= OnVisionEvents;
+            if (_visionFog != null) _visionFog.Dispose();
             if (_regionGround != null) _regionGround.Dispose();
             if (_regionWalls != null) _regionWalls.Dispose();
             if (_regionProps != null) _regionProps.Dispose();

@@ -11,6 +11,9 @@ use crate::state::{Player, Status};
 use crate::{PlayerId, Sim, TileMap, Vec2};
 use std::collections::VecDeque;
 
+#[cfg(test)]
+mod golden;
+
 const fn refresh_ticks() -> u32 {
     (VISION_UPDATE_MS / TICK_MS) as u32
 }

@@ -1,0 +1,3 @@
+[vision-depart] t=27.538 tile=23,103 me=22,103 clientFog=0
+
+frames 18, spacing ~48 ms, t=0 is when the client logged the event

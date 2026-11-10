@@ -7,7 +7,7 @@ using Roguehalla.Net.Protocol;
 namespace Roguehalla.Client
 {
     /// <summary>Owned visual objects keyed only by currently supplied observer handles. Nothing here simulates a rule.</summary>
-    public sealed class SpriteActorPresenter
+    public sealed partial class SpriteActorPresenter
     {
         sealed class Art
         {
@@ -35,6 +35,7 @@ namespace Roguehalla.Client
             public ActorKind Kind;
             public MobTypeId? MobType;
             public int Stamp;
+            public readonly ActorFadeSlot Fade = new ActorFadeSlot(); // vision fade state (SpriteActorPresenter.Fade.cs)
         }
         readonly Transform _parent;
         readonly Dictionary<uint, Art> _active = new Dictionary<uint, Art>();
@@ -176,6 +177,11 @@ namespace Roguehalla.Client
         void Evict(uint id)
         {
             var art=_active[id];
+            if (TryBeginExit(id, art)) return; // a living actor that left sight fades out (SpriteActorPresenter.Fade.cs)
+            _active.Remove(id); Release(art);
+        }
+        void Release(Art art)
+        {
             art.Light.SetVisible(false);
             foreach (var icon in art.SignatureIcons) icon.enabled = false;
             foreach (var backing in art.SignatureBackers) backing.enabled = false;
@@ -185,7 +191,7 @@ namespace Roguehalla.Client
             art.UnknownSignatureBacker.enabled = false;
             art.Identity.Clear();
             art.Root.SetActive(false);
-            _active.Remove(id);_pool.Push(art);
+            _pool.Push(art);
         }
 
         public void Present(uint id, float x, float y, float facing, float hp, FactionId? faction, ActorStatus status, WeaponId? weapon,
@@ -197,8 +203,9 @@ namespace Roguehalla.Client
                 a.Root.SetActive(true); a.LastPosition = ArenaView.WorldPoint(x, y); a.AttackUntil = 0;
                 a.Gait.Reset(); a.StampTime = Time.unscaledTime;
                 a.HitUntil=a.BlockUntil=0;a.Dead=false;a.HoldDeathFrame=false;a.WishUntil=0;a.WishTintAmount=0;
+                BeginEnter(a, local, kind);
             }
-            a.Stamp = _stamp;
+            a.Stamp = _stamp; a.Fade.Note(id, local, status, kind);
             var position = ArenaView.WorldPoint(x, y);
             // Gait reads displacement only (presentation). Present can run twice in a frame for NPCs: a zero-dt call leaves
             // LastPosition alone so the next real frame still sees the whole displacement.

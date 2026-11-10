@@ -16,7 +16,7 @@ namespace Roguehalla.Client
         public Action<Vector2, PointerEventData.InputButton> Dragged;
         public Action<Vector2, PointerEventData.InputButton> PointerReleased;
         public Action Aborted;
-        RawImage _terrain;
+        RawImage _terrain, _fog;
         TacticalMapMarks _marks;
         TerrainRaster.Entry _raster;
         MapBlob _map;
@@ -31,6 +31,16 @@ namespace Roguehalla.Client
             _terrain = gameObject.AddComponent<RawImage>();
             _terrain.color = Color.white;
             _terrain.raycastTarget = true;
+            // Fog of war: the same texture the world layer uses (VisionFog), over the terrain and under every contact. It dims the part of
+            // the map the server is not showing the player and reveals nothing; off outside a running match.
+            var fog = new GameObject("Vision fog", typeof(RectTransform));
+            fog.transform.SetParent(transform, false);
+            var fr = (RectTransform)fog.transform;
+            fr.anchorMin = Vector2.zero; fr.anchorMax = Vector2.one; fr.offsetMin = fr.offsetMax = Vector2.zero;
+            _fog = fog.AddComponent<RawImage>();
+            _fog.raycastTarget = false; _fog.uvRect = new Rect(0, 1, 1, -1); // the fog texture's row 0 is the map's top row
+            _fog.color = new Color(1, 1, 1, FogUiOpacity); _fog.enabled = false;
+            var fogMaterial = VisionFog.UiMaterial; if (fogMaterial != null) _fog.material = fogMaterial;
             var marks = new GameObject("Delivered contacts and personal route", typeof(RectTransform));
             marks.transform.SetParent(transform, false);
             var r = (RectTransform)marks.transform;
@@ -61,8 +71,14 @@ namespace Roguehalla.Client
             fit.aspectMode = AspectRatioFitter.AspectMode.FitInParent; fit.aspectRatio = (float)_map.W / _map.H;
         }
 
+        const float FogUiOpacity = 1f;
+
         public void Present(Session session, IReadOnlyList<RoutePoint> route)
         {
+            var vision = VisionFog.Current;
+            bool fogged = vision != null && vision.Active && _map != null && vision.Width == _map.W && vision.Height == _map.H;
+            if (fogged && _fog.texture != vision.Texture) _fog.texture = vision.Texture;
+            if (_fog.enabled != fogged) _fog.enabled = fogged;
             _marks.Present(session, route);
         }
 
