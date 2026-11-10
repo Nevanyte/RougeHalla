@@ -32,8 +32,8 @@ namespace Roguehalla.Client
                 new[] { 0.52f, 0.09f, 45f }, // Fog
             },
             new[] { // 2 sentenced
-                new[] { 0.64f, 0.03f, 85f }, // Base
-                new[] { 0.38f, 0.035f, 60f }, // Secondary
+                new[] { 0.58f, 0.028f, 292f }, // Base
+                new[] { 0.36f, 0.036f, 70f }, // Secondary
                 new[] { 0.44f, 0.14f, 300f }, // Accent
                 new[] { 0.84f, 0.07f, 72f }, // Key
                 new[] { 0.55f, 0.035f, 290f }, // Ambient
@@ -99,8 +99,8 @@ namespace Roguehalla.Client
                 new Color32(147, 87, 59, 255), // Fog
             },
             new[] { // 2 sentenced
-                new Color32(149, 139, 120, 255), // Base
-                new Color32(80, 62, 47, 255), // Secondary
+                new Color32(122, 120, 138, 255), // Base
+                new Color32(73, 58, 40, 255), // Secondary
                 new Color32(96, 59, 147, 255), // Accent
                 new Color32(231, 196, 153, 255), // Key
                 new Color32(113, 110, 133, 255), // Ambient

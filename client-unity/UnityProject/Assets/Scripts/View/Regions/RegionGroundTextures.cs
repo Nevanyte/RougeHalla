@@ -70,17 +70,23 @@ namespace Roguehalla.Client
 
         static void Sentenced(float[] h, float[] r, float[] g, float[] b)
         {
+            // Gothic crypt-yard: worn dark flagstones and cobbles with cracks, moss in the joints, and patches of dead grass and bare earth
+            // (the secondary mask; the shader paints it with the palette secondary).
             for (int y = 0; y < Size; y++) for (int x = 0; x < Size; x++)
             {
                 float u = U(x), v = U(y);
-                float warp = (Fbm(u, v, 3, 3, 8) - .5f) * .025f;
-                float row = .5f + .5f * Mathf.Sin((v + warp) * Mathf.PI * 2f * 6f);        // harvest furrows, 1.5 per tile
-                float straw = PeriodicXY(u * 40f, v * 24f, 40, 24, 17) * .6f + PeriodicXY(u * 20f, v * 12f, 20, 12, 19) * .4f;
-                float patch = SmoothStep(.55f, .75f, Fbm(u, v, 3, 3, 12)) * .6f;
+                float wu = u + (Fbm(u, v, 4, 3, 14) - .5f) * .03f, wv = v + (Fbm(u, v, 4, 3, 16) - .5f) * .03f;
+                Worley(wu, wv, 6, 71, out float f1, out float edge, out float id);        // irregular flagstones, ~6 per tile
+                float joint = 1f - SmoothStep(0f, .08f, edge);
+                float cobble = Periodic(u * 24f, v * 24f, 24, 77);
+                float crack = 1f - SmoothStep(0f, .035f, Mathf.Abs(Fbm(u, v, 5, 3, 83) - .5f));           // long hairline cracks
+                float wear = Fbm(u, v, 3, 3, 91);
+                float grass = SmoothStep(.58f, .74f, Fbm(u, v, 3, 3, 12) + joint * .12f);                  // dead grass / bare earth patches
+                float grain = Fbm(u, v, 40, 2, 3) - .5f;
                 int i = y * Size + x;
-                h[i] = row * .6f + straw * .15f;
-                r[i] = .50f + row * .08f + (straw - .5f) * .26f;
-                g[i] = patch * (.65f + .35f * Periodic(u * 24f, v * 24f, 24, 5));
+                h[i] = (1f - joint) * .6f + (1f - f1) * .25f - crack * .3f;
+                r[i] = (.44f + id * .20f + (wear - .5f) * .16f + grain * .16f + (cobble - .5f) * .05f) * (1f - joint * .45f - crack * .25f);
+                g[i] = Mathf.Clamp01(grass * (.55f + .45f * Periodic(u * 30f, v * 30f, 30, 5)));
                 b[i] = 0f;
             }
         }

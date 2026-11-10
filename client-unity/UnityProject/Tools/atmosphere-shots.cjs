@@ -21,6 +21,20 @@ const wsUrl = process.env.RH_SHOTS_WS || 'ws://127.0.0.1:7827/ws';
 const extra = process.env.RH_SHOTS_QUERY || '';
 const W = Number(opt('w', 1920)), H = Number(opt('h', 1080));
 
+const lumas = [];
+// Objective brightness check: Rec.709 luma of the sRGB pixels (0..1), computed in the page from the screenshot (downscaled to 480 wide).
+async function lumaStats(page, buf) {
+  return page.evaluate(async b64 => {
+    const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
+    const w = 480, h = Math.round(img.height * w / img.width), c = document.createElement('canvas'); c.width = w; c.height = h;
+    const g = c.getContext('2d'); g.drawImage(img, 0, 0, w, h); const d = g.getImageData(0, 0, w, h).data, ys = new Float32Array(w * h);
+    for (let i = 0; i < ys.length; i++) ys[i] = (0.2126 * d[4 * i] + 0.7152 * d[4 * i + 1] + 0.0722 * d[4 * i + 2]) / 255;
+    let sum = 0, clip = 0; for (const y of ys) { sum += y; if (y > 0.9) clip++; }
+    const sorted = Array.from(ys).sort((a, b) => a - b);
+    return { mean: +(sum / ys.length).toFixed(3), p95: +sorted[Math.floor(ys.length * 0.95)].toFixed(3), clipped: +(100 * clip / ys.length).toFixed(2) };
+  }, buf.toString('base64'));
+}
+
 async function session(faction, label, body) {
   const browser = await chromium.launch({ headless: false, args: ['--use-gl=angle', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
   const context = await browser.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
@@ -42,7 +56,11 @@ async function session(faction, label, body) {
   await page.mouse.click(W * 0.8, H * 0.66, { delay: 80 });
   matchStart = Date.now();
   await page.waitForTimeout(Number(process.env.RH_SHOTS_MATCH_MS || 12000));
-  const shot = async name => { const f = path.join(outDir, `${name}.png`); await page.screenshot({ path: f }); console.log('  wrote', path.relative(repo, f)); };
+  const shot = async name => {
+    const f = path.join(outDir, `${name}.png`); const buf = await page.screenshot({ path: f });
+    const st = await lumaStats(page, buf); lumas.push({ shot: name, ...st });
+    console.log('  wrote', path.relative(repo, f), `luma mean=${st.mean} p95=${st.p95} clipped(>0.9)=${st.clipped}%`);
+  };
   await body(page, shot);
   fs.writeFileSync(path.join(outDir, `${label}-network-audio.json`), JSON.stringify(audio, null, 1));
   fs.writeFileSync(path.join(outDir, `${label}-console.log`), logs.join('\n') + '\n');
@@ -78,5 +96,6 @@ async function session(faction, label, body) {
     });
     if (errors.length) { failed = true; console.error(errors.slice(0, 6).join('\n')); }
   }
+  if (lumas.length) fs.writeFileSync(path.join(outDir, `luma${extra ? '-' + extra.replace(/[^a-z0-9.=]/gi, '_') : ''}.json`), JSON.stringify(lumas, null, 1));
   process.exit(failed ? 1 : 0);
 })();

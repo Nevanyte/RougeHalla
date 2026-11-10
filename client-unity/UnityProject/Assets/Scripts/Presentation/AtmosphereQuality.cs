@@ -11,7 +11,7 @@ namespace Roguehalla.Client
     /// (<c>EffectiveQuality</c>, <c>ReducedMotion</c>); <see cref="Apply"/> is the entry point a future Quality API calls.
     /// URL query overrides always win over a preset: <c>?fx.particles=0</c> (density multiplier, 0 off), <c>?fx.lights=0</c>
     /// (accent light cap, 0 off), <c>?fx.post=0</c>, <c>?fx.bloom=0</c>, <c>?fx.grading=0</c>, <c>?fx.vignette=0</c>,
-    /// <c>?fx.haze=0</c>, <c>?fx.audio=0</c>, <c>?fx.sun=0</c>, <c>?fx.shadows=0</c>, <c>?fx.ice=0</c>, <c>?fx.shimmer=0</c>. Presentation only: nothing here reads or changes game state.
+    /// <c>?fx.haze=0</c>, <c>?fx.audio=0</c>, <c>?fx.sun=0</c>, <c>?fx.shadows=0</c>, <c>?fx.ice=0</c>, <c>?fx.shimmer=0</c>, <c>?fx.brightness=0.9</c>. Presentation only: nothing here reads or changes game state.
     /// </summary>
     public static class AtmosphereQuality
     {
@@ -44,11 +44,14 @@ namespace Roguehalla.Client
         public static bool IceTranslucency = true;
         /// <summary>Heat shimmer over lava in the ground shader.</summary>
         public static bool HeatShimmer = true;
+        /// <summary>Single world-brightness scalar (1 = as authored): multiplies the global light, so ground, walls, props and actors move together. Clamped 0.4 to 1.6; <c>?fx.brightness=0.9</c>.</summary>
+        public static float WorldBrightness = 1f;
+        public const float MinBrightness = .4f, MaxBrightness = 1.6f;
 
         /// <summary>Raised after any change made through this class, so effects re-read the switchboard (not per frame).</summary>
         public static event Action Changed;
 
-        static float? _ovParticles; static int? _ovLights; static bool? _ovPost, _ovBloom, _ovGrading, _ovVignette, _ovHaze, _ovAudio, _ovSun, _ovShadows, _ovIce, _ovShimmer;
+        static float? _ovParticles; static int? _ovLights; static float? _ovBrightness; static bool? _ovPost, _ovBloom, _ovGrading, _ovVignette, _ovHaze, _ovAudio, _ovSun, _ovShadows, _ovIce, _ovShimmer;
 
         public static int EffectiveMaxLights { get { return DynamicLights ? Mathf.Clamp(MaxDynamicLights, 0, HardMaxLights) : 0; } }
         public static bool ParticlesEnabled { get { return ParticleDensity > .001f; } }
@@ -89,7 +92,7 @@ namespace Roguehalla.Client
         /// <summary>Parse <c>fx.*</c> query overrides from a page URL (empty or null clears them) and re-apply.</summary>
         public static void SetUrl(string url)
         {
-            _ovParticles = null; _ovLights = null; _ovPost = _ovBloom = _ovGrading = _ovVignette = _ovHaze = _ovAudio = _ovSun = _ovShadows = _ovIce = _ovShimmer = null;
+            _ovParticles = null; _ovLights = null; _ovBrightness = null; _ovPost = _ovBloom = _ovGrading = _ovVignette = _ovHaze = _ovAudio = _ovSun = _ovShadows = _ovIce = _ovShimmer = null;
             ParseOverrides(url);
             ApplyOverrides();
             Raise();
@@ -113,6 +116,10 @@ namespace Roguehalla.Client
                         if (float.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float d))
                             _ovParticles = Mathf.Clamp(d, 0f, MaxParticleDensity);
                         break;
+                    case "fx.brightness":
+                        if (float.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float br))
+                            _ovBrightness = Mathf.Clamp(br, MinBrightness, MaxBrightness);
+                        break;
                     case "fx.lights":
                         if (int.TryParse(value, out int n)) _ovLights = Mathf.Clamp(n, 0, HardMaxLights);
                         else _ovLights = flag ? (int?)null : 0;
@@ -134,6 +141,7 @@ namespace Roguehalla.Client
         static void ApplyOverrides()
         {
             if (_ovParticles.HasValue) ParticleDensity = _ovParticles.Value;
+            if (_ovBrightness.HasValue) WorldBrightness = _ovBrightness.Value;
             if (_ovLights.HasValue) { MaxDynamicLights = _ovLights.Value; DynamicLights = _ovLights.Value > 0; }
             if (_ovPost.HasValue) PostProcessing = _ovPost.Value;
             if (_ovBloom.HasValue) Bloom = _ovBloom.Value;

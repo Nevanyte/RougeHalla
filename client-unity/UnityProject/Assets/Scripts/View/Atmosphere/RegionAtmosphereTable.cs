@@ -63,7 +63,7 @@ namespace Roguehalla.Client
                 SunColor = Tint(key, .85f), SunStrength = .8f, ShadowLength = 1f, AmbientColor = Tint(amb, .5f) * .6f,
                 PostExposure = .1f, Contrast = 8f, Saturation = 0f, ColorFilter = Color.white,
                 SplitShadows = Toning(shadow, .3f), SplitHighlights = Toning(key, .15f), SplitBalance = 0f,
-                BloomThreshold = .95f, BloomIntensity = .4f, BloomScatter = .6f, BloomTint = Color.white,
+                BloomThreshold = .95f, BloomIntensity = .3f, BloomScatter = .6f, BloomTint = Color.white,
                 VignetteIntensity = .12f, VignetteSmoothness = .5f, VignetteColor = Mix(shadow, Color.black, .75f),
                 Haze = A(fog, .06f), ShadowTint = Mix(shadow, Color.black, .35f),
             };
@@ -72,57 +72,57 @@ namespace Roguehalla.Client
             {
                 case RegionId.Frost:     // bright, whiter, cold sunlight; crisp long shadows; snow
                     row.Name = "Frost";
-                    p.SunColor = Tint(key, .45f); p.SunStrength = .95f; p.ShadowLength = 1.3f; p.AmbientColor = Tint(amb, .3f) * .58f;
+                    p.SunColor = Tint(key, .45f); p.SunStrength = .85f; p.ShadowLength = 1.3f; p.AmbientColor = Tint(amb, .3f) * .42f;
                     p.LightColor = Tint(Mix(amb, key, .4f), .1f);
-                    p.PostExposure = .14f; p.Contrast = 10f; p.Saturation = 2f; p.ColorFilter = Tint(accent, .05f);
+                    p.PostExposure = -.05f; p.Contrast = 12f; p.Saturation = 0f; p.ColorFilter = Tint(accent, .04f);
                     p.SplitShadows = Toning(shadow, .45f); p.SplitHighlights = Toning(key, .1f); p.SplitBalance = -15f;
-                    p.BloomThreshold = .86f; p.BloomIntensity = .5f; p.BloomScatter = .7f; p.BloomTint = Tint(accent, .25f);
+                    p.BloomThreshold = .97f; p.BloomIntensity = .25f; p.BloomScatter = .7f; p.BloomTint = Tint(accent, .25f);
                     p.VignetteIntensity = .16f; p.Haze = A(fog, .075f);
                     row.Particles = ParticlePresetId.Snow; row.Music = "music_frost"; row.Ambience = "amb_frost";
                     row.Accent = new AccentLightSpec { Terrain = TerrainKind.Ice, Color = Tint(accent, .6f), Intensity = 1.6f, Radius = 4.2f, Flicker = .5f };
                     break;
                 case RegionId.Fire:      // under the mountain: almost no sun, lava does the lighting; embers
                     row.Name = "Fire";
-                    p.SunColor = Tint(key, .7f); p.SunStrength = .07f; p.ShadowLength = .2f; p.AmbientColor = Tint(amb, .5f) * 1.05f;
+                    p.SunColor = Tint(key, .7f); p.SunStrength = .07f; p.ShadowLength = .2f; p.AmbientColor = Tint(amb, .3f) * 1.1f;
                     p.LightColor = Tint(Mix(amb, key, .3f), .2f);
-                    p.PostExposure = .2f; p.Contrast = 12f; p.Saturation = 8f; p.ColorFilter = Tint(accent, .08f);
+                    p.PostExposure = .12f; p.Contrast = 10f; p.Saturation = 0f; p.ColorFilter = Tint(accent, .04f);
                     p.SplitShadows = Toning(shadow, .55f); p.SplitHighlights = Toning(accent, .3f); p.SplitBalance = 10f;
-                    p.BloomThreshold = .72f; p.BloomIntensity = .8f; p.BloomScatter = .65f; p.BloomTint = Tint(accent, .6f);
+                    p.BloomThreshold = .9f; p.BloomIntensity = .4f; p.BloomScatter = .65f; p.BloomTint = Tint(accent, .6f);
                     p.VignetteIntensity = .2f; p.Haze = A(fog, .09f);
                     row.Particles = ParticlePresetId.Embers; row.Music = "music_fire"; row.Ambience = "amb_fire";
-                    row.Accent = new AccentLightSpec { Terrain = TerrainKind.Lava, Color = Tint(accent, .85f), Intensity = 3.2f, Radius = 6.5f, Flicker = 1f };
+                    row.Accent = new AccentLightSpec { Terrain = TerrainKind.Lava, Color = Tint(accent, .85f), Intensity = 1.5f, Radius = 5f, Flicker = 1f };
                     break;
                 case RegionId.Sentenced: // the one muted zone: hazy harvest dusk
                     row.Name = "Sentenced";
-                    p.SunColor = Tint(key, .6f); p.SunStrength = .26f; p.ShadowLength = .5f; p.AmbientColor = Tint(amb, .35f) * .84f;
+                    p.SunColor = Tint(key, .22f); p.SunStrength = .26f; p.ShadowLength = .5f; p.AmbientColor = Tint(amb, .6f) * .8f;
                     p.LightColor = Tint(Mix(amb, key, .55f), .15f);
-                    p.PostExposure = .22f; p.Contrast = 3f; p.Saturation = -20f; p.ColorFilter = Tint(key, .1f);
-                    p.SplitShadows = Toning(shadow, .45f); p.SplitHighlights = Toning(key, .3f); p.SplitBalance = -20f;
+                    p.PostExposure = .42f; p.Contrast = 4f; p.Saturation = -16f; p.ColorFilter = Tint(shadow, .1f);
+                    p.SplitShadows = Toning(shadow, .5f); p.SplitHighlights = Toning(amb, .2f); p.SplitBalance = -20f;
                     p.BloomThreshold = .9f; p.BloomIntensity = .3f; p.BloomScatter = .75f; p.BloomTint = Tint(key, .4f);
                     p.VignetteIntensity = .22f; p.Haze = A(fog, .13f);
                     row.Particles = ParticlePresetId.Dust; row.Music = "music_sentenced"; row.Ambience = "amb_sentenced";
                     break;
                 case RegionId.Plague:    // sickly teal-green, dim green-filtered light; spores
                     row.Name = "Plague";
-                    p.SunColor = Tint(key, .4f); p.SunStrength = .42f; p.ShadowLength = .65f; p.AmbientColor = Tint(amb, .4f) * .78f;
+                    p.SunColor = Tint(key, .4f); p.SunStrength = .42f; p.ShadowLength = .65f; p.AmbientColor = Tint(amb, .35f) * .86f;
                     p.LightColor = Tint(Mix(amb, key, .35f), .15f);
-                    p.PostExposure = .32f; p.Contrast = 8f; p.Saturation = -14f; p.ColorFilter = Tint(Mix(accent, Palette(id, RegionPaletteGenerated.Base), .7f), .1f);
+                    p.PostExposure = .3f; p.Contrast = 8f; p.Saturation = -14f; p.ColorFilter = Tint(Mix(accent, Palette(id, RegionPaletteGenerated.Base), .7f), .1f);
                     p.SplitShadows = Toning(shadow, .5f); p.SplitHighlights = Toning(key, .2f); p.SplitBalance = -5f;
-                    p.BloomThreshold = .8f; p.BloomIntensity = .5f; p.BloomScatter = .65f; p.BloomTint = Tint(accent, .5f);
+                    p.BloomThreshold = .92f; p.BloomIntensity = .35f; p.BloomScatter = .65f; p.BloomTint = Tint(accent, .5f);
                     p.VignetteIntensity = .2f; p.Haze = A(fog, .11f);
                     row.Particles = ParticlePresetId.Spores; row.Music = "music_plague"; row.Ambience = "amb_plague";
-                    row.Accent = new AccentLightSpec { Terrain = TerrainKind.Bog, Color = Tint(accent, .9f), Intensity = 2.4f, Radius = 4.2f, Flicker = .6f };
+                    row.Accent = new AccentLightSpec { Terrain = TerrainKind.Bog, Color = Tint(accent, .9f), Intensity = 1.8f, Radius = 4.2f, Flicker = .6f };
                     break;
                 case RegionId.Holy:      // strong golden sun, warm dust
                     row.Name = "Holy";
-                    p.SunColor = Tint(key, .6f); p.SunStrength = 1f; p.ShadowLength = 1.1f; p.AmbientColor = Tint(amb, .4f) * .5f;
+                    p.SunColor = Tint(key, .6f); p.SunStrength = 1f; p.ShadowLength = 1.1f; p.AmbientColor = Tint(amb, .35f) * .44f;
                     p.LightColor = Tint(Mix(amb, key, .6f), .15f);
-                    p.PostExposure = .02f; p.Contrast = 6f; p.Saturation = -6f; p.ColorFilter = Tint(key, .06f);
+                    p.PostExposure = -.04f; p.Contrast = 6f; p.Saturation = -8f; p.ColorFilter = Tint(key, .06f);
                     p.SplitShadows = Toning(shadow, .3f); p.SplitHighlights = Toning(key, .32f); p.SplitBalance = 5f;
-                    p.BloomThreshold = .78f; p.BloomIntensity = .6f; p.BloomScatter = .75f; p.BloomTint = Tint(key, .7f);
+                    p.BloomThreshold = .92f; p.BloomIntensity = .35f; p.BloomScatter = .75f; p.BloomTint = Tint(key, .7f);
                     p.VignetteIntensity = .1f; p.Haze = A(fog, .09f);
                     row.Particles = ParticlePresetId.Pollen; row.Music = "music_holy"; row.Ambience = "amb_holy";
-                    row.Accent = new AccentLightSpec { Terrain = TerrainKind.Light, Color = Tint(key, .9f), Intensity = 2.2f, Radius = 4.6f, Flicker = .25f };
+                    row.Accent = new AccentLightSpec { Terrain = TerrainKind.Light, Color = Tint(key, .9f), Intensity = 1.6f, Radius = 4.6f, Flicker = .25f };
                     break;
                 default:                 // coliseum (and region none): neutral daylight
                     row.Name = "Coliseum";

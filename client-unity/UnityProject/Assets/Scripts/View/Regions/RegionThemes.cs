@@ -98,12 +98,13 @@ namespace Roguehalla.Client
               th.GroundParams = new Vector4(.70f, .85f, .75f, 0); th.GroundParams2 = new Vector4(.40f, .75f, 0, 0);
               th.Props = new[] { new PropRule("fire.spire", 2.4f, .9f, 1.3f), new PropRule("fire.rocks", 3.2f, .85f, 1.2f), new PropRule("fire.stump", 1.6f, .9f, 1.15f),
                                  new PropRule("fire.crystal", 1.4f, .8f, 1.2f), new PropRule("fire.vent", 1.1f, .9f, 1.1f) }; }
-            // 2 sentenced: the muted zone. Weathered timber, straw, hazy.
+            // 2 sentenced: the muted zone. Gothic crypt-yard: dark masonry, iron railings, tombstones, hazy.
             { var th = t[2]; th.Wall = WallStyle.Timber;
-              th.WallTop = Mix(Sec(2), B(2), .35f); th.WallFace = Sec(2); th.WallEdge = Mix(Sec(2), B(2), .7f);
+              th.WallTop = Mix(Sec(2), B(2), .55f); th.WallFace = Mix(Sec(2), B(2), .35f); th.WallEdge = Mix(Sec(2), B(2), .7f);
               th.GroundParams = new Vector4(.16f, .18f, 0, 0); th.GroundParams2 = new Vector4(.22f, 0, 2.2f, 0);
-              th.Props = new[] { new PropRule("sent.hay", 2.2f, .9f, 1.15f), new PropRule("sent.wheat", 7f, .85f, 1.2f), new PropRule("sent.scarecrow", .55f, .95f, 1.05f, wallClearance: 2),
-                                 new PropRule("sent.deadtree", 1.1f, .85f, 1.2f), new PropRule("sent.barrel", .8f, .9f, 1.05f) }; }
+              th.Props = new[] { new PropRule("sent.tomb", 2.6f, .9f, 1.15f), new PropRule("sent.cross", 1.7f, .9f, 1.15f), new PropRule("sent.slab", 1.4f, .9f, 1.15f),
+                                 new PropRule("sent.deadgrass", 6f, .85f, 1.2f), new PropRule("sent.deadtree", 1.1f, .85f, 1.2f), new PropRule("sent.lantern", .8f, .95f, 1.05f, wallClearance: 1),
+                                 new PropRule("sent.urn", .9f, .9f, 1.1f), new PropRule("sent.gargoyle", .5f, .95f, 1.05f, wallClearance: 1), new PropRule("sent.scarecrow", .12f, .95f, 1.05f, wallClearance: 2) }; }
             // 3 plague: forgotten city. Mossy paving, dense greenery pockets.
             { var th = t[3]; th.Wall = WallStyle.Ruin;
               th.WallTop = Mix(Sec(3), B(3), .45f); th.WallFace = Mix(Sec(3), new Color(.48f, .50f, .46f), .45f); th.WallEdge = Mix(Sec(3), Acc(3), .3f);

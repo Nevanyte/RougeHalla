@@ -46,10 +46,11 @@ namespace Roguehalla.Client
             return path.Contains("://") ? path : "file://" + path;
         }
 
+        /// <summary>Request a region's beds; null (no match running, audio switched off) fades to silence and fetches nothing.</summary>
         public void SetRegion(RegionAtmosphereRow row)
         {
-            _music.Request(AtmosphereQuality.Audio ? row.Music : null);
-            _ambience.Request(AtmosphereQuality.Audio ? row.Ambience : null);
+            _music.Request(AtmosphereQuality.Audio && row != null ? row.Music : null);
+            _ambience.Request(AtmosphereQuality.Audio && row != null ? row.Ambience : null);
         }
 
         public void Tick(float dt, float now)
@@ -89,7 +90,13 @@ namespace Roguehalla.Client
         IEnumerator Load(CrossfadeChannel ch, string id)
         {
             UnityWebRequest req = null; AudioClip clip = null; bool ok = false;
-            try { req = UnityWebRequestMultimedia.GetAudioClip(UrlFor(id), AudioType.OGGVORBIS); }
+            // The WebGL player decodes through the browser and rejects an explicit Ogg type ("Streaming of 'ogg' ... not supported").
+#if UNITY_WEBGL && !UNITY_EDITOR
+            const AudioType type = AudioType.UNKNOWN;
+#else
+            const AudioType type = AudioType.OGGVORBIS;
+#endif
+            try { req = UnityWebRequestMultimedia.GetAudioClip(UrlFor(id), type); }
             catch (System.Exception e) { Warn(id, e.Message); }
             if (req != null)
             {

@@ -47,10 +47,10 @@
     },
     "sentenced": {
       "faction": "sentenced",
-      "mood": "Haunted farmland at harvest dusk: the one deliberately muted zone, hazy but readable.",
+      "mood": "Gothic graveyard and crypt-yard under a hazy dusk: the one deliberately muted zone, desaturated violet-grey, hazy but readable.",
       "swatches": {
-        "base":      { "role": "ground, dry straw and trodden field",       "oklch": [0.64, 0.030, 85], "legacy": "#3A3B42" },
-        "secondary": { "role": "weathered barn wood, fences, gallows",      "oklch": [0.38, 0.035, 60], "legacy": "#6E553A" },
+        "base":      { "role": "ground: worn dark flagstones, cobbles, bare earth", "oklch": [0.58, 0.028, 292], "legacy": "#3A3B42" },
+        "secondary": { "role": "gothic masonry, iron railings, dead grass, gallows", "oklch": [0.36, 0.036, 70], "legacy": "#6E553A" },
         "accent":    { "role": "judgment banners, violet lanterns",         "oklch": [0.44, 0.140, 300], "legacy": "#7E57C2" }
       },
       "light": {

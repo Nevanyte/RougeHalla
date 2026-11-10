@@ -223,7 +223,7 @@ Shader "Roguehalla/RegionGround"
                                 float chan = 1.0 - smoothstep(0.0, 0.34, w.y);
                                 float heat = saturate(chan * 1.25 + inner * 0.45 + (Fbm(t * 3.0 + time * 0.2) - 0.5) * 0.35);
                                 tc = lerp(deep, light, saturate(heat * 1.1));
-                                te = glow * (heat * heat * 1.3 + 0.25 * inner) * (0.85 + 0.15 * sin(time * 1.5 + q.x * 2.0));
+                                te = glow * (heat * heat * 0.85 + 0.15 * inner) * (0.85 + 0.15 * sin(time * 1.5 + q.x * 2.0));   // a glowing material with crust detail, not a white sheet
                                 tc = lerp(tc, deep * 0.5, (1.0 - heat) * 0.5);
                             }
                             else if (kd == 6)       // ice: glassy cyan sheet, pale frozen shore, cracks and moving glints

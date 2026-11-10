@@ -22,7 +22,7 @@ namespace Roguehalla.Client
         AtmosphereAudio _audio;
         readonly float[] _w = new float[RegionField.Regions];
         AtmosphereParams _cur; bool _hasCur; float _ambientBase = .36f;
-        Camera _cam; float _time; int _rectKey = int.MinValue;
+        Camera _cam; float _time; int _rectKey = int.MinValue; bool _matchActive;
         static readonly Vector4[] SunCol = new Vector4[8], AmbCol = new Vector4[8], ShadowCol = new Vector4[8];
         public RegionField Field { get { return _field; } }
         public RegionShadowMap Shadows { get { return _shadows; } }
@@ -83,7 +83,7 @@ namespace Roguehalla.Client
             if (this == null || _arena == null) { AtmosphereQuality.Changed -= OnQualityChanged; return; }
             PushSwitches(); _particles.RefreshQuality(); _lights.MarkDirty(); _rectKey = int.MinValue;
             if (_volume != null) _volume.enabled = AtmosphereQuality.PostProcessing;
-            var row = RegionAtmosphereTable.Get(_arena.LocalRegion); _audio.SetRegion(row);
+            _audio.SetRegion(_matchActive ? RegionAtmosphereTable.Get(_arena.LocalRegion) : null);
             Apply();
         }
 
@@ -103,7 +103,15 @@ namespace Roguehalla.Client
         {
             var row = RegionAtmosphereTable.Get(current);
             _particles.SetPreset(row.Particles, previous == RegionId.None);
-            _audio.SetRegion(row);
+            if (_matchActive) _audio.SetRegion(row);
+        }
+
+        /// <summary>Music and ambience are fetched and played only while the match is running (not in the lobby or planning screens).</summary>
+        public void SetMatchActive(bool active)
+        {
+            if (active == _matchActive) return;
+            _matchActive = active;
+            _audio.SetRegion(active && _arena.LocalRegion != RegionId.None ? RegionAtmosphereTable.Get(_arena.LocalRegion) : null);
         }
 
         /// <summary>Called from ArenaView.Follow every frame with the live camera.</summary>
@@ -143,7 +151,7 @@ namespace Roguehalla.Client
         {
             if (!_hasCur) return;
             var p = _cur;
-            if (_ambient != null) { _ambient.color = p.LightColor; _ambient.intensity = _ambientBase * p.LightScale; }
+            if (_ambient != null) { _ambient.color = p.LightColor; _ambient.intensity = _ambientBase * p.LightScale * AtmosphereQuality.WorldBrightness; }
             if (_haze != null) { var h = p.Haze; if (!AtmosphereQuality.Haze) h.a = 0f; _haze(h); }
             if (_volume == null || _ca == null) return;
             bool post = AtmosphereQuality.PostProcessing; _volume.enabled = post;

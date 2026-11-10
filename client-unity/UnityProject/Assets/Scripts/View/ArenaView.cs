@@ -197,6 +197,7 @@ namespace Roguehalla.Client
         /// <summary>Latest membership wins over delayed interpolation, before the frame is rendered.</summary>
         public void RefreshVisibility(Session session)
         {
+            if (_atmos != null) _atmos.SetMatchActive(session != null && session.Phase == MatchPhase.Active);
             _sourceTimeMs = session != null ? session.ServerTimeMs : 0;
             _renderReady = session != null && session.Clock.Ready;
             _renderMs = _renderReady ? session.Clock.RenderMs : 0;
