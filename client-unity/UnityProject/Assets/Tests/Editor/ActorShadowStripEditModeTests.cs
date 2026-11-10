@@ -61,5 +61,17 @@ namespace Roguehalla.Client.Tests
             }
             Assert.That(checkedAtlases, Is.EqualTo(12), "one atlas per live appearance, no stale ones");
         }
+
+        [Test] public void TheGroundShadowIsSizedToTheFootBoxAndStretchesOnlyAlongTheSun()
+        {
+            AtmosphereShadows.BlobSize(.7f, .25f, 0f, 1f, out float l0, out float d0);
+            AtmosphereShadows.BlobSize(1.1f, .4f, 0f, 1f, out float l1, out float d1);
+            Assert.That(l1, Is.GreaterThan(l0)); Assert.That(d1, Is.GreaterThan(d0), "a bigger foot box casts a bigger shadow");
+            Assert.That(l0, Is.GreaterThan(.7f), "wider than the feet, so it reads from beside the figure");
+            AtmosphereShadows.BlobSize(.7f, .25f, .95f, 1.3f, out float ls, out float ds);
+            Assert.That(ls, Is.GreaterThan(l0)); Assert.That(ds, Is.EqualTo(d0).Within(1e-5f), "the sun lengthens it and never thickens it: no second figure");
+            AtmosphereShadows.BlobSize(0f, 0f, 0f, 0f, out float lf, out float df);
+            Assert.That(lf, Is.GreaterThan(.5f)); Assert.That(df, Is.GreaterThan(.2f), "no foot box: the fixed contact size");
+        }
     }
 }
