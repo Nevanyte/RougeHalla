@@ -4,11 +4,11 @@
 
 **Root source-only dispatch (2026-11-10):** Sol is assigned the three new source/tool/evidence directories below in clean `codex/bot-private-modules-source`, `/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-modules-source`, at exact `bd40fa2a274184b8748b005af78e18e74802f7ae`. This explicitly starts source preparation under the packet's immutable-source and independent-review rules. Native implementation, existing-engine bridge hunks and public activation remain undispatched. Root integrates the separately sealed candidate after review.
 
-**Draft architecture/delivery packet, not dispatch or authorization to capture/write Rust.** Root first reviews this
-packet, allocates exact source/native leases and clean bases, then separately approves execution. Sol/Luna own source
-preparation and independent review; DeepSeek authors all Rust/tests/probes. Source-only capture can later proceed
-independently of evolving native answers after Root review. Fixture reader/comparison/admission waits for an independently
-reproduced immutable source seal. Do not inspect native answers to tune inputs or expectations.
+Source preparation is authorized above. The native architecture and bridge leases remain proposals; Root allocates an
+exact clean native base and hunks before Rust execution. Sol/Luna own source preparation and independent review;
+DeepSeek authors all Rust/tests/probes. Source capture proceeds independently of evolving native answers. Fixture
+reader/comparison/admission waits for an independently reproduced immutable source seal. Do not inspect native answers
+to tune inputs or expectations.
 
 Implement the complete four actual legacy built-ins—Wishes, planning, chests, hazards—and their full hook/context contract,
 ordered registry, missing ChestHunter and card-choice dependencies. A chest walk-only implementation, reduced Wish cast,
@@ -134,7 +134,7 @@ New DeepSeek paths:
 - One Root-allocated `mod modules;` line in temporal_percept.rs, after clean base/readiness.
 
 Independent review writes only newly allocated source-review/admission-review evidence directories. Root alone edits
-shared status/Cargo.lock and merges/commits. No source/capture/native write is allocated by this draft.
+shared status/Cargo.lock and integration. Only the source lease in the dispatch note is active; no native write is allocated.
 
 **Readiness bridge proposals, not blanket existing-file leases:** inspect the admitted strategy/tactics type layout only
 after admission and reuse the already allocated private visibility where sufficient. Root separately approves exact
