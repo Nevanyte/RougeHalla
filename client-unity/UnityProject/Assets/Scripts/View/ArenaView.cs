@@ -44,6 +44,10 @@ namespace Roguehalla.Client
         Light2D _ambient;
         int _used;
         Vector3 _lastFollow;
+        float _smoothX, _smoothY;
+        bool _smoothValid;
+        /// <summary>Legacy CameraFollow constants: tau 35 ms, cut over 256 u or after a gap of more than 250 ms.</summary>
+        const float FollowTauSeconds = .035f, FollowCutUnits = 256f, FollowMaxDt = .25f;
         bool _hasFollow;
         public bool IsObserved(uint id) { return _actors != null && _actors.Contains(id); }
         public bool TrySoundContext(uint id, out WeaponId weapon, out FactionId faction, out ActorKind kind, out MobTypeId? type)
@@ -389,6 +393,26 @@ namespace Roguehalla.Client
             go.SetActive(false);
             return new Flash{Sprite=sprite,Text=text};
         }
+        /// <summary>
+        /// Follows the owner with light smoothing (absorbs 2 to 6 u reconciliation corrections, legacy CameraFollow). The cursor is
+        /// always mapped through the camera as it actually stands (<see cref="ScreenToServer"/>), so smoothing never skews aim.
+        /// Cuts straight to the target on a jump, a long frame, or when <paramref name="cut"/> is set.
+        /// </summary>
+        public void FollowSmoothed(Camera cam, float serverX, float serverY, float dt, bool cut)
+        {
+            float dx = serverX - _smoothX, dy = serverY - _smoothY;
+            if (cut || !_smoothValid || !(dt >= 0f) || dt > FollowMaxDt || dx * dx + dy * dy > FollowCutUnits * FollowCutUnits)
+            { _smoothX = serverX; _smoothY = serverY; }
+            else
+            {
+                float alpha = 1f - Mathf.Exp(-dt / FollowTauSeconds);
+                _smoothX += dx * alpha; _smoothY += dy * alpha;
+            }
+            _smoothValid = true;
+            Follow(cam, _smoothX, _smoothY);
+        }
+        /// <summary>Raw follow (map peek); the next smoothed follow starts from its target.</summary>
+        public void FollowExact(Camera cam, float serverX, float serverY) { _smoothValid = false; Follow(cam, serverX, serverY); }
         public void Follow(Camera cam, float serverX, float serverY)
         {
             var p = WorldPoint(serverX, serverY); cam.transform.position = new Vector3(p.x, p.y + 1.5f, -30);

@@ -279,6 +279,8 @@ namespace Roguehalla.Client
             if (Session.State != SessionState.InMatch && Session.State != SessionState.Ended) return;
             if (Arena != null && !Arena.HasMap && Session.Map != null) Arena.Build(Session.Map);
             Session.Snapshots.Sample(Session.Clock.RenderMs, _actors);
+            // Camera first: the cursor ground point read by ReadInput must use this frame's camera, or aim is a frame stale.
+            FollowCamera();
             if (_traceLatency && LatencyTrace.TakeTargetRequest()) TraceTargetScreens();
             if (Session.State == SessionState.InMatch)
             {
@@ -441,6 +443,15 @@ namespace Roguehalla.Client
                 if (drawn.Id == newest.Id) { x = drawn.X; y = drawn.Y; return; }
         }
 
+        void FollowCamera()
+        {
+            if (Cam == null || Arena == null) return;
+            if (Hud != null && Hud.TacticalMap != null && Hud.TacticalMap.IsPeeking)
+            { var at = Hud.TacticalMap.PeekAt; Arena.FollowExact(Cam, at.x, at.y); }
+            else if (Session.Motion != null && Session.Motion.Initialized)
+                Arena.FollowSmoothed(Cam, Session.Motion.DrawnX, Session.Motion.DrawnY, Time.unscaledDeltaTime, false);
+        }
+
         void Present()
         {
             if (Arena == null) return;
@@ -455,11 +466,6 @@ namespace Roguehalla.Client
                 foreach (var actor in _actors)
                     LatencyTrace.Mark("presentActor", actor.Id, 0, actor.X, actor.Y);
             }
-            if (Cam != null && Hud != null && Hud.TacticalMap != null && Hud.TacticalMap.IsPeeking)
-            {
-                var at = Hud.TacticalMap.PeekAt; Arena.Follow(Cam, at.x, at.y);
-            }
-            else if (Cam != null && Session.Motion != null && Session.Motion.Initialized) Arena.Follow(Cam, Session.Motion.DrawnX, Session.Motion.DrawnY);
         }
     }
 }
