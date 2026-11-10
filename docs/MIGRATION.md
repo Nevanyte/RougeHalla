@@ -23,8 +23,18 @@ uses the same provisional numbers plus wire16; the second merge must renumber th
 serve the reworked client from the old server/artifact. Hosting preparation `28d21c3f` + strict response-type repair `29a7d597` is independently reviewed and integrated as
 `f72f188c` + `7cb22c0e`: immutable artifact identities and at most12h original absolute expiry, with12offline+7stack
 checks passing. [Review](evidence/morning-host-preparation-review/README.md) retains the original malformed-protocol
-HOLD. Final runtime flags/artifacts/cloud evidence remain open. The existing CAD20 total budget remains. No AWS guest
+HOLD. Root-reviewed single-owner launch preparation `40b884aa` is integrated as `15da415c`: Source min1/fill target8/
+max1/lobby10/fill3, with Training unchanged and learning off. Existing12offline+7stack checks pass; the initial10s lobby
+deadline shortens to at most3remaining seconds after the human minimum is reached. This is configuration preparation,
+not an executed final match. Final runtime/map/hitbox flags/artifacts/cloud evidence remain open. The existing CAD20 total budget remains. No AWS guest
 is active from the earlier expired demo.
+
+**Full Brain source update:** candidate `6aaa4c6d` is independently released and integrated as `5a5a28c6` + `8fa97f24`.
+Fresh pinned capture/coverage, semantic controls and strict reader/manifest reproduction pass; all244 protected files
+remain unchanged. The source is transferred to the narrow Hand worker as `90b191b3`. This closes the pending source
+review described below; full native composition and live activation remain open. The new
+[fair activation plan](backlog/packets/P-BOT-FAIR-ACTIVATION-1.md), committed at `10ddaac0`, inventories actual consumed
+facts and missing providers. It is undergoing independent plan review and authorizes no wire/publication change.
 
 ## Parallel backend completion lane (owner instruction, 2026-11-09 America/Edmonton)
 
