@@ -198,7 +198,7 @@ namespace Roguehalla.Client
                 // from appearance or position; draw their latest typed public facts instead.
                 if (_hasMembership && a.Kind != ActorKind.Player) continue;
                 _actors.Present(a.Id, a.X, a.Y, a.Facing, a.HpPct, a.Faction, a.Status, a.Weapon, a.Kind, a.MobType, a.Effects, a.SourceSig, false, a.BarrierPct, a.BarrierRingStep, ArchetypeKey(a.Archetype), FootHx(a.Archetype), FootHy(a.Archetype));
-                _overlay?.NoteActor(a.Id, a.Archetype);
+                _overlay?.NoteActor(a.Id, a.Archetype, (byte)a.Kind);
                 _wishFx.NoteActor(a.Id, a.Kind, a.Effects, a.Status != ActorStatus.Dead && a.Status != ActorStatus.Mia);
                 if (_regionProps != null) _regionProps.NoteActor(WorldPoint(a.X, a.Y));
             }
@@ -210,7 +210,7 @@ namespace Roguehalla.Client
                 float mx = initialized ? motion.DrawnX : me.X, my = initialized ? motion.DrawnY : me.Y;
                 _actors.Present(me.Id, mx, my, aimAngle, healthPercent,
                     me.Faction, me.Status, me.Weapon, ActorKind.Player, null, me.Effects, me.SelfSig, true, barrierPercent, me.BarrierRingStep, ArchetypeKey(me.Archetype), FootHx(me.Archetype), FootHy(me.Archetype));
-                _overlay?.NoteActor(me.Id, me.Archetype);
+                _overlay?.NoteActor(me.Id, me.Archetype, (byte)ActorKind.Player);
                 _wishFx.NoteActor(me.Id, ActorKind.Player, me.Effects, me.Status == ActorStatus.Alive);
                 Regions.UpdateLocal(mx, my, Time.unscaledTime);
                 if (_regionProps != null) _regionProps.NoteActor(WorldPoint(mx, my));
@@ -263,7 +263,7 @@ namespace Roguehalla.Client
             foreach(var a in _latestNpcs)
             {
                 _actors.Present(a.Id,a.X,a.Y,a.Facing,a.HpPct,a.Faction,a.Status,a.Weapon,a.Kind,a.MobType,a.Effects,a.SourceSig,false,a.BarrierPct,a.BarrierRingStep,ArchetypeKey(a.Archetype), FootHx(a.Archetype), FootHy(a.Archetype));
-                _overlay?.NoteActor(a.Id, a.Archetype);
+                _overlay?.NoteActor(a.Id, a.Archetype, (byte)a.Kind);
                 if (_collectWishNotes) _wishFx.NoteActor(a.Id, a.Kind, a.Effects, a.Status != ActorStatus.Dead && a.Status != ActorStatus.Mia);
                 if (_regionProps != null) _regionProps.NoteActor(WorldPoint(a.X, a.Y));
             }
@@ -280,6 +280,7 @@ namespace Roguehalla.Client
                 foreach (var p in collections.Props)
                 {
                     var position = WorldPoint(p.X, p.Y); int order = 2000 + Mathf.RoundToInt(p.Y * .5f);
+                    _overlay?.NoteProp((byte)p.Kind, p.Weapon.HasValue ? (int)p.Weapon.Value : -1, p.X, p.Y, p.Open, p.Focused);
                     Prop("shadow", position + new Vector3(.1f, -.03f), new Vector2(.9f, .35f), Color.white, order - 3);
                     if (p.Kind == PropAppearance.Ground)
                     {

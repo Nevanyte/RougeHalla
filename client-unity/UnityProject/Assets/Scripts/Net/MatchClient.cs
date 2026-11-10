@@ -357,6 +357,9 @@ namespace Roguehalla.Client
                 // Projectiles are simulated on the ground and drawn raised by the shooter's chest: aim at the cursor's ground point
                 // shifted that far toward screen-down so the drawn shot leaves the chest and passes through the cursor (ChestAim).
                 _aimAngle = (float)ChestAim.Angle(myX, myY, sx, sy, Session.OwnChest);
+                if (HitboxOverlay.Enabled && mouse.leftButton.wasPressedThisFrame)
+                    Debug.Log(string.Format(System.Globalization.CultureInfo.InvariantCulture, "[aim] t={0:F1} from={1:F2},{2:F2} cursor={3:F2},{4:F2} chest={5} angle={6:F5}",
+                        Time.realtimeSinceStartup * 1000f, myX, myY, sx, sy, Session.OwnChest, _aimAngle));
                 Session.Input.Aim(_aimAngle);
                 if (mouse.leftButton.wasPressedThisFrame)
                 {

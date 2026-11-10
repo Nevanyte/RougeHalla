@@ -6,7 +6,7 @@ namespace Roguehalla.Net
     /// <summary>
     /// Chooses the destination for keyboard steering (port of legacy <c>keyboardMoveGoal</c>). It only picks which point to send:
     /// the first body-clear straight goal, trying the held heading and, on a diagonal, each single axis, from 64 down to 8
-    /// units. Collision truth stays in Rust; the server still validates and plans the order.
+    /// units (a box foot then finishes with 1 u steps, ADR0024). Collision truth stays in Rust; the server still validates and plans the order.
     /// </summary>
     public static class KeyboardSteer
     {
@@ -40,6 +40,14 @@ namespace Roguehalla.Net
                     double gx = originX + hx * d, gy = originY + hy * d;
                     if (pf.SegmentClear(map, originX, originY, gx, gy, foot)) { goalX = gx; goalY = gy; return true; }
                 }
+                // ADR0024: the box foot touches a wall face where the old 12 u disc stopped short, and a whole 8 u step would leave
+                // it up to 8 u from the face. For a box only, finish the approach with 1 u steps (the disc path is unchanged).
+                if (foot.IsBox)
+                    for (double d = AheadMin - 1.0; d >= 1.0; d -= 1.0)
+                    {
+                        double gx = originX + hx * d, gy = originY + hy * d;
+                        if (pf.SegmentClear(map, originX, originY, gx, gy, foot)) { goalX = gx; goalY = gy; return true; }
+                    }
             }
             return false;
         }

@@ -209,6 +209,11 @@ namespace Roguehalla.Net.Tests
             Assert.IsTrue(KeyboardSteer.TryGoal(pf, south, 80, 3 * 32 - 24, 0, 1, box, out _, out double gy));
             Assert.Greater(gy, 3 * 32 - 24 + 1e-9);
             Assert.Less(gy, 3 * 32 - 6, "the silhouette ray at the leading edge stops short of the face, as in Rust");
+            // From 10 u short of the clear limit the 8 u steps all fail, but the box foot finishes with 1 u steps; the disc does not.
+            double edge = 3 * 32 - 6 - 3.0;   // feet 3 u short of the last clear position (face - 6, minus the ray margin)
+            Assert.IsTrue(KeyboardSteer.TryGoal(pf, south, 80, edge, 0, 1, box, out _, out double fine), "the box foot takes a fine step");
+            Assert.Greater(fine, edge); Assert.LessOrEqual(fine - edge, 7.0 + 1e-9);
+            Assert.IsFalse(KeyboardSteer.TryGoal(pf, south, 80, 3 * 32 - 14, 0, 1, Footprint.Disc(12), out _, out _), "the legacy disc has no fine tail and stops");
             Assert.IsTrue(pf.SegmentClear(south, 80, 3 * 32 - 24, 80, gy, box));
         }
     }

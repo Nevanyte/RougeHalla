@@ -90,3 +90,179 @@ exports.walk = async (g, c) => {
   console.log(JSON.stringify(summary, null, 1));
   c.fs.writeFileSync(c.path.join(c.out, `${c.tag}-walk.json`), JSON.stringify(summary, null, 1));
 };
+
+// ---------------------------------------------------------------------------------------------------------------------------------
+// Helpers over the client's [hitboxes] / [shot] / [aim] console lines.
+const table = c => JSON.parse(c.fs.readFileSync(c.path.join(__dirname, '../../../protocol/fixtures/archetypes_v1.json'), 'utf8')).archetypes;
+const latestHb = g => {
+  const last = g.hb[g.hb.length - 1]; if (!last) return { actors: [], props: [] };
+  const [a, p] = last.line.split(' props=');
+  const actors = (a.split('actors=')[1] || '').split(';').filter(Boolean).map(s => { const [id, kind, arch, key, x, y] = s.split(':'); return { id: +id, kind: +kind, arch: +arch, key, x: +x, y: +y }; });
+  const props = (p || '').split(';').filter(Boolean).map(s => { const [kind, weapon, x, y, open, focus] = s.split(':'); return { kind: +kind, weapon: +weapon, x: +x, y: +y, open: +open, focus: +focus }; });
+  return { actors, props };
+};
+exports._latestHb = latestHb;
+
+// Tile BFS over the known map (floor tiles whose 8 neighbours are floor): waypoints from (x0,y0) to (x1,y1) every ~`gap` tiles.
+const navPath = (c, x0, y0, x1, y1, gap = 6) => {
+  const { map, tileAt } = c, w = map.w, key = (tx, ty) => ty * w + tx;
+  const free = (tx, ty) => { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (tileAt(tx + dx, ty + dy) !== 0) return false; return true; };
+  const s = [Math.floor(x0 / 32), Math.floor(y0 / 32)], t = [Math.floor(x1 / 32), Math.floor(y1 / 32)];
+  const prev = new Map([[key(...s), -1]]), q = [s];
+  const nb = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+  let found = false;
+  for (let i = 0; i < q.length && !found; i++) {
+    const [cx, cy] = q[i];
+    for (const [dx, dy] of nb) {
+      const nx = cx + dx, ny = cy + dy, k = key(nx, ny);
+      if (prev.has(k) || !free(nx, ny)) continue;
+      if (dx && dy && !(free(cx + dx, cy) && free(cx, cy + dy))) continue;
+      prev.set(k, key(cx, cy)); q.push([nx, ny]);
+      if (nx === t[0] && ny === t[1]) { found = true; break; }
+    }
+  }
+  if (!found) return null;
+  const tiles = []; for (let k = key(...t); k !== -1; k = prev.get(k)) tiles.push([k % w, Math.floor(k / w)]);
+  tiles.reverse();
+  const pts = []; for (let i = gap; i < tiles.length; i += gap) pts.push([tiles[i][0] * 32 + 16, tiles[i][1] * 32 + 16]);
+  pts.push([x1, y1]);
+  return pts;
+};
+exports._navPath = navPath;
+const goTo = async (g, c, x, y, doneDist = 12) => {
+  const pts = navPath(c, g.self.x, g.self.y, x, y);
+  if (!pts) throw new Error(`no tile path from (${g.self.x | 0},${g.self.y | 0}) to (${x},${y})`);
+  for (const [px, py] of pts) {
+    await g.rightClickSim(px, py);
+    const t0 = Date.now();
+    while (Date.now() - t0 < 12000 && Math.hypot(g.self.x - px, g.self.y - py) > doneDist) await c.sleep(150);
+    await c.recalibrate(g);
+  }
+};
+exports._goTo = goTo;
+
+// Walk to the nearest ground Bow (1) or Wand (2), pick it up, then burst against the nearest hostile actor with the cursor on its torso.
+exports.aim = async (g, c) => {
+  const want = Number(c.opt('weapon', 1));   // 1 bow, 2 wand
+  const T = table(c);
+  const log = {};
+  await c.sleep(2500);
+  // Ground weapons are sparse and the observed props are limited to what the player can see: tour coarse grid cells until a ranged
+  // weapon is listed. (A training server with a weapon rack needs an account-owned join the diagnostic client cannot make.)
+  const seen = new Map(), visited = new Set();
+  const scan = () => { for (const p of latestHb(g).props) if (p.kind === 1 && (p.weapon === 1 || p.weapon === 2)) seen.set(`${p.x},${p.y}`, p); };
+  const deadline = Date.now() + 420000;
+  scan();
+  while (![...seen.values()].some(p => want < 0 || p.weapon === want) && Date.now() < deadline) {
+    const cells = [];
+    for (let ty = 8; ty < c.map.h - 8; ty += 24) for (let tx = 8; tx < c.map.w - 8; tx += 24) {
+      const k = `${tx},${ty}`; if (visited.has(k)) continue;
+      let fx = null; for (let r = 0; r < 6 && !fx; r++) for (let dy = -r; dy <= r && !fx; dy++) for (let dx = -r; dx <= r && !fx; dx++) { let ok = true; for (let yy = -1; yy <= 1; yy++) for (let xx = -1; xx <= 1; xx++) if (c.tileAt(tx + dx + xx, ty + dy + yy) !== 0) ok = false; if (ok) fx = [tx + dx, ty + dy]; }
+      if (fx) cells.push({ k, x: fx[0] * 32 + 16, y: fx[1] * 32 + 16 });
+    }
+    cells.sort((a, b) => Math.hypot(a.x - g.self.x, a.y - g.self.y) - Math.hypot(b.x - g.self.x, b.y - g.self.y));
+    if (!cells.length) break;
+    const next = cells[0]; visited.add(next.k);
+    try { await goTo(g, c, next.x, next.y, 24); } catch (e) { console.log('tour hop failed:', e.message); }
+    scan();
+    console.log(`toured ${visited.size} cells; at (${g.self.x | 0},${g.self.y | 0}); ranged weapons seen: ${seen.size}`);
+  }
+  scan();
+  const ground = [...seen.values()];
+  console.log('ground ranged weapons found:', JSON.stringify(ground));
+  const target = ground.filter(p => p.weapon === want || want < 0).sort((a, b) => Math.hypot(a.x - g.self.x, a.y - g.self.y) - Math.hypot(b.x - g.self.x, b.y - g.self.y))[0];
+  if (!target) throw new Error('no ranged weapon found after the tour');
+  await goTo(g, c, target.x, target.y, 14);
+  await g.page.keyboard.press('f'); await c.sleep(1200);
+  await g.shot('aim-after-pickup');
+  log.weapon = { want, at: target, selfAfter: g.self };
+  // 2. a hostile target: the nearest mob (or other player) that is not the local player, approached to ~300 u over the known map
+  let victim = null;
+  for (let i = 0; i < 6 && !victim; i++) {
+    const others = latestHb(g).actors.filter(a => a.arch !== 0 && a.kind !== 4 && Math.hypot(a.x - g.self.x, a.y - g.self.y) > 30)
+      .sort((a, b) => Math.hypot(a.x - g.self.x, a.y - g.self.y) - Math.hypot(b.x - g.self.x, b.y - g.self.y));
+    if (!others.length) { await c.sleep(1500); continue; }
+    const o = others[0], d = Math.hypot(o.x - g.self.x, o.y - g.self.y);
+    if (d > 330) {
+      const k = (d - 280) / d;   // stop ~280 u short of it
+      try { await goTo(g, c, g.self.x + (o.x - g.self.x) * k, g.self.y + (o.y - g.self.y) * k, 20); } catch (e) { console.log('approach failed:', e.message); }
+      await c.sleep(600);
+    } else victim = o;
+  }
+  if (!victim) throw new Error('no target actor found');
+  const row = T.find(t => t.id === victim.arch);
+  log.victim = { ...victim, row: row && row.hull };
+  console.log('victim', JSON.stringify(log.victim));
+  // 3. fire a burst with the cursor on the torso (feet + body offset), following the target
+  const swings0 = Number((g.recon.at(-1) || { line: '' }).line.match(/swings=(\d+)/)?.[1] || 0), hits0 = Number((g.recon.at(-1) || { line: '' }).line.match(/hits=(\d+)/)?.[1] || 0);
+  const burst = Number(c.opt('burst', 12));
+  let shots = 0, shotsFrames = 0;
+  for (let i = 0; i < burst; i++) {
+    const hb = latestHb(g); const v = hb.actors.find(a => a.id === victim.id) || victim;
+    const oy = row && row.hull.bodyOffset ? row.hull.bodyOffset[1] : 0;
+    const [px, py] = g.css(v.x, v.y + oy);   // torso = the body box centre
+    await g.page.mouse.move(px, py); await c.sleep(120);
+    await g.page.mouse.down(); await g.page.mouse.up(); shots++;
+    // frames: screenshots right after the click, projectile in flight
+    for (let k = 0; k < 3; k++) { await g.shot(`aim-shot${String(i).padStart(2, '0')}-f${k}`); }
+    await c.sleep(450);
+  }
+  await c.sleep(1500);
+  const lastRecon = (g.recon.at(-1) || { line: '' }).line;
+  const swings1 = Number(lastRecon.match(/swings=(\d+)/)?.[1] || 0), hits1 = Number(lastRecon.match(/hits=(\d+)/)?.[1] || 0);
+  // 4. geometry: for each [aim] line, the shots of that burst step must have a raised point within a few units of the cursor
+  const aims = g.logs.filter(l => l.includes('[aim]')).map(l => { const m = l.match(/t=([\d.]+) from=([-\d.]+),([-\d.]+) cursor=([-\d.]+),([-\d.]+) chest=(\d+) angle=([-\d.]+)/); return m && { t: +m[1], fx: +m[2], fy: +m[3], cx: +m[4], cy: +m[5], chest: +m[6], angle: +m[7] }; }).filter(Boolean);
+  const shotsLog = g.logs.filter(l => l.includes('[shot]')).map(l => { const m = l.match(/t=([\d.]+)(.*)$/); return { t: +m[1], pts: m[2].trim().split(' ').filter(Boolean).map(s => s.split(',').map(Number)) }; });
+  const rows = [];
+  for (const a of aims) {
+    const frames = shotsLog.filter(s => s.t > a.t && s.t < a.t + 2500);
+    // follow one projectile: the sample nearest the origin in the first frame, then nearest to the previous point
+    let best = Infinity, bestRaised = null; let prev = null;
+    for (const f of frames) {
+      for (const p of f.pts) {
+        // only points launched from this aim: ground point must lie on the ground line from `from` at the logged angle (distance < 6)
+        const dx = p[0] - a.fx, dy = p[1] - a.fy, along = dx * Math.cos(a.angle) + dy * Math.sin(a.angle), perp = Math.abs(-dx * Math.sin(a.angle) + dy * Math.cos(a.angle));
+        if (along < 0 || perp > 8) continue;
+        const rx = p[0], ry = p[1] - p[2];
+        const d = Math.hypot(rx - a.cx, ry - a.cy);
+        if (d < best) { best = d; bestRaised = { x: rx, y: ry, h: p[2] }; }
+      }
+    }
+    rows.push({ cursor: [a.cx, a.cy], chest: a.chest, minRaisedDistanceToCursor: +best.toFixed(2), at: bestRaised });
+  }
+  log.rows = rows; log.swings = swings1 - swings0; log.hits = hits1 - hits0; log.clicks = shots;
+  console.log(JSON.stringify(log, null, 1));
+  c.fs.writeFileSync(c.path.join(c.out, `${c.tag}-aim.json`), JSON.stringify(log, null, 1));
+};
+
+// Overlay crops: the own look (this session's faction) and every distinct archetype key seen near the player.
+exports.looks = async (g, c) => {
+  const T = table(c);
+  const done = new Set();
+  const { execFileSync } = require('node:child_process');
+  const grab = async (label, x, y, w = 140, h = 190) => {
+    const [px, py] = g.css(x, y);
+    const clip = { x: Math.max(0, Math.round(px - w / 2)), y: Math.max(0, Math.round(py - h * 0.72)), width: w, height: h };
+    if (clip.x + w > c.W || clip.y + h > c.H) return false;
+    await g.shot(`look-${label}`, clip); return true;
+  };
+  // own look
+  const me = g.self; await grab(`player-f${c.opt('faction', 0)}`, me.x, me.y); done.add('self');
+  const deadline = Date.now() + Number(c.opt('seconds', 40)) * 1000;
+  let n = 0;
+  while (Date.now() < deadline) {
+    const hb = latestHb(g);
+    for (const a of hb.actors) {
+      if (a.arch === 0 || Math.hypot(a.x - g.self.x, a.y - g.self.y) < 30) continue;
+      const tag = `${a.kind === 0 ? 'player' : 'mob'}-${a.key}`;
+      if (done.has(tag)) continue;
+      const [px, py] = g.css(a.x, a.y);
+      if (px < 90 || px > c.W - 90 || py < 140 || py > c.H - 60) continue;
+      if (await grab(tag, a.x, a.y)) { done.add(tag); console.log('captured', tag, JSON.stringify(a)); }
+    }
+    // wander so new mobs enter view
+    const s = g.self; const k = n++;
+    await g.rightClickSim(s.x + 220 * Math.cos(k * 1.9), s.y + 170 * Math.sin(k * 1.9)); await c.sleep(1500);
+  }
+  console.log('captured looks:', [...done].join(', '));
+};

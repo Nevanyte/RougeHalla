@@ -124,5 +124,5 @@ async function recalibrate(g) {  // the camera follows the player: re-anchor the
   try { g.save(); await g.stop(); } catch (_) {}
   if (g.errors.length) { failed = true; console.error(`${g.errors.length} console error(s):\n  ` + g.errors.slice(0, 8).join('\n  ')); }
   else console.log('console errors: 0');
-  process.exit(failed ? 1 : 0);
+  process.exit(process.exitCode === 3 ? 3 : failed ? 1 : 0);
 })();

@@ -39,10 +39,11 @@ namespace Roguehalla.Client
 
         public static readonly Color FootColor = new Color(.1f, 1f, 1f, .95f), BodyColor = new Color(1f, .85f, .1f, .95f),
             GroundColor = new Color(1f, .25f, .9f, 1f), RaisedColor = new Color(1f, 1f, 1f, 1f);
-        const float Thin = .028f, Cap = 2400, Mark = .12f;
+        const float Thin = .04f, Cap = 2400, Mark = .12f;
         const int Order = 31000;
 
-        struct ActorNote { public uint Id; public byte Archetype; public int Frame; }
+        struct ActorNote { public uint Id; public byte Archetype; public byte Kind; public int Frame; }
+        struct PropNote { public byte Kind; public int Weapon; public float X, Y; public bool Open, Focused; public int Frame; }
         struct ShotNote { public float X, Y, Height; public int Frame; }
 
         readonly Transform _root;
@@ -57,9 +58,47 @@ namespace Roguehalla.Client
         /// <summary>Number of line sprites currently shown (tests).</summary>
         public int Used { get { return _used; } }
 
-        public void NoteActor(uint id, byte archetype)
+        public void NoteActor(uint id, byte archetype, byte kind = 0)
         {
-            _notes[id] = new ActorNote { Id = id, Archetype = archetype, Frame = Time.frameCount };
+            _notes[id] = new ActorNote { Id = id, Archetype = archetype, Kind = kind, Frame = Time.frameCount };
+        }
+
+        readonly List<PropNote> _props = new List<PropNote>();
+        int _propFrame = -1;
+        public void NoteProp(byte kind, int weapon, float x, float y, bool open, bool focused)
+        {
+            if (_propFrame != Time.frameCount) { _props.Clear(); _propFrame = Time.frameCount; }
+            _props.Add(new PropNote { Kind = kind, Weapon = weapon, X = x, Y = y, Open = open, Focused = focused, Frame = Time.frameCount });
+        }
+
+        float _nextLog;
+        readonly System.Text.StringBuilder _sb = new System.Text.StringBuilder();
+        static string F(float v) { return v.ToString("F1", System.Globalization.CultureInfo.InvariantCulture); }
+        /// <summary>One console line per second naming every drawn actor (id, kind, archetype id and key, feet) and every observed prop; one line per frame with a projectile in flight.</summary>
+        void Log(WireArchetype[] table)
+        {
+            if (_shots.Count > 0 && _shotFrame >= Time.frameCount - 1)
+            {
+                _sb.Length = 0; _sb.Append("[shot] t=").Append(F(Time.realtimeSinceStartup * 1000f));
+                foreach (var s in _shots) _sb.Append(' ').Append(F(s.X)).Append(',').Append(F(s.Y)).Append(',').Append(F(s.Height));
+                Debug.Log(_sb.ToString());
+            }
+            if (Time.realtimeSinceStartup < _nextLog) return;
+            _nextLog = Time.realtimeSinceStartup + 1f;
+            _sb.Length = 0; _sb.Append("[hitboxes] actors=");
+            int frame = Time.frameCount;
+            foreach (var pair in _notes)
+            {
+                var n = pair.Value;
+                if (frame - n.Frame > 1 || !_actors.TryPosition(n.Id, out var world)) continue;
+                var row = WireArchetype.Find(table, n.Archetype);
+                _sb.Append(n.Id).Append(':').Append(n.Kind).Append(':').Append(n.Archetype).Append(':').Append(row == null ? "-" : row.Key).Append(':')
+                    .Append(F(world.x / ArenaView.Scale)).Append(':').Append(F(-world.y / (ArenaView.Scale * ArenaView.GroundSquash))).Append(';');
+            }
+            _sb.Append(" props=");
+            if (_propFrame >= frame - 1)
+                foreach (var p in _props) _sb.Append(p.Kind).Append(':').Append(p.Weapon).Append(':').Append(F(p.X)).Append(':').Append(F(p.Y)).Append(':').Append(p.Open ? 1 : 0).Append(':').Append(p.Focused ? 1 : 0).Append(';');
+            Debug.Log(_sb.ToString());
         }
 
         public void NoteShot(float x, float y, float height)
@@ -90,6 +129,7 @@ namespace Roguehalla.Client
                 }
             for (int i = _used; i < _previous && i < _pool.Count; i++) _pool[i].enabled = false;
             _previous = _used;
+            Log(table);
         }
 
         /// <summary>Boxes of one actor at feet (x, y) in sim units; a circle row (legacy) is drawn as a ring, with no table as the 12 u disc.</summary>
