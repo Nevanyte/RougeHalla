@@ -46,3 +46,17 @@ Author receipts were also read:12offline/7stack PASS; exact command/cwd binding 
 Author raw receipt hashes: test-offline.txt906bytes/`b6d60dc662b559ebbca57cb035e71a160250168a6d89be5895076ff210440d65`; test-stack.txt704bytes/`7e341f4673f8b102cf0115b40f89e14f93d09dbc20c1b07ee1ee4aab876f8008`.
 
 **Disposition: HOLD only for strict returned protocol type/range validation and the two meaningful malformed-type controls.** Preserve all existing passing offline evidence; re-review the bounded sealed delta afterward. Actual reviewed final bundle, Source/Training identity, CFN/config expiry equality, user-data bytes, cloud/TLS/browser session, cleanup and budget gates remain pending before deployment. This is not authority to deploy or communicate with Claude before10:30 Edmonton.
+
+## Root final delta review and release
+
+Root inspected the exact `28d21c3f..29a7d597136e30f4698785904a238451bd3de3f7` delta: two readiness lines validate
+received protocol as exact Python int (excluding bool),1..65535, before unchanged equality/hash matching. The mocked
+controls now reject float14.0, true against expected1, missing and out-of-range protocol on both ports, alongside stale
+protocol/hash; valid integers pass. Connections close on each rejected response. No cloud, timer, permission, runtime
+or package setup behavior is otherwise changed by this repair.
+
+Root independently reran the same two unittest discovery commands in the clean hosting worktree at `29a7d597` with
+bytecode disabled:12offline PASS/0.031s and7stack PASS/0.004s, no failures. Worktree stayed clean. Root releases the
+bounded preparation and integrates the two author commits as `f72f188c` + `7cb22c0e`. The original HOLD and its failing
+probe remain historical evidence. Final merged artifacts, launch flags/map, expiry agreement, cloud/TLS/browser and
+Opus review still gate deployment; no host is activated by this admission.

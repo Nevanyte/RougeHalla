@@ -13,16 +13,18 @@ verify the final tree, then deploy the authorized test site **https://play.rouge
 Gate3/merge/deployment approval if unavailable; another confirmation is not required for this already authorized scope.
 
 The time target does not replace the complete launch-readiness checklist on `feature/unity-rework`, the real merged
-browser/build evidence, final tests/licences, both reports or the final **Opus** review. The [Claude handback on that
-branch](coordination/CLAUDE_UNITY_REWORK_HANDBACK.md) calls for backend integration into `optimization_port` first,
+browser/build evidence, final tests/licences, both reports or the final **Opus** review. The Claude handback (`git show feature/unity-rework:docs/coordination/CLAUDE_UNITY_REWORK_HANDBACK.md`) calls for backend integration into `optimization_port` first,
 Claude consuming it and rerunning the final client/server gates, then a squash of the completed Unity work and Opus
 review of the exact combined runtime/map/flags before AWS activation. No final release or Opus pass is claimed yet.
 
 Backend Card work reserves checkpoint30/replay24/OBS22/policy16 with unchanged wire14. Claude's separate hitbox work
 uses the same provisional numbers plus wire16; the second merge must renumber the combined identities (expected
 31/25/23/17, subject to final tree review), regenerate derived fixtures and build the server/client together. Never
-serve the reworked client from the old server/artifact. Hosting preparation is separately isolated and reviewed; the
-existing CAD20 total budget remains. No AWS guest is active from the earlier expired demo.
+serve the reworked client from the old server/artifact. Hosting preparation `28d21c3f` + strict response-type repair `29a7d597` is independently reviewed and integrated as
+`f72f188c` + `7cb22c0e`: immutable artifact identities and at most12h original absolute expiry, with12offline+7stack
+checks passing. [Review](evidence/morning-host-preparation-review/README.md) retains the original malformed-protocol
+HOLD. Final runtime flags/artifacts/cloud evidence remain open. The existing CAD20 total budget remains. No AWS guest
+is active from the earlier expired demo.
 
 ## Parallel backend completion lane (owner instruction, 2026-11-09 America/Edmonton)
 
