@@ -1,0 +1,44 @@
+[
+ {
+  "shot": "after-s3f3-holy-frost-1",
+  "region": "holy",
+  "mean": 0.453,
+  "p95": 0.755,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.291,
+    "darkEdge": 5.62,
+    "lightEdge": 1.34,
+    "contrast": 5.62
+   },
+   "bar": {
+    "ground": 0.36,
+    "darkEdge": 7.35,
+    "lightEdge": 1.45,
+    "contrast": 7.35
+   }
+  }
+ },
+ {
+  "shot": "after-s3f3-holy-frost-2",
+  "region": "holy",
+  "mean": 0.465,
+  "p95": 0.755,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.293,
+    "darkEdge": 5.58,
+    "lightEdge": 1.31,
+    "contrast": 5.58
+   },
+   "bar": {
+    "ground": 0.331,
+    "darkEdge": 6.83,
+    "lightEdge": 1.56,
+    "contrast": 6.83
+   }
+  }
+ }
+]

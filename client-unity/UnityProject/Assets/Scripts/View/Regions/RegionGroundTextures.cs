@@ -101,21 +101,27 @@ namespace Roguehalla.Client
             }
         }
 
+        /// <summary>
+        /// Plague detail (its own pattern, not the stone cells Fire used to share): r mud clods and cracks, g grass blade density (short
+        /// vertical strokes), b wet pits and pebbles, a height. The shader decides where mud, grass and water go (PlagueGround).
+        /// </summary>
         static void Plague(float[] h, float[] r, float[] g, float[] b)
         {
             for (int y = 0; y < Size; y++) for (int x = 0; x < Size; x++)
             {
                 float u = U(x), v = U(y);
-                float wu = u + (Fbm(u, v, 4, 3, 4) - .5f) * .035f, wv = v + (Fbm(u, v, 4, 3, 6) - .5f) * .035f;
-                Worley(wu, wv, 5, 33, out float f1, out float edge, out float id);        // irregular flagstones
-                float joint = 1f - SmoothStep(0f, .09f, edge);
-                float moss = SmoothStep(.46f, .72f, Fbm(u, v, 6, 4, 50) + joint * .25f);
-                float grain = Fbm(u, v, 40, 2, 3) - .5f;
+                float clod = Fbm(u, v, 9, 4, 61), fine = Fbm(u, v, 48, 2, 63) - .5f;
+                Worley(u + (Fbm(u, v, 4, 3, 64) - .5f) * .05f, v, 7, 65, out float f1, out float edge, out float id);
+                float dry = 1f - SmoothStep(0f, .05f, edge);                                   // fine dry-mud cracks
+                float blade = PeriodicXY(u * 64f, v * 14f, 64, 14, 67);
+                float blade2 = PeriodicXY(u * 40f + 3f, v * 9f, 40, 9, 69);
+                float pit = SmoothStep(.62f, .8f, Fbm(u, v, 14, 3, 71));
+                float peb = Hash01(x / 2, y / 2, 73) > .985f ? 1f : 0f;
                 int i = y * Size + x;
-                h[i] = (1f - joint) * .6f + (1f - f1) * .2f;
-                r[i] = (.56f + id * .20f + grain * .20f) * (1f - joint * .34f);
-                g[i] = Mathf.Clamp01(joint * .8f + moss * .85f);
-                b[i] = Periodic(u * 20f, v * 20f, 20, 61) > .93f ? .85f : 0f;               // spore flecks
+                h[i] = clod * .6f + (1f - dry) * .2f - pit * .25f;
+                r[i] = Mathf.Clamp01(.55f + (clod - .5f) * .5f + fine * .22f - dry * .25f);
+                g[i] = Mathf.Clamp01(blade * .6f + blade2 * .4f);
+                b[i] = Mathf.Clamp01(pit * .9f + peb * .8f);
             }
         }
 

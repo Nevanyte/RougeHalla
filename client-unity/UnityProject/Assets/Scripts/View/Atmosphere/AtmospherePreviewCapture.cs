@@ -17,6 +17,8 @@ namespace Roguehalla.Client
 {
     public static class AtmospherePreviewCapture
     {
+        [Serializable] class MapJson { public int w, h; public int[] tiles, terrain, regionGrid; }
+        [Serializable] class MapFile { public MapJson map; }
         static string Arg(string name, string fallback)
         {
             var a = Environment.GetCommandLineArgs();
@@ -34,10 +36,19 @@ namespace Roguehalla.Client
         static void RunInner()
         {
             string data = Arg("-atmData", ""), outDir = Arg("-atmOut", "/tmp/atm-out"); Directory.CreateDirectory(outDir);
-            var map = new MapBlob(160, 160, File.ReadAllBytes(Path.Combine(data, "seed1.tiles.bin")), File.ReadAllBytes(Path.Combine(data, "seed1.terrain.bin")),
-                File.ReadAllBytes(Path.Combine(data, "seed1.regions.bin")), MapBlob.GroundTerrainOff);
+            MapBlob map;
+            string json = Arg("-atmMap", "");      // a rh-map/2 fixture (seed1.map.json or seed2.map.json); terrain effects on (mode All) unless -atmMode 0
+            byte mode = Arg("-atmMode", "2") == "0" ? MapBlob.GroundTerrainOff : MapBlob.GroundTerrainAll;
+            if (json.Length > 0)
+            {
+                var m = JsonUtility.FromJson<MapFile>(File.ReadAllText(json)).map;
+                byte[] B(int[] a) { var o = new byte[a.Length]; for (int i = 0; i < a.Length; i++) o[i] = (byte)a[i]; return o; }
+                map = new MapBlob((ushort)m.w, (ushort)m.h, B(m.tiles), B(m.terrain), B(m.regionGrid), mode);
+            }
+            else map = new MapBlob(160, 160, File.ReadAllBytes(Path.Combine(data, "seed1.tiles.bin")), File.ReadAllBytes(Path.Combine(data, "seed1.terrain.bin")),
+                File.ReadAllBytes(Path.Combine(data, "seed1.regions.bin")), mode);
             var camGo = new GameObject("Camera"); var cam = camGo.AddComponent<Camera>();
-            cam.orthographic = true; cam.orthographicSize = 9f; cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = new Color32(0x14, 0x17, 0x1b, 255);
+            cam.orthographic = true; cam.orthographicSize = float.Parse(Arg("-atmOrtho", "9")); cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = new Color32(0x14, 0x17, 0x1b, 255);
             cam.allowHDR = true; camGo.AddComponent<UniversalAdditionalCameraData>().renderPostProcessing = true;
             var arenaGo = new GameObject("Arena"); var arena = arenaGo.AddComponent<ArenaView>();
             typeof(ArenaView).GetMethod("Awake", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(arena, null);

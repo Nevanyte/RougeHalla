@@ -56,6 +56,7 @@ namespace Roguehalla.Client
             var root = new GameObject("Region walls (row meshes)"); root.transform.SetParent(parent, false); _rows.Add(root);
             int w = map.W, h = map.H; var tiles = map.Tiles; var terrain = map.Terrain; var regions = map.Regions;
             var contact = RegionWallAtlas.Contact;
+            var temple = TempleLayout.For(map);
 
             bool Solid(int x, int y)
             {
@@ -89,6 +90,8 @@ namespace Roguehalla.Client
                     int kind = terrain != null ? terrain[y * w + x] : 0;
                     if (kind == (int)TerrainKind.Lava || kind == (int)TerrainKind.Crevasse) continue;   // the ground shader draws the hazard
                     var style = kind == (int)TerrainKind.Fence ? WallStyle.Timber : RegionThemes.Get(RegionOf(x, y)).Wall;
+                    bool inBlock = temple.TryBlock(x, y, out int bcol, out int brow);   // pillar block of the generated temple: columns, arches, gilded cap
+                    if (inBlock) style = WallStyle.Temple;
                     var set = RegionWallAtlas.SetFor(style);
                     float hash = RegionNoise.Hash01(x, y, 5); float tint = .92f + hash * .08f;
                     var col = new Color32((byte)(255 * tint), (byte)(255 * tint), (byte)(255 * tint), 255);
@@ -104,14 +107,15 @@ namespace Roguehalla.Client
                             set.Low[v % RegionWallAtlas.LowVariants], col);
                         _kind = 0f; continue;
                     }
+                    int faceV = inBlock ? bcol : v % RegionWallAtlas.FaceVariants, topV = inBlock ? (bcol == 1 && brow == 1 ? 1 : 0) : (v / 3) % RegionWallAtlas.TopVariants;
                     bool southSolid = Solid(x, y + 1);
                     if (!southSolid)
                     {
                         _kind = 4f; Rect(px0 - .04f, py - .30f, px1 + .04f, py + .04f, contact, new Color32(255, 255, 255, 255));
-                        _kind = 1f; Rect(px0 - .003f, py, px1 + .003f, py + WallHeight + .02f, set.Face[v % RegionWallAtlas.FaceVariants], col); _kind = 0f;
+                        _kind = 1f; Rect(px0 - .003f, py, px1 + .003f, py + WallHeight + .02f, set.Face[faceV], col); _kind = 0f;
                     }
                     float ty0 = py + WallHeight, ty1 = ty0 + TopHeight;
-                    Rect(px0 - .003f, ty0, px1 + .003f, ty1, set.Top[(v / 3) % RegionWallAtlas.TopVariants], col);
+                    Rect(px0 - .003f, ty0, px1 + .003f, ty1, set.Top[topV], col);
                     var rim = set.Rim; const float rimW = .085f;
                     var white = new Color32(255, 255, 255, 255);
                     if (!Solid(x, y - 1))   // north edge: strong at the outer edge

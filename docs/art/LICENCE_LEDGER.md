@@ -153,3 +153,5 @@ Added on `rework/atmosphere`. Files live in `client-unity/UnityProject/Assets/St
 Not listened to (no audio output available to the author): fit to each region is judged from the source descriptions only. The existing Flare CC BY-SA beds stay as the fallback until a streamed track is audible, then are muted (`ShowcaseSoundscape.LegacyMusicMuted`).
 
 Other additions on this branch carry no third-party files: all atmosphere textures (soft flakes, motes, embers, spores, light shafts) are generated in code (`AtmosphereTextures`), and the shaders and shadow bake are original.
+
+Regions pass 2 (branch `rework/regions2`) adds no third-party files: the Holy temple (floor shader, wall skin, minaret, dome and brazier props), the Plague ground and the coliseum props (banner, rack, torch stand) are generated in code (`RegionPropArt.Temple.cs`, `RegionWallAtlas.cs`, `RegionGround.shader`) and the temple emblem is the existing Holy faction glyph. Nothing is derived from Flare or other CC BY-SA work.

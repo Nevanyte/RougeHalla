@@ -1,0 +1,44 @@
+[
+ {
+  "shot": "after-s1f0-fire-fire-1",
+  "region": "fire",
+  "mean": 0.242,
+  "p95": 0.734,
+  "clipped": 0.06,
+  "contrast": {
+   "sprite": {
+    "ground": 0.037,
+    "darkEdge": 1.56,
+    "lightEdge": 6.09,
+    "contrast": 6.09
+   },
+   "bar": {
+    "ground": 0.072,
+    "darkEdge": 2.1,
+    "lightEdge": 5.08,
+    "contrast": 5.08
+   }
+  }
+ },
+ {
+  "shot": "after-s1f0-fire-fire-2",
+  "region": "fire",
+  "mean": 0.243,
+  "p95": 0.74,
+  "clipped": 0.08,
+  "contrast": {
+   "sprite": {
+    "ground": 0.038,
+    "darkEdge": 1.56,
+    "lightEdge": 6.07,
+    "contrast": 6.07
+   },
+   "bar": {
+    "ground": 0.072,
+    "darkEdge": 2.08,
+    "lightEdge": 5.11,
+    "contrast": 5.11
+   }
+  }
+ }
+]

@@ -12,7 +12,7 @@ namespace Roguehalla.Client
     public sealed class RegionProps : System.IDisposable
     {
         public const float FadedAlpha = .30f, FadeRate = 9f;
-        public struct Placement { public string Art; public float X, Y, Scale; public bool Flip; public int Tx, Ty; }
+        public struct Placement { public string Art; public float X, Y, Scale; public bool Flip; public int Tx, Ty; public int Bias; }
 
         struct Prop
         {
@@ -32,14 +32,17 @@ namespace Roguehalla.Client
         {
             var list = new List<Placement>(2048);
             if (map.Regions == null) return list;
-            int w = map.W, h = map.H; var tiles = map.Tiles; var regions = map.Regions; var terrain = map.Terrain;
+            int w = map.W, h = map.H; var tiles = map.Tiles; var regions = map.Regions; var terrain = map.Terrain;     // props avoid every terrain tile, drawn or not
             int seed = unchecked((int)(map.LayerHash ^ (map.SemanticHash * 2654435761u)));
             var occupied = new bool[w * h]; var tallAt = new bool[w * h];
+            var temple = TempleLayout.For(map); var plague = PlagueGround.Build(map);
             for (int y = 2; y < h - 2; y++) for (int x = 2; x < w - 2; x++)
             {
                 int i = y * w + x;
                 if (tiles[i] != MapBlob.Floor || (terrain != null && terrain[i] != 0)) continue;
                 int region = regions[i]; if (region < 1 || region > 5) continue;
+                if (temple.Contains(x, y)) continue;                              // the temple replaces the garden props inside its footprint
+                if (plague.KindAt(x, y) == PlagueGround.Water) continue;          // nothing stands in the shallow water
                 var theme = RegionThemes.Get(region); var rules = theme.Props; if (rules.Length == 0) continue;
                 float roll = RegionNoise.Hash01(x, y, seed), cum = 0f; int pick = -1;
                 float pocket = theme.GroundParams.w > 0f ? RegionPocket.At(x + .5f, y + .5f) : 0f;
@@ -64,6 +67,10 @@ namespace Roguehalla.Client
                 float scale = Mathf.Lerp(chosen.ScaleMin, chosen.ScaleMax, RegionNoise.Hash01(x, y, seed + 3));
                 list.Add(new Placement { Art = chosen.Art, X = x + .5f + jx, Y = y + .5f + jy, Scale = scale, Flip = RegionNoise.Hash01(x, y, seed + 4) < .5f, Tx = x, Ty = y });
             }
+            // Temple towers, domes and braziers (deterministic, from the layout), then the coliseum's first prop pass.
+            foreach (var d in temple.Props)
+                list.Add(new Placement { Art = d.Art, X = d.X, Y = d.Y, Scale = d.Scale, Flip = d.Flip, Tx = Mathf.FloorToInt(d.X), Ty = Mathf.FloorToInt(d.Y + (d.Bias > 0 ? 1.5f : 0f)), Bias = d.Bias });
+            ColiseumProps.Add(map, list, seed);
             return list;
         }
 
@@ -108,7 +115,7 @@ namespace Roguehalla.Client
                 Vector3 foot = ArenaView.WorldPoint(pl.X * 32f, pl.Y * 32f);
                 go.transform.localPosition = foot; go.transform.localScale = new Vector3(pl.Flip ? -pl.Scale : pl.Scale, pl.Scale, 1f);
                 var sr = go.AddComponent<SpriteRenderer>(); sr.sprite = art.Sprite; sr.sharedMaterial = _material;
-                sr.sortingOrder = 2000 + Mathf.RoundToInt(pl.Y * 32f * .5f);
+                sr.sortingOrder = 2000 + Mathf.RoundToInt(pl.Y * 32f * .5f) + pl.Bias;
                 var prop = new Prop { Renderer = sr, FootX = foot.x, FootY = foot.y, HalfW = art.Width * .5f * pl.Scale * .8f, Height = art.Height * pl.Scale, Tall = art.Tall, Alpha = 1f, MarkFrame = -10, Base = Color.white };
                 int index = _props.Count; _props.Add(prop);
                 if (art.Tall)

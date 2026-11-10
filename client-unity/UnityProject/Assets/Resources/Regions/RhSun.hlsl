@@ -7,7 +7,7 @@
 TEXTURE2D(_RhRegA); SAMPLER(sampler_RhRegA);
 TEXTURE2D(_RhRegB); SAMPLER(sampler_RhRegB);
 TEXTURE2D(_RhShadowMask); SAMPLER(sampler_RhShadowMask);
-float4 _RhMapInfo;      // x map width (tiles), y map height, z vertical squash
+float4 _RhMapInfo;      // x map width (tiles), y map height, z vertical squash, w 1 when the region texture's alpha holds the temple interior weight
 float4 _RhSunCol[8];    // rgb = sun colour scaled by strength, per wire region id
 float4 _RhAmbCol[8];    // rgb = ambient, a = sun strength (shadow opacity)
 float4 _RhShadowCol[8]; // rgb = multiplier applied inside a cast shadow
@@ -36,6 +36,10 @@ float3 RhSunMul(float2 world, float ndl, out float strength, out float3 shadowMu
     float pat = sin(world.x * 1.3 + sin(world.y * 2.1) * 1.4) * sin(world.y * 1.5 + sin(world.x * 0.9 + _Time.y * 0.15) * 1.8);
     float dap = lerp(1.0, lerp(0.45, 1.3, smoothstep(-0.25, 0.55, pat)), saturate(w[2] * inv) * 0.9);
     float3 m = max(amb * inv + sun * inv * ndl * dap, flo * inv);   // passive floor: ambient + sun never fall below it
+    // Temple interior (profile row 7): even, warm, calm light with almost no cast shadow, blended by the baked interior weight in the region texture's alpha.
+    float tw = wb.a * _RhMapInfo.w;
+    float3 mT = max(_RhAmbCol[7].rgb + _RhSunCol[7].rgb * ndl, _RhFloorCol[7].rgb);
+    m = lerp(m, mT, tw); strength = lerp(strength, _RhAmbCol[7].a, tw); shadowMul = lerp(shadowMul, _RhShadowCol[7].rgb, tw);
     return lerp(float3(1, 1, 1), m, _RhSwitch.x);
 }
 #endif

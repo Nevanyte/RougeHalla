@@ -1,0 +1,44 @@
+[
+ {
+  "shot": "after-s5f3-plague-frost-1",
+  "region": "plague",
+  "mean": 0.241,
+  "p95": 0.461,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.032,
+    "darkEdge": 1.55,
+    "lightEdge": 4.89,
+    "contrast": 4.89
+   },
+   "bar": {
+    "ground": 0.029,
+    "darkEdge": 1.51,
+    "lightEdge": 7.43,
+    "contrast": 7.43
+   }
+  }
+ },
+ {
+  "shot": "after-s5f3-plague-frost-2",
+  "region": "plague",
+  "mean": 0.237,
+  "p95": 0.468,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.037,
+    "darkEdge": 1.59,
+    "lightEdge": 6.39,
+    "contrast": 6.39
+   },
+   "bar": {
+    "ground": 0.036,
+    "darkEdge": 1.64,
+    "lightEdge": 6.85,
+    "contrast": 6.85
+   }
+  }
+ }
+]

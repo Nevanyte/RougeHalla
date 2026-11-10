@@ -25,9 +25,25 @@ namespace Roguehalla.Client
 
         public void Load(MapBlob map)
         {
-            _w = map.W; _h = map.H; _regions = map.Regions; _terrain = map.Terrain;
+            _w = map.W; _h = map.H; _regions = map.Regions; _terrain = EffectiveTerrain(map);
             if (_regions != null && _regions.Length != _w * _h) _regions = null;
             if (_terrain != null && _terrain.Length != _w * _h) _terrain = null;
+        }
+
+        /// <summary>
+        /// The terrain plane as the room actually uses it. MapBlob.TerrainMode is the room's terrain-effect mode (Rust terrain::Mode): Off = no
+        /// terrain surface has any effect, Map = effects on (a faction ignores the surface of its own region), All = effects on for everyone.
+        /// Kinds 4 ember, 5 bog, 6 ice and 7 light are pure surface effects, so with the mode Off they are not drawn as the hazard or
+        /// surface they would be (the region's plain ground shows instead). Kinds 1 lava, 2 fence and 3 crevasse sit on wall or low tiles and
+        /// are collision geometry whatever the mode, so they stay.
+        /// </summary>
+        public static byte[] EffectiveTerrain(MapBlob map)
+        {
+            if (map == null || map.Terrain == null || map.TerrainMode != MapBlob.GroundTerrainOff) return map != null ? map.Terrain : null;
+            byte[] copy = null; var t = map.Terrain;
+            for (int i = 0; i < t.Length; i++)
+                if (t[i] >= (byte)TerrainKind.Ember && t[i] <= (byte)TerrainKind.Light) { if (copy == null) copy = (byte[])t.Clone(); copy[i] = 0; }
+            return copy ?? t;
         }
 
         public RegionId RegionAtTile(int tx, int ty)

@@ -80,7 +80,7 @@ namespace Roguehalla.Client
         public void Initialize(Transform parent) { _root = new GameObject("Accent lights").transform; _root.SetParent(parent, false); }
         public void Load(MapBlob map)
         {
-            _planner.Build(map.Terrain, map.W, map.H);
+            _planner.Build(RegionMap.EffectiveTerrain(map), map.W, map.H);
             if (RegionAtmosphereTable.AccentFor(TerrainKind.None).Enabled && map.Regions != null)
                 foreach (var pl in RegionProps.Scatter(map)) if (pl.Art == "sent.lantern") _planner.AddLantern(pl.X, pl.Y, 1.05f);
             _dirty = true; _lastCellX = int.MinValue;

@@ -10,7 +10,7 @@ namespace Roguehalla.Client
     public enum RegionId : byte { None = 0, Fire = 1, Sentenced = 2, Plague = 3, Frost = 4, Holy = 5, Coliseum = 6 }
     public enum TerrainKind : byte { None = 0, Lava = 1, Fence = 2, Crevasse = 3, Ember = 4, Bog = 5, Ice = 6, Light = 7 }
     /// <summary>Wall and low-obstacle skin.</summary>
-    public enum WallStyle : byte { Limestone = 0, Basalt, Timber, Ruin, Glacier, Sandstone }
+    public enum WallStyle : byte { Limestone = 0, Basalt, Timber, Ruin, Glacier, Sandstone, Temple }
 
     /// <summary>One scatter rule: which procedural prop, how many per 100 eligible tiles, and where it may stand.</summary>
     public readonly struct PropRule
@@ -95,7 +95,7 @@ namespace Roguehalla.Client
             // 1 fire: dark basalt, obsidian walls, ember-lit cracks.
             { var th = t[1]; th.Wall = WallStyle.Basalt;
               th.WallTop = Mix(Sec(1), B(1), .55f); th.WallFace = Mix(Sec(1), B(1), .22f); th.WallEdge = Acc(1);
-              th.GroundParams = new Vector4(.70f, .85f, .75f, 0); th.GroundParams2 = new Vector4(.40f, .75f, 0, 0);
+              th.GroundParams = new Vector4(.70f, .30f, .22f, 0); th.GroundParams2 = new Vector4(.40f, .22f, 0, 0);
               th.Props = new[] { new PropRule("fire.spire", 2.4f, .9f, 1.3f), new PropRule("fire.rocks", 3.2f, .85f, 1.2f), new PropRule("fire.stump", 1.6f, .9f, 1.15f),
                                  new PropRule("fire.crystal", 1.4f, .8f, 1.2f), new PropRule("fire.vent", 1.1f, .9f, 1.1f) }; }
             // 2 sentenced: the muted zone. Gothic crypt-yard: dark masonry, iron railings, tombstones, hazy.
@@ -103,7 +103,7 @@ namespace Roguehalla.Client
               th.WallTop = Mix(Sec(2), B(2), .55f); th.WallFace = Mix(Sec(2), B(2), .35f); th.WallEdge = Mix(Sec(2), B(2), .7f);
               th.GroundParams = new Vector4(.55f, .6f, 0, 0); th.GroundParams2 = new Vector4(.22f, 0, .15f, 0);
               th.Props = new[] { new PropRule("sent.tomb", 2.6f, .9f, 1.15f), new PropRule("sent.cross", 1.7f, .9f, 1.15f), new PropRule("sent.slab", 1.4f, .9f, 1.15f),
-                                 new PropRule("sent.deadgrass", 6f, .85f, 1.2f), new PropRule("sent.deadtree", 1.1f, .85f, 1.2f), new PropRule("sent.lantern", 1.5f, .95f, 1.05f, wallClearance: 1),
+                                 new PropRule("sent.deadgrass", 6f, .85f, 1.2f), new PropRule("sent.deadtree", 1.1f, .85f, 1.2f), new PropRule("sent.lantern", 3.6f, .95f, 1.05f, wallClearance: 1),
                                  new PropRule("sent.urn", .9f, .9f, 1.1f), new PropRule("sent.gargoyle", .5f, .95f, 1.05f, wallClearance: 1), new PropRule("sent.scarecrow", .12f, .95f, 1.05f, wallClearance: 2) }; }
             // 3 plague: forgotten city. Mossy paving, dense greenery pockets.
             { var th = t[3]; th.Wall = WallStyle.Ruin;

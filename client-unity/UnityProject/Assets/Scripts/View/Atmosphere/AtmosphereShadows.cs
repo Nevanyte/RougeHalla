@@ -22,7 +22,7 @@ namespace Roguehalla.Client
         }
 
         /// <summary>Pure: rim opacity for a ground of the given relative luminance (0 black .. 1 white): strong on dark ground, faint on light ground.</summary>
-        public static float RimAlpha(float groundLuma) { return Mathf.Lerp(.16f, .95f, 1f - Mathf.Clamp01(groundLuma * 1.5f)); }
+        public static float RimAlpha(float groundLuma) { return Mathf.Lerp(.2f, 1f, 1f - Mathf.Clamp01(groundLuma * 1.5f)); }
 
         /// <summary>Character separation: the soft light rim outside the dark outline, tuned to the ground under the actor (palette base luminance blended by region weights).</summary>
         public static void ApplyRim(SpriteRenderer rim, float tileX, float tileY, float scale)
@@ -35,7 +35,10 @@ namespace Roguehalla.Client
                 for (int k = 0; k < RegionField.Regions; k++)
                 { var c = RegionPaletteGenerated.Srgb[k + 1][RegionPaletteGenerated.Base]; luma += W[k] * (.2126f * c.r + .7152f * c.g + .0722f * c.b) / 255f; }
             }
-            rim.color = new Color(.92f, .94f, 1f, RimAlpha(luma) * Mathf.Clamp01(scale));
+            float dark = 1f - Mathf.Clamp01(luma * 1.5f);
+            rim.transform.localScale *= 1f + .07f * dark;          // a slightly wider light rim on dark ground (the presenter resets the scale every frame)
+            float boost = 1f + 1.3f * dark * dark;                      // HDR rim on dark ground: the sprite is lit by the zone light, so a plain white rim is only about L 0.3 there
+            rim.color = new Color(.97f * boost, .98f * boost, boost, RimAlpha(luma) * Mathf.Clamp01(scale));
         }
 
         public static void ApplyActor(SpriteRenderer shadow, float tileX, float tileY)

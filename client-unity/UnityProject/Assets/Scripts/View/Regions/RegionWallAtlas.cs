@@ -34,9 +34,9 @@ namespace Roguehalla.Client
         {
             if (_atlas != null) return;
             // Pack: per style a row band: 3 tops + 3 faces on two shelves, lows and rim after.
-            int styles = 6;
+            int styles = 7;
             int bandH = TopH + 4 + FaceH + 4 + LowH + 4 + 4;   // generous
-            int atlasH = 2048;
+            int atlasH = 2560;
             var px = new Color32[AtlasW * atlasH];
             _sets = new Set[styles];
             int x = 2, y = 2, rowH = 0;
@@ -54,8 +54,12 @@ namespace Roguehalla.Client
                 var style = (WallStyle)s; var th = ThemeOf(style); var set = new Set();
                 for (int v = 0; v < TopVariants; v++) set.Top[v] = Place(PaintTop(style, th, v), ref x, ref y, ref rowH);
                 for (int v = 0; v < FaceVariants; v++) set.Face[v] = Place(PaintFace(style, th, v), ref x, ref y, ref rowH);
-                for (int v = 0; v < LowVariants; v++) set.Low[v] = Place(PaintLow(style, th, v), ref x, ref y, ref rowH);
-                set.Rim = Place(PaintRim(th), ref x, ref y, ref rowH);
+                if (style == WallStyle.Temple) { set.Low = _sets[(int)WallStyle.Sandstone].Low; set.Rim = _sets[(int)WallStyle.Sandstone].Rim; }   // low walls and rims reuse the sandstone cells
+                else
+                {
+                    for (int v = 0; v < LowVariants; v++) set.Low[v] = Place(PaintLow(style, th, v), ref x, ref y, ref rowH);
+                    set.Rim = Place(PaintRim(th), ref x, ref y, ref rowH);
+                }
                 _sets[s] = set;
             }
             _contact = Place(PaintContact(), ref x, ref y, ref rowH);
@@ -71,7 +75,7 @@ namespace Roguehalla.Client
                 case WallStyle.Timber: return RegionThemes.Get(RegionId.Sentenced);
                 case WallStyle.Ruin: return RegionThemes.Get(RegionId.Plague);
                 case WallStyle.Glacier: return RegionThemes.Get(RegionId.Frost);
-                case WallStyle.Sandstone: return RegionThemes.Get(RegionId.Holy);
+                case WallStyle.Sandstone: case WallStyle.Temple: return RegionThemes.Get(RegionId.Holy);
                 default: return RegionThemes.Get(RegionId.Coliseum);
             }
         }
@@ -137,6 +141,23 @@ namespace Roguehalla.Client
                         c = Mix(Shade(stone, .9f + id * .2f), Shade(stone, .5f), joint * .7f);
                         c = Mix(c, Mix(moss, Shade(moss, 1.25f), soft), mossMask);
                         c = Shade(c, 1f + grain * .05f);
+                        break;
+                    }
+                    case WallStyle.Temple:      // pillar-block cap: polished golden stone, gilded coping, a rosette on the centre tile
+                    {
+                        Color sandC = RegionPaletteSrgb(5, 0), keyC = RegionPaletteSrgb(5, 3), goldC = RegionPaletteSrgb(5, 2), grn = RegionPaletteSrgb(5, 1);
+                        Color stone = Mix(sandC, keyC, .5f), gilt = Mix(goldC, keyC, .55f);
+                        c = Shade(stone, .96f + soft * .1f + grain * .04f);
+                        float ed = Mathf.Min(Mathf.Min(u, 1f - u), Mathf.Min(v, 1f - v));
+                        c = Mix(c, gilt, (1f - SmoothU(ed, 0f, .05f)) * .9f);
+                        c = Mix(c, Shade(stone, .7f), (1f - SmoothU(Mathf.Abs(ed - .09f), 0f, .012f)) * .6f);
+                        if (variant == 1)
+                        {
+                            float rr = Mathf.Sqrt((u - .5f) * (u - .5f) + (v - .5f) * (v - .5f));
+                            c = Mix(c, gilt, 1f - SmoothU(Mathf.Abs(rr - .30f), 0f, .02f));
+                            c = Mix(c, grn, (1f - SmoothU(rr, .12f, .22f)) * .8f);
+                            c = Mix(c, gilt, 1f - SmoothU(rr, 0f, .06f));
+                        }
                         break;
                     }
                     case WallStyle.Sandstone:
@@ -260,6 +281,31 @@ namespace Roguehalla.Client
                         c = Mix(c, mossC, Mathf.Max(mossTop, mossBase) * .9f);
                         float strand = (RegionNoise.Hash01((int)(u * 7f), 8, seed) > .55f ? 1f : 0f) * SmoothU(Mathf.Abs((u * 7f - Mathf.Floor(u * 7f)) - .5f + (N(u, v, 8, seed) - .5f) * .6f), .16f, .1f) * SmoothU(v, .25f, .9f);
                         c = Mix(c, Shade(mossC, .75f), strand * .85f);
+                        break;
+                    }
+                    case WallStyle.Temple:      // three cells = one 3-tile elevation: pointed arch between two fluted engaged columns with capitals
+                    {
+                        Color sandC = RegionPaletteSrgb(5, 0), keyC = RegionPaletteSrgb(5, 3), goldC = RegionPaletteSrgb(5, 2), grn = RegionPaletteSrgb(5, 1);
+                        Color stone = Mix(sandC, keyC, .45f), gilt = Mix(goldC, keyC, .55f);
+                        float U = (variant + u) / 3f, dx = Mathf.Abs(U - .5f);
+                        c = Shade(Mix(Shade(stone, .93f), Shade(stone, 1.08f), RegionNoise.Hash01((int)(U * 12f), (int)(v * 4f), seed)), vert + grain * .04f);
+                        float archTop = .42f + (.28f - dx) * 1.5f;
+                        bool recess = dx < .28f && v < archTop;
+                        float rimD = Mathf.Min(.28f - dx, (archTop - v) * .6f);
+                        if (recess) c = Mix(Shade(Mix(grn, stone, .25f), .55f + v * .25f), c, .15f);
+                        if (dx < .30f && v < archTop + .05f) c = Mix(c, gilt, (1f - SmoothU(Mathf.Abs(rimD), 0f, .02f)) * .9f);
+                        // engaged columns at the two outer edges of the 3-tile elevation
+                        float cd = Mathf.Abs(U - (U < .5f ? .075f : .925f)), colW = .052f;
+                        if (cd < colW)
+                        {
+                            float t2 = cd / colW, flute = .78f + .3f * Mathf.Cos(t2 * 3.14159f * 3f) * .5f;
+                            Color col = Shade(Mix(stone, Color.white, .15f), flute * (U < .5f ? 1.08f - t2 * .25f : .85f + t2 * .2f));
+                            c = Mix(c, col, 1f);
+                            if (v > .80f) c = Mix(c, gilt, .85f);                                   // capital
+                            if (v < .10f) c = Mix(c, Shade(gilt, .85f), .8f);                       // base
+                        }
+                        else if (cd < colW + .012f) c = Mix(c, Shade(stone, .4f), .6f);
+                        c = Mix(c, gilt, (1f - SmoothU(Mathf.Abs(v - .86f), 0f, .02f)) * .8f);
                         break;
                     }
                     case WallStyle.Sandstone:

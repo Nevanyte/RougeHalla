@@ -108,7 +108,7 @@ namespace Roguehalla.Client.Tests
                 regions[y * w + x] = (byte)(border ? 0 : x < 20 ? (y < 20 ? 1 : 3) : (y < 20 ? 5 : 4));
             }
             for (int x = 25; x < 30; x++) { terrain[30 * w + x] = (byte)TerrainKind.Ice; }
-            return new MapBlob(w, h, tiles, terrain, regions);
+            return new MapBlob(w, h, tiles, terrain, regions, MapBlob.GroundTerrainAll);
         }
 
         [Test]
@@ -189,7 +189,7 @@ namespace Roguehalla.Client.Tests
             int frost = 0;
             foreach (var p in first)
             {
-                Assert.That(map.Regions[p.Ty * map.W + p.Tx], Is.Not.EqualTo((byte)6), "no props in the coliseum");
+                Assert.That(map.Regions[p.Ty * map.W + p.Tx], Is.Not.EqualTo((byte)6).Or.Matches<byte>(b => p.Art.StartsWith("col.")), "only the coliseum prop pass stands in the coliseum");
                 if (p.Art.StartsWith("frost.")) frost++;
             }
             Assert.That(frost, Is.GreaterThan(100), "Frost is the finished region");

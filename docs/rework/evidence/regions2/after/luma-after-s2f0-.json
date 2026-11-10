@@ -1,0 +1,44 @@
+[
+ {
+  "shot": "after-s2f0-holy-fire-1",
+  "region": "holy",
+  "mean": 0.614,
+  "p95": 0.803,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.426,
+    "darkEdge": 6,
+    "lightEdge": 1.29,
+    "contrast": 6
+   },
+   "bar": {
+    "ground": 0.495,
+    "darkEdge": 8.01,
+    "lightEdge": 1.11,
+    "contrast": 8.01
+   }
+  }
+ },
+ {
+  "shot": "after-s2f0-holy-fire-2",
+  "region": "holy",
+  "mean": 0.627,
+  "p95": 0.834,
+  "clipped": 0.31,
+  "contrast": {
+   "sprite": {
+    "ground": 0.415,
+    "darkEdge": 5.69,
+    "lightEdge": 1.31,
+    "contrast": 5.69
+   },
+   "bar": {
+    "ground": 0.499,
+    "darkEdge": 7.84,
+    "lightEdge": 1.1,
+    "contrast": 7.84
+   }
+  }
+ }
+]

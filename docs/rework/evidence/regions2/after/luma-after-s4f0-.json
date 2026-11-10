@@ -1,0 +1,44 @@
+[
+ {
+  "shot": "after-s4f0-sentenced-fire-1",
+  "region": "sentenced",
+  "mean": 0.274,
+  "p95": 0.694,
+  "clipped": 0.05,
+  "contrast": {
+   "sprite": {
+    "ground": 0.025,
+    "darkEdge": 1.13,
+    "lightEdge": 7.82,
+    "contrast": 7.82
+   },
+   "bar": {
+    "ground": 0.016,
+    "darkEdge": 1.23,
+    "lightEdge": 10.26,
+    "contrast": 10.26
+   }
+  }
+ },
+ {
+  "shot": "after-s4f0-sentenced-fire-2",
+  "region": "sentenced",
+  "mean": 0.273,
+  "p95": 0.694,
+  "clipped": 0.05,
+  "contrast": {
+   "sprite": {
+    "ground": 0.025,
+    "darkEdge": 1.14,
+    "lightEdge": 8.64,
+    "contrast": 8.64
+   },
+   "bar": {
+    "ground": 0.016,
+    "darkEdge": 1.26,
+    "lightEdge": 10.18,
+    "contrast": 10.18
+   }
+  }
+ }
+]

@@ -150,11 +150,26 @@ namespace Roguehalla.Client
         /// <summary>Region-aware map: one ground quad, row-batched walls and deterministic props. Used when the map carries the region plane.</summary>
         void BuildRegionMap(MapBlob map)
         {
-            _regionGround = RegionGround.Create(_mapRoot, map, RegionExposure);
+            var temple = TempleLayout.For(map); var plague = PlagueGround.Build(map);
+            Debug.Log("[regions] " + temple.Describe() + "; plague ground: " + plague.MudTiles + " mud, " + plague.GrassTiles + " grass, " + plague.WaterTiles + " shallow water tiles; terrain mode " + map.TerrainMode);
+            Surfaces.ClearLayers(); Surfaces.AddLayer(temple); Surfaces.AddLayer(plague);          // decorative surfaces for SurfaceMap (never override real terrain)
+            _regionGround = RegionGround.Create(_mapRoot, map, RegionExposure, temple, plague);
+            if (temple.Found) AddTempleEmblem(temple);
             _regionWalls = RegionWalls.Build(_mapRoot, map, RegionExposure);
             _regionProps = RegionProps.Build(_mapRoot, map);
             HasMap = true;
             ApplyQuality();
+        }
+        /// <summary>The Holy faction's own icon inlaid at the centre of the temple medallion (flat on the floor, under actors).</summary>
+        void AddTempleEmblem(TempleLayout temple)
+        {
+            var glyph = ShowcaseIdentityAssets.GetFactionGlyph((int)FactionId.Holy);
+            if (glyph == null) return;
+            var c = temple.Center;
+            var r = ShowcaseSprites.Create(_mapRoot, "Temple emblem (Holy faction icon)", "bar", -90, new Color(1f, .93f, .62f, .95f), Vector2.one, new Vector3(c.x, -c.y * GroundSquash, 0), false);
+            r.sprite = glyph;
+            float side = Mathf.Max(glyph.bounds.size.x, glyph.bounds.size.y, .01f);
+            r.transform.localScale = new Vector3(1.7f / side, 1.7f / side * GroundSquash, 1f);
         }
         static float Hash(int x, int y) { unchecked { uint h = (uint)(x * 73856093 ^ y * 19349663); return (h & 255) / 255f; } }
 

@@ -34,8 +34,8 @@
       "faction": "fire",
       "mood": "Under the mountain: warm volcanic ember light, dark basalt, glowing lava.",
       "swatches": {
-        "base":      { "role": "ground, basalt and cooled lava rock",      "oklch": [0.38, 0.085, 38], "legacy": "#2D2622" },
-        "secondary": { "role": "obsidian walls, scorched trees, ash",       "oklch": [0.28, 0.060, 320], "legacy": "#5B4A66" },
+        "base":      { "role": "ground, basalt and cooled lava rock",      "oklch": [0.31, 0.055, 40], "legacy": "#2D2622" },
+        "secondary": { "role": "obsidian walls, scorched trees, ash",       "oklch": [0.39, 0.050, 320], "legacy": "#5B4A66" },
         "accent":    { "role": "lava, embers, forge glow (emissive)",       "oklch": [0.74, 0.178, 55], "legacy": "#FF6A1A" }
       },
       "light": {
@@ -49,8 +49,8 @@
       "faction": "sentenced",
       "mood": "Gothic graveyard and crypt-yard under a hazy dusk: the one deliberately muted zone, desaturated violet-grey, hazy but readable.",
       "swatches": {
-        "base":      { "role": "ground: worn dark flagstones, cobbles, bare earth", "oklch": [0.36, 0.022, 292], "legacy": "#3A3B42" },
-        "secondary": { "role": "gothic masonry, iron railings, dead grass, gallows", "oklch": [0.22, 0.030, 70], "legacy": "#6E553A" },
+        "base":      { "role": "ground: worn dark flagstones, cobbles, bare earth", "oklch": [0.24, 0.012, 292], "legacy": "#3A3B42" },
+        "secondary": { "role": "gothic masonry, iron railings, dead grass, gallows", "oklch": [0.35, 0.030, 70], "legacy": "#6E553A" },
         "accent":    { "role": "judgment banners, violet lanterns",         "oklch": [0.62, 0.13, 300], "legacy": "#7E57C2" }
       },
       "light": {
@@ -64,8 +64,8 @@
       "faction": "plague",
       "mood": "Forgotten city: overgrown ruins, sickly teal-green, lots of greenery.",
       "swatches": {
-        "base":      { "role": "ground, moss, grass and flooded paving",    "oklch": [0.52, 0.085, 170], "legacy": "#2A3326" },
-        "secondary": { "role": "ferns, ivy, ruin walls under vines",        "oklch": [0.30, 0.070, 150], "legacy": "#6D7F4A" },
+        "base":      { "role": "ground, dark mud, deep grass and shallow water", "oklch": [0.37, 0.070, 160], "legacy": "#2A3326" },
+        "secondary": { "role": "ferns, ivy, ruin walls under vines",        "oklch": [0.27, 0.075, 150], "legacy": "#6D7F4A" },
         "accent":    { "role": "toxic spore glow, bog bubbles (emissive)",  "oklch": [0.86, 0.200, 128], "legacy": "#B5E35A" }
       },
       "light": {
@@ -94,9 +94,9 @@
       "faction": "holy",
       "mood": "Desert with oasis and garden pockets in golden sun.",
       "swatches": {
-        "base":      { "role": "ground, rich golden sand and sandstone",   "oklch": [0.68, 0.105, 80], "legacy": "#E9DFC0" },
-        "secondary": { "role": "oasis and garden greenery, palms, lawns",   "oklch": [0.58, 0.130, 135] },
-        "accent":    { "role": "gilded trim, shrine gold",                  "oklch": [0.44, 0.09, 80], "legacy": "#D4AF37" }
+        "base":      { "role": "ground, rich golden sand and sandstone",   "oklch": [0.60, 0.110, 76], "legacy": "#E9DFC0" },
+        "secondary": { "role": "oasis and garden greenery, palms, lawns",   "oklch": [0.38, 0.100, 135] },
+        "accent":    { "role": "gilded trim, shrine gold",                  "oklch": [0.40, 0.075, 80], "legacy": "#D4AF37" }
       },
       "light": {
         "key":     [0.93, 0.088, 90],

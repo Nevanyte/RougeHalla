@@ -75,7 +75,7 @@ namespace Roguehalla.Client
             new ParticleLayerSpec { Texture = "mote", MaxParticles = 50, Rate = 5, LifeMin = 8, LifeMax = 12, SizeMin = .05f, SizeMax = .1f, Wind = new Vector2(.1f, .12f), Noise = .4f, NoiseFreq = .3f, Tint = new Color(.55f, .95f, .75f, .6f), Parallax = .25f },
             new ParticleLayerSpec { Texture = "spore", MaxParticles = 14, Rate = 1.2f, LifeMin = 8, LifeMax = 12, SizeMin = .16f, SizeMax = .26f, Wind = new Vector2(.08f, .2f), Noise = .6f, NoiseFreq = .18f, Tint = new Color(.7f, 1f, .5f, .3f), Parallax = -.2f, AboveActors = true, Twinkle = 1.5f },
             // green-gold light filtering through brush and canopy: broad soft shafts along the sun direction
-            new ParticleLayerSpec { Texture = "shaft", MaxParticles = 8, Rate = .8f, LifeMin = 10, LifeMax = 15, SizeMin = 1.8f, SizeMax = 3.6f, Wind = new Vector2(.08f, -.04f), Tint = new Color(.8f, 1f, .6f, .36f), Parallax = 0f, StretchY = 6f, Rotation = 62f },
+            new ParticleLayerSpec { Texture = "shaft", MaxParticles = 8, Rate = .8f, LifeMin = 10, LifeMax = 15, SizeMin = 1.8f, SizeMax = 3.6f, Wind = new Vector2(.08f, -.04f), Tint = new Color(.8f, 1f, .6f, .4f), Parallax = 0f, StretchY = 6f, Rotation = 62f },
         };
 
         public static ParticleLayerSpec[] Get(ParticlePresetId id)

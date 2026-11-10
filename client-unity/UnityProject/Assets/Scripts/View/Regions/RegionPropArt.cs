@@ -15,7 +15,7 @@ namespace Roguehalla.Client
         public bool Tall;
     }
 
-    public static class RegionPropArt
+    public static partial class RegionPropArt
     {
         public const int PixelsPerUnit = 64;
         static Dictionary<string, RegionPropSprite> _all;
@@ -33,7 +33,7 @@ namespace Roguehalla.Client
         {
             if (_all != null) return;
             var defs = new List<Def>();
-            AddFrost(defs); AddFire(defs); AddSentenced(defs); AddPlague(defs); AddHoly(defs);
+            AddFrost(defs); AddFire(defs); AddSentenced(defs); AddPlague(defs); AddHoly(defs); AddTemple(defs); AddColiseum(defs);
             // Shelf-pack into an atlas, growing the height if needed.
             int atlasW = 1024, atlasH = 1024;
             for (; ; )

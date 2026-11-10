@@ -17,7 +17,7 @@ namespace Roguehalla.Client
         const float EaseSeconds = .35f, CullMarginTiles = 4f;
         ArenaView _arena; Light2D _ambient; Volume _volume; System.Action<Color> _haze;
         VolumeProfile _profile; ColorAdjustments _ca; SplitToning _split; Bloom _bloom; Vignette _vig;
-        readonly RegionField _field = new RegionField();
+        readonly RegionField _field = new RegionField(); TempleLayout _temple;
         RegionShadowMap _shadows; readonly AccentLights _lights = new AccentLights(); readonly AtmosphereParticles _particles = new AtmosphereParticles();
         AtmosphereAudio _audio;
         readonly float[] _w = new float[RegionField.Regions];
@@ -62,13 +62,13 @@ namespace Roguehalla.Client
         {
             for (int i = 0; i < 8; i++)
             {
-                var p = RegionAtmosphereTable.Get(i).Params;
+                var p = (i == 7 ? RegionAtmosphereTable.HolyTempleInterior : RegionAtmosphereTable.Get(i)).Params;   // row 7 = the temple interior profile (RhSun.hlsl blends it by the baked interior weight)
                 var sun = p.SunColor * p.SunStrength; SunCol[i] = new Vector4(sun.r, sun.g, sun.b, p.SunStrength);
                 AmbCol[i] = new Vector4(p.AmbientColor.r, p.AmbientColor.g, p.AmbientColor.b, p.SunStrength);
                 FloorCol[i] = new Vector4(Mathf.Max(p.PassiveFloor.r, AtmosphereLighting.GlobalMinFloor), Mathf.Max(p.PassiveFloor.g, AtmosphereLighting.GlobalMinFloor), Mathf.Max(p.PassiveFloor.b, AtmosphereLighting.GlobalMinFloor), 1f);
                 var t = p.ShadowTint; float m = Mathf.Max(.001f, Mathf.Max(t.r, Mathf.Max(t.g, t.b)));
                 // Inside a shadow the surface keeps about 55% of its light, leaning toward the region's palette shadow colour.
-                ShadowCol[i] = new Vector4(Mathf.Lerp(.55f, .95f * t.r / m * .6f, .6f), Mathf.Lerp(.55f, .95f * t.g / m * .6f, .6f), Mathf.Lerp(.55f, .95f * t.b / m * .6f, .6f), 1f);
+                ShadowCol[i] = new Vector4(Mathf.Lerp(.46f, .95f * t.r / m * .6f, .6f), Mathf.Lerp(.46f, .95f * t.g / m * .6f, .6f), Mathf.Lerp(.46f, .95f * t.b / m * .6f, .6f), 1f);
             }
             Shader.SetGlobalVectorArray("_RhSunCol", SunCol); Shader.SetGlobalVectorArray("_RhAmbCol", AmbCol); Shader.SetGlobalVectorArray("_RhShadowCol", ShadowCol); Shader.SetGlobalVectorArray("_RhFloorCol", FloorCol);
         }
@@ -93,6 +93,7 @@ namespace Roguehalla.Client
         public void OnMapBuilt(MapBlob map)
         {
             _field.Build(map.Regions, map.W, map.H);
+            _temple = TempleLayout.For(map);
             AtmosphereShadows.Field = _field;
             if (_shadows != null) _shadows.Dispose();
             _shadows = map.Regions != null ? new RegionShadowMap(map, _field) : null;
@@ -127,6 +128,11 @@ namespace Roguehalla.Client
             // Position-driven light: sample the region weights under the camera and ease toward the blend.
             _field.Sample(tx, ty, _w);
             var target = RegionField.Blend(_w);
+            if (_temple != null && _temple.Found)      // inside the generated temple: the even, warm interior profile, eased in over about 4 tiles at the steps
+            {
+                float tw = _temple.WeightAt(tx, ty);
+                if (tw > .001f) target = AtmosphereParams.Lerp(target, RegionAtmosphereTable.HolyTempleInterior.Params, tw);
+            }
             _cur = _hasCur ? AtmosphereParams.Lerp(_cur, target, 1f - Mathf.Exp(-dt / EaseSeconds)) : target; _hasCur = true;
             Apply();
             Shader.SetGlobalVector("_RhCam", new Vector4(tx, ty, 0, 0));

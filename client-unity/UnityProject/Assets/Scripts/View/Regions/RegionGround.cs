@@ -15,14 +15,14 @@ namespace Roguehalla.Client
         public Material Material { get; private set; }
         public GameObject Root { get; private set; }
 
-        public static RegionGround Create(Transform parent, MapBlob map, float exposure)
+        public static RegionGround Create(Transform parent, MapBlob map, float exposure, TempleLayout temple = null, PlagueGround plague = null)
         {
             var g = new RegionGround();
-            g.Build(parent, map, exposure);
+            g.Build(parent, map, exposure, temple ?? TempleLayout.For(map), plague ?? PlagueGround.Build(map));
             return g;
         }
 
-        void Build(Transform parent, MapBlob map, float exposure)
+        void Build(Transform parent, MapBlob map, float exposure, TempleLayout temple, PlagueGround plague)
         {
             var shader = Resources.Load<Shader>("Regions/RegionGround");
             Material = new Material(shader) { name = "Roguehalla / region ground" };
@@ -34,19 +34,30 @@ namespace Roguehalla.Client
             int w = map.W, h = map.H;
             var regionA = new Color32[w * RegionTexelsPerTile * h * RegionTexelsPerTile];
             var regionB = new Color32[regionA.Length];
-            BakeRegions(map.Regions, w, h, regionA, regionB);
+            BakeRegions(map.Regions, w, h, regionA, regionB, temple);
             var regTexA = Tex("Region weights A", w * RegionTexelsPerTile, h * RegionTexelsPerTile, regionA);
             var regTexB = Tex("Region weights B", w * RegionTexelsPerTile, h * RegionTexelsPerTile, regionB);
             Material.SetTexture("_RegA", regTexA); Material.SetTexture("_RegB", regTexB);
             // The walls, props and the one-sun term read the same blurred weights through globals (RhSun.hlsl).
             Shader.SetGlobalTexture("_RhRegA", regTexA); Shader.SetGlobalTexture("_RhRegB", regTexB);
-            Shader.SetGlobalVector("_RhMapInfo", new Vector4(w, h, ArenaView.GroundSquash, 0));
+            // w = 1 when a temple exists: the region texture's alpha then carries the temple interior weight (RhSun.hlsl).
+            Shader.SetGlobalVector("_RhMapInfo", new Vector4(w, h, ArenaView.GroundSquash, temple != null && temple.Found ? 1f : 0f));
 
             int tw = w * TerrainTexelsPerTile, th = h * TerrainTexelsPerTile;
             var terA = new Color32[tw * th]; var terB = new Color32[tw * th];
-            BakeTerrain(map.Terrain, w, h, terA, terB);
+            BakeTerrain(RegionMap.EffectiveTerrain(map), w, h, terA, terB);
             Material.SetTexture("_TerA", Tex("Terrain A", tw, th, terA));
             Material.SetTexture("_TerB", Tex("Terrain B", tw, th, terB));
+
+            // Plague mud, grass and shallow water (r water, g grass, b depth), 2 texels per tile.
+            const int plgTexels = 2;
+            Material.SetTexture("_PlgTex", Tex("Plague ground", w * plgTexels, h * plgTexels, plague.Bake(plgTexels)));
+            // Temple: footprint (x0, y0, size, found), centre and warm fixtures; coliseum: centre, half extent, found.
+            Material.SetVector("_Temple", temple != null && temple.Found ? new Vector4(temple.X0, temple.Y0, temple.Size, 1f) : Vector4.zero);
+            Material.SetVector("_TempleInfo", temple != null && temple.Found ? new Vector4(temple.Center.x, temple.Center.y, temple.Braziers.Count, 0f) : Vector4.zero);
+            var braz = new Vector4[8]; if (temple != null) for (int i = 0; i < 8 && i < temple.Braziers.Count; i++) braz[i] = new Vector4(temple.Braziers[i].x, temple.Braziers[i].y, 1f, 0f);
+            Material.SetVectorArray("_TempleBraz", braz);
+            Material.SetVector("_Coliseum", ColiseumBounds(map.Regions, w, h));
 
             Material.SetVector("_Map", new Vector4(w, h, ArenaView.GroundSquash, 0));
             Material.SetFloat("_Exposure", exposure);
@@ -93,7 +104,16 @@ namespace Roguehalla.Client
         // ---- baking -------------------------------------------------------------------------------------------------
 
         /// <summary>Region weights, 2 texels per tile, blurred about 1.5 tiles; tiles with region 0 (the outer border) donate nothing.</summary>
-        static void BakeRegions(byte[] regions, int w, int h, Color32[] a, Color32[] b)
+        /// <summary>Centre (x, y) and half extent (tiles) of the coliseum square, from the region plane; w = 1 when found.</summary>
+        public static Vector4 ColiseumBounds(byte[] regions, int w, int h)
+        {
+            int x0 = int.MaxValue, y0 = int.MaxValue, x1 = -1, y1 = -1;
+            for (int i = 0; i < regions.Length; i++) if (regions[i] == (byte)RegionId.Coliseum) { int x = i % w, y = i / w; x0 = Mathf.Min(x0, x); y0 = Mathf.Min(y0, y); x1 = Mathf.Max(x1, x); y1 = Mathf.Max(y1, y); }
+            if (x1 < 0) return Vector4.zero;
+            return new Vector4((x0 + x1 + 1) * .5f, (y0 + y1 + 1) * .5f, Mathf.Max(x1 - x0 + 1, y1 - y0 + 1) * .5f, 1f);
+        }
+
+        static void BakeRegions(byte[] regions, int w, int h, Color32[] a, Color32[] b, TempleLayout temple)
         {
             int ow = w * RegionTexelsPerTile, oh = h * RegionTexelsPerTile;
             var valid = new float[ow * oh]; var chan = new float[ow * oh]; var tmp = new float[ow * oh];
@@ -110,13 +130,15 @@ namespace Roguehalla.Client
                 {
                     byte v = (byte)(Mathf.Clamp01(chan[i] / Mathf.Max(valid[i], 1e-4f)) * 255f + .5f);
                     if (k < 4) { var c = a[i]; if (k == 0) c.r = v; else if (k == 1) c.g = v; else if (k == 2) c.b = v; else c.a = v; a[i] = c; }
-                    else { var c = b[i]; if (k == 4) c.r = v; else c.g = v; c.a = 255; b[i] = c; }
+                    else { var c = b[i]; if (k == 4) c.r = v; else c.g = v; c.a = 0; b[i] = c; }
                 }
             }
-            // Greenery pocket mask rides in B of the second texture.
+            // Greenery pocket mask rides in B of the second texture; the temple interior weight rides in A.
+            bool hasTemple = temple != null && temple.Found;
             for (int y = 0; y < oh; y++) for (int x = 0; x < ow; x++)
             {
-                var c = b[y * ow + x]; c.b = (byte)(RegionPocket.At((x + .5f) / RegionTexelsPerTile, (y + .5f) / RegionTexelsPerTile) * 255f + .5f); b[y * ow + x] = c;
+                var c = b[y * ow + x]; c.b = (byte)(RegionPocket.At((x + .5f) / RegionTexelsPerTile, (y + .5f) / RegionTexelsPerTile) * 255f + .5f);
+                c.a = hasTemple ? (byte)(temple.WeightAt((x + .5f) / RegionTexelsPerTile, (y + .5f) / RegionTexelsPerTile) * 255f + .5f) : (byte)0; b[y * ow + x] = c;
             }
         }
 

@@ -1,0 +1,44 @@
+[
+ {
+  "shot": "after-s5f0-plague-fire-1",
+  "region": "plague",
+  "mean": 0.218,
+  "p95": 0.431,
+  "clipped": 0.06,
+  "contrast": {
+   "sprite": {
+    "ground": 0.016,
+    "darkEdge": 1.07,
+    "lightEdge": 1.12,
+    "contrast": 1.12
+   },
+   "bar": {
+    "ground": 0.017,
+    "darkEdge": 1.05,
+    "lightEdge": 1.02,
+    "contrast": 1.05
+   }
+  }
+ },
+ {
+  "shot": "after-s5f0-plague-fire-2",
+  "region": "plague",
+  "mean": 0.212,
+  "p95": 0.404,
+  "clipped": 0.06,
+  "contrast": {
+   "sprite": {
+    "ground": 0.017,
+    "darkEdge": 1.09,
+    "lightEdge": 1.03,
+    "contrast": 1.09
+   },
+   "bar": {
+    "ground": 0.017,
+    "darkEdge": 1.04,
+    "lightEdge": 1.11,
+    "contrast": 1.11
+   }
+  }
+ }
+]
