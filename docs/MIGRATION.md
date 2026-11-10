@@ -58,7 +58,11 @@ cold and check actual u32 index representability. Its unchanged63-case ability s
 native tape/content refresh is separately authorized after final semantic changes pass that source gate again. The test-only potion-fact proof `aa05af1c` is independently admitted as `ae29dc1b`;
 [Root's integrated focused check](evidence/bot-potion-fact-admission-review/README.md) passes5. It verifies same-sample
 Active owner healing eligibility, overlap/expiry, cleanup and mid-HOT restore, with explicit Ended and missing-inventory
-refusal; it does not establish a runner or all nonactive phases. No full Brain or live bot activation is implied.
+refusal; it does not establish a runner or all nonactive phases. No full Brain or live bot activation is implied. The next independently reviewed [quest Room-delivery proof](backlog/packets/P-QUEST-ROOM-DELIVERY-1.md)
+is dispatched at `9ee84dfe` to isolated `backend-quest-room-delivery`: real completion through accepted movement,
+pickups and ordinary Room wakes, per-viewer Fx carry/Outboxes and decoded Toast privacy/order/tick. Its sole existing
+file lease is additive `quest_bridge_tests.rs` tests; no production or hosting change. Current Source runtime already
+enables quests; the older disabled Room test fixture is not a universal profile gate.
 
 ## Parallel backend completion lane (owner instruction, 2026-11-09 America/Edmonton)
 

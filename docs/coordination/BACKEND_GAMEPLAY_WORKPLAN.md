@@ -33,8 +33,8 @@ are in [MIGRATION.md](../MIGRATION.md#morning-release-direction-owner-instructio
   unproved, Ended and missing inventory refused. No hidden-state input or live activation is authorized by private parity.
 - **Quest backend architecture and bounded parity admitted:** stored-mask repair `8a11520d` + `56843a8e`, behavior-
   preserving objective/reward extraction `ad98c441` + `9debd3e2`, and all six bounded notice/view cases `51a43597` +
-  `0085ff79`. Their real producer, diagnostic/direct-producer and comparison limits stay explicit. A focused real
-  completion-through-Room/Outbox/decode proof is under plan review; no literal181-record equality or browser proof is
+  `0085ff79`. Their real producer, diagnostic/direct-producer and comparison limits stay explicit. The independently reviewed [completion-through-Room/Outbox/decode proof](../backlog/packets/P-QUEST-ROOM-DELIVERY-1.md)
+  is dispatched from `9ee84dfe` to isolated `backend-quest-room-delivery`; no literal181-record equality or browser proof is
   claimed. Future quest design is not invented by these architecture seams.
 - **Card feedback still under implementation/review:** source `570fe186` is independently released as `a9a6615e`
   (7 histories/390 steps). NPC bleed restore is separately admitted as `dedb8658`. DeepSeek's Card worker at
@@ -71,9 +71,10 @@ The current checkpoint above supersedes the pending/active language in this orig
 ## Ownership and dependency notes
 
 **Current worker assignments (2026-11-10):** DeepSeek owns active Card feedback in `backend-card-bleed-feedback`
-(base `03ec330b`) and complete private Brain in `backend-bot-brain-native` (base `c050d938`). Memory, Strategy,
+(base `03ec330b`), complete private Brain in `backend-bot-brain-native` (base `c050d938`), and the bounded
+quest Room-delivery proof in `backend-quest-room-delivery` (base `9ee84dfe`). Memory, Strategy,
 Tactics, Modules, Hand, PathBudget, Potion proof, quest notices and NPC restore workers are complete; their exact reviewed
-seals are integrated. Sol/Luna handle independent review and the next bounded quest public-delivery plan. All workers
+seals are integrated. Sol/Luna handle independent native review and remaining fair-fact equivalence analysis. All workers
 retain Workspace Write and isolated targets. No worker may communicate with Claude before17:30UTC/10:30am Edmonton.
 
 - **Root:** select current base and feature order; decide fair-publication facts, public identities and whether a card FX can use existing encoding; review isolated DeepSeek changes; update only shared `MIGRATION.md`, `CONTRACTS.md`, and `Cargo.lock` when required.
