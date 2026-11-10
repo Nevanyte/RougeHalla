@@ -3,10 +3,12 @@
 Read this first after any context reset. Direction: [UNITY_REWORK_FABLE.md](UNITY_REWORK_FABLE.md). Gate reports: `UNITY_REWORK_REPORT.md`.
 
 ## Now
-- **Phase:** Gate 1 (direction). Started 2026-11-09.
+- **Phase:** between Gate 1 (report written 2026-11-09, commit `0975ac0a`) and Gate 2 (Frost vertical slice).
 - **Feature branch:** `feature/unity-rework`, cut from `optimization_port` at `61f9f15f`. Never push, never merge.
 - **Toolchain PATH:** `export PATH="$HOME/.cargo/bin:$HOME/.dotnet:$PATH"` (neither is on the default shell PATH).
 - **Display:** confirmed 2560 x 1440 @ 144 Hz (`system_profiler SPDisplaysDataType`), plus a second 1080p/100 Hz panel.
+- **Coordinator processes:** rh-server on 127.0.0.1:7787 (full seed1 map, 7 bots) and `python3 -m http.server 8087` serving the main checkout's `Build/Web`. Join URL needs `&diagnostic=1&token=t1` (loopback diagnostic join); then pick a spawn and click Ready in planning.
+- **Ports in use by others, do not touch:** 7777 (old server PID 63281). Sub-agent ports: regions 7797/8097, perf 7807/8107.
 
 ## Unity processes
 - PID 9075: an Editor the owner's earlier Codex lane left open on `/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/...`. Not ours. The handoff says do not save, reset or clean it. Leave it alone; it holds a different project copy.
@@ -14,11 +16,15 @@ Read this first after any context reset. Direction: [UNITY_REWORK_FABLE.md](UNIT
 
 ## Worktrees opened by this effort
 All under `/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/`. Remove each after merging into `feature/unity-rework`.
-| Worktree | Branch | Owner | Scope | Unity on its copy |
+| Worktree | Branch | Owner | Scope | Status |
 |---|---|---|---|---|
-| `rework-hitbox` | `rework/hitbox` | Opus | ADR 0024 packets P-HB-0..6 and the P-HB-9 server flag (Rust, protocol 16, C#/JS codecs) | no |
-| `rework-controls` | `rework/controls` | Sonnet | controls audit fixes 1,2,4,5, backward walk, input-latency hook | batch EditMode tests |
-| `rework-hud` | `rework/hud` | Sonnet | theme seam, legacy canvas scale, in-match HUD at legacy layout | batch EditMode tests |
+| `rework-hitbox` | `rework/hitbox` | Opus | ADR 0024 packets P-HB-0..6 and the P-HB-9 server flag (Rust, protocol 16, C#/JS codecs) | running |
+| `rework-hud` | `rework/hud` | Sonnet | theme seam, legacy canvas scale, in-match HUD at legacy layout | running |
+| `rework-regions` | `rework/regions` | Sonnet | region ground/props/terrain from `MapBlob.Regions`, Frost first, `RegionAt` API | running |
+| `rework-perf` | `rework/perf` | Sonnet | Ultra preset + Quality API, `?perf=1` recorder, `perf-run.cjs`, build size, licence notices, EditMode global-light failures | running |
+| `rework-controls` | merged at `73f3df89`, worktree removed | | | done |
+
+Unity EditMode baseline on unmodified code: 217 tests, 143 pass, 74 fail (73 "More than one global light", 1 BuildDrawer). The perf agent owns fixing these.
 
 ## Gate 1 inputs
 | Item | Status | Output |
