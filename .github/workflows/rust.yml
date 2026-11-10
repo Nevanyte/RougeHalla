@@ -47,6 +47,9 @@ jobs:
       # including the required-feature privacy/allocation targets, when selecting rh-sim in its own job.
       - name: Complete workspace-unified simulation suite, including map generators and documentation
         run: cargo test --locked -p rh-sim --features trusted-status-probes
+      # The dhat allocator is process-global. Keep the two Card regressions isolated and serial after the default suite.
+      - name: Card producer and public-output allocation regressions (serial)
+        run: cargo test --locked -p rh-sim --features trusted-status-probes --lib card_bleed_alloc -- --ignored --test-threads=1
 
   rust:
     needs: provenance
@@ -137,6 +140,14 @@ jobs:
           PYTHONDONTWRITEBYTECODE=1 python3 tools/npc-witness-context/run.py runner --repo "$GITHUB_WORKSPACE" --output "$RUNNER_TEMP/npc-runner-historical-context" --expected-code-sha "$GITHUB_SHA" --docker "$docker_executable" --docker-socket "$docker_socket"
           bash tools/percept-witness-fixtures/capture.sh --check
           bash tools/barrier-view-fixtures/capture.sh --check
+      - name: Admitted private, Card and Room source witnesses remain byte exact
+        # Source-fixture freshness only: this does not claim full native Brain composition/admission.
+        run: |
+          bash tools/card-bleed-fixtures/capture.sh --check
+          bash tools/bot-private-brain-fixtures/capture.sh --check
+          bash tools/bot-private-modules-fixtures/capture.sh --check
+          bash tools/bot-private-tactics-fixtures/capture.sh --check
+          bash tools/quest-room-feedback-fixtures/capture.sh --check
       - name: NPC context diagnostic receipts (bounded, no raw fixture or environment dump)
         if: always()
         run: |
