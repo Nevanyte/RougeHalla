@@ -1,0 +1,115 @@
+{
+ "note": "Holy, Ultra, 2560x1440, vsync off, in-match toggles between baseline windows (build c1s)",
+ "windows": [
+  {
+   "kind": "stand",
+   "actors": 31,
+   "p50": 9.69999999999709,
+   "unityFrame": 9.4173,
+   "scripts": 1.3571,
+   "render": 7.9555,
+   "gpu": 7.754635768253969,
+   "draws": 226.97460317460317
+  },
+  {
+   "kind": "stand[fx.locallights=0]",
+   "actors": 31,
+   "p50": 8.299999999999272,
+   "unityFrame": 8.255,
+   "scripts": 1.4281,
+   "render": 6.7197,
+   "gpu": 6.7554373100558704,
+   "draws": 240.20670391061452
+  },
+  {
+   "kind": "stand",
+   "actors": 31,
+   "p50": 10.19999999999709,
+   "unityFrame": 9.9617,
+   "scripts": 1.4983,
+   "render": 8.3463,
+   "gpu": 8.62660946488294,
+   "draws": 232.5284280936455
+  },
+  {
+   "kind": "stand[fx.lshadows=0]",
+   "actors": 31,
+   "p50": 9.099999999998545,
+   "unityFrame": 8.9263,
+   "scripts": 1.4611,
+   "render": 7.3542,
+   "gpu": 7.14492989759036,
+   "draws": 231.50903614457832
+  },
+  {
+   "kind": "stand",
+   "actors": 31,
+   "p50": 6.80000000000291,
+   "unityFrame": 6.8844,
+   "scripts": 1.5284,
+   "render": 5.2385,
+   "gpu": 4.36037900234192,
+   "draws": 227.576112412178
+  },
+  {
+   "kind": "stand[fx.cookies=0]",
+   "actors": 30,
+   "p50": 5.900000000001455,
+   "unityFrame": 5.79,
+   "scripts": 1.411,
+   "render": 4.2743,
+   "gpu": 3.9490143575638506,
+   "draws": 230.68565815324166
+  },
+  {
+   "kind": "stand",
+   "actors": 21,
+   "p50": 8,
+   "unityFrame": 7.7549,
+   "scripts": 1.3852,
+   "render": 6.2625,
+   "gpu": 5.262083816753925,
+   "draws": 227.32460732984293
+  },
+  {
+   "kind": "stand[fx.gloss=0]",
+   "actors": 18,
+   "p50": 7.80000000000291,
+   "unityFrame": 7.5543,
+   "scripts": 1.1815,
+   "render": 6.2533,
+   "gpu": 4.936733801526718,
+   "draws": 226.42239185750637
+  },
+  {
+   "kind": "stand",
+   "actors": 18,
+   "p50": 7.400000000001455,
+   "unityFrame": 7.3066,
+   "scripts": 1.2115,
+   "render": 5.9727,
+   "gpu": 4.790811548148148,
+   "draws": 227.91604938271604
+  },
+  {
+   "kind": "stand[fx.scale=0.5]",
+   "actors": 1,
+   "p50": 2.6999999999970896,
+   "unityFrame": 2.9247,
+   "scripts": 0.6959,
+   "render": 2.118,
+   "gpu": 1.6950960740740746,
+   "draws": 115.12860082304526
+  },
+  {
+   "kind": "stand",
+   "actors": 1,
+   "p50": 7.400000000001455,
+   "unityFrame": 7.3694,
+   "scripts": 0.8425,
+   "render": 6.3965,
+   "gpu": 2.5756032524752475,
+   "draws": 85
+  }
+ ]
+}

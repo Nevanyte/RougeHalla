@@ -1,0 +1,265 @@
+{
+  "generatedAt": "2026-11-10T22:36:40.788Z",
+  "label": "final tree, RH_WEB_WASM2023=0",
+  "dir": "../../../../../../private/tmp/claude-501/serve/legacy",
+  "budgetMb": 150,
+  "brotliQuality": 11,
+  "judgedOn": "larger of gzip and brotli totals",
+  "fileCount": 35,
+  "totals": {
+    "raw": 118676362,
+    "gzip": 61303056,
+    "brotli": 52601533
+  },
+  "budgetBytes": 157286400,
+  "judgedBytes": 61303056,
+  "overBudget": false,
+  "headroomBytes": 95983344,
+  "files": [
+    {
+      "path": "Build/Web.wasm",
+      "raw": 60197925,
+      "gzip": 16229811,
+      "brotli": 10618265,
+      "precompressed": false
+    },
+    {
+      "path": "Build/Web.data",
+      "raw": 49068489,
+      "gzip": 36264916,
+      "brotli": 33291955,
+      "precompressed": false
+    },
+    {
+      "path": "StreamingAssets/Audio/music_fire.mp3",
+      "raw": 1499106,
+      "gzip": 1488251,
+      "brotli": 1472092,
+      "precompressed": false
+    },
+    {
+      "path": "StreamingAssets/Audio/music_plague.mp3",
+      "raw": 1499106,
+      "gzip": 1489491,
+      "brotli": 1473828,
+      "precompressed": false
+    },
+    {
+      "path": "StreamingAssets/Audio/music_holy.mp3",
+      "raw": 1336729,
+      "gzip": 1328922,
+      "brotli": 1313790,
+      "precompressed": false
+    },
+    {
+      "path": "StreamingAssets/Audio/music_coliseum.mp3",
+      "raw": 1301620,
+      "gzip": 1296626,
+      "brotli": 1284564,
+      "precompressed": false
+    },
+    {
+      "path": "StreamingAssets/Audio/music_frost.mp3",
+      "raw": 1107792,
+      "gzip": 1095588,
+      "brotli": 1084010,
+      "precompressed": false
+    },
+    {
+      "path": "StreamingAssets/Audio/music_sentenced.mp3",
+      "raw": 766214,
+      "gzip": 762634,
+      "brotli": 755086,
+      "precompressed": false
+    },
+    {
+      "path": "Build/Web.framework.js",
+      "raw": 502316,
+      "gzip": 100648,
+      "brotli": 84956,
+      "precompressed": false
+    },
+    {
+      "path": "StreamingAssets/Audio/amb_plague.mp3",
+      "raw": 464604,
+      "gzip": 458304,
+      "brotli": 454704,
+      "precompressed": false
+    },
+    {
+      "path": "StreamingAssets/Audio/amb_holy.mp3",
+      "raw": 313930,
+      "gzip": 308787,
+      "brotli": 306035,
+      "precompressed": false
+    },
+    {
+      "path": "StreamingAssets/Audio/amb_fire.mp3",
+      "raw": 300973,
+      "gzip": 296704,
+      "brotli": 293614,
+      "precompressed": false
+    },
+    {
+      "path": "StreamingAssets/Audio/amb_sentenced.mp3",
+      "raw": 80500,
+      "gzip": 78675,
+      "brotli": 78083,
+      "precompressed": false
+    },
+    {
+      "path": "StreamingAssets/Audio/amb_frost.mp3",
+      "raw": 36196,
+      "gzip": 35099,
+      "brotli": 34785,
+      "precompressed": false
+    },
+    {
+      "path": "Build/Web.loader.js",
+      "raw": 26455,
+      "gzip": 9221,
+      "brotli": 8046,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/Flare-CC-BY-SA-3.0.txt",
+      "raw": 22240,
+      "gzip": 7402,
+      "brotli": 5858,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/FlareAudioExpansion-LICENSE.txt",
+      "raw": 22240,
+      "gzip": 7402,
+      "brotli": 5858,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/FlareExpansion-LICENSE.txt",
+      "raw": 22240,
+      "gzip": 7402,
+      "brotli": 5858,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/FlareProps-LICENSE.txt",
+      "raw": 22240,
+      "gzip": 7402,
+      "brotli": 5858,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/FlareAudioExpansion-CREDITS_CAPTURE.txt",
+      "raw": 14306,
+      "gzip": 3616,
+      "brotli": 3160,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/FlareExpansion-CREDITS_CAPTURE.txt",
+      "raw": 14306,
+      "gzip": 3616,
+      "brotli": 3160,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/FlareProps-CREDITS_CAPTURE.txt",
+      "raw": 14306,
+      "gzip": 3616,
+      "brotli": 3160,
+      "precompressed": false
+    },
+    {
+      "path": "index.html",
+      "raw": 8977,
+      "gzip": 3162,
+      "brotli": 2540,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/index.html",
+      "raw": 5978,
+      "gzip": 2376,
+      "brotli": 1893,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/LiberationSans-OFL.txt",
+      "raw": 4469,
+      "gzip": 1930,
+      "brotli": 1364,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/CinzelDecorative-OFL.txt",
+      "raw": 4393,
+      "gzip": 1966,
+      "brotli": 1423,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/Nunito-OFL.txt",
+      "raw": 4385,
+      "gzip": 1958,
+      "brotli": 1417,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/Third-Party-Assets.md",
+      "raw": 4143,
+      "gzip": 1811,
+      "brotli": 1460,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/Flare-Credits.txt",
+      "raw": 3510,
+      "gzip": 2051,
+      "brotli": 1826,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/Atmosphere-Audio-Credits.txt",
+      "raw": 2081,
+      "gzip": 948,
+      "brotli": 821,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/FlareExpansion-CREDITS.md",
+      "raw": 1737,
+      "gzip": 986,
+      "brotli": 783,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/Flare-Audio-Notice.txt",
+      "raw": 1130,
+      "gzip": 589,
+      "brotli": 484,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/Roguehalla-MIT.txt",
+      "raw": 1080,
+      "gzip": 653,
+      "brotli": 470,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/Unity-Companion.md",
+      "raw": 461,
+      "gzip": 346,
+      "brotli": 230,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/EmojiOne-Attribution.txt",
+      "raw": 185,
+      "gzip": 147,
+      "brotli": 97,
+      "precompressed": false
+    }
+  ]
+}

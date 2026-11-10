@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Bake the authoritative server's exact content identity before Unity compiles the player.
 set -euo pipefail
+# Build switches (RhBuild.BuildWeb reads them): RH_WEB_WASM2023=0 builds the older WebAssembly target for wider browser reach
+# (docs/rework/PERF_REPORT.md section 10); RH_WEB_CODE_OPTIMIZATION=BuildTimes|RuntimeSpeed|... overrides the default (RuntimeSpeed).
 project="$(cd "$(dirname "$0")/.." && pwd)"
 info_url="${RH_SERVER_INFO_URL:-http://127.0.0.1:7777/info}"
 python3 - "$info_url" "$project/Assets/Scripts/BakedContent.cs" <<'PY'

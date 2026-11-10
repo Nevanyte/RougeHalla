@@ -286,19 +286,30 @@ namespace Roguehalla.Client
         }
         void TickFeatures()
         {
-            RefreshAccountMenu();
+            // The launch menu's account, resume and play state is shown only on the launch screen. While a match covers it, it is
+            // refreshed four times a second instead of every frame: each refresh builds several status strings (about 3 KB of
+            // garbage a frame in a match, so a garbage collection every second or two). It still refreshes every frame while visible.
+            bool launchShown = _menu != null && _menu.gameObject.activeSelf || ResumeChooserVisible;
+            var pm = PerfMarks.Begin();
+            if (launchShown || Time.unscaledTime >= _nextHiddenAccountRefresh) { _nextHiddenAccountRefresh = Time.unscaledTime + .25f; RefreshAccountMenu(); }
             TickHubAtrium();
+            PerfMarks.End(PerfMarks.Sec.HudAccount, pm); pm = PerfMarks.Begin();
             TickMetrics();
             TickPlayerFlows();
             if (TrainingHigherPanelVisible) UnbindTrainingSession();
             _trainingConsole?.Refresh();
             AlignTrainingLauncher();
+            PerfMarks.End(PerfMarks.Sec.HudFlows, pm); pm = PerfMarks.Begin();
             _map?.Tick();
+            PerfMarks.End(PerfMarks.Sec.HudMap, pm); pm = PerfMarks.Begin();
             RefreshWorldHudVisibility();
             SyncTopCentre();
             UpdateEdgeThreats();
+            PerfMarks.End(PerfMarks.Sec.HudEdge, pm); pm = PerfMarks.Begin();
             if (_session != null) _drawer?.Refresh(_session.Collections, _session.Me, _showcaseSettings.TextScale);
+            PerfMarks.End(PerfMarks.Sec.HudDrawer, pm);
         }
+        float _nextHiddenAccountRefresh;
         void RefreshWorldHudVisibility()
         {
             bool visible = WorldHudVisible;

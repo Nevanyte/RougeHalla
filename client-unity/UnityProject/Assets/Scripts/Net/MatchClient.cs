@@ -286,7 +286,9 @@ namespace Roguehalla.Client
             if (s == null) { Arena.ConfirmedFx(fx); return; }
             var latest = s.Latest;
             double dueMs = latest != null ? latest.ServerMs + ((double)fx.Tick - latest.Tick) * Wire.TickMs : double.NaN;
+            var pmFx = PerfMarks.Begin();
             Arena.ConfirmedFx(fx, s.PlayerId, dueMs);
+            PerfMarks.End(PerfMarks.Sec.FxCues, pmFx);
         }
 
         void Update()
@@ -298,7 +300,7 @@ namespace Roguehalla.Client
             _traceLatency = LatencyTrace.Enabled;
             if (PausePredictionOff && session.Motion != null) session.Motion.PredictAttackPause = false;
             if (_traceLatency) LatencyTrace.Mark("frameStart", Session.PlayerId, 0, 0, 0);
-            session.Poll();
+            var pmPoll = PerfMarks.Begin(); session.Poll(); PerfMarks.End(PerfMarks.Sec.NetPoll, pmPoll);
             if (!ReferenceEquals(Session, session)) return;
             Hud?.ReadUiInput();
             if (!ReferenceEquals(Session, session) || !LaunchVerified) return;
@@ -306,7 +308,7 @@ namespace Roguehalla.Client
             if (Arena != null && !Arena.HasMap && Session.Map != null) Arena.Build(Session.Map, Session.Vision);
             Session.Snapshots.Sample(Session.Clock.RenderMs, _actors);
             // Camera first: the cursor ground point read by ReadInput must use this frame's camera, or aim is a frame stale.
-            FollowCamera();
+            var pmCam = PerfMarks.Begin(); FollowCamera(); PerfMarks.End(PerfMarks.Sec.Camera, pmCam);
             if (_traceLatency && LatencyTrace.TakeTargetRequest()) TraceTargetScreens();
             bool probe = InputLatencyProbe.Enabled && Session.Motion != null && Session.Motion.Initialized && Session.Me != null;
             if (probe && Session.State == SessionState.InMatch && (Hud == null || !Hud.BlocksKeyboardInput))
@@ -316,7 +318,7 @@ namespace Roguehalla.Client
                 ReadInput();
                 Session.FlushInput();
             }
-            Present();
+            var pmPresent = PerfMarks.Begin(); Present(); PerfMarks.End(PerfMarks.Sec.Present, pmPresent);
             if (probe)
             {
                 // Dev flag ?inputlat=1: the prediction reconciliation counters, once a second (how often and how far the server moved us).
@@ -554,7 +556,7 @@ namespace Roguehalla.Client
         {
             if (Arena == null) return;
             // Renderer membership is refreshed independently of optional audio components.
-            Arena.RefreshVisibility(Session);
+            Arena.RefreshVisibility(Session, presentFollows: true);   // Present below draws the creatures, cues and fades once
             Arena.SetHover(HoverActor());
             Arena.PresentCollections(Session.Collections);
             Arena.Present(_actors, Session.Me, Session.Motion, _aimAngle);

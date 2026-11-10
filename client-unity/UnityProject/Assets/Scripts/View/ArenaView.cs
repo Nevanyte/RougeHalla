@@ -106,12 +106,14 @@ namespace Roguehalla.Client
         /// <summary>Observed actors currently presented (perf recorder context).</summary>
         public int ObservedActorCount { get { return _actors != null ? _actors.ActiveCount : 0; } }
         public bool IsObserved(uint id) { return _actors != null && _actors.Contains(id); }
+        /// <summary>The local player's drawn position in sim units (perf recorder context); false before the first local frame.</summary>
+        public bool TryLocalPosition(out float x, out float y) { x = _localX; y = _localY; return _haveLocal; }
         public bool TrySoundContext(uint id, out WeaponId weapon, out FactionId faction, out ActorKind kind, out MobTypeId? type)
         {
             if (_actors != null) return _actors.TrySoundContext(id,out weapon,out faction,out kind,out type);
             weapon=default; faction=default; kind=default; type=null; return false;
         }
-        sealed class Flash { public SpriteRenderer Sprite, Plate; public TMP_Text Text; public uint Actor; public float Start, Duration; public Vector3 Position; public Color Color; public float Size; public Color TextColor; public float LaneX; }
+        sealed class Flash { public SpriteRenderer Sprite, Plate; public TMP_Text Text; public uint Actor; public float Start, Duration; public Vector3 Position; public Color Color; public float Size; public Color TextColor; public float LaneX; public int AlphaByte = 255; }
         struct PendingFx { public FxKind Kind; public uint Subject; public float Amount; public double DueMs; public float QueuedAt; public float X, Y, A, CreatedAt; public byte Weapon; public uint By; public bool Passive, Crit; public byte SigKind; }
 
         void Awake()
@@ -242,6 +244,7 @@ namespace Roguehalla.Client
 
         public void Present(List<InterpActor> remote, SelfView me, LocalMotion motion, float aimAngle)
         {
+            var pmActors = PerfMarks.Begin();
             _actors.Begin(); ActorField.Begin();      // render pass: presented actors for the surface shaders
             uint mine = me != null ? me.Id : 0; _localId = mine;
             _huntTarget = me != null ? me.HuntTarget : null; _haveLocal = me != null;
@@ -280,14 +283,21 @@ namespace Roguehalla.Client
                 if (_regionProps != null) _regionProps.NoteActor(WorldPoint(mx, my));
                 ActorField.Note(WorldPoint(mx, my));
             }
-            _actors.End();
+            _actors.End(); PerfMarks.End(PerfMarks.Sec.Actors, pmActors);
+            if (_flushPendingInPresent) FlushPendingFx();      // cues that waited for their subject (RetainObservedActors with presentFollows)
+            var pm = PerfMarks.Begin();
             if (_surfaceFx != null) _surfaceFx.Tick(Time.unscaledDeltaTime); // SURFACE-FX HOOK 3/3
+            PerfMarks.End(PerfMarks.Sec.SurfaceFx, pm); pm = PerfMarks.Begin();
             _actors.StepFades(); TickVision();
+            PerfMarks.End(PerfMarks.Sec.Vision, pm); pm = PerfMarks.Begin();
             if (_regionProps != null) _regionProps.Tick(Time.unscaledDeltaTime);
+            PerfMarks.End(PerfMarks.Sec.Props, pm); pm = PerfMarks.Begin();
             ReleaseScheduledFx();
             UpdateEffects();
+            PerfMarks.End(PerfMarks.Sec.Effects, pm); pm = PerfMarks.Begin();
             _wishes.Tick(_sourceTimeMs);
             _wishFx.Tick(_sourceTimeMs, Time.unscaledDeltaTime);
+            PerfMarks.End(PerfMarks.Sec.WishFx, pm);
             _hitZones?.Tick(Time.unscaledTime, ShowcaseSettings.Current != null && ShowcaseSettings.Current.ReducedMotion);
         }
 
@@ -296,7 +306,9 @@ namespace Roguehalla.Client
         public void DiagDeathMark(float simX, float simY) { _worldIndicators.AddDeath(simX, simY, Time.unscaledTime, MarkVisible); }
 
         /// <summary>Latest membership wins over delayed interpolation, before the frame is rendered.</summary>
-        public void RefreshVisibility(Session session)
+        /// <param name="presentFollows">The caller runs <see cref="Present"/> in this same frame (the match loop does): the creatures,
+        /// effects and fades are then drawn once, by Present, instead of twice (see <see cref="RetainObservedActors(List{InterpActor}, SelfView, bool)"/>).</param>
+        public void RefreshVisibility(Session session, bool presentFollows = false)
         {
             _archetypes = session != null ? session.Archetypes : System.Array.Empty<WireArchetype>();
             _hitZones?.SetTable(_archetypes); LegacyFacts.SyncWeapons(session != null ? session.Weapons : null);
@@ -309,11 +321,18 @@ namespace Roguehalla.Client
             if(session!=null && session.Snapshots.Count>0)
             {
                 session.Snapshots.Sample(session.Snapshots.NewestMs,_latestMembership);
-                RetainObservedActors(_latestMembership,session.Me);
+                RetainObservedActors(_latestMembership,session.Me,presentFollows);
             }
-            else RetainObservedActors(_latestMembership,null); // Welcome/resume resets the observation timeline.
+            else RetainObservedActors(_latestMembership,null,presentFollows); // Welcome/resume resets the observation timeline.
         }
-        public void RetainObservedActors(List<InterpActor> current,SelfView me)
+        public void RetainObservedActors(List<InterpActor> current,SelfView me) { RetainObservedActors(current, me, false); }
+        /// <summary>
+        /// With <paramref name="presentFollows"/> the latest creatures, the pending cues, the effects and the fades are left to the
+        /// <see cref="Present"/> that follows in the same frame (it draws all of them again anyway): presenting every creature twice a
+        /// frame cost more than all the other presenters together. The pending cues are flushed by Present right after it has drawn
+        /// the creatures, so a cue still finds its newly delivered subject before the frame is rendered.
+        /// </summary>
+        public void RetainObservedActors(List<InterpActor> current,SelfView me,bool presentFollows)
         {
             _membership.Clear(); _latestNpcs.Clear();
             if (_fadeDemo) UpdateFadeDemo(current, me);
@@ -327,13 +346,20 @@ namespace Roguehalla.Client
             _hasMembership=true; _actors.Retain(_membership);
             _wishes.Retain(_membership);
             _wishFx.Retain(_membership);
+            if (presentFollows) { _flushPendingInPresent = true; return; }
             // This also runs after Poll/Present, before rendering, so new observer handles
             // are visible immediately and removed handles leave no cosmetic residue.
             PresentLatestNpcs();
-            foreach(var fx in _pendingFx) PresentFx(fx);
-            _pendingFx.Clear();
+            FlushPendingFx();
             UpdateEffects();
             _actors.StepFades();
+        }
+        bool _flushPendingInPresent;
+        void FlushPendingFx()
+        {
+            _flushPendingInPresent = false;
+            foreach(var fx in _pendingFx) PresentFx(fx);
+            _pendingFx.Clear();
         }
         void UpdateFadeDemo(List<InterpActor> current, SelfView me)
         {
@@ -414,6 +440,7 @@ namespace Roguehalla.Client
 
         public void PresentCollections(CollectionsView collections)
         {
+            var pmCollections = PerfMarks.Begin();
             _used = 0; _inventory = collections != null ? collections.Inventory : null;
             if (collections == null) _wishFx.PresentAreas(null);
             if (collections != null)
@@ -501,6 +528,7 @@ namespace Roguehalla.Client
             for (int i = _used; i < _props.Count; i++) _props[i].gameObject.SetActive(false);
             _worldMarks.Update(collections, MarkVisible);
             _worldIndicators.Update(collections, _sourceTimeMs, _haveLocal, _localX, _localY, Time.unscaledTime, MarkVisible);
+            PerfMarks.End(PerfMarks.Sec.Collections, pmCollections);
         }
         /// <summary>The own Wish beside the name: 0 none (no faction Wish, or in the lobby), 1 ready, 2 recharging (legacy PlayerView.setWishIcon).</summary>
         int WishState(SelfView me)
@@ -640,6 +668,10 @@ namespace Roguehalla.Client
                         flash.Text.fontSize = 3f * (f.Passive ? 11f : Indicators.DamageSize(f.Amount, f.Crit)) / 13f;
                         flash.LaneX = NumberSide + Indicators.DamageLaneOffset(_numberLane++) * .026f;
                     }
+                    // The tone is set once, opaque; the fade then rewrites only the vertex alpha (SetNumberAlpha). Fading through TMP_Text.color
+                    // marks the text dirty and TextMeshPro regenerates the whole mesh every frame (PERF_REPORT section 5).
+                    var spawnTone = flash.TextColor; spawnTone.a = 1f; flash.Text.color = spawnTone; flash.AlphaByte = 255;
+                    flash.Text.ForceMeshUpdate();
                 }
                 _flashes.Add(flash);
         }
@@ -658,10 +690,26 @@ namespace Roguehalla.Client
                 // Keep the silhouette readable even when confirmed hits overlap rapidly.
                 // Damage text retains its longer lifetime; the hollow impact rim fades quickly.
                 var c = f.Color; c.a = .55f * Mathf.Clamp01(1 - (Time.unscaledTime - f.Start) / .16f); f.Sprite.color = c;
-                f.Text.transform.position=f.Position+new Vector3(f.LaneX,.7f+(reduced ? 0 : t*.35f),0); var tc=f.TextColor; tc.a=1-t; f.Text.color=tc;
+                f.Text.transform.position=f.Position+new Vector3(f.LaneX,.7f+(reduced ? 0 : t*.35f),0); SetNumberAlpha(f, 1 - t);
                 // A dark plate under the number (lab finding: grey digits vanished on sand and snow); legacy used a black stroke.
                 if (f.Plate.gameObject.activeSelf) { var pc = (Color)UiTheme.Current.OutlineDark; pc.a = .88f * (1 - t); f.Plate.color = pc; f.Plate.transform.position = f.Text.transform.position; f.Plate.transform.localScale = new Vector3(f.Text.preferredWidth + .14f, f.Text.fontSize * .1f + .06f, 1); }
             }
+        }
+        /// <summary>Fades a damage number through the vertex alpha of its current mesh: no text rebuild (TMP_Text.color would regenerate it). The outline fades with it (the SDF shader scales the outline by vertex alpha).</summary>
+        /// <summary>Measurement switch (PerfRecorder.SetFlags fx.numberfade=0): fade through TMP_Text.color, the old behaviour, for in-match A/B windows.</summary>
+        public static bool LegacyNumberFade;
+        static void SetNumberAlpha(Flash f, float alpha)
+        {
+            int a = Mathf.Clamp(Mathf.RoundToInt(alpha * 255f), 0, 255);
+            if (LegacyNumberFade) { var lc = f.TextColor; lc.a = alpha; f.Text.color = lc; f.AlphaByte = -1; return; }
+            if (a == f.AlphaByte) return;
+            var text = f.Text; var info = text.textInfo;
+            if (info == null || info.meshInfo == null || info.meshInfo.Length == 0 || info.meshInfo[0].colors32 == null)
+            { var tc = f.TextColor; tc.a = alpha; text.color = tc; f.AlphaByte = -1; return; }      // no mesh yet: the slow path still fades correctly
+            var colors = info.meshInfo[0].colors32; int n = Mathf.Min(colors.Length, info.meshInfo[0].vertexCount);
+            for (int i = 0; i < n; i++) colors[i].a = (byte)a;
+            text.UpdateVertexData(TMP_VertexDataUpdateFlags.Colors32);
+            f.AlphaByte = a;
         }
         Flash CreateFlash()
         {
@@ -700,7 +748,9 @@ namespace Roguehalla.Client
             _lastFollow = p; _hasFollow = true;
             _camCenter = cam.transform.position; _camHalf = cam.orthographic ? new Vector2(cam.orthographicSize * cam.aspect, cam.orthographicSize) : new Vector2(12, 9);
             UpdateLampVisibility(p);
+            var pmAtmos = PerfMarks.Begin();
             if (_atmos != null) _atmos.OnFollow(cam, Time.unscaledDeltaTime);
+            PerfMarks.End(PerfMarks.Sec.Atmosphere, pmAtmos);
             bool ambient = Quality.AmbientParticles && Quality.Particles > 0f;
             bool motion = ShowcaseSettings.Current == null || !ShowcaseSettings.Current.ReducedMotion;
             int moteLimit = ambient ? Mathf.Min(_motes.Count, Mathf.CeilToInt(_motes.Count * Mathf.Min(1f, Quality.Particles))) : 0;

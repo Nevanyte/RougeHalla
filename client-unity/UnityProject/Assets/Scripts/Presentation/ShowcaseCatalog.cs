@@ -23,10 +23,27 @@ namespace Roguehalla.Client
         public AudioClip[] Hits, Swings, Ui;
         public ShowcaseAudioLibrary AudioLibrary;
         public AudioMixerGroup MusicGroup, AmbienceGroup, SfxGroup;
+        /// <summary>The first look with this key (null for none). The actor presenter asks several times per actor per frame, so the
+        /// linear string scan is indexed once per <see cref="Actors"/> array (rebuilt if the array is replaced or resized).</summary>
         public Appearance Find(string key)
         {
-            foreach (var entry in Actors) if (entry != null && entry.Key == key) return entry;
+            if (key == null) return null;
+            var actors = Actors;
+            if (actors == null) return null;
+            if (!ReferenceEquals(_indexed, actors) || _indexedLength != actors.Length) BuildIndex(actors);
+            if (_index.TryGetValue(key, out var hit) && hit.Key == key) return hit;   // the key check also catches an entry edited in place
+#if UNITY_EDITOR
+            foreach (var entry in actors) if (entry != null && entry.Key == key) return entry;   // editor tools may rename entries in place
+#endif
             return null;
+        }
+        [System.NonSerialized] Appearance[] _indexed; [System.NonSerialized] int _indexedLength;
+        [System.NonSerialized] System.Collections.Generic.Dictionary<string, Appearance> _index;
+        void BuildIndex(Appearance[] actors)
+        {
+            _index ??= new System.Collections.Generic.Dictionary<string, Appearance>(System.StringComparer.Ordinal); _index.Clear();
+            foreach (var entry in actors) if (entry != null && entry.Key != null && !_index.ContainsKey(entry.Key)) _index.Add(entry.Key, entry);
+            _indexed = actors; _indexedLength = actors.Length;
         }
     }
 }

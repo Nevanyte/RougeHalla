@@ -43,7 +43,7 @@ namespace Roguehalla.Client
         readonly PendingEventCue[] _pendingEvents = new PendingEventCue[PendingEventCapacity];
         int _pendingFxCount;
         int _pendingEventCount;
-        ShowcaseCatalog _catalog;
+        ShowcaseCatalog _catalog, _loadedCatalog; bool _catalogLoaded;
         ShowcaseAudio _configuredAudio;
         int _swingIndex, _hitIndex, _blockIndex, _wishIndex, _eventIndex, _deathIndex;
 
@@ -77,6 +77,11 @@ namespace Roguehalla.Client
         }
 
         void LateUpdate()
+        {
+            var pmSound = PerfMarks.Begin();
+            SoundscapeLateUpdate(); PerfMarks.End(PerfMarks.Sec.Soundscape, pmSound);
+        }
+        void SoundscapeLateUpdate()
         {
             if (_client == null) _client = GetComponent<MatchClient>();
             EnsureSources();
@@ -142,7 +147,10 @@ namespace Roguehalla.Client
         void ConfigureTracks()
         {
             if (_music == null || _ambience == null) return;
-            var catalog = Resources.Load<ShowcaseCatalog>("Showcase/Catalog");
+            // Resources never change at run time: one lookup. Resources.Load by path every frame cost about 0.6 ms of main thread on the
+            // web player (?perf=1, soundscape section), more than every other script but the actor presenter together.
+            if (!_catalogLoaded) { _catalogLoaded = true; _loadedCatalog = Resources.Load<ShowcaseCatalog>("Showcase/Catalog"); }
+            var catalog = _loadedCatalog;
             if (_catalog != catalog)
             {
                 _catalog = catalog;

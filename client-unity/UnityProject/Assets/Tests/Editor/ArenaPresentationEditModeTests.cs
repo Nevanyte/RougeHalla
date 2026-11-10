@@ -138,6 +138,31 @@ namespace Roguehalla.Client.Tests
         }
 
         [Test]
+        public void PresentFollowsDrawsLatestCreatureAndItsQueuedCueOnceInTheSameFrame()
+        {
+            // Perf: the match loop calls RefreshVisibility(presentFollows) and then Present; the creature is drawn by Present only,
+            // and a cue that waited for its subject is still shown in the same frame, at the latest typed position.
+            var arena=CreateArena();
+            var old=RemoteActor(100);old.Kind=ActorKind.RegionalMob;
+            var latest=old;latest.Id=101;latest.X=300;
+            var delayed=new List<InterpActor>{old};
+            arena.Present(delayed,null,null,0);
+            arena.ConfirmedFx(new ServerMsg.Fx{List=new List<WireFx>{new WireFx{Kind=FxKind.Hit,Victim=101,Amount=7}}});
+            arena.RetainObservedActors(new List<InterpActor>{latest},null,true);
+            Assert.That(arena.DiagFlashes,Is.EqualTo(0),"the cue waits for Present, which draws its subject");
+            arena.Present(delayed,null,null,0);
+            Assert.That(arena.IsObserved(100),Is.False);
+            Assert.That(arena.IsObserved(101),Is.True);
+            Assert.That(FindDirectChild(arena.transform,"Observed actor").position.x,Is.EqualTo(ArenaView.WorldPoint(300,240).x));
+            Assert.That(arena.DiagFlashes,Is.EqualTo(1));
+            var effects=FindDirectChild(arena.transform,"Confirmed effects");
+            Assert.That(FindDirectChild(effects,"Confirmed impact").gameObject.activeSelf,Is.True);
+            arena.RetainObservedActors(new List<InterpActor>(),null,true); arena.Present(delayed,null,null,0);
+            Assert.That(arena.IsObserved(101),Is.False);
+            foreach(Transform effect in effects) Assert.That(effect.gameObject.activeSelf,Is.False);
+        }
+
+        [Test]
         public void NormalPresentationRemovesLatestAbsentActorsAndQueuedCuesWithAudioDisabled()
         {
             var arena=CreateArena();
