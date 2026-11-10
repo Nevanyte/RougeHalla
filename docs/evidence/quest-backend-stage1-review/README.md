@@ -1,6 +1,6 @@
 # Quest Stage1 independent preservation review
 
-2026-11-10. **HOLD for final seal and completed gates. The subsequent private continuation repair is reviewed below; the initial finding remains as history.** This is a read-only WIP review, not admission. DeepSeek owns all Rust and private harness changes. The reviewer ran no Rust tests and changed no source, fixture, production code or shared status.
+2026-11-10. **RELEASE — final code/gates and repaired private continuation reviewed at9f3e9502. Earlier WIP HOLD findings remain below as history; final evidence-format limits are stated at the end.** This is a read-only WIP review, not admission. DeepSeek owns all Rust and private harness changes. The reviewer ran no Rust tests and changed no source, fixture, production code or shared status.
 
 Baseline: `36564c333d56beb8d47a9962cec033eea85b1921`. Reviewed native worktree: `/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-quest-runtime`, still on that HEAD with four Stage1 files modified/new. The candidate has no final identity yet. Private evidence lives outside Git at `/Users/nevinmckinnon/.codex/tools/roguehalla-backend-20261109/quest-stage1-compare/`. No private checkpoint contents, state hashes or transcript digests are included here.
 
@@ -60,3 +60,31 @@ Read-only checks establish:
 **Continuation semantics finding resolved.** The initial generator issue remains a finite provenance clarification: `instrument.py` and `instrument_normal.py` are still the historical generators, omit the appended complete probes and the latter still contains a `pending.clear()` not present in actual generated harnesses. Label them historical and preserve the exact actual repaired private harness files/code identities, or retain a replacement generator that reproduces these exact files with checked substitutions. This needs no additional test run just to archive/properly identify already inspected code; do not claim the old scripts generated the repaired probes. The code-only inventory above binds the actual executed harness candidate.
 
 No additional production discrepancy found in this follow-up. Final admission remains pending the exact clean code/evidence seal, completed canonical gate receipts and honest accounting of interrupted/long-running gates. No native or source tests were rerun, and no active process was interrupted or restarted by this reviewer.
+
+
+## Final sealed admission review — 9f3e9502 (2026-11-10)
+
+**RELEASE for the bounded Stage1 objective/reward extraction.** Exact clean native seal `9f3e9502cad5e8e02020f7628f46df1032405d63`, baseline36564c33. The19 changed paths are exactly four permitted Rust files and15 sanitized evidence artifacts. No original test/source/corpus/catalog/rules/World/schema/content/pin/schedule/client/lock/shared-status leakage was found. This does not admit Card implementation, new payouts or broader quest redesign.
+
+Final actual code inventory (SHA-256):
+
+| Quest file | Actual bytes | SHA-256 |
+| --- | ---: | --- |
+| `live.rs` |34237|`ef46370392f392f35d84c40be88be586d78ea696d74459077af40acb3bc1d631`|
+| `mod.rs` |1246|`20457504b023a4204464b4207de8608bf1fd96de502932d0c5af624da1f162c8`|
+| `objectives.rs` |4107|`0edd8532cba8ad8d912237be3f72c13a895f0a8ff61dcd8dc66de325113f2a89`|
+| `rewards.rs` |2309|`cac543843c52fca0ec700767fbfda6b1246083781658c9e880c0c698d2ea6306`|
+
+All final source hashes match the sealed author table. That table's live/objectives byte counts are stale (34144/4029 rather than34237/4107); this review records the actual sizes. Independently diffed executed/private candidate source against seal: only rustfmt whitespace, module/import declaration ordering and removal of identity `u32::from(visits.count_ones())`. No behavior/state/event/order changed after the existing canonical gates/private comparisons. No13-minute hash rerun or unrelated suite is justified for that no-op delta.
+
+Inspected canonical receipts: quests34passed/1ignored (128.61s), quest_view26passed (24.02s), checkpoint6/replay6/content21passed, schedule14passed, owned hash_coverage10passed/0failed (776.88s) with separate exit0. These sealed raw logs match the inspected private originals byte for byte. Final strict all-target/all-feature rh-sim Clippy finishes successfully (44.63s), with the exact prior useless-conversion failure retained; final fmt receipt is empty successful output as reported by the author. The existing ignored giver allocation guard remains honestly ignored in this run, not claimed executed; this extraction adds no new allocation mechanism or allocation-improvement claim.
+
+Private provenance follow-up is substantively resolved: `harness/lifecycle_tests.repaired.rs` and `harness/tour_supply_source_tests.repaired.rs` byte-match both actually executed private baseline/candidate files at the previously recorded code hashes. `harness/apply_harness.py` checks both source and destination hashes while copying exactly those two files into a disposable worktree. Historical generators are explicitly labelled stale/non-authoritative in the private archive README, and the final no-op production delta is recorded there. No new generator/test was authored or executed by this reviewer.
+
+Actual continuation evidence remains12cases/35remainingframes with real original/Clone/accepted-restored branches, complete remaining action scripts and preserved pending producer events; baseline/candidate output equality was independently inspected. The separate older37+5+5 main snapshots retain their narrower one-step/restore limits and two later reset_active refusals; neither is erased or generalized by the successful initial-boundary continuations.
+
+Evidence-format limits remain explicit rather than invented: the ten-line raw continuation run logs have no embedded command/cwd/environment/exit header, and no separate invocation record was present in the private archive/logs at this final inspection. Their named test results, exact archived code binding, private source identity/input equality and full output comparisons were inspected; author-reported invocation metadata must not be represented as a raw embedded receipt. Root has requested archival of actual recoverable invocation metadata without reexecution. The sealed canonical README lists the commands/private locked-offline environment, but most raw logs likewise contain Cargo output rather than self-contained command headers; hash_coverage has an explicit exit0 artifact. This provenance-format limitation and the two stale byte counts do not reveal a code/parity failure and can receive an additive evidence-only correction without repeating successful tests.
+
+First compile/module-registration/deref and lint/fmt failures are preserved. Prior hash/integration logs stop before terminal output and are labelled prior incomplete/timeout receipts, never final PASS. Their raw bytes alone do not establish an exit code or a process-kill cause; no guessed terminal status is inferred here. The privately overwritten unused-map type-inference failure is honestly documented as lost, not fabricated. Final owned hash completion is separate and explicit. No active process was interrupted/restarted by this reviewer, and no tests/probes/source captures were run.
+
+Root owns integration and any evidence-only follow-up. No remaining semantic/scope blocker found within this sealed Stage1 extraction.
