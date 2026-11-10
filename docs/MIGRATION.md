@@ -28,9 +28,19 @@ passes ordinary profile load, Training join,400ms Right movement and normal Leav
 
 An observed cold-load issue is corrected by the explicit response MIME matcher at `9859f700`: the installed Caddy
 validates and gracefully reloads the exact candidate, and actual normal-TLS GETs now return gzip for both WASM/data
-where the earlier requests did not. Unity/native artifacts remain unchanged; compressed transfer size and load-time
-improvement are not yet measured. Hosted multiplayer, final frame-time/latency/legacy comparison and cleanup/release
-checks remain open. Deferred content stays outside the demo critical path.
+where the earlier requests did not. A complete normal-TLS download now verifies both decoded hashes against Web B:
+WASM58,599,146→16,436,423 bytes (16.86s), data47,874,287→37,908,873 bytes (39.75s). These two HTTP bodies total
+54,345,296 compressed bytes versus106,473,433 decoded bytes under the fixed8mbit limit. They do not measure Unity
+startup or frame time. Hosted multiplayer, final frame-time/latency/legacy comparison and cleanup/release checks remain
+open. Deferred content stays outside the demo critical path.
+
+The latest normal source CI runs42729941642 (`d265ab95`) and42727133953 (`112f8ec7`) both pass provenance, simulation,
+C# and card-source jobs but fail Rust's all-feature Clippy compile on the missing `RoomCmd::Input.received` test field.
+The one-line test repair is `2c665f6a`; Root's strict all-feature/all-target `rh-server` Clippy passes in25.97s, without
+running tests or rebuilding the release binary. Downstream skipped CI gates still need a fresh normal run.
+Claude's newer `1f7c5460` is explicitly protocol15 WIP with missing C#/JS consumers and concrete bounded review
+findings. It is not merged or deployed. The [focused completion handoff](coordination/CLAUDE_NETCODE_CHECKPOINT_FINISH.md)
+preserves the approved speed direction and lists the actual interoperability/lifecycle/track/counterplay work.
 
 The owner now prioritizes a complete visual/networked **technical demo as soon as possible** to measure Unity 2D and
 AWS/Rust speed. Full quests, every augment/elite reward, advanced bot parity and production completeness no longer block
