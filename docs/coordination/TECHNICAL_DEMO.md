@@ -90,3 +90,11 @@ on each backend with3ordinary players. Sampled Rust process cost is6.69% of one 
 publication/storage/mechanics differ and other development work was active. No maximum-throughput, FPS, gameRTT or equal-view
 bandwidth claim follows. One separate native CPU trace identifies focused investigation candidates; no optimization is admitted yet.
 Unity/client work remains paused for Codex and owned by Claude. Original staging expiry/cleanup remains03:50:21UTC.
+
+## Temporary hosting window completed
+
+At the unchanged03:50:21UTC expiry, the guest initiated shutdown; termination was confirmed03:50:44UTC. The exact demo
+stack, disk, network interface, bucket, schedule and IAM resources are removed and independently checked; the sole test
+DNS record is deleted with a persisted empty-table screenshot. [Cleanup evidence](../evidence/calgary-demo-cleanup/README.md).
+**play.rougehalla.com is now offline**; local artifacts/services remain available. Current backend measurement and normal
+sourceCI evidence are recorded; Unity/FPS and the complete rendered legacy comparison remain Claude-owned and open.

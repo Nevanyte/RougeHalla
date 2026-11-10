@@ -6,8 +6,8 @@
   },
   {
     "path": "README.md",
-    "bytes": 3604,
-    "sha256": "20068b9203621ac80b3d65d5a39f14c6d577b7a96aa596fc93e102e051330c84"
+    "bytes": 4073,
+    "sha256": "f4ee896feb79ecd863813f9ce1c2e48aff24f37b3e9443729ca7ed57b1ce85c8"
   },
   {
     "path": "clippy-result.json",
@@ -48,5 +48,10 @@
     "path": "release-build.json",
     "bytes": 988,
     "sha256": "3266dc0c528b8113fbe5f2149ca5bfbf7812d2544d758542e477d483cdf46c5e"
+  },
+  {
+    "path": "source-ci-terminal.json",
+    "bytes": 2255,
+    "sha256": "7c3f3e9924924c5f52c5c462d96c874c51fdaf6ad680b6510bd87789e042abf0"
   }
 ]

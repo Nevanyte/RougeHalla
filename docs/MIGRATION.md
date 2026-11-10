@@ -6,6 +6,14 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 
 ## Current delivery scope: technical demo (owner decision, 2026-11-09)
 
+**Current hosting status, 2026-11-10 03:53 UTC:** the temporary test window has ended on its original expiry.
+Guest termination, stack deletion and all11 independent resource checks pass; the sole test DNS record is removed and
+verified empty after reload. **play.rougehalla.com is now offline.** The [cleanup receipt](evidence/calgary-demo-cleanup/README.md)
+retains exact targets, operation results and local screenshot evidence. Historical “live” statements below describe the
+completed demo window. Local builds/services/user data and worker WIP remain intact. NormalCI42748359516 at code9657cd56
+is now terminal SUCCESS across all five jobs. Client/FPS/complete rendered legacy comparison remains with Claude under
+the owner-imposed Codex Unity pause; this cleanup does not complete that remaining performance gate.
+
 **Unity ownership change, 2026-11-10:** the owner has paused all Codex Unity development and assigned it to Claude.
 Unity code/assets/builds, client profiling and browser/Editor work are stopped. Root continues Rust/backend/AWS
 coordination. The one approved local benchmark attempt ended before measurement with

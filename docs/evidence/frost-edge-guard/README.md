@@ -29,3 +29,5 @@ The corrected binary SHA is `4d44bf51354d4f1b5fcd392c2bf904e65f83873acfbc1caff22
 | Sampled RSS | 18.38–18.48MiB | 18.78–18.88MiB |
 
 The CPU point estimate is1.03% higher, not an improvement and not an established regression. Room lifetimes and ambient event totals differ; no quantile change is attributed to this code. No favorable retake followed. All90 measured commands and prior acknowledgements/positions pass, all3 seats remain alive, and normal Leave persists3 results with0failed/refused. Root independently confirms PID30250 gone and17937 listener absent. The report retains the fixed input recipe, raw process samples and complete limits. No public or existing local demo artifact was replaced.
+
+Normal [CI42748359516](https://github.com/Nevanyte/RougeHalla/actions/runs/42748359516) at exact9657cd565396a7a5a7190fe66fec3efe885f47f3 completed SUCCESS at03:48:27UTC. All five jobs independently report success, including complete simulation, PostgreSQL lease/recovery, parity, source witnesses, full-map headless and actual Chromium/WSS checks. Terminal API-derived receipt is retained alongside this file. Later documentation commits do not change runtime source.
