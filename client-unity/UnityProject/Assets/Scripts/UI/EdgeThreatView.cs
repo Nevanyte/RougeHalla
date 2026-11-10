@@ -82,6 +82,9 @@ namespace Roguehalla.Client
             return image;
         }
 
+        /// <summary>Legacy vision.css: radial-gradient(closest-side, colour 0%, transparent 100%): a LINEAR falloff from the centre (the lab found the squared one far too small).</summary>
+        public static float GlowAlpha(float d) { return Mathf.Clamp01(1f - d); }
+
         static Sprite GlowSprite()
         {
             if (_glow != null) return _glow;
@@ -92,7 +95,7 @@ namespace Roguehalla.Client
                 for (int x = 0; x < size; x++)
                 {
                     float d = Mathf.Sqrt((x + .5f - size / 2f) * (x + .5f - size / 2f) + (y + .5f - size / 2f) * (y + .5f - size / 2f)) / (size / 2f);
-                    float a = Mathf.Clamp01(1f - d); a *= a;
+                    float a = GlowAlpha(d);
                     pixels[y * size + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(a * 255f));
                 }
             texture.SetPixels32(pixels); texture.Apply(false, true);

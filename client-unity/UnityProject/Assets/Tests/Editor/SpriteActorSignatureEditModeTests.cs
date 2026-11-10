@@ -84,15 +84,15 @@ namespace Roguehalla.Client.Tests
             Present(1, 0);
             AssertAllSignatureCuesDisabled();
 
-            Present(1, 16);
+            Present(1, 128);        // 16 (taxed) and 32 (suppressed) are named by text cues now; 128 is a bit nothing defines
             AssertUnknown(true);
             AssertSignatureBit(2, false);
-            Present(1, (byte)(32 | 2));
+            Present(1, (byte)(128 | 2));
             AssertUnknown(true);
             AssertSignatureBit(2, true);
             Assert.That(FindRenderer("Unknown signature").color, Is.EqualTo((Color)ShowcasePalette.MutedText));
 
-            Present(1, (byte)(16 | 2), (ushort)1);
+            Present(1, (byte)(128 | 2), (ushort)1);
             AssertSignatureBit(2, true);
             AssertUnknown(true);
             // Effects are drawn by the per-status glyphs of OverheadIndicators now (OverheadIndicatorsEditModeTests); the generic cue is off
@@ -108,8 +108,9 @@ namespace Roguehalla.Client.Tests
         public void EveryKnownBitUsesItsExplicitExistingGlyphAndFixedBackedUnlitSlot()
         {
             byte[] bits = { 1, 2, 4, 8, 64 };
-            string[] sprites = { "sigil3", "spark", "sigil2", "weapon0", "sigil4" };
-            var seenSprites = new HashSet<Sprite>();
+            // Glyphs and colours follow legacy SignatureArt (icy, burning, diseased, execute lime, exec-blocked grey), drawn from IndicatorArt.
+            string[] sprites = { "snow", "flame", "droplet", "skull", "skull" };
+            var seenSprites = new HashSet<string>();
             for (int slot = 0; slot < bits.Length; slot++)
             {
                 byte bit = bits[slot];
@@ -117,8 +118,8 @@ namespace Roguehalla.Client.Tests
                 var icon = FindRenderer(SignatureName(bit));
                 var backing = FindRenderer(SignatureName(bit) + " backer");
                 Assert.That(icon.enabled, Is.True, "signature bit " + bit);
-                Assert.That(icon.sprite, Is.SameAs(ShowcaseSprites.Get(sprites[slot])), "explicit glyph for bit " + bit);
-                Assert.That(seenSprites.Add(icon.sprite), Is.True, "known signature glyphs remain distinct");
+                Assert.That(icon.sprite, Is.SameAs(IndicatorArt.Get(sprites[slot])), "explicit glyph for bit " + bit);
+                Assert.That(seenSprites.Add(icon.sprite.name + icon.color), Is.True, "known signature glyphs remain distinct (glyph and colour)");
                 Assert.That(icon.sharedMaterial, Is.SameAs(ShowcaseSprites.Unlit));
                 Assert.That(backing.enabled, Is.True);
                 Assert.That(backing.sprite, Is.SameAs(ShowcaseSprites.Get("bar")));
@@ -130,7 +131,7 @@ namespace Roguehalla.Client.Tests
                 Assert.That(backing.transform.localPosition, Is.EqualTo(icon.transform.localPosition));
             }
 
-            Present(1, 16);
+            Present(1, 128);
             Assert.That(FindRenderer("Unknown signature").sprite, Is.SameAs(ShowcaseSprites.Get("rune")));
             Assert.That(FindRenderer("Unknown signature backer").enabled, Is.True);
             Assert.That(FindRenderer("Unknown signature").transform.localScale, Is.EqualTo(new Vector3(.3f, .3f, 1)));
@@ -175,7 +176,7 @@ namespace Roguehalla.Client.Tests
         [Test]
         public void EvictionDeadAndPoolReuseDisableAndRefreshAllSignatureCues()
         {
-            Present(41, (byte)(2 | 16));
+            Present(41, (byte)(2 | 128));
             Transform pooledRoot = FindRoot();
             AssertSignatureBit(2, true);
             AssertUnknown(true);
@@ -191,7 +192,7 @@ namespace Roguehalla.Client.Tests
             AssertSignatureBit(4, true);
             AssertUnknown(false);
 
-            Present(52, (byte)(1 | 2 | 4 | 8 | 64 | 16), (ushort)0, ActorStatus.Mia);
+            Present(52, (byte)(1 | 2 | 4 | 8 | 64 | 128), (ushort)0, ActorStatus.Mia);
             AssertAllSignatureCuesDisabled();
         }
 

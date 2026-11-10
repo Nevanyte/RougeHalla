@@ -12,7 +12,7 @@ namespace Roguehalla.Client
 {
     public sealed class WorldMarks
     {
-        sealed class Mark { public SpriteRenderer Glyph, GlyphPlate, LabelPlate; public TextMeshPro Label; public string Text; }
+        sealed class Mark { public SpriteRenderer Glyph, GlyphPlate, LabelPlate, Figure, Shadow; public TextMeshPro Label; public string Text; }
         readonly Transform _root;
         readonly List<Mark> _marks = new List<Mark>();
         int _used;
@@ -35,7 +35,7 @@ namespace Roguehalla.Client
                         float x = (float)q.GiverX, y = (float)q.GiverY;
                         if (canSee != null && !canSee(x, y)) continue;
                         bool accepted = q.OwnerAccepted;
-                        var m = Next();
+                        var m = Next(); m.Figure.enabled = m.Shadow.enabled = false;
                         Place(m, ArenaView.WorldPoint(x, y) + new Vector3(0, 2.55f, 0), IndicatorArt.Get(Indicators.QuestMark(accepted) == '!' ? "bang" : "query"), (Color)theme.Accent, accepted ? .6f : 1f, .5f);
                         bool turnIn = accepted && q.OwnerReady;
                         SetLabel(m, turnIn ? "Turn in here" : q.GiverLabel, turnIn ? theme.Accent : theme.TextPrimary, new Vector3(0, -.2f, 0), 2.3f, 1f);
@@ -48,10 +48,11 @@ namespace Roguehalla.Client
                         var m = Next();
                         Color tone = (Color)(t.Kind == TradeKind.Stats ? theme.Info : theme.Accent);
                         Place(m, ArenaView.WorldPoint(x, y) + new Vector3(0, 2.2f, 0), IndicatorArt.Get("diamond"), tone, 1f, .46f);
+                        Figure(m, ArenaView.WorldPoint(x, y), 2000 + Mathf.RoundToInt(y * .5f), tone);   // the trader stands there: the marker needs a body to point at (lab finding)
                         SetLabel(m, t.Name, theme.TextPrimary, new Vector3(0, -.2f, 0), 2.3f, 1f);
                     }
             }
-            for (int i = _used; i < _marks.Count; i++) { _marks[i].Glyph.enabled = false; _marks[i].GlyphPlate.enabled = false; _marks[i].LabelPlate.enabled = false; _marks[i].Label.gameObject.SetActive(false); }
+            for (int i = _used; i < _marks.Count; i++) { _marks[i].Figure.enabled = false; _marks[i].Shadow.enabled = false; _marks[i].Glyph.enabled = false; _marks[i].GlyphPlate.enabled = false; _marks[i].LabelPlate.enabled = false; _marks[i].Label.gameObject.SetActive(false); }
         }
 
         Mark Next()
@@ -64,6 +65,8 @@ namespace Roguehalla.Client
                 m.LabelPlate = ShowcaseSprites.Create(_root, "World marker label plate", "bar", Order - 1, Color.white, Vector2.one, Vector3.zero, false);
                 m.GlyphPlate.enabled = m.LabelPlate.enabled = false;
                 m.Glyph = ShowcaseSprites.Create(_root, "World marker", "bar", Order, Color.white, Vector2.one, Vector3.zero, false);
+                m.Figure = ShowcaseSprites.Create(_root, "Trader figure", "bar", 2000, Color.white, Vector2.one, Vector3.zero, false); m.Figure.enabled = false;
+                m.Shadow = ShowcaseSprites.Create(_root, "Trader contact shadow", "shadow", 1990, Color.white, new Vector2(1.45f, .54f), Vector3.zero, false); m.Shadow.enabled = false;
                 var go = new GameObject("World marker label"); go.transform.SetParent(_root, false);
                 m.Label = go.AddComponent<TextMeshPro>();
                 var font = Resources.Load<TMP_FontAsset>("Showcase/NunitoBold");
@@ -74,6 +77,15 @@ namespace Roguehalla.Client
                 _marks.Add(m);
             }
             return _marks[_used++];
+        }
+
+        /// <summary>A neutral silhouette (the quest giver's) in the merchant's kind colour, with a contact shadow, standing at the delivered position.</summary>
+        static void Figure(Mark m, Vector3 feet, int order, Color tone)
+        {
+            m.Figure.enabled = true; m.Figure.sprite = ShowcaseIdentityAssets.GetFactionSilhouette(-1);
+            m.Figure.color = Color.Lerp(Color.white, tone, .5f); m.Figure.sortingOrder = order;
+            m.Figure.transform.position = feet + new Vector3(0, .66f, 0); m.Figure.transform.localScale = new Vector3(.96f, 1.62f, 1);
+            m.Shadow.enabled = true; m.Shadow.sortingOrder = order - 8; m.Shadow.transform.position = feet + new Vector3(.1f, -.04f, 0);
         }
 
         static void Place(Mark m, Vector3 at, Sprite sprite, Color color, float alpha, float size)

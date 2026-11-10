@@ -50,7 +50,7 @@ namespace Roguehalla.Client.Tests
             AssertRing(1);
             Present(1, 100, 100, 8);
             AssertRing(8);
-            Assert.That(Find("Barrier ring step 1").sharedMaterial, Is.SameAs(ShowcaseSprites.Unlit));
+            Assert.That(Find("Barrier bubble ring").sharedMaterial, Is.SameAs(ShowcaseSprites.Unlit));
         }
 
         [Test]
@@ -63,6 +63,7 @@ namespace Roguehalla.Client.Tests
             _presenter.Present(8, 120, 120, 0, 70, FactionId.Fire, ActorStatus.Dead, WeaponId.Sword,
                 ActorKind.Player, null, 0, 0, false, 80, 8);
             _presenter.End();
+            _presenter.PresentIndicators(8, 0, false, WeaponId.Fists, false);
             AssertAllBarrierHidden();
 
             Present(8, 70, 80, 8, ActorStatus.Alive, ActorKind.RegionalMob);
@@ -143,11 +144,15 @@ namespace Roguehalla.Client.Tests
             _presenter.Present(id, 120, 120, 0, health, FactionId.Fire, status, WeaponId.Sword,
                 kind, kind == ActorKind.RegionalMob ? (MobTypeId?)MobTypeId.FrostWisp : null, 0, 0, false, barrier, ring);
             _presenter.End();
+            _presenter.PresentIndicators(id, 0, false, WeaponId.Fists, false);   // the barrier bubble is drawn by the overhead cluster
         }
 
         void AssertRing(int count)
         {
-            for (int i = 0; i < 8; i++) Assert.That(Find("Barrier ring step " + (i + 1)).enabled, Is.EqualTo(i < count));
+            // The eight ticks above the head are gone (they collided with the status row and vanished on snow); the barrier is the legacy bubble.
+            for (int i = 0; i < 8; i++) Assert.That(Find("Barrier ring step " + (i + 1)).enabled, Is.False);
+            Assert.That(Find("Barrier bubble").enabled, Is.EqualTo(count > 0));
+            Assert.That(Find("Barrier bubble ring").enabled, Is.EqualTo(count > 0));
         }
 
         void AssertAllBarrierHidden()
