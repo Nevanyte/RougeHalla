@@ -17,6 +17,8 @@ mod live_tests;
 mod notice_tests;
 mod notices;
 #[cfg(test)]
+mod notices_continuation_source_tests;
+#[cfg(test)]
 mod notices_source_tests;
 pub(crate) mod objectives;
 pub(crate) use notices::quest_gv_text;
