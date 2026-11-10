@@ -1,10 +1,10 @@
 {
-  "source_commit": "76d170a16158a9709178a741f12bd4abb357201f",
+  "source_commit": "3253da04905dd80c545dba824ab1b502a1dc15f7",
   "files": {
     "crates/rh-server/src/runtime.rs": "e90c5037ce04ba35d83da65e8b4030a070015ad3de3745d2ca27f3aa77df7e8f",
-    "crates/rh-server/src/main.rs": "4e46669ed9ec8c2be21e7da4d88cd912c359114acadf9943fc0a6b4760ad7d4f",
+    "crates/rh-server/src/main.rs": "8d3f171377691bed287391a01cc9a96aac839f062fae5cc59f69c90ff607759e",
     "crates/rh-server/src/lib.rs": "99c418d44a860ee2640fe2d9c972c2c555f0692bd5cd8a7b372f62f9c0276975",
     "crates/rh-server/src/director.rs": "a70452ca1273e1784b166a29b5ad372429fa07eeb3df3304111c060fd5514e26",
-    "crates/rh-server/src/room.rs": "dec9fdcb5f491cce503e5865667ba577f733b216f44f2772f039b157af21f886"
+    "crates/rh-server/src/room.rs": "a86d790439adb40ddb63d7fb518e1f341a133a56cfb44bbfc51d3f6c1e3f250c"
   }
 }

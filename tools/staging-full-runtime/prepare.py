@@ -10,7 +10,7 @@ import re
 
 HERE = Path(__file__).resolve().parent
 # Explicitly reviewed native candidate; advancing this also invalidates older artifact receipts.
-BASE = '76d170a16158a9709178a741f12bd4abb357201f'
+BASE = '3253da04905dd80c545dba824ab1b502a1dc15f7'
 ACCOUNT = '048226733033'
 REGION = 'ca-west-1'
 UTC = dt.timezone.utc
