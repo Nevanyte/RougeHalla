@@ -30,10 +30,11 @@
 //! PostgreSQL commit does. See docs/adr/0006-persistence.md, "Addendum: durable result handoff".
 //!
 //! Without TLS flags it serves plain ws:// (local development only; browsers on https pages require wss://).
-//! SIGTERM / Ctrl-C drain: no new admissions, active matches finish, then the process exits. `--drain-max-secs N` (default 60,
-//! 0 = no cap) ends the matches still running after N seconds (seats closed out, earned results kept) and
-//! `--drain-write-wait-secs N` (default 25) bounds the wait for result writes: 60 + 25 stays inside systemd's default 90 s
-//! `TimeoutStopSec`, which the hosting units use.
+//! SIGTERM / Ctrl-C drain: no new admissions, active matches finish, then the process exits. `--drain-max-secs N` (default 55,
+//! 0 = no cap) is one deadline from the signal: the matches still running near it are ended (seats closed out, earned results
+//! kept) and anything still unresponsive at N is abandoned. `--drain-write-wait-secs N` (default 20) bounds the wait for
+//! result writes, then 5 s of HTTP shutdown. Total from SIGTERM <= drain-max + write-wait + 5 s = 80 s by default, inside
+//! systemd's default 90 s `TimeoutStopSec`, which the hosting units use. Raise both only with a longer termination grace.
 //!
 //! `--control` requires `--control-token-file <file>` (every control request then carries the bearer token) unless
 //! `--control-insecure-loopback` states that loopback alone is acceptable (local development, load tests).
@@ -150,6 +151,32 @@ fn redact_secrets(text: &str, url: &[&str]) -> String {
     out
 }
 
+/// One failed connection attempt: the store's own error, or our per-attempt timeout (which is transient, never fatal).
+#[cfg(feature = "postgres")]
+enum ConnectFail {
+    Store(rh_persist::Error),
+    Timeout(u64),
+}
+
+#[cfg(feature = "postgres")]
+impl std::fmt::Display for ConnectFail {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ConnectFail::Store(e) => write!(f, "{e}"),
+            ConnectFail::Timeout(s) => write!(f, "no answer within {s}s"),
+        }
+    }
+}
+
+#[cfg(feature = "postgres")]
+impl ConnectFail {
+    /// Waiting cannot cure it: a schema too new for this binary, or a configuration/credential/database-name error.
+    fn fatal(&self) -> bool {
+        matches!(self, ConnectFail::Store(e)
+            if matches!(e, rh_persist::Error::SchemaTooNew { .. }) || e.is_startup_fatal())
+    }
+}
+
 /// `--database-url`: profiles, credentials, session leases and results in PostgreSQL (feature `postgres`).
 #[cfg(feature = "postgres")]
 async fn durable(url: &str, args: &[String]) -> (Persistence, Auth) {
@@ -162,35 +189,42 @@ async fn durable(url: &str, args: &[String]) -> (Persistence, Auth) {
     // server takes a single connection. An unreachable database is retried with backoff for the connect budget, then the
     // process exits with `EXIT_DB_UNREACHABLE` and a line that carries no connection string.
     // sqlx's own pool keeps retrying a refused connection for 30 s inside one `connect`; each attempt is cut at a third of the
-    // budget (1..=10 s) so the retries and the budget are real.
-    let per_attempt = (budget / 3).clamp(Duration::from_secs(1), Duration::from_secs(10));
+    // budget (1..=10 s) so the retries and the budget are real. With a zero budget (one attempt) it gets a sane 10 s.
+    let per_attempt = if budget.is_zero() {
+        Duration::from_secs(10)
+    } else {
+        (budget / 3).clamp(Duration::from_secs(1), Duration::from_secs(10))
+    };
     let store = match retry_with_backoff(
         budget,
         Duration::from_millis(500),
         Duration::from_secs(8),
-        |e: &rh_persist::Error| matches!(e, rh_persist::Error::SchemaTooNew { .. }),
-        |e: &rh_persist::Error| redact_secrets(&e.to_string(), &[url]),
+        ConnectFail::fatal,
+        |e: &ConnectFail| redact_secrets(&e.to_string(), &[url]),
         |_| async move {
-            tokio::time::timeout(per_attempt, rh_persist::Store::connect(url))
-                .await
-                .unwrap_or_else(|_| {
-                    Err(rh_persist::Error::Invalid(format!(
-                        "no answer within {}s",
-                        per_attempt.as_secs()
-                    )))
-                })
+            match tokio::time::timeout(per_attempt, rh_persist::Store::connect(url)).await {
+                Ok(r) => r.map_err(ConnectFail::Store),
+                Err(_) => Err(ConnectFail::Timeout(per_attempt.as_secs())),
+            }
         },
     )
     .await
     {
         Ok(s) => Arc::new(s),
-        Err(e @ rh_persist::Error::SchemaTooNew { .. }) => {
+        Err(ConnectFail::Store(e @ rh_persist::Error::SchemaTooNew { .. })) => {
             eprintln!("rh-server: {e}");
             std::process::exit(78);
         }
         Err(e) => {
+            // A fatal error (bad URL, rejected credentials, missing database) was not retried; the same exit code tells the
+            // supervisor the database is not usable, the event name says why.
+            let event = if e.fatal() {
+                "database_connect_refused_permanently"
+            } else {
+                "database_unreachable"
+            };
             eprintln!(
-                "[server] ERROR event=database_unreachable budget_secs={} detail={:?} action=exit code={EXIT_DB_UNREACHABLE}",
+                "[server] ERROR event={event} budget_secs={} detail={:?} action=exit code={EXIT_DB_UNREACHABLE}",
                 budget.as_secs(),
                 redact_secrets(&e.to_string(), &[url])
             );
@@ -485,10 +519,16 @@ fn hosted_settings(args: &[String]) -> Result<HostedSettings, String> {
 }
 
 /// Drain bounds. The hosting stack stops the process with systemd's default `TimeoutStopSec` (90 s: `render.py` and
-/// `bootstrap.py` set none for `rh-server`), then SIGKILL. The defaults leave the result-write wait inside that window:
-/// 60 s of drain + up to 25 s of writes = 85 s. A longer grace (container platforms often give 120 s+) can raise both.
-const DEFAULT_DRAIN_MAX: Duration = Duration::from_secs(60);
-const DEFAULT_DRAIN_WRITE_WAIT: Duration = Duration::from_secs(25);
+/// `bootstrap.py` set none for `rh-server`), then SIGKILL. From the signal, the process exit is bounded by ONE budget:
+///
+///   `--drain-max-secs` (everything up to the last room closing, including the forced end) +
+///   `--drain-write-wait-secs` (result writes in flight) + `HTTP_SHUTDOWN_GRACE` (5 s) <= `TimeoutStopSec`
+///
+/// Defaults: 55 + 20 + 5 = 80 s, 10 s of margin under 90 s. A longer grace (container platforms often give 120 s+) can raise
+/// both flags; keep the sum within it.
+const DEFAULT_DRAIN_MAX: Duration = Duration::from_secs(55);
+const DEFAULT_DRAIN_WRITE_WAIT: Duration = Duration::from_secs(20);
+const HTTP_SHUTDOWN_GRACE: Duration = Duration::from_secs(5);
 
 struct DrainSettings {
     /// After this long the remaining rooms are ended (results kept); `None` waits for the matches without a cap.
@@ -1012,7 +1052,7 @@ async fn main() {
         if !writes.wait_for_writes(write_wait).await {
             eprintln!("[server] exiting with result writes still pending");
         }
-        let shutdown = || h2.graceful_shutdown(Some(Duration::from_secs(5)));
+        let shutdown = || h2.graceful_shutdown(Some(HTTP_SHUTDOWN_GRACE));
         #[cfg(feature = "postgres")]
         if let Some(live) = &shutdown_learning {
             let report = rh_server::bot_learning::close_then(live, shutdown).await;
@@ -1273,10 +1313,10 @@ mod tests {
     #[test]
     fn drain_and_database_budget_flags_parse_with_safe_defaults() {
         let d = drain_settings(&args(&["rh-server"])).unwrap();
-        assert_eq!(d.max, Some(Duration::from_secs(60)));
-        assert_eq!(d.write_wait, Duration::from_secs(25));
+        assert_eq!(d.max, Some(Duration::from_secs(55)));
+        assert_eq!(d.write_wait, Duration::from_secs(20));
         assert!(
-            d.max.unwrap() + d.write_wait < Duration::from_secs(90),
+            d.max.unwrap() + d.write_wait + HTTP_SHUTDOWN_GRACE <= Duration::from_secs(80),
             "inside systemd's default TimeoutStopSec"
         );
         let d = drain_settings(&args(&[

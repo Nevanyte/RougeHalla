@@ -1219,6 +1219,28 @@ mod binary {
         assert!(!err.contains("retrying"), "{err}");
     }
 
+    /// A configuration that waiting cannot fix (unparsable URL) exits at once instead of burning the whole retry budget.
+    #[cfg(feature = "postgres")]
+    #[test]
+    fn an_unusable_database_url_is_fatal_immediately_not_retried() {
+        let started = std::time::Instant::now();
+        let (code, err) = fails(&[
+            "--bind",
+            "127.0.0.1:0",
+            "--database-url",
+            "not-a-url",
+            "--db-connect-timeout-secs",
+            "60",
+        ]);
+        assert_eq!(code, Some(69), "{err}");
+        assert!(
+            err.contains("event=database_connect_refused_permanently"),
+            "{err}"
+        );
+        assert!(!err.contains("retrying"), "{err}");
+        assert!(started.elapsed() < std::time::Duration::from_secs(10));
+    }
+
     #[test]
     fn a_non_loopback_control_address_is_refused() {
         let (code, err) = fails(&[

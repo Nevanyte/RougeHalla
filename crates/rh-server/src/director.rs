@@ -686,10 +686,11 @@ impl Director {
                     // Storage trouble says nothing about the callsign; the wire has no "unavailable" code (appending one
                     // is a protocol change), so the closest honest one is "try again shortly" with an accurate reason.
                     LeaseError::Unavailable(e) => {
+                        // The detail (sqlx/Postgres text) stays in the server log; the client gets a fixed string.
                         eprintln!("[server] WARN event=lease_unavailable detail={e:?}");
                         (
                             RejectCode::RateLimited,
-                            format!("server busy, storage unavailable; try again shortly ({e})"),
+                            "server busy, storage unavailable; try again shortly".to_string(),
                         )
                     }
                 });
@@ -1349,27 +1350,36 @@ impl Director {
         if txs.is_empty() {
             self.lifecycle.rooms_empty();
         }
+        // One detached send per room: a wedged room whose mailbox is full must not hold up the others, nor the caller (and
+        // with it the drain cap's clock). The send ends when the room takes the command or is gone.
         for tx in txs {
-            let _ = tx.send(RoomCmd::Drain).await;
+            tokio::spawn(async move {
+                let _ = tx.send(RoomCmd::Drain).await;
+            });
         }
     }
 
-    /// `drain`, then, when `max` is set and the rooms have not all closed by then, end the rest gracefully: each remaining room
+    /// `drain`, then, when `max` is set and the rooms have not all closed in time, end the rest gracefully: each remaining room
     /// closes its seats out ([`RoomCmd::DrainEnd`]: results are kept, not invented or dropped) and the lifecycle terminates.
-    /// Returns true when the cap, not the matches, ended the drain. A room that does not answer within a short grace is
-    /// abandoned (the lifecycle is forced to terminated) so the drain is bounded in every case.
+    /// Returns true when the cap, not the matches, ended the drain.
+    ///
+    /// `max` is ONE deadline measured from the call, covering everything here: the matches get `max` minus a reserve
+    /// (`max / 6`, at most [`DRAIN_END_GRACE`]) to finish, the reserve is for the `DrainEnd` round, and at `max` the lifecycle is
+    /// forced to terminated whether or not every room answered. Sends never wait (`try_send`): a room whose mailbox is full is
+    /// wedged and is abandoned.
     pub async fn drain_within(&self, max: Option<Duration>) -> bool {
+        let start = tokio::time::Instant::now();
         self.drain().await;
         let Some(max) = max else {
             return false;
         };
-        let start = tokio::time::Instant::now();
         let wait_until = |limit: tokio::time::Instant| async move {
             while !self.lifecycle.is_terminated() && tokio::time::Instant::now() < limit {
                 tokio::time::sleep(Duration::from_millis(100)).await;
             }
         };
-        wait_until(start + max).await;
+        let reserve = (max / 6).min(DRAIN_END_GRACE);
+        wait_until(start + max - reserve).await;
         if self.lifecycle.is_terminated() {
             return false;
         }
@@ -1377,18 +1387,18 @@ impl Director {
             .inner
             .lock_recover()
             .rooms
-            .iter()
-            .map(|(id, r)| (*id, r.tx.clone()))
+            .values()
+            .map(|r| r.tx.clone())
             .collect();
         eprintln!(
             "[server] WARN event=drain_cap_reached max_secs={} rooms_remaining={} action=ending_rooms_gracefully",
             max.as_secs(),
             txs.len()
         );
-        for (_, tx) in &txs {
-            let _ = tokio::time::timeout(Duration::from_secs(2), tx.send(RoomCmd::DrainEnd)).await;
+        for tx in &txs {
+            let _ = tx.try_send(RoomCmd::DrainEnd);
         }
-        wait_until(tokio::time::Instant::now() + DRAIN_END_GRACE).await;
+        wait_until(start + max).await;
         if !self.lifecycle.is_terminated() {
             eprintln!(
                 "[server] ERROR event=drain_rooms_unresponsive action=forcing_termination rooms_remaining={}",
@@ -3100,7 +3110,7 @@ mod tests {
         assert_ne!(code, RejectCode::ProfileInUse);
         assert_eq!(code, RejectCode::RateLimited);
         assert!(
-            why.contains("storage unavailable") && why.contains("timed out"),
+            why == "server busy, storage unavailable; try again shortly",
             "{why}"
         );
         assert!(
@@ -3164,6 +3174,33 @@ mod tests {
             }
         );
         assert_eq!(d.room_count(), 0);
+    }
+
+    /// A room that never answers (its mailbox is full and nobody reads it) must not stop the drain cap from starting or from
+    /// ending the drain on time.
+    #[tokio::test(start_paused = true)]
+    async fn a_wedged_room_with_a_full_mailbox_cannot_hold_the_drain_past_its_cap() {
+        let d = director_with(MemoryStore::strict());
+        let (tx, rx) = mpsc::channel::<RoomCmd>(1);
+        tx.send(RoomCmd::Drain).await.unwrap();
+        d.inner.lock().unwrap().rooms.insert(
+            id(7),
+            RoomEntry {
+                tx,
+                phase: Phase::Active,
+                seated: 1,
+                reserved: 0,
+            },
+        );
+        let started = tokio::time::Instant::now();
+        let capped = d.drain_within(Some(Duration::from_secs(30))).await;
+        assert!(capped && d.lifecycle.is_terminated());
+        assert_eq!(
+            started.elapsed(),
+            Duration::from_secs(30),
+            "exactly the cap, from the call"
+        );
+        drop(rx);
     }
 
     /// Without a cap (`--drain-max-secs 0`) the drain waits for the matches, as before; an empty server finishes at once.

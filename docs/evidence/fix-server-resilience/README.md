@@ -61,3 +61,21 @@ Base: `integration/backend-unity-union` 976a6559 (protocol 16). No wire or proto
 - No new reject code (wire change); see fix 2.
 - Seat lease lapse beyond TTL still removes the player (design, see fix 2).
 - `docs/hosting/RUNBOOKS.md` and `docs/hosting/CONTROL_API.md` (token now mandatory, drain flags) are not edited here.
+
+## Review follow-up (same branch)
+
+1. **Drain cap clock** (`director.rs` `drain`, `drain_within`): the cap is measured from the call, before `drain()`; `drain()` no
+   longer awaits room mailboxes (one detached send per room), and the `DrainEnd` round uses `try_send`. Test
+   `a_wedged_room_with_a_full_mailbox_cannot_hold_the_drain_past_its_cap` (full mailbox, nobody reading): returns at exactly the cap.
+2. **One budget** (`main.rs`): `drain-max` (everything until the last room closes or is abandoned, with the `DrainEnd` round in
+   a reserve of `max/6`, at most 10 s) + `drain-write-wait` + 5 s HTTP shutdown. Defaults 55 + 20 + 5 = 80 s (was 60 + 25 + 10 +
+   sends + 5, up to ~100 s) under systemd's 90 s. Formula in the `main.rs` header, RUNBOOKS and CONTROL_API.
+3. **No storage text to clients**: the lease-outage reject reason is the fixed string "server busy, storage unavailable; try
+   again shortly"; the detail stays in the `event=lease_unavailable` log line.
+4. **Connect retry** (`rh-persist` `Error::is_startup_fatal`, `main.rs` `ConnectFail`): config errors (unparsable URL),
+   SQLSTATE class 28 (auth) and `3D000` (no such database) are fatal at once (exit 69, `event=database_connect_refused_permanently`,
+   no retries; test with `not-a-url` and a 60 s budget exits in under 10 s). `--db-connect-timeout-secs 0` gives its single attempt 10 s.
+5. Docs: RUNBOOKS (150 s -> `--drain-write-wait-secs`, default 20 s), CONTROL_API (mandatory token, shutdown budget).
+
+Results: `cargo test -p rh-server` 352 passed; `--features postgres` 426 passed (4 ignored); rh-persist + rh-load 86 passed;
+clippy `-D warnings` clean (default and `--all-features`); fmt clean.
