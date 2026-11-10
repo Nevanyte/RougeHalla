@@ -253,6 +253,18 @@ namespace Roguehalla.Net
     /// Owned presentation facts from the reliable State channel. Socket order, rather than snapshot age,
     /// controls replacement: a reliable update can precede a newer coalesced snapshot. No gameplay is computed here.
     /// </summary>
+    /// <summary>
+    /// One seated player of the match roster (State key 12, protocol 16, ADR0026): the native actor id, the display name drawn over
+    /// its head and in the kill feed, and whether it is a bot. The same for every viewer; it says nothing about where anyone is.
+    /// </summary>
+    public sealed class RosterEntry
+    {
+        public uint Id { get; }
+        public string Name { get; }
+        public bool Bot { get; }
+        internal RosterEntry(uint id, string name, bool bot) { Id = id; Name = name; Bot = bot; }
+    }
+
     public sealed class CollectionsView
     {
         public uint Tick { get; private set; }
@@ -272,6 +284,8 @@ namespace Roguehalla.Net
         public QuestView Quests { get; private set; }
         /// <summary>Null means State key 11 has not arrived; unavailable is an explicit complete replacement.</summary>
         public TradeView Trade { get; private set; }
+        /// <summary>The match roster (State key 12), ascending by id; empty before the key arrives. Each key-12 frame replaces it.</summary>
+        public IReadOnlyList<RosterEntry> Roster { get; private set; } = Array.Empty<RosterEntry>();
         const uint KnownStateMask =
             (1u << ((int)StateKey.Inventory - 1)) | (1u << ((int)StateKey.Props - 1)) |
             (1u << ((int)StateKey.Fields - 1)) | (1u << ((int)StateKey.RewardChests - 1)) |
@@ -280,11 +294,27 @@ namespace Roguehalla.Net
             (1u << ((int)StateKey.Arena - 1)) | (1u << ((int)StateKey.Quests - 1)) |
             (1u << ((int)StateKey.Trade - 1));
         uint _seen;
-        public bool HasFullState { get { return _seen == KnownStateMask; } }
+        /// <summary>Every key 1..11 has arrived (the roster, key 12, is not required).</summary>
+        public bool HasFullState { get { return (_seen & KnownStateMask) == KnownStateMask; } }
+
+        /// <summary>The roster name of <paramref name="id"/>, or null when the roster does not hold it.</summary>
+        public string RosterName(uint id)
+        {
+            var roster = Roster;
+            int lo = 0, hi = roster.Count;
+            while (lo < hi)
+            {
+                int mid = lo + ((hi - lo) >> 1);
+                uint at = roster[mid].Id;
+                if (at == id) return roster[mid].Name;
+                if (at < id) lo = mid + 1; else hi = mid;
+            }
+            return null;
+        }
 
         internal void Reset()
         {
-            Plan = null; Arena = null; Quests = null; Trade = null;
+            Plan = null; Arena = null; Quests = null; Trade = null; Roster = Array.Empty<RosterEntry>();
             Tick = 0; _seen = 0; Camps=Array.Empty<CampView>(); Projectiles=Array.Empty<NetProjectileView>(); Inventory = null; Focus = null; HasBuild = false;
             Props = Array.Empty<PropView>(); Fields = Array.Empty<AreaView>();
             RewardChests = Array.Empty<RewardChestView>(); Cards = Array.Empty<byte>(); Boosts = Array.Empty<byte>();
@@ -294,7 +324,7 @@ namespace Roguehalla.Net
             // Decode validated the complete frame before this method can mutate the retained view.
             foreach (var item in state.Items)
             {
-                if (item.Key < (uint)StateKey.Inventory || item.Key > (uint)StateKey.Trade)
+                if (item.Key < (uint)StateKey.Inventory || item.Key > (uint)StateKey.Roster)
                     throw new ArgumentException("unknown state key");
                 if (item is TradeState trade)
                 {
@@ -403,6 +433,12 @@ namespace Roguehalla.Net
                 else if (item is TradeState trade)
                 {
                     Trade = new TradeView(trade);
+                }
+                else if (item is RosterState roster)
+                {
+                    var rows = roster.Rows.Length == 0 ? Array.Empty<RosterEntry>() : new RosterEntry[roster.Rows.Length];
+                    for (int i = 0; i < rows.Length; i++) rows[i] = new RosterEntry(roster.Rows[i].Id, roster.Rows[i].Name, roster.Rows[i].Bot);
+                    Roster = rows;
                 }
                 else if (item is BuildState build)
                 {

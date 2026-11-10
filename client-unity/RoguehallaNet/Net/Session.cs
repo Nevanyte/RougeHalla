@@ -122,6 +122,11 @@ namespace Roguehalla.Net
         public readonly ClockSync Sync = new ClockSync();
         public readonly InputSender Input = new InputSender();
         public readonly CollectionsView Collections = new CollectionsView();
+        /// <summary>The match roster (State key 12, protocol 16, ADR0026): names and bot flags of everyone seated, ascending by id;
+        /// empty before the key arrives.</summary>
+        public System.Collections.Generic.IReadOnlyList<RosterEntry> Roster { get { return Collections.Roster; } }
+        /// <summary>The roster name of actor <paramref name="id"/>, or null when unknown (not seated, or the roster has not arrived).</summary>
+        public string RosterName(uint id) { return Collections.RosterName(id); }
         public LocalMotion Motion { get; private set; }
 
         public event Action<SessionState> StateChanged;

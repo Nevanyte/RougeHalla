@@ -326,6 +326,59 @@ namespace Roguehalla.Net.Protocol
         }
     }
 
+    /// <summary>
+    /// Legacy indicator facts (protocol 16, ADR0026; rh-protocol lib.rs <c>indicator_fault</c>): the rules every decoder and
+    /// encoder applies to the flags, off-hand, build-mark and mark-plate bytes of actors and the self. Verdicts only, never clocks.
+    /// </summary>
+    public static class WireIndicators
+    {
+        /// <summary>Flag bit 0: the player's Wish is ready now (legacy <c>wishReadyAt</c> passed, outside the lobby).</summary>
+        public const byte FlagWishReady = 1 << 0;
+        /// <summary>Flag bit 1: a regional mob is fighting (its attack cooldown runs or its bow is drawn; legacy MobView <c>fighting</c>).</summary>
+        public const byte FlagEngaged = 1 << 1;
+        /// <summary>Flag bit 2: the teleport-immunity ring is up (at most 1.5 s of immunity left; legacy <c>immuneUntil</c>).</summary>
+        public const byte FlagTeleportImmune = 1 << 2;
+        /// <summary>Flag bit 3: Fire's charged roaming burst is armed (legacy <c>roamReady</c>).</summary>
+        public const byte FlagRoamReady = 1 << 3;
+        /// <summary>Every flag bit a decoder accepts; any other bit is refused.</summary>
+        public const byte FlagsKnown = 0x0f;
+        /// <summary>Largest off-hand code: 0 an empty second slot, else the weapon code + 1.</summary>
+        public const byte MaxOffhandCode = Wire.MaxKitCode + 1;
+        /// <summary>Largest build-mark stat key: 0 none, 1..9 = ad, ap, damage, health, attack speed, armor, mr, speed, leech.</summary>
+        public const byte MaxStatKey = 9;
+        /// <summary>Largest Sentenced mark tier.</summary>
+        public const byte MaxMarkTier = 4;
+
+        /// <summary>A packed build-mark byte is valid: two keys 0..9 (first in the low nibble), the second only after a first, never equal.</summary>
+        public static bool BuildMarksValid(byte v)
+        {
+            int first = v & 0x0f, second = v >> 4;
+            return first <= MaxStatKey && second <= MaxStatKey && (second == 0 || (first != 0 && first != second));
+        }
+
+        /// <summary>The first reason a decoder refuses these facts (as rh-protocol names it), or null.</summary>
+        internal static string Fault(byte offhand, byte buildMarks, byte tier, byte brand, byte tax, byte flags)
+        {
+            if (offhand > MaxOffhandCode) return "offhand";
+            if (!BuildMarksValid(buildMarks)) return "build marks";
+            if (tier > MaxMarkTier || brand > 100 || tax > 100) return "mark";
+            if ((flags & ~FlagsKnown & 0xff) != 0) return "flags";
+            return null;
+        }
+
+        internal static void CheckDecoded(byte offhand, byte buildMarks, byte tier, byte brand, byte tax, byte flags)
+        {
+            string why = Fault(offhand, buildMarks, tier, brand, tax, flags);
+            if (why != null) throw new DecodeException(DecodeError.BadField, why);
+        }
+
+        internal static void CheckEncoded(byte offhand, byte buildMarks, byte tier, byte brand, byte tax, byte flags)
+        {
+            string why = Fault(offhand, buildMarks, tier, brand, tax, flags);
+            if (why != null) throw new ArgumentException(why);
+        }
+    }
+
     /// <summary>The receiving player's own state. A class on purpose: <c>Snapshot.Me</c> is null for a spectator.</summary>
     public sealed class WireSelf
     {
@@ -346,6 +399,13 @@ namespace Roguehalla.Net.Protocol
         public byte BarrierRingStep;
         /// <summary>The own hitbox archetype id (protocol 16, ADR0024); its row is in <see cref="ServerMsg.Welcome.Archetypes"/>.</summary>
         public byte Archetype;
+        /// <summary>The own indicator flags (protocol 16, ADR0026): <see cref="WireIndicators.FlagWishReady"/>,
+        /// <see cref="WireIndicators.FlagTeleportImmune"/>, <see cref="WireIndicators.FlagRoamReady"/> (a self is never engaged).</summary>
+        public byte Flags;
+        /// <summary>The own overhead build marks, packed as <see cref="WireActor.BuildMarks"/>.</summary>
+        public byte BuildMarks;
+        /// <summary>The own Sentenced mark plate: tier 0..4, brand 0..100, mark tax percent 0..100 (all zero when unmarked).</summary>
+        public byte MarkTier, Brand, MarkTax;
 
         internal void CopyFrom(WireSelf o)
         {
@@ -355,13 +415,16 @@ namespace Roguehalla.Net.Protocol
             if (o.Wish == null) Wish = null;
             else { if (Wish == null) Wish = new WireWishOwner(); Wish.CopyFrom(o.Wish); }
             Barrier = o.Barrier; BarrierRingStep = o.BarrierRingStep; Archetype = o.Archetype;
+            Flags = o.Flags; BuildMarks = o.BuildMarks; MarkTier = o.MarkTier; Brand = o.Brand; MarkTax = o.MarkTax;
         }
 
         // Head bits (rh-protocol lib.rs, append only): a varint, so bits below 7 take one byte.
         internal const uint HPresent = 1 << 0, HKit = 1 << 1, HHp = 1 << 2, HReady = 1 << 3, HKills = 1 << 4, HBounty = 1 << 5,
             HMoveSeq = 1 << 6, HGv = 1 << 7, HMaxHpF32 = 1 << 8, HStatus = 1 << 9, HPhase = 1 << 10, HEffects = 1 << 11, HDisplace = 1 << 12, HSig = 1 << 13,
-            HHuntTarget = 1 << 14, HHuntStacks = 1 << 15, HTraining = 1 << 16, HWish = 1 << 17, HBarrier = 1 << 18, HServerTime = 1 << 19, HOwnerCombat = 1 << 20, HArchetype = 1 << 21;
-        internal const uint SelfBits = 0x03ff | HEffects | HDisplace | HSig | HHuntTarget | HHuntStacks, Known = SelfBits | HPhase | HTraining | HWish | HBarrier | HServerTime | HOwnerCombat | HArchetype;
+            HHuntTarget = 1 << 14, HHuntStacks = 1 << 15, HTraining = 1 << 16, HWish = 1 << 17, HBarrier = 1 << 18, HServerTime = 1 << 19, HOwnerCombat = 1 << 20, HArchetype = 1 << 21,
+            HFlags = 1 << 22, HBuildMarks = 1 << 23, HMark = 1 << 24;
+        internal const uint SelfBits = 0x03ff | HEffects | HDisplace | HSig | HHuntTarget | HHuntStacks | HFlags | HBuildMarks | HMark,
+            Known = SelfBits | HPhase | HTraining | HWish | HBarrier | HServerTime | HOwnerCombat | HArchetype;
 
         static bool MaxHpIsVarint(float v)
         {
@@ -393,6 +456,9 @@ namespace Roguehalla.Net.Protocol
             if (Wish != null) m |= HWish;
             if (BitConverter.SingleToInt32Bits(Barrier) != BitConverter.SingleToInt32Bits(0f) || BarrierRingStep != 0) m |= HBarrier;
             if (Archetype != 0) m |= HArchetype;
+            if (Flags != 0) m |= HFlags;
+            if (BuildMarks != 0) m |= HBuildMarks;
+            if (MarkTier != 0 || Brand != 0 || MarkTax != 0) m |= HMark;
             return m;
         }
 
@@ -420,6 +486,9 @@ namespace Roguehalla.Net.Protocol
             if ((head & HWish) != 0) n += WireWishOwnerLength(Wish);
             if ((head & HBarrier) != 0) n += 5;
             if ((head & HArchetype) != 0) n += 1;
+            if ((head & HFlags) != 0) n += 1;
+            if ((head & HBuildMarks) != 0) n += 1;
+            if ((head & HMark) != 0) n += 3;
             return n;
         }
 
@@ -453,6 +522,11 @@ namespace Roguehalla.Net.Protocol
             if (Barrier < 0 || float.IsNaN(Barrier) || float.IsInfinity(Barrier) || BarrierRingStep > 8)
                 throw new DecodeException(DecodeError.BadField, "barrier");
             Archetype = (head & HArchetype) != 0 ? r.U8() : (byte)0;
+            Flags = (head & HFlags) != 0 ? r.U8() : (byte)0;
+            BuildMarks = (head & HBuildMarks) != 0 ? r.U8() : (byte)0;
+            if ((head & HMark) != 0) { MarkTier = r.U8(); Brand = r.U8(); MarkTax = r.U8(); }
+            else { MarkTier = 0; Brand = 0; MarkTax = 0; }
+            WireIndicators.CheckDecoded(0, BuildMarks, MarkTier, Brand, MarkTax, Flags);
         }
 
         internal void Write(Writer w, uint head)
@@ -475,6 +549,9 @@ namespace Roguehalla.Net.Protocol
             if ((head & HWish) != 0) WishWire.WriteOwner(w, Wish);
             if ((head & HBarrier) != 0) { WishWire.ValidateBarrier(Barrier, BarrierRingStep); w.F32(Barrier); w.U8(BarrierRingStep); }
             if ((head & HArchetype) != 0) w.U8(Archetype);
+            if ((head & HFlags) != 0) w.U8(Flags);
+            if ((head & HBuildMarks) != 0) w.U8(BuildMarks);
+            if ((head & HMark) != 0) { w.U8(MarkTier); w.U8(Brand); w.U8(MarkTax); }
         }
     }
 
@@ -659,9 +736,22 @@ namespace Roguehalla.Net.Protocol
         public byte BarrierPct, BarrierRingStep;
         /// <summary>Hitbox archetype id (protocol 16, ADR0024); 0 is the legacy circle. Its row is in the Welcome's table.</summary>
         public byte Archetype;
+        /// <summary>Indicator flags (protocol 16, ADR0026): <see cref="WireIndicators"/> <c>Flag*</c> bits (bit 0 Wish ready, 1 engaged,
+        /// 2 teleport immune, 3 roam ready).</summary>
+        public byte Flags;
+        /// <summary>The weapon in a player's second slot, the one not in hand: 0 empty (legacy draws fists), else weapon code + 1 (at most 16).</summary>
+        public byte Offhand;
+        /// <summary>A player's top two invested stats (legacy build marks): first key in the low nibble, second in the high one, each
+        /// 0 none or 1..9 (ad, ap, damage, health, attack speed, armor, mr, speed, leech). Keys only, never scores.</summary>
+        public byte BuildMarks;
+        /// <summary>Sentenced mark plate: tier 0..4, brand 0..100, mark tax percent 0..100 (all zero when unmarked).</summary>
+        public byte MarkTier, Brand, MarkTax;
 
-        // Full actor mask bits (append only): 0 kit, 1 hp, 2 status, 3 bounty, 4 kind. A varint.
-        internal const uint MKit = 1 << 0, MHp = 1 << 1, MStatus = 1 << 2, MBounty = 1 << 3, MKind = 1 << 4, MEffects = 1 << 5, MDisplace = 1 << 6, MMobType = 1 << 7, MSig = 1 << 8, MBarrier = 1 << 9, MArchetype = 1 << 10, MKnown = MKit | MHp | MStatus | MBounty | MKind | MEffects | MDisplace | MMobType | MSig | MBarrier | MArchetype;
+        // Full actor mask bits (append only): 0 kit, 1 hp, 2 status, 3 bounty, 4 kind ... 10 archetype, 11 flags, 12 off-hand,
+        // 13 build marks, 14 mark plate. A varint (three bytes once bit 14 is set).
+        internal const uint MKit = 1 << 0, MHp = 1 << 1, MStatus = 1 << 2, MBounty = 1 << 3, MKind = 1 << 4, MEffects = 1 << 5, MDisplace = 1 << 6, MMobType = 1 << 7, MSig = 1 << 8, MBarrier = 1 << 9, MArchetype = 1 << 10,
+            MFlags = 1 << 11, MOffhand = 1 << 12, MBuildMarks = 1 << 13, MMark = 1 << 14,
+            MKnown = MKit | MHp | MStatus | MBounty | MKind | MEffects | MDisplace | MMobType | MSig | MBarrier | MArchetype | MFlags | MOffhand | MBuildMarks | MMark;
         internal const byte DefaultHpPct = 100;
 
         /// <summary>Only native quest givers use the reserved absent-identity kit and carry no regional type.</summary>
@@ -685,6 +775,10 @@ namespace Roguehalla.Net.Protocol
             if (Sig != 0) m |= MSig;
             if (BarrierPct != 0 || BarrierRingStep != 0) m |= MBarrier;
             if (Archetype != 0) m |= MArchetype;
+            if (Flags != 0) m |= MFlags;
+            if (Offhand != 0) m |= MOffhand;
+            if (BuildMarks != 0) m |= MBuildMarks;
+            if (MarkTier != 0 || Brand != 0 || MarkTax != 0) m |= MMark;
             return m;
         }
 
@@ -694,7 +788,8 @@ namespace Roguehalla.Net.Protocol
         {
             uint m = Mask();
             return Writer.VarintLength(IdField(Id, first, prev)) + Writer.VarintLength(m) + 6 + ((m & MKit) != 0 ? 1 : 0) + ((m & MHp) != 0 ? 1 : 0)
-                + ((m & MStatus) != 0 ? 1 : 0) + ((m & MBounty) != 0 ? Writer.VarintLength(Bounty) : 0) + ((m & MKind) != 0 ? 1 : 0) + ((m & MEffects) != 0 ? 2 : 0) + ((m & MDisplace) != 0 ? 1 : 0) + ((m & MMobType) != 0 ? 1 : 0) + ((m & MSig) != 0 ? 1 : 0) + ((m & MBarrier) != 0 ? 2 : 0) + ((m & MArchetype) != 0 ? 1 : 0);
+                + ((m & MStatus) != 0 ? 1 : 0) + ((m & MBounty) != 0 ? Writer.VarintLength(Bounty) : 0) + ((m & MKind) != 0 ? 1 : 0) + ((m & MEffects) != 0 ? 2 : 0) + ((m & MDisplace) != 0 ? 1 : 0) + ((m & MMobType) != 0 ? 1 : 0) + ((m & MSig) != 0 ? 1 : 0) + ((m & MBarrier) != 0 ? 2 : 0) + ((m & MArchetype) != 0 ? 1 : 0)
+                + ((m & MFlags) != 0 ? 1 : 0) + ((m & MOffhand) != 0 ? 1 : 0) + ((m & MBuildMarks) != 0 ? 1 : 0) + ((m & MMark) != 0 ? 3 : 0);
         }
 
         /// <summary>Reads one actor; the first has an absolute id, each later one the (non-zero) gap from <paramref name="prev"/>.</summary>
@@ -725,6 +820,11 @@ namespace Roguehalla.Net.Protocol
             if ((mask & MBarrier) != 0) { a.BarrierPct = r.U8(); a.BarrierRingStep = r.U8(); }
             if (a.BarrierPct > 100 || a.BarrierRingStep > 8) throw new DecodeException(DecodeError.BadField, "barrier");
             a.Archetype = (mask & MArchetype) != 0 ? r.U8() : (byte)0;
+            a.Flags = (mask & MFlags) != 0 ? r.U8() : (byte)0;
+            a.Offhand = (mask & MOffhand) != 0 ? r.U8() : (byte)0;
+            a.BuildMarks = (mask & MBuildMarks) != 0 ? r.U8() : (byte)0;
+            if ((mask & MMark) != 0) { a.MarkTier = r.U8(); a.Brand = r.U8(); a.MarkTax = r.U8(); }
+            WireIndicators.CheckDecoded(a.Offhand, a.BuildMarks, a.MarkTier, a.Brand, a.MarkTax, a.Flags);
             if (!a.HasValidGiverIdentity) throw new DecodeException(DecodeError.BadField, "giver actor");
             return a;
         }
@@ -745,6 +845,10 @@ namespace Roguehalla.Net.Protocol
             if ((m & MSig) != 0) w.U8(Sig);
             if ((m & MBarrier) != 0) { if (BarrierPct > 100 || BarrierRingStep > 8) throw new ArgumentException("barrier"); w.U8(BarrierPct); w.U8(BarrierRingStep); }
             if ((m & MArchetype) != 0) w.U8(Archetype);
+            if ((m & MFlags) != 0) w.U8(Flags);
+            if ((m & MOffhand) != 0) w.U8(Offhand);
+            if ((m & MBuildMarks) != 0) w.U8(BuildMarks);
+            if ((m & MMark) != 0) { w.U8(MarkTier); w.U8(Brand); w.U8(MarkTax); }
         }
     }
 
@@ -844,15 +948,28 @@ namespace Roguehalla.Net.Protocol
     public struct ActorDelta
     {
         public const uint MX = 1 << 0, MY = 1 << 1, MFacing = 1 << 2, MKit = 1 << 3, MHp = 1 << 4, MBounty = 1 << 5, MStatus = 1 << 6,
-            MKind = 1 << 7, MEffects = 1 << 8, MDisplace = 1 << 9, MMobType = 1 << 10, MSig = 1 << 11, MBarrier = 1 << 12, MArchetype = 1 << 13, MAll = 0x3fff, MNew = MX | MY | MFacing;
+            MKind = 1 << 7, MEffects = 1 << 8, MDisplace = 1 << 9, MMobType = 1 << 10, MSig = 1 << 11, MBarrier = 1 << 12, MArchetype = 1 << 13,
+            MFlags = 1 << 14, MOffhand = 1 << 15, MBuildMarks = 1 << 16, MMark = 1 << 17, MAll = 0x3ffff, MNew = MX | MY | MFacing;
         public uint Id;
         public uint Mask;
         public ushort X, Y, Facing;
         public byte Kit, HpPct, Status, Kind, DisplaceSeq, MobTypeCode, Sig, BarrierPct, BarrierRingStep, Archetype;
+        /// <summary>Indicator facts (protocol 16, ADR0026), as on <see cref="WireActor"/>: <see cref="MFlags"/>, <see cref="MOffhand"/>,
+        /// <see cref="MBuildMarks"/> and <see cref="MMark"/> (tier, brand, tax) say which are carried.</summary>
+        public byte Flags, Offhand, BuildMarks, MarkTier, Brand, MarkTax;
         public ushort Bounty, Effects;
+
+        /// <summary>The carried indicator facts' first fault (fields outside the mask count as zero), or null.</summary>
+        internal string IndicatorFault()
+        {
+            bool mark = (Mask & MMark) != 0;
+            return WireIndicators.Fault((Mask & MOffhand) != 0 ? Offhand : (byte)0, (Mask & MBuildMarks) != 0 ? BuildMarks : (byte)0,
+                mark ? MarkTier : (byte)0, mark ? Brand : (byte)0, mark ? MarkTax : (byte)0, (Mask & MFlags) != 0 ? Flags : (byte)0);
+        }
     }
 
-    public enum EventKind : byte { Death = 1, Bounty = 2, MatchEnded = 3, Result = 4, PickupRefused = 5, ChestRefused = 6, PotionNotice = 7, WindEmblem = 8, CannonNotice = 9, Toast = 10 }
+    /// <summary>Reliable event kinds (wire tags). <see cref="CampCleared"/> (protocol 16, ADR0026) carries <see cref="WireEvent.Camp"/>.</summary>
+    public enum EventKind : byte { Death = 1, Bounty = 2, MatchEnded = 3, Result = 4, PickupRefused = 5, ChestRefused = 6, PotionNotice = 7, WindEmblem = 8, CannonNotice = 9, Toast = 10, CampCleared = 11 }
 
     /// <summary>Reliable, ordered events. Only the fields of its Kind are meaningful.</summary>
     public sealed class WireEvent
@@ -867,6 +984,8 @@ namespace Roguehalla.Net.Protocol
         public byte PickupReason, ChestReason, PotionNotice, CannonCode;
         public ushort? CannonSeconds;
         public string ToastText;
+        /// <summary><see cref="EventKind.CampCleared"/>: the cleared camp's index in the map's camp list (the legacy camp-clear ring cue).</summary>
+        public ushort Camp;
     }
 
     public sealed class WireResult
@@ -878,15 +997,46 @@ namespace Roguehalla.Net.Protocol
         public bool WinBonusWithheld;
     }
 
-    public enum FxKind : byte { Swing = 1, Hit = 2, Block = 3, Stagger = 4, Teleport = 5, WishStarted = 6, WishLanded = 7, WishEnded = 8 }
+    /// <summary>
+    /// Fx kinds (wire tags). Protocol 16 (ADR0026): <see cref="Windup"/> (<see cref="WireFx.By"/> will swing <see cref="WireFx.Weapon"/>
+    /// toward <see cref="WireFx.A"/> in <see cref="WireFx.Ms"/> ms unless a Cancel or Stagger for it ends it first),
+    /// <see cref="Cancel"/> (<see cref="WireFx.Id"/>'s own order cancelled its windup: drop the telegraph), <see cref="SigHit"/>
+    /// (signature or ability damage: <see cref="WireFx.Victim"/>, <see cref="WireFx.By"/>, <see cref="WireFx.HitKind"/>,
+    /// <see cref="WireFx.Amount"/>) and <see cref="Heal"/> (<see cref="WireFx.Id"/> healed <see cref="WireFx.Amount"/>).
+    /// </summary>
+    public enum FxKind : byte { Swing = 1, Hit = 2, Block = 3, Stagger = 4, Teleport = 5, WishStarted = 6, WishLanded = 7, WishEnded = 8, Windup = 9, Cancel = 10, SigHit = 11, Heal = 12 }
 
     public sealed class WireFx
     {
+        /// <summary><see cref="HitKind"/> of a <see cref="FxKind.SigHit"/>: a burn chunk (signature damage over time).</summary>
+        public const byte HitKindBurn = 1;
+        /// <summary>A disease chunk.</summary>
+        public const byte HitKindDisease = 2;
+        /// <summary>A backlash hit.</summary>
+        public const byte HitKindBacklash = 3;
+        /// <summary>Mark damage.</summary>
+        public const byte HitKindMark = 4;
+        /// <summary>Card bleed: reserved (the sim emits no bleed chunks yet), accepted by decoders.</summary>
+        public const byte HitKindBleed = 5;
+        /// <summary>Ability damage: <c>HitKindAbility + ability code</c> (Freeze 0, Swarm 1, Trial 2, Blaze 3, Last Stand 4), so 16..20.</summary>
+        public const byte HitKindAbility = 16;
+
+        /// <summary>A <see cref="FxKind.SigHit"/> kind a decoder accepts: 1..5 or 16..20.</summary>
+        public static bool HitKindValid(byte kind) { return (kind >= HitKindBurn && kind <= HitKindBleed) || (kind >= HitKindAbility && kind <= HitKindAbility + 4); }
+
         public FxKind Kind;
+        /// <summary>The source (Swing, Hit, Block, Windup, SigHit); u32.MaxValue when absent or redacted on a Hit or SigHit.</summary>
         public uint By, Victim;
         public uint Id;
         public bool Passive;
+        /// <summary>A <see cref="FxKind.Hit"/> was a critical strike (protocol 16: bit 1 of the hit's flags byte).</summary>
+        public bool Critical;
+        /// <summary>Swing, Block: the weapon code; Windup: the weapon code (0..15).</summary>
         public byte Weapon;
+        /// <summary><see cref="FxKind.Windup"/>: milliseconds until the swing (whole ms, saturated at 65535).</summary>
+        public ushort Ms;
+        /// <summary><see cref="FxKind.SigHit"/>: <see cref="HitKindBurn"/> .. <see cref="HitKindBleed"/>, or <see cref="HitKindAbility"/> + ability code.</summary>
+        public byte HitKind;
         public float X, Y, A, Amount;
         public double EventTime, Duration;
         public byte Ability, Reason;
@@ -967,6 +1117,7 @@ namespace Roguehalla.Net.Protocol
                             case 2: ev.Id = r.U32(); ev.Bounty = r.U16(); break;
                             case 3: if (r.Flag()) ev.Winner = r.U32(); ev.Draw = r.U8() != 0; break;
                             case 10: ev.ToastText = r.Str(); break;
+                            case 11: ev.Camp = r.U16(); break;
                             case 4:
                             {
                                 var res = new WireResult { Outcome = r.U8(), Place = r.U8(), Players = r.U8(), Kills = r.U16() };
@@ -1003,7 +1154,30 @@ namespace Roguehalla.Net.Protocol
                             case 3: f.List.Add(new WireFx { Kind = FxKind.Block, Id = r.Varint(), By = r.Varint(), Weapon = r.U8() }); break;
                             case 4: f.List.Add(new WireFx { Kind = FxKind.Stagger, Id = r.Varint() }); break;
                             case 5: f.List.Add(new WireFx { Kind = FxKind.Teleport }); break;
-                            case 2: { uint victim = r.Varint(), by = r.Varint(); f.List.Add(new WireFx { Kind = FxKind.Hit, Victim = victim, By = by, Amount = r.F32(), Passive = r.Flag() }); break; }
+                            case 2:
+                            {
+                                uint victim = r.Varint(), by = r.Varint(); float amount = r.F32();
+                                byte flags = r.Code(3, "hit flags");
+                                f.List.Add(new WireFx { Kind = FxKind.Hit, Victim = victim, By = by, Amount = amount, Passive = (flags & 1) != 0, Critical = (flags & 2) != 0 });
+                                break;
+                            }
+                            case 9:
+                            {
+                                var wu = new WireFx { Kind = FxKind.Windup, By = r.Varint(), Weapon = r.Code(Wire.MaxKitCode, "windup weapon") };
+                                wu.A = Quant.DequantizeFacing(r.U16()); wu.Ms = r.U16();
+                                f.List.Add(wu);
+                                break;
+                            }
+                            case 10: f.List.Add(new WireFx { Kind = FxKind.Cancel, Id = r.Varint() }); break;
+                            case 11:
+                            {
+                                uint victim = r.Varint(), by = r.Varint();
+                                byte kind = r.U8();
+                                if (!WireFx.HitKindValid(kind)) throw new DecodeException(DecodeError.BadField, "hit kind");
+                                f.List.Add(new WireFx { Kind = FxKind.SigHit, Victim = victim, By = by, HitKind = kind, Amount = r.F32() });
+                                break;
+                            }
+                            case 12: { uint id = r.Varint(); f.List.Add(new WireFx { Kind = FxKind.Heal, Id = id, Amount = r.F32() }); break; }
                             case 6:
                             {
                                 var fx = new WireFx { Kind = FxKind.WishStarted, EventTime = r.F64(), Caster = Fx.ReadRequiredRef(ref r), Ability = r.Code(WishWire.MaxAbility, "wish ability"), Duration = r.F64() };
@@ -1160,11 +1334,13 @@ namespace Roguehalla.Net.Protocol
                 if (Me != null && Me.HuntTarget == 0) throw new ArgumentException("hunt target");
                 if (ServerTimeOverrideMs.HasValue) WishWire.ValidateClock(ServerTimeOverrideMs.Value, "server time");
                 if (Me != null) WishWire.ValidateBarrier(Me.Barrier, Me.BarrierRingStep);
+                if (Me != null) WireIndicators.CheckEncoded(0, Me.BuildMarks, Me.MarkTier, Me.Brand, Me.MarkTax, Me.Flags);
                 if (OwnerCombat != null && Me == null) throw new ArgumentException("owner combat without self");
                 for (int i = 0; i < Actors.Length; i++)
                 {
                     var a = Actors[i];
                     if (a.Faction > Wire.MaxKitCode || a.Weapon > Wire.MaxKitCode || a.Status > Wire.MaxStatusCode) throw new ArgumentException("actor faction/weapon/status");
+                    WireIndicators.CheckEncoded(a.Offhand, a.BuildMarks, a.MarkTier, a.Brand, a.MarkTax, a.Flags);
                     if (!a.HasValidGiverIdentity) throw new ArgumentException("giver actor");
                     if (a.HpPct > 100) throw new ArgumentException("hp_pct");
                     if (!Quant.PosInRange(a.X) || !Quant.PosInRange(a.Y)) throw new ArgumentException("position");
@@ -1259,6 +1435,15 @@ namespace Roguehalla.Net.Protocol
             /// <summary>Whether this delta carries the self's hitbox archetype id (protocol 16, head bit 25).</summary>
             public bool HasArchetype;
             public byte Archetype;
+            /// <summary>Whether this delta carries the self's indicator flags (protocol 16, ADR0026, head bit 26); see <see cref="WireSelf.Flags"/>.</summary>
+            public bool HasFlags;
+            public byte Flags;
+            /// <summary>Whether this delta carries the self's packed build marks (head bit 27); see <see cref="WireSelf.BuildMarks"/>.</summary>
+            public bool HasBuildMarks;
+            public byte BuildMarks;
+            /// <summary>Whether this delta carries the self's mark plate (head bit 28): tier, brand, tax.</summary>
+            public bool HasMark;
+            public byte MarkTier, Brand, MarkTax;
             /// <summary>Whether this delta carries owner-combat availability; null explicitly clears, omission retains.</summary>
             public bool HasOwnerCombat;
             public WireOwnerCombat OwnerCombat;
@@ -1268,7 +1453,8 @@ namespace Roguehalla.Net.Protocol
             // Head bits (append only): 0 self fields, 7 departed, 8 phase, 20 training, 21 Wish, 22 barrier, 23 server time, 24 owner combat.
             const uint HPresent = 1 << 0, HDeparted = 1 << 7, HPhase = 1 << 8, HTraining = 1 << 20,
                 HWish = 1 << 21, HBarrier = 1 << 22, HServerTime = 1 << 23, HOwnerCombat = 1 << 24, HArchetype = 1 << 25,
-                Known = HPresent | SelfDelta.Fields | HPhase | HDeparted | HTraining | HWish | HBarrier | HServerTime | HOwnerCombat | HArchetype;
+                HFlags = 1 << 26, HBuildMarks = 1 << 27, HMark = 1 << 28,
+                Known = HPresent | SelfDelta.Fields | HPhase | HDeparted | HTraining | HWish | HBarrier | HServerTime | HOwnerCombat | HArchetype | HFlags | HBuildMarks | HMark;
 
             /// <summary>Reads the body of a delta frame (after the tag): syntax and ranges only; whether it applies is the tracker's question.</summary>
             internal static SnapshotDelta Read(ref Reader r, SnapshotDelta d)
@@ -1285,8 +1471,11 @@ namespace Roguehalla.Net.Protocol
                 d.HasWish = (head & HWish) != 0;
                 d.HasBarrier = (head & HBarrier) != 0;
                 d.HasArchetype = (head & HArchetype) != 0;
+                d.HasFlags = (head & HFlags) != 0;
+                d.HasBuildMarks = (head & HBuildMarks) != 0;
+                d.HasMark = (head & HMark) != 0;
                 d.HasOwnerCombat = (head & HOwnerCombat) != 0;
-                if ((d.HasWish || d.HasBarrier || d.HasArchetype) && !d.HasSelf) throw new DecodeException(DecodeError.BadField, "owner group without self");
+                if ((d.HasWish || d.HasBarrier || d.HasArchetype || d.HasFlags || d.HasBuildMarks || d.HasMark) && !d.HasSelf) throw new DecodeException(DecodeError.BadField, "owner group without self");
                 d.Me = d.HasSelf ? SelfDelta.Read(ref r, head & SelfDelta.Fields) : default(SelfDelta);
                 d.Wish = d.HasWish && r.Flag() ? WishWire.ReadOwner(ref r, d.Wish) : null;
                 if (d.HasBarrier)
@@ -1296,6 +1485,11 @@ namespace Roguehalla.Net.Protocol
                         throw new DecodeException(DecodeError.BadField, "barrier");
                 }
                 d.Archetype = d.HasArchetype ? r.U8() : (byte)0;
+                d.Flags = d.HasFlags ? r.U8() : (byte)0;
+                d.BuildMarks = d.HasBuildMarks ? r.U8() : (byte)0;
+                if (d.HasMark) { d.MarkTier = r.U8(); d.Brand = r.U8(); d.MarkTax = r.U8(); }
+                else { d.MarkTier = 0; d.Brand = 0; d.MarkTax = 0; }
+                WireIndicators.CheckDecoded(0, d.BuildMarks, d.MarkTier, d.Brand, d.MarkTax, d.Flags);
                 d.HasPhase = (head & HPhase) != 0;
                 d.Phase = d.HasPhase ? r.Code(Wire.MaxPhaseCode, "phase") : (byte)0;
                 d.ServerTimeOverrideMs = (head & HServerTime) != 0 ? r.F64() : (double?)null;
@@ -1330,6 +1524,12 @@ namespace Roguehalla.Net.Protocol
                     if ((a.Mask & ActorDelta.MSig) != 0) a.Sig = r.U8();
                     if ((a.Mask & ActorDelta.MBarrier) != 0) { a.BarrierPct = r.U8(); a.BarrierRingStep = r.U8(); if (a.BarrierPct > 100 || a.BarrierRingStep > 8) throw new DecodeException(DecodeError.BadField, "barrier"); }
                     if ((a.Mask & ActorDelta.MArchetype) != 0) a.Archetype = r.U8();
+                    if ((a.Mask & ActorDelta.MFlags) != 0) a.Flags = r.U8();
+                    if ((a.Mask & ActorDelta.MOffhand) != 0) a.Offhand = r.U8();
+                    if ((a.Mask & ActorDelta.MBuildMarks) != 0) a.BuildMarks = r.U8();
+                    if ((a.Mask & ActorDelta.MMark) != 0) { a.MarkTier = r.U8(); a.Brand = r.U8(); a.MarkTax = r.U8(); }
+                    string fault = a.IndicatorFault();
+                    if (fault != null) throw new DecodeException(DecodeError.BadField, fault);
                     d.Changed[i] = a;
                 }
                 d.DepartedCount = 0;
@@ -1367,7 +1567,9 @@ namespace Roguehalla.Net.Protocol
                 if (HasPhase && Phase > Wire.MaxPhaseCode) throw new ArgumentException("phase");
                 if (ChangedCount > Wire.MaxActors || DepartedCount > Wire.MaxActors) throw new ArgumentException("too many actors");
                 if (HasSelf && (Me.Mask & ~SelfDelta.Fields) != 0) throw new ArgumentException("head");
-                if ((HasWish || HasBarrier || HasArchetype) && !HasSelf) throw new ArgumentException("owner group without self");
+                if ((HasWish || HasBarrier || HasArchetype || HasFlags || HasBuildMarks || HasMark) && !HasSelf) throw new ArgumentException("owner group without self");
+                WireIndicators.CheckEncoded(0, HasBuildMarks ? BuildMarks : (byte)0, HasMark ? MarkTier : (byte)0, HasMark ? Brand : (byte)0,
+                    HasMark ? MarkTax : (byte)0, HasFlags ? Flags : (byte)0);
                 if (HasOwnerCombat && OwnerCombat != null && !HasSelf) throw new ArgumentException("owner combat without self");
                 if (HasWish && Wish != null) WishWire.ValidateOwner(Wish);
                 if (HasBarrier) WishWire.ValidateBarrier(Barrier, BarrierRingStep);
@@ -1380,6 +1582,8 @@ namespace Roguehalla.Net.Protocol
                     if ((a.Mask & ActorDelta.MStatus) != 0 && a.Status > Wire.MaxStatusCode) throw new ArgumentException("status");
                     if ((a.Mask & ~ActorDelta.MAll) != 0) throw new ArgumentException("actor mask");
                     if ((a.Mask & ActorDelta.MHp) != 0 && a.HpPct > 100) throw new ArgumentException("hp_pct");
+                    string fault = a.IndicatorFault();
+                    if (fault != null) throw new ArgumentException(fault);
                     if (i > 0 && a.Id <= Changed[i - 1].Id) throw new ArgumentException("actor ids must strictly ascend");
                 }
                 for (int i = 1; i < DepartedCount; i++) if (Departed[i] <= Departed[i - 1]) throw new ArgumentException("departed ids must strictly ascend");
@@ -1391,6 +1595,9 @@ namespace Roguehalla.Net.Protocol
                 if (HasWish) head |= HWish;
                 if (HasBarrier) head |= HBarrier;
                 if (HasArchetype) head |= HArchetype;
+                if (HasFlags) head |= HFlags;
+                if (HasBuildMarks) head |= HBuildMarks;
+                if (HasMark) head |= HMark;
                 if (HasOwnerCombat) head |= HOwnerCombat;
                 bool hasTime = ServerTimeOverrideMs.HasValue && BitConverter.DoubleToInt64Bits(ServerTimeOverrideMs.Value) != BitConverter.DoubleToInt64Bits(Tick * (double)Wire.TickMs);
                 if (hasTime) head |= HServerTime;
@@ -1401,6 +1608,9 @@ namespace Roguehalla.Net.Protocol
                 if (HasWish) { w.U8(Wish == null ? (byte)0 : (byte)1); if (Wish != null) WishWire.WriteOwner(w, Wish); }
                 if (HasBarrier) { w.F32(Barrier); w.U8(BarrierRingStep); }
                 if (HasArchetype) w.U8(Archetype);
+                if (HasFlags) w.U8(Flags);
+                if (HasBuildMarks) w.U8(BuildMarks);
+                if (HasMark) { w.U8(MarkTier); w.U8(Brand); w.U8(MarkTax); }
                 if (HasPhase) w.U8(Phase);
                 if (hasTime) w.F64(ServerTimeOverrideMs.Value);
                 w.Varint((uint)ChangedCount);
@@ -1424,6 +1634,10 @@ namespace Roguehalla.Net.Protocol
                     if ((a.Mask & ActorDelta.MSig) != 0) w.U8(a.Sig);
                     if ((a.Mask & ActorDelta.MBarrier) != 0) { if (a.BarrierPct > 100 || a.BarrierRingStep > 8) throw new ArgumentException("barrier"); w.U8(a.BarrierPct); w.U8(a.BarrierRingStep); }
                     if ((a.Mask & ActorDelta.MArchetype) != 0) w.U8(a.Archetype);
+                    if ((a.Mask & ActorDelta.MFlags) != 0) w.U8(a.Flags);
+                    if ((a.Mask & ActorDelta.MOffhand) != 0) w.U8(a.Offhand);
+                    if ((a.Mask & ActorDelta.MBuildMarks) != 0) w.U8(a.BuildMarks);
+                    if ((a.Mask & ActorDelta.MMark) != 0) { w.U8(a.MarkTier); w.U8(a.Brand); w.U8(a.MarkTax); }
                 }
                 if (DepartedCount > 0)
                 {
@@ -1457,6 +1671,7 @@ namespace Roguehalla.Net.Protocol
                         case EventKind.MatchEnded: len += 3 + (e.Winner.HasValue ? 4 : 0); break;
                         case EventKind.PotionNotice: case EventKind.PickupRefused: case EventKind.ChestRefused: len += 2; break;
                         case EventKind.WindEmblem: len += 1; break;
+                        case EventKind.CampCleared: len += 3; break;
                         case EventKind.CannonNotice:
                             if (e.CannonCode < 1 || e.CannonCode > 4 || (e.CannonCode == 4) != e.CannonSeconds.HasValue || (e.CannonSeconds.HasValue && (e.CannonSeconds.Value < 1 || e.CannonSeconds.Value > 75))) throw new ArgumentException("cannon notice");
                             len += 2 + (e.CannonSeconds.HasValue ? 2 : 0); break;
@@ -1474,6 +1689,7 @@ namespace Roguehalla.Net.Protocol
                     switch (e.Kind)
                     {
                         case EventKind.WindEmblem: break;
+                        case EventKind.CampCleared: w.U16(e.Camp); break;
                         case EventKind.PotionNotice: if(e.PotionNotice<1 || e.PotionNotice>10) throw new ArgumentException("potion notice");w.U8(e.PotionNotice);break;
                         case EventKind.ChestRefused: if(e.ChestReason < 1 || e.ChestReason > 9) throw new ArgumentException("chest reason");w.U8(e.ChestReason);break;
                         case EventKind.PickupRefused: if (e.PickupReason < 1 || e.PickupReason > 5) throw new ArgumentException("pickup reason"); w.U8(e.PickupReason); break;
@@ -1572,15 +1788,27 @@ namespace Roguehalla.Net.Protocol
                 // Like rh-protocol: a swing off the position grid is refused, never saturated.
                 foreach (var f in List)
                 {
-                    if (f.Kind != FxKind.Swing && f.Kind != FxKind.Hit && f.Kind != FxKind.Block && f.Kind != FxKind.Stagger && f.Kind != FxKind.Teleport &&
-                        f.Kind != FxKind.WishStarted && f.Kind != FxKind.WishLanded && f.Kind != FxKind.WishEnded)
-                        throw new EncodeException("fx kind");
+                    if (f.Kind < FxKind.Swing || f.Kind > FxKind.Heal) throw new EncodeException("fx kind");
                     if (f.Kind == FxKind.Swing && (!Quant.PosInRange(f.X) || !Quant.PosInRange(f.Y))) throw new ArgumentException("position");
+                    if (f.Kind == FxKind.Windup && f.Weapon > Wire.MaxKitCode) throw new ArgumentException("windup weapon");
+                    if (f.Kind == FxKind.SigHit && !WireFx.HitKindValid(f.HitKind)) throw new ArgumentException("hit kind");
                 }
                 int len = 1 + Writer.VarintLength(Tick) + Writer.VarintLength((uint)List.Count);
                 foreach (var f in List)
-                    len += f.Kind == FxKind.WishStarted || f.Kind == FxKind.WishLanded || f.Kind == FxKind.WishEnded ? WishLength(f) :
-                        f.Kind == FxKind.Teleport ? 1 : f.Kind == FxKind.Block ? 2 + Writer.VarintLength(f.Id) + Writer.VarintLength(f.By) : f.Kind == FxKind.Stagger ? 1 + Writer.VarintLength(f.Id) : f.Kind == FxKind.Swing ? 1 + Writer.VarintLength(f.By) + 1 + 6 : 1 + Writer.VarintLength(f.Victim) + Writer.VarintLength(f.By) + 5;
+                {
+                    switch (f.Kind)
+                    {
+                        case FxKind.WishStarted: case FxKind.WishLanded: case FxKind.WishEnded: len += WishLength(f); break;
+                        case FxKind.Teleport: len += 1; break;
+                        case FxKind.Block: len += 2 + Writer.VarintLength(f.Id) + Writer.VarintLength(f.By); break;
+                        case FxKind.Stagger: case FxKind.Cancel: len += 1 + Writer.VarintLength(f.Id); break;
+                        case FxKind.Swing: len += 1 + Writer.VarintLength(f.By) + 1 + 6; break;
+                        case FxKind.Windup: len += 1 + Writer.VarintLength(f.By) + 1 + 2 + 2; break;
+                        case FxKind.SigHit: len += 1 + Writer.VarintLength(f.Victim) + Writer.VarintLength(f.By) + 1 + 4; break;
+                        case FxKind.Heal: len += 1 + Writer.VarintLength(f.Id) + 4; break;
+                        default: len += 1 + Writer.VarintLength(f.Victim) + Writer.VarintLength(f.By) + 5; break;
+                    }
+                }
                 if (len > Wire.MaxServerFrame) throw new ArgumentException("frame too large");
                 var w = new Writer(len);
                 w.U8(TFx); w.Varint(Tick); w.Varint((uint)List.Count);
@@ -1602,7 +1830,11 @@ namespace Roguehalla.Net.Protocol
                         WriteOptPoint(w, f.HasAnchor, f.AnchorX, f.AnchorY); WriteOptPoint(w, f.HasDestination, f.DestinationX, f.DestinationY);
                     }
                     else if (f.Kind == FxKind.WishEnded) { w.F64(f.EventTime); w.Varint(f.Caster.Value); w.U8(f.Ability); w.U8(f.Reason); }
-                    else { w.Varint(f.Victim); w.Varint(f.By); w.F32(f.Amount); w.U8((byte)(f.Passive ? 1 : 0)); }
+                    else if (f.Kind == FxKind.Windup) { w.Varint(f.By); w.U8(f.Weapon); w.U16(Quant.QuantizeFacing(f.A)); w.U16(f.Ms); }
+                    else if (f.Kind == FxKind.Cancel) w.Varint(f.Id);
+                    else if (f.Kind == FxKind.SigHit) { w.Varint(f.Victim); w.Varint(f.By); w.U8(f.HitKind); w.F32(f.Amount); }
+                    else if (f.Kind == FxKind.Heal) { w.Varint(f.Id); w.F32(f.Amount); }
+                    else { w.Varint(f.Victim); w.Varint(f.By); w.F32(f.Amount); w.U8((byte)((f.Passive ? 1 : 0) | (f.Critical ? 2 : 0))); }
                 }
                 return w.Finish();
             }

@@ -90,7 +90,7 @@ namespace Roguehalla.Net.Tests
         }
 
         [TestCase(0)]
-        [TestCase(9)]
+        [TestCase(13)]
         [TestCase(255)]
         public void FxEncoderRefusesUndefinedKindsBeforeWriting(int kind)
         {
@@ -140,7 +140,7 @@ namespace Roguehalla.Net.Tests
         }
 
         [TestCase(0)]
-        [TestCase(11)]
+        [TestCase(12)]
         [TestCase(255)]
         public void EventsEncoderRefusesUndefinedKindsBeforeWriting(int kind)
         {
@@ -479,6 +479,113 @@ namespace Roguehalla.Net.Tests
             Assert.AreEqual(0xdeadbeefu, p.Nonce); Assert.AreEqual(1.5, p.ClientMs); Assert.AreEqual(5051.25, p.ServerMs);
         }
 
+        [Test]
+        public void SnapshotCarriesTheIndicatorFactsRustWrote()
+        {
+            var s = Server<ServerMsg.Snapshot>("snapshot_indicator_facts");
+            Assert.AreEqual((byte)13, s.Me.Flags, "Wish ready | teleport immune | roam ready");
+            Assert.AreEqual((byte)0x31, s.Me.BuildMarks); Assert.AreEqual((2, 50, 15), (s.Me.MarkTier, s.Me.Brand, s.Me.MarkTax));
+            var byId = s.Actors.ToDictionary(a => a.Id);
+            Assert.AreEqual((1, 2, 0x59, 4, 100, 100), (byId[6].Flags, byId[6].Offhand, byId[6].BuildMarks, byId[6].MarkTier, byId[6].Brand, byId[6].MarkTax));
+            Assert.AreEqual((0, 6, 4), (byId[7].Flags, byId[7].Offhand, byId[7].BuildMarks));
+            Assert.AreEqual((byte)WireIndicators.FlagEngaged, byId[40].Flags);
+            Assert.AreEqual(WireIndicators.FlagsKnown, byId[41].Flags);
+            CollectionAssert.AreEqual(Util.FromHex(SrvHex("snapshot_indicator_facts")), s.Encode());
+
+            // The Net views expose the same facts, decoded.
+            var buffer = new SnapshotBuffer(); buffer.Add(s);
+            var rows = new List<InterpActor>(); buffer.Sample(s.ServerMs, rows);
+            var six = rows.Single(r => r.Id == 6);
+            Assert.IsTrue(six.WishReady); Assert.IsFalse(six.Engaged || six.TeleportImmune || six.RoamReady);
+            Assert.AreEqual(WeaponId.Bow, six.OffhandWeapon);
+            Assert.AreEqual(StatKey.Leech, six.TopStat1); Assert.AreEqual(StatKey.AttackSpeed, six.TopStat2);
+            Assert.AreEqual((4, 100, 100), (six.MarkTier, six.Brand, six.MarkTax));
+            var seven = rows.Single(r => r.Id == 7);
+            Assert.AreEqual(WeaponId.Fists, seven.OffhandWeapon); Assert.AreEqual(StatKey.Health, seven.TopStat1); Assert.IsNull(seven.TopStat2);
+            Assert.AreEqual((0, 0, 0), (seven.MarkTier, seven.Brand, seven.MarkTax));
+            var mob = rows.Single(r => r.Id == 40);
+            Assert.IsTrue(mob.Engaged); Assert.IsFalse(mob.WishReady); Assert.IsNull(mob.OffhandWeapon); Assert.IsNull(mob.TopStat1);
+            var all = rows.Single(r => r.Id == 41);
+            Assert.IsTrue(all.WishReady && all.Engaged && all.TeleportImmune && all.RoamReady);
+        }
+
+        [Test]
+        public void FxCarryWindupCancelSignatureHitsHealsAndCriticalsRustWrote()
+        {
+            var f = Server<ServerMsg.Fx>("fx_indicators");
+            Assert.AreEqual(901u, f.Tick); Assert.AreEqual(12, f.List.Count);
+            Assert.AreEqual((FxKind.Windup, 70000u, (byte)0, (ushort)350), (f.List[0].Kind, f.List[0].By, f.List[0].Weapon, f.List[0].Ms));
+            Assert.AreEqual((FxKind.Windup, 3u, (byte)4, ushort.MaxValue), (f.List[1].Kind, f.List[1].By, f.List[1].Weapon, f.List[1].Ms));
+            Assert.AreEqual((FxKind.Cancel, 70000u), (f.List[2].Kind, f.List[2].Id));
+            Assert.AreEqual((FxKind.Hit, false, true), (f.List[3].Kind, f.List[3].Passive, f.List[3].Critical));
+            Assert.AreEqual((FxKind.Hit, true, true), (f.List[4].Kind, f.List[4].Passive, f.List[4].Critical));
+            Assert.AreEqual((FxKind.SigHit, 2u, 3u, WireFx.HitKindBurn), (f.List[5].Kind, f.List[5].Victim, f.List[5].By, f.List[5].HitKind));
+            Assert.AreEqual((uint.MaxValue, WireFx.HitKindDisease), (f.List[6].By, f.List[6].HitKind), "an absent source is u32::MAX");
+            Assert.AreEqual(WireFx.HitKindBacklash, f.List[7].HitKind); Assert.AreEqual(WireFx.HitKindMark, f.List[8].HitKind);
+            Assert.AreEqual((byte)(WireFx.HitKindAbility + 4), f.List[9].HitKind, "Last Stand");
+            Assert.AreEqual((FxKind.Heal, 3u), (f.List[10].Kind, f.List[10].Id)); Assert.AreEqual((FxKind.Heal, 128u, 0.5f), (f.List[11].Kind, f.List[11].Id, f.List[11].Amount));
+            Assert.IsFalse(Server<ServerMsg.Fx>("fx").List[1].Critical, "a plain hit is not critical");
+        }
+
+        [Test]
+        public void StateCarriesTheRosterRustWrote()
+        {
+            var st = Server<ServerMsg.State>("state_roster");
+            var roster = (RosterState)st.Items.Single();
+            Assert.AreEqual(12u, roster.Key);
+            Assert.AreEqual(4, roster.Rows.Length);
+            Assert.AreEqual((1u, false, "Wren"), (roster.Rows[0].Id, roster.Rows[0].Bot, roster.Rows[0].Name));
+            Assert.AreEqual((2u, true, "bot-Ashen_7"), (roster.Rows[1].Id, roster.Rows[1].Bot, roster.Rows[1].Name));
+            Assert.AreEqual((300u, false, new string('x', 24)), (roster.Rows[2].Id, roster.Rows[2].Bot, roster.Rows[2].Name));
+            Assert.AreEqual((301u, true, "Søren"), (roster.Rows[3].Id, roster.Rows[3].Bot, roster.Rows[3].Name));
+            CollectionAssert.AreEqual(Util.FromHex(SrvHex("state_roster")), st.Encode());
+            var empty = (RosterState)Server<ServerMsg.State>("state_roster_empty").Items.Single();
+            Assert.AreEqual(0, empty.Rows.Length);
+        }
+
+        [Test]
+        public void EventsCarryCampClears()
+        {
+            var e = Server<ServerMsg.Events>("events_camp_cleared");
+            Assert.AreEqual(902u, e.Tick); Assert.AreEqual(2, e.List.Count);
+            Assert.AreEqual((EventKind.CampCleared, (ushort)0), (e.List[0].Kind, e.List[0].Camp));
+            Assert.AreEqual((EventKind.CampCleared, (ushort)511), (e.List[1].Kind, e.List[1].Camp));
+        }
+
+        [Test]
+        public void IndicatorEncodersRefuseWhatNoDecoderAccepts()
+        {
+            WireActor A(Action<WireActor[]> set) { var a = new[] { new WireActor { Id = 1, HpPct = 100, Status = 1 } }; set(a); return a[0]; }
+            void Refused(WireActor a, string why) => Assert.Throws<ArgumentException>(() => new ServerMsg.Snapshot { Actors = new[] { a } }.Encode(), why);
+            Refused(A(a => a[0].Flags = 0x10), "unknown flag bit");
+            Refused(A(a => a[0].Offhand = 17), "off-hand over 16");
+            Refused(A(a => a[0].BuildMarks = 0x0a), "key over 9");
+            Refused(A(a => a[0].BuildMarks = 0x10), "second without first");
+            Refused(A(a => a[0].BuildMarks = 0x33), "equal keys");
+            Refused(A(a => a[0].MarkTier = 5), "tier over 4");
+            Refused(A(a => a[0].Brand = 101), "brand over 100");
+            Refused(A(a => a[0].MarkTax = 101), "tax over 100");
+            Assert.DoesNotThrow(() => new ServerMsg.Snapshot { Actors = new[] { A(a => { a[0].Flags = 0x0f; a[0].Offhand = 16; a[0].BuildMarks = 0x98; a[0].MarkTier = 4; a[0].Brand = 100; a[0].MarkTax = 100; }) } }.Encode());
+            Assert.Throws<ArgumentException>(() => new ServerMsg.Snapshot { Me = new WireSelf { Id = 1, Status = 1, Flags = 0x80 } }.Encode(), "self flag bit");
+            Assert.Throws<ArgumentException>(() => new ServerMsg.Snapshot { Me = new WireSelf { Id = 1, Status = 1, BuildMarks = 0x11 } }.Encode(), "self equal keys");
+            ServerMsg.SnapshotDelta D() => new ServerMsg.SnapshotDelta { Tick = 2, BaseTick = 1, HasSelf = true };
+            var badSelf = D(); badSelf.HasMark = true; badSelf.MarkTier = 5;
+            Assert.Throws<ArgumentException>(() => badSelf.Encode(), "delta self tier");
+            var orphan = D(); orphan.HasSelf = false; orphan.HasFlags = true;
+            Assert.Throws<ArgumentException>(() => orphan.Encode(), "self facts need the self");
+            var badActor = D(); badActor.Changed = new[] { new ActorDelta { Id = 2, Mask = ActorDelta.MOffhand, Offhand = 17 } }; badActor.ChangedCount = 1;
+            Assert.Throws<ArgumentException>(() => badActor.Encode(), "delta off-hand");
+            var unmasked = D(); unmasked.Changed = new[] { new ActorDelta { Id = 2, Mask = ActorDelta.MX, Offhand = 17 } }; unmasked.ChangedCount = 1;
+            Assert.DoesNotThrow(() => unmasked.Encode(), "a field outside the mask is not sent");
+            var fx = new ServerMsg.Fx(); fx.List.Add(new WireFx { Kind = FxKind.Windup, Weapon = 16 });
+            Assert.Throws<ArgumentException>(() => fx.Encode(), "windup weapon");
+            foreach (byte kind in new byte[] { 0, 6, 15, 21, 255 })
+            {
+                var sig = new ServerMsg.Fx(); sig.List.Add(new WireFx { Kind = FxKind.SigHit, HitKind = kind });
+                Assert.Throws<ArgumentException>(() => sig.Encode(), "hit kind " + kind);
+            }
+        }
+
         static int Bits(float f) { return BitConverter.SingleToInt32Bits(f); }
 
         static IEnumerable<TestCaseData> DecodedVectors()
@@ -534,9 +641,29 @@ namespace Roguehalla.Net.Tests
                         Assert.AreEqual(it.GetProperty("caster").GetUInt32(), f.Caster); Assert.AreEqual(it.GetProperty("ability").GetByte(), f.Ability);
                         Assert.AreEqual(it.GetProperty("reason").GetByte(), f.Reason);
                     }
+                    else if (it.GetProperty("k").GetString() == "windup")
+                    {
+                        Assert.AreEqual(FxKind.Windup, f.Kind); Assert.AreEqual(it.GetProperty("by").GetUInt32(), f.By);
+                        Assert.AreEqual(it.GetProperty("weapon").GetByte(), f.Weapon); Assert.AreEqual(it.GetProperty("aBits").GetInt64(), (long)(uint)Bits(f.A));
+                        Assert.AreEqual(it.GetProperty("ms").GetUInt16(), f.Ms);
+                    }
+                    else if (it.GetProperty("k").GetString() == "cancel") { Assert.AreEqual(FxKind.Cancel, f.Kind); Assert.AreEqual(it.GetProperty("id").GetUInt32(), f.Id); }
+                    else if (it.GetProperty("k").GetString() == "sigHit")
+                    {
+                        Assert.AreEqual(FxKind.SigHit, f.Kind); Assert.AreEqual(it.GetProperty("victim").GetUInt32(), f.Victim);
+                        Assert.AreEqual(it.GetProperty("by").GetUInt32(), f.By); Assert.AreEqual(it.GetProperty("kind").GetByte(), f.HitKind);
+                        Assert.AreEqual(it.GetProperty("amountBits").GetInt64(), (long)(uint)Bits(f.Amount));
+                    }
+                    else if (it.GetProperty("k").GetString() == "heal")
+                    {
+                        Assert.AreEqual(FxKind.Heal, f.Kind); Assert.AreEqual(it.GetProperty("id").GetUInt32(), f.Id);
+                        Assert.AreEqual(it.GetProperty("amountBits").GetInt64(), (long)(uint)Bits(f.Amount));
+                    }
                     else
                     {
+                        Assert.AreEqual("hit", it.GetProperty("k").GetString());
                         Assert.AreEqual(it.GetProperty("passive").GetBoolean(), f.Passive);
+                        Assert.AreEqual(it.GetProperty("critical").GetBoolean(), f.Critical);
                         Assert.AreEqual(FxKind.Hit, f.Kind);
                         Assert.AreEqual(it.GetProperty("victim").GetUInt32(), f.Victim); Assert.AreEqual(it.GetProperty("by").GetUInt32(), f.By);
                         Assert.AreEqual(it.GetProperty("amountBits").GetInt64(), (long)(uint)Bits(f.Amount));
@@ -807,6 +934,10 @@ namespace Roguehalla.Net.Tests
                 Assert.AreEqual(me.GetProperty("huntStacks").GetUInt16(), s.Me.HuntStacks);
                 Assert.AreEqual(me.GetProperty("barrierBits").GetUInt32(), unchecked((uint)Bits(s.Me.Barrier)));
                 Assert.AreEqual(me.GetProperty("barrierRingStep").GetByte(), s.Me.BarrierRingStep);
+                Assert.AreEqual(me.GetProperty("archetype").GetByte(), s.Me.Archetype);
+                Assert.AreEqual(me.GetProperty("flags").GetByte(), s.Me.Flags); Assert.AreEqual(me.GetProperty("buildMarks").GetByte(), s.Me.BuildMarks);
+                Assert.AreEqual(me.GetProperty("markTier").GetByte(), s.Me.MarkTier); Assert.AreEqual(me.GetProperty("brand").GetByte(), s.Me.Brand);
+                Assert.AreEqual(me.GetProperty("markTax").GetByte(), s.Me.MarkTax);
                 var wish = me.GetProperty("wish");
                 if (wish.ValueKind == JsonValueKind.Null) Assert.IsNull(s.Me.Wish);
                 else
@@ -841,6 +972,10 @@ namespace Roguehalla.Net.Tests
                 Assert.AreEqual(e.GetProperty("kind").GetByte(), a.Kind);
                 Assert.AreEqual(e.GetProperty("effects").GetUInt16(), a.Effects); Assert.AreEqual(e.GetProperty("displaceSeq").GetByte(), a.DisplaceSeq); Assert.AreEqual(e.GetProperty("mobTypeCode").GetByte(),a.MobTypeCode); Assert.AreEqual(e.GetProperty("sig").GetByte(),a.Sig);
                 Assert.AreEqual(e.GetProperty("barrierPct").GetByte(), a.BarrierPct); Assert.AreEqual(e.GetProperty("barrierRingStep").GetByte(), a.BarrierRingStep);
+                Assert.AreEqual(e.GetProperty("archetype").GetByte(), a.Archetype);
+                Assert.AreEqual(e.GetProperty("flags").GetByte(), a.Flags); Assert.AreEqual(e.GetProperty("offhand").GetByte(), a.Offhand);
+                Assert.AreEqual(e.GetProperty("buildMarks").GetByte(), a.BuildMarks); Assert.AreEqual(e.GetProperty("markTier").GetByte(), a.MarkTier);
+                Assert.AreEqual(e.GetProperty("brand").GetByte(), a.Brand); Assert.AreEqual(e.GetProperty("markTax").GetByte(), a.MarkTax);
             }
         }
 
@@ -866,7 +1001,7 @@ namespace Roguehalla.Net.Tests
             switch (name)
             {
                 case "empty": case "truncated_snapshot": case "self_truncated": case "actor_count_without_actors": want = DecodeError.Truncated; break;
-                case "projectile_owner_flag": case "hit_bad_passive": case "wish_option_over_1": case "wish_fx_option_over_1": want = DecodeError.BadTag; break;
+                case "projectile_owner_flag": case "wish_option_over_1": case "wish_fx_option_over_1": want = DecodeError.BadTag; break;
                 case "projectile_kind": case "projectile_owner_zero":
                 case "potion_notice_zero": case "potion_notice_unknown":
                 case "cannon_notice_zero": case "cannon_notice_unknown": case "cannon_notice_bad_seconds": case "cannon_notice_seconds_over":
@@ -920,6 +1055,21 @@ namespace Roguehalla.Net.Tests
                 case "delta_self_status_over_3": case "delta_actor_id_gap_zero": case "delta_actor_hp_over_100": case "delta_actor_bounty_over_u16":
                 case "delta_departed_empty": case "delta_departed_id_gap_zero":
                     want = DecodeError.BadField; break;
+                // Protocol 16 indicator facts (ADR0026): every refused fact is BadField, a cut field Truncated.
+                case "self_flags_unknown_bit": case "self_build_marks_repeated": case "self_mark_tier_over_4":
+                case "actor_flags_unknown_bit": case "actor_offhand_over_16": case "actor_build_marks_key_over_9":
+                case "actor_build_marks_second_without_first": case "actor_build_marks_repeated": case "actor_mark_tier_over_4":
+                case "actor_mark_brand_over_100": case "actor_mark_tax_over_100":
+                case "delta_head_flags_without_present_bit": case "delta_self_flags_unknown_bit": case "delta_self_build_marks_key_over_9":
+                case "delta_self_mark_brand_over_100": case "delta_actor_flags_unknown_bit": case "delta_actor_offhand_over_16":
+                case "delta_actor_build_marks_repeated": case "delta_actor_mark_tier_over_4":
+                case "hit_flags_unknown_bit": case "fx_windup_weapon_over_15": case "fx_sig_hit_kind_zero": case "fx_sig_hit_kind_6": case "fx_sig_hit_kind_21":
+                case "state_roster_count_over_32": case "state_roster_id_zero": case "state_roster_order": case "state_roster_flags_unknown":
+                case "state_roster_name_empty": case "state_roster_name_long": case "state_roster_name_control":
+                    want = DecodeError.BadField; break;
+                case "actor_mark_truncated": case "fx_windup_truncated": case "fx_heal_truncated": case "camp_cleared_truncated": case "state_roster_truncated":
+                    want = DecodeError.Truncated; break;
+                case "state_roster_name_utf8": want = DecodeError.BadUtf8; break;
                 case "delta_too_many_actors": case "delta_departed_too_many": want = DecodeError.TooMany; break;
                 case "delta_truncated": want = DecodeError.Truncated; break;
                 case "delta_trailing_byte": want = DecodeError.Trailing; break;

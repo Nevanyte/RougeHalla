@@ -160,7 +160,7 @@ namespace Roguehalla.Net.Protocol
         public WireMerchant[] Merchants = Array.Empty<WireMerchant>();
         public string[] BarterLabels = new[] { "", "", "" };
     }
-    public enum StateKey : byte { Inventory = 1, Props = 2, Fields = 3, RewardChests = 4, Build = 5, Camps = 6, Projectiles = 7, Plan = 8, Arena = 9, Quests = 10, Trade = 11 }
+    public enum StateKey : byte { Inventory = 1, Props = 2, Fields = 3, RewardChests = 4, Build = 5, Camps = 6, Projectiles = 7, Plan = 8, Arena = 9, Quests = 10, Trade = 11, Roster = 12 }
 
     /// <summary>Keys are ascending, unique complete replacements. Missing keys retain their previous values.</summary>
     public abstract class StateItem
@@ -168,7 +168,7 @@ namespace Roguehalla.Net.Protocol
         public abstract uint Key { get; }
         internal abstract void Check();
         internal abstract void Write(Writer w);
-        internal const int MaxRows = 512, MaxKeys = (int)StateKey.Trade;
+        internal const int MaxRows = 512, MaxKeys = (int)StateKey.Roster;
         internal static void Require(bool condition, string name) { if (!condition) throw new EncodeException(name); }
         internal static bool Finite(double v) { return !double.IsNaN(v) && !double.IsInfinity(v); }
         internal static bool QuestFlag(ref Reader r, string field)
@@ -521,6 +521,8 @@ namespace Roguehalla.Net.Protocol
                         if (trade.Available) trade.Value = ReadTradeView(ref r);
                         if (r.Position - tradePayloadStart > 2213) throw new DecodeException(DecodeError.TooLarge, "trade view bytes");
                         item = trade; break;
+                    case 12:
+                        item = RosterState.Read(ref r); break;
                     default: throw new DecodeException(DecodeError.BadField, "state key");
                 }
                 try { item.Check(); } catch (EncodeException e) { throw new DecodeException(DecodeError.BadField, e.Message); }
@@ -804,6 +806,71 @@ namespace Roguehalla.Net.Protocol
         {
             w.U8(Available ? (byte)1 : (byte)0);
             if (Available) TradeStateCodec.Write(w, Value);
+        }
+    }
+
+    /// <summary>One seated player of the roster (State key 12, protocol 16, ADR0026): its actor id, display name and bot flag.</summary>
+    public struct WireRosterRow { public uint Id; public bool Bot; public string Name; }
+
+    /// <summary>
+    /// Key 12: the match roster, the one match-wide indicator fact (names and bot flags of everyone seated, the same for every
+    /// viewer; no position, faction, health or sight fact). Wire: count u8 (at most 32), then rows ascending by id: id varint
+    /// (nonzero), flags u8 (bit 0 bot; other values refused), name (u8 length, 1..24 UTF-8 bytes, no control character).
+    /// A complete replacement, like every key.
+    /// </summary>
+    public sealed class RosterState : StateItem
+    {
+        public const int MaxCount = 32, MaxName = 24;
+        public override uint Key { get { return 12; } }
+        public WireRosterRow[] Rows = Array.Empty<WireRosterRow>();
+
+        internal static string NameFault(string name)
+        {
+            if (name == null) return "roster name";
+            int n = Encoding.UTF8.GetByteCount(name);
+            if (n < 1 || n > MaxName) return "roster name";
+            foreach (char c in name) if (char.IsControl(c)) return "roster name";
+            return null;
+        }
+
+        internal override void Check()
+        {
+            Require(Rows != null && Rows.Length <= MaxCount, "roster count");
+            uint previous = 0;
+            for (int i = 0; i < Rows.Length; i++)
+            {
+                Require(Rows[i].Id != 0, "roster id");
+                Require(i == 0 || Rows[i].Id > previous, "roster order");
+                previous = Rows[i].Id;
+                Require(NameFault(Rows[i].Name) == null, "roster name");
+            }
+        }
+
+        internal override void Write(Writer w)
+        {
+            w.U8((byte)Rows.Length);
+            foreach (var row in Rows) { w.Varint(row.Id); w.U8(row.Bot ? (byte)1 : (byte)0); w.Str(row.Name); }
+        }
+
+        internal static RosterState Read(ref Reader r)
+        {
+            int n = r.U8();
+            if (n > MaxCount) throw new DecodeException(DecodeError.BadField, "roster count");
+            var rows = n == 0 ? Array.Empty<WireRosterRow>() : new WireRosterRow[n];
+            uint previous = 0;
+            for (int i = 0; i < n; i++)
+            {
+                uint id = r.Varint();
+                if (id == 0) throw new DecodeException(DecodeError.BadField, "roster id");
+                if (i > 0 && id <= previous) throw new DecodeException(DecodeError.BadField, "roster order");
+                previous = id;
+                byte flags = r.U8();
+                if (flags > 1) throw new DecodeException(DecodeError.BadField, "roster flags");
+                string name = r.Str();
+                if (NameFault(name) != null) throw new DecodeException(DecodeError.BadField, "roster name");
+                rows[i] = new WireRosterRow { Id = id, Bot = flags == 1, Name = name };
+            }
+            return new RosterState { Rows = rows };
         }
     }
 
