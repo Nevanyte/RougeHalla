@@ -214,3 +214,31 @@ source pass, rerun that gate before the derived refresh. This is permission for 
 not native admission or final combined Claude identity selection.
 
 The independent NPC bleed restore worker owns mob_checkpoint.rs and its focused tests. Do not duplicate or bypass its repair. Card implementation may proceed in parallel; Root will transfer an admitted NPC fix before combined NPC/checkpoint acceptance if needed. Quest and bot strategy worktrees and all Claude scopes remain protected. Use the pinned offline toolchain and a worktree-local target; a metadata-write refusal is a handoff for Root sealing, not a reason to expand permissions.
+
+
+### Root cold-capacity correction (2026-11-10, pre-seal)
+
+The [independent pre-seal review](../../evidence/card-bleed-native-review/final-review.md) identifies a real remaining
+HOLD: the legacy total-512 report check includes private historical Card rows before viewer entitlement, and owned
+report/public-output buffers still use legacy fixed capacities. This correction is within the existing Card report,
+projector, cold-preparation and focused-test lease; it adds no source capture or gameplay cap.
+
+Preserve the existing limit of512 **non-Card** raw events. Separately inventory checked cold `T0`, the actual count
+of accepted pending raw Card events, and use the complete `Q + T0` raw Card allowance. Pending history adds no public
+entitlement or public bucket capacity. Cold-prepare report events and wish-index masks for legacy512 plus `Q + T0`,
+projector owned output for the existing legacy output allowance plus `B`, and its transparent test Card observer as
+needed. Preserve marker indices/order, empty markers, the proven at-most-one-populated-flush envelope, checked arithmetic,
+fallible preparation and typed fail-closed behavior. Caller-owned step output capacity remains a separate responsibility;
+inherited status-tag allocations are not a whole-combat zero-allocation claim.
+
+Every indexed `K/Q/B` capacity must fit the actual u32 ordinal domain before allocating either rows or index nodes;
+`u32::MAX` is the link sentinel. Reject unsupported representation before enormous reserve, with a bounded oversized
+argument control. Do not substitute an arbitrary small restored-gameplay cap, truncate historical rows or rely on warm
+container growth. Preserve the exact largest valid count versus reserved ordinal distinction.
+
+Required focused evidence includes a real accepted restore of more than512 historical report rows with due flush and
+no fresh contribution: fresh viewer feed succeeds and emits no historical Card output. Cover accepted pending Card
+history separately, preserve refusal of more than512 non-Card events, and measure actual owned-buffer capacities/growth
+beyond the old constants. Report actual generic Full8 layouts/reservations rather than the earlier planning estimate.
+The existing source/privacy/strict-intake gates remain mandatory. Rerun unchanged63-case source after final semantic
+changes and before the separately authorized derived-native recorder/pin refresh. No native admission is granted yet.
