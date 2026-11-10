@@ -30,6 +30,7 @@ namespace Roguehalla.Client
         /// <summary>Brightness multiplier for region ground and walls (they are lit by the same Light2D set as the actors).</summary>
         public const float RegionExposure = 1f;
         SpriteActorPresenter _actors;
+        SurfaceFx _surfaceFx; // SURFACE-FX HOOK 1/3
         VisionFog _visionFog;     // fog of war layer (VisionFog.cs); presentation only
         Session _visionSession;
         // Diagnostics only (url flag vision.fadeDemo=1): every 6 s the nearest remote player is withheld for 2.5 s, as if the server stopped
@@ -111,6 +112,7 @@ namespace Roguehalla.Client
             for(int i=0;i<3;i++) _fog.Add(ShowcaseSprites.Create(transform,"Layered ambient haze","glow",29990,
                 new Color(.22f,.32f,.48f,.075f),new Vector2(20,5),Vector3.zero,false));
             _atmos.Bind(this, _ambient, _volume, ApplyHaze);
+            _surfaceFx = SurfaceFx.Create(this); // SURFACE-FX HOOK 2/3
             if (ShowcaseSettings.Current != null) ShowcaseSettings.Current.Changed += ApplyQuality;
             ApplyQuality();
         }
@@ -224,6 +226,7 @@ namespace Roguehalla.Client
                 if (_regionProps != null) _regionProps.NoteActor(WorldPoint(mx, my));
             }
             _actors.End();
+            if (_surfaceFx != null) _surfaceFx.Tick(Time.unscaledDeltaTime); // SURFACE-FX HOOK 3/3
             _actors.StepFades(); TickVision();
             if (_regionProps != null) _regionProps.Tick(Time.unscaledDeltaTime);
             ReleaseScheduledFx();

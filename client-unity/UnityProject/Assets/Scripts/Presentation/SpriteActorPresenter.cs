@@ -373,6 +373,8 @@ namespace Roguehalla.Client
             a.UnknownSignatureBacker.sortingOrder = order + 7;
             a.Light.Configure(color, local ? .65f : .2f, .3f, 2.4f, .5f, false, true);
             a.Light.SetVisible(!dead && local);
+            // SURFACE-FX HOOK: delivered actors only (see SurfaceFx); prints, ripples and footsteps come from here and nowhere else.
+            SurfaceFx.NoteActor(id, x, y, kind, local, dead, appearance != null ? appearance.WorldHeight : 1.6f, a.Gait.Walking, a.Gait.Phase, appearance != null && appearance.Walk != null ? appearance.Walk.Length / 8 : 0);
         }
 
         Art Create()
