@@ -1,0 +1,51 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="afd76075-9c23-4bd9-9d5e-33020e0e7e53" name="@Nevins-MacBook-Pro-273 2026-11-09 18:00:32" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-11-09T18:00:32.1300170-06:00" queuing="2026-11-09T18:00:32.1300170-06:00" start="2026-11-09T18:00:31.7558360-06:00" finish="2026-11-09T18:00:32.1324650-06:00" />
+  <TestSettings name="default" id="02256e20-5369-46ce-be10-2114e7eb514c">
+    <Deployment runDeploymentRoot="_Nevins-MacBook-Pro-273_2026-11-09_18_00_32" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="295fefb6-4526-487c-8002-57acfe50c5b0" testId="8615acb9-3344-0839-e546-18fc9123eb04" testName="StaleHeldByteCannotRetireOrRealignTheQueuedMovement(False)" computerName="Nevins-MacBook-Pro-273" duration="00:00:00.0005780" startTime="2026-11-09T18:00:32.0751830-06:00" endTime="2026-11-09T18:00:32.0757610-06:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="295fefb6-4526-487c-8002-57acfe50c5b0" />
+    <UnitTestResult executionId="492a27c9-2f22-49b1-b989-33fb7474d14a" testId="f2da26e6-e261-74bc-769e-94d2d3095dc5" testName="StaleHeldByteCannotRetireOrRealignTheQueuedMovement(True)" computerName="Nevins-MacBook-Pro-273" duration="00:00:00.0002820" startTime="2026-11-09T18:00:32.0757710-06:00" endTime="2026-11-09T18:00:32.0760540-06:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="492a27c9-2f22-49b1-b989-33fb7474d14a" />
+    <UnitTestResult executionId="e88879c0-1047-4f33-9ce0-18dc533b9b6b" testId="a7f7b06d-1cf7-ef02-8706-9b3cd9b64c23" testName="AValidPriorSentMotionStillReconcilesWhileTheNewerMoveIsPending" computerName="Nevins-MacBook-Pro-273" duration="00:00:00.0190250" startTime="2026-11-09T18:00:32.0549740-06:00" endTime="2026-11-09T18:00:32.0739810-06:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="e88879c0-1047-4f33-9ce0-18dc533b9b6b" />
+    <UnitTestResult executionId="81cfcd39-3094-4b3e-96ba-e897d4e657c1" testId="d9aad6a7-1a1d-26fd-599e-59ccfca33243" testName="MatchingByteWithItsFreshSentFrameAcknowledgesAndKeepsTheWalk" computerName="Nevins-MacBook-Pro-273" duration="00:00:00.0007069" startTime="2026-11-09T18:00:32.0744350-06:00" endTime="2026-11-09T18:00:32.0751420-06:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="81cfcd39-3094-4b3e-96ba-e897d4e657c1" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="MatchingByteWithItsFreshSentFrameAcknowledgesAndKeepsTheWalk" storage="/users/nevinmckinnon/documents/projects/roguehalla-bot-own-timings/client-unity/roguehallanet.tests/bin/debug/net8.0/roguehallanet.tests.dll" id="d9aad6a7-1a1d-26fd-599e-59ccfca33243">
+      <Execution id="81cfcd39-3094-4b3e-96ba-e897d4e657c1" />
+      <TestMethod codeBase="/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/client-unity/RoguehallaNet.Tests/bin/Debug/net8.0/RoguehallaNet.Tests.dll" adapterTypeName="executor://nunit3testexecutor/" className="Roguehalla.Net.Tests.PredictionEchoOrderTests" name="MatchingByteWithItsFreshSentFrameAcknowledgesAndKeepsTheWalk" />
+    </UnitTest>
+    <UnitTest name="StaleHeldByteCannotRetireOrRealignTheQueuedMovement(False)" storage="/users/nevinmckinnon/documents/projects/roguehalla-bot-own-timings/client-unity/roguehallanet.tests/bin/debug/net8.0/roguehallanet.tests.dll" id="8615acb9-3344-0839-e546-18fc9123eb04">
+      <Execution id="295fefb6-4526-487c-8002-57acfe50c5b0" />
+      <TestMethod codeBase="/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/client-unity/RoguehallaNet.Tests/bin/Debug/net8.0/RoguehallaNet.Tests.dll" adapterTypeName="executor://nunit3testexecutor/" className="Roguehalla.Net.Tests.PredictionEchoOrderTests" name="StaleHeldByteCannotRetireOrRealignTheQueuedMovement(False)" />
+    </UnitTest>
+    <UnitTest name="AValidPriorSentMotionStillReconcilesWhileTheNewerMoveIsPending" storage="/users/nevinmckinnon/documents/projects/roguehalla-bot-own-timings/client-unity/roguehallanet.tests/bin/debug/net8.0/roguehallanet.tests.dll" id="a7f7b06d-1cf7-ef02-8706-9b3cd9b64c23">
+      <Execution id="e88879c0-1047-4f33-9ce0-18dc533b9b6b" />
+      <TestMethod codeBase="/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/client-unity/RoguehallaNet.Tests/bin/Debug/net8.0/RoguehallaNet.Tests.dll" adapterTypeName="executor://nunit3testexecutor/" className="Roguehalla.Net.Tests.PredictionEchoOrderTests" name="AValidPriorSentMotionStillReconcilesWhileTheNewerMoveIsPending" />
+    </UnitTest>
+    <UnitTest name="StaleHeldByteCannotRetireOrRealignTheQueuedMovement(True)" storage="/users/nevinmckinnon/documents/projects/roguehalla-bot-own-timings/client-unity/roguehallanet.tests/bin/debug/net8.0/roguehallanet.tests.dll" id="f2da26e6-e261-74bc-769e-94d2d3095dc5">
+      <Execution id="492a27c9-2f22-49b1-b989-33fb7474d14a" />
+      <TestMethod codeBase="/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/client-unity/RoguehallaNet.Tests/bin/Debug/net8.0/RoguehallaNet.Tests.dll" adapterTypeName="executor://nunit3testexecutor/" className="Roguehalla.Net.Tests.PredictionEchoOrderTests" name="StaleHeldByteCannotRetireOrRealignTheQueuedMovement(True)" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="8615acb9-3344-0839-e546-18fc9123eb04" executionId="295fefb6-4526-487c-8002-57acfe50c5b0" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="f2da26e6-e261-74bc-769e-94d2d3095dc5" executionId="492a27c9-2f22-49b1-b989-33fb7474d14a" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="a7f7b06d-1cf7-ef02-8706-9b3cd9b64c23" executionId="e88879c0-1047-4f33-9ce0-18dc533b9b6b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="d9aad6a7-1a1d-26fd-599e-59ccfca33243" executionId="81cfcd39-3094-4b3e-96ba-e897d4e657c1" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="4" executed="4" passed="4" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>NUnit Adapter 4.6.0.0: Test execution started
+Running selected tests in /Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/client-unity/RoguehallaNet.Tests/bin/Debug/net8.0/RoguehallaNet.Tests.dll
+   NUnit3TestExecutor discovered 4 of 4 NUnit test cases using Current Discovery mode, Non-Explicit run
+NUnit Adapter 4.6.0.0: Test execution complete
+</StdOut>
+    </Output>
+  </ResultSummary>
+</TestRun>

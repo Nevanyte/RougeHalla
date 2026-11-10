@@ -130,6 +130,7 @@ impl Hand {
     fn input(&mut self, player: PlayerId, conn: u64, seq: u32, commands: Vec<WireCommand>) {
         self.room.handle(
             RoomCmd::Input {
+                received: std::time::Instant::now(),
                 player,
                 conn,
                 seq,
@@ -202,17 +203,18 @@ fn recorded_at(history: &[(f64, Vec2)], t: f64) -> Vec2 {
     Vec2::new(p0.x + (p1.x - p0.x) * k, p0.y + (p1.y - p0.y) * k)
 }
 
-/// At 150 ms RTT the packet's formula allows `150 / 2 + 100 + 50 = 225` ms of rewind. A target that has walked out of the
-/// fists' reach by the time the swing lands is still hit against its body at that bound, and the attack is not clamped.
+/// At 60 ms RTT the formula allows `60 + 150 + 50 + 20 = 280` ms of rewind (rtt.rs derives it from the Unity render
+/// clock). A target that has walked out of the fists' reach by the time the swing lands is still hit against its body at
+/// that bound, and the attack is not clamped.
 #[test]
-fn a_150ms_connection_hits_a_moving_target_at_the_225ms_bound() {
+fn a_60ms_connection_hits_a_moving_target_at_the_280ms_bound() {
     let (mut h, attacker, target) = two_players();
-    // A real Pong path measured 150 ms (tests/transport.rs covers the measurement itself); the room's estimator is the
+    // A real Pong path measured 60 ms (tests/transport.rs covers the measurement itself); the room's estimator is the
     // only thing between the sample and the clamp.
-    h.sample(attacker.player, 1, 150.0);
+    h.sample(attacker.player, 1, 60.0);
     let stats = h.room.stats();
     assert_eq!(stats.rtt_samples, 1);
-    assert_eq!(stats.rtt_last_ms, 150.0);
+    assert_eq!(stats.rtt_last_ms, 60.0);
     assert_eq!(stats.rewind_clamps, 0);
 
     let attacker_at = h.pos(attacker.player);
@@ -244,7 +246,7 @@ fn a_150ms_connection_hits_a_moving_target_at_the_225ms_bound() {
 
     // The next step will apply the command; the sim adds TICK_MS before its input phase, so `now_apply` is one tick ahead.
     let now_apply = h.room.sim().server_time() + 50.0;
-    let allowed_ms = 225.0;
+    let allowed_ms = 280.0;
     let t = now_apply - allowed_ms;
     let aim = recorded_at(&history, t);
     let aim_distance = distance(attacker_at, aim);
@@ -273,25 +275,25 @@ fn a_150ms_connection_hits_a_moving_target_at_the_225ms_bound() {
 
     assert!(
         h.hp(target.player) < hp_before,
-        "the hit lands at the 225 ms bound (hp {} -> {})",
+        "the hit lands at the 280 ms bound (hp {} -> {})",
         hp_before,
         h.hp(target.player)
     );
     assert_eq!(
         h.lag_ms(attacker.player),
         allowed_ms,
-        "note_lag recorded the full 225 ms window at the bound"
+        "note_lag recorded the full 280 ms window at the bound"
     );
     let stats = h.room.stats();
     assert_eq!(
         stats.rewind_clamps, 0,
         "an honest t at the bound is not clamped"
     );
-    assert_eq!(stats.rtt_last_ms, 150.0);
+    assert_eq!(stats.rtt_last_ms, 60.0);
 }
 
-/// At 20 ms RTT the formula allows `20 / 2 + 100 + 50 = 160` ms. A forged `t = now - 300` is clamped to the oldest edge
-/// (`now_apply - 160`, i.e. 110 ms before the current sim time) and counted once. A future `t` is clamped to `now_apply`
+/// At 20 ms RTT the formula allows `20 + 150 + 50 + 20 = 240` ms. A forged `t = now - 300` is clamped to the oldest edge
+/// (`now_apply - 240`, i.e. 190 ms before the current sim time) and counted once. A future `t` is clamped to `now_apply`
 /// (and `note_lag` then floors the lag at `TICK_MS`); an inside `t` is untouched and not counted.
 #[test]
 fn a_forged_old_render_time_at_20ms_rtt_is_clamped_and_counted() {
@@ -321,8 +323,8 @@ fn a_forged_old_render_time_at_20ms_rtt_is_clamped_and_counted() {
     );
     assert_eq!(
         h.lag_ms(attacker.player),
-        160.0,
-        "300 ms was clamped to the 160 ms the 20 ms RTT allows"
+        240.0,
+        "350 ms was clamped to the 240 ms the 20 ms RTT allows"
     );
 
     let now = h.room.sim().server_time();
@@ -350,16 +352,49 @@ fn a_forged_old_render_time_at_20ms_rtt_is_clamped_and_counted() {
         3,
         vec![WireCommand::Attack {
             a: 0.0,
-            t: Some(now_apply - 150.0),
+            t: Some(now_apply - 230.0),
         }],
     );
     h.step();
     assert_eq!(
         h.room.stats().rewind_clamps,
         2,
-        "a t inside the 160 ms window costs nothing"
+        "a t inside the 240 ms window costs nothing"
     );
-    assert_eq!(h.lag_ms(attacker.player), 150.0);
+    assert_eq!(h.lag_ms(attacker.player), 230.0);
+}
+
+/// An honest Unity client presents `now_apply - t = up + down_min + delay + (TICK_MS - phase) + intake` (rtt.rs). These
+/// are honest lags for RTT 20, 60, 100 and 200 ms with delays inside the client's 70..150 ms range; each reaches the sim's
+/// `note_lag` whole and none is counted as a clamp. Every case exceeds the former window (`rtt / 2 + 150`).
+#[test]
+fn honest_render_times_at_20_60_100_and_200ms_rtt_are_not_clamped() {
+    for (rtt_ms, honest_lag) in [
+        (20.0, 20.0 + 150.0 + 50.0 + 20.0),
+        (60.0, 60.0 + 100.0 + 50.0),
+        (100.0, 100.0 + 100.0 + 50.0 + 20.0),
+        (200.0, 200.0 + 70.0 + 25.0),
+    ] {
+        let (mut h, attacker, _target) = two_players();
+        h.sample(attacker.player, 1, rtt_ms);
+        let now_apply = h.room.sim().server_time() + 50.0;
+        h.input(
+            attacker.player,
+            1,
+            1,
+            vec![WireCommand::Attack {
+                a: 0.0,
+                t: Some(now_apply - honest_lag),
+            }],
+        );
+        h.step();
+        assert_eq!(
+            h.room.stats().rewind_clamps,
+            0,
+            "rtt {rtt_ms}: an honest {honest_lag} ms lag is not clamped"
+        );
+        assert_eq!(h.lag_ms(attacker.player), honest_lag, "rtt {rtt_ms}");
+    }
 }
 
 /// Locked attacks carry no `t`; they keep the sim's `lagMs = TICK_MS` and never touch the clamp counter.

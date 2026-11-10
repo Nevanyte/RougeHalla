@@ -887,6 +887,16 @@ fn done(r: Result<Value, CtlError>) -> Response {
 }
 
 async fn authorize(State(c): State<Ctl>, req: Request, next: Next) -> Response {
+    // The loopback bind does not stop a browser on this host from sending requests on a web page's behalf
+    // (cross-site POST, DNS rebinding). No control client is a browser, so any request carrying `Origin` is refused,
+    // with or without a token.
+    if req.headers().contains_key(header::ORIGIN) {
+        return fail(CtlError::new(
+            403,
+            "forbidden",
+            "the control API does not accept browser requests",
+        ));
+    }
     if let Some(want) = c.token_digest {
         let got = req
             .headers()

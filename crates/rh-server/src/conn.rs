@@ -215,8 +215,15 @@ pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
                 // deadline check at the top before waiting again.
                 _ = tokio::time::sleep_until(next_ping) => continue,
             };
+            let step_started = d.step_started;
+            if let Some(at) = step_started {
+                crate::metrics::process().note_step_to_conn(at.elapsed());
+            }
             if write_batch(&mut tx, &mut batch, d.close).await.is_err() || d.close.is_some() {
                 return;
+            }
+            if let Some(at) = step_started {
+                crate::metrics::process().note_step_to_written(at.elapsed());
             }
         }
     });
@@ -303,6 +310,7 @@ pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
                         conn,
                         seq,
                         commands,
+                        received: std::time::Instant::now(),
                     })
                     .is_err()
                 {

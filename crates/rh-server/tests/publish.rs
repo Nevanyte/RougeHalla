@@ -381,6 +381,7 @@ impl Hand {
         self.seq += 1;
         self.room.handle(
             RoomCmd::Input {
+                received: std::time::Instant::now(),
                 player: self.player,
                 conn: 1,
                 seq: self.seq,

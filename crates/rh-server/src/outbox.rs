@@ -34,6 +34,9 @@ struct State {
     /// many of them were the close.
     notifies: u64,
     close_notifies: u64,
+    /// Start of the step behind the oldest tick batch the writer has not taken yet (`push_tick_stamped`); `drain_into`
+    /// takes it. An older unwritten batch keeps its stamp when a newer one is pushed.
+    step_started: Option<std::time::Instant>,
 }
 
 /// What an [`Outbox`] counted over its life (relaxed reads: the room that pushes is the only writer).
@@ -102,6 +105,8 @@ pub struct Drained {
     /// Set when the outbox is closed: every important frame is in the buffer, nothing disposable follows, and the writer
     /// must send the Reject for this code and end.
     pub close: Option<RejectCode>,
+    /// The step start stamped on the oldest stamped batch this drain took, if any.
+    pub step_started: Option<std::time::Instant>,
 }
 
 impl Drained {
@@ -300,6 +305,19 @@ impl Outbox {
         fx: Option<Vec<u8>>,
         snapshot: Option<SnapshotData>,
     ) -> (Option<SnapshotData>, bool) {
+        self.push_tick_stamped(None, state, important, fx, snapshot)
+    }
+
+    /// [`Outbox::push_tick_with_state`] that also stamps the start of the step the batch came from, for the writer's
+    /// step-to-write latency ([`Drained::step_started`]). Nothing else changes.
+    pub fn push_tick_stamped(
+        &self,
+        step_started: Option<std::time::Instant>,
+        state: Option<Vec<u8>>,
+        important: Option<Vec<u8>>,
+        fx: Option<Vec<u8>>,
+        snapshot: Option<SnapshotData>,
+    ) -> (Option<SnapshotData>, bool) {
         if state.is_none() && important.is_none() && fx.is_none() && snapshot.is_none() {
             return (None, true);
         }
@@ -325,6 +343,9 @@ impl Outbox {
         }
         if let Some(snap) = snapshot {
             s.push_snapshot(&c, snap);
+        }
+        if s.step_started.is_none() {
+            s.step_started = step_started;
         }
         let spare = s.spare.take();
         self.wake(s, false);
@@ -385,6 +406,7 @@ impl Outbox {
         let mut s = self.state.lock().expect("outbox lock");
         out.extend(s.important.drain(..));
         let close = s.closed;
+        let step_started = s.step_started.take();
         let mut snap = None;
         if close.is_none() {
             out.extend(s.fx.drain(..));
@@ -398,6 +420,7 @@ impl Outbox {
         Drained {
             frames: out.len() - before,
             close,
+            step_started,
         }
     }
 
@@ -695,5 +718,25 @@ mod tests {
         assert_eq!((imp, fx, snapshot), (IMPORTANT_CAP, 0, false));
         let mut out = Vec::new();
         assert_eq!(o.drain_into(&mut out).close, Some(RejectCode::TooSlow));
+    }
+
+    #[test]
+    fn a_batch_keeps_the_stamp_of_its_oldest_step_until_drained() {
+        let o = Outbox::default();
+        let (a, b) = (
+            std::time::Instant::now(),
+            std::time::Instant::now() + std::time::Duration::from_millis(50),
+        );
+        let _ = o.push_tick_stamped(Some(a), None, Some(vec![1]), None, Some(snap(1)));
+        let _ = o.push_tick_stamped(Some(b), None, Some(vec![2]), None, Some(snap(2)));
+        let mut out = Vec::new();
+        assert_eq!(o.drain_into(&mut out).step_started, Some(a));
+        assert_eq!(o.drain_into(&mut out).step_started, None, "taken once");
+        let _ = o.push_tick_with_state(None, Some(vec![3]), None, None);
+        assert_eq!(
+            o.drain_into(&mut out).step_started,
+            None,
+            "unstamped pushes stamp nothing"
+        );
     }
 }

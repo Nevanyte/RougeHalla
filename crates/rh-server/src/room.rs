@@ -22,7 +22,7 @@ use rh_sim::replay::{BotPolicy, Recorder, Replay, ReplayInput, ReplayStart};
 use rh_sim::{
     Arena, Event, FactionId, Phase, PlayerId, RunResult, Secrets, SeenEvent, Sim, SimConfig,
 };
-use rtt::{clamp_render_time, RttEstimator};
+use rtt::{clamp_render_time_noted, RewindClampStats, RttEstimator};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -113,6 +113,8 @@ pub enum RoomCmd {
         conn: u64,
         seq: u32,
         commands: Vec<rh_protocol::WireCommand>,
+        /// When the connection task decoded the frame (telemetry only: input age at the step that applies it).
+        received: std::time::Instant,
     },
     /// One server-measured RTT sample (a Pong matching a Ping this connection was sent), for the seat's rewind window.
     /// Samples from a connection that no longer owns the seat are ignored.
@@ -344,6 +346,8 @@ struct HumanSeat {
     outbox: Option<Arc<Outbox>>,
     dropped_at: Option<Instant>,
     ack_input: u32,
+    /// When the oldest Input message not yet applied by a step was decoded on its connection (telemetry: input age).
+    input_received: Option<std::time::Instant>,
     /// The server-measured RTT of this seat's current connection: it bounds the attack render times this seat may claim.
     rtt: RttEstimator,
     /// What this human could know of the wake's steps before the last, judged step by step as they ran (empty between
@@ -436,6 +440,8 @@ pub struct Room {
     rtt_max_ms: f64,
     /// Attack/release render times the RTT bound rewrote (every clamp, for P-OPS-2).
     rewind_clamps: u64,
+    /// Start of the last step run (stamped on each tick batch for the writer's step-to-write latency).
+    last_step_start: Option<std::time::Instant>,
     /// A training room (a practice world: one human, no bots, no results or banking, an idle close and no replay).
     training: bool,
     /// When this room's seat last had a command accepted (the training idle clock); opened_at before the first one.
@@ -539,6 +545,7 @@ impl Room {
             rtt_last_ms: 0.0,
             rtt_max_ms: 0.0,
             rewind_clamps: 0,
+            last_step_start: None,
             training,
             last_input_at: None,
             training_idle: Duration::from_secs(TRAINING_IDLE_SECONDS),
@@ -691,6 +698,7 @@ impl Room {
                 conn,
                 seq,
                 commands,
+                received,
             } => {
                 if let Some(index) = self
                     .humans
@@ -698,17 +706,22 @@ impl Room {
                     .position(|h| h.player == player && h.conn == conn)
                 {
                     self.humans[index].ack_input = seq;
+                    self.humans[index].input_received.get_or_insert(received);
                     // The clamp is written for the sim time this batch will be applied at: the room applies commands
                     // between steps and the next step adds one tick first, so `note_lag` in the sim will see
                     // `now_apply` as its `now`. P-NET-1 Phase 3: bound an attack render time by the RTT the server
                     // measured for this connection (never by the client's claim), before `Sim::submit`. Cast render-time
                     // metadata receives the same bound, but Wish effects are not rewound by it.
                     let now_apply = self.sim.server_time() + TICK_MS;
-                    let allowed = self.humans[index].rtt.allowed_rewind_ms();
                     let mut accepted = 0u32;
+                    let mut clamps = RewindClampStats::default();
                     for c in commands {
-                        let (proposal, clamped) =
-                            clamp_render_time(wire::command(c), now_apply, allowed);
+                        let (proposal, clamped) = clamp_render_time_noted(
+                            wire::command(c),
+                            now_apply,
+                            &self.humans[index].rtt,
+                            &mut clamps,
+                        );
                         if clamped {
                             self.rewind_clamps += 1;
                         }
@@ -723,6 +736,7 @@ impl Room {
                             }
                         }
                     }
+                    self.metrics.note_rewind_clamps(&clamps);
                     // The training idle clock runs on ACCEPTED inputs (a rejected/no-op command does not keep the room up).
                     if accepted > 0 {
                         self.last_input_at = Some(now);
@@ -857,6 +871,7 @@ impl Room {
             outbox: Some(outbox),
             dropped_at: None,
             ack_input: 0,
+            input_received: None,
             rtt: RttEstimator::new(),
             carry: Vec::new(),
             items: rh_sim::ItemObserver::new(player),
@@ -1286,6 +1301,17 @@ impl Room {
         for _ in 0..steps {
             self.fill_step();
             let t = std::time::Instant::now();
+            // Input age: every Input message the room took since the last step is applied by this one.
+            for h in &mut self.humans {
+                if let Some(at) = h.input_received.take() {
+                    self.metrics.input_age_us.record(
+                        t.saturating_duration_since(at)
+                            .as_micros()
+                            .min(u128::from(u32::MAX)) as u32,
+                    );
+                }
+            }
+            self.last_step_start = Some(t);
             let mut proposed: Vec<(PlayerId, rh_sim::PublicCommand)> = Vec::new();
             drive_seats_queued(
                 &mut self.sim,
@@ -1458,7 +1484,8 @@ impl Room {
                 .map(Vec::len)
                 .sum::<usize>()
                 + snap.min_len();
-            let (spare, accepted) = out.push_tick_with_state(
+            let (spare, accepted) = out.push_tick_stamped(
+                self.last_step_start,
                 state.frame.take(),
                 frames.important,
                 frames.fx,
@@ -1907,6 +1934,7 @@ mod tests {
         at += tick;
         room.handle(
             RoomCmd::Input {
+                received: std::time::Instant::now(),
                 player: a.player,
                 conn: 1,
                 seq: 1,
@@ -1935,6 +1963,7 @@ mod tests {
             at += tick;
             room.handle(
                 RoomCmd::Input {
+                    received: std::time::Instant::now(),
                     player,
                     conn,
                     seq: 2,
@@ -2123,6 +2152,7 @@ mod tests {
         );
         room.handle(
             RoomCmd::Input {
+                received: std::time::Instant::now(),
                 player: joined.player,
                 conn: 1,
                 seq: 1,
@@ -2139,6 +2169,7 @@ mod tests {
             .any(|r| r.kind == WirePropKind::Ground(0)));
         room.handle(
             RoomCmd::Input {
+                received: std::time::Instant::now(),
                 player: joined.player,
                 conn: 1,
                 seq: 2,
@@ -2175,6 +2206,7 @@ mod tests {
             .handle;
         room.handle(
             RoomCmd::Input {
+                received: std::time::Instant::now(),
                 player: joined.player,
                 conn: 1,
                 seq: 999,
@@ -2188,6 +2220,7 @@ mod tests {
         );
         room.handle(
             RoomCmd::Input {
+                received: std::time::Instant::now(),
                 player: joined.player,
                 conn: 3,
                 seq: 3,
@@ -2726,6 +2759,7 @@ mod tests {
                 .get(chosen.key);
             room.handle(
                 RoomCmd::Input {
+                    received: std::time::Instant::now(),
                     player: PlayerId(1),
                     conn: 1,
                     seq: 1,
@@ -2824,6 +2858,7 @@ mod tests {
             let before = room.sim.player(PlayerId(1)).unwrap().kill_stats.get(stat);
             room.handle(
                 RoomCmd::Input {
+                    received: std::time::Instant::now(),
                     player: PlayerId(1),
                     conn: 5,
                     seq: 2,
@@ -2923,6 +2958,7 @@ mod tests {
         // normal per-step projector and publisher carry the genuine producer event to the connection.
         room.handle(
             RoomCmd::Input {
+                received: std::time::Instant::now(),
                 player: viewer.player,
                 conn: 1,
                 seq: 1,
@@ -3269,6 +3305,7 @@ mod tests {
         assert!(room.wake(start + tick));
         room.handle(
             RoomCmd::Input {
+                received: std::time::Instant::now(),
                 player: joined.player,
                 conn: 1,
                 seq: 1,
@@ -3284,6 +3321,65 @@ mod tests {
             !room.wake(start + Duration::from_millis(500)),
             "the room closes 300 ms after the last accepted input"
         );
+    }
+
+    /// Latency-budget telemetry: the age of an Input at the step that applies it, the rewind clamps by edge, and the step
+    /// start stamped on the tick batch the writer drains.
+    #[tokio::test(start_paused = true)]
+    async fn input_age_clamps_and_the_step_stamp_reach_the_metrics() {
+        let start = Instant::now();
+        let tick = Duration::from_millis(50);
+        let (reports, _rx) = mpsc::unbounded_channel();
+        let metrics: &'static Metrics = Box::leak(Box::new(Metrics::new()));
+        let mut room = training_room(start, reports).with_metrics(metrics);
+        let out = Arc::new(Outbox::default());
+        let joined = room
+            .join(
+                "practice".into(),
+                Some(FactionId::Holy),
+                out.clone(),
+                1,
+                1,
+                None,
+            )
+            .expect("one seat");
+        assert!(room.wake(start + tick));
+        let mut batch = Vec::new();
+        let d = out.drain_into(&mut batch);
+        assert!(
+            d.step_started.is_some(),
+            "a tick batch carries its step start"
+        );
+        assert_eq!(metrics.input_age_us.count(), 0, "no input yet");
+        let received = std::time::Instant::now() - Duration::from_millis(30);
+        room.handle(
+            RoomCmd::Input {
+                received,
+                player: joined.player,
+                conn: 1,
+                seq: 1,
+                commands: vec![
+                    rh_protocol::WireCommand::Aim { a: 0.0 },
+                    rh_protocol::WireCommand::Attack {
+                        a: 0.0,
+                        t: Some(1.0e9),
+                    },
+                ],
+            },
+            start + tick,
+        );
+        assert!(room.wake(start + tick * 2));
+        assert_eq!(
+            metrics.input_age_us.count(),
+            1,
+            "one value per seat per step"
+        );
+        assert!(metrics.input_age_us.max() >= 30_000);
+        assert_eq!(metrics.rewind_clamps_future.load(Ordering::Relaxed), 1);
+        assert_eq!(metrics.rewind_clamps_old.load(Ordering::Relaxed), 0);
+        assert_eq!(metrics.rewind_clamp_excess[3].load(Ordering::Relaxed), 1);
+        assert!(room.wake(start + tick * 3));
+        assert_eq!(metrics.input_age_us.count(), 1, "an input is aged once");
     }
 
     #[tokio::test(start_paused = true)]

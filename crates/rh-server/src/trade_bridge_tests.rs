@@ -114,6 +114,7 @@ fn input(room: &mut Room, player: u32, conn: u64, seq: u32, kind: WireTradeKind,
     };
     room.handle(
         RoomCmd::Input {
+            received: std::time::Instant::now(),
             player: PlayerId(player),
             conn,
             seq,

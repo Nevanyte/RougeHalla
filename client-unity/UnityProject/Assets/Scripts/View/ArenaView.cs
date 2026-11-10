@@ -29,6 +29,14 @@ namespace Roguehalla.Client
         readonly List<InterpActor> _latestNpcs = new List<InterpActor>();
         readonly HashSet<uint> _membership = new HashSet<uint>();
         readonly List<PendingFx> _pendingFx = new List<PendingFx>(64);
+        // Remote-player cues held until render time reaches their tick. Bounded in count, lead and wall time; past any
+        // bound a cue is shown at once (the previous on-arrival behaviour).
+        const int MaxScheduledFx = 48;
+        const double MaxFxLeadMs = 200; // RenderClock's 150 ms maximum delay plus one 50 ms tick
+        const float MaxFxHoldSeconds = .25f;
+        readonly List<PendingFx> _scheduledFx = new List<PendingFx>(MaxScheduledFx);
+        double _renderMs;
+        bool _renderReady;
         bool _hasMembership;
         readonly List<Flash> _flashes = new List<Flash>();
         readonly Stack<Flash> _flashPool = new Stack<Flash>();
@@ -44,7 +52,7 @@ namespace Roguehalla.Client
             weapon=default; faction=default; kind=default; type=null; return false;
         }
         sealed class Flash { public SpriteRenderer Sprite; public TMP_Text Text; public uint Actor; public float Start, Duration; public Vector3 Position; public Color Color; public float Size; }
-        struct PendingFx { public FxKind Kind; public uint Subject; public float Amount; }
+        struct PendingFx { public FxKind Kind; public uint Subject; public float Amount; public double DueMs; public float QueuedAt; }
 
         void Awake()
         {
@@ -141,6 +149,7 @@ namespace Roguehalla.Client
                     me.Faction, me.Status, me.Weapon, ActorKind.Player, null, me.Effects, me.SelfSig, true, barrierPercent, me.BarrierRingStep);
             }
             _actors.End();
+            ReleaseScheduledFx();
             UpdateEffects();
             _wishes.Tick(_sourceTimeMs);
         }
@@ -149,6 +158,8 @@ namespace Roguehalla.Client
         public void RefreshVisibility(Session session)
         {
             _sourceTimeMs = session != null ? session.ServerTimeMs : 0;
+            _renderReady = session != null && session.Clock.Ready;
+            _renderMs = _renderReady ? session.Clock.RenderMs : 0;
             _latestMembership.Clear();
             if(session!=null && session.Snapshots.Count>0)
             {
@@ -276,7 +287,13 @@ namespace Roguehalla.Client
             int i = ability == AbilityId.Blaze ? 0 : ability == AbilityId.Trial ? 1 : ability == AbilityId.Swarm ? 2 : ability == AbilityId.Freeze ? 3 : 4;
             return ShowcasePalette.Faction(i);
         }
-        public void ConfirmedFx(ServerMsg.Fx fx)
+        public void ConfirmedFx(ServerMsg.Fx fx) { ConfirmedFx(fx, 0, double.NaN); }
+        /// <summary>
+        /// Cues on a remote player drawn by interpolation wait until render time reaches <paramref name="dueMs"/> (source ms
+        /// of the Fx tick), so they meet the drawn pose. Cues involving <paramref name="owner"/>, NPCs (drawn at their newest
+        /// position) and NaN <paramref name="dueMs"/> are shown on arrival.
+        /// </summary>
+        public void ConfirmedFx(ServerMsg.Fx fx, uint owner, double dueMs)
         {
             if (fx == null) return;
             foreach (var f in fx.List)
@@ -288,15 +305,42 @@ namespace Roguehalla.Client
                 }
                 uint subject = f.Kind == FxKind.Hit ? f.Victim : f.Kind == FxKind.Stagger || f.Kind == FxKind.Block ? f.Id : f.By;
                 var cue=new PendingFx{Kind=f.Kind,Subject=subject,Amount=f.Amount};
+                bool own = owner != 0 && (subject == owner || f.By == owner || f.Victim == owner);
+                if (!own && _renderReady && dueMs > _renderMs && dueMs - _renderMs <= MaxFxLeadMs &&
+                    _scheduledFx.Count < MaxScheduledFx && _actors.Contains(subject) && !IsLatestNpc(subject))
+                {
+                    cue.DueMs = dueMs; cue.QueuedAt = Time.unscaledTime;
+                    _scheduledFx.Add(cue);
+                    continue;
+                }
                 if (_actors.Contains(subject)) PresentFx(cue);
                 else if(_pendingFx.Count<64) _pendingFx.Add(cue); // Copy scalars; decoded messages are recycled.
             }
+        }
+        bool IsLatestNpc(uint id)
+        {
+            foreach (var a in _latestNpcs) if (a.Id == id) return true;
+            return false;
+        }
+        /// <summary>Called after this frame's poses are drawn; compacts in place without allocating.</summary>
+        void ReleaseScheduledFx()
+        {
+            int keep = 0; float now = Time.unscaledTime;
+            for (int i = 0; i < _scheduledFx.Count; i++)
+            {
+                var cue = _scheduledFx[i];
+                bool due = !_renderReady || cue.DueMs <= _renderMs || cue.DueMs - _renderMs > MaxFxLeadMs || now - cue.QueuedAt > MaxFxHoldSeconds;
+                if (!due) { _scheduledFx[keep++] = cue; continue; }
+                if (_actors.Contains(cue.Subject)) PresentFx(cue); // An actor that left view drops its cue.
+            }
+            _scheduledFx.RemoveRange(keep, _scheduledFx.Count - keep);
         }
         /// <summary>A clock epoch cut clears cosmetics only; latest membership and collections remain intact.</summary>
         public void ResetTransientPresentation(double serverTimeMs = 0)
         {
             _sourceTimeMs = serverTimeMs;
             _pendingFx.Clear();
+            _scheduledFx.Clear();
             _wishes.Reset();
             for (int i = _flashes.Count - 1; i >= 0; i--)
             {

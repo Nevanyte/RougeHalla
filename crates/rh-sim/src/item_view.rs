@@ -176,10 +176,17 @@ pub(crate) fn position(v: f64) -> Result<u16, OfferError> {
 #[derive(Default)]
 struct Bindings {
     first: u32,
-    ids: Vec<u32>,
+    ids: Vec<Bound>,
+}
+/// What one issued prop handle names. Container ids and corpse (player) ids come from separate counters, so the
+/// binding keeps its namespace: a corpse handle never resolves as a container and vice versa.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Bound {
+    Container(u32),
+    Corpse(PlayerId),
 }
 impl Bindings {
-    fn lookup(&self, h: PickupHandle) -> Option<u32> {
+    fn lookup(&self, h: PickupHandle) -> Option<Bound> {
         let i = h.get().checked_sub(self.first)?;
         self.ids.get(i as usize).copied()
     }
@@ -193,7 +200,7 @@ struct Retired {
 
 struct Candidate {
     cue: PropCue,
-    id: u32,
+    id: Bound,
 }
 
 /// Private adapter state for exactly one viewer and one match. Keep one per connection or external/policy seat.
@@ -368,7 +375,10 @@ impl ItemObserver {
                     best = Some((self.scratch.len(), distance, hint));
                 }
             }
-            self.scratch.push(Candidate { cue, id: c.id });
+            self.scratch.push(Candidate {
+                cue,
+                id: Bound::Container(c.id),
+            });
         }
         if me.standing() && me.vitals.faction == crate::content::FactionId::Plague {
             for corpse in &sim.w.plague_corpses {
@@ -392,7 +402,7 @@ impl ItemObserver {
                 };
                 self.scratch.push(Candidate {
                     cue,
-                    id: corpse.player.0,
+                    id: Bound::Corpse(corpse.player),
                 });
             }
         }
@@ -610,9 +620,10 @@ impl ItemObserver {
                 crate::RawCommand::Target { id }
             }));
         }
+        let wants_corpse = matches!(proposal, PublicCommand::ConsumeCorpse { .. });
         proposal.resolve(
             |handle| {
-                let id = self.current.lookup(handle).or_else(|| {
+                let bound = self.current.lookup(handle).or_else(|| {
                     self.retired
                         .iter()
                         .filter(|b| {
@@ -623,6 +634,17 @@ impl ItemObserver {
                         .find_map(|b| b.bindings.lookup(handle))
                 })?;
                 let me = sim.player(self.viewer)?;
+                let id = match bound {
+                    // The sim re-checks faction, reach and standing; here the handle only has to name a corpse
+                    // that still exists.
+                    Bound::Corpse(player) => {
+                        return (wants_corpse
+                            && sim.plague_corpses().iter().any(|c| c.player == player))
+                        .then_some(player.0);
+                    }
+                    Bound::Container(_) if wants_corpse => return None,
+                    Bound::Container(id) => id,
+                };
                 let i = sim.containers().binary_search_by_key(&id, |c| c.id).ok()?;
                 let c = &sim.containers()[i];
                 if c.kind == ContainerKind::Quest && eligible_quest_item(sim, me, c).is_none() {
@@ -801,6 +823,59 @@ mod tests {
         let first = rows.next().expect("a focus");
         assert!(rows.next().is_none());
         first
+    }
+
+    #[test]
+    fn corpse_and_container_handles_resolve_only_in_their_own_namespace() {
+        let place = |name: &str, at, faction| Placement {
+            profile: name.into(),
+            at,
+            faction,
+            bot: false,
+            hp: None,
+            weapon0: None,
+            weapon1: None,
+        };
+        let mut s = Sim::reset_active(
+            SimConfig {
+                consumables: false,
+                faction_mode: crate::FactionMode::EngagementHolyPlagueFireFrostSentenced,
+                ..SimConfig::default()
+            },
+            practice_arena(),
+            Secrets::from_seed(4),
+            &[
+                place("viewer", Vec2::new(400.0, 320.0), FactionId::Plague),
+                place("victim", Vec2::new(420.0, 320.0), FactionId::Holy),
+                place("other", Vec2::new(1400.0, 272.0), FactionId::Holy),
+            ],
+        );
+        let mut ev = Vec::new();
+        crate::systems::settle::down_player(&s.k, &mut s.w, &mut ev, None, 1, crate::Outcome::Died);
+        let fallen = s.w.plague_corpses[0].player;
+        rack(&mut s, ContainerKind::Ground, 410.0, 320.0, &[Sword]);
+        let mut observer = ItemObserver::new(PlayerId(1));
+        let obs = sample(&s, &mut observer);
+        let handle_of = |corpse: bool| {
+            obs.props
+                .iter()
+                .find(|r| matches!(r.cue.kind, PropKind::Corpse { .. }) == corpse)
+                .expect("both kinds are offered")
+                .handle
+        };
+        let (corpse, item) = (handle_of(true), handle_of(false));
+        let consume = |handle| observer.resolve(&s, PublicCommand::ConsumeCorpse { handle });
+        let pickup = |handle| observer.resolve(&s, PublicCommand::Pickup { handle });
+        assert_eq!(
+            consume(corpse).unwrap(),
+            crate::validate(crate::RawCommand::ConsumeCorpse { corpse: fallen }).unwrap()
+        );
+        assert!(pickup(item).is_ok());
+        assert!(consume(item).is_err());
+        // A corpse handle sent as Pickup is the same refusal as a handle that was never issued.
+        let unknown = PickupHandle::new(u32::MAX).unwrap();
+        assert_eq!(pickup(corpse), pickup(unknown));
+        assert_ne!(pickup(corpse), pickup(item));
     }
 
     #[test]

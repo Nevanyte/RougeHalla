@@ -298,6 +298,7 @@ async fn quest_bridge_room_failed_enqueue_accept_resync_and_resume() {
     assert!(row.can_accept);
     room.handle(
         RoomCmd::Input {
+            received: std::time::Instant::now(),
             player: PlayerId(1),
             conn: 1,
             seq: 1,

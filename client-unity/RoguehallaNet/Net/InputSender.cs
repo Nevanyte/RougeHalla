@@ -5,14 +5,17 @@ using Roguehalla.Net.Protocol;
 namespace Roguehalla.Net
 {
     /// <summary>
-    /// Collects commands and builds Input frames. Aim is rate limited (latest wins, at most 40/s); every other command leaves with
+    /// Collects commands and builds Input frames. Aim is rate limited (latest wins, at most 40/s) and sent only when its value changed (the server latches it), with a
+    /// slow repeat in case the server dropped it (stun, target lock, respawn); every other command leaves with
     /// the next Flush. A frame carries at most 16 commands; the frame counter increments per frame.
     /// </summary>
     public sealed class InputSender
     {
-        public const double AimMinIntervalMs = 25;
+        public const double AimMinIntervalMs = 25, AimRepeatMs = 100;
+        static readonly List<ClientMsg.Input> NoFrames = new List<ClientMsg.Input>();
         readonly List<WireCommand> _queue = new List<WireCommand>();
-        WireCommand _aim;
+        float _aim, _lastSentAim;
+        bool _hasAim, _sentAim;
         double _lastAimMs = double.NegativeInfinity;
         uint _frameSeq;
         byte _orderSeq;
@@ -88,7 +91,7 @@ namespace Roguehalla.Net
         public void Aim(float a)
         {
             if (!Finite(a)) { Dropped++; return; }
-            _aim = WireCommand.Aim(a);
+            _aim = a; _hasAim = true;
         }
 
         /// <summary>Queues a weapon selection intent; absent slot toggles. The server decides whether it can execute.</summary>
@@ -127,20 +130,25 @@ namespace Roguehalla.Net
         }
 
         /// <summary>Cancels commands that belong to an earlier connection/observer epoch.</summary>
-        internal void ClearPending() { _queue.Clear(); _aim=null; LastMovementOrder=null; }
+        internal void ClearPending() { _queue.Clear(); _hasAim=false; _sentAim=false; LastMovementOrder=null; }
 
         public void Attack(float a, double? t) { if (!Finite(a)) { Dropped++; return; } _queue.Add(WireCommand.Attack(a, t)); }
         public void Release(float a, double? t) { if (!Finite(a)) { Dropped++; return; } _queue.Add(WireCommand.Release(a, t)); }
 
         public List<ClientMsg.Input> Flush(double nowMs)
         {
-            var frames = new List<ClientMsg.Input>();
-            if (_aim != null && nowMs - _lastAimMs >= AimMinIntervalMs)
+            if (_hasAim && nowMs - _lastAimMs >= AimMinIntervalMs)
             {
-                _queue.Add(_aim);
-                _aim = null;
-                _lastAimMs = nowMs;
+                _hasAim = false;
+                if (!_sentAim || _aim != _lastSentAim || nowMs - _lastAimMs >= AimRepeatMs)
+                {
+                    _queue.Add(WireCommand.Aim(_aim));
+                    _lastSentAim = _aim; _sentAim = true;
+                    _lastAimMs = nowMs;
+                }
             }
+            if (_queue.Count == 0) return NoFrames;
+            var frames = new List<ClientMsg.Input>();
             for (int i = 0; i < _queue.Count; i += Wire.MaxCommandsPerInput)
             {
                 var f = new ClientMsg.Input { Seq = ++_frameSeq };

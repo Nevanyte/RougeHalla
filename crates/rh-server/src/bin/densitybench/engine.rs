@@ -190,6 +190,7 @@ async fn inputs(
             conn,
             seq,
             commands,
+            received: std::time::Instant::now(),
         };
         match tx.try_send(cmd) {
             Ok(()) | Err(mpsc::error::TrySendError::Full(_)) => {}

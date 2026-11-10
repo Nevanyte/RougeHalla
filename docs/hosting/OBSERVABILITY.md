@@ -25,6 +25,25 @@ bound: the simulation fell behind for real, a **hard miss**) and the `latenessUs
 period (50 ms at 20 Hz) is a **soft miss**, but the process only reports quantiles, not the count above a threshold). The fleet manager
 uses `droppedSteps` delta > 0 and `latenessUs.p99` > 25 ms as the guardrail ([SCALING.md](SCALING.md) section 3).
 
+### Latency budget metrics (netcode plan item 2)
+
+Added to the `metrics` object of `/control/health`. All are process-wide, allocation-free, carry no player identity, and are measured with
+`std::time::Instant` inside `rh-server` only (nothing reaches `rh-sim`). Histograms are the same log-linear kind as `stepUs`
+(`{count,p50,p99,max}`, quantiles at most 25 % above the truth, `max` exact).
+
+| Field | What it measures |
+|---|---|
+| `inputAgeUs` | Microseconds from an Input frame being decoded on its connection task (`conn.rs`) to the start of the first step that follows the room taking it. One value per seat per step that had input (the age of the oldest Input message that step applies). Includes the room inbox wait and the wait for the step grid slot, so under normal load it is bounded by about one tick period; larger values mean an overloaded room. |
+| `stepToConnUs` | Microseconds from the start of the step that produced a tick batch to the connection writer taking that batch from the outbox (after any snapshot encode). A batch the writer found coalesced with an older unwritten one is measured from the older step. Covers publish (observe + encode + push), writer wake and delta encode. |
+| `stepToWrittenUs` | The same start, to the socket write of the batch completing (`write_batch` returned). Includes the OS send buffer hand-off, not the network or client. Not recorded for a batch that ends in a close or a failed write. |
+| `rewindClamps.oldEdge` / `futureEdge` | Attack/release/cast render times `t` the server bounded by the seat's rewind window (`rtt.rs`): older than the window, or later than the sim time the command is applied at. Honest clients should produce no future-edge clamps; sustained old-edge clamps point at an under-sized window or Pong inflation. |
+| `rewindClamps.excessMsLe25` / `Le50` / `Le100` / `Gt100` | The same clamps by how far past the edge the claim was (both edges together). |
+| `rewindClamps.excessMsMax` | Largest excess seen, whole milliseconds, rounded up. |
+
+`stepUs`, `publishUs` and `latenessUs` (above) cover the server side before the batch is handed over; the three new histograms continue the
+budget through the outbox and writer. The network leg and the client render delay are not measured here. The per-room `rewind_clamps` total in
+`RoomStats` is unchanged.
+
 ## 2. Measured locally (2026-11-05, native macOS arm64, slice build, `target/fleet-local/run-*/events.jsonl`)
 
 Over 5 concurrent `rh-server` processes with 3 running 8-fighter matches: `droppedSteps` 0, `latenessUs.p99` peak 5.1 ms, `steps` about 20 per second per room,
