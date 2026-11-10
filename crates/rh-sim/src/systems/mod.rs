@@ -115,6 +115,9 @@ fn update_active(cx: &mut Cx) {
 mod tests;
 
 #[cfg(test)]
+mod fighter_churn_tests;
+
+#[cfg(test)]
 mod loot_world_tests;
 
 pub(crate) mod buffs;
