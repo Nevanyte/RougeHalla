@@ -29,5 +29,11 @@ Read this first after any context reset. Direction: [UNITY_REWORK_FABLE.md](UNIT
 - 2026-11-09: Gate 1 doc-only tasks share the main checkout (distinct files, no commits by sub-agents); code tasks get worktrees.
 - 2026-11-09: the unmerged protocol-15 netcode WIP (`claude/peaceful-babbage-rtsgq6`) is not part of this effort; our bump is taken from 14 on this branch and the number clash is flagged at Gate 1.
 
+## Facts found while orienting (differ from the prompt's section 3)
+- The full five-region map is **160 x 160**, not 136 x 136: `crates/rh-sim/src/mapdata/fixtures/seed1.map.json` and `seed2.map.json` (rh-map/2, 4,936 tiles per region, 50 camps, terrain kinds 1-7, 86 features). Serve with `rh-server --runtime source-arena --map <file>`.
+- `--first-playable` (48 x 40) has only 4 Frost and 4 Sentenced tiles, so it cannot show Frost. Region playtests use the seed maps.
+- `dotnet` lives at `~/.dotnet/dotnet`, `cargo` at `~/.cargo/bin`.
+- `docs/DEVIATIONS.md` exists: intentional departures from legacy add a row there.
+
 ## Next
 Gate 1 report, then workstream B (Rust) in a worktree with Opus review, A/D/E/G Unity work in parallel worktrees (max 4).
