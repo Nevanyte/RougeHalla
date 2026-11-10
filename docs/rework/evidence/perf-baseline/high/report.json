@@ -1,0 +1,335 @@
+{
+  "tool": "perf-run.cjs",
+  "generatedAt": "2026-11-10T04:40:38.865Z",
+  "options": {
+    "quality": "high",
+    "region": "frost",
+    "seconds": 60,
+    "warmup": 3,
+    "url": "http://127.0.0.1:8107/",
+    "server": "ws://127.0.0.1:7807/ws",
+    "out": "docs/rework/evidence/perf-baseline/high",
+    "attribution": false,
+    "attribSeconds": 5,
+    "attribRounds": 3,
+    "flags": "",
+    "uncapped": false,
+    "fullscreen": true,
+    "profile": "perf1",
+    "token": "[redacted]",
+    "width": 2560,
+    "height": 1440,
+    "headless": false,
+    "planningTimeout": 90,
+    "playwright": null,
+    "profileExplicit": false,
+    "_profile": "perf1aiwg0"
+  },
+  "target": {
+    "refreshHz": 144,
+    "width": 2560,
+    "height": 1440,
+    "p95Ms": 6.94,
+    "worst1PctFps": 120,
+    "worst1PctMs": 8.33
+  },
+  "server": {
+    "info": {
+      "url": "http://127.0.0.1:7807/info",
+      "closedRooms": [
+        {
+          "bytesEnqueuedTotal": 241504,
+          "bytesOut": 240580,
+          "crashed": true,
+          "droppedSteps": 0,
+          "frameRefusals": 0,
+          "frameRefusalsLogged": 0,
+          "fxDropped": 0,
+          "lateWakes": 0,
+          "snapshotBytesSent": 174756,
+          "snapshotRefusals": 0,
+          "snapshotRefusalsLogged": 0,
+          "snapshotsDelta": 867,
+          "snapshotsFull": 1,
+          "snapshotsSkipped": 0,
+          "stepUsMax": 12782,
+          "stepUsP50": 3071,
+          "stepUsP99": 6143,
+          "ticks": 868
+        },
+        {
+          "bytesEnqueuedTotal": 281697,
+          "bytesOut": 280248,
+          "crashed": false,
+          "droppedSteps": 0,
+          "frameRefusals": 0,
+          "frameRefusalsLogged": 0,
+          "fxDropped": 0,
+          "lateWakes": 0,
+          "snapshotBytesSent": 300963,
+          "snapshotRefusals": 0,
+          "snapshotRefusalsLogged": 0,
+          "snapshotsDelta": 1474,
+          "snapshotsFull": 2,
+          "snapshotsSkipped": 0,
+          "stepUsMax": 4257,
+          "stepUsP50": 1279,
+          "stepUsP99": 2559,
+          "ticks": 1477
+        }
+      ],
+      "contentHash": "7c6a633f68c2cc72",
+      "lobbies": 0,
+      "maxRooms": 16,
+      "players": 0,
+      "protocol": 14,
+      "resultsFailed": 0,
+      "resultsOk": 1,
+      "resultsRefused": 0,
+      "rooms": 0,
+      "state": "ready"
+    }
+  },
+  "host": {
+    "platform": "darwin",
+    "release": "25.6.0",
+    "cpus": "Apple M5 Pro",
+    "cpuCount": 18,
+    "loadAvgBeforeWindow": [
+      11.7197265625,
+      18.37744140625,
+      23.12158203125
+    ],
+    "loadAvgAfterWindow": [
+      7.76220703125,
+      15.91845703125,
+      21.84716796875
+    ]
+  },
+  "displaySystem": {
+    "status": "observed",
+    "displays": [
+      {
+        "name": "RZ39-0276",
+        "main": true,
+        "mode": "2560 x 1440 @ 144.00Hz",
+        "width": 2560,
+        "height": 1440,
+        "refreshHz": 144
+      },
+      {
+        "name": "E2212F",
+        "main": false,
+        "mode": "1920 x 1080 @ 100.00Hz",
+        "width": 1920,
+        "height": 1080,
+        "refreshHz": 100
+      }
+    ]
+  },
+  "display": {
+    "verified": true,
+    "refreshHz": 144,
+    "measuredHz": 144.92753623185348,
+    "backbufferOk": true,
+    "reason": null
+  },
+  "vsyncOff": false,
+  "browser": {
+    "version": "156.0.8078.4",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+    "gpu": {
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)",
+      "canvas": {
+        "width": 2560,
+        "height": 1440
+      },
+      "drawingBuffer": {
+        "width": 2560,
+        "height": 1440
+      },
+      "devicePixelRatio": 1,
+      "inner": {
+        "width": 2560,
+        "height": 1440
+      },
+      "screen": {
+        "width": 2560,
+        "height": 1440
+      },
+      "visibility": "visible",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"
+    },
+    "window": {
+      "left": 0,
+      "top": 88,
+      "width": 2560,
+      "height": 1352,
+      "windowState": "fullscreen"
+    },
+    "uncapped": false
+  },
+  "run": {
+    "pageUrl": "http://127.0.0.1:8107/?server=ws%3A%2F%2F127.0.0.1%3A7807%2Fws&diagnostic=1&token=[redacted]&profile=perf1aiwg0&faction=3&perf=1&quality=high",
+    "loadMs": 3253,
+    "planning": {
+      "attempts": 3,
+      "inMatchSeen": true,
+      "seconds": 13.120000000000005
+    },
+    "recordedSeconds": 60.012,
+    "quality": {
+      "preset": "High",
+      "overrides": false,
+      "renderScale": 1,
+      "particles": 1,
+      "dynamicLights": 6,
+      "shadows": true,
+      "bloom": true,
+      "colorGrading": true,
+      "vignette": true,
+      "ambientParticles": true,
+      "propDensity": 1
+    },
+    "showcaseSettings": {
+      "quality": "High",
+      "mode": "Manual",
+      "reducedMotion": false,
+      "textScale": 1,
+      "musicVolume": 0.7200000286102295
+    },
+    "cadenceCheck": {
+      "medianMs": 6.900000000001455,
+      "p05Ms": null,
+      "hz": 144.92753623185348,
+      "frames": 215
+    },
+    "frameStats": {
+      "count": 8641,
+      "meanMs": 6.944,
+      "minMs": 6,
+      "maxMs": 7.9,
+      "p50Ms": 6.9,
+      "p95Ms": 7.5,
+      "p99Ms": 7.8,
+      "worst1PctMeanMs": 7.826,
+      "worst1PctFps": 127.772,
+      "avgFps": 144.003,
+      "smooth": {
+        "frames": 8,
+        "p50Ms": 6.949999999998909,
+        "p95Ms": 7.012499999999818,
+        "p99Ms": 7.037500000000364,
+        "maxMs": 7.0625
+      },
+      "refreshHz": 144,
+      "droppedLimitMs": 10.417,
+      "droppedFrames": 0,
+      "droppedPct": 0
+    },
+    "pageReportedStats": {
+      "version": 1,
+      "count": 8641,
+      "overflow": 0,
+      "actors": 35,
+      "preset": 2,
+      "row": {
+        "preset": "High",
+        "overrides": false,
+        "renderScale": 1,
+        "particles": 1,
+        "dynamicLights": 6,
+        "shadows": true,
+        "bloom": true,
+        "colorGrading": true,
+        "vignette": true,
+        "ambientParticles": true,
+        "propDensity": 1
+      },
+      "windowSeconds": 60.005900000000004,
+      "meanMs": 6.944323573660456,
+      "p50Ms": 6.900000000001455,
+      "p95Ms": 7.5,
+      "p99Ms": 7.80000000000291,
+      "maxMs": 7.900000000008731,
+      "minMs": 6,
+      "worst1PctMeanMs": 7.826436781611553,
+      "worst1PctFps": 127.77206638269024,
+      "refreshMs": 6.944444444444445,
+      "refreshHz": 144,
+      "refreshSource": "override",
+      "droppedFrames": 0,
+      "droppedLimitMs": 10.416666666666668
+    },
+    "actors": {
+      "samples": 60,
+      "p50": 35,
+      "max": 39,
+      "min": 13
+    },
+    "wire": {
+      "framesReceived": 2183,
+      "bytesReceived": 718463,
+      "framesSent": 2685
+    },
+    "netStates": [
+      {
+        "at": 1794285559444,
+        "text": "[net] Connecting\n"
+      },
+      {
+        "at": 1794285559560,
+        "text": "[net] HelloSent\n"
+      },
+      {
+        "at": 1794285559565,
+        "text": "[net] InMatch\n"
+      }
+    ],
+    "errors": [],
+    "httpErrors": [],
+    "notes": [],
+    "screenshots": [
+      "high-planning.png",
+      "high-before.png",
+      "high-after.png"
+    ]
+  },
+  "verdict": {
+    "verdict": "FAIL",
+    "meetsNumbers": false,
+    "claimable": true,
+    "checks": {
+      "p95": {
+        "value": 7.5,
+        "limit": 6.94,
+        "pass": false
+      },
+      "worst1Pct": {
+        "valueMs": 7.826436781611553,
+        "valueFps": 127.77206638269024,
+        "limitMs": 8.33,
+        "limitFps": 120,
+        "pass": true
+      }
+    },
+    "pacing": {
+      "droppedFrames": 0,
+      "meanMs": 6.944323573660456,
+      "smoothP95Ms": 7.012499999999818,
+      "smoothMaxMs": 7.0625,
+      "clean": true
+    }
+  },
+  "validity": {
+    "valid": true,
+    "problems": []
+  },
+  "caveats": [
+    "Frame time is the delta between consecutive requestAnimationFrame timestamps in the page (presented cadence as the browser reports it), not GPU time.",
+    "Under vsync a frame cannot be faster than the refresh interval, so headroom is invisible; the attribution mode therefore runs vsync-off.",
+    "Playwright input events and screenshots run in the same browser; screenshots are taken outside the recorded window.",
+    "Other processes on the machine (other Unity editors, browsers) share the GPU and CPU; host.loadAvg* is recorded so a noisy run can be recognised. Runs differ because bot fights are not deterministic.",
+    "A scripted walk-and-attack loop against server bots is representative of a fight only to the extent bots engage; see run.actors and run.wire for activity evidence."
+  ]
+}

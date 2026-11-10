@@ -60,3 +60,22 @@ cp "$project/../../LICENSE" "$project/Build/Web/Licenses/Roguehalla-MIT.txt"
 cp "$project/Assets/TextMesh Pro/License.Unity.md" "$project/Build/Web/Licenses/Unity-Companion.md"
 cp "$project/Assets/TextMesh Pro/Fonts/LiberationSans - OFL.txt" "$project/Build/Web/Licenses/LiberationSans-OFL.txt"
 cp "$project/Assets/TextMesh Pro/Sprites/EmojiOne Attribution.txt" "$project/Build/Web/Licenses/EmojiOne-Attribution.txt"
+# Every required third-party notice ships with the player (docs/art/LICENCE_LEDGER.md, "Build notices"). RhBuild.CopyNotices
+# already copies the MIT, Flare base, Cinzel and THIRD_PARTY files; this adds the notices it lacks (Flare expansions) and
+# then fails if any required file is absent: a licence notice that cannot be shipped must not be skipped silently.
+third_party="$project/Assets/Art/ThirdParty"
+licenses="$project/Build/Web/Licenses"
+add_notice() { cp "$third_party/$1" "$licenses/$2"; }
+add_notice Fonts/OFL-CinzelDecorative.txt CinzelDecorative-OFL.txt
+add_notice FlareExpansion/LICENSE.txt FlareExpansion-LICENSE.txt
+add_notice FlareExpansion/CREDITS.md FlareExpansion-CREDITS.md
+add_notice FlareExpansion/CREDITS_CAPTURE.txt FlareExpansion-CREDITS_CAPTURE.txt
+add_notice FlareProps/Raw/LICENSE.txt FlareProps-LICENSE.txt
+add_notice FlareProps/Raw/CREDITS_CAPTURE.txt FlareProps-CREDITS_CAPTURE.txt
+add_notice FlareAudioExpansion/LICENSE.txt FlareAudioExpansion-LICENSE.txt
+add_notice FlareAudioExpansion/CREDITS_CAPTURE.txt FlareAudioExpansion-CREDITS_CAPTURE.txt
+for required in Roguehalla-MIT.txt Unity-Companion.md LiberationSans-OFL.txt EmojiOne-Attribution.txt CinzelDecorative-OFL.txt \
+    Flare-CC-BY-SA-3.0.txt Flare-Credits.txt Flare-Audio-Notice.txt Third-Party-Assets.md FlareExpansion-LICENSE.txt \
+    FlareExpansion-CREDITS.md FlareProps-LICENSE.txt FlareAudioExpansion-LICENSE.txt; do
+    [[ -s "$licenses/$required" ]] || { echo "Missing required licence notice: $required" >&2; exit 1; }
+done

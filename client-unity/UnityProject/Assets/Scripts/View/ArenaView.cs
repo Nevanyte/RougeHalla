@@ -60,6 +60,8 @@ namespace Roguehalla.Client
         /// <summary>Legacy CameraFollow constants: tau 35 ms, cut over 256 u or after a gap of more than 250 ms.</summary>
         const float FollowTauSeconds = .035f, FollowCutUnits = 256f, FollowMaxDt = .25f;
         bool _hasFollow;
+        /// <summary>Observed actors currently presented (perf recorder context).</summary>
+        public int ObservedActorCount { get { return _actors != null ? _actors.ActiveCount : 0; } }
         public bool IsObserved(uint id) { return _actors != null && _actors.Contains(id); }
         public bool TrySoundContext(uint id, out WeaponId weapon, out FactionId faction, out ActorKind kind, out MobTypeId? type)
         {
@@ -451,24 +453,25 @@ namespace Roguehalla.Client
             cam.transform.rotation = Quaternion.identity;
             _lastFollow = p; _hasFollow = true;
             UpdateLampVisibility(p);
-            int budget = ShowcaseSettings.Current == null || ShowcaseSettings.Current.EffectiveQuality == ShowcaseQuality.High ? 6 : ShowcaseSettings.Current.EffectiveQuality == ShowcaseQuality.Medium ? 3 : 0;
+            bool ambient = Quality.AmbientParticles && Quality.Particles > 0f;
             bool motion = ShowcaseSettings.Current == null || !ShowcaseSettings.Current.ReducedMotion;
+            int moteLimit = ambient ? Mathf.Min(_motes.Count, Mathf.CeilToInt(_motes.Count * Mathf.Min(1f, Quality.Particles))) : 0;
             for(int i=0;i<_motes.Count;i++)
             {
-                var m = _motes[i]; m.enabled = budget > 0;
+                var m = _motes[i]; m.enabled = i < moteLimit;
                 float t = motion ? Time.unscaledTime * .03f : 0;
                 m.transform.position = p + new Vector3(Mathf.Repeat(i*7.31f+t,32)-16, Mathf.Repeat(i*3.71f+t*.7f,18)-9,0);
             }
             for(int i=0;i<_fog.Count;i++)
             {
-                _fog[i].enabled=budget>0;
+                _fog[i].enabled=ambient;
                 float t=motion ? Time.unscaledTime*.04f : 0;
                 _fog[i].transform.position=p+new Vector3(Mathf.Sin(t+i*2)*6,(i-1)*5,0);
             }
         }
         void UpdateLampVisibility(Vector3 p)
         {
-            int budget = ShowcaseSettings.Current == null || ShowcaseSettings.Current.EffectiveQuality == ShowcaseQuality.High ? 6 : ShowcaseSettings.Current.EffectiveQuality == ShowcaseQuality.Medium ? 3 : 0;
+            int budget = Quality.DynamicLights;
             int count = 0;
             foreach (var lamp in _lamps)
             {
@@ -485,11 +488,27 @@ namespace Roguehalla.Client
         void ApplyQuality()
         {
             var quality = ShowcaseSettings.Current != null ? ShowcaseSettings.Current.EffectiveQuality : ShowcaseQuality.High;
-            if (_volume != null) _volume.enabled = quality != ShowcaseQuality.Low;
+            // Post-processing is toggled per effect so the cost of each can be attributed (?fx.bloom=0 etc.).
+            if (_volume != null)
+            {
+                _volume.enabled = Quality.AnyPostProcessing;
+                var profile = _volume.profile; // instance copy; the shared asset is never modified
+                if (profile != null)
+                {
+                    SetActive<Bloom>(profile, Quality.Bloom);
+                    SetActive<ColorAdjustments>(profile, Quality.ColorGrading);
+                    SetActive<Tonemapping>(profile, Quality.ColorGrading);
+                    SetActive<Vignette>(profile, Quality.Vignette); // no-op until a profile authors one
+                }
+            }
             if (_ambient != null) _ambient.intensity = quality == ShowcaseQuality.Low ? 1 : quality==ShowcaseQuality.Medium ? .6f : .36f;
-            foreach (var glow in _lampGlows) glow.enabled = quality != ShowcaseQuality.Low;
-            foreach (var light in _lamps) { light.SetShadows(quality == ShowcaseQuality.High); light.ApplyQuality(); }
+            foreach (var glow in _lampGlows) glow.enabled = Quality.DynamicLights > 0;
+            foreach (var light in _lamps) { light.SetShadows(Quality.Shadows); light.ApplyQuality(); }
             if (_hasFollow) UpdateLampVisibility(_lastFollow);
+        }
+        static void SetActive<T>(VolumeProfile profile, bool active) where T : VolumeComponent
+        {
+            T component; if (profile.TryGet(out component)) component.active = active;
         }
         void OnDestroy()
         {
