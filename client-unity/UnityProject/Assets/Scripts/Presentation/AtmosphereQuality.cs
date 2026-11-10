@@ -11,7 +11,7 @@ namespace Roguehalla.Client
     /// (<c>EffectiveQuality</c>, <c>ReducedMotion</c>); <see cref="Apply"/> is the entry point a future Quality API calls.
     /// URL query overrides always win over a preset: <c>?fx.particles=0</c> (density multiplier, 0 off), <c>?fx.lights=0</c>
     /// (accent light cap, 0 off), <c>?fx.post=0</c>, <c>?fx.bloom=0</c>, <c>?fx.grading=0</c>, <c>?fx.vignette=0</c>,
-    /// <c>?fx.haze=0</c>, <c>?fx.audio=0</c>. Presentation only: nothing here reads or changes game state.
+    /// <c>?fx.haze=0</c>, <c>?fx.audio=0</c>, <c>?fx.sun=0</c>, <c>?fx.shadows=0</c>, <c>?fx.ice=0</c>, <c>?fx.shimmer=0</c>. Presentation only: nothing here reads or changes game state.
     /// </summary>
     public static class AtmosphereQuality
     {
@@ -36,21 +36,31 @@ namespace Roguehalla.Client
         public static bool Haze = true;
         /// <summary>Streamed per-region music and ambience.</summary>
         public static bool Audio = true;
+        /// <summary>The one-sun term in the ground, wall and prop shaders (per-pixel regional sun colour and strength).</summary>
+        public static bool SunLighting = true;
+        /// <summary>Baked wall/prop cast shadows on the ground and the sun-directed actor shadows.</summary>
+        public static bool Shadows = true;
+        /// <summary>Lake-ice translucency (darker layer beneath, sheen, glints) in the ground shader.</summary>
+        public static bool IceTranslucency = true;
+        /// <summary>Heat shimmer over lava in the ground shader.</summary>
+        public static bool HeatShimmer = true;
 
         /// <summary>Raised after any change made through this class, so effects re-read the switchboard (not per frame).</summary>
         public static event Action Changed;
 
-        static float? _ovParticles; static int? _ovLights; static bool? _ovPost, _ovBloom, _ovGrading, _ovVignette, _ovHaze, _ovAudio;
+        static float? _ovParticles; static int? _ovLights; static bool? _ovPost, _ovBloom, _ovGrading, _ovVignette, _ovHaze, _ovAudio, _ovSun, _ovShadows, _ovIce, _ovShimmer;
 
         public static int EffectiveMaxLights { get { return DynamicLights ? Mathf.Clamp(MaxDynamicLights, 0, HardMaxLights) : 0; } }
         public static bool ParticlesEnabled { get { return ParticleDensity > .001f; } }
 
         /// <summary>Replace every field at once, then re-apply query overrides and notify. The future Quality API calls this.</summary>
-        public static void Apply(float particleDensity, bool dynamicLights, int maxLights, bool post, bool bloom, bool grading, bool vignette, bool haze = true, bool audio = true)
+        public static void Apply(float particleDensity, bool dynamicLights, int maxLights, bool post, bool bloom, bool grading, bool vignette, bool haze = true, bool audio = true,
+            bool sun = true, bool shadows = true, bool ice = true, bool shimmer = true)
         {
             ParticleDensity = Mathf.Clamp(particleDensity, 0f, MaxParticleDensity);
             DynamicLights = dynamicLights; MaxDynamicLights = Mathf.Clamp(maxLights, 0, HardMaxLights);
             PostProcessing = post; Bloom = bloom; Grading = grading; Vignette = vignette; Haze = haze; Audio = audio;
+            SunLighting = sun; Shadows = shadows; IceTranslucency = ice; HeatShimmer = shimmer;
             ApplyOverrides();
             Raise();
         }
@@ -61,9 +71,9 @@ namespace Roguehalla.Client
             switch (quality)
             {
                 case ShowcaseQuality.Low:
-                    Apply(0f, false, 0, false, false, false, false, haze: false, audio: true); break;
+                    Apply(0f, false, 0, false, false, false, false, haze: false, audio: true, ice: false, shimmer: false); break;
                 case ShowcaseQuality.Medium:
-                    Apply(reducedMotion ? 0f : .55f, true, 2, true, true, true, false); break;
+                    Apply(reducedMotion ? 0f : .55f, true, 2, true, true, true, false, ice: true, shimmer: false); break;
                 default:
                     Apply(reducedMotion ? 0f : 1f, true, 4, true, true, true, true); break;
             }
@@ -79,7 +89,7 @@ namespace Roguehalla.Client
         /// <summary>Parse <c>fx.*</c> query overrides from a page URL (empty or null clears them) and re-apply.</summary>
         public static void SetUrl(string url)
         {
-            _ovParticles = null; _ovLights = null; _ovPost = _ovBloom = _ovGrading = _ovVignette = _ovHaze = _ovAudio = null;
+            _ovParticles = null; _ovLights = null; _ovPost = _ovBloom = _ovGrading = _ovVignette = _ovHaze = _ovAudio = _ovSun = _ovShadows = _ovIce = _ovShimmer = null;
             ParseOverrides(url);
             ApplyOverrides();
             Raise();
@@ -113,6 +123,10 @@ namespace Roguehalla.Client
                     case "fx.vignette": _ovVignette = flag; break;
                     case "fx.haze": _ovHaze = flag; break;
                     case "fx.audio": _ovAudio = flag; break;
+                    case "fx.sun": _ovSun = flag; break;
+                    case "fx.shadows": _ovShadows = flag; break;
+                    case "fx.ice": _ovIce = flag; break;
+                    case "fx.shimmer": _ovShimmer = flag; break;
                 }
             }
         }
@@ -127,6 +141,10 @@ namespace Roguehalla.Client
             if (_ovVignette.HasValue) Vignette = _ovVignette.Value;
             if (_ovHaze.HasValue) Haze = _ovHaze.Value;
             if (_ovAudio.HasValue) Audio = _ovAudio.Value;
+            if (_ovSun.HasValue) SunLighting = _ovSun.Value;
+            if (_ovShadows.HasValue) Shadows = _ovShadows.Value;
+            if (_ovIce.HasValue) IceTranslucency = _ovIce.Value;
+            if (_ovShimmer.HasValue) HeatShimmer = _ovShimmer.Value;
         }
 
         static void Raise() { var h = Changed; if (h != null) h(); }

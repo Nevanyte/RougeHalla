@@ -53,6 +53,11 @@ namespace Roguehalla.Client
         readonly Stack<Flash> _flashPool = new Stack<Flash>();
         Volume _volume;
         Light2D _ambient;
+        RegionAtmosphere _atmos;
+        Color _fogColor = new Color(.22f, .32f, .48f, .075f);
+        /// <summary>Region atmosphere driver (light, grading, haze, particles, accent lights, shadows, audio).</summary>
+        public RegionAtmosphere Atmosphere { get { return _atmos; } }
+        void ApplyHaze(Color c) { _fogColor = c; for (int i = 0; i < _fog.Count; i++) _fog[i].color = c; }
         int _used;
         Vector3 _lastFollow;
         float _smoothX, _smoothY;
@@ -82,10 +87,13 @@ namespace Roguehalla.Client
             _volume = gameObject.AddComponent<Volume>(); _volume.isGlobal = true; _volume.priority = 2;
             var profile = Resources.Load<VolumeProfile>("Showcase/Atmosphere");
             if (profile != null) _volume.sharedProfile = profile;
+            AtmosphereQuality.Initialize();
+            _atmos = gameObject.AddComponent<RegionAtmosphere>();
             for (int i = 0; i < 32; i++) _motes.Add(ShowcaseSprites.Create(transform, "Ambient dust", "glow", 1500,
                 new Color(1.6f,1.2f,.6f,.35f), new Vector2(.07f,.07f), Vector3.zero, false));
             for(int i=0;i<3;i++) _fog.Add(ShowcaseSprites.Create(transform,"Layered ambient haze","glow",29990,
                 new Color(.22f,.32f,.48f,.075f),new Vector2(20,5),Vector3.zero,false));
+            _atmos.Bind(this, _ambient, _volume, ApplyHaze);
             if (ShowcaseSettings.Current != null) ShowcaseSettings.Current.Changed += ApplyQuality;
             ApplyQuality();
         }
@@ -95,6 +103,7 @@ namespace Roguehalla.Client
         {
             if (HasMap) return;
             Regions.Load(map);
+            _atmos.OnMapBuilt(map);
             if (map.Regions != null && map.Regions.Length == map.W * map.H) { BuildRegionMap(map); return; }
             float w = map.W, h = map.H * GroundSquash;
             for (int y = 0; y < map.H; y += 4) for (int x = 0; x < map.W; x += 4)
@@ -451,11 +460,12 @@ namespace Roguehalla.Client
             cam.transform.rotation = Quaternion.identity;
             _lastFollow = p; _hasFollow = true;
             UpdateLampVisibility(p);
+            _atmos.OnFollow(cam, Time.unscaledDeltaTime);
             int budget = ShowcaseSettings.Current == null || ShowcaseSettings.Current.EffectiveQuality == ShowcaseQuality.High ? 6 : ShowcaseSettings.Current.EffectiveQuality == ShowcaseQuality.Medium ? 3 : 0;
             bool motion = ShowcaseSettings.Current == null || !ShowcaseSettings.Current.ReducedMotion;
             for(int i=0;i<_motes.Count;i++)
             {
-                var m = _motes[i]; m.enabled = budget > 0;
+                var m = _motes[i]; m.enabled = budget > 0 && !_atmos.OwnsMotes;
                 float t = motion ? Time.unscaledTime * .03f : 0;
                 m.transform.position = p + new Vector3(Mathf.Repeat(i*7.31f+t,32)-16, Mathf.Repeat(i*3.71f+t*.7f,18)-9,0);
             }
@@ -485,8 +495,8 @@ namespace Roguehalla.Client
         void ApplyQuality()
         {
             var quality = ShowcaseSettings.Current != null ? ShowcaseSettings.Current.EffectiveQuality : ShowcaseQuality.High;
-            if (_volume != null) _volume.enabled = quality != ShowcaseQuality.Low;
-            if (_ambient != null) _ambient.intensity = quality == ShowcaseQuality.Low ? 1 : quality==ShowcaseQuality.Medium ? .6f : .36f;
+            AtmosphereQuality.RefreshFromSettings();   // volume enable, grading and every other effect switch live in the switchboard
+            if (_atmos != null) _atmos.SetAmbientBase(quality == ShowcaseQuality.Low ? 1 : quality==ShowcaseQuality.Medium ? .6f : .36f);
             foreach (var glow in _lampGlows) glow.enabled = quality != ShowcaseQuality.Low;
             foreach (var light in _lamps) { light.SetShadows(quality == ShowcaseQuality.High); light.ApplyQuality(); }
             if (_hasFollow) UpdateLampVisibility(_lastFollow);

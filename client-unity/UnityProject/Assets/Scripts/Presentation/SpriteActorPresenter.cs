@@ -240,6 +240,7 @@ namespace Roguehalla.Client
             int factionArt = faction.HasValue ? (int)faction.Value : -1;
             a.Identity.Present(factionArt,kind,mob,order,!dead);
             a.Shadow.sortingOrder = order - 8;
+            AtmosphereShadows.ApplyActor(a.Shadow, x / 32f, y / 32f);
             a.Halo.sortingOrder = order - 7;
             a.Halo.transform.localScale = new Vector3(local ? 1.05f : .9f, .48f, 1);
             a.Halo.sprite = FactionIndicators.GetFootprint(factionArt);

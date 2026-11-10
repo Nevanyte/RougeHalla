@@ -31,6 +31,13 @@ namespace Roguehalla.Client
         }
         public static RegionAtmosphereRow Get(int index) { return Rows[index >= 0 && index < RowCount ? index : 6]; }
 
+        /// <summary>The accent light spec for a terrain kind (lava, ice, bog, light), or a disabled spec. Lights follow terrain, not the player's region.</summary>
+        public static AccentLightSpec AccentFor(TerrainKind kind)
+        {
+            for (int i = 1; i < RowCount - 1; i++) if (Rows[i].Accent.Terrain == kind && Rows[i].Accent.Enabled) return Rows[i].Accent;
+            return default(AccentLightSpec);
+        }
+
         public static Color Palette(RegionId region, int slot) { return (Color)RegionPaletteGenerated.Srgb[(int)region][slot]; }
 
         /// <summary>The colour scaled so its largest channel is 1, then blended with white: a hue without a brightness.</summary>

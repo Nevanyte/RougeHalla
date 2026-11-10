@@ -35,8 +35,12 @@ namespace Roguehalla.Client
             var regionA = new Color32[w * RegionTexelsPerTile * h * RegionTexelsPerTile];
             var regionB = new Color32[regionA.Length];
             BakeRegions(map.Regions, w, h, regionA, regionB);
-            Material.SetTexture("_RegA", Tex("Region weights A", w * RegionTexelsPerTile, h * RegionTexelsPerTile, regionA));
-            Material.SetTexture("_RegB", Tex("Region weights B", w * RegionTexelsPerTile, h * RegionTexelsPerTile, regionB));
+            var regTexA = Tex("Region weights A", w * RegionTexelsPerTile, h * RegionTexelsPerTile, regionA);
+            var regTexB = Tex("Region weights B", w * RegionTexelsPerTile, h * RegionTexelsPerTile, regionB);
+            Material.SetTexture("_RegA", regTexA); Material.SetTexture("_RegB", regTexB);
+            // The walls, props and the one-sun term read the same blurred weights through globals (RhSun.hlsl).
+            Shader.SetGlobalTexture("_RhRegA", regTexA); Shader.SetGlobalTexture("_RhRegB", regTexB);
+            Shader.SetGlobalVector("_RhMapInfo", new Vector4(w, h, ArenaView.GroundSquash, 0));
 
             int tw = w * TerrainTexelsPerTile, th = h * TerrainTexelsPerTile;
             var terA = new Color32[tw * th]; var terB = new Color32[tw * th];
