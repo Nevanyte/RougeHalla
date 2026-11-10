@@ -21,6 +21,7 @@ All under `/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/`. Remov
 | `rework-hitbox` | `rework/hitbox` | Opus | ADR 0024 packets P-HB-0..6 and the P-HB-9 server flag (Rust, protocol 16, C#/JS codecs) | running |
 | `rework-sim-crash` | `rework/sim-crash` | Opus | reproduce headlessly and fix the second room panic (`state.rs:1149`, stale fighter index), audit the family, regression tests | running |
 | `rework-launch` | `rework/launch` | Sonnet | launch screen + hub to legacy arrangement in the HUD skin, title, region backdrop, error states (ports 7847/8147) | running |
+| `rework-wish-fx` | `rework/wish-fx` | Sonnet | animation and VFX for the five Wishes (Freeze, Swarm, Trial, Blaze Step, Last Stand), HUD Wish tile, SFX (ports 7857/8157) | running |
 | `rework-atmosphere` | `rework/atmosphere` | Sonnet | region lighting/post, snow and other screen particles, per-region music from StreamingAssets, `AtmosphereQuality` switchboard (ports 7827/8127) | running |
 
 Merged and removed: `rework/controls` (`73f3df89`), `rework/hud`, `rework/skin`, `rework/regions`, `rework/perf` (`29fc2045`), `rework/map-hud` (Tab map, zone tint, right-click minimap walk, crisp icons; EditMode 311/311, C# 1021).
@@ -81,6 +82,9 @@ Further owner messages (same day), all relayed to the agents named:
 - Zone themes approved as a start, with two changes. (1) Passive lighting floor in every zone (vision system must not depend on region effects); Fire and Plague get a small passive level, a little sunlight in Plague marshes is welcome. -> atmosphere agent. (2) **Holy temple**: a golden temple generated over the dense square zone of Holy, sand outside, mosque/cathedral-style architecture; pick a roughly square area covering 35-70% of the Holy region as the generated terrain allows. QUEUED as "region art pass 2", to start when `rework/atmosphere` merges (same files). Facts for the brief: the generator already emits a Holy `hall` feature (seed1: bbox 39 x 39 tiles at (70,14), 998 pillar tiles, about 31% of Holy's 4,936 tiles); features are not on the wire, so the client detects the pillar grid from `Tiles` + `Regions` and grows a square to 35-70% where terrain allows. Presentation only, no Rust change. Use architectural motifs (domes, arches, colonnades, geometric tile, stained glass) and the Holy faction icon, not real-world religious symbols. Same pass: coliseum props, Plague bog pools, map zone-border staircase, `[]` glyph in weapon-counter labels.
 
 - FINAL zone brightness order (supersedes earlier notes): Holy (darker sand, bright rays; temple interior decent passive) > Frost (white sun) > Plague (medium, marshy, lots of rays, green through brush) > Fire (darkest passive, lava brightens) > Sentenced (darkest, lamps/torches). Written into `UNITY_REWORK_FABLE.md` section 4 and sent to the atmosphere agent.
+
+- Tuning: Plague greens darker (deep fern/moss); Sentenced tiles black/dark grey, not light grey; character-versus-ground contrast is a hard requirement in every zone (outline + rim, measured per region). -> atmosphere agent.
+- Wishes need animation (missed in the plan): find assets or build them. -> `rework/wish-fx`. Added to `UNITY_REWORK_FABLE.md` scope.
 
 ## Facts found while orienting (differ from the prompt's section 3)
 - The full five-region map is **160 x 160**, not 136 x 136: `crates/rh-sim/src/mapdata/fixtures/seed1.map.json` and `seed2.map.json` (rh-map/2, 4,936 tiles per region, 50 camps, terrain kinds 1-7, 86 features). Serve with `rh-server --runtime source-arena --map <file>`.

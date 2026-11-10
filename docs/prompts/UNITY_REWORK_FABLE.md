@@ -69,6 +69,10 @@ Out of scope:
 5. **Sentenced:** the darkest zone, lit by lamps and torches. Gothic dungeon and graveyard: flagstone tiles, wrought-iron graveyard fences, gothic masonry, tombstones.
 Other light-emitting terrain: glowing bogs in Plague, light zones in Holy.
 
+**Zone tuning and readability (owner direction 2026-11-10).** Plague uses dark, deep greens, not light ones. Sentenced tiles are black or dark grey, not light grey. Every zone must give clear contrast between characters and the ground: a dark outline and light rim (or contact shadow) on actors, verified by measurement in each zone.
+
+**Wishes.** Each of the five Wishes (Freeze, Swarm, Trial, Blaze Step, Last Stand) gets a full animation: caster animation and telegraph, the effect in the world at its true server-given extent, status visuals on those affected, an end effect, and an animated HUD Wish tile. Find CC0/CC BY assets or build them in code.
+
 Screens by gate: the in-match HUD (chrome buttons, minimap, weapon bar, champion HUD, build HUD, settings), the Tab map and the launch screen are required for Gate 2. Chest, trader and remaining screens are required for Gate 3. The Tab map is held to the same standard as the HUD; the minimap and Tab map tint each zone with its hue; right-clicking a spot on either walks the character there. Chat and a kill feed are not built (legacy has neither). The quest panel is re-skinned in place only.
 
 **Palette.** Choose palettes scientifically and record the research in `docs/art/PALETTE.md` (extend the existing doc and `tools/art/palette-check.cjs`). Method: define colours in a perceptual space (OKLCH), one palette per region on a 60/30/10 base/secondary/accent split, text contrast checked against WCAG, colour-blind simulation run, and faction identity carried by shape/icon and not hue alone (`docs/VISUAL_DIRECTION.md`). It must closely match the feel of the pre-port game's theme. The owner does not need to approve the palette; you do need the research and checks recorded.
