@@ -20,6 +20,7 @@ All under `/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/`. Remov
 |---|---|---|---|---|
 | `rework-hitbox` | `rework/hitbox` | Opus | ADR 0024 packets P-HB-0..6 and the P-HB-9 server flag (Rust, protocol 16, C#/JS codecs) | running |
 | `rework-perf` | `rework/perf` | Sonnet | Ultra preset + Quality API, `?perf=1` recorder, `perf-run.cjs`, build size, licence notices, EditMode global-light failures (ports 7807/8107) | running |
+| `rework-map-hud` | `rework/map-hud` | Sonnet | Tab map to HUD standard, zone hue on minimap and Tab map, right-click minimap to walk, crisp icons, hub cells (ports 7837/8137) | running |
 | `rework-atmosphere` | `rework/atmosphere` | Sonnet | region lighting/post, snow and other screen particles, per-region music from StreamingAssets, `AtmosphereQuality` switchboard (ports 7827/8127) | running |
 
 Merged and removed: `rework/controls` (`73f3df89`), `rework/hud`, `rework/skin`, `rework/regions`.
@@ -64,6 +65,8 @@ Liked Frost. Asked for a real lighting system, now part of the atmosphere scope 
 - Light-emitting terrain: lava lighting Fire, glowing bogs in Plague, Holy light zones.
 - Slightly translucent lake ice in Frost.
 - Other zone-specific touches where cheap.
+
+Second owner message (same day): HUD and UI "look incredible". Hold the Tab map to the same standard; show zones on the minimap (hue per zone); right-clicking a spot on the minimap must walk the character there. Assigned to `rework/map-hud`.
 
 ## Facts found while orienting (differ from the prompt's section 3)
 - The full five-region map is **160 x 160**, not 136 x 136: `crates/rh-sim/src/mapdata/fixtures/seed1.map.json` and `seed2.map.json` (rh-map/2, 4,936 tiles per region, 50 camps, terrain kinds 1-7, 86 features). Serve with `rh-server --runtime source-arena --map <file>`.
