@@ -219,3 +219,11 @@ Not available for this build (see item 6). The pre-rework baseline, display veri
 In progress: the rendering-features pass (Breath of the Wild reference); footprints with 10-second tracks, ripples and footstep sounds; the contrast lab; the final UI pass against legacy with the weapon hit-zone indicator; mob spacing and the weapon table in Rust (then an independent review).
 
 Queued: contrast tuning until the gate passes; station panels, results, chest and trader screens in the skin; audio fixes; mob fades; ranged-pause prediction; performance at 2560 x 1440 with an Opus efficiency pass before anything is cut; MIGRATION and CONTRACTS status rows (held until the backend merge to avoid conflicts); merging `optimization_port` in and re-verifying; the Gate 3 report; the Opus final review.
+
+### Gate 2 addendum (2026-11-10, later): the contrast picture is worse than item 5 says
+
+The contrast lab landed after this report. It measures the outermost 2 pixels of each character's drawn silhouette against the ground around it, for every character and mob on every surface in every zone. On its baseline (older art, before the latest zone passes) **no case out of 2,808 reached 3:1**; the median was 1.14. The figures in the table above (2.8 to 9.6) came from a looser spot-check statistic that picks the darkest or lightest pixels inside the character, so they overstated readability and should not be read as the gate.
+
+Cause: characters have no real outline. On dark ground a dark outline cannot exceed about 2:1, and on pale ground a half-transparent pale halo covers the dark outline.
+
+Fix under way (`rework/contrast`): an opaque neutral outline whose colour is chosen against the ground behind it, black on bright ground and white on dark ground. One of the two always gives at least about 4.5:1 on any ground, so the landscape does not have to change. Faction-coloured outlines are not used. The gate tool must exit clean on the full matrix before Gate 3.
