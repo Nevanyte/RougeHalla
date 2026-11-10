@@ -101,17 +101,17 @@ inside their block, and the lab is unreachable without `?contrastlab=1`).
 ## Reading the output
 
 * `contrast.json`: thresholds and the statistic, one entry per size/quality (`configs`), then every cell as a row of `columns` (string columns are indexes into `strings`, -1 = empty,
-  booleans are 0/1). `edgeP10`, `edgeMin`, `edgeMedian`, `edgeGroundP10`, `body`, `bodyGround`, `hp`, `foot`, `insignia` are WCAG ratios; `clip` and `frame` are the animation
+  booleans are 0/1). `edgeP10`, `edgeMin`, `edgeMedian`, `edgeGroundP10`, `edgeCoreP10`, `body`, `bodyGround`, `hp`, `foot`, `insignia` are WCAG ratios (`rimShare` is the rim's share of the silhouette pixels); `clip` and `frame` are the animation
   frame that was frozen; `purity` is the share of the surrounding floor tiles carrying the same surface; `prop` and `propMode` (`front` or `beside`) mark props cells.
-* `CONTRAST.md`: pass counts per config and zone; per zone a table (rows = look, columns = surface) whose cell is `EDGE p10 / EDGE min / BODY`, worst case over pose, facing, size
+* `CONTRAST.md`: pass counts per config and zone; per zone a table (rows = look, columns = surface) whose cell is `EDGE p10 / EDGE min / BODY [core p10]`, worst case over pose, facing, size
   and quality, with a cross where EDGE p10 fails anywhere; props, marker and BODY-distribution tables; plan notes; browser console errors.
 * `worst.jpg`: the 24 lowest-EDGE cells. Left of each tile: the cell as rendered. Right: the measurement itself, contour sectors red (below the gate) or green, the ground ring blue.
   Use it to check that the tool measured what you think it measured.
 
 ## What is and is not covered
 
-Covered: the grid above on plain ground, and the same looks standing in front of and beside the zone's most common props (an idle, south-facing look per prop instance; props density
-is high, so neighbouring props are part of the picture, and cells are only kept apart from each other).
+Covered: the grid above on plain ground, and looks standing in front of and beside the zone's props: the two most common tall arts (trees, spires, columns, pillars, scarecrows) and the two most common low arts (grass, tombstones, rocks, drifts, ferns), taken in turns, one idle south-facing look per prop instance (the art table does not flag tombstones as tall, so they count as low). Prop density
+is high, so neighbouring props are part of the picture, and cells are only kept apart from each other.
 
 Not covered (say so when quoting a pass):
 
@@ -134,15 +134,11 @@ Not covered (say so when quoting a pass):
 
 ## Baseline
 
-Measured on the branch `rework/contrast-lab` (code of `d6f18dce` plus the lab), 2026-11-10, Chromium (Playwright) headed on `ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro)`,
-ortho size 9, 2808 cells (702 per size/quality: 13 looks x 2 poses x 2 facings x every surface of every zone, plus 26 prop cells per zone that has props), 4 normal frames and 3 ground frames
-averaged per page. No browser console errors. Evidence (small, committed): [`evidence/contrast-lab/`](evidence/contrast-lab/) holds `contrast.json` (every cell of the
-first run), `CONTRAST.md` (all tables) and `worst.jpg`. Raw captures stay outside the repository.
+Measured on branch `rework/contrast-lab` (the code of `d6f18dce` plus the lab), 2026-11-10, Chromium (Playwright) headed on `ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)`, orthographic size 9, 2808 cells (702 per size/quality: 13 looks x 2 poses x 2 facings on every surface of every zone, plus props cells in every zone that has props), 4 normal and 3 ground frames averaged per page. No browser console errors. Small committed evidence: [`evidence/contrast-lab/`](evidence/contrast-lab/) holds `contrast.json` (every cell of the first run), `CONTRAST.md` (all tables) and `worst.jpg`; raw captures stay outside the repository.
 
-**Result: FAIL.** No cell reaches EDGE p10 >= 3.0 in any zone, size or quality (0 / 2808); the best cell is 2.42 (Fire lava, mob-antlion, walking north) and the median is about 1.1. Markers: 270 of 2808
-cells have all three markers at 4.5 or better (all of them in Plague, Frost and Coliseum; none in Fire, Sentenced or Holy).
+**Result: FAIL.** EDGE p10 >= 3.0 holds for 0 of 2808 cells; the best cell is 2.09 and the median is 1.14. Markers: 265 of 2808 cells have all three markers at 4.5 or better.
 
-**EDGE (gated: p10 of 16 contour sectors >= 3.0), by zone and configuration.** Cells are every look x pose x facing on every surface of the zone, plus the props cells; "pass" counts EDGE p10 >= 3.0.
+**EDGE (gated: p10 of 16 contour sectors >= 3.0): passing cells / cells, by zone and configuration** (plain ground plus props cells).
 
 | configuration | fire | sentenced | plague | frost | holy | coliseum |
 |---|---:|---:|---:|---:|---:|---:|
@@ -151,48 +147,58 @@ cells have all three markers at 4.5 or better (all of them in Plague, Frost and 
 | 2560x1440/high | 0 / 182 | 0 / 78 | 0 / 130 | 0 / 130 | 0 / 130 | 0 / 52 |
 | 2560x1440/ultra | 0 / 182 | 0 / 78 | 0 / 130 | 0 / 130 | 0 / 130 | 0 / 52 |
 
-| zone | EDGE p10 median | best | worst | core p10 >= 3 | core median | BODY p10 / median / p90 (plain ground) | hp bar >= 4.5 | footprint >= 4.5 | insignia >= 4.5 | all three |
-|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|
-| fire | 1.14 | 2.42 | 1.00 | 10 / 728 | 1.21 | 1.06 / 1.37 / 4.14 | 8% | 0% | 0% | 0% |
-| sentenced | 1.08 | 1.23 | 1.00 | 0 / 312 | 1.11 | 1.03 / 1.19 / 1.67 | 0% | 2% | 0% | 0% |
-| plague | 1.31 | 1.81 | 1.01 | 48 / 520 | 1.73 | 2.09 / 3.29 / 5.11 | 68% | 13% | 57% | 12% |
-| frost | 1.12 | 1.60 | 1.04 | 151 / 520 | 2.66 | 3.09 / 4.85 / 7.89 | 99% | 25% | 98% | 25% |
-| holy | 1.12 | 1.53 | 1.01 | 13 / 520 | 1.94 | 2.80 / 3.43 / 4.56 | 60% | 0% | 48% | 0% |
-| coliseum | 1.15 | 1.90 | 1.06 | 56 / 208 | 2.54 | 3.74 / 5.22 / 7.23 | 100% | 36% | 100% | 36% |
+| zone | cells | EDGE p10 median | best | worst | core p10 >= 3 | core median | BODY p10 / median / p90 (plain ground) | hp bar >= 4.5 | footprint >= 4.5 | insignia >= 4.5 | all three |
+|---|---:|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|
+| fire | 728 | 1.15 | 2.09 | 1.00 | 5 | 1.21 | 1.07 / 1.38 / 4.09 | 7% | 0% | 0% | 0% |
+| sentenced | 312 | 1.07 | 1.38 | 1.01 | 0 | 1.12 | 1.04 / 1.19 / 1.67 | 0% | 1% | 0% | 0% |
+| plague | 520 | 1.31 | 1.79 | 1.01 | 49 | 1.74 | 2.06 / 3.25 / 5.31 | 68% | 13% | 56% | 13% |
+| frost | 520 | 1.12 | 1.49 | 1.02 | 132 | 2.57 | 3.17 / 4.87 / 7.65 | 98% | 23% | 97% | 23% |
+| holy | 520 | 1.12 | 1.59 | 1.03 | 16 | 1.95 | 2.77 / 3.43 / 4.50 | 59% | 0% | 48% | 0% |
+| coliseum | 208 | 1.15 | 1.77 | 1.06 | 60 | 2.56 | 3.72 / 5.24 / 7.22 | 100% | 37% | 100% | 37% |
 
-Per surface (plain ground, all four configurations): EDGE p10 median / best, core p10 median, BODY median.
+Per surface (plain ground, all four configurations):
 
 | zone / surface | cells | EDGE p10 median | best | core median | BODY median |
 |---|---:|---:|---:|---:|---:|
 | fire / Basalt | 208 | 1.09 | 1.36 | 1.17 | 1.24 |
-| fire / Ember | 208 | 1.13 | 1.40 | 1.16 | 1.25 |
-| fire / Lava | 208 | 1.46 | 2.42 | 2.01 | 3.84 |
-| sentenced / Flagstone | 208 | 1.07 | 1.22 | 1.11 | 1.19 |
-| plague / Bog | 208 | 1.41 | 1.81 | 2.37 | 4.32 |
-| plague / Mud | 208 | 1.23 | 1.78 | 1.65 | 2.77 |
-| frost / Ice | 208 | 1.11 | 1.40 | 2.22 | 4.14 |
-| frost / Snow | 208 | 1.12 | 1.48 | 2.88 | 6.12 |
-| holy / HolyLight | 208 | 1.11 | 1.32 | 1.96 | 3.29 |
-| holy / Sand | 208 | 1.15 | 1.53 | 2.03 | 3.65 |
-| coliseum / Limestone | 208 | 1.15 | 1.90 | 2.54 | 5.22 |
+| fire / Ember | 208 | 1.12 | 1.40 | 1.16 | 1.25 |
+| fire / Lava | 208 | 1.44 | 2.09 | 2.01 | 3.77 |
+| sentenced / Flagstone | 208 | 1.07 | 1.21 | 1.12 | 1.19 |
+| plague / Bog | 208 | 1.41 | 1.79 | 2.31 | 4.38 |
+| plague / Mud | 208 | 1.24 | 1.78 | 1.66 | 2.75 |
+| frost / Ice | 208 | 1.11 | 1.43 | 2.23 | 4.08 |
+| frost / Snow | 208 | 1.12 | 1.49 | 2.83 | 6.17 |
+| holy / HolyLight | 208 | 1.11 | 1.31 | 1.96 | 3.29 |
+| holy / Sand | 208 | 1.16 | 1.48 | 2.04 | 3.73 |
+| coliseum / Limestone | 208 | 1.15 | 1.77 | 2.56 | 5.24 |
 
-Worst cells (EDGE p10 and min both about 1.0): Sentenced flagstone beside a dead-grass tuft with `mob-goblin-elite` (1.00), Fire basalt with `hero@sentenced` walking (1.00), `goblin` idle (1.01),
-`knight` walking north (1.01), Plague mud with `mob-goblin-elite` in front of a fern (1.01). Best cells: Fire lava with `mob-antlion` (2.42, 2.22, 2.16), Coliseum limestone with `hero` facing north (1.90).
-Size and quality make no measurable difference to EDGE: mean EDGE p10 is 1.206 (1920x1080 High), 1.208 (Ultra), 1.185 (2560x1440 High), 1.187 (Ultra).
+Props (a look in front of or beside the zone's two most common tall props and two most common low props, taken in turns; EDGE p10 median / worst, tall and low separately):
+
+| zone | tall props cells | tall median / worst | low props cells | low median / worst | plain-ground median |
+|---|---:|---|---:|---|---:|
+| fire | 52 | 1.12 / 1.02 | 52 | 1.08 / 1.01 | 1.16 |
+| sentenced | 28 | 1.09 / 1.01 | 76 | 1.07 / 1.01 | 1.07 |
+| plague | 44 | 1.14 / 1.01 | 60 | 1.25 / 1.03 | 1.34 |
+| frost | 44 | 1.15 / 1.02 | 60 | 1.13 / 1.04 | 1.12 |
+| holy | 32 | 1.24 / 1.07 | 72 | 1.15 / 1.03 | 1.12 |
+
+Worst cells (EDGE p10): 1.00 fire Basalt `hero@sentenced` walk facing S (2560x1440/high); 1.00 fire Basalt `hero@sentenced` walk facing S (2560x1440/ultra); 1.01 fire Basalt `goblin` idle facing S (1920x1080/high); 1.01 fire Ember `knight` walk facing S (1920x1080/high); 1.01 fire Basalt `mob-goblin-elite` idle facing S beside fire.rocks (1920x1080/high).
+Best cells: 2.09 fire Lava `mob-antlion` idle facing N (1920x1080/high); 1.95 fire Lava `mob-antlion` walk facing N (1920x1080/ultra); 1.94 fire Lava `mob-antlion` idle facing N (1920x1080/ultra).
+Mean EDGE p10 per configuration: 1920x1080/high 1.203, 1920x1080/ultra 1.209, 2560x1440/high 1.183, 2560x1440/ultra 1.183.
+EDGE p10 median by pose: idle 1.16, walk 1.13.
+EDGE p10 median by facing: N 1.14, S 1.14.
+
+Run-to-run stability (the full run done twice on the same build and machine): 0 of 2808 cells changed pass/fail. Mean absolute difference in EDGE p10 0.029 (p95 0.12, max 0.42), in EDGE min 0.029 (max 0.44), in BODY 0.11 (max 1.86). Cells that froze on the same animation frame differ by 0.018 on average (1546 cells), cells that froze on a different idle or walk frame by 0.044 (1262 cells). The idle frame is whichever the presenter shows when the lab freezes (it follows wall-clock time); `clip` and `frame` in `contrast.json` name it.
+
 
 What the numbers say:
 
-* **Dark ground cannot be passed with a dark outline.** Fire (basalt and ember about 0.03 to 0.06 relative luminance) and Sentenced (flagstone) cap a black outline at about (0.05 + 0.05) / 0.05 = 2; the light rim has to
-  carry the gate, and today it reads at the ground's luminance (EDGE p10 1.0 to 1.3, BODY median 1.2 to 1.4 in Fire and Sentenced). Lava and bog light up the ring around the actor, so those patches fare best.
-* **Pale ground has the opposite problem.** On Frost snow, Coliseum limestone and Holy sand the dark outline does separate the sprite (core p10 median 2.9, 2.5 and 2.0; 151 of 520 Frost, 56 of 208 Coliseum and 13 of 520 Holy cells pass on the core alone), but the light rim
-  is still drawn at half alpha or more and covers it with a pale halo, so the gated EDGE is about 1.1. Lowering the rim alpha on pale ground (from the lit ground luminance, not the palette) is the lever with the largest immediate effect.
-* **BODY** (reported, not gated) is a tuning target only where the sprite is darker than the ground: median 5.2 on limestone and 4.9 on snow, 3.4 on sand, 3.3 on Plague, 1.4 on Fire basalt and 1.2 on Sentenced flagstone (dark sprite on dark ground).
-* **Markers.** The faction footprint at the feet is the weakest marker (0% in Fire and Holy, 2% Sentenced, 13% Plague, 25% Frost, 36% Coliseum). The hp bar passes in 100% of Coliseum and 99% of Frost cells but 0% to 8% in Fire and Sentenced (dark plate on dark ground). Plague and Holy sit between.
-* **Props** (26 cells per zone with props, in front of or beside the two or more most common prop arts): no better than plain ground (EDGE p10 median 1.1 to 1.2, worst 1.01); nothing is camouflaged more than the bare ground already is.
-* Pose and facing do not change the picture (idle median 1.15, walk 1.13; south 1.14, north 1.14).
-
-Run-to-run stability (the full run done twice on the same build, same machine): the pass/fail outcome of every cell was identical (0 flips). Mean absolute difference in EDGE p10 0.027 (p95 0.12, max 0.57), in EDGE min 0.025 (max 0.45),
-in BODY 0.10 (max 2.3). Cells that landed on the same animation frame differ by 0.017 on average, cells that landed on a different idle or walk frame by 0.042. The largest swings are animated surfaces (Fire lava, Plague bog) and
-one frame-dependent sprite pose; Sentenced and Holy move by about 0.01. The idle frame is whichever the presenter shows when the lab freezes (it follows wall-clock time); `clip` and `frame` in `contrast.json` say which. A threshold decision should
-keep a margin of about 0.15 over 3.0 for ambient noise and 0.6 for animation-frame luck.
-
+* **Dark ground cannot be passed with a dark outline.** Fire basalt and ember (ring luminance about 0.05 around the actors) and Sentenced flagstone cap even a black outline at about (0.05 + 0.05) / 0.05 = 2. The light rim has to carry the gate there, and today it reads at the
+  ground's own luminance: EDGE p10 1.0 to 1.4 and BODY median 1.2 in Fire basalt, Fire ember and Sentenced. Lava and bog fare best (EDGE p10 median 1.44 and 1.41; BODY 3.8 and 4.4, so the sprite is clearly darker than that ground).
+* **Pale ground has the opposite problem.** On Frost snow, Coliseum limestone and Holy sand the dark outline does separate the sprite (core p10 median 2.8, 2.6 and 2.0; 132 of 520 Frost, 60 of 208 Coliseum and 16 of 520 Holy cells pass on the core alone), but the light rim is still
+  drawn at half alpha or more and covers it with a pale halo, so the gated EDGE is about 1.1. Lowering the rim alpha on pale ground (from the lit ground luminance, not the palette estimate in `AtmosphereShadows.RimAlpha`) is the lever with the largest immediate effect.
+* **BODY** (reported, not gated) is a tuning target only where the sprite is darker than the ground. Medians: snow 6.2, limestone 5.2, bog 4.4, ice 4.1, lava 3.8, sand 3.7, holy light 3.3, mud 2.8, basalt and ember 1.2, flagstone 1.2 (dark sprite on dark ground).
+* **Markers.** The faction footprint at the feet is the weakest (0% in Fire and Holy, 1% Sentenced, 13% Plague, 23% Frost, 37% Coliseum). The hp bar passes in all of Coliseum and 98% of Frost but only 7% of Fire and none of Sentenced (dark plate on dark ground); Plague 68%, Holy 59%. The insignia follows the hp bar.
+* **Props** (tall: trees, spires, columns, pillars; low: grass, tombs, rocks, drifts): never better than bare ground, EDGE p10 medians 1.07 to 1.25, worst 1.01 to 1.07. Props do not camouflage characters any more than the ground already does.
+* **Pose, facing, size and quality** do not change the picture: idle 1.16 against walk 1.13, south and north both 1.14, and the four size/quality configurations within 0.03 of each other (mean EDGE p10 1.18 to 1.21).
+* **Stability.** A threshold decision should keep a margin of about 0.15 over 3.0 for ambient noise and 0.5 for animation-frame luck (animated lava and bog, and the idle or walk frame the freeze happens to land on, are the noisy cases; Sentenced, Holy and Frost move by about 0.01 to 0.02).
