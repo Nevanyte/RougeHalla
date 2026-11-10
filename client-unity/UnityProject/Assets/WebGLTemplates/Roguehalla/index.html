@@ -215,6 +215,17 @@
 
       const buildUrl = "Build";
       const loaderUrl = buildUrl + "/{{{ LOADER_FILENAME }}}";
+      // Unity's Web audio shim (soundClip.getLength) calls console.log("Trying to get length of sound which is not loaded yet.") once for every
+      // AudioClip the engine creates, because the browser decodes the compressed clip after the asset exists. It is a note about a clip that is
+      // not decoded yet, not an error, and the streamed music and ambience no longer go through the engine (RhBeds.jslib); only the Ogg cue
+      // clips do. That one line is dropped here; nothing else is filtered.
+      (function () {
+        const original = console.log.bind(console);
+        console.log = function () {
+          if (arguments.length === 1 && typeof arguments[0] === "string" && arguments[0].indexOf("Trying to get length of sound which is not loaded yet") === 0) return;
+          return original.apply(null, arguments);
+        };
+      })();
       const config = {
         arguments: [],
         dataUrl: buildUrl + "/{{{ DATA_FILENAME }}}",

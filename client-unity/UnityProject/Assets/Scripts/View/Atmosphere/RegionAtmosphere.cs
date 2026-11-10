@@ -19,7 +19,7 @@ namespace Roguehalla.Client
         VolumeProfile _profile; ColorAdjustments _ca; SplitToning _split; Bloom _bloom; Vignette _vig;
         readonly RegionField _field = new RegionField(); TempleLayout _temple;
         RegionShadowMap _shadows; readonly AccentLights _lights = new AccentLights(); readonly AtmosphereParticles _particles = new AtmosphereParticles();
-        AtmosphereAudio _audio;
+        AtmosphereAudio _audio; readonly Roguehalla.Net.RegionAudioGate _gate = new Roguehalla.Net.RegionAudioGate(); int _gateRegion;
         readonly float[] _w = new float[RegionField.Regions];
         AtmosphereParams _cur; bool _hasCur; float _ambientBase = .36f;
         Camera _cam; float _time; int _rectKey = int.MinValue; bool _matchActive;
@@ -38,7 +38,7 @@ namespace Roguehalla.Client
             _arena = arena; _ambient = ambient; _volume = volume; _haze = haze;
             EnsureOverrides();
             _particles.Initialize(transform); _lights.Initialize(transform);
-            _audio = new AtmosphereAudio(this, transform);
+            _audio = new AtmosphereAudio(this, transform); AudioDebugHooks.Create(this);
             UploadSunTable();
             _arena.LocalRegionChanged += OnRegionChanged;
             AtmosphereQuality.Changed += OnQualityChanged;
@@ -84,7 +84,6 @@ namespace Roguehalla.Client
             if (this == null || _arena == null) { AtmosphereQuality.Changed -= OnQualityChanged; return; }
             PushSwitches(); _particles.RefreshQuality(); _lights.MarkDirty(); _rectKey = int.MinValue;
             if (_volume != null) _volume.enabled = AtmosphereQuality.PostProcessing;
-            _audio.SetRegion(_matchActive && _arena.LocalRegion != RegionId.None ? RegionAtmosphereTable.Get(_arena.LocalRegion) : null);
             Apply();
         }
 
@@ -104,17 +103,16 @@ namespace Roguehalla.Client
         void OnRegionChanged(RegionId previous, RegionId current)
         {
             Debug.Log("[atmosphere] region " + current);   // one line per confirmed region change (the browser evidence script names shots from it)
+            AudioDiag.Line("region-changed " + previous + "->" + current + " matchActive=" + _matchActive);
             var row = RegionAtmosphereTable.Get(current);
             _particles.SetPreset(row.Particles, previous == RegionId.None);
-            if (_matchActive) _audio.SetRegion(row);
         }
 
         /// <summary>Music and ambience are fetched and played only while the match is running (not in the lobby or planning screens).</summary>
         public void SetMatchActive(bool active)
         {
             if (active == _matchActive) return;
-            _matchActive = active;
-            _audio.SetRegion(active && _arena.LocalRegion != RegionId.None ? RegionAtmosphereTable.Get(_arena.LocalRegion) : null);
+            _matchActive = active; AudioDiag.Line("match-active " + active + " region=" + _arena.LocalRegion);
         }
 
         /// <summary>Called from ArenaView.Follow every frame with the live camera.</summary>
@@ -128,9 +126,10 @@ namespace Roguehalla.Client
             // Position-driven light: sample the region weights under the camera and ease toward the blend.
             _field.Sample(tx, ty, _w);
             var target = RegionField.Blend(_w);
+            if (_audio != null && (_temple == null || !_temple.Found)) _audio.SetInterior(0f);
             if (_temple != null && _temple.Found)      // inside the generated temple: the even, warm interior profile, eased in over about 4 tiles at the steps
             {
-                float tw = _temple.WeightAt(tx, ty);
+                float tw = _temple.WeightAt(tx, ty); _audio.SetInterior(tw);
                 if (tw > .001f) target = AtmosphereParams.Lerp(target, RegionAtmosphereTable.HolyTempleInterior.Params, tw);
             }
             _cur = _hasCur ? AtmosphereParams.Lerp(_cur, target, 1f - Mathf.Exp(-dt / EaseSeconds)) : target; _hasCur = true;
@@ -151,6 +150,11 @@ namespace Roguehalla.Client
         void Update()
         {
             if (_audio == null) return;
+            // Region audio is requested only once the match runs and the local player's region has been known for a moment (RegionAudioGate):
+            // never during launch, planning or results, and never from a placeholder first fix.
+            int region = _gate.Update(_matchActive && _arena != null, _arena != null ? (int)_arena.LocalRegion : 0, Time.unscaledTime);
+            if (region != _gateRegion) { _gateRegion = region; AudioDiag.Line("gate region=" + region); }
+            _audio.SetRegion(region > 0 ? RegionAtmosphereTable.Get(region) : null);
             _audio.Tick(Time.unscaledDeltaTime, Time.unscaledTime);
             ShowcaseSoundscape.LegacyMusicMuted = _audio.TookOverMusic; ShowcaseSoundscape.LegacyAmbienceMuted = _audio.TookOverAmbience;
         }

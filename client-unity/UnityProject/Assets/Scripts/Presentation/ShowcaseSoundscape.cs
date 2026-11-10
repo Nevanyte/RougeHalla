@@ -148,11 +148,11 @@ namespace Roguehalla.Client
                 _catalog = catalog;
                 _music.clip = catalog != null ? catalog.Music : null;
                 _ambience.clip = catalog != null ? catalog.Ambience : null;
-                _music.outputAudioMixerGroup = catalog != null ? catalog.MusicGroup : null;
-                _ambience.outputAudioMixerGroup = catalog != null ? catalog.AmbienceGroup : null;
+                _music.outputAudioMixerGroup = catalog != null ? AudioDiag.RouteGroup(catalog.MusicGroup) : null;
+                _ambience.outputAudioMixerGroup = catalog != null ? AudioDiag.RouteGroup(catalog.AmbienceGroup) : null;
                 if (_voices != null)
                     foreach (var voice in _voices)
-                        if (voice.Source != null) voice.Source.outputAudioMixerGroup = catalog != null ? catalog.SfxGroup : null;
+                        if (voice.Source != null) voice.Source.outputAudioMixerGroup = catalog != null ? AudioDiag.RouteGroup(catalog.SfxGroup) : null;
             }
             var audio = ShowcaseAudio.Current;
             if (audio != null && audio != _configuredAudio)
@@ -363,6 +363,7 @@ namespace Roguehalla.Client
 
         void PlayCue(string cueKey, AudioClip[] fallback, uint actor, int variantIndex)
         {
+            AudioDiag.Line("cue " + (cueKey ?? "(fallback)") + " actor=" + actor);
             if (string.IsNullOrEmpty(cueKey))
             {
                 PlayFallback(fallback, actor, variantIndex);
@@ -468,7 +469,8 @@ namespace Roguehalla.Client
 
         void Play(AudioClip clip, uint actor)
         {
-            if (clip == null || _voices == null) return;
+            if (clip == null || _voices == null || !AtmosphereQuality.Audio || AudioDiag.Isolate) return;   // the Audio switch silences cue sounds too
+            AudioDiag.Line("sfx " + clip.name + " actor=" + actor);
             for (int i = 0; i < _voices.Length; i++)
             {
                 var voice = _voices[i];

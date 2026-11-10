@@ -70,6 +70,7 @@ namespace Roguehalla.Editor
             // StreamingAssets are packed into Web.data on WebGL. The region audio must stay out of the first-load data and be fetched
             // on demand, so the folder is moved out of the project for the build and copied next to the player afterwards.
             RestoreAudioIfInterrupted();
+            if (!Directory.Exists(AudioDir)) throw new BuildFailedException("Assets/StreamingAssets/Audio is missing: the streamed region music and ambience would 404 in the browser.");
             bool moved = MoveAudioAside();
             BuildReport report;
             try
@@ -81,10 +82,23 @@ namespace Roguehalla.Editor
             Debug.Log("WebGL build: " + report.summary.result + " -> Build/Web; bytes=" + report.summary.totalSize);
             if (report.summary.result != BuildResult.Succeeded)
                 throw new BuildFailedException("WebGL build failed: " + report.summary.result);
+            VerifyAudio();
             CopyNotices();
         }
 
-        const string AudioDir = "Assets/StreamingAssets/Audio", AudioAside = "Temp/AudioAside";
+        /// <summary>Fails the build when a streamed audio file the client requests is missing from Build/Web (the browser would 404 it).</summary>
+        public static void VerifyAudio()
+        {
+            var missing = new System.Collections.Generic.List<string>();
+            foreach (var id in Roguehalla.Client.RegionAtmosphereTable.AllAudioIds)
+            {
+                var file = Path.Combine("Build/Web/StreamingAssets", Roguehalla.Client.AtmosphereAudio.Folder, id + Roguehalla.Client.AtmosphereAudio.Extension);
+                if (!File.Exists(file) || new FileInfo(file).Length < 1024) missing.Add(file);
+            }
+            if (missing.Count > 0) throw new BuildFailedException("Streamed audio missing from the build (the client would 404 them): " + string.Join(", ", missing));
+        }
+
+        const string AudioDir = "Assets/StreamingAssets/Audio", AudioAside = "Library/RhAudioAside";   // Library, not Temp: Unity empties Temp when the editor starts, which silently lost the files after an interrupted build
         static bool MoveAudioAside()
         {
             if (!Directory.Exists(AudioDir)) return false;
@@ -107,6 +121,7 @@ namespace Roguehalla.Editor
         static void CopyAudio()
         {
             const string destination = "Build/Web/StreamingAssets/Audio";
+            if (Directory.Exists(destination)) Directory.Delete(destination, true);   // never let a stale copy from an earlier build satisfy the check
             Directory.CreateDirectory(destination);
             foreach (var file in Directory.GetFiles(AudioAside, "*.mp3")) File.Copy(file, Path.Combine(destination, Path.GetFileName(file)), true);
         }

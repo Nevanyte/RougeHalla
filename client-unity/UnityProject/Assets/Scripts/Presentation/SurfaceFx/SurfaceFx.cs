@@ -26,6 +26,7 @@ namespace Roguehalla.Client
         public struct RippleInfo { public Vector2 World; public float Birth, Life, Diameter; public WaterReaction Reaction; }
 
         public static SurfaceFx Current;
+        static readonly System.Collections.Generic.List<SurfaceFx> Live = new System.Collections.Generic.List<SurfaceFx>();
         public static bool DebugLog;
         /// <summary>Test hook: receives each log line instead of (as well as) the console.</summary>
         public static Action<string> LogSink;
@@ -65,14 +66,14 @@ namespace Roguehalla.Client
 
         public SurfaceFx(Transform root, Func<float, float, SurfaceKind> surfaceAt)
         {
-            _root = root; _surfaceAt = surfaceAt;
+            _root = root; _surfaceAt = surfaceAt; Live.Add(this);
             var shader = Resources.Load<Shader>("Shaders/RhSurfaceFx");
             _material = shader != null ? new Material(shader) { name = "SurfaceFx", mainTexture = SurfaceFxAtlas.Texture } : null;
             if (_material == null) _material = new Material(Shader.Find("Sprites/Default")) { mainTexture = SurfaceFxAtlas.Texture };
             _tracks = new SurfaceFxMesh(root, "Prints", SurfaceFxQuality.MaxTracks, _material, TrackSortingOrder);
             _fluids = new SurfaceFxMesh(root, "Ripples and wakes", SurfaceFxQuality.MaxFluids, _material, FluidSortingOrder);
             UnityEngine.Audio.AudioMixerGroup group = null;
-            try { var cat = Resources.Load<ShowcaseCatalog>("Showcase/Catalog"); if (cat != null) group = cat.SfxGroup; } catch (Exception) { }
+            try { var cat = Resources.Load<ShowcaseCatalog>("Showcase/Catalog"); if (cat != null) group = AudioDiag.RouteGroup(cat.SfxGroup); } catch (Exception) { }
             _steps = new SurfaceFootsteps(root, VoicePicker.DefaultVoices, group);
             ApplyQuality();
             AtmosphereQuality.Changed += ApplyQuality;
@@ -80,7 +81,7 @@ namespace Roguehalla.Client
 
         public void Dispose()
         {
-            AtmosphereQuality.Changed -= ApplyQuality;
+            AtmosphereQuality.Changed -= ApplyQuality; Live.Remove(this);
             if (Current == this) Current = null;
             _tracks.Destroy(); _fluids.Destroy();
             if (_root != null) UnityEngine.Object.Destroy(_root.gameObject);
@@ -253,7 +254,7 @@ namespace Roguehalla.Client
         // ---- sound ----
         void Step(in FootEvent ev, ActorKind kind)
         {
-            if (!AtmosphereQuality.SurfaceFootsteps) return;
+            if (!AtmosphereQuality.SurfaceFootsteps || AudioDiag.Isolate) return;
             var sound = SurfaceFxTable.For(ev.Surface).Sound;
             if (sound == StepSound.None) return;
             float dist = 0f;
@@ -273,6 +274,20 @@ namespace Roguehalla.Client
             int voice = AtmosphereQuality.Audio ? _steps.Play(sound, gain, pan, dist, sfx, _now) : -1;
             if (voice >= 0) StepsPlayed++;
             LogLine("step surface=" + ev.Surface + " sound=" + sound + " actor=" + Kind(ev) + " at=" + (int)ev.X + "," + (int)ev.Y + " dist=" + dist.ToString("0.0") + " gain=" + gain.ToString("0.00") + " voice=" + voice);
+        }
+
+        /// <summary>Debug/probe only: plays one footstep clip through the normal voice path (no cue, no print).</summary>
+        public static int AuditionLive(StepSound sound, float gain)
+        {
+            for (int i = Live.Count - 1; i >= 0; i--) if (Live[i]._root != null && Live[i]._root.gameObject.activeInHierarchy) return Live[i].Audition(sound, gain);
+            return -1;
+        }
+        public int Audition(StepSound sound, float gain)
+        {
+            float sfx = ShowcaseSettings.Current != null ? ShowcaseSettings.Current.SfxVolume : .85f;
+            int voice = AtmosphereQuality.Audio ? _steps.Play(sound, gain, 0f, 0f, sfx, Clock()) : -1;
+            AudioDiag.Line("audition step sound=" + sound + " gain=" + gain.ToString("0.00") + " voice=" + voice);
+            return voice;
         }
 
         static string Kind(in FootEvent ev) { return ev.Local ? "Local" : ev.Mob ? "Mob" : "Player"; }
