@@ -1,10 +1,6 @@
-name: Staging native component (competitive demo build, no deployment)
+name: Staging native component (manual, no deployment)
 
 on:
-  # One new-source build for the reviewed competitive demo; disarm after terminal result.
-  push:
-    branches: [optimization_port]
-    paths: [".github/workflows/staging-native-artifact.yml"]
   workflow_dispatch:
     inputs:
       source_commit:
