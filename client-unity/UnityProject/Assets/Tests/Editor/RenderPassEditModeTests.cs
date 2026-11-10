@@ -15,7 +15,7 @@ namespace Roguehalla.Client.Tests
     {
         readonly List<Object> _objects = new List<Object>();
 
-        [SetUp] public void SetUp() { Quality.Set(ShowcaseQuality.Ultra, default(QualityOverrides)); AtmosphereQuality.SetUrl(""); AtmosphereQuality.ApplyPreset(ShowcaseQuality.Ultra, false); LocalLightField.Clear(); }
+        [SetUp] public void SetUp() { Quality.Set(ShowcaseQuality.Ultra, default(QualityOverrides)); AtmosphereQuality.SetUrl(""); AtmosphereQuality.ApplyPreset(ShowcaseQuality.Ultra, false); LocalLightField.ClearView(); LocalLightField.CullToView = true; LocalLightField.Clear(); }
         [TearDown]
         public void TearDown()
         {
@@ -89,6 +89,29 @@ namespace Roguehalla.Client.Tests
             LocalLightField.Begin(LocalLightField.Max); LocalLightField.AddFlashes(.01f); LocalLightField.Push(true, true, true, true);
             Assert.AreEqual(LocalLightField.Count, Shader.GetGlobalVector("_RhLI").x);
             LocalLightField.Clear(); Assert.AreEqual(0, Shader.GetGlobalVector("_RhLI").x, "cleared: the shaders loop over nothing");
+        }
+
+        [Test] public void PushDropsLightsOutOfReachAndOrdersTheRestNearestFirst()
+        {
+            // Camera centre (50, 50), half extents 12 x 9 tiles. Reach is the shader's: x as is, y times the ground squash.
+            LocalLightField.SetView(50, 50, 12, 9); LocalLightField.CullToView = true; LocalLightField.ResetStats();
+            LocalLightField.Begin(LocalLightField.Max);
+            LocalLightField.Add(58, 50, 1, 3, 1, 0, 0, 1, 0);      // inside, far from the centre
+            LocalLightField.Add(50, 50, 1, 3, 0, 1, 0);            // at the centre
+            LocalLightField.Add(100, 50, 1, 5, 0, 0, 1);           // 50 tiles right: out of reach
+            LocalLightField.Add(50, 50 - 9 - 1.5f - 20, 1, 4, 1, 1, 1);   // far above: out of reach even with the squash
+            LocalLightField.Add(50 + 12 + 1.5f + 2, 50, 1, 4, 1, 1, 0);   // outside the rectangle, but its radius reaches over the edge
+            LocalLightField.Push(true, true, true, true);
+            Assert.AreEqual(3, LocalLightField.Count, "two lights cannot reach the picture");
+            Assert.AreEqual(50f, LocalLightField.PositionAt(0).x, "nearest the centre first");
+            Assert.AreEqual(58f, LocalLightField.PositionAt(1).x); Assert.AreEqual(65.5f, LocalLightField.PositionAt(2).x);
+            Assert.AreEqual(1.05f, LocalLightField.ColorAt(1).w, 1e-4f, "a light keeps its own baked shadow slot and cookie when it moves");
+            Assert.AreEqual(5, LocalLightField.StatOffered); Assert.AreEqual(3, LocalLightField.StatUploaded);
+            Assert.AreEqual(3f, Shader.GetGlobalVector("_RhLI").x, "the shaders loop over what was kept");
+            LocalLightField.CullToView = false; LocalLightField.Begin(LocalLightField.Max);
+            LocalLightField.Add(100, 50, 1, 5, 0, 0, 1); LocalLightField.Push(true, true, true, true);
+            Assert.AreEqual(1, LocalLightField.Count, "culling can be switched off for an A/B window");
+            LocalLightField.CullToView = true; LocalLightField.ClearView(); LocalLightField.Clear();
         }
 
         [Test] public void WallDistanceIsSignedAndBounded()

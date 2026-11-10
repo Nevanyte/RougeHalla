@@ -22,6 +22,22 @@ namespace Roguehalla.Client
         static int _count, _limit = Max;
         static int _idP = Shader.PropertyToID("_RhLP"), _idC = Shader.PropertyToID("_RhLC"), _idI = Shader.PropertyToID("_RhLI"), _idG = Shader.PropertyToID("_RhLG");
 
+        // The view the lights are culled and sorted against (tile space, set once per frame by the camera follow).
+        static bool _hasView; static float _viewX, _viewY, _viewHalfW, _viewHalfH;
+        static readonly float[] Key = new float[Max];
+        const float ViewMarginTiles = 1.5f;
+        /// <summary>Measurement switch: false uploads every light the sources added (the old behaviour), for in-match A/B windows.</summary>
+        public static bool CullToView = true;
+        /// <summary>Per-window statistics for the perf recorder: frames pushed, lights offered, lights uploaded.</summary>
+        public static int StatFrames, StatOffered, StatUploaded;
+        public static void ResetStats() { StatFrames = StatOffered = StatUploaded = 0; }
+
+        /// <summary>The camera rectangle in tile space (centre and half extents, as RegionAtmosphere computes them). Without it nothing is culled.</summary>
+        public static void SetView(float centreX, float centreY, float halfW, float halfH)
+        { _hasView = true; _viewX = centreX; _viewY = centreY; _viewHalfW = halfW; _viewHalfH = halfH; }
+
+        public static void ClearView() { _hasView = false; }
+
         /// <summary>Lights written this frame (what the shaders loop over).</summary>
         public static int Count { get { return _count; } }
         public static int LiveFlashes { get { int n = 0; for (int i = 0; i < MaxFlashes; i++) if (Flashes[i].Live) n++; return n; } }
@@ -93,9 +109,35 @@ namespace Roguehalla.Client
         /// <summary>Upload the arrays and the switches. Call once per frame after every source has added its lights.</summary>
         public static void Push(bool relief, bool shadows, bool cookies, bool gloss, bool actors = false)
         {
+            StatFrames++; StatOffered += _count;
+            if (_hasView && CullToView) CullAndSort();
+            StatUploaded += _count;
             Shader.SetGlobalVectorArray(_idP, P); Shader.SetGlobalVectorArray(_idC, C);
             Shader.SetGlobalVector(_idI, new Vector4(_count, relief ? 1f : 0f, shadows ? 1f : 0f, cookies ? 1f : 0f));
             Shader.SetGlobalVector(_idG, new Vector4(gloss ? 1f : 0f, actors ? 1f : 0f, 0, 0));
+        }
+
+        /// <summary>
+        /// Drops the lights that cannot touch the picture and orders the rest nearest first (to the camera centre). A light reaches a pixel
+        /// when the screen-measure distance (x as is, y times the ground squash) is under its radius (RhLocalLights.hlsl); here the same test is made
+        /// against the camera rectangle plus a margin, so nothing visible changes. Each light keeps its own shadow slot (colour w), so the order
+        /// is free. In place, no allocation; at most <see cref="Max"/> lights, insertion sort.
+        /// </summary>
+        static void CullAndSort()
+        {
+            float hw = _viewHalfW + ViewMarginTiles, hh = _viewHalfH + ViewMarginTiles, sq = ArenaView.GroundSquash;
+            int n = 0;
+            for (int i = 0; i < _count; i++)
+            {
+                Vector4 p = P[i], c = C[i];      // copied first: the insertion below may overwrite slot i
+                float dx = Mathf.Max(Mathf.Abs(p.x - _viewX) - hw, 0f), dy = Mathf.Max(Mathf.Abs(p.y - _viewY) - hh, 0f) * sq;
+                if (dx * dx + dy * dy >= p.w * p.w) continue;
+                float ex = p.x - _viewX, ey = (p.y - _viewY) * sq, k = ex * ex + ey * ey;
+                int j = n++;
+                while (j > 0 && Key[j - 1] > k) { Key[j] = Key[j - 1]; P[j] = P[j - 1]; C[j] = C[j - 1]; j--; }
+                Key[j] = k; P[j] = p; C[j] = c;
+            }
+            _count = n;
         }
 
         /// <summary>Switch the field off: no lights, no flashes (the legacy flat Light2D look on the ground is restored by AccentLights).</summary>

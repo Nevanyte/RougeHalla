@@ -168,7 +168,7 @@ namespace Roguehalla.Client
             _lights.Tick(tx, ty, halfW, halfH, dt, _time);
             if (_shadowAtlas != null) _shadowAtlas.Tick();
             _life.Tick(dt, _time, tx, ty, halfW, halfH, _w[2], _w[0], _lights.Planner);
-            if (analytic) { LocalLightField.Push(AtmosphereQuality.Relief, AtmosphereQuality.LocalShadows && _sdf != null, AtmosphereQuality.Cookies, AtmosphereQuality.Gloss, AtmosphereQuality.ActorLights); _wasAnalytic = true; }
+            if (analytic) { LocalLightField.SetView(tx, ty, halfW, halfH); LocalLightField.Push(AtmosphereQuality.Relief, AtmosphereQuality.LocalShadows && _sdf != null, AtmosphereQuality.Cookies, AtmosphereQuality.Gloss, AtmosphereQuality.ActorLights); _wasAnalytic = true; }
             else if (_wasAnalytic) { LocalLightField.Clear(); _wasAnalytic = false; }
             _particles.Tick(cam, dt);
         }
