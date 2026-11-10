@@ -6,6 +6,7 @@
 
 mod data;
 mod input;
+mod memory;
 #[cfg(test)]
 mod tests;
 
