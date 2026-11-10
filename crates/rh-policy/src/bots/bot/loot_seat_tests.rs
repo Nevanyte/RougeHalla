@@ -210,3 +210,86 @@ fn offered_reward_chest_is_answered_with_its_delivered_handle_and_the_chosen_car
         sim.step();
     }
 }
+
+#[test]
+fn bot_attacked_at_a_readable_chest_fights_back_and_still_picks() {
+    let mut sim = Sim::reset_active(
+        SimConfig {
+            quests: false,
+            ..Default::default()
+        },
+        rh_sim::arenas::practice_arena(),
+        Secrets::from_seed(1),
+        &[
+            Placement {
+                profile: "owner".into(),
+                faction: FactionId::Fire,
+                bot: true,
+                at: Vec2::new(400., 320.),
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            },
+            Placement {
+                profile: "attacker".into(),
+                faction: FactionId::Holy,
+                bot: false,
+                at: Vec2::new(430., 320.),
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            },
+        ],
+    );
+    let start = MatchStart::of(&sim, PlayerId(1), 5);
+    let mut b = bot(&start);
+    let handle = rh_sim::reward_chests::RewardChestHandle::from_wire(31).unwrap();
+    let expires_at = sim.server_time() + 10_000.;
+    let (mut chooses, mut combat, mut chest_goal) = (0, 0, 0);
+    for _ in 0..80 {
+        let mut obs = rh_sim::observe(&sim, PlayerId(1), &[]);
+        obs.reward_chests = vec![rh_sim::reward_chests::RewardChestView {
+            handle,
+            at: Vec2::new(410., 330.),
+            expires_at,
+            options: vec![rh_sim::reward_chests::RewardOptionView {
+                id: rh_sim::reward_chests::OptionId::Card(rh_sim::cards::CardId::ALL[0]),
+                taken: false,
+                taken_by: None,
+            }],
+            picked: false,
+            can_choose: true,
+        }];
+        for c in b.component_commands(&obs) {
+            match c {
+                PublicCommand::Choose { handle: h, .. } => {
+                    assert_eq!(h, handle);
+                    chooses += 1;
+                }
+                PublicCommand::Target { .. }
+                | PublicCommand::Attack { .. }
+                | PublicCommand::Cast { .. } => combat += 1,
+                _ => {}
+            }
+        }
+        if matches!(b.brain.goal, Goal::Chest { .. }) {
+            chest_goal += 1;
+        }
+        // The attacker punches the bot every tick.
+        if let Ok(cmd) = rh_sim::validate(rh_sim::RawCommand::Attack {
+            a: std::f64::consts::PI,
+            t: None,
+        }) {
+            let _ = sim.submit(PlayerId(2), cmd);
+        }
+        sim.step();
+    }
+    assert_eq!(chest_goal, 0, "no chest goal is held in a fight");
+    assert!(
+        matches!(b.brain.goal, Goal::Fight { .. }),
+        "{:?}",
+        b.brain.goal
+    );
+    assert!(combat > 0, "the bot fights back");
+    assert!(chooses > 0, "the pick still went out");
+}

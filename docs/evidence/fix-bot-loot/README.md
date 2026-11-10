@@ -51,29 +51,33 @@ A weaponless (or one-handed) bot with no enemy/awake mob near walks to a visible
 chest), stops, presses F and picks it up. When a reward chest is up it walks to it (when the hunt says it can reach it in
 time), and once the cards are readable it chooses the best usable card for its weapon/faction/build/risk, re-asking for
 another card if the first was taken; it also answers a readable chest it is merely standing at while fighting/farming.
+In a fight (engaged, a fighter inside its threat range, an awake mob within 220 u) it never holds a chest goal: it
+fights (wish and combat intents intact) and the pick rides along the fight goal.
 
 ## Gates (this worktree, CARGO_TARGET_DIR=target-fix)
 
 | Gate | Result |
 | --- | --- |
-| `cargo test -p rh-policy --lib` | 451 passed, 0 failed (11 new: 8 executor + 3 seat) |
-| `cargo test -p rh-server` | 341 passed, 0 failed, 2 ignored (all targets) |
-| `cargo test --release -p rh-headless --test source_arena_soak -- --ignored` | 2 passed (5 seeds x 2 hitbox modes, each run twice): no panic, deterministic, 37.6 s |
+| `cargo test -p rh-policy --lib` | 453 passed, 0 failed (13 new: 9 executor + 4 seat) |
+| `cargo test -p rh-server` | 341 passed, 0 failed, 2 ignored (all targets; first commit, not re-run for the follow-up, which touches only rh-policy bot code) |
+| `cargo test --release -p rh-headless --test source_arena_soak -- --ignored` | 2 passed (5 seeds x 2 hitbox modes, each run twice): no panic, deterministic (follow-up re-run: 30.9 s) |
 | `cargo test --release -p rh-headless --test bot_loot -- --ignored --nocapture` (new) | passed; see counts below |
-| `cargo test --release -p rh-headless --test bots --test tournament --test determinism_sweep` | 3 + 5 + 11 passed |
-| `cargo clippy -p rh-policy -p rh-headless --all-targets -- -D warnings` | clean |
-| `cargo fmt` (rh-policy, rh-headless) | applied |
+| `cargo test --release -p rh-headless --test bots --test tournament --test determinism_sweep` | 3 + 5 + 11 passed (first commit) |
+| `cargo clippy -p rh-policy -p rh-headless --all-targets -- -D warnings` | clean (re-run) |
+| `cargo fmt --check` (rh-policy, rh-headless) | clean |
 
 New tests:
 - `bots::loot::tests` (8): detour offered and its source gates (enemy, awake mob, engaged, carried, both hands full,
   radius, someone nearer); walk -> stop -> F -> retry window -> done; refusal toasts, gone row, enemy near; 30 s skip and
   8 s budget; best free card, same-card re-ask, another card after a take, MAX_ASKS, ask window; no pick while stunned,
   casting, panel shut, birth hold, picked, about to vanish; chest goal in reach / far walk + move / gone / coliseum; own
-  card counted once, asks dropped when the panel closes.
-- `bots::bot::loot_seat_tests` (3): `emit` resolves keys only to delivered handles and drops `c0`/`r0`/stale keys; a
+  card counted once, asks dropped when the panel closes; a fight (enemy in threat range or engaged) suppresses the chest
+  goal, a held chest goal is handed back Done with the pick still sent, and the fight goal's hook still offers the pick.
+- `bots::bot::loot_seat_tests` (4): `emit` resolves keys only to delivered handles and drops `c0`/`r0`/stale keys; a
   real `Sim` + `Seat` weaponless bot walks to a seeded axe and picks it up through validated intake (no `MissingPickup`,
   deterministic); an offered chest is answered only after its cards are readable, always with the delivered handle and
-  a pick in -1..=2, and a bot never sends Pickup/Choose without a delivered row.
+  a pick in -1..=2, and a bot never sends Pickup/Choose without a delivered row; a real-Sim bot punched at a readable
+  chest never holds Goal::Chest, ends in Goal::Fight, sends combat commands and still sends its Choose.
 - `rh-headless/tests/bot_loot.rs` (ignored, full map, live config, 8 HumanBots, recorded replay inputs):
 
 | seed | resolved Pickup | MissingPickup | resolved Choose | unresolved Choose | bots seen armed |
@@ -82,9 +86,23 @@ New tests:
 | 42 | 2 | 0 | 2 | 0 | 4 |
 
   Each seed is run twice and compared (deterministic). Before this change both resolved counts were 0 by construction.
+  The review follow-up re-run gives identical counts.
 
 Soak/golden note: the soak test asserts determinism, not fixed hashes, and no headless/server golden changed. The state
 hashes of bot matches do change versus 976a6559, as expected, because bot behaviour changed (bots now loot and choose).
+
+## Review follow-up (LAND WITH NOTES)
+
+1. MEDIUM, fixed: the chest goal pre-empted defence. Source chests.goals() competes by worth() (cap 0.84) under a
+   committed fight (0.85) or a flight; this seat has no utilities, so `chest_goal` now returns nothing while
+   `fighting(v)` (engaged, a fighter inside persona.playerThreat, an awake mob within 220 u: the source predicate), and
+   `act_chest` hands a held chest goal back Done the moment a fight starts, with that output's pick still sent. The
+   fight goal then runs with its wish/combat intents, and the module `intents` hook keeps offering the pick. Both new
+   tests fail with the two guards removed and pass with them.
+2. LOW, noted, not changed: after one weapon is taken from a two-weapon body, world.ts's slot (keyed by container,
+   pruned only after 3 s unused) keeps repeating Done("picked up"); with the 1.5 s done-exclusion the goal is re-offered
+   and immediately ends again, so the second weapon is not taken. That is the source slot rule; changing it would leave
+   world.ts, so it is kept and recorded here (cost: one empty think every ~1.5 s near such a body).
 
 ## Parity status
 
@@ -102,6 +120,7 @@ hashes of bot matches do change versus 976a6559, as expected, because bot behavi
   (source needs counter > 0.34) and the source `second|faction|weapon` choice key is not recorded.
 - Mob "awake" is the source no-memory fallback (speed > 20 u/s).
 - Candidate order is the compatibility front end's (chest, loot, fight, farm, roam), not the source utility softmax with
-  hysteresis.
+  hysteresis; neither chest nor loot is a goal in a fight (where the source ranks them below the fight).
+- Two-weapon body: the second weapon is not taken (source slot rule, see review follow-up 2).
 - Trophy chests use KILL_AUG_SECONDS life when any option is a kill augment (the wire has no life field).
 - Touched outside the narrow scope: only the `live_chests` re-export lease in the private temporal_percept facade.

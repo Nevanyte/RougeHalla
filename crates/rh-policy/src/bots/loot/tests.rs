@@ -408,3 +408,45 @@ fn observe_counts_the_bots_own_card_into_its_build_record_once() {
     loot.observe(&s.view());
     assert!(loot.asks.is_empty());
 }
+
+#[test]
+fn a_fight_at_a_readable_chest_takes_precedence_and_the_pick_rides_along() {
+    let mut loot = Loot::new();
+    let mut paths = paths();
+    let mut s = Scene::new();
+    s.facts.chests = vec![chest("r1", Vec2::new(440., 320.), s.now, Some(&["ad1"]))];
+    // Inside the persona's threat range (Farmer 140 u): no chest goal, in reach or walking.
+    s.fighters = vec![enemy(Vec2::new(480., 320.))];
+    assert_eq!(loot.chest_goal(&s.view(), &mut paths), None);
+    s.fighters.clear();
+    s.engaged = true;
+    assert_eq!(loot.chest_goal(&s.view(), &mut paths), None);
+    // A chest goal already held when the fight starts is handed back at once, with the pick still sent.
+    s.engaged = false;
+    assert!(loot.chest_goal(&s.view(), &mut paths).is_some());
+    s.fighters = vec![enemy(Vec2::new(480., 320.))];
+    let out = loot.act_chest("r1", &s.view(), &mut paths);
+    assert_eq!(out.status, Status::Done);
+    assert!(matches!(
+        out.intents[..],
+        [Intent {
+            body: IntentBody::Choose { .. },
+            ..
+        }]
+    ));
+    // Under any other goal (a fight) the module hook still offers the same pick.
+    s.now += 100.;
+    let pick = loot.intents(
+        &Goal::Fight {
+            target: "p2".into(),
+        },
+        &s.view(),
+    );
+    assert!(matches!(
+        pick,
+        Some(Intent {
+            body: IntentBody::Choose { .. },
+            ..
+        })
+    ));
+}

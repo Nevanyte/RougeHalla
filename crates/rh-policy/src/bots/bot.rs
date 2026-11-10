@@ -620,7 +620,8 @@ impl HumanBot {
             if self.brain.strategy_due(p.now, &stimuli) {
                 self.loot.settle(&self.brain.goal, self.brain.status, p.now);
                 // Bounded compatibility order: a reward chest (chests.ts goals), then a loot detour (strategy.ts loot),
-                // then the front end's fight/farm/roam. Both loot candidates stand down while the owner is engaged.
+                // then the front end's fight/farm/roam. Both stand down in a fight (engaged, a fighter or awake mob close),
+                // where the source ranks them below the fight; the chest pick still rides along the fight goal.
                 let looting = if slip_active {
                     None
                 } else {

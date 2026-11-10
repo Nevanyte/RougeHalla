@@ -19,7 +19,11 @@
 //!   - loot candidates see visible fighters only (no remembered enemies or containers), and the Knowledge counter term of
 //!     strategy.loot() is 0, so a bot with both hands full never offers a swap detour (the source needs a counter > 0.34);
 //!   - a mob is awake when it moves faster than a shuffle (the source mobAwake fallback without a Memory record);
-//!   - candidate order is the compatibility front end's (chest, loot, then fight/farm/roam), not utility softmax.
+//!   - candidate order is the compatibility front end's (chest, loot, then fight/farm/roam), not utility softmax; to
+//!     keep the source ranking below a fight (chest worth caps at 0.84, a committed fight is 0.85), no chest goal is
+//!     held while `fighting` (engaged, a fighter inside the persona's threat range, or an awake mob within 220 u);
+//!   - a two-weapon body: after the first weapon the world.ts slot keeps repeating its Done("picked up") until stale,
+//!     so the second is not taken (the source slot rule, kept as is).
 use super::brain::{Goal, Output, Status};
 use super::paths::RoomPathService;
 use super::perception::{ChestRef, Contents, LootFacts, PropRef};
@@ -677,6 +681,12 @@ impl Loot {
         if v.facts.chests.is_empty() || !v.live() {
             return None;
         }
+        // Source chests.goals() competes by worth() (cap 0.84) against a fight (0.85) or a flight: this seat has no
+        // utilities, so while `fighting` the chest is never a goal. The pick still rides along every other goal (the
+        // module `intents` hook), so defence keeps its wish/fight intents and the card is not lost.
+        if self.fighting(v) {
+            return None;
+        }
         let goal = if let Some(here) = self.cards_in_reach(v) {
             Goal::Chest {
                 chest: here.key.clone(),
@@ -704,6 +714,11 @@ impl Loot {
         let pick = self.pick_intent(v);
         let picking = pick.is_some();
         intents.extend(pick);
+        if self.fighting(v) {
+            // A fight broke out at the chest: hand the goal back (strategy re-decides at once on a finished goal); the
+            // pick sent with this output stays on its way.
+            return output(intents, Status::Done, "a fight is on: the pick rides along");
+        }
         let mut hunter = std::mem::take(&mut self.hunter);
         let d = self.run_hunt(&mut hunter, v, paths, false);
         self.hunter = hunter;
