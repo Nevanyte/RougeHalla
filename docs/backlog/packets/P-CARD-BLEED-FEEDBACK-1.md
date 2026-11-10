@@ -264,3 +264,15 @@ These are focused test/evidence corrections within the existing lease. Preserve 
 run affected focused checks plus applicable fmt/lint; do not repeat the13-minute full simulation run, source63 recorder
 or a new source-capture campaign solely for this witness delta. A production semantic change still requires its affected
 source/regression gates before any derived identity refresh. Root and the independent reviewer bind the final seal.
+
+Root accepts the general accepted-state capacity for this packet; smaller optional Full8/training8 pristine
+specializations are not required or authorized by this follow-up. Their provisional21.5675MiB figure must not be
+claimed for this candidate. The full simulation command now has a real final EXIT0, including integration targets
+and doc tests, in `/tmp/cardlogs/rhsim-final.log`; preserve the actual receipt and production binding.
+
+Use each container's actual capacity in the ledger rather than substituting the required q/k/b bound. If only one
+representative viewer is attached, label the eight-viewer total as scaling that measured representative reservation,
+not eight independently measured live viewers. The larger public-output witness must also measure allocator counts
+around the real flush with setup excluded; unchanged capacities alone do not establish zero scoped allocations.
+Keep this under the isolated serial Card profiler test and preserve its receipt. These clarifications add no new
+source campaign or heavy-suite repeat.
