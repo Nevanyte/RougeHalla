@@ -42,6 +42,67 @@ namespace Roguehalla.Client
         /// <summary>Ids in the newest delivered observation. An actor still in it is never treated as departed (an interpolation gap).</summary>
         public HashSet<uint> Delivered { get; set; }
         /// <summary>Live fades, for diagnostics.</summary>
+        /// <summary>
+        /// Creature art creates, continuations and destroys (diagnostics, printed once a second with <c>?mob.audit=1</c>). A create is a
+        /// creature shown with fresh art, a continue is a renewed handle that took over departed art, a destroy is creature art released.
+        /// <c>?mob.continuity=0</c> restores the old behaviour (creatures pop in and out) so the two can be measured against each other.
+        /// </summary>
+        public static readonly MobContinuity.Counters MobArt = new MobContinuity.Counters();
+        static bool? _continuity;
+        /// <summary>False only with <c>?mob.continuity=0</c> in the page URL (the measurement baseline).</summary>
+        public static bool ContinuityEnabled
+        {
+            get { if (!_continuity.HasValue) { string u = Application.absoluteURL ?? ""; _continuity = !u.Contains("mob.continuity=0"); } return _continuity.Value; }
+            set { _continuity = value; }
+        }
+        static bool Fades(ActorKind kind) { return kind == ActorKind.Player || (ContinuityEnabled && (kind == ActorKind.RegionalMob || kind == ActorKind.Zombie)); }
+        static bool IsCreature(ActorKind kind) { return kind == ActorKind.RegionalMob || kind == ActorKind.Zombie; }
+        MobCandidate[] _candidates = new MobCandidate[16];
+        static float _auditAt; static int _auditCreated, _auditDestroyed, _auditContinued;
+
+        static MobLook LookOf(ActorKind kind, FactionId? faction, MobTypeId? mob, string archetypeKey)
+        { return new MobLook((byte)kind, mob.HasValue ? (int)mob.Value : -1, faction.HasValue ? (int)faction.Value : -1, archetypeKey); }
+
+        /// <summary>
+        /// A creature id with no art: if a departed creature of the same look was drawn within two tiles under 0.6 s ago, the handle was
+        /// renewed and the art (and its animation) carries over; otherwise this is a real arrival. See <see cref="MobContinuity"/>.
+        /// </summary>
+        bool TryContinue(uint id, ActorKind kind, FactionId? faction, MobTypeId? mob, string archetypeKey, float x, float y, out Art art)
+        {
+            art = null;
+            if (!ContinuityEnabled || _ghosts.Count == 0) return false;
+            var look = LookOf(kind, faction, mob, archetypeKey);
+            int n = 0;
+            if (_candidates.Length < _ghosts.Count) System.Array.Resize(ref _candidates, _ghosts.Count * 2);
+            for (int i = 0; i < _ghosts.Count; i++)
+            {
+                var g = _ghosts[i];
+                if (!IsCreature(g.Fade.Kind)) continue;
+                var p = g.LastPosition;
+                _candidates[n++] = new MobCandidate { Handle = i, Look = g.Look, X = p.x / ArenaView.Scale, Y = -p.y / (ArenaView.Scale * ArenaView.GroundSquash), SeenAt = g.Fade.ExitAt };
+            }
+            int pick = MobContinuity.Pick(_candidates, n, look, x, y, Now());
+            if (pick < 0) return false;
+            int index = _candidates[pick].Handle;
+            art = _ghosts[index]; _ghosts.RemoveAt(index);
+            var f = art.Fade; float alpha = f.Opacity;
+            f.Exiting = false;
+            if (alpha < .999f) { f.Entering = true; f.EnterFrom = 0f; f.EnterAt = Now() - VisionFade.EnterElapsedFor(alpha); }
+            else { f.Entering = false; Apply(art, 1f); }
+            MobArt.Continued++;
+            return true;
+        }
+
+        void AuditTick()
+        {
+            if (!(Application.absoluteURL ?? "").Contains("mob.audit=1")) return;
+            float now = Time.unscaledTime;
+            if (now - _auditAt < 1f) return;
+            if (_auditAt > 0f) Debug.Log("[mob.audit] t=" + now.ToString("F1") + " continuity=" + (ContinuityEnabled ? 1 : 0) + " created/s=" + (MobArt.Created - _auditCreated) + " destroyed/s=" + (MobArt.Destroyed - _auditDestroyed) + " continued/s=" + (MobArt.Continued - _auditContinued) + " creatures=" + CreatureCount() + " totals c/d/k=" + MobArt.Created + "/" + MobArt.Destroyed + "/" + MobArt.Continued);
+            _auditAt = now; _auditCreated = MobArt.Created; _auditDestroyed = MobArt.Destroyed; _auditContinued = MobArt.Continued;
+        }
+        int CreatureCount() { int n = 0; foreach (var pair in _active) if (IsCreature(pair.Value.Fade.Kind)) n++; return n; }
+
         /// <summary>Raised with the tile an actor was last drawn on when it stops being delivered (diagnostics: sight agreement).</summary>
         public System.Action<float, float> OnDeparted;
         /// <summary>Raised with the tile of a newly shown remote actor (diagnostics).</summary>
@@ -69,21 +130,21 @@ namespace Roguehalla.Client
         {
             var f = a.Fade;
             f.Exiting = false; f.Opacity = 1f; f.Count = 0;
-            // Only players fade. The server renews the observer handle of a creature on (almost) every observation, so a creature that
-            // "arrives" or "departs" is usually the same creature under a new id; fading those would flicker every mob (and the client
-            // is told never to infer continuity from position). Creatures keep the plain show and hide.
-            f.Entering = !local && kind == ActorKind.Player; f.EnterAt = Now(); f.EnterFrom = 0f;
-            if (f.Entering && OnArrived != null) OnArrived(a.LastPosition.x, -a.LastPosition.y / ArenaView.GroundSquash);
+            // The server renews the observer handle of a creature on (almost) every observation, so a creature that "arrives" or "departs"
+            // is usually the same creature under a new id. Present first tries to continue departed art (TryContinue); only a creature that
+            // truly arrives gets here, and it fades in like a player. With ?mob.continuity=0 creatures keep the old plain show and hide.
+            f.Entering = !local && Fades(kind); f.EnterAt = Now(); f.EnterFrom = 0f;
+            if (f.Entering && kind == ActorKind.Player && OnArrived != null) OnArrived(a.LastPosition.x, -a.LastPosition.y / ArenaView.GroundSquash);
         }
 
         /// <summary>Evict hook: a living actor that dropped out of the observation of a running match becomes a fading ghost.</summary>
         bool TryBeginExit(uint id, Art art)
         {
             var f = art.Fade;
-            if (!ExitFadesAllowed || f.Local || f.Kind != ActorKind.Player) return false;
+            if (!ExitFadesAllowed || f.Local || !Fades(f.Kind)) return false;
             if (Delivered != null && Delivered.Contains(id)) return false;
             if (VisionFade.Classify(f.Status, _deaths.Contains(id, Now()), true, false) != DepartureCause.LeftSight) return false;
-            if (OnDeparted != null) { var p = art.Root.transform.position; OnDeparted(p.x, -p.y / ArenaView.GroundSquash); }
+            if (OnDeparted != null && f.Kind == ActorKind.Player) { var p = art.Root.transform.position; OnDeparted(p.x, -p.y / ArenaView.GroundSquash); }
             _active.Remove(id);
             art.Light.SetVisible(false);
             f.Entering = false; f.Exiting = true; f.ExitAt = Now(); f.ExitFrom = f.Opacity;
@@ -95,6 +156,7 @@ namespace Roguehalla.Client
         public void StepFades()
         {
             float now = Now();
+            AuditTick();
             for (int i = _ghosts.Count - 1; i >= 0; i--)
             {
                 var art = _ghosts[i]; var f = art.Fade;

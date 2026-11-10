@@ -39,6 +39,7 @@ namespace Roguehalla.Client
             public readonly ActorFadeSlot Fade = new ActorFadeSlot(); // vision fade state (SpriteActorPresenter.Fade.cs)
             public OverheadIndicators Ind; // overhead cluster and body marks (OverheadIndicators.cs)
             public OverheadIndicators.Facts IndFacts;
+            public MobLook Look; // what a creature looked like when last presented (MobContinuity)
         }
         readonly Transform _parent;
         public SurfaceFx Fx; // SURFACE-FX HOOK: set by the owning ArenaView, so cues go to the arena that presents
@@ -188,6 +189,7 @@ namespace Roguehalla.Client
         }
         void Release(Art art)
         {
+            if (IsCreature(art.Fade.Kind)) MobArt.Destroyed++;
             art.Light.SetVisible(false);
             foreach (var icon in art.SignatureIcons) icon.enabled = false;
             foreach (var backing in art.SignatureBackers) backing.enabled = false;
@@ -206,12 +208,18 @@ namespace Roguehalla.Client
         {
             if (!_active.TryGetValue(id, out var a))
             {
-                a = _pool.Count > 0 ? _pool.Pop() : Create(); _active.Add(id, a);
-                a.Root.SetActive(true); a.LastPosition = ArenaView.WorldPoint(x, y); a.AttackUntil = 0;
-                a.Gait.Reset(); a.StampTime = Time.unscaledTime;
-                a.HitUntil=a.BlockUntil=0;a.Dead=false;a.HoldDeathFrame=false;a.WishUntil=0;a.WishTintAmount=0;
-                BeginEnter(a, local, kind);
+                if (!local && IsCreature(kind) && TryContinue(id, kind, faction, mob, archetypeKey, x, y, out a)) _active.Add(id, a); // a renewed handle
+                else
+                {
+                    a = _pool.Count > 0 ? _pool.Pop() : Create(); _active.Add(id, a);
+                    a.Root.SetActive(true); a.LastPosition = ArenaView.WorldPoint(x, y); a.AttackUntil = 0;
+                    a.Gait.Reset(); a.StampTime = Time.unscaledTime;
+                    a.HitUntil=a.BlockUntil=0;a.Dead=false;a.HoldDeathFrame=false;a.WishUntil=0;a.WishTintAmount=0;
+                    if (IsCreature(kind)) MobArt.Created++;
+                    BeginEnter(a, local, kind);
+                }
             }
+            if (IsCreature(kind)) a.Look = LookOf(kind, faction, mob, archetypeKey);
             a.Stamp = _stamp; a.Fade.Note(id, local, status, kind);
             var position = ArenaView.WorldPoint(x, y);
             // Gait reads displacement only (presentation). Present can run twice in a frame for NPCs: a zero-dt call leaves
