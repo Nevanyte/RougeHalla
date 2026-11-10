@@ -59,6 +59,22 @@ Legacy mode clean; all tests and decoders pass; crash fixes correct, no DEVIATIO
 8. Projectile height revealed the shooter's faction (per-faction chest heights 30/25/33/27) -> coordinator ruling: one chest height (30) for all players. Flag at Gate 2.
 10. Bot/mob shots predicted to miss short targets -> measure, then apply the chest correction in archetype mode only.
 
+## Launch readiness checklist (owner, 2026-11-10: "all planned work and visuals done here; everything perfected and verified here before the beta")
+Nothing is called done until the coordinator has seen it in a real browser build of the merged branch and the numbers below exist. Tick only with evidence.
+- [ ] Hitboxes: review fixes merged; client foot-box prediction matches Rust v2 vectors; chest aim; archetype mode live by default; balance comparison both modes; no snap-back worse than legacy (browser numbers).
+- [ ] Vision: fog of war + fades verified on the merged build; vision params read from Welcome; mobs fade (position continuity) or the limit is documented.
+- [ ] Zones: Holy is ONE temple interior; Plague trees not clipped; every zone matches the lighting order and owner tuning notes; coordinator captures of all five zones + coliseum at 1920x1080 and 2560x1440.
+- [ ] Contrast gate: `contrast-gate.cjs` exits 0 (edge >= 3:1 for every appearance and mob on every surface in every zone at High and Ultra, both sizes; markers >= 4.5:1); body numbers reported; last-resort faction outline only if the owner approves.
+- [ ] Rendering-features pass (Breath of the Wild reference) in at Ultra; every effect switchable and costed.
+- [ ] Surface effects: 10 s tracks, ripples, footstep sounds per surface.
+- [ ] Wish effects: light and bloom added; readable on every zone's ground.
+- [ ] UI: final pass against legacy (overhead indicators, every legacy marker); station panels, results, chest and trader screens in the skin; Tab-map border staircase and `[]` glyph fixed; launch screen re-shot with lighting.
+- [ ] Controls: input-to-motion delay measured in the browser; ranged-release pause prediction decided and done or documented.
+- [ ] Performance: Ultra at 2560x1440 on the 144 Hz display measured with everything in; per-effect attribution; optimisation work (Opus) before any cut; build size under 150 MB compressed.
+- [ ] Tests on the final merged tree: cargo workspace (with Postgres), parity-report, dotnet, JS vectors, browser proof, Unity EditMode, node tool tests; zero failures.
+- [ ] Licences: ledger complete; every notice in the build; EmojiOne resolved; audio attributions shipped.
+- [ ] Gate 2 and Gate 3 reports written; `optimization_port` merged into the branch and re-verified; owner approves Gate 3; merge (squash); Opus final review of the combined tree against the real deploy command.
+
 ## Evidence policy (set 2026-11-10)
 Committed screenshots had reached 370 MB. Pruned to about 28 MB at `fc67e123` (JPEG, 1600 px max, one resolution per screen). From now on: evidence in the repo is JPEG only, a curated handful per pass (aim under 5 MB per folder); raw captures stay outside the repo; bulky agent branches are squash-merged and trimmed. Branch history still holds the old PNG blobs: at Gate 3 recommend a squash merge so they never reach the public repo.
 
