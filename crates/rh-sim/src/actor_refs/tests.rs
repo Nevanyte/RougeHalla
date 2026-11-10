@@ -128,6 +128,8 @@ fn cycle_pair() -> (Sim, Sim) {
         b.w.players[i].farm = a.w.players[i].farm;
         b.w.players[i].core.modifiers = a.w.players[i].core.modifiers.clone();
     }
+    // Edited between steps: the end-of-step build-mark cache no longer describes `b`.
+    b.projection.marks.invalidate();
     place(&mut a, PlayerId(3), Vec2::new(80., 112.));
     place(&mut b, PlayerId(3), Vec2::new(80., 112.));
     Sim::restore(serde_json::to_value(&a).unwrap()).unwrap();

@@ -25,6 +25,8 @@ pub(crate) struct Projection {
     pub(crate) marks: BuildMarkCache,
 }
 /// See [`Projection::marks`]. Rows ascend by player id; the buffer is reused (no allocation while the seats are steady).
+/// Every production writer of the marks' inputs (cards, mob stats, kill stats, folds, the practice console) runs inside a
+/// step, so the end-of-step refresh is exact; code that edits those inputs between steps (tests) calls `invalidate`.
 #[derive(Debug, Default)]
 pub(crate) struct BuildMarkCache {
     tick: Option<u32>,
@@ -42,6 +44,11 @@ impl BuildMarkCache {
             self.rows.sort_unstable_by_key(|(id, _)| *id);
         }
         self.tick = Some(w.tick);
+    }
+    /// Drops the cache; observers compute the marks directly until the next step.
+    #[cfg(test)]
+    pub(crate) fn invalidate(&mut self) {
+        self.tick = None;
     }
     /// The cached marks of `p` when they belong to `tick`, else computed now.
     pub(crate) fn of(
