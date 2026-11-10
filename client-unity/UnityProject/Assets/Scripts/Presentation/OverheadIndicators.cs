@@ -29,7 +29,7 @@ namespace Roguehalla.Client
 
         const float Px = .026f; // legacy px to actor-local units
         readonly Transform _t;
-        readonly SpriteRenderer _crown, _badgeBack, _badgeEdge, _badgeIcon, _lockOuter, _lockInner, _root, _zone;
+        readonly SpriteRenderer _crown, _badgeBack, _badgeEdge, _badgeIcon, _lockOuter, _lockInner, _root, _zone, _numberBack, _nameBack;
         readonly SpriteRenderer[] _glyphs = new SpriteRenderer[Indicators.StatusOrder.Length];
         readonly TextMeshPro _number, _name;
         readonly Indicators.StatusLayer[] _layers = new Indicators.StatusLayer[Indicators.StatusOrder.Length];
@@ -51,6 +51,8 @@ namespace Roguehalla.Client
             _lockInner = Sprite(root, "Attack lock ring inner", ShowcaseSprites.Get("ring"), -6);
             _root = Sprite(root, "Rooted ring", ShowcaseSprites.Get("ring"), -5);
             _zone = Sprite(root, "Zoned ring", ShowcaseSprites.Get("ring"), -5);
+            _numberBack = Sprite(root, "Bounty number plate", ShowcaseSprites.Get("bar"), 11);
+            _nameBack = Sprite(root, "Name plate", ShowcaseSprites.Get("bar"), 11);
             _number = Text(root, "Bounty number", 2.6f, FontStyles.Bold);
             _name = Text(root, "Name", 2.3f, FontStyles.Normal);
             HideAll();
@@ -90,7 +92,7 @@ namespace Roguehalla.Client
 
         public void HideAll()
         {
-            _crown.enabled = _badgeBack.enabled = _badgeEdge.enabled = _badgeIcon.enabled = _lockOuter.enabled = _lockInner.enabled = _root.enabled = _zone.enabled = false;
+            _crown.enabled = _badgeBack.enabled = _badgeEdge.enabled = _badgeIcon.enabled = _lockOuter.enabled = _lockInner.enabled = _root.enabled = _zone.enabled = _numberBack.enabled = _nameBack.enabled = false;
             foreach (var g in _glyphs) g.enabled = false;
             _number.gameObject.SetActive(false); _name.gameObject.SetActive(false);
             _bounty = -1; _nameText = null; _textFade = 1f;
@@ -121,7 +123,7 @@ namespace Roguehalla.Client
                 if (bit == Indicators.Zoned) { zoned = true; continue; }
                 shown++;
             }
-            float rowW = shown * .30f, x0 = -rowW * .5f + .15f, rowY = f.BarY + .26f;
+            float rowW = shown * .34f, x0 = -rowW * .5f + .17f, rowY = f.BarY + .26f;
             int slot = 0;
             for (int i = 0; i < n; i++)
             {
@@ -130,8 +132,8 @@ namespace Roguehalla.Client
                 int idx = IndexOfBit(bit);
                 var g = _glyphs[idx];
                 g.enabled = true; g.color = GlyphColour(bit, theme);
-                g.transform.localPosition = new Vector3(x0 + slot * .30f, rowY, 0);
-                g.transform.localScale = new Vector3(.26f, .26f, 1);
+                g.transform.localPosition = new Vector3(x0 + slot * .34f, rowY, 0);
+                g.transform.localScale = new Vector3(.3f, .3f, 1);
                 g.sortingOrder = f.Order + 9;
                 slot++;
             }
@@ -145,15 +147,16 @@ namespace Roguehalla.Client
             {
                 if (!ReferenceEquals(_nameText, f.Name)) { _name.text = f.Name; _nameText = f.Name; }
                 _nameBase = f.Elite ? (Color)theme.Accent : (Color)theme.TextSecondary;
-                _nameBase.a = Indicators.MobLabelAlpha(f.Elite, f.Dummy, f.HpPct);
+                _nameBase.a = 1f; // hierarchy by colour, not faintness: the plate keeps every name above 4.5:1
                 var c = _nameBase; c.a *= _textFade; _name.color = c;
                 _name.fontStyle = f.Elite ? FontStyles.Bold : FontStyles.Normal;
                 _name.gameObject.SetActive(true);
                 _name.transform.localPosition = new Vector3(0, cursor + .14f, 0);
                 _name.GetComponent<MeshRenderer>().sortingOrder = f.Order + 12;
-                cursor += .34f;
+                Plate(_nameBack, new Vector3(0, cursor + .14f + .02f, 0), _name.preferredWidth + .14f, .27f, f.Order + 11, theme);
+                cursor += .36f;
             }
-            else _name.gameObject.SetActive(false);
+            else { _name.gameObject.SetActive(false); _nameBack.enabled = false; }
 
             // Bounty crown and number, scaled with the bounty (legacy 1x to 1.5x at 150).
             bool crown = Indicators.CrownVisible(f.Bounty, true);
@@ -162,16 +165,17 @@ namespace Roguehalla.Client
             {
                 float s = Indicators.CrownScale(f.Bounty);
                 _crown.color = (Color)theme.Accent; _crown.sortingOrder = f.Order + 11;
-                _crown.transform.localScale = new Vector3(22f * Px * s * 1.15f, 22f * Px * s * 1.15f, 1);
+                _crown.transform.localScale = new Vector3(22f * Px * s * .9f, 22f * Px * s * .9f, 1);
                 _crown.transform.localPosition = new Vector3(0, cursor + 11f * Px * s, 0);
                 if (_bounty != f.Bounty) { _bounty = f.Bounty; _number.text = f.Bounty.ToString(System.Globalization.CultureInfo.InvariantCulture); }
                 _numberBase = (Color)theme.Accent; var c = _numberBase; c.a *= _textFade; _number.color = c;
                 _number.gameObject.SetActive(true);
                 _number.transform.localPosition = new Vector3(0, cursor + 22f * Px * s + .02f, 0);
                 _number.GetComponent<MeshRenderer>().sortingOrder = f.Order + 12;
-                cursor += 22f * Px * s + .28f;
+                Plate(_numberBack, new Vector3(0, cursor + 22f * Px * s + .02f + .13f, 0), _number.preferredWidth + .12f, .24f, f.Order + 11, theme);
+                cursor += 22f * Px * s + .3f;
             }
-            else { _number.gameObject.SetActive(false); _bounty = -1; }
+            else { _number.gameObject.SetActive(false); _numberBack.enabled = false; _bounty = -1; }
 
             // Build row: the secondary weapon (the slot not in hand; fists when empty).
             bool badge = f.HasSecondary;
@@ -198,6 +202,12 @@ namespace Roguehalla.Client
                 _lockOuter.transform.localScale = new Vector3(1.55f * breathe, .8f * breathe, 1); _lockInner.transform.localScale = new Vector3(1.2f * breathe, .62f * breathe, 1);
                 _lockOuter.sortingOrder = _lockInner.sortingOrder = f.Order - 6;
             }
+        }
+
+        static void Plate(SpriteRenderer r, Vector3 at, float w, float h, int order, UiTheme theme)
+        {
+            r.enabled = true; r.sortingOrder = order; r.transform.localPosition = at; r.transform.localScale = new Vector3(w, h, 1);
+            var c = (Color)theme.OutlineDark; c.a = .78f; r.color = c;
         }
 
         static int IndexOfBit(ushort bit) { for (int i = 0; i < Indicators.StatusOrder.Length; i++) if (Indicators.StatusOrder[i].Bit == bit) return i; return 0; }

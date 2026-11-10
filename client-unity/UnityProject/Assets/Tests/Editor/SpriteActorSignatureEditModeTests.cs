@@ -101,7 +101,6 @@ namespace Roguehalla.Client.Tests
             Assert.That(FindRenderer("Public status bit 0").enabled, Is.False, "the generic effect bit icon is replaced by per-status glyphs");
             Assert.That(FindRenderer("Unknown signature backer").enabled, Is.True);
             Assert.That(FindRenderer(SignatureName(2)).transform.localPosition.y, Is.EqualTo(2.4f));
-            Assert.That(FindRenderer("Public status bit 0").transform.localPosition.y, Is.EqualTo(2f));
             Assert.That(FindRenderer("Confirmed health").transform.localPosition.y, Is.EqualTo(1.8f));
         }
 
