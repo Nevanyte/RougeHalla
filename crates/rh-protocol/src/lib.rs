@@ -62,6 +62,11 @@
 //! Delta bit 20; the bit is the value on every frame. A Delta hunt-target value of zero clears it; a present
 //! Full hunt target and HuntTarget command must remain nonzero. Every old major is refused at admission.
 //!
+//! Protocol 16 adds the legacy indicator facts (docs/adr/0026-legacy-indicator-facts.md): Hit (Fx 2) turns its passive byte
+//! into flags (bit 0 passive, bit 1 critical); Windup (Fx 9: by varint, weapon u8, angle u16, ms u16), Cancel (Fx 10: id
+//! varint), SigHit (Fx 11: victim varint, source varint, kind u8, amount f32) and Heal (Fx 12: id varint, amount f32);
+//! CampCleared (Events 11: camp u16); State key 12, the roster.
+//!
 //! # Field masks (protocol v4; docs/adr/0011-protocol-v4.md)
 //!
 //! Every presence mask (the Full head, the Full actor mask, the Delta head, the actor-delta mask) is a canonical LEB128
@@ -471,6 +476,21 @@ pub fn indicator_fault(
     }
 }
 
+/// Signature and ability hit kinds of [`WireFx::SigHit`] (protocol 16, ADR0026): the signature kinds, the bleed (reserved:
+/// the sim emits no bleed chunks yet), and `HIT_KIND_ABILITY + ability code` (Freeze 0 .. Last Stand 4).
+pub const HIT_KIND_BURN: u8 = 1;
+pub const HIT_KIND_DISEASE: u8 = 2;
+pub const HIT_KIND_BACKLASH: u8 = 3;
+pub const HIT_KIND_MARK: u8 = 4;
+pub const HIT_KIND_BLEED: u8 = 5;
+pub const HIT_KIND_ABILITY: u8 = 16;
+
+/// A [`WireFx::SigHit`] kind a decoder accepts.
+pub fn hit_kind_valid(kind: u8) -> bool {
+    (HIT_KIND_BURN..=HIT_KIND_BLEED).contains(&kind)
+        || (HIT_KIND_ABILITY..=HIT_KIND_ABILITY + 4).contains(&kind)
+}
+
 /// Owner-only action lock state. This is display data, not a capability to target or act.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WireOwnerLock {
@@ -618,6 +638,12 @@ impl WireFx {
                 y: quant::dequantize_pos(quant::quantize_pos(y)),
                 a: quant::dequantize_facing(quant::quantize_facing(a)),
             },
+            WireFx::Windup { by, weapon, a, ms } => WireFx::Windup {
+                by,
+                weapon,
+                a: quant::dequantize_facing(quant::quantize_facing(a)),
+                ms,
+            },
             WireFx::WishStarted {
                 event_time,
                 caster,
@@ -717,6 +743,11 @@ pub enum WireEvent {
     Toast {
         text: String,
     },
+    /// A camp was cleared (protocol 16, tag 11, ADR0026): its index in the map's camp list, the legacy camp-clear ring cue.
+    /// Public to every viewer, as the sim declares it.
+    CampCleared {
+        camp: u16,
+    },
 }
 
 /// Presentation effects: a slow client may lose them (the server drops the oldest first under backpressure).
@@ -737,11 +768,38 @@ pub enum WireFx {
         y: f32,
         a: f32,
     },
+    /// `passive` and `critical` share one flags byte (bit 0 passive, bit 1 critical strike, ADR0026); other bits are refused.
     Hit {
         victim: u32,
         by: u32,
         amount: f32,
         passive: bool,
+        critical: bool,
+    },
+    /// An attack windup started (protocol 16, tag 9, ADR0026): `by` will swing `weapon` toward `a` in `ms` milliseconds unless
+    /// a [`WireFx::Cancel`] or a [`WireFx::Stagger`] for `by` ends it first. Shown to whoever its swing is shown to.
+    Windup {
+        by: u32,
+        weapon: u8,
+        a: f32,
+        ms: u16,
+    },
+    /// `id`'s own order cancelled the attack it was winding up (tag 10): drop its telegraph.
+    Cancel {
+        id: u32,
+    },
+    /// Signature or ability damage (tag 11): a chunk of damage over time or an instant signature hit, with its kind
+    /// ([`HIT_KIND_BURN`]...); `by` is u32::MAX when absent or redacted, as for [`WireFx::Hit`].
+    SigHit {
+        victim: u32,
+        by: u32,
+        kind: u8,
+        amount: f32,
+    },
+    /// `id` healed `amount` (tag 12): lifesteal, regeneration, potions, terrain.
+    Heal {
+        id: u32,
+        amount: f32,
     },
     /// The coliseum teleport happened at this tick (source sends the `teleport` fx to the whole room).
     Teleport,
@@ -1602,6 +1660,7 @@ impl ServerMsg {
                     events.push(match r.u8()? {
                         8 => WireEvent::WindEmblem,
                         10 => WireEvent::Toast { text: r.str()? },
+                        11 => WireEvent::CampCleared { camp: r.u16()? },
                         7 => {
                             let notice = r.u8()?;
                             if !(1..=10).contains(&notice) {
@@ -1711,11 +1770,43 @@ impl ServerMsg {
                             y: quant::dequantize_pos(r.u16()?),
                             a: quant::dequantize_facing(r.u16()?),
                         },
-                        2 => WireFx::Hit {
-                            victim: r.varint()?,
+                        2 => {
+                            let victim = r.varint()?;
+                            let by = r.varint()?;
+                            let amount = r.f32()?;
+                            let flags = code(&mut r, 3, "hit flags")?;
+                            WireFx::Hit {
+                                victim,
+                                by,
+                                amount,
+                                passive: flags & 1 != 0,
+                                critical: flags & 2 != 0,
+                            }
+                        }
+                        9 => WireFx::Windup {
                             by: r.varint()?,
+                            weapon: code(&mut r, MAX_KIT_CODE, "windup weapon")?,
+                            a: quant::dequantize_facing(r.u16()?),
+                            ms: r.u16()?,
+                        },
+                        10 => WireFx::Cancel { id: r.varint()? },
+                        11 => {
+                            let victim = r.varint()?;
+                            let by = r.varint()?;
+                            let kind = r.u8()?;
+                            if !hit_kind_valid(kind) {
+                                return Err(DecodeError::BadField("hit kind"));
+                            }
+                            WireFx::SigHit {
+                                victim,
+                                by,
+                                kind,
+                                amount: r.f32()?,
+                            }
+                        }
+                        12 => WireFx::Heal {
+                            id: r.varint()?,
                             amount: r.f32()?,
-                            passive: r.opt(|_| Ok(()))?.is_some(),
                         },
                         t => return Err(DecodeError::BadTag(t)),
                     });

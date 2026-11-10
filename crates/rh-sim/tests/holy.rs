@@ -71,6 +71,7 @@ fn caller_owned_old_or_fabricated_output_never_creates_a_contact() {
             amount: 900.0,
             weapon: Some(WeaponId::Axe),
             passive: false,
+            critical: false,
         },
     ];
     for _ in 0..120 {

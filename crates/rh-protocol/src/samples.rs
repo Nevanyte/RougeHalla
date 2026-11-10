@@ -1577,6 +1577,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                         by: u32::MAX,
                         amount: 4.0,
                         passive: true,
+                        critical: false,
                     },
                 ],
             },
@@ -1586,6 +1587,91 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
             ServerMsg::Fx {
                 tick: 777,
                 fx: vec![WireFx::Teleport],
+            },
+        ),
+        // Protocol 16, ADR0026: the windup telegraph (quantized angle, multi-byte attacker id), its cancel, a critical
+        // passive hit, signature/ability chunks of every kind class, a redacted source and heals.
+        (
+            "fx_indicators",
+            ServerMsg::Fx {
+                tick: 901,
+                fx: vec![
+                    WireFx::Windup {
+                        by: 70_000,
+                        weapon: 0,
+                        a: -2.5,
+                        ms: 350,
+                    },
+                    WireFx::Windup {
+                        by: 3,
+                        weapon: 4,
+                        a: 3.1415927,
+                        ms: u16::MAX,
+                    },
+                    WireFx::Cancel { id: 70_000 },
+                    WireFx::Hit {
+                        victim: 2,
+                        by: 3,
+                        amount: 61.5,
+                        passive: false,
+                        critical: true,
+                    },
+                    WireFx::Hit {
+                        victim: 3,
+                        by: 2,
+                        amount: 7.25,
+                        passive: true,
+                        critical: true,
+                    },
+                    WireFx::SigHit {
+                        victim: 2,
+                        by: 3,
+                        kind: HIT_KIND_BURN,
+                        amount: 12.0,
+                    },
+                    WireFx::SigHit {
+                        victim: 2,
+                        by: u32::MAX,
+                        kind: HIT_KIND_DISEASE,
+                        amount: 3.5,
+                    },
+                    WireFx::SigHit {
+                        victim: 3,
+                        by: 2,
+                        kind: HIT_KIND_BACKLASH,
+                        amount: 20.0,
+                    },
+                    WireFx::SigHit {
+                        victim: 3,
+                        by: 2,
+                        kind: HIT_KIND_MARK,
+                        amount: 40.0,
+                    },
+                    WireFx::SigHit {
+                        victim: 3,
+                        by: 2,
+                        kind: HIT_KIND_ABILITY + 4,
+                        amount: 9.0,
+                    },
+                    WireFx::Heal {
+                        id: 3,
+                        amount: 14.75,
+                    },
+                    WireFx::Heal {
+                        id: 128,
+                        amount: 0.5,
+                    },
+                ],
+            },
+        ),
+        (
+            "events_camp_cleared",
+            ServerMsg::Events {
+                tick: 902,
+                events: vec![
+                    WireEvent::CampCleared { camp: 0 },
+                    WireEvent::CampCleared { camp: 511 },
+                ],
             },
         ),
         (
@@ -2201,6 +2287,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                         by: 1,
                         amount: 17.690966,
                         passive: false,
+                        critical: false,
                     },
                 ],
             },
@@ -2223,6 +2310,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                         by: u32::MAX,
                         amount: 0.5,
                         passive: false,
+                        critical: false,
                     },
                 ],
             },
@@ -3638,7 +3726,35 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ("empty", vec![]),
         ("unknown_tag", vec![0x7f]),
         ("client_tag_from_server", vec![0x01]),
-        ("hit_bad_passive", vec![0x85, 0, 1, 2, 1, 2, 0, 0, 0, 0, 2]),
+        // Protocol 16, ADR0026: the hit's flags byte (bit 0 passive, bit 1 critical) refuses any other bit.
+        (
+            "hit_flags_unknown_bit",
+            vec![0x85, 0, 1, 2, 1, 2, 0, 0, 0, 0, 4],
+        ),
+        // Windup: by 1, weapon 16 (over the 4-bit code), angle, ms.
+        (
+            "fx_windup_weapon_over_15",
+            vec![0x85, 0, 1, 9, 1, 16, 0, 0, 0, 0],
+        ),
+        ("fx_windup_truncated", vec![0x85, 0, 1, 9, 1, 2, 0, 0, 0]),
+        // Signature hit: victim 1, by 2, kind, amount.
+        (
+            "fx_sig_hit_kind_zero",
+            vec![0x85, 0, 1, 11, 1, 2, 0, 0, 0, 0, 0],
+        ),
+        (
+            "fx_sig_hit_kind_6",
+            vec![0x85, 0, 1, 11, 1, 2, 6, 0, 0, 0, 0],
+        ),
+        (
+            "fx_sig_hit_kind_21",
+            vec![0x85, 0, 1, 11, 1, 2, 21, 0, 0, 0, 0],
+        ),
+        ("fx_heal_truncated", vec![0x85, 0, 1, 12, 1, 0, 0, 0]),
+        (
+            "camp_cleared_truncated",
+            vec![0x84, 0, 0, 0, 0, 1, 0, 11, 0],
+        ),
         ("pickup_bad_reason_zero", vec![0x84, 0, 0, 0, 0, 1, 0, 5, 0]),
         (
             "pickup_bad_reason_unknown",
@@ -3943,7 +4059,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ),
         // Fx: a count past u16, a bad item tag.
         ("fx_too_many", vec![0x85, 0, 0x80, 0x80, 0x04]),
-        ("fx_bad_tag", vec![0x85, 0, 1, 9]),
+        ("fx_bad_tag", vec![0x85, 0, 1, 13]),
         // State: key zero is undefined; truncated and trailing bytes remain invalid.
         ("chest_bad_reason_zero", vec![0x84, 0, 0, 0, 0, 1, 0, 6, 0]),
         (
@@ -5842,8 +5958,21 @@ fn decoded_fx_json(m: &ServerMsg) -> String {
                 bits(y),
                 bits(a)
             ),
-            WireFx::Hit { victim, by, amount, passive } => format!(
-                "{{\"k\": \"hit\", \"victim\": {victim}, \"by\": {by}, \"passive\": {passive}, \"amountBits\": {}}}",
+            WireFx::Hit { victim, by, amount, passive, critical } => format!(
+                "{{\"k\": \"hit\", \"victim\": {victim}, \"by\": {by}, \"passive\": {passive}, \"critical\": {critical}, \"amountBits\": {}}}",
+                bits(amount)
+            ),
+            WireFx::Windup { by, weapon, a, ms } => format!(
+                "{{\"k\": \"windup\", \"by\": {by}, \"weapon\": {weapon}, \"aBits\": {}, \"ms\": {ms}}}",
+                bits(a)
+            ),
+            WireFx::Cancel { id } => format!("{{\"k\": \"cancel\", \"id\": {id}}}"),
+            WireFx::SigHit { victim, by, kind, amount } => format!(
+                "{{\"k\": \"sigHit\", \"victim\": {victim}, \"by\": {by}, \"kind\": {kind}, \"amountBits\": {}}}",
+                bits(amount)
+            ),
+            WireFx::Heal { id, amount } => format!(
+                "{{\"k\": \"heal\", \"id\": {id}, \"amountBits\": {}}}",
                 bits(amount)
             ),
             WireFx::Teleport => "{\"k\": \"teleport\"}".to_owned(),

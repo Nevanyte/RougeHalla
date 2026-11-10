@@ -106,7 +106,12 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
                 Truncated
             }
             "pickup_bad_reason_zero" | "pickup_bad_reason_unknown" => BadField("combat"),
-            "hit_bad_passive" => BadTag(2),
+            "hit_flags_unknown_bit" => BadField("hit flags"),
+            "fx_windup_weapon_over_15" => BadField("windup weapon"),
+            "fx_sig_hit_kind_zero" | "fx_sig_hit_kind_6" | "fx_sig_hit_kind_21" => {
+                BadField("hit kind")
+            }
+            "fx_windup_truncated" | "fx_heal_truncated" | "camp_cleared_truncated" => Truncated,
             "unknown_tag" | "client_tag_from_server" => BadTag(0),
             "trailing_byte" => Trailing(0),
             "overlong_varint"

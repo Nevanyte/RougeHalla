@@ -518,7 +518,7 @@ fn events(ev: &[Event]) -> Value {
     Event::Death{id,x,y,by}=>json!({"type":"fx","fx":{"kind":"death","id":label(*id),"x":x,"y":y,"by":by.map(label)}}),
     Event::Windup{by,weapon,a,ms}=>json!({"type":"fx","fx":{"kind":"windup","by":label(*by),"weapon":weapon.as_str(),"a":a,"ms":ms}}),
     Event::Swing{by,weapon,x,y,a}=>json!({"type":"fx","fx":{"kind":"swing","by":label(*by),"weapon":weapon.as_str(),"x":x,"y":y,"a":a}}),
-    Event::Hit{victim,by,amount,weapon,passive}=>{assert!(!passive);json!({"type":"fx","fx":{"kind":"hit","id":label(*victim),"by":by.map(label),"amount":amount,"weapon":weapon.map(|w|w.as_str())}})},
+    Event::Hit{victim,by,amount,weapon,passive, critical: _ }=>{assert!(!passive);json!({"type":"fx","fx":{"kind":"hit","id":label(*victim),"by":by.map(label),"amount":amount,"weapon":weapon.map(|w|w.as_str())}})},
     Event::Gv{id,amount,reason}=>json!({"type":"gv","id":label(*id),"amount":amount,"reason":format!("{reason:?}").to_lowercase()}),
     Event::ProjectileEnded{launch,at,reason}=>{let mut fx=json!({"kind":"projEnd","id":format!("p{}",launch.id),"proj":format!("{:?}",launch.kind).to_lowercase(),"x0":launch.origin.x,"y0":launch.origin.y,"t0":launch.time,"x":at.x,"y":at.y,"reason":format!("{reason:?}").to_lowercase()});if !launch.reflected{fx["ownerId"]=json!(label(launch.owner));}json!({"type":"fx","fx":fx})},
     other=>panic!("unprojected planning event {other:?}")}).collect::<Vec<_>>())

@@ -165,3 +165,53 @@ fn wish_ready_is_a_verdict_of_the_ready_time_and_engaged_reads_the_mob_clocks() 
     assert_eq!((mob.offhand, mob.build_marks), (None, [None, None]));
     assert!(!mob.wish_ready && !mob.teleport_immune && !mob.roam_ready);
 }
+
+#[test]
+fn the_windup_telegraph_reaches_exactly_the_observers_of_its_swing() {
+    for visible in [false, true] {
+        let sim = world(visible);
+        let (owner, rival) = (sim.w.players[0].id, sim.w.players[1].id);
+        let windup = Event::Windup {
+            by: rival,
+            weapon: WeaponId::Sword,
+            a: 1.0,
+            ms: 300.,
+        };
+        let swing = Event::Swing {
+            by: rival,
+            weapon: WeaponId::Sword,
+            x: 1.,
+            y: 2.,
+            a: 1.0,
+        };
+        assert_eq!(windup.visibility(), swing.visibility());
+        assert_eq!(windup.class(), swing.class());
+        let cancel = Event::AttackCancelled { id: rival };
+        let obs = observe(&sim, owner, &[windup.clone(), swing, cancel]);
+        let windups = obs
+            .events
+            .iter()
+            .filter(|e| matches!(e, SeenEvent::Windup { .. }))
+            .count();
+        let swings = obs
+            .events
+            .iter()
+            .filter(|e| matches!(e, SeenEvent::Swing { .. }))
+            .count();
+        let cancels = obs
+            .events
+            .iter()
+            .filter(|e| matches!(e, SeenEvent::AttackCancelled { .. }))
+            .count();
+        assert_eq!(
+            (windups, swings, cancels),
+            if visible { (1, 1, 1) } else { (0, 0, 0) }
+        );
+        // The attacker always sees its own telegraph.
+        let own = observe(&sim, rival, &[windup]);
+        assert!(matches!(
+            own.events[..],
+            [SeenEvent::Windup { by, ms, .. }] if by == rival && ms == 300.
+        ));
+    }
+}

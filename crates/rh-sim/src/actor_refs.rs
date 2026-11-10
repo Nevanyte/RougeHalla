@@ -55,7 +55,7 @@ fn event_refs(event: &mut SeenEvent, map: &impl Fn(PlayerId) -> Option<PlayerId>
         | SeenEvent::AttackCancelled { id }
         | SeenEvent::Stagger { id }
         | SeenEvent::Bounty { id, .. } => (Some(id), None),
-        SeenEvent::Swing { by, .. } => (Some(by), None),
+        SeenEvent::Swing { by, .. } | SeenEvent::Windup { by, .. } => (Some(by), None),
         SeenEvent::Ended { winner, .. } => (None, Some(winner)),
         SeenEvent::Teleported
         | SeenEvent::Plan(..)

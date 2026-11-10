@@ -153,6 +153,10 @@ pub enum Event {
         amount: f64,
         weapon: Option<WeaponId>,
         passive: bool,
+        /// A critical strike (legacy hit fx `crit`): presentation only, the amount already includes it. Left out of the
+        /// serialized form when false, so every pre-existing record reads and writes unchanged.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        critical: bool,
     },
     Block {
         id: PlayerId,
@@ -251,7 +255,8 @@ impl Event {
             | Event::CastLanded { id, .. }
             | Event::CastEnded { id, .. } => Visibility::IfSeen(id),
             Event::StatusApplied { id, .. } => Visibility::IfSeen(id),
-            Event::Swing { by, .. } => Visibility::IfSeen(by),
+            // The windup telegraph (ADR0026) follows the swing it announces: whoever sees the attacker.
+            Event::Swing { by, .. } | Event::Windup { by, .. } => Visibility::IfSeen(by),
             Event::Hit { victim, by, .. } => Visibility::IfSeenOrBy { seen: victim, by },
             Event::Block { id, .. }
             | Event::Heal { id, .. }
@@ -276,7 +281,6 @@ impl Event {
             | Event::ProjectileLaunched(_)
             | Event::ProjectileEnded { .. }
             | Event::RaidStarted
-            | Event::Windup { .. }
             | Event::Gv { .. }
             | Event::RaidEnded
             | Event::Resolved { .. } => Visibility::ServerOnly,
@@ -306,6 +310,7 @@ impl Event {
             | Event::CastEnded { .. }
             | Event::StatusApplied { .. }
             | Event::Swing { .. }
+            | Event::Windup { .. }
             | Event::Hit { .. }
             | Event::Block { .. }
             | Event::Heal { .. }
@@ -323,7 +328,6 @@ impl Event {
             | Event::ProjectileLaunched(_)
             | Event::ProjectileEnded { .. }
             | Event::RaidStarted
-            | Event::Windup { .. }
             | Event::Gv { .. }
             | Event::RaidEnded => Class::ServerOnly,
         }

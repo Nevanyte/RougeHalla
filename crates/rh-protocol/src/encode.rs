@@ -430,6 +430,7 @@ fn event_len(e: &WireEvent) -> usize {
             1 + 3 + 2 + 1 + r.killed_by.as_deref().map_or(0, str_len) + 4 + 4 + 4 + 1
         }
         WireEvent::Toast { text } => 1 + str_len(text),
+        WireEvent::CampCleared { .. } => 1 + 2,
     }
 }
 
@@ -439,6 +440,10 @@ fn fx_len(f: &WireFx) -> usize {
         WireFx::Stagger { id } => 1 + varint_len(*id),
         WireFx::Swing { by, .. } => 1 + varint_len(*by) + 1 + 6,
         WireFx::Hit { victim, by, .. } => 1 + varint_len(*victim) + varint_len(*by) + 5,
+        WireFx::Windup { by, .. } => 1 + varint_len(*by) + 1 + 2 + 2,
+        WireFx::Cancel { id } => 1 + varint_len(*id),
+        WireFx::SigHit { victim, by, .. } => 1 + varint_len(*victim) + varint_len(*by) + 1 + 4,
+        WireFx::Heal { id, .. } => 1 + varint_len(*id) + 4,
         WireFx::Teleport => 1,
         WireFx::WishStarted {
             caster,
@@ -1433,6 +1438,12 @@ impl Frame for ServerMsg {
                                 && ability <= 4
                                 && reason <= 2
                         }
+                        WireFx::Windup { weapon, .. } if weapon > MAX_KIT_CODE => {
+                            return Err(EncodeError::BadValue("windup weapon"));
+                        }
+                        WireFx::SigHit { kind, .. } if !hit_kind_valid(kind) => {
+                            return Err(EncodeError::BadValue("hit kind"));
+                        }
                         _ => true,
                     };
                     if !good {
@@ -1587,6 +1598,10 @@ impl Frame for ServerMsg {
                             w.u8(10);
                             w.str(text);
                         }
+                        WireEvent::CampCleared { camp } => {
+                            w.u8(11);
+                            w.u16(*camp);
+                        }
                         WireEvent::PickupRefused { reason } => {
                             w.u8(5);
                             w.u8(*reason);
@@ -1701,12 +1716,41 @@ impl Frame for ServerMsg {
                             by,
                             amount,
                             passive,
+                            critical,
                         } => {
                             w.u8(2);
                             w.varint(victim);
                             w.varint(by);
                             w.f32(amount);
-                            w.u8(passive as u8);
+                            w.u8(passive as u8 | (critical as u8) << 1);
+                        }
+                        WireFx::Windup { by, weapon, a, ms } => {
+                            w.u8(9);
+                            w.varint(by);
+                            w.u8(weapon);
+                            w.u16(quant::quantize_facing(a));
+                            w.u16(ms);
+                        }
+                        WireFx::Cancel { id } => {
+                            w.u8(10);
+                            w.varint(id);
+                        }
+                        WireFx::SigHit {
+                            victim,
+                            by,
+                            kind,
+                            amount,
+                        } => {
+                            w.u8(11);
+                            w.varint(victim);
+                            w.varint(by);
+                            w.u8(kind);
+                            w.f32(amount);
+                        }
+                        WireFx::Heal { id, amount } => {
+                            w.u8(12);
+                            w.varint(id);
+                            w.f32(amount);
                         }
                     }
                 }

@@ -346,7 +346,12 @@ pub fn to_wire(e: &SeenEvent) -> Wire {
                 _ => None,
             },
         }),
-        SeenEvent::MobArmed { .. } | SeenEvent::CampCleared { .. } => Wire::Omitted,
+        SeenEvent::MobArmed { .. } => Wire::Omitted,
+        // ADR0026: the legacy camp-clear ring cue (public: the sim declares the event to everyone).
+        SeenEvent::CampCleared { camp } => match u16::try_from(camp) {
+            Ok(camp) => Wire::Event(WireEvent::CampCleared { camp }),
+            Err(_) => Wire::Refused("camp"),
+        },
         // Protocol 8 owner-only practice-console notice (the publisher routes it to its owner's connection only).
         SeenEvent::Toast { ref text } => Wire::Event(WireEvent::Toast { text: text.clone() }),
         SeenEvent::WindEmblem => Wire::Event(WireEvent::WindEmblem),
@@ -389,12 +394,51 @@ pub fn to_wire(e: &SeenEvent) -> Wire {
             weapon: weapon.code(),
         }),
         SeenEvent::Stagger { id } => Wire::Fx(WireFx::Stagger { id: id.0 }),
-        // Protocol 6 carries target commands but has no cancellation telegraph.
-        SeenEvent::AttackCancelled { .. } => Wire::Omitted,
-        SeenEvent::SignatureHit { .. } | SeenEvent::Heal { .. } => Wire::Omitted,
-        // Scalar effects and fields have snapshot transport; these distinct event telegraphs
-        // remain omitted until their own compatible messages are defined.
-        SeenEvent::AbilityHit { .. } | SeenEvent::StatusApplied { .. } => Wire::Omitted,
+        // ADR0026: the cancel ends the windup telegraph; signature/ability chunks and heals carry the legacy damage-number
+        // kinds. Each reaches exactly the observers the sim's own visibility admitted.
+        SeenEvent::AttackCancelled { id } => Wire::Fx(WireFx::Cancel { id: id.0 }),
+        SeenEvent::SignatureHit {
+            victim,
+            by,
+            sig,
+            amount,
+            ..
+        } => Wire::Fx(WireFx::SigHit {
+            victim: victim.0,
+            by: by.map_or(WIRE_NO_SOURCE, |b| b.0),
+            kind: match sig {
+                rh_sim::factions::SignatureKind::Burn => rh_protocol::HIT_KIND_BURN,
+                rh_sim::factions::SignatureKind::Disease => rh_protocol::HIT_KIND_DISEASE,
+                rh_sim::factions::SignatureKind::Backlash => rh_protocol::HIT_KIND_BACKLASH,
+                rh_sim::factions::SignatureKind::Mark => rh_protocol::HIT_KIND_MARK,
+            },
+            amount: amount as f32,
+        }),
+        SeenEvent::AbilityHit {
+            victim,
+            by,
+            ability,
+            amount,
+        } => Wire::Fx(WireFx::SigHit {
+            victim: victim.0,
+            by: by.map_or(WIRE_NO_SOURCE, |b| b.0),
+            kind: rh_protocol::HIT_KIND_ABILITY + ability_code(ability),
+            amount: amount as f32,
+        }),
+        SeenEvent::Heal { id, amount } => Wire::Fx(WireFx::Heal {
+            id: id.0,
+            amount: amount as f32,
+        }),
+        // Scalar effects and fields have snapshot transport; the status telegraph remains omitted until its own
+        // compatible message is defined.
+        SeenEvent::StatusApplied { .. } => Wire::Omitted,
+        SeenEvent::Windup { by, weapon, a, ms } => Wire::Fx(WireFx::Windup {
+            by: by.0,
+            weapon: weapon.code(),
+            a: a as f32,
+            // Whole milliseconds; a NaN or negative wait is 0, a longer one saturates.
+            ms: ms.clamp(0.0, f64::from(u16::MAX)).round() as u16,
+        }),
         SeenEvent::CastEnded {
             event_time,
             id,
@@ -437,11 +481,13 @@ pub fn to_wire(e: &SeenEvent) -> Wire {
             by,
             amount,
             passive,
+            critical,
         } => Wire::Fx(WireFx::Hit {
             victim: victim.0,
             by: by.map_or(WIRE_NO_SOURCE, |b| b.0),
             amount: amount as f32,
             passive,
+            critical,
         }),
     }
 }

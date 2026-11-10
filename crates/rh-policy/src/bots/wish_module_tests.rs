@@ -151,6 +151,7 @@ fn observation(
                 by: Some(ENEMY),
                 amount: 40.,
                 passive: false,
+                critical: false,
             });
         }
     } else if recent_hit {
@@ -159,6 +160,7 @@ fn observation(
             by: None,
             amount: 40.,
             passive: false,
+            critical: false,
         });
     }
     o

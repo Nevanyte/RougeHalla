@@ -179,12 +179,14 @@ fn actual_hidden_respawn_history_does_not_change_scene_references_or_fx() {
         by: Some(PlayerId(3)),
         amount: 2.,
         passive: false,
+        critical: false,
     }];
     let eb = [SeenEvent::Hit {
         victim: b.mobs()[0].core.id,
         by: Some(PlayerId(3)),
         amount: 2.,
         passive: false,
+        critical: false,
     }];
     oa.prepare_with_seen(&a, &[], &ea, &mut aa, None)
         .unwrap()
@@ -306,6 +308,7 @@ fn all_actor_fields_use_one_projection_and_reference_bounds_fail_closed() {
         by: Some(PlayerId(99)),
         amount: 1.,
         passive: false,
+        critical: false,
     });
     let mut refs = ActorRefs::default();
     let stage = refs.stage(&s, &raw).unwrap();
@@ -321,7 +324,8 @@ fn all_actor_fields_use_one_projection_and_reference_bounds_fail_closed() {
             victim: reference,
             by: None,
             amount: 1.,
-            passive: false
+            passive: false,
+            critical: false,
         }]
     );
     refs.next = u64::from(u32::MAX) + 1 - 2 * NPC_REFERENCE_BLOCK;

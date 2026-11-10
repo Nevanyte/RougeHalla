@@ -1237,6 +1237,7 @@ mod tests {
             amount,
             weapon: Some(WeaponId::Fists),
             passive: false,
+            critical: false,
         })
         .unwrap()
     }

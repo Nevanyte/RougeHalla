@@ -143,10 +143,10 @@ fn snapshot_actor_ids(snapshot: &[u8]) -> Vec<u32> {
     }
 }
 
-/// The real Rust producer emits Event::Windup when a melee press starts a windup, and current native behavior carries
-/// it nowhere: declared visibility ServerOnly, no SeenEvent, and no human protocol-11 fx variant can name it.
+/// The real Rust producer emits Event::Windup when a melee press starts a windup, and since ADR0026 it reaches the human
+/// wire as the Windup fx under its swing's visibility (`IfSeen(by)`): the attacker sees its own telegraph.
 #[test]
-fn the_real_producer_emits_windup_and_current_native_carries_it_nowhere() {
+fn the_real_producer_emits_windup_and_the_wire_carries_it_like_its_swing() {
     let mut sim = brawl();
     sim.submit(PlayerId(1), cmd(RawCommand::Attack { a: 0.0, t: None }))
         .expect("the press is accepted");
@@ -170,15 +170,16 @@ fn the_real_producer_emits_windup_and_current_native_carries_it_nowhere() {
     for event in &windups {
         assert_eq!(
             event.visibility(),
-            Visibility::ServerOnly,
-            "a Windup is declared server-only"
+            Visibility::IfSeen(PlayerId(1)),
+            "a Windup is declared like its Swing"
         );
     }
     let mut seen = Vec::new();
     observe_events_into(&sim, PlayerId(1), &windups, &mut seen);
-    assert!(
-        seen.is_empty(),
-        "ServerOnly: the observation event filter drops every Windup"
+    assert_eq!(
+        seen.len(),
+        windups.len(),
+        "the attacker sees its own windup"
     );
     let decoded = published(&sim, PlayerId(1), &windups);
     assert!(
@@ -186,13 +187,16 @@ fn the_real_producer_emits_windup_and_current_native_carries_it_nowhere() {
         "a windup alone produces no reliable frame"
     );
     assert!(
-        decoded.fx.is_none(),
-        "windup-only input produces no human FX frame"
+        fx_list(&decoded.fx)
+            .iter()
+            .all(|f| matches!(f, WireFx::Windup { by: 1, .. })),
+        "windup-only input produces Windup fx only"
     );
+    assert!(!fx_list(&decoded.fx).is_empty());
 }
 
 /// The already-delivered controls: a real melee fight's Swing and Hit reach the observing human's observation and
-/// human frames; the windup that produced them appears nowhere.
+/// human frames; the windup that produced them is its own fx (ADR0026).
 #[test]
 fn delivered_swing_and_hit_reach_the_human_wire_without_the_windup() {
     let mut sim = brawl();

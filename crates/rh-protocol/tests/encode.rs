@@ -293,6 +293,7 @@ fn other_lists_and_sizes_decoders_reject_are_refused() {
                 by: 2,
                 amount: 3.0,
                 passive: false,
+                critical: false,
             };
             u16::MAX as usize + 1
         ],
@@ -318,6 +319,7 @@ fn other_lists_and_sizes_decoders_reject_are_refused() {
                 by: 2,
                 amount: 3.0,
                 passive: false,
+                critical: false,
             };
             40_000
         ],

@@ -29,20 +29,26 @@ fn v5_encoders_refuse_invalid_combat_values() {
 }
 
 #[test]
-fn hit_passive_is_a_strict_flag_and_a_v4_hit_is_incomplete() {
+fn hit_flags_are_strict_and_a_v4_hit_is_incomplete() {
     // V4 hit: tag, tick, count, Hit tag, victim, source, amount f32.
     let mut old = vec![0x85, 0, 1, 2, 1, 2, 0, 0, 0, 0];
     assert_eq!(ServerMsg::decode(&old), Err(DecodeError::Truncated));
-    for flag in [0, 1] {
+    // Protocol 16 (ADR0026): bit 0 passive, bit 1 critical; any other bit is refused.
+    for flag in [0, 1, 2, 3] {
         old.push(flag);
         let ServerMsg::Fx { fx, .. } = ServerMsg::decode(&old).unwrap() else {
             panic!("Fx")
         };
-        assert!(matches!(fx[0], WireFx::Hit { passive, .. } if passive == (flag == 1)));
+        assert!(
+            matches!(fx[0], WireFx::Hit { passive, critical, .. } if passive == (flag & 1 == 1) && critical == (flag & 2 == 2))
+        );
         old.pop();
     }
-    old.push(2);
-    assert_eq!(ServerMsg::decode(&old), Err(DecodeError::BadTag(2)));
+    old.push(4);
+    assert_eq!(
+        ServerMsg::decode(&old),
+        Err(DecodeError::BadField("hit flags"))
+    );
 }
 
 #[test]

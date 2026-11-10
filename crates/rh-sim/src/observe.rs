@@ -248,12 +248,22 @@ pub enum SeenEvent {
         y: f64,
         a: f64,
     },
+    /// An attack windup started (ADR0026): it lands `ms` later toward `a` unless a stagger or a cancel ends it. Shown to
+    /// exactly the observers its swing would be shown to.
+    Windup {
+        by: PlayerId,
+        weapon: WeaponId,
+        a: f64,
+        ms: f64,
+    },
     Hit {
         victim: PlayerId,
         /// Absent for an unseen source or for damage dealt by the arena.
         by: Option<PlayerId>,
         amount: f64,
         passive: bool,
+        /// A critical strike (ADR0026; legacy hit fx `crit`).
+        critical: bool,
     },
     Death {
         id: PlayerId,
@@ -314,6 +324,7 @@ impl SeenEvent {
             | SeenEvent::StatusApplied { .. }
             | SeenEvent::SignatureHit { .. }
             | SeenEvent::Swing { .. }
+            | SeenEvent::Windup { .. }
             | SeenEvent::Hit { .. }
             | SeenEvent::Block { .. }
             | SeenEvent::Heal { .. }
@@ -366,17 +377,20 @@ fn to_seen(e: &Event, can_see: &impl Fn(PlayerId) -> bool, points: [bool; 2]) ->
             y,
             a,
         }),
+        Event::Windup { by, weapon, a, ms } => Some(SeenEvent::Windup { by, weapon, a, ms }),
         Event::Hit {
             victim,
             by,
             amount,
             passive,
+            critical,
             ..
         } => Some(SeenEvent::Hit {
             victim,
             by: by.filter(|&source| can_see(source)),
             amount,
             passive,
+            critical,
         }),
         Event::Block { id, by, weapon, .. } => Some(SeenEvent::Block {
             id,
@@ -479,7 +493,6 @@ fn to_seen(e: &Event, can_see: &impl Fn(PlayerId) -> bool, points: [bool; 2]) ->
         | Event::ProjectileLaunched(_)
         | Event::ProjectileEnded { .. }
         | Event::RaidStarted
-        | Event::Windup { .. }
         | Event::Gv { .. }
         | Event::RaidEnded
         | Event::Resolved { .. } => None,
@@ -1183,6 +1196,7 @@ mod tests {
                 by: Some(a),
                 amount: 3.0,
                 weapon: Some(WeaponId::Fists),
+                critical: false,
             },
             Event::Stagger { id: b },
             Event::AttackCancelled { id: b },
@@ -1279,6 +1293,7 @@ mod tests {
             by: None,
             amount: 5.0,
             weapon: None,
+            critical: false,
         };
         for me in [None, Some(PlayerId(1))] {
             let mut out = Vec::new();

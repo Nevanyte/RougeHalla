@@ -194,6 +194,10 @@ fn fx_kind(fx: &rh_protocol::WireFx) -> &'static str {
         rh_protocol::WireFx::WishStarted { .. } => "wishStarted",
         rh_protocol::WireFx::WishLanded { .. } => "wishLanded",
         rh_protocol::WireFx::WishEnded { .. } => "wishEnded",
+        rh_protocol::WireFx::Windup { .. } => "windup",
+        rh_protocol::WireFx::Cancel { .. } => "cancel",
+        rh_protocol::WireFx::SigHit { .. } => "sigHit",
+        rh_protocol::WireFx::Heal { .. } => "heal",
     }
 }
 
