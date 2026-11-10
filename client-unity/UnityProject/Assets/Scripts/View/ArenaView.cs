@@ -135,6 +135,15 @@ namespace Roguehalla.Client
             if (ShowcaseSettings.Current != null) ShowcaseSettings.Current.Changed += ApplyQuality;
             ApplyQuality();
         }
+        static bool? _indicatorDemo;
+        /// <summary>DIAGNOSTICS ONLY (<c>?indicators.demo=1</c>, never on by default): drives the local actor's overhead cluster with TEST values (a bounty, cycling status bits, the lock ring) so every glyph can be captured without staging a fight.</summary>
+        static bool IndicatorDemo { get { if (!_indicatorDemo.HasValue) _indicatorDemo = UrlSearch().Contains("indicators.demo=1"); return _indicatorDemo.Value; } }
+        void DemoIndicators(uint id, WeaponId? second)
+        {
+            ushort[] sets = { Indicators.Stunned, Indicators.Silenced | Indicators.AttackSlowed, Indicators.Slowed | Indicators.Dot, Indicators.Rooted | Indicators.AntiHeal,
+                Indicators.Haste | Indicators.Casting | Indicators.LastStand, Indicators.Zoned | Indicators.Untargetable, 0 };
+            _actors.PresentIndicators(id, 90, true, second ?? WeaponId.Bow, true, sets[(int)(Time.unscaledTime / 2f) % sets.Length]);
+        }
         static string UrlSearch() { string url = Application.absoluteURL ?? ""; int q = url.IndexOf('?'); return q >= 0 ? url.Substring(q) : ""; }
         Transform Child(string name) { var go = new GameObject(name); go.transform.SetParent(transform, false); return go.transform; }
 
@@ -245,7 +254,8 @@ namespace Roguehalla.Client
                 _actors.Present(me.Id, mx, my, aimAngle, healthPercent,
                     me.Faction, me.Status, me.Weapon, ActorKind.Player, null, me.Effects, me.SelfSig, true, barrierPercent, me.BarrierRingStep, ArchetypeKey(me.Archetype), FootHx(me.Archetype), FootHy(me.Archetype));
                 var inv = _inventory; WeaponId? second = Indicators.SecondaryWeapon(inv.HasValue, inv.HasValue ? inv.Value.ActiveSlot : (byte)0, inv.HasValue ? inv.Value.Slot0 : null, inv.HasValue ? inv.Value.Slot1 : null);
-                _actors.PresentIndicators(me.Id, me.Bounty, second.HasValue, second ?? WeaponId.Fists, false);
+                if (IndicatorDemo) DemoIndicators(me.Id, second);
+                else _actors.PresentIndicators(me.Id, me.Bounty, second.HasValue, second ?? WeaponId.Fists, false);
                 _overlay?.NoteActor(me.Id, me.Archetype, (byte)ActorKind.Player); _hitZones?.NoteActor(me.Id, me.Archetype);
                 _wishFx.NoteActor(me.Id, ActorKind.Player, me.Effects, me.Status == ActorStatus.Alive);
                 Regions.UpdateLocal(mx, my, Time.unscaledTime);

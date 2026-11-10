@@ -178,14 +178,14 @@ namespace Roguehalla.Client
             _badgeBack.enabled = _badgeEdge.enabled = _badgeIcon.enabled = badge;
             if (badge)
             {
-                float size = 20f * Px, y = cursor + size * .5f;
+                float size = 17f * Px, y = cursor + size * .5f;
                 var pos = new Vector3(0, y, 0);
                 _badgeEdge.transform.localPosition = pos; _badgeEdge.transform.localScale = new Vector3(size + .05f, size + .05f, 1);
                 _badgeEdge.color = (Color)theme.Border; _badgeEdge.sortingOrder = f.Order + 10;
                 _badgeBack.transform.localPosition = pos; _badgeBack.transform.localScale = new Vector3(size, size, 1);
                 _badgeBack.color = (Color)theme.Surface; _badgeBack.sortingOrder = f.Order + 11;
                 _badgeIcon.sprite = ShowcaseSprites.Get("weapon" + Mathf.Clamp((int)f.Secondary, 0, 5));
-                _badgeIcon.transform.localPosition = pos; _badgeIcon.transform.localScale = Vector3.one * (f.Secondary == WeaponId.Fists ? .26f : .38f);
+                _badgeIcon.transform.localPosition = pos; _badgeIcon.transform.localScale = Vector3.one * (f.Secondary == WeaponId.Fists ? .55f : .62f);
                 _badgeIcon.color = (Color)theme.TextPrimary; _badgeIcon.sortingOrder = f.Order + 12;
             }
 
