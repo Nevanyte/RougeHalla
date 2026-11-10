@@ -120,8 +120,17 @@ actual loaded PG settings/permissions, nft kernel behavior, systemd semantics
 and Caddy validation remain host execution gates.
 
 Source and Training use the existing public runtimes/flags, loopback 7777/7779,
-no bots, Source 2 players/30s lobby, Training solo/immediate, and durable Source
-result spool on the ephemeral root. No gameplay edits. Source starts first (its
+and durable Source result spool on the ephemeral root. Source uses
+`--min-players 1 --fill-bots 8 --max-rooms 1 --lobby-seconds 10 --fill-seconds 3`:
+the fill target is eight total players, normally one human plus seven bots.
+The first seat sets the 10-second lobby deadline; reaching the one-human minimum
+shortens it to at most three remaining seconds, with missing bots filled before
+lobby close. Training remains solo/immediate with no bots and one room. Both
+retain `--bot-learning off`. No gameplay edits or unsupported `--hitboxes` flag
+are added to the current protocol14 runtime. After Claude handoff, Root must
+validate the final exact-tree runtime, exported map, flags and merged hitbox
+defaults against the reviewed artifact; this preparation is not that proof.
+Source starts first (its
 normal migrations), then Training. Caddy is started only after both actual
 `/readyz` objects report ok/ready/storage-ok and both `/info` objects match the
 immutable `protocol` and `content_hash` identities in strict config. Protocol is

@@ -1,0 +1,17 @@
+test_bad_entries (test_offline.Offline) ... ok
+test_config_boundary (test_offline.Offline) ... ok
+test_egress_shaper (test_offline.Offline) ... ok
+test_expiry (test_offline.Offline) ... ok
+test_good_extract_exclusive (test_offline.Offline) ... ok
+test_isolation_first_failure_stops_and_logs_only_bounded_stderr (test_offline.Offline) ... ok
+test_isolation_stages_preserve_command_order_without_real_execution (test_offline.Offline) ... ok
+test_nft_rules_have_real_block_separators_and_exact_rejections (test_offline.Offline) ... ok
+test_ready_requires_both_configured_artifact_identities (test_offline.Offline) ... ok
+test_shape_parse_parent_guard_and_timeout_refusals_are_not_bypassed (test_offline.Offline) ... ok
+test_templates (test_offline.Offline) ... ok
+test_wrong_hash (test_offline.Offline) ... ok
+
+----------------------------------------------------------------------
+Ran 12 tests in 0.023s
+
+OK

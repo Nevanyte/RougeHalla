@@ -213,7 +213,7 @@ def guard():
 def app_unit(c, training):
     mode = 'training' if training else 'source-arena'
     port = 7779 if training else 7777
-    options = '--min-players 1 --fill-bots 0 --max-rooms 1 --lobby-seconds 0 --fill-seconds 0' if training else f'--map {ROOT}/source-map.json --result-spool /var/lib/rougehalla-demo/spool --min-players 2 --fill-bots 0 --max-rooms 16 --lobby-seconds 30 --fill-seconds 5'
+    options = '--min-players 1 --fill-bots 0 --max-rooms 1 --lobby-seconds 0 --fill-seconds 0' if training else f'--map {ROOT}/source-map.json --result-spool /var/lib/rougehalla-demo/spool --min-players 1 --fill-bots 8 --max-rooms 1 --lobby-seconds 10 --fill-seconds 3'
     return f'''[Unit]
 Requires=rh-demo-pg.service rh-demo-expiry.timer
 After=rh-demo-pg.service rh-demo-expiry.timer
