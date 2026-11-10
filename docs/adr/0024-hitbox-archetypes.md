@@ -116,20 +116,22 @@ All values are in sim units. North is -y. The body box spans `[x-bx, x+bx]` by `
 `-(oy-by)` north of the feet and its bottom is `oy+by` south of them. `chest = -oy`, the box centre, so equal archetypes
 are even north and south. Projectile height is always one archetype's `chest`.
 
+(Body half-widths `bx` as revised 2026-11-10, see the change note "Body half-widths refitted" at the end of the changes list; the original fit is in that note.)
+
 | id | key | foot half (x, y) | body half (bx, by) | body offset (0, oy) | chest | top / below feet |
 |---|---|---|---|---|---|---|
 | 0 | legacy_circle | circle r 12 (feet and body) | circle r 12 | n/a | 0 | n/a |
-| 1 | hero | 10, 6 | 16, 35 | 0, -30 | 30 | 65 / 5 |
-| 2 | hero_female | 10, 6 | 15, 35 | 0, -33 | 33 | 68 / 2 |
-| 3 | mage | 10, 6 | 17, 28 | 0, -25 | 25 | 53 / 3 |
-| 4 | mage_female | 10, 6 | 17, 28 | 0, -27 | 27 | 55 / 1 |
-| 5 | knight | 10, 6 | 18, 37 | 0, -35 | 35 | 72 / 2 |
-| 6 | goblin | 10, 6 | 17, 22 | 0, -19 | 19 | 41 / 3 |
+| 1 | hero | 10, 6 | 17, 35 | 0, -30 | 30 | 65 / 5 |
+| 2 | hero_female | 10, 6 | 13, 35 | 0, -33 | 33 | 68 / 2 |
+| 3 | mage | 10, 6 | 16, 28 | 0, -25 | 25 | 53 / 3 |
+| 4 | mage_female | 10, 6 | 14, 28 | 0, -27 | 27 | 55 / 1 |
+| 5 | knight | 10, 6 | 12, 37 | 0, -35 | 35 | 72 / 2 |
+| 6 | goblin | 10, 6 | 15, 22 | 0, -19 | 19 | 41 / 3 |
 | 7 | skeleton | 10, 6 | 18, 40 | 0, -31 | 31 | 71 / 9 |
-| 8 | goblin_elite | 10, 6 | 13, 18 | 0, -16 | 16 | 34 / 2 |
-| 9 | antlion | 10, 6 | 20, 18 | 0, -11 | 11 | 29 / 7 |
-| 10 | skeleton_archer | 10, 6 | 14, 24 | 0, -21 | 21 | 45 / 3 |
-| 11 | skeleton_mage | 10, 6 | 14, 23 | 0, -21 | 21 | 44 / 2 |
+| 8 | goblin_elite | 10, 6 | 11, 18 | 0, -16 | 16 | 34 / 2 |
+| 9 | antlion | 10, 6 | 18, 18 | 0, -11 | 11 | 29 / 7 |
+| 10 | skeleton_archer | 10, 6 | 13, 24 | 0, -21 | 21 | 45 / 3 |
+| 11 | skeleton_mage | 10, 6 | 13, 23 | 0, -21 | 21 | 44 / 2 |
 | 12 | zombie | 10, 6 | 9, 21 | 0, -21 | 21 | 42 / 0 |
 
 How the table was measured (P-HB-0 makes this reproducible):
@@ -530,11 +532,80 @@ Review fixes (independent review of P-HB-0..9, branch `rework/hitbox`, 2026-11-1
     full-map bot matches per mode, same seeds) attributes every ranged shot to the hostile nearest its bearing at launch
     and reports hit rates per shooter look and target look. No pair with 30 or more shots in both modes misses
     measurably more in archetype mode for a geometric reason; overall bots' bows 0.541 -> 0.600, mobs' bows 0.837 ->
-    0.924, mobs' wands 0.336 -> 0.488. With every player at chest 30, the predicted miss (a 33 u flight over an
+    0.924, mobs' wands 0.336 -> 0.488 (first fit; after the 2026-11-10 width refit, change 23: 0.591, 0.922, 0.492). With every player at chest 30, the predicted miss (a 33 u flight over an
     antlion's 29 + 2 u ball box) no longer exists. So no chest correction is applied (DEVIATIONS DEV-010 has the
     numbers). The run did find a rule bug: a homing ball whose raised start lies inside its own target's box orbited
     under the legacy fallback of change 15 (61 bot wand flights ended at range); its own target is now a hit at u = 0.
     The soaks (`tests/source_arena_soak.rs`, seeds 6, 17, 28, 42, 62) run in both modes.
+
+23. **Body half-widths refitted to the shadow-free sprites (2026-11-10).** The widths of change-set Decision 2 were fitted
+    while every actor sprite carried a baked ground shadow beside the feet, which widened the opaque bounds. The shadow is
+    now stripped from all twelve atlases (`ActorShadowStrip` in the live catalog baker), and the visible figure is narrower
+    than several boxes. Only `bx` changes; `by`, the centres, chest heights, the 10 x 6 foot box, `legacy_circle` and the
+    wire shape do not, so the protocol number stays 16 (only the table's values and the content hash move).
+
+    | look | bx was | bx now |
+    |---|---|---|
+    | hero | 16 | 17 |
+    | hero-female | 15 | 13 |
+    | mage | 17 | 16 |
+    | mage-female | 17 | 14 |
+    | knight | 18 | 12 |
+    | goblin | 17 | 15 |
+    | skeleton | 18 | 18 (kept) |
+    | mob-goblin-elite | 13 | 11 |
+    | mob-antlion | 20 | 18 |
+    | mob-skeleton-archer | 14 | 13 |
+    | mob-skeleton-mage | 14 | 13 |
+    | mob-zombie | 9 | 9 (unchanged) |
+
+    **Rule.** The median, over the Idle and Walk frames of all eight facings, of the sprite's half-width on the
+    shadow-free atlases, in sim units, rounded to a whole unit. The converter is the one in
+    `Assets/Tests/Editor/HitboxPresentationEditModeTests.cs` (`EverySpriteSitsInsideItsBodyBoxWithinTwoSimUnitsAtMedian`):
+    `bounds.extents.x * WorldHeight * 1.2 (actor scale) * 32` sim units per Unity unit. The earlier N and S Idle-only rule
+    of Decision 2 is superseded for the width. The skeleton keeps 18 on purpose: its frames hold a long two-handed weapon,
+    so its all-frame median half-width is far wider than the body (the old exception, now by decision rather than by
+    copying the knight, whose own width fell to 12). Heights and centres already agreed with the sprites within 1 to 3
+    units and are not touched. `tools/hitbox-measure/measure.mjs --check` still encodes the older N and S Idle rule (and
+    `skeleton = knight`) against a receipt that already disagreed with the table on many rows before this change; it was
+    not updated and is not a gate for this table.
+
+    **Effect** (`hitbox_compare` seed1 map, seeds 1-40, 12000 ticks, same seeds, release; before = the table at
+    `b97218a0`, re-run and identical to the numbers above). Legacy mode is bit-identical (it reproduces DEV-009's legacy
+    run exactly: 44875 hits, 269 player deaths, 819 mob deaths, mean 4196).
+
+    | archetypes, spacing on (live) | before | after |
+    |---|---|---|
+    | hits | 44239 | 44019 |
+    | player deaths | 267 | 269 |
+    | mob deaths | 806 | 773 |
+    | mean match (ticks), ended / truncated | 4164, 31 / 9 | 4236, 31 / 9 |
+    | bots' bow, wand shots that end on a body | 0.588, 0.961 | 0.600, 0.952 |
+    | mobs' bow, wand | 0.922, 0.487 | 0.916, 0.495 |
+    | bot melee sword / axe / shield / fists landed | 0.905 / 0.974 / 0.964 / 0.389 | 0.938 / 0.972 / 0.961 / 0.345 |
+    | mob melee sword / axe landed | 1.000 / 1.000 | 0.999 / 1.000 |
+
+    | archetypes, spacing off | before | after |
+    |---|---|---|
+    | hits | 43896 | 42495 |
+    | player deaths | 270 | 268 |
+    | mob deaths | 758 | 729 |
+    | mean match (ticks), ended / truncated | 4326, 31 / 9 | 4368, 31 / 9 |
+    | bots' bow, wand | 0.600, 0.966 | 0.591, 0.960 |
+    | mobs' bow, wand | 0.924, 0.488 | 0.922, 0.492 |
+    | bot melee sword / axe / shield / fists landed | 0.930 / 0.977 / 0.946 / 0.364 | 0.867 / 0.483 / 0.914 / 0.349 |
+    | mob melee sword / axe landed | 1.000 / 0.999 | 1.000 / 1.000 |
+
+    Reading: in the live configuration (spacing on) nothing moves beyond the run-to-run size of a changed trajectory on 40
+    matches (deaths within 2, hit rates within 0.012 except bot sword melee, 0.905 -> 0.938 on about 300 swings). In the
+    spacing-off A/B, which the server refuses to host, bots' axe melee fell from 0.977 to 0.483 (1186 swings against 639)
+    after the narrower boxes; that run is a measurement-only configuration and was not investigated further, but it is the
+    one large move and would show if a live pack stood close to a narrow target. Bot-to-antlion bow rates (hero, mage,
+    mage-female, hero-female looks) are 0.89 / 0.89 / 0.87 / 0.74 (before 0.89 / 0.92 / 0.91 / 0.72; legacy 0.80 / 0.82 /
+    0.75 / 0.74), so the aim conclusion of change 22 stands. Not measured: duel outcomes or time to kill (no harness).
+    The content hash moves `a2d1022ebe713382` -> `7d2d84b827af3ddc`; the table's wire shape, `PROTOCOL_VERSION`,
+    `OBSERVATION_VERSION` and the checkpoint format do not move. The Unity client's baked hash is rebaked by the
+    coordinator from a running server.
 
 ## Addendum: Mob spacing (owner direction 2026-11-10; revised after review 2026-11-10)
 
@@ -639,15 +710,15 @@ engaged mob with another mob within 120 u: mean nearest-mob distance and the sha
 chasing" the same among mobs walking a chase path. Spacing steps and path searches (every A* search, players' too) are
 per tick.
 
-| run | mean nearest | overlap share | stacked engaged | stacked chasing | player deaths | mob deaths | hits | mean match (ticks) | mob melee landed (sword / axe / fists) | mob ranged (bow / wand) | spacing steps / tick (mean, max) | path searches / tick (mean, max) |
+| run (the two seed1 rows re-measured 2026-11-10 after the width refit, change 23; the first-playable rows are the earlier fit, not re-run) | mean nearest | overlap share | stacked engaged | stacked chasing | player deaths | mob deaths | hits | mean match (ticks) | mob melee landed (sword / axe / fists) | mob ranged (bow / wand) | spacing steps / tick (mean, max) | path searches / tick (mean, max) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| seed1 map, seeds 1-40, off | 50.7 | 0.186 | 0.153 | 0.039 | 270 | 758 | 43896 | 4326 | 1.000 / 0.999 / 0.107 | 0.924 / 0.488 | 0, 0 | 0.014, 5 |
-| seed1 map, seeds 1-40, on | 55.0 | 0.072 | 0.046 | 0.029 | 267 | 806 | 44239 | 4164 | 1.000 / 1.000 / 0.106 | 0.922 / 0.487 | 0.008, 2 | 0.015, 5 |
+| seed1 map, seeds 1-40, off | 50.2 | 0.189 | 0.135 | 0.039 | 268 | 729 | 42495 | 4368 | 1.000 / 1.000 / 0.089 | 0.922 / 0.492 | 0, 0 | 0.014, 5 |
+| seed1 map, seeds 1-40, on | 55.5 | 0.068 | 0.042 | 0.027 | 269 | 773 | 44019 | 4236 | 0.999 / 1.000 / 0.101 | 0.916 / 0.495 | 0.008, 2 | 0.015, 5 |
 | first-playable, seeds 0-62, off | 62.7 | 0.101 | 0.002 | 0.003 | 397 | 102 | 26421 | 7119 | 1.000 / 0.988 / 0.331 | 0.974 / 0.681 | 0, 0 | 0.002, 2 |
 | first-playable, seeds 0-62, on | 64.4 | 0.053 | 0.001 | 0.003 | 396 | 97 | 26423 | 7199 | 1.000 / 0.987 / 0.303 | 0.974 / 0.674 | 0.000, 1 | 0.001, 2 |
 
-Both "off" rows reproduce the spacing-off rows measured before the review exactly (the runtime switch is the same A/B
-as the old build feature). On the mob-dense seed1 map stacked-engaged ticks fall 0.153 -> 0.046 and stacked-chasing ticks 0.039 -> 0.029; player deaths 270 -> 267, mob deaths 758 -> 806 (+6 %), mean match 4326 -> 4164 ticks: within what a changed trajectory gives on 40 matches, not a balance verdict. Minimum nearest distance is still about 0 in both modes (mobs squeezed where no step is clear, a mob passing another). Every match ended or reached the tick cap: no panic, no hang. The soak seeds 6,
+Before the 2026-11-10 width refit (change 23) both "off" rows reproduced the spacing-off rows measured before the review exactly (the runtime switch is the same A/B
+as the old build feature). On the mob-dense seed1 map stacked-engaged ticks fall 0.135 -> 0.042 and stacked-chasing ticks 0.039 -> 0.027; player deaths 268 -> 269, mob deaths 729 -> 773 (+6 %), mean match 4368 -> 4236 ticks (first fit: 0.153 -> 0.046, 0.039 -> 0.029, 270 -> 267, 758 -> 806, 4326 -> 4164): within what a changed trajectory gives on 40 matches, not a balance verdict. Minimum nearest distance is still about 0 in both modes (mobs squeezed where no step is clear, a mob passing another). Every match ended or reached the tick cap: no panic, no hang. The soak seeds 6,
 17, 28, 42 and 62 (`source_soak ... archetypes`) also ran clean; `tests/source_arena_soak.rs` runs them in archetype mode.
 
 Cost (`spacing_tick_cost`, ignored test, release, 200 axe mobs on one player, a whole tick, best of three on a loaded
