@@ -17,7 +17,8 @@ namespace Roguehalla.Client.Tests
             "P1", "P4", "P5", "P6", "P7", "P9", "P15", "P16", "P17",
             "S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12", "S13",
             "G1", "G2", "G3", "G4", "G5", "G6", "M1", "M2", "M3", "M4", "M5", "M6", "M7", "F1", "F2", "F5", "F8",
-            "W1", "W2", "W3", "W5", "W6", "W8", "W9", "W15", "W17", "X1", "X2", "X3", "X4"
+            "W1", "W2", "W3", "W5", "W6", "W8", "W9", "W15", "W17", "X1", "X2", "X3", "X4",
+            "P2", "P8", "G7", "P13", "P14", "F3", "F4", "HZ", "B1", "B2"
         };
 
         [Test]
@@ -52,7 +53,7 @@ namespace Roguehalla.Client.Tests
                 foreach (var cell in page.Cells)
                     foreach (var a in cell.Actors)
                     {
-                        bool timed = a.AppearAge >= 0 || a.LeaveAge >= 0 || a.DieAge >= 0 || a.HitAge >= 0;
+                        bool timed = a.AppearAge >= 0 || a.LeaveAge >= 0 || a.DieAge >= 0 || a.HitAge >= 0 || a.SwingAge >= 0 || a.WindupAge >= 0 || a.HealAge >= 0;
                         Assert.That(cell.Age >= 0, Is.EqualTo(timed), cell.Id);
                     }
         }

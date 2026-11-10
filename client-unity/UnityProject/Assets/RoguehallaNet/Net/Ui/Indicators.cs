@@ -94,6 +94,65 @@ namespace Roguehalla.Net.Ui
             return Math.Min(1f, .25f + .75f * k);
         }
 
+        // ---- protocol 16 indicator facts (ADR0026): legacy colours and texts, pure ----------------------------------------------------------
+        /// <summary>FxView.ts:111-120: colour (0xRRGGBB) of a damage-over-time number by its SigHit kind: burn ffa040, disease b2d96c, mark d1a8ff, backlash ff7043, bleed e53935; an ability kind (16+) gold.</summary>
+        public static uint SigColour(byte kind)
+        {
+            switch (kind) { case 1: return 0xffa040; case 2: return 0xb2d96c; case 3: return 0xff7043; case 4: return 0xd1a8ff; case 5: return 0xe53935; default: return kind >= 16 ? 0xffd36au : 0xcfd8dcu; }
+        }
+        /// <summary>FxView.ts:563-571: a critical hit shows "N!" and is 5 px bigger.</summary>
+        public static string DamageText(float amount, bool crit) { return ((int)Math.Round(amount)).ToString(System.Globalization.CultureInfo.InvariantCulture) + (crit ? "!" : ""); }
+        public static int DamageSize(float amount, bool crit) { return DamageSize(amount) + (crit ? 5 : 0); }
+        /// <summary>FxView.ts:716: a heal number "+N" in 81f78b; heals under 1 are not shown (null).</summary>
+        public static string HealText(float amount) { if (!(amount >= 1f)) return null; return "+" + ((int)Math.Round(amount)).ToString(System.Globalization.CultureInfo.InvariantCulture); }
+        public const uint HealColour = 0x81f78b;
+        /// <summary>combatIcons.ts STAT_ICON_COLORS (0xRRGGBB) of a build-mark stat.</summary>
+        public static uint StatColour(StatKey k)
+        {
+            switch (k) { case StatKey.Ad: return 0xffb074; case StatKey.Ap: return 0xc4a0ff; case StatKey.Damage: return 0xffd36a; case StatKey.Health: return 0x62d889; case StatKey.AttackSpeed: return 0xffdc78;
+                case StatKey.Armor: return 0xd5e0e8; case StatKey.Mr: return 0x75cfff; case StatKey.Speed: return 0x80d6ff; default: return 0xf05260; }
+        }
+        public static string StatLabel(StatKey k)
+        {
+            switch (k) { case StatKey.Ad: return "Attack damage"; case StatKey.Ap: return "Ability power"; case StatKey.Damage: return "Damage"; case StatKey.Health: return "Health"; case StatKey.AttackSpeed: return "Attack speed";
+                case StatKey.Armor: return "Armor"; case StatKey.Mr: return "Magic resist"; case StatKey.Speed: return "Move speed"; default: return "Life steal"; }
+        }
+        /// <summary>The Wish a faction's fighter owns (its glyph beside the name).</summary>
+        public static AbilityId WishOf(FactionId f)
+        {
+            switch (f) { case FactionId.Frost: return AbilityId.Freeze; case FactionId.Plague: return AbilityId.Swarm; case FactionId.Sentenced: return AbilityId.Trial; case FactionId.Fire: return AbilityId.Blaze; default: return AbilityId.LastStand; }
+        }
+        /// <summary>displayName.ts: bots read "[BOT] name".</summary>
+        public static string DisplayName(string name, bool bot) { if (string.IsNullOrEmpty(name)) return null; return bot ? "[BOT] " + name : name; }
+        /// <summary>MarkPlate.ts:39-44: "AS -N%" (taxed), "DMG -N%" (suppressed), "EXEC BLOCKED"; without the percentage the words TAXED / SUPPRESSED.</summary>
+        public static string MarkCue(byte sig, byte taxPct)
+        {
+            string text = null;
+            if ((sig & 16) != 0) text = taxPct > 0 ? "AS -" + taxPct + "%" : "TAXED";
+            if ((sig & 32) != 0) { string t = taxPct > 0 ? "DMG -" + taxPct + "%" : "SUPPRESSED"; text = text == null ? t : text + " \u00b7 " + t; }
+            if ((sig & 64) != 0) text = text == null ? "EXEC BLOCKED" : text + " \u00b7 EXEC BLOCKED";
+            return text;
+        }
+        /// <summary>markPresentation.ts:2: mark plate pip colours for tiers 1..4.</summary>
+        public static readonly uint[] TierColours = { 0x9e9e9eu, 0xffb300u, 0xe53935u, 0x171717u };
+        /// <summary>Whether the mark windup telegraph is still live: <paramref name="ageMs"/> since the Windup fx, up to its <paramref name="ms"/>.</summary>
+        public static bool WindupLive(float ageMs, float ms) { return ageMs >= 0f && ageMs < ms + 40f; }
+        /// <summary>Progress 0..1 of a windup.</summary>
+        public static float WindupProgress(float ageMs, float ms) { return ms <= 0f ? 1f : Math.Max(0f, Math.Min(1f, ageMs / ms)); }
+
+        public enum ArenaLineTone : byte { None, Normal, Warn, Danger }
+        /// <summary>hud.ts:259-286: "Coliseum m:ss" until the deadline (warn colour while the gates are locked), then "Coliseum - sudden death" in red; none without a deadline.</summary>
+        public static string ArenaLine(double serverMs, double suddenDeathAt, bool locked, double? patienceEndsAt, out ArenaLineTone tone)
+        {
+            tone = ArenaLineTone.None;
+            if (!(suddenDeathAt > 0d)) return null;
+            double target = locked && patienceEndsAt.HasValue && patienceEndsAt.Value > serverMs ? patienceEndsAt.Value : suddenDeathAt;
+            if (serverMs >= suddenDeathAt && !(locked && patienceEndsAt.HasValue && patienceEndsAt.Value > serverMs)) { tone = ArenaLineTone.Danger; return "Coliseum - sudden death"; }
+            int secs = (int)Math.Ceiling(Math.Max(0d, target - serverMs) / 1000d);
+            tone = locked ? ArenaLineTone.Warn : ArenaLineTone.Normal;
+            return "Coliseum " + (secs / 60) + ":" + (secs % 60).ToString("00", System.Globalization.CultureInfo.InvariantCulture);
+        }
+
         /// <summary>Quest giver mark: "!" for an offer not yet accepted, "?" for one held (QuestView.ts:64).</summary>
         public static char QuestMark(bool accepted) { return accepted ? '?' : '!'; }
     }

@@ -110,7 +110,7 @@ namespace Roguehalla.Client
             weapon=default; faction=default; kind=default; type=null; return false;
         }
         sealed class Flash { public SpriteRenderer Sprite, Plate; public TMP_Text Text; public uint Actor; public float Start, Duration; public Vector3 Position; public Color Color; public float Size; public Color TextColor; public float LaneX; }
-        struct PendingFx { public FxKind Kind; public uint Subject; public float Amount; public double DueMs; public float QueuedAt; public float X, Y, A, CreatedAt; public byte Weapon; public uint By; public bool Passive; }
+        struct PendingFx { public FxKind Kind; public uint Subject; public float Amount; public double DueMs; public float QueuedAt; public float X, Y, A, CreatedAt; public byte Weapon; public uint By; public bool Passive, Crit; public byte SigKind; }
 
         void Awake()
         {
@@ -124,6 +124,7 @@ namespace Roguehalla.Client
             if (HitboxOverlay.Enabled) _overlay = new HitboxOverlay(Child("Hitbox overlay"), _actors);
             _mapRoot = Child("Authoritative map artwork"); _propsRoot = Child("Observed collections"); _fxRoot = Child("Confirmed effects");
             _hitZones = new HitZonePresenter(Child("Melee hit zones"), id => _actors.Contains(id), UrlSearch());
+            _hitZones.Position = (uint id, out float x, out float y) => { if (_actors.TryPosition(id, out var w)) { x = w.x / Scale; y = -w.y / (Scale * GroundSquash); return true; } x = y = 0; return false; };
             _worldMarks = new WorldMarks(Child("World markers"));
             _worldIndicators = new WorldIndicators(Child("World indicators")); _vignette = new HurtVignette();
             _wishes = new ConfirmedWishPresenter(_fxRoot, _actors);
@@ -253,7 +254,7 @@ namespace Roguehalla.Client
                 // from appearance or position; draw their latest typed public facts instead.
                 if (_hasMembership && a.Kind != ActorKind.Player) continue;
                 _actors.Present(a.Id, a.X, a.Y, a.Facing, a.HpPct, a.Faction, a.Status, a.Weapon, a.Kind, a.MobType, a.Effects, a.SourceSig, false, a.BarrierPct, a.BarrierRingStep, ArchetypeKey(a.Archetype), FootHx(a.Archetype), FootHy(a.Archetype));
-                _actors.PresentIndicators(a.Id, a.Bounty, false, WeaponId.Fists, lockTarget.HasValue && lockTarget.Value == a.Id, -1, a.Id == _hoverId, _huntTarget.HasValue && _huntTarget.Value == a.Id);
+                RemoteIndicators(a, lockTarget.HasValue && lockTarget.Value == a.Id);
                 _overlay?.NoteActor(a.Id, a.Archetype, (byte)a.Kind); _hitZones?.NoteActor(a.Id, a.Archetype);
                 _wishFx.NoteActor(a.Id, a.Kind, a.Effects, a.Status != ActorStatus.Dead && a.Status != ActorStatus.Mia);
                 if (_regionProps != null) _regionProps.NoteActor(WorldPoint(a.X, a.Y));
@@ -269,7 +270,7 @@ namespace Roguehalla.Client
                     me.Faction, me.Status, me.Weapon, ActorKind.Player, null, me.Effects, me.SelfSig, true, barrierPercent, me.BarrierRingStep, ArchetypeKey(me.Archetype), FootHx(me.Archetype), FootHy(me.Archetype));
                 var inv = _inventory; WeaponId? second = Indicators.SecondaryWeapon(inv.HasValue, inv.HasValue ? inv.Value.ActiveSlot : (byte)0, inv.HasValue ? inv.Value.Slot0 : null, inv.HasValue ? inv.Value.Slot1 : null);
                 if (IndicatorDemo) DemoIndicators(me.Id, second);
-                else _actors.PresentIndicators(me.Id, me.Bounty, second.HasValue, second ?? WeaponId.Fists, false, -1, false, false, _wishState, _wishAbility);
+                else { _actors.PresentMarks(me.Id, LegacyFacts.Of(me, LegacyFacts.NameOf(_visionSession, me.Id))); _actors.PresentIndicators(me.Id, me.Bounty, second.HasValue, second ?? WeaponId.Fists, false, -1, false, false, _wishState, _wishAbility); }
                 _localX = mx; _localY = my;
                 _overlay?.NoteActor(me.Id, me.Archetype, (byte)ActorKind.Player); _hitZones?.NoteActor(me.Id, me.Archetype);
                 _wishFx.NoteActor(me.Id, ActorKind.Player, me.Effects, me.Status == ActorStatus.Alive);
@@ -296,7 +297,7 @@ namespace Roguehalla.Client
         public void RefreshVisibility(Session session)
         {
             _archetypes = session != null ? session.Archetypes : System.Array.Empty<WireArchetype>();
-            _hitZones?.SetTable(_archetypes);
+            _hitZones?.SetTable(_archetypes); LegacyFacts.SyncWeapons(session != null ? session.Weapons : null);
             if (_atmos != null) _atmos.SetMatchActive(session != null && session.Phase == MatchPhase.Active);
             _sourceTimeMs = session != null ? session.ServerTimeMs : 0;
             BindVisionSession(session);
@@ -386,12 +387,20 @@ namespace Roguehalla.Client
                 && s.Me != null && s.Me.Status == ActorStatus.Alive;
             _visionFog.Tick(on, on ? s.Me.X : 0, on ? s.Me.Y : 0, s != null ? s.ServerTimeMs : 0, _actors);
         }
+        /// <summary>One remote fighter's overhead facts: its off-hand weapon (fists when empty), Wish-ready icon, name, stat marks, mark plate, immunity, roam and engaged flags.</summary>
+        void RemoteIndicators(InterpActor a, bool locked)
+        {
+            _actors.PresentMarks(a.Id, LegacyFacts.Of(a, a.Kind == ActorKind.Player ? LegacyFacts.NameOf(_visionSession, a.Id) : null));
+            bool player = a.Kind == ActorKind.Player;
+            _actors.PresentIndicators(a.Id, a.Bounty, player, a.OffhandWeapon ?? WeaponId.Fists, locked, -1, a.Id == _hoverId, _huntTarget.HasValue && _huntTarget.Value == a.Id,
+                LegacyFacts.RemoteWish(a), a.Faction.HasValue ? (byte)Indicators.WishOf(a.Faction.Value) : (byte)0);
+        }
         void PresentLatestNpcs()
         {
             foreach(var a in _latestNpcs)
             {
                 _actors.Present(a.Id,a.X,a.Y,a.Facing,a.HpPct,a.Faction,a.Status,a.Weapon,a.Kind,a.MobType,a.Effects,a.SourceSig,false,a.BarrierPct,a.BarrierRingStep,ArchetypeKey(a.Archetype), FootHx(a.Archetype), FootHy(a.Archetype));
-                _actors.PresentIndicators(a.Id, a.Bounty, false, WeaponId.Fists, _lockForNpc.HasValue && _lockForNpc.Value == a.Id, -1, a.Id == _hoverId, _huntTarget.HasValue && _huntTarget.Value == a.Id);
+                RemoteIndicators(a, _lockForNpc.HasValue && _lockForNpc.Value == a.Id);
                 _overlay?.NoteActor(a.Id, a.Archetype, (byte)a.Kind); _hitZones?.NoteActor(a.Id, a.Archetype);
                 if (_collectWishNotes) _wishFx.NoteActor(a.Id, a.Kind, a.Effects, a.Status != ActorStatus.Dead && a.Status != ActorStatus.Mia);
                 if (_regionProps != null) _regionProps.NoteActor(WorldPoint(a.X, a.Y));
@@ -540,10 +549,14 @@ namespace Roguehalla.Client
                     _wishFx.Accept(f);
                     continue;
                 }
+                // Protocol 16 fx (ADR0026): the wind-up telegraph and its end; the rest are numbers drawn by PresentFx.
+                if (f.Kind == FxKind.Windup) { _hitZones?.Windup(f.By, f.Weapon, f.A, f.Ms, Time.unscaledTime); continue; }
+                if (f.Kind == FxKind.Cancel) { _hitZones?.CancelWindup(f.Id); continue; }
+                if (f.Kind == FxKind.Stagger) _hitZones?.CancelWindup(f.Id);
                 if (f.Kind == FxKind.Hit) { DiagHitFx++; if (f.Victim == _localId) { DiagHitFxOnMe++; DiagLastAmountOnMe = f.Amount; DiagLastPassiveOnMe = f.Passive; } } // scenario probe counters
                 if (f.Kind == FxKind.Hit && f.Victim == _localId && _localId != 0 && !f.Passive) _vignette.Hit(f.Amount, _selfMaxHp, Time.unscaledTime); // legacy screenFeedback: real hits only
-                uint subject = f.Kind == FxKind.Hit ? f.Victim : f.Kind == FxKind.Stagger || f.Kind == FxKind.Block ? f.Id : f.By;
-                var cue=new PendingFx{Kind=f.Kind,Subject=subject,Amount=f.Amount,X=f.X,Y=f.Y,A=f.A,Weapon=f.Weapon,By=f.By,Passive=f.Passive,CreatedAt=Time.unscaledTime};
+                uint subject = f.Kind == FxKind.Hit || f.Kind == FxKind.SigHit ? f.Victim : f.Kind == FxKind.Stagger || f.Kind == FxKind.Block || f.Kind == FxKind.Heal ? f.Id : f.By;
+                var cue=new PendingFx{Kind=f.Kind,Subject=subject,Amount=f.Amount,X=f.X,Y=f.Y,A=f.A,Weapon=f.Weapon,By=f.By,Passive=f.Passive,Crit=f.Critical,SigKind=f.HitKind,CreatedAt=Time.unscaledTime};
                 bool own = owner != 0 && (subject == owner || f.By == owner || f.Victim == owner);
                 if (!own && _renderReady && dueMs > _renderMs && dueMs - _renderMs <= MaxFxLeadMs &&
                     _scheduledFx.Count < MaxScheduledFx && _actors.Contains(subject) && !IsLatestNpc(subject))
@@ -594,28 +607,40 @@ namespace Roguehalla.Client
 
         void PresentFx(PendingFx f)
         {
+                if (f.Kind == FxKind.Heal && Indicators.HealText(f.Amount) == null) return;      // heals under 1 are not shown
                 if (!_actors.TryPosition(f.Subject, out var p)) return;
                 _actors.ConfirmedCue(f.Subject,f.Kind);
                 if (f.Kind == FxKind.Hit || f.Kind == FxKind.Block) _sparks.Hit(p, f.Kind == FxKind.Block, ref _sparkRng);      // render pass: hit sparks and light
                 if (f.Kind == FxKind.Swing && Time.unscaledTime - f.CreatedAt < .35f) _hitZones.Swing(f.Subject, f.Weapon, f.X, f.Y, f.A, Time.unscaledTime);
                 if (_flashes.Count >= 48) return;
                 var flash = _flashPool.Count > 0 ? _flashPool.Pop() : CreateFlash();
-                flash.Actor = f.Subject; flash.Position = p + new Vector3(0, .65f); flash.Start = Time.unscaledTime; flash.Duration = f.Kind==FxKind.Hit ? .55f : .2f;
+                flash.Actor = f.Subject; flash.Position = p + new Vector3(0, .65f); flash.Start = Time.unscaledTime; flash.Duration = f.Kind==FxKind.Hit || f.Kind==FxKind.SigHit ? .55f : .2f;
                 flash.Size = f.Kind == FxKind.Swing ? 1.25f : .8f;
                 flash.Color = f.Kind == FxKind.Block ? new Color(.65f, .85f, 2) : new Color(2, 1.4f, .6f);
-                flash.Sprite.gameObject.SetActive(true);
-                flash.Text.gameObject.SetActive(f.Kind==FxKind.Hit); flash.Plate.gameObject.SetActive(f.Kind==FxKind.Hit);
-                if(f.Kind==FxKind.Hit)
+                bool number = f.Kind == FxKind.Hit || f.Kind == FxKind.SigHit || f.Kind == FxKind.Heal;
+                string healText = f.Kind == FxKind.Heal ? Indicators.HealText(f.Amount) : null;
+                flash.Sprite.gameObject.SetActive(f.Kind != FxKind.SigHit && f.Kind != FxKind.Heal);
+                flash.Text.gameObject.SetActive(number); flash.Plate.gameObject.SetActive(number);
+                if(number)
                 {
-                    flash.Text.text=Mathf.RoundToInt(f.Amount).ToString(System.Globalization.CultureInfo.InvariantCulture);
-                    // Legacy FxView: red on me, gold by me, grey otherwise; 13 px + 1 per 40 damage (max +7); simultaneous numbers fan over 5 lanes.
-                    var theme = UiTheme.Current; var tone = Indicators.DamageColour(f.Subject, f.By, _localId);
-                    flash.TextColor = (Color)(tone == Indicators.DamageTone.OnMe ? theme.Danger : tone == Indicators.DamageTone.ByMe ? theme.Accent : theme.TextSecondary);
-                    flash.Text.fontSize = 3f * (f.Passive ? 11f : Indicators.DamageSize(f.Amount)) / 13f;
-                    flash.LaneX = Indicators.DamageLaneOffset(_numberLane++) * .026f;
+                    var theme = UiTheme.Current;
+                    flash.Text.text = f.Kind == FxKind.Heal ? healText : Indicators.DamageText(f.Amount, f.Crit);
+                    if (f.Kind == FxKind.Heal) { flash.TextColor = RgbColour(Indicators.HealColour); flash.Text.fontSize = 3f * 13f / 13f; flash.Duration = .8f; flash.Position += new Vector3(0, .1f, 0); flash.LaneX = NumberSide; }
+                    else if (f.Kind == FxKind.SigHit) { flash.TextColor = RgbColour(Indicators.SigColour(f.SigKind)); flash.Text.fontSize = 3f * 11f / 13f; flash.LaneX = NumberSide + Indicators.DamageLaneOffset(_numberLane++) * .026f; }
+                    else
+                    {
+                        // Legacy FxView: red on me, gold by me, grey otherwise; 13 px + 1 per 40 damage (max +7, +5 critical); simultaneous numbers fan over 5 lanes.
+                        var tone = Indicators.DamageColour(f.Subject, f.By, _localId);
+                        flash.TextColor = (Color)(tone == Indicators.DamageTone.OnMe ? theme.Danger : tone == Indicators.DamageTone.ByMe ? theme.Accent : theme.TextSecondary);
+                        flash.Text.fontSize = 3f * (f.Passive ? 11f : Indicators.DamageSize(f.Amount, f.Crit)) / 13f;
+                        flash.LaneX = NumberSide + Indicators.DamageLaneOffset(_numberLane++) * .026f;
+                    }
                 }
                 _flashes.Add(flash);
         }
+        /// <summary>Numbers rise beside the fighter, not over its overhead stack (wish, build row, bar): with the protocol 16 marks they sat on top of each other (UI lab).</summary>
+        const float NumberSide = .62f;
+        static Color RgbColour(uint rgb) { return new Color(((rgb >> 16) & 255) / 255f, ((rgb >> 8) & 255) / 255f, (rgb & 255) / 255f, 1f); }
         void UpdateEffects()
         {
             bool reduced = ShowcaseSettings.Current != null && ShowcaseSettings.Current.ReducedMotion;
