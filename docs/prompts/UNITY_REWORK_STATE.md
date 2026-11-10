@@ -18,8 +18,7 @@ Read this first after any context reset. Direction: [UNITY_REWORK_FABLE.md](UNIT
 All under `/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/`. Remove each after merging into `feature/unity-rework`.
 | Worktree | Branch | Owner | Scope | Status |
 |---|---|---|---|---|
-| `rework-hitbox` | `rework/hitbox` | Opus | ADR 0024 packets P-HB-0..6 + P-HB-9 flags; protocol 16, obs 22, checkpoint 30, replay 24, policy 16, content `d9479b6612616984` | DONE at `c54c7a18`, NOT merged: waiting on the Opus review, then merge (expect rh-sim conflicts with the crash fixes) |
-| (review, no worktree) | reads `rework/hitbox` | Opus, high | independent review of the hitbox diff `8f677cb5..c54c7a18` and crash fixes `2bfdc57b`, `a1f1d129` | running |
+| `rework-hitbox` | `rework/hitbox` | Opus | review fixes on top of the integration merge (feature merged in, clean): default back to legacy; melee and start-inside projectiles fall back to the legacy test when the origin is inside the body box; restore validates projectile height; NaN guard; wire vectors; parity guard; ONE chest height (30) for all player archetypes so height no longer reveals faction; `--hitboxes` flag validity; bot/mob aim measurement and correction; balance comparison both modes | running |
 | `rework-contrast-lab` | `rework/contrast-lab` | Sonnet | serverless contrast lab stage (`?contrastlab=1`), `contrast-gate.cjs` (edge >= 3.0, markers >= 4.5, exit code), `docs/rework/CONTRAST_GATE.md`, baseline numbers (ports 7887/8187) | running |
 | `rework-vision` | `rework/vision` | Sonnet | fog of war mirroring the Rust sight rule (golden vectors `sight_v1.json`), fade on leaving/entering sight, minimap/Tab map visibility (ports 7867/8167) | running |
 | `rework-regions2` | `rework/regions2` | Sonnet | SurfaceMap (first commit), Holy temple, Plague mud/grass/shallow water, Fire dark basalt, Sentenced black tiles, contrast >= 3:1 / 4.5:1, coliseum props, TerrainMode honesty (ports 7877/8177) | running |
@@ -49,6 +48,15 @@ Known gaps from the lighting pass (assigned to `rework/regions2`): Holy clips 2.
 | Baseline tests | parity all MATCH, C# 956/956, server builds; cargo rerun with Postgres + browser proof in flight | Gate 1 report |
 
 After these merge: P-HB-7 (C# foot-box prediction) and P-HB-8 (Unity chest aim, projectile height, sprite from archetype), then workstreams E (region ground), F (lighting/particles/audio) and G (Ultra preset, profiling).
+
+## Hitbox review (Opus, 2026-11-10): LAND AFTER FIXES
+Legacy mode clean; all tests and decoders pass; crash fixes correct, no DEVIATIONS row needed, merge clean. Findings and rulings:
+1. MAJOR live default flipped before client prediction/aim and the balance verdict exist -> default legacy now; coordinator flips after P-HB-7/8 + verdict.
+2. MAJOR melee hit targets up to 34 u behind the attacker (origin inside the tall body box counted as a hit) -> inside the box, use the legacy arc test (12 u unconditional zone).
+3. Point-blank shots flipped hit/miss on a 1 u offset -> a projectile starting inside a body box resolves that target with the legacy ground-plane test.
+4. Restore accepted any projectile height. 5. NaN counted as a hit. 6. Wire vector gaps. 7. Parity guard missing. 9. `--hitboxes` silently ignored in some runtimes; soaks did not cover archetype mode.
+8. Projectile height revealed the shooter's faction (per-faction chest heights 30/25/33/27) -> coordinator ruling: one chest height (30) for all players. Flag at Gate 2.
+10. Bot/mob shots predicted to miss short targets -> measure, then apply the chest correction in archetype mode only.
 
 ## Evidence policy (set 2026-11-10)
 Committed screenshots had reached 370 MB. Pruned to about 28 MB at `fc67e123` (JPEG, 1600 px max, one resolution per screen). From now on: evidence in the repo is JPEG only, a curated handful per pass (aim under 5 MB per folder); raw captures stay outside the repo; bulky agent branches are squash-merged and trimmed. Branch history still holds the old PNG blobs: at Gate 3 recommend a squash merge so they never reach the public repo.
