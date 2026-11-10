@@ -492,21 +492,51 @@ pub fn to_wire(e: &SeenEvent) -> Wire {
     }
 }
 
-/// A display name as the roster carries it (ADR0026): control characters dropped, cut to at most
-/// [`rh_protocol::state::MAX_ROSTER_NAME`] bytes on a character boundary, "?" when nothing is left. Seat names are already
-/// server-owned (Hello callsigns, generated bot names), so this only guards the wire bound.
+/// The characters of `name` the roster keeps (ADR0026): control characters dropped, cut to at most
+/// [`rh_protocol::state::MAX_ROSTER_NAME`] bytes on a character boundary. Seat names are already server-owned (Hello
+/// callsigns, generated bot names), so this only guards the wire bound.
+fn roster_chars(name: &str) -> impl Iterator<Item = char> + '_ {
+    let mut used = 0;
+    name.chars()
+        .filter(|c| !c.is_control())
+        .take_while(move |c| {
+            used += c.len_utf8();
+            used <= rh_protocol::state::MAX_ROSTER_NAME
+        })
+}
+
+/// A display name as the roster carries it: [`roster_chars`], or "?" when nothing is left.
 pub fn roster_name(name: &str) -> String {
-    let mut out = String::with_capacity(name.len().min(rh_protocol::state::MAX_ROSTER_NAME));
-    for c in name.chars().filter(|c| !c.is_control()) {
-        if out.len() + c.len_utf8() > rh_protocol::state::MAX_ROSTER_NAME {
-            break;
-        }
-        out.push(c);
-    }
+    let out: String = roster_chars(name).collect();
     if out.is_empty() {
-        out.push('?');
+        "?".to_string()
+    } else {
+        out
     }
-    out
+}
+
+/// Whether `wire` is what [`roster_name`] makes of `raw`, without allocating (a name that needed cleaning is compared
+/// every tick per connection).
+fn roster_name_matches(wire: &str, raw: &str) -> bool {
+    if wire == raw {
+        return true;
+    }
+    let mut cleaned = roster_chars(raw).peekable();
+    if cleaned.peek().is_none() {
+        return wire == "?";
+    }
+    cleaned.eq(wire.chars())
+}
+
+/// The rows a roster carries: the observation's (ascending by id) cut to the lowest
+/// [`rh_protocol::state::MAX_ROSTER`] ids, so an oversized match can never make the whole State frame refuse.
+fn roster_rows(seen: &[rh_sim::observe::RosterRow]) -> &[rh_sim::observe::RosterRow] {
+    debug_assert!(
+        seen.len() <= rh_protocol::state::MAX_ROSTER,
+        "a match seats at most {} players on the roster",
+        rh_protocol::state::MAX_ROSTER
+    );
+    &seen[..seen.len().min(rh_protocol::state::MAX_ROSTER)]
 }
 
 /// Whether the committed wire roster still equals the observation's (no allocation).
@@ -514,15 +544,18 @@ pub fn roster_equal(
     wire: &[rh_protocol::WireRosterRow],
     seen: &[rh_sim::observe::RosterRow],
 ) -> bool {
+    let seen = roster_rows(seen);
     wire.len() == seen.len()
-        && wire.iter().zip(seen).all(|(w, s)| {
-            w.id == s.id.0 && w.bot == s.bot && (w.name == s.name || w.name == roster_name(&s.name))
-        })
+        && wire
+            .iter()
+            .zip(seen)
+            .all(|(w, s)| w.id == s.id.0 && w.bot == s.bot && roster_name_matches(&w.name, &s.name))
 }
 
-/// The observation's roster as State key 12 rows.
+/// The observation's roster as State key 12 rows (the lowest [`rh_protocol::state::MAX_ROSTER`] ids).
 pub fn wire_roster(seen: &[rh_sim::observe::RosterRow]) -> Vec<rh_protocol::WireRosterRow> {
-    seen.iter()
+    roster_rows(seen)
+        .iter()
         .map(|s| rh_protocol::WireRosterRow {
             id: s.id.0,
             bot: s.bot,
@@ -806,6 +839,45 @@ mod roster_tests {
         assert!(rh_protocol::state::roster_name_valid(&cut));
     }
 
+    /// Release builds cut an oversized roster to the lowest ids instead of refusing the whole State frame (debug builds
+    /// assert, since no match seats that many players).
+    #[test]
+    fn an_oversized_roster_is_cut_to_the_lowest_ids_deterministically() {
+        let seen: Vec<_> = (1..=40)
+            .map(|i| rh_sim::observe::RosterRow {
+                id: rh_sim::PlayerId(i),
+                name: format!("p{i}"),
+                bot: i % 2 == 0,
+            })
+            .collect();
+        let cut = std::panic::catch_unwind(|| wire_roster(&seen));
+        if cfg!(debug_assertions) {
+            assert!(cut.is_err(), "debug builds assert the seat bound");
+            // The cut itself, without the assertion.
+            let rows = &seen[..rh_protocol::state::MAX_ROSTER];
+            let wire: Vec<_> = rows
+                .iter()
+                .map(|s| rh_protocol::WireRosterRow {
+                    id: s.id.0,
+                    bot: s.bot,
+                    name: roster_name(&s.name),
+                })
+                .collect();
+            assert_eq!(wire.last().unwrap().id, 32);
+            assert!(rh_protocol::ServerMsg::State {
+                tick: 1,
+                items: vec![rh_protocol::StateItem::Roster(wire)],
+            }
+            .try_encode()
+            .is_ok());
+        } else {
+            let wire = cut.unwrap();
+            assert_eq!(wire.len(), rh_protocol::state::MAX_ROSTER);
+            assert_eq!(wire.last().unwrap().id, 32, "the lowest ids are kept");
+            assert!(roster_equal(&wire, &seen));
+        }
+    }
+
     #[test]
     fn the_wire_roster_matches_the_observation_until_it_changes() {
         let seen = vec![
@@ -826,6 +898,15 @@ mod roster_tests {
         changed[0].bot = true;
         assert!(!roster_equal(&wire, &changed));
         assert!(!roster_equal(&wire, &seen[..1]));
+        changed = seen.clone();
+        changed[1].name = "y".repeat(40);
+        assert!(
+            !roster_equal(&wire, &changed),
+            "a cleaned name is still compared"
+        );
+        for raw in ["Wren", "", "\u{1}", "a\u{7}b", &"\u{e9}".repeat(20)] {
+            assert!(roster_name_matches(&roster_name(raw), raw), "{raw:?}");
+        }
         assert!(rh_protocol::ServerMsg::State {
             tick: 1,
             items: vec![rh_protocol::StateItem::Roster(wire)],
