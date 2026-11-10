@@ -54,6 +54,12 @@ mkdir -p "$(dirname "$build_log")"
 echo "Building Web player; log: $build_log"
 "$unity_editor" -batchmode -quit -projectPath "$project" -buildTarget WebGL \
     -executeMethod Roguehalla.Editor.RhBuild.BuildWeb -logFile "$build_log" "$@"
+# A project shader that fails to compile for the Web target is silently replaced by nothing in the player ("shader is not
+# supported on this GPU" in the browser console), so the effect just vanishes. Fail the build instead.
+if grep -E "Shader error in 'Roguehalla/" "$build_log"; then
+    echo "error: a Roguehalla shader failed to compile for WebGL (see the lines above and $build_log)" >&2
+    exit 1
+fi
 # Keep imported font/resource notices with the distributable player.
 mkdir -p "$project/Build/Web/Licenses"
 cp "$project/../../LICENSE" "$project/Build/Web/Licenses/Roguehalla-MIT.txt"

@@ -35,7 +35,7 @@ Shader "Roguehalla/SurfaceFx"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/2D/Include/LightingUtility.hlsl"
 
             TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
-            float _RhFxNow;       // seconds, set by SurfaceFx each frame (same clock as the birth times)
+            // _RhFxNow (seconds, set by SurfaceFx each frame; same clock as the birth times) is declared in RhSun.hlsl, included below.
             float _RhFxGlisten;   // 1 lets mud and wet prints glisten briefly
 
             #if USE_SHAPE_LIGHT_TYPE_0
