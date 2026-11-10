@@ -14,7 +14,7 @@ namespace Roguehalla.Client
         SpriteRenderer _roleBack, _roleGlyph;
         SpriteRenderer _eliteBack, _eliteGlyph;
         bool _configured;
-        int _sortingBase = int.MinValue;
+        int _sortingBase = int.MinValue; float _lift;
         public bool StandaloneFactionBadge { get; set; } = true;
 
         /// <summary>Finds or creates a single owner directly below the actor's grounded root.</summary>
@@ -31,7 +31,7 @@ namespace Roguehalla.Client
         /// Applies already-delivered actor metadata. Regional mob faction/role/elite come only from its canonical MobTypeId;
         /// player faction comes from its public faction field. Zombies, dummies, bad ids and absent facts use neutral art.
         /// </summary>
-        public void Present(int faction, ActorKind kind, MobTypeId? mobType, int groundSortingOrder, bool visible)
+        public void Present(int faction, ActorKind kind, MobTypeId? mobType, int groundSortingOrder, bool visible, float lift = 0f)
         {
             EnsureRenderers();
             MobIdentityInfo mobInfo = default;
@@ -55,16 +55,16 @@ namespace Roguehalla.Client
             Set(_roleGlyph, roleGlyph, show && knownMob, groundSortingOrder + 5);
             Set(_eliteBack, ShowcaseIdentityAssets.GetBadgeBackdrop(), show && elite, groundSortingOrder + 4);
             Set(_eliteGlyph, eliteGlyph, show && elite, groundSortingOrder + 5);
-            if (_sortingBase != groundSortingOrder)
+            if (_sortingBase != groundSortingOrder || _lift != lift)
             {
-                _sortingBase = groundSortingOrder;
+                _sortingBase = groundSortingOrder; _lift = lift;   // badges ride the look's body height, so a short creature's mark stays on its body, clear of the name plate
                 Place(_mantle, new Vector3(0, .72f, -.005f), new Vector3(.9f, .7f, 1));
-                Place(_factionBack, new Vector3(-.68f, 1.30f, -.012f), new Vector3(.31f, .31f, 1));
-                Place(_factionGlyph, new Vector3(-.68f, 1.30f, -.013f), new Vector3(.205f, .205f, 1));
-                Place(_roleBack, new Vector3(0, 1.30f, -.012f), new Vector3(.31f, .31f, 1));
-                Place(_roleGlyph, new Vector3(0, 1.30f, -.013f), new Vector3(.205f, .205f, 1));
-                Place(_eliteBack, new Vector3(.68f, 1.30f, -.012f), new Vector3(.31f, .31f, 1));
-                Place(_eliteGlyph, new Vector3(.68f, 1.30f, -.013f), new Vector3(.205f, .205f, 1));
+                Place(_factionBack, new Vector3(-.68f, 1.30f + lift, -.012f), new Vector3(.31f, .31f, 1));
+                Place(_factionGlyph, new Vector3(-.68f, 1.30f + lift, -.013f), new Vector3(.205f, .205f, 1));
+                Place(_roleBack, new Vector3(0, 1.30f + lift, -.012f), new Vector3(.31f, .31f, 1));
+                Place(_roleGlyph, new Vector3(0, 1.30f + lift, -.013f), new Vector3(.205f, .205f, 1));
+                Place(_eliteBack, new Vector3(.68f, 1.30f + lift, -.012f), new Vector3(.31f, .31f, 1));
+                Place(_eliteGlyph, new Vector3(.68f, 1.30f + lift, -.013f), new Vector3(.205f, .205f, 1));
             }
         }
 

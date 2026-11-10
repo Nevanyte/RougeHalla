@@ -109,7 +109,7 @@ namespace Roguehalla.Client
             if (_actors != null) return _actors.TrySoundContext(id,out weapon,out faction,out kind,out type);
             weapon=default; faction=default; kind=default; type=null; return false;
         }
-        sealed class Flash { public SpriteRenderer Sprite; public TMP_Text Text; public uint Actor; public float Start, Duration; public Vector3 Position; public Color Color; public float Size; public Color TextColor; public float LaneX; }
+        sealed class Flash { public SpriteRenderer Sprite, Plate; public TMP_Text Text; public uint Actor; public float Start, Duration; public Vector3 Position; public Color Color; public float Size; public Color TextColor; public float LaneX; }
         struct PendingFx { public FxKind Kind; public uint Subject; public float Amount; public double DueMs; public float QueuedAt; public float X, Y, A, CreatedAt; public byte Weapon; public uint By; public bool Passive; }
 
         void Awake()
@@ -288,6 +288,10 @@ namespace Roguehalla.Client
             _hitZones?.Tick(Time.unscaledTime, ShowcaseSettings.Current != null && ShowcaseSettings.Current.ReducedMotion);
         }
 
+        // DIAGNOSTICS ONLY (UI lab, ?uilab=1): the two things a Session binding gives the match that a serverless gallery has to ask for. Not called in normal play.
+        public void DiagSetExitFades(bool allowed) { _actors.ExitFadesAllowed = allowed; }
+        public void DiagDeathMark(float simX, float simY) { _worldIndicators.AddDeath(simX, simY, Time.unscaledTime, MarkVisible); }
+
         /// <summary>Latest membership wins over delayed interpolation, before the frame is rendered.</summary>
         public void RefreshVisibility(Session session)
         {
@@ -453,7 +457,7 @@ namespace Roguehalla.Client
                             }
                         }
                     }
-                    if (p.Focused) { Prop("glow", position, new Vector2(1.3f, .68f), new Color(ShowcasePalette.Gold.r / 255f, ShowcasePalette.Gold.g / 255f, ShowcasePalette.Gold.b / 255f, .16f), order - 3); Prop("ring", position, new Vector2(1.25f, .65f), (Color)ShowcasePalette.Gold, order - 2); }
+                    if (p.Focused) { Prop("glow", position, new Vector2(1.3f, .68f), new Color(ShowcasePalette.Gold.r / 255f, ShowcasePalette.Gold.g / 255f, ShowcasePalette.Gold.b / 255f, .16f), order - 3); Prop("ring", position, new Vector2(1.32f, .69f), new Color(.03f, .04f, .06f, .85f), order - 3); Prop("ring", position, new Vector2(1.25f, .65f), (Color)ShowcasePalette.Gold, order - 2); }   // dark hairline under the gold ring: it vanished on sand and snow (UI lab)
                 }
                 foreach (var chest in collections.RewardChests)
                 {
@@ -582,7 +586,7 @@ namespace Roguehalla.Client
             for (int i = _flashes.Count - 1; i >= 0; i--)
             {
                 var flash = _flashes[i];
-                flash.Sprite.gameObject.SetActive(false); flash.Text.gameObject.SetActive(false);
+                flash.Sprite.gameObject.SetActive(false); flash.Text.gameObject.SetActive(false); flash.Plate.gameObject.SetActive(false);
                 _flashes.RemoveAt(i); _flashPool.Push(flash);
             }
             _actors.ResetTransientTimers(); _sparks.Clear();
@@ -600,7 +604,7 @@ namespace Roguehalla.Client
                 flash.Size = f.Kind == FxKind.Swing ? 1.25f : .8f;
                 flash.Color = f.Kind == FxKind.Block ? new Color(.65f, .85f, 2) : new Color(2, 1.4f, .6f);
                 flash.Sprite.gameObject.SetActive(true);
-                flash.Text.gameObject.SetActive(f.Kind==FxKind.Hit);
+                flash.Text.gameObject.SetActive(f.Kind==FxKind.Hit); flash.Plate.gameObject.SetActive(f.Kind==FxKind.Hit);
                 if(f.Kind==FxKind.Hit)
                 {
                     flash.Text.text=Mathf.RoundToInt(f.Amount).ToString(System.Globalization.CultureInfo.InvariantCulture);
@@ -618,13 +622,15 @@ namespace Roguehalla.Client
             for (int i = _flashes.Count - 1; i >= 0; i--)
             {
                 var f = _flashes[i]; float t = (Time.unscaledTime - f.Start) / f.Duration;
-                if (t >= 1 || !_actors.Contains(f.Actor)) { f.Sprite.gameObject.SetActive(false); f.Text.gameObject.SetActive(false); _flashes.RemoveAt(i); _flashPool.Push(f); continue; }
+                if (t >= 1 || !_actors.Contains(f.Actor)) { f.Sprite.gameObject.SetActive(false); f.Text.gameObject.SetActive(false); f.Plate.gameObject.SetActive(false); _flashes.RemoveAt(i); _flashPool.Push(f); continue; }
                 f.Sprite.transform.position = f.Position;
                 f.Sprite.transform.localScale = Vector3.one * f.Size * (reduced ? 1 : 1 + t * .55f);
                 // Keep the silhouette readable even when confirmed hits overlap rapidly.
                 // Damage text retains its longer lifetime; the hollow impact rim fades quickly.
                 var c = f.Color; c.a = .55f * Mathf.Clamp01(1 - (Time.unscaledTime - f.Start) / .16f); f.Sprite.color = c;
                 f.Text.transform.position=f.Position+new Vector3(f.LaneX,.7f+(reduced ? 0 : t*.35f),0); var tc=f.TextColor; tc.a=1-t; f.Text.color=tc;
+                // A dark plate under the number (lab finding: grey digits vanished on sand and snow); legacy used a black stroke.
+                if (f.Plate.gameObject.activeSelf) { var pc = (Color)UiTheme.Current.OutlineDark; pc.a = .88f * (1 - t); f.Plate.color = pc; f.Plate.transform.position = f.Text.transform.position; f.Plate.transform.localScale = new Vector3(f.Text.preferredWidth + .14f, f.Text.fontSize * .1f + .06f, 1); }
             }
         }
         Flash CreateFlash()
@@ -634,7 +640,8 @@ namespace Roguehalla.Client
             var text=go.AddComponent<TextMeshPro>();text.font=TMP_Settings.defaultFontAsset;text.fontSize=3;text.alignment=TextAlignmentOptions.Center;
             text.fontSharedMaterial=OverheadIndicators.OutlinedMaterial(text.font);text.rectTransform.sizeDelta=new Vector2(3,1);text.GetComponent<MeshRenderer>().sortingOrder=30001;
             go.SetActive(false);
-            return new Flash{Sprite=sprite,Text=text};
+            var plate = ShowcaseSprites.Create(_fxRoot, "Confirmed damage plate", "bar", 30000, Color.white, Vector2.one, Vector3.zero, false); plate.gameObject.SetActive(false);
+            return new Flash{Sprite=sprite,Plate=plate,Text=text};
         }
         /// <summary>
         /// Follows the owner with light smoothing (absorbs 2 to 6 u reconciliation corrections, legacy CameraFollow). The cursor is

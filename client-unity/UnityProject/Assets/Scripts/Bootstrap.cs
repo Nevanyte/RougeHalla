@@ -73,6 +73,13 @@ namespace Roguehalla.Client
                 return;
             }
 
+            // Serverless indicator gallery (the UI lab: synthetic view data through the real presenters). Reachable only with ?uilab=1.
+            if (UiLabStage.Requested(s))
+            {
+                new GameObject("UI lab").AddComponent<UiLabStage>().Initialize(cam, s);
+                return;
+            }
+
             if (Query(s, "preview", "0") == "1")
             {
                 new GameObject("Presentation study").AddComponent<ShowcasePreview>().Initialize(cam);
