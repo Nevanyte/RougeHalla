@@ -38,6 +38,16 @@ namespace Roguehalla.Net.Tests
             Assert.AreEqual(0, g.Update(false, 5, 2f));
             Assert.AreEqual(0, g.Update(true, 5, 2.1f));        // restarts the settle clock
         }
-        [Test] public void Trims_default_to_unity_gain() { Assert.AreEqual(1f, AudioTrims.Gain("music_fire"), 1e-3); }
+        [Test] public void Trims_bring_every_track_to_its_target_and_unknown_ids_stay_untouched()
+        {
+            foreach (var id in AudioTrims.Ids)
+            {
+                float target = id.StartsWith("amb_") ? AudioTrims.AmbienceTargetDb : AudioTrims.MusicTargetDb;
+                Assert.AreEqual(target, AudioTrims.MeasuredDb(id) + AudioTrims.TrimDb(id), 1e-3f, id);
+                Assert.Less(AudioTrims.TrimDb(id), 6f, id + " must not be boosted hard (peaks)");
+            }
+            Assert.AreEqual(1f, AudioTrims.Gain("unknown"), 1e-6f);
+            Assert.Greater(AudioTrims.MusicTargetDb - AudioTrims.AmbienceTargetDb, 6f, "ambience sits clearly under music");
+        }
     }
 }

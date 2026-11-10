@@ -148,7 +148,7 @@ namespace Roguehalla.Net.Tests
 
         [Test] public void VoicingAttenuatesPansAndPrioritisesNearest()
         {
-            Assert.IsTrue(FootstepVoicing.Plan(true, false, 0, 0, out float g, out _)); Assert.AreEqual(1f, g);
+            Assert.IsTrue(FootstepVoicing.Plan(true, false, 0, 0, out float g, out _)); Assert.AreEqual(FootstepVoicing.LocalGain, g); Assert.Less(FootstepVoicing.PlayerGain, FootstepVoicing.LocalGain); Assert.Less(FootstepVoicing.MobGain, FootstepVoicing.PlayerGain);
             Assert.IsTrue(FootstepVoicing.Plan(false, false, 3, 0.9f, out float gp, out float pan)); Assert.Greater(pan, 0.5f);
             Assert.IsTrue(FootstepVoicing.Plan(false, true, 3, 0, out float gm, out _)); Assert.Less(gm, gp, "mobs are quieter");
             Assert.IsFalse(FootstepVoicing.Plan(false, false, 20, 0, out _, out _), "out of radius");

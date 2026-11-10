@@ -27,15 +27,21 @@ namespace Roguehalla.Net
         }
     }
 
-    /// <summary>Per-file gain trims (dB) that bring the streamed tracks to a common loudness; measured by the browser audio probe.</summary>
+    /// <summary>
+    /// Per-file gain trims (dB) that bring the streamed tracks to a common loudness without re-encoding. <see cref="MeasuredDb"/> is the
+    /// output RMS of each file played alone at volume 1 through the real Web player (browser audio probe, 2026-11-10); the trim moves it to
+    /// <see cref="MusicTargetDb"/> (music) or <see cref="AmbienceTargetDb"/> (ambience: 10 dB under the music).
+    /// </summary>
     public static class AudioTrims
     {
+        public const float MusicTargetDb = -21f, AmbienceTargetDb = -31f;
+        public static readonly string[] Ids = { "music_fire", "music_sentenced", "music_plague", "music_frost", "music_holy", "music_coliseum", "amb_fire", "amb_sentenced", "amb_plague", "amb_frost", "amb_holy" };
+        static readonly float[] Measured = { -20.09f, -18.02f, -21.50f, -18.64f, -19.35f, -22.56f, -21.01f, -29.59f, -21.27f, -25.74f, -17.25f };
+        public static float MeasuredDb(string id) { int i = System.Array.IndexOf(Ids, id); return i >= 0 ? Measured[i] : float.NaN; }
         public static float TrimDb(string id)
         {
-            switch (id)
-            {
-                default: return 0f;
-            }
+            int i = System.Array.IndexOf(Ids, id); if (i < 0) return 0f;
+            return (id.StartsWith("amb_") ? AmbienceTargetDb : MusicTargetDb) - Measured[i];
         }
         public static float Gain(string id) { return (float)Math.Pow(10.0, TrimDb(id) / 20.0); }
     }
