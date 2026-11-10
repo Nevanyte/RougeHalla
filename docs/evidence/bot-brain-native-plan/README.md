@@ -20,6 +20,13 @@ Source reached 40 semantic assertions and rejected 30 malformed reader inputs be
 expectations are captured from unchanged TypeScript and are the expected comparison oracle; no expected answer is a
 native runtime input, state installation or setup value.
 
+The Hand feature gate is now admitted: source candidate `76f8a9aadb7decfa4532c02f03403867d3816339`, integrated as
+`483c149018eb648b1d7904ab9d82cb297cf8a238`, with Root binding review `2436ed80`. Tactics' native candidate remains
+HOLD pending the reviewed repair and independent follow-up; Modules' native APIs remain WIP. The callback/goal-context
+Strategy bridge and borrowed path-budget bridge have separate packets. Path implementation is independently dispatched
+from `37403399` in `backend-bot-path-budget`; Strategy awaits review/dispatch. Neither bridge is yet admitted. Full Brain
+dispatch still waits on those exact bridges and remaining component seals.
+
 The composition sequence preserves all source state boundaries:
 
 ```text
@@ -30,12 +37,12 @@ Brain:  tagged streams -> Knowledge(tag 3) -> Memory -> Humanizer(features) -> T
 tick:   paths.set_frame -> Memory.observe -> drain misses -> engaged -> selected module observe
         -> nonactive path OR stall/grab -> Strategy -> cadence draw -> goal adoption
         -> (Module act bypass OR Tactics + ordered intents + merge + sequential adjust)
-        -> persist -> submit nonempty -> release -> stamp Move/Stop -> Memory.note_sent -> return
+        -> persist -> submit nonempty -> release -> stamp Move/Stop -> Memory.note_sent every released command -> return
 ```
 
 This order is a planning target, not proof all native interfaces currently compose. The caller's `Memory.note_sent`
-occurs for Brain-stamped Move/Stop before an external runner might accept/reject a command. Runner potion throttle and
-adapter acceptance are separate later contracts.
+occurs for every released command before an external runner might accept/reject a command. Only Move/Stop receive the
+source sequence wrapper. Runner potion throttle and adapter acceptance are separate later contracts.
 
 ## Source-backed dependency interface map
 
@@ -43,19 +50,19 @@ adapter acceptance are separate later contracts.
 |---|---|---|
 | Full Brain source | `P-BOT-BRAIN-1`; source `createBrain`, `brain.ts`; 31/855 histories, 40 reached checks | New private `temporal_percept/brain.rs` coordinator, owned Brain state and atomic typed reader/replay. No edits to public `bots/brain.rs`. |
 | Memory | `temporal_percept/memory.rs`: `Memory::new`, `observe`, `note_sent`, `record_choice`, `view`, `whereabouts`; source input in `memory/source_input.rs` | Use one real Memory. Brain can be a child of `temporal_percept`, so it can use the parent's private module and crate-visible methods/types. No expected view state. |
-| Strategy / Goal | `temporal_percept/strategy/engine.rs`: `Strategy::new/decide/state/hunt_stats`; `strategy/types.rs`: full Goal, context and callback traits | Current `engine`/`types` are private submodules with no parent re-exports. Add only selected `pub(super)` re-exports for Strategy/Options and the full shared types needed by Brain; keep engine private to subsystem. |
+| Strategy / Goal | `temporal_percept/strategy/engine.rs`: `Strategy::new/decide/state/hunt_stats`; `strategy/types.rs`: full Goal, context and callback traits | Current `engine`/`types` are private submodules with no parent re-exports. Add only selected `pub(super)` re-exports for Strategy/Options and the full shared types needed by Brain; keep engine private to subsystem. Before production Brain, admit P-BOT-STRATEGY-COMPOSITION-BRIDGE-1: callback aliases become `Arc<dyn Fn... + Send + Sync>` through Strategy/HuntAdapter/MobHunter, and `FeatureModule::goals` receives `&mut StrategyContext` at the existing call site. Preserve exact callback allocations/order and reborrow the current tick's mutable services. |
 | Tactics | Provisional WIP `backend-bot-tactics` only; its `types.rs` reuses Strategy's Goal and exposes a distinct TacticsContext interface | After final seal, adapt shared Memory/Knowledge/paths/RNG into its context. Reuse Tactics instance; do not copy its component or translate through public Goal. |
-| Four built-in modules | Provisional WIP `backend-bot-modules` only; Registry returns ordered enabled descriptors, module hook traits are mutable, while Strategy `FeatureModule` takes `&self`; StrategyPercept is narrower than ModulePercept | After seal, retain real registry and module objects. Proposed wrapper uses shared `Rc<RefCell<dyn SourceModule>>` handles for the exact objects. `enabled` uses a short immutable borrow; wrapped `goals(&self)` briefly borrows mutably to call the source mutable hook, then releases before returning. Other hooks borrow mutably sequentially after Strategy returns. Populate a Brain-owned ephemeral full ModulePercept scratch from the same current tick before Strategy; wrapper constructs ModuleContext from that plus live adapters, then clear/take scratch. Never persist scratch as state, reconstruct omitted facts from StrategyPercept, clone module objects, or hold RefCell borrows across callbacks. Preserve singleton object lifetime across Brains, cfg-keyed module state, per-Brain fault markers and same-tick selected-wrapper continuation. |
-| Humanizer | Existing `bots/humanizer.rs` has `new`, `submit`, `release`, `drain_misses`, stats. Feature-aware `with_features` appears only in provisional Hand WIP at review time | Require independently admitted feature constructor/offer gate; Brain supplies the source feature set. No Humanizer behavior edit is included. |
+| Four built-in modules | Native APIs remain WIP; registry returns ordered enabled descriptors and hook traits are mutable, while Strategy `FeatureModule` retains `&self`; StrategyPercept is narrower than ModulePercept | After seal, retain exact original registry/module objects and forward mutable goals context at the existing Strategy call site. The full current-tick ModulePercept scratch must pair with the same mutable path/RNG/Memory/Knowledge services. Persistent `Rc<RefCell<dyn SourceModule>>` is not Send and cannot be stored in the production Policy graph; select a Send-owned identity-preserving handle/arena only after the Modules seal. Use sequential short borrows and preserve source singleton/config/fault identities. |
+| Humanizer | Admitted Hand seam: source candidate `76f8a9aa`, integrated `483c1490`, Root review `2436ed80`; evidence `bot-hand-feature-native` and `bot-hand-feature-review` | Brain uses admitted feature-aware `with_features`; absent features preserve legacy behavior, present membership rejects unsupported offers before pending/channel/delay/RNG work. No Humanizer behavior edit is included. |
 | Knowledge | `bots/knowledge.rs`: actual `Knowledge::create(tier, &mut rng)`; 70 draws in source order | Construct once with tag-3 stream; use same object for Strategy/Tactics/modules. Keep source dependency witness distinct from callback traces. |
-| Pathfinding | `bots/paths.rs`: each `RoomPathService` owns its own cache and a by-value `PathBudget`; `set_frame` is distinct from `start_tick` | Proposed minimal addition: preserve current `new(map, PathBudget)`, owned budget field, `budget()`, `budget_mut()`, `walk()` and `path()`. Add crate-private `walk_with_budget(from,to,&mut PathBudget)` and `path_with_budget(from,to,&mut PathBudget)` that forward to one existing transition core with an optional borrowed allowance. Cache lookup stays first; only a miss calls `take()` on the supplied allowance or service-owned budget. Keep one search/cache/stale/fallback/stat core, one independent cache per service, unchanged PathBudget clone/value semantics. Brain adapters use borrowed methods; caller passes room-owned `&mut PathBudget` after `start_tick()` once per room frame. |
-| Shared room caller | Source BotManager starts room budget once, each BotClient/service owns its cache | Keep room-frame operation outside Brain tick; pass the same mutable allowance to each service adapter in deterministic call order while retaining independent caches. BotClient-style caller may pass its own budget. No per-Brain `start_tick`, copying/refilling allowance, or cache sharing. |
+| Pathfinding | `bots/paths.rs`: each `RoomPathService` owns its own cache and a by-value `PathBudget`; `set_frame` is distinct from `start_tick`; source runner binds/reuses service by original cfg identity | Proposed minimal addition in P-BOT-PATH-BUDGET-1: preserve owned methods/value semantics and add borrowed-budget entries to one search/cache core. Cache belongs to caller's original service handle, not Brain instance: same original cfg/service reuse (including Brain recreation) shares exact cache; equal-value distinct cfgs have separate caches. |
+| Shared room caller | Source BotManager starts room budget once; distinct service caches may borrow the same room allowance | Keep room-frame operation outside Brain tick; caller retains and passes the same mutable allowance to each service adapter in deterministic bot order. `start_tick()` once per room frame. Brain does not allocate, replace or reset caller-owned service/budget. A BotClient-style private caller may pass its own budget. |
 
-At review time, tactics/modules/Hand Rust in their sibling worktrees is dirty, provisional WIP and not a dependency seal.
-In particular, do not assume paths/exports/borrow rules shown there are final. Root must record exact final dependency SHAs
-and reviews before allocating Brain code. The modules↔strategy shared Goal is compatible in observed code. The wrapper
-design above resolves the observed mutability shape provisionally, but still needs checking against final sealed APIs,
-same-object behavior, full-frame scratch and borrow scopes before dispatch.
+At this review cut, the Tactics native candidate is HOLD pending its repair/review, and Modules APIs are WIP. Do not
+assume paths/exports/borrow rules from either are final. Root must record exact final dependency SHAs/reviews before
+Brain dispatch. The modules↔strategy shared Goal is compatible in observed code. Mutable goal context and Send-safe
+callback requirements have separate plan packets; neither plan replaces verification against final sealed APIs,
+same-object behavior, full-frame scratch, service identity and borrow scopes.
 
 ## Native behavior and control targets
 
@@ -70,7 +77,8 @@ The unchanged-source ledger already defines the scenario meanings and finite lim
   claims and no-change return identity;
 - same-tick selected wrapper continuation after a fault, equal-ID fault marker, next enabled-selection behavior;
 - nonempty and empty module observability profiles kept distinct; feature-aware hand rejection before draw/pending work;
-- real release each tick, Move/Stop-only 1..255 wrap, `note_sent` before return, repeated end followed by continuing tick;
+- real release each tick, `note_sent` for every released command before return, Move/Stop-only 1..255 wrapping,
+  repeated end followed by continuing tick;
 - source Strategy HuntStats vs tactic stats, and interleaved same/shared cfg, isolated cfg, per-service cache, shared budget;
 - strict typed intake failures that leave all existing state, callback counts, RNGs, module state and path budget untouched.
 
@@ -81,8 +89,10 @@ the frozen fixture profile; no global tolerance.
 
 ## Required decisions before dispatch
 
-1. Confirm the final, independently reviewed seals for Memory, Strategy, Tactics, Modules and Humanizer feature gating;
-   document exact commit IDs and API signatures.
+1. Confirm final independently reviewed seals/API signatures for Memory, Strategy, Tactics, Modules, the Send-safe
+   callback/mutable-goal Strategy bridge, and the borrowed path-budget bridge. The Hand feature gate is admitted:
+   source candidate `76f8a9aadb7decfa4532c02f03403867d3816339`, integrated as `483c149018eb648b1d7904ab9d82cb297cf8a238`,
+   Root review `2436ed80`. Tactics remains HOLD pending repair/review; Modules remains WIP.
 2. Approve the minimal Strategy re-export path and Brain-only component module registration on a clean assigned base.
 3. Review the proposed `walk_with_budget`/`path_with_budget` additions in `bots/paths.rs`: both old owned-budget and new
    borrowed-budget entry points must use one cache/search/stale/fallback/stat core, selecting allowance only after a cache
@@ -92,12 +102,14 @@ the frozen fixture profile; no global tolerance.
    calls retain exact prior results/stats/budget observations. Allocate only these new methods and their shared-core
    factoring; no broad path service refactor.
 4. Review the module wrapper's exact borrow plan against source module-object identity, shared original cfg versus distinct
-   cfg, source order, full ModulePercept scratch and per-Brain fault-marker semantics. The proposed shape is shared
-   `Rc<RefCell<dyn SourceModule>>` object handles, a brief immutable borrow for `enabled`, a brief mutable borrow for the
-   source mutable goals hook from Strategy's `&self` FeatureModule callback, then borrow release before returning. Other
-   callbacks run later with sequential mutable borrows. Brain supplies ephemeral full current-tick module input because
-   StrategyPercept is narrower, then clears scratch after Strategy returns. Check whether final APIs permit this without
-   an existing-engine hunk. If not, allocate only a function-level adapter signature after sealing that component.
+   cfg, source order, full ModulePercept scratch and per-Brain fault-marker semantics. The persistent production object
+   graph must be `Send`; the earlier `Rc<RefCell<dyn SourceModule>>` proposal is not permitted. After Modules is sealed,
+   choose a Send-owned identity-preserving handle/arena, with a brief immutable borrow for `enabled`, then a brief mutable
+   borrow for each source mutable hook. The Strategy wrapper remains `&self`, but its separately planned `goals` bridge
+   receives `&mut StrategyContext` and forwards the same current-tick path/RNG services. Other hooks run sequentially
+   after Strategy. Brain supplies ephemeral full current-tick module input because StrategyPercept is narrower, then
+   clears scratch after Strategy returns. Check whether final APIs permit this without an existing-engine hunk. If not,
+   allocate only a function-level adapter signature after sealing that component.
 5. Assign only the Brain new-file paths, exact visibility hunk(s), packet-owned Rust target and evidence directory. Keep
    the F0/F1 fair publication/driver plan separate.
 
