@@ -723,4 +723,56 @@ mod tests {
         assert!(!clamped);
         assert_eq!(stats.total(), 6);
     }
+
+    /// The client aiming policy (`RemoteDraw.AttackTime`) stamps an attack at most one lead (50 ms) past the newest snapshot it
+    /// holds, and the server applies it at least one tick past any snapshot already published. Against the real clamp: that
+    /// stamp is never moved down (no future-edge clamp), whatever the RTT estimate; it can only be moved up by the old edge.
+    #[test]
+    fn a_stamp_one_lead_past_the_newest_snapshot_is_never_clamped_downward() {
+        const LEAD_MS: f64 = 50.0;
+        for rtt_ms in [0.0, 5.0, 20.0, 60.0, 100.0, 200.0, 400.0, 5_000.0] {
+            let mut rtt = RttEstimator::new();
+            for _ in 0..8 {
+                rtt.sample(rtt_ms);
+            }
+            for newest in [10_000.0, 10_050.0, 123_450.0] {
+                // now_apply is at least one tick past the newest published snapshot: on the next boundary and later.
+                for past in [
+                    TICK_MS,
+                    TICK_MS + 0.5,
+                    75.0,
+                    100.0,
+                    150.0,
+                    250.0,
+                    300.0,
+                    1_000.0,
+                ] {
+                    let now_apply = newest + past;
+                    let t = newest + LEAD_MS;
+                    assert!(t <= now_apply, "premise: the stamp is not past now_apply");
+                    let mut stats = RewindClampStats::default();
+                    let (cmd, _) = clamp_render_time_noted(
+                        PublicCommand::Attack { a: 0.0, t: Some(t) },
+                        now_apply,
+                        &rtt,
+                        &mut stats,
+                    );
+                    let PublicCommand::Attack {
+                        t: Some(bounded), ..
+                    } = cmd
+                    else {
+                        unreachable!()
+                    };
+                    let case = format!("rtt {rtt_ms} newest {newest} now_apply - newest {past}");
+                    assert!(bounded >= t, "{case}: moved down to {bounded}");
+                    assert_eq!(stats.future_edge.count, 0, "{case}: future edge");
+                    // Inside the window it is not touched at all.
+                    if now_apply - t <= rtt.allowed_rewind_ms() {
+                        assert_eq!(bounded, t, "{case}");
+                        assert_eq!(stats.total(), 0, "{case}");
+                    }
+                }
+            }
+        }
+    }
 }
