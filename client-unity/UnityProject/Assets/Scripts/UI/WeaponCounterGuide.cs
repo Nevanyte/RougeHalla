@@ -94,15 +94,16 @@ namespace Roguehalla.Client
                 float y = .5f - Mathf.Sin((float)angle) * .34f;
                 string id = RingData[i];
                 var button = MythicUi.Button(_artRoot, "Weapon_" + id, Labels[id], new Vector2(x, y), new Vector2(x, y), () => Select(RingData[index]));
-                button.GetComponent<RectTransform>().sizeDelta = new Vector2(132, 46);
-                // A generated weapon icon on the left of the label and a state mark on the right replace the old "[ ]" text prefix.
-                var iconRect = MythicUi.Rect(button.transform, "WeaponIcon", new Vector2(0, .5f), new Vector2(0, .5f));
-                iconRect.sizeDelta = new Vector2(28, 28); iconRect.anchoredPosition = new Vector2(20, 0);
+                button.GetComponent<RectTransform>().sizeDelta = new Vector2(84, 56);
+                // A generated weapon icon over the label and a state mark in the corner replace the old "[ ]" text prefix.
+                var iconRect = MythicUi.Rect(button.transform, "WeaponIcon", new Vector2(.5f, 1), new Vector2(.5f, 1));
+                iconRect.sizeDelta = new Vector2(26, 26); iconRect.anchoredPosition = new Vector2(0, -16);
                 var iconImage = iconRect.gameObject.AddComponent<Image>(); iconImage.sprite = ShowcaseSprites.Get("weapon" + WeaponSpriteIndex(id)); iconImage.preserveAspect = true; iconImage.raycastTarget = false;
-                var label0 = button.GetComponentInChildren<TMPro.TMP_Text>(); label0.rectTransform.offsetMin = new Vector2(36, 3); label0.rectTransform.offsetMax = new Vector2(-24, -3); label0.alignment = TMPro.TextAlignmentOptions.MidlineLeft;
-                var markRect = MythicUi.Rect(button.transform, "StateMark", new Vector2(1, .5f), new Vector2(1, .5f));
-                markRect.sizeDelta = new Vector2(20, 20); markRect.anchoredPosition = new Vector2(-14, 0);
-                var markText = markRect.gameObject.AddComponent<TMPro.TextMeshProUGUI>(); markText.font = UiTheme.Current.Font(UiFontRole.Body); markText.fontSize = 17; markText.fontStyle = TMPro.FontStyles.Bold; markText.alignment = TMPro.TextAlignmentOptions.Center; markText.raycastTarget = false;
+                var label0 = button.GetComponentInChildren<TMPro.TMP_Text>(); label0.rectTransform.offsetMin = new Vector2(2, 1); label0.rectTransform.offsetMax = new Vector2(-2, -31);
+                label0.alignment = TMPro.TextAlignmentOptions.Center; label0.enableWordWrapping = false; label0.enableAutoSizing = true; label0.fontSizeMin = 9; label0.fontSizeMax = 13;
+                var markRect = MythicUi.Rect(button.transform, "StateMark", new Vector2(1, 1), new Vector2(1, 1));
+                markRect.sizeDelta = new Vector2(18, 18); markRect.anchoredPosition = new Vector2(-10, -10);
+                var markText = markRect.gameObject.AddComponent<TMPro.TextMeshProUGUI>(); markText.font = UiTheme.Current.Font(UiFontRole.Body); markText.fontSize = 16; markText.fontStyle = TMPro.FontStyles.Bold; markText.alignment = TMPro.TextAlignmentOptions.Center; markText.raycastTarget = false;
                 button.GetComponent<LayoutElement>().minHeight = 44;
                 _nodes[i] = button;
                 button.navigation = new Navigation { mode = Navigation.Mode.Automatic };
@@ -179,7 +180,7 @@ namespace Roguehalla.Client
                 var mark = _nodes[i].transform.Find("StateMark").GetComponent<TMPro.TextMeshProUGUI>();
                 mark.text = advantage ? "+" : danger ? "!" : ""; mark.color = advantage ? (Color)UiTheme.Current.Success : (Color)UiTheme.Current.Warning;
                 _nodes[i].GetComponentInChildren<TMPro.TMP_Text>().text = Labels[id];
-                _nodes[i].GetComponent<Image>().color = selected ? ShowcasePalette.GoldDim : ShowcasePalette.PanelRaised;
+                MythicUi.Select(_nodes[i], selected);
             }
             _legend.text = IsWheelWeapon(_active)
                 ? Describe(_active) + "\nArrows point winner → countered weapon. Solid: next clockwise · Dashed: one after that."
