@@ -114,7 +114,7 @@ namespace Roguehalla.Client
             if (_actors != null) return _actors.TrySoundContext(id,out weapon,out faction,out kind,out type);
             weapon=default; faction=default; kind=default; type=null; return false;
         }
-        sealed class Flash { public SpriteRenderer Sprite, Plate; public TMP_Text Text; public uint Actor; public float Start, Duration; public Vector3 Position; public Color Color; public float Size; public Color TextColor; public float LaneX; }
+        sealed class Flash { public SpriteRenderer Sprite, Plate; public TMP_Text Text; public uint Actor; public float Start, Duration; public Vector3 Position; public Color Color; public float Size; public Color TextColor; public float LaneX; public int AlphaByte = 255; }
         struct PendingFx { public FxKind Kind; public uint Subject; public float Amount; public double DueMs; public float QueuedAt; public float X, Y, A, CreatedAt; public byte Weapon; public uint By; public bool Passive, Crit; public byte SigKind; }
 
         void Awake()
@@ -677,6 +677,10 @@ namespace Roguehalla.Client
                         flash.Text.fontSize = 3f * (f.Passive ? 11f : Indicators.DamageSize(f.Amount, f.Crit)) / 13f;
                         flash.LaneX = NumberSide + Indicators.DamageLaneOffset(_numberLane++) * .026f;
                     }
+                    // The tone is set once, opaque; the fade then rewrites only the vertex alpha (SetNumberAlpha). Fading through TMP_Text.color
+                    // marks the text dirty and TextMeshPro regenerates the whole mesh every frame (PERF_REPORT section 5).
+                    var spawnTone = flash.TextColor; spawnTone.a = 1f; flash.Text.color = spawnTone; flash.AlphaByte = 255;
+                    flash.Text.ForceMeshUpdate();
                 }
                 _flashes.Add(flash);
         }
@@ -695,10 +699,26 @@ namespace Roguehalla.Client
                 // Keep the silhouette readable even when confirmed hits overlap rapidly.
                 // Damage text retains its longer lifetime; the hollow impact rim fades quickly.
                 var c = f.Color; c.a = .55f * Mathf.Clamp01(1 - (Time.unscaledTime - f.Start) / .16f); f.Sprite.color = c;
-                f.Text.transform.position=f.Position+new Vector3(f.LaneX,.7f+(reduced ? 0 : t*.35f),0); var tc=f.TextColor; tc.a=1-t; f.Text.color=tc;
+                f.Text.transform.position=f.Position+new Vector3(f.LaneX,.7f+(reduced ? 0 : t*.35f),0); SetNumberAlpha(f, 1 - t);
                 // A dark plate under the number (lab finding: grey digits vanished on sand and snow); legacy used a black stroke.
                 if (f.Plate.gameObject.activeSelf) { var pc = (Color)UiTheme.Current.OutlineDark; pc.a = .88f * (1 - t); f.Plate.color = pc; f.Plate.transform.position = f.Text.transform.position; f.Plate.transform.localScale = new Vector3(f.Text.preferredWidth + .14f, f.Text.fontSize * .1f + .06f, 1); }
             }
+        }
+        /// <summary>Fades a damage number through the vertex alpha of its current mesh: no text rebuild (TMP_Text.color would regenerate it). The outline fades with it (the SDF shader scales the outline by vertex alpha).</summary>
+        /// <summary>Measurement switch (PerfRecorder.SetFlags fx.numberfade=0): fade through TMP_Text.color, the old behaviour, for in-match A/B windows.</summary>
+        public static bool LegacyNumberFade;
+        static void SetNumberAlpha(Flash f, float alpha)
+        {
+            int a = Mathf.Clamp(Mathf.RoundToInt(alpha * 255f), 0, 255);
+            if (LegacyNumberFade) { var lc = f.TextColor; lc.a = alpha; f.Text.color = lc; f.AlphaByte = -1; return; }
+            if (a == f.AlphaByte) return;
+            var text = f.Text; var info = text.textInfo;
+            if (info == null || info.meshInfo == null || info.meshInfo.Length == 0 || info.meshInfo[0].colors32 == null)
+            { var tc = f.TextColor; tc.a = alpha; text.color = tc; f.AlphaByte = -1; return; }      // no mesh yet: the slow path still fades correctly
+            var colors = info.meshInfo[0].colors32; int n = Mathf.Min(colors.Length, info.meshInfo[0].vertexCount);
+            for (int i = 0; i < n; i++) colors[i].a = (byte)a;
+            text.UpdateVertexData(TMP_VertexDataUpdateFlags.Colors32);
+            f.AlphaByte = a;
         }
         Flash CreateFlash()
         {
