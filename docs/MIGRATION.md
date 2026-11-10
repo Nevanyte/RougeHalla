@@ -32,7 +32,7 @@ repair; schema versions remain unchanged. Objective/reward extraction follows in
 Luna's [workplan](coordination/BACKEND_GAMEPLAY_WORKPLAN.md) reconciles remaining gameplay/bot work against code.
 [P-BOT-STRATEGY-1](backlog/packets/P-BOT-STRATEGY-1.md) now starts actual-source Memory API/full strategy/hunter/route
 capture and independent source review. DeepSeek's next prepared branch is `codex/deepseek-private-strategy` at
-`d21552d3`; native implementation waits for the frozen source handoff. No complete bot, complete quest parity,
+`d21552d3`; source-derived native classes may progress in parallel after interface review; frozen source gates fixture comparison and admission. No complete bot, complete quest parity,
 integration-union test, deployment or Claude client acceptance is claimed.
 
 ## Technical demo delivery record (owner decision, 2026-11-09)

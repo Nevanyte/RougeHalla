@@ -20,10 +20,8 @@ do not follow them for this source-fidelity work.
   Independent release: `docs/evidence/backend-bot-memory-admission-review/README.md`.
 - Existing source FrameRing/MethodValue, Memory, random, knowledge, tier/persona tables and pure build/hunt helpers.
   Verify signatures and semantics before reuse; presence is not whole-strategy parity.
-- **Phase A freeze before Phase B implementation:** Sol/Luna supplies and independently reviews an additive actual-source
-  Memory API + strategy/hunt/route corpus, its source/tool/runtime identity and branch ledger. DeepSeek may inspect and
-  design Rust interfaces while waiting but must not fabricate expected results or tune implementation against synthetic
-  substitutes. Root records exact branch/worktree/base/target and separate source/native leases at dispatch.
+- **Parallel source and native implementation; freeze before parity:** Sol/Luna independently captures unchanged actual-source Memory API + strategy/hunt/route cases and reviews their source/tool/runtime identity and branch ledger. After interface/readiness review, DeepSeek may implement the complete source-derived native classes in parallel, using unchanged TypeScript contracts. Source authors must not tune oracles to native outputs or narrow source inputs to fit native types. The strict fixture reader, native comparison and admission wait for Root's immutable independently reproduced source handoff. Keep implementation, source seal and parity receipts separately reviewable; source mismatches remain evidence rather than reasons to rewrite expectations.
+- Prepared native branch/worktree/base: `codex/deepseek-private-strategy`, `/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-strategy`, `d21552d3`. Target: `/Users/nevinmckinnon/.codex/tools/roguehalla-backend-20261109/target-strategy`. DeepSeek owns all Rust/tests; Sol owns new source paths; Root coordinates admission. Source schema is additive `rh-bot-private-strategy-source/1`; final exact codec/input contract comes with the frozen manifest.
 - No new public Observation field, wire revision, Unity work or live BotVision adapter is required for this private seam.
 
 ## Relevant legacy paths (verified with `rg`)
@@ -104,7 +102,8 @@ type/name/faction-derived max HP, seeded homes, path callback failure and Easy s
 240ms piece size/14-piece cap and the hunter's own time-step cap; catch-up uses the same snapshot at interpolated times.
 Release is the source synthetic-near-player call into the real hunter, not an invented reset.
 
-**Random/numeric:** exact separate decide/lapse streams, draw order/count and source Gaussian cache behavior; no draws on
+**Random/numeric:** exact separate decide/lapse streams and draw order/count. Source Gaussian consumes two uniforms and
+discards the spare; strategy caches the resulting per-foe appraisal draw until its expiry. No draws on
 branches where source does not draw. Source unitHash uses UTF-16 code units, wrapping ECMAScript integer arithmetic and
 source string identity; test non-ASCII IDs. Preserve Infinity/-Infinity sentinels internally via explicit tagged fixture
 values, signed zero, binary64 operation order and source-compatible math where required. Do not route these values through
@@ -184,7 +183,8 @@ a partial delivery as a complete strategy or full bot.
 - Existing BuildRoute/MobHunt Rust files contain useful pure leaves; they do not contain the missing source classes.
 - Current private Memory's typed observe API does not guarantee atomic validation of arbitrary nonfinite typed input.
   Keep raw checked-reader behavior distinct from internal sentinel/math behavior and future public intake requirements.
-- Strategy uses Memory.whereabouts as well as MemoryView fields. Preserve that real query and extrapolation/expiry;
+- Strategy uses Memory.whereabouts as well as MemoryView fields. Preserve that real query: its position is the last seen
+  position, only its uncertainty radius grows with age, and the query expires after the memory span;
   do not reconstruct it from current hidden positions or captured expected whereabouts answers.
 - Module/learned/path/knowledge callbacks need exact call/result semantics. Declared callback tapes bind this finite
   strategy seam; they do not establish real module, learned persistence or path-service integration. Avoid a tautological
