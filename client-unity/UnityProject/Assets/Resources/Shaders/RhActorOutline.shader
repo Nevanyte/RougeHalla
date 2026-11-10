@@ -31,7 +31,7 @@ Shader "Roguehalla/ActorOutline"
         #include "Packages/com.unity.render-pipelines.universal/Shaders/2D/Include/Core2D.hlsl"
 
         struct Attributes { float3 positionOS : POSITION; float4 color : COLOR; float2 uv : TEXCOORD0; };
-        struct Varyings { float4 positionCS : SV_POSITION; half4 color : COLOR; float2 uv : TEXCOORD0; float4 screen : TEXCOORD1; };
+        struct Varyings { float4 positionCS : SV_POSITION; half4 color : COLOR; float2 uv : TEXCOORD0; float4 screen : TEXCOORD1; nointerpolation float figure : TEXCOORD2; };
 
         TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
         TEXTURE2D(_SrcTex); SAMPLER(sampler_SrcTex);
@@ -48,17 +48,6 @@ Shader "Roguehalla/ActorOutline"
 
         // Mirrors ActorOutlineModel.cs; SpriteOutline.PublishGlobals writes them (tunable in a page with ?ol.light=, ol.dark=, ol.cross=, ol.dead=).
         float4 _RhOutlineTune;   // set by SpriteOutline.PublishGlobals: light HDR value, dark value, crossover luminance, dead zone half width
-
-        Varyings Vert(Attributes v)
-        {
-            Varyings o = (Varyings)0;
-            o.positionCS = TransformObjectToHClip(v.positionOS);
-            float2 pad = _Outline.xy;
-            o.uv = v.uv * (1.0 + 2.0 * pad) - pad;   // sprite-normalised: 0..1 is the source sprite
-            o.color = v.color * unity_SpriteColor;
-            o.screen = ComputeScreenPos(o.positionCS);
-            return o;
-        }
 
         float SrcAlpha(float2 sp)
         {
@@ -88,15 +77,45 @@ Shader "Roguehalla/ActorOutline"
 
         float Luma(float3 c) { return dot(c, float3(0.2126, 0.7152, 0.0722)); }
 
+        // Ground luminance behind the stroke, robust and stable: thirteen taps of the (4x box filtered) grab over about 0.8 world units around the pixel, combined as
+        // a geometric mean. The mean of a ground made of bright veins on dark cells reads far too bright (the measurement compares against the MEDIAN of the ring);
+        // the geometric mean sits close to the median of such skewed grounds, and the wide footprint keeps the choice from flipping on every vein.
+        float TapLog(float2 uv)
+        {
+            float3 c = SAMPLE_TEXTURE2D_LOD(_CameraSortingLayerTexture, sampler_LinearClamp, uv, 0).rgb;
+            return log(max(Luma(c), 0.004));
+        }
+
         float GroundLuma(float2 uv)
         {
-            float2 px = 6.0 / _ScreenParams.xy;
-            float3 c = SAMPLE_TEXTURE2D_LOD(_CameraSortingLayerTexture, sampler_LinearClamp, uv, 0).rgb;
-            c += SAMPLE_TEXTURE2D_LOD(_CameraSortingLayerTexture, sampler_LinearClamp, uv + float2(px.x, 0), 0).rgb;
-            c += SAMPLE_TEXTURE2D_LOD(_CameraSortingLayerTexture, sampler_LinearClamp, uv - float2(px.x, 0), 0).rgb;
-            c += SAMPLE_TEXTURE2D_LOD(_CameraSortingLayerTexture, sampler_LinearClamp, uv + float2(0, px.y), 0).rgb;
-            c += SAMPLE_TEXTURE2D_LOD(_CameraSortingLayerTexture, sampler_LinearClamp, uv - float2(0, px.y), 0).rgb;
-            return Luma(c * 0.2);
+            float unit = _ScreenParams.y / max(2.0 * unity_OrthoParams.y, 0.01);   // pixels per world unit
+            float2 px = 1.0 / _ScreenParams.xy;
+            float sum = TapLog(uv);
+            const float r0 = 0.16, r1 = 0.36, r2 = 0.62;
+            [unroll] for (int k = 0; k < 4; k++)
+            {
+                float s, c; sincos(1.5707963 * k, s, c);
+                sum += TapLog(uv + float2(c, s) * px * unit * r0);
+                float s1, c1; sincos(0.7853982 + 1.5707963 * k, s1, c1);
+                sum += TapLog(uv + float2(c1, s1) * px * unit * r1);
+                float s2, c2; sincos(0.3926991 + 1.5707963 * k, s2, c2);
+                sum += TapLog(uv + float2(c2, s2) * px * unit * r2);
+            }
+            return exp(sum / 13.0);
+        }
+
+        // The vertex shader decides the figure's own polarity once per quad (four vertices), from the ground behind the object's centre.
+        Varyings Vert(Attributes v)
+        {
+            Varyings o = (Varyings)0;
+            o.positionCS = TransformObjectToHClip(v.positionOS);
+            float2 pad = _Outline.xy;
+            o.uv = v.uv * (1.0 + 2.0 * pad) - pad;   // sprite-normalised: 0..1 is the source sprite
+            o.color = v.color * unity_SpriteColor;
+            o.screen = ComputeScreenPos(o.positionCS);
+            float4 c = ComputeScreenPos(TransformObjectToHClip(float3(0, 0, 0)));
+            o.figure = _RhOutlineGrab > 0.5 ? (GroundLuma(c.xy / c.w) < _RhOutlineTune.z ? 1.0 : 0.0) : _Prior;
+            return o;
         }
 
         half4 Frag(Varyings i) : SV_Target
@@ -114,7 +133,8 @@ Shader "Roguehalla/ActorOutline"
             if (_RhOutlineGrab > 0.5)
             {
                 float l = GroundLuma(i.screen.xy / i.screen.w);
-                light = l < _RhOutlineTune.z - _RhOutlineTune.w ? 1.0 : (l > _RhOutlineTune.z + _RhOutlineTune.w ? 0.0 : _Prior);
+                // Hard choice per pixel; inside the dead zone the figure's own centre decides (one polarity per figure, never a speckled stroke).
+                light = l < _RhOutlineTune.z - _RhOutlineTune.w ? 1.0 : (l > _RhOutlineTune.z + _RhOutlineTune.w ? 0.0 : i.figure);
             }
             float3 dark = float3(_RhOutlineTune.y, _RhOutlineTune.y * 1.25, _RhOutlineTune.y * 2.0);
             float3 lite = float3(_RhOutlineTune.x, _RhOutlineTune.x, _RhOutlineTune.x * 1.03);

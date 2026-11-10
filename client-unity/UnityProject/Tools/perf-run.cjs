@@ -253,6 +253,8 @@ const ATTRIBUTION_TOGGLES = [
   { name: 'ambient screen particles', flag: 'fx.ambient=0' },
   { name: 'particles', flag: 'fx.particles=0' },
   { name: 'render scale 0.75', flag: 'fx.scale=0.75' },
+  { name: 'adaptive outline (strokes)', flag: 'fx.outline=0' },
+  { name: 'camera sorting layer grab', flag: 'fx.outlinegrab=0' },
 ];
 
 const median = a => percentile(a, .5);

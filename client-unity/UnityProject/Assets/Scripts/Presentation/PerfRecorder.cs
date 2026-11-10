@@ -69,6 +69,8 @@ namespace Roguehalla.Client
         {
             ShowcaseQuality? preset; bool adaptive; QualityOverrides overrides;
             QualityFlags.Parse(query ?? "", out preset, out adaptive, out overrides);
+            // CONTRAST measurement switches (never a preset): the adaptive outline and the camera sorting layer grab it reads.
+            SpriteOutline.Enabled = !(query ?? "").Contains("fx.outline=0"); SpriteOutline.SetGrabPass(!(query ?? "").Contains("fx.outlinegrab=0"));
             if (ShowcaseSettings.Current != null) ShowcaseSettings.Current.SetOverrides(overrides);
         }
 

@@ -77,6 +77,10 @@ namespace Roguehalla.Client
             public string Clip = "idle"; public int Frame = -1, Direction = -1;
         }
 
+        // Lab conditions (?cond=fog|fade|flash): fog = the fog of war is on, the local player parked far away, so every figure stands in its own clearing;
+        // fade = every figure frozen half way through the vision fade-in; flash = a confirmed hit (flash, damage number, Hit clip) refreshed until the freeze.
+        string _cond = "";
+        float _fadeNow, _fadeBase; bool _fadeStarted;
         Camera _cam; ArenaView _arena; ShowcaseCatalog _catalog;
         LabPlan _plan; List<LabAppearance> _apps; List<string> _unreachable;
         List<LabPage> _zonePages = new List<LabPage>();
@@ -98,6 +102,8 @@ namespace Roguehalla.Client
         public void Initialize(Camera cam, string search)
         {
             _cam = cam; _camData = cam.GetComponent<UniversalAdditionalCameraData>();
+            _cond = Bootstrap.Query(search, "cond", "");
+            if (_cond == "fade") SpriteActorPresenter.FadeClock = () => _fadeNow;
             _origBackground = cam.backgroundColor; _origCulling = cam.cullingMask;
             gameObject.name = ObjectName;
             ShowcaseSprites.Initialize();
@@ -147,7 +153,7 @@ namespace Roguehalla.Client
             _page = _zonePages.Count == 0 ? null : _zonePages[_pageIndex];
             // Undo whatever the previous page's render mode did to its (pooled, soon reused) actors and to the camera, then start clean.
             _mode = LabMode.Normal; ApplyMode();
-            _live.Clear(); _origMaterial.Clear();
+            _live.Clear(); _origMaterial.Clear(); _fadeStarted = false;
             _modeDirty = true; _modeFrames = 0;
             _phase = Phase.Settle; _phaseStart = Time.unscaledTime; _settleSeconds = settle;
             _publishedFor = -1;
@@ -186,6 +192,11 @@ namespace Roguehalla.Client
             // ArenaView.Follow puts the camera 1.5 world units above the point it is given; ask for the point that lands the view centre on `view`.
             _arena.Follow(_cam, view.x * 32f, (view.y + 1.5f / ArenaView.GroundSquash) * 32f);
             float now = Time.unscaledTime, dt = now - _phaseStart;
+            if (_cond == "fog")
+            {
+                float x0 = ContrastLabMap.ZoneIndex(_page.Zone) * ContrastLabMap.BlockW;
+                _arena.LabFogTick(true, Mathf.Max(x0 + 5f, view.x - 15f) * 32f, Mathf.Max(5f, view.y - 10f) * 32f);
+            }
             if (_phase == Phase.Settle)
             {
                 PresentRows(0f);
@@ -221,7 +232,19 @@ namespace Roguehalla.Client
                     Kind = app.Kind, MobType = app.Mob
                 });
             }
+            if (_cond == "fade")
+            {
+                // The first presentation starts the fade-in; after it the clock stands at half of EnterSeconds for ever, so the figures stay at half opacity.
+                if (!_fadeStarted) { _fadeStarted = true; _fadeBase = Time.unscaledTime; _fadeNow = _fadeBase; }
+                else _fadeNow = _fadeBase + VisionFade.EnterSeconds * .5f;
+            }
             _arena.Present(_rows, null, null, 0f);
+            if (_cond == "flash" && _phase != Phase.Frozen)
+            {
+                var fx = new ServerMsg.Fx();
+                foreach (var row in _rows) fx.List.Add(new WireFx { Kind = FxKind.Hit, Victim = row.Id, By = 1, Amount = 24 });
+                _arena.ConfirmedFx(fx);
+            }
             TagActorLayers();
         }
 
@@ -328,7 +351,7 @@ namespace Roguehalla.Client
         [Serializable] sealed class StateJson
         {
             public int version = 1, ack; public bool ready; public string mode, zone, kind, surface, prop, quality, row;
-            public int page, pageCount, totalPages, screenW, screenH, unplaced; public float orthoSize; public bool reducedMotion, grab, outline, outlineGrab;
+            public int page, pageCount, totalPages, screenW, screenH, unplaced; public float orthoSize; public bool reducedMotion, grab, outline, outlineGrab; public string cond;
             public string[] zones, notes, unreachable; public int[] zonePageCounts; public string[] modes;
             public List<CellJson> cells = new List<CellJson>();
         }
@@ -341,7 +364,7 @@ namespace Roguehalla.Client
             {
                 ready = ready, ack = _cmdSeq, mode = ModeName(_mode), zone = ContrastLabMap.ZoneName(ContrastLabMap.Zones[Mathf.Max(0, _zoneIndex)]),
                 page = _pageIndex, pageCount = _zonePages.Count, totalPages = _plan.Pages.Count, screenW = Screen.width, screenH = Screen.height,
-                orthoSize = _cam.orthographicSize, grab = Shader.GetGlobalTexture("_CameraSortingLayerTexture") != null, outline = SpriteOutline.Enabled, outlineGrab = SpriteOutline.UseGrab, reducedMotion = ShowcaseSettings.Current != null && ShowcaseSettings.Current.ReducedMotion,
+                orthoSize = _cam.orthographicSize, grab = Shader.GetGlobalTexture("_CameraSortingLayerTexture") != null, outline = SpriteOutline.Enabled, cond = _cond, outlineGrab = SpriteOutline.UseGrab, reducedMotion = ShowcaseSettings.Current != null && ShowcaseSettings.Current.ReducedMotion,
                 quality = ShowcaseSettings.Current != null ? ShowcaseSettings.Current.EffectiveQuality.ToString() : "?", row = Quality.Row.Name,
                 unplaced = _plan.Unplaced, notes = _plan.Notes.ToArray(), unreachable = _unreachable.ToArray(), modes = new[] { "normal", "no-actors", "mask" },
                 kind = _page != null ? _page.Kind : "", surface = _page != null ? _page.Surface.ToString() : "", prop = _page != null ? _page.Prop ?? "" : ""

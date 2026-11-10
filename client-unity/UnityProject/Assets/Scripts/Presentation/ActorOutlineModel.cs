@@ -55,7 +55,7 @@ namespace Roguehalla.Client
         public const float LitFactor = .85f;
 
         /// <summary>Half width of the dead zone, in luminance.</summary>
-        public const float DeadZone = .012f;
+        public const float DeadZone = .03f;
 
         /// <summary>The ratio the chosen stroke gives against a ground of this luminance.</summary>
         public static float StrokeRatio(float groundLuma, bool previousLight)

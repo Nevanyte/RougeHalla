@@ -45,7 +45,7 @@ namespace Roguehalla.Client
             {
                 if (url.Contains("fx.outline=0")) Enabled = false;
                 if (url.Contains("fx.outline=1")) Enabled = true;
-                if (url.Contains("fx.outlinegrab=0")) UseGrab = false;
+                if (url.Contains("fx.outlinegrab=0")) SetGrabPass(false);
                 WidthScale = QueryFloat(url, "ol.width", 1f); LightHdr = QueryFloat(url, "ol.light", LightHdr); DarkLinear = QueryFloat(url, "ol.dark", DarkLinear);
                 Cross = QueryFloat(url, "ol.cross", Cross); Dead = QueryFloat(url, "ol.dead", Dead);
             }
@@ -55,6 +55,24 @@ namespace Roguehalla.Client
         /// <summary>Tuning for measurement pages only (<c>?ol.width=1.2</c> scales the strokes; <c>ol.light</c>, <c>ol.dark</c>, <c>ol.cross</c>, <c>ol.dead</c> set the shader constants).</summary>
         public static float WidthScale = 1f, LightHdr = ActorOutlineModel.LightLinear, DarkLinear = ActorOutlineModel.DarkLinear, Cross = -1f, Dead = ActorOutlineModel.DeadZone;
         static readonly int Tune = Shader.PropertyToID("_RhOutlineTune");
+
+        /// <summary>
+        /// MEASUREMENT ONLY (<c>?fx.outlinegrab=0</c>, the perf harness): switches the 2D renderer's camera sorting layer grab off or on at run time (the renderer reads the
+        /// flag every frame) and makes the outline use the CPU prior while it is off. Never called by a quality preset.
+        /// </summary>
+        public static void SetGrabPass(bool on)
+        {
+            UseGrab = on; PublishGlobals();
+            try
+            {
+                var asset = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline;
+                var list = asset == null ? null : asset.GetType().GetField("m_RendererDataList", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?.GetValue(asset) as System.Array;
+                if (list == null) return;
+                foreach (var data in list)
+                    data?.GetType().GetField("m_UseCameraSortingLayersTexture", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?.SetValue(data, on);
+            }
+            catch (System.Exception e) { Debug.LogWarning("Outline grab switch unavailable: " + e.Message); }
+        }
 
         public static void PublishGlobals()
         {

@@ -354,6 +354,8 @@ namespace Roguehalla.Client
             if (message == null) return;
             foreach (var ev in message.List) if (ev.Kind == EventKind.Death) _actors.NoteDeath(ev.Id);
         }
+        /// <summary>CONTRAST LAB ONLY: drives the fog of war with the local player parked at a server position (the lab has no session). Never called by the game.</summary>
+        public void LabFogTick(bool on, float serverX, float serverY) { _visionFog.Tick(on, serverX, serverY, 0, _actors); }
         void TickVision()
         {
             var s = _visionSession;
