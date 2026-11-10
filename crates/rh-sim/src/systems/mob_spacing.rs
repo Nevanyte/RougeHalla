@@ -584,6 +584,30 @@ mod tests {
     }
 
     #[test]
+    fn spacing_orders_no_partial_retreat_just_inside_the_band() {
+        // A bow mob 5 u inside its retreat line (lo 228) with a neighbour on the target side pushing it outward: `fit`
+        // alone would accept a step (without the guard: 16 u straight out, still short of lo), so only the `r_from < lo`
+        // guard stops spacing from carrying out a partial retreat the policy refused.
+        let t = Vec2::new(1000., 1000.);
+        let from = Vec2::new(1000., 1000. - 223.);
+        let ix = sorted(vec![entry(1, from.x, from.y), entry(2, from.x, from.y + 10.)]);
+        let band = Band { lo: 228., hi: 392. };
+        assert_eq!(at(&ix, 1, from, t, band), None);
+    }
+
+    #[test]
+    fn a_gain_below_the_minimum_orders_no_step() {
+        // On the band's outer edge (r = hi = 100) with a neighbour 38.9 u away on the target side: overlap 1.1 u, squared
+        // 1.21 >= GAIN_MIN, and the push is outward so the band clamp cancels it. The best live candidate is a 1.1 u
+        // sidestep along the circle, which lowers the squared overlap by only about 0.04 < GAIN_MIN: no order.
+        let t = Vec2::new(1000., 1000.);
+        let from = Vec2::new(1000., 900.);
+        let ix = sorted(vec![entry(1, from.x, from.y), entry(2, from.x, from.y + 38.9)]);
+        let band = Band { lo: 0., hi: 100. };
+        assert_eq!(at(&ix, 1, from, t, band), None);
+    }
+
+    #[test]
     fn a_blocked_step_tries_the_next_candidate_then_gives_up() {
         let ix = sorted(vec![entry(1, 500., 500.), entry(2, 510., 500.)]);
         let t = Vec2::new(505., 700.);
