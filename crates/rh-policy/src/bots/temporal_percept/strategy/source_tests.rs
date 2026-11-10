@@ -6,12 +6,21 @@ use serde_json::Value;
 
 use super::build_route::BuildRoute;
 use super::engine::{Strategy, StrategyOptions};
-use super::hunt_adapter::HuntAdapter;
+use super::hunt_adapter::{HuntAdapter, HuntAdapterOptions};
 use super::mob_hunt::{HuntInput, HuntMobLike, HuntSelf, MobHunter, MobTracker};
 use super::source_reader::{self, SVal, R};
+use super::source_trace::{
+    compare_callbacks, compare_draw_counts, compare_goal_ordered, compare_ordered,
+    encode_build_route, encode_goal, encode_goal_decision, encode_hunt_adapter,
+    encode_hunt_mob_like, encode_hunt_stats, encode_mob_hunter, encode_mob_tracker, encode_own,
+    encode_route_camp, encode_route_step, encode_source_camp, encode_strategy_getters,
+    encode_strategy_own, encode_strategy_self, options_attacking, options_log, record_callback,
+    strategy_getters, OwnState, RecordedKnowledge, RecordedLearned, RecordedMemory, RecordedModule,
+    TraceHandle, TraceLog, TraceRng,
+};
 use super::types::{
-    CampDef, ColiseumDef, Goal, GoalDecision, GoalStatus, RouteCamp, StrategyConfig,
-    StrategyContext, StrategyMap, StrategyPercept, StrategySelf, StrategyState,
+    CampDef, ColiseumDef, Goal, GoalDecision, GoalStatus, RngStream, RouteCamp, StrategyConfig,
+    StrategyContext, StrategyMap, StrategyPercept, StrategySelf,
 };
 use crate::bots::knowledge::Knowledge;
 use crate::bots::mob_hunt::{HuntDecision, MobHuntConfig, MOB_HUNT};
@@ -40,6 +49,121 @@ fn opt_text(v: &SVal, name: &str) -> R<Option<String>> {
     v.opt_string(name, name)
 }
 
+/// Typed intake helpers: every consumed number/range/enum is rejected instead of coerced or defaulted.
+fn strict_keys(v: &SVal, allowed: &[&str], path: &str) -> R<()> {
+    match v {
+        SVal::Obj(entries) => {
+            for (key, _) in entries {
+                if !allowed.contains(&key.as_str()) {
+                    return Err(format!("{path}: unsupported field {key}"));
+                }
+            }
+            Ok(())
+        }
+        other => Err(format!("{path}: expected an object, got {other:?}")),
+    }
+}
+fn finite(v: &SVal, name: &str) -> R<f64> {
+    finite_value(field(v, name)?, name)
+}
+fn finite_value(v: &SVal, name: &str) -> R<f64> {
+    match v {
+        SVal::Num(value) if value.is_finite() => Ok(*value),
+        other => Err(format!("{name}: expected a finite number, got {other:?}")),
+    }
+}
+fn finite_opt(v: &SVal, name: &str) -> R<Option<f64>> {
+    match v.optional(name) {
+        None | Some(SVal::Null) => Ok(None),
+        Some(SVal::Num(value)) if value.is_finite() => Ok(Some(*value)),
+        Some(other) => Err(format!(
+            "{name}: expected a finite number|null, got {other:?}"
+        )),
+    }
+}
+fn uint(v: &SVal, name: &str, max: u64) -> R<u64> {
+    uint_value(field(v, name)?, name, max)
+}
+fn uint_value(v: &SVal, name: &str, max: u64) -> R<u64> {
+    let value = match v {
+        SVal::Num(value) if value.is_finite() => *value,
+        other => return Err(format!("{name}: expected a finite number, got {other:?}")),
+    };
+    if value >= 0. && value.fract() == 0. && value <= max as f64 {
+        Ok(value as u64)
+    } else {
+        Err(format!(
+            "{name}: expected an integer in 0..={max}, got {value}"
+        ))
+    }
+}
+fn strict_faction(v: &SVal, name: &str) -> R<FactionId> {
+    match v {
+        SVal::Str(text) => {
+            FactionId::parse(text).ok_or_else(|| format!("{name}: unknown faction {text}"))
+        }
+        other => Err(format!("{name}: expected a faction string, got {other:?}")),
+    }
+}
+fn strict_opt_faction(v: &SVal, name: &str) -> R<Option<FactionId>> {
+    match v.optional(name) {
+        None | Some(SVal::Null) => Ok(None),
+        Some(value) => Ok(Some(strict_faction(value, name)?)),
+    }
+}
+fn strict_opt_weapon(v: &SVal, name: &str) -> R<Option<WeaponId>> {
+    match v.optional(name) {
+        None | Some(SVal::Null) => Ok(None),
+        Some(SVal::Str(text)) => WeaponId::parse(text)
+            .map(Some)
+            .ok_or_else(|| format!("{name}: unknown weapon {text}")),
+        Some(other) => Err(format!(
+            "{name}: expected a weapon string|null, got {other:?}"
+        )),
+    }
+}
+fn strict_weapon_list(v: &SVal, name: &str) -> R<[Option<WeaponId>; 2]> {
+    let values = v.arr(name)?;
+    if values.len() != 2 {
+        return Err(format!(
+            "{name}: the source weapon tuple has exactly two slots, got {}",
+            values.len()
+        ));
+    }
+    let mut weapons = [None, None];
+    for (index, value) in values.iter().enumerate() {
+        weapons[index] = match value {
+            SVal::Null => None,
+            SVal::Str(text) => Some(
+                WeaponId::parse(text)
+                    .ok_or_else(|| format!("{name}[{index}]: unknown weapon {text}"))?,
+            ),
+            other => {
+                return Err(format!(
+                    "{name}[{index}]: expected a weapon string|null, got {other:?}"
+                ))
+            }
+        };
+    }
+    Ok(weapons)
+}
+fn strict_status_value(v: &SVal, name: &str) -> R<String> {
+    let status = v.string(name)?.to_string();
+    if matches!(status.as_str(), "alive" | "dead" | "mia") {
+        Ok(status)
+    } else {
+        Err(format!("{name}: unknown source status {status}"))
+    }
+}
+fn strict_weapon_string(v: &SVal, name: &str) -> R<WeaponId> {
+    match v {
+        SVal::Str(text) => {
+            WeaponId::parse(text).ok_or_else(|| format!("{name}: unknown weapon {text}"))
+        }
+        other => Err(format!("{name}: expected a weapon string, got {other:?}")),
+    }
+}
+
 fn tier_by_name(name: &str) -> TierParams {
     match name {
         "easy" => TIERS[0],
@@ -59,56 +183,151 @@ fn persona_by_name(name: &str) -> PersonaParams {
 }
 
 fn parse_tier(values: &SVal) -> R<TierParams> {
+    strict_keys(
+        values,
+        &[
+            "id",
+            "reaction",
+            "step",
+            "daze",
+            "refractoryMs",
+            "thinkMs",
+            "strategyMs",
+            "apm",
+            "burst",
+            "minGapMs",
+            "moveScatter",
+            "targetScatter",
+            "minimapSigma",
+            "edgeClickP",
+            "timingSigmaMs",
+            "hesitation",
+            "softmaxT",
+            "lapseP",
+            "dodgeP",
+            "jukeP",
+            "orbwalk",
+            "knowledge",
+            "mobShareNoise",
+            "route",
+            "attention",
+            "memorySpanMs",
+            "feintRead",
+            "appraisal",
+            "wary",
+            "caution",
+        ],
+        "tierValues",
+    )?;
     let id = text(values, "id")?;
     let mut tier = tier_by_name(&id);
-    tier.softmax_t = num(values, "softmaxT")?;
-    tier.lapse_p = num(values, "lapseP")?;
-    tier.knowledge = num(values, "knowledge")?;
-    tier.mob_share_noise = num(values, "mobShareNoise")?;
-    tier.memory_span_ms = num(values, "memorySpanMs")?;
-    tier.wary = num(values, "wary")?;
+    tier.softmax_t = finite(values, "softmaxT")?;
+    tier.lapse_p = finite(values, "lapseP")?;
+    tier.knowledge = finite(values, "knowledge")?;
+    tier.mob_share_noise = finite(values, "mobShareNoise")?;
+    tier.memory_span_ms = finite(values, "memorySpanMs")?;
+    tier.wary = finite(values, "wary")?;
     let route = field(values, "route")?;
-    tier.route.horizon = num(route, "horizon")? as u32;
+    strict_keys(
+        route,
+        &["horizon", "walkPaths", "reach"],
+        "tierValues.route",
+    )?;
+    tier.route.horizon = uint(route, "horizon", u64::from(u32::MAX))? as u32;
     tier.route.walk_paths = boolv(route, "walkPaths")?;
-    tier.route.reach = num(route, "reach")?;
+    tier.route.reach = finite(route, "reach")?;
     let attention = field(values, "attention")?;
-    tier.attention.reconsider_ms = num(attention, "reconsiderMs")?;
+    strict_keys(
+        attention,
+        &["central", "peripheryMult", "engagedMult", "reconsiderMs"],
+        "tierValues.attention",
+    )?;
+    tier.attention.reconsider_ms = finite(attention, "reconsiderMs")?;
     let appraisal = field(values, "appraisal")?;
-    tier.appraisal.bias = num(appraisal, "bias")?;
-    tier.appraisal.lead = num(appraisal, "lead")?;
-    tier.appraisal.busy = num(appraisal, "busy")?;
-    tier.appraisal.hue = num(appraisal, "hue")?;
-    tier.appraisal.noise = num(appraisal, "noise")?;
+    strict_keys(
+        appraisal,
+        &["bias", "lead", "busy", "hue", "noise"],
+        "tierValues.appraisal",
+    )?;
+    tier.appraisal.bias = finite(appraisal, "bias")?;
+    tier.appraisal.lead = finite(appraisal, "lead")?;
+    tier.appraisal.busy = finite(appraisal, "busy")?;
+    tier.appraisal.hue = finite(appraisal, "hue")?;
+    tier.appraisal.noise = finite(appraisal, "noise")?;
     let caution = field(values, "caution")?;
-    tier.caution.mob_share = num(caution, "mobShare")?;
-    tier.caution.elite_share = num(caution, "eliteShare")?;
-    tier.caution.start_hp = num(caution, "startHp")?;
+    strict_keys(
+        caution,
+        &["mobShare", "eliteShare", "startHp"],
+        "tierValues.caution",
+    )?;
+    tier.caution.mob_share = finite(caution, "mobShare")?;
+    tier.caution.elite_share = finite(caution, "eliteShare")?;
+    tier.caution.start_hp = finite(caution, "startHp")?;
     Ok(tier)
 }
 
 fn parse_persona(values: &SVal) -> R<PersonaParams> {
+    strict_keys(
+        values,
+        &[
+            "id",
+            "pve",
+            "pvp",
+            "loot",
+            "bounty",
+            "thirdParty",
+            "engageEdge",
+            "bountyCaution",
+            "fleeHp",
+            "reengageHp",
+            "kite",
+            "chaseGiveUpMs",
+            "mobKillGoal",
+            "playerThreat",
+            "eliteAppetite",
+            "coliseum",
+            "risk",
+        ],
+        "personaValues",
+    )?;
     let id = text(values, "id")?;
     let mut persona = persona_by_name(&id);
-    persona.pve = num(values, "pve")?;
-    persona.pvp = num(values, "pvp")?;
-    persona.loot = num(values, "loot")?;
-    persona.bounty = num(values, "bounty")?;
-    persona.third_party = num(values, "thirdParty")?;
-    persona.engage_edge = num(values, "engageEdge")?;
-    persona.bounty_caution = num(values, "bountyCaution")?;
-    persona.flee_hp = num(values, "fleeHp")?;
-    persona.reengage_hp = num(values, "reengageHp")?;
-    persona.kite = num(values, "kite")?;
-    persona.chase_give_up_ms = num(values, "chaseGiveUpMs")?;
-    persona.mob_kill_goal = num(values, "mobKillGoal")?;
-    persona.player_threat = num(values, "playerThreat")?;
-    persona.elite_appetite = num(values, "eliteAppetite")?;
-    persona.coliseum = num(values, "coliseum")?;
-    persona.risk = num(values, "risk")?;
+    persona.pve = finite(values, "pve")?;
+    persona.pvp = finite(values, "pvp")?;
+    persona.loot = finite(values, "loot")?;
+    persona.bounty = finite(values, "bounty")?;
+    persona.third_party = finite(values, "thirdParty")?;
+    persona.engage_edge = finite(values, "engageEdge")?;
+    persona.bounty_caution = finite(values, "bountyCaution")?;
+    persona.flee_hp = finite(values, "fleeHp")?;
+    persona.reengage_hp = finite(values, "reengageHp")?;
+    persona.kite = finite(values, "kite")?;
+    persona.chase_give_up_ms = finite(values, "chaseGiveUpMs")?;
+    persona.mob_kill_goal = finite(values, "mobKillGoal")?;
+    persona.player_threat = finite(values, "playerThreat")?;
+    persona.elite_appetite = finite(values, "eliteAppetite")?;
+    persona.coliseum = finite(values, "coliseum")?;
+    persona.risk = finite(values, "risk")?;
     Ok(persona)
 }
 
 fn parse_features(v: &SVal) -> R<Features> {
+    strict_keys(
+        v,
+        &[
+            "messageTypes",
+            "wishes",
+            "statusEffects",
+            "fields",
+            "planning",
+            "chests",
+            "skills",
+            "relics",
+            "camps",
+            "hazards",
+        ],
+        "features",
+    )?;
     let message_types = arr(v, "messageTypes")?
         .iter()
         .map(|x| Ok(x.string("messageTypes[]")?.to_string()))
@@ -149,17 +368,23 @@ fn parse_map(maps: &Value, name: &str) -> R<StrategyMap> {
     let width = num(&map, "w")?;
     let height = num(&map, "h")?;
     let mut camps = Vec::new();
-    for (i, c) in arr(&map, "camps")?.iter().enumerate() {
+    for c in arr(&map, "camps")? {
+        let chest = field(c, "chest")?;
         camps.push(CampDef {
             id: text(c, "id")?,
             zone: parse_zone(&text(c, "zone")?),
             x: num(c, "x")?,
             y: num(c, "y")?,
             r: num(c, "r")?,
+            spots: arr(c, "spots")?
+                .iter()
+                .map(|p| Ok(Vec2::new(num(p, "x")?, num(p, "y")?)))
+                .collect::<R<Vec<_>>>()?,
             elite_spot: num(c, "eliteSpot")?,
-            spots: arr(c, "spots")?.len() as u32,
+            chest: Vec2::new(num(chest, "x")?, num(chest, "y")?),
+            area: num(c, "area")?,
+            radius: num(c, "radius")?,
         });
-        let _ = i;
     }
     let coliseum = field(&map, "coliseum")?;
     let centre = field(coliseum, "centre")?;
@@ -185,59 +410,6 @@ enum PathSpec {
     CoordinateBlock { min_x: f64, max_x: f64 },
     Source,
 }
-impl PathSpec {
-    fn walk(
-        &self,
-        from: Vec2,
-        to: Vec2,
-        log: &mut Vec<(String, Vec<SVal>, SVal)>,
-    ) -> Option<WalkAnswer> {
-        let args = vec![vec2_sv(from), vec2_sv(to)];
-        let result = match self {
-            Self::Null => SVal::Null,
-            Self::CoordinateBlock { min_x, max_x } if to.x >= *min_x && to.x <= *max_x => {
-                SVal::Null
-            }
-            Self::Source => {
-                // The source service needs the full GameMap; the two source-path cases use a declared empty path.
-                SVal::Null
-            }
-            Self::CoordinateBlock { .. } => {
-                let d = rh_sim::math::hypot(to.x - from.x, to.y - from.y);
-                obj(vec![("dist", num_sv(d)), ("exact", bool_sv(true))])
-            }
-            Self::Open { factor, exact } => {
-                let d = rh_sim::math::hypot(to.x - from.x, to.y - from.y) * factor;
-                obj(vec![("dist", num_sv(d)), ("exact", bool_sv(*exact))])
-            }
-        };
-        log.push(("paths.walk".into(), args, result.clone()));
-        match result {
-            SVal::Null => None,
-            SVal::Obj(entries) => {
-                let dist =
-                    entries
-                        .iter()
-                        .find(|(k, _)| k == "dist")
-                        .and_then(|(_, v)| match v {
-                            SVal::Num(d) => Some(*d),
-                            _ => None,
-                        })?;
-                let exact =
-                    entries
-                        .iter()
-                        .find(|(k, _)| k == "exact")
-                        .and_then(|(_, v)| match v {
-                            SVal::Bool(b) => Some(*b),
-                            _ => None,
-                        })?;
-                Some(WalkAnswer { dist, exact })
-            }
-            _ => None,
-        }
-    }
-}
-
 fn vec2_sv(v: Vec2) -> SVal {
     obj(vec![("x", num_sv(v.x)), ("y", num_sv(v.y))])
 }
@@ -256,18 +428,6 @@ struct LearnedMap {
     enabled: bool,
     entries: Vec<(String, f64)>,
 }
-impl super::types::LearnedBias for LearnedMap {
-    fn enabled(&self) -> bool {
-        self.enabled
-    }
-    fn bias(&self, key: &str) -> f64 {
-        self.entries
-            .iter()
-            .find(|(k, _)| k == key)
-            .map_or(0., |(_, v)| *v)
-    }
-}
-
 #[derive(Clone, Debug)]
 struct ModuleSpec {
     id: String,
@@ -277,37 +437,6 @@ struct ModuleSpec {
     after: Option<f64>,
     hp_below: Option<f64>,
 }
-impl super::types::FeatureModule for ModuleSpec {
-    fn id(&self) -> &str {
-        &self.id
-    }
-    fn enabled(&self, features: &Features) -> bool {
-        self.enabled
-            || self.feature.as_ref().is_some_and(|f| match f.as_str() {
-                "wishes" => features.wishes,
-                "planning" => features.planning,
-                "chests" => features.chests,
-                "skills" => features.skills,
-                "relics" => features.relics,
-                "camps" => features.camps,
-                "hazards" => features.hazards,
-                "fields" => features.fields,
-                _ => false,
-            })
-    }
-    fn goals(&self, ctx: &StrategyContext<'_>) -> Vec<GoalDecision> {
-        let Some(goals) = &self.goals else {
-            return Vec::new();
-        };
-        goals
-            .iter()
-            .filter(|_| self.after.is_none_or(|a| ctx.p.now >= a))
-            .filter(|_| self.hp_below.is_none_or(|hp| ctx.p.self_.hp < hp))
-            .cloned()
-            .collect()
-    }
-}
-
 #[derive(Clone, Debug)]
 struct SourceConfig {
     tier: TierParams,
@@ -330,12 +459,18 @@ struct SourceConfig {
 }
 
 fn parse_learned(v: &SVal) -> R<LearnedMap> {
+    strict_keys(v, &["enabled", "entries"], "learned")?;
     let enabled = boolv(v, "enabled")?;
     let entries = arr(v, "entries")?
         .iter()
         .map(|e| {
             let pair = e.arr("learned entry")?;
+            if pair.len() != 2 {
+                return Err("learned entry must be [key, value]".to_string());
+            }
             let key = pair[0].string("learned key")?.to_string();
+            // Learned biases are declared source facts; non-finite values are the source's own sentinel and are
+            // consumed through Number.isFinite, so they are legitimate here rather than malformed intake.
             let value = pair[1].num("learned value")?;
             Ok((key, value))
         })
@@ -369,6 +504,25 @@ fn parse_method_value(v: &SVal) -> R<super::super::data::MethodValue> {
 
 fn parse_goal(v: &SVal) -> R<Goal> {
     let kind = text(v, "kind")?;
+    let fields: &[&str] = match kind.as_str() {
+        "idle" => &[],
+        "farm" => &["mob", "camp"],
+        "hunt" | "fight" => &["target"],
+        "loot" => &["container"],
+        "flee" => &["from", "until"],
+        "roam" => &["to", "why"],
+        "hold" => &["at", "why"],
+        "module" => &["module", "data"],
+        other => return Err(format!("unknown goal kind {other}")),
+    };
+    let mut allowed = vec!["kind"];
+    allowed.extend_from_slice(fields);
+    strict_keys(v, &allowed, "Goal")?;
+    for required in fields {
+        if v.optional(required).is_none() {
+            return Err(format!("Goal: missing required field {required}"));
+        }
+    }
     Ok(match kind.as_str() {
         "idle" => Goal::Idle,
         "farm" => Goal::Farm {
@@ -387,11 +541,11 @@ fn parse_goal(v: &SVal) -> R<Goal> {
         "flee" => {
             let from = arr(v, "from")?
                 .iter()
-                .map(|p| Ok(Vec2::new(num(p, "x")?, num(p, "y")?)))
+                .map(|p| Ok(Vec2::new(finite(p, "x")?, finite(p, "y")?)))
                 .collect::<R<Vec<_>>>()?;
             Goal::Flee {
                 from,
-                until: num(v, "until")?,
+                until: finite(v, "until")?,
             }
         }
         "roam" => {
@@ -405,7 +559,7 @@ fn parse_goal(v: &SVal) -> R<Goal> {
                 other => return Err(format!("unknown roam why {other}")),
             };
             Goal::Roam {
-                to: Vec2::new(num(to, "x")?, num(to, "y")?),
+                to: Vec2::new(finite(to, "x")?, finite(to, "y")?),
                 why,
             }
         }
@@ -418,7 +572,7 @@ fn parse_goal(v: &SVal) -> R<Goal> {
                 other => return Err(format!("unknown hold why {other}")),
             };
             Goal::Hold {
-                at: Vec2::new(num(at, "x")?, num(at, "y")?),
+                at: Vec2::new(finite(at, "x")?, finite(at, "y")?),
                 why,
             }
         }
@@ -431,11 +585,21 @@ fn parse_goal(v: &SVal) -> R<Goal> {
 }
 
 fn parse_goal_decision(v: &SVal) -> R<GoalDecision> {
+    strict_keys(v, &["goal", "utility", "why", "choice"], "GoalDecision")?;
+    let choice = match v.optional("choice") {
+        None | Some(SVal::Null) | Some(SVal::Undefined) => None,
+        Some(SVal::Str(choice)) => Some(choice.clone()),
+        Some(other) => {
+            return Err(format!(
+                "GoalDecision.choice: expected string|null, got {other:?}"
+            ))
+        }
+    };
     Ok(GoalDecision {
         goal: parse_goal(field(v, "goal")?)?,
-        utility: num(v, "utility")?,
+        utility: finite(v, "utility")?,
         why: text(v, "why")?,
-        choice: opt_text(v, "choice")?,
+        choice,
     })
 }
 
@@ -443,6 +607,7 @@ fn parse_modules(v: &SVal) -> R<Vec<ModuleSpec>> {
     v.arr("modules")?
         .iter()
         .map(|m| {
+            strict_keys(m, &["id", "enabled", "goals"], "module")?;
             let enabled_value = field(m, "enabled")?;
             let (enabled, feature) = match enabled_value {
                 SVal::Bool(b) => (*b, None),
@@ -455,11 +620,40 @@ fn parse_modules(v: &SVal) -> R<Vec<ModuleSpec>> {
                 Some(SVal::Arr(values)) => {
                     let mut out = Vec::new();
                     for g in values {
-                        out.push(parse_goal_decision(g)?);
-                        if let Some(when) = g.optional("when") {
-                            after = when.opt_num("after", "when")?;
-                            hp_below = when.opt_num("hpBelow", "when")?;
+                        strict_keys(
+                            g,
+                            &["goal", "utility", "why", "choice", "when"],
+                            "module goal offer",
+                        )?;
+                        match g.optional("when") {
+                            None | Some(SVal::Undefined) => {}
+                            Some(when) => {
+                                strict_keys(when, &["after", "hpBelow"], "module goal when")?;
+                                after = match when.optional("after") {
+                                    None | Some(SVal::Undefined) => None,
+                                    Some(value) => Some(finite_value(value, "when.after")?),
+                                };
+                                hp_below = match when.optional("hpBelow") {
+                                    None | Some(SVal::Undefined) => None,
+                                    Some(value) => Some(finite_value(value, "when.hpBelow")?),
+                                };
+                            }
                         }
+                        let without_when = match g {
+                            SVal::Obj(entries) => SVal::Obj(
+                                entries
+                                    .iter()
+                                    .filter(|(key, _)| key != "when")
+                                    .cloned()
+                                    .collect(),
+                            ),
+                            other => {
+                                return Err(format!(
+                                    "module goal offer must be an object, got {other:?}"
+                                ))
+                            }
+                        };
+                        out.push(parse_goal_decision(&without_when)?);
                     }
                     Some(out)
                 }
@@ -478,51 +672,145 @@ fn parse_modules(v: &SVal) -> R<Vec<ModuleSpec>> {
         .collect()
 }
 
+fn parse_path_spec(path_value: &SVal) -> R<PathSpec> {
+    let kind = text(path_value, "kind")?;
+    match kind.as_str() {
+        "open" => {
+            strict_keys(path_value, &["kind", "factor", "exact"], "path")?;
+            Ok(PathSpec::Open {
+                factor: finite(path_value, "factor")?,
+                exact: boolv(path_value, "exact")?,
+            })
+        }
+        "null" => {
+            strict_keys(path_value, &["kind"], "path")?;
+            Ok(PathSpec::Null)
+        }
+        "coordinate-block" => {
+            strict_keys(path_value, &["kind", "minX", "maxX"], "path")?;
+            Ok(PathSpec::CoordinateBlock {
+                min_x: finite(path_value, "minX")?,
+                max_x: finite(path_value, "maxX")?,
+            })
+        }
+        "source" => {
+            strict_keys(path_value, &["kind"], "path")?;
+            Ok(PathSpec::Source)
+        }
+        other => Err(format!("path.kind: unknown declared path service {other}")),
+    }
+}
+
+/// The per-suite source BrainConfig contract. The corpus never hands a strategy/hunt case a field it does not declare.
+fn config_keys_for(map_name: &str) -> &'static [&'static str] {
+    let _ = map_name;
+    &[
+        "tier",
+        "persona",
+        "seed",
+        "id",
+        "map",
+        "features",
+        "path",
+        "knowledge",
+        "learned",
+        "modules",
+        "tierValues",
+        "personaValues",
+        "tierOverrides",
+        "huntOverrides",
+        "faction",
+        "buildDraw",
+        "attacking",
+        "random",
+    ]
+}
+
 fn parse_config(config: &SVal, maps: &Value) -> R<SourceConfig> {
+    strict_keys(config, config_keys_for(""), "config")?;
     let tier = parse_tier(field(config, "tierValues")?)?;
     let persona = parse_persona(field(config, "personaValues")?)?;
-    let seed = num(config, "seed")? as u32;
+    let seed = uint(config, "seed", u64::from(u32::MAX))? as u32;
     let id = text(config, "id")?;
+    if id.is_empty() {
+        return Err("config.id: source bot id must be non-empty".into());
+    }
     let map_name = text(config, "map")?;
     let map = parse_map(maps, &map_name)?;
     let features = parse_features(field(config, "features")?)?;
-    let path_value = field(config, "path")?;
-    let path = match text(path_value, "kind")?.as_str() {
-        "open" => PathSpec::Open {
-            factor: num(path_value, "factor")?,
-            exact: boolv(path_value, "exact")?,
-        },
-        "null" => PathSpec::Null,
-        "coordinate-block" => PathSpec::CoordinateBlock {
-            min_x: num(path_value, "minX")?,
-            max_x: num(path_value, "maxX")?,
-        },
-        "source" => PathSpec::Source,
-        other => return Err(format!("unknown path kind {other}")),
-    };
+    let path = parse_path_spec(field(config, "path")?)?;
+    match config.optional("knowledge") {
+        Some(SVal::Obj(entries))
+            if entries.len() == 1 && entries[0].0 == "kind" && matches!(&entries[0].1, SVal::Str(kind) if kind == "source") => {}
+        other => {
+            return Err(format!(
+                "config.knowledge: the frozen witness declares the actual source Knowledge service, got {other:?}"
+            ))
+        }
+    }
+    if let Some(tier_overrides) = config.optional("tierOverrides") {
+        let entries = match tier_overrides {
+            SVal::Obj(entries) => entries,
+            other => {
+                return Err(format!(
+                    "config.tierOverrides: expected an object, got {other:?}"
+                ))
+            }
+        };
+        for (key, value) in entries {
+            match key.as_str() {
+                "softmaxT" => {
+                    finite_value(value, "tierOverrides.softmaxT")?;
+                }
+                "lapseP" => {
+                    finite_value(value, "tierOverrides.lapseP")?;
+                }
+                other => {
+                    return Err(format!(
+                        "config.tierOverrides: unsupported override {other}"
+                    ))
+                }
+            }
+        }
+    }
     let learned = parse_learned(field(config, "learned")?)?;
     let modules = parse_modules(field(config, "modules")?)?;
     let hunt_config = match config.optional("huntOverrides") {
         Some(v) => {
+            strict_keys(v, &["focusBudgetMs"], "huntOverrides")?;
             let mut cfg = MOB_HUNT;
-            for (k, _) in v.obj("huntOverrides")? {
-                if k == "focusBudgetMs" {
-                    cfg.focus_budget_ms = num(v, k)?;
-                }
+            cfg.focus_budget_ms = finite(v, "focusBudgetMs")?;
+            if cfg.focus_budget_ms < 0. {
+                return Err("huntOverrides.focusBudgetMs: negative budget".into());
             }
             cfg
         }
         None => MOB_HUNT,
     };
     let faction = match config.optional("faction") {
-        Some(SVal::Str(s)) => parse_zone(s),
-        _ => FactionId::Fire,
+        None | Some(SVal::Undefined) => FactionId::Fire,
+        Some(value) => strict_faction(value, "config.faction")?,
     };
-    let build_draw = config.opt_num("buildDraw", "buildDraw")?.unwrap_or(0.);
-    let attacking = config.optional("attacking").and_then(|v| match v {
-        SVal::Bool(b) => Some(*b),
-        _ => None,
-    });
+    let build_draw = match config.optional("buildDraw") {
+        None | Some(SVal::Undefined) => 0.,
+        Some(value) => match value {
+            SVal::Num(draw) if draw.is_finite() && (0. ..=1.).contains(draw) => *draw,
+            other => {
+                return Err(format!(
+                    "config.buildDraw: expected a finite unit draw, got {other:?}"
+                ))
+            }
+        },
+    };
+    let attacking = match config.optional("attacking") {
+        None | Some(SVal::Undefined) => None,
+        Some(SVal::Bool(flag)) => Some(*flag),
+        Some(other) => {
+            return Err(format!(
+                "config.attacking: expected a boolean, got {other:?}"
+            ))
+        }
+    };
     // The generated map camps are also the admitted Memory map.
     let raw = maps
         .as_array()
@@ -557,25 +845,33 @@ fn parse_config(config: &SVal, maps: &Value) -> R<SourceConfig> {
         memory_camps.push(geom);
     }
     let (random_decide, random_lapse) = match config.optional("random") {
+        None | Some(SVal::Undefined) => (Vec::new(), Vec::new()),
         Some(SVal::Obj(entries)) => {
-            let read = |name: &str| -> Vec<f64> {
-                entries
-                    .iter()
-                    .find(|(k, _)| k == name)
-                    .and_then(|(_, v)| v.arr("random").ok())
-                    .map_or_else(Vec::new, |values| {
-                        values
-                            .iter()
-                            .map(|v| match v {
-                                SVal::Num(n) => *n,
-                                _ => panic!("random override must be a number"),
-                            })
-                            .collect()
-                    })
+            for (key, _) in entries {
+                if !matches!(key.as_str(), "decide" | "lapse") {
+                    return Err(format!("config.random: unsupported stream override {key}"));
+                }
+            }
+            let read = |name: &str| -> R<Vec<f64>> {
+                match entries.iter().find(|(k, _)| k == name) {
+                    None => Ok(Vec::new()),
+                    Some((_, SVal::Arr(values))) => values
+                        .iter()
+                        .map(|value| match value {
+                            SVal::Num(number) if number.is_finite() => Ok(*number),
+                            other => Err(format!(
+                                "config.random.{name}: declared override must be finite, got {other:?}"
+                            )),
+                        })
+                        .collect(),
+                    Some((_, other)) => Err(format!(
+                        "config.random.{name}: expected an array, got {other:?}"
+                    )),
+                }
             };
-            (read("decide"), read("lapse"))
+            (read("decide")?, read("lapse")?)
         }
-        _ => (Vec::new(), Vec::new()),
+        Some(other) => return Err(format!("config.random: expected an object, got {other:?}")),
     };
     Ok(SourceConfig {
         tier,
@@ -605,116 +901,52 @@ fn load_source() -> Value {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../parity/policy/bot-private-strategy/source.json");
     let text = std::fs::read_to_string(&path).expect("frozen source.json");
-    serde_json::from_str(&text).expect("source.json is valid JSON")
+    let source: Value = serde_json::from_str(&text).expect("source.json is valid JSON");
+    super::source_strict::validate_primary(&source)
+        .unwrap_or_else(|error| panic!("strict source reader: {error}"));
+    source
+}
+
+fn load_supplement() -> Value {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../parity/policy/bot-module-goal-key/source.json");
+    let text = std::fs::read_to_string(&path).expect("frozen module goal-key source.json");
+    let supplement: Value = serde_json::from_str(&text).expect("valid module goal-key JSON");
+    super::source_strict::validate_supplement(&supplement)
+        .unwrap_or_else(|error| panic!("strict supplement reader: {error}"));
+    supplement
 }
 
 fn source_cases(source: &Value) -> &[Value] {
     source["cases"].as_array().expect("cases array")
 }
 
-/// Corpus envelope values are raw JSON wrappers whose payload leaves are tagged. Convert the wrapper recursively
-/// without pretending every intermediate container is one complete tagged method value.
+/// Corpus envelope wrappers are raw JSON structures; every tagged payload leaf is decoded with the strict tagged-value
+/// reader (unknown/extra tags, duplicate keys, malformed pairs and invalid u8 bytes were already rejected by the finite
+/// envelope validation, so this conversion cannot silently accept a malformed method value).
 fn sv(value: &Value) -> SVal {
     match value {
+        Value::Object(map) if map.contains_key("$") => super::source_strict::decode(
+            value,
+            "corpus payload",
+            super::source_strict::Mode::Diagnostic,
+        )
+        .unwrap_or_else(|error| panic!("strict corpus decode: {error}")),
         Value::Null => SVal::Null,
-        Value::Bool(b) => SVal::Bool(*b),
-        Value::Number(n) => SVal::Num(n.as_f64().expect("f64 number")),
-        Value::String(s) => SVal::Str(s.clone()),
-        Value::Array(a) => SVal::Arr(a.iter().map(sv).collect()),
-        Value::Object(m) => match m.get("$").and_then(Value::as_str) {
-            None => SVal::Obj(m.iter().map(|(k, v)| (k.clone(), sv(v))).collect()),
-            Some("undefined") => SVal::Undefined,
-            Some("number") => {
-                let raw = m
-                    .get("value")
-                    .and_then(Value::as_str)
-                    .expect("number tag value");
-                SVal::Num(match raw {
-                    "-0" => -0.0,
-                    "NaN" => f64::NAN,
-                    "+Infinity" => f64::INFINITY,
-                    "-Infinity" => f64::NEG_INFINITY,
-                    other => panic!("bad number tag {other}"),
-                })
-            }
-            Some("array") => SVal::Arr(
-                m.get("values")
-                    .and_then(Value::as_array)
-                    .expect("array values")
-                    .iter()
-                    .map(sv)
-                    .collect(),
-            ),
-            Some("u8") => SVal::U8(
-                m.get("values")
-                    .and_then(Value::as_array)
-                    .expect("u8 values")
-                    .iter()
-                    .map(|v| v.as_u64().expect("u8") as u8)
-                    .collect(),
-            ),
-            Some("map") => SVal::Map(
-                m.get("entries")
-                    .and_then(Value::as_array)
-                    .expect("map entries")
-                    .iter()
-                    .map(|e| {
-                        let pair = e.as_array().expect("map pair");
-                        (sv(&pair[0]), sv(&pair[1]))
-                    })
-                    .collect(),
-            ),
-            Some("set") => SVal::Set(
-                m.get("values")
-                    .and_then(Value::as_array)
-                    .expect("set values")
-                    .iter()
-                    .map(sv)
-                    .collect(),
-            ),
-            Some("object") => SVal::Obj(
-                m.get("entries")
-                    .and_then(Value::as_array)
-                    .expect("object entries")
-                    .iter()
-                    .map(|e| {
-                        let pair = e.as_array().expect("object pair");
-                        (
-                            pair[0].as_str().expect("object key").to_string(),
-                            sv(&pair[1]),
-                        )
-                    })
-                    .collect(),
-            ),
-            Some("instance") => SVal::Instance {
-                name: m
-                    .get("name")
-                    .and_then(Value::as_str)
-                    .expect("instance name")
-                    .to_string(),
-                entries: {
-                    let raw = m.get("entries").expect("instance entries");
-                    match raw {
-                        Value::Array(pairs) => pairs
-                            .iter()
-                            .map(|e| {
-                                let pair = e.as_array().expect("instance pair");
-                                (
-                                    pair[0].as_str().expect("instance key").to_string(),
-                                    sv(&pair[1]),
-                                )
-                            })
-                            .collect(),
-                        _ => match sv(raw) {
-                            SVal::Obj(entries) => entries,
-                            other => panic!("instance entries {other:?}"),
-                        },
-                    }
-                },
-            },
-            Some("callable") => SVal::Callable,
-            Some(other) => panic!("unsupported tag {other}"),
-        },
+        Value::Bool(flag) => SVal::Bool(*flag),
+        Value::Number(_) => SVal::Num(
+            value
+                .as_f64()
+                .filter(|number| number.is_finite())
+                .expect("finite JSON number"),
+        ),
+        Value::String(text) => SVal::Str(text.clone()),
+        Value::Array(entries) => SVal::Arr(entries.iter().map(sv).collect()),
+        Value::Object(map) => SVal::Obj(
+            map.iter()
+                .map(|(key, value)| (key.clone(), sv(value)))
+                .collect(),
+        ),
     }
 }
 
@@ -730,23 +962,51 @@ fn parse_hunt_mob(v: &SVal) -> R<(String, HuntMobLike)> {
         return Err("mob entry must be [id, value]".into());
     }
     let id = pair[0].string("mob id")?.to_string();
+    if id.is_empty() {
+        return Err("mob entry id must be non-empty".into());
+    }
     let m = &pair[1];
+    strict_keys(
+        m,
+        &[
+            "kind", "type", "status", "x", "y", "hp", "maxHp", "faction", "weapon0",
+        ],
+        "MobLike",
+    )?;
+    let kind = text(m, "kind")?;
+    // MobLike.kind/status are open source strings; the tracker/hunter regional filters decide what is used.
+    let status = text(m, "status")?;
+    let type_ = match m.optional("type") {
+        None | Some(SVal::Undefined) => None,
+        Some(SVal::Str(text)) => Some(text.clone()),
+        Some(other) => {
+            return Err(format!(
+                "MobLike.type: expected a mob type id string|undefined, got {other:?}"
+            ))
+        }
+    };
+    let faction_text = m
+        .optional("faction")
+        .map(|value| Ok::<_, String>(value.string("MobLike.faction")?.to_string()))
+        .transpose()?;
+    let weapon0_text = m
+        .optional("weapon0")
+        .map(|value| Ok::<_, String>(value.string("MobLike.weapon0")?.to_string()))
+        .transpose()?;
     Ok((
         id,
         HuntMobLike {
-            kind: text(m, "kind")?,
-            status: text(m, "status")?,
-            x: num(m, "x")?,
-            y: num(m, "y")?,
-            hp: num(m, "hp")?,
-            max_hp: num(m, "maxHp")?,
-            faction: opt_text(m, "faction")?
-                .as_deref()
-                .and_then(FactionId::parse),
-            faction_text: opt_text(m, "faction")?,
-            weapon0: opt_text(m, "weapon0")?.as_deref().and_then(parse_weapon),
-            weapon0_text: opt_text(m, "weapon0")?,
-            type_: opt_text(m, "type")?,
+            kind,
+            status,
+            x: finite(m, "x")?,
+            y: finite(m, "y")?,
+            hp: finite(m, "hp")?,
+            max_hp: finite(m, "maxHp")?,
+            faction: faction_text.as_deref().and_then(FactionId::parse),
+            faction_text,
+            weapon0: weapon0_text.as_deref().and_then(WeaponId::parse),
+            weapon0_text,
+            type_,
         },
     ))
 }
@@ -771,27 +1031,41 @@ fn parse_mob_entries(v: &SVal) -> R<Vec<(String, HuntMobLike)>> {
 }
 
 fn parse_hunt_self(v: &SVal) -> R<HuntSelf> {
-    let weapons_raw = arr(v, "weapons")?;
-    let mut weapons = [None, None];
-    for (i, w) in weapons_raw.iter().take(2).enumerate() {
-        weapons[i] = match w {
-            SVal::Null => None,
-            SVal::Str(s) => parse_weapon(s),
-            _ => return Err("weapons must be string|null".into()),
-        };
-    }
+    strict_keys(
+        v,
+        &[
+            "faction", "x", "y", "hp", "maxHp", "weapons", "power", "mobKills", "mobStats",
+        ],
+        "HuntSelf",
+    )?;
+    let weapons = strict_weapon_list(field(v, "weapons")?, "HuntSelf.weapons")?;
+    let mob_stats = match v.optional("mobStats") {
+        None | Some(SVal::Undefined) => Vec::new(),
+        Some(SVal::Obj(entries)) => entries
+            .iter()
+            .map(|(kind, count)| {
+                Ok((
+                    kind.clone(),
+                    uint_value(count, "mobStats count", u64::from(u32::MAX))? as u32,
+                ))
+            })
+            .collect::<R<Vec<_>>>()?,
+        Some(other) => {
+            return Err(format!(
+                "HuntSelf.mobStats: expected an object, got {other:?}"
+            ))
+        }
+    };
     Ok(HuntSelf {
-        faction: opt_text(v, "faction")?
-            .as_deref()
-            .and_then(FactionId::parse),
-        x: num(v, "x")?,
-        y: num(v, "y")?,
-        hp: num(v, "hp")?,
-        max_hp: num(v, "maxHp")?,
+        faction: strict_opt_faction(v, "faction")?,
+        x: finite(v, "x")?,
+        y: finite(v, "y")?,
+        hp: finite(v, "hp")?,
+        max_hp: finite(v, "maxHp")?,
         weapons,
-        power: num(v, "power")?,
-        mob_kills: num(v, "mobKills")?,
-        mob_stats: Vec::new(),
+        power: finite(v, "power")?,
+        mob_kills: finite(v, "mobKills")?,
+        mob_stats,
     })
 }
 
@@ -817,28 +1091,56 @@ fn encode_decision(d: &HuntDecision) -> SVal {
     }
 }
 
-fn encode_route_step(step: &super::types::RouteStep) -> SVal {
-    obj(vec![
-        ("camp", num_sv(f64::from(step.camp))),
-        ("arriveAt", num_sv(step.arrive_at)),
-        ("startAt", num_sv(step.start_at)),
-    ])
-}
-
 fn parse_route_camp(v: &SVal) -> R<RouteCamp> {
+    strict_keys(
+        v,
+        &[
+            "index",
+            "id",
+            "zone",
+            "x",
+            "y",
+            "r",
+            "elite",
+            "spots",
+            "type",
+            "alive",
+            "state",
+            "respawnAt",
+        ],
+        "RouteCamp",
+    )?;
+    let zone = strict_faction(field(v, "zone")?, "RouteCamp.zone")?;
+    let mob_type = match v.optional("type") {
+        None | Some(SVal::Undefined) => String::new(),
+        Some(SVal::Str(text)) => {
+            if !text.is_empty() && rh_sim::mob_catalog::mob_type_by_id(text).is_none() {
+                return Err(format!("RouteCamp.type: unknown mob type id {text}"));
+            }
+            text.clone()
+        }
+        Some(other) => {
+            return Err(format!(
+                "RouteCamp.type: expected a mob type id string, got {other:?}"
+            ))
+        }
+    };
     Ok(RouteCamp {
-        index: num(v, "index")? as u32,
+        index: uint(v, "index", u64::from(u32::MAX))? as u32,
         id: text(v, "id")?,
-        zone: parse_zone(&text(v, "zone")?),
-        x: num(v, "x")?,
-        y: num(v, "y")?,
-        r: num(v, "r")?,
+        zone,
+        x: finite(v, "x")?,
+        y: finite(v, "y")?,
+        r: finite(v, "r")?,
         elite: boolv(v, "elite")?,
-        spots: num(v, "spots")? as u32,
-        mob_type: opt_text(v, "type")?.unwrap_or_default(),
-        alive: num(v, "alive")? as u32,
-        state: num(v, "state")? as u8,
-        respawn_at: num(v, "respawnAt")?,
+        spots: uint(v, "spots", u64::from(u32::MAX))? as u32,
+        mob_type,
+        alive: uint(v, "alive", u64::from(u32::MAX))? as u32,
+        state: {
+            let state = uint(v, "state", 2)?;
+            state as u8
+        },
+        respawn_at: finite(v, "respawnAt")?,
     })
 }
 
@@ -846,348 +1148,31 @@ type CanFarm = Box<dyn Fn(&RouteCamp) -> bool>;
 fn can_farm_descriptor(v: &SVal) -> R<CanFarm> {
     let kind = text(v, "kind")?;
     Ok(match kind.as_str() {
-        "allow" => Box::new(|_| true),
+        "allow" => {
+            strict_keys(v, &["kind"], "canFarm")?;
+            Box::new(|_| true)
+        }
         "indices" => {
+            strict_keys(v, &["kind", "allow"], "canFarm")?;
             let allow = arr(v, "allow")?
                 .iter()
-                .map(|n| n.num("index"))
-                .collect::<R<Vec<_>>>()?
-                .into_iter()
-                .map(|n| n as u32)
-                .collect::<Vec<_>>();
+                .map(|entry| {
+                    Ok(uint_value(entry, "canFarm allow index", u64::from(u32::MAX))? as u32)
+                })
+                .collect::<R<Vec<_>>>()?;
             Box::new(move |c: &RouteCamp| allow.contains(&c.index))
         }
         "zones" => {
+            strict_keys(v, &["kind", "allow"], "canFarm")?;
             let allow = arr(v, "allow")?
                 .iter()
-                .map(|z| Ok(parse_zone(z.string("zone")?)))
+                .map(|entry| strict_faction(entry, "canFarm allow zone"))
                 .collect::<R<Vec<_>>>()?;
             Box::new(move |c: &RouteCamp| allow.contains(&c.zone))
         }
-        other => return Err(format!("unknown canFarm descriptor {other}")),
+        other => return Err(format!("canFarm.kind: unknown descriptor {other}")),
     })
 }
-
-#[test]
-fn private_strategy_source_tracker_parity() {
-    let source = load_source();
-    let maps = &source["maps"];
-    let mut failures = Vec::new();
-    let mut operations = 0usize;
-    for case in source_cases(&source) {
-        if case["suite"] != "mob-tracker" {
-            continue;
-        }
-        let config = sv(&case["config"]);
-        let _cfg = parse_config(&config, maps).unwrap();
-        let mut tracker = MobTracker::default();
-        for (index, op) in case["operations"].as_array().unwrap().iter().enumerate() {
-            let op = sv(op);
-            let method = text(&op, "method").unwrap();
-            let input = op.optional("input").cloned().unwrap_or(SVal::Undefined);
-            let expected = op.optional("result").cloned().unwrap_or(SVal::Undefined);
-            let actual = match method.as_str() {
-                "trackerObserve" => {
-                    let now = num(&input, "now").unwrap();
-                    let mobs = parse_mob_entries(field(&input, "mobs").unwrap()).unwrap();
-                    tracker.observe(&mobs, now);
-                    SVal::Undefined
-                }
-                "trackerQuery" => {
-                    let id = text(&input, "id").unwrap();
-                    let now = num(&input, "now").unwrap();
-                    let from_sv = field(&input, "from").unwrap();
-                    let from = Vec2::new(num(from_sv, "x").unwrap(), num(from_sv, "y").unwrap());
-                    let radius = num(&input, "radius").unwrap();
-                    let awake_moved = num(&input, "awakeMoved").unwrap();
-                    let mob = match tracker.mob(&id) {
-                        Some(m) => obj(vec![
-                            ("kind", source_reader::s(&m.kind)),
-                            (
-                                "type",
-                                m.type_
-                                    .as_deref()
-                                    .map(source_reader::s)
-                                    .unwrap_or(SVal::Null),
-                            ),
-                            ("status", source_reader::s(&m.status)),
-                            ("x", num_sv(m.x)),
-                            ("y", num_sv(m.y)),
-                            ("hp", num_sv(m.hp)),
-                            ("maxHp", num_sv(m.max_hp)),
-                            (
-                                "faction",
-                                m.faction
-                                    .map(|f| source_reader::s(f.as_str()))
-                                    .unwrap_or(SVal::Null),
-                            ),
-                            (
-                                "weapon0",
-                                m.weapon0
-                                    .map(|w| source_reader::s(w.as_str()))
-                                    .unwrap_or(SVal::Null),
-                            ),
-                        ]),
-                        None => SVal::Null,
-                    };
-                    let home = tracker.home(&id).map(vec2_sv).unwrap_or(SVal::Null);
-                    let awake_near = tracker
-                        .awake_near(from, radius, now, awake_moved)
-                        .into_iter()
-                        .map(vec2_sv)
-                        .collect();
-                    obj(vec![
-                        ("mob", mob),
-                        ("home", home),
-                        ("returning", source_reader::b(tracker.returning(&id, now))),
-                        (
-                            "awake",
-                            source_reader::b(tracker.awake(&id, now, awake_moved)),
-                        ),
-                        ("awakeNear", source_reader::arr(awake_near)),
-                    ])
-                }
-                other => panic!("unsupported tracker method {other}"),
-            };
-            compare(
-                &format!("{} op{index} {method}", case["id"]),
-                &expected,
-                &actual,
-                &mut failures,
-            );
-            operations += 1;
-        }
-    }
-    eprintln!("PARITY_TOTAL tracker parity : {}", operations);
-    assert!(
-        failures.is_empty(),
-        "tracker parity {operations} ops; first failures:\n{}",
-        failures
-            .iter()
-            .take(20)
-            .cloned()
-            .collect::<Vec<_>>()
-            .join("\n")
-    );
-}
-
-#[test]
-fn private_strategy_source_hunter_parity() {
-    let source = load_source();
-    let maps = &source["maps"];
-    let mut failures = Vec::new();
-    let mut operations = 0usize;
-    for case in source_cases(&source) {
-        if case["suite"] != "mob-hunter" {
-            continue;
-        }
-        let config = sv(&case["config"]);
-        let cfg = parse_config(&config, maps).unwrap();
-        let mut hunter = MobHunter::new(cfg.hunt_config);
-        for (index, op) in case["operations"].as_array().unwrap().iter().enumerate() {
-            let op = sv(op);
-            let method = text(&op, "method").unwrap();
-            let input = op.optional("input").cloned().unwrap_or(SVal::Undefined);
-            let expected = op.optional("result").cloned().unwrap_or(SVal::Undefined);
-            let actual = match method.as_str() {
-                "hunterDecide" => {
-                    let now = num(&input, "now").unwrap();
-                    let self_view = parse_hunt_self(field(&input, "self").unwrap()).unwrap();
-                    let players = arr(&input, "players")
-                        .unwrap()
-                        .iter()
-                        .map(|p| Ok(Vec2::new(num(p, "x").unwrap(), num(p, "y").unwrap())))
-                        .collect::<R<Vec<_>>>()
-                        .unwrap();
-                    let mobs = parse_mob_entries(field(&input, "mobs").unwrap()).unwrap();
-                    let descriptor = field(&input, "walk").unwrap();
-                    let kind = text(descriptor, "kind").unwrap();
-                    let factor = descriptor
-                        .opt_num("factor", "factor")
-                        .unwrap()
-                        .unwrap_or(1.);
-                    let min_x = descriptor.opt_num("minX", "minX").unwrap();
-                    let max_x = descriptor.opt_num("maxX", "maxX").unwrap();
-                    let mut walk = move |m: &HuntMobLike| -> Option<f64> {
-                        match kind.as_str() {
-                            "null" => None,
-                            "coordinate-block"
-                                if m.x >= min_x.unwrap_or(f64::NEG_INFINITY)
-                                    && m.x <= max_x.unwrap_or(f64::INFINITY) =>
-                            {
-                                None
-                            }
-                            _ => Some(
-                                rh_sim::math::hypot(m.x - self_view.x, m.y - self_view.y) * factor,
-                            ),
-                        }
-                    };
-                    let player_distance = match field(&input, "playerDistance").unwrap() {
-                        SVal::Num(n) => *n,
-                        other => panic!("playerDistance {other:?}"),
-                    };
-                    let shot = match field(&input, "shotByPlayerAt").unwrap() {
-                        SVal::Num(n) => *n,
-                        other => panic!("shot {other:?}"),
-                    };
-                    let type_weights = input.optional("typeWeights").cloned();
-                    let tw = type_weights.as_ref().map(|weights| {
-                        let pairs = weights
-                            .arr("typeWeights")
-                            .unwrap()
-                            .iter()
-                            .map(|p| {
-                                let pair = p.arr("typeWeight pair").unwrap();
-                                let key = pair[0].string("typeWeight key").unwrap().to_string();
-                                (key, pair[1].num("typeWeight value").unwrap())
-                            })
-                            .collect::<Vec<_>>();
-                        move |ty: Option<&str>| -> f64 {
-                            ty.and_then(|t| pairs.iter().find(|(k, _)| k == t).map(|(_, v)| *v))
-                                .unwrap_or(0.25)
-                        }
-                    });
-                    let tw_ref = tw.as_ref().map(|f| f as &dyn Fn(Option<&str>) -> f64);
-                    let mut input_h = HuntInput {
-                        now,
-                        self_: &self_view,
-                        player_distance,
-                        players: &players,
-                        in_coliseum: boolv(&input, "inColiseum").unwrap(),
-                        mobs: &mobs,
-                        walk: &mut walk,
-                        attacking: boolv(&input, "attacking").unwrap(),
-                        shot_by_player_at: shot,
-                        type_weight: tw_ref,
-                        elites_ready: None,
-                    };
-                    encode_decision(&hunter.decide(&mut input_h))
-                }
-                "isBanned" => {
-                    let id = text(&input, "id").unwrap();
-                    let now = num(&input, "now").unwrap();
-                    source_reader::b(hunter.is_banned(&id, now))
-                }
-                other => panic!("unsupported hunter method {other}"),
-            };
-            compare(
-                &format!("{} op{index} {method}", case["id"]),
-                &expected,
-                &actual,
-                &mut failures,
-            );
-            operations += 1;
-        }
-    }
-    eprintln!("PARITY_TOTAL hunter parity : {}", operations);
-    assert!(
-        failures.is_empty(),
-        "hunter parity {operations} ops; first failures:\n{}",
-        failures
-            .iter()
-            .take(15)
-            .cloned()
-            .collect::<Vec<_>>()
-            .join("\n")
-    );
-}
-
-#[test]
-fn private_strategy_source_build_route_parity() {
-    let source = load_source();
-    let maps = &source["maps"];
-    let mut failures = Vec::new();
-    let mut operations = 0usize;
-    for case in source_cases(&source) {
-        if case["suite"] != "build-route" {
-            continue;
-        }
-        let config = sv(&case["config"]);
-        let cfg = parse_config(&config, maps).unwrap();
-        let mut route = BuildRoute::new(cfg.faction, cfg.build_draw);
-        for (index, op) in case["operations"].as_array().unwrap().iter().enumerate() {
-            let op = sv(op);
-            let method = text(&op, "method").unwrap();
-            let input = op.optional("input").cloned().unwrap_or(SVal::Undefined);
-            let expected = op.optional("result").cloned().unwrap_or(SVal::Undefined);
-            let actual = match method.as_str() {
-                "routeUpdate" | "routePlan" => {
-                    let camps = arr(&input, "camps")
-                        .unwrap()
-                        .iter()
-                        .map(|c| parse_route_camp(c).unwrap())
-                        .collect::<Vec<_>>();
-                    let self_sv = field(&input, "self").unwrap();
-                    let self_pos =
-                        Vec2::new(num(self_sv, "x").unwrap(), num(self_sv, "y").unwrap());
-                    let players = arr(&input, "players")
-                        .unwrap()
-                        .iter()
-                        .map(|p| Ok(Vec2::new(num(p, "x").unwrap(), num(p, "y").unwrap())))
-                        .collect::<R<Vec<_>>>()
-                        .unwrap();
-                    let can_farm = can_farm_descriptor(field(&input, "canFarm").unwrap()).unwrap();
-                    let route_input = super::build_route::RouteInput {
-                        now: num(&input, "now").unwrap(),
-                        run_ms: num(&input, "runMs").unwrap(),
-                        self_pos,
-                        speed: num(&input, "speed").unwrap(),
-                        mob_kills: num(&input, "mobKills").unwrap(),
-                        power: num(&input, "power").unwrap(),
-                        camps: &camps,
-                        players: &players,
-                        can_farm: &*can_farm,
-                    };
-                    if method == "routeUpdate" {
-                        route
-                            .update(&route_input)
-                            .map(|s| encode_route_step(&s))
-                            .unwrap_or(SVal::Null)
-                    } else {
-                        route.plan(&route_input);
-                        SVal::Undefined
-                    }
-                }
-                "isContested" => {
-                    let camp = num(&input, "camp").unwrap() as u32;
-                    let now = num(&input, "now").unwrap();
-                    source_reader::b(route.is_contested(camp, now))
-                }
-                "campValue" => {
-                    let camp = parse_route_camp(field(&input, "camp").unwrap()).unwrap();
-                    let elites = boolv(&input, "elites").unwrap();
-                    num_sv(super::build_route::route_camp_value(
-                        route.build,
-                        &camp,
-                        elites,
-                    ))
-                }
-                other => panic!("unsupported route method {other}"),
-            };
-            compare(
-                &format!("{} op{index} {method}", case["id"]),
-                &expected,
-                &actual,
-                &mut failures,
-            );
-            operations += 1;
-        }
-    }
-    eprintln!("PARITY_TOTAL route parity : {}", operations);
-    assert!(
-        failures.is_empty(),
-        "route parity {operations} ops; first failures:\n{}",
-        failures
-            .iter()
-            .take(15)
-            .cloned()
-            .collect::<Vec<_>>()
-            .join("\n")
-    );
-}
-
-// --------------------------------------------------------------------------------------------------------------------
-// Admitted Memory API suite
 
 fn parse_opt_weapon(v: &SVal, path: &str) -> R<Option<WeaponId>> {
     match v {
@@ -1230,19 +1215,17 @@ fn parse_memory_percept(
             id: text(f, "id")?,
             name: text(f, "name")?,
             bot: boolv(f, "bot")?,
-            x: num(f, "x")?,
-            y: num(f, "y")?,
-            facing: num(f, "facing")?,
-            status: text(f, "status")?,
-            hp_frac: num(f, "hpFrac")?,
-            faction: opt_text(f, "faction")?
-                .as_deref()
-                .and_then(FactionId::parse),
-            in_hand: opt_text(f, "inHand")?.and_then(|w| parse_weapon(&w)),
-            draw_started_at: num(f, "drawStartedAt")?,
-            bounty: num(f, "bounty")?,
-            vx: num(f, "vx")?,
-            vy: num(f, "vy")?,
+            x: finite(f, "x")?,
+            y: finite(f, "y")?,
+            facing: finite(f, "facing")?,
+            status: strict_status_value(field(f, "status")?, "status")?,
+            hp_frac: finite(f, "hpFrac")?,
+            faction: strict_opt_faction(f, "faction")?,
+            in_hand: strict_opt_weapon(f, "inHand")?,
+            draw_started_at: finite(f, "drawStartedAt")?,
+            bounty: finite(f, "bounty")?,
+            vx: finite(f, "vx")?,
+            vy: finite(f, "vy")?,
         });
     }
     let mut mobs = Vec::new();
@@ -1252,14 +1235,12 @@ fn parse_memory_percept(
             kind: text(m, "kind")?,
             name: opt_text(m, "name")?.unwrap_or_default(),
             type_: opt_text(m, "type")?,
-            faction: opt_text(m, "faction")?
-                .as_deref()
-                .and_then(FactionId::parse),
-            x: num(m, "x")?,
-            y: num(m, "y")?,
-            status: text(m, "status")?,
-            hp_frac: num(m, "hpFrac")?,
-            in_hand: opt_text(m, "inHand")?.and_then(|w| parse_weapon(&w)),
+            faction: strict_opt_faction(m, "faction")?,
+            x: finite(m, "x")?,
+            y: finite(m, "y")?,
+            status: strict_status_value(field(m, "status")?, "status")?,
+            hp_frac: finite(m, "hpFrac")?,
+            in_hand: strict_opt_weapon(m, "inHand")?,
         });
     }
     let mut containers = Vec::new();
@@ -1267,8 +1248,8 @@ fn parse_memory_percept(
         containers.push(PerceptContainer {
             id: text(c, "id")?,
             kind: text(c, "kind")?,
-            x: num(c, "x")?,
-            y: num(c, "y")?,
+            x: finite(c, "x")?,
+            y: finite(c, "y")?,
             closed: boolv(c, "closed")?,
             weapon: parse_percept_weapon(c.optional("weapon").unwrap_or(&SVal::Undefined))?,
         });
@@ -1278,30 +1259,28 @@ fn parse_memory_percept(
         projectiles.push(PerceptProjectile {
             id: text(p, "id")?,
             kind: text(p, "kind")?,
-            x: num(p, "x")?,
-            y: num(p, "y")?,
-            vx: num(p, "vx")?,
-            vy: num(p, "vy")?,
-            x0: num(p, "x0")?,
-            y0: num(p, "y0")?,
-            t0: num(p, "t0")?,
-            range: num(p, "range")?,
+            x: finite(p, "x")?,
+            y: finite(p, "y")?,
+            vx: finite(p, "vx")?,
+            vy: finite(p, "vy")?,
+            x0: finite(p, "x0")?,
+            y0: finite(p, "y0")?,
+            t0: finite(p, "t0")?,
+            range: finite(p, "range")?,
             from: opt_text(p, "from")?,
         });
     }
     let minimap_v = field(input, "minimap")?;
     let minimap = PerceptMinimap {
-        t: num(minimap_v, "t")?,
+        t: finite(minimap_v, "t")?,
         mobs: arr(minimap_v, "mobs")?
             .iter()
             .map(|m| {
                 Ok(PerceptMinimapMob {
                     id: text(m, "id")?,
-                    x: num(m, "x")?,
-                    y: num(m, "y")?,
-                    faction: opt_text(m, "faction")?
-                        .as_deref()
-                        .and_then(FactionId::parse),
+                    x: finite(m, "x")?,
+                    y: finite(m, "y")?,
+                    faction: strict_opt_faction(m, "faction")?,
                     elite: boolv(m, "elite")?,
                 })
             })
@@ -1317,7 +1296,7 @@ fn parse_memory_percept(
         for c in camps.arr("extras.camps")? {
             extras.camps.push(PerceptCampView {
                 id: text(c, "id")?,
-                state: num(c, "state")? as u8,
+                state: uint(c, "state", 2)? as u8,
             });
         }
     }
@@ -1325,8 +1304,8 @@ fn parse_memory_percept(
         for c in chests.arr("extras.chests")? {
             extras.chests.push(PerceptChest {
                 id: text(c, "id")?,
-                x: num(c, "x")?,
-                y: num(c, "y")?,
+                x: finite(c, "x")?,
+                y: finite(c, "y")?,
                 picked: boolv(c, "picked")?,
             });
         }
@@ -1334,7 +1313,7 @@ fn parse_memory_percept(
     if let Some(plan) = extras_v.optional("plan") {
         if !matches!(plan, SVal::Null) {
             extras.plan = Some(PerceptPlan {
-                ends_at: num(plan, "endsAt")?,
+                ends_at: finite(plan, "endsAt")?,
             });
         }
     }
@@ -1343,19 +1322,19 @@ fn parse_memory_percept(
         None => fallback_features.clone(),
     };
     Ok(MemoryPercept {
-        now: num(input, "now")?,
-        view_t: num(input, "viewT")?,
+        now: finite(input, "now")?,
+        view_t: finite(input, "viewT")?,
         self_: PerceptSelf {
             id: text(self_v, "id")?,
             name: text(self_v, "name")?,
-            x: num(self_v, "x")?,
-            y: num(self_v, "y")?,
-            facing: num(self_v, "facing")?,
-            status: text(self_v, "status")?,
-            hp: num(self_v, "hp")?,
-            max_hp: num(self_v, "maxHp")?,
+            x: finite(self_v, "x")?,
+            y: finite(self_v, "y")?,
+            facing: finite(self_v, "facing")?,
+            status: strict_status_value(field(self_v, "status")?, "status")?,
+            hp: finite(self_v, "hp")?,
+            max_hp: finite(self_v, "maxHp")?,
             attack_target: opt_text(self_v, "attackTarget")?,
-            move_seq: num(self_v, "moveSeq")?,
+            move_seq: finite(self_v, "moveSeq")?,
         },
         hud_in_coliseum: boolv(hud, "inColiseum")?,
         fighters,
@@ -1371,7 +1350,7 @@ fn parse_memory_percept(
 
 fn parse_event(v: &SVal) -> R<super::super::memory::source_input::PerceptEventRow> {
     use super::super::memory::source_input::{PerceptEvent, PerceptEventRow};
-    let t = num(v, "t")?;
+    let t = finite(v, "t")?;
     let at = match v.optional("at") {
         Some(SVal::Null) | None => None,
         Some(a) => Some(parse_vec2(a)?),
@@ -1384,18 +1363,18 @@ fn parse_event(v: &SVal) -> R<super::super::memory::source_input::PerceptEventRo
         "hit" => PerceptEvent::Hit {
             id: text(v, "id")?,
             by: opt_text(v, "by")?,
-            amount: num(v, "amount")?,
-            weapon: opt_text(v, "weapon")?.and_then(|w| parse_weapon(&w)),
+            amount: finite(v, "amount")?,
+            weapon: strict_opt_weapon(v, "weapon")?,
         },
         "block" => PerceptEvent::Block {
             id: text(v, "id")?,
             by: opt_text(v, "by")?,
-            weapon: opt_text(v, "weapon")?.and_then(|w| parse_weapon(&w)),
+            weapon: strict_opt_weapon(v, "weapon")?,
         },
         "bounty" => PerceptEvent::Bounty {
             id: text(v, "id")?,
             name: text(v, "name")?,
-            bounty: num(v, "bounty")?,
+            bounty: finite(v, "bounty")?,
         },
         "death" => PerceptEvent::Death {
             id: text(v, "id")?,
@@ -1411,17 +1390,15 @@ fn parse_event(v: &SVal) -> R<super::super::memory::source_input::PerceptEventRo
         "teleport" => PerceptEvent::Teleport,
         "windup" => PerceptEvent::Windup {
             by: text(v, "by")?,
-            weapon: parse_weapon(&text(v, "weapon")?)
-                .ok_or_else(|| "unknown windup weapon".to_string())?,
-            a: num(v, "a")?,
-            ms: num(v, "ms")?,
+            weapon: strict_weapon_string(field(v, "weapon")?, "weapon")?,
+            a: finite(v, "a")?,
+            ms: finite(v, "ms")?,
         },
         "cancel" => PerceptEvent::Cancel { id: text(v, "id")? },
         "swing" => PerceptEvent::Swing {
             by: text(v, "by")?,
-            weapon: parse_weapon(&text(v, "weapon")?)
-                .ok_or_else(|| "unknown swing weapon".to_string())?,
-            a: num(v, "a")?,
+            weapon: strict_weapon_string(field(v, "weapon")?, "weapon")?,
+            a: finite(v, "a")?,
         },
         "ext" => PerceptEvent::Ext {
             fx: text(v, "fx")?,
@@ -1743,27 +1720,72 @@ fn encode_memory(mem: &super::super::memory::Memory) -> SVal {
 
 fn parse_note_sent(input: &SVal) -> R<super::super::memory::MemoryTimedCommand> {
     use super::super::memory::{MemoryCommand, MemoryTimedCommand};
-    let at = num(input, "at")?;
+    strict_keys(
+        input,
+        &["at", "cmd", "intent", "priority", "stimulus"],
+        "noteSent",
+    )?;
+    let at = finite(input, "at")?;
+    if let Some(intent) = input.optional("intent") {
+        if !matches!(intent, SVal::Str(_)) {
+            return Err("noteSent.intent: expected a string".into());
+        }
+    }
+    if let Some(priority) = input.optional("priority") {
+        uint_value(priority, "noteSent.priority", u64::from(u32::MAX))?;
+    }
     let cmd_v = field(input, "cmd")?;
+    strict_keys(cmd_v, &["type", "msg"], "noteSent.cmd")?;
     let ty = text(cmd_v, "type")?;
     let msg = field(cmd_v, "msg")?;
+    let source_commands = [
+        "move",
+        "stop",
+        "target",
+        "attack",
+        "release",
+        "swap",
+        "pickup",
+        "cast",
+        "plan",
+        "choose",
+        "useConsumable",
+    ];
+    if !source_commands.contains(&ty.as_str()) {
+        return Err(format!(
+            "noteSent.cmd.type: unsupported source command {ty}"
+        ));
+    }
     let cmd = match ty.as_str() {
-        "move" => MemoryCommand::Move {
-            x: num(msg, "x")?,
-            y: num(msg, "y")?,
-            seq: msg.opt_num("seq", "seq")?,
-        },
-        "stop" => MemoryCommand::Stop {
-            seq: msg.opt_num("seq", "seq")?,
-        },
-        "target" => MemoryCommand::Target {
-            id: text(msg, "id")?,
-        },
-        "pickup" => MemoryCommand::Pickup {
-            container_id: text(msg, "containerId")?,
-        },
+        "move" => {
+            strict_keys(msg, &["x", "y", "seq"], "noteSent.cmd.msg")?;
+            MemoryCommand::Move {
+                x: finite(msg, "x")?,
+                y: finite(msg, "y")?,
+                seq: finite_opt(msg, "seq")?,
+            }
+        }
+        "stop" => {
+            strict_keys(msg, &["seq"], "noteSent.cmd.msg")?;
+            MemoryCommand::Stop {
+                seq: finite_opt(msg, "seq")?,
+            }
+        }
+        "target" => {
+            strict_keys(msg, &["id"], "noteSent.cmd.msg")?;
+            MemoryCommand::Target {
+                id: text(msg, "id")?,
+            }
+        }
+        "pickup" => {
+            strict_keys(msg, &["containerId"], "noteSent.cmd.msg")?;
+            MemoryCommand::Pickup {
+                container_id: text(msg, "containerId")?,
+            }
+        }
         "cast" => MemoryCommand::Cast,
-        _ => MemoryCommand::Other,
+        "attack" | "release" | "swap" | "plan" | "choose" | "useConsumable" => MemoryCommand::Other,
+        _ => unreachable!("checked command union"),
     };
     let raw = parse_method_value(input)?;
     Ok(MemoryTimedCommand { at, cmd, raw })
@@ -1825,123 +1847,51 @@ fn compare_memory(label: &str, expected: &SVal, actual: &SVal, failures: &mut Ve
     }
 }
 
-#[test]
-fn private_strategy_source_memory_parity() {
-    let source = load_source();
-    let maps = &source["maps"];
-    let mut failures = Vec::new();
-    let mut operations = 0usize;
-    for case in source_cases(&source) {
-        if case["suite"] != "memory-api" {
-            continue;
-        }
-        let config = sv(&case["config"]);
-        let cfg = parse_config(&config, maps).unwrap();
-        let mut mem = create_memory(&cfg);
-        for (index, op) in case["operations"].as_array().unwrap().iter().enumerate() {
-            let op = sv(op);
-            let method = text(&op, "method").unwrap();
-            let input = op.optional("input").cloned().unwrap_or(SVal::Undefined);
-            let expected = op.optional("result").cloned().unwrap_or(SVal::Undefined);
-            let actual = match method.as_str() {
-                "nullPercept" => {
-                    assert!(matches!(input, SVal::Null));
-                    SVal::Null
-                }
-                "observe" => {
-                    let percept = parse_memory_percept(&input, &cfg.features).unwrap();
-                    let stimuli = mem.observe(&percept).unwrap();
-                    source_reader::arr(stimuli.iter().map(encode_stimulus).collect())
-                }
-                "noteSent" => {
-                    let tc = parse_note_sent(&input).unwrap();
-                    mem.note_sent(tc).unwrap();
-                    SVal::Undefined
-                }
-                "recordChoice" => {
-                    mem.record_choice(input.string("choice").unwrap());
-                    SVal::Undefined
-                }
-                "whereabouts" => {
-                    let id = text(&input, "id").unwrap();
-                    let now = num(&input, "now").unwrap();
-                    match mem.whereabouts(&id, now).unwrap() {
-                        None => SVal::Null,
-                        Some(w) => obj(vec![("at", vec2_sv(w.at)), ("radius", num_sv(w.radius))]),
-                    }
-                }
-                other => panic!("unsupported memory method {other}"),
-            };
-            compare(
-                &format!("{} op{index} {method}", case["id"]),
-                &expected,
-                &actual,
-                &mut failures,
-            );
-            let expected_memory = op.optional("memory").cloned().unwrap_or(SVal::Undefined);
-            let actual_memory = encode_memory(&mem);
-            compare_memory(
-                &format!("{} op{index} {method}", case["id"]),
-                &expected_memory,
-                &actual_memory,
-                &mut failures,
-            );
-            operations += 1;
-        }
-    }
-    eprintln!("PARITY_TOTAL memory parity : {}", operations);
-    assert!(
-        failures.is_empty(),
-        "memory parity {operations} ops; first failures:\n{}",
-        failures
-            .iter()
-            .take(10)
-            .cloned()
-            .collect::<Vec<_>>()
-            .join("\n")
-    );
-}
-
-// --------------------------------------------------------------------------------------------------------------------
-// Source percept/config -> private strategy context helpers
-
 fn parse_strategy_self(v: &SVal) -> R<StrategySelf> {
-    let weapons_raw = arr(v, "weapons")?;
-    let mut weapons = [None, None];
-    for (i, w) in weapons_raw.iter().take(2).enumerate() {
-        weapons[i] = match w {
-            SVal::Null => None,
-            SVal::Str(s) => parse_weapon(s),
-            _ => return Err("weapons must be string|null".into()),
-        };
-    }
+    let weapons = strict_weapon_list(field(v, "weapons")?, "self.weapons")?;
     let mob_stats = match v.optional("mobStats") {
+        None | Some(SVal::Undefined) => Vec::new(),
         Some(SVal::Obj(entries)) => entries
             .iter()
-            .map(|(k, v)| Ok((k.clone(), v.num("mobStats")? as u32)))
+            .map(|(kind, count)| {
+                Ok((
+                    kind.clone(),
+                    uint_value(count, "mobStats count", u64::from(u32::MAX))? as u32,
+                ))
+            })
             .collect::<R<Vec<_>>>()?,
-        _ => Vec::new(),
+        Some(other) => return Err(format!("self.mobStats: expected an object, got {other:?}")),
     };
+    let slot = uint(v, "slot", 1)? as u8;
     Ok(StrategySelf {
         id: text(v, "id")?,
-        faction: opt_text(v, "faction")?
-            .as_deref()
-            .and_then(FactionId::parse),
-        x: num(v, "x")?,
-        y: num(v, "y")?,
-        facing: num(v, "facing")?,
-        status: text(v, "status")?,
-        hp: num(v, "hp")?,
-        max_hp: num(v, "maxHp")?,
+        name: text(v, "name")?,
+        faction: strict_opt_faction(v, "faction")?,
+        x: finite(v, "x")?,
+        y: finite(v, "y")?,
+        facing: finite(v, "facing")?,
+        status: strict_status_value(field(v, "status")?, "self.status")?,
+        hp: finite(v, "hp")?,
+        max_hp: finite(v, "maxHp")?,
+        barrier: finite(v, "barrier")?,
+        draw_started_at: finite(v, "drawStartedAt")?,
+        ready_at: finite(v, "readyAt")?,
+        immune_until: finite(v, "immuneUntil")?,
+        sig: finite(v, "sig")?,
+        brand: finite(v, "brand")?,
+        as_mult: finite(v, "asMult")?,
+        windup_mult: finite(v, "windupMult")?,
+        gv: finite(v, "gv")?,
+        move_seq: finite(v, "moveSeq")?,
         weapons,
-        slot: num(v, "slot")? as u8,
+        slot,
         attack_target: opt_text(v, "attackTarget")?,
-        mob_kills: num(v, "mobKills")?,
-        power: num(v, "power")?,
-        kills: num(v, "kills")?,
+        mob_kills: finite(v, "mobKills")?,
+        power: finite(v, "power")?,
+        kills: finite(v, "kills")?,
         mob_stats,
-        speed_mult: num(v, "speedMult")?,
-        bounty: num(v, "bounty")?,
+        speed_mult: finite(v, "speedMult")?,
+        bounty: finite(v, "bounty")?,
     })
 }
 
@@ -1953,20 +1903,18 @@ fn parse_strategy_percept(input: &SVal, _cfg: &SourceConfig) -> R<StrategyPercep
         .map(|f| {
             Ok(super::types::StrategyFighter {
                 id: text(f, "id")?,
-                x: num(f, "x")?,
-                y: num(f, "y")?,
-                dist: num(f, "dist")?,
+                x: finite(f, "x")?,
+                y: finite(f, "y")?,
+                dist: finite(f, "dist")?,
                 los: boolv(f, "los")?,
-                status: text(f, "status")?,
+                status: strict_status_value(field(f, "status")?, "status")?,
                 targetable: boolv(f, "targetable")?,
                 immune: boolv(f, "immune")?,
-                hp_frac: num(f, "hpFrac")?,
-                faction: opt_text(f, "faction")?
-                    .as_deref()
-                    .and_then(FactionId::parse),
-                in_hand: opt_text(f, "inHand")?.and_then(|w| parse_weapon(&w)),
-                bounty: num(f, "bounty")?,
-                tint: num(f, "tint")?,
+                hp_frac: finite(f, "hpFrac")?,
+                faction: strict_opt_faction(f, "faction")?,
+                in_hand: strict_opt_weapon(f, "inHand")?,
+                bounty: finite(f, "bounty")?,
+                tint: finite(f, "tint")?,
             })
         })
         .collect::<R<Vec<_>>>()?;
@@ -1975,9 +1923,9 @@ fn parse_strategy_percept(input: &SVal, _cfg: &SourceConfig) -> R<StrategyPercep
         .map(|m| {
             Ok(super::types::StrategyMob {
                 id: text(m, "id")?,
-                x: num(m, "x")?,
-                y: num(m, "y")?,
-                status: text(m, "status")?,
+                x: finite(m, "x")?,
+                y: finite(m, "y")?,
+                status: strict_status_value(field(m, "status")?, "status")?,
                 kind: text(m, "kind")?,
             })
         })
@@ -1988,8 +1936,8 @@ fn parse_strategy_percept(input: &SVal, _cfg: &SourceConfig) -> R<StrategyPercep
             Ok(super::types::StrategyContainer {
                 id: text(c, "id")?,
                 kind: text(c, "kind")?,
-                x: num(c, "x")?,
-                y: num(c, "y")?,
+                x: finite(c, "x")?,
+                y: finite(c, "y")?,
                 closed: boolv(c, "closed")?,
                 weapon: match c.optional("weapon") {
                     Some(SVal::Str(s)) => super::super::memory::ContainersWeapon::Weapon(
@@ -2007,10 +1955,10 @@ fn parse_strategy_percept(input: &SVal, _cfg: &SourceConfig) -> R<StrategyPercep
             let mut views = Vec::new();
             for c in camps.arr("extras.camps")? {
                 views.push(super::types::CampView {
-                    index: num(c, "index")? as usize,
+                    index: uint(c, "index", u64::from(u32::MAX))? as usize,
                     type_: opt_text(c, "type")?,
-                    alive: num(c, "alive")? as u32,
-                    state: num(c, "state")? as u8,
+                    alive: uint(c, "alive", u64::from(u32::MAX))? as u32,
+                    state: uint(c, "state", 2)? as u8,
                     respawn_at: c.opt_num("respawnAt", "respawnAt")?,
                 });
             }
@@ -2018,14 +1966,14 @@ fn parse_strategy_percept(input: &SVal, _cfg: &SourceConfig) -> R<StrategyPercep
         }
     }
     Ok(StrategyPercept {
-        now: num(input, "now")?,
+        now: finite(input, "now")?,
         self_: parse_strategy_self(self_v)?,
         hud: super::types::StrategyHud {
-            raid_started_at: num(hud, "raidStartedAt")?,
-            patience_ends_at: num(hud, "patienceEndsAt")?,
-            sudden_death_at: num(hud, "suddenDeathAt")?,
+            raid_started_at: finite(hud, "raidStartedAt")?,
+            patience_ends_at: finite(hud, "patienceEndsAt")?,
+            sudden_death_at: finite(hud, "suddenDeathAt")?,
             in_coliseum: boolv(hud, "inColiseum")?,
-            alive: num(hud, "alive")? as u32,
+            alive: uint(hud, "alive", u64::from(u32::MAX))? as u32,
             gates_locked: boolv(hud, "gatesLocked")?,
         },
         fighters,
@@ -2035,15 +1983,29 @@ fn parse_strategy_percept(input: &SVal, _cfg: &SourceConfig) -> R<StrategyPercep
     })
 }
 
+// --------------------------------------------------------------------------------------------------------------------
+// Recording path harness and shared setup helpers
+
+/// The declared source path service: the open/coordinate-block/null rules and the real rh_sim Pathfinder over the frozen
+/// generated map for `kind: source`. Every call is appended to the case transcript with the exact source arguments.
 struct PathHarness {
     spec: PathSpec,
     source_map: Option<rh_sim::TileMap>,
     finder: rh_sim::pathfind::Pathfinder,
-    calls: Vec<(Vec2, Vec2)>,
+    trace: TraceHandle,
 }
-impl super::types::PathApi for PathHarness {
-    fn walk(&mut self, from: Vec2, to: Vec2) -> Option<WalkAnswer> {
-        self.calls.push((from, to));
+
+impl PathHarness {
+    fn new(cfg: &SourceConfig, trace: &TraceHandle) -> Self {
+        Self {
+            spec: cfg.path.clone(),
+            source_map: cfg.tile_map.clone(),
+            finder: rh_sim::pathfind::Pathfinder::default(),
+            trace: trace.clone(),
+        }
+    }
+
+    fn answer(&mut self, from: Vec2, to: Vec2) -> Option<WalkAnswer> {
         match &self.spec {
             PathSpec::Null => None,
             PathSpec::CoordinateBlock { min_x, max_x } if to.x >= *min_x && to.x <= *max_x => None,
@@ -2071,6 +2033,42 @@ impl super::types::PathApi for PathHarness {
             }),
         }
     }
+}
+
+fn encode_walk_result(result: &Option<WalkAnswer>) -> SVal {
+    match result {
+        None => source_reader::null(),
+        Some(answer) => obj(vec![
+            ("dist", num_sv(answer.dist)),
+            ("exact", bool_sv(answer.exact)),
+        ]),
+    }
+}
+
+impl super::types::PathApi for PathHarness {
+    fn walk(&mut self, from: Vec2, to: Vec2) -> Option<WalkAnswer> {
+        self.answer(from, to)
+    }
+    fn walk_camp(&mut self, from: &StrategySelf, to: &CampDef) -> Option<WalkAnswer> {
+        let result = self.answer(from.pos(), Vec2::new(to.x, to.y));
+        record_callback(
+            &self.trace,
+            "paths.walk",
+            vec![encode_strategy_self(from), encode_source_camp(to)],
+            encode_walk_result(&result),
+        );
+        result
+    }
+    fn walk_mob(&mut self, from: Vec2, to: &HuntMobLike) -> Option<WalkAnswer> {
+        let result = self.answer(from, Vec2::new(to.x, to.y));
+        record_callback(
+            &self.trace,
+            "paths.walk",
+            vec![vec2_sv(from), encode_hunt_mob_like(to)],
+            encode_walk_result(&result),
+        );
+        result
+    }
     fn los(&self, _a: Vec2, _b: Vec2) -> bool {
         !matches!(self.spec, PathSpec::Null)
     }
@@ -2079,359 +2077,1383 @@ impl super::types::PathApi for PathHarness {
     }
 }
 
-fn encode_goal(goal: &Goal) -> SVal {
-    match goal {
-        Goal::Idle => obj(vec![("kind", source_reader::s("idle"))]),
-        Goal::Farm { mob, camp } => obj(vec![
-            ("kind", source_reader::s("farm")),
-            ("mob", source_reader::s(mob)),
-            (
-                "camp",
-                camp.as_deref().map(source_reader::s).unwrap_or(SVal::Null),
-            ),
-        ]),
-        Goal::Hunt { target } => obj(vec![
-            ("kind", source_reader::s("hunt")),
-            ("target", source_reader::s(target)),
-        ]),
-        Goal::Fight { target } => obj(vec![
-            ("kind", source_reader::s("fight")),
-            ("target", source_reader::s(target)),
-        ]),
-        Goal::Loot { container } => obj(vec![
-            ("kind", source_reader::s("loot")),
-            ("container", source_reader::s(container)),
-        ]),
-        Goal::Flee { from, until } => obj(vec![
-            ("kind", source_reader::s("flee")),
-            (
-                "from",
-                source_reader::arr(from.iter().map(|p| vec2_sv(*p)).collect()),
-            ),
-            ("until", num_sv(*until)),
-        ]),
-        Goal::Roam { to, why } => obj(vec![
-            ("kind", source_reader::s("roam")),
-            ("to", vec2_sv(*to)),
-            ("why", source_reader::s(why.as_str())),
-        ]),
-        Goal::Hold { at, why } => obj(vec![
-            ("kind", source_reader::s("hold")),
-            ("at", vec2_sv(*at)),
-            ("why", source_reader::s(why.as_str())),
-        ]),
-        Goal::Module { module, data } => obj(vec![
-            ("kind", source_reader::s("module")),
-            ("module", source_reader::s(module)),
-            ("data", method_value_sv(data)),
-        ]),
+fn must<T>(result: R<T>, label: &str) -> T {
+    result.unwrap_or_else(|error| panic!("{label}: {error}"))
+}
+
+fn case_id(case_json: &Value) -> String {
+    case_json["id"]
+        .as_str()
+        .expect("frozen case id is a string")
+        .to_string()
+}
+
+fn case_cfg(case_json: &Value, maps: &Value) -> SourceConfig {
+    let config = sv(&case_json["config"]);
+    must(parse_config(&config, maps), "case config")
+}
+
+fn operations(case_json: &Value) -> &[Value] {
+    case_json["operations"]
+        .as_array()
+        .expect("frozen case operations")
+}
+
+fn assert_no_setup(case_json: &Value, label: &str) {
+    match sv(&case_json["setupTranscript"]) {
+        SVal::Arr(values) => assert!(
+            values.is_empty(),
+            "{label}: expected no setup transcript, got {} entries",
+            values.len()
+        ),
+        other => panic!("{label}: setupTranscript must be an array, got {other:?}"),
     }
 }
 
-fn encode_goal_decision(d: &GoalDecision) -> SVal {
-    let mut fields = vec![
-        ("goal", encode_goal(&d.goal)),
-        ("utility", num_sv(d.utility)),
-        ("why", source_reader::s(&d.why)),
-    ];
-    if let Some(choice) = &d.choice {
-        fields.push(("choice", source_reader::s(choice)));
+/// Create the real admitted Knowledge from the source's separate seed+3 constructor stream and check the frozen setup
+/// transcript: exactly 70 ordered draws (10 faction masks, 10 weapon masks, 50 share errors), then prove the admitted
+/// constructor consumed exactly that many draws by comparing the next draw of a same-seed stream.
+fn knowledge_setup(
+    cfg: &SourceConfig,
+    case_json: &Value,
+    label: &str,
+    failures: &mut Vec<String>,
+) -> (Knowledge, usize, TraceHandle) {
+    let expected = sv(&case_json["setupTranscript"]);
+    let entries = match &expected {
+        SVal::Arr(values) => values.len(),
+        other => panic!("{label}: setupTranscript must be an array, got {other:?}"),
+    };
+    assert_eq!(
+        entries, 70,
+        "{label}: source Knowledge construction draw count"
+    );
+    let mut actual = Rng::new(cfg.seed + 3);
+    let knowledge = Knowledge::create(&cfg.tier, &mut actual);
+    let next_actual = actual.next_f64();
+    let mut probe = Rng::new(cfg.seed + 3);
+    for _ in 0..entries {
+        probe.next_f64();
     }
-    obj(fields)
+    let next_probe = probe.next_f64();
+    assert!(
+        next_actual.to_bits() == next_probe.to_bits(),
+        "{label}: admitted Knowledge constructor did not consume exactly {entries} seed+3 draws"
+    );
+    let setup_trace = TraceLog::new_handle();
+    {
+        let mut recorder = TraceRng::new(cfg.seed + 3, Vec::new(), "knowledge", &setup_trace);
+        for _ in 0..entries {
+            recorder.draw();
+        }
+    }
+    compare_callbacks(
+        &format!("{label} setupTranscript"),
+        &expected,
+        &setup_trace,
+        failures,
+    );
+    (knowledge, entries, setup_trace)
 }
 
-fn encode_strategy_state(state: &StrategyState) -> SVal {
-    obj(vec![
-        (
-            "avoidId",
-            state
-                .avoid_id
-                .as_deref()
-                .map(source_reader::s)
-                .unwrap_or(SVal::Null),
-        ),
-        ("avoidUntil", num_sv(state.avoid_until)),
-        (
-            "chase",
-            match &state.chase {
-                None => SVal::Null,
-                Some(c) => obj(vec![
-                    ("id", source_reader::s(&c.id)),
-                    ("best", num_sv(c.best)),
-                    ("since", num_sv(c.since)),
-                    ("limit", num_sv(c.limit)),
-                ]),
-            },
-        ),
-        ("goalSince", num_sv(state.goal_since)),
-        (
-            "candidates",
-            source_reader::arr(state.candidates.iter().map(encode_goal_decision).collect()),
-        ),
-    ])
+fn compare_initial_memory(
+    label: &str,
+    case_json: &Value,
+    mem: &super::super::memory::Memory,
+    failures: &mut Vec<String>,
+) {
+    let expected = sv(&case_json["initial"]["memory"]);
+    compare_memory(
+        &format!("{label} initial"),
+        &expected,
+        &encode_memory(mem),
+        failures,
+    );
 }
 
-fn encode_hunt_stats(stats: &super::mob_hunt::MobHuntStats) -> SVal {
-    obj(vec![
-        ("targets", num_sv(stats.targets as f64)),
-        ("drops", num_sv(stats.drops as f64)),
-        ("retreats", num_sv(stats.retreats as f64)),
-        ("focusMs", num_sv(stats.focus_ms)),
-    ])
+fn compare_initial_own(label: &str, case_json: &Value, own: SVal, failures: &mut Vec<String>) {
+    let expected = sv(&case_json["initial"]["own"]);
+    if !super::source_trace::own_same(&expected, &own) {
+        let detail = super::source_trace::first_difference(&expected, &own, "own")
+            .unwrap_or_else(|| "own shape differs".into());
+        failures.push(format!("{label} initial.own: {detail}"));
+    }
 }
 
-fn encode_optional_step(step: Option<super::types::RouteStep>) -> SVal {
-    step.map(|s| encode_route_step(&s)).unwrap_or(SVal::Null)
+fn compare_op_own(label: &str, op_json: &Value, own: SVal, failures: &mut Vec<String>) {
+    let expected = sv(&op_json["own"]);
+    if !super::source_trace::own_same(&expected, &own) {
+        let detail = super::source_trace::first_difference(&expected, &own, "own")
+            .unwrap_or_else(|| "own shape differs".into());
+        failures.push(format!("{label} own: {detail}"));
+    }
 }
 
-fn encode_plan(plan: &Option<(String, Vec<super::types::RouteStep>, u64)>) -> SVal {
-    match plan {
-        None => SVal::Null,
-        Some((build, route, contests)) => obj(vec![
-            ("build", source_reader::s(build)),
-            (
-                "route",
-                source_reader::arr(route.iter().map(encode_route_step).collect()),
-            ),
-            ("contests", num_sv(*contests as f64)),
-        ]),
+fn compare_op_memory(
+    label: &str,
+    op_json: &Value,
+    mem: &super::super::memory::Memory,
+    failures: &mut Vec<String>,
+) {
+    let expected = sv(&op_json["memory"]);
+    compare_memory(label, &expected, &encode_memory(mem), failures);
+}
+
+/// The uniform per-operation channels: the frozen ordered callback/RNG transcript, the cumulative four-stream draw
+/// counts, and (when requested) any suite getters already compared by the caller.
+fn check_channels(
+    label: &str,
+    op_json: &Value,
+    trace: &TraceHandle,
+    draw_counts: Option<[usize; 4]>,
+    failures: &mut Vec<String>,
+) {
+    compare_callbacks(label, &sv(&op_json["callbacks"]), trace, failures);
+    let [decide, motor, lapse, knowledge] = draw_counts.unwrap_or([0, 0, 0, 0]);
+    compare_draw_counts(
+        label,
+        &sv(&op_json["drawCounts"]),
+        decide,
+        motor,
+        lapse,
+        knowledge,
+        failures,
+    );
+}
+
+#[derive(Default)]
+struct ReplayOutcome {
+    cases: usize,
+    operations: usize,
+    non_advance: usize,
+    failures: Vec<String>,
+}
+
+impl ReplayOutcome {
+    fn into_green(self, label: &str, expected_cases: usize, expected_operations: usize) {
+        eprintln!(
+            "PARITY_TOTAL {label} : {} cases / {} ops / {} non-advance / {} failures",
+            self.cases,
+            self.operations,
+            self.non_advance,
+            self.failures.len()
+        );
+        assert_eq!(self.cases, expected_cases, "{label}: case count");
+        assert_eq!(
+            self.operations, expected_operations,
+            "{label}: operation count"
+        );
+        assert!(
+            self.failures.is_empty(),
+            "{label} parity {}/{}; first failures:\n{}",
+            self.cases,
+            self.operations,
+            self.failures
+                .iter()
+                .take(60)
+                .cloned()
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
     }
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-// Adapter and Strategy suites
+// Complete typed operation preflight, run on the actual replay path before any Memory/state/RNG/callback mutation.
 
-struct OverrideRng {
-    fallback: Rng,
-    overrides: Vec<f64>,
-    index: usize,
-    draws: Vec<f64>,
+fn strict_vec2_value(v: &SVal, name: &str) -> R<Vec2> {
+    strict_keys(v, &["x", "y"], name)?;
+    Ok(Vec2::new(finite(v, "x")?, finite(v, "y")?))
 }
-impl OverrideRng {
-    fn new(seed: u32, overrides: Vec<f64>) -> Self {
-        Self {
-            fallback: Rng::new(seed),
-            overrides,
-            index: 0,
-            draws: Vec::new(),
+
+/// The declared path/walk descriptor of a mob hunt (`open` factor, `coordinate-block` range or `null`).
+fn preflight_hunt_walk(descriptor: &SVal) -> R<()> {
+    match text(descriptor, "kind")?.as_str() {
+        "null" => strict_keys(descriptor, &["kind"], "walk"),
+        "open" => {
+            strict_keys(descriptor, &["kind", "factor"], "walk")?;
+            finite(descriptor, "factor")?;
+            Ok(())
+        }
+        "coordinate-block" => {
+            strict_keys(descriptor, &["kind", "minX", "maxX"], "walk")?;
+            finite(descriptor, "minX")?;
+            finite(descriptor, "maxX")?;
+            Ok(())
+        }
+        other => Err(format!(
+            "walk.kind: unknown declared walk descriptor {other}"
+        )),
+    }
+}
+
+fn preflight_hunter_decide(input: &SVal) -> R<()> {
+    strict_keys(
+        input,
+        &[
+            "now",
+            "self",
+            "playerDistance",
+            "players",
+            "inColiseum",
+            "mobs",
+            "walk",
+            "attacking",
+            "shotByPlayerAt",
+            "typeWeights",
+            "elitesReady",
+        ],
+        "hunterDecide",
+    )?;
+    finite(input, "now")?;
+    parse_hunt_self(field(input, "self")?)?;
+    match field(input, "playerDistance")? {
+        SVal::Num(value) if value.is_nan() || *value == f64::NEG_INFINITY => {
+            return Err("playerDistance: invalid sentinel".into())
+        }
+        SVal::Num(_) => {}
+        other => return Err(format!("playerDistance: expected a number, got {other:?}")),
+    }
+    arr(input, "players")?
+        .iter()
+        .map(|p| strict_vec2_value(p, "players[]"))
+        .collect::<R<Vec<_>>>()?;
+    boolv(input, "inColiseum")?;
+    let _ = must(
+        parse_mob_entries(field(input, "mobs")?),
+        "hunterDecide mobs",
+    );
+    preflight_hunt_walk(field(input, "walk")?)?;
+    boolv(input, "attacking")?;
+    match field(input, "shotByPlayerAt")? {
+        SVal::Num(value) if value.is_nan() || *value == f64::INFINITY => {
+            return Err("shotByPlayerAt: invalid sentinel".into())
+        }
+        SVal::Num(_) => {}
+        other => return Err(format!("shotByPlayerAt: expected a number, got {other:?}")),
+    }
+    if let Some(weights) = input.optional("typeWeights") {
+        for (index, entry) in weights.arr("typeWeights")?.iter().enumerate() {
+            let pair = entry
+                .arr("typeWeight pair")
+                .map_err(|_| format!("typeWeights[{index}]: expected [type, weight]"))?;
+            if pair.len() != 2 {
+                return Err(format!("typeWeights[{index}]: expected [type, weight]"));
+            }
+            pair[0].string("typeWeight key")?;
+            finite_value(&pair[1], "typeWeight value")?;
         }
     }
-}
-impl super::types::RngStream for OverrideRng {
-    fn draw(&mut self) -> f64 {
-        let value = if self.index < self.overrides.len() {
-            self.overrides[self.index]
-        } else {
-            self.fallback.next_f64()
-        };
-        self.index += 1;
-        self.draws.push(value);
-        value
+    if let Some(ready) = input.optional("elitesReady") {
+        if !matches!(ready, SVal::Bool(_)) {
+            return Err(format!("elitesReady: expected a boolean, got {ready:?}"));
+        }
     }
+    Ok(())
 }
 
-struct StrategyHarnessConfig {
-    tier: TierParams,
-    persona: PersonaParams,
-    map: StrategyMap,
-    features: Features,
-    learned: LearnedMap,
-    modules: Vec<Box<dyn super::types::FeatureModule>>,
-}
-
-fn harness_config(cfg: &SourceConfig) -> StrategyHarnessConfig {
-    StrategyHarnessConfig {
-        tier: cfg.tier,
-        persona: cfg.persona,
-        map: cfg.map.clone(),
-        features: cfg.features.clone(),
-        learned: cfg.learned.clone(),
-        modules: cfg
-            .modules
-            .iter()
-            .cloned()
-            .map(|m| Box::new(m) as Box<dyn super::types::FeatureModule>)
-            .collect(),
-    }
-}
-
-fn modules_for(
-    cfg: &SourceConfig,
-    env: Option<&SVal>,
-) -> Vec<Box<dyn super::types::FeatureModule>> {
-    let overrides = env
-        .and_then(|e| e.optional("moduleGoals"))
-        .and_then(|g| match g {
-            SVal::Obj(entries) => Some(
-                entries
-                    .iter()
-                    .map(|(id, goals)| {
-                        let parsed = goals
-                            .arr("moduleGoals")
-                            .unwrap()
-                            .iter()
-                            .map(|g| parse_goal_decision(g).unwrap())
-                            .collect::<Vec<_>>();
-                        (id.clone(), parsed)
-                    })
-                    .collect::<Vec<_>>(),
-            ),
-            _ => None,
-        })
-        .unwrap_or_default();
-    cfg.modules
+fn preflight_route_input(input: &SVal) -> R<()> {
+    strict_keys(
+        input,
+        &[
+            "now", "runMs", "self", "speed", "mobKills", "power", "camps", "players", "canFarm",
+        ],
+        "route input",
+    )?;
+    finite(input, "now")?;
+    finite(input, "runMs")?;
+    strict_vec2_value(field(input, "self")?, "route input self")?;
+    finite(input, "speed")?;
+    finite(input, "mobKills")?;
+    finite(input, "power")?;
+    arr(input, "camps")?
         .iter()
-        .cloned()
-        .map(|mut m| {
-            if let Some((_, goals)) = overrides.iter().find(|(id, _)| *id == m.id) {
-                m.goals = Some(goals.clone());
+        .map(parse_route_camp)
+        .collect::<R<Vec<_>>>()?;
+    arr(input, "players")?
+        .iter()
+        .map(|p| strict_vec2_value(p, "players[]"))
+        .collect::<R<Vec<_>>>()?;
+    let _ = can_farm_descriptor(field(input, "canFarm")?);
+    Ok(())
+}
+
+fn preflight_decide(op: &SVal, cfg: &SourceConfig) -> R<()> {
+    let declaration = field(op, "declaration")?;
+    let input = field(op, "input")?;
+    let current_source = text(input, "currentSource")?;
+    if !matches!(current_source.as_str(), "previous-decision" | "declared") {
+        return Err(format!(
+            "decide.currentSource: unknown caller declaration source {current_source}"
+        ));
+    }
+    match declaration.optional("current") {
+        Some(SVal::Str(previous)) if previous == "$previous" => {
+            if current_source != "previous-decision" {
+                return Err(
+                    "decide: $previous declaration must carry currentSource previous-decision"
+                        .into(),
+                );
             }
-            Box::new(m) as Box<dyn super::types::FeatureModule>
-        })
-        .collect()
+        }
+        Some(goal) => {
+            parse_goal(goal)?;
+            if current_source != "declared" {
+                return Err("decide: declared current must carry currentSource declared".into());
+            }
+        }
+        None => return Err("decide declaration missing current".into()),
+    }
+    parse_goal(field(input, "current")?)?;
+    parse_status(field(input, "status")?)?;
+    boolv(input, "engaged")?;
+    if let Some(declared_engaged) = declaration.optional("engaged") {
+        let declared_engaged = declared_engaged.bool("declaration.engaged")?;
+        if declared_engaged != boolv(input, "engaged")? {
+            return Err(
+                "decide: declaration engaged differs from the consumed input engaged".into(),
+            );
+        }
+    }
+    if let Some(env) = declaration.optional("env") {
+        if let Some(goals) = env.optional("moduleGoals") {
+            for (module, offers) in goals.obj("moduleGoals")? {
+                match offers {
+                    SVal::Arr(values) => {
+                        for offer in values {
+                            parse_goal_decision(offer)?;
+                        }
+                    }
+                    other => {
+                        return Err(format!(
+                            "moduleGoals.{module}: expected an array, got {other:?}"
+                        ))
+                    }
+                }
+            }
+        }
+    }
+    // The declared module/learned/tier contracts are already preflighted by parse_config; keep the tier reference used so
+    // the signature stays tied to the real replay config.
+    let _ = cfg.seed;
+    Ok(())
 }
 
-fn knowledge_for(cfg: &SourceConfig) -> Knowledge {
-    let mut rng = Rng::new(cfg.seed + 3);
-    Knowledge::create(&cfg.tier, &mut rng)
+/// Typed preflight for the complete operation input, before the dispatch may touch Memory, retained state, RNG or the
+/// callback transcript. Structural/tagged checks run first, then every consumed field is converted.
+fn preflight_operation(
+    case_json: &Value,
+    op_json: &Value,
+    suite: &str,
+    supplement: bool,
+    cfg: &SourceConfig,
+    maps: &Value,
+) -> R<()> {
+    let case_label = case_id(case_json);
+    super::source_strict::validate_operation_on_path(
+        op_json,
+        suite,
+        supplement,
+        &format!("{case_label} intake"),
+    )?;
+    let op = sv(op_json);
+    let method = text(&op, "method")?;
+    let input = op.optional("input").cloned().unwrap_or(SVal::Undefined);
+    match method.as_str() {
+        "observe" => {
+            parse_memory_percept(&input, &cfg.features)?;
+            if suite != "memory-api" {
+                parse_strategy_percept(&input, cfg)?;
+            }
+        }
+        "nullPercept" => {}
+        "recordChoice" => {
+            input.string("recordChoice")?;
+        }
+        "noteSent" => {
+            parse_note_sent(&input)?;
+        }
+        "whereabouts" => {
+            strict_keys(&input, &["id", "now"], "whereabouts")?;
+            text(&input, "id")?;
+            finite(&input, "now")?;
+        }
+        "trackerObserve" => {
+            strict_keys(&input, &["mobs", "now"], "trackerObserve")?;
+            let _ = must(
+                parse_mob_entries(field(&input, "mobs")?),
+                "trackerObserve mobs",
+            );
+            finite(&input, "now")?;
+        }
+        "trackerQuery" => {
+            strict_keys(
+                &input,
+                &["id", "now", "from", "radius", "awakeMoved"],
+                "trackerQuery",
+            )?;
+            text(&input, "id")?;
+            finite(&input, "now")?;
+            strict_vec2_value(field(&input, "from")?, "trackerQuery from")?;
+            finite(&input, "radius")?;
+            finite(&input, "awakeMoved")?;
+        }
+        "adapterDecide" | "release" => {}
+        "awakeNear" => {
+            strict_keys(&input, &["from", "now", "radius"], "awakeNear")?;
+            strict_vec2_value(field(&input, "from")?, "awakeNear from")?;
+            finite(&input, "now")?;
+            finite(&input, "radius")?;
+        }
+        "hunterDecide" => preflight_hunter_decide(&input)?,
+        "isBanned" => {
+            strict_keys(&input, &["id", "now"], "isBanned")?;
+            text(&input, "id")?;
+            finite(&input, "now")?;
+        }
+        "routeUpdate" | "routePlan" => preflight_route_input(&input)?,
+        "isContested" => {
+            strict_keys(&input, &["camp", "now"], "isContested")?;
+            uint(&input, "camp", u64::from(u32::MAX))?;
+            finite(&input, "now")?;
+        }
+        "campValue" => {
+            strict_keys(&input, &["camp", "elites"], "campValue")?;
+            parse_route_camp(field(&input, "camp")?)?;
+            boolv(&input, "elites")?;
+        }
+        "decide" => preflight_decide(&op, cfg)?,
+        other => return Err(format!("{case_label}: no preflight for method {other}")),
+    }
+    let _ = maps;
+    Ok(())
 }
 
-fn parse_status(v: &SVal) -> R<GoalStatus> {
-    let state = match text(v, "state")?.as_str() {
-        "running" => super::types::GoalState::Running,
-        "done" => super::types::GoalState::Done,
-        "failed" => super::types::GoalState::Failed,
-        "blocked" => super::types::GoalState::Blocked,
-        other => return Err(format!("unknown status {other}")),
-    };
-    Ok(GoalStatus {
-        state,
-        why: text(v, "why")?,
+// ---------------------------------------------------------------------------------------------------------------------
+// In-memory intake injection controls: a malformed later field reaches the actual replay entrypoint; the preflight must
+// reject it without advancing the reached Memory, nested retained state, RNG draws or the callback transcript.
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum InjectionKind {
+    StrategyDecideStatus,
+    StrategyObserveWeapon,
+    HunterWalk,
+    RouteCanFarm,
+    MemoryNoteSentCommand,
+}
+
+struct Injection {
+    case: String,
+    op_index: usize,
+    kind: InjectionKind,
+}
+
+impl Injection {
+    fn matches(&self, case: &str, op_index: usize) -> bool {
+        self.case == case && self.op_index == op_index
+    }
+}
+
+fn tagged_object(pairs: Vec<(&str, Value)>) -> Value {
+    serde_json::json!({
+        "$": "object",
+        "entries": pairs
+            .into_iter()
+            .map(|(key, value)| serde_json::json!([key, value]))
+            .collect::<Vec<Value>>(),
     })
 }
 
-fn goals_of(v: &SVal) -> R<Vec<GoalDecision>> {
-    v.arr("goals")?.iter().map(parse_goal_decision).collect()
+fn tagged_entry_mut<'a>(value: &'a mut Value, key: &str) -> Option<&'a mut Value> {
+    value
+        .get_mut("entries")?
+        .as_array_mut()?
+        .iter_mut()
+        .find(|pair| pair.get(0).and_then(Value::as_str) == Some(key))
+        .and_then(|pair| pair.get_mut(1))
 }
 
-#[test]
-fn private_strategy_source_hunt_adapter_parity() {
-    let source = load_source();
-    let maps = &source["maps"];
-    let mut failures = Vec::new();
-    let mut operations = 0usize;
-    for case in source_cases(&source) {
-        if case["suite"] != "hunt-adapter" {
+fn tagged_values_mut(value: &mut Value) -> Option<&mut Vec<Value>> {
+    value.get_mut("values")?.as_array_mut()
+}
+
+impl Injection {
+    fn apply(&self, op_json: &Value) -> Value {
+        let mut op = op_json.clone();
+        let input = op
+            .get_mut("input")
+            .expect("injection target carries a declared input");
+        match self.kind {
+            InjectionKind::StrategyDecideStatus => {
+                let input = input.as_object_mut().expect("decide input is tagged");
+                let entry = input
+                    .get_mut("entries")
+                    .and_then(Value::as_array_mut)
+                    .expect("tagged entries");
+                let status = entry
+                    .iter_mut()
+                    .find(|pair| pair.get(0).and_then(Value::as_str) == Some("status"))
+                    .and_then(|pair| pair.get_mut(1))
+                    .expect("decide input status");
+                *status = tagged_object(vec![
+                    ("state", Value::String("future".into())),
+                    ("why", Value::String("injected malformed status".into())),
+                ]);
+            }
+            InjectionKind::StrategyObserveWeapon => {
+                let self_value = tagged_entry_mut(input, "self").expect("percept self");
+                let weapons = tagged_entry_mut(self_value, "weapons").expect("self weapons");
+                let values = tagged_values_mut(weapons).expect("weapon tuple array");
+                assert_eq!(values.len(), 2, "source weapon tuple");
+                values[0] = Value::String("laser".into());
+            }
+            InjectionKind::HunterWalk => {
+                let walk = tagged_entry_mut(input, "walk").expect("walk descriptor");
+                let kind = tagged_entry_mut(walk, "kind").expect("walk kind");
+                *kind = Value::String("future".into());
+            }
+            InjectionKind::RouteCanFarm => {
+                let can_farm = tagged_entry_mut(input, "canFarm").expect("canFarm descriptor");
+                let kind = tagged_entry_mut(can_farm, "kind").expect("canFarm kind");
+                *kind = Value::String("future".into());
+            }
+            InjectionKind::MemoryNoteSentCommand => {
+                let cmd = tagged_entry_mut(input, "cmd").expect("noteSent cmd");
+                let kind = tagged_entry_mut(cmd, "type").expect("command type");
+                *kind = Value::String("future".into());
+            }
+        }
+        op
+    }
+}
+
+fn draw_counts_value(draws: [usize; 4]) -> SVal {
+    let [decide, motor, lapse, knowledge] = draws;
+    obj(vec![
+        ("decide", num_sv(decide as f64)),
+        ("motor", num_sv(motor as f64)),
+        ("lapse", num_sv(lapse as f64)),
+        ("knowledge", num_sv(knowledge as f64)),
+    ])
+}
+
+fn non_advance_snapshot(
+    memory: &super::super::memory::Memory,
+    own: SVal,
+    draws: [usize; 4],
+    trace: &TraceHandle,
+) -> SVal {
+    obj(vec![
+        ("memory", encode_memory(memory)),
+        ("own", own),
+        ("drawCounts", draw_counts_value(draws)),
+        ("callbacks", trace.borrow().encoded()),
+    ])
+}
+
+/// Reject a malformed later field at the actual entrypoint and prove nothing advanced.
+#[allow(clippy::too_many_arguments)]
+fn inject_non_advance(
+    injection: &Injection,
+    op_json: &Value,
+    case_json: &Value,
+    suite: &str,
+    supplement: bool,
+    cfg: &SourceConfig,
+    maps: &Value,
+    memory: &super::super::memory::Memory,
+    own: impl Fn() -> SVal,
+    draws: impl Fn() -> [usize; 4],
+    trace: &TraceHandle,
+    failures: &mut Vec<String>,
+) {
+    let mutated = injection.apply(op_json);
+    let before = non_advance_snapshot(memory, own(), draws(), trace);
+    let preflight = preflight_operation(case_json, &mutated, suite, supplement, cfg, maps);
+    let after = non_advance_snapshot(memory, own(), draws(), trace);
+    match preflight {
+        Ok(()) => failures.push(format!(
+            "injected malformed field was accepted at the {suite} entrypoint"
+        )),
+        Err(_) if !super::source_trace::ordered_same(&before, &after) => failures.push(
+            "rejected malformed operation still advanced Memory/own-RNG/callback state".into(),
+        ),
+        Err(_) => {}
+    }
+}
+
+fn first_injectable(cases: &[Value], suite: &str, method: &str) -> Option<(String, usize)> {
+    for case_json in cases {
+        if case_json["suite"] != suite {
             continue;
         }
-        let config = sv(&case["config"]);
-        let cfg = parse_config(&config, maps).unwrap();
+        for (index, op_json) in operations(case_json).iter().enumerate() {
+            if index == 0 {
+                continue;
+            }
+            if op_json["method"].as_str() == Some(method) {
+                return Some((case_id(case_json), index));
+            }
+        }
+    }
+    None
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+// MobTracker suite replay
+
+fn replay_tracker(source: &Value, injection: Option<&Injection>) -> ReplayOutcome {
+    let maps = &source["maps"];
+    let mut outcome = ReplayOutcome::default();
+    for case_json in source_cases(source) {
+        if case_json["suite"] != "mob-tracker" {
+            continue;
+        }
+        outcome.cases += 1;
+        let cfg = case_cfg(case_json, maps);
+        let label = case_id(case_json);
+        assert_no_setup(case_json, &label);
+        let trace = TraceLog::new_handle();
+        let mem = create_memory(&cfg);
+        let mut tracker = MobTracker::default();
+        compare_initial_memory(&label, case_json, &mem, &mut outcome.failures);
+        compare_initial_own(
+            &label,
+            case_json,
+            encode_mob_tracker(&tracker),
+            &mut outcome.failures,
+        );
+        for (index, op_json) in operations(case_json).iter().enumerate() {
+            let op_label = format!("{label} op{index}");
+            if let Some(injection) = injection {
+                if injection.matches(&label, index) {
+                    let supplement = false;
+                    inject_non_advance(
+                        injection,
+                        op_json,
+                        case_json,
+                        "mob-tracker",
+                        supplement,
+                        &cfg,
+                        maps,
+                        &mem,
+                        || encode_mob_tracker(&tracker),
+                        || [0, 0, 0, 0],
+                        &trace,
+                        &mut outcome.failures,
+                    );
+                    outcome.non_advance += 1;
+                    break;
+                }
+            }
+            must(
+                preflight_operation(case_json, op_json, "mob-tracker", false, &cfg, maps),
+                &format!("{op_label} intake"),
+            );
+            trace.borrow_mut().reset();
+            let op = sv(op_json);
+            let method = text(&op, "method").expect("tracker method");
+            let input = op.optional("input").cloned().unwrap_or(SVal::Undefined);
+            let expected = op.optional("result").cloned().unwrap_or(SVal::Undefined);
+            let actual = match method.as_str() {
+                "trackerObserve" => {
+                    let now = num(&input, "now").expect("trackerObserve now");
+                    let mobs = must(
+                        parse_mob_entries(field(&input, "mobs").expect("mobs")),
+                        "trackerObserve mobs",
+                    );
+                    tracker.observe(&mobs, now);
+                    SVal::Undefined
+                }
+                "trackerQuery" => {
+                    let id = text(&input, "id").expect("trackerQuery id");
+                    let now = num(&input, "now").expect("trackerQuery now");
+                    let from_sv = field(&input, "from").expect("trackerQuery from");
+                    let from = Vec2::new(
+                        num(from_sv, "x").expect("from.x"),
+                        num(from_sv, "y").expect("from.y"),
+                    );
+                    let radius = num(&input, "radius").expect("trackerQuery radius");
+                    let awake_moved = num(&input, "awakeMoved").expect("awakeMoved");
+                    let mob = match tracker.mob(&id) {
+                        Some(m) => obj(vec![
+                            ("kind", source_reader::s(&m.kind)),
+                            (
+                                "type",
+                                m.type_
+                                    .as_deref()
+                                    .map(source_reader::s)
+                                    .unwrap_or(SVal::Null),
+                            ),
+                            ("status", source_reader::s(&m.status)),
+                            ("x", num_sv(m.x)),
+                            ("y", num_sv(m.y)),
+                            ("hp", num_sv(m.hp)),
+                            ("maxHp", num_sv(m.max_hp)),
+                            (
+                                "faction",
+                                m.faction
+                                    .map(|f| source_reader::s(f.as_str()))
+                                    .unwrap_or(SVal::Null),
+                            ),
+                            (
+                                "weapon0",
+                                m.weapon0
+                                    .map(|w| source_reader::s(w.as_str()))
+                                    .unwrap_or(SVal::Null),
+                            ),
+                        ]),
+                        None => SVal::Null,
+                    };
+                    let home = tracker.home(&id).map(vec2_sv).unwrap_or(SVal::Null);
+                    let awake_near = tracker
+                        .awake_near(from, radius, now, awake_moved)
+                        .into_iter()
+                        .map(vec2_sv)
+                        .collect();
+                    obj(vec![
+                        ("mob", mob),
+                        ("home", home),
+                        ("returning", source_reader::b(tracker.returning(&id, now))),
+                        (
+                            "awake",
+                            source_reader::b(tracker.awake(&id, now, awake_moved)),
+                        ),
+                        ("awakeNear", source_reader::arr(awake_near)),
+                    ])
+                }
+                other => panic!("{op_label}: unsupported tracker method {other}"),
+            };
+            compare(&op_label, &expected, &actual, &mut outcome.failures);
+            check_channels(&op_label, op_json, &trace, None, &mut outcome.failures);
+            compare_op_own(
+                &op_label,
+                op_json,
+                encode_mob_tracker(&tracker),
+                &mut outcome.failures,
+            );
+            compare_op_memory(&op_label, op_json, &mem, &mut outcome.failures);
+            outcome.operations += 1;
+        }
+    }
+    outcome
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+// MobHunter suite replay
+
+fn replay_hunter(source: &Value, injection: Option<&Injection>) -> ReplayOutcome {
+    let maps = &source["maps"];
+    let mut outcome = ReplayOutcome::default();
+    for case_json in source_cases(source) {
+        if case_json["suite"] != "mob-hunter" {
+            continue;
+        }
+        outcome.cases += 1;
+        let cfg = case_cfg(case_json, maps);
+        let label = case_id(case_json);
+        assert_no_setup(case_json, &label);
+        let trace = TraceLog::new_handle();
+        let mem = create_memory(&cfg);
+        let mut hunter = MobHunter::new_with_log(cfg.hunt_config, Some(options_log(&trace)));
+        compare_initial_memory(&label, case_json, &mem, &mut outcome.failures);
+        compare_initial_own(
+            &label,
+            case_json,
+            encode_mob_hunter(&hunter),
+            &mut outcome.failures,
+        );
+        for (index, op_json) in operations(case_json).iter().enumerate() {
+            let op_label = format!("{label} op{index}");
+            if let Some(injection) = injection {
+                if injection.matches(&label, index) {
+                    inject_non_advance(
+                        injection,
+                        op_json,
+                        case_json,
+                        "mob-hunter",
+                        false,
+                        &cfg,
+                        maps,
+                        &mem,
+                        || encode_mob_hunter(&hunter),
+                        || [0, 0, 0, 0],
+                        &trace,
+                        &mut outcome.failures,
+                    );
+                    outcome.non_advance += 1;
+                    break;
+                }
+            }
+            must(
+                preflight_operation(case_json, op_json, "mob-hunter", false, &cfg, maps),
+                &format!("{op_label} intake"),
+            );
+            trace.borrow_mut().reset();
+            let op = sv(op_json);
+            let method = text(&op, "method").expect("hunter method");
+            let input = op.optional("input").cloned().unwrap_or(SVal::Undefined);
+            let expected = op.optional("result").cloned().unwrap_or(SVal::Undefined);
+            let actual = match method.as_str() {
+                "hunterDecide" => {
+                    let now = num(&input, "now").expect("hunterDecide now");
+                    let self_view = must(
+                        parse_hunt_self(field(&input, "self").expect("self")),
+                        "hunterDecide self",
+                    );
+                    let players = arr(&input, "players")
+                        .expect("players")
+                        .iter()
+                        .map(|p| {
+                            Ok(Vec2::new(
+                                num(p, "x").expect("player x"),
+                                num(p, "y").expect("player y"),
+                            ))
+                        })
+                        .collect::<R<Vec<_>>>()
+                        .expect("players");
+                    let mobs = must(
+                        parse_mob_entries(field(&input, "mobs").expect("mobs")),
+                        "hunterDecide mobs",
+                    );
+                    let descriptor = field(&input, "walk").expect("walk");
+                    let kind = text(descriptor, "kind").expect("walk kind");
+                    let factor = descriptor
+                        .opt_num("factor", "factor")
+                        .expect("walk factor")
+                        .unwrap_or(1.);
+                    let min_x = descriptor.opt_num("minX", "minX").expect("walk minX");
+                    let max_x = descriptor.opt_num("maxX", "maxX").expect("walk maxX");
+                    let self_x = self_view.x;
+                    let self_y = self_view.y;
+                    let walk_trace = trace.clone();
+                    let mut walk = move |mob: &HuntMobLike| -> Option<f64> {
+                        let result = match kind.as_str() {
+                            "null" => None,
+                            "coordinate-block"
+                                if mob.x >= min_x.unwrap_or(f64::NEG_INFINITY)
+                                    && mob.x <= max_x.unwrap_or(f64::INFINITY) =>
+                            {
+                                None
+                            }
+                            _ => Some(rh_sim::math::hypot(mob.x - self_x, mob.y - self_y) * factor),
+                        };
+                        let encoded = match &result {
+                            None => SVal::Null,
+                            Some(value) => num_sv(*value),
+                        };
+                        record_callback(
+                            &walk_trace,
+                            "hunter.walk",
+                            vec![encode_hunt_mob_like(mob)],
+                            encoded,
+                        );
+                        result
+                    };
+                    let weight = input.optional("typeWeights").cloned();
+                    let type_weight = weight.as_ref().map(|weights| {
+                        let pairs = weights
+                            .arr("typeWeights")
+                            .expect("typeWeights")
+                            .iter()
+                            .map(|p| {
+                                let pair = p.arr("typeWeight pair").expect("pair");
+                                (
+                                    pair[0].string("typeWeight key").expect("key").to_string(),
+                                    pair[1].num("typeWeight value").expect("value"),
+                                )
+                            })
+                            .collect::<Vec<_>>();
+                        let weight_trace = trace.clone();
+                        move |ty: Option<&str>| -> f64 {
+                            let value = ty
+                                .and_then(|t| pairs.iter().find(|(k, _)| k == t).map(|(_, v)| *v))
+                                .unwrap_or(0.25);
+                            let argument = ty.map(source_reader::s).unwrap_or(SVal::Undefined);
+                            record_callback(
+                                &weight_trace,
+                                "hunter.typeWeight",
+                                vec![argument],
+                                num_sv(value),
+                            );
+                            value
+                        }
+                    });
+                    let type_weight_ref = type_weight
+                        .as_ref()
+                        .map(|f| f as &dyn Fn(Option<&str>) -> f64);
+                    let player_distance = match field(&input, "playerDistance").expect("pd") {
+                        SVal::Num(value) => *value,
+                        other => panic!("playerDistance {other:?}"),
+                    };
+                    let shot_by_player_at = match field(&input, "shotByPlayerAt").expect("shot") {
+                        SVal::Num(value) => *value,
+                        other => panic!("shotByPlayerAt {other:?}"),
+                    };
+                    let mut hunt_input = HuntInput {
+                        now,
+                        self_: &self_view,
+                        player_distance,
+                        players: &players,
+                        in_coliseum: boolv(&input, "inColiseum").expect("inColiseum"),
+                        mobs: &mobs,
+                        walk: &mut walk,
+                        attacking: boolv(&input, "attacking").expect("attacking"),
+                        shot_by_player_at,
+                        type_weight: type_weight_ref,
+                        elites_ready: input
+                            .optional("elitesReady")
+                            .and_then(|value| value.bool("elitesReady").ok()),
+                    };
+                    encode_decision(&hunter.decide(&mut hunt_input))
+                }
+                "isBanned" => {
+                    let id = text(&input, "id").expect("isBanned id");
+                    let now = num(&input, "now").expect("isBanned now");
+                    source_reader::b(hunter.is_banned(&id, now))
+                }
+                other => panic!("{op_label}: unsupported hunter method {other}"),
+            };
+            compare(&op_label, &expected, &actual, &mut outcome.failures);
+            check_channels(&op_label, op_json, &trace, None, &mut outcome.failures);
+            compare_op_own(
+                &op_label,
+                op_json,
+                encode_mob_hunter(&hunter),
+                &mut outcome.failures,
+            );
+            compare_op_memory(&op_label, op_json, &mem, &mut outcome.failures);
+            outcome.operations += 1;
+        }
+    }
+    outcome
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+// BuildRoute suite replay
+
+fn replay_build_route(source: &Value, injection: Option<&Injection>) -> ReplayOutcome {
+    let maps = &source["maps"];
+    let mut outcome = ReplayOutcome::default();
+    for case_json in source_cases(source) {
+        if case_json["suite"] != "build-route" {
+            continue;
+        }
+        outcome.cases += 1;
+        let cfg = case_cfg(case_json, maps);
+        let label = case_id(case_json);
+        assert_no_setup(case_json, &label);
+        let trace = TraceLog::new_handle();
+        let mem = create_memory(&cfg);
+        let mut route = BuildRoute::new(cfg.faction, cfg.build_draw);
+        compare_initial_memory(&label, case_json, &mem, &mut outcome.failures);
+        compare_initial_own(
+            &label,
+            case_json,
+            encode_build_route(&route),
+            &mut outcome.failures,
+        );
+        for (index, op_json) in operations(case_json).iter().enumerate() {
+            let op_label = format!("{label} op{index}");
+            if let Some(injection) = injection {
+                if injection.matches(&label, index) {
+                    inject_non_advance(
+                        injection,
+                        op_json,
+                        case_json,
+                        "build-route",
+                        false,
+                        &cfg,
+                        maps,
+                        &mem,
+                        || encode_build_route(&route),
+                        || [0, 0, 0, 0],
+                        &trace,
+                        &mut outcome.failures,
+                    );
+                    outcome.non_advance += 1;
+                    break;
+                }
+            }
+            must(
+                preflight_operation(case_json, op_json, "build-route", false, &cfg, maps),
+                &format!("{op_label} intake"),
+            );
+            trace.borrow_mut().reset();
+            let op = sv(op_json);
+            let method = text(&op, "method").expect("route method");
+            let input = op.optional("input").cloned().unwrap_or(SVal::Undefined);
+            let expected = op.optional("result").cloned().unwrap_or(SVal::Undefined);
+            let actual = match method.as_str() {
+                "routeUpdate" | "routePlan" => {
+                    let camps = arr(&input, "camps")
+                        .expect("camps")
+                        .iter()
+                        .map(|c| must(parse_route_camp(c), "route camp"))
+                        .collect::<Vec<_>>();
+                    let self_sv = field(&input, "self").expect("self");
+                    let self_pos = Vec2::new(
+                        num(self_sv, "x").expect("self.x"),
+                        num(self_sv, "y").expect("self.y"),
+                    );
+                    let players = arr(&input, "players")
+                        .expect("players")
+                        .iter()
+                        .map(|p| {
+                            Ok(Vec2::new(
+                                num(p, "x").expect("player x"),
+                                num(p, "y").expect("player y"),
+                            ))
+                        })
+                        .collect::<R<Vec<_>>>()
+                        .expect("players");
+                    let descriptor = field(&input, "canFarm").expect("canFarm");
+                    let inner = must(can_farm_descriptor(descriptor), "canFarm descriptor");
+                    let farm_trace = trace.clone();
+                    let can_farm = move |camp: &RouteCamp| -> bool {
+                        let result = inner(camp);
+                        record_callback(
+                            &farm_trace,
+                            "route.canFarm",
+                            vec![encode_route_camp(camp)],
+                            bool_sv(result),
+                        );
+                        result
+                    };
+                    let route_input = super::build_route::RouteInput {
+                        now: num(&input, "now").expect("now"),
+                        run_ms: num(&input, "runMs").expect("runMs"),
+                        self_pos,
+                        speed: num(&input, "speed").expect("speed"),
+                        mob_kills: num(&input, "mobKills").expect("mobKills"),
+                        power: num(&input, "power").expect("power"),
+                        camps: &camps,
+                        players: &players,
+                        can_farm: &can_farm,
+                    };
+                    if method == "routeUpdate" {
+                        route
+                            .update(&route_input)
+                            .map(|step| encode_route_step(&step))
+                            .unwrap_or(SVal::Null)
+                    } else {
+                        route.plan(&route_input);
+                        SVal::Undefined
+                    }
+                }
+                "isContested" => {
+                    let camp = num(&input, "camp").expect("camp") as u32;
+                    let now = num(&input, "now").expect("now");
+                    source_reader::b(route.is_contested(camp, now))
+                }
+                "campValue" => {
+                    let camp = must(
+                        parse_route_camp(field(&input, "camp").expect("camp")),
+                        "campValue camp",
+                    );
+                    let elites = boolv(&input, "elites").expect("elites");
+                    num_sv(super::build_route::route_camp_value(
+                        route.build,
+                        &camp,
+                        elites,
+                    ))
+                }
+                other => panic!("{op_label}: unsupported route method {other}"),
+            };
+            compare(&op_label, &expected, &actual, &mut outcome.failures);
+            check_channels(&op_label, op_json, &trace, None, &mut outcome.failures);
+            compare_op_own(
+                &op_label,
+                op_json,
+                encode_build_route(&route),
+                &mut outcome.failures,
+            );
+            compare_op_memory(&op_label, op_json, &mem, &mut outcome.failures);
+            outcome.operations += 1;
+        }
+    }
+    outcome
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+// Admitted Memory API suite replay
+
+fn replay_memory(source: &Value, injection: Option<&Injection>) -> ReplayOutcome {
+    let maps = &source["maps"];
+    let mut outcome = ReplayOutcome::default();
+    for case_json in source_cases(source) {
+        if case_json["suite"] != "memory-api" {
+            continue;
+        }
+        outcome.cases += 1;
+        let cfg = case_cfg(case_json, maps);
+        let label = case_id(case_json);
+        assert_no_setup(case_json, &label);
+        let trace = TraceLog::new_handle();
+        let mut mem = create_memory(&cfg);
+        compare_initial_memory(&label, case_json, &mem, &mut outcome.failures);
+        compare_initial_own(
+            &label,
+            case_json,
+            encode_own(OwnState::None),
+            &mut outcome.failures,
+        );
+        for (index, op_json) in operations(case_json).iter().enumerate() {
+            let op_label = format!("{label} op{index}");
+            if let Some(injection) = injection {
+                if injection.matches(&label, index) {
+                    inject_non_advance(
+                        injection,
+                        op_json,
+                        case_json,
+                        "memory-api",
+                        false,
+                        &cfg,
+                        maps,
+                        &mem,
+                        || encode_own(OwnState::None),
+                        || [0, 0, 0, 0],
+                        &trace,
+                        &mut outcome.failures,
+                    );
+                    outcome.non_advance += 1;
+                    break;
+                }
+            }
+            must(
+                preflight_operation(case_json, op_json, "memory-api", false, &cfg, maps),
+                &format!("{op_label} intake"),
+            );
+            trace.borrow_mut().reset();
+            let op = sv(op_json);
+            let method = text(&op, "method").expect("memory method");
+            let input = op.optional("input").cloned().unwrap_or(SVal::Undefined);
+            let expected = op.optional("result").cloned().unwrap_or(SVal::Undefined);
+            let actual = match method.as_str() {
+                "nullPercept" => {
+                    assert!(matches!(input, SVal::Null), "{op_label}: nullPercept input");
+                    SVal::Null
+                }
+                "observe" => {
+                    let percept = must(
+                        parse_memory_percept(&input, &cfg.features),
+                        "memory observe percept",
+                    );
+                    let stimuli = mem.observe(&percept).expect("memory observe");
+                    source_reader::arr(stimuli.iter().map(encode_stimulus).collect())
+                }
+                "noteSent" => {
+                    let timed = must(parse_note_sent(&input), "noteSent");
+                    mem.note_sent(timed).expect("memory noteSent");
+                    SVal::Undefined
+                }
+                "recordChoice" => {
+                    mem.record_choice(input.string("choice").expect("choice"));
+                    SVal::Undefined
+                }
+                "whereabouts" => {
+                    let id = text(&input, "id").expect("whereabouts id");
+                    let now = num(&input, "now").expect("whereabouts now");
+                    match mem.whereabouts(&id, now).expect("memory whereabouts") {
+                        None => SVal::Null,
+                        Some(w) => obj(vec![("at", vec2_sv(w.at)), ("radius", num_sv(w.radius))]),
+                    }
+                }
+                other => panic!("{op_label}: unsupported memory method {other}"),
+            };
+            compare(&op_label, &expected, &actual, &mut outcome.failures);
+            check_channels(&op_label, op_json, &trace, None, &mut outcome.failures);
+            compare_op_own(
+                &op_label,
+                op_json,
+                encode_own(OwnState::None),
+                &mut outcome.failures,
+            );
+            compare_op_memory(&op_label, op_json, &mem, &mut outcome.failures);
+            outcome.operations += 1;
+        }
+    }
+    outcome
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+// HuntAdapter suite replay
+
+fn replay_hunt_adapter(source: &Value, injection: Option<&Injection>) -> ReplayOutcome {
+    let maps = &source["maps"];
+    let mut outcome = ReplayOutcome::default();
+    for case_json in source_cases(source) {
+        if case_json["suite"] != "hunt-adapter" {
+            continue;
+        }
+        outcome.cases += 1;
+        let cfg = case_cfg(case_json, maps);
+        let label = case_id(case_json);
+        let trace = TraceLog::new_handle();
+        let (knowledge, knowledge_draws, _setup) =
+            knowledge_setup(&cfg, case_json, &label, &mut outcome.failures);
         let mut mem = create_memory(&cfg);
         let mut percept: Option<StrategyPercept> = None;
-        let know = knowledge_for(&cfg);
-        let harness_cfg = harness_config(&cfg);
-        let mut paths = PathHarness {
-            spec: cfg.path.clone(),
-            source_map: cfg.tile_map.clone(),
-            finder: rh_sim::pathfind::Pathfinder::default(),
-            calls: Vec::new(),
+        let mut paths = PathHarness::new(&cfg, &trace);
+        let attacking = options_attacking(cfg.attacking, &trace);
+        let adapter_opts = HuntAdapterOptions {
+            attacking,
+            log: Some(options_log(&trace)),
         };
-        let attacking_value = cfg.attacking;
-        let attacking =
-            Some(std::rc::Rc::new(move || attacking_value.unwrap_or(false))
-                as super::types::AttackFn);
-        let opts = super::hunt_adapter::HuntAdapterOptions {
-            attacking: if cfg.attacking.is_some() {
-                attacking
-            } else {
-                None
-            },
-            log: None,
+        let mut adapter = HuntAdapter::new(&cfg.tier, &cfg.persona, adapter_opts);
+        let know = RecordedKnowledge {
+            inner: &knowledge,
+            trace: trace.clone(),
         };
-        let mut adapter = HuntAdapter::new(&cfg.tier, &cfg.persona, opts);
-        let mut decide_rng = OverrideRng::new(cfg.seed, cfg.random_decide.clone());
-        let mut lapse_rng = OverrideRng::new(cfg.seed + 2, cfg.random_lapse.clone());
-        for (index, op) in case["operations"].as_array().unwrap().iter().enumerate() {
-            let op = sv(op);
-            let method = text(&op, "method").unwrap();
+        let learned = RecordedLearned {
+            enabled: cfg.learned.enabled,
+            entries: &cfg.learned.entries,
+            trace: trace.clone(),
+        };
+        let empty_modules: Vec<Box<dyn super::types::FeatureModule>> = Vec::new();
+        let mut decide_rng = TraceRng::new(cfg.seed, cfg.random_decide.clone(), "decide", &trace);
+        let mut lapse_rng = TraceRng::new(cfg.seed + 2, cfg.random_lapse.clone(), "lapse", &trace);
+        compare_initial_memory(&label, case_json, &mem, &mut outcome.failures);
+        compare_initial_own(
+            &label,
+            case_json,
+            encode_hunt_adapter(&adapter),
+            &mut outcome.failures,
+        );
+        for (index, op_json) in operations(case_json).iter().enumerate() {
+            let op_label = format!("{label} op{index}");
+            if let Some(injection) = injection {
+                if injection.matches(&label, index) {
+                    inject_non_advance(
+                        injection,
+                        op_json,
+                        case_json,
+                        "hunt-adapter",
+                        false,
+                        &cfg,
+                        maps,
+                        &mem,
+                        || encode_hunt_adapter(&adapter),
+                        || [decide_rng.draws(), 0, lapse_rng.draws(), knowledge_draws],
+                        &trace,
+                        &mut outcome.failures,
+                    );
+                    outcome.non_advance += 1;
+                    break;
+                }
+            }
+            must(
+                preflight_operation(case_json, op_json, "hunt-adapter", false, &cfg, maps),
+                &format!("{op_label} intake"),
+            );
+            trace.borrow_mut().reset();
+            let op = sv(op_json);
+            let method = text(&op, "method").expect("adapter method");
             let input = op.optional("input").cloned().unwrap_or(SVal::Undefined);
             let expected = op.optional("result").cloned().unwrap_or(SVal::Undefined);
             let actual = match method.as_str() {
                 "observe" => {
-                    let mp = parse_memory_percept(&input, &cfg.features).unwrap();
-                    let stimuli = mem.observe(&mp).unwrap();
-                    percept = Some(parse_strategy_percept(&input, &cfg).unwrap());
+                    let percept_input = must(
+                        parse_memory_percept(&input, &cfg.features),
+                        "adapter observe percept",
+                    );
+                    let strategy_percept = must(
+                        parse_strategy_percept(&input, &cfg),
+                        "adapter observe strategy percept",
+                    );
+                    let stimuli = mem.observe(&percept_input).expect("adapter observe");
+                    percept = Some(strategy_percept);
                     source_reader::arr(stimuli.iter().map(encode_stimulus).collect())
                 }
                 "adapterDecide" => {
-                    let p = percept.as_ref().unwrap();
+                    let p = percept.as_ref().expect("adapter decide needs an observe");
                     let cfg_ctx = StrategyConfig {
                         id: cfg.id.clone(),
                         seed: cfg.seed,
-                        tier: &harness_cfg.tier,
-                        persona: &harness_cfg.persona,
-                        map: &harness_cfg.map,
-                        features: &harness_cfg.features,
-                        learned: &harness_cfg.learned,
-                        modules: &harness_cfg.modules,
+                        tier: &cfg.tier,
+                        persona: &cfg.persona,
+                        map: &cfg.map,
+                        features: &cfg.features,
+                        learned: &learned,
+                        modules: &empty_modules,
                     };
                     let weight = op.optional("typeWeights").cloned();
-                    let tw = weight.as_ref().map(|weights| {
+                    let type_weight = weight.as_ref().map(|weights| {
                         let pairs = weights
                             .arr("typeWeights")
-                            .unwrap()
+                            .expect("typeWeights")
                             .iter()
                             .map(|p| {
-                                let pair = p.arr("typeWeight pair").unwrap();
+                                let pair = p.arr("typeWeight pair").expect("pair");
                                 (
-                                    pair[0].string("typeWeight key").unwrap().to_string(),
-                                    pair[1].num("typeWeight value").unwrap(),
+                                    pair[0].string("typeWeight key").expect("key").to_string(),
+                                    pair[1].num("typeWeight value").expect("value"),
                                 )
                             })
                             .collect::<Vec<_>>();
+                        let weight_trace = trace.clone();
                         move |ty: Option<&str>| -> f64 {
-                            ty.and_then(|t| pairs.iter().find(|(k, _)| k == t).map(|(_, v)| *v))
-                                .unwrap_or(0.25)
+                            let value = ty
+                                .and_then(|t| pairs.iter().find(|(k, _)| k == t).map(|(_, v)| *v))
+                                .unwrap_or(0.25);
+                            let argument = ty.map(source_reader::s).unwrap_or(SVal::Undefined);
+                            record_callback(
+                                &weight_trace,
+                                "adapter.typeWeight",
+                                vec![argument],
+                                num_sv(value),
+                            );
+                            value
                         }
                     });
+                    let type_weight_ref = type_weight
+                        .as_ref()
+                        .map(|f| f as &dyn Fn(Option<&str>) -> f64);
+                    let mem_view = RecordedMemory {
+                        inner: &mem,
+                        trace: trace.clone(),
+                    };
                     let mut ctx = StrategyContext {
                         cfg: &cfg_ctx,
                         p,
-                        mem: &mem,
+                        mem: &mem_view,
                         know: &know,
                         paths: &mut paths,
                         decide: &mut decide_rng,
                         lapse: &mut lapse_rng,
                         engaged: op
                             .optional("engaged")
-                            .and_then(|v| v.bool("engaged").ok())
+                            .and_then(|value| value.bool("engaged").ok())
                             .unwrap_or(false),
                     };
-                    let tw_ref = tw.as_ref().map(|f| f as &dyn Fn(Option<&str>) -> f64);
-                    let d = adapter.decide(
+                    let decision = adapter.decide(
                         &mut ctx,
-                        tw_ref,
+                        type_weight_ref,
                         op.optional("elitesReady")
-                            .and_then(|v| v.bool("elitesReady").ok()),
+                            .and_then(|value| value.bool("elitesReady").ok()),
                     );
-                    encode_decision(&d)
+                    encode_decision(&decision)
                 }
                 "release" => {
-                    let p = percept.as_ref().unwrap();
+                    let p = percept.as_ref().expect("release needs an observe");
                     let cfg_ctx = StrategyConfig {
                         id: cfg.id.clone(),
                         seed: cfg.seed,
-                        tier: &harness_cfg.tier,
-                        persona: &harness_cfg.persona,
-                        map: &harness_cfg.map,
-                        features: &harness_cfg.features,
-                        learned: &harness_cfg.learned,
-                        modules: &harness_cfg.modules,
+                        tier: &cfg.tier,
+                        persona: &cfg.persona,
+                        map: &cfg.map,
+                        features: &cfg.features,
+                        learned: &learned,
+                        modules: &empty_modules,
+                    };
+                    let mem_view = RecordedMemory {
+                        inner: &mem,
+                        trace: trace.clone(),
                     };
                     let mut ctx = StrategyContext {
                         cfg: &cfg_ctx,
                         p,
-                        mem: &mem,
+                        mem: &mem_view,
                         know: &know,
                         paths: &mut paths,
                         decide: &mut decide_rng,
@@ -2442,9 +3464,12 @@ fn private_strategy_source_hunt_adapter_parity() {
                     SVal::Undefined
                 }
                 "awakeNear" => {
-                    let from = parse_vec2(field(&input, "from").unwrap()).unwrap();
-                    let radius = num(&input, "radius").unwrap();
-                    let now = num(&input, "now").unwrap();
+                    let from = must(
+                        parse_vec2(field(&input, "from").expect("from")),
+                        "awakeNear from",
+                    );
+                    let radius = num(&input, "radius").expect("radius");
+                    let now = num(&input, "now").expect("now");
                     source_reader::arr(
                         adapter
                             .awake_near(from, radius, now)
@@ -2453,138 +3478,327 @@ fn private_strategy_source_hunt_adapter_parity() {
                             .collect(),
                     )
                 }
-                other => panic!("unsupported adapter method {other}"),
+                other => panic!("{op_label}: unsupported adapter method {other}"),
             };
-            compare(
-                &format!("{} op{index} {method}", case["id"]),
-                &expected,
-                &actual,
-                &mut failures,
+            compare(&op_label, &expected, &actual, &mut outcome.failures);
+            check_channels(
+                &op_label,
+                op_json,
+                &trace,
+                Some([decide_rng.draws(), 0, lapse_rng.draws(), knowledge_draws]),
+                &mut outcome.failures,
             );
-            for extra in ["stats", "target"] {
-                if let Some(exp) = op.optional(extra).cloned() {
-                    let act = match extra {
-                        "stats" => encode_hunt_stats(adapter.stats()),
-                        "target" => adapter.target().map(source_reader::s).unwrap_or(SVal::Null),
-                        _ => unreachable!(),
-                    };
-                    compare(
-                        &format!("{} op{index} {method} {extra}", case["id"]),
-                        &exp,
-                        &act,
-                        &mut failures,
-                    );
-                }
-            }
-            let expected_memory = op.optional("memory").cloned().unwrap_or(SVal::Undefined);
-            let actual_memory = encode_memory(&mem);
-            compare_memory(
-                &format!("{} op{index} {method}", case["id"]),
-                &expected_memory,
-                &actual_memory,
-                &mut failures,
+            compare_ordered(
+                &format!("{op_label} stats"),
+                &sv(&op_json["stats"]),
+                &encode_hunt_stats(adapter.stats()),
+                &mut outcome.failures,
             );
-            operations += 1;
+            let target = adapter.target().map(source_reader::s).unwrap_or(SVal::Null);
+            compare_ordered(
+                &format!("{op_label} target"),
+                &sv(&op_json["target"]),
+                &target,
+                &mut outcome.failures,
+            );
+            compare_op_own(
+                &op_label,
+                op_json,
+                encode_hunt_adapter(&adapter),
+                &mut outcome.failures,
+            );
+            compare_op_memory(&op_label, op_json, &mem, &mut outcome.failures);
+            outcome.operations += 1;
         }
     }
-    eprintln!("PARITY_TOTAL adapter parity : {}", operations);
-    assert!(
-        failures.is_empty(),
-        "adapter parity {operations} ops; first failures:\n{}",
-        failures
-            .iter()
-            .take(10)
-            .cloned()
-            .collect::<Vec<_>>()
-            .join("\n")
-    );
+    outcome
 }
 
-#[test]
-fn private_strategy_source_strategy_parity() {
-    let source = load_source();
-    let maps = &source["maps"];
-    let mut failures = Vec::new();
-    let mut operations = 0usize;
-    for case in source_cases(&source) {
-        if case["suite"] != "strategy" {
+// --------------------------------------------------------------------------------------------------------------------
+// Strategy suite replay (primary and the additive module-goal-key supplement)
+
+struct TraceEvidence {
+    case: String,
+    operation: usize,
+    expected_callbacks: SVal,
+    actual_callbacks: SVal,
+    expected_own: SVal,
+    actual_own: SVal,
+    expected_draw_counts: SVal,
+    actual_draw_counts: SVal,
+    expected_result: SVal,
+    actual_result: SVal,
+}
+
+impl Default for TraceEvidence {
+    fn default() -> Self {
+        Self {
+            case: String::new(),
+            operation: 0,
+            expected_callbacks: SVal::Undefined,
+            actual_callbacks: SVal::Undefined,
+            expected_own: SVal::Undefined,
+            actual_own: SVal::Undefined,
+            expected_draw_counts: SVal::Undefined,
+            actual_draw_counts: SVal::Undefined,
+            expected_result: SVal::Undefined,
+            actual_result: SVal::Undefined,
+        }
+    }
+}
+
+fn fill_evidence(
+    evidence: Option<&mut TraceEvidence>,
+    label: &str,
+    op_json: &Value,
+    trace: &TraceHandle,
+    own: &SVal,
+    draw_counts: [usize; 4],
+    actual_result: &SVal,
+) {
+    let Some(evidence) = evidence else {
+        return;
+    };
+    if !evidence.case.is_empty() || !label.contains(" op") {
+        return;
+    }
+    let actual_callbacks = trace.borrow().encoded();
+    if matches!(&actual_callbacks, SVal::Arr(values) if values.is_empty()) {
+        return;
+    }
+    let [decide, motor, lapse, knowledge] = draw_counts;
+    evidence.case = label.to_string();
+    evidence.operation = 0;
+    evidence.expected_callbacks = sv(&op_json["callbacks"]);
+    evidence.actual_callbacks = actual_callbacks;
+    evidence.expected_own = sv(&op_json["own"]);
+    evidence.actual_own = own.clone();
+    evidence.expected_draw_counts = sv(&op_json["drawCounts"]);
+    evidence.actual_draw_counts = obj(vec![
+        ("decide", num_sv(decide as f64)),
+        ("motor", num_sv(motor as f64)),
+        ("lapse", num_sv(lapse as f64)),
+        ("knowledge", num_sv(knowledge as f64)),
+    ]);
+    evidence.expected_result = sv(&op_json["result"]);
+    evidence.actual_result = actual_result.clone();
+}
+
+fn modules_for(
+    cfg: &SourceConfig,
+    env: Option<&SVal>,
+    trace: &TraceHandle,
+    op_index: usize,
+) -> Vec<Box<dyn super::types::FeatureModule>> {
+    let overrides: Vec<(String, Vec<GoalDecision>)> = env
+        .and_then(|env| env.optional("moduleGoals"))
+        .and_then(|goals| match goals {
+            SVal::Obj(entries) => Some(
+                entries
+                    .iter()
+                    .map(|(id, goals)| {
+                        let parsed = match goals {
+                            SVal::Arr(values) => values
+                                .iter()
+                                .map(|g| must(parse_goal_decision(g), "moduleGoals entry"))
+                                .collect::<Vec<_>>(),
+                            other => panic!("moduleGoals.{id}: expected array, got {other:?}"),
+                        };
+                        (id.clone(), parsed)
+                    })
+                    .collect::<Vec<_>>(),
+            ),
+            _ => None,
+        })
+        .unwrap_or_default();
+    cfg.modules
+        .iter()
+        .map(|module| {
+            let goals = overrides
+                .iter()
+                .find(|(id, _)| id == &module.id)
+                .map(|(_, goals)| goals.clone())
+                .or_else(|| module.goals.clone());
+            Box::new(RecordedModule {
+                id: module.id.clone(),
+                enabled: module.enabled,
+                feature: module.feature.clone(),
+                goals,
+                after: module.after,
+                hp_below: module.hp_below,
+                op_index,
+                trace: trace.clone(),
+            }) as Box<dyn super::types::FeatureModule>
+        })
+        .collect()
+}
+
+fn parse_status(v: &SVal) -> R<GoalStatus> {
+    strict_keys(v, &["state", "why"], "GoalStatus")?;
+    let state = match text(v, "state")?.as_str() {
+        "running" => super::types::GoalState::Running,
+        "done" => super::types::GoalState::Done,
+        "failed" => super::types::GoalState::Failed,
+        "blocked" => super::types::GoalState::Blocked,
+        other => return Err(format!("GoalStatus.state: unknown source status {other}")),
+    };
+    Ok(GoalStatus {
+        state,
+        why: text(v, "why")?,
+    })
+}
+
+fn replay_strategy_cases(
+    cases: &[Value],
+    maps: &Value,
+    _label: &str,
+    supplement: bool,
+    injection: Option<&Injection>,
+    mut evidence: Option<&mut TraceEvidence>,
+) -> ReplayOutcome {
+    let mut outcome = ReplayOutcome::default();
+    for case_json in cases {
+        if case_json["suite"] != "strategy" {
             continue;
         }
-        let config = sv(&case["config"]);
-        let cfg = parse_config(&config, maps).unwrap();
+        outcome.cases += 1;
+        let cfg = case_cfg(case_json, maps);
+        let case_label = case_id(case_json);
+        let trace = TraceLog::new_handle();
+        let (knowledge, knowledge_draws, _setup) =
+            knowledge_setup(&cfg, case_json, &case_label, &mut outcome.failures);
         let mut mem = create_memory(&cfg);
         let mut percept: Option<StrategyPercept> = None;
-        let know = knowledge_for(&cfg);
-        let harness_cfg = harness_config(&cfg);
-        let mut paths = PathHarness {
-            spec: cfg.path.clone(),
-            source_map: cfg.tile_map.clone(),
-            finder: rh_sim::pathfind::Pathfinder::default(),
-            calls: Vec::new(),
-        };
-        let attacking_value = cfg.attacking;
+        let mut paths = PathHarness::new(&cfg, &trace);
+        let attacking = options_attacking(cfg.attacking, &trace);
         let mut strategy = Strategy::new(StrategyOptions {
-            attacking: cfg.attacking.map(|_| {
-                std::rc::Rc::new(move || attacking_value.unwrap_or(false)) as super::types::AttackFn
-            }),
-            log: None,
+            attacking,
+            log: Some(options_log(&trace)),
         });
-        let mut decide_rng = OverrideRng::new(cfg.seed, cfg.random_decide.clone());
-        let mut lapse_rng = OverrideRng::new(cfg.seed + 2, cfg.random_lapse.clone());
+        let know = RecordedKnowledge {
+            inner: &knowledge,
+            trace: trace.clone(),
+        };
+        let learned = RecordedLearned {
+            enabled: cfg.learned.enabled,
+            entries: &cfg.learned.entries,
+            trace: trace.clone(),
+        };
+        let mut decide_rng = TraceRng::new(cfg.seed, cfg.random_decide.clone(), "decide", &trace);
+        let mut lapse_rng = TraceRng::new(cfg.seed + 2, cfg.random_lapse.clone(), "lapse", &trace);
         let mut last_goal = Goal::Idle;
-        for (index, op) in case["operations"].as_array().unwrap().iter().enumerate() {
-            let op = sv(op);
-            let method = text(&op, "method").unwrap();
+        compare_initial_memory(&case_label, case_json, &mem, &mut outcome.failures);
+        compare_initial_own(
+            &case_label,
+            case_json,
+            encode_strategy_own(&strategy),
+            &mut outcome.failures,
+        );
+        let initial_getters = strategy_getters(&strategy);
+        for (name, actual) in encode_strategy_getters(&initial_getters) {
+            compare_ordered(
+                &format!("{case_label} initial.{name}"),
+                &sv(&case_json["initial"][name]),
+                &actual,
+                &mut outcome.failures,
+            );
+        }
+        for (index, op_json) in operations(case_json).iter().enumerate() {
+            let op_label = format!("{case_label} op{index}");
+            if let Some(injection) = injection {
+                if injection.matches(&case_label, index) {
+                    inject_non_advance(
+                        injection,
+                        op_json,
+                        case_json,
+                        "strategy",
+                        supplement,
+                        &cfg,
+                        maps,
+                        &mem,
+                        || encode_strategy_own(&strategy),
+                        || [decide_rng.draws(), 0, lapse_rng.draws(), knowledge_draws],
+                        &trace,
+                        &mut outcome.failures,
+                    );
+                    outcome.non_advance += 1;
+                    break;
+                }
+            }
+            must(
+                preflight_operation(case_json, op_json, "strategy", supplement, &cfg, maps),
+                &format!("{op_label} intake"),
+            );
+            trace.borrow_mut().reset();
+            let op = sv(op_json);
+            let method = text(&op, "method").expect("strategy method");
             let input = op.optional("input").cloned().unwrap_or(SVal::Undefined);
             let expected = op.optional("result").cloned().unwrap_or(SVal::Undefined);
             let actual = match method.as_str() {
                 "observe" => {
-                    let mp = parse_memory_percept(&input, &cfg.features).unwrap();
-                    let stimuli = mem.observe(&mp).unwrap();
-                    percept = Some(parse_strategy_percept(&input, &cfg).unwrap());
+                    let percept_input = must(
+                        parse_memory_percept(&input, &cfg.features),
+                        "strategy observe percept",
+                    );
+                    let strategy_percept = must(
+                        parse_strategy_percept(&input, &cfg),
+                        "strategy observe strategy percept",
+                    );
+                    let stimuli = mem.observe(&percept_input).expect("strategy observe");
+                    percept = Some(strategy_percept);
                     source_reader::arr(stimuli.iter().map(encode_stimulus).collect())
                 }
                 "recordChoice" => {
-                    mem.record_choice(input.string("choice").unwrap());
+                    mem.record_choice(input.string("choice").expect("recordChoice"));
                     SVal::Undefined
                 }
                 "decide" => {
-                    let p = percept.as_ref().unwrap();
-                    let declaration = field(&op, "declaration").unwrap();
-                    let current = if matches!(declaration.optional("current"), Some(SVal::Str(s)) if s == "$previous")
-                    {
-                        last_goal.clone()
-                    } else {
-                        parse_goal(field(&input, "current").unwrap()).unwrap()
-                    };
-                    if matches!(declaration.optional("current"), Some(SVal::Str(s)) if s == "$previous")
-                    {
-                        let guard = parse_goal(field(&input, "current").unwrap()).unwrap();
-                        if !source_reader::same(&encode_goal(&guard), &encode_goal(&last_goal)) {
-                            failures.push(format!(
-                                "{} op{index} decide: $previous guard differs from own prior goal",
-                                case["id"]
+                    let p = percept.as_ref().expect("decide needs an observe");
+                    let declaration = field(&op, "declaration").expect("declaration");
+                    let previous = matches!(
+                        declaration.optional("current"),
+                        Some(SVal::Str(value)) if value == "$previous"
+                    );
+                    let current_input = field(&input, "current").expect("input.current");
+                    let current = if previous {
+                        let guard = must(parse_goal(current_input), "captured current guard");
+                        if !super::source_trace::ordered_same(
+                            &encode_goal(&guard),
+                            &encode_goal(&last_goal),
+                        ) {
+                            outcome.failures.push(format!(
+                                "{op_label}: $previous guard differs from the native prior goal"
                             ));
                         }
-                    }
-                    let status = parse_status(field(&input, "status").unwrap()).unwrap();
-                    let engaged = boolv(&input, "engaged").unwrap();
+                        last_goal.clone()
+                    } else {
+                        must(parse_goal(current_input), "declared current")
+                    };
+                    let status = must(
+                        parse_status(field(&input, "status").expect("input.status")),
+                        "status",
+                    );
+                    let engaged = boolv(&input, "engaged").expect("engaged");
                     let env = declaration.optional("env").cloned();
-                    let modules = modules_for(&cfg, env.as_ref());
+                    let modules = modules_for(&cfg, env.as_ref(), &trace, index);
                     let cfg_ctx = StrategyConfig {
                         id: cfg.id.clone(),
                         seed: cfg.seed,
-                        tier: &harness_cfg.tier,
-                        persona: &harness_cfg.persona,
-                        map: &harness_cfg.map,
-                        features: &harness_cfg.features,
-                        learned: &harness_cfg.learned,
+                        tier: &cfg.tier,
+                        persona: &cfg.persona,
+                        map: &cfg.map,
+                        features: &cfg.features,
+                        learned: &learned,
                         modules: &modules,
+                    };
+                    let mem_view = RecordedMemory {
+                        inner: &mem,
+                        trace: trace.clone(),
                     };
                     let mut ctx = StrategyContext {
                         cfg: &cfg_ctx,
                         p,
-                        mem: &mem,
+                        mem: &mem_view,
                         know: &know,
                         paths: &mut paths,
                         decide: &mut decide_rng,
@@ -2594,474 +3808,148 @@ fn private_strategy_source_strategy_parity() {
                     let out = strategy.decide(&mut ctx, &current, &status);
                     let identity = strategy.last_returned_current();
                     last_goal = out.goal.clone();
-                    let encoded = encode_goal_decision(&out);
-                    if let Some(exp_identity) = op.optional("identity") {
-                        let act_identity = obj(vec![("returnedCurrentGoal", bool_sv(identity))]);
+                    if let Some(expected_identity) = op.optional("identity") {
+                        let actual_identity = obj(vec![("returnedCurrentGoal", bool_sv(identity))]);
                         compare(
-                            &format!("{} op{index} decide identity", case["id"]),
-                            exp_identity,
-                            &act_identity,
-                            &mut failures,
+                            &format!("{op_label} identity"),
+                            expected_identity,
+                            &actual_identity,
+                            &mut outcome.failures,
                         );
                     }
-                    encoded
+                    encode_goal_decision(&out)
                 }
-                other => panic!("unsupported strategy method {other}"),
+                other => panic!("{op_label}: unsupported strategy method {other}"),
             };
-            compare(
-                &format!("{} op{index} {method}", case["id"]),
-                &expected,
-                &actual,
-                &mut failures,
-            );
-            for extra in ["state", "plan", "huntStats", "huntTarget"] {
-                if let Some(exp) = op.optional(extra).cloned() {
-                    let act = match extra {
-                        "state" => encode_strategy_state(&strategy.state()),
-                        "plan" => encode_plan(&strategy.plan()),
-                        "huntStats" => encode_hunt_stats(&strategy.hunt_stats()),
-                        "huntTarget" => strategy
-                            .hunt_target()
-                            .map(|s| source_reader::s(&s))
-                            .unwrap_or(SVal::Null),
-                        _ => unreachable!(),
-                    };
-                    compare(
-                        &format!("{} op{index} {method} {extra}", case["id"]),
-                        &exp,
-                        &act,
-                        &mut failures,
-                    );
-                }
+            let draw_counts = [decide_rng.draws(), 0, lapse_rng.draws(), knowledge_draws];
+            if method == "decide" {
+                compare_goal_ordered(&op_label, &expected, &actual, &mut outcome.failures);
+            } else {
+                compare(&op_label, &expected, &actual, &mut outcome.failures);
             }
-            let expected_memory = op.optional("memory").cloned().unwrap_or(SVal::Undefined);
-            let actual_memory = encode_memory(&mem);
-            compare_memory(
-                &format!("{} op{index} {method}", case["id"]),
-                &expected_memory,
-                &actual_memory,
-                &mut failures,
+            let own = encode_strategy_own(&strategy);
+            fill_evidence(
+                evidence.as_deref_mut(),
+                &op_label,
+                op_json,
+                &trace,
+                &own,
+                draw_counts,
+                &actual,
             );
-            operations += 1;
+            check_channels(
+                &op_label,
+                op_json,
+                &trace,
+                Some(draw_counts),
+                &mut outcome.failures,
+            );
+            let getters = strategy_getters(&strategy);
+            for (name, getter_actual) in encode_strategy_getters(&getters) {
+                compare_ordered(
+                    &format!("{op_label} {name}"),
+                    &sv(&op_json[name]),
+                    &getter_actual,
+                    &mut outcome.failures,
+                );
+            }
+            compare_op_own(&op_label, op_json, own, &mut outcome.failures);
+            compare_op_memory(&op_label, op_json, &mem, &mut outcome.failures);
+            outcome.operations += 1;
         }
     }
-    eprintln!("PARITY_TOTAL strategy parity : {}", operations);
-    assert!(
-        failures.is_empty(),
-        "strategy parity {operations} ops; first failures:\n{}",
-        failures
-            .iter()
-            .take(10)
-            .cloned()
-            .collect::<Vec<_>>()
-            .join("\n")
-    );
+    outcome
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-// Additive module-goal-key supplement (4 histories / 48 calls)
+// Declared test entry points
 
-fn same_raw(a: &SVal, b: &SVal) -> bool {
-    match (a, b) {
-        (SVal::Obj(x), SVal::Obj(y)) => {
-            x.len() == y.len()
-                && x.iter()
-                    .zip(y)
-                    .all(|((ka, va), (kb, vb))| ka == kb && same_raw(va, vb))
-        }
-        (SVal::Arr(x), SVal::Arr(y)) => {
-            x.len() == y.len() && x.iter().zip(y).all(|(a, b)| same_raw(a, b))
-        }
-        (SVal::Map(x), SVal::Map(y)) => {
-            x.len() == y.len()
-                && x.iter()
-                    .zip(y)
-                    .all(|((ka, va), (kb, vb))| same_raw(ka, kb) && same_raw(va, vb))
-        }
-        _ => source_reader::same(a, b),
-    }
+#[test]
+fn private_strategy_source_tracker_parity() {
+    let source = load_source();
+    replay_tracker(&source, None).into_green("tracker", 1, 14);
 }
 
-fn same_goal(a: &SVal, b: &SVal) -> bool {
-    let (SVal::Obj(ax), SVal::Obj(bx)) = (a, b) else {
-        return source_reader::same(a, b);
-    };
-    let field = |entries: &[(String, SVal)], name: &str| {
-        entries
-            .iter()
-            .find(|(k, _)| k == name)
-            .map(|(_, v)| v.clone())
-    };
-    match (field(ax, "kind"), field(bx, "kind")) {
-        (Some(SVal::Str(k1)), Some(SVal::Str(k2))) if k1 == "module" && k2 == "module" => {
-            ax.len() == bx.len()
-                && ax.iter().all(|(k, v)| {
-                    bx.iter().find(|(bk, _)| bk == k).is_some_and(|(_, bv)| {
-                        if k == "data" {
-                            same_raw(v, bv)
-                        } else {
-                            source_reader::same(v, bv)
-                        }
-                    })
-                })
-        }
-        _ => source_reader::same(a, b),
-    }
+#[test]
+fn private_strategy_source_hunter_parity() {
+    let source = load_source();
+    replay_hunter(&source, None).into_green("hunter", 24, 127);
 }
 
-fn same_goal_decision(a: &SVal, b: &SVal) -> bool {
-    let (SVal::Obj(ax), SVal::Obj(bx)) = (a, b) else {
-        return source_reader::same(a, b);
-    };
-    ax.len() == bx.len()
-        && ax.iter().all(|(k, v)| {
-            bx.iter().find(|(bk, _)| bk == k).is_some_and(|(_, bv)| {
-                if k == "goal" {
-                    same_goal(v, bv)
-                } else {
-                    source_reader::same(v, bv)
-                }
-            })
-        })
+#[test]
+fn private_strategy_source_build_route_parity() {
+    let source = load_source();
+    replay_build_route(&source, None).into_green("route", 17, 36);
 }
 
-fn compare_strategy_ordered(
-    label: &str,
-    expected: &SVal,
-    actual: &SVal,
-    failures: &mut Vec<String>,
-) {
-    if !same_goal_decision(expected, actual) {
-        failures.push(format!("{label}: expected={expected:?} actual={actual:?}"));
-    }
+#[test]
+fn private_strategy_source_memory_parity() {
+    let source = load_source();
+    replay_memory(&source, None).into_green("memory", 12, 122);
 }
 
-fn compare_strategy_state_ordered(
-    label: &str,
-    expected: &SVal,
-    actual: &SVal,
-    failures: &mut Vec<String>,
-) {
-    let (SVal::Obj(exp), SVal::Obj(act)) = (expected, actual) else {
-        failures.push(format!("{label}: non-object state"));
-        return;
-    };
-    for (name, ev) in exp {
-        let Some((_, av)) = act.iter().find(|(k, _)| k == name) else {
-            failures.push(format!("{label}.{name}: missing"));
-            continue;
-        };
-        match name.as_str() {
-            "candidates" => {
-                let (SVal::Arr(ea), SVal::Arr(aa)) = (ev, av) else {
-                    failures.push(format!("{label}.candidates: not arrays"));
-                    continue;
-                };
-                if ea.len() != aa.len() {
-                    failures.push(format!(
-                        "{label}.candidates: length {} != {}",
-                        ea.len(),
-                        aa.len()
-                    ));
-                    continue;
-                }
-                for (i, (e, a)) in ea.iter().zip(aa).enumerate() {
-                    if !same_goal_decision(e, a) {
-                        failures.push(format!("{label}.candidates[{i}]: mismatch"));
-                    }
-                }
-            }
-            _ => {
-                if !source_reader::same(ev, av) {
-                    failures.push(format!("{label}.{name}: expected={ev:?} actual={av:?}"));
-                }
-            }
-        }
-    }
+#[test]
+fn private_strategy_source_hunt_adapter_parity() {
+    let source = load_source();
+    replay_hunt_adapter(&source, None).into_green("adapter", 9, 67);
+}
+
+#[test]
+fn private_strategy_source_strategy_parity() {
+    let source = load_source();
+    replay_strategy_cases(
+        source_cases(&source),
+        &source["maps"],
+        "strategy",
+        false,
+        None,
+        None,
+    )
+    .into_green("strategy", 35, 292);
 }
 
 #[test]
 fn private_module_goal_key_source_parity() {
-    let supplement: Value = {
-        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../parity/policy/bot-module-goal-key/source.json");
-        serde_json::from_str(&std::fs::read_to_string(path).expect("module goal-key source.json"))
-            .expect("valid supplement JSON")
-    };
+    let supplement = load_supplement();
     let primary = load_source();
-    let maps = &primary["maps"];
-    let mut failures = Vec::new();
-    let mut operations = 0usize;
-    let mut cases_seen = 0usize;
-    for case in supplement["cases"].as_array().expect("supplement cases") {
-        if case["suite"] != "strategy" {
-            continue;
-        }
-        cases_seen += 1;
-        let config = sv(&case["config"]);
-        let cfg = parse_config(&config, maps).unwrap();
-        let mut mem = create_memory(&cfg);
-        let mut percept: Option<StrategyPercept> = None;
-        let know = knowledge_for(&cfg);
-        let harness_cfg = harness_config(&cfg);
-        let mut paths = PathHarness {
-            spec: cfg.path.clone(),
-            source_map: cfg.tile_map.clone(),
-            finder: rh_sim::pathfind::Pathfinder::default(),
-            calls: Vec::new(),
-        };
-        let attacking_value = cfg.attacking;
-        let mut strategy = Strategy::new(StrategyOptions {
-            attacking: cfg.attacking.map(|_| {
-                std::rc::Rc::new(move || attacking_value.unwrap_or(false)) as super::types::AttackFn
-            }),
-            log: None,
-        });
-        let mut decide_rng = OverrideRng::new(cfg.seed, cfg.random_decide.clone());
-        let mut lapse_rng = OverrideRng::new(cfg.seed + 2, cfg.random_lapse.clone());
-        let mut last_goal = Goal::Idle;
-        for (index, op) in case["operations"].as_array().unwrap().iter().enumerate() {
-            let op = sv(op);
-            let method = text(&op, "method").unwrap();
-            let input = op.optional("input").cloned().unwrap_or(SVal::Undefined);
-            let expected = op.optional("result").cloned().unwrap_or(SVal::Undefined);
-            let actual = match method.as_str() {
-                "observe" => {
-                    let mp = parse_memory_percept(&input, &cfg.features).unwrap();
-                    let stimuli = mem.observe(&mp).unwrap();
-                    percept = Some(parse_strategy_percept(&input, &cfg).unwrap());
-                    source_reader::arr(stimuli.iter().map(encode_stimulus).collect())
-                }
-                "recordChoice" => {
-                    mem.record_choice(input.string("choice").unwrap());
-                    SVal::Undefined
-                }
-                "decide" => {
-                    let p = percept.as_ref().unwrap();
-                    let declaration = field(&op, "declaration").unwrap();
-                    let previous = matches!(declaration.optional("current"), Some(SVal::Str(s)) if s == "$previous");
-                    let current = if previous {
-                        last_goal.clone()
-                    } else {
-                        parse_goal(field(&input, "current").unwrap()).unwrap()
-                    };
-                    let status = parse_status(field(&input, "status").unwrap()).unwrap();
-                    let env = declaration.optional("env").cloned();
-                    let modules = modules_for(&cfg, env.as_ref());
-                    let cfg_ctx = StrategyConfig {
-                        id: cfg.id.clone(),
-                        seed: cfg.seed,
-                        tier: &harness_cfg.tier,
-                        persona: &harness_cfg.persona,
-                        map: &harness_cfg.map,
-                        features: &harness_cfg.features,
-                        learned: &harness_cfg.learned,
-                        modules: &modules,
-                    };
-                    let mut ctx = StrategyContext {
-                        cfg: &cfg_ctx,
-                        p,
-                        mem: &mem,
-                        know: &know,
-                        paths: &mut paths,
-                        decide: &mut decide_rng,
-                        lapse: &mut lapse_rng,
-                        engaged: boolv(&input, "engaged").unwrap(),
-                    };
-                    let out = strategy.decide(&mut ctx, &current, &status);
-                    last_goal = out.goal.clone();
-                    let encoded = encode_goal_decision(&out);
-                    if let Some(exp_identity) = op.optional("identity") {
-                        let act_identity = obj(vec![(
-                            "returnedCurrentGoal",
-                            bool_sv(strategy.last_returned_current()),
-                        )]);
-                        compare(
-                            &format!("{} op{index} decide identity", case["id"]),
-                            exp_identity,
-                            &act_identity,
-                            &mut failures,
-                        );
-                    }
-                    encoded
-                }
-                other => panic!("unsupported supplement method {other}"),
-            };
-            compare_strategy_ordered(
-                &format!("{} op{index} {method}", case["id"]),
-                &expected,
-                &actual,
-                &mut failures,
-            );
-            if let Some(exp_state) = op.optional("state").cloned() {
-                compare_strategy_state_ordered(
-                    &format!("{} op{index} {method} state", case["id"]),
-                    &exp_state,
-                    &encode_strategy_state(&strategy.state()),
-                    &mut failures,
-                );
-            }
-            if let Some(exp_plan) = op.optional("plan").cloned() {
-                compare(
-                    &format!("{} op{index} {method} plan", case["id"]),
-                    &exp_plan,
-                    &encode_plan(&strategy.plan()),
-                    &mut failures,
-                );
-            }
-            if let Some(exp_stats) = op.optional("huntStats").cloned() {
-                compare(
-                    &format!("{} op{index} {method} stats", case["id"]),
-                    &exp_stats,
-                    &encode_hunt_stats(&strategy.hunt_stats()),
-                    &mut failures,
-                );
-            }
-            if let Some(exp_target) = op.optional("huntTarget").cloned() {
-                let act = strategy
-                    .hunt_target()
-                    .map(|s| source_reader::s(&s))
-                    .unwrap_or(SVal::Null);
-                compare(
-                    &format!("{} op{index} {method} target", case["id"]),
-                    &exp_target,
-                    &act,
-                    &mut failures,
-                );
-            }
-            let expected_memory = op.optional("memory").cloned().unwrap_or(SVal::Undefined);
-            compare_memory(
-                &format!("{} op{index} {method}", case["id"]),
-                &expected_memory,
-                &encode_memory(&mem),
-                &mut failures,
-            );
-            operations += 1;
-        }
-    }
-    eprintln!("PARITY_TOTAL module-goal-key parity : {}", operations);
-    assert!(
-        failures.is_empty(),
-        "module-goal-key parity {cases_seen} cases/{operations} ops; first failures:\n{}",
-        failures
-            .iter()
-            .take(10)
-            .cloned()
-            .collect::<Vec<_>>()
-            .join("\n")
+    assert_eq!(
+        supplement["mapReference"]["id"], primary["maps"][0]["id"],
+        "supplement map reference binds the frozen primary generated7 map"
     );
+    replay_strategy_cases(
+        supplement["cases"].as_array().expect("supplement cases"),
+        &primary["maps"],
+        "supplement",
+        true,
+        None,
+        None,
+    )
+    .into_green("module-goal-key", 4, 48);
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-// Frozen corpus envelope, setup transcript and cumulative RNG checks
-
-fn expected_setup_knowledge_draws(case: &Value, seed: u32, failures: &mut Vec<String>) {
-    let entries = case["setupTranscript"]["values"]
-        .as_array()
-        .expect("setupTranscript values");
-    let mut rng = Rng::new(seed + 3);
-    let mut ordinal = 0usize;
-    for entry in entries {
-        let entry = sv(entry);
-        let kind = text(&entry, "kind").unwrap();
-        let stream = text(&entry, "stream").unwrap();
-        assert_eq!(
-            kind, "rng",
-            "setup transcript must be RNG-only at this phase"
-        );
-        assert_eq!(stream, "knowledge");
-        let index = num(&entry, "index").unwrap() as usize;
-        assert_eq!(index, ordinal, "knowledge draw index");
-        let expected = field(&entry, "value").unwrap().num("rng value").unwrap();
-        let actual = rng.next_f64();
-        if expected.to_bits() != actual.to_bits() {
-            failures.push(format!(
-                "setupTranscript knowledge draw {ordinal}: expected={expected:?} actual={actual:?}"
-            ));
-        }
-        ordinal += 1;
-    }
-    if ordinal != 70 {
-        failures.push(format!(
-            "setupTranscript knowledge draws expected 70, got {ordinal}"
-        ));
-    }
-}
-
-fn check_draw_counts(
-    label: &str,
-    expected: &SVal,
-    decide: usize,
-    motor: usize,
-    lapse: usize,
-    knowledge: usize,
-    failures: &mut Vec<String>,
-) {
-    let actual = obj(vec![
-        ("decide", num_sv(decide as f64)),
-        ("motor", num_sv(motor as f64)),
-        ("lapse", num_sv(lapse as f64)),
-        ("knowledge", num_sv(knowledge as f64)),
-    ]);
-    compare(&format!("{label} drawCounts"), expected, &actual, failures);
-}
-
-fn check_rng_callback_order(
-    label: &str,
-    expected_callbacks: &SVal,
-    decide: &[f64],
-    lapse: &[f64],
-    failures: &mut Vec<String>,
-) {
-    let Some(expected) = expected_callbacks.arr("callbacks").ok() else {
-        return;
-    };
-    let mut expected_rng: Vec<(String, usize, f64)> = Vec::new();
-    for cb in expected {
-        if text(cb, "kind").unwrap_or_default() == "rng" {
-            let stream = text(cb, "stream").unwrap_or_default();
-            let index = num(cb, "index").unwrap_or(0.) as usize;
-            let value = field(cb, "value").unwrap().num("value").unwrap_or(0.);
-            expected_rng.push((stream, index, value));
-        }
-    }
-    let mut actual: Vec<(String, usize, f64)> = Vec::new();
-    for (i, value) in decide.iter().enumerate() {
-        actual.push(("decide".into(), i, *value));
-    }
-    for (i, value) in lapse.iter().enumerate() {
-        actual.push(("lapse".into(), i, *value));
-    }
-    actual.sort_by_key(|(stream, index, _)| (stream.clone(), *index));
-    if expected_rng.len() != actual.len() {
-        failures.push(format!(
-            "{label} rng entries expected {} actual {}",
-            expected_rng.len(),
-            actual.len()
-        ));
-        return;
-    }
-    for (i, (e, a)) in expected_rng.iter().zip(actual.iter()).enumerate() {
-        if e.0 != a.0 || e.1 != a.1 || e.2.to_bits() != a.2.to_bits() {
-            failures.push(format!(
-                "{label} rng entry {i}: expected={e:?} actual={a:?}"
-            ));
-        }
-    }
-}
+// Frozen corpus envelope: the actual expected suites/cases/operations, not a total that tolerates a skipped suite.
 
 #[test]
 fn private_strategy_source_envelope_guard() {
     let source = load_source();
+    assert_eq!(
+        source["format"], "rh-bot-private-strategy-source/1",
+        "source format"
+    );
+    assert_eq!(
+        source["methodValue"], "rh-method-value/1",
+        "method value format"
+    );
     let primary = source_cases(&source);
     assert_eq!(primary.len(), 98, "primary case set");
     let mut counts = std::collections::BTreeMap::new();
     let mut total = 0usize;
-    for case in primary {
-        let suite = case["suite"].as_str().expect("suite");
-        let n = case["operations"].as_array().expect("operations").len();
-        *counts.entry(suite.to_string()).or_insert(0usize) += n;
-        total += n;
+    for case_json in primary {
+        let suite = case_json["suite"].as_str().expect("suite");
+        let count = operations(case_json).len();
+        *counts.entry(suite.to_string()).or_insert(0usize) += count;
+        total += count;
     }
     assert_eq!(counts.get("memory-api"), Some(&122));
     assert_eq!(counts.get("strategy"), Some(&292));
@@ -3070,6 +3958,21 @@ fn private_strategy_source_envelope_guard() {
     assert_eq!(counts.get("hunt-adapter"), Some(&67));
     assert_eq!(counts.get("build-route"), Some(&36));
     assert_eq!(total, 658);
+    for case_json in primary {
+        match case_json["suite"].as_str().expect("suite") {
+            "strategy" | "hunt-adapter" => {
+                let setup = sv(&case_json["setupTranscript"]);
+                match setup {
+                    SVal::Arr(values) => assert_eq!(values.len(), 70, "knowledge setup draws"),
+                    other => panic!("setupTranscript must be an array, got {other:?}"),
+                }
+            }
+            "memory-api" | "mob-tracker" | "mob-hunter" | "build-route" => {
+                assert_no_setup(case_json, case_json["id"].as_str().expect("case id"));
+            }
+            other => panic!("unknown suite {other}"),
+        }
+    }
     let supplement: Value = serde_json::from_str(
         &std::fs::read_to_string(
             std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -3077,13 +3980,781 @@ fn private_strategy_source_envelope_guard() {
         )
         .expect("supplement"),
     )
-    .expect("valid");
+    .expect("valid supplement JSON");
     assert_eq!(supplement["cases"].as_array().unwrap().len(), 4);
     let supplement_ops: usize = supplement["cases"]
         .as_array()
         .unwrap()
         .iter()
-        .map(|c| c["operations"].as_array().unwrap().len())
+        .map(|case_json| operations(case_json).len())
         .sum();
     assert_eq!(supplement_ops, 48);
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+// Synthetic in-memory negative controls. These perturb one actual recorded channel of a real replay (never the corpus),
+// keep the decision unchanged and must fail for the intended channel only.
+
+fn callback_channel_values(expected: &SVal, actual: &SVal) -> (usize, usize) {
+    let expected_len = match expected {
+        SVal::Arr(values) => values.len(),
+        _ => usize::MAX,
+    };
+    let actual_len = match actual {
+        SVal::Arr(values) => values.len(),
+        _ => usize::MAX,
+    };
+    (expected_len, actual_len)
+}
+
+fn negative_callback_remove(evidence: &TraceEvidence) -> Vec<String> {
+    let mut mutated = evidence.actual_callbacks.clone();
+    if let SVal::Arr(values) = &mut mutated {
+        assert!(!values.is_empty(), "negative needs a recorded callback");
+        values.remove(0);
+    }
+    let mut failures = Vec::new();
+    super::source_trace::compare_callback_values(
+        "negative remove callback",
+        &evidence.expected_callbacks,
+        &mutated,
+        &mut failures,
+    );
+    failures
+}
+
+fn negative_callback_reorder(evidence: &TraceEvidence) -> Vec<String> {
+    let mut mutated = evidence.actual_callbacks.clone();
+    if let SVal::Arr(values) = &mut mutated {
+        assert!(values.len() >= 2, "negative needs two recorded callbacks");
+        values.swap(0, 1);
+    }
+    let mut failures = Vec::new();
+    super::source_trace::compare_callback_values(
+        "negative reorder callback",
+        &evidence.expected_callbacks,
+        &mutated,
+        &mut failures,
+    );
+    failures
+}
+
+fn negative_draw_count(evidence: &TraceEvidence) -> Vec<String> {
+    let mut mutated = evidence.actual_draw_counts.clone();
+    if let SVal::Obj(entries) = &mut mutated {
+        let (_, decide) = entries
+            .iter_mut()
+            .find(|(key, _)| key == "decide")
+            .expect("decide draw count");
+        if let SVal::Num(value) = decide {
+            assert!(*value >= 1., "negative needs a decide draw");
+            *value -= 1.;
+        }
+    }
+    let mut failures = Vec::new();
+    super::source_trace::compare_draw_count_values(
+        "negative draw count",
+        &evidence.expected_draw_counts,
+        &mutated,
+        &mut failures,
+    );
+    failures
+}
+
+fn corrupt_retained_field(value: &SVal) -> Option<SVal> {
+    match value {
+        SVal::Instance { name, entries } => {
+            for (key, field) in entries {
+                if matches!(
+                    key.as_str(),
+                    "judged" | "excluded" | "lootSkip" | "banned" | "contested" | "zoneAvoid"
+                ) {
+                    if let SVal::Map(map_entries) = field {
+                        if let Some((entry_key, entry_value)) = map_entries.first() {
+                            let mut map = map_entries.clone();
+                            let corrupted = match entry_value {
+                                SVal::Obj(fields) => {
+                                    let mut fields = fields.clone();
+                                    let mut found = false;
+                                    for (field_key, field_value) in fields.iter_mut() {
+                                        if matches!(field_key.as_str(), "until" | "z") {
+                                            if let SVal::Num(number) = field_value {
+                                                *number += 1.;
+                                                found = true;
+                                            }
+                                        }
+                                    }
+                                    assert!(found, "negative needs an expiry field");
+                                    SVal::Obj(fields)
+                                }
+                                SVal::Num(number) => SVal::Num(*number + 1.),
+                                other => other.clone(),
+                            };
+                            map[0] = (entry_key.clone(), corrupted);
+                            return Some(SVal::Instance {
+                                name: name.clone(),
+                                entries: entries
+                                    .iter()
+                                    .map(|(k, v)| {
+                                        if k == key {
+                                            (k.clone(), SVal::Map(map.clone()))
+                                        } else {
+                                            (k.clone(), v.clone())
+                                        }
+                                    })
+                                    .collect(),
+                            });
+                        }
+                    }
+                }
+                if let Some(corrupted) = corrupt_retained_field(field) {
+                    return Some(SVal::Instance {
+                        name: name.clone(),
+                        entries: entries
+                            .iter()
+                            .map(|(k, v)| {
+                                if k == key {
+                                    (k.clone(), corrupted.clone())
+                                } else {
+                                    (k.clone(), v.clone())
+                                }
+                            })
+                            .collect(),
+                    });
+                }
+            }
+            None
+        }
+        SVal::Obj(entries) => {
+            for (key, field) in entries {
+                if let Some(corrupted) = corrupt_retained_field(field) {
+                    return Some(SVal::Obj(
+                        entries
+                            .iter()
+                            .map(|(k, v)| {
+                                if k == key {
+                                    (k.clone(), corrupted.clone())
+                                } else {
+                                    (k.clone(), v.clone())
+                                }
+                            })
+                            .collect(),
+                    ));
+                }
+            }
+            None
+        }
+        _ => None,
+    }
+}
+
+fn negative_own_corruption(evidence: &TraceEvidence) -> Vec<String> {
+    let mutated = corrupt_retained_field(&evidence.actual_own)
+        .expect("a reached retained map/diagnostic must be corruptible");
+    let mut failures = Vec::new();
+    if !super::source_trace::own_same(&evidence.expected_own, &mutated) {
+        failures.push("negative own corruption: retained own diagnostic differs".into());
+    }
+    assert_eq!(
+        failures.len(),
+        1,
+        "own corruption negative must disagree with the frozen own diagnostics once: {failures:?}"
+    );
+    failures
+}
+
+#[test]
+fn private_strategy_source_trace_negatives() {
+    let source = load_source();
+    let mut evidence = TraceEvidence::default();
+    let baseline = replay_strategy_cases(
+        source_cases(&source),
+        &source["maps"],
+        "strategy",
+        false,
+        None,
+        Some(&mut evidence),
+    );
+    assert!(
+        baseline.failures.is_empty(),
+        "the negative controls need a clean baseline replay: {:?}",
+        baseline.failures.first()
+    );
+    assert!(
+        !evidence.case.is_empty(),
+        "the negative controls need a recorded non-empty transcript"
+    );
+    let (expected_len, actual_len) =
+        callback_channel_values(&evidence.expected_callbacks, &evidence.actual_callbacks);
+    assert_eq!(expected_len, actual_len);
+    assert!(actual_len >= 2, "need at least two ordered callback events");
+
+    let removed = negative_callback_remove(&evidence);
+    assert_eq!(removed.len(), 1, "remove-callback negative must fail once");
+    assert!(
+        removed[0].contains("callbacks"),
+        "remove-callback negative failed on the intended channel: {removed:?}"
+    );
+    let reordered = negative_callback_reorder(&evidence);
+    assert_eq!(
+        reordered.len(),
+        1,
+        "reorder-callback negative must fail once"
+    );
+    assert!(
+        reordered[0].contains("callbacks"),
+        "reorder-callback negative failed on the intended channel: {reordered:?}"
+    );
+    let draws = negative_draw_count(&evidence);
+    assert_eq!(draws.len(), 1, "draw-count negative must fail once");
+    assert!(
+        draws[0].contains("drawCounts"),
+        "draw-count negative failed on the intended channel: {draws:?}"
+    );
+    let own = negative_own_corruption(&evidence);
+    assert_eq!(own.len(), 1, "own-corruption negative must fail once");
+    assert!(
+        own[0].contains("initial.own") || own[0].contains(" own"),
+        "own-corruption negative failed on the intended channel: {own:?}"
+    );
+    // The perturbed own-state/callback channels do not change the decision itself: the exact decision comparison stays
+    // green against the same recorded actual result.
+    let mut decision_failures = Vec::new();
+    super::source_trace::compare_goal_ordered(
+        "negative decision unchanged",
+        &evidence.expected_result,
+        &evidence.actual_result,
+        &mut decision_failures,
+    );
+    assert!(
+        decision_failures.is_empty(),
+        "the synthetic negatives changed the decision channel"
+    );
+    // Raw Module.data ordering/value controls: the goal-aware ordered comparator must distinguish a reversed property
+    // order and a changed nested raw value even though generic schema-record equality would normalize them away.
+    let ordered_module = sv(&serde_json::json!({
+        "goal": {"kind": "module", "module": "m", "data": {"$": "object", "entries": [["a", 1], ["b", {"$": "array", "values": [1, 2]}]]}},
+        "utility": 1.0,
+        "why": "module row"
+    }));
+    let reversed_module = sv(&serde_json::json!({
+        "goal": {"kind": "module", "module": "m", "data": {"$": "object", "entries": [["b", {"$": "array", "values": [1, 2]}], ["a", 1]]}},
+        "utility": 1.0,
+        "why": "module row"
+    }));
+    let changed_module = sv(&serde_json::json!({
+        "goal": {"kind": "module", "module": "m", "data": {"$": "object", "entries": [["a", 3], ["b", {"$": "array", "values": [1, 2]}]]}},
+        "utility": 1.0,
+        "why": "module row"
+    }));
+    for (label, mutated) in [
+        ("reversed raw Module.data order", &reversed_module),
+        ("changed nested raw Module.data value", &changed_module),
+    ] {
+        let mut failures = Vec::new();
+        super::source_trace::compare_goal_ordered(
+            &format!("negative {label}"),
+            &ordered_module,
+            mutated,
+            &mut failures,
+        );
+        assert_eq!(
+            failures.len(),
+            1,
+            "{label} must fail the ordered goal comparison"
+        );
+        eprintln!("TRACE_NEGATIVE {label}: detected");
+    }
+    eprintln!(
+        "TRACE_NEGATIVE evidence {} op{}: {} callback events, own corruption channel {}",
+        evidence.case,
+        evidence.operation,
+        actual_len,
+        own[0].split(':').next().unwrap_or("own")
+    );
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+// Labelled native reader/intake controls. Reader controls are synthetic tagged values; envelope controls mutate the loaded
+// frozen envelope in memory and restore it; typed controls run the actual replay preflight on mutated operation inputs.
+// None of these are source parity rows, and no corpus file is modified.
+
+#[test]
+fn private_strategy_source_reader_controls() {
+    use super::source_strict::{decode, validate_primary, Mode};
+    let mut labels: Vec<&str> = Vec::new();
+    let mut rejected = |label: &'static str, value: Value, mode: Mode| {
+        assert!(
+            decode(&value, label, mode).is_err(),
+            "reader control {label} must be rejected"
+        );
+        labels.push(label);
+    };
+    rejected(
+        "unsupported tag",
+        serde_json::json!({"$": "future"}),
+        Mode::Diagnostic,
+    );
+    rejected(
+        "extra tag field",
+        serde_json::json!({"$": "undefined", "extra": 1}),
+        Mode::Diagnostic,
+    );
+    rejected(
+        "missing number tag value",
+        serde_json::json!({"$": "number"}),
+        Mode::Diagnostic,
+    );
+    rejected(
+        "unknown number tag",
+        serde_json::json!({"$": "number", "value": "Infinity"}),
+        Mode::Diagnostic,
+    );
+    rejected(
+        "duplicate object key",
+        serde_json::json!({"$": "object", "entries": [["x", 1], ["x", 2]]}),
+        Mode::Diagnostic,
+    );
+    rejected(
+        "duplicate Map key",
+        serde_json::json!({"$": "map", "entries": [["same", 1], ["same", 2]]}),
+        Mode::Diagnostic,
+    );
+    rejected(
+        "duplicate signed-zero Map key",
+        serde_json::json!({"$": "map", "entries": [[0, 1], [{"$": "number", "value": "-0"}, 2]]}),
+        Mode::Diagnostic,
+    );
+    rejected(
+        "duplicate Set value",
+        serde_json::json!({"$": "set", "values": ["x", "x"]}),
+        Mode::Diagnostic,
+    );
+    rejected(
+        "malformed Map pair",
+        serde_json::json!({"$": "map", "entries": [[1]]}),
+        Mode::Diagnostic,
+    );
+    rejected(
+        "malformed u8 pair",
+        serde_json::json!({"$": "u8", "values": [[1, 2]]}),
+        Mode::Diagnostic,
+    );
+    rejected(
+        "u8 range",
+        serde_json::json!({"$": "u8", "values": [256]}),
+        Mode::Diagnostic,
+    );
+    rejected(
+        "negative u8",
+        serde_json::json!({"$": "u8", "values": [-1]}),
+        Mode::Diagnostic,
+    );
+    rejected(
+        "untagged array",
+        serde_json::json!([1, 2]),
+        Mode::Diagnostic,
+    );
+    rejected(
+        "callable input",
+        serde_json::json!({"$": "callable"}),
+        Mode::Input,
+    );
+    rejected(
+        "instance input",
+        serde_json::json!({"$": "instance", "name": "Fake", "entries": []}),
+        Mode::Input,
+    );
+    rejected(
+        "array hole",
+        serde_json::json!({"$": "hole"}),
+        Mode::Diagnostic,
+    );
+    // The legitimate tagged sentinels remain accepted with their exact bits.
+    match decode(
+        &serde_json::json!({"$": "number", "value": "-0"}),
+        "signed zero",
+        Mode::Input,
+    ) {
+        Ok(SVal::Num(value)) if value.to_bits() == (-0f64).to_bits() => {}
+        other => panic!("signed zero control failed: {other:?}"),
+    }
+    assert!(matches!(
+        decode(
+            &serde_json::json!({"$": "number", "value": "NaN"}),
+            "NaN",
+            Mode::Input
+        ),
+        Ok(SVal::Num(value)) if value.is_nan()
+    ));
+    assert!(matches!(
+        decode(
+            &serde_json::json!({"$": "undefined"}),
+            "undefined",
+            Mode::Input
+        ),
+        Ok(SVal::Undefined)
+    ));
+    assert!(matches!(
+        decode(&Value::Null, "null", Mode::Input),
+        Ok(SVal::Null)
+    ));
+
+    // Envelope controls on the actual frozen corpus: each control mutates one in-memory copy.
+    let source = load_source();
+    let mutate_and_reject =
+        |mutate: &dyn Fn(&mut Value), label: &'static str, labels: &mut Vec<&'static str>| {
+            let mut mutated = source.clone();
+            mutate(&mut mutated);
+            assert!(
+                validate_primary(&mutated).is_err(),
+                "envelope control {label} must be rejected"
+            );
+            labels.push(label);
+        };
+    mutate_and_reject(
+        &|source| source["format"] = Value::String("future".into()),
+        "wrong format",
+        &mut labels,
+    );
+    mutate_and_reject(
+        &|source| source["methodValue"] = Value::String("future".into()),
+        "wrong method value format",
+        &mut labels,
+    );
+    mutate_and_reject(
+        &|source| {
+            let cases = source["cases"].as_array_mut().expect("cases");
+            cases[1]["id"] = cases[0]["id"].clone();
+        },
+        "duplicate case id",
+        &mut labels,
+    );
+    mutate_and_reject(
+        &|source| source["cases"][0]["suite"] = Value::String("future".into()),
+        "unsupported suite",
+        &mut labels,
+    );
+    mutate_and_reject(
+        &|source| {
+            let cases = source["cases"].as_array_mut().expect("cases");
+            let strategy = cases
+                .iter_mut()
+                .find(|case| case["suite"] == "strategy")
+                .expect("strategy case");
+            let decide = strategy["operations"]
+                .as_array_mut()
+                .expect("ops")
+                .iter_mut()
+                .find(|op| op["method"] == "decide")
+                .expect("decide op");
+            decide["method"] = Value::String("trackerObserve".into());
+        },
+        "wrong suite/method",
+        &mut labels,
+    );
+    mutate_and_reject(
+        &|source| {
+            let cases = source["cases"].as_array_mut().expect("cases");
+            cases
+                .iter_mut()
+                .filter(|case| case["suite"] == "mob-hunter")
+                .for_each(|case| case["suite"] = Value::String("hunt-adapter".into()));
+        },
+        "empty/skipped suite",
+        &mut labels,
+    );
+    mutate_and_reject(
+        &|source| source["cases"].as_array_mut().expect("cases").clear(),
+        "empty case set",
+        &mut labels,
+    );
+    mutate_and_reject(
+        &|source| {
+            let cases = source["cases"].as_array_mut().expect("cases");
+            let strategy = cases
+                .iter_mut()
+                .find(|case| case["suite"] == "strategy")
+                .expect("strategy case");
+            let decide = strategy["operations"]
+                .as_array_mut()
+                .expect("ops")
+                .iter_mut()
+                .find(|op| op["method"] == "decide")
+                .expect("decide op");
+            decide["identity"] = serde_json::json!({"returnedCurrentGoal": "yes"});
+        },
+        "malformed identity row",
+        &mut labels,
+    );
+    mutate_and_reject(
+        &|source| {
+            let cases = source["cases"].as_array_mut().expect("cases");
+            let strategy = cases
+                .iter_mut()
+                .find(|case| case["suite"] == "strategy")
+                .expect("strategy case");
+            let decide = strategy["operations"]
+                .as_array_mut()
+                .expect("ops")
+                .iter_mut()
+                .find(|op| op["method"] == "decide")
+                .expect("decide op");
+            decide["drawCounts"] =
+                serde_json::json!({"decide": -1, "motor": 0, "lapse": 0, "knowledge": 70});
+        },
+        "malformed draw counts",
+        &mut labels,
+    );
+    validate_primary(&source).expect("frozen source must validate after controls");
+
+    // Typed/preflight controls on actual operation inputs (mutated copies only).
+    let source = load_source();
+    let cases = source_cases(&source);
+    let maps = &source["maps"];
+    let typed = |mut op: Value, mutation: &dyn Fn(&mut Value), label: &'static str| {
+        mutation(&mut op);
+        let cfg_case = cases
+            .iter()
+            .find(|case| case["id"].as_str() == Some("strategy-matrix-easy-farmer"))
+            .expect("matrix case");
+        let cfg = case_cfg(cfg_case, maps);
+        let error = preflight_operation(cfg_case, &op, "strategy", false, &cfg, maps);
+        assert!(error.is_err(), "typed intake control {label} must reject");
+        error.expect_err("checked").to_string()
+    };
+    let strategy_case = cases
+        .iter()
+        .find(|case| case["id"].as_str() == Some("strategy-matrix-easy-farmer"))
+        .expect("matrix case");
+    let ops = operations(strategy_case);
+    let observe_index = ops
+        .iter()
+        .position(|op| op["method"] == "observe")
+        .expect("observe op");
+    let decide_index = ops
+        .iter()
+        .position(|op| op["method"] == "decide")
+        .expect("decide op");
+    let mutate_self_entry = |op: &mut Value, key: &str, value: Value| {
+        let self_value = tagged_entry_mut(&mut op["input"], "self").expect("self");
+        let entry = tagged_entry_mut(self_value, key).expect("self entry");
+        *entry = value;
+    };
+    let _ = typed(
+        ops[observe_index].clone(),
+        &|op| {
+            mutate_self_entry(
+                op,
+                "weapons",
+                serde_json::json!({"$": "array", "values": ["laser", null]}),
+            )
+        },
+        "unknown weapon",
+    );
+    labels.push("wrong/unknown weapon");
+    let _ = typed(
+        ops[observe_index].clone(),
+        &|op| mutate_self_entry(op, "slot", serde_json::json!(2)),
+        "slot range",
+    );
+    labels.push("wrong slot");
+    let _ = typed(
+        ops[observe_index].clone(),
+        &|op| {
+            mutate_self_entry(
+                op,
+                "weapons",
+                serde_json::json!({"$": "array", "values": ["sword", null, "bow"]}),
+            )
+        },
+        "weapon array count",
+    );
+    labels.push("wrong weapon array count");
+    let _ = typed(
+        ops[observe_index].clone(),
+        &|op| mutate_self_entry(op, "faction", Value::String("chaos".into())),
+        "unknown faction enum",
+    );
+    labels.push("unknown enum");
+    // A forbidden non-finite declared fact: tracker query `now` as +Infinity (later field of the call).
+    let tracker_case = cases
+        .iter()
+        .find(|case| case["suite"] == "mob-tracker")
+        .expect("tracker case");
+    let tracker_ops = operations(tracker_case);
+    let query_index = tracker_ops
+        .iter()
+        .position(|op| op["method"] == "trackerQuery")
+        .expect("tracker query");
+    let tracker_cfg = case_cfg(tracker_case, maps);
+    let mut query = tracker_ops[query_index].clone();
+    *tagged_entry_mut(&mut query["input"], "now").expect("now") =
+        serde_json::json!({"$": "number", "value": "+Infinity"});
+    assert!(
+        preflight_operation(
+            tracker_case,
+            &query,
+            "mob-tracker",
+            false,
+            &tracker_cfg,
+            maps
+        )
+        .is_err(),
+        "non-finite declared fact must be rejected"
+    );
+    labels.push("nonfinite forbidden declared fact");
+    let mut query = tracker_ops[query_index].clone();
+    query["input"]
+        .get_mut("entries")
+        .and_then(Value::as_array_mut)
+        .expect("entries")
+        .retain(|pair| pair.get(0).and_then(Value::as_str) != Some("awakeMoved"));
+    assert!(
+        preflight_operation(
+            tracker_case,
+            &query,
+            "mob-tracker",
+            false,
+            &tracker_cfg,
+            maps
+        )
+        .is_err(),
+        "missing consumed field must be rejected"
+    );
+    labels.push("missing consumed field");
+    // The real decide row still preflights cleanly (positive control).
+    let cfg = case_cfg(strategy_case, maps);
+    assert!(
+        preflight_operation(
+            strategy_case,
+            &ops[decide_index],
+            "strategy",
+            false,
+            &cfg,
+            maps
+        )
+        .is_ok(),
+        "the frozen decide row must preflight cleanly"
+    );
+    eprintln!(
+        "READER_CONTROL rejected={} labels={:?}",
+        labels.len(),
+        labels
+    );
+}
+
+#[test]
+fn private_strategy_source_intake_non_advance() {
+    let source = load_source();
+    let cases = source_cases(&source);
+
+    // (suite label, replay invocation, target method, injection kind used on the reached history)
+    let strategy_decide = first_injectable(cases, "strategy", "decide").expect("strategy decide");
+    let outcome = replay_strategy_cases(
+        source_cases(&source),
+        &source["maps"],
+        "strategy",
+        false,
+        Some(&Injection {
+            case: strategy_decide.0.clone(),
+            op_index: strategy_decide.1,
+            kind: InjectionKind::StrategyDecideStatus,
+        }),
+        None,
+    );
+    assert!(
+        outcome.failures.is_empty(),
+        "strategy decide injection failures: {:?}",
+        &outcome.failures[..outcome.failures.len().min(2)]
+    );
+    assert_eq!(outcome.non_advance, 1, "strategy decide non-advance");
+
+    let strategy_observe =
+        first_injectable(cases, "strategy", "observe").expect("strategy observe");
+    let outcome = replay_strategy_cases(
+        source_cases(&source),
+        &source["maps"],
+        "strategy",
+        false,
+        Some(&Injection {
+            case: strategy_observe.0.clone(),
+            op_index: strategy_observe.1,
+            kind: InjectionKind::StrategyObserveWeapon,
+        }),
+        None,
+    );
+    assert!(
+        outcome.failures.is_empty(),
+        "strategy observe injection failures: {:?}",
+        &outcome.failures[..outcome.failures.len().min(2)]
+    );
+    assert_eq!(outcome.non_advance, 1, "strategy observe non-advance");
+
+    let hunter = first_injectable(cases, "mob-hunter", "hunterDecide").expect("hunter decide");
+    let outcome = replay_hunter(
+        &source,
+        Some(&Injection {
+            case: hunter.0,
+            op_index: hunter.1,
+            kind: InjectionKind::HunterWalk,
+        }),
+    );
+    assert!(
+        outcome.failures.is_empty(),
+        "hunter injection failures: {:?}",
+        &outcome.failures[..outcome.failures.len().min(2)]
+    );
+    assert_eq!(outcome.non_advance, 1, "hunter non-advance");
+
+    let route = first_injectable(cases, "build-route", "routeUpdate").expect("route update");
+    let outcome = replay_build_route(
+        &source,
+        Some(&Injection {
+            case: route.0,
+            op_index: route.1,
+            kind: InjectionKind::RouteCanFarm,
+        }),
+    );
+    assert!(
+        outcome.failures.is_empty(),
+        "route injection failures: {:?}",
+        &outcome.failures[..outcome.failures.len().min(2)]
+    );
+    assert_eq!(outcome.non_advance, 1, "route non-advance");
+
+    let memory = first_injectable(cases, "memory-api", "noteSent").expect("memory noteSent");
+    let outcome = replay_memory(
+        &source,
+        Some(&Injection {
+            case: memory.0,
+            op_index: memory.1,
+            kind: InjectionKind::MemoryNoteSentCommand,
+        }),
+    );
+    assert!(
+        outcome.failures.is_empty(),
+        "memory injection failures: {:?}",
+        &outcome.failures[..outcome.failures.len().min(2)]
+    );
+    assert_eq!(outcome.non_advance, 1, "memory non-advance");
+
+    let adapter = first_injectable(cases, "hunt-adapter", "observe").expect("adapter observe");
+    let outcome = replay_hunt_adapter(
+        &source,
+        Some(&Injection {
+            case: adapter.0,
+            op_index: adapter.1,
+            kind: InjectionKind::StrategyObserveWeapon,
+        }),
+    );
+    assert!(
+        outcome.failures.is_empty(),
+        "adapter injection failures: {:?}",
+        &outcome.failures[..outcome.failures.len().min(2)]
+    );
+    assert_eq!(outcome.non_advance, 1, "adapter non-advance");
+    eprintln!(
+        "INTAKE_NON_ADVANCE memory/strategy+adapter+hunter+route: rejected later fields advanced nothing"
+    );
 }

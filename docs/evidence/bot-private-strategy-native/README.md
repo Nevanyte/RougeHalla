@@ -334,3 +334,170 @@ Still open before a new candidate seal (no claim of completion):
 Preserved green partial evidence from this WIP: declared-ten-hold-wip.log (10/0), source-eight-hold-wip.log
 (8/0, primary 658 + supplement 48 totals), clippy-hold-wip.log, fmt-hold-wip.log. Earlier first-mismatch and sealed
 logs remain untouched. This is a continuing private repair WIP, not admission.
+
+## ACTUAL CALLBACK/RNG TRANSCRIPT + RETAINED-OWN ENFORCEMENT (trace-repair checkpoint)
+
+The first independent-review handoff finding is implemented and green on the frozen corpus. This section supersedes only
+the earlier WIP claim that transcript channels were "present but not enforced"; the earlier first-mismatch and hold
+receipts remain history.
+
+### One per-case ordered transcript, produced by the real native run
+
+`strategy/source_trace.rs` (new, test-only) records one ordered event sequence per case: setup runs (constructor draws)
+and each operation. A callback event carries its sequence position, the receiver identity, the complete arguments and the
+returned value; an RNG event carries its sequence position, stream name (`decide`/`motor`/`lapse`/`knowledge`), the
+per-stream ordinal and the exact drawn value. The replay compares `case.setupTranscript` and every `op.callbacks` with
+that actual sequence, and the cumulative `op.drawCounts` of all four streams (decide/motor/lapse/Knowledge; motor is
+declared but never drawn by this closure, and the Knowledge count is the setup count).
+
+Wrappers never replay captured answers or fabricate events; each one computes from the raw declared descriptor or the
+actual service and is the value the engine consumes:
+
+- paths: `paths.walk` from the real declared path policy (open factor/exact, coordinate-block, null, and the real
+  rh_sim Pathfinder over the frozen generated seed7 map for `kind: source`), called through the source-shaped argument
+  entries: the whole percept self + the whole generated-map camp record from the strategy's camp candidates, and a plain
+  position + the synced MobLike for the hunt adapter;
+- Knowledge: the actual admitted Knowledge `odds`/`weaponEdge`/`mobShare` (and the `factionEdge` surface) with the exact
+  source-shaped arguments (percept self, OpponentSnapshot, weapon/faction names) and returned values;
+- Memory: `memory.whereabouts` forwards the real admitted Memory query and records its arguments and its
+  `{at, radius}`/null answer;
+- learned: the declared learned-bias entries' actual enabled/bias answers (enabled is a source property, bias the callback);
+- modules: the declared module descriptors' actual `enabled(features)`/`goals(context projection)` callbacks in
+  registration order, recording the source-boundary projection `{contextOperation, now, self{id,hp}}`;
+- options: `options.log` (real callback invocations, including the MobHunter drop/retreat/keep lines and the strategy
+  chase timeout), `options.attacking` (the real declared/fallback call sites), `hunter.walk`, `hunter.typeWeight` and
+  `route.canFarm`;
+- RNG: separate real Mulberry streams seeded seed / seed+1 / seed+2 / seed+3; declared finite overrides replace a draw
+  without advancing the fallback until they are exhausted; every draw is recorded with stream, ordinal and binary64 value.
+
+Knowledge setup: the admitted `Knowledge::create` runs on the real seed+3 stream; the 70 captured draws are compared
+exactly in order, and a same-seed stream probe proves the admitted constructor consumed exactly those 70 draws (10
+faction masks, 10 weapon masks, 50 share errors). The construction itself is the admitted `bots/knowledge.rs` service;
+no expected draw is fed to it.
+
+### Retained own/initial diagnostics
+
+Every `case.initial` and `op.own` is compared from the actual native retained state, using the source own-property
+shape: Strategy (`opts/adapter/avoidId/avoidUntil/avoidSince/chase/currentKey/goalSince/fleeBanUntil/excluded/lootSkip/
+judged/last/route/routeNext`), Adapter (`hunter/config/stats/decide/release/awakeNear`), MobHunter
+(`cfg/log/tracker/stats/banned/eng/lastAt/lastKind/playerLock/retreatUntil/retreatMinUntil/mobBanUntil/nextPickAt`),
+MobTracker (`rec` map with mob/home/hp/risingUntil), BuildRoute (`build/route/plannedAt/contested/zoneHits/zoneAvoid/
+heading/lastAlive/stats`), and the inert `null` own state for the Memory API suite. `lastKind` retains the real
+`player|mob|retreat` source value. Initial `memory`, strategy `state/plan/huntStats/huntTarget`, adapter `stats/target`
+and per-op `memory` rows are compared on the same actual instances. Representation notes: source callables are encoded
+as `{$:'callable'}`, source instance/prototype names as instance tags, and closure-only HuntAdapter storage remains bound
+by continuation effects (no fabricated reflection). Own comparisons are order-sensitive except the reviewed
+`judged[id].z` Gaussian leaf (see tolerance table below).
+
+### Exactness and the only numeric bounds activated
+
+Everything is compared exactly, including ordered object/instance entries, Map/Set order, binary64 bits, `-0`/NaN/
+±Infinity/Undefined tags, callback identity/order/arguments/results, expiry clocks, counters, route plans and all
+four stream draw orders/values/counts. Two independently reviewed NUMERIC_CONTRACT leaves were required and are
+path-scoped, never a blanket epsilon:
+
+- `paths.walk` returned `dist` (source `Math.hypot` geometric leaf): C-PARITY `2e-6` absolute, argument identity and the
+  `exact` flag exact; 9 adapter operation results needed it (one-ulp V8-fork difference).
+- native retained `judged[id].z` (source Box-Muller Gaussian log/sqrt/cos): existing bot-core `1e-9 * max(1,abs)`; 21
+  strategy own rows needed it (one-ulp transcendental difference). No projected decision/state/result comparison needed
+  a bound; those remain binary64-exact.
+
+### Native behavior fixed by the transcript (all inside this lease)
+
+- strategy flee-interrupt/tunnel predicate now uses the actual flee candidate (source `!flee`), not the hunt retreat;
+- camp candidates call the declared path service once per planned walk (the native port previously called it twice on a
+  successful walk, inflating `paths.walk`);
+- MobHunter now carries the source log sink and emits the exact source drop/retreat/keep messages; HuntAdapter no longer
+  invents a log line and its `release` call passes the real attacking/shotByPlayerAt input fields;
+- `options.attacking` is only invoked where the source calls it (the chase-timeout branch, not when a chase opens);
+- HuntSelf now consumes the declared `mobStats` progression counts (source `mobTypeProgress`), and the source's
+  camp spot array/chest/area/radius plus the full percept self facts are retained for exact callback arguments.
+
+### Results on the frozen receipts
+
+- six primary suites: 98 cases / 658 operations pass with setup transcript, every op callbacks, cumulative draw counts,
+  initial memory/own/getters and every op memory/own/getters enforced. Per-suite operation totals: memory122,
+  strategy292, tracker14, hunter127, adapter67, route36.
+- additive supplement: 4 cases / 48 operations pass the same enforced channels.
+- synthetic in-memory controls (`private_strategy_source_trace_negatives`): on a real recorded decide row (7 ordered
+  events), removing one callback, reordering two callbacks, decrementing one cumulative draw count, and corrupting one
+  reached retained diagnostic each fail exactly once for the intended channel (message includes `callbacks`,
+  `drawCounts` or retained own), while the unchanged decision row still compares green.
+- declared ten `private_strategy_tests` pass; scoped fmt is clean; strict default and all-feature Clippy are clean.
+
+Logs in this directory: `source-trace-repair.log` (9 source tests, all suites + supplement + negatives, exit 0),
+`declared-ten-trace-repair.log` (10 declared tests, exit 0), `fmt-trace-repair.log` (empty, exit 0). Commands were the
+review-listed exact filters plus this worktree's `target/strategy-admission-repair` (the external packet target is not
+writable from this session), pinned Rust 1.97.0, `--locked --offline`, jobs1.
+
+### Strict tagged+typed intake and actual-entrypoint non-advance (completed after the trace checkpoint)
+
+`strategy/source_strict.rs` (new, test-only) is the checked reader now used on the actual replay path before any native
+instance is created or mutated. `load_source`/`load_supplement` validate the whole frozen envelope first: source format and
+method-value format, profile identity shape, the single generated7 map wrapper and hash, closed case/initial/setup/
+operation key sets, unique case ids, suite membership, suite-method compatibility, non-empty case/operation sets and all
+six required suites present; every tagged method value is decoded strictly (unknown/extra tags, duplicate object/Map/Set
+keys under source SameValueZero, malformed pairs, invalid u8 bytes, untagged arrays, callable/instance in input position
+and array holes rejected; -0/NaN/±Infinity/Undefined tags retained with exact bits). Operation rows also require the
+complete `method/input/declaration/result/memory/own/callbacks/drawCounts` set, per-suite getters, an identity row only on
+decide, declaration method equality, an unmutated declaration input, a closed ordered callback/RNG transcript (known
+receivers, four streams, sequence==position, finite drawn values) and exact integer draw counts. The supplement reader
+additionally binds its primary map reference and four PASS assertions.
+
+Every operation then passes a complete typed preflight before its dispatch may touch Memory, retained state, RNG or the
+callback transcript: percepts are converted (and the memory and strategy percepts both parsed before `observe` mutates
+Memory), decide declaration/current/status/engaged/currentSource/module offers are converted before `decide`, and every
+tracker/hunter/route/memory method input is converted before its call. The same typed helpers now reject the review's
+coercion list on the real path: non-integer seed/route/count casts, unknown or missing weapon strings, a weapon tuple that
+is not exactly two slots, slots outside 0..1, unknown faction/status/goal/path/walk/canFarm/command enums, missing consumed
+fields, non-finite numbers where the source contracts a finite fact, malformed arrays/pairs, and unknown config/module/
+huntOverrides/random/environment fields. Legitimate source sentinels stay accepted: `undefined`/`null` optional fields,
+`-0`/NaN/±Infinity MethodValue tags, Infinity `playerDistance`, -Infinity `shotByPlayerAt`, non-finite declared learned
+biases (the strategy itself applies `Number.isFinite`), and frozen Undefined/null distinctions.
+
+`private_strategy_source_reader_controls` (31 labelled controls) rejects: unsupported tag, extra tag field, missing/unknown
+number tag, duplicate object key, duplicate Map key, duplicate signed-zero Map key, duplicate Set value, malformed Map and
+u8 pairs, u8 range/negative u8, untagged array, callable/instance in input position, array hole, wrong format, wrong
+method-value format, duplicate case id, unsupported suite, wrong suite/method, empty/skipped suite, empty case set,
+malformed identity row, malformed draw counts, unknown weapon, wrong slot, wrong weapon-array count, unknown faction enum,
+non-finite forbidden declared fact and missing consumed field. It also asserts the legitimate sentinel tags stay accepted
+and the frozen decide row still preflights cleanly (no blanket rejection of declared source facts).
+
+`private_strategy_source_intake_non_advance` drives each actual replay on a reached valid history, then injects one
+malformed later field at the real entrypoint: an unknown decide status (strategy), a later malformed percept weapon
+(strategy observe), an unknown walk descriptor kind (hunter), an unknown canFarm kind (route), an unknown sent command type
+(memory) and a malformed adapter observe percept. The preflight rejects each one and the compared before/after snapshot
+(real Memory, nested strategy/adapter/hunter/route retained own state, all four cumulative draw counts and the ordered
+callback transcript) is bit-identical: no state or channel advances.
+
+`private_strategy_attacking_instances_are_independent` (new declared control) runs two live instances with opposite
+`options.attacking` behaviour, first standalone and then interleaved: each retains its own attack/log callback transcript
+and decisions/state, and the interleaved results equal the standalone ones. This closes the old process-global AtomicBool
+finding with owned per-instance callback state (no global mutable case data remains).
+
+### FINAL COMPLETE GATE (current revision; supersedes the earlier WIP/checkpoint receipts)
+
+Pinned Rust 1.97.0; `CARGO_INCREMENTAL=0`, `CARGO_BUILD_JOBS=1`, `--locked --offline`, jobs1, worktree target
+`target/strategy-admission-repair` (the external packet target is not writable from this session). Raw logs are in this
+directory; the old first-mismatch/WIP logs remain history.
+
+| Command | Result |
+|---|---|
+| `cargo test -p rh-policy --lib bots::temporal_percept::strategy::private_strategy_tests --locked --offline -- --nocapture` | 11 passed, 0 failed, exit 0 (`declared-trace-repair.log`; the original 10 declared functions plus the attacking-independence control) |
+| `cargo test -p rh-policy --lib bots::temporal_percept::strategy::source_tests --locked --offline -- --nocapture` | 11 passed, 0 failed, exit 0 (`source-trace-repair.log`) |
+| `cargo fmt -p rh-policy -- --check` | exit 0, empty output (`fmt-trace-repair.log`) |
+| `cargo clippy -p rh-policy --lib --tests --locked --offline -- -D warnings` | exit 0 (`clippy-default-trace-repair.log`) |
+| `cargo clippy -p rh-policy --lib --tests --all-features --locked --offline -- -D warnings` | exit 0 (`clippy-all-trace-repair.log`) |
+
+The source filter contains: six primary suite replays (98 cases/658 ops: memory122/strategy292/tracker14/hunter127/
+adapter67/route36), the supplement replay (4 cases/48 ops), the exact corpus envelope guard, the ordered-transcript
+negative controls (remove/reorder callback, decrement draw count, corrupt reached retained state; decision unchanged;
+reversed and changed nested raw Module.data order rejected by the goal-aware comparator), the
+31 labelled reader/intake controls, and the six actual-entrypoint non-advance histories. Every replay enforces the setup
+transcript, every op's ordered callback/RNG events, cumulative four-stream draw counts, initial memory/own/getters and
+every op memory/own/getters. Only the two independently reviewed NUMERIC_CONTRACT leaves are tolerant and path-scoped:
+`paths.walk` result distance (2e-6 absolute geometric leaf) and native retained `judged[id].z` (1e-9 relative Gaussian
+leaf); every decision/state/result/identity/callback/own-expiry comparison remains binary64-exact. No source, corpus,
+tool, Unity, network, sim, dependency, lockfile or shared-status file was edited; no public/live activation is claimed.
+Still private finite method parity only: module/static-initializer closure storage, arbitrary JSON.stringify beyond the
+four supplement histories, and every unwitnessed source branch remain outside this finite witness.

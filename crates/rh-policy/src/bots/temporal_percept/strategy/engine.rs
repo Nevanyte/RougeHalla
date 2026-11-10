@@ -93,22 +93,22 @@ struct Cand {
 }
 
 pub(crate) struct Strategy {
-    adapter: Option<HuntAdapter>,
-    avoid_id: Option<String>,
-    avoid_until: f64,
-    avoid_since: f64,
-    chase: Option<super::types::Chase>,
-    current_key: String,
-    goal_since: f64,
-    flee_ban_until: f64,
-    excluded: Vec<(String, f64)>,
-    loot_skip: Vec<(String, f64)>,
-    judged: Vec<(String, f64, f64)>,
-    last: Vec<GoalDecision>,
-    route: Option<BuildRoute>,
-    route_next: Option<RouteStep>,
-    returned_current: bool,
-    opts: StrategyOptions,
+    pub(crate) adapter: Option<HuntAdapter>,
+    pub(crate) avoid_id: Option<String>,
+    pub(crate) avoid_until: f64,
+    pub(crate) avoid_since: f64,
+    pub(crate) chase: Option<super::types::Chase>,
+    pub(crate) current_key: String,
+    pub(crate) goal_since: f64,
+    pub(crate) flee_ban_until: f64,
+    pub(crate) excluded: Vec<(String, f64)>,
+    pub(crate) loot_skip: Vec<(String, f64)>,
+    pub(crate) judged: Vec<(String, f64, f64)>,
+    pub(crate) last: Vec<GoalDecision>,
+    pub(crate) route: Option<BuildRoute>,
+    pub(crate) route_next: Option<RouteStep>,
+    pub(crate) returned_current: bool,
+    pub(crate) opts: StrategyOptions,
 }
 
 impl Strategy {
@@ -237,10 +237,9 @@ impl Strategy {
         self.track_chase(ctx, current, &enemies);
         let sd = ctx.p.hud.sudden_death_at > 0. && now >= ctx.p.hud.sudden_death_at;
         let mut cands: Vec<Cand> = Vec::new();
-        push_opt(
-            &mut cands,
-            self.flee(ctx, current, hunt_from(&hunt), &enemies),
-        );
+        let flee = self.flee(ctx, current, hunt_from(&hunt), &enemies);
+        let flee_present = flee.is_some();
+        push_opt(&mut cands, flee);
         let fight = self.fight(ctx, current, &enemies);
         let fight_target = match &fight {
             Some(c) => match &c.decision.goal {
@@ -327,7 +326,7 @@ impl Strategy {
             if current.kind() == GoalKind::Fight
                 && status.state != GoalState::Done
                 && status.state != GoalState::Failed
-                && hunt_from(&hunt).is_none()
+                && !flee_present
                 && now - self.goal_since < ctx.cfg.tier.attention.reconsider_ms
             {
                 cur
@@ -1112,17 +1111,10 @@ impl Strategy {
             let mut walk = d * 1.3;
             if ctx.cfg.tier.route.walk_paths && walks < CAMP_MAX_WALKS {
                 walks += 1;
-                if ctx
-                    .paths
-                    .walk(me.pos(), Vec2::new(camp.x, camp.y))
-                    .is_none()
-                {
+                let Some(answer) = ctx.paths.walk_camp(me, camp) else {
                     continue;
-                }
-                walk = ctx
-                    .paths
-                    .walk(me.pos(), Vec2::new(camp.x, camp.y))
-                    .map_or(walk, |w| w.dist);
+                };
+                walk = answer.dist;
             }
             let value = 0.3 + 0.4 * share + 0.25 * (1. - (walk / ctx.cfg.map.span()).min(1.));
             let mut u = persona.pve * CAMP_ROAM_FACTOR * value;
@@ -1211,7 +1203,7 @@ impl Strategy {
                 y: def.y,
                 r: def.r,
                 elite: def.elite_spot >= 0.,
-                spots: def.spots,
+                spots: def.spots.len() as u32,
                 mob_type,
                 alive: v.alive,
                 state: v.state,
@@ -1531,31 +1523,33 @@ impl Strategy {
             return;
         };
         let now = ctx.p.now;
-        let attacking = self.attacking(ctx);
-        match &mut self.chase {
-            Some(c) if c.id == e.id => {
-                if attacking || e.dist < ORBIT_MIN_DISTANCE || e.dist < c.best - ORBIT_PROGRESS {
-                    c.best = e.dist;
-                    c.since = now;
-                } else if now - c.since > c.limit {
-                    self.log(&format!(
-                        "chase of {} is going nowhere: turning on someone else",
-                        e.id
-                    ));
-                    self.avoid_id = Some(e.id.clone());
-                    self.avoid_since = now;
-                    self.avoid_until = now + ORBIT_AVOID_MS;
-                    self.chase = None;
-                }
+        if self.chase.as_ref().is_some_and(|c| c.id == e.id) {
+            let attacking = self.attacking(ctx);
+            let (best, since, limit) = {
+                let c = self.chase.as_ref().expect("checked");
+                (c.best, c.since, c.limit)
+            };
+            if attacking || e.dist < ORBIT_MIN_DISTANCE || e.dist < best - ORBIT_PROGRESS {
+                let c = self.chase.as_mut().expect("checked");
+                c.best = e.dist;
+                c.since = now;
+            } else if now - since > limit {
+                self.log(&format!(
+                    "chase of {} is going nowhere: turning on someone else",
+                    e.id
+                ));
+                self.avoid_id = Some(e.id.clone());
+                self.avoid_since = now;
+                self.avoid_until = now + ORBIT_AVOID_MS;
+                self.chase = None;
             }
-            _ => {
-                self.chase = Some(super::types::Chase {
-                    id: e.id.clone(),
-                    best: e.dist,
-                    since: now,
-                    limit: ctx.cfg.persona.chase_give_up_ms + ctx.decide.draw() * ORBIT_JITTER_MS,
-                });
-            }
+        } else {
+            self.chase = Some(super::types::Chase {
+                id: e.id.clone(),
+                best: e.dist,
+                since: now,
+                limit: ctx.cfg.persona.chase_give_up_ms + ctx.decide.draw() * ORBIT_JITTER_MS,
+            });
         }
     }
 

@@ -11,5 +11,9 @@ mod private_strategy_tests;
 #[cfg(test)]
 mod source_reader;
 #[cfg(test)]
+mod source_strict;
+#[cfg(test)]
 mod source_tests;
+#[cfg(test)]
+mod source_trace;
 mod types;

@@ -213,6 +213,7 @@ fn container(id: &str, x: f64, y: f64) -> super::types::StrategyContainer {
 fn base_self(hp: f64, faction: Option<FactionId>) -> StrategySelf {
     StrategySelf {
         id: "self".into(),
+        name: "Self".into(),
         faction,
         x: 500.,
         y: 500.,
@@ -220,6 +221,16 @@ fn base_self(hp: f64, faction: Option<FactionId>) -> StrategySelf {
         status: "alive".into(),
         hp,
         max_hp: 100.,
+        barrier: 0.,
+        draw_started_at: 0.,
+        ready_at: 0.,
+        immune_until: 0.,
+        sig: 0.,
+        brand: 0.,
+        as_mult: 1.,
+        windup_mult: 1.,
+        gv: 0.,
+        move_seq: 0.,
         weapons: [Some(WeaponId::Sword), None],
         slot: 0,
         attack_target: None,
@@ -260,8 +271,11 @@ fn map_with_camps() -> StrategyMap {
                 x: 600.,
                 y: 500.,
                 r: 120.,
+                spots: vec![Vec2::new(600., 500.), Vec2::new(620., 500.)],
                 elite_spot: -1.,
-                spots: 2,
+                chest: Vec2::new(600., 500.),
+                area: 400.,
+                radius: 300.,
             },
             CampDef {
                 id: "camp-b".into(),
@@ -269,8 +283,11 @@ fn map_with_camps() -> StrategyMap {
                 x: 700.,
                 y: 500.,
                 r: 120.,
+                spots: vec![Vec2::new(700., 500.), Vec2::new(720., 500.)],
                 elite_spot: -1.,
-                spots: 2,
+                chest: Vec2::new(700., 500.),
+                area: 400.,
+                radius: 300.,
             },
         ],
         coliseum: ColiseumDef {
@@ -839,5 +856,268 @@ fn private_strategy_adapter_catchup_and_release_controls() {
     assert!(
         adapter.target().is_none(),
         "source release near-player call drops the engagement"
+    );
+}
+
+#[test]
+fn private_strategy_attacking_instances_are_independent() {
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    let tier = feature_tier();
+    let persona = feature_persona();
+    let map = map_with_camps();
+    let features = crate::bots::view::Features::default();
+    let learned = NoLearn;
+    let modules: Vec<Box<dyn FeatureModule>> = Vec::new();
+    let mut percept = base_percept(100.);
+    percept.fighters.push(super::types::StrategyFighter {
+        id: "foe".into(),
+        x: 800.,
+        y: 500.,
+        dist: 300.,
+        los: true,
+        status: "alive".into(),
+        targetable: true,
+        immune: false,
+        hp_frac: 0.5,
+        faction: Some(FactionId::Frost),
+        in_hand: Some(WeaponId::Sword),
+        bounty: 0.,
+        tint: 0.,
+    });
+    let history = [
+        (
+            Goal::Hunt {
+                target: "foe".into(),
+            },
+            GoalStatus::running("chase"),
+            false,
+        ),
+        (
+            Goal::Hunt {
+                target: "foe".into(),
+            },
+            GoalStatus::running("chase"),
+            false,
+        ),
+        (Goal::Idle, GoalStatus::running("idle"), false),
+        (
+            Goal::Hunt {
+                target: "foe".into(),
+            },
+            GoalStatus::running("chase"),
+            true,
+        ),
+    ];
+
+    struct Probe {
+        strategy: Strategy,
+        paths: FakePaths,
+        decide: Rng,
+        lapse: Rng,
+        attack_log: Rc<RefCell<Vec<bool>>>,
+        logs: Rc<RefCell<Vec<String>>>,
+    }
+
+    fn make_probe(attacking: bool) -> Probe {
+        let attack_log = Rc::new(RefCell::new(Vec::new()));
+        let logs = Rc::new(RefCell::new(Vec::new()));
+        let attack = {
+            let log = attack_log.clone();
+            Rc::new(move || {
+                log.borrow_mut().push(attacking);
+                attacking
+            }) as super::types::AttackFn
+        };
+        let log = {
+            let logs = logs.clone();
+            Rc::new(move |text: &str| logs.borrow_mut().push(text.to_string()))
+                as super::types::LogFn
+        };
+        Probe {
+            strategy: Strategy::new(StrategyOptions {
+                attacking: Some(attack),
+                log: Some(log),
+            }),
+            paths: FakePaths::default(),
+            decide: Rng::new(11),
+            lapse: Rng::new(12),
+            attack_log,
+            logs,
+        }
+    }
+
+    struct Env<'a> {
+        tier: &'a TierParams,
+        persona: &'a PersonaParams,
+        map: &'a StrategyMap,
+        features: &'a crate::bots::view::Features,
+        learned: &'a NoLearn,
+        modules: &'a [Box<dyn FeatureModule>],
+        know: &'a Knowledge,
+        percept: &'a StrategyPercept,
+        mem: &'a FakeMemory,
+    }
+
+    fn step(
+        probe: &mut Probe,
+        env: &Env<'_>,
+        current: &Goal,
+        status: &GoalStatus,
+        engaged: bool,
+    ) -> (GoalDecision, super::types::StrategyState) {
+        let cfg = StrategyConfig {
+            id: "bot".into(),
+            seed: 3,
+            tier: env.tier,
+            persona: env.persona,
+            map: env.map,
+            features: env.features,
+            learned: env.learned,
+            modules: env.modules,
+        };
+        let mut ctx = StrategyContext {
+            cfg: &cfg,
+            p: env.percept,
+            mem: env.mem,
+            know: env.know,
+            paths: &mut probe.paths,
+            decide: &mut probe.decide,
+            lapse: &mut probe.lapse,
+            engaged,
+        };
+        let out = probe.strategy.decide(&mut ctx, current, status);
+        (out, probe.strategy.state())
+    }
+
+    let run_alone = |attacking: bool| {
+        let mut know_rng = Rng::new(7);
+        let know = Knowledge::create(&tier, &mut know_rng);
+        let mem = FakeMemory::default();
+        let mut probe = make_probe(attacking);
+        let env = Env {
+            tier: &tier,
+            persona: &persona,
+            map: &map,
+            features: &features,
+            learned: &learned,
+            modules: &modules,
+            know: &know,
+            percept: &percept,
+            mem: &mem,
+        };
+        let mut records = Vec::new();
+        for (current, status, engaged) in &history {
+            records.push(step(&mut probe, &env, current, status, *engaged));
+        }
+        let attacks = probe.attack_log.borrow().clone();
+        let logs = probe.logs.borrow().clone();
+        (records, attacks, logs)
+    };
+
+    let (alone_true, attacks_true, logs_true) = run_alone(true);
+    let (alone_false, attacks_false, logs_false) = run_alone(false);
+    assert!(
+        !attacks_true.is_empty(),
+        "the true instance must see attack callbacks"
+    );
+    assert!(attacks_true.iter().all(|value| *value));
+    assert_eq!(
+        attacks_true.len(),
+        attacks_false.len(),
+        "both instances exercise the same attacking call sites"
+    );
+    assert!(
+        attacks_false.iter().all(|value| !*value),
+        "the false instance only ever observes its own declared attacking value"
+    );
+
+    // Interleave two live instances with opposite option behaviour: each keeps its own callbacks, decisions and state.
+    let mut know_true_rng = Rng::new(7);
+    let know_true = Knowledge::create(&tier, &mut know_true_rng);
+    let mut know_false_rng = Rng::new(7);
+    let know_false = Knowledge::create(&tier, &mut know_false_rng);
+    let mem_true = FakeMemory::default();
+    let mem_false = FakeMemory::default();
+    let mut probe_true = make_probe(true);
+    let mut probe_false = make_probe(false);
+    let true_env = Env {
+        tier: &tier,
+        persona: &persona,
+        map: &map,
+        features: &features,
+        learned: &learned,
+        modules: &modules,
+        know: &know_true,
+        percept: &percept,
+        mem: &mem_true,
+    };
+    let false_env = Env {
+        tier: &tier,
+        persona: &persona,
+        map: &map,
+        features: &features,
+        learned: &learned,
+        modules: &modules,
+        know: &know_false,
+        percept: &percept,
+        mem: &mem_false,
+    };
+    let mut records_true = Vec::new();
+    let mut records_false = Vec::new();
+    for (current, status, engaged) in &history {
+        records_true.push(step(&mut probe_true, &true_env, current, status, *engaged));
+        records_false.push(step(
+            &mut probe_false,
+            &false_env,
+            current,
+            status,
+            *engaged,
+        ));
+    }
+    assert_eq!(records_true.len(), alone_true.len());
+    for (interleaved, alone) in records_true.iter().zip(&alone_true) {
+        assert_eq!(
+            interleaved.0, alone.0,
+            "interleaved true decisions match standalone"
+        );
+        assert_eq!(
+            interleaved.1, alone.1,
+            "interleaved true state matches standalone"
+        );
+    }
+    for (interleaved, alone) in records_false.iter().zip(&alone_false) {
+        assert_eq!(
+            interleaved.0, alone.0,
+            "interleaved false decisions match standalone"
+        );
+        assert_eq!(
+            interleaved.1, alone.1,
+            "interleaved false state matches standalone"
+        );
+    }
+    assert_eq!(
+        probe_true.attack_log.borrow().clone(),
+        attacks_true,
+        "the true instance retains its independent attack transcript"
+    );
+    assert!(
+        probe_false.attack_log.borrow().iter().all(|value| !*value),
+        "the false instance never inherits the other instance's attacking callback"
+    );
+    assert_eq!(
+        probe_false.logs.borrow().clone(),
+        logs_false,
+        "the false instance keeps its independent log transcript"
+    );
+    assert_eq!(
+        probe_true.logs.borrow().clone(),
+        logs_true,
+        "the true instance keeps its independent log transcript"
+    );
+    assert!(
+        logs_false.iter().all(|line| !line.contains("chase of")),
+        "the false instance must not inherit the true instance's chase log lines"
     );
 }

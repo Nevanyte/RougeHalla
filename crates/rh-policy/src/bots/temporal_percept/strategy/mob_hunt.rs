@@ -1,5 +1,6 @@
 //! Stateful source MobTracker and MobHunter (mobHunt.ts), plus the source hunt input/decision contracts.
 //! The static tunables, hunt-config derivation and pure weapon/retreat helpers remain the existing pure port.
+use super::types::{js_number, js_round, LogFn};
 pub(crate) use crate::bots::mob_hunt::HuntDecision;
 use crate::bots::mob_hunt::{best_edge, hunt_config_for, is_ranged, MobHuntConfig};
 use crate::bots::types::{PersonaParams, TierParams};
@@ -75,17 +76,17 @@ pub(crate) struct HuntInput<'a> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-struct TrackerRec {
-    id: String,
-    mob: HuntMobLike,
-    home: Vec2,
-    hp: f64,
-    rising_until: f64,
+pub(crate) struct TrackerRec {
+    pub(crate) id: String,
+    pub(crate) mob: HuntMobLike,
+    pub(crate) home: Vec2,
+    pub(crate) hp: f64,
+    pub(crate) rising_until: f64,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct MobTracker {
-    rec: Vec<TrackerRec>,
+    pub(crate) rec: Vec<TrackerRec>,
 }
 
 impl MobTracker {
@@ -160,27 +161,29 @@ impl MobTracker {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-struct Engagement {
-    id: String,
-    since: f64,
-    best_hp: f64,
-    stall_ms: f64,
-    approach_ms: f64,
+pub(crate) struct Engagement {
+    pub(crate) id: String,
+    pub(crate) since: f64,
+    pub(crate) best_hp: f64,
+    pub(crate) stall_ms: f64,
+    pub(crate) approach_ms: f64,
 }
 
 pub(crate) struct MobHunter {
     pub tracker: MobTracker,
     pub stats: MobHuntStats,
     cfg: MutHuntConfig,
-    banned: Vec<(String, f64)>,
-    eng: Option<Engagement>,
-    last_at: f64,
-    last_kind_is_mob: bool,
-    player_lock: bool,
-    retreat_until: f64,
-    retreat_min_until: f64,
-    mob_ban_until: f64,
-    next_pick_at: f64,
+    pub(crate) banned: Vec<(String, f64)>,
+    pub(crate) eng: Option<Engagement>,
+    pub(crate) last_at: f64,
+    /// The source's last decision kind ("player" | "mob" | "retreat"), retained for its own diagnostics.
+    pub(crate) last_kind: String,
+    pub(crate) player_lock: bool,
+    pub(crate) retreat_until: f64,
+    pub(crate) retreat_min_until: f64,
+    pub(crate) mob_ban_until: f64,
+    pub(crate) next_pick_at: f64,
+    log_fn: LogFn,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -199,6 +202,11 @@ impl MutHuntConfig {
 
 impl MobHunter {
     pub(crate) fn new(cfg: MobHuntConfig) -> Self {
+        Self::new_with_log(cfg, None)
+    }
+
+    /// The source constructor (mobHunt.ts): the entry point carries the per-bot log sink.
+    pub(crate) fn new_with_log(cfg: MobHuntConfig, log: Option<LogFn>) -> Self {
         Self {
             tracker: MobTracker::default(),
             stats: MobHuntStats::default(),
@@ -206,13 +214,18 @@ impl MobHunter {
             banned: Vec::new(),
             eng: None,
             last_at: 0.,
-            last_kind_is_mob: false,
+            last_kind: "player".into(),
             player_lock: false,
             retreat_until: 0.,
             retreat_min_until: 0.,
             mob_ban_until: 0.,
             next_pick_at: 0.,
+            log_fn: log.unwrap_or_else(|| std::rc::Rc::new(|_| {})),
         }
+    }
+
+    fn log(&self, text: &str) {
+        (self.log_fn)(text);
     }
 
     pub(crate) fn config(&self) -> &MobHuntConfig {
@@ -247,11 +260,16 @@ impl MobHunter {
         };
         self.last_at = inp.now;
         self.tracker.observe(inp.mobs, inp.now);
-        if self.last_kind_is_mob {
+        if self.last_kind == "mob" {
             self.stats.focus_ms += dt;
         }
         let out = self.choose(inp, dt);
-        self.last_kind_is_mob = matches!(out, HuntDecision::Mob { .. });
+        self.last_kind = match &out {
+            HuntDecision::Player { .. } => "player",
+            HuntDecision::Mob { .. } => "mob",
+            HuntDecision::Retreat { .. } => "retreat",
+        }
+        .into();
         out
     }
 
@@ -362,6 +380,10 @@ impl MobHunter {
                 self.retreat_until = now + cfg.retreat_max_ms;
                 self.retreat_min_until = now + cfg.retreat_min_ms;
                 self.stats.retreats += 1;
+                self.log(&format!(
+                    "retreating at {}% hp",
+                    js_number(js_round(hp_frac * 100.))
+                ));
                 let mut from = awake;
                 from.extend_from_slice(inp.players);
                 return Some(HuntDecision::Retreat {
@@ -369,20 +391,40 @@ impl MobHunter {
                     why: "low hp".into(),
                 });
             }
+            self.log(&format!(
+                "leaving mobs alone at {}% hp",
+                js_number(js_round(hp_frac * 100.))
+            ));
         }
         None
     }
 
     fn keep(&mut self, e: &Engagement, inp: &mut HuntInput<'_>, dt: f64) -> bool {
         let cfg = self.cfg.0;
-        let Some(m) = self.tracker.mob(&e.id) else {
-            return false;
-        };
-        if m.status != "alive" {
+        let m = self.tracker.mob(&e.id).cloned();
+        if m.as_ref().is_none_or(|m| m.status != "alive") {
+            let after = js_round((inp.now - e.since) / 100.);
+            let detail = m
+                .as_ref()
+                .map(|m| format!(" ({} {})", m.faction_text.as_deref().unwrap_or(""), m.kind))
+                .unwrap_or_default();
+            self.log(&format!(
+                "mob {} is {} after {} s{}",
+                e.id,
+                if m.is_some() { "down" } else { "gone" },
+                js_number(after / 10.),
+                detail
+            ));
             return false;
         }
+        let m = m.expect("checked alive");
         if self.tracker.returning(&e.id, inp.now) {
-            return self.drop(e, inp.now, cfg.return_ban_ms);
+            return self.drop(
+                e,
+                inp.now,
+                cfg.return_ban_ms,
+                "its hp is rising: it is walking home",
+            );
         }
         let mut eng = e.clone();
         if m.hp < eng.best_hp - RISE_EPS {
@@ -398,20 +440,39 @@ impl MobHunter {
             || eng.approach_ms >= cfg.approach_ms
             || inp.now - eng.since >= cfg.target_budget_ms
         {
+            let why = if eng.stall_ms >= cfg.stall_attack_ms {
+                "attacks do not hurt it"
+            } else if eng.approach_ms >= cfg.approach_ms {
+                "cannot reach it"
+            } else {
+                "taking too long"
+            };
             self.eng = Some(eng);
-            return self.drop(e, inp.now, cfg.stall_ban_ms);
+            return self.drop(e, inp.now, cfg.stall_ban_ms, why);
         }
         self.eng = Some(eng);
         true
     }
 
-    fn drop(&mut self, e: &Engagement, now: f64, ban_ms: f64) -> bool {
+    fn drop(&mut self, e: &Engagement, now: f64, ban_ms: f64, why: &str) -> bool {
         if let Some(pos) = self.banned.iter().position(|(k, _)| k == &e.id) {
             self.banned[pos].1 = now + ban_ms;
         } else {
             self.banned.push((e.id.clone(), now + ban_ms));
         }
         self.stats.drops += 1;
+        let detail = match (self.tracker.mob(&e.id), self.tracker.home(&e.id)) {
+            (Some(m), Some(home)) => format!(
+                " (hp {}/{}, {} u from home, {} {})",
+                js_number(js_round(m.hp)),
+                js_number(js_round(m.max_hp)),
+                js_number(js_round(math::hypot(m.x - home.x, m.y - home.y))),
+                m.faction_text.as_deref().unwrap_or(""),
+                m.kind
+            ),
+            _ => String::new(),
+        };
+        self.log(&format!("dropping mob {}: {}{}", e.id, why, detail));
         false
     }
 

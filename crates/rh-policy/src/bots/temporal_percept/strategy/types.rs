@@ -195,6 +195,8 @@ pub(crate) struct RouteCamp {
     pub respawn_at: f64,
 }
 
+/// One complete generated-map camp record (gameMap.camps). The full source record is retained, not just the fields the
+/// decision reads, so declared path-service callbacks receive the exact camp object the source hands them.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct CampDef {
     pub id: String,
@@ -202,8 +204,12 @@ pub(crate) struct CampDef {
     pub x: f64,
     pub y: f64,
     pub r: f64,
+    /// Camp spot positions, in map order (the route reads the count; path callbacks receive the array).
+    pub spots: Vec<Vec2>,
     pub elite_spot: f64,
-    pub spots: u32,
+    pub chest: Vec2,
+    pub area: f64,
+    pub radius: f64,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -234,6 +240,8 @@ impl StrategyMap {
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct StrategySelf {
     pub id: String,
+    /// The percept's display name; retained so path/knowledge callback arguments reproduce the source self object.
+    pub name: String,
     pub faction: Option<FactionId>,
     pub x: f64,
     pub y: f64,
@@ -241,6 +249,18 @@ pub(crate) struct StrategySelf {
     pub status: String,
     pub hp: f64,
     pub max_hp: f64,
+    /// Remaining source percept self facts. The strategy decision reads only a subset; retaining them keeps the declared
+    /// service callbacks (which receive the self object) complete. No decision formula reads these extra fields.
+    pub barrier: f64,
+    pub draw_started_at: f64,
+    pub ready_at: f64,
+    pub immune_until: f64,
+    pub sig: f64,
+    pub brand: f64,
+    pub as_mult: f64,
+    pub windup_mult: f64,
+    pub gv: f64,
+    pub move_seq: f64,
     pub weapons: [Option<WeaponId>; 2],
     pub slot: u8,
     pub attack_target: Option<String>,
@@ -418,10 +438,43 @@ pub(crate) fn lookup<'a, T>(entries: &'a [(String, T)], id: &str) -> Option<&'a 
         .map(|(_, value)| value)
 }
 
+/// The source's knowledge callback surface as the strategy calls it (knowledge.ts createKnowledge). Declared tests wrap
+/// the admitted Knowledge to record every identity/argument/return; production uses the admitted instance directly.
+pub(crate) trait KnowledgeApi {
+    fn faction_edge(&self, a: FactionId, b: FactionId) -> i8;
+    fn weapon_edge(&self, a: BotWeapon, b: BotWeapon) -> i8;
+    fn mob_share(&self, me: FactionId, region: FactionId, elite: bool) -> f64;
+    /// Source odds(me, them): `me` is the percept self the strategy passes (a source SelfView shape); `them` is the
+    /// source OpponentSnapshot derived from the enemy.
+    fn odds(&self, me: &StrategySelf, them: &Enemy) -> FightOdds;
+}
+impl KnowledgeApi for Knowledge {
+    fn faction_edge(&self, a: FactionId, b: FactionId) -> i8 {
+        Knowledge::faction_edge(self, a, b)
+    }
+    fn weapon_edge(&self, a: BotWeapon, b: BotWeapon) -> i8 {
+        Knowledge::weapon_edge(self, a, b)
+    }
+    fn mob_share(&self, me: FactionId, region: FactionId, elite: bool) -> f64 {
+        Knowledge::mob_share(self, me, region, elite)
+    }
+    fn odds(&self, me: &StrategySelf, them: &Enemy) -> FightOdds {
+        Knowledge::odds(self, &self_view(me), &them.snap)
+    }
+}
+
 /// The source's path service as the strategy calls it. Implemented over the existing RoomPathService for real runs;
-/// declared tests use a transcript-aware fake.
+/// declared tests use a transcript-aware fake. The strategy passes the whole percept self and the whole generated-map
+/// camp record to `walk` (the source does), while the hunt adapter passes a plain position and the mob it is walking to;
+/// the typed entry points record those exact arguments and fall through to the position walk in production.
 pub(crate) trait PathApi {
     fn walk(&mut self, from: Vec2, to: Vec2) -> Option<WalkAnswer>;
+    fn walk_camp(&mut self, from: &StrategySelf, to: &CampDef) -> Option<WalkAnswer> {
+        self.walk(from.pos(), Vec2::new(to.x, to.y))
+    }
+    fn walk_mob(&mut self, from: Vec2, to: &super::mob_hunt::HuntMobLike) -> Option<WalkAnswer> {
+        self.walk(from, Vec2::new(to.x, to.y))
+    }
     fn los(&self, a: Vec2, b: Vec2) -> bool;
     #[allow(dead_code)] // source PathService surface; the strategy itself does not need clear in this closure
     fn clear(&self, a: Vec2, b: Vec2) -> bool;
@@ -477,7 +530,7 @@ pub(crate) struct StrategyContext<'a> {
     pub cfg: &'a StrategyConfig<'a>,
     pub p: &'a StrategyPercept,
     pub mem: &'a dyn MemoryApi,
-    pub know: &'a Knowledge,
+    pub know: &'a dyn KnowledgeApi,
     pub paths: &'a mut dyn PathApi,
     pub decide: &'a mut dyn RngStream,
     pub lapse: &'a mut dyn RngStream,
@@ -544,8 +597,8 @@ pub(crate) fn self_view(me: &StrategySelf) -> SelfView {
     }
 }
 
-pub(crate) fn odds(know: &Knowledge, me: &StrategySelf, enemy: &Enemy) -> FightOdds {
-    know.odds(&self_view(me), &enemy.snap)
+pub(crate) fn odds(know: &dyn KnowledgeApi, me: &StrategySelf, enemy: &Enemy) -> FightOdds {
+    know.odds(me, enemy)
 }
 
 /// JS Math.round for the source goal keys: ties go toward +Infinity.

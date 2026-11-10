@@ -29,12 +29,12 @@ pub(crate) struct RouteInput<'a> {
 pub(crate) struct BuildRoute {
     pub build: &'static BuildGoal,
     pub route: Vec<RouteStep>,
-    planned_at: f64,
-    contested: Vec<(u32, f64)>,
-    zone_hits: Vec<(FactionId, Vec<f64>)>,
-    zone_avoid: Vec<(FactionId, f64)>,
-    heading: Option<(u32, u8)>,
-    last_alive: Vec<(u32, u32)>,
+    pub planned_at: f64,
+    pub contested: Vec<(u32, f64)>,
+    pub zone_hits: Vec<(FactionId, Vec<f64>)>,
+    pub zone_avoid: Vec<(FactionId, f64)>,
+    pub heading: Option<(u32, u8)>,
+    pub last_alive: Vec<(u32, u32)>,
     pub stats: BuildRouteStats,
 }
 

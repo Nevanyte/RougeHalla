@@ -40,7 +40,7 @@ impl HuntAdapter {
         let _ = PVE_RELIEF;
         let config = adapter_config(tier, persona);
         Self {
-            hunter: MobHunter::new(config),
+            hunter: MobHunter::new_with_log(config, opts.log.clone()),
             config,
             homed: Vec::new(),
             last_at: 0.,
@@ -187,7 +187,7 @@ impl HuntAdapter {
                     math::hypot(to.x - walk_from.x, to.y - walk_from.y) * STRAIGHT_WALK_FACTOR,
                 );
             }
-            ctx.paths.walk(walk_from, to).map(|w| w.dist)
+            ctx.paths.walk_mob(walk_from, mob).map(|w| w.dist)
         };
         let target_before = self.hunter.target().is_some();
         if target_before && self.last_at > 0. && now - self.last_at > CATCHUP_PIECE_MS {
@@ -212,7 +212,6 @@ impl HuntAdapter {
             }
         }
         self.last_at = now;
-        self.log("hunt adapter decide");
         let mut input = HuntInput {
             now,
             self_: &self_view,
@@ -241,6 +240,12 @@ impl HuntAdapter {
         let in_coliseum = ctx.p.hud.in_coliseum;
         let walk_from = ctx.p.self_.pos();
         let walk_paths = self.walk_paths;
+        let attacking = self.attacking(ctx);
+        let shot_by_player_at = ctx
+            .mem
+            .self_memory()
+            .last_hit_by_player_at
+            .unwrap_or(f64::NEG_INFINITY);
         let mut walk = move |mob: &HuntMobLike| -> Option<f64> {
             let to = Vec2::new(mob.x, mob.y);
             if !walk_paths {
@@ -248,7 +253,7 @@ impl HuntAdapter {
                     math::hypot(to.x - walk_from.x, to.y - walk_from.y) * STRAIGHT_WALK_FACTOR,
                 );
             }
-            ctx.paths.walk(walk_from, to).map(|w| w.dist)
+            ctx.paths.walk_mob(walk_from, mob).map(|w| w.dist)
         };
         let mut input = HuntInput {
             now,
@@ -258,8 +263,8 @@ impl HuntAdapter {
             in_coliseum,
             mobs: &mobs,
             walk: &mut walk,
-            attacking: false,
-            shot_by_player_at: f64::NEG_INFINITY,
+            attacking,
+            shot_by_player_at,
             type_weight: None,
             elites_ready: None,
         };
