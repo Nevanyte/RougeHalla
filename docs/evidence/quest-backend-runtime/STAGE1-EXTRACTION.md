@@ -15,9 +15,9 @@ replay23/OBS21/policy15 unchanged.
 
 | Path | Bytes | SHA-256 |
 | --- | ---: | --- |
-| crates/rh-sim/src/quests/live.rs | 34,144 | ef46370392f392f35d84c40be88be586d78ea696d74459077af40acb3bc1d631 |
+| crates/rh-sim/src/quests/live.rs | 34,237 | ef46370392f392f35d84c40be88be586d78ea696d74459077af40acb3bc1d631 |
 | crates/rh-sim/src/quests/mod.rs | 1,246 | 20457504b023a4204464b4207de8608bf1fd96de502932d0c5af624da1f162c8 |
-| crates/rh-sim/src/quests/objectives.rs | 4,029 | 0edd8532cba8ad8d912237be3f72c13a895f0a8ff61dcd8dc66de325113f2a89 |
+| crates/rh-sim/src/quests/objectives.rs | 4,107 | 0edd8532cba8ad8d912237be3f72c13a895f0a8ff61dcd8dc66de325113f2a89 |
 | crates/rh-sim/src/quests/rewards.rs | 2,309 | cac543843c52fca0ec700767fbfda6b1246083781658c9e880c0c698d2ea6306 |
 
 ## Final no-op delta after gate set
@@ -54,6 +54,8 @@ quest-stage1-compare/. Authoritative repaired harness hashes:
 - lifecycle_tests.repaired.rs: 9c39d447508cee5b042b8d07d0dd02c3081d669e89fc734f1526e6bd0e19d95e
 - tour_supply_source_tests.repaired.rs: 693f3c9e738967af95f3a35351494f7e34399f8b7d1ad47a5416a23d079054f9
 - apply_harness.py verifies source/copy hashes; old one-step generators are explicitly historical/stale.
+- Exact retained baseline/candidate continuation cwd, command, env names, flags, exit and post-run (not run-time)
+  toolchain query are in STAGE1-PRIVATE-COMMANDS.md.
 
 Mechanically identical baseline/candidate harnesses used identical source scripts/inputs. Results:
 - Ten-case lifecycle: 10 cases / 37 main captured frames. Two later reset_active helper snapshots genuinely
@@ -63,9 +65,11 @@ Mechanically identical baseline/candidate harnesses used identical source script
 - Two normal-constructor tour cases: 2 cases / 8 remaining frames. Both initial checkpoints restore accepted.
   Actual original, actual Clone and restored branches continue all remaining source actions; two pre-recheck
   records retain nonempty producer queues through the next ordinary step in every branch (never cleared).
-- Baseline and Stage1 candidate main and continuation outputs are byte-identical. No production rule,
-  expectation or admission was relaxed for equality. Full checkpoints/transcripts remain outside Git; this
-  public evidence records counts/harness hashes only, not checkpoint/state/transcript content.
+- Baseline and Stage1 candidate main and continuation outputs are byte-identical. The candidate used by the
+  continuation runs was the pre-cleanup four-file inventory af48b280/fded3354/80cdbb39/a35af0af (baseline was
+  36564c33), not final 9f3e9502. Final 9f3e9502 is the separately reviewed no-op conversion/rustfmt delta above.
+  No production rule, expectation or admission was relaxed for equality. Full checkpoints/transcripts remain
+  outside Git; public evidence records counts/harness hashes only, not checkpoint/state/transcript content.
 
 ## Canonical final gates (private target, jobs1, locked/offline)
 
