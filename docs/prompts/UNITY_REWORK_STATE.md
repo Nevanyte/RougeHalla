@@ -88,6 +88,8 @@ Further owner messages (same day), all relayed to the agents named:
 
 - Vision: characters pop out of sight in one frame behind walls and nothing on screen shows line of sight. Owner wants a fog of war aligned with the Rust vision system and a subtle exit from vision. -> `rework/vision`. Rust: `VISION_RADIUS` 900 u, `sight.rs`/`vision.rs`/`observe.rs`; legacy `RaidVision.ts`. If vision parameters need to reach the client, add them to Welcome inside the protocol 16 bump (after `rework/hitbox` merges), not as a second bump.
 
+- Ground patterns: Fire, Sentenced and Plague share one floor pattern in different colours. Keep Fire. Sentenced = square castle/dungeon tiles (sent to atmosphere agent). QUEUED for region art pass 2 with the Holy temple: Plague ground as a mix of mud, grass and dark-green shallow water that can be walked through and is clearly distinct from bog; water and bog get interesting lighting, opacity and reactive effects when walked through (ripples, wake); darker footprints in sand, prints in snow; different footstep sounds per surface.
+
 ## Facts found while orienting (differ from the prompt's section 3)
 - The full five-region map is **160 x 160**, not 136 x 136: `crates/rh-sim/src/mapdata/fixtures/seed1.map.json` and `seed2.map.json` (rh-map/2, 4,936 tiles per region, 50 camps, terrain kinds 1-7, 86 features). Serve with `rh-server --runtime source-arena --map <file>`.
 - `--first-playable` (48 x 40) has only 4 Frost and 4 Sentenced tiles, so it cannot show Frost. Region playtests use the seed maps.
