@@ -2,6 +2,8 @@
 
 ## Outcome and scheduling
 
+**Root native dispatch (2026-11-10):** complete private Strategy is independently admitted from `9bde4438`, integrated through `2b05e607`, with Root22-test source/declared integration PASS. Tactics source `54ff01a2` is independently released. DeepSeek now owns clean `codex/deepseek-private-tactics` at `/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-tactics`, base `094f612f`; transfer this docs-only dispatch before implementation. The new tactics/helper/test/evidence paths below are leased, plus exactly `mod tactics;` in `temporal_percept.rs` and `mod types;` to `pub(super) mod types;` in `temporal_percept/strategy.rs`. No other existing Rust bridge is authorized. Existing Memory `source_input` visibility is already available. Source fixtures/tools/expectations stay frozen; no public/live activation, World/observation/protocol changes or dependency/lock edits. All Rust remains DeepSeek-authored.
+
 Implement the complete unchanged legacy `createTactics` decision-to-intent layer privately, including its real Fight,
 WorldTactics, OrbWalk, Reflexes and Retreat dependencies. The full private strategy's nine goal families must all have
 their source-defined execution behavior. A player-only fight, simplified flee, missing loot executor, false/no-reflex
@@ -19,7 +21,7 @@ document's creation.
 
 ## Source and admitted components
 
-**Source release (2026-11-10):** candidate `54ff01a2` is released for finite native consumption by [Root's admission](../../evidence/bot-private-tactics-source-review/ADMISSION.md), after independent reproduction `c8d0a5e6`. All154 cases/720 methods and every captured channel remain required. That decision fixes the narrow derived-geometry whitelist and maps the exceptional World empty-route case to a typed native error with equivalent pre-error effects; it neither omits the case nor requires a panic. Native dispatch still waits for private strategy admission and an exact branch/visibility allocation.
+**Source release (2026-11-10):** candidate `54ff01a2` is released for finite native consumption by [Root's admission](../../evidence/bot-private-tactics-source-review/ADMISSION.md), after independent reproduction `c8d0a5e6`. All154 cases/720 methods and every captured channel remain required. That decision fixes the narrow derived-geometry whitelist and maps the exceptional World empty-route case to a typed native error with equivalent pre-error effects; it neither omits the case nor requires a panic. The exact branch and two shared declaration/visibility hunks are allocated by the Root dispatch above.
 
 Actual code wins over older documentation. Read AGENTS.md, current backend checkpoint, REQUIREMENTS/CONTRACTS,
 ADR0005/0007 and P-BOT-STRATEGY-1. Preserve C-OBS/C-RNG/C-INPUT/C-DET/C-NUM/C-PARITY/C-POLICY.
