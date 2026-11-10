@@ -361,13 +361,18 @@ namespace Roguehalla.Client
             if (options.PropArts <= 0 || zoneProps.Count == 0) return;
             var counts = new Dictionary<string, int>();
             foreach (var p in zoneProps) counts[p.Art] = (counts.TryGetValue(p.Art, out int c) ? c : 0) + 1;
-            var arts = new List<string>(counts.Keys);
-            arts.Sort((a, b) => { int c = counts[b].CompareTo(counts[a]); return c != 0 ? c : string.CompareOrdinal(a, b); });
+            // Typical props: the two most common TALL arts (trees, tombstones, pillars, spires: the ones that can hide a character) and the two most common
+            // low ones (grass, rocks, drifts), taken in turns so each gets its share of the looks.
+            var tall = new List<string>(); var low = new List<string>();
+            foreach (var key in counts.Keys) { if (RegionPropArt.TryGet(key, out var art) && art.Tall) tall.Add(key); else low.Add(key); }
+            Comparison<string> byCount = (a, b) => { int c = counts[b].CompareTo(counts[a]); return c != 0 ? c : string.CompareOrdinal(a, b); };
+            tall.Sort(byCount); low.Sort(byCount);
+            var arts = new List<string>();
+            for (int i = 0; i < 2; i++) { if (i < tall.Count) arts.Add(tall[i]); if (i < low.Count) arts.Add(low[i]); }
             int wanted = Mathf.Max(1, options.PropArts) * apps.Count;
-            // Candidates: props of the most common arts (rank order) until there are plenty to choose from. Props are dense, so neighbours are
-            // allowed (they are part of the real scene); only the actor cells must not overlap each other.
+            // Props are dense, so neighbours are allowed (they are part of the real scene); only the actor cells must not overlap each other.
             var cand = new List<KeyValuePair<int, RegionProps.Placement>>();
-            for (int rank = 0; rank < arts.Count && cand.Count < wanted * 4; rank++)
+            for (int rank = 0; rank < arts.Count; rank++)
                 foreach (var p in zoneProps)
                     if (p.Art == arts[rank] && p.Tx >= x0 + 6 && p.Tx <= x0 + ContrastLabMap.BlockW - 6 && p.Ty >= 6 && p.Ty <= ContrastLabMap.BlockH - 6)
                         cand.Add(new KeyValuePair<int, RegionProps.Placement>(rank, p));
@@ -382,17 +387,26 @@ namespace Roguehalla.Client
                 }
                 var seed = cand[bestSeed].Value;
                 var near = cand.FindAll(c => Mathf.Abs(c.Value.X - seed.X) <= 12.5f && Mathf.Abs(c.Value.Y - seed.Y) <= 8.5f);
-                near.Sort((a, b) => { int r = a.Key.CompareTo(b.Key); if (r != 0) return r; return Dist2(a.Value, seed).CompareTo(Dist2(b.Value, seed)); });
+                near.Sort((a, b) => Dist2(a.Value, seed).CompareTo(Dist2(b.Value, seed)));
                 var page = new LabPage { Zone = zone, Index = pageIndex, Kind = "props" };
                 var picked = new List<RegionProps.Placement>();
-                foreach (var c in near)
+                // Take turns between the arts so tall and low props share the page.
+                var cursor = new int[arts.Count]; bool progress = true;
+                while (progress && picked.Count < options.PageCells && selected.Count + picked.Count < wanted)
                 {
-                    if (picked.Count >= options.PageCells || selected.Count + picked.Count >= wanted) break;
-                    bool apart = true;
-                    foreach (var q in picked) if (Mathf.Abs(q.X - c.Value.X) < 3.4f && Mathf.Abs(q.Y - c.Value.Y) < 4.6f) { apart = false; break; }
-                    if (!apart) continue;
-                    foreach (var q in selected) if (Mathf.Abs(q.X - c.Value.X) < 3.4f && Mathf.Abs(q.Y - c.Value.Y) < 4.6f) { apart = false; break; }
-                    if (apart) picked.Add(c.Value);
+                    progress = false;
+                    for (int rank = 0; rank < arts.Count && picked.Count < options.PageCells && selected.Count + picked.Count < wanted; rank++)
+                    {
+                        while (cursor[rank] < near.Count)
+                        {
+                            var c = near[cursor[rank]++]; if (c.Key != rank) continue;
+                            bool apart = true;
+                            foreach (var q in picked) if (Mathf.Abs(q.X - c.Value.X) < 3.4f && Mathf.Abs(q.Y - c.Value.Y) < 4.6f) { apart = false; break; }
+                            if (apart) foreach (var q in selected) if (Mathf.Abs(q.X - c.Value.X) < 3.4f && Mathf.Abs(q.Y - c.Value.Y) < 4.6f) { apart = false; break; }
+                            if (!apart) continue;
+                            picked.Add(c.Value); progress = true; break;
+                        }
+                    }
                 }
                 if (picked.Count == 0) break;
                 picked.Sort((a, b) => { int r = a.Y.CompareTo(b.Y); return r != 0 ? r : a.X.CompareTo(b.X); });

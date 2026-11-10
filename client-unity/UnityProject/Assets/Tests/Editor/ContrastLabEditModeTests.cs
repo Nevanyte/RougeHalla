@@ -127,6 +127,22 @@ namespace Roguehalla.Client.Tests
         }
 
         [Test]
+        public void PropCellsCoverTallPropsLikeTreesAndTombstonesAsWellAsLowOnes()
+        {
+            foreach (var zone in new[] { RegionId.Fire, RegionId.Sentenced, RegionId.Plague, RegionId.Frost, RegionId.Holy })
+            {
+                int tall = 0, low = 0;
+                foreach (var p in _plan.ForZone(zone)) if (p.Kind == "props") foreach (var c in p.Cells)
+                {
+                    Assert.That(RegionPropArt.TryGet(c.Prop, out var art), c.Prop);
+                    if (art.Tall) tall++; else low++;
+                }
+                Assert.That(tall, Is.GreaterThanOrEqualTo(4), zone + " tall prop cells");
+                Assert.That(low, Is.GreaterThanOrEqualTo(4), zone + " low prop cells");
+            }
+        }
+
+        [Test]
         public void SurfacePagesAreBalancedAndNothingIsStrandedOnATinyPage()
         {
             foreach (var zone in ContrastLabMap.Zones)
