@@ -206,13 +206,12 @@ shows hidden state. In legacy all of these are **public synced state**; whether 
 
 ## 5. What this pass changed in Unity (branch `rework/indicators`)
 
-Totals over the audit tables (P1-P18, S1-S13, G1-G7, M1-M7, F1-F9, W1-W18, H1-H5 = 97 rows): **matching or kept 22**, **fixed 14** (hp
-tones, barrier blue, mob bar rule, hidden fighters, interact ring, damage number colour/size/lanes, corpse puddle excluded below), **built
-new 22** (bounty crown and number, own off-hand badge, mob names, attack lock ring, 12 status glyphs, quest `!`/`?`/turn-in, trader
-mark, melee hit zone), **blocked by missing wire data 33** (section 4). Not built although data exists: hover ring, hurt vignette (F5),
-heal-less items, container label and reward-chest ring (W2, W3), plague corpse sprite (W9), wish icon beside the name for the local
-player (P6, duplicated by the weapon-bar R slot), death X decal (F8), quest item markers (W6), sentenced hunt ring (W17), champion HUD
-attack-speed/move-speed multipliers (H3). These stay open for a follow-up pass.
+Totals over the audit tables (77 rows: P1-18, S1-13, G1-7, M1-7, F1-9, W1-18, H1-5; hand count, rows with mixed status counted once):
+about **24 matching, kept or not applicable**, **6 fixed** (hp tones, barrier blue, mob bar rule, hidden fighters, interact ring, damage
+numbers), **18 built new** (bounty crown and number, own off-hand badge, mob names, attack lock ring, 12 status glyphs, quest `!`/`?`/turn-in,
+trader mark; plus the owner-added melee hit zone), **about 9 deliverable but not built** (hover ring, hurt vignette F5, container labels
+W2, reward-chest ring W3, quest item markers W6, plague corpse sprite W9, sentenced hunt ring W17, death X decal F8, own Wish icon P6,
+champion HUD multipliers H3), and **about 20 blocked by missing wire data** (section 4, 19 wire additions B1-B19). The not-built set stays open for a follow-up pass.
 
 How the two named indicators work in legacy and in Unity:
 - **Dominant stat**: legacy shows the top two of nine invested stat scores (section 1.1) in 18 px dark squares at x = 0 and +18 beside the
