@@ -66,6 +66,7 @@ namespace Roguehalla.Client
                 BloomThreshold = .95f, BloomIntensity = .3f, BloomScatter = .6f, BloomTint = Color.white,
                 VignetteIntensity = .12f, VignetteSmoothness = .5f, VignetteColor = Mix(shadow, Color.black, .75f),
                 Haze = A(fog, .06f), ShadowTint = Mix(shadow, Color.black, .35f),
+                PassiveFloor = Tint(amb, .3f) * .42f,
             };
             var row = new RegionAtmosphereRow { Region = id, Params = p };
             switch (id)
@@ -83,7 +84,7 @@ namespace Roguehalla.Client
                     break;
                 case RegionId.Fire:      // under the mountain: almost no sun, lava does the lighting; embers
                     row.Name = "Fire";
-                    p.SunColor = Tint(key, .7f); p.SunStrength = .07f; p.ShadowLength = .2f; p.AmbientColor = Tint(amb, .3f) * 1.1f;
+                    p.SunColor = Tint(key, .7f); p.SunStrength = .2f; p.ShadowLength = .35f; p.AmbientColor = Tint(amb, .3f) * 1.1f;
                     p.LightColor = Tint(Mix(amb, key, .3f), .2f);
                     p.PostExposure = .12f; p.Contrast = 10f; p.Saturation = 0f; p.ColorFilter = Tint(accent, .04f);
                     p.SplitShadows = Toning(shadow, .55f); p.SplitHighlights = Toning(accent, .3f); p.SplitBalance = 10f;
@@ -104,7 +105,7 @@ namespace Roguehalla.Client
                     break;
                 case RegionId.Plague:    // sickly teal-green, dim green-filtered light; spores
                     row.Name = "Plague";
-                    p.SunColor = Tint(key, .4f); p.SunStrength = .42f; p.ShadowLength = .65f; p.AmbientColor = Tint(amb, .35f) * .86f;
+                    p.SunColor = Tint(Mix(key, Palette(RegionId.Holy, RegionPaletteGenerated.Key), .6f), .8f); p.SunStrength = .8f; p.ShadowLength = .85f; p.AmbientColor = Tint(amb, .35f) * .86f;
                     p.LightColor = Tint(Mix(amb, key, .35f), .15f);
                     p.PostExposure = .3f; p.Contrast = 8f; p.Saturation = -14f; p.ColorFilter = Tint(Mix(accent, Palette(id, RegionPaletteGenerated.Base), .7f), .1f);
                     p.SplitShadows = Toning(shadow, .5f); p.SplitHighlights = Toning(key, .2f); p.SplitBalance = -5f;

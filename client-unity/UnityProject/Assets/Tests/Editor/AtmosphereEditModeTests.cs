@@ -58,8 +58,33 @@ namespace Roguehalla.Client.Tests
         {
             float S(RegionId r) { return RegionAtmosphereTable.Get(r).Params.SunStrength; }
             Assert.Greater(S(RegionId.Frost), S(RegionId.Plague)); Assert.Greater(S(RegionId.Holy), S(RegionId.Plague));
-            Assert.Greater(S(RegionId.Plague), S(RegionId.Sentenced)); Assert.Less(S(RegionId.Fire), .12f);
+            Assert.Greater(S(RegionId.Plague), S(RegionId.Sentenced)); Assert.Less(S(RegionId.Fire), .3f); Assert.Greater(S(RegionId.Fire), .1f, "fire keeps a small real sun");
+            Assert.Greater(S(RegionId.Plague), .5f, "sunlight reaches the open marsh"); var ps = RegionAtmosphereTable.Get(RegionId.Plague).Params.SunColor; Assert.Greater(ps.g, ps.b, "green-gold, not blue");
             Assert.Greater(RegionAtmosphereTable.Get(RegionId.Frost).Params.ShadowLength, RegionAtmosphereTable.Get(RegionId.Sentenced).Params.ShadowLength);
+        }
+
+        [Test] public void PassiveLightFloorHoldsEverywhereWithoutAnyEmitter()
+        {
+            // No emissive source, no accent light, any surface orientation: the passive light never drops below the region floor, which is never below the global minimum.
+            AtmosphereQuality.Apply(1f, false, 0, false, false, false, false);   // every emitter and effect switched off
+            for (int i = 0; i <= 6; i++)
+            {
+                var p = RegionAtmosphereTable.Get(i).Params;
+                foreach (float ndl in new[] { 0f, .3f, .65f, 1f })
+                {
+                    var m = AtmosphereLighting.Passive(p, ndl);
+                    Assert.GreaterOrEqual(m.r, AtmosphereLighting.GlobalMinFloor - 1e-4f, "region " + i + " ndl " + ndl + " r");
+                    Assert.GreaterOrEqual(m.g, AtmosphereLighting.GlobalMinFloor - 1e-4f, "region " + i + " ndl " + ndl + " g");
+                    Assert.GreaterOrEqual(m.b, AtmosphereLighting.GlobalMinFloor - 1e-4f, "region " + i + " ndl " + ndl + " b");
+                    Assert.GreaterOrEqual(m.r, p.PassiveFloor.r - 1e-4f); Assert.GreaterOrEqual(m.g, p.PassiveFloor.g - 1e-4f); Assert.GreaterOrEqual(m.b, p.PassiveFloor.b - 1e-4f);
+                }
+                Assert.GreaterOrEqual(Mathf.Min(p.PassiveFloor.r, Mathf.Min(p.PassiveFloor.g, p.PassiveFloor.b)), AtmosphereLighting.GlobalMinFloor - 1e-4f, "floor of region " + i);
+                Assert.GreaterOrEqual(p.LightScale, .8f, "the global light never dims below .8 of the base");
+            }
+            // blended mid-border light is also at or above the floor
+            var f = new RegionField(); f.Build(TwoRegionPlane(40, 8, (byte)RegionId.Fire, (byte)RegionId.Frost), 40, 8); var w = new float[6];
+            for (float x = 2; x < 38; x += 1.5f) { f.Sample(x, 4, w); var m = AtmosphereLighting.Passive(RegionField.Blend(w), 0f); Assert.GreaterOrEqual(Mathf.Min(m.r, Mathf.Min(m.g, m.b)), AtmosphereLighting.GlobalMinFloor - 1e-3f); }
+            Assert.IsFalse(AtmosphereQuality.DynamicLights, "emitters were off for this check");
         }
 
         [Test] public void AudioFilesExistForEveryTableId()

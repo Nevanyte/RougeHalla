@@ -12,6 +12,8 @@ namespace Roguehalla.Client
         public Color LightColor; public float LightScale;
         // Sun (shader globals): colour, strength 0..1 (shadow length/opacity follow it) and ambient floor.
         public Color SunColor; public float SunStrength, ShadowLength; public Color AmbientColor;
+        /// <summary>Per-channel minimum of the passive (ambient + sun) light multiplier in every lit shader: no zone is ever lit by its emitters alone.</summary>
+        public Color PassiveFloor;
         // Volume: colour adjustments
         public float PostExposure, Contrast, Saturation; public Color ColorFilter;
         // Volume: split toning
@@ -28,7 +30,7 @@ namespace Roguehalla.Client
             AtmosphereParams o;
             o.LightColor = Color.Lerp(a.LightColor, b.LightColor, t); o.LightScale = Mathf.Lerp(a.LightScale, b.LightScale, t);
             o.SunColor = Color.Lerp(a.SunColor, b.SunColor, t); o.SunStrength = Mathf.Lerp(a.SunStrength, b.SunStrength, t); o.ShadowLength = Mathf.Lerp(a.ShadowLength, b.ShadowLength, t);
-            o.AmbientColor = Color.Lerp(a.AmbientColor, b.AmbientColor, t);
+            o.AmbientColor = Color.Lerp(a.AmbientColor, b.AmbientColor, t); o.PassiveFloor = Color.Lerp(a.PassiveFloor, b.PassiveFloor, t);
             o.PostExposure = Mathf.Lerp(a.PostExposure, b.PostExposure, t); o.Contrast = Mathf.Lerp(a.Contrast, b.Contrast, t);
             o.Saturation = Mathf.Lerp(a.Saturation, b.Saturation, t); o.ColorFilter = Color.Lerp(a.ColorFilter, b.ColorFilter, t);
             o.SplitShadows = Color.Lerp(a.SplitShadows, b.SplitShadows, t); o.SplitHighlights = Color.Lerp(a.SplitHighlights, b.SplitHighlights, t);
@@ -40,6 +42,18 @@ namespace Roguehalla.Client
             o.VignetteColor = Color.Lerp(a.VignetteColor, b.VignetteColor, t);
             o.Haze = Color.Lerp(a.Haze, b.Haze, t); o.ShadowTint = Color.Lerp(a.ShadowTint, b.ShadowTint, t);
             return o;
+        }
+    }
+
+    /// <summary>The passive-light maths the lit shaders mirror (RhSun.hlsl): ambient plus sun, never below the region's floor. Independent of every emitter and every effect toggle.</summary>
+    public static class AtmosphereLighting
+    {
+        /// <summary>No region's passive floor may be lower than this (relative to a neutral 1.0 multiplier).</summary>
+        public const float GlobalMinFloor = .34f;
+        public static Color Passive(in AtmosphereParams p, float ndl)
+        {
+            var sun = p.SunColor * (p.SunStrength * Mathf.Clamp01(ndl));
+            return new Color(Mathf.Max(p.AmbientColor.r + sun.r, p.PassiveFloor.r), Mathf.Max(p.AmbientColor.g + sun.g, p.PassiveFloor.g), Mathf.Max(p.AmbientColor.b + sun.b, p.PassiveFloor.b), 1f);
         }
     }
 

@@ -23,7 +23,7 @@ namespace Roguehalla.Client
         readonly float[] _w = new float[RegionField.Regions];
         AtmosphereParams _cur; bool _hasCur; float _ambientBase = .36f;
         Camera _cam; float _time; int _rectKey = int.MinValue; bool _matchActive;
-        static readonly Vector4[] SunCol = new Vector4[8], AmbCol = new Vector4[8], ShadowCol = new Vector4[8];
+        static readonly Vector4[] SunCol = new Vector4[8], AmbCol = new Vector4[8], ShadowCol = new Vector4[8], FloorCol = new Vector4[8];
         public RegionField Field { get { return _field; } }
         public RegionShadowMap Shadows { get { return _shadows; } }
         public AccentLights Lights { get { return _lights; } }
@@ -65,11 +65,12 @@ namespace Roguehalla.Client
                 var p = RegionAtmosphereTable.Get(i).Params;
                 var sun = p.SunColor * p.SunStrength; SunCol[i] = new Vector4(sun.r, sun.g, sun.b, p.SunStrength);
                 AmbCol[i] = new Vector4(p.AmbientColor.r, p.AmbientColor.g, p.AmbientColor.b, p.SunStrength);
+                FloorCol[i] = new Vector4(Mathf.Max(p.PassiveFloor.r, AtmosphereLighting.GlobalMinFloor), Mathf.Max(p.PassiveFloor.g, AtmosphereLighting.GlobalMinFloor), Mathf.Max(p.PassiveFloor.b, AtmosphereLighting.GlobalMinFloor), 1f);
                 var t = p.ShadowTint; float m = Mathf.Max(.001f, Mathf.Max(t.r, Mathf.Max(t.g, t.b)));
                 // Inside a shadow the surface keeps about 55% of its light, leaning toward the region's palette shadow colour.
                 ShadowCol[i] = new Vector4(Mathf.Lerp(.55f, .95f * t.r / m * .6f, .6f), Mathf.Lerp(.55f, .95f * t.g / m * .6f, .6f), Mathf.Lerp(.55f, .95f * t.b / m * .6f, .6f), 1f);
             }
-            Shader.SetGlobalVectorArray("_RhSunCol", SunCol); Shader.SetGlobalVectorArray("_RhAmbCol", AmbCol); Shader.SetGlobalVectorArray("_RhShadowCol", ShadowCol);
+            Shader.SetGlobalVectorArray("_RhSunCol", SunCol); Shader.SetGlobalVectorArray("_RhAmbCol", AmbCol); Shader.SetGlobalVectorArray("_RhShadowCol", ShadowCol); Shader.SetGlobalVectorArray("_RhFloorCol", FloorCol);
         }
 
         void PushSwitches()
