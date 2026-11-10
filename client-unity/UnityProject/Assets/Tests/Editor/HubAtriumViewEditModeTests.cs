@@ -32,7 +32,7 @@ namespace Roguehalla.Client.Tests
         }
 
         Button Station(string id) { return _root.transform.Find("HubAtrium/Room/Station_" + id).GetComponent<Button>(); }
-        string Message() { return _root.transform.Find("HubAtrium/StationMessageBox/StationMessage").GetComponent<TMP_Text>().text; }
+        string Message() { return _root.transform.Find("HubAtrium/StationMessageBox/StationMessageInset/StationMessage").GetComponent<TMP_Text>().text; }
 
         [Test]
         public void EachStationAppearsOnceAsAControlInTheRoom()
