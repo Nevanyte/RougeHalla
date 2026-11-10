@@ -4,6 +4,31 @@ Owner direction 2026-11-10: "there MUST be an objective 3:1 contrast ratio" betw
 ([UNITY_REWORK_FABLE.md](../prompts/UNITY_REWORK_FABLE.md) section 4, "Character contrast is a hard gate"). This page defines the measurement,
 says how to run it and how to read it, lists what it does not cover, and records the baseline. The lab measures; it never tunes art.
 
+## Owner decision 2026-11-10: no line outline on characters (contrast risk accepted)
+
+The owner reviewed the adaptive outline in play: "FAR too thick", "overlap[s] with itself when character sprite moves making large segments visually too dense", "quite sharp in certain places", "it outlines the shadow below its feet",
+"in practice has a lot of visual artifacts", and decided: **"I would prefer just to do no line outline at all at the risk of losing character/background contrast."** The gate below is therefore **known to fail by choice**; this page keeps the measurement so the cost stays visible.
+
+What changed (branch `rework/contrast`):
+
+* Every stroke on figures, the held weapon, the foot marker, the hp track, the insignia and the overhead plates is **off by default** (`SpriteOutline.Enabled = false`). No dark halo is drawn on this tree (it was removed in `2384ca94`; older paragraphs below describing it are historical). The faction mantle stays off and `NoEnlargedOffsetOrStaticCopyOfTheBodyIsDrawn` still guards against scaled or offset copies of the body.
+* The **baked ground shadow is removed from every actor sprite** (owner: "remove all transparent aspects of a character sprite in favour of our own lighting system"): `ActorShadowStrip` runs in `ShowcaseLiveCatalogBaker`, see [../art/LIVE_CATALOG_BAKER.md](../art/LIVE_CATALOG_BAKER.md) and [../art/LICENCE_LEDGER.md](../art/LICENCE_LEDGER.md). Our own shadow (soft contact ellipse sized to the look's foot box plus a softer cast shadow along the one sun, zone tinted) grounds the figure.
+* The camera sorting layer grab (a full-frame HDR copy) is **off** unless an opt-in variant reads it, and then it is a 2x downsample.
+* Two opt-in variants for judging from captures, both off by default: `?fx.outline=1` (1 px adaptive tone outline from the opaque silhouette, outer contour only, one line around body and weapon) and `?fx.rim=1` (nothing outside the sprite: the body's own outermost 1 to 2 pixels lightened on dark ground and darkened on bright ground).
+
+Strict gate, 1920x1080, High, the whole matrix (931 cells: 13 looks on every surface of every zone, idle and walking, two facings, props, edge and seam cells), measured on the real WebGL build, Apple M5 Pro:
+
+| variant | EDGE p10 >= 3.0 | markers all >= 4.5 | verdict |
+|---|---:|---:|---|
+| baseline `d6f18dce` (before the adaptive outline) | 0 / 702 | about 9% | FAIL |
+| adaptive outline (3 px, previous branch tip) | about 90% of plain ground | about 86% | FAIL on Fire ember, Plague bog |
+| **none (default now)** | **62 / 931** (Fire 1 / 242, Sentenced 0 / 90, Plague 2 / 212, Frost 41 / 166, Holy 9 / 166, Coliseum 9 / 55) | **1 / 931** | **FAIL** |
+| outline (`fx.outline=1`) | OUTLINE_EDGE | OUTLINE_MARK | OUTLINE_VERDICT |
+| rim (`fx.rim=1`) | RIM_EDGE | RIM_MARK | RIM_VERDICT |
+
+BODY (interior against the ring, reported) medians with no outline: Fire 1.43, Sentenced 1.49, Plague 1.36, Frost 6.94, Holy 4.43, Coliseum 7.35. **The gate does not pass without an outline, and that is the accepted state.** The footprint ring is a faction mark and is still drawn; its own contrast is in the markers column.
+Evidence and the three-way comparison: [evidence/contrast/README.md](evidence/contrast/README.md).
+
 ## The definition
 
 WCAG 2.x, on sRGB pixels of **screenshots of the real WebGL build** in headed Chromium on a real GPU:
