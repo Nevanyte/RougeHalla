@@ -25,19 +25,19 @@ unverified. No Unity/networking/Editor/browser work is authorized by this packet
 | Owner/stage | Files |
 |---|---|
 | Sol/Luna source stage0 (new, separately reserved) | `tools/quest-tour-supply-fixtures/**`, `parity/quest-tour-supply/**`, `docs/evidence/quest-tour-supply/**` |
-| DeepSeek stage0 Rust regression and minimal repair | `crates/rh-sim/src/quests/live.rs`, `crates/rh-sim/src/quests/mod.rs`, NEW `crates/rh-sim/src/quests/tour_supply_source_tests.rs` |
+| DeepSeek stage0 Rust regression and minimal repair | `crates/rh-sim/src/quests/live.rs`, `crates/rh-sim/src/quests/mod.rs`, NEW `crates/rh-sim/src/quests/tour_supply_source_tests.rs`; narrow appended semantics marker in `quests/catalog.rs::visit_content` as decided below |
 | DeepSeek stage1 objective/reward extraction | Same `live.rs`/`mod.rs`; NEW `crates/rh-sim/src/quests/objectives.rs`, NEW `crates/rh-sim/src/quests/rewards.rs` |
 | Sol/Luna preparation | `docs/coordination/QUEST_BACKEND_REWORK.md`, this packet |
-| Root only, if needed for stage0 admission | Content/replay identity integration and resulting declared pins; shared MIGRATION/CONTRACTS status and Cargo.lock |
+| Root only, if needed for stage0 admission | Admission of the new content hash and resulting declared pins; shared MIGRATION/CONTRACTS status and Cargo.lock |
 
-All paths outside these scopes are read-only. In particular preserve `quests/catalog.rs`, `rules.rs`, `roster.rs`,
+All paths outside these scopes are read-only. In particular preserve all `quests/catalog.rs` rows and prior fold words (only the approved appended marker may change), `rules.rs`, `roster.rs`,
 `placement.rs`, `giver.rs`, all existing native tests/corpora/capture tools, `quest_view/**`, `input.rs`, `schedule.rs`,
 `hooks.rs`, `World`, checkpoint shapes, protocol/server/policy/headless/client implementations and dependencies.
 New tests may use existing test-only setup/production paths from their allowed new module. If a scope expansion is
 necessary, return the concrete file/hunk need to Root before editing it. Do not bypass a test by altering its expectation.
 
-No speculative architecture changes or Cargo dependency additions. Root coordinates compatibility identity changes
-for the stage0 reachable-behavior repair. Stage1 must leave the admitted stage0 identities and hashes unchanged.
+No speculative architecture changes or Cargo dependency additions. Root has decided the exact stage0 content identity change below. Stage1 must leave the admitted stage0 identities
+and hashes unchanged. Any required existing content-pin test edit needs its exact reported pin and Root scope allocation.
 
 ## Read first
 
@@ -87,10 +87,17 @@ sim and normal `validate` + `Sim::submit` for inputs. It must fail against the p
 status difference, not an unrelated fixture/map/compile error. Preserve the red receipt. Apply the minimal mask fix
 and require both cases to pass. No refactor belongs in this repair commit.
 
-Root independently reviews the witness and repair and decides the content/replay admission. The shape remains
-protocol14/checkpoint29/OBS21/policy15 at the base; no wire/schema change is needed. A changed gameplay trajectory must
-not be advertised as an unchanged rules identity or silently accepted by old verified replay expectations. Keep any
-required identity update separate and declared; DeepSeek must not edit unallocated identity files preemptively.
+Root has approved the exact identity treatment: in `quests/catalog.rs::visit_content`, after the unchanged20-row
+fold, append the string `tour-supply/visited-region-mask/1` using the existing text folding pattern (length as u64,
+then each UTF8 byte as u64). DeepSeek implements this Rust hunk. This matches the existing domain-revision idiom in
+`content.rs` (for example `frost/player-sources-all-recipients/1`) and changes content identity for the real rule repair.
+Report the exact resulting hash and any affected existing pin; change a content-pin test only within separately
+allocated scope. Do not alter catalog rows, their order, any preexisting fold word, or the `quests/1` visitor registry.
+
+Retain protocol14/checkpoint29/replay23/OBS21/policy15 schema versions: no serialized shape or codec changed. Both
+checkpoint restore and `run_replay` already reject the old rules hash through typed `ContentMismatch`, so old captured
+state/replays cannot silently run under the repaired rules. No BakedContent/client/artifact regeneration is part of this
+backend packet; Root/Claude perform that through the normal joint integration process. This is not a deployment.
 
 ## Stage1: internal boundaries, separate commit
 

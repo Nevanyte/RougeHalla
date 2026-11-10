@@ -50,8 +50,11 @@ with enough supply would correctly keep the offer open. Keep all other humans at
 cannot satisfy their three-region tour. Observe a later ordinary step, not a direct call to an extracted predicate.
 
 Do this as its own repair commit before extraction. Do not change an existing corpus to make the result pass.
-The repair changes reachable gameplay/state trajectories; Root must admit its content/replay compatibility decision
-and any required identity changes separately. There is no reason to change wire/checkpoint/observation shapes here.
+The repair changes reachable gameplay/state trajectories; Root has approved an appended `tour-supply/visited-region-mask/1` semantics marker in the existing quest content
+visitor (length and UTF8 bytes after the unchanged20-row fold), written by DeepSeek. This moves the rules hash while
+leaving protocol14/checkpoint29/replay23/OBS21/policy15 shapes unchanged. Both checkpoint restore and replay execution
+already refuse old content through typed ContentMismatch. Root admits the new hash/pins; Claude BakedContent is left
+for normal joint integration, with no deployment implied.
 
 ## Minimal architecture
 
