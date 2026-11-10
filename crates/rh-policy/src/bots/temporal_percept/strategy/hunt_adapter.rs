@@ -3,7 +3,7 @@
 use super::mob_hunt::{
     adapter_config, HuntDecision, HuntInput, HuntMobLike, HuntSelf, MobHunter, TypeWeightFn,
 };
-use super::types::StrategyContext;
+use super::types::{AttackFn, LogFn, StrategyContext};
 use crate::bots::mob_hunt::MobHuntConfig;
 use crate::bots::types::PersonaParams;
 use rh_sim::constants::{ELITE_HP_MULT, ELITE_K, MOB_HP_MULT, MOB_K};
@@ -18,8 +18,8 @@ const CATCHUP_MAX_PIECES: f64 = 14.;
 
 #[derive(Default)]
 pub(crate) struct HuntAdapterOptions {
-    pub attacking: Option<fn() -> bool>,
-    pub log: Option<fn(&str)>,
+    pub attacking: Option<AttackFn>,
+    pub log: Option<LogFn>,
 }
 
 pub(crate) struct HuntAdapter {

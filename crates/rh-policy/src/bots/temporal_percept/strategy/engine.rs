@@ -5,8 +5,8 @@ use super::hunt_adapter::{HuntAdapter, HuntAdapterOptions};
 use super::mob_hunt::HuntDecision;
 use super::types::RngStream;
 use super::types::{
-    goal_json_eq, goal_key, lookup, odds, Enemy, Goal, GoalDecision, GoalKind, GoalState,
-    GoalStatus, HoldWhy, RoamWhy, RouteCamp, RouteStep, StrategyContext, StrategySelf,
+    goal_json_eq, goal_key, lookup, odds, AttackFn, Enemy, Goal, GoalDecision, GoalKind, GoalState,
+    GoalStatus, HoldWhy, LogFn, RoamWhy, RouteCamp, RouteStep, StrategyContext, StrategySelf,
     StrategyState,
 };
 use crate::bots::build_route::{ready_for_elites, type_weight};
@@ -83,8 +83,8 @@ const FEED_MOB_KILL_WEIGHT: f64 = 0.25;
 
 #[derive(Default)]
 pub(crate) struct StrategyOptions {
-    pub attacking: Option<fn() -> bool>,
-    pub log: Option<fn(&str)>,
+    pub attacking: Option<AttackFn>,
+    pub log: Option<LogFn>,
 }
 
 struct Cand {
@@ -173,7 +173,7 @@ impl Strategy {
     }
 
     fn log(&self, msg: &str) {
-        if let Some(log) = self.opts.log {
+        if let Some(log) = &self.opts.log {
             log(msg);
         }
     }
@@ -181,6 +181,7 @@ impl Strategy {
     fn attacking(&self, ctx: &StrategyContext<'_>) -> bool {
         self.opts
             .attacking
+            .as_ref()
             .map_or(ctx.p.self_.attack_target.is_some() && ctx.engaged, |f| f())
     }
 
@@ -205,8 +206,8 @@ impl Strategy {
                 ctx.cfg.tier,
                 ctx.cfg.persona,
                 HuntAdapterOptions {
-                    attacking: self.opts.attacking,
-                    log: self.opts.log,
+                    attacking: self.opts.attacking.clone(),
+                    log: self.opts.log.clone(),
                 },
             ));
         }

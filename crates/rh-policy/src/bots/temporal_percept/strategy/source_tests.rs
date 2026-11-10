@@ -2230,11 +2230,6 @@ impl super::types::RngStream for OverrideRng {
     }
 }
 
-static SOURCE_ATTACKING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-fn source_attacking() -> bool {
-    SOURCE_ATTACKING.load(std::sync::atomic::Ordering::Relaxed)
-}
-
 struct StrategyHarnessConfig {
     tier: TierParams,
     persona: PersonaParams,
@@ -2331,10 +2326,6 @@ fn private_strategy_source_hunt_adapter_parity() {
         }
         let config = sv(&case["config"]);
         let cfg = parse_config(&config, maps).unwrap();
-        SOURCE_ATTACKING.store(
-            cfg.attacking.unwrap_or(false),
-            std::sync::atomic::Ordering::Relaxed,
-        );
         let mut mem = create_memory(&cfg);
         let mut percept: Option<StrategyPercept> = None;
         let know = knowledge_for(&cfg);
@@ -2345,8 +2336,16 @@ fn private_strategy_source_hunt_adapter_parity() {
             finder: rh_sim::pathfind::Pathfinder::default(),
             calls: Vec::new(),
         };
+        let attacking_value = cfg.attacking;
+        let attacking =
+            Some(std::rc::Rc::new(move || attacking_value.unwrap_or(false))
+                as super::types::AttackFn);
         let opts = super::hunt_adapter::HuntAdapterOptions {
-            attacking: cfg.attacking.map(|_| source_attacking as fn() -> bool),
+            attacking: if cfg.attacking.is_some() {
+                attacking
+            } else {
+                None
+            },
             log: None,
         };
         let mut adapter = HuntAdapter::new(&cfg.tier, &cfg.persona, opts);
@@ -2513,10 +2512,6 @@ fn private_strategy_source_strategy_parity() {
         }
         let config = sv(&case["config"]);
         let cfg = parse_config(&config, maps).unwrap();
-        SOURCE_ATTACKING.store(
-            cfg.attacking.unwrap_or(false),
-            std::sync::atomic::Ordering::Relaxed,
-        );
         let mut mem = create_memory(&cfg);
         let mut percept: Option<StrategyPercept> = None;
         let know = knowledge_for(&cfg);
@@ -2527,8 +2522,11 @@ fn private_strategy_source_strategy_parity() {
             finder: rh_sim::pathfind::Pathfinder::default(),
             calls: Vec::new(),
         };
+        let attacking_value = cfg.attacking;
         let mut strategy = Strategy::new(StrategyOptions {
-            attacking: cfg.attacking.map(|_| source_attacking as fn() -> bool),
+            attacking: cfg.attacking.map(|_| {
+                std::rc::Rc::new(move || attacking_value.unwrap_or(false)) as super::types::AttackFn
+            }),
             log: None,
         });
         let mut decide_rng = OverrideRng::new(cfg.seed, cfg.random_decide.clone());
@@ -2802,10 +2800,6 @@ fn private_module_goal_key_source_parity() {
         cases_seen += 1;
         let config = sv(&case["config"]);
         let cfg = parse_config(&config, maps).unwrap();
-        SOURCE_ATTACKING.store(
-            cfg.attacking.unwrap_or(false),
-            std::sync::atomic::Ordering::Relaxed,
-        );
         let mut mem = create_memory(&cfg);
         let mut percept: Option<StrategyPercept> = None;
         let know = knowledge_for(&cfg);
@@ -2816,8 +2810,11 @@ fn private_module_goal_key_source_parity() {
             finder: rh_sim::pathfind::Pathfinder::default(),
             calls: Vec::new(),
         };
+        let attacking_value = cfg.attacking;
         let mut strategy = Strategy::new(StrategyOptions {
-            attacking: cfg.attacking.map(|_| source_attacking as fn() -> bool),
+            attacking: cfg.attacking.map(|_| {
+                std::rc::Rc::new(move || attacking_value.unwrap_or(false)) as super::types::AttackFn
+            }),
             log: None,
         });
         let mut decide_rng = OverrideRng::new(cfg.seed, cfg.random_decide.clone());
@@ -2953,4 +2950,140 @@ fn private_module_goal_key_source_parity() {
             .collect::<Vec<_>>()
             .join("\n")
     );
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+// Frozen corpus envelope, setup transcript and cumulative RNG checks
+
+fn expected_setup_knowledge_draws(case: &Value, seed: u32, failures: &mut Vec<String>) {
+    let entries = case["setupTranscript"]["values"]
+        .as_array()
+        .expect("setupTranscript values");
+    let mut rng = Rng::new(seed + 3);
+    let mut ordinal = 0usize;
+    for entry in entries {
+        let entry = sv(entry);
+        let kind = text(&entry, "kind").unwrap();
+        let stream = text(&entry, "stream").unwrap();
+        assert_eq!(
+            kind, "rng",
+            "setup transcript must be RNG-only at this phase"
+        );
+        assert_eq!(stream, "knowledge");
+        let index = num(&entry, "index").unwrap() as usize;
+        assert_eq!(index, ordinal, "knowledge draw index");
+        let expected = field(&entry, "value").unwrap().num("rng value").unwrap();
+        let actual = rng.next_f64();
+        if expected.to_bits() != actual.to_bits() {
+            failures.push(format!(
+                "setupTranscript knowledge draw {ordinal}: expected={expected:?} actual={actual:?}"
+            ));
+        }
+        ordinal += 1;
+    }
+    if ordinal != 70 {
+        failures.push(format!(
+            "setupTranscript knowledge draws expected 70, got {ordinal}"
+        ));
+    }
+}
+
+fn check_draw_counts(
+    label: &str,
+    expected: &SVal,
+    decide: usize,
+    motor: usize,
+    lapse: usize,
+    knowledge: usize,
+    failures: &mut Vec<String>,
+) {
+    let actual = obj(vec![
+        ("decide", num_sv(decide as f64)),
+        ("motor", num_sv(motor as f64)),
+        ("lapse", num_sv(lapse as f64)),
+        ("knowledge", num_sv(knowledge as f64)),
+    ]);
+    compare(&format!("{label} drawCounts"), expected, &actual, failures);
+}
+
+fn check_rng_callback_order(
+    label: &str,
+    expected_callbacks: &SVal,
+    decide: &[f64],
+    lapse: &[f64],
+    failures: &mut Vec<String>,
+) {
+    let Some(expected) = expected_callbacks.arr("callbacks").ok() else {
+        return;
+    };
+    let mut expected_rng: Vec<(String, usize, f64)> = Vec::new();
+    for cb in expected {
+        if text(cb, "kind").unwrap_or_default() == "rng" {
+            let stream = text(cb, "stream").unwrap_or_default();
+            let index = num(cb, "index").unwrap_or(0.) as usize;
+            let value = field(cb, "value").unwrap().num("value").unwrap_or(0.);
+            expected_rng.push((stream, index, value));
+        }
+    }
+    let mut actual: Vec<(String, usize, f64)> = Vec::new();
+    for (i, value) in decide.iter().enumerate() {
+        actual.push(("decide".into(), i, *value));
+    }
+    for (i, value) in lapse.iter().enumerate() {
+        actual.push(("lapse".into(), i, *value));
+    }
+    actual.sort_by_key(|(stream, index, _)| (stream.clone(), *index));
+    if expected_rng.len() != actual.len() {
+        failures.push(format!(
+            "{label} rng entries expected {} actual {}",
+            expected_rng.len(),
+            actual.len()
+        ));
+        return;
+    }
+    for (i, (e, a)) in expected_rng.iter().zip(actual.iter()).enumerate() {
+        if e.0 != a.0 || e.1 != a.1 || e.2.to_bits() != a.2.to_bits() {
+            failures.push(format!(
+                "{label} rng entry {i}: expected={e:?} actual={a:?}"
+            ));
+        }
+    }
+}
+
+#[test]
+fn private_strategy_source_envelope_guard() {
+    let source = load_source();
+    let primary = source_cases(&source);
+    assert_eq!(primary.len(), 98, "primary case set");
+    let mut counts = std::collections::BTreeMap::new();
+    let mut total = 0usize;
+    for case in primary {
+        let suite = case["suite"].as_str().expect("suite");
+        let n = case["operations"].as_array().expect("operations").len();
+        *counts.entry(suite.to_string()).or_insert(0usize) += n;
+        total += n;
+    }
+    assert_eq!(counts.get("memory-api"), Some(&122));
+    assert_eq!(counts.get("strategy"), Some(&292));
+    assert_eq!(counts.get("mob-tracker"), Some(&14));
+    assert_eq!(counts.get("mob-hunter"), Some(&127));
+    assert_eq!(counts.get("hunt-adapter"), Some(&67));
+    assert_eq!(counts.get("build-route"), Some(&36));
+    assert_eq!(total, 658);
+    let supplement: Value = serde_json::from_str(
+        &std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../parity/policy/bot-module-goal-key/source.json"),
+        )
+        .expect("supplement"),
+    )
+    .expect("valid");
+    assert_eq!(supplement["cases"].as_array().unwrap().len(), 4);
+    let supplement_ops: usize = supplement["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["operations"].as_array().unwrap().len())
+        .sum();
+    assert_eq!(supplement_ops, 48);
 }

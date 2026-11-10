@@ -298,3 +298,39 @@ headless/live outcome claim; the supplement covers the enumerated four histories
 (toJSON/prototypes/cycles/BigInt/exotic nested-number fuzz); initial static/module-initializer V8 coverage and every
 unwitnessed source branch remain uncovered; HuntAdapter closure storage is bound by continuation effects, not direct
 reflection; no source/corpus/tool/Unity/network/sim/dependency/shared-status edit and no merge/push.
+
+## ROOT/SOL HOLD acknowledgment and current repair WIP (supersedes the earlier "COMPLETE" heading)
+
+The sealed independent review is HOLD at receipt 71fa0d35b9dc82404d2f3f6c88cec7ad3d218445 / native code
+8baad8f583512213679d38372c3cc8911c793401, handoff docs/evidence/bot-private-strategy-admission-review/README.md
+(seal reviewed 17d3e41c). Its seven findings are accepted. The earlier "FROZEN SOURCE PARITY - COMPLETE" heading above is
+retained as history but is not an admission claim; callback/RNG/private-own channels were not enforced.
+
+Work completed in this current WIP:
+- Per-case callback/config state replaced the process-global SOURCE_ATTACKING; primary and supplement Strategy/HuntAdapter
+  options now own their attacking/log callbacks (no atomic/global mutable case data).
+- Added an exact corpus-envelope guard test: primary 98 cases and 658 operations with per-suite counts
+  (memory122/strategy292/tracker14/hunter127/adapter67/route36) and supplement 4 cases/48 operations.
+- Added native setup-transcript Knowledge draw and per-operation cumulative drawCount/ordered RNG helper checks (helpers are
+  present; callback/service-channel wiring and full op-level enforcement remain in progress).
+- Primary strategy result/candidate comparison now uses the goal-aware ordered raw-Module.data comparator, not only the
+  generic keyed schema comparator.
+- Existing 10 declared private_strategy_tests pass; current source_tests filter passes 8 tests including the new envelope
+  guard and primary/supplement parity; fmt/clippy restored green after the WIP edits.
+
+Still open before a new candidate seal (no claim of completion):
+1. Capture and compare the unified ordered callback/RNG transcript for setup and every operation: all callback names,
+   complete arguments/results, Memory.whereabouts, knowledge/learned/module/path/log/attacking/hunter.typeWeight and
+   constructor draws; negative remove/reorder/count tests.
+2. Serialize and compare every captured case.initial and op.own retained field (Strategy excluded/lootSkip/judged/
+   currentKey/avoidSince/fleeBanUntil/adapter/hunter/route nested state, hunter bans/eng/timers, tracker records, route
+   contests/zone caches), with retained-state corruption negatives.
+3. Route actual case/op/config decoding through the complete strict tagged+typed reader (not the permissive sv helper);
+   preflight complete operation input before any Memory/state/RNG mutation; add actual-entrypoint malformed-intake negatives
+   proving exact state/RNG/callback non-advance.
+4. Finish callback negative controls and final current-revision gate receipts; reuse unchanged Memory production-code
+   evidence only where the binding justifies it.
+
+Preserved green partial evidence from this WIP: declared-ten-hold-wip.log (10/0), source-eight-hold-wip.log
+(8/0, primary 658 + supplement 48 totals), clippy-hold-wip.log, fmt-hold-wip.log. Earlier first-mismatch and sealed
+logs remain untouched. This is a continuing private repair WIP, not admission.

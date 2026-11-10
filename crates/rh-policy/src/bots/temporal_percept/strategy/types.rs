@@ -341,6 +341,9 @@ pub(crate) struct StrategyPercept {
     pub extras: StrategyExtras,
 }
 
+pub(crate) type AttackFn = std::rc::Rc<dyn Fn() -> bool>;
+pub(crate) type LogFn = std::rc::Rc<dyn Fn(&str)>;
+
 /// A source-compatible draw stream. Production uses the admitted Mulberry32 Rng; the frozen corpus replaces individual
 /// draws with declared overrides without advancing the fallback stream until the overrides are exhausted.
 pub(crate) trait RngStream {
