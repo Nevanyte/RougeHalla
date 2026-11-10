@@ -28,7 +28,7 @@ namespace Roguehalla.Client.Tests
             var r = new RewardChestView();
             typeof(RewardChestView).GetProperty("X").SetValue(r, x); typeof(RewardChestView).GetProperty("Y").SetValue(r, y);
             typeof(RewardChestView).GetProperty("ExpiresAt").SetValue(r, expiresAt);
-            typeof(RewardChestView).GetProperty("Handle").SetValue(r, new Roguehalla.Net.Protocol.RewardChestHandle(7));
+            typeof(RewardChestView).GetProperty("Handle").SetValue(r, new RewardChestHandle(7));
             return r;
         }
 
