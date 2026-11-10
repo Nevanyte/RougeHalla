@@ -34,6 +34,8 @@ namespace Roguehalla.Client
         /// <summary>The golden temple that will cover the pillar area: a separate, evenly and warmly lit interior profile for a later pass to select by area.</summary>
         public static RegionAtmosphereRow HolyTempleInterior { get { return _temple; } }
         static RegionAtmosphereRow _temple;
+        /// <summary>Warm lamp-stand light inside the temple (pooled and camera culled like every accent light).</summary>
+        public static AccentLightSpec TempleLamp { get; private set; }
         /// <summary>Profile ids for area-selected profiles (the regions use <see cref="Get(RegionId)"/>).</summary>
         public enum Profile { HolyTempleInterior }
         public static RegionAtmosphereRow Get(Profile profile) { return _temple; }
@@ -161,9 +163,12 @@ namespace Roguehalla.Client
         {
             var holy = Row(RegionId.Holy); var p = holy.Params;
             var key = Palette(RegionId.Holy, RegionPaletteGenerated.Key); var amb = Palette(RegionId.Holy, RegionPaletteGenerated.Ambient);
-            p.SunColor = Tint(key, .5f); p.SunStrength = .3f; p.ShadowLength = .4f; p.AmbientColor = Tint(Mix(amb, key, .5f), .55f) * .8f;   // even, warm, calm
+            // Indoors: cooler, softer and more even than the sand outside (the sun is the stone's own cool ivory; the warm light is the lamps and the gold inlay).
+            var cool = new Color(.80f, .88f, 1f, 1f);
+            p.SunColor = Tint(Mix(key, cool, .5f), .42f); p.SunStrength = .3f; p.ShadowLength = .4f; p.AmbientColor = Tint(Mix(Mix(amb, key, .5f), cool, .4f), .45f) * .8f;
             p.PostExposure = 0f; p.Contrast = 4f; p.BloomThreshold = .94f; p.BloomIntensity = .3f; p.VignetteIntensity = .08f; p.Haze = A(Palette(RegionId.Holy, RegionPaletteGenerated.Fog), .04f);
             p.PassiveFloor = Tint(amb, .3f) * .55f;
+            TempleLamp = new AccentLightSpec { Lantern = true, Color = Tint(Mix(key, Palette(RegionId.Fire, RegionPaletteGenerated.Accent), .25f), .8f), Intensity = 1.5f, Radius = 3.6f, Flicker = .3f };
             return new RegionAtmosphereRow { Region = RegionId.Holy, Name = "HolyTempleInterior", Params = p, Particles = ParticlePresetId.None, Music = "music_holy", Ambience = "amb_holy" };
         }
 
