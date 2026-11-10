@@ -158,6 +158,20 @@ impl Mob {
             .as_ref()
             .is_some_and(|b| b.mode == BrainMode::Fight)
     }
+    /// Engaged and walking a chase path (its path ends at the goal of its last chase order): a measurement view
+    /// (`rh-headless --example hitbox_compare`), never read by gameplay.
+    pub fn chasing(&self) -> bool {
+        let (Some(end), Some(goal)) = (
+            self.core.motion.path.as_slice().last(),
+            self.brain
+                .as_ref()
+                .filter(|b| b.mode == BrainMode::Fight)
+                .and_then(|b| b.goal),
+        ) else {
+            return false;
+        };
+        crate::math::hypot(end.x - goal.x, end.y - goal.y) <= crate::constants::MOB_SPACING_STEP_MIN
+    }
     pub(crate) fn returning(&self) -> bool {
         self.brain
             .as_ref()

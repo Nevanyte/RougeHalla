@@ -12,8 +12,11 @@
 //!   cargo run --release -p rh-headless --example hitbox_compare -- <map> <seed_from> <seed_to> [max_ticks] [modes]
 //!
 //! * mob spacing (ADR0024 addendum "Mob spacing"): for every engaged regional mob with another regional mob within
-//!   [`PACK`] u, its distance to the nearest one (mean, minimum, share under [`OVERLAP`] u, where two foot boxes overlap),
-//!   and the share of ticks with two engaged mobs within [`STACKED`] u of each other. Spacing is on exactly under
+//!   [`PACK`] u, its distance to the nearest one (mean, minimum, share under [`OVERLAP`] u, where two foot boxes overlap);
+//!   the share of ticks with two engaged mobs within [`STACKED`] u of each other (among ticks with two or more engaged),
+//!   and the same for chasing mobs only (`Mob::chasing`: walking a chase path; among ticks with two or more chasing);
+//!   spacing steps per tick (mean, max; `Sim::mob_spacing_diagnostics`) and path searches per tick (mean, max;
+//!   `Sim::path_searches`, every A* search of the tick, players' included). Spacing is on exactly under
 //!   `archetypes` (`rh_sim::archetype::mob_spacing`); the mode `archetypes-nospacing` runs the same seeds with
 //!   `SimConfig::mob_spacing = Off` (measurement only; recorded in the config and so the state hash; the server refuses
 //!   it). The header line says which.
@@ -68,11 +71,19 @@ struct Spacing {
     overlapping: u64,
     ticks_engaged: u64,
     ticks_stacked: u64,
+    ticks_chasing: u64,
+    ticks_chasing_stacked: u64,
+    ticks: u64,
+    steps: u64,
+    steps_max: u32,
+    offsets: u64,
+    searches: u64,
+    searches_max: u64,
 }
 
 fn spacing_tick(sim: &rh_sim::Sim, out: &mut Spacing) {
     use rh_sim::mob_runtime::MobKind;
-    let mobs: Vec<(bool, Vec2)> = sim
+    let all: Vec<(bool, bool, Vec2)> = sim
         .mobs()
         .iter()
         .filter(|m| {
@@ -80,8 +91,19 @@ fn spacing_tick(sim: &rh_sim::Sim, out: &mut Spacing) {
                 && m.zombie.is_none()
                 && matches!(m.kind, MobKind::Regional | MobKind::Practice)
         })
-        .map(|m| (m.engaged(), m.core.pos()))
+        .map(|m| (m.engaged(), m.chasing(), m.core.pos()))
         .collect();
+    let chasing: Vec<Vec2> = all.iter().filter(|m| m.1).map(|m| m.2).collect();
+    if chasing.len() >= 2 {
+        out.ticks_chasing += 1;
+        let close = chasing.iter().enumerate().any(|(i, p)| {
+            chasing[i + 1..]
+                .iter()
+                .any(|q| hypot(p.x - q.x, p.y - q.y) < STACKED)
+        });
+        out.ticks_chasing_stacked += close as u64;
+    }
+    let mobs: Vec<(bool, Vec2)> = all.iter().map(|m| (m.0, m.2)).collect();
     let engaged = mobs.iter().filter(|m| m.0).count();
     if engaged >= 2 {
         out.ticks_engaged += 1;
@@ -242,6 +264,7 @@ fn run(
         HashMap::new();
     let mut homing: HashMap<u32, bool> = HashMap::new();
     let mut ticks = 0u64;
+    let mut last_searches = env.sim.path_searches();
     let progress = loop {
         let p = env.advance(&[]);
         ticks += 1;
@@ -339,6 +362,17 @@ fn run(
             }
         }
         spacing_tick(&env.sim, &mut out.spacing);
+        let d = env.sim.mob_spacing_diagnostics();
+        let searches = env.sim.path_searches();
+        let sp = &mut out.spacing;
+        sp.ticks += 1;
+        sp.steps += u64::from(d.steps);
+        sp.steps_max = sp.steps_max.max(d.steps);
+        sp.offsets += u64::from(d.chase_offsets);
+        let s = searches - last_searches;
+        sp.searches += s;
+        sp.searches_max = sp.searches_max.max(s);
+        last_searches = searches;
         if p.terminated || p.truncated {
             break p;
         }
@@ -396,6 +430,16 @@ fn main() {
             sp.overlapping as f64 / sp.samples.max(1) as f64,
             sp.ticks_engaged,
             sp.ticks_stacked as f64 / sp.ticks_engaged.max(1) as f64,
+        );
+        println!(
+            "== {mode:?}: ticksWith2+Chasing {} chasingStackedShare(<{STACKED}) {:.3} spacingSteps/tick mean {:.3} max {} chaseOffsets/tick {:.3} pathSearches/tick mean {:.3} max {}",
+            sp.ticks_chasing,
+            sp.ticks_chasing_stacked as f64 / sp.ticks_chasing.max(1) as f64,
+            sp.steps as f64 / sp.ticks.max(1) as f64,
+            sp.steps_max,
+            sp.offsets as f64 / sp.ticks.max(1) as f64,
+            sp.searches as f64 / sp.ticks.max(1) as f64,
+            sp.searches_max,
         );
         println!(
             "== {mode:?}: matches {} terminated {} truncated {} ticks {} (mean {:.0}) hits {} playerDeaths {} mobDeaths {}",
