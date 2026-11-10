@@ -48,6 +48,7 @@ Shader "Roguehalla/ActorOutline"
         float _RhOutlineGrab; // global, set by ActorOutline: 1 when _CameraSortingLayerTexture is valid this frame
 
         // Mirrors ActorOutlineModel.cs; SpriteOutline.PublishGlobals writes them (tunable in a page with ?ol.light=, ol.dark=, ol.cross=, ol.dead=).
+        float _RhOutlineDebug;  // tuning pages only: 1 paints the polarity (magenta light, green dark, cyan = figure light), 2 paints the ground luminance seen by the shader x3
         float _RhOutlineFlip;   // tuning pages only: 1 flips the grab vertically
         float _RhOutlineRadius; // tuning pages only
         float _RhOutlineGain;  // set once per frame by SpriteOutline.PublishFrame: 2^post exposure of the grade
@@ -165,6 +166,12 @@ Shader "Roguehalla/ActorOutline"
             float3 dark = float3(_RhOutlineTune.y, _RhOutlineTune.y * 1.25, _RhOutlineTune.y * 2.0);
             float3 lite = float3(_RhOutlineTune.x, _RhOutlineTune.x, _RhOutlineTune.x * 1.03);
             float3 rgb = lerp(dark, lite, light);
+            if (_RhOutlineDebug > 0.5 && _RhOutlineGrab > 0.5)
+            {
+                float ld = GroundLuma(i.screen.xy / i.screen.w);
+                rgb = _RhOutlineDebug < 1.5 ? (light > 0.5 ? float3(1, 0, 1) : float3(0, 1, 0)) : float3(ld, ld, ld) * 3.0;
+                if (_RhOutlineDebug < 1.5 && i.figure > 0.5) rgb.g = 0.5;
+            }
             float a = cov;
             // Local calming halo (lever 2 of the contrast brief): only where the figure's stroke is light, i.e. on dark and mid ground (decided once per figure, so bright veins inside the halo are dimmed too), a soft darkening of the ground around the figure
             // takes the edge off bright veins and glints that would sit next to a light stroke. Darkening only; never where the stroke is dark, so pale ground is never dimmed.
