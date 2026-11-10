@@ -6,6 +6,23 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 
 ## Current delivery scope: technical demo (owner decision, 2026-11-09)
 
+**Current hosting status, 2026-11-10 03:53 UTC:** the temporary test window has ended on its original expiry.
+Guest termination, stack deletion and all11 independent resource checks pass; the sole test DNS record is removed and
+verified empty after reload. **play.rougehalla.com is now offline.** The [cleanup receipt](evidence/calgary-demo-cleanup/README.md)
+retains exact targets, operation results and local screenshot evidence. Historical “live” statements below describe the
+completed demo window. Local builds/services/user data and worker WIP remain intact. NormalCI42748359516 at code9657cd56
+is now terminal SUCCESS across all five jobs. Client/FPS/complete rendered legacy comparison remains with Claude under
+the owner-imposed Codex Unity pause; this cleanup does not complete that remaining performance gate.
+
+**NPC observation cache update, 2026-11-10 04:20 UTC:** private ItemObserver tile-history memo reuse now covers NPC
+observations, preserving fresh LOS/ward/hidden predicates and existing cache sizing. Four new native differential controls,
+20vision tests, the existing zero-warm-allocation pressure check,21content checks, full-faction headless PvE, strict rh-sim
+lint and format pass. The [exact release measurement](evidence/npc-tile-memo/README.md) delivers600ticks/30s with sampled
+processCPU4.41% of one core versus6.76% before, RSS18.48–18.61MiB and all normal result/cleanup checks passing.
+This is a34.7% lower point reading from one run; differing spawn/reveal history and ambient/background work prevent attributing
+all of it to the cache or claiming a general speedup. No world/wire/content/Unity field changed. The source cut85e2d7c2 is
+locally verified and awaits its own normalCI; the prior9657CI remains green at its recorded cut.
+
 **Unity ownership change, 2026-11-10:** the owner has paused all Codex Unity development and assigned it to Claude.
 Unity code/assets/builds, client profiling and browser/Editor work are stopped. Root continues Rust/backend/AWS
 coordination. The one approved local benchmark attempt ended before measurement with
@@ -21,6 +38,17 @@ one active-workstation run, different interest/publication/storage/mechanics and
 or general regression claim. Both owned processes/listeners close independently. A separate10s native CPU sample points to
 vision-trail/LOS and Frost/Sentenced scans for investigation; it changes no gameplay or prior measurement. Unity/FPS work remains
 paused. Normal source CI at `02551405` also finishes green (all five foundation jobs plus separate latency checks).
+
+The profiled [Frost guard reorder](evidence/frost-edge-guard/README.md) is now pushed at `9657cd56`:32 targeted tests,
+21content checks, format and strict all-feature/all-target lint pass. Its correct PostgreSQL-enabled Mac release captures
+another600steps/30s with all cleanup/result checks passing. Sampled CPU6.76% versus6.69% before establishes no CPU gain;
+no favorable retake or deployed artifact replacement follows. The original no-CPU-win comparison remains the baseline.
+
+The [actual Calgary WSS meter](evidence/calgary-wss-meter/README.md) now captures90 matched ordinary Ping/Pong samples
+in one30s/3player stationary Source window: applicationRTTmedian10.72ms/p9521.54ms/max24.60ms; incomingapplication
+payload3.68–5.99kB/s perclient (13.56kB/s total). These are Node protocol clients, not Unity/frame/input-to-visible timings;
+wire framing/admission are excluded. All owners stay alive/Active with600observed ticks, normal socket/process cleanup passes,
+and a later independent read settles publicSource0rooms/0players/6successfulresults,0failed/refused. Original shutdown unchanged.
 
 **Technical demo update 2026-11-10:** owner-authorized Claude Wave1/security and the reproduced stale-echo repair are
 composed at `fe0e2983`; 956 managed tests and 102 affected Rust tests pass at their recorded cuts. Web B

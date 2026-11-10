@@ -1,0 +1,30 @@
+{
+  "head": "85e2d7c2a80d03792e9c544ae8f708e524e8e9c8",
+  "args": [
+    "cargo",
+    "build",
+    "--release",
+    "--locked",
+    "--offline",
+    "-p",
+    "rh-server",
+    "--features",
+    "postgres",
+    "--bin",
+    "rh-server"
+  ],
+  "exit": 0,
+  "seconds": 62.0169905,
+  "utc": "2026-11-10T04:17:20.656926+00:00",
+  "sourceCleanAtStart": true,
+  "compilerSha256": "09219fe31aa8f6f71454ff1973eef92d7473f89018693a77cdcfabb2758a9fb6",
+  "profile": {
+    "jobs": 4,
+    "incremental": 0,
+    "releaseDebug": 1
+  },
+  "samePostgresFeatureAsBaseline": true,
+  "binary": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/npc-tile-memo-release-01/rh-server",
+  "bytes": 16388904,
+  "sha256": "903b701de6530f2aa5a495b9d60b47457814c0c1d61d080bd07c89b3116cf7fd"
+}

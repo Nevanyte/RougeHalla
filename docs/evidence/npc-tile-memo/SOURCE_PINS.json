@@ -1,0 +1,18 @@
+[
+  {
+    "path": "crates/rh-sim/src/item_view.rs",
+    "sha256": "d50df8818f6452daabff622c7ca8a68775ac248074add143c6805bf7e6c6f5a7"
+  },
+  {
+    "path": "crates/rh-sim/src/observe.rs",
+    "sha256": "8a1919fda25026667b13e4d47db5d5171fbbf915e099441e04205a30692c0fad"
+  },
+  {
+    "path": "crates/rh-sim/src/vision.rs",
+    "sha256": "76a997afe367169538efa9f75e655c46ac624d7e4eeeb83bfd3c3d4d47f3e369"
+  },
+  {
+    "path": "crates/rh-sim/src/vision/npc_cache_tests.rs",
+    "sha256": "8c80d70ac78567a521154c6dfabec6345ffab0e40d12465ef7fd6e349fb07f48"
+  }
+]

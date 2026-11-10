@@ -9,7 +9,7 @@ Both backends completed600 normally delivered simulation steps in30 seconds (20H
 | Sampled RSS | 18.38–18.48MiB | 191.58–191.88MiB |
 | Observed steps over30s | 600 | 600 |
 
-Rust used about90.4% less resident memory. The CPU point estimate was22.6% higher for Rust; this run demonstrates no CPU speedup. Both owned backend processes and their listeners were independently confirmed closed. Native normal Leave persisted3 results with0failed/refused; all three players were alive at each measured boundary.
+Rust used about90.4% less resident memory. These are game-server process RSS figures; PostgreSQL and client/browser processes are excluded, so they are not total backend memory. The CPU point estimate was22.6% higher for Rust; this run demonstrates no CPU speedup. Both owned backend processes and their listeners were independently confirmed closed. Native normal Leave persisted3 results with0failed/refused; all three players were alive at each measured boundary.
 
 This is one sequential run on an actively used M5 Pro with other apps and Rust tests running, not an isolated capacity result or statistically established regression. Native uses900u/LOS interest while legacy publishes global schema/FX; ambient RNG, gameplay coverage, storage and publication differ. CPU samples cover the inner~29seconds and use different precision (macOSps centiseconds vsNode microseconds). Measured server20Hz is configured cadence, not maximum capability. No FPS, game RTT, bandwidth or input-to-visible result is claimed.
 

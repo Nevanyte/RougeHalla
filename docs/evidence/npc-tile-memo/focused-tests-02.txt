@@ -1,0 +1,11 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/root-backend-integration-01/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 43.81s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/backend-cpu-target/debug/deps/rh_sim-11f7df6587fb64ad)
+
+running 4 tests
+test vision::npc_cache_tests::tile_memo_keeps_precise_same_tile_los_and_invalid_point_fallback ... ok
+test vision::npc_cache_tests::npc_tile_memo_keeps_same_tick_movement_hidden_and_death_checks_fresh ... ok
+test vision::npc_cache_tests::npc_tile_memo_matches_raw_through_stationary_tail_and_exclusive_expiry ... ok
+test vision::npc_cache_tests::npc_prepare_revalidates_same_tick_discarded_history_and_cold_lifecycle ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 841 filtered out; finished in 0.02s
