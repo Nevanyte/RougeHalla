@@ -280,3 +280,15 @@ with source/native ancestry before any relaxation. All255 histories/3259operatio
 semantic controls remain required, plus affected unchanged planning/Wish/hazard/hand/Memory/Strategy overlaps and strict
 default/all-feature lint/format. The reviewer recommendation's “in principle” is resolved only by this corrected lease;
 final code and evidence still require independent admission.
+
+## Root pre-seal composition correction (2026-11-10)
+
+`Policy: Send` is an existing production contract. Inspection of the new candidate found persistent non-Send
+`Rc` closures in `CustomModule.enabled` and `Registry.cast_policy`. Root and the independent reviewer approve
+changing those new-file callbacks to `Arc<dyn Fn... + Send + Sync>` before the first seal, including only associated
+new test capture/access/`Arc::ptr_eq` mechanics. Preserve exact allocation sharing, equal-id replacement position,
+registration order, enabled callback values/timing, reset and opaque cast-policy identity. Assert the actual Registry,
+CustomModule and four built-in module state types are Send; no unsafe implementations, changed global policy/trait
+contract or wrapper around a non-Send inner object. Uncaptured test-local Rc remains allowed. This stays within the
+owned new modules files and adds no existing-file lease. Rerun full255/3259 and relevant registry controls plus final
+format/lints; source fixtures and the existing shared-engine overlap requirements remain unchanged.

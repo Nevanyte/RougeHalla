@@ -208,3 +208,13 @@ red/green binding. Preserve first failures and report a genuine prerequisite mis
 repair Memory/strategy/publication or old expectations under this packet. Root obtains independent exact source/native
 review before integration. Whole Brain, module registry/execution, accepted fair intake, transport/handles and live
 validate+submit remain later gates; completing this packet closes the full private tactic layer without claiming those.
+
+## Root candidate review decision (2026-11-10)
+
+The first candidate is HOLD on the concrete checked-apply/nonadvance, tagged-object-order and direct-endpoint
+exactness findings in [the independent review](../../evidence/bot-private-tactics-admission-review/README.md).
+DeepSeek is repairing those within the existing lease; initial green receipts do not release the candidate.
+Root accepts the documented full-tier private Reflexes implementation as an explicit variance to the earlier reuse
+proposal: the old `TierId`-only component cannot express the captured resolved overrides. This must remain a real
+source implementation driven by actual Memory and checked against the old68-row/67-check overlap; no substitute
+identity or empty-reflex shortcut. No old component edits or blanket permission to duplicate other engines follows.
