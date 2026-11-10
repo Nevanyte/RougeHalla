@@ -91,11 +91,11 @@ namespace Roguehalla.Client
         }
 
         /// <summary>Upload the arrays and the switches. Call once per frame after every source has added its lights.</summary>
-        public static void Push(bool relief, bool shadows, bool cookies, bool gloss)
+        public static void Push(bool relief, bool shadows, bool cookies, bool gloss, bool actors = false)
         {
             Shader.SetGlobalVectorArray(_idP, P); Shader.SetGlobalVectorArray(_idC, C);
             Shader.SetGlobalVector(_idI, new Vector4(_count, relief ? 1f : 0f, shadows ? 1f : 0f, cookies ? 1f : 0f));
-            Shader.SetGlobalVector(_idG, new Vector4(gloss ? 1f : 0f, 0, 0, 0));
+            Shader.SetGlobalVector(_idG, new Vector4(gloss ? 1f : 0f, actors ? 1f : 0f, 0, 0));
         }
 
         /// <summary>Switch the field off: no lights, no flashes (the legacy flat Light2D look on the ground is restored by AccentLights).</summary>

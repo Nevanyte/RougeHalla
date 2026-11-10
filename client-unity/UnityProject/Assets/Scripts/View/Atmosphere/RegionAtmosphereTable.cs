@@ -103,7 +103,7 @@ namespace Roguehalla.Client
                     p.SplitShadows = Toning(shadow, .55f); p.SplitHighlights = Toning(accent, .3f); p.SplitBalance = 10f;
                     p.BloomThreshold = .9f; p.BloomIntensity = .4f; p.BloomScatter = .65f; p.BloomTint = Tint(accent, .6f);
                     p.VignetteIntensity = .2f; p.Haze = A(fog, .09f);
-                    p.Lift = new Vector4(.92f, .55f, .45f, .025f); p.Gain = new Vector4(1f, .88f, .74f, .04f);   // ember-warm blacks, hot highlights
+                    p.Lift = new Vector4(.92f, .55f, .45f, .025f); p.Gain = new Vector4(1f, .88f, .74f, 0f);   // ember-warm blacks, hot highlights
                     row.Particles = ParticlePresetId.Embers; row.Music = "music_fire"; row.Ambience = "amb_fire";
                     row.Accent = new AccentLightSpec { Terrain = TerrainKind.Lava, Color = Tint(accent, .85f), Intensity = 2.2f, Radius = 6.5f, Flicker = 1f };
                     break;
@@ -127,7 +127,7 @@ namespace Roguehalla.Client
                     p.SplitShadows = Toning(shadow, .5f); p.SplitHighlights = Toning(key, .2f); p.SplitBalance = -5f;
                     p.BloomThreshold = .92f; p.BloomIntensity = .35f; p.BloomScatter = .65f; p.BloomTint = Tint(accent, .5f);
                     p.VignetteIntensity = .2f; p.Haze = A(fog, .11f);
-                    p.Lift = new Vector4(.55f, .90f, .78f, .03f); p.Gain = new Vector4(.94f, 1f, .88f, .02f);    // teal-green shadows, a touch of sickly gold in the light
+                    p.Lift = new Vector4(.55f, .90f, .78f, .03f); p.Gain = new Vector4(.94f, 1f, .88f, 0f);    // teal-green shadows, a touch of sickly gold in the light
                     row.Particles = ParticlePresetId.Spores; row.Music = "music_plague"; row.Ambience = "amb_plague";
                     row.Accent = new AccentLightSpec { Terrain = TerrainKind.Bog, Color = Tint(accent, .9f), Intensity = 1.4f, Radius = 4.2f, Flicker = .6f };
                     break;
@@ -139,7 +139,7 @@ namespace Roguehalla.Client
                     p.SplitShadows = Toning(shadow, .3f); p.SplitHighlights = Toning(key, .32f); p.SplitBalance = 5f;
                     p.BloomThreshold = .96f; p.BloomIntensity = .22f; p.BloomScatter = .75f; p.BloomTint = Tint(key, .7f);
                     p.VignetteIntensity = .1f; p.Haze = A(fog, .09f);
-                    p.Lift = new Vector4(1f, .86f, .70f, .015f); p.Gain = new Vector4(1f, .91f, .74f, .08f);       // warm golden highlights
+                    p.Lift = new Vector4(1f, .86f, .70f, .015f); p.Gain = new Vector4(1f, .95f, .83f, 0f);       // warm golden highlights
                     row.Particles = ParticlePresetId.Pollen; row.Music = "music_holy"; row.Ambience = "amb_holy";
                     row.Accent = new AccentLightSpec { Terrain = TerrainKind.Light, Color = Tint(key, .9f), Intensity = .9f, Radius = 4.6f, Flicker = .25f };
                     break;

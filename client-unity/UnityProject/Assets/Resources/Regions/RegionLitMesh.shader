@@ -70,6 +70,7 @@ Shader "Roguehalla/RegionLitMesh"
                 clip(main.a - 0.004);
                 // Surface kind (mesh uv3.x): 0 flat top, 1 south face, 2 west edge, 3 east edge, 4 unlit decal (contact shadows).
                 float kind = i.world.z;
+                float2 o = (abs(float2(ddx(i.uv.x), ddy(i.uv.y))) + 1e-5) * 1.3;      // derivative outside the light branch (well defined)
                 float ndl = kind < 0.5 ? 0.65 : kind < 1.5 ? 0.0 : kind < 2.5 ? 0.55 : 0.0;
                 float sunStr; float3 shMul;
                 float3 sunM = kind > 3.5 ? float3(1, 1, 1) : RhSunMul(i.world.xy, ndl, sunStr, shMul);
@@ -88,13 +89,12 @@ Shader "Roguehalla/RegionLitMesh"
                     {
                         // Wall relief: the face normal by surface kind plus a bump from the painted luma (mortar lines, chips, cracks).
                         float3 n = kind < 0.5 ? float3(0, 0, 1) : kind < 1.5 ? float3(0, 0.80, 0.60) : kind < 2.5 ? float3(-0.70, 0, 0.714) : float3(0.70, 0, 0.714);
-                        float2 o = (abs(float2(ddx(i.uv.x), ddy(i.uv.y))) + 1e-5) * 1.3;
                         float3 lw = float3(0.2126, 0.7152, 0.0722);
                         float lR = dot(SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv + float2(o.x, 0)).rgb, lw), lL = dot(SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv - float2(o.x, 0)).rgb, lw);
                         float lU = dot(SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv + float2(0, o.y)).rgb, lw), lD = dot(SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv - float2(0, o.y)).rgb, lw);
                         n.xy += float2(-(lR - lL), (lU - lD)) * 1.8;
                         float3 dif, spc;
-                        RhLocalLights(pt, normalize(n), 0.16, 16.0, kind < 0.5 ? 0.0 : 0.0, dif, spc);
+                        RhLocalLights(pt, normalize(n), 0.16, 16.0, 0.0, 1.0, 0.0, dif, spc);
                         lit.rgb += main.rgb * _Exposure * dif * main.a + spc * main.a;
                     }
                 }

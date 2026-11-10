@@ -42,12 +42,12 @@ namespace Roguehalla.Client.Tests
 
         [Test] public void EveryRenderPassHasItsOwnUrlSwitch()
         {
-            string[] keys = { "locallights", "relief", "lshadows", "cookies", "gloss", "wind", "clouds", "water", "fireflies", "emberlight", "fxlights", "sparks" };
+            string[] keys = { "locallights", "relief", "lshadows", "cookies", "gloss", "wind", "clouds", "water", "fireflies", "emberlight", "fxlights", "sparks", "actorlights", "painterly" };
             System.Func<bool>[] get =
             {
                 () => AtmosphereQuality.LocalLights, () => AtmosphereQuality.Relief, () => AtmosphereQuality.LocalShadows, () => AtmosphereQuality.Cookies, () => AtmosphereQuality.Gloss,
                 () => AtmosphereQuality.Wind, () => AtmosphereQuality.Clouds, () => AtmosphereQuality.Water, () => AtmosphereQuality.Fireflies, () => AtmosphereQuality.EmberLight,
-                () => AtmosphereQuality.FxLights, () => AtmosphereQuality.Sparks,
+                () => AtmosphereQuality.FxLights, () => AtmosphereQuality.Sparks, () => AtmosphereQuality.ActorLights, () => AtmosphereQuality.Painterly,
             };
             for (int i = 0; i < keys.Length; i++)
             {
@@ -181,6 +181,25 @@ namespace Roguehalla.Client.Tests
             Assert.AreEqual(0, LocalLightField.Count, "no analytic lights"); Assert.AreEqual(0, Shader.GetGlobalVector("_RhLI").x);
             Assert.AreEqual(0, arena.Atmosphere.Lights.Light2DBlendStyle, "blend style 0: the ground is lit by Light2D exactly as before");
             Assert.Greater(arena.Atmosphere.Lights.ActiveLight2D, 0, "and the Light2D pool still lights");
+        }
+
+        [Test] public void CharactersTakeTheAnalyticLightsAndTheTwinsStandDown()
+        {
+            var arena = Arena(out var cam);
+            var me = new SelfView { Id = 1, Faction = FactionId.Fire, X = 30 * 32f, Y = 30 * 32f, Hp = 900, MaxHp = 985, Weapon = WeaponId.Sword, Status = ActorStatus.Alive };
+            arena.Present(new List<InterpActor>(), me, null, 0f); Frame(arena, cam, 30f, 30f);
+            Assert.AreEqual(0, arena.Atmosphere.Lights.ActiveLight2D, "actor lights on: the Light2D twins are not needed");
+            Assert.AreEqual(1f, Shader.GetGlobalVector("_RhLG").y, "the actor shader reads the field (and masks the twins)");
+            var body = FindRenderer(arena.transform, "Authored character"); Assert.NotNull(body);
+            Assert.AreEqual("Roguehalla/ActorLit", body.sharedMaterial.shader.name);
+            AtmosphereQuality.SetUrl("http://x/?fx.actorlights=0"); AtmosphereQuality.ApplyPreset(ShowcaseQuality.Ultra, false);
+            Frame(arena, cam, 30f, 30f);
+            Assert.Greater(arena.Atmosphere.Lights.ActiveLight2D, 0, "actor lights off: the Light2D twins light them as before"); Assert.AreEqual(0f, Shader.GetGlobalVector("_RhLG").y);
+        }
+        static SpriteRenderer FindRenderer(Transform root, string name)
+        {
+            foreach (var r in root.GetComponentsInChildren<SpriteRenderer>(true)) if (r.gameObject.name == name) return r;
+            return null;
         }
 
         [Test] public void LightBudgetRespectsTheQualityCap()

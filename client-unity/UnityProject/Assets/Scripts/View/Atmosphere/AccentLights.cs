@@ -103,6 +103,14 @@ namespace Roguehalla.Client
         }
         public void MarkDirty() { _dirty = true; }
 
+        /// <summary>Output gain by site kind: lava is huge and already glows through the ground shader (low gain); lanterns and temple lamps need more to read on their floors.</summary>
+        public static float GainFor(in TerrainCluster c)
+        {
+            if (c.TempleLamp) return 1.0f;
+            if (c.Lantern) return .6f;
+            switch (c.Kind) { case TerrainKind.Lava: return .24f; case TerrainKind.Ice: return .5f; case TerrainKind.Bog: return .45f; case TerrainKind.Light: return .5f; default: return AnalyticGain; }
+        }
+
         /// <summary>Height of the light above the ground (tiles) and its cookie / shadow behaviour, by kind of site.</summary>
         public static void Shape(in TerrainCluster c, out float height, out int cookie, out bool shadow)
         {
@@ -122,7 +130,7 @@ namespace Roguehalla.Client
         public void Tick(float camTx, float camTy, float halfW, float halfH, float dt, float time)
         {
             bool analytic = AtmosphereQuality.AnalyticLights;
-            int l2cap = AtmosphereQuality.EffectiveMaxLights;
+            int l2cap = AtmosphereQuality.ActorsAnalytic ? 0 : AtmosphereQuality.EffectiveMaxLights;      // characters take the analytic lights: no Light2D twins needed
             int cap = Mathf.Max(l2cap, analytic ? AtmosphereQuality.EffectiveLocalLights : 0);
             int cellX = Mathf.FloorToInt(camTx / AccentLightPlanner.CellTiles), cellY = Mathf.FloorToInt(camTy / AccentLightPlanner.CellTiles);
             if (_dirty || cellX != _lastCellX || cellY != _lastCellY || cap != _lastCap)
@@ -151,7 +159,7 @@ namespace Roguehalla.Client
                 if (analytic && s.Rank < AtmosphereQuality.EffectiveLocalLights)
                 {
                     Shape(s.C, out float h, out int cookie, out bool shadow);
-                    float k = intensity * AnalyticGain * (s.C.TempleLamp ? 1.8f : 1f);      // the temple floor is bright already: its lamps need more to read
+                    float k = intensity * GainFor(s.C);
                     LocalLightField.Add(s.C.X, s.C.Y, h, radius, s.Spec.Color.r * k, s.Spec.Color.g * k, s.Spec.Color.b * k, cookie, shadow);
                 }
             }

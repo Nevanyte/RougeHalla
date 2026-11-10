@@ -12,7 +12,7 @@ namespace Roguehalla.Client
         public const int Size = 256, Layers = 6;
 
         /// <summary>Surface relief strength per layer (fire, sentenced, plague, frost, holy, coliseum): how steeply the baked height tilts the normal.</summary>
-        static readonly float[] NormalStrength = { 3.2f, 3.6f, 2.6f, 2.2f, 2.4f, 3.2f };
+        static readonly float[] NormalStrength = { 3.2f, 2.8f, 2.6f, 2.2f, 2.4f, 3.0f };
         /// <summary>How polished each layer's raised parts are (the normal array's blue channel scales the specular response).</summary>
         static readonly float[] Polish = { .25f, .45f, .18f, .35f, .12f, .55f };
 

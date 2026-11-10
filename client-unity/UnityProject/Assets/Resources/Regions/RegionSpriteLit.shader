@@ -95,6 +95,7 @@ Shader "Roguehalla/RegionSpriteLit"
                 SurfaceData2D surfaceData;
                 InputData2D inputData;
                 float3 albedo = main.rgb;
+                float2 px = abs(float2(ddx(i.uv.x), ddy(i.uv.y))) + 1e-5;      // derivative outside the light branch (well defined)
                 InitializeSurfaceData(main.rgb, main.a, half4(0, 0, 0, 0), half3(0, 0, 1), surfaceData);   // mask 0: see RegionLitMesh.shader
                 InitializeInputData(i.uv, i.lightingUV, inputData);
                 half4 lit = CombinedShapeLightShared(surfaceData, inputData);
@@ -104,7 +105,6 @@ Shader "Roguehalla/RegionSpriteLit"
                     [branch] if (RhAnyLight(pt))
                     {
                         // Pseudo normal from the sprite itself: a dome from its blurred alpha (round trunks, bushes, urns) plus the painted luma.
-                        float2 px = abs(float2(ddx(i.uv.x), ddy(i.uv.y))) + 1e-5;
                         float2 oa = px * 3.0, ol = px * 1.2;
                         float aR = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv + float2(oa.x, 0)).a, aL = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv - float2(oa.x, 0)).a;
                         float aU = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv + float2(0, oa.y)).a, aD = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv - float2(0, oa.y)).a;
@@ -113,7 +113,7 @@ Shader "Roguehalla/RegionSpriteLit"
                         float lU = dot(SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv + float2(0, ol.y)).rgb, lw), lD = dot(SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv - float2(0, ol.y)).rgb, lw);
                         float2 tilt = float2(-(aR - aL) * 0.9 - (lR - lL) * 1.4, (aU - aD) * 0.9 + (lU - lD) * 1.4);   // tile space: y is down
                         float3 dif, spc;
-                        RhLocalLights(pt, normalize(float3(tilt, 1.0)), 0.10, 14.0, 0.0, dif, spc);
+                        RhLocalLights(pt, normalize(float3(tilt, 1.0)), 0.10, 14.0, 0.8, 1.0, 0.0, dif, spc);
                         lit.rgb += albedo * dif * main.a + spc * main.a;
                     }
                 }

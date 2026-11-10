@@ -163,7 +163,7 @@ namespace Roguehalla.Client
             if (analytic) { LocalLightField.Begin(AtmosphereQuality.EffectiveLocalLights); if (AtmosphereQuality.FxLights) LocalLightField.AddFlashes(dt); }
             _lights.Tick(tx, ty, halfW, halfH, dt, _time);
             _life.Tick(dt, _time, tx, ty, halfW, halfH, _w[2], _w[0], _lights.Planner);
-            if (analytic) { LocalLightField.Push(AtmosphereQuality.Relief, AtmosphereQuality.LocalShadows && _sdf != null, AtmosphereQuality.Cookies, AtmosphereQuality.Gloss); _wasAnalytic = true; }
+            if (analytic) { LocalLightField.Push(AtmosphereQuality.Relief, AtmosphereQuality.LocalShadows && _sdf != null, AtmosphereQuality.Cookies, AtmosphereQuality.Gloss, AtmosphereQuality.ActorLights); _wasAnalytic = true; }
             else if (_wasAnalytic) { LocalLightField.Clear(); _wasAnalytic = false; }
             _particles.Tick(cam, dt);
         }
@@ -199,8 +199,9 @@ namespace Roguehalla.Client
             if (!post) return;
             bool grade = AtmosphereQuality.Grading;
             _ca.active = grade; _ca.postExposure.Override(p.PostExposure); _ca.contrast.Override(p.Contrast); _ca.saturation.Override(p.Saturation); _ca.colorFilter.Override(p.ColorFilter);
-            if (_lgg != null) { _lgg.active = grade; _lgg.lift.Override(p.Lift); _lgg.gain.Override(p.Gain); }
-            if (_tone != null) _tone.active = grade;
+            bool paint = grade && AtmosphereQuality.Painterly;
+            if (_lgg != null) { _lgg.active = paint; _lgg.lift.Override(p.Lift); _lgg.gain.Override(p.Gain); }
+            if (_tone != null) _tone.active = paint;
             _split.active = grade; _split.shadows.Override(p.SplitShadows); _split.highlights.Override(p.SplitHighlights); _split.balance.Override(p.SplitBalance);
             _bloom.active = AtmosphereQuality.Bloom; _bloom.threshold.Override(p.BloomThreshold); _bloom.intensity.Override(p.BloomIntensity); _bloom.scatter.Override(p.BloomScatter); _bloom.tint.Override(p.BloomTint);
             _vig.active = AtmosphereQuality.Vignette; _vig.intensity.Override(p.VignetteIntensity); _vig.smoothness.Override(p.VignetteSmoothness); _vig.color.Override(p.VignetteColor);

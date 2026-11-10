@@ -67,11 +67,12 @@ float3 RhGlassTint(float2 id)
 // pt: tile position. n: tile-space normal (z up). gloss: specular amount for this surface (0 matte). shin: specular exponent.
 // shadowAmt: how strongly the wall shadow applies (0 for surfaces that are walls themselves). diffuse is multiplied by the albedo by the
 // caller; spec is added as is.
-void RhLocalLights(float2 pt, float3 n, float gloss, float shin, float shadowAmt, out float3 diffuse, out float3 spec)
+// cookieAmt: how much the light patterns show (0 for actors). rimAmt: thin light on the edge facing a light (characters; added to spec).
+void RhLocalLights(float2 pt, float3 n, float gloss, float shin, float shadowAmt, float cookieAmt, float rimAmt, out float3 diffuse, out float3 spec)
 {
     diffuse = 0; spec = 0;
     int cnt = (int)_RhLI.x;
-    float relief = _RhLI.y * 1.7;
+    float relief = _RhLI.y * 1.35;
     float time = _Time.y;
     [loop] for (int i = 0; i < RH_MAX_LIGHTS; i++)
     {
@@ -84,12 +85,12 @@ void RhLocalLights(float2 pt, float3 n, float gloss, float shin, float shadowAmt
         float a2 = saturate((1.0 - dScr / lp.w) * 1.3);
         float att = a2 * a2 * (3.0 - 2.0 * a2);
         float3 ln = normalize(float3(dv, lp.z));
-        float diff = clamp(1.0 + (dot(n, ln) - ln.z) * relief, 0.2, 2.0);
+        float diff = clamp(1.0 + (dot(n, ln) - ln.z) * relief, 0.3, 1.7);
         float cid = floor(lc.a);
         float vis = 1.0, cm = 1.0; float3 tint = 1.0;
         [branch] if (_RhLI.z > 0.5 && shadowAmt > 0.01 && lc.a - cid > 0.25)
             vis = lerp(1.0, RhShadowVis(pt, lp.xy, 5.0), shadowAmt);
-        [branch] if (cid > 0.5 && _RhLI.w > 0.5)
+        [branch] if (cid > 0.5 && _RhLI.w > 0.5 && cookieAmt > 0.01)
         {
             float2 q = pt - lp.xy;
             if (cid < 1.5)            // grated lantern: slow, waving cage bars of shade around the flame
@@ -114,8 +115,14 @@ void RhLocalLights(float2 pt, float3 n, float gloss, float shin, float shadowAmt
                 cm = 1.0 - 0.55 * lead;
             }
         }
+        cm = lerp(1.0, cm, cookieAmt); tint = lerp(1.0, tint, cookieAmt);
         float3 lcol = lc.rgb * (att * vis * cm);
         diffuse += lcol * tint * diff;
+        [branch] if (rimAmt > 0.01)
+        {
+            float2 ld = normalize(dv + 1e-4);
+            spec += lcol * tint * (pow(saturate(1.0 - n.z), 1.5) * saturate(dot(normalize(n.xy + 1e-4), ld) * 1.4) * rimAmt);
+        }
         [branch] if (gloss > 0.01 && _RhLG.x > 0.5)
         {
             float3 h = normalize(ln + float3(0.0, 0.45, 0.9));
