@@ -1,0 +1,17 @@
+{
+  "args": [
+    "cargo",
+    "clippy",
+    "--locked",
+    "--offline",
+    "-p",
+    "rh-sim",
+    "--all-features",
+    "--all-targets",
+    "--",
+    "-D",
+    "warnings"
+  ],
+  "exit": 0,
+  "utc": "2026-11-10T03:15:38.485141+00:00"
+}
