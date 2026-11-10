@@ -118,3 +118,10 @@ metadata, Welcome sight-rule parameters and visible projectile current height. T
 available; none supplies the missing dynamic remote cues, minimap/NPC history, projectile course/event times, owner
 mob-kill fact or redacted lock identity listed above. No unmerged Wave3 producer is counted. This is read-only evidence
 for the post-10:30am coordination; no Claude contact or publication/activation implementation occurred.
+
+
+The subsequent [owner-fact equivalence review](../bot-owner-fact-equivalence-review/README.md) confirms concrete source
+consumers: mob-kill count changes live Strategy/hunt decisions, while reward caps/visibility-filtered death events and
+current Results cannot reconstruct it exactly. Held(None) preserves held state but attack-move and server transitions
+plus sample-scoped NPC references prevent command-history reconstruction of the current target. Both gates remain
+open; this static review implements no provider and runs no equivalence test. Missing/redacted data remains unavailable.
