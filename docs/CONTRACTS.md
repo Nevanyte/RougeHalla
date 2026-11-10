@@ -30,8 +30,7 @@ Tactics source `54ff01a2` independently reproduces154 cases/720 methods and226 p
 The narrow earned regional NPC bleed restore repair `0be00f95` is independently released and integrated as `dedb8658`.
 It admits the real producer shape using retained player provenance and forward duration arithmetic, without inventing
 clock/tick equality, changing combat, or imposing a magnitude cap. Six author tests, relevant Card/status/checkpoint
-and PvE overlaps, strict default/all-feature lint and format pass at their recorded cut; Root's final composition check
-is recorded separately. The last constructed binary64 predicate example is not claimed as an installed-status witness.
+and PvE overlaps, strict default/all-feature lint and format pass at their recorded cut; Root's [final composition check](evidence/backend-crash-npc-composition/README.md) passes6 NPC +2 crash tests and format; the separate five-seed/two-run release soak passes its bounded no-panic/determinism contract (termination or truncation). The last constructed binary64 predicate example is not claimed as an installed-status witness.
 [Follow-up review](evidence/npc-bleed-restore-review/followup.md) preserves historical HOLDs and scope. The morning release
 is owner-authorized, but no final C-HOST/whole-port acceptance follows from component admissions.
 
