@@ -241,7 +241,7 @@ namespace Roguehalla.Client
             a.BodyGlow.sprite = a.Body.sprite;
             a.BodyGlow.transform.localPosition = a.Body.transform.localPosition;
             a.BodyGlow.transform.localRotation = a.Body.transform.localRotation;
-            a.BodyGlow.transform.localScale = a.Body.transform.localScale * 1.115f;
+            a.BodyGlow.transform.localScale = a.Body.transform.localScale * 1.13f;
             a.BodyGlow.sortingOrder = order - 3;
             AtmosphereShadows.ApplyRim(a.BodyGlow, x / 32f, y / 32f, dead ? .4f : 1f);
             int factionArt = faction.HasValue ? (int)faction.Value : -1;

@@ -1,62 +1,212 @@
 [
  {
-  "shot": "frost-1",
-  "mean": 0.638,
-  "p95": 0.872,
-  "clipped": 0.55
+  "shot": "s2-sentenced-fire-1",
+  "region": "sentenced",
+  "mean": 0.237,
+  "p95": 0.496,
+  "clipped": 0.03,
+  "contrast": {
+   "sprite": {
+    "ground": 0.072,
+    "darkEdge": 1.89,
+    "lightEdge": 2.82,
+    "contrast": 2.82
+   },
+   "bar": {
+    "ground": 0.066,
+    "darkEdge": 2.18,
+    "lightEdge": 4.99,
+    "contrast": 4.99
+   }
+  }
  },
  {
-  "shot": "frost-2",
-  "mean": 0.638,
-  "p95": 0.871,
-  "clipped": 0.53
+  "shot": "s2-sentenced-fire-2",
+  "region": "sentenced",
+  "mean": 0.237,
+  "p95": 0.496,
+  "clipped": 0.03,
+  "contrast": {
+   "sprite": {
+    "ground": 0.072,
+    "darkEdge": 1.88,
+    "lightEdge": 2.8,
+    "contrast": 2.8
+   },
+   "bar": {
+    "ground": 0.067,
+    "darkEdge": 2.19,
+    "lightEdge": 4.98,
+    "contrast": 4.98
+   }
+  }
  },
  {
-  "shot": "fire-1",
-  "mean": 0.454,
-  "p95": 0.902,
-  "clipped": 5.59
+  "shot": "s2-frost-sentenced-1",
+  "region": "frost",
+  "mean": 0.634,
+  "p95": 0.818,
+  "clipped": 0.03,
+  "contrast": {
+   "sprite": {
+    "ground": 0.575,
+    "darkEdge": 8.05,
+    "lightEdge": 1.06,
+    "contrast": 8.05
+   },
+   "bar": {
+    "ground": 0.533,
+    "darkEdge": 9.51,
+    "lightEdge": 1.17,
+    "contrast": 9.51
+   }
+  }
  },
  {
-  "shot": "fire-2",
-  "mean": 0.454,
-  "p95": 0.902,
-  "clipped": 5.58
+  "shot": "s2-frost-sentenced-2",
+  "region": "frost",
+  "mean": 0.634,
+  "p95": 0.818,
+  "clipped": 0.03,
+  "contrast": {
+   "sprite": {
+    "ground": 0.575,
+    "darkEdge": 8.02,
+    "lightEdge": 1.06,
+    "contrast": 8.02
+   },
+   "bar": {
+    "ground": 0.532,
+    "darkEdge": 9.51,
+    "lightEdge": 1.18,
+    "contrast": 9.51
+   }
+  }
  },
  {
-  "shot": "plague-1",
-  "mean": 0.346,
-  "p95": 0.665,
-  "clipped": 0.04
+  "shot": "s2-sentenced-plague-1",
+  "region": "sentenced",
+  "mean": 0.324,
+  "p95": 0.7,
+  "clipped": 0.05,
+  "contrast": {
+   "sprite": {
+    "ground": 0.054,
+    "darkEdge": 1.42,
+    "lightEdge": 4.06,
+    "contrast": 4.06
+   },
+   "bar": {
+    "ground": 0.073,
+    "darkEdge": 2.32,
+    "lightEdge": 4.71,
+    "contrast": 4.71
+   }
+  }
  },
  {
-  "shot": "plague-2",
-  "mean": 0.346,
-  "p95": 0.665,
-  "clipped": 0.04
+  "shot": "s2-sentenced-plague-2",
+  "region": "sentenced",
+  "mean": 0.324,
+  "p95": 0.699,
+  "clipped": 0.05,
+  "contrast": {
+   "sprite": {
+    "ground": 0.053,
+    "darkEdge": 1.36,
+    "lightEdge": 5.91,
+    "contrast": 5.91
+   },
+   "bar": {
+    "ground": 0.072,
+    "darkEdge": 2.31,
+    "lightEdge": 4.75,
+    "contrast": 4.75
+   }
+  }
  },
  {
-  "shot": "holy-1",
-  "mean": 0.651,
-  "p95": 0.842,
-  "clipped": 0.05
+  "shot": "s2-sentenced-frost-1",
+  "region": "sentenced",
+  "mean": 0.238,
+  "p95": 0.497,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.072,
+    "darkEdge": 1.91,
+    "lightEdge": 2.9,
+    "contrast": 2.9
+   },
+   "bar": {
+    "ground": 0.068,
+    "darkEdge": 2.22,
+    "lightEdge": 4.9,
+    "contrast": 4.9
+   }
+  }
  },
  {
-  "shot": "holy-2",
-  "mean": 0.651,
-  "p95": 0.842,
-  "clipped": 0.04
+  "shot": "s2-sentenced-frost-2",
+  "region": "sentenced",
+  "mean": 0.238,
+  "p95": 0.497,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.073,
+    "darkEdge": 1.9,
+    "lightEdge": 2.89,
+    "contrast": 2.89
+   },
+   "bar": {
+    "ground": 0.068,
+    "darkEdge": 2.22,
+    "lightEdge": 4.9,
+    "contrast": 4.9
+   }
+  }
  },
  {
-  "shot": "sentenced-1",
-  "mean": 0.446,
-  "p95": 0.698,
-  "clipped": 0.03
+  "shot": "s2-fire-holy-1",
+  "region": "fire",
+  "mean": 0.264,
+  "p95": 0.603,
+  "clipped": 0.05,
+  "contrast": {
+   "sprite": {
+    "ground": 0.087,
+    "darkEdge": 2.22,
+    "lightEdge": 3.82,
+    "contrast": 3.82
+   },
+   "bar": {
+    "ground": 0.089,
+    "darkEdge": 2.6,
+    "lightEdge": 4.85,
+    "contrast": 4.85
+   }
+  }
  },
  {
-  "shot": "sentenced-2",
-  "mean": 0.444,
-  "p95": 0.692,
-  "clipped": 0.03
+  "shot": "s2-fire-holy-2",
+  "region": "fire",
+  "mean": 0.264,
+  "p95": 0.602,
+  "clipped": 0.05,
+  "contrast": {
+   "sprite": {
+    "ground": 0.087,
+    "darkEdge": 2.05,
+    "lightEdge": 5.33,
+    "contrast": 5.33
+   },
+   "bar": {
+    "ground": 0.091,
+    "darkEdge": 2.61,
+    "lightEdge": 4.78,
+    "contrast": 4.78
+   }
+  }
  }
 ]

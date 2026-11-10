@@ -84,7 +84,7 @@ namespace Roguehalla.Client
                     row.Name = "Frost";
                     p.SunColor = Tint(key, .45f); p.SunStrength = .85f; p.ShadowLength = 1.3f; p.AmbientColor = Tint(amb, .3f) * .42f;   // passive level about .93
                     p.LightColor = Tint(Mix(amb, key, .4f), .1f);
-                    p.LightScale = .94f; p.PostExposure = -.05f; p.Contrast = 12f; p.Saturation = 0f; p.ColorFilter = Tint(accent, .04f);
+                    p.LightScale = .85f; p.PostExposure = -.05f; p.Contrast = 12f; p.Saturation = 0f; p.ColorFilter = Tint(accent, .04f);
                     p.SplitShadows = Toning(shadow, .45f); p.SplitHighlights = Toning(key, .1f); p.SplitBalance = -15f;
                     p.BloomThreshold = .97f; p.BloomIntensity = .25f; p.BloomScatter = .7f; p.BloomTint = Tint(accent, .25f);
                     p.VignetteIntensity = .16f; p.Haze = A(fog, .075f);
@@ -93,9 +93,9 @@ namespace Roguehalla.Client
                     break;
                 case RegionId.Fire:      // under the mountain: almost no sun, lava does the lighting; embers
                     row.Name = "Fire";
-                    p.SunColor = Tint(key, .7f); p.LightScale = 1.65f; p.SunStrength = .2f; p.ShadowLength = .35f; p.AmbientColor = Tint(amb, .3f) * .56f;
+                    p.SunColor = Tint(key, .7f); p.LightScale = 1.05f; p.SunStrength = .2f; p.ShadowLength = .35f; p.AmbientColor = Tint(amb, .3f) * .56f;
                     p.LightColor = Tint(Mix(amb, key, .3f), .2f);
-                    p.PostExposure = .4f; p.Contrast = 10f; p.Saturation = 0f; p.ColorFilter = Tint(accent, .04f);
+                    p.PostExposure = .12f; p.Contrast = 10f; p.Saturation = -6f; p.ColorFilter = Tint(accent, .03f);
                     p.SplitShadows = Toning(shadow, .55f); p.SplitHighlights = Toning(accent, .3f); p.SplitBalance = 10f;
                     p.BloomThreshold = .9f; p.BloomIntensity = .4f; p.BloomScatter = .65f; p.BloomTint = Tint(accent, .6f);
                     p.VignetteIntensity = .2f; p.Haze = A(fog, .09f);
@@ -106,7 +106,7 @@ namespace Roguehalla.Client
                     row.Name = "Sentenced";
                     p.SunColor = Tint(key, .22f); p.LightScale = .8f; p.SunStrength = .2f; p.ShadowLength = .5f; p.AmbientColor = Tint(amb, .6f) * .5f;
                     p.LightColor = Tint(Mix(amb, key, .55f), .15f);
-                    p.PostExposure = .42f; p.Contrast = 4f; p.Saturation = -16f; p.ColorFilter = Tint(shadow, .1f);
+                    p.PostExposure = .25f; p.Contrast = 4f; p.Saturation = -16f; p.ColorFilter = Tint(shadow, .1f);
                     p.SplitShadows = Toning(shadow, .5f); p.SplitHighlights = Toning(amb, .2f); p.SplitBalance = -20f;
                     p.BloomThreshold = .9f; p.BloomIntensity = .3f; p.BloomScatter = .75f; p.BloomTint = Tint(key, .4f);
                     p.VignetteIntensity = .22f; p.Haze = A(fog, .13f);
@@ -115,9 +115,9 @@ namespace Roguehalla.Client
                     break;
                 case RegionId.Plague:    // sickly teal-green, dim green-filtered light; spores
                     row.Name = "Plague";
-                    p.SunColor = Tint(Mix(key, Palette(RegionId.Holy, RegionPaletteGenerated.Key), .6f), .8f); p.LightScale = 1.55f; p.SunStrength = .55f; p.ShadowLength = .85f; p.AmbientColor = Tint(amb, .35f) * .42f;   // medium
+                    p.SunColor = Tint(Mix(key, Palette(RegionId.Holy, RegionPaletteGenerated.Key), .6f), .8f); p.LightScale = 1.2f; p.SunStrength = .55f; p.ShadowLength = .85f; p.AmbientColor = Tint(amb, .35f) * .42f;   // medium
                     p.LightColor = Tint(Mix(amb, key, .35f), .15f);
-                    p.PostExposure = .3f; p.Contrast = 8f; p.Saturation = -14f; p.ColorFilter = Tint(Mix(accent, Palette(id, RegionPaletteGenerated.Base), .7f), .1f);
+                    p.PostExposure = .14f; p.Contrast = 8f; p.Saturation = -14f; p.ColorFilter = Tint(Mix(accent, Palette(id, RegionPaletteGenerated.Base), .7f), .1f);
                     p.SplitShadows = Toning(shadow, .5f); p.SplitHighlights = Toning(key, .2f); p.SplitBalance = -5f;
                     p.BloomThreshold = .92f; p.BloomIntensity = .35f; p.BloomScatter = .65f; p.BloomTint = Tint(accent, .5f);
                     p.VignetteIntensity = .2f; p.Haze = A(fog, .11f);

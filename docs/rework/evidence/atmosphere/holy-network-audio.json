@@ -2,26 +2,16 @@
  {
   "url": "StreamingAssets/Audio/music_fire.mp3",
   "status": 200,
-  "afterMatchStartMs": 350
+  "afterMatchStartMs": 673
  },
  {
   "url": "StreamingAssets/Audio/amb_fire.mp3",
   "status": 200,
-  "afterMatchStartMs": 350
+  "afterMatchStartMs": 673
  },
  {
   "url": "StreamingAssets/Audio/music_coliseum.mp3",
   "status": 200,
-  "afterMatchStartMs": 367
- },
- {
-  "url": "StreamingAssets/Audio/amb_frost.mp3",
-  "status": 200,
-  "afterMatchStartMs": 559
- },
- {
-  "url": "StreamingAssets/Audio/music_frost.mp3",
-  "status": 200,
-  "afterMatchStartMs": 561
+  "afterMatchStartMs": 691
  }
 ]

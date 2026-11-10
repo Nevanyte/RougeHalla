@@ -22,7 +22,7 @@ namespace Roguehalla.Client
         }
 
         /// <summary>Pure: rim opacity for a ground of the given relative luminance (0 black .. 1 white): strong on dark ground, faint on light ground.</summary>
-        public static float RimAlpha(float groundLuma) { return Mathf.Lerp(.16f, .78f, 1f - Mathf.Clamp01(groundLuma * 1.5f)); }
+        public static float RimAlpha(float groundLuma) { return Mathf.Lerp(.16f, .95f, 1f - Mathf.Clamp01(groundLuma * 1.5f)); }
 
         /// <summary>Character separation: the soft light rim outside the dark outline, tuned to the ground under the actor (palette base luminance blended by region weights).</summary>
         public static void ApplyRim(SpriteRenderer rim, float tileX, float tileY, float scale)
