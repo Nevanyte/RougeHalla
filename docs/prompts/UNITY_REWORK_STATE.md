@@ -72,6 +72,12 @@ Liked Frost. Asked for a real lighting system, now part of the atmosphere scope 
 
 Second owner message (same day): HUD and UI "look incredible". Hold the Tab map to the same standard; show zones on the minimap (hue per zone); right-clicking a spot on the minimap must walk the character there. Assigned to `rework/map-hud`.
 
+Further owner messages (same day), all relayed to the agents named:
+- Lighting only needs to be rendered for what the camera sees (cull lights and shadow chunks by camera rect, works while scouting). -> atmosphere agent.
+- The launch/opening screen is "a bit of a mess" and joins the rework now, not at the end. Queued: starts when `rework/map-hud` merges (same UI files). Brief: legacy layout from `docs/rework/LEGACY_LAYOUT.md`, HUD-standard skin, remove duplicated station grid, cramped left panel, near-black cells, the "Arena is unavailable" message on a normal local visit; title treatment and region-art backdrop.
+- The current build is FAR too bright (Fire lava blown out). Hard requirement: lower luminance everywhere, restrained bloom, ground albedo back to palette lightness, luma checks per region, a global world-brightness scalar. -> atmosphere agent.
+- Sentenced becomes gothic dungeon/graveyard: flagstone tiles, wrought-iron graveyard fences, gothic masonry, tombstones, dead trees, lanterns. This replaces the earlier "haunted farmland, harvest dusk" look (still the one muted zone). -> atmosphere agent.
+
 ## Facts found while orienting (differ from the prompt's section 3)
 - The full five-region map is **160 x 160**, not 136 x 136: `crates/rh-sim/src/mapdata/fixtures/seed1.map.json` and `seed2.map.json` (rh-map/2, 4,936 tiles per region, 50 camps, terrain kinds 1-7, 86 features). Serve with `rh-server --runtime source-arena --map <file>`.
 - `--first-playable` (48 x 40) has only 4 Frost and 4 Sentenced tiles, so it cannot show Frost. Region playtests use the seed maps.
