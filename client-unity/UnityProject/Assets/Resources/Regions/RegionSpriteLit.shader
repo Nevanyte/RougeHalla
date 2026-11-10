@@ -123,7 +123,7 @@ Shader "Roguehalla/RegionSpriteLit"
                         float3 dif, spc;
                         RhLocalLights(pt, normalize(float3(tilt, 1.0)), 0.10, 14.0, 0.8, 1.0, 0.0, dif, spc);
                         float hr = RhHeadroom(lit.rgb);
-                        lit.rgb += (albedo * dif * hr + spc * saturate(hr + 0.3)) * main.a;
+                        lit.rgb += (albedo * dif * hr + spc * saturate(hr + 0.15)) * main.a;
                     }
                 }
                 return lit;

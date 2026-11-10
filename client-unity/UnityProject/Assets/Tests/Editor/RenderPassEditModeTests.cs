@@ -104,6 +104,39 @@ namespace Roguehalla.Client.Tests
             Assert.Less(At(5.5f, 8f), At(3.5f, 8f));
         }
 
+        [Test] public void LightShadowsAreBakedOnceOneSlotPerFrameAndCappedAtFive()
+        {
+            const int w = 32; var tiles = new byte[w * w];
+            for (int y = 10; y < 20; y++) for (int x = 14; x < 17; x++) tiles[y * w + x] = MapBlob.Wall;
+            var sdf = new WallSdf(tiles, w, w); var atlas = new LightShadowAtlas();
+            try
+            {
+                atlas.SetWalls(sdf);
+                Assert.Less(sdf.Visibility(19f, 15f, 8f, 15f), .2f, "behind the wall block, from the light");
+                Assert.Greater(sdf.Visibility(8f, 20f, 8f, 15f), .8f, "in the open, beside the light");
+                Assert.AreEqual(1f, sdf.Visibility(15f, 15f, 8f, 15f), 1e-4f, "a wall top is the lit roof of its own block");
+                atlas.Request(0, 8f, 15f, 6f); atlas.Request(1, 8f, 15f, 6f); atlas.Request(2, 24f, 15f, 6f);
+                Assert.AreEqual(0, atlas.BakedSlots, "nothing is traced until a frame ticks");
+                atlas.Tick(); Assert.AreEqual(1, atlas.BakedSlots, "one slot per frame"); atlas.Tick(); atlas.Tick(); Assert.AreEqual(3, atlas.BakedSlots);
+                atlas.Tick(); Assert.AreEqual(3, atlas.BakedSlots, "nothing left to bake");
+                atlas.Request(0, 8f, 15f, 6f); Assert.IsTrue(atlas.IsBaked(0), "the same light asking again costs nothing");
+                atlas.Release(0); Assert.IsFalse(atlas.IsBaked(0)); Assert.AreEqual(5, LightShadowAtlas.Slots);
+            }
+            finally { atlas.Dispose(); sdf.Dispose(); }
+        }
+
+        [Test] public void OnlyTheNearestFiveLightsCastBakedShadows()
+        {
+            var arena = Arena(out var cam); Frame(arena, cam, 30f, 30f, 14);
+            int shadowed = 0;
+            for (int i = 0; i < LocalLightField.Count; i++) { float a = LocalLightField.ColorAt(i).w; if (a - Mathf.Floor(a) > .01f) shadowed++; }
+            Assert.Greater(LocalLightField.Count, 5, "enough lava lights in view"); Assert.Greater(shadowed, 0, "some are shadowed"); Assert.LessOrEqual(shadowed, AccentLights.ShadowLights);
+            AtmosphereQuality.SetUrl("http://x/?fx.lshadows=0"); AtmosphereQuality.ApplyPreset(ShowcaseQuality.Ultra, false); Frame(arena, cam, 30f, 30f, 3);
+            shadowed = 0;
+            for (int i = 0; i < LocalLightField.Count; i++) { float a = LocalLightField.ColorAt(i).w; if (a - Mathf.Floor(a) > .01f) shadowed++; }
+            Assert.AreEqual(0, shadowed, "switch off: no light carries a shadow slot");
+        }
+
         [Test] public void ActorFieldUploadsOnlyTheNearestEightPresentedActors()
         {
             ActorField.Begin();

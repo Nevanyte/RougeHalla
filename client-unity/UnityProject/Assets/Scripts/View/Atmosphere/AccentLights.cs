@@ -79,10 +79,15 @@ namespace Roguehalla.Client
         public const float AnalyticGain = .62f;
         /// <summary>How many of the nearest analytic lights cast wall shadows (measured: the lantern zone pays for every shadowing light per pixel).</summary>
         public const int ShadowLights = 5;
-        sealed class Slot { public ShowcasePointLight Light; public int Cluster = -1, Rank = 99; public float Alpha; public bool Wanted; public TerrainCluster C; public AccentLightSpec Spec; public float Phase; public Vector3 Pos; }
+        sealed class Slot { public ShowcasePointLight Light; public int Cluster = -1, Rank = 99; public float Alpha; public bool Wanted; public int ShadowSlot = -1; public TerrainCluster C; public AccentLightSpec Spec; public float Phase; public Vector3 Pos; }
         readonly Slot[] _slots = new Slot[LocalLightField.Max];
         readonly int[] _pick = new int[LocalLightField.Max];
         readonly AccentLightPlanner _planner = new AccentLightPlanner();
+        readonly bool[] _shadowTaken = new bool[LightShadowAtlas.Slots];
+        /// <summary>Baked shadows (set by RegionAtmosphere once the map and its wall field exist); null = lights cast no shadows.</summary>
+        public LightShadowAtlas ShadowAtlas { get; set; }
+        int AllocShadow() { for (int i = 0; i < _shadowTaken.Length; i++) if (!_shadowTaken[i]) { _shadowTaken[i] = true; return i; } return -1; }
+        void FreeShadow(Slot s) { if (s.ShadowSlot >= 0) { _shadowTaken[s.ShadowSlot] = false; if (ShadowAtlas != null) ShadowAtlas.Release(s.ShadowSlot); s.ShadowSlot = -1; } }
         Transform _root; int _lastCellX = int.MinValue, _lastCellY = int.MinValue, _lastCap = -1; bool _dirty = true, _lastAnalytic;
         public AccentLightPlanner Planner { get { return _planner; } }
         /// <summary>Lights currently enabled (alpha above zero).</summary>
@@ -145,7 +150,7 @@ namespace Roguehalla.Client
             {
                 var s = _slots[i]; if (s == null) continue;
                 s.Alpha = Mathf.MoveTowards(s.Alpha, s.Wanted ? 1f : 0f, dt / FadeSeconds);
-                if (s.Alpha <= 0f && !s.Wanted) { if (s.Cluster >= 0) { s.Cluster = -1; s.Rank = 99; } if (s.Light != null) s.Light.SetVisible(false); continue; }
+                if (s.Alpha <= 0f && !s.Wanted) { FreeShadow(s); if (s.Cluster >= 0) { s.Cluster = -1; s.Rank = 99; } if (s.Light != null) s.Light.SetVisible(false); continue; }
                 // Layered flicker: slow breathing, mid-rate wobble, and a crackle from smooth noise (fire and lanterns).
                 float crackle = (Mathf.PerlinNoise(time * 3.3f + s.Phase, s.Phase * .37f) - .5f) * .32f;
                 float flick = 1f + s.Spec.Flicker * (.14f * Mathf.Sin(time * 5.3f + s.Phase) + .09f * Mathf.Sin(time * 11.7f + s.Phase * 2.1f) + .06f * Mathf.Sin(time * 2.1f + s.Phase * .7f) + crackle);
@@ -161,9 +166,15 @@ namespace Roguehalla.Client
                 if (analytic && s.Rank < AtmosphereQuality.EffectiveLocalLights)
                 {
                     Shape(s.C, out float h, out int cookie, out bool shadow);
-                    shadow &= s.Rank < ShadowLights;        // soft wall shadows are the costly part of a light (a sphere trace per pixel): only the nearest few cast them
+                    int slotArg = -1;
+                    if (shadow && s.Rank < ShadowLights && ShadowAtlas != null && AtmosphereQuality.LocalShadows)      // only the nearest few lights cast wall shadows, from the baked atlas
+                    {
+                        if (s.ShadowSlot < 0) s.ShadowSlot = AllocShadow();
+                        if (s.ShadowSlot >= 0) { ShadowAtlas.Request(s.ShadowSlot, s.C.X, s.C.Y, radius / ArenaView.GroundSquash); if (ShadowAtlas.IsBaked(s.ShadowSlot)) slotArg = s.ShadowSlot; }
+                    }
+                    else FreeShadow(s);
                     float k = intensity * GainFor(s.C);
-                    LocalLightField.Add(s.C.X, s.C.Y, h, radius, s.Spec.Color.r * k, s.Spec.Color.g * k, s.Spec.Color.b * k, cookie, shadow);
+                    LocalLightField.Add(s.C.X, s.C.Y, h, radius, s.Spec.Color.r * k, s.Spec.Color.g * k, s.Spec.Color.b * k, cookie, slotArg);
                 }
             }
         }

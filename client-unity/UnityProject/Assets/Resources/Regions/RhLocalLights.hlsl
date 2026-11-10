@@ -4,7 +4,7 @@
 // into two fixed arrays. Each surface evaluates them per pixel with a distance early-out, so a light shapes the surface it falls on:
 //   * relief   : a "delta Lambert" term. A flat surface keeps exactly the brightness a flat light would give; slopes facing the light get
 //                brighter, slopes facing away darker (normals come from the baked ground height, the wall face, or the painted luma).
-//   * shadows  : soft penumbra from the wall grid by sphere tracing a baked signed-distance texture (_RhWallSdf). Surfaces only; actors
+//   * shadows  : soft penumbra from the wall grid, traced once per light on the CPU against a baked signed-distance field and stored in a small atlas (LightShadowAtlas.cs). Surfaces only; actors
 //                are never darkened by it, so darkness cannot hide a visible character.
 //   * cookies  : procedural light patterns (grated lantern, leaf dapple, stained glass).
 //   * gloss    : a broad specular on polished or wet surfaces (ice, water, temple floor, wet flags).
@@ -17,36 +17,14 @@ float4 _RhLP[RH_MAX_LIGHTS];   // xy tile position, z height (tiles), w radius (
 float4 _RhLC[RH_MAX_LIGHTS];   // rgb colour x intensity (already faded and flickered), a = cookie id + 0.5 when the light casts shadows
 float4 _RhLI;                  // x light count, y relief amount (0 off), z shadow amount (0 off), w cookie amount (0 off)
 float4 _RhLG;                  // x gloss amount (0 off)
-TEXTURE2D(_RhWallSdf); SAMPLER(sampler_RhWallSdf);
 
-// Signed distance (tiles, negative inside a wall) from the baked texture; encoded as 0.5 + d / 8.
-float RhWallDist(float2 t)
-{
-    return (SAMPLE_TEXTURE2D_LOD(_RhWallSdf, sampler_RhWallSdf, t / _RhMapInfo.xy, 0).r - 0.5) * 8.0;
-}
+// Baked wall shadows of the nearest shadowing lights: LightShadowAtlas.cs traces them once on the CPU (the lights and the walls never move) into
+// five squares side by side; each covers the light's radius. The shader only samples it.
+TEXTURE2D(_RhShadowAtlas); SAMPLER(sampler_RhShadowAtlas);
 
-// Soft shadow of the wall grid between a surface point p and a light l (tile space): 1 lit, 0 in full shade.
-float RhShadowVis(float2 p, float2 l, float k)
-{
-    float2 dir = l - p; float len = length(dir);
-    if (len < 0.9) return 1.0;
-    if (RhWallDist(p) < 0.0) return 1.0;          // a wall top is the lit roof of its own block
-    dir /= len;
-    float tEnd = len - 0.7, t = 0.3, res = 1.0;
-    [loop] for (int s = 0; s < 10; s++)
-    {
-        if (t >= tEnd) break;
-        float d = RhWallDist(p + dir * t);
-        res = min(res, k * d / t);
-        if (res < 0.03) break;
-        t += clamp(d, 0.24, 1.4);
-    }
-    return smoothstep(0.0, 1.0, saturate(res));
-}
-
-// Headroom of an already lit pixel: 1 while its brightest channel is below about 0.55, falling to 0 at 1.05. Local lights add through this, so a light
+// Headroom of an already lit pixel: 1 while its brightest channel is below about 0.59, falling to 0 at 0.92. Local lights add through this, so a light
 // never blows out a surface that is already bright (sunlit sand, snow, the temple floor): they shape and warm it, and add fully where it is dark.
-float RhHeadroom(float3 litRgb) { return saturate((1.05 - max(litRgb.r, max(litRgb.g, litRgb.b))) * 2.0); }
+float RhHeadroom(float3 litRgb) { return saturate((0.92 - max(litRgb.r, max(litRgb.g, litRgb.b))) * 3.0); }
 
 // True when any light's radius reaches this point: lets the caller skip normals and everything else far from light.
 bool RhAnyLight(float2 pt)
@@ -93,8 +71,12 @@ void RhLocalLights(float2 pt, float3 n, float gloss, float shin, float shadowAmt
         float diff = clamp(1.0 + (dot(n, ln) - ln.z) * relief, 0.3, 1.7);
         float cid = floor(lc.a);
         float vis = 1.0, cm = 1.0; float3 tint = 1.0;
-        [branch] if (_RhLI.z > 0.5 && shadowAmt > 0.01 && lc.a - cid > 0.25)
-            vis = lerp(1.0, RhShadowVis(pt, lp.xy, 5.0), shadowAmt);
+        float sl = round((lc.a - cid) / 0.05) - 1.0;          // baked shadow slot of this light, -1 = none
+        [branch] if (_RhLI.z > 0.5 && shadowAmt > 0.01 && sl > -0.5)
+        {
+            float2 q = clamp((pt - lp.xy) / (lp.w / _RhMapInfo.z) * 0.5 + 0.5, 0.0052, 0.9948);
+            vis = lerp(1.0, SAMPLE_TEXTURE2D_LOD(_RhShadowAtlas, sampler_RhShadowAtlas, float2((sl + q.x) * 0.2, q.y), 0).r, shadowAmt);
+        }
         [branch] if (cid > 0.5 && _RhLI.w > 0.5 && cookieAmt > 0.01)
         {
             float2 q = pt - lp.xy;

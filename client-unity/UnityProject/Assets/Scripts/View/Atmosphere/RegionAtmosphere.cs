@@ -21,7 +21,7 @@ namespace Roguehalla.Client
         readonly RegionField _field = new RegionField(); TempleLayout _temple;
         RegionShadowMap _shadows; readonly AccentLights _lights = new AccentLights(); readonly LifeLights _life = new LifeLights(); readonly AtmosphereParticles _particles = new AtmosphereParticles();
         AtmosphereAudio _audio;
-        WallSdf _sdf; bool _wasAnalytic;
+        WallSdf _sdf; LightShadowAtlas _shadowAtlas; bool _wasAnalytic;
         /// <summary>How windy each region is (wire ids 1..6: fire, sentenced, plague, frost, holy, coliseum).</summary>
         static readonly float[] Windiness = { .30f, .30f, .55f, .85f, .75f, .50f };
         /// <summary>Cloud shadow amount per wire id 0..7 (sunny zones only: frost, holy, plague clearings, coliseum).</summary>
@@ -116,6 +116,8 @@ namespace Roguehalla.Client
             if (_sdf != null) _sdf.Dispose();
             _sdf = map.Tiles != null ? new WallSdf(map.Tiles, map.W, map.H) : null;
             Shader.SetGlobalTexture("_RhWallSdf", _sdf != null ? (Texture)_sdf.Texture : Texture2D.whiteTexture);
+            if (_shadowAtlas == null) _shadowAtlas = new LightShadowAtlas();
+            _shadowAtlas.SetWalls(_sdf); _lights.ShadowAtlas = _sdf != null ? _shadowAtlas : null;
         }
 
         void OnRegionChanged(RegionId previous, RegionId current)
@@ -165,6 +167,7 @@ namespace Roguehalla.Client
             bool analytic = AtmosphereQuality.AnalyticLights;
             if (analytic) { LocalLightField.Begin(AtmosphereQuality.EffectiveLocalLights); if (AtmosphereQuality.FxLights) LocalLightField.AddFlashes(dt); }
             _lights.Tick(tx, ty, halfW, halfH, dt, _time);
+            if (_shadowAtlas != null) _shadowAtlas.Tick();
             _life.Tick(dt, _time, tx, ty, halfW, halfH, _w[2], _w[0], _lights.Planner);
             if (analytic) { LocalLightField.Push(AtmosphereQuality.Relief, AtmosphereQuality.LocalShadows && _sdf != null, AtmosphereQuality.Cookies, AtmosphereQuality.Gloss, AtmosphereQuality.ActorLights); _wasAnalytic = true; }
             else if (_wasAnalytic) { LocalLightField.Clear(); _wasAnalytic = false; }
@@ -225,7 +228,7 @@ namespace Roguehalla.Client
         {
             if (_arena != null) _arena.LocalRegionChanged -= OnRegionChanged;
             AtmosphereQuality.Changed -= OnQualityChanged;
-            LocalLightField.Clear(); if (_sdf != null) _sdf.Dispose();
+            LocalLightField.Clear(); if (_sdf != null) _sdf.Dispose(); if (_shadowAtlas != null) _shadowAtlas.Dispose();
             _particles.Dispose(); _lights.Dispose(); _life.Dispose(); if (_audio != null) _audio.Dispose(); if (_shadows != null) _shadows.Dispose();
             if (AtmosphereShadows.Field == _field) AtmosphereShadows.Field = null;
             if (_profile != null && _volume != null && _volume.sharedProfile != _profile) { }

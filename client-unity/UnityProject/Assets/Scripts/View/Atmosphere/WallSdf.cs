@@ -11,13 +11,15 @@ namespace Roguehalla.Client
         public const int TexelsPerTile = 4;
         public const float Range = 4f;
         public Texture2D Texture { get; private set; }
+        /// <summary>The baked bytes (kept for the CPU-side light shadow bake).</summary>
+        public byte[] Pixels { get; private set; }
         public int Width { get; private set; }
         public int Height { get; private set; }
 
         public WallSdf(byte[] tiles, int w, int h)
         {
             Width = w * TexelsPerTile; Height = h * TexelsPerTile;
-            var px = Bake(tiles, w, h);
+            var px = Bake(tiles, w, h); Pixels = px;
             Texture = new Texture2D(Width, Height, TextureFormat.R8, false, true) { name = "Wall SDF", wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
             Texture.SetPixelData(px, 0); Texture.Apply(false, false);
         }
@@ -45,6 +47,34 @@ namespace Roguehalla.Client
             var px = new byte[tw * th];
             for (int i = 0; i < px.Length; i++) px[i] = (byte)Mathf.RoundToInt(Mathf.Clamp01(.5f + blurred[i] / (2f * Range)) * 255f);
             return px;
+        }
+
+        /// <summary>Signed distance in tiles at a tile position (bilinear, clamped), what the shader reads.</summary>
+        public float DistanceAt(float tx, float ty)
+        {
+            float fx = Mathf.Clamp(tx * TexelsPerTile - .5f, 0f, Width - 1.001f), fy = Mathf.Clamp(ty * TexelsPerTile - .5f, 0f, Height - 1.001f);
+            int x0 = (int)fx, y0 = (int)fy; float ax = fx - x0, ay = fy - y0;
+            float a = Pixels[y0 * Width + x0], b = Pixels[y0 * Width + x0 + 1], c = Pixels[(y0 + 1) * Width + x0], d = Pixels[(y0 + 1) * Width + x0 + 1];
+            float v = Mathf.Lerp(Mathf.Lerp(a, b, ax), Mathf.Lerp(c, d, ax), ay);
+            return (v / 255f - .5f) * 2f * Range;
+        }
+
+        /// <summary>Soft visibility (1 lit .. 0 shaded) of a point from a light, by sphere tracing the distance field: the same maths the shader used to run per pixel.</summary>
+        public float Visibility(float px, float py, float lx, float ly, float k = 5f, int steps = 28)
+        {
+            float dx = lx - px, dy = ly - py, len = Mathf.Sqrt(dx * dx + dy * dy);
+            if (len < .9f) return 1f;
+            if (DistanceAt(px, py) < 0f) return 1f;
+            dx /= len; dy /= len;
+            float tEnd = len - .7f, t = .3f, res = 1f;
+            for (int s = 0; s < steps && t < tEnd; s++)
+            {
+                float d = DistanceAt(px + dx * t, py + dy * t);
+                res = Mathf.Min(res, k * d / t);
+                if (res < .03f) break;
+                t += Mathf.Clamp(d, .18f, 1.2f);
+            }
+            float x = Mathf.Clamp01(res); return x * x * (3f - 2f * x);
         }
 
         /// <summary>Decode a baked byte to a distance in tiles (what the shader does).</summary>

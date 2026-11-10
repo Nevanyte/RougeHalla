@@ -32,11 +32,11 @@ namespace Roguehalla.Client
         public static void Begin(int limit) { _count = 0; _limit = Mathf.Clamp(limit, 0, Max); }
 
         /// <summary>Add one light. Returns false when the cap is reached (callers add the most important lights first).</summary>
-        public static bool Add(float tx, float ty, float height, float radius, float r, float g, float b, int cookie = CookieNone, bool shadow = false)
+        public static bool Add(float tx, float ty, float height, float radius, float r, float g, float b, int cookie = CookieNone, int shadowSlot = -1)
         {
             if (_count >= _limit || radius <= .01f) return false;
             P[_count] = new Vector4(tx, ty, height, radius);
-            C[_count] = new Vector4(r, g, b, cookie + (shadow ? .5f : 0f));
+            C[_count] = new Vector4(r, g, b, cookie + (shadowSlot >= 0 ? .05f * (shadowSlot + 1) : 0f));      // fraction = baked shadow slot + 1, in twentieths (RhLocalLights.hlsl)
             _count++; return true;
         }
 
