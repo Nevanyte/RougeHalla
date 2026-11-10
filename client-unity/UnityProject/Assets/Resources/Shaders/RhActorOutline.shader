@@ -164,9 +164,9 @@ Shader "Roguehalla/ActorOutline"
             float3 lite = float3(_RhOutlineTune.x, _RhOutlineTune.x, _RhOutlineTune.x * 1.03);
             float3 rgb = lerp(dark, lite, light);
             float a = cov;
-            // Local calming halo (lever 2 of the contrast brief): only where the stroke is light, i.e. on dark and mid ground, a soft darkening of the ground around the figure
+            // Local calming halo (lever 2 of the contrast brief): only where the figure's stroke is light, i.e. on dark and mid ground (decided once per figure, so bright veins inside the halo are dimmed too), a soft darkening of the ground around the figure
             // takes the edge off bright veins and glints that would sit next to a light stroke. Darkening only; never where the stroke is dark, so pale ground is never dimmed.
-            if (light > 0.5 && _Halo.z > 0.001 && cov < 0.999)
+            if (i.figure > 0.5 && _Halo.z > 0.001 && cov < 0.999)
             {
                 float h = 0.0;
                 [unroll] for (int q = 0; q < 8; q++)
@@ -178,6 +178,7 @@ Shader "Roguehalla/ActorOutline"
                 float ha = h * _Halo.z;
                 a = max(cov, ha);
                 rgb = lerp(float3(0, 0, 0), rgb, saturate(cov / max(a, 1e-4)));
+                if (cov < 0.5) rgb = float3(0, 0, 0);
             }
             return half4(rgb, a * i.color.a);
         }
