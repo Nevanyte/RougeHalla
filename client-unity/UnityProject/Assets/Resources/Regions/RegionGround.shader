@@ -261,6 +261,10 @@ Shader "Roguehalla/RegionGround"
                                 float bub = step(0.93, H21(bc)) * smoothstep(0.17, 0.10, length(bf + (H22(bc) - 0.5) * 0.3)) * (0.5 + 0.5 * sin(time * 2.0 + H21(bc + 3.0) * 6.28));
                                 te = glow * bub * 0.9;
                                 tc += bub * glow * 0.4;
+                                // Sickly pulse: the whole bog breathes a slow green glow (feeds bloom), brighter toward the middle.
+                                float breathe = 0.5 + 0.5 * sin(time * 1.15 + t.x * 0.45 + t.y * 0.38);
+                                te += glow * saturate(inner + 0.15) * (0.16 + 0.22 * breathe);
+                                tc += glow * 0.10 * saturate(inner + 0.2);
                             }
                             else if (kd == 4)       // embers: charred ground with pulsing glowing cracks
                             {

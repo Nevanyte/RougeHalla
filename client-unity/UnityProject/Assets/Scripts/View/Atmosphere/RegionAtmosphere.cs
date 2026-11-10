@@ -80,6 +80,7 @@ namespace Roguehalla.Client
 
         void OnQualityChanged()
         {
+            if (this == null || _arena == null) { AtmosphereQuality.Changed -= OnQualityChanged; return; }
             PushSwitches(); _particles.RefreshQuality(); _lights.MarkDirty(); _rectKey = int.MinValue;
             if (_volume != null) _volume.enabled = AtmosphereQuality.PostProcessing;
             var row = RegionAtmosphereTable.Get(_arena.LocalRegion); _audio.SetRegion(row);

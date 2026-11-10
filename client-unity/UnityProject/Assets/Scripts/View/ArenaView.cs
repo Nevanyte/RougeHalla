@@ -57,7 +57,7 @@ namespace Roguehalla.Client
         Color _fogColor = new Color(.22f, .32f, .48f, .075f);
         /// <summary>Region atmosphere driver (light, grading, haze, particles, accent lights, shadows, audio).</summary>
         public RegionAtmosphere Atmosphere { get { return _atmos; } }
-        void ApplyHaze(Color c) { _fogColor = c; for (int i = 0; i < _fog.Count; i++) _fog[i].color = c; }
+        void ApplyHaze(Color c) { _fogColor = c; for (int i = 0; i < _fog.Count; i++) if (_fog[i] != null) _fog[i].color = c; }
         int _used;
         Vector3 _lastFollow;
         float _smoothX, _smoothY;
@@ -103,7 +103,7 @@ namespace Roguehalla.Client
         {
             if (HasMap) return;
             Regions.Load(map);
-            _atmos.OnMapBuilt(map);
+            if (_atmos != null) _atmos.OnMapBuilt(map);
             if (map.Regions != null && map.Regions.Length == map.W * map.H) { BuildRegionMap(map); return; }
             float w = map.W, h = map.H * GroundSquash;
             for (int y = 0; y < map.H; y += 4) for (int x = 0; x < map.W; x += 4)
@@ -460,12 +460,12 @@ namespace Roguehalla.Client
             cam.transform.rotation = Quaternion.identity;
             _lastFollow = p; _hasFollow = true;
             UpdateLampVisibility(p);
-            _atmos.OnFollow(cam, Time.unscaledDeltaTime);
+            if (_atmos != null) _atmos.OnFollow(cam, Time.unscaledDeltaTime);
             int budget = ShowcaseSettings.Current == null || ShowcaseSettings.Current.EffectiveQuality == ShowcaseQuality.High ? 6 : ShowcaseSettings.Current.EffectiveQuality == ShowcaseQuality.Medium ? 3 : 0;
             bool motion = ShowcaseSettings.Current == null || !ShowcaseSettings.Current.ReducedMotion;
             for(int i=0;i<_motes.Count;i++)
             {
-                var m = _motes[i]; m.enabled = budget > 0 && !_atmos.OwnsMotes;
+                var m = _motes[i]; m.enabled = budget > 0 && !(_atmos != null && _atmos.OwnsMotes);
                 float t = motion ? Time.unscaledTime * .03f : 0;
                 m.transform.position = p + new Vector3(Mathf.Repeat(i*7.31f+t,32)-16, Mathf.Repeat(i*3.71f+t*.7f,18)-9,0);
             }

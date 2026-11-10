@@ -147,7 +147,12 @@ namespace Roguehalla.Client
             if (_ovShimmer.HasValue) HeatShimmer = _ovShimmer.Value;
         }
 
-        static void Raise() { var h = Changed; if (h != null) h(); }
+        static void Raise()
+        {
+            var h = Changed; if (h == null) return;
+            // A listener owned by a destroyed object must never break the others (edit-mode tests recreate arenas without OnDestroy).
+            foreach (var d in h.GetInvocationList()) { try { ((Action)d)(); } catch (Exception e) { Changed -= (Action)d; Debug.LogWarning("Atmosphere listener removed: " + e.Message); } }
+        }
 
         /// <summary>Call once at start-up (ArenaView does): reads the page URL, then the current preset.</summary>
         public static void Initialize()
