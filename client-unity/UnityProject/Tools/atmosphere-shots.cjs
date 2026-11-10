@@ -75,7 +75,16 @@ async function session(faction, label, body) {
   await page.waitForSelector('canvas', { timeout: 60000 });
   await page.waitForTimeout(Number(process.env.RH_SHOTS_BOOT_MS || 14000));
   await page.keyboard.press(opt('spawn', '1')); await page.waitForTimeout(600);
-  await page.mouse.click(W * 0.8, H * 0.66, { delay: 80 });
+  // The Ready button is the top of the planning decision column (MapScreenLayout.Planning); same maths as hud-shots.cjs.
+  {
+    const stageW = W / H <= 21 / 9 ? W : Math.floor(H * 21 / 9);
+    const s = Math.min(1.5, Math.max(0.8, Math.min(stageW / 1280, H / 800)));
+    const uiW = W / s, uiH = H / s;
+    const pSide = Math.min(780, Math.max(260, Math.floor(Math.min(uiH - 44 - 12 - 124, uiW - 340 - 24 - 12 - 8))));
+    const pFrame = pSide + 8, pTotal = pFrame + 12 + 340, pColH = 40 + 12 + pFrame + 12 + 52;
+    const pBx = Math.floor((uiW - pTotal) / 2), pBy = Math.max(44, Math.floor((uiH - pColH) / 2 + 11));
+    await page.mouse.click((pBx + pFrame + 12 + 12 + 158) * s, (pBy + 12 + 23) * s, { delay: 80 });
+  }
   matchStart = Date.now();
   await page.waitForTimeout(Number(process.env.RH_SHOTS_MATCH_MS || 12000));
   const shot = async name => {
