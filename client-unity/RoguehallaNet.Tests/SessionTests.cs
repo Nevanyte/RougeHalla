@@ -489,5 +489,50 @@ namespace Roguehalla.Net.Tests
             _s.Leave();
             Assert.AreEqual(before + 1, _t.Sent.Count);
         }
+
+        // ---- a source-clock cut forgets RemoteDraw's timestamp-keyed state ----
+
+        static ServerMsg.Snapshot CutSnap(uint tick, double ms, float x, float y)
+        {
+            var snap = FullSnap(tick, 0, new WireActor { Id = 7, X = x, Y = y, HpPct = 100, Status = 1, Kind = (byte)ActorKind.Player });
+            snap.ServerTimeOverrideMs = ms;
+            return snap;
+        }
+
+        void WalkRightThenSample(List<InterpActor> o)
+        {
+            ToMatch();
+            _s.RemoteDraw.Enabled = true;
+            for (uint k = 0; k < 4; k++) _t.Deliver(CutSnap(10 + k, 1000 + 50 * k, 100 + 8.5f * k, 50));
+            Assert.IsTrue(_s.RemoteDraw.Sample(1150, o));
+            Assert.AreEqual(100 + 8.5f * 4, o[0].X, 0.01, "extrapolating right");
+        }
+
+        [Test]
+        public void BackwardsSourceCutThenReusedTimestampsDoesNotUseTheStaleWalk()
+        {
+            var o = new List<InterpActor>();
+            WalkRightThenSample(o);
+            uint epoch = _s.TimelineEpoch;
+            _t.Deliver(CutSnap(20, 1050, 200, 50));
+            Assert.Greater(_s.TimelineEpoch, epoch);
+            _t.Deliver(CutSnap(21, 1100, 200, 58.5f));
+            _t.Deliver(CutSnap(22, 1150, 200, 67));
+            Assert.IsTrue(_s.RemoteDraw.Sample(1150, o));
+            Assert.AreEqual(200, o[0].X, 0.01, "now walking down: no leftover sideways velocity");
+            Assert.AreEqual(67 + 8.5f, o[0].Y, 0.01);
+        }
+
+        [Test]
+        public void EqualTimeSourceCutResetsTheDrawnFigure()
+        {
+            var o = new List<InterpActor>();
+            WalkRightThenSample(o);
+            uint epoch = _s.TimelineEpoch;
+            _t.Deliver(CutSnap(20, 1150, 150, 50));
+            Assert.Greater(_s.TimelineEpoch, epoch);
+            Assert.IsTrue(_s.RemoteDraw.Sample(1150, o));
+            Assert.AreEqual(150, o[0].X, 0.01, "the cut snaps the figure to the new source, it is not blended from the old one");
+        }
     }
 }

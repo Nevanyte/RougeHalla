@@ -13,8 +13,8 @@ namespace Roguehalla.Net
     /// along the last segment's velocity for at most <see cref="LeadMs"/> and <see cref="MaxLeadDistance"/> units, and only for a
     /// live actor that is walking steadily: no lead when it stopped, turned sharply, took damage, carries any effect (stun, root,
     /// cast, ...), was displaced or has fewer than 3 samples. The drawn figure follows that target through a speed-capped follower
-    /// (<see cref="MovingCorrectSpeed"/>/<see cref="RestCorrectSpeed"/>), so a wrong guess is blended back at a bounded speed and
-    /// never snaps by more than a few units in a frame; only an error past <see cref="SnapDistance"/> (or a cut) snaps.
+    /// (<see cref="MovingCorrectSpeed"/>/<see cref="RestCorrectSpeed"/>), so a wrong guess is blended back at a bounded speed; the
+    /// figure never trails its target by more than <see cref="MaxFollowLag"/>, and only an error past <see cref="SnapDistance"/> (or a cut) snaps.
     /// Steady-state sampling makes no garbage. <see cref="Enabled"/> = false is exactly <c>SnapshotBuffer.Sample(renderMs, ...)</c>.
     /// </summary>
     public sealed class RemoteDraw
@@ -31,7 +31,32 @@ namespace Roguehalla.Net
         public const float SnapDistance = 32f;
         /// <summary>Follower speed caps (u/s): a walking figure may close an error at 1.5x walk speed, a resting one slides slowly.</summary>
         public const float MovingCorrectSpeed = 255f, RestCorrectSpeed = 80f;
+        /// <summary>
+        /// The most a drawn figure trails its target after any frame (u): a larger residual is pulled in to this distance (a partial
+        /// jump, smaller than the snap). Two lead distances, above the largest lead-induced target jump at walk speed (8.5 + 8.5 u for a
+        /// reversal against an extrapolated pose), so a steady trace never meets it.
+        /// </summary>
+        public const float MaxFollowLag = 2 * MaxLeadDistance;
+        /// <summary>
+        /// Worst time between the pose a target is drawn at and the pose the server judges for <see cref="AttackTime"/> (ms): one lead.
+        /// The stamp and every drawn target time lie in [newest, newest + LeadMs] past the newest snapshot (or are equal inside it), and
+        /// the server's apply step is at least one tick past the newest snapshot, so neither its future clamp nor its one-tick lag floor
+        /// moves the judged time out of that range.
+        /// </summary>
+        public const double AimTimeErrorBoundMs = LeadMs;
         const double MaxFrameMs = 250;
+
+        /// <summary>
+        /// Worst distance (u) between a target pose (before the follower) and the pose the server judges for <see cref="AttackTime"/>, for
+        /// remote players moving at most <paramref name="speed"/> u/s: an extrapolation of at most min(<see cref="MaxLeadDistance"/>,
+        /// speed x lead) plus the true motion over one lead in any direction (17 u at walk speed 170 u/s). Zero for a target inside the
+        /// buffer and for a steady straight walker; at most speed x lead for a held one. Add <see cref="MaxFollowLag"/> for the drawn figure.
+        /// </summary>
+        public static float AimTargetErrorBound(float speed)
+        {
+            float lead = speed * (float)(LeadMs / 1000.0);
+            return Math.Min(MaxLeadDistance, lead) + lead;
+        }
 
         /// <summary>The single switch. False draws exactly what <see cref="SnapshotBuffer.Sample"/> returns and leaves attack times alone.</summary>
         public bool Enabled;
@@ -60,17 +85,37 @@ namespace Roguehalla.Net
         public void Reset() { _state.Clear(); _walk.Clear(); _walkFor = double.NaN; _lastRender = double.NaN; }
 
         /// <summary>
-        /// The render time attacks report: the same lead the player sees (so the server rewinds to the pose they aimed at), never newer than
-        /// the newest snapshot the client holds, hence always inside the server window (which ends at the apply time, newer than any snapshot).
-        /// Identity when disabled.
+        /// The render time attacks report (the aiming policy): the time remote players are drawn at. Inside the buffer that is
+        /// render + <see cref="LeadMs"/> (exact interpolation). Past the newest snapshot, when this buffer extrapolates, it is the
+        /// extrapolated time, newest + at most one lead: the server rewinds a steady walker to its real pose at that time, which is
+        /// where it was drawn. When the buffer cannot extrapolate (fewer than 3 samples) it is the newest snapshot, the held pose.
+        /// Never later than newest + one lead, so never past the server's apply time (at least one tick past any published snapshot).
+        /// A held target (stopped, turned, hit, under an effect) is drawn at the newest pose while this stamps up to one lead later;
+        /// <see cref="AimTimeErrorBoundMs"/> and <see cref="AimTargetErrorBound"/> bound that. Identity when disabled.
         /// </summary>
         public double AttackTime(double renderMs)
         {
             if (!Enabled) return renderMs;
             double newest = _snaps.NewestMs;
             if (double.IsNaN(newest)) return renderMs;
+            double rd = renderMs + LeadMs;
+            if (rd <= newest) return rd;
+            return CanExtrapolate(newest) ? Math.Min(rd, newest + LeadMs) : newest;
+        }
+
+        /// <summary>
+        /// The timeline remote windups and projectile tracks are placed on: render + lead, never past the newest snapshot (they are not
+        /// extrapolated, so a flight is never drawn past a State that may have ended it). Identity when disabled.
+        /// </summary>
+        public double TimelineTime(double renderMs)
+        {
+            if (!Enabled) return renderMs;
+            double newest = _snaps.NewestMs;
+            if (double.IsNaN(newest)) return renderMs;
             return Math.Max(renderMs, Math.Min(renderMs + LeadMs, newest));
         }
+
+        bool CanExtrapolate(double newest) { return _snaps.Count >= 3 && _snaps.OldestMs <= newest - 2 * Wire.TickMs; }
 
         /// <summary>Fills <paramref name="outActors"/> with the actors to draw at render time <paramref name="renderMs"/>. False when empty.</summary>
         public bool Sample(double renderMs, List<InterpActor> outActors)
@@ -88,7 +133,7 @@ namespace Roguehalla.Net
             _frame++;
             double newest = _snaps.NewestMs;
             double ahead = Math.Min(rd - newest, LeadMs);
-            bool extrapolate = ahead > 0 && _snaps.Count >= 3 && _snaps.OldestMs <= newest - 2 * Wire.TickMs;
+            bool extrapolate = ahead > 0 && CanExtrapolate(newest);
             if (extrapolate) RefreshWalk(newest);
             float dtS = (float)(Math.Max(0, Math.Min(dt, MaxFrameMs)) / 1000.0);
             int w = 0;
@@ -118,7 +163,12 @@ namespace Roguehalla.Net
                     {
                         float cap = (moving || Math.Abs(tx - s.TX) + Math.Abs(ty - s.TY) > 0.01f ? MovingCorrectSpeed : RestCorrectSpeed) * dtS;
                         if (dist <= cap) { s.X = tx; s.Y = ty; }
-                        else { s.X += ex / dist * cap; s.Y += ey / dist * cap; }
+                        else
+                        {
+                            // Never trail the target by more than MaxFollowLag (a partial jump; the full snap is past SnapDistance).
+                            float step = Math.Max(cap, dist - MaxFollowLag);
+                            s.X += ex / dist * step; s.Y += ey / dist * step;
+                        }
                     }
                     s.Displace = a.DisplaceSeq; s.Status = a.Status;
                 }

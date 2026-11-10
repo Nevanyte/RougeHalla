@@ -37,8 +37,9 @@ namespace Roguehalla.Client
         readonly List<PendingFx> _scheduledFx = new List<PendingFx>(MaxScheduledFx);
         double _renderMs;
         bool _renderReady;
-        // The drawn timeline (Session.AttackRenderMs: render time plus the remote draw-ahead lead, never past the newest
-        // snapshot). Remote windups and projectile flights are placed on it so they meet the drawn remote players.
+        // The drawn timeline (Session.DrawTimelineMs: render time plus the remote draw-ahead lead, never past the newest
+        // snapshot). Remote windups and projectile flights are placed on it so they meet the drawn remote players. Attacks stamp
+        // Session.AttackRenderMs instead, which may run up to one lead past the newest snapshot where players are extrapolated.
         double _drawMs, _drawTick;
         bool _drawReady;
         // Remote ranged windups (protocol 15): the draw/cast clip is started once per windup when the drawn timeline
@@ -47,10 +48,12 @@ namespace Roguehalla.Client
         readonly Dictionary<uint, WindupShown> _windups = new Dictionary<uint, WindupShown>(64);
         readonly List<uint> _windupDrop = new List<uint>(16);
         // Projectile flights keyed by the server's track alias, drawn every frame on the drawn timeline from their anchor
-        // (NetProjectileView.At). A track the server ended is kept only until the drawn timeline reaches the State that
-        // ended it (bounded like scheduled Fx), so it never outlives the server's end-of-track. A retarget anchored ahead of
+        // (NetProjectileView.At). A track the server ended is kept only until the drawn timeline reaches the last State that
+        // still showed it live (LiveTick; bounded like scheduled Fx). The wire carries no end point, and the flight stopped
+        // somewhere between that State and the one that dropped it, so drawing on toward the ending State could carry it up to
+        // a tick past the wall or body it hit; stopping at LiveTick never overshoots. A retarget anchored ahead of
         // the drawn timeline keeps the previous line (Prev) until the drawn tick reaches the new anchor.
-        struct ShotTrack { public NetProjectileView View, Prev; public float OffX, OffY, LastX, LastY, EndedAt; public bool Drawn, Ended, HasPrev; public uint EndTick; }
+        struct ShotTrack { public NetProjectileView View, Prev; public float OffX, OffY, LastX, LastY, EndedAt; public bool Drawn, Ended, HasPrev; public uint EndTick, LiveTick; }
         const int MaxShots = 96;
         const float ShotBlendSeconds = .08f, MaxShotHoldSeconds = .25f;
         ShotTrack[] _shots = new ShotTrack[MaxShots], _shotsNext = new ShotTrack[MaxShots];
@@ -189,7 +192,7 @@ namespace Roguehalla.Client
             _renderMs = _renderReady ? session.Clock.RenderMs : 0;
             var latest = session != null ? session.Latest : null;
             _drawReady = _renderReady && latest != null;
-            _drawMs = _drawReady ? session.AttackRenderMs : 0;
+            _drawMs = _drawReady ? session.DrawTimelineMs : 0;
             // Sim tick on the drawn timeline, anchored on the newest snapshot so a source-time override is respected.
             _drawTick = _drawReady ? latest.Tick + (_drawMs - latest.ServerMs) / Wire.TickMs : 0;
             _latestMembership.Clear();
@@ -346,7 +349,7 @@ namespace Roguehalla.Client
                 for (int i = 0; i < rows.Count && n < MaxShots; i++)
                 {
                     var v = rows[i];
-                    var s = new ShotTrack { View = v };
+                    var s = new ShotTrack { View = v, LiveTick = endTick };
                     int old = FindLiveShot(v.Track);
                     if (old >= 0)
                     {
@@ -388,8 +391,9 @@ namespace Roguehalla.Client
             for (int i = 0; i < _shotCount; i++)
             {
                 var s = _shots[i];
-                // An ended flight lasts until the drawn timeline reaches the State that ended it, within the Fx bounds.
-                if (s.Ended && (!_drawReady || _drawTick >= s.EndTick || s.EndTick - _drawTick > MaxLeadTicks || now - s.EndedAt > MaxShotHoldSeconds))
+                // An ended flight lasts until the drawn timeline reaches the last State that showed it live (at most EndTick - 1),
+                // within the Fx bounds (lead and the 0.25 s hold cap).
+                if (s.Ended && (!_drawReady || _drawTick >= s.LiveTick || _drawTick + 1 >= s.EndTick || s.EndTick - _drawTick > MaxLeadTicks || now - s.EndedAt > MaxShotHoldSeconds))
                     continue;
                 s.OffX *= decay; s.OffY *= decay;
                 if (s.HasPrev && (!_drawReady || _drawTick >= s.View.Tick || s.View.Tick - _drawTick > MaxLeadTicks))

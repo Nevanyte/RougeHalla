@@ -4,9 +4,9 @@
 //! held to the same quantization, not just to the same bytes.
 
 use crate::delta::{
-    AD_ALL, AD_BOUNTY, AD_HP, AD_KIND, AD_KIT, AD_NEW, AD_STATUS, AD_STEP, AD_X, AD_Y, DH_DEPARTED,
-    DH_GV, DH_HP, DH_KILLS, DH_MOVE_SEQ, DH_OWNER_COMBAT, DH_PHASE, DH_PRESENT, DH_STATUS, DH_X,
-    DH_Y,
+    AD_ALL, AD_BOUNTY, AD_FACING, AD_HP, AD_KIND, AD_KIT, AD_NEW, AD_STATUS, AD_STEP, AD_X, AD_Y,
+    DH_DEPARTED, DH_GV, DH_HP, DH_KILLS, DH_MOVE_SEQ, DH_OWNER_COMBAT, DH_PHASE, DH_PRESENT,
+    DH_STATUS, DH_X, DH_Y,
 };
 use crate::map::MapBlob;
 use crate::state::{
@@ -232,6 +232,39 @@ pub fn client_samples() -> Vec<(&'static str, ClientMsg)> {
                 ],
             },
         ),
+        // The other half of the seq matrix: MoveAt without and AttackMoveAt with a seq, and the extreme finite stamps.
+        (
+            "input_stamped_moves_seq_matrix",
+            ClientMsg::Input {
+                seq: 44,
+                commands: vec![
+                    WireCommand::MoveAt {
+                        x: 0.0,
+                        y: 2047.75,
+                        seq: None,
+                        t: -0.0,
+                    },
+                    WireCommand::AttackMoveAt {
+                        x: 640.5,
+                        y: 320.25,
+                        seq: Some(255),
+                        t: 1.0e12,
+                    },
+                    WireCommand::MoveAt {
+                        x: 1.0,
+                        y: 2.0,
+                        seq: Some(0),
+                        t: f64::MIN_POSITIVE,
+                    },
+                    WireCommand::AttackMoveAt {
+                        x: 3.0,
+                        y: 4.0,
+                        seq: None,
+                        t: -1234.5,
+                    },
+                ],
+            },
+        ),
         (
             "ping",
             ClientMsg::Ping {
@@ -291,6 +324,30 @@ pub fn client_samples() -> Vec<(&'static str, ClientMsg)> {
         ("leave", ClientMsg::Leave),
         ("resync", ClientMsg::Resync),
     ]
+}
+
+/// A State key 7 row (protocol 15) for the vectors.
+#[allow(clippy::too_many_arguments)]
+fn track_row(
+    track: u32,
+    kind: u8,
+    x: u16,
+    y: u16,
+    facing: u16,
+    speed: u16,
+    tick: u32,
+    owner: Option<u32>,
+) -> WireProjectile {
+    WireProjectile {
+        track,
+        kind,
+        x,
+        y,
+        facing,
+        speed,
+        tick,
+        owner,
+    }
 }
 
 fn cast_matrix(slots: &[u8]) -> ClientMsg {
@@ -874,6 +931,104 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
             ServerMsg::State {
                 tick: 0,
                 items: vec![StateItem::Quests(Some(quest_view_at_max_bytes()))],
+            },
+        ),
+        // Protocol 15 projectile tracks (State key 7, a complete replacement per frame; a frame without the key keeps the
+        // last list). One flight's life as the viewer sees it: a sighting, a re-anchor of the same track (a homing turn),
+        // an end (the row is gone), a loss of sight (no rows) and a later sighting that gets a NEW alias, never track 1 again.
+        (
+            "state_projectiles_sighting",
+            ServerMsg::State {
+                tick: 300,
+                items: vec![StateItem::Projectiles(vec![
+                    track_row(1, 0, 800, 900, 12345, 3040, 299, Some(2)),
+                    track_row(2, 1, 4000, 160, 0xfedc, 1920, 300, None),
+                ])],
+            },
+        ),
+        (
+            "state_projectiles_reanchor",
+            ServerMsg::State {
+                tick: 304,
+                items: vec![StateItem::Projectiles(vec![
+                    track_row(1, 0, 1230, 1011, 12999, 3040, 304, Some(2)),
+                    track_row(2, 1, 4000, 160, 0xfedc, 1920, 300, None),
+                ])],
+            },
+        ),
+        (
+            "state_projectiles_end",
+            ServerMsg::State {
+                tick: 309,
+                items: vec![StateItem::Projectiles(vec![track_row(
+                    2, 1, 4000, 160, 0xfedc, 1920, 300, None,
+                )])],
+            },
+        ),
+        (
+            "state_projectiles_loss",
+            ServerMsg::State {
+                tick: 315,
+                items: vec![StateItem::Projectiles(vec![])],
+            },
+        ),
+        (
+            "state_projectiles_resighting",
+            ServerMsg::State {
+                tick: 330,
+                items: vec![StateItem::Projectiles(vec![track_row(
+                    3,
+                    0,
+                    u16::MAX,
+                    u16::MAX,
+                    u16::MAX,
+                    u16::MAX,
+                    330,
+                    Some(u32::MAX),
+                )])],
+            },
+        ),
+        // A frame that does not carry key 7 changes nothing about the tracks.
+        (
+            "state_projectiles_key_absent",
+            ServerMsg::State {
+                tick: 331,
+                items: vec![StateItem::Camps(vec![])],
+            },
+        ),
+        // The remote facing grid in a Full frame: the edges of the 256 codes, a tie and a sub-step change.
+        (
+            "snapshot_facing_grid",
+            ServerMsg::Snapshot {
+                training: false,
+                owner_combat: None,
+                tick: 60,
+                server_time: snapshot_server_ms(60),
+                phase: 1,
+                ack_input: 1,
+                me: None,
+                actors: [
+                    -3.1415927f32,
+                    -3.1315,
+                    -0.0098,
+                    0.0,
+                    0.0122,
+                    0.0123,
+                    1.5707964,
+                    3.1415927,
+                ]
+                .iter()
+                .enumerate()
+                .map(|(i, facing)| WireActor {
+                    id: i as u32 + 1,
+                    x: 10.0 * (i as f32 + 1.0),
+                    y: 20.0,
+                    facing: *facing,
+                    hp_pct: 100,
+                    status: 1,
+                    ..WireActor::default()
+                })
+                .collect(),
             },
         ),
         (
@@ -2177,7 +2332,81 @@ pub fn malformed_client() -> Vec<(&'static str, Vec<u8>)> {
         w.bytes(options);
         w.finish()
     };
+    // Protocol 15 MoveAt (tag 19) / AttackMoveAt (tag 20): x f32, y f32, optional seq (flag u8, then u8), required finite f64 t.
+    let stamped_frame = |tag: u8, x: f32, y: f32, option: &[u8], t: &[u8]| {
+        let mut w = Writer::default();
+        w.u8(2);
+        w.u32(1);
+        w.u16(1);
+        w.u8(tag);
+        w.f32(x);
+        w.f32(y);
+        w.bytes(option);
+        w.bytes(t);
+        w.finish()
+    };
+    let t_ok = 1234.5f64.to_le_bytes();
+    let t_nan = f64::NAN.to_le_bytes();
+    let t_inf = f64::INFINITY.to_le_bytes();
+    let mut stamped_trailing = stamped_frame(C_MOVE_AT, 1.0, 2.0, &[0], &t_ok);
+    stamped_trailing.push(0);
     vec![
+        // Protocol 15 stamped orders: a cut stamp, a missing stamp, a bad seq flag, a non-finite point or stamp, a trailing
+        // byte, and a command tag one past the last known (21).
+        (
+            "move_at_truncated_t",
+            stamped_frame(C_MOVE_AT, 1.0, 2.0, &[0], &t_ok[..4]),
+        ),
+        (
+            "move_at_missing_t",
+            stamped_frame(C_MOVE_AT, 1.0, 2.0, &[0], &[]),
+        ),
+        (
+            "move_at_seq_truncated",
+            stamped_frame(C_MOVE_AT, 1.0, 2.0, &[1], &[]),
+        ),
+        (
+            "move_at_seq_flag_over_1",
+            stamped_frame(C_MOVE_AT, 1.0, 2.0, &[2, 5], &t_ok),
+        ),
+        (
+            "move_at_nonfinite_t",
+            stamped_frame(C_MOVE_AT, 1.0, 2.0, &[1, 7], &t_nan),
+        ),
+        (
+            "move_at_infinite_t",
+            stamped_frame(C_MOVE_AT, 1.0, 2.0, &[0], &t_inf),
+        ),
+        (
+            "move_at_nonfinite_x",
+            stamped_frame(C_MOVE_AT, f32::NAN, 2.0, &[0], &t_ok),
+        ),
+        ("move_at_trailing_byte", stamped_trailing),
+        (
+            "attack_move_at_truncated_t",
+            stamped_frame(C_ATTACK_MOVE_AT, 1.0, 2.0, &[1, 9], &t_ok[..7]),
+        ),
+        (
+            "attack_move_at_missing_t",
+            stamped_frame(C_ATTACK_MOVE_AT, 1.0, 2.0, &[0], &[]),
+        ),
+        (
+            "attack_move_at_seq_flag_over_1",
+            stamped_frame(C_ATTACK_MOVE_AT, 1.0, 2.0, &[2], &t_ok),
+        ),
+        (
+            "attack_move_at_nonfinite_t",
+            stamped_frame(C_ATTACK_MOVE_AT, 1.0, 2.0, &[0], &t_nan),
+        ),
+        (
+            "attack_move_at_infinite_t",
+            stamped_frame(C_ATTACK_MOVE_AT, 1.0, 2.0, &[1, 3], &t_inf),
+        ),
+        (
+            "attack_move_at_nonfinite_y",
+            stamped_frame(C_ATTACK_MOVE_AT, 1.0, f32::INFINITY, &[0], &t_ok),
+        ),
+        ("input_command_tag_21", vec![2, 0, 0, 0, 0, 1, 0, 21]),
         ("target_zero", vec![2, 0, 0, 0, 0, 1, 0, 10, 0, 0, 0, 0]),
         ("target_truncated", vec![2, 0, 0, 0, 0, 1, 0, 10, 1, 0, 0]),
         ("use_consumable_payload", vec![2, 0, 0, 0, 0, 1, 0, 9, 0]),
@@ -3209,6 +3438,31 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
             "projectile_tick_overlong",
             vec![0x88, 0, 1, 7, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x80, 0, 0],
         ),
+        // More faults of a projectile row: cut short at the position block, cut short at the owner, missing the owner flag,
+        // tracks that descend, and an overlong track varint.
+        (
+            "projectile_row_truncated",
+            vec![0x88, 0, 1, 7, 1, 1, 0, 0, 0, 0, 0, 0],
+        ),
+        (
+            "projectile_owner_truncated",
+            vec![0x88, 0, 1, 7, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        ),
+        (
+            "projectile_owner_flag_missing",
+            vec![0x88, 0, 1, 7, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        ),
+        (
+            "projectile_tracks_descending",
+            vec![
+                0x88, 0, 1, 7, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0,
+            ],
+        ),
+        (
+            "projectile_track_overlong",
+            vec![0x88, 0, 1, 7, 1, 0x81, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        ),
         ("state_too_many_camps", vec![0x88, 0, 1, 6, 0x81, 4]),
         ("camp_mob_type", camp_bytes(30, 0, 0, 0, 0., 0.)),
         ("camp_elite", camp_bytes(0, 31, 0, 0, 0., 0.)),
@@ -3477,6 +3731,15 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         (
             "actor_windup_cast_truncated_aim",
             snapshot_bytes(0, &[], 1, &actor_bytes(1 << 10, &[2, 0, 0, 0])),
+        ),
+        // A Full actor cut short inside its facing (a u16 code, v15 writers send a multiple of 256) and inside its kit byte.
+        (
+            "actor_facing_truncated",
+            snapshot_bytes(0, &[], 1, &[1, 0, 0, 0, 0, 0, 0]),
+        ),
+        (
+            "actor_kit_truncated",
+            snapshot_bytes(0, &[], 1, &actor_bytes(AM_KIT, &[])),
         ),
         (
             "actor_hp_over_100",
@@ -3992,6 +4255,122 @@ pub fn chain_samples() -> Vec<(&'static str, Vec<ChainStep>)> {
             prior = Some(data);
         }
         chains.push(("position_steps", steps));
+    }
+
+    // Protocol 15 facing through the real writer: a Full frame on the 8-bit remote grid (-pi), a facing-only delta (one byte, no
+    // position), a change smaller than half a grid step (no field, no changed actor), the next code, the +pi/-pi wrap (the same
+    // code as -pi), quarter turns, and a hold. Each facing-only delta is exactly `AD_FACING`; the frame is the reference
+    // writer's bytes and resolves to the exact Full snapshot.
+    {
+        let mut encoder = ConnEncoder::new();
+        let mut tracker = SnapshotTracker::new();
+        let mut prior: Option<SnapshotData> = None;
+        let mut steps = Vec::new();
+        for (tick, facing, want_mask) in [
+            (1u32, -3.1415927f32, None),
+            (2, 0.0, Some(AD_FACING)),
+            (3, 0.0049, None),
+            (4, 0.0124, Some(AD_FACING)),
+            (5, 3.1415927, Some(AD_FACING)),
+            (6, 1.5707964, Some(AD_FACING)),
+            (7, -1.5707964, Some(AD_FACING)),
+            (8, -1.5707964, None),
+        ] {
+            let mut actors = vec![wa(1, 100.0, 50.0, 100, 1), wa(2, 200.0, 50.0, 100, 1)];
+            actors[0].facing = facing;
+            let data = snap(tick, 1, tick, Some(chain_self(400.0)), &actors);
+            let (frame, kind) = encoder.encode_frame(data.clone());
+            assert_eq!(
+                kind,
+                if tick == 1 {
+                    FrameKind::Full
+                } else {
+                    FrameKind::Delta
+                }
+            );
+            if let Some(base) = &prior {
+                let reference = delta::diff(base, &data).unwrap();
+                let masks: Vec<u32> = reference.changed.iter().map(|c| c.mask).collect();
+                assert_eq!(
+                    masks,
+                    want_mask.into_iter().collect::<Vec<_>>(),
+                    "tick {tick}"
+                );
+                assert_eq!(
+                    ServerMsg::SnapshotDelta(reference).encode(),
+                    frame,
+                    "fast and reference facing agree"
+                );
+            }
+            let got = tracker.decode(&frame).unwrap();
+            assert_eq!(got, data.decoded());
+            steps.push(ChainStep {
+                frame,
+                outcome: ChainOutcome::Applied(got),
+            });
+            prior = Some(data);
+        }
+        chains.push(("facing_grid_steps", steps));
+    }
+
+    // Protocol 15 kit (actor delta bit 14, a three-byte mask) through the real writer: faction only, weapon only, both, a hold
+    // (no field), a clear to the default pair (0, 0) and the largest pair (15, 15). Each change is exactly `AD_KIT`.
+    {
+        let mut encoder = ConnEncoder::new();
+        let mut tracker = SnapshotTracker::new();
+        let mut prior: Option<SnapshotData> = None;
+        let mut steps = Vec::new();
+        for (tick, faction, weapon, want_mask) in [
+            (1u32, 1u8, 2u8, None),
+            (2, 1, 5, Some(AD_KIT)),
+            (3, 3, 5, Some(AD_KIT)),
+            (4, 2, 7, Some(AD_KIT)),
+            (5, 2, 7, None),
+            (6, 0, 0, Some(AD_KIT)),
+            (7, 15, 15, Some(AD_KIT)),
+        ] {
+            let mut actors = vec![wa(1, 100.0, 50.0, 100, 1), wa(2, 200.0, 50.0, 100, 1)];
+            actors[0].faction = faction;
+            actors[0].weapon = weapon;
+            let data = snap(tick, 1, tick, Some(chain_self(400.0)), &actors);
+            let (frame, kind) = encoder.encode_frame(data.clone());
+            assert_eq!(
+                kind,
+                if tick == 1 {
+                    FrameKind::Full
+                } else {
+                    FrameKind::Delta
+                }
+            );
+            if let Some(base) = &prior {
+                let reference = delta::diff(base, &data).unwrap();
+                let masks: Vec<u32> = reference.changed.iter().map(|c| c.mask).collect();
+                assert_eq!(
+                    masks,
+                    want_mask.into_iter().collect::<Vec<_>>(),
+                    "tick {tick}"
+                );
+                if want_mask.is_some() {
+                    assert!(
+                        frame.windows(3).any(|w| w == [0x80, 0x80, 0x01]),
+                        "bit 14 is a three-byte mask varint"
+                    );
+                }
+                assert_eq!(
+                    ServerMsg::SnapshotDelta(reference).encode(),
+                    frame,
+                    "fast and reference kit agree"
+                );
+            }
+            let got = tracker.decode(&frame).unwrap();
+            assert_eq!(got, data.decoded());
+            steps.push(ChainStep {
+                frame,
+                outcome: ChainOutcome::Applied(got),
+            });
+            prior = Some(data);
+        }
+        chains.push(("kit_lifecycle", steps));
     }
 
     // Protocol 15 windups through the real writer: a draw starts, is pushed later (a chill), turns into nothing, and a cast
@@ -5072,6 +5451,41 @@ pub fn malformed_deltas() -> Vec<(&'static str, Vec<u8>)> {
             "delta_actor_windup_kind_three",
             delta_bytes(10, 1, 0, &[1, 1, 0x80, 0x40, 3, 0, 0, 0, 0]),
         ),
+        // Protocol 15 delta fields cut short or out of range: facing (u8), kit at bit 14 (a three-byte mask), a windup with no
+        // kind byte, a draw cut inside its duration, a duration past u16, a cast cut inside its aim, a windup end that carries
+        // data, and kit together with the reserved bit 15.
+        (
+            "delta_actor_facing_truncated",
+            delta_bytes(10, 1, 0, &[1, 1, AD_FACING as u8]),
+        ),
+        (
+            "delta_actor_kit_truncated",
+            delta_bytes(10, 1, 0, &[1, 1, 0x80, 0x80, 0x01]),
+        ),
+        (
+            "delta_actor_kit_with_unknown_bit",
+            delta_bytes(10, 1, 0, &[1, 1, 0x80, 0x80, 0x03, 0x52]),
+        ),
+        (
+            "delta_actor_windup_kind_missing",
+            delta_bytes(10, 1, 0, &[1, 1, 0x80, 0x40]),
+        ),
+        (
+            "delta_actor_windup_draw_truncated",
+            delta_bytes(10, 1, 0, &[1, 1, 0x80, 0x40, 1, 5]),
+        ),
+        (
+            "delta_actor_windup_duration_over_u16",
+            delta_bytes(10, 1, 0, &[1, 1, 0x80, 0x40, 1, 0, 0x80, 0x80, 0x04]),
+        ),
+        (
+            "delta_actor_windup_cast_truncated_aim",
+            delta_bytes(10, 1, 0, &[1, 1, 0x80, 0x40, 2, 0, 0, 0]),
+        ),
+        (
+            "delta_actor_windup_end_with_payload",
+            delta_bytes(10, 1, 0, &[1, 1, 0x80, 0x40, 0, 0, 0]),
+        ),
         (
             "delta_actor_status_over_3",
             delta_bytes(10, 1, 0, &[vec![1], record(1, AD_STATUS, &[4])].concat()),
@@ -5513,7 +5927,11 @@ pub fn manifest() -> String {
             ServerMsg::State { .. } if name.starts_with("state_trade_") => {
                 format!(", \"decoded\": {}", decoded_trade_state_json(&decoded))
             }
-            ServerMsg::State { .. } if *name == "state_all" => {
+            ServerMsg::State { .. }
+                if *name == "state_all"
+                    || (name.starts_with("state_projectiles_")
+                        && *name != "state_projectiles_key_absent") =>
+            {
                 format!(", \"decoded\": {}", decoded_projectile_state_json(&decoded))
             }
             ServerMsg::State { .. } if name.starts_with("state_quests_") => {

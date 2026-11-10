@@ -68,8 +68,23 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
             "projectile_kind" | "projectile_owner_zero" | "projectile_track_zero" => {
                 BadField("projectile")
             }
-            "projectile_tracks_not_ascending" => BadField("projectile tracks"),
-            "projectile_tick_overlong" => BadVarint,
+            "projectile_tracks_not_ascending" | "projectile_tracks_descending" => {
+                BadField("projectile tracks")
+            }
+            "projectile_tick_overlong" | "projectile_track_overlong" => BadVarint,
+            "projectile_row_truncated"
+            | "projectile_owner_truncated"
+            | "projectile_owner_flag_missing"
+            | "actor_facing_truncated"
+            | "actor_kit_truncated"
+            | "delta_actor_facing_truncated"
+            | "delta_actor_kit_truncated"
+            | "delta_actor_windup_kind_missing"
+            | "delta_actor_windup_draw_truncated"
+            | "delta_actor_windup_cast_truncated_aim" => Truncated,
+            "delta_actor_windup_duration_over_u16" => BadField("windup"),
+            "delta_actor_kit_with_unknown_bit" => BadField("actor mask"),
+            "delta_actor_windup_end_with_payload" => Trailing(0),
             "actor_windup_kind_zero"
             | "actor_windup_kind_three"
             | "actor_windup_duration_over_u16"

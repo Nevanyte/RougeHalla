@@ -484,16 +484,42 @@ compiled in a Unity editor, and no figure below was measured on a real link.
   the newest snapshot only a live player walking steadily is extrapolated, at the last segment's velocity, for at most 50 ms and 10 u.
   No lead for a stopped player (step under 0.5 u per tick), a turn over about 45 degrees, any effect bit, a health drop, a
   displacement, or fewer than three samples. Mobs, NPCs and facing are not drawn ahead.
-- The drawn pose follows that target through a per-actor follower capped at 255 u/s (80 u/s at rest). It snaps only on a cut, a
-  displacement or status change, a render-time jump over 250 ms or backwards, or an error over 32 u. No wall clipping: an overshoot of
+- The drawn pose follows that target through a per-actor follower capped at 255 u/s (80 u/s at rest), and never trails it by more
+  than 20 u after a frame. It snaps only on a cut, a displacement or status change, a render-time jump over 250 ms or backwards, or an
+  error over 32 u. No wall clipping: an overshoot of
   up to 10 u into a wall is blended back. The server sends no walk hint on this wire; the legacy hint of the TypeScript version has no
   counterpart.
-- **What it sends.** Attack, Release and Cast carry `Session.AttackRenderMs`: the render time advanced by the lead, never later than the
-  newest snapshot the client holds. It is up to 50 ms newer than before, so the player aims at the drawn pose and the server rewinds
-  to the same drawn time. The server still clamps it into the RTT-bounded window. A target drawn without lead (stopped, turned) is
-  tested at that time, so the drawn figure and the tested spot can differ by up to one tick of its motion; this was not measured.
-- Remote ranged windups and server projectile tracks are drawn on the same timeline: an actor's windup starts the existing clip when the
-  timeline enters it, and each flight is placed every frame from its server anchor.
+- **Aiming policy: what an attack stamps** (`RemoteDraw.AttackTime`, `Session.AttackRenderMs`). Attack, Release and Cast carry the
+  time remote players are drawn at: render + 50 ms inside the snapshot buffer, and past the newest snapshot `newest + min(render + 50 -
+  newest, 50)`, the extrapolated time (the newest snapshot itself while fewer than three samples allow no extrapolation). Example:
+  newest 1000, render 980 draws a steady walker at 1030 and stamps 1030; the previous stamp, capped at the newest snapshot, sent 1000,
+  which the server judged 5.1 u (30 ms of walk) behind the drawn figure. The stamp is never later than newest + 50, and the room's
+  apply step is at least one tick past any snapshot already published, so the future clamp never moves it (`rtt.rs` clamps `t` into
+  `[now_apply - allowed, now_apply]`); the server's rewind (`position_at`, lerped tick history) of a time up to the present is the real
+  pose the extrapolation guessed. No server change.
+- **Residual, by design not zero** (constants in `RemoteDraw`, pinned in `RemoteDrawAimTests`). One stamp covers every player on
+  screen, and a held player (stopped, turned, hit, under an effect) is drawn at the newest pose while the stamp is up to one lead
+  later. The simulation's one-tick lag floor (`note_lag`) can move the judged time back to the newest snapshot on a near-zero link
+  (30 ms at newest 1000 / render 980, 5.1 u of walk). Judged and drawn time both lie in `[newest, newest + 50]`, so:
+  - time between the drawn and the judged pose: at most `AimTimeErrorBoundMs` = 50 ms;
+  - target pose (before the follower) against the judged pose, for players moving at most v u/s: `AimTargetErrorBound(v)` =
+    min(10, v x 0.05) + v x 0.05, which is **17 u at walk speed** (a reversal against an extrapolated pose), at most 8.5 u for a held
+    player, 0 inside the buffer and for a steady straight walker; a hasted player raises it with v;
+  - the drawn figure trails its target by at most `MaxFollowLag` = 20 u after any frame (a larger residual is pulled in to 20 u in one
+    frame, smaller than the 32 u snap), so **drawn figure against judged pose is at most 37 u at walk speed**.
+  The replay in `RemoteDrawAimTests` (synthetic traces, not a measurement of a real link: walk, stop, reversal, circle, zigzag at
+  0/15/30/60 ms one-way with up to 30 ms jitter) gives mean / max drawn-vs-judged error of 0.00 / 0.00 u for a straight walk, 0.09 to
+  0.36 / 0.27 to 0.90 u on the circle and 0.05 to 0.50 / 5.1 to 15.0 u on the reversal, against 0.84 to 3.43 u mean with the
+  newest-capped stamp; at 0 ms both stamps score the same (1.6 u mean, 5.1 u max, the lag floor). Mobs and NPCs are not drawn ahead, so
+  the same stamp judges them up to one lead after the pose drawn for them (at most 50 ms of their motion).
+- On a source-clock cut (the `sourceCut` block in `Session`, the only place besides Welcome that re-bases the clock) `RemoteDraw.Reset()`
+  clears the walk cache, the follower state and the last render time, so a reused numeric timestamp or a changed direction after a
+  backwards or equal-time cut does not meet stale state.
+- Remote ranged windups and server projectile tracks are drawn on `Session.DrawTimelineMs` (`RemoteDraw.TimelineTime`): render + 50 ms,
+  never past the newest snapshot, so a flight is never extrapolated. An actor's windup starts the existing clip when the timeline enters
+  it, and each flight is placed every frame from its server anchor. An ended track is drawn only until that timeline reaches the last
+  State that still showed it live (the wire carries no end point), so it no longer runs on up to a tick past the wall or body it hit;
+  the 0.25 s hold cap is unchanged. The scene code (`ArenaView`) has not been compiled.
 
 ### Own-action feedback (`OwnAttackCue`, Wish telegraph, swing sound)
 
@@ -501,8 +527,10 @@ compiled in a Unity editor, and no figure below was measured on a real link.
   play, the player is alive with no stun or casting bit, a ping sample exists, and the server-sent readiness
   (`Latest.ServerMs + ReadyInMs`) is no later than the estimated arrival of the press plus one tick. Otherwise nothing starts early.
 - A newer snapshot whose ready time is more than one tick past the press-time value confirms the attack (a melee Swing Fx also
-  confirms). An unconfirmed clip is cut on dead, stunned, casting, out of play, weapon change, no confirmation within RTT + 100 ms, or
-  the 500 ms cap. The first own server Swing after a started melee press does not restart the clip or repeat the swing sound; its flash
+  confirms). The blockers are checked first: a ready-time jump seen in the same update as death, a stun or casting bit, a weapon change
+  or the timeout is not adopted and the clip is cut. A jump adopted in an earlier update stays adopted under a later stun, and the own
+  Swing Fx is absorbed before `Update` runs. An unconfirmed clip is cut on dead, stunned, casting, out of play, weapon change, no
+  confirmation within RTT + 100 ms, or the 500 ms cap. The first own server Swing after a started melee press does not restart the clip or repeat the swing sound; its flash
   still shows. Held-attack repeats are not predicted.
 - The Wish telegraph is shown at the press (half transparent) when the owner block says a charge is ready, until the server's own Wish
   cue for that caster replaces it or `min(600 ms, RTT + 150 ms)` passes.

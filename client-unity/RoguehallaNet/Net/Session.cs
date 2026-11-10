@@ -109,8 +109,13 @@ namespace Roguehalla.Net
         public readonly RenderClock Clock = new RenderClock();
         /// <summary>Bounded draw-ahead of remote players. Off unless the client sets <c>Enabled</c>; <see cref="AttackRenderMs"/> follows it.</summary>
         public readonly RemoteDraw RemoteDraw;
-        /// <summary>The render time attacks and casts report to the server: <see cref="RenderClock.RenderMs"/>, advanced by the draw-ahead lead when that is on.</summary>
+        /// <summary>
+        /// The render time attacks and casts report to the server: the time remote players are drawn at (<see cref="RemoteDraw.AttackTime"/>),
+        /// up to one lead past the newest snapshot when they are extrapolated; <see cref="RenderClock.RenderMs"/> when draw-ahead is off.
+        /// </summary>
         public double AttackRenderMs { get { return RemoteDraw.AttackTime(Clock.RenderMs); } }
+        /// <summary>The timeline remote windups and projectile tracks are drawn on: render + lead, never past the newest snapshot (<see cref="RemoteDraw.TimelineTime"/>).</summary>
+        public double DrawTimelineMs { get { return RemoteDraw.TimelineTime(Clock.RenderMs); } }
         public readonly ClockSync Sync = new ClockSync();
         public readonly InputSender Input = new InputSender();
         public readonly CollectionsView Collections = new CollectionsView();
@@ -490,6 +495,8 @@ namespace Roguehalla.Net
                     }
                     if (sourceCut)
                     {
+                        // The cut re-bases the source clock: RemoteDraw keys its walk cache by source time, and numbers may repeat.
+                        RemoteDraw.Reset();
                         Sync.Reset();
                         _lastPing = double.NegativeInfinity;
                         TimelineEpoch++;

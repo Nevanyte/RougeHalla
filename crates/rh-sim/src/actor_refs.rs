@@ -23,10 +23,10 @@ pub(crate) fn project(out: &mut Observation, map: impl Fn(PlayerId) -> Option<Pl
         field.subject = field.subject.and_then(&map);
     }
     out.fields.sort_by(crate::status_runtime::FieldView::cmp);
+    // Row order stays as staged: projectile_view::number issues fresh tracks by presented owner, then sorts.
     for projectile in &mut out.projectiles {
         projectile.owner = projectile.owner.and_then(&map);
     }
-    crate::projectile_view::sort(&mut out.projectiles);
     for chest in &mut out.reward_chests {
         for option in &mut chest.options {
             option.taken_by = option.taken_by.and_then(&map);

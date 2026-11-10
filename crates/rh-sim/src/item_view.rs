@@ -526,6 +526,7 @@ impl ItemObserver {
             })
         });
         crate::actor_refs::project(out, |id| self.actor_refs.map(sim, &actors, id));
+        crate::projectile_view::number(&mut out.projectiles, &mut self.projectiles)?;
         Ok(PreparedOffer {
             actors,
             rewards,

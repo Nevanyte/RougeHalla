@@ -748,6 +748,12 @@ namespace Roguehalla.Net.Tests
             {
                 case "empty": case "truncated_snapshot": case "self_truncated": case "actor_count_without_actors": want = DecodeError.Truncated; break;
                 case "actor_windup_cast_truncated_aim": want = DecodeError.Truncated; break;
+                case "projectile_row_truncated": case "projectile_owner_truncated": case "projectile_owner_flag_missing":
+                case "actor_facing_truncated": case "actor_kit_truncated": case "delta_actor_facing_truncated": case "delta_actor_kit_truncated":
+                case "delta_actor_windup_kind_missing": case "delta_actor_windup_draw_truncated": case "delta_actor_windup_cast_truncated_aim": want = DecodeError.Truncated; break;
+                case "projectile_tracks_descending": case "delta_actor_kit_with_unknown_bit": case "delta_actor_windup_duration_over_u16": want = DecodeError.BadField; break;
+                case "projectile_track_overlong": want = DecodeError.BadVarint; break;
+                case "delta_actor_windup_end_with_payload": want = DecodeError.Trailing; break;
                 case "projectile_owner_flag": case "hit_bad_passive": case "wish_option_over_1": case "wish_fx_option_over_1": want = DecodeError.BadTag; break;
                 case "projectile_kind": case "projectile_owner_zero":
                 case "potion_notice_zero": case "potion_notice_unknown":
@@ -916,6 +922,29 @@ namespace Roguehalla.Net.Tests
                     Assert.AreEqual(held.GetProperty("actors").GetInt32(), track.HeldActors, at);
                 }
                 else CheckSnapshot(step.GetProperty("decoded"), (ServerMsg.Snapshot)msg);
+            }
+        }
+
+        /// <summary>State key 7 across the recorded vectors, in order, through a Session: sighting, re-anchor, end, loss, re-sighting, then a State without key 7 keeps the list.</summary>
+        [Test]
+        public void StateKeySevenTrackLifecycleReplaysThroughASession()
+        {
+            var t = new FakeTransport();
+            var s = new Session(t, new SessionOptions { Url = "ws://x/ws", Profile = "p", Ticket = new byte[0], Now = () => 0 });
+            s.Connect(); t.Open();
+            t.Deliver(new ServerMsg.Welcome { Protocol = Wire.ProtocolVersion, MatchId = new byte[16], Session = new byte[16], PlayerId = 3, TickRate = 20, Map = new MapBlob(4, 4, new byte[16]) });
+            var c = s.Collections;
+            foreach (var name in new[] { "state_projectiles_sighting", "state_projectiles_reanchor", "state_projectiles_end", "state_projectiles_loss", "state_projectiles_resighting", "state_projectiles_key_absent" })
+            {
+                JsonElement v = default;
+                foreach (var e in Fixture().GetProperty("server").EnumerateArray()) if (e.GetProperty("name").GetString() == name) v = e;
+                t.Deliver(ServerMsg.Decode(Util.FromHex(v.GetProperty("hex").GetString())));
+                if (name == "state_projectiles_sighting") { Assert.AreEqual(2, c.Projectiles.Count, name); Assert.IsTrue(c.Projectiles[0].IsNew && c.Projectiles[1].IsNew, name); Assert.AreEqual(2u, c.Projectiles[0].Owner, name); Assert.IsNull(c.Projectiles[1].Owner, name); }
+                else if (name == "state_projectiles_reanchor") { Assert.IsTrue(c.Projectiles[0].Retargeted && !c.Projectiles[0].IsNew, name); Assert.IsFalse(c.Projectiles[1].Retargeted || c.Projectiles[1].IsNew, name); }
+                else if (name == "state_projectiles_end") { Assert.AreEqual(1, c.Projectiles.Count, name); Assert.IsFalse(c.TryGetProjectile(1, out _), name); Assert.IsTrue(c.TryGetProjectile(2, out _), name); }
+                else if (name == "state_projectiles_loss") Assert.AreEqual(0, c.Projectiles.Count, name);
+                else if (name == "state_projectiles_resighting") { Assert.AreEqual(1, c.Projectiles.Count, name); Assert.AreEqual(3u, c.Projectiles[0].Track, name); Assert.IsTrue(c.Projectiles[0].IsNew, name); Assert.AreEqual(4294967295u, c.Projectiles[0].Owner, name); }
+                else { Assert.AreEqual(1, c.Projectiles.Count, "a State without key 7 retains the tracks"); Assert.AreEqual(3u, c.Projectiles[0].Track); }
             }
         }
 

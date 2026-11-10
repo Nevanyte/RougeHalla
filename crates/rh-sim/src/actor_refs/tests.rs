@@ -347,3 +347,121 @@ fn all_actor_fields_use_one_projection_and_reference_bounds_fail_closed() {
         Err(crate::OfferError::ActorReferenceCollision)
     ));
 }
+/// Handoff finding 4: identical flight geometry from different visible owners (a human and two NPCs whose private
+/// ids order opposite to their presented references). Reversing private storage order and launch-id assignment must
+/// not change which alias binds which presented owner, nor any later sighting, end or loss of sight.
+#[test]
+fn tied_fresh_tracks_bind_presented_owners_whatever_the_private_launch_order() {
+    let owners = [PlayerId(2), PlayerId(4), PlayerId(5)];
+    let run = |reversed: bool| {
+        let mut s = world();
+        let template = crate::state::Projectile {
+            launch: crate::ProjectileLaunch {
+                id: 0,
+                kind: crate::ProjectileKind::Arrow,
+                owner: PlayerId(0),
+                reflected: false,
+                origin: Vec2::new(112., 112.),
+                velocity: Vec2::new(40., 0.),
+                time: s.w.server_time,
+                range: 600.,
+                target: None,
+            },
+            pos: Vec2::new(112., 112.),
+            velocity: Vec2::new(40., 0.),
+            time: s.w.server_time,
+            traveled: 0.,
+            packet: crate::state::Packet {
+                raw: 1.,
+                phys: 1.,
+                magic: 0.,
+                true_: 0.,
+            },
+            halved: false,
+            reflections: 0,
+            roam_armed: false,
+        };
+        let mut flights: Vec<_> = owners
+            .iter()
+            .enumerate()
+            .map(|(i, &owner)| {
+                let mut f = template;
+                f.launch.owner = owner;
+                f.launch.id = if reversed {
+                    30 - i as u32
+                } else {
+                    10 + i as u32
+                };
+                f
+            })
+            .collect();
+        if reversed {
+            flights.reverse();
+        }
+        s.w.projectiles = flights;
+        let mut o = ItemObserver::new(PlayerId(1));
+        let mut frames = Vec::new();
+        let mut refs = Vec::new();
+        let look = |s: &Sim, o: &mut ItemObserver, frames: &mut Vec<_>| {
+            let out = observe(s, o);
+            frames.push(out.projectiles.clone());
+            out
+        };
+        // Sighting: all three fresh at once, identical geometry.
+        let first = look(&s, &mut o, &mut frames);
+        for owner in owners {
+            let mut raw = Observation::default();
+            crate::observe::observe_with(&s, PlayerId(1), &[], &mut raw, None).unwrap();
+            let cue = raw.visible.iter().find(|a| a.id == owner).unwrap().clone();
+            refs.push(
+                first
+                    .visible
+                    .iter()
+                    .find(|a| a.kind == cue.kind && (a.x, a.y) == (cue.x, cue.y))
+                    .unwrap()
+                    .id,
+            );
+        }
+        // The flights move together (re-anchored identically).
+        for f in &mut s.w.projectiles {
+            f.pos.x += 4.;
+        }
+        look(&s, &mut o, &mut frames);
+        // End: the first NPC's flight is gone.
+        s.w.projectiles.retain(|f| f.launch.owner != PlayerId(4));
+        look(&s, &mut o, &mut frames);
+        // Loss of sight: the second NPC's flight leaves the viewer's sight, then returns.
+        let i =
+            s.w.projectiles
+                .iter()
+                .position(|f| f.launch.owner == PlayerId(5))
+                .unwrap();
+        let back = s.w.projectiles[i].pos;
+        s.w.projectiles[i].pos = Vec2::new(624., 600.);
+        let lost = look(&s, &mut o, &mut frames);
+        assert_eq!(lost.projectiles.len(), 1, "the far flight stayed in sight");
+        s.w.projectiles[i].pos = back;
+        look(&s, &mut o, &mut frames);
+        (frames, refs)
+    };
+    let (forward, refs) = run(false);
+    let (reversed, refs_r) = run(true);
+    assert_eq!(refs, refs_r);
+    // The presented order (human, then NPC references) is not the private order (4 < 5, but ref(4) > ref(5)).
+    assert!(refs[0] < refs[2] && refs[2] < refs[1]);
+    assert_eq!(
+        forward, reversed,
+        "private storage/launch order changed exposed bindings or lifecycle"
+    );
+    let bound: Vec<_> = forward[0].iter().map(|r| (r.track, r.owner)).collect();
+    assert_eq!(
+        bound,
+        [(1, Some(refs[0])), (2, Some(refs[2])), (3, Some(refs[1]))],
+        "fresh ties are not numbered by presented owner"
+    );
+    let tracks = |i: usize| forward[i].iter().map(|r| r.track).collect::<Vec<_>>();
+    assert_eq!(tracks(1), [1, 2, 3]);
+    assert_eq!(tracks(2), [1, 2]);
+    assert_eq!(tracks(3), [1]);
+    assert_eq!(tracks(4), [1, 4]);
+}

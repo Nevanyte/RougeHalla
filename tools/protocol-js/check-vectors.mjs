@@ -561,6 +561,10 @@ if (!groundMapCoverage.presentZero) throw new Error("missing Rust Welcome presen
 
 // The JS decoder reports a reason as an Error message (RangeError for a read past the end).
 const reason = {
+  projectile_row_truncated:/./,projectile_owner_truncated:/./,projectile_owner_flag_missing:/./,actor_facing_truncated:/./,actor_kit_truncated:/./,
+  delta_actor_facing_truncated:/./,delta_actor_kit_truncated:/./,delta_actor_windup_kind_missing:/./,delta_actor_windup_draw_truncated:/./,
+  projectile_tracks_descending:/projectile tracks/,projectile_track_overlong:/varint/,delta_actor_kit_with_unknown_bit:/actor mask/,
+  delta_actor_windup_duration_over_u16:/windup/,delta_actor_windup_cast_truncated_aim:/./,delta_actor_windup_end_with_payload:/trailing/,
   projectile_track_zero:/projectile/,projectile_tracks_not_ascending:/projectile tracks/,projectile_tick_overlong:/varint/,
   actor_windup_kind_zero:/windup/,actor_windup_kind_three:/windup/,actor_windup_duration_over_u16:/windup/,actor_windup_cast_truncated_aim:/./,
   delta_actor_step_without_position:/position step/,delta_actor_step_truncated:/./,delta_actor_windup_kind_three:/windup/,

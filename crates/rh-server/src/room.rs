@@ -1779,6 +1779,11 @@ pub async fn run_room(mut room: Room, mut rx: mpsc::Receiver<RoomCmd>) {
 #[path = "room/ground_tests.rs"]
 mod public_ground_tests;
 
+// Wire command in, terminal simulation outcome out, at the seat boundary (Wish landing/cancel, press/burst/release).
+#[cfg(test)]
+#[path = "room/seat_boundary_tests.rs"]
+mod seat_boundary_tests;
+
 // Private native bridge component tests; these do not admit a hosted quest profile.
 #[cfg(test)]
 #[path = "quest_bridge_tests.rs"]

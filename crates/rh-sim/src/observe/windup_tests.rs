@@ -85,3 +85,54 @@ fn melee_and_unseen_windups_are_not_shown() {
         .iter()
         .all(Option::is_none));
 }
+
+/// Pins CURRENT behaviour, not a decision: an actor that enters sight mid-draw publishes the draw's true `started_at`,
+/// a time from before the viewer could see it (legacy did the same). Inherited-legacy exposure recorded for the records
+/// owner; change it only together with that record.
+#[test]
+fn an_actor_entering_sight_mid_draw_shows_the_true_start_time() {
+    let mut s = duel(WeaponId::Bow, 300.);
+    s.submit(
+        PlayerId(2),
+        crate::validate(RawCommand::Attack { a: 0.5, t: None }).unwrap(),
+    )
+    .unwrap();
+    let mut unseen_ticks = 0;
+    for _ in 0..3 {
+        s.step();
+        let out = observe(&s, PlayerId(1), &[]);
+        assert!(out.visible.iter().all(|v| v.id != PlayerId(2)), "unseen");
+        if s.player(PlayerId(2)).unwrap().weapon.action.is_some() {
+            unseen_ticks += 1;
+        }
+    }
+    assert!(unseen_ticks >= 2, "the draw ran while unseen");
+    let action = s
+        .player(PlayerId(2))
+        .unwrap()
+        .weapon
+        .action
+        .expect("still drawing");
+    let entered = s.server_time();
+    assert!(action.started_at < entered - crate::constants::TICK_MS);
+    // Into sight mid-draw (a placement, not a walk: the draw keeps running).
+    let now = s.w.server_time;
+    let p = s.w.players.get_mut(PlayerId(2)).unwrap();
+    p.body.x = 150.;
+    p.body.history.reset(crate::state::Sample {
+        t: now,
+        x: 150.,
+        y: 176.,
+    });
+    let out = observe(&s, PlayerId(1), &[]);
+    let shown = out
+        .visible
+        .iter()
+        .find(|v| v.id == PlayerId(2))
+        .expect("entered sight")
+        .windup
+        .expect("mid-draw windup shown");
+    assert_eq!(shown.kind, WindupKind::Draw);
+    assert_eq!(shown.started_at, action.started_at, "true start published");
+    assert_eq!(shown.lands_at, action.lands_at);
+}

@@ -21,7 +21,12 @@ fn actor_accepts_input(w: &World, id: PlayerId) -> bool {
 
 /// Queues a validated command for the next tick through the seat's order budget (sim time): what `Sim::submit` and
 /// `Cx::submit` both run, the only way a command reaches a queue (C-INPUT). A seat that is not present drops it.
-pub(crate) fn submit(w: &mut World, id: PlayerId, cmd: Command) -> Result<(), Reject> {
+pub(crate) fn submit(
+    w: &mut World,
+    id: PlayerId,
+    cmd: Command,
+    stamps: bool,
+) -> Result<(), Reject> {
     let now = w.server_time;
     let Some(ix) = w.fighter_idx(id) else {
         return Ok(());
@@ -29,8 +34,9 @@ pub(crate) fn submit(w: &mut World, id: PlayerId, cmd: Command) -> Result<(), Re
     if !actor_accepts_input(w, id) {
         return Err(Reject::UnsupportedActorAction);
     }
-    // Only a player's order earns walk credit; any other actor's stamped order queues as the plain order.
-    let cmd = if w.is_player(ix) {
+    // Only a player's order earns walk credit, and only with lag fairness on (`stamps`); otherwise a stamped order
+    // queues as the plain order, so a checkpoint or hash taken before the step already equals the unstamped match.
+    let cmd = if stamps && w.is_player(ix) {
         cmd
     } else {
         cmd.unstamped()
@@ -48,7 +54,12 @@ pub(crate) fn submit(w: &mut World, id: PlayerId, cmd: Command) -> Result<(), Re
 }
 
 /// Queues a command with no order budget: the parity harness only (the legacy capture fed the sim directly).
-pub(crate) fn submit_unbudgeted(w: &mut World, id: PlayerId, cmd: Command) -> Result<(), Reject> {
+pub(crate) fn submit_unbudgeted(
+    w: &mut World,
+    id: PlayerId,
+    cmd: Command,
+    stamps: bool,
+) -> Result<(), Reject> {
     let now = w.server_time;
     let Some(ix) = w.fighter_idx(id) else {
         return Ok(());
@@ -56,8 +67,9 @@ pub(crate) fn submit_unbudgeted(w: &mut World, id: PlayerId, cmd: Command) -> Re
     if !actor_accepts_input(w, id) {
         return Err(Reject::UnsupportedActorAction);
     }
-    // Only a player's order earns walk credit; any other actor's stamped order queues as the plain order.
-    let cmd = if w.is_player(ix) {
+    // Only a player's order earns walk credit, and only with lag fairness on (`stamps`); otherwise a stamped order
+    // queues as the plain order, so a checkpoint or hash taken before the step already equals the unstamped match.
+    let cmd = if stamps && w.is_player(ix) {
         cmd
     } else {
         cmd.unstamped()

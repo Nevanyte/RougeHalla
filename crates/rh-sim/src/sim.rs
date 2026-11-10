@@ -411,7 +411,7 @@ impl Sim {
         if cmd.is_train() && !self.k.config.training {
             return Err(Reject::InvalidTrain);
         }
-        inputs::submit_unbudgeted(&mut self.w, id, cmd)
+        inputs::submit_unbudgeted(&mut self.w, id, cmd, self.k.config.lag_fairness)
     }
 
     /// A client's connection dropped: the seat is held (reconnect grace is the adapter's job); the time is remembered for

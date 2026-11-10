@@ -423,3 +423,108 @@ fn a_lagged_match_replays_bit_for_bit() {
     let (again, _) = run_replay(&rec.replay).expect("the lagged match replays");
     assert_eq!(again.state_hash(), sim.state_hash());
 }
+
+/// What became of the crossing arrow: whether a ball deleted it, whether it hit the victim, and the damage it dealt.
+#[derive(Debug, PartialEq)]
+struct Crossing {
+    deleted: bool,
+    hit: bool,
+    damage: f64,
+    /// Where the arrow ended.
+    end: Option<Vec2>,
+}
+
+/// p1 (bow) shoots east along the open lane at the standing victim p3, while p2 (wand) shoots a ball north across the
+/// lane. A shooter with view lag `lag` fires `(lag - one tick)` later on the server than a baseline shooter would, so
+/// its back-dated shot is launched at the baseline shot's time: the same crossing, seen late.
+fn crossing(arrow_lag: f64, ball_lag: f64, ball_y: f64, ball_at: u32) -> Crossing {
+    let ps = [
+        at(1, FactionId::Holy, 300., LANE_Y, Some(WeaponId::Bow)),
+        at(2, FactionId::Frost, 380., ball_y, Some(WeaponId::Wand)),
+        at(3, FactionId::Fire, 480., LANE_Y, None),
+    ];
+    let mut s = Sim::reset_active(config(true), practice_arena(), Secrets::from_seed(4), &ps);
+    let late = |lag: f64| ((lag - TICK_MS) / TICK_MS).round() as u32;
+    // (tick, shooter, aim, lag)
+    let shots = [
+        (
+            ball_at + late(ball_lag),
+            2,
+            -std::f64::consts::FRAC_PI_2,
+            ball_lag,
+        ),
+        (20 + late(arrow_lag), 1, 0., arrow_lag),
+    ];
+    let mut out = Crossing {
+        deleted: false,
+        hit: false,
+        damage: 0.,
+        end: None,
+    };
+    for k in 0..80u32 {
+        for &(tick, id, a, lag) in &shots {
+            if tick == k {
+                let t = stamp(&s, lag);
+                order(&mut s, id, RawCommand::Attack { a, t });
+            } else if tick + 1 == k {
+                order(&mut s, id, RawCommand::Release { a, t: None });
+            }
+        }
+        for e in s.step() {
+            match e {
+                Event::ProjectileEnded {
+                    launch, reason, at, ..
+                } if launch.owner == PlayerId(1) => {
+                    out.deleted |= reason == ProjectileEnd::Deleted;
+                    out.end = Some(at);
+                }
+                Event::Hit {
+                    victim: PlayerId(3),
+                    by: Some(PlayerId(1)),
+                    amount,
+                    ..
+                } => {
+                    out.hit = true;
+                    out.damage += amount;
+                }
+                _ => (),
+            }
+        }
+    }
+    out
+}
+
+/// A ball deletes the arrow it crosses before the arrow can reach a body (`delete_arrows`), and a shot catching up its
+/// shooter's lag meets the other live flights where they were at each catch-up sub-step, before its body test: a lagged
+/// shooter gets the baseline outcome, deleted at the same point (DEV-010). Two crossings: the arrow is the lagged shot
+/// and crosses the ball 54 u out from the bow, inside its catch-up from 200 ms; the ball is the lagged shot and crosses
+/// the lane 50 u out from the wand, inside its catch-up from 200 ms.
+#[test]
+fn a_catching_up_shot_meets_the_ball_or_arrow_it_crosses() {
+    let baseline = crossing(TICK_MS, TICK_MS, 420., 10);
+    assert!(
+        baseline.deleted && !baseline.hit && baseline.damage == 0.,
+        "{baseline:?}"
+    );
+    assert_eq!(crossing(TICK_MS, TICK_MS, 310., 16), baseline);
+    for lag in [100., 200., 300.] {
+        let arrow_lagged = crossing(lag, TICK_MS, 420., 10);
+        let ball_lagged = crossing(TICK_MS, lag, 310., 16);
+        eprintln!("lag {lag}: arrow lagged {arrow_lagged:?}; ball lagged {ball_lagged:?}");
+        assert_eq!(arrow_lagged, baseline, "lagged arrow at {lag} ms");
+        if lag < 300. {
+            assert_eq!(ball_lagged, baseline, "lagged ball at {lag} ms");
+        } else {
+            // The limit no catch-up can lift: the baseline arrow reaches the victim 200 ms after its launch, in the sweep
+            // of the very tick the 300 ms ball is launched in (250 ms back). Its hit is already in the ledger and the
+            // flight has ended, so the ball meets nothing; a later sweep cannot take the damage back.
+            assert!(
+                !ball_lagged.deleted && ball_lagged.hit && ball_lagged.damage > 0.,
+                "{ball_lagged:?}"
+            );
+        }
+    }
+    // Control: the same arrow hits the victim when no ball crosses it (the ball is cast after the arrow has landed).
+    let open = crossing(300., TICK_MS, 420., 40);
+    assert!(!open.deleted && open.hit && open.damage > 0., "{open:?}");
+}

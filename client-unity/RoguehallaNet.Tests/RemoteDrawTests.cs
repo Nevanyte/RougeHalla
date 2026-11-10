@@ -190,8 +190,15 @@ namespace Roguehalla.Net.Tests
             Assert.AreEqual(100.0, rd.AttackTime(100.0), "empty buffer: unchanged");
             for (int k = 0; k < 20; k++) buf.Add(Snap(k, Act(7, 8.5f * k, 0)));
             Assert.AreEqual(300.0 + RemoteDraw.LeadMs, rd.AttackTime(300.0), 1e-9);
-            Assert.AreEqual(buf.NewestMs, rd.AttackTime(buf.NewestMs - 10), 1e-9, "capped at the newest snapshot (inside the server window)");
-            Assert.AreEqual(buf.NewestMs + 40, rd.AttackTime(buf.NewestMs + 40), 1e-9, "never earlier than the render time itself");
+            // The windup/projectile timeline keeps the newest-snapshot cap (nothing there is extrapolated).
+            Assert.AreEqual(300.0 + RemoteDraw.LeadMs, rd.TimelineTime(300.0), 1e-9);
+            Assert.AreEqual(buf.NewestMs, rd.TimelineTime(buf.NewestMs - 10), 1e-9, "timeline: capped at the newest snapshot");
+            Assert.AreEqual(buf.NewestMs + 40, rd.TimelineTime(buf.NewestMs + 40), 1e-9, "timeline: never earlier than the render time itself");
+            // Aiming policy (protocol 15 review finding 3): attacks stamp the extrapolated time players are drawn at, at most one lead
+            // past the newest snapshot (so never past the server's apply time), and never earlier than the render time.
+            Assert.AreEqual(buf.NewestMs + 40, rd.AttackTime(buf.NewestMs - 10), 1e-9, "the drawn, extrapolated time");
+            Assert.AreEqual(buf.NewestMs + RemoteDraw.LeadMs, rd.AttackTime(buf.NewestMs + 40), 1e-9, "at most one lead past the newest snapshot");
+            Assert.GreaterOrEqual(rd.AttackTime(buf.NewestMs + 40), buf.NewestMs + 40, "never earlier than the render time itself");
         }
 
         [Test]
@@ -204,7 +211,9 @@ namespace Roguehalla.Net.Tests
             for (int k = 0; k < 40; k++) s.Snapshots.Add(Snap(k, Act(7, 8.5f * k, 0)));
             s.RemoteDraw.Enabled = true;
             double r = s.Clock.RenderMs;
-            Assert.AreEqual(Math.Max(r, Math.Min(r + RemoteDraw.LeadMs, s.Snapshots.NewestMs)), s.AttackRenderMs, 1e-9);
+            Assert.AreEqual(Math.Max(r, Math.Min(r + RemoteDraw.LeadMs, s.Snapshots.NewestMs)), s.DrawTimelineMs, 1e-9);
+            Assert.AreEqual(s.RemoteDraw.AttackTime(r), s.AttackRenderMs, 1e-9);
+            Assert.AreEqual(Math.Min(r, s.Snapshots.NewestMs) + RemoteDraw.LeadMs, s.AttackRenderMs, 1e-9, "40 extrapolable samples: the drawn time");
         }
 
         [Test]

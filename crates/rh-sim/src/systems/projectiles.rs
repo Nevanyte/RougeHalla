@@ -131,7 +131,8 @@ fn catch_up_ms(lag_ms: f64) -> f64 {
 /// Lag fairness: flies a just-launched shot (and any reflection it makes) from its back-dated launch up to the clock,
 /// sub-step by sub-step with the ordinary stretch, wall and body tests. Bodies and homing are sampled at each sub-step's
 /// past time (`position_at`), i.e. where the shooter saw them, never older than the rewind cap; walls are the current
-/// map, as for melee. The flight meets no other flight while catching up (balls delete arrows from the next sweep on).
+/// map, as for melee. Before its body test each sub-step it meets the other live flights where they were then (`past`),
+/// so a ball deletes the arrow it crosses as in the sweep's `delete_arrows`, before any hit is recorded.
 /// It ends at the clock with `time == server_time`, as every settled flight does.
 fn catch_up(cx: &mut Cx, first: usize, back: f64) {
     let now = cx.w.server_time;
@@ -145,6 +146,8 @@ fn catch_up(cx: &mut Cx, first: usize, back: f64) {
             match stretch(cx.w, i, t, cx.k.collision_map(cx.w.rt.gates_locked)) {
                 Ok((s, v)) => {
                     cx.w.projectiles[i].velocity = v;
+                    let from = cx.w.projectiles[i].time;
+                    meet_flights(cx, s, first, from, t);
                     advance(cx, s, t);
                 }
                 Err(reason) => {
@@ -152,6 +155,78 @@ fn catch_up(cx: &mut Cx, first: usize, back: f64) {
                     end(p, &mut cx.s.flight.swept[i], cx.ev, p.pos, reason);
                 }
             }
+        }
+    }
+}
+
+/// Lag fairness: where a settled flight was at the past time `t`, from its own motion since its last stretch
+/// (`pos - velocity * (time - t)`). Exact for a flight without a homing target, whose velocity never changes; a homing
+/// flight (its past turns are not kept) is taken back along its present heading. `None` before its launch.
+fn past(pr: &Projectile, t: f64) -> Option<Vec2> {
+    (t >= pr.launch.time).then(|| {
+        let dt = (pr.time - t) / 1000.;
+        Vec2::new(pr.pos.x - pr.velocity.x * dt, pr.pos.y - pr.velocity.y * dt)
+    })
+}
+
+/// Lag fairness: `delete_arrows` for one catching-up stretch `s` (from `from` to `t`) against the flights already
+/// settled at the clock (indices below `first`), each taken over the same past interval. A ball deletes every other
+/// owner's arrow it comes within `BALL_ARROW_RADIUS` of in sight, and is weakened by each, exactly as in the sweep.
+/// Flights that already ended are not met, as in the sweep; neither are those that ended before this tick, which no
+/// longer exist.
+fn meet_flights(cx: &mut Cx, s: Stretch, first: usize, from: f64, t: f64) {
+    let i = s.index;
+    let (kind, owner) = {
+        let l = &cx.w.projectiles[i].launch;
+        (l.kind, l.owner)
+    };
+    for j in 0..first {
+        if cx.s.flight.swept[i].ended {
+            return;
+        }
+        let other = cx.w.projectiles[j];
+        if cx.s.flight.swept[j].ended
+            || other.launch.kind == kind
+            || other.launch.owner == owner
+            || other.launch.time >= t
+        {
+            continue;
+        }
+        let (Some(a), Some(b)) = (past(&other, from.max(other.launch.time)), past(&other, t))
+        else {
+            continue;
+        };
+        let theirs = Stretch {
+            index: j,
+            a,
+            b,
+            len: distance(a, b),
+            stop: None,
+        };
+        let (ball, arrow) = if kind == ProjectileKind::Ball {
+            (s, theirs)
+        } else {
+            (theirs, s)
+        };
+        let (p, q) = closest(ball, arrow);
+        if distance(p, q) <= BALL_ARROW_RADIUS
+            && !ray_blocked(
+                cx.k.collision_map(cx.w.rt.gates_locked),
+                p.x,
+                p.y,
+                q.x,
+                q.y,
+                MASK_SIGHT,
+            )
+        {
+            end(
+                &mut cx.w.projectiles[arrow.index],
+                &mut cx.s.flight.swept[arrow.index],
+                cx.ev,
+                q,
+                ProjectileEnd::Deleted,
+            );
+            cx.w.projectiles[ball.index].packet.raw *= BALL_AFTER_ARROW;
         }
     }
 }

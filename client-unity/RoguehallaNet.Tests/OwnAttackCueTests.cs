@@ -172,5 +172,66 @@ namespace Roguehalla.Net.Tests
             Assert.IsFalse(cue.Update(1000, Me(), Playing, 1000));
             Assert.IsFalse(cue.AbsorbServerSwing(10));
         }
+
+        // ---- a ready-time jump never overrides a blocker seen in the same update ----
+
+        [Test]
+        public void ReadyJumpTogetherWithDeathIsRejected()
+        {
+            var cue = new OwnAttackCue();
+            Press(cue, Me());
+            Assert.IsTrue(cue.Update(150, Me(readyInMs: 600, status: ActorStatus.Dead), Playing, 1100));
+            Assert.IsFalse(cue.Pending); Assert.IsFalse(cue.Adopted);
+        }
+
+        [Test]
+        public void ReadyJumpTogetherWithStunIsRejected()
+        {
+            var cue = new OwnAttackCue();
+            Press(cue, Me());
+            Assert.IsTrue(cue.Update(150, Me(readyInMs: 600, effects: OwnAttackCue.StunBit), Playing, 1100));
+            Assert.IsFalse(cue.Pending); Assert.IsFalse(cue.Adopted);
+        }
+
+        [Test]
+        public void ReadyJumpTogetherWithAWeaponChangeIsRejected()
+        {
+            var cue = new OwnAttackCue();
+            Press(cue, Me());
+            Assert.IsTrue(cue.Update(150, Me(readyInMs: 600, weapon: WeaponId.Bow), Playing, 1100));
+            Assert.IsFalse(cue.Pending); Assert.IsFalse(cue.Adopted);
+        }
+
+        [Test]
+        public void ReadyJumpPastTheTimeoutIsRejected()
+        {
+            var cue = new OwnAttackCue();
+            Press(cue, Me());
+            Assert.IsTrue(cue.Update(201, Me(readyInMs: 600), Playing, 1200));
+            Assert.IsFalse(cue.Pending); Assert.IsFalse(cue.Adopted);
+        }
+
+        [Test]
+        public void GenuineLateServerEffectsAreStillRetainedAndAbsorbedOnce()
+        {
+            // The real Swing Fx arrives (Poll) before the frame's Update, even when the same snapshot also stuns or the bound passed.
+            var late = new OwnAttackCue();
+            Press(late);
+            Assert.IsTrue(late.AbsorbServerSwing(230));
+            Assert.IsFalse(late.Update(230, Me(readyInMs: 600, effects: OwnAttackCue.StunBit), Playing, 1200));
+            Assert.IsTrue(late.Adopted);
+            Assert.IsFalse(late.AbsorbServerSwing(300), "absorbed exactly once");
+
+            // A jump confirmed in an earlier update stays adopted when a short stun begins later, and its swing is absorbed once.
+            var stunned = new OwnAttackCue();
+            Press(stunned);
+            Assert.IsFalse(stunned.Update(150, Me(readyInMs: 600), Playing, 1100));
+            Assert.IsFalse(stunned.Update(200, Me(readyInMs: 550, effects: OwnAttackCue.StunBit), Playing, 1150));
+            Assert.IsTrue(stunned.Adopted);
+            Assert.IsTrue(stunned.AbsorbServerSwing(450));
+            Assert.IsFalse(stunned.AbsorbServerSwing(500));
+        }
+
+        static void Press(OwnAttackCue cue) { Assert.IsTrue(Press(cue, Me())); }
     }
 }

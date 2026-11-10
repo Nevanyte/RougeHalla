@@ -354,3 +354,114 @@ fn a_stamped_match_replays_and_restores_bit_for_bit() {
     let (again, _) = run_replay(&rec.replay).expect("the stamped match replays");
     assert_eq!(again.state_hash(), sim.state_hash());
 }
+
+#[test]
+fn without_lag_fairness_a_stamp_is_dropped_at_intake() {
+    // Unstamped as it is queued, so a checkpoint or state hash taken between submit and step already equals the plain
+    // match, through both the budgeted and the parity (unbudgeted) intake.
+    let legacy = SimConfig {
+        lag_fairness: false,
+        ..config()
+    };
+    let ps = [
+        at(1, FactionId::Holy, 300., 300., Some(WeaponId::Bow)),
+        at(2, FactionId::Frost, 380., 330., Some(WeaponId::Wand)),
+    ];
+    let start = || {
+        let mut s = Sim::reset_active(legacy.clone(), practice_arena(), Secrets::from_seed(5), &ps);
+        for _ in 0..3 {
+            s.step();
+        }
+        s
+    };
+    for unbudgeted in [false, true] {
+        let (mut stamped, mut plain) = (start(), start());
+        let t = issued(&stamped, TICK_MS);
+        let put = |s: &mut Sim, id: u32, raw: RawCommand| {
+            let cmd = validate(raw).unwrap();
+            if unbudgeted {
+                s.submit_unbudgeted(PlayerId(id), cmd).unwrap();
+            } else {
+                s.submit(PlayerId(id), cmd).unwrap();
+            }
+        };
+        put(
+            &mut stamped,
+            1,
+            RawCommand::MoveAt {
+                x: 700.,
+                y: 300.,
+                seq: Some(3),
+                t,
+            },
+        );
+        put(
+            &mut plain,
+            1,
+            RawCommand::Move {
+                x: 700.,
+                y: 300.,
+                seq: Some(3),
+            },
+        );
+        put(
+            &mut stamped,
+            2,
+            RawCommand::AttackMoveAt {
+                x: 200.,
+                y: 500.,
+                seq: None,
+                t,
+            },
+        );
+        put(
+            &mut plain,
+            2,
+            RawCommand::AttackMove {
+                x: 200.,
+                y: 500.,
+                seq: None,
+            },
+        );
+        assert_eq!(
+            stamped.state_hash(),
+            plain.state_hash(),
+            "hash after submit (unbudgeted: {unbudgeted})"
+        );
+        assert_eq!(
+            serde_json::to_value(&stamped).unwrap(),
+            serde_json::to_value(&plain).unwrap(),
+            "checkpoint after submit (unbudgeted: {unbudgeted})"
+        );
+        stamped.step();
+        plain.step();
+        assert_eq!(stamped.state_hash(), plain.state_hash(), "hash after step");
+    }
+    // Control: with the flag on the stamp stays queued (and is checkpointed) until the step consumes it.
+    let mut on = Sim::reset_active(config(), practice_arena(), Secrets::from_seed(5), &ps);
+    let mut off = on.clone();
+    let t = issued(&on, TICK_MS);
+    order(
+        &mut on,
+        1,
+        RawCommand::MoveAt {
+            x: 700.,
+            y: 300.,
+            seq: None,
+            t,
+        },
+    );
+    order(
+        &mut off,
+        1,
+        RawCommand::Move {
+            x: 700.,
+            y: 300.,
+            seq: None,
+        },
+    );
+    assert_ne!(
+        serde_json::to_value(&on).unwrap(),
+        serde_json::to_value(&off).unwrap()
+    );
+}

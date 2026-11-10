@@ -505,8 +505,9 @@ See [adr/0007-determinism.md](adr/0007-determinism.md). `rh_sim::math` is the on
   flight at tick t >= anchor with `position + (cos f, sin f) * speed * (t - tick) * 0.05`. An alias is issued on a sighting, never reused
   in the seat's observer, and dropped when the flight ends or leaves sight (re-entry gets a new one); the private launch id never
   reaches the wire. The actor-delta mask gained `AD_STEP` (bit 3: x and y as one signed byte each, in 1/8 u steps from the base
-  actor, only for an actor in the base) and `AD_KIT` moved from bit 3 to bit 14 with its byte last (`AD_ALL` = 0x7fff); delta
-  facing is the high byte of the 16-bit code, and a Full snapshot still carries a u16. Rust, C# and the JS decoder refuse a bit the
+  actor, only for an actor in the base) and `AD_KIT` moved from bit 3 to bit 14 with its byte last (`AD_ALL` = 0x7fff); remote
+  facing is on a 1/256-turn grid in Full frames too: a u16 field with the low byte 0 (the encoder writes `quantize_facing_remote`), and a
+  delta carries one byte, the high byte. Rust, C# and the JS decoder refuse a bit the
   version does not define, a step on a new actor or off the grid (`position_step`), and run `v15.json`.
 - **Presence masks (v4)**: every mask in a Snapshot or SnapshotDelta (the Full head, the Full actor mask, the Delta head and the
   actor-delta mask) is a canonical LEB128 varint with append-only bit numbers. Within a released version a bit is never renumbered, reused or
@@ -559,7 +560,7 @@ See [adr/0007-determinism.md](adr/0007-determinism.md). `rh_sim::math` is the on
   unanswered Resync with the next refused delta after 2 s. Decoders refuse unknown bases and malformed deltas and never
   clamp. 908 -> 305 B/player/s at 8 players on the slice with v3 (1.048x wire Ir) and 285 with v4 (`wirebench`, seed-1 map, 8 bots, 2,400 ticks; wire Ir 1.0041x of v3; [sweep/README.md](sweep/README.md)).
 - Snapshot content (both frame kinds): no `server_ms` (decoders derive it as tick x `TICK_MS`); the self view is full
-  precision; remote actors are quantized (position on a 1/8 u grid, facing on a 1/256-turn grid in deltas from v15, hp as a percent, a per-actor varint field mask) and
+  precision; remote actors are quantized (position on a 1/8 u grid, facing on a 1/256-turn grid from v15 (Full and delta), hp as a percent, a per-actor varint field mask) and
   encoded with varints (`crates/rh-protocol/src/quant.rs`, `encode.rs`, `delta.rs`). Quantization **refuses, never clamps**:
   a position outside the grid is `EncodeError::BadValue`, and the server refuses at startup an arena that does not fit
   (`wire::arena_fits`). `SnapshotData::build` applies every refusal of the encoders, off-grid positions included, so no

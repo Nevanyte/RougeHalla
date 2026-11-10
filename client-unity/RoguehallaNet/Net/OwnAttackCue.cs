@@ -77,18 +77,19 @@ namespace Roguehalla.Net
         {
             if (_absorb && nowMs - _pressAt > AbsorbWindowMs) _absorb = false;
             if (_stage != Stage.Pending) return false;
-            if (me != null && latestServerMs > _pressServerMs && me.ReadyInMs > 0 &&
-                latestServerMs + me.ReadyInMs > _pressReadyAt + ConfirmJumpMs)
-            {
-                _stage = Stage.Adopted;
-                return false;
-            }
+            // Invalid state comes first: a ready-time jump seen together with death, stun, a weapon change or a timeout is not proof
+            // that this press became an attack (a swap or a stun can move readiness too), so the provisional clip is cut. A genuine
+            // late server effect still lands: the own Swing Fx is absorbed in AbsorbServerSwing (which runs before this each frame),
+            // and a jump confirmed in an earlier update stays adopted whatever happens to the player afterwards.
             double bound = _rttMs + ConfirmSlackMs; if (bound > HardCapMs) bound = HardCapMs;
             if (Blocked(me, phase) || me.Weapon != _weapon || nowMs - _pressAt > bound)
             {
                 _stage = Stage.Idle; _absorb = false;
                 return true;
             }
+            if (latestServerMs > _pressServerMs && me.ReadyInMs > 0 &&
+                latestServerMs + me.ReadyInMs > _pressReadyAt + ConfirmJumpMs)
+                _stage = Stage.Adopted;
             return false;
         }
 

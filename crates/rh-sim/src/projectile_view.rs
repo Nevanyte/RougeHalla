@@ -73,6 +73,7 @@ pub(crate) fn sort(rows: &mut [ProjectileView]) {
 pub struct ProjectileTracks {
     /// The last alias issued (0 = none yet). Aliases are never reused while the seat's observer lives.
     issued: u32,
+    /// Sorted by private flight id (the binary-search key; never an output order).
     live: Vec<Track>,
     staged_issued: u32,
     staged: Vec<Track>,
@@ -162,14 +163,19 @@ pub(crate) fn project(
             speed,
         };
         // A flight keeps its track while it stays in sight; its anchor while it stays on the anchored line.
-        let (track, anchor) = match tracks.live.iter().find(|t| t.flight == flight.launch.id) {
-            Some(t) => {
+        // `live` is sorted by flight (see `number`): a binary search, not a scan per visible flight.
+        let live = tracks
+            .live
+            .binary_search_by_key(&flight.launch.id, |t| t.flight)
+            .map(|i| &tracks.live[i]);
+        let (track, anchor) = match live {
+            Ok(t) => {
                 let (px, py) = t.anchor.at(f64::from(tick));
                 let on_line = t.anchor.tick <= tick
                     && crate::math::hypot(px - flight.pos.x, py - flight.pos.y) <= TRACK_TOLERANCE;
                 (t.track, if on_line { t.anchor } else { current })
             }
-            None => {
+            Err(_) => {
                 tracks.fresh.push(out.projectiles.len());
                 (0, current)
             }
@@ -190,8 +196,17 @@ pub(crate) fn project(
             owner,
         });
     }
-    // New tracks are numbered in public row order (never launch id or flight order), after every alias issued before.
-    let rows = &out.projectiles;
+    // Fresh rows keep track 0 here: they are numbered by `number` once owners are presented.
+    Ok(())
+}
+
+/// Number the fresh rows staged by [`project`], after `actor_refs::project` has mapped every owner to its presented
+/// reference, then order the rows by track. New tracks follow public row order (never launch id or flight order),
+/// tie-broken by the presented owner the viewer sees, after every alias issued before.
+pub(crate) fn number(
+    rows: &mut [ProjectileView],
+    tracks: &mut ProjectileTracks,
+) -> Result<(), OfferError> {
     let fresh = &mut tracks.fresh;
     fresh.sort_unstable_by_key(|&i| {
         let r = &rows[i];
@@ -201,7 +216,7 @@ pub(crate) fn project(
             r.y,
             r.facing,
             r.speed,
-            r.owner.is_some(),
+            r.owner,
         )
     });
     if u64::from(tracks.issued) + fresh.len() as u64 > u64::from(u32::MAX) {
@@ -209,11 +224,12 @@ pub(crate) fn project(
     }
     for (n, &i) in fresh.iter().enumerate() {
         let track = tracks.issued + 1 + n as u32;
-        out.projectiles[i].track = track;
+        rows[i].track = track;
         tracks.staged[i].track = track;
     }
     tracks.staged_issued = tracks.issued + fresh.len() as u32;
-    // Final ordering (by track) runs in actor_refs::project AFTER NPC owner references are mapped.
+    tracks.staged.sort_unstable_by_key(|t| t.flight);
+    sort(rows);
     Ok(())
 }
 

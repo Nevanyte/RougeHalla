@@ -81,7 +81,7 @@ impl Cx<'_> {
         if cmd.is_train() && !self.k.config.training {
             return Err(Reject::InvalidTrain);
         }
-        inputs::submit(self.w, id, cmd)
+        inputs::submit(self.w, id, cmd, self.k.config.lag_fairness)
     }
 
     /// Like [`Cx::submit`] for a proposal that is not validated yet: it goes through [`validate`] first.

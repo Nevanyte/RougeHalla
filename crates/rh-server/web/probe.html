@@ -205,7 +205,7 @@ function decodeClient(buf) {
       else if (k === 19 || k === 20) {
         // The stamp t is the client's server-time estimate at the click; the server clamps it (a non-finite t is a plain order there).
         const x = finite(r.f32()), y = finite(r.f32()), seq = strictOpt(r, () => r.u8());
-        c = { k: k === 19 ? "moveAt" : "attackMoveAt", x, y, seq, t: r.f64() };
+        c = { k: k === 19 ? "moveAt" : "attackMoveAt", x, y, seq, t: finite(r.f64()) };
       }
       else if(k === 9) c={k:"useConsumable"};
       else if(k === 10) {const actorRef=r.u32();if(!actorRef)throw new Error("bad actor reference");c={k:"target",actorRef};}

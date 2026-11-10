@@ -23,8 +23,10 @@ pub struct Limits {
 }
 impl Limits {
     pub fn check(self) -> Result<Self> {
-        // Pinned to the live protocol it carries records of: re-review the experiment on every bump. Protocol 15 only
-        // added fields (actor windup, projectile tracks) that its recorded v14 frames never set or leave empty.
+        // Pinned to the live protocol it carries records of: re-review the experiment on every bump. Protocol 15 is not
+        // additive: besides actor windup and projectile tracks it moved AD_KIT to bit 14, added AD_STEP (bit 3), sends
+        // delta facing as one byte and writes remote facing on the 8-bit grid in Full frames. The candidate stays safe
+        // because it replays Full frames only (never a delta) through the current codec, which validates each one.
         if crate::PROTOCOL_VERSION != 15
             || self.body_bytes == 0
             || self.body_bytes > i32::MAX as usize
