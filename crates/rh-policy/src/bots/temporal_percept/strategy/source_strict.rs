@@ -533,11 +533,46 @@ fn validate_declaration(declaration: &SVal, method: &str, input: &SVal, path: &s
                 return Err(err(path, format!("decide declaration missing {required}")));
             }
         }
+        // The declaration is the original caller record: its consumed status/engaged/current facts must agree with the
+        // operation input the declaration produced (except `$previous`, whose input current is the caller's prior goal).
+        if let Some(status) = field("status") {
+            let input_status = input
+                .field("status", &format!("{path}.input.status"))
+                .map_err(|error| err(path, format!("decide input status invalid: {error}")))?;
+            if !super::source_trace::ordered_same(status, input_status) {
+                return Err(err(
+                    path,
+                    "decide declaration status differs from the consumed input status",
+                ));
+            }
+        }
+        if let Some(declared_current) = field("current") {
+            if !matches!(declared_current, SVal::Str(previous) if previous == "$previous") {
+                let input_current = input
+                    .field("current", &format!("{path}.input.current"))
+                    .map_err(|error| err(path, format!("decide input current invalid: {error}")))?;
+                if !super::source_trace::ordered_same(declared_current, input_current) {
+                    return Err(err(
+                        path,
+                        "decide declaration current differs from the consumed input current",
+                    ));
+                }
+            }
+        }
         if let Some(engaged) = field("engaged") {
             if !matches!(engaged, SVal::Bool(_)) {
                 return Err(err(
                     &format!("{path}.engaged"),
                     "declaration engaged must be a boolean",
+                ));
+            }
+            let input_engaged = input
+                .field("engaged", &format!("{path}.input.engaged"))
+                .map_err(|error| err(path, format!("decide input engaged invalid: {error}")))?;
+            if !super::source_trace::ordered_same(engaged, input_engaged) {
+                return Err(err(
+                    path,
+                    "decide declaration engaged differs from the consumed input engaged",
                 ));
             }
         }

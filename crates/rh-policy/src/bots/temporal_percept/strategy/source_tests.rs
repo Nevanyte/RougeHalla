@@ -2319,10 +2319,7 @@ fn preflight_hunter_decide(input: &SVal) -> R<()> {
         .map(|p| strict_vec2_value(p, "players[]"))
         .collect::<R<Vec<_>>>()?;
     boolv(input, "inColiseum")?;
-    let _ = must(
-        parse_mob_entries(field(input, "mobs")?),
-        "hunterDecide mobs",
-    );
+    parse_mob_entries(field(input, "mobs")?).map(|_| ())?;
     preflight_hunt_walk(field(input, "walk")?)?;
     boolv(input, "attacking")?;
     match field(input, "shotByPlayerAt")? {
@@ -2374,7 +2371,7 @@ fn preflight_route_input(input: &SVal) -> R<()> {
         .iter()
         .map(|p| strict_vec2_value(p, "players[]"))
         .collect::<R<Vec<_>>>()?;
-    let _ = can_farm_descriptor(field(input, "canFarm")?);
+    can_farm_descriptor(field(input, "canFarm")?).map(|_| ())?;
     Ok(())
 }
 
@@ -2418,6 +2415,11 @@ fn preflight_decide(op: &SVal, cfg: &SourceConfig) -> R<()> {
     if let Some(env) = declaration.optional("env") {
         if let Some(goals) = env.optional("moduleGoals") {
             for (module, offers) in goals.obj("moduleGoals")? {
+                if !cfg.modules.iter().any(|declared| declared.id == *module) {
+                    return Err(format!(
+                        "decide.env.moduleGoals: module {module} is not declared in the config modules"
+                    ));
+                }
                 match offers {
                     SVal::Arr(values) => {
                         for offer in values {
@@ -2433,9 +2435,8 @@ fn preflight_decide(op: &SVal, cfg: &SourceConfig) -> R<()> {
             }
         }
     }
-    // The declared module/learned/tier contracts are already preflighted by parse_config; keep the tier reference used so
-    // the signature stays tied to the real replay config.
-    let _ = cfg.seed;
+    // The declared module/learned/tier contracts are already preflighted by parse_config; the env override references
+    // above are checked against this actual replay config.
     Ok(())
 }
 
@@ -2480,10 +2481,7 @@ fn preflight_operation(
         }
         "trackerObserve" => {
             strict_keys(&input, &["mobs", "now"], "trackerObserve")?;
-            let _ = must(
-                parse_mob_entries(field(&input, "mobs")?),
-                "trackerObserve mobs",
-            );
+            parse_mob_entries(field(&input, "mobs")?).map(|_| ())?;
             finite(&input, "now")?;
         }
         "trackerQuery" => {
@@ -2538,8 +2536,38 @@ enum InjectionKind {
     StrategyDecideStatus,
     StrategyObserveWeapon,
     HunterWalk,
+    HunterMobs,
     RouteCanFarm,
     MemoryNoteSentCommand,
+    TrackerMobs,
+}
+
+impl InjectionKind {
+    /// The exact semantic intake branch the malformed later field must reach (not the declaration/envelope mismatch
+    /// guard, and not a panic).
+    fn expected_error(self) -> &'static str {
+        match self {
+            Self::StrategyDecideStatus => "GoalStatus.state: unknown source status future",
+            Self::StrategyObserveWeapon => "self.weapons[0]: unknown weapon laser",
+            Self::HunterWalk => "walk.kind: unknown declared walk descriptor future",
+            Self::HunterMobs => "hp: expected a finite number",
+            Self::RouteCanFarm => "canFarm.kind: unknown descriptor future",
+            Self::MemoryNoteSentCommand => "noteSent.cmd.type: unsupported source command future",
+            Self::TrackerMobs => "kind: missing field kind",
+        }
+    }
+    /// A short stable label for the red/green intake evidence.
+    fn label(self) -> &'static str {
+        match self {
+            Self::StrategyDecideStatus => "strategy-decide-status",
+            Self::StrategyObserveWeapon => "strategy-observe-weapon",
+            Self::HunterWalk => "hunter-walk-kind",
+            Self::HunterMobs => "hunter-malformed-mobs",
+            Self::RouteCanFarm => "route-canfarm-kind",
+            Self::MemoryNoteSentCommand => "memory-command-type",
+            Self::TrackerMobs => "tracker-malformed-mobs",
+        }
+    }
 }
 
 struct Injection {
@@ -2577,6 +2605,63 @@ fn tagged_values_mut(value: &mut Value) -> Option<&mut Vec<Value>> {
     value.get_mut("values")?.as_array_mut()
 }
 
+/// The first declared `[id, MobLike]` entry of a MobEntries method input (the encoded container is a tagged array; each
+/// entry is itself a tagged two-element array).
+fn first_mob_like_mut(input: &mut Value) -> &mut Value {
+    let mobs = tagged_entry_mut(input, "mobs").expect("mobs");
+    let entries = tagged_values_mut(mobs).expect("mobs array container");
+    let entry = entries
+        .first_mut()
+        .expect("at least one declared mob entry");
+    let pair = tagged_values_mut(entry).expect("mob entry pair container");
+    assert_eq!(pair.len(), 2, "mob entry is [id, MobLike]");
+    &mut pair[1]
+}
+
+/// Copy the (already mutated) consumed input into the caller declaration so the envelope declaration-consistency guard
+/// passes and the malformed later field reaches the semantic typed validator.
+fn sync_declaration_input(op: &mut Value) {
+    let input = op
+        .get("input")
+        .cloned()
+        .expect("injection target carries a declared input");
+    let declaration = op
+        .get_mut("declaration")
+        .and_then(Value::as_object_mut)
+        .expect("injection target carries a declaration");
+    let entries = declaration
+        .get_mut("entries")
+        .and_then(Value::as_array_mut)
+        .expect("tagged declaration entries");
+    let declared = entries
+        .iter_mut()
+        .find(|pair| pair.get(0).and_then(Value::as_str) == Some("input"))
+        .and_then(|pair| pair.get_mut(1))
+        .expect("declaration input");
+    *declared = input;
+}
+
+/// The decide declaration carries the same status object the caller passed; keep them consistent.
+fn sync_declaration_status(op: &mut Value) {
+    let status = tagged_entry_mut(&mut op["input"], "status")
+        .cloned()
+        .expect("decide input status");
+    let declaration = op
+        .get_mut("declaration")
+        .and_then(Value::as_object_mut)
+        .expect("decide declaration");
+    let entries = declaration
+        .get_mut("entries")
+        .and_then(Value::as_array_mut)
+        .expect("tagged declaration entries");
+    let declared = entries
+        .iter_mut()
+        .find(|pair| pair.get(0).and_then(Value::as_str) == Some("status"))
+        .and_then(|pair| pair.get_mut(1))
+        .expect("declaration status");
+    *declared = status;
+}
+
 impl Injection {
     fn apply(&self, op_json: &Value) -> Value {
         let mut op = op_json.clone();
@@ -2612,6 +2697,11 @@ impl Injection {
                 let kind = tagged_entry_mut(walk, "kind").expect("walk kind");
                 *kind = Value::String("future".into());
             }
+            InjectionKind::HunterMobs => {
+                let mob = first_mob_like_mut(input);
+                let hp = tagged_entry_mut(mob, "hp").expect("mob hp");
+                *hp = Value::String("not-a-number".into());
+            }
             InjectionKind::RouteCanFarm => {
                 let can_farm = tagged_entry_mut(input, "canFarm").expect("canFarm descriptor");
                 let kind = tagged_entry_mut(can_farm, "kind").expect("canFarm kind");
@@ -2622,6 +2712,20 @@ impl Injection {
                 let kind = tagged_entry_mut(cmd, "type").expect("command type");
                 *kind = Value::String("future".into());
             }
+            InjectionKind::TrackerMobs => {
+                let mob = first_mob_like_mut(input);
+                mob.get_mut("entries")
+                    .and_then(Value::as_array_mut)
+                    .expect("mob entries")
+                    .retain(|pair| pair.get(0).and_then(Value::as_str) != Some("kind"));
+            }
+        }
+        // Keep the frozen caller declaration consistent with the consumed copy for every injection; a separate control
+        // below deliberately breaks only one copy to exercise the declaration-mismatch guard.
+        if self.kind == InjectionKind::StrategyDecideStatus {
+            sync_declaration_status(&mut op);
+        } else {
+            sync_declaration_input(&mut op);
         }
         op
     }
@@ -2651,34 +2755,38 @@ fn non_advance_snapshot(
     ])
 }
 
-/// Reject a malformed later field at the actual entrypoint and prove nothing advanced.
-#[allow(clippy::too_many_arguments)]
-fn inject_non_advance(
+/// A malformed later field reached the SAME checked apply/dispatch entrypoint as every normal operation; the typed
+/// preflight must reject it on the intended semantic branch and no native Memory/nested state/RNG/callback channel may
+/// have advanced. (The entrypoint resets the transcript only after its preflight accepts the operation.)
+fn record_intake_result(
     injection: &Injection,
-    op_json: &Value,
-    case_json: &Value,
     suite: &str,
-    supplement: bool,
-    cfg: &SourceConfig,
-    maps: &Value,
-    memory: &super::super::memory::Memory,
-    own: impl Fn() -> SVal,
-    draws: impl Fn() -> [usize; 4],
-    trace: &TraceHandle,
+    result: R<SVal>,
+    before: &SVal,
+    after: &SVal,
     failures: &mut Vec<String>,
 ) {
-    let mutated = injection.apply(op_json);
-    let before = non_advance_snapshot(memory, own(), draws(), trace);
-    let preflight = preflight_operation(case_json, &mutated, suite, supplement, cfg, maps);
-    let after = non_advance_snapshot(memory, own(), draws(), trace);
-    match preflight {
-        Ok(()) => failures.push(format!(
-            "injected malformed field was accepted at the {suite} entrypoint"
+    match result {
+        Ok(_) => failures.push(format!(
+            "INTENT {}: injected malformed field was accepted at the {suite} entrypoint",
+            injection.kind.label()
         )),
-        Err(_) if !super::source_trace::ordered_same(&before, &after) => failures.push(
-            "rejected malformed operation still advanced Memory/own-RNG/callback state".into(),
-        ),
-        Err(_) => {}
+        Err(error) if !super::source_trace::ordered_same(before, after) => failures.push(format!(
+            "INTENT {}: rejected malformed operation still advanced Memory/own-RNG/callback state (error {error:?})",
+            injection.kind.label()
+        )),
+        Err(error) if !error.contains(injection.kind.expected_error()) => failures.push(format!(
+            "INTENT {}: malformed field was rejected on the wrong path; expected {:?} in error, got {error:?}",
+            injection.kind.label(),
+            injection.kind.expected_error()
+        )),
+        Err(error) => {
+            eprintln!(
+                "INTAKE_NON_ADVANCE {}: semantic rejection at shared checked entrypoint -> {}",
+                injection.kind.label(),
+                error
+            );
+        }
     }
 }
 
@@ -2697,6 +2805,646 @@ fn first_injectable(cases: &[Value], suite: &str, method: &str) -> Option<(Strin
         }
     }
     None
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+// Checked apply/dispatch entrypoints shared by normal replay and malformed-field injections
+
+#[allow(clippy::too_many_arguments)]
+fn execute_tracker_op(
+    cfg: &SourceConfig,
+    case_json: &Value,
+    op_json: &Value,
+    maps: &Value,
+    trace: &TraceHandle,
+    tracker: &mut MobTracker,
+) -> R<SVal> {
+    let case_label = case_id(case_json);
+    preflight_operation(case_json, op_json, "mob-tracker", false, cfg, maps)?;
+    trace.borrow_mut().reset();
+    let op = sv(op_json);
+    let method = text(&op, "method").expect("tracker method");
+    let input = op.optional("input").cloned().unwrap_or(SVal::Undefined);
+    let actual = match method.as_str() {
+        "trackerObserve" => {
+            let now = num(&input, "now").expect("trackerObserve now");
+            let mobs = must(
+                parse_mob_entries(field(&input, "mobs").expect("mobs")),
+                "trackerObserve mobs",
+            );
+            tracker.observe(&mobs, now);
+            SVal::Undefined
+        }
+        "trackerQuery" => {
+            let id = text(&input, "id").expect("trackerQuery id");
+            let now = num(&input, "now").expect("trackerQuery now");
+            let from_sv = field(&input, "from").expect("trackerQuery from");
+            let from = Vec2::new(
+                num(from_sv, "x").expect("from.x"),
+                num(from_sv, "y").expect("from.y"),
+            );
+            let radius = num(&input, "radius").expect("trackerQuery radius");
+            let awake_moved = num(&input, "awakeMoved").expect("awakeMoved");
+            let mob = match tracker.mob(&id) {
+                Some(m) => obj(vec![
+                    ("kind", source_reader::s(&m.kind)),
+                    (
+                        "type",
+                        m.type_
+                            .as_deref()
+                            .map(source_reader::s)
+                            .unwrap_or(SVal::Null),
+                    ),
+                    ("status", source_reader::s(&m.status)),
+                    ("x", num_sv(m.x)),
+                    ("y", num_sv(m.y)),
+                    ("hp", num_sv(m.hp)),
+                    ("maxHp", num_sv(m.max_hp)),
+                    (
+                        "faction",
+                        m.faction
+                            .map(|f| source_reader::s(f.as_str()))
+                            .unwrap_or(SVal::Null),
+                    ),
+                    (
+                        "weapon0",
+                        m.weapon0
+                            .map(|w| source_reader::s(w.as_str()))
+                            .unwrap_or(SVal::Null),
+                    ),
+                ]),
+                None => SVal::Null,
+            };
+            let home = tracker.home(&id).map(vec2_sv).unwrap_or(SVal::Null);
+            let awake_near = tracker
+                .awake_near(from, radius, now, awake_moved)
+                .into_iter()
+                .map(vec2_sv)
+                .collect();
+            obj(vec![
+                ("mob", mob),
+                ("home", home),
+                ("returning", source_reader::b(tracker.returning(&id, now))),
+                (
+                    "awake",
+                    source_reader::b(tracker.awake(&id, now, awake_moved)),
+                ),
+                ("awakeNear", source_reader::arr(awake_near)),
+            ])
+        }
+        other => panic!("{case_label}: unsupported tracker method {other}"),
+    };
+    Ok(actual)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn execute_hunter_op(
+    cfg: &SourceConfig,
+    case_json: &Value,
+    op_json: &Value,
+    maps: &Value,
+    trace: &TraceHandle,
+    hunter: &mut MobHunter,
+) -> R<SVal> {
+    let case_label = case_id(case_json);
+    preflight_operation(case_json, op_json, "mob-hunter", false, cfg, maps)?;
+    trace.borrow_mut().reset();
+    let op = sv(op_json);
+    let method = text(&op, "method").expect("hunter method");
+    let input = op.optional("input").cloned().unwrap_or(SVal::Undefined);
+    let actual = match method.as_str() {
+        "hunterDecide" => {
+            let now = num(&input, "now").expect("hunterDecide now");
+            let self_view = must(
+                parse_hunt_self(field(&input, "self").expect("self")),
+                "hunterDecide self",
+            );
+            let players = arr(&input, "players")
+                .expect("players")
+                .iter()
+                .map(|p| {
+                    Ok(Vec2::new(
+                        num(p, "x").expect("player x"),
+                        num(p, "y").expect("player y"),
+                    ))
+                })
+                .collect::<R<Vec<_>>>()
+                .expect("players");
+            let mobs = must(
+                parse_mob_entries(field(&input, "mobs").expect("mobs")),
+                "hunterDecide mobs",
+            );
+            let descriptor = field(&input, "walk").expect("walk");
+            let kind = text(descriptor, "kind").expect("walk kind");
+            let factor = descriptor
+                .opt_num("factor", "factor")
+                .expect("walk factor")
+                .unwrap_or(1.);
+            let min_x = descriptor.opt_num("minX", "minX").expect("walk minX");
+            let max_x = descriptor.opt_num("maxX", "maxX").expect("walk maxX");
+            let self_x = self_view.x;
+            let self_y = self_view.y;
+            let walk_trace = trace.clone();
+            let mut walk = move |mob: &HuntMobLike| -> Option<f64> {
+                let result = match kind.as_str() {
+                    "null" => None,
+                    "coordinate-block"
+                        if mob.x >= min_x.unwrap_or(f64::NEG_INFINITY)
+                            && mob.x <= max_x.unwrap_or(f64::INFINITY) =>
+                    {
+                        None
+                    }
+                    _ => Some(rh_sim::math::hypot(mob.x - self_x, mob.y - self_y) * factor),
+                };
+                let encoded = match &result {
+                    None => SVal::Null,
+                    Some(value) => num_sv(*value),
+                };
+                record_callback(
+                    &walk_trace,
+                    "hunter.walk",
+                    vec![encode_hunt_mob_like(mob)],
+                    encoded,
+                );
+                result
+            };
+            let weight = input.optional("typeWeights").cloned();
+            let type_weight = weight.as_ref().map(|weights| {
+                let pairs = weights
+                    .arr("typeWeights")
+                    .expect("typeWeights")
+                    .iter()
+                    .map(|p| {
+                        let pair = p.arr("typeWeight pair").expect("pair");
+                        (
+                            pair[0].string("typeWeight key").expect("key").to_string(),
+                            pair[1].num("typeWeight value").expect("value"),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                let weight_trace = trace.clone();
+                move |ty: Option<&str>| -> f64 {
+                    let value = ty
+                        .and_then(|t| pairs.iter().find(|(k, _)| k == t).map(|(_, v)| *v))
+                        .unwrap_or(0.25);
+                    let argument = ty.map(source_reader::s).unwrap_or(SVal::Undefined);
+                    record_callback(
+                        &weight_trace,
+                        "hunter.typeWeight",
+                        vec![argument],
+                        num_sv(value),
+                    );
+                    value
+                }
+            });
+            let type_weight_ref = type_weight
+                .as_ref()
+                .map(|f| f as &dyn Fn(Option<&str>) -> f64);
+            let player_distance = match field(&input, "playerDistance").expect("pd") {
+                SVal::Num(value) => *value,
+                other => panic!("playerDistance {other:?}"),
+            };
+            let shot_by_player_at = match field(&input, "shotByPlayerAt").expect("shot") {
+                SVal::Num(value) => *value,
+                other => panic!("shotByPlayerAt {other:?}"),
+            };
+            let mut hunt_input = HuntInput {
+                now,
+                self_: &self_view,
+                player_distance,
+                players: &players,
+                in_coliseum: boolv(&input, "inColiseum").expect("inColiseum"),
+                mobs: &mobs,
+                walk: &mut walk,
+                attacking: boolv(&input, "attacking").expect("attacking"),
+                shot_by_player_at,
+                type_weight: type_weight_ref,
+                elites_ready: input
+                    .optional("elitesReady")
+                    .and_then(|value| value.bool("elitesReady").ok()),
+            };
+            encode_decision(&hunter.decide(&mut hunt_input))
+        }
+        "isBanned" => {
+            let id = text(&input, "id").expect("isBanned id");
+            let now = num(&input, "now").expect("isBanned now");
+            source_reader::b(hunter.is_banned(&id, now))
+        }
+        other => panic!("{case_label}: unsupported hunter method {other}"),
+    };
+    Ok(actual)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn execute_route_op(
+    cfg: &SourceConfig,
+    case_json: &Value,
+    op_json: &Value,
+    maps: &Value,
+    trace: &TraceHandle,
+    route: &mut BuildRoute,
+) -> R<SVal> {
+    let case_label = case_id(case_json);
+    preflight_operation(case_json, op_json, "build-route", false, cfg, maps)?;
+    trace.borrow_mut().reset();
+    let op = sv(op_json);
+    let method = text(&op, "method").expect("route method");
+    let input = op.optional("input").cloned().unwrap_or(SVal::Undefined);
+    let actual = match method.as_str() {
+        "routeUpdate" | "routePlan" => {
+            let camps = arr(&input, "camps")
+                .expect("camps")
+                .iter()
+                .map(|c| must(parse_route_camp(c), "route camp"))
+                .collect::<Vec<_>>();
+            let self_sv = field(&input, "self").expect("self");
+            let self_pos = Vec2::new(
+                num(self_sv, "x").expect("self.x"),
+                num(self_sv, "y").expect("self.y"),
+            );
+            let players = arr(&input, "players")
+                .expect("players")
+                .iter()
+                .map(|p| {
+                    Ok(Vec2::new(
+                        num(p, "x").expect("player x"),
+                        num(p, "y").expect("player y"),
+                    ))
+                })
+                .collect::<R<Vec<_>>>()
+                .expect("players");
+            let descriptor = field(&input, "canFarm").expect("canFarm");
+            let inner = must(can_farm_descriptor(descriptor), "canFarm descriptor");
+            let farm_trace = trace.clone();
+            let can_farm = move |camp: &RouteCamp| -> bool {
+                let result = inner(camp);
+                record_callback(
+                    &farm_trace,
+                    "route.canFarm",
+                    vec![encode_route_camp(camp)],
+                    bool_sv(result),
+                );
+                result
+            };
+            let route_input = super::build_route::RouteInput {
+                now: num(&input, "now").expect("now"),
+                run_ms: num(&input, "runMs").expect("runMs"),
+                self_pos,
+                speed: num(&input, "speed").expect("speed"),
+                mob_kills: num(&input, "mobKills").expect("mobKills"),
+                power: num(&input, "power").expect("power"),
+                camps: &camps,
+                players: &players,
+                can_farm: &can_farm,
+            };
+            if method == "routeUpdate" {
+                route
+                    .update(&route_input)
+                    .map(|step| encode_route_step(&step))
+                    .unwrap_or(SVal::Null)
+            } else {
+                route.plan(&route_input);
+                SVal::Undefined
+            }
+        }
+        "isContested" => {
+            let camp = num(&input, "camp").expect("camp") as u32;
+            let now = num(&input, "now").expect("now");
+            source_reader::b(route.is_contested(camp, now))
+        }
+        "campValue" => {
+            let camp = must(
+                parse_route_camp(field(&input, "camp").expect("camp")),
+                "campValue camp",
+            );
+            let elites = boolv(&input, "elites").expect("elites");
+            num_sv(super::build_route::route_camp_value(
+                route.build,
+                &camp,
+                elites,
+            ))
+        }
+        other => panic!("{case_label}: unsupported route method {other}"),
+    };
+    Ok(actual)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn execute_memory_op(
+    cfg: &SourceConfig,
+    case_json: &Value,
+    op_json: &Value,
+    maps: &Value,
+    trace: &TraceHandle,
+    mem: &mut super::super::memory::Memory,
+) -> R<SVal> {
+    let case_label = case_id(case_json);
+    preflight_operation(case_json, op_json, "memory-api", false, cfg, maps)?;
+    trace.borrow_mut().reset();
+    let op = sv(op_json);
+    let method = text(&op, "method").expect("memory method");
+    let input = op.optional("input").cloned().unwrap_or(SVal::Undefined);
+    let actual = match method.as_str() {
+        "nullPercept" => {
+            assert!(
+                matches!(input, SVal::Null),
+                "{case_label}: nullPercept input"
+            );
+            SVal::Null
+        }
+        "observe" => {
+            let percept = must(
+                parse_memory_percept(&input, &cfg.features),
+                "memory observe percept",
+            );
+            let stimuli = mem.observe(&percept).expect("memory observe");
+            source_reader::arr(stimuli.iter().map(encode_stimulus).collect())
+        }
+        "noteSent" => {
+            let timed = must(parse_note_sent(&input), "noteSent");
+            mem.note_sent(timed).expect("memory noteSent");
+            SVal::Undefined
+        }
+        "recordChoice" => {
+            mem.record_choice(input.string("choice").expect("choice"));
+            SVal::Undefined
+        }
+        "whereabouts" => {
+            let id = text(&input, "id").expect("whereabouts id");
+            let now = num(&input, "now").expect("whereabouts now");
+            match mem.whereabouts(&id, now).expect("memory whereabouts") {
+                None => SVal::Null,
+                Some(w) => obj(vec![("at", vec2_sv(w.at)), ("radius", num_sv(w.radius))]),
+            }
+        }
+        other => panic!("{case_label}: unsupported memory method {other}"),
+    };
+    Ok(actual)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn execute_adapter_op(
+    cfg: &SourceConfig,
+    case_json: &Value,
+    op_json: &Value,
+    maps: &Value,
+    trace: &TraceHandle,
+    mem: &mut super::super::memory::Memory,
+    percept: &mut Option<StrategyPercept>,
+    paths: &mut PathHarness,
+    know: &RecordedKnowledge<'_>,
+    learned: &RecordedLearned<'_>,
+    adapter: &mut HuntAdapter,
+    decide_rng: &mut TraceRng,
+    lapse_rng: &mut TraceRng,
+) -> R<SVal> {
+    let case_label = case_id(case_json);
+    preflight_operation(case_json, op_json, "hunt-adapter", false, cfg, maps)?;
+    trace.borrow_mut().reset();
+    let empty_modules: Vec<Box<dyn super::types::FeatureModule>> = Vec::new();
+    let op = sv(op_json);
+    let method = text(&op, "method").expect("adapter method");
+    let input = op.optional("input").cloned().unwrap_or(SVal::Undefined);
+    let actual = match method.as_str() {
+        "observe" => {
+            let percept_input = must(
+                parse_memory_percept(&input, &cfg.features),
+                "adapter observe percept",
+            );
+            let strategy_percept = must(
+                parse_strategy_percept(&input, cfg),
+                "adapter observe strategy percept",
+            );
+            let stimuli = mem.observe(&percept_input).expect("adapter observe");
+            *percept = Some(strategy_percept);
+            source_reader::arr(stimuli.iter().map(encode_stimulus).collect())
+        }
+        "adapterDecide" => {
+            let p = percept.as_ref().expect("adapter decide needs an observe");
+            let cfg_ctx = StrategyConfig {
+                id: cfg.id.clone(),
+                seed: cfg.seed,
+                tier: &cfg.tier,
+                persona: &cfg.persona,
+                map: &cfg.map,
+                features: &cfg.features,
+                learned,
+                modules: &empty_modules,
+            };
+            let weight = op.optional("typeWeights").cloned();
+            let type_weight = weight.as_ref().map(|weights| {
+                let pairs = weights
+                    .arr("typeWeights")
+                    .expect("typeWeights")
+                    .iter()
+                    .map(|p| {
+                        let pair = p.arr("typeWeight pair").expect("pair");
+                        (
+                            pair[0].string("typeWeight key").expect("key").to_string(),
+                            pair[1].num("typeWeight value").expect("value"),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                let weight_trace = trace.clone();
+                move |ty: Option<&str>| -> f64 {
+                    let value = ty
+                        .and_then(|t| pairs.iter().find(|(k, _)| k == t).map(|(_, v)| *v))
+                        .unwrap_or(0.25);
+                    let argument = ty.map(source_reader::s).unwrap_or(SVal::Undefined);
+                    record_callback(
+                        &weight_trace,
+                        "adapter.typeWeight",
+                        vec![argument],
+                        num_sv(value),
+                    );
+                    value
+                }
+            });
+            let type_weight_ref = type_weight
+                .as_ref()
+                .map(|f| f as &dyn Fn(Option<&str>) -> f64);
+            let mem_view = RecordedMemory {
+                inner: &*mem,
+                trace: trace.clone(),
+            };
+            let mut ctx = StrategyContext {
+                cfg: &cfg_ctx,
+                p,
+                mem: &mem_view,
+                know,
+                paths,
+                decide: decide_rng,
+                lapse: lapse_rng,
+                engaged: op
+                    .optional("engaged")
+                    .and_then(|value| value.bool("engaged").ok())
+                    .unwrap_or(false),
+            };
+            let decision = adapter.decide(
+                &mut ctx,
+                type_weight_ref,
+                op.optional("elitesReady")
+                    .and_then(|value| value.bool("elitesReady").ok()),
+            );
+            encode_decision(&decision)
+        }
+        "release" => {
+            let p = percept.as_ref().expect("release needs an observe");
+            let cfg_ctx = StrategyConfig {
+                id: cfg.id.clone(),
+                seed: cfg.seed,
+                tier: &cfg.tier,
+                persona: &cfg.persona,
+                map: &cfg.map,
+                features: &cfg.features,
+                learned,
+                modules: &empty_modules,
+            };
+            let mem_view = RecordedMemory {
+                inner: &*mem,
+                trace: trace.clone(),
+            };
+            let mut ctx = StrategyContext {
+                cfg: &cfg_ctx,
+                p,
+                mem: &mem_view,
+                know,
+                paths,
+                decide: decide_rng,
+                lapse: lapse_rng,
+                engaged: false,
+            };
+            adapter.release(&mut ctx);
+            SVal::Undefined
+        }
+        "awakeNear" => {
+            let from = must(
+                parse_vec2(field(&input, "from").expect("from")),
+                "awakeNear from",
+            );
+            let radius = num(&input, "radius").expect("radius");
+            let now = num(&input, "now").expect("now");
+            source_reader::arr(
+                adapter
+                    .awake_near(from, radius, now)
+                    .into_iter()
+                    .map(vec2_sv)
+                    .collect(),
+            )
+        }
+        other => panic!("{case_label}: unsupported adapter method {other}"),
+    };
+    Ok(actual)
+}
+
+struct StrategyStep {
+    actual: SVal,
+    previous_guard_mismatch: bool,
+}
+
+#[allow(clippy::too_many_arguments)]
+fn execute_strategy_op(
+    cfg: &SourceConfig,
+    case_json: &Value,
+    op_json: &Value,
+    maps: &Value,
+    supplement: bool,
+    trace: &TraceHandle,
+    mem: &mut super::super::memory::Memory,
+    percept: &mut Option<StrategyPercept>,
+    paths: &mut PathHarness,
+    know: &RecordedKnowledge<'_>,
+    learned: &RecordedLearned<'_>,
+    strategy: &mut Strategy,
+    decide_rng: &mut TraceRng,
+    lapse_rng: &mut TraceRng,
+    last_goal: &mut Goal,
+    op_index: usize,
+) -> R<StrategyStep> {
+    let case_label = case_id(case_json);
+    preflight_operation(case_json, op_json, "strategy", supplement, cfg, maps)?;
+    trace.borrow_mut().reset();
+    let mut previous_guard_mismatch = false;
+    let op = sv(op_json);
+    let method = text(&op, "method").expect("strategy method");
+    let input = op.optional("input").cloned().unwrap_or(SVal::Undefined);
+    let actual = match method.as_str() {
+        "observe" => {
+            let percept_input = must(
+                parse_memory_percept(&input, &cfg.features),
+                "strategy observe percept",
+            );
+            let strategy_percept = must(
+                parse_strategy_percept(&input, cfg),
+                "strategy observe strategy percept",
+            );
+            let stimuli = mem.observe(&percept_input).expect("strategy observe");
+            *percept = Some(strategy_percept);
+            source_reader::arr(stimuli.iter().map(encode_stimulus).collect())
+        }
+        "recordChoice" => {
+            mem.record_choice(input.string("choice").expect("recordChoice"));
+            SVal::Undefined
+        }
+        "decide" => {
+            let p = percept.as_ref().expect("decide needs an observe");
+            let declaration = field(&op, "declaration").expect("declaration");
+            let previous = matches!(
+                declaration.optional("current"),
+                Some(SVal::Str(value)) if value == "$previous"
+            );
+            let current_input = field(&input, "current").expect("input.current");
+            let current = if previous {
+                let guard = must(parse_goal(current_input), "captured current guard");
+                if !super::source_trace::ordered_same(&encode_goal(&guard), &encode_goal(last_goal))
+                {
+                    previous_guard_mismatch = true;
+                }
+                last_goal.clone()
+            } else {
+                must(parse_goal(current_input), "declared current")
+            };
+            let status = must(
+                parse_status(field(&input, "status").expect("input.status")),
+                "status",
+            );
+            let engaged = boolv(&input, "engaged").expect("engaged");
+            let env = declaration.optional("env").cloned();
+            let modules = modules_for(cfg, env.as_ref(), trace, op_index);
+            let cfg_ctx = StrategyConfig {
+                id: cfg.id.clone(),
+                seed: cfg.seed,
+                tier: &cfg.tier,
+                persona: &cfg.persona,
+                map: &cfg.map,
+                features: &cfg.features,
+                learned,
+                modules: &modules,
+            };
+            let mem_view = RecordedMemory {
+                inner: &*mem,
+                trace: trace.clone(),
+            };
+            let mut ctx = StrategyContext {
+                cfg: &cfg_ctx,
+                p,
+                mem: &mem_view,
+                know,
+                paths,
+                decide: decide_rng,
+                lapse: lapse_rng,
+                engaged,
+            };
+            let out = strategy.decide(&mut ctx, &current, &status);
+            *last_goal = out.goal.clone();
+            encode_goal_decision(&out)
+        }
+        other => panic!("{case_label}: unsupported strategy method {other}"),
+    };
+    Ok(StrategyStep {
+        actual,
+        previous_guard_mismatch,
+    })
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -2727,103 +3475,39 @@ fn replay_tracker(source: &Value, injection: Option<&Injection>) -> ReplayOutcom
             let op_label = format!("{label} op{index}");
             if let Some(injection) = injection {
                 if injection.matches(&label, index) {
-                    let supplement = false;
-                    inject_non_advance(
+                    let mutated = injection.apply(op_json);
+                    let draws = [0, 0, 0, 0];
+                    let before =
+                        non_advance_snapshot(&mem, encode_mob_tracker(&tracker), draws, &trace);
+                    let result =
+                        execute_tracker_op(&cfg, case_json, &mutated, maps, &trace, &mut tracker);
+                    let after =
+                        non_advance_snapshot(&mem, encode_mob_tracker(&tracker), draws, &trace);
+                    record_intake_result(
                         injection,
-                        op_json,
-                        case_json,
                         "mob-tracker",
-                        supplement,
-                        &cfg,
-                        maps,
-                        &mem,
-                        || encode_mob_tracker(&tracker),
-                        || [0, 0, 0, 0],
-                        &trace,
+                        result,
+                        &before,
+                        &after,
                         &mut outcome.failures,
                     );
                     outcome.non_advance += 1;
                     break;
                 }
             }
-            must(
-                preflight_operation(case_json, op_json, "mob-tracker", false, &cfg, maps),
-                &format!("{op_label} intake"),
-            );
-            trace.borrow_mut().reset();
             let op = sv(op_json);
-            let method = text(&op, "method").expect("tracker method");
-            let input = op.optional("input").cloned().unwrap_or(SVal::Undefined);
             let expected = op.optional("result").cloned().unwrap_or(SVal::Undefined);
-            let actual = match method.as_str() {
-                "trackerObserve" => {
-                    let now = num(&input, "now").expect("trackerObserve now");
-                    let mobs = must(
-                        parse_mob_entries(field(&input, "mobs").expect("mobs")),
-                        "trackerObserve mobs",
-                    );
-                    tracker.observe(&mobs, now);
-                    SVal::Undefined
-                }
-                "trackerQuery" => {
-                    let id = text(&input, "id").expect("trackerQuery id");
-                    let now = num(&input, "now").expect("trackerQuery now");
-                    let from_sv = field(&input, "from").expect("trackerQuery from");
-                    let from = Vec2::new(
-                        num(from_sv, "x").expect("from.x"),
-                        num(from_sv, "y").expect("from.y"),
-                    );
-                    let radius = num(&input, "radius").expect("trackerQuery radius");
-                    let awake_moved = num(&input, "awakeMoved").expect("awakeMoved");
-                    let mob = match tracker.mob(&id) {
-                        Some(m) => obj(vec![
-                            ("kind", source_reader::s(&m.kind)),
-                            (
-                                "type",
-                                m.type_
-                                    .as_deref()
-                                    .map(source_reader::s)
-                                    .unwrap_or(SVal::Null),
-                            ),
-                            ("status", source_reader::s(&m.status)),
-                            ("x", num_sv(m.x)),
-                            ("y", num_sv(m.y)),
-                            ("hp", num_sv(m.hp)),
-                            ("maxHp", num_sv(m.max_hp)),
-                            (
-                                "faction",
-                                m.faction
-                                    .map(|f| source_reader::s(f.as_str()))
-                                    .unwrap_or(SVal::Null),
-                            ),
-                            (
-                                "weapon0",
-                                m.weapon0
-                                    .map(|w| source_reader::s(w.as_str()))
-                                    .unwrap_or(SVal::Null),
-                            ),
-                        ]),
-                        None => SVal::Null,
-                    };
-                    let home = tracker.home(&id).map(vec2_sv).unwrap_or(SVal::Null);
-                    let awake_near = tracker
-                        .awake_near(from, radius, now, awake_moved)
-                        .into_iter()
-                        .map(vec2_sv)
-                        .collect();
-                    obj(vec![
-                        ("mob", mob),
-                        ("home", home),
-                        ("returning", source_reader::b(tracker.returning(&id, now))),
-                        (
-                            "awake",
-                            source_reader::b(tracker.awake(&id, now, awake_moved)),
-                        ),
-                        ("awakeNear", source_reader::arr(awake_near)),
-                    ])
-                }
-                other => panic!("{op_label}: unsupported tracker method {other}"),
-            };
+            let actual =
+                match execute_tracker_op(&cfg, case_json, op_json, maps, &trace, &mut tracker) {
+                    Ok(actual) => actual,
+                    Err(error) => {
+                        outcome.failures.push(format!(
+                            "{op_label} checked intake/dispatch failed: {error}"
+                        ));
+                        break;
+                    }
+                };
+
             compare(&op_label, &expected, &actual, &mut outcome.failures);
             check_channels(&op_label, op_json, &trace, None, &mut outcome.failures);
             compare_op_own(
@@ -2867,153 +3551,39 @@ fn replay_hunter(source: &Value, injection: Option<&Injection>) -> ReplayOutcome
             let op_label = format!("{label} op{index}");
             if let Some(injection) = injection {
                 if injection.matches(&label, index) {
-                    inject_non_advance(
+                    let mutated = injection.apply(op_json);
+                    let draws = [0, 0, 0, 0];
+                    let before =
+                        non_advance_snapshot(&mem, encode_mob_hunter(&hunter), draws, &trace);
+                    let result =
+                        execute_hunter_op(&cfg, case_json, &mutated, maps, &trace, &mut hunter);
+                    let after =
+                        non_advance_snapshot(&mem, encode_mob_hunter(&hunter), draws, &trace);
+                    record_intake_result(
                         injection,
-                        op_json,
-                        case_json,
                         "mob-hunter",
-                        false,
-                        &cfg,
-                        maps,
-                        &mem,
-                        || encode_mob_hunter(&hunter),
-                        || [0, 0, 0, 0],
-                        &trace,
+                        result,
+                        &before,
+                        &after,
                         &mut outcome.failures,
                     );
                     outcome.non_advance += 1;
                     break;
                 }
             }
-            must(
-                preflight_operation(case_json, op_json, "mob-hunter", false, &cfg, maps),
-                &format!("{op_label} intake"),
-            );
-            trace.borrow_mut().reset();
             let op = sv(op_json);
-            let method = text(&op, "method").expect("hunter method");
-            let input = op.optional("input").cloned().unwrap_or(SVal::Undefined);
             let expected = op.optional("result").cloned().unwrap_or(SVal::Undefined);
-            let actual = match method.as_str() {
-                "hunterDecide" => {
-                    let now = num(&input, "now").expect("hunterDecide now");
-                    let self_view = must(
-                        parse_hunt_self(field(&input, "self").expect("self")),
-                        "hunterDecide self",
-                    );
-                    let players = arr(&input, "players")
-                        .expect("players")
-                        .iter()
-                        .map(|p| {
-                            Ok(Vec2::new(
-                                num(p, "x").expect("player x"),
-                                num(p, "y").expect("player y"),
-                            ))
-                        })
-                        .collect::<R<Vec<_>>>()
-                        .expect("players");
-                    let mobs = must(
-                        parse_mob_entries(field(&input, "mobs").expect("mobs")),
-                        "hunterDecide mobs",
-                    );
-                    let descriptor = field(&input, "walk").expect("walk");
-                    let kind = text(descriptor, "kind").expect("walk kind");
-                    let factor = descriptor
-                        .opt_num("factor", "factor")
-                        .expect("walk factor")
-                        .unwrap_or(1.);
-                    let min_x = descriptor.opt_num("minX", "minX").expect("walk minX");
-                    let max_x = descriptor.opt_num("maxX", "maxX").expect("walk maxX");
-                    let self_x = self_view.x;
-                    let self_y = self_view.y;
-                    let walk_trace = trace.clone();
-                    let mut walk = move |mob: &HuntMobLike| -> Option<f64> {
-                        let result = match kind.as_str() {
-                            "null" => None,
-                            "coordinate-block"
-                                if mob.x >= min_x.unwrap_or(f64::NEG_INFINITY)
-                                    && mob.x <= max_x.unwrap_or(f64::INFINITY) =>
-                            {
-                                None
-                            }
-                            _ => Some(rh_sim::math::hypot(mob.x - self_x, mob.y - self_y) * factor),
-                        };
-                        let encoded = match &result {
-                            None => SVal::Null,
-                            Some(value) => num_sv(*value),
-                        };
-                        record_callback(
-                            &walk_trace,
-                            "hunter.walk",
-                            vec![encode_hunt_mob_like(mob)],
-                            encoded,
-                        );
-                        result
-                    };
-                    let weight = input.optional("typeWeights").cloned();
-                    let type_weight = weight.as_ref().map(|weights| {
-                        let pairs = weights
-                            .arr("typeWeights")
-                            .expect("typeWeights")
-                            .iter()
-                            .map(|p| {
-                                let pair = p.arr("typeWeight pair").expect("pair");
-                                (
-                                    pair[0].string("typeWeight key").expect("key").to_string(),
-                                    pair[1].num("typeWeight value").expect("value"),
-                                )
-                            })
-                            .collect::<Vec<_>>();
-                        let weight_trace = trace.clone();
-                        move |ty: Option<&str>| -> f64 {
-                            let value = ty
-                                .and_then(|t| pairs.iter().find(|(k, _)| k == t).map(|(_, v)| *v))
-                                .unwrap_or(0.25);
-                            let argument = ty.map(source_reader::s).unwrap_or(SVal::Undefined);
-                            record_callback(
-                                &weight_trace,
-                                "hunter.typeWeight",
-                                vec![argument],
-                                num_sv(value),
-                            );
-                            value
-                        }
-                    });
-                    let type_weight_ref = type_weight
-                        .as_ref()
-                        .map(|f| f as &dyn Fn(Option<&str>) -> f64);
-                    let player_distance = match field(&input, "playerDistance").expect("pd") {
-                        SVal::Num(value) => *value,
-                        other => panic!("playerDistance {other:?}"),
-                    };
-                    let shot_by_player_at = match field(&input, "shotByPlayerAt").expect("shot") {
-                        SVal::Num(value) => *value,
-                        other => panic!("shotByPlayerAt {other:?}"),
-                    };
-                    let mut hunt_input = HuntInput {
-                        now,
-                        self_: &self_view,
-                        player_distance,
-                        players: &players,
-                        in_coliseum: boolv(&input, "inColiseum").expect("inColiseum"),
-                        mobs: &mobs,
-                        walk: &mut walk,
-                        attacking: boolv(&input, "attacking").expect("attacking"),
-                        shot_by_player_at,
-                        type_weight: type_weight_ref,
-                        elites_ready: input
-                            .optional("elitesReady")
-                            .and_then(|value| value.bool("elitesReady").ok()),
-                    };
-                    encode_decision(&hunter.decide(&mut hunt_input))
-                }
-                "isBanned" => {
-                    let id = text(&input, "id").expect("isBanned id");
-                    let now = num(&input, "now").expect("isBanned now");
-                    source_reader::b(hunter.is_banned(&id, now))
-                }
-                other => panic!("{op_label}: unsupported hunter method {other}"),
-            };
+            let actual =
+                match execute_hunter_op(&cfg, case_json, op_json, maps, &trace, &mut hunter) {
+                    Ok(actual) => actual,
+                    Err(error) => {
+                        outcome.failures.push(format!(
+                            "{op_label} checked intake/dispatch failed: {error}"
+                        ));
+                        break;
+                    }
+                };
+
             compare(&op_label, &expected, &actual, &mut outcome.failures);
             check_channels(&op_label, op_json, &trace, None, &mut outcome.failures);
             compare_op_own(
@@ -3057,109 +3627,39 @@ fn replay_build_route(source: &Value, injection: Option<&Injection>) -> ReplayOu
             let op_label = format!("{label} op{index}");
             if let Some(injection) = injection {
                 if injection.matches(&label, index) {
-                    inject_non_advance(
+                    let mutated = injection.apply(op_json);
+                    let draws = [0, 0, 0, 0];
+                    let before =
+                        non_advance_snapshot(&mem, encode_build_route(&route), draws, &trace);
+                    let result =
+                        execute_route_op(&cfg, case_json, &mutated, maps, &trace, &mut route);
+                    let after =
+                        non_advance_snapshot(&mem, encode_build_route(&route), draws, &trace);
+                    record_intake_result(
                         injection,
-                        op_json,
-                        case_json,
                         "build-route",
-                        false,
-                        &cfg,
-                        maps,
-                        &mem,
-                        || encode_build_route(&route),
-                        || [0, 0, 0, 0],
-                        &trace,
+                        result,
+                        &before,
+                        &after,
                         &mut outcome.failures,
                     );
                     outcome.non_advance += 1;
                     break;
                 }
             }
-            must(
-                preflight_operation(case_json, op_json, "build-route", false, &cfg, maps),
-                &format!("{op_label} intake"),
-            );
-            trace.borrow_mut().reset();
             let op = sv(op_json);
-            let method = text(&op, "method").expect("route method");
-            let input = op.optional("input").cloned().unwrap_or(SVal::Undefined);
             let expected = op.optional("result").cloned().unwrap_or(SVal::Undefined);
-            let actual = match method.as_str() {
-                "routeUpdate" | "routePlan" => {
-                    let camps = arr(&input, "camps")
-                        .expect("camps")
-                        .iter()
-                        .map(|c| must(parse_route_camp(c), "route camp"))
-                        .collect::<Vec<_>>();
-                    let self_sv = field(&input, "self").expect("self");
-                    let self_pos = Vec2::new(
-                        num(self_sv, "x").expect("self.x"),
-                        num(self_sv, "y").expect("self.y"),
-                    );
-                    let players = arr(&input, "players")
-                        .expect("players")
-                        .iter()
-                        .map(|p| {
-                            Ok(Vec2::new(
-                                num(p, "x").expect("player x"),
-                                num(p, "y").expect("player y"),
-                            ))
-                        })
-                        .collect::<R<Vec<_>>>()
-                        .expect("players");
-                    let descriptor = field(&input, "canFarm").expect("canFarm");
-                    let inner = must(can_farm_descriptor(descriptor), "canFarm descriptor");
-                    let farm_trace = trace.clone();
-                    let can_farm = move |camp: &RouteCamp| -> bool {
-                        let result = inner(camp);
-                        record_callback(
-                            &farm_trace,
-                            "route.canFarm",
-                            vec![encode_route_camp(camp)],
-                            bool_sv(result),
-                        );
-                        result
-                    };
-                    let route_input = super::build_route::RouteInput {
-                        now: num(&input, "now").expect("now"),
-                        run_ms: num(&input, "runMs").expect("runMs"),
-                        self_pos,
-                        speed: num(&input, "speed").expect("speed"),
-                        mob_kills: num(&input, "mobKills").expect("mobKills"),
-                        power: num(&input, "power").expect("power"),
-                        camps: &camps,
-                        players: &players,
-                        can_farm: &can_farm,
-                    };
-                    if method == "routeUpdate" {
-                        route
-                            .update(&route_input)
-                            .map(|step| encode_route_step(&step))
-                            .unwrap_or(SVal::Null)
-                    } else {
-                        route.plan(&route_input);
-                        SVal::Undefined
-                    }
+            let actual = match execute_route_op(&cfg, case_json, op_json, maps, &trace, &mut route)
+            {
+                Ok(actual) => actual,
+                Err(error) => {
+                    outcome.failures.push(format!(
+                        "{op_label} checked intake/dispatch failed: {error}"
+                    ));
+                    break;
                 }
-                "isContested" => {
-                    let camp = num(&input, "camp").expect("camp") as u32;
-                    let now = num(&input, "now").expect("now");
-                    source_reader::b(route.is_contested(camp, now))
-                }
-                "campValue" => {
-                    let camp = must(
-                        parse_route_camp(field(&input, "camp").expect("camp")),
-                        "campValue camp",
-                    );
-                    let elites = boolv(&input, "elites").expect("elites");
-                    num_sv(super::build_route::route_camp_value(
-                        route.build,
-                        &camp,
-                        elites,
-                    ))
-                }
-                other => panic!("{op_label}: unsupported route method {other}"),
             };
+
             compare(&op_label, &expected, &actual, &mut outcome.failures);
             check_channels(&op_label, op_json, &trace, None, &mut outcome.failures);
             compare_op_own(
@@ -3202,65 +3702,38 @@ fn replay_memory(source: &Value, injection: Option<&Injection>) -> ReplayOutcome
             let op_label = format!("{label} op{index}");
             if let Some(injection) = injection {
                 if injection.matches(&label, index) {
-                    inject_non_advance(
+                    let mutated = injection.apply(op_json);
+                    let draws = [0, 0, 0, 0];
+                    let before =
+                        non_advance_snapshot(&mem, encode_own(OwnState::None), draws, &trace);
+                    let result =
+                        execute_memory_op(&cfg, case_json, &mutated, maps, &trace, &mut mem);
+                    let after =
+                        non_advance_snapshot(&mem, encode_own(OwnState::None), draws, &trace);
+                    record_intake_result(
                         injection,
-                        op_json,
-                        case_json,
                         "memory-api",
-                        false,
-                        &cfg,
-                        maps,
-                        &mem,
-                        || encode_own(OwnState::None),
-                        || [0, 0, 0, 0],
-                        &trace,
+                        result,
+                        &before,
+                        &after,
                         &mut outcome.failures,
                     );
                     outcome.non_advance += 1;
                     break;
                 }
             }
-            must(
-                preflight_operation(case_json, op_json, "memory-api", false, &cfg, maps),
-                &format!("{op_label} intake"),
-            );
-            trace.borrow_mut().reset();
             let op = sv(op_json);
-            let method = text(&op, "method").expect("memory method");
-            let input = op.optional("input").cloned().unwrap_or(SVal::Undefined);
             let expected = op.optional("result").cloned().unwrap_or(SVal::Undefined);
-            let actual = match method.as_str() {
-                "nullPercept" => {
-                    assert!(matches!(input, SVal::Null), "{op_label}: nullPercept input");
-                    SVal::Null
+            let actual = match execute_memory_op(&cfg, case_json, op_json, maps, &trace, &mut mem) {
+                Ok(actual) => actual,
+                Err(error) => {
+                    outcome.failures.push(format!(
+                        "{op_label} checked intake/dispatch failed: {error}"
+                    ));
+                    break;
                 }
-                "observe" => {
-                    let percept = must(
-                        parse_memory_percept(&input, &cfg.features),
-                        "memory observe percept",
-                    );
-                    let stimuli = mem.observe(&percept).expect("memory observe");
-                    source_reader::arr(stimuli.iter().map(encode_stimulus).collect())
-                }
-                "noteSent" => {
-                    let timed = must(parse_note_sent(&input), "noteSent");
-                    mem.note_sent(timed).expect("memory noteSent");
-                    SVal::Undefined
-                }
-                "recordChoice" => {
-                    mem.record_choice(input.string("choice").expect("choice"));
-                    SVal::Undefined
-                }
-                "whereabouts" => {
-                    let id = text(&input, "id").expect("whereabouts id");
-                    let now = num(&input, "now").expect("whereabouts now");
-                    match mem.whereabouts(&id, now).expect("memory whereabouts") {
-                        None => SVal::Null,
-                        Some(w) => obj(vec![("at", vec2_sv(w.at)), ("radius", num_sv(w.radius))]),
-                    }
-                }
-                other => panic!("{op_label}: unsupported memory method {other}"),
             };
+
             compare(&op_label, &expected, &actual, &mut outcome.failures);
             check_channels(&op_label, op_json, &trace, None, &mut outcome.failures);
             compare_op_own(
@@ -3310,7 +3783,6 @@ fn replay_hunt_adapter(source: &Value, injection: Option<&Injection>) -> ReplayO
             entries: &cfg.learned.entries,
             trace: trace.clone(),
         };
-        let empty_modules: Vec<Box<dyn super::types::FeatureModule>> = Vec::new();
         let mut decide_rng = TraceRng::new(cfg.seed, cfg.random_decide.clone(), "decide", &trace);
         let mut lapse_rng = TraceRng::new(cfg.seed + 2, cfg.random_lapse.clone(), "lapse", &trace);
         compare_initial_memory(&label, case_json, &mem, &mut outcome.failures);
@@ -3324,162 +3796,65 @@ fn replay_hunt_adapter(source: &Value, injection: Option<&Injection>) -> ReplayO
             let op_label = format!("{label} op{index}");
             if let Some(injection) = injection {
                 if injection.matches(&label, index) {
-                    inject_non_advance(
-                        injection,
-                        op_json,
-                        case_json,
-                        "hunt-adapter",
-                        false,
+                    let mutated = injection.apply(op_json);
+                    let draws = [decide_rng.draws(), 0, lapse_rng.draws(), knowledge_draws];
+                    let before =
+                        non_advance_snapshot(&mem, encode_hunt_adapter(&adapter), draws, &trace);
+                    let result = execute_adapter_op(
                         &cfg,
+                        case_json,
+                        &mutated,
                         maps,
-                        &mem,
-                        || encode_hunt_adapter(&adapter),
-                        || [decide_rng.draws(), 0, lapse_rng.draws(), knowledge_draws],
                         &trace,
+                        &mut mem,
+                        &mut percept,
+                        &mut paths,
+                        &know,
+                        &learned,
+                        &mut adapter,
+                        &mut decide_rng,
+                        &mut lapse_rng,
+                    );
+                    let after =
+                        non_advance_snapshot(&mem, encode_hunt_adapter(&adapter), draws, &trace);
+                    record_intake_result(
+                        injection,
+                        "hunt-adapter",
+                        result,
+                        &before,
+                        &after,
                         &mut outcome.failures,
                     );
                     outcome.non_advance += 1;
                     break;
                 }
             }
-            must(
-                preflight_operation(case_json, op_json, "hunt-adapter", false, &cfg, maps),
-                &format!("{op_label} intake"),
-            );
-            trace.borrow_mut().reset();
             let op = sv(op_json);
-            let method = text(&op, "method").expect("adapter method");
-            let input = op.optional("input").cloned().unwrap_or(SVal::Undefined);
             let expected = op.optional("result").cloned().unwrap_or(SVal::Undefined);
-            let actual = match method.as_str() {
-                "observe" => {
-                    let percept_input = must(
-                        parse_memory_percept(&input, &cfg.features),
-                        "adapter observe percept",
-                    );
-                    let strategy_percept = must(
-                        parse_strategy_percept(&input, &cfg),
-                        "adapter observe strategy percept",
-                    );
-                    let stimuli = mem.observe(&percept_input).expect("adapter observe");
-                    percept = Some(strategy_percept);
-                    source_reader::arr(stimuli.iter().map(encode_stimulus).collect())
+            let actual = match execute_adapter_op(
+                &cfg,
+                case_json,
+                op_json,
+                maps,
+                &trace,
+                &mut mem,
+                &mut percept,
+                &mut paths,
+                &know,
+                &learned,
+                &mut adapter,
+                &mut decide_rng,
+                &mut lapse_rng,
+            ) {
+                Ok(actual) => actual,
+                Err(error) => {
+                    outcome.failures.push(format!(
+                        "{op_label} checked intake/dispatch failed: {error}"
+                    ));
+                    break;
                 }
-                "adapterDecide" => {
-                    let p = percept.as_ref().expect("adapter decide needs an observe");
-                    let cfg_ctx = StrategyConfig {
-                        id: cfg.id.clone(),
-                        seed: cfg.seed,
-                        tier: &cfg.tier,
-                        persona: &cfg.persona,
-                        map: &cfg.map,
-                        features: &cfg.features,
-                        learned: &learned,
-                        modules: &empty_modules,
-                    };
-                    let weight = op.optional("typeWeights").cloned();
-                    let type_weight = weight.as_ref().map(|weights| {
-                        let pairs = weights
-                            .arr("typeWeights")
-                            .expect("typeWeights")
-                            .iter()
-                            .map(|p| {
-                                let pair = p.arr("typeWeight pair").expect("pair");
-                                (
-                                    pair[0].string("typeWeight key").expect("key").to_string(),
-                                    pair[1].num("typeWeight value").expect("value"),
-                                )
-                            })
-                            .collect::<Vec<_>>();
-                        let weight_trace = trace.clone();
-                        move |ty: Option<&str>| -> f64 {
-                            let value = ty
-                                .and_then(|t| pairs.iter().find(|(k, _)| k == t).map(|(_, v)| *v))
-                                .unwrap_or(0.25);
-                            let argument = ty.map(source_reader::s).unwrap_or(SVal::Undefined);
-                            record_callback(
-                                &weight_trace,
-                                "adapter.typeWeight",
-                                vec![argument],
-                                num_sv(value),
-                            );
-                            value
-                        }
-                    });
-                    let type_weight_ref = type_weight
-                        .as_ref()
-                        .map(|f| f as &dyn Fn(Option<&str>) -> f64);
-                    let mem_view = RecordedMemory {
-                        inner: &mem,
-                        trace: trace.clone(),
-                    };
-                    let mut ctx = StrategyContext {
-                        cfg: &cfg_ctx,
-                        p,
-                        mem: &mem_view,
-                        know: &know,
-                        paths: &mut paths,
-                        decide: &mut decide_rng,
-                        lapse: &mut lapse_rng,
-                        engaged: op
-                            .optional("engaged")
-                            .and_then(|value| value.bool("engaged").ok())
-                            .unwrap_or(false),
-                    };
-                    let decision = adapter.decide(
-                        &mut ctx,
-                        type_weight_ref,
-                        op.optional("elitesReady")
-                            .and_then(|value| value.bool("elitesReady").ok()),
-                    );
-                    encode_decision(&decision)
-                }
-                "release" => {
-                    let p = percept.as_ref().expect("release needs an observe");
-                    let cfg_ctx = StrategyConfig {
-                        id: cfg.id.clone(),
-                        seed: cfg.seed,
-                        tier: &cfg.tier,
-                        persona: &cfg.persona,
-                        map: &cfg.map,
-                        features: &cfg.features,
-                        learned: &learned,
-                        modules: &empty_modules,
-                    };
-                    let mem_view = RecordedMemory {
-                        inner: &mem,
-                        trace: trace.clone(),
-                    };
-                    let mut ctx = StrategyContext {
-                        cfg: &cfg_ctx,
-                        p,
-                        mem: &mem_view,
-                        know: &know,
-                        paths: &mut paths,
-                        decide: &mut decide_rng,
-                        lapse: &mut lapse_rng,
-                        engaged: false,
-                    };
-                    adapter.release(&mut ctx);
-                    SVal::Undefined
-                }
-                "awakeNear" => {
-                    let from = must(
-                        parse_vec2(field(&input, "from").expect("from")),
-                        "awakeNear from",
-                    );
-                    let radius = num(&input, "radius").expect("radius");
-                    let now = num(&input, "now").expect("now");
-                    source_reader::arr(
-                        adapter
-                            .awake_near(from, radius, now)
-                            .into_iter()
-                            .map(vec2_sv)
-                            .collect(),
-                    )
-                }
-                other => panic!("{op_label}: unsupported adapter method {other}"),
             };
+
             compare(&op_label, &expected, &actual, &mut outcome.failures);
             check_channels(
                 &op_label,
@@ -3707,120 +4082,92 @@ fn replay_strategy_cases(
             let op_label = format!("{case_label} op{index}");
             if let Some(injection) = injection {
                 if injection.matches(&case_label, index) {
-                    inject_non_advance(
-                        injection,
-                        op_json,
-                        case_json,
-                        "strategy",
-                        supplement,
+                    let mutated = injection.apply(op_json);
+                    let draws = [decide_rng.draws(), 0, lapse_rng.draws(), knowledge_draws];
+                    let before =
+                        non_advance_snapshot(&mem, encode_strategy_own(&strategy), draws, &trace);
+                    let result = execute_strategy_op(
                         &cfg,
+                        case_json,
+                        &mutated,
                         maps,
-                        &mem,
-                        || encode_strategy_own(&strategy),
-                        || [decide_rng.draws(), 0, lapse_rng.draws(), knowledge_draws],
+                        supplement,
                         &trace,
+                        &mut mem,
+                        &mut percept,
+                        &mut paths,
+                        &know,
+                        &learned,
+                        &mut strategy,
+                        &mut decide_rng,
+                        &mut lapse_rng,
+                        &mut last_goal,
+                        index,
+                    )
+                    .map(|step| step.actual);
+                    let after =
+                        non_advance_snapshot(&mem, encode_strategy_own(&strategy), draws, &trace);
+                    record_intake_result(
+                        injection,
+                        "strategy",
+                        result,
+                        &before,
+                        &after,
                         &mut outcome.failures,
                     );
                     outcome.non_advance += 1;
                     break;
                 }
             }
-            must(
-                preflight_operation(case_json, op_json, "strategy", supplement, &cfg, maps),
-                &format!("{op_label} intake"),
-            );
-            trace.borrow_mut().reset();
             let op = sv(op_json);
             let method = text(&op, "method").expect("strategy method");
-            let input = op.optional("input").cloned().unwrap_or(SVal::Undefined);
             let expected = op.optional("result").cloned().unwrap_or(SVal::Undefined);
-            let actual = match method.as_str() {
-                "observe" => {
-                    let percept_input = must(
-                        parse_memory_percept(&input, &cfg.features),
-                        "strategy observe percept",
-                    );
-                    let strategy_percept = must(
-                        parse_strategy_percept(&input, &cfg),
-                        "strategy observe strategy percept",
-                    );
-                    let stimuli = mem.observe(&percept_input).expect("strategy observe");
-                    percept = Some(strategy_percept);
-                    source_reader::arr(stimuli.iter().map(encode_stimulus).collect())
+            let (actual, previous_guard_mismatch) = match execute_strategy_op(
+                &cfg,
+                case_json,
+                op_json,
+                maps,
+                supplement,
+                &trace,
+                &mut mem,
+                &mut percept,
+                &mut paths,
+                &know,
+                &learned,
+                &mut strategy,
+                &mut decide_rng,
+                &mut lapse_rng,
+                &mut last_goal,
+                index,
+            ) {
+                Ok(step) => (step.actual, step.previous_guard_mismatch),
+                Err(error) => {
+                    outcome.failures.push(format!(
+                        "{op_label} checked intake/dispatch failed: {error}"
+                    ));
+                    break;
                 }
-                "recordChoice" => {
-                    mem.record_choice(input.string("choice").expect("recordChoice"));
-                    SVal::Undefined
-                }
-                "decide" => {
-                    let p = percept.as_ref().expect("decide needs an observe");
-                    let declaration = field(&op, "declaration").expect("declaration");
-                    let previous = matches!(
-                        declaration.optional("current"),
-                        Some(SVal::Str(value)) if value == "$previous"
-                    );
-                    let current_input = field(&input, "current").expect("input.current");
-                    let current = if previous {
-                        let guard = must(parse_goal(current_input), "captured current guard");
-                        if !super::source_trace::ordered_same(
-                            &encode_goal(&guard),
-                            &encode_goal(&last_goal),
-                        ) {
-                            outcome.failures.push(format!(
-                                "{op_label}: $previous guard differs from the native prior goal"
-                            ));
-                        }
-                        last_goal.clone()
-                    } else {
-                        must(parse_goal(current_input), "declared current")
-                    };
-                    let status = must(
-                        parse_status(field(&input, "status").expect("input.status")),
-                        "status",
-                    );
-                    let engaged = boolv(&input, "engaged").expect("engaged");
-                    let env = declaration.optional("env").cloned();
-                    let modules = modules_for(&cfg, env.as_ref(), &trace, index);
-                    let cfg_ctx = StrategyConfig {
-                        id: cfg.id.clone(),
-                        seed: cfg.seed,
-                        tier: &cfg.tier,
-                        persona: &cfg.persona,
-                        map: &cfg.map,
-                        features: &cfg.features,
-                        learned: &learned,
-                        modules: &modules,
-                    };
-                    let mem_view = RecordedMemory {
-                        inner: &mem,
-                        trace: trace.clone(),
-                    };
-                    let mut ctx = StrategyContext {
-                        cfg: &cfg_ctx,
-                        p,
-                        mem: &mem_view,
-                        know: &know,
-                        paths: &mut paths,
-                        decide: &mut decide_rng,
-                        lapse: &mut lapse_rng,
-                        engaged,
-                    };
-                    let out = strategy.decide(&mut ctx, &current, &status);
-                    let identity = strategy.last_returned_current();
-                    last_goal = out.goal.clone();
-                    if let Some(expected_identity) = op.optional("identity") {
-                        let actual_identity = obj(vec![("returnedCurrentGoal", bool_sv(identity))]);
-                        compare(
-                            &format!("{op_label} identity"),
-                            expected_identity,
-                            &actual_identity,
-                            &mut outcome.failures,
-                        );
-                    }
-                    encode_goal_decision(&out)
-                }
-                other => panic!("{op_label}: unsupported strategy method {other}"),
             };
+            if previous_guard_mismatch {
+                outcome.failures.push(format!(
+                    "{op_label}: $previous guard differs from the native prior goal"
+                ));
+            }
+            if method == "decide" {
+                if let Some(expected_identity) = op.optional("identity") {
+                    let actual_identity = obj(vec![(
+                        "returnedCurrentGoal",
+                        bool_sv(strategy.last_returned_current()),
+                    )]);
+                    compare(
+                        &format!("{op_label} identity"),
+                        expected_identity,
+                        &actual_identity,
+                        &mut outcome.failures,
+                    );
+                }
+            }
+
             let draw_counts = [decide_rng.draws(), 0, lapse_rng.draws(), knowledge_draws];
             if method == "decide" {
                 compare_goal_ordered(&op_label, &expected, &actual, &mut outcome.failures);
@@ -4265,6 +4612,63 @@ fn private_strategy_source_trace_negatives() {
         );
         eprintln!("TRACE_NEGATIVE {label}: detected");
     }
+    // Judged-z tolerance ancestry controls: the approved Gaussian leaf passes only through the real
+    // StrategyImpl.judged retention path; a same-shaped raw Module.data Map {until,z} with the SAME tiny delta must stay
+    // exact, and a delta outside the reviewed bound must fail even in judged.
+    let synthetic_own = |judged_z: f64, module_z: f64| -> SVal {
+        SVal::Instance {
+            name: "StrategyImpl".into(),
+            entries: vec![
+                (
+                    "judged".into(),
+                    source_reader::map(vec![(
+                        source_reader::s("foe"),
+                        obj(vec![("until", num_sv(1.0)), ("z", num_sv(judged_z))]),
+                    )]),
+                ),
+                (
+                    "last".into(),
+                    source_reader::arr(vec![obj(vec![
+                        (
+                            "goal",
+                            obj(vec![
+                                ("kind", source_reader::s("module")),
+                                ("module", source_reader::s("m")),
+                                (
+                                    "data",
+                                    source_reader::map(vec![
+                                        (source_reader::s("until"), num_sv(1.0)),
+                                        (source_reader::s("z"), num_sv(module_z)),
+                                    ]),
+                                ),
+                            ]),
+                        ),
+                        ("utility", num_sv(1.0)),
+                        ("why", source_reader::s("module row")),
+                    ])]),
+                ),
+            ],
+        }
+    };
+    let judged_base = synthetic_own(0.5, 0.5);
+    let judged_tiny = synthetic_own(0.5 + 5e-10, 0.5);
+    let judged_far = synthetic_own(0.5 + 1e-6, 0.5);
+    let module_tiny = synthetic_own(0.5, 0.5 + 5e-10);
+    assert!(
+        super::source_trace::own_same(&judged_base, &judged_tiny),
+        "approved genuine judged-z delta must pass through StrategyImpl.judged"
+    );
+    assert!(
+        !super::source_trace::own_same(&judged_base, &judged_far),
+        "a judged-z delta outside the reviewed bound must fail"
+    );
+    assert!(
+        !super::source_trace::own_same(&judged_base, &module_tiny),
+        "raw Module.data map lookalike must NOT receive the judged-z Gaussian tolerance"
+    );
+    eprintln!(
+        "TRACE_NEGATIVE judged-z tolerance: genuine judged delta passes; raw Module.data lookalike stays exact; out-of-bound judged delta fails"
+    );
     eprintln!(
         "TRACE_NEGATIVE evidence {} op{}: {} callback events, own corruption channel {}",
         evidence.case,
@@ -4623,8 +5027,38 @@ fn private_strategy_source_reader_controls() {
         "missing consumed field must be rejected"
     );
     labels.push("missing consumed field");
-    // The real decide row still preflights cleanly (positive control).
+    // Declaration-consistency controls: a consumed-input mutation with a stale declaration is rejected by the envelope
+    // guard; the same malformed field with a consistently updated declaration reaches the intended semantic validator.
+    let mut stale = ops[observe_index].clone();
+    {
+        let self_value = tagged_entry_mut(&mut stale["input"], "self").expect("self");
+        let weapons = tagged_entry_mut(self_value, "weapons").expect("weapons");
+        let values = tagged_values_mut(weapons).expect("weapon tuple");
+        values[0] = Value::String("laser".into());
+    }
     let cfg = case_cfg(strategy_case, maps);
+    let mismatch_error = preflight_operation(strategy_case, &stale, "strategy", false, &cfg, maps)
+        .expect_err("stale declaration must be rejected");
+    assert!(
+        mismatch_error.contains("declaration.input differs from the operation input"),
+        "declaration-mismatch control failed on the wrong branch: {mismatch_error}"
+    );
+    labels.push("declaration/input mismatch");
+    let mut consistent = stale.clone();
+    sync_declaration_input(&mut consistent);
+    let semantic_error =
+        preflight_operation(strategy_case, &consistent, "strategy", false, &cfg, maps)
+            .expect_err("consistent malformed weapon must be rejected");
+    assert!(
+        semantic_error.contains("self.weapons[0]: unknown weapon laser"),
+        "consistent declaration control did not reach the semantic weapon validator: {semantic_error}"
+    );
+    assert!(
+        !semantic_error.contains("declaration.input differs"),
+        "consistent declaration control was still caught by the envelope guard"
+    );
+    labels.push("consistent declaration reaches semantic weapon validator");
+    // The real decide row still preflights cleanly (positive control).
     assert!(
         preflight_operation(
             strategy_case,
@@ -4707,6 +5141,22 @@ fn private_strategy_source_intake_non_advance() {
     );
     assert_eq!(outcome.non_advance, 1, "hunter non-advance");
 
+    let hunter_mobs = first_injectable(cases, "mob-hunter", "hunterDecide").expect("hunter mobs");
+    let outcome = replay_hunter(
+        &source,
+        Some(&Injection {
+            case: hunter_mobs.0,
+            op_index: hunter_mobs.1,
+            kind: InjectionKind::HunterMobs,
+        }),
+    );
+    assert!(
+        outcome.failures.is_empty(),
+        "hunter mob-entry injection failures: {:?}",
+        &outcome.failures[..outcome.failures.len().min(2)]
+    );
+    assert_eq!(outcome.non_advance, 1, "hunter mob-entry non-advance");
+
     let route = first_injectable(cases, "build-route", "routeUpdate").expect("route update");
     let outcome = replay_build_route(
         &source,
@@ -4739,6 +5189,23 @@ fn private_strategy_source_intake_non_advance() {
     );
     assert_eq!(outcome.non_advance, 1, "memory non-advance");
 
+    let tracker_mobs =
+        first_injectable(cases, "mob-tracker", "trackerObserve").expect("tracker observe");
+    let outcome = replay_tracker(
+        &source,
+        Some(&Injection {
+            case: tracker_mobs.0,
+            op_index: tracker_mobs.1,
+            kind: InjectionKind::TrackerMobs,
+        }),
+    );
+    assert!(
+        outcome.failures.is_empty(),
+        "tracker mob-entry injection failures: {:?}",
+        &outcome.failures[..outcome.failures.len().min(2)]
+    );
+    assert_eq!(outcome.non_advance, 1, "tracker mob-entry non-advance");
+
     let adapter = first_injectable(cases, "hunt-adapter", "observe").expect("adapter observe");
     let outcome = replay_hunt_adapter(
         &source,
@@ -4755,6 +5222,6 @@ fn private_strategy_source_intake_non_advance() {
     );
     assert_eq!(outcome.non_advance, 1, "adapter non-advance");
     eprintln!(
-        "INTAKE_NON_ADVANCE memory/strategy+adapter+hunter+route: rejected later fields advanced nothing"
+        "INTAKE_NON_ADVANCE memory/strategy+adapter+tracker+hunter+route: 8 semantic-intent rejections at the actual entrypoint advanced nothing"
     );
 }

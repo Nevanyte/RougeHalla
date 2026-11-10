@@ -1013,22 +1013,42 @@ fn own_z_within(expected: f64, actual: f64) -> bool {
         || (expected - actual).abs() <= JUDGED_Z_RELATIVE * expected.abs().max(1.)
 }
 
-fn own_same_at(expected: &SVal, actual: &SVal, judged_item: bool) -> bool {
+/// The reviewed Gaussian tolerance is scoped through the actual retained `StrategyImpl.judged` field only: the root
+/// instance must be the real strategy class, the field key must be `judged`, its Map values' direct `until/z` objects are
+/// visited there, and only their direct `z` numeric leaf gets the bound. A same-shaped `{until,z}` object anywhere else
+/// (including raw Module.data) is compared with ordinary binary64-exact equality.
+fn own_judged_entry_same(expected: &SVal, actual: &SVal) -> bool {
+    let (SVal::Obj(e), SVal::Obj(a)) = (expected, actual) else {
+        return ordered_same(expected, actual);
+    };
+    e.len() == a.len()
+        && e.iter().zip(a).all(|((ek, ev), (ak, av))| {
+            if ek != ak {
+                return false;
+            }
+            if ek == "z" {
+                if let (SVal::Num(en), SVal::Num(an)) = (ev, av) {
+                    return own_z_within(*en, *an);
+                }
+            }
+            ordered_same(ev, av)
+        })
+}
+
+fn own_judged_map_same(expected: &SVal, actual: &SVal) -> bool {
+    let (SVal::Map(e), SVal::Map(a)) = (expected, actual) else {
+        return ordered_same(expected, actual);
+    };
+    e.len() == a.len()
+        && e.iter()
+            .zip(a)
+            .all(|((ek, ev), (ak, av))| ordered_same(ek, ak) && own_judged_entry_same(ev, av))
+}
+
+/// The complete retained own-state/diagnostic comparison: source own-property order and binary64 bits everywhere, except
+/// the reviewed `judged[id].z` Gaussian leaf above, reachable only through the real `StrategyImpl.judged` retention path.
+pub(crate) fn own_same(expected: &SVal, actual: &SVal) -> bool {
     match (expected, actual) {
-        (SVal::Obj(e), SVal::Obj(a)) => {
-            e.len() == a.len()
-                && e.iter().zip(a).all(|((ek, ev), (ak, av))| {
-                    if ek != ak {
-                        return false;
-                    }
-                    if judged_item && ek == "z" {
-                        if let (SVal::Num(en), SVal::Num(an)) = (ev, av) {
-                            return own_z_within(*en, *an);
-                        }
-                    }
-                    own_same_at(ev, av, false)
-                })
-        }
         (
             SVal::Instance {
                 name: en,
@@ -1038,39 +1058,21 @@ fn own_same_at(expected: &SVal, actual: &SVal, judged_item: bool) -> bool {
                 name: an,
                 entries: ae,
             },
-        ) => {
-            en == an
-                && ee.len() == ae.len()
+        ) if en == "StrategyImpl" && an == "StrategyImpl" => {
+            ee.len() == ae.len()
                 && ee.iter().zip(ae).all(|((ek, ev), (ak, av))| {
                     if ek != ak {
                         return false;
                     }
-                    own_same_at(ev, av, false)
+                    if ek == "judged" {
+                        own_judged_map_same(ev, av)
+                    } else {
+                        ordered_same(ev, av)
+                    }
                 })
         }
-        (SVal::Map(e), SVal::Map(a)) => {
-            e.len() == a.len() && e.iter().zip(a).all(|((ek, ev), (ak, av))| {
-                ordered_same(ek, ak)
-                    && own_same_at(
-                        ev,
-                        av,
-                        matches!(ev, SVal::Obj(fields) if fields.iter().any(|(k, _)| k == "until")
-                                && fields.iter().any(|(k, _)| k == "z")),
-                    )
-            })
-        }
-        (SVal::Arr(e), SVal::Arr(a)) | (SVal::Set(e), SVal::Set(a)) => {
-            e.len() == a.len() && e.iter().zip(a).all(|(ev, av)| own_same_at(ev, av, false))
-        }
-        (SVal::U8(e), SVal::U8(a)) => e == a,
-        _ => source_reader::same(expected, actual),
+        _ => ordered_same(expected, actual),
     }
-}
-
-/// The complete retained own-state/diagnostic comparison: source own-property order and binary64 bits everywhere, except
-/// the reviewed `judged[id].z` Gaussian leaf above.
-pub(crate) fn own_same(expected: &SVal, actual: &SVal) -> bool {
-    own_same_at(expected, actual, false)
 }
 
 /// The strict goal-aware decision comparison: module Goal `data` keeps source property order; every other field is exact.

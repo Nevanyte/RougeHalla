@@ -501,3 +501,75 @@ leaf); every decision/state/result/identity/callback/own-expiry comparison remai
 tool, Unity, network, sim, dependency, lockfile or shared-status file was edited; no public/live activation is claimed.
 Still private finite method parity only: module/static-initializer closure storage, arbitrary JSON.stringify beyond the
 four supplement histories, and every unwitnessed source branch remain outside this finite witness.
+
+## INTAKE HOLD REPAIR (Sol follow-up on sealed candidate 64bfa62f)
+
+The independently reviewed candidate seal `64bfa62f` is preserved; the scoped green trace evidence in the sections above is
+intentionally not admission and remains the pre-repair record. This follow-up repairs the concrete intake HOLD inside the
+same strategy/test/evidence lease. Source corpora, tools, maps, expectations and all out-of-lease files are unchanged.
+
+### Red controls captured before the repair
+
+`intake-repair-red.log` is the actual pre-repair run of the new controls: the semantic injections now reach their intended
+branches, but the hunter/tracker malformed-mob controls terminated the batch with a panic from `must(parse_mob_entries(..))`
+inside the Result-returning intake (`source_tests.rs:2081`, `mob entry`/typed parse panic) instead of returning `Err`; the
+same run still had `preflight_route_input` discard `can_farm_descriptor(..)` so a consistent invalid canFarm passed
+preflight and could only fail later in dispatch; and injections mutated only `op.input` while the caller declaration kept the
+original bytes, so the declaration-mismatch envelope guard rejected them before the claimed weapon/faction/range/canFarm
+validators. Those three red conditions are the reviewed HOLD.
+
+### Repairs
+
+1. **Typed errors propagate through `?`, never panic inside Result intake.** `preflight_hunter_decide` and the
+   `trackerObserve` branch now use `parse_mob_entries(..).map(|_| ())?`; `preflight_route_input` uses
+   `can_farm_descriptor(..).map(|_| ())?`; the remaining `let _ =`/`must(..)` discards in the preflight path were removed
+   or turned into typed checks (the decide environment's module ids are validated against the actual declared config
+   modules, using the replay config instead of discarding it). A consistent invalid canFarm therefore now returns
+   `canFarm.kind: unknown descriptor future` from the checked entrypoint; malformed mob entries return
+   `hp: expected a finite number`/`kind: missing field kind` instead of panicking.
+2. **Normal replay and malformed injections share one checked apply/dispatch entrypoint per suite.**
+   `execute_tracker_op`, `execute_hunter_op`, `execute_route_op`, `execute_memory_op`, `execute_adapter_op` and
+   `execute_strategy_op` each run the complete typed preflight first and only then reset the transcript and dispatch. The
+   normal replay loop calls those functions for every operation, and the injection branch calls the *same* function with the
+   malformed later field; there is no preflight-only shortcut. A typed `Err` is surfaced as a test failure (not a panic),
+   and the injection keeps its before/after snapshot of the real admitted Memory, nested strategy/adapter/hunter/route own
+   state, cumulative four-stream draw counts and ordered callback transcript to prove no channel advanced.
+3. **Declarations are kept consistent with consumed inputs.** For methods with a caller input, `Injection::apply` copies
+   the mutated consumed input into `declaration.input`; for a decide status it copies the mutated status into
+   `declaration.status` (and `validate_declaration` now also requires the decide declaration's status, non-`$previous`
+   current and engaged facts to equal the consumed input). A separate declaration-mismatch control deliberately mutates only
+   the consumed copy and must fail specifically with
+   `declaration.input differs from the operation input (source declaration was mutated)`; the consistently updated copy must
+   instead reach `self.weapons[0]: unknown weapon laser`.
+4. **The eight semantic controls assert the exact intended typed path**, not merely "some rejection": strategy decide status
+   `GoalStatus.state: unknown source status future`; strategy/adapter observe weapon
+   `self.weapons[0]: unknown weapon laser`; hunter walk `walk.kind: unknown declared walk descriptor future`; hunter and
+   tracker malformed mobs `hp: expected a finite number` / `kind: missing field kind`; route
+   `canFarm.kind: unknown descriptor future`; memory `noteSent.cmd.type: unsupported source command future`. Each is a
+   later field of its call, each is rejected after the declaration/consumed copies are aligned, and the before/after state
+   snapshot is bit-identical in every case (`intake-repair-green.log`, `INTAKE_NON_ADVANCE` lines).
+
+### Judged-z tolerance ancestry scoping
+
+The reviewed `1e-9*max(1,abs)` Gaussian bound is now reachable only through the actual retained `StrategyImpl.judged` field:
+the comparator requires the real strategy instance, the `judged` field key, its Map-based per-id entries and their direct
+`z` numeric leaf. A same-shaped `{until,z}` lookalike anywhere else (including raw Module.data) is compared binary64-exact.
+Synthetic controls prove: a genuine judged-z delta inside the reviewed bound passes; the SAME tiny delta in a raw
+Module.data Map lookalike fails; an out-of-bound judged-z delta fails. The existing raw Module.data reversed-order and
+changed-nested-value comparator negatives remain and pass.
+
+### Post-repair gate (changed controls + complete source/declared filters, no Memory rerun)
+
+| Command | Result |
+|---|---|
+| `cargo test -p rh-policy --lib bots::temporal_percept::strategy::source_tests --locked --offline -- --nocapture` | 11 passed, 0 failed, exit 0 (`source-trace-repair.log`: 98/658 primary + 4/48 supplement, 33 labelled reader controls, 8 semantic `INTAKE_NON_ADVANCE` rejections at the shared entrypoint, judged-z ancestry controls) |
+| `cargo test -p rh-policy --lib bots::temporal_percept::strategy::private_strategy_tests --locked --offline -- --nocapture` | 11 passed, 0 failed, exit 0 (`declared-trace-repair.log`) |
+| `cargo fmt -p rh-policy -- --check` | exit 0, empty (`fmt-trace-repair.log`) |
+| `cargo clippy -p rh-policy --lib --tests --locked --offline -- -D warnings` | exit 0 (`clippy-default-trace-repair.log`) |
+| `cargo clippy -p rh-policy --lib --tests --all-features --locked --offline -- -D warnings` | exit 0 (`clippy-all-trace-repair.log`) |
+
+`intake-repair-red.log` (pre-repair red) and `intake-repair-green.log` (post-repair) are retained alongside the restored
+trace evidence. These logs are `.gitignore`d by the repository's `*.log` rule; they are present for review and need
+`git add -f` if committed. Still private finite method parity only: no public/live activation, no source/corpus/tool edit,
+no memory regression campaign rerun. This repair is a follow-up diff on top of `64bfa62f`, not a replacement of that
+candidate's sealed scoped-green record; Root seals the final candidate.

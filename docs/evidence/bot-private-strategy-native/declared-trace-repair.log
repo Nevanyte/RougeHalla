@@ -1,17 +1,17 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.15s
      Running unittests src/lib.rs (target/strategy-admission-repair/debug/deps/rh_policy-f90e85fbfc95e0da)
 
 running 11 tests
-test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_route_tie_contest_and_replan ... ok
 test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_goal_union_and_keys ... ok
-test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_loot_and_camp_candidates ... ok
-test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_module_enabled_order_and_utility_clamp ... ok
-test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_actual_admitted_memory_api_replay ... ok
 test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_hysteresis_and_flee_priority_controls ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_module_enabled_order_and_utility_clamp ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_route_tie_contest_and_replan ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_loot_and_camp_candidates ... ok
 test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_dead_self_returns_idle_without_candidates ... ok
-test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_adapter_catchup_and_release_controls ... ok
-test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_farm_and_loot_candidates_are_real_choices ... ok
 test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_tracker_and_hunter_controls ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_actual_admitted_memory_api_replay ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_farm_and_loot_candidates_are_real_choices ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_adapter_catchup_and_release_controls ... ok
 test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_attacking_instances_are_independent ... ok
 
 test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 209 filtered out; finished in 0.00s
