@@ -497,7 +497,7 @@ namespace Roguehalla.Client
         {
             var quality = ShowcaseSettings.Current != null ? ShowcaseSettings.Current.EffectiveQuality : ShowcaseQuality.High;
             AtmosphereQuality.RefreshFromSettings();   // volume enable, grading and every other effect switch live in the switchboard
-            if (_atmos != null) _atmos.SetAmbientBase(quality == ShowcaseQuality.Low ? 1 : quality==ShowcaseQuality.Medium ? .6f : .36f);
+            if (_atmos != null) _atmos.SetAmbientBase(.36f);   // one base for every quality: the adaptive downgrade must never change how bright the world is
             foreach (var glow in _lampGlows) glow.enabled = quality != ShowcaseQuality.Low;
             foreach (var light in _lamps) { light.SetShadows(quality == ShowcaseQuality.High); light.ApplyQuality(); }
             if (_hasFollow) UpdateLampVisibility(_lastFollow);

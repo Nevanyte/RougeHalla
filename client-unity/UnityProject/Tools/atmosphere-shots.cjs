@@ -15,7 +15,8 @@ const repo = path.resolve(__dirname, '../../..');
 const outDir = path.resolve(repo, opt('out', 'docs/rework/evidence/atmosphere'));
 const factions = opt('factions', '3,0,2,4,1').split(',').map(Number);
 const walk = opt('walk', '');           // faction:key:seconds
-const names = ['fire', 'sentenced', 'plague', 'frost', 'holy'];
+const names = ['fire', 'sentenced', 'plague', 'frost', 'holy'];   // faction names (the spawn region is the server's choice, not necessarily the faction's own)
+const tag = opt('tag', '');
 const baseUrl = process.env.RH_SHOTS_URL || 'http://127.0.0.1:8127/';
 const wsUrl = process.env.RH_SHOTS_WS || 'ws://127.0.0.1:7827/ws';
 const extra = process.env.RH_SHOTS_QUERY || '';
@@ -52,12 +53,12 @@ async function session(faction, label, body) {
   await page.goto(url, { waitUntil: 'load' });
   await page.waitForSelector('canvas', { timeout: 60000 });
   await page.waitForTimeout(Number(process.env.RH_SHOTS_BOOT_MS || 14000));
-  await page.keyboard.press('1'); await page.waitForTimeout(600);
+  await page.keyboard.press(opt('spawn', '1')); await page.waitForTimeout(600);
   await page.mouse.click(W * 0.8, H * 0.66, { delay: 80 });
   matchStart = Date.now();
   await page.waitForTimeout(Number(process.env.RH_SHOTS_MATCH_MS || 12000));
   const shot = async name => {
-    const f = path.join(outDir, `${name}.png`); const buf = await page.screenshot({ path: f });
+    const f = path.join(outDir, `${tag}${name}.png`); const buf = await page.screenshot({ path: f });
     const st = await lumaStats(page, buf); lumas.push({ shot: name, ...st });
     console.log('  wrote', path.relative(repo, f), `luma mean=${st.mean} p95=${st.p95} clipped(>0.9)=${st.clipped}%`);
   };
