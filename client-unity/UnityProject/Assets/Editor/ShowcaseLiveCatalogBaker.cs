@@ -25,6 +25,60 @@ namespace Roguehalla.Editor
         const int Margin = 2;
         const int PivotClearance = 1;
 
+        /// <summary>Pixels the shadow rule cleared in this bake (reported in the receipt and the batch log).</summary>
+        static long ShadowPixelsCleared;
+
+        /// <summary>
+        /// Batch entry (<c>-executeMethod Roguehalla.Editor.ShowcaseLiveCatalogBaker.BakeFromBatch</c>): rebakes the live catalog from the two source catalogs the existing receipt names
+        /// (FlareFullBase/Catalog.asset and FlareExpansion/AssetReadiness.asset), now with the baked ground shadow stripped from every actor frame.
+        /// </summary>
+        public static void BakeFromBatch()
+        {
+            try
+            {
+                var original = AssetDatabase.LoadAssetAtPath<ShowcaseCatalog>("Assets/Art/Derived/FlareFullBase/Catalog.asset");
+                var expansion = AssetDatabase.LoadAssetAtPath<AssetReadinessCatalog>("Assets/Art/Derived/FlareExpansion/AssetReadiness.asset");
+                if (original == null || expansion == null) throw new InvalidDataException("source catalogs missing");
+                ShadowPixelsCleared = 0;
+                var live = Bake(original, expansion);
+                SyncResourcesCatalog(live);
+                Debug.Log("ShowcaseLiveCatalogBaker: baked " + live.Actors.Length + " appearances; shadow pixels cleared " + ShadowPixelsCleared);
+                EditorApplication.Exit(0);
+            }
+            catch (Exception e) { Debug.LogError("ShowcaseLiveCatalogBaker batch failed: " + e); EditorApplication.Exit(1); }
+        }
+
+        /// <summary>Batch entry: only re-points the Resources catalog at the current live catalog (after a bake that did not).</summary>
+        public static void SyncResourcesFromBatch()
+        {
+            try { SyncResourcesCatalog(AssetDatabase.LoadAssetAtPath<ShowcaseCatalog>(CatalogPath)); EditorApplication.Exit(0); }
+            catch (Exception e) { Debug.LogError("sync failed: " + e); EditorApplication.Exit(1); }
+        }
+
+        [MenuItem("Roguehalla/Art/Rebake Live Catalog (shadow stripped)")]
+        static void BakeFromMenu()
+        {
+            ShadowPixelsCleared = 0;
+            SyncResourcesCatalog(Bake(AssetDatabase.LoadAssetAtPath<ShowcaseCatalog>("Assets/Art/Derived/FlareFullBase/Catalog.asset"), AssetDatabase.LoadAssetAtPath<AssetReadinessCatalog>("Assets/Art/Derived/FlareExpansion/AssetReadiness.asset")));
+        }
+
+        /// <summary>
+        /// The player loads <c>Resources/Showcase/Catalog.asset</c>, whose actor rows point at the live catalog's baked sprite subassets. A rebake replaces those subassets (new fileIDs),
+        /// so the Resources catalog's actor rows are re-pointed at the new ones; every other field of the Resources catalog is left as it is.
+        /// </summary>
+        static void SyncResourcesCatalog(ShowcaseCatalog live)
+        {
+            const string path = "Assets/Resources/Showcase/Catalog.asset";
+            var resources = AssetDatabase.LoadAssetAtPath<ShowcaseCatalog>(path);
+            if (resources == null) throw new InvalidDataException("missing " + path);
+            if (resources.Actors == null || resources.Actors.Length != live.Actors.Length) throw new InvalidDataException("Resources catalog actor count differs from the live catalog");
+            for (int i = 0; i < live.Actors.Length; i++)
+                if (resources.Actors[i].Key != live.Actors[i].Key) throw new InvalidDataException("actor key order differs at " + i + ": " + resources.Actors[i].Key + " vs " + live.Actors[i].Key);
+            resources.Actors = live.Actors;
+            EditorUtility.SetDirty(resources);
+            AssetDatabase.SaveAssets();
+        }
+
         sealed class FramePlan
         {
             public Sprite Source;
@@ -300,13 +354,29 @@ namespace Roguehalla.Editor
             if (width <= 0 || height <= 0 || x < 0 || y < 0 || x + width > texture.Texture.width || y + height > texture.Texture.height)
                 throw new InvalidDataException("Invalid sprite rect for " + sprite.name + " in " + texture.Path);
 
-            int minX = width, minY = height, maxX = -1, maxY = -1;
+            // The baked ground shadow is removed first (ActorShadowStrip: owner decision 2026-11-10, our own lighting supplies the shadow), on the sprite's own rectangle, so the
+            // trim below and the packed atlas only ever see the figure.
+            var frameBytes = new byte[checked(width * height * 4)];
             for (int localY = 0; localY < height; localY++)
             {
                 int row = (y + localY) * texture.Texture.width + x;
                 for (int localX = 0; localX < width; localX++)
                 {
-                    if (texture.Pixels[row + localX].a == 0) continue;
+                    var p = texture.Pixels[row + localX]; int o = (localY * width + localX) * 4;
+                    frameBytes[o] = p.r; frameBytes[o + 1] = p.g; frameBytes[o + 2] = p.b; frameBytes[o + 3] = p.a;
+                }
+            }
+            ShadowPixelsCleared += ActorShadowStrip.Strip(frameBytes, width, height);
+            var frameRect = new Color32[width * height];
+            for (int i = 0; i < frameRect.Length; i++) frameRect[i] = new Color32(frameBytes[i * 4], frameBytes[i * 4 + 1], frameBytes[i * 4 + 2], frameBytes[i * 4 + 3]);
+
+            int minX = width, minY = height, maxX = -1, maxY = -1;
+            for (int localY = 0; localY < height; localY++)
+            {
+                int row = localY * width;
+                for (int localX = 0; localX < width; localX++)
+                {
+                    if (frameRect[row + localX].a == 0) continue;
                     if (localX < minX) minX = localX;
                     if (localY < minY) minY = localY;
                     if (localX > maxX) maxX = localX;
@@ -330,7 +400,7 @@ namespace Roguehalla.Editor
             int trimWidth = maxX - minX + 1, trimHeight = maxY - minY + 1;
             var copied = new Color32[checked(trimWidth * trimHeight)];
             for (int row = 0; row < trimHeight; row++)
-                Array.Copy(texture.Pixels, (y + minY + row) * texture.Texture.width + x + minX,
+                Array.Copy(frameRect, (minY + row) * width + minX,
                     copied, row * trimWidth, trimWidth);
 
             // Unity sprite pivots are local pixel coordinates from the rectangle's lower-left.
@@ -502,6 +572,7 @@ namespace Roguehalla.Editor
             // Intentionally implemented separately from JsonUtility to retain stable, complete nested records.
             var b = new StringBuilder(64 * 1024);
             b.Append("{\n  \"schema\": \"roguehalla.showcase-live-bake.v1\",\n");
+            b.Append("  \"shadowStrip\": { \"rule\": \"ActorShadowStrip: clear every pixel with 0 < alpha < 204 that has no neighbour (8-neighbourhood) with alpha >= 204\", \"pixelsCleared\": ").Append(ShadowPixelsCleared.ToString(CultureInfo.InvariantCulture)).Append(" },\n");
             WriteJsonString(b, "sourceCatalog", AssetDatabase.GetAssetPath(original), true);
             WriteJsonString(b, "expansionCatalog", AssetDatabase.GetAssetPath(expansion), true);
             WriteJsonString(b, "outputCatalog", CatalogPath, true);

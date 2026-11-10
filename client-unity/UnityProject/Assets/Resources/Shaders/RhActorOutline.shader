@@ -35,12 +35,18 @@ Shader "Roguehalla/ActorOutline"
 
         TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
         TEXTURE2D(_SrcTex); SAMPLER(sampler_SrcTex);
+        TEXTURE2D(_Src2Tex); SAMPLER(sampler_Src2Tex);
         TEXTURE2D(_CameraSortingLayerTexture);   // sampler_LinearClamp comes from the URP core library
 
         // Per renderer (MaterialPropertyBlock), deliberately outside UnityPerMaterial.
         float4 _SrcRect;   // u0, v0, du, dv: the source sprite's rectangle in its atlas
         float4 _Outline;   // x,y: margin around the sprite as a fraction of its size; z,w: stroke width in sprite-normalised units
-        float4 _Halo;      // x,y: halo radius in sprite-normalised units (0 = none), z: strength 0..1
+        float4 _UvMap;     // sprite-normalised uv of the source = (quad uv - 0.5) * xy + zw (the quad covers the source and, for a union, its companion, plus the stroke margin)
+        float4 _Src2Rect;  // the companion sprite's rectangle in its atlas
+        float4 _Src2Texel;
+        float4x4 _ToSrc2;  // source sprite-normalised uv -> companion sprite-normalised uv
+        float _Src2Mode;   // 0 none; 1 union (the companion is part of the silhouette: one stroke around both); 2 cut (no stroke where the companion is drawn)
+        float4 _Tone;      // x: target contrast ratio of this stroke against the ground just outside it
         float4 _SrcTexel;  // x,y: one source texel in sprite-normalised units
         float _Prior;      // 0 dark, 1 light: dead-zone tie break, and the whole decision when there is no sorting layer texture
         float _MaskMode;
@@ -52,7 +58,8 @@ Shader "Roguehalla/ActorOutline"
         float _RhOutlineFlip;   // tuning pages only: 1 flips the grab vertically
         float _RhOutlineRadius; // tuning pages only
         float _RhOutlineGain;  // set once per frame by SpriteOutline.PublishFrame: 2^post exposure of the grade
-        float4 _RhOutlineTune;   // set by SpriteOutline.PublishGlobals: light HDR value, dark value, crossover luminance, dead zone half width
+        float4 _RhOutlineTune;   // set by SpriteOutline.PublishGlobals: lightest tone floor (on-screen luminance), darkest tone, flip luminance, dead zone half width
+        float4 _RhOutlineTone;   // w: brightest the dark stroke may get (on-screen luminance)
 
         float SrcAlpha(float2 sp)
         {
@@ -62,20 +69,36 @@ Shader "Roguehalla/ActorOutline"
             return a * inside.x * inside.y;
         }
 
+        float Src2Alpha(float2 sp)
+        {
+            float2 q = mul(_ToSrc2, float4(sp, 0.0, 1.0)).xy;
+            float2 inside = step(0.0, q) * step(q, 1.0);
+            float2 c = clamp(q, 0.5 * _Src2Texel.xy, 1.0 - 0.5 * _Src2Texel.xy);
+            return SAMPLE_TEXTURE2D(_Src2Tex, sampler_Src2Tex, _Src2Rect.xy + c * _Src2Rect.zw).a * inside.x * inside.y;
+        }
+        // The figure's silhouette: the source, and its companion (the held weapon) when the stroke is one for both.
+        float FigAlpha(float2 sp)
+        {
+            float a = SrcAlpha(sp);
+            return (_Src2Mode > 0.5 && _Src2Mode < 1.5) ? max(a, Src2Alpha(sp)) : a;
+        }
+        // Everything of this figure that hides ground (silhouette plus a cutting companion): a ground tap there is not ground.
+        float OccAlpha(float2 sp) { return _Src2Mode > 0.5 ? max(SrcAlpha(sp), Src2Alpha(sp)) : SrcAlpha(sp); }
+
         // Disc dilation of the source alpha by the stroke width: 12 taps on the rim, 6 on a half-width ring, plus the centre.
         float Dilate(float2 sp, float2 w)
         {
-            float a = SrcAlpha(sp);
+            float a = FigAlpha(sp);
             const float k = 0.5235988;   // 30 degrees
             [unroll] for (int i = 0; i < 12; i++)
             {
                 float s, c; sincos(k * i, s, c);
-                a = max(a, SrcAlpha(sp + float2(c, s) * w));
+                a = max(a, FigAlpha(sp + float2(c, s) * w));
             }
             [unroll] for (int j = 0; j < 6; j++)
             {
                 float s, c; sincos(k * 0.5 + 1.0471976 * j, s, c);
-                a = max(a, SrcAlpha(sp + float2(c, s) * w * 0.5));
+                a = max(a, FigAlpha(sp + float2(c, s) * w * 0.5));
             }
             return a;
         }
@@ -118,70 +141,85 @@ Shader "Roguehalla/ActorOutline"
 
         // The ground just OUTSIDE the stroke, where the gate measures it: nine taps (three distances 6 to 14 px, three across) along the outward direction of the silhouette at this
         // pixel, median. A stroke is judged against the ring beyond it, not against what lies under it, so a bright vein that crosses the stroke itself must not decide its polarity.
-        float RingLuma(float3 pWS, float3 dirWS)
+        float RingLuma(float3 pWS, float2 uv, float3 dirWS, out float lo, out float hi)
         {
             float pxw = 2.0 * max(unity_OrthoParams.y, 0.01) / _ScreenParams.y;     // world units per pixel
             float3 latWS = float3(-dirWS.y, dirWS.x, 0.0);
             float v[15];
+            float2 uvScale = _UvMap.xy;
+            int nValid = 0;
             [unroll] for (int a = 0; a < 3; a++)
                 [unroll] for (int b = 0; b < 5; b++)
                 {
-                    float3 q = pWS + dirWS * ((6.0 + 4.0 * a) * pxw) + latWS * ((b - 2) * 8.0 * pxw);
-                    float4 cs = ComputeScreenPos(TransformWorldToHClip(q));
-                    v[a * 5 + b] = TapLum(cs.xy / cs.w);
+                    float3 off = dirWS * ((6.0 + 4.0 * a) * pxw) + latWS * ((b - 2) * 8.0 * pxw);
+                    float4 cs = ComputeScreenPos(TransformWorldToHClip(pWS + off));
+                    float2 duv = TransformWorldToObjectDir(off).xy * uvScale;
+                    // A tap that lands on the figure's own body (a thin arm, a notch) is not ground: the grab holds the whole scene, the gate's ring does not hold the body.
+                    float own = OccAlpha(uv + duv);
+                    v[a * 5 + b] = own > 0.3 ? -1.0 : TapLum(cs.xy / cs.w);
+                    nValid += own > 0.3 ? 0 : 1;
                 }
-            float q25 = v[0], med = v[0], q75 = v[0];
+            if (nValid < 4)
+            {
+                [unroll] for (int a2 = 0; a2 < 3; a2++)
+                    [unroll] for (int b2 = 0; b2 < 5; b2++)
+                    {
+                        float3 off = dirWS * ((6.0 + 4.0 * a2) * pxw) + latWS * ((b2 - 2) * 8.0 * pxw);
+                        float4 cs = ComputeScreenPos(TransformWorldToHClip(pWS + off));
+                        v[a2 * 5 + b2] = TapLum(cs.xy / cs.w);
+                    }
+                nValid = 15;
+            }
+            int r25 = (int)round(0.25 * (nValid - 1)), r50 = (int)round(0.5 * (nValid - 1)), r75 = (int)round(0.75 * (nValid - 1));
+            float q25 = 0.5, med = 0.5, q75 = 0.5;
             [unroll] for (int i = 0; i < 15; i++)
             {
                 int below = 0;
-                [unroll] for (int j = 0; j < 15; j++) below += (v[j] < v[i] || (v[j] == v[i] && j < i)) ? 1 : 0;
-                if (below == 3) q25 = v[i];
-                if (below == 7) med = v[i];
-                if (below == 11) q75 = v[i];
+                [unroll] for (int j = 0; j < 15; j++) below += (v[j] >= 0.0 && (v[j] < v[i] || (v[j] == v[i] && j < i))) ? 1 : 0;
+                if (v[i] >= 0.0)
+                {
+                    if (below == r25) q25 = v[i];
+                    if (below == r50) med = v[i];
+                    if (below == r75) q75 = v[i];
+                }
             }
             // A ground of bright veins over dark cells (a wide spread between the quartiles) is judged by its dark cells: the gate's ring median sits there.
             float m = q75 > 3.0 * max(q25, 0.02) ? q25 : med;
-            return m * max(_RhOutlineGain, 0.05);
+            float g = max(_RhOutlineGain, 0.05);
+            lo = q25 * g; hi = q75 * g;      // the tone is judged against the dark and the bright end of the ring
+            return m * g;
         }
 
-        // The figure's own ground, wide and slow (nine taps out to one world unit, geometric mean): the tie break inside the dead zone, stable from frame to frame on animated ground.
-        float FigureLuma(float2 uv)
-        {
-            float unit = _ScreenParams.y / max(2.0 * unity_OrthoParams.y, 0.01);
-            float2 px = unit / _ScreenParams.xy;
-            float sum = log(max(TapLum(uv), 0.004));
-            [unroll] for (int k = 0; k < 4; k++)
-            {
-                float s, c; sincos(1.5707963 * k, s, c);
-                sum += log(max(TapLum(uv + float2(c, s) * px * 0.5), 0.004));
-                sum += log(max(TapLum(uv + float2(s, -c) * px * 1.0), 0.004));
-            }
-            return exp(sum / 9.0) * max(_RhOutlineGain, 0.05);
-        }
-
-        // The vertex shader decides the figure's own polarity once per quad (four vertices), from the ground behind the object's centre.
+        // The figure's own polarity (the tie break inside the dead zone) is the CPU's ground estimate at its position (_Prior, set by SpriteOutline.Sync): the grab holds the whole
+        // scene including the figure itself, so a wide sample of it around the figure's centre would read the figure's own body, not its ground.
         Varyings Vert(Attributes v)
         {
             Varyings o = (Varyings)0;
             o.positionCS = TransformObjectToHClip(v.positionOS);
-            float2 pad = _Outline.xy;
-            o.uv = v.uv * (1.0 + 2.0 * pad) - pad;   // sprite-normalised: 0..1 is the source sprite
+                o.uv = (v.uv - 0.5) * _UvMap.xy + _UvMap.zw;   // sprite-normalised: 0..1 is the source sprite
             o.color = v.color * unity_SpriteColor;
             o.screen = ComputeScreenPos(o.positionCS);
             o.posWS = TransformObjectToWorld(v.positionOS);
-            float4 c = ComputeScreenPos(TransformObjectToHClip(float3(0, 0, 0)));
-            o.figure = _RhOutlineGrab > 0.5 ? (FigureLuma(c.xy / c.w) < _RhOutlineTune.z ? 1.0 : 0.0) : _Prior;
+            o.figure = _Prior;
             return o;
         }
 
+        // HDR value that shows as the on-screen luminance L after the neutral tonemapper (identity below 0.74, then compressed: 1.5 shows as about 0.86).
+        float ToHdr(float L) { return L <= 0.74 ? L : lerp(0.74, 1.5, saturate((L - 0.74) / 0.12)); }
+
         half4 Frag(Varyings i) : SV_Target
         {
+            float srcA = FigAlpha(i.uv);
             float dil = Dilate(i.uv, _Outline.zw);
-            float fw = max(fwidth(dil), 0.12);
-            float cov = saturate((dil - 0.5) / fw + 0.5);
+            // The source is drawn smaller than its texels (a figure is about 100 px tall on screen), so a single binary dilation aliases into dashes: the coverage is the mean of four
+            // rotated-grid samples a quarter of a screen pixel apart (five levels of antialiasing), which keeps a 1 px stroke even and unbroken.
+            float2 ddu = ddx(i.uv) * 0.25, ddv = ddy(i.uv) * 0.25;
+            float covFull = 0.25 * (step(0.5, Dilate(i.uv + ddu + ddv * 0.5, _Outline.zw)) + step(0.5, Dilate(i.uv - ddu - ddv * 0.5, _Outline.zw))
+                                  + step(0.5, Dilate(i.uv - ddu * 0.5 + ddv, _Outline.zw)) + step(0.5, Dilate(i.uv + ddu * 0.5 - ddv, _Outline.zw)));
             if (_MaskMode > 0.5)
             {
-                clip(cov * i.color.a - 0.5);
+                // The mask is the silhouette: the source (drawn by its own mask material) plus the stroke, so the stroke's mask covers the whole dilation.
+                clip(covFull * ((_Src2Mode > 1.5) ? 1.0 - smoothstep(0.3, 0.8, Src2Alpha(i.uv)) : 1.0) * i.color.a - 0.5);
                 return half4(_MaskColor.rgb, 1);
             }
             if (_RhOutlineDebug > 3.5)
@@ -189,8 +227,11 @@ Shader "Roguehalla/ActorOutline"
                 float2 duv = i.screen.xy / i.screen.w; duv.y = _RhOutlineFlip > 0.5 ? 1.0 - duv.y : duv.y;
                 return half4(SAMPLE_TEXTURE2D_LOD(_CameraSortingLayerTexture, sampler_LinearClamp, duv, 0).rgb, 1);
             }
-            if (_Halo.z < 0.001) clip(cov - 0.002);
-            float light = _Prior;
+            // The stroke is drawn above the scene, so it must not cover its own source: only the ring outside the silhouette.
+            float cov = covFull * (1.0 - smoothstep(0.3, 0.8, srcA));
+            if (_Src2Mode > 1.5) cov *= 1.0 - smoothstep(0.3, 0.8, Src2Alpha(i.uv));   // a cutting companion (the body over the footprint) is never stroked over
+            clip(cov - 0.002);
+            float light = _Prior, l = -1.0, lLo = -1.0, lHi = -1.0;
             if (_RhOutlineGrab > 0.5)
             {
                 // Outward direction of the silhouette here: away from the source alpha around the pixel.
@@ -198,47 +239,33 @@ Shader "Roguehalla/ActorOutline"
                 [unroll] for (int k = 0; k < 8; k++)
                 {
                     float s, c; sincos(0.7853982 * k, s, c);
-                    out2 -= float2(c, s) * SrcAlpha(i.uv + float2(c, s) * rr);
+                    out2 -= float2(c, s) * FigAlpha(i.uv + float2(c, s) * rr);
                 }
-                float l;
                 if (dot(out2, out2) > 0.04)
                 {
-                    float3 dOS = float3(out2.x / (1.0 + 2.0 * _Outline.x), out2.y / (1.0 + 2.0 * _Outline.y), 0.0);
+                    float3 dOS = float3(out2.x / _UvMap.x, out2.y / _UvMap.y, 0.0);
                     float3 dWS = TransformObjectToWorldDir(dOS);
                     dWS.z = 0.0; dWS = normalize(dWS);
-                    l = RingLuma(i.posWS, dWS);
+                    l = RingLuma(i.posWS, i.uv, dWS, lLo, lHi);
                 }
-                else l = GroundLuma(i.screen.xy / i.screen.w);
-                // Hard choice per pixel; inside the dead zone the figure's own centre decides (one polarity per figure, never a speckled stroke).
+                else { l = GroundLuma(i.screen.xy / i.screen.w); lLo = lHi = l; }
+                // Hard polarity per pixel; inside the dead zone one polarity per figure decides (a stroke never speckles).
                 light = l < _RhOutlineTune.z - _RhOutlineTune.w ? 1.0 : (l > _RhOutlineTune.z + _RhOutlineTune.w ? 0.0 : i.figure);
             }
-            float3 dark = float3(_RhOutlineTune.y, _RhOutlineTune.y * 1.25, _RhOutlineTune.y * 2.0);
-            float3 lite = float3(_RhOutlineTune.x, _RhOutlineTune.x, _RhOutlineTune.x * 1.03);
-            float3 rgb = lerp(dark, lite, light);
+            // Tone: the stroke is only as strong as the ratio asks for (target _Tone.x against the ground just outside it), clamped, so on dark ground it is a soft
+            // light rim and on pale ground a soft dark one; with no grab the full strength stays.
+            float R = max(_Tone.x, 1.5), Ls;
+            if (l >= 0.0)
+                Ls = light > 0.5 ? clamp(R * (lHi + 0.05) - 0.05, _RhOutlineTune.x, 0.86) : clamp((lLo + 0.05) / (R * 1.9) - 0.05, _RhOutlineTune.y, _RhOutlineTone.w);
+            else
+                Ls = light > 0.5 ? 0.86 : _RhOutlineTune.y;
+            float3 rgb = float3(ToHdr(Ls), ToHdr(Ls), ToHdr(Ls) * 1.02);
             if (_RhOutlineDebug > 0.5 && _RhOutlineGrab > 0.5)
             {
-                float ld = GroundLuma(i.screen.xy / i.screen.w);
+                float ld = max(l, 0.0);
                 rgb = _RhOutlineDebug < 1.5 ? (light > 0.5 ? float3(1, 0, 1) : float3(0, 1, 0)) : float3(ld, ld, ld) * 3.0;
-                if (_RhOutlineDebug < 1.5 && i.figure > 0.5) rgb.g = 0.5;
             }
-            float a = cov;
-            // Local calming halo (lever 2 of the contrast brief): only where the figure's stroke is light, i.e. on dark and mid ground (decided once per figure, so bright veins inside the halo are dimmed too), a soft darkening of the ground around the figure
-            // takes the edge off bright veins and glints that would sit next to a light stroke. Darkening only; never where the stroke is dark, so pale ground is never dimmed.
-            if (i.figure > 0.5 && _Halo.z > 0.001 && cov < 0.999)
-            {
-                float h = 0.0;
-                [unroll] for (int q = 0; q < 8; q++)
-                {
-                    float s, c; sincos(0.7853982 * q, s, c);
-                    h = max(h, 0.9 * SrcAlpha(i.uv + float2(c, s) * _Halo.xy * 0.5));
-                    h = max(h, 0.5 * SrcAlpha(i.uv + float2(c, s) * _Halo.xy));
-                }
-                float ha = h * _Halo.z;
-                a = max(cov, ha);
-                rgb = lerp(float3(0, 0, 0), rgb, saturate(cov / max(a, 1e-4)));
-                if (cov < 0.5) rgb = float3(0, 0, 0);
-            }
-            return half4(rgb, a * i.color.a);
+            return half4(rgb, cov * i.color.a);
         }
         ENDHLSL
 

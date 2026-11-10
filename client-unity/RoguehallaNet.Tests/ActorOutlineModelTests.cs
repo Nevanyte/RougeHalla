@@ -68,6 +68,27 @@ namespace Roguehalla.Net.Tests
             Assert.AreEqual(4.58f, ActorOutlineModel.WorstRatio(0f, 1f), .02f);
         }
 
+        [Test] public void ToneIsOnlyAsStrongAsTheTargetRatioAsks()
+        {
+            foreach (float g in new[] { .02f, .05f, .1f, .5f, .8f })
+            {
+                float lightLuma = ActorOutlineModel.ToneLuma(g, true, ActorOutlineModel.TargetRatio);
+                if (lightLuma > ActorOutlineModel.LightFloor + 1e-4f && lightLuma < ActorOutlineModel.LightLuma - 1e-4f)
+                    Assert.AreEqual(ActorOutlineModel.TargetRatio, ActorOutlineModel.Ratio(lightLuma, g), .02f, "light stroke on " + g);
+                Assert.GreaterOrEqual(lightLuma, ActorOutlineModel.LightFloor); Assert.LessOrEqual(lightLuma, ActorOutlineModel.LightLuma);
+                float dark = ActorOutlineModel.ToneLuma(g, false, ActorOutlineModel.TargetRatio);
+                Assert.GreaterOrEqual(dark, ActorOutlineModel.DarkLuma); Assert.LessOrEqual(dark, ActorOutlineModel.DarkCeil);
+            }
+            // a soft rim light on dark ground: not near white
+            Assert.Less(ActorOutlineModel.ToneLuma(.04f, true, ActorOutlineModel.TargetRatio), .45f);
+            Assert.AreEqual(.35f, ActorOutlineModel.ToneLuma(.04f, true, 4.4f), .1f);
+            // monotone: a brighter ground asks a lighter light stroke, a darker dark one
+            Assert.Less(ActorOutlineModel.ToneLuma(.05f, true, 4.4f), ActorOutlineModel.ToneLuma(.15f, true, 4.4f));
+            Assert.GreaterOrEqual(ActorOutlineModel.ToneLuma(.8f, false, 4.4f), ActorOutlineModel.ToneLuma(.3f, false, 4.4f));
+            // markers aim higher
+            Assert.Greater(ActorOutlineModel.ToneLuma(.05f, true, ActorOutlineModel.MarkerTargetRatio), ActorOutlineModel.ToneLuma(.05f, true, ActorOutlineModel.TargetRatio));
+        }
+
         [Test] public void StateAlphaFollowsDeadAndHidden()
         {
             Assert.AreEqual(1f, ActorOutlineModel.StateAlpha(false, 1f));

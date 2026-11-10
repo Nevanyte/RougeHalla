@@ -15,7 +15,7 @@ const os = require('node:os');
 const path = require('node:path');
 const lib = require('./contrast-lib.cjs');
 
-const OUT_COLUMNS = ['cfg', 'zone', 'surface', 'appearance', 'pose', 'facing', 'prop', 'propMode', 'clip', 'frame', 'purity', 'valid', 'edgeP10', 'edgeMin', 'edgeMedian', 'edgeGroundP10', 'edgeCoreP10', 'rimShare', 'ringLum', 'contourLum', 'body', 'bodyGround', 'hp', 'foot', 'insignia', 'edgePass', 'markerPass', 'overlap', 'reason'];
+const OUT_COLUMNS = ['cfg', 'zone', 'surface', 'appearance', 'pose', 'facing', 'prop', 'propMode', 'clip', 'frame', 'purity', 'valid', 'edgeP10', 'edgeMin', 'edgeMedian', 'edgeGroundP10', 'edgeCoreP10', 'rimShare', 'ringLum', 'contourLum', 'body', 'bodyGround', 'hp', 'foot', 'insignia', 'plates', 'edgePass', 'markerPass', 'overlap', 'reason'];
 const r2 = v => (Number.isFinite(v) ? Math.round(v * 100) / 100 : null);
 
 function usage() {
@@ -140,10 +140,17 @@ function toCell(cfgName, c, res, opts) {
     valid: !!res.valid, reason: res.reason || (res.valid && !markersMeasured ? 'a marker could not be measured' : ''),
     edgeP10: res.valid ? r2(res.edge.p10) : null, edgeMin: res.valid ? r2(res.edge.min) : null, edgeMedian: res.valid ? r2(res.edge.median) : null, edgeGroundP10: res.valid ? r2(res.edge.ground.p10) : null, edgeCoreP10: res.valid ? r2(res.edge.core.p10) : null, rimShare: res.valid ? r2(res.edge.rimShare) : null, ringLum: res.valid ? Math.round(res.edge.ringMedian * 1000) / 1000 : null, contourLum: res.valid ? Math.round(res.edge.contourMedian * 1000) / 1000 : null,
     body: res.valid ? r2(res.body.ratio) : null, bodyGround: res.valid ? r2(res.body.ratioGround) : null,
-    hp: r2(markerRatios[0]), foot: r2(markerRatios[1]), insignia: r2(markerRatios[2]), overlap: !!c.overlap,
+    hp: r2(markerRatios[0]), foot: r2(markerRatios[1]), insignia: r2(markerRatios[2]), plates: m.plates && Number.isFinite(m.plates.ratio) ? r2(m.plates.ratio) : null, overlap: !!c.overlap,
   };
-  cell.edgePass = cell.valid && cell.edgeP10 >= opts.edge;
-  cell.markerPass = cell.valid && markersMeasured && markerRatios.every(v => v >= opts.marker);
+  // ?cond=marks draws every overhead plate and ring the presenter can at once, stacked over and around the figure (rings and the barrier bubble cover the body): the silhouette,
+  // the hp track, the footprint and the insignia are not measurable there by construction, so that condition gates the plates alone (mask class OTHER, outline of their union).
+  const platesOnly = /(^|[&?])cond=marks(&|$)/.test(opts.query || '');
+  if (platesOnly) {
+    cell.edgePass = cell.valid; cell.markerPass = cell.valid && cell.plates !== null && cell.plates >= opts.marker;
+  } else {
+    cell.edgePass = cell.valid && cell.edgeP10 >= opts.edge;
+    cell.markerPass = cell.valid && markersMeasured && markerRatios.every(v => v >= opts.marker) && (cell.plates === null || cell.plates >= opts.marker);   // the overhead plates and rings (mask class OTHER) are gated wherever the cell has any
+  }
   return cell;
 }
 

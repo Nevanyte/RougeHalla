@@ -50,6 +50,9 @@ namespace Roguehalla.Client
                 switch (key)
                 {
                     case "glow": a = Mathf.Pow(Mathf.Max(0, 1 - r), 2.5f); break;
+                    // Actor ground shadow (owner decision 2026-11-10: the baked sprite shadow is gone, this one grounds the figure): a soft ellipse with a firm core and a long
+                    // soft falloff, white so the renderer colour carries the zone tint. Alpha is scaled by the renderer colour.
+                    case "actorshadow": { float t = Mathf.Clamp01((r - .22f) / .78f); a = .8f * (1f - t * t * (3f - 2f * t)); a *= a < .02f ? 0f : 1f; break; }
                     case "shadow": a = Mathf.Pow(Mathf.Max(0, 1 - r), 1.4f) * .55f; c = new Color(.015f, .02f, .035f); break;
                     case "ring": a = Mathf.Clamp01((.055f - Mathf.Abs(r - .86f)) * 100); break;
                     case "rune":

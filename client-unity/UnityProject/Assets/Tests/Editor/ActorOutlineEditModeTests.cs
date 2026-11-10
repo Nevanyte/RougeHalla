@@ -89,7 +89,8 @@ namespace Roguehalla.Client.Tests
                 Assert.That(rim, Is.Not.Null, kinds[i] + " has the body outline");
                 Assert.That(rim.enabled, Is.True, kinds[i].ToString());
                 Assert.That(rim.sharedMaterial.shader.name, Is.EqualTo("Roguehalla/ActorOutline"));
-                Assert.That(rim.sortingOrder, Is.EqualTo(body.sortingOrder - 1), kinds[i] + ": drawn as part of the actor, one step under the body");
+                Assert.That(rim.sortingOrder, Is.EqualTo(body.sortingOrder), kinds[i] + ": sorts with its figure, among the strokes");
+                Assert.That(rim.sortingLayerID, Is.EqualTo(StrokeLayer.Id), kinds[i] + ": drawn in the Strokes layer, above whatever stands in front of the figure");
                 Assert.That(rim.color.a, Is.EqualTo(1f).Within(1e-4f), kinds[i] + ": opaque");
                 Assert.That(rim.transform.parent, Is.SameAs(body.transform));
                 Assert.That(rim.transform.localScale.x, Is.GreaterThan(0f));
@@ -106,9 +107,8 @@ namespace Roguehalla.Client.Tests
                 Assert.That(o.sharedMaterial.shader.name, Is.EqualTo("Roguehalla/ActorOutline"), name);
                 Assert.That(ContrastLabStage.ClassOf(name), Is.Not.EqualTo(ContrastLabStage.ClassOther), name + " is classified with its mark");
             }
-            var footprint = Find(root, "Faction footprint").sortingOrder; var shadow = Find(root, "Contact shadow").sortingOrder;
-            Assert.That(Find(root, "Faction footprint outline").sortingOrder, Is.GreaterThan(shadow), "the footprint outline never hides under the contact shadow");
-            Assert.That(Find(root, "Faction footprint outline").sortingOrder, Is.LessThan(footprint));
+            Assert.That(Find(root, "Faction footprint outline").sortingOrder, Is.EqualTo(Find(root, "Faction footprint").sortingOrder));
+            Assert.That(Find(root, "Faction footprint outline").sortingLayerID, Is.EqualTo(StrokeLayer.Id));
         }
 
         [Test] public void AMarkerOutlineFollowsItsMarkerOffAndOn()
@@ -174,30 +174,83 @@ namespace Roguehalla.Client.Tests
                 if (r.gameObject.name.EndsWith("outline") || r.gameObject.name == "Character contrast rim") Assert.That(r.enabled, Is.False, r.gameObject.name);
         }
 
-        [Test] public void WorldLayerTakesTheGroundAndLeavesPropsAndActors()
+        [Test] public void StrokesLayerSortsAfterDefaultAndEveryStrokeIsOnIt()
         {
-            Assert.That(WorldLayer.Exists, Is.True, "ProjectSettings/TagManager must declare the World layer");
-            Assert.That(WorldLayer.Id, Is.Not.EqualTo(0));
-            var ground = new GameObject("g").AddComponent<SpriteRenderer>(); ground.sortingOrder = -100;
-            var decal = new GameObject("d").AddComponent<SpriteRenderer>(); decal.sortingOrder = -39;
-            var prop = new GameObject("p").AddComponent<SpriteRenderer>(); prop.sortingOrder = 2300;
-            var actor = new GameObject("a").AddComponent<SpriteRenderer>(); actor.sortingOrder = 2400;
-            var root = new GameObject("root"); _objects.Add(root);
-            foreach (var r in new[] { ground, decal, prop, actor }) r.transform.SetParent(root.transform, false);
-            Assert.That(WorldLayer.Tag(root.transform), Is.EqualTo(2));
-            Assert.That(ground.sortingLayerID, Is.EqualTo(WorldLayer.Id)); Assert.That(decal.sortingLayerID, Is.EqualTo(WorldLayer.Id));
-            Assert.That(prop.sortingLayerID, Is.EqualTo(0)); Assert.That(actor.sortingLayerID, Is.EqualTo(0));
-            Assert.That(WorldLayer.Tag(root.transform), Is.EqualTo(0), "idempotent");
-            Assert.That(SortingLayer.GetLayerValueFromID(WorldLayer.Id), Is.LessThan(SortingLayer.GetLayerValueFromID(0)), "World sorts before Default");
+            Assert.That(StrokeLayer.Exists, Is.True, "ProjectSettings/TagManager must declare the Strokes layer");
+            Assert.That(SortingLayer.GetLayerValueFromID(StrokeLayer.Id), Is.GreaterThan(SortingLayer.GetLayerValueFromID(0)), "Strokes sorts after Default");
+            Present(41);
+            int strokes = 0;
+            foreach (var r in Root().GetComponentsInChildren<SpriteRenderer>(true))
+                if (r.gameObject.name.EndsWith(" outline") || r.gameObject.name == "Character contrast rim") { strokes++; Assert.That(r.sortingLayerID, Is.EqualTo(StrokeLayer.Id), r.gameObject.name); }
+            Assert.That(strokes, Is.GreaterThanOrEqualTo(30), "the body, the weapon cue, the three gated markers and every overhead plate and ring carry a stroke");
         }
 
-        [Test] public void RendererAssetGrabsTheCameraSortingLayerAfterWorld()
+        [Test] public void OverheadPlatesLeaveTheGrabAndTheBodyStaysInDefault()
         {
-#if UNITY_EDITOR
-            var so = new UnityEditor.SerializedObject(UnityEditor.AssetDatabase.LoadMainAssetAtPath("Assets/Settings/Roguehalla2DRenderer.asset"));
-            Assert.That(so.FindProperty("m_UseCameraSortingLayersTexture").boolValue, Is.True);
-            Assert.That(so.FindProperty("m_CameraSortingLayersTextureBound").intValue, Is.EqualTo(WorldLayer.Id));
-#endif
+            Present(42, ActorKind.Player, hp: 60);
+            var root = Root();
+            foreach (var name in new[] { "Health and barrier track", "Confirmed health", "Faction insignia backplate", "Faction insignia", "Name plate", "Status plate flame" })
+            {
+                var r = Find(root, name); Assert.That(r, Is.Not.Null, name);
+                Assert.That(r.sortingLayerID, Is.EqualTo(StrokeLayer.Id), name + ": an overhead plate is not part of the ground a stroke is judged against");
+            }
+            foreach (var name in new[] { "Authored character", "Faction footprint", "Contact shadow", "Barrier bubble", "Hover ring" })
+            {
+                var r = Find(root, name); Assert.That(r, Is.Not.Null, name);
+                Assert.That(r.sortingLayerID, Is.EqualTo(0), name + ": bodies, ground marks and rings stay in Default, under the strokes");
+            }
+        }
+
+        [Test] public void TheHitZoneEdgeReadsOnEveryGround()
+        {
+            // The sector edge is a dark line (EdgeDarkAlpha of the theme ink) beside a light line (EdgeAlpha white): whichever contrasts with the ground carries it. The worse of the
+            // two lines at the crossover ground (about 0.18) is still above the 3:1 non-text bar, and 4.5:1 below 0.12 and above 0.4.
+            var ink = UiTheme.Current.OutlineDark; float inkL = ActorOutlineModel.Luma(Lin(ink.r), Lin(ink.g), Lin(ink.b));
+            float worst = 99f;
+            for (int i = 0; i <= 100; i++)
+            {
+                float g = i / 100f;
+                float dark = inkL * HitZonePresenter.EdgeDarkAlpha + g * (1f - HitZonePresenter.EdgeDarkAlpha);
+                float light = 1f * HitZoneModel.EdgeAlpha + g * (1f - HitZoneModel.EdgeAlpha);
+                float best = Mathf.Max(ActorOutlineModel.Ratio(dark, g), ActorOutlineModel.Ratio(light, g));
+                if (i % 5 == 0 && (g < .12f || g > .4f)) Assert.That(best, Is.GreaterThanOrEqualTo(4.5f), "ground " + g);
+                worst = Mathf.Min(worst, best);
+            }
+            Assert.That(worst, Is.GreaterThanOrEqualTo(3f), "the hit zone's edge pair reads on every ground");
+        }
+        static float Lin(byte c) { float v = c / 255f; return v <= .04045f ? v / 12.92f : Mathf.Pow((v + .055f) / 1.055f, 2.4f); }
+
+        [Test] public void NoFilledPlateUnderTheFeet()
+        {
+            // The footprint is one light line (the faction colour); its dark and light companions are the adaptive strokes, so no black band and no filled plate.
+            for (int f = 0; f < 5; f++)
+            {
+                var px = FactionIndicators.GetFootprint(f).texture.GetPixels32(); int dark = 0, opaque = 0;
+                foreach (var c in px) { if (c.a > 200) { opaque++; if (c.r < 60 && c.g < 60 && c.b < 60) dark++; } }
+                Assert.That(dark, Is.EqualTo(0), "faction " + f); Assert.That(opaque, Is.GreaterThan(150));
+            }
+        }
+
+        [Test] public void RendererAssetKeepsTheCameraSortingLayerGrabOffAndAtHalfResolution()
+        {
+            // Read the file, not the loaded asset: other tests switch the grab on in memory (SetGrabPass writes the renderer data).
+            string yaml = System.IO.File.ReadAllText("Assets/Settings/Roguehalla2DRenderer.asset");
+            Assert.That(yaml, Does.Contain("m_UseCameraSortingLayersTexture: 0"), "no outline by default: nothing reads the full-frame HDR copy");
+            Assert.That(yaml, Does.Contain("m_CameraSortingLayerDownsamplingMethod: 1"), "when ?fx.outline=1 or ?fx.rim=1 turns it on it is a 2x downsample");
+            Assert.That(yaml, Does.Contain("m_CameraSortingLayersTextureBound: 0"), "bound to Default: the grab holds the scene as the stroke sits on it");
+        }
+
+        [Test] public void NoLineOutlineAndNoGrabByDefaultAndTheSwitchesBringThemBack()
+        {
+            SpriteOutline.Enabled = false; SpriteOutline.Rim = false;
+            SpriteOutline.ConfigureFromUrl("http://127.0.0.1:8267/?x=1");
+            Assert.That(SpriteOutline.Enabled, Is.False); Assert.That(SpriteOutline.Rim, Is.False); Assert.That(SpriteOutline.WantGrab, Is.False); Assert.That(SpriteOutline.UseGrab, Is.False);
+            SpriteOutline.ConfigureFromUrl("http://127.0.0.1:8267/?fx.outline=1");
+            Assert.That(SpriteOutline.Enabled, Is.True); Assert.That(SpriteOutline.WantGrab, Is.True);
+            SpriteOutline.Enabled = false;
+            SpriteOutline.ConfigureFromUrl("http://127.0.0.1:8267/?fx.rim=1");
+            Assert.That(SpriteOutline.Rim, Is.True); Assert.That(SpriteOutline.WantGrab, Is.True);
+            SpriteOutline.Rim = false; SpriteOutline.Enabled = false; SpriteOutline.ConfigureFromUrl("http://127.0.0.1:8267/"); SpriteOutline.ApplyGrab(true); SpriteOutline.Enabled = true;   // leave the in-memory renderer asset as it is on disk (grab off)
         }
     }
 }

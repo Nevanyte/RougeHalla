@@ -237,8 +237,10 @@ function analyzeCell({ width, height, lumNormal, lumGround, mask, rect }, opts =
     core: { p10: coreEdge.p10, min: coreEdge.min, median: coreEdge.median, sectors: coreEdge.valid }, rimShare: rimPx / sil.n };
   const bodyL = interiorVals.length ? median(interiorVals) : NaN;
   result.body = { ratio: Number.isFinite(bodyL) ? contrastRatio(bodyL, median(ringVals)) : NaN, ratioGround: Number.isFinite(bodyL) ? contrastRatio(bodyL, median(ringGround)) : NaN, interiorPx: interiorVals.length, luminance: bodyL, ringLuminance: median(ringVals) };
-  for (const [name, k] of [['hp', CLASS.HP], ['foot', CLASS.FOOT], ['insignia', CLASS.INSIGNIA]]) {
+  for (const [name, k] of [['hp', CLASS.HP], ['foot', CLASS.FOOT], ['insignia', CLASS.INSIGNIA], ['plates', CLASS.OTHER]]) {
     const mk = shapeOf(k);
+    // The plates are measured by the outline of their union, not by the edge of every hole in it: the glyphs of a name or a number are holes in the plate and carry their own text outline.
+    if (k === CLASS.OTHER) mk.n = fillHoles(mk.m, w, h);
     if (mk.n < o.minMarkerPixels) { result.markers[name] = null; continue; }
     const mr = regions(mk.m, occupied, w, h, o), mc = centroid(mk.m, w, h);
     const cv = [], rv = [];
@@ -248,6 +250,21 @@ function analyzeCell({ width, height, lumNormal, lumGround, mask, rect }, opts =
     result.markers[name] = { ratio: contrastRatio(median(cv), median(rv)), min: sc.min, px: mk.n, contourLuminance: median(cv), ringLuminance: median(rv) };
   }
   return result;
+}
+
+/** Closes the holes of a binary shape in place (background pixels not 4-connected to the border); returns the filled pixel count. */
+function fillHoles(m, w, h) {
+  const outside = new Uint8Array(w * h), stack = [];
+  const push = (x, y) => { const i = y * w + x; if (!m[i] && !outside[i]) { outside[i] = 1; stack.push(i); } };
+  for (let x = 0; x < w; x++) { push(x, 0); push(x, h - 1); }
+  for (let y = 0; y < h; y++) { push(0, y); push(w - 1, y); }
+  while (stack.length) {
+    const i = stack.pop(), x = i % w, y = (i / w) | 0;
+    if (x > 0) push(x - 1, y); if (x < w - 1) push(x + 1, y); if (y > 0) push(x, y - 1); if (y < h - 1) push(x, y + 1);
+  }
+  let n = 0;
+  for (let i = 0; i < m.length; i++) { if (!outside[i]) m[i] = 1; n += m[i]; }
+  return n;
 }
 
 // ---- Frame consistency ------------------------------------------------------------------------------------------------------------
@@ -329,5 +346,5 @@ function parseArgs(argv) {
 
 module.exports = {
   linearise, relativeLuminance, encodeSrgb, contrastRatio, luminancePlane, median, percentile, decodePng, encodePng, CLASS, CLASS_NAMES, classifyMaskPixel, decodeMask,
-  distanceTo, erode, dilate, regions, centroid, sectorOf, sectorContrast, analyzeCell, frameConsistency, cellKind, parseOnly, parseArgs, parseSizes, ZONES, DEFAULTS,
+  distanceTo, erode, dilate, fillHoles, regions, centroid, sectorOf, sectorContrast, analyzeCell, frameConsistency, cellKind, parseOnly, parseArgs, parseSizes, ZONES, DEFAULTS,
 };

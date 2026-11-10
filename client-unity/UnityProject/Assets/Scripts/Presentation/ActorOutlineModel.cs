@@ -18,12 +18,28 @@ namespace Roguehalla.Client
         public const float DarkLinear = .004f, LightLinear = 1.5f;
 
         /// <summary>Stroke width in world units (final size on screen: 60 px per unit at 1080p, so 3 px; 4 px at 1440p: the same share of the figure).</summary>
-        public const float Width = .05f;
-        /// <summary>Radius (world units) and peak opacity of the calming halo around a figure on dark and mid ground (see RhActorOutline.shader).</summary>
-        public const float HaloRadius = .16f, HaloStrength = .7f;
+        public const float Width = .017f;
+
+        /// <summary>Contrast ratio the stroke aims for against the ground just outside it (figures, then markers). Above 3.0 with a margin for bloom and glow.</summary>
+        public const float TargetRatio = 4.4f, MarkerTargetRatio = 5.4f;
+        /// <summary>Clamps of the tone: the lightest tone a light stroke may be softened to, and the brightest a dark stroke may be.</summary>
+        public const float LightFloor = .22f, DarkCeil = .30f;
+
+        /// <summary>On-screen luminance of the stroke for a ground luminance: just enough for <paramref name="ratio"/>, clamped (a soft rim light on dark ground, a soft dark rim on pale).</summary>
+        public static float ToneLuma(float groundLuma, bool light, float ratio)
+        {
+            // The dark stroke aims higher (1.9x the ratio): bloom and haze lift it on screen, a light stroke has no such floor.
+            float t = light ? ratio * (groundLuma + .05f) - .05f : (groundLuma + .05f) / (ratio * 1.9f) - .05f;
+            return light ? Math.Min(LightLuma, Math.Max(LightFloor, t)) : Math.Min(DarkCeil, Math.Max(DarkLuma, t));
+        }
+
+        /// <summary>The ratio the toned stroke gives (before bloom and haze).</summary>
+        public static float ToneRatioAt(float groundLuma, bool light, float ratio) { return Ratio(ToneLuma(groundLuma, light, ratio), groundLuma); }
 
         /// <summary>Stroke width of marker outlines (hp track, footprint, insignia plate).</summary>
-        public const float MarkerWidth = .04f;
+        public const float MarkerWidth = .012f;
+        /// <summary>The footprint is a hairline of its own on the ground: its stroke is wider, so it still reads on the brightest grounds (lava, sand) where haze lifts a dark line.</summary>
+        public const float FootWidth = .014f;
 
         /// <summary>WCAG relative luminance of linear RGB.</summary>
         public static float Luma(float r, float g, float b) { return .2126f * r + .7152f * g + .0722f * b; }

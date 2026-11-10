@@ -41,7 +41,6 @@ namespace Roguehalla.Client
             _disabled = Instantiate(disabled, transform, false).GetComponent<Light2D>();
             _accurate = Instantiate(accurate, transform, false).GetComponent<Light2D>();
             _disabled.enabled = _accurate.enabled = false;
-            WorldLayer.LightEverything(_disabled); WorldLayer.LightEverything(_accurate); // CONTRAST: the authored prefabs list only the Default sorting layer
         }
 
         public void Configure(Color color, float intensity, float innerRadius, float outerRadius, float falloff, bool shadows, bool highOnly = false)

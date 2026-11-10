@@ -275,9 +275,12 @@ namespace Roguehalla.Client.Tests
                 lines.Add(string.Format("{0,-20} top {1,6:F1} vs {2,3} ({3,5:F1})  below {4,6:F1} vs {5,3} ({6,5:F1})  half-width(N,S) {7,5:F1} vs {8,3} ({9,5:F1})  centre-x {10,5:F1}  worst frame top/below/half {11:F1}/{12:F1}/{13:F1}",
                     row.Key, Median(tops), boxTop, topErr, Median(belows), boxBelow, belowErr, Median(halfNS), row.Bx, halfErr, Median(centreNS), worstTop, worstBelow, worstHalf));
                 if (Mathf.Abs(topErr) > 2f) failures.Add(row.Key + " top error " + topErr);
-                if (Mathf.Abs(belowErr) > 2f) failures.Add(row.Key + " below error " + belowErr);
+                // The skeleton's feet end 3.4 sim units above its box floor now that its baked shadow (which reached below the feet) is gone: allow the sprite up to 4 above, 2 below.
+                if (belowErr > 2f || belowErr < -4f) failures.Add(row.Key + " below error " + belowErr);
                 // The skeleton's Idle frames hold a two-handed weapon wider than its body; its box takes the knight's width on purpose.
-                if (row.Key != "skeleton" && Mathf.Abs(halfErr) > 2f) failures.Add(row.Key + " half-width error " + halfErr);
+                // The baked ground shadow is gone from every actor frame (owner decision 2026-11-10): the figure itself is 2 to 7 sim units narrower than the width this table
+                // was fitted to while the shadow widened the sprite bounds. The sprite must still not overhang its box (+2), and may be at most 8 narrower (worst today: hero-female, -6.7).
+                if (row.Key != "skeleton" && (halfErr > 2f || halfErr < -8f)) failures.Add(row.Key + " half-width error " + halfErr);
                 if (Mathf.Abs(Median(centreNS)) > CentreTolerance) failures.Add(row.Key + " centre-x " + Median(centreNS));
             }
             Debug.Log("sprite fit (median over Idle frames, sim units; error in brackets)\n" + string.Join("\n", lines));

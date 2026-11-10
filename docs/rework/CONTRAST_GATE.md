@@ -4,6 +4,31 @@ Owner direction 2026-11-10: "there MUST be an objective 3:1 contrast ratio" betw
 ([UNITY_REWORK_FABLE.md](../prompts/UNITY_REWORK_FABLE.md) section 4, "Character contrast is a hard gate"). This page defines the measurement,
 says how to run it and how to read it, lists what it does not cover, and records the baseline. The lab measures; it never tunes art.
 
+## Owner decision 2026-11-10: no line outline on characters (contrast risk accepted)
+
+The owner reviewed the adaptive outline in play: "FAR too thick", "overlap[s] with itself when character sprite moves making large segments visually too dense", "quite sharp in certain places", "it outlines the shadow below its feet",
+"in practice has a lot of visual artifacts", and decided: **"I would prefer just to do no line outline at all at the risk of losing character/background contrast."** The gate below is therefore **known to fail by choice**; this page keeps the measurement so the cost stays visible.
+
+What changed (branch `rework/contrast`):
+
+* Every stroke on figures, the held weapon, the foot marker, the hp track, the insignia and the overhead plates is **off by default** (`SpriteOutline.Enabled = false`). No dark halo is drawn on this tree (it was removed in `2384ca94`; older paragraphs below describing it are historical). The faction mantle stays off and `NoEnlargedOffsetOrStaticCopyOfTheBodyIsDrawn` still guards against scaled or offset copies of the body.
+* The **baked ground shadow is removed from every actor sprite** (owner: "remove all transparent aspects of a character sprite in favour of our own lighting system"): `ActorShadowStrip` runs in `ShowcaseLiveCatalogBaker`, see [../art/LIVE_CATALOG_BAKER.md](../art/LIVE_CATALOG_BAKER.md) and [../art/LICENCE_LEDGER.md](../art/LICENCE_LEDGER.md). Our own shadow (soft contact ellipse sized to the look's foot box plus a softer cast shadow along the one sun, zone tinted) grounds the figure.
+* The camera sorting layer grab (a full-frame HDR copy) is **off** unless an opt-in variant reads it, and then it is a 2x downsample.
+* Two opt-in variants for judging from captures, both off by default: `?fx.outline=1` (1 px adaptive tone outline from the opaque silhouette, outer contour only, one line around body and weapon) and `?fx.rim=1` (nothing outside the sprite: the body's own outermost 1 to 2 pixels lightened on dark ground and darkened on bright ground).
+
+Strict gate, 1920x1080, High, the whole matrix (931 cells: 13 looks on every surface of every zone, idle and walking, two facings, props, edge and seam cells), measured on the real WebGL build, Apple M5 Pro:
+
+| variant | EDGE p10 >= 3.0 | markers all >= 4.5 | verdict |
+|---|---:|---:|---|
+| baseline `d6f18dce` (full matrix, 4 configs) | 0 / 2,808 | 265 / 2,808 | FAIL |
+| adaptive 3 px outline (previous branch state, full matrix, 4 configs) | 3,339 / 3,724 | 3,204 / 3,724 | FAIL (Fire ember, Plague bog) |
+| **none (default now)** | **62 / 931** (Fire 1 / 242, Sentenced 0 / 90, Plague 2 / 212, Frost 41 / 166, Holy 9 / 166, Coliseum 9 / 55) | **1 / 931** | **FAIL** |
+| outline (`fx.outline=1`) | OUTLINE_EDGE | OUTLINE_MARK | OUTLINE_VERDICT |
+| rim (`fx.rim=1`) | RIM_EDGE | RIM_MARK | RIM_VERDICT |
+
+BODY (interior against the ring, reported) medians with no outline: Fire 1.43, Sentenced 1.49, Plague 1.36, Frost 6.94, Holy 4.43, Coliseum 7.35. **The gate does not pass without an outline, and that is the accepted state.** The footprint ring is a faction mark and is still drawn; its own contrast is in the markers column.
+Evidence and the three-way comparison: [evidence/contrast/README.md](evidence/contrast/README.md).
+
 ## The definition
 
 WCAG 2.x, on sRGB pixels of **screenshots of the real WebGL build** in headed Chromium on a real GPU:
@@ -109,15 +134,20 @@ inside their block, and the lab is unreachable without `?contrastlab=1`).
 Covered: the grid above on plain ground, and looks standing in front of and beside the zone's props: the two most common tall arts (trees, spires, columns, pillars, scarecrows) and the two most common low arts (grass, tombstones, rocks, drifts, ferns), taken in turns, one idle south-facing look per prop instance (the art table does not flag tombstones as tall, so they count as low). Prop density
 is high, so neighbouring props are part of the picture, and cells are only kept apart from each other.
 
+Also covered (conditions, run with `--query "cond=..."`; the default matrix is the plain pages only):
+
+* `cond=local`: the first player cell of a page is drawn as the local player (mint hp bar, larger footprint, accent light). Gated like any other cell.
+* `cond=marks`: every overhead plate and ring the presenter can draw at once, around and over each figure: statuses, bounty crown and number, off-hand weapon, build (stat) marks, Wish ready icon, mark plate, signature slots and cue, elite star and rings, barrier bubble and ring steps, teleport-immunity and roam-ready rings. The silhouette, hp track, footprint and insignia are not measurable there by construction (rings and the bubble cover the body), so this condition gates the **plates** marker alone: the outline of the union of every plate and ring (mask class OTHER, holes closed so the glyphs of a name or a number are not counted as edges), vs the ground ring, median >= 4.5. Cells whose silhouette cannot be segmented are reported as unmeasured.
+* `cond=fog`, `cond=fade`, `cond=flash`: see the evidence README.
+
 Not covered (say so when quoting a pass):
 
-* Combat effects, Wish effects, telegraphs, hit flashes, damage numbers, status icons and signature icons: none are drawn in the lab. Their 4.5:1 requirement needs its own cells.
-* Fog of war over actors, fade in and fade out, and anything that dims or hides an actor (none exists in the lab, none is simulated).
-* The local player's own presentation (mint hp bar, larger footprint, accent light): every lab actor is a remote. Faction colours are covered through `hero`, `hero@sentenced`, `mage`,
-  `hero-female`, `mage-female` and the mob looks.
-* Name and level text: the presenter draws none today. If a label is added it needs a marker class in `ContrastLabStage.ClassOf` and the mask shader.
-* Dead actors, barrier rings, held-weapon variety beyond sword, wand and bow, other animation frames than the one frozen (idle frames vary between runs; see the baseline), 8-way facings beyond the two measured.
-* Zone borders (a view straddling two zones blends their lighting; the lab keeps the whole view inside one zone), the live match camera offset, and anything driven by real vision or network state.
+* **Dead actors** are exempt on purpose: a dead fighter is drawn at 0.65 opacity as a faded corpse, keeps a stroke at 0.6 alpha (`ActorOutlineModel.StateAlpha`, tested) and is not an actor a player must pick out; no lab cell draws one.
+* **The melee hit zone** (`HitZonePresenter`) is not drawn in the lab. Its sector edge is a dark line (`EdgeDarkAlpha` .9 of the theme ink) beside a light line (`HitZoneModel.EdgeAlpha` .6 white): the better of the two reads at least 3.1:1 on every ground and 4.5:1 below 0.12 and above 0.4 ground luminance, proved by `TheHitZoneEdgeReadsOnEveryGround` (a bound by construction, not a screenshot measurement). The wind-up telegraph is the same edge pair.
+* Combat effects, Wish effects, hit flashes, damage numbers beyond the `cond=flash` frame, and signature icons beyond the `cond=marks` plates.
+* Barrier bubble and ring steps are drawn by `cond=marks` but only as part of the plates marker; their own contrast on the gated body is not isolated.
+* Held-weapon variety beyond sword, wand and bow, other animation frames than the one frozen (idle frames vary between runs; see the baseline), 8-way facings beyond the two measured.
+* Zone borders are covered by the `seam` pages (two zone blocks side by side), not by the camera offset of a live match or anything driven by real vision or network state.
 * HUD, minimap, Tab map and overlays: all hidden. The lab measures the world layer only.
 * Ambient motion is averaged, not frozen: dust, snow and haze in front of an actor are in the numbers but their position differs per frame.
 

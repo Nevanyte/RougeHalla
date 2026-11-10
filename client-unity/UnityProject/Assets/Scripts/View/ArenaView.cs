@@ -97,7 +97,6 @@ namespace Roguehalla.Client
         public RegionAtmosphere Atmosphere { get { return _atmos; } }
         void ApplyHaze(Color c) { _fogColor = c; for (int i = 0; i < _fog.Count; i++) if (_fog[i] != null) _fog[i].color = c; }
         int _used;
-        float _nextWorldTag;
         Vector3 _lastFollow;
         float _smoothX, _smoothY;
         bool _smoothValid;
@@ -243,7 +242,6 @@ namespace Roguehalla.Client
 
         public void Present(List<InterpActor> remote, SelfView me, LocalMotion motion, float aimAngle)
         {
-            if (Time.unscaledTime >= _nextWorldTag) { _nextWorldTag = Time.unscaledTime + 1f; WorldLayer.Tag(transform); } // CONTRAST: layers created later (particles, decals) join the World layer within a second
             _actors.Begin(); ActorField.Begin();      // render pass: presented actors for the surface shaders
             uint mine = me != null ? me.Id : 0; _localId = mine;
             _huntTarget = me != null ? me.HuntTarget : null; _haveLocal = me != null;
@@ -746,7 +744,6 @@ namespace Roguehalla.Client
             foreach (var glow in _lampGlows) glow.enabled = Quality.DynamicLights > 0;
             foreach (var light in _lamps) { light.SetShadows(Quality.Shadows); light.ApplyQuality(); }
             if (_hasFollow) UpdateLampVisibility(_lastFollow);
-            WorldLayer.Tag(transform); // CONTRAST: ground and decals go to the World sorting layer (the outline's camera sorting layer texture is grabbed after it)
         }
         static void SetActive<T>(VolumeProfile profile, bool active) where T : VolumeComponent
         {
