@@ -4,6 +4,11 @@ This is the current delivery scope. The owner asked to wrap up the beta port and
 networked technical demo as soon as possible, to test Unity 2D and AWS/Rust speed. It supersedes the earlier requirement
 to complete every original gameplay/content/production feature before delivering a demonstrable build.
 
+**Ownership change, 2026-11-10:** the owner has transferred Unity development to Claude and paused all Codex Unity
+code/assets/settings/builds, client profiling and browser/Editor testing. Root continues Rust/backend/AWS and integration
+coordination. Preserve the current build, worker branches and dirty Editor baselines. See the
+[Unity handoff](CLAUDE_UNITY_HANDOFF.md). Do not resume Unity work without a new owner instruction.
+
 ## Demo acceptance
 
 1. One optimized Unity Web build with the existing terrain, characters, attacks/effects, readable HUD, Settings,
@@ -45,9 +50,9 @@ combined build. Do not add repeated unchanged campaigns or require approval for 
 | Owner | Delivery |
 |---|---|
 | Lead | Integrate accepted changes, fix current Linux CI, produce one release native artifact, coordinate demo acceptance and measurement |
-| Unity UI chat | Compose accepted Settings + icon HUD, focused native checks, one optimized Web build |
-| Unity art chat | Review actual demo screenshots and fix only concrete major visual/readability defects using existing assets |
-| Networking/browser chat | Ordinary multiplayer core match and Training acceptance; bounded normal helper seats, then actual metric capture |
+| Claude | Unity/client development and profiling; Codex UI/art/client work paused by owner |
+| Unity UI / art chats | Quiescent; preserve completed handoffs, assets and baselines |
+| Networking chat | Finish only its already authorized backend-only public protocol test/cleanup; no Unity/browser work |
 | Account/native artifact chat | Independently inspect the one authorized Linux artifact retry and its terminal diagnostics/artifact |
 | DeepSeek Rust / Post Rust | Park completed bounded work; take only concrete demo-blocking mechanical fixes when assigned |
 

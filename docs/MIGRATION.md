@@ -6,6 +6,13 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 
 ## Current delivery scope: technical demo (owner decision, 2026-11-09)
 
+**Unity ownership change, 2026-11-10:** the owner has paused all Codex Unity development and assigned it to Claude.
+Unity code/assets/builds, client profiling and browser/Editor work are stopped. Root continues Rust/backend/AWS
+coordination. The one approved local benchmark attempt ended before measurement with
+`BROWSER_DEFAULT_FLAGS_UNAVAILABLE`; its private browser, native child and both listeners closed, independently checked.
+There is no FPS result and no retry is authorized under this pause. The [handoff](coordination/CLAUDE_UNITY_HANDOFF.md)
+records the current artifacts, WIP and evidence for Claude.
+
 **Technical demo update 2026-11-10:** owner-authorized Claude Wave1/security and the reproduced stale-echo repair are
 composed at `fe0e2983`; 956 managed tests and 102 affected Rust tests pass at their recorded cuts. Web B
 `build_81371688fcdf` is the current local release: 14 files/107,046,886 bytes, manifest SHA
@@ -44,12 +51,19 @@ Claude's newer `1f7c5460` is explicitly protocol15 WIP with missing C#/JS consum
 findings. It is not merged or deployed. The [focused completion handoff](coordination/CLAUDE_NETCODE_CHECKPOINT_FINISH.md)
 preserves the approved speed direction and lists the actual interoperability/lifecycle/track/counterplay work.
 
-The finite M5 profiling runner is composed locally at `64327d70`:24 scoped Node controls and its exact frozen-B
+The finite M5 profiling runner is composed at `64327d70`:24 scoped Node controls and its exact frozen-B
 asset/dependency preflight pass. It enables the Chromium sandbox, excludes unsafe SwiftShader fallback and classifies
-the actual renderer. No actual frame-time run has occurred; the owner has been asked for explicit Playwright/foreground
-browser permission. The prepared runner uses one30s local-WS/three-seat/48×40 window, not a matched legacy comparison.
+the actual renderer. The owner approved one local experiment; it failed before measurement and was cleaned up. The
+subsequent Unity pause now prevents Codex repair/retry. Its proposed30s local-WS/three-seat/48×40 window is not a matched legacy comparison.
 A fresh isolated Phaser production build and the actual shared160×160 map identity guard also pass; those artifacts
 have not yet been served or measured. The common full-map comparison still needs actual controlled runs.
+
+The bounded hosted Source protocol test now passes: two fresh normal accounts join the same WSS match, complete
+ordinary Plan/Ready, reach Active/alive/nontraining, and each send one Move/Stop with accepted sequence0→1→2 and
+delivered positions. Each sees the opposite-faction player through its own legitimate observer rows; local aliases are
+not cross-compared with Welcome IDs. No attacks, rewards farming, grants or hidden reads. Both normal Leave/close and
+the owned Node process exit are confirmed; final public Source is0rooms/0players/resultsFailed0. This is actual hosted
+multiplayer transport/input acceptance, not a new hosted full-match outcome or frame-rate test.
 
 The owner now prioritizes a complete visual/networked **technical demo as soon as possible** to measure Unity 2D and
 AWS/Rust speed. Full quests, every augment/elite reward, advanced bot parity and production completeness no longer block
