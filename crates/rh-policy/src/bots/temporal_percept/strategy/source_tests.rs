@@ -2747,11 +2747,12 @@ fn non_advance_snapshot(
     draws: [usize; 4],
     trace: &TraceHandle,
 ) -> SVal {
+    let callbacks = trace.lock().expect("trace lock poisoned").encoded();
     obj(vec![
         ("memory", encode_memory(memory)),
         ("own", own),
         ("drawCounts", draw_counts_value(draws)),
-        ("callbacks", trace.borrow().encoded()),
+        ("callbacks", callbacks),
     ])
 }
 
@@ -2821,7 +2822,7 @@ fn execute_tracker_op(
 ) -> R<SVal> {
     let case_label = case_id(case_json);
     preflight_operation(case_json, op_json, "mob-tracker", false, cfg, maps)?;
-    trace.borrow_mut().reset();
+    trace.lock().expect("trace lock poisoned").reset();
     let op = sv(op_json);
     let method = text(&op, "method").expect("tracker method");
     let input = op.optional("input").cloned().unwrap_or(SVal::Undefined);
@@ -2908,7 +2909,7 @@ fn execute_hunter_op(
 ) -> R<SVal> {
     let case_label = case_id(case_json);
     preflight_operation(case_json, op_json, "mob-hunter", false, cfg, maps)?;
-    trace.borrow_mut().reset();
+    trace.lock().expect("trace lock poisoned").reset();
     let op = sv(op_json);
     let method = text(&op, "method").expect("hunter method");
     let input = op.optional("input").cloned().unwrap_or(SVal::Undefined);
@@ -3046,7 +3047,7 @@ fn execute_route_op(
 ) -> R<SVal> {
     let case_label = case_id(case_json);
     preflight_operation(case_json, op_json, "build-route", false, cfg, maps)?;
-    trace.borrow_mut().reset();
+    trace.lock().expect("trace lock poisoned").reset();
     let op = sv(op_json);
     let method = text(&op, "method").expect("route method");
     let input = op.optional("input").cloned().unwrap_or(SVal::Undefined);
@@ -3140,7 +3141,7 @@ fn execute_memory_op(
 ) -> R<SVal> {
     let case_label = case_id(case_json);
     preflight_operation(case_json, op_json, "memory-api", false, cfg, maps)?;
-    trace.borrow_mut().reset();
+    trace.lock().expect("trace lock poisoned").reset();
     let op = sv(op_json);
     let method = text(&op, "method").expect("memory method");
     let input = op.optional("input").cloned().unwrap_or(SVal::Undefined);
@@ -3200,7 +3201,7 @@ fn execute_adapter_op(
 ) -> R<SVal> {
     let case_label = case_id(case_json);
     preflight_operation(case_json, op_json, "hunt-adapter", false, cfg, maps)?;
-    trace.borrow_mut().reset();
+    trace.lock().expect("trace lock poisoned").reset();
     let empty_modules: Vec<Box<dyn super::types::FeatureModule>> = Vec::new();
     let op = sv(op_json);
     let method = text(&op, "method").expect("adapter method");
@@ -3363,7 +3364,7 @@ fn execute_strategy_op(
 ) -> R<StrategyStep> {
     let case_label = case_id(case_json);
     preflight_operation(case_json, op_json, "strategy", supplement, cfg, maps)?;
-    trace.borrow_mut().reset();
+    trace.lock().expect("trace lock poisoned").reset();
     let mut previous_guard_mismatch = false;
     let op = sv(op_json);
     let method = text(&op, "method").expect("strategy method");
@@ -3937,7 +3938,7 @@ fn fill_evidence(
     if !evidence.case.is_empty() || !label.contains(" op") {
         return;
     }
-    let actual_callbacks = trace.borrow().encoded();
+    let actual_callbacks = trace.lock().expect("trace lock poisoned").encoded();
     if matches!(&actual_callbacks, SVal::Arr(values) if values.is_empty()) {
         return;
     }

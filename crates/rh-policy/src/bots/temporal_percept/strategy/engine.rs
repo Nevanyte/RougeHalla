@@ -284,8 +284,13 @@ impl Strategy {
         for c in self.loot(ctx, &enemies) {
             cands.push(c);
         }
-        for m in ctx.cfg.modules {
-            if !m.enabled(ctx.cfg.features) {
+        // The module-goal stage forwards the current tick's mutable context so a real module adapter can reborrow the
+        // same path allowance/cache and declared RNG lanes. Copy the immutable cfg references out first; this copies
+        // references, not modules or providers.
+        let modules = ctx.cfg.modules;
+        let features = ctx.cfg.features;
+        for m in modules {
+            if !m.enabled(features) {
                 continue;
             }
             for g in m.goals(ctx) {

@@ -220,7 +220,7 @@ impl MobHunter {
             retreat_min_until: 0.,
             mob_ban_until: 0.,
             next_pick_at: 0.,
-            log_fn: log.unwrap_or_else(|| std::rc::Rc::new(|_| {})),
+            log_fn: log.unwrap_or_else(|| std::sync::Arc::new(|_| {})),
         }
     }
 

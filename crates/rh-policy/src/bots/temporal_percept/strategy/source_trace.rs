@@ -6,8 +6,7 @@
 //! with the four RNG streams (stream name, per-stream ordinal and drawn value). The retained-state encoders read the
 //! native class fields (never the corpus) through the source's own-property shape. Expected corpus rows are compared
 //! afterwards and are never installed as native inputs.
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 use super::build_route::BuildRoute;
 use super::engine::Strategy;
@@ -72,11 +71,14 @@ pub(crate) struct TraceLog {
     events: Vec<SVal>,
 }
 
-pub(crate) type TraceHandle = Rc<RefCell<TraceLog>>;
+/// Shared test recorder. The callbacks persisted in Strategy options capture this handle, so it must itself be
+/// `Send + Sync`; the lock is only held while appending/resetting/copying owned data and released before any
+/// callback/service call. A poisoned lock panics rather than forging a successful callback result.
+pub(crate) type TraceHandle = Arc<Mutex<TraceLog>>;
 
 impl TraceLog {
     pub(crate) fn new_handle() -> TraceHandle {
-        Rc::new(RefCell::new(Self::default()))
+        Arc::new(Mutex::new(Self::default()))
     }
     pub(crate) fn reset(&mut self) {
         self.sequence = 0;
@@ -114,7 +116,8 @@ pub(crate) fn record_callback(
     result: SVal,
 ) -> SVal {
     trace
-        .borrow_mut()
+        .lock()
+        .expect("trace lock poisoned")
         .callback_event(name, args, result.clone());
     result
 }
@@ -160,7 +163,8 @@ impl RngStream for TraceRng {
             .copied()
             .unwrap_or_else(|| self.fallback.next_f64());
         self.trace
-            .borrow_mut()
+            .lock()
+            .expect("trace lock poisoned")
             .rng_event(self.stream, self.index, value);
         self.index += 1;
         self.draws += 1;
@@ -170,7 +174,7 @@ impl RngStream for TraceRng {
 
 pub(crate) fn options_log(trace: &TraceHandle) -> LogFn {
     let trace = trace.clone();
-    Rc::new(move |message: &str| {
+    Arc::new(move |message: &str| {
         record_callback(&trace, "options.log", vec![s(message)], undefined());
     })
 }
@@ -178,7 +182,7 @@ pub(crate) fn options_log(trace: &TraceHandle) -> LogFn {
 pub(crate) fn options_attacking(value: Option<bool>, trace: &TraceHandle) -> Option<AttackFn> {
     value.map(|declared| {
         let trace = trace.clone();
-        Rc::new(move || {
+        Arc::new(move || {
             record_callback(&trace, "options.attacking", Vec::new(), b(declared));
             declared
         }) as AttackFn
@@ -345,7 +349,7 @@ impl FeatureModule for RecordedModule {
         );
         enabled
     }
-    fn goals(&self, ctx: &StrategyContext<'_>) -> Vec<GoalDecision> {
+    fn goals(&self, ctx: &mut StrategyContext<'_>) -> Vec<GoalDecision> {
         let Some(goals) = &self.goals else {
             return Vec::new();
         };
@@ -1339,7 +1343,8 @@ pub(crate) fn compare_callbacks(
     trace: &TraceHandle,
     failures: &mut Vec<String>,
 ) {
-    compare_callback_values(label, expected, &trace.borrow().encoded(), failures);
+    let actual = trace.lock().expect("trace lock poisoned").encoded();
+    compare_callback_values(label, expected, &actual, failures);
 }
 
 pub(crate) fn compare_draw_count_values(

@@ -131,7 +131,7 @@ impl FeatureModule for CountingModule {
     fn enabled(&self, _features: &crate::bots::view::Features) -> bool {
         self.enabled
     }
-    fn goals(&self, _ctx: &StrategyContext<'_>) -> Vec<GoalDecision> {
+    fn goals(&self, _ctx: &mut StrategyContext<'_>) -> Vec<GoalDecision> {
         self.called.set(self.called.get() + 1);
         self.goals.clone()
     }
@@ -861,8 +861,7 @@ fn private_strategy_adapter_catchup_and_release_controls() {
 
 #[test]
 fn private_strategy_attacking_instances_are_independent() {
-    use std::cell::RefCell;
-    use std::rc::Rc;
+    use std::sync::{Arc, Mutex};
 
     let tier = feature_tier();
     let persona = feature_persona();
@@ -916,24 +915,29 @@ fn private_strategy_attacking_instances_are_independent() {
         paths: FakePaths,
         decide: Rng,
         lapse: Rng,
-        attack_log: Rc<RefCell<Vec<bool>>>,
-        logs: Rc<RefCell<Vec<String>>>,
+        attack_log: Arc<Mutex<Vec<bool>>>,
+        logs: Arc<Mutex<Vec<String>>>,
     }
 
     fn make_probe(attacking: bool) -> Probe {
-        let attack_log = Rc::new(RefCell::new(Vec::new()));
-        let logs = Rc::new(RefCell::new(Vec::new()));
+        let attack_log = Arc::new(Mutex::new(Vec::new()));
+        let logs = Arc::new(Mutex::new(Vec::new()));
         let attack = {
-            let log = attack_log.clone();
-            Rc::new(move || {
-                log.borrow_mut().push(attacking);
+            let log = Arc::clone(&attack_log);
+            Arc::new(move || {
+                log.lock()
+                    .expect("attack log lock poisoned")
+                    .push(attacking);
                 attacking
             }) as super::types::AttackFn
         };
         let log = {
-            let logs = logs.clone();
-            Rc::new(move |text: &str| logs.borrow_mut().push(text.to_string()))
-                as super::types::LogFn
+            let logs = Arc::clone(&logs);
+            Arc::new(move |text: &str| {
+                logs.lock()
+                    .expect("log lock poisoned")
+                    .push(text.to_string());
+            }) as super::types::LogFn
         };
         Probe {
             strategy: Strategy::new(StrategyOptions {
@@ -1011,8 +1015,12 @@ fn private_strategy_attacking_instances_are_independent() {
         for (current, status, engaged) in &history {
             records.push(step(&mut probe, &env, current, status, *engaged));
         }
-        let attacks = probe.attack_log.borrow().clone();
-        let logs = probe.logs.borrow().clone();
+        let attacks = probe
+            .attack_log
+            .lock()
+            .expect("attack log lock poisoned")
+            .clone();
+        let logs = probe.logs.lock().expect("log lock poisoned").clone();
         (records, attacks, logs)
     };
 
@@ -1098,26 +1106,304 @@ fn private_strategy_attacking_instances_are_independent() {
         );
     }
     assert_eq!(
-        probe_true.attack_log.borrow().clone(),
+        probe_true
+            .attack_log
+            .lock()
+            .expect("attack log lock poisoned")
+            .clone(),
         attacks_true,
         "the true instance retains its independent attack transcript"
     );
     assert!(
-        probe_false.attack_log.borrow().iter().all(|value| !*value),
+        probe_false
+            .attack_log
+            .lock()
+            .expect("attack log lock poisoned")
+            .iter()
+            .all(|value| !*value),
         "the false instance never inherits the other instance's attacking callback"
     );
     assert_eq!(
-        probe_false.logs.borrow().clone(),
+        probe_false.logs.lock().expect("log lock poisoned").clone(),
         logs_false,
         "the false instance keeps its independent log transcript"
     );
     assert_eq!(
-        probe_true.logs.borrow().clone(),
+        probe_true.logs.lock().expect("log lock poisoned").clone(),
         logs_true,
         "the true instance keeps its independent log transcript"
     );
     assert!(
         logs_false.iter().all(|line| !line.contains("chase of")),
         "the false instance must not inherit the true instance's chase log lines"
+    );
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+// Send-safe callback bridge controls
+
+fn assert_send<T: Send>() {}
+fn assert_send_sync<T: Send + Sync>() {}
+fn assert_value_send_sync<T: Send + Sync>(_: &T) {}
+
+#[test]
+fn private_strategy_actual_types_are_send_and_callbacks_share_state() {
+    use std::sync::Arc;
+
+    // Compile-time bridge proof: the actual persisted Strategy objects and the callback aliases they retain satisfy the
+    // already-declared `Policy: Send`, without unsafe Send/Sync, a public bound change or a wrapper around the objects.
+    assert_send::<Strategy>();
+    assert_send::<super::hunt_adapter::HuntAdapter>();
+    assert_send::<MobHunter>();
+    assert_send::<StrategyOptions>();
+    assert_send::<super::hunt_adapter::HuntAdapterOptions>();
+    assert_send_sync::<super::types::AttackFn>();
+    assert_send_sync::<super::types::LogFn>();
+
+    // The source recorder's persisted callbacks still share one allocation and one ordered transcript: arguments,
+    // invocation order and returned values are unchanged, and `Arc::clone` is the only storage path.
+    use super::source_trace::{
+        arr, b, compare_callback_values, n, obj, options_attacking, options_log, s, undefined,
+        TraceLog,
+    };
+    let trace = TraceLog::new_handle();
+    let log = options_log(&trace);
+    let log_clone = Arc::clone(&log);
+    assert!(
+        Arc::ptr_eq(&log, &log_clone),
+        "cloned log callback must share the original allocation"
+    );
+    assert_value_send_sync(&log);
+    let attacking = options_attacking(Some(true), &trace).expect("declared attacking callback");
+    let attacking_clone = Arc::clone(&attacking);
+    assert!(
+        Arc::ptr_eq(&attacking, &attacking_clone),
+        "cloned attacking callback must share the original allocation"
+    );
+    assert_value_send_sync(&attacking);
+
+    log_clone("second");
+    log("first");
+    assert!(attacking_clone());
+    assert!(attacking());
+
+    let expected = arr(vec![
+        obj(vec![
+            ("sequence", n(0.)),
+            ("kind", s("callback")),
+            ("name", s("options.log")),
+            ("args", arr(vec![s("second")])),
+            ("result", undefined()),
+        ]),
+        obj(vec![
+            ("sequence", n(1.)),
+            ("kind", s("callback")),
+            ("name", s("options.log")),
+            ("args", arr(vec![s("first")])),
+            ("result", undefined()),
+        ]),
+        obj(vec![
+            ("sequence", n(2.)),
+            ("kind", s("callback")),
+            ("name", s("options.attacking")),
+            ("args", arr(Vec::new())),
+            ("result", b(true)),
+        ]),
+        obj(vec![
+            ("sequence", n(3.)),
+            ("kind", s("callback")),
+            ("name", s("options.attacking")),
+            ("args", arr(Vec::new())),
+            ("result", b(true)),
+        ]),
+    ]);
+    let actual = trace.lock().expect("trace lock poisoned").encoded();
+    let mut failures = Vec::new();
+    compare_callback_values(
+        "send-safe options callbacks",
+        &expected,
+        &actual,
+        &mut failures,
+    );
+    assert!(
+        failures.is_empty(),
+        "shared callback transcript differs: {failures:?}"
+    );
+}
+
+#[derive(Default)]
+struct ForwardedModuleObservation {
+    reached: std::sync::atomic::AtomicU32,
+    path_answered: std::sync::atomic::AtomicBool,
+    draw_bits: std::sync::atomic::AtomicU64,
+}
+
+/// A real `FeatureModule` hook that consumes the forwarded mutable tick services: one live path request on the caller's
+/// path service and one draw from the declared decide RNG lane. It returns no goals, so only the forwarding plumbing is
+/// under test. The current service/stream remain caller-owned; the hook only records what it observed.
+struct ForwardingModule {
+    observed: std::sync::Arc<ForwardedModuleObservation>,
+}
+
+impl FeatureModule for ForwardingModule {
+    fn id(&self) -> &str {
+        "forwarding"
+    }
+    fn enabled(&self, _features: &crate::bots::view::Features) -> bool {
+        true
+    }
+    fn goals(&self, ctx: &mut StrategyContext<'_>) -> Vec<GoalDecision> {
+        use std::sync::atomic::Ordering;
+        self.observed.reached.fetch_add(1, Ordering::SeqCst);
+        let answer = ctx
+            .paths
+            .walk(Vec2::new(-1234., -5678.), Vec2::new(-8765., -4321.));
+        self.observed
+            .path_answered
+            .store(answer.is_some(), Ordering::SeqCst);
+        let value = ctx.decide.draw();
+        self.observed
+            .draw_bits
+            .store(value.to_bits(), Ordering::SeqCst);
+        Vec::new()
+    }
+}
+
+#[test]
+fn private_strategy_module_goals_forward_same_mutable_path_and_decide_services() {
+    use std::sync::atomic::Ordering;
+    use std::sync::Arc;
+
+    use super::source_reader::SVal;
+    use super::source_trace::{TraceLog, TraceRng};
+
+    let tier = feature_tier();
+    let persona = feature_persona();
+    let map = map_with_camps();
+    let features = crate::bots::view::Features::default();
+    let learned = NoLearn;
+    let mut know_rng = Rng::new(7);
+    let know = Knowledge::create(&tier, &mut know_rng);
+    let percept = base_percept(100.);
+    let mem = FakeMemory::default();
+    let observed = Arc::new(ForwardedModuleObservation::default());
+    let modules: Vec<Box<dyn FeatureModule>> = vec![Box::new(ForwardingModule {
+        observed: Arc::clone(&observed),
+    })];
+
+    let trace = TraceLog::new_handle();
+    // Declared overrides make the hook's own draw identifiable inside the shared ordered transcript: only a draw made
+    // through this same caller-owned decide stream returns an override value and records it there.
+    let overrides = (0..512)
+        .map(|index| 9000.0 + index as f64)
+        .collect::<Vec<_>>();
+    let mut decide = TraceRng::new(11, overrides, "forward-decide", &trace);
+    let mut lapse = TraceRng::new(12, Vec::new(), "forward-lapse", &trace);
+    let mut paths = FakePaths::default();
+    let cfg = StrategyConfig {
+        id: "bot".into(),
+        seed: 3,
+        tier: &tier,
+        persona: &persona,
+        map: &map,
+        features: &features,
+        learned: &learned,
+        modules: &modules,
+    };
+    let mut ctx = StrategyContext {
+        cfg: &cfg,
+        p: &percept,
+        mem: &mem,
+        know: &know,
+        paths: &mut paths,
+        decide: &mut decide,
+        lapse: &mut lapse,
+        engaged: false,
+    };
+    let mut strategy = Strategy::new(StrategyOptions::default());
+    strategy.decide(&mut ctx, &Goal::Idle, &GoalStatus::running("start"));
+
+    assert_eq!(
+        observed.reached.load(Ordering::SeqCst),
+        1,
+        "the enabled module hook must run exactly once inside actual Strategy::decide"
+    );
+    assert!(
+        observed.path_answered.load(Ordering::SeqCst),
+        "the forwarded mutable path service must answer the hook call"
+    );
+    let path_from = Vec2::new(-1234., -5678.);
+    let path_to = Vec2::new(-8765., -4321.);
+    assert_eq!(
+        paths
+            .calls
+            .iter()
+            .filter(|(from, to)| *from == path_from && *to == path_to)
+            .count(),
+        1,
+        "the hook path request must land once on the same caller-owned service: {:?}",
+        paths.calls
+    );
+
+    let hook_value = f64::from_bits(observed.draw_bits.load(Ordering::SeqCst));
+    assert!(
+        (9000.0..9512.0).contains(&hook_value),
+        "the hook draw must come from the caller's declared decide stream, got {hook_value}"
+    );
+    let encoded = trace.lock().expect("trace lock poisoned").encoded();
+    let SVal::Arr(events) = &encoded else {
+        panic!("trace encoding must be an array");
+    };
+    let mut decide_recorded = 0usize;
+    let mut lapse_recorded = 0usize;
+    let mut hook_events = 0usize;
+    for event in events {
+        let SVal::Obj(fields) = event else {
+            panic!("trace event must be an object");
+        };
+        let field = |key: &str| {
+            fields
+                .iter()
+                .find(|(name, _)| name == key)
+                .map(|(_, value)| value)
+        };
+        let Some(SVal::Str(stream)) = field("stream") else {
+            continue;
+        };
+        let Some(SVal::Num(value)) = field("value") else {
+            panic!("rng event without a numeric value");
+        };
+        let Some(SVal::Num(index)) = field("index") else {
+            panic!("rng event without a numeric index");
+        };
+        match stream.as_str() {
+            "forward-decide" => {
+                decide_recorded += 1;
+                if *value == hook_value {
+                    hook_events += 1;
+                    assert_eq!(
+                        *index,
+                        hook_value - 9000.0,
+                        "the hook draw must occupy its own ordinal on the caller's decide stream"
+                    );
+                }
+            }
+            "forward-lapse" => lapse_recorded += 1,
+            other => panic!("unexpected declared stream {other}"),
+        }
+    }
+    assert_eq!(
+        hook_events, 1,
+        "the hook draw must appear exactly once in the shared decide transcript"
+    );
+    assert_eq!(
+        decide_recorded,
+        decide.draws(),
+        "every decide draw must be recorded on the same caller-owned stream"
+    );
+    assert_eq!(
+        lapse_recorded,
+        lapse.draws(),
+        "every lapse draw must be recorded on the same caller-owned stream"
     );
 }

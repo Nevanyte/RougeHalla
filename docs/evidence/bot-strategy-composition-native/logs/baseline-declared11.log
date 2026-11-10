@@ -1,0 +1,36 @@
+=== BASELINE declared11 2026-11-10T10:18:24Z ===
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.27
+   Compiling quote v1.0.47
+   Compiling serde_core v1.0.229
+   Compiling syn v3.0.9
+   Compiling zmij v1.0.23
+   Compiling libm v0.2.16
+   Compiling serde v1.0.229
+   Compiling serde_derive v1.0.229
+   Compiling serde_json v1.0.154
+   Compiling ryu-js v1.0.3
+   Compiling itoa v1.0.18
+   Compiling memchr v2.8.3
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-strategy-composition/crates/rh-sim)
+   Compiling rh-protocol v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-strategy-composition/crates/rh-protocol)
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-strategy-composition/crates/rh-policy)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 22s
+     Running unittests src/lib.rs (target/strategy-composition-build/debug/deps/rh_policy-f90e85fbfc95e0da)
+
+running 11 tests
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_dead_self_returns_idle_without_candidates ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_adapter_catchup_and_release_controls ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_route_tie_contest_and_replan ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_loot_and_camp_candidates ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_farm_and_loot_candidates_are_real_choices ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_tracker_and_hunter_controls ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_goal_union_and_keys ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_module_enabled_order_and_utility_clamp ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_actual_admitted_memory_api_replay ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_hysteresis_and_flee_priority_controls ... ok
+test bots::temporal_percept::strategy::private_strategy_tests::private_strategy_attacking_instances_are_independent ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 222 filtered out; finished in 0.01s
+
+=== DECLARED11 EXIT: 0 ===
