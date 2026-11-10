@@ -41,6 +41,10 @@ namespace Roguehalla.Client
         HitZonePresenter _hitZones;
         WorldMarks _worldMarks;
         WorldIndicators _worldIndicators; HurtVignette _vignette;
+        /// <summary>Read-only counters for the scenario probe (diagnostics): confirmed Hit fx seen, those on the local fighter, the last amount and passive flag.</summary>
+        public static int DiagHitFx, DiagHitFxOnMe; public static float DiagLastAmountOnMe; public static bool DiagLastPassiveOnMe;
+        public float DiagVignetteStrength => _vignette != null ? _vignette.Strength : 0f;
+        public int DiagFlashes => _flashes.Count;
         uint _hoverId; uint? _huntTarget; float _selfMaxHp = 100f, _localX, _localY; bool _haveLocal; int _wishState; byte _wishAbility;
         uint? _lockForNpc; InventoryView? _inventory; uint _localId; int _numberLane;
         WireArchetype[] _archetypes = System.Array.Empty<WireArchetype>();
@@ -517,6 +521,7 @@ namespace Roguehalla.Client
                     _wishFx.Accept(f);
                     continue;
                 }
+                if (f.Kind == FxKind.Hit) { DiagHitFx++; if (f.Victim == _localId) { DiagHitFxOnMe++; DiagLastAmountOnMe = f.Amount; DiagLastPassiveOnMe = f.Passive; } } // scenario probe counters
                 if (f.Kind == FxKind.Hit && f.Victim == _localId && _localId != 0 && !f.Passive) _vignette.Hit(f.Amount, _selfMaxHp, Time.unscaledTime); // legacy screenFeedback: real hits only
                 uint subject = f.Kind == FxKind.Hit ? f.Victim : f.Kind == FxKind.Stagger || f.Kind == FxKind.Block ? f.Id : f.By;
                 var cue=new PendingFx{Kind=f.Kind,Subject=subject,Amount=f.Amount,X=f.X,Y=f.Y,A=f.A,Weapon=f.Weapon,By=f.By,Passive=f.Passive,CreatedAt=Time.unscaledTime};

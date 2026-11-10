@@ -42,7 +42,10 @@ namespace Roguehalla.Client
             sb.Append(",\"session\":true,\"training\":").Append(s.Training ? "true" : "false")
               .Append(",\"practice\":").Append(_mc.ConfirmedPractice ? "true" : "false")
               .Append(",\"state\":\"").Append(s.State).Append("\",\"phase\":").Append(s.Phase.HasValue ? ((int)s.Phase.Value).ToString() : "-1")
-              .Append(",\"result\":").Append(s.LastResult != null ? "true" : "false");
+              .Append(",\"result\":").Append(s.LastResult != null ? "true" : "false")
+              .Append(",\"hitFx\":").Append(ArenaView.DiagHitFx).Append(",\"hitFxOnMe\":").Append(ArenaView.DiagHitFxOnMe)
+              .Append(",\"lastAmountOnMe\":").Append(Num(ArenaView.DiagLastAmountOnMe)).Append(",\"lastPassiveOnMe\":").Append(ArenaView.DiagLastPassiveOnMe ? "true" : "false")
+              .Append(",\"vignette\":").Append(_mc.Arena != null ? Num(_mc.Arena.DiagVignetteStrength) : "0").Append(",\"flashes\":").Append(_mc.Arena != null ? _mc.Arena.DiagFlashes : 0);
             var me = s.Me;
             if (me != null)
             {

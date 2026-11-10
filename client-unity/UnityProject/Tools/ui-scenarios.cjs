@@ -119,6 +119,16 @@ class Run {
   async hoverAt(sx, sy) { const c = await this.css(sx, sy); await this.page.mouse.move(c.x, c.y, { steps: 4 }); }
 }
 
+// Walk with the keyboard (a right-click under the HUD bars would hit the HUD, not the world): hold the keys that point from the player to a
+// screen target for `ms`. `away` walks the opposite way.
+async function stepToward(run, me, tx, ty, ms = 260, away = false) {
+  const dx = (tx - me.sx) * (away ? -1 : 1), dy = (ty - me.sy) * (away ? -1 : 1);
+  const keys = []; if (dx > 30) keys.push('d'); else if (dx < -30) keys.push('a'); if (dy > 30) keys.push('s'); else if (dy < -30) keys.push('w');
+  for (const k of keys) await run.page.keyboard.down(k);
+  await sleep(ms);
+  for (const k of keys) await run.page.keyboard.up(k);
+}
+
 // planning screen: the spawn is picked with the digit key and the READY button is the top of the decision column.
 async function startArena(run) {
   await sleep(1500);
@@ -195,7 +205,7 @@ scenarios.fight = async (variant) => {
   const run = await open('fight-' + (variant || 'frost'), { faction });
   await startArena(run);
   await sleep(9000);
-  const caps = { remote: 6, hover: 2, lock: 3, hurt: 3, dead: 3, nums: 6, bounty: 3, status: 6, hit: 4, results: 2, corpse: 3 };
+  const caps = { remote: 6, hover: 2, lock: 3, hurt: 3, dead: 3, nums: 6, bounty: 3, status: 6, hit: 4, results: 2, corpse: 3, huntpick: 1, huntring: 3 };
   const got = {}; const cap = k => (got[k] = (got[k] || 0) + 1) <= caps[k];
   const t0 = Date.now(); let lastHp = null; let wp = 0;
   const route = [[2560, 2560], [1500, 2500], [3600, 2500], [2560, 1500], [2560, 3600], [1400, 1400], [3700, 3700], [3700, 1400], [1400, 3700]];
@@ -210,6 +220,11 @@ scenarios.fight = async (variant) => {
     lastHp = me.hp;
     if (me.status === 2 && cap('dead')) { await run.snap('death-self'); await sleep(1500); await run.snap('death-self-later'); }
     const players = hostile.filter(h => h.a.kind === 0);
+    if (faction === 1 && me.status === 1) { // Sentenced: the hunt picker lists delivered rivals; choosing one gives the violet hunt ring
+      const names = await run.uiNames();
+      if (me.hunt < 0 && names.includes('Rival0') && cap('huntpick')) { await run.snap('hunt-picker', { crop: [220, 260, 520, 360] }); await run.clickUi('Rival0', { wait: 900 }); await run.snap('hunt-after-choice', { crop: [220, 260, 520, 360] }); }
+      if (me.hunt >= 0) { const hp = p.actors.find(a => a.id === me.hunt); if (hp && cap('huntring')) { const hc = await run.css(hp.sx, hp.sy); await run.snap('hunt-ring', { crop: [hc.x, hc.y - 30, 420, 300], note: 'target ' + hp.id }); } }
+    }
     for (const h of players.slice(0, 2)) if ((h.a.bounty > 0 || h.a.effects || h.a.sig) && cap('status')) {
       const c = await run.css(h.a.sx, h.a.sy);
       await run.snap('remote-status', { crop: [c.x, c.y - 40, 360, 260], note: `bounty ${h.a.bounty} effects ${h.a.effects} sig ${h.a.sig} faction ${h.a.faction}` });
@@ -282,7 +297,7 @@ async function equipWeapon(run, want) {
     if (!prop) { console.log('   no ground weapon', want, 'in view', (p.props || []).map(q => `${q.kind}/${q.weapon}`).join(' ')); return false; }
     for (let i = 0; i < 12; i++) {
       const pp = await run.probe(); if (Math.hypot(prop.q.x - pp.me.x, prop.q.y - pp.me.y) < 48) break;
-      await run.rightClickAt(prop.q.sx, prop.q.sy); await sleep(500);
+      await stepToward(run, pp.me, prop.q.sx, prop.q.sy, 320);
       const np = (await run.probe()).props.find(q => q.kind === 1 && Math.hypot(q.x - prop.q.x, q.y - prop.q.y) < 4); if (np) { prop.q.sx = np.sx; prop.q.sy = np.sy; }
     }
     await run.page.keyboard.press('f'); await sleep(700);
@@ -320,7 +335,8 @@ scenarios['training-fight'] = async (variant) => {
     const tgt = locked || foes.find(f => f.a.kind !== 3) || foes[0];
     const m = tgt.a, c = await run.css(m.sx, m.sy);
     if ((m.effects || m.sig) && cap('status')) await run.snap('mob-status', { crop: [c.x, c.y - 30, 360, 260], note: `effects ${m.effects} sig ${m.sig}` });
-    if (tgt.d > 560) { await run.rightClickAt(m.sx, m.sy); await sleep(700); continue; } // approach (also pulls an idle camp)
+    const reach = [0, 3, 4, 5].includes(me.weapon) ? 120 : 520; // melee weapons must close in; the wand and bow shoot
+    if (tgt.d > reach) { await stepToward(run, me, m.sx, m.sy, reach < 200 ? 220 : 400); continue; } // approach (also pulls an idle camp)
     if (got.hover < caps.hover) { cap('hover'); await run.hoverAt(m.sx, m.sy); await sleep(250); await run.snap('hover-ring', { crop: [c.x, c.y - 20, 360, 260] }); }
     await run.leftClickAt(m.sx, m.sy, 40);
     if (DEMO.includes('hitzone') && cap('hit')) { await sleep(60); await run.snap('swing-hitzone', { crop: [here.x, here.y, 560, 400] }); }
@@ -423,10 +439,10 @@ scenarios.quest = async (variant) => {
 
 // ---- vision fade: a real departure, recorded with the CDP screencast (display-rate frames) -----------------------------------------------------
 class Cast {
-  constructor(run) { this.run = run; this.frames = []; this.t0 = Date.now(); }
+  constructor(run, keepMs = 0) { this.run = run; this.frames = []; this.t0 = Date.now(); this.keepMs = keepMs; }
   async start() {
     this.cdp = await this.run.ctx.newCDPSession(this.run.page);
-    this.cdp.on('Page.screencastFrame', async f => { this.frames.push({ t: Date.now() - this.t0, data: f.data }); try { await this.cdp.send('Page.screencastFrameAck', { sessionId: f.sessionId }); } catch (_) { } });
+    this.cdp.on('Page.screencastFrame', async f => { const t = Date.now() - this.t0; this.frames.push({ t, data: f.data }); if (this.keepMs) while (this.frames.length && this.frames[0].t < t - this.keepMs) this.frames.shift(); try { await this.cdp.send('Page.screencastFrameAck', { sessionId: f.sessionId }); } catch (_) { } });
     await this.cdp.send('Page.startScreencast', { format: 'jpeg', quality: 80, everyNthFrame: 1 });
   }
   async stop() { try { await this.cdp.send('Page.stopScreencast'); } catch (_) { } }
@@ -458,8 +474,8 @@ scenarios['fade-creature'] = async (variant) => {
     if (gone !== null && t > gone + 1200) break;
     // walk directly away (screen direction from the creature through the player), re-issued twice a second
     const last = [...log].reverse().find(l => l.present);
-    if (Math.floor(t / 500) !== Math.floor((t - 60) / 500)) {
-      const ref = a || (last && { sx: last.sx, sy: last.sy }); if (ref) { const dx = p.me.sx - ref.sx, dy = p.me.sy - ref.sy, n = Math.hypot(dx, dy) || 1; await run.rightClickAt(p.me.sx + dx / n * 500, p.me.sy + dy / n * 360); }
+    {
+      const ref = a || (last && { sx: last.sx, sy: last.sy }); if (ref) { await stepToward(run, p.me, ref.sx, ref.sy, 200, true); }
     }
     await sleep(30);
   }
@@ -526,6 +542,29 @@ scenarios['escape-match'] = async () => {
   await tryPanel('build', () => run.page.keyboard.press('b'));
   fs.writeFileSync(path.join(run.dir, 'escape-report.json'), JSON.stringify(report, null, 1)); console.log(report);
   await run.finish();
+};
+
+// Big hits and death: the Archon camp hits hard, so the hurt vignette is strong; the rolling screencast keeps the last 3 s so the frames
+// around the first hits, the death and the death line are dumped after the fact.
+scenarios.vignette = async (variant) => {
+  const run = await open('vignette', { training: true, auto: 0, faction: FACTIONS[variant || 'frost'] ?? 3 });
+  const start = await startTraining(run); if (!start || !start.practice) { console.log('  training not confirmed'); await run.finish(); return; }
+  await spawnCamp(run, +(opt('mob', 29))); await consoleClose(run); await sleep(1200);
+  const cast = new Cast(run, 3000); await cast.start();
+  const t0 = Date.now(); let lastHp = null, dumps = 0, deadDumped = false, peaks = 0, lastPeak = -9999; const hits = [];
+  while (Date.now() - t0 < Math.min(MINUTES, 3) * 60000) {
+    const p = await run.probe(); if (!p || !p.me) { await sleep(50); continue; }
+    const me = p.me, now = Date.now() - cast.t0;
+    if (p.vignette > 0.05 && peaks < 3 && now - lastPeak > 1500) { peaks++; lastPeak = now; await run.snap('hurt-vignette-peak', { note: `vignette ${p.vignette} hitFxOnMe ${p.hitFxOnMe} last ${p.lastAmountOnMe}` }); }
+    if (lastHp !== null && me.hp < lastHp - 1 && me.status === 1 && dumps < 3) { dumps++; hits.push({ t: now, from: lastHp, to: me.hp, max: me.maxHp }); await sleep(380); cast.save(run.dir, 'hit' + dumps, now - 150, now + 380); console.log('  hit', lastHp, '->', me.hp); }
+    lastHp = me.hp;
+    if (me.status === 2 && !deadDumped) { deadDumped = true; await sleep(300); cast.save(run.dir, 'dead-a', now - 400, now + 300); await sleep(1500); await run.snap('death-line-1500ms'); await sleep(2500); await run.snap('death-later'); break; }
+    const foes = (p.actors || []).filter(a => a.kind === 1 && a.status === 1).sort((a, b) => Math.hypot(a.sx - me.sx, a.sy - me.sy) - Math.hypot(b.sx - me.sx, b.sy - me.sy));
+    if (foes[0]) { const d = Math.hypot(foes[0].sx - me.sx, foes[0].sy - me.sy); if (d > 110) await stepToward(run, me, foes[0].sx, foes[0].sy, 250); else await run.leftClickAt(foes[0].sx, foes[0].sy - 10, 30); } // walk in, then provoke it (camps only fight when disturbed)
+    await sleep(120);
+  }
+  await cast.stop(); fs.writeFileSync(path.join(run.dir, 'hits.json'), JSON.stringify(hits));
+  await run.snap('final'); await run.finish();
 };
 
 const names = process.argv.slice(2).filter((a, i, all) => all[i - 1] === '--scenario').join(',').split(',').filter(Boolean);
