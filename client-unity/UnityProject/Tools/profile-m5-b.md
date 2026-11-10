@@ -42,8 +42,11 @@ owned-PID `lsof` check prevents accidentally attaching to another listener. Noth
 
 ## One bounded workload
 
-- Launch one bundled headed Chromium with its default arguments retained and no added launch flags. Record the returned
-  command-line defaults, version, viewport/DPR/canvas and renderer. The new nonpersistent context has no user profile,
+- Launch one bundled headed Chromium with `chromiumSandbox:true` and the supported
+  `ignoreDefaultArgs:['--enable-unsafe-swiftshader']` filter. These are two deliberate changes to Playwright's defaults;
+  other default arguments remain. Read back the effective command line and refuse the run if `--no-sandbox` or
+  `--enable-unsafe-swiftshader` is present, including value-suffixed spellings. Record these checks, version,
+  viewport/DPR/canvas and renderer. The new nonpersistent context has no user profile,
   storage import, HAR or trace. Outbound HTTP is restricted to the two loopback origins.
 - Visit the frozen Hub with endpoint-only `server` and `accountApi` overrides. Type a fresh callsign, click LOAD,
   select Holy and START RUN through normal canvas UI. Only HTTP status is observed for the profile claim; its private
@@ -72,10 +75,16 @@ callback cost is not total browser CPU or Unity PlayerLoop. JS heap/Wasm memory 
 Unsupported GPU elapsed statistics are absent. Available samples retain the unchanged hook's **UNALIGNED** warning:
 pending warmup queries can resolve in the window, so this is not a strict-window GPU distribution. Buffer counters are
 page-lifetime values. Focus/visibility loss or stale/dead/closed/replaced game connection makes the capture incomplete.
-This single30s sample is not a sustained60s gate,144FPS acceptance, full-map test or comparison with legacy.
+The raw reported WebGL renderer is retained and classified as `software`, `hardware-indicated` or `unknown`.
+Explicit software descriptors take priority; generic backend/vendor names remain unknown. A concrete adapter descriptor
+is only an indication, not verified GPU execution. Host CPU identity is not renderer evidence; software/unknown results
+make no M5 GPU performance claim. This single measured30s local scenario establishes no target FPS, full-map result or
+legacy baseline.
 
 Browser APIs are the existing [Playwright isolated-context API](https://playwright.dev/docs/api/class-browser) and
 Chromium's read-only [command-line metadata API](https://chromedevtools.github.io/devtools-protocol/tot/Browser/#method-getBrowserCommandLine).
+[Playwright launch options](https://playwright.dev/docs/api/class-browsertype#browser-type-launch) document the sandbox
+option and individual default-argument filtering used here.
 Actual browser execution still depends on Root's Computer Use review.
 
 ## CUA adapter boundary — not implemented in this finite packet

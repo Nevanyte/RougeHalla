@@ -74,6 +74,29 @@ function safeBrowserArguments(args) {
   });
 }
 
+function browserLaunchOptions() {
+  return { headless: false, args: [], chromiumSandbox: true, ignoreDefaultArgs: ['--enable-unsafe-swiftshader'] };
+}
+
+function assessBrowserArguments(args) {
+  const noSandboxPresent = args.some(arg => /^--no-sandbox(?:=|$)/.test(arg));
+  const unsafeSwiftshaderPresent = args.some(arg => /^--enable-unsafe-swiftshader(?:=|$)/.test(arg));
+  return { noSandboxPresent, unsafeSwiftshaderPresent, accepted: !noSandboxPresent && !unsafeSwiftshaderPresent };
+}
+
+function classifyRenderer(contexts) {
+  const rawRenderer = typeof contexts?.[0]?.renderer === 'string' ? contexts[0].renderer : null;
+  const available = !!rawRenderer?.trim();
+  let classification = 'unknown';
+  if (available && /swiftshader|llvmpipe|softpipe|lavapipe|software\s+rasterizer|software\s+renderer|microsoft\s+basic\s+render\s+driver|\bwarp\b/i.test(rawRenderer)) {
+    classification = 'software';
+  } else if (available && /\bApple\s+M\d+\b|\bNVIDIA\b.*\b(?:GeForce|Quadro|Tesla|RTX|GTX)\b|\b(?:AMD|ATI)\b.*\bRadeon\b|\bIntel\b.*\b(?:Iris|UHD|Arc|HD\s+Graphics)\b/i.test(rawRenderer)) {
+    classification = 'hardware-indicated';
+  }
+  return { available, classification, rawRenderer,
+    basis: 'Actual captured WebGL renderer descriptor only; hardware-indicated is not verified GPU execution. Host CPU is not GPU evidence.' };
+}
+
 function sameRoom(owner, peers) {
   return !!owner && peers.length === 2 && peers.every(peer => {
     const v = peer.view();
@@ -101,7 +124,9 @@ async function prepare() {
     node: { version: process.version, sha256: sha(await fsp.readFile(process.execPath)) },
     playwright: { version: pkg.version, executable: chromium.executablePath(), executableSha256: sha(await fsp.readFile(chromium.executablePath())) },
     capture: { requestedMs: 30000, warmupMs: 10000, viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1,
-      headed: true, suppliedChromiumArgs: [], ignoreDefaultArgs: false, privateNonpersistentContext: true },
+      headed: true, suppliedChromiumArgs: [], chromiumSandbox: true, ignoreDefaultArgs: ['--enable-unsafe-swiftshader'],
+      launchExceptions: ['Enable Chromium sandbox', 'Exclude only Playwright\'s unsafe SwiftShader default flag'],
+      effectiveArgumentsVerified: false, privateNonpersistentContext: true },
     prerequisites: ['Root must resolve the separate Playwright Computer Use review before --run.',
       'RH_M5_DATABASE_URL must name Root\'s exact existing peer-socket DB or an already prepared rh_m5_profile[_suffix] DB with the normal rh_game role; no password or new grants.',
       'Ports17837/18243 must be free. Collision aborts; existing services are never stopped.',
@@ -162,7 +187,8 @@ async function run(prepared, env = process.env) {
   const peers = [], cleanup = {}, movements = [];
   const report = { ...prepared.plan, status: 'INCOMPLETE', output, host: { platform: os.platform(), arch: os.arch(),
     release: os.release(), cpu: os.cpus()[0]?.model, logicalCpus: os.cpus().length, physicalMemoryBytes: os.totalmem() },
-    metricLimits: ['This is a single 30s loopback client scenario, not a sustained60s/144FPS/legacy comparison.',
+    renderer: classifyRenderer(null),
+    metricLimits: ['This is a single measured30s local scenario; no target FPS or legacy baseline is established.',
       'WS application payload bytes and observer callback RTT do not establish WSS/TLS/network/Calgary latency.',
       'Callbacks are not Unity PlayerLoop or total CPU. Heap/Wasm are not total browser/RSS/GPU memory.',
       'GPU elapsed values, when available, retain the existing UNALIGNED warm-up-query limitation.',
@@ -212,11 +238,19 @@ async function run(prepared, env = process.env) {
     if (!ready) fail('NATIVE_READINESS_TIMEOUT');
     if (nativeExited || !await ownsSourceListener(native.pid)) fail('NATIVE_LISTENER_OWNERSHIP_REQUIRED');
     const info = await publicInfo(); if (info?.protocol !== 14 || info.contentHash !== CONTENT || info.rooms || info.players) fail('SOURCE_IDENTITY_OR_EMPTY_GATE');
-    browser = await prepared.chromium.launch({ headless: false, args: [] });
-    report.browser = { version: browser.version(), headed: true, suppliedArgs: [], defaultArgsRetained: true };
+    browser = await prepared.chromium.launch(browserLaunchOptions());
+    report.browser = { version: browser.version(), launchOptions: browserLaunchOptions(),
+      launchExceptions: ['Enable Chromium sandbox', 'Exclude only Playwright\'s unsafe SwiftShader default flag'],
+      remainingDefaultArguments: 'retained; effective arguments checked below' };
     const cdp = await browser.newBrowserCDPSession();
-    try { report.browser.commandLine = safeBrowserArguments((await cdp.send('Browser.getBrowserCommandLine')).arguments); }
+    try {
+      const effective = (await cdp.send('Browser.getBrowserCommandLine')).arguments;
+      report.browser.commandLine = safeBrowserArguments(effective);
+      report.browser.effectiveArgumentCheck = assessBrowserArguments(effective);
+    }
     catch { fail('BROWSER_DEFAULT_FLAGS_UNAVAILABLE'); } finally { await cdp.detach(); }
+    if (!report.browser.effectiveArgumentCheck.accepted) fail('BROWSER_LAUNCH_FLAGS_REJECTED');
+    report.browser.effectiveArgumentsVerified = true;
     context = await browser.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1, acceptDownloads: false });
     // Only this fresh context is accessed. No userDataDir, persistent profile, storageState, HAR or trace.
     await context.route('**/*', route => {
@@ -279,6 +313,7 @@ async function run(prepared, env = process.env) {
       await sleep(Math.min(1340, Math.max(0, deadline - performance.now())));
     }
     report.capture = await collector.end(); measuring = false;
+    report.renderer = classifyRenderer(report.capture.webgl?.contexts);
     report.presentationAfter = await geometry(); report.movementSchedule = movements;
     if (report.capture.status !== 'CAPTURED' || report.capture.window.durationMs < 29500 || report.capture.window.durationMs > 31500) fail('CAPTURE_INCOMPLETE');
     report.status = 'CAPTURED_SINGLE_30S_LOCAL_WS_WINDOW';
@@ -288,6 +323,7 @@ async function run(prepared, env = process.env) {
     report.failure = typeof e.fixedCode === 'string' ? e.fixedCode : 'RUNTIME_STEP_FAILED';
     // Never emit arbitrary Playwright/server errors, headers, bodies, raw frames or credentials.
     if (measuring) { try { report.capture = await collector.end(); } catch { report.captureEndFailed = true; } measuring = false; }
+    if (report.capture?.webgl) report.renderer = classifyRenderer(report.capture.webgl.contexts);
   } finally {
     cleanup.started = true;
     if (page && !page.isClosed()) {
@@ -323,4 +359,5 @@ if (require.main === module) {
   })().catch(e => { process.stderr.write(JSON.stringify({ status: 'NOT_RUN_OR_INCOMPLETE', code: e.fixedCode || 'PREPARATION_OR_RUNTIME_FAILED' }) + '\n'); process.exitCode = 1; });
 }
 
-module.exports = { databaseUrl, safeBrowserArguments, sameRoom, visitUrl, assetPath, prepare, run, PINS, PATHS, SOURCE_PORT, WEB_PORT };
+module.exports = { databaseUrl, safeBrowserArguments, browserLaunchOptions, assessBrowserArguments, classifyRenderer,
+  sameRoom, visitUrl, assetPath, prepare, run, PINS, PATHS, SOURCE_PORT, WEB_PORT };
