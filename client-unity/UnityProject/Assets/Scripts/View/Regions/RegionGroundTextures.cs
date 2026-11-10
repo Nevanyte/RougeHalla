@@ -74,12 +74,12 @@ namespace Roguehalla.Client
             {
                 float u = U(x), v = U(y);
                 float warp = (Fbm(u, v, 3, 3, 8) - .5f) * .025f;
-                float row = .5f + .5f * Mathf.Sin((v + warp) * Mathf.PI * 2f * 16f);       // harvest furrows, four per tile
+                float row = .5f + .5f * Mathf.Sin((v + warp) * Mathf.PI * 2f * 6f);        // harvest furrows, 1.5 per tile
                 float straw = PeriodicXY(u * 96f, v * 14f, 96, 14, 17) * .6f + PeriodicXY(u * 48f, v * 7f, 48, 7, 19) * .4f;
                 float patch = SmoothStep(.55f, .75f, Fbm(u, v, 3, 3, 12)) * .6f;
                 int i = y * Size + x;
                 h[i] = row * .6f + straw * .15f;
-                r[i] = .46f + row * .14f + (straw - .5f) * .30f;
+                r[i] = .50f + row * .08f + (straw - .5f) * .26f;
                 g[i] = patch * (.65f + .35f * Periodic(u * 24f, v * 24f, 24, 5));
                 b[i] = 0f;
             }

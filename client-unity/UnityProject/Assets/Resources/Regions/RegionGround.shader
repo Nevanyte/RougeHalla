@@ -136,7 +136,7 @@ Shader "Roguehalla/RegionGround"
                 float4 a = SAMPLE_TEXTURE2D_ARRAY(_GroundTex, sampler_GroundTex, uv1, layer);
                 float4 b = SAMPLE_TEXTURE2D_ARRAY(_GroundTex, sampler_GroundTex, uv2, layer);
                 float mix = smoothstep(0.30, 0.70, VNoise(t * 0.21 + layer * 13.0));
-                float4 g = lerp(a, b, mix * 0.55);
+                float4 g = lerp(a, b, mix * (layer == 1 ? 0.12 : 0.55));   // stripe layers keep the second tap faint (no moire)
                 float4 par = _PalPar[id], par2 = _PalPar2[id];
                 float3 baseC = _PalBase[id].rgb, secC = _PalSec[id].rgb, accC = _PalAcc[id].rgb, keyC = _PalKey[id].rgb;
 

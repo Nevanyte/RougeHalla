@@ -1,4 +1,4 @@
-// Walls and low obstacles for region maps: one baked mesh per tile row (at most 160 renderers, all sharing one material and
+// Walls and low obstacles for region maps: one baked mesh per tile row and 32-tile chunk, non-empty only (all sharing one material and
 // one atlas) instead of several GameObjects per tile. Row meshes keep the legacy sorting rule (order 2000 + row * 16) so
 // actors still sort against walls by y. Skins come from the per-region wall style. Geometry is presentation only: the
 // collision tiles still come from MapBlob and are never altered here.
@@ -11,6 +11,8 @@ namespace Roguehalla.Client
     public sealed class RegionWalls : System.IDisposable
     {
         public const float WallHeight = .67f;           // legacy face height in world units
+        /// <summary>Row meshes are split every 32 tiles so a row of walls far off screen is culled; only non-empty chunks exist.</summary>
+        public const int ChunkTiles = 32;
         const float TopHeight = .78f;                   // cap footprint (ground squash)
         public Material Material { get; private set; }
         public int RowMeshCount { get; private set; }
@@ -75,10 +77,10 @@ namespace Roguehalla.Client
                 return 6;
             }
 
-            for (int y = 0; y < h; y++)
+            for (int y = 0; y < h; y++) for (int chunk = 0; chunk < w; chunk += ChunkTiles)
             {
                 _v.Clear(); _uv.Clear(); _c.Clear(); _t.Clear();
-                for (int x = 0; x < w; x++)
+                for (int x = chunk; x < Mathf.Min(w, chunk + ChunkTiles); x++)
                 {
                     byte tile = tiles[y * w + x]; if (tile == MapBlob.Floor) continue;
                     int kind = terrain != null ? terrain[y * w + x] : 0;
@@ -120,10 +122,10 @@ namespace Roguehalla.Client
                             new Vector2(rim.Min.x, rim.Max.y), new Vector2(rim.Min.x, rim.Min.y), new Vector2(rim.Max.x, rim.Min.y), new Vector2(rim.Max.x, rim.Max.y), white);
                 }
                 if (_v.Count == 0) continue;
-                var mesh = new Mesh { name = "Region walls row " + y, indexFormat = UnityEngine.Rendering.IndexFormat.UInt16 };
+                var mesh = new Mesh { name = "Region walls row " + y + " chunk " + chunk / ChunkTiles, indexFormat = UnityEngine.Rendering.IndexFormat.UInt16 };
                 mesh.SetVertices(_v); mesh.SetUVs(0, _uv); mesh.SetColors(_c); mesh.SetTriangles(_t, 0); mesh.RecalculateBounds();
                 _owned.Add(mesh);
-                var go = new GameObject("Walls row " + y); go.transform.SetParent(root.transform, false);
+                var go = new GameObject("Walls row " + y + " x" + chunk); go.transform.SetParent(root.transform, false);
                 go.AddComponent<MeshFilter>().sharedMesh = mesh;
                 var mr = go.AddComponent<MeshRenderer>();
                 mr.sharedMaterial = Material; mr.sortingOrder = 2000 + y * 16;

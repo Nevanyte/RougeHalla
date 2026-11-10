@@ -101,7 +101,7 @@ namespace Roguehalla.Client
             // 2 sentenced: the muted zone. Weathered timber, straw, hazy.
             { var th = t[2]; th.Wall = WallStyle.Timber;
               th.WallTop = Mix(Sec(2), B(2), .35f); th.WallFace = Sec(2); th.WallEdge = Mix(Sec(2), B(2), .7f);
-              th.GroundParams = new Vector4(.28f, .22f, 0, 0); th.GroundParams2 = new Vector4(.22f, 0, 1.15f, 0);
+              th.GroundParams = new Vector4(.16f, .18f, 0, 0); th.GroundParams2 = new Vector4(.22f, 0, 2.2f, 0);
               th.Props = new[] { new PropRule("sent.hay", 2.2f, .9f, 1.15f), new PropRule("sent.wheat", 7f, .85f, 1.2f), new PropRule("sent.scarecrow", .55f, .95f, 1.05f, wallClearance: 2),
                                  new PropRule("sent.deadtree", 1.1f, .85f, 1.2f), new PropRule("sent.barrel", .8f, .9f, 1.05f) }; }
             // 3 plague: forgotten city. Mossy paving, dense greenery pockets.

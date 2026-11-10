@@ -66,6 +66,16 @@ namespace Roguehalla.Client
                 File.WriteAllBytes(Path.Combine(outDir, p[0] + ".png"), tex.EncodeToPNG());
                 UnityEngine.Object.DestroyImmediate(tex);
                 RenderTexture.active = null; cam.targetTexture = null;
+                var planes = GeometryUtility.CalculateFrustumPlanes(cam); int groundDraws = 0, wallDraws = 0, propSprites = 0, otherRenderers = 0;
+                foreach (var r in arenaGo.GetComponentsInChildren<Renderer>())
+                {
+                    if (!r.enabled || !GeometryUtility.TestPlanesAABB(planes, r.bounds)) continue;
+                    if (r is MeshRenderer mr && mr.sharedMaterial != null && mr.sharedMaterial.shader.name == "Roguehalla/RegionGround") groundDraws++;
+                    else if (r is MeshRenderer mr2 && mr2.sharedMaterial != null && mr2.sharedMaterial.shader.name == "Roguehalla/RegionLitMesh") wallDraws++;
+                    else if (r is SpriteRenderer sr && sr.sprite != null && sr.sprite.texture == RegionPropArt.Atlas) propSprites++;
+                    else otherRenderers++;
+                }
+                UnityEngine.Debug.Log("RegionPreviewCapture: visible renderers ground=" + groundDraws + " wallRowMeshes=" + wallDraws + " propSprites(one atlas)=" + propSprites + " other=" + otherRenderers);
                 UnityEngine.Debug.Log("RegionPreviewCapture: wrote " + p[0] + " region=" + arena.RegionAt(new Vector3(tx, -ty * ArenaView.GroundSquash, 0)));
             }
         }

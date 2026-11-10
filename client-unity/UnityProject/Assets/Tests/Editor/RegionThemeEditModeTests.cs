@@ -213,7 +213,7 @@ namespace Roguehalla.Client.Tests
         // ---- batching (no GPU) -----------------------------------------------------------------------------------------------------
 
         [Test]
-        public void GroundIsOneRendererAndWallsAreOneMeshPerRow()
+        public void GroundIsOneRendererAndWallsAreOneMeshPerRowChunk()
         {
             var map = TestMap(out _); var root = new GameObject("test root");
             try
@@ -222,7 +222,7 @@ namespace Roguehalla.Client.Tests
                 var walls = RegionWalls.Build(root.transform, map, 1f);
                 Assert.That(ground.Root.GetComponentsInChildren<MeshRenderer>().Length, Is.EqualTo(1), "the whole ground is a single quad");
                 int rows = walls.RowMeshCount;
-                Assert.That(rows, Is.LessThanOrEqualTo(map.H));
+                Assert.That(rows, Is.LessThanOrEqualTo(map.H * 2));
                 Assert.That(root.GetComponentsInChildren<MeshRenderer>().Length, Is.EqualTo(1 + rows), "no per-tile GameObjects");
                 ground.Dispose(); walls.Dispose();
             }

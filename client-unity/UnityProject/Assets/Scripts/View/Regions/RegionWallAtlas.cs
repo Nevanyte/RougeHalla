@@ -102,6 +102,9 @@ namespace Roguehalla.Client
                         // frozen slab seam
                         float seam = Mathf.Min(Mathf.Abs(u - .5f), Mathf.Abs(v - .5f)) * 2f;
                         c = Mix(c, Mix(face, Color.white, .5f), (1f - SmoothU(seam, 0f, .018f)) * .22f);
+                        // Block shoulders: blue-shaded edges so each ice block reads as raised.
+                        float shoulder = Mathf.Min(Mathf.Min(u, 1f - u), Mathf.Min(v, 1f - v));
+                        c = Mix(c, Mix(face, RegionPaletteSrgb(4, 5), .25f), (1f - SmoothU(shoulder, 0f, .07f)) * .38f);
                         break;
                     }
                     case WallStyle.Basalt:
@@ -317,7 +320,9 @@ namespace Roguehalla.Client
             Color rim = Mix(th.WallEdge, Color.white, .35f);
             for (int y = 0; y < RimH; y++) for (int x = 0; x < TileW; x++)
             {
-                float t = y / (RimH - 1f); Color c = rim; c.a = Mathf.Pow(1f - t, 1.6f) * .55f; cv.Px[y * TileW + x] = c;
+                float t = y / (RimH - 1f); Color c = rim; c.a = Mathf.Pow(1f - t, 1.6f) * .55f;
+                if (y < 2) { c = Shade(th.WallEdge, .35f); c.a = .75f; }          // crisp dark outline on the very outer edge
+                cv.Px[y * TileW + x] = c;
             }
             return cv;
         }
