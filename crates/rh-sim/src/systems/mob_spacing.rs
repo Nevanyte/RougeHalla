@@ -1,8 +1,9 @@
-//! Mob spacing (ADR0024 addendum "Mob spacing", owner direction 2026-11-10; a docs/DEVIATIONS.md row): under
-//! [`crate::archetype::HitboxMode::Archetypes`] a regional mob that is already where its combat policy wants it (in its attack band, with
-//! line of sight: the policy said `Stop`) and finds another mob inside its personal space queues one short, validated
-//! `Move` that steps it out, sliding round its target instead of stacking on its pack-mates. Legacy has no such rule;
-//! under [`crate::archetype::HitboxMode::LegacyCircle`] nothing here runs (`mob_ai::think` never builds the index, `fight` never asks).
+//! Mob spacing (ADR0024 addendum "Mob spacing", owner direction 2026-11-10; docs/DEVIATIONS.md DEV-011): under
+//! [`crate::archetype::HitboxMode::Archetypes`] (and `SimConfig::mob_spacing = Auto`) a regional mob that its combat
+//! policy keeps in place (in its attack band, with line of sight: `Stop`) and finds another mob inside its personal space
+//! queues one short, validated `Move` that steps it out ([`step`]), and a chasing mob's goal is shifted sideways away from
+//! its pack-mates ([`lateral`]), so a pack neither stacks round its target nor runs in one file. Legacy has no such rule;
+//! under [`crate::archetype::HitboxMode::LegacyCircle`] nothing here runs (`mob_ai::think` never builds the index).
 //!
 //! Not a system and no schedule row: `mob_ai::think` builds the index once per call, `mob_ai::fight` asks for a step in
 //! its own `Stop` branch and moves the mob's entry to the step's end when it orders one (so the mobs that think after it
