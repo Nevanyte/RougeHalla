@@ -33,9 +33,9 @@ namespace Roguehalla.Client
         /// <summary>
         /// Ground luminance (as the shader estimates it from the camera sorting layer texture, scaled by the post exposure) at which the stroke flips from dark to light.
         /// Measured with the contrast lab: a dark stroke is not black on screen in a bright, glowing zone (bloom and haze lift it to about .05 to .07), so the flip sits
-        /// above the crossover of the nominal colours and below the crossover of the lifted ones. Ice (final luminance about .27) must stay dark, Plague bog (about .11) light.
+        /// above the crossover of the nominal colours and below the crossover of the lifted ones. Ice (final luminance about .27) must stay dark, Plague bog (about .11 to .18) light; inside the dead zone one polarity is chosen per figure from the ground around its centre.
         /// </summary>
-        public const float Threshold = .24f;
+        public const float Threshold = .26f;
         /// <summary>The dark stroke's luminance on screen in the glowing zones (Fire lava, Holy light), after bloom and haze.</summary>
         public const float LiftedDarkLuma = .07f;
 
@@ -67,7 +67,7 @@ namespace Roguehalla.Client
         public const float LitFactor = .85f;
 
         /// <summary>Half width of the dead zone, in luminance.</summary>
-        public const float DeadZone = .03f;
+        public const float DeadZone = .06f;
 
         /// <summary>The ratio the chosen stroke gives against a ground of this luminance.</summary>
         public static float StrokeRatio(float groundLuma, bool previousLight)

@@ -23,11 +23,11 @@ namespace Roguehalla.Net.Tests
             }
         }
 
-        [Test] public void InsideTheDeadZoneTheWorstCaseStaysAboveTwoPointEight()
+        [Test] public void InsideTheDeadZoneTheWorstCaseStaysAboveTwoPointFour()
         {
             for (float l = ActorOutlineModel.Threshold - ActorOutlineModel.DeadZone; l <= ActorOutlineModel.Threshold + ActorOutlineModel.DeadZone; l += .001f)
                 foreach (bool previous in new[] { false, true })
-                    Assert.GreaterOrEqual(ActorOutlineModel.StrokeRatio(l, previous), 2.8f, "ground " + l);
+                    Assert.GreaterOrEqual(ActorOutlineModel.StrokeRatio(l, previous), 2.4f, "ground " + l);
         }
 
         [Test] public void FourPointFiveHoldsAwayFromTheFlip()
