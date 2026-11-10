@@ -23,7 +23,7 @@ Archetypes composition proofs were added (NPC earned bleed checkpoint, Card publ
   (`P-BOT-FAIR-ACTIVATION-1`) remains open.
 - **Union merge review:** independent Sonnet review LAND WITH NOTES (no lost hunks, all new serialized fields present, identities
   consistent, wire unchanged).
-- **Known pre-existing failure:** `tools/protocol-js/check-first-playable.mjs` ("bad projectile", missing projectile height byte).
+- **JS tools repinned (2026-11-10):** `tools/protocol-js/check-first-playable.mjs` passes (66 checks, protocol 16 projectile rows with the height byte), and `tools/unity-browser-reload-proof` is repinned to protocol 16, `v16.json` and content `a2d1022ebe713382` (33 of 33 tests pass); the `probe.html` codec marker now reads `// ---- protocol v16 `. Still pinned to old identities on purpose (they record historical revisions): `check.mjs` `NATIVE_REFERENCE`/`CLIENT_SOURCE`, `pin-sources.mjs` `expectedIdentity`, `tools/scene-candidate/check.mjs`; `client-unity/UnityProject/Tools/profile-hub14.cjs` still looks for the v14 marker.
   It fails identically on the Unity primary.
 - **Not done:** refreshing the union against later Unity-lane commits; Unity WebGL build from the combined tree and browser proof;
   final combined-tree review; the `play.rougehalla.com` test deployment.
