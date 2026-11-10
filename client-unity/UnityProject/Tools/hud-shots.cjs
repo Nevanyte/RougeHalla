@@ -193,6 +193,14 @@ async function launchFlow(cfg, browser, errors, logs) {
   await shot(page, 'callsign-typed');
   await click(page, geo.training, 900); await shot(page, 'training-unavailable');
   await page.context().close();
+  if (process.env.RH_SHOTS_LAUNCH_SHORT === '1') {
+    // Short flow (third UI pass): the hub room in the loopback hub and the account panels above, nothing else.
+    page = await open(diag());
+    await shot(page, 'hub');
+    await page.context().close();
+    fs.writeFileSync(path.join(outDir, `${tag}-${tag2}-console.log`), logs.join('\n') + '\n');
+    return;
+  }
 
   page = await open(`?server=${encodeURIComponent(wsUrl)}`);
   await shot(page, 'custom-server-link');

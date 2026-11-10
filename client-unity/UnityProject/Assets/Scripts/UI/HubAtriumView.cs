@@ -251,7 +251,7 @@ namespace Roguehalla.Client
                 X = RoomW - Wall - 8 - 70, Y = 288, W = 140, H = 60, StandX = RoomW - Wall - 8 - 140 - 26, StandY = 288, Solid = true });
             for (int i = 0; i < PedestalSpots.Length; i++)
                 _stations.Add(new Station { Kind = Kind.Pedestal, Id = "Faction_" + LaunchCopy.Houses[i].Name, Label = LaunchCopy.Houses[i].Name, Hint = LaunchCopy.Houses[i].Weapon,
-                    Verb = "Choose " + LaunchCopy.Houses[i].Name, Shape = LaunchCopy.Houses[i].Shape, Faction = i, X = PedestalSpots[i].x, Y = PedestalSpots[i].y, W = 80, H = 66,
+                    Verb = "Choose " + LaunchCopy.Houses[i].Name, Shape = LaunchCopy.Houses[i].Shape, Faction = i, X = PedestalSpots[i].x, Y = PedestalSpots[i].y, W = 66, H = 66,
                     StandX = PedestalSpots[i].x, StandY = PedestalSpots[i].y });
 
             // Tab order follows creation order: the kiosks first (west to east reading), then the arena and training, then the pedestals.
