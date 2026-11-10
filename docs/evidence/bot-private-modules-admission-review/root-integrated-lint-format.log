@@ -1,0 +1,20 @@
+{"cwd": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests", "head": "d0c920c6659f03922bf4164cbc944f5df97cb866", "code_head": "721d04dabaa734f33835cd69bbb64385843d9a7d", "CARGO_TARGET_DIR": "target/root-strategy-notice-admission/build", "CARGO_INCREMENTAL": "0", "RUSTFLAGS": ""}
+{"command": ["/Users/nevinmckinnon/.cargo/bin/cargo", "fmt", "-p", "rh-policy", "--", "--check"]}
+{"exit": 0, "wall_seconds": 0.98}
+{"command": ["/Users/nevinmckinnon/.cargo/bin/cargo", "clippy", "-p", "rh-policy", "--lib", "--tests", "--locked", "--offline", "-j", "1", "--", "-D", "warnings"]}
+    Checking serde_core v1.0.229
+    Checking serde v1.0.229
+    Checking libm v0.2.16
+    Checking ryu-js v1.0.3
+    Checking rh-sim v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests/crates/rh-sim)
+    Checking zmij v1.0.23
+    Checking itoa v1.0.18
+    Checking rh-protocol v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests/crates/rh-protocol)
+    Checking memchr v2.8.3
+    Checking serde_json v1.0.154
+    Checking rh-policy v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests/crates/rh-policy)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 37.02s
+{"exit": 0, "wall_seconds": 37.16}
+{"command": ["/Users/nevinmckinnon/.cargo/bin/cargo", "clippy", "-p", "rh-policy", "--lib", "--tests", "--all-features", "--locked", "--offline", "-j", "1", "--", "-D", "warnings"]}
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.06s
+{"exit": 0, "wall_seconds": 0.14}

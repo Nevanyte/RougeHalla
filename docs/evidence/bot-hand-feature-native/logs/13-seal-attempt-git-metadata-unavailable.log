@@ -1,0 +1,23 @@
+# Seal attempt receipt — git metadata unavailable (recorded from the actual failed attempt)
+cwd: /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-hand-feature
+HEAD: 90b191b3b9c3faac9d98fd058c93454f20f579a4
+
+$ git add crates/rh-policy/src/bots/humanizer.rs crates/rh-policy/src/bots/humanizer/feature_tests.rs crates/rh-policy/src/bots/humanizer/source.rs docs/evidence/bot-hand-feature-native/README.md docs/evidence/bot-hand-feature-native/00-baseline-and-first-failures.md
+fatal: Unable to create '/Users/nevinmckinnon/Documents/Projects/RogueHalla/.git/worktrees/backend-bot-hand-feature/index.lock': Operation not permitted
+exit 128
+
+$ git add -f docs/evidence/bot-hand-feature-native/logs/*.log
+not reached: the first git add failed; the command chain was &&-joined
+
+Disposition: session Workspace Write policy only allows writes under the session workspace; the worktree's common git dir is
+/Users/nevinmckinnon/Documents/Projects/RogueHalla/.git/worktrees/backend-bot-hand-feature (outside). No wider sandbox mode was
+requested or changed and the failed command was not retried (policy outcome, not a transient error). No commit, merge or
+push occurred. Root seals the exact file inventory from the pre-seal working tree:
+
+ M crates/rh-policy/src/bots/humanizer.rs
+?? crates/rh-policy/src/bots/humanizer/feature_tests.rs
+?? crates/rh-policy/src/bots/humanizer/source.rs
+?? docs/evidence/bot-hand-feature-native/00-baseline-and-first-failures.md
+?? docs/evidence/bot-hand-feature-native/README.md
+
+The logs themselves are ignored by .gitignore (*.log) and are tracked in evidence history via explicit git add -f.

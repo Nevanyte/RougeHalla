@@ -209,11 +209,10 @@ pub(crate) fn after_damage(w: &mut World) {
                 continue;
             }
             let actor = w.core(jx);
-            let actor_is_frost = structural_source(w, jx);
-            if actor_is_frost
-                && actor.signature.engaged
+            if actor.signature.engaged
                 && actor.signature.target == Some(victim_id)
                 && actor.id != victim_id
+                && structural_source(w, jx)
             {
                 add(&mut chillers, actor.id);
             }

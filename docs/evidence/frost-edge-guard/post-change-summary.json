@@ -1,0 +1,45 @@
+{
+  "status": "CAPTURED_ONE_30S_NATIVE_BACKEND",
+  "measurementWallSeconds": 30.00227825,
+  "sampleSpanSeconds": 29.000680874999997,
+  "sampledCpuSeconds": 1.9600000000000002,
+  "percentOneCpu": 6.758462011454414,
+  "rssMiBMin": 18.78125,
+  "rssMiBMax": 18.875,
+  "ticks": 600,
+  "wholeRoom": [
+    {
+      "ticks": 1183,
+      "stepUsP50": 2047,
+      "stepUsP99": 3071,
+      "stepUsMax": 9100,
+      "lateWakes": 0,
+      "droppedSteps": 0,
+      "bytesOut": 1294168,
+      "bytesEnqueuedTotal": 1297864,
+      "fxDropped": 0,
+      "snapshotsSkipped": 0,
+      "snapshotsFull": 52,
+      "snapshotsDelta": 3494,
+      "snapshotBytesSent": 1357090,
+      "snapshotRefusals": 0,
+      "frameRefusals": 0,
+      "crashed": false
+    }
+  ],
+  "resultCounts": {
+    "resultsOk": 3,
+    "resultsFailed": 0,
+    "resultsRefused": 0
+  },
+  "cleanup": {
+    "utc": "2026-11-10T03:21:48.286577+00:00",
+    "nativePid": 30250,
+    "psExit": 1,
+    "psOutput": "",
+    "listenerExit": 1,
+    "listeners": [],
+    "pass": true,
+    "controllerStatus": "CAPTURED_ONE_30S_NATIVE_BACKEND"
+  }
+}

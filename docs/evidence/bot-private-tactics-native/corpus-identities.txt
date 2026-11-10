@@ -1,0 +1,9 @@
+5d27d1b4522d386d4ede5f3064a28660dedff43e32a24ade264f4512e30fcfa8  parity/policy/bot-private-tactics/source.json
+b43c64fea6c6da17faaccf578a1e4d6614c96e352f5f951fefafcca95ae68f77  parity/policy/bot-private-tactics/coverage.json
+9f76406016d0ebc498b0a3a3ec7cad677fc43ecd40b530a963a57a7f3d6eb957  parity/policy/bot-private-tactics/manifest.json
+d9696bcd50de310224b947156948da6bf360cced93f910a7454cd2030c2202c2  parity/policy/bot-private-tactics/controls.json
+ 11656923 parity/policy/bot-private-tactics/source.json
+ 1069183 parity/policy/bot-private-tactics/coverage.json
+   37387 parity/policy/bot-private-tactics/manifest.json
+  218643 parity/policy/bot-private-tactics/controls.json
+ 12982136 total

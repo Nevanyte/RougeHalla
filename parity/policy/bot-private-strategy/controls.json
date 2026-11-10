@@ -1,0 +1,221 @@
+{
+ "format": "rh-bot-private-strategy-controls/1",
+ "source": {
+  "bytes": 12263237,
+  "sha256": "3a3ae0d498cc3933b5eee11c5be995f267f4a76530379ad7c73a934082125d8d"
+ },
+ "controls": [
+  {
+   "id": "dedup-equal-strict",
+   "result": "KILL",
+   "file": "packages/server/src/bots/brain/strategy.ts",
+   "case": "strategy-dedup-equal-and-higher-retains-slot",
+   "source": "first",
+   "mutant": "equal-must-lose",
+   "sourceSha256": "edf3ec7f0e2b68de24e52def86e046209cd53c98c598057d38baf810f1ec2116",
+   "mutantSha256": "a2504f32dc03323a2d0f87064a472d34fe0d43dbfe269c0a5a7eeeb6ea61b909"
+  },
+  {
+   "id": "hysteresis-margin",
+   "result": "KILL",
+   "file": "packages/server/src/bots/brain/strategy.ts",
+   "case": "strategy-modules-dedup-tie-hysteresis-status",
+   "source": 1,
+   "mutant": 2,
+   "sourceSha256": "edf3ec7f0e2b68de24e52def86e046209cd53c98c598057d38baf810f1ec2116",
+   "mutantSha256": "cdd862b4a5f3cd13d2923a36edbb3752352cc8dc0ce20ac64c1cb3cc787317ac"
+  },
+  {
+   "id": "exclusion-expiry-inclusive",
+   "result": "KILL",
+   "file": "packages/server/src/bots/brain/strategy.ts",
+   "case": "strategy-modules-dedup-tie-hysteresis-status",
+   "source": false,
+   "mutant": true,
+   "sourceSha256": "edf3ec7f0e2b68de24e52def86e046209cd53c98c598057d38baf810f1ec2116",
+   "mutantSha256": "e07232a84254869bc7a8f7864e9b89262603447ed47f22d61d43155c761112c1"
+  },
+  {
+   "id": "pursuit-progress-strict",
+   "result": "KILL",
+   "file": "packages/server/src/bots/brain/strategy.ts",
+   "case": "strategy-pursuit-progress-timeout-hit-release",
+   "source": 300000,
+   "mutant": 300500,
+   "sourceSha256": "edf3ec7f0e2b68de24e52def86e046209cd53c98c598057d38baf810f1ec2116",
+   "mutantSha256": "88f9f05e95f7fd5ec12f93de8ac167a9e987f9be667fca0cf4dbf8ddf97de9f3"
+  },
+  {
+   "id": "pursuit-hit-release",
+   "result": "KILL",
+   "file": "packages/server/src/bots/brain/strategy.ts",
+   "case": "strategy-pursuit-progress-timeout-hit-release",
+   "source": null,
+   "mutant": "追跡😀",
+   "sourceSha256": "edf3ec7f0e2b68de24e52def86e046209cd53c98c598057d38baf810f1ec2116",
+   "mutantSha256": "070b3fb6def5a4f0ad68cb9b2461dae197957a06977d729bede1428027689f68"
+  },
+  {
+   "id": "loot-budget-strict",
+   "result": "KILL",
+   "file": "packages/server/src/bots/brain/strategy.ts",
+   "case": "strategy-loot-skip-budget-expiry-and-counters",
+   "source": false,
+   "mutant": true,
+   "sourceSha256": "edf3ec7f0e2b68de24e52def86e046209cd53c98c598057d38baf810f1ec2116",
+   "mutantSha256": "995f858efc71c7682cac160c0acfaa8b9af1fe5c323a7ee0859529a7a7ae67ff"
+  },
+  {
+   "id": "appraisal-cache-expiry",
+   "result": "KILL",
+   "file": "packages/server/src/bots/brain/strategy.ts",
+   "case": "strategy-appraisal-third-party-aged-memory",
+   "source": 12,
+   "mutant": 8,
+   "sourceSha256": "edf3ec7f0e2b68de24e52def86e046209cd53c98c598057d38baf810f1ec2116",
+   "mutantSha256": "6e939fd1d847e7bf0152a60009209beaba251e9939d130fa092afc58110d0056"
+  },
+  {
+   "id": "module-callback-order",
+   "result": "KILL",
+   "file": "packages/server/src/bots/brain/strategy.ts",
+   "case": "strategy-modules-dedup-tie-hysteresis-status",
+   "source": [
+    "module.off.enabled",
+    "module.missing.enabled",
+    "module.declared.enabled",
+    "module.declared.goals"
+   ],
+   "mutant": [
+    "module.declared.enabled",
+    "module.declared.goals",
+    "module.missing.enabled",
+    "module.off.enabled"
+   ],
+   "sourceSha256": "edf3ec7f0e2b68de24e52def86e046209cd53c98c598057d38baf810f1ec2116",
+   "mutantSha256": "5166331662f21dd7b965b2a937933a14b05fd8ed773febe40a3fcf0657e68697"
+  },
+  {
+   "id": "adapter-catchup-cap",
+   "result": "KILL",
+   "file": "packages/server/src/bots/brain/huntAdapter.ts",
+   "case": "adapter-catchup-5000",
+   "source": 1,
+   "mutant": 0,
+   "sourceSha256": "0dac45d23811dbb72a8e8e5aa888e563a616f1fba255cde516176278e70c027d",
+   "mutantSha256": "8fc83fcc7af2b155ed6cfb606e73c1ef8af7deb90aa9df94c9515ec7a73d6644"
+  },
+  {
+   "id": "adapter-release-real-near-player",
+   "result": "KILL",
+   "file": "packages/server/src/bots/brain/huntAdapter.ts",
+   "case": "strategy-learned-opener-choice-and-hunt-release",
+   "source": null,
+   "mutant": "meal",
+   "sourceSha256": "0dac45d23811dbb72a8e8e5aa888e563a616f1fba255cde516176278e70c027d",
+   "mutantSha256": "594e8b0cb18e9a1806b6439a973c547c83615be9305da5cc829c1bafa8c74783"
+  },
+  {
+   "id": "adapter-seed-source-home",
+   "result": "KILL",
+   "file": "packages/server/src/bots/brain/huntAdapter.ts",
+   "case": "adapter-walks-and-source-home-hard",
+   "source": 692,
+   "mutant": 772,
+   "sourceSha256": "0dac45d23811dbb72a8e8e5aa888e563a616f1fba255cde516176278e70c027d",
+   "mutantSha256": "e43a601b10020f36c22c60aeb9a1c37735d11ba58111a8188a03e15a66ad4d65"
+  },
+  {
+   "id": "tracker-rise-strict",
+   "result": "KILL",
+   "file": "packages/server/src/bots/mobHunt.ts",
+   "case": "tracker-home-rise-expiry-removal",
+   "source": false,
+   "mutant": true,
+   "sourceSha256": "88fc22040e62b1bc5226c37c16095032533df1e104dee0b27fdcb671c33fe6ff",
+   "mutantSha256": "5f42c007be61689aa8175a71b0b46191d129be4d5ef72df61f1bdcbce87bf499"
+  },
+  {
+   "id": "hunter-ban-expiry",
+   "result": "KILL",
+   "file": "packages/server/src/bots/mobHunt.ts",
+   "case": "hunter-rising-drop-ban-expiry",
+   "source": false,
+   "mutant": true,
+   "sourceSha256": "88fc22040e62b1bc5226c37c16095032533df1e104dee0b27fdcb671c33fe6ff",
+   "mutantSha256": "1c0b30742427cb4601ea50a9c4b33fcfc9d578678401a2b2e668aaba787634c4"
+  },
+  {
+   "id": "route-contest-inclusive",
+   "result": "KILL",
+   "file": "packages/server/src/bots/brain/buildRoute.ts",
+   "case": "route-contest-player320-boundary",
+   "source": 1,
+   "mutant": 0,
+   "sourceSha256": "fbe819cc2b36da50c7b01b0e4c40cf77c5c27286e6b5c69d76bc24e862af4f5e",
+   "mutantSha256": "417e2523826c3bfbe3350429e97281e3c1c6add54f2a5f3f3ee9c57d1c7e57be"
+  },
+  {
+   "id": "route-lower-index-tie",
+   "result": "KILL",
+   "file": "packages/server/src/bots/brain/buildRoute.ts",
+   "case": "route-exact-tie-true",
+   "source": 0,
+   "mutant": 1,
+   "sourceSha256": "fbe819cc2b36da50c7b01b0e4c40cf77c5c27286e6b5c69d76bc24e862af4f5e",
+   "mutantSha256": "3799140bca29721d7c301aebe175ee376786d16c035a01ab30c4f734f98837b9"
+  },
+  {
+   "id": "route-replan-inclusive",
+   "result": "KILL",
+   "file": "packages/server/src/bots/brain/buildRoute.ts",
+   "case": "route-stolen-unplanned-sticky-broken-replan",
+   "source": 3,
+   "mutant": 2,
+   "sourceSha256": "fbe819cc2b36da50c7b01b0e4c40cf77c5c27286e6b5c69d76bc24e862af4f5e",
+   "mutantSha256": "3b2945ec2141eb8178bb842b46e08cd851fc6adc0fc1073f67464926fed1c56e"
+  },
+  {
+   "id": "memory-walked8-strict",
+   "result": "KILL",
+   "file": "packages/server/src/bots/brain/memory.ts",
+   "case": "memory-orders-reflection-arrival-and-failure",
+   "source": true,
+   "mutant": false,
+   "sourceSha256": "29c2086be936ec867ddec97c2e4442b86acdbf1255e55de001e73892f7b128a8",
+   "mutantSha256": "d147ff79d0fe548316a2bb4fc61819faa3d2c313d6d09ec64bc55f57e603db06"
+  },
+  {
+   "id": "memory-purpose-drop",
+   "result": "KILL",
+   "file": "packages/server/src/bots/brain/memory.ts",
+   "case": "memory-active-lock-purpose-drop-and-contrast",
+   "source": false,
+   "mutant": true,
+   "sourceSha256": "29c2086be936ec867ddec97c2e4442b86acdbf1255e55de001e73892f7b128a8",
+   "mutantSha256": "4e2ee68cd7b7ede50993023f76913ddadef431be4116ecbe8dded647c5e735d7"
+  },
+  {
+   "id": "third-party-dead-partner",
+   "result": "KILL",
+   "file": "packages/server/src/bots/brain/strategy.ts",
+   "case": "strategy-appraisal-third-party-aged-memory",
+   "source": false,
+   "mutant": true,
+   "sourceSha256": "edf3ec7f0e2b68de24e52def86e046209cd53c98c598057d38baf810f1ec2116",
+   "mutantSha256": "651ad3d9b4588ce89cd6cb4237fb5eb405801ee5299ce6e387568c520cd3f406"
+  },
+  {
+   "id": "comment-only",
+   "result": "NONKILL",
+   "cases": [
+    "strategy-pursuit-progress-timeout-hit-release",
+    "adapter-catchup-5000",
+    "route-zone-hit-memory-and-avoid"
+   ]
+  }
+ ],
+ "restoredCases": "BYTE_IDENTICAL",
+ "immutableSource": "UNCHANGED",
+ "safety": "all mutations in unique disposable container source directory; /repo read-only; no canonical corpus writes"
+}

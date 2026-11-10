@@ -1,0 +1,35 @@
+{
+ "format": "rh-quest-tour-supply-manifest/1",
+ "sourceBaseCommit": "4151b3af597cc06d1b3b77f4e3e21cc9906b6a86",
+ "sourceOnly": true,
+ "files": {
+  "parity/quest-tour-supply/controls.json": {
+   "bytes": 1260,
+   "sha256": "64d9b5e50b61964853ae95d0d4b057392b83e344d3874731003dc914e0b601db"
+  },
+  "parity/quest-tour-supply/source.json": {
+   "bytes": 638109,
+   "sha256": "0bb63ed402b411d4f9bf23381fa162e64e08f5704905f974e3920c982fae5714"
+  },
+  "tools/quest-tour-supply-fixtures/README.md": {
+   "bytes": 3987,
+   "sha256": "97b8b7b2f92e1219b14c1b1d0d7723c1ae0aeb6b8616af26322ca9129b15b4d1"
+  },
+  "tools/quest-tour-supply-fixtures/capture.mts": {
+   "bytes": 15824,
+   "sha256": "366a6cdd5b874a72542dd5830eaaddc21b741c55d10648fa65eee118e6c7a243"
+  },
+  "tools/quest-tour-supply-fixtures/capture.sh": {
+   "bytes": 1500,
+   "sha256": "cb60f3da7d6fe3e100ac055d5a2b5f9b39d2f1d80299e75f73f77e4eba7d9f98"
+  },
+  "tools/quest-tour-supply-fixtures/run-mutants.mjs": {
+   "bytes": 5327,
+   "sha256": "a1e11bc0e700a260f81a9c84378aa087e5e149f3ac69550c1fd7c53cd78b1054"
+  },
+  "tools/quest-tour-supply-fixtures/run-mutants.sh": {
+   "bytes": 1211,
+   "sha256": "83788f04506d20889ad21f41d49bf9852f66128416def5f4ca3d0565bd07239b"
+  }
+ }
+}

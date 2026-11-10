@@ -1,0 +1,9 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.16s
+     Running unittests src/lib.rs (target/root-strategy-notice-admission/build/debug/deps/rh_sim-11f7df6587fb64ad)
+
+running 2 tests
+test systems::fighter_churn_tests::a_zombie_removed_mid_ledger_pass_does_not_shift_later_victims ... ok
+test systems::fighter_churn_tests::a_zombie_raised_mid_tick_with_a_full_lobby_steps_cleanly ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 859 filtered out; finished in 0.01s
+

@@ -1,0 +1,98 @@
+[
+  {
+    "name": "vision",
+    "args": [
+      "cargo",
+      "test",
+      "--locked",
+      "--offline",
+      "-p",
+      "rh-sim",
+      "--lib",
+      "vision::"
+    ],
+    "exit": 0,
+    "seconds": 1.3175437090000002,
+    "utc": "2026-11-10T04:13:48.014314+00:00"
+  },
+  {
+    "name": "vision-pressure",
+    "args": [
+      "cargo",
+      "test",
+      "--locked",
+      "--offline",
+      "-p",
+      "rh-sim",
+      "--test",
+      "vision_pressure"
+    ],
+    "exit": 0,
+    "seconds": 18.266510958,
+    "utc": "2026-11-10T04:14:06.281866+00:00"
+  },
+  {
+    "name": "content",
+    "args": [
+      "cargo",
+      "test",
+      "--locked",
+      "--offline",
+      "-p",
+      "rh-sim",
+      "--test",
+      "content"
+    ],
+    "exit": 0,
+    "seconds": 1.288041332999999,
+    "utc": "2026-11-10T04:14:07.570396+00:00"
+  },
+  {
+    "name": "headless-pve",
+    "args": [
+      "cargo",
+      "test",
+      "--locked",
+      "--offline",
+      "-p",
+      "rh-headless",
+      "--test",
+      "full_faction_pve"
+    ],
+    "exit": 0,
+    "seconds": 21.497113791999997,
+    "utc": "2026-11-10T04:14:29.068216+00:00"
+  },
+  {
+    "name": "clippy",
+    "args": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--offline",
+      "-p",
+      "rh-sim",
+      "--all-features",
+      "--all-targets",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit": 0,
+    "seconds": 31.776769583999993,
+    "utc": "2026-11-10T04:15:00.845739+00:00"
+  },
+  {
+    "name": "format",
+    "args": [
+      "cargo",
+      "fmt",
+      "--check",
+      "-p",
+      "rh-sim"
+    ],
+    "exit": 0,
+    "seconds": 1.7691504579999986,
+    "utc": "2026-11-10T04:15:02.615408+00:00"
+  }
+]

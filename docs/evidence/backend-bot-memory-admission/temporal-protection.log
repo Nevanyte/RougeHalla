@@ -1,0 +1,21 @@
+=== temporal-protection
+sourceHead=4151b3af597cc06d1b3b77f4e3e21cc9906b6a86
+cwd=/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-memory
+target=/Users/nevinmckinnon/.codex/tools/roguehalla-backend-20261109/target-memory
+command=cargo test -p rh-policy --lib protection_cues --locked --offline -- --nocapture
+    Finished `test` profile [unoptimized] target(s) in 0.05s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/roguehalla-backend-20261109/target-memory/debug/deps/rh_policy-c3fa0ee46865b1ea)
+
+running 4 tests
+test bots::temporal_percept::protection_cues_tests::protection_cues_tagged_value_controls_are_strict ... ok
+test bots::temporal_percept::protection_cues_tests::protection_cues_map_controls_are_strict ... ok
+test bots::temporal_percept::memory::source_tests::actual_protection_cues_memory_2112_complete has been running for over 60 seconds
+test bots::temporal_percept::protection_cues_tests::actual_protection_cues_frames_compose_exact has been running for over 60 seconds
+protection-cues memory: rows=2112 nonnull=2046 nulls=66 maps=10560 undefined=82
+test bots::temporal_percept::memory::source_tests::actual_protection_cues_memory_2112_complete ... ok
+protection-cues actual: frames=2112 nonnull=2046 null=66 max_raw_numeric_error=0.00000000000000000e0
+test bots::temporal_percept::protection_cues_tests::actual_protection_cues_frames_compose_exact ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 194 filtered out; finished in 62.64s
+
+EXIT=0

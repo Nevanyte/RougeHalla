@@ -1,0 +1,6 @@
+command: bash tools/bot-module-goal-key-fixtures/capture.sh
+cwd: /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests
+exit: 0
+raw stdout/stderr:
+{"mode":"--write","bytes":1004072,"sha256":"32836e03d47993fceec22fc7fb648e937d01b3e9b221da9499ea9e99d31efc0c","cases":4,"operations":48,"assertions":4,"primary17":"UNCHANGED"}
+{"mode":"--check","bytes":1004072,"sha256":"32836e03d47993fceec22fc7fb648e937d01b3e9b221da9499ea9e99d31efc0c","cases":4,"operations":48,"assertions":4,"primary17":"UNCHANGED"}

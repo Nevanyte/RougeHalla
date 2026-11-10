@@ -1,0 +1,25 @@
+{
+  "base": "29a7d597136e30f4698785904a238451bd3de3f7",
+  "files": {
+    "hosting/technical-demo/bootstrap.py": {
+      "bytes": 21370,
+      "sha256": "7dcb7a7bb9fb2bee676ce5bb0728ef66fcaa4c36ce8a0f6510e83febcb41fac1"
+    },
+    "hosting/technical-demo/README.md": {
+      "bytes": 16763,
+      "sha256": "0a252d3b42e85a1ebf8cf1b47dc1a5552788cedbb6412233718ae661a97e8d57"
+    },
+    "docs/evidence/morning-host-launch-flags/offline-tests.txt": {
+      "bytes": 906,
+      "sha256": "02a3245e7458349c4e992150cb1dd9e2b1a8eb87b2ceec99bbe27570c2d47298"
+    },
+    "docs/evidence/morning-host-launch-flags/rendered-units.txt": {
+      "bytes": 1222,
+      "sha256": "1dc01f4df6e83cc73cd27f9410f38f37f81ac515b6db64ebaa1439c33de3e577"
+    },
+    "docs/evidence/morning-host-launch-flags/stack-tests.txt": {
+      "bytes": 704,
+      "sha256": "7e341f4673f8b102cf0115b40f89e14f93d09dbc20c1b07ee1ee4aab876f8008"
+    }
+  }
+}

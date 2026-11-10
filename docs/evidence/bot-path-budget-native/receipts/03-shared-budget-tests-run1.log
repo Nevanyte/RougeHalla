@@ -1,0 +1,14 @@
+== command: cargo test -p rh-policy --lib bots::paths::shared_budget_tests --locked --offline -j 2
+== started: 2026-11-10T10:09:15Z
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-path-budget/crates/rh-policy)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 11.20s
+     Running unittests src/lib.rs (target/path-budget-build/debug/deps/rh_policy-214e2d42634828c3)
+
+running 2 tests
+test bots::paths::shared_budget_tests::the_borrowed_entries_replay_the_frozen_source_script ... ok
+test bots::paths::shared_budget_tests::two_services_share_one_caller_allowance_without_sharing_caches ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 228 filtered out; finished in 0.00s
+
+== exit: 0
+== finished: 2026-11-10T10:09:27Z

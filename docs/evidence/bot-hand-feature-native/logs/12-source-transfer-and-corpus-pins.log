@@ -1,0 +1,53 @@
+# Source transfer, corpus pins and final candidate inventory (read-only; final regeneration)
+cwd: /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-hand-feature
+candidate parent HEAD: 90b191b3b9c3faac9d98fd058c93454f20f579a4 Capture complete private Brain source composition
+pre-work base: dcb33d15c919bc0f70101e446b5106165234ad67
+
+## canonical sealed corpus (parity/policy/bot-private-brain)
+13a366f62aef962352656817843a15d9ff222af3c93641d609e35a34b45b1307  parity/policy/bot-private-brain/controls.json
+c4ea7643d5dd16432f8788a8bd22ebe0bb6bdee45fa89902588e7f39d51a4c21  parity/policy/bot-private-brain/coverage.json
+f51b0f3a8766e613acef9263d1537fcc27ce03de1db40918da6ac11441161927  parity/policy/bot-private-brain/manifest.json
+ed054bfd2663f4aa64d08f517295d07459c4543b92cae99c0356fb0d14ae3943  parity/policy/bot-private-brain/source.json
+   20336 parity/policy/bot-private-brain/controls.json
+ 2136299 parity/policy/bot-private-brain/coverage.json
+   57523 parity/policy/bot-private-brain/manifest.json
+ 22020382 parity/policy/bot-private-brain/source.json
+ 24234540 total
+
+## trusted direct-hand tool/evidence pins
+841a361040741048ce3eb21c03319d5e173d839d8cccfa2d329ef977267bd7c9  tools/bot-private-brain-fixtures/hand.mts
+18af593cc383869260002af50b52f74cec9f7ba94f0ebaf842fe9477ad48adc2  tools/bot-private-brain-fixtures/codec.mts
+c634fa702e07921cc814cff8c8283d7b25e9e532e6eb58ea7e9911375c3ca348  tools/bot-private-brain-fixtures/verify.mjs
+e1e796427ef5fbdf21e36562b618fb7196f55853988d003e3d747653ebd00577  docs/evidence/bot-private-brain-source/README.md
+
+## candidate code and evidence inventory (this inventory receipt omits its own self-reference)
+6d08c937974ec6dd778cece44846b73ba4d72167c3021d9f442fe40e51843793  crates/rh-policy/src/bots/humanizer.rs
+d49bdd12ebec2916202a4f0132baed52d867f45b50c71c9793b9698082f56f6e  crates/rh-policy/src/bots/humanizer/feature_tests.rs
+03708d426e718704f048560b7246593b71d964d5f8ba1f10d5a6838aee1e9fd6  crates/rh-policy/src/bots/humanizer/source.rs
+3525bd5da23efd748c2ca9e74f721568d4c36597803e0193c4104c1c801343af  docs/evidence/bot-hand-feature-native/README.md
+9be99737d004d47e60316f642f4ce20a063d83e0fd4908373cd73b0d26d5ac61  docs/evidence/bot-hand-feature-native/00-baseline-and-first-failures.md
+687925b7111da7be1b30fd761447430018c4558918c27a075dc17f6f279f7fd6  docs/evidence/bot-hand-feature-native/logs/02-old-bot-core.log
+f04a5cc3e235a836a61ecc0b921a69714f74902d799236271c390d65cba9456e  docs/evidence/bot-hand-feature-native/logs/03-new-feature-and-sealed-source-tests.log
+46e3ae552f1c9f623d9571d7a3738e563a737de9a03b618adf2d6baeff84b80f  docs/evidence/bot-hand-feature-native/logs/04-full-rh-policy-lib.log
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  docs/evidence/bot-hand-feature-native/logs/05-fmt-check.log
+077bca67632768b4683aa580852ec1eb43fef3dc9ed8355c5b74cdddefe7bc2a  docs/evidence/bot-hand-feature-native/logs/06-clippy-default.log
+63bd8a3ac13f8b1c160887cdaf9b30715b07e638d60df463cb8815f661518191  docs/evidence/bot-hand-feature-native/logs/07-clippy-all-features.log
+18439220afabec91b3338fa36907b0aa565357230ab162d1da1eceef3a540050  docs/evidence/bot-hand-feature-native/logs/08-mutation-gate-after-draw-or-state.log
+5eaa4af5811b3eab8929ec7c5b15d5c596aef5dffcc11c8a9e598b5f992dfc0a  docs/evidence/bot-hand-feature-native/logs/09-mutation-lock-gated-by-attack.log
+23e4f5ce013d3cb0e0bcafc37081b5de15515a19fa86ffe5bac7a6eea476f56b  docs/evidence/bot-hand-feature-native/logs/10-mutation-gate-after-draw-or-state-with-sealed-source.log
+092d9aac9e82ed011d34287721383718a1faf72d5ac40f56e062e41f280d2dfa  docs/evidence/bot-hand-feature-native/logs/11-mutation-lock-gated-by-attack-with-sealed-source.log
+dda186228d58d3c0a968967251d455da8e48eb11367a22aadeafb39bd22ae2ac  docs/evidence/bot-hand-feature-native/logs/13-seal-attempt-git-metadata-unavailable.log
+
+## working tree before Root seal (ignored logs are listed by the explicit inventory above)
+ M crates/rh-policy/src/bots/humanizer.rs
+?? crates/rh-policy/src/bots/humanizer/feature_tests.rs
+?? crates/rh-policy/src/bots/humanizer/source.rs
+?? docs/evidence/bot-hand-feature-native/00-baseline-and-first-failures.md
+?? docs/evidence/bot-hand-feature-native/README.md
+
+## existing-file write scope (single leased file, exactly +38 lines)
+ crates/rh-policy/src/bots/humanizer.rs | 38 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 38 insertions(+)
+
+## source transfer commit
+90b191b3b9c3faac9d98fd058c93454f20f579a4 Capture complete private Brain source composition

@@ -1,0 +1,15 @@
+command: bash tools/bot-private-strategy-fixtures/capture.sh
+cwd: /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests
+exit: 1
+raw stdout/stderr:
+/capture/checks.mts:111
+    assert.equal(call.args[0].now, 300002); assert.equal(call.args[0].self.hp, 79);
+                              ^
+
+TypeError: Cannot read properties of undefined (reading 'now')
+    at <anonymous> (/capture/checks.mts:111:31)
+    at check (/capture/checks.mts:9:53)
+    at reachedChecks (/capture/checks.mts:105:3)
+    at <anonymous> (/capture/capture.mts:92:70)
+
+Node.js v22.23.4

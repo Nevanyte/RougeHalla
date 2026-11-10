@@ -1,0 +1,21 @@
+{
+  "action": "Read-only standard EC2 waiter; no termination/deletion/expiry change",
+  "instanceId": "i-00b97e48b4e5c4f31",
+  "args": [
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/aws-cli/aws",
+    "--profile",
+    "rougehalla-staging",
+    "--region",
+    "ca-west-1",
+    "--no-cli-pager",
+    "ec2",
+    "wait",
+    "instance-terminated",
+    "--instance-ids",
+    "i-00b97e48b4e5c4f31"
+  ],
+  "startedUtc": "2026-11-10T03:41:40.915425+00:00",
+  "finishedUtc": "2026-11-10T03:50:44.723911+00:00",
+  "seconds": 543.77930525,
+  "exit": 0
+}

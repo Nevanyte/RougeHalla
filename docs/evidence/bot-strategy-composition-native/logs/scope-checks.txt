@@ -1,0 +1,18 @@
+=== BASELINE (HEAD bed245bd) UNCHANGED CONSUMER/HELPER HASHES ===
+f42dc5ef2ad99266423d2a724e4eb2c07b52665ef31e34851fc8c606c6ef66a0  git:HEAD:hunt_adapter.rs
+b8c4f5f22ae25bf3db4b06e17f0e2ab08f5ae1dc2f9fec56c8db4d6b1579a1b1  git:HEAD:source_reader.rs
+17918b823b27b8998afa782500fea9dd46e9e050aba1ef8fc3fd54b8dcc9a85c  git:HEAD:source_strict.rs
+9ea886dea630f61fb62ccc69213c2aa50f76aca785e1b1a7c4edad7ed2c7e888  git:HEAD:build_route.rs
+
+=== PRIVATE READOUT NEW LINES ===
+929:                    .expect("attack log lock poisoned")
+938:                    .expect("log lock poisoned")
+1021:            .expect("attack log lock poisoned")
+1023:        let logs = probe.logs.lock().expect("log lock poisoned").clone();
+1112:            .expect("attack log lock poisoned")
+1121:            .expect("attack log lock poisoned")
+1127:        probe_false.logs.lock().expect("log lock poisoned").clone(),
+1132:        probe_true.logs.lock().expect("log lock poisoned").clone(),
+
+=== LOCKFILE/OTHER STATUS ===
+(empty above = untouched lockfile/manifests)

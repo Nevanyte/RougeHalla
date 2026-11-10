@@ -1,0 +1,30 @@
+# First runtime assertion failure of the proof (preserved)
+#
+# Actual failing invocation:
+#   cargo test --offline --locked -j 8 -p rh-policy --lib ended_phase_elapses -- --nocapture --test-threads=1
+# Result: exit 101, one test failed. This was a defect in a test-side sample-clock target, not in the
+# production producer or in the representative identity: the ended child trajectory was asked to step
+# one HOT step interval (DEFINITION.step_ms = 500 ms) past the admitted deadline instead of one accepted
+# tick (TICK_MS = 50 ms), so the accepted sample landed at tick 112/source_time 5600 rather than the
+# intended one-tick-past sample at tick 103/source_time 5150. The previous version of this test passed
+# only because it had not yet pinned the sample tick.
+#
+# Repair: the elapsed Ended child target is `admitted_deadline + TICK_MS` (one accepted tick past the
+# retained deadline), still exactly one accepted source-clock step after the deadline. The recorded
+# final focused run (logs/04-focused-potion-fact-tests.log) passes 5/5.
+#
+# Captured terminal output:
+running 1 test
+test bots::potion_fact_tests::ended_phase_elapses_the_hot_deadline_outside_the_predicate_contract_and_restores ...
+thread 'bots::potion_fact_tests::ended_phase_elapses_the_hot_deadline_outside_the_predicate_contract_and_restores' (72672985) panicked at crates/rh-policy/src/bots/potion_fact_tests.rs:720:5:
+assertion `left == right` failed
+  left: 112
+ right: 103
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+    bots::potion_fact_tests::ended_phase_elapses_the_hot_deadline_outside_the_predicate_contract_and_restores
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 224 filtered out; finished in 0.01s
+error: test failed, to rerun pass `-p rh-policy --lib`

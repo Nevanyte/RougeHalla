@@ -1,0 +1,5 @@
+=== BUILD 2 2026-11-10T10:22:29Z ===
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-strategy-composition/crates/rh-policy)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 49.91s
+  Executable unittests src/lib.rs (target/strategy-composition-build/debug/deps/rh_policy-f90e85fbfc95e0da)
+=== BUILD 2 EXIT: 0 ===

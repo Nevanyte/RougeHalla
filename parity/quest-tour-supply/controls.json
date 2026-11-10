@@ -1,0 +1,44 @@
+{
+ "format": "rh-quest-tour-supply-controls/1",
+ "source": {
+  "bytes": 638109,
+  "sha256": "0bb63ed402b411d4f9bf23381fa162e64e08f5704905f974e3920c982fae5714"
+ },
+ "controls": [
+  {
+   "name": "population-count-as-region-mask",
+   "result": "KILL",
+   "file": "packages/server/src/sim/quests.ts",
+   "originalSha256": "ecba71ef1f05f2a40e8850270c0bcdf87d44c59d3fdbce7b510b35c18d2ba769",
+   "mutantSha256": "342643336ed6606398beaed0897b33f409c30160b22ec928027d5d31cad4c15f",
+   "outcomes": [
+    {
+     "case": "frost-visit-fire-holy-stays-open",
+     "path": "cases[0].frames[4].quest.status",
+     "source": "open",
+     "mutant": "expired",
+     "tick": 5,
+     "time": 250
+    },
+    {
+     "case": "frost-visit-frost-sentenced-expires",
+     "path": "cases[1].frames[4].quest.status",
+     "source": "expired",
+     "mutant": "open",
+     "tick": 5,
+     "time": 250
+    }
+   ]
+  },
+  {
+   "name": "comment-only",
+   "result": "NONKILL",
+   "file": "packages/server/src/sim/quests.ts",
+   "semanticCasesEqual": true,
+   "provenanceChanged": true
+  }
+ ],
+ "restoredCopy": "BYTE_IDENTICAL",
+ "immutableSourceControl": "PASS",
+ "safety": "all patches and control outputs in unique disposable container directory; /repo read-only; canonical corpus unchanged"
+}

@@ -1,0 +1,10 @@
+== command: /Users/nevinmckinnon/.cargo/bin/cargo clippy -p rh-policy --lib --tests --locked --offline -j 2 -- -D warnings
+== cwd: /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-path-budget
+== cargo: cargo 1.97.0 (c980f4866 2026-06-30)
+== rustc: rustc 1.97.0 (2d8144b78 2026-07-07)
+== target: /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-path-budget/target/path-budget-build
+== started: 2026-11-10T10:09:45Z
+    Checking rh-policy v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-path-budget/crates/rh-policy)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.88s
+== exit: 0
+== finished: 2026-11-10T10:09:48Z

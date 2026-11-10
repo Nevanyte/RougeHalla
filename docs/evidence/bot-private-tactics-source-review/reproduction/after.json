@@ -1,0 +1,2556 @@
+{
+  "format": "rh-bot-private-tactics-review-inventory/1",
+  "phase": "after",
+  "reviewHead": "54ff01a26c25165b75a4109589b241d7ee061e77",
+  "baselinePorcelainWasClean": true,
+  "runtime": {
+    "node": "v22.23.4",
+    "platform": "linux",
+    "arch": "x64"
+  },
+  "manifest": {
+    "path": "parity/policy/bot-private-tactics/manifest.json",
+    "bytes": 37387,
+    "sha256": "9f76406016d0ebc498b0a3a3ec7cad677fc43ecd40b530a963a57a7f3d6eb957",
+    "format": "rh-bot-private-tactics-manifest/1"
+  },
+  "declared": {
+    "cases": 154,
+    "operations": 720,
+    "semanticControls": 17,
+    "reachedAssertions": 16
+  },
+  "groups": {
+    "sourceInventory": {
+      "packages/shared/src/abilities.ts": {
+        "expected": {
+          "bytes": 16589,
+          "sha256": "95ef39376a9d9f40cc529a0f7300700a97427050628941e801aaa1e299862518"
+        },
+        "actual": {
+          "bytes": 16589,
+          "sha256": "95ef39376a9d9f40cc529a0f7300700a97427050628941e801aaa1e299862518"
+        },
+        "matches": true
+      },
+      "packages/shared/src/achievements.ts": {
+        "expected": {
+          "bytes": 7472,
+          "sha256": "c80dbded6e1ea5eb79dc0f25378d9a45fbe41865a8298bf9fc5f2eeafdd46a34"
+        },
+        "actual": {
+          "bytes": 7472,
+          "sha256": "c80dbded6e1ea5eb79dc0f25378d9a45fbe41865a8298bf9fc5f2eeafdd46a34"
+        },
+        "matches": true
+      },
+      "packages/shared/src/blink.ts": {
+        "expected": {
+          "bytes": 7936,
+          "sha256": "e5582562556f530fd99ec9bf8e506fa144805f666c09f4359aefb98ee9171f15"
+        },
+        "actual": {
+          "bytes": 7936,
+          "sha256": "e5582562556f530fd99ec9bf8e506fa144805f666c09f4359aefb98ee9171f15"
+        },
+        "matches": true
+      },
+      "packages/shared/src/bushes.ts": {
+        "expected": {
+          "bytes": 6087,
+          "sha256": "ac64ce414134376d27b7b4819d59096e66edd01d82958e873d57348a79d85910"
+        },
+        "actual": {
+          "bytes": 6087,
+          "sha256": "ac64ce414134376d27b7b4819d59096e66edd01d82958e873d57348a79d85910"
+        },
+        "matches": true
+      },
+      "packages/shared/src/cards.ts": {
+        "expected": {
+          "bytes": 34091,
+          "sha256": "4a51376a1ce3a79f417e32ce7ae8d7eb37142da5e49f59c3a2c89d48b11ae1e3"
+        },
+        "actual": {
+          "bytes": 34091,
+          "sha256": "4a51376a1ce3a79f417e32ce7ae8d7eb37142da5e49f59c3a2c89d48b11ae1e3"
+        },
+        "matches": true
+      },
+      "packages/shared/src/championPassives.ts": {
+        "expected": {
+          "bytes": 1337,
+          "sha256": "d7e0ecdc8b9cbffc8463f40b9c564019431b14744f5948bf89eefb2505fbf6df"
+        },
+        "actual": {
+          "bytes": 1337,
+          "sha256": "d7e0ecdc8b9cbffc8463f40b9c564019431b14744f5948bf89eefb2505fbf6df"
+        },
+        "matches": true
+      },
+      "packages/shared/src/chestBoosts.ts": {
+        "expected": {
+          "bytes": 4652,
+          "sha256": "60b50c685dacdfdbc2861fdc9f80a900845c5cc0af0b77741527cfb8da51fa81"
+        },
+        "actual": {
+          "bytes": 4652,
+          "sha256": "60b50c685dacdfdbc2861fdc9f80a900845c5cc0af0b77741527cfb8da51fa81"
+        },
+        "matches": true
+      },
+      "packages/shared/src/coliseum.ts": {
+        "expected": {
+          "bytes": 8403,
+          "sha256": "48fc2fa156e70ff6520019605017939298144960d8871a748ef18aadbbf0c0e1"
+        },
+        "actual": {
+          "bytes": 8403,
+          "sha256": "48fc2fa156e70ff6520019605017939298144960d8871a748ef18aadbbf0c0e1"
+        },
+        "matches": true
+      },
+      "packages/shared/src/combatReadability.ts": {
+        "expected": {
+          "bytes": 8406,
+          "sha256": "206f707658ee37f22d9aae403449003487e474220442e1cb178c8af85bfe8833"
+        },
+        "actual": {
+          "bytes": 8406,
+          "sha256": "206f707658ee37f22d9aae403449003487e474220442e1cb178c8af85bfe8833"
+        },
+        "matches": true
+      },
+      "packages/shared/src/constants.ts": {
+        "expected": {
+          "bytes": 46007,
+          "sha256": "51ce4dd800ec868abee525fb1ae375688066f336972a7da878644df1235924e7"
+        },
+        "actual": {
+          "bytes": 46007,
+          "sha256": "51ce4dd800ec868abee525fb1ae375688066f336972a7da878644df1235924e7"
+        },
+        "matches": true
+      },
+      "packages/shared/src/consumables.ts": {
+        "expected": {
+          "bytes": 1974,
+          "sha256": "1ffd882c4b44fed9c20743e671050fc4044706c17e2c36c365952eafc3bd3606"
+        },
+        "actual": {
+          "bytes": 1974,
+          "sha256": "1ffd882c4b44fed9c20743e671050fc4044706c17e2c36c365952eafc3bd3606"
+        },
+        "matches": true
+      },
+      "packages/shared/src/cosmetics.ts": {
+        "expected": {
+          "bytes": 11625,
+          "sha256": "7513ea6b3cbc51072863ccb6ef568d96797f9239c8073f99d2a33ef3aab7b873"
+        },
+        "actual": {
+          "bytes": 11625,
+          "sha256": "7513ea6b3cbc51072863ccb6ef568d96797f9239c8073f99d2a33ef3aab7b873"
+        },
+        "matches": true
+      },
+      "packages/shared/src/detMath.ts": {
+        "expected": {
+          "bytes": 874,
+          "sha256": "a806636428155920a0c1c8675cd84d896057993d4d6ff7b9b4623daa5a312b15"
+        },
+        "actual": {
+          "bytes": 874,
+          "sha256": "a806636428155920a0c1c8675cd84d896057993d4d6ff7b9b4623daa5a312b15"
+        },
+        "matches": true
+      },
+      "packages/shared/src/effects.ts": {
+        "expected": {
+          "bytes": 18193,
+          "sha256": "859ac817f16a8334865abf103b783fae76b5525d0e90dc407bddf921810f415b"
+        },
+        "actual": {
+          "bytes": 18193,
+          "sha256": "859ac817f16a8334865abf103b783fae76b5525d0e90dc407bddf921810f415b"
+        },
+        "matches": true
+      },
+      "packages/shared/src/effectText.ts": {
+        "expected": {
+          "bytes": 9977,
+          "sha256": "da22ddb275748104b8f7e11888c1c52c569463bcf165c8efc943cd42f7f0050f"
+        },
+        "actual": {
+          "bytes": 9977,
+          "sha256": "da22ddb275748104b8f7e11888c1c52c569463bcf165c8efc943cd42f7f0050f"
+        },
+        "matches": true
+      },
+      "packages/shared/src/factions.ts": {
+        "expected": {
+          "bytes": 14039,
+          "sha256": "aa0cebf1c17af17b64bc1e020c4613ab10788ec66d82a72232aef8915d5403f3"
+        },
+        "actual": {
+          "bytes": 14039,
+          "sha256": "aa0cebf1c17af17b64bc1e020c4613ab10788ec66d82a72232aef8915d5403f3"
+        },
+        "matches": true
+      },
+      "packages/shared/src/fireRoam.ts": {
+        "expected": {
+          "bytes": 1058,
+          "sha256": "ddf7a5372e3d223b86eb7f0408960908f2c4d4f7c6172fc5e65284ab1c4b8edb"
+        },
+        "actual": {
+          "bytes": 1058,
+          "sha256": "ddf7a5372e3d223b86eb7f0408960908f2c4d4f7c6172fc5e65284ab1c4b8edb"
+        },
+        "matches": true
+      },
+      "packages/shared/src/fxCodec.ts": {
+        "expected": {
+          "bytes": 24844,
+          "sha256": "db2080230ad1b3702e37d3e339384e4a071ef899a8203026e20038a3a2b0f0ba"
+        },
+        "actual": {
+          "bytes": 24844,
+          "sha256": "db2080230ad1b3702e37d3e339384e4a071ef899a8203026e20038a3a2b0f0ba"
+        },
+        "matches": true
+      },
+      "packages/shared/src/geometry.ts": {
+        "expected": {
+          "bytes": 7899,
+          "sha256": "b1a91a65281f8642b1779b81764768569311966ab493941101a2f988cfdc1f5d"
+        },
+        "actual": {
+          "bytes": 7899,
+          "sha256": "b1a91a65281f8642b1779b81764768569311966ab493941101a2f988cfdc1f5d"
+        },
+        "matches": true
+      },
+      "packages/shared/src/glossary.ts": {
+        "expected": {
+          "bytes": 7261,
+          "sha256": "0c8871be2726d6a63700e2f6ba39a454992258189f276ad1ed87b8601150a5fb"
+        },
+        "actual": {
+          "bytes": 7261,
+          "sha256": "0c8871be2726d6a63700e2f6ba39a454992258189f276ad1ed87b8601150a5fb"
+        },
+        "matches": true
+      },
+      "packages/shared/src/gridOps.ts": {
+        "expected": {
+          "bytes": 2375,
+          "sha256": "76587ddd597a2a6ecc05561427dd89b986b6f86026ffedc56848e1b03bb52493"
+        },
+        "actual": {
+          "bytes": 2375,
+          "sha256": "76587ddd597a2a6ecc05561427dd89b986b6f86026ffedc56848e1b03bb52493"
+        },
+        "matches": true
+      },
+      "packages/shared/src/gridTopology.ts": {
+        "expected": {
+          "bytes": 12464,
+          "sha256": "deb2710d114cd669854a082c06bafe518f5ef750249722f89ede83a27d42d328"
+        },
+        "actual": {
+          "bytes": 12464,
+          "sha256": "deb2710d114cd669854a082c06bafe518f5ef750249722f89ede83a27d42d328"
+        },
+        "matches": true
+      },
+      "packages/shared/src/hpView.ts": {
+        "expected": {
+          "bytes": 2020,
+          "sha256": "40ec081fdb8adb245dca088a21f1aef18fa8dbf9d991581f16baf99606508cc3"
+        },
+        "actual": {
+          "bytes": 2020,
+          "sha256": "40ec081fdb8adb245dca088a21f1aef18fa8dbf9d991581f16baf99606508cc3"
+        },
+        "matches": true
+      },
+      "packages/shared/src/index.ts": {
+        "expected": {
+          "bytes": 1564,
+          "sha256": "2a78a73307372ea1a5ffe753f2f16fb11386c124100455f45339fe985b01dfcb"
+        },
+        "actual": {
+          "bytes": 1564,
+          "sha256": "2a78a73307372ea1a5ffe753f2f16fb11386c124100455f45339fe985b01dfcb"
+        },
+        "matches": true
+      },
+      "packages/shared/src/interactions.ts": {
+        "expected": {
+          "bytes": 8524,
+          "sha256": "72aa41c26f8254e00d4956ba57d804471e80b924b55529d016efa6e7d4ecef11"
+        },
+        "actual": {
+          "bytes": 8524,
+          "sha256": "72aa41c26f8254e00d4956ba57d804471e80b924b55529d016efa6e7d4ecef11"
+        },
+        "matches": true
+      },
+      "packages/shared/src/interp.ts": {
+        "expected": {
+          "bytes": 20983,
+          "sha256": "83cf2ac2359058b1e0497e636f83e36b1d60c97e13f81e15e6edf39d8f231eb4"
+        },
+        "actual": {
+          "bytes": 20983,
+          "sha256": "83cf2ac2359058b1e0497e636f83e36b1d60c97e13f81e15e6edf39d8f231eb4"
+        },
+        "matches": true
+      },
+      "packages/shared/src/killAugments.ts": {
+        "expected": {
+          "bytes": 4382,
+          "sha256": "82641061ad98878f7fb209e72f490447034f5ddf36d149990e206fa83a548244"
+        },
+        "actual": {
+          "bytes": 4382,
+          "sha256": "82641061ad98878f7fb209e72f490447034f5ddf36d149990e206fa83a548244"
+        },
+        "matches": true
+      },
+      "packages/shared/src/map.ts": {
+        "expected": {
+          "bytes": 21022,
+          "sha256": "35caac04108a3bd0e1d880a9502f14bdccb3a9a17d262cba335c3d6436995eed"
+        },
+        "actual": {
+          "bytes": 21022,
+          "sha256": "35caac04108a3bd0e1d880a9502f14bdccb3a9a17d262cba335c3d6436995eed"
+        },
+        "matches": true
+      },
+      "packages/shared/src/mapgen.ts": {
+        "expected": {
+          "bytes": 57619,
+          "sha256": "975591aed836a345c4efd957ced95a478638e6e870fe8ea9bb8740526ef06d10"
+        },
+        "actual": {
+          "bytes": 57619,
+          "sha256": "975591aed836a345c4efd957ced95a478638e6e870fe8ea9bb8740526ef06d10"
+        },
+        "matches": true
+      },
+      "packages/shared/src/mapWire.ts": {
+        "expected": {
+          "bytes": 402,
+          "sha256": "b52863f757b829ab9a36582cc11e95aea4c0902fd979df5d40bcb5889bba04eb"
+        },
+        "actual": {
+          "bytes": 402,
+          "sha256": "b52863f757b829ab9a36582cc11e95aea4c0902fd979df5d40bcb5889bba04eb"
+        },
+        "matches": true
+      },
+      "packages/shared/src/mark.ts": {
+        "expected": {
+          "bytes": 4403,
+          "sha256": "44870381fa48b9c8f65f180ff74995725644d7264df5b069a3c43c2291540661"
+        },
+        "actual": {
+          "bytes": 4403,
+          "sha256": "44870381fa48b9c8f65f180ff74995725644d7264df5b069a3c43c2291540661"
+        },
+        "matches": true
+      },
+      "packages/shared/src/messages.ts": {
+        "expected": {
+          "bytes": 30329,
+          "sha256": "f7f3b4eb6bb32c54bb97a7d3a8e2ba613b0aff0495a0f20c09fd6d36c797fe80"
+        },
+        "actual": {
+          "bytes": 30329,
+          "sha256": "f7f3b4eb6bb32c54bb97a7d3a8e2ba613b0aff0495a0f20c09fd6d36c797fe80"
+        },
+        "matches": true
+      },
+      "packages/shared/src/mobs.ts": {
+        "expected": {
+          "bytes": 15613,
+          "sha256": "3b567c08363d8d4f1e9a897240b3d99d5b8ded7757b6809a4b534b63d72b5522"
+        },
+        "actual": {
+          "bytes": 15613,
+          "sha256": "3b567c08363d8d4f1e9a897240b3d99d5b8ded7757b6809a4b534b63d72b5522"
+        },
+        "matches": true
+      },
+      "packages/shared/src/mobStats.ts": {
+        "expected": {
+          "bytes": 7296,
+          "sha256": "94034887302346dcd070ff2fa774ae0e4f71933b549964f53be13389be087d5b"
+        },
+        "actual": {
+          "bytes": 7296,
+          "sha256": "94034887302346dcd070ff2fa774ae0e4f71933b549964f53be13389be087d5b"
+        },
+        "matches": true
+      },
+      "packages/shared/src/mods.ts": {
+        "expected": {
+          "bytes": 23134,
+          "sha256": "10e9dcd3d7417c4fe85d1c36ef33afe5abf7a5703a59b42a3a825a66aa4efaff"
+        },
+        "actual": {
+          "bytes": 23134,
+          "sha256": "10e9dcd3d7417c4fe85d1c36ef33afe5abf7a5703a59b42a3a825a66aa4efaff"
+        },
+        "matches": true
+      },
+      "packages/shared/src/pathfind.ts": {
+        "expected": {
+          "bytes": 11003,
+          "sha256": "300caa48788f84bdc780befe8c50db41c2c0b2be520d3fb43a7f91e16de424d9"
+        },
+        "actual": {
+          "bytes": 11003,
+          "sha256": "300caa48788f84bdc780befe8c50db41c2c0b2be520d3fb43a7f91e16de424d9"
+        },
+        "matches": true
+      },
+      "packages/shared/src/plagueCorpses.ts": {
+        "expected": {
+          "bytes": 3584,
+          "sha256": "cd85318857ba38853385c3ce9560b8674266b71b0b1555017953c7a41080378d"
+        },
+        "actual": {
+          "bytes": 3584,
+          "sha256": "cd85318857ba38853385c3ce9560b8674266b71b0b1555017953c7a41080378d"
+        },
+        "matches": true
+      },
+      "packages/shared/src/planning.ts": {
+        "expected": {
+          "bytes": 5249,
+          "sha256": "8d52b212f6fec391359787cf9d81b8fa31a067ea839a2b9ccadc58c059027cb2"
+        },
+        "actual": {
+          "bytes": 5249,
+          "sha256": "8d52b212f6fec391359787cf9d81b8fa31a067ea839a2b9ccadc58c059027cb2"
+        },
+        "matches": true
+      },
+      "packages/shared/src/policies.ts": {
+        "expected": {
+          "bytes": 13185,
+          "sha256": "3a08aef58ae780bb2417781e735ff75c310de08db43b47a742714bcf94619fbd"
+        },
+        "actual": {
+          "bytes": 13185,
+          "sha256": "3a08aef58ae780bb2417781e735ff75c310de08db43b47a742714bcf94619fbd"
+        },
+        "matches": true
+      },
+      "packages/shared/src/propKinds.ts": {
+        "expected": {
+          "bytes": 2990,
+          "sha256": "431d70881377a8059960f053dc9452946cc0e942d212c92765bacb8a063027ee"
+        },
+        "actual": {
+          "bytes": 2990,
+          "sha256": "431d70881377a8059960f053dc9452946cc0e942d212c92765bacb8a063027ee"
+        },
+        "matches": true
+      },
+      "packages/shared/src/quests.ts": {
+        "expected": {
+          "bytes": 37136,
+          "sha256": "99c4fdfeae5e2a9eb3e0894f56ae1cd3db7eea760c5c09df695685e250800bba"
+        },
+        "actual": {
+          "bytes": 37136,
+          "sha256": "99c4fdfeae5e2a9eb3e0894f56ae1cd3db7eea760c5c09df695685e250800bba"
+        },
+        "matches": true
+      },
+      "packages/shared/src/rewards.ts": {
+        "expected": {
+          "bytes": 8894,
+          "sha256": "cc19d6d0a7be390a9574a1f88b6b5241ac0885c3720b4ca3fe17d1d450f3a601"
+        },
+        "actual": {
+          "bytes": 8894,
+          "sha256": "cc19d6d0a7be390a9574a1f88b6b5241ac0885c3720b4ca3fe17d1d450f3a601"
+        },
+        "matches": true
+      },
+      "packages/shared/src/rng.ts": {
+        "expected": {
+          "bytes": 2115,
+          "sha256": "412bdcee4a5adcb6163bff3561cb4a07eff423dc7e30e9ba0694cb41b05b1bec"
+        },
+        "actual": {
+          "bytes": 2115,
+          "sha256": "412bdcee4a5adcb6163bff3561cb4a07eff423dc7e30e9ba0694cb41b05b1bec"
+        },
+        "matches": true
+      },
+      "packages/shared/src/rosters.ts": {
+        "expected": {
+          "bytes": 4469,
+          "sha256": "0f544537f1ea1517345efd44bc3d4a4ee7d5bffd52a13cb084cc9693ec6f297d"
+        },
+        "actual": {
+          "bytes": 4469,
+          "sha256": "0f544537f1ea1517345efd44bc3d4a4ee7d5bffd52a13cb084cc9693ec6f297d"
+        },
+        "matches": true
+      },
+      "packages/shared/src/rules.ts": {
+        "expected": {
+          "bytes": 6532,
+          "sha256": "c5822091cdc711e53086a6f2f8649c53c1d709009649a0a65c005096774893b7"
+        },
+        "actual": {
+          "bytes": 6532,
+          "sha256": "c5822091cdc711e53086a6f2f8649c53c1d709009649a0a65c005096774893b7"
+        },
+        "matches": true
+      },
+      "packages/shared/src/schema.ts": {
+        "expected": {
+          "bytes": 21469,
+          "sha256": "245486da649ea5bc5d8b9b0d5d75f3e860fc8f153574fa2b9ee091dcb52e99cb"
+        },
+        "actual": {
+          "bytes": 21469,
+          "sha256": "245486da649ea5bc5d8b9b0d5d75f3e860fc8f153574fa2b9ee091dcb52e99cb"
+        },
+        "matches": true
+      },
+      "packages/shared/src/sentencedHunt.ts": {
+        "expected": {
+          "bytes": 1184,
+          "sha256": "a606dd94905114562d14d13c09f6c59586a60a70e9a02da49285d886305ce561"
+        },
+        "actual": {
+          "bytes": 1184,
+          "sha256": "a606dd94905114562d14d13c09f6c59586a60a70e9a02da49285d886305ce561"
+        },
+        "matches": true
+      },
+      "packages/shared/src/signatures.ts": {
+        "expected": {
+          "bytes": 9370,
+          "sha256": "0a6befbb5a6fe9870b13a540d72235085c491668c8cae3674fa8faf89816e191"
+        },
+        "actual": {
+          "bytes": 9370,
+          "sha256": "0a6befbb5a6fe9870b13a540d72235085c491668c8cae3674fa8faf89816e191"
+        },
+        "matches": true
+      },
+      "packages/shared/src/signatureShares.ts": {
+        "expected": {
+          "bytes": 1078,
+          "sha256": "e6996931487dde9d4e3f71481a9da996f7500fbcd2148f7924ed730a78eba1a4"
+        },
+        "actual": {
+          "bytes": 1078,
+          "sha256": "e6996931487dde9d4e3f71481a9da996f7500fbcd2148f7924ed730a78eba1a4"
+        },
+        "matches": true
+      },
+      "packages/shared/src/status.ts": {
+        "expected": {
+          "bytes": 4682,
+          "sha256": "98a0570d7620e424d9d522356fe378a6af049109d8af0342be0ecff970310df7"
+        },
+        "actual": {
+          "bytes": 4682,
+          "sha256": "98a0570d7620e424d9d522356fe378a6af049109d8af0342be0ecff970310df7"
+        },
+        "matches": true
+      },
+      "packages/shared/src/styler.ts": {
+        "expected": {
+          "bytes": 7309,
+          "sha256": "314805a5a6cd9074763c9e555e48e7145c7ed7c87f265876c3712e4837abc51c"
+        },
+        "actual": {
+          "bytes": 7309,
+          "sha256": "314805a5a6cd9074763c9e555e48e7145c7ed7c87f265876c3712e4837abc51c"
+        },
+        "matches": true
+      },
+      "packages/shared/src/telemetry.ts": {
+        "expected": {
+          "bytes": 28458,
+          "sha256": "3310df401408a2a4a893a40febe40dda72afe20a13898e6f63620a127d2ba8e2"
+        },
+        "actual": {
+          "bytes": 28458,
+          "sha256": "3310df401408a2a4a893a40febe40dda72afe20a13898e6f63620a127d2ba8e2"
+        },
+        "matches": true
+      },
+      "packages/shared/src/terrain.ts": {
+        "expected": {
+          "bytes": 21947,
+          "sha256": "5ee4fe11e793f83f3d095720ba1156a186c5c7704e864f2cad74503ab13a07d6"
+        },
+        "actual": {
+          "bytes": 21947,
+          "sha256": "5ee4fe11e793f83f3d095720ba1156a186c5c7704e864f2cad74503ab13a07d6"
+        },
+        "matches": true
+      },
+      "packages/shared/src/traders.ts": {
+        "expected": {
+          "bytes": 2434,
+          "sha256": "6b0fb339c3988c253a4162bdd70ae0d3be13f2d066cbdf10168c5b6d1345d1d3"
+        },
+        "actual": {
+          "bytes": 2434,
+          "sha256": "6b0fb339c3988c253a4162bdd70ae0d3be13f2d066cbdf10168c5b6d1345d1d3"
+        },
+        "matches": true
+      },
+      "packages/shared/src/training.ts": {
+        "expected": {
+          "bytes": 1879,
+          "sha256": "8cf8332e7083fa801407bb2bfd911f2ca008029c1a7ad16cf6bd9bc6935ccc58"
+        },
+        "actual": {
+          "bytes": 1879,
+          "sha256": "8cf8332e7083fa801407bb2bfd911f2ca008029c1a7ad16cf6bd9bc6935ccc58"
+        },
+        "matches": true
+      },
+      "packages/shared/src/vision.ts": {
+        "expected": {
+          "bytes": 12457,
+          "sha256": "f9d026e5c3e8932502f147d6f2ce5d11625845faf07a9dec734b595db76521db"
+        },
+        "actual": {
+          "bytes": 12457,
+          "sha256": "f9d026e5c3e8932502f147d6f2ce5d11625845faf07a9dec734b595db76521db"
+        },
+        "matches": true
+      },
+      "packages/shared/src/walk.ts": {
+        "expected": {
+          "bytes": 15362,
+          "sha256": "0d33c95623a6d11fa21a9e58b308eed8cb0150b24d65b592877c5f9e2b5a0020"
+        },
+        "actual": {
+          "bytes": 15362,
+          "sha256": "0d33c95623a6d11fa21a9e58b308eed8cb0150b24d65b592877c5f9e2b5a0020"
+        },
+        "matches": true
+      },
+      "packages/shared/src/weapons.ts": {
+        "expected": {
+          "bytes": 15391,
+          "sha256": "2f22f037502fe63fae6b47f20408cfd35ebc72bfea081194ae8d18cfc21df99b"
+        },
+        "actual": {
+          "bytes": 15391,
+          "sha256": "2f22f037502fe63fae6b47f20408cfd35ebc72bfea081194ae8d18cfc21df99b"
+        },
+        "matches": true
+      },
+      "packages/shared/src/wheel.ts": {
+        "expected": {
+          "bytes": 3618,
+          "sha256": "e16388b4aa07cb1ab60c4ac5859879eaad0eb686f50e625a7917cad34e275466"
+        },
+        "actual": {
+          "bytes": 3618,
+          "sha256": "e16388b4aa07cb1ab60c4ac5859879eaad0eb686f50e625a7917cad34e275466"
+        },
+        "matches": true
+      },
+      "packages/shared/src/zones.ts": {
+        "expected": {
+          "bytes": 49948,
+          "sha256": "aa91d0c2b8d7b1957d6e28e29289c9dfa58ac6d4c8475b647445370fbcaeb814"
+        },
+        "actual": {
+          "bytes": 49948,
+          "sha256": "aa91d0c2b8d7b1957d6e28e29289c9dfa58ac6d4c8475b647445370fbcaeb814"
+        },
+        "matches": true
+      },
+      "packages/shared/src/zoneStyle/context.ts": {
+        "expected": {
+          "bytes": 30206,
+          "sha256": "8a87c8c930a11c2f1c83b3afe9384586a24f41690dd77a78f1c35b0f69a19dfb"
+        },
+        "actual": {
+          "bytes": 30206,
+          "sha256": "8a87c8c930a11c2f1c83b3afe9384586a24f41690dd77a78f1c35b0f69a19dfb"
+        },
+        "matches": true
+      },
+      "packages/shared/src/zoneStyle/features.ts": {
+        "expected": {
+          "bytes": 40831,
+          "sha256": "f0d987fc114394e514c0b9e194b219aa1f8f3429a0fa141c7b6181e6d87ee983"
+        },
+        "actual": {
+          "bytes": 40831,
+          "sha256": "f0d987fc114394e514c0b9e194b219aa1f8f3429a0fa141c7b6181e6d87ee983"
+        },
+        "matches": true
+      },
+      "packages/shared/src/zoneStyle/gallows.ts": {
+        "expected": {
+          "bytes": 37047,
+          "sha256": "0edb95a89d06fc6b0f60a6dc85da41613177362679c03e2073f2be24bbe186e4"
+        },
+        "actual": {
+          "bytes": 37047,
+          "sha256": "0edb95a89d06fc6b0f60a6dc85da41613177362679c03e2073f2be24bbe186e4"
+        },
+        "matches": true
+      },
+      "packages/shared/src/zoneStyle/hook.ts": {
+        "expected": {
+          "bytes": 3970,
+          "sha256": "56eeba0fb5019dc5dd02e8fd76059c6f82ede6cfa2aa46c763ecf63b619bc668"
+        },
+        "actual": {
+          "bytes": 3970,
+          "sha256": "56eeba0fb5019dc5dd02e8fd76059c6f82ede6cfa2aa46c763ecf63b619bc668"
+        },
+        "matches": true
+      },
+      "packages/shared/src/zoneStyle/index.ts": {
+        "expected": {
+          "bytes": 1629,
+          "sha256": "6ada1628cfd571cfda3616155e0dc0a047976d9056e467b521c68a6a44f6d673"
+        },
+        "actual": {
+          "bytes": 1629,
+          "sha256": "6ada1628cfd571cfda3616155e0dc0a047976d9056e467b521c68a6a44f6d673"
+        },
+        "matches": true
+      },
+      "packages/shared/src/zoneStyle/kit.ts": {
+        "expected": {
+          "bytes": 17138,
+          "sha256": "dc69161c080b9474a873d12ac194d876b78285a1ae2cdb7eb24cb86b30337e16"
+        },
+        "actual": {
+          "bytes": 17138,
+          "sha256": "dc69161c080b9474a873d12ac194d876b78285a1ae2cdb7eb24cb86b30337e16"
+        },
+        "matches": true
+      },
+      "packages/shared/src/zoneStyle/landmarks.ts": {
+        "expected": {
+          "bytes": 30532,
+          "sha256": "ad18e32099ceafc1b88fa33a2225ef2c02508ac6fa4a58c1a91473f0be4c6587"
+        },
+        "actual": {
+          "bytes": 30532,
+          "sha256": "ad18e32099ceafc1b88fa33a2225ef2c02508ac6fa4a58c1a91473f0be4c6587"
+        },
+        "matches": true
+      },
+      "packages/shared/src/zoneStyle/propKinds.ts": {
+        "expected": {
+          "bytes": 809,
+          "sha256": "6a139d0727ab392512d427507ee3b027f67860734d56eea7db8085add24003b9"
+        },
+        "actual": {
+          "bytes": 809,
+          "sha256": "6a139d0727ab392512d427507ee3b027f67860734d56eea7db8085add24003b9"
+        },
+        "matches": true
+      },
+      "packages/shared/src/zoneStyle/rime.ts": {
+        "expected": {
+          "bytes": 40601,
+          "sha256": "d25714c3b647392a03662b33082b48de2c7ec2933755501fe55260c2a1daa19a"
+        },
+        "actual": {
+          "bytes": 40601,
+          "sha256": "d25714c3b647392a03662b33082b48de2c7ec2933755501fe55260c2a1daa19a"
+        },
+        "matches": true
+      },
+      "packages/shared/src/zoneStyle/sanctum.ts": {
+        "expected": {
+          "bytes": 24977,
+          "sha256": "dd2da40c09a1a5dc5fdbd6e45b568d2b4ada831a0e195e86fd0ab64f49b7babd"
+        },
+        "actual": {
+          "bytes": 24977,
+          "sha256": "dd2da40c09a1a5dc5fdbd6e45b568d2b4ada831a0e195e86fd0ab64f49b7babd"
+        },
+        "matches": true
+      },
+      "packages/shared/src/zoneStyle/scale.ts": {
+        "expected": {
+          "bytes": 1361,
+          "sha256": "b8e055707f98dfa104233c1ceebd99358b9b3b5ae8e9fe001d9174806ca6a07e"
+        },
+        "actual": {
+          "bytes": 1361,
+          "sha256": "b8e055707f98dfa104233c1ceebd99358b9b3b5ae8e9fe001d9174806ca6a07e"
+        },
+        "matches": true
+      },
+      "packages/shared/src/zoneStyle/scorch.ts": {
+        "expected": {
+          "bytes": 51569,
+          "sha256": "52b324dd4dfc9a77986a9ffdcb9704041a2d3608e6e61e9af98b0f697fd2f02a"
+        },
+        "actual": {
+          "bytes": 51569,
+          "sha256": "52b324dd4dfc9a77986a9ffdcb9704041a2d3608e6e61e9af98b0f697fd2f02a"
+        },
+        "matches": true
+      },
+      "packages/shared/src/zoneStyle/styleZones.ts": {
+        "expected": {
+          "bytes": 10113,
+          "sha256": "9c328903541ae1e15ca473b288c788b5a2ebb55e8974a639c6215c7c804cbc36"
+        },
+        "actual": {
+          "bytes": 10113,
+          "sha256": "9c328903541ae1e15ca473b288c788b5a2ebb55e8974a639c6215c7c804cbc36"
+        },
+        "matches": true
+      },
+      "packages/shared/src/zoneStyle/types.ts": {
+        "expected": {
+          "bytes": 15681,
+          "sha256": "193b6f57c1e76ea6f8249a316fc8898191682937493fbbce7beb3a0ffb26c33e"
+        },
+        "actual": {
+          "bytes": 15681,
+          "sha256": "193b6f57c1e76ea6f8249a316fc8898191682937493fbbce7beb3a0ffb26c33e"
+        },
+        "matches": true
+      },
+      "packages/shared/src/zoneStyle/warren.ts": {
+        "expected": {
+          "bytes": 30968,
+          "sha256": "bdb057ebaf226fbe803403cc338d38f50c154c276a30fcb652b5229741a9ddcc"
+        },
+        "actual": {
+          "bytes": 30968,
+          "sha256": "bdb057ebaf226fbe803403cc338d38f50c154c276a30fcb652b5229741a9ddcc"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/abilityPolicy.ts": {
+        "expected": {
+          "bytes": 7564,
+          "sha256": "e892cff2eba225520aac5730365f5df800a3971734a6c1d63c0d02a084b298ec"
+        },
+        "actual": {
+          "bytes": 7564,
+          "sha256": "e892cff2eba225520aac5730365f5df800a3971734a6c1d63c0d02a084b298ec"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/BotClient.ts": {
+        "expected": {
+          "bytes": 19195,
+          "sha256": "5f1f7b533c74b53c29adb2e586811a31de68f3dd858255c3c3e1a4c471aadd0c"
+        },
+        "actual": {
+          "bytes": 19195,
+          "sha256": "5f1f7b533c74b53c29adb2e586811a31de68f3dd858255c3c3e1a4c471aadd0c"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/BotManager.ts": {
+        "expected": {
+          "bytes": 23579,
+          "sha256": "06f2e2957c1528a838777c54d505ce4a7fc402ee6bb11b38e171761a205e3fae"
+        },
+        "actual": {
+          "bytes": 23579,
+          "sha256": "06f2e2957c1528a838777c54d505ce4a7fc402ee6bb11b38e171761a205e3fae"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/brain/brain.ts": {
+        "expected": {
+          "bytes": 15843,
+          "sha256": "e5068026aba10f5bfe85d806b33cb76c4fc7e4408a958d87703dc1f3a391f800"
+        },
+        "actual": {
+          "bytes": 15843,
+          "sha256": "e5068026aba10f5bfe85d806b33cb76c4fc7e4408a958d87703dc1f3a391f800"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/brain/buildRoute.ts": {
+        "expected": {
+          "bytes": 12930,
+          "sha256": "fbe819cc2b36da50c7b01b0e4c40cf77c5c27286e6b5c69d76bc24e862af4f5e"
+        },
+        "actual": {
+          "bytes": 12930,
+          "sha256": "fbe819cc2b36da50c7b01b0e4c40cf77c5c27286e6b5c69d76bc24e862af4f5e"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/brain/clicks.ts": {
+        "expected": {
+          "bytes": 7808,
+          "sha256": "0fa8b26cd9a31359fa184b0ca99f4c18d768606a09e2b27312c21d6e46a8a823"
+        },
+        "actual": {
+          "bytes": 7808,
+          "sha256": "0fa8b26cd9a31359fa184b0ca99f4c18d768606a09e2b27312c21d6e46a8a823"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/brain/frames.ts": {
+        "expected": {
+          "bytes": 20904,
+          "sha256": "aa8fcb62e8039d37d3c9f6cb000687fbfea61e12ab50805dfe45dae06119d6c6"
+        },
+        "actual": {
+          "bytes": 20904,
+          "sha256": "aa8fcb62e8039d37d3c9f6cb000687fbfea61e12ab50805dfe45dae06119d6c6"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/brain/humanizer.ts": {
+        "expected": {
+          "bytes": 19502,
+          "sha256": "650519070f2580783e0e4c595950c1e41a35bf66f0f846f763eb5e4fb464f09b"
+        },
+        "actual": {
+          "bytes": 19502,
+          "sha256": "650519070f2580783e0e4c595950c1e41a35bf66f0f846f763eb5e4fb464f09b"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/brain/huntAdapter.ts": {
+        "expected": {
+          "bytes": 9197,
+          "sha256": "0dac45d23811dbb72a8e8e5aa888e563a616f1fba255cde516176278e70c027d"
+        },
+        "actual": {
+          "bytes": 9197,
+          "sha256": "0dac45d23811dbb72a8e8e5aa888e563a616f1fba255cde516176278e70c027d"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/brain/knowledge.ts": {
+        "expected": {
+          "bytes": 4351,
+          "sha256": "5709954e5f8d65411ff5606b4b337b5cfc19af163833cd1f147279affd9ce263"
+        },
+        "actual": {
+          "bytes": 4351,
+          "sha256": "5709954e5f8d65411ff5606b4b337b5cfc19af163833cd1f147279affd9ce263"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/brain/memory.ts": {
+        "expected": {
+          "bytes": 35038,
+          "sha256": "29c2086be936ec867ddec97c2e4442b86acdbf1255e55de001e73892f7b128a8"
+        },
+        "actual": {
+          "bytes": 35038,
+          "sha256": "29c2086be936ec867ddec97c2e4442b86acdbf1255e55de001e73892f7b128a8"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/brain/modules/chests.ts": {
+        "expected": {
+          "bytes": 15286,
+          "sha256": "aa620dcb3dcd5be08442af1517f761cd4dbaa769efc986f465c31a50a8bfddef"
+        },
+        "actual": {
+          "bytes": 15286,
+          "sha256": "aa620dcb3dcd5be08442af1517f761cd4dbaa769efc986f465c31a50a8bfddef"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/brain/modules/hazards.ts": {
+        "expected": {
+          "bytes": 9190,
+          "sha256": "6211aeb02f795965e62036135fbbba0460f38688b7f54f97135db17da6101779"
+        },
+        "actual": {
+          "bytes": 9190,
+          "sha256": "6211aeb02f795965e62036135fbbba0460f38688b7f54f97135db17da6101779"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/brain/modules/index.ts": {
+        "expected": {
+          "bytes": 1988,
+          "sha256": "7d22ea88b1c59d9248af35a6c25a0860e422cedeb7c0e883e84ad630d7cebf78"
+        },
+        "actual": {
+          "bytes": 1988,
+          "sha256": "7d22ea88b1c59d9248af35a6c25a0860e422cedeb7c0e883e84ad630d7cebf78"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/brain/modules/planning.ts": {
+        "expected": {
+          "bytes": 9178,
+          "sha256": "66a75aa8f29216d428151e680792388ac4f587f762d2cb822b59b546f63fb51b"
+        },
+        "actual": {
+          "bytes": 9178,
+          "sha256": "66a75aa8f29216d428151e680792388ac4f587f762d2cb822b59b546f63fb51b"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/brain/modules/wishes.ts": {
+        "expected": {
+          "bytes": 14893,
+          "sha256": "61eade3cca61d17c533bcb2a1033e4489d5b11e496e88a8f245b4427b5f399fa"
+        },
+        "actual": {
+          "bytes": 14893,
+          "sha256": "61eade3cca61d17c533bcb2a1033e4489d5b11e496e88a8f245b4427b5f399fa"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/brain/perception.ts": {
+        "expected": {
+          "bytes": 36755,
+          "sha256": "059dba28d67a588be8b9f491cd69a242e841545a3b1863ce798da2e3f085390a"
+        },
+        "actual": {
+          "bytes": 36755,
+          "sha256": "059dba28d67a588be8b9f491cd69a242e841545a3b1863ce798da2e3f085390a"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/brain/random.ts": {
+        "expected": {
+          "bytes": 3261,
+          "sha256": "a23fb8d369ffced9e30719706b12eb5ec65afb14da16429a7cdc9dbc7e3f92f7"
+        },
+        "actual": {
+          "bytes": 3261,
+          "sha256": "a23fb8d369ffced9e30719706b12eb5ec65afb14da16429a7cdc9dbc7e3f92f7"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/brain/runner.ts": {
+        "expected": {
+          "bytes": 3695,
+          "sha256": "345b94151ba4185736269acd782385a66d24cfaa50dafd75900cfad944c66164"
+        },
+        "actual": {
+          "bytes": 3695,
+          "sha256": "345b94151ba4185736269acd782385a66d24cfaa50dafd75900cfad944c66164"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/brain/services.ts": {
+        "expected": {
+          "bytes": 5725,
+          "sha256": "be3f915c4788b8e8406b6739d364fb3957935903555c26168c5892f93f7567fb"
+        },
+        "actual": {
+          "bytes": 5725,
+          "sha256": "be3f915c4788b8e8406b6739d364fb3957935903555c26168c5892f93f7567fb"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/brain/strategy.ts": {
+        "expected": {
+          "bytes": 47427,
+          "sha256": "edf3ec7f0e2b68de24e52def86e046209cd53c98c598057d38baf810f1ec2116"
+        },
+        "actual": {
+          "bytes": 47427,
+          "sha256": "edf3ec7f0e2b68de24e52def86e046209cd53c98c598057d38baf810f1ec2116"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/brain/tactics/fight.ts": {
+        "expected": {
+          "bytes": 20356,
+          "sha256": "10a9aeb45b69c9635072213fefbcfe7aa40fd113773f7cf2b254594ae8204a50"
+        },
+        "actual": {
+          "bytes": 20356,
+          "sha256": "10a9aeb45b69c9635072213fefbcfe7aa40fd113773f7cf2b254594ae8204a50"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/brain/tactics/kite.ts": {
+        "expected": {
+          "bytes": 17088,
+          "sha256": "b7ceff483d51fe1d58d79ef34562e28a079027623527f11264c21439c2b6e2be"
+        },
+        "actual": {
+          "bytes": 17088,
+          "sha256": "b7ceff483d51fe1d58d79ef34562e28a079027623527f11264c21439c2b6e2be"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/brain/tactics/world.ts": {
+        "expected": {
+          "bytes": 13075,
+          "sha256": "076e5d6bdfc8d565fb6704cc1635e690064aff1e0fc55ab52454901c259742e6"
+        },
+        "actual": {
+          "bytes": 13075,
+          "sha256": "076e5d6bdfc8d565fb6704cc1635e690064aff1e0fc55ab52454901c259742e6"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/brain/tactics.ts": {
+        "expected": {
+          "bytes": 6342,
+          "sha256": "64804de4b29e87fdc12bdf7e2df65d69573293c7db5fdae08c6c11dcc4ae08ef"
+        },
+        "actual": {
+          "bytes": 6342,
+          "sha256": "64804de4b29e87fdc12bdf7e2df65d69573293c7db5fdae08c6c11dcc4ae08ef"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/brain/types.ts": {
+        "expected": {
+          "bytes": 57792,
+          "sha256": "12b3cae05bcde760cd642b9c5eb9919bfc47189882c81258994c9f1122d3d361"
+        },
+        "actual": {
+          "bytes": 57792,
+          "sha256": "12b3cae05bcde760cd642b9c5eb9919bfc47189882c81258994c9f1122d3d361"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/brain/vision.ts": {
+        "expected": {
+          "bytes": 4865,
+          "sha256": "e4418c5bbd8e9d8e3c21e3b1b9b8f677c947d178f812c9d634934c6c8c92f34c"
+        },
+        "actual": {
+          "bytes": 4865,
+          "sha256": "e4418c5bbd8e9d8e3c21e3b1b9b8f677c947d178f812c9d634934c6c8c92f34c"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/callsigns.ts": {
+        "expected": {
+          "bytes": 2353,
+          "sha256": "5ce870d6764b49cdbbfa1b35946b4ce1bf18eaf25904529133dcf97b1f911a84"
+        },
+        "actual": {
+          "bytes": 2353,
+          "sha256": "5ce870d6764b49cdbbfa1b35946b4ce1bf18eaf25904529133dcf97b1f911a84"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/chestHunt.ts": {
+        "expected": {
+          "bytes": 20997,
+          "sha256": "49a5a01326e65646d29bff87c3adb35373fe0a086325f8080877414f796e8760"
+        },
+        "actual": {
+          "bytes": 20997,
+          "sha256": "49a5a01326e65646d29bff87c3adb35373fe0a086325f8080877414f796e8760"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/learning/BotStatsStore.ts": {
+        "expected": {
+          "bytes": 12380,
+          "sha256": "3241143a09e1a3cd66f469afcba0e8b7a24b2198ad87142b1daf300f16e6b1fa"
+        },
+        "actual": {
+          "bytes": 12380,
+          "sha256": "3241143a09e1a3cd66f469afcba0e8b7a24b2198ad87142b1daf300f16e6b1fa"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/mobHunt.ts": {
+        "expected": {
+          "bytes": 27077,
+          "sha256": "88fc22040e62b1bc5226c37c16095032533df1e104dee0b27fdcb671c33fe6ff"
+        },
+        "actual": {
+          "bytes": 27077,
+          "sha256": "88fc22040e62b1bc5226c37c16095032533df1e104dee0b27fdcb671c33fe6ff"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/runBots.ts": {
+        "expected": {
+          "bytes": 13923,
+          "sha256": "b6f32f3fa28a1900697d792279d4de40e6be93f9f06061844685f50747874f08"
+        },
+        "actual": {
+          "bytes": 13923,
+          "sha256": "b6f32f3fa28a1900697d792279d4de40e6be93f9f06061844685f50747874f08"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/tournament/game.ts": {
+        "expected": {
+          "bytes": 14076,
+          "sha256": "6cf76bd30fea8f983c5d38c69a5f7bad04364b1576bf4080ed0d474cfebe828e"
+        },
+        "actual": {
+          "bytes": 14076,
+          "sha256": "6cf76bd30fea8f983c5d38c69a5f7bad04364b1576bf4080ed0d474cfebe828e"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/tournament/headlessRoom.ts": {
+        "expected": {
+          "bytes": 9611,
+          "sha256": "f9f7dd89539463daf3d27d3fe167e07e27ad2c41333a898f4292c742a99888ec"
+        },
+        "actual": {
+          "bytes": 9611,
+          "sha256": "f9f7dd89539463daf3d27d3fe167e07e27ad2c41333a898f4292c742a99888ec"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/tournament/report.ts": {
+        "expected": {
+          "bytes": 22049,
+          "sha256": "a9b800f6d09d11cce235f76dd45de4aaf7215250e25ba3f1f341f6667682066c"
+        },
+        "actual": {
+          "bytes": 22049,
+          "sha256": "a9b800f6d09d11cce235f76dd45de4aaf7215250e25ba3f1f341f6667682066c"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/tournament/runTournament.ts": {
+        "expected": {
+          "bytes": 11772,
+          "sha256": "a9bc0035fe6f2ccde1fe7377907f70c92a7f0108e3580e108971a55d8fb6230f"
+        },
+        "actual": {
+          "bytes": 11772,
+          "sha256": "a9bc0035fe6f2ccde1fe7377907f70c92a7f0108e3580e108971a55d8fb6230f"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/tournament/tune.ts": {
+        "expected": {
+          "bytes": 2172,
+          "sha256": "007860163619a75ece5ebaf682b0d2d684d81a293dc10ecd61f9054c11367974"
+        },
+        "actual": {
+          "bytes": 2172,
+          "sha256": "007860163619a75ece5ebaf682b0d2d684d81a293dc10ecd61f9054c11367974"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/tournament/worker.ts": {
+        "expected": {
+          "bytes": 7385,
+          "sha256": "234924c85030238fd933e0e6ba439226128364309fa2d47256caf78dc85f809f"
+        },
+        "actual": {
+          "bytes": 7385,
+          "sha256": "234924c85030238fd933e0e6ba439226128364309fa2d47256caf78dc85f809f"
+        },
+        "matches": true
+      }
+    },
+    "actualRuntimeImports": {
+      "packages/server/src/bots/brain/knowledge.ts": {
+        "expected": {
+          "bytes": 4351,
+          "sha256": "5709954e5f8d65411ff5606b4b337b5cfc19af163833cd1f147279affd9ce263"
+        },
+        "actual": {
+          "bytes": 4351,
+          "sha256": "5709954e5f8d65411ff5606b4b337b5cfc19af163833cd1f147279affd9ce263"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/brain/memory.ts": {
+        "expected": {
+          "bytes": 35038,
+          "sha256": "29c2086be936ec867ddec97c2e4442b86acdbf1255e55de001e73892f7b128a8"
+        },
+        "actual": {
+          "bytes": 35038,
+          "sha256": "29c2086be936ec867ddec97c2e4442b86acdbf1255e55de001e73892f7b128a8"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/brain/random.ts": {
+        "expected": {
+          "bytes": 3261,
+          "sha256": "a23fb8d369ffced9e30719706b12eb5ec65afb14da16429a7cdc9dbc7e3f92f7"
+        },
+        "actual": {
+          "bytes": 3261,
+          "sha256": "a23fb8d369ffced9e30719706b12eb5ec65afb14da16429a7cdc9dbc7e3f92f7"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/brain/services.ts": {
+        "expected": {
+          "bytes": 5725,
+          "sha256": "be3f915c4788b8e8406b6739d364fb3957935903555c26168c5892f93f7567fb"
+        },
+        "actual": {
+          "bytes": 5725,
+          "sha256": "be3f915c4788b8e8406b6739d364fb3957935903555c26168c5892f93f7567fb"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/brain/tactics.ts": {
+        "expected": {
+          "bytes": 6342,
+          "sha256": "64804de4b29e87fdc12bdf7e2df65d69573293c7db5fdae08c6c11dcc4ae08ef"
+        },
+        "actual": {
+          "bytes": 6342,
+          "sha256": "64804de4b29e87fdc12bdf7e2df65d69573293c7db5fdae08c6c11dcc4ae08ef"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/brain/tactics/fight.ts": {
+        "expected": {
+          "bytes": 20356,
+          "sha256": "10a9aeb45b69c9635072213fefbcfe7aa40fd113773f7cf2b254594ae8204a50"
+        },
+        "actual": {
+          "bytes": 20356,
+          "sha256": "10a9aeb45b69c9635072213fefbcfe7aa40fd113773f7cf2b254594ae8204a50"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/brain/tactics/kite.ts": {
+        "expected": {
+          "bytes": 17088,
+          "sha256": "b7ceff483d51fe1d58d79ef34562e28a079027623527f11264c21439c2b6e2be"
+        },
+        "actual": {
+          "bytes": 17088,
+          "sha256": "b7ceff483d51fe1d58d79ef34562e28a079027623527f11264c21439c2b6e2be"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/brain/tactics/world.ts": {
+        "expected": {
+          "bytes": 13075,
+          "sha256": "076e5d6bdfc8d565fb6704cc1635e690064aff1e0fc55ab52454901c259742e6"
+        },
+        "actual": {
+          "bytes": 13075,
+          "sha256": "076e5d6bdfc8d565fb6704cc1635e690064aff1e0fc55ab52454901c259742e6"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/brain/types.ts": {
+        "expected": {
+          "bytes": 57792,
+          "sha256": "12b3cae05bcde760cd642b9c5eb9919bfc47189882c81258994c9f1122d3d361"
+        },
+        "actual": {
+          "bytes": 57792,
+          "sha256": "12b3cae05bcde760cd642b9c5eb9919bfc47189882c81258994c9f1122d3d361"
+        },
+        "matches": true
+      },
+      "packages/server/src/bots/mobHunt.ts": {
+        "expected": {
+          "bytes": 27077,
+          "sha256": "88fc22040e62b1bc5226c37c16095032533df1e104dee0b27fdcb671c33fe6ff"
+        },
+        "actual": {
+          "bytes": 27077,
+          "sha256": "88fc22040e62b1bc5226c37c16095032533df1e104dee0b27fdcb671c33fe6ff"
+        },
+        "matches": true
+      },
+      "packages/shared/src/abilities.ts": {
+        "expected": {
+          "bytes": 16589,
+          "sha256": "95ef39376a9d9f40cc529a0f7300700a97427050628941e801aaa1e299862518"
+        },
+        "actual": {
+          "bytes": 16589,
+          "sha256": "95ef39376a9d9f40cc529a0f7300700a97427050628941e801aaa1e299862518"
+        },
+        "matches": true
+      },
+      "packages/shared/src/achievements.ts": {
+        "expected": {
+          "bytes": 7472,
+          "sha256": "c80dbded6e1ea5eb79dc0f25378d9a45fbe41865a8298bf9fc5f2eeafdd46a34"
+        },
+        "actual": {
+          "bytes": 7472,
+          "sha256": "c80dbded6e1ea5eb79dc0f25378d9a45fbe41865a8298bf9fc5f2eeafdd46a34"
+        },
+        "matches": true
+      },
+      "packages/shared/src/blink.ts": {
+        "expected": {
+          "bytes": 7936,
+          "sha256": "e5582562556f530fd99ec9bf8e506fa144805f666c09f4359aefb98ee9171f15"
+        },
+        "actual": {
+          "bytes": 7936,
+          "sha256": "e5582562556f530fd99ec9bf8e506fa144805f666c09f4359aefb98ee9171f15"
+        },
+        "matches": true
+      },
+      "packages/shared/src/bushes.ts": {
+        "expected": {
+          "bytes": 6087,
+          "sha256": "ac64ce414134376d27b7b4819d59096e66edd01d82958e873d57348a79d85910"
+        },
+        "actual": {
+          "bytes": 6087,
+          "sha256": "ac64ce414134376d27b7b4819d59096e66edd01d82958e873d57348a79d85910"
+        },
+        "matches": true
+      },
+      "packages/shared/src/cards.ts": {
+        "expected": {
+          "bytes": 34091,
+          "sha256": "4a51376a1ce3a79f417e32ce7ae8d7eb37142da5e49f59c3a2c89d48b11ae1e3"
+        },
+        "actual": {
+          "bytes": 34091,
+          "sha256": "4a51376a1ce3a79f417e32ce7ae8d7eb37142da5e49f59c3a2c89d48b11ae1e3"
+        },
+        "matches": true
+      },
+      "packages/shared/src/championPassives.ts": {
+        "expected": {
+          "bytes": 1337,
+          "sha256": "d7e0ecdc8b9cbffc8463f40b9c564019431b14744f5948bf89eefb2505fbf6df"
+        },
+        "actual": {
+          "bytes": 1337,
+          "sha256": "d7e0ecdc8b9cbffc8463f40b9c564019431b14744f5948bf89eefb2505fbf6df"
+        },
+        "matches": true
+      },
+      "packages/shared/src/chestBoosts.ts": {
+        "expected": {
+          "bytes": 4652,
+          "sha256": "60b50c685dacdfdbc2861fdc9f80a900845c5cc0af0b77741527cfb8da51fa81"
+        },
+        "actual": {
+          "bytes": 4652,
+          "sha256": "60b50c685dacdfdbc2861fdc9f80a900845c5cc0af0b77741527cfb8da51fa81"
+        },
+        "matches": true
+      },
+      "packages/shared/src/coliseum.ts": {
+        "expected": {
+          "bytes": 8403,
+          "sha256": "48fc2fa156e70ff6520019605017939298144960d8871a748ef18aadbbf0c0e1"
+        },
+        "actual": {
+          "bytes": 8403,
+          "sha256": "48fc2fa156e70ff6520019605017939298144960d8871a748ef18aadbbf0c0e1"
+        },
+        "matches": true
+      },
+      "packages/shared/src/combatReadability.ts": {
+        "expected": {
+          "bytes": 8406,
+          "sha256": "206f707658ee37f22d9aae403449003487e474220442e1cb178c8af85bfe8833"
+        },
+        "actual": {
+          "bytes": 8406,
+          "sha256": "206f707658ee37f22d9aae403449003487e474220442e1cb178c8af85bfe8833"
+        },
+        "matches": true
+      },
+      "packages/shared/src/constants.ts": {
+        "expected": {
+          "bytes": 46007,
+          "sha256": "51ce4dd800ec868abee525fb1ae375688066f336972a7da878644df1235924e7"
+        },
+        "actual": {
+          "bytes": 46007,
+          "sha256": "51ce4dd800ec868abee525fb1ae375688066f336972a7da878644df1235924e7"
+        },
+        "matches": true
+      },
+      "packages/shared/src/consumables.ts": {
+        "expected": {
+          "bytes": 1974,
+          "sha256": "1ffd882c4b44fed9c20743e671050fc4044706c17e2c36c365952eafc3bd3606"
+        },
+        "actual": {
+          "bytes": 1974,
+          "sha256": "1ffd882c4b44fed9c20743e671050fc4044706c17e2c36c365952eafc3bd3606"
+        },
+        "matches": true
+      },
+      "packages/shared/src/cosmetics.ts": {
+        "expected": {
+          "bytes": 11625,
+          "sha256": "7513ea6b3cbc51072863ccb6ef568d96797f9239c8073f99d2a33ef3aab7b873"
+        },
+        "actual": {
+          "bytes": 11625,
+          "sha256": "7513ea6b3cbc51072863ccb6ef568d96797f9239c8073f99d2a33ef3aab7b873"
+        },
+        "matches": true
+      },
+      "packages/shared/src/detMath.ts": {
+        "expected": {
+          "bytes": 874,
+          "sha256": "a806636428155920a0c1c8675cd84d896057993d4d6ff7b9b4623daa5a312b15"
+        },
+        "actual": {
+          "bytes": 874,
+          "sha256": "a806636428155920a0c1c8675cd84d896057993d4d6ff7b9b4623daa5a312b15"
+        },
+        "matches": true
+      },
+      "packages/shared/src/effectText.ts": {
+        "expected": {
+          "bytes": 9977,
+          "sha256": "da22ddb275748104b8f7e11888c1c52c569463bcf165c8efc943cd42f7f0050f"
+        },
+        "actual": {
+          "bytes": 9977,
+          "sha256": "da22ddb275748104b8f7e11888c1c52c569463bcf165c8efc943cd42f7f0050f"
+        },
+        "matches": true
+      },
+      "packages/shared/src/effects.ts": {
+        "expected": {
+          "bytes": 18193,
+          "sha256": "859ac817f16a8334865abf103b783fae76b5525d0e90dc407bddf921810f415b"
+        },
+        "actual": {
+          "bytes": 18193,
+          "sha256": "859ac817f16a8334865abf103b783fae76b5525d0e90dc407bddf921810f415b"
+        },
+        "matches": true
+      },
+      "packages/shared/src/factions.ts": {
+        "expected": {
+          "bytes": 14039,
+          "sha256": "aa0cebf1c17af17b64bc1e020c4613ab10788ec66d82a72232aef8915d5403f3"
+        },
+        "actual": {
+          "bytes": 14039,
+          "sha256": "aa0cebf1c17af17b64bc1e020c4613ab10788ec66d82a72232aef8915d5403f3"
+        },
+        "matches": true
+      },
+      "packages/shared/src/fireRoam.ts": {
+        "expected": {
+          "bytes": 1058,
+          "sha256": "ddf7a5372e3d223b86eb7f0408960908f2c4d4f7c6172fc5e65284ab1c4b8edb"
+        },
+        "actual": {
+          "bytes": 1058,
+          "sha256": "ddf7a5372e3d223b86eb7f0408960908f2c4d4f7c6172fc5e65284ab1c4b8edb"
+        },
+        "matches": true
+      },
+      "packages/shared/src/fxCodec.ts": {
+        "expected": {
+          "bytes": 24844,
+          "sha256": "db2080230ad1b3702e37d3e339384e4a071ef899a8203026e20038a3a2b0f0ba"
+        },
+        "actual": {
+          "bytes": 24844,
+          "sha256": "db2080230ad1b3702e37d3e339384e4a071ef899a8203026e20038a3a2b0f0ba"
+        },
+        "matches": true
+      },
+      "packages/shared/src/geometry.ts": {
+        "expected": {
+          "bytes": 7899,
+          "sha256": "b1a91a65281f8642b1779b81764768569311966ab493941101a2f988cfdc1f5d"
+        },
+        "actual": {
+          "bytes": 7899,
+          "sha256": "b1a91a65281f8642b1779b81764768569311966ab493941101a2f988cfdc1f5d"
+        },
+        "matches": true
+      },
+      "packages/shared/src/glossary.ts": {
+        "expected": {
+          "bytes": 7261,
+          "sha256": "0c8871be2726d6a63700e2f6ba39a454992258189f276ad1ed87b8601150a5fb"
+        },
+        "actual": {
+          "bytes": 7261,
+          "sha256": "0c8871be2726d6a63700e2f6ba39a454992258189f276ad1ed87b8601150a5fb"
+        },
+        "matches": true
+      },
+      "packages/shared/src/gridOps.ts": {
+        "expected": {
+          "bytes": 2375,
+          "sha256": "76587ddd597a2a6ecc05561427dd89b986b6f86026ffedc56848e1b03bb52493"
+        },
+        "actual": {
+          "bytes": 2375,
+          "sha256": "76587ddd597a2a6ecc05561427dd89b986b6f86026ffedc56848e1b03bb52493"
+        },
+        "matches": true
+      },
+      "packages/shared/src/gridTopology.ts": {
+        "expected": {
+          "bytes": 12464,
+          "sha256": "deb2710d114cd669854a082c06bafe518f5ef750249722f89ede83a27d42d328"
+        },
+        "actual": {
+          "bytes": 12464,
+          "sha256": "deb2710d114cd669854a082c06bafe518f5ef750249722f89ede83a27d42d328"
+        },
+        "matches": true
+      },
+      "packages/shared/src/hpView.ts": {
+        "expected": {
+          "bytes": 2020,
+          "sha256": "40ec081fdb8adb245dca088a21f1aef18fa8dbf9d991581f16baf99606508cc3"
+        },
+        "actual": {
+          "bytes": 2020,
+          "sha256": "40ec081fdb8adb245dca088a21f1aef18fa8dbf9d991581f16baf99606508cc3"
+        },
+        "matches": true
+      },
+      "packages/shared/src/index.ts": {
+        "expected": {
+          "bytes": 1564,
+          "sha256": "2a78a73307372ea1a5ffe753f2f16fb11386c124100455f45339fe985b01dfcb"
+        },
+        "actual": {
+          "bytes": 1564,
+          "sha256": "2a78a73307372ea1a5ffe753f2f16fb11386c124100455f45339fe985b01dfcb"
+        },
+        "matches": true
+      },
+      "packages/shared/src/interactions.ts": {
+        "expected": {
+          "bytes": 8524,
+          "sha256": "72aa41c26f8254e00d4956ba57d804471e80b924b55529d016efa6e7d4ecef11"
+        },
+        "actual": {
+          "bytes": 8524,
+          "sha256": "72aa41c26f8254e00d4956ba57d804471e80b924b55529d016efa6e7d4ecef11"
+        },
+        "matches": true
+      },
+      "packages/shared/src/interp.ts": {
+        "expected": {
+          "bytes": 20983,
+          "sha256": "83cf2ac2359058b1e0497e636f83e36b1d60c97e13f81e15e6edf39d8f231eb4"
+        },
+        "actual": {
+          "bytes": 20983,
+          "sha256": "83cf2ac2359058b1e0497e636f83e36b1d60c97e13f81e15e6edf39d8f231eb4"
+        },
+        "matches": true
+      },
+      "packages/shared/src/killAugments.ts": {
+        "expected": {
+          "bytes": 4382,
+          "sha256": "82641061ad98878f7fb209e72f490447034f5ddf36d149990e206fa83a548244"
+        },
+        "actual": {
+          "bytes": 4382,
+          "sha256": "82641061ad98878f7fb209e72f490447034f5ddf36d149990e206fa83a548244"
+        },
+        "matches": true
+      },
+      "packages/shared/src/map.ts": {
+        "expected": {
+          "bytes": 21022,
+          "sha256": "35caac04108a3bd0e1d880a9502f14bdccb3a9a17d262cba335c3d6436995eed"
+        },
+        "actual": {
+          "bytes": 21022,
+          "sha256": "35caac04108a3bd0e1d880a9502f14bdccb3a9a17d262cba335c3d6436995eed"
+        },
+        "matches": true
+      },
+      "packages/shared/src/mapWire.ts": {
+        "expected": {
+          "bytes": 402,
+          "sha256": "b52863f757b829ab9a36582cc11e95aea4c0902fd979df5d40bcb5889bba04eb"
+        },
+        "actual": {
+          "bytes": 402,
+          "sha256": "b52863f757b829ab9a36582cc11e95aea4c0902fd979df5d40bcb5889bba04eb"
+        },
+        "matches": true
+      },
+      "packages/shared/src/mapgen.ts": {
+        "expected": {
+          "bytes": 57619,
+          "sha256": "975591aed836a345c4efd957ced95a478638e6e870fe8ea9bb8740526ef06d10"
+        },
+        "actual": {
+          "bytes": 57619,
+          "sha256": "975591aed836a345c4efd957ced95a478638e6e870fe8ea9bb8740526ef06d10"
+        },
+        "matches": true
+      },
+      "packages/shared/src/mark.ts": {
+        "expected": {
+          "bytes": 4403,
+          "sha256": "44870381fa48b9c8f65f180ff74995725644d7264df5b069a3c43c2291540661"
+        },
+        "actual": {
+          "bytes": 4403,
+          "sha256": "44870381fa48b9c8f65f180ff74995725644d7264df5b069a3c43c2291540661"
+        },
+        "matches": true
+      },
+      "packages/shared/src/messages.ts": {
+        "expected": {
+          "bytes": 30329,
+          "sha256": "f7f3b4eb6bb32c54bb97a7d3a8e2ba613b0aff0495a0f20c09fd6d36c797fe80"
+        },
+        "actual": {
+          "bytes": 30329,
+          "sha256": "f7f3b4eb6bb32c54bb97a7d3a8e2ba613b0aff0495a0f20c09fd6d36c797fe80"
+        },
+        "matches": true
+      },
+      "packages/shared/src/mobStats.ts": {
+        "expected": {
+          "bytes": 7296,
+          "sha256": "94034887302346dcd070ff2fa774ae0e4f71933b549964f53be13389be087d5b"
+        },
+        "actual": {
+          "bytes": 7296,
+          "sha256": "94034887302346dcd070ff2fa774ae0e4f71933b549964f53be13389be087d5b"
+        },
+        "matches": true
+      },
+      "packages/shared/src/mobs.ts": {
+        "expected": {
+          "bytes": 15613,
+          "sha256": "3b567c08363d8d4f1e9a897240b3d99d5b8ded7757b6809a4b534b63d72b5522"
+        },
+        "actual": {
+          "bytes": 15613,
+          "sha256": "3b567c08363d8d4f1e9a897240b3d99d5b8ded7757b6809a4b534b63d72b5522"
+        },
+        "matches": true
+      },
+      "packages/shared/src/mods.ts": {
+        "expected": {
+          "bytes": 23134,
+          "sha256": "10e9dcd3d7417c4fe85d1c36ef33afe5abf7a5703a59b42a3a825a66aa4efaff"
+        },
+        "actual": {
+          "bytes": 23134,
+          "sha256": "10e9dcd3d7417c4fe85d1c36ef33afe5abf7a5703a59b42a3a825a66aa4efaff"
+        },
+        "matches": true
+      },
+      "packages/shared/src/pathfind.ts": {
+        "expected": {
+          "bytes": 11003,
+          "sha256": "300caa48788f84bdc780befe8c50db41c2c0b2be520d3fb43a7f91e16de424d9"
+        },
+        "actual": {
+          "bytes": 11003,
+          "sha256": "300caa48788f84bdc780befe8c50db41c2c0b2be520d3fb43a7f91e16de424d9"
+        },
+        "matches": true
+      },
+      "packages/shared/src/plagueCorpses.ts": {
+        "expected": {
+          "bytes": 3584,
+          "sha256": "cd85318857ba38853385c3ce9560b8674266b71b0b1555017953c7a41080378d"
+        },
+        "actual": {
+          "bytes": 3584,
+          "sha256": "cd85318857ba38853385c3ce9560b8674266b71b0b1555017953c7a41080378d"
+        },
+        "matches": true
+      },
+      "packages/shared/src/planning.ts": {
+        "expected": {
+          "bytes": 5249,
+          "sha256": "8d52b212f6fec391359787cf9d81b8fa31a067ea839a2b9ccadc58c059027cb2"
+        },
+        "actual": {
+          "bytes": 5249,
+          "sha256": "8d52b212f6fec391359787cf9d81b8fa31a067ea839a2b9ccadc58c059027cb2"
+        },
+        "matches": true
+      },
+      "packages/shared/src/policies.ts": {
+        "expected": {
+          "bytes": 13185,
+          "sha256": "3a08aef58ae780bb2417781e735ff75c310de08db43b47a742714bcf94619fbd"
+        },
+        "actual": {
+          "bytes": 13185,
+          "sha256": "3a08aef58ae780bb2417781e735ff75c310de08db43b47a742714bcf94619fbd"
+        },
+        "matches": true
+      },
+      "packages/shared/src/propKinds.ts": {
+        "expected": {
+          "bytes": 2990,
+          "sha256": "431d70881377a8059960f053dc9452946cc0e942d212c92765bacb8a063027ee"
+        },
+        "actual": {
+          "bytes": 2990,
+          "sha256": "431d70881377a8059960f053dc9452946cc0e942d212c92765bacb8a063027ee"
+        },
+        "matches": true
+      },
+      "packages/shared/src/quests.ts": {
+        "expected": {
+          "bytes": 37136,
+          "sha256": "99c4fdfeae5e2a9eb3e0894f56ae1cd3db7eea760c5c09df695685e250800bba"
+        },
+        "actual": {
+          "bytes": 37136,
+          "sha256": "99c4fdfeae5e2a9eb3e0894f56ae1cd3db7eea760c5c09df695685e250800bba"
+        },
+        "matches": true
+      },
+      "packages/shared/src/rewards.ts": {
+        "expected": {
+          "bytes": 8894,
+          "sha256": "cc19d6d0a7be390a9574a1f88b6b5241ac0885c3720b4ca3fe17d1d450f3a601"
+        },
+        "actual": {
+          "bytes": 8894,
+          "sha256": "cc19d6d0a7be390a9574a1f88b6b5241ac0885c3720b4ca3fe17d1d450f3a601"
+        },
+        "matches": true
+      },
+      "packages/shared/src/rng.ts": {
+        "expected": {
+          "bytes": 2115,
+          "sha256": "412bdcee4a5adcb6163bff3561cb4a07eff423dc7e30e9ba0694cb41b05b1bec"
+        },
+        "actual": {
+          "bytes": 2115,
+          "sha256": "412bdcee4a5adcb6163bff3561cb4a07eff423dc7e30e9ba0694cb41b05b1bec"
+        },
+        "matches": true
+      },
+      "packages/shared/src/rosters.ts": {
+        "expected": {
+          "bytes": 4469,
+          "sha256": "0f544537f1ea1517345efd44bc3d4a4ee7d5bffd52a13cb084cc9693ec6f297d"
+        },
+        "actual": {
+          "bytes": 4469,
+          "sha256": "0f544537f1ea1517345efd44bc3d4a4ee7d5bffd52a13cb084cc9693ec6f297d"
+        },
+        "matches": true
+      },
+      "packages/shared/src/rules.ts": {
+        "expected": {
+          "bytes": 6532,
+          "sha256": "c5822091cdc711e53086a6f2f8649c53c1d709009649a0a65c005096774893b7"
+        },
+        "actual": {
+          "bytes": 6532,
+          "sha256": "c5822091cdc711e53086a6f2f8649c53c1d709009649a0a65c005096774893b7"
+        },
+        "matches": true
+      },
+      "packages/shared/src/sentencedHunt.ts": {
+        "expected": {
+          "bytes": 1184,
+          "sha256": "a606dd94905114562d14d13c09f6c59586a60a70e9a02da49285d886305ce561"
+        },
+        "actual": {
+          "bytes": 1184,
+          "sha256": "a606dd94905114562d14d13c09f6c59586a60a70e9a02da49285d886305ce561"
+        },
+        "matches": true
+      },
+      "packages/shared/src/signatureShares.ts": {
+        "expected": {
+          "bytes": 1078,
+          "sha256": "e6996931487dde9d4e3f71481a9da996f7500fbcd2148f7924ed730a78eba1a4"
+        },
+        "actual": {
+          "bytes": 1078,
+          "sha256": "e6996931487dde9d4e3f71481a9da996f7500fbcd2148f7924ed730a78eba1a4"
+        },
+        "matches": true
+      },
+      "packages/shared/src/signatures.ts": {
+        "expected": {
+          "bytes": 9370,
+          "sha256": "0a6befbb5a6fe9870b13a540d72235085c491668c8cae3674fa8faf89816e191"
+        },
+        "actual": {
+          "bytes": 9370,
+          "sha256": "0a6befbb5a6fe9870b13a540d72235085c491668c8cae3674fa8faf89816e191"
+        },
+        "matches": true
+      },
+      "packages/shared/src/status.ts": {
+        "expected": {
+          "bytes": 4682,
+          "sha256": "98a0570d7620e424d9d522356fe378a6af049109d8af0342be0ecff970310df7"
+        },
+        "actual": {
+          "bytes": 4682,
+          "sha256": "98a0570d7620e424d9d522356fe378a6af049109d8af0342be0ecff970310df7"
+        },
+        "matches": true
+      },
+      "packages/shared/src/styler.ts": {
+        "expected": {
+          "bytes": 7309,
+          "sha256": "314805a5a6cd9074763c9e555e48e7145c7ed7c87f265876c3712e4837abc51c"
+        },
+        "actual": {
+          "bytes": 7309,
+          "sha256": "314805a5a6cd9074763c9e555e48e7145c7ed7c87f265876c3712e4837abc51c"
+        },
+        "matches": true
+      },
+      "packages/shared/src/telemetry.ts": {
+        "expected": {
+          "bytes": 28458,
+          "sha256": "3310df401408a2a4a893a40febe40dda72afe20a13898e6f63620a127d2ba8e2"
+        },
+        "actual": {
+          "bytes": 28458,
+          "sha256": "3310df401408a2a4a893a40febe40dda72afe20a13898e6f63620a127d2ba8e2"
+        },
+        "matches": true
+      },
+      "packages/shared/src/terrain.ts": {
+        "expected": {
+          "bytes": 21947,
+          "sha256": "5ee4fe11e793f83f3d095720ba1156a186c5c7704e864f2cad74503ab13a07d6"
+        },
+        "actual": {
+          "bytes": 21947,
+          "sha256": "5ee4fe11e793f83f3d095720ba1156a186c5c7704e864f2cad74503ab13a07d6"
+        },
+        "matches": true
+      },
+      "packages/shared/src/traders.ts": {
+        "expected": {
+          "bytes": 2434,
+          "sha256": "6b0fb339c3988c253a4162bdd70ae0d3be13f2d066cbdf10168c5b6d1345d1d3"
+        },
+        "actual": {
+          "bytes": 2434,
+          "sha256": "6b0fb339c3988c253a4162bdd70ae0d3be13f2d066cbdf10168c5b6d1345d1d3"
+        },
+        "matches": true
+      },
+      "packages/shared/src/training.ts": {
+        "expected": {
+          "bytes": 1879,
+          "sha256": "8cf8332e7083fa801407bb2bfd911f2ca008029c1a7ad16cf6bd9bc6935ccc58"
+        },
+        "actual": {
+          "bytes": 1879,
+          "sha256": "8cf8332e7083fa801407bb2bfd911f2ca008029c1a7ad16cf6bd9bc6935ccc58"
+        },
+        "matches": true
+      },
+      "packages/shared/src/vision.ts": {
+        "expected": {
+          "bytes": 12457,
+          "sha256": "f9d026e5c3e8932502f147d6f2ce5d11625845faf07a9dec734b595db76521db"
+        },
+        "actual": {
+          "bytes": 12457,
+          "sha256": "f9d026e5c3e8932502f147d6f2ce5d11625845faf07a9dec734b595db76521db"
+        },
+        "matches": true
+      },
+      "packages/shared/src/walk.ts": {
+        "expected": {
+          "bytes": 15362,
+          "sha256": "0d33c95623a6d11fa21a9e58b308eed8cb0150b24d65b592877c5f9e2b5a0020"
+        },
+        "actual": {
+          "bytes": 15362,
+          "sha256": "0d33c95623a6d11fa21a9e58b308eed8cb0150b24d65b592877c5f9e2b5a0020"
+        },
+        "matches": true
+      },
+      "packages/shared/src/weapons.ts": {
+        "expected": {
+          "bytes": 15391,
+          "sha256": "2f22f037502fe63fae6b47f20408cfd35ebc72bfea081194ae8d18cfc21df99b"
+        },
+        "actual": {
+          "bytes": 15391,
+          "sha256": "2f22f037502fe63fae6b47f20408cfd35ebc72bfea081194ae8d18cfc21df99b"
+        },
+        "matches": true
+      },
+      "packages/shared/src/wheel.ts": {
+        "expected": {
+          "bytes": 3618,
+          "sha256": "e16388b4aa07cb1ab60c4ac5859879eaad0eb686f50e625a7917cad34e275466"
+        },
+        "actual": {
+          "bytes": 3618,
+          "sha256": "e16388b4aa07cb1ab60c4ac5859879eaad0eb686f50e625a7917cad34e275466"
+        },
+        "matches": true
+      },
+      "packages/shared/src/zoneStyle/context.ts": {
+        "expected": {
+          "bytes": 30206,
+          "sha256": "8a87c8c930a11c2f1c83b3afe9384586a24f41690dd77a78f1c35b0f69a19dfb"
+        },
+        "actual": {
+          "bytes": 30206,
+          "sha256": "8a87c8c930a11c2f1c83b3afe9384586a24f41690dd77a78f1c35b0f69a19dfb"
+        },
+        "matches": true
+      },
+      "packages/shared/src/zoneStyle/features.ts": {
+        "expected": {
+          "bytes": 40831,
+          "sha256": "f0d987fc114394e514c0b9e194b219aa1f8f3429a0fa141c7b6181e6d87ee983"
+        },
+        "actual": {
+          "bytes": 40831,
+          "sha256": "f0d987fc114394e514c0b9e194b219aa1f8f3429a0fa141c7b6181e6d87ee983"
+        },
+        "matches": true
+      },
+      "packages/shared/src/zoneStyle/gallows.ts": {
+        "expected": {
+          "bytes": 37047,
+          "sha256": "0edb95a89d06fc6b0f60a6dc85da41613177362679c03e2073f2be24bbe186e4"
+        },
+        "actual": {
+          "bytes": 37047,
+          "sha256": "0edb95a89d06fc6b0f60a6dc85da41613177362679c03e2073f2be24bbe186e4"
+        },
+        "matches": true
+      },
+      "packages/shared/src/zoneStyle/hook.ts": {
+        "expected": {
+          "bytes": 3970,
+          "sha256": "56eeba0fb5019dc5dd02e8fd76059c6f82ede6cfa2aa46c763ecf63b619bc668"
+        },
+        "actual": {
+          "bytes": 3970,
+          "sha256": "56eeba0fb5019dc5dd02e8fd76059c6f82ede6cfa2aa46c763ecf63b619bc668"
+        },
+        "matches": true
+      },
+      "packages/shared/src/zoneStyle/index.ts": {
+        "expected": {
+          "bytes": 1629,
+          "sha256": "6ada1628cfd571cfda3616155e0dc0a047976d9056e467b521c68a6a44f6d673"
+        },
+        "actual": {
+          "bytes": 1629,
+          "sha256": "6ada1628cfd571cfda3616155e0dc0a047976d9056e467b521c68a6a44f6d673"
+        },
+        "matches": true
+      },
+      "packages/shared/src/zoneStyle/kit.ts": {
+        "expected": {
+          "bytes": 17138,
+          "sha256": "dc69161c080b9474a873d12ac194d876b78285a1ae2cdb7eb24cb86b30337e16"
+        },
+        "actual": {
+          "bytes": 17138,
+          "sha256": "dc69161c080b9474a873d12ac194d876b78285a1ae2cdb7eb24cb86b30337e16"
+        },
+        "matches": true
+      },
+      "packages/shared/src/zoneStyle/landmarks.ts": {
+        "expected": {
+          "bytes": 30532,
+          "sha256": "ad18e32099ceafc1b88fa33a2225ef2c02508ac6fa4a58c1a91473f0be4c6587"
+        },
+        "actual": {
+          "bytes": 30532,
+          "sha256": "ad18e32099ceafc1b88fa33a2225ef2c02508ac6fa4a58c1a91473f0be4c6587"
+        },
+        "matches": true
+      },
+      "packages/shared/src/zoneStyle/propKinds.ts": {
+        "expected": {
+          "bytes": 809,
+          "sha256": "6a139d0727ab392512d427507ee3b027f67860734d56eea7db8085add24003b9"
+        },
+        "actual": {
+          "bytes": 809,
+          "sha256": "6a139d0727ab392512d427507ee3b027f67860734d56eea7db8085add24003b9"
+        },
+        "matches": true
+      },
+      "packages/shared/src/zoneStyle/rime.ts": {
+        "expected": {
+          "bytes": 40601,
+          "sha256": "d25714c3b647392a03662b33082b48de2c7ec2933755501fe55260c2a1daa19a"
+        },
+        "actual": {
+          "bytes": 40601,
+          "sha256": "d25714c3b647392a03662b33082b48de2c7ec2933755501fe55260c2a1daa19a"
+        },
+        "matches": true
+      },
+      "packages/shared/src/zoneStyle/sanctum.ts": {
+        "expected": {
+          "bytes": 24977,
+          "sha256": "dd2da40c09a1a5dc5fdbd6e45b568d2b4ada831a0e195e86fd0ab64f49b7babd"
+        },
+        "actual": {
+          "bytes": 24977,
+          "sha256": "dd2da40c09a1a5dc5fdbd6e45b568d2b4ada831a0e195e86fd0ab64f49b7babd"
+        },
+        "matches": true
+      },
+      "packages/shared/src/zoneStyle/scale.ts": {
+        "expected": {
+          "bytes": 1361,
+          "sha256": "b8e055707f98dfa104233c1ceebd99358b9b3b5ae8e9fe001d9174806ca6a07e"
+        },
+        "actual": {
+          "bytes": 1361,
+          "sha256": "b8e055707f98dfa104233c1ceebd99358b9b3b5ae8e9fe001d9174806ca6a07e"
+        },
+        "matches": true
+      },
+      "packages/shared/src/zoneStyle/scorch.ts": {
+        "expected": {
+          "bytes": 51569,
+          "sha256": "52b324dd4dfc9a77986a9ffdcb9704041a2d3608e6e61e9af98b0f697fd2f02a"
+        },
+        "actual": {
+          "bytes": 51569,
+          "sha256": "52b324dd4dfc9a77986a9ffdcb9704041a2d3608e6e61e9af98b0f697fd2f02a"
+        },
+        "matches": true
+      },
+      "packages/shared/src/zoneStyle/styleZones.ts": {
+        "expected": {
+          "bytes": 10113,
+          "sha256": "9c328903541ae1e15ca473b288c788b5a2ebb55e8974a639c6215c7c804cbc36"
+        },
+        "actual": {
+          "bytes": 10113,
+          "sha256": "9c328903541ae1e15ca473b288c788b5a2ebb55e8974a639c6215c7c804cbc36"
+        },
+        "matches": true
+      },
+      "packages/shared/src/zoneStyle/types.ts": {
+        "expected": {
+          "bytes": 15681,
+          "sha256": "193b6f57c1e76ea6f8249a316fc8898191682937493fbbce7beb3a0ffb26c33e"
+        },
+        "actual": {
+          "bytes": 15681,
+          "sha256": "193b6f57c1e76ea6f8249a316fc8898191682937493fbbce7beb3a0ffb26c33e"
+        },
+        "matches": true
+      },
+      "packages/shared/src/zoneStyle/warren.ts": {
+        "expected": {
+          "bytes": 30968,
+          "sha256": "bdb057ebaf226fbe803403cc338d38f50c154c276a30fcb652b5229741a9ddcc"
+        },
+        "actual": {
+          "bytes": 30968,
+          "sha256": "bdb057ebaf226fbe803403cc338d38f50c154c276a30fcb652b5229741a9ddcc"
+        },
+        "matches": true
+      },
+      "packages/shared/src/zones.ts": {
+        "expected": {
+          "bytes": 49948,
+          "sha256": "aa91d0c2b8d7b1957d6e28e29289c9dfa58ac6d4c8475b647445370fbcaeb814"
+        },
+        "actual": {
+          "bytes": 49948,
+          "sha256": "aa91d0c2b8d7b1957d6e28e29289c9dfa58ac6d4c8475b647445370fbcaeb814"
+        },
+        "matches": true
+      }
+    },
+    "configFiles": {
+      "package-lock.json": {
+        "expected": {
+          "bytes": 153409,
+          "sha256": "991869bdfbbefb6874220500197c61db302a4d2b2603dfc2288fd7032ce1d481"
+        },
+        "actual": {
+          "bytes": 153409,
+          "sha256": "991869bdfbbefb6874220500197c61db302a4d2b2603dfc2288fd7032ce1d481"
+        },
+        "matches": true
+      },
+      "package.json": {
+        "expected": {
+          "bytes": 2247,
+          "sha256": "9da8ab00050db3ec14c083365ab0c3a5b8986e38fd13c086b2913249d531422c"
+        },
+        "actual": {
+          "bytes": 2247,
+          "sha256": "9da8ab00050db3ec14c083365ab0c3a5b8986e38fd13c086b2913249d531422c"
+        },
+        "matches": true
+      },
+      "tsconfig.base.json": {
+        "expected": {
+          "bytes": 410,
+          "sha256": "017575ec3101f44df43b5a7cc850779582650d9e01a2090b7e311b213b98ef88"
+        },
+        "actual": {
+          "bytes": 410,
+          "sha256": "017575ec3101f44df43b5a7cc850779582650d9e01a2090b7e311b213b98ef88"
+        },
+        "matches": true
+      },
+      "packages/server/package.json": {
+        "expected": {
+          "bytes": 981,
+          "sha256": "d4965c850237876a64a02cd1c7c554f1a64d97392344cae3b63d4bd688e2f7b8"
+        },
+        "actual": {
+          "bytes": 981,
+          "sha256": "d4965c850237876a64a02cd1c7c554f1a64d97392344cae3b63d4bd688e2f7b8"
+        },
+        "matches": true
+      },
+      "packages/server/tsconfig.json": {
+        "expected": {
+          "bytes": 153,
+          "sha256": "38a209200ba0dde3bbaeee8df1e29755aa35b63c588367da486b31a83b90cd15"
+        },
+        "actual": {
+          "bytes": 153,
+          "sha256": "38a209200ba0dde3bbaeee8df1e29755aa35b63c588367da486b31a83b90cd15"
+        },
+        "matches": true
+      },
+      "packages/shared/package.json": {
+        "expected": {
+          "bytes": 427,
+          "sha256": "6e9c040348c50e0ad5043ec4cb9b4206f68f29cf4eeb4dec5f635f37a6f87f35"
+        },
+        "actual": {
+          "bytes": 427,
+          "sha256": "6e9c040348c50e0ad5043ec4cb9b4206f68f29cf4eeb4dec5f635f37a6f87f35"
+        },
+        "matches": true
+      },
+      "packages/shared/tsconfig.json": {
+        "expected": {
+          "bytes": 124,
+          "sha256": "e81b194f96f35e0d1e9e8069998a30740b08703e085bb7d0f92922d7b6d06193"
+        },
+        "actual": {
+          "bytes": 124,
+          "sha256": "e81b194f96f35e0d1e9e8069998a30740b08703e085bb7d0f92922d7b6d06193"
+        },
+        "matches": true
+      },
+      "packages/client/package.json": {
+        "expected": {
+          "bytes": 430,
+          "sha256": "05f2c477239869cf8879ea6b94ca490aa9717ba28e58712bb6bbe8cb0313b3e3"
+        },
+        "actual": {
+          "bytes": 430,
+          "sha256": "05f2c477239869cf8879ea6b94ca490aa9717ba28e58712bb6bbe8cb0313b3e3"
+        },
+        "matches": true
+      },
+      "packages/client/tsconfig.json": {
+        "expected": {
+          "bytes": 149,
+          "sha256": "c101d39672c0d5e91b35160566e6e85bae9fe7490b694c729b5bb4fe12daf88a"
+        },
+        "actual": {
+          "bytes": 149,
+          "sha256": "c101d39672c0d5e91b35160566e6e85bae9fe7490b694c729b5bb4fe12daf88a"
+        },
+        "matches": true
+      }
+    },
+    "compatibilityCorpora": {
+      "parity/policy/bot-fight/source.json": {
+        "expected": {
+          "bytes": 467672,
+          "sha256": "197fe5d24b6b34822a3ef76e2999d422e6127bbda1e8dfda0ba0af3ee5e2785e"
+        },
+        "actual": {
+          "bytes": 467672,
+          "sha256": "197fe5d24b6b34822a3ef76e2999d422e6127bbda1e8dfda0ba0af3ee5e2785e"
+        },
+        "matches": true
+      },
+      "parity/policy/bot-sd/source.json": {
+        "expected": {
+          "bytes": 418550,
+          "sha256": "55e8565e6a896b91deb49cdd8e290f568dec8013a1af4ac3eb72aec56bb65f7c"
+        },
+        "actual": {
+          "bytes": 418550,
+          "sha256": "55e8565e6a896b91deb49cdd8e290f568dec8013a1af4ac3eb72aec56bb65f7c"
+        },
+        "matches": true
+      },
+      "parity/policy/bot-reflex/source.json": {
+        "expected": {
+          "bytes": 401512,
+          "sha256": "af347b767a11a12613a7bfe66dbcc4964e30d419e6fed7b007103a56015f7411"
+        },
+        "actual": {
+          "bytes": 401512,
+          "sha256": "af347b767a11a12613a7bfe66dbcc4964e30d419e6fed7b007103a56015f7411"
+        },
+        "matches": true
+      },
+      "parity/policy/bot-core.json": {
+        "expected": {
+          "bytes": 261273,
+          "sha256": "0f4e4be52d9eff432f19cfe3b9942976d3aae9e1a0ec1ec7760f45335f4b25be"
+        },
+        "actual": {
+          "bytes": 261273,
+          "sha256": "0f4e4be52d9eff432f19cfe3b9942976d3aae9e1a0ec1ec7760f45335f4b25be"
+        },
+        "matches": true
+      }
+    },
+    "toolFiles": {
+      "tools/bot-private-tactics-fixtures/builders.mts": {
+        "expected": {
+          "bytes": 3237,
+          "sha256": "a1f938ff10ea6adf47755594b4606fac0b27c504fc0f58515700ea7cd24eff29"
+        },
+        "actual": {
+          "bytes": 3237,
+          "sha256": "a1f938ff10ea6adf47755594b4606fac0b27c504fc0f58515700ea7cd24eff29"
+        },
+        "matches": true
+      },
+      "tools/bot-private-tactics-fixtures/capture.mts": {
+        "expected": {
+          "bytes": 6222,
+          "sha256": "3c821cfe979e89ff74e7734ee916f677a13469485a7811dff363513d3f6d549e"
+        },
+        "actual": {
+          "bytes": 6222,
+          "sha256": "3c821cfe979e89ff74e7734ee916f677a13469485a7811dff363513d3f6d549e"
+        },
+        "matches": true
+      },
+      "tools/bot-private-tactics-fixtures/capture.sh": {
+        "expected": {
+          "bytes": 1090,
+          "sha256": "076ba45f97b0d3ad5c898b93d613ab9c4fb55afed7785a28018a4f199977b0f6"
+        },
+        "actual": {
+          "bytes": 1090,
+          "sha256": "076ba45f97b0d3ad5c898b93d613ab9c4fb55afed7785a28018a4f199977b0f6"
+        },
+        "matches": true
+      },
+      "tools/bot-private-tactics-fixtures/cases.mts": {
+        "expected": {
+          "bytes": 28350,
+          "sha256": "25d1e601ac036f95d44a7a4045c95860655e39d4492cbf0dbc6dc23eb8ea4e44"
+        },
+        "actual": {
+          "bytes": 28350,
+          "sha256": "25d1e601ac036f95d44a7a4045c95860655e39d4492cbf0dbc6dc23eb8ea4e44"
+        },
+        "matches": true
+      },
+      "tools/bot-private-tactics-fixtures/checks.mts": {
+        "expected": {
+          "bytes": 7159,
+          "sha256": "38bd8924cc153a7e8f58f992152c98881dd5b603fb2fb37d0cc8428f9db3251b"
+        },
+        "actual": {
+          "bytes": 7159,
+          "sha256": "38bd8924cc153a7e8f58f992152c98881dd5b603fb2fb37d0cc8428f9db3251b"
+        },
+        "matches": true
+      },
+      "tools/bot-private-tactics-fixtures/codec.mts": {
+        "expected": {
+          "bytes": 1885,
+          "sha256": "18af593cc383869260002af50b52f74cec9f7ba94f0ebaf842fe9477ad48adc2"
+        },
+        "actual": {
+          "bytes": 1885,
+          "sha256": "18af593cc383869260002af50b52f74cec9f7ba94f0ebaf842fe9477ad48adc2"
+        },
+        "matches": true
+      },
+      "tools/bot-private-tactics-fixtures/controls.mjs": {
+        "expected": {
+          "bytes": 7802,
+          "sha256": "1d726e9394893693917e8cd4b0333661a884704219f02b4ee75e42b78f7c0596"
+        },
+        "actual": {
+          "bytes": 7802,
+          "sha256": "1d726e9394893693917e8cd4b0333661a884704219f02b4ee75e42b78f7c0596"
+        },
+        "matches": true
+      },
+      "tools/bot-private-tactics-fixtures/controls.sh": {
+        "expected": {
+          "bytes": 990,
+          "sha256": "e6ebbb05616bc9114bf0aab26039f31226cbe4e4966ec59835009a923f0265fd"
+        },
+        "actual": {
+          "bytes": 990,
+          "sha256": "e6ebbb05616bc9114bf0aab26039f31226cbe4e4966ec59835009a923f0265fd"
+        },
+        "matches": true
+      },
+      "tools/bot-private-tactics-fixtures/manifest.mjs": {
+        "expected": {
+          "bytes": 1988,
+          "sha256": "61dc28dc23bd3b7a768ba6f755342a0f4d61893d812038873926646ff9a8c3cc"
+        },
+        "actual": {
+          "bytes": 1988,
+          "sha256": "61dc28dc23bd3b7a768ba6f755342a0f4d61893d812038873926646ff9a8c3cc"
+        },
+        "matches": true
+      },
+      "tools/bot-private-tactics-fixtures/README.md": {
+        "expected": {
+          "bytes": 4414,
+          "sha256": "46948b013efb0f5998815273fe8e8055d23685da8b3578ae7d7eb6ce6af87ee5"
+        },
+        "actual": {
+          "bytes": 4414,
+          "sha256": "46948b013efb0f5998815273fe8e8055d23685da8b3578ae7d7eb6ce6af87ee5"
+        },
+        "matches": true
+      },
+      "tools/bot-private-tactics-fixtures/runner.mts": {
+        "expected": {
+          "bytes": 5725,
+          "sha256": "50a561fdca4334f1b397a8b49ade24b8ab11abe4b766cb6fa95917f6a068a356"
+        },
+        "actual": {
+          "bytes": 5725,
+          "sha256": "50a561fdca4334f1b397a8b49ade24b8ab11abe4b766cb6fa95917f6a068a356"
+        },
+        "matches": true
+      },
+      "tools/bot-private-tactics-fixtures/runtime.mts": {
+        "expected": {
+          "bytes": 1059,
+          "sha256": "84688275b6f09603e7c346e8927a24c339e522e867c22ab8118baad237df296d"
+        },
+        "actual": {
+          "bytes": 1059,
+          "sha256": "84688275b6f09603e7c346e8927a24c339e522e867c22ab8118baad237df296d"
+        },
+        "matches": true
+      },
+      "tools/bot-private-tactics-fixtures/verify.mjs": {
+        "expected": {
+          "bytes": 15982,
+          "sha256": "6f49b33da32ddb7b4143a858fd64bc91a218690a657fdf1d43aff96e1a7b1227"
+        },
+        "actual": {
+          "bytes": 15982,
+          "sha256": "6f49b33da32ddb7b4143a858fd64bc91a218690a657fdf1d43aff96e1a7b1227"
+        },
+        "matches": true
+      }
+    },
+    "corpus": {
+      "parity/policy/bot-private-tactics/source.json": {
+        "expected": {
+          "bytes": 11656923,
+          "sha256": "5d27d1b4522d386d4ede5f3064a28660dedff43e32a24ade264f4512e30fcfa8"
+        },
+        "actual": {
+          "bytes": 11656923,
+          "sha256": "5d27d1b4522d386d4ede5f3064a28660dedff43e32a24ade264f4512e30fcfa8"
+        },
+        "matches": true
+      },
+      "parity/policy/bot-private-tactics/coverage.json": {
+        "expected": {
+          "bytes": 1069183,
+          "sha256": "b43c64fea6c6da17faaccf578a1e4d6614c96e352f5f951fefafcca95ae68f77"
+        },
+        "actual": {
+          "bytes": 1069183,
+          "sha256": "b43c64fea6c6da17faaccf578a1e4d6614c96e352f5f951fefafcca95ae68f77"
+        },
+        "matches": true
+      },
+      "parity/policy/bot-private-tactics/controls.json": {
+        "expected": {
+          "bytes": 218643,
+          "sha256": "d9696bcd50de310224b947156948da6bf360cced93f910a7454cd2030c2202c2"
+        },
+        "actual": {
+          "bytes": 218643,
+          "sha256": "d9696bcd50de310224b947156948da6bf360cced93f910a7454cd2030c2202c2"
+        },
+        "matches": true
+      }
+    }
+  },
+  "mapChecks": [
+    {
+      "id": "open",
+      "expectedSha256": "863767c544d41970b2b360f3ce7ca33027250ab056caef2fc48909e489f41523",
+      "actualSha256": "863767c544d41970b2b360f3ce7ca33027250ab056caef2fc48909e489f41523",
+      "matches": true
+    },
+    {
+      "id": "wall",
+      "expectedSha256": "5bafc3856a5e16a41545439ed11dc2ea5a8f8cbe849935ab52b76a46a3c82d14",
+      "actualSha256": "5bafc3856a5e16a41545439ed11dc2ea5a8f8cbe849935ab52b76a46a3c82d14",
+      "matches": true
+    },
+    {
+      "id": "fence",
+      "expectedSha256": "2ac43057626b1e497157fe66f940f55d394cb4c81e7b6419fff2bf014141243f",
+      "actualSha256": "2ac43057626b1e497157fe66f940f55d394cb4c81e7b6419fff2bf014141243f",
+      "matches": true
+    },
+    {
+      "id": "detour",
+      "expectedSha256": "dfc5f6a6a773754063a3bf37a6709cccb715737ee42707200e4550a322a5206f",
+      "actualSha256": "dfc5f6a6a773754063a3bf37a6709cccb715737ee42707200e4550a322a5206f",
+      "matches": true
+    },
+    {
+      "id": "generated7",
+      "expectedSha256": "72ae180cdf7de9b18e4662a66be8861e978fac37e7bfb840d10a96750359b313",
+      "actualSha256": "72ae180cdf7de9b18e4662a66be8861e978fac37e7bfb840d10a96750359b313",
+      "matches": true
+    }
+  ],
+  "mismatchCount": 0
+}

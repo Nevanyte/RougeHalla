@@ -1,0 +1,23 @@
+# command: cargo test -p rh-server --lib --offline --locked -j 1 room::quest_bridge_tests::quest_room_earned_shards_completion_delivers_exact_owner_and_foreign_toasts -- --nocapture
+# cwd: /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-quest-room-delivery
+# HEAD: 9ee84dfe3fa35cfdefc4b6cabaf4b9091db6a24c
+# env: CARGO_INCREMENTAL=0 CARGO_TARGET_DIR=target-deepseek-quest-room-delivery CARGO_NET_OFFLINE=true CARGO_BUILD_JOBS=1
+# PATH: /Users/nevinmckinnon/.cargo/bin first
+# cargo: cargo 1.97.0 (c980f4866 2026-06-30)
+# rustc: rustc 1.97.0 (2d8144b78 2026-07-07)
+# started: 2026-11-10T11:32:54Z
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.18s
+     Running unittests src/lib.rs (target-deepseek-quest-room-delivery/debug/deps/rh_server-64c4598d12265375)
+
+running 1 test
+quest room proof: accepted shards-frost handle 9 at native tick 3
+quest room proof: pickup 1/3 delivered at native tick 677
+quest room proof: pickup 2/3 delivered at native tick 679
+quest room proof: pickup 3/3 delivered at native tick 700
+quest room proof: native completion tick 1386 (69300 ms), quest handle 9, delivered pickup handles [18, 19, 20], owner toasts ["+10 GV (quest)", "Rime Stalker: +10 kill stacks · +12.5 Defense total", "Quest complete: Shards of the Watch", "name0 completed quest: Shards of the Watch"], foreign toasts ["name0 completed quest: Shards of the Watch"]
+test room::quest_bridge_tests::quest_room_earned_shards_completion_delivers_exact_owner_and_foreign_toasts ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 222 filtered out; finished in 4.46s
+
+# exit: 0
+# finished: 2026-11-10T11:32:59Z

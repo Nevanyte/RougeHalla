@@ -121,7 +121,9 @@ impl RoomPathService {
     fn finite(a: Vec2, b: Vec2) -> bool {
         (a.x + a.y + b.x + b.y).is_finite()
     }
-    fn trip(&mut self, from: Vec2, to: Vec2) -> Option<Trip> {
+    /// The one trip transition shared by the owned and borrowed entries. A fresh cache hit answers before any allowance is
+    /// taken; only a miss selects the supplied borrowed allowance (or the owned budget) at the existing take point.
+    fn trip(&mut self, from: Vec2, to: Vec2, borrowed: Option<&mut PathBudget>) -> Option<Trip> {
         let key = self.key(from, to);
         let cached = self
             .trips
@@ -134,7 +136,11 @@ impl RoomPathService {
                 return Some(t.clone());
             }
         }
-        if self.budget.take() {
+        let granted = match borrowed {
+            Some(budget) => budget.take(),
+            None => self.budget.take(),
+        };
+        if granted {
             self.stats.searches += 1;
             let path = self.finder.find_path(&self.map, from, to, PLAYER_RADIUS);
             let fresh = if path.is_empty() {
@@ -166,13 +172,34 @@ impl RoomPathService {
         self.stats.fallbacks += 1;
         None
     }
+    /// The walking answer for the service's own budget.
     pub fn walk(&mut self, from: Vec2, to: Vec2) -> Option<WalkAnswer> {
+        self.walk_with(from, to, None)
+    }
+    /// Walk for a caller-owned room allowance (P-BOT-PATH-BUDGET-1): the allowance is borrowed for this call only, never
+    /// copied into the service, never replenished and never swapped for the owned budget. The owned budget is untouched.
+    #[cfg_attr(not(test), allow(dead_code))] // the Brain path adapter is a later packet; the shared-budget tests use it now
+    pub(crate) fn walk_with_budget(
+        &mut self,
+        from: Vec2,
+        to: Vec2,
+        budget: &mut PathBudget,
+    ) -> Option<WalkAnswer> {
+        self.walk_with(from, to, Some(budget))
+    }
+    fn walk_with(
+        &mut self,
+        from: Vec2,
+        to: Vec2,
+        borrowed: Option<&mut PathBudget>,
+    ) -> Option<WalkAnswer> {
         if !Self::finite(from, to) {
             return None;
         }
-        match self.trip(from, to) {
+        match self.trip(from, to, borrowed) {
             None => Some(WalkAnswer {
-                dist: rh_sim::math::hypot(to.x - from.x, to.y - from.y) * STRAIGHT_FACTOR,
+                dist: rh_sim::mapgen::certify::source_hypot(to.x - from.x, to.y - from.y)
+                    * STRAIGHT_FACTOR,
                 exact: false,
             }),
             Some(t) => t.path.map(|_| WalkAnswer {
@@ -181,11 +208,31 @@ impl RoomPathService {
             }),
         }
     }
+    /// The path for the service's own budget.
     pub fn path(&mut self, from: Vec2, to: Vec2) -> Option<Vec<Vec2>> {
+        self.path_with(from, to, None)
+    }
+    /// Path for a caller-owned room allowance (P-BOT-PATH-BUDGET-1), on the same borrowed-for-this-call terms as
+    /// [`RoomPathService::walk_with_budget`].
+    #[cfg_attr(not(test), allow(dead_code))] // the Brain path adapter is a later packet; the shared-budget tests use it now
+    pub(crate) fn path_with_budget(
+        &mut self,
+        from: Vec2,
+        to: Vec2,
+        budget: &mut PathBudget,
+    ) -> Option<Vec<Vec2>> {
+        self.path_with(from, to, Some(budget))
+    }
+    fn path_with(
+        &mut self,
+        from: Vec2,
+        to: Vec2,
+        borrowed: Option<&mut PathBudget>,
+    ) -> Option<Vec<Vec2>> {
         if !Self::finite(from, to) {
             return None;
         }
-        self.trip(from, to).and_then(|t| t.path)
+        self.trip(from, to, borrowed).and_then(|t| t.path)
     }
     pub fn los(&self, a: Vec2, b: Vec2) -> bool {
         has_line_of_sight(&self.map, a, b, MASK_SIGHT)
@@ -206,8 +253,11 @@ pub fn path_length(from: Vec2, points: &[Vec2]) -> f64 {
     let mut total = 0.;
     let mut at = from;
     for p in points {
-        total += rh_sim::math::hypot(at.x - p.x, at.y - p.y);
+        total += rh_sim::mapgen::certify::source_hypot(at.x - p.x, at.y - p.y);
         at = *p;
     }
     total
 }
+
+#[cfg(test)]
+mod shared_budget_tests;

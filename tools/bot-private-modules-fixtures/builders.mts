@@ -1,0 +1,23 @@
+import{shared,mapgen}from'./runtime.mts';
+export const N=100000,ME={x:1008,y:1008},at=(x=0,y=0)=>({x:ME.x+x,y:ME.y+y});
+function arena(kind='open'){const w=64,h=64,tiles=new Uint8Array(w*h),terrain=new Uint8Array(w*h);for(let y=0;y<h;y++)for(let x=0;x<w;x++){if(!x||!y||x===w-1||y===h-1||kind==='wall'&&x===40||kind==='detour'&&x===40&&y>5&&y<58)tiles[y*w+x]=1;if(['ember','bog','ice'].includes(kind)&&Math.abs(x-31)<=2&&Math.abs(y-31)<=2)terrain[y*w+x]={ember:4,bog:5,ice:6}[kind]!;if(kind==='light'&&x===34&&y===31)terrain[y*w+x]=7;}return shared.mapFromTiles(w,h,tiles,0,terrain);}
+export const MAPS:any=Object.fromEntries(['open','wall','detour','ember','bog','ice','light'].map(n=>[n,arena(n)]));
+MAPS.generated7=mapgen.generateMap(7,undefined,{decor:false});
+export const features=(o:any={})=>({messageTypes:['move','stop','target','attack','release','swap','pickup','cast','plan','choose','useConsumable'],wishes:true,statusEffects:true,fields:true,planning:true,chests:true,skills:false,relics:false,camps:true,hazards:true,...o});
+export const self=(o:any={})=>({id:'me',name:'Me',...ME,facing:0,status:'alive',hp:100,maxHp:100,barrier:0,faction:'fire',weapons:['sword',null],slot:0,attackTarget:null,drawStartedAt:0,readyAt:0,immuneUntil:0,sig:0,brand:0,power:0,asMult:1,windupMult:1,speedMult:1,kills:0,mobKills:0,gv:0,bounty:0,moveSeq:0,...o});
+export const fighter=(id='foe',dx=100,o:any={})=>({id,name:id,bot:false,...at(dx),facing:Math.PI,status:'alive',hpFrac:1,barrierFrac:0,faction:'frost',inHand:'sword',drawStartedAt:0,bounty:0,immune:false,sig:0,brand:0,targetable:true,vx:0,vy:0,dist:Math.abs(dx),los:true,tint:0,central:true,...o});
+export const mob=(id='mob1',dx=100,o:any={})=>({id,kind:'mob',name:'Pardoner',type:'pardoner',faction:'sentenced',...at(dx),facing:Math.PI,status:'alive',hpFrac:1,inHand:'sword',drawStartedAt:0,sig:0,brand:0,vx:0,vy:0,dist:Math.abs(dx),los:true,central:true,...o});
+export const event=(kind:string,t=N,o:any={})=>({kind,t,at:null,...o});
+export const hit=(t=N,by:any='foe',o:any={})=>event('hit',t,{id:'me',by,amount:10,weapon:'sword',sig:null,...o});
+export const wish=(id='swarm',o:any={})=>({ability:id,def:shared.ABILITIES[id],rank:1,readyAt:0,casting:false,...o});
+export const chest=(id='box',dx=300,o:any={})=>({id,...at(dx),expiresAt:N+shared.CHEST_SECONDS*1000-1000,options:null,takenBy:[],picked:false,...o});
+export const hunterChest=(id='box',dx=300,o:any={})=>({id,kind:'reward',...at(dx),expiresAt:N+shared.CHEST_SECONDS*1000-1000,options:['ad1','ap1'],takenBy:['',''],pickers:[],...o});
+export const chestSelf=(o:any={})=>({id:'me',...ME,faction:'fire',weapons:['sword',null],slot:0,risk:0.5,build:{},...o});
+export const hunterInput=(now=N,chests=[hunterChest()],o:any={})=>({now,serverTime:now,self:chestSelf(),chests,walk:{kind:'direct',factor:1},sight:{kind:'source'},fighting:false,retreating:false,inColiseum:false,...o});
+export const percept=(now=N,o:any={})=>({now,viewT:o.viewT??now-30,self:self(o.self),hud:{phase:'active',training:false,lobbyEndsAt:0,raidStartedAt:0,patienceEndsAt:N+100000,suddenDeathAt:0,inColiseum:false,gatesLocked:false,startedWith:6,alive:6,playerCount:6,minPlayers:2,winner:'',...o.hud},fighters:o.fighters??[],mobs:o.mobs??[],containers:o.containers??[],projectiles:o.projectiles??[],minimap:{t:now,mobs:[],gatesLocked:false,...o.minimap},events:o.events??[],extras:o.extras??{},features:features(o.features)});
+export const observe=(now=N,o:any={},cfg='a')=>({method:'observe',cfg,input:percept(now,o)});
+export const hook=(module:string,name:string,extra:any={})=>({method:'hook',module,name,cfg:'a',...extra});
+export const tick=(module:string,now=N,scene:any={},calls:any[]=['observe','goals','intents'],extra:any={})=>[observe(now,scene,extra.cfg??'a'),...calls.map(name=>hook(module,name,{goal:{kind:'idle'},...extra}))];
+export const hunter=(input:any)=>({method:'hunter.decide',cfg:'a',input});
+export const sent=(at:number,type:string,msg:any={},cfg='a')=>({method:'noteSent',cfg,input:{at,cmd:{type,msg},intent:type==='target'?'lock':type,priority:2,stimulus:null}});
+export const planEvent=(t=N,msg:any={})=>event('private',t,{type:'plan',msg:{endsAt:N+45000,spawns:[0,1],taken:[false,false],pick:-1,boons:['vigor','haste'],boon:-1,...msg}});

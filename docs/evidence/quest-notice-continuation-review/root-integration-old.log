@@ -1,0 +1,10 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
+     Running unittests src/lib.rs (target/root-strategy-notice-admission/build/debug/deps/rh_sim-11f7df6587fb64ad)
+
+running 1 test
+parcel-feedback: source notices 15 / excluded 7 / events 22; native notices 15 / excluded 6 / events 21; previews 1
+run-end-silent-close: source notices 4 / excluded 14 / events 18; native notices 4 / excluded 14 / events 18; previews 0
+test quests::notices_source_tests::selected_parcel_and_run_end_cases_match_ordered_toast_gv_notices ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 852 filtered out; finished in 2.51s
+

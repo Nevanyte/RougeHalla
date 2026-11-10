@@ -1,0 +1,17 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running tests/hash_coverage.rs (/Users/nevinmckinnon/.codex/tools/roguehalla-backend-20261109/target-quests/debug/deps/hash_coverage-a49e69b4003ed351)
+
+running 10 tests
+test a_deferred_queue_and_every_roster_name_are_hashed ... ok
+test derived_blink_ring_clone_and_restore_preserve_actual_locked_casts ... ok
+test every_serialized_leaf_of_a_match_changes_the_state_hash ... ok
+test in_flight_projectile_leaves_are_hashed_or_validated ... ok
+test native29_declared_seeds_roundtrip_and_ordered_tax_vectors_change_hash ... ok
+test native29_produced_hints_and_all_three_config_tags_roundtrip ... ok
+test native29_real_pve_brain_roundtrips_and_role_presence_is_validated ... ok
+test native29_used_hold_bit_requires_its_fold_but_inert_bit_is_hashed ... ok
+test the_layout_check_accepts_real_matches ... ok
+test the_serde_skips_are_exactly_the_documented_ones ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 776.88s
+
