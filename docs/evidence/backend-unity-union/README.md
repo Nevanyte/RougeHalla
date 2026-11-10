@@ -77,3 +77,40 @@ Named suites, all in the passing workspace run: `abilities::source_tests::frozen
 
 - `docs/MIGRATION.md` and `docs/CONTRACTS.md` still carry the backend lane's identity text (14/30/24/22/16, `fa16f195dc22ef69`) and Unity's; those are coordinator-owned status records and were not edited.
 - The `fmt` failure and the `check-first-playable` failure are inherited from the Unity branch.
+
+## Second integration round: private Brain, host bundle, fmt, Archetypes composition proofs
+
+Same environment as above (`CARGO_TARGET_DIR=target-union CARGO_INCREMENTAL=0`, `LC_ALL=en_US.UTF-8`, PG 16.15 from `tools/pgtest/start.sh`).
+
+### Merges
+
+| Merge | Result |
+|---|---|
+| `codex/deepseek-private-brain` `15b41709` (`--no-ff`) | Clean, no conflicts. Follow-up doc-only commit: `ReplayedOp.trace_exact` in `crates/rh-policy/src/bots/temporal_percept/brain/tests.rs` now describes the exact global ordered transcript comparator and keeps only the declared plain-object key-order limitation. After it: `cargo test -p rh-policy --lib` 440 passed / 0 failed (176 s); `temporal_percept::brain` filter 38 passed. |
+| `codex/morning-host-bundle` `1f15f608` (`--no-ff`) | Clean, no conflicts. `docs/evidence/morning-host-bundle/manifest.json`: only the README row was stale (of 8 rows, the other 7 matched bytes and SHA-256); that row is now 5199 bytes with the on-disk SHA-256. `python3 -B -m unittest discover -s hosting/technical-demo -p 'test_*.py'`: 27 tests OK. |
+| `cargo fmt` on `crates/rh-sim/src/systems/mob_spacing.rs` | Formatting only (8 insertions, 2 deletions). `cargo fmt --check` exit 0 workspace-wide. |
+
+Also corrected above: the `LEGACY_FOLD` rebind explanation (cause is `World` now serializing `card_bleed`, not a content-hash seed; reviewer's scratch `#[serde(skip)]` run reproduced the old fold).
+
+### Archetypes composition proofs (spec: P-BACKEND-UNITY-PREFLIGHT-1, "Minimal producer-composition proof")
+
+Mode is selected in the config before the Sim/Room is constructed; LegacyCircle cases keep their names and behavior. No status row installed, no direct flush, no teleports, no legacy numbers used as oracles for the Archetypes runs.
+
+1. `crates/rh-sim/src/systems/mob_checkpoint/bleed_tests.rs`: `earned_hemorrhage_bleed_on_regional_npc_restores_and_continues_under_archetypes`. The existing body was factored into `earned_bleed_restores_and_continues(hitboxes)`; the original test is a LegacyCircle wrapper. Asserts the ordinary Attack lands a weapon hit in Archetypes (`weapon_hit_rows > 0`) before the bleed assertions, then the full producer-field checks, checkpoint/restore equality, and 60 steps of original/Clone/restored equality of events, state hash and checkpoints, plus expiry. Passes; `place_attacker` needed no change (no reach gap).
+2. `crates/rh-sim/src/systems/card_bleed_feedback/source_tests.rs`: `archetypes_first_use_case_delivers_a_real_public_card_hit_without_leaking_raw_reports`, via `config_with_hitboxes` / `construct_with_hitboxes` / `run_case_with_hitboxes` (the old `config`/`construct` wrappers were removed as dead code; `run_case` is still the LegacyCircle wrapper, the seven source histories / 390 steps untouched). Uses only the `first-use-clock-periodic-and-empty-interval` `input`. Asserts a real weapon hit lands, processed Card DoT contributions exist (victim p1, by p0), the periodic flush produced trusted `CardBleedHit` rows, public `SeenEvent::Hit` rows reached viewers whose sealed sight masks see the victim (finite, positive amounts), and every projected row is a non-passive public Hit. A first draft contained an extra assertion of mine that the raw report is gone after the run; it failed because it was a wrong expectation (a pending window can legitimately remain), not a reach gap, and it was removed rather than the others weakened.
+3. `crates/rh-server/src/quest_bridge_tests.rs`: body shared as `quest_room_earned_shards_completion(hitboxes)`; `quest_room_earned_shards_completion_delivers_exact_owner_and_foreign_toasts` is the LegacyCircle wrapper, `..._under_archetypes` the new one (mode set on genesis Sim, `RoomConfig.sim`, and the active `reset_active` Sim). Observed completion ticks: LegacyCircle native tick 1386 (69300 ms); Archetypes native tick 1386 (69300 ms) (accept at tick 3, pickups 677/679/700 in both). Identical ticks are plausible (no combat in the run) and the test asserts `config().hitboxes == hitboxes`. Owner 4 / foreign 1 toast vectors, handles [18,19,20], Done/credit and the frozen oracle checks all pass in both.
+
+### Gates on the final tree
+
+| Gate | Command | Result |
+|---|---|---|
+| Workspace tests (Postgres up) | `cargo test --workspace --no-fail-fast` | exit 0: 2505 passed, 0 failed, 21 ignored |
+| Parity | `cargo run -p rh-parity --bin parity-report` | exit 0: 111 MATCH lines; "109 slice scenarios + 13 capture-only, 300 pathfinding queries: all MATCH"; hitbox goldens current |
+| Clippy | `cargo clippy --workspace --all-targets -- -D warnings` | exit 0 |
+| Format | `cargo fmt --check` | exit 0 |
+| Source arena soak (release), run twice | `cargo test --release -p rh-headless --test source_arena_soak -- --ignored --nocapture` | both exit 0: 2 passed / 0 failed (28.15 s, 25.37 s); the zombie-churn test runs seeds 6, 17, 28, 42, 62 twice each inside the test and compares; outputs identical between the two runs |
+| Bounded soak example, run twice per mode | `cargo run --release -p rh-headless --example source_soak -- crates/rh-sim/src/mapdata/fixtures/seed1.map.json 6 11 6000 <legacy\|archetypes>` | all four runs exit 0, no panic; legacy run1 == run2 and archetypes run1 == run2 byte-for-byte (e.g. Archetypes seed 6: 1583 ticks, hash `841901b2fcb46326`; seed 8 truncated at 6000) |
+| C# | `dotnet test client-unity/RoguehallaNet.Tests` (dotnet at `~/.dotnet`) | Passed 1241, Failed 0 |
+| JS decoder | `node tools/protocol-js/check-vectors.mjs` | exit 0: v16, 70 server vectors, 272 malformed, 25 chains, 54205 checks; `git diff protocol/` empty: wire unchanged |
+
+`cargo run -p rh-protocol --bin protocol-fixtures` was not re-run this round (no rh-protocol change); only the JS vector check was.
