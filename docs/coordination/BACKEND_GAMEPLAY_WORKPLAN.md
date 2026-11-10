@@ -2,6 +2,15 @@
 
 **Inventory cut:** `optimization_port` at `4151b3af` (isolated backend coordination worktree). This is a task inventory, not a change to the shared migration checkpoint or contract status table. Unity and network-client implementation remain with Claude; root owns architecture, integration, public identity/version choices, and shared status.
 
+## Current execution checkpoint (2026-11-10)
+
+- Private Memory is integrated as `8a2d3c6c`. Full live bots remain unfinished.
+- DeepSeek strategy implementation candidate `f8dad023` remains private and unadmitted. The primary real-source witness (`5ec31212`, 98 cases/658 operations) and exact module goal-key supplement (`1d06f752`, 4 histories/48 calls) both passed independent fresh reproduction. They are transferred to the strategy worktree; strict native readers/replay and source-backed corrections are active. Keep previous native state as input, raw values exact, and the scoped numeric contract explicit.
+- Quest Stage0's two intended failures and two repaired passes now use the captured Source profile. Independent review confirms the minimal stored-mask repair and appended semantics marker. Content becomes `8edd862f48ffa100`; schema versions stay unchanged. Root allocated the one derived ability-tape metadata pin, with all63 case folds immutable. Final tape/quest-view/compatibility/lint checks and sealed review precede integration and Stage1.
+- Quest Stage1 remains the specified private objective/reward extraction. The future quest design is not invented; existing twenty definitions, serialized layout, source timing and payout behavior stay intact after Stage0.
+- Card feedback capture continues after retained failed attempts. No canonical card feedback corpus or Rust implementation is admitted. Trusted legacy grouped totals and native viewer entitlement remain separate design obligations.
+- Remaining beyond these slices: quest notice producer cases1/2/3/5; complete bot tactics/reflex/modules/Brain, fair public input binding and live/headless outcomes; joint Claude-owned client flow acceptance. No full-port, cloud-release or performance claim follows from this lane.
+
 ## Verified starting point
 
 - The repaired private Memory is now admitted on this lane as `8a2d3c6c`, from DeepSeek worker seal `0ea1589a37cdcf957195fe4955a917e644c4b88e`. Sol independently verified the exact five-file transplant from `3e3178b9`, unchanged source corpora and new-base test/lint receipts. Memory27/prefix6/protection4 filters pass (overlapping tests), as do scoped format and strict default/all-feature policy lint. See [independent release](../evidence/backend-bot-memory-admission-review/README.md). This is private component admission, not full/live bot activation or an integration-union test result.
