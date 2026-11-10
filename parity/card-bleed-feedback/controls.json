@@ -1,8 +1,8 @@
 {
  "format": "rh-card-bleed-source-controls/1",
  "source": {
-  "bytes": 289141,
-  "sha256": "6bd92fff24f2825d708962e24d971adcc0161e271777a8c4bc35681254865af5"
+  "bytes": 410111,
+  "sha256": "6b36256739bd473bc70ebd160a8632a26470ab8e4190f873026bd714e53d36ed"
  },
  "controls": [
   {
@@ -104,7 +104,7 @@
    "mutantSha256": "ba00e207d55674d85cfba3905da889a65d178d17333d0895f7f8b55c1a21414e",
    "case": "run-ended-before-periodic-window",
    "phase": "ended",
-   "contributions": 6,
+   "contributions": 5,
    "feedback": 0,
    "guard": "run-ended case has a real contribution and flush"
   },

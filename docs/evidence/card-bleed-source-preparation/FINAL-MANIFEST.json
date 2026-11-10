@@ -1,38 +1,178 @@
 {
-  "format": "rh-card-bleed-source-preparation-manifest/1",
-  "reviewStatus": "source-candidate-unadmitted",
+  "format": "rh-card-bleed-source-preparation-manifest/2",
+  "reviewStatus": "corrected-source-format-2-candidate-awaiting-independent-review",
   "capturedAtLocal": "2026-11-10 (workspace local date)",
   "worktree": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests",
-  "sourceHead": "35af2230dcc0791dff50c080f0d27cacf447bad5",
+  "sourceHead": "10f4b5086ee11949bf72d879e2ead302dab51766",
   "sourceBaseRevision": "4151b3af",
-  "sourceRuntime": "Node.js22.23.4 Linuxamd64",
+  "sourceFormat": "rh-card-bleed-source/2",
+  "runtime": "Node.js22.23.4 Linuxamd64",
   "image": "node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292",
   "platform": "linux/amd64",
   "fixedStepMs": 50,
-  "candidate": {
+  "correctedCandidate": {
     "path": "parity/card-bleed-feedback/source.json",
-    "bytes": 289141,
-    "sha256": "6bd92fff24f2825d708962e24d971adcc0161e271777a8c4bc35681254865af5",
+    "bytes": 410111,
+    "sha256": "6b36256739bd473bc70ebd160a8632a26470ab8e4190f873026bd714e53d36ed",
     "cases": 7,
     "ordinarySteps": 390,
-    "sourceInputs": 133
+    "sourceInputCount": 133,
+    "harnessInputCount": 5,
+    "caseSummaries": [
+      {
+        "name": "ordered-pairs-and-repeat-pair",
+        "ordinarySteps": 60,
+        "cardContributions": 324,
+        "cardFx": 10,
+        "finalPhase": "active"
+      },
+      {
+        "name": "first-use-clock-periodic-and-empty-interval",
+        "ordinarySteps": 88,
+        "cardContributions": 39,
+        "cardFx": 4,
+        "finalPhase": "active"
+      },
+      {
+        "name": "run-ended-before-periodic-window",
+        "ordinarySteps": 8,
+        "cardContributions": 5,
+        "cardFx": 1,
+        "finalPhase": "ended"
+      },
+      {
+        "name": "teleport-retains-partial-report",
+        "ordinarySteps": 68,
+        "cardContributions": 5,
+        "cardFx": 1,
+        "finalPhase": "active"
+      },
+      {
+        "name": "raid-start-clears-partial-report",
+        "ordinarySteps": 20,
+        "cardContributions": 4,
+        "cardFx": 0,
+        "finalPhase": "active"
+      },
+      {
+        "name": "card-dot-excludes-fire-burn-and-backlash",
+        "ordinarySteps": 73,
+        "cardContributions": 209,
+        "cardFx": 7,
+        "finalPhase": "active"
+      },
+      {
+        "name": "no-card-dot-control",
+        "ordinarySteps": 73,
+        "cardContributions": 0,
+        "cardFx": 0,
+        "finalPhase": "active"
+      }
+    ]
   },
-  "firstCaptureOutput": {
+  "heldPriorCandidate": {
+    "sealedReviewHead": "10519519bd4d9a5b55b1bf3042500d20c7ff4ea0",
+    "archiveDirectory": "docs/evidence/card-bleed-source-preparation/held-candidate-10519519",
+    "source": {
+      "path": "docs/evidence/card-bleed-source-preparation/held-candidate-10519519/source.json",
+      "bytes": 289141,
+      "sha256": "6bd92fff24f2825d708962e24d971adcc0161e271777a8c4bc35681254865af5"
+    },
+    "controls": {
+      "path": "docs/evidence/card-bleed-source-preparation/held-candidate-10519519/controls.json",
+      "bytes": 3191,
+      "sha256": "880766ad160c3399ed3addf1c5fa59bbd760627da233bf7ca52ee97b7c0e332b"
+    },
+    "preparationManifest": {
+      "path": "docs/evidence/card-bleed-source-preparation/held-candidate-10519519/FINAL-MANIFEST.json",
+      "bytes": 27276,
+      "sha256": "090cc45ae9a2e261dbfcc017c754e7784dd20a41f67087d8de01393ba715a0b5"
+    },
+    "formerDerivedRunEndCount": 6,
+    "correctProcessedRunEndCount": 5,
+    "warning": "The former six-row derived count includes one tick-8 retained scratch row and is not six fresh processed damage contributions."
+  },
+  "intermediateCorrectedCandidate": {
+    "path": "/var/folders/f1/zlvpzngj3kbb95dxk8svy1y00000gn/T/rh-card-bleed.jfQcxI/source.json",
+    "bytes": 410111,
+    "sha256": "76d9b21b4bd68c8a09e73e5a7bd59bddbb7923128985a067e024ad00b7b884c3",
+    "note": "Same freshness correction with source format /1; superseded by final schema-versioned source format /2."
+  },
+  "capture": {
     "command": "bash tools/card-bleed-fixtures/capture.sh",
     "cwd": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests",
     "exitCode": 0,
-    "temporaryOutputDirectory": "/var/folders/f1/zlvpzngj3kbb95dxk8svy1y00000gn/T/rh-card-bleed.kExBZI",
-    "outputFile": "/var/folders/f1/zlvpzngj3kbb95dxk8svy1y00000gn/T/rh-card-bleed.kExBZI/source.json",
-    "bytes": 289141,
-    "sha256": "6bd92fff24f2825d708962e24d971adcc0161e271777a8c4bc35681254865af5",
-    "rawLog": "docs/evidence/card-bleed-source-preparation/logs/capture-write-3.txt"
+    "temporaryOutputDirectory": "/var/folders/f1/zlvpzngj3kbb95dxk8svy1y00000gn/T/rh-card-bleed.6QPg52",
+    "outputFile": "/var/folders/f1/zlvpzngj3kbb95dxk8svy1y00000gn/T/rh-card-bleed.6QPg52/source.json",
+    "bytes": 410111,
+    "sha256": "6b36256739bd473bc70ebd160a8632a26470ab8e4190f873026bd714e53d36ed",
+    "rawLog": "docs/evidence/card-bleed-source-preparation/logs/capture-write-corrected-v2.txt",
+    "canonicalCopy": {
+      "path": "parity/card-bleed-feedback/source.json",
+      "bytes": 410111,
+      "sha256": "6b36256739bd473bc70ebd160a8632a26470ab8e4190f873026bd714e53d36ed"
+    }
   },
-  "finalByteCheck": {
-    "command": "bash tools/card-bleed-fixtures/capture.sh --check",
-    "cwd": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests",
-    "exitCode": 0,
-    "output": "7 cases, 390 ordinary steps, 289141 bytes; candidate SHA-256 reproduced exactly",
-    "rawLog": "docs/evidence/card-bleed-source-preparation/logs/capture-check-final.txt"
+  "runEndFreshness": {
+    "rows": [
+      {
+        "label": "action-3-step-1",
+        "tick": 7,
+        "time": 350,
+        "preDispatchPhase": "active",
+        "arenaVoidedBefore": false,
+        "activePassEligible": true,
+        "postDispatchPhase": "ended",
+        "rawLandedSnapshot": 1,
+        "processedLanded": 1,
+        "cardFresh": 1,
+        "fx": [
+          {
+            "kind": "death",
+            "id": "p1",
+            "x": 335,
+            "y": 320,
+            "by": "p0"
+          },
+          {
+            "kind": "hit",
+            "id": "p1",
+            "by": "p0",
+            "amount": 1.1180044891585073,
+            "weapon": null
+          },
+          {
+            "kind": "victory",
+            "id": "p0",
+            "name": "bleed-0",
+            "draw": false
+          }
+        ]
+      },
+      {
+        "label": "action-3-step-2",
+        "tick": 8,
+        "time": 400,
+        "preDispatchPhase": "ended",
+        "arenaVoidedBefore": false,
+        "activePassEligible": false,
+        "postDispatchPhase": "ended",
+        "rawLandedSnapshot": 1,
+        "processedLanded": 0,
+        "cardFresh": 0,
+        "fx": []
+      }
+    ],
+    "semantics": "tick 7 began active and not voided, ran the real pass, ended the run and processed five hits; tick 8 began ended and retained raw scratch but processed zero hits"
+  },
+  "mixedProducer": {
+    "case": "card-dot-excludes-fire-burn-and-backlash",
+    "observedFireSignatureTags": [
+      "burn",
+      "backlash"
+    ],
+    "abilityTaggedLandedRows": 0,
+    "claim": "Fire burn and backlash reached; no ability-tagged hit coverage claimed"
   },
   "semanticControls": {
     "command": "bash tools/card-bleed-fixtures/run-mutants.sh --write",
@@ -41,7 +181,7 @@
     "receipt": {
       "path": "parity/card-bleed-feedback/controls.json",
       "bytes": 3191,
-      "sha256": "880766ad160c3399ed3addf1c5fa59bbd760627da233bf7ca52ee97b7c0e332b"
+      "sha256": "248a3be77749e9f966a9fff3ad6f7ba44ea4db4d3eddba3e0c9be9a71578fcd9"
     },
     "results": [
       {
@@ -61,61 +201,17 @@
         "result": "NONKILL"
       }
     ],
-    "restoredFullCorpus": "FULL_CORPUS_IDENTICAL",
+    "restored": "FULL_CORPUS_IDENTICAL",
     "immutableOriginal": "PASS",
-    "rawLog": "docs/evidence/card-bleed-source-preparation/logs/controls-write.txt"
+    "rawLog": "docs/evidence/card-bleed-source-preparation/logs/controls-write-corrected-v2.txt"
   },
-  "cases": [
-    {
-      "name": "ordered-pairs-and-repeat-pair",
-      "ordinarySteps": 60,
-      "cardContributions": 324,
-      "cardFx": 10,
-      "finalPhase": "active"
-    },
-    {
-      "name": "first-use-clock-periodic-and-empty-interval",
-      "ordinarySteps": 88,
-      "cardContributions": 39,
-      "cardFx": 4,
-      "finalPhase": "active"
-    },
-    {
-      "name": "run-ended-before-periodic-window",
-      "ordinarySteps": 8,
-      "cardContributions": 6,
-      "cardFx": 1,
-      "finalPhase": "ended"
-    },
-    {
-      "name": "teleport-retains-partial-report",
-      "ordinarySteps": 68,
-      "cardContributions": 5,
-      "cardFx": 1,
-      "finalPhase": "active"
-    },
-    {
-      "name": "raid-start-clears-partial-report",
-      "ordinarySteps": 20,
-      "cardContributions": 4,
-      "cardFx": 0,
-      "finalPhase": "active"
-    },
-    {
-      "name": "card-dot-excludes-signature-and-ability-dot",
-      "ordinarySteps": 73,
-      "cardContributions": 209,
-      "cardFx": 7,
-      "finalPhase": "active"
-    },
-    {
-      "name": "no-card-dot-control",
-      "ordinarySteps": 73,
-      "cardContributions": 0,
-      "cardFx": 0,
-      "finalPhase": "active"
-    }
-  ],
+  "freshByteCheck": {
+    "command": "bash tools/card-bleed-fixtures/capture.sh --check",
+    "cwd": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests",
+    "exitCode": 0,
+    "rawLog": "docs/evidence/card-bleed-source-preparation/logs/capture-check-corrected-v2.txt",
+    "summary": "7 cases, 390 ordinary steps, 410111 bytes, corrected source format /2 candidate SHA reproduced"
+  },
   "sourceInputs": [
     {
       "path": "package-lock.json",
@@ -650,30 +746,25 @@
       "sha256": "017575ec3101f44df43b5a7cc850779582650d9e01a2090b7e311b213b98ef88"
     }
   ],
-  "harnessFiles": [
+  "harnessInputs": [
     {
       "path": "tools/card-bleed-fixtures/capture.mts",
-      "bytes": 11505,
-      "sha256": "d138754b7a8155dc71c45a117d91b7ba117924165be867e8b95e2f47d4811231"
+      "sha256": "7eaa69ad4e2795678ebaf637b8caabce64c5a160554c23c3564abf712ba38c17"
     },
     {
       "path": "tools/card-bleed-fixtures/capture.sh",
-      "bytes": 1431,
       "sha256": "95fad9b8f8421a2bdd9d582b650056044468aecf7be229a07710441b81ae0726"
     },
     {
       "path": "tools/card-bleed-fixtures/cases.mts",
-      "bytes": 3530,
-      "sha256": "7e3779a5a9bde4e5bd9c5d290148bce9bf2b57bfd6dd5532b2b92ac0b8f9648b"
+      "sha256": "133cf866304bf4288a556c1cf2c413a28a84c239dbe1d224409ca4585bf77dd3"
     },
     {
       "path": "tools/card-bleed-fixtures/run-mutants.mjs",
-      "bytes": 8104,
       "sha256": "cbd4b159a1b2d19919910182f2e024b286a79b4d43e90b72a1da42147850f018"
     },
     {
       "path": "tools/card-bleed-fixtures/run-mutants.sh",
-      "bytes": 1217,
       "sha256": "9c7a24608297038af4b1efb7afbce53787a160ad570422a302caecba6c33ccba"
     }
   ],
@@ -687,6 +778,16 @@
       "path": "docs/evidence/card-bleed-source-preparation/logs/capture-check-2.txt",
       "bytes": 123,
       "sha256": "11fdd122b5cfb15578e0e002543898dbb60762c4291b2b0de41656bdaacc9c2b"
+    },
+    {
+      "path": "docs/evidence/card-bleed-source-preparation/logs/capture-check-corrected-v2.txt",
+      "bytes": 123,
+      "sha256": "19a91a8e4711eefa897d383ed561c9d034c48f6e9e49350fd15da874a4247980"
+    },
+    {
+      "path": "docs/evidence/card-bleed-source-preparation/logs/capture-check-corrected.txt",
+      "bytes": 123,
+      "sha256": "f029a443d9185575371203e886c792a1266f6ef338fcfe12a6e7476da94b3019"
     },
     {
       "path": "docs/evidence/card-bleed-source-preparation/logs/capture-check-final.txt",
@@ -709,12 +810,47 @@
       "sha256": "22dbd6ac2c85c61ef4d01a5bb4add3aefb27f7c8331357874e938b991f134a46"
     },
     {
+      "path": "docs/evidence/card-bleed-source-preparation/logs/capture-write-corrected-1.txt",
+      "bytes": 240,
+      "sha256": "acaf632e54448e1f4e09afaf804398efb672c6216db1ff4725342d0cfdca87c7"
+    },
+    {
+      "path": "docs/evidence/card-bleed-source-preparation/logs/capture-write-corrected-v2.txt",
+      "bytes": 240,
+      "sha256": "f8eab6166f5febe5a5ed3e18a8c2bdfd4e6bb1c2916526b11d89fc91c641389d"
+    },
+    {
+      "path": "docs/evidence/card-bleed-source-preparation/logs/controls-write-corrected-v2.txt",
+      "bytes": 3191,
+      "sha256": "248a3be77749e9f966a9fff3ad6f7ba44ea4db4d3eddba3e0c9be9a71578fcd9"
+    },
+    {
+      "path": "docs/evidence/card-bleed-source-preparation/logs/controls-write-corrected.txt",
+      "bytes": 3191,
+      "sha256": "6d618ceaccb61b0ef083a81c2efe8fef97f31f15e2300c472d21c2818c2b118e"
+    },
+    {
       "path": "docs/evidence/card-bleed-source-preparation/logs/controls-write.txt",
       "bytes": 3191,
       "sha256": "880766ad160c3399ed3addf1c5fa59bbd760627da233bf7ca52ee97b7c0e332b"
     }
   ],
-  "retainedEarlierFailures": [
+  "historicalEvidence": [
+    {
+      "path": "docs/evidence/card-bleed-source-preparation/held-candidate-10519519/controls.json",
+      "bytes": 3191,
+      "sha256": "880766ad160c3399ed3addf1c5fa59bbd760627da233bf7ca52ee97b7c0e332b"
+    },
+    {
+      "path": "docs/evidence/card-bleed-source-preparation/held-candidate-10519519/FINAL-MANIFEST.json",
+      "bytes": 27276,
+      "sha256": "090cc45ae9a2e261dbfcc017c754e7784dd20a41f67087d8de01393ba715a0b5"
+    },
+    {
+      "path": "docs/evidence/card-bleed-source-preparation/held-candidate-10519519/source.json",
+      "bytes": 289141,
+      "sha256": "6bd92fff24f2825d708962e24d971adcc0161e271777a8c4bc35681254865af5"
+    },
     {
       "path": "docs/evidence/card-bleed-source-preparation/ATTEMPT-1.md",
       "bytes": 2319,
@@ -743,8 +879,9 @@
   ],
   "limits": [
     "Legacy raw aggregate only; no historical viewer audiences.",
-    "No native ADR0013 privacy, viewer entitlement, public-wire, or Rust parity proof.",
-    "raidStarted reset uses the actual exported startRaid lifecycle producer at a declared boundary, not an ordinary gameplay action.",
-    "50 ms clock: a strict >500 ms mutant is observed at 550 ms."
+    "No native ADR0013 privacy, viewer entitlement, public-wire or Rust parity proof.",
+    "Raid reset is an actual startRaid lifecycle producer at a declared setup boundary, not ordinary gameplay input.",
+    "Fire burn/backlash reached; no ability-tagged landed row reached.",
+    "At 50 ms cadence strict >500 is observed at the next step (550 ms)."
   ]
 }

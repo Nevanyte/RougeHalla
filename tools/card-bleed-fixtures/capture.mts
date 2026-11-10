@@ -41,10 +41,20 @@ function build(input:any){
   for(const name of profiles[input.profile??'core'])installers[name](w);
   input.players.forEach((p:any,i:number)=>addPlayer(w,'p'+i,'bleed-'+i,{faction:p.faction}));
   const rows:any[]=[];
-  const capture=(label:string,events:any[]=[],landed:any[]=[])=>rows.push({label,tick:w.state.tick,time:w.state.serverTime,phase:w.state.phase,inColiseum:w.state.inColiseum,players:[...w.state.players].map(([id,p]:any)=>({id,x:p.x,y:p.y,hp:p.hp,status:p.status})),landed:plain(landed),events:plain(events)});
+  const capture=(label:string,events:any[]=[],landedSnapshot:any[]=[],pass:any={})=>rows.push({
+    label,tick:w.state.tick,time:w.state.serverTime,preDispatchPhase:pass.preDispatchPhase??null,
+    arenaVoidedBefore:pass.arenaVoidedBefore??null,activePassEligible:pass.activePassEligible??false,
+    phase:w.state.phase,inColiseum:w.state.inColiseum,
+    players:[...w.state.players].map(([id,p]:any)=>({id,x:p.x,y:p.y,hp:p.hp,status:p.status})),
+    landedSnapshot:plain(landedSnapshot),processedLanded:plain(pass.activePassEligible?landedSnapshot:[]),events:plain(events),
+  });
   const tick=(label:string,inputs:any[]=[] )=>{
     for(const i of inputs){const actor=i.actor,payload=copy(i.payload);const accepted=enqueueClientMessage(w.players.get(actor).inputs,i.type,payload,{training:false});assert(accepted,`${label}: accepted ${i.type} from ${actor}`);}
-    const events=worldStep(w,50),landed=[...w.combat.landed];capture(label,events,landed);return{events,landed};
+    const preDispatchPhase=w.state.phase,arenaVoidedBefore=w.arena.voided===true;
+    const activePassEligible=preDispatchPhase==='active'&&!arenaVoidedBefore;
+    const events=worldStep(w,50),landedSnapshot=[...w.combat.landed];
+    capture(label,events,landedSnapshot,{preDispatchPhase,arenaVoidedBefore,activePassEligible});
+    return{events,landedSnapshot,activePassEligible};
   };
   // Normal lobby/start transition is an ordinary source step; cards and positions are declared bootstrap setup.
   tick('lobby-to-raid');assert.equal(w.state.phase,'active');
@@ -69,7 +79,7 @@ function build(input:any){
       capture(`action-${ai}-source-startRaid`);
     }else throw Error(`unknown closed action ${a.kind}`);
   }
-  const cardContributions=rows.flatMap(r=>r.landed.filter((h:any)=>h.dot===true&&absent(h.ability)&&absent(h.sig)).map((h:any)=>({tick:r.tick,time:r.time,victim:h.victim,by:h.by,amount:h.amount,weapon:h.weapon,passive:h.passive})));
+  const cardContributions=rows.flatMap(r=>r.processedLanded.filter((h:any)=>h.dot===true&&absent(h.ability)&&absent(h.sig)).map((h:any)=>({tick:r.tick,time:r.time,victim:h.victim,by:h.by,amount:h.amount,weapon:h.weapon,passive:h.passive})));
   const cardFx=rows.flatMap(r=>r.events.filter((e:any)=>e.type==='fx'&&e.fx.kind==='hit'&&e.fx.weapon===null&&absent(e.fx.sig)&&absent(e.fx.ability)).map((e:any)=>({tick:r.tick,time:r.time,fx:e.fx})));
   return{name:input.name,input,trace:rows,cardContributions,cardFx,final:{tick:w.state.tick,time:w.state.serverTime,phase:w.state.phase,winner:w.state.winner},ordinarySteps:rows.filter(r=>/^action-\d+(?:-step-\d+)?$/.test(r.label)).length+1};
 }
@@ -82,7 +92,7 @@ const captured:any[]=[];let activeInput:any=null;
 function persistFailure(error:any){
   if(process.argv[2]==='--check')return;
   const outputPath=process.env.RH_CARD_BLEED_OUTPUT??'parity/card-bleed-feedback/source.json';
-  const diagnostic={format:'rh-card-bleed-unadmitted-diagnostic/1',status:'UNADMITTED',failure:{name:error?.name??'Error',message:String(error?.message??error),stack:String(error?.stack??'')},failingCase:activeInput?.name??null,failingInput:activeInput,provenance,capturedCases:captured};
+  const diagnostic={format:'rh-card-bleed-unadmitted-diagnostic/2',status:'UNADMITTED',failure:{name:error?.name??'Error',message:String(error?.message??error),stack:String(error?.stack??'')},failingCase:activeInput?.name??null,failingInput:activeInput,provenance,capturedCases:captured};
   writeFileSync(join(dirname(outputPath),'UNADMITTED.json'),JSON.stringify(diagnostic)+'\n');
 }
 try {
@@ -105,6 +115,17 @@ activeInput=ended.input;
 assert.equal(ended.final.phase,'ended','run-ended case ended through ordinary settle');
 assert(ended.cardContributions.length>0&&ended.cardFx.length>0,'run-ended case has a real contribution and flush');
 assert(ended.cardFx.at(-1).time-ended.cardContributions[0].time<500,'run-ended feedback precedes the periodic boundary');
+const endingPass=ended.trace.find(r=>r.label==='action-3-step-1')!;
+const alreadyEnded=ended.trace.find(r=>r.label==='action-3-step-2')!;
+assert.equal(endingPass.preDispatchPhase,'active','the natural ending step began in active phase');
+assert.equal(endingPass.arenaVoidedBefore,false,'the natural ending step was not voided');
+assert.equal(endingPass.activePassEligible,true,'the natural ending step ran the actual active producer pass');
+assert.equal(endingPass.phase,'ended','the active producer pass itself ended the run');
+assert.equal(alreadyEnded.preDispatchPhase,'ended','the following step began after run end');
+assert.equal(alreadyEnded.activePassEligible,false,'already-ended step did not run the active producer pass');
+assert(alreadyEnded.landedSnapshot.length>0,'already-ended raw landed scratch remains visible as source diagnostics');
+assert.equal(alreadyEnded.processedLanded.length,0,'retained ended-step scratch is not a fresh processed contribution');
+assert.equal(ended.cardContributions.length,5,'only the five actual active-pass bleed hits are fresh contributions');
 const teleported=named('teleport-retains-partial-report');
 activeInput=teleported.input;
 const teleportRow=teleported.trace.find(r=>r.inColiseum===true);
@@ -118,15 +139,17 @@ assert(reset.cardContributions.some(h=>h.time<resetRow.time),'raid reset began w
 assert(reset.cardContributions.every(h=>h.time<=resetRow.time),'raid reset trace has no post-reset bleed contributions');
 assert(reset.final.time-resetRow.time>=500,'raid reset case crosses the old report window after reset');
 assert(reset.cardFx.every(h=>h.time>resetRow.time),'raid reset did not emit a pre-reset report');
-const noncard=named('card-dot-excludes-signature-and-ability-dot');
+const noncard=named('card-dot-excludes-fire-burn-and-backlash');
 activeInput=noncard.input;
 assert(noncard.cardContributions.length>0,'mixed-dot case reached card DoT');
-assert(noncard.trace.some(r=>r.landed.some((h:any)=>h.sig==='burn'||(h.dot===true&&!absent(h.ability)))),'mixed-dot case reached an actual non-card signature/ability DoT producer');
+const noncardSignatures=noncard.trace.flatMap(r=>r.processedLanded.filter((h:any)=>h.sig==='burn'||h.sig==='backlash'));
+assert(noncardSignatures.some((h:any)=>h.sig==='burn'),'mixed-dot case reached actual Fire burn signature damage');
+assert(noncardSignatures.some((h:any)=>h.sig==='backlash'),'mixed-dot case reached actual Fire backlash signature damage');
 const control=named('no-card-dot-control');
 activeInput=control.input;
 assert.equal(control.cardContributions.length,0,'no-card control has no card-owned landed DoT');
 assert.equal(control.cardFx.length,0,'no-card control has no card-only feedback');
-const output={format:'rh-card-bleed-source/1',provenance,cases:captured};
+const output={format:'rh-card-bleed-source/2',provenance,cases:captured};
 const bytes=JSON.stringify(output)+'\n',path=process.env.RH_CARD_BLEED_OUTPUT??'parity/card-bleed-feedback/source.json';
 if(process.argv[2]==='--check')assert.equal(readFileSync(path,'utf8'),bytes,'one canonical unchanged-source recapture');
 else writeFileSync(path,bytes);
