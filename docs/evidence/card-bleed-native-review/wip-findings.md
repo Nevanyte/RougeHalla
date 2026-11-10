@@ -24,6 +24,14 @@ new regressions. Findings were delivered to the active DeepSeek worker; all impl
    every Card row, with a control that retains all expected rows and appends a wrong-valued extra row, which the actual
    comparator must reject. Keep genuine full-projector feeds and distinguish actual-source histories from synthetic
    privacy controls. No public/wire tag is authorized merely to simplify testing.
+5. **Possible noncanonical special-value intake:** at09:22UTC Root asked DeepSeek to reproduce whether the custom
+   `deserialize_enum`/`unit_variant` reader accepts `{"PositiveInfinity":null}` or `{"NotANumber":null}` in addition
+   to the required canonical special strings. Existing tests covered finite-null and special numeric/bool payloads,
+   but not these map-null forms. This is a code-review suspicion, not an executed failure. Require actual decoder and
+   accepted-restore checks for both trusted report rows and pending events, preserving any first RED; raw duplicate-key
+   cases must also be covered. The actual Card emission test observer should explicitly reject unexpected non-Hit
+   variants rather than silently omit them when claiming complete emission coverage. The worker received this follow-up
+   through the active task; no Rust probe or production edit was authored by Root.
 
 These findings do not invalidate the separately frozen legacy source capture. They hold native admission pending
 repairs and evidence. The final independent reviewer must inspect the actual sealed delta and all packet gates;
