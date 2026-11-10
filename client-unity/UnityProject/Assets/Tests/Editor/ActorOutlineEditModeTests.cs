@@ -201,6 +201,25 @@ namespace Roguehalla.Client.Tests
             }
         }
 
+        [Test] public void TheHitZoneEdgeReadsOnEveryGround()
+        {
+            // The sector edge is a dark line (EdgeDarkAlpha of the theme ink) beside a light line (EdgeAlpha white): whichever contrasts with the ground carries it. The worse of the
+            // two lines at the crossover ground (about 0.18) is still above the 3:1 non-text bar, and 4.5:1 below 0.12 and above 0.4.
+            var ink = UiTheme.Current.OutlineDark; float inkL = ActorOutlineModel.Luma(Lin(ink.r), Lin(ink.g), Lin(ink.b));
+            float worst = 99f;
+            for (int i = 0; i <= 100; i++)
+            {
+                float g = i / 100f;
+                float dark = inkL * HitZonePresenter.EdgeDarkAlpha + g * (1f - HitZonePresenter.EdgeDarkAlpha);
+                float light = 1f * HitZoneModel.EdgeAlpha + g * (1f - HitZoneModel.EdgeAlpha);
+                float best = Mathf.Max(ActorOutlineModel.Ratio(dark, g), ActorOutlineModel.Ratio(light, g));
+                if (i % 5 == 0 && (g < .12f || g > .4f)) Assert.That(best, Is.GreaterThanOrEqualTo(4.5f), "ground " + g);
+                worst = Mathf.Min(worst, best);
+            }
+            Assert.That(worst, Is.GreaterThanOrEqualTo(3f), "the hit zone's edge pair reads on every ground");
+        }
+        static float Lin(byte c) { float v = c / 255f; return v <= .04045f ? v / 12.92f : Mathf.Pow((v + .055f) / 1.055f, 2.4f); }
+
         [Test] public void NoFilledPlateUnderTheFeet()
         {
             // The footprint is one light line (the faction colour); its dark and light companions are the adaptive strokes, so no black band and no filled plate.

@@ -14,6 +14,8 @@ namespace Roguehalla.Client
     public sealed class HitZonePresenter
     {
         const int Arc = 24, Rings = 3, Order = 1999; // over the ground, its decor and the temple floor art (1235 vanished on the Holy floor, UI lab), under every actor (2000+)
+        /// <summary>Opacity of the dark edge line (the light one is <see cref="HitZoneModel.EdgeAlpha"/>): together they read on every ground (ActorOutlineEditModeTests).</summary>
+        public const float EdgeDarkAlpha = .9f;
         const float EdgeLight = 1.3f, EdgeDark = 2.8f; // sim units: a light hairline outside a dark one, so the extent reads on any ground (the fill alpha is unchanged)
         // base fan (centre + rings) + 2 outline strips (dark, light) each = arc strip + two side strips
         const int FanVerts = 1 + Rings * (Arc + 1), StripVerts = 2 * (Arc + 1) + 8, TotalVerts = FanVerts + 2 * StripVerts;
@@ -197,7 +199,7 @@ namespace Roguehalla.Client
             for (int s = 0; s < 2; s++)
             {
                 float w = s == 0 ? EdgeDark : EdgeLight;
-                Color32 col = s == 0 ? Dark(.9f * fade) : White(HitZoneModel.EdgeAlpha * fade);
+                Color32 col = s == 0 ? Dark(EdgeDarkAlpha * fade) : White(HitZoneModel.EdgeAlpha * fade);
                 for (int i = 0; i <= Arc; i++)
                 {
                     float k = i / (float)Arc;
