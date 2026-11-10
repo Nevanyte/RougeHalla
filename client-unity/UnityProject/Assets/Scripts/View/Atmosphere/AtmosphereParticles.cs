@@ -17,10 +17,12 @@ namespace Roguehalla.Client
             var px = new Color32[w * h];
             for (int y = 0; y < h; y++) for (int x = 0; x < w; x++)
             {
-                float u = (x + .5f) / w * 2 - 1, v = (y + .5f) / h * 2 - 1, r = Mathf.Sqrt(u * u + v * v), a;
+                float u = (x + .5f) / w * 2 - 1, v = (y + .5f) / h * 2 - 1, r = Mathf.Sqrt(u * u + v * v), a; Color rgb = Color.white;
                 switch (key)
                 {
-                    case "flake": a = Mathf.Pow(Mathf.Clamp01(1f - r), .9f) * .55f + Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((.55f - r) / .3f)) * .6f; break;
+                    case "flake":   // bright core with a cool blue-grey rim so a flake still reads on pale snow
+                        a = Mathf.SmoothStep(1f, .45f, r) * .95f;
+                        rgb = Color.Lerp(new Color(.55f, .72f, .93f), Color.white, Mathf.SmoothStep(.62f, .3f, r)); break;
                     case "mote": a = Mathf.Pow(Mathf.Clamp01(1f - r), 1.8f); break;
                     case "ember": a = Mathf.Exp(-r * r * 5.5f) * .7f + Mathf.Exp(-r * r * 40f) * .6f; break;
                     case "spore": a = Mathf.Exp(-r * r * 4f) * .45f + Mathf.Clamp01(1f - Mathf.Abs(r - .5f) * 7f) * .35f + Mathf.Exp(-r * r * 60f) * .6f; break;
@@ -28,7 +30,7 @@ namespace Roguehalla.Client
                     case "shaft": a = Mathf.Pow(Mathf.Clamp01(1f - Mathf.Abs(u)), 1.7f) * Mathf.SmoothStep(1f, .55f, Mathf.Abs(v)); break;
                     default: a = Mathf.Clamp01(1f - r); break;
                 }
-                px[y * w + x] = new Color32(255, 255, 255, (byte)(Mathf.Clamp01(a) * 255f));
+                px[y * w + x] = new Color32((byte)(rgb.r * 255f), (byte)(rgb.g * 255f), (byte)(rgb.b * 255f), (byte)(Mathf.Clamp01(a) * 255f));
             }
             tex.SetPixelData(px, 0); tex.Apply(false, true);
             Cache[key] = tex; return tex;
