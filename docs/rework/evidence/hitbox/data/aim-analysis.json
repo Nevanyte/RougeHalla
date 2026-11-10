@@ -1,0 +1,345 @@
+{
+ "aimLines": 14,
+ "worstCursorToRaisedLineU": 0.081,
+ "launched": 11,
+ "hits": 5,
+ "worstMinDistanceU": 231.98,
+ "bestMinDistanceU": 7,
+ "medianMinDistanceU": 7,
+ "rows": [
+  {
+   "from": [
+    2819.84,
+    4289.23
+   ],
+   "cursor": [
+    3087.36,
+    4187.49
+   ],
+   "chest": 30,
+   "trackSamples": 12,
+   "firstSample": {
+    "afterMs": 547,
+    "groundX": 2819.9,
+    "groundY": 4289.3,
+    "height": 30,
+    "raisedY": 4259.3,
+    "awayFromFeetU": 0.09
+   },
+   "minRaisedDistanceToCursor": 231.98,
+   "cursorToRaisedLineMaxU": 0.081,
+   "nearest": {
+    "groundX": 2863.3,
+    "raisedY": 4247.6
+   }
+  },
+  {
+   "from": [
+    2819.84,
+    4289.23
+   ],
+   "cursor": [
+    3087.36,
+    4187.49
+   ],
+   "chest": 30,
+   "trackSamples": 0,
+   "firstSample": null,
+   "minRaisedDistanceToCursor": null,
+   "cursorToRaisedLineMaxU": null,
+   "nearest": null
+  },
+  {
+   "from": [
+    2819.84,
+    4289.23
+   ],
+   "cursor": [
+    3087.36,
+    4187.49
+   ],
+   "chest": 30,
+   "trackSamples": 0,
+   "firstSample": null,
+   "minRaisedDistanceToCursor": null,
+   "cursorToRaisedLineMaxU": null,
+   "nearest": null
+  },
+  {
+   "from": [
+    2819.84,
+    4289.23
+   ],
+   "cursor": [
+    3087.36,
+    4187.49
+   ],
+   "chest": 30,
+   "trackSamples": 0,
+   "firstSample": null,
+   "minRaisedDistanceToCursor": null,
+   "cursorToRaisedLineMaxU": null,
+   "nearest": null
+  },
+  {
+   "from": [
+    2819.84,
+    4289.23
+   ],
+   "cursor": [
+    3087.36,
+    4187.49
+   ],
+   "chest": 30,
+   "trackSamples": 25,
+   "firstSample": {
+    "afterMs": 543,
+    "groundX": 2819.9,
+    "groundY": 4289.3,
+    "height": 30,
+    "raisedY": 4259.3,
+    "awayFromFeetU": 0.09
+   },
+   "minRaisedDistanceToCursor": 7,
+   "cursorToRaisedLineMaxU": 0.078,
+   "nearest": {
+    "groundX": 3080.6,
+    "raisedY": 4189.3
+   }
+  },
+  {
+   "from": [
+    2819.84,
+    4289.23
+   ],
+   "cursor": [
+    3087.36,
+    4187.49
+   ],
+   "chest": 30,
+   "trackSamples": 28,
+   "firstSample": {
+    "afterMs": 524,
+    "groundX": 2819.9,
+    "groundY": 4289.3,
+    "height": 30,
+    "raisedY": 4259.3,
+    "awayFromFeetU": 0.09
+   },
+   "minRaisedDistanceToCursor": 7,
+   "cursorToRaisedLineMaxU": 0.078,
+   "nearest": {
+    "groundX": 3080.6,
+    "raisedY": 4189.3
+   }
+  },
+  {
+   "from": [
+    2819.84,
+    4289.23
+   ],
+   "cursor": [
+    3087.36,
+    4187.49
+   ],
+   "chest": 30,
+   "trackSamples": 15,
+   "firstSample": {
+    "afterMs": 765,
+    "groundX": 2993.8,
+    "groundY": 4242.6,
+    "height": 30,
+    "raisedY": 4212.6,
+    "awayFromFeetU": 180.1
+   },
+   "minRaisedDistanceToCursor": 7,
+   "cursorToRaisedLineMaxU": 0.03,
+   "nearest": {
+    "groundX": 3080.6,
+    "raisedY": 4189.3
+   }
+  },
+  {
+   "from": [
+    2819.84,
+    4289.23
+   ],
+   "cursor": [
+    3087.36,
+    4187.49
+   ],
+   "chest": 30,
+   "trackSamples": 22,
+   "firstSample": {
+    "afterMs": 785,
+    "groundX": 2993.8,
+    "groundY": 4242.6,
+    "height": 30,
+    "raisedY": 4212.6,
+    "awayFromFeetU": 180.1
+   },
+   "minRaisedDistanceToCursor": 7,
+   "cursorToRaisedLineMaxU": 0.036,
+   "nearest": {
+    "groundX": 3080.6,
+    "raisedY": 4189.3
+   }
+  },
+  {
+   "from": [
+    2819.84,
+    4289.23
+   ],
+   "cursor": [
+    3087.36,
+    4187.49
+   ],
+   "chest": 30,
+   "trackSamples": 15,
+   "firstSample": {
+    "afterMs": 782,
+    "groundX": 3037.1,
+    "groundY": 4231,
+    "height": 30,
+    "raisedY": 4201,
+    "awayFromFeetU": 224.93
+   },
+   "minRaisedDistanceToCursor": 7,
+   "cursorToRaisedLineMaxU": 0.036,
+   "nearest": {
+    "groundX": 3080.6,
+    "raisedY": 4189.3
+   }
+  },
+  {
+   "from": [
+    2819.84,
+    4289.23
+   ],
+   "cursor": [
+    3087.36,
+    4187.49
+   ],
+   "chest": 30,
+   "trackSamples": 14,
+   "firstSample": {
+    "afterMs": 814,
+    "groundX": 3037.1,
+    "groundY": 4231,
+    "height": 30,
+    "raisedY": 4201,
+    "awayFromFeetU": 224.93
+   },
+   "minRaisedDistanceToCursor": 7,
+   "cursorToRaisedLineMaxU": 0.036,
+   "nearest": {
+    "groundX": 3080.6,
+    "raisedY": 4189.3
+   }
+  },
+  {
+   "from": [
+    2819.84,
+    4289.23
+   ],
+   "cursor": [
+    3087.36,
+    4187.49
+   ],
+   "chest": 30,
+   "trackSamples": 13,
+   "firstSample": {
+    "afterMs": 863,
+    "groundX": 3080.6,
+    "groundY": 4219.3,
+    "height": 30,
+    "raisedY": 4189.3,
+    "awayFromFeetU": 269.97
+   },
+   "minRaisedDistanceToCursor": 7,
+   "cursorToRaisedLineMaxU": 0.036,
+   "nearest": {
+    "groundX": 3080.6,
+    "raisedY": 4189.3
+   }
+  },
+  {
+   "from": [
+    2819.84,
+    4289.23
+   ],
+   "cursor": [
+    3087.36,
+    4187.49
+   ],
+   "chest": 30,
+   "trackSamples": 18,
+   "firstSample": {
+    "afterMs": 823,
+    "groundX": 3037.1,
+    "groundY": 4231,
+    "height": 30,
+    "raisedY": 4201,
+    "awayFromFeetU": 224.93
+   },
+   "minRaisedDistanceToCursor": 7,
+   "cursorToRaisedLineMaxU": 0.036,
+   "nearest": {
+    "groundX": 3080.6,
+    "raisedY": 4189.3
+   }
+  },
+  {
+   "from": [
+    2819.84,
+    4289.23
+   ],
+   "cursor": [
+    3087.36,
+    4187.49
+   ],
+   "chest": 30,
+   "trackSamples": 16,
+   "firstSample": {
+    "afterMs": 521,
+    "groundX": 2819.9,
+    "groundY": 4289.3,
+    "height": 30,
+    "raisedY": 4259.3,
+    "awayFromFeetU": 0.09
+   },
+   "minRaisedDistanceToCursor": 7,
+   "cursorToRaisedLineMaxU": 0.078,
+   "nearest": {
+    "groundX": 3080.6,
+    "raisedY": 4189.3
+   }
+  },
+  {
+   "from": [
+    2819.84,
+    4289.23
+   ],
+   "cursor": [
+    3087.36,
+    4187.49
+   ],
+   "chest": 30,
+   "trackSamples": 19,
+   "firstSample": {
+    "afterMs": 546,
+    "groundX": 2819.9,
+    "groundY": 4289.3,
+    "height": 30,
+    "raisedY": 4259.3,
+    "awayFromFeetU": 0.09
+   },
+   "minRaisedDistanceToCursor": 38.05,
+   "cursorToRaisedLineMaxU": 0.078,
+   "nearest": {
+    "groundX": 3124.1,
+    "raisedY": 4177.6
+   }
+  }
+ ]
+}

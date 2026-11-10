@@ -1,0 +1,16 @@
+{
+ "tag": "wall-legacy",
+ "trials": [
+  {
+   "tx": 86,
+   "ty": 26,
+   "faceY": 832,
+   "clickStopY": 844,
+   "clickGap": 12,
+   "clickX": 2767.360595703125,
+   "keyStopY": 851.9823608398438,
+   "keyGap": 19.98236083984375,
+   "keyX": 2767.360595703125
+  }
+ ]
+}

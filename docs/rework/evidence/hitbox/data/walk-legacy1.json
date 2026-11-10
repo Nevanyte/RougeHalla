@@ -1,0 +1,18 @@
+{
+ "tag": "walk-legacy1",
+ "seconds": 30,
+ "segments": 12,
+ "distanceWalked": 2867,
+ "stalledSecondsAgainstWalls": 17.9,
+ "start": "[recon] samples=81 corrections(>0.5u)=0 big(>4u)=0 maxErr=0.000 meanErr=0.0000 snaps=0 foot=Disc(12) swings=0 hits=0\n",
+ "end": "[recon] samples=448 corrections(>0.5u)=26 big(>4u)=12 maxErr=36.560 meanErr=0.3864 snaps=0 foot=Disc(12) swings=0 hits=0\n",
+ "endParsed": {
+  "samples": "448",
+  "maxErr": "36.560",
+  "meanErr": "0.3864",
+  "snaps": "0",
+  "foot": "Disc(12)",
+  "swings": "0",
+  "hits": "0"
+ }
+}

@@ -1,0 +1,18 @@
+{
+ "tag": "walk-arch1",
+ "seconds": 30,
+ "segments": 13,
+ "distanceWalked": 4397,
+ "stalledSecondsAgainstWalls": 13.8,
+ "start": "[recon] samples=82 corrections(>0.5u)=0 big(>4u)=0 maxErr=0.000 meanErr=0.0000 snaps=0 foot=Box(10, 6) swings=0 hits=0\n",
+ "end": "[recon] samples=630 corrections(>0.5u)=47 big(>4u)=7 maxErr=9.644 meanErr=0.2194 snaps=0 foot=Box(10, 6) swings=0 hits=0\n",
+ "endParsed": {
+  "samples": "630",
+  "maxErr": "9.644",
+  "meanErr": "0.2194",
+  "snaps": "0",
+  "foot": "Box(10,",
+  "swings": "0",
+  "hits": "0"
+ }
+}

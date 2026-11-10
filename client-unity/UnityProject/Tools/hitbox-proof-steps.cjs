@@ -27,17 +27,9 @@ exports.wall = async (g, c) => {
   console.log('wall candidates', cands.length, 'nearest', JSON.stringify(cands.slice(0, 3)));
   const result = { tag: c.tag, trials: [] };
   for (const cand of cands.slice(0, 8)) {
-    // stage 6 tiles south of the face
-    for (let hop = 0; hop < 6; hop++) {
-      const s0 = g.self;
-      const dx = cand.sx - s0.x, dy = cand.sy - s0.y, dist = Math.hypot(dx, dy);
-      if (dist < 6) break;
-      // hop at most ~7 tiles per click so the click stays on screen
-      const k = Math.min(1, 224 / dist);
-      await g.rightClickSim(s0.x + dx * k, s0.y + dy * k);
-      await g.settle(700, 12000);
-      await c.recalibrate(g);
-    }
+    // stage 6 tiles south of the face, over the known map
+    try { await goTo(g, c, cand.sx, cand.sy, 8); } catch (e) { console.log('stage failed:', e.message); continue; }
+    await g.settle(700, 8000); await c.recalibrate(g);
     const near = Math.hypot(cand.sx - g.self.x, cand.sy - g.self.y);
     console.log(`stage ${cand.tx},${cand.ty}: ${near.toFixed(1)} u from staging point`);
     if (near > 40) continue;
@@ -108,6 +100,11 @@ const navPath = (c, x0, y0, x1, y1, gap = 6) => {
   const { map, tileAt } = c, w = map.w, key = (tx, ty) => ty * w + tx;
   const free = (tx, ty) => { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (tileAt(tx + dx, ty + dy) !== 0) return false; return true; };
   const s = [Math.floor(x0 / 32), Math.floor(y0 / 32)], t = [Math.floor(x1 / 32), Math.floor(y1 / 32)];
+  if (!free(...t)) {   // snap the goal tile to the nearest tile with a free 3x3
+    let best = null, bd = 1e9;
+    for (let dy = -6; dy <= 6; dy++) for (let dx = -6; dx <= 6; dx++) if (free(t[0] + dx, t[1] + dy) && dx * dx + dy * dy < bd) { bd = dx * dx + dy * dy; best = [t[0] + dx, t[1] + dy]; }
+    if (!best) return null; t[0] = best[0]; t[1] = best[1]; x1 = t[0] * 32 + 16; y1 = t[1] * 32 + 16;
+  }
   const prev = new Map([[key(...s), -1]]), q = [s];
   const nb = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
   let found = false;
@@ -153,7 +150,7 @@ exports.aim = async (g, c) => {
   const scan = () => { for (const p of latestHb(g).props) if (p.kind === 1 && (p.weapon === 1 || p.weapon === 2)) seen.set(`${p.x},${p.y}`, p); };
   const deadline = Date.now() + 420000;
   scan();
-  while (![...seen.values()].some(p => want < 0 || p.weapon === want) && Date.now() < deadline) {
+  while (![...seen.values()].some(p => want < 0 || p.weapon === want) && Date.now() < deadline && visited.size < Number(c.opt('cells', 8))) {
     const cells = [];
     for (let ty = 8; ty < c.map.h - 8; ty += 24) for (let tx = 8; tx < c.map.w - 8; tx += 24) {
       const k = `${tx},${ty}`; if (visited.has(k)) continue;
@@ -163,7 +160,7 @@ exports.aim = async (g, c) => {
     cells.sort((a, b) => Math.hypot(a.x - g.self.x, a.y - g.self.y) - Math.hypot(b.x - g.self.x, b.y - g.self.y));
     if (!cells.length) break;
     const next = cells[0]; visited.add(next.k);
-    try { await goTo(g, c, next.x, next.y, 24); } catch (e) { console.log('tour hop failed:', e.message); }
+    try { await goTo(g, c, next.x, next.y, 24); } catch (e) { console.log('tour hop failed:', e.message); if (/no target marks/.test(e.message)) { process.exitCode = 3; throw new Error('retry: player gone'); } }
     scan();
     console.log(`toured ${visited.size} cells; at (${g.self.x | 0},${g.self.y | 0}); ranged weapons seen: ${seen.size}`);
   }
@@ -171,67 +168,81 @@ exports.aim = async (g, c) => {
   const ground = [...seen.values()];
   console.log('ground ranged weapons found:', JSON.stringify(ground));
   const target = ground.filter(p => p.weapon === want || want < 0).sort((a, b) => Math.hypot(a.x - g.self.x, a.y - g.self.y) - Math.hypot(b.x - g.self.x, b.y - g.self.y))[0];
-  if (!target) throw new Error('no ranged weapon found after the tour');
+  if (!target) { process.exitCode = 3; throw new Error('retry: no ranged weapon found after the tour'); }
   await goTo(g, c, target.x, target.y, 14);
   await g.page.keyboard.press('f'); await c.sleep(1200);
   await g.shot('aim-after-pickup');
   log.weapon = { want, at: target, selfAfter: g.self };
-  // 2. a hostile target: the nearest mob (or other player) that is not the local player, approached to ~300 u over the known map
+  // 2. a hostile target: the nearest mob (or other player) that is not the local player, approached to ~300 u over the known map;
+  //    with none in view, tour grid cells as above until one appears
   let victim = null;
-  for (let i = 0; i < 6 && !victim; i++) {
+  const visited2 = new Set(); const t2 = Date.now() + 360000;
+  while (!victim && Date.now() < t2) {
     const others = latestHb(g).actors.filter(a => a.arch !== 0 && a.kind !== 4 && Math.hypot(a.x - g.self.x, a.y - g.self.y) > 30)
       .sort((a, b) => Math.hypot(a.x - g.self.x, a.y - g.self.y) - Math.hypot(b.x - g.self.x, b.y - g.self.y));
-    if (!others.length) { await c.sleep(1500); continue; }
+    if (!others.length) {
+      const cells = [];
+      for (let ty = 8; ty < c.map.h - 8; ty += 16) for (let tx = 8; tx < c.map.w - 8; tx += 16) {
+        const k = `${tx},${ty}`; if (visited2.has(k)) continue;
+        let ok = true; for (let yy = -1; yy <= 1; yy++) for (let xx = -1; xx <= 1; xx++) if (c.tileAt(tx + xx, ty + yy) !== 0) ok = false;
+        if (ok) cells.push({ k, x: tx * 32 + 16, y: ty * 32 + 16 });
+      }
+      cells.sort((a, b) => Math.hypot(a.x - g.self.x, a.y - g.self.y) - Math.hypot(b.x - g.self.x, b.y - g.self.y));
+      if (!cells.length) break;
+      visited2.add(cells[0].k);
+      try { await goTo(g, c, cells[0].x, cells[0].y, 24); } catch (e) { console.log('search hop failed:', e.message); }
+      continue;
+    }
     const o = others[0], d = Math.hypot(o.x - g.self.x, o.y - g.self.y);
     if (d > 330) {
       const k = (d - 280) / d;   // stop ~280 u short of it
-      try { await goTo(g, c, g.self.x + (o.x - g.self.x) * k, g.self.y + (o.y - g.self.y) * k, 20); } catch (e) { console.log('approach failed:', e.message); }
-      await c.sleep(600);
+      try { await goTo(g, c, g.self.x + (o.x - g.self.x) * k, g.self.y + (o.y - g.self.y) * k, 20); } catch (e) { console.log('approach failed:', e.message); await c.sleep(800); }
+      await c.sleep(500);
     } else victim = o;
   }
-  if (!victim) throw new Error('no target actor found');
+  if (!victim) { process.exitCode = 3; throw new Error('retry: no target actor found'); }
   const row = T.find(t => t.id === victim.arch);
   log.victim = { ...victim, row: row && row.hull };
   console.log('victim', JSON.stringify(log.victim));
   // 3. fire a burst with the cursor on the torso (feet + body offset), following the target
-  const swings0 = Number((g.recon.at(-1) || { line: '' }).line.match(/swings=(\d+)/)?.[1] || 0), hits0 = Number((g.recon.at(-1) || { line: '' }).line.match(/hits=(\d+)/)?.[1] || 0);
+  const hits0 = Number((g.recon.at(-1) || { line: '' }).line.match(/hits=(\d+)/)?.[1] || 0);
   const burst = Number(c.opt('burst', 12));
-  let shots = 0, shotsFrames = 0;
+  let clicks = 0; const frames = [];
   for (let i = 0; i < burst; i++) {
     const hb = latestHb(g); const v = hb.actors.find(a => a.id === victim.id) || victim;
     const oy = row && row.hull.bodyOffset ? row.hull.bodyOffset[1] : 0;
     const [px, py] = g.css(v.x, v.y + oy);   // torso = the body box centre
-    await g.page.mouse.move(px, py); await c.sleep(120);
-    await g.page.mouse.down(); await g.page.mouse.up(); shots++;
-    // frames: screenshots right after the click, projectile in flight
-    for (let k = 0; k < 3; k++) { await g.shot(`aim-shot${String(i).padStart(2, '0')}-f${k}`); }
-    await c.sleep(450);
+    await g.page.mouse.move(px, py); await c.sleep(150);
+    const t0 = Date.now();
+    await g.page.mouse.click(px, py, { delay: 70 }); clicks++;
+    for (let k = 0; k < 7; k++) { const name = `aim-shot${String(i).padStart(2, '0')}-f${k}`; await g.shot(name); frames.push({ name, ms: Date.now() - t0 }); }
+    await c.sleep(300);
   }
   await c.sleep(1500);
   const lastRecon = (g.recon.at(-1) || { line: '' }).line;
-  const swings1 = Number(lastRecon.match(/swings=(\d+)/)?.[1] || 0), hits1 = Number(lastRecon.match(/hits=(\d+)/)?.[1] || 0);
-  // 4. geometry: for each [aim] line, the shots of that burst step must have a raised point within a few units of the cursor
+  const hits1 = Number(lastRecon.match(/hits=(\d+)/)?.[1] || 0);
+  // geometry from the client's own [aim] and [shot] lines: for every click, the raised track must pass within a few units of the cursor
   const aims = g.logs.filter(l => l.includes('[aim]')).map(l => { const m = l.match(/t=([\d.]+) from=([-\d.]+),([-\d.]+) cursor=([-\d.]+),([-\d.]+) chest=(\d+) angle=([-\d.]+)/); return m && { t: +m[1], fx: +m[2], fy: +m[3], cx: +m[4], cy: +m[5], chest: +m[6], angle: +m[7] }; }).filter(Boolean);
-  const shotsLog = g.logs.filter(l => l.includes('[shot]')).map(l => { const m = l.match(/t=([\d.]+)(.*)$/); return { t: +m[1], pts: m[2].trim().split(' ').filter(Boolean).map(s => s.split(',').map(Number)) }; });
+  const shotsLog = g.logs.filter(l => l.includes('[shot]')).map(l => { const m = l.match(/\[shot\] t=([\d.]+)(.*)$/); return m && { t: +m[1], pts: m[2].trim().split(' ').filter(Boolean).map(s => s.split(',').map(Number)) }; }).filter(Boolean);
   const rows = [];
   for (const a of aims) {
-    const frames = shotsLog.filter(s => s.t > a.t && s.t < a.t + 2500);
-    // follow one projectile: the sample nearest the origin in the first frame, then nearest to the previous point
-    let best = Infinity, bestRaised = null; let prev = null;
-    for (const f of frames) {
+    let best = Infinity, bestAt = null, first = null, n = 0;
+    for (const f of shotsLog) {
+      if (f.t < a.t || f.t > a.t + 2500) continue;
       for (const p of f.pts) {
-        // only points launched from this aim: ground point must lie on the ground line from `from` at the logged angle (distance < 6)
         const dx = p[0] - a.fx, dy = p[1] - a.fy, along = dx * Math.cos(a.angle) + dy * Math.sin(a.angle), perp = Math.abs(-dx * Math.sin(a.angle) + dy * Math.cos(a.angle));
-        if (along < 0 || perp > 8) continue;
-        const rx = p[0], ry = p[1] - p[2];
-        const d = Math.hypot(rx - a.cx, ry - a.cy);
-        if (d < best) { best = d; bestRaised = { x: rx, y: ry, h: p[2] }; }
+        if (along < 0 || perp > 6 || p[2] !== a.chest) continue;
+        n++; if (!first) first = { afterMs: +(f.t - a.t).toFixed(0), groundX: p[0], groundY: p[1], height: p[2], raisedY: p[1] - p[2] };
+        const d = Math.hypot(p[0] - a.cx, (p[1] - p[2]) - a.cy);
+        if (d < best) { best = d; bestAt = { x: p[0], raisedY: +(p[1] - p[2]).toFixed(1) }; }
       }
     }
-    rows.push({ cursor: [a.cx, a.cy], chest: a.chest, minRaisedDistanceToCursor: +best.toFixed(2), at: bestRaised });
+    rows.push({ from: [a.fx, a.fy], cursor: [a.cx, a.cy], chest: a.chest, trackSamples: n, firstSample: first, minRaisedDistanceToCursor: best === Infinity ? null : +best.toFixed(2), nearest: bestAt });
   }
-  log.rows = rows; log.swings = swings1 - swings0; log.hits = hits1 - hits0; log.clicks = shots;
-  console.log(JSON.stringify(log, null, 1));
+  log.clicks = clicks; log.aimLines = aims.length; log.launched = rows.filter(r => r.trackSamples > 0).length; log.hits = hits1 - hits0;
+  log.worstMinDistance = Math.max(...rows.filter(r => r.minRaisedDistanceToCursor !== null).map(r => r.minRaisedDistanceToCursor));
+  log.rows = rows; log.frames = frames;
+  console.log(JSON.stringify({ ...log, frames: undefined }, null, 1));
   c.fs.writeFileSync(c.path.join(c.out, `${c.tag}-aim.json`), JSON.stringify(log, null, 1));
 };
 
@@ -241,6 +252,7 @@ exports.looks = async (g, c) => {
   const done = new Set();
   const { execFileSync } = require('node:child_process');
   const grab = async (label, x, y, w = 140, h = 190) => {
+    await g.drain();   // newest per-frame positions
     const [px, py] = g.css(x, y);
     const clip = { x: Math.max(0, Math.round(px - w / 2)), y: Math.max(0, Math.round(py - h * 0.72)), width: w, height: h };
     if (clip.x + w > c.W || clip.y + h > c.H) return false;
@@ -249,20 +261,22 @@ exports.looks = async (g, c) => {
   // own look
   const me = g.self; await grab(`player-f${c.opt('faction', 0)}`, me.x, me.y); done.add('self');
   const deadline = Date.now() + Number(c.opt('seconds', 40)) * 1000;
-  let n = 0;
   while (Date.now() < deadline) {
     const hb = latestHb(g);
-    for (const a of hb.actors) {
-      if (a.arch === 0 || Math.hypot(a.x - g.self.x, a.y - g.self.y) < 30) continue;
-      const tag = `${a.kind === 0 ? 'player' : 'mob'}-${a.key}`;
-      if (done.has(tag)) continue;
-      const [px, py] = g.css(a.x, a.y);
-      if (px < 90 || px > c.W - 90 || py < 140 || py > c.H - 60) continue;
-      if (await grab(tag, a.x, a.y)) { done.add(tag); console.log('captured', tag, JSON.stringify(a)); }
+    // every distinct archetype key in view (other players and mobs), not the quest giver (it keeps the neutral silhouette)
+    const pending = hb.actors.filter(a => a.arch !== 0 && a.kind !== 4 && Math.hypot(a.x - g.self.x, a.y - g.self.y) > 30 && !done.has(`${a.kind === 0 ? 'player' : 'mob'}-${a.key}`))
+      .sort((a, b) => Math.hypot(a.x - g.self.x, a.y - g.self.y) - Math.hypot(b.x - g.self.x, b.y - g.self.y));
+    if (!pending.length) { const s = g.self, k = Date.now() % 7; await g.rightClickSim(s.x + 260 * Math.cos(k * 1.9), s.y + 190 * Math.sin(k * 1.9)); await c.sleep(2000); continue; }
+    const a0 = pending[0], tag = `${a0.kind === 0 ? 'player' : 'mob'}-${a0.key}`;
+    let live = g.actors.get(a0.id) || a0;
+    if (Math.hypot(live.x - g.self.x, live.y - g.self.y) > 300) {   // walk until it is on screen (mobs wait at their camps)
+      const d = Math.hypot(live.x - g.self.x, live.y - g.self.y), k = (d - 230) / d;
+      try { await goTo(g, c, g.self.x + (live.x - g.self.x) * k, g.self.y + (live.y - g.self.y) * k, 24); } catch (e) { done.add(tag); console.log('approach failed for', tag, e.message); continue; }
+      await c.sleep(500); await g.drain(); live = g.actors.get(a0.id) || live;
     }
-    // wander so new mobs enter view
-    const s = g.self; const k = n++;
-    await g.rightClickSim(s.x + 220 * Math.cos(k * 1.9), s.y + 170 * Math.sin(k * 1.9)); await c.sleep(1500);
+    const [px, py] = g.css(live.x, live.y);
+    if (px < 90 || px > c.W - 90 || py < 140 || py > c.H - 60) { done.add(tag); continue; }
+    if (await grab(tag, live.x, live.y)) { done.add(tag); console.log('captured', tag, JSON.stringify({ ...a0, x: live.x, y: live.y })); }
   }
   console.log('captured looks:', [...done].join(', '));
 };

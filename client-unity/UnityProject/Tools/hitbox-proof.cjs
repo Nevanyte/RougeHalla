@@ -84,8 +84,9 @@ class Game {
     return this.cal;
   }
   // The self mark carries the drawn position at that frame; calibration used the server position, which agrees at rest.
-  css(x, y) { const c = this.cal; return [c.ox + (x - c.sx) * c.kx, c.oy + (y - c.sy) * c.ky]; }
-  sim(px, py) { const c = this.cal; return [c.sx + (px - c.ox) / c.kx, c.sy + (py - c.oy) / c.ky]; }
+  // The camera follows the player, who stays at the calibrated screen point: map relative to the newest drawn self position.
+  css(x, y) { const c = this.cal, s = this.self || { x: c.sx, y: c.sy }; return [c.ox + (x - s.x) * c.kx, c.oy + (y - s.y) * c.ky]; }
+  sim(px, py) { const c = this.cal, s = this.self || { x: c.sx, y: c.sy }; return [s.x + (px - c.ox) / c.kx, s.y + (py - c.oy) / c.ky]; }
   async settle(ms = 900, timeout = 25000) {   // wait until the drawn position has not moved for `ms`
     const t0 = Date.now(); let last = null, since = Date.now();
     while (Date.now() - t0 < timeout) {
