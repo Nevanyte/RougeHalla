@@ -27,6 +27,14 @@ Complete private Strategy is independently admitted from `9bde4438` through inte
 
 Tactics source `54ff01a2` independently reproduces154 cases/720 methods and226 pinned entries. Modules source `faba1278` is independently reproduced/admitted at `63f6fda8` (255 cases/3259 operations,36 reaches,24 reader negatives and26 semantic kills). Full Brain source-only preparation is dispatched at `74e91370`; native tactics/modules/composition and fair live/headless binding remain separate required work. No hidden-state input or public activation is authorized by these private witnesses.
 
+The narrow earned regional NPC bleed restore repair `0be00f95` is independently released and integrated as `dedb8658`.
+It admits the real producer shape using retained player provenance and forward duration arithmetic, without inventing
+clock/tick equality, changing combat, or imposing a magnitude cap. Six author tests, relevant Card/status/checkpoint
+and PvE overlaps, strict default/all-feature lint and format pass at their recorded cut; Root's final composition check
+is recorded separately. The last constructed binary64 predicate example is not claimed as an installed-status witness.
+[Follow-up review](evidence/npc-bleed-restore-review/followup.md) preserves historical HOLDs and scope. The morning release
+is owner-authorized, but no final C-HOST/whole-port acceptance follows from component admissions.
+
 ### November9 protocol14 composition (supersedes older identity/status addenda)
 
 The subsequent [native29 admission](evidence/native29-admission/README.md) identifies14/29/23/21/15/content7c6a633f68c2cc72, with63 strict source cases,21 content checks, derived native tape/checker and public-digest tests at their exact cuts. Private rules/state identities change; the default wire14 is unchanged. SlowStarter/MarkTax/PackLeader/readonly WalkHint preserve Rust authority, tick order and source phase semantics. The proven cold NPC-report buffer reserve preserves empty/incomplete/fresh-identity reports, with matched original/Clone/restore step/events/hash and0/0/0 warm allocations. Hash coverage and earlier restore/lint receipts are not relabelled as rerun at the final cut. Current BakedContent comes from actual canonical /info.

@@ -2,6 +2,15 @@
 
 ## Outcome and authority
 
+**Root native preparation dispatch (2026-11-10):** start isolated `codex/deepseek-private-modules` from admitted backend
+`dedb8658` plus this dispatch record. DeepSeek may implement the new `temporal_percept/modules.rs`, `modules/**` and
+`docs/evidence/bot-private-modules-native/**`, add only `mod modules;` in `temporal_percept.rs`, and expose only existing
+`strategy.rs` `mod types;` as `pub(super) mod types;` (same independently allocated visibility as Tactics). Before any
+other existing engine edit, submit exact proposed planning/Wish/hazard bridge signatures and function-level hunks for
+Root review. Do not duplicate an entire compatible existing engine merely to avoid that review. Source `faba1278` and
+all255 histories/3259 operations remain frozen and required. No Tactics WIP is imported or edited; composition follows
+its separate admission. The worker may proceed on new-file source-derived work while the bridge proposal is reviewed.
+
 **Root source admission (2026-11-10):** immutable `faba1278` is integrated as `d48b79bf`, with independent final reproduction/review admitted at `63f6fda8`. Final source/coverage bytes,24 strict reader negatives,26 semantic kills and comment/restoration/manifest checks pass. See [final review](../../evidence/bot-private-modules-source-review/final-review.md). Native bridges remain separately undispatched; raw nonfinite Plan inputs remain outside this finite source profile.
 
 **Root source-only dispatch (2026-11-10):** Sol is assigned the three new source/tool/evidence directories below in clean `codex/bot-private-modules-source`, `/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-modules-source`, at exact `bd40fa2a274184b8748b005af78e18e74802f7ae`. This explicitly starts source preparation under the packet's immutable-source and independent-review rules. Native implementation, existing-engine bridge hunks and public activation remain undispatched. Root integrates the separately sealed candidate after review.
