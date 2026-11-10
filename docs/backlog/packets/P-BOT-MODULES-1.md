@@ -2,6 +2,8 @@
 
 ## Outcome and authority
 
+**Root source-only dispatch (2026-11-10):** Sol is assigned the three new source/tool/evidence directories below in clean `codex/bot-private-modules-source`, `/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-modules-source`, at exact `bd40fa2a274184b8748b005af78e18e74802f7ae`. This explicitly starts source preparation under the packet's immutable-source and independent-review rules. Native implementation, existing-engine bridge hunks and public activation remain undispatched. Root integrates the separately sealed candidate after review.
+
 **Draft architecture/delivery packet, not dispatch or authorization to capture/write Rust.** Root first reviews this
 packet, allocates exact source/native leases and clean bases, then separately approves execution. Sol/Luna own source
 preparation and independent review; DeepSeek authors all Rust/tests/probes. Source-only capture can later proceed
