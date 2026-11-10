@@ -130,6 +130,24 @@ namespace Roguehalla.Net.Tests
         }
 
         [Test]
+        public void JitteredVsyncCadenceStillStepsUp()
+        {
+            // 144 Hz with +-1 ms rAF timestamp jitter (mean 6.94 ms): the refresh estimate must stay near the real cadence so the
+            // frame-ratio test (< 1.10) can pass; with the raw minimum it sat at about 1.15 and the controller could never step up.
+            var c = new AdaptiveQualityController(ShowcaseQuality.High, ShowcaseQuality.Ultra);
+            int n = 0;
+            float[] jitter = { 6.0f, 7.9f, 6.3f, 7.6f, 6.9f, 7.0f, 6.1f, 7.8f };
+            float Next(int i) { return jitter[i % jitter.Length]; }
+            int k = 0; float t = 0;
+            while (t < 4.5f) { float f = Next(k++); t += f / 1000f; if (c.Update(f / 1000f, f, 3.4f)) n++; }   // cpu 3.4 ms = 0.49 of 6.94: probe picks High
+            Assert.That(c.Current, Is.EqualTo(ShowcaseQuality.High));
+            Assert.That(c.RefreshMs, Is.EqualTo(6.94f).Within(.4f), "the estimate follows the cadence, not the jitter floor");
+            t = 0;
+            while (t < 14f) { float f = Next(k++); t += f / 1000f; if (c.Update(f / 1000f, f, 2.0f)) n++; }   // headroom: cpu 2 ms = 0.29
+            Assert.That(c.Current, Is.EqualTo(ShowcaseQuality.Ultra), "steps up after the 8 s hold");
+        }
+
+        [Test]
         public void DeadZoneDoesNotOscillate()
         {
             int n = 0;

@@ -89,6 +89,9 @@ namespace Roguehalla.Client
             return q < 0 ? "" : url.Substring(q);
         }
 
+        /// <summary>Adaptive controller state as JSON, or null when a preset is pinned (perf recorder).</summary>
+        public string AdaptiveDebug { get { return _adaptive != null ? _adaptive.DebugState() : "null"; } }
+
         void Update()
         {
             if (_prefsDirty)

@@ -215,7 +215,7 @@ namespace Roguehalla.Client
         const float MaxSampleMs = 250f;               // hidden tab / debugger pauses are not load
 
         readonly ShowcaseQuality _max;
-        float _refreshFloor = MaxRefreshMs; // slow-rising minimum of the frame time: the display cadence
+        float _smoothFrame, _refreshFloor = MaxRefreshMs; // slow-rising minimum of the frame time: the display cadence
         float _clock, _probeFrame, _probeCpu, _emaFrame, _emaCpu, _hold, _settle, _banUntil, _lastUpgradeAt = -1000f;
         int _probeFrames, _probeCpuFrames;
         bool _emaValid;
@@ -230,6 +230,14 @@ namespace Roguehalla.Client
         public ShowcaseQuality Current { get { return _current; } }
         public bool Probing { get; private set; }
         public float RefreshMs { get { return EstimateRefreshMs(); } }
+        /// <summary>Controller state for the perf recorder (JSON): what it believes the refresh is and how loaded it thinks the frame is.</summary>
+        public string DebugState()
+        {
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            return "{\"current\":\"" + _current + "\",\"probing\":" + (Probing ? "true" : "false") + ",\"refreshMs\":" + EstimateRefreshMs().ToString("0.##", inv)
+                + ",\"emaFrame\":" + _emaFrame.ToString("0.###", inv) + ",\"emaCpu\":" + _emaCpu.ToString("0.###", inv) + ",\"holdS\":" + _hold.ToString("0.#", inv)
+                + ",\"settleS\":" + Math.Max(0f, _settle).ToString("0.#", inv) + ",\"banned\":" + (_clock < _banUntil ? "true" : "false") + "}";
+        }
 
         /// <summary>Feeds one frame. <paramref name="cpuMs"/> is main-thread CPU time or &lt;= 0 when unknown. Returns true when <see cref="Current"/> changed.</summary>
         public bool Update(float dtSeconds, float frameMs, float cpuMs)
@@ -238,7 +246,11 @@ namespace Roguehalla.Client
             _clock += dtSeconds;
             // Follow fast frames down quickly but drift up very slowly, so a machine that is merely slow does not look
             // like a slower display (a 128-frame window adapts within a second and would hide sustained overload).
-            _refreshFloor += (frameMs - _refreshFloor) * (frameMs < _refreshFloor ? .05f : .0004f);
+            // The floor follows a 16-frame average, not single frames: rAF timestamps jitter by about +-1 ms around a 6.94 ms cadence, and
+            // tracking the raw minimum put the floor near 6.0 ms, so a perfectly smooth 144 Hz looked like 1.15x the refresh and never
+            // satisfied the step-up test (measured in the browser, docs/rework/PERF_REPORT.md section 7).
+            _smoothFrame = _smoothFrame <= 0f ? frameMs : _smoothFrame + (frameMs - _smoothFrame) * .0625f;
+            _refreshFloor += (_smoothFrame - _refreshFloor) * (_smoothFrame < _refreshFloor ? .05f : .0004f);
             if (_clock < SkipSeconds) return false;
 
             if (Probing)
