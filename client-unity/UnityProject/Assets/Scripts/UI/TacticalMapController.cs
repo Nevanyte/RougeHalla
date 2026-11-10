@@ -55,60 +55,235 @@ namespace Roguehalla.Client
         public bool PointerBlocked => IsOpen || IsPeeking;
         public Vector2 PeekAt => _miniGesture.PeekPoint.HasValue ? new Vector2((float)_miniGesture.PeekPoint.Value.X, (float)_miniGesture.PeekPoint.Value.Y) : Vector2.zero;
 
+        RectTransform _stage, _titleRect, _frameRect, _legendRect, _keyRoot, _zoneLegend, _planBar, _questScroll, _contactScroll;
+        Image _planBarFill;
+        TMP_Text _hint, _timer, _questsText, _inViewHeading, _questHeading, _planHeading;
+        UnityEngine.UI.Button _close, _undo, _clear;
+        readonly RectTransform[] _chips = new RectTransform[MapZones.Count + 1];
+        readonly MinimapGesture _largeGesture = new MinimapGesture();
+        MapScreenLayout _layout;
+        Vector2 _layoutSize; MapScreenMode _layoutMode; float _layoutScale = -1f;
+        double _planTotalMs;
+        int _ownZone = -1;
+
+        static void Put(RectTransform rect, MapRect m) { HudUi.Place(rect, HudAnchor.TopLeft, m.X, m.Y, m.W, m.H); }
+
+        static Image GlyphImage(Transform parent, string name, MapGlyph glyph, Color color, float size, float x, float y)
+        {
+            float full = size * 64f / 52f;
+            var rect = HudUi.At(parent, name, x - (full - size) / 2f, y - (full - size) / 2f, full, full);
+            var image = rect.gameObject.AddComponent<Image>();
+            image.sprite = MapGlyphs.Sprite(glyph); image.color = color; image.preserveAspect = true; image.raycastTarget = false;
+            return image;
+        }
+
         public void Initialize(MatchClient client, Transform root, UiDisplayPreferences preferences = null, Transform hudStage = null)
         {
             _client = client;
             _prefs = preferences ?? new UiDisplayPreferences();
-            Color mapFill = ShowcasePalette.Panel; mapFill.a = 1;
-            _panel = MythicUi.Panel(root, "TacticalMap", new Vector2(.025f, .155f), new Vector2(.975f, .915f), mapFill);
-            _title = MythicUi.Text(_panel, "MapHeading", "TACTICAL MAP", new Vector2(.025f, .89f), new Vector2(.72f, .995f), 22, ShowcasePalette.Gold, heading: true);
-            MythicUi.Button(_panel, "CloseMap", "CLOSE", new Vector2(.87f, .91f), new Vector2(.985f, .985f), () => SetOpen(false));
-            var mapFrame = MythicUi.Panel(_panel, "MapFrame", new Vector2(.02f, .22f), new Vector2(.69f, .89f), ShowcasePalette.Background);
-            mapFrame.GetComponent<Image>().color = Color.clear;
-            var mapRect = MythicUi.Rect(mapFrame, "PublicMap", Vector2.zero, Vector2.one);
+            var theme = UiTheme.Current;
+            _stage = hudStage as RectTransform;
+            // The panel is a stage-sized, stage-scaled rect (legacy units), so every number below is in HUD units.
+            _panel = MythicUi.Rect(root, "TacticalMap", Vector2.zero, Vector2.one);
+            var scrim = HudUi.Fill(_panel, "Scrim", UiTheme.With(theme.OutlineDark, .5f), true);
+            scrim.rectTransform.offsetMin = new Vector2(-4000f, -4000f); scrim.rectTransform.offsetMax = new Vector2(4000f, 4000f);
+            _scrim = scrim;
+            _titleRect = HudUi.Box(_panel, "MapTitle", HudAnchor.TopLeft, 0, 0, 100, 30);
+            _title = HudUi.Label(_titleRect, "MapHeading", "TACTICAL MAP", 20f, theme.Accent, TextAlignmentOptions.MidlineLeft, false, UiFontRole.Display);
+            _hint = HudUi.Label(_titleRect, "MapHint", "", 11f, theme.TextSecondary, TextAlignmentOptions.MidlineRight);
+            ((RectTransform)_hint.transform).offsetMax = new Vector2(-92f, ((RectTransform)_hint.transform).offsetMax.y);
+            _timer = HudUi.Label(_titleRect, "PlanTimer", "", 26f, theme.Accent, TextAlignmentOptions.MidlineRight, false, UiFontRole.Display);
+            _close = HudUi.Button(_titleRect, "CloseMap", "Close · Tab", HudAnchor.TopRight, 0, 4, 84, 24, () => SetOpen(false), 11f);
+            _planBar = HudUi.Box(_titleRect, "PlanProgress", HudAnchor.BottomLeft, 0, 0, 100, 3);
+            HudUi.Fill(_planBar, "Track", UiTheme.With(theme.Border, .35f));
+            _planBarFill = HudUi.Fill(_planBar, "Fill", theme.AccentDim);
+
+            _frameRect = HudUi.Box(_panel, "MapFrame", HudAnchor.TopLeft, 0, 0, 100, 100);
+            HudUi.Surface(_frameRect, theme.SurfaceSunken, theme.CornerRadiusLarge, theme.Border, true, false);
+            var mapRect = HudUi.Inset(_frameRect, "PublicMap", MapScreenLayout.FramePad, MapScreenLayout.FramePad, MapScreenLayout.FramePad, MapScreenLayout.FramePad);
             _large = mapRect.gameObject.AddComponent<TacticalMapSurface>(); _large.Initialize();
-            _largeMarks = _large.GetComponentInChildren<TacticalMapMarks>(); _largeMarks.ShowDeliveredLabels = true;
-            _large.Pressed = (point, button) => { if (button == PointerEventData.InputButton.Left) AddRoutePoint(point); };
+            _largeMarks = _large.GetComponentInChildren<TacticalMapMarks>(); _largeMarks.Large = true;
+            _large.Pressed = LargePress; _large.Dragged = LargeDrag; _large.PointerReleased = LargeRelease; _large.Aborted = ReleaseLarge;
             for (byte i = 0; i < 2; i++)
             {
                 byte pick = i;
-                _spawnMarks[i] = MythicUi.Button(_large.transform, "SpawnMarker" + i, (i + 1).ToString(), Vector2.zero, Vector2.zero, () => PickSpawn(pick));
-                ((RectTransform)_spawnMarks[i].transform).sizeDelta = new Vector2(80, 64);
+                _spawnMarks[i] = HudUi.Button(_large.transform, "SpawnMarker" + i, (i + 1).ToString(), HudAnchor.Center, 0, 0, 52, 28, () => PickSpawn(pick), 12f);
                 _spawnMarks[i].gameObject.SetActive(false);
             }
-            _planningRail = MythicUi.Rect(_panel, "PlanningDecisions", new Vector2(.715f, .18f), new Vector2(.98f, .89f));
+
+            // Zone legend under the map (Tab): icon + name per zone, so zones read without colour.
+            _legendRect = HudUi.Box(_panel, "ZoneLegend", HudAnchor.TopLeft, 0, 0, 100, 30);
+            _zoneLegend = _legendRect;
+            for (int r = 1; r <= MapZones.Count; r++)
+            {
+                var chip = HudUi.Box(_legendRect, "Zone" + r, HudAnchor.TopLeft, 0, 0, 100, 26);
+                HudUi.Surface(chip, theme.SurfaceRaised, theme.CornerRadiusSmall, theme.Border, false, false);
+                GlyphImage(chip, "Icon", MapGlyphs.ForShape(MapZones.Shape(r)), theme.ZoneColor(r), 14f, 6f, 6f);
+                var name = HudUi.Label(chip, "Name", MapZones.Name(r), 11f, theme.TextPrimary, TextAlignmentOptions.MidlineLeft);
+                ((RectTransform)name.transform).offsetMin = new Vector2(26f, ((RectTransform)name.transform).offsetMin.y);
+                _chips[r] = chip;
+            }
+
+            _planningRail = HudUi.Box(_panel, "PlanningDecisions", HudAnchor.TopLeft, 0, 0, 340, 400);
+            HudUi.Surface(_planningRail, theme.Surface, theme.CornerRadiusLarge, theme.Border, true, true);
+            _ready = HudUi.Button(_planningRail, "Ready", "READY", HudAnchor.TopLeft, 12, 12, 316, 46, Ready, 14f);
+            _planHeading = HudUi.Label(_planningRail, "SpawnHeading", "CHOOSE YOUR SPAWN  ·  keys 1 / 2", 11f, theme.TextSecondary, TextAlignmentOptions.MidlineLeft);
             for (int i = 0; i < 2; i++)
             {
                 byte pick = (byte)i;
-                _spawns[i] = MythicUi.Button(_planningRail, "Spawn" + i, (i + 1) + " · SPAWN", new Vector2(0, .77f - i * .19f), new Vector2(1, .94f - i * .19f), () => PickSpawn(pick));
-                _boons[i] = MythicUi.Button(_planningRail, "Boon" + i, "BOON", new Vector2(0, .36f - i * .15f), new Vector2(1, .49f - i * .15f), () => PickBoon(pick));
+                _spawns[i] = HudUi.Button(_planningRail, "Spawn" + i, (i + 1) + " · SPAWN", HudAnchor.TopLeft, 12, 0, 316, 56, () => PickSpawn(pick), 13f);
+                _boons[i] = HudUi.Button(_planningRail, "Boon" + i, "BOON", HudAnchor.TopLeft, 12, 0, 316, 40, () => PickBoon(pick), 12f);
             }
-            _ready = MythicUi.Button(_planningRail, "Ready", "READY", Vector2.zero, new Vector2(1, .17f), Ready);
-            _runRail = MythicUi.Rect(_panel, "TacticalInformation", new Vector2(.715f, .18f), new Vector2(.98f, .89f));
-            _contactRail = MythicUi.Rect(_runRail, "ContactsPage", Vector2.zero, new Vector2(1, .86f));
-            _counterRail = MythicUi.Rect(_runRail, "WeaponsPage", Vector2.zero, new Vector2(1, .86f));
-            _contactsText = MythicUi.ScrollText(_contactRail, "DeliveredContacts", "", Vector2.zero, Vector2.one, 16);
-            MythicUi.Button(_runRail, "ContactsTab", "CONTACTS", new Vector2(0, .89f), new Vector2(.48f, 1), () => ShowRail(false));
-            MythicUi.Button(_runRail, "WeaponsTab", "WEAPONS", new Vector2(.52f, .89f), Vector2.one, () => ShowRail(true));
-            var wheelFrame = MythicUi.Rect(_counterRail, "Diagram", new Vector2(0, .23f), Vector2.one);
+            _routeText = HudUi.Label(_panel, "RouteSummary", "Click the map to add a route stop", 11f, theme.TextSecondary, TextAlignmentOptions.TopLeft, false, UiFontRole.Body, true);
+            _undo = HudUi.Button(_panel, "UndoRoute", "Undo stop", HudAnchor.TopLeft, 0, 0, 100, 26, () => { _route.Undo(); _routeStorageDirty = true; _nextPath = _nextPaint = 0; }, 11f);
+            _clear = HudUi.Button(_panel, "ClearRoute", "Clear route", HudAnchor.TopLeft, 0, 0, 100, 26, () => { _route.Clear(); _routeStorageDirty = true; _nextPath = _nextPaint = 0; }, 11f);
+            _status = HudUi.Label(_panel, "MapStatus", "", 12f, theme.TextSecondary, TextAlignmentOptions.TopLeft, false, UiFontRole.Body, true);
+
+            // Tab columns: left = map key + contacts in view, right = weapon guide + quests/traders.
+            _runRail = MythicUi.Rect(_panel, "TacticalInformation", Vector2.zero, Vector2.one);
+            _contactRail = HudUi.Box(_runRail, "ContactsPage", HudAnchor.TopLeft, 0, 0, 250, 500);
+            HudUi.Surface(_contactRail, theme.Surface, theme.CornerRadiusLarge, theme.Border, true, true);
+            HudUi.Label(_contactRail, "KeyHeading", "MAP KEY", 13f, theme.Accent, TextAlignmentOptions.TopLeft, false, UiFontRole.Display).rectTransform.offsetMin = new Vector2(12f, -20f);
+            ((RectTransform)_contactRail.Find("KeyHeading")).offsetMax = new Vector2(-12f, -10f);
+            BuildKey(theme);
+            _inViewHeading = HudUi.Label(_contactRail, "InViewHeading", "IN VIEW", 13f, theme.Accent, TextAlignmentOptions.TopLeft, false, UiFontRole.Display);
+            _contactsText = MythicUi.ScrollText(_contactRail, "DeliveredContacts", "", Vector2.zero, Vector2.one, 10);
+            _contactScroll = (RectTransform)_contactsText.transform.parent.parent;
+            _counterRail = HudUi.Box(_runRail, "WeaponsPage", HudAnchor.TopLeft, 0, 0, 250, 500);
+            HudUi.Surface(_counterRail, theme.Surface, theme.CornerRadiusLarge, theme.Border, true, true);
+            HudUi.Label(_counterRail, "WeaponHeading", "WEAPON COUNTERS", 13f, theme.Accent, TextAlignmentOptions.TopLeft, false, UiFontRole.Display).rectTransform.offsetMin = new Vector2(12f, -20f);
+            ((RectTransform)_counterRail.Find("WeaponHeading")).offsetMax = new Vector2(-12f, -10f);
+            var wheelFrame = HudUi.At(_counterRail, "Diagram", 10, 34, 230, 230);
             _counterGuide = new WeaponCounterGuide(wheelFrame, "fists");
+            _counterGuide.SetLayout(Vector2.zero, Vector2.one, Vector2.zero, Vector2.one);
             _counterGuide.LegendRoot.SetParent(_counterRail, false);
-            _counterGuide.SetLayout(Vector2.zero, Vector2.one, Vector2.zero, new Vector2(1, .22f));
-            _counterGuide.LegendRoot.GetComponentInChildren<TMP_Text>().text = "Arrows point to countered weapons. + advantage; ! threat.";
-            ShowRail(false);
-            _routeText = MythicUi.Text(_panel, "RouteSummary", "Click map to add a route stop", new Vector2(.025f, .085f), new Vector2(.69f, .21f), 15);
-            MythicUi.Button(_panel, "UndoRoute", "UNDO", new Vector2(.715f, .09f), new Vector2(.84f, .17f), () => { _route.Undo(); _routeStorageDirty = true; _nextPath = _nextPaint = 0; });
-            MythicUi.Button(_panel, "ClearRoute", "CLEAR", new Vector2(.855f, .09f), new Vector2(.98f, .17f), () => { _route.Clear(); _routeStorageDirty = true; _nextPath = _nextPaint = 0; });
-            _status = MythicUi.Text(_panel, "MapStatus", "", new Vector2(.025f, .005f), new Vector2(.98f, .075f), 17, ShowcasePalette.MutedText);
+            foreach (var node in _counterGuide.WheelRoot.GetComponentsInChildren<UnityEngine.UI.Button>(true))
+            {
+                ((RectTransform)node.transform).sizeDelta = new Vector2(68f, 26f);
+                foreach (var t in node.GetComponentsInChildren<TMP_Text>(true)) { t.enableAutoSizing = false; t.fontSize = 11f; }
+            }
+            var legendText = _counterGuide.LegendRoot.GetComponentInChildren<TMP_Text>();
+            legendText.text = "Arrows point to the weapon each one counters. + advantage, ! threat."; legendText.enableAutoSizing = false; legendText.fontSize = 10f;
+            _questHeading = HudUi.Label(_counterRail, "QuestHeading", "QUESTS & TRADERS", 13f, theme.Accent, TextAlignmentOptions.TopLeft, false, UiFontRole.Display);
+            _questsText = MythicUi.ScrollText(_counterRail, "QuestList", "", Vector2.zero, Vector2.one, 10);
+            _questScroll = (RectTransform)_questsText.transform.parent.parent;
+
             // Legacy minimap: a square 12/12 from the bottom-right corner, no button strip, frame ring is the border (drawn rect = hit rect).
-            var theme = UiTheme.Current;
             _miniRoot = HudUi.Box(hudStage ?? root, "Minimap", HudAnchor.BottomRight, 12f, 12f, 270f, 270f);
             HudUi.Surface(_miniRoot, theme.SurfaceSunken, theme.CornerRadius, theme.Border, false, true);
             var miniFrame = MythicUi.Rect(_miniRoot, "TerrainFrame", Vector2.zero, Vector2.one);
             _mini = miniFrame.gameObject.AddComponent<TacticalMapSurface>(); _mini.Initialize();
             _miniMarks = _mini.GetComponentInChildren<TacticalMapMarks>();
             _mini.Pressed = MinimapPress; _mini.Dragged = MinimapDrag; _mini.PointerReleased = MinimapRelease; _mini.Aborted = ReleaseMinimap;
+            _layoutScale = -1f;
+            SyncStage(); ApplyLayout(true);
             _panel.gameObject.SetActive(false); _miniRoot.gameObject.SetActive(false);
+        }
+        Image _scrim;
+
+        void BuildKey(UiTheme theme)
+        {
+            _keyRoot = HudUi.At(_contactRail, "Key", 0, 34, 250, 180);
+            float y = 0f;
+            Func<string, RectTransform> row = text =>
+            {
+                var r = HudUi.At(_keyRoot, "KeyRow", 0, y, 250, 19);
+                var l = HudUi.Label(r, "Text", text, 11f, theme.TextPrimary, TextAlignmentOptions.MidlineLeft);
+                ((RectTransform)l.transform).offsetMin = new Vector2(34f, ((RectTransform)l.transform).offsetMin.y);
+                y += 19f; return r;
+            };
+            var r0 = row("You"); GlyphImage(r0, "Icon", MapGlyph.Disc, theme.Info, 12f, 14f, 3f);
+            var r1 = row("Players");
+            for (int f = 0; f < 5; f++)
+            {
+                MapGlyph g = f == 0 ? MapGlyph.Triangle : f == 1 ? MapGlyph.Diamond : f == 2 ? MapGlyph.Trefoil : f == 3 ? MapGlyph.Asterisk : MapGlyph.Ring;
+                GlyphImage(r1, "Faction" + f, g, theme.Faction[f], 12f, 14f + f * 15f, 3f);
+            }
+            ((RectTransform)r1.Find("Text")).offsetMin = new Vector2(34f + 4f * 15f + 4f, ((RectTransform)r1.Find("Text")).offsetMin.y);
+            var r2 = row("Creatures"); GlyphImage(r2, "Icon", MapGlyph.Disc, theme.TextSecondary, 8f, 16f, 5f);
+            var r3 = row("Quest giver"); GlyphImage(r3, "Icon", MapGlyph.Diamond, theme.TextPrimary, 12f, 14f, 3f);
+            var r4 = row("Trader"); GlyphImage(r4, "Icon", MapGlyph.Ring, theme.TextPrimary, 12f, 14f, 3f);
+            var r5 = row("Quest objective"); GlyphImage(r5, "Icon", MapGlyph.Cross, theme.TextPrimary, 12f, 14f, 3f);
+            var r6 = row("Reward chest"); GlyphImage(r6, "Icon", MapGlyph.Plus, theme.Accent, 12f, 14f, 3f);
+            var r7 = row("Route stop"); GlyphImage(r7, "Icon", MapGlyph.Disc, theme.Accent, 8f, 16f, 5f);
+            var r8 = row("Walk target (right-click)"); GlyphImage(r8, "Icon", MapGlyph.Ring, theme.Success, 12f, 14f, 3f);
+        }
+
+        float TextScale() { var s = ShowcaseSettings.Current; return s != null ? Mathf.Clamp(s.TextScale, 1f, 1.5f) : 1f; }
+
+        /// <summary>Gives the panel the stage's size and scale, so its children use legacy HUD units.</summary>
+        void SyncStage()
+        {
+            if (_panel == null || _stage == null) return;
+            _panel.anchorMin = _panel.anchorMax = _panel.pivot = new Vector2(.5f, .5f);
+            _panel.anchoredPosition = Vector2.zero; _panel.sizeDelta = _stage.sizeDelta; _panel.localScale = _stage.localScale;
+        }
+
+        void ApplyLayout(bool force = false)
+        {
+            if (_panel == null) return;
+            SyncStage();
+            var size = _stage != null ? _stage.sizeDelta : _panel.rect.size;
+            if (size.x < 2f || size.y < 2f) size = new Vector2(1280f, 800f);
+            var mode = IsPlanning ? MapScreenMode.Planning : MapScreenMode.Tab; float ts = TextScale();
+            if (!force && size == _layoutSize && mode == _layoutMode && Mathf.Approximately(ts, _layoutScale)) return;
+            _layoutSize = size; _layoutMode = mode; _layoutScale = ts;
+            var L = _layout = MapScreenLayout.Compute(size.x, size.y, mode, ts);
+            bool tab = mode == MapScreenMode.Tab;
+            var theme = UiTheme.Current;
+            _scrim.color = UiTheme.With(theme.OutlineDark, tab ? .5f : .84f);
+            Put(_titleRect, L.Title); Put(_frameRect, L.Frame);
+            _close.gameObject.SetActive(tab); _timer.gameObject.SetActive(!tab); _planBar.gameObject.SetActive(!tab);
+            _planBar.sizeDelta = new Vector2(L.Title.W, 3f);
+            _hint.gameObject.SetActive(tab);
+            _zoneLegend.gameObject.SetActive(tab); _planningRail.gameObject.SetActive(!tab); _runRail.gameObject.SetActive(tab);
+            if (tab)
+            {
+                Put(_legendRect, L.Legend);
+                float gap = 4f, cw = (L.Legend.W - gap * (MapZones.Count - 1)) / MapZones.Count;
+                for (int r = 1; r <= MapZones.Count; r++) HudUi.Place(_chips[r], HudAnchor.TopLeft, (r - 1) * (cw + gap), 2f, cw, 26f);
+                Put((RectTransform)_contactRail, L.Left); Put((RectTransform)_counterRail, L.Right);
+                float lw = L.Left.W, lh = L.Left.H; bool compact = lh < 430f;
+                _keyRoot.gameObject.SetActive(!compact);
+                float viewY = compact ? 10f : 214f;
+                var vh = (RectTransform)_inViewHeading.transform; vh.anchorMin = vh.anchorMax = vh.pivot = new Vector2(.5f, 1f); vh.sizeDelta = new Vector2(lw - 24f, 20f); vh.anchoredPosition = new Vector2(0f, -viewY);
+                _contactScroll.anchorMin = Vector2.zero; _contactScroll.anchorMax = Vector2.one;
+                _contactScroll.offsetMin = new Vector2(8f, 112f); _contactScroll.offsetMax = new Vector2(-8f, -(viewY + 22f));
+                float rw = L.Right.W, rh = L.Right.H;
+                float sq = Mathf.Max(80f, Mathf.Min(rw - 20f, rh * .48f));
+                var diagram = (RectTransform)_counterGuide.WheelRoot.parent;
+                HudUi.Place(diagram, HudAnchor.TopLeft, (rw - sq) / 2f, 34f, sq, sq);
+                HudUi.Place(_counterGuide.LegendRoot, HudAnchor.TopLeft, 10f, 34f + sq + 2f, rw - 20f, 30f);
+                float qy = 34f + sq + 38f;
+                var qh = (RectTransform)_questHeading.transform; qh.anchorMin = qh.anchorMax = qh.pivot = new Vector2(.5f, 1f); qh.sizeDelta = new Vector2(rw - 24f, 20f); qh.anchoredPosition = new Vector2(0f, -qy);
+                _questScroll.anchorMin = Vector2.zero; _questScroll.anchorMax = Vector2.one;
+                _questScroll.offsetMin = new Vector2(8f, 10f); _questScroll.offsetMax = new Vector2(-8f, -(qy + 22f));
+                // Route controls sit at the foot of the left column.
+                Put((RectTransform)_routeText.transform, new MapRect(L.Left.X + 12f, L.Left.Bottom - 104f, lw - 24f, 44f));
+                float bw = (lw - 30f) / 2f;
+                HudUi.Place(_undo.GetComponent<RectTransform>(), HudAnchor.TopLeft, L.Left.X + 12f, L.Left.Bottom - 54f, bw, 28f);
+                HudUi.Place(_clear.GetComponent<RectTransform>(), HudAnchor.TopLeft, L.Left.X + 18f + bw, L.Left.Bottom - 54f, bw, 28f);
+                _status.gameObject.SetActive(false);
+            }
+            else
+            {
+                Put((RectTransform)_planningRail, L.Right);
+                float f = Mathf.Clamp(L.Right.H / 520f, .72f, 1f);
+                float y = 12f;
+                HudUi.Place(_ready.GetComponent<RectTransform>(), HudAnchor.TopLeft, 12f, y, 316f, 46f * f); y += 46f * f + 12f;
+                HudUi.Place(_planHeading.rectTransform, HudAnchor.TopLeft, 12f, y, 316f, 16f); y += 20f;
+                for (int i = 0; i < 2; i++) { HudUi.Place(_spawns[i].GetComponent<RectTransform>(), HudAnchor.TopLeft, 12f, y, 316f, 56f * f); y += 56f * f + 6f; }
+                y += 8f;
+                for (int i = 0; i < 2; i++) { HudUi.Place(_boons[i].GetComponent<RectTransform>(), HudAnchor.TopLeft, 12f, y, 316f, 40f * f); y += 40f * f + 6f; }
+                y += 10f;
+                float bw = 154f;
+                HudUi.Place(_undo.GetComponent<RectTransform>(), HudAnchor.TopLeft, L.Right.X + 12f, L.Right.Y + y, bw, 28f);
+                HudUi.Place(_clear.GetComponent<RectTransform>(), HudAnchor.TopLeft, L.Right.X + 12f + bw + 8f, L.Right.Y + y, bw, 28f);
+                y += 38f;
+                Put(_status.rectTransform, new MapRect(L.Right.X + 12f, L.Right.Y + y, 316f, Mathf.Max(30f, L.Right.H - y - 10f)));
+                _status.gameObject.SetActive(true);
+                Put((RectTransform)_routeText.transform, L.Legend);
+            }
         }
 
         public void Bind(Session session)
@@ -146,6 +321,7 @@ namespace Roguehalla.Client
             if (_miniRoot == null || viewport.UiWidth <= 0f) return;
             float size = HudLayout.MinimapSize(viewport.UiWidth, viewport.UiHeight, userScale);
             _miniRoot.sizeDelta = new Vector2(size, size);
+            ApplyLayout();
         }
         public RectTransform MinimapRoot => _miniRoot;
         public void SetMinimapSuppressed(bool suppressed)
@@ -166,6 +342,7 @@ namespace Roguehalla.Client
             if (open) _mapKeys.OpenMap(MapContext(false, false)); else _mapKeys.CloseMap();
             _mapOpen = _mapKeys.MapHeld;
             _panel.gameObject.SetActive(IsPlanning || _mapOpen);
+            ApplyLayout();
             RefreshMinimapVisibility();
             if (open) ReleaseMinimap();
         }
@@ -195,6 +372,7 @@ namespace Roguehalla.Client
             }
             _mapOpen = _mapKeys.MapHeld;
             _panel.gameObject.SetActive(IsPlanning || _mapOpen);
+            if (_panel.gameObject.activeSelf) ApplyLayout();
             RefreshMinimapVisibility();
         }
         public void Tick()
@@ -209,13 +387,14 @@ namespace Roguehalla.Client
             }
             if (_bound.State != SessionState.InMatch || _bound.LastResult != null) ReleaseTransient();
             _panel.gameObject.SetActive(_bound.LastResult == null && (IsPlanning || _mapOpen));
+            if (_panel.gameObject.activeSelf) ApplyLayout();
+            UpdateMinimapRing();
             RefreshMinimapVisibility();
             if (_factsDirty) _nextPaint = 0;
             if (Time.realtimeSinceStartupAsDouble < _nextPaint) return;
             _factsDirty = false;
             _nextPaint = Time.realtimeSinceStartupAsDouble + 1d / 30d;
             var plan = _bound.Collections.Plan;
-            _planningRail.gameObject.SetActive(plan != null); _runRail.gameObject.SetActive(plan == null);
             if (plan != null) PresentPlan(plan); else if (IsOpen) PresentTactics();
             if (plan == null) foreach (var marker in _spawnMarks) marker.gameObject.SetActive(false);
             var me = _bound.Me;
@@ -234,13 +413,23 @@ namespace Roguehalla.Client
             }
             SaveRoute();
             _large.Present(_bound, ShowRoute ? _routePoints : null); _mini.Present(_bound, ShowRoute ? _routePoints : null);
-            SubmitMiniMove(_miniGesture.Tick(Time.realtimeSinceStartupAsDouble * 1000));
+            TickGesture(_miniGesture);
+            TickGesture(_largeGesture);
+        }
+        void TickGesture(MinimapGesture gesture)
+        {
+            var point = gesture.Tick(Time.realtimeSinceStartupAsDouble * 1000);
+            if (point.HasValue && !SubmitMapMove(point, true)) gesture.Unsend();
         }
         void PresentPlan(PlanView plan)
         {
             bool connected = _bound.State == SessionState.InMatch;
             UpdateSelections();
-            _title.text = "PLAN YOUR RUN · " + Math.Max(0, Math.Ceiling((plan.EndsAt - _bound.ServerTimeMs) / 1000d)) + "s";
+            double remainingMs = Math.Max(0d, plan.EndsAt - _bound.ServerTimeMs);
+            if (remainingMs > _planTotalMs) _planTotalMs = remainingMs;
+            _title.text = "PLAN YOUR RUN";
+            _timer.text = Math.Ceiling(remainingMs / 1000d) + "s";
+            _planBarFill.rectTransform.anchorMax = new Vector2(_planTotalMs > 0d ? (float)Math.Min(1d, remainingMs / _planTotalMs) : 0f, 1f);
             for (byte i = 0; i < 2; i++)
             {
                 var option = i == 0 ? plan.Option0 : plan.Option1;
@@ -274,22 +463,52 @@ namespace Roguehalla.Client
         void PresentTactics()
         {
             _title.text = _bound.Phase == MatchPhase.Lobby ? "LOBBY MAP" : "TACTICAL MAP";
+            _hint.text = ToggleMode ? "Delivered terrain and contacts · Tab closes · right-click to walk" : "Delivered terrain and contacts · release Tab to return · right-click to walk";
+            RefreshOwnZone();
             if (_lastContactsSnapshot == _bound.SnapshotsReceived) return;
             _lastContactsSnapshot = _bound.SnapshotsReceived;
             _contacts.Clear(); _bound.Snapshots.Sample(_bound.Snapshots.NewestMs, _contacts);
-            var text = new StringBuilder("OBSERVED CONTACTS\n");
+            var text = new StringBuilder();
             int shown = 0;
+            var groups = new List<KeyValuePair<string, int>>();
             foreach (var actor in _contacts)
             {
                 if (actor.Id == _bound.PlayerId) continue;
-                shown++; text.Append(actor.Faction.HasValue ? ShowcasePalette.GetFactionName((int)actor.Faction.Value) : "Neutral").Append(" · ").Append(actor.Kind).Append("\n");
+                shown++;
+                string faction = actor.Faction.HasValue ? ShowcasePalette.GetFactionName((int)actor.Faction.Value) : "Neutral";
+                if (actor.Kind == ActorKind.Player) { text.Append(faction).Append(" · Player\n"); continue; }
+                string key = faction + " · " + actor.Kind;
+                int at = groups.FindIndex(g => g.Key == key);
+                if (at < 0) groups.Add(new KeyValuePair<string, int>(key, 1)); else groups[at] = new KeyValuePair<string, int>(key, groups[at].Value + 1);
             }
+            foreach (var g in groups) text.Append(g.Key).Append(" x").Append(g.Value).Append("\n");
             if (shown == 0) text.Append("No other contacts in view.");
-            _contactsText.text = text.ToString();
+            _contactsText.text = text.ToString().TrimEnd('\n');
             _counterGuide.SetWeapon(_bound.Me != null ? _bound.Me.Weapon.ToString() : "fists");
-            _status.text = "Delivered terrain/contacts · " + (ToggleMode ? "Tab closes" : "Release Tab to return") + " · routes never move you.";
+            var quests = new StringBuilder();
+            var qs = _bound.Collections.Quests;
+            if (qs != null && qs.Available) foreach (var row in qs.Rows) quests.Append(row.GiverLabel).Append(": ").Append(row.Name).Append("\n");
+            var trade = _bound.Collections.Trade;
+            if (trade != null && trade.Available) foreach (var m in trade.Merchants) quests.Append(m.Name).Append(" · trader\n");
+            if (quests.Length == 0) quests.Append("No quest givers or traders delivered.");
+            _questsText.text = quests.ToString().TrimEnd('\n');
         }
-        void ShowRail(bool weapons) { _contactRail.gameObject.SetActive(!weapons); _counterRail.gameObject.SetActive(weapons); }
+        /// <summary>The zone chip of the region under the player gets the gold frame.</summary>
+        void RefreshOwnZone()
+        {
+            int zone = 0;
+            var map = _bound.Map; var me = _bound.Me;
+            if (map != null && map.Regions != null && map.Regions.Length == map.W * map.H && me != null)
+            {
+                int tx = Mathf.FloorToInt(me.X / Tile), ty = Mathf.FloorToInt(me.Y / Tile);
+                if ((uint)tx < (uint)map.W && (uint)ty < (uint)map.H) zone = map.Regions[ty * map.W + tx];
+            }
+            if (zone == _ownZone) return;
+            _ownZone = zone;
+            var theme = UiTheme.Current;
+            for (int r = 1; r <= MapZones.Count; r++) HudUi.SetFrame(_chips[r], r == zone ? theme.BorderStrong : theme.Border);
+        }
+        void ShowRail(bool weapons) { }
         void OnDestroy() { UnsubscribeMapFacts(); _counterGuide?.Destroy(); }
         void UnsubscribeMapFacts()
         {
@@ -313,30 +532,36 @@ namespace Roguehalla.Client
         void AddRoutePoint(Vector2 point) { if (_bound?.Map == null) return; _route.ToggleUpcoming(new RoutePoint(point.x, point.y), _bound.Map, Tile); _routeStorageDirty = true; _nextPath = _nextPaint = 0; }
         void ReconcileMinimapButtons()
         {
-            if (!_miniGesture.IsPeeking && !_miniGesture.IsSteering) return;
+            Reconcile(_miniGesture, _mini);
+            Reconcile(_largeGesture, _large);
+        }
+        void Reconcile(MinimapGesture gesture, TacticalMapSurface surface)
+        {
+            if (!gesture.IsPeeking && !gesture.IsSteering) return;
             var mouse = Mouse.current;
             if (mouse == null) { ReleaseMinimap(); return; }
-            if (_miniGesture.IsPeeking && !mouse.leftButton.isPressed)
+            if (gesture.IsPeeking && !mouse.leftButton.isPressed)
             {
-                _miniGesture.Cancel(MinimapButton.Left); RestoreCamera();
+                gesture.Cancel(MinimapButton.Left); RestoreCamera();
             }
-            if (_miniGesture.IsSteering && !mouse.rightButton.isPressed)
+            if (gesture.IsSteering && !mouse.rightButton.isPressed)
             {
                 if (mouse.rightButton.wasReleasedThisFrame)
                 {
                     // Reconcile a missing UI pointer-up using this overlay canvas's current release position.
-                    if (_mini.ScreenWorld(mouse.position.ReadValue(), null, out var point))
-                        _miniGesture.Drag(MinimapButton.Right, new RoutePoint(point.x, point.y));
-                    SubmitMiniMove(_miniGesture.Release(MinimapButton.Right, Time.realtimeSinceStartupAsDouble * 1000));
+                    if (surface.ScreenWorld(mouse.position.ReadValue(), null, out var point))
+                        gesture.Drag(MinimapButton.Right, new RoutePoint(point.x, point.y));
+                    SubmitMapMove(gesture.Release(MinimapButton.Right, Time.realtimeSinceStartupAsDouble * 1000), false);
                 }
-                else _miniGesture.Cancel(MinimapButton.Right);
+                else gesture.Cancel(MinimapButton.Right);
             }
         }
         static MinimapButton MiniButton(PointerEventData.InputButton button) => button == PointerEventData.InputButton.Left ? MinimapButton.Left : MinimapButton.Right;
+        bool CanWalkFromMap => _bound != null && _bound.State == SessionState.InMatch && !IsPlanning && _bound.LastResult == null;
         void MinimapPress(Vector2 point, PointerEventData.InputButton button)
         {
-            if (_bound == null || _bound.State != SessionState.InMatch || IsPlanning || _bound.LastResult != null || button == PointerEventData.InputButton.Middle) return;
-            SubmitMiniMove(_miniGesture.Press(MiniButton(button), new RoutePoint(point.x, point.y), Time.realtimeSinceStartupAsDouble * 1000));
+            if (!CanWalkFromMap || button == PointerEventData.InputButton.Middle) return;
+            SubmitMapMove(_miniGesture.Press(MiniButton(button), new RoutePoint(point.x, point.y), Time.realtimeSinceStartupAsDouble * 1000), false);
         }
         void MinimapDrag(Vector2 point, PointerEventData.InputButton button)
         {
@@ -346,14 +571,46 @@ namespace Roguehalla.Client
         {
             if (button == PointerEventData.InputButton.Middle) return;
             _miniGesture.Drag(MiniButton(button), new RoutePoint(point.x, point.y));
-            SubmitMiniMove(_miniGesture.Release(MiniButton(button), Time.realtimeSinceStartupAsDouble * 1000));
+            SubmitMapMove(_miniGesture.Release(MiniButton(button), Time.realtimeSinceStartupAsDouble * 1000), false);
             if (!IsPeeking) RestoreCamera();
         }
-        void SubmitMiniMove(RoutePoint? point)
+        // The Tab map: left click plans a route stop (as before); right click or right drag walks there like a minimap right-click.
+        void LargePress(Vector2 point, PointerEventData.InputButton button)
         {
-            if (point.HasValue && _bound?.State == SessionState.InMatch) _bound.OrderMove((float)point.Value.X, (float)point.Value.Y);
+            if (button == PointerEventData.InputButton.Left) { AddRoutePoint(point); return; }
+            if (button != PointerEventData.InputButton.Right || !CanWalkFromMap) return;
+            SubmitMapMove(_largeGesture.Press(MinimapButton.Right, new RoutePoint(point.x, point.y), Time.realtimeSinceStartupAsDouble * 1000), false);
         }
-        public void ReleaseMinimap() { _miniGesture.Abort(); RestoreCamera(); }
+        void LargeDrag(Vector2 point, PointerEventData.InputButton button)
+        {
+            if (button == PointerEventData.InputButton.Right) _largeGesture.Drag(MinimapButton.Right, new RoutePoint(point.x, point.y));
+        }
+        void LargeRelease(Vector2 point, PointerEventData.InputButton button)
+        {
+            if (button != PointerEventData.InputButton.Right) return;
+            _largeGesture.Drag(MinimapButton.Right, new RoutePoint(point.x, point.y));
+            SubmitMapMove(_largeGesture.Release(MinimapButton.Right, Time.realtimeSinceStartupAsDouble * 1000), false);
+        }
+        /// <summary>
+        /// Sends a map destination as an ordinary move order through the match client: the world right-click's path (it spends the order
+        /// budget and cancels a pending Stop retry; a held repeat is dropped when over budget). The server resolves walkability and pathing.
+        /// </summary>
+        bool SubmitMapMove(RoutePoint? point, bool repeat)
+        {
+            if (!point.HasValue || _bound?.State != SessionState.InMatch) return false;
+            float x = (float)point.Value.X, y = (float)point.Value.Y;
+            bool sent = _client != null && ReferenceEquals(_client.Session, _bound) ? _client.OrderMapMove(x, y, repeat) : _bound.OrderMove(x, y) != 0;
+            if (sent && !repeat) { var at = new Vector2(x, y); _miniMarks.Ping(at); _largeMarks.Ping(at); }
+            return sent;
+        }
+        void UpdateMinimapRing()
+        {
+            if (_miniRoot == null) return;
+            var theme = UiTheme.Current;
+            HudUi.SetFrame(_miniRoot, _miniGesture.IsSteering ? theme.Success : _miniGesture.IsPeeking ? theme.OutlineLight : theme.Border);
+        }
+        void ReleaseLarge() { _largeGesture.Abort(); }
+        public void ReleaseMinimap() { _miniGesture.Abort(); _largeGesture.Abort(); RestoreCamera(); }
         void RestoreCamera()
         {
             var motion = _client != null ? _client.Session?.Motion : null;

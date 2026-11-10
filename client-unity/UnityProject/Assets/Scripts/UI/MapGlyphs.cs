@@ -72,7 +72,7 @@ namespace Roguehalla.Client
                         pixels[(oy + y) * AtlasSize + ox + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(Mathf.Clamp01(a) * 255f));
                     }
             }
-            texture.SetPixels32(pixels); texture.Apply(true, true);
+            texture.SetPixels32(pixels); texture.Apply(true, false);
             _atlas = texture;
         }
 

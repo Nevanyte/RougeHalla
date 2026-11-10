@@ -186,7 +186,7 @@ namespace Roguehalla.Client
                     pixels[outRow * tw + col] = new Color32((byte)Mathf.RoundToInt(c.r * 255f), (byte)Mathf.RoundToInt(c.g * 255f), (byte)Mathf.RoundToInt(c.b * 255f), 255);
                 }
             }
-            texture.SetPixels32(pixels); texture.Apply(true, true);
+            texture.SetPixels32(pixels); texture.Apply(true, false);
             entry.Texture = texture;
         }
     }

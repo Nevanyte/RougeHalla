@@ -615,7 +615,7 @@ namespace Roguehalla.Client.Tests
                     f.Press(shortcut, Key.C, Key.Digit1);
                     f.ReadBothAndFlush();
                     bool expectedPanel = shortcut == Key.J ? f.Hud.QuestJournal.IsVisible :
-                        f.Hud.transform.Find(shortcut == Key.B ? "MatchUI/BuildDrawer" : "MatchUI/ControlsHelp").gameObject.activeSelf;
+                        HudTestPaths.Find(f.Hud.transform, shortcut == Key.B ? "MatchUI/BuildDrawer" : "MatchUI/ControlsHelp").gameObject.activeSelf;
                     Assert.That(expectedPanel, Is.True, "the pressed panel shortcut still opens its intended surface");
                     Assert.That(f.Console.IsOpen, Is.False);
                     Assert.That(f.Console.ActionsAvailable, Is.False, "the higher surface revokes Training actions");
