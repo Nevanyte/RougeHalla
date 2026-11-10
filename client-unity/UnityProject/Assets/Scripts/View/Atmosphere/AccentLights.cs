@@ -77,6 +77,8 @@ namespace Roguehalla.Client
         const float FadeSeconds = .7f;
         /// <summary>Output gain of an accent light in the analytic field (the Light2D twin keeps the table intensity).</summary>
         public const float AnalyticGain = .62f;
+        /// <summary>How many of the nearest analytic lights cast wall shadows (measured: the lantern zone pays for every shadowing light per pixel).</summary>
+        public const int ShadowLights = 5;
         sealed class Slot { public ShowcasePointLight Light; public int Cluster = -1, Rank = 99; public float Alpha; public bool Wanted; public TerrainCluster C; public AccentLightSpec Spec; public float Phase; public Vector3 Pos; }
         readonly Slot[] _slots = new Slot[LocalLightField.Max];
         readonly int[] _pick = new int[LocalLightField.Max];
@@ -159,6 +161,7 @@ namespace Roguehalla.Client
                 if (analytic && s.Rank < AtmosphereQuality.EffectiveLocalLights)
                 {
                     Shape(s.C, out float h, out int cookie, out bool shadow);
+                    shadow &= s.Rank < ShadowLights;        // soft wall shadows are the costly part of a light (a sphere trace per pixel): only the nearest few cast them
                     float k = intensity * GainFor(s.C);
                     LocalLightField.Add(s.C.X, s.C.Y, h, radius, s.Spec.Color.r * k, s.Spec.Color.g * k, s.Spec.Color.b * k, cookie, shadow);
                 }

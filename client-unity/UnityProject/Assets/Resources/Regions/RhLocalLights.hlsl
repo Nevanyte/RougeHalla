@@ -33,13 +33,13 @@ float RhShadowVis(float2 p, float2 l, float k)
     if (RhWallDist(p) < 0.0) return 1.0;          // a wall top is the lit roof of its own block
     dir /= len;
     float tEnd = len - 0.7, t = 0.3, res = 1.0;
-    [loop] for (int s = 0; s < 14; s++)
+    [loop] for (int s = 0; s < 10; s++)
     {
         if (t >= tEnd) break;
         float d = RhWallDist(p + dir * t);
         res = min(res, k * d / t);
         if (res < 0.03) break;
-        t += clamp(d, 0.18, 1.2);
+        t += clamp(d, 0.24, 1.4);
     }
     return smoothstep(0.0, 1.0, saturate(res));
 }
